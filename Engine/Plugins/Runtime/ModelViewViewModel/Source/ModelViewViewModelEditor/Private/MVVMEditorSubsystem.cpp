@@ -682,6 +682,7 @@ TArray<UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(const U
 					// functions in the widget blueprint can do anything they want, other functions have to be static functions in a BlueprintFunctionLibrary
 					const UClass* FunctionClass = Function->GetOuterUClass();
 					if ((FunctionClass->ClassGeneratedBy == WidgetBlueprint) ||
+						(WidgetBlueprint->ParentClass && WidgetBlueprint->ParentClass->IsChildOf(FunctionClass) && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure)) ||
 						(FunctionClass->IsChildOf<UBlueprintFunctionLibrary>() && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure)))
 					{
 						if (IsValidConversionFunction(Function, Source, Destination))

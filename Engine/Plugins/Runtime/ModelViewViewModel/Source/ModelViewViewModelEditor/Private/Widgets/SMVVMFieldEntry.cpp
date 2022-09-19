@@ -14,27 +14,34 @@ namespace Private
 
 FText GetFieldDisplayName(const FMVVMConstFieldVariant& Field)
 {
-	if (Field.IsProperty())
+	if (!Field.IsEmpty())
 	{
-		return Field.GetProperty()->GetDisplayNameText();
-	}
-	if (Field.IsFunction())
-	{
-		return Field.GetFunction()->GetDisplayNameText();
+		if (Field.IsProperty())
+		{
+			return Field.GetProperty()->GetDisplayNameText();
+		}
+		if (Field.IsFunction())
+		{
+			return Field.GetFunction()->GetDisplayNameText();
+		}
 	}
 	return LOCTEXT("None", "<None>");
 }
 
 FText GetFieldToolTip(const FMVVMConstFieldVariant& Field)
 {
-	if (Field.IsFunction())
+	if (!Field.IsEmpty())
 	{
-		return Field.GetFunction()->GetToolTipText();
+		if (Field.IsFunction())
+		{
+			return Field.GetFunction()->GetToolTipText();
+		}
+		if (Field.IsProperty())
+		{
+			return FText::Join(FText::FromString(TEXT("\n")), Field.GetProperty()->GetToolTipText(), FText::FromString(Field.GetProperty()->GetCPPType()));
+		}
 	}
-	if (Field.IsProperty())
-	{
-		return FText::Join(FText::FromString(TEXT("\n")), Field.GetProperty()->GetToolTipText(), FText::FromString(Field.GetProperty()->GetCPPType()));
-	}
+
 	return FText::GetEmpty();
 }
 

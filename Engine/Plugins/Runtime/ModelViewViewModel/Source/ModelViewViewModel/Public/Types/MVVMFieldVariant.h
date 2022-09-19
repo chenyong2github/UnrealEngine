@@ -23,7 +23,17 @@ namespace UE::MVVM
 		friend TMVVMFieldVariant<!bConst>;
 		using FunctionType = std::conditional_t<bConst, const UFunction, UFunction>;
 		using PropertyType = std::conditional_t<bConst, const FProperty, FProperty>;
-		using VariantType = TVariant<FEmptyVariantState, PropertyType*, FunctionType*>;
+		union VariantType
+		{
+			FunctionType* Function = nullptr;
+			PropertyType* Property;
+		};
+		enum class EVariantType : uint8
+		{
+			Empty,
+			Function,
+			Property,
+		};
 
 	public:
 		TMVVMFieldVariant() = default;
@@ -32,98 +42,103 @@ namespace UE::MVVM
 		{
 			if (PropertyType* Property = InVariant.Get<PropertyType>())
 			{
-				Binding = VariantType(TInPlaceType<PropertyType*>(), Property);
+				Binding.Property = Property;
+				Type = EVariantType::Property;
 			}
 			else if (FunctionType* Function = InVariant.Get<FunctionType>())
 			{
-				Binding = VariantType(TInPlaceType<FunctionType*>(), Function);
+				Binding.Function = Function;
+				Type = EVariantType::Function;
 			}
 		}
 
 		explicit TMVVMFieldVariant(PropertyType* InValue)
 		{
-			Binding = VariantType(TInPlaceType<PropertyType*>(), InValue);
+			Binding.Property = InValue;
+			Type = EVariantType::Property;
 		}
 
 		explicit TMVVMFieldVariant(FunctionType* InValue)
 		{
-			Binding = VariantType(TInPlaceType<FunctionType*>(), InValue);
+			Binding.Function = InValue;
+			Type = EVariantType::Function;
 		}
 
 		UE_NODISCARD bool IsProperty() const
 		{
-			return Binding.template IsType<PropertyType*>();
+			return Type == EVariantType::Property;
 		}
 
 		UE_NODISCARD PropertyType* GetProperty() const
 		{
-			return Binding.template Get<PropertyType*>();
+			check(Type == EVariantType::Property);
+			return Binding.Property;
 		}
 
 		void SetProperty(PropertyType* InValue)
 		{
-			Binding.template Set<PropertyType*>(InValue);
+			Binding.Property = InValue;
+			Type = EVariantType::Property;
 		}
 
 		UE_NODISCARD bool IsFunction() const
 		{
-			return Binding.template IsType<FunctionType*>();
+			return Type == EVariantType::Function;
 		}
 
 		UE_NODISCARD FunctionType* GetFunction() const
 		{
-			return Binding.template Get<FunctionType*>();
+			check(Type == EVariantType::Function);
+			return Binding.Function;
 		}
 
 		void SetFunction(FunctionType* InValue)
 		{
-			Binding.template Set<FunctionType*>(InValue);
+			Binding.Function = InValue;
+			Type = EVariantType::Function;
 		}
 
 		UE_NODISCARD FName GetName() const
 		{
-			if (IsProperty())
+			if (Type == EVariantType::Property)
 			{
-				PropertyType* Property = GetProperty();
-				return Property ? Property->GetFName() : FName();
+				return Binding.Property ? Binding.Property->GetFName() : FName();
 			}
-			else if (IsFunction())
+			else if (Type == EVariantType::Function)
 			{
-				FunctionType* Function = GetFunction();
-				return Function ? Function->GetFName() : FName();
+				return Binding.Function ? Binding.Function->GetFName() : FName();
 			}
 			return FName();
 		}
 
 		UE_NODISCARD UStruct* GetOwner() const
 		{
-			if (IsProperty())
+			if (Type == EVariantType::Property)
 			{
-				PropertyType* Property = GetProperty();
-				return Property ? Property->GetOwnerStruct() : nullptr;
+				return Binding.Property ? Binding.Property->GetOwnerStruct() : nullptr;
 			}
-			else if (IsFunction())
+			else if (Type == EVariantType::Function)
 			{
-				FunctionType* Function = GetFunction();
-				return Function ? Function->GetOwnerClass() : nullptr;
+				return Binding.Function ? Binding.Function->GetOwnerClass() : nullptr;
 			}
 			return nullptr;
 		}
 
 		UE_NODISCARD bool IsEmpty() const
 		{
-			return Binding.template IsType<FEmptyVariantState>();
+			return Type == EVariantType::Empty || Binding.Function == nullptr;
 		}
 
 		void Reset()
 		{
-			Binding = VariantType();
+			Binding.Function = nullptr;
+			Type = EVariantType::Empty;
 		}
 
 		template<bool bOtherConst>
 		bool operator==(const TMVVMFieldVariant<bOtherConst>& B) const
 		{
-			if (Binding.GetIndex() != B.Binding.GetIndex())
+			if (Type != B.Type)
 			{
 				return false;
 			}
@@ -131,11 +146,7 @@ namespace UE::MVVM
 			{
 				return true;
 			}
-			if (IsProperty())
-			{
-				return GetProperty() == B.GetProperty();
-			}
-			return GetFunction() == B.GetFunction();
+			return Binding.Function == B.Binding.Function;
 		}
 
 		template<bool bOtherConst>
@@ -146,19 +157,19 @@ namespace UE::MVVM
 
 		friend int32 GetTypeHash(const TMVVMFieldVariant<bConst>& Variant)
 		{
-			if (Variant.IsProperty())
+			switch (Type)
 			{
-				return GetTypeHash(Variant.GetProperty());
-			}
-			if (Variant.IsFunction())
-			{
-				return GetTypeHash(Variant.GetFunction());
+				case EVariantType::Function:
+					return GetTypeHash(Binding.Function);
+				case EVariantType::Property:
+					return GetTypeHash(Binding.Property);
 			}
 			return 0;
 		}
 
 	private:
 		VariantType Binding;
+		EVariantType Type = EVariantType::Empty;
 	};
 
 	/** */

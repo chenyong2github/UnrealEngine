@@ -47,7 +47,7 @@ public:
 	//bool IsLibraryBindingEnabled(FGuid ViewModelId, FMVVMBindingName BindingName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	void SetViewModel(FName ViewModelName, UMVVMViewModelBase* ViewModel);
+	bool SetViewModel(FName ViewModelName, UMVVMViewModelBase* ViewModel);
 
 private:
 	void HandledLibraryBindingValueChanged(UObject* InViewModel, UE::FieldNotification::FFieldId InFieldId, int32 InCompiledBindingIndex) const;

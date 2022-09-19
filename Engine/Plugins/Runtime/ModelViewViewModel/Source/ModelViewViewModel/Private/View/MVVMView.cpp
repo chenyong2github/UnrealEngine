@@ -68,7 +68,7 @@ void UMVVMView::Destruct()
 }
 
 
-void UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
+bool UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 {
 	if (!ViewModelName.IsNone() && ClassExtension != nullptr)
 	{
@@ -77,7 +77,7 @@ void UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 		{
 			UE::MVVM::FMessageLog Log(GetUserWidget());
 			Log.Error(LOCTEXT("SetViewModelInvalidName", "Invalid viewmodel name for SetViewModel."));
-			return;
+			return false;
 		}
 
 		{
@@ -91,7 +91,7 @@ void UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 					{
 						UE::MVVM::FMessageLog Log(GetUserWidget());
 						Log.Error(LOCTEXT("SetViewModelInvalidValueType", "The new viewmodel is not of the expected type."));
-						return;
+						return false;
 					}
 					break;
 				}
@@ -101,7 +101,7 @@ void UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 			{
 				UE::MVVM::FMessageLog Log(GetUserWidget());
 				Log.Error(LOCTEXT("SetViewModelViewModelNameNotFound", "The viewmodel name could not be found."));
-				return;
+				return false;
 			}
 		}
 
@@ -156,7 +156,9 @@ void UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 				}
 			}
 		}
+		return true;
 	}
+	return false;
 }
 
 

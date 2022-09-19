@@ -23,6 +23,24 @@ FDelegateHandle UMVVMViewModelBase::AddFieldValueChangedDelegate(UE::FieldNotifi
 }
 
 
+void UMVVMViewModelBase::K2_AddFieldValueChangedDelegate(FFieldNotificationId InFieldId, FFieldValueChangedDynamicDelegate InDelegate)
+{
+	if (InFieldId.IsValid())
+	{
+		const UE::FieldNotification::FFieldId FieldId = GetFieldNotificationDescriptor().GetField(GetClass(), InFieldId.FieldName);
+		if (ensureMsgf(FieldId.IsValid(), TEXT("The field should be compiled correctly.")))
+		{
+			FDelegateHandle Result = Delegates.Add(this, FieldId, InDelegate);
+			if (Result.IsValid())
+			{
+				EnabledFieldNotifications.PadToNum(FieldId.GetIndex() + 1, false);
+				EnabledFieldNotifications[FieldId.GetIndex()] = true;
+			}
+		}
+	}
+}
+
+
 bool UMVVMViewModelBase::RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle)
 {
 	bool bResult = false;
@@ -33,6 +51,23 @@ bool UMVVMViewModelBase::RemoveFieldValueChangedDelegate(UE::FieldNotification::
 		EnabledFieldNotifications[InFieldId.GetIndex()] = RemoveResult.bHasOtherBoundDelegates;
 	}
 	return bResult;
+}
+
+
+void UMVVMViewModelBase::K2_RemoveFieldValueChangedDelegate(FFieldNotificationId InFieldId, FFieldValueChangedDynamicDelegate InDelegate)
+{
+	if (InFieldId.IsValid())
+	{
+		const UE::FieldNotification::FFieldId FieldId = GetFieldNotificationDescriptor().GetField(GetClass(), InFieldId.FieldName);
+		if (ensureMsgf(FieldId.IsValid(), TEXT("The field should be compiled correctly.")))
+		{
+			if (EnabledFieldNotifications.IsValidIndex(FieldId.GetIndex()) && EnabledFieldNotifications[FieldId.GetIndex()])
+			{
+				UE::FieldNotification::FFieldMulticastDelegate::FRemoveFromResult RemoveResult = Delegates.RemoveFrom(this, FieldId, InDelegate);
+				EnabledFieldNotifications[FieldId.GetIndex()] = RemoveResult.bHasOtherBoundDelegates;
+			}
+		}
+	}
 }
 
 
