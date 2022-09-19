@@ -13,7 +13,7 @@ struct FPlayMontageStateTreeTaskInstanceData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Context")
-	AActor* Actor = nullptr;
+	TObjectPtr<AActor> Actor = nullptr;
 	
 	UPROPERTY()
 	float ComputedDuration = 0.0f;
