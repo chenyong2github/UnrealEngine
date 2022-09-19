@@ -5,6 +5,8 @@
 #include "NNXRuntimeFormat.h"
 #include "NNXOperator.h"
 
+#include "HAL/FileManager.h"
+
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 

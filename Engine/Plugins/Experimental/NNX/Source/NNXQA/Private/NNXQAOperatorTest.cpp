@@ -10,6 +10,10 @@
 
 #include "HAL/ConsoleManager.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#endif
+
 namespace NNX 
 {
 namespace Test 
@@ -114,8 +118,6 @@ namespace Test
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-	#include "Misc/AutomationTest.h"
-
 	// Unary element wise operator category
 	IMPLEMENT_COMPLEX_AUTOMATION_TEST(FNNXOperatorTestElementWiseUnary, "System.Engine.MachineLearning.NNX.OperatorTest.UnaryElementWise",
 		EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::FeatureMask | EAutomationTestFlags::EngineFilter)
@@ -156,7 +158,7 @@ namespace Test
 	IMPLEMENT_COMPLEX_AUTOMATION_TEST(FNNXOperatorTestElementWiseVariadic, "System.Engine.MachineLearning.NNX.OperatorTest.VariadicElementWise",
 		EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::FeatureMask | EAutomationTestFlags::EngineFilter)
 
-		void FNNXOperatorTestElementWiseVariadic::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const
+	void FNNXOperatorTestElementWiseVariadic::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const
 	{
 		for (FTests::FTestSetup TestSetup : TestsOperatorElementWiseVariadic.TestSetups)
 		{

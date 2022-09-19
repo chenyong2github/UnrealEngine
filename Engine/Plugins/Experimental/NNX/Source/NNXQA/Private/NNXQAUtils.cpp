@@ -7,6 +7,8 @@
 #include "HAL/UnrealMemory.h"
 #include "Kismet/GameplayStatics.h"
 
+#include <functional>
+
 namespace NNX 
 {
 namespace Test 

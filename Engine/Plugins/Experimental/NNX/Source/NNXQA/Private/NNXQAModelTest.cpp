@@ -8,6 +8,10 @@
 #include "Misc/Paths.h"
 #include "HAL/ConsoleManager.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#endif
+
 namespace NNX 
 {
 namespace Test 
@@ -171,8 +175,6 @@ namespace Test
 
 
 #if WITH_DEV_AUTOMATION_TESTS
-
-	#include "Misc/AutomationTest.h"
 
 	IMPLEMENT_COMPLEX_AUTOMATION_TEST(FNNXModelTest, "System.Engine.MachineLearning.NNX.ModelTest",
 		EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::FeatureMask | EAutomationTestFlags::EngineFilter)
