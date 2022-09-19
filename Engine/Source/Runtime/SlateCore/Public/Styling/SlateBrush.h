@@ -207,7 +207,7 @@ namespace SlateBrushDefs
 }
 
 /**
- * An brush which contains information about how to draw a Slate element
+ * A brush which contains information about how to draw a Slate element
  */
 USTRUCT(BlueprintType) //, meta = (HasNativeMake = ""))
 struct SLATECORE_API FSlateBrush
