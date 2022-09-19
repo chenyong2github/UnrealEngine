@@ -880,6 +880,25 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			ViewStateInterface->RemoveLumenSceneData(this);
 		}
 
+		if(UseVirtualShadowMaps(SceneRenderer->ShaderPlatform, FeatureLevel))
+		{
+			// A separate VSM cache is added to the SceneCapture views. 
+			// This is needed to prevent the cache being invalidated on every frame.
+			// In a future iteration, it may be more efficient to share this cache with the main viewfamily.
+			if (ViewStateInterface)
+			{
+				ViewStateInterface->AddVirtualShadowMapCache(this);
+			}
+			else
+			{
+				GEngine->AddOnScreenDebugMessage((uint64)this, 10.0f, FColor::Yellow, TEXT("SceneCapture has no viewstate. This may affect Virtual Shadow Map caching performance. Consider enabling bAlwaysPersistRenderingState or bCaptureEveryFrame."));
+			}
+		}
+		else if (ViewStateInterface)
+		{
+			ViewStateInterface->RemoveVirtualShadowMapCache(this);
+		}
+
 		// Ensure that the views for this scene capture reflect any simulated camera motion for this frame
 		TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(CaptureComponent);
 
