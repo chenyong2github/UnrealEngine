@@ -39,15 +39,16 @@ namespace UnrealBuildTool.Rules
                 PublicDependencyModuleNames.Add("UnrealEd");
                 PublicDependencyModuleNames.Add("EditorFramework");
                 PublicDependencyModuleNames.Add("MessageLog");
-            }
+
+				PrivateDependencyModuleNames.Add("SkeletalMeshUtilitiesCommon");
+				PrivateDependencyModuleNames.Add("RHI");
+				PrivateDependencyModuleNames.Add("RenderCore");
+			}
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
 				{
-					"AnimationCore",
-					"SkeletalMeshUtilitiesCommon",
-					"RHI",
-					"RenderCore",
+					"AnimationCore"
 				}
             );
         }
