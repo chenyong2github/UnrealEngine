@@ -234,6 +234,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 					"\"Some String1\","
 					"10,"
 					"{"
+						"\"\":\"Empty Key\","
 						"\"Value\":\"Some String3\""
 					"},"
 					"["
@@ -267,6 +268,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedPtr< FJsonObject > Object = Array[2]->AsObject();
 		check(Object.IsValid());
 		check(Object->GetStringField(TEXT("Value")) == TEXT("Some String3"));
+		check(Object->GetStringField(TEXT("")) == TEXT("Empty Key"));
 
 		const TArray<TSharedPtr< FJsonValue >>& InnerArray = Array[3]->AsArray();
 		check(InnerArray.Num() == 2);
