@@ -3,11 +3,12 @@ Bink Audio Decoder/Encoder Build Instructions
 First, the necessary source files to pass to the compiler:
 
 Encoder
-    popmal.c
     binkace.c
+    popmal.c
+    varbits.c
     binka_ue_encode.cpp
     radfft.cpp
-    varbits.c
+    ranged_log.cpp
 
 Decoder
     binkacd.cpp

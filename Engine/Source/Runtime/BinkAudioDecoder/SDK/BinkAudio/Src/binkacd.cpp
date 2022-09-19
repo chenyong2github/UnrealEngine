@@ -452,7 +452,7 @@ RAD_USES_SSSE3 static RADINLINE void decode_pfxsum_8(float* results, const uint8
     }
 }
 
-static RADINLINE size_t decode_pfxsum(float* results, const uint8_t* buffer, size_t bitpos_vals, size_t bitpos_signs, size_t count, int bitlen)
+static RADINLINE size_t decode_pfxsum(float* results, const uint8_t* buffer, size_t bitpos_vals, size_t bitpos_signs, size_t end_bit_position, size_t count, int bitlen)
 {
     Vec128 last_prefix_sum;
     size_t i;
@@ -478,8 +478,28 @@ static RADINLINE size_t decode_pfxsum(float* results, const uint8_t* buffer, siz
 
         // Advance read cursors
         bitpos_vals += 8 * bitlen;
-        nsigns = (size_t)(unsigned int)_mm_extract_epi16(last_prefix_sum, 7);
+
+        //
+        // This extract doesn't actually need the &15, as the prefix sum can only ever be
+        // a max of 8, however we have crash reports in the wild of situations where bitpos_signs
+        // has gone stupid high and causing an AV. This happens after the initial run, and is _well_
+        // off in to another page, so the belief is that we're getting some CPU overclocking
+        // absurdity. This is confirmed because in the crash minidump we can see that the prefix
+        // sum is sane. Since we don't know where the issue is, we're adding the &15. This ends up
+        // replacing the mov ecx, ecx for sign extension in a 1:1 trade, so it's completely free.
+        //
+        // Then, to help sanitize, we test the bit positions against the end of the buffer and
+        // just bail since we're off the edge of the map anyway. This ends up getting caught by
+        // the bit position validation in read_channel_data_2 and zeroing the block.
+        //
+        nsigns = (size_t)(unsigned int)(_mm_extract_epi16(last_prefix_sum, 7) & 0xf);
         bitpos_signs += nsigns;
+
+        if (bitpos_signs > end_bit_position ||
+            bitpos_vals > end_bit_position)
+        {
+            return end_bit_position;
+        }
     }
 
     // this should almost never happen - only when a run passes the end of the transform size.
@@ -742,7 +762,7 @@ read_chan_data_corrupted:
         {
           if (validate_chunked_bit_read<Vec128>(bit_position, end_bit_position, coeff_bits_needed) == false)
             goto read_chan_data_corrupted;
-          bit_position = decode_pfxsum(samps + i, buffer, bit_position, sign_bit_position, end - i, bitlen);
+          bit_position = decode_pfxsum(samps + i, buffer, bit_position, sign_bit_position, end_bit_position, end - i, bitlen);
         }
         else
 #endif

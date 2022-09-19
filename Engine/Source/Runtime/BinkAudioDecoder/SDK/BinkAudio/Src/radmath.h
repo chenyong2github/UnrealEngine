@@ -10,69 +10,24 @@ RADDEFSTART
 #define mult64andshift( a, b, c )  ( (U32) ( ( ( (U64) a ) * ( (U64) b ) ) >> ( (U64) c ) ) )
 #define radabs abs
 
-#if defined( _MSC_VER )
+// We use the floating point version of everything and have casts around everything
+// to ensure we don't accidentally have an expression evaluate as double on one platform
+// and float on the other.
+//
+// This was due to previously using e.g. sqrt on one platform and sqrtf on another, but there's
+// no reason to _not_ have these casts.
+#define radatan2( val1, val2 )    ((float)atan2f  ( (float)val1, (float)val2) )
+#define radpow( val1, val2 )      ((float)powf    ( (float)val1, (float)val2) )
+#define radfsqrt( val )           ((float)sqrtf   ( (float)val) )
+#define radlog10( val )           ((float)log10f  ( (float)val) )
+#define radexp( val )             ((float)expf    ( (float)val) )
+#define radfabs( val )            ((float)fabsf   ( (float)val) )
+#define radfloor( val )           ((float)floorf  ( (float)val) )
 
-  #if defined(__RADX86__) 
-    #pragma intrinsic(abs, log, fabs, sqrt, fmod, sin, cos, tan, asin, acos, atan, atan2, exp)
-  #endif
+float ranged_log_0p05_to_0p5(float x);
 
-  #define radcos( val ) cos( (float)(val) )
-  #define radsin( val ) sin( (float)(val) )
-  #define radatan( val ) atan( (float)(val) )
-  #define radatan2( val1, val2 ) atan2( (float)(val1), (float)(val2) )
-  #define radpow( val1, val2 ) pow( (float)(val1), (float)(val2) )
-  #define radfsqrt( val ) sqrt( (float)(val) )
-  #define radlog( val ) log( (float)(val) )
-  #define radlog10( val ) log10( (float)(val) )
-  #define radexp( val ) exp( (float)(val) )
-  #define radfabs( val ) fabs( (float)(val) )
-  #define radfloor( val ) floor( (float)(val) )
-  #define radceil( val ) ceil( (float)(val) )
-
-  #if defined(__RAD64__) || (__RADARM__)
-  
-    #define LN2 0.693147181F
-
-    static F64 __inline radlog2( F64 X )
-    {
-      return( radlog( X ) / LN2 );
-    }
-
-  #else
-  
-    static F64 __inline radlog2( F64 X )
-    {
-      F64 Result;
-      __asm
-      {
-        fld1
-        fld X
-        fyl2x
-        fstp Result
-      }
-      return( Result );
-    }
-  
-  #endif
-
-#else
+#if !defined( _MSC_VER )
   #include <stdlib.h> // abs
-    
-  // generally no non-windows math stuff...
-    
-  //#define radcos( val ) cosf( val )
-  //#define radsin( val ) sinf( val )
-  //#define radatan( val ) atanf( val )
-  #define radatan2( val1, val2 ) atan2f( val1, val2 )
-  #define radpow( val1, val2 ) powf( val1, val2 )
-  #define radfsqrt( val ) sqrtf( val )
-  #define radlog( val ) log( val )
-  #define radlog10( val ) log10f( val )
-  #define radexp( val ) expf( val )
-  #define radfabs( val ) fabsf( val )
-  #define radfloor( val ) floorf( val )
-  //#define radceil( val ) ceilf( val )
-
 #endif
 
 RADDEFEND

@@ -364,9 +364,9 @@ static AUDIOFLOAT calctonality( U32 transform_size,
     if ( c > 0.5F )
       c = 0.5F;
     else if ( c < 0.05F)
-      c = 0.5F;
+      c = 0.05F;
 
-    c = (AUDIOFLOAT)( -0.43F * radlog( c ) ) - 0.29F;
+    c = (AUDIOFLOAT)( -0.43F * ranged_log_0p05_to_0p5( c ) ) - 0.29F;
 
     t += c * m;
     n += m;

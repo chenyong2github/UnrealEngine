@@ -38,7 +38,12 @@ CONSOLE_MAIN
     int BlockIndex = 0;
     for (; InputBuffer < InputBufferEnd; BlockIndex++)
     {
-        short OutputData[1920];
+        // bink audio requires all buffers be 16 byte aligned.
+#if defined(__clang__)
+        short __attribute__ ((aligned (16))) OutputData[1920];
+#else
+        short __declspec(align(16))  OutputData[1920];
+#endif
 
         U16 BlockSize = *(U16*)InputBuffer;
         InputBuffer += 2;
@@ -86,3 +91,4 @@ CONSOLE_MAIN
 
     return Failed ? 1 : 0;
 }
+
