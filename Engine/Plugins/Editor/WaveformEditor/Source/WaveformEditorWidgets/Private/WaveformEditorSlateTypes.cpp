@@ -9,9 +9,9 @@ namespace WaveformEditorStylesSharedParams
 {
 	const FLazyName BackgroundBrushName = TEXT("WhiteBrush");
 	const FLazyName HandleBrushName = TEXT("Sequencer.Timeline.VanillaScrubHandleDown");
-	const FLinearColor PlayheadColor = FLinearColor(255, 0.1, 0.2, 1.0);
-	const FLinearColor RulerTicksColor = FLinearColor(1.f, 1.f, 1.f, 0.9);
-	const FLinearColor WaveformBackGroundColor = FLinearColor(0.02, 0.02, 0.02, 1.f);
+	const FLinearColor PlayheadColor = FLinearColor(255.f, 0.1f, 0.2f, 1.f);
+	const FLinearColor RulerTicksColor = FLinearColor(1.f, 1.f, 1.f, 0.9f);
+	const FLinearColor WaveformBackGroundColor = FLinearColor(0.02f, 0.02f, 0.02f, 1.f);
 	const float ViewerHeight = 720.f;
 	const float ViewerWidth = 1280.f;
 }
@@ -21,7 +21,7 @@ const FName FWaveformViewerStyle::TypeName("FWaveformViewerStyle");
 FWaveformViewerStyle::FWaveformViewerStyle()
 	: WaveformColor(FLinearColor::White)
 	, MajorGridLineColor(FLinearColor::Black)
-	, MinorGridLineColor(FLinearColor(0.f, 0.f, 0.f, 0.5))
+	, MinorGridLineColor(FLinearColor(0.f, 0.f, 0.f, 0.5f))
 	, WaveformBackgroundColor(WaveformEditorStylesSharedParams::WaveformBackGroundColor)
 	, BackgroundBrush(*FAppStyle::GetBrush(WaveformEditorStylesSharedParams::BackgroundBrushName))
 	, DesiredWidth(WaveformEditorStylesSharedParams::ViewerWidth)

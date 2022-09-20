@@ -4,14 +4,14 @@
 
 UWaveformEditorWidgetsSettings::UWaveformEditorWidgetsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, PlayheadColor(FLinearColor(255, 0.1, 0.2, 1.0))
+	, PlayheadColor(FLinearColor(255.f, 0.1f, 0.2f, 1.f))
 	, WaveformColor(FLinearColor::White)
-	, WaveformBackgroundColor(FLinearColor(0.02, 0.02, 0.02, 1.f))
+	, WaveformBackgroundColor(FLinearColor(0.02f, 0.02f, 0.02f, 1.f))
 	, MajorGridColor(FLinearColor::Black)
-	, MinorGridColor(FLinearColor(0.f, 0.f, 0.f, 0.5))
+	, MinorGridColor(FLinearColor(0.f, 0.f, 0.f, 0.5f))
 	, RulerBackgroundColor(FLinearColor::Black)
-	, RulerTicksColor(FLinearColor(1.f, 1.f, 1.f, 0.9))
-	, RulerTextColor(FLinearColor(1.f, 1.f, 1.f, 0.9))
+	, RulerTicksColor(FLinearColor(1.f, 1.f, 1.f, 0.9f))
+	, RulerTextColor(FLinearColor(1.f, 1.f, 1.f, 0.9f))
 	, RulerFontSize(10.f)
 {
 }

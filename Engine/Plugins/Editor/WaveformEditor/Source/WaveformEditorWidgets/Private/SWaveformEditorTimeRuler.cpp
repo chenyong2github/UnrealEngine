@@ -20,15 +20,15 @@ void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<FW
 
 	Style = InArgs._Style;
 	
-	check(Style)
-	HandleColor = &Style->HandleColor;
+	check(Style);
+	HandleColor = Style->HandleColor;
 	HandleWidth = Style->HandleWidth;
-	HandleBrush = &Style->HandleBrush;
-	BackgroundColor = &Style->BackgroundColor;
-	BackgroundBrush = &Style->BackgroundBrush;
-	TicksColor = &Style->TicksColor;
-	TicksTextColor = &Style->TicksTextColor;
-	TicksTextFont = &Style->TicksTextFont;
+	HandleBrush = Style->HandleBrush;
+	BackgroundColor = Style->BackgroundColor;
+	BackgroundBrush = Style->BackgroundBrush;
+	TicksColor = Style->TicksColor;
+	TicksTextColor = Style->TicksTextColor;
+	TicksTextFont = Style->TicksTextFont;
 	DesiredWidth = Style->DesiredWidth;
 	DesiredHeight = Style->DesiredHeight;
 	TicksTextOffset = Style->TicksTextOffset;
@@ -45,9 +45,9 @@ int32 SWaveformEditorTimeRuler::OnPaint(const FPaintArgs& Args, const FGeometry&
 		OutDrawElements,
 		++LayerId,
 		AllottedGeometry.ToPaintGeometry(),
-		BackgroundBrush,
+		&BackgroundBrush,
 		ESlateDrawEffect::None,
-		BackgroundColor->GetSpecifiedColor());
+		BackgroundColor.GetSpecifiedColor());
 	
 	DrawRulerTicks(AllottedGeometry, OutDrawElements, LayerId);
 	DrawPlayheadHandle(AllottedGeometry, OutDrawElements, LayerId);
@@ -77,7 +77,7 @@ void SWaveformEditorTimeRuler::DrawRulerTicks(const FGeometry& AllottedGeometry,
 			AllottedGeometry.ToPaintGeometry(),
 			LinePoints,
 			ESlateDrawEffect::None,
-			TicksColor->GetSpecifiedColor(),
+			TicksColor.GetSpecifiedColor(),
 			false);
 
 
@@ -94,7 +94,7 @@ void SWaveformEditorTimeRuler::DrawRulerTicks(const FGeometry& AllottedGeometry,
 				AllottedGeometry.ToPaintGeometry(),
 				LinePoints,
 				ESlateDrawEffect::None,
-				TicksColor->GetSpecifiedColor(),
+				TicksColor.GetSpecifiedColor(),
 				false);
 
 		}
@@ -131,9 +131,9 @@ void SWaveformEditorTimeRuler::DrawTickTimeString(float TickTimeSeconds, const d
 		++LayerId,
 		AllottedGeometry.ToPaintGeometry(TextOffset, AllottedGeometry.Size),
 		TimeString,
-		*TicksTextFont,
+		TicksTextFont,
 		ESlateDrawEffect::None,
-		TicksTextColor->GetSpecifiedColor()
+		TicksTextColor.GetSpecifiedColor()
 	);
 }
 
@@ -212,6 +212,29 @@ void SWaveformEditorTimeRuler::UpdateDisplayUnit(const EWaveformEditorDisplayUni
 	DisplayUnit = InDisplayUnit;
 }
 
+void SWaveformEditorTimeRuler::OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle)
+{
+	check(UpdatedStyle);
+	check(Style);
+
+	if (UpdatedStyle != Style)
+	{
+		return;
+	}
+
+	HandleColor = Style->HandleColor;
+	HandleWidth = Style->HandleWidth;
+	HandleBrush = Style->HandleBrush;
+	BackgroundColor = Style->BackgroundColor;
+	BackgroundBrush = Style->BackgroundBrush;
+	TicksColor = Style->TicksColor;
+	TicksTextColor = Style->TicksTextColor;
+	TicksTextFont = Style->TicksTextFont;
+	DesiredWidth = Style->DesiredWidth;
+	DesiredHeight = Style->DesiredHeight;
+	TicksTextOffset = Style->TicksTextOffset;
+}
+
 void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	const float WindowWidth = AllottedGeometry.Size.X;
@@ -223,9 +246,9 @@ void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeome
 		OutDrawElements,
 		LayerId,
 		HandleGeometry,
-		HandleBrush,
+		&HandleBrush,
 		ESlateDrawEffect::None,
-		HandleColor->GetSpecifiedColor()
+		HandleColor.GetSpecifiedColor()
 	);
 
 	++LayerId;

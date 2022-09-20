@@ -17,15 +17,14 @@ void SWaveformViewer::Construct(const FArguments& InArgs, TSharedRef<FWaveformEd
 
 	Style = InArgs._Style;
 
-	check(Style)
-	WaveformColor = &Style->WaveformColor;
-	MajorGridLineColor = &Style->MajorGridLineColor;
-	MinorGridLineColor = &Style->MinorGridLineColor;
-	BackgroundColor = &Style->WaveformBackgroundColor;
-	BackgroundBrush = &Style->BackgroundBrush;
+	check(Style);
+	WaveformColor = Style->WaveformColor;
+	MajorGridLineColor = Style->MajorGridLineColor;
+	MinorGridLineColor = Style->MinorGridLineColor;
+	BackgroundColor = Style->WaveformBackgroundColor;
+	BackgroundBrush = Style->BackgroundBrush;
 	DesiredWidth = Style->DesiredWidth;
 	DesiredHeight = Style->DesiredHeight;
-
 }
 
 void SWaveformViewer::OnRenderDataUpdated()
@@ -51,9 +50,9 @@ int32 SWaveformViewer::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		OutDrawElements,
 		++LayerId,
 		AllottedGeometry.ToPaintGeometry(),
-		BackgroundBrush,
+		&BackgroundBrush,
 		ESlateDrawEffect::None, 
-		BackgroundColor->GetSpecifiedColor()
+		BackgroundColor.GetSpecifiedColor()
 	);
 
 	if (PixelWidth > 0)
@@ -74,7 +73,7 @@ int32 SWaveformViewer::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 				AllottedGeometry.ToPaintGeometry(),
 				WaveformPoints,
 				ESlateDrawEffect::None, 
-				WaveformColor->GetSpecifiedColor()
+				WaveformColor.GetSpecifiedColor()
 			);
 		}
 
@@ -176,7 +175,7 @@ void SWaveformViewer::DrawGridLines(const FGeometry& AllottedGeometry, FSlateWin
 			AllottedGeometry.ToPaintGeometry(),
 			LinePoints,
 			ESlateDrawEffect::None,
-			MajorGridLineColor->GetSpecifiedColor(),
+			MajorGridLineColor.GetSpecifiedColor(),
 			false);
 
 
@@ -193,7 +192,7 @@ void SWaveformViewer::DrawGridLines(const FGeometry& AllottedGeometry, FSlateWin
 				AllottedGeometry.ToPaintGeometry(),
 				LinePoints,
 				ESlateDrawEffect::None,
-				MinorGridLineColor->GetSpecifiedColor(),
+				MinorGridLineColor.GetSpecifiedColor(),
 				false);
 
 		}
@@ -203,4 +202,23 @@ void SWaveformViewer::DrawGridLines(const FGeometry& AllottedGeometry, FSlateWin
 void SWaveformViewer::UpdateGridMetrics(const FWaveEditorGridMetrics& InMetrics)
 {
 	GridMetrics = InMetrics;
+}
+
+void SWaveformViewer::OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle)
+{
+	check(UpdatedStyle);
+	check(Style);
+
+	if (UpdatedStyle != Style)
+	{
+		return;
+	}
+
+	WaveformColor = Style->WaveformColor;
+	MajorGridLineColor = Style->MajorGridLineColor;
+	MinorGridLineColor = Style->MinorGridLineColor;
+	BackgroundColor = Style->WaveformBackgroundColor;
+	BackgroundBrush = Style->BackgroundBrush;
+	DesiredWidth = Style->DesiredWidth;
+	DesiredHeight = Style->DesiredHeight;
 }

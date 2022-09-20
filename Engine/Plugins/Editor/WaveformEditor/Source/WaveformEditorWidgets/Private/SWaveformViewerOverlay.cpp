@@ -11,9 +11,9 @@ void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWav
 	TransformationsOverlay = InTransformationsOverlay;
 
 	Style = InArgs._Style;
-
-	check(Style)
-	PlayheadColor = &Style->PlayheadColor;
+	
+	check(Style);
+	PlayheadColor = Style->PlayheadColor;
 	PlayheadWidth = Style->PlayheadWidth;
 	DesiredWidth = Style->DesiredWidth;
 	DesiredHeight = Style->DesiredHeight;
@@ -55,6 +55,22 @@ FCursorReply SWaveformViewerOverlay::OnCursorQuery(const FGeometry& MyGeometry, 
 	return TransformationsOverlay->OnCursorQuery(MyGeometry, CursorEvent);
 }
 
+void SWaveformViewerOverlay::OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle)
+{
+	check(UpdatedStyle);
+	check(Style);
+
+	if (UpdatedStyle != Style)
+	{
+		return;
+	}
+
+	PlayheadColor = Style->PlayheadColor;
+	PlayheadWidth = Style->PlayheadWidth;
+	DesiredWidth = Style->DesiredWidth;
+	DesiredHeight = Style->DesiredHeight;
+}
+
 int32 SWaveformViewerOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	LayerId = DrawPlayhead(AllottedGeometry, OutDrawElements, LayerId);
@@ -79,7 +95,7 @@ int32 SWaveformViewerOverlay::DrawPlayhead(const FGeometry& AllottedGeometry, FS
 		AllottedGeometry.ToPaintGeometry(),
 		LinePoints,
 		ESlateDrawEffect::None,
-		PlayheadColor->GetSpecifiedColor(),
+		PlayheadColor.GetSpecifiedColor(),
 		true, 
 		PlayheadWidth
 	);

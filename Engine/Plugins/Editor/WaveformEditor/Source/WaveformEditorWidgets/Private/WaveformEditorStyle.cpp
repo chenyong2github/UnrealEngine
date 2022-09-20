@@ -24,9 +24,9 @@ FWaveformEditorStyle::~FWaveformEditorStyle()
 	FSlateStyleRegistry::UnRegisterSlateStyle(*this);
 }
 
-const FWaveformEditorStyle& FWaveformEditorStyle::Get()
+FWaveformEditorStyle& FWaveformEditorStyle::Get()
 {
-	check(StyleInstance)
+	check(StyleInstance);
 	return *StyleInstance;
 }
 
@@ -74,7 +74,7 @@ void FWaveformEditorStyle::Init()
 const UWaveformEditorWidgetsSettings* FWaveformEditorStyle::GetWidgetsSettings() 
 {
 	const UWaveformEditorWidgetsSettings* WaveformEditorWidgetsSettings = GetDefault<UWaveformEditorWidgetsSettings>();
-	check(WaveformEditorWidgetsSettings)
+	check(WaveformEditorWidgetsSettings);
 
 	return WaveformEditorWidgetsSettings;
 }
@@ -123,5 +123,3 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 		WaveformEditorTimeRulerStyle->SetFontSize(Settings->RulerFontSize);
 	}
 }
-
-

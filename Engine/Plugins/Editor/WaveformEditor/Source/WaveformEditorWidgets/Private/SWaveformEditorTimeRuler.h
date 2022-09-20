@@ -21,9 +21,6 @@ class SWaveformEditorTimeRuler : public SCompoundWidget
 	SLATE_BEGIN_ARGS(SWaveformEditorTimeRuler)
 		: _DisplayUnit(EWaveformEditorDisplayUnit::Seconds)
 	{
-		const ISlateStyle* WaveEditorStyle = FSlateStyleRegistry::FindSlateStyle("WaveformEditorStyle");
-		check(WaveEditorStyle)
-		_Style = &WaveEditorStyle->GetWidgetStyle<FWaveformEditorTimeRulerStyle>("WaveformEditorRuler.Style");
 	}
 
 	SLATE_ARGUMENT(EWaveformEditorDisplayUnit, DisplayUnit)
@@ -36,6 +33,8 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorRenderData> InRenderData);
 	void UpdateGridMetrics(const FWaveEditorGridMetrics& InMetrics);
 	void UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit);
+
+	void OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle);
 
 	/** Delegate sent when the user selects a new display unit from the RMB menu*/
 	FOnTimeUnitMenuSelection OnTimeUnitMenuSelection;
@@ -60,17 +59,17 @@ private:
 
 	const FWaveformEditorTimeRulerStyle* Style = nullptr;
 
-	const FSlateColor* BackgroundColor = nullptr;
-	const FSlateBrush* BackgroundBrush = nullptr;
-	const FSlateBrush* HandleBrush = nullptr;
-	const FSlateColor* HandleColor = nullptr;
-	const FSlateColor* TicksColor = nullptr;
-	const FSlateColor* TicksTextColor = nullptr;
+	FSlateColor BackgroundColor = FLinearColor::Black;
+	FSlateBrush BackgroundBrush;
+	FSlateBrush HandleBrush;
+	FSlateColor HandleColor = FLinearColor(255.f, 0.1f, 0.2f, 1.f);
+	FSlateColor TicksColor = FLinearColor(1.f, 1.f, 1.f, 0.9f);
+	FSlateColor TicksTextColor = FLinearColor(1.f, 1.f, 1.f, 0.9f);
 	float DesiredHeight = 0.f;
 	float DesiredWidth = 0.f;
-	float HandleWidth = 0.f;
+	float HandleWidth = 15.f;
 	float TicksTextOffset = 5.f;
-	const FSlateFontInfo* TicksTextFont;
+	FSlateFontInfo TicksTextFont;
 
 	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
 	TSharedPtr<FWaveformEditorRenderData> RenderData = nullptr;

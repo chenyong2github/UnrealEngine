@@ -24,9 +24,6 @@ public:
 
 	SLATE_BEGIN_ARGS(SWaveformViewer) 
 	{
-		const ISlateStyle* WaveEditorStyle = FSlateStyleRegistry::FindSlateStyle("WaveformEditorStyle");
-		check(WaveEditorStyle)
-		_Style = &WaveEditorStyle->GetWidgetStyle<FWaveformViewerStyle>("WaveformViewer.Style");
 	}
 
 	SLATE_STYLE_ARGUMENT(FWaveformViewerStyle, Style)
@@ -39,6 +36,7 @@ public:
 	void OnDisplayRangeUpdated(const TRange<float> NewDisplayRange);
 	void UpdateGridMetrics(const FWaveEditorGridMetrics& InMetrics);
 
+	void OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle);
 private:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
@@ -54,11 +52,12 @@ private:
 	FWaveEditorGridMetrics GridMetrics;
 
 	const FWaveformViewerStyle* Style = nullptr;
-	const FSlateBrush* BackgroundBrush = nullptr;
-	const FSlateColor* BackgroundColor = nullptr;
-	const FSlateColor* WaveformColor = nullptr;
-	const FSlateColor* MajorGridLineColor = nullptr;
-	const FSlateColor* MinorGridLineColor = nullptr;
+	FSlateBrush BackgroundBrush;
+	FSlateColor BackgroundColor = FLinearColor(0.02f, 0.02f, 0.02f, 1.f);
+	FSlateColor WaveformColor = FLinearColor::White;
+	FSlateColor MajorGridLineColor = FLinearColor::Black;
+	FSlateColor MinorGridLineColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
+	FSlateColor ZeroCrossingLineColor = FLinearColor::Black;
 	float DesiredHeight = 0.f;
 	float DesiredWidth = 0.f;
 

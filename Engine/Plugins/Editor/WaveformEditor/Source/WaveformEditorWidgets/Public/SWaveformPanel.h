@@ -5,15 +5,16 @@
 #include "HAL/Platform.h"
 #include "Widgets/SCompoundWidget.h"
 
-enum class EWaveformEditorDisplayUnit;
 class FWaveformEditorGridData;
 class FWaveformEditorRenderData;
+class FWaveformEditorStyle;
 class FWaveformEditorTransportCoordinator;
 class FWaveformEditorZoomController;
 class SWaveformEditorTimeRuler;
 class SWaveformTransformationsOverlay;
 class SWaveformViewer;
 class SWaveformViewerOverlay;
+enum class EWaveformEditorDisplayUnit;
 
 class WAVEFORMEDITORWIDGETS_API SWaveformPanel : public SCompoundWidget
 {
@@ -45,4 +46,6 @@ private:
 	float CachedPixelWidth = 0.f;
 
 	EWaveformEditorDisplayUnit DisplayUnit;
+
+	FWaveformEditorStyle* WaveformEditorStyle;
 };

@@ -16,10 +16,6 @@ class SWaveformViewerOverlay : public SLeafWidget
 public:
 	SLATE_BEGIN_ARGS(SWaveformViewerOverlay)
 	{
-		const ISlateStyle* WaveEditorStyle = FSlateStyleRegistry::FindSlateStyle("WaveformEditorStyle");
-		check(WaveEditorStyle)
-		_Style = &WaveEditorStyle->GetWidgetStyle<FWaveformViewerOverlayStyle>("WaveformViewerOverlay.Style");
-
 	}
 
 	SLATE_STYLE_ARGUMENT(FWaveformViewerOverlayStyle, Style)
@@ -32,6 +28,8 @@ public:
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
+
+	void OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle);
 
 	FOnNewMouseDelta OnNewMouseDelta;
 
@@ -46,8 +44,8 @@ private:
 
 	const FWaveformViewerOverlayStyle* Style = nullptr;
 
-	const FSlateColor* PlayheadColor = nullptr;
-	float PlayheadWidth = 0.f;
+	FSlateColor PlayheadColor = FLinearColor(255.f, 0.1f, 0.2f, 1.f);
+	float PlayheadWidth = 1.0;
 	float DesiredWidth = 0.f;
 	float DesiredHeight = 0.f;
 };
