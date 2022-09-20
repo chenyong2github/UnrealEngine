@@ -73,6 +73,7 @@ public:
 
 	// FBlueprintEditor interface
 	virtual UBlueprint* GetBlueprintObj() const override;
+	virtual TSubclassOf<UEdGraphSchema> GetDefaultSchemaClass() const override;
 
 	int32 GetRigHierarchyTabCount() const { return RigHierarchyTabCount; }
 

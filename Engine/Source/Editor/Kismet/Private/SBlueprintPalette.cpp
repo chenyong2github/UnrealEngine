@@ -823,6 +823,10 @@ private:
 			{
 				Schema = BlueprintEditorPtr.Pin()->GetFocusedGraph()->GetSchema();
 			}
+			else
+			{
+				Schema = BlueprintEditorPtr.Pin()->GetDefaultSchema().GetDefaultObject();
+			}
 		}
 		
 		const bool bIsDelegate = ActionPtr.IsValid() && ActionPtr.Pin()->GetTypeId() == FEdGraphSchemaAction_K2Delegate::StaticGetTypeId();

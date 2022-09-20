@@ -1421,6 +1421,11 @@ UBlueprint* FControlRigEditor::GetBlueprintObj() const
 	return nullptr;
 }
 
+TSubclassOf<UEdGraphSchema> FControlRigEditor::GetDefaultSchemaClass() const
+{
+	return UControlRigGraphSchema::StaticClass();
+}
+
 class FMemoryTypeMetaData : public ISlateMetaData
 {
 public:
