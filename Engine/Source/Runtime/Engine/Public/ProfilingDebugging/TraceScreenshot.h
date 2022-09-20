@@ -10,7 +10,16 @@ class ULevel;
 class ENGINE_API FTraceScreenshot
 {
 public:
-	static void RequestScreenshot(FString Name, bool bShowUI);
+
+// In no logging configurations all log categories are of type FNoLoggingCategory, which has no relation with
+// FLogCategoryBase. In order to not need to conditionally set the argument alias the type here.
+#if NO_LOGGING
+	typedef FNoLoggingCategory FLogCategoryAlias;
+#else
+	typedef FLogCategoryBase FLogCategoryAlias;
+#endif
+
+	static void RequestScreenshot(FString Name, bool bShowUI, const FLogCategoryAlias& LogCategory = LogCore);
 
 	/* 
 	* Add the provided screenshot to the trace.
@@ -31,6 +40,7 @@ public:
 	* Reset the internal state of the TraceScreenshot system.
 	*/
 	static void Reset();
+
 private:
 	FTraceScreenshot();
 	FTraceScreenshot(const FTraceScreenshot& Other) {}

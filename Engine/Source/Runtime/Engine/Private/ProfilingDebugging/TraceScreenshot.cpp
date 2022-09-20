@@ -30,7 +30,7 @@ static void TraceScreenshotCommandCallback(const TArray<FString>& Args)
 		bShowUI = FCString::ToBool(*Args[1]);
 	}
 
-	FTraceScreenshot::RequestScreenshot(Name, bShowUI);
+	FTraceScreenshot::RequestScreenshot(Name, bShowUI, LogConsoleResponse);
 }
 
 static FAutoConsoleCommand TraceScreenshotCmd(
@@ -41,11 +41,11 @@ static FAutoConsoleCommand TraceScreenshotCmd(
 
 bool FTraceScreenshot::bSuppressWritingToFile = false;
 
-void FTraceScreenshot::RequestScreenshot(FString Name, bool bShowUI)
+void FTraceScreenshot::RequestScreenshot(FString Name, bool bShowUI, const FLogCategoryAlias& LogCategory)
 {
 	if (!SHOULD_TRACE_SCREENSHOT())
 	{
-		UE_LOG(LogCore, Error, TEXT("Could not trace screenshot because the screenshot trace channel is off. Turn it on using \"Trace.Enable Screenshot\"."));
+		UE_LOG_REF(LogCategory, Error, TEXT("Could not trace screenshot because the screenshot trace channel is off. Turn it on using \"Trace.Enable Screenshot\"."));
 		return;
 	}
 
