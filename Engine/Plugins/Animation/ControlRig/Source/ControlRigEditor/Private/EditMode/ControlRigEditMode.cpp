@@ -3817,12 +3817,13 @@ void FControlRigEditMode::SetControlShapeTransform(
 		return false;
 	});
 
+	// set the global space
+	// assumes it's attached to actor
+	ControlRig->SetControlGlobalTransform(
+		InShapeActor->ControlName, InGlobalTransform, bNotify, InContext, bUndo, bPrintPython, bFixEuler);
+
 	if (!Constraints.IsValidIndex(LastActiveIndex))
 	{
-		// set the global space
-		// assumes it's attached to actor
-		ControlRig->SetControlGlobalTransform(
-			InShapeActor->ControlName, InGlobalTransform, bNotify, InContext, bUndo, bPrintPython, bFixEuler);
 		return;
 	}
 	
