@@ -447,9 +447,11 @@ void FGeometryCollectionSceneProxy::BuildGeometry( const FGeometryCollectionCons
 			FDynamicMeshVertex(
 				ConstantDataIn->Vertices[PointIdx],
 				ConstantDataIn->UVs[PointIdx][0],
-				bShowBoneColors||bEnableBoneSelection ?
-				ConstantDataIn->BoneColors[PointIdx].ToFColor(true) :
-				ConstantDataIn->Colors[PointIdx].ToFColor(true)
+				(bShowBoneColors||bEnableBoneSelection) 
+					? bShowBoneColors 
+						? ConstantDataIn->BoneColors[PointIdx].ToFColor(true)
+						: (ConstantDataIn->BoneColors[PointIdx] * ConstantDataIn->Colors[PointIdx]).ToFColor(true)
+					: ConstantDataIn->Colors[PointIdx].ToFColor(true)
 			);
 		OutVertices[PointIdx].SetTangents(ConstantDataIn->TangentU[PointIdx], ConstantDataIn->TangentV[PointIdx], ConstantDataIn->Normals[PointIdx]);
 

@@ -1248,9 +1248,8 @@ void FFractureEditorModeToolkit::ToggleShowBoneColors()
 
 	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
 	{
-		Comp->SetShowBoneColors(!Comp->GetShowBoneColors());
-		Comp->MarkRenderStateDirty();
-		Comp->MarkRenderDynamicDataDirty();
+		FScopedColorEdit EditBoneColor(Comp, true /*bForceUpdate*/); // the property has already changed; this will trigger the color update + render state updates
+		EditBoneColor.SetShowBoneColors(!EditBoneColor.GetShowBoneColors());
 	}
 }
 

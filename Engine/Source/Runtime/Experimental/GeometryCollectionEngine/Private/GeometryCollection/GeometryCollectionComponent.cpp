@@ -3351,34 +3351,45 @@ void FScopedColorEdit::UpdateBoneColors()
 		{
 			FLinearColor BoneColor = FLinearColor(FColor::Black);
 
-			if (Component->ViewLevel == -1)
+			if (Component->bShowBoneColors)
 			{
-				BoneColor = RandomColors[BoneIndex % RandomColors.Num()];
-			}
-			else
-			{
-				if (HasLevelAttribute && (*Levels)[BoneIndex] >= Component->ViewLevel)
+				if (Component->ViewLevel == -1)
 				{
-					// go up until we find parent at the required ViewLevel
-					int32 Bone = BoneIndex;
-					while (Bone != -1 && (*Levels)[Bone] > Component->ViewLevel)
-					{
-						Bone = Parents[Bone];
-					}
-
-					int32 ColorIndex = Bone + 1; // parent can be -1 for root, range [-1..n]
-					BoneColor = RandomColors[ColorIndex % RandomColors.Num()];
-
-					BoneColor.LinearRGBToHSV();
-					BoneColor.B *= .5;
-					BoneColor.HSVToLinearRGB();
+					BoneColor = RandomColors[BoneIndex % RandomColors.Num()];
 				}
 				else
 				{
-					BoneColor = BlankColor;
+					if (HasLevelAttribute && (*Levels)[BoneIndex] >= Component->ViewLevel)
+					{
+						// go up until we find parent at the required ViewLevel
+						int32 Bone = BoneIndex;
+						while (Bone != -1 && (*Levels)[Bone] > Component->ViewLevel)
+						{
+							Bone = Parents[Bone];
+						}
+
+						int32 ColorIndex = Bone + 1; // parent can be -1 for root, range [-1..n]
+						BoneColor = RandomColors[ColorIndex % RandomColors.Num()];
+
+						BoneColor.LinearRGBToHSV();
+						BoneColor.B *= .5;
+						BoneColor.HSVToLinearRGB();
+					}
+					else
+					{
+						BoneColor = BlankColor;
+					}
 				}
 			}
-
+			else
+			{
+				BoneColor = FLinearColor(FColor::White);
+				if (Component->ViewLevel != INDEX_NONE && HasLevelAttribute && (*Levels)[BoneIndex] < Component->ViewLevel)
+				{
+					BoneColor = FLinearColor(FColor(128U, 128U, 128U, 255U));
+				}
+				
+			}
 			// store the bone selected toggle in alpha so we can use it in the shader
 			BoneColor.A = IsBoneHighlighted(BoneIndex) ? 1 : 0;
 
