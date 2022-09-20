@@ -143,7 +143,7 @@ public:
 	UPROPERTY()
 	TSubclassOf<class ULocalMessage> EngineMessageClass;
 
-	/** Exact ping as float (rounded and compressed in replicated CompressedPing) */
+	/** Exact ping in milliseconds as float (rounded and compressed in replicated CompressedPing) */
 	float ExactPing;
 
 	UE_DEPRECATED(4.27, "Please use ExactPing instead.")
