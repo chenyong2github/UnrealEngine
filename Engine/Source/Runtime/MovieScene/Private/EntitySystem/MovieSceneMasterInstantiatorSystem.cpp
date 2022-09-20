@@ -12,6 +12,10 @@ UMovieSceneMasterInstantiatorSystem::UMovieSceneMasterInstantiatorSystem(const F
 	: Super(ObjInit)
 {
 	RelevantComponent = UE::MovieScene::FBuiltInComponentTypes::Get()->Tags.Master;
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		DefineComponentProducer(GetClass(), UE::MovieScene::FBuiltInComponentTypes::Get()->Tags.Master);
+	}
 }
 
 void UMovieSceneMasterInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
