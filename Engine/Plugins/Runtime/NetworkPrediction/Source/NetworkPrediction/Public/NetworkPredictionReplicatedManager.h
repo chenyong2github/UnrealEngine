@@ -45,9 +45,9 @@ public:
 
 	uint8 AddObjectToSharedPackageMap(TSoftObjectPtr<UObject> SoftPtr);
 
-	uint8 GetIDForObject(UObject* Obj);
+	uint8 GetIDForObject(UObject* Obj) const;
 
-	TSoftObjectPtr<UObject> GetObjectForID(uint8 ID);
+	TSoftObjectPtr<UObject> GetObjectForID(uint8 ID) const;
 
 private:
 
