@@ -65,8 +65,8 @@ void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 
 	FPropertyTrackWithOverridableChannelsEntityImportHelper(TracksComponents->Float, this)
 		.Add(Components->FloatChannel[0], &FloatCurve,
-				// NAME_None below because we don't specify any names in CacheChannelProxy
-				FMovieSceneChannelOverrideEntityImportParams(NAME_None, Components->DoubleResult[0]))
+			// NAME_None below because we don't specify any names in CacheChannelProxy
+			FChannelOverrideEntityImportParams{ NAME_None, Components->DoubleResult[0] })
 		.Commit(this, Params, OutImportedEntity);
 }
 

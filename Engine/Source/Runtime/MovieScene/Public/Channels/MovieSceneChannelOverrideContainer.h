@@ -21,20 +21,22 @@ struct FMovieSceneChannelMetaData;
 struct FMovieSceneChannelProxyData;
 struct FMovieSceneEntityComponentFieldBuilder;
 
+namespace UE
+{
+namespace MovieScene
+{
+
 /**
  * Entity import parameters for a channel override.
  */
-struct FMovieSceneChannelOverrideEntityImportParams
+struct FChannelOverrideEntityImportParams
 {
 	FName ChannelName;
 	UE::MovieScene::FComponentTypeID ResultComponent;
-
-	FMovieSceneChannelOverrideEntityImportParams()
-	{}
-	FMovieSceneChannelOverrideEntityImportParams(FName InChannelName, UE::MovieScene::FComponentTypeID InResultComponent)
-		: ChannelName(InChannelName), ResultComponent(InResultComponent)
-	{}
 };
+
+}  // namespace MovieScene
+}  // namespace UE
 
 /**
  * A wrapper to implement polymorphism for FMovieSceneChannel.
@@ -51,7 +53,7 @@ public:
 
 	/** Imports the entity for this channel */
 	virtual void ImportEntityImpl(
-			const FMovieSceneChannelOverrideEntityImportParams& OverrideParams, 
+			const UE::MovieScene::FChannelOverrideEntityImportParams& OverrideParams, 
 			const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity) {};
 
 	/** Gets the underlying channel */
