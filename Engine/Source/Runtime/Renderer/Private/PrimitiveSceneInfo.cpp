@@ -615,7 +615,7 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 
 			// ENaniteMeshPass::BasePass
 			{
-				FMeshPassProcessor* NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene, nullptr, &DrawListContext);
+				FMeshPassProcessor* NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene->GetFeatureLevel(), Scene, nullptr, &DrawListContext);
 				PassBody(ENaniteMeshPass::BasePass, NaniteMeshProcessor);
 				delete NaniteMeshProcessor;
 			}

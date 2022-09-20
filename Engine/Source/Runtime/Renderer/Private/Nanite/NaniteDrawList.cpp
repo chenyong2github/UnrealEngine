@@ -270,7 +270,7 @@ FNaniteMeshProcessor::FNaniteMeshProcessor(
 	const FMeshPassProcessorRenderState& InDrawRenderState,
 	FMeshPassDrawListContext* InDrawListContext
 )
-	: FMeshPassProcessor(EMeshPass::Num, InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::NaniteMeshPass, InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InDrawRenderState)
 {
 	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
@@ -316,111 +316,22 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	check(Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()));
 
 	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && ShadingModels != MSM_Unlit;
-
-	// Check for a cached light-map.
-	const bool bIsLitMaterial = ShadingModels.IsLit();
-	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
-
-	const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-		? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel)
-		: FLightMapInteraction();
-
-	// force LQ light maps based on system settings
-	const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
-	const bool bAllowHighQualityLightMaps = bPlatformAllowsHighQualityLightMaps && LightMapInteraction.AllowsHighQualityLightmaps();
-
-	const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
-	const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
-
-	static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
-	const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
-
-	// Determine light map policy type
-	FUniformLightMapPolicy LightMapPolicy = FUniformLightMapPolicy(LMP_NO_LIGHTMAP);
-	if (LightMapInteraction.GetType() == LMIT_Texture)
-	{
-		if (bAllowHighQualityLightMaps)
-		{
-			const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-				? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
-				: FShadowMapInteraction();
-
-			if (ShadowMapInteraction.GetType() == SMIT_Texture)
-			{
-				LightMapPolicy = FUniformLightMapPolicy(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP);
-			}
-			else
-			{
-				LightMapPolicy = FUniformLightMapPolicy(LMP_HQ_LIGHTMAP);
-			}
-		}
-		else if (bAllowLowQualityLightMaps)
-		{
-			LightMapPolicy = FUniformLightMapPolicy(LMP_LQ_LIGHTMAP);
-		}
-	}
-	else
-	{
-		if (bIsLitMaterial
-			&& bAllowStaticLighting
-			&& Scene
-			&& Scene->VolumetricLightmapSceneData.HasData()
-			&& PrimitiveSceneProxy
-			&& (PrimitiveSceneProxy->IsMovable()
-				|| PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting()
-				|| PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
-		{
-			LightMapPolicy = FUniformLightMapPolicy(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING);
-		}
-		else if (bIsLitMaterial
-			&& IsIndirectLightingCacheAllowed(FeatureLevel)
-			&& Scene
-			&& Scene->PrecomputedLightVolumes.Num() > 0
-			&& PrimitiveSceneProxy)
-		{
-			const FIndirectLightingCacheAllocation* IndirectLightingCacheAllocation = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->IndirectLightingCacheAllocation;
-			const bool bPrimitiveIsMovable = PrimitiveSceneProxy->IsMovable();
-			const bool bPrimitiveUsesILC = PrimitiveSceneProxy->GetIndirectLightingCacheQuality() != ILCQ_Off;
-
-			// Use the indirect lighting cache shaders if the object has a cache allocation
-			// This happens for objects with unbuilt lighting
-			if (bPrimitiveUsesILC &&
-				((IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
-					// Use the indirect lighting cache shaders if the object is movable, it may not have a cache allocation yet because that is done in InitViews
-					// And movable objects are sometimes rendered in the static draw lists
-					|| bPrimitiveIsMovable))
-			{
-				if (CanIndirectLightingCacheUseVolumeTexture(FeatureLevel)
-					&& ((IndirectLightingCacheAllocation && !IndirectLightingCacheAllocation->bPointSample)
-						|| (bPrimitiveIsMovable && PrimitiveSceneProxy->GetIndirectLightingCacheQuality() == ILCQ_Volume)))
-				{
-					// Use a light map policy that supports reading indirect lighting from a volume texture for dynamic objects
-					LightMapPolicy = FUniformLightMapPolicy(LMP_CACHED_VOLUME_INDIRECT_LIGHTING);
-				}
-				else
-				{
-					// Use a light map policy that supports reading indirect lighting from a single SH sample
-					LightMapPolicy = FUniformLightMapPolicy(LMP_CACHED_POINT_INDIRECT_LIGHTING);
-				}
-			}
-		}
-	}
+	ELightMapPolicyType LightMapPolicyType = FBasePassMeshProcessor::GetUniformLightMapPolicyType(FeatureLevel, Scene, MeshBatch, PrimitiveSceneProxy, Material);
 
 	TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(GetGlobalShaderMap(FeatureLevel));
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>> BasePassPixelShader;
 
+	bool b128BitRequirement = false;
 	bool bShadersValid = GetBasePassShaders<FUniformLightMapPolicy>(
 		Material,
 		MeshBatch.VertexFactory->GetType(),
-		LightMapPolicy,
+		FUniformLightMapPolicy(LightMapPolicyType),
 		FeatureLevel,
 		bRenderSkylight,
-		false,
-		nullptr,
+		b128BitRequirement,
+		nullptr, // vertex shader
 		&BasePassPixelShader
 		);
-
 	if (!bShadersValid)
 	{
 		return false;
@@ -457,7 +368,99 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	return true;
 }
 
+void FNaniteMeshProcessor::CollectPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material,
+	const FVertexFactoryType* VertexFactoryType,
+	const FPSOPrecacheParams& PreCacheParams,
+	TArray<FPSOPrecacheData>& PSOInitializers
+)
+{
+	// Only support for the nanite vertex factory type
+	if (VertexFactoryType != &Nanite::FVertexFactory::StaticType)
+	{
+		return;
+	}
+
+	// Check if Nanite can be used by this material
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+	bool bShouldDraw = Nanite::IsSupportedBlendMode(BlendMode) && Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain());
+	if (!bShouldDraw || !PreCacheParams.bRenderInMainPass)
+	{
+		return;
+	}
+		
+	{
+		// generate for both skylight enabled/disabled? Or can this be known already at this point?
+		bool bRenderSkyLight = true;
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, bRenderSkyLight, PSOInitializers);
+		
+		bRenderSkyLight = false;
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, bRenderSkyLight, PSOInitializers);
+	}
+}
+
+void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT Material,
+	const bool bRenderSkylight,
+	TArray<FPSOPrecacheData>& PSOInitializers
+)
+{
+	TArray<ELightMapPolicyType, TInlineAllocator<2>> UniformLightMapPolicyTypes = FBasePassMeshProcessor::GetUniformLightMapPolicyTypeForPSOCollection(FeatureLevel, Material);
+	for (ELightMapPolicyType UniformLightMapPolicyType : UniformLightMapPolicyTypes)
+	{	
+		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(GetGlobalShaderMap(FeatureLevel));
+		TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>> BasePassPixelShader;
+
+		bool b128BitRequirement = false;
+		bool bShadersValid = GetBasePassShaders<FUniformLightMapPolicy>(
+			Material,
+			VertexFactoryType,
+			FUniformLightMapPolicy(UniformLightMapPolicyType),
+			FeatureLevel,
+			bRenderSkylight,
+			b128BitRequirement,
+			nullptr, // vertex shader
+			&BasePassPixelShader
+			);
+		if (!bShadersValid)
+		{
+			return;
+		}
+
+		TMeshProcessorShaders
+			<
+			FNaniteIndirectMaterialVS,
+			TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>
+			>
+			PassShaders;
+		PassShaders.VertexShader = NaniteVertexShader;
+		PassShaders.PixelShader = BasePassPixelShader;
+
+		// Setup the render target info for basepass
+		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+		RenderTargetsInfo.NumSamples = 1;
+		SetupGBufferRenderTargetInfo(SceneTexturesConfig, RenderTargetsInfo, true /*bSetupDepthStencil*/);
+
+		AddGraphicsPipelineStateInitializer(
+			VertexFactoryType,
+			Material,
+			PassDrawRenderState,
+			RenderTargetsInfo,
+			PassShaders,
+			FM_Solid,
+			CM_None,
+			PT_TriangleList,
+			EMeshPassFeatures::Default,
+			PSOInitializers);
+	}
+}
+
 FMeshPassProcessor* CreateNaniteMeshProcessor(
+	ERHIFeatureLevel::Type FeatureLevel,
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext
@@ -480,8 +483,23 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 		PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilNop);
 	}
 
-	return new FNaniteMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
+	return new FNaniteMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
 }
+
+IPSOCollector* CreateNaniteMeshProcessorForPSOCollection(ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (DoesPlatformSupportNanite(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	{
+		return CreateNaniteMeshProcessor(FeatureLevel, nullptr, nullptr, nullptr);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+// Only register for PSO Collection
+FRegisterPSOCollectorCreateFunction RegisterPSOCollectorNaniteMeshPass(&CreateNaniteMeshProcessorForPSOCollection, EShadingPath::Deferred, (uint32)EMeshPass::NaniteMeshPass);
 
 class FSubmitNaniteMaterialPassCommandsAnyThreadTask : public FRenderTask
 {

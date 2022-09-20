@@ -341,7 +341,7 @@ public:
 };
 
 
-class FVertexFactory final : public ::FVertexFactory
+class ENGINE_API FVertexFactory final : public ::FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
 

@@ -132,6 +132,14 @@ public:
 		int32 StaticMeshId = -1
 	) override final;
 
+	virtual void CollectPSOInitializers(
+		const FSceneTexturesConfig& SceneTexturesConfig, 
+		const FMaterial& Material, 
+		const FVertexFactoryType* VertexFactoryType, 
+		const FPSOPrecacheParams& PreCacheParams, 
+		TArray<FPSOPrecacheData>& PSOInitializers
+	) override final;
+
 private:
 	bool TryAddMeshBatch(
 		const FMeshBatch& RESTRICT MeshBatch,
@@ -142,11 +150,20 @@ private:
 		const FMaterial& Material
 	);
 
+	void CollectPSOInitializersForSkyLight(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT Material,
+		const bool bRenderSkylight,
+		TArray<FPSOPrecacheData>& PSOInitializers
+	);
+
 private:
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
 FMeshPassProcessor* CreateNaniteMeshProcessor(
+	ERHIFeatureLevel::Type FeatureLevel,
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext

@@ -616,12 +616,14 @@ public:
 		return bRequiresExplicit128bitRT;
 	}
 
+	static ELightMapPolicyType GetUniformLightMapPolicyType(ERHIFeatureLevel::Type FeatureLevelconst, const FScene* Scene, const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial& Material);
+	static TArray<ELightMapPolicyType, TInlineAllocator<2>> GetUniformLightMapPolicyTypeForPSOCollection(ERHIFeatureLevel::Type FeatureLevel, const FMaterial& Material);
+
 private:
 
 	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
 	bool ShouldDraw(const FMaterial& Material);
-	ELightMapPolicyType GetUniformLightMapPolicyType(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial& Material);
-
+	
 	template<typename LightMapPolicyType>
 	bool Process(
 		const FMeshBatch& RESTRICT MeshBatch,
@@ -641,8 +643,6 @@ private:
 		const FSceneTexturesConfig& SceneTexturesConfig,
 		const FVertexFactoryType* VertexFactoryType,
 		const FMaterial& RESTRICT MaterialResource,
-		EBlendMode BlendMode,
-		FMaterialShadingModelField ShadingModels,
 		const bool bRenderSkylight,
 		const bool bDitheredLODTransition,
 		ERasterizerFillMode MeshFillMode,
