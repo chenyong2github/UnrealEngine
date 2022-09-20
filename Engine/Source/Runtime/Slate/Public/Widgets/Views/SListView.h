@@ -2105,8 +2105,7 @@ protected:
 							}
 						}
 
-						const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
-						SetScrollOffset((float)FMath::Min(NewScrollOffset, MaxScrollOffset));
+						SetScrollOffset((float)NewScrollOffset);
 					}
 				}
 
