@@ -188,7 +188,11 @@ void UMediaPlateComponent::Open()
 {
 	bIsMediaPlatePlaying = true;
 	CurrentRate = bPlayOnOpen ? 1.0f : 0.0f;
-	if ((bPlayOnlyWhenVisible == false) || (IsVisible()))
+
+	// Is play only when visible off, and we should be visible?
+	// Or is play only when visible on, and we are visible?
+	if (((bPlayOnlyWhenVisible == false) && (ShouldBeVisible())) ||
+		(IsVisible()))
 	{
 		bool bIsPlaying = false;
 		if (MediaPlayer != nullptr)
@@ -499,6 +503,11 @@ void UMediaPlateComponent::StopClockSink()
 bool UMediaPlateComponent::IsVisible()
 {
 	return GetOwner()->WasRecentlyRendered();
+}
+
+bool UMediaPlateComponent::ShouldBeVisible()
+{
+	return ((StaticMeshComponent != nullptr) && (StaticMeshComponent->ShouldRender()));
 }
 
 void UMediaPlateComponent::ResumeWhenVisible()
