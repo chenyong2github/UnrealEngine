@@ -81,6 +81,10 @@ class ENGINE_API UMaterialBillboardComponent : public UPrimitiveComponent
 		class UCurveFloat* DistanceToSizeCurve
 		);
 
+	//~ Begin UObject Interface.
+	virtual void PostLoad() override;
+	//~ End UObject Interface.
+	// 
 	//~ Begin UPrimitiveComponent Interface
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

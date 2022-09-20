@@ -902,11 +902,49 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	UpdateNavigationRelevance();
 	UpdateRejectNavmeshUnderneath();
 }
+#endif // WITH_EDITOR
 
 void ULandscapeComponent::PostLoad()
 {
 	Super::PostLoad();
 
+	{
+		TArray<UMaterialInterface*> Materials;
+		bool bGetDebugMaterials = false;
+		GetUsedMaterials(Materials, bGetDebugMaterials);
+
+		FPSOPrecacheParams PrecachePSOParams;
+		SetupPrecachePSOParams(PrecachePSOParams);
+
+		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+		if (!XYOffsetmapTexture)
+		{
+			VertexFactoryTypes.Add(&FLandscapeVertexFactory::StaticType);
+		}
+		else
+		{
+			VertexFactoryTypes.Add(&FLandscapeXYOffsetVertexFactory::StaticType);
+		}
+
+		// we need the fixed grid vertex factory for both virtual texturing and grass
+		ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+		bool bNeedsFixedGridVertexFactory = UseVirtualTexturing(FeatureLevel);
+		if (bNeedsFixedGridVertexFactory)
+		{
+			VertexFactoryTypes.Add(&FLandscapeFixedGridVertexFactory::StaticType);
+		}
+
+		for (UMaterialInterface* MaterialInterface : Materials)
+		{
+			if (MaterialInterface)
+			{
+				MaterialInterface->ConditionalPostLoad();
+				MaterialInterface->PrecachePSOs(VertexFactoryTypes, PrecachePSOParams);
+			}
+		}
+	}
+
+#if WITH_EDITOR
 	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
 	if (ensure(LandscapeProxy))
 	{
@@ -927,7 +965,6 @@ void ULandscapeComponent::PostLoad()
 		}
 	}
 
-#if WITH_EDITOR
 	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// This is to ensure that component relative location is exact section base offset value
@@ -993,7 +1030,6 @@ void ULandscapeComponent::PostLoad()
 		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
-#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	// Handle old MaterialInstance
@@ -1003,17 +1039,14 @@ void ULandscapeComponent::PostLoad()
 		MaterialInstances.Add(MaterialInstance_DEPRECATED);
 		MaterialInstance_DEPRECATED = nullptr;
 
-#if WITH_EDITOR
 		if (GIsEditor && MaterialInstances.Num() > 0 && MaterialInstances[0] != nullptr)
 		{
 			MaterialInstances[0]->ConditionalPostLoad();
 			UpdateMaterialInstances();
 		}
-#endif // WITH_EDITOR
 	}
 #endif
 
-#if WITH_EDITOR
 	auto ReparentObject = [this](UObject* Object)
 	{
 		if (Object && !Object->HasAllFlags(RF_Public | RF_Standalone) && (Object->GetOuter() != GetOuter()) && (Object->GetOutermost() == GetOutermost()))
@@ -1080,7 +1113,6 @@ void ULandscapeComponent::PostLoad()
 			MobileCombinationMaterialInstance = Cast<UMaterialInstance>(MobileCombinationMaterialInstance->Parent);
 		}
 	}
-#endif
 
 #if !UE_BUILD_SHIPPING
 	// This will fix the data in case there is mismatch between save of asset/maps
@@ -1117,7 +1149,6 @@ void ULandscapeComponent::PostLoad()
 	}
 #endif // UE_BUILD_SHIPPING
 
-#if WITH_EDITOR
 	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Move the MICs and Textures back to the Package if they're currently in the level
@@ -1139,7 +1170,6 @@ void ULandscapeComponent::PostLoad()
 			}
 		}
 	}
-#endif
 
 #if !UE_BUILD_SHIPPING
 	if (MobileCombinationMaterialInstances.Num() == 0)
@@ -1169,9 +1199,10 @@ void ULandscapeComponent::PostLoad()
 	}
 
 	GrassData->ConditionalDiscardDataOnLoad();
-}
 
 #endif // WITH_EDITOR
+
+}
 
 #if WITH_EDITORONLY_DATA
 TArray<ALandscapeProxy*> ALandscapeProxy::LandscapeProxies;

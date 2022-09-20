@@ -402,6 +402,9 @@ public:
 
 	/** Transfers ownership of instance render data to a render thread. Instance render data will be released in scene proxy destructor or on render thread task. */
 	void ReleasePerInstanceRenderData();
+
+	/** Precache all PSOs which can be used by the component */
+	virtual void PrecachePSOs() override;
 	
 	// Number of instances in the render-side instance buffer
 	virtual int32 GetNumRenderInstances() const { return PerInstanceSMData.Num(); }

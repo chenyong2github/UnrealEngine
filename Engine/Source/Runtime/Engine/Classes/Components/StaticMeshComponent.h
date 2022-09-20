@@ -737,6 +737,9 @@ private:
 	/** Initializes the resources used by the static mesh component. */
 	void InitResources();
 
+	/** Precache all PSOs which can be used by the static mesh component */
+	virtual void PrecachePSOs() override;
+
 #if WITH_EDITOR
 	/** Update the vertex override colors */
 	void PrivateFixupOverrideColors();

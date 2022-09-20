@@ -115,6 +115,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVe
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
 	| EVertexFactoryFlags::SupportsPositionOnly
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 //////////////////////////////////////////////////////////////////////////
@@ -577,6 +578,39 @@ bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 	return bSavedToTransactionBuffer;
 }
 #endif
+
+void USplineMeshComponent::PrecachePSOs()
+{
+	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr || !FApp::CanEverRender())
+	{
+		return;
+	}
+
+	bool bAnySectionCastsShadows = false;
+	TArray<int16, TInlineAllocator<2>> UsedMaterialIndices;
+	for (FStaticMeshLODResources& LODRenderData : GetStaticMesh()->GetRenderData()->LODResources)
+	{
+		for (FStaticMeshSection& RenderSection : LODRenderData.Sections)
+		{
+			UsedMaterialIndices.AddUnique(RenderSection.MaterialIndex);
+			bAnySectionCastsShadows |= RenderSection.bCastShadow;
+		}
+	}
+
+	FPSOPrecacheParams PrecachePSOParams;
+	SetupPrecachePSOParams(PrecachePSOParams);
+	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
+	PrecachePSOParams.bReverseCulling = bReverseCulling;
+
+	for (uint16 MaterialIndex : UsedMaterialIndices)
+	{
+		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
+		if (MaterialInterface)
+		{
+			MaterialInterface->PrecachePSOs(&FSplineMeshVertexFactory::StaticType, PrecachePSOParams);
+		}
+	}
+}
 
 FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
 {

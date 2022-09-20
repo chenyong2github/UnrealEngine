@@ -1360,6 +1360,12 @@ void UTextRenderComponent::PostLoad()
 		}
 	}
 
+	if (TextMaterial)
+	{
+		FPSOPrecacheParams PrecachePSOParams;
+		TextMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
+	}
+
 	Super::PostLoad();
 }
 

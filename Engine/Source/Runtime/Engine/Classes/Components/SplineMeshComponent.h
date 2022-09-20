@@ -357,6 +357,8 @@ public:
 
 	virtual float GetTextureStreamingTransformScale() const override;
 
+	virtual void PrecachePSOs() override;
+
 private:
 	void UpdateRenderStateAndCollision_Internal(bool bConcurrent);
 };

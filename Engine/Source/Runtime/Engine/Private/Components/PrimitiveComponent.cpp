@@ -4242,6 +4242,18 @@ void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
 	}
 }
 
+void UPrimitiveComponent::SetupPrecachePSOParams(FPSOPrecacheParams& Params)
+{
+	Params.bRenderInMainPass = bRenderInMainPass;
+	Params.bRenderInDepthPass = bRenderInDepthPass;
+	Params.bStaticLighting = HasStaticLighting();
+	Params.bAffectDynamicIndirectLighting = bAffectDynamicIndirectLighting;
+	Params.bCastShadow = CastShadow;
+	Params.bCastShadowAsTwoSided = bCastShadowAsTwoSided;
+	Params.SetMobility(Mobility);	
+	Params.SetStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(CustomDepthStencilWriteMask));
+}
+
 #if WITH_EDITOR
 const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLevelIndex) const
 {	

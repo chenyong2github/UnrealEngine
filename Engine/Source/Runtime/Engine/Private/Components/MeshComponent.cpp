@@ -88,6 +88,8 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 				BodyInst->UpdatePhysicalMaterials();
 			}
 
+			PrecachePSOs();
+
 #if WITH_EDITOR
 			// Static Lighting is updated when compilation finishes
 			if (!IsCompiling())

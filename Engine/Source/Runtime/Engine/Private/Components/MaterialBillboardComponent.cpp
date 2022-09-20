@@ -375,6 +375,28 @@ UMaterialInterface* UMaterialBillboardComponent::GetMaterial(int32 Index) const
 	return ResultMI;
 }
 
+void UMaterialBillboardComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	FPSOPrecacheParams PrecachePSOParams;
+	SetupPrecachePSOParams(PrecachePSOParams);
+	PrecachePSOParams.PrimitiveType = PT_TriangleStrip;
+	PrecachePSOParams.bDisableBackFaceCulling = true;
+
+	const FVertexFactoryType* VFType = &FLocalVertexFactory::StaticType;
+
+	TArray<UMaterialInterface*> UsedMaterials;
+	GetUsedMaterials(UsedMaterials, false);
+	for (UMaterialInterface* MaterialInterface : UsedMaterials)
+	{
+		if (MaterialInterface)
+		{
+			MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
+		}
+	}
+}
+
 void UMaterialBillboardComponent::SetMaterial(int32 ElementIndex, class UMaterialInterface* Material)
 {
 	if (Elements.IsValidIndex(ElementIndex))

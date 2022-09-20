@@ -49,6 +49,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
+#include "PipelineStateCache.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshComponent"
 
@@ -771,6 +772,9 @@ void UStaticMeshComponent::OnRegister()
 #endif //WITH_EDITORONLY_DATA
 
 	Super::OnRegister();
+
+	// World transform might have changes causing negative determinant which changes the culling mode
+	PrecachePSOs();
 }
 
 void UStaticMeshComponent::OnUnregister()
@@ -1530,6 +1534,44 @@ void UStaticMeshComponent::InitResources()
 	}
 }
 
+void UStaticMeshComponent::PrecachePSOs()
+{
+	if (StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr || !FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		return;
+	}
+
+	bool bAnySectionCastsShadows = false;
+	TArray<int16, TInlineAllocator<2>> UsedMaterialIndices;
+	for (FStaticMeshLODResources& LODRenderData : StaticMesh->GetRenderData()->LODResources)
+	{
+		for (FStaticMeshSection& RenderSection : LODRenderData.Sections)
+		{
+			UsedMaterialIndices.AddUnique(RenderSection.MaterialIndex);
+			bAnySectionCastsShadows |= RenderSection.bCastShadow;
+		}
+	}
+
+	bool bIsLocalToWorldDeterminantNegative = GetRenderMatrix().Determinant() < 0;
+
+	FPSOPrecacheParams PrecachePSOParams;
+	SetupPrecachePSOParams(PrecachePSOParams);
+	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
+	PrecachePSOParams.bReverseCulling = bReverseCulling || bIsLocalToWorldDeterminantNegative;
+	PrecachePSOParams.bForceLODModel = ForcedLodModel > 0;
+
+	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType :  &FLocalVertexFactory::StaticType;
+
+	for (uint16 MaterialIndex : UsedMaterialIndices)
+	{
+		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
+		if (MaterialInterface)
+		{
+			MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
+		}
+	}
+}
+
 #if WITH_EDITOR
 void UStaticMeshComponent::PrivateFixupOverrideColors()
 {
@@ -1692,7 +1734,8 @@ bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 	const bool bAllowNanite = true;
 #endif
 
-	return bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && HasValidNaniteData();
+	EShaderPlatform ShaderPlatform = GetScene() ? GetScene()->GetShaderPlatform() : GMaxRHIShaderPlatform;
+	return bAllowNanite && UseNanite(ShaderPlatform) && HasValidNaniteData();
 }
 
 void UStaticMeshComponent::ReleaseResources()
@@ -2071,6 +2114,9 @@ void UStaticMeshComponent::PostLoad()
 
 	// Initialize the resources for the freshly loaded component.
 	InitResources();
+
+	// Precache PSOs for the used materials
+	PrecachePSOs();
 }
 
 bool UStaticMeshComponent::IsPostLoadThreadSafe() const
@@ -2180,6 +2226,9 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 
 	// Mark cached material parameter names dirty
 	MarkCachedMaterialParameterNameIndicesDirty();
+
+	// Precache the PSOs
+	PrecachePSOs();
 
 #if WITH_EDITOR
 	// Broadcast that the static mesh has changed

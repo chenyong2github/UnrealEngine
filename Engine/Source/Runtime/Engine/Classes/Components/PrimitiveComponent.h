@@ -38,6 +38,7 @@ struct FCollisionShape;
 struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
+struct FPSOPrecacheParams;
 
 namespace PrimitiveComponentCVars
 {
@@ -831,6 +832,12 @@ public:
 	void SetLastRenderTime(float InLastRenderTime);
 	float GetLastRenderTime() const { return LastRenderTime; }
 	float GetLastRenderTimeOnScreen() const { return LastRenderTimeOnScreen; }
+
+	/**
+	 * Setup the parameter struct used to precache the PSOs used by this component. 
+	 * Precaching uses certain component attributes to derive the shader or state used to render the component such as static lighting, cast shadows, ...
+	 */
+	virtual void SetupPrecachePSOParams(FPSOPrecacheParams& Params);
 
 	/**
 	 * Set of actors to ignore during component sweeps in MoveComponent().
