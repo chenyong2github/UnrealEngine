@@ -157,7 +157,12 @@ bool FVREditorModeManager::IsVREditorAvailable() const
 bool FVREditorModeManager::IsVREditorButtonActive() const
 {
 	const bool bHasHMDDevice = GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();
-	return bHasHMDDevice;
+
+	TArray<UClass*> ModeClasses;
+	GetConcreteModeClasses(ModeClasses);
+	const bool bDerivedModeAvailable = ModeClasses.Num() > 1;
+
+	return bHasHMDDevice || bDerivedModeAvailable;
 }
 
 
@@ -286,6 +291,22 @@ void FVREditorModeManager::OnMapChanged( UWorld* World, EMapChangeType MapChange
 		}
 	}
 	CurrentVREditorMode = nullptr;
+}
+
+void FVREditorModeManager::GetConcreteModeClasses(TArray<UClass*>& OutModeClasses) const
+{
+	const int32 StartIndex = OutModeClasses.Num();
+
+	OutModeClasses.Add(UVREditorMode::StaticClass());
+	GetDerivedClasses(UVREditorMode::StaticClass(), OutModeClasses);
+
+	for (TArray<UClass*>::TIterator Iter = OutModeClasses.CreateIterator() + StartIndex; Iter; ++Iter)
+	{
+		if ((*Iter)->HasAllClassFlags(CLASS_Abstract))
+		{
+			Iter.RemoveCurrentSwap();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

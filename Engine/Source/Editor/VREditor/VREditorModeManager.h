@@ -63,6 +63,9 @@ public:
 	/** Return a multicast delegate which is executed when VR mode stops. */
 	FOnVREditingModeExit& OnVREditingModeExit() { return OnVREditingModeExitHandle; }
 
+	/** Appends all UVREditorMode-derived classes which are not abstract to the provided array. */
+	void GetConcreteModeClasses(TArray<UClass*>& OutModeClasses) const;
+
 private:
 
 	/** Broadcasts when VR mode is started */

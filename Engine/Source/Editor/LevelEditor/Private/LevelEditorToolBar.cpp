@@ -1384,8 +1384,6 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 			);
 			CinematicsEntry.StyleNameOverride = "AssetEditorToolbar";
 			Section.AddEntry(CinematicsEntry);
-
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FLevelEditorCommands::Get().ToggleVR, LOCTEXT("ToggleVR", "VR Mode")));
 		}
 
 	}
