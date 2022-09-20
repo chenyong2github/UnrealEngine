@@ -1688,7 +1688,7 @@ namespace ChaosTest
 	const int32 NumBoxBoxGJKDistances = UE_ARRAY_COUNT(BoxBoxGJKDistances);
 
 	// These tests fails in EPA - we need to cover these cases with SAT
-	GTEST_TEST(GJKTests, DISABLED_TestGJKBoxBoxTestFails)
+	GTEST_TEST(GJKTests, TestGJKBoxBoxTestFails)
 	{
 		const FReal Epsilon = 1.e-3f;
 
@@ -1702,7 +1702,7 @@ namespace ChaosTest
 	}
 
 	// Disabled until we have SAT fallback (see DISABLED_TestGJKBoxBoxTestFails)
-	GTEST_TEST(GJKTests, DISABLED_TestGJKBoxBoxNegativeSeparation)
+	GTEST_TEST(GJKTests, TestGJKBoxBoxNegativeSeparation)
 	{
 		const FReal Epsilon = 1.e-3f;
 
@@ -1726,6 +1726,31 @@ namespace ChaosTest
 				GJKBoxBoxZeroMarginSeparationTest(Epsilon, BoxBoxGJKDistances[DistanceIndex], AxisIndex);
 			}
 		}
+	}
+
+	// This is a know regression test
+	// It is two boxes deeply overlapping in a T-shape
+	GTEST_TEST(GJKTests, TestGJKBoxBoxOverlap)
+	{
+		FVec3 MinBox = FVec3(-15.839999675750732, -31.840000152587891, -3.8146972691777137e-07);
+		FVec3 MaxBox = FVec3(15.840000629425049, 31.840000152587891, 19.200000381469728);
+		FVec3 Translation = FVec3(15.999999999999993, 1.9594348786357647e-15, 0.0000000000000000);
+		FRotation3 Rotation(UE::Math::TQuat<FReal>(0.0000000000000000, 0.0000000000000000, -0.70710678118654757, -0.70710678118654746));
+
+		FImplicitBox3 ShapeA(MinBox, MaxBox, 0);
+		FImplicitBox3 ShapeB(MinBox, MaxBox, 0);
+		
+		const FRigidTransform3 TransformBtoA = FRigidTransform3(Translation , Rotation);
+		const FReal ThicknessA = 0.0f;
+		const FReal ThicknessB = 0.0f;
+
+		// Run GJK/EPA
+		FReal Penetration;
+		FVec3 ClosestA, ClosestBInA, Normal;
+		int32 ClosestVertexIndexA, ClosestVertexIndexB;
+		bool bSuccess = GJKPenetration<false>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1, 0, 0));
+		EXPECT_TRUE(bSuccess);
+		EXPECT_TRUE(Penetration > 19.0f); // Penetration is the Height of the box
 	}
 
 	// Two convex shapes, Shape A on top of Shape B and almost touching. ShapeA is rotated 90 degrees about Z.

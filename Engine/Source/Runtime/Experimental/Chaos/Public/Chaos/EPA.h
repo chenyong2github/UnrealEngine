@@ -39,7 +39,7 @@ struct TEPAEntry
 		return Distance > Other.Distance;
 	}
 
-	constexpr T SelectEpsilon(float FloatEpsilon, double DoubleEpsilon) const
+	static constexpr T SelectEpsilon(float FloatEpsilon, double DoubleEpsilon)
 	{
 		if (sizeof(T) <= sizeof(float))
 		{
@@ -61,7 +61,9 @@ struct TEPAEntry
 		const TVec3<T> V0V2 = V2 - V0;
 		const TVec3<T> Norm = TVec3<T>::CrossProduct(V0V1, V0V2);
 		const T NormLenSq = Norm.SizeSquared();
-		const T Eps = SelectEpsilon(1.e-4f, 1.e-8);
+		// We have the square of the size of a cross product, so we need the distance margin to be a power of 4
+		// Verbosity emphasizes that
+		const T Eps = TEPAEntry::SelectEpsilon(1.e-4f * 1.e-4f * 1.e-4f * 1.e-4f, 1.e-8 * 1.e-8 * 1.e-8 * 1.e-8);
 		if (NormLenSq < Eps)
 		{
 			return false;
@@ -345,7 +347,7 @@ void EPAComputeVisibilityBorder(TEPAWorkingArray<TEPAEntry<T>>& Entries, int32 E
 		TEPAEntry<T>& Entry = Entries[FloodEntry.EntryIdx];
 		if (!Entry.bObsolete)
 		{
-			if (Entry.DistanceToPlane(W) < UE_SMALL_NUMBER)
+			if (Entry.DistanceToPlane(W) <= TEPAEntry<T>::SelectEpsilon(1.e-4f, 1.e-8))
 			{
 				//W can't see this triangle so mark the edge as a border
 				OutBorderEdges.Add(FloodEntry);
