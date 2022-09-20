@@ -1510,6 +1510,7 @@ void SFbxSceneOptionWindow::CopySkeletalMeshOptionsToFbxOptions(UnFbx::FBXImport
 	ImportSettings->bPreserveLocalTransform = SkeletalMeshOptions->bPreserveLocalTransform;
 	ImportSettings->bResample = !SkeletalMeshOptions->bUseDefaultSampleRate;
 	ImportSettings->ResampleRate = SkeletalMeshOptions->CustomSampleRate;
+	ImportSettings->bSnapToClosestFrameBoundary = SkeletalMeshOptions->bSnapToClosestFrameBoundary;	
 	ImportSettings->AnimationRange.X = SkeletalMeshOptions->FrameImportRange.Min;
 	ImportSettings->AnimationRange.Y = SkeletalMeshOptions->FrameImportRange.Max;
 }

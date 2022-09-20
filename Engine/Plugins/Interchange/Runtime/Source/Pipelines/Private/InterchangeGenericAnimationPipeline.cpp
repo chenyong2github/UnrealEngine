@@ -383,14 +383,55 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 
 			if (!FMath::IsNearlyZero(SubFrame, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(SubFrame, 1.0f, KINDA_SMALL_NUMBER))
 			{
-				UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-				Message->SourceAssetName = SourceDatas[0]->GetFilename();
-				Message->DestinationAssetName = AnimSequenceName;
-				Message->AssetType = UAnimSequence::StaticClass();
-				Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "WrongSequenceLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."),
-					FText::AsNumber(SequenceLength), FrameRate.ToPrettyText(), FText::AsNumber(SubFrame));
-				//Skip this anim sequence factory node
-				continue;
+			    if (bSnapToClosestFrameBoundary)
+			    {
+				    // Figure out whether start or stop has to be adjusted
+				    const FFrameTime StartFrameTime = FrameRate.AsFrameTime(RangeStart);
+				    const FFrameTime StopFrameTime = FrameRate.AsFrameTime(RangeStop);
+				    FFrameNumber StartFrameNumber = StartFrameTime.GetFrame().Value, StopFrameNumber = StopFrameTime.GetFrame().Value;
+				    double NewStartTime = RangeStart, NewStopTime = RangeStop;
+    
+				    if (!FMath::IsNearlyZero(StartFrameTime.GetSubFrame()))
+				    {
+					    StartFrameNumber = StartFrameTime.RoundToFrame();
+					    NewStartTime = FrameRate.AsSeconds(StartFrameNumber);
+				    }
+    
+				    if (!FMath::IsNearlyZero(StopFrameTime.GetSubFrame()))
+				    {
+					    StopFrameNumber = StopFrameTime.RoundToFrame();
+					    NewStopTime = FrameRate.AsSeconds(StopFrameNumber);
+				    }
+    
+				    UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
+				    Message->SourceAssetName = SourceDatas[0]->GetFilename();
+				    Message->DestinationAssetName = AnimSequenceName;
+				    Message->AssetType = UAnimSequence::StaticClass();
+				    Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "Info_ImportLengthSnap", "Animation length has been adjusted to align with frame borders using import frame-rate {0}.\n\nOriginal timings:\n\t\tStart: {1} ({2})\n\t\tStop: {3} ({4})\nAligned timings:\n\t\tStart: {5} ({6})\n\t\tStop: {7} ({8})"),
+					    FrameRate.ToPrettyText(),
+					    FText::AsNumber(RangeStart),
+					    FText::AsNumber(StartFrameTime.AsDecimal()),
+					    FText::AsNumber(RangeStop),
+					    FText::AsNumber(StopFrameTime.AsDecimal()),
+					    FText::AsNumber(NewStartTime),
+					    FText::AsNumber(StartFrameNumber.Value),
+					    FText::AsNumber(NewStopTime),
+					    FText::AsNumber(StopFrameNumber.Value));
+    
+				    RangeStart = NewStartTime;
+				    RangeStop = NewStopTime;
+			    }
+			    else
+			    {
+				    UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+				    Message->SourceAssetName = SourceDatas[0]->GetFilename();
+				    Message->DestinationAssetName = AnimSequenceName;
+				    Message->AssetType = UAnimSequence::StaticClass();
+				    Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "WrongSequenceLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."),
+					    FText::AsNumber(SequenceLength), FrameRate.ToPrettyText(), FText::AsNumber(SubFrame));
+				    //Skip this anim sequence factory node
+				    continue;
+			    }
 			}
 		}
 
@@ -734,14 +775,55 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 
 		if (!FMath::IsNearlyZero(SubFrame, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(SubFrame, 1.0f, KINDA_SMALL_NUMBER))
 		{
-			UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-			Message->SourceAssetName = SourceDatas[0]->GetFilename();
-			Message->DestinationAssetName = TrackNode.GetDisplayLabel();
-			Message->AssetType = UAnimSequence::StaticClass();
-			Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "WrongSequenceLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."),
-				FText::AsNumber(SequenceLength), FrameRate.ToPrettyText(), FText::AsNumber(SubFrame));
-			//Skip this anim sequence factory node
-			return;
+			if (bSnapToClosestFrameBoundary)
+			{
+				// Figure out whether start or stop has to be adjusted
+				const FFrameTime StartFrameTime = FrameRate.AsFrameTime(StartTime);
+				const FFrameTime StopFrameTime = FrameRate.AsFrameTime(StopTime);
+				FFrameNumber StartFrameNumber = StartFrameTime.GetFrame().Value, StopFrameNumber = StopFrameTime.GetFrame().Value;
+				double NewStartTime = StartTime, NewStopTime = StopTime;
+
+				if (!FMath::IsNearlyZero(StartFrameTime.GetSubFrame()))
+				{
+					StartFrameNumber = StartFrameTime.RoundToFrame();
+					NewStartTime = FrameRate.AsSeconds(StartFrameNumber);
+				}
+
+				if (!FMath::IsNearlyZero(StopFrameTime.GetSubFrame()))
+				{
+					StopFrameNumber = StopFrameTime.RoundToFrame();
+					NewStopTime = FrameRate.AsSeconds(StopFrameNumber);
+				}
+			
+				UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
+				Message->SourceAssetName = SourceDatas[0]->GetFilename();
+				Message->DestinationAssetName = TrackNode.GetDisplayLabel();
+				Message->AssetType = UAnimSequence::StaticClass();
+				Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "Info_ImportLengthSnap", "Animation length has been adjusted to align with frame borders using import frame-rate {0}.\n\nOriginal timings:\n\t\tStart: {1} ({2})\n\t\tStop: {3} ({4})\nAligned timings:\n\t\tStart: {5} ({6})\n\t\tStop: {7} ({8})"),
+					FrameRate.ToPrettyText(),
+					FText::AsNumber(StartTime),
+					FText::AsNumber(StartFrameTime.AsDecimal()),
+					FText::AsNumber(StopTime),
+					FText::AsNumber(StopFrameTime.AsDecimal()),
+					FText::AsNumber(NewStartTime),
+					FText::AsNumber(StartFrameNumber.Value),
+					FText::AsNumber(NewStopTime),
+					FText::AsNumber(StopFrameNumber.Value));
+
+				StartTime = NewStartTime;
+				StopTime = NewStopTime;
+			}
+			else
+			{
+				UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+				Message->SourceAssetName = SourceDatas[0]->GetFilename();
+				Message->DestinationAssetName = TrackNode.GetDisplayLabel();
+				Message->AssetType = UAnimSequence::StaticClass();
+				Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "WrongSequenceLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."),
+					FText::AsNumber(SequenceLength), FrameRate.ToPrettyText(), FText::AsNumber(SubFrame));
+				//Skip this anim sequence factory node
+				return;
+			}
 		}
 	}
 

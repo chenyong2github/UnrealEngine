@@ -179,6 +179,7 @@ struct FBXImportOptions
 	bool bUpdateSkeletonReferencePose;
 	bool bResample;
 	int32 ResampleRate;
+	bool bSnapToClosestFrameBoundary;
 	bool bImportRigidMesh;
 	bool bUseT0AsRefPose;
 	bool bPreserveSmoothingGroups;
@@ -920,7 +921,7 @@ public:
 	 * @param ResampleRate	Resample Rate for data
 	 * @param AnimTimeSpan	AnimTimeSpan	 
 	 */	
-	bool ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArray<FbxNode*>& NodeArray, FbxAnimStack* CurAnimStack, int32 ResampleRate, bool bImportMorph, FbxTimeSpan &AnimTimeSpan);
+	bool ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArray<FbxNode*>& NodeArray, FbxAnimStack* CurAnimStack, int32 ResampleRate, bool bImportMorph, bool bSnapToClosestFrameBoundary, FbxTimeSpan &AnimTimeSpan);
 
 	/**
 	 * Import Fbx Morph object for the Skeletal Mesh.

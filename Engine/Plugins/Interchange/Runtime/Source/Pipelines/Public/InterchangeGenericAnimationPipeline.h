@@ -66,6 +66,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (EditCondition = "bImportBoneTracks && !bUse30HzToBakeBoneAnimation", ToolTip = "Sample fbx animation data at the specified sample rate, 0 find automaticaly the best sample rate", ClampMin = 0, UIMin = 0, ClampMax = 48000, UIMax = 60))
 	int32 CustomBoneAnimationSampleRate = 0;
 
+	/** If enabled, snaps the animation to the closest frame boundary using the import sampling rate */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
+	bool bSnapToClosestFrameBoundary = false;
+
 	/** Import if custom attribute as a curve within the animation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	bool bImportCustomAttribute = true;

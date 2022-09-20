@@ -66,6 +66,9 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta = (EditCondition = "!bUseDefaultSampleRate", ToolTip = "Sample fbx animation data at the specified sample rate, 0 find automaticaly the best sample rate", ClampMin = 0, UIMin = 0, ClampMax = 48000, UIMax = 60))
 	int32 CustomSampleRate;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta = (ToolTip = "If enabled, snaps the animation to the closest frame boundary using the import sampling rate"))
+	bool bSnapToClosestFrameBoundary;
+
 	/** Name of source animation that was imported, used to reimport correct animation from the FBX file */
 	UPROPERTY()
 	FString SourceAnimationName;

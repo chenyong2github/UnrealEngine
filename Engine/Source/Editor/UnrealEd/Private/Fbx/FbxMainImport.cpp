@@ -491,6 +491,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		// only re-sample if they don't want to use default sample rate
 		InOutImportOptions.bResample					= !ImportUI->AnimSequenceImportData->bUseDefaultSampleRate;
 		InOutImportOptions.ResampleRate					= ImportUI->AnimSequenceImportData->CustomSampleRate;
+		InOutImportOptions.bSnapToClosestFrameBoundary	= ImportUI->AnimSequenceImportData->bSnapToClosestFrameBoundary;
 		InOutImportOptions.bPreserveLocalTransform		= ImportUI->AnimSequenceImportData->bPreserveLocalTransform;
 		InOutImportOptions.bDeleteExistingMorphTargetCurves = ImportUI->AnimSequenceImportData->bDeleteExistingMorphTargetCurves;
 		InOutImportOptions.bRemoveRedundantKeys			= ImportUI->AnimSequenceImportData->bRemoveRedundantKeys;
@@ -1756,7 +1757,7 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("AnimOpt SetMaterialDriveParameterOnCustomAttribute"), CaptureImportOptions->bSetMaterialDriveParameterOnCustomAttribute));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("AnimOpt MaterialCurveSuffixes"), CaptureImportOptions->MaterialCurveSuffixes));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("AnimOpt ResampleRate"), CaptureImportOptions->ResampleRate));
-							
+							Attribs.Add(FAnalyticsEventAttribute(TEXT("AnimOpt SnapToClosestFrameBoundary"), CaptureImportOptions->bSnapToClosestFrameBoundary));
 						};
 						
 						if (ImportOptions->ImportType == FBXIT_SkeletalMesh)

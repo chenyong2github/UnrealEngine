@@ -280,7 +280,7 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 					}
 					FbxTimeSpan AnimTimeSpan = FbxImporter->GetAnimationTimeSpan(SortedLinks[0], CurAnimStack);
 					// for now it's not importing morph - in the future, this should be optional or saved with asset
-					if (FbxImporter->ValidateAnimStack(SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, bImportMorphTracks, AnimTimeSpan))
+					if (FbxImporter->ValidateAnimStack(SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, bImportMorphTracks, FbxImporter->ImportOptions->bSnapToClosestFrameBoundary, AnimTimeSpan))
 					{
 						AnimSequence->ImportResampleFramerate = ResampleRate;
 						FbxImporter->ImportAnimation(Skeleton, AnimSequence, Filename, SortedLinks, FBXMeshNodeArray, CurAnimStack, ResampleRate, AnimTimeSpan);
@@ -615,7 +615,7 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 		FbxAnimStack* CurAnimStack = Scene->GetSrcObject<FbxAnimStack>(AnimStackIndex);
 
 		FbxTimeSpan AnimTimeSpan = GetAnimationTimeSpan(SortedLinks[0], CurAnimStack);
-		bool bValidAnimStack = ValidateAnimStack(SortedLinks, NodeArray, CurAnimStack, ResampleRate, ImportOptions->bImportMorph, AnimTimeSpan);
+		bool bValidAnimStack = ValidateAnimStack(SortedLinks, NodeArray, CurAnimStack, ResampleRate, ImportOptions->bImportMorph, ImportOptions->bSnapToClosestFrameBoundary, AnimTimeSpan);
 		// no animation
 		if (!bValidAnimStack)
 		{
@@ -907,7 +907,7 @@ int32 UnFbx::FFbxImporter::GetMaxSampleRate(TArray<FbxNode*>& SortedLinks)
 	return DEFAULT_SAMPLERATE;
 }
 
-bool UnFbx::FFbxImporter::ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArray<FbxNode*>& NodeArray, FbxAnimStack* CurAnimStack, int32 ResampleRate, bool bImportMorph, FbxTimeSpan &AnimTimeSpan)
+bool UnFbx::FFbxImporter::ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArray<FbxNode*>& NodeArray, FbxAnimStack* CurAnimStack, int32 ResampleRate, bool bImportMorph, bool bSnapToClosestFrameBoundary, FbxTimeSpan &AnimTimeSpan)
 {
 	// set current anim stack
 	Scene->SetCurrentAnimationStack(CurAnimStack);
@@ -926,11 +926,52 @@ bool UnFbx::FFbxImporter::ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArra
 
 	const double SequenceLengthInSeconds = FGenericPlatformMath::Max<double>(AnimTimeSpan.GetDuration().GetSecondDouble(), MINIMUM_ANIMATION_LENGTH);
 	const FFrameRate TargetFrameRate(ResampleRate, 1);
-	const float SubFrame = TargetFrameRate.AsFrameTime(SequenceLengthInSeconds).GetSubFrame();
+	const FFrameTime LengthInFrameTime = TargetFrameRate.AsFrameTime(SequenceLengthInSeconds);
+	const float SubFrame = LengthInFrameTime.GetSubFrame();
 	if (!FMath::IsNearlyZero(SubFrame, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(SubFrame, 1.0f, KINDA_SMALL_NUMBER))
 	{
-		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_InvalidImportLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."), FText::AsNumber(SequenceLengthInSeconds), TargetFrameRate.ToPrettyText(), FText::AsNumber(SubFrame))), FFbxErrors::Animation_InvalidData);
-		return false;
+		if (bSnapToClosestFrameBoundary)
+		{
+			// Figure out whether start or stop has to be adjusted
+			const FbxTime StartTime = AnimTimeSpan.GetStart();
+			const FbxTime StopTime = AnimTimeSpan.GetStop();
+			FbxTime NewStartTime;
+			FbxTime NewStopTime;
+
+			const FFrameTime StartFrameTime = TargetFrameRate.AsFrameTime(StartTime.GetSecondDouble());
+			const FFrameTime StopFrameTime = TargetFrameRate.AsFrameTime(StopTime.GetSecondDouble());
+			FFrameNumber StartFrameNumber, StopFrameNumber;
+
+			if (!FMath::IsNearlyZero(StartFrameTime.GetSubFrame()))
+			{
+				StartFrameNumber = StartFrameTime.RoundToFrame();
+				NewStartTime.SetSecondDouble(TargetFrameRate.AsSeconds(StartFrameNumber));
+				AnimTimeSpan.SetStart(NewStartTime);
+			}
+
+			if (!FMath::IsNearlyZero(StopFrameTime.GetSubFrame()))
+			{
+				StopFrameNumber = StopFrameTime.RoundToFrame();
+				NewStopTime.SetSecondDouble(TargetFrameRate.AsSeconds(StopFrameNumber));
+				AnimTimeSpan.SetStop(NewStopTime);
+			}
+			
+			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Info, FText::Format(LOCTEXT("Info_ImportLengthSnap", "Animation length has been adjusted to align with frame borders using import frame-rate {0}.\n\nOriginal timings:\n\t\tStart: {1} ({2})\n\t\tStop: {3} ({4})\nAligned timings:\n\t\tStart: {5} ({6})\n\t\tStop: {7} ({8})"),
+				TargetFrameRate.ToPrettyText(),
+				FText::AsNumber(StartTime.GetSecondDouble()),
+				FText::AsNumber(StartFrameTime.AsDecimal()),
+				FText::AsNumber(StopTime.GetSecondDouble()),
+				FText::AsNumber(StopFrameTime.AsDecimal()),
+				FText::AsNumber(NewStartTime.GetSecondDouble()),
+				FText::AsNumber(StartFrameNumber.Value),
+				FText::AsNumber(NewStopTime.GetSecondDouble()),
+				FText::AsNumber(StopFrameNumber.Value))), FFbxErrors::Animation_InvalidData);
+		}
+		else
+		{
+			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_InvalidImportLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned. Either re-export animation or enable snap to closest frame boundary import option."), FText::AsNumber(SequenceLengthInSeconds), TargetFrameRate.ToPrettyText(), FText::AsNumber(SubFrame))), FFbxErrors::Animation_InvalidData);
+			return false;
+		}
 	}
 
 	const FBXImportOptions* ImportOption = GetImportOptions();
