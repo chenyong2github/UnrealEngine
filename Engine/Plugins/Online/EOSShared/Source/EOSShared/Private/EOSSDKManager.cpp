@@ -225,7 +225,7 @@ EOS_EResult FEOSSDKManager::Initialize()
 		{
 			bInitialized = true;
 
-			FCoreDelegates::OnConfigSectionsChanged.AddRaw(this, &FEOSSDKManager::OnConfigSectionsChanged);
+			FCoreDelegates::TSOnConfigSectionsChanged().AddRaw(this, &FEOSSDKManager::OnConfigSectionsChanged);
 			LoadConfig();
 
 #if !NO_LOGGING
@@ -448,7 +448,7 @@ void FEOSSDKManager::Shutdown()
 			ReleaseReleasedPlatforms();
 		}
 
-		FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
+		FCoreDelegates::TSOnConfigSectionsChanged().RemoveAll(this);
 
 #if !NO_LOGGING
 		FCoreDelegates::OnLogVerbosityChanged.RemoveAll(this);

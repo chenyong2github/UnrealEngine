@@ -335,16 +335,16 @@ private:
 public:
 	FConfigHistoryHelper()
 	{
-		FCoreDelegates::OnConfigValueRead.AddRaw(this, &FConfigHistoryHelper::OnConfigValueRead);
-		FCoreDelegates::OnConfigSectionRead.AddRaw(this, &FConfigHistoryHelper::OnConfigSectionRead);
-		FCoreDelegates::OnConfigSectionNameRead.AddRaw(this, &FConfigHistoryHelper::OnConfigSectionNameRead);
+		FCoreDelegates::TSOnConfigValueRead().AddRaw(this, &FConfigHistoryHelper::OnConfigValueRead);
+		FCoreDelegates::TSOnConfigSectionRead().AddRaw(this, &FConfigHistoryHelper::OnConfigSectionRead);
+		FCoreDelegates::TSOnConfigSectionNameRead().AddRaw(this, &FConfigHistoryHelper::OnConfigSectionNameRead);
 	}
 
 	~FConfigHistoryHelper()
 	{
-		FCoreDelegates::OnConfigValueRead.RemoveAll(this);
-		FCoreDelegates::OnConfigSectionRead.RemoveAll(this);
-		FCoreDelegates::OnConfigSectionNameRead.RemoveAll(this);
+		FCoreDelegates::TSOnConfigValueRead().RemoveAll(this);
+		FCoreDelegates::TSOnConfigSectionRead().RemoveAll(this);
+		FCoreDelegates::TSOnConfigSectionNameRead().RemoveAll(this);
 	}
 
 	void DumpHistory()

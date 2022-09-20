@@ -126,15 +126,71 @@ TMulticastDelegate<void(FString, int, int)> FCoreDelegates::ApplicationReceivedL
 TMulticastDelegate<void()> FCoreDelegates::ApplicationPerformFetchDelegate;
 TMulticastDelegate<void(FString)> FCoreDelegates::ApplicationBackgroundSessionEventDelegate;
 
-TTSMulticastDelegate<void(const TCHAR*, int32&)> FCoreDelegates::CountPreLoadConfigFileRespondersDelegate;
-TTSMulticastDelegate<void(const TCHAR*, FString&)> FCoreDelegates::PreLoadConfigFileDelegate;
-TTSMulticastDelegate<void(const TCHAR*, const FString&, int32&)> FCoreDelegates::PreSaveConfigFileDelegate;
-TTSMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigCreated;
-TTSMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigDeleted;
-TTSMulticastDelegate<void(const TCHAR*, const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigValueRead;
-TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionRead;
-TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionNameRead;
-TTSMulticastDelegate<void(const FString&, const TSet<FString>&)> FCoreDelegates::OnConfigSectionsChanged;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TMulticastDelegate<void(const TCHAR*, int32&)> FCoreDelegates::CountPreLoadConfigFileRespondersDelegate;
+TMulticastDelegate<void(const TCHAR*, FString&)> FCoreDelegates::PreLoadConfigFileDelegate;
+TMulticastDelegate<void(const TCHAR*, const FString&, int32&)> FCoreDelegates::PreSaveConfigFileDelegate;
+TMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigCreated;
+TMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigDeleted;
+TMulticastDelegate<void(const TCHAR*, const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigValueRead;
+TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionRead;
+TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionNameRead;
+TMulticastDelegate<void(const FString&, const TSet<FString>&)> FCoreDelegates::OnConfigSectionsChanged;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+TTSMulticastDelegate<void(const TCHAR*, int32&)>& FCoreDelegates::TSCountPreLoadConfigFileRespondersDelegate()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, int32&)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const TCHAR*, FString&)>& FCoreDelegates::TSPreLoadConfigFileDelegate()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, FString&)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const TCHAR*, const FString&, int32&)>& FCoreDelegates::TSPreSaveConfigFileDelegate()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, const FString&, int32&)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const FConfigFile*)>& FCoreDelegates::TSOnFConfigCreated()
+{
+	static TTSMulticastDelegate<void(const FConfigFile*)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const FConfigFile*)>& FCoreDelegates::TSOnFConfigDeleted()
+{
+	static TTSMulticastDelegate<void(const FConfigFile*)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*, const TCHAR*)>& FCoreDelegates::TSOnConfigValueRead()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, const TCHAR*, const TCHAR*)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)>& FCoreDelegates::TSOnConfigSectionRead()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)>& FCoreDelegates::TSOnConfigSectionNameRead()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> Singleton;
+	return Singleton;
+}
+
+TTSMulticastDelegate<void(const FString&, const TSet<FString>&)>& FCoreDelegates::TSOnConfigSectionsChanged()
+{
+	static TTSMulticastDelegate<void(const FString&, const TSet<FString>&)> Singleton;
+	return Singleton;
+}
 
 TMulticastDelegate<void(const TCHAR*, const TCHAR*, uint32, bool)> FCoreDelegates::OnApplyCVarFromIni;
 TMulticastDelegate<void(uint32, uint32)> FCoreDelegates::OnSystemResolutionChanged;
@@ -177,7 +233,15 @@ TMulticastDelegate<void()> FCoreDelegates::PreRenderingThreadDestroyed;
 
 TMulticastDelegate<void(int32)> FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate;
 
-TTSMulticastDelegate<void()> FCoreDelegates::ConfigReadyForUse;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TMulticastDelegate<void()> FCoreDelegates::ConfigReadyForUse;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+TTSMulticastDelegate<void()>& FCoreDelegates::TSConfigReadyForUse()
+{
+	static TTSMulticastDelegate<void()> Singleton;
+	return Singleton;
+}
 
 TDelegate<bool()> FCoreDelegates::IsLoadingMovieCurrentlyPlaying;
 
@@ -187,7 +251,15 @@ TMulticastDelegate<void(const FString&, FPlatformUserId)> FCoreDelegates::OnActi
 
 TMulticastDelegate<void(const FString&)> FCoreDelegates::OnGCFinishDestroyTimeExtended;
 
-TTSMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)> FCoreDelegates::AccessExtraBinaryConfigData;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)> FCoreDelegates::AccessExtraBinaryConfigData;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+TTSMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)>& FCoreDelegates::TSAccessExtraBinaryConfigData()
+{
+	static TTSMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)> Singleton;
+	return Singleton;
+}
 
 TDelegate<void(TArrayView<const FSHAHash>, FCoreDelegates::FAttachShaderReadRequestFunc)> FCoreDelegates::PreloadPackageShaderMaps;
 TDelegate<void(TArrayView<const FSHAHash>)> FCoreDelegates::ReleasePreloadedPackageShaderMaps;
@@ -208,7 +280,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 /**	 Implemented as a function to address global ctor issues */
 FSimpleMulticastDelegate& FCoreDelegates::GetMemoryTrimDelegate()
 {
-	static FSimpleMulticastDelegate OnMemoryTrim;;
+	static FSimpleMulticastDelegate OnMemoryTrim;
 	return OnMemoryTrim;
 }
 

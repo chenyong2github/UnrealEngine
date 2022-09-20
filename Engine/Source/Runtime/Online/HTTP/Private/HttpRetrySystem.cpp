@@ -644,12 +644,12 @@ FHttpRetrySystem::FManager::FHttpLogVerbosityTracker& FHttpRetrySystem::FManager
 FHttpRetrySystem::FManager::FHttpLogVerbosityTracker::FHttpLogVerbosityTracker()
 {
 	UpdateSettingsFromConfig();
-	FCoreDelegates::OnConfigSectionsChanged.AddRaw(this, &FHttpLogVerbosityTracker::OnConfigSectionsChanged);
+	FCoreDelegates::TSOnConfigSectionsChanged().AddRaw(this, &FHttpLogVerbosityTracker::OnConfigSectionsChanged);
 }
 
 FHttpRetrySystem::FManager::FHttpLogVerbosityTracker::~FHttpLogVerbosityTracker()
 {
-	FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
+	FCoreDelegates::TSOnConfigSectionsChanged().RemoveAll(this);
 }
 
 void FHttpRetrySystem::FManager::FHttpLogVerbosityTracker::IncrementRetriedRequests()

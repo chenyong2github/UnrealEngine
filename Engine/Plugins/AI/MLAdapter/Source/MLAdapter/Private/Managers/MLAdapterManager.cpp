@@ -332,7 +332,7 @@ void UMLAdapterManager::BindToDelegates()
 {	
 	// Commented out possible other useful delegates
 	//	FCoreDelegates::GameStateClassChanged;
-	//	FCoreDelegates::ConfigReadyForUse;
+	//	FCoreDelegates::TSConfigReadyForUse();
 	//  FWorldDelegates::OnPostWorldCreation;
 	//	FWorldDelegates::OnPreWorldInitialization; 
 

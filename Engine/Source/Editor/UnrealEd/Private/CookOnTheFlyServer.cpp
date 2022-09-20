@@ -454,8 +454,8 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 {
 	ClearPackageStoreContexts();
 
-	FCoreDelegates::OnFConfigCreated.RemoveAll(this);
-	FCoreDelegates::OnFConfigDeleted.RemoveAll(this);
+	FCoreDelegates::TSOnFConfigCreated().RemoveAll(this);
+	FCoreDelegates::TSOnFConfigDeleted().RemoveAll(this);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 	GetTargetPlatformManager()->GetOnTargetPlatformsInvalidatedDelegate().RemoveAll(this);
@@ -5764,8 +5764,8 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 		FCoreDelegates::OnTargetPlatformChangedSupportedFormats.AddUObject(this, &UCookOnTheFlyServer::OnTargetPlatformChangedSupportedFormats);
 	}
 
-	FCoreDelegates::OnFConfigCreated.AddUObject(this, &UCookOnTheFlyServer::OnFConfigCreated);
-	FCoreDelegates::OnFConfigDeleted.AddUObject(this, &UCookOnTheFlyServer::OnFConfigDeleted);
+	FCoreDelegates::TSOnFConfigCreated().AddUObject(this, &UCookOnTheFlyServer::OnFConfigCreated);
+	FCoreDelegates::TSOnFConfigDeleted().AddUObject(this, &UCookOnTheFlyServer::OnFConfigDeleted);
 
 	GetTargetPlatformManager()->GetOnTargetPlatformsInvalidatedDelegate().AddUObject(this, &UCookOnTheFlyServer::OnTargetPlatformsInvalidated);
 

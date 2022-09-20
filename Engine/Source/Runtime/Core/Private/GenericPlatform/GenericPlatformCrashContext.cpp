@@ -299,7 +299,7 @@ void FGenericCrashContext::Initialize()
 		NCached::Set(NCached::Session.EngineModeEx, bIsVanilla ? FGenericCrashContext::EngineModeExVanilla : FGenericCrashContext::EngineModeExDirty);
 	});
 
-	FCoreDelegates::ConfigReadyForUse.AddStatic(FGenericCrashContext::InitializeFromConfig);
+	FCoreDelegates::TSConfigReadyForUse().AddStatic(FGenericCrashContext::InitializeFromConfig);
 
 	FCoreDelegates::OnPostFork.AddLambda([](EForkProcessRole Role)
 	{

@@ -247,20 +247,41 @@ public:
 	/** Called when the OS goes into low power mode */
 	static TMulticastDelegate<void(bool)> OnLowPowerMode;
 
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSCountPreLoadConfigFileRespondersDelegate()")
+	static TMulticastDelegate<void(const TCHAR* IniFilename, int32& ResponderCount)> CountPreLoadConfigFileRespondersDelegate;
+	static TTSMulticastDelegate<void(const TCHAR* IniFilename, int32& ResponderCount)>& TSCountPreLoadConfigFileRespondersDelegate();
 
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, int32& ResponderCount)> CountPreLoadConfigFileRespondersDelegate;
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, FString& LoadedContents)> PreLoadConfigFileDelegate;
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const FString& ContentsToSave, int32& SavedCount)> PreSaveConfigFileDelegate;
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSPreLoadConfigFileDelegate()")
+	static TMulticastDelegate<void(const TCHAR* IniFilename, FString& LoadedContents)> PreLoadConfigFileDelegate;
+	static TTSMulticastDelegate<void(const TCHAR* IniFilename, FString& LoadedContents)>& TSPreLoadConfigFileDelegate();
 
-	static TTSMulticastDelegate<void(const FConfigFile*)> OnFConfigCreated;
-	static TTSMulticastDelegate<void(const FConfigFile*)> OnFConfigDeleted;
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSPreSaveConfigFileDelegate()")
+	static TMulticastDelegate<void(const TCHAR* IniFilename, const FString& ContentsToSave, int32& SavedCount)> PreSaveConfigFileDelegate;
+	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const FString& ContentsToSave, int32& SavedCount)>& TSPreSaveConfigFileDelegate();
 
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName, const TCHAR* Key)> OnConfigValueRead;
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSOnFConfigCreated()")
+	static TMulticastDelegate<void(const FConfigFile*)> OnFConfigCreated;
+	static TTSMulticastDelegate<void(const FConfigFile*)>& TSOnFConfigCreated();
 
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)> OnConfigSectionRead;
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)> OnConfigSectionNameRead;
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSOnFConfigDeleted()")
+	static TMulticastDelegate<void(const FConfigFile*)> OnFConfigDeleted;
+	static TTSMulticastDelegate<void(const FConfigFile*)>& TSOnFConfigDeleted();
 
-	static TTSMulticastDelegate<void(const FString& IniFilename, const TSet<FString>& SectionNames)> OnConfigSectionsChanged;
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSOnConfigValueRead()")
+	static TMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName, const TCHAR* Key)> OnConfigValueRead;
+	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName, const TCHAR* Key)>& TSOnConfigValueRead();
+
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSOnConfigSectionRead()")
+	static TMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)> OnConfigSectionRead;
+	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)>& TSOnConfigSectionRead();
+
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSOnConfigSectionNameRead()")
+	static TMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)> OnConfigSectionNameRead;
+	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)>& TSOnConfigSectionNameRead();
+
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSOnConfigSectionsChanged()")
+	static TMulticastDelegate<void(const FString& IniFilename, const TSet<FString>& SectionNames)> OnConfigSectionsChanged;
+	static TTSMulticastDelegate<void(const FString& IniFilename, const TSet<FString>& SectionNames)>& TSOnConfigSectionsChanged();
 
 	static TMulticastDelegate<void(const TCHAR* SectionName, const TCHAR* IniFilename, uint32 SetBy, bool bAllowCheating)> OnApplyCVarFromIni;
 
@@ -421,7 +442,9 @@ public:
 	static TMulticastDelegate<void()>& GetPreMainInitDelegate();
 	
 	/** Sent when GConfig is finished initializing */
-	static TTSMulticastDelegate<void()> ConfigReadyForUse;
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSConfigReadyForUse()")
+	static TMulticastDelegate<void()> ConfigReadyForUse;
+	static TTSMulticastDelegate<void()>& TSConfigReadyForUse();
 
 	/** Callback for notifications regarding changes of the rendering thread. */
 
@@ -499,7 +522,10 @@ public:
 		{
 		}
 	};
-	static TTSMulticastDelegate<void(FExtraBinaryConfigData&)> AccessExtraBinaryConfigData;
+	
+	UE_DEPRECATED(5.2, "This delegate is not thread-safe. Please use FCoreDelegates::TSAccessExtraBinaryConfigData()")
+	static TMulticastDelegate<void(FExtraBinaryConfigData&)> AccessExtraBinaryConfigData;
+	static TTSMulticastDelegate<void(FExtraBinaryConfigData&)>& TSAccessExtraBinaryConfigData();
 
 	using FAttachShaderReadRequestFunc = TFunctionRef<class FIoRequest(const class FIoChunkId&, FGraphEventRef)>;
 	static TDelegate<void(TArrayView<const FSHAHash>, FAttachShaderReadRequestFunc)> PreloadPackageShaderMaps;
