@@ -3,10 +3,37 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Agents.Pools;
 
 namespace Horde.Build.Agents.Fleet
 {
+	/// <summary>
+	/// Available fleet managers
+	/// </summary>
+	public enum FleetManagerType
+	{
+		/// <summary>
+		/// <see cref="NoOpFleetManager" />
+		/// </summary>
+		NoOp,
+		
+		/// <summary>
+		/// <see cref="AwsFleetManager" />
+		/// </summary>
+		Aws,
+		
+		/// <summary>
+		/// <see cref="AwsReuseFleetManager" />
+		/// </summary>
+		AwsReuse,
+		
+		/// <summary>
+		/// <see cref="AwsAsgFleetManager" />
+		/// </summary>
+		AwsAsg
+	}
+	
 	/// <summary>
 	/// Service to manage a fleet of machines
 	/// </summary>

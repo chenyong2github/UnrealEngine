@@ -65,6 +65,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategies">Pool sizing strategies</param>
+		/// <param name="fleetManagers">Fleet managers</param>
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
@@ -81,6 +82,7 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
 			List<PoolSizeStrategyInfo>? sizeStrategies = null,
+			List<FleetManagerInfo>? fleetManagers = null,
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,
@@ -98,6 +100,7 @@ namespace Horde.Build.Agents.Pools
 				scaleOutCooldown,
 				scaleInCooldown,
 				sizeStrategies,
+				fleetManagers,
 				sizeStrategy,
 				leaseUtilizationSettings,
 				jobQueueSettings,
@@ -130,6 +133,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
 		/// <param name="newSizeStrategies">New pool sizing strategies for the pool</param>
+		/// <param name="newFleetManagers">New fleet managers for the pool</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization-based strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue-based strategy</param>
 		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
@@ -148,6 +152,7 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? scaleInCooldown = null,
 			PoolSizeStrategy? sizeStrategy = null,
 			List<PoolSizeStrategyInfo>? newSizeStrategies = null,
+			List<FleetManagerInfo>? newFleetManagers = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,
 			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
@@ -168,6 +173,7 @@ namespace Horde.Build.Agents.Pools
 					scaleInCooldown: scaleInCooldown,
 					sizeStrategy: sizeStrategy,
 					newSizeStrategies: newSizeStrategies,
+					newFleetManagers: newFleetManagers,
 					leaseUtilizationSettings: leaseUtilizationSettings,
 					jobQueueSettings: jobQueueSettings,
 					computeQueueAwsMetricSettings: computeQueueAwsMetricSettings,

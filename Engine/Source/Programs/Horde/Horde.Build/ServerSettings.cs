@@ -121,22 +121,6 @@ namespace Horde.Build
 	}
 
 	/// <summary>
-	/// Specifies the service to use for controlling the size of the fleet
-	/// </summary>
-	public enum FleetManagerType
-	{
-		/// <summary>
-		/// Default (empty) instance
-		/// </summary>
-		None,
-
-		/// <summary>
-		/// Use AWS EC2 instances
-		/// </summary>
-		Aws,
-	}
-	
-	/// <summary>
 	/// Authentication method used for logging users in
 	/// </summary>
 	public enum AuthMethod
@@ -408,9 +392,14 @@ namespace Horde.Build
 		public bool LogSessionRequests { get; set; } = false;
 
 		/// <summary>
-		/// Which fleet manager service to use
+		/// Default fleet manager to use (when not specified by pool)
 		/// </summary>
-		public FleetManagerType FleetManager { get; set; } = FleetManagerType.None;
+		public FleetManagerType FleetManagerV2 { get; set; } = FleetManagerType.NoOp;
+		
+		/// <summary>
+		/// Config for the fleet manager (serialized JSON)
+		/// </summary>
+		public string? FleetManagerV2Config { get; set; }
 
 		/// <summary>
 		/// Whether to run scheduled jobs.

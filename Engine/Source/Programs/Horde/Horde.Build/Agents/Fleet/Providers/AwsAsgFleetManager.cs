@@ -3,12 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon;
 using Amazon.AutoScaling;
 using Amazon.AutoScaling.Model;
-using Amazon.Extensions.NETCore.Setup;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
@@ -23,11 +22,6 @@ namespace Horde.Build.Agents.Fleet.Providers
 	public class AwsAsgSettings
 	{
 		/// <summary>
-		/// AWS region (e.g us-east-1)
-		/// </summary>
-		public string Region { get; }
-		
-		/// <summary>
 		/// Name of the auto-scaling group
 		/// </summary>
 		public string Name { get; }
@@ -35,12 +29,12 @@ namespace Horde.Build.Agents.Fleet.Providers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="region"></param>
-		/// <param name="name"></param>
-		public AwsAsgSettings(string region, string name)
+		/// <param name="name">Name</param>
+		[JsonConstructor]
+		public AwsAsgSettings(string? name)
 		{
-			Region = region;
-			Name = name;
+			// The JSON deserializer can call the constructor with null parameters
+			Name = name ?? throw new ArgumentException($"Parameter {nameof(name)} is null");
 		}
 	}
 	
@@ -48,29 +42,20 @@ namespace Horde.Build.Agents.Fleet.Providers
 	/// Fleet manager for handling AWS EC2 instances
 	/// Uses an EC2 auto-scaling group for controlling the number of running instances.
 	/// </summary>
-	public sealed class AwsAsgFleetManager : IFleetManager, IDisposable
+	public sealed class AwsAsgFleetManager : IFleetManager
 	{
-		private readonly AmazonAutoScalingClient _client;
-		private readonly AwsAsgSettings _asgSettings;
+		internal AwsAsgSettings Settings { get; }
+		private readonly IAmazonAutoScaling _awsAutoScaling;
 		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsAsgFleetManager(AWSOptions awsOptions, AwsAsgSettings asgSettings, ILogger<AwsAsgFleetManager> logger)
+		public AwsAsgFleetManager(IAmazonAutoScaling awsAutoScaling, AwsAsgSettings asgSettings, ILogger<AwsAsgFleetManager> logger)
 		{
-			_asgSettings = asgSettings;
+			_awsAutoScaling = awsAutoScaling;
+			Settings = asgSettings;
 			_logger = logger;
-
-			AmazonAutoScalingConfig config = new() { RegionEndpoint = RegionEndpoint.GetBySystemName(_asgSettings.Region) };
-			logger.LogInformation("Initializing AWS ASG fleet manager for region {Region}", config.RegionEndpoint);
-			_client = new AmazonAutoScalingClient(awsOptions.Credentials, config);
-		}
-
-		/// <inheritdoc/>
-		public void Dispose()
-		{
-			_client.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -103,13 +88,13 @@ namespace Horde.Build.Agents.Fleet.Providers
 		
 		private async Task UpdateAsg(StringId<IPool> poolId, int desiredCapacity, IScope scope, CancellationToken cancellationToken)
 		{
-			UpdateAutoScalingGroupRequest request = new () { AutoScalingGroupName = _asgSettings.Name, DesiredCapacity = desiredCapacity };
-			UpdateAutoScalingGroupResponse response = await _client.UpdateAutoScalingGroupAsync(request, cancellationToken);
+			UpdateAutoScalingGroupRequest request = new () { AutoScalingGroupName = Settings.Name, DesiredCapacity = desiredCapacity };
+			UpdateAutoScalingGroupResponse response = await _awsAutoScaling.UpdateAutoScalingGroupAsync(request, cancellationToken);
 			
 			scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
 			if (response.HttpStatusCode != HttpStatusCode.OK)
 			{
-				_logger.LogError("Unable to update auto-scaling group {AutoScalingGroup} for pool {PoolId}.", _asgSettings.Name, poolId);
+				_logger.LogError("Unable to update auto-scaling group {AutoScalingGroup} for pool {PoolId}.", Settings.Name, poolId);
 			}
 		}
 

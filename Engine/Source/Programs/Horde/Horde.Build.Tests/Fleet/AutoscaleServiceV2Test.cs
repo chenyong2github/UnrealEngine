@@ -4,16 +4,21 @@ extern alias HordeAgent;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.AutoScaling;
+using Amazon.EC2;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Fleet;
+using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 using StatsdClient;
 
 namespace Horde.Build.Tests.Fleet
@@ -126,11 +131,17 @@ namespace Horde.Build.Tests.Fleet
 
 		private AutoscaleServiceV2 GetAutoscaleService(IFleetManager fleetManager)
 		{
-			ILogger<AutoscaleServiceV2> logger = ServiceProvider.GetRequiredService<ILogger<AutoscaleServiceV2>>();
+			ILoggerFactory loggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
 			IOptions<ServerSettings> serverSettingsOpt = ServiceProvider.GetRequiredService<IOptions<ServerSettings>>();
+			serverSettingsOpt.Value.FleetManagerV2 = FleetManagerType.AwsReuse;
+			
+			// Empty mocks to satisfy the constructor below
+			Mock<IAmazonEC2> mockEc2 = new ();
+			Mock<IAmazonAutoScaling> mockAwsAutoScaling = new ();
 
 			AutoscaleServiceV2 service = new (AgentCollection, GraphCollection, JobCollection, LeaseCollection, PoolCollection,
-				StreamService, fleetManager, _dogStatsD, Clock, serverSettingsOpt, logger);
+				StreamService, _dogStatsD, mockEc2.Object, mockAwsAutoScaling.Object, Clock, serverSettingsOpt, loggerFactory,
+				_ => fleetManager);
 			return service;
 		}
 	}
@@ -227,6 +238,79 @@ namespace Horde.Build.Tests.Fleet
 			IPool pool = await PoolService.CreatePoolAsync("testPool-" + s_poolCount++, null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 			await PoolService.UpdatePoolAsync(pool, newSizeStrategies: infos.ToList());
 			return AutoscaleServiceV2.CreatePoolSizeStrategy(pool);
+		}
+	}
+
+	[TestClass]
+	public class FleetManagerFactoryTest : TestSetup
+	{
+		private static int s_poolCount;
+		
+		[TestMethod]
+		public async Task CreateNoOp()
+		{
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.NoOp, null, "{}"));
+			Assert.AreEqual(typeof(NoOpFleetManager), fm.GetType());
+		}
+		
+		[TestMethod]
+		public async Task CreateAws()
+		{
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.Aws, null, "{\"ImageId\": \"bogusImageId\"}"));
+			Assert.AreEqual(typeof(AwsFleetManager), fm.GetType());
+			Assert.AreEqual("bogusImageId", ((AwsFleetManager)fm).Settings.ImageId);
+		}
+		
+		[TestMethod]
+		public async Task CreateAwsReuse()
+		{
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsReuse, null, "{}"));
+			Assert.AreEqual(typeof(AwsReuseFleetManager), fm.GetType());
+		}
+		
+		[TestMethod]
+		public async Task CreateAwsAsg()
+		{
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsAsg, null, "{\"Name\": \"bogusName\"}"));
+			Assert.AreEqual(typeof(AwsAsgFleetManager), fm.GetType());
+			Assert.AreEqual("bogusName", ((AwsAsgFleetManager)fm).Settings.Name);
+		}
+
+		[TestMethod]
+		public async Task UnknownConfigFieldsAreIgnored()
+		{
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsAsg, null, "{\"Name\": \"bogusName\", \"BAD-PROPERTY\": 1337}"));
+			Assert.AreEqual(typeof(AwsAsgFleetManager), fm.GetType());
+			Assert.AreEqual("bogusName", ((AwsAsgFleetManager)fm).Settings.Name);
+		}
+		
+		[TestMethod]
+		public async Task EmptyConfigThrowsException()
+		{
+			await Assert.ThrowsExceptionAsync<JsonException>(() => CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsAsg, null, "")));
+		}
+		
+		[TestMethod]
+		public async Task CreateFromEmptyList()
+		{
+			IFleetManager fm = await CreateFleetManager();
+			Assert.AreEqual(typeof(NoOpFleetManager), fm.GetType());
+		}
+		
+		[TestMethod]
+		public async Task ConditionSimple()
+		{
+			IFleetManager s = await CreateFleetManager(
+				new FleetManagerInfo(FleetManagerType.Aws, "false", "{}"),
+				new FleetManagerInfo(FleetManagerType.AwsReuse, "true", "{\"ScaleOutFactor\": 100, \"ScaleInFactor\": 200}")
+			);
+			Assert.AreEqual(typeof(AwsReuseFleetManager), s.GetType());
+		}
+		
+		private async Task<IFleetManager> CreateFleetManager(params FleetManagerInfo[] infos)
+		{
+			IPool pool = await PoolService.CreatePoolAsync("testPool-" + s_poolCount++, null, true, 0, 0, fleetManagers: infos.ToList(), sizeStrategy: PoolSizeStrategy.NoOp);
+			return AutoscaleServiceV2.CreateFleetManager(pool);
 		}
 	}
 }

@@ -13,6 +13,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
+using Amazon.AutoScaling;
 using Amazon.CloudWatch;
 using Amazon.EC2;
 using Amazon.Extensions.NETCore.Setup;
@@ -385,22 +386,24 @@ namespace Horde.Build
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
-			services.AddSingleton<AutoscaleService>();
 			services.AddSingleton<AutoscaleServiceV2>();
 			services.AddSingleton<LeaseUtilizationStrategy>();
 			services.AddSingleton<JobQueueStrategy>();
 			services.AddSingleton<NoOpPoolSizeStrategy>();
 			services.AddSingleton<ComputeQueueAwsMetricStrategy>();
 			
-			switch (settings.FleetManager)
+			// Associate IFleetManager interface with the default implementation from config for convenience
+			// Though most fleet managers are created on a per-pool basis
+			services.AddSingleton<IFleetManager>(ctx =>
 			{
-				case FleetManagerType.Aws:
-					services.AddSingleton<IFleetManager, AwsReuseFleetManager>();
-					break;
-				default:
-					services.AddSingleton<IFleetManager, DefaultFleetManager>();
-					break;
-			}
+				AutoscaleServiceV2? autoScale = ctx.GetService<AutoscaleServiceV2>();
+				if (autoScale == null)
+				{
+					throw new InvalidOperationException($"{nameof(AutoscaleServiceV2)} not registered!");
+				}
+
+				return autoScale.GetDefaultFleetManager();
+			});
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();			
@@ -475,6 +478,7 @@ namespace Horde.Build
 			}
 			
 			services.AddAWSService<IAmazonCloudWatch>();
+			services.AddAWSService<IAmazonAutoScaling>();
 			services.AddAWSService<IAmazonEC2>();
 
 			ConfigureLogStorage(services);

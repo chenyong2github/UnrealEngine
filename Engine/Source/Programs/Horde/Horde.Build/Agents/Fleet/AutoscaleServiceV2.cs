@@ -7,6 +7,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.AutoScaling;
+using Amazon.EC2;
+using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Jobs;
@@ -36,14 +39,20 @@ namespace Horde.Build.Agents.Fleet
 		private readonly ILeaseCollection _leaseCollection;
 		private readonly IPoolCollection _poolCollection;
 		private readonly StreamService _streamService;
-		private readonly IFleetManager _fleetManager;
 		private readonly IDogStatsd _dogStatsd;
+		private readonly IAmazonEC2 _ec2;
+		private readonly IAmazonAutoScaling _awsAutoScaling;
 		private readonly IClock _clock;
 		private readonly ITicker _ticker;
 		private readonly ITicker _tickerHighFrequency;
 		private readonly TimeSpan _defaultScaleOutCooldown;
 		private readonly TimeSpan _defaultScaleInCooldown;
+		private readonly IOptions<ServerSettings> _settings;
 		private readonly ILogger<AutoscaleServiceV2> _logger;
+		private readonly ILoggerFactory _loggerFactory;
+		
+		/// <summary>Allow overriding the fleet manager during testing</summary>
+		private readonly Func<IPool, IFleetManager> _fleetManagerFactory;
 
 		/// <summary>
 		/// Constructor
@@ -55,11 +64,13 @@ namespace Horde.Build.Agents.Fleet
 			ILeaseCollection leaseCollection,
 			IPoolCollection poolCollection,
 			StreamService streamService,
-			IFleetManager fleetManager,
 			IDogStatsd dogStatsd,
+			IAmazonEC2 ec2,
+			IAmazonAutoScaling awsAutoScaling,
 			IClock clock,
 			IOptions<ServerSettings> settings,
-			ILogger<AutoscaleServiceV2> logger)
+			ILoggerFactory loggerFactory,
+			Func<IPool, IFleetManager>? fleetManagerFactory = null)
 		{
 			_agentCollection = agentCollection;
 			_graphCollection = graphCollection;
@@ -67,14 +78,18 @@ namespace Horde.Build.Agents.Fleet
 			_leaseCollection = leaseCollection;
 			_poolCollection = poolCollection;
 			_streamService = streamService;
-			_fleetManager = fleetManager;
 			_dogStatsd = dogStatsd;
+			_ec2 = ec2;
+			_awsAutoScaling = awsAutoScaling;
 			_clock = clock;
-			_ticker = clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, logger);
-			_tickerHighFrequency = clock.AddSharedTicker("AutoscaleServiceV2.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, logger);
-			_logger = logger;
+			_logger = loggerFactory.CreateLogger<AutoscaleServiceV2>();
+			_loggerFactory = loggerFactory;
+			_ticker = clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, _logger);
+			_tickerHighFrequency = clock.AddSharedTicker("AutoscaleServiceV2.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
+			_settings = settings;
 			_defaultScaleOutCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleOutCooldownSeconds);
 			_defaultScaleInCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleInCooldownSeconds);
+			_fleetManagerFactory = fleetManagerFactory ?? CreateFleetManager;
 		}
 
 		/// <inheritdoc/>
@@ -159,7 +174,8 @@ namespace Horde.Build.Agents.Fleet
 				int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
 				_logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status}", pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount, poolSizeData.StatusMessage);
-				
+
+				IFleetManager fleetManager = _fleetManagerFactory(poolSizeData.Pool);
 				try
 				{
 					using IScope scope = GlobalTracer.Instance.BuildSpan("ScalingPool").StartActive();
@@ -175,7 +191,7 @@ namespace Horde.Build.Agents.Fleet
 						scope.Span.SetTag("isCoolingDown", isCoolingDown);
 						if (!isCoolingDown)
 						{
-							await _fleetManager.ExpandPoolAsync(pool, poolSizeData.Agents, deltaAgentCount);
+							await fleetManager.ExpandPoolAsync(pool, poolSizeData.Agents, deltaAgentCount);
 							await _poolCollection.TryUpdateAsync(pool, lastScaleUpTime: _clock.UtcNow);
 						}
 						else
@@ -192,7 +208,7 @@ namespace Horde.Build.Agents.Fleet
 						scope.Span.SetTag("isCoolingDown", isCoolingDown);
 						if (!isCoolingDown)
 						{
-							await _fleetManager.ShrinkPoolAsync(pool, poolSizeData.Agents, -deltaAgentCount);
+							await fleetManager.ShrinkPoolAsync(pool, poolSizeData.Agents, -deltaAgentCount);
 							await _poolCollection.TryUpdateAsync(pool, lastScaleDownTime: _clock.UtcNow);
 						}
 						else
@@ -212,6 +228,83 @@ namespace Horde.Build.Agents.Fleet
 				_dogStatsd.Gauge("agentpools.autoscale.current", currentAgentCount, tags: new []{"pool:" + pool.Name});
 			}
 		}
+		
+		private IEnumerable<string> GetPropValues(string name)
+		{
+			return name switch
+			{
+				"dayOfWeek" => new List<string> { _clock.UtcNow.DayOfWeek.ToString().ToLower() },
+				_ => Array.Empty<string>()
+			};
+		}
+		
+		/// <summary>
+		/// Instantiate a fleet manager using the list of conditions/configs in <see cref="IPool" />
+		/// </summary>
+		/// <param name="pool">Pool to use</param>
+		/// <returns>A fleet manager with parameters set, as dictated by the pool argument</returns>
+		/// <exception cref="ArgumentException">If fleet manager could not be instantiated</exception>
+		public IFleetManager CreateFleetManager(IPool pool)
+		{
+			foreach (FleetManagerInfo info in pool.FleetManagers)
+			{
+				if (info.Condition == null || info.Condition.Evaluate(GetPropValues))
+				{
+					return CreateFleetManager(info.Type, info.Config);
+				}
+			}
+
+			return GetDefaultFleetManager();
+		}
+		
+		/// <summary>
+		/// Instantiate the default fleet manager  />
+		/// </summary>
+		/// <returns>A fleet manager with parameters from server settings</returns>
+		/// <exception cref="ArgumentException">If fleet manager could not be instantiated</exception>
+		public IFleetManager GetDefaultFleetManager()
+		{
+			return CreateFleetManager(_settings.Value.FleetManagerV2, _settings.Value.FleetManagerV2Config ?? "{}");
+		}
+		
+		/// <summary>
+		/// Create a fleet manager
+		/// </summary>
+		/// <param name="type">Type of fleet manager</param>
+		/// <param name="config">Config as a serialized JSON string</param>
+		/// <returns>An instantiated fleet manager with parameters loaded from config</returns>
+		/// <exception cref="ArgumentException">If fleet manager could not be instantiated</exception>
+		private IFleetManager CreateFleetManager(FleetManagerType type, string config)
+		{
+			switch (type)
+			{
+				case FleetManagerType.NoOp:
+					return new NoOpFleetManager(_loggerFactory.CreateLogger<NoOpFleetManager>());
+				case FleetManagerType.Aws:
+					return new AwsFleetManager(_ec2, _agentCollection, DeserializeSettings<AwsFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsFleetManager>());
+				case FleetManagerType.AwsReuse:
+					return new AwsReuseFleetManager(_ec2, _agentCollection, _loggerFactory.CreateLogger<AwsReuseFleetManager>());
+				case FleetManagerType.AwsAsg:
+					return new AwsAsgFleetManager(_awsAutoScaling, DeserializeSettings<AwsAsgSettings>(config), _loggerFactory.CreateLogger<AwsAsgFleetManager>());	
+				default:
+					throw new ArgumentException("Unknown fleet manager type " + type);
+			}
+		}
+		
+		private static T DeserializeSettings<T>(string config)
+		{
+			if (String.IsNullOrEmpty(config)) { config = "{}"; }
+			try
+			{
+				T? settings = JsonSerializer.Deserialize<T>(config);
+				if (settings == null) throw new NullReferenceException($"Unable to deserialize");
+				return settings;
+			}
+			catch (ArgumentException e)
+			{
+				throw new ArgumentException($"Unable to deserialize {typeof(T)} config: '{config}'", e);
+			}
+		}
 
 		/// <summary>
 		/// Instantiate a sizing strategy for the given pool
@@ -222,16 +315,6 @@ namespace Horde.Build.Agents.Fleet
 		/// <exception cref="ArgumentException"></exception>
 		public IPoolSizeStrategy CreatePoolSizeStrategy(IPool pool)
 		{
-	
-			IEnumerable<string> GetPropValues(string name)
-			{
-				return name switch
-				{
-					"dayOfWeek" => new List<string> { _clock.UtcNow.DayOfWeek.ToString().ToLower() },
-					_ => Array.Empty<string>()
-				};
-			}
-
 			if (pool.SizeStrategies.Count > 0)
 			{
 				foreach (PoolSizeStrategyInfo info in pool.SizeStrategies)

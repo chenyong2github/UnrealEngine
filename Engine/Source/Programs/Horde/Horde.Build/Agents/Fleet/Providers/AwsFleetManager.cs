@@ -5,10 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon;
 using Amazon.EC2;
 using Amazon.EC2.Model;
-using Amazon.Extensions.NETCore.Setup;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Auditing;
 using Microsoft.Extensions.Logging;
@@ -18,9 +16,9 @@ using OpenTracing.Util;
 namespace Horde.Build.Agents.Fleet.Providers
 {
 	/// <summary>
-	/// Settings for launching an EC2 instance
+	/// Settings for the AWS fleet manager
 	/// </summary>
-	public class AwsInstanceLaunchSettings
+	public class AwsFleetManagerSettings
 	{
 		/// <summary>
 		/// AWS region (e.g us-east-1)
@@ -81,7 +79,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		/// <param name="securityGroupIds"></param>
 		/// <param name="userData"></param>
 		/// <param name="keyName"></param>
-		public AwsInstanceLaunchSettings(string region, string imageId, string instanceType, string? iamInstanceProfile, IReadOnlyDictionary<string, string> tags,
+		public AwsFleetManagerSettings(string region, string imageId, string instanceType, string? iamInstanceProfile, IReadOnlyDictionary<string, string> tags,
 			List<string> subnetIds, List<string> securityGroupIds, string? userData, string? keyName)
 		{
 			Region = region;
@@ -126,7 +124,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 	/// Fleet manager for handling AWS EC2 instances
 	/// Will create and/or terminate instances from scratch.
 	/// </summary>
-	public sealed class AwsFleetManager : IFleetManager, IDisposable
+	public sealed class AwsFleetManager : IFleetManager
 	{
 		/// <summary>
 		/// Prefix for signaling that an EC2 instance belong to an agent pool
@@ -134,29 +132,24 @@ namespace Horde.Build.Agents.Fleet.Providers
 		public const string PoolTagName = "Horde_Autoscale_Pool";
 		private const string AwsTagPropertyName = "aws-tag";
 
-		private readonly AmazonEC2Client _client;
+		/// <summary>
+		/// Settings for fleet manager
+		/// </summary>
+		public AwsFleetManagerSettings Settings { get; }
+		
+		private readonly IAmazonEC2 _ec2;
 		private readonly IAgentCollection _agentCollection;
-		private readonly AwsInstanceLaunchSettings _launchSettings;
 		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsFleetManager(AWSOptions awsOptions, IAgentCollection agentCollection, AwsInstanceLaunchSettings launchSettings, ILogger<AwsFleetManager> logger)
+		public AwsFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsFleetManagerSettings settings, ILogger<AwsFleetManager> logger)
 		{
+			_ec2 = ec2;
 			_agentCollection = agentCollection;
-			_launchSettings = launchSettings;
+			Settings = settings;
 			_logger = logger;
-
-			AmazonEC2Config config = new () { RegionEndpoint = RegionEndpoint.GetBySystemName(_launchSettings.Region) };
-			logger.LogInformation("Initializing AWS fleet manager for region {Region}", config.RegionEndpoint);
-			_client = new AmazonEC2Client(awsOptions.Credentials, config);
-		}
-
-		/// <inheritdoc/>
-		public void Dispose()
-		{
-			_client.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -167,20 +160,20 @@ namespace Horde.Build.Agents.Fleet.Providers
 			scope.Span.SetTag("numAgents", agents.Count);
 			scope.Span.SetTag("count", count);
 
-			List<Tag> tags = _launchSettings.Tags.Select(x => new Tag(x.Key, x.Value)).ToList();
+			List<Tag> tags = Settings.Tags.Select(x => new Tag(x.Key, x.Value)).ToList();
 			tags.Add(new Tag("Horde:RequestedPools", pool.Name));
 			tags.Add(new Tag("Horde:Timestamp:Ec2InstanceLaunchRequested", Convert.ToString(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())));
 			
 			RunInstancesRequest request = new ()
 			{
-				ImageId = _launchSettings.ImageId,
-				InstanceType = InstanceType.FindValue(_launchSettings.InstanceType),
-				KeyName = _launchSettings.KeyName,
-				SecurityGroupIds = _launchSettings.SecurityGroupIds,
-				SubnetId = _launchSettings.GetRandomSubnetId(), // Pick randomly to spread evenly among available subnets 
+				ImageId = Settings.ImageId,
+				InstanceType = InstanceType.FindValue(Settings.InstanceType),
+				KeyName = Settings.KeyName,
+				SecurityGroupIds = Settings.SecurityGroupIds,
+				SubnetId = Settings.GetRandomSubnetId(), // Pick randomly to spread evenly among available subnets 
 				MinCount = count,
 				MaxCount = count,
-				UserData = _launchSettings.GetUserDataAsBase64(),
+				UserData = Settings.GetUserDataAsBase64(),
 				InstanceInitiatedShutdownBehavior = ShutdownBehavior.Terminate,
 				MetadataOptions = new InstanceMetadataOptionsRequest
 				{
@@ -189,12 +182,12 @@ namespace Horde.Build.Agents.Fleet.Providers
 				}
 			};
 
-			if (_launchSettings.IamInstanceProfile != null)
+			if (Settings.IamInstanceProfile != null)
 			{
 				request.IamInstanceProfile =
-					_launchSettings.IamInstanceProfile.StartsWith("arn:aws", StringComparison.InvariantCulture)
-						? new IamInstanceProfileSpecification { Arn = _launchSettings.IamInstanceProfile }
-						: new IamInstanceProfileSpecification { Name = _launchSettings.IamInstanceProfile };
+					Settings.IamInstanceProfile.StartsWith("arn:aws", StringComparison.InvariantCulture)
+						? new IamInstanceProfileSpecification { Arn = Settings.IamInstanceProfile }
+						: new IamInstanceProfileSpecification { Name = Settings.IamInstanceProfile };
 			}
 			
 			if (tags.Count > 0)
@@ -202,7 +195,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 				request.TagSpecifications = new() { new() { ResourceType = ResourceType.Instance, Tags = tags } };
 			}
 
-			RunInstancesResponse response = await _client.RunInstancesAsync(request, cancellationToken);
+			RunInstancesResponse response = await _ec2.RunInstancesAsync(request, cancellationToken);
 			int numStartedInstances = response.Reservation.Instances.Count;
 			scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
 			scope.Span.SetTag("res.numInstances", numStartedInstances);
@@ -276,7 +269,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 			describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
 			describeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { pool.Name }));
 
-			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest, cancellationToken);
+			DescribeInstancesResponse describeResponse = await _ec2.DescribeInstancesAsync(describeRequest, cancellationToken);
 			return describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Distinct().Count();
 		}
 	}

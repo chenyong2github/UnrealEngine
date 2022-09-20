@@ -9,9 +9,9 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Build.Agents.Fleet.Providers
 {
 	/// <summary>
-	/// Default implementation of <see cref="IFleetManager"/>
+	/// No-op implementation of <see cref="IFleetManager"/>
 	/// </summary>
-	public class DefaultFleetManager : IFleetManager
+	public class NoOpFleetManager : IFleetManager
 	{
 		readonly ILogger _logger;
 
@@ -19,7 +19,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		/// Constructor
 		/// </summary>
 		/// <param name="logger">Logging device</param>
-		public DefaultFleetManager(ILogger<DefaultFleetManager> logger)
+		public NoOpFleetManager(ILogger<NoOpFleetManager> logger)
 		{
 			_logger = logger;
 		}
