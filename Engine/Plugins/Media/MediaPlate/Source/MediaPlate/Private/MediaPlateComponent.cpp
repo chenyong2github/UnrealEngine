@@ -294,13 +294,18 @@ void UMediaPlateComponent::SetMeshRange(FVector2D InMeshRange)
 
 void UMediaPlateComponent::SetPlayOnlyWhenVisible(bool bInPlayOnlyWhenVisible)
 {
+	bPlayOnlyWhenVisible = bInPlayOnlyWhenVisible;
+	PlayOnlyWhenVisibleChanged();
+}
+
+void UMediaPlateComponent::PlayOnlyWhenVisibleChanged()
+{
 	// If we are turning off PlayOnlyWhenVisible then make sure we are playing.
-	if (bInPlayOnlyWhenVisible == false)
+	if (bPlayOnlyWhenVisible == false)
 	{
 		ResumeWhenVisible();
 	}
 
-	bPlayOnlyWhenVisible = bInPlayOnlyWhenVisible;
 	UpdateTicking();
 }
 
@@ -744,6 +749,10 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 				SoundComponent = nullptr;
 			}
 		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, bPlayOnlyWhenVisible))
+	{
+		PlayOnlyWhenVisibleChanged();
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, VisibleMipsTilesCalculations))
 	{

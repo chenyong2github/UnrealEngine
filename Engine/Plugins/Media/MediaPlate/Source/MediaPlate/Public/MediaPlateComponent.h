@@ -228,6 +228,11 @@ public:
 	virtual bool IsExternalControlAllowed() override;
 
 private:
+	/**
+	 * Should be called when bPlayOnlyWhenVisible changes.
+	 */
+	void PlayOnlyWhenVisibleChanged();
+
 	void RestartPlayer();
 
 	/**
