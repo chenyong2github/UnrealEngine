@@ -884,13 +884,6 @@ namespace UnrealBuildTool
 			{
 				Target.bUsePCHFiles = false;
 			}
-			
-			// @todo: Override PCH settings
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
-			{
-				Target.bUseSharedPCHs = false;
-				Target.bUsePCHFiles = false;
-			}
 
 			// E&C support.
 			if (Target.bSupportEditAndContinue || Target.bAdaptiveUnityEnablesEditAndContinue)
