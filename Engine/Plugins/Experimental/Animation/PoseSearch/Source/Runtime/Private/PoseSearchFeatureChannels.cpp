@@ -10,7 +10,7 @@
 #include "PoseSearchEigenHelper.h"
 #include "UObject/ObjectSaveContext.h"
 
-#define LOCTEXT_NAMESPACE "PoseSearchDebugger"
+#define LOCTEXT_NAMESPACE "PoseSearchFeatureChannels"
 
 namespace UE::PoseSearch {
 
