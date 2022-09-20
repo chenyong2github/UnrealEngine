@@ -156,27 +156,8 @@ namespace mtlpp
 				case LanguageVersion::Version2_4:
 					Ver = @"2.4";
 					break;
-				case LanguageVersion::Version2_3:
-					Ver = @"2.3";
-					break;
-				case LanguageVersion::Version2_2:
-					Ver = @"2.2";
-					break;
-                case LanguageVersion::Version2_1:
-                    Ver = @"2.1";
-                    break;
-                case LanguageVersion::Version2_0:
-                    Ver = @"2.0";
-                    break;
-                case LanguageVersion::Version1_2:
-                    Ver = @"1.2";
-                    break;
-                case LanguageVersion::Version1_1:
-                    Ver = @"1.1";
-                    break;
-                case LanguageVersion::Version1_0:
 				default:
-					Ver = @"2.2";
+					Ver = @"2.4";
 					break;
 			}
 			

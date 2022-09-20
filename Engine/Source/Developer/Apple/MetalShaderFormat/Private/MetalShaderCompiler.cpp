@@ -11,6 +11,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/EngineVersion.h"
 #include "HAL/PlatformFileManager.h"
 
 #include "MetalShaderFormat.h"
@@ -51,7 +52,7 @@ static bool CompileProcessAllowsRuntimeShaderCompiling(const FShaderCompilerInpu
 }
 
 constexpr uint16 GMetalMaxUniformBufferSlots = 32;
-constexpr int32 GMetalDefaultShadingLanguageVersion = 7;
+constexpr int32 GMetalDefaultShadingLanguageVersion = 0;
 
 /*------------------------------------------------------------------------------
 	Shader compiling.
@@ -898,10 +899,10 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	EMetalTypeBufferMode TypeMode = EMetalTypeBufferModeRaw;
 	FString MinOSVersion;
 	FString StandardVersion;
+    TypeMode = EMetalTypeBufferModeTB;
 	switch(VersionEnum)
 	{
     case 8:
-        TypeMode = EMetalTypeBufferModeTB;
         StandardVersion = TEXT("3.0");
         if (bAppleTV)
         {
@@ -918,7 +919,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
         break;
 
 	case 7:
-		TypeMode = EMetalTypeBufferModeTB;
 		StandardVersion = TEXT("2.4");
 		if (bAppleTV)
 		{
@@ -933,49 +933,29 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			MinOSVersion = TEXT("-mmacosx-version-min=12");
 		}
 		break;
-
-	case 6:
-		TypeMode = EMetalTypeBufferModeTB;
-		StandardVersion = TEXT("2.3");
+	case 0:
+		StandardVersion = TEXT("2.4");
 		if (bAppleTV)
 		{
-			MinOSVersion = TEXT("-mtvos-version-min=14.0");
+			MinOSVersion = TEXT("-mtvos-version-min=15.0");
 		}
 		else if (bIsMobile)
 		{
-			MinOSVersion = TEXT("-mios-version-min=14.0");
+			MinOSVersion = TEXT("-mios-version-min=15.0");
 		}
 		else
 		{
-			MinOSVersion = TEXT("-mmacosx-version-min=11");
+			MinOSVersion = TEXT("-mmacosx-version-min=12");
 		}
+		//EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum
+		//EMacMetalShaderStandard::MacMetalSLStandard_Minimum
 		break;
-#if PLATFORM_MAC
-	case 5:
-    case 0:
-		TypeMode = EMetalTypeBufferModeTB;
-		StandardVersion = TEXT("2.2");
-		MinOSVersion = TEXT("-mmacosx-version-min=10.15");
-		break;
-#else
-        case 0:
-            TypeMode = EMetalTypeBufferModeTB;
-            StandardVersion = TEXT("2.3");
-            if (bAppleTV)
-            {
-                MinOSVersion = TEXT("-mtvos-version-min=14.0");
-            }
-            else if (bIsMobile)
-            {
-                MinOSVersion = TEXT("-mios-version-min=14.0");
-            }
-            break;
-#endif
-        default:
+	default:
 		Output.bSucceeded = false;
 		{
+            FString EngineIdentifier = FEngineVersion::Current().ToString(EVersionComponent::Minor);
 			FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
-			NewError->StrippedErrorMessage = FString::Printf(TEXT("Minimum Metal Version is 2.3 for iOS and 2.2 for MacOS in UE5.1"));
+            NewError->StrippedErrorMessage = FString::Printf(TEXT("Minimum Metal Version is 2.4 in UE %s"), *EngineIdentifier);
 			return;
 		}
 		break;

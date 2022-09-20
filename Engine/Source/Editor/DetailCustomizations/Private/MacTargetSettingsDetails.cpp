@@ -3,6 +3,7 @@
 #include "MacTargetSettingsDetails.h"
 #include "Misc/Paths.h"
 #include "Misc/App.h"
+#include "Misc/EngineVersion.h"
 #include "Modules/ModuleManager.h"
 #include "Layout/Margin.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -393,9 +394,11 @@ void FMacTargetSettingsDetails::SetShaderStandard(int32 Value)
     }
     
     ShaderVersionWarningTextBox->SetError(TEXT(""));
-    if (Value < 7) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+    if (Value < 7 && Value != 0) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
     {
-        ShaderVersionWarningTextBox->SetError(TEXT("Metal Shader Standard is 2.4 on UE5.1"));
+        FString EngineIdentifier = FEngineVersion::Current().ToString(EVersionComponent::Minor);
+        
+        ShaderVersionWarningTextBox->SetError(FString::Printf(TEXT("Minimum Metal Version is 2.4 in UE %s"), *EngineIdentifier));
     }
 }
 
@@ -407,9 +410,9 @@ void FMacTargetSettingsDetails::UpdateShaderStandardWarning()
     if (ShaderVersionPropertyHandle->IsValidHandle())
     {
         ShaderVersionPropertyHandle->GetValue(EnumValue);
-        if (EnumValue < 7)
+        if (EnumValue < 7 && EnumValue != 0)
         {
-            SetShaderStandard(7); // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+            SetShaderStandard(0); // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
         }
     }
 }
