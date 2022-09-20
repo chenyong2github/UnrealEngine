@@ -29,10 +29,13 @@ FBlendSpaceDetails::FBlendSpaceDetails()
 	Builder = nullptr;
 	BlendSpace = nullptr;
 	BlendSpaceNode = nullptr;
+
+	GEditor->RegisterForUndo(this);
 }
 
 FBlendSpaceDetails::~FBlendSpaceDetails()
 {
+	GEditor->UnregisterForUndo(this);
 }
 
 //======================================================================================================================
@@ -121,6 +124,9 @@ static EVisibility GetAnalyzeButtonVisibility(
 // that if "None" was selected then the new value will be null
 void FBlendSpaceDetails::HandleAnalysisFunctionChanged(int32 AxisIndex, TSharedPtr<FString> NewFunctionName)
 {
+	const FScopedTransaction Transaction(LOCTEXT("BlendSpaceDetailsChangedAxisTransaction", "Changed Axis Function"));
+	BlendSpace->Modify();
+
 	UAnalysisProperties* NewAnalysisProperties = BlendSpaceAnalysis::MakeAnalysisProperties(BlendSpace, *NewFunctionName);
 	// Preserve values where possible
 	if (BlendSpace->AnalysisProperties[AxisIndex])
@@ -505,6 +511,16 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			}
 		}
 	}	
+}
+
+void FBlendSpaceDetails::PostUndo(bool bSuccess)
+{
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &FBlendSpaceDetails::RefreshDetails));
+}
+
+void FBlendSpaceDetails::RefreshDetails()
+{
+	Builder->ForceRefreshDetails();
 }
 
 #undef LOCTEXT_NAMESPACE
