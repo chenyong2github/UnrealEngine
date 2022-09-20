@@ -32,7 +32,7 @@ class RemoteSessionView : UIView {
                 let thisSize = CGSize(width: CVPixelBufferGetWidth(pb), height: CVPixelBufferGetHeight(pb))
                 if _aspectRatioConstraint == nil || _aspectRatioConstraint?.multiplier != thisSize.width / thisSize.height {
                     if let constraint = _aspectRatioConstraint {
-                        self.removeConstraint(constraint)
+                        self.superview?.removeConstraint(constraint)
                     }
                     _aspectRatioConstraint = layout(.width, to: .height, of: self, ratio: (thisSize.width / thisSize.height), priority: .required)
                 }
