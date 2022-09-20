@@ -444,7 +444,37 @@ FArchive& FNetBitWriter::operator<<(FSoftObjectPath& Value)
 
 FArchive& FNetBitWriter::operator<<(FSoftObjectPtr& Value)
 {
-	return FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
+	// Keep in sync with FNetBitReader::operator<<(FSoftObjectPtr&)
+
+	if (EngineNetVer() >= EEngineNetworkVersionHistory::HISTORY_SOFTOBJECTPTR_NETGUIDS)
+	{
+		// Treat soft pointers to dynamic (non-stably named) objects as weak pointers.
+		// This allows these objects to be resolved on clients and to only replicate a NetGUID.
+		//
+		// In theory stably named objects could be replicated as NetGUIDs also via the package map,
+		// only exporting and replicating the path string once, but this would require a refactor
+		// of the package map to handle "soft" references to packages and not automatically load them
+		// when they're referenced.
+		UObject* Object = Value.Get();
+		const bool bUsePath = !Object || Object->IsFullNameStableForNetworking();
+
+		WriteBit(bUsePath);
+
+		if (bUsePath)
+		{
+			FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
+		}
+		else
+		{
+			PackageMap->SerializeObject(*this, UObject::StaticClass(), Object, nullptr);
+		}
+	}
+	else
+	{
+		FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
+	}
+
+	return *this;
 }
 
 FArchive& FNetBitWriter::operator<<(FObjectPtr& Value)
@@ -505,7 +535,42 @@ FArchive& FNetBitReader::operator<<(FSoftObjectPath& Value)
 
 FArchive& FNetBitReader::operator<<(FSoftObjectPtr& Value)
 {
-	return FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
+	// Keep in sync with FNetBitWriter::operator<<(FSoftObjectPtr&)
+
+	if (EngineNetVer() >= EEngineNetworkVersionHistory::HISTORY_SOFTOBJECTPTR_NETGUIDS)
+	{
+		// Treat soft pointers to dynamic (non-stably named) objects as weak pointers.
+		// This allows these objects to be resolved on clients and to only replicate a NetGUID.
+		//
+		// In theory stably named objects could be replicated as NetGUIDs also via the package map,
+		// only exporting and replicating the path string once, but this would require a refactor
+		// of the package map to handle "soft" references to packages and not automatically load them
+		// when they're referenced.
+		const bool bUsePath = ReadBit() != 0;
+
+		UObject* Object = nullptr;
+
+		if (bUsePath)
+		{
+			FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
+		}
+		else
+		{
+			PackageMap->SerializeObject(*this, UObject::StaticClass(), Object, nullptr);
+		}
+
+		if (!bUsePath)
+		{
+			Value = Object;
+		}
+		Value.GetUniqueID().FixupForPIE();
+	}
+	else
+	{
+		FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
+	}
+
+	return *this;
 }
 
 FArchive& FNetBitReader::operator<<(FObjectPtr& Value)
