@@ -53,31 +53,6 @@ protected:
 	TSet<UMovieSceneSection*> SectionsToExclude;
 };
 
-TOptional<FSequencerSnapField::FSnapResult> SnapToInterval(const TArray<FFrameTime>& InTimes, int32 FrameThreshold, FFrameRate Resolution, FFrameRate DisplayRate, ESequencerScrubberStyle ScrubStyle)
-{
-	TOptional<FSequencerSnapField::FSnapResult> Result;
-
-	FFrameTime SnapAmount(0);
-	for (FFrameTime Time : InTimes)
-	{
-		// Convert from resolution to DisplayRate, round to frame, then back again. We floor to frames when using the frame block scrubber, and round using the vanilla scrubber
-		FFrameTime   DisplayTime      = FFrameRate::TransformTime(Time, Resolution, DisplayRate);
-		FFrameNumber PlayIntervalTime = ScrubStyle == ESequencerScrubberStyle::FrameBlock ? DisplayTime.FloorToFrame() : DisplayTime.RoundToFrame();
-		FFrameNumber IntervalSnap     = FFrameRate::TransformTime(PlayIntervalTime, DisplayRate, Resolution).FloorToFrame();
-
-		FFrameTime ThisSnapAmount   = IntervalSnap - Time;
-		if (FMath::Abs(ThisSnapAmount) <= FrameThreshold)
-		{
-			if (!Result.IsSet() || FMath::Abs(ThisSnapAmount) < SnapAmount)
-			{
-				Result = FSequencerSnapField::FSnapResult{Time, IntervalSnap, 1.f};
-				SnapAmount = ThisSnapAmount;
-			}
-		}
-	}
-
-	return Result;
-}
 
 /** How many pixels near the mouse has to be before snapping occurs */
 const float PixelSnapWidth = 20.f;
@@ -163,6 +138,7 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 	TSet<FSequencerSelectedKey> EmptyKeySet;
 	FInvalidKeyAndSectionSnappingCandidates SnapCandidates(EmptyKeySet, Sections);
 	SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section | ESequencerEntity::Key);
+	SnapField.GetValue().SetSnapToInterval(Sequencer.GetSequencerSettings()->GetSnapSectionTimesToInterval());
 
 	SectionInitTimes.Empty();
 
@@ -292,12 +268,6 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		if (Settings->GetSnapSectionTimesToSections())
 		{
 			SnappedTime = SnapField->Snap(SectionTimes, SnapThreshold);
-		}
-
-		if (!SnappedTime.IsSet() && Settings->GetSnapSectionTimesToInterval())
-		{
-			int32 IntervalSnapThreshold = FMath::RoundToInt( ( TickResolution / DisplayRate ).AsDecimal() );
-			SnappedTime = SnapToInterval(SectionTimes, IntervalSnapThreshold, TickResolution, DisplayRate, ScrubStyle);
 		}
 
 		if (SnappedTime.IsSet())
@@ -565,6 +535,7 @@ void FManipulateSectionEasing::OnBeginDrag(const FPointerEvent& MouseEvent, FVec
 		// Construct a snap field of all section bounds
 		ISnapCandidate SnapCandidates;
 		SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section);
+		SnapField.GetValue().SetSnapToInterval(Sequencer.GetSequencerSettings()->GetSnapSectionTimesToInterval());
 	}
 
 	InitValue = bEaseIn ? Section->Easing.GetEaseInDuration() : Section->Easing.GetEaseOutDuration();
@@ -611,12 +582,6 @@ void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D
 		if (Settings->GetSnapSectionTimesToSections())
 		{
 			SnappedTime = SnapField->Snap(SnapTimes, SnapThreshold);
-		}
-
-		if (!SnappedTime.IsSet() && Settings->GetSnapSectionTimesToInterval())
-		{
-			int32 IntervalSnapThreshold = FMath::RoundToInt( ( TickResolution / DisplayRate ).AsDecimal() );
-			SnappedTime = SnapToInterval(SnapTimes, IntervalSnapThreshold, TickResolution, DisplayRate, ScrubStyle);
 		}
 
 		if (SnappedTime.IsSet())
@@ -808,27 +773,25 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		const bool bSnapToInterval = (KeysAsArray.Num() > 0 && Settings->GetSnapKeyTimesToInterval()) || (Sections.Num() > 0 && Settings->GetSnapSectionTimesToInterval());
 		const bool bSnapToLikeTypes = (KeysAsArray.Num() > 0 && Settings->GetSnapKeyTimesToKeys()) || (Sections.Num() > 0 && Settings->GetSnapSectionTimesToSections());
 
+		SnapField.GetValue().SetSnapToInterval(bSnapToInterval);
+
 		// RelativeSnapOffsets contains both our sections and our keys, and we add them all as potential things that can snap to stuff.
-		ValidSnapMarkers.SetNumUninitialized(RelativeSnapOffsets.Num());
-		for (int32 Index = 0; Index < RelativeSnapOffsets.Num(); ++Index)
+		if (bSnapToLikeTypes)
 		{
-			ValidSnapMarkers[Index] = (RelativeSnapOffsets[Index] + MouseTime);
+			ValidSnapMarkers.SetNumUninitialized(RelativeSnapOffsets.Num());
+			for (int32 Index = 0; Index < RelativeSnapOffsets.Num(); ++Index)
+			{
+				ValidSnapMarkers[Index] = (RelativeSnapOffsets[Index] + MouseTime);
+			}
 		}
 
 		// Now we'll try and snap all of these points to the closest valid snap marker (which may be a section or interval)
 		TOptional<FSequencerSnapField::FSnapResult> SnappedTime;
 
-		if (bSnapToLikeTypes)
+		if (bSnapToLikeTypes || bSnapToInterval)
 		{
 			// This may or may not set the SnappedTime depending on if there are any sections within the threshold.
 			SnappedTime = SnapField->Snap(ValidSnapMarkers, SnapThreshold);
-		}
-
-		if (!SnappedTime.IsSet() && bSnapToInterval)
-		{
-			// Snap to the nearest interval (if enabled). Snapping to other objects has over interval.
-			int32 IntervalSnapThreshold = FMath::RoundToInt((TickResolution / DisplayRate).AsDecimal());
-			SnappedTime = SnapToInterval(ValidSnapMarkers, IntervalSnapThreshold, TickResolution, DisplayRate, ScrubStyle);
 		}
 
 		// If they actually snapped to something (snapping may be on but settings might dictate nothing to snap to) add the difference

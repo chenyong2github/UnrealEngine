@@ -121,6 +121,10 @@ void FSequencerSnapField::Initialize(const FSequencer& InSequencer, UE::Sequence
 	{
 		SortedSnaps.Append(Visitor.Snaps);
 	}
+
+	TickResolution = InSequencer.GetFocusedTickResolution();
+	DisplayRate = InSequencer.GetFocusedDisplayRate();
+	ScrubStyle = InSequencer.GetScrubStyle();
 }
 
 void FSequencerSnapField::Finalize()
@@ -231,6 +235,30 @@ TOptional<FSequencerSnapField::FSnapResult> FSequencerSnapField::Snap(const TArr
 	for (FFrameTime Time : InTimes)
 	{
 		TOptional<FSnapResult> ThisSnap = Snap(Time, Threshold);
+
+		if (bSnapToInterval)
+		{
+			FFrameTime ThisTime = ThisSnap.IsSet() ? ThisSnap->SnappedTime : Time;
+			FFrameTime IntervalTime = FFrameRate::TransformTime(ThisTime, TickResolution, DisplayRate);
+			FFrameNumber PlayIntervalTime = ScrubStyle == ESequencerScrubberStyle::FrameBlock ? IntervalTime.FloorToFrame() : IntervalTime.RoundToFrame();
+			FFrameNumber IntervalSnap = FFrameRate::TransformTime(PlayIntervalTime, DisplayRate, TickResolution).FloorToFrame();
+
+			const int32 IntervalSnapThreshold = FMath::RoundToInt((TickResolution / DisplayRate).AsDecimal());
+
+			FFrameTime ThisSnapAmount = IntervalSnap - ThisTime;
+			if (FMath::Abs(ThisSnapAmount) <= IntervalSnapThreshold)
+			{
+				if (ThisSnap.IsSet())
+				{
+					ThisSnap->SnappedTime = IntervalSnap;
+				}
+				else
+				{
+					ThisSnap = { Time, IntervalSnap, 1.f };
+				}
+			}
+		}
+
 		if (!ThisSnap.IsSet())
 		{
 			continue;

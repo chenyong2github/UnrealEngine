@@ -300,6 +300,7 @@ TSharedPtr<ISequencerEditToolDragOperation> FKeyBarHotspot::InitiateDrag(const F
 			AllLinearKeys = AllKeys.Array();
 
 			SnapField = FSequencerSnapField(*InSequencer, *this);
+			SnapField.SetSnapToInterval(InSequencer->GetSequencerSettings()->GetSnapKeyTimesToInterval());
 		}
 
 		void OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override

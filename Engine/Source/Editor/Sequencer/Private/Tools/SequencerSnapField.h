@@ -10,6 +10,8 @@
 class IKeyArea;
 class FSequencer;
 
+enum class ESequencerScrubberStyle : uint8;
+
 /** A snapping field that provides efficient snapping calculations on a range of values */
 class FSequencerSnapField
 {
@@ -31,15 +33,13 @@ public:
 	/** Construction from a sequencer and a snap canidate implementation. Optionally provide an entity mask to completely ignore some entity types */
 	FSequencerSnapField(const FSequencer& InSequencer, UE::Sequencer::ISnapCandidate& Candidate, uint32 EntityMask = ESequencerEntity::Everything);
 
-	/** Move construction / assignment */
-	FSequencerSnapField(FSequencerSnapField&& In) : SortedSnaps(MoveTemp(In.SortedSnaps)) {}
-	FSequencerSnapField& operator=(FSequencerSnapField&& In) { SortedSnaps = MoveTemp(In.SortedSnaps); return *this; }
-
 	void Initialize(const FSequencer& InSequencer, UE::Sequencer::ISnapCandidate& Candidate, uint32 EntityMask = ESequencerEntity::Everything);
 
 	void AddExplicitSnap(UE::Sequencer::FSnapPoint InSnap);
 
 	void Finalize();
+
+	void SetSnapToInterval(bool bInSnapToInterval) { bSnapToInterval = bInSnapToInterval; }
 
 	/** Snap the specified time to this field with the given threshold */
 	TOptional<FSnapResult> Snap(const FFrameTime& InTime, const FFrameTime& Threshold) const;
@@ -50,4 +50,10 @@ public:
 private:
 	/** Array of snap points, approximately grouped, and sorted in ascending order by time */
 	TArray<UE::Sequencer::FSnapPoint> SortedSnaps;
+
+	FFrameRate TickResolution;
+	FFrameRate DisplayRate;
+	ESequencerScrubberStyle ScrubStyle;
+
+	bool bSnapToInterval = false;
 };
