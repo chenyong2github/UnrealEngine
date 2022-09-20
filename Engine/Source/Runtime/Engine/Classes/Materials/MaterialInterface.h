@@ -842,16 +842,24 @@ public:
 	/**
 	 * @brief Submits shaders to be compiled for all the materials in the world.
 	 *
-	 * This function will submit any remaining shaders to be compiled for all the materials in the passed in world.
+	 * This function will submit any remaining shaders to be compiled for all the materials in the passed in world.  By default
+	 * these shader compilation jobs will be compiled in the background so if you need the results immediately you can call
+	 * FinishAllCompilation() to block on the results.
 	 *
 	 * If the world is nullptr this will submit remaining shaders to be compiled for all the loaded materials.
 	 *
+	 * @code
+	 * GShaderCompilingManager->SubmitRemainingJobsForWorld(World);
+	 * GShaderCompilingManager->FinishAllCompilation();
+	 * @endcode
+	 *
 	 * @param World Only compile shaders for materials that are used on primitives in this world.
+	 * @param CompileMode Controls whether or not we block on the shader compile results.
 	 *
 	 * @note This will only submit shader compile jobs for missing shaders on each material.  Calling this multiple times on the same world
 	 * will result in a no-op.
 	 */
-	ENGINE_API static void SubmitRemainingJobsForWorld(UWorld* World);
+	ENGINE_API static void SubmitRemainingJobsForWorld(UWorld* World, EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default);
 
 	/**
 	 * Re-caches uniform expressions for this material interface                   

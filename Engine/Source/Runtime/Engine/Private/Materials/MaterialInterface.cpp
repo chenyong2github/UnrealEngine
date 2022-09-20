@@ -539,7 +539,7 @@ void UMaterialInterface::RecacheAllMaterialUniformExpressions(bool bRecreateUnif
 	}
 }
 
-void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World)
+void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World, EMaterialShaderPrecompileMode CompileMode)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterialInterface::SubmitRemainingJobsForWorld);
 
@@ -586,11 +586,8 @@ void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World)
 			// This is needed because CacheShaders blindly recreates uniform buffers
 			// which can only be done if the draw command is going to be re-cached.
 			UpdateContext.AddMaterialInterface(Material);
-			Material->CacheShaders();
+			Material->CacheShaders(CompileMode);
 		}
-
-		// Block on all compilation.
-		FAssetCompilingManager::Get().FinishAllCompilation();
 	}
 }
 

@@ -134,6 +134,7 @@ void UAsyncCaptureScene::FinishLoadingBeforeScreenshot()
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		UMaterialInterface::SubmitRemainingJobsForWorld(CurrentWorld);
+		FAssetCompilingManager::Get().FinishAllCompilation();
 		IAutomationControllerModule& AutomationController = IAutomationControllerModule::Get();
 		AutomationController.GetAutomationController()->ResetAutomationTestTimeout(TEXT("shader compilation"));
 	}
