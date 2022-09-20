@@ -70,7 +70,6 @@ protected:
 	{
 		FScopeLock Lock(&CS);
 		Super::template CopyFrom<DelegateInstanceInterfaceType, DelegateType>(Other);
-		return *this;
 	}
 
 	template<typename DelegateInstanceInterfaceType, typename DelegateBaseType, typename... ParamTypes>
