@@ -302,6 +302,7 @@ void SMoviePipelineConfigEditor::UpdateDetails()
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.bShowScrollBar = false;
 	DetailsViewArgs.ColumnWidth = 0.5f;
+	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
 
 	TArray<UMoviePipelineSetting*> SelectedSources;
 	SettingsWidget->GetSelectedSettings(SelectedSources);
