@@ -121,7 +121,7 @@ namespace Horde.Build.Compute
 		/// </summary>
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
-		readonly IStorageClient _storageClient;
+		readonly ILegacyStorageClient _storageClient;
 		readonly ITaskScheduler<QueueKey, ComputeTaskInfo> _taskScheduler;
 		readonly RedisMessageQueue<ComputeTaskStatus> _messageQueue;
 		readonly ITicker _expireTasksTicker;
@@ -137,7 +137,7 @@ namespace Horde.Build.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeService(GlobalsService globalsService, RedisService redisService, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
+		public ComputeService(GlobalsService globalsService, RedisService redisService, ILegacyStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
 		{
 			_storageClient = storageClient;
 			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redisService.ConnectionPool, "compute/tasks/", logger);
@@ -460,7 +460,7 @@ namespace Horde.Build.Compute
 				{
 					requirements = await _storageClient.ReadBlobAsync<Requirements>(namespaceId, queueKey.RequirementsHash);
 				}
-				catch (BlobNotFoundException)
+				catch (LegacyBlobNotFoundException)
 				{
 				}
 				catch (Exception ex)

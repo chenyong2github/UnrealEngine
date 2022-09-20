@@ -27,7 +27,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base class for blob exceptions
 	/// </summary>
-	public class BlobException : StorageException
+	public class LegacyBlobException : StorageException
 	{
 		/// <summary>
 		/// Namespace containing the blob
@@ -42,7 +42,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BlobException(NamespaceId namespaceId, IoHash hash, string message, Exception? innerException = null)
+		public LegacyBlobException(NamespaceId namespaceId, IoHash hash, string message, Exception? innerException = null)
 			: base(message, innerException)
 		{
 			NamespaceId = namespaceId;
@@ -53,12 +53,12 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Exception thrown for missing blobs
 	/// </summary>
-	public sealed class BlobNotFoundException : BlobException
+	public sealed class LegacyBlobNotFoundException : LegacyBlobException
 	{
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BlobNotFoundException(NamespaceId namespaceId, IoHash hash, Exception? innerException = null)
+		public LegacyBlobNotFoundException(NamespaceId namespaceId, IoHash hash, Exception? innerException = null)
 			: base(namespaceId, hash, $"Unable to find blob {hash} in {namespaceId}", innerException)
 		{
 		}
@@ -67,7 +67,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base class for ref exceptions
 	/// </summary>
-	public class RefException : StorageException
+	public class LegacyRefException : StorageException
 	{
 		/// <summary>
 		/// Namespace containing the ref
@@ -87,7 +87,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RefException(NamespaceId namespaceId, BucketId bucketId, RefId refId, string message, Exception? innerException = null)
+		public LegacyRefException(NamespaceId namespaceId, BucketId bucketId, RefId refId, string message, Exception? innerException = null)
 			: base(message, innerException)
 		{
 			NamespaceId = namespaceId;
@@ -99,12 +99,12 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Indicates that a named reference wasn't found
 	/// </summary>
-	public sealed class RefNotFoundException : RefException
+	public sealed class LegacyRefNotFoundException : LegacyRefException
 	{
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RefNotFoundException(NamespaceId namespaceId, BucketId bucketId, RefId refId, Exception? innerException = null)
+		public LegacyRefNotFoundException(NamespaceId namespaceId, BucketId bucketId, RefId refId, Exception? innerException = null)
 			: base(namespaceId, bucketId, refId, $"Ref {namespaceId}/{bucketId}/{refId} not found", innerException)
 		{
 		}
@@ -113,12 +113,12 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Indicates that a ref cannot be finalized due to a missing blob
 	/// </summary>
-	public sealed class RefMissingBlobException : RefException
+	public sealed class LegacyRefMissingBlobException : LegacyRefException
 	{
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RefMissingBlobException(NamespaceId namespaceId, BucketId bucketId, RefId refId, List<IoHash> missingBlobs, Exception? innerException = null)
+		public LegacyRefMissingBlobException(NamespaceId namespaceId, BucketId bucketId, RefId refId, List<IoHash> missingBlobs, Exception? innerException = null)
 			: base(namespaceId, bucketId, refId, $"Ref {namespaceId}/{bucketId}/{refId} cannot be finalized; missing {missingBlobs.Count} blobs ({missingBlobs[0]}...)", innerException)
 		{
 		}
@@ -127,7 +127,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Interface for an object reference
 	/// </summary>
-	public interface IRef
+	public interface ILegacyRef
 	{
 		/// <summary>
 		/// Namespace identifier
@@ -153,7 +153,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base interface for a storage client that only records blobs.
 	/// </summary>
-	public interface IStorageClient
+	public interface ILegacyStorageClient
 	{
 		#region Blobs
 
@@ -240,7 +240,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refId">Name of the reference</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The reference data if the ref exists</returns>
-		Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default);
+		Task<ILegacyRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Checks if the given reference exists
@@ -298,9 +298,9 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Extension methods for <see cref="IStorageClient"/>
+	/// Extension methods for <see cref="ILegacyStorageClient"/>
 	/// </summary>
-	public static class StorageClientExtensions
+	public static class LegacyStorageClientExtensions
 	{
 		const int DefaultMaxInMemoryBlobLength = 128 * 1024 * 1024;
 
@@ -313,7 +313,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Data for the blob that was read. Throws an exception if the blob was not found.</returns>
-		public static Task<byte[]> ReadBlobToMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		public static Task<byte[]> ReadBlobToMemoryAsync(this ILegacyStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
 		{
 			return ReadBlobToMemoryAsync(storageClient, false, namespaceId, hash, maxInMemoryBlobLength, cancellationToken);
 		}
@@ -327,12 +327,12 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Data for the blob that was read. Throws an exception if the blob was not found.</returns>
-		public static Task<byte[]> ReadCompressedBlobToMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		public static Task<byte[]> ReadCompressedBlobToMemoryAsync(this ILegacyStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
 		{
 			return ReadBlobToMemoryAsync(storageClient, true, namespaceId, hash, maxInMemoryBlobLength, cancellationToken);
 		}
 		
-		private static async Task<byte[]> ReadBlobToMemoryAsync(IStorageClient storageClient, bool isBlobCompressed, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		private static async Task<byte[]> ReadBlobToMemoryAsync(ILegacyStorageClient storageClient, bool isBlobCompressed, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
 		{
 			using Stream stream = isBlobCompressed
 				? await storageClient.ReadCompressedBlobAsync(namespaceId, hash, cancellationToken)
@@ -341,7 +341,7 @@ namespace EpicGames.Horde.Storage
 			long length = stream.Length;
 			if (length > maxInMemoryBlobLength)
 			{
-				throw new BlobException(namespaceId, hash, $"Blob {hash} is too large ({length} > {maxInMemoryBlobLength})");
+				throw new LegacyBlobException(namespaceId, hash, $"Blob {hash} is too large ({length} > {maxInMemoryBlobLength})");
 			}
 
 			byte[] buffer = new byte[length];
@@ -350,7 +350,7 @@ namespace EpicGames.Horde.Storage
 				int count = await stream.ReadAsync(buffer, offset, (int)length - offset, cancellationToken);
 				if (count == 0)
 				{
-					throw new BlobException(namespaceId, hash, $"Unexpected end of stream reading blob {hash}");
+					throw new LegacyBlobException(namespaceId, hash, $"Unexpected end of stream reading blob {hash}");
 				}
 				offset += count;
 			}
@@ -366,7 +366,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="data">Data to write</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<IoHash> WriteBlobFromMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+		public static async Task<IoHash> WriteBlobFromMemoryAsync(this ILegacyStorageClient storageClient, NamespaceId namespaceId, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
 		{
 			IoHash hash = IoHash.Compute(data.Span);
 			await WriteBlobFromMemoryAsync(storageClient, namespaceId, hash, data, cancellationToken);
@@ -382,7 +382,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="data">The data to be written</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task WriteBlobFromMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+		public static async Task WriteBlobFromMemoryAsync(this ILegacyStorageClient storageClient, NamespaceId namespaceId, IoHash hash, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
 		{
 			using ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(data);
 			await storageClient.WriteBlobAsync(namespaceId, hash, stream, cancellationToken);
@@ -398,7 +398,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The decoded object</returns>
-		public static async Task<T> ReadBlobAsync<T>(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		public static async Task<T> ReadBlobAsync<T>(this ILegacyStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
 		{
 			ReadOnlyMemory<byte> data = await ReadBlobToMemoryAsync(storageClient, namespaceId, hash, maxInMemoryBlobLength, cancellationToken);
 			return CbSerializer.Deserialize<T>(data);
@@ -412,7 +412,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="blob">The object to be written</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<IoHash> WriteBlobAsync<T>(this IStorageClient storageClient, NamespaceId namespaceId, T blob, CancellationToken cancellationToken = default)
+		public static async Task<IoHash> WriteBlobAsync<T>(this ILegacyStorageClient storageClient, NamespaceId namespaceId, T blob, CancellationToken cancellationToken = default)
 		{
 			CbWriter writer = new CbWriter();
 			CbSerializer.Serialize<T>(writer, blob);
@@ -429,7 +429,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="qualifiedRefId">Name of the reference</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The reference data if the ref exists</returns>
-		public static Task<IRef> GetRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
+		public static Task<ILegacyRef> GetRefAsync(this ILegacyStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
 		{
 			return storageClient.GetRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, cancellationToken);
 		}
@@ -441,7 +441,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="qualifiedRefId">Name of the reference</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref exists, false if it did not exist</returns>
-		public static Task<bool> HasRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
+		public static Task<bool> HasRefAsync(this ILegacyStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
 		{
 			return storageClient.HasRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, cancellationToken);
 		}
@@ -454,7 +454,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="value">New value for the reference</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of missing references</returns>
-		public static Task<List<IoHash>> TrySetRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CbObject value, CancellationToken cancellationToken = default)
+		public static Task<List<IoHash>> TrySetRefAsync(this ILegacyStorageClient storageClient, QualifiedRefId qualifiedRefId, CbObject value, CancellationToken cancellationToken = default)
 		{
 			return storageClient.TrySetRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, value, cancellationToken);
 		}
@@ -469,9 +469,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refId">The ref id</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Deserialized object for the given ref</returns>
-		public static async Task<T> GetRefAsync<T>(this IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
+		public static async Task<T> GetRefAsync<T>(this ILegacyStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			IRef item = await storageClient.GetRefAsync(namespaceId, bucketId, refId, cancellationToken);
+			ILegacyRef item = await storageClient.GetRefAsync(namespaceId, bucketId, refId, cancellationToken);
 			return CbSerializer.Deserialize<T>(item.Value);
 		}
 
@@ -484,7 +484,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refId">The ref id</param>
 		/// <param name="value">The new object for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task SetRefAsync<T>(this IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, T value, CancellationToken cancellationToken = default)
+		public static Task SetRefAsync<T>(this ILegacyStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, T value, CancellationToken cancellationToken = default)
 		{
 			CbObject objectValue = CbSerializer.Serialize<T>(value);
 			return SetRefAsync(storageClient, namespaceId, bucketId, refId, objectValue, cancellationToken);
@@ -499,12 +499,12 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refId">The ref id</param>
 		/// <param name="value">The new object for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task SetRefAsync(this IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken = default)
+		public static async Task SetRefAsync(this ILegacyStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, CbObject value, CancellationToken cancellationToken = default)
 		{
 			List<IoHash> missingHashes = await storageClient.TrySetRefAsync(namespaceId, bucketId, refId, value, cancellationToken);
 			if (missingHashes.Count > 0)
 			{
-				throw new RefMissingBlobException(namespaceId, bucketId, refId, missingHashes);
+				throw new LegacyRefMissingBlobException(namespaceId, bucketId, refId, missingHashes);
 			}
 		}
 
@@ -519,7 +519,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="value">The new object for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of missing blob hashes</returns>
-		public static Task<List<IoHash>> TrySetRefAsync<T>(this IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, T value, CancellationToken cancellationToken = default)
+		public static Task<List<IoHash>> TrySetRefAsync<T>(this ILegacyStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, T value, CancellationToken cancellationToken = default)
 		{
 			CbObject objectValue = CbSerializer.Serialize<T>(value);
 			return storageClient.TrySetRefAsync(namespaceId, bucketId, refId, objectValue, cancellationToken);
@@ -534,12 +534,12 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refId">The ref id</param>
 		/// <param name="valueHash">Hash of the ref value</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task FinalizeRefAsync(this IStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash valueHash, CancellationToken cancellationToken = default)
+		public static async Task FinalizeRefAsync(this ILegacyStorageClient storageClient, NamespaceId namespaceId, BucketId bucketId, RefId refId, IoHash valueHash, CancellationToken cancellationToken = default)
 		{
 			List<IoHash> missingHashes = await storageClient.TryFinalizeRefAsync(namespaceId, bucketId, refId, valueHash, cancellationToken);
 			if (missingHashes.Count > 0)
 			{
-				throw new RefMissingBlobException(namespaceId, bucketId, refId, missingHashes);
+				throw new LegacyRefMissingBlobException(namespaceId, bucketId, refId, missingHashes);
 			}
 		}
 
@@ -550,7 +550,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="qualifiedRefId">Name of the reference</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref was deleted, false if it did not exist</returns>
-		public static Task<bool> DeleteRefAsync(this IStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
+		public static Task<bool> DeleteRefAsync(this ILegacyStorageClient storageClient, QualifiedRefId qualifiedRefId, CancellationToken cancellationToken = default)
 		{
 			return storageClient.DeleteRefAsync(qualifiedRefId.NamespaceId, qualifiedRefId.BucketId, qualifiedRefId.RefId, cancellationToken);
 		}

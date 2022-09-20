@@ -135,7 +135,7 @@ namespace Horde.Agent.Commands.Compute
 				OAuthHandler<HttpStorageClient> oAuthHandler = oAuthHandlerFactory.Create<HttpStorageClient>(clientOptions);
 				using HttpClient client = new (oAuthHandler);
 				client.BaseAddress = clientOptions.Url;
-				IStorageClient storageClient = new HttpStorageClient(client);
+				ILegacyStorageClient storageClient = new HttpStorageClient(client);
 
 				AgentSettings agentSettings = await CreateAgentSettingsAsync(cts.Token);
 				agentSettings.WorkingDir = Environment.GetEnvironmentVariable("UE_HORDE_WORKING_DIR") ?? "/tmp";

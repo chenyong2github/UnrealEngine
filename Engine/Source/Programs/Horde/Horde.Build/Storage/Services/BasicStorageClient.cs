@@ -15,15 +15,15 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Storage.Services
 {
-	using BlobNotFoundException = EpicGames.Horde.Storage.BlobNotFoundException;
-	using IRef = EpicGames.Horde.Storage.IRef;
+	using BlobNotFoundException = EpicGames.Horde.Storage.LegacyBlobNotFoundException;
+	using ILegacyRef = EpicGames.Horde.Storage.ILegacyRef;
 
 	/// <summary>
-	/// Simple implementation of <see cref="IStorageClient"/> which uses the current <see cref="IStorageBackend"/> implementation without garbage collection.
+	/// Simple implementation of <see cref="ILegacyStorageClient"/> which uses the current <see cref="IStorageBackend"/> implementation without garbage collection.
 	/// </summary>
-	public class BasicStorageClient : IStorageClient
+	public class BasicStorageClient : ILegacyStorageClient
 	{
-		class RefImpl : IRef
+		class RefImpl : ILegacyRef
 		{
 			public string Id { get; set; } = String.Empty;
 
@@ -142,14 +142,14 @@ namespace Horde.Build.Storage.Services
 		}
 
 		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
+		public async Task<ILegacyRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
 			string id = GetFullRefId(namespaceId, bucketId, refId);
 
 			RefImpl? refImpl = await _refs.FindOneAndUpdateAsync<RefImpl>(x => x.Id == id, Builders<RefImpl>.Update.Set(x => x.LastAccessTime, DateTime.UtcNow), new FindOneAndUpdateOptions<RefImpl> { ReturnDocument = ReturnDocument.After }, cancellationToken);
 			if (refImpl == null || !refImpl.Finalized)
 			{
-				throw new RefNotFoundException(namespaceId, bucketId, refId);
+				throw new LegacyRefNotFoundException(namespaceId, bucketId, refId);
 			}
 
 			return refImpl;

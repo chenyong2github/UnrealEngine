@@ -50,11 +50,11 @@ namespace EpicGames.Horde.Storage.Impl
 	}
 
 	/// <summary>
-	/// Implementation of <see cref="IStorageClient"/> using REST requests.
+	/// Implementation of <see cref="ILegacyStorageClient"/> using REST requests.
 	/// </summary>
-	public sealed class HttpStorageClient : IStorageClient
+	public sealed class HttpStorageClient : ILegacyStorageClient
 	{
-		class RefImpl : IRef
+		class RefImpl : ILegacyRef
 		{
 			public NamespaceId NamespaceId { get; set; }
 
@@ -112,7 +112,7 @@ namespace EpicGames.Horde.Storage.Impl
 			{
 				if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
 				{
-					throw new BlobNotFoundException(namespaceId, hash);
+					throw new LegacyBlobNotFoundException(namespaceId, hash);
 				}
 
 				response.EnsureSuccessStatusCode();
@@ -248,7 +248,7 @@ namespace EpicGames.Horde.Storage.Impl
 		#region Refs
 
 		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
+		public async Task<ILegacyRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken)
 		{
 			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{namespaceId}/{bucketId}/{refId}");
 
@@ -260,11 +260,11 @@ namespace EpicGames.Horde.Storage.Impl
 			{
 				if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
 				{
-					throw new RefNotFoundException(namespaceId, bucketId, refId);
+					throw new LegacyRefNotFoundException(namespaceId, bucketId, refId);
 				}
 				else
 				{
-					throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
+					throw new LegacyRefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
 				}
 			}
 
@@ -290,13 +290,13 @@ namespace EpicGames.Horde.Storage.Impl
 			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			if (!response.IsSuccessStatusCode)
 			{
-				throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
+				throw new LegacyRefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
 			}
 
 			RefPutResponse? responseBody = await ReadJsonResponse<RefPutResponse>(response.Content);
 			if (responseBody == null)
 			{
-				throw new RefException(namespaceId, bucketId, refId, "Unable to parse response body");
+				throw new LegacyRefException(namespaceId, bucketId, refId, "Unable to parse response body");
 			}
 
 			return responseBody.Needs;
@@ -313,13 +313,13 @@ namespace EpicGames.Horde.Storage.Impl
 			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			if (!response.IsSuccessStatusCode)
 			{
-				throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
+				throw new LegacyRefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
 			}
 
 			RefPutResponse? responseBody = await ReadJsonResponse<RefPutResponse>(response.Content);
 			if (responseBody == null)
 			{
-				throw new RefException(namespaceId, bucketId, refId, "Unable to parse response body");
+				throw new LegacyRefException(namespaceId, bucketId, refId, "Unable to parse response body");
 			}
 
 			return responseBody.Needs;
@@ -350,7 +350,7 @@ namespace EpicGames.Horde.Storage.Impl
 			}
 			else
 			{
-				throw new RefException(namespaceId, bucketId, refId, $"Unexpected response for {nameof(HasRefAsync)} call: {response.StatusCode}");
+				throw new LegacyRefException(namespaceId, bucketId, refId, $"Unexpected response for {nameof(HasRefAsync)} call: {response.StatusCode}");
 			}
 		}
 
@@ -364,13 +364,13 @@ namespace EpicGames.Horde.Storage.Impl
 			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			if (!response.IsSuccessStatusCode)
 			{
-				throw new RefException(namespaceId, bucketId, new RefId(IoHash.Zero), await GetMessageFromResponse(response));
+				throw new LegacyRefException(namespaceId, bucketId, new RefId(IoHash.Zero), await GetMessageFromResponse(response));
 			}
 
 			RefExistsResponse? responseContent = await ReadJsonResponse<RefExistsResponse>(response.Content);
 			if (responseContent == null)
 			{
-				throw new RefException(namespaceId, bucketId, new RefId(IoHash.Zero), "Unable to parse response body");
+				throw new LegacyRefException(namespaceId, bucketId, new RefId(IoHash.Zero), "Unable to parse response body");
 			}
 
 			return responseContent.Needs;

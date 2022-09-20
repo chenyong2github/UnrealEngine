@@ -11,11 +11,11 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage.Impl
 {
 	/// <summary>
-	/// Implementation of <see cref="IStorageClient"/> which writes directly to the local filesystem for testing. Not intended for production use.
+	/// Implementation of <see cref="ILegacyStorageClient"/> which writes directly to the local filesystem for testing. Not intended for production use.
 	/// </summary>
-	public class TracingStorageClient : IStorageClient
+	public class TracingStorageClient : ILegacyStorageClient
 	{
-		readonly IStorageClient _inner;
+		readonly ILegacyStorageClient _inner;
 		readonly ILogger _logger;
 
 		/// <summary>
@@ -23,7 +23,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// </summary>
 		/// <param name="inner"></param>
 		/// <param name="logger"></param>
-		public TracingStorageClient(IStorageClient inner, ILogger logger)
+		public TracingStorageClient(ILegacyStorageClient inner, ILogger logger)
 		{
 			_inner = inner;
 			_logger = logger;
@@ -99,7 +99,7 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
+		public Task<ILegacyRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
 			_logger.LogDebug("Getting ref {NamespaceId}/{BucketId}/{RefId}", namespaceId, bucketId, refId);
 			return _inner.GetRefAsync(namespaceId, bucketId, refId, cancellationToken);

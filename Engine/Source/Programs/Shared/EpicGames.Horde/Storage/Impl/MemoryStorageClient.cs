@@ -13,11 +13,11 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage.Impl
 {
 	/// <summary>
-	/// Implementation of <see cref="IStorageClient"/> which writes directly to memory for testing. Not intended for production use.
+	/// Implementation of <see cref="ILegacyStorageClient"/> which writes directly to memory for testing. Not intended for production use.
 	/// </summary>
-	public class MemoryStorageClient : IStorageClient
+	public class MemoryStorageClient : ILegacyStorageClient
 	{
-		class Ref : IRef
+		class Ref : ILegacyRef
 		{
 			public NamespaceId NamespaceId { get; set; }
 			public BucketId BucketId { get; set; }
@@ -42,7 +42,7 @@ namespace EpicGames.Horde.Storage.Impl
 		public Dictionary<(NamespaceId, IoHash), IoHash> UncompressedToCompressedHash { get; } = new Dictionary<(NamespaceId, IoHash), IoHash>();
 
 		/// <inheritdoc/>
-		public Dictionary<(NamespaceId, BucketId, RefId), IRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), IRef>();
+		public Dictionary<(NamespaceId, BucketId, RefId), ILegacyRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), ILegacyRef>();
 
 		private readonly FakeCompressor _compressor = new FakeCompressor();
 
@@ -52,7 +52,7 @@ namespace EpicGames.Horde.Storage.Impl
 			ReadOnlyMemory<byte> data;
 			if(!Blobs.TryGetValue((namespaceId, hash), out data))
 			{
-				throw new BlobNotFoundException(namespaceId, hash);
+				throw new LegacyBlobNotFoundException(namespaceId, hash);
 			}
 			return Task.FromResult<Stream>(new ReadOnlyMemoryStream(data));
 		}
@@ -147,12 +147,12 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
+		public Task<ILegacyRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			IRef? result;
+			ILegacyRef? result;
 			if(!Refs.TryGetValue((namespaceId, bucketId, refId), out result))
 			{
-				throw new RefNotFoundException(namespaceId, bucketId, refId);
+				throw new LegacyRefNotFoundException(namespaceId, bucketId, refId);
 			}
 			return Task.FromResult(result);
 		}

@@ -135,7 +135,7 @@ namespace Horde.Build.Utilities
 	/// </summary>
 	class ObjectSet
 	{
-		readonly IStorageClient _storageClient;
+		readonly ILegacyStorageClient _storageClient;
 		readonly NamespaceId _namespaceId;
 		public int MaxPackSize { get; }
 
@@ -158,7 +158,7 @@ namespace Horde.Build.Utilities
 		/// <param name="namespaceId"></param>
 		/// <param name="maxPackSize"></param>
 		/// <param name="time">The initial update time; used to determine the age of blobs</param>
-		public ObjectSet(IStorageClient storageClient, NamespaceId namespaceId, int maxPackSize, DateTime time)
+		public ObjectSet(ILegacyStorageClient storageClient, NamespaceId namespaceId, int maxPackSize, DateTime time)
 		{
 			_storageClient = storageClient;
 			_namespaceId = namespaceId;

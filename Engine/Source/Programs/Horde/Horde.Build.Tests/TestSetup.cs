@@ -249,7 +249,7 @@ namespace Horde.Build.Tests
 				return new TreeStore(blobStore, new TreeOptions()).ForType<CommitService>();
 			});
 
-			services.AddSingleton<IStorageClient, BasicStorageClient>();
+			services.AddSingleton<ILegacyStorageClient, BasicStorageClient>();
 
 			services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 			services.AddSingleton<ISingletonDocument<DevicePlatformMapV1>>(new SingletonDocumentStub<DevicePlatformMapV1>());

@@ -32,12 +32,12 @@ namespace EpicGames.Horde.Tests
 			_compressedHash = IoHash.Compute(_compressedData.ToArray());
 		}
 
-		protected abstract IStorageClient GetStorageClient();
+		protected abstract ILegacyStorageClient GetStorageClient();
 
 		[TestMethod]
 		public async Task WriteBlob()
 		{
-			IStorageClient client = GetStorageClient();
+			ILegacyStorageClient client = GetStorageClient();
 			IoHash writtenHash = await client.WriteBlobFromMemoryAsync(_ns, _uncompressedData);
 			byte[] actual = await client.ReadBlobToMemoryAsync(_ns, writtenHash);
 			CollectionAssert.AreEqual(_uncompressedData.ToArray(), actual);
@@ -46,7 +46,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task WriteBlobWithPreCalculatedHash()
 		{
-			IStorageClient client = GetStorageClient();
+			ILegacyStorageClient client = GetStorageClient();
 			await client.WriteBlobFromMemoryAsync(_ns, _uncompressedHash, _uncompressedData);
 			byte[] actual = await client.ReadBlobToMemoryAsync(_ns, _uncompressedHash);
 			CollectionAssert.AreEqual(_uncompressedData.ToArray(), actual);
@@ -55,7 +55,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task WriteAndReadCompressedBlob()
 		{
-			IStorageClient client = GetStorageClient();
+			ILegacyStorageClient client = GetStorageClient();
 			using MemoryStream compressedStream = new(_compressedData.ToArray());
 			IoHash returnedHash = await client.WriteCompressedBlobAsync(_ns, compressedStream);
 			Assert.AreEqual(_uncompressedHash, returnedHash);
@@ -66,7 +66,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task WriteAndReadCompressedBlobWithPreCalculatedHash()
 		{
-			IStorageClient client = GetStorageClient();
+			ILegacyStorageClient client = GetStorageClient();
 			using MemoryStream compressedStream = new(_compressedData.ToArray());
 			await client.WriteCompressedBlobAsync(_ns, _uncompressedHash, compressedStream);
 			byte[] returnedData = await client.ReadCompressedBlobToMemoryAsync(_ns, _uncompressedHash);
@@ -76,7 +76,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task WriteWithBadPreCalculatedHash()
 		{
-			IStorageClient client = GetStorageClient();
+			ILegacyStorageClient client = GetStorageClient();
 			IoHash badHash = IoHash.Compute(new byte[] {0xBA, 0xDB, 0xAD});
 			using MemoryStream compressedStream = new(_compressedData.ToArray());
 			await Assert.ThrowsExceptionAsync<ArgumentException>(() => client.WriteCompressedBlobAsync(_ns, badHash, compressedStream));
@@ -85,7 +85,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task WriteWithInvalidCompression()
 		{
-			IStorageClient client = GetStorageClient();
+			ILegacyStorageClient client = GetStorageClient();
 			using MemoryStream compressedStream = new(new byte[] {0xBA, 0xDB, 0xAD});
 			await Assert.ThrowsExceptionAsync<ArgumentException>(() => client.WriteCompressedBlobAsync(_ns, compressedStream));
 		}
@@ -94,7 +94,7 @@ namespace EpicGames.Horde.Tests
 	[TestClass]
 	public class MemoryStorageClientTest : BaseStorageClientTest
 	{
-		protected override IStorageClient GetStorageClient()
+		protected override ILegacyStorageClient GetStorageClient()
 		{
 			return new MemoryStorageClient();
 		}

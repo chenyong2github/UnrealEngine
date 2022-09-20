@@ -30,7 +30,7 @@ namespace Horde.Agent.Execution
 			public Dictionary<string, OutputTree> _subDirs = new Dictionary<string, OutputTree>();
 		}
 
-		private readonly IStorageClient _storageClient;
+		private readonly ILegacyStorageClient _storageClient;
 		private readonly ILogger _logger;
 
 		/// <summary>
@@ -38,7 +38,7 @@ namespace Horde.Agent.Execution
 		/// </summary>
 		/// <param name="storageClient"></param>
 		/// <param name="logger"></param>
-		public ComputeTaskExecutor(IStorageClient storageClient, ILogger logger)
+		public ComputeTaskExecutor(ILegacyStorageClient storageClient, ILogger logger)
 		{
 			_storageClient = storageClient;
 			_logger = logger;

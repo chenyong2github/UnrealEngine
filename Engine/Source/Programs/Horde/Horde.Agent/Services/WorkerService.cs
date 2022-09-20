@@ -162,7 +162,7 @@ namespace Horde.Agent.Services
 		/// <summary>
 		/// Client interface to the storage system
 		/// </summary>
-		readonly IStorageClient _storageClient;
+		readonly ILegacyStorageClient _storageClient;
 
 		/// <summary>
 		/// The working directory
@@ -256,7 +256,7 @@ namespace Horde.Agent.Services
 		/// <param name="storageClient">Instance of the storage client</param>
 		/// <param name="createExecutor">Optional factory method for creating an executor</param>
 		/// <param name="createHordeRpcClient">Optional factory method for creating a HordeRpcClient</param>
-		public WorkerService(ILogger<WorkerService> logger, IOptions<AgentSettings> options, GrpcService grpcService, IStorageClient storageClient,
+		public WorkerService(ILogger<WorkerService> logger, IOptions<AgentSettings> options, GrpcService grpcService, ILegacyStorageClient storageClient,
 			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
 			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
 		{
@@ -1010,7 +1010,7 @@ namespace Horde.Agent.Services
 					}
 				}
 			}
-			catch (BlobNotFoundException ex)
+			catch (LegacyBlobNotFoundException ex)
 			{
 				logger.LogError(ex, "Blob not found: {Hash}", ex.Hash);
 				result = new ComputeTaskResultMessage(ComputeTaskOutcome.BlobNotFound, ex.Hash.ToString());

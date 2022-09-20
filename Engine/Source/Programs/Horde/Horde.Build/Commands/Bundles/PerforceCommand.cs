@@ -65,7 +65,7 @@ namespace Horde.Build.Commands.Bundles
 			ICommitService commitService = serviceProvider.GetRequiredService<ICommitService>();
 			ReplicationService replicationService = serviceProvider.GetRequiredService<ReplicationService>();
 			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
-			IStorageClient storageClient = serviceProvider.GetRequiredService<IStorageClient>();
+			ILegacyStorageClient storageClient = serviceProvider.GetRequiredService<ILegacyStorageClient>();
 
 			IStream? stream = await streamCollection.GetAsync(new StreamId(StreamId));
 			if (stream == null)

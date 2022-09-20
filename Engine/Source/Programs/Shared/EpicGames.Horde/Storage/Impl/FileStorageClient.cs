@@ -13,11 +13,11 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage.Impl
 {
 	/// <summary>
-	/// Implementation of <see cref="IStorageClient"/> which writes directly to the local filesystem for testing. Not intended for production use.
+	/// Implementation of <see cref="ILegacyStorageClient"/> which writes directly to the local filesystem for testing. Not intended for production use.
 	/// </summary>
-	public class FileStorageClient : IStorageClient
+	public class FileStorageClient : ILegacyStorageClient
 	{
-		class Ref : IRef
+		class Ref : ILegacyRef
 		{
 			public NamespaceId NamespaceId { get; set; }
 			public BucketId BucketId { get; set; }
@@ -145,7 +145,7 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
+		public async Task<ILegacyRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
 			FileReference file = GetRefFile(namespaceId, bucketId, refId);
 			_logger.LogInformation("Reading {File} ({Size:n0} bytes)", file, new FileInfo(file.FullName).Length);

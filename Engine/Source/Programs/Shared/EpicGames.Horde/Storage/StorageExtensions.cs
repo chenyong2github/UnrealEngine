@@ -28,8 +28,8 @@ namespace EpicGames.Horde.Storage
 		{
 			services.AddOptions<StorageOptions>();
 
-			services.AddScoped<IStorageClient, HttpStorageClient>();
-			services.AddHttpClientWithAuth<IStorageClient, HttpStorageClient>(serviceProvider => serviceProvider.GetRequiredService<IOptions<StorageOptions>>().Value);
+			services.AddScoped<ILegacyStorageClient, HttpStorageClient>();
+			services.AddHttpClientWithAuth<ILegacyStorageClient, HttpStorageClient>(serviceProvider => serviceProvider.GetRequiredService<IOptions<StorageOptions>>().Value);
 		}
 
 		/// <summary>

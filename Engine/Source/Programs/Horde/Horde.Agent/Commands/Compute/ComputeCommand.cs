@@ -165,7 +165,7 @@ namespace Horde.Agent.Commands
 
 			using (IHost host = hostBuilder.Build())
 			{
-				IStorageClient storageClient = host.Services.GetRequiredService<IStorageClient>();
+				ILegacyStorageClient storageClient = host.Services.GetRequiredService<ILegacyStorageClient>();
 				IComputeClient computeClient = host.Services.GetRequiredService<IComputeClient>();
 
 				ByteString saltBytes = ByteString.Empty;
@@ -278,7 +278,7 @@ namespace Horde.Agent.Commands
 			return magic == ExpectedMagic && method > CompressionMethodNone;
 		}
 
-		static async Task UploadSandbox(IComputeClusterInfo cluster, IStorageClient storageClient, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList, ILogger logger)
+		static async Task UploadSandbox(IComputeClusterInfo cluster, ILegacyStorageClient storageClient, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList, ILogger logger)
 		{
 			int totalUploaded = 0;
 			int totalSkipped = 0;
@@ -322,7 +322,7 @@ namespace Horde.Agent.Commands
 			logger.LogInformation("Uploaded {UploadedCount} blobs ({UploadedBytes} bytes), Skipped {SkippedCount} blobs ({SkippedBytes} bytes)", totalUploaded, uploadedBytes, totalSkipped, skippedBytes);
 		}
 
-		private async Task<ComputeTaskStatus> ExecuteAction(ILogger logger, IComputeClient computeClient, IStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList)
+		private async Task<ComputeTaskStatus> ExecuteAction(ILogger logger, IComputeClient computeClient, ILegacyStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList)
 		{
 			IComputeClusterInfo cluster = await computeClient.GetClusterInfoAsync(clusterId);
 
@@ -380,7 +380,7 @@ namespace Horde.Agent.Commands
 			}
 		}
 
-		async Task HandleCompleteTask(IStorageClient storageClient, NamespaceId namespaceId, BucketId outputBucketId, RefId outputRefId, ILogger logger)
+		async Task HandleCompleteTask(ILegacyStorageClient storageClient, NamespaceId namespaceId, BucketId outputBucketId, RefId outputRefId, ILogger logger)
 		{
 			ComputeTaskResult result = await storageClient.GetRefAsync<ComputeTaskResult>(namespaceId, outputBucketId, outputRefId);
 			logger.LogInformation("exit: {ExitCode}", result.ExitCode);
@@ -394,7 +394,7 @@ namespace Horde.Agent.Commands
 			}
 		}
 
-		static async Task LogTaskOutputAsync(IStorageClient storageClient, string channel, NamespaceId namespaceId, IoHash? logHash, ILogger logger)
+		static async Task LogTaskOutputAsync(ILegacyStorageClient storageClient, string channel, NamespaceId namespaceId, IoHash? logHash, ILogger logger)
 		{
 			if (logHash != null)
 			{
@@ -409,7 +409,7 @@ namespace Horde.Agent.Commands
 			}
 		}
 
-		async Task WriteOutputAsync(IStorageClient storageClient, NamespaceId namespaceId, IoHash treeHash, DirectoryReference outputDir)
+		async Task WriteOutputAsync(ILegacyStorageClient storageClient, NamespaceId namespaceId, IoHash treeHash, DirectoryReference outputDir)
 		{
 			DirectoryTree tree = await storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, treeHash);
 
@@ -428,7 +428,7 @@ namespace Horde.Agent.Commands
 			await Task.WhenAll(tasks);
 		}
 
-		static async Task WriteObjectToFileAsync(IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, FileReference outputFile)
+		static async Task WriteObjectToFileAsync(ILegacyStorageClient storageClient, NamespaceId namespaceId, IoHash hash, FileReference outputFile)
 		{
 			DirectoryReference.CreateDirectory(outputFile.Directory);
 

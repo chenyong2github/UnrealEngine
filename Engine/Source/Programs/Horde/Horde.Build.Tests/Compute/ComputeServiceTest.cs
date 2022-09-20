@@ -25,7 +25,7 @@ namespace Horde.Build.Tests.Compute
 		private static int s_channelId;
 		private static int s_refId;
 
-		private IStorageClient StorageClient => ServiceProvider.GetRequiredService<IStorageClient>();
+		private ILegacyStorageClient StorageClient => ServiceProvider.GetRequiredService<ILegacyStorageClient>();
 
 		public ComputeServiceTest()
 		{

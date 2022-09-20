@@ -20,12 +20,12 @@ namespace Horde.Build.Tests
 		{
 			NamespaceId namespaceId = new NamespaceId("test-ns");
 
-			IStorageClient storageClient = ServiceProvider.GetRequiredService<IStorageClient>();
+			ILegacyStorageClient storageClient = ServiceProvider.GetRequiredService<ILegacyStorageClient>();
 
 			byte[] testData = Encoding.UTF8.GetBytes("Hello world");
 			IoHash hash = IoHash.Compute(testData);
 
-			await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => storageClient.ReadBlobAsync(namespaceId, hash));
+			await Assert.ThrowsExceptionAsync<LegacyBlobNotFoundException>(() => storageClient.ReadBlobAsync(namespaceId, hash));
 
 			IoHash returnedHash = await storageClient.WriteBlobFromMemoryAsync(namespaceId, testData);
 			Assert.AreEqual(hash, returnedHash);
@@ -35,7 +35,7 @@ namespace Horde.Build.Tests
 			Assert.IsTrue(testData.AsSpan().SequenceEqual(storedData.Span));
 
 			NamespaceId otherNamespaceId = new NamespaceId("other-ns");
-			await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => storageClient.ReadBlobAsync(otherNamespaceId, hash));
+			await Assert.ThrowsExceptionAsync<LegacyBlobNotFoundException>(() => storageClient.ReadBlobAsync(otherNamespaceId, hash));
 		}
 
 		[TestMethod]
@@ -43,7 +43,7 @@ namespace Horde.Build.Tests
 		{
 			NamespaceId namespaceId = new NamespaceId("test-ns");
 
-			IStorageClient storageClient = ServiceProvider.GetRequiredService<IStorageClient>();
+			ILegacyStorageClient storageClient = ServiceProvider.GetRequiredService<ILegacyStorageClient>();
 
 			CbObject objectD = CbObject.Build(writer =>
 			{
@@ -51,7 +51,7 @@ namespace Horde.Build.Tests
 			});
 			IoHash hashD = objectD.GetHash();
 
-			await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => storageClient.ReadBlobToMemoryAsync(namespaceId, hashD));
+			await Assert.ThrowsExceptionAsync<LegacyBlobNotFoundException>(() => storageClient.ReadBlobToMemoryAsync(namespaceId, hashD));
 
 			await storageClient.WriteBlobFromMemoryAsync(namespaceId, hashD, objectD.GetView());
 
@@ -62,7 +62,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task RefCollectionTest()
 		{
-			IStorageClient storageClient = ServiceProvider.GetRequiredService<IStorageClient>();
+			ILegacyStorageClient storageClient = ServiceProvider.GetRequiredService<ILegacyStorageClient>();
 
 			byte[] blobA = Encoding.UTF8.GetBytes("This is blob A");
 			IoHash hashA = IoHash.Compute(blobA);
@@ -98,7 +98,7 @@ namespace Horde.Build.Tests
 			Assert.IsTrue(missingHashes.Contains(hashA));
 			Assert.IsTrue(missingHashes.Contains(hashD));
 
-			await Assert.ThrowsExceptionAsync<RefNotFoundException>(() => storageClient.GetRefAsync(namespaceId, bucketId, refId));
+			await Assert.ThrowsExceptionAsync<LegacyRefNotFoundException>(() => storageClient.GetRefAsync(namespaceId, bucketId, refId));
 
 			// Add object D, and check that changes the missing hashes to just the blobs
 			await storageClient.WriteBlobFromMemoryAsync(namespaceId, hashD, objectD.GetView());
@@ -109,7 +109,7 @@ namespace Horde.Build.Tests
 			Assert.IsTrue(missingHashes.Contains(hashB));
 			Assert.IsTrue(missingHashes.Contains(hashC));
 
-			await Assert.ThrowsExceptionAsync<RefNotFoundException>(() => storageClient.GetRefAsync(namespaceId, bucketId, refId));
+			await Assert.ThrowsExceptionAsync<LegacyRefNotFoundException>(() => storageClient.GetRefAsync(namespaceId, bucketId, refId));
 
 			// Add blobs A, B and C and check that the object can be finalized
 			await storageClient.WriteBlobFromMemoryAsync(namespaceId, hashA, blobA);
@@ -119,7 +119,7 @@ namespace Horde.Build.Tests
 			missingHashes = await storageClient.TryFinalizeRefAsync(namespaceId, bucketId, refId, hashE);
 			Assert.AreEqual(0, missingHashes.Count);
 
-			IRef refValue = await storageClient.GetRefAsync(namespaceId, bucketId, refId);
+			ILegacyRef refValue = await storageClient.GetRefAsync(namespaceId, bucketId, refId);
 			Assert.IsNotNull(refValue);
 
 			// Add a new ref to existing objects and check it finalizes correctly 

@@ -55,7 +55,7 @@ namespace Horde.Build.Tools
 
 		private readonly RedisService _redisService;
 		private readonly VersionedCollection<ToolId, Tool> _tools;
-		private readonly IStorageClient _storage;
+		private readonly ILegacyStorageClient _storage;
 		private readonly IClock _clock;
 		private readonly NamespaceId _namespaceId;
 		private readonly ILogger _logger;
@@ -68,7 +68,7 @@ namespace Horde.Build.Tools
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ToolCollection(MongoService mongoService, RedisService redisService, IStorageClient storage, IClock clock, IOptions<ServerSettings> options, ILogger<ToolCollection> logger)
+		public ToolCollection(MongoService mongoService, RedisService redisService, ILegacyStorageClient storage, IClock clock, IOptions<ServerSettings> options, ILogger<ToolCollection> logger)
 		{
 			_redisService = redisService;
 			_tools = new VersionedCollection<ToolId, Tool>(mongoService, "Tools", redisService, s_baseKey, s_types);
