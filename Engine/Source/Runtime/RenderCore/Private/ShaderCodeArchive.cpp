@@ -214,7 +214,7 @@ bool LoadFromCompactBinary(FCbFieldView Field, FSerializedShaderArchive& OutArch
 		FShaderMapAssetPaths& Paths = OutArchive.ShaderCodeToAssets.FindOrAdd(ShaderMapHash);
 		FCbFieldView AssetNameArrayField = *It++;
 		Paths.Reserve((*It).AsArrayView().Num());
-		bOk = !AssetNameArrayField.HasError() & bOk;
+		bOk = (!AssetNameArrayField.HasError()) & bOk;
 		for (FCbFieldView AssetNameField : AssetNameArrayField)
 		{
 			FName AssetName;
