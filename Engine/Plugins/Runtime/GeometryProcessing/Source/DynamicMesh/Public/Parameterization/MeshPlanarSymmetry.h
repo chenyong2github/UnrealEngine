@@ -150,11 +150,17 @@ private:
 	
 	// Point must be within this distance from the symmetry plane to be considered "on" the plane.
 	// Note: Vertices can still be matched below this tolerance; this is just the distance at which a lack of match is considered a lack of symmetry
-	constexpr static double OnPlaneTolerance = (double)FMathf::ZeroTolerance * 10;
-	constexpr static double MatchVertexTolerance = OnPlaneTolerance * 10;
+	// Note: Each Tolerance Factor will be multiplied by "ErrorScale", so that it can appropriately scale up for larger inputs.  SetErrorScale() must be called before using these tolerances.
+	constexpr static double OnPlaneToleranceFactor = (double)FMathf::ZeroTolerance * .5;
+	constexpr static double MatchVertexToleranceFactor = OnPlaneToleranceFactor * 2;
 	// Note performance of vertex hashing is much better when VertexHashCellSize is large enough that most hash lookups only need to look at a single cell
-	constexpr static double VertexHashCellSize = MatchVertexTolerance * 10;
+	constexpr static double VertexHashCellSizeFactor = MatchVertexToleranceFactor * 10;
+	// Note for features we specify a direct tolerance instead of a factor, as features are already in their own re-scaled space
 	constexpr static double MatchFeaturesTolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
+	// Internal error scale; for large meshes, we need larger tolerances because floating point values will be less accurate
+	double ErrorScale = 1;
+
+	void SetErrorScale(const FAxisAlignedBox3d& Bounds);
 
 };
 
