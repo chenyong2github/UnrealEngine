@@ -92,7 +92,7 @@ void FNaniteVisualizationData::ConfigureConsoleCommand()
 
 	IConsoleManager::Get().RegisterConsoleVariable(
 		GetOverviewConsoleCommandName(),
-		TEXT("Triangles,Clusters,Instances,Primitives,,,,,,,,,Mask,Overdraw,MaterialID,MaterialComplexity"),
+		TEXT("Triangles,Clusters,Instances,Primitives,,,,,,,,,Overdraw,MaterialID,RasterBins,EvaluateWPO"),
 		//TEXT("Triangles,Clusters,Instances,Primitives"),
 		*ConsoleDocumentationOverviewTargets,
 		ECVF_Default
