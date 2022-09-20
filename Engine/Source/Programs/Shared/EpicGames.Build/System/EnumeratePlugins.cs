@@ -151,48 +151,96 @@ namespace UnrealBuildBase
 			List<FileReference> Built = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P)).ToList();
 
 			// Collect the list of plugins not build
-			IEnumerable<FileReference> NotBuilt = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P));
+			List<FileReference> NotBuilt = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P)).ToList();
 
 			// If we have anything left to build, then build it
-			if (NotBuilt.Any())
+			if (NotBuilt.Count > 0)
 			{
-				Dictionary<FileReference, CsProjBuildRecordEntry>? BuiltPlugins =
-					CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, new HashSet<FileReference>(NotBuilt),
-					GetBaseDirectories(ProjectFile), DefineConstants, false, false, true, out bBuildSuccess,
-					Count =>
-					{
-						if (Log.OutputFile != null)
-						{
-							Logger.LogInformation("Building {Count} plugins (see Log '{LogFile}' for more details)", Count, Log.OutputFile);
-						}
-						else
-						{
-							Logger.LogInformation("Building {Count} plugins", Count);
-						}
-					}, Logger
-				);
-				
-				// Add any built plugins back into the cache
-				foreach (KeyValuePair<FileReference, CsProjBuildRecordEntry> BuiltPlugin in BuiltPlugins)
+				if (Unreal.IsEngineInstalled())
 				{
-					Built.Add(BuiltPlugin.Key);
-					UbtPluginFileCache.Add(BuiltPlugin.Key, CompileScriptModule.GetTargetPath(BuiltPlugin));
+					bBuildSuccess = BuildUbtPluginsInternal(PluginSet.EngineOnly, ProjectFile, Built, NotBuilt, DefineConstants, Logger);
+					bBuildSuccess |= BuildUbtPluginsInternal(PluginSet.ProjectOnly, ProjectFile, Built, NotBuilt, DefineConstants, Logger);
+				}
+				else
+				{
+					bBuildSuccess =
+						BuildUbtPluginsInternal(PluginSet.Both, ProjectFile, Built, NotBuilt, DefineConstants, Logger);
 				}
 			}
 
-			Plugins = Built.Select(P => (P, UbtPluginFileCache[P])).OrderBy(X => X.P.FullName).ToArray();
+			Plugins = Built.Where(P => UbtPluginFileCache.ContainsKey(P)).Select(P => (P, UbtPluginFileCache[P])).OrderBy(X => X.P.FullName).ToArray();
 			return bBuildSuccess;
 		}
 
-		static List<DirectoryReference> GetBaseDirectories(FileReference? ProjectFile)
+		private enum PluginSet
 		{
-			List<DirectoryReference> BaseDirectories = new List<DirectoryReference>(2);
-			BaseDirectories.Add(Unreal.EngineDirectory);
-			if (ProjectFile != null)
+			EngineOnly,
+			ProjectOnly,
+			Both,
+		}
+
+		private static bool BuildUbtPluginsInternal(PluginSet PluginSet, FileReference? ProjectFile, 
+			List<FileReference> Built, IEnumerable<FileReference> NotBuilt, List<string>? DefineConstants, ILogger Logger)
+		{
+			// Collect the work to be done
+			IEnumerable<FileReference>? ToBuild = null;
+			List<DirectoryReference> BaseDirectories = new();
+			CompileScriptModule.BuildFlags BuildFlags = CompileScriptModule.BuildFlags.UseBuildRecords;
+			switch (PluginSet)
 			{
-				BaseDirectories.Add(ProjectFile.Directory);
+				case PluginSet.EngineOnly:
+					BaseDirectories.Add(Unreal.EngineDirectory);
+					BuildFlags |= CompileScriptModule.BuildFlags.NoCompile | CompileScriptModule.BuildFlags.ErrorOnMissingTarget;
+					ToBuild = NotBuilt.Where(P => P.IsUnderDirectory(Unreal.EngineDirectory));
+					break;
+				case PluginSet.ProjectOnly:
+					if (ProjectFile != null)
+					{
+						BaseDirectories.Add(ProjectFile.Directory);
+						ToBuild = NotBuilt.Where(P => !P.IsUnderDirectory(Unreal.EngineDirectory));
+					}
+					break;
+				case PluginSet.Both:
+					BaseDirectories.Add(Unreal.EngineDirectory);
+					if (ProjectFile != null)
+					{
+						BaseDirectories.Add(ProjectFile.Directory);
+					}
+					ToBuild = NotBuilt;
+					break;
 			}
-			return BaseDirectories;
+
+			// Just return if there is nothing
+			if (ToBuild == null || !ToBuild.Any() || BaseDirectories.Count == 0)
+			{
+				return true;
+			}
+
+			// Build the things needing to be built
+			bool bBuildSuccess = true;
+			Dictionary<FileReference, CsProjBuildRecordEntry>? BuiltPlugins =
+				CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, new HashSet<FileReference>(NotBuilt),
+				BaseDirectories, DefineConstants, CompileScriptModule.BuildFlags.UseBuildRecords, out bBuildSuccess,
+				Count =>
+				{
+					if (Log.OutputFile != null)
+					{
+						Logger.LogInformation("Building {Count} plugins (see Log '{LogFile}' for more details)", Count, Log.OutputFile);
+					}
+					else
+					{
+						Logger.LogInformation("Building {Count} plugins", Count);
+					}
+				}, Logger
+			);
+
+			// Add any built plugins back into the cache
+			foreach (KeyValuePair<FileReference, CsProjBuildRecordEntry> BuiltPlugin in BuiltPlugins)
+			{
+				Built.Add(BuiltPlugin.Key);
+				UbtPluginFileCache.Add(BuiltPlugin.Key, CompileScriptModule.GetTargetPath(BuiltPlugin));
+			}
+			return bBuildSuccess;
 		}
 	}
 }
