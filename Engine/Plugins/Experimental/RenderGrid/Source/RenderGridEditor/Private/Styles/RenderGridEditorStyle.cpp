@@ -36,7 +36,7 @@ void UE::RenderGrid::Private::FRenderGridEditorStyle::Shutdown()
 
 FName UE::RenderGrid::Private::FRenderGridEditorStyle::GetStyleSetName()
 {
-	static FName StyleSetName(TEXT("LevelSnapshotsEditor"));
+	static FName StyleSetName(TEXT("RenderGridEditorStyle"));
 	return StyleSetName;
 }
 
@@ -72,6 +72,11 @@ TSharedRef<FSlateStyleSet> UE::RenderGrid::Private::FRenderGridEditorStyle::Crea
 	{
 		Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
 	}
+
+	Style->Set("ClassIcon.RenderGrid", new IMAGE_BRUSH_SVG("Icons/RenderGrid_16", Icon16x16));
+	Style->Set("ClassIcon.RenderGridBlueprint", new IMAGE_BRUSH_SVG("Icons/RenderGrid_16", Icon16x16));
+	Style->Set("ClassThumbnail.RenderGrid", new IMAGE_BRUSH_SVG("Icons/RenderGrid_64", Icon64x64));
+	Style->Set("ClassThumbnail.RenderGridBlueprint", new IMAGE_BRUSH_SVG("Icons/RenderGrid_64", Icon64x64));
 
 	Style->Set("Invisible",
 		FButtonStyle()

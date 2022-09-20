@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGridBlueprintActions.h"
-#include "Styling/AppStyle.h"
 #include "Blueprints/RenderGridBlueprint.h"
 #include "Factories/RenderGridFactory.h"
 #include "RenderGridEditorModule.h"
-#include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -17,7 +15,7 @@ FText UE::RenderGrid::Private::FRenderGridBlueprintActions::GetName() const
 
 FColor UE::RenderGrid::Private::FRenderGridBlueprintActions::GetTypeColor() const
 {
-	return FColor(255, 64, 64);
+	return FColor(200, 80, 80);
 }
 
 UClass* UE::RenderGrid::Private::FRenderGridBlueprintActions::GetSupportedClass() const
@@ -48,22 +46,6 @@ void UE::RenderGrid::Private::FRenderGridBlueprintActions::OpenAssetEditor(const
 uint32 UE::RenderGrid::Private::FRenderGridBlueprintActions::GetCategories()
 {
 	return EAssetTypeCategories::Misc;
-}
-
-TSharedPtr<SWidget> UE::RenderGrid::Private::FRenderGridBlueprintActions::GetThumbnailOverlay(const FAssetData& AssetData) const
-{
-	const FSlateBrush* Icon = FSlateIconFinder::FindIconBrushForClass(URenderGridBlueprint::StaticClass());
-
-	return SNew(SBorder)
-		.BorderImage(FAppStyle::GetNoBrush())
-		.Visibility(EVisibility::HitTestInvisible)
-		.Padding(FMargin(0.0f, 0.0f, 0.0f, 3.0f))
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Bottom)
-		[
-			SNew(SImage)
-			.Image(Icon)
-		];
 }
 
 UFactory* UE::RenderGrid::Private::FRenderGridBlueprintActions::GetFactoryForBlueprintType(UBlueprint* InBlueprint) const
