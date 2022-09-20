@@ -34,7 +34,6 @@ FTransform GetConstraintMatrix(const USkeletalMeshComponent* const SkeletalMeshC
 
 	FTransform LFrame = ConstraintSetup->DefaultInstance.GetRefFrame(Frame);
 	FTransform BoneTM = SkeletalMeshComponent->GetBoneTransform(BoneIndex);
-	BoneTM.RemoveScaling();
 
 	return LFrame * BoneTM;
 }
@@ -473,6 +472,10 @@ namespace PhysicsAssetRender
 							const float DrawScale = ConstraintArrowScale * RenderSettings->ConstraintDrawSize;
 							FTransform Con1Frame = GetConstraintMatrix(SkeletalMeshComponent, ConstraintSetup, EConstraintFrame::Frame1, BoneIndex1);
 							FTransform Con2Frame = GetConstraintMatrix(SkeletalMeshComponent, ConstraintSetup, EConstraintFrame::Frame2, BoneIndex2);
+
+							// Remove scaling from constraint frame transforms so that constraint limit cones etc are all drawn at the same scale.
+							Con1Frame.RemoveScaling();
+							Con2Frame.RemoveScaling();
 
 							ConstraintSetup->DefaultInstance.DrawConstraint(PDI, RenderSettings->ConstraintDrawSize, DrawScale, bDrawLimits, bDrawSelected, Con1Frame, Con2Frame, RenderSettings->bShowConstraintsAsPoints);
 
