@@ -233,7 +233,7 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 
 		if (!Synth)
 		{
-			Synth = NewObject<USynthSound>(this, TEXT("Synth"));
+			Synth = NewObject<USynthSound>();
 		}
 
 		// Copy sound base data to the sound
@@ -347,6 +347,17 @@ void USynthComponent::OnUnregister()
 		}
 		AudioComponent->DestroyComponent();
 		AudioComponent = nullptr;
+	}
+}
+
+void USynthComponent::EndPlay(const EEndPlayReason::Type Reason) 
+{	
+	Super::EndPlay(Reason);
+
+	if (GetOwner() && (Reason == EEndPlayReason::LevelTransition || Reason == EEndPlayReason::RemovedFromWorld))
+	{
+		// If our world or sublevel is going away, stop immediately to prevent the containing world/level from being leaked via hard references from the audio device.
+		Stop();
 	}
 }
 

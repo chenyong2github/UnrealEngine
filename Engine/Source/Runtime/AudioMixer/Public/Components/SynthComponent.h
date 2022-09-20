@@ -85,6 +85,7 @@ public:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	//~ End ActorComponent Interface.
 
 	//~ Begin UObject Interface.
