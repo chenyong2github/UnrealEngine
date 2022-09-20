@@ -185,7 +185,7 @@ void APointLight::PostLoad()
 
 	if (GetLightComponent()->Mobility == EComponentMobility::Static)
 	{
-		GetLightComponent()->LightFunctionMaterial = NULL;
+		GetLightComponent()->ClearLightFunctionMaterial();
 	}
 }
 
@@ -271,7 +271,7 @@ void ADirectionalLight::PostLoad()
 
 	if (GetLightComponent()->Mobility == EComponentMobility::Static)
 	{
-		GetLightComponent()->LightFunctionMaterial = NULL;
+		GetLightComponent()->ClearLightFunctionMaterial();
 	}
 #if WITH_EDITORONLY_DATA
 	if(ArrowComponent != nullptr)

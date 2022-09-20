@@ -158,6 +158,12 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightFunction)
 	TObjectPtr<class UMaterialInterface> LightFunctionMaterial;
 
+#if WITH_EDITORONLY_DATA
+	/** When clearing the light func, e.g. because the light is made static, this field remembers the last value */
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInterface> StashedLightFunctionMaterial;
+#endif
+
 	/** Scales the light function projection.  X and Y scale in the directions perpendicular to the light's direction, Z scales along the light direction. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightFunction, meta=(AllowPreserveRatio = "true"))
 	FVector LightFunctionScale;
@@ -431,6 +437,9 @@ public:
 
 	/** Set the MaterialInterface to use for the given element index (if valid) */
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* InMaterial);
+
+	/** Set the light func to null, but remember the current value so it can be restored later */
+	void ClearLightFunctionMaterial();
 
 	virtual class FLightSceneProxy* CreateSceneProxy() const
 	{
