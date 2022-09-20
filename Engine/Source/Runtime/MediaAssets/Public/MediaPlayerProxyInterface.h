@@ -23,6 +23,21 @@ class MEDIAASSETS_API IMediaPlayerProxyInterface
 
 public:
 	/**
+	 * Get the desired playback rate.
+	 * Note that this is not necessarily the actual rate of the player,
+	 * merely the desired rate the user wants.
+	 */
+	virtual float GetProxyRate() const = 0;
+
+	/**
+	 * Changes the desired playback rate.
+	 *
+	 * @param Rate		The playback rate to set.
+	 * @return			True on success, false otherwise.
+	 */
+	virtual bool SetProxyRate(float Rate) = 0;
+
+	/**
 	 * Call this to see if you can control the media player, or if the owning object is using it.
 	 * 
 	 * @return				True if you can control the player.

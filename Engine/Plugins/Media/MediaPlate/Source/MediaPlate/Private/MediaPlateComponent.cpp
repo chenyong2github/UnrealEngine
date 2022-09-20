@@ -155,7 +155,7 @@ void UMediaPlateComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 
 	if ((MediaPlayer != nullptr) && (bPlayOnlyWhenVisible))
 	{
-		if (MediaPlayer->GetRate() != 0.0f)
+		if ((CurrentRate != 0.0f) || (bWantsToPlayWhenVisible))
 		{
 			bool bIsVisible = IsVisible();
 			if (bIsVisible)
@@ -186,6 +186,8 @@ UMediaTexture* UMediaPlateComponent::GetMediaTexture()
 
 void UMediaPlateComponent::Open()
 {
+	bIsMediaPlatePlaying = true;
+	CurrentRate = bPlayOnOpen ? 1.0f : 0.0f;
 	if ((bPlayOnlyWhenVisible == false) || (IsVisible()))
 	{
 		bool bIsPlaying = false;
@@ -218,6 +220,7 @@ void UMediaPlateComponent::Play()
 	{
 		MediaPlayer->Play();
 	}
+	CurrentRate = 1.0f;
 }
 
 void UMediaPlateComponent::Pause()
@@ -226,6 +229,7 @@ void UMediaPlateComponent::Pause()
 	{
 		MediaPlayer->Pause();
 	}
+	CurrentRate = 0.0f;
 }
 
 bool UMediaPlateComponent::Rewind()
@@ -251,6 +255,7 @@ void UMediaPlateComponent::Close()
 	}
 
 	StopClockSink();
+	bIsMediaPlatePlaying = false;
 	bWantsToPlayWhenVisible = false;
 	bResumeWhenOpened = false;
 	PlaylistIndex = 0;
@@ -443,6 +448,24 @@ void UMediaPlateComponent::TickOutput()
 	}
 }
 
+float UMediaPlateComponent::GetProxyRate() const
+{
+	return CurrentRate;
+}
+
+bool UMediaPlateComponent::SetProxyRate(float Rate)
+{
+	CurrentRate = Rate;
+
+	bool bSuccess = true;
+	if (MediaPlayer != nullptr)
+	{
+		bSuccess = MediaPlayer->SetRate(Rate);
+	}
+
+	return bSuccess;
+}
+
 bool UMediaPlateComponent::IsExternalControlAllowed()
 {
 	// Allow control if we always play, or are visible.
@@ -495,6 +518,7 @@ void UMediaPlateComponent::ResumeWhenVisible()
 				(MediaPlayer->IsPlaying() == false))
 			{
 				bResumeWhenOpened = true;
+				bWantsToPlayWhenVisible = false;
 				Open();
 			}
 		}
@@ -522,7 +546,8 @@ FTimespan UMediaPlateComponent::GetResumeTime()
 			}
 			else
 			{
-				PlayerTime = MediaDuration - FTimespan(1);
+				// It wont play if we seek to the very end, so go back a little bit.
+				PlayerTime = MediaDuration - FTimespan::FromSeconds(0.001f);
 			}
 		}
 	}
@@ -632,6 +657,7 @@ void UMediaPlateComponent::OnMediaOpened(FString DeviceUrl)
 	if (bResumeWhenOpened)
 	{
 		bResumeWhenOpened = false;
+		bIsMediaPlatePlaying = true;
 		if (MediaPlayer != nullptr)
 		{
 			FTimespan PlayTime = GetResumeTime();

@@ -81,9 +81,10 @@ struct FMediaSectionExecutionToken
 		}
 
 		// Do we have a player proxy?
+		IMediaPlayerProxyInterface* PlayerProxyInterface = nullptr;
 		if (PlayerProxy != nullptr)
 		{
-			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
+			PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
 				(PlayerProxy);
 			if (PlayerProxyInterface != nullptr)
 			{
@@ -152,7 +153,8 @@ struct FMediaSectionExecutionToken
 				// Set rate
 				// (note that the DIRECTION is important, but the magnitude is not - as we use blocked playback, the range setup to block on will serve as external clock to the player,
 				//  the direction is taken into account as hint for internal operation of the player)
-				if (!MediaPlayer->SetRate((Context.GetDirection() == EPlayDirection::Forwards) ? 1.0f : -1.0f))
+				if (!SetRate(MediaPlayer, PlayerProxyInterface,
+					(Context.GetDirection() == EPlayDirection::Forwards) ? 1.0f : -1.0f))
 				{
 					// Failed to set needed rate: better switch off blocking and bail...
 					MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
@@ -169,7 +171,7 @@ struct FMediaSectionExecutionToken
 				float CurrentPlayerRate = MediaPlayer->GetRate();
 				if (Context.GetDirection() == EPlayDirection::Forwards && CurrentPlayerRate < 0.0f)
 				{
-					if (!MediaPlayer->SetRate(1.0f))
+					if (!SetRate(MediaPlayer, PlayerProxyInterface, 1.0f))
 					{
 						// Failed to set needed rate: better switch off blocking and bail...
 						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
@@ -178,7 +180,7 @@ struct FMediaSectionExecutionToken
 				}
 				else if (Context.GetDirection() == EPlayDirection::Backwards && CurrentPlayerRate > 0.0f)
 				{
-					if (!MediaPlayer->SetRate(-1.0f))
+					if (!SetRate(MediaPlayer, PlayerProxyInterface, -1.0f))
 					{
 						// Failed to set needed rate: better switch off blocking and bail...
 						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
@@ -191,7 +193,7 @@ struct FMediaSectionExecutionToken
 		{
 			if (MediaPlayer->IsPlaying())
 			{
-				MediaPlayer->SetRate(0.0f);
+				SetRate(MediaPlayer, PlayerProxyInterface, 0.0f);
 			}
 
 			MediaPlayer->Seek(MediaTime);
@@ -203,6 +205,22 @@ struct FMediaSectionExecutionToken
 	}
 
 private:
+
+	/**
+	 * Call this to set the rate.
+	 * It will use the proxy if available, otherwise it will use the player.
+	 */
+	bool SetRate(UMediaPlayer* Player, IMediaPlayerProxyInterface* Proxy, float Rate)
+	{
+		if (Proxy != nullptr)
+		{
+			return Proxy->SetProxyRate(Rate);
+		}
+		else
+		{
+			return Player->SetRate(Rate);
+		}
+	}
 
 	FTimespan CurrentTime;
 	FTimespan FrameDuration;

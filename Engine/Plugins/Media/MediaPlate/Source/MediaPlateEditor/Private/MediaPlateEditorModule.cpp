@@ -99,17 +99,12 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 				SoundComponent->UpdatePlayer();
 			}
 
-			// Get the player.
-			TObjectPtr<UMediaPlayer> MediaPlayer = MediaPlate->GetMediaPlayer();
-			if (MediaPlayer != nullptr)
+			bIsMediaPlateToBeRemoved = false;
+			// Are we playing something?
+			if (MediaPlate->IsMediaPlatePlaying())
 			{
-				bIsMediaPlateToBeRemoved = false;
-				// Are we playing something?
-				if ((MediaPlayer->IsPlaying()) || (MediaPlate->GetWantsToPlayWhenVisible()))
-				{
-					bIsMediaPlatePlaying = true;
-					break;
-				}
+				bIsMediaPlatePlaying = true;
+				break;
 			}
 		}
 

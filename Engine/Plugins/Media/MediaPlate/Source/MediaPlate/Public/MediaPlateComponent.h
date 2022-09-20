@@ -98,6 +98,12 @@ public:
 	void Close();
 
 	/**
+	 * Call this to see if the media plate is playing.
+	 */
+	UFUNCTION(BlueprintGetter)
+	bool IsMediaPlatePlaying() const { return bIsMediaPlatePlaying; }
+
+	/**
 	 * Call this to see if we want to loop.
 	 */
 	UFUNCTION(BlueprintGetter)
@@ -217,10 +223,23 @@ public:
 	void TickOutput();
 
 	//~ IMediaPlayerProxyInterface.
+	virtual float GetProxyRate() const override;
+	virtual bool SetProxyRate(float Rate) override;
 	virtual bool IsExternalControlAllowed() override;
 
 private:
 	void RestartPlayer();
+
+	/**
+	 * If true, then we want the media plate to play.
+	 * Note that this could be true, but the player is not actually playing because
+	 * bPlayOnlyWhenVisible = true and the plate is not visible.
+	 */
+	UPROPERTY(Blueprintgetter = IsMediaPlatePlaying, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	bool bIsMediaPlatePlaying = false;
+
+	/** Desired rate of play that we want. */
+	float CurrentRate = 0.0f;
 
 	/** If true then only allow playback when the media plate is visible. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
