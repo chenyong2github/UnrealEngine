@@ -77,6 +77,11 @@ bool FSubobjectData::CanDelete() const
 			// Otherwise you can't delete the default scene root
 			return false;
 		}
+		else
+		{
+			// You can delete any instance-added component
+			return IsInstancedComponent();
+		}
 	}
 	
 	// Otherwise, it can't be deleted
