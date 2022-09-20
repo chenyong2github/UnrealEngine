@@ -5,6 +5,8 @@
 
 namespace GeometryCollectionTest
 {	
+	void  CheckClassTypes();
+
 	void  CheckIncrementMask();
 
 	void  Creation();

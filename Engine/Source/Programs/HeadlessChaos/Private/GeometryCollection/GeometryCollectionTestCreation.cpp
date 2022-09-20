@@ -14,6 +14,31 @@ DEFINE_LOG_CATEGORY_STATIC(GCTCR_Log, Verbose, All);
 
 namespace GeometryCollectionTest
 {
+	void  CheckClassTypes()
+	{
+		FManagedArrayCollection ArrayCollection;
+		EXPECT_TRUE(ArrayCollection.IsA<FManagedArrayCollection>());
+		FManagedArrayCollection* Result = ArrayCollection.Cast<FManagedArrayCollection>();
+		EXPECT_TRUE(ArrayCollection.Cast<FManagedArrayCollection>()!=nullptr);
+		EXPECT_TRUE(ArrayCollection.Cast<FTransformCollection>()==nullptr);
+		EXPECT_TRUE(ArrayCollection.Cast<FGeometryCollection>()==nullptr);
+
+		FTransformCollection TransformCollection;
+		EXPECT_TRUE(TransformCollection.IsA<FManagedArrayCollection>());
+		EXPECT_TRUE(TransformCollection.Cast<FManagedArrayCollection>()!=nullptr);
+		EXPECT_TRUE(TransformCollection.IsA<FTransformCollection>());
+		EXPECT_TRUE(TransformCollection.Cast<FTransformCollection>()!=nullptr);
+		EXPECT_TRUE(TransformCollection.Cast<FGeometryCollection>()==nullptr);
+
+		FGeometryCollection GeometryCollection;
+		EXPECT_TRUE(GeometryCollection.IsA<FManagedArrayCollection>());
+		EXPECT_TRUE(GeometryCollection.Cast<FManagedArrayCollection>() != nullptr);
+		EXPECT_TRUE(GeometryCollection.IsA<FTransformCollection>());
+		EXPECT_TRUE(GeometryCollection.Cast<FTransformCollection>() != nullptr);
+		EXPECT_TRUE(GeometryCollection.IsA<FGeometryCollection>());
+		EXPECT_TRUE(GeometryCollection.Cast<FGeometryCollection>() != nullptr);
+	}
+
 
 	void CheckIncrementMask()
 	{
