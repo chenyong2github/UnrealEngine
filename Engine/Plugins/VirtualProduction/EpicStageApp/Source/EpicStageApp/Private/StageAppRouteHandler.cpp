@@ -393,7 +393,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 	}
 
 	FPerRendererData* PerRendererData = GetClientPerRendererData(WebSocketMessage.ClientId, Body.RendererId);
-	if (!PerRendererData)
+	if (!PerRendererData || PerRendererData->bIsRenderPending)
 	{
 		return;
 	}
@@ -429,11 +429,23 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 	const int32 JpegQuality = PreviewSettings.JpegQuality;
 	const bool bIncludeActorPositions = PreviewSettings.IncludeActorPositions;
 
+	PerRendererData->bIsRenderPending = true;
+
 	// Render the image
 	IDisplayClusterScenePreview::Get().RenderQueued(Body.RendererId, RenderSettings, Resolution, FRenderResultDelegate::CreateLambda(
-		[this, ViewInitOptions, ClientId, RendererId, Resolution, JpegQuality, bIncludeActorPositions](FRenderTarget& RenderTarget)
+		[this, ViewInitOptions, ClientId, RendererId, Resolution, JpegQuality, bIncludeActorPositions](FRenderTarget* RenderTarget)
 		{
 			FPerRendererData* PerRendererData = GetClientPerRendererData(ClientId, RendererId);
+			if (PerRendererData)
+			{
+				PerRendererData->bIsRenderPending = false;
+			}
+
+			if (!RenderTarget)
+			{
+				// Render failed
+				return;
+			}
 
 			if (CVarStageAppDebugLightCardHelperNormals.GetValueOnGameThread())
 			{
@@ -448,7 +460,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 					auto DrawNormalMap = [&](const FIntPoint& Position, bool bShowNorthMap) {
 						if (const UTexture2D* NorthMapTexture = Helper.GetNormalMapTexture(bShowNorthMap))
 						{
-							FCanvas Canvas(&RenderTarget, nullptr, Time, FeatureLevel);
+							FCanvas Canvas(RenderTarget, nullptr, Time, FeatureLevel);
 							Canvas.DrawTile(Position.X, Position.Y, HalfResolution.X, HalfResolution.Y, 0, 0, 1, 1, FColor::White, NorthMapTexture->GetResource());
 							Canvas.Flush_GameThread();
 						}
@@ -461,7 +473,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 
 			// Read image data
 			TArray<FColor> PixelData;
-			RenderTarget.ReadPixels(PixelData);
+			RenderTarget->ReadPixels(PixelData);
 			FImageView ImageView(PixelData.GetData(), Resolution.X, Resolution.Y, 1, ERawImageFormat::BGRA8, EGammaSpace::Linear);
 
 			// Convert to JPEG

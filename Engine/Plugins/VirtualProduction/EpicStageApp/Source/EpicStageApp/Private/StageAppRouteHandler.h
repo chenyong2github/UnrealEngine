@@ -33,7 +33,10 @@ private:
 		FVector2D LastDragPosition;
 
 		/** If true, the dragged lightcards have moved since the last timeout check. */
-		bool bHasDragMovedRecently;
+		bool bHasDragMovedRecently = false;
+
+		/** If true, the client is currently waiting for a render to be completed. */
+		bool bIsRenderPending = false;
 
 #if WITH_EDITOR
 		/** The GUID of the current drag transaction. */

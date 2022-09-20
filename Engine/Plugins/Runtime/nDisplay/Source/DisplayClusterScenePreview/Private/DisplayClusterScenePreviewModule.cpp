@@ -515,6 +515,7 @@ bool FDisplayClusterScenePreviewModule::OnTick(float DeltaTime)
 				// We were provided a canvas for this render job, so use it if possible
 				if (!Job.Canvas.IsValid())
 				{
+					Job.ResultDelegate.Execute(nullptr);
 					continue;
 				}
 
@@ -522,11 +523,12 @@ bool FDisplayClusterScenePreviewModule::OnTick(float DeltaTime)
 				FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
 				if (!RenderTarget)
 				{
+					Job.ResultDelegate.Execute(nullptr);
 					continue;
 				}
 
 				InternalRenderImmediate(*Config, Job.Settings, *Canvas);
-				Job.ResultDelegate.Execute(*RenderTarget);
+				Job.ResultDelegate.Execute(RenderTarget);
 				break;
 			}
 
@@ -556,7 +558,7 @@ bool FDisplayClusterScenePreviewModule::OnTick(float DeltaTime)
 				FCanvas Canvas(RenderTargetResource, nullptr, FGameTime::GetTimeSinceAppStart(), World->Scene->GetFeatureLevel());
 
 				InternalRenderImmediate(*Config, Job.Settings, Canvas);
-				Job.ResultDelegate.Execute(*RenderTargetResource);
+				Job.ResultDelegate.Execute(RenderTargetResource);
 				break;
 			}
 			
@@ -564,6 +566,7 @@ bool FDisplayClusterScenePreviewModule::OnTick(float DeltaTime)
 		}
 
 		// Config no longer exists, so try the next render
+		Job.ResultDelegate.Execute(nullptr);
 	}
 
 	if (RenderQueue.IsEmpty())

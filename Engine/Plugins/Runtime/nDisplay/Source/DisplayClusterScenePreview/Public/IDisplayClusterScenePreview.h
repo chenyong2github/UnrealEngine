@@ -11,7 +11,7 @@
 
 class ADisplayClusterRootActor;
 
-DECLARE_DELEGATE_OneParam(FRenderResultDelegate, FRenderTarget&);
+DECLARE_DELEGATE_OneParam(FRenderResultDelegate, FRenderTarget*);
 
 /**
  * Interface for module containing tools for generation Display Cluster scene previews.
@@ -168,7 +168,7 @@ public:
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
 	 * @param RenderSettings Settings controlling how the scene will be rendered.
 	 * @param Size The size of the image to produce. Note that whenever this changes for a given renderer, the underlying RenderTarget will be resized, which has a performance cost.
-	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview.
+	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview, or null if the render failed.
 	 */
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) = 0;
 
@@ -178,7 +178,7 @@ public:
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
 	 * @param RenderSettings Settings controlling how the scene will be rendered.
 	 * @param Canvas The canvas to draw to. If this is invalid when the render is ready to start, the render will be skipped.
-	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview.
+	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview, or null if the render failed.
 	 */
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, TWeakPtr<FCanvas> Canvas, FRenderResultDelegate ResultDelegate) = 0;
 
