@@ -581,6 +581,12 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_STRAIN);
 
+		if (!ensureMsgf((ClusteredParticle->Parent() == nullptr), TEXT("Removing a cluster that still has a parent")))
+		{
+			TSet<FPBDRigidParticleHandle*> EmptySet;
+			return EmptySet;
+		};
+
 		return ReleaseClusterParticlesImpl(ClusteredParticle, bForceRelease, true /*bCreateNewClusters*/);
 	}
 	
@@ -605,11 +611,6 @@ namespace Chaos
 		bool bCreateNewClusters)
 	{	
 		TSet<FPBDRigidParticleHandle*> ActivatedChildren;
-
-		if (!ensureMsgf((ClusteredParticle->Parent()==nullptr), TEXT("Removing a cluster that still has a parent")))
-		{
-			return ActivatedChildren;;
-		};
 
 		if (!ensureMsgf(MChildren.Contains(ClusteredParticle), TEXT("Removing Cluster that does not exist!")))
 		{
