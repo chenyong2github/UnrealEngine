@@ -1052,7 +1052,7 @@ void SConcertSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcertSessio
 
 bool SConcertSessionBrowser::IsNewButtonEnabledInternal() const
 {
-	return GetController()->GetServers().Num() > 0;
+	return GetController()->CanCreateSessions() && GetController()->GetServers().Num() > 0;
 }
 
 bool SConcertSessionBrowser::IsRestoreButtonEnabledInternal() const

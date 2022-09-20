@@ -55,6 +55,7 @@ namespace UE::MultiUserServer
 		virtual bool CanRenameArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override { return true; }
 		virtual bool CanDeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override { return true; }
 		virtual bool CanDeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override { return true; }
+		virtual bool CanCreateSessions() const override { return false; }
 		//~ Begin IConcertSessionBrowserController Interface
 
 	private:

@@ -120,21 +120,21 @@ public:
 	
 	//~ Begin IConcertSessionBrowserController Interface
 	virtual TArray<FConcertServerInfo> GetServers() const override { return Servers; }
-	
+
 	virtual TArray<FActiveSessionInfo> GetActiveSessions() const override
 	{
 		TArray<FActiveSessionInfo> Result;
 		Algo::Transform(ActiveSessions, Result, [](TSharedPtr<FClientActiveSessionInfo> Info) { return *Info; });
 		return Result;
 	}
-	
+
 	virtual TArray<FArchivedSessionInfo> GetArchivedSessions() const override
 	{
 		TArray<FArchivedSessionInfo> Result;
 		Algo::Transform(ArchivedSessions, Result, [](TSharedPtr<FClientArchivedSessionInfo> Info) { return *Info; });
 		return Result;
 	}
-	
+
 	virtual TOptional<FConcertSessionInfo> GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
 	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
 
@@ -148,6 +148,7 @@ public:
 	virtual void DeleteSessions(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& SessionIds) override;
 	virtual bool CanDeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
 	virtual bool CanDeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
+	virtual bool CanCreateSessions() const override { return true; }
 	//~ End IConcertSessionBrowserController Interface
 
 private:
