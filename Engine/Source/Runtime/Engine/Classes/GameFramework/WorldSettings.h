@@ -359,6 +359,9 @@ struct ENGINE_API FHierarchicalSimplification
 	/** Handles deprecated properties */
 	void PostSerialize(const FArchive& Ar);
 #endif
+
+	/** Retrieve the correct material proxy settings based on the simplification method. */
+	FMaterialProxySettings* GetSimplificationMethodMaterialSettings();
 };
 
 template<>

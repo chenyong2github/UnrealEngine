@@ -189,6 +189,8 @@ public:
 	void AddComponentToWedgeMapping(int32 MeshIndex, int32 LODIndex, uint32 WedgeIndex);
 	uint32 GetComponentToWedgeMappng(int32 MeshIndex, int32 LODIndex) const;
 
+	double GetTextureSizeFromTargetTexelDensity(float InTargetTexelDensity) const;
+
 protected:
 	// Mesh / LOD index, RawMesh
 	TMap<FMeshLODKey, FMeshDescription> RawMeshLODs;

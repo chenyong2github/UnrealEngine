@@ -7,6 +7,8 @@
 #include "EngineTypes.h"
 #include "MaterialMerging.generated.h"
 
+struct FMeshDescription;
+
 UENUM()
 enum ETextureSizingType
 {
@@ -28,7 +30,7 @@ enum EMaterialMergeType
 };
 
 USTRUCT(Blueprintable)
-struct FMaterialProxySettings
+struct ENGINE_API FMaterialProxySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -37,7 +39,7 @@ struct FMaterialProxySettings
 	TEnumAsByte<ETextureSizingType> TextureSizingType;
 
 	// Size of generated BaseColor map
-	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere, meta =(ClampMin = "1", UIMin = "1", EditConditionHides, EditCondition = "TextureSizingType == ETextureSizingType::TextureSizingType_UseSingleTextureSize || TextureSizingType == ETextureSizingType::TextureSizingType_UseAutomaticBiasedSizes"))
+	UPROPERTY(Category = Material, EditAnywhere, meta =(ClampMin = "1", UIMin = "1", EditConditionHides, EditCondition = "TextureSizingType == ETextureSizingType::TextureSizingType_UseSingleTextureSize || TextureSizingType == ETextureSizingType::TextureSizingType_UseAutomaticBiasedSizes"))
 	FIntPoint TextureSize;
 
 	// Target texel density
@@ -179,90 +181,18 @@ struct FMaterialProxySettings
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
 	FIntPoint AmbientOcclusionTextureSize;
 
-	FMaterialProxySettings()
-		: TextureSizingType(TextureSizingType_UseSingleTextureSize)
-		, TextureSize(1024, 1024)
-		, TargetTexelDensityPerMeter(5.0f)
-		, MeshMaxScreenSizePercent(0.5f)
-		, MeshMinDrawDistance(10000.0f)
-		, GutterSpace(4.0f)
-		, MetallicConstant(0.0f)
-		, RoughnessConstant(0.5f)
-		, AnisotropyConstant(0.0f)
-		, SpecularConstant(0.5f)
-		, OpacityConstant(1.0f)
-		, OpacityMaskConstant(1.0f)
-		, AmbientOcclusionConstant(1.0f)
-		, MaterialMergeType(EMaterialMergeType::MaterialMergeType_Default)
-		, BlendMode(BLEND_Opaque)
-		, bAllowTwoSidedMaterial(true)
-		, bNormalMap(true)
-		, bTangentMap(false)
-		, bMetallicMap(false)
-		, bRoughnessMap(false)
-		, bAnisotropyMap(false)
-		, bSpecularMap(false)
-		, bEmissiveMap(false)
-		, bOpacityMap(false)
-		, bOpacityMaskMap(false)
-		, bAmbientOcclusionMap(false)
-		, DiffuseTextureSize(1024, 1024)
-		, NormalTextureSize(1024, 1024)
-		, TangentTextureSize(1024, 1024)
-		, MetallicTextureSize(1024, 1024)
-		, RoughnessTextureSize(1024, 1024)
-		, AnisotropyTextureSize(1024, 1024)
-		, SpecularTextureSize(1024, 1024)
-		, EmissiveTextureSize(1024, 1024)
-		, OpacityTextureSize(1024, 1024)
-		, OpacityMaskTextureSize(1024, 1024)
-		, AmbientOcclusionTextureSize(1024, 1024)
-	{
-	}
+	FMaterialProxySettings();
 
-	bool operator == (const FMaterialProxySettings& Other) const
-	{
-		return TextureSize == Other.TextureSize
-			&& TextureSizingType == Other.TextureSizingType
-			&& TargetTexelDensityPerMeter == Other.TargetTexelDensityPerMeter
-			&& MeshMaxScreenSizePercent == Other.MeshMaxScreenSizePercent
-			&& MeshMinDrawDistance == Other.MeshMinDrawDistance
-			&& GutterSpace == Other.GutterSpace
-			&& MetallicConstant == Other.MetallicConstant
-			&& RoughnessConstant == Other.RoughnessConstant
-			&& AnisotropyConstant == Other.AnisotropyConstant
-			&& SpecularConstant == Other.SpecularConstant
-			&& OpacityConstant == Other.OpacityConstant
-			&& OpacityMaskConstant == Other.OpacityMaskConstant
-			&& AmbientOcclusionConstant == Other.AmbientOcclusionConstant
-			&& MaterialMergeType == Other.MaterialMergeType
-			&& BlendMode == Other.BlendMode
-			&& bAllowTwoSidedMaterial == Other.bAllowTwoSidedMaterial
-			&& bNormalMap == Other.bNormalMap
-			&& bTangentMap == Other.bTangentMap
-			&& bMetallicMap == Other.bMetallicMap
-			&& bRoughnessMap == Other.bRoughnessMap
-			&& bAnisotropyMap == Other.bAnisotropyMap
-			&& bSpecularMap == Other.bSpecularMap
-			&& bEmissiveMap == Other.bEmissiveMap
-			&& bOpacityMap == Other.bOpacityMap
-			&& bOpacityMaskMap == Other.bOpacityMaskMap
-			&& bAmbientOcclusionMap == Other.bAmbientOcclusionMap
-			&& DiffuseTextureSize == Other.DiffuseTextureSize
-			&& NormalTextureSize == Other.NormalTextureSize
-			&& TangentTextureSize == Other.TangentTextureSize
-			&& MetallicTextureSize == Other.MetallicTextureSize
-			&& RoughnessTextureSize == Other.RoughnessTextureSize
-			&& AnisotropyTextureSize == Other.AnisotropyTextureSize
-			&& SpecularTextureSize == Other.SpecularTextureSize
-			&& EmissiveTextureSize == Other.EmissiveTextureSize
-			&& OpacityTextureSize == Other.OpacityTextureSize
-			&& OpacityMaskTextureSize == Other.OpacityMaskTextureSize
-			&& AmbientOcclusionTextureSize == Other.AmbientOcclusionTextureSize;
-	}
+	bool operator == (const FMaterialProxySettings& Other) const;
+	bool operator != (const FMaterialProxySettings& Other) const;
 
-	bool operator != (const FMaterialProxySettings& Other) const
-	{
-		return !(*this == Other);
-	}
+	FIntPoint GetMaxTextureSize() const;
+
+#if WITH_EDITOR
+	bool ResolveTexelDensity(const TArray<class UPrimitiveComponent*>& InComponents);
+	bool ResolveTexelDensity(const TArray<class UPrimitiveComponent*>& InComponents, float& OutTexelDensity) const;
+
+	void ResolveTextureSize(const FMeshDescription& InMesh);
+	void ResolveTextureSize(const float InWorldSpaceRadius, const double InWorldSpaceArea, const double InUVSpaceArea = 1.0);
+#endif
 };

@@ -30,6 +30,7 @@
 #include "AssetToolsModule.h"
 #include "ObjectTools.h"
 #include "Algo/ForEach.h"
+#include "Algo/Transform.h"
 
 #include "IGeometryProcessingInterfacesModule.h"
 #include "GeometryProcessingInterfaces/ApproximateActors.h"
@@ -169,53 +170,6 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 		return false;
 	}
 
-    // Gather bounds of the input components
-	auto GetActorsBounds = [&]() -> FBoxSphereBounds
-	{
-		FBoxSphereBounds Bounds;
-		bool bFirst = true;
-
-		for (auto& Component : SelectedComponents)
-		{
-			if (!Component.IsValid() || !Component.Get()->bShouldIncorporate)
-			{
-				continue;
-			}
-
-			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component.Get()->PrimComponent))
-			{
-				// Append bounds of visible components only
-				FBoxSphereBounds ComponentBounds = PrimitiveComponent->Bounds;
-				Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
-				bFirst = false;
-			}
-		}
-
-		return Bounds;
-	};
-	
-
-	// Compute texel density if needed, depending on the TextureSizingType setting
-	ETextureSizingType TextureSizingType = SettingsObject->Settings.MaterialSettings.TextureSizingType;
-	float TexelDensityPerMeter = 0.0f;
-
-	IGeometryProcessing_ApproximateActors::ETextureSizePolicy TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TextureSize;
-	if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromTexelDensity)
-	{
-		TexelDensityPerMeter = SettingsObject->Settings.MaterialSettings.TargetTexelDensityPerMeter;
-		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
-	}
-	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshScreenSize)
-	{
-		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromScreenSize(SettingsObject->Settings.MaterialSettings.MeshMaxScreenSizePercent, GetActorsBounds().SphereRadius);
-		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
-	}
-	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshDrawDistance)
-	{
-		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(SettingsObject->Settings.MaterialSettings.MeshMinDrawDistance, GetActorsBounds().SphereRadius);
-		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
-	}
-
 	const FMeshApproximationSettings& UseSettings = SettingsObject->Settings;
 
 	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
@@ -226,8 +180,17 @@ bool FMeshApproximationTool::RunMerge(const FString& PackageName, const TArray<T
 	//
 
 	IGeometryProcessing_ApproximateActors::FOptions Options = ApproxActorsAPI->ConstructOptions(UseSettings);
-	Options.TextureSizePolicy = TextureSizePolicy;
-	Options.MeshTexelDensity = TexelDensityPerMeter;
+
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	auto IsValidPrimitiveComponent = [](const TSharedPtr<FMergeComponentData>& Component) { return Component.IsValid() && !Component.Get()->bShouldIncorporate; };
+	auto GetPrimitiveComponent = [](const TSharedPtr<FMergeComponentData>& Component) { return Component.Get()->PrimComponent.Get(); };
+	Algo::TransformIf(SelectedComponents, PrimitiveComponents, IsValidPrimitiveComponent, GetPrimitiveComponent);
+
+	// Compute texel density if needed, depending on the TextureSizingType setting
+	if (UseSettings.MaterialSettings.ResolveTexelDensity(PrimitiveComponents, Options.MeshTexelDensity))
+	{
+		Options.TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
+	}
 
 	// Use temp packages - Needed to allow proper replacement of existing assets (performed below)
 	const FString NewAssetNamePrefix(TEXT("NEWASSET_"));

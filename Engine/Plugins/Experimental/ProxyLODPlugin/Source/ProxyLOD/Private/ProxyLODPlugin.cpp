@@ -542,64 +542,13 @@ static float BBoxMajorAxisLength(const ProxyLOD::FBBox& BBox)
 *
 * NB: A min size of 64x64 is enforced.
 */
-static FIntPoint GetTexelGridSize(const  FMaterialProxySettings& MaterialSettings)
+static FIntPoint GetTexelGridSize(const FMaterialProxySettings& InMaterialSettings)
 {
-	auto MaxBBox = [](const FIntPoint& A, const FIntPoint B)
-	{
-		return FIntPoint(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y));
-	};
-
-	// Start with a min value of 64x64.  
-	FIntPoint MaxTextureSize(64, 64);
-
-	const bool bUseTextureSize =
-		(MaterialSettings.TextureSizingType == ETextureSizingType::TextureSizingType_UseSingleTextureSize) ||
-		(MaterialSettings.TextureSizingType == ETextureSizingType::TextureSizingType_UseAutomaticBiasedSizes);
-
-	if (bUseTextureSize)
-	{
-		MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.TextureSize);
-	}
-	else if (MaterialSettings.TextureSizingType == ETextureSizingType::TextureSizingType_UseManualOverrideTextureSize)
-	{
-		MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.DiffuseTextureSize);
-
-		if (MaterialSettings.bNormalMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.NormalTextureSize);
-		}
-		if (MaterialSettings.bMetallicMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.MetallicTextureSize);
-		}
-		if (MaterialSettings.bRoughnessMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.RoughnessTextureSize);
-		}
-		if (MaterialSettings.bSpecularMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.SpecularTextureSize);
-		}
-		if (MaterialSettings.bEmissiveMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.EmissiveTextureSize);
-		}
-		if (MaterialSettings.bOpacityMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.OpacityTextureSize);
-		}
-		if (MaterialSettings.bOpacityMaskMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.OpacityMaskTextureSize);
-		}
-		if (MaterialSettings.bAmbientOcclusionMap)
-		{
-			MaxTextureSize = MaxBBox(MaxTextureSize, MaterialSettings.AmbientOcclusionTextureSize);
-		}
-	}
+	FIntPoint MaxTextureSize = InMaterialSettings.GetMaxTextureSize();
 
 	// Make the UVs square
 	int32 MaxLength = FMath::Max(MaxTextureSize.X, MaxTextureSize.Y);
+	MaxLength = FMath::Max(MaxLength, 64);
 	return FIntPoint(MaxLength, MaxLength);
 }
 
@@ -707,6 +656,7 @@ void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryA
 		return;
 	}
 
+	FMaterialProxySettings MaterialSettings = InProxySettings.MaterialSettings;
 	
 	// Container for the raw mesh that will hold the simplified geometry
 	// and the FlattenMaterial that will hold the materials for the output mesh.
@@ -716,7 +666,7 @@ void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryA
 	FMeshDescription OutRawMesh;
 	FStaticMeshAttributes(OutRawMesh).Register();
 
-	FFlattenMaterial OutMaterial         = FMaterialUtilities::CreateFlattenMaterialWithSettings(InProxySettings.MaterialSettings);
+	FFlattenMaterial OutMaterial;
 	const FColor UnresolvedGeometryColor = InProxySettings.UnresolvedGeometryColor;
 
 	bool bProxyGenerationSuccess = true;
@@ -781,13 +731,9 @@ void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryA
 		FVertexDataMesh VertexDataMesh;
 
 		// Description of texture atlas.
-		// Make the UV space work with the largest texture size.
-		
-		const  FMaterialProxySettings& MaterialSettings = InProxySettings.MaterialSettings;
-		const FIntPoint UVSize = GetTexelGridSize(MaterialSettings);
-	
-		
-		ProxyLOD::FTextureAtlasDesc TextureAtlasDesc(UVSize, MaterialSettings.GutterSpace);
+		ProxyLOD::FTextureAtlasDesc TextureAtlasDesc;
+		TextureAtlasDesc.Size = FIntPoint(64, 64);
+		TextureAtlasDesc.Gutter = MaterialSettings.GutterSpace;
 	    
 		// --- Create New (High Poly) Geometry --
 		// 1) Voxelize the source geometry & maybe gap fill.
@@ -905,7 +851,7 @@ void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryA
 
 			PrepGeometryAndBakeMaterialsTaskGroup.Run([&AOSMeshedVolume,
 				&SrcGeometryPolyField, &VertexDataMesh,
-				&TextureAtlasDesc, &bUVGenerationSuccess, &InProxySettings,
+				&TextureAtlasDesc, &MaterialSettings, &bUVGenerationSuccess, &InProxySettings,
 				VoxelSize, bColorVertsByChart, bSingleThreadedSimplify, bDoCollapsedWallFix, bSplitHardAngles, HardAngle]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(PrepGeometryTask)
@@ -967,7 +913,13 @@ void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryA
 				ProxyLOD::ComputeVertexNormals(VertexDataMesh, NormalMethod);
 
 
-				// 3) Generate UVs for Simplified Geometry
+				// 3) Resolve texture size if required
+				float WorldSpaceRadius = ProxyLOD::GetBounds(VertexDataMesh).SphereRadius;
+				double WorldSpaceArea = ProxyLOD::GetWorldSpaceArea(VertexDataMesh);
+				MaterialSettings.ResolveTextureSize(WorldSpaceRadius, WorldSpaceArea);
+				TextureAtlasDesc.Size = GetTexelGridSize(MaterialSettings);
+
+				// 4) Generate UVs for Simplified Geometry
 				// UV Atlas create, this can fail.
 				// NB: Vertices are split on UV seams. 
 
@@ -1006,6 +958,8 @@ void FVoxelizeMeshMerging::ProxyLOD(FMeshDescriptionArrayAdapter& InSrcGeometryA
 		// ProxyLOD::ProjectVertexWithSnapToNearest(*SrcGeometryPolyField, VertexDataMesh);
 
 		// Using the new UVs fill OutMaterial texture atlas. 
+
+		OutMaterial = FMaterialUtilities::CreateFlattenMaterialWithSettings(MaterialSettings);
 
 		if (bUVGenerationSuccess && SrcGeometryPolyField)
 		{

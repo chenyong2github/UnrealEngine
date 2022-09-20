@@ -45,6 +45,10 @@
 #include "StaticMeshAttributes.h"
 #include "TextureCompiler.h"
 
+#include "TriangleTypes.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Tests/AutomationEditorCommon.h"
@@ -1508,11 +1512,11 @@ FFlattenMaterial FMaterialUtilities::CreateFlattenMaterialWithSettings(const FMa
 	// Create new material.
 	FFlattenMaterial Material;
 
-	// TODO REMOVE THIS FEATURE?
-	FIntPoint MaximumSize = FIntPoint::ZeroValue;// InMaterialLODSettings.TextureSize;
-	// If the user is manually overriding the texture size, make sure we have the max texture size to render with
+	FIntPoint MaximumSize = FIntPoint::ZeroValue;
+
 	if (InMaterialLODSettings.TextureSizingType == TextureSizingType_UseManualOverrideTextureSize)
 	{
+		// If the user is manually overriding the texture size, make sure we have the max texture size to render with
 		MaximumSize = (MaximumSize.X < InMaterialLODSettings.DiffuseTextureSize.X) ? InMaterialLODSettings.DiffuseTextureSize : MaximumSize ;
 		MaximumSize = (InMaterialLODSettings.bSpecularMap && (MaximumSize.X < InMaterialLODSettings.SpecularTextureSize.X)) ? InMaterialLODSettings.SpecularTextureSize	:	MaximumSize;
 		MaximumSize = (InMaterialLODSettings.bMetallicMap && (MaximumSize.X < InMaterialLODSettings.MetallicTextureSize.X)) ? InMaterialLODSettings.MetallicTextureSize	:	MaximumSize;
@@ -1520,12 +1524,8 @@ FFlattenMaterial FMaterialUtilities::CreateFlattenMaterialWithSettings(const FMa
 		MaximumSize = (InMaterialLODSettings.bNormalMap && (MaximumSize.X < InMaterialLODSettings.NormalTextureSize.X)) ? InMaterialLODSettings.NormalTextureSize :			MaximumSize;
 		MaximumSize = (InMaterialLODSettings.bEmissiveMap && (MaximumSize.X < InMaterialLODSettings.EmissiveTextureSize.X)) ? InMaterialLODSettings.EmissiveTextureSize :	MaximumSize;
 		MaximumSize = (InMaterialLODSettings.bOpacityMap && (MaximumSize.X < InMaterialLODSettings.OpacityTextureSize.X)) ? InMaterialLODSettings.OpacityTextureSize :		MaximumSize;
-	}
 	
-	if (InMaterialLODSettings.TextureSizingType == TextureSizingType_UseManualOverrideTextureSize)
-	{
 		Material.RenderSize = MaximumSize;
-
 		Material.SetPropertySize(EFlattenMaterialProperties::Diffuse, InMaterialLODSettings.DiffuseTextureSize);
 		Material.SetPropertySize(EFlattenMaterialProperties::Specular, InMaterialLODSettings.bSpecularMap ? InMaterialLODSettings.SpecularTextureSize : FIntPoint::ZeroValue);
 		Material.SetPropertySize(EFlattenMaterialProperties::Metallic, InMaterialLODSettings.bMetallicMap ? InMaterialLODSettings.MetallicTextureSize : FIntPoint::ZeroValue);
@@ -1538,15 +1538,13 @@ FFlattenMaterial FMaterialUtilities::CreateFlattenMaterialWithSettings(const FMa
 	{
 		Material.RenderSize = InMaterialLODSettings.TextureSize;
 		
-		int NormalSizeX, DiffuseSizeX, PropertiesSizeX;
-		NormalSizeX = InMaterialLODSettings.TextureSize.X;
-		DiffuseSizeX = FMath::Max(InMaterialLODSettings.TextureSize.X >> 1, 32);
-		PropertiesSizeX = FMath::Max(InMaterialLODSettings.TextureSize.X >> 2, 16);
+		int NormalSize = InMaterialLODSettings.TextureSize.X;
+		int DiffuseSize = FMath::Max(InMaterialLODSettings.TextureSize.X >> 1, 32);
+		int OtherSize = FMath::Max(InMaterialLODSettings.TextureSize.X >> 2, 16);
+		FIntPoint PropertiesSize = FIntPoint(OtherSize, OtherSize);
 
-		Material.SetPropertySize(EFlattenMaterialProperties::Diffuse, FIntPoint(DiffuseSizeX, DiffuseSizeX));
-		Material.SetPropertySize(EFlattenMaterialProperties::Normal, (InMaterialLODSettings.bNormalMap) ? FIntPoint(NormalSizeX, NormalSizeX) : FIntPoint::ZeroValue);
-
-		FIntPoint PropertiesSize = FIntPoint(PropertiesSizeX, PropertiesSizeX);
+		Material.SetPropertySize(EFlattenMaterialProperties::Diffuse, FIntPoint(DiffuseSize, DiffuseSize));
+		Material.SetPropertySize(EFlattenMaterialProperties::Normal, (InMaterialLODSettings.bNormalMap) ? FIntPoint(NormalSize, NormalSize) : FIntPoint::ZeroValue);
 		Material.SetPropertySize(EFlattenMaterialProperties::Specular, (InMaterialLODSettings.bSpecularMap) ? PropertiesSize : FIntPoint::ZeroValue );
 		Material.SetPropertySize(EFlattenMaterialProperties::Metallic, (InMaterialLODSettings.bMetallicMap) ? PropertiesSize : FIntPoint::ZeroValue );
 		Material.SetPropertySize(EFlattenMaterialProperties::Roughness, (InMaterialLODSettings.bRoughnessMap) ? PropertiesSize : FIntPoint::ZeroValue );
@@ -1563,6 +1561,10 @@ FFlattenMaterial FMaterialUtilities::CreateFlattenMaterialWithSettings(const FMa
 		Material.SetPropertySize(EFlattenMaterialProperties::Normal, (InMaterialLODSettings.bNormalMap) ? InMaterialLODSettings.TextureSize : FIntPoint::ZeroValue);
 		Material.SetPropertySize(EFlattenMaterialProperties::Emissive, (InMaterialLODSettings.bEmissiveMap) ? InMaterialLODSettings.TextureSize : FIntPoint::ZeroValue);
 		Material.SetPropertySize(EFlattenMaterialProperties::Opacity, (InMaterialLODSettings.bOpacityMap) ? InMaterialLODSettings.TextureSize : FIntPoint::ZeroValue);
+	}
+	else
+	{
+		UE_LOG(LogMaterialUtilities, Error, TEXT("Unsupported TextureSizingType value. You should resolve the material texture size first with ResolveTextureSize()"));
 	}
 
 	return Material;
@@ -2821,4 +2823,109 @@ float FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(const floa
 	float TexelDensityPerMeter = ScreenSizePixel / WorldSizeMeter;
 
 	return TexelDensityPerMeter;
+}
+
+static int32 ComputeTextureSizeFromTexelRatio(const double TexelRatio, const double TargetTexelDensity)
+{
+	// Compute the perfect texture size that would get us to our texture density
+	// Also compute the nearest power of two sizes (below and above our target)
+	const int32 SizePerfect = FMath::CeilToInt(TargetTexelDensity / TexelRatio);
+	const int32 SizeHi = FMath::RoundUpToPowerOfTwo(SizePerfect);
+	const int32 SizeLo = SizeHi >> 1;
+
+	// Compute the texel density we achieve with these two texture sizes
+	const double TexelDensityLo = SizeLo * TexelRatio;
+	const double TexelDensityHi = SizeHi * TexelRatio;
+
+	// Select best match between low & high res textures.
+	const double TexelDensityLoDiff = TargetTexelDensity - TexelDensityLo;
+	const double TexelDensityHiDiff = TexelDensityHi - TargetTexelDensity;
+	const int32 BestTextureSize = TexelDensityLoDiff < TexelDensityHiDiff ? SizeLo : SizeHi;
+
+	return BestTextureSize;
+}
+
+int32 FMaterialUtilities::GetTextureSizeFromTargetTexelDensity(const UE::Geometry::FDynamicMesh3& Mesh, float InTargetTexelDensity)
+{
+	const UE::Geometry::FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
+
+	double Mesh3DArea = 0;
+	double MeshUVArea = 0;
+
+	// If no UVs, assume perfect UV space usage.
+	const bool bHasUVs = UVOverlay != nullptr;
+	if (!bHasUVs)
+	{
+		MeshUVArea = 1.0;
+	}
+
+	for (int TriangleID : Mesh.TriangleIndicesItr())
+	{
+		// World space area
+		Mesh3DArea += Mesh.GetTriArea(TriangleID);
+
+		// UV space area
+		if (bHasUVs)
+		{
+			UE::Geometry::FIndex3i UVVertices = UVOverlay->GetTriangle(TriangleID);
+			UE::Geometry::FTriangle2d TriangleUV = UE::Geometry::FTriangle2d(
+				(FVector2d)UVOverlay->GetElement(UVVertices.A),
+				(FVector2d)UVOverlay->GetElement(UVVertices.B),
+				(FVector2d)UVOverlay->GetElement(UVVertices.C));
+
+			MeshUVArea += TriangleUV.Area();
+		}
+	}
+
+	return GetTextureSizeFromTargetTexelDensity(Mesh3DArea, MeshUVArea, InTargetTexelDensity);
+}
+
+int32 FMaterialUtilities::GetTextureSizeFromTargetTexelDensity(const FMeshDescription& InMesh, float InTargetTexelDensity)
+{
+	FStaticMeshConstAttributes Attributes(InMesh);
+
+	TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
+	TUVAttributesConstRef<FVector2f> UVs = Attributes.GetUVCoordinates(0);
+
+	double Mesh3DArea = 0;
+	double MeshUVArea = 0;
+
+	// If no UVs, assume perfect UV space usage.
+	const bool bHasUVs = UVs.IsValid() && UVs.GetNumElements() != 0;
+	if (!bHasUVs)
+	{
+		MeshUVArea = 1.0;
+	}
+
+	for (const FTriangleID TriangleID : InMesh.Triangles().GetElementIDs())
+	{
+		// World space area
+		TArrayView<const FVertexID> TriVertices = InMesh.GetTriangleVertices(TriangleID);
+		Mesh3DArea += UE::Geometry::VectorUtil::Area(Positions[TriVertices[0]], Positions[TriVertices[1]], Positions[TriVertices[2]]);
+
+		// UV space area
+		if (bHasUVs)
+		{
+			TArrayView<const FUVID> TriUVs = InMesh.GetTriangleUVIndices(TriangleID);
+			MeshUVArea += UE::Geometry::VectorUtil::Area(UVs[0], UVs[1], UVs[2]);
+		}
+	}
+
+	return GetTextureSizeFromTargetTexelDensity(Mesh3DArea, MeshUVArea, InTargetTexelDensity);
+}
+
+int32 FMaterialUtilities::GetTextureSizeFromTargetTexelDensity(double InMesh3DArea, double InMeshUVArea, double InTargetTexelDensity)
+{
+	double TexelRatio = FMath::Sqrt(InMeshUVArea / InMesh3DArea) * 100;
+
+	static const int32 MinTextureSize = 16;
+	static const int32 MaxTextureSize = 8192;
+
+	int32 TextureSize = ComputeTextureSizeFromTexelRatio(TexelRatio, InTargetTexelDensity);
+	if (TextureSize > MaxTextureSize)
+	{
+		UE_LOG(LogMaterialUtilities, Warning, TEXT("Mesh would require %d x %d textures, clamping down to maximum (%d x %d)"), TextureSize, TextureSize, MaxTextureSize, MaxTextureSize);
+	}
+
+	return FMath::Clamp(TextureSize, MinTextureSize, MaxTextureSize);
 }

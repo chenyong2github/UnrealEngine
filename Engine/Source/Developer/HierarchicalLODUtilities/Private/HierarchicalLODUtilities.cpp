@@ -422,7 +422,7 @@ struct FHLODBuildParams
 	ALODActor*								LODActor;
 	UHLODProxy*								Proxy;
 	const TArray<UPrimitiveComponent*>&		Components;
-	const FHierarchicalSimplification&		LODSetup;
+	FHierarchicalSimplification				LODSetup;
 	UMaterialInterface*						BaseMaterial;
 	UPackage*								AssetsOuter;
 	FString									PackageName;
@@ -431,6 +431,15 @@ struct FHLODBuildParams
 		: Components(InComponents)
 		, LODSetup(InLODSetup)
 	{
+		FMaterialProxySettings* MaterialProxySettings = LODSetup.GetSimplificationMethodMaterialSettings();
+		if (MaterialProxySettings)
+		{
+			MaterialProxySettings->ResolveTexelDensity(InComponents);
+		}
+		else
+		{
+			UE_LOG(LogHierarchicalLODUtilities, Error, TEXT("Unsupported simplification method provided"));
+		}
 	}
 };
 
@@ -555,46 +564,6 @@ FHLODBuildResults GenerateHLODMesh_Approximate(const FHLODBuildParams& InBuildPa
 	Options.EmissiveTexParamName = FName(FMaterialUtilities::GetFlattenMaterialTextureName(EFlattenMaterialProperties::Emissive, Options.BakeMaterial));
 	Options.bUsePackedMRS = true;
 	Options.PackedMRSTexParamName = FName("PackedTexture");
-
-	// Gather bounds of the input components
-	auto GetActorsBounds = [&]() -> FBoxSphereBounds
-	{
-		FBoxSphereBounds Bounds;
-		bool bFirst = true;
-
-		for (UPrimitiveComponent* Component : InBuildParams.Components)
-		{
-			FBoxSphereBounds ComponentBounds = Component->Bounds;
-			Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
-			bFirst = false;
-		}
-
-		return Bounds;
-	};
-
-	// Compute texel density if needed, depending on the TextureSizingType setting
-	ETextureSizingType TextureSizingType = UseSettings.MaterialSettings.TextureSizingType;
-	float TexelDensityPerMeter = 0.0f;
-
-	IGeometryProcessing_ApproximateActors::ETextureSizePolicy TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TextureSize;
-	if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromTexelDensity)
-	{
-		TexelDensityPerMeter = UseSettings.MaterialSettings.TargetTexelDensityPerMeter;
-		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
-	}
-	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshScreenSize)
-	{
-		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromScreenSize(UseSettings.MaterialSettings.MeshMaxScreenSizePercent, GetActorsBounds().SphereRadius);
-		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
-	}
-	else if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshDrawDistance)
-	{
-		TexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(UseSettings.MaterialSettings.MeshMinDrawDistance, GetActorsBounds().SphereRadius);
-		TextureSizePolicy = IGeometryProcessing_ApproximateActors::ETextureSizePolicy::TexelDensity;
-	}
-
-	Options.MeshTexelDensity = TexelDensityPerMeter;
-	Options.TextureSizePolicy = TextureSizePolicy;
 
 	// Use temp packages - otherwise Approximate Actors will create it's mesh using the same name as the HLOD Proxy object.
 	const FString NewAssetNamePrefix(TEXT("NEWASSET_"));

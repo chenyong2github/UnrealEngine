@@ -147,6 +147,9 @@ namespace ProxyLOD
 								 const float LengthScale);
 	int32 CorrectCollapsedWalls( FVertexDataMesh& InOutMesh,
 		                         const float LengthScale );
+
+	FBoxSphereBounds GetBounds(const FVertexDataMesh& InMesh);
+	double GetWorldSpaceArea(const FVertexDataMesh& InMesh);
 	
 #if 0
 	// Can be used to transfer things like vertex colors from source geometry to output.

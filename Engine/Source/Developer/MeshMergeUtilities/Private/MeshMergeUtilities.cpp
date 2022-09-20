@@ -69,6 +69,8 @@
 #include "RawMesh.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "TriangleTypes.h"
+#include "MaterialUtilities.h"
 
 #include "Async/Future.h"
 #include "Async/Async.h"
@@ -607,8 +609,6 @@ UMaterialOptions* FMeshMergeUtilities::PopulateMaterialOptions(const FMaterialPr
 	MaterialOptions->Properties.Empty();	
 	MaterialOptions->TextureSize = MaterialSettings.TextureSize;
 	
-	const bool bCustomSizes = MaterialSettings.TextureSizingType == TextureSizingType_UseManualOverrideTextureSize;
-
 	FPropertyEntry Property;
 	PopulatePropertyEntry(MaterialSettings, MP_BaseColor, Property);
 	MaterialOptions->Properties.Add(Property);
@@ -735,6 +735,10 @@ void FMeshMergeUtilities::PopulatePropertyEntry(const FMaterialProxySettings& Ma
 			InOutPropertyEntry.CustomSize = MaterialSettings.TextureSize;
 			break;
 		}
+
+		default:
+			UE_LOG(LogMeshMerging, Error, TEXT("Unsupported TextureSizingType value. You should resolve the material texture size first with ResolveTextureSize()"));
+
 	}
 	/** Check whether or not a constant value should be used for this property */
 	InOutPropertyEntry.bUseConstantValue = [MaterialSettings, MaterialProperty]() -> bool
@@ -1638,7 +1642,39 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	TArray<FMeshData> GlobalMeshSettings;
 	TArray<FMaterialData> GlobalMaterialSettings;
 
-	UMaterialOptions* Options = PopulateMaterialOptions(InMeshProxySettings.MaterialSettings);
+	FMaterialProxySettings MaterialProxySettings = InMeshProxySettings.MaterialSettings;
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	Algo::Transform(StaticMeshComponents, PrimitiveComponents, [](UStaticMeshComponent* SMComponent) { return SMComponent; });
+	if (MaterialProxySettings.ResolveTexelDensity(PrimitiveComponents))
+	{
+		double Total3DArea = 0;
+
+		for (const FInstancedMeshDescriptionData& InstancedMeshDescriptionData : MeshDescriptionData)
+		{
+			double Mesh3DArea = 0;
+
+			const FMeshDescription& MeshDescription = *InstancedMeshDescriptionData.MeshDescription;
+
+			FStaticMeshConstAttributes Attributes(MeshDescription);
+			TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
+
+			for (const FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
+			{
+				// World space area
+				TArrayView<const FVertexID> TriVertices = MeshDescription.GetTriangleVertices(TriangleID);
+				Mesh3DArea += UE::Geometry::VectorUtil::Area(Positions[TriVertices[0]], Positions[TriVertices[1]], Positions[TriVertices[2]]);
+			}
+
+			// Account for multiple instances (no transforms means a single instance)
+			uint32 NumInstances = FMath::Max(1, InstancedMeshDescriptionData.InstancesTransforms.Num());
+			Total3DArea += Mesh3DArea * NumInstances;
+		}
+
+		MaterialProxySettings.TextureSize = FMaterialUtilities::GetTextureSizeFromTargetTexelDensity(Total3DArea, 1.0f, MaterialProxySettings.TargetTexelDensityPerMeter);
+		MaterialProxySettings.TextureSizingType = ETextureSizingType::TextureSizingType_UseSingleTextureSize;
+	}
+
+	UMaterialOptions* Options = PopulateMaterialOptions(MaterialProxySettings);
 	TArray<EMaterialProperty> MaterialProperties;
 	for (const FPropertyEntry& Entry : Options->Properties)
 	{
@@ -2305,7 +2341,17 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	// If the user wants to merge materials into a single one
 	if (bMergeMaterialData && UniqueMaterials.Num() != 0)
 	{
-		UMaterialOptions* MaterialOptions = PopulateMaterialOptions(InSettings.MaterialSettings);
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		Algo::Transform(StaticMeshComponentsToMerge, PrimitiveComponents, [](UStaticMeshComponent* SMComponent) { return SMComponent; });
+
+		FMaterialProxySettings MaterialProxySettings = InSettings.MaterialSettings;
+		if (MaterialProxySettings.ResolveTexelDensity(PrimitiveComponents))
+		{
+			MaterialProxySettings.TextureSize = DataTracker.GetTextureSizeFromTargetTexelDensity(MaterialProxySettings.TargetTexelDensityPerMeter);
+			MaterialProxySettings.TextureSizingType = ETextureSizingType::TextureSizingType_UseSingleTextureSize;
+		}
+
+		UMaterialOptions* MaterialOptions = PopulateMaterialOptions(MaterialProxySettings);
 		// Check each material to see if the shader actually uses vertex data and collect flags
 		TArray<bool> bMaterialUsesVertexData;
 		DetermineMaterialVertexDataUsage(bMaterialUsesVertexData, UniqueMaterials, MaterialOptions);

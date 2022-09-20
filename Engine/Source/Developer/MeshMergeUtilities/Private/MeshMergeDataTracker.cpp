@@ -5,6 +5,8 @@
 #include "Misc/Crc.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
+#include "TriangleTypes.h"
+#include "MaterialUtilities.h"
 
 FMeshMergeDataTracker::FMeshMergeDataTracker()
 	: AvailableLightMapUVChannel(INDEX_NONE), SummedLightMapPixels(0)
@@ -303,4 +305,28 @@ void FMeshMergeDataTracker::ProcessRawMeshes()
 			break;
 		}
 	}
+}
+
+double FMeshMergeDataTracker::GetTextureSizeFromTargetTexelDensity(float InTargetTexelDensity) const
+{
+	double Mesh3DArea = 0;
+	const double MeshUVArea = 1.0;		// UVs are not available yet, assume perfect UV space usage.
+
+	for (const TPair<FMeshLODKey, FMeshDescription>& MeshPair : RawMeshLODs)
+	{
+		const FMeshDescription& MeshDescription = MeshPair.Value;
+			
+		FStaticMeshConstAttributes Attributes(MeshDescription);
+		TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
+		TUVAttributesConstRef<FVector2f> UVs = Attributes.GetUVCoordinates(0);
+
+		for (const FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
+		{
+			// World space area
+			TArrayView<const FVertexID> TriVertices = MeshDescription.GetTriangleVertices(TriangleID);
+			Mesh3DArea += UE::Geometry::VectorUtil::Area(Positions[TriVertices[0]], Positions[TriVertices[1]], Positions[TriVertices[2]]);
+		}
+	}
+
+	return FMaterialUtilities::GetTextureSizeFromTargetTexelDensity(Mesh3DArea, MeshUVArea, InTargetTexelDensity);
 }

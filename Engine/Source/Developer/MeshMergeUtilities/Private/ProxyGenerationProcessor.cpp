@@ -146,6 +146,8 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 
 	if (!Data->RawMesh.IsEmpty())
 	{
+		Data->MergeData->InProxySettings.MaterialSettings.ResolveTextureSize(Data->RawMesh);
+
 		// Don't recreate render states with the material update context as we will manually do it through
 		// the FStaticMeshComponentRecreateRenderStateContext below
 		FMaterialUpdateContext MaterialUpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);

@@ -1058,4 +1058,21 @@ void FHierarchicalSimplification::PostSerialize(const FArchive& Ar)
 
 #endif
 
+FMaterialProxySettings* FHierarchicalSimplification::GetSimplificationMethodMaterialSettings()
+{
+	switch (SimplificationMethod)
+	{
+	case EHierarchicalSimplificationMethod::Merge:
+		return &MergeSetting.MaterialSettings;
+
+	case EHierarchicalSimplificationMethod::Simplify:
+		return &ProxySetting.MaterialSettings;
+
+	case EHierarchicalSimplificationMethod::Approximate:
+		return &ApproximateSettings.MaterialSettings;
+	}
+
+	return nullptr;
+}
+
 #undef LOCTEXT_NAMESPACE

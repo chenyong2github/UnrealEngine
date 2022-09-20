@@ -13,9 +13,18 @@ namespace ProxyLOD
 	*/
 	struct FTextureAtlasDesc
 	{
-		FTextureAtlasDesc(const FIntPoint& S, const double G) :
-			Size(S), Gutter(G)
-		{}
+		FTextureAtlasDesc()
+			: Size()
+			, Gutter()
+		{
+		}
+
+		FTextureAtlasDesc(const FIntPoint& S, const double G)
+			: Size(S)
+			, Gutter(G)
+		{
+		}
+
 		FIntPoint Size;
 		float Gutter;
 	};

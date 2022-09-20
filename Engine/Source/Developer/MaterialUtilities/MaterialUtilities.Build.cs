@@ -31,7 +31,8 @@ public class MaterialUtilities : ModuleRules
         PublicDependencyModuleNames.AddRange(
 			new string [] {
                  "MeshDescription",
-				 "StaticMeshDescription"
+				 "StaticMeshDescription",
+				 "GeometryCore"
 			}
 		);      
 

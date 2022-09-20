@@ -15,6 +15,7 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 #include "StaticMeshAttributes.h"
+#include "TriangleTypes.h"
 
 #include <vector>
 #include <map>
@@ -1588,7 +1589,30 @@ int32 ProxyLOD::CorrectCollapsedWalls(FVertexDataMesh& InOutMesh,
 	BuildkDOPTree(InOutMesh, kDOPTree);
 
 	return CorrectCollapsedWalls(kDOPTree, InOutMesh.Indices, InOutMesh.Points, VoxelSize);
+}
 
+FBoxSphereBounds ProxyLOD::GetBounds(const FVertexDataMesh& InMesh)
+{
+	FBoxSphereBounds3f Bounds(InMesh.Points.GetData(), InMesh.Points.Num());
+	return FBoxSphereBounds(Bounds);
+}
+
+double ProxyLOD::GetWorldSpaceArea(const FVertexDataMesh& InMesh)
+{
+	const uint32* Indices = InMesh.Indices.GetData();
+	const FVector3f* Points = InMesh.Points.GetData();
+	const int32 NumTriangles = InMesh.Indices.Num() / 3;
+
+	double Mesh3DArea = 0;
+
+	FVector3f Pos[3];
+	for (int32 IdxTri = 0; IdxTri < NumTriangles; ++IdxTri)
+	{
+		const uint32 Offset = 3 * IdxTri;
+		Mesh3DArea += UE::Geometry::VectorUtil::Area(Points[Indices[Offset + 0]], Points[Indices[Offset + 1]], Points[Indices[Offset + 2]]);
+	}
+
+	return Mesh3DArea;
 }
 
 // Test to insure that no two vertexes share the same position.
