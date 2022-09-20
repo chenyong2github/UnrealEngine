@@ -72,10 +72,10 @@ struct FDMXDisplayClusterLightCardActorDataValueRanges
 	double MaxYaw = 360.0;
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	FVector2D MinScale = FVector2D(0.001f, 0.001f);
+	FVector2D MinScale = FVector2D(0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	FVector2D MaxScale = FVector2D(1.f, 1.f);
+	FVector2D MaxScale = FVector2D(5.f, 5.f);
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	float MinTemperature = 0.f;
@@ -99,13 +99,13 @@ struct FDMXDisplayClusterLightCardActorDataValueRanges
 	float MinGain = 0.f;
 	
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	float MaxGain = 1000.f;
+	float MaxGain = 5.f;
 	
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	float MinFeathering = 0.f;
 	
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	float MaxFeathering = 1000.f;
+	float MaxFeathering = 3.f;
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	float MinGradientAngle = 0.f;

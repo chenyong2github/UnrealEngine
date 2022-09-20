@@ -18,11 +18,11 @@ namespace UE::DMX::DMXDisplayClusterLightCardComponent::Private
 		const FName Attribute_DistanceFromCenter = "DistanceFromCenter";
 		const FName Attribute_Pan = "Pan";
 		const FName Attribute_Tilt = "Tilt";
-		const FName Attribute_RotX = "Spin";
-		const FName Attribute_RotY = "Pitch";
-		const FName Attribute_RotZ = "Yaw";
-		const FName Attribute_ScaleX = "ScaleX";
-		const FName Attribute_ScaleY = "ScaleY";
+		const FName Attribute_RotX = "Rot_X";
+		const FName Attribute_RotY = "Rot_Y";
+		const FName Attribute_RotZ = "Rot_Z";
+		const FName Attribute_ScaleX = "Scale_X";
+		const FName Attribute_ScaleY = "Scale_Y";
 		const FName Attribute_Mask = "Mask";
 		const FName Attribute_Red = "Red";
 		const FName Attribute_Green = "Green";
@@ -303,7 +303,15 @@ struct FDMXDisplayClusterLightCardActorData
 
 	void SetMask(uint8 AbsoluteValue)
 	{
-		Mask = static_cast<EDisplayClusterLightCardMask>(FMath::Clamp(AbsoluteValue, 0, static_cast<uint8>(EDisplayClusterLightCardMask::MAX) - 1));
+		// Skip through if the value is 0
+		if (AbsoluteValue == 0)
+		{
+			return;
+		}
+
+		// Scale the value to ranges of 5, so 1-5 is the first enum value, 6-10 the second, etc. 
+		const uint8 AbsoluteEnumValue = (AbsoluteValue + 4) / 5 - 1;
+		Mask = static_cast<EDisplayClusterLightCardMask>(FMath::Clamp(AbsoluteEnumValue, 0, static_cast<uint8>(EDisplayClusterLightCardMask::MAX) - 1));
 	}
 
 	void SetColorR(double NormalizedValue)
