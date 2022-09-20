@@ -12,8 +12,9 @@
 
 #define LOCTEXT_NAMESPACE "PerlinNoiseChannelInterface"
 
-FPerlinNoiseChannelSectionMenuExtension::FPerlinNoiseChannelSectionMenuExtension(TArrayView<const FMovieSceneChannelHandle> InChannelHandles)
+FPerlinNoiseChannelSectionMenuExtension::FPerlinNoiseChannelSectionMenuExtension(TArrayView<const FMovieSceneChannelHandle> InChannelHandles, TArrayView<UMovieSceneSection* const> InSections)
 	: ChannelHandles(InChannelHandles)
+	, Sections(InSections)
 {
 }
 
@@ -41,16 +42,43 @@ void FPerlinNoiseChannelSectionMenuExtension::ExtendMenu(FMenuBuilder& MenuBuild
 
 void FPerlinNoiseChannelSectionMenuExtension::BuildChannelsMenu(FMenuBuilder& MenuBuilder)
 {
+	TArray<FMovieSceneChannelProxy*> ChannelProxies;
+	for (UMovieSceneSection* Section : Sections)
+	{
+		ChannelProxies.Add(&Section->GetChannelProxy());
+	}
+
+	TArray<int32> ChannelHandleSectionIndexes;
+	for (const FMovieSceneChannelHandle& ChannelHandle : ChannelHandles)
+	{
+		int32 SectionIndex = ChannelProxies.Find(ChannelHandle.GetChannelProxy());
+		ChannelHandleSectionIndexes.Add(SectionIndex);
+	}
+
+	const bool bMultipleSections = Sections.Num() > 1;
 	TSharedRef<FPerlinNoiseChannelSectionMenuExtension> SharedThis = this->AsShared();
 
 	for (int32 Index = 0; Index < ChannelHandles.Num(); ++Index)
 	{
+		const int32 SectionIndex(ChannelHandleSectionIndexes[Index]);
 		const FMovieSceneChannelHandle ChannelHandle(ChannelHandles[Index]);
-		MenuBuilder.AddSubMenu(
-			FText::Format(LOCTEXT("PerlinNoiseChannelSelectMenu", "Channel {0}"), Index + 1),
-			LOCTEXT("PerlinNoiseChannelSelectMenuToolTip", "Edits parameters for this Perlin Noise channel"),
-			FNewMenuDelegate::CreateLambda([SharedThis, Index](FMenuBuilder& InnerMenuBuilder) { SharedThis->BuildParametersMenu(InnerMenuBuilder, Index); })
-		);
+
+		if (bMultipleSections)
+		{
+			MenuBuilder.AddSubMenu(
+				FText::Format(LOCTEXT("PerlinNoiseChannelAndSectionSelectMenu", "Section{0}.{1}"), SectionIndex + 1, FText::FromName(ChannelHandle.GetMetaData()->Name)),
+				LOCTEXT("PerlinNoiseChannelAndSectionSelectMenuToolTip", "Edit parameters for this Perlin Noise channel"),
+				FNewMenuDelegate::CreateLambda([SharedThis, Index](FMenuBuilder& InnerMenuBuilder) { SharedThis->BuildParametersMenu(InnerMenuBuilder, Index); })
+			);
+		}
+		else
+		{
+			MenuBuilder.AddSubMenu(
+				FText::FromName(ChannelHandle.GetMetaData()->Name),
+				LOCTEXT("PerlinNoiseChannelSelectMenuToolTip", "Edit parameters for this Perlin Noise channel"),
+				FNewMenuDelegate::CreateLambda([SharedThis, Index](FMenuBuilder& InnerMenuBuilder) { SharedThis->BuildParametersMenu(InnerMenuBuilder, Index); })
+			);
+		}
 	}
 }
 

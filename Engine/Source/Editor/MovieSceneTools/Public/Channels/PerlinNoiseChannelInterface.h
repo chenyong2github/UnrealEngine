@@ -44,7 +44,7 @@ class SNumericTextBlockKeyEditor : public SCompoundWidget
 
 struct FPerlinNoiseChannelSectionMenuExtension : TSharedFromThis<FPerlinNoiseChannelSectionMenuExtension>
 {
-	FPerlinNoiseChannelSectionMenuExtension(TArrayView<const FMovieSceneChannelHandle> InChannelHandles);
+	FPerlinNoiseChannelSectionMenuExtension(TArrayView<const FMovieSceneChannelHandle> InChannelHandles, TArrayView<UMovieSceneSection* const> InSections);
 
 	void ExtendMenu(FMenuBuilder& MenuBuilder);
 
@@ -56,6 +56,7 @@ private:
 private:
 
 	TArray<FMovieSceneChannelHandle> ChannelHandles;
+	TArray<UMovieSceneSection*> Sections;
 };
 
 template<typename ChannelContainerType>
@@ -109,7 +110,7 @@ struct TPerlinNoiseChannelInterface : ISequencerChannelInterface
 
 	virtual void ExtendSectionMenu_Raw(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, TArrayView<const FMovieSceneChannelHandle> Channels, TArrayView<UMovieSceneSection* const> Sections, TWeakPtr<ISequencer> InSequencer) const override
 	{
-		TSharedRef<FPerlinNoiseChannelSectionMenuExtension> Extension = MakeShared<FPerlinNoiseChannelSectionMenuExtension>(Channels);
+		TSharedRef<FPerlinNoiseChannelSectionMenuExtension> Extension = MakeShared<FPerlinNoiseChannelSectionMenuExtension>(Channels, Sections);
 
 		MenuExtender->AddMenuExtension("SequencerChannels", EExtensionHook::First, nullptr, FMenuExtensionDelegate::CreateLambda([Extension](FMenuBuilder& MenuBuilder) { Extension->ExtendMenu(MenuBuilder); }));
 	}
