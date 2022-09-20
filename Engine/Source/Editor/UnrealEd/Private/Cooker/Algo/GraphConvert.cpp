@@ -174,7 +174,7 @@ bool TryConstructCondensationGraph(TConstArrayView<TConstArrayView<FVertex>> Gra
 
 	// Allocate the OutVertexToInVertices output values, using NumVertices as a conservative estimate of NumOutVertices
 	bool bShrink = EnumHasAnyFlags(Options, EConvertToGraphOptions::Shrink);
-	if (bHasCycle || OutOutVertexToInVertices || OutOutVertexToInVertices)
+	if (bHasCycle || OutOutVertexToInVertices || OutInVertexToOutVertex)
 	{
 		if (bShrink)
 		{
