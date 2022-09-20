@@ -354,6 +354,21 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 				.CurrentValue_Lambda([this]() { return static_cast<int32>(Item->CachedInputEvaluationOffsetType); })
 				.OnEnumSelectionChanged(this, &STimedDataInputTableRow::OnEvaluationOffsetTypeChanged);
 
+			static const FString SecondString = TEXT("seconds");
+			static const FString FrameString = TEXT("frames");
+
+			auto MinusButtonTooltipTextLambda = [this]()
+			{
+				const TCHAR* UnitString = Item->CachedInputEvaluationOffsetType == ETimedDataInputEvaluationOffsetType::Seconds ? *SecondString : *FrameString;
+				return FText::Format(LOCTEXT("RushToolTip", "Rush this source (in {0})."), FText::FromStringView(UnitString));
+			};
+
+			auto PlusButtonTooltipTextLambda = [this]()
+			{
+				const TCHAR* UnitString = Item->CachedInputEvaluationOffsetType == ETimedDataInputEvaluationOffsetType::Seconds ? *SecondString : *FrameString;
+				return FText::Format(LOCTEXT("DelayToolTip", "Delay this source (in {0})."), FText::FromStringView(UnitString));
+			};
+
 			return SNew(SWidgetSwitcher)
 				.WidgetIndex_Lambda([this]()
 				{
@@ -368,20 +383,22 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 				[
 					SNew(STimedDataNumericEntryBox<double>)
 						.TextStyle(ItemTextBlockStyle)
-						.ToolTipText(LOCTEXT("TimeCorrection_ToolTip", "Time Correction."))
 						.Value(this, &STimedDataInputTableRow::GetFloatEvaluationOffset)
 						.ComboButton(false)
 						.SuffixWidget(Label)
+						.MinusButtonToolTipText_Lambda(MinusButtonTooltipTextLambda)
+						.PlusButtonToolTipText_Lambda(PlusButtonTooltipTextLambda)
 						.OnValueCommitted(this, &STimedDataInputTableRow::SetEvaluationOffset)
 				]
 				+SWidgetSwitcher::Slot()
 				[
 					SNew(STimedDataNumericEntryBox<int32>)
 						.TextStyle(ItemTextBlockStyle)
-						.ToolTipText(LOCTEXT("TimeCorrection_ToolTip", "Time Correction."))
 						.Value(this, &STimedDataInputTableRow::GetIntEvaluationOffset)
 						.ComboButton(false)
 						.SuffixWidget(Label)
+						.MinusButtonToolTipText_Lambda(MinusButtonTooltipTextLambda)
+						.PlusButtonToolTipText_Lambda(PlusButtonTooltipTextLambda)
 						.OnValueCommitted(this, &STimedDataInputTableRow::SetEvaluationOffset)
 				];
 		}

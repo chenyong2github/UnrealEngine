@@ -18,7 +18,7 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
-
+#define LOCTEXT_NAMESPACE "TimeDataNumericEntryBox"
 
 template<class NumericType>
 class STimedDataNumericEntryBox : public SCompoundWidget
@@ -64,6 +64,8 @@ public:
 		SLATE_ARGUMENT(NumericType, ControlModifierOffset)
 		SLATE_ARGUMENT(NumericType, AltModifierOffset)
 		SLATE_ARGUMENT(NumericType, ShiftModifierOffset)
+		SLATE_ATTRIBUTE(FText, MinusButtonToolTipText)
+		SLATE_ATTRIBUTE(FText, PlusButtonToolTipText)
 	SLATE_END_ARGS()
 	
 public:
@@ -81,6 +83,8 @@ public:
 		AltOffset = InArgs._AltModifierOffset;
 		ControlOffset = InArgs._ControlModifierOffset;
 		ShiftOffset = InArgs._ShiftModifierOffset;
+		MinusButtonToolTip = InArgs._MinusButtonToolTipText;
+		PlusButtonToolTip = InArgs._PlusButtonToolTipText;
 
 		TSharedRef<SWidget> TextBlock = SNew(STextBlock)
 			.TextStyle(InArgs._TextStyle)
@@ -190,6 +194,7 @@ private:
 			[
 				SNew(SButton)
 				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "FlatButton")
+				.ToolTipText(MinusButtonToolTip)
 				.OnClicked(this, &STimedDataNumericEntryBox::OnMinusClicked)
 				.Content()
 				[
@@ -223,6 +228,7 @@ private:
 			[
 				SNew(SButton)
 				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "FlatButton")
+				.ToolTipText(PlusButtonToolTip)
 				.OnClicked(this, &STimedDataNumericEntryBox::OnPlusClicked)
 				.Content()
 				[
@@ -366,5 +372,9 @@ private:
 	NumericType AltOffset;
 	NumericType ShiftOffset;
 	NumericType ControlOffset;
+	TAttribute<FText> MinusButtonToolTip;
+	TAttribute<FText> PlusButtonToolTip;
 };
 
+
+#undef LOCTEXT_NAMESPACE

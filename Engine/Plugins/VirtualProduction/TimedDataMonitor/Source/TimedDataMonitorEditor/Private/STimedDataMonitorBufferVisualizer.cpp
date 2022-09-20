@@ -120,6 +120,7 @@ public:
 	{
 		float Scale = 2.f;
 		float MinValue = 2.f;
+
 		if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
 		{
 			Scale *= ControlKeyModifier;
@@ -135,7 +136,7 @@ public:
 	}
 
 	float SizePerSeconds = 100.f;
-	float ControlKeyModifier = 200.f;
+	float ControlKeyModifier = 50.f;
 };
 
 
