@@ -327,6 +327,7 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 
 void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
+	// todo(chaos) : this code is very similar to FPhysScene_Chaos::HandleCollisionEvents, we should propably consolidate if possible or share as much code as possible 
 	SCOPE_CYCLE_COUNTER(STAT_DispatchCollisionEvents);
 
 	FPhysScene_Chaos& Scene = *(GetWorld()->GetPhysicsScene());
@@ -391,6 +392,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 										NotifyInfo.bCallEvent0 = true;
 										// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
 
+										// @todo(chaos) this may not handle welded objects properly as the component returned may be thewrong one ( see FPhysScene_Chaos::HandleCollisionEvents ) 
 										SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
 										SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
 
