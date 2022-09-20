@@ -275,7 +275,10 @@ void UDMXPixelMappingMatrixComponent::SendDMX()
 			if (UDMXPixelMappingMatrixCellComponent* CellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(Children[IndexChild]))
 			{
 				// Relies on the order of childs and AttributeToValueMapArray didn't change during the lifetime of this function!
-				check(AttributeToValueMapArray.IsValidIndex(IndexChild));
+				if (!AttributeToValueMapArray.IsValidIndex(IndexChild))
+				{
+					break;
+				}
 
 				TMap<int32, uint8> ChannelToValueMap;
 				for (const TTuple<FDMXAttributeName, float>& AttributeValuePair : AttributeToValueMapArray[IndexChild].Map)
