@@ -12,8 +12,9 @@
 
 class IToolkitHost;
 class SDockTab;
-class USoundWave;
 class UAudioComponent;
+class USoundWave;
+class UWaveformEditorTransformationsSettings;
 
 class WAVEFORMEDITOR_API FWaveformEditor 
 	: public FAssetEditorToolkit
@@ -84,6 +85,9 @@ private:
 
 	bool SetUpWaveWriter();
 	void ExportWaveform();
+
+	const UWaveformEditorTransformationsSettings* GetWaveformEditorTransformationsSettings() const;
+	void AddDefaultTransformations();
 
 	/** Waveform Preview widget */
 	TSharedPtr<class SWaveformPanel> WaveformPanel;

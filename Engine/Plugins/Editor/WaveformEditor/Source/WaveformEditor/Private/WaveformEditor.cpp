@@ -15,6 +15,7 @@
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorStyle.h"
 #include "WaveformEditorToolMenuContext.h"
+#include "WaveformEditorTransformationsSettings.h"
 #include "WaveformEditorWaveWriter.h"
 #include "WaveformTransformationsRenderManager.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -33,6 +34,7 @@ bool FWaveformEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<ITool
 	checkf(SoundWaveToEdit, TEXT("Tried to open a Soundwave Editor from a null soundwave"));
 
 	SoundWave = SoundWaveToEdit;
+	AddDefaultTransformations();
 
 	bool bIsInitialized = true;
 	
@@ -72,9 +74,34 @@ bool FWaveformEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<ITool
 	return bIsInitialized;
 }
 
+void FWaveformEditor::AddDefaultTransformations()
+{
+	if (!ensure(SoundWave))
+	{
+		return;
+	}
+
+	if (SoundWave->Transformations.Num() == 0)
+	{
+		const UWaveformEditorTransformationsSettings* TransformationsSettings = GetWaveformEditorTransformationsSettings();
+		for (const TSubclassOf<UWaveformTransformationBase> TransformationClass : TransformationsSettings->LaunchTransformations)
+		{
+			EObjectFlags MaskedOuterFlags = SoundWave ? SoundWave->GetMaskedFlags(RF_PropagateToSubObjects) : RF_NoFlags;
+
+			if (SoundWave->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+			{
+				MaskedOuterFlags |= RF_ArchetypeObject;
+			}
+
+			UWaveformTransformationBase* TransformationToAdd = NewObject<UWaveformTransformationBase>(SoundWave, TransformationClass.Get(), NAME_None, MaskedOuterFlags);
+			SoundWave->Transformations.Add(TransformationToAdd);
+		}
+	}
+}
+
 bool FWaveformEditor::SetupAudioComponent()
 {
-	if (SoundWave == nullptr)
+	if (!ensure(SoundWave))
 	{
 		return false;
 	}
@@ -108,7 +135,7 @@ bool FWaveformEditor::SetupAudioComponent()
 
 bool FWaveformEditor::SetUpTransportController()
 {
-	if (AudioComponent == nullptr)
+	if (!ensure(AudioComponent))
 	{
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Trying to setup transport controls with a null audio component"));
 		return false;
@@ -126,7 +153,7 @@ bool FWaveformEditor::SetUpZoom()
 
 bool FWaveformEditor::BindDelegates()
 {
-	if (AudioComponent == nullptr)
+	if (!ensure(AudioComponent))
 	{
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Failed to bind to playback percentage change, audio component is null"));
 		return false;
@@ -440,7 +467,7 @@ void FWaveformEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 
 bool FWaveformEditor::SetUpDetailsViews()
 {
-	if (SoundWave == nullptr)
+	if (!ensure(SoundWave)) 
 	{
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Trying to setup wav editor properties view from a null SoundWave"));
 		return false;
@@ -527,7 +554,7 @@ TSharedRef<SDockTab> FWaveformEditor::SpawnTab_Transformations(const FSpawnTabAr
 }
 bool FWaveformEditor::SetUpWaveformPanel()
 {
-	if (SoundWave == nullptr)
+	if (!ensure(SoundWave))
 	{
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Trying to setup waveform panel from a null SoundWave"));
 		return false;
@@ -651,7 +678,11 @@ bool FWaveformEditor::CanPressPlayButton() const
 
 bool FWaveformEditor::SetUpWaveWriter()
 {
-	check(SoundWave)
+	if (!ensure(SoundWave))
+	{
+		return false;
+	}
+
 	WaveWriter = MakeShared<FWaveformEditorWaveWriter>(SoundWave);
 	return WaveWriter != nullptr;
 }
@@ -660,6 +691,14 @@ void FWaveformEditor::ExportWaveform()
 {
 	check(WaveWriter);
 	WaveWriter->ExportTransformedWaveform();
+}
+
+const UWaveformEditorTransformationsSettings* FWaveformEditor::GetWaveformEditorTransformationsSettings() const
+{
+	const UWaveformEditorTransformationsSettings* WaveformEditorTransformationsSettings = GetDefault<UWaveformEditorTransformationsSettings>();
+	check(WaveformEditorTransformationsSettings)
+
+	return WaveformEditorTransformationsSettings;
 }
 
 #undef LOCTEXT_NAMESPACE

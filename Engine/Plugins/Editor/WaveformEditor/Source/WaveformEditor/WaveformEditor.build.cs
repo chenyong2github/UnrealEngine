@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"AssetRegistry",
 					"Core", 
 					"CoreUObject",
+					"DeveloperSettings",
 					"EditorStyle",
 					"Engine",
 					"InputCore",
