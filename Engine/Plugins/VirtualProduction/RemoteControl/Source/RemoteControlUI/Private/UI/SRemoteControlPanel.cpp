@@ -141,16 +141,24 @@ public:
 
 	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override
 	{
-		TSharedPtr<SRemoteControlPanel> PinnedOwner = Owner.Pin();
-		if (!PinnedOwner)
+		if (const TSharedPtr<SRemoteControlPanel> PinnedOwner = Owner.Pin())
 		{
-			return false;
-		}
-		
-		if (PinnedOwner && InKeyEvent.GetKey() == EKeys::Delete && SlateApp.HasFocusedDescendants(PinnedOwner.ToSharedRef()))
-		{
-			PinnedOwner->DeleteEntity();
-			return true;
+			if (!SlateApp.HasFocusedDescendants(PinnedOwner.ToSharedRef()))
+			{
+				return false;
+			}
+			
+			if (InKeyEvent.GetKey() == EKeys::Delete)
+			{
+				PinnedOwner->DeleteEntity();
+				return true;
+			}
+
+			if (InKeyEvent.GetKey() == EKeys::F2)
+			{
+				PinnedOwner->RenameEntity();
+				return true;
+			}
 		}
 		
 		return false;
@@ -2472,7 +2480,18 @@ void SRemoteControlPanel::SaveSettings()
 
 void SRemoteControlPanel::DeleteEntity()
 {
-	DeleteEntity_Execute();
+	if (CanDeleteEntity())
+	{
+		DeleteEntity_Execute();
+	}
+}
+
+void SRemoteControlPanel::RenameEntity()
+{
+	if (CanRenameEntity())
+	{
+		RenameEntity_Execute();
+	}
 }
 
 

@@ -143,8 +143,9 @@ public:
 	void AddToolbarWidget(TSharedRef<SWidget> Widget);
 	void RemoveAllToolbarWidgets();
 
-	/** Public Workaround Delete for Focus/Delete Key Issues when Docked */
+	/** Public Workaround Delete for Key Handling Issues when Docked */
 	void DeleteEntity();
+	void RenameEntity();
 
 	/** Retrieves the Logic Action panel. */
 	TSharedPtr<SRCActionPanel> GetLogicActionPanel()
