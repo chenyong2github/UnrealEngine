@@ -4955,6 +4955,18 @@ struct FScopedNetDriverStats
 			CSV_CUSTOM_STAT(Replication, SharedSerializationPropertyHit, GNumSharedSerializationHit, ECsvCustomStatOp::Set);
 			CSV_CUSTOM_STAT(Replication, SharedSerializationPropertyMiss, GNumSharedSerializationMiss, ECsvCustomStatOp::Set);
 
+			int32 NumOpenChannels = 0;
+			int32 NumTickingChannels = 0;
+
+			for (const UNetConnection* ClientConnection : NetDriver->ClientConnections)
+			{
+				NumOpenChannels += ClientConnection->OpenChannels.Num();
+				NumTickingChannels += ClientConnection->GetNumTickingChannels();
+			}
+
+			CSV_CUSTOM_STAT(Replication, NumOpenChannels, (float)NumOpenChannels, ECsvCustomStatOp::Set);
+			CSV_CUSTOM_STAT(Replication, NumTickingChannels, (float)NumTickingChannels, ECsvCustomStatOp::Set);
+
 			// Note: we want to reset this at the end of the frame since the RPC stats are incremented at the top (recv)
 			GNumSharedSerializationHit = 0;
 			GNumSharedSerializationMiss = 0;

@@ -1221,6 +1221,8 @@ public:
 	/** Removes a channel from the ticking list directly */
 	void StopTickingChannel(UChannel* Channel) { ChannelsToTick.Remove(Channel); }
 
+	int32 GetNumTickingChannels() const { return ChannelsToTick.Num(); }
+
 	FORCEINLINE FHistogram GetNetHistogram() const { return NetConnectionHistogram; }
 
 	/** Whether or not a client packet has been received - used serverside, to delay any packet sends */
