@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "ComputeFramework/Public/ComputeFramework/ComputeMetadataBuilder.h"
 
 #include "ShaderParameterMetadataBuilder.h"
