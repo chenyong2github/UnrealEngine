@@ -1832,7 +1832,7 @@ void SLogView::SaveLogsToFile(bool bSaveLogsInSelectedRangeOnly) const
 			LOCTEXT("SaveLogsToFileTitle", "Save Logs").ToString(),
 			DefaultBrowsePath,
 			TEXT(""),
-			TEXT("Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Comma-Separated Values (*.csv)|*.csv|All Files (*.*)|*.*"),
+			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|All Files (*.*)|*.*"),
 			EFileDialogFlags::None,
 			SaveFilenames
 		);

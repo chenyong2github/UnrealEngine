@@ -3474,7 +3474,7 @@ void STableTreeView::ContextMenu_ExportToFile_Execute(bool bInExportCollapsed, b
 			LOCTEXT("ExportFileTitle", "Export Table").ToString(),
 			DefaultPath,
 			DefaultFile,
-			TEXT("Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Comma-Separated Values (*.csv)|*.csv|All Files (*.*)|*.*"),
+			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|All Files (*.*)|*.*"),
 			EFileDialogFlags::None,
 			SaveFilenames
 		);
