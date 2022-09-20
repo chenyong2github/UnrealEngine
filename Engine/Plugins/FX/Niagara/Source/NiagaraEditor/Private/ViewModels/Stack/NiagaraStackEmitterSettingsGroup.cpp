@@ -160,13 +160,6 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 
 				NewIssues.Add(MissingRequiredFixedBoundsModuleError);
 			}
-
-			FStackIssue MissingRequiredFixedBoundsModuleError(
-				EStackIssueSeverity::Warning,
-				LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU and is using dynamic bounds mode.\r\nPlease update the Emitter or System properties otherwise bounds may be incorrect."),
-				LOCTEXT("MissingFixedBounds", "Missing fixed bounds."),
-				GetStackEditorDataKey(),
-				false);
 		}
 
 		if ( ActualEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitterData->bGpuAlwaysRunParticleUpdateScript )
@@ -252,6 +245,36 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 					Fixes);
 
 				NewIssues.Add(WarmupDeltaTimeExceedsEmitterDeltaTimeWarning);
+			}
+		}
+
+		// check for any emitters which are exclusively using Emitter sourced renderers and dynamic bounds.  Currently our bounds calculators don't support
+		// emitter sources and so no valid bounds will be generated
+		if (ActualEmitterData->SimTarget == ENiagaraSimTarget::CPUSim && ActualEmitterData->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
+		{
+			UNiagaraSystem& Sys = GetSystemViewModel()->GetSystem();
+			if (!Sys.bFixedBounds)
+			{
+				bool bHasParticleSourcedRenderer = false;
+				ActualEmitterData->ForEachEnabledRenderer([&](UNiagaraRendererProperties* RendererProperties)
+				{
+					if (RendererProperties && RendererProperties->GetCurrentSourceMode() == ENiagaraRendererSourceDataMode::Particles)
+					{
+						bHasParticleSourcedRenderer = true;
+					}
+				});
+
+				if (!bHasParticleSourcedRenderer)
+				{
+					FStackIssue EmitterSourcedEmitterRequiredFixedBoundsError(
+						EStackIssueSeverity::Warning,
+						LOCTEXT("EmitterSourcedWarningFormat", "The emitter is using dynamic bounds mode but only using Emitter sourced renderers.\r\nPlease update the Emitter or System properties otherwise bounds may be incorrect."),
+						LOCTEXT("EmitterSourcedWarning", "Missing fixed bounds."),
+						GetStackEditorDataKey(),
+						false);
+
+					NewIssues.Add(EmitterSourcedEmitterRequiredFixedBoundsError);
+				}
 			}
 		}
 	}

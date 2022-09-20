@@ -2533,7 +2533,10 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 		// In the case that we have no bounds initialize to a sensible default value to avoid NaNs later on
 		if (LocalBounds.IsValid == false)
 		{
-			LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+			// we provide a small amount of volume to our default because small (read subpixel) volumes in screen
+			// space can still create problems with culling.  This system will still have flickering problems as
+			// this box becomes small in screen space, but it's an improvement.
+			LocalBounds = FBox(-FVector::OneVector, FVector::OneVector);
 		}
 	}
 

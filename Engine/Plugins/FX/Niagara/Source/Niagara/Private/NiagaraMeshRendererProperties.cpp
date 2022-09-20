@@ -155,6 +155,11 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 
 FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator()
 {
+	if (GetCurrentSourceMode() == ENiagaraRendererSourceDataMode::Emitter)
+	{
+		return nullptr;
+	}
+
 	FBox LocalBounds;
 	LocalBounds.Init();
 
