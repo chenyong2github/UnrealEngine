@@ -143,8 +143,25 @@ void UTickableTransformConstraint::Setup()
 
 void UTickableTransformConstraint::SetupDependencies()
 {
-	FTickFunction* ParentTickFunction = ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTickFunction() : nullptr;
-	FTickFunction* ChildTickFunction = ChildTRSHandle ? ChildTRSHandle->GetTickFunction() : nullptr;
+	auto GetTickableFunction = [this](const TObjectPtr<UTransformableHandle>& InHandle) -> FTickFunction*
+	{
+		if (!IsValid(InHandle) || !InHandle->IsValid())
+		{
+			return nullptr;
+		}
+
+		// avoid creating dependencies between functions that are registered in levels that don't leave in the same world 
+		const UObject* PrerequisiteObject = InHandle->GetPrerequisiteObject();
+		if (!PrerequisiteObject || PrerequisiteObject->GetWorld() != GetWorld())
+		{
+			return nullptr;
+		}
+		
+		return InHandle->GetTickFunction();
+	};
+	
+	FTickFunction* ParentTickFunction = GetTickableFunction(ParentTRSHandle);
+	FTickFunction* ChildTickFunction = GetTickableFunction(ChildTRSHandle);
 	
 	if (ParentTickFunction && (ChildTickFunction != ParentTickFunction))
 	{
@@ -166,7 +183,10 @@ void UTickableTransformConstraint::SetupDependencies()
 void UTickableTransformConstraint::PostLoad()
 {
 	Super::PostLoad();
-	ConstraintTick.RegisterFunction(GetFunction() );
+	if (ConstraintTick.ConstraintFunctions.IsEmpty())
+	{
+		ConstraintTick.RegisterFunction(GetFunction() );
+	}
 
 	SetupDependencies();	
 	RegisterDelegates();
@@ -175,7 +195,10 @@ void UTickableTransformConstraint::PostLoad()
 void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
-	ConstraintTick.RegisterFunction(GetFunction());
+	if (ConstraintTick.ConstraintFunctions.IsEmpty())
+	{
+		ConstraintTick.RegisterFunction(GetFunction());
+	}
 
 	SetupDependencies();
 	RegisterDelegates();

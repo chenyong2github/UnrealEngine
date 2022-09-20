@@ -404,7 +404,11 @@ void UTransformableControlHandle::OnObjectBoundToControlRig(UObject* InObject)
 	const UObject* CurrentObject = Binding ? Binding->GetBoundObject() : nullptr;
 	if (CurrentObject == InObject)
 	{
-		OnHandleModified.Broadcast(this, EHandleEvent::ComponentUpdated);
+		const UWorld* ThisWorld = GetWorld();
+		if (ThisWorld && InObject->GetWorld() == ThisWorld)
+		{
+			OnHandleModified.Broadcast(this, EHandleEvent::ComponentUpdated);
+		}
 	}
 }
 
