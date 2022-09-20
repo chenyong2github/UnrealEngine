@@ -212,7 +212,8 @@ public:
 				}
 				else if(ParameterValue.GetMode() == ENiagaraVariantMode::DataInterface)
 				{
-					System->GetExposedParameters().SetDataInterface(ParameterValue.GetDataInterface(), ParameterKey);
+					// we are operating on the DI objects in the parameter store directly, so no need to call SetDataInterface
+					System->GetExposedParameters().OnInterfaceChange();
 				}
 				else if(ParameterValue.GetMode() == ENiagaraVariantMode::Object)
 				{
@@ -772,7 +773,14 @@ void GenerateUserParameterRows(IDetailChildrenBuilder& ChildrenBuilder, UNiagara
 		
 			if (LeftoverUserParameter.IsDataInterface())
 			{
-				ParameterValue = FNiagaraVariant(DuplicateObject(ParameterValue.GetDataInterface(), Owner));
+				if(Owner->IsA<UNiagaraComponent>())
+				{
+					ParameterValue = FNiagaraVariant(DuplicateObject(ParameterValue.GetDataInterface(), Owner));
+				}
+				else if(Owner->IsA<UNiagaraSystem>())
+				{
+					ParameterValue = FNiagaraVariant(ParameterValue.GetDataInterface());
+				}
 			}
 			
 			TSharedPtr<FNiagaraParameterProxy> ParameterProxy = ParameterProxies.Add_GetRef(MakeShareable(new FNiagaraParameterProxy(Owner, LeftoverUserParameter, ParameterValue, OnRebuildChildren, OverridePropertyHandles)));
