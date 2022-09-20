@@ -72,8 +72,7 @@ private:
 	FString GetCurrentValue_0() const
 	{
 		// Text box 0: Rotator->Roll, Vector->X
-		FVectorType Vector = ConvertDefaultValueStringToVector();
-		return TDefaultNumericTypeInterface<NumericType>{}.ToString(bIsRotator ? Vector.Z : Vector.X);
+		return GetValue(bIsRotator ? TextBox_2 : TextBox_0);
 	}
 
 	/*
@@ -84,8 +83,7 @@ private:
 	FString GetCurrentValue_1() const
 	{
 		// Text box 1: Rotator->Pitch, Vector->Y
-		FVectorType Vector = ConvertDefaultValueStringToVector();
-		return TDefaultNumericTypeInterface<NumericType>{}.ToString(bIsRotator ? Vector.X : Vector.Y);
+		return GetValue(bIsRotator ? TextBox_0 : TextBox_1);
 	}
 
 	/*
@@ -96,8 +94,47 @@ private:
 	FString GetCurrentValue_2() const
 	{
 		// Text box 2: Rotator->Yaw, Vector->Z
-		FVectorType Vector = ConvertDefaultValueStringToVector();
-		return TDefaultNumericTypeInterface<NumericType>{}.ToString(bIsRotator ? Vector.Y : Vector.Z);
+		return GetValue(bIsRotator ? TextBox_1 : TextBox_2);
+	}
+
+	/*
+	 *	Function to get a string array of the components composing the default string.
+	 *
+	 *	@return The array filled with each component as string
+	 *
+	 */
+	TArray<FString> GetComponentArray() const
+	{
+		TArray<FString> VecComponentStrings;
+
+		FString DefaultString = GraphPinObj->GetDefaultAsString();
+		// Parse string to split its contents separated by ','
+		DefaultString.TrimStartInline();
+		DefaultString.TrimEndInline();
+		DefaultString.ParseIntoArray(VecComponentStrings, TEXT(","), true);
+
+		return VecComponentStrings;
+	}
+	
+	/*
+	 *	Function to get current value based on text box index value
+	 *
+	 *	@param: Text box index
+	 *
+	 *	@return current string value
+	 */
+	FString GetValue(ETextBoxIndex Index) const
+	{
+		const TArray<FString> VecComponentStrings = GetComponentArray();
+
+		if (Index < VecComponentStrings.Num())
+		{
+			return VecComponentStrings[Index];
+		}
+		else
+		{
+			return FString(TEXT("0"));
+		}
 	}
 
 	/*
@@ -107,29 +144,8 @@ private:
 	 */
 	void OnChangedValueTextBox_0(NumericType NewValue, ETextCommit::Type CommitInfo)
 	{
-		if (GraphPinObj->IsPendingKill())
-		{
-			return;
-		}
-
-		FVectorType NewVector = ConvertDefaultValueStringToVector();
-		NumericType OldValue;
-
-		if (bIsRotator)
-		{
-			/* update roll */
-			OldValue = NewVector.Z;
-			NewVector.Z = NewValue;
-		}
-		else
-		{
-			/* X value */
-			OldValue = NewVector.X;
-			NewVector.X = NewValue;
-		}
-
-		SetNewValueHelper(OldValue, NewValue, NewVector);
-
+		const EAxis::Type Axis = bIsRotator ? /* update roll */ EAxis::Z : EAxis::X;
+		SetNewValueHelper(Axis, NewValue);
 	}
 
 	/*
@@ -139,28 +155,8 @@ private:
 	 */
 	void OnChangedValueTextBox_1(NumericType NewValue, ETextCommit::Type CommitInfo)
 	{
-		if (GraphPinObj->IsPendingKill())
-		{
-			return;
-		}
-
-		FVectorType NewVector = ConvertDefaultValueStringToVector();
-		NumericType OldValue;
-
-		if (bIsRotator)
-		{
-			/* update pitch */
-			OldValue = NewVector.X;
-			NewVector.X = NewValue;
-		}
-		else
-		{
-			/* Y value */
-			OldValue = NewVector.Y;
-			NewVector.Y = NewValue;
-		}
-
-		SetNewValueHelper(OldValue, NewValue, NewVector);
+		const EAxis::Type Axis = bIsRotator ? /* update pitch */ EAxis::X : EAxis::Y;
+		SetNewValueHelper(Axis, NewValue);
 	}
 
 	/*
@@ -170,36 +166,26 @@ private:
 	 */
 	void OnChangedValueTextBox_2(NumericType NewValue, ETextCommit::Type CommitInfo)
 	{
+		const EAxis::Type Axis = bIsRotator ? /* update yaw */ EAxis::Y : EAxis::Z;
+		SetNewValueHelper(Axis, NewValue);
+	}
+
+	void SetNewValueHelper(EAxis::Type Axis, NumericType NewValue)
+	{
 		if (GraphPinObj->IsPendingKill())
 		{
 			return;
 		}
-		
+
 		FVectorType NewVector = ConvertDefaultValueStringToVector();
-		NumericType OldValue;
+		const NumericType OldValue = NewVector.GetComponentForAxis(Axis);
 
-		if (bIsRotator)
-		{
-			/* update yaw */
-			OldValue = NewVector.Y;
-			NewVector.Y = NewValue;
-		}
-		else
-		{
-			/* Z value */
-			OldValue = NewVector.Z;
-			NewVector.Z = NewValue;
-		}
-
-		SetNewValueHelper(OldValue, NewValue, NewVector);
-	}
-
-	void SetNewValueHelper(NumericType OldValue, NumericType NewValue, FVectorType const& NewVector)
-	{
 		if (OldValue == NewValue)
 		{
 			return;
 		}
+
+		NewVector.SetComponentForAxis(Axis, NewValue);
 
 		const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeVectorPinValue", "Change Vector Pin Value"));
 		GraphPinObj->Modify();
@@ -218,13 +204,7 @@ private:
 	 */
 	FVectorType ConvertDefaultValueStringToVector() const
 	{
-		FString DefaultString = GraphPinObj->GetDefaultAsString();
-		DefaultString.TrimStartInline();
-		DefaultString.TrimEndInline();
-
-		// Parse string to split its contents separated by ','
-		TArray<FString> VecComponentStrings;
-		DefaultString.ParseIntoArray(VecComponentStrings, TEXT(","), true);
+		const TArray<FString> VecComponentStrings = GetComponentArray();
 
 		// Construct the vector from the string parts.
 		FVectorType Vec = FVectorType::ZeroVector;

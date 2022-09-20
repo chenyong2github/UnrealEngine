@@ -55,12 +55,12 @@ protected:
 			return;
 		}
 
-		TOptional<NumericType> OldValue = TDefaultNumericTypeInterface<NumericType>{}.FromString(GraphPinObj->GetDefaultAsString(), InValue);
-		if (!OldValue.IsSet() || InValue != *OldValue)
+		if (GetNumericValue() != InValue)
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeNumberPinValue", "Change Number Pin Value"));
 			GraphPinObj->Modify();
-			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, *TDefaultNumericTypeInterface<NumericType>{}.ToString(InValue));
+
+			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, *LexToString(InValue));
 		}
 	}
 };
