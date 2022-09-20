@@ -1399,7 +1399,7 @@ void SInteractiveCurveEditorView::BufferCurves()
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		CurveEditor->AddBufferedCurves(CurveEditor->GetCurvesForBufferedCurves());
+		CurveEditor->AddBufferedCurves(CurveEditor->GetSelectionFromTreeAndKeys());
 	}
 }
 
@@ -1408,7 +1408,7 @@ void SInteractiveCurveEditorView::ApplyBufferCurves(const bool bSwapBufferCurves
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		CurveEditor->ApplyBufferedCurves(CurveEditor->GetCurvesForBufferedCurves(), bSwapBufferCurves);
+		CurveEditor->ApplyBufferedCurves(CurveEditor->GetSelectionFromTreeAndKeys(), bSwapBufferCurves);
 	}
 }
 
@@ -1417,7 +1417,7 @@ bool SInteractiveCurveEditorView::CanBufferedCurves() const
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		return CurveEditor->GetCurvesForBufferedCurves().Num() > 0;
+		return CurveEditor->GetSelectionFromTreeAndKeys().Num() > 0;
 	}
 
 	return false;
@@ -1428,7 +1428,7 @@ bool SInteractiveCurveEditorView::CanApplyBufferedCurves() const
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor.IsValid())
 	{
-		return CurveEditor->GetCurvesForBufferedCurves().Num() > 0 && CurveEditor->GetBufferedCurves().Num() > 0;
+		return CurveEditor->GetSelectionFromTreeAndKeys().Num() > 0 && CurveEditor->GetBufferedCurves().Num() > 0;
 	}
 
 	return false;

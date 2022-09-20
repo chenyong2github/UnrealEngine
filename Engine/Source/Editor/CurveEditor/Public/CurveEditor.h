@@ -116,7 +116,7 @@ public:
 	FCurveEditor(const FCurveEditor&) = delete;
 	FCurveEditor& operator=(const FCurveEditor&) = delete;
 
-	virtual ~FCurveEditor() {}
+	virtual ~FCurveEditor();
 
 	void InitCurveEditor(const FCurveEditorInitParams& InInitParams);
 
@@ -294,6 +294,9 @@ public:
 	void SuppressBoundTransformUpdates(bool bSuppress) { bBoundTransformUpdatesSuppressed = bSuppress; }
 	bool AreBoundTransformUpdatesSuppressed() const { return bBoundTransformUpdatesSuppressed; }
 
+	/** Return the curve model IDs that are selected in the tree or have selected keys */
+	TSet<FCurveModelID> GetSelectionFromTreeAndKeys() const;
+
 	TSet<FCurveModelID> GetEditedCurves() const;
 	/** Attribute used for determining default attributes to apply to a newly create key */
 	TAttribute<FKeyAttributes> GetDefaultKeyAttribute() const { return DefaultKeyAttributes; }
@@ -305,8 +308,6 @@ public:
 	int32 GetNumBufferedCurves() const { return BufferedCurves.Num(); }
 	/** Return the array of buffered curves */
 	const TArray<TUniquePtr<IBufferedCurveModel>>& GetBufferedCurves() const { return BufferedCurves; }
-	/** Return the curve model IDs to operate buffer curves on, ie. selected in the tree view or with selected keys */
-	TSet<FCurveModelID> GetCurvesForBufferedCurves() const;
 	/** Returns whether the buffered curve is to be acted on, ie. selected, in the tree view or with selected keys */
 	bool IsActiveBufferedCurve(const TUniquePtr<IBufferedCurveModel>& BufferedCurve) const;
 
@@ -577,6 +578,7 @@ protected:
 	*/
 	void ApplyBufferedCurveToTarget(const IBufferedCurveModel* BufferedCurve, FCurveModel* TargetCurve);
 
+	void OnCustomColorsChanged();
 
 protected:
 
@@ -644,5 +646,4 @@ public:
 	* Delegate that's broadcast when the curve display changes.
 	*/
 	FOnCurveArrayChanged OnCurveArrayChanged;
-
 };

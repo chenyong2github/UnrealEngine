@@ -84,6 +84,16 @@ FCurveEditor::FCurveEditor()
 
 	GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}s");
 	GridLineLabelFormatYAttribute = LOCTEXT("GridYLabelFormat", "{0}");
+	
+	Settings->GetOnCustomColorsChanged().AddRaw(this, &FCurveEditor::OnCustomColorsChanged);
+}
+
+FCurveEditor::~FCurveEditor()
+{
+	if (Settings)
+	{
+		Settings->GetOnCustomColorsChanged().RemoveAll(this);
+	}
 }
 
 void FCurveEditor::InitCurveEditor(const FCurveEditorInitParams& InInitParams)
@@ -1751,9 +1761,15 @@ bool FCurveEditor::CanFlattenOrStraightenSelection() const
 
 void FCurveEditor::SetRandomCurveColorsForSelected()
 {
-	for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
+	TSet<FCurveModelID> CurveModelIDs = GetSelectionFromTreeAndKeys();
+	if (CurveModelIDs.Num() == 0)
 	{
-		if (FCurveModel* Curve = CurvePair.Value.Get())
+		return;
+	}
+
+	for (const FCurveModelID& CurveModelID : CurveModelIDs)
+	{
+		if (FCurveModel* Curve = FindCurve(CurveModelID))
 		{
 			UObject* Object = nullptr;
 			FString Name;
@@ -1770,31 +1786,33 @@ void FCurveEditor::SetRandomCurveColorsForSelected()
 
 void FCurveEditor::SetCurveColorsForSelected()
 {
-	if (CurveData.Num() > 0)
+	TSet<FCurveModelID> CurveModelIDs = GetSelectionFromTreeAndKeys();
+	if (CurveModelIDs.Num() == 0)
 	{
-		TMap<FCurveModelID, TUniquePtr<FCurveModel>>::TIterator It = CurveData.CreateIterator();
-		FColorPickerArgs PickerArgs;
-		PickerArgs.bUseAlpha = false;
-		PickerArgs.InitialColorOverride = It->Value->GetColor();
-		PickerArgs.OnColorCommitted.BindLambda([this](FLinearColor NewColor) {
-			for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
+		return;
+	}
+
+	FColorPickerArgs PickerArgs;
+	PickerArgs.bUseAlpha = false;
+	PickerArgs.InitialColorOverride = FindCurve(*CurveModelIDs.CreateIterator())->GetColor();
+	PickerArgs.OnColorCommitted.BindLambda([this, CurveModelIDs](FLinearColor NewColor) {
+		for (const FCurveModelID& CurveModelID : CurveModelIDs)
+		{
+			if (FCurveModel* Curve = FindCurve(CurveModelID))
 			{
-				if (FCurveModel* Curve = CurvePair.Value.Get())
+				UObject* Object = nullptr;
+				FString Name;
+				Curve->GetCurveColorObjectAndName(&Object, Name);
+				if (Object)
 				{
-					UObject* Object = nullptr;
-					FString Name;
-					Curve->GetCurveColorObjectAndName(&Object, Name);
-					if (Object)
-					{
-						Settings->SetCustomColor(Object->GetClass(), Name, NewColor);
-						Curve->SetColor(NewColor);
-					}
+					Settings->SetCustomColor(Object->GetClass(), Name, NewColor);
+					Curve->SetColor(NewColor);
 				}
 			}
-		});
+		}
+	});
 		
-		OpenColorPicker(PickerArgs);
-	}
+	OpenColorPicker(PickerArgs);
 }
 
 bool FCurveEditor::IsToolActive(const FCurveEditorToolID InToolID) const
@@ -2099,7 +2117,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 	return false;
 }
 
-TSet<FCurveModelID> FCurveEditor::GetCurvesForBufferedCurves() const
+TSet<FCurveModelID> FCurveEditor::GetSelectionFromTreeAndKeys() const
 {
 	TSet<FCurveModelID> CurveModelIDs;
 
@@ -2126,7 +2144,7 @@ TSet<FCurveModelID> FCurveEditor::GetCurvesForBufferedCurves() const
 
 bool FCurveEditor::IsActiveBufferedCurve(const TUniquePtr<IBufferedCurveModel>& BufferedCurve) const
 {
-	TSet<FCurveModelID> CurveModelIDs = GetCurvesForBufferedCurves();
+	TSet<FCurveModelID> CurveModelIDs = GetSelectionFromTreeAndKeys();
 	for (const FCurveModelID& CurveModelID : CurveModelIDs)
 	{
 		if (FCurveModel* Curve = FindCurve(CurveModelID))
@@ -2177,6 +2195,31 @@ void FCurveEditor::PostUndo(bool bSuccess)
 			if (!KeyHandles.Contains(Handle))
 			{
 				Selection.Remove(Set.Key, ECurvePointType::Key, Handle);
+			}
+		}
+	}
+}
+
+void FCurveEditor::OnCustomColorsChanged()
+{
+	for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
+	{
+		if (FCurveModel* Curve = CurvePair.Value.Get())
+		{
+			UObject* Object = nullptr;
+			FString Name;
+			Curve->GetCurveColorObjectAndName(&Object, Name);
+
+			TOptional<FLinearColor> Color = Settings->GetCustomColor(Object->GetClass(), Name);
+			if (Color.IsSet())
+			{
+				Curve->SetColor(Color.GetValue());
+			}
+			else
+			{
+				// Note: If the color is no longer defined, there's no way to update with the previously defined 
+				// default color. The curve models would need to be rebuilt, but would cause selection/framing and 
+				// other things to change. So, this is intentionally not implemented.
 			}
 		}
 	}

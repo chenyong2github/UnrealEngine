@@ -29,7 +29,7 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 
 	TSharedPtr<FCurveEditor> LocalCurveEditor = CurveEditor->AsShared();
 
-	int32 NumActiveCurves = LocalCurveEditor->GetCurvesForBufferedCurves().Num();
+	int32 NumActiveCurves = LocalCurveEditor->GetSelectionFromTreeAndKeys().Num();
 
 	int32 NumBufferedCurves = 0;
 	for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : LocalCurveEditor->GetBufferedCurves())

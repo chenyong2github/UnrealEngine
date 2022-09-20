@@ -80,6 +80,8 @@ class CURVEEDITOR_API UCurveEditorSettings : public UObject
 public:
 	GENERATED_BODY()
 
+	DECLARE_MULTICAST_DELEGATE(FOnCustomColorsChanged);
+
 	UCurveEditorSettings();
 
 	/** Gets whether or not the curve editor auto frames the selected curves. */
@@ -133,6 +135,9 @@ public:
 	void SetCustomColor(UClass* InClass, const FString& InPropertyName, FLinearColor InColor);
 	/** Delete Custom Color for the specified parameters. */
 	void DeleteCustomColor(UClass* InClass, const FString& InPropertyName);
+	
+	/** Gets the multicast delegate which is run whenever custom colors have changed. */
+	FOnCustomColorsChanged& GetOnCustomColorsChanged() { return OnCustomColorsChangedEvent; }
 
 	/** Get custom color for space name. Parent and World are reserved names and will be used instead of the specified control name. */
 	TOptional<FLinearColor> GetSpaceSwitchColor(const FString& InControlName) const;
@@ -145,6 +150,9 @@ public:
 	static FLinearColor GetNextRandomColor();
 
 protected:
+
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
 	bool bAutoFrameCurveEditor;
 
@@ -185,4 +193,7 @@ protected:
 
 	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
 	TArray<FCustomColorForSpaceSwitch> ControlSpaceCustomColors;
+
+private:
+	FOnCustomColorsChanged OnCustomColorsChangedEvent;
 };
