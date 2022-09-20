@@ -108,6 +108,11 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 	
 	KeyValues.Reset();
 
+	if (bNoneIsAllowedValue)
+	{
+		KeyValues.AddUnique(TEXT("None"));
+	}
+
 	TArray<UBlackboardKeyType*> FilterObjects;
 	
 	uint32 NumElements = 0;

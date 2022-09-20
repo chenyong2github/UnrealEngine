@@ -14,8 +14,7 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : true,
 	"Installed" : false,
-	"Modules":
-	[
+	"Modules": [
 		{
 			"Name": "GameplayBehaviorsModule",
 			"Type": "Runtime",
@@ -25,6 +24,11 @@
 			"Name": "GameplayBehaviorsModule",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "GameplayBehaviorsEditorModule",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins":
