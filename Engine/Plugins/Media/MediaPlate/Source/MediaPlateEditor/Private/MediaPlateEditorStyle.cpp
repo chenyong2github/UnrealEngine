@@ -50,6 +50,7 @@ FMediaPlateEditorStyle::FMediaPlateEditorStyle()
 
 	// toolbar icons
 	Set("MediaPlateEditor.CloseMedia", new IMAGE_BRUSH("icon_eject_40x", Icon40x40));
+	Set("MediaPlateEditor.CloseMedia.Small", new IMAGE_BRUSH("icon_eject_40x", Icon20x20));
 	Set("MediaPlateEditor.ForwardMedia", new IMAGE_BRUSH("icon_forward_40x", Icon40x40));
 	Set("MediaPlateEditor.ForwardMedia.Small", new IMAGE_BRUSH("icon_forward_40x", Icon20x20));
 	Set("MediaPlateEditor.NextMedia", new IMAGE_BRUSH("icon_step_40x", Icon40x40));

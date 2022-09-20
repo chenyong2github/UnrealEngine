@@ -437,7 +437,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						[
 							SNew(SImage)
 								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(Style->GetBrush("MediaPlateEditor.StopMedia.Small"))
+								.Image(Style->GetBrush("MediaPlateEditor.CloseMedia.Small"))
 						]
 				]
 		];
