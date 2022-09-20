@@ -147,6 +147,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static bool CopyToCineCameraActor(UCineCameraComponent* SourceCameraComponent, ACineCameraActor* TargetCameraActor);
 
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static void SetActorLabel(AActor* Actor, const FString& NewActorLabel);
+
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);

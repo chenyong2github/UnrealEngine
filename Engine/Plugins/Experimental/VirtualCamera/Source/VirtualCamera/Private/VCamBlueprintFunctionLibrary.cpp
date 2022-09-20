@@ -424,6 +424,16 @@ bool UVCamBlueprintFunctionLibrary::CopyToCineCameraActor(UCineCameraComponent* 
 	return true;
 }
 
+void UVCamBlueprintFunctionLibrary::SetActorLabel(AActor* Actor, const FString& NewActorLabel)
+{
+#if WITH_EDITOR
+	if (Actor)
+	{
+		Actor->SetActorLabel(NewActorLabel);
+	}
+#endif
+}
+
 bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection)
 {
 	FName LevelEditorName(TEXT("LevelEditor"));
