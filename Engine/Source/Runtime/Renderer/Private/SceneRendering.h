@@ -1570,7 +1570,7 @@ public:
 	/** 
 	* Destructor. 
 	*/
-	RENDERER_API ~FViewInfo();
+	RENDERER_API virtual ~FViewInfo();
 
 #if DO_CHECK || USING_CODE_ANALYSIS
 	/** Verifies all the assertions made on members. */

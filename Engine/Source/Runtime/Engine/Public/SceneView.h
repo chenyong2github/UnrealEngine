@@ -1298,6 +1298,9 @@ public:
 	FSceneView(FSceneView&& Other) = default;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	/** Default destructor */
+	virtual ~FSceneView() = default;
+
 #if DO_CHECK || USING_CODE_ANALYSIS
 	/** Verifies all the assertions made on members. */
 	bool VerifyMembersChecks() const;
