@@ -1909,6 +1909,10 @@ void USkinnedMeshComponent::SetSkinnedAssetAndUpdate(USkinnedAsset* InSkinnedAss
 			MorphTargetWeights.Empty();
 			ExternalMorphWeightData.Empty();
 		}
+
+		// Re-init the MeshDeformer which might come from the SkelMesh.
+		UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
+		MeshDeformerInstance = ActiveMeshDeformer != nullptr ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 	}
 
 	// Update external weight array sizes.
