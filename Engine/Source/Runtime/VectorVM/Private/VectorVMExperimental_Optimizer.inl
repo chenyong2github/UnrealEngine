@@ -1847,7 +1847,8 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 					}
 					break;
 				}
-			} else if (Ins0->OpCode == EVectorVMOp::mul)
+			}
+			else if (Ins0->OpCode == EVectorVMOp::mul)
 			{
 				if (FusableOps[i].Type >= 1)
 				{
@@ -1933,17 +1934,20 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			{
 				if (Ins1->OpCode == EVectorVMOp::mad)
 				{
-					//we only have a fused op if the output from the add is the input to the add op, if the op of ins0 is the mul operand from ins1, fuck it, it's not statistically relevant
-					if (OptContext->Intermediate.SSARegisterUsageBuffer[Ins0->Op.RegPtrOffset + 2] ==
-						OptContext->Intermediate.SSARegisterUsageBuffer[Ins1->Op.RegPtrOffset + 2])
+					//we only have a fused op if the output from the add is the input to the add op, if the op of ins0 is the mul operand from ins1, it's not statistically relevant in Fortnite so there's no instruction for it
+					if (OptContext->Intermediate.SSARegisterUsageBuffer[Ins0->Op.RegPtrOffset + 2] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins1->Op.RegPtrOffset + 2] && 
+						OptContext->Intermediate.RegisterUsageType[Ins0->Op.RegPtrOffset + 2] == OptContext->Intermediate.RegisterUsageType[Ins1->Op.RegPtrOffset + 2])
 					{
-						VVMCreateNewRegVars(5);
-						VVMSetRegsFrom0(0, 0);
-						VVMSetRegsFrom0(1, 1);
-						VVMSetRegsFrom1(2, 0);
-						VVMSetRegsFrom1(3, 1);
-						VVMSetRegsFrom1(4, 3);
-						VVMSetMergedIns(EVectorVMOp::add_mad1, 4, 1);
+						if (!RegDupeCheck(OptContext, Ins0, 2, Ins1, 0, 2))
+						{
+							VVMCreateNewRegVars(5);
+							VVMSetRegsFrom0(0, 0);
+							VVMSetRegsFrom0(1, 1);
+							VVMSetRegsFrom1(2, 0);
+							VVMSetRegsFrom1(3, 1);
+							VVMSetRegsFrom1(4, 3);
+							VVMSetMergedIns(EVectorVMOp::add_mad1, 4, 1);
+						}
 					}
 				}
 				else if (Ins1->OpCode == EVectorVMOp::add)
