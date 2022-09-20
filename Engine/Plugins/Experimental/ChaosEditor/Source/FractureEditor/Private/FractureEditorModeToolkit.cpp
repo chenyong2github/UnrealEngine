@@ -921,6 +921,11 @@ void FFractureEditorModeToolkit::BindCommands()
 			{
 				GEditor->SelectNone(true, true, false);
 			}
+		}),
+		FCanExecuteAction::CreateLambda([this]()
+		{
+			// don't capture escape when in PIE or simulating
+			return GEditor->PlayWorld == NULL && !GEditor->bIsSimulatingInEditor;
 		})
 	);
 
