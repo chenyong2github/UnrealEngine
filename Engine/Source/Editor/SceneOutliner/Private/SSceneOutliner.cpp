@@ -41,6 +41,8 @@
 #include "SceneOutlinerFilterBar.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "DetailLayoutBuilder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSceneOutliner, Log, All);
 
@@ -139,6 +141,32 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	ChildSlot
 	[
 		VerticalBox
+	];
+
+	VerticalBox->AddSlot()
+	.AutoHeight()
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SMultiLineEditableTextBox)
+			.IsReadOnly(true)
+			.Visibility_Lambda([this]() { return Mode->HasErrors() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.Font(IDetailLayoutBuilder::GetDetailFontBold())
+			.BackgroundColor(FAppStyle::GetColor("ErrorReporting.WarningBackgroundColor"))
+			.Text(Mode->GetErrorsText())
+			.AutoWrapText(true)			
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SButton)
+			.OnClicked_Lambda([this] { Mode->RepairErrors(); return FReply::Handled(); })
+			.Visibility_Lambda([this]() { return Mode->HasErrors() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.HAlign(HAlign_Center)
+			.Text(LOCTEXT("SceneOutlinerRepairErrors", "Repair Errors"))
+		]
 	];
 
 	auto Toolbar = SNew(SHorizontalBox);

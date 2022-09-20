@@ -45,6 +45,9 @@ public:
 	virtual bool CanCopy() const override;
 	virtual bool CanPaste() const override;
 	virtual bool CanSupportDragAndDrop() const { return true; }
+	virtual bool HasErrors() const;
+	virtual FText GetErrorsText() const;
+	virtual void RepairErrors() const;	
 	virtual FFolder CreateNewFolder() override;
 	virtual FFolder GetFolder(const FFolder& ParentPath, const FName& LeafName) override;
 	virtual bool CreateFolder(const FFolder& NewFolder) override;

@@ -13,6 +13,7 @@
 #include "Engine/Selection.h"
 #include "Editor/UnrealEdEngine.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/FileManager.h"
 #include "SceneOutlinerDragDrop.h"
 #include "EditorActorFolders.h"
 #include "EditorFolderUtils.h"
@@ -35,6 +36,9 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "WorldPartition/WorldPartition.h"
+#include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "SourceControlOperations.h"
 #include "EditorLevelUtils.h"
 #include "EditorViewportCommands.h"
 #include "SceneOutlinerActorSCCColumn.h"
@@ -42,6 +46,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Filters/CustomClassFilterData.h"
 #include "IPlacementModeModule.h"
+#include "Misc/ScopedSlowTask.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
@@ -1077,6 +1082,111 @@ bool FActorBrowsingMode::CanCopy() const
 bool FActorBrowsingMode::CanPaste() const
 {
 	return CanPasteFoldersOnlyFromClipboard();
+}
+
+bool FActorBrowsingMode::HasErrors() const
+{
+	if (!bRepresentingWorldGameWorld && bRepresentingWorldPartitionedWorld)
+	{
+		if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+		{
+			bool bHasErrors = 0;
+
+			WorldPartition->ForEachActorDescContainer([&bHasErrors](UActorDescContainer* ActorDescContainer)
+			{
+				if (ActorDescContainer->HasInvalidActors())
+				{
+					bHasErrors = true;
+				}
+			});
+
+			return bHasErrors;
+		}
+	}
+
+	return false;
+}
+
+FText FActorBrowsingMode::GetErrorsText() const
+{
+	return LOCTEXT("WorldHasInvalidActorFiles", "The world contains invalid actor files. Click the Repair button to repair them.");
+}
+
+void FActorBrowsingMode::RepairErrors() const
+{
+	if (!bRepresentingWorldGameWorld && bRepresentingWorldPartitionedWorld)
+	{
+		if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+		{
+			ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+			ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
+
+			TArray<FAssetData> InvalidActors;
+			WorldPartition->ForEachActorDescContainer([&InvalidActors ](UActorDescContainer* ActorDescContainer)
+			{
+				InvalidActors += ActorDescContainer->GetInvalidActors();
+				ActorDescContainer->ClearInvalidActors();
+			});
+
+			TArray<FString> ActorFilesToDelete;
+			TArray<FString> ActorFilesToRevert;
+			{
+				FScopedSlowTask SlowTask(InvalidActors.Num(), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
+				SlowTask.MakeDialogDelayed(1.0f);
+
+				for (const FAssetData& InvalidActor : InvalidActors)
+				{
+					FPackagePath PackagePath;
+					if (FPackagePath::TryFromPackageName(InvalidActor.PackageName, PackagePath))
+					{
+						const FString ActorFile = PackagePath.GetLocalFullPath();
+						FSourceControlStatePtr SCState = SourceControlProvider.GetState(ActorFile, EStateCacheUsage::ForceUpdate);
+
+						if (SCState.IsValid() && SCState->IsSourceControlled())
+						{
+							if (SCState->IsAdded())
+							{
+								ActorFilesToRevert.Add(ActorFile);
+							}
+							else
+							{
+								if (SCState->IsCheckedOut())
+								{
+									ActorFilesToRevert.Add(ActorFile);
+								}
+
+								ActorFilesToDelete.Add(ActorFile);
+							}
+						}
+						else
+						{
+							IFileManager::Get().Delete(*ActorFile, false, true);
+						}
+					}
+
+					SlowTask.EnterProgressFrame(1);
+				}
+			}
+
+			if (ActorFilesToRevert.Num() || ActorFilesToDelete.Num())
+			{
+				FScopedSlowTask SlowTask(ActorFilesToRevert.Num() + ActorFilesToDelete.Num(), LOCTEXT("DeletingFiles", "Deleting files..."));
+				SlowTask.MakeDialogDelayed(1.0f);
+
+				if (ActorFilesToRevert.Num())
+				{
+					SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), ActorFilesToRevert);
+					SlowTask.EnterProgressFrame(ActorFilesToRevert.Num());
+				}
+	
+				if (ActorFilesToDelete.Num())
+				{
+					SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), ActorFilesToDelete);
+					SlowTask.EnterProgressFrame(ActorFilesToDelete.Num());
+				}
+			}
+		}
+	}
 }
 
 bool FActorBrowsingMode::CanPasteFoldersOnlyFromClipboard() const

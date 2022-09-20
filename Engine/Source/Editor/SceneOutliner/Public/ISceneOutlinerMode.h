@@ -131,6 +131,16 @@ public:
 
 	/** Does the mode support drag and drop */
 	virtual bool CanSupportDragAndDrop() const { return false; }
+
+	/** Does the mode reports errors */
+	virtual bool HasErrors() const { return false; }
+
+	/** Return the errors text */
+	virtual FText GetErrorsText() const { return FText(); }
+
+	/** Repair errors*/
+	virtual void RepairErrors() const {}
+
 public:
 	/* Folder management */
 		

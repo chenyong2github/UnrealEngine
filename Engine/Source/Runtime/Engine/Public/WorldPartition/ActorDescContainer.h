@@ -62,6 +62,10 @@ public:
 
 	const FLinkerInstancingContext* GetInstancingContext() const;
 	const FTransform& GetInstanceTransform() const;
+
+	bool HasInvalidActors() const { return InvalidActors.Num() > 0; }
+	const TArray<FAssetData>& GetInvalidActors() const { return InvalidActors; }
+	void ClearInvalidActors() { InvalidActors.Empty(); }
 #endif
 
 	UPROPERTY(Transient)
@@ -89,6 +93,8 @@ protected:
 
 	FName ContainerPackageName;
 	FGuid ContentBundleGuid;
+
+	TArray<FAssetData> InvalidActors;
 #endif
 
 private:

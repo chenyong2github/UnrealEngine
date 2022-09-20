@@ -32,7 +32,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 	check(!bContainerInitialized);
 	ContainerPackageName = InPackageName;
 	TArray<FAssetData> Assets;
-	
+
 	if (!ContainerPackageName.IsNone())
 	{
 		const FString ContainerExternalActorsPath = GetExternalActorPath();
@@ -56,6 +56,10 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 		if (ActorDesc.IsValid())
 		{
 			AddActorDescriptor(ActorDesc.Release());
+		}
+		else
+		{
+			InvalidActors.Add(Asset);
 		}
 	}
 

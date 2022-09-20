@@ -44,33 +44,41 @@ UClass* FWorldPartitionActorDescUtils::GetActorNativeClassFromAssetData(const FA
 
 TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(const FAssetData& InAssetData)
 {
-	FString ActorMetaDataClass;
-	FString ActorMetaDataStr;
-	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass) && InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
+	if (IsValidActorDescriptorFromAssetData(InAssetData))
 	{
-		bool bIsValidClass = true;
-		UClass* ActorClass = GetActorNativeClassFromAssetData(InAssetData);
-
-		if (!ActorClass)
-		{
-			ActorClass = AActor::StaticClass();
-			bIsValidClass = false;
-		}
-
 		FWorldPartitionActorDescInitData ActorDescInitData;
-		ActorDescInitData.NativeClass = ActorClass;
+		ActorDescInitData.NativeClass = GetActorNativeClassFromAssetData(InAssetData);
 		ActorDescInitData.PackageName = InAssetData.PackageName;
 		ActorDescInitData.ActorPath = InAssetData.GetSoftObjectPath();
-		FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
 
-		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass));
+		FString ActorMetaDataStr;
+		verify(InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr));
+		verify(FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData));
+
+		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass ? ActorDescInitData.NativeClass : AActor::StaticClass()));
 
 		NewActorDesc->Init(ActorDescInitData);
 			
-		if (!bIsValidClass)
+		if (!ActorDescInitData.NativeClass)
 		{
 			UE_LOG(LogWorldPartition, Warning, TEXT("Invalid class for actor guid `%s` ('%s') from package '%s'"), *NewActorDesc->GetGuid().ToString(), *NewActorDesc->GetActorName().ToString(), *NewActorDesc->GetActorPackage().ToString());
 			return nullptr;
+		}
+		else if (UClass* Class = FindObject<UClass>(InAssetData.AssetClassPath); !Class)
+		{
+			// We can't detect mising BP classes for inactive plugins, etc.
+			if (InAssetData.AssetClassPath.GetPackageName().ToString().StartsWith(TEXT("/Game/")))
+			{
+				TArray<FAssetData> BlueprintClass;
+				IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+				AssetRegistry.GetAssetsByPackageName(*InAssetData.AssetClassPath.GetPackageName().ToString(), BlueprintClass, true);
+
+				if (!BlueprintClass.Num())
+				{
+					UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find class '%s' for actor '%s"), *InAssetData.AssetClassPath.ToString(), *NewActorDesc->GetActorPath().ToString());
+					return nullptr;
+				}
+			}
 		}
 
 		return NewActorDesc;
