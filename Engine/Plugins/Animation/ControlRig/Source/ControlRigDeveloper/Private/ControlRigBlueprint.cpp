@@ -2489,20 +2489,24 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 				TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> References = FunctionLibrary->GetReferencesForFunction(FunctionName);
 				for(const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference : References)
 				{
-					const FSoftObjectPath AssetPath = Reference.ToSoftObjectPath();
-					if(AssetPath.GetLongPackageName().StartsWith(TEXT("/Engine/Transient")))
+					const TSoftObjectPtr<UPackage> Blueprint = Reference->GetTypedOuter<UControlRigBlueprint>();
+					if (!Blueprint.IsNull())
 					{
-						continue;
-					}
-					
-					if(!AssetPaths.Contains(AssetPath))
-					{
-						AssetPaths.Add(AssetPath);
-
-						const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPath);
-						if(AssetData.IsValid())
+						const FSoftObjectPath AssetPath = Blueprint.ToSoftObjectPath();
+						if(AssetPath.GetLongPackageName().StartsWith(TEXT("/Engine/Transient")))
 						{
-							Dependents.Add(AssetData);
+							continue;
+						}
+					
+						if(!AssetPaths.Contains(AssetPath))
+						{
+							AssetPaths.Add(AssetPath);
+
+							const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPath);
+							if(AssetData.IsValid())
+							{
+								Dependents.Add(AssetData);
+							}
 						}
 					}
 				}
