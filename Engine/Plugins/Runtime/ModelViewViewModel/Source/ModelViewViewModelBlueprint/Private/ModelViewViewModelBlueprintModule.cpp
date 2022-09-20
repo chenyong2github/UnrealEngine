@@ -33,4 +33,4 @@ private:
 };
 
 
-IMPLEMENT_MODULE(FModelViewViewModelBlueprintModule, ModelViewViewModelBlueprintModule);
+IMPLEMENT_MODULE(FModelViewViewModelBlueprintModule, ModelViewViewModelBlueprint);
