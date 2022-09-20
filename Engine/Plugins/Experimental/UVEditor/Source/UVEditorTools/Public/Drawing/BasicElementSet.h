@@ -44,10 +44,16 @@ public:
 		return Num;
 	}
 
-	/** Reserve enough memory for up to the given maximum number of points. This function needs to be called before any calls to AddPoint(). */
+	/** Reserve enough memory for up to the given maximum number of points. This function needs to be called before any calls to AddElement(). */
 	void ReserveElements(const int32 MaxNum)
 	{
 		Elements.SetNumUninitialized(MaxNum * ElementDataSize);
+	}
+	
+	/** Reserve enough memory for an additional number of points over the existing number already reserved. This function needs to be called before any calls to AddElement(). */
+	void ReserveAdditionalElements(const int32 AdditionalNum)
+	{
+		Elements.SetNumUninitialized(Elements.Num() + AdditionalNum * ElementDataSize);
 	}
 
 	/** Add a point to be rendered using the component. */
