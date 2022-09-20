@@ -118,7 +118,7 @@ namespace UE::Anim::FootPlacement
 		/* Interpolation */
 		struct FInterpolationData
 		{
-			FVector PelvisTranslationOffset;
+			FVector PelvisTranslationOffset = FVector::ZeroVector;
 			FVectorSpringState PelvisTranslationSpringState;
 		} Interpolation;
 	};
@@ -126,7 +126,7 @@ namespace UE::Anim::FootPlacement
 	struct FCharacterData
 	{
 		FTransform ComponentTransformWS = FTransform::Identity;
-		int NumFKPlanted = 0;
+		FVector ComponentVelocityCS = FVector::ZeroVector;
 		bool bIsOnGround = false;
 	};
 
@@ -195,17 +195,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Plant Settings")
 	float UnplantAngularDamping = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta=(EditCondition="bEnableFloorInterpolation", DisplayAfter="bEnableFloorInterpolation"))
 	float FloorLinearStiffness = 1000.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta=(EditCondition="bEnableFloorInterpolation", DisplayAfter="bEnableFloorInterpolation"))
 	float FloorLinearDamping = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta=(EditCondition="bEnableFloorInterpolation", DisplayAfter="bEnableFloorInterpolation"))
 	float FloorAngularStiffness = 450.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta=(EditCondition="bEnableFloorInterpolation", DisplayAfter="bEnableFloorInterpolation"))
 	float FloorAngularDamping = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	bool bEnableFloorInterpolation = true;
 };
 
 USTRUCT(BlueprintType)
@@ -214,10 +217,6 @@ struct FFootPlacementTraceSettings
 	GENERATED_BODY()
 
 public:
-	// TODO: implement?
-	// Is tracing enabled?
-	UPROPERTY(EditAnywhere, Category = "Trace Settings")
-	bool bEnabled = true;
 
 	// A negative value extends the trace length above the bone
 	UPROPERTY(EditAnywhere, Category = "Trace Settings", meta=(EditCondition="bEnabled", DisplayAfter="bEnabled"))
@@ -236,6 +235,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Trace Settings", meta=(EditCondition="bEnabled", DisplayAfter="bEnabled"))
 	TEnumAsByte<ETraceTypeQuery> ComplexTraceChannel = TraceTypeQuery1;
 
+	// How much the feet can penetrate the ground geometry. It's recommended to allow some to account for interpolation
+	// Negative values disable this effect
+	UPROPERTY(EditAnywhere, Category = "Trace Settings")
+	float MaxGroundPenetration = 10.0f;
+
 	// How much we align to simple vs complex collision when the foot is in flight
 	// Tracing against simple geometry (i.e. it's common for stairs to have simplified ramp collisions) can provide a 
 	// smoother trajectory when the foot is in flight
@@ -245,6 +249,11 @@ public:
 	// The channel to use for our simple trace
 	UPROPERTY(EditAnywhere, Category = "Trace Settings", meta = (EditCondition = "bEnabled", DisplayAfter = "bEnabled"))
 	TEnumAsByte<ETraceTypeQuery> SimpleTraceChannel = TraceTypeQuery1;
+
+	// Enabling tracing for ground alignment
+	// @TODO: Use ground normal when not tracing
+	UPROPERTY(EditAnywhere, Category = "Trace Settings")
+	bool bEnabled = true;
 };
 
 USTRUCT()
@@ -263,6 +272,32 @@ public:
 	void Initialize(const FAnimationInitializeContext& Context);
 };
 
+UENUM(BlueprintType)
+enum class EPelvisHeightMode : uint8
+{
+	// Consider all legs for pelvis height, whether they're planted or not
+	// Generally good for flat/not too steep ground
+	AllLegs,
+	// Consider only the planted feet when calculating pelvis height
+	// Generally good we pelvis height to be defined by the weight supporting leg
+	AllPlantedFeet,
+	// When moving uphill, use the front foot, as long as it's planted.
+	// It's recommended to also enable pelvis interpolation to smooth out the swap between what's considered the "planted" leg
+	// When moving downhill, both feet will be considered relevant.
+	// The algorithm tends to prefer the lower foot, except when the higher foot would become over-compresseed.
+	FrontPlantedFeetUphill_FrontFeetDownhill,
+};
+
+UENUM(BlueprintType)
+enum class EActorMovementCompensationMode : uint8
+{
+	// Keep pelvis component-space and follow along all of the actor's vertical ground movement
+	ComponentSpace,
+	// Hold pelvis world-space and ignore the actor's vertical ground movement. Let springs interpolate the difference
+	WorldSpace,
+	// Keep pelvis component-space, but hold world-space transform when the actor does sudden changes (i.e. a big step), and let springs interpolate the difference.
+	SuddenMotionOnly
+};
 
 USTRUCT(BlueprintType)
 struct FFootPlacementPelvisSettings
@@ -275,28 +310,34 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
 	float MaxOffset = 50.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta=(EditCondition="bEnableInterpolation", DisplayAfter="bEnableInterpolation"))
 	float LinearStiffness = 350.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta=(EditCondition="bEnableInterpolation", DisplayAfter="bEnableInterpolation"))
 	float LinearDamping = 1.0f;
 
 	// How much we move the pelvis horizontally to re-balance the characters weight due to foot offsets.
 	// A value of 0 will disable this effect.
 	// Higher values may move the mesh outside of the character's capsule
-	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0", DisplayAfter="bEnableInterpolation"))
 	float HorizontalRebalancingWeight = 0.3f;
 
 	// Max horizontal foot adjustment we consider to lower the hips
 	// This can be used to prevent the hips from dropping too low when the feet are locked
 	// Exceeding this value will first attempt to roll the planted feet, and then slide
-	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta=(DisplayAfter="bEnableInterpolation"))
 	float MaxOffsetHorizontal = 10.0f;
 
-	// This is used to hold the Pelvis's interpolator in a fixed spot when the capsule suddenly moves (i.e. on a big step)
-	// If your camera is directly attached to the character with little to no smoothing, you may want this disabled
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta=(DisplayAfter="bEnableInterpolation"))
+	EPelvisHeightMode PelvisHeightMode = EPelvisHeightMode::AllLegs;
+
+	// This is used to hold the Pelvis's interpolator in a fixed spot when the capsule moves up/down
+	// If your camera is directly attached to the character with little to no smoothing, you may want this on ComponentSpace
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta=(DisplayAfter="bEnableInterpolation"))
+	EActorMovementCompensationMode ActorMovementCompensationMode = EActorMovementCompensationMode::SuddenMotionOnly;
+
 	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
-	bool bCompensateForSuddenCapsuleMoves = true;
+	bool bEnableInterpolation = true;
 };
 
 USTRUCT()
@@ -469,6 +510,8 @@ private:
 	// Evaluates the Pelvis offsets required by the different planting bones and produces a result that best
 	// acommodates all of them
 	FTransform SolvePelvis(const UE::Anim::FootPlacement::FEvaluationContext& Context);
+	TBitArray<> FindRelevantFeet(const UE::Anim::FootPlacement::FEvaluationContext& Context);
+	TBitArray<> FindPlantedFeet(const UE::Anim::FootPlacement::FEvaluationContext& Context);
 
 	FTransform UpdatePelvisInterpolation(
 		const UE::Anim::FootPlacement::FEvaluationContext& Context,
