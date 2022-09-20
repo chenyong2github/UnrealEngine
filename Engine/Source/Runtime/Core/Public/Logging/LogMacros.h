@@ -114,9 +114,22 @@ private:
 			UE_LOG_EXPAND_IS_FATAL(Verbosity, CA_ASSUME(false);, PREPROCESSOR_NOTHING) \
 		} \
 	}
-	#define UE_LOG_REF(ConstLogCategoryRef, Verbosity, Format, ...) UE_LOG(ConstLogCategoryRef, Verbosity, Format, __VA_ARGS__ )
-
-	#define UE_LOG_CLINKAGE(CategoryName, Verbosity, Format, ...) UE_LOG(CategoryName, Verbosity, Format, __VA_ARGS__ )
+	#define UE_LOG_REF(ConstLogCategoryRef, Verbosity, Format, ...) \
+	{ \
+		if (ELogVerbosity::Verbosity == ELogVerbosity::Fatal) \
+		{ \
+			LowLevelFatalError(Format, ##__VA_ARGS__); \
+			UE_LOG_EXPAND_IS_FATAL(Verbosity, CA_ASSUME(false);, PREPROCESSOR_NOTHING) \
+		} \
+	}
+	#define UE_LOG_CLINKAGE(CategoryName, Verbosity, Format, ...) \
+	{ \
+		if (ELogVerbosity::Verbosity == ELogVerbosity::Fatal) \
+		{ \
+			LowLevelFatalError(Format, ##__VA_ARGS__); \
+			UE_LOG_EXPAND_IS_FATAL(Verbosity, CA_ASSUME(false);, PREPROCESSOR_NOTHING) \
+		} \
+	}
 
 	// Conditional logging (fatal errors only).
 	#define UE_CLOG(Condition, CategoryName, Verbosity, Format, ...) \
