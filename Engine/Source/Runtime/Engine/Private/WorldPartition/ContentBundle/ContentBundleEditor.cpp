@@ -12,6 +12,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleEditorSubsystemInterface.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
+#include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 #include "Engine/World.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
@@ -155,8 +156,8 @@ bool FContentBundleEditor::AddActor(AActor* InActor)
 	FSetActorContentBundleGuid SetActorContentBundleGuid(InActor, GetDescriptor()->GetGuid());
 
 	// Rename the actor so it is saved in the content bundle location
-	FName ActorPackageNameInContentBundle(*ULevel::GetActorPackageName(ActorDescContainer->GetExternalActorPath(), EActorPackagingScheme::Reduced, InActor->GetName()));
-	verify(InActor->GetPackage()->Rename(*ActorPackageNameInContentBundle.ToString()));
+	FString ActorPackageNameInContentBundle = ContentBundlePaths::MakeExternalActorPackagePath(ActorDescContainer->GetExternalActorPath(), InActor->GetName());
+	verify(InActor->GetPackage()->Rename(*ActorPackageNameInContentBundle));
 
 	UnsavedActorMonitor->MonitorActor(InActor);
 

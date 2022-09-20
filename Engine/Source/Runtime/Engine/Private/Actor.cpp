@@ -875,7 +875,7 @@ void AActor::Serialize(FArchive& Ar)
 
 		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeContentBundleGuid)
 		{
-			ContentBundleGuid = ContentBundlePaths::GetGuidFromPath(GetPackage()->GetFName().ToString());
+			ContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(GetPackage()->GetFName().ToString());
 		}
 	}
 #endif

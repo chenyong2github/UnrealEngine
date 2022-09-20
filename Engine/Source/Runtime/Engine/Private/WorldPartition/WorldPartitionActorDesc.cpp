@@ -464,7 +464,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeContentBundleGuid)
 	{
-		ContentBundleGuid = ContentBundlePaths::GetGuidFromPath(ActorPackage.ToString());
+		ContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(ActorPackage.ToString());
 	}
 	else
 	{
