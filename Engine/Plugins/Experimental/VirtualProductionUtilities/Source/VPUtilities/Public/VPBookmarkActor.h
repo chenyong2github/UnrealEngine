@@ -8,6 +8,7 @@
 #include "VPBookmark.h"
 #include "IVPBookmarkProvider.h"
 #include "IVPInteraction.h"
+#include "CineCameraComponent.h"
 #include "VPBookmarkActor.generated.h"
 
 class UStaticMeshComponent;
@@ -37,6 +38,10 @@ public:
 	/** Splinemesh */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Components")
 	TObjectPtr<USplineMeshComponent> SplineMesh;
+
+	/**CineCamera */
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Components")
+	TObjectPtr<UCineCameraComponent> CameraComponent;
 
 	/** Color of Bookmark in MU Session */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bookmark", meta = (MultiLine = "true", ExposeOnSpawn = "true"))

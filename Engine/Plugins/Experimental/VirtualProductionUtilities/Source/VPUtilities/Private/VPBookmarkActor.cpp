@@ -73,6 +73,9 @@ AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
 
 	NameTextRender->SetMaterial(0, LabelMaterialInstance);
 
+	CameraComponent = CreateDefaultSubobject<UCineCameraComponent>(TEXT("Camera"));
+	CameraComponent->SetupAttachment(BookmarkMesh);
+
 }
 
 void AVPBookmarkActor::Tick(float DeltaSeconds)
