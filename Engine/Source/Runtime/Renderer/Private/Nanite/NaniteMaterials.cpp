@@ -22,7 +22,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 END_SHADER_PARAMETER_STRUCT()
 
-static int32 GNaniteMaterialVisibility = 1;
+static int32 GNaniteMaterialVisibility = 0;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	TEXT("r.Nanite.MaterialVisibility"),
 	GNaniteMaterialVisibility,
