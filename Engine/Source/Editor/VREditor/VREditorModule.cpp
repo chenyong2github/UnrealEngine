@@ -177,7 +177,7 @@ void FVREditorModule::ExtendToolbarMenu()
 	}
 
 	FToolMenuSection* EditorToolbarSection = EditorToolbarMenu->FindSection("Content");
-	if (!ensure(EditorToolbarSection))
+	if (!EditorToolbarSection)
 	{
 		return;
 	}
