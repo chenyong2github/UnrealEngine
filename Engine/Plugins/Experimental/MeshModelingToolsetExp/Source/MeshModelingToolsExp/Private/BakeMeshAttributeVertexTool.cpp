@@ -437,6 +437,10 @@ void UBakeMeshAttributeVertexTool::OnTick(float DeltaTime)
 			}
 		}
 	}
+	else if (static_cast<bool>(OpState & EBakeOpState::Invalid))
+	{
+		PreviewMesh->SetOverrideRenderMaterial(ErrorPreviewMaterial);
+	}
 }
 
 void UBakeMeshAttributeVertexTool::Render(IToolsContextRenderAPI* RenderAPI)
