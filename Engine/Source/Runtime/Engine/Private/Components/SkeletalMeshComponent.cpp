@@ -2853,7 +2853,17 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 		if (bIncludeComponentLocationIntoBounds)
 		{
 			const FVector ComponentLocation = GetComponentLocation();
-			NewBounds = NewBounds + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
+			const FBoxSphereBounds ComponentLocationBounds(ComponentLocation, FVector(1.0f), 1.0f);
+			if (bCacheLocalSpaceBounds)
+			{
+				NewBounds = NewBounds.TransformBy(LocalToWorld);
+				NewBounds = NewBounds + ComponentLocationBounds;
+				NewBounds = NewBounds.TransformBy(LocalToWorld.ToInverseMatrixWithScale());
+			}
+			else
+			{
+				NewBounds = NewBounds + ComponentLocationBounds;
+			}			
 		}
 
 		AddClothingBounds(NewBounds, CachedBoundsTransform);
