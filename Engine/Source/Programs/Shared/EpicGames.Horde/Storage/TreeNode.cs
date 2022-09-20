@@ -167,7 +167,7 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public static async Task<T?> TryReadTreeAsync<T>(this ITreeStore store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
+		public static async Task<T?> TryReadTreeAsync<T>(this IStorageClient store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
 		{
 			ITreeBlob? root = await store.TryReadTreeAsync(name, maxAge, cancellationToken);
 			if (root == null)
@@ -178,7 +178,7 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public static async Task<T> ReadTreeAsync<T>(this ITreeStore store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
+		public static async Task<T> ReadTreeAsync<T>(this IStorageClient store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
 		{
 			T? result = await store.TryReadTreeAsync<T>(name, maxAge, cancellationToken);
 			if (result == null)
@@ -189,9 +189,15 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public static async Task WriteTreeAsync(this ITreeStore store, RefName name, TreeNode root, CancellationToken cancellationToken = default)
+		public static Task WriteTreeAsync(this IStorageClient store, RefName name, TreeNode root, CancellationToken cancellationToken = default)
 		{
-			ITreeWriter writer = store.CreateTreeWriter(name.Text);
+			return WriteTreeAsync(store, name, root, new TreeOptions(), cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public static async Task WriteTreeAsync(this IStorageClient store, RefName name, TreeNode root, TreeOptions options, CancellationToken cancellationToken = default)
+		{
+			ITreeWriter writer = store.CreateTreeWriter(options);
 			await writer.WriteRefAsync(name, root, cancellationToken);
 		}
 	}

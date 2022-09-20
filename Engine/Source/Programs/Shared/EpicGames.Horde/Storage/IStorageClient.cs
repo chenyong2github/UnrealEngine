@@ -54,9 +54,9 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base interface for a low-level storage backend. Blobs added to this store are not content addressed, but referenced by <see cref="BlobLocator"/>.
 	/// </summary>
-	public interface IBlobStore
+	public interface IStorageClient
 	{
-		#region Bundles
+		#region Blobs
 
 		/// <summary>
 		/// Reads data for a bundle from the store
@@ -74,6 +74,27 @@ namespace EpicGames.Horde.Storage
 		/// <param name="prefix">Prefix for blob names. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
 		/// <returns>Unique identifier for the blob</returns>
 		Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default);
+
+		#endregion
+
+		#region Trees
+
+		/// <summary>
+		/// Creates a new context for reading trees.
+		/// </summary>
+		/// <param name="options">Options for the tree writer</param>
+		/// <param name="prefix">Prefix for blob names.</param>
+		/// <returns>New context instance</returns>
+		ITreeWriter CreateTreeWriter(TreeOptions options, Utf8String prefix = default);
+
+		/// <summary>
+		/// Attempts to read a tree with the given name
+		/// </summary>
+		/// <param name="name">Name of the ref used to store the tree</param>
+		/// <param name="maxAge"></param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Reference to the root of the tree. Null if the ref does not exist.</returns>
+		Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default);
 
 		#endregion
 
@@ -127,22 +148,22 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Typed implementation of <see cref="IBlobStore"/> for use with dependency injection
+	/// Typed implementation of <see cref="IStorageClient"/> for use with dependency injection
 	/// </summary>
-	public interface IBlobStore<T> : IBlobStore
+	public interface IStorageClient<T> : IStorageClient
 	{
 	}
 
 	/// <summary>
-	/// Extension methods for <see cref="IBlobStore"/>
+	/// Extension methods for <see cref="IStorageClient"/>
 	/// </summary>
-	public static class BlobStoreExtensions
+	public static class StorageClientExtensions
 	{
-		class TypedBlobStore<T> : IBlobStore<T>
+		class TypedStorageClient<T> : IStorageClient<T>
 		{
-			readonly IBlobStore _inner;
+			readonly IStorageClient _inner;
 
-			public TypedBlobStore(IBlobStore inner) => _inner = inner;
+			public TypedStorageClient(IStorageClient inner) => _inner = inner;
 
 			#region Blobs
 
@@ -151,6 +172,16 @@ namespace EpicGames.Horde.Storage
 
 			/// <inheritdoc/>
 			public Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteBundleAsync(bundle, prefix, cancellationToken);
+
+			#endregion
+
+			#region Trees
+
+			/// <inheritdoc/>
+			public ITreeWriter CreateTreeWriter(TreeOptions options, Utf8String prefix) => _inner.CreateTreeWriter(options, prefix);
+
+			/// <inheritdoc/>
+			public Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) => _inner.TryReadTreeAsync(name, maxAge, cancellationToken);
 
 			#endregion
 
@@ -175,11 +206,11 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Wraps a <see cref="IBlobStore"/> interface with a type argument
+		/// Wraps a <see cref="IStorageClient"/> interface with a type argument
 		/// </summary>
 		/// <param name="blobStore">Regular blob store instance</param>
 		/// <returns></returns>
-		public static IBlobStore<T> ForType<T>(this IBlobStore blobStore) => new TypedBlobStore<T>(blobStore);
+		public static IStorageClient<T> ForType<T>(this IStorageClient blobStore) => new TypedStorageClient<T>(blobStore);
 
 		/// <summary>
 		/// Checks if the given ref exists
@@ -189,7 +220,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref exists, false if it did not exist</returns>
-		public static async Task<bool> HasRefAsync(this IBlobStore store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public static async Task<bool> HasRefAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			return locator.IsValid();
@@ -203,9 +234,20 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxAge">Maximum age of any cached ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref exists, false if it did not exist</returns>
-		public static Task<bool> HasRefAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		public static Task<bool> HasRefAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return HasRefAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
+		}
+
+		/// <summary>
+		/// Creates a new tree writer with default options
+		/// </summary>
+		/// <param name="store">Store instance</param>
+		/// <param name="prefix"></param>
+		/// <returns></returns>
+		public static ITreeWriter CreateTreeWriter(this IStorageClient store, Utf8String prefix = default)
+		{
+			return store.CreateTreeWriter(new TreeOptions(), prefix);
 		}
 
 		/// <summary>
@@ -216,7 +258,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxAge">Maximum age of any cached ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static Task<BundleRef?> TryReadRefAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		public static Task<BundleRef?> TryReadRefAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return store.TryReadRefAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
@@ -229,7 +271,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxAge">Maximum age of any cached ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static Task<BlobLocator> TryReadRefTargetAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		public static Task<BlobLocator> TryReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return store.TryReadRefTargetAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
@@ -242,7 +284,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static async Task<BundleRef> ReadRefAsync(this IBlobStore store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public static async Task<BundleRef> ReadRefAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			BundleRef? bundleRef = await store.TryReadRefAsync(name, cacheTime, cancellationToken);
 			if (bundleRef == null)
@@ -260,7 +302,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxAge">Maximum age for any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static Task<BundleRef> ReadRefAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		public static Task<BundleRef> ReadRefAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return ReadRefAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
@@ -273,7 +315,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static async Task<BlobLocator> ReadRefTargetAsync(this IBlobStore store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public static async Task<BlobLocator> ReadRefTargetAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (!locator.IsValid())
@@ -291,7 +333,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxAge">Maximum age for any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static Task<BlobLocator> ReadRefTargetAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		public static Task<BlobLocator> ReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return ReadRefTargetAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
 		}

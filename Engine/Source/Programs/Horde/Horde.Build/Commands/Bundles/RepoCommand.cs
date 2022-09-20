@@ -37,7 +37,7 @@ namespace Horde.Build.Commands.Bundles
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
-			ITreeStore store = serviceProvider.GetRequiredService<ITreeStore<ReplicationService>>();
+			IStorageClient store = serviceProvider.GetRequiredService<IStorageClient<ReplicationService>>();
 
 			ReplicationNode node = await store.ReadTreeAsync<ReplicationNode>(RefName);
 			DirectoryNode root = await node.Contents.ExpandAsync();

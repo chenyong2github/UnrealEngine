@@ -277,16 +277,10 @@ namespace Horde.Build
 			}
 		}
 
-		static IBlobStore CreateBlobStore(IServiceProvider sp, BlobStoreOptions options)
+		static IStorageClient CreateStorageClient(IServiceProvider sp, BlobStoreOptions options)
 		{
 			IStorageBackend backend = CreateStorageBackend(sp, options);
 			return new BasicBlobStore(sp.GetRequiredService<MongoService>(), backend, sp.GetRequiredService<IMemoryCache>(), sp.GetRequiredService<ILogger<BasicBlobStore>>());
-		}
-
-		static ITreeStore CreateTreeStore(IServiceProvider sp, TreeStoreOptions options)
-		{
-			IBlobStore store = CreateBlobStore(sp, options);
-			return new TreeStore(store, options.Bundle);
 		}
 
 		public Startup(IConfiguration configuration)
@@ -466,7 +460,7 @@ namespace Horde.Build
 			// Storage providers
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
-			services.AddSingleton(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<ReplicationService>());
+			services.AddSingleton(sp => CreateStorageClient(sp, settings.CommitStorage).ForType<ReplicationService>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
 			

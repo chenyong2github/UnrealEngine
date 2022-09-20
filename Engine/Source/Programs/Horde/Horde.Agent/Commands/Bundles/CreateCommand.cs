@@ -14,12 +14,13 @@ namespace Horde.Agent.Commands.Bundles
 {
 	abstract class BundleCommandBase : Command
 	{
-		class FileBlobStore : IBlobStore
+		class FileBlobStore : StorageClientBase
 		{
 			readonly DirectoryReference _rootDir;
 			readonly ILogger _logger;
 
 			public FileBlobStore(DirectoryReference rootDir, ILogger logger)
+				: base(null)
 			{
 				_rootDir = rootDir;
 				_logger = logger;
@@ -43,7 +44,7 @@ namespace Horde.Agent.Commands.Bundles
 
 			#region Blobs
 
-			public async Task<Bundle> ReadBundleAsync(BlobLocator id, CancellationToken cancellationToken = default)
+			public override async Task<Bundle> ReadBundleAsync(BlobLocator id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetBlobFile(id);
 				_logger.LogInformation("Reading {File}", file);
@@ -51,7 +52,7 @@ namespace Horde.Agent.Commands.Bundles
 				return new Bundle(new MemoryReader(bytes));
 			}
 
-			public async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+			public override async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
 				BlobLocator id = BlobLocator.Create(HostId.Empty, prefix);
 				FileReference file = GetBlobFile(id);
@@ -65,24 +66,12 @@ namespace Horde.Agent.Commands.Bundles
 
 			#region Refs
 
-			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
+			public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
 			{
 				throw new NotImplementedException();
 			}
 
-			public async Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
-			{
-				BlobLocator locator = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-				if (!locator.IsValid())
-				{
-					return null;
-				}
-
-				Bundle bundle = await ReadBundleAsync(locator, cancellationToken);
-				return new BundleRef(locator, bundle);
-			}
-
-			public async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+			public override async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				if(!FileReference.Exists(file))
@@ -95,14 +84,7 @@ namespace Horde.Agent.Commands.Bundles
 				return new BlobLocator(text.Trim());
 			}
 
-			public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
-			{
-				BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
-				await WriteRefTargetAsync(name, locator, cancellationToken);
-				return locator;
-			}
-
-			public async Task WriteRefTargetAsync(RefName name, BlobLocator id, CancellationToken cancellationToken = default)
+			public override async Task WriteRefTargetAsync(RefName name, BlobLocator id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				DirectoryReference.CreateDirectory(file.Directory);
@@ -118,18 +100,12 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-StorageDir=", Description = "Overrides the default storage server with a local directory")]
 		public DirectoryReference StorageDir { get; set; } = DirectoryReference.Combine(Program.AppDir, "bundles");
 
-		IBlobStore? _blobStore;
+		IStorageClient? _storageClient;
 
-		protected IBlobStore CreateBlobStore(ILogger logger)
+		protected IStorageClient CreateStorageClient(ILogger logger)
 		{
-			_blobStore ??= new FileBlobStore(StorageDir, logger);
-			return _blobStore;
-		}
-
-		protected ITreeStore CreateTreeStore(ILogger logger)
-		{
-			IBlobStore blobStore = CreateBlobStore(logger);
-			return new TreeStore(blobStore, new TreeOptions());
+			_storageClient ??= new FileBlobStore(StorageDir, logger);
+			return _storageClient;
 		}
 	}
 
@@ -144,7 +120,7 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			using ITreeStore store = CreateTreeStore(logger);
+			IStorageClient store = CreateStorageClient(logger);
 			ITreeWriter writer = store.CreateTreeWriter(RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);

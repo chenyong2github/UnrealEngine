@@ -47,10 +47,10 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Implementation of <see cref="ITreeStore"/> which packs nodes together into <see cref="Bundle"/> objects, then stores them
-	/// in a <see cref="IBlobStore"/>.
+	/// Implementation of tree storage which packs nodes together into <see cref="Bundle"/> objects, then stores them
+	/// in a <see cref="IStorageClient"/>.
 	/// </summary>
-	public class TreeStore : ITreeStore, IDisposable
+	public class TreeStore
 	{
 		/// <summary>
 		/// Information about a node within a bundle.
@@ -210,6 +210,7 @@ namespace EpicGames.Horde.Storage
 			readonly TreeStore _owner;
 			readonly BundleContext _context;
 			readonly BundleWriter? _parent;
+			readonly TreeOptions _options;
 			readonly Utf8String _prefix;
 
 			public readonly ConcurrentDictionary<IoHash, NodeInfo> HashToNode = new ConcurrentDictionary<IoHash, NodeInfo>(); // TODO: this needs to include some additional state from external sources.
@@ -232,18 +233,19 @@ namespace EpicGames.Horde.Storage
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			public BundleWriter(TreeStore owner, BundleContext context, BundleWriter? parent, Utf8String prefix)
+			public BundleWriter(TreeStore owner, BundleContext context, BundleWriter? parent, TreeOptions options, Utf8String prefix)
 			{
 				_owner = owner;
 				_context = context;
 				_parent = parent;
+				_options = options;
 				_prefix = prefix;
 			}
 
 			/// <inheritdoc/>
 			public ITreeWriter CreateChildWriter()
 			{
-				BundleWriter writer = new BundleWriter(_owner, _context, this, _prefix);
+				BundleWriter writer = new BundleWriter(_owner, _context, this, _options, _prefix);
 				lock (_lockObject)
 				{
 					_children.Add(writer);
@@ -318,7 +320,7 @@ namespace EpicGames.Horde.Storage
 					NodeInfo nextNode = _queueNodes[_readyCount];
 					InMemoryNodeState nextState = (InMemoryNodeState)nextNode.State;
 
-					if (_readyCount > 0 && _readyLength + nextState.Data.Length > _owner._options.MaxBlobSize)
+					if (_readyCount > 0 && _readyLength + nextState.Data.Length > _options.MaxBlobSize)
 					{
 						WriteReady();
 					}
@@ -496,7 +498,7 @@ namespace EpicGames.Horde.Storage
 			/// </summary>
 			Bundle CreateBundle(NodeInfo[] nodes)
 			{
-				TreeOptions options = _owner._options;
+				TreeOptions options = _options;
 
 				// Create a set from the nodes to be written. We use this to determine references that are imported.
 				HashSet<NodeInfo> nodeSet = new HashSet<NodeInfo>(nodes);
@@ -567,7 +569,7 @@ namespace EpicGames.Horde.Storage
 					// If we can't fit this data into the current block, flush the contents of it first
 					if (blockSize > 0 && blockSize + nodeData.Length > options.MinCompressionPacketSize)
 					{
-						FlushPacket(_owner._options.CompressionFormat, blockSegments, blockSize, builder, packets);
+						FlushPacket(_options.CompressionFormat, blockSegments, blockSize, builder, packets);
 						blockSize = 0;
 					}
 
@@ -666,7 +668,7 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		readonly IBlobStore _blobStore;
+		readonly IStorageClient _blobStore;
 		readonly IMemoryCache? _cache;
 
 		readonly object _lockObject = new object();
@@ -675,45 +677,20 @@ namespace EpicGames.Horde.Storage
 		// so that other threads can also await it.
 		readonly Dictionary<string, Task<Bundle>> _readTasks = new Dictionary<string, Task<Bundle>>();
 
-		readonly TreeOptions _options;
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TreeStore(IBlobStore blobStore, TreeOptions options)
+		public TreeStore(IStorageClient blobStore, IMemoryCache? cache)
 		{
 			_blobStore = blobStore;
-			_options = options;
-			if (_options.CacheSize > 0)
-			{
-				_cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = _options.CacheSize });
-			}
+			_cache = cache;
 		}
 
 		/// <inheritdoc/>
-		public ITreeWriter CreateTreeWriter(Utf8String prefix = default) => new BundleWriter(this, new BundleContext(), null, prefix);
+		public ITreeWriter CreateTreeWriter(TreeOptions options, Utf8String prefix = default) => new BundleWriter(this, new BundleContext(), null, options, prefix);
 
 		/// <inheritdoc/>
 		public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(name, cancellationToken);
-
-		/// <inheritdoc/>
-		public void Dispose()
-		{
-			Dispose(true);
-			GC.SuppressFinalize(this);
-		}
-
-		/// <summary>
-		/// Dispose of this objects resources
-		/// </summary>
-		/// <param name="disposing"></param>
-		protected virtual void Dispose(bool disposing)
-		{
-			if (disposing)
-			{
-				_cache?.Dispose();
-			}
-		}
 
 		/// <inheritdoc/>
 		public Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.HasRefAsync(name, cancellationToken: cancellationToken);

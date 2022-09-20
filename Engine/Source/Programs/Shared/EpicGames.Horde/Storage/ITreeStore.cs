@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
@@ -41,50 +40,6 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The referenced node</returns>
 		ValueTask<ITreeBlob> GetTargetAsync(CancellationToken cancellationToken = default);
-	}
-
-	/// <summary>
-	/// Base interface for a tree store
-	/// </summary>
-	public interface ITreeStore : IDisposable
-	{
-		/// <summary>
-		/// Creates a new context for reading trees.
-		/// </summary>
-		/// <param name="prefix">Prefix for blobs. See <see cref="IBlobStore.WriteBundleAsync(Bundle, Utf8String, CancellationToken)"/></param>
-		/// <returns>New context instance</returns>
-		ITreeWriter CreateTreeWriter(Utf8String prefix = default);
-
-		/// <summary>
-		/// Deletes a tree with the given name
-		/// </summary>
-		/// <param name="name">Name of the ref used to store the tree</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Tests whether a tree exists with the given name
-		/// </summary>
-		/// <param name="name">Name of the ref used to store the tree</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Tree reader instance</returns>
-		Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Attempts to read a tree with the given name
-		/// </summary>
-		/// <param name="name">Name of the ref used to store the tree</param>
-		/// <param name="maxAge"></param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Reference to the root of the tree. Null if the ref does not exist.</returns>
-		Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default);
-	}
-
-	/// <summary>
-	/// Interface for a typed tree store
-	/// </summary>
-	public interface ITreeStore<T> : ITreeStore
-	{
 	}
 
 	/// <summary>
@@ -149,42 +104,6 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public static class TreeStoreExtensions
 	{
-		sealed class TypedTreeStore<T> : ITreeStore<T>
-		{
-			readonly ITreeStore _inner;
-
-			public TypedTreeStore(ITreeStore inner)
-			{
-				_inner = inner;
-			}
-
-			/// <inheritdoc/>
-			public ITreeWriter CreateTreeWriter(Utf8String prefix) => _inner.CreateTreeWriter(prefix);
-
-			/// <inheritdoc/>
-			public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.DeleteTreeAsync(name, cancellationToken);
-
-			/// <inheritdoc/>
-			public void Dispose() => _inner.Dispose();
-
-			/// <inheritdoc/>
-			public Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.HasTreeAsync(name, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) => _inner.TryReadTreeAsync(name, maxAge, cancellationToken);
-		}
-
-		/// <summary>
-		/// Wraps an <see cref="ITreeStore"/> interface with a type for dependency injection
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="store">The instance to wrap</param>
-		/// <returns>Wrapped instance of the tree store</returns>
-		public static ITreeStore<T> ForType<T>(this ITreeStore store)
-		{
-			return new TypedTreeStore<T>(store);
-		}
-
 		/// <summary>
 		/// Writes a ref using the given root data
 		/// </summary>

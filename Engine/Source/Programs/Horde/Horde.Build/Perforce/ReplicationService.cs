@@ -163,7 +163,7 @@ namespace Horde.Build.Perforce
 
 		readonly IStreamCollection _streamCollection;
 		readonly IPerforceService _perforceService;
-		readonly ITreeStore _treeStore;
+		readonly IStorageClient _treeStore;
 		readonly ILogger _logger;
 
 		const int MaxBackgroundTasks = 2;
@@ -183,7 +183,7 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReplicationService(RedisService redisService, /* CommitService commitService, */IStreamCollection streamCollection, IPerforceService perforceService, ITreeStore<ReplicationService> treeStore, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
+		public ReplicationService(RedisService redisService, /* CommitService commitService, */IStreamCollection streamCollection, IPerforceService perforceService, IStorageClient<ReplicationService> treeStore, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
 		{
 			Options = options.Value;
 
@@ -877,7 +877,7 @@ namespace Horde.Build.Perforce
 			// Delete the incremental state
 			if (deleteIncRef)
 			{
-				await _treeStore.DeleteTreeAsync(incRefName, cancellationToken);
+				await _treeStore.DeleteRefAsync(incRefName, cancellationToken);
 			}
 			return syncNode;
 		}

@@ -48,7 +48,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task BasicChunkingTests()
 		{
-			using TreeStore store = new TreeStore(new InMemoryBlobStore(), new TreeOptions());
+			InMemoryBlobStore store = new InMemoryBlobStore();
 			ITreeWriter writer = store.CreateTreeWriter("test");
 
 			ChunkingOptions options = new ChunkingOptions();
@@ -104,7 +104,7 @@ namespace EpicGames.Horde.Tests
 
 		static async Task TestChunkingAsync(ChunkingOptions options)
 		{
-			using TreeStore store = new TreeStore(new InMemoryBlobStore(), new TreeOptions());
+			InMemoryBlobStore store = new InMemoryBlobStore();
 			ITreeWriter writer = store.CreateTreeWriter();
 
 			byte[] data = new byte[4096];

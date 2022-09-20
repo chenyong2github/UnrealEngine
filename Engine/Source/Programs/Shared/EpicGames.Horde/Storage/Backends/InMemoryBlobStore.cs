@@ -11,9 +11,9 @@ using EpicGames.Core;
 namespace EpicGames.Horde.Storage.Backends
 {
 	/// <summary>
-	/// Implementation of <see cref="IBlobStore"/> which stores data in memory. Not intended for production use.
+	/// Implementation of <see cref="IStorageClient"/> which stores data in memory. Not intended for production use.
 	/// </summary>
-	public class InMemoryBlobStore : IBlobStore
+	public class InMemoryBlobStore : StorageClientBase
 	{
 		/// <summary>
 		/// Map of blob id to blob data
@@ -31,16 +31,24 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <inheritdoc cref="_refs"/>
 		public IReadOnlyDictionary<RefName, BlobLocator> Refs => _refs;
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public InMemoryBlobStore() 
+			: base(null)
+		{
+		}
+
 		#region Blobs
 
 		/// <inheritdoc/>
-		public Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		public override Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			return Task.FromResult(_blobs[locator]);
 		}
 
 		/// <inheritdoc/>
-		public Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public override Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = BlobLocator.Create(HostId.Empty, prefix);
 			_blobs[locator] = bundle;
@@ -52,21 +60,10 @@ namespace EpicGames.Horde.Storage.Backends
 		#region Refs
 
 		/// <inheritdoc/>
-		public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(name, out _));
+		public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(name, out _));
 
 		/// <inheritdoc/>
-		public Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
-		{
-			BundleRef? result = null;
-			if (_refs.TryGetValue(name, out BlobLocator locator) && _blobs.TryGetValue(locator, out Bundle? bundle))
-			{
-				result = new BundleRef(locator, bundle);
-			}
-			return Task.FromResult(result);
-		}
-
-		/// <inheritdoc/>
-		public Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public override Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			if (_refs.TryGetValue(name, out BlobLocator locator))
 			{
@@ -79,15 +76,7 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix, CancellationToken cancellationToken)
-		{
-			BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
-			_refs[name] = locator;
-			return locator;
-		}
-
-		/// <inheritdoc/>
-		public Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
+		public override Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			_refs[name] = locator;
 			return Task.CompletedTask;

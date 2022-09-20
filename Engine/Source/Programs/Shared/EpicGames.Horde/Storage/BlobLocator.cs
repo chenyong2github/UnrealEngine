@@ -13,7 +13,7 @@ namespace EpicGames.Horde.Storage
 {
 	/// <summary>
 	/// Unique identifier for a blob, as a utf-8 string. Clients should not assume any internal structure to this identifier; it only
-	/// has meaning to the <see cref="IBlobStore"/> implementation.
+	/// has meaning to the <see cref="IStorageClient"/> implementation.
 	/// </summary>
 	[JsonConverter(typeof(BlobLocatorJsonConverter))]
 	[TypeConverter(typeof(BlobLocatorTypeConverter))]

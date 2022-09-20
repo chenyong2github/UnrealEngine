@@ -16,9 +16,9 @@ using MongoDB.Driver;
 namespace Horde.Build.Storage
 {
 	/// <summary>
-	/// Implementation of <see cref="IBlobStore"/> using Mongo for storing refs, and an <see cref="IStorageBackend"/> implementation for bulk data.
+	/// Implementation of <see cref="IStorageClient"/> using Mongo for storing refs, and an <see cref="IStorageBackend"/> implementation for bulk data.
 	/// </summary>
-	public class BasicBlobStore : IBlobStore
+	public class BasicBlobStore : StorageClientBase
 	{
 		class RefDocument
 		{
@@ -69,6 +69,7 @@ namespace Horde.Build.Storage
 		/// <param name="cache">Cache for ref values</param>
 		/// <param name="logger">Logger for this instance</param>
 		public BasicBlobStore(MongoService mongoService, IStorageBackend backend, IMemoryCache cache, ILogger<BasicBlobStore> logger)
+			: base(cache)
 		{
 			_refs = mongoService.GetCollection<RefDocument>("Refs");
 			_backend = backend;
@@ -81,7 +82,7 @@ namespace Horde.Build.Storage
 		static string GetBlobPath(BlobId id) => $"{id}.blob";
 
 		/// <inheritdoc/>
-		public async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		public override async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			string path = GetBlobPath(locator.BlobId);
 
@@ -95,7 +96,7 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public override async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
 			BlobId id = BlobId.CreateNew(prefix);
 			string path = GetBlobPath(id);
@@ -126,34 +127,14 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
+		public override async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
 		{
 			await _refs.DeleteOneAsync(x => x.Name == name, cancellationToken);
 			AddRefToCache(name, BlobLocator.Empty);
 		}
 
 		/// <inheritdoc/>
-		public async Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
-		{
-			BlobLocator locator = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (locator.IsValid())
-			{
-				try
-				{
-					Bundle? bundle = await ReadBundleAsync(locator, cancellationToken);
-					return new BundleRef(locator, bundle);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogWarning(ex, "Unable to read blob {BlobId} referenced by ref {RefName}", locator, name);
-					return null;
-				}
-			}
-			return null;
-		}
-
-		/// <inheritdoc/>
-		public async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public override async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			CachedRefValue entry;
 			if (!_cache.TryGetValue(name, out entry) || entry.Time < cacheTime)
@@ -166,15 +147,7 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
-		{
-			BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
-			await WriteRefTargetAsync(name, locator, cancellationToken);
-			return locator;
-		}
-
-		/// <inheritdoc/>
-		public async Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
+		public override async Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			RefDocument refDocument = new RefDocument(name, locator);
 			await _refs.ReplaceOneAsync(x => x.Name == name, refDocument, new ReplaceOptions { IsUpsert = true }, cancellationToken);

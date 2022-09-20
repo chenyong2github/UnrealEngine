@@ -40,12 +40,11 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
 
-		static async Task TestTreeAsync(InMemoryBlobStore blobStore, TreeOptions options)
+		static async Task TestTreeAsync(InMemoryBlobStore store, TreeOptions options)
 		{
 			// Generate a tree
-			using (TreeStore store = new TreeStore(blobStore, options))
 			{
-				ITreeWriter writer = store.CreateTreeWriter("test");
+				ITreeWriter writer = store.CreateTreeWriter(options, "test");
 
 				ITreeBlobRef node1 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
 				ITreeBlobRef node2 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { node1 }, CancellationToken.None);
@@ -59,9 +58,8 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (TreeStore collection = new TreeStore(blobStore, options))
 			{
-				ITreeBlob? root = await collection.TryReadTreeAsync(new RefName("test"));
+				ITreeBlob? root = await store.TryReadTreeAsync(new RefName("test"));
 				Assert.IsNotNull(root);
 				await CheckTree(root!);
 			}
@@ -103,10 +101,9 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task DirectoryNodesAsync()
 		{
-			InMemoryBlobStore blobStore = new InMemoryBlobStore();
+			InMemoryBlobStore store = new InMemoryBlobStore();
 
 			// Generate a tree
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions()))
 			{
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
@@ -117,7 +114,6 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions()))
 			{
 				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefName("test"));
 				await CheckDirectoryTreeAsync(root);
@@ -140,10 +136,9 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task FileNodesAsync()
 		{
-			InMemoryBlobStore blobStore = new InMemoryBlobStore();
+			InMemoryBlobStore store = new InMemoryBlobStore();
 
 			// Generate a tree
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions()))
 			{
 				ITreeWriter writer = store.CreateTreeWriter();
 
@@ -159,7 +154,6 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions()))
 			{
 				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefName("test"));
 				await CheckFileTreeAsync(root);
@@ -185,8 +179,8 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task ChunkingTests()
 		{
-			using TreeStore store = new TreeStore(new InMemoryBlobStore(), new TreeOptions());
-			ITreeWriter writer = store.CreateTreeWriter();
+			InMemoryBlobStore store = new InMemoryBlobStore();
+			ITreeWriter writer = store.CreateTreeWriter(new TreeOptions());
 
 			byte[] chunk = RandomNumberGenerator.GetBytes(256);
 
@@ -223,11 +217,10 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task ChildWriterAsync()
 		{
-			InMemoryBlobStore blobStore = new InMemoryBlobStore();
+			InMemoryBlobStore store = new InMemoryBlobStore();
 
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions()))
 			{
-				ITreeWriter writer = store.CreateTreeWriter();
+				ITreeWriter writer = store.CreateTreeWriter(new TreeOptions());
 
 				ITreeWriter childWriter1 = writer.CreateChildWriter();
 				ITreeBlobRef childNode1 = await childWriter1.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4, 5, 6 }), Array.Empty<ITreeBlobRef>());
@@ -238,8 +231,8 @@ namespace EpicGames.Horde.Tests
 				RefName refName = new RefName("test");
 				await writer.WriteRefAsync(refName, new ReadOnlySequence<byte>(new byte[] { 1, 2, 3 }), new[] { childNode1, childNode2 });
 
-				Assert.AreEqual(3, blobStore.Blobs.Count);
-				Assert.AreEqual(1, blobStore.Refs.Count);
+				Assert.AreEqual(3, store.Blobs.Count);
+				Assert.AreEqual(1, store.Refs.Count);
 
 				ITreeBlob? rootBlob = await store.TryReadTreeAsync(refName);
 				Assert.IsNotNull(rootBlob);
@@ -259,7 +252,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task LargeFileTestAsync()
 		{
-			InMemoryBlobStore blobStore = new InMemoryBlobStore();
+			InMemoryBlobStore store = new InMemoryBlobStore();
 
 			const int length = 1024;
 			const int copies = 4096;
@@ -274,9 +267,8 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Generate a tree
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions { MaxBlobSize = 1024 }))
 			{
-				ITreeWriter writer = store.CreateTreeWriter();
+				ITreeWriter writer = store.CreateTreeWriter(new TreeOptions { MaxBlobSize = 1024 });
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 
@@ -294,7 +286,6 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (TreeStore store = new TreeStore(blobStore, new TreeOptions()))
 			{
 				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefName("test"));
 				await CheckLargeFileTreeAsync(root, data);

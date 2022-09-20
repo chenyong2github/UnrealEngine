@@ -37,7 +37,7 @@ namespace Horde.Build.Tests
 	[TestClass]
 	public class BlobStoreTests : TestSetup
 	{
-		IBlobStore CreateBlobStore()
+		IStorageClient CreateBlobStore()
 		{
 			return new BasicBlobStore(MongoService, new TransientStorageBackend(), ServiceProvider.GetRequiredService<IMemoryCache>(), ServiceProvider.GetRequiredService<ILogger<BasicBlobStore>>());
 		}
@@ -81,7 +81,7 @@ namespace Horde.Build.Tests
 			return new Bundle(header, data);
 		}
 
-		static async Task<Blob> ReadBlobAsync(IBlobStore store, BlobLocator locator)
+		static async Task<Blob> ReadBlobAsync(IStorageClient store, BlobLocator locator)
 		{
 			Bundle bundle = await store.ReadBundleAsync(locator);
 			return ExtractBlobFromBundle(bundle);
@@ -98,7 +98,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task LeafTest()
 		{
-			IBlobStore store = CreateBlobStore();
+			IStorageClient store = CreateBlobStore();
 
 			byte[] input = CreateTestData(256, 0);
 			BlobLocator locator = await store.WriteBundleAsync(CreateTestBundle(new ReadOnlySequence<byte>(input), Array.Empty<BlobLocator>()));
@@ -110,7 +110,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task ReferenceTest()
 		{
-			IBlobStore store = CreateBlobStore();
+			IStorageClient store = CreateBlobStore();
 
 			byte[] input1 = CreateTestData(256, 1);
 			BlobLocator locator1 = await store.WriteBundleAsync(CreateTestBundle(new ReadOnlySequence<byte>(input1), Array.Empty<BlobLocator>()));

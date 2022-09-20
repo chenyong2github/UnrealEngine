@@ -21,17 +21,17 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IBlobStore blobStore = CreateBlobStore(logger);
+			IStorageClient storage = CreateStorageClient(logger);
 
 			Bundle blob;
 			if (BlobId != null)
 			{
-				blob = await blobStore.ReadBundleAsync(BlobId.Value);
+				blob = await storage.ReadBundleAsync(BlobId.Value);
 				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
 			}
 			else
 			{
-				blob = await blobStore.ReadRefAsync(RefName);
+				blob = await storage.ReadRefAsync(RefName);
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 
