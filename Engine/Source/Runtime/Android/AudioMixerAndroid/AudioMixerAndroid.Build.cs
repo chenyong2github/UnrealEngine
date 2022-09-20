@@ -31,6 +31,8 @@ public class AudioMixerAndroid : ModuleRules
                     "Engine"
                 }
             );
+
+            PublicDefinitions.Add("WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG=0");
         }
 	}
 }
