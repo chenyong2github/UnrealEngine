@@ -377,6 +377,7 @@ namespace AJA
 		virtual void OnOutputFrameStarted() { }
 		virtual bool OnOutputFrameCopied(const AJAOutputFrameData& InFrameData) = 0;
 		virtual void OnCompletion(bool bSucceed) = 0;
+		virtual void OnFormatChange(FAJAVideoFormat VideoFormat) {}
 	};
 
 	/* AJAInputOutputChannelOptions definition
@@ -445,6 +446,8 @@ namespace AJA
 
 		// Only available if the initialization succeeded
 		uint32_t GetFrameDropCount() const;
+		const AJAInputOutputChannelOptions& GetOptions() const;
+		const AJADeviceOptions& GetDeviceOptions() const;
 
 	private:
 		Private::InputChannel* Channel;

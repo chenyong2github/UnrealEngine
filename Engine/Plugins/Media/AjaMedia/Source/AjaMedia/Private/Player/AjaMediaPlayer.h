@@ -87,6 +87,8 @@ protected:
 	virtual bool OnInputFrameReceived(const AJA::AJAInputFrameData& InInputFrame, const AJA::AJAAncillaryFrameData& InAncillaryFrame, const AJA::AJAAudioFrameData& AudioFrame, const AJA::AJAVideoFrameData& VideoFrame) override;
 	virtual bool OnOutputFrameCopied(const AJA::AJAOutputFrameData& InFrameData) override;
 	virtual void OnCompletion(bool bSucceed) override;
+	virtual void OnFormatChange(AJA::FAJAVideoFormat Format) override;
+
 
 protected:
 
@@ -119,6 +121,7 @@ protected:
 
 private:
 	bool Open_Internal(const FString& Url, const IMediaOptions* Options, AJA::AJAInputOutputChannelOptions AjaOptions);
+	void OpenFromFormatChange(AJA::AJADeviceOptions DeviceOptions, AJA::AJAInputOutputChannelOptions AjaOptions);
 	void OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options, bool bAutoDetectVideoFormat, bool bAutoDetectTimecodeFormat);
 
 private:
@@ -180,9 +183,6 @@ private:
 
 	/** Used to flag which sample types we advertise as supported for timed data monitoring */
 	EMediaIOSampleType SupportedSampleTypes;
-
-	/** Frame Description from capture device */
-	AJA::FAJAVideoFormat LastVideoFormatIndex;
 
 	/** Previous frame timecode for stats purpose */
 	AJA::FTimecode AjaThreadPreviousFrameTimecode;

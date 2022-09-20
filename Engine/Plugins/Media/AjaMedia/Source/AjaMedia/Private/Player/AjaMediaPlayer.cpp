@@ -28,6 +28,7 @@
 #include "Styling/SlateStyle.h"
 
 
+
 #if WITH_EDITOR
 #include "EngineAnalytics.h"
 #endif
@@ -359,6 +360,40 @@ void FAjaMediaPlayer::OnCompletion(bool bSucceed)
 	{
 		AjaThreadNewState = bSucceed ? EMediaState::Closed : EMediaState::Error;
 	}
+}
+
+void FAjaMediaPlayer::OnFormatChange(AJA::FAJAVideoFormat Format)
+{
+	const AJA::AJAVideoFormats::VideoFormatDescriptor Descriptor = AJA::AJAVideoFormats::GetVideoFormat(Format);
+
+	FMediaIOMode MediaIOMode;
+	MediaIOMode.DeviceModeIdentifier = Format;
+	MediaIOMode.FrameRate = VideoFrameRate;
+	MediaIOMode.Resolution = VideoTrackFormat.Dim;
+
+	EMediaIOStandardType Standard = EMediaIOStandardType::Progressive;
+	if (Descriptor.bIsInterlacedStandard)
+	{
+		Standard = EMediaIOStandardType::Interlaced;
+	}
+	else if (Descriptor.bIsPsfStandard)
+	{
+		Standard = EMediaIOStandardType::ProgressiveSegmentedFrame;
+	}
+
+	MediaIOMode.Standard = Standard;
+	VideoTrackFormat.TypeName = MediaIOMode.GetModeName().ToString();
+
+	AJA::AJAInputOutputChannelOptions Options = InputChannel->GetOptions();
+	AJA::AJADeviceOptions DeviceOptions = InputChannel->GetDeviceOptions();
+
+	UE_LOG(LogAjaMedia, Display, TEXT("New configuration was detected for AjaMediaPlayer: %s"), *VideoTrackFormat.TypeName);
+
+	Close();
+	AsyncTask(ENamedThreads::GameThread, [this, DeviceOptions, Options]()
+	{
+		OpenFromFormatChange(DeviceOptions, Options);
+	});
 }
 
 bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData& InRequestBuffer, AJA::AJARequestedInputBufferData& OutRequestedBuffer)
@@ -747,7 +782,6 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 		{
 			AjaOptions.VideoFormatIndex = Options->GetMediaOption(AjaMediaOption::AjaVideoFormat, (int64)0);
 		}
-		LastVideoFormatIndex = AjaOptions.VideoFormatIndex;
 	}
 	{
 		AjaColorFormat = (EAjaMediaSourceColorFormat)(Options->GetMediaOption(AjaMediaOption::ColorFormat, (int64)EAjaMediaSourceColorFormat::YUV2_8bit));
@@ -843,6 +877,38 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 	return true;
 }
 
+void FAjaMediaPlayer::OpenFromFormatChange(AJA::AJADeviceOptions DeviceOptions, AJA::AJAInputOutputChannelOptions AjaOptions)
+{
+	{
+		//Adjust supported sample types based on what's being captured
+		SupportedSampleTypes = AjaOptions.bUseVideo ? EMediaIOSampleType::Video : EMediaIOSampleType::None;
+		SupportedSampleTypes |= AjaOptions.bUseAudio ? EMediaIOSampleType::Audio : EMediaIOSampleType::None;
+		SupportedSampleTypes |= AjaOptions.bUseAncillary ? EMediaIOSampleType::Metadata : EMediaIOSampleType::None;
+		Samples->EnableTimedDataChannels(this, SupportedSampleTypes);
+	}
+
+	check(InputChannel == nullptr);
+	InputChannel = new AJA::AJAInputChannel();
+	if (!InputChannel->Initialize(DeviceOptions, AjaOptions))
+	{
+		UE_LOG(LogAjaMedia, Warning, TEXT("The AJA port couldn't be opened."));
+		CurrentState = EMediaState::Error;
+		AjaThreadNewState = EMediaState::Error;
+		delete InputChannel;
+		InputChannel = nullptr;
+	}
+
+	// Setup our different supported channels based on source settings
+	SetupSampleChannels();
+
+	// Configure format information for base class
+
+	// Finalize
+	CurrentState = EMediaState::Preparing;
+	AjaThreadNewState = EMediaState::Preparing;
+	EventSink.ReceiveMediaEvent(EMediaEvent::MediaConnecting);
+}
+
 void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options, bool bAutoDetectVideoFormat, bool bAutoDetectTimecodeFormat)
 {
 	bool bConfigurationFound = false;
@@ -867,6 +933,7 @@ void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigur
 				VideoTrackFormat.TypeName = Configuration.Configuration.MediaMode.GetModeName().ToString();
 			
 				AjaOptions.VideoFormatIndex = Configuration.Configuration.MediaMode.DeviceModeIdentifier;
+				UE_LOG(LogAjaMedia, Display, TEXT("New configuration was detected for AjaMediaPlayer: %s"), *VideoTrackFormat.TypeName);
 			}
 
 			if (bAutoDetectTimecodeFormat)
