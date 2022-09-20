@@ -1600,6 +1600,13 @@ namespace UnrealBuildTool
 		public bool bEnableCppCoroutinesForEvaluation = false;
 
 		/// <summary>
+		/// Whether to enable engine's ability to set process priority on runtime.
+		/// This option requires some environment setup on Linux, that's why it's disabled by default.
+		/// Project has to opt-in this feature as it has to guarantee correct setup.
+		/// </summary>
+		public bool bEnableProcessPriorityControl = false;
+
+		/// <summary>
 		/// If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -3220,6 +3227,11 @@ namespace UnrealBuildTool
 		public bool bEnableCppCoroutinesForEvaluation
 		{
 			get { return Inner.bEnableCppCoroutinesForEvaluation; }
+		}
+
+		public bool bEnableProcessPriorityControl
+		{
+			get { return Inner.bEnableProcessPriorityControl; }
 		}
 
 		public bool bUseMallocProfiler

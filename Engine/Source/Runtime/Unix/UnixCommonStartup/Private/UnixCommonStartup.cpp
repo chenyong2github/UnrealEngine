@@ -183,6 +183,12 @@ static bool IncreasePerProcessLimits()
 		}
 	}
 
+	if constexpr (WITH_PROCESS_PRIORITY_CONTROL)
+	{
+		printf("Increasing per-process limit for scheduling priority.\n");
+		SetResourceMaxHardLimit(RLIMIT_NICE);
+	}
+
 	return true;
 }
 

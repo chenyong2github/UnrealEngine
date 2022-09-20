@@ -468,3 +468,8 @@
 
 // Controls if the config system can stores configs for other platforms than the running one
 #define ALLOW_OTHER_PLATFORM_CONFIG		WITH_UNREAL_DEVELOPER_TOOLS
+
+// Controls whether or not process will control OS scheduler priority
+#ifndef WITH_PROCESS_PRIORITY_CONTROL
+	#define WITH_PROCESS_PRIORITY_CONTROL 0
+#endif

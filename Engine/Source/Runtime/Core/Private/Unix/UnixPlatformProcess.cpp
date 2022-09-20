@@ -2057,3 +2057,66 @@ void FUnixPlatformProcess::OnChildEndFramePostFork()
 
 	FCoreDelegates::OnChildEndFramePostFork.Broadcast();
 }
+
+int32 FUnixPlatformProcess::TranslateThreadPriority(EThreadPriority Priority)
+{
+	// In general, the range is -20 to 19 (negative is highest, positive is lowest)
+	int32 NiceLevel = 0;
+	switch (Priority)
+	{
+		case TPri_TimeCritical:
+			NiceLevel = -20;
+			break;
+
+		case TPri_Highest:
+			NiceLevel = -15;
+			break;
+
+		case TPri_AboveNormal:
+			NiceLevel = -10;
+			break;
+
+		case TPri_Normal:
+			NiceLevel = 0;
+			break;
+
+		case TPri_SlightlyBelowNormal:
+			NiceLevel = 3;
+			break;
+
+		case TPri_BelowNormal:
+			NiceLevel = 5;
+			break;
+
+		case TPri_Lowest:
+			NiceLevel = 10;		// 19 is a total starvation
+			break;
+
+		default:
+			UE_LOG(LogHAL, Fatal, TEXT("Unknown Priority passed to FRunnableThreadPThread::TranslateThreadPriority()"));
+			return 0;
+	}
+
+	// note: a non-privileged process can only go as low as RLIMIT_NICE
+	return NiceLevel;
+}
+
+void FUnixPlatformProcess::SetThreadNiceValue(uint32_t ThreadId, int32 NiceValue)
+{
+	// We still try to set priority, but failure is not considered as an error
+	if (setpriority(PRIO_PROCESS, ThreadId, NiceValue) != 0 && WITH_PROCESS_PRIORITY_CONTROL)
+	{
+		// Unfortunately this is going to be a frequent occurence given that by default Unix doesn't allow raising priorities.
+		// NOTE: In WSL run "sudo prlimit --nice=40 --pid $$" to promote current shell to change nice values.
+		int ErrNo = errno;
+		UE_LOG(LogHAL, Error, TEXT("Can't set nice to %d. Reason = %s. Do you have CAP_SYS_NICE capability?"), NiceValue, ANSI_TO_TCHAR(strerror(ErrNo)));
+	}
+}
+
+void FUnixPlatformProcess::SetThreadPriority(EThreadPriority NewPriority)
+{
+	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	int32 NiceValue = FUnixPlatformProcess::TranslateThreadPriority(NewPriority);
+
+	FUnixPlatformProcess::SetThreadNiceValue(ThreadId, NiceValue);
+}

@@ -301,6 +301,9 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	static bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true);
 	static bool IsFirstInstance();
 	static void OnChildEndFramePostFork();
+	static int32 TranslateThreadPriority(EThreadPriority Priority);
+	static void SetThreadNiceValue( uint32_t ThreadId, int32 NiceValue );
+	static void SetThreadPriority( EThreadPriority NewPriority );
 
 	/**
 	 * @brief Releases locks that we held for IsFirstInstance check
