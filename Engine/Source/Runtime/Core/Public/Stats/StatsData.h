@@ -816,7 +816,7 @@ struct CORE_API FStatsUtils
 /**
 * Contains helpers functions to manage complex stat messages.
 */
-struct FComplexStatUtils
+struct CORE_API FComplexStatUtils
 {
 	/** Accumulates a stat message into a complex stat message. */
 	static void AddAndMinMax( FComplexStatMessage& Dest, const FStatMessage& Item, EComplexStatField::Type SumIndex, EComplexStatField::Type MaxIndex, EComplexStatField::Type MinIndex);
