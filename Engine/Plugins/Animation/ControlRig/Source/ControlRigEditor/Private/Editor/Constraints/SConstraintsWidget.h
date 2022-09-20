@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 #include "Constraint.h"
+#include "EditorUndoClient.h"
 
 class AActor;
 class SConstraintsCreationWidget;
@@ -192,7 +193,7 @@ private:
  * SConstraintsEditionWidget
  */
 
-class CONTROLRIGEDITOR_API SConstraintsEditionWidget : public SCompoundWidget
+class CONTROLRIGEDITOR_API SConstraintsEditionWidget : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SConstraintsEditionWidget)	{}
@@ -224,6 +225,11 @@ public:
 
 	/**  */
 	void RemoveItem(const TSharedPtr<FEditableConstraintItem>& Item);
+
+	/* FEditorUndoClient interface */
+	virtual void PostUndo(bool bSuccess);
+	virtual void PostRedo(bool bSuccess);
+	/* End FEditorUndoClient interface */
 
 private:
 	/** Types */

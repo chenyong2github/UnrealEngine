@@ -883,13 +883,13 @@ TArray<FConstraintAndActiveChannel>& UMovieScene3DTransformSection::GetConstrain
 bool UMovieScene3DTransformSection::Modify(bool bAlwaysMarkDirty)
 {
 	using namespace UE::MovieScene;
-
-	bool bModified = Super::Modify(bAlwaysMarkDirty);
 	if (Constraints)
 	{
 		Constraints->SetFlags(RF_Transactional);
 		Constraints->Modify(bAlwaysMarkDirty);
 	}
+	bool bModified = Super::Modify(bAlwaysMarkDirty);
+	
 	return bModified;
 }
 #endif

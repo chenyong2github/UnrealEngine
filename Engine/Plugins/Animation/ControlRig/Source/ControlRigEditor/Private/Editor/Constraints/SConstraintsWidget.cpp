@@ -788,6 +788,16 @@ void SConstraintsEditionWidget::RemoveItem(const TSharedPtr<FEditableConstraintI
 	RefreshConstraintList();
 }
 
+void SConstraintsEditionWidget::PostUndo(bool bSuccess)
+{
+	InvalidateConstraintList();
+}
+
+void SConstraintsEditionWidget::PostRedo(bool bSuccess)
+{
+	InvalidateConstraintList();
+}
+
 void SConstraintsEditionWidget::InvalidateConstraintList()
 {
 	bNeedsRefresh = true;

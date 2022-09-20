@@ -210,7 +210,7 @@ UConstraintsManager* UConstraintsManager::Get(UWorld* InWorld)
 #if WITH_EDITOR
 	ConstraintsActor->SetActorLabel(TEXT("Constraints Manager"));
 #endif // WITH_EDITOR
-
+	ConstraintsActor->ConstraintsManager->SetFlags(RF_Transactional);
 	return ConstraintsActor->ConstraintsManager;
 }
 
@@ -440,17 +440,18 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	UTickableConstraint* Constraint = Manager->Constraints[InConstraintIndex];
 	
 	// notify deletion
+	Manager->Modify();
+	Manager->Constraints[InConstraintIndex]->Modify();
 	ConstraintRemoved.Broadcast(ConstraintName);
 	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint);
 
-	Manager->Modify();
-	Manager->Constraints[InConstraintIndex]->ConstraintTick.UnRegisterTickFunction();
+	Manager->Constraints[InConstraintIndex]->SetActive(false);
 	Manager->Constraints.RemoveAt(InConstraintIndex);
 
 	// destroy constraints actor if no constraints left
 	if (Manager->Constraints.IsEmpty())
 	{
-		DestroyManager();
+		// todo will re-evaluate this based upon spawnable work. DestroyManager();
 	}
 	return true;
 }
