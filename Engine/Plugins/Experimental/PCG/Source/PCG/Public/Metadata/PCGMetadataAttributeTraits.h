@@ -13,6 +13,7 @@ enum class EPCGMetadataTypes : uint8
 	Double,
 	Integer32,
 	Integer64,
+	Vector2,
 	Vector,
 	Vector4,
 	Quaternion,
@@ -40,6 +41,7 @@ namespace PCG
 		PCGMetadataGenerateDataTypes(double, Double);
 		PCGMetadataGenerateDataTypes(int32, Integer32);
 		PCGMetadataGenerateDataTypes(int64, Integer64);
+		PCGMetadataGenerateDataTypes(FVector2D, Vector2);
 		PCGMetadataGenerateDataTypes(FVector, Vector);
 		PCGMetadataGenerateDataTypes(FVector4, Vector4);
 		PCGMetadataGenerateDataTypes(FQuat, Quaternion);
@@ -153,41 +155,50 @@ namespace PCG
 		};
 
 		// Vector types
-		template<>
-		struct MetadataTraits<FVector> : DefaultOperationTraits<FVector>
+		template<typename T>
+		struct VectorTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = true };
 			enum { CanInterpolate = true };
 
-			static FVector Min(const FVector& A, const FVector& B) 
+			static T ZeroValue()
 			{
-				return FVector(FMath::Min(A.X, B.X), FMath::Min(A.Y, B.Y), FMath::Min(A.Z, B.Z));
-			}
-
-			static FVector Max(const FVector& A, const FVector& B)
-			{
-				return FVector(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y), FMath::Max(A.Z, B.Z));
-			}
-
-			static FVector WeightedSum(const FVector& A, const FVector& B, float Weight)
-			{
-				return A + B * Weight;
-			}
-
-			static FVector ZeroValue()
-			{
-				return FVector::ZeroVector;
+				return T::Zero();
 			}
 		};
 
 		template<>
-		struct MetadataTraits<FVector4> : DefaultOperationTraits<FVector4>
+		struct MetadataTraits<FVector2D> : VectorTraits<FVector2D>
 		{
-			enum { CompressData = false };
-			enum { CanMinMax = true };
-			enum { CanInterpolate = true };
+			static FVector2D Min(const FVector2D& A, const FVector2D& B)
+			{
+				return FVector2D::Min(A, B);
+			}
 
+			static FVector2D Max(const FVector2D& A, const FVector2D& B)
+			{
+				return FVector2D::Max(A, B);
+			}
+		};
+
+		template<>
+		struct MetadataTraits<FVector> : VectorTraits<FVector>
+		{
+			static FVector Min(const FVector& A, const FVector& B)
+			{
+				return FVector::Min(A, B);
+			}
+
+			static FVector Max(const FVector& A, const FVector& B)
+			{
+				return FVector::Max(A, B);
+			}
+		};
+		
+		template<>
+		struct MetadataTraits<FVector4> : VectorTraits<FVector4>
+		{
 			static FVector4 Min(const FVector4& A, const FVector4& B)
 			{
 				return FVector4(FMath::Min(A.X, B.X), FMath::Min(A.Y, B.Y), FMath::Min(A.Z, B.Z), FMath::Min(A.W, B.W));
@@ -196,16 +207,6 @@ namespace PCG
 			static FVector4 Max(const FVector4& A, const FVector4& B)
 			{
 				return FVector4(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y), FMath::Max(A.Z, B.Z), FMath::Max(A.W, B.W));
-			}
-
-			static FVector4 WeightedSum(const FVector4& A, const FVector4& B, float Weight)
-			{
-				return A + B * Weight;
-			}
-
-			static FVector4 ZeroValue()
-			{
-				return FVector4::Zero();
 			}
 		};
 

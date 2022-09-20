@@ -16,7 +16,6 @@ enum class EPCGTextureColorChannel : uint8
 	Alpha
 };
 
-
 UENUM(BlueprintType)
 enum class EPCGTextureDensityFunction : uint8
 {
@@ -53,25 +52,29 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGTextureColorChannel ColorChannel = EPCGTextureColorChannel::Alpha;
 
+	/** The size of one texel in cm, used when calling ToPointData. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "1.0", ClampMin = "1.0"))
+	float TexelSize = 50.0f;
+
 	/** Whether to tile the source or to stretch it to fit target area. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bStretchToFit = true;
+	bool bUseAdvancedTiling = false;
 
-	/** The size of one texel in cm. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "1.0", ClampMin = "1.0", EditCondition = "!bStretchToFit"))
-	float TexelSize = 50;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Tiling", meta = (EditCondition = "bUseAdvancedTiling"))
+	FVector2D Tiling = FVector2D(1.0, 1.0);
 
-	/** X Offset factor to apply when sampling texture (Factor of texture dimension). */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "0.0", ClampMin = "0.0", UIMax = "1.0", ClampMax = "1.0", DisplayName = "X Offset", EditCondition = "!bStretchToFit"))
-	float XOffset = 0;
-
-	/** Y Offset factor to apply when sampling texture (Factor of texture dimension). */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "0.0", ClampMin = "0.0", UIMax = "1.0", ClampMax = "1.0", DisplayName = "Y Offset", EditCondition = "!bStretchToFit"))
-	float YOffset = 0;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Tiling", meta = (EditCondition = "bUseAdvancedTiling"))
+	FVector2D CenterOffset = FVector2D::ZeroVector;
 
 	/** Rotation to apply when sampling texture. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = 0, ClampMin = 0, UIMax = 359, ClampMax = 359, Units = deg, EditCondition = "!bStretchToFit"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = -360, ClampMin = -360, UIMax = 360, ClampMax = 360, Units = deg, EditCondition = "bUseAdvancedTiling"))
 	float Rotation = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Tiling", meta = (EditionCondition = "bUseAdvancedTiling"))
+	bool bUseTileBounds = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Tiling", meta = (EditCondition = "bUseAdvancedTiling && bUseTileBounds"))
+	FBox2D TileBounds = FBox2D(FVector2D(-0.5, -0.5), FVector2D(0.5, 0.5));
 
 protected:
 	UPROPERTY()

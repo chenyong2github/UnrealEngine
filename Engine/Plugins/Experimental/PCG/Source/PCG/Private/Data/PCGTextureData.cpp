@@ -9,43 +9,54 @@
 namespace PCGTextureSampling
 {
 	template<typename ValueType>
-	ValueType Sample(const FVector2D& InPosition, const FBox2D& InSurface, const UPCGBaseTextureData* InTextureData, int32 Width, int32 Height, TFunctionRef<ValueType(int32 Index)> SamplingFunction)
+	bool Sample(const FVector2D& InPosition, 
+		const FBox2D& InSurface, 
+		const UPCGBaseTextureData* InTextureData, 
+		int32 Width, 
+		int32 Height, 
+		ValueType& SampledValue,
+		TFunctionRef<ValueType(int32 Index)> SamplingFunction)
 	{
 		check(Width > 0 && Height > 0);
-		if (Width <= 0 || Height <= 0)
+		if (Width <= 0 || Height <= 0 || InSurface.GetSize().SquaredLength() <= 0)
 		{
-			return ValueType{};
+			return false;
 		}
 
 		check(InTextureData);
 
+		const FVector2D LocalSpacePos = (InPosition - InSurface.Min) / InSurface.GetSize();
 		FVector2D Pos = FVector2D::ZeroVector;
-		if (InTextureData->bStretchToFit)
+		if (!InTextureData->bUseAdvancedTiling)
 		{
 			// TODO: There seems to be a bias issue here, as the bounds size are not in the same space as the texels.
-			Pos = (InPosition - InSurface.Min) * FVector2D(Width, Height) / InSurface.GetSize();
+			Pos = LocalSpacePos * FVector2D(Width, Height);
 		}
 		else
 		{
-			const float TextureSizeX = InTextureData->TexelSize * Width;
-			const float TextureSizeY = InTextureData->TexelSize * Height;
+			// Conceptually, we are building "tiles" in texture space with the origin being in the middle of the [0, 0] tile.
+			// The offset is given in a ratio of [0, 1], applied "before" scaling & rotation.
+			// Rotation is done around the center given, where the center is (0.5, 0.5) + offset
+			// Scaling controls the horizon of tiles, and the tile selection is done through min-max bounds, in tile space,
+			// with the origin tile being from -0.5 to 0.5.
+			const FRotator Rotation = FRotator(0.0, -InTextureData->Rotation, 0.0);
+			FVector Scale = FVector(InTextureData->Tiling, 1.0);
+			Scale.X = ((FMath::Abs(Scale.X) > SMALL_NUMBER) ? (1.0 / Scale.X) : 0.0);
+			Scale.Y = ((FMath::Abs(Scale.Y) > SMALL_NUMBER) ? (1.0 / Scale.Y) : 0.0);
+			const FVector Translation = FVector(0.5 + InTextureData->CenterOffset.X, 0.5 + InTextureData->CenterOffset.Y, 0);
 
-			const FRotator Rotation = FRotator(0.f, -InTextureData->Rotation, 0.f);
-			const FVector Translation = FVector(-InTextureData->XOffset * TextureSizeX, -InTextureData->YOffset * TextureSizeY, 0.f);
-			const FTransform Transform(Rotation, Translation);
-			const FVector2D SamplePosition = FVector2D(Transform.TransformPosition(FVector(InPosition, 0.f)));
+			FTransform Transform = FTransform(Rotation, Translation, Scale);
+			
+			// Transform to tile-space
+			const FVector2D SamplePosition = FVector2D(Transform.InverseTransformPosition(FVector(LocalSpacePos, 0.f)));
 
-			float X = FMath::Clamp(static_cast<float>(FMath::Fmod(SamplePosition.X, TextureSizeX)) / TextureSizeX, -1.f, 1.f);
-			if (X < 0.f)
+			if (InTextureData->bUseTileBounds && !InTextureData->TileBounds.IsInsideOrOn(SamplePosition))
 			{
-				X = 1.f + X;
+				return false;
 			}
 
-			float Y = FMath::Clamp(static_cast<float>(FMath::Fmod(SamplePosition.Y, TextureSizeY)) / TextureSizeY, -1.f, 1.f);
-			if (Y < 0.f)
-			{
-				Y = 1.f + Y;
-			}
+			FVector::FReal X = FMath::Frac(SamplePosition.X + 0.5);
+			FVector::FReal Y = FMath::Frac(SamplePosition.Y + 0.5);
 
 			X *= Width;
 			Y *= Height;
@@ -83,8 +94,8 @@ namespace PCGTextureSampling
 		ValueType SampleX0Y1 = SamplingFunction(X0 + Y1 * Width);
 		ValueType SampleX1Y1 = SamplingFunction(X1 + Y1 * Width);
 
-		ValueType BilinearInterpolation = FMath::BiLerp(SampleX0Y0, SampleX1Y0, SampleX0Y1, SampleX1Y1, Pos.X - X0, Pos.Y - Y0);
-		return BilinearInterpolation;
+		SampledValue = FMath::BiLerp(SampleX0Y0, SampleX1Y0, SampleX0Y1, SampleX1Y1, Pos.X - X0, Pos.Y - Y0);
+		return true;
 	}
 
 	float SampleFloatChannel(const FLinearColor& InColor, EPCGTextureColorChannel ColorChannel)
@@ -136,11 +147,17 @@ bool UPCGBaseTextureData::SamplePoint(const FTransform& InTransform, const FBox&
 	FVector2D Position2D(PointPositionInLocalSpace.X, PointPositionInLocalSpace.Y);
 	FBox2D Surface(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
 
-	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, this, Width, Height, [this](int32 Index) { return ColorData[Index]; });
-	OutPoint.Color = Color;
-	OutPoint.Density = ((DensityFunction == EPCGTextureDensityFunction::Ignore) ? 1.0f : PCGTextureSampling::SampleFloatChannel(Color, ColorChannel));
-
-	return OutPoint.Density > 0;
+	FLinearColor Color = FLinearColor(EForceInit::ForceInit);
+	if (PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, this, Width, Height, Color, [this](int32 Index) { return ColorData[Index]; }))
+	{
+		OutPoint.Color = Color;
+		OutPoint.Density = ((DensityFunction == EPCGTextureDensityFunction::Ignore) ? 1.0f : PCGTextureSampling::SampleFloatChannel(Color, ColorChannel));
+		return OutPoint.Density > 0;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) const
@@ -163,39 +180,53 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) 
 
 	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 
-	// TODO: There's a bias issue here where we should correct by a 0.5 unit...
-	const FVector::FReal XScale = LocalSurfaceBounds.GetSize().X / Width;
-	const FVector::FReal YScale = LocalSurfaceBounds.GetSize().Y / Height;
-	const FVector2D Bias = LocalSurfaceBounds.Min;
+	// Map target texel size to the current physical size of the texture data.
+	const FVector::FReal XSize = 2.0 * Transform.GetScale3D().X;
+	const FVector::FReal YSize = 2.0 * Transform.GetScale3D().Y;
 
-	FPCGAsync::AsyncPointProcessing(Context, Width * Height, Points, [this, XScale, YScale, Bias](int32 Index, FPCGPoint& OutPoint)
+	const int32 XCount = FMath::Floor(XSize / TexelSize);
+	const int32 YCount = FMath::Floor(YSize / TexelSize);
+	const int32 PointCount = XCount * YCount;
+
+	if (PointCount <= 0)
 	{
-		const int X = Index % Width;
-		const int Y = Index / Width;
+		UE_LOG(LogPCG, Warning, TEXT("Texture data has a texel size larger than its data - will return empty data"));
+		return Data;
+	}
 
-		const float Density = PCGTextureSampling::SampleFloatChannel(ColorData[X + Y * Width], ColorChannel);
+	const FBox2D Surface(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
 
+	FPCGAsync::AsyncPointProcessing(Context, PointCount, Points, [this, XCount, YCount, &Surface](int32 Index, FPCGPoint& OutPoint)
+	{
+		const int X = (Index % XCount);
+		const int Y = (Index / YCount);
+
+		// TODO: we should have a 0.5 bias here
+		FVector2D LocalCoordinate((2.0 * X + 0.5) / XCount - 1.0, (2.0 * Y + 0.5) / YCount - 1.0);
+		FLinearColor Color = FLinearColor(EForceInit::ForceInit);
+
+		if (PCGTextureSampling::Sample<FLinearColor>(LocalCoordinate, Surface, this, Width, Height, Color, [this](int32 Index) { return ColorData[Index]; }))
+		{
+			const float Density = ((DensityFunction == EPCGTextureDensityFunction::Ignore) ? 1.0f : PCGTextureSampling::SampleFloatChannel(Color, ColorChannel));
 #if WITH_EDITORONLY_DATA
-		if (Density > 0 || bKeepZeroDensityPoints)
+			if (Density > 0 || bKeepZeroDensityPoints)
 #else
-		if (Density > 0)
+			if (Density > 0)
 #endif
-		{
-			FVector LocalPosition(X * XScale + Bias.X, Y * YScale + Bias.Y, 0);
-			OutPoint = FPCGPoint(FTransform(Transform.TransformPosition(LocalPosition)),
-				Density,
-				PCGHelpers::ComputeSeed(X, Y));
+			{
+				FVector LocalPosition(LocalCoordinate, 0);
+				OutPoint = FPCGPoint(FTransform(Transform.TransformPosition(LocalPosition)),
+					Density,
+					PCGHelpers::ComputeSeed(X, Y));
 
-			const FVector TransformScale = Transform.GetScale3D();
-			OutPoint.SetExtents(FVector(TransformScale.X * XScale / 2.0, TransformScale.Y * YScale / 2.0, 1.0));
-			OutPoint.Color = ColorData[X + Y * Width];
+				OutPoint.SetExtents(FVector(TexelSize / 2.0));
+				OutPoint.Color = Color;
 
-			return true;
+				return true;
+			}
 		}
-		else
-		{
-			return false;
-		}
+
+		return false;
 	});
 
 	return Data;

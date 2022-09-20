@@ -79,6 +79,31 @@ namespace PCGHelpers
 		return Box;
 	}
 
+	FBox GetActorLocalBounds(AActor* InActor)
+	{
+		// Specialized version of CalculateComponentsBoundingBoxInLocalScape that skips over PCG generated components
+		// This is to ensure stable bounds and no timing issues (cleared ISMs, etc.)
+		FBox Box(EForceInit::ForceInit);
+
+		const bool bNonColliding = true;
+		const bool bIncludeFromChildActors = true;
+
+		const FTransform& ActorToWorld = InActor->GetTransform();
+		const FTransform WorldToActor = ActorToWorld.Inverse();
+
+		InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
+		{
+				if ((bNonColliding || InPrimComp->IsCollisionEnabled()) &&
+					!InPrimComp->ComponentTags.Contains(DefaultPCGTag))
+				{
+					const FTransform ComponentToActor = InPrimComp->GetComponentTransform() * WorldToActor;
+					Box += InPrimComp->CalcBounds(ComponentToActor).GetBox();
+				}
+		});
+
+		return Box;
+	}
+
 	bool IsRuntimeOrPIE()
 	{
 #if WITH_EDITOR

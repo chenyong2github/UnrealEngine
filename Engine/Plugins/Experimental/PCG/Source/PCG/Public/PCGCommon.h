@@ -52,4 +52,5 @@ namespace PCGPinConstants
 {
 	const FName DefaultInputLabel = TEXT("In");
 	const FName DefaultOutputLabel = TEXT("Out");
+	const FName DefaultParamsLabel = TEXT("Params");
 }
