@@ -1,29 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
-
-uint DI_LOCAL(NumVertices);
-uint DI_LOCAL(InputStreamStart);
-uint DI_LOCAL(NumInfluencesPerVertex);
-float DI_LOCAL(ClothBlendWeight);
-/** Transform from cloth space (relative to cloth root bone) to local(component) space */
-float4x4 DI_LOCAL(ClothToLocal);
-Buffer<float4> DI_LOCAL(ClothBuffer);
-Buffer<float2> DI_LOCAL(ClothPositionsAndNormalsBuffer);
-
-DI_IMPL_READ(ReadNumVertices, uint, )
-{
-	return DI_LOCAL(NumVertices);
-}
-
-DI_IMPL_READ(ReadClothToLocal, float4x4, )
-{
-#if ENABLE_DEFORMER_CLOTH
-	return DI_LOCAL(ClothToLocal);
-#else
-	return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-#endif
-}
+#ifndef DATA_INTERFACE_CLOTH_ONCE
+#define DATA_INTERFACE_CLOTH_ONCE 1
 
 struct FVertexTriangleInfluence
 {
@@ -34,28 +12,6 @@ struct FVertexTriangleInfluence
 	float Weight;
 };
 
-FVertexTriangleInfluence DI_LOCAL(GetClothInfluence)(uint VertexIndex, uint InfluenceIndex)
-{
-	const uint VertexOffset = DI_LOCAL(NumInfluencesPerVertex) * VertexIndex + DI_LOCAL(InputStreamStart);
-
-	const uint NUM_FLOAT4S_PER_VERTEX_INFLUENCE = 4; // Stride of GPUSkinApexCloth
-	const uint Offset = (VertexOffset + InfluenceIndex) * NUM_FLOAT4S_PER_VERTEX_INFLUENCE;
-
-	FVertexTriangleInfluence Influence;
-
-	Influence.PositionBaryCoordsAndDist = DI_LOCAL(ClothBuffer)[Offset];
-	Influence.NormalBaryCoordsAndDist = DI_LOCAL(ClothBuffer)[Offset + 1];
-	Influence.TangentBaryCoordsAndDist = DI_LOCAL(ClothBuffer)[Offset + 2];
-
-	uint4 PackedIndices = asuint(DI_LOCAL(ClothBuffer)[Offset + 3]);
-	Influence.SourceMeshVertIndices.yw = (PackedIndices.xy >> 16) & 0xffff;
-	Influence.SourceMeshVertIndices.xz = PackedIndices.xy & 0xffff;
-	
-	Influence.Weight = asfloat(PackedIndices[2]);
-
-	return Influence;
-}
-
 struct FClothResult
 {
 	float ClothWeight;
@@ -64,7 +20,53 @@ struct FClothResult
 	float3 TangentZ;
 };
 
-FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
+#endif // DATA_INTERFACE_CLOTH_ONCE
+
+uint {DataInterfaceName}_NumVertices;
+uint {DataInterfaceName}_InputStreamStart;
+uint {DataInterfaceName}_NumInfluencesPerVertex;
+float {DataInterfaceName}_ClothBlendWeight;
+float4x4 {DataInterfaceName}_ClothToLocal;
+Buffer<float4> {DataInterfaceName}_ClothBuffer;
+Buffer<float2> {DataInterfaceName}_ClothPositionsAndNormalsBuffer;
+
+uint ReadNumVertices_{DataInterfaceName}()
+{
+	return {DataInterfaceName}_NumVertices;
+}
+
+float4x4 ReadClothToLocal_{DataInterfaceName}()
+{
+#if ENABLE_DEFORMER_CLOTH
+	return {DataInterfaceName}_ClothToLocal;
+#else
+	return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+#endif
+}
+
+FVertexTriangleInfluence GetClothInfluence_{DataInterfaceName}(uint VertexIndex, uint InfluenceIndex)
+{
+	const uint VertexOffset = {DataInterfaceName}_NumInfluencesPerVertex * VertexIndex + {DataInterfaceName}_InputStreamStart;
+
+	const uint NUM_FLOAT4S_PER_VERTEX_INFLUENCE = 4; // Stride of GPUSkinApexCloth
+	const uint Offset = (VertexOffset + InfluenceIndex) * NUM_FLOAT4S_PER_VERTEX_INFLUENCE;
+
+	FVertexTriangleInfluence Influence;
+
+	Influence.PositionBaryCoordsAndDist = {DataInterfaceName}_ClothBuffer[Offset];
+	Influence.NormalBaryCoordsAndDist = {DataInterfaceName}_ClothBuffer[Offset + 1];
+	Influence.TangentBaryCoordsAndDist = {DataInterfaceName}_ClothBuffer[Offset + 2];
+
+	uint4 PackedIndices = asuint({DataInterfaceName}_ClothBuffer[Offset + 3]);
+	Influence.SourceMeshVertIndices.yw = (PackedIndices.xy >> 16) & 0xffff;
+	Influence.SourceMeshVertIndices.xz = PackedIndices.xy & 0xffff;
+	
+	Influence.Weight = asfloat(PackedIndices[2]);
+
+	return Influence;
+}
+
+FClothResult GetClothResult_{DataInterfaceName}(uint VertexIndex)
 {
 	float ClothWeight = 0;
 	float3 SimulatedPosition = float3(0, 0, 0);
@@ -74,26 +76,26 @@ FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
 	int NumInfluences = 0;
 	float SumWeights = 0;
 
-	for (uint i = 0; i < DI_LOCAL(NumInfluencesPerVertex); ++i)
+	for (uint i = 0; i < {DataInterfaceName}_NumInfluencesPerVertex; ++i)
 	{
-		const FVertexTriangleInfluence Influence = DI_LOCAL(GetClothInfluence)(VertexIndex, i);
+		const FVertexTriangleInfluence Influence = GetClothInfluence_{DataInterfaceName}(VertexIndex, i);
 
 		if (Influence.SourceMeshVertIndices.w < 0xFFFF)
 		{
 			++NumInfluences;
 
-			float3 A = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3], DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3 + 1].x);
-			float3 B = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3], DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3 + 1].x);
-			float3 C = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3], DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3 + 1].x);
+			float3 A = float3({DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.x * 3], {DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.x * 3 + 1].x);
+			float3 B = float3({DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.y * 3], {DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.y * 3 + 1].x);
+			float3 C = float3({DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.z * 3], {DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.z * 3 + 1].x);
 
-			float3 NA = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3 + 1].y, DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.x * 3 + 2]);
-			float3 NB = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3 + 1].y, DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.y * 3 + 2]);
-			float3 NC = float3(DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3 + 1].y, DI_LOCAL(ClothPositionsAndNormalsBuffer)[Influence.SourceMeshVertIndices.z * 3 + 2]);
+			float3 NA = float3({DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.x * 3 + 1].y, {DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.x * 3 + 2]);
+			float3 NB = float3({DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.y * 3 + 1].y, {DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.y * 3 + 2]);
+			float3 NC = float3({DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.z * 3 + 1].y, {DataInterfaceName}_ClothPositionsAndNormalsBuffer[Influence.SourceMeshVertIndices.z * 3 + 2]);
 
-			ClothWeight += DI_LOCAL(ClothBlendWeight) * (1.0f - (Influence.SourceMeshVertIndices.w / 65535.0f));
+			ClothWeight += {DataInterfaceName}_ClothBlendWeight * (1.0f - (Influence.SourceMeshVertIndices.w / 65535.0f));
 
 			float Weight = 1.0f;
-			if (DI_LOCAL(NumInfluencesPerVertex) > 1)
+			if ({DataInterfaceName}_NumInfluencesPerVertex > 1)
 			{
 				// Weight is packed in the last coordinate
 				Weight = Influence.Weight;
@@ -139,7 +141,7 @@ FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
 		TangentPosition *= InvWeight;
 		NormalPosition *= InvWeight;
 
-		Result.ClothWeight = ClothWeight / (float)DI_LOCAL(NumInfluencesPerVertex);
+		Result.ClothWeight = ClothWeight / (float) {DataInterfaceName}_NumInfluencesPerVertex;
 
 		Result.Position = SimulatedPosition;
 		
@@ -147,8 +149,8 @@ FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
 		Result.TangentZ = normalize(NormalPosition - SimulatedPosition);
 
 		// Cloth data are all in world space so need to change into local space
-		Result.TangentX = mul(Result.TangentX, (half3x3)DI_LOCAL(ClothToLocal));
-		Result.TangentZ = mul(Result.TangentZ, (half3x3)DI_LOCAL(ClothToLocal));
+		Result.TangentX = mul(Result.TangentX, (half3x3) {DataInterfaceName}_ClothToLocal);
+		Result.TangentZ = mul(Result.TangentZ, (half3x3) {DataInterfaceName}_ClothToLocal);
 	}
 
 	return Result;
@@ -158,40 +160,40 @@ FClothResult DI_LOCAL(GetClothResult)(uint VertexIndex)
 // There is the hope that the shader compiler may optimize here.
 // But really we will need to work out a way for Compute Kernels to do some shared work once and carry the results of that in an opaque context struct.
 
-DI_IMPL_READ(ReadClothWeight, float, uint VertexIndex)
+float ReadClothWeight_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_CLOTH
-	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	FClothResult Result = GetClothResult_{DataInterfaceName}(VertexIndex);
 	return Result.ClothWeight;
 #else
 	return 0;
 #endif
 }
 
-DI_IMPL_READ(ReadClothPosition, float3, uint VertexIndex)
+float3 ReadClothPosition_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_CLOTH
-	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	FClothResult Result = GetClothResult_{DataInterfaceName}(VertexIndex);
 	return Result.Position;
 #else
 	return float3(0, 0, 0);
 #endif
 }
 
-DI_IMPL_READ(ReadClothTangentX, float3, uint VertexIndex)
+float3 ReadClothTangentX_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_CLOTH
-	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	FClothResult Result = GetClothResult_{DataInterfaceName}(VertexIndex);
 	return Result.TangentX;
 #else
 	return float3(1, 0, 0);
 #endif
 }
 
-DI_IMPL_READ(ReadClothTangentZ, float3, uint VertexIndex)
+float3 ReadClothTangentZ_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_CLOTH
-	FClothResult Result = DI_LOCAL(GetClothResult)(VertexIndex);
+	FClothResult Result = GetClothResult_{DataInterfaceName}(VertexIndex);
 	return Result.TangentZ;
 #else
 	return float3(0, 0, 1);

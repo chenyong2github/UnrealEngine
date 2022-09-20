@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+float {DataInterfaceName}_GameTime;
+float {DataInterfaceName}_GameTimeDelta;
+uint {DataInterfaceName}_FrameNumber;
 
-float DI_LOCAL(GameTime);
-float DI_LOCAL(GameTimeDelta);
-uint DI_LOCAL(FrameNumber);
-
-DI_IMPL_READ(ReadGameTime, float, )
+float ReadGameTime_{DataInterfaceName}()
 {
-	return DI_LOCAL(GameTime);
+	return {DataInterfaceName}_GameTime;
 }
 
-DI_IMPL_READ(ReadGameTimeDelta, float, )
+float ReadGameTimeDelta_{DataInterfaceName}()
 {
-	return DI_LOCAL(GameTimeDelta);
+	return {DataInterfaceName}_GameTimeDelta;
 }
 
-DI_IMPL_READ(ReadFrameNumber, uint, )
+float ReadFrameNumber_{DataInterfaceName}()
 {
-	return DI_LOCAL(FrameNumber);
+	return {DataInterfaceName}_FrameNumber;
 }

@@ -218,11 +218,8 @@ void UOptimusAnimAttributeDataInterface::GetShaderParameters(TCHAR const* UID, F
 	InOutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);
 }
 
-void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
-	// Need include for DI_LOCAL macro expansion.
-	OutHLSL += TEXT("#include \"/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush\"\n");
-	
 	for (int32 Index = 0; Index < AttributeArray.Num(); Index++)
 	{
 		const FOptimusAnimAttributeDescription& Attribute = AttributeArray[Index];
@@ -235,19 +232,24 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
 			if (!bIsStruct)
 			{
 				// Add uniforms.
-				OutHLSL += FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *TypeName, *Attribute.HlslId);
+				OutHLSL += FString::Printf(TEXT("%s %s_%s);\n"), 
+					*TypeName, 
+					*InDataInterfaceName, 
+					*Attribute.HlslId);
 					
 				// Add function getters.
-				OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"),
-					*Attribute.HlslId,
+				OutHLSL += FString::Printf(TEXT("%s Read%s_%s()\n{\n\treturn %s_%s;\n}\n"), 
 					*TypeName,
+					*Attribute.HlslId,
+					*InDataInterfaceName, 
+					*InDataInterfaceName, 
 					*Attribute.HlslId);
 			}
 			else if (bIsStruct)
 			{
 				struct FStructParser 
 				{
-					void WalkStruct(FShaderValueTypeHandle ShaderValueTypeHandle, const TArray<FString>& InPrefix)
+					void WalkStruct(FString const& InDataInterfaceName, FShaderValueTypeHandle ShaderValueTypeHandle, const TArray<FString>& InPrefix)
 					{
 						const TArray<FShaderValueType::FStructElement>& StructElements =
 							ShaderValueTypeHandle->StructElements;
@@ -264,22 +266,30 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
 							
 							if (StructElement.Type->Type == EShaderFundamentalType::Struct && !StructElement.Type->bIsDynamicArray)
 							{
-								WalkStruct(StructElement.Type, NewPrefix);
+								WalkStruct(InDataInterfaceName, StructElement.Type, NewPrefix);
 							}
 							else
 							{
 								FString ElementType = StructElement.Type.ValueTypePtr->ToString();
 
 								// Add uniforms.
-								MemberHlsl.Add(FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *ElementType, *ElementHlslId));
+								MemberHlsl.Add(FString::Printf(TEXT("%s %s_%s);\n"),
+									*ElementType, 
+									*InDataInterfaceName,
+									*ElementHlslId));
 						
 								// Add function getters.
-								MemberHlsl.Add(FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"),
-									*ElementHlslId,
+								MemberHlsl.Add(FString::Printf(TEXT("%s Read%s_%s()\n{\n\treturn %s_%s;\n}\n"),
 									*ElementType,
+									*ElementHlslId,
+									*InDataInterfaceName,
+									*InDataInterfaceName,
 									*ElementHlslId));
 
-								StructMemberCopyHlsl.Add(FString::Printf(TEXT("%s = DI_LOCAL(%s);\n"), *ElementAccessor, *ElementHlslId));	
+								StructMemberCopyHlsl.Add(FString::Printf(TEXT("%s = %s_%s;\n"),
+									*ElementAccessor, 
+									*InDataInterfaceName,
+									*ElementHlslId));
 							}
 						}
 					}
@@ -292,7 +302,7 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
 			
 				FStructParser Parser;
 				
-				Parser.WalkStruct(Attribute.DataType->ShaderValueType, {Attribute.HlslId});
+				Parser.WalkStruct(InDataInterfaceName, Attribute.DataType->ShaderValueType, {Attribute.HlslId});
 
 				// Top level Hlsl code for flattened list of struct members
 				for (const FString& MemberHlslString : Parser.MemberHlsl)
@@ -301,9 +311,12 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
 				}
 				
 				// Add final user facing struct getters.
-				OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n"),
+				OutHLSL += FString::Printf(TEXT("%s Read%s_%s()\n{\n\treturn %s_%s;\n}\n"),
+					*TypeName,
 					*Attribute.HlslId,
-					*TypeName);
+					*InDataInterfaceName,
+					*InDataInterfaceName,
+					*Attribute.HlslId);
 				
 				OutHLSL += FString::Printf(TEXT("{\n"));
 
@@ -360,12 +373,12 @@ void UOptimusAnimAttributeDataInterface::GetStructDeclarations(TSet<FString>& Ou
 
 void UOptimusAnimAttributeDataInterface::GetShaderHash(FString& InOutKey) const
 {
-	FSHA1 HashState;
-	FString HLSL;
-	GetHLSL(HLSL);
-	
-	HashState.UpdateWithString(*HLSL, HLSL.Len());
-	HashState.Finalize().AppendString(InOutKey);
+// 	FSHA1 HashState;
+// 	FString HLSL;
+// 	GetHLSL(HLSL);
+// 	
+// 	HashState.UpdateWithString(*HLSL, HLSL.Len());
+// 	HashState.Finalize().AppendString(InOutKey);
 }
 
 UComputeDataProvider* UOptimusAnimAttributeDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const

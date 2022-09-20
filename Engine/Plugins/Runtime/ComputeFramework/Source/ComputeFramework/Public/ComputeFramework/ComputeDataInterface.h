@@ -7,7 +7,6 @@
 
 struct FComputeKernelDefinitionSet;
 struct FComputeKernelPermutationVector;
-struct FShaderCompilerEnvironment;
 struct FShaderFunctionDefinition;
 struct FShaderParametersMetadataAllocations;
 class FShaderParametersMetadataBuilder;
@@ -43,7 +42,7 @@ public:
 	/** Gather any extra struct types that this data provider relies on. */
 	virtual void GetStructDeclarations(TSet<FString>& OutStructsSeen, TArray<FString>& OutStructs) const {}
 	/** Gather the shader code for this data provider. */
-	virtual void GetHLSL(FString& OutHLSL) const {}
+	virtual void GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const {}
 	/** Get class of UObject required to instantiate a UComputeDataProvider from this interface. */
 	virtual UClass* GetBindingType() const { return nullptr; }
 	/** Instantiate an associated UComputeDataProvider. */

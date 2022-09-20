@@ -137,29 +137,25 @@ void UOptimusRawBufferDataInterface::GetShaderHash(FString& InOutKey) const
 	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
-void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
-	TStringBuilder<512> StringBuilder;
-
 	const FString PublicType = ValueType->ToString();
 	const FString RawType = GetRawType();
 	const bool bUseRawType = !RawType.IsEmpty();
 
-	StringBuilder.Appendf(TEXT("#define PUBLIC_TYPE %s\n"), *PublicType);
-	StringBuilder.Appendf(TEXT("#define BUFFER_TYPE %s\n"), bUseRawType ? *RawType : *PublicType);
-	StringBuilder.Appendf(TEXT("#define BUFFER_TYPE_RAW %d\n"), bUseRawType ? 1 : 0);
-	StringBuilder.Appendf(TEXT("#define BUFFER_TYPE_SUPPORTS_ATOMIC %d\n"), SupportsAtomics() ? 1 : 0);
-	StringBuilder.Appendf(TEXT("#define BUFFER_SPLIT_READ_WRITE %d\n"), UseSplitBuffers() ? 1 : 0);
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{ TEXT("DataInterfaceName"), InDataInterfaceName },
+		{ TEXT("PublicType"), PublicType },
+		{ TEXT("BufferType"), bUseRawType ? RawType : PublicType },
+		{ TEXT("BufferTypeRaw"), bUseRawType },
+		{ TEXT("SupportAtomic"), SupportsAtomics() ? 1 : 0 },
+		{ TEXT("SplitReadWrite"), UseSplitBuffers() ? 1 : 0 },
+	};
 
-	StringBuilder.Append(TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush\"\n"));
-	
-	StringBuilder.Append(TEXT("#undef PUBLIC_TYPE\n"));
-	StringBuilder.Append(TEXT("#undef BUFFER_TYPE\n"));
-	StringBuilder.Append(TEXT("#undef BUFFER_TYPE_RAW\n"));
-	StringBuilder.Append(TEXT("#undef BUFFER_TYPE_SUPPORTS_ATOMIC\n"));
-	StringBuilder.Append(TEXT("#undef BUFFER_SPLIT_READ_WRITE\n"));
-
-	OutHLSL += StringBuilder.ToString();
+	FString TemplateFile;
+	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 FString UOptimusTransientBufferDataInterface::GetDisplayName() const

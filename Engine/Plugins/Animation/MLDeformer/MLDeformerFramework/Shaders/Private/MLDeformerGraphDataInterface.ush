@@ -1,22 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+uint {DataInterfaceName}_NumVertices;
+uint {DataInterfaceName}_InputStreamStart;
+float {DataInterfaceName}_Weight;
+Buffer<float> {DataInterfaceName}_PositionDeltaBuffer;
+Buffer<uint> {DataInterfaceName}_VertexMapBuffer;
 
-uint DI_LOCAL(NumVertices);
-uint DI_LOCAL(InputStreamStart);
-float DI_LOCAL(Weight);
-
-Buffer<float> DI_LOCAL(PositionDeltaBuffer);
-Buffer<uint> DI_LOCAL(VertexMapBuffer);
-
-DI_IMPL_READ(ReadNumVertices, uint, )
+uint ReadNumVertices_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumVertices);
+	return {DataInterfaceName}_NumVertices;
 }
 
-DI_IMPL_READ(ReadPositionDelta, float3, uint VertexIndex)
+float3 ReadPositionDelta_{DataInterfaceName}(uint VertexIndex)
 {
-	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(InputStreamStart)] * 3;
-	float3 Delta = float3(DI_LOCAL(PositionDeltaBuffer)[BufferIndex], DI_LOCAL(PositionDeltaBuffer)[BufferIndex + 1], DI_LOCAL(PositionDeltaBuffer)[BufferIndex + 2]);
-	return Delta * DI_LOCAL(Weight);
+	uint BufferIndex = {DataInterfaceName}_VertexMapBuffer[VertexIndex + {DataInterfaceName}_InputStreamStart] * 3;
+	float3 Delta = float3({DataInterfaceName}_PositionDeltaBuffer[BufferIndex], {DataInterfaceName}_PositionDeltaBuffer[BufferIndex + 1], {DataInterfaceName}_PositionDeltaBuffer[BufferIndex + 2]);
+	return Delta * {DataInterfaceName}_Weight;
 }

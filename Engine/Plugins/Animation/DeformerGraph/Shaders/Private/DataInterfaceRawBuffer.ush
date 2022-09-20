@@ -1,77 +1,89 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+#include "/Plugin/ComputeFramework/Private/BufferAlias.ush"
 
 // BUFFER_TYPE is type of underlying structure.
 // PUBLIC_TYPE is the exposed type that calling code expects to use.
 // Where BUFFER_TYPE is different to PUBLIC_TYPE we set BUFFER_TYPE_RAW and expect ReadRawBuffer() and WriteRawBuffer() to be implemented somewhere.
+#define PUBLIC_TYPE {PublicType}
+#define BUFFER_TYPE {BufferType}
+#define BUFFER_TYPE_RAW {BufferTypeRaw}
+// BUFFER_TYPE_SUPPORTS_ATOMIC is set if we can enable atomic operations on the PUBLIC_TYPE.
+#define BUFFER_TYPE_SUPPORTS_ATOMIC {SupportAtomic}
+// BUFFER_SPLIT_READ_WRITE is set if we can use an SRV to read the buffer. It is unset if we might need to read and write the buffer in the same kernel.
+#define BUFFER_SPLIT_READ_WRITE {SplitReadWrite}
 
-uint DI_LOCAL(StartOffset);
-uint DI_LOCAL(BufferSize);
-
+uint {DataInterfaceName}_StartOffset;
+uint {DataInterfaceName}_BufferSize;
 #if BUFFER_SPLIT_READ_WRITE
-StructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferSRV);
+StructuredBuffer<BUFFER_TYPE> {DataInterfaceName}_BufferSRV;
 #endif
-RWStructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferUAV);
+RWStructuredBuffer<BUFFER_TYPE> {DataInterfaceName}_BufferUAV;
 
-DI_IMPL_READ(ReadNumValues, uint, )
+uint ReadNumValues_{DataInterfaceName}()
 {
-	return DI_LOCAL(BufferSize);
+	return {DataInterfaceName}_BufferSize;
 }
 
-DI_IMPL_READ(ReadValue, PUBLIC_TYPE, uint Index)
+PUBLIC_TYPE ReadValue_{DataInterfaceName}(uint Index)
 {
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	uint BufferIndex = {DataInterfaceName}_StartOffset + Index;
 	PUBLIC_TYPE ReturnValue;
 #if BUFFER_SPLIT_READ_WRITE
 #if BUFFER_TYPE_RAW
-	ReadRawBuffer(DI_LOCAL(BufferSRV), BufferIndex, ReturnValue);
+	ReadRawBuffer({DataInterfaceName}_BufferSRV, BufferIndex, ReturnValue);
 #else
-	ReturnValue = DI_LOCAL(BufferSRV)[BufferIndex];
+	ReturnValue = {DataInterfaceName}_BufferSRV[BufferIndex];
 #endif
 #else
 #if BUFFER_TYPE_RAW
-	ReadRawBuffer(DI_LOCAL(BufferUAV), BufferIndex, ReturnValue);
+	ReadRawBuffer({DataInterfaceName}_BufferUAV, BufferIndex, ReturnValue);
 #else
-	ReturnValue = DI_LOCAL(BufferUAV)[BufferIndex];
+	ReturnValue = {DataInterfaceName}_BufferUAV[BufferIndex];
 #endif
 #endif
 	return ReturnValue;
 }
 
-DI_IMPL_WRITE(WriteValue, uint Index, PUBLIC_TYPE Value)
+void WriteValue_{DataInterfaceName}(uint Index, PUBLIC_TYPE Value)
 {
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	uint BufferIndex = {DataInterfaceName}_StartOffset + Index;
 #if BUFFER_TYPE_RAW
-	WriteRawBuffer(DI_LOCAL(BufferUAV), BufferIndex, Value);
+	WriteRawBuffer({DataInterfaceName}_BufferUAV, BufferIndex, Value);
 #else
-	DI_LOCAL(BufferUAV)[BufferIndex] = Value;
+	{DataInterfaceName}_BufferUAV[BufferIndex] = Value;
 #endif
 }
 
-DI_IMPL_WRITE(WriteAtomicAdd, uint Index, PUBLIC_TYPE Value)
+void WriteAtomicAdd_{DataInterfaceName}(uint Index, PUBLIC_TYPE Value)
 {
 #if BUFFER_TYPE_SUPPORTS_ATOMIC
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	uint BufferIndex = {DataInterfaceName}_StartOffset + Index;
 	PUBLIC_TYPE OldValue;
-	InterlockedAdd(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
+	InterlockedAdd({DataInterfaceName}_BufferUAV[BufferIndex], Value, OldValue);
 #endif
 }
 
-DI_IMPL_WRITE(WriteAtomicMin, uint Index, PUBLIC_TYPE Value)
+void WriteAtomicMin_{DataInterfaceName}(uint Index, PUBLIC_TYPE Value)
 {
 #if BUFFER_TYPE_SUPPORTS_ATOMIC
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	uint BufferIndex = {DataInterfaceName}_StartOffset + Index;
 	PUBLIC_TYPE OldValue;
-	InterlockedMin(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
+	InterlockedMin({DataInterfaceName}_BufferUAV[BufferIndex], Value, OldValue);
 #endif
 }
 
-DI_IMPL_WRITE(WriteAtomicMax, uint Index, PUBLIC_TYPE Value)
+void WriteAtomicMax_{DataInterfaceName}(uint Index, PUBLIC_TYPE Value)
 {
 #if BUFFER_TYPE_SUPPORTS_ATOMIC
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	uint BufferIndex = {DataInterfaceName}_StartOffset + Index;
 	PUBLIC_TYPE OldValue;
-	InterlockedMax(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
+	InterlockedMax({DataInterfaceName}_BufferUAV[BufferIndex], Value, OldValue);
 #endif
 }
+
+#undef PUBLIC_TYPE
+#undef BUFFER_TYPE
+#undef BUFFER_TYPE_RAW
+#undef BUFFER_TYPE_SUPPORTS_ATOMIC
+#undef BUFFER_SPLIT_READ_WRITE

@@ -180,9 +180,16 @@ void UOptimusConnectivityDataInterface::GetShaderHash(FString& InOutKey) const
 	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceConnectivity.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
 }
 
-void UOptimusConnectivityDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusConnectivityDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
-	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceConnectivity.ush\"\n");
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{ TEXT("DataInterfaceName"), InDataInterfaceName },
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceConnectivity.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const

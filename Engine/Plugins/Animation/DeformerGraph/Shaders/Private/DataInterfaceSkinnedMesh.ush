@@ -1,98 +1,97 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+// Include required for platform TANGENT_RWBUFFER_FORMAT.
 #include "/Engine/Private/GpuSkinCommon.ush"
 
-// todo: These should be set by compute graph permutations when that is working.
+// todo: This should be set by compute graph permutations.
 #define MERGE_DUPLICATED_VERTICES 0
 
-uint DI_LOCAL(NumVertices);
-uint DI_LOCAL(NumTriangles);
-uint DI_LOCAL(NumUVChannels);
-uint DI_LOCAL(IndexBufferStart);
-uint DI_LOCAL(InputStreamStart);
+uint {DataInterfaceName}_NumVertices;
+uint {DataInterfaceName}_NumTriangles;
+uint {DataInterfaceName}_NumUVChannels;
+uint {DataInterfaceName}_IndexBufferStart;
+uint {DataInterfaceName}_InputStreamStart;
+Buffer<uint> {DataInterfaceName}_IndexBuffer;
+Buffer<float> {DataInterfaceName}_PositionInputBuffer;
+Buffer<SNORM float4> {DataInterfaceName}_TangentInputBuffer;
+Buffer<float4> {DataInterfaceName}_ColorInputBuffer;
+Buffer<float2> {DataInterfaceName}_UVInputBuffer;
+Buffer<uint> {DataInterfaceName}_DuplicatedIndicesIndices;
+Buffer<uint> {DataInterfaceName}_DuplicatedIndices;
 
-Buffer<uint> DI_LOCAL(IndexBuffer);
-Buffer<float> DI_LOCAL(PositionInputBuffer);
-Buffer<SNORM float4> DI_LOCAL(TangentInputBuffer);
-Buffer<float4> DI_LOCAL(ColorInputBuffer);
-Buffer<float2> DI_LOCAL(UVInputBuffer);
-Buffer<uint> DI_LOCAL(DuplicatedIndicesIndices);
-Buffer<uint> DI_LOCAL(DuplicatedIndices);
-
-DI_IMPL_READ(ReadNumVertices, uint, )
+uint ReadNumVertices_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumVertices);
+	return {DataInterfaceName}_NumVertices;
 }
 
-DI_IMPL_READ(ReadNumTriangles, uint, )
+uint ReadNumTriangles_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumTriangles);
+	return {DataInterfaceName}_NumTriangles;
 }
 
-DI_IMPL_READ(ReadNumUVChannels, uint, )
+uint ReadNumUVChannels_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumUVChannels);
+	return {DataInterfaceName}_NumUVChannels;
 }
 
-DI_IMPL_READ(ReadIndexBuffer, uint, uint Index)
+uint ReadIndexBuffer_{DataInterfaceName}(uint Index)
 {
-	uint BufferIndex = DI_LOCAL(IndexBufferStart) + Index;
-	return DI_LOCAL(IndexBuffer)[BufferIndex] - DI_LOCAL(InputStreamStart);
+	uint BufferIndex = {DataInterfaceName}_IndexBufferStart + Index;
+	return {DataInterfaceName}_IndexBuffer[BufferIndex] - {DataInterfaceName}_InputStreamStart;
 }
 
-DI_IMPL_READ(ReadPosition, float3, uint VertexIndex)
+float3 ReadPosition_{DataInterfaceName}(uint VertexIndex)
 {
-	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 3;
-	return float3(DI_LOCAL(PositionInputBuffer)[BufferIndex], DI_LOCAL(PositionInputBuffer)[BufferIndex + 1], DI_LOCAL(PositionInputBuffer)[BufferIndex + 2]);
+	uint BufferIndex = ({DataInterfaceName}_InputStreamStart + VertexIndex) * 3;
+	return float3({DataInterfaceName}_PositionInputBuffer[BufferIndex], {DataInterfaceName}_PositionInputBuffer[BufferIndex + 1], {DataInterfaceName}_PositionInputBuffer[BufferIndex + 2]);
 }
 
-DI_IMPL_READ(ReadTangentX, float4, uint VertexIndex)
+float4 ReadTangentX_{DataInterfaceName}(uint VertexIndex)
 {
-	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
-	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex]);
+	uint BufferIndex = ({DataInterfaceName}_InputStreamStart + VertexIndex) * 2;
+	return TangentBias_SkinCache({DataInterfaceName}_TangentInputBuffer[BufferIndex]);
 }
 
-DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
+float4 ReadTangentZ_{DataInterfaceName}(uint VertexIndex)
 {
-	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
-	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex + 1]);
+	uint BufferIndex = ({DataInterfaceName}_InputStreamStart + VertexIndex) * 2;
+	return TangentBias_SkinCache({DataInterfaceName}_TangentInputBuffer[BufferIndex + 1]);
 }
 
-DI_IMPL_READ(ReadColor, float4, uint VertexIndex)
+float4 ReadColor_{DataInterfaceName}(uint VertexIndex)
 {
-	uint BufferIndex = DI_LOCAL(InputStreamStart) + VertexIndex;
-	return DI_LOCAL(ColorInputBuffer)[BufferIndex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+	uint BufferIndex = {DataInterfaceName}_InputStreamStart + VertexIndex;
+	return {DataInterfaceName}_ColorInputBuffer[BufferIndex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
 }
 
-DI_IMPL_READ(ReadUV, float2, uint VertexIndex, uint UVChannelIndex)
+float2 ReadUV_{DataInterfaceName}(uint VertexIndex, uint UVChannelIndex)
 {
-	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(NumUVChannels) + UVChannelIndex;
-	return DI_LOCAL(UVInputBuffer)[BufferIndex];
+	uint BufferIndex = ({DataInterfaceName}_InputStreamStart + VertexIndex) * {DataInterfaceName}_NumUVChannels + UVChannelIndex;
+	return {DataInterfaceName}_UVInputBuffer[BufferIndex];
 }
 
-DI_IMPL_READ(ReadDuplicatedIndicesStart, uint, uint VertexIndex)
+uint ReadDuplicatedIndicesStart_{DataInterfaceName}(uint VertexIndex)
 {
 #if MERGE_DUPLICATED_VERTICES 
-	return DI_LOCAL(DuplicatedIndicesIndices)[VertexIndex * 2 + 1];
+	return {DataInterfaceName}_DuplicatedIndicesIndices[VertexIndex * 2 + 1];
 #else
 	return 0;
 #endif
 }
 
-DI_IMPL_READ(ReadDuplicatedIndicesLength, uint, uint VertexIndex)
+uint ReadDuplicatedIndicesLength_{DataInterfaceName}(uint VertexIndex)
 {
 #if MERGE_DUPLICATED_VERTICES 
-	return DI_LOCAL(DuplicatedIndicesIndices)[VertexIndex * 2];
+	return {DataInterfaceName}_DuplicatedIndicesIndices[VertexIndex * 2];
 #else
 	return 0;
 #endif
 }
 
-DI_IMPL_READ(ReadDuplicatedIndex, uint, uint Index)
+uint ReadDuplicatedIndex_{DataInterfaceName}(uint Index)
 {
 #if MERGE_DUPLICATED_VERTICES 
-	return DI_LOCAL(DuplicatedIndices)[Index];
+	return {DataInterfaceName}_DuplicatedIndices[Index];
 #else
 	return 0;
 #endif

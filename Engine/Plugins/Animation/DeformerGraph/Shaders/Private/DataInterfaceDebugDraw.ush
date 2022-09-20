@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
-
 //todo[CF]:
 // Only included for [FLATTEN] used by MiniFontCommon.ush
 // We need to factor MiniFontCommon.ush out of ShaderPrint.ush
@@ -11,12 +9,11 @@
 // This is a temporary hack to insert our buffer name into ShaderPrint.ush
 // We need ShaderPrint to be flexible enough to take uniforms and buffers as parameters instead of using the hard coded uniform buffer.
 // Until that is done we can't support multiple of this data interface per kernel (although that would be an unusual requirement).
-#define ShaderPrint_StateBuffer		DI_LOCAL(ShaderPrint_StateBuffer)
-#define ShaderPrint_RWEntryBuffer	DI_LOCAL(ShaderPrint_RWEntryBuffer)
-
+#define ShaderPrint_StateBuffer		{DataInterfaceName}_ShaderPrint_StateBuffer
+#define ShaderPrint_RWEntryBuffer	{DataInterfaceName}_ShaderPrint_RWEntryBuffer
 #include "/Engine/Private/ShaderPrint.ush"
 
-float4x4 DI_LOCAL(LocalToWorld);
+float4x4 {DataInterfaceName}_LocalToWorld;
 
 struct FDebugDraw
 {
@@ -53,9 +50,9 @@ struct FDebugDraw
 	}
 };
 
-DI_IMPL_READ(ReadDebugDraw, FDebugDraw, )
+FDebugDraw ReadDebugDraw_{DataInterfaceName}()
 {
 	FDebugDraw DebugDraw;
-	DebugDraw.LocalToWorld = DI_LOCAL(LocalToWorld);
+	DebugDraw.LocalToWorld = {DataInterfaceName}_LocalToWorld;
 	return DebugDraw;
 }

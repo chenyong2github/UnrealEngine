@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+int3 {DataInterfaceName}_NumThreads;
 
-int3 DI_LOCAL(NumThreads);
-
-DI_IMPL_READ(ReadNumThreads, int3, )
+int3 ReadNumThreads_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumThreads);
+	return {DataInterfaceName}_NumThreads;
 }

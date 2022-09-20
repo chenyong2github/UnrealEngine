@@ -1,26 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+uint {DataInterfaceName}_NumVertices;
+uint {DataInterfaceName}_InputStreamStart;
+uint {DataInterfaceName}_MaxConnectedVertexCount;
+Buffer<uint> {DataInterfaceName}_ConnectivityBuffer;
 
-uint DI_LOCAL(NumVertices);
-uint DI_LOCAL(InputStreamStart);
-uint DI_LOCAL(MaxConnectedVertexCount);
-Buffer<uint> DI_LOCAL(ConnectivityBuffer);
-
-DI_IMPL_READ(ReadNumVertices, uint, )
+uint ReadNumVertices_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumVertices);
+	return {DataInterfaceName}_NumVertices;
 }
 
-DI_IMPL_READ(ReadNumConnectedVertices, uint, uint VertexIndex)
+uint ReadNumConnectedVertices_{DataInterfaceName}(uint VertexIndex)
 {
-	return DI_LOCAL(MaxConnectedVertexCount);
+	return {DataInterfaceName}_MaxConnectedVertexCount;
 }
 
-DI_IMPL_READ(ReadConnectedVertex, uint, uint VertexIndex, uint ConnectedVertexSubIndex)
+uint ReadConnectedVertex_{DataInterfaceName}(uint VertexIndex, uint ConnectedVertexSubIndex)
 {
-	uint BaseIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(MaxConnectedVertexCount);
-	uint ConnectedVertexIndex = DI_LOCAL(ConnectivityBuffer)[BaseIndex + ConnectedVertexSubIndex];
-	uint BaseOffset = ConnectedVertexIndex == 0xFFFFFFFF ? 0 : DI_LOCAL(InputStreamStart);
+	uint BaseIndex = ({DataInterfaceName}_InputStreamStart + VertexIndex) * {DataInterfaceName}_MaxConnectedVertexCount;
+	uint ConnectedVertexIndex = {DataInterfaceName}_ConnectivityBuffer[BaseIndex + ConnectedVertexSubIndex];
+	uint BaseOffset = ConnectedVertexIndex == 0xFFFFFFFF ? 0 : {DataInterfaceName}_InputStreamStart;
 	return ConnectedVertexIndex - BaseOffset;
 }

@@ -341,9 +341,16 @@ UOptimusJiggleSpringDataInterface::GetShaderHash(FString& InOutKey) const
 }
 
 void 
-UOptimusJiggleSpringDataInterface::GetHLSL(FString& OutHLSL) const
+UOptimusJiggleSpringDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
-	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceJiggleSpring.ush\"\n");
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{ TEXT("DataInterfaceName"), InDataInterfaceName },
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceJiggleSpring.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 template <class T>

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "/Engine/Public/Platform.ush"
-
 // Macro to mark a kernel entry point.
 // Only one should exist per kernel.
 
@@ -26,59 +24,12 @@
 
 #define _DI_CAT_IMPL_(A, B) A##B
 #define _DI_CAT_(A, B) _DI_CAT_IMPL_(A, B)
-#define DI_LOCAL(Name) _DI_CAT_(DI_UID, Name)
+#define DI_UNIFORM_LOCAL(Name) _DI_CAT_(DI_UID, Name)
+#define DI_FUNCTION_LOCAL(Name) _DI_CAT_(Name, DI_UID)
 
 // Macros to expose functions implemented by a data provider. 
 // This makes a local unqiue function name and expands the function prototype.
 // We could just use DI_LOCAL, but these macro also gives the possiblity to extract functions by parsing the file.
 
-#define DI_IMPL_READ(Name, ReturnType, ...) ReturnType DI_LOCAL(Name)(__VA_ARGS__)
-#define DI_IMPL_WRITE(Name, ...) void DI_LOCAL(Name)(__VA_ARGS__)
-
-// Implement ReadRawBuffer/WriteRawBuffer functions for plain old types that need it.
-// Due to restrictions on some platforms we can't use StructureBuffer with unaligned types. That includes all vector<T, 3> types.
-// Similarly user structure types that don't follow alignment restrictions might have to implement similar functions to read from raw buffers.
-
-void ReadRawBuffer(in StructuredBuffer<float> InBuffer, in uint InBufferIndex, out float3 OutValue)
-{
-	for (uint Index = 0; Index < 3; ++Index)
-	{
-		OutValue[Index] = InBuffer[InBufferIndex * 3 + Index];
-	}
-}
-void ReadRawBuffer(in RWStructuredBuffer<float> InBuffer, in uint InBufferIndex, out float3 OutValue)
-{
-	for (uint Index = 0; Index < 3; ++Index)
-	{
-		OutValue[Index] = InBuffer[InBufferIndex * 3 + Index];
-	}
-}
-void WriteRawBuffer(in RWStructuredBuffer<float> InBuffer, in uint InBufferIndex, in float3 InValue)
-{
-	for (uint Index = 0; Index < 3; ++Index)
-	{
-		InBuffer[InBufferIndex * 3 + Index] = InValue[Index];
-	}
-}
-
-void ReadRawBuffer(in StructuredBuffer<int> InBuffer, in uint InBufferIndex, out int3 OutValue)
-{
-	for (uint Index = 0; Index < 3; ++Index)
-	{
-		OutValue[Index] = InBuffer[InBufferIndex * 3 + Index];
-	}
-}
-void ReadRawBuffer(in RWStructuredBuffer<int> InBuffer, in uint InBufferIndex, out int3 OutValue)
-{
-	for (uint Index = 0; Index < 3; ++Index)
-	{
-		OutValue[Index] = InBuffer[InBufferIndex * 3 + Index];
-	}
-}
-void WriteRawBuffer(in RWStructuredBuffer<int> InBuffer, in uint InBufferIndex, in int3 InValue)
-{
-	for (uint Index = 0; Index < 3; ++Index)
-	{
-		InBuffer[InBufferIndex * 3 + Index] = InValue[Index];
-	}
-}
+#define DI_IMPL_READ(Name, ReturnType, ...) ReturnType DI_FUNCTION_LOCAL(Name)(__VA_ARGS__)
+#define DI_IMPL_WRITE(Name, ...) void DI_FUNCTION_LOCAL(Name)(__VA_ARGS__)

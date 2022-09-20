@@ -394,7 +394,7 @@ namespace
 
 		StringBuilder.Append(TEXT(") { "));
 		StringBuilder.Append(bHasReturn ? TEXT("return ") : TEXT(""));
-		StringBuilder.Append(UID).Append(TEXT("_")).Append(*FnImpl.Name);
+		StringBuilder.Append(*FnImpl.Name).Append(TEXT("_")).Append(UID);
 		StringBuilder.Append(TEXT("("));
 
 		for (int32 ParameterIndex = bHasReturn ? 1 : 0; ParameterIndex < NumParams; ++ParameterIndex)
@@ -462,6 +462,9 @@ FString UComputeGraph::BuildKernelSource(
 	TSet<FString> StructsSeen;
 	TArray<FString> StructDeclarations;
 
+	// Add include for any platform specific types.
+	HLSL += TEXT("#include \"/Engine/Public/Platform.ush\"\n");
+
 	// Add virtual source includes from the additional sources.
 	for (TPair<FString, FString> const& AdditionalSource : InAdditionalSources)
 	{
@@ -495,9 +498,7 @@ FString UComputeGraph::BuildKernelSource(
 		{
 			// Add a unique prefix to generate unique names in the data interface shader code.
 			FString NamePrefix = GetUniqueDataInterfaceName(DataInterface, DataProviderIndex);
-			HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), *NamePrefix);
-			DataInterface->GetHLSL(HLSL);
-			HLSL += TEXT("#undef DI_UID\n");
+			DataInterface->GetHLSL(HLSL, NamePrefix);
 
 			DataInterface->GetStructDeclarations(StructsSeen, StructDeclarations);
 			

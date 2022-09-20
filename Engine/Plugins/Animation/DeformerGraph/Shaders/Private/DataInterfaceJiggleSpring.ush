@@ -1,81 +1,79 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+uint {DataInterfaceName}_NumVertices;
+uint {DataInterfaceName}_BaseVertexIndex; // InputStreamStart
 
-uint DI_LOCAL(NumVertices);
-uint DI_LOCAL(BaseVertexIndex); // InputStreamStart
+uint {DataInterfaceName}_NumVertexMap;
+uint {DataInterfaceName}_NumStiffnessWeights;
+uint {DataInterfaceName}_NumDampingWeights;
+uint {DataInterfaceName}_NumMaxStretchWeights;
 
-uint DI_LOCAL(NumVertexMap);
-uint DI_LOCAL(NumStiffnessWeights);
-uint DI_LOCAL(NumDampingWeights);
-uint DI_LOCAL(NumMaxStretchWeights);
+float {DataInterfaceName}_Stiffness;
+float {DataInterfaceName}_Damping;
+float {DataInterfaceName}_MaxStretch;
 
-float DI_LOCAL(Stiffness);
-float DI_LOCAL(Damping);
-float DI_LOCAL(MaxStretch);
+Buffer<float> {DataInterfaceName}_StiffnessWeightsBuffer;
+Buffer<float> {DataInterfaceName}_DampingWeightsBuffer;
+Buffer<uint> {DataInterfaceName}_VertexMapBuffer;
+Buffer<float> {DataInterfaceName}_MaxStretchWeightsBuffer;
 
-Buffer<float> DI_LOCAL(StiffnessWeightsBuffer);
-Buffer<float> DI_LOCAL(DampingWeightsBuffer);
-Buffer<uint> DI_LOCAL(VertexMapBuffer);
-Buffer<float> DI_LOCAL(MaxStretchWeightsBuffer);
-
-DI_IMPL_READ(ReadNumVertices, uint, )
+uint ReadNumVertices_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumVertices);
+	return {DataInterfaceName}_NumVertices;
 }
 
-DI_IMPL_READ(ReadStiffness, float, uint VertexIndex)
+float ReadStiffness_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
-	if( //DI_LOCAL(NumStiffnessWeights) == DI_LOCAL(NumVertices) && 
-		VertexIndex < DI_LOCAL(NumStiffnessWeights))
+	if( //{DataInterfaceName}_NumStiffnessWeights == {DataInterfaceName}_NumVertices && 
+		VertexIndex < {DataInterfaceName}_NumStiffnessWeights)
 	{
-		uint BufferIndex = VertexIndex + DI_LOCAL(BaseVertexIndex);
-		return DI_LOCAL(StiffnessWeightsBuffer)[BufferIndex] * DI_LOCAL(Stiffness);
+		uint BufferIndex = VertexIndex + {DataInterfaceName}_BaseVertexIndex;
+		return {DataInterfaceName}_StiffnessWeightsBuffer[BufferIndex] * {DataInterfaceName}_Stiffness;
 	}
-	//else if(VertexIndex < DI_LOCAL(NumVertexMap))
+	//else if(VertexIndex < {DataInterfaceName}_NumVertexMap)
 	//{
-	//	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(BaseVertexIndex)];
-	//	return DI_LOCAL(StiffnessWeightsBuffer)[BufferIndex] * DI_LOCAL(Stiffness);
+	//	uint BufferIndex = {DataInterfaceName}_VertexMapBuffer[VertexIndex + {DataInterfaceName}_BaseVertexIndex];
+	//	return {DataInterfaceName}_StiffnessWeightsBuffer[BufferIndex] * {DataInterfaceName}_Stiffness;
 	//}
 	else
 	{
-		return DI_LOCAL(Stiffness);
+		return {DataInterfaceName}_Stiffness;
 	}
 #else
 	return 0.0;
 #endif
 }
 
-DI_IMPL_READ(ReadDamping, float, uint VertexIndex)
+float ReadDamping_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
-	if( //DI_LOCAL(NumStiffnessWeights) == DI_LOCAL(NumVertices) && 
-		VertexIndex < DI_LOCAL(NumStiffnessWeights))
+	if( //{DataInterfaceName}_NumStiffnessWeights == {DataInterfaceName}_NumVertices && 
+		VertexIndex < {DataInterfaceName}_NumStiffnessWeights)
 	{
-		uint BufferIndex = VertexIndex + DI_LOCAL(BaseVertexIndex);
-		return DI_LOCAL(DampingWeightsBuffer)[BufferIndex] * DI_LOCAL(Damping);
+		uint BufferIndex = VertexIndex + {DataInterfaceName}_BaseVertexIndex;
+		return {DataInterfaceName}_DampingWeightsBuffer[BufferIndex] * {DataInterfaceName}_Damping;
 	}
-	//else if(VertexIndex < DI_LOCAL(NumVertexMap))
+	//else if(VertexIndex < {DataInterfaceName}_NumVertexMap)
 	//{
-	//	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(BaseVertexIndex)];
-	//	return DI_LOCAL(DampingWeightsBuffer)[BufferIndex] * DI_LOCAL(Damping);
+	//	uint BufferIndex = {DataInterfaceName}_VertexMapBuffer[VertexIndex + {DataInterfaceName}_BaseVertexIndex];
+	//	return {DataInterfaceName}_DampingWeightsBuffer[BufferIndex] * {DataInterfaceName}_Damping;
 	//}
 	else
 	{
-		return DI_LOCAL(Damping);
+		return {DataInterfaceName}_Damping;
 	}
 #else
 	return 0.0;
 #endif
 }
 
-DI_IMPL_READ(ReadBufferIndex, uint, uint VertexIndex)
+uint ReadBufferIndex_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
-	if(VertexIndex < DI_LOCAL(NumVertexMap))
+	if(VertexIndex < {DataInterfaceName}_NumVertexMap)
 	{
-		uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(BaseVertexIndex)];
+		uint BufferIndex = {DataInterfaceName}_VertexMapBuffer[VertexIndex + {DataInterfaceName}_BaseVertexIndex];
 		return BufferIndex;
 	}
 #else
@@ -83,15 +81,15 @@ DI_IMPL_READ(ReadBufferIndex, uint, uint VertexIndex)
 #endif
 }
 
-DI_IMPL_READ(ReadMaxStretch, float, uint VertexIndex)
+float ReadMaxStretch_{DataInterfaceName}(uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
-	if(VertexIndex < DI_LOCAL(NumMaxStretchWeights))
+	if(VertexIndex < {DataInterfaceName}_NumMaxStretchWeights)
 	{
-		uint BufferIndex = VertexIndex + DI_LOCAL(BaseVertexIndex);
-		return abs(DI_LOCAL(MaxStretchWeightsBuffer[BufferIndex]) * DI_LOCAL(MaxStretch));
+		uint BufferIndex = VertexIndex + {DataInterfaceName}_BaseVertexIndex;
+		return abs({DataInterfaceName}_MaxStretchWeightsBuffer[BufferIndex] * {DataInterfaceName}_MaxStretch);
 	}
-	return abs(DI_LOCAL(MaxStretch));
+	return abs({DataInterfaceName}_MaxStretch);
 #else
 	return 100.0;
 #endif
@@ -119,8 +117,8 @@ struct FAnalyticSpring
 	{
 #if ENABLE_DEFORMER_JIGGLE_SPRING
 		// Sim parameters
-		float K = DI_LOCAL(ReadStiffness)(Index);
-		float D = DI_LOCAL(ReadDamping)(Index);
+		float K = ReadStiffness_{DataInterfaceName}(Index);
+		float D = ReadDamping_{DataInterfaceName}(Index);
 		if(K <= 0.0 || D <= 0.0)
 		{
 			// Set outputs to skinning
@@ -212,7 +210,7 @@ struct FAnalyticSpring
 		// Clamp deformation
 		float3 Dir = X - CurrSkinPos;
 		float DirLen = length(Dir);
-		float MaxLen = DI_LOCAL(ReadMaxStretch)(Index);
+		float MaxLen = ReadMaxStretch_{DataInterfaceName}(Index);
 		if(DirLen > MaxLen)
 		{
 			Dir /= DirLen;
@@ -235,7 +233,7 @@ struct FAnalyticSpring
 
 };
 
-DI_IMPL_READ(ReadAnalyticSpring, FAnalyticSpring, )
+FAnalyticSpring ReadAnalyticSpring_{DataInterfaceName}()
 {
 	FAnalyticSpring Spring;
 	return Spring;

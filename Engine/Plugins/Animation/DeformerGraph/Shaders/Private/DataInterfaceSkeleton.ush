@@ -1,45 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
-#include "/Engine/Private/GpuSkinCommon.ush"
+uint {DataInterfaceName}_NumVertices;
+uint {DataInterfaceName}_InputStreamStart;
+uint {DataInterfaceName}_NumBoneInfluences;
+uint {DataInterfaceName}_InputWeightStart;
+uint {DataInterfaceName}_InputWeightStride;
+uint {DataInterfaceName}_InputWeightIndexSize;
+Buffer<float4> {DataInterfaceName}_BoneMatrices;
+Buffer<uint> {DataInterfaceName}_InputWeightStream;
+Buffer<uint> {DataInterfaceName}_InputWeightLookupStream;
 
-// The following should come from project settings and be set on compute graph kernel compilation.
-// GPUSKIN_BONE_INDEX_UINT16
-// GPUSKIN_UNLIMITED_BONE_INFLUENCE
-
-uint DI_LOCAL(NumVertices);
-uint DI_LOCAL(InputStreamStart);
-uint DI_LOCAL(NumBoneInfluences);
-uint DI_LOCAL(InputWeightStart);
-uint DI_LOCAL(InputWeightStride);
-uint DI_LOCAL(InputWeightIndexSize);
-
-Buffer<float4> DI_LOCAL(BoneMatrices);
-Buffer<uint> DI_LOCAL(InputWeightStream);
-Buffer<uint> DI_LOCAL(InputWeightLookupStream);
-
-DI_IMPL_READ(ReadNumVertices, uint, )
+uint ReadNumVertices_{DataInterfaceName}()
 {
-	return DI_LOCAL(NumVertices);
+	return {DataInterfaceName}_NumVertices;
 }
 
 #if !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 
-int4 DI_LOCAL(GetBlendIndices)(uint StreamOffset, uint ExtraInfluenceIndex)
+int4 GetBlendIndices_{DataInterfaceName}(uint StreamOffset, uint ExtraInfluenceIndex)
 {
 	int4 UnpackedBlendIndices = 0;
 
 #if GPUSKIN_BONE_INDEX_UINT16
 	StreamOffset += GPUSKIN_VB_OFFSET_INFLUENCEBONES + 2 * ExtraInfluenceIndex;
-	uint PackedBlendIndices = DI_LOCAL(InputWeightStream)[StreamOffset];
+	uint PackedBlendIndices = {DataInterfaceName}_InputWeightStream[StreamOffset];
 	UnpackedBlendIndices.x = PackedBlendIndices & 0xffff;
 	UnpackedBlendIndices.y = PackedBlendIndices >> 16 & 0xffff;
-	PackedBlendIndices = DI_LOCAL(InputWeightStream)[StreamOffset + 1];
+	PackedBlendIndices = {DataInterfaceName}_InputWeightStream[StreamOffset + 1];
 	UnpackedBlendIndices.z = PackedBlendIndices & 0xffff;
 	UnpackedBlendIndices.w = PackedBlendIndices >> 16 & 0xffff;
 #else // GPUSKIN_BONE_INDEX_UINT16
 	StreamOffset += GPUSKIN_VB_OFFSET_INFLUENCEBONES + ExtraInfluenceIndex;
-	uint PackedBlendIndices = DI_LOCAL(InputWeightStream)[StreamOffset];
+	uint PackedBlendIndices = {DataInterfaceName}_InputWeightStream[StreamOffset];
 	UnpackedBlendIndices.x = PackedBlendIndices & 0xff;
 	UnpackedBlendIndices.y = PackedBlendIndices >> 8 & 0xff;
 	UnpackedBlendIndices.z = PackedBlendIndices >> 16 & 0xff;
@@ -49,10 +41,10 @@ int4 DI_LOCAL(GetBlendIndices)(uint StreamOffset, uint ExtraInfluenceIndex)
 	return UnpackedBlendIndices;
 }
 
-float4 DI_LOCAL(GetBlendWeights)(uint StreamOffset, uint ExtraInfluenceIndex)
+float4 GetBlendWeights_{DataInterfaceName}(uint StreamOffset, uint ExtraInfluenceIndex)
 {
-	StreamOffset += (((DI_LOCAL(NumBoneInfluences) + 3) / 4) + ExtraInfluenceIndex) * (1 + GPUSKIN_BONE_INDEX_UINT16);
-	uint PackedBlendWeights = DI_LOCAL(InputWeightStream)[StreamOffset];
+	StreamOffset += ((({DataInterfaceName}_NumBoneInfluences + 3) / 4) + ExtraInfluenceIndex) * (1 + GPUSKIN_BONE_INDEX_UINT16);
+	uint PackedBlendWeights = {DataInterfaceName}_InputWeightStream[StreamOffset];
 	
 	float4 UnpackedBlendWeights = 0;
 	UnpackedBlendWeights.x = float(PackedBlendWeights & 0xff) / 255.0f;
@@ -64,25 +56,25 @@ float4 DI_LOCAL(GetBlendWeights)(uint StreamOffset, uint ExtraInfluenceIndex)
 
 #endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
 
-float3x4 DI_LOCAL(GetBoneMatrix)(uint BoneIndex)
+float3x4 GetBoneMatrix_{DataInterfaceName}(uint BoneIndex)
 {
 	uint BufferIndex = BoneIndex * 3;
-	return float3x4(DI_LOCAL(BoneMatrices)[BufferIndex], DI_LOCAL(BoneMatrices)[BufferIndex + 1], DI_LOCAL(BoneMatrices)[BufferIndex + 2]);
+	return float3x4({DataInterfaceName}_BoneMatrices[BufferIndex], {DataInterfaceName}_BoneMatrices[BufferIndex + 1], {DataInterfaceName}_BoneMatrices[BufferIndex + 2]);
 }
 
-DI_IMPL_READ(ReadNumBones, uint, uint VertexIndex)
+uint ReadNumBones_{DataInterfaceName}(uint VertexIndex)
 {
 #if !ENABLE_DEFORMER_BONES
 	return 1;
 #elif GPUSKIN_UNLIMITED_BONE_INFLUENCE
-	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	uint BlendOffsetCount = {DataInterfaceName}_InputWeightLookupStream[VertexIndex];
 	return BlendOffsetCount & 0xff;
 #else // !GPUSKIN_UNLIMITED_BONE_INFLUENCE
-	return DI_LOCAL(NumBoneInfluences);
+	return {DataInterfaceName}_NumBoneInfluences;
 #endif
 }
 
-DI_IMPL_READ(ReadBoneMatrix, float3x4, uint VertexIndex, uint BoneIndex)
+float3x4 ReadBoneMatrix_{DataInterfaceName}(uint VertexIndex, uint BoneIndex)
 {
 #if !ENABLE_DEFORMER_BONES
 
@@ -90,28 +82,28 @@ DI_IMPL_READ(ReadBoneMatrix, float3x4, uint VertexIndex, uint BoneIndex)
 
 #elif GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	
-	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	uint BlendOffsetCount = {DataInterfaceName}_InputWeightLookupStream[VertexIndex];
 	int StreamOffset = BlendOffsetCount >> 8;
 
-	int BoneIndexOffset = StreamOffset + (DI_LOCAL(InputWeightIndexSize) * BoneIndex);
-	int BoneGlobalIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset];
-	if (DI_LOCAL(InputWeightIndexSize) > 1)
+	int BoneIndexOffset = StreamOffset + ({DataInterfaceName}_InputWeightIndexSize * BoneIndex);
+	int BoneGlobalIndex = {DataInterfaceName}_InputWeightStream[BoneIndexOffset];
+	if ({DataInterfaceName}_InputWeightIndexSize > 1)
 	{
-		BoneGlobalIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset + 1] << 8 | BoneGlobalIndex;
+		BoneGlobalIndex = {DataInterfaceName}_InputWeightStream[BoneIndexOffset + 1] << 8 | BoneGlobalIndex;
 	}
 	
-	return DI_LOCAL(GetBoneMatrix)(BoneGlobalIndex);
+	return GetBoneMatrix_{DataInterfaceName}(BoneGlobalIndex);
 
 #else // !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	
-	uint StreamOffset = DI_LOCAL(InputWeightStart) + (VertexIndex * (DI_LOCAL(InputWeightStride) / 4));
-	int BlendIndex = DI_LOCAL(GetBlendIndices)(StreamOffset, BoneIndex / 4)[BoneIndex & 0x3];
-	return DI_LOCAL(GetBoneMatrix)(BlendIndex);
+	uint StreamOffset = {DataInterfaceName}_InputWeightStart + (VertexIndex * ({DataInterfaceName}_InputWeightStride / 4));
+	int BlendIndex = GetBlendIndices_{DataInterfaceName}(StreamOffset, BoneIndex / 4)[BoneIndex & 0x3];
+	return GetBoneMatrix_{DataInterfaceName}(BlendIndex);
 
 #endif
 }
 
-DI_IMPL_READ(ReadBoneWeight, float, uint VertexIndex, uint BoneIndex)
+float ReadBoneWeight_{DataInterfaceName}(uint VertexIndex, uint BoneIndex)
 {
 #if !ENABLE_DEFORMER_BONES
 
@@ -119,23 +111,23 @@ DI_IMPL_READ(ReadBoneWeight, float, uint VertexIndex, uint BoneIndex)
 
 #elif GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	
-	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	uint BlendOffsetCount = {DataInterfaceName}_InputWeightLookupStream[VertexIndex];
 	int NumBoneInfluencesLocal = BlendOffsetCount & 0xff;
 	int StreamOffset = BlendOffsetCount >> 8;
-	int WeightsOffset = StreamOffset + (DI_LOCAL(InputWeightIndexSize) * NumBoneInfluencesLocal);
+	int WeightsOffset = StreamOffset + ({DataInterfaceName}_InputWeightIndexSize * NumBoneInfluencesLocal);
 
-	return float(DI_LOCAL(InputWeightStream)[WeightsOffset + BoneIndex]) / 255.0f;
+	return float({DataInterfaceName}_InputWeightStream[WeightsOffset + BoneIndex]) / 255.0f;
 
 #else // !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	
-	uint StreamOffset = DI_LOCAL(InputWeightStart) + (VertexIndex * (DI_LOCAL(InputWeightStride) / 4));
-	float BlendWeight = DI_LOCAL(GetBlendWeights)(StreamOffset, BoneIndex / 4)[BoneIndex & 0x3];
+	uint StreamOffset = {DataInterfaceName}_InputWeightStart + (VertexIndex * ({DataInterfaceName}_InputWeightStride / 4));
+	float BlendWeight = GetBlendWeights_{DataInterfaceName}(StreamOffset, BoneIndex / 4)[BoneIndex & 0x3];
 	return BlendWeight;
 
 #endif
 }
 
-DI_IMPL_READ(ReadWeightedBoneMatrix, float3x4, uint VertexIndex)
+float3x4 ReadWeightedBoneMatrix_{DataInterfaceName}(uint VertexIndex)
 {
 #if !ENABLE_DEFORMER_BONES
 
@@ -145,22 +137,22 @@ DI_IMPL_READ(ReadWeightedBoneMatrix, float3x4, uint VertexIndex)
 
 	float3x4 BlendMatrix = (float3x4)0;
 
-	uint BufferIndex = DI_LOCAL(InputStreamStart) + VertexIndex;
-	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[BufferIndex];
+	uint BufferIndex = {DataInterfaceName}_InputStreamStart + VertexIndex;
+	uint BlendOffsetCount = {DataInterfaceName}_InputWeightLookupStream[BufferIndex];
 	int NumBoneInfluencesLocal = BlendOffsetCount & 0xff;
 	int IndicesOffset = BlendOffsetCount >> 8;
-	int WeightsOffset = IndicesOffset + (DI_LOCAL(InputWeightIndexSize) * NumBoneInfluencesLocal);
+	int WeightsOffset = IndicesOffset + ({DataInterfaceName}_InputWeightIndexSize * NumBoneInfluencesLocal);
 
 	for (int InfluenceIndex = 0; InfluenceIndex < NumBoneInfluencesLocal; InfluenceIndex++)
 	{
-		int BoneIndexOffset = IndicesOffset + (DI_LOCAL(InputWeightIndexSize) * InfluenceIndex);
-		int BoneIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset];
-		if (DI_LOCAL(InputWeightIndexSize) > 1)
+		int BoneIndexOffset = IndicesOffset + ({DataInterfaceName}_InputWeightIndexSize * InfluenceIndex);
+		int BoneIndex = {DataInterfaceName}_InputWeightStream[BoneIndexOffset];
+		if ({DataInterfaceName}_InputWeightIndexSize > 1)
 		{
-			BoneIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset + 1] << 8 | BoneIndex;
+			BoneIndex = {DataInterfaceName}_InputWeightStream[BoneIndexOffset + 1] << 8 | BoneIndex;
 		}
-		float BoneWeight = float(DI_LOCAL(InputWeightStream)[WeightsOffset + InfluenceIndex]) / 255.0f;
-		BlendMatrix += BoneWeight * DI_LOCAL(GetBoneMatrix)(BoneIndex);
+		float BoneWeight = float({DataInterfaceName}_InputWeightStream[WeightsOffset + InfluenceIndex]) / 255.0f;
+		BlendMatrix += BoneWeight * GetBoneMatrix_{DataInterfaceName}(BoneIndex);
 	}
 
 	return BlendMatrix;
@@ -169,29 +161,29 @@ DI_IMPL_READ(ReadWeightedBoneMatrix, float3x4, uint VertexIndex)
 
 	float3x4 BlendMatrix = (float3x4)0;
 
-	uint StreamOffset = DI_LOCAL(InputWeightStart) + (VertexIndex * (DI_LOCAL(InputWeightStride) / 4));
+	uint StreamOffset = {DataInterfaceName}_InputWeightStart + (VertexIndex * ({DataInterfaceName}_InputWeightStride / 4));
 
-	if (DI_LOCAL(NumBoneInfluences) > 0)
+	if ({DataInterfaceName}_NumBoneInfluences > 0)
 	{
-		int4 BlendIndices = DI_LOCAL(GetBlendIndices)(StreamOffset, 0);
-		float4 BlendWeights = DI_LOCAL(GetBlendWeights)(StreamOffset, 0);
+		int4 BlendIndices = GetBlendIndices_{DataInterfaceName}(StreamOffset, 0);
+		float4 BlendWeights = GetBlendWeights_{DataInterfaceName}(StreamOffset, 0);
 
-		BlendMatrix += BlendWeights.x * DI_LOCAL(GetBoneMatrix)(BlendIndices.x);
-		BlendMatrix += BlendWeights.y * DI_LOCAL(GetBoneMatrix)(BlendIndices.y);
-		BlendMatrix += BlendWeights.z * DI_LOCAL(GetBoneMatrix)(BlendIndices.z);
-		BlendMatrix += BlendWeights.w * DI_LOCAL(GetBoneMatrix)(BlendIndices.w);
+		BlendMatrix += BlendWeights.x * GetBoneMatrix_{DataInterfaceName}(BlendIndices.x);
+		BlendMatrix += BlendWeights.y * GetBoneMatrix_{DataInterfaceName}(BlendIndices.y);
+		BlendMatrix += BlendWeights.z * GetBoneMatrix_{DataInterfaceName}(BlendIndices.z);
+		BlendMatrix += BlendWeights.w * GetBoneMatrix_{DataInterfaceName}(BlendIndices.w);
 	}
 
 	// todo[CF]: make this a permutation when permutation support is working again?
-	if (DI_LOCAL(NumBoneInfluences) > 4)
+	if ({DataInterfaceName}_NumBoneInfluences > 4)
 	{
-		int4 BlendIndices = DI_LOCAL(GetBlendIndices)(StreamOffset, 1);
-		float4 BlendWeights = DI_LOCAL(GetBlendWeights)(StreamOffset, 1);
+		int4 BlendIndices = GetBlendIndices_{DataInterfaceName}(StreamOffset, 1);
+		float4 BlendWeights = GetBlendWeights_{DataInterfaceName}(StreamOffset, 1);
 
-		BlendMatrix += BlendWeights.x * DI_LOCAL(GetBoneMatrix)(BlendIndices.x);
-		BlendMatrix += BlendWeights.y * DI_LOCAL(GetBoneMatrix)(BlendIndices.y);
-		BlendMatrix += BlendWeights.z * DI_LOCAL(GetBoneMatrix)(BlendIndices.z);
-		BlendMatrix += BlendWeights.w * DI_LOCAL(GetBoneMatrix)(BlendIndices.w);
+		BlendMatrix += BlendWeights.x * GetBoneMatrix_{DataInterfaceName}(BlendIndices.x);
+		BlendMatrix += BlendWeights.y * GetBoneMatrix_{DataInterfaceName}(BlendIndices.y);
+		BlendMatrix += BlendWeights.z * GetBoneMatrix_{DataInterfaceName}(BlendIndices.z);
+		BlendMatrix += BlendWeights.w * GetBoneMatrix_{DataInterfaceName}(BlendIndices.w);
 	}
 
 	return BlendMatrix;

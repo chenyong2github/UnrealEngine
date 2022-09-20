@@ -72,19 +72,17 @@ void UOptimusGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderPa
 	InOutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);
 }
 
-void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL) const
+void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
 {
-	// Need include for DI_LOCAL macro expansion.
-	OutHLSL += TEXT("#include \"/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush\"\n");
 	// Add uniforms.
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		OutHLSL += FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *Variable.ValueType->ToString(), *Variable.Name);
+		OutHLSL += FString::Printf(TEXT("%s %s_%s;\n"), *Variable.ValueType->ToString(), *InDataInterfaceName, *Variable.Name);
 	}
 	// Add function getters.
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"), *Variable.Name, *Variable.ValueType->ToString(), *Variable.Name);
+		OutHLSL += FString::Printf(TEXT("%s Read%s_%s()\n{\n\treturn %s_%s;\n}\n"), *Variable.ValueType->ToString(), *Variable.Name, *InDataInterfaceName, *InDataInterfaceName, *Variable.Name);
 	}
 }
 

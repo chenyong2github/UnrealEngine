@@ -47,7 +47,7 @@ public:
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderHash(FString& InOutKey) const override;
-	void GetHLSL(FString& OutHLSL) const override;
+	void GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const override;
 	//~ End UComputeDataInterface Interface
 
 	/** The value type we should be allocating elements for */
