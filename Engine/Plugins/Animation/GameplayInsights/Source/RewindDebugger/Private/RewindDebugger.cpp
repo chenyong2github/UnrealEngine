@@ -238,11 +238,6 @@ void FRewindDebugger::RefreshDebugTracks()
 		{
 			uint64 TargetActorId = GetTargetActorId();
 
-			if (TargetActorId == 0)
-			{
-				return;
-			}
-
 			bool bChanged = false;
 
 			// add actor (even if it isn't found in the gameplay provider)
@@ -254,10 +249,12 @@ void FRewindDebugger::RefreshDebugTracks()
 			}
 			else
 			{
-				if (DebugTracks[0]->GetDisplayName().ToString() != DebugTargetActor.Get() || DebugTracks[0]->GetObjectId() != TargetActorId)
+				FString DebugTargetActorName = DebugTargetActor.Get();
+
+				if (DebugTracks[0]->GetDisplayName().ToString() != DebugTargetActorName || DebugTracks[0]->GetObjectId() != TargetActorId)
 				{
 					bChanged = true;
-					DebugTracks[0] = MakeShared<RewindDebugger::FRewindDebuggerObjectTrack>(TargetActorId, DebugTargetActor.Get());
+					DebugTracks[0] = MakeShared<RewindDebugger::FRewindDebuggerObjectTrack>(TargetActorId, DebugTargetActorName);
 				}
 			}
 

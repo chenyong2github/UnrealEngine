@@ -58,23 +58,30 @@ FText FRewindDebuggerObjectTrack::GetDisplayNameInternal() const
 {
 	if (!bDisplayNameValid)
 	{
-		IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
-		const TraceServices::IAnalysisSession* Session = RewindDebugger->GetAnalysisSession();
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
-
-		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
-
-		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ObjectId);
-
-		DisplayName = FText::FromString(ObjectInfo.Name);
-
-		if (const FWorldInfo* WorldInfo = GameplayProvider->FindWorldInfoFromObject(ObjectId))
+		if (ObjectId == 0)
 		{
-			bool bIsServer = WorldInfo->NetMode == FWorldInfo::ENetMode::DedicatedServer;
+			DisplayName = FText::FromString(ObjectName);
+		}
+		else
+		{
+			IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+			const TraceServices::IAnalysisSession* Session = RewindDebugger->GetAnalysisSession();
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 
-			if (bIsServer)
+			const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
+
+			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ObjectId);
+
+			DisplayName = FText::FromString(ObjectInfo.Name);
+
+			if (const FWorldInfo* WorldInfo = GameplayProvider->FindWorldInfoFromObject(ObjectId))
 			{
-				DisplayName = FText::Format(NSLOCTEXT("RewindDebuggerTrack", " (Server)", "{0} (Server)"), FText::FromString(ObjectInfo.Name));
+				bool bIsServer = WorldInfo->NetMode == FWorldInfo::ENetMode::DedicatedServer;
+
+				if (bIsServer)
+				{
+					DisplayName = FText::Format(NSLOCTEXT("RewindDebuggerTrack", " (Server)", "{0} (Server)"), FText::FromString(ObjectInfo.Name));
+				}
 			}
 		}
 
