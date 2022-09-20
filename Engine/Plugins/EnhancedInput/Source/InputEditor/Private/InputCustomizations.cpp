@@ -289,6 +289,57 @@ TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetail
 	return CDOs;
 }
 
+bool FEnhancedInputDeveloperSettingsCustomization::DoesClassHaveSubtypes(UClass* Class)
+{
+	// Search native classes
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	{
+		// Make sure it's a native class and a child of Class passed in
+		if (ClassIt->IsNative() && ClassIt->IsChildOf(Class))
+		{
+			// Make sure it doesn't have any flags that would disqualify it from being used
+			if (!ClassIt->HasAnyClassFlags(CLASS_Abstract | CLASS_HideDropDown | CLASS_Deprecated | CLASS_NewerVersionExists))
+			{
+				UObject* CDO = ClassIt->GetDefaultObject();
+		
+				// Make Sure it isn't the Class itself
+				if (CDO && CDO->GetClass() != Class)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	// Search BPs via asset registry
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+	TArray<FAssetData> BlueprintAssetData;
+	AssetRegistry.GetAssets(Filter, BlueprintAssetData);
+
+	for (FAssetData& Asset : BlueprintAssetData)
+	{
+		FAssetDataTagMapSharedView::FFindTagResult Result = Asset.TagsAndValues.FindTag(TEXT("NativeParentClass"));
+		if (Result.IsSet() && !ExcludedAssetNames.Contains(Asset.AssetName))
+		{
+			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
+			if (UClass* ParentClass = FindObjectSafe<UClass>(nullptr, *ClassObjectPath, true))
+			{
+				if (ParentClass->IsChildOf(Class))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(const FAssetData& AssetData, const bool bIsAssetBeingRemoved)
 {
 	// If the asset was a blueprint...

@@ -64,6 +64,9 @@ public:
 	virtual void CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder) override;
 	//~ End IDetailCustomization interface
 	
+	/** Returns true if something inherits from the UClass passed in. Checks BPs and Native */
+	static bool DoesClassHaveSubtypes(UClass* Class);
+
 private:
 
 	/** Gather all of the CDO's for the given class, Native and Blueprint. */

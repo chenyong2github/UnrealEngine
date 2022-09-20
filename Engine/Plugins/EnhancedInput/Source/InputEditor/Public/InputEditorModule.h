@@ -63,6 +63,10 @@ class INPUTEDITOR_API UInputMappingContext_Factory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 public:
+	UPROPERTY(EditAnywhere, Category=InputMappingContext)
+	TSubclassOf<class UInputMappingContext> InputMappingContextClass;
+
+	virtual bool ConfigureProperties() override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 
 	/** Set the array of initial actions that the resulting IMC should be populated with */
@@ -80,6 +84,10 @@ class INPUTEDITOR_API UInputAction_Factory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 public:
+	UPROPERTY(EditAnywhere, Category=InputAction)
+	TSubclassOf<UInputAction> InputActionClass;
+
+	virtual bool ConfigureProperties() override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 };
 
