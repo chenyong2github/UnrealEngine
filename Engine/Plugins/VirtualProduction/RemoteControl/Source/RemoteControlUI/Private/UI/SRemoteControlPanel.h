@@ -143,6 +143,9 @@ public:
 	void AddToolbarWidget(TSharedRef<SWidget> Widget);
 	void RemoveAllToolbarWidgets();
 
+	/** Public Workaround Delete for Focus/Delete Key Issues when Docked */
+	void DeleteEntity();
+
 	/** Retrieves the Logic Action panel. */
 	TSharedPtr<SRCActionPanel> GetLogicActionPanel()
 	{
@@ -412,6 +415,8 @@ private:
 	const FRCPanelStyle* RCPanelStyle;
 	/** Stores the active panel that is drawn. */
 	ERCPanels ActivePanel;
+	/** Input Preprocessor which catches the Delete Key when Docked. */
+	TSharedPtr<IInputProcessor> InputProcessor;
 
 	// ~ Remote Control Logic Panels ~
 
