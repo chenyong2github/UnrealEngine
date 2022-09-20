@@ -35,7 +35,7 @@ void FContentBundleHiearchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutI
 	{
 		for (TSharedPtr<FContentBundleEditor>& ContentBundleEditor : ContentBundleEditorSubsystem->GetEditorContentBundles())
 		{
-			if (FSceneOutlinerTreeItemPtr ContentBundleTreeItem = Mode->CreateItemFor<FContentBundleTreeItem>(ContentBundleEditor, true))
+			if (FSceneOutlinerTreeItemPtr ContentBundleTreeItem = Mode->CreateItemFor<FContentBundleTreeItem>(FContentBundleTreeItem::FInitializationValues(ContentBundleEditor, *StaticCast<FContentBundleMode*>(Mode)), true))
 			{
 				OutItems.Add(ContentBundleTreeItem);
 			}

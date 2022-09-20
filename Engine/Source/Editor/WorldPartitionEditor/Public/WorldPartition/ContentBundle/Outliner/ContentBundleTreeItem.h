@@ -8,11 +8,25 @@
 #include "ISceneOutlinerTreeItem.h"
 
 class FContentBundleEditor;
+class FContentBundleMode;
 
 struct FContentBundleTreeItem : ISceneOutlinerTreeItem
 {
 public:
-	FContentBundleTreeItem(const TWeakPtr<FContentBundleEditor>& InContentBundleEditor);
+	struct FInitializationValues
+	{
+		FInitializationValues(const TWeakPtr<FContentBundleEditor>& InContentBundleEditor, const FContentBundleMode& InMode)
+			:ContentBundleEditor(InContentBundleEditor),
+			Mode(InMode)
+		{
+
+		}
+
+		const TWeakPtr<FContentBundleEditor> ContentBundleEditor;
+		const FContentBundleMode& Mode;
+	};
+
+	FContentBundleTreeItem(FInitializationValues InitializationValues);
 	TWeakPtr<FContentBundleEditor> GetContentBundleEditor() const { return IsValid() ? ContentBundleEditor : nullptr; }
 	TSharedPtr<FContentBundleEditor> GetContentBundleEditorPin() const { return IsValid() ? ContentBundleEditor.Pin() : nullptr; }
 
@@ -43,4 +57,6 @@ public:
 
 private:
 	TWeakPtr<FContentBundleEditor> ContentBundleEditor;
+
+	const FContentBundleMode& Mode;
 };

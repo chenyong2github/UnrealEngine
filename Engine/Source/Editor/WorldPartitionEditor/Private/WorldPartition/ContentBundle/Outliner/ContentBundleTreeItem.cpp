@@ -5,15 +5,17 @@
 #include "WorldPartition/ContentBundle/ContentBundle.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditorSubsystem.h"
+#include "WorldPartition/ContentBundle/Outliner/ContentBundleMode.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ContentBundle"
 
 const FSceneOutlinerTreeItemType FContentBundleTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
-FContentBundleTreeItem::FContentBundleTreeItem(const TWeakPtr<FContentBundleEditor>& InContentBundleEditor)
+FContentBundleTreeItem::FContentBundleTreeItem(FInitializationValues InitializationValues)
 	: ISceneOutlinerTreeItem(Type)
-	, ContentBundleEditor(InContentBundleEditor)
+	, ContentBundleEditor(InitializationValues.ContentBundleEditor)
+	, Mode(InitializationValues.Mode)
 {
 	
 }
@@ -50,10 +52,7 @@ bool FContentBundleTreeItem::CanInteract() const
 	TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = ContentBundleEditor.Pin();
 	if (ContentBundleEditorPin != nullptr)
 	{
-		if (UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get())
-		{
-			return ContentBundleEditorPin->GetInjectedWorld() == ContentBundleEditorSubsystem->GetWorld();
-		}
+		return ContentBundleEditorPin->GetInjectedWorld() == Mode.GetEditingWorld();
 	}
 	
 	return false;
@@ -61,7 +60,6 @@ bool FContentBundleTreeItem::CanInteract() const
 
 TSharedRef<SWidget> FContentBundleTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
-	
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
@@ -69,9 +67,9 @@ TSharedRef<SWidget> FContentBundleTreeItem::GenerateLabelWidget(ISceneOutliner& 
 			SNew(STextBlock)
 			.Text(MakeAttributeLambda([this] { return  FText::FromString(GetDisplayString()); }))
 			.ColorAndOpacity(MakeAttributeLambda([this] 
-				{ 
-					return GetItemColor();
-				}))
+			{ 
+				return GetItemColor();
+			}))
 		];
 }
 

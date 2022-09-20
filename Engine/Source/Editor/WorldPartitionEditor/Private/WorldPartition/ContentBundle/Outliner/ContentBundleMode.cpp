@@ -92,7 +92,14 @@ UWorld* FContentBundleMode::GetEditingWorld() const
 {
 	if (UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get())
 	{
-		return ContentBundleEditorSubsystem->GetWorld();
+		if (UWorld* SubsystemWorld = ContentBundleEditorSubsystem->GetWorld())
+		{
+			ULevel* CurrentLevel = SubsystemWorld->GetCurrentLevel();
+			if (CurrentLevel != nullptr)
+			{
+				return CurrentLevel->GetTypedOuter<UWorld>();
+			}
+		}
 	}
 
 	return nullptr;

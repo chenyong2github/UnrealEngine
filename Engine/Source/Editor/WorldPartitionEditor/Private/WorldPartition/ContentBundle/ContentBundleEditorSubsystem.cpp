@@ -124,7 +124,6 @@ bool UContentBundleEditionSubmodule::ActivateContentBundleEditing(TSharedPtr<FCo
 			DeactivateCurrentContentBundleEditing();
 		}
 
-		UActorEditorContextSubsystem::Get()->PushContext();
 		EditingContentBundle = ContentBundleEditor;
 
 		ContentBundleEditor->StartEditing();
@@ -158,7 +157,6 @@ bool UContentBundleEditionSubmodule::DeactivateCurrentContentBundleEditing()
 		ContentBundleEditorPin->StopEditing();
 		EditingContentBundle = nullptr;
 		ActorEditorContextClientChanged.Broadcast(this);
-		UActorEditorContextSubsystem::Get()->PopContext();
 
 		GetSubsystem()->NotifyContentBundleChanged(ContentBundleEditorPin.Get());
 
