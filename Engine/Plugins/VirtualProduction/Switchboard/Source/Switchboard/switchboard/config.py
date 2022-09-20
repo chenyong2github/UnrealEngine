@@ -18,8 +18,9 @@ from PySide2 import QtWidgets
 
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.switchboard_logging import LOGGER
-from switchboard.switchboard_widgets import (DropDownMenuComboBox,
-    NonScrollableComboBox)
+from switchboard.switchboard_widgets import (
+    DropDownMenuComboBox, NonScrollableComboBox)
+from switchboard import ue_plugin_utils
 
 ROOT_CONFIGS_PATH = pathlib.Path(__file__).parent.with_name('configs')
 CONFIG_SUFFIX = '.json'
@@ -2073,7 +2074,28 @@ class Config(object):
                 "maps_plugin_filters",
                 "Map Plugin Filters",
                 data.get('maps_plugin_filters', []),
-                tool_tip="Plugins whose name matches any of these filters will also be searched for maps.",
+                tool_tip=(
+                    "DEPRECATED: Use 'Content Plugin Filters' instead' - "
+                    "Plugins whose name matches any of these filters will "
+                    "also be searched for maps."),
+                show_ui=False,
+                migrate_data=migrate_comma_separated_string_to_list
+            ),
+            'content_plugin_filters': StringListSetting(
+                "content_plugin_filters",
+                "Content Plugin Filters",
+                # "Upgrade" from the deprecated "maps_plugin_filters".
+                data.get(
+                    'content_plugin_filters',
+                    data.get('maps_plugin_filters', [])),
+                tool_tip=(
+                    "Plugins that match any of these filters will also be "
+                    "searched when populating fields in Switchboard (e.g. "
+                    "levels, nDisplay configs, etc.). Each value can be "
+                    "either just a plugin name identifying a project plugin, "
+                    "or a relative or absolute path to a plugin directory. "
+                    "Relative paths should be relative to the directory "
+                    "containing the .uproject file."),
                 migrate_data=migrate_comma_separated_string_to_list
             ),
         }
@@ -2091,7 +2113,8 @@ class Config(object):
         self.ENGINE_SYNC_METHOD = self.basic_project_settings["engine_sync_method"]
         self.MAPS_PATH = self.basic_project_settings["maps_path"]
         self.MAPS_FILTER = self.basic_project_settings["maps_filter"]
-        self.MAPS_PLUGIN_FILTERS = self.basic_project_settings["maps_plugin_filters"]
+        self.CONTENT_PLUGIN_FILTERS = (
+            self.basic_project_settings["content_plugin_filters"])
 
         self.osc_settings = {
             "osc_server_port": IntSetting(
@@ -2373,7 +2396,8 @@ class Config(object):
         data['engine_sync_method'] = self.ENGINE_SYNC_METHOD.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
-        data["maps_plugin_filters"] = self.MAPS_PLUGIN_FILTERS.get_value()
+        data["content_plugin_filters"] = (
+            self.CONTENT_PLUGIN_FILTERS.get_value())
         data["listener_exe"] = self.LISTENER_EXE.get_value()
 
         self.save_unreal_insights(data)
@@ -2482,59 +2506,39 @@ class Config(object):
         '''
         return os.path.join(self.get_project_dir(), 'Content')
 
-    def get_project_plugins_dir(self) -> str:
+    def get_unreal_content_plugins(
+            self) -> typing.List[ue_plugin_utils.UnrealPlugin]:
         '''
-        Get the "Plugins" directory of the project where all of the
-        project-based plugins are located.
+        Get a list of Unreal Engine plugins that match the current
+        Switchboard config's content plugin filter settings.
+
+        By default, Switchboard does not search inside plugins for assets when
+        populating UI fields such as the level or nDisplay config dropdown
+        menus. Plugins in which to search for content can be selectively
+        added though using the "Content Plugin Filters" setting, which
+        stores a list of glob-style patterns.
         '''
-        return os.path.join(self.get_project_dir(), 'Plugins')
+        filter_patterns = self.CONTENT_PLUGIN_FILTERS.get_value()
+        unreal_plugins = ue_plugin_utils.UnrealPlugin.from_path_filters(
+            self.get_project_dir(), filter_patterns)
+        return unreal_plugins
 
-    def get_project_plugin_names(self) -> typing.List[str]:
-        '''
-        Get a list of the names of all project-based plugins in the project.
-        '''
-        project_plugins_path = os.path.normpath(self.get_project_plugins_dir())
-        if not os.path.isdir(project_plugins_path):
-            return []
-
-        plugin_names = [
-            x.name for x in os.scandir(project_plugins_path) if x.is_dir()]
-
-        return plugin_names
-
-    def get_project_plugin_content_dir(self, plugin_name: str) -> str:
-        '''
-        Get the "Content" directory of the project-based plugin with the
-        given name.
-        '''
-        return os.path.join(
-            self.get_project_plugins_dir(), plugin_name, 'Content')
-
-    def plugin_name_matches(self, plugin_name: str, name_filters: typing.List[str]) -> bool:
-        '''
-        Test whether a plugin name matches any of the provided filters.
-
-        Returns True if any one of the filters matches, or False otherwise.
-        '''
-        for name_filter in name_filters:
-            if fnmatch.fnmatch(plugin_name, name_filter):
-                return True
-
-        return False
-
-    def resolve_content_path(self, file_path: str, plugin_name: str = None) -> str:
+    def resolve_content_path(
+            self,
+            file_path: str,
+            unreal_content_plugin: ue_plugin_utils.UnrealPlugin = None) -> str:
         '''
         Resolve a file path on the file system to the corresponding content
         path in UE.
 
-        If a plugin_name is provided, the file is assumed to live inside that
-        plugin and its content path will have the appropriate plugin
-        name-based prefix. Otherwise, the file is assumed to live inside the
-        project's content folder.
+        If an unreal_content_plugin is provided, the file is assumed to live
+        inside that plugin and its content path will have the appropriate
+        plugin name-based prefix. Otherwise, the file is assumed to live
+        inside the project's content folder.
         '''
-        if plugin_name:
-            content_dir = self.get_project_plugin_content_dir(plugin_name)
-            ue_path_prefix = f'/{plugin_name}'
+        if unreal_content_plugin:
+            content_dir = str(unreal_content_plugin.plugin_content_path)
+            ue_path_prefix = str(unreal_content_plugin.mounted_path)
         else:
             content_dir = self.get_project_content_dir()
             ue_path_prefix = '/Game'
@@ -2547,44 +2551,43 @@ class Config(object):
     def maps(self):
         '''
         Returns a list of full map paths in an Unreal Engine project and
-        in project-based plugins such as:
+        in plugins such as:
             [
                 "/Game/Maps/MapName",
                 "/MyPlugin/Levels/MapName"
             ]
         The slashes will always be "/" independent of the platform's separator.
         '''
-        content_maps_path = os.path.normpath(
+        project_maps_path = os.path.normpath(
             os.path.join(
                 self.get_project_content_dir(),
                 self.MAPS_PATH.get_value()))
 
-        # maps_paths stores a list of tuples of the form
-        # (plugin_name, file_path). This allows us to differentiate between
-        # maps in the project and maps in a plugin.
-        maps_paths = [(None, content_maps_path)]
+        # search_paths stores a list of tuples of the form
+        # (unreal_plugin, directory_path). This allows us to differentiate
+        # between maps in the project (unreal_plugin is None in that case) and
+        # maps in a plugin.
+        search_paths = [(None, project_maps_path)]
 
-        maps_plugin_filters = self.MAPS_PLUGIN_FILTERS.get_value()
-        if maps_plugin_filters:
-            plugin_names = self.get_project_plugin_names()
-
-            for plugin_name in plugin_names:
-                if self.plugin_name_matches(plugin_name, maps_plugin_filters):
-                    maps_paths.append(
-                        (plugin_name, self.get_project_plugin_content_dir(plugin_name)))
+        for unreal_content_plugin in self.get_unreal_content_plugins():
+            search_paths.append(
+                (unreal_content_plugin,
+                 unreal_content_plugin.plugin_content_path))
 
         maps = []
-        for (plugin_name, maps_path) in maps_paths:
+        for (unreal_content_plugin, maps_path) in search_paths:
             for dirpath, b, file_names in os.walk(maps_path):
                 for file_name in file_names:
-                    if not fnmatch.fnmatch(file_name, self.MAPS_FILTER.get_value()):
+                    if not fnmatch.fnmatch(
+                            file_name, self.MAPS_FILTER.get_value()):
                         continue
 
                     map_name, _ = os.path.splitext(file_name)
                     file_path_to_map = os.path.join(dirpath, map_name)
 
                     content_path_to_map = self.resolve_content_path(
-                        file_path_to_map, plugin_name=plugin_name)
+                        file_path_to_map,
+                        unreal_content_plugin=unreal_content_plugin)
 
                     if content_path_to_map not in maps:
                         maps.append(content_path_to_map)

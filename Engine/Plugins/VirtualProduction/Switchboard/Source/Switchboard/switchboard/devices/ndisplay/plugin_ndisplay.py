@@ -159,33 +159,49 @@ class AddnDisplayDialog(AddDeviceDialog):
     def on_clicked_btnFindConfigs(self):
         ''' Finds and populates config combobox '''
 
-        # We will look for config files in the project's Content folder
-        configs_path = os.path.normpath(
-            os.path.join(
-                os.path.dirname(
-                    CONFIG.UPROJECT_PATH.get_value().replace('"', '')),
-                'Content'))
+        project_configs_path = os.path.normpath(
+            CONFIG.get_project_content_dir())
+
+        # search_paths stores a list of tuples of the form
+        # (unreal_plugin, directory_path). This allows us to differentiate
+        # between nDisplay configs in the project (unreal_plugin is None in
+        # that case) and configs in a plugin.
+        search_paths = [(None, project_configs_path)]
+
+        for unreal_content_plugin in CONFIG.get_unreal_content_plugins():
+            search_paths.append(
+                (unreal_content_plugin,
+                 unreal_content_plugin.plugin_content_path))
+
         config_names = []
         config_paths = []
+        config_plugins = []
 
         assets = []
 
-        for dirpath, _, files in os.walk(configs_path):
-            for name in files:
-                if not name.lower().endswith(('.uasset', '.ndisplay')):
-                    continue
+        for (unreal_content_plugin, configs_path) in search_paths:
+            for dirpath, _, file_names in os.walk(configs_path):
+                for file_name in file_names:
+                    if not file_name.lower().endswith(
+                            ('.uasset', '.ndisplay')):
+                        continue
 
-                if name not in config_names:
-                    config_path = os.path.join(dirpath, name)
-                    ext = os.path.splitext(name)[1]
+                    if file_name not in config_names:
+                        config_path = os.path.join(dirpath, file_name)
+                        ext = os.path.splitext(file_name)[1]
 
-                    # Since .uasset is generic a asset container, only add
-                    # assets of the right config class.
-                    if ext.lower() == '.uasset':
-                        assets.append({'name': name, 'path': config_path})
-                    else:
-                        config_names.append(name)
-                        config_paths.append(config_path)
+                        # Since .uasset is a generic asset container, only add
+                        # assets of the right config class.
+                        if ext.lower() == '.uasset':
+                            assets.append({
+                                'name': file_name,
+                                'path': config_path,
+                                'plugin': unreal_content_plugin
+                            })
+                        else:
+                            config_names.append(file_name)
+                            config_paths.append(config_path)
+                            config_plugins.append(unreal_content_plugin)
 
         # process the assets in a multi-threaded fashion
 
@@ -234,6 +250,7 @@ class AddnDisplayDialog(AddDeviceDialog):
                     asset = future.result()
                     config_names.append(asset['name'])
                     config_paths.append(asset['path'])
+                    config_plugins.append(asset['plugin'])
                 except Exception:
                     pass
 
@@ -247,7 +264,14 @@ class AddnDisplayDialog(AddDeviceDialog):
         itemDatas = []
 
         for idx, config_name in enumerate(config_names):
-            itemData = {'name': config_name, 'path': config_paths[idx]}
+            config_plugin = config_plugins[idx]
+            uplugin_file_path = (
+                str(config_plugin.uplugin_file_path) if config_plugin
+                else None)
+            itemData = {
+                'name': config_name,
+                'path': config_paths[idx],
+                'uplugin_file_path': uplugin_file_path}
             itemDatas.append(itemData)
 
         # sort by name
