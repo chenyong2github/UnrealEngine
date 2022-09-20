@@ -102,9 +102,10 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="name">Ref to write</param>
 		/// <param name="bundle">Bundle to write</param>
+		/// <param name="prefix">Prefix for blob names.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, CancellationToken cancellationToken = default);
+		Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new ref to the store
@@ -165,7 +166,7 @@ namespace EpicGames.Horde.Storage
 			public Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, bundle, cancellationToken);
+			public Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, bundle, prefix, cancellationToken);
 
 			/// <inheritdoc/>
 			public Task WriteRefTargetAsync(RefName name, BlobLocator blobId, CancellationToken cancellationToken = default) => _inner.WriteRefTargetAsync(name, blobId, cancellationToken);

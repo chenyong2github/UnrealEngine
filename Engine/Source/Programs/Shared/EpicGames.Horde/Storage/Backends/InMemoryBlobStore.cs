@@ -79,7 +79,7 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, CancellationToken cancellationToken)
+		public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix, CancellationToken cancellationToken)
 		{
 			BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
 			_refs[name] = locator;

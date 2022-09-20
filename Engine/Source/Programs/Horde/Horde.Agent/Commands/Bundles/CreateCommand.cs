@@ -95,7 +95,7 @@ namespace Horde.Agent.Commands.Bundles
 				return new BlobLocator(text.Trim());
 			}
 
-			public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, CancellationToken cancellationToken = default)
+			public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
 				BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
 				await WriteRefTargetAsync(name, locator, cancellationToken);
