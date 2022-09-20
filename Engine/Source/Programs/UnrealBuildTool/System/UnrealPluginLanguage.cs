@@ -82,7 +82,9 @@ namespace UnrealBuildTool
 	 *	<setBoolFromProperty result="" ini="" section="" property="" default=""/>
 	 *	<setBoolFromPropertyContains result="" ini="" section="" property="" default="" contains=""/>
 	 *	<setIntFromProperty result="" ini="" section="" property="" default=""/>
+	 *	<setIntFromPropertyArrayNum result="" ini="" section="" property=""/>
 	 *	<setStringFromProperty result="" ini="" section="" property="" default=""/>
+	 *	<setStringFromPropertyArray result="" ini="" section="" property="" index="" default=""/>
      *	
      * Strings may also be set from an environment variable using the <setStringFromEnvVar> node.
 	 * The environment variable must be specified as the 'value' attribute and wrapped in a pair
@@ -122,7 +124,14 @@ namespace UnrealBuildTool
 	 * 
  	 *	<setStringAdd result="" arg1="" arg2=""/>
 	 *	<setStringSubstring result="" source="" start="" length=""/>
+	 *	<setStringSubstringAfterFind result="" source="" find="" length="" default=""/>
 	 *	<setStringReplace result="" source="" find="" with=""/>
+	 *	<setStringToLower result="" source=""/>
+	 *	<setStringToUpper result="" source=""/>
+	 *	
+	 * <setStringSubstringAfterFind> is equivalent to calling setStringSubstring with "start" set to
+	 * the index of the character immediately following the find string. Passing -1 for length (or
+	 * omitting it) will return the entire string to the right of the find string.
 	 * 
 	 * String length may be retrieved with:
 	 * 
@@ -458,6 +467,7 @@ namespace UnrealBuildTool
 	 * <setInt result="" value=""/>
 	 * <setIntFrom result="" value=""/>
 	 * <setIntFromProperty result="" ini="" section="" property="" default=""/>
+	 * <setIntFromPropertyArrayNum result="" ini="" section="" property=""/>
 	 * <setIntAdd result="" arg1="" arg2=""/>
 	 * <setIntSubtract result="" arg1="" arg2=""/>
 	 * <setIntMultiply result="" arg1="" arg2=""/>
@@ -468,9 +478,13 @@ namespace UnrealBuildTool
 	 * <setStringFrom result="" value=""/>
      * <setStringFromEnvVar result="" value=""/>
 	 * <setStringFromProperty result="" ini="" section="" property="" default=""/>
+	 * <setStringFromPropertyArray result="" ini="" section="" property="" index="" default=""/>
 	 * <setStringAdd result="" arg1="" arg2=""/>
 	 * <setStringSubstring result="" source="" index="" length=""/>
+	 * <setStringSubstringAfterFind result="" source="" find="" length="" default=""/>
 	 * <setStringReplace result="" source="" find="" with=""/>
+	 * <setStringToLower result="" source=""/>
+	 * <setStringToUpper result="" source=""/>
 	 * 
 	 */
 
@@ -2116,6 +2130,30 @@ namespace UnrealBuildTool
 						}
 						break;
 
+					case "setIntFromPropertyArrayNum":
+						{
+							string? Result = GetAttribute(CurrentContext, Node, "result");
+							string? Ini = GetAttribute(CurrentContext, Node, "ini");
+							string? Section = GetAttribute(CurrentContext, Node, "section");
+							string? Property = GetAttribute(CurrentContext, Node, "property");
+							if (Result != null && Ini != null && Section != null && Property != null)
+							{
+								int Value = 0;
+
+								ConfigCacheIni_UPL ConfigIni = GetConfigCacheIni_UPL(Ini);
+								if (ConfigIni != null)
+								{
+									List<string>? StringList;
+									if (ConfigIni.GetArray(Section, Property, out StringList))
+									{
+										Value = StringList.Count;
+									}
+								}
+								CurrentContext.IntVariables[Result] = Value;
+							}
+						}
+						break;
+
 					case "setIntAdd":
 						{
 							string? Result = GetAttribute(CurrentContext, Node, "result");
@@ -2368,6 +2406,43 @@ namespace UnrealBuildTool
 						}
 						break;
 
+					case "setStringFromPropertyArray":
+						{
+							string? Result = GetAttribute(CurrentContext, Node, "result");
+							string? Ini = GetAttribute(CurrentContext, Node, "ini");
+							string? Section = GetAttribute(CurrentContext, Node, "section");
+							string? Property = GetAttribute(CurrentContext, Node, "property");
+							string? IndexStr = GetAttribute(CurrentContext, Node, "index", true);
+							string DefaultVal = GetAttribute(CurrentContext, Node, "default", true, false, "");
+							if (Result != null && Ini != null && Section != null && Property != null && IndexStr != null)
+							{
+								string Value = DefaultVal;
+
+								ConfigCacheIni_UPL ConfigIni = GetConfigCacheIni_UPL(Ini);
+								if (ConfigIni != null)
+								{
+									List<string>? StringList;
+									if (ConfigIni.GetArray(Section, Property, out StringList))
+									{
+										int Index = StringToInt(CurrentContext, Node, IndexStr);
+										if (Index >= 0 && Index < StringList.Count)
+                                        {
+											Value = StringList.ElementAt(Index);
+                                        }
+									}
+								}
+								if (Result == "Output")
+								{
+									GlobalContext.StringVariables["Output"] = Value;
+								}
+								else
+								{
+									CurrentContext.StringVariables[Result] = Value;
+								}
+							}
+						}
+						break;
+
 					case "setStringAdd":
 						{
 							string? Result = GetAttribute(CurrentContext, Node, "result");
@@ -2413,6 +2488,36 @@ namespace UnrealBuildTool
 						}
 						break;
 
+					case "setStringSubstringAfterFind":
+						{
+							string? Result = GetAttribute(CurrentContext, Node, "result");
+							string Source = GetAttribute(CurrentContext, Node, "source", true, false, "");
+							string Find = GetAttribute(CurrentContext, Node, "find", true, false, "");
+							string Length = GetAttribute(CurrentContext, Node, "length", true, false, "-1");
+							string DefaultVal = GetAttribute(CurrentContext, Node, "default", true, false, "");
+							if (Result != null)
+							{
+								string Value = DefaultVal;
+								int Index = Source.IndexOf(Find);
+								if (Index != -1)
+								{
+									Index += Find.Length;
+									int Count = StringToInt(CurrentContext, Node, Length);
+									Count = Count == -1 || (Index + Count > Source.Length) ? Source.Length - Index : Count;
+									Value = Source.Substring(Index, Count);
+								}
+								if (Result == "Output")
+								{
+									GlobalContext.StringVariables["Output"] = Value;
+								}
+								else
+								{
+									CurrentContext.StringVariables[Result] = Value;
+								}
+							}
+						}
+						break;
+
 					case "setStringReplace":
 						{
 							string? Result = GetAttribute(CurrentContext, Node, "result");
@@ -2422,6 +2527,44 @@ namespace UnrealBuildTool
 							if (Result != null && Find != null)
 							{
 								string Value = Source.Replace(Find, With);
+								if (Result == "Output")
+								{
+									GlobalContext.StringVariables["Output"] = Value;
+								}
+								else
+								{
+									CurrentContext.StringVariables[Result] = Value;
+								}
+							}
+						}
+						break;
+
+					case "setStringToLower":
+						{
+							string? Result = GetAttribute(CurrentContext, Node, "result");
+							string Source = GetAttribute(CurrentContext, Node, "source", true, false, "");
+							if (Result != null)
+							{
+								string Value = Source.ToLower();
+								if (Result == "Output")
+								{
+									GlobalContext.StringVariables["Output"] = Value;
+								}
+								else
+								{
+									CurrentContext.StringVariables[Result] = Value;
+								}
+							}
+						}
+						break;
+
+					case "setStringToUpper":
+						{
+							string? Result = GetAttribute(CurrentContext, Node, "result");
+							string Source = GetAttribute(CurrentContext, Node, "source", true, false, "");
+							if (Result != null)
+							{
+								string Value = Source.ToUpper();
 								if (Result == "Output")
 								{
 									GlobalContext.StringVariables["Output"] = Value;
