@@ -1583,7 +1583,10 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 		}
 	}
 
-	ZoomToFitSelection();
+	if (ShouldAutoFrame())
+	{
+		ZoomToFitSelection();
+	}
 }
 
 void FCurveEditor::DeleteSelection()
