@@ -259,3 +259,21 @@ private:
 };
 
 ENUM_CLASS_FLAGS(UTextureFactory::EImageImportFlags);
+
+UCLASS()
+class UUDIMTextureFunctionLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	* Make a UDIM virtual texture from a list of regular 2D textures
+	* @param OutputPathName			Path name of the UDIM texture (e.g. /Game/MyTexture)
+	* @param SourceTextures			List of regular 2D textures to be packed into the atlas
+	* @param BlockCoords			Coordinates of the corresponding texture in the atlas
+	* @param bKeepExistingSettings	Whether to keep existing settings if a texture with the same path name exists. Otherwise, settings will be copied from the first source texture
+	* @param bCheckOutAndSave		Whether to check out and save the UDIM texture
+	* @return UTexture2D*			Pointer to the UDIM texture or null if failed
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Utilities", meta = (DispalyName = "Make UDIM Texture from Texture2Ds"))
+	static UTexture2D* MakeUDIMVirtualTextureFromTexture2Ds(FString OutputPathName, const TArray<UTexture2D*>& SourceTextures, const TArray<FIntPoint>& BlockCoords, bool bKeepExistingSettings = false, bool bCheckOutAndSave = false);
+};
