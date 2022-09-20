@@ -520,40 +520,16 @@ void FDMXPixelMappingToolkit::DeleteSelectedComponents()
 	{
 		TGuardValue<bool>(bRemovingComponents, true);
 
-		// Count how many Descendants need to be removed 
-		const int32 NumComponentsAndItsDescendants = [this]()
-		{
-			int32 DescendantsCounter = 0;
-			for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
-			{
-				if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
-				{
-					DescendantsCounter++;
-
-					constexpr bool bCountRecursive = true;
-					Component->ForEachChild([&DescendantsCounter](UDMXPixelMappingBaseComponent* ChildComponent)
-						{
-							DescendantsCounter++;
-						}, bCountRecursive);
-				}
-			}
-			return DescendantsCounter;
-		}();
-
 		TSet<FDMXPixelMappingComponentReference> ParentComponentReferences;
 		for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
 		{
 			if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
 			{
-				if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Component))
-				{
-					SetActiveRenderComponent(nullptr);
-				}
-
-				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component))
-				{
-					ActiveOutputComponents.Remove(OutputComponent);
-				}
+				constexpr bool bModifyChildrenRecursively = true;
+				Component->ForEachChild([](UDMXPixelMappingBaseComponent* ChildComponent)
+					{
+						ChildComponent->Modify();
+					}, bModifyChildrenRecursively);
 
 				if (UDMXPixelMappingBaseComponent* ParentComponent = Component->GetParent())
 				{
@@ -563,7 +539,17 @@ void FDMXPixelMappingToolkit::DeleteSelectedComponents()
 					Component->Modify();
 					ParentComponent->Modify();
 
-					ParentComponent->RemoveChild(ComponentReference.GetComponent());
+					ParentComponent->RemoveChild(Component);
+				}
+			
+				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component))
+				{
+					ActiveOutputComponents.Remove(OutputComponent);
+				}
+
+				if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Component))
+				{
+					SetActiveRenderComponent(nullptr);
 				}
 			}
 		}

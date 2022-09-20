@@ -637,19 +637,23 @@ void SDMXPixelMappingHierarchyView::BeginDelete()
 
 	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = Toolkit.Pin())
 	{
-		TSet<FDMXPixelMappingComponentReference> SelectedComponents;
-
 		for (FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem : SelectedItems)
 		{
 			UDMXPixelMappingBaseComponent* SelectedComponent = SelectedItem->GetReference().GetComponent();
 			if (SelectedComponent)
 			{
+				constexpr bool bModifyChildrenRecursively = true;
+				SelectedComponent->ForEachChild([](UDMXPixelMappingBaseComponent* ChildComponent)
+					{
+						ChildComponent->Modify();
+					}, bModifyChildrenRecursively);
+
 				UDMXPixelMappingBaseComponent* ParentComponent = SelectedComponent->GetParent();
 				if (ParentComponent)
 				{
 					ParentComponent->Modify();
 					SelectedComponent->Modify();
-					
+
 					ParentComponent->RemoveChild(SelectedComponent);
 				}
 			}
