@@ -94,8 +94,8 @@ private:
 
 		void AddDisplacedMesh(UNaniteDisplacedMesh* Mesh, TSet<UObject*>&& AssetsToTrack);
 
-		const TArray<UNaniteDisplacedMesh*> GetMeshesThatUseAsset(UObject* Object);
-		const TArray<UNaniteDisplacedMesh*> GetMeshesThatUseAsset(UObject* Object, uint32 Hash);
+		const TArray<TObjectKey<UNaniteDisplacedMesh>> GetMeshesThatUseAsset(UObject* Object);
+		const TArray<TObjectKey<UNaniteDisplacedMesh>> GetMeshesThatUseAsset(UObject* Object, uint32 Hash);
 
 		void ReplaceObject(UObject* OldObject, UObject* NewObject);
 	private:
@@ -105,6 +105,8 @@ private:
 
 	FBidirectionalAssetsAndDisplacementMeshMap MeshesAndAssetsReimportTracking;
 
+	bool bIsEngineCollectingGarbage = false;
+
 	FDelegateHandle OnPreEditChangeHandle;
 	FDelegateHandle OnPostEditChangeHandle;
 	FDelegateHandle OnObjectsReplacedHandle;
@@ -112,7 +114,9 @@ private:
 	FDelegateHandle OnAssetReimportHandle;
 	FDelegateHandle OnAssetPostImportHandle;
 	FDelegateHandle OnAssetPreImportHandle;
-	FDelegateHandle OnInMemoryAssetDeleted;
+	FDelegateHandle OnInMemoryAssetDeletedHandle;
+	FDelegateHandle OnPreGarbageCollectHandle;
+	FDelegateHandle OnPostGarbageCollectHandle;
 
 private:
 	// Begin FUObjectArray::FUObjectDeleteListener Api
@@ -120,4 +124,5 @@ private:
 	virtual void OnUObjectArrayShutdown() override;
 	// End FUObjectArray::FUObjectDeleteListener Api
 
+	void UpdateIsEngineCollectingGarbage(bool bIsCollectingGarbage);
 };

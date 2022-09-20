@@ -29,7 +29,8 @@ enum class ELinkDisplacedMeshAssetSetting : uint8
 {
 	LinkAgainstPersistentAsset,
 	CanLinkAgainstPersistentAndTransientAsset,
-	LinkAgainstTransientAsset
+	LinkAgainstTransientAsset,
+	LinkAgainstExistingPersistentAsset,
 };
 
 NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMesh* LinkDisplacedMeshAsset(
@@ -38,6 +39,8 @@ NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMesh* LinkDisplacedMeshAsset(
 	const FString& DisplacedMeshFolder,
 	ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting = ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset
 );
+
+NANITEDISPLACEDMESHEDITOR_API FString GenerateLinkedDisplacedMeshAssetName(const FNaniteDisplacedMeshParams& InParameters);
 
 NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams);
 NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const UNaniteDisplacedMesh& DisplacedMesh);

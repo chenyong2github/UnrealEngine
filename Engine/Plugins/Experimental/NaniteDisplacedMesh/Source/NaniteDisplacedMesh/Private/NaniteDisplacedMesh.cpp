@@ -22,8 +22,6 @@
 #include "NaniteDisplacedMeshCompiler.h"
 #endif
 
-DEFINE_LOG_CATEGORY(LogNaniteDisplacedMesh);
-
 static bool DoesTargetPlatformSupportNanite(const ITargetPlatform* TargetPlatform)
 {
 	if (TargetPlatform != nullptr)
@@ -430,9 +428,27 @@ void FNaniteBuildAsyncCacheTask::Reschedule(FQueuedThreadPool* InThreadPool, EQu
 	}
 }
 
+bool FNaniteDisplacedMeshParams::IsDisplacementRequired() const
+{
+	// We always need a valid base mesh for displacement, and non-zero magnitude on at least one displacement map
+	bool bApplyDisplacement = false;
+	for (auto& DisplacementMap : DisplacementMaps)
+	{
+		bApplyDisplacement = bApplyDisplacement || (DisplacementMap.Magnitude > 0.0f && IsValid(DisplacementMap.Texture));
+	}
+
+	if (!IsValid(BaseMesh) || !bApplyDisplacement || RelativeError <= 0.0f)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 UNaniteDisplacedMesh::FOnNaniteDisplacmentMeshDependenciesChanged UNaniteDisplacedMesh::OnDependenciesChanged;
 
 #endif
+
 
 UNaniteDisplacedMesh::UNaniteDisplacedMesh(const FObjectInitializer& Init)
 : Super(Init)
@@ -448,6 +464,11 @@ void UNaniteDisplacedMesh::Serialize(FArchive& Ar)
 	#if WITH_EDITOR
 		if (Ar.IsCooking())
 		{
+			if (IsCompiling())
+			{
+				FNaniteDisplacedMeshCompilingManager::Get().FinishCompilation({this});
+			}
+
 			FNaniteData& CookedData = CacheDerivedData(Ar.CookingTarget());
 			CookedData.Resources.Serialize(Ar, this, /*bCooked*/ true);
 			Ar << CookedData.MeshSections;
@@ -490,6 +511,10 @@ void UNaniteDisplacedMesh::BeginDestroy()
 	Super::BeginDestroy();
 
 	ReleaseResources();
+
+	#if WITH_EDITOR
+		OnDependenciesChanged.Broadcast(this);
+	#endif
 }
 
 bool UNaniteDisplacedMesh::IsReadyForFinishDestroy()
@@ -511,7 +536,26 @@ bool UNaniteDisplacedMesh::IsReadyForFinishDestroy()
 
 bool UNaniteDisplacedMesh::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
 {
-	return DoesTargetPlatformSupportNanite(TargetPlatform);
+	return IsSupportedByTargetPlatform(TargetPlatform);
+}
+
+bool UNaniteDisplacedMesh::IsSupportedByTargetPlatform(const ITargetPlatform* TargetPlatform)
+{
+	if (TargetPlatform != nullptr)
+	{
+		TArray<FName> DesiredShaderFormats;
+		TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
+		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
+		{
+			const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
+			if (DoesPlatformSupportNanite(ShaderPlatform))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void UNaniteDisplacedMesh::InitResources()
@@ -620,7 +664,7 @@ void UNaniteDisplacedMesh::NotifyOnRenderingDataChanged()
 
 FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform)
 {
-	if (!DoesTargetPlatformSupportNanite(TargetPlatform))
+	if (!IsSupportedByTargetPlatform(TargetPlatform))
 	{
 		return FIoHash::Zero;
 	}

@@ -4,9 +4,11 @@
 
 #include "NaniteDisplacedMesh.h"
 #include "NaniteDisplacedMeshEditorModule.h"
+#include "NaniteDisplacedMeshLog.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "DerivedDataBuildVersion.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -21,9 +23,28 @@
 
 #define LOCTEXT_NAMESPACE "NaniteDisplacedMeshEditor"
 
-DEFINE_LOG_CATEGORY_STATIC(LogNaniteDisplacedMesh, Log, All);
 
 #define NANITE_DISPLACED_MESH_ID_VERSION 1
+
+namespace UE::NaniteDisplacedMesh::Private::Factory
+{
+	bool CanLinkAgainstTransientAsset(ELinkDisplacedMeshAssetSetting LinkSetting)
+	{
+		return LinkSetting == ELinkDisplacedMeshAssetSetting::LinkAgainstTransientAsset
+			|| LinkSetting == ELinkDisplacedMeshAssetSetting::CanLinkAgainstPersistentAndTransientAsset;
+	}
+
+	bool CanLinkAgainstPersistentAsset(ELinkDisplacedMeshAssetSetting LinkSetting)
+	{
+		return LinkSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstTransientAsset;
+	}
+
+	bool CanLinkAgainstNewAsset(ELinkDisplacedMeshAssetSetting LinkSetting)
+	{
+		return LinkSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstExistingPersistentAsset;
+	}
+}
+
 
 UNaniteDisplacedMeshFactory::UNaniteDisplacedMeshFactory()
 {
@@ -49,17 +70,21 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 {
 	checkf(GEditor, TEXT("There is no need to run that code if we don't have the editor"));
 
-	// We always need a valid base mesh for displacement, and non-zero magnitude on at least one displacement map
-	bool bApplyDisplacement = false;
-	for( auto& DisplacementMap : InParameters.DisplacementMaps )
-	{
-		bApplyDisplacement = bApplyDisplacement || (DisplacementMap.Magnitude > 0.0f && IsValid(DisplacementMap.Texture));
-	}
-
-	if (!IsValid(InParameters.BaseMesh) || !bApplyDisplacement || InParameters.RelativeError <= 0.0f)
+	if (!InParameters.IsDisplacementRequired())
 	{
 		return nullptr;
 	}
+
+	FNaniteDisplacedMeshEditorModule& NaniteDisplacedMeshEditorModule = FNaniteDisplacedMeshEditorModule::GetModule();
+	if (NaniteDisplacedMeshEditorModule.OnLinkDisplacedMeshOverride.IsBound())
+	{
+		return NaniteDisplacedMeshEditorModule.OnLinkDisplacedMeshOverride.Execute(InParameters, DisplacedMeshFolder);
+	}
+
+	using namespace UE::NaniteDisplacedMesh;
+	const bool bCanLinkAgainstPresistentAsset = Private::Factory::CanLinkAgainstPersistentAsset(LinkDisplacedMeshAssetSetting);
+	const bool bCanLinkAgainstTransientAsset = Private::Factory::CanLinkAgainstTransientAsset(LinkDisplacedMeshAssetSetting);
+	const bool bCanLinkAgainstNewAsset = Private::Factory::CanLinkAgainstNewAsset(LinkDisplacedMeshAssetSetting);
 
 	// Make sure the referenced displaced mesh asset matches the provided combination
 	// Note: This is a faster test than generating Ids for LHS and RHS and comparing (this check will occur frequently)
@@ -68,7 +93,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		if (!ExistingDisplacedMesh->HasAnyFlags(RF_Transient) && ExistingDisplacedMesh->HasAnyFlags(RF_Public))
 		{
 			// Persistent asset
-			if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstTransientAsset)
+			if (bCanLinkAgainstPresistentAsset)
 			{
 				if (ExistingDisplacedMesh->Parameters == InParameters)
 				{
@@ -79,7 +104,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		else
 		{
 			// Transient asset
-			if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset)
+			if (bCanLinkAgainstTransientAsset)
 			{
 				if (ExistingDisplacedMesh->Parameters == InParameters)
 				{
@@ -91,17 +116,12 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 
 	// Either the displaced mesh asset is stale (wrong permutation), or it is null.
 	// In either case, find or create the correct displaced mesh asset permutation.
-	TStringBuilder<512> StringBuilder;
-
-	StringBuilder.Append(TEXT("NaniteDisplacedMesh_"));
-	StringBuilder.Append(GetAggregatedIdString(InParameters));
-	FString DisplacedMeshName = StringBuilder.ToString();
-	StringBuilder.Reset();
+	FString DisplacedMeshName = GenerateLinkedDisplacedMeshAssetName(InParameters);
 
 	// Generate unique asset path
 	FString DisplacedAssetPath = FPaths::Combine(DisplacedMeshFolder, DisplacedMeshName);
 
-	if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstTransientAsset)
+	if (bCanLinkAgainstPresistentAsset)
 	{
 		// The mesh needed might already exist. Using load object because it's faster then using the asset registry which might still be loading
 		if (UNaniteDisplacedMesh* LoadedDisplacedMesh = LoadObject<UNaniteDisplacedMesh>(nullptr, *DisplacedAssetPath, nullptr, LOAD_Quiet))
@@ -150,11 +170,11 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		}
 	}
 
-	if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset)
+	if (bCanLinkAgainstTransientAsset)
 	{
 		// Use a transient asset
 
-		UPackage* NaniteDisplacedMeshTransientPackage = FNaniteDisplacedMeshEditorModule::GetModule().GetNaniteDisplacementMeshTransientPackage();
+		UPackage* NaniteDisplacedMeshTransientPackage = NaniteDisplacedMeshEditorModule.GetNaniteDisplacementMeshTransientPackage();
 
 		// First check if we already have a valid temp asset
 		{
@@ -166,6 +186,11 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 				{
 					return TempNaniteDisplacedMesh;
 				}
+			}
+
+			if (!bCanLinkAgainstNewAsset)
+			{
+				return nullptr;
 			}
 
 			// Remove the invalid asset of the way (We don't want to deal with recycled objects)
@@ -192,7 +217,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		TempNaniteDisplacedMesh->PostEditChange();
 		return TempNaniteDisplacedMesh;
 	}
-	else
+	else if (bCanLinkAgainstNewAsset)
 	{
 		// We need to create a new persistent asset
 		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -223,6 +248,15 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 	}
 
 	return nullptr;
+}
+
+NANITEDISPLACEDMESHEDITOR_API FString GenerateLinkedDisplacedMeshAssetName(const FNaniteDisplacedMeshParams& InParameters)
+{
+	TStringBuilder<512> StringBuilder;
+
+	StringBuilder.Append(TEXT("NaniteDisplacedMesh_"));
+	StringBuilder.Append(GetAggregatedIdString(InParameters));
+	return StringBuilder.ToString();
 }
 
 FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams)

@@ -54,7 +54,7 @@ struct FNaniteDisplacedMeshDisplacementMap
 };
 
 USTRUCT(BlueprintType)
-struct FNaniteDisplacedMeshParams
+struct NANITEDISPLACEDMESH_API FNaniteDisplacedMeshParams
 {
 	GENERATED_BODY()
 
@@ -105,6 +105,9 @@ struct FNaniteDisplacedMeshParams
 	{
 		return !(*this == Other);
 	}
+
+	// Does the settings would result in the creation of some rendering data
+	bool IsDisplacementRequired() const;
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -131,6 +134,9 @@ public:
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
+
+	/** Does the NaniteDisplacedMesh provide some additional value for that platform */
+	static bool IsSupportedByTargetPlatform(const ITargetPlatform* TargetPlatform);
 
 	void InitResources();
 	void ReleaseResources();
@@ -224,7 +230,11 @@ public:
 	void UnregisterOnRenderingDataChanged(FDelegateHandle Handle);
 
 	void NotifyOnRenderingDataChanged();
+#endif
 
+private:
+	friend class UGeneratedNaniteDisplacedMeshEditorSubsystem;
+#if WITH_EDITOR
 	DECLARE_EVENT_OneParam(UNaniteDisplacedMesh, FOnNaniteDisplacmentMeshDependenciesChanged, UNaniteDisplacedMesh*);
 	static FOnNaniteDisplacmentMeshDependenciesChanged OnDependenciesChanged;
 #endif

@@ -3,6 +3,7 @@
 #include "GeneratedNaniteDisplacedMeshEditorSubsystem.h"
 
 #include "NaniteDisplacedMesh.h"
+#include "NaniteDisplacedMeshLog.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/ChunkedArray.h"
@@ -119,6 +120,11 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::Initialize(FSubsystemCollecti
 		OnLevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::OnLevelActorDeleted);
 		OnPostEditChangeHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::OnObjectPostEditChange);
 		OnPreEditChangeHandle = FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::OnObjectPreEditChange);
+	
+		GUObjectArray.AddUObjectDeleteListener(this);
+
+		OnPreGarbageCollectHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateIsEngineCollectingGarbage, true);
+		OnPostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateIsEngineCollectingGarbage, false);
 	}
 
 	if (GEditor)
@@ -133,12 +139,10 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::Initialize(FSubsystemCollecti
 			OnAssetPostImportHandle = ImportSubsystem->OnAssetPostImport.AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::OnAssetPostImport);
 			OnAssetPreImportHandle = ImportSubsystem->OnAssetPreImport.AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::OnAssetPreImport);
 		}
-
-		GUObjectArray.AddUObjectDeleteListener(this);
 	}
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	OnInMemoryAssetDeleted = AssetRegistryModule.Get().OnInMemoryAssetDeleted().AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::WaitForDependentDisplacedMeshesToFinishTheirCompilation);
+	OnInMemoryAssetDeletedHandle = AssetRegistryModule.Get().OnInMemoryAssetDeleted().AddUObject(this, &UGeneratedNaniteDisplacedMeshEditorSubsystem::WaitForDependentDisplacedMeshesToFinishTheirCompilation);
 
 }
 
@@ -146,12 +150,11 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::Deinitialize()
 {
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::LoadModulePtr<FAssetRegistryModule>("AssetRegistry"))
 	{
-		AssetRegistryModule->Get().OnInMemoryAssetDeleted().Remove(OnInMemoryAssetDeleted);
+		AssetRegistryModule->Get().OnInMemoryAssetDeleted().Remove(OnInMemoryAssetDeletedHandle);
 	}
 
 	if (GEditor)
 	{
-		GUObjectArray.RemoveUObjectDeleteListener(this);
 
 		if (UImportSubsystem* ImportSubsystem = GEditor->GetEditorSubsystem<UImportSubsystem>())
 		{
@@ -162,6 +165,11 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::Deinitialize()
 
 		UNaniteDisplacedMesh::OnDependenciesChanged.RemoveAll(this);
 	}
+
+	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(OnPostGarbageCollectHandle);
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(OnPreGarbageCollectHandle);
+
+	GUObjectArray.RemoveUObjectDeleteListener(this);
 
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.Remove(OnPreEditChangeHandle);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnPostEditChangeHandle);
@@ -344,12 +352,15 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::OnObjectsReplaced(const TMap<
 				
 			}
 
-			// Block until compilations are finish
-			WaitForDependentDisplacedMeshesToFinishTheirCompilation(OldObject);
-
 			// Patch the asset reimport tracking
 			MeshesAndAssetsReimportTracking.ReplaceObject(OldObject, NewObject);
 		}
+	}
+
+	for (const TPair<UObject*, UObject*>& ReplacedObject : ReplacementMap)
+	{
+		// Block the game thread
+		WaitForDependentDisplacedMeshesToFinishTheirCompilation(ReplacedObject.Value);
 	}
 }
 
@@ -448,10 +459,10 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacedMeshesDueToAss
 {
 	if (IsValid(Asset))
 	{
-		const TArray<UNaniteDisplacedMesh*> Meshes =  MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(Asset);
-		for (UNaniteDisplacedMesh* Mesh : Meshes)
+		const TArray<TObjectKey<UNaniteDisplacedMesh>> MeshKeys =  MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(Asset);
+		for (TObjectKey<UNaniteDisplacedMesh> MeshKey : MeshKeys)
 		{
-			if (IsValid(Mesh))
+			if (UNaniteDisplacedMesh* Mesh = MeshKey.ResolveObjectPtr())
 			{
 				// Kick the asset build
 				Mesh->PreEditChange(nullptr);
@@ -463,6 +474,12 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacedMeshesDueToAss
 
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacementMeshToAssets(UNaniteDisplacedMesh* DisplacementMesh)
 {
+	if (DisplacementMesh->HasAnyFlags(RF_BeginDestroyed))
+	{
+		MeshesAndAssetsReimportTracking.RemoveDisplacedMesh(DisplacementMesh);
+		return;
+	}
+
 	const FNaniteDisplacedMeshParams& Params = DisplacementMesh->Parameters;
 
 	TSet<UObject*> AssetsToTrack;
@@ -502,15 +519,15 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::WaitForDependentDisplacedMesh
 {
 	if (IsValid(AssetAboutToChange))
 	{
-		const TArray<UNaniteDisplacedMesh*> Meshes = MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(AssetAboutToChange);
-		for (UNaniteDisplacedMesh* Mesh : Meshes)
+		const TArray<TObjectKey<UNaniteDisplacedMesh>> MeshKeys = MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(AssetAboutToChange);
+
+		for (TObjectKey<UNaniteDisplacedMesh> MeshKey : MeshKeys)
 		{
-			if (IsValid(Mesh))
+			if (UNaniteDisplacedMesh* Mesh = MeshKey.ResolveObjectPtr())
 			{
 				if (Mesh->IsCompiling())
 				{
-					// Todo turn that into a proper log
-					GWarn->Logf(ELogVerbosity::Log, TEXT("Staling the game thread while waiting for NaniteDisplacedMesh (%s) to finish compiling."), *(Mesh->GetPathName()));
+					UE_LOG(LogNaniteDisplacedMesh, Log, TEXT("Staling the game thread while waiting for the NaniteDisplacedMesh (%s) to finish compiling."), *(Mesh->GetPathName()));
 					Mesh->FinishAsyncTasks();
 				}
 			}
@@ -537,21 +554,18 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::NotifyUObjectDeleted(const UO
 			// Also exclude any objects found in the transient package, or in a package that is transient.
 			if (LocalOuterPackage != GetTransientPackage() && !LocalOuterPackage->HasAnyFlags(RF_Transient))
 			{
-				// The object is an asset. We are not tracking its deletion here. This avoid issue with the object recycling whenn reimporting stuff
-				return;
+				// We are probably not recycling an asset if the garbage collection is running (Example: the GC while cooking doesn't send a event before removing an asset)
+				if (!bIsEngineCollectingGarbage)
+				{ 
+					// The object is an asset. We are not tracking its deletion here. This avoid issue with the object recycling when reimporting stuff
+					return;
+				}
 			}
 		}
 	}
 
-	if (const UNaniteDisplacedMesh* DisplacedMesh = Cast<UNaniteDisplacedMesh>(Object))
-	{
-		MeshesAndAssetsReimportTracking.RemoveDisplacedMesh(const_cast<UNaniteDisplacedMesh*>(DisplacedMesh));
-	}
-	else
-	{
-		MeshesAndAssetsReimportTracking.RemoveAssetForReimportTracking(const_cast<UObject*>(Object));
-	}
-
+	// The displaced meshes are removed by a event in their begin destroy function
+	MeshesAndAssetsReimportTracking.RemoveAssetForReimportTracking(const_cast<UObject*>(Object));
 
 	return;
 }
@@ -559,6 +573,11 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::NotifyUObjectDeleted(const UO
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::OnUObjectArrayShutdown()
 {
 	GUObjectArray.RemoveUObjectDeleteListener(this);
+}
+
+void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateIsEngineCollectingGarbage(bool bIsCollectingGarbage)
+{
+	bIsEngineCollectingGarbage = bIsCollectingGarbage;
 }
 
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::RemoveDisplacedMesh(UNaniteDisplacedMesh* DisplacedMesh)
@@ -618,16 +637,26 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDispla
 	MeshToAssets.AddByHash(MeshHash, Mesh, MoveTemp(AssetsToTrack));
 }
 
-const TArray<UNaniteDisplacedMesh*> UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object)
+const TArray<TObjectKey<UNaniteDisplacedMesh>> UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object)
 {
 	return GetMeshesThatUseAsset(Object, GetTypeHash(Object));
 }
 
-const TArray<UNaniteDisplacedMesh*> UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object, uint32 Hash)
+const TArray<TObjectKey<UNaniteDisplacedMesh>> UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object, uint32 Hash)
 {
-	if (TSet<UNaniteDisplacedMesh*>* DisplacedMeshes = AssetToMeshes.FindByHash(Hash, Object))
+	if (TSet<UNaniteDisplacedMesh*>* DisplacedMeshesSet = AssetToMeshes.FindByHash(Hash, Object))
 	{
-		return DisplacedMeshes->Array();
+		TArray<TObjectKey<UNaniteDisplacedMesh>> DisplacedMeshes;
+		DisplacedMeshes.Reserve(DisplacedMeshesSet->Num());
+		for (UNaniteDisplacedMesh* DisplacedMesh : *DisplacedMeshesSet)
+		{
+			if (IsValid(DisplacedMesh))
+			{
+				DisplacedMeshes.Emplace(DisplacedMesh);
+			}
+		}
+
+		return DisplacedMeshes;
 	}
 
 	return {};
