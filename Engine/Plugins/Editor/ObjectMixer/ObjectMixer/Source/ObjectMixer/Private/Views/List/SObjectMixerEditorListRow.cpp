@@ -501,7 +501,14 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 								this,
 								&SObjectMixerEditorListRow::OnPropertyChanged, Property, (void*)ObjectRef);
 					
-						SinglePropertyView->SetOnPropertyValueChanged(OnPropertyValueChanged);
+						Handle->SetOnPropertyValueChanged(OnPropertyValueChanged);
+						uint32 ChildHandleCount;
+						Handle->GetNumChildren(ChildHandleCount);
+
+						for (uint32 ChildHandleItr = 0; ChildHandleItr < ChildHandleCount; ChildHandleItr++)
+						{
+							Handle->GetChildHandle(ChildHandleItr)->SetOnPropertyValueChanged(OnPropertyValueChanged);
+						}
 
 						return SNew(SBox)
 								.Visibility(EVisibility::SelfHitTestInvisible)
