@@ -348,7 +348,7 @@ public:
 	const DefinitionType* GetBehaviorDefinition(const FSmartObjectRequestResult& RequestResult)
 	{
 		static_assert(TIsDerivedFrom<DefinitionType, USmartObjectBehaviorDefinition>::IsDerived, "DefinitionType must derive from USmartObjectBehaviorDefinition");
-		return Cast<const DefinitionType>(GetBehaviorDefinition(RequestResult, DefinitionType::StaticClass()));
+		return Cast<const DefinitionType>(GetBehaviorDefinitionByRequestResult(RequestResult, DefinitionType::StaticClass()));
 	}
 	
 	ESmartObjectSlotState GetSlotState(const FSmartObjectSlotHandle SlotHandle) const;
