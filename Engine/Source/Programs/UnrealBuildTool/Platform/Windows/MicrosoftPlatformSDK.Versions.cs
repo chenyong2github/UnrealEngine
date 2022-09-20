@@ -47,13 +47,14 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
+		/// https://www.intel.com/content/www/us/en/developer/articles/tool/oneapi-standalone-components.html#dpcpp-cpp
 		/// </summary>
 		static readonly VersionNumberRange[] PreferredIntelOneApiVersions =
 		{
-			VersionNumberRange.Parse("2022.0.0", "2022.9999"),
+			VersionNumberRange.Parse("2022.2.0", "2022.9999"),
 		};
 
-		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2021, 0, 0);
+		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2022, 2, 0);
 
 		/// <summary>
 		/// The default set of components that should be suggested to be installed for Visual Studio 2019 or 2022.

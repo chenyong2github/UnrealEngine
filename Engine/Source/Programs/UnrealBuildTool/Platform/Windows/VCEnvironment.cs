@@ -365,7 +365,7 @@ namespace UnrealBuildTool
 			if (Compiler == WindowsCompiler.Intel)
 			{
 				IncludePaths.Add(DirectoryReference.Combine(CompilerDir, "windows", "compiler", "include"));
-				LibraryPaths.Add(DirectoryReference.Combine(CompilerDir, "windows", "compiler", "lib", "intel64"));
+				LibraryPaths.Add(DirectoryReference.Combine(CompilerDir, "windows", "compiler", "lib", "intel64_win"));
 			}
 		}
 

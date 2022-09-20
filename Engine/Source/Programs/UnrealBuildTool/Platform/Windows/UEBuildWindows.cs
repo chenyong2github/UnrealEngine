@@ -835,7 +835,7 @@ namespace UnrealBuildTool
 
 			// Disable Simplygon support if compiling against the NULL RHI.
 			if (Target.GlobalDefinitions.Contains("USE_NULL_RHI=1"))
-			{				
+			{
 				Target.bCompileCEF3 = false;
 			}
 			
@@ -843,7 +843,10 @@ namespace UnrealBuildTool
 			// as normal.
 			if (Target.StaticAnalyzer == StaticAnalyzer.Clang)
 			{
-				Target.WindowsPlatform.Compiler = WindowsCompiler.Clang;
+				if (!Target.WindowsPlatform.Compiler.IsClang())
+				{
+					Target.WindowsPlatform.Compiler = WindowsCompiler.Clang;
+				}
 				Target.StaticAnalyzer = StaticAnalyzer.Default;
 			}
 			else if (Target.StaticAnalyzer != StaticAnalyzer.None && 
