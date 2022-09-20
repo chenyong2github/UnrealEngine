@@ -481,7 +481,7 @@ void SBlendProfilePicker::OnCreateNewProfileComitted(const FText& NewName, EText
 {
 	FSlateApplication::Get().DismissAllMenus();
 
-	if(CommitType == ETextCommit::OnEnter && EditableSkeleton.IsValid())
+	if((CommitType == ETextCommit::OnEnter || CommitType == ETextCommit::OnUserMovedFocus) && EditableSkeleton.IsValid())
 	{
 		FScopedTransaction Transaction(LOCTEXT("Trans_NewProfile", "Create new blend profile."));
 
