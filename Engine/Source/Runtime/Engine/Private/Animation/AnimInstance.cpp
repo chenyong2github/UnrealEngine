@@ -3093,7 +3093,9 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 		// we can get problems/asserts trying to blend curves/poses of differing sizes (see FORT-354970, for example).
 		// If required bones are flagged for update we are assuming that RefreshBoneTransforms will end up rectifying
 		// any inconsistencies.
-		if(MeshComp->GetAnimInstance() && MeshComp->bRequiredBonesUpToDate)
+		// We also skip this check during re-instancing as main & linked instances may get their re-initialization in
+		// a random order depending on what is being compiled. 
+		if(!GIsReinstancing && MeshComp->GetAnimInstance() && MeshComp->bRequiredBonesUpToDate)
 		{
 			const int32 RootLOD = MeshComp->GetAnimInstance()->GetRequiredBones().GetCalculatedForLOD();
 			for(UAnimInstance* LinkedInstance : MeshComp->GetLinkedAnimInstances())
