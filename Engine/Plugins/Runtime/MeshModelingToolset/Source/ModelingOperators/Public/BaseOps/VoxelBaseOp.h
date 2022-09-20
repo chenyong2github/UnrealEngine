@@ -27,6 +27,22 @@ public:
 
 	bool bRemoveInternalSurfaces = false;
 
+	template<typename TransformType>
+	static FVector3d GetAverageTranslation(TArrayView<const TransformType> Transforms)
+	{
+		if (Transforms.IsEmpty())
+		{
+			return FVector3d::ZeroVector;
+		}
+
+		FVector3d Avg(0, 0, 0);
+		for (const FTransformSRT3d& Transform : Transforms)
+		{
+			Avg += Transform.GetTranslation();
+		}
+		return Avg / double(Transforms.Num());
+	}
+
 	virtual void PostProcessResult(FProgressCancel* Progress, double MeshCellSize);
 };
 

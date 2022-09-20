@@ -34,6 +34,9 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 	TImplicitBlend<FDynamicMesh3> ImplicitBlend;
 	ImplicitBlend.bSubtract = bSubtract;
 
+	FVector3d AverageTranslation = GetAverageTranslation<FTransform>(Transforms);
+	ResultTransform = FTransformSRT3d(AverageTranslation);
+
 	TArray<FDynamicMesh3> TransformedMeshes; TransformedMeshes.Reserve(Meshes.Num());
 	FAxisAlignedBox3d CombinedBounds = FAxisAlignedBox3d::Empty();
 	for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
@@ -44,7 +47,9 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			continue;
 		}
 		
-		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransformSRT3d)Transforms[MeshIdx], true);
+		FTransformSRT3d ToApply = Transforms[MeshIdx];
+		ToApply.SetTranslation(ToApply.GetTranslation() - AverageTranslation);
+		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], ToApply, true);
 
 		if (bVoxWrap)
 		{

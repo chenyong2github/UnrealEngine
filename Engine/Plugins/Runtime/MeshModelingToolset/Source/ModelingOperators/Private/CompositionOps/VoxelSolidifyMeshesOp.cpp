@@ -32,6 +32,9 @@ void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	FDynamicMesh3 CombinedMesh;
 
+	FVector3d AverageTranslation = GetAverageTranslation<FTransformSRT3d>(Transforms);
+	ResultTransform = FTransformSRT3d(AverageTranslation);
+
 	// append all meshes (transformed but without attributes)
 	FDynamicMeshEditor AppendEditor(&CombinedMesh);
 	for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
@@ -40,9 +43,9 @@ void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		bool bReverseOrientation = MeshTransform.GetDeterminant() < 0;
 		FMeshIndexMappings IndexMaps;
 		AppendEditor.AppendMesh(Meshes[MeshIdx].Get(), IndexMaps,
-			[MeshTransform](int VID, const FVector3d& Pos)
+			[MeshTransform, AverageTranslation](int VID, const FVector3d& Pos)
 			{
-				return MeshTransform.TransformPosition(Pos);
+				return MeshTransform.TransformPosition(Pos) - AverageTranslation;
 			}, nullptr
 		);
 		if (bReverseOrientation)
