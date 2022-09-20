@@ -829,6 +829,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances);
 	SCOPE_CYCLE_COUNTER(STAT_GatherRayTracingWorldInstances);
 
+	// Ensure that any invalidated cached uniform expressions have been updated on the rendering thread.
+	// Normally this work is done through FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded,
+	// however ray tracing material processing (FMaterialShader::GetShaderBindings, which accesses UniformExpressionCache)
+	// is done on task threads, therefore all work must be done here up-front as UpdateUniformExpressionCacheIfNeeded is not free-threaded.
+	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+
 	RayTracingCollector.ClearViewMeshArrays();
 
 	FGPUScenePrimitiveCollector DummyDynamicPrimitiveCollector;
