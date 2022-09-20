@@ -71,7 +71,14 @@ bool FLandscapeActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 
 const FGuid& FLandscapeActorDesc::GetSceneOutlinerParent() const
 {
-	return LandscapeActorGuid;
+	// Landscape can't parent itself
+	if (LandscapeActorGuid != GetGuid())
+	{
+		return LandscapeActorGuid;
+	}
+
+	static FGuid NoParent;
+	return NoParent;
 }
 
 #endif
