@@ -129,6 +129,7 @@ private:
 	typedef TMap<uint32, FChannelEntry, TInlineSetAllocator<128>> ChannelSet;
 	ChannelSet				CommandlineChannels;
 	FString					TraceDest;
+	FTraceAuxiliary::EConnectionType TraceType = FTraceAuxiliary::EConnectionType::None;
 	EState					State = EState::Stopped;
 	bool					bTruncateFile = false;
 	bool					bWorkerThreadStarted = false;
@@ -289,6 +290,8 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 			{
 				UE_LOG_REF(LogCategory, Error, TEXT("Trace failed to connect (trace server: %s)!"), Parameter ? Parameter : TEXT(""));
 			}
+
+			TraceType = FTraceAuxiliary::EConnectionType::Network;
 		}
 
 		else if (Type == ETraceConnectType::File)
@@ -302,6 +305,13 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 			{
 				UE_LOG_REF(LogCategory, Error, TEXT("Trace failed to connect (file: \"%s\")!"), Parameter ? Parameter : TEXT(""));
 			}
+
+			TraceType = FTraceAuxiliary::EConnectionType::File;
+		}
+
+		if (bConnected)
+		{
+			FTraceAuxiliary::OnTraceStarted.Broadcast(TraceType, TraceDest);
 		}
 	}
 
@@ -327,7 +337,10 @@ bool FTraceAuxiliaryImpl::Stop()
 		return false;
 	}
 
+	FTraceAuxiliary::OnTraceStopped.Broadcast(TraceType, TraceDest);
+
 	State = EState::Stopped;
+	TraceType = FTraceAuxiliary::EConnectionType::None;
 	TraceDest.Reset();
 	return true;
 }
@@ -517,11 +530,7 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::
 		return false;
 	}
 
-	if (UE::Trace::WriteTo(*NativePath))
-	{
-		FTraceAuxiliary::OnTraceFileCreated.Broadcast(*NativePath);
-	}
-	else
+	if (!UE::Trace::WriteTo(*NativePath))
 	{
 		if (FPathViews::Equals(NativePath, FStringView(Path)))
 		{
@@ -1248,7 +1257,8 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 
 ////////////////////////////////////////////////////////////////////////////////
 FTraceAuxiliary::FOnConnection FTraceAuxiliary::OnConnection;
-FTraceAuxiliary::FOnTraceFileCreated FTraceAuxiliary::OnTraceFileCreated;
+FTraceAuxiliary::FOnTraceStarted FTraceAuxiliary::OnTraceStarted;
+FTraceAuxiliary::FOnTraceStopped FTraceAuxiliary::OnTraceStopped;
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, FOptions* Options, const FLogCategoryAlias& LogCategory)

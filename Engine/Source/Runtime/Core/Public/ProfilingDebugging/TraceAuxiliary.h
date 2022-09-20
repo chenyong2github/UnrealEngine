@@ -23,15 +23,7 @@ public:
 	typedef FLogCategoryBase FLogCategoryAlias;
 #endif
 
-	/**
-	 * Callback type when a new connection is established.
-	 */
-	DECLARE_MULTICAST_DELEGATE(FOnConnection);
-
-	/** Callback whenever a trace file is created */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTraceFileCreated, const TCHAR* FileNameAndPath);
-
-	enum class EConnectionType
+	enum class EConnectionType : uint8
 	{
 		/**
 		 * Connect to a trace server. Target is IP address or hostname.
@@ -41,12 +33,27 @@ public:
 		 * Write to a file. Target string is filename. Absolute or relative current working directory.
 		 * If target is null the current date and time is used.
 		 */
-		File,
-		/**
-		 * Don't connect, just start tracing to memory.
-		 */
-		None,
+		 File,
+		 /**
+		  * Don't connect, just start tracing to memory.
+		  */
+		  None,
 	};
+
+	/**
+	 * Callback type when a new connection is established.
+	 */
+	DECLARE_MULTICAST_DELEGATE(FOnConnection);
+
+	/** Callback whenever a trace is started */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTraceStarted, FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
+
+	/** 
+	* Callback whenever a trace recording is stopped. 
+	* TraceType tells what kind of trace it is.
+	* TraceDestination will be either the the filename and path for a file trace or the network connection for a network trace
+	*/
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTraceStopped, FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 
 	struct FOptions
 	{
@@ -157,10 +164,15 @@ public:
 	static FOnConnection OnConnection;
 
 	/**
-	 * Delegate that triggers when a trace file is created. Useful if you need to collect all trace files
-     * created during a session.
-	 * The full file name and path is passed to the delegate.
+	 * Delegate that triggers when a trace session is started.
+	 * The type of recording and the destination (filepath or network) is passed to the delegate.
 	 */
-	static FOnTraceFileCreated OnTraceFileCreated;
+	static FOnTraceStarted OnTraceStarted;
+
+	/**
+	 * Delegate that triggers when a trace has finished recording. Useful if you need to collect all completed trace files in a session.
+	 * The type of recording and the destination (filepath or network) is passed to the delegate.
+	 */
+	static FOnTraceStopped OnTraceStopped;
 	
 };
