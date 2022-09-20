@@ -385,12 +385,25 @@ bool FMLInferenceModelORTDml::InitializedAndConfigureMembers()
 	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12)
 	{
 		RHI = static_cast<ID3D12DynamicRHI*>(GDynamicRHI);
-	}
 
-	if (!RHI)
+		if (!RHI)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
+			return false;
+		}
+	}
+	else
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to use D3D12 RHI, got %s RHI"), GDynamicRHI ? TEXT("null") : GDynamicRHI->GetName());
-		return false;
+		if (GDynamicRHI)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
+			return false;
+		}
+		else
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:No RHI found"));
+			return false;
+		}
 	}
 
 	int DeviceIndex = 0;

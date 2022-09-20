@@ -832,9 +832,6 @@ FMLRuntimeDml::~FMLRuntimeDml()
 //
 bool FMLRuntimeDml::Init()
 {
-	RegisterElementWiseUnaryOperators();
-	RegisterElementWiseBinaryOperators();
-
 	HRESULT Res;
 
 	// In order to use DirectML we need D3D12
@@ -843,13 +840,29 @@ bool FMLRuntimeDml::Init()
 	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12)
 	{
 		RHI = static_cast<ID3D12DynamicRHI*>(GDynamicRHI);
+
+		if (!RHI)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
+			return false;
+		}
 	}
-		
-	if (!RHI)
+	else
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to use D3D12 RHI, got %s RHI"), GDynamicRHI ? TEXT("null") : GDynamicRHI->GetName());
-		return false;
+		if (GDynamicRHI)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:%s RHI is not supported by DirectML"), GDynamicRHI->GetName());
+			return false;
+		}
+		else
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:No RHI found"));
+			return false;
+		}
 	}
+
+	RegisterElementWiseUnaryOperators();
+	RegisterElementWiseBinaryOperators();
 
 	Ctx.DeviceIndex = 0;
 	Ctx.D3D12Device = RHI->RHIGetDevice(Ctx.DeviceIndex);
