@@ -870,6 +870,11 @@ namespace UnrealBuildTool
 		public int MinFilesUsingPrecompiledHeaderOverride = 0;
 
 		/// <summary>
+		/// Overrides Target.NumIncludedBytesPerUnityCPP if non-zero.
+		/// </summary>
+		public int NumIncludedBytesPerUnityCPPOverride = 0;
+
+		/// <summary>
 		/// Module uses a #import so must be built locally when compiling with SN-DBS
 		/// </summary>
 		public bool bBuildLocallyWithSNDBS = false;

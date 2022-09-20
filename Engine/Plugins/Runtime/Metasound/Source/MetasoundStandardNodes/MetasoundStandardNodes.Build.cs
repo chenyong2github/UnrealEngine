@@ -29,6 +29,8 @@ namespace UnrealBuildTool.Rules
 					"MetasoundGraphCore"
 				}
 			);
+
+			NumIncludedBytesPerUnityCPPOverride = 120 * 1024;
 		}
 	}
 }

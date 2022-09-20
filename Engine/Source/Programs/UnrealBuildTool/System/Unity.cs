@@ -158,6 +158,7 @@ namespace UnrealBuildTool
 		/// <param name="SourceFileToUnityFile">Receives a mapping of source file to unity file</param>
 		/// <param name="NormalFiles">Receives the files to compile using the normal configuration.</param>
 		/// <param name="AdaptiveFiles">Receives the files to compile using the adaptive unity configuration.</param>
+		/// <param name="NumIncludedBytesPerUnityCPP">An approximate number of bytes of C++ code to target for inclusion in a single unified C++ file.</param>
 		public static void GenerateUnityCPPs(
 			ReadOnlyTargetRules Target,
 			List<FileItem> CPPFiles,
@@ -169,7 +170,8 @@ namespace UnrealBuildTool
 			IActionGraphBuilder Graph,
 			Dictionary<FileItem, FileItem> SourceFileToUnityFile,
 			out List<FileItem> NormalFiles,
-			out List<FileItem> AdaptiveFiles)
+			out List<FileItem> AdaptiveFiles,
+			int NumIncludedBytesPerUnityCPP)
 		{
 			List<FileItem> NewCPPFiles = new List<FileItem>();
 
@@ -180,7 +182,7 @@ namespace UnrealBuildTool
 			// is beneficial when dealing with PCH files. The default PCH creation limit is X unity files so if we generate < X 
 			// this could be fairly slow and we'd rather bump the limit a bit to group them all into the same unity file.
 			// Optimization only makes sense if PCH files are enabled.
-			bool bForceIntoSingleUnityFile = Target.bStressTestUnity || (TotalBytesInCPPFiles < Target.NumIncludedBytesPerUnityCPP * 2 && Target.bUsePCHFiles);
+			bool bForceIntoSingleUnityFile = Target.bStressTestUnity || (TotalBytesInCPPFiles < NumIncludedBytesPerUnityCPP * 2 && Target.bUsePCHFiles);
 
 			// Every single file in the module appears in the working set. Don't bother using adaptive unity for this module.
 			// Otherwise it would make full builds really slow.
@@ -216,7 +218,7 @@ namespace UnrealBuildTool
 				});
 
 				HashSet<FileItem> AdaptiveFileSet = new HashSet<FileItem>(AdaptiveFiles);
-				UnityFileBuilder CPPUnityFileBuilder = new UnityFileBuilder(bForceIntoSingleUnityFile ? -1 : Target.NumIncludedBytesPerUnityCPP);
+				UnityFileBuilder CPPUnityFileBuilder = new UnityFileBuilder(bForceIntoSingleUnityFile ? -1 : NumIncludedBytesPerUnityCPP);
 				foreach (FileItem CPPFile in SortedCPPFiles)
 				{
 					if (!bForceIntoSingleUnityFile && CPPFile.AbsolutePath.IndexOf(".GeneratedWrapper.", StringComparison.InvariantCultureIgnoreCase) != -1)
