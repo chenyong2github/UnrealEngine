@@ -21,6 +21,30 @@ enum StreamingConnectionTouchType : String {
     case ended = "Ended"
 }
 
+enum StreamingConnectionControllerInputType : String {
+    case thumbstickLeftX = "Gamepad_LeftX"
+    case thumbstickLeftY = "Gamepad_LeftY"
+    case thumbstickRightX = "Gamepad_RightX"
+    case thumbstickRightY = "Gamepad_RightY"
+    case thumbstickLeftButton = "Gamepad_LeftThumbstick"
+    case thumbstickRightButton = "Gamepad_RightThumbstick"
+    case faceButtonBottom = "Gamepad_FaceButton_Bottom"
+    case faceButtonRight = "Gamepad_FaceButton_Right"
+    case faceButtonLeft = "Gamepad_FaceButton_Left"
+    case faceButtonTop = "Gamepad_FaceButton_Top"
+    case shoulderButtonLeft = "Gamepad_LeftShoulder"
+    case shoulderButtonRight = "Gamepad_RightShoulder"
+    case triggerButtonLeft = "Gamepad_LeftTrigger"
+    case triggerButtonRight = "Gamepad_RightTrigger"
+    case dpadUp = "Gamepad_DPad_Up"
+    case dpadDown = "Gamepad_DPad_Down"
+    case dpadLeft = "Gamepad_DPad_Left"
+    case dpadRight = "Gamepad_DPad_Right"
+    case specialButtonLeft = "Gamepad_Special_Left"
+    case specialButtonRight = "Gamepad_Special_Right"
+}
+
+
 class StreamingConnectionStats {
     var bytesPerSecond : Int?
     var framesPerSecond : Float?
@@ -91,6 +115,18 @@ class StreamingConnection : NSObject {
         assertionFailure("not implemented")
     }
     
+    func sendControllerAnalog(_ type :StreamingConnectionControllerInputType, controllerIndex : UInt8, value : Float) {
+        assertionFailure("not implemented")
+    }
+    
+    func sendControllerButtonPressed(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8, isRepeat : Bool) {
+        assertionFailure("not implemented")
+    }
+
+    func sendControllerButtonReleased(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8) {
+        assertionFailure("not implemented")
+    }
+
     func setRenderView(_ view : UIView) {
         assertionFailure("not implemented")
     }

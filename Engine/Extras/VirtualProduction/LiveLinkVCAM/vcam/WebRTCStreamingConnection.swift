@@ -200,6 +200,96 @@ class WebRTCStreamingConnection : StreamingConnection {
         client.sendData(Data(bytes))
     }
     
+    func inputTypeToIndex(_ type : StreamingConnectionControllerInputType) -> UInt8? {
+        switch type {
+        case .faceButtonBottom : return 0
+        case .faceButtonRight : return 1
+        case .faceButtonLeft : return 2
+        case .faceButtonTop : return 3
+            
+        case .shoulderButtonLeft : return 4
+        case .shoulderButtonRight : return 5
+
+        case .triggerButtonLeft : return 6
+        case .triggerButtonRight : return 7
+
+        case .specialButtonLeft : return 8
+        case .specialButtonRight : return 9
+            
+        case .thumbstickLeftButton : return 10
+        case .thumbstickRightButton : return 11
+            
+        case .dpadUp : return 12
+        case .dpadDown : return 13
+        case .dpadLeft : return 14
+        case .dpadRight : return 15
+            
+        case .thumbstickLeftX : return 1
+        case .thumbstickLeftY : return 2
+        case .thumbstickRightX : return 3
+        case .thumbstickRightY : return 4
+        }
+    }
+    
+    override func sendControllerAnalog(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8, value : Float) {
+        
+        guard let client = webRTCClient else { return }
+
+        guard let analogIndex = inputTypeToIndex(type) else {
+            Log.warning("Couldn't find an index for controller input type \(type.rawValue)")
+            return
+        }
+        
+        var bytes: [UInt8] = []
+
+        // Write message type using 1 byte
+        bytes.append(PixelStreamingToStreamerMessage.GamepadAnalog.rawValue)
+
+        bytes.append(controllerIndex)
+        bytes.append(analogIndex)
+        bytes.append(contentsOf: Double(value).toBytes())
+        
+        client.sendData(Data(bytes))
+    }
+    
+    override func sendControllerButtonPressed(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8, isRepeat : Bool) {
+
+        guard let client = webRTCClient else { return }
+
+        guard let buttonIndex = inputTypeToIndex(type) else {
+            Log.warning("Couldn't find an index for controller input type \(type.rawValue)")
+            return
+        }
+
+        var bytes: [UInt8] = []
+
+        bytes.append(PixelStreamingToStreamerMessage.GamepadButtonPressed.rawValue)
+        bytes.append(controllerIndex)
+        bytes.append(buttonIndex)
+        bytes.append(UInt8(isRepeat ? 1 : 0))
+        
+        client.sendData(Data(bytes))
+    }
+
+   override func sendControllerButtonReleased(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8) {
+
+       guard let client = webRTCClient else { return }
+
+       guard let buttonIndex = inputTypeToIndex(type) else {
+           Log.warning("Couldn't find an index for controller input type \(type.rawValue)")
+           return
+       }
+
+       var bytes: [UInt8] = []
+
+       bytes.append(PixelStreamingToStreamerMessage.GamepadButtonReleased.rawValue)
+       bytes.append(controllerIndex)
+       bytes.append(buttonIndex)
+       
+       client.sendData(Data(bytes))
+    }
+
+    
     func attachVideoTrack() {
         if let webRTC = webRTCClient, let view = self.webRTCView, let track = self.rtcVideoTrack {
             self.touchControls = TouchControls(webRTC, touchView: view)

@@ -41,6 +41,6 @@ extension VideoViewController : ARSessionDelegate {
         self.streamingConnection?.sendTransform(frame.camera.transform, atTime: Timecode.create().toTimeInterval())
         
         // update controller
-        self.sendControllerUpdate()
+        self.sendControllerThumbstickUpdate()
     }
 }

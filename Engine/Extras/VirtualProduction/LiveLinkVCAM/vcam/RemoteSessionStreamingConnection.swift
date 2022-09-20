@@ -150,6 +150,21 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
         self._liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, withTransform: transform, atTime: time)
     }
     
+    override func sendControllerAnalog(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8, value : Float) {
+        
+        Log.info("sendControllerAnalog \(type.rawValue) \(value)")
+        self.oscConnection?.send(.controllerAnalog, arguments: [ OSCArgument.blob(OSCUtility.ueControllerAnalogData(key: type.rawValue, controller: Int(controllerIndex), value: value)) ])
+    }
+    
+    override func sendControllerButtonPressed(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8, isRepeat : Bool) {
+        self.oscConnection?.send(.controllerButtonPressed, arguments: [ OSCArgument.blob(OSCUtility.ueControllerButtonData(key: type.rawValue, controller: Int(controllerIndex), isRepeat: isRepeat)) ] )
+    }
+
+   override func sendControllerButtonReleased(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8) {
+       self.oscConnection?.send(.controllerButtonReleased, arguments: [ OSCArgument.blob(OSCUtility.ueControllerButtonData(key: type.rawValue, controller: Int(controllerIndex), isRepeat: false)) ] )
+    }
+
+    
     func restartLiveLink() {
 
         // stop the provider & restart livelink here
