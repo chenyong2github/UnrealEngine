@@ -273,6 +273,7 @@
 #include "SkinWeightsUtilities.h"
 #include "TextureImportUtils.h"
 #include "UDIMUtilities.h"
+#include "FileHelpers.h"
 
 DEFINE_LOG_CATEGORY(LogEditorFactories);
 

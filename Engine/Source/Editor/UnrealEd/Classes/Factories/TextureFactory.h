@@ -8,6 +8,7 @@
 #include "Factories/Factory.h"
 #include "Engine/Texture.h"
 #include "ImportSettings.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "TextureFactory.generated.h"
 
 struct FImportImage
