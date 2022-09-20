@@ -2089,14 +2089,21 @@ void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 	// Make sure we dismiss the menus before we open this
 	if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
 	{
-		FScopedSlowTask SlowTask(1.f, NSLOCTEXT("LevelToolBarCinematicsMenu", "LoadSequenceSlowTask", "Loading Level Sequence..."));
-		SlowTask.MakeDialog();
-		SlowTask.EnterProgressFrame();
-		UObject* Asset = LevelSequenceActor->GetSequence();
-
-		if (Asset != nullptr)
+		if (LevelSequenceActor->GetSequence())
 		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
+			FScopedSlowTask SlowTask(1.f, NSLOCTEXT("LevelToolBarCinematicsMenu", "LoadSequenceSlowTask", "Loading Level Sequence..."));
+			SlowTask.MakeDialog();
+			SlowTask.EnterProgressFrame();
+			UObject* Asset = LevelSequenceActor->GetSequence();
+
+			if (Asset != nullptr)
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
+			}
+		}
+		else
+		{
+			FMessageDialog::Open(EAppMsgType::Type::Ok, NSLOCTEXT("LevelToolBarCinematicsMenu", "LoadSequenceNotValid", "This Level Sequence actor does not have a Sequence asset assigned in the Details panel and cannot be opened."));
 		}
 	}
 }
