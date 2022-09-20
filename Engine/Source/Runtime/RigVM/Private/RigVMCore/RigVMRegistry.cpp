@@ -197,7 +197,8 @@ void FRigVMRegistry::Refresh()
 
 void FRigVMRegistry::OnAssetRemoved(const FAssetData& InAssetData)
 {
-	UObject* Asset = InAssetData.GetAsset();
+	const bool bLoadAsset = false;
+	UObject* Asset = InAssetData.FastGetAsset(bLoadAsset);
 
 	if (UObjectRedirector* RedirectedStruct = Cast<UObjectRedirector>(Asset))
 	{
