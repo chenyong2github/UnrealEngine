@@ -2291,6 +2291,22 @@ const TCHAR* LexToString(EReplayHeaderFlags Flag)
 	}
 }
 
+const TCHAR* LexToString(EDemoRecordFailure FailureType)
+{
+	switch (FailureType)
+	{
+	case EDemoRecordFailure::Generic:
+		return TEXT("Generic");
+	case EDemoRecordFailure::StreamingArchive:
+		return TEXT("StreamingArchive");
+	case EDemoRecordFailure::StartStreaming:
+		return TEXT("StartStreaming");
+	default:
+		check(false);
+		return TEXT("Unknown");
+	}
+}
+
 void FReplayHelper::RequestCheckpoint()
 {
 	bPendingCheckpointRequest = true;

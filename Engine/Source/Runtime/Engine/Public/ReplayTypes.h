@@ -43,6 +43,15 @@ enum class EWriteDemoFrameFlags : uint32
 
 ENUM_CLASS_FLAGS(EWriteDemoFrameFlags);
 
+enum class EDemoRecordFailure : uint32
+{
+	Generic,
+	StreamingArchive,
+	StartStreaming,
+};
+
+ENGINE_API const TCHAR* LexToString(EDemoRecordFailure FailureType);
+
 struct FPlaybackPacket
 {
 	TArray<uint8>		Data;

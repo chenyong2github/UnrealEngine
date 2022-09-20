@@ -11,10 +11,10 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/NetworkDelegates.h"
 #include "RHIDefinitions.h"
-
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "GameFramework/OnlineReplStructs.h"
+#include "ReplayTypes.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -430,7 +430,10 @@ public:
 	void CleanupGameViewport();
 
 	/** Called when demo playback fails for any reason */
-	virtual void HandleDemoPlaybackFailure( EDemoPlayFailure::Type FailureType, const FString& ErrorString = TEXT("") ) { }
+	virtual void HandleDemoPlaybackFailure(EDemoPlayFailure::Type FailureType, const FString& ErrorString = TEXT("")) { }
+
+	/** Called when demo recording fails for any reason */
+	virtual void HandleDemoRecordFailure(EDemoRecordFailure FailureType) { }
 
 	/** This gets called when the player scrubs in a replay to a different level */
 	virtual void OnSeamlessTravelDuringReplay() { }

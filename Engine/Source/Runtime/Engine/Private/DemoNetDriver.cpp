@@ -1258,6 +1258,25 @@ void UDemoNetDriver::TickFlush(float DeltaSeconds)
 	}
 }
 
+void UDemoNetDriver::PostTickFlush()
+{
+	Super::PostTickFlush();
+
+	// process this outside of tick in case we want to destroy the driver in response
+	if (PendingRecordFailure.IsSet())
+	{
+		if (World)
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				GameInstance->HandleDemoRecordFailure(PendingRecordFailure.GetValue());
+			}
+		}
+
+		PendingRecordFailure.Reset();
+	}
+}
+
 void UDemoNetDriver::TickFlushAsyncEndOfFrame(float DeltaSeconds)
 {
 	if (ShouldTickFlushAsyncEndOfFrame())
@@ -1299,7 +1318,7 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 	if (Streamer->GetLastError() != ENetworkReplayError::None)
 	{
 		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::TickFlush: ReplayStreamer ERROR: %s"), ENetworkReplayError::ToString(Streamer->GetLastError()));
-		StopDemo();
+		NotifyDemoRecordFailure(EDemoRecordFailure::Generic);
 		return;
 	}
 
@@ -1313,7 +1332,7 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 	if (FileAr == nullptr)
 	{
 		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::TickFlush: FileAr == nullptr"));
-		StopDemo();
+		NotifyDemoRecordFailure(EDemoRecordFailure::StreamingArchive);
 		return;
 	}
 
@@ -3150,7 +3169,7 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 
 		if (Result.bRecording)
 		{
-			StopDemo();
+			NotifyDemoRecordFailure(EDemoRecordFailure::StartStreaming);
 		}
 		else
 		{
@@ -5293,6 +5312,20 @@ void UDemoNetDriver::NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureTyp
 				GameInstance->HandleDemoPlaybackFailure(FailureType, FString(EDemoPlayFailure::ToString(FailureType)));
 			}
 		}
+	}
+}
+
+void UDemoNetDriver::NotifyDemoRecordFailure(EDemoRecordFailure FailureType)
+{
+	UE_LOG(LogDemo, Warning, TEXT("Demo record failure: '%s'"), LexToString(FailureType));
+
+	const bool bIsRecording = IsRecording();
+
+	StopDemo();
+
+	if (bIsRecording && !PendingRecordFailure.IsSet())
+	{
+		PendingRecordFailure.Emplace(FailureType);
 	}
 }
 
