@@ -22,6 +22,7 @@ class IImgMediaReader;
 class IQueuedWork;
 
 struct FImgMediaFrame;
+struct FImgMediaFrameInfo;
 
 /**
  * Settings for the smart cache.
@@ -384,8 +385,18 @@ protected:
 	 * @param SequencePath Path to the image sequence.
 	 * @param FrameRateOverride The frame rate to use (0/0 = do not override).
 	 * @param Loop Whether the cache should loop around.
+	 * @param OutFirstFrameInfo Sequence information based on its first frame.
+	 * @return True when loading succeeds.
 	 */
-	void LoadSequence(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop);
+	bool LoadSequence(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop, FImgMediaFrameInfo& OutFirstFrameInfo);
+
+	/**
+	 * Warms up the player and start issuing requests from the start of the sequence.
+	 *
+	 * @param InFirstFrameInfo Sequence information based on its first frame.
+	 * @param Loop Whether the cache should loop around.
+	 */
+	void WarmupSequence(const FImgMediaFrameInfo& InFirstFrameInfo, bool Loop);
 
 	/**
 	 * Finds all the files in a directory and gets their path.
