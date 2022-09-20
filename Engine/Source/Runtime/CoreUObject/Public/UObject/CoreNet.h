@@ -660,8 +660,11 @@ struct FNetDeltaSerializeInfo
 	 */
 	bool bInternalAck = false;
 
-	/** The object that owns the struct we're serializing. */
+	/** The object that owns the struct we're serializing, may be an archetype. */
 	UObject* Object = nullptr;
+
+	/** Used by SendCustomDeltaProperty to distinguish between the source object (archetype) and the replicating object. */
+	UObject* CustomDeltaObject = nullptr;
 
 	/**
 	 * When non-null, this indicates that we're gathering Guid References.

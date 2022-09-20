@@ -360,6 +360,7 @@ bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 Custom
 
 	FNetDeltaSerializeInfo Parms;
 	Parms.Object = InObject;
+	Parms.CustomDeltaObject = GetObject();
 	Parms.Writer = &OutBunch;
 	Parms.Map = Connection->PackageMap;
 	Parms.OldState = OldState.Get();

@@ -4505,9 +4505,10 @@ bool FRepLayout::SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, uint16 
 	}
 
 #if WITH_PUSH_MODEL
-	if (EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsFastArray) && IsPushModelProperty(CustomDeltaProperty.PropertyRepIndex))
+	if (EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsFastArray) && IsPushModelProperty(CustomDeltaProperty.PropertyRepIndex) && Params.CustomDeltaObject)
 	{
-		static_cast<FFastArraySerializer*>(Params.Data)->CachePushModelState(Params.Object, CustomDeltaProperty.PropertyRepIndex);
+		void* ArrayData = FRepObjectDataBuffer(Params.CustomDeltaObject) + Parent;
+		static_cast<FFastArraySerializer*>(ArrayData)->CachePushModelState(Params.CustomDeltaObject, CustomDeltaProperty.PropertyRepIndex);
 	}
 #endif
 
