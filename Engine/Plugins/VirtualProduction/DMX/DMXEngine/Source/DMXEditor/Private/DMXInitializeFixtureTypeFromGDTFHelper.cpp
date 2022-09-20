@@ -519,9 +519,9 @@ void FDMXInitializeFixtureTypeFromGDTFHelper::CleanupAttributes(UDMXEntityFixtur
 		SettingsAttributeNameToKeywordsMap.Emplace(Attribute.Name, Keywords);
 	}
 
-	TArray<FName> AssignedAttributeNames;
 	for (FDMXFixtureMode& Mode : InOutFixtureType.Modes)
 	{
+		TArray<FName> AssignedAttributeNames;
 		for (FDMXFixtureFunction& Function : Mode.Functions)
 		{
 			const TTuple<FName, TArray<FString>>* SettingsAttributeNameToKeywordPairPtr = Algo::FindByPredicate(SettingsAttributeNameToKeywordsMap, [Function](const TTuple<FName, TArray<FString>> AttributeNameToKeywordPair)
