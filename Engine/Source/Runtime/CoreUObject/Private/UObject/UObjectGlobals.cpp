@@ -4339,11 +4339,10 @@ protected:
 	{
 		if (IsObjectHandleResolved(Object.GetHandle()) && Object)
 		{
-			FReferenceCollector& CurrentCollector = GetCollector();
-			FProperty* OldCollectorSerializedProperty = CurrentCollector.GetSerializedProperty();
-			CurrentCollector.SetSerializedProperty(GetSerializedProperty());
-			CurrentCollector.AddReferencedObject(Object.ToTObjectPtr(), GetSerializingObject(), GetSerializedProperty());
-			CurrentCollector.SetSerializedProperty(OldCollectorSerializedProperty);
+			// NOTE: This is deliberately not triggering access tracking as that is an undesirable overhead
+			//		 during garbage collect and GC reference collection is not meant to be trackable.
+			UObject*& RawObjectPointer = *(UObject**)&Object.GetHandleRef();
+			*this << RawObjectPointer;
 		}
 		return *this;
 	}
