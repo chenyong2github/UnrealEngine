@@ -187,14 +187,39 @@ static void TraceMotionMatchingState(
 
 	const float DeltaTime = UpdateContext.GetDeltaTime();
 
+	auto AddUniqueDatabase = [](TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, const UPoseSearchDatabase* Database, const UE::PoseSearch::FSearchContext& SearchContext) -> int32
+	{
+		const uint64 DatabaseId = FTraceMotionMatchingState::GetIdFromObject(Database);
+
+		int32 DbEntryIdx = -1;
+		for (int32 i = 0; i < DatabaseEntries.Num(); ++i)
+		{
+			if (DatabaseEntries[i].DatabaseId == DatabaseId)
+			{
+				DbEntryIdx = i;
+				break;
+			}
+		}
+		if (DbEntryIdx == -1)
+		{
+			DbEntryIdx = DatabaseEntries.Add({ DatabaseId });
+
+			const FPoseSearchFeatureVectorBuilder* CachedQuery = SearchContext.GetCachedQuery(Database);
+			check(CachedQuery);
+
+			DatabaseEntries[DbEntryIdx].QueryVector = CachedQuery->GetValues();
+		}
+
+		return DbEntryIdx;
+	};
+
 	FTraceMotionMatchingState TraceState;
 	while (!SearchContext.BestCandidates.IsEmpty())
 	{
 		FSearchContext::FPoseCandidate PoseCandidate;
 		SearchContext.BestCandidates.Pop(PoseCandidate);
 
-		const uint64 DatabaseId = FTraceMotionMatchingState::GetIdFromObject(PoseCandidate.Database);
-		const int32 DbEntryIdx = TraceState.DatabaseEntries.AddUnique({DatabaseId});
+		const int32 DbEntryIdx = AddUniqueDatabase(TraceState.DatabaseEntries, PoseCandidate.Database, SearchContext);
 		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
 
 		FTraceMotionMatchingStatePoseEntry PoseEntry;
@@ -207,12 +232,11 @@ static void TraceMotionMatchingState(
 	if (MotionMatchingState.CurrentSearchResult.ContinuingPoseCost.IsValid())
 	{
 		check(LastResult.IsValid());
-		const uint64 LastResultDbId = FTraceMotionMatchingState::GetIdFromObject(LastResult.Database.Get());
 
-		int32 LastResultDbIdx = TraceState.DatabaseEntries.AddUnique({LastResultDbId});
-		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[LastResultDbIdx];
+		const int32 DbEntryIdx = AddUniqueDatabase(TraceState.DatabaseEntries, LastResult.Database.Get(), SearchContext);
+		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
 
-		int32 LastResultPoseEntryIdx = DbEntry.PoseEntries.Add({LastResult.PoseIdx});
+		const int32 LastResultPoseEntryIdx = DbEntry.PoseEntries.Add({LastResult.PoseIdx});
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[LastResultPoseEntryIdx];
 
 		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.ContinuingPoseCost;
@@ -221,12 +245,10 @@ static void TraceMotionMatchingState(
 
 	if (MotionMatchingState.CurrentSearchResult.PoseCost.IsValid())
 	{
-		const uint64 CurrentResultDbId = FTraceMotionMatchingState::GetIdFromObject(MotionMatchingState.CurrentSearchResult.Database.Get());
-
-		int32 DbEntryIdx = TraceState.DatabaseEntries.AddUnique({CurrentResultDbId});
+		const int32 DbEntryIdx = AddUniqueDatabase(TraceState.DatabaseEntries, MotionMatchingState.CurrentSearchResult.Database.Get(), SearchContext);
 		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
 
-		int32 PoseEntryIdx = DbEntry.PoseEntries.Add({MotionMatchingState.CurrentSearchResult.PoseIdx});
+		const int32 PoseEntryIdx = DbEntry.PoseEntries.Add({MotionMatchingState.CurrentSearchResult.PoseIdx});
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[PoseEntryIdx];
 
 		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.PoseCost;
@@ -269,7 +291,6 @@ static void TraceMotionMatchingState(
 
 	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Searchable);
 	TraceState.ElapsedPoseJumpTime = MotionMatchingState.ElapsedPoseJumpTime;
-	TraceState.QueryVector = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues();
 	TraceState.AssetPlayerTime = MotionMatchingState.CurrentSearchResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
 

@@ -58,8 +58,9 @@ struct POSESEARCH_API FTraceMotionMatchingStateDatabaseEntry
 	// @todo: can we use UPoseSearchDatabase* instead of DatabaseId?
 	//UPoseSearchDatabase const* Database = nullptr;
 	uint64 DatabaseId = 0;
+	TArray<float> QueryVector;
 	TArray<FTraceMotionMatchingStatePoseEntry> PoseEntries;
-
+	
 	bool operator==(const FTraceMotionMatchingStateDatabaseEntry& Other) const { return DatabaseId == Other.DatabaseId; }
 };
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry);
@@ -86,9 +87,6 @@ struct POSESEARCH_API FTraceMotionMatchingState
 
 	/** Storage container for state booleans */
 	EFlags Flags = EFlags::None;
-
-	/** Search vectors in normalized and unnormalized forms */
-	TArray<float> QueryVector;
 
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;

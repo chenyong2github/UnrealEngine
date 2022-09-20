@@ -76,12 +76,51 @@ namespace UE { namespace PoseSearch {
 	constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 #endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
 
-static bool IsSamplingRangeValid(FFloatInterval Range)
+float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset)
 {
-	return Range.IsValid() && (Range.Min >= 0.0f);
+	float Sum = 0.f;
+	const int32 EndIndex = StartIndex + Offset;
+	for (int i = StartIndex; i < EndIndex; ++i)
+	{
+		Sum += View[i];
+	}
+	return Sum;
 }
 
-static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt)
+void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue)
+{
+	const int32 Num = View.Num();
+	check(Num == Min.Num() && Num == Max.Num());
+	for (int i = 0; i < Num; ++i)
+	{
+		const float Value = View[i];
+		if (Value != InvalidValue)
+		{
+			Min[i] = FMath::Min(Min[i], Value);
+			Max[i] = FMath::Max(Max[i], Value);
+		}
+	}
+}
+
+void ArraySafeNormalize(TConstArrayView<const float> View, TConstArrayView<const float> Min, TConstArrayView<const float> Max, TArrayView<float> NormalizedView)
+{
+	const int32 Num = View.Num();
+	check(Num == Min.Num() && Num == Max.Num() && Num == NormalizedView.Num());
+	for (int i = 0; i < Num; ++i)
+	{
+		const float Delta = Max[i] - Min[i];
+		if (FMath::IsNearlyZero(Delta, UE_KINDA_SMALL_NUMBER))
+		{
+			NormalizedView[i] = 0.f;
+		}
+		else
+		{
+			NormalizedView[i] = (View[i] - Min[i]) / Delta;
+		}
+	}
+}
+
+float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num());
 
@@ -92,7 +131,7 @@ static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConst
 	return ((VA - VB) * VW).square().sum();
 }
 
-static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B)
+float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B)
 {
 	check(A.Num() == B.Num());
 
@@ -102,7 +141,7 @@ static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConst
 	return (VA - VB).square().sum();
 }
 
-static inline void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result)
+void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num() && A.Num() == Result.Num());
 
@@ -114,6 +153,11 @@ static inline void CompareFeatureVectors(TConstArrayView<const float> A, TConstA
 	VR = ((VA - VB) * VW).square();
 }
 
+static inline bool IsSamplingRangeValid(FFloatInterval Range)
+{
+	return Range.IsValid() && (Range.Min >= 0.0f);
+}
+
 static FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequence, FFloatInterval RequestedSamplingRange)
 {
 	const bool bSampleAll = (RequestedSamplingRange.Min == 0.0f) && (RequestedSamplingRange.Max == 0.0f);
@@ -123,7 +167,6 @@ static FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequenc
 	Range.Max = bSampleAll ? SequencePlayLength : FMath::Min(SequencePlayLength, RequestedSamplingRange.Max);
 	return Range;
 }
-
 
 /**
 * Algo::LowerBound adapted to TIndexedContainerIterator for use with indexable but not necessarily contiguous containers. Used here with TRingBuffer.
@@ -175,21 +218,6 @@ template <typename IteratorType, typename ValueType>
 FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueType& Value) -> decltype(First.GetIndex())
 {
 	return LowerBound(First, Last, Value, FIdentityFunctor(), TLess<>());
-}
-
-static void CalcChannelCosts(const UPoseSearchSchema* Schema, TArrayView<const float> CostVector, TArray<float>& OutChannelCosts)
-{
-	OutChannelCosts.Reset();
-	OutChannelCosts.AddZeroed(Schema->Channels.Num());
-	for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
-	{
-		const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
-		const int32 ValueTerm = Channel->GetChannelDataOffset() + Channel->GetChannelCardinality();
-		for (int32 ValueIdx = Channel->GetChannelDataOffset(); ValueIdx != ValueTerm; ++ValueIdx)
-		{
-			OutChannelCosts[ChannelIdx] += CostVector[ValueIdx];
-		}
-	}
 }
 
 static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelectableIdxSize, const FSearchContext& SearchContext, const UPoseSearchDatabase* Database)
@@ -305,6 +333,13 @@ void UPoseSearchFeatureChannel::InitializeSchema(UE::PoseSearch::FSchemaInitiali
 	ChannelIdx = Initializer.GetCurrentChannelIdx();
 	ChannelDataOffset = Initializer.GetCurrentChannelDataOffset();
 }
+
+#if WITH_EDITOR
+void UPoseSearchFeatureChannel::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
+{
+	CostBreakDownData.AddEntireBreakDownSection(FText::FromString(GetName()), Schema, ChannelDataOffset, ChannelCardinality);
+}
+#endif // WITH_EDITOR
 
 // base implementation calculating a single mean deviation value (replicated ChannelCardinality times into MeanDeviations starting at DataOffset index) from all the features data associated to this channel
 void UPoseSearchFeatureChannel::ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const
@@ -525,6 +560,17 @@ void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UPoseSearchSchema::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const
+{
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
+	{
+		if (!Channel.IsNull())
+		{
+			Channel->ComputeCostBreakdowns(CostBreakDownData, this);
+		}
+	}
+}
 #endif
 
 bool UPoseSearchSchema::IsValid() const
@@ -599,24 +645,6 @@ bool UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchIndexAsset
 // 
-int32 FPoseSearchIndex::FindAssetIndex(const FPoseSearchIndexAsset* Asset) const
-{
-	if (Asset == nullptr || Assets.Num() == 0)
-	{
-		return INDEX_NONE;
-	}
-
-	const FPoseSearchIndexAsset* Start = &Assets[0];
-	int32 Result = Asset - Start;
-
-	if (!Assets.IsValidIndex(Result))
-	{
-		return INDEX_NONE;
-	}
-
-	return Result;
-}
-
 const FPoseSearchIndexAsset* FPoseSearchIndex::FindAssetForPose(int32 PoseIdx) const
 {
 	auto Predicate = [PoseIdx](const FPoseSearchIndexAsset& Asset)
@@ -690,8 +718,8 @@ bool FPoseSearchIndex::IsEmpty() const
 
 TConstArrayView<const float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
-	check(PoseIdx < NumPoses);
-	int32 ValueOffset = PoseIdx * Schema->SchemaCardinality;
+	check(PoseIdx >= 0 && PoseIdx < NumPoses && Schema && Schema->SchemaCardinality >= 0);
+	const int32 ValueOffset = PoseIdx * Schema->SchemaCardinality;
 	return MakeArrayView(&Values[ValueOffset], Schema->SchemaCardinality);
 }
 
@@ -835,11 +863,11 @@ FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
 	const float DissimilarityCost = CompareFeatureVectors(SearchIndex.GetPoseValues(PoseIdx), QueryValues);
 
 	// @todo: shouldn't we include MirrorMismatchAddend as well?
-	//const float MirrorMismatchAddend = SearchIndex.ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
+	const float MirrorMismatchAddend = 0.f; // SearchIndex.ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
 	const float NotifyAddend = SearchIndex.ComputeNotifyAddend(PoseIdx);
 	const float ContinuingPoseCostAddend = SearchIndex.ComputeContinuingPoseCostAddend(PoseIdx, PoseComparisonFlags);
 
-	return FPoseSearchCost(DissimilarityCost, NotifyAddend + ContinuingPoseCostAddend);
+	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostAddend);
 }
 
 
@@ -1744,50 +1772,17 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 
 #endif // WITH_EDITOR
 
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues) const
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<const float> QueryValues) const
 {
-	using namespace Eigen;
-	using namespace UE::PoseSearch;
-
-	FPoseSearchCost Result;
-
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
 	check(SearchIndex);
 
-	TConstArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
-
-	const float DissimilarityCost = CompareFeatureVectors(PoseValues, QueryValues, SearchIndex->WeightsSqrt);
-
+	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(SearchIndex->GetPoseValues(PoseIdx), QueryValues, SearchIndex->WeightsSqrt);
 	const float MirrorMismatchAddend = SearchIndex->ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
 	const float NotifyAddend = SearchIndex->ComputeNotifyAddend(PoseIdx);
 	const float ContinuingPoseCostAddend = SearchIndex->ComputeContinuingPoseCostAddend(PoseIdx, PoseComparisonFlags);
 
-	Result.Set(DissimilarityCost, NotifyAddend + MirrorMismatchAddend + ContinuingPoseCostAddend);
-
-#if UE_POSE_SEARCH_TRACE_ENABLED && WITH_EDITORONLY_DATA
-	if (SearchContext.bIsTracing)
-	{
-		// Setup Eigen views onto our vectors
-		Result.CostVector.SetNum(PoseValues.Num());
-
-		// Compute weighted squared difference vector
-		CompareFeatureVectors(PoseValues, QueryValues, SearchIndex->WeightsSqrt, Result.CostVector);
-
-		// Output cost details
-		CalcChannelCosts(SearchIndex->Schema, Result.CostVector, Result.ChannelCosts);
-		Result.MirrorMismatchCostAddend = MirrorMismatchAddend;
-		Result.NotifyCostAddend = NotifyAddend;
-		Result.ContinuingPoseCostAddend = ContinuingPoseCostAddend;
-
-		// Verify channel cost decomposition for tracing agrees with runtime pose comparator
-		auto ChannelCostsVector = Map<const ArrayXf>(
-			Result.ChannelCosts.GetData(),
-			Result.ChannelCosts.Num());
-		checkSlow(FMath::IsNearlyEqual(ChannelCostsVector.sum(), Result.GetDissimilarity(), 1e-3f));
-	}
-#endif // UE_POSE_SEARCH_TRACE_ENABLED && WITH_EDITORONLY_DATA
-
-	return Result;
+	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostAddend);
 }
 
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearchContext& SearchContext) const
@@ -2349,7 +2344,7 @@ void FSearchContext::UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost
 	};
 }
 
-bool FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder)
+const FPoseSearchFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPoseSearchDatabase* Database) const
 {
 	const FSearchContext::FCachedQuery* CachedQuery = CachedQueries.FindByPredicate([Database](const FSearchContext::FCachedQuery& CachedQuery)
 	{
@@ -2358,7 +2353,17 @@ bool FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseS
 
 	if (CachedQuery)
 	{
-		FeatureVectorBuilder = CachedQuery->FeatureVectorBuilder;
+		return &CachedQuery->FeatureVectorBuilder;
+	}
+	return nullptr;
+}
+
+bool FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder)
+{
+	const FPoseSearchFeatureVectorBuilder* CachedFeatureVectorBuilder = GetCachedQuery(Database);
+	if (CachedFeatureVectorBuilder)
+	{
+		FeatureVectorBuilder = *CachedFeatureVectorBuilder;
 		return true;
 	}
 

@@ -207,24 +207,16 @@ class SDebuggerDatabaseView : public SCompoundWidget
 	using FColumnMap = TMap<FName, TSharedRef<DebuggerDatabaseColumns::IColumn>>;
 
 private:
-	/** Deletes existing columns and initializes a new set */
-	void RefreshColumns();
-
 	/** Adds a column to the existing list */
 	void AddColumn(TSharedRef<DebuggerDatabaseColumns::IColumn>&& Column);
 
 	/** Retrieves current column map, used as an attribute by rows */
 	const FColumnMap* GetColumnMap() const { return &Columns; }
 
-	/** Creates widgets for every pose in the database, initializing the static data in the process */
-	void CreateRows(const FTraceMotionMatchingStateMessage& State);
-
 	/** Sorts the database by the current sort predicate, updating the view order */
 	void SortDatabaseRows();
 
 	void PopulateViewRows();
-
-	void ComputeViewRowsColors();
 
 	/** Acquires sort predicate for the given column */
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
@@ -266,6 +258,8 @@ private:
 	
 	/** Column data container, used to emplace defined column structures of various types */
     FColumnMap Columns;
+
+	TArray<FText> OldLabels;
 
 	struct FTable
 	{
@@ -508,6 +502,10 @@ public:
 	/** Current play rate of the asset selection player */
 	float GetPlayRate() const { return AssetPlayRate; }
 	
+	void SetVerbose(bool bVerbose) { bIsVerbose = bVerbose; }
+
+	bool IsVerbose() const { return bIsVerbose; }
+
 	/** Callback to reset debug skeletons for the active world */
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 
@@ -622,6 +620,8 @@ private:
 	
 	/** Current play rate of the asset selection player */
 	float AssetPlayRate = 1.0f;
+
+	bool bIsVerbose = false;
 
 	/** Limits some public API */
 	friend class FDebugger;

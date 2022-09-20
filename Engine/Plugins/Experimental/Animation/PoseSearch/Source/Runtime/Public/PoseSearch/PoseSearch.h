@@ -60,6 +60,18 @@ namespace Eigen {
 	using VectorXd = Matrix<double, -1, 1, 0, -1, 1>;
 }
 
+
+namespace UE::PoseSearch
+{
+	// @todo: move this in an utils file and make them inline
+	POSESEARCH_API float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset);
+	POSESEARCH_API void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue);
+	POSESEARCH_API void ArraySafeNormalize(TConstArrayView<const float> View, TConstArrayView<const float> Min, TConstArrayView<const float> Max, TArrayView<float> NormalizedView);
+	POSESEARCH_API float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt);
+	POSESEARCH_API float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B);
+	POSESEARCH_API void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Constants
 
@@ -351,6 +363,50 @@ public:
 	virtual FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) = 0;
 };
 
+class POSESEARCH_API ICostBreakDownData
+{
+public:
+	virtual ~ICostBreakDownData() {}
+
+	// returns the size of the dataset
+	virtual int32 Num() const = 0;
+
+	// returns true if Index-th cost data vector is associated with Schema
+	virtual bool IsCostVectorFromSchema(int32 Index, const UPoseSearchSchema* Schema) const = 0;
+
+	// returns the Index-th cost data vector
+	virtual TConstArrayView<const float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const = 0;
+
+	// every breakdown section start by calling BeginBreakDownSection...
+	virtual void BeginBreakDownSection(const FText& Label) = 0;
+
+	// ...then add as many SetCostBreakDown into the section...
+	virtual void SetCostBreakDown(float CostBreakDown, int32 Index, const UPoseSearchSchema* Schema) = 0;
+
+	// ...to finally wrap the section up by calling EndBreakDownSection
+	virtual void EndBreakDownSection(const FText& Label) = 0;
+
+	// most common case implementation
+	void AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality)
+	{
+		BeginBreakDownSection(Label);
+
+		const int32 Count = Num();
+		for (int32 i = 0; i < Count; ++i)
+		{
+			if (IsCostVectorFromSchema(i, Schema))
+			{
+				const float CostBreakdown = ArraySum(GetCostVector(i, Schema), DataOffset, Cardinality);
+				SetCostBreakDown(CostBreakdown, i, Schema);
+			}
+		}
+
+		EndBreakDownSection(Label);
+	}
+
+	virtual bool IsVerbose() const { return true; }
+};
+
 } // namespace UE::PoseSearch
 
 
@@ -386,6 +442,10 @@ public:
 
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
+
+#if WITH_EDITOR
+	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const;
+#endif
 
 	// Used during data normalization. If a feature has less than this amount of deviation from the mean across all poses in a database, then it will not be normalized.
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0001"))
@@ -540,14 +600,16 @@ public:
 
 	int32 GetNumBones () const { return BoneIndices.Num(); }
 
-public: // UObject
+	// UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
 
-public: // IBoneReferenceSkeletonProvider
+	// IBoneReferenceSkeletonProvider
 	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override { bInvalidSkeletonIsError = false; return Skeleton; }
 
 #if WITH_EDITOR
+	void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData) const;
+
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
@@ -701,8 +763,6 @@ struct POSESEARCH_API FPoseSearchIndex
 
 	TConstArrayView<const float> GetPoseValues(int32 PoseIdx) const;
 
-	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
-
 	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
 
@@ -811,60 +871,45 @@ struct POSESEARCH_API FPoseSearchCost
 	GENERATED_BODY()
 public:
 	FPoseSearchCost() = default;
-	FPoseSearchCost(float InDissimilarity, float InCostAddend)
-		: Dissimilarity(InDissimilarity)
-		, CostAddend(InCostAddend)
-	{}
-
-	bool IsValid() const { return Dissimilarity != MAX_flt; }
-
-	void Set(float InDissimilarity, float InCostAddend)
+	FPoseSearchCost(float InDissimilarityCost, float InNotifyCostAddend, float InMirrorMismatchCostAddend, float InContinuingPoseCostAddend)
+	: TotalCost(InDissimilarityCost + InNotifyCostAddend + InMirrorMismatchCostAddend + InContinuingPoseCostAddend)
 	{
-		Dissimilarity = InDissimilarity;
-		CostAddend = InCostAddend;
+#if WITH_EDITORONLY_DATA
+		NotifyCostAddend = InNotifyCostAddend;
+		MirrorMismatchCostAddend = InMirrorMismatchCostAddend;
+		ContinuingPoseCostAddend = InContinuingPoseCostAddend;
+#endif // WITH_EDITORONLY_DATA
 	}
 
-	float GetDissimilarity() const { return Dissimilarity; }
-	float GetCostAddend() const { return CostAddend; }
-	float GetTotalCost() const { return Dissimilarity + CostAddend; }
+	bool IsValid() const { return TotalCost != MAX_flt; }
 
-	bool operator<(const FPoseSearchCost& Other) const { return GetTotalCost() < Other.GetTotalCost(); }
+	float GetTotalCost() const { return TotalCost; }
 
-	void Reset()
-	{
-		Dissimilarity = MAX_flt;
-		CostAddend = 0.0f;
-	}
+	bool operator<(const FPoseSearchCost& Other) const { return TotalCost < Other.TotalCost; }
 
 protected:
-
 	UPROPERTY()
-	float Dissimilarity = MAX_flt;
-
-	UPROPERTY()
-	float CostAddend = 0.0f;
+	float TotalCost = MAX_flt;
 
 #if WITH_EDITORONLY_DATA
 public:
+
+	float GetCostAddend() const
+	{
+		return NotifyCostAddend + MirrorMismatchCostAddend + ContinuingPoseCostAddend;
+	}
+
 	// Contribution from ModifyCost anim notify
 	UPROPERTY()
-	float NotifyCostAddend = 0.0f;
+	float NotifyCostAddend = 0.f;
 
 	// Contribution from mirroring cost
 	UPROPERTY()
-	float MirrorMismatchCostAddend = 0.0f;
+	float MirrorMismatchCostAddend = 0.f;
 
 	UPROPERTY()
-	float ContinuingPoseCostAddend = 0.0f;
+	float ContinuingPoseCostAddend = 0.f;
 
-	// Cost breakdown per channel (e.g. pose cost, time-based trajectory cost, distance-based trajectory cost, etc.)
-	UPROPERTY()
-	TArray<float> ChannelCosts;
-
-	// Difference vector computed as W*((P-Q)^2) without the cost modifier applied
-	// Where P is the pose vector, Q is the query vector, W is the weights vector, and multiplication/exponentiation are element-wise operations
-	UPROPERTY()
-	TArray<float> CostVector;
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -1162,7 +1207,7 @@ public:
 
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<const float> QueryValues) const;
 
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1330,6 +1375,7 @@ struct POSESEARCH_API FSearchContext
 	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
 
 	bool GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
+	const FPoseSearchFeatureVectorBuilder* GetCachedQuery(const UPoseSearchDatabase* Database) const;
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
 

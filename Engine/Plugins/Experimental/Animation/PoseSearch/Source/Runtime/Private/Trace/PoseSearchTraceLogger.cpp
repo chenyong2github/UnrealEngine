@@ -59,6 +59,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry)
 FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry)
 {
 	Ar << Entry.DatabaseId;
+	Ar << Entry.QueryVector;
 	Ar << Entry.PoseEntries;
 	return Ar;
 }
@@ -68,7 +69,6 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 	Ar << State.SearchableAssetId;
 	Ar << State.ElapsedPoseJumpTime;
 	Ar << State.Flags;
-	Ar << State.QueryVector;
 	Ar << State.AssetPlayerTime;
 	Ar << State.DeltaTime;
 	Ar << State.SimLinearVelocity;
