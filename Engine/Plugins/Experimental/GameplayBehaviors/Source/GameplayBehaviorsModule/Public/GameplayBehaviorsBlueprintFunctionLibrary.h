@@ -14,7 +14,7 @@
 class AActor;
 class UBTNode;
 
-UCLASS(meta = (ScriptName = "GameplayBehaviorsLibrary"))
+UCLASS(meta = (ScriptName = "GameplayBehaviorLibrary"))
 class GAMEPLAYBEHAVIORSMODULE_API UGameplayBehaviorsBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
