@@ -885,7 +885,7 @@ public:
 	/* Invalidate the precomputed grass and baked texture data on all components */
 	LANDSCAPE_API void InvalidateGeneratedComponentData(bool bInvalidateLightingCache = false);
 
-	LANDSCAPE_API void UpdateRenderingMethod(bool bDisableNanite = false);
+	LANDSCAPE_API void UpdateRenderingMethod();
 
 #if WITH_EDITOR
 	/** Update Grass maps */

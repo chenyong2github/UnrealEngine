@@ -158,6 +158,8 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 		{
 			Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
 		}
+
+		Proxy->UpdateRenderingMethod();
 	}
 
 #if WITH_EDITOR

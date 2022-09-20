@@ -188,15 +188,6 @@ FAutoConsoleVariableRef CVarRenderNaniteLandscape(
 	TEXT("landscape.RenderNanite"),
 	GRenderNaniteLandscape,
 	TEXT("Render Landscape using Nanite."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		const bool bDisableNanite = !InVariable->GetBool();
-		ForEachObjectOfClass(ALandscapeProxy::StaticClass(), [&](UObject* Obj)
-		{
-			ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(Obj);
-			LandscapeProxy->UpdateRenderingMethod(bDisableNanite);
-		}, /* bIncludeDerivedClasses= */ true, RF_ClassDefaultObject | RF_ArchetypeObject, EInternalObjectFlags::Garbage);
-	}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -5124,7 +5115,7 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComp
 	InvalidateGeneratedComponentData(Components.Array(), bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::UpdateRenderingMethod(bool bDisableNanite)
+void ALandscapeProxy::UpdateRenderingMethod()
 {
 	if (LandscapeComponents.Num() == 0)
 	{
@@ -5133,7 +5124,7 @@ void ALandscapeProxy::UpdateRenderingMethod(bool bDisableNanite)
 
 	bool bNaniteActive = false;
 
-	if (!bDisableNanite && NaniteComponent != nullptr)
+	if (NaniteComponent != nullptr && GRenderNaniteLandscape != 0)
 	{
 		bNaniteActive = UseNanite(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 #if WITH_EDITOR
