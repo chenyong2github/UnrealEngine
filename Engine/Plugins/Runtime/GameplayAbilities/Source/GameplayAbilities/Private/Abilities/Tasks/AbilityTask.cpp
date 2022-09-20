@@ -117,6 +117,9 @@ void UAbilityTask::OnDestroy(bool bInOwnerFinished)
 		DebugRecordAbilityTaskDestroyed(this);
 	}
 
+	// #KillPendingKill Clear ability reference so we don't hold onto it and GC can delete it.
+	Ability = nullptr;
+
 	Super::OnDestroy(bInOwnerFinished);
 }
 
