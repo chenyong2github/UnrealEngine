@@ -248,9 +248,16 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Microsoft SignTool cannot reach specified timestamp server 
 		/// 
-		/// Signing performs a looping retry using different servers and throws when all retries attemps have been exhausted.
+		/// Signing performs a looping retry using different servers and throws when all retries attempts have been exhausted.
 		/// </summary>
 		public static EventId Systemic_SignToolTimeStampServer { get; } = new EventId(765);
+
+		/// <summary>
+		/// Microsoft SignTool generic error
+		/// 
+		/// Usually preceded by another type of error.
+		/// </summary>
+		public static EventId Systemic_SignTool { get; } = new EventId(766);
 
 		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
