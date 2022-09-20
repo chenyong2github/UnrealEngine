@@ -217,6 +217,7 @@ public class UnrealEd : ModuleRules
 				"CookOnTheFly",
 				"CookOnTheFlyNetServer",
 				"Zen",
+				"BuildSettings",
 			}
 		);
 

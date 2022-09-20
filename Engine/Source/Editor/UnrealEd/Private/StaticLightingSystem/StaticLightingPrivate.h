@@ -269,6 +269,8 @@ public:
 	 */
 	FStaticLightingSystem(const FLightingBuildOptions& InOptions, UWorld* InWorld, ULevel* InLightingScenario);
 	~FStaticLightingSystem();
+
+	bool CheckLightmassExecutableVersion();
 	
 	/** Kicks off the lightmass processing, and, if successful, starts the asynchronous task */
 	bool BeginLightmassProcess();
