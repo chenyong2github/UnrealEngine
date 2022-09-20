@@ -224,7 +224,7 @@ struct STATETREEMODULE_API FStateTreeRandomConditionInstanceData
 STATETREE_POD_INSTANCEDATA(FStateTreeRandomConditionInstanceData);
 
 USTRUCT(DisplayName = "Random")
-struct STATETREEMODULE_API FStateTreeRandomCondition : public FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeRandomCondition : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
 
