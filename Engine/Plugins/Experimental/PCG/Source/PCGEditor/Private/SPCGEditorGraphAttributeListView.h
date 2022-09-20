@@ -88,7 +88,7 @@ private:
 	void AddPointDataColumns();
 	void RemovePointDataColumns();
 
-	void AddMetadataColumn(const FName& InColumnId, const int8 InValueIndex = INDEX_NONE, const TCHAR* PostFix = nullptr);
+	void AddMetadataColumn(const FName& InColumnId, const FName& InMetadataId, const int8 InValueIndex = INDEX_NONE, const TCHAR* PostFix = nullptr);
 	void RemoveMetadataColumns();
 
 	/** Pointer back to the PCG editor that owns us */
