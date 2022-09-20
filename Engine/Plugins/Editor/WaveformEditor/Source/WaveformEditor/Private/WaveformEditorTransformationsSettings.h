@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Engine/DeveloperSettings.h"
 #include "IWaveformTransformation.h"
+#include "Templates/SubclassOf.h"
 
 #include "WaveformEditorTransformationsSettings.generated.h"
 
@@ -16,22 +18,11 @@ class UWaveformEditorTransformationsSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 //~ Begin UDeveloperSettings interface
-	virtual FName GetCategoryName() const
-	{
-		return TEXT("Plugins");
-	}
+	virtual FName GetCategoryName() const;
 
 #if WITH_EDITOR
-	virtual FText GetSectionText() const override
-	{
-		return NSLOCTEXT("WaveformEditorTransformations", "WaveformEditorTransformationsSettingsSection", "Waveform Editor Transformations");
-	}
-
-	virtual FName GetSectionName() const override
-	{
-		return TEXT("Waveform Editor Transformations");
-	}
-
+	virtual FText GetSectionText() const override;
+	virtual FName GetSectionName() const override;
 #endif
 	//~ End UDeveloperSettings interface
 	
@@ -39,5 +30,4 @@ public:
 	/** A Transformation chain that will be added to the inspected Soundwave if there aren't any  */
 	UPROPERTY(config, EditAnywhere, Category = "Launch Options")
 	TArray<TSubclassOf<UWaveformTransformationBase>> LaunchTransformations;
-
 };
