@@ -434,12 +434,13 @@ public:
 	
 };
 
+static SIZE_T FileMappingAlignment = FPlatformMemory::GetConstants().PageSize;
+
 class FIOSMappedFileHandle final : public IMappedFileHandle
 {
 	const uint8* MappedPtr;
 	FString Filename;
 	int32 NumOutstandingRegions;
-	int32 Alignment;
 	int FileHandle;
 	
 public:
@@ -453,7 +454,6 @@ public:
 		, NumOutstandingRegions(0)
 		, FileHandle(InFileHandle)
 	{
-		Alignment = sysconf(_SC_PAGE_SIZE);
 	}
 
 	~FIOSMappedFileHandle()
@@ -474,15 +474,9 @@ public:
 		// const uint8* MapPtr = (const uint8 *)mmap(NULL, BytesToMap, PROT_READ, MAP_PRIVATE, FileHandle, Offset);
 		//		const uint8* MapPtr = (const uint8 *)mmap(NULL, BytesToMap, PROT_READ, MAP_SHARED, FileHandle, Offset);
 		
-		int64 AlignedOffset = AlignDown(Offset, Alignment);
-		int64 AlignedSize = Align(BytesToMap + Offset - AlignedOffset, Alignment);
-		
-		// if we are about to go off the end, let's not
-		if (AlignedOffset + AlignedSize > GetFileSize())
-		{
-			UE_LOG(LogIOS, Warning, TEXT("Mapping fell off the end, did we need to actually abort? [%lld + %lld > %lld]"), AlignedOffset, AlignedSize, GetFileSize());
-			return nullptr;
-		}
+		const int64 AlignedOffset = AlignDown(Offset, FileMappingAlignment);
+		//File mapping can extend beyond file size. It's OK, kernel will just fill any leftover page data with zeros
+		const int64 AlignedSize = Align(BytesToMap + Offset - AlignedOffset, FileMappingAlignment);
 		
 		const uint8* AlignedMapPtr = (const uint8 *)mmap(NULL, AlignedSize, PROT_READ, MAP_PRIVATE, FileHandle, AlignedOffset);
 		if (AlignedMapPtr == (const uint8*)-1 || AlignedMapPtr == nullptr)

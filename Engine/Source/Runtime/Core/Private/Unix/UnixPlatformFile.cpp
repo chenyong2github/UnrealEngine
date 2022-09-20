@@ -702,6 +702,8 @@ public:
 	virtual ~FUnixMappedFileRegion();
 };
 
+static SIZE_T FileMappingAlignment = FPlatformMemory::GetConstants().PageSize;
+
 class FUnixMappedFileHandle final : public IMappedFileHandle
 {
 public:
@@ -712,7 +714,6 @@ public:
 		, NumOutstandingRegions(0)
 		, FileHandle(InFileHandle)
 	{
-		Alignment = sysconf(_SC_PAGE_SIZE);
 	}
 
 	virtual ~FUnixMappedFileHandle() override
@@ -728,14 +729,9 @@ public:
 		BytesToMap = FMath::Min<int64>(BytesToMap, GetFileSize() - Offset);
 		check(BytesToMap > 0); // don't map zero bytes
 
-		const int64 AlignedOffset = AlignDown(Offset, Alignment);
-		int64 AlignedSize = Align(BytesToMap + Offset - AlignedOffset, Alignment);
-
-		// if we are about to go off the end, let's just go to the end of the file
-		if (AlignedOffset + AlignedSize > GetFileSize())
-		{
-			AlignedSize = GetFileSize() - AlignedOffset;
-		}
+		const int64 AlignedOffset = AlignDown(Offset, FileMappingAlignment);
+		//File mapping can extend beyond file size. It's OK, kernel will just fill any leftover page data with zeros
+		const int64 AlignedSize = Align(BytesToMap + Offset - AlignedOffset, FileMappingAlignment);
 
 		int Flags = MAP_PRIVATE;
 		if (bPreloadHint)
@@ -773,7 +769,6 @@ private:
 	const uint8* MappedPtr;
 	FString Filename;
 	int32 NumOutstandingRegions;
-	int32 Alignment;
 	int FileHandle;
 };
 
