@@ -66,11 +66,14 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 // This must map to the STRATA_TILE_TYPE defines.
 enum EStrataTileType : uint32
 {
-	ESimple  = STRATA_TILE_TYPE_SIMPLE,
-	ESingle = STRATA_TILE_TYPE_SINGLE,
-	EComplex = STRATA_TILE_TYPE_COMPLEX,
-	EOpaqueRoughRefraction = STRATA_TILE_TYPE_ROUGH_REFRACT,
-	ESSSWithoutOpaqueRoughRefraction = STRATA_TILE_TYPE_SSS_WITHOUT_ROUGH_REFRACT,
+	ESimple								= STRATA_TILE_TYPE_SIMPLE,
+	ESingle								= STRATA_TILE_TYPE_SINGLE,
+	EComplex							= STRATA_TILE_TYPE_COMPLEX,
+	EOpaqueRoughRefraction				= STRATA_TILE_TYPE_ROUGH_REFRACT,
+	EOpaqueRoughRefractionSSSWithout	= STRATA_TILE_TYPE_ROUGH_REFRACT_SSS_WITHOUT,
+	EDecalSimple						= STRATA_TILE_TYPE_DECAL_SIMPLE,
+	EDecalSingle						= STRATA_TILE_TYPE_DECAL_SINGLE,
+	EDecalComplex						= STRATA_TILE_TYPE_DECAL_COMPLEX,
 	ECount
 };
 
@@ -159,7 +162,7 @@ void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& BasePassTextu
 void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, FShaderCompilerEnvironment& OutEnvironment);
 
 
-void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views);
+void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FDBufferTextures& DBufferTextures, const TArray<FViewInfo>& Views);
 void AddStrataDBufferPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FDBufferTextures& DBufferTextures, const TArray<FViewInfo>& Views);
 
 void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);

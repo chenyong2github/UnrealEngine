@@ -210,7 +210,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 	//
 	// 3. Add remaining tiles with subsurface scattering that did not have rough refractions on them, resulting in a complete scene color texture.
 	//
-	StrataTileType = EStrataTileType::ESSSWithoutOpaqueRoughRefraction;
+	StrataTileType = EStrataTileType::EOpaqueRoughRefractionSSSWithout;
 	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];

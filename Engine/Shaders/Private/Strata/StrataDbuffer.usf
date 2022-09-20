@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/Common.ush"
+#include "/Engine/Shared/StrataDefinitions.h"   
 
 #if PERMUTATION_TILETYPE == 0
 #define STRATA_FASTPATH 1
@@ -9,7 +10,7 @@
 #elif PERMUTATION_TILETYPE == 2
   // COMPLEX PATH
 #else
-#error Strata tile type non-implemented
+#error Strata tile type non-implemented 
 #endif
 
 #define OpaqueBasePass
