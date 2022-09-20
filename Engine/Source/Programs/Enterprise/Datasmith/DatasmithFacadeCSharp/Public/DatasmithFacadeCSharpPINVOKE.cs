@@ -620,6 +620,15 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetAmbientOcclusion")]
   public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetAmbientOcclusion(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetClearCoat")]
+  public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetClearCoat(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetClearCoatRoughness")]
+  public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetClearCoatRoughness(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetWorldPositionOffset")]
+  public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetWorldPositionOffset(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetMaterialAttributes")]
   public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetMaterialAttributes(global::System.Runtime.InteropServices.HandleRef jarg1);
 

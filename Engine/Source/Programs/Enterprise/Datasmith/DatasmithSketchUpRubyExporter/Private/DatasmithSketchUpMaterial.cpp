@@ -783,6 +783,7 @@ public:
 		Context.DatasmithScene->AddTexture(TextureElement);
 
 		FImageMaterial::FOptions MaterialOptions;
+		MaterialOptions.bUseAlphaChannel = Context.ImageFiles.GetImageHasAlpha(ImageFile);
 		CreateMaterialElement(Context, *MaterialName, *MaterialLabel, TextureElement->GetName(), MaterialOptions);
 
 		Hash = Context.ImageFiles.GetImageFileHash(ImageFile);
@@ -825,7 +826,6 @@ public:
 
 		DatasmithMaterialElement->SetTwoSided(true); // imported Image in SketchUp is displayed as two-sided with no way to controls it, so 
 
-		// todo: inspect texture to see if there's alpha. Also consider masked opacity(might be better fit for SketchUp images?)
 		bool bTranslucent = false; 
 
 		{
@@ -860,20 +860,31 @@ public:
 			// Set the Datasmith material element opacity.
 			if (Options.bUseAlphaChannel)
 			{
-				// Invert texture translarency to get Unreal opacity
-				IDatasmithMaterialExpressionGeneric* ExpressionOpacity = DatasmithMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
-				ExpressionOpacity->SetExpressionName(TEXT("OneMinus"));
-
-
-				ExpressionTexture->ConnectExpression(*ExpressionOpacity->GetInput(0), 3);
-
-				ExpressionOpacity->ConnectExpression(DatasmithMaterialElement->GetOpacity());
+				ExpressionTexture->ConnectExpression(DatasmithMaterialElement->GetOpacity(), 4);  // Use Alpha output from Texture sampler
 			}
 		}
 
 		if (bTranslucent)
 		{
 			DatasmithMaterialElement->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
+		}
+
+		// World Position Offset
+		// Shift image along local Z
+		{
+			IDatasmithMaterialExpressionGeneric* ExpressionObjectOrientation = DatasmithMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+			ExpressionObjectOrientation->SetExpressionName(TEXT("ObjectOrientation"));
+			IDatasmithMaterialExpressionScalar* ExpressionPositionOffset = DatasmithMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+			ExpressionPositionOffset->SetName(TEXT("PositionOffset"));
+			ExpressionPositionOffset->GetScalar() = 1.f;
+
+			IDatasmithMaterialExpressionGeneric* MultiplyOrientationWithOffset = DatasmithMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+			MultiplyOrientationWithOffset->SetExpressionName(TEXT("Multiply"));
+
+			ExpressionObjectOrientation->ConnectExpression(*MultiplyOrientationWithOffset->GetInput(0));
+			ExpressionPositionOffset->ConnectExpression(*MultiplyOrientationWithOffset->GetInput(1));
+
+			MultiplyOrientationWithOffset->ConnectExpression(DatasmithMaterialElement->GetWorldPositionOffset());
 		}
 
 		Context.DatasmithScene->AddMaterial(DatasmithMaterialElement);

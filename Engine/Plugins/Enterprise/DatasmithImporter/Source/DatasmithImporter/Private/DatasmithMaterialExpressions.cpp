@@ -3129,6 +3129,11 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 		}
 	}
 
+	if (MaterialElement->GetWorldPositionOffset().GetExpression())
+	{
+		ConnectExpression(MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldPositionOffset().GetExpression(), GetMaterialOrFunctionSlot(UnrealMaterialOrFunction, EDatasmithTextureSlot::WORLDPOSITIONOFFSET), MaterialElement->GetWorldPositionOffset().GetOutputIndex());
+	}
+
 	// Connect expressions to any UMaterialExpressionCustomOutput since these aren't part of the predefined material outputs
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{

@@ -676,6 +676,7 @@ public:
 	virtual IDatasmithExpressionInput& GetAmbientOcclusion() override { return *AmbientOcclusion.Edit(); }
 	virtual IDatasmithExpressionInput& GetClearCoat() override { return *ClearCoat.Edit(); }
 	virtual IDatasmithExpressionInput& GetClearCoatRoughness() override { return *ClearCoatRoughness.Edit(); }
+	virtual IDatasmithExpressionInput& GetWorldPositionOffset() override { return *WorldPositionOffset.Edit(); }
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() override { return *MaterialAttributes.Edit(); }
 
 	virtual int GetBlendMode() const override {return BlendMode; }
@@ -725,6 +726,7 @@ protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > ClearCoat;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > ClearCoatRoughness;
+	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > WorldPositionOffset;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
 
 	TDatasmithReferenceArrayProxy< IDatasmithMaterialExpression > Expressions;

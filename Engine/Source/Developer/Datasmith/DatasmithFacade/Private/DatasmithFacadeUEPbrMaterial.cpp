@@ -368,6 +368,24 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetAmbientOcclusi
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetAmbientOcclusion(), UEPbrMaterial );
 }
 
+FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetClearCoat() const
+{
+	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
+	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetClearCoat(), UEPbrMaterial );
+}
+
+FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetClearCoatRoughness() const
+{
+	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
+	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetClearCoatRoughness(), UEPbrMaterial );
+}
+
+FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetWorldPositionOffset() const
+{
+	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
+	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetWorldPositionOffset(), UEPbrMaterial );
+}
+
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetMaterialAttributes() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();

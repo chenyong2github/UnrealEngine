@@ -1863,6 +1863,42 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetAmbientOcc
 }
 
 
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetClearCoat(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
+  SwigValueWrapper< FDatasmithFacadeExpressionInput > result;
+  
+  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
+  result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetClearCoat();
+  jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetClearCoatRoughness(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
+  SwigValueWrapper< FDatasmithFacadeExpressionInput > result;
+  
+  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
+  result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetClearCoatRoughness();
+  jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
+  return jresult;
+}
+
+
+SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetWorldPositionOffset(void * jarg1) {
+  void * jresult ;
+  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
+  SwigValueWrapper< FDatasmithFacadeExpressionInput > result;
+  
+  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
+  result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetWorldPositionOffset();
+  jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
+  return jresult;
+}
+
+
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetMaterialAttributes(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;

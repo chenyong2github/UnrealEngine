@@ -83,6 +83,21 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
+  public FDatasmithFacadeExpressionInput GetClearCoat() {
+    FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetClearCoat(swigCPtr), true);
+    return ret;
+  }
+
+  public FDatasmithFacadeExpressionInput GetClearCoatRoughness() {
+    FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetClearCoatRoughness(swigCPtr), true);
+    return ret;
+  }
+
+  public FDatasmithFacadeExpressionInput GetWorldPositionOffset() {
+    FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetWorldPositionOffset(swigCPtr), true);
+    return ret;
+  }
+
   public FDatasmithFacadeExpressionInput GetMaterialAttributes() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetMaterialAttributes(swigCPtr), true);
     return ret;

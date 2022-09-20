@@ -151,6 +151,7 @@ namespace DatasmithMaterialImporterUtils
 		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetAmbientOcclusion(), VisitedExpressions ) );
 		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetClearCoat(), VisitedExpressions ) );
 		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetClearCoatRoughness(), VisitedExpressions ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetWorldPositionOffset(), VisitedExpressions ) );
 		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetMaterialAttributes(), VisitedExpressions ) );
 
 		TSet<IDatasmithMaterialExpression*> AllExpressions;

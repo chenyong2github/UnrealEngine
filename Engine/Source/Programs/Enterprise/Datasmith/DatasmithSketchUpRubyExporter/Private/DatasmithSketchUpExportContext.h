@@ -166,6 +166,7 @@ namespace DatasmithSketchUp
 
 		const TCHAR* GetImageFilePath(FImageFile&);
 		FMD5Hash GetImageFileHash(FImageFile&);
+		bool GetImageHasAlpha(FImageFile& ImageFile);
 
 	private:
 		FExportContext& Context;

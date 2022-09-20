@@ -203,6 +203,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	, AmbientOcclusion(   MakeShared< FDatasmithExpressionInputImpl >( TEXT("AmbientOcclusion") ) )
 	, ClearCoat(		  MakeShared< FDatasmithExpressionInputImpl >( TEXT("ClearCoat") ) )
 	, ClearCoatRoughness( MakeShared< FDatasmithExpressionInputImpl >( TEXT("ClearCoatRoughness") ) )
+	, WorldPositionOffset( MakeShared< FDatasmithExpressionInputImpl >( TEXT("WorldPositionOffset") ) )
 	, MaterialAttributes( MakeShared< FDatasmithExpressionInputImpl >( TEXT("MaterialAttributes") ) )
 	, BlendMode(0)
 	, bTwoSided( false )
@@ -224,6 +225,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	RegisterReferenceProxy( AmbientOcclusion, "AmbientOcclusion" );
 	RegisterReferenceProxy( ClearCoat, "ClearCoat" );
 	RegisterReferenceProxy( ClearCoatRoughness, "ClearCoatRoughness" );
+	RegisterReferenceProxy( WorldPositionOffset, "WorldPositionOffset" );
 	RegisterReferenceProxy( MaterialAttributes, "MaterialAttributes" );
 
 	RegisterReferenceProxy( Expressions, "Expressions" );
@@ -277,6 +279,7 @@ FMD5Hash FDatasmithUEPbrMaterialElementImpl::CalculateElementHash(bool bForce)
 	UpdateMD5(*AmbientOcclusion.Edit());
 	UpdateMD5(*ClearCoat.Edit());
 	UpdateMD5(*ClearCoatRoughness.Edit());
+	UpdateMD5(*WorldPositionOffset.Edit());
 	UpdateMD5(*MaterialAttributes.Edit());
 
 	ElementHash.Set(MD5);
@@ -375,6 +378,7 @@ void FDatasmithUEPbrMaterialElementImpl::ResetExpressionGraph( bool bRemoveAllEx
 	AmbientOcclusion.Edit()->SetExpression(nullptr);
 	ClearCoat.Edit()->SetExpression(nullptr);
 	ClearCoatRoughness.Edit()->SetExpression(nullptr);
+	WorldPositionOffset.Edit()->SetExpression(nullptr);
 	MaterialAttributes.Edit()->SetExpression(nullptr);
 }
 

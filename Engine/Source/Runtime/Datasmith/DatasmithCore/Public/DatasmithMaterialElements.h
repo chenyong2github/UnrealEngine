@@ -223,6 +223,7 @@ public:
 	virtual IDatasmithExpressionInput& GetAmbientOcclusion() = 0;
 	virtual IDatasmithExpressionInput& GetClearCoat() = 0;
 	virtual IDatasmithExpressionInput& GetClearCoatRoughness() = 0;
+	virtual IDatasmithExpressionInput& GetWorldPositionOffset() = 0;
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() = 0;
 
 	/** InBlendMode must match the values of EBlendMode from EngineTypes.h */

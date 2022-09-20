@@ -330,6 +330,9 @@ public:
 	FDatasmithFacadeExpressionInput GetNormal() const;
 	FDatasmithFacadeExpressionInput GetRefraction() const;
 	FDatasmithFacadeExpressionInput GetAmbientOcclusion() const;
+	FDatasmithFacadeExpressionInput GetClearCoat() const;
+	FDatasmithFacadeExpressionInput GetClearCoatRoughness() const;
+	FDatasmithFacadeExpressionInput GetWorldPositionOffset() const;
 	FDatasmithFacadeExpressionInput GetMaterialAttributes() const;
 
 	int GetBlendMode() const;

@@ -25,6 +25,7 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
 
+#include "Algo/AnyOf.h"
 #include "Misc/Paths.h"
 
 
@@ -366,6 +367,8 @@ namespace DatasmithSketchUp
 
 		FString FilePath;
 
+		bool bHasAlpha = false;
+
 		FImageFile(SUImageRepRef InImageRep)
 			: ImageRep(InImageRep)
 		{
@@ -387,6 +390,12 @@ namespace DatasmithSketchUp
 			MD5.Update(Data.GetData(), Data.Num());
 
 			ImageHash.Set(MD5);
+
+			TArray<SUColor> Colors;
+			Colors.SetNum(Width*Height);
+			SUImageRepGetDataAsColors(ImageRep, Colors.GetData());
+
+			bHasAlpha = Algo::AnyOf(Colors, [](const SUColor& Color) { return Color.alpha != 255; });
 		}
 
 		FMD5Hash ImageHash;
@@ -418,4 +427,9 @@ const TCHAR* FImageFileCollection::GetImageFilePath(FImageFile& ImageFile)
 FMD5Hash FImageFileCollection::GetImageFileHash(FImageFile& ImageFile)
 {
 	return ImageFile.ImageHash;
+}
+
+bool FImageFileCollection::GetImageHasAlpha(FImageFile& ImageFile)
+{
+	return ImageFile.bHasAlpha;	
 }
