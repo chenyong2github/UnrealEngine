@@ -343,7 +343,7 @@ inline void EnsureColorSpace(IDXGISwapChain* SwapChain, EDisplayColorGamut Displ
 		if (SUCCEEDED(hr) && (ColorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
 		{
 			swapChain3->SetColorSpace1(NewColorSpace);
-			UE_LOG(LogD3D11RHI, Log, TEXT("Setting color space on swap chain: %s"), *ColorSpaceName);
+			UE_LOG(LogD3D11RHI, Verbose, TEXT("Setting color space on swap chain: %s"), *ColorSpaceName);
 		}
 		else
 		{
