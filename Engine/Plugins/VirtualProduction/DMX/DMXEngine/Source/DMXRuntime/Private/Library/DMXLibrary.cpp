@@ -569,13 +569,6 @@ void UDMXLibrary::UpdatePorts()
 
 void UDMXLibrary::SetMVRGeneralSceneDescription(UDMXMVRGeneralSceneDescription* NewGeneralSceneDescription)
 {
-	// Remove all Fixture Patches
-	TArray<UDMXEntityFixturePatch*> FixturePatches = GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
-	{
-		UDMXEntityFixturePatch::RemoveFixturePatchFromLibrary(FDMXEntityFixturePatchRef(FixturePatch));
-	}
-
 	GeneralSceneDescription = NewGeneralSceneDescription;
 }
 

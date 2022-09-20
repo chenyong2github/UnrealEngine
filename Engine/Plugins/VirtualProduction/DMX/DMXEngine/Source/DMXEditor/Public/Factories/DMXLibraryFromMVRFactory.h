@@ -45,10 +45,13 @@ private:
 	/** Creates a DMX Library asset. Returns nullptr if the library could not be created */
 	UDMXLibrary* CreateDMXLibraryAsset(UObject* Parent, const FName& Name, EObjectFlags Flags, const FString& InFilename);
 
+	/** Creates a General Scene Description from the MVR zip. Returns the General Scene Description or nullptr if not a valid MVR zip. */
+	UDMXMVRGeneralSceneDescription* CreateGeneralSsceneDescription(UDMXLibrary& DMXLibrary, const TSharedRef<FDMXZipper>& Zip) const;
+
 	/** Creates GDTF assets from the MVR */
 	TArray<UDMXImportGDTF*> CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription& GeneralSceneDescription);
 
-	/** Initializes the DMX Library from the General Scene Description and GDTF assets */
+	/** Initializes the DMX Library from the General Scene Description and GDTF assets. Updates the library in case it already contains patches */
 	void InitDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFAssets, UDMXMVRGeneralSceneDescription* GeneralSceneDescription) const;
 
 	/** Returns the MVR Asset Import Data for the Object, or nullptr if it cannot be obtained */

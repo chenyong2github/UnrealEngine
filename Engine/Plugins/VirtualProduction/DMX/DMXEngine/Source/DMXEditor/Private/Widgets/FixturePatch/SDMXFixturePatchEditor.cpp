@@ -77,8 +77,7 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 
 FReply SDMXFixturePatchEditor::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	MVRFixtureList->ProcessCommandBindings(InKeyEvent);
-	return FReply::Handled();
+	return MVRFixtureList->ProcessCommandBindings(InKeyEvent);
 }
 
 void SDMXFixturePatchEditor::RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType)
