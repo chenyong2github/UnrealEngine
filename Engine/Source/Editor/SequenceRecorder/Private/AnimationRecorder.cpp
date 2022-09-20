@@ -289,6 +289,12 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	if (AnimationObject->RetargetSource == NAME_None)
 	{
 		AnimationObject->RetargetSourceAsset = Component->GetSkeletalMeshAsset();
+		//UpdateRetargetSourceAssetData() is protected so need to do a posteditchagned
+#if WITH_EDITOR
+		FProperty* PropertyChanged = UAnimSequence::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSourceAsset));
+		FPropertyChangedEvent PropertyUpdateStruct(PropertyChanged);
+		AnimationObject->PostEditChangeProperty(PropertyUpdateStruct);
+#endif
 	}
 
 	// record the first frame
