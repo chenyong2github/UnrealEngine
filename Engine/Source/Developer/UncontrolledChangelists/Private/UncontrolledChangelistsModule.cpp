@@ -23,16 +23,11 @@
 #include "Serialization/JsonWriter.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
+#include "SourceControlPreferences.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "UncontrolledChangelists"
-
-static TAutoConsoleVariable<bool> CVarUncontrolledChangelistsEnable(
-	TEXT("UncontrolledChangelists.Enable"),
-	false,
-	TEXT("Enables Uncontrolled Changelists (experimental).")
-);
 
 void FUncontrolledChangelistsModule::FStartupTask::DoWork()
 {
@@ -59,7 +54,8 @@ void FUncontrolledChangelistsModule::FStartupTask::DoWork()
 
 void FUncontrolledChangelistsModule::StartupModule()
 {
-	bIsEnabled = CVarUncontrolledChangelistsEnable.GetValueOnGameThread();
+	bIsEnabled = USourceControlPreferences::AreUncontrolledChangelistsEnabled();
+	
 	if (!IsEnabled())
 	{
 		return;

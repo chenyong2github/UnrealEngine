@@ -11,3 +11,8 @@ bool USourceControlPreferences::ShouldDeleteNewFilesOnRevert()
 {
 	return GetDefault<USourceControlPreferences>()->bShouldDeleteNewFilesOnRevert;
 }
+
+bool USourceControlPreferences::AreUncontrolledChangelistsEnabled()
+{
+	return GetDefault<USourceControlPreferences>()->bEnableUncontrolledChangelists;
+}
