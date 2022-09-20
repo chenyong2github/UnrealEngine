@@ -138,7 +138,7 @@ void Writer_MemorySetHooks(decltype(AllocHook) Alloc, decltype(FreeHook) Free)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* Writer_MemoryAllocateNoRedirect(SIZE_T Size, uint32 Alignment)
+void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 {
 	void* Ret = nullptr;
 
@@ -185,24 +185,12 @@ void* Writer_MemoryAllocateNoRedirect(SIZE_T Size, uint32 Alignment)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
-{
-	TWriteBufferRedirect<1 << 10> TraceData;
-
-	void* Ret = Writer_MemoryAllocateNoRedirect(Size, Alignment);
-
-	if (TraceData.GetSize())
-	{
-		uint32 ThreadId = Writer_GetThreadId();
-		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
-	}
-
-	return Ret;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void Writer_MemoryFree(void* Address, uint32 Size)
 {
+	// Here we are redirecting the per-thread buffer used to write events into. This
+	// path is only used when shutting down, and we neither want to allocate new
+	// memory for traced events or use memory that's been freed.
+
 	TWriteBufferRedirect<1 << 10> TraceData;
 
 #if TRACE_PRIVATE_STOMP

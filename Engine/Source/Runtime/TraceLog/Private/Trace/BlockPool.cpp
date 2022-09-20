@@ -13,7 +13,7 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-void*		Writer_MemoryAllocateNoRedirect(SIZE_T, uint32);
+void*		Writer_MemoryAllocate(SIZE_T, uint32);
 void		Writer_MemoryFree(void*, uint32);
 
 
@@ -49,7 +49,7 @@ static uint32							GPoolUsage;			// = 0;
 static FPoolBlockList Writer_AddPageToPool(uint32 PageSize)
 {
 	// The free list is empty so we have to populate it with some new blocks.
-	uint8* PageBase = (uint8*)Writer_MemoryAllocateNoRedirect(PageSize, PLATFORM_CACHE_LINE_SIZE);
+	uint8* PageBase = (uint8*)Writer_MemoryAllocate(PageSize, PLATFORM_CACHE_LINE_SIZE);
 	GPoolUsage += PageSize;
 
 	uint32 BufferSize = GPoolBlockSize;
