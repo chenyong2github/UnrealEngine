@@ -88,7 +88,7 @@ public:
 	void SetFadeOut(float StartDelay, float Duration, bool DestroyOwnerAfterFade = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	void SetFadeIn(float StartDelay, float Duaration);
+	void SetFadeIn(float StartDelay, float Duration);
 
 	/** Set the FadeScreenSize for this decal component */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
