@@ -343,6 +343,19 @@ void UDynamicMeshSculptTool::OnPropertyModified(UObject* PropertySet, FProperty*
 	CalculateBrushRadius();
 }
 
+
+FBox UDynamicMeshSculptTool::GetWorldSpaceFocusBox()
+{
+	if (LastBrushTriangleID == INDEX_NONE)
+	{
+		return Super::GetWorldSpaceFocusBox();
+	}
+	FVector Center = LastBrushPosWorld;
+	double Size = CurrentBrushRadius;
+	return FBox(Center - FVector(Size), Center + FVector(Size));
+}
+
+
 bool UDynamicMeshSculptTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
 	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition((FVector3d)Ray.Origin),

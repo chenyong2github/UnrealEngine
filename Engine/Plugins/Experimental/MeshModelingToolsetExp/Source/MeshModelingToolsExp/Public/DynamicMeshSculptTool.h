@@ -280,6 +280,9 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
+	// IInteractiveToolCameraFocusAPI override to focus on brush w/ 'F' 
+	virtual FBox GetWorldSpaceFocusBox() override;
+
 public:
 	/** Properties that control brush size/etc*/
 	UPROPERTY()

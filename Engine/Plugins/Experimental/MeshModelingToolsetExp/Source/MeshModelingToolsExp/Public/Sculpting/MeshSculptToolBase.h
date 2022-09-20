@@ -398,6 +398,11 @@ public:
 	virtual void PreviousBrushModeAction() {}
 
 
+public:
+	// IInteractiveToolCameraFocusAPI override to focus on brush w/ 'F'
+	virtual FBox GetWorldSpaceFocusBox() override;
+
+
 
 	//
 	// Brush/Stroke stuff

@@ -954,6 +954,18 @@ void UMeshSculptToolBase::DecreaseBrushRadiusSmallStepAction()
 
 
 
+FBox UMeshSculptToolBase::GetWorldSpaceFocusBox()
+{
+	if (LastBrushTriangleID == INDEX_NONE)
+	{
+		return Super::GetWorldSpaceFocusBox();
+	}
+	FVector Center = LastBrushFrameWorld.Origin;
+	double Size = GetCurrentBrushRadius();
+	return FBox(Center - FVector(Size), Center + FVector(Size));
+}
+
+
 
 
 void UMeshSculptToolBase::SetViewPropertiesEnabled(bool bNewValue)
