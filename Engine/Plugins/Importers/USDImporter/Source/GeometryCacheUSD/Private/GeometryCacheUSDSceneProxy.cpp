@@ -57,10 +57,11 @@ void FGeomCacheTrackUsdProxy::FindSampleIndexesFromTime(float Time, bool bLoopin
 	if (UGeometryCacheTrackUsd* UsdTrack = Cast<UGeometryCacheTrackUsd>(Track))
 	{
 		int32 ThisFrameIndex = UsdTrack->FindSampleIndexFromTime(Time, bLooping);
-		int32 LastFrameIndex = UsdTrack->GetEndFrameIndex();
 		OutFrameIndex = ThisFrameIndex;
 		OutNextFrameIndex = OutFrameIndex + 1;
-		InInterpolationFactor = Time - ThisFrameIndex;
+		// Clamp the Time (which is the FrameNumber) to the range of the USD GeometryCache track
+		// EndFrameIndex - 1 since last frame index is not included
+		InInterpolationFactor = FMath::Clamp(Time, float(UsdTrack->GetStartFrameIndex()), float(UsdTrack->GetEndFrameIndex() - 1)) - ThisFrameIndex;
 
 		// If playing backwards the logical order of previous and next is reversed
 		if (bIsPlayingBackwards)

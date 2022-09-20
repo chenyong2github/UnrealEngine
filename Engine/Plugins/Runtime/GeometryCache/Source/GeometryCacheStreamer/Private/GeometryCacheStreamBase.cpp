@@ -404,7 +404,7 @@ void FGeometryCacheStreamBase::SetLimits(float InMaxMemoryAllowed, float InMaxCa
 		MaxMemAllowed = InMaxMemoryAllowed;
 
 		MaxCachedDuration = FMath::Min(InMaxCachedDuration, Details.Duration);
-		MaxCachedFrames = FMath::Min(FMath::FloorToInt(MaxCachedDuration / Details.SecondsPerFrame), Details.NumFrames);
+		MaxCachedFrames = FMath::Min(FMath::RoundToInt(MaxCachedDuration / Details.SecondsPerFrame), Details.NumFrames);
 	}
 }
 

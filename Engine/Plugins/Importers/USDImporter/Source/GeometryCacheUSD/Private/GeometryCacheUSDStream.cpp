@@ -20,7 +20,7 @@ static int32 kUsdReadConcurrency = 10;
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define USDSTREAM_DERIVED_DATA_VERSION TEXT("040845A286FE431A846D95D9B77EE756")
+#define USDSTREAM_DERIVED_DATA_VERSION TEXT("AB2B7CC003C54AEBBCC5ABDC1B0BFFD8")
 
 class FUsdStreamDDCUtils
 {
@@ -127,12 +127,14 @@ void FGeometryCacheUsdStream::GetMeshData(int32 FrameIndex, int32 ConcurrencyInd
 			}
 			else
 			{
-				ReadFunc(UsdTrack, FrameIndex, OutMeshData);
+				// Don't cache the data if it failed to read it
+				if (ReadFunc(UsdTrack, FrameIndex, OutMeshData))
+				{
+					FMemoryWriter Ar(DerivedData, true);
+					Ar << OutMeshData;
 
-				FMemoryWriter Ar(DerivedData, true);
-				Ar << OutMeshData;
-
-				GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, UsdPrimPath);
+					GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData, UsdPrimPath);
+				}
 			}
 		}
 		// If the key is empty, it means the prim was invalid or not a mesh, so don't do anything

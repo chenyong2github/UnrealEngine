@@ -891,18 +891,18 @@ namespace UsdGeomMeshTranslatorImpl
 					UGeometryCacheTrackUsd* Track = TrackPtr.Get();
 					if ( !Track )
 					{
-						return;
+						return false;
 					}
 
 					if ( !Track->CurrentStagePinned )
 					{
-						return;
+						return false;
 					}
 
 					UE::FUsdPrim Prim = Track->CurrentStagePinned.GetPrimAtPath( UE::FSdfPath{ *Track->PrimPath } );
 					if ( !Prim )
 					{
-						return;
+						return false;
 					}
 
 					// Get MeshDescription associated with the prim
@@ -911,18 +911,20 @@ namespace UsdGeomMeshTranslatorImpl
 					TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo > LODIndexToMaterialInfo;
 					const bool bAllowInterpretingLODs = false;  // GeometryCaches don't have LODs, so we will never do this
 
-					Options.TimeCode = pxr::UsdTimeCode{ Time };
-					Options.MaterialToPrimvarToUVIndex = &Track->MaterialToPrimvarToUVIndex;
+					// Need a local copy of Options to set the TimeCode since this function is called from multiple worker threads
+					UsdToUnreal::FUsdMeshConversionOptions LocalOptions(Options);
+					LocalOptions.TimeCode = pxr::UsdTimeCode{ Time };
+					LocalOptions.MaterialToPrimvarToUVIndex = &Track->MaterialToPrimvarToUVIndex;
 
 					UsdGeomMeshTranslatorImpl::LoadMeshDescriptions(
 						pxr::UsdTyped( Prim ),
 						LODIndexToMeshDescription,
 						LODIndexToMaterialInfo,
-						Options,
+						LocalOptions,
 						bAllowInterpretingLODs
 					);
 
-					// Convert the MeshDescription to MeshData
+					// Convert the MeshDescription to MeshData, first LOD only
 					for ( FMeshDescription& MeshDescription : LODIndexToMeshDescription )
 					{
 						if ( !MeshDescription.IsEmpty() )
@@ -942,8 +944,11 @@ namespace UsdGeomMeshTranslatorImpl
 							FStaticMeshOperations::ComputeTangentsAndNormals( MeshDescription, ComputeNTBsOptions );
 
 							UsdGeomMeshTranslatorImpl::GeometryCacheDataForMeshDescription( OutMeshData, MeshDescription );
+
+							return true;
 						}
 					}
+					return false;
 				}
 			);
 
