@@ -218,6 +218,9 @@ public:
 	UE_DEPRECATED(5.2, "Call UninstallNamedChunks instead")
 	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
+	UE_DEPRECATED(5.2, "Call GetNamedChunksByType instead")
+	virtual TArray<FCustomChunk> GetCustomChunksByType(ECustomChunkType DesiredChunkType) = 0;
+
 
 	/**
 	 * Check whether current platform supports chunk installation by name
@@ -405,6 +408,11 @@ public:
 	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) override
 	{
 		return false;
+	}
+
+	virtual TArray<FCustomChunk> GetCustomChunksByType(ECustomChunkType DesiredChunkType) override
+	{
+		return TArray<FCustomChunk>();
 	}
 
 	virtual bool SupportsNamedChunkInstall() const override
