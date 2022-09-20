@@ -27,71 +27,62 @@ enum class EOffsetRootBoneMode : uint8
 	Release,
 };
 
-USTRUCT(BlueprintType)
-struct FOffsetRootBoneSettings
-{
-	GENERATED_BODY()
-
-	// The translation offset behavior mode
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EOffsetRootBoneMode TranslationMode = EOffsetRootBoneMode::Interpolate;
-
-	// The rotation offset behavior mode
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EOffsetRootBoneMode RotationMode = EOffsetRootBoneMode::Interpolate;
-
-	// Controls how fast the translation offset is blended out
-	// Values closer to 0 make it faster
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	float TranslationHalflife = 0.1f;
-
-	// Controls how fast the rotation offset is blended out
-	// Values closer to 0 make it faster
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	float RotationHalfLife = 0.2f;
-
-	// How much the offset can deviate from the mesh component's translation in units
-	// Values lower than 0 disable this limit
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	float MaxTranslationError = -1.0f;
-
-	// How much the offset can deviate from the mesh component's rotation in degrees
-	// Values lower than 0 disable this limit
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	float MaxRotationError = -1.0f;
-
-	// Whether to limit the offset's translation interpolation speed to the velocity on the incoming motion
-	// Enabling this prevents the offset sliding when there's little to no translation speed
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	bool bClampToTranslationVelocity = false;
-
-	// Whether to limit the offset's rotation interpolation speed to the velocity on the incoming motion
-	// Enabling this prevents the offset sliding when there's little to no rotation speed
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	bool bClampToRotationVelocity = false;
-
-	// How much the offset can blend out, relative to the incoming translation speed
-	// i.e. If root motion is moving at 400cm/s, at 0.5, the offset can blend out at 200cm/s
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = bClampToTranslationVelocity))
-	float TranslationSpeedRatio = 0.5f;
-
-	// How much the offset can blend out, relative to the incoming rotation speed
-	// i.e. If root motion is rotating at 90 degrees/s, at 0.5, the offset can blend out at 45 degree/s
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = bClampToRotationVelocity))
-	float RotationSpeedRatio = 0.5f;
-};
-
 USTRUCT(BlueprintInternalUseOnly, Experimental)
 struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OffsetRootBone : public FAnimNode_SkeletalControlBase
 {
-	GENERATED_BODY()
+	GENERATED_BODY();
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = Evaluation, meta=(FoldProperty))
 	EWarpingEvaluationMode EvaluationMode = EWarpingEvaluationMode::Graph;
 
+	// The translation offset behavior mode
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
-	FOffsetRootBoneSettings OffsetSettings;
+	EOffsetRootBoneMode TranslationMode = EOffsetRootBoneMode::Interpolate;
+
+	// The rotation offset behavior mode
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	EOffsetRootBoneMode RotationMode = EOffsetRootBoneMode::Interpolate;
+
+	// Controls how fast the translation offset is blended out
+	// Values closer to 0 make it faster
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	float TranslationHalflife = 0.1f;
+
+	// Controls how fast the rotation offset is blended out
+	// Values closer to 0 make it faster
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	float RotationHalfLife = 0.2f;
+
+	// How much the offset can deviate from the mesh component's translation in units
+	// Values lower than 0 disable this limit
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	float MaxTranslationError = -1.0f;
+
+	// How much the offset can deviate from the mesh component's rotation in degrees
+	// Values lower than 0 disable this limit
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	float MaxRotationError = -1.0f;
+
+	// Whether to limit the offset's translation interpolation speed to the velocity on the incoming motion
+	// Enabling this prevents the offset sliding when there's little to no translation speed
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	bool bClampToTranslationVelocity = false;
+
+	// Whether to limit the offset's rotation interpolation speed to the velocity on the incoming motion
+	// Enabling this prevents the offset sliding when there's little to no rotation speed
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty, PinHiddenByDefault))
+	bool bClampToRotationVelocity = false;
+
+	// How much the offset can blend out, relative to the incoming translation speed
+	// i.e. If root motion is moving at 400cm/s, at 0.5, the offset can blend out at 200cm/s
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = bClampToTranslationVelocity, FoldProperty, PinHiddenByDefault))
+	float TranslationSpeedRatio = 0.5f;
+
+	// How much the offset can blend out, relative to the incoming rotation speed
+	// i.e. If root motion is rotating at 90 degrees/s, at 0.5, the offset can blend out at 45 degree/s
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = bClampToRotationVelocity, FoldProperty, PinHiddenByDefault))
+	float RotationSpeedRatio = 0.5f;
 
 	// Delta applied to the translation offset this frame. 
 	// For procedural values, consider adjusting the input by delta time.
@@ -116,12 +107,24 @@ public:
 	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
+	// Folded property accesors
 	EWarpingEvaluationMode GetEvaluationMode() const;
-	const FOffsetRootBoneSettings& GetOffsetSettings() const;
 	const FVector& GetTranslationDelta() const;
 	const FRotator& GetRotationDelta() const;
+	EOffsetRootBoneMode GetTranslationMode() const;
+	EOffsetRootBoneMode GetRotationMode() const;
+	float GetTranslationHalflife() const;
+	float GetRotationHalfLife() const;
+	float GetMaxTranslationError() const;
+	float GetMaxRotationError() const;
+	bool GetClampToTranslationVelocity() const;
+	bool GetClampToRotationVelocity() const;
+	float GetTranslationSpeedRatio() const;
+	float GetRotationSpeedRatio() const;
 
 private:
+
+	void Reset(const FAnimationBaseContext& Context);
 
 	// Internal cached anim instance proxy
 	FAnimInstanceProxy* AnimInstanceProxy = nullptr;
@@ -137,4 +140,6 @@ private:
 	// Offset = ComponentTransform - SimulatedTransform
 	FVector SimulatedTranslation = FVector::ZeroVector;
 	FQuat SimulatedRotation = FQuat::Identity;
+
+	FGraphTraversalCounter UpdateCounter;
 };
