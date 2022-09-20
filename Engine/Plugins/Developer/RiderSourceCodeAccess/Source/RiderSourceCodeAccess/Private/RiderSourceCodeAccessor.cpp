@@ -222,7 +222,11 @@ bool FRiderSourceCodeAccessor::OpenSolutionAtPath(const FString& InSolutionPath)
 	if (!bHasRiderInstalled) return false;
 
 	FString CorrectSolutionPath = InSolutionPath;
-	if (!CorrectSolutionPath.EndsWith(".sln"))
+	if (Model == EProjectModel::Uproject && !CorrectSolutionPath.EndsWith(".uproject"))
+	{
+		CorrectSolutionPath += ".uproject";
+	}
+	else if (!CorrectSolutionPath.EndsWith(".sln"))
 	{
 		CorrectSolutionPath += ".sln";
 	}
