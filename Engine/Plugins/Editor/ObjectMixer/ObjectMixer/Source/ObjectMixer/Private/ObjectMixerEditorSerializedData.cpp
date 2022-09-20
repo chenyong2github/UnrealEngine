@@ -9,10 +9,10 @@
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
-FObjectMixerSerializationData* UObjectMixerEditorSerializedData::FindSerializationDataByFilterClassName(const FName& FilterClassName)
+FObjectMixerSerializationDataPerFilter* UObjectMixerEditorSerializedData::FindSerializationDataByFilterClassName(const FName& FilterClassName)
 {
-	if (FObjectMixerSerializationData* Match = Algo::FindByPredicate(SerializedData,
-		[FilterClassName](const FObjectMixerSerializationData& Comparator)
+	if (FObjectMixerSerializationDataPerFilter* Match = Algo::FindByPredicate(SerializedDataPerFilter,
+		[FilterClassName](const FObjectMixerSerializationDataPerFilter& Comparator)
 		{
 			return Comparator.FilterClassName.IsEqual(FilterClassName);
 		}))
@@ -29,27 +29,33 @@ void UObjectMixerEditorSerializedData::AddObjectsToCollection(const FName& Filte
 
 	Modify();
 	
-	FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName);
+	FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName);
 
 	if (!Data)
 	{
-		SerializedData.Add({FilterClassName});
+		SerializedDataPerFilter.Add({FilterClassName});
 		Data = FindSerializationDataByFilterClassName(FilterClassName);
 	}
 	
 	if (Data)
 	{
-		if (FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+		TSet<FObjectMixerCollectionObjectData> NewObjectsData;
+		for (const FSoftObjectPath& Object : ObjectsToAdd)
+		{
+			NewObjectsData.Add({Object});
+		}
+		
+		if (FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollections,
 			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
 				return Comparator.CollectionName.IsEqual(CollectionName);
 			}))
 		{
-			(*Match).CollectionObjects.Append(ObjectsToAdd);
+			Match->CollectionObjects.Append(NewObjectsData);
 		}
 		else
 		{
-			Data->SerializedCollection.Add({CollectionName, ObjectsToAdd});
+			Data->SerializedCollections.Add({CollectionName, NewObjectsData});
 		}
 
 		SaveConfig();
@@ -58,13 +64,13 @@ void UObjectMixerEditorSerializedData::AddObjectsToCollection(const FName& Filte
 
 void UObjectMixerEditorSerializedData::RemoveObjectsFromCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove)
 {
-	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
 		FScopedTransaction RemoveCollectionTransaction(LOCTEXT("RemoveCollectionTransaction","Remove Collection"));
 	
 		Modify();
 		
-		Data->SerializedCollection.SetNum(Algo::StableRemoveIf(Data->SerializedCollection,
+		Data->SerializedCollections.SetNum(Algo::StableRemoveIf(Data->SerializedCollections,
 			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
 				return Comparator.CollectionName.IsEqual(CollectionName);
@@ -76,13 +82,13 @@ void UObjectMixerEditorSerializedData::RemoveObjectsFromCollection(const FName& 
 
 void UObjectMixerEditorSerializedData::RemoveCollection(const FName& FilterClassName, const FName& CollectionName)
 {	
-	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
 		FScopedTransaction RemoveCollectionTransaction(LOCTEXT("RemoveCollectionTransaction","Remove Collection"));
 	
 		Modify();
 		
-		Data->SerializedCollection.SetNum(Algo::StableRemoveIf(Data->SerializedCollection,
+		Data->SerializedCollections.SetNum(Algo::StableRemoveIf(Data->SerializedCollections,
 			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
 				return Comparator.CollectionName.IsEqual(CollectionName);
@@ -95,11 +101,11 @@ void UObjectMixerEditorSerializedData::RemoveCollection(const FName& FilterClass
 void UObjectMixerEditorSerializedData::ReorderCollection(const FName& FilterClassName,
 	const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName)
 {
-	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
 		FObjectMixerCollectionObjectSet MatchCopy;
 		bool bFoundMatch = false;
-		if (const FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+		if (const FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollections,
 			[CollectionToMoveName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
 				return Comparator.CollectionName.IsEqual(CollectionToMoveName);
@@ -119,17 +125,17 @@ void UObjectMixerEditorSerializedData::ReorderCollection(const FName& FilterClas
 
 			if (CollectionInsertBeforeName == "All") // Move MatchCopy to the end
 			{
-				Data->SerializedCollection.Add(MatchCopy);
+				Data->SerializedCollections.Add(MatchCopy);
 			}
 			else
 			{
-				const int32 IndexOfCollectionInsertBefore = Algo::IndexOfByPredicate(Data->SerializedCollection,
+				const int32 IndexOfCollectionInsertBefore = Algo::IndexOfByPredicate(Data->SerializedCollections,
 					[CollectionInsertBeforeName](const FObjectMixerCollectionObjectSet& Comparator)
 					{
 						return Comparator.CollectionName.IsEqual(CollectionInsertBeforeName);
 					});
 
-				Data->SerializedCollection.Insert(MatchCopy, IndexOfCollectionInsertBefore);
+				Data->SerializedCollections.Insert(MatchCopy, IndexOfCollectionInsertBefore);
 			}
 		
 			SaveConfig();
@@ -139,15 +145,19 @@ void UObjectMixerEditorSerializedData::ReorderCollection(const FName& FilterClas
 
 bool UObjectMixerEditorSerializedData::IsObjectInCollection(const FName& FilterClassName, const FName& CollectionName, const FSoftObjectPath& InObject)
 {
-	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
-		if (const FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+		if (const FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollections,
 			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
 				return Comparator.CollectionName.IsEqual(CollectionName);
 			}))
 		{
-			return (*Match).CollectionObjects.Contains(InObject);
+			return Algo::FindByPredicate((*Match).CollectionObjects,
+				[InObject](const FObjectMixerCollectionObjectData& Comparator)
+				{
+					return Comparator.ObjectPath == InObject;
+				}) != nullptr;
 		}
 	}
 
@@ -156,11 +166,11 @@ bool UObjectMixerEditorSerializedData::IsObjectInCollection(const FName& FilterC
 
 TSet<FName> UObjectMixerEditorSerializedData::GetCollectionsForObject(const FName& FilterClassName, const FSoftObjectPath& InObject)
 {
-	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
 		TSet<FName> CollectionsWithObject;
 
-		for (const FObjectMixerCollectionObjectSet& CollectionObjectSet : Data->SerializedCollection)
+		for (const FObjectMixerCollectionObjectSet& CollectionObjectSet : Data->SerializedCollections)
 		{
 			if (IsObjectInCollection(FilterClassName, CollectionObjectSet.CollectionName, InObject))
 			{
@@ -176,11 +186,11 @@ TSet<FName> UObjectMixerEditorSerializedData::GetCollectionsForObject(const FNam
 
 TArray<FName> UObjectMixerEditorSerializedData::GetAllCollectionNames(const FName& FilterClassName)
 {
-	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
 		TArray<FName> Collections;
 
-		for (const FObjectMixerCollectionObjectSet& CollectionObjectSet : Data->SerializedCollection)
+		for (const FObjectMixerCollectionObjectSet& CollectionObjectSet : Data->SerializedCollections)
 		{
 			Collections.Add(CollectionObjectSet.CollectionName);
 		}
@@ -189,6 +199,70 @@ TArray<FName> UObjectMixerEditorSerializedData::GetAllCollectionNames(const FNam
 	}
 
 	return {};
+}
+
+void UObjectMixerEditorSerializedData::SetShouldShowColumn(const FName& FilterClassName, const FName& ColumnName,
+	const bool bNewShouldShowColumn)
+{
+	FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName);
+
+	if (!Data)
+	{
+		SerializedDataPerFilter.Add({FilterClassName});
+		Data = FindSerializationDataByFilterClassName(FilterClassName);
+	}
+	
+	if (Data)
+	{
+		if (FObjectMixerColumnData* Match = Algo::FindByPredicate(Data->SerializedColumnData,
+			[ColumnName](const FObjectMixerColumnData& Comparator)
+			{
+				return Comparator.ColumnName.IsEqual(ColumnName);
+			}))
+		{
+			(*Match).bShouldBeEnabled = bNewShouldShowColumn;
+		}
+		else
+		{
+			Data->SerializedColumnData.Add({ColumnName, bNewShouldShowColumn});
+		}
+
+		SaveConfig();
+	}
+}
+
+bool UObjectMixerEditorSerializedData::IsColumnDataSerialized(const FName& FilterClassName, const FName& ColumnName)
+{
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	{
+		if (const FObjectMixerColumnData* Match = Algo::FindByPredicate(Data->SerializedColumnData,
+			[ColumnName](const FObjectMixerColumnData& Comparator)
+			{
+				return Comparator.ColumnName.IsEqual(ColumnName);
+			}))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UObjectMixerEditorSerializedData::ShouldShowColumn(const FName& FilterClassName, const FName& ColumnName)
+{
+	if (FObjectMixerSerializationDataPerFilter* Data = FindSerializationDataByFilterClassName(FilterClassName))
+	{
+		if (const FObjectMixerColumnData* Match = Algo::FindByPredicate(Data->SerializedColumnData,
+			[ColumnName](const FObjectMixerColumnData& Comparator)
+			{
+				return Comparator.ColumnName.IsEqual(ColumnName);
+			}))
+		{
+			return (*Match).bShouldBeEnabled;
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

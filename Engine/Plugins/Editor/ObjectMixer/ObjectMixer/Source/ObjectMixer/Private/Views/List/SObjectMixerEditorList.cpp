@@ -18,6 +18,7 @@
 #include "LevelEditor.h"
 #include "LevelEditorMenuContext.h"
 #include "LevelEditorViewport.h"
+#include "ObjectMixerEditorSerializedData.h"
 #include "Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "DragAndDrop/AssetDragDropOp.h"
@@ -280,6 +281,10 @@ void SObjectMixerEditorList::ClearSoloRows()
 
 FString SObjectMixerEditorList::GetSearchStringFromSearchInputField() const
 {
+	check(ListModelPtr.IsValid());
+	check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
+	check(HeaderRow);
+	
 	return ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetSearchStringFromSearchInputField();
 }
 
@@ -525,9 +530,22 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
 			FUIAction(
 				FExecuteAction::CreateLambda([this, PropertyName]()
 				{
+					check(ListModelPtr.IsValid());
+					check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
 					check(HeaderRow);
+
+					const bool bNewColumnEnabled = !HeaderRow->IsColumnVisible(PropertyName);
 					
-					HeaderRow->SetShowGeneratedColumn(PropertyName, !HeaderRow->IsColumnVisible(PropertyName));
+					HeaderRow->SetShowGeneratedColumn(PropertyName, bNewColumnEnabled);
+
+					if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
+					{
+						if (const TSubclassOf<UObjectMixerObjectFilter> Filter = ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetObjectFilterClass())
+						{
+							const FName FilterName = Filter->GetFName();
+							SerializedData->SetShouldShowColumn(FilterName, PropertyName, bNewColumnEnabled);
+						}
+					}
 				}),
 				FCanExecuteAction::CreateLambda([bCanSelectColumn](){return bCanSelectColumn;}),
 				FIsActionChecked::CreateLambda([this, PropertyName]()
@@ -650,15 +668,8 @@ void SObjectMixerEditorList::AddBuiltinColumnsToHeaderRow()
 TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 {
 	check(ListModelPtr.IsValid());
-	check(ListModelPtr.Pin()->GetMainPanelModel().Pin());
+	check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
 	check(HeaderRow);
-	
-	TMap<FName, bool> LastVisibleColumns;
-	
-	for (const SHeaderRow::FColumn& Column : HeaderRow->GetColumns())
-	{
-		LastVisibleColumns.Add(Column.ColumnId, Column.bIsVisible);
-	}
 
 	HeaderRow->ClearColumns();
 	ListViewColumns.Empty(ListViewColumns.Num());
@@ -782,11 +793,22 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 			}
 		
 			HeaderRow->AddColumn(Column);
+
+			// Figure out if we should show a certain column
+			// First check filter rules
 			bool bShouldShowColumn = ColumnsToShowByDefaultCache.Contains(ColumnInfo.PropertyName);
 
-			if (const bool* Match = LastVisibleColumns.Find(ColumnInfo.PropertyName))
+			// Then load visible columns from SerializedData
+			if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
 			{
-				bShouldShowColumn = *Match;
+				if (const TSubclassOf<UObjectMixerObjectFilter> Filter = ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetObjectFilterClass())
+				{
+					const FName FilterName = Filter->GetFName();
+					if (SerializedData->IsColumnDataSerialized(FilterName, ColumnInfo.PropertyName))
+					{
+						bShouldShowColumn = SerializedData->ShouldShowColumn(FilterName, ColumnInfo.PropertyName);
+					}
+				}
 			}
 		
 			HeaderRow->SetShowGeneratedColumn(ColumnInfo.PropertyName, bShouldShowColumn);
@@ -929,7 +951,7 @@ void SObjectMixerEditorList::RestoreTreeState(const bool bFlushCache)
 void SObjectMixerEditorList::BuildPerformanceCacheAndGenerateHeaderIfNeeded()
 {
 	check(ListModelPtr.IsValid());
-	check(ListModelPtr.Pin()->GetMainPanelModel().Pin());
+	check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
 	
 	// If any of the following overrides change, we need to regenerate the header row. Otherwise skip regeneration for performance reasons.
 	// GetObjectClassesToFilter, GetColumnsToShowByDefault, GetColumnsToExclude,

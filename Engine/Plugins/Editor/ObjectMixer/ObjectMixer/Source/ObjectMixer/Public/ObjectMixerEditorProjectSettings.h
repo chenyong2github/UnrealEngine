@@ -4,7 +4,7 @@
 
 #include "ObjectMixerEditorProjectSettings.generated.h"
 
-UCLASS(config = ObjectMixer, defaultconfig)
+UCLASS(config = ObjectMixer)
 class OBJECTMIXEREDITOR_API UObjectMixerEditorProjectSettings : public UObject
 {
 	GENERATED_BODY()

@@ -5,6 +5,26 @@
 #include "ObjectMixerEditorSerializedData.generated.h"
 
 USTRUCT()
+struct FObjectMixerCollectionObjectData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FSoftObjectPath ObjectPath = {};
+
+	bool operator==(const FObjectMixerCollectionObjectData& Other) const
+	{
+		return ObjectPath == Other.ObjectPath;
+	}
+
+	friend uint32 GetTypeHash (const FObjectMixerCollectionObjectData& Other)
+	{
+		return GetTypeHash(Other.ObjectPath);
+	}
+
+};
+
+USTRUCT()
 struct FObjectMixerCollectionObjectSet
 {
 	GENERATED_BODY()
@@ -13,7 +33,7 @@ struct FObjectMixerCollectionObjectSet
 	FName CollectionName = NAME_None;
 
 	UPROPERTY()
-	TSet<FSoftObjectPath> CollectionObjects = {};
+	TSet<FObjectMixerCollectionObjectData> CollectionObjects = {};
 
 	bool operator==(const FObjectMixerCollectionObjectSet& Other) const
 	{
@@ -27,7 +47,29 @@ struct FObjectMixerCollectionObjectSet
 };
 
 USTRUCT()
-struct FObjectMixerSerializationData
+struct FObjectMixerColumnData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FName ColumnName = NAME_None;
+
+	UPROPERTY()
+	bool bShouldBeEnabled = false;
+
+	bool operator==(const FObjectMixerColumnData& Other) const
+	{
+		return ColumnName.IsEqual(Other.ColumnName);
+	}
+
+	friend uint32 GetTypeHash (const FObjectMixerColumnData& Other)
+	{
+		return GetTypeHash(Other.ColumnName);
+	}
+};
+
+USTRUCT()
+struct FObjectMixerSerializationDataPerFilter
 {
 	GENERATED_BODY()
 	
@@ -35,14 +77,17 @@ struct FObjectMixerSerializationData
 	FName FilterClassName = NAME_None;
 
 	UPROPERTY()
-	TArray<FObjectMixerCollectionObjectSet> SerializedCollection = {};
+	TArray<FObjectMixerCollectionObjectSet> SerializedCollections = {};
 
-	bool operator==(const FObjectMixerSerializationData& Other) const
+	UPROPERTY()
+	TSet<FObjectMixerColumnData> SerializedColumnData = {};
+
+	bool operator==(const FObjectMixerSerializationDataPerFilter& Other) const
 	{
 		return FilterClassName.IsEqual(Other.FilterClassName);
 	}
 
-	friend uint32 GetTypeHash (const FObjectMixerSerializationData& Other)
+	friend uint32 GetTypeHash (const FObjectMixerSerializationDataPerFilter& Other)
 	{
 		return GetTypeHash(Other.FilterClassName);
 	}
@@ -61,9 +106,9 @@ public:
 	}
 	
 	UPROPERTY(Config)
-	TSet<FObjectMixerSerializationData> SerializedData;
+	TSet<FObjectMixerSerializationDataPerFilter> SerializedDataPerFilter;
 
-	FObjectMixerSerializationData* FindSerializationDataByFilterClassName(const FName& FilterClassName);
+	FObjectMixerSerializationDataPerFilter* FindSerializationDataByFilterClassName(const FName& FilterClassName);
 
 	void AddObjectsToCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd);
 
@@ -78,4 +123,10 @@ public:
 	TSet<FName> GetCollectionsForObject(const FName& FilterClassName, const FSoftObjectPath& InObject);
 
 	TArray<FName> GetAllCollectionNames(const FName& FilterClassName);
+
+	void SetShouldShowColumn(const FName& FilterClassName, const FName& ColumnName, const bool bNewShouldShowColumn);
+
+	bool IsColumnDataSerialized(const FName& FilterClassName, const FName& ColumnName);
+	
+	bool ShouldShowColumn(const FName& FilterClassName, const FName& ColumnName);
 };
