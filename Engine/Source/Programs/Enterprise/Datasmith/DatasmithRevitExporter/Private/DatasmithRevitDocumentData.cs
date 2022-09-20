@@ -1479,15 +1479,38 @@ namespace DatasmithRevitExporter
 
 			if (InMaterialNode.HasOverriddenAppearance)
 			{
-				ElementId ReferencingDecalId = FDecalMaterial.GetDecalElementId(InMaterialNode);
-
-				if (ReferencingDecalId != ElementId.InvalidElementId)
+				IList<KeyValuePair<ElementId, Asset>> ReferencingDecalIdAndAssetPairs = FDecalMaterial.GetDecalElementIdAndAppearancePairList(InMaterialNode);
+				//Assets in on the .Value seem to be always unique, regardless if they are "instances" of the same DecalType:
+				if (ReferencingDecalIdAndAssetPairs.Count > 0)
 				{
-					FDecalMaterial DecalMaterial = FDecalMaterial.Create(InMaterialNode, CurrentMaterial);
-
-					if (DecalMaterial != null)
+					IList<FDecalMaterial> DecalMaterials = new List<FDecalMaterial>();
+					foreach (KeyValuePair<ElementId, Asset> DecalIdAndAssetPair in ReferencingDecalIdAndAssetPairs)
 					{
-						DecalMaterialsMap.Add(ReferencingDecalId, DecalMaterial);
+						FDecalMaterial DecalMaterial = FDecalMaterial.Create(InMaterialNode, CurrentMaterial, DecalMaterials.Count, DecalIdAndAssetPair.Value);
+
+						if (DecalMaterial != null)
+						{
+							//unique DecalMaterial:
+							FDecalMaterial ExistingDecalMaterial = null;
+							foreach (FDecalMaterial ExistingDecalMaterialCandidate in DecalMaterials)
+							{
+								if (ExistingDecalMaterialCandidate.CheckRenderValueEquiality(DecalMaterial))
+								{
+									ExistingDecalMaterial = ExistingDecalMaterialCandidate;
+									break;
+								}
+							}
+
+							if (ExistingDecalMaterial != null)
+							{
+								DecalMaterialsMap.Add(DecalIdAndAssetPair.Key, ExistingDecalMaterial);
+							}
+							else
+							{
+								DecalMaterialsMap.Add(DecalIdAndAssetPair.Key, DecalMaterial);
+								DecalMaterials.Add(DecalMaterial);
+							}
+						}
 					}
 				}
 			}

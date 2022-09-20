@@ -119,13 +119,14 @@ namespace DatasmithRevitExporter
 				{
 					DecalQuad.Add(QuadLine);
 				}
-				else if (GeomObj is Arc QuadArc)
+				else if (GeomObj is Curve QuadCurve)
 				{
 					try
 					{
-						XYZ StartPoint = QuadArc.GetEndPoint(0);
-						XYZ EndPoint = QuadArc.GetEndPoint(1);
-						DecalQuad.Add(Line.CreateBound(StartPoint, EndPoint));
+						XYZ StartPoint = QuadCurve.GetEndPoint(0);
+						XYZ EndPoint = QuadCurve.GetEndPoint(1);
+						Line BoundLine = Line.CreateBound(StartPoint, EndPoint);
+						DecalQuad.Add(BoundLine);
 					}
 					catch {}
 				}
@@ -155,7 +156,20 @@ namespace DatasmithRevitExporter
 
 			const float CENTIMETERS_PER_FOOT = 30.48F;
 
-			OutDecalDimensions = new XYZ(DecalQuad[0].Length * CENTIMETERS_PER_FOOT * 0.5, DecalQuad[1].Length * CENTIMETERS_PER_FOOT * 0.5, 2.0);
+			Plane TestPlane = Plane.CreateByThreePoints(TopLeft, TopRight, BottomRight);
+			UV TestUv;
+			double Distance;
+			TestPlane.Project(BottomLeft, out TestUv, out Distance);
+
+			Distance *= CENTIMETERS_PER_FOOT * 1.05; // leniency multiplier of 1.05, for imprecisions
+
+			double DimensionZ = 2.0;
+			if (DimensionZ < Distance)
+			{
+				DimensionZ = Distance;
+			}
+
+			OutDecalDimensions = new XYZ(DecalQuad[0].Length * CENTIMETERS_PER_FOOT * 0.5, DecalQuad[1].Length * CENTIMETERS_PER_FOOT * 0.5, DimensionZ);
 		}
 	}
 }

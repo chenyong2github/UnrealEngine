@@ -89,22 +89,15 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		public static ElementId GetDecalElementId(MaterialNode InMaterialNode)
+		private static void FillDecalElementIdAndAppearancePairList(Asset Decal, ref IList<KeyValuePair<ElementId,Asset>> DecalElementIds)
 		{
+			const string PropertyName_Decal = "Decal";
 			const string PropertyName_DecalElemId = "decalelementId";
+			const string PropertyName_DecalAppearance = "DecalAppearance";
+			const string PropertyName_SurfaceMaterial = "surface_material";
 
-			if (!InMaterialNode.HasOverriddenAppearance)
-			{
-				return ElementId.InvalidElementId;
-			}
-
-			Asset Decal = InMaterialNode.GetAppearanceOverride();
-
-			if (Decal == null || Decal.Name != "Decal")
-			{
-				return ElementId.InvalidElementId;
-			}
-
+			int DecalElementId = -1;
+			Asset DecalAppearance = null;
 			for (int PropIndex = 0; PropIndex < Decal.Size; ++PropIndex)
 			{
 #if REVIT_API_2018
@@ -112,72 +105,82 @@ namespace DatasmithRevitExporter
 #else
 				AssetProperty Prop = Decal.Get(PropIndex);
 #endif
-				if (Prop.Name == PropertyName_DecalElemId && Prop.Type == AssetPropertyType.Integer)
-				{
-					int Id = (Prop as AssetPropertyInteger).Value;
-					return new ElementId(Id);
-				}
-			}
-			return ElementId.InvalidElementId;
-		}
 
-		public static FDecalMaterial Create(MaterialNode InMaterialNode, Material InMaterial)
-		{
-			if (!InMaterialNode.HasOverriddenAppearance)
-			{
-				return null;
-			}
-
-			Asset Decal = InMaterialNode.GetAppearanceOverride();
-
-			if (Decal == null || Decal.Name != "Decal")
-			{
-				return null;
-			}
-
-			const string AssetName_Material = "DecalAppearance";
-
-			FDecalMaterial DecalMaterial = new FDecalMaterial();
-
-			DecalMaterial.MaterialName = FDatasmithFacadeElement.GetStringHash($"Decal_{FMaterialData.GetMaterialName(InMaterialNode, InMaterial)}");
-
-			// Look for DecalAppearance asset, which defines the material parameters
-
-			bool bMaterialInitialized = false;
-
-			for (int PropIndex = 0; PropIndex < Decal.Size; ++PropIndex)
-			{
-#if REVIT_API_2018
-				AssetProperty Prop = Decal[PropIndex];
-#else
-				AssetProperty Prop = Decal.Get(PropIndex);
-#endif
 				if (Prop.Type == AssetPropertyType.Reference)
 				{
 					AssetPropertyReference RefProp = (Prop as AssetPropertyReference);
 					foreach (AssetProperty InnerProp in RefProp.GetAllConnectedProperties())
 					{
-						if (InnerProp.Type == AssetPropertyType.Asset)
+						if (Prop.Name == PropertyName_SurfaceMaterial && InnerProp.Name == PropertyName_Decal && InnerProp.Type == AssetPropertyType.Asset)
 						{
-							Asset InnerPropAsset = InnerProp as Asset;
+							Asset InnerDecal = InnerProp as Asset;
+							FillDecalElementIdAndAppearancePairList(InnerDecal, ref DecalElementIds);
+						}
 
-							if (InnerPropAsset.Name == AssetName_Material)
-							{
-								DecalMaterial.SetMaterialProperties(InnerPropAsset);
-								bMaterialInitialized = true;
-								break;
-							}
+						if (InnerProp.Name == PropertyName_DecalAppearance && InnerProp.Type == AssetPropertyType.Asset)
+						{
+							DecalAppearance = InnerProp as Asset;
 						}
 					}
 				}
 
-				if (bMaterialInitialized)
+				if (Prop.Name == PropertyName_DecalElemId && Prop.Type == AssetPropertyType.Integer)
 				{
-					break;
+					DecalElementId = (Prop as AssetPropertyInteger).Value;
 				}
 			}
 
+			if (DecalAppearance != null && DecalElementId != -1)
+			{
+				DecalElementIds.Add(new KeyValuePair<ElementId, Asset>(new ElementId(DecalElementId), DecalAppearance));
+			}
+		}
+
+		public static IList<KeyValuePair<ElementId, Asset>> GetDecalElementIdAndAppearancePairList(MaterialNode InMaterialNode)
+		{
+			IList<KeyValuePair<ElementId, Asset>> DecalElementIdAndAppearancePairList = new List<KeyValuePair<ElementId, Asset>>();
+
+			if (!InMaterialNode.HasOverriddenAppearance)
+			{
+				return DecalElementIdAndAppearancePairList;
+			}
+
+			Asset Decal = InMaterialNode.GetAppearanceOverride();
+
+			if (Decal == null || Decal.Name != "Decal")
+			{
+				return DecalElementIdAndAppearancePairList;
+			}
+
+			FillDecalElementIdAndAppearancePairList(Decal, ref DecalElementIdAndAppearancePairList);
+
+			return DecalElementIdAndAppearancePairList;
+		}
+
+		public static FDecalMaterial Create(MaterialNode InMaterialNode, Material InMaterial, int DecalAppearanceIndex, Asset DecalAppearanceAsset)
+		{
+			FDecalMaterial DecalMaterial = new FDecalMaterial();
+
+			DecalMaterial.MaterialName = FDatasmithFacadeElement.GetStringHash($"Decal_{FMaterialData.GetMaterialName(InMaterialNode, InMaterial)}_{DecalAppearanceIndex}");
+
+			DecalMaterial.SetMaterialProperties(DecalAppearanceAsset);
+
 			return DecalMaterial;
+		}
+
+		//Ignores MaterialName, only checks Render value equality
+		public bool CheckRenderValueEquiality(FDecalMaterial Input)
+		{
+			if (DiffuseTexturePath == Input.DiffuseTexturePath
+				&& BumpTexturePath == Input.BumpTexturePath
+				&& CutoutTexturePath == Input.CutoutTexturePath
+				&& BumpAmount == Input.BumpAmount
+				&& Transparency == Input.Transparency
+				&& Luminance == Input.Luminance)
+			{
+				return true;
+			}
+			return false;
 		}
 	}
 }
