@@ -149,7 +149,7 @@ void FRewindDebugger::OnPIEResumed(bool bSimulating)
 	{
 		if (USkeletalMeshComponent* MeshComponent = MeshData.Value.Component.Get())
 		{
-			MeshComponent->SetRelativeTransform(MeshData.Value.RelativeTransform);
+			MeshComponent->SetRelativeTransform(MeshData.Value.RelativeTransform, false, nullptr, ETeleportType::TeleportPhysics);
 		}
 	}
 
@@ -163,7 +163,7 @@ void FRewindDebugger::OnPIESingleStepped(bool bSimulating)
 	{
 		if (USkeletalMeshComponent* MeshComponent = MeshData.Value.Component.Get())
 		{
-			MeshComponent->SetRelativeTransform(MeshData.Value.RelativeTransform);
+			MeshComponent->SetRelativeTransform(MeshData.Value.RelativeTransform, false, nullptr, ETeleportType::TeleportPhysics);
 		}
 	}
 
