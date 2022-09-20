@@ -10,6 +10,7 @@ using EpicGames.Perforce;
 using EpicGames.Serialization;
 using Horde.Build.Acls;
 using Horde.Build.Projects;
+using Horde.Build.Storage;
 using Horde.Build.Tools;
 using Horde.Build.Utilities;
 
@@ -65,9 +66,9 @@ namespace Horde.Build.Server
 		public int MaxConformCount { get; set; }
 
 		/// <summary>
-		/// List of storage namespaces
+		/// Storage configuration
 		/// </summary>
-		public StorageConfig? Storage { get; set; }
+		public StorageConfig Storage { get; set; } = new StorageConfig();
 
 		/// <summary>
 		/// Access control list
@@ -170,38 +171,6 @@ namespace Horde.Build.Server
 	}
 
 	/// <summary>
-	/// Configuration for storage system
-	/// </summary>
-	public class StorageConfig
-	{
-		/// <summary>
-		/// List of storage namespaces
-		/// </summary>
-		public List<NamespaceConfig> Namespaces { get; set; } = new List<NamespaceConfig>();
-	}
-
-	/// <summary>
-	/// Configuration for a storage namespace
-	/// </summary>
-	public class NamespaceConfig
-	{
-		/// <summary>
-		/// Identifier for this namespace
-		/// </summary>
-		public string Id { get; set; } = String.Empty;
-
-		/// <summary>
-		/// Buckets within this namespace
-		/// </summary>
-		public List<BucketConfig> Buckets { get; set; } = new List<BucketConfig>();
-
-		/// <summary>
-		/// Access control for this namespace
-		/// </summary>
-		public AclConfig? Acl { get; set; }
-	}
-
-	/// <summary>
 	/// Configuration for a device platform 
 	/// </summary>
 	public class DevicePlatformConfig
@@ -231,18 +200,6 @@ namespace Horde.Build.Server
 		/// List of device platforms
 		/// </summary>
 		public List<DevicePlatformConfig> Platforms { get; set; } = new List<DevicePlatformConfig>();
-	}
-
-
-	/// <summary>
-	/// Configuration for a bucket
-	/// </summary>
-	public class BucketConfig
-	{
-		/// <summary>
-		/// Identifier for the bucket
-		/// </summary>
-		public string Id { get; set; } = String.Empty;
 	}
 
 	/// <summary>

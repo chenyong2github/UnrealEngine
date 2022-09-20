@@ -277,12 +277,6 @@ namespace Horde.Build
 			}
 		}
 
-		static IStorageClient CreateStorageClient(IServiceProvider sp, BlobStoreOptions options)
-		{
-			IStorageBackend backend = CreateStorageBackend(sp, options);
-			return new BasicBlobStore(sp.GetRequiredService<MongoService>(), backend, sp.GetRequiredService<IMemoryCache>(), sp.GetRequiredService<ILogger<BasicBlobStore>>());
-		}
-
 		public Startup(IConfiguration configuration)
 		{
 			Configuration = configuration;
@@ -358,6 +352,7 @@ namespace Horde.Build
 			services.AddSingleton<INotificationTriggerCollection, NotificationTriggerCollection>();
 			services.AddSingleton<IPoolCollection, PoolCollection>();
 			services.AddSingleton<IProjectCollection, ProjectCollection>();
+			services.AddSingleton<IRefCollection, RefCollection>();
 			services.AddSingleton<ISessionCollection, SessionCollection>();
 			services.AddSingleton<IServiceAccountCollection, ServiceAccountCollection>();
 			services.AddSingleton<ISubscriptionCollection, SubscriptionCollection>();
@@ -447,6 +442,7 @@ namespace Horde.Build
 			services.AddSingleton<StreamService>();
 			services.AddSingleton<DeviceService>();						
 			services.AddSingleton<NoticeService>();
+			services.AddSingleton<StorageService>();
 
 			if (settings.JiraUrl != null)
 			{
@@ -460,7 +456,6 @@ namespace Horde.Build
 			// Storage providers
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
-			services.AddSingleton(sp => CreateStorageClient(sp, settings.CommitStorage).ForType<ReplicationService>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
 			

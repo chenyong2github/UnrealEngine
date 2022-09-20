@@ -9,6 +9,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Perforce;
+using Horde.Build.Storage;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
@@ -65,7 +66,9 @@ namespace Horde.Build.Commands.Bundles
 			ICommitService commitService = serviceProvider.GetRequiredService<ICommitService>();
 			ReplicationService replicationService = serviceProvider.GetRequiredService<ReplicationService>();
 			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
-			ILegacyStorageClient storageClient = serviceProvider.GetRequiredService<ILegacyStorageClient>();
+			StorageService storageService = serviceProvider.GetRequiredService<StorageService>();
+
+			IStorageClient storage = await storageService.GetClientAsync(Namespace.Perforce);
 
 			IStream? stream = await streamCollection.GetAsync(new StreamId(StreamId));
 			if (stream == null)
@@ -83,7 +86,7 @@ namespace Horde.Build.Commands.Bundles
 			}
 			else
 			{
-				baseContents = await replicationService.ReadCommitTreeAsync(stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
+				baseContents = await replicationService.ReadCommitTreeAsync(storage, stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
 			}
 
 			await foreach (ICommit commit in commitService.GetCollection(stream).FindAsync(Change, null, Count))
@@ -95,7 +98,7 @@ namespace Horde.Build.Commands.Bundles
 
 				if (Content)
 				{
-					baseContents = await replicationService.WriteCommitTreeAsync(stream, commit.Number, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
+					baseContents = await replicationService.WriteCommitTreeAsync(storage, stream, commit.Number, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
 					BaseChange = commit.Number;
 				}
 			}
