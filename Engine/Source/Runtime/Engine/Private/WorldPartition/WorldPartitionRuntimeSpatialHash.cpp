@@ -1125,14 +1125,13 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					}
 				}
 
-				FVector2D CellMinMaxZ(UE_BIG_NUMBER, -UE_BIG_NUMBER);
+				FBox CellContentBounds(ForceInit);
 				for (const IStreamingGenerationContext::FActorInstance& ActorInstance : FilteredActors)
 				{
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 					StreamingCell->AddActorToCell(ActorDescView, ActorInstance.GetContainerID(), ActorInstance.GetTransform(), ActorInstance.GetActorDescContainer());
 					
-					CellMinMaxZ.X = FMath::Min(CellMinMaxZ.X, ActorDescView.GetBounds().Min.Z);
-					CellMinMaxZ.Y = FMath::Max(CellMinMaxZ.Y, ActorDescView.GetBounds().Max.Z);
+					CellContentBounds += ActorDescView.GetBounds();
 
 					if (ActorInstance.GetContainerID().IsMainContainer() && StreamingCell->UnsavedActorsContainer)
 					{
@@ -1151,7 +1150,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 						}
 					}
 				}
-				StreamingCell->SetMinMaxZ(CellMinMaxZ);
+				StreamingCell->SetContentBounds(CellContentBounds);
 
 				// Always loaded cell actors are transfered to World's Persistent Level (see UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook)
 				if (StreamingCell->GetActorCount() && !StreamingCell->IsAlwaysLoaded())

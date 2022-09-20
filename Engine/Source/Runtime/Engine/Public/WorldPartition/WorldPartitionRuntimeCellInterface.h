@@ -15,5 +15,6 @@ public:
 	virtual bool HasDataLayers() const = 0;
 	virtual const TArray<FName>& GetDataLayers() const = 0;
 	virtual bool HasAnyDataLayer(const TSet<FName>& InDataLayers) const = 0;
+	virtual const FBox& GetContentBounds() const = 0;
 };
 
