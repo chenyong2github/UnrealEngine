@@ -55,9 +55,8 @@ protected:
 	TOnlineAsyncOpHandle<FFunctionalTestLobbies> FunctionalTest(FFunctionalTestLobbies::Params&& Params);
 #endif // LOBBIES_FUNCTIONAL_TEST_ENABLED
 
+	TSharedRef<FSchemaRegistry> SchemaRegistry;
 	FLobbyEvents LobbyEvents;
-	TSharedPtr<FLobbySchemaRegistry> LobbySchemaRegistry;
-	TSharedPtr<FLobbySchema> ServiceSchema;
 };
 
 /* UE::Online */ }

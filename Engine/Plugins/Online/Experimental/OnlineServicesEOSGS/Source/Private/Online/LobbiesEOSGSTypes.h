@@ -23,7 +23,7 @@ class FLobbyInviteDataEOSRegistry;
 class FLobbySchema;
 struct FLobbyEvents;
 class FAuthEOSGS;
-struct FClientLobbyMemberSnapshot;
+struct FLobbyMemberServiceSnapshot;
 
 //--------------------------------------------------------------------------------------------------
 // Translated types
@@ -85,15 +85,16 @@ template <>
 class FLobbyAttributeTranslator<ELobbyTranslationType::ToService>
 {
 public:
-	FLobbyAttributeTranslator(const TPair<FLobbyAttributeId, FLobbyVariant>& FromAttributeData);
-	FLobbyAttributeTranslator(FLobbyAttributeId FromAttributeId, const FLobbyVariant& FromAttributeData);
+	FLobbyAttributeTranslator(const FSchemaServiceAttributeData& FromAttributeData);
 
 	const EOS_Lobby_AttributeData& GetAttributeData() const { return AttributeData; }
+	const EOS_ELobbyAttributeVisibility& GetAttributeVisibility() const { return AttributeVisibility; }
 
 private:
 	FTCHARToUTF8 KeyConverterStorage;
 	TOptional<FTCHARToUTF8> ValueConverterStorage;
 	EOS_Lobby_AttributeData AttributeData;
+	EOS_ELobbyAttributeVisibility AttributeVisibility;
 };
 
 template <>
@@ -102,11 +103,11 @@ class FLobbyAttributeTranslator<ELobbyTranslationType::FromService>
 public:
 	FLobbyAttributeTranslator(const EOS_Lobby_AttributeData& FromAttributeData);
 
-	const TPair<FLobbyAttributeId, FLobbyVariant>& GetAttributeData() const { return AttributeData; }
-	TPair<FLobbyAttributeId, FLobbyVariant>& GetMutableAttributeData() { return AttributeData; }
+	const TPair<FSchemaAttributeId, FSchemaVariant>& GetAttributeData() const { return AttributeData; }
+	TPair<FSchemaAttributeId, FSchemaVariant>& GetMutableAttributeData() { return AttributeData; }
 
 private:
-	TPair<FLobbyAttributeId, FLobbyVariant> AttributeData;
+	TPair<FSchemaAttributeId, FSchemaVariant> AttributeData;
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -180,9 +181,8 @@ struct FLobbyPrerequisitesEOS
 {
 	EOS_HLobby LobbyInterfaceHandle = {};
 	TWeakPtr<FAuthEOSGS> AuthInterface;
-	TSharedRef<const FLobbySchemaRegistry> SchemaRegistry;
-	TSharedRef<const FLobbySchema> ServiceSchema;
 	FLobbyBucketIdEOS BucketId;
+	TSharedRef<FSchemaRegistry> SchemaRegistry;
 };
 
 /**
@@ -262,25 +262,18 @@ public:
 	 * Retrieve a lobby data snapshot from the EOS lobby details object.
 	 * The lobby schema will be used to translate attribute data before returning.
 	 */
-	TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> GetLobbySnapshot() const;
+	TFuture<TDefaultErrorResultInternal<FLobbyServiceSnapshot>> GetLobbySnapshot() const;
 
 	/**
 	 * Retrieve lobby member data snapshot from the EOS lobby details object.
 	 * The lobby schema will be used to translate attribute data before returning.
 	 */
-	TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> GetLobbyMemberSnapshot(FAccountId MemberAccountId) const;
+	TDefaultErrorResultInternal<FLobbyMemberServiceSnapshot> GetLobbyMemberSnapshot(FAccountId MemberAccountId) const;
 
 	/**
 	 * Apply client side lobby changes to the lobby service.
-	 * The lobby schema will be used to translate any changed attributes before sending.
 	 */
-	TFuture<EOS_EResult> ApplyLobbyDataUpdateFromLocalChanges(FAccountId LocalAccountId, const FClientLobbyDataChanges& Changes) const;
-
-	/**
-	 * Apply client side lobby member changes to the lobby service.
-	 * The lobby schema will be used to translate any changed attributes before sending.
-	 */
-	TFuture<EOS_EResult> ApplyLobbyMemberDataUpdateFromLocalChanges(FAccountId LocalAccountId, const FClientLobbyMemberDataChanges& Changes) const;
+	TFuture<EOS_EResult> ApplyLobbyDataUpdateFromLocalChanges(FAccountId LocalAccountId, const FLobbyClientServiceChanges& ServiceChanges) const;
 
 private:
 	template <typename, ESPMode>
@@ -342,14 +335,15 @@ public:
 	FLobbyDataEOS() = delete;
 
 	static TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> Create(
+		TSharedRef<FLobbyPrerequisitesEOS> Prerequisites,
 		FLobbyId LobbyId,
 		const TSharedRef<FLobbyDetailsEOS>& LobbyDetails,
 		FUnregisterFn UnregisterFn = FUnregisterFn());
 
 	~FLobbyDataEOS();
 
-	FLobbyId GetLobbyIdHandle() const { return ClientLobbyData->GetPublicData().LobbyId; }
-	const TSharedRef<FClientLobbyData>& GetClientLobbyData() const { return ClientLobbyData; }
+	FLobbyId GetLobbyIdHandle() const { return LobbyClientData->GetPublicData().LobbyId; }
+	const TSharedRef<FLobbyClientData>& GetLobbyClientData() const { return LobbyClientData; }
 	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyIdEOS(); }
 	const FString& GetLobbyIdString() const { return LobbyIdString; }
 
@@ -367,11 +361,11 @@ private:
 	friend class SharedPointerInternals::TIntrusiveReferenceController;
 
 	FLobbyDataEOS(
-		const TSharedRef<FClientLobbyData>& ClientLobbyData,
+		const TSharedRef<FLobbyClientData>& LobbyClientData,
 		const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo,
 		FUnregisterFn UnregisterFn);
 
-	TSharedRef<FClientLobbyData> ClientLobbyData;
+	TSharedRef<FLobbyClientData> LobbyClientData;
 	TSharedRef<FLobbyDetailsInfoEOS> LobbyDetailsInfo;
 	FUnregisterFn UnregisterFn;
 	FString LobbyIdString;

@@ -4,517 +4,704 @@
 
 namespace UE::Online {
 
-TSharedPtr<FLobbySchema> FLobbySchema::Create(FLobbySchemaConfig LobbySchemaConfig)
-{
-	TSharedRef<FLobbySchema> Schema = MakeShared<FLobbySchema>();
-	Schema->SchemaId = LobbySchemaConfig.SchemaName;
+FSchemaId LobbyBaseSchemaId = TEXT("LobbyBase");
+FSchemaCategoryId LobbySchemaCategoryId = TEXT("Lobby");
+FSchemaCategoryId LobbyMemberSchemaCategoryId = TEXT("LobbyMember");
 
-	// Todo: for real validation and init
-	if (Schema->SchemaId == FLobbySchemaId())
+FLobbyClientData::FLobbyClientData(FLobbyId LobbyId, const TSharedRef<const FSchemaRegistry>& InSchemaRegistry)
+	: SchemaRegistry(InSchemaRegistry)
+	, InternalPublicData(MakeShared<FLobbyInternal>(InSchemaRegistry))
+{
+	InternalPublicData->LobbyId = LobbyId;
+}
+
+TSharedPtr<const FLobbyMemberInternal> FLobbyClientData::GetMemberData(FAccountId MemberAccountId) const
+{
+	const TSharedRef<FLobbyMemberInternal>* FoundMemberData = MemberDataStorage.Find(MemberAccountId);
+	return FoundMemberData ? *FoundMemberData : TSharedPtr<const FLobbyMemberInternal>();
+}
+
+TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareServiceSnapshot(FLobbyClientDataPrepareServiceSnapshot::Params&& Params) const
+{
+	FPreparedServiceChanges NewPreparedServiceChanges;
+
+	// Reset any pending changes. No other changes can occur while applying a service snapshot.
+	ResetPreparedChanges();
+
+	// Prepare lobby attribute changes.
+	TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot> PrepareLobbyServiceSnapshotResult =
+		InternalPublicData->SchemaData.PrepareServiceSnapshot({ TOptional<FSchemaId>(), MoveTemp(Params.LobbySnapshot.SchemaServiceSnapshot) });
+	if (PrepareLobbyServiceSnapshotResult.IsError())
 	{
-		return TSharedPtr<FLobbySchema>();
-	}
-	else
-	{
-		return Schema;
-	}
-}
-
-TSharedRef<FLobbyServiceAttributeChanges> FLobbySchema::TranslateLobbyAttributes(const TMap<FLobbyAttributeId, FLobbyVariant>& LobbyAttributes, const FLobbyClientAttributeChanges& ClientAttributeChanges) const
-{
-	// Todo: implementation.
-
-	TSharedRef<FLobbyServiceAttributeChanges> Changes = MakeShared<FLobbyServiceAttributeChanges>();
-	Changes->MutatedAttributes = ClientAttributeChanges.MutatedAttributes;
-	Changes->ClearedAttributes = ClientAttributeChanges.ClearedAttributes;
-	return Changes;
-}
-
-TSharedRef<FLobbyClientAttributeChanges> FLobbySchema::TranslateLobbyAttributes(const FLobbyServiceAttributeChanges& ServiceAttributeChanges) const
-{
-	// Todo: implementation.
-
-	TSharedRef<FLobbyClientAttributeChanges> Changes = MakeShared<FLobbyClientAttributeChanges>();
-	Changes->MutatedAttributes = ServiceAttributeChanges.MutatedAttributes;
-	Changes->ClearedAttributes = ServiceAttributeChanges.ClearedAttributes;
-	return Changes;
-}
-
-TSharedRef<FLobbyServiceAttributeChanges> FLobbySchema::TranslateLobbyMemberAttributes(const TMap<FLobbyAttributeId, FLobbyVariant>& LobbyAttributes, const FLobbyClientAttributeChanges& ClientAttributeChanges) const
-{
-	// Todo: implementation.
-
-	TSharedRef<FLobbyServiceAttributeChanges> Changes = MakeShared<FLobbyServiceAttributeChanges>();
-	Changes->MutatedAttributes = ClientAttributeChanges.MutatedAttributes;
-	Changes->ClearedAttributes = ClientAttributeChanges.ClearedAttributes;
-	return Changes;
-}
-
-TSharedRef<FLobbyClientAttributeChanges> FLobbySchema::TranslateLobbyMemberAttributes(const FLobbyServiceAttributeChanges& ServiceAttributeChanges) const
-{
-	// Todo: implementation.
-
-	TSharedRef<FLobbyClientAttributeChanges> Changes = MakeShared<FLobbyClientAttributeChanges>();
-	Changes->MutatedAttributes = ServiceAttributeChanges.MutatedAttributes;
-	Changes->ClearedAttributes = ServiceAttributeChanges.ClearedAttributes;
-	return Changes;
-}
-
-bool FLobbySchemaRegistry::Initialize(TArray<FLobbySchemaConfig> LobbySchemaConfigs)
-{
-	bool bSuccess = true;
-
-	for (FLobbySchemaConfig& LobbySchemaConfig : LobbySchemaConfigs)
-	{
-		bSuccess &= RegisterSchema(MoveTemp(LobbySchemaConfig));
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Failed to prepare lobby service snapshot: Lobby[%s], Result[%s]"),
+			*ToLogString(InternalPublicData->LobbyId), *PrepareLobbyServiceSnapshotResult.GetErrorValue().GetLogString());
+		return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(MoveTemp(PrepareLobbyServiceSnapshotResult.GetErrorValue()));
 	}
 
-	return bSuccess;
-}
-
-TSharedPtr<FLobbySchema> FLobbySchemaRegistry::FindSchema(FLobbySchemaId SchemaId)
-{
-	TSharedRef<FLobbySchema>* Schema = RegisteredSchemas.Find(SchemaId);
-	return Schema ? *Schema : TSharedPtr<FLobbySchema>();
-}
-
-bool FLobbySchemaRegistry::RegisterSchema(FLobbySchemaConfig LobbySchemaConfig)
-{
-	// Todo: handle schema hierarchy.
-	// Todo: handle schema parsing.
-
-	FLobbySchemaId SchemaName = LobbySchemaConfig.SchemaName;
-
-	if (TSharedPtr<FLobbySchema> Schema = FLobbySchema::Create(MoveTemp(LobbySchemaConfig)))
-	{
-		RegisteredSchemas.Emplace(SchemaName, Schema.ToSharedRef());
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-
-FClientLobbyData::FClientLobbyData(FLobbyId LobbyId)
-	: PublicData(MakeShared<FLobby>())
-{
-	PublicData->LobbyId = LobbyId;
-}
-
-TSharedPtr<const FClientLobbyMemberSnapshot> FClientLobbyData::GetMemberData(FAccountId MemberAccountId) const
-{
-	const TSharedRef<FClientLobbyMemberSnapshot>* FoundMemberData = MemberDataStorage.Find(MemberAccountId);
-	return FoundMemberData ? *FoundMemberData : TSharedPtr<const FClientLobbyMemberSnapshot>();
-}
-
-FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromServiceSnapshot(
-	FClientLobbySnapshot&& LobbySnapshot,
-	TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
-	TMap<FAccountId, ELobbyMemberLeaveReason>&& LeaveReasons,
-	FLobbyEvents* LobbyEvents)
-{
-	FApplyLobbyUpdateResult Result;
-	const bool bDispatchNotifications = LobbyEvents != nullptr && !LocalMembers.IsEmpty();
-
-	// Notify if schema changed.
-	// Schema change notification must be processed first as the schema affects how the client processes attributes.
-	if (LobbySnapshot.SchemaName != PublicData->SchemaName)
-	{
-		PublicData->SchemaName = LobbySnapshot.SchemaName;
-		if (bDispatchNotifications)
-		{
-			LobbyEvents->OnLobbySchemaChanged.Broadcast(FLobbySchemaChanged{PublicData});
-		}
-	}
-
-	// Handle lobby attribute changes.
-	TSet<FLobbyAttributeId> LobbyAttributeChanges = ApplyAttributeUpdateFromSnapshot(MoveTemp(LobbySnapshot.Attributes), PublicData->Attributes);
-	if (bDispatchNotifications && !LobbyAttributeChanges.IsEmpty())
-	{
-		LobbyEvents->OnLobbyAttributesChanged.Broadcast(FLobbyAttributesChanged{PublicData, MoveTemp(LobbyAttributeChanges)});
-	}
+	// Get schema id to use when applying member changes.
+	// Preparing the lobby snapshot may have resulted in a schema change.
+	TOptional<FSchemaId> NewDerivedSchemaId = PrepareLobbyServiceSnapshotResult.GetOkValue().DerivedSchemaId;
 
 	// Process members who left.
+	// Build list of leaving members by iterating over the known members.
+	for (const TPair<FAccountId, TSharedRef<FLobbyMemberInternal>>& MemberData : MemberDataStorage)
 	{
-		// Build list of leaving members.
-		TArray<TPair<TSharedRef<FClientLobbyMemberSnapshot>, ELobbyMemberLeaveReason>> LeavingMembers;
-		for (TPair<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>& MemberData : MemberDataStorage)
+		// Check if member exists in new snapshot.
+		if (!Params.LobbySnapshot.Members.Contains(MemberData.Key))
 		{
-			// Check if member exists in new snapshot.
-			if (LobbySnapshot.Members.Find(MemberData.Key) == nullptr)
+			// Member has left - check if they gave an explicit reason.
+			if (const ELobbyMemberLeaveReason* MemberLeaveReason = Params.LeaveReasons.Find(MemberData.Key))
 			{
-				// Member has left - check if they gave an explicit reason.
-				ELobbyMemberLeaveReason ResovedReason = ELobbyMemberLeaveReason::Disconnected;
-				if (const ELobbyMemberLeaveReason* MemberLeaveReason = LeaveReasons.Find(MemberData.Key))
-				{
-					ResovedReason = *MemberLeaveReason;
-				}
-				else
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[FClientLobbyData::ApplyLobbyUpdateFromSnapshot] Member left lobby without giving reason: Lobby: %s, Member: %s"),
-						*ToLogString(PublicData->LobbyId), *ToLogString(MemberData.Key));
-				}
-
-				LeavingMembers.Emplace(MemberData.Value, ResovedReason);
+				NewPreparedServiceChanges.LeavingMembers.Add({MemberData.Value, *MemberLeaveReason});
 			}
-		}
-
-		// Remove member data and notify.
-		for (const TPair<TSharedRef<FClientLobbyMemberSnapshot>, ELobbyMemberLeaveReason>& MemberData : LeavingMembers)
-		{
-			MemberDataStorage.Remove(MemberData.Key->AccountId);
-			PublicData->Members.Remove(MemberData.Key->AccountId);
-
-			if (MemberData.Key->bIsLocalMember)
+			else
 			{
-				LocalMembers.Remove(MemberData.Key->AccountId);
-				Result.LeavingLocalMembers.Add(MemberData.Key->AccountId);
-			}
-
-			if (bDispatchNotifications)
-			{
-				LobbyEvents->OnLobbyMemberLeft.Broadcast(FLobbyMemberLeft{PublicData, MemberData.Key, MemberData.Value});
+				const ELobbyMemberLeaveReason DefaultLeaveReason = ELobbyMemberLeaveReason::Disconnected;
+				NewPreparedServiceChanges.LeavingMembers.Add({ MemberData.Value, DefaultLeaveReason });
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Member left lobby without giving reason, defaulting to %s: Lobby[%s], Member[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), LexToString(DefaultLeaveReason), *ToLogString(MemberData.Key));
 			}
 		}
 	}
 
 	// Process member joins and attribute changes.
 	// Joining members are expected to have a member data snapshot.
-	for (TPair<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>& MemberSnapshot : LobbyMemberSnapshots)
+	for (TPair<FAccountId, FLobbyMemberServiceSnapshot>& MemberSnapshotPair : Params.LobbyMemberSnapshots)
 	{
-		if (LobbySnapshot.Members.Find(MemberSnapshot.Key) == nullptr)
+		if (!Params.LobbySnapshot.Members.Contains(MemberSnapshotPair.Key))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FClientLobbyData::ApplyLobbyUpdateFromSnapshot] Member update ignored for unknown member: Lobby: %s, Member: %s"),
-				*ToLogString(PublicData->LobbyId), *ToLogString(MemberSnapshot.Key));
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Member update ignored for unknown member: Lobby[%s], Member[%s]"),
+				*ToLogString(InternalPublicData->LobbyId), *ToLogString(MemberSnapshotPair.Key));
 		}
 		else
 		{
+			FLobbyMemberServiceSnapshot& MemberSnapshot = MemberSnapshotPair.Value;
+			FLobbyMemberInternal* PreparingMemberData = nullptr;
+
 			// Check whether this member is already in the lobby.
-			if (TSharedRef<FClientLobbyMemberSnapshot>* MemberData = MemberDataStorage.Find(MemberSnapshot.Key))
+			if (const TSharedRef<FLobbyMemberInternal>* MemberData = MemberDataStorage.Find(MemberSnapshot.AccountId))
 			{
-				// Member is already in the lobby. Check if their attributes changed.
-				TSet<FLobbyAttributeId> MemberAttributeChanges = ApplyAttributeUpdateFromSnapshot(MoveTemp(MemberSnapshot.Value->Attributes), (*MemberData)->Attributes);
-				if (bDispatchNotifications && !MemberAttributeChanges.IsEmpty())
-				{
-					LobbyEvents->OnLobbyMemberAttributesChanged.Broadcast(FLobbyMemberAttributesChanged{PublicData, (*MemberData), MemberAttributeChanges});
-				}
+				NewPreparedServiceChanges.UpdatedMemberDataStorage.Add(*MemberData);
+				PreparingMemberData = &MemberData->Get();
 			}
 			else
 			{
-				// Member is not in the lobby, add them.
-				MemberDataStorage.Add(MemberSnapshot.Key, MemberSnapshot.Value);
-				PublicData->Members.Add(MemberSnapshot.Key, MoveTemp(MemberSnapshot.Value));
-				if (bDispatchNotifications)
-				{
-					LobbyEvents->OnLobbyMemberJoined.Broadcast(FLobbyMemberJoined{PublicData, MemberSnapshot.Value});
-				}
+				// New member, create an entry for them.
+				TSharedRef<FLobbyMemberInternal> NewMemberData = MakeShared<FLobbyMemberInternal>(SchemaRegistry);
+				NewMemberData->AccountId = MemberSnapshot.AccountId;
+				NewMemberData->PlatformAccountId = MemberSnapshot.PlatformAccountId;
+				NewMemberData->PlatformDisplayName = MemberSnapshot.PlatformDisplayName;
+				NewPreparedServiceChanges.NewMemberDataStorage.Add(NewMemberData);
+				PreparingMemberData = &NewMemberData.Get();
 			}
-		}
-	}
 
-	// Process lobby state.
-	// The lobby owner notification must be processed after member updates as the new owner may not
-	// have existed in the previous snapshot.
-	if (PublicData->OwnerAccountId != LobbySnapshot.OwnerAccountId)
-	{
-		if (TSharedRef<FClientLobbyMemberSnapshot>* MemberData = MemberDataStorage.Find(LobbySnapshot.OwnerAccountId))
-		{
-			PublicData->OwnerAccountId = LobbySnapshot.OwnerAccountId;
-			if (bDispatchNotifications)
+			// Try to prepare the lobby member snapshot.
+			TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot> PrepareLobbyMemberServiceSnapshotResult =
+				PreparingMemberData->SchemaData.PrepareServiceSnapshot({ NewDerivedSchemaId, MoveTemp(MemberSnapshot.SchemaServiceSnapshot) });
+			if (PrepareLobbyMemberServiceSnapshotResult.IsError())
 			{
-				LobbyEvents->OnLobbyLeaderChanged.Broadcast(FLobbyLeaderChanged{PublicData, (*MemberData)});
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Failed to prepare lobby member service snapshot: Lobby[%s], Member[%s], Result[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(MemberSnapshot.AccountId), *PrepareLobbyMemberServiceSnapshotResult.GetErrorValue().GetLogString());
+				return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(MoveTemp(PrepareLobbyMemberServiceSnapshotResult.GetErrorValue()));
 			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FClientLobbyData::ApplyLobbyUpdateFromSnapshot] Lobby owner chage failed - lobby member data not found: Lobby: %s, Member: %s"),
-				*ToLogString(PublicData->LobbyId), *ToLogString(LobbySnapshot.OwnerAccountId));
 		}
 	}
 
-	// Set remaining lobby data.
-	PublicData->MaxMembers = LobbySnapshot.MaxMembers;
-	PublicData->JoinPolicy = LobbySnapshot.JoinPolicy;
+	// Check whether lobby ownership changed and is valid.
+	if (InternalPublicData->OwnerAccountId != Params.LobbySnapshot.OwnerAccountId)
+	{
+		if (!Params.LobbySnapshot.Members.Contains(Params.LobbySnapshot.OwnerAccountId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareServiceSnapshot] Lobby owner chage failed - lobby member data not found: Lobby[%s], Member[%s]"),
+				*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LobbySnapshot.OwnerAccountId));
+			return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(Errors::InvalidState());
+		}
+
+		NewPreparedServiceChanges.OwnerAccountId = Params.LobbySnapshot.OwnerAccountId;
+	}
+
+	// Check for max members change.
+	if (InternalPublicData->MaxMembers != Params.LobbySnapshot.MaxMembers)
+	{
+		NewPreparedServiceChanges.MaxMembers = Params.LobbySnapshot.MaxMembers;
+	}
+
+	// Check for join policy change.
+	if (InternalPublicData->JoinPolicy != Params.LobbySnapshot.JoinPolicy)
+	{
+		NewPreparedServiceChanges.JoinPolicy = Params.LobbySnapshot.JoinPolicy;
+	}
+	
+	// Store prepared changes.
+	PreparedServiceChanges = MoveTemp(NewPreparedServiceChanges);
+
+	return TOnlineResult<FLobbyClientDataPrepareServiceSnapshot>(FLobbyClientDataPrepareServiceSnapshot::Result{});
+}
+
+FLobbyClientDataCommitServiceSnapshot::Result FLobbyClientData::CommitServiceSnapshot(FLobbyClientDataCommitServiceSnapshot::Params&& Params)
+{
+	FLobbyClientDataCommitServiceSnapshot::Result CommitResult;
+	const bool bDispatchNotifications = Params.LobbyEvents != nullptr && !LocalMembers.IsEmpty();
+
+	if (!PreparedServiceChanges)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::CommitServiceSnapshot] Commit failed, no pending changes found: Lobby[%s]"),
+			*ToLogString(InternalPublicData->LobbyId));
+		return CommitResult;
+	}
+
+	// Commit schema changes.
+	FSchemaCategoryInstanceCommitServiceSnapshot::Result CommitLobbyServiceSnapshotResult = InternalPublicData->SchemaData.CommitServiceSnapshot();
+	FSchemaServiceClientChanges& LobbyServiceClientChanges = CommitLobbyServiceSnapshotResult.ClientChanges;
+
+	// Notify if schema changed.
+	// Schema change notification must be processed first as the schema affects how the client processes attributes.
+	if (LobbyServiceClientChanges.SchemaId)
+	{
+		FLobbySchemaChanged LobbySchemaChanged = { InternalPublicData, InternalPublicData->SchemaId, *LobbyServiceClientChanges.SchemaId };
+		InternalPublicData->SchemaId = *LobbyServiceClientChanges.SchemaId;
+		if (bDispatchNotifications)
+		{
+			Params.LobbyEvents->OnLobbySchemaChanged.Broadcast(LobbySchemaChanged);
+		}
+	}
+
+	const bool bAnyLobbyAttributesChanged =
+		!LobbyServiceClientChanges.AddedAttributes.IsEmpty() ||
+		!LobbyServiceClientChanges.ChangedAttributes.IsEmpty() ||
+		!LobbyServiceClientChanges.RemovedAttributes.IsEmpty();
+
+	// Handle lobby attribute change notifications.
+	if (bDispatchNotifications && bAnyLobbyAttributesChanged)
+	{
+		Params.LobbyEvents->OnLobbyAttributesChanged.Broadcast({
+			InternalPublicData,
+			MoveTemp(LobbyServiceClientChanges.AddedAttributes),
+			MoveTemp(LobbyServiceClientChanges.ChangedAttributes),
+			MoveTemp(LobbyServiceClientChanges.RemovedAttributes) });
+	}
+
+	// Handle joining members.
+	for (TSharedRef<FLobbyMemberInternal> NewMember : PreparedServiceChanges->NewMemberDataStorage)
+	{
+		// Commit attribute changes.
+		NewMember->SchemaData.CommitServiceSnapshot();
+		
+		// todo.
+		//NewMember->PlatformAccountId = ;
+		//NewMember->PlatformDisplayName = ;
+
+		// Add member to lobby structures.
+		AddMember(NewMember);
+
+		// Notify.
+		if (bDispatchNotifications)
+		{
+			Params.LobbyEvents->OnLobbyMemberJoined.Broadcast({ InternalPublicData, NewMember });
+		}
+	}
+
+	// Handle updated members.
+	for (TSharedRef<FLobbyMemberInternal> UpdatedMember : PreparedServiceChanges->UpdatedMemberDataStorage)
+	{
+		// Commit attribute changes.
+		FSchemaCategoryInstanceCommitServiceSnapshot::Result CommitLobbyMemberServiceSnapshotResult = UpdatedMember->SchemaData.CommitServiceSnapshot();
+		FSchemaServiceClientChanges& LobbyMemberServiceClientChanges = CommitLobbyMemberServiceSnapshotResult.ClientChanges;
+
+		const bool bAnyLobbyMemberAttributesChanged =
+			!LobbyMemberServiceClientChanges.AddedAttributes.IsEmpty() ||
+			!LobbyMemberServiceClientChanges.ChangedAttributes.IsEmpty() ||
+			!LobbyMemberServiceClientChanges.RemovedAttributes.IsEmpty();
+
+		// Handle lobby attribute changes.
+		if (bDispatchNotifications && bAnyLobbyMemberAttributesChanged)
+		{
+			Params.LobbyEvents->OnLobbyMemberAttributesChanged.Broadcast({
+				InternalPublicData,
+				UpdatedMember,
+				MoveTemp(LobbyMemberServiceClientChanges.AddedAttributes),
+				MoveTemp(LobbyMemberServiceClientChanges.ChangedAttributes),
+				MoveTemp(LobbyMemberServiceClientChanges.RemovedAttributes) });
+		}
+	}
+
+	// Handle leaving members.
+	for (TPair<TSharedRef<FLobbyMemberInternal>, ELobbyMemberLeaveReason> LeavingMemberPair : PreparedServiceChanges->LeavingMembers)
+	{
+		RemoveMember(LeavingMemberPair.Key);
+
+		if (LeavingMemberPair.Key->bIsLocalMember)
+		{
+			CommitResult.LeavingLocalMembers.Add(LeavingMemberPair.Key->AccountId);
+		}
+
+		if (bDispatchNotifications)
+		{
+			Params.LobbyEvents->OnLobbyMemberLeft.Broadcast({ InternalPublicData, LeavingMemberPair.Key, LeavingMemberPair.Value });
+		}
+	}
+
+	// Check for ownership change.
+	if (PreparedServiceChanges->OwnerAccountId)
+	{
+		InternalPublicData->OwnerAccountId = *PreparedServiceChanges->OwnerAccountId;
+
+		if (bDispatchNotifications)
+		{
+			Params.LobbyEvents->OnLobbyLeaderChanged.Broadcast(FLobbyLeaderChanged{ InternalPublicData, MemberDataStorage.FindChecked(InternalPublicData->OwnerAccountId) });
+		}
+	}
+
+	// Check for max member change.
+	if (PreparedServiceChanges->MaxMembers)
+	{
+		InternalPublicData->MaxMembers = *PreparedServiceChanges->MaxMembers;
+	}
+
+	// Check for join policy change.
+	if (PreparedServiceChanges->JoinPolicy)
+	{
+		InternalPublicData->JoinPolicy = *PreparedServiceChanges->JoinPolicy;
+	}
 
 	// If no local members remain in the lobby process lobby removal.
 	if (bDispatchNotifications && LocalMembers.IsEmpty())
 	{
-		TArray<TSharedRef<FClientLobbyMemberSnapshot>> LeavingMembers;
-		MemberDataStorage.GenerateValueArray(LeavingMembers);
+		TArray<TSharedRef<FLobbyMemberInternal>> LeavingRemoteMembers;
+		MemberDataStorage.GenerateValueArray(LeavingRemoteMembers);
 
-		for (TSharedRef<FClientLobbyMemberSnapshot>& LeavingMember : LeavingMembers)
+		for (TSharedRef<FLobbyMemberInternal>& LeavingRemoteMember : LeavingRemoteMembers)
 		{
-			MemberDataStorage.Remove(LeavingMember->AccountId);
-			PublicData->Members.Remove(LeavingMember->AccountId);
-			LobbyEvents->OnLobbyMemberLeft.Broadcast(FLobbyMemberLeft{PublicData, LeavingMember, ELobbyMemberLeaveReason::Left});
+			RemoveMember(LeavingRemoteMember);
+			Params.LobbyEvents->OnLobbyMemberLeft.Broadcast(FLobbyMemberLeft{ InternalPublicData, LeavingRemoteMember, ELobbyMemberLeaveReason::Left });
 		}
 
-		LobbyEvents->OnLobbyLeft.Broadcast(FLobbyLeft{PublicData});
+		Params.LobbyEvents->OnLobbyLeft.Broadcast(FLobbyLeft{ InternalPublicData });
 	}
 
-	return Result;
+	// Clear out update.
+	ResetPreparedChanges();
+	return CommitResult;
 }
 
-FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromLocalChanges(FClientLobbyDataChanges&& Changes, FLobbyEvents& LobbyEvents)
+TOnlineResult<FLobbyClientDataPrepareClientChanges> FLobbyClientData::PrepareClientChanges(FLobbyClientDataPrepareClientChanges::Params&& Params) const
 {
-	FApplyLobbyUpdateResult Result;
-	const bool bDispatchLobbyNotifications = !LocalMembers.IsEmpty();
+	FPreparedClientChanges NewPreparedClientChanges;
+	FLobbyClientDataPrepareClientChanges::Result PrepareResult;
 
-	// Process lobby changes.
+	// Reset any pending changes. No other changes can occur while applying a service snapshot.
+	ResetPreparedChanges();
+
+	// The lobby schema may be changed by applying the update. Track the schema that is switched to so that the member attributes use the correct schema.
+	FSchemaId LobbySchemaId = InternalPublicData->SchemaId;
+
+	NewPreparedClientChanges.LocalAccountId = Params.LocalAccountId;
+
+	// Prepare lobby changes.
 	{
-		if (Changes.LocalName)
-		{
-			PublicData->LocalName = *Changes.LocalName;
-		}
+		// Only the lobby owner may change some lobby data through local changes.
+		bool bLobbyDataChanged = false;
 
-		// Join policy.
-		if (Changes.JoinPolicy)
+		// Check for local name change.
+		if (Params.ClientChanges.LocalName && InternalPublicData->LocalName != *Params.ClientChanges.LocalName)
 		{
-			PublicData->JoinPolicy = *Changes.JoinPolicy;
-		}
-
-		// Lobby owner.
-		if (Changes.OwnerAccountId && *Changes.OwnerAccountId != PublicData->OwnerAccountId)
-		{
-			if (TSharedRef<FClientLobbyMemberSnapshot>* MemberData = MemberDataStorage.Find(*Changes.OwnerAccountId))
+			if (InternalPublicData->LocalName != FName())
 			{
-				PublicData->OwnerAccountId = *Changes.OwnerAccountId;
-				if (bDispatchLobbyNotifications)
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Local name chage failed - local name cannot be changed once set: Lobby[%s], CurrentName[%s], NewName[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *InternalPublicData->LocalName.ToString().ToLower(), *Params.ClientChanges.LocalName->ToString().ToLower());
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+			}
+
+			NewPreparedClientChanges.LocalName = *Params.ClientChanges.LocalName;
+		}
+
+		// Check for join policy change.
+		if (Params.ClientChanges.JoinPolicy && InternalPublicData->JoinPolicy != Params.ClientChanges.JoinPolicy)
+		{
+			bLobbyDataChanged = true;
+			NewPreparedClientChanges.JoinPolicy = *Params.ClientChanges.JoinPolicy;
+			PrepareResult.ServiceChanges.JoinPolicy = *Params.ClientChanges.JoinPolicy;
+		}
+
+		// Check for leader change.
+		if (Params.ClientChanges.OwnerAccountId && InternalPublicData->OwnerAccountId != Params.ClientChanges.OwnerAccountId)
+		{
+			if (!MemberDataStorage.Contains(*Params.ClientChanges.OwnerAccountId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Lobby owner chage failed - new owner is not in lobby: Lobby[%s], NewOwner[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(*Params.ClientChanges.OwnerAccountId));
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+			}
+
+			bLobbyDataChanged = true;
+			NewPreparedClientChanges.OwnerAccountId = *Params.ClientChanges.OwnerAccountId;
+			PrepareResult.ServiceChanges.OwnerAccountId = *Params.ClientChanges.OwnerAccountId;
+		}
+
+		// Check for user to kick.
+		if (Params.ClientChanges.KickedTargetMember)
+		{
+			if (!MemberDataStorage.Contains(*Params.ClientChanges.KickedTargetMember))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Kick target member failed - target is not in the lobby: Lobby[%s], KickedTargetMember[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(*Params.ClientChanges.KickedTargetMember));
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+			}
+
+			bLobbyDataChanged = true;
+			NewPreparedClientChanges.KickedTargetMember = *Params.ClientChanges.KickedTargetMember;
+			PrepareResult.ServiceChanges.KickedTargetMember = *Params.ClientChanges.KickedTargetMember;
+		}
+
+		// Check for attribute changes.
+		if (Params.ClientChanges.LobbySchema || Params.ClientChanges.Attributes)
+		{
+			bLobbyDataChanged = true;
+
+			// Prepare lobby attribute changes.
+			FSchemaCategoryInstancePrepareClientChanges::Params PrepareClientChangesParams;
+			if (Params.ClientChanges.LobbySchema)
+			{
+				PrepareClientChangesParams.ClientChanges.SchemaId = *Params.ClientChanges.LobbySchema;
+
+				// Update to using the new schema when applying a member update below.
+				LobbySchemaId = *Params.ClientChanges.LobbySchema;
+			}
+			if (Params.ClientChanges.Attributes)
+			{
+				PrepareClientChangesParams.ClientChanges.UpdatedAttributes = MoveTemp(Params.ClientChanges.Attributes->UpdatedAttributes);
+				PrepareClientChangesParams.ClientChanges.RemovedAttributes = MoveTemp(Params.ClientChanges.Attributes->RemovedAttributes);
+			}
+
+			TOnlineResult<FSchemaCategoryInstancePrepareClientChanges> PrepareClientChangesResult =
+				InternalPublicData->SchemaData.PrepareClientChanges(MoveTemp(PrepareClientChangesParams));
+			if (PrepareClientChangesResult.IsError())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby attribute changes: Lobby[%s], Result[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *PrepareClientChangesResult.GetErrorValue().GetLogString());
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(MoveTemp(PrepareClientChangesResult.GetErrorValue()));
+			}
+
+			// Get attribute changes to be written to the service.
+			PrepareResult.ServiceChanges.UpdatedAttributes = MoveTemp(PrepareClientChangesResult.GetOkValue().ServiceChanges.UpdatedAttributes);
+			PrepareResult.ServiceChanges.RemovedAttributes = MoveTemp(PrepareClientChangesResult.GetOkValue().ServiceChanges.RemovedAttributes);
+
+			NewPreparedClientChanges.bLobbyAttributesChanged = true;
+		}
+
+		if (bLobbyDataChanged)
+		{
+			// Check that the local user can make lobby changes.
+			if (Params.LocalAccountId != InternalPublicData->OwnerAccountId)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby changes. LocalAccountId is not the lobby owner: Lobby[%s], LocalAccountId[%s], OwnerAccountId[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId), *ToLogString(InternalPublicData->OwnerAccountId));
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+			}
+
+			// Check that the local user is not trying to change the lobby while leaving.
+			if (Params.ClientChanges.LocalUserLeaveReason)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby changes. Unable to modify the lobby while leaving: Lobby[%s], LocalAccountId[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId));
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+			}
+		}
+	}
+
+	// Prepare lobby member changes.
+	{
+		// Check that the local user is not joining and leaving.
+		if (Params.ClientChanges.MemberAttributes && Params.ClientChanges.LocalUserLeaveReason)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby member changes. Member cannot be updated and removed: Lobby[%s], LocalAccountId[%s]"),
+				*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId));
+			return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+		}
+
+		// Check whether the local user changed their attributes.
+		if (Params.ClientChanges.MemberAttributes)
+		{
+			FLobbyMemberInternal* PreparingMemberData = nullptr;
+
+			// Check if this is a new or existing member.
+			if (const TSharedRef<FLobbyMemberInternal>* MemberData = MemberDataStorage.Find(Params.LocalAccountId))
+			{
+				NewPreparedClientChanges.UpdatedLocalMember = *MemberData;
+				PreparingMemberData = &MemberData->Get();
+
+				// If the member data exists and has not been flagged as a local user, then they
+				// are joining after a service snapshot with them present has been applied.
+				if (!LocalMembers.Contains(Params.LocalAccountId))
 				{
-					LobbyEvents.OnLobbyLeaderChanged.Broadcast(FLobbyLeaderChanged{PublicData, (*MemberData)});
+					NewPreparedClientChanges.JoiningLocalMember = *MemberData;
 				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FClientLobbyData::ApplyLobbyUpdateFromLocalChanges] Lobby owner chage failed - lobby member data not found: Lobby: %s, Member: %s"),
-					*ToLogString(PublicData->LobbyId), *ToLogString(*Changes.OwnerAccountId));
+				// New member, create an entry for them.
+				TSharedRef<FLobbyMemberInternal> NewMemberData = MakeShared<FLobbyMemberInternal>(SchemaRegistry);
+				NewMemberData->AccountId = Params.LocalAccountId;
+				NewPreparedClientChanges.JoiningLocalMember = NewMemberData;
+				PreparingMemberData = &NewMemberData.Get();
+			}
+
+			// Prepare lobby member attribute changes.
+			FSchemaCategoryInstancePrepareClientChanges::Params PrepareClientChangesParams;
+			if (LobbySchemaId != InternalPublicData->SchemaId)
+			{
+				PrepareClientChangesParams.ClientChanges.SchemaId = LobbySchemaId;
+			}
+			PrepareClientChangesParams.ClientChanges.UpdatedAttributes = MoveTemp(Params.ClientChanges.MemberAttributes->UpdatedAttributes);
+			PrepareClientChangesParams.ClientChanges.RemovedAttributes = MoveTemp(Params.ClientChanges.MemberAttributes->RemovedAttributes);
+
+			TOnlineResult<FSchemaCategoryInstancePrepareClientChanges> PrepareClientChangesResult =
+				PreparingMemberData->SchemaData.PrepareClientChanges(MoveTemp(PrepareClientChangesParams));
+			if (PrepareClientChangesResult.IsError())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Failed to prepare lobby member attribute changes: Lobby[%s], LocalMember[%s], Result[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId), *PrepareClientChangesResult.GetErrorValue().GetLogString());
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(MoveTemp(PrepareClientChangesResult.GetErrorValue()));
+			}
+
+			// Get attribute changes to be written to the service.
+			PrepareResult.ServiceChanges.UpdatedMemberAttributes = MoveTemp(PrepareClientChangesResult.GetOkValue().ServiceChanges.UpdatedAttributes);
+			PrepareResult.ServiceChanges.RemovedMemberAttributes = MoveTemp(PrepareClientChangesResult.GetOkValue().ServiceChanges.RemovedAttributes);
+		}
+
+		// Check whether the local user left.
+		if (Params.ClientChanges.LocalUserLeaveReason)
+		{
+			if (!MemberDataStorage.Contains(Params.LocalAccountId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::PrepareClientChanges] Local user leave faild - user is not in the lobby: Lobby[%s], LocalAccountId[%s]"),
+					*ToLogString(InternalPublicData->LobbyId), *ToLogString(Params.LocalAccountId));
+				return TOnlineResult<FLobbyClientDataPrepareClientChanges>(Errors::InvalidParams());
+			}
+
+			NewPreparedClientChanges.LocalUserLeaveReason = *Params.ClientChanges.LocalUserLeaveReason;
+		}
+	}
+
+	PreparedClientChanges = NewPreparedClientChanges;
+	return TOnlineResult<FLobbyClientDataPrepareClientChanges>(MoveTemp(PrepareResult));
+}
+
+FLobbyClientDataCommitClientChanges::Result FLobbyClientData::CommitClientChanges(FLobbyClientDataCommitClientChanges::Params&& Params)
+{
+	FLobbyClientDataCommitClientChanges::Result CommitResult;
+	bool bDispatchNotifications = Params.LobbyEvents != nullptr && !LocalMembers.IsEmpty();
+
+	if (!PreparedClientChanges)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbyClientData::CommitClientChanges] Commit failed, no pending changes found: Lobby[%s]"),
+			*ToLogString(InternalPublicData->LobbyId));
+		return CommitResult;
+	}
+
+	// Commit lobby changes.
+	{
+		// Assign local name.
+		if (PreparedClientChanges->LocalName)
+		{
+			InternalPublicData->LocalName = *PreparedClientChanges->LocalName;
+		}
+
+		// Assign join policy.
+		if (PreparedClientChanges->JoinPolicy)
+		{
+			InternalPublicData->JoinPolicy = *PreparedClientChanges->JoinPolicy;
+		}
+
+		// Assign join policy
+		if (PreparedClientChanges->OwnerAccountId)
+		{
+			InternalPublicData->OwnerAccountId = *PreparedClientChanges->OwnerAccountId;
+
+			if (bDispatchNotifications)
+			{
+				TSharedRef<FLobbyMemberInternal> MemberData = MemberDataStorage.FindChecked(InternalPublicData->OwnerAccountId);
+				Params.LobbyEvents->OnLobbyLeaderChanged.Broadcast({ InternalPublicData, MemberData });
 			}
 		}
 
-		// Lobby schema.
-		if (Changes.LobbySchema && *Changes.LobbySchema != PublicData->SchemaName)
+		// Remove kicked member.
+		if (PreparedClientChanges->KickedTargetMember)
 		{
-			PublicData->SchemaName = *Changes.LobbySchema;
-			if (bDispatchLobbyNotifications)
+			TSharedRef<FLobbyMemberInternal> MemberData = MemberDataStorage.FindChecked(*PreparedClientChanges->KickedTargetMember);
+			RemoveMember(MemberData);
+
+			if (bDispatchNotifications)
 			{
-				LobbyEvents.OnLobbySchemaChanged.Broadcast(FLobbySchemaChanged{PublicData});
+				Params.LobbyEvents->OnLobbyMemberLeft.Broadcast({ InternalPublicData, MemberData, ELobbyMemberLeaveReason::Kicked });
 			}
 		}
 
-		// Apply lobby attribute changes.
-		if (!Changes.MutatedAttributes.IsEmpty() || !Changes.ClearedAttributes.IsEmpty())
+		// Commit schema changes if needed.
+		if (PreparedClientChanges->bLobbyAttributesChanged)
 		{
-			TSet<FLobbyAttributeId> ChangedLobbyAttributes = ApplyAttributeUpdateFromChanges(
-				MoveTemp(Changes.MutatedAttributes),
-				MoveTemp(Changes.ClearedAttributes),
-				PublicData->Attributes);
+			FSchemaCategoryInstanceCommitClientChanges::Result CommitLobbyServiceSnapshotResult = InternalPublicData->SchemaData.CommitClientChanges();
+			FSchemaServiceClientChanges& LobbyServiceClientChanges = CommitLobbyServiceSnapshotResult.ClientChanges;
 
-			if (bDispatchLobbyNotifications && !ChangedLobbyAttributes.IsEmpty())
+			// Notify if schema changed.
+			// Schema change notification must be processed first as the schema affects how the client processes attributes.
+			if (LobbyServiceClientChanges.SchemaId)
 			{
-				LobbyEvents.OnLobbyAttributesChanged.Broadcast(FLobbyAttributesChanged{PublicData, ChangedLobbyAttributes});
+				FLobbySchemaChanged LobbySchemaChanged = { InternalPublicData, InternalPublicData->SchemaId, *LobbyServiceClientChanges.SchemaId };
+				InternalPublicData->SchemaId = *LobbyServiceClientChanges.SchemaId;
+				if (bDispatchNotifications)
+				{
+					Params.LobbyEvents->OnLobbySchemaChanged.Broadcast(LobbySchemaChanged);
+				}
+			}
+
+			const bool bAnyLobbyAttributesChanged =
+				!LobbyServiceClientChanges.AddedAttributes.IsEmpty() ||
+				!LobbyServiceClientChanges.ChangedAttributes.IsEmpty() ||
+				!LobbyServiceClientChanges.RemovedAttributes.IsEmpty();
+
+			// Handle lobby attribute change notifications.
+			if (bDispatchNotifications && bAnyLobbyAttributesChanged)
+			{
+				Params.LobbyEvents->OnLobbyAttributesChanged.Broadcast({
+					InternalPublicData,
+					MoveTemp(LobbyServiceClientChanges.AddedAttributes),
+					MoveTemp(LobbyServiceClientChanges.ChangedAttributes),
+					MoveTemp(LobbyServiceClientChanges.RemovedAttributes) });
 			}
 		}
 	}
 
-	// Apply member changes.
+	// Check for an updating local member.
+	if (PreparedClientChanges->UpdatedLocalMember)
 	{
-		// Adding local members will make the lobby active. When the lobby moves from inactive to
-		// active join events must be generated for the lobby and each of its existing members.
-		if (!Changes.MutatedMembers.IsEmpty())
+		TSharedRef<FLobbyMemberInternal> UpdatedMember = PreparedClientChanges->UpdatedLocalMember.ToSharedRef();
+
+		// Commit attribute changes.
+		FSchemaCategoryInstanceCommitClientChanges::Result CommitLobbyMemberServiceSnapshotResult = UpdatedMember->SchemaData.CommitClientChanges();
+		FSchemaServiceClientChanges& LobbyMemberServiceClientChanges = CommitLobbyMemberServiceSnapshotResult.ClientChanges;
+
+		const bool bAnyLobbyMemberAttributesChanged =
+			!LobbyMemberServiceClientChanges.AddedAttributes.IsEmpty() ||
+			!LobbyMemberServiceClientChanges.ChangedAttributes.IsEmpty() ||
+			!LobbyMemberServiceClientChanges.RemovedAttributes.IsEmpty();
+
+		// Handle lobby attribute changes.
+		if (bDispatchNotifications && bAnyLobbyMemberAttributesChanged)
 		{
-			// When adding members for the first time, notify for lobby joined then notify lobby member joined for each existing member.
+			Params.LobbyEvents->OnLobbyMemberAttributesChanged.Broadcast({
+				InternalPublicData,
+				UpdatedMember,
+				MoveTemp(LobbyMemberServiceClientChanges.AddedAttributes),
+				MoveTemp(LobbyMemberServiceClientChanges.ChangedAttributes),
+				MoveTemp(LobbyMemberServiceClientChanges.RemovedAttributes) });
+		}
+	}
+
+	// Commit lobby member changes.
+	{
+		// Check for a new joining local member.
+		if (PreparedClientChanges->JoiningLocalMember)
+		{
+			// Check whether notifications should be turned on.
 			if (LocalMembers.IsEmpty())
 			{
-				LobbyEvents.OnLobbyJoined.Broadcast(FLobbyJoined{PublicData});
-
-				for (TPair<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>& MemberData : MemberDataStorage)
+				bDispatchNotifications = Params.LobbyEvents != nullptr;
+				if (bDispatchNotifications)
 				{
-					// The lobby creator will already be in the list during lobby creation due to applying a lobby snapshot.
-					if (Changes.MutatedMembers.Find(MemberData.Key) == nullptr)
+					// Signal that the lobby has been joined.
+					Params.LobbyEvents->OnLobbyJoined.Broadcast({ InternalPublicData });
+
+					// Dispatch a notification for each existing remote member.
+					for (TPair<FAccountId, TSharedRef<FLobbyMemberInternal>>& MemberPair : MemberDataStorage)
 					{
-						LobbyEvents.OnLobbyMemberJoined.Broadcast(FLobbyMemberJoined{PublicData, MemberData.Value});
+						Params.LobbyEvents->OnLobbyMemberJoined.Broadcast({ InternalPublicData, MemberPair.Value });
 					}
 				}
 			}
 
-			// Create or modify state for each mutated member and notify.
-			// The lobby creator will already be in the list during lobby creation due to applying a lobby snapshot.
-			for (TPair<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>>& MutatedMemberPair : Changes.MutatedMembers)
+			TSharedRef<FLobbyMemberInternal> JoinedMember = PreparedClientChanges->JoiningLocalMember.ToSharedRef();
+
+			JoinedMember->bIsLocalMember = true;
+			// todo.
+			//NewMemberData->PlatformAccountId = ;
+			//NewMemberData->PlatformDisplayName = ;
+
+			const bool bWasAlreadyJoined = MemberDataStorage.Contains(JoinedMember->AccountId);
+
+			// Add to member tracking.
+			AddMember(JoinedMember);
+
+			// Commit attribute changes.
+			JoinedMember->SchemaData.CommitServiceSnapshot();
+
+			// Send join notification for the local user.
+			if (bDispatchNotifications && !bWasAlreadyJoined)
 			{
-				if (TSharedRef<FClientLobbyMemberSnapshot>* MemberDataPtr = MemberDataStorage.Find(MutatedMemberPair.Key))
-				{
-					const bool bIsJoinedLocalMember = LocalMembers.Find(MutatedMemberPair.Key) != nullptr;
-
-					TSharedRef<FClientLobbyMemberSnapshot>& MemberData = *MemberDataPtr;
-					TSet<FLobbyAttributeId> ChangedAttributes = ApplyAttributeUpdateFromChanges(
-						MoveTemp(MutatedMemberPair.Value->MutatedAttributes),
-						MoveTemp(MutatedMemberPair.Value->ClearedAttributes),
-						MemberData->Attributes);
-
-					if (bIsJoinedLocalMember && !ChangedAttributes.IsEmpty())
-					{
-						LobbyEvents.OnLobbyMemberAttributesChanged.Broadcast(FLobbyMemberAttributesChanged{PublicData, MemberData, ChangedAttributes});
-					}
-
-					if (!bIsJoinedLocalMember)
-					{
-						MemberData->bIsLocalMember = true;
-						LocalMembers.Add(MemberData->AccountId);
-						LobbyEvents.OnLobbyMemberJoined.Broadcast(FLobbyMemberJoined{PublicData, MemberData});
-					}
-				}
-				else
-				{
-					TSharedRef<FClientLobbyMemberSnapshot> JoiningMember = MakeShared<FClientLobbyMemberSnapshot>();
-					JoiningMember->bIsLocalMember = true;
-					JoiningMember->AccountId = MutatedMemberPair.Key;
-					JoiningMember->Attributes = MoveTemp(MutatedMemberPair.Value->MutatedAttributes);
-
-					// todo:
-					//NewMember->PlatformAccountId;
-					//NewMember->PlatformDisplayName;
-
-					MemberDataStorage.Add(JoiningMember->AccountId, JoiningMember);
-					PublicData->Members.Add(JoiningMember->AccountId, JoiningMember);
-					LocalMembers.Add(JoiningMember->AccountId);
-					LobbyEvents.OnLobbyMemberJoined.Broadcast(FLobbyMemberJoined{PublicData, JoiningMember});
-				}
+				Params.LobbyEvents->OnLobbyMemberJoined.Broadcast({ InternalPublicData, JoinedMember });
 			}
 		}
 
-		// Handle leaving members.
-		// When the last local member leaves, leave events will be generated for each of the
-		// remaining lobby members and for the lobby itself.
-		if (!Changes.LeavingMembers.IsEmpty())
+		// Check if the local user left.
+		if (PreparedClientChanges->LocalUserLeaveReason)
 		{
-			for (TPair<FAccountId, ELobbyMemberLeaveReason>& LeavingMemberPair : Changes.LeavingMembers)
+			TSharedRef<FLobbyMemberInternal> LeavingMember = MemberDataStorage.FindChecked(PreparedClientChanges->LocalAccountId);
+			RemoveMember(LeavingMember);
+			CommitResult.LeavingLocalMembers.Add(PreparedClientChanges->LocalAccountId);
+
+			if (bDispatchNotifications)
 			{
-				// Member data is expected to be added through changes before being mutated.
-				TSharedRef<FClientLobbyMemberSnapshot>* MemberDataPtr = MemberDataStorage.Find(LeavingMemberPair.Key);
-				if (ensure(MemberDataPtr))
+				Params.LobbyEvents->OnLobbyMemberLeft.Broadcast({ InternalPublicData, LeavingMember, *PreparedClientChanges->LocalUserLeaveReason });
+
+				if (LocalMembers.IsEmpty())
 				{
-					TSharedRef<FClientLobbyMemberSnapshot> MemberData = *MemberDataPtr;
-					if (MemberData->bIsLocalMember)
+					// Fire leave events for remote members.
+					TArray<TSharedRef<FLobbyMemberInternal>> LeavingRemoteMembers;
+					MemberDataStorage.GenerateValueArray(LeavingRemoteMembers);
+
+					for (TSharedRef<FLobbyMemberInternal>& LeavingRemoteMember : LeavingRemoteMembers)
 					{
-						Result.LeavingLocalMembers.Add(LeavingMemberPair.Key);
-						LocalMembers.Remove(LeavingMemberPair.Key);
+						RemoveMember(LeavingMember);
+						Params.LobbyEvents->OnLobbyMemberLeft.Broadcast(FLobbyMemberLeft{ InternalPublicData, LeavingRemoteMember, ELobbyMemberLeaveReason::Left });
 					}
 
-					MemberDataStorage.Remove(LeavingMemberPair.Key);
-					PublicData->Members.Remove(LeavingMemberPair.Key);
-					LobbyEvents.OnLobbyMemberLeft.Broadcast(FLobbyMemberLeft{PublicData, MemberData, LeavingMemberPair.Value});
+					// Notify lobby has been left.
+					Params.LobbyEvents->OnLobbyLeft.Broadcast({ InternalPublicData });
 				}
-			}
-
-			// If no local members remain in the lobby process lobby removal.
-			if (LocalMembers.IsEmpty())
-			{
-				TArray<TSharedRef<FClientLobbyMemberSnapshot>> LeavingMembers;
-				MemberDataStorage.GenerateValueArray(LeavingMembers);
-
-				for (TSharedRef<FClientLobbyMemberSnapshot>& LeavingMember : LeavingMembers)
-				{
-					MemberDataStorage.Remove(LeavingMember->AccountId);
-					PublicData->Members.Remove(LeavingMember->AccountId);
-					LobbyEvents.OnLobbyMemberLeft.Broadcast(FLobbyMemberLeft{PublicData, LeavingMember, ELobbyMemberLeaveReason::Left});
-				}
-
-				LobbyEvents.OnLobbyLeft.Broadcast(FLobbyLeft{PublicData});
 			}
 		}
 	}
 
-	return Result;
+	ResetPreparedChanges();
+	return CommitResult;
 }
 
-TSet<FLobbyAttributeId> FClientLobbyData::ApplyAttributeUpdateFromSnapshot(
-	TMap<FLobbyAttributeId, FLobbyVariant>&& AttributeSnapshot,
-	TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes)
+void FLobbyClientData::ResetPreparedChanges() const
 {
-	TSet<FLobbyAttributeId> Result;
-
-	// Clear the attributes.
-	{
-		// Determine which attributes were removed.
-		for (const TPair<FLobbyAttributeId, FLobbyVariant>& Attribute : ExistingAttributes)
-		{
-			if (!AttributeSnapshot.Contains(Attribute.Key))
-			{
-				Result.Add(Attribute.Key);
-			}
-		}
-
-		// Remove them.
-		for (const FLobbyAttributeId& AttributeId : Result)
-		{
-			ExistingAttributes.Remove(AttributeId);
-		}
-	}
-
-	// Apply attribute additions and mutations.
-	{
-		for (TPair<FLobbyAttributeId, FLobbyVariant>& Attribute : AttributeSnapshot)
-		{
-			if (FLobbyVariant* ExistingAttributeData = ExistingAttributes.Find(Attribute.Key))
-			{
-				if (*ExistingAttributeData != Attribute.Value)
-				{
-					Result.Add(MoveTemp(Attribute.Key));
-					*ExistingAttributeData = MoveTemp(Attribute.Value);
-				}
-			}
-			else
-			{
-				Result.Add(Attribute.Key);
-				ExistingAttributes.Add(MoveTemp(Attribute));
-			}
-		}
-	}
-
-	return Result;
+	PreparedServiceChanges.Reset();
+	PreparedClientChanges.Reset();
 }
 
-TSet<FLobbyAttributeId> FClientLobbyData::ApplyAttributeUpdateFromChanges(
-	TMap<FLobbyAttributeId, FLobbyVariant>&& MutatedAttributes,
-	TSet<FLobbyAttributeId>&& ClearedAttributes,
-	TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes)
+void FLobbyClientData::AddMember(const TSharedRef<FLobbyMemberInternal>& Member)
 {
-	TSet<FLobbyAttributeId> Result;
+	MemberDataStorage.Add(Member->AccountId, Member);
+	InternalPublicData->Members.Add(Member->AccountId, Member);
 
-	// Apply attribute additions and mutations.
+	if (Member->bIsLocalMember)
 	{
-		for (TPair<FLobbyAttributeId, FLobbyVariant>& Attribute : MutatedAttributes)
-		{
-			if (FLobbyVariant* ExistingAttributeData = ExistingAttributes.Find(Attribute.Key))
-			{
-				if (*ExistingAttributeData != Attribute.Value)
-				{
-					Result.Add(MoveTemp(Attribute.Key));
-					*ExistingAttributeData = MoveTemp(Attribute.Value);
-				}
-			}
-			else
-			{
-				Result.Add(Attribute.Key);
-				ExistingAttributes.Add(MoveTemp(Attribute));
-			}
-		}
+		LocalMembers.Add(Member->AccountId);
 	}
+}
 
-	// Clear the attributes.
+void FLobbyClientData::RemoveMember(const TSharedRef<FLobbyMemberInternal>& Member)
+{
+	MemberDataStorage.Remove(Member->AccountId);
+	InternalPublicData->Members.Remove(Member->AccountId);
+
+	if (Member->bIsLocalMember)
 	{
-		for (FLobbyAttributeId ClearedAttributeId : ClearedAttributes)
-		{
-			if (ExistingAttributes.Remove(ClearedAttributeId) > 0)
-			{
-				Result.Add(ClearedAttributeId);
-			}
-		}
+		LocalMembers.Remove(Member->AccountId);
 	}
-
-	return Result;
 }
 
 /* UE::Online */ }

@@ -4,94 +4,17 @@
 
 #include "Async/Future.h"
 #include "Online/Lobbies.h"
+#include "Online/Schema.h"
 
 namespace UE::Online {
 
 #define LOBBIES_FUNCTIONAL_TEST_ENABLED !UE_BUILD_SHIPPING
 
+ONLINESERVICESCOMMON_API extern FSchemaId LobbyBaseSchemaId;
+ONLINESERVICESCOMMON_API extern FSchemaCategoryId LobbySchemaCategoryId;
+ONLINESERVICESCOMMON_API extern FSchemaCategoryId LobbyMemberSchemaCategoryId;
+
 class FOnlineServicesCommon;
-
-struct FLobbyConfig
-{
-	TArray<FLobbySchemaId> RegisteredSchemas;
-};
-
-struct FLobbySchemaAttributeConfig
-{
-	// The attribute name.
-	FLobbyAttributeId Name;
-	
-	// Override default service attribute field assignment.
-	// Specifying an override allows custom grouping of attributes within a
-	// platform attribute. This grouping is useful when a set of attributes are
-	// known to update at the same cadence.
-	TOptional<FLobbyAttributeId> ServiceAttributeFieldId;
-	
-	// The size in bytes of the attribute value.
-	// A schema will fail validation if all attributes will not fit within the
-	// platform's lobby fields.
-	uint32 MaxByteSize = 0;
-
-	// Control whether the attribute is visible to players who are not joined
-	// to the lobby.
-	ELobbyAttributeVisibility Visibility = ELobbyAttributeVisibility::Private;
-
-};
-
-struct FLobbySchemaConfig
-{
-	// The schema name.
-	FLobbySchemaId SchemaName;
-
-	// The optional base schema name.
-	FLobbySchemaId BaseSchemaName;
-	
-	// The definitions for attributes attached to a lobby.
-	TArray<FLobbySchemaAttributeConfig> LobbyAttributes;
-
-	// The definitions for attributes attached to a lobby member.
-	TArray<FLobbySchemaAttributeConfig> LobbyMemberAttributes;
-};
-
-class FLobbyServiceAttributeChanges final
-{
-public:
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
-	TSet<FLobbyAttributeId> ClearedAttributes;
-};
-
-class FLobbyClientAttributeChanges final
-{
-public:
-	// Apply attribute changes to attribute parameter.
-	// Applying the changes will clear MutatedAttributes and ClearedAttributes.
-	// Returns a list of the attributes which were changed.
-	TSet<FLobbyAttributeId> Apply(TMap<FLobbyAttributeId, FLobbyVariant>& InOutAttributes)
-	{
-		TSet<FLobbyAttributeId> Changes;
-		Changes.Reserve(MutatedAttributes.Num() + ClearedAttributes.Num());
-
-		for (TPair<FLobbyAttributeId, FLobbyVariant>& Attribute : MutatedAttributes)
-		{
-			Changes.Add(Attribute.Key);
-			InOutAttributes.Emplace(Attribute.Key, MoveTemp(Attribute.Value));
-		}
-
-		for (FLobbyAttributeId AttributeId : ClearedAttributes)
-		{
-			Changes.Add(AttributeId);
-			InOutAttributes.Remove(AttributeId);
-		}
-
-		MutatedAttributes.Empty();
-		ClearedAttributes.Empty();
-
-		return Changes;
-	}
-
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
-	TSet<FLobbyAttributeId> ClearedAttributes;
-};
 
 struct FLobbyEvents final
 {
@@ -106,32 +29,6 @@ struct FLobbyEvents final
 	TOnlineEventCallable<void(const FLobbyInvitationAdded&)> OnLobbyInvitationAdded;
 	TOnlineEventCallable<void(const FLobbyInvitationRemoved&)> OnLobbyInvitationRemoved;
 	TOnlineEventCallable<void(const FUILobbyJoinRequested&)> OnUILobbyJoinRequested;
-};
-
-class ONLINESERVICESCOMMON_API FLobbySchema final
-{
-public:
-	static TSharedPtr<FLobbySchema> Create(FLobbySchemaConfig LobbySchemaConfig);
-
-	TSharedRef<FLobbyServiceAttributeChanges> TranslateLobbyAttributes(const TMap<FLobbyAttributeId, FLobbyVariant>& LobbyAttributes, const FLobbyClientAttributeChanges& ClientAttributeChanges) const;
-	TSharedRef<FLobbyClientAttributeChanges> TranslateLobbyAttributes(const FLobbyServiceAttributeChanges& ServiceAttributeChanges) const;
-	TSharedRef<FLobbyServiceAttributeChanges> TranslateLobbyMemberAttributes(const TMap<FLobbyAttributeId, FLobbyVariant>& LobbyAttributes, const FLobbyClientAttributeChanges& ClientAttributeChanges) const;
-	TSharedRef<FLobbyClientAttributeChanges> TranslateLobbyMemberAttributes(const FLobbyServiceAttributeChanges& ServiceAttributeChanges) const;
-
-private:
-	FLobbySchemaId SchemaId;
-};
-
-class FLobbySchemaRegistry
-{
-public:
-	bool Initialize(TArray<FLobbySchemaConfig> LobbySchemaConfigs);
-	TSharedPtr<FLobbySchema> FindSchema(FLobbySchemaId SchemaId);
-
-private:
-	bool RegisterSchema(FLobbySchemaConfig LobbySchemaConfig);
-
-	TMap<FLobbySchemaId, TSharedRef<FLobbySchema>> RegisteredSchemas;
 };
 
 // Todo: put this somewhere else
@@ -172,127 +69,293 @@ TFuture<TArray<AwaitedType>> WhenAll(TArray<TFuture<AwaitedType>>&& Futures)
 }
 
 /**
- * Local changes to a member to be applied to an existing lobby member snapshot.
- */
-struct FClientLobbyMemberDataChanges
+* Accessor for using the public lobby attributes directly when committing schema changes.
+*/
+class FSchemaCategoryInstanceLobbySnapshotAccessor
 {
-	/** New or changed attributes. */
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
+public:
+	FSchemaCategoryInstanceLobbySnapshotAccessor(TMap<FSchemaAttributeId, FSchemaVariant>& InClientSnapshot)
+		: ClientSnapshot(InClientSnapshot)
+	{
+	}
 
-	/** Attributes to be cleared. */
-	TSet<FLobbyAttributeId> ClearedAttributes;
+	TMap<FSchemaAttributeId, FSchemaVariant>& GetMutableClientSnapshot()
+	{
+		return ClientSnapshot;
+	}
+private:
+
+	TMap<FSchemaAttributeId, FSchemaVariant>& ClientSnapshot;
 };
 
 /**
- * Local changes to a lobby to be applied to an existing lobby snapshot.
+* Alias for schema category instance used by lobby and lobby member data.
+*/
+using FLobbiesSchemaCategoryInstance = TSchemaCategoryInstance<FSchemaCategoryInstanceLobbySnapshotAccessor>;
+
+/**
+* Lobby data structure as seen by the client with additional fields for internal use.
+*/
+struct FLobbyInternal : public FLobby
+{
+	FLobbyInternal(const TSharedRef<const FSchemaRegistry>& SchemaRegistry)
+		: FLobby()
+		, SchemaData(FSchemaId(), LobbyBaseSchemaId, LobbySchemaCategoryId, SchemaRegistry, Attributes)
+	{
+	}
+
+	FLobbiesSchemaCategoryInstance SchemaData;
+};
+
+/**
+* Lobby member data structure as seen by the client with additional fields for internal use.
+*/
+struct FLobbyMemberInternal : public FLobbyMember
+{
+	FLobbyMemberInternal(const TSharedRef<const FSchemaRegistry>& SchemaRegistry)
+		: FLobbyMember()
+		, SchemaData(FSchemaId(), LobbyBaseSchemaId, LobbyMemberSchemaCategoryId, SchemaRegistry, Attributes)
+	{
+	}
+
+	FLobbiesSchemaCategoryInstance SchemaData;
+};
+
+struct FLobbyClientAttributeChanges
+{
+	/** New or changed attributes. */
+	TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
+	/** Attributes to be removed. */
+	TSet<FSchemaAttributeId> RemovedAttributes;
+};
+
+struct FLobbyClientMemberAttributeChanges
+{
+	/** New or changed attributes. */
+	TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
+	/** Attributes to be removed. */
+	TSet<FSchemaAttributeId> RemovedAttributes;
+};
+
+/**
+ * Local changes to a lobby to be applied to the service.
  */
-struct FClientLobbyDataChanges
+struct FLobbyClientChanges
 {
 	/** Local name for the lobby. */
 	TOptional<FName> LocalName;
-
 	/** Setting for new join policy. */
 	TOptional<ELobbyJoinPolicy> JoinPolicy;
-
 	/** Setting for lobby ownership change. */
 	TOptional<FAccountId> OwnerAccountId;
-
 	/** Setting for lobby schema change. */
-	TOptional<FLobbySchemaId> LobbySchema;
-
-	/** New or changed attributes. */
-	TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
-
-	/** Attributes to be cleared. */
-	TSet<FLobbyAttributeId> ClearedAttributes;
-
-	/** Members to be added or changed. */
-	TMap<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>> MutatedMembers;
-
-	/** Members to be removed. */
-	TMap<FAccountId, ELobbyMemberLeaveReason> LeavingMembers;
+	TOptional<FSchemaId> LobbySchema;
+	/** Setting for changing lobby attributes. */
+	TOptional<FLobbyClientAttributeChanges> Attributes;
+	/** Setting for adding or updating the local user. */
+	TOptional<FLobbyClientMemberAttributeChanges> MemberAttributes;
+	/** Setting for removing the local user. */
+	TOptional<ELobbyMemberLeaveReason> LocalUserLeaveReason;
+	/** Setting for kicking the target lobby member. */
+	TOptional<FAccountId> KickedTargetMember;
 };
 
 /**
-* Lobby snapshot data.
-* All contained data has been translated from EOS types.
-* Attributes have had their schema transformations applied.
+ * Local changes to a lobby translated to the changes which will be applied to the service.
+ */
+struct FLobbyClientServiceChanges
+{
+	/** Setting for new join policy. */
+	TOptional<ELobbyJoinPolicy> JoinPolicy;
+	/** Setting for lobby ownership change. */
+	TOptional<FAccountId> OwnerAccountId;
+	/** Target member to be kicked. */
+	TOptional<FAccountId> KickedTargetMember;
+	/** Added or changed lobby attributes and their values. */
+	TMap<FSchemaServiceAttributeId, FSchemaServiceAttributeData> UpdatedAttributes;
+	/** Removed lobby attribute ids. */
+	TSet<FSchemaServiceAttributeId> RemovedAttributes;
+	/** Added or changed lobby member attributes and their values. */
+	TMap<FSchemaServiceAttributeId, FSchemaServiceAttributeData> UpdatedMemberAttributes;
+	/** Removed lobby member attribute ids. */
+	TSet<FSchemaServiceAttributeId> RemovedMemberAttributes;
+};
+
+/**
+* Full snapshot of lobby data excluding the individual member attributes
 */
-struct FClientLobbySnapshot
+struct FLobbyServiceSnapshot
 {
 	FAccountId OwnerAccountId;
-	FName SchemaName;
 	int32 MaxMembers;
 	ELobbyJoinPolicy JoinPolicy;
-	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
+	FSchemaServiceSnapshot SchemaServiceSnapshot;
 	TSet<FAccountId> Members;
 };
 
-struct FClientLobbyMemberSnapshot : public FLobbyMember
+/**
+* Full snapshot of a lobby member.
+*/
+struct FLobbyMemberServiceSnapshot
 {
-	bool bIsLocalMember = false;
+	FAccountId AccountId;
+	FAccountId PlatformAccountId;
+	FString PlatformDisplayName;
+	FSchemaServiceSnapshot SchemaServiceSnapshot;
 };
 
-struct FApplyLobbyUpdateResult
+struct FLobbyClientDataPrepareServiceSnapshot
 {
-	TArray<FAccountId> LeavingLocalMembers;
+	struct Params
+	{
+		/** Full snapshot from the service. */
+		FLobbyServiceSnapshot LobbySnapshot;
+		/** Full snapshot for each member from the service. */
+		TMap<FAccountId, FLobbyMemberServiceSnapshot> LobbyMemberSnapshots;
+		/** Any leaving members notified by the service. */
+		TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
+	};
+
+	struct Result
+	{
+	};
+};
+
+struct FLobbyClientDataCommitServiceSnapshot
+{
+	struct Params
+	{
+		/** Notifier for signaling client events on data change. */
+		FLobbyEvents* LobbyEvents = nullptr;
+	};
+
+	struct Result
+	{
+		/** List of local members leaving the lobby. */
+		TArray<FAccountId> LeavingLocalMembers;
+	};
+};
+
+struct FLobbyClientDataPrepareClientChanges
+{
+	struct Params
+	{
+		/** The local user who is making the changes. */
+		FAccountId LocalAccountId;
+		/** Changes to be applied to service data. */
+		FLobbyClientChanges ClientChanges;
+	};
+
+	struct Result
+	{
+		/** Translated changes to be applied to the service. */
+		FLobbyClientServiceChanges ServiceChanges;
+	};
+};
+
+struct FLobbyClientDataCommitClientChanges
+{
+	struct Params
+	{
+		/** Notifier for signaling client events on data change. */
+		FLobbyEvents* LobbyEvents = nullptr;
+	};
+
+	struct Result
+	{
+		/** List of local members leaving the lobby. */
+		TArray<FAccountId> LeavingLocalMembers;
+	};
 };
 
 /** Lobby data as seen by the client. */
-struct ONLINESERVICESCOMMON_API FClientLobbyData final
+struct ONLINESERVICESCOMMON_API FLobbyClientData final
 {
 public:
-	FClientLobbyData(FLobbyId LobbyId);
+	FLobbyClientData(FLobbyId LobbyId, const TSharedRef<const FSchemaRegistry>& InSchemaRegistry);
 
-	TSharedRef<const FLobby> GetPublicDataPtr() const { return PublicData; }
-	const FLobby& GetPublicData() const { return *PublicData; }
+	TSharedRef<const FLobby> GetPublicDataPtr() const { return InternalPublicData; }
+	const FLobby& GetPublicData() const { return *InternalPublicData; }
 
-	TSharedPtr<const FClientLobbyMemberSnapshot> GetMemberData(FAccountId MemberAccountId) const;
+	TSharedPtr<const FLobbyMemberInternal> GetMemberData(FAccountId MemberAccountId) const;
 
 	/**
 	 * Apply updated lobby data and generate changes.
 	 * The LeaveReason provides context for members who have left since the most recent snapshot.
 	 * Changing a lobby generates events for the local client.
 	 */
-	FApplyLobbyUpdateResult ApplyLobbyUpdateFromServiceSnapshot(
-		FClientLobbySnapshot&& LobbySnapshot,
-		TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
-		TMap<FAccountId, ELobbyMemberLeaveReason>&& LeaveReasons = TMap<FAccountId, ELobbyMemberLeaveReason>(),
-		FLobbyEvents* LobbyEvents = nullptr);
+	TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> PrepareServiceSnapshot(FLobbyClientDataPrepareServiceSnapshot::Params&& Params) const;
+	FLobbyClientDataCommitServiceSnapshot::Result CommitServiceSnapshot(FLobbyClientDataCommitServiceSnapshot::Params&& Params);
 
-	/**
-	 * Apply updated lobby data and generate changes.
-	 * Changing a lobby generates events for the local client.
-	 */
-	FApplyLobbyUpdateResult ApplyLobbyUpdateFromLocalChanges(FClientLobbyDataChanges&& Changes, FLobbyEvents& LobbyEvents);
+	TOnlineResult<FLobbyClientDataPrepareClientChanges> PrepareClientChanges(FLobbyClientDataPrepareClientChanges::Params&& Params) const;
+	FLobbyClientDataCommitClientChanges::Result CommitClientChanges(FLobbyClientDataCommitClientChanges::Params&& Params);
 
 private:
+	void ResetPreparedChanges() const;
+	void AddMember(const TSharedRef<FLobbyMemberInternal>& Member);
+	void RemoveMember(const TSharedRef<FLobbyMemberInternal>& Member);
 
-	/** Apply changes to a set of attributes. Returns the set of attribute IDs which changed. */
-	TSet<FLobbyAttributeId> ApplyAttributeUpdateFromSnapshot(
-		TMap<FLobbyAttributeId, FLobbyVariant>&& AttributeSnapshot,
-		TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes);
+	struct FPreparedServiceChanges
+	{
+		/** Set when there is a change in lobby ownership. */
+		TOptional<FAccountId> OwnerAccountId;
+		/** Set when there is a change in max members. */
+		TOptional<int32> MaxMembers;
+		/** Set when there is a change in join policy. */
+		TOptional<ELobbyJoinPolicy> JoinPolicy;
+		/** Members who did not already have a local representation. */
+		TArray<TSharedRef<FLobbyMemberInternal>> NewMemberDataStorage;
+		/** Members who already exist in the lobby. */
+		TArray<TSharedRef<FLobbyMemberInternal>> UpdatedMemberDataStorage;
+		/** Any leaving members and their reason. */
+		TArray<TPair<TSharedRef<FLobbyMemberInternal>, ELobbyMemberLeaveReason>> LeavingMembers;
+	};
 
-	/** Apply changes to a set of attributes. Returns the set of attribute IDs which changed. */
-	TSet<FLobbyAttributeId> ApplyAttributeUpdateFromChanges(
-		TMap<FLobbyAttributeId, FLobbyVariant>&& MutatedAttributes,
-		TSet<FLobbyAttributeId>&& ClearedAttributes,
-		TMap<FLobbyAttributeId, FLobbyVariant>& ExistingAttributes);
+	struct FPreparedClientChanges
+	{
+		/** The local user associated with the change. */
+		FAccountId LocalAccountId;
+		/** Local name for the lobby. */
+		TOptional<FName> LocalName;
+		/** Setting for new join policy. */
+		TOptional<ELobbyJoinPolicy> JoinPolicy;
+		/** Setting for lobby ownership change. */
+		TOptional<FAccountId> OwnerAccountId;
+		/** Target member to be kicked. */
+		TOptional<FAccountId> KickedTargetMember;
+		/** Access to local member when joining and assigning initial attributes. */
+		TSharedPtr<FLobbyMemberInternal> JoiningLocalMember;
+		/** Access to local member when updating attributes. */
+		TSharedPtr<FLobbyMemberInternal> UpdatedLocalMember;
+		/** Reason to be set when the local member is leaving. */
+		TOptional<ELobbyMemberLeaveReason> LocalUserLeaveReason;
+		/** Whether there are waiting lobby attribute changes to be committed. */
+		bool bLobbyAttributesChanged = false;
+	};
+
+	/**
+	 * The schema registry is needed to initialize new members.
+	 */
+	TSharedRef<const FSchemaRegistry> SchemaRegistry;
 
 	/**
 	 * The shared pointer given back to user code with lobby operation results and notifications.
 	 * Any changes to this data are immediately available to users.
 	 */
-	TSharedRef<FLobby> PublicData;
+	TSharedRef<FLobbyInternal> InternalPublicData;
 
 	/** Mutable lobby member data storage. */
-	TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> MemberDataStorage;
+	TMap<FAccountId, TSharedRef<FLobbyMemberInternal>> MemberDataStorage;
 
 	/**
 	 * Keep track of which members are local to the client.
 	 * When all local members have been removed all members will be removed.
 	 */
 	TSet<FAccountId> LocalMembers;
+
+	/** Updates which have been applied but not yet committed. */
+	mutable TOptional<FPreparedServiceChanges> PreparedServiceChanges;
+	mutable TOptional<FPreparedClientChanges> PreparedClientChanges;
 };
 
 #if LOBBIES_FUNCTIONAL_TEST_ENABLED
@@ -311,24 +374,6 @@ struct FFunctionalTestLobbies
 #endif // LOBBIES_FUNCTIONAL_TEST_ENABLED
 
 namespace Meta {
-
-BEGIN_ONLINE_STRUCT_META(FLobbyConfig)
-	ONLINE_STRUCT_FIELD(FLobbyConfig, RegisteredSchemas)
-END_ONLINE_STRUCT_META()
-
-
-BEGIN_ONLINE_STRUCT_META(FLobbySchemaAttributeConfig)
-	ONLINE_STRUCT_FIELD(FLobbySchemaAttributeConfig, Name),
-	ONLINE_STRUCT_FIELD(FLobbySchemaAttributeConfig, ServiceAttributeFieldId),
-	ONLINE_STRUCT_FIELD(FLobbySchemaAttributeConfig, MaxByteSize),
-	ONLINE_STRUCT_FIELD(FLobbySchemaAttributeConfig, Visibility)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FLobbySchemaConfig)
-	ONLINE_STRUCT_FIELD(FLobbySchemaConfig, BaseSchemaName),
-	ONLINE_STRUCT_FIELD(FLobbySchemaConfig, LobbyAttributes),
-	ONLINE_STRUCT_FIELD(FLobbySchemaConfig, LobbyMemberAttributes)
-END_ONLINE_STRUCT_META()
 
 #if LOBBIES_FUNCTIONAL_TEST_ENABLED
 BEGIN_ONLINE_STRUCT_META(FFunctionalTestLobbies::Params)

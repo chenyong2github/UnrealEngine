@@ -762,7 +762,9 @@ bool FSchemaRegistry::ParseConfig(const FSchemaRegistryDescriptorConfig& Config)
 	}
 }
 
-FSchemaCategoryInstance::FSchemaCategoryInstance(
+namespace Private {
+
+FSchemaCategoryInstanceBase::FSchemaCategoryInstanceBase(
 	const FSchemaId& DerivedSchemaId,
 	const FSchemaId& BaseSchemaId,
 	const FSchemaCategoryId& CategoryId,
@@ -771,7 +773,7 @@ FSchemaCategoryInstance::FSchemaCategoryInstance(
 {
 	bool bInitSuccess = true;
 
-	if (InitializeSchemaDefinition(BaseSchemaId, CategoryId, &BaseSchemaDefinition, &BaseSchemaCategoryDefinition))
+	if (InitializeSchemaDefinition(BaseSchemaId, nullptr, CategoryId, &BaseSchemaDefinition, &BaseSchemaCategoryDefinition))
 	{
 		if (DerivedSchemaId == FSchemaId())
 		{
@@ -782,24 +784,7 @@ FSchemaCategoryInstance::FSchemaCategoryInstance(
 		}
 		else
 		{
-			if (InitializeSchemaDefinition(DerivedSchemaId, CategoryId, &DerivedSchemaDefinition, &DerivedSchemaCategoryDefinition))
-			{
-				// When a derived schema is in use the base schema must have a field flagged as SchemaCompatibilityId.
-				if (BaseSchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId == FSchemaServiceAttributeId())
-				{
-					UE_LOG(LogOnlineSchema, Error, TEXT("[FSchemaCategoryInstance] init error: Base schema %s is missing a valid SchemaCompatibilityId field"),
-						*BaseSchemaId.ToString().ToLower());
-					bInitSuccess = false;
-				}
-				else if (!SchemaRegistry->IsSchemaChildOf(DerivedSchemaId, BaseSchemaId))
-				{
-					UE_LOG(LogOnlineSchema, Error, TEXT("[FSchemaCategoryInstance] init error: Schema %s is not a child of %s"),
-						*DerivedSchemaId.ToString().ToLower(),
-						*BaseSchemaId.ToString().ToLower());
-					bInitSuccess = false;
-				}
-			}
-			else
+			if (!InitializeSchemaDefinition(DerivedSchemaId, BaseSchemaDefinition.Get(), CategoryId, &DerivedSchemaDefinition, &DerivedSchemaCategoryDefinition))
 			{
 				// Unable to find derived schema when it was expected to be valid.
 				bInitSuccess = false;
@@ -809,6 +794,11 @@ FSchemaCategoryInstance::FSchemaCategoryInstance(
 
 	if (!bInitSuccess)
 	{
+		UE_LOG(LogOnlineSchema, Error, TEXT("[FSchemaCategoryInstance] init failed. DerivedSchema[%s], BaseSchema[%s], CategoryId[%s]"),
+			*DerivedSchemaId.ToString().ToLower(),
+			*BaseSchemaId.ToString().ToLower(),
+			*CategoryId.ToString().ToLower());
+
 		// Invalidate schema to fail initialization.
 		BaseSchemaDefinition.Reset();
 		BaseSchemaCategoryDefinition = nullptr;
@@ -817,109 +807,176 @@ FSchemaCategoryInstance::FSchemaCategoryInstance(
 	}
 }
 
-TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta> FSchemaCategoryInstance::ApplyApplicationDelta(FSchemaCategoryInstanceApplyApplicationDelta::Params&& Params)
+TOnlineResult<FSchemaCategoryInstancePrepareClientChanges> FSchemaCategoryInstanceBase::PrepareClientChanges(FSchemaCategoryInstancePrepareClientChanges::Params&& Params) const
 {
 	// todo: handle packing multiple attributes into a service attribute.
+
+	// Start by clearing any previous prepared state.
+	ResetPreparedChanges();
 
 	const FSchemaDefinition* SchemaDefinition = nullptr;
 	const FSchemaCategoryDefinition* SchemaCategoryDefinition = nullptr;
 	if (!GetSerializationSchema(&SchemaDefinition, &SchemaCategoryDefinition))
 	{
-		UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] Schema category definition not found."));
-		return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidState());
+		UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] Serialization schema category definition not found."));
+		return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidState());
 	}
 
-	// Configured service attributes must be present to serialize to service.
-	if (SchemaCategoryDefinition->ServiceAttributeDefinitions.IsEmpty())
+	FSchemaClientServiceChanges ServiceChanges;
+	FPreparedClientChanges NewPreparedClientChanges;
+
+	// Handle schema swap.
+	if (Params.ClientChanges.SchemaId)
 	{
-		UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s: Schema category has not been configured for serialization."),
-			*SchemaDefinition->Id.ToString().ToLower(),
-			*SchemaCategoryDefinition->Id.ToString().ToLower());
-		return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
-	}
-
-	FSchemaServiceChanges Changes;
-
-	// Translate mutated attributes.
-	for (TPair<FSchemaAttributeId, FSchemaVariant>& UpdatedAttributeData : Params.UpdatedAttributes)
-	{
-		const FSchemaAttributeId& UpdatedAttributeId = UpdatedAttributeData.Get<0>();
-		FSchemaVariant& UpdatedAttributeValue = UpdatedAttributeData.Get<1>();
-
-		if (const FSchemaAttributeDefinition* AttributeDefinition = SchemaCategoryDefinition->SchemaAttributeDefinitions.Find(UpdatedAttributeId))
+		if (InitializeSchemaDefinition(
+			*Params.ClientChanges.SchemaId,
+			BaseSchemaDefinition.Get(),
+			BaseSchemaCategoryDefinition->Id,
+			&NewPreparedClientChanges.DerivedSchemaDefinition,
+			&NewPreparedClientChanges.DerivedSchemaCategoryDefinition))
 		{
-			// Schema compatibility id cannot be modified by application code.
-			if (EnumHasAnyFlags(AttributeDefinition->Flags, ESchemaAttributeFlags::SchemaCompatibilityId))
+			if (DerivedSchemaDefinition)
 			{
-				UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: It is not valid to set SchemaCompatibilityId in an attribute update"),
-					*SchemaDefinition->Id.ToString().ToLower(),
-					*SchemaCategoryDefinition->Id.ToString().ToLower(),
-					*AttributeDefinition->Id.ToString().ToLower());
-				return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
+				// todo: handle schema change when previously set.
+				return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::NotImplemented());
 			}
-
-			// Check that type matches.
-			if (AttributeDefinition->Type != UpdatedAttributeValue.GetType())
+			else
 			{
-				UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: Attribute type %s does not match the expected type %s."),
-					*SchemaDefinition->Id.ToString().ToLower(),
-					*SchemaCategoryDefinition->Id.ToString().ToLower(),
-					*AttributeDefinition->Id.ToString().ToLower(),
-					LexToString(UpdatedAttributeValue.GetType()),
-					LexToString(AttributeDefinition->Type));
-				return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
-			}
+				// Derived schema init succeeded. Switch to using it for preparing the service changes.
+				SchemaDefinition = NewPreparedClientChanges.DerivedSchemaDefinition.Get();
+				SchemaCategoryDefinition = NewPreparedClientChanges.DerivedSchemaCategoryDefinition;
 
-			// Check that variable sized data fits within the service attribute.
-			if (AttributeDefinition->Type == ESchemaAttributeType::String && UpdatedAttributeValue.GetString().Len() > AttributeDefinition->MaxSize)
-			{
-				UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: Variably sized attribute exceeds maximum defined length. %d > %d."),
-					*SchemaDefinition->Id.ToString().ToLower(),
-					*SchemaCategoryDefinition->Id.ToString().ToLower(),
-					*AttributeDefinition->Id.ToString().ToLower(),
-					UpdatedAttributeValue.GetString().Len(),
-					AttributeDefinition->MaxSize);
-				return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
+				NewPreparedClientChanges.ClientChanges.SchemaId.Emplace(SchemaDefinition->Id);
 			}
-
-			Changes.UpdatedAttributes.Add(AttributeDefinition->ServiceAttributeId, {AttributeDefinition->ServiceAttributeId, AttributeDefinition->Flags, MoveTemp(UpdatedAttributeValue)});
 		}
 		else
 		{
-			UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: Attribute definition does not exist in schema category."),
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] Schema change failed: NewDerivedSchema[%s], BaseSchema[%s]"),
+				*Params.ClientChanges.SchemaId->ToString().ToLower(),
+				*BaseSchemaCategoryDefinition->Id.ToString().ToLower());
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
+		}
+	}
+
+	// Translate mutated attributes.
+	for (TPair<FSchemaAttributeId, FSchemaVariant>& UpdatedAttributeData : Params.ClientChanges.UpdatedAttributes)
+	{
+		const FSchemaAttributeId& UpdatedAttributeId = UpdatedAttributeData.Key;
+		FSchemaVariant& UpdatedAttributeValue = UpdatedAttributeData.Value;
+
+		const FSchemaAttributeDefinition* AttributeDefinition = SchemaCategoryDefinition->SchemaAttributeDefinitions.Find(UpdatedAttributeId);
+		if (AttributeDefinition == nullptr)
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Attribute definition does not exist in schema category."),
 				*SchemaDefinition->Id.ToString().ToLower(),
 				*SchemaCategoryDefinition->Id.ToString().ToLower(),
 				*UpdatedAttributeId.ToString().ToLower());
-			return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
+		}
+
+		// Schema compatibility id cannot be modified by client code.
+		if (EnumHasAnyFlags(AttributeDefinition->Flags, ESchemaAttributeFlags::SchemaCompatibilityId))
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: It is not valid to set SchemaCompatibilityId in an attribute update"),
+				*SchemaDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->Id.ToString().ToLower(),
+				*AttributeDefinition->Id.ToString().ToLower());
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
+		}
+
+		// Check that type matches.
+		if (AttributeDefinition->Type != UpdatedAttributeValue.GetType())
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Attribute type %s does not match the expected type %s."),
+				*SchemaDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->Id.ToString().ToLower(),
+				*AttributeDefinition->Id.ToString().ToLower(),
+				LexToString(UpdatedAttributeValue.GetType()),
+				LexToString(AttributeDefinition->Type));
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
+		}
+
+		// Check that variable sized data fits within the service attribute.
+		if (AttributeDefinition->Type == ESchemaAttributeType::String && UpdatedAttributeValue.GetString().Len() > AttributeDefinition->MaxSize)
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Variably sized attribute exceeds maximum defined length. %d > %d."),
+				*SchemaDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->Id.ToString().ToLower(),
+				*AttributeDefinition->Id.ToString().ToLower(),
+				UpdatedAttributeValue.GetString().Len(),
+				AttributeDefinition->MaxSize);
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
+		}
+
+		// Compare attribute to previously known client data.
+		if (const FSchemaVariant* PreviousValue = GetClientSnapshot().Find(UpdatedAttributeId))
+		{
+			// Ignore change to the same value.
+			if (*PreviousValue != UpdatedAttributeValue)
+			{
+				// Store change to client data.
+				NewPreparedClientChanges.ClientChanges.ChangedAttributes.Add(UpdatedAttributeId, { *PreviousValue, UpdatedAttributeValue });
+			}
+		}
+		else
+		{
+			// Store change to client data.
+			NewPreparedClientChanges.ClientChanges.AddedAttributes.Add(UpdatedAttributeId, UpdatedAttributeValue);
+		}
+
+		if (AttributeDefinition->ServiceAttributeId != FSchemaServiceAttributeId())
+		{
+			const FSchemaServiceAttributeDefinition* ServiceAttributeDefinition = SchemaCategoryDefinition->ServiceAttributeDefinitions.Find(AttributeDefinition->ServiceAttributeId);
+			if (ensure(ServiceAttributeDefinition))
+			{
+				// Add modified attribute to output.
+				ServiceChanges.UpdatedAttributes.Add(AttributeDefinition->ServiceAttributeId, { AttributeDefinition->ServiceAttributeId, ServiceAttributeDefinition->Flags, MoveTemp(UpdatedAttributeValue) });
+			}
+			else
+			{
+				UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Unable to find service attribute definition for service attribute %s."),
+					*SchemaDefinition->Id.ToString().ToLower(),
+					*SchemaCategoryDefinition->Id.ToString().ToLower(),
+					*AttributeDefinition->Id.ToString().ToLower(),
+					*AttributeDefinition->ServiceAttributeId.ToString().ToLower());
+				return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidState());
+			}
 		}
 	}
 
 	// Translate removed attributes.
-	for (FSchemaAttributeId& RemovedAttributeId : Params.RemovedAttributes)
+	for (FSchemaAttributeId& RemovedAttributeId : Params.ClientChanges.RemovedAttributes)
 	{
 		if (const FSchemaAttributeDefinition* AttributeDefinition = SchemaCategoryDefinition->SchemaAttributeDefinitions.Find(RemovedAttributeId))
 		{
-			// Schema compatibility id cannot be modified by application code.
+			// Schema compatibility id cannot be modified by client code.
 			if (EnumHasAnyFlags(AttributeDefinition->Flags, ESchemaAttributeFlags::SchemaCompatibilityId))
 			{
-				UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: It is not valid to set SchemaCompatibilityId in an attribute update"),
+				UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: It is not valid to set SchemaCompatibilityId in an attribute update"),
 					*SchemaDefinition->Id.ToString().ToLower(),
 					*SchemaCategoryDefinition->Id.ToString().ToLower(),
 					*AttributeDefinition->Id.ToString().ToLower());
-				return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
+				return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
 			}
 			else
 			{
-				Changes.RemovedAttributes.Add(AttributeDefinition->ServiceAttributeId);
+				// Store change to client data.
+				NewPreparedClientChanges.ClientChanges.RemovedAttributes.Add(RemovedAttributeId);
+
+				if (AttributeDefinition->ServiceAttributeId != FSchemaServiceAttributeId())
+				{
+					// Add removed attribute to service output.
+					ServiceChanges.RemovedAttributes.Add(AttributeDefinition->ServiceAttributeId);
+				}
 			}
 		}
 		else
 		{
-			UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: Attribute definition does not exist in schema category."),
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Attribute definition does not exist in schema category."),
 				*SchemaDefinition->Id.ToString().ToLower(),
 				*SchemaCategoryDefinition->Id.ToString().ToLower(),
 				*RemovedAttributeId.ToString().ToLower());
-			return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidParams());
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidParams());
 		}
 	}
 
@@ -929,114 +986,202 @@ TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta> FSchemaCategoryInsta
 		const FSchemaAttributeDefinition* AttributeDefinition = SchemaCategoryDefinition->SchemaAttributeDefinitions.Find(SchemaCategoryDefinition->SchemaCompatibilityAttributeId);
 		if (ensure(AttributeDefinition))
 		{
-			Changes.UpdatedAttributes.Add(AttributeDefinition->ServiceAttributeId, { AttributeDefinition->ServiceAttributeId, AttributeDefinition->Flags, SchemaDefinition->CompatibilityId });
-			LastSentSchemaCompatibilityId = SchemaDefinition->CompatibilityId;
-		}
-		else
-		{
-			UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyApplicationDelta] %s.%s.%s: Failed to find attribute defnition for SchemaCompatibilityId field."),
-				*SchemaDefinition->Id.ToString().ToLower(),
-				*SchemaCategoryDefinition->Id.ToString().ToLower(),
-				*SchemaCategoryDefinition->SchemaCompatibilityAttributeId.ToString().ToLower());
-			return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(Errors::InvalidState());
-		}
-	}
-
-	return TOnlineResult<FSchemaCategoryInstanceApplyApplicationDelta>(FSchemaCategoryInstanceApplyApplicationDelta::Result({MoveTemp(Changes)}));
-}
-
-TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot> FSchemaCategoryInstance::ApplyServiceSnapshot(FSchemaCategoryInstanceApplyServiceSnapshot::Params&& Params)
-{
-	// todo: handle unpacking a service attribute into multiple attributes.
-
-	const FSchemaDefinition* SchemaDefinition = nullptr;
-	const FSchemaCategoryDefinition* SchemaCategoryDefinition = nullptr;
-
-	if (!GetSerializationSchema(&SchemaDefinition, &SchemaCategoryDefinition))
-	{
-		UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyServiceSnapshot] Schema category definition not found."));
-		return TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot>(Errors::InvalidState());
-	}
-
-	FSchemaApplicationChanges Changes;
-
-	// Check for a schema change.
-	TPair<FSchemaServiceAttributeId, FSchemaVariant>* SchemaCompatibilityAttributeData = Algo::FindByPredicate(Params.Attributes,
-		[&SchemaCategoryDefinition](const TPair<FSchemaServiceAttributeId, FSchemaVariant>& AttributeData)
-		{
-			return AttributeData.Get<0>() == SchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId;
-		});
-
-	// Handle incoming schema change.
-	if (SchemaCompatibilityAttributeData)
-	{
-		const FSchemaVariant& SchemaCompatibilityIdValue = SchemaCompatibilityAttributeData->Get<1>();
-
-		if (TSharedPtr<const FSchemaDefinition> SwappedSchema = SchemaRegistry->GetDefinition(SchemaCompatibilityIdValue.GetInt64()))
-		{
-			if (!SchemaRegistry->IsSchemaChildOf(SwappedSchema->Id, BaseSchemaDefinition->Id))
+			if (AttributeDefinition->ServiceAttributeId != FSchemaServiceAttributeId())
 			{
-				UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyServiceSnapshot] %s.%s.%s: Invalid schema swap. Incoming schema %s is not a child of %s."),
-					*SchemaDefinition->Id.ToString().ToLower(),
-					*SchemaCategoryDefinition->Id.ToString().ToLower(),
-					*SchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId.ToString().ToLower(),
-					*SwappedSchema->Id.ToString().ToLower(),
-					*BaseSchemaDefinition->Id.ToString().ToLower());
-				return TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot>(Errors::InvalidParams());
-			}
-
-			// Check that schema has actually changed.
-			if (DerivedSchemaDefinition == nullptr || DerivedSchemaDefinition->Id != SwappedSchema->Id)
-			{
-				Changes.SchemaId.Emplace(SwappedSchema->Id);
-
-				// Category must exist due to parent -> child relationship
-				const FSchemaCategoryDefinition* SwappedSchemaCategoryDefinition = SwappedSchema->Categories.Find(SchemaCategoryDefinition->Id);
-				if (ensure(SwappedSchemaCategoryDefinition))
+				const FSchemaServiceAttributeDefinition* ServiceAttributeDefinition = SchemaCategoryDefinition->ServiceAttributeDefinitions.Find(AttributeDefinition->ServiceAttributeId);
+				if (ensure(ServiceAttributeDefinition))
 				{
-					UE_LOG(LogOnlineSchema, Verbose, TEXT("[ApplyServiceSnapshot] %s.%s.%s: Derived schema changed from %s to %s."),
-						*SchemaDefinition->Id.ToString().ToLower(),
-						*SchemaCategoryDefinition->Id.ToString().ToLower(),
-						*SchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId.ToString().ToLower(),
-						DerivedSchemaDefinition ? *DerivedSchemaDefinition->Id.ToString().ToLower() : TEXT("nullptr"),
-						*SwappedSchemaCategoryDefinition->Id.ToString().ToLower());
-
-					// Set new schema to class member data.
-					DerivedSchemaDefinition = SwappedSchema;
-					DerivedSchemaCategoryDefinition = SwappedSchemaCategoryDefinition;
-
-					// Update schema definitions for current update processing.
-					SchemaDefinition = DerivedSchemaDefinition.Get();
-					SchemaCategoryDefinition = SwappedSchemaCategoryDefinition;
+					ServiceChanges.UpdatedAttributes.Add(AttributeDefinition->ServiceAttributeId, { AttributeDefinition->ServiceAttributeId, ServiceAttributeDefinition->Flags, SchemaDefinition->CompatibilityId });
 				}
 				else
 				{
-					UE_LOG(LogOnlineSchema, Error, TEXT("[ApplyServiceSnapshot] %s.%s.%s: Failed to find expected category definition in incoming schema %s."),
+					UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Unable to find service attribute definition for service attribute %s."),
 						*SchemaDefinition->Id.ToString().ToLower(),
 						*SchemaCategoryDefinition->Id.ToString().ToLower(),
-						*SchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId.ToString().ToLower(),
-						*SchemaCategoryDefinition->Id.ToString().ToLower());
-					return TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot>(Errors::InvalidParams());
+						*AttributeDefinition->Id.ToString().ToLower(),
+						*AttributeDefinition->ServiceAttributeId.ToString().ToLower());
+					return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidState());
 				}
+			}
+
+			NewPreparedClientChanges.SchemaCompatibilityId = SchemaDefinition->CompatibilityId;
+		}
+		else
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareClientChanges] %s.%s.%s: Failed to find attribute definition for SchemaCompatibilityId field."),
+				*SchemaDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->SchemaCompatibilityAttributeId.ToString().ToLower());
+			return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>(Errors::InvalidState());
+		}
+	}
+
+	// Store pending changes to be applied on commit.
+	PreparedClientChanges = MoveTemp(NewPreparedClientChanges);
+
+	return TOnlineResult<FSchemaCategoryInstancePrepareClientChanges>({MoveTemp(ServiceChanges)});
+}
+
+FSchemaCategoryInstanceCommitClientChanges::Result FSchemaCategoryInstanceBase::CommitClientChanges()
+{
+	FSchemaServiceClientChanges ClientChanges;
+
+	// Check that there is a waiting delta state to be applied.
+	if (!PreparedClientChanges.IsSet())
+	{
+		return FSchemaCategoryInstanceCommitClientChanges::Result({ MoveTemp(ClientChanges) });
+	}
+
+	// Apply delta to state snapshot.
+	TMap<FSchemaAttributeId, FSchemaVariant>& ClientDataSnapshot = GetMutableClientSnapshot();
+
+	// Handle added attributes.
+	Algo::ForEach(PreparedClientChanges->ClientChanges.AddedAttributes,
+		[&ClientDataSnapshot](const TPair<FSchemaAttributeId, FSchemaVariant>& AddedPair) -> void
+		{
+			ClientDataSnapshot.Add(AddedPair.Key, AddedPair.Value);
+		});
+
+	// Handle changed attributes.
+	Algo::ForEach(PreparedClientChanges->ClientChanges.ChangedAttributes,
+		[&ClientDataSnapshot](const TPair<FSchemaAttributeId, TPair<FSchemaVariant, FSchemaVariant>>& ChangedPair) -> void
+		{
+			ClientDataSnapshot.Add(ChangedPair.Key, ChangedPair.Value.Value);
+		});
+
+	// Handle removed attributes.
+	Algo::ForEach(PreparedClientChanges->ClientChanges.RemovedAttributes,
+		[&ClientDataSnapshot](FSchemaAttributeId RemovedAttributeId) -> void
+		{
+			ClientDataSnapshot.Remove(RemovedAttributeId);
+		});
+
+	// Set last sent schema compatibility id.
+	if (PreparedClientChanges->SchemaCompatibilityId != 0)
+	{
+		LastSentSchemaCompatibilityId = PreparedClientChanges->SchemaCompatibilityId;
+	}
+
+	// Set schema definitions from a schema swap.
+	if (PreparedClientChanges->DerivedSchemaCategoryDefinition)
+	{
+		DerivedSchemaDefinition = PreparedClientChanges->DerivedSchemaDefinition;
+		DerivedSchemaCategoryDefinition = PreparedClientChanges->DerivedSchemaCategoryDefinition;
+	}
+
+	// Move out client changes for returning to the client.
+	ClientChanges = MoveTemp(PreparedClientChanges->ClientChanges);
+
+	// Reset pending state.
+	ResetPreparedChanges();
+
+	// Return client changes.
+	return FSchemaCategoryInstanceCommitClientChanges::Result({MoveTemp(ClientChanges)});
+}
+
+TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot> FSchemaCategoryInstanceBase::PrepareServiceSnapshot(FSchemaCategoryInstancePrepareServiceSnapshot::Params&& Params) const
+{
+	// todo: handle unpacking a service attribute into multiple attributes.
+
+	// Start by clearing any previous prepared state.
+	ResetPreparedChanges();
+	FPreparedServiceChanges NewPreparedServiceChanges;
+	FSchemaCategoryInstancePrepareServiceSnapshot::Result ApplyResult;
+
+	const FSchemaDefinition* SchemaDefinition = nullptr;
+	const FSchemaCategoryDefinition* SchemaCategoryDefinition = nullptr;
+	if (!GetSerializationSchema(&SchemaDefinition, &SchemaCategoryDefinition))
+	{
+		UE_LOG(LogOnlineSchema, Warning, TEXT("[CommitServiceSnapshot] Serialization schema category definition not found."));
+		return TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot>(Errors::InvalidState());
+	}
+
+	// Check for a schema change.
+	TPair<FSchemaServiceAttributeId, FSchemaVariant>* SchemaCompatibilityAttributeData = Algo::FindByPredicate(Params.ServiceSnapshot.Attributes,
+		[&SchemaCategoryDefinition](const TPair<FSchemaServiceAttributeId, FSchemaVariant>& AttributeData)
+		{
+			return AttributeData.Key == SchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId;
+		});
+
+	// Handle incoming schema change from service attribute.
+	if (SchemaCompatibilityAttributeData)
+	{
+		const int64 SchemaCompatibilityId = SchemaCompatibilityAttributeData->Value.GetInt64();
+
+		if (InitializeSchemaDefinition(
+			SchemaCompatibilityId,
+			BaseSchemaDefinition.Get(),
+			SchemaCategoryDefinition->Id,
+			&NewPreparedServiceChanges.DerivedSchemaDefinition,
+			&NewPreparedServiceChanges.DerivedSchemaCategoryDefinition))
+		{
+			// Check that schema has actually changed.
+			if (DerivedSchemaDefinition == nullptr || DerivedSchemaDefinition->Id != NewPreparedServiceChanges.DerivedSchemaDefinition->Id)
+			{
+				// Derived schema init succeeded. Switch to using it for preparing the client changes.
+				SchemaDefinition = NewPreparedServiceChanges.DerivedSchemaDefinition.Get();
+				SchemaCategoryDefinition = NewPreparedServiceChanges.DerivedSchemaCategoryDefinition;
+
+				NewPreparedServiceChanges.ClientChanges.SchemaId.Emplace(SchemaDefinition->Id);
+				ApplyResult.DerivedSchemaId.Emplace(SchemaDefinition->Id);
 			}
 		}
 		else
 		{
-			UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyServiceSnapshot] %s.%s.%s: Failed to find definition for SchemaCompatibilityId 0x%08" INT64_X_FMT "."),
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareServiceSnapshot] %s.%s.%s: Failed to find valid definition for SchemaCompatibilityId 0x%08" INT64_X_FMT "."),
 				*SchemaDefinition->Id.ToString().ToLower(),
 				*SchemaCategoryDefinition->Id.ToString().ToLower(),
 				*SchemaCategoryDefinition->SchemaCompatibilityServiceAttributeId.ToString().ToLower(),
-				SchemaCompatibilityIdValue.GetInt64());
-			return TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot>(Errors::InvalidParams());
+				SchemaCompatibilityId);
+			return TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot>(Errors::InvalidParams());
+		}
+	}
+
+	// Handle incoming schema change from user parameter.
+	if (Params.SchemaId)
+	{
+		// Manual setting of schema id is only allowed when it cannot be detected from the service.
+		if (SchemaCompatibilityAttributeData)
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareServiceSnapshot] %s.%s: Unable to handle user schema swap when service defines a schema compatibility id."),
+				*SchemaDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->Id.ToString().ToLower());
+			return TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot>(Errors::InvalidParams());
+		}
+	
+		if (InitializeSchemaDefinition(
+			*Params.SchemaId,
+			BaseSchemaDefinition.Get(),
+			SchemaCategoryDefinition->Id,
+			&NewPreparedServiceChanges.DerivedSchemaDefinition,
+			&NewPreparedServiceChanges.DerivedSchemaCategoryDefinition))
+		{
+			// Check that schema has actually changed.
+			if (DerivedSchemaDefinition == nullptr || DerivedSchemaDefinition->Id != NewPreparedServiceChanges.DerivedSchemaDefinition->Id)
+			{
+				// Derived schema init succeeded. Switch to using it for preparing the client changes.
+				SchemaDefinition = NewPreparedServiceChanges.DerivedSchemaDefinition.Get();
+				SchemaCategoryDefinition = NewPreparedServiceChanges.DerivedSchemaCategoryDefinition;
+
+				NewPreparedServiceChanges.ClientChanges.SchemaId.Emplace(SchemaDefinition->Id);
+				ApplyResult.DerivedSchemaId.Emplace(SchemaDefinition->Id);
+			}
+		}
+		else
+		{
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareServiceSnapshot] %s.%s: Failed to find valid definition for SchemaId %s."),
+				*SchemaDefinition->Id.ToString().ToLower(),
+				*SchemaCategoryDefinition->Id.ToString().ToLower(),
+				*Params.SchemaId->ToString().ToLower());
+			return TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot>(Errors::InvalidParams());
 		}
 	}
 
 	// Unpack service attributes.
-	TMap<FSchemaAttributeId, FSchemaVariant> NewApplicationDataServiceSnapshot;
-	for (TPair<FSchemaServiceAttributeId, FSchemaVariant>& SchemaServiceAttributeData : Params.Attributes)
+	for (TPair<FSchemaServiceAttributeId, FSchemaVariant>& SchemaServiceAttributeData : Params.ServiceSnapshot.Attributes)
 	{
-		const FSchemaServiceAttributeId& SchemaServiceAttributeId = SchemaServiceAttributeData.Get<0>();
-		FSchemaVariant& SchemaServiceAttributeValue = SchemaServiceAttributeData.Get<1>();
+		const FSchemaServiceAttributeId& SchemaServiceAttributeId = SchemaServiceAttributeData.Key;
+		FSchemaVariant& SchemaServiceAttributeValue = SchemaServiceAttributeData.Value;
 
 		if (const FSchemaServiceAttributeDefinition* SchemaServiceAttributeDefinition =
 			SchemaCategoryDefinition->ServiceAttributeDefinitions.Find(SchemaServiceAttributeId))
@@ -1051,10 +1196,10 @@ TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot> FSchemaCategoryInstan
 				// Attribute definition must be valid due to successfully processing config.
 				check(SchemaAttributeDefinition);
 
-				// Schema changes are handled by surfacing a new schema id in the result object. Don't return SchemaCompatibilityId as an attribute to the application.
+				// Schema changes are handled by surfacing a new schema id in the result object. Don't return SchemaCompatibilityId as an attribute to the client.
 				if (EnumHasAnyFlags(SchemaAttributeDefinition->Flags, ESchemaAttributeFlags::SchemaCompatibilityId))
 				{
-					UE_LOG(LogOnlineSchema, Verbose, TEXT("[ApplyServiceSnapshot] %s.%s.%s: Consuming SchemaCompatibility attribute data: %s."),
+					UE_LOG(LogOnlineSchema, Verbose, TEXT("[PrepareServiceSnapshot] %s.%s.%s: Consuming SchemaCompatibility attribute data: %s."),
 						*SchemaDefinition->Id.ToString().ToLower(),
 						*SchemaCategoryDefinition->Id.ToString().ToLower(),
 						*SchemaAttributeDefinition->Id.ToString().ToLower(),
@@ -1062,62 +1207,100 @@ TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot> FSchemaCategoryInstan
 				}
 				else
 				{
-					NewApplicationDataServiceSnapshot.Emplace(SchemaAttributeDefinition->Id, MoveTemp(SchemaServiceAttributeValue));
+					NewPreparedServiceChanges.ClientDataSnapshot.Emplace(SchemaAttributeDefinition->Id, MoveTemp(SchemaServiceAttributeValue));
 				}
 			}
 		}
 		else
 		{
-			UE_LOG(LogOnlineSchema, Warning, TEXT("[ApplyServiceSnapshot] %s.%s.%s: Service attribute definition does not exist in schema category."),
+			UE_LOG(LogOnlineSchema, Warning, TEXT("[PrepareServiceSnapshot] %s.%s.%s: Service attribute definition does not exist in schema category."),
 				*SchemaDefinition->Id.ToString().ToLower(),
 				*SchemaCategoryDefinition->Id.ToString().ToLower(),
 				*SchemaServiceAttributeId.ToString().ToLower());
-			return TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot>(Errors::InvalidParams());
+			return TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot>(Errors::InvalidParams());
 		}
 	}
 
-	// Process new snapshot against old snapshot to build application data changes.
+	// Process new snapshot against old snapshot to build client data changes.
 	{
 		// Find attributes that were added or changed.
-		for (const TPair<FSchemaAttributeId, FSchemaVariant>& NewSnapshotAttributeData : NewApplicationDataServiceSnapshot)
+		for (const TPair<FSchemaAttributeId, FSchemaVariant>& NewSnapshotAttributeData : NewPreparedServiceChanges.ClientDataSnapshot)
 		{
-			const FSchemaServiceAttributeId& NewSnapshotAttributeId = NewSnapshotAttributeData.Get<0>();
-			const FSchemaVariant& NewSnapshotAttributeValue = NewSnapshotAttributeData.Get<1>();
+			const FSchemaServiceAttributeId& NewSnapshotAttributeId = NewSnapshotAttributeData.Key;
+			const FSchemaVariant& NewSnapshotAttributeValue = NewSnapshotAttributeData.Value;
 
-			if (FSchemaVariant* OldSnapshotAttributeValue = ApplicationDataServiceSnapshot.Find(NewSnapshotAttributeId))
+			if (const FSchemaVariant* OldSnapshotAttributeValue = GetClientSnapshot().Find(NewSnapshotAttributeId))
 			{
-				Changes.ChangedAttributes.Add(NewSnapshotAttributeId, { MoveTemp(*OldSnapshotAttributeValue), NewSnapshotAttributeValue });
+				if (*OldSnapshotAttributeValue != NewSnapshotAttributeValue)
+				{
+					NewPreparedServiceChanges.ClientChanges.ChangedAttributes.Add(NewSnapshotAttributeId, { *OldSnapshotAttributeValue, NewSnapshotAttributeValue });
+				}
 			}
 			else
 			{
-				Changes.AddedAttributes.Add(NewSnapshotAttributeId, NewSnapshotAttributeValue);
+				NewPreparedServiceChanges.ClientChanges.AddedAttributes.Add(NewSnapshotAttributeId, NewSnapshotAttributeValue);
 			}
 		}
 
 		// Add removed attribute ids to changes.
-		Algo::TransformIf(ApplicationDataServiceSnapshot, Changes.RemovedAttributes,
-			[&NewApplicationDataServiceSnapshot](const TPair<FSchemaAttributeId, FSchemaVariant>& OldSnapshotAttributeData) -> bool
+		Algo::TransformIf(GetClientSnapshot(), NewPreparedServiceChanges.ClientChanges.RemovedAttributes,
+			[&NewPreparedServiceChanges](const TPair<FSchemaAttributeId, FSchemaVariant>& OldSnapshotAttributeData) -> bool
 			{
-				const FSchemaServiceAttributeId& OldSnapshotAttributeId = OldSnapshotAttributeData.Get<0>();
-				return !NewApplicationDataServiceSnapshot.Contains(OldSnapshotAttributeId);
+				const FSchemaServiceAttributeId& OldSnapshotAttributeId = OldSnapshotAttributeData.Key;
+				return !NewPreparedServiceChanges.ClientDataSnapshot.Contains(OldSnapshotAttributeId);
 			},
 			[](const TPair<FSchemaAttributeId, FSchemaVariant>& OldSnapshotAttributeData) -> FSchemaAttributeId
 			{
-				const FSchemaServiceAttributeId& OldSnapshotAttributeId = OldSnapshotAttributeData.Get<0>();
+				const FSchemaServiceAttributeId& OldSnapshotAttributeId = OldSnapshotAttributeData.Key;
 				return OldSnapshotAttributeId;
 			});
 	}
 
-	ApplicationDataServiceSnapshot = MoveTemp(NewApplicationDataServiceSnapshot);
-	return TOnlineResult<FSchemaCategoryInstanceApplyServiceSnapshot>(FSchemaCategoryInstanceApplyServiceSnapshot::Result({MoveTemp(Changes)}));
+	// Store pending changes to be applied on commit.
+	PreparedServiceChanges = MoveTemp(NewPreparedServiceChanges);
+	return TOnlineResult<FSchemaCategoryInstancePrepareServiceSnapshot>(MoveTemp(ApplyResult));
 }
 
-bool FSchemaCategoryInstance::IsValid() const
+FSchemaCategoryInstanceCommitServiceSnapshot::Result FSchemaCategoryInstanceBase::CommitServiceSnapshot()
+{
+	FSchemaServiceClientChanges ClientChanges;
+
+	// Check that there is a waiting snapshot state to be applied.
+	if (!PreparedServiceChanges.IsSet())
+	{
+		return FSchemaCategoryInstanceCommitServiceSnapshot::Result({ MoveTemp(ClientChanges) });
+	}
+
+	// Apply attribute changes.
+	GetMutableClientSnapshot() = MoveTemp(PreparedServiceChanges->ClientDataSnapshot);
+
+	// Set schema definitions from a schema swap.
+	if (PreparedServiceChanges->DerivedSchemaCategoryDefinition)
+	{
+		DerivedSchemaDefinition = PreparedServiceChanges->DerivedSchemaDefinition;
+		DerivedSchemaCategoryDefinition = PreparedServiceChanges->DerivedSchemaCategoryDefinition;
+	}
+
+	// Move out client changes for returning to the client.
+	ClientChanges = MoveTemp(PreparedServiceChanges->ClientChanges);
+
+	// Reset pending state.
+	ResetPreparedChanges();
+
+	// Return client changes.
+	return FSchemaCategoryInstanceCommitServiceSnapshot::Result({ MoveTemp(ClientChanges) });
+}
+
+bool FSchemaCategoryInstanceBase::IsValid() const
 {
 	return BaseSchemaCategoryDefinition != nullptr;
 }
 
-bool FSchemaCategoryInstance::IsValidBaseAttributeData(const FSchemaAttributeId& Id, const FSchemaVariant& Data)
+bool FSchemaCategoryInstanceBase::VerifyBaseAttributeData(
+	const FSchemaAttributeId& Id,
+	const FSchemaVariant& Data,
+	FSchemaServiceAttributeId& OutSchemaServiceAttributeId,
+	ESchemaServiceAttributeFlags& OutSchemaServiceAttributeFlags)
 {
 	if (ensure(IsValid()))
 	{
@@ -1125,18 +1308,39 @@ bool FSchemaCategoryInstance::IsValidBaseAttributeData(const FSchemaAttributeId&
 		{
 			if (AttributeDefinition->Type == Data.GetType())
 			{
-				if (AttributeDefinition->Type == ESchemaAttributeType::String)
+				const bool bIsDataSizeValid = AttributeDefinition->Type != ESchemaAttributeType::String || Data.GetString().Len() <= AttributeDefinition->MaxSize;
+				if (bIsDataSizeValid)
 				{
-					return Data.GetString().Len() <= AttributeDefinition->MaxSize;
+					OutSchemaServiceAttributeId = AttributeDefinition->ServiceAttributeId;
+
+					if (AttributeDefinition->ServiceAttributeId != FSchemaServiceAttributeId())
+					{
+						const FSchemaServiceAttributeDefinition* ServiceAttributeDefinition = BaseSchemaCategoryDefinition->ServiceAttributeDefinitions.Find(AttributeDefinition->ServiceAttributeId);
+						if (ensure(ServiceAttributeDefinition))
+						{
+							OutSchemaServiceAttributeFlags = ServiceAttributeDefinition->Flags;
+						}
+						else
+						{
+							UE_LOG(LogOnlineSchema, Warning, TEXT("[VerifyBaseAttributeData] %s.%s.%s: Unable to find service attribute definition for service attribute %s."),
+								*BaseSchemaCategoryDefinition->Id.ToString().ToLower(),
+								*BaseSchemaCategoryDefinition->Id.ToString().ToLower(),
+								*AttributeDefinition->Id.ToString().ToLower(),
+								*AttributeDefinition->ServiceAttributeId.ToString().ToLower());
+							return false;
+						}
+					}
+
+					return true;
 				}
 				else
 				{
-					return true;
+					return false;
 				}
 			}
 			else
 			{
-				UE_LOG(LogOnlineSchema, Verbose, TEXT("[IsValidBaseAttributeData] Schema attribute %s.%s.%s set with invalid type %s. Expected type %s"),
+				UE_LOG(LogOnlineSchema, Verbose, TEXT("[VerifyBaseAttributeData] Schema attribute %s.%s.%s set with invalid type %s. Expected type %s"),
 					*BaseSchemaDefinition->Id.ToString().ToLower(),
 					*BaseSchemaCategoryDefinition->Id.ToString().ToLower(),
 					*AttributeDefinition->Id.ToString().ToLower(),
@@ -1147,7 +1351,7 @@ bool FSchemaCategoryInstance::IsValidBaseAttributeData(const FSchemaAttributeId&
 		}
 		else
 		{
-			UE_LOG(LogOnlineSchema, Verbose, TEXT("[IsValidBaseAttributeData] Attribute %s not found in schema definition %s.%s"),
+			UE_LOG(LogOnlineSchema, Verbose, TEXT("[VerifyBaseAttributeData] Attribute %s not found in schema definition %s.%s"),
 				*Id.ToString().ToLower(),
 				*BaseSchemaDefinition->Id.ToString().ToLower(),
 				*BaseSchemaCategoryDefinition->Id.ToString().ToLower());
@@ -1156,36 +1360,46 @@ bool FSchemaCategoryInstance::IsValidBaseAttributeData(const FSchemaAttributeId&
 	}
 	else
 	{
-		UE_LOG(LogOnlineSchema, Verbose, TEXT("[IsValidBaseAttributeData] Unable to set attribute %s. Schema is not valid"),
+		UE_LOG(LogOnlineSchema, Verbose, TEXT("[VerifyBaseAttributeData] Unable to set attribute %s. Schema is not valid"),
 			*Id.ToString().ToLower());
 		return false;
 	}
 }
 
-bool FSchemaCategoryInstance::InitializeSchemaDefinition(
-	const FSchemaId& SchemaId,
+const TMap<FSchemaAttributeId, FSchemaVariant>& FSchemaCategoryInstanceBase::GetClientSnapshot() const
+{
+	return const_cast<FSchemaCategoryInstanceBase*>(this)->GetMutableClientSnapshot();
+}
+
+bool FSchemaCategoryInstanceBase::InitializeSchemaDefinition(
+	int64 SchemaCompatibilityId,
+	const FSchemaDefinition* OptionalBaseDefinition,
 	const FSchemaCategoryId& CategoryId,
 	TSharedPtr<const FSchemaDefinition>* OutSchemaDefinition,
-	const FSchemaCategoryDefinition** OutSchemaCategoryDefinition)
+	const FSchemaCategoryDefinition** OutSchemaCategoryDefinition) const
 {
-	check(OutSchemaDefinition);
-	check(OutSchemaCategoryDefinition);
+	if (TSharedPtr<const FSchemaDefinition> SchemaDefinition = SchemaRegistry->GetDefinition(SchemaCompatibilityId))
+	{
+		return InitializeSchemaDefinition(SchemaDefinition.ToSharedRef(), OptionalBaseDefinition, CategoryId, OutSchemaDefinition, OutSchemaCategoryDefinition);
+	}
+	else
+	{
+		UE_LOG(LogOnlineSchema, Error, TEXT("[InitializeSchemaDefinition] init error: Unable to find definition for SchemaCompatibilityId 0x%08" INT64_X_FMT "."),
+			SchemaCompatibilityId);
+		return false;
+	}
+}
 
+bool FSchemaCategoryInstanceBase::InitializeSchemaDefinition(
+	const FSchemaId& SchemaId,
+	const FSchemaDefinition* OptionalBaseDefinition,
+	const FSchemaCategoryId& CategoryId,
+	TSharedPtr<const FSchemaDefinition>* OutSchemaDefinition,
+	const FSchemaCategoryDefinition** OutSchemaCategoryDefinition) const
+{
 	if (TSharedPtr<const FSchemaDefinition> SchemaDefinition = SchemaRegistry->GetDefinition(SchemaId))
 	{
-		if (const FSchemaCategoryDefinition* SchemaCategoryDefinition = SchemaDefinition->Categories.Find(CategoryId))
-		{
-			*OutSchemaDefinition = MoveTemp(SchemaDefinition);
-			*OutSchemaCategoryDefinition = SchemaCategoryDefinition;
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogOnlineSchema, Error, TEXT("[InitializeSchemaDefinition] init error: Unable to find category %s in schema %s"),
-				*CategoryId.ToString().ToLower(),
-				*SchemaId.ToString().ToLower());
-			return false;
-		}
+		return InitializeSchemaDefinition(SchemaDefinition.ToSharedRef(), OptionalBaseDefinition, CategoryId, OutSchemaDefinition, OutSchemaCategoryDefinition);
 	}
 	else
 	{
@@ -1195,7 +1409,41 @@ bool FSchemaCategoryInstance::InitializeSchemaDefinition(
 	}
 }
 
-bool FSchemaCategoryInstance::GetSerializationSchema(
+bool FSchemaCategoryInstanceBase::InitializeSchemaDefinition(
+	const TSharedRef<const FSchemaDefinition>& NewDefinition,
+	const FSchemaDefinition* OptionalBaseDefinition,
+	const FSchemaCategoryId& CategoryId,
+	TSharedPtr<const FSchemaDefinition>* OutSchemaDefinition,
+	const FSchemaCategoryDefinition** OutSchemaCategoryDefinition) const
+{
+	check(OutSchemaDefinition);
+	check(OutSchemaCategoryDefinition);
+
+	// Enforce parent <-> child relationship if needed.
+	if (OptionalBaseDefinition && !SchemaRegistry->IsSchemaChildOf(NewDefinition->Id, OptionalBaseDefinition->Id))
+	{
+		UE_LOG(LogOnlineSchema, Warning, TEXT("[InitializeSchemaDefinition] Invalid schema definition. New schema %s is not a child of %s."),
+			*NewDefinition->Id.ToString().ToLower(),
+			*OptionalBaseDefinition->Id.ToString().ToLower());
+		return false;
+	}
+
+	// Check that category exists in incoming schema.
+	const FSchemaCategoryDefinition* SchemaCategoryDefinition = NewDefinition->Categories.Find(CategoryId);
+	if (SchemaCategoryDefinition == nullptr)
+	{
+		UE_LOG(LogOnlineSchema, Error, TEXT("[InitializeSchemaDefinition] init error: Unable to find category %s in schema %s"),
+			*CategoryId.ToString().ToLower(),
+			*NewDefinition->Id.ToString().ToLower());
+		return false;
+	}
+
+	*OutSchemaDefinition = NewDefinition;
+	*OutSchemaCategoryDefinition = SchemaCategoryDefinition;
+	return true;
+}
+
+bool FSchemaCategoryInstanceBase::GetSerializationSchema(
 	const FSchemaDefinition** OutSchemaDefinition,
 	const FSchemaCategoryDefinition** OutSchemaCategoryDefinition) const
 {
@@ -1222,6 +1470,14 @@ bool FSchemaCategoryInstance::GetSerializationSchema(
 		return false;
 	}
 }
+
+void FSchemaCategoryInstanceBase::ResetPreparedChanges() const
+{
+	PreparedClientChanges.Reset();
+	PreparedServiceChanges.Reset();
+}
+
+/* Private */ }
 
 TSharedPtr<const FSchemaDefinition> FSchemaRegistry::GetDefinition(const FSchemaId& SchemaId) const
 {

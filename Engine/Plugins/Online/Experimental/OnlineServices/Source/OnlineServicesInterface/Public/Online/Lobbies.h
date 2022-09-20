@@ -10,13 +10,6 @@
 
 namespace UE::Online {
 
-// TODO: Aliases will be removed once full Schema support is added to Lobbies
-using FLobbySchemaId = FSchemaId;
-using FLobbyAttributeId = FSchemaAttributeId;
-using FLobbyVariant = FSchemaVariant;
-using ELobbyComparisonOp = ESchemaAttributeComparisonOp;
-using ELobbyAttributeVisibility = ESchemaAttributeVisibility;
-
 enum class ELobbyJoinPolicy : uint8
 {
 	/** 
@@ -59,7 +52,8 @@ struct FLobbyMember
 	FAccountId AccountId;
 	FAccountId PlatformAccountId;
 	FString PlatformDisplayName;
-	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
+	TMap<FSchemaAttributeId, FSchemaVariant> Attributes;
+	bool bIsLocalMember = false;
 };
 
 struct FLobby
@@ -67,23 +61,23 @@ struct FLobby
 	FLobbyId LobbyId;
 	FAccountId OwnerAccountId;
 	FName LocalName;
-	FName SchemaName;
+	FSchemaId SchemaId;
 	int32 MaxMembers;
 	ELobbyJoinPolicy JoinPolicy;
-	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
+	TMap<FSchemaAttributeId, FSchemaVariant> Attributes;
 	TMap<FAccountId, TSharedRef<const FLobbyMember>> Members;
 };
 
 struct FFindLobbySearchFilter
 {
 	/** The name of the attribute to be compared. */
-	FLobbyAttributeId AttributeName;
+	FSchemaAttributeId AttributeName;
 
 	/** The type of comparison to perform. */
-	ELobbyComparisonOp ComparisonOp;
+	ESchemaAttributeComparisonOp ComparisonOp;
 
 	/** Value to use when comparing the attribute. */
-	FLobbyVariant ComparisonValue;
+	FSchemaVariant ComparisonValue;
 };
 
 ONLINESERVICESINTERFACE_API void SortLobbies(const TArray<FFindLobbySearchFilter>& Filters, TArray<TSharedRef<const FLobby>>& Lobbies);
@@ -102,7 +96,7 @@ struct FCreateLobby
 		FName LocalName;
 
 		/** The schema which will be applied to the lobby. */
-		FName SchemaName;
+		FSchemaId SchemaId;
 
 		/** The maximum number of members who can fit in the lobby. */
 		int32 MaxMembers = 0;
@@ -111,10 +105,10 @@ struct FCreateLobby
 		ELobbyJoinPolicy JoinPolicy = ELobbyJoinPolicy::InvitationOnly;
 
 		/** Initial attributes. */
-		TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
+		TMap<FSchemaAttributeId, FSchemaVariant> Attributes;
 
 		/** Initial user attributes. */
-		TMap<FLobbyAttributeId, FLobbyVariant> UserAttributes;
+		TMap<FSchemaAttributeId, FSchemaVariant> UserAttributes;
 	};
 
 	/** Output struct for Lobbies::CreateLobby */
@@ -190,7 +184,7 @@ struct FJoinLobby
 		FLobbyId LobbyId;
 
 		/** Initial user attributes. */
-		TMap<FLobbyAttributeId, FLobbyVariant> UserAttributes;
+		TMap<FSchemaAttributeId, FSchemaVariant> UserAttributes;
 	};
 
 	/** Output struct for Lobbies::JoinLobby */
@@ -362,10 +356,10 @@ struct FModifyLobbyAttributes
 		FLobbyId LobbyId;
 
 		/** New or changed lobby attributes. */
-		TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
+		TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
 
 		/** Attributes to be cleared. */
-		TSet<FLobbyAttributeId> ClearedAttributes;
+		TSet<FSchemaAttributeId> RemovedAttributes;
 	};
 
 	/** Output struct for Lobbies::ModifyLobbyAttributes */
@@ -388,10 +382,10 @@ struct FModifyLobbyMemberAttributes
 		FLobbyId LobbyId;
 
 		/** New or changed lobby attributes. */
-		TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
+		TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
 
 		/** Attributes to be cleared. */
-		TSet<FLobbyAttributeId> ClearedAttributes;
+		TSet<FSchemaAttributeId> RemovedAttributes;
 	};
 
 	/** Output struct for Lobbies::ModifyLobbyMemberAttributes */
@@ -487,6 +481,10 @@ struct FLobbySchemaChanged
 {
 	/** Lobby data access. */
 	TSharedRef<const FLobby> Lobby;
+	/** The previous schema id. */
+	FSchemaId PreviousSchemaId;
+	/** The new schema id. */
+	FSchemaId NewSchemaId;
 };
 
 /** Struct for LobbyAttributesChanged event */
@@ -495,8 +493,14 @@ struct FLobbyAttributesChanged
 	/** Lobby data access. */
 	TSharedRef<const FLobby> Lobby;
 
-	/** Attribute keys which changed. */
-	TSet<FLobbyAttributeId> ChangedAttributes;
+	/** Added attributes. */
+	TMap<FSchemaAttributeId, FSchemaVariant> AddedAttributes;
+
+	/** Changed attributes with their old and new values. */
+	TMap<FSchemaAttributeId, TPair<FSchemaVariant, FSchemaVariant>> ChangedAttributes;
+
+	/** Removed attribute ids. */
+	TSet<FSchemaAttributeId> RemovedAttributes;
 
 };
 
@@ -509,8 +513,14 @@ struct FLobbyMemberAttributesChanged
 	/** Member data access. */
 	TSharedRef<const FLobbyMember> Member;
 
-	/** Attribute keys which changed. */
-	TSet<FLobbyAttributeId> ChangedAttributes;
+	/** Added attributes. */
+	TMap<FSchemaAttributeId, FSchemaVariant> AddedAttributes;
+
+	/** Changed attributes with their old and new values. */
+	TMap<FSchemaAttributeId, TPair<FSchemaVariant, FSchemaVariant>> ChangedAttributes;
+
+	/** Removed attribute ids. */
+	TSet<FSchemaAttributeId> RemovedAttributes;
 };
 
 /** Struct for LobbyInvitationAdded event */
@@ -557,7 +567,7 @@ struct FUILobbyJoinRequested
 	/** The local user associated with the join request. */
 	FAccountId LocalAccountId;
 
-	/** The lobby the local user requested to join, or the online error if there was a failure */
+	/** The lobby if the local user requested to join, or the online error if there was a failure */
 	TResult<TSharedRef<const FLobby>, FOnlineError> Result;
 
 	/** Join request source */
@@ -789,20 +799,35 @@ public:
 };
 
 namespace Meta {
-// TODO: Move to Lobbies_Meta.inl file?
+
+BEGIN_ONLINE_STRUCT_META(FLobbyMember)
+	ONLINE_STRUCT_FIELD(FLobbyMember, AccountId),
+	ONLINE_STRUCT_FIELD(FLobbyMember, PlatformAccountId),
+	ONLINE_STRUCT_FIELD(FLobbyMember, PlatformDisplayName),
+	ONLINE_STRUCT_FIELD(FLobbyMember, Attributes)
+END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobby)
 	ONLINE_STRUCT_FIELD(FLobby, LobbyId),
+	ONLINE_STRUCT_FIELD(FLobby, OwnerAccountId),
 	ONLINE_STRUCT_FIELD(FLobby, LocalName),
-	ONLINE_STRUCT_FIELD(FLobby, SchemaName),
+	ONLINE_STRUCT_FIELD(FLobby, SchemaId),
 	ONLINE_STRUCT_FIELD(FLobby, MaxMembers),
-	ONLINE_STRUCT_FIELD(FLobby, JoinPolicy)
+	ONLINE_STRUCT_FIELD(FLobby, JoinPolicy),
+	ONLINE_STRUCT_FIELD(FLobby, Attributes),
+	ONLINE_STRUCT_FIELD(FLobby, Members)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FFindLobbySearchFilter)
+	ONLINE_STRUCT_FIELD(FFindLobbySearchFilter, AttributeName),
+	ONLINE_STRUCT_FIELD(FFindLobbySearchFilter, ComparisonOp),
+	ONLINE_STRUCT_FIELD(FFindLobbySearchFilter, ComparisonValue)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateLobby::Params)
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalName),
-	ONLINE_STRUCT_FIELD(FCreateLobby::Params, SchemaName),
+	ONLINE_STRUCT_FIELD(FCreateLobby::Params, SchemaId),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, MaxMembers),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, JoinPolicy),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, Attributes),
@@ -814,9 +839,15 @@ BEGIN_ONLINE_STRUCT_META(FCreateLobby::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FFindLobbies::Params)
+	ONLINE_STRUCT_FIELD(FFindLobbies::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FFindLobbies::Params, MaxResults),
+	ONLINE_STRUCT_FIELD(FFindLobbies::Params, Filters),
+	ONLINE_STRUCT_FIELD(FFindLobbies::Params, TargetUser),
+	ONLINE_STRUCT_FIELD(FFindLobbies::Params, LobbyId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FFindLobbies::Result)
+	ONLINE_STRUCT_FIELD(FFindLobbies::Result, Lobbies)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRestoreLobbies::Params)
@@ -826,9 +857,14 @@ BEGIN_ONLINE_STRUCT_META(FRestoreLobbies::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinLobby::Params)
+	ONLINE_STRUCT_FIELD(FJoinLobby::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FJoinLobby::Params, LocalName),
+	ONLINE_STRUCT_FIELD(FJoinLobby::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FJoinLobby::Params, UserAttributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinLobby::Result)
+	ONLINE_STRUCT_FIELD(FJoinLobby::Result, Lobby)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLeaveLobby::Params)
@@ -840,24 +876,35 @@ BEGIN_ONLINE_STRUCT_META(FLeaveLobby::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FInviteLobbyMember::Params)
+	ONLINE_STRUCT_FIELD(FInviteLobbyMember::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FInviteLobbyMember::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FInviteLobbyMember::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FInviteLobbyMember::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FDeclineLobbyInvitation::Params)
+	ONLINE_STRUCT_FIELD(FDeclineLobbyInvitation::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FDeclineLobbyInvitation::Params, LobbyId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FDeclineLobbyInvitation::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FKickLobbyMember::Params)
+	ONLINE_STRUCT_FIELD(FKickLobbyMember::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FKickLobbyMember::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FKickLobbyMember::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FKickLobbyMember::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FPromoteLobbyMember::Params)
+	ONLINE_STRUCT_FIELD(FPromoteLobbyMember::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FPromoteLobbyMember::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FPromoteLobbyMember::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FPromoteLobbyMember::Result)
@@ -870,18 +917,29 @@ BEGIN_ONLINE_STRUCT_META(FModifyLobbySchema::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FModifyLobbyJoinPolicy::Params)
+	ONLINE_STRUCT_FIELD(FModifyLobbyJoinPolicy::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FModifyLobbyJoinPolicy::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FModifyLobbyJoinPolicy::Params, JoinPolicy)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FModifyLobbyJoinPolicy::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FModifyLobbyAttributes::Params)
+	ONLINE_STRUCT_FIELD(FModifyLobbyAttributes::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FModifyLobbyAttributes::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FModifyLobbyAttributes::Params, UpdatedAttributes),
+	ONLINE_STRUCT_FIELD(FModifyLobbyAttributes::Params, RemovedAttributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FModifyLobbyAttributes::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FModifyLobbyMemberAttributes::Params)
+	ONLINE_STRUCT_FIELD(FModifyLobbyMemberAttributes::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FModifyLobbyMemberAttributes::Params, LobbyId),
+	ONLINE_STRUCT_FIELD(FModifyLobbyMemberAttributes::Params, UpdatedAttributes),
+	ONLINE_STRUCT_FIELD(FModifyLobbyMemberAttributes::Params, RemovedAttributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FModifyLobbyMemberAttributes::Result)
@@ -926,15 +984,25 @@ BEGIN_ONLINE_STRUCT_META(FLobbyLeaderChanged)
 	ONLINE_STRUCT_FIELD(FLobbyLeaderChanged, Leader)
 END_ONLINE_STRUCT_META()
 
+BEGIN_ONLINE_STRUCT_META(FLobbySchemaChanged)
+	ONLINE_STRUCT_FIELD(FLobbySchemaChanged, Lobby),
+	ONLINE_STRUCT_FIELD(FLobbySchemaChanged, PreviousSchemaId),
+	ONLINE_STRUCT_FIELD(FLobbySchemaChanged, NewSchemaId)
+END_ONLINE_STRUCT_META()
+
 BEGIN_ONLINE_STRUCT_META(FLobbyAttributesChanged)
 	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, Lobby),
-	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, ChangedAttributes)
+	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, AddedAttributes),
+	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, ChangedAttributes),
+	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, RemovedAttributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbyMemberAttributesChanged)
 	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, Lobby),
 	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, Member),
-	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, ChangedAttributes)
+	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, AddedAttributes),
+	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, ChangedAttributes),
+	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, RemovedAttributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbyInvitationAdded)
@@ -951,7 +1019,8 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUILobbyJoinRequested)
 	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, Result)
+	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, Result),
+	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, JoinRequestedSource)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

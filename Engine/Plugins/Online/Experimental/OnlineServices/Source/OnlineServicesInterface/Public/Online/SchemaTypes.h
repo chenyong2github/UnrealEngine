@@ -19,13 +19,13 @@ using FSchemaId = FName;
   * declared in the parent schema.
   * 
   * Example: A lobby contains both lobby data and lobby member data, but during lobby creation the
-  * application only specifies a single schema Id. The schema id is required to have categories for
+  * client only specifies a single schema Id. The schema id is required to have categories for
   * both Lobby and LobbyMember.
   */
 using FSchemaCategoryId = FName;
 /**
-  * The id used to refer to a schema attribute. These ids are declared in the application config
-  * and used in application code to look up an attribute value.
+  * The id used to refer to a schema attribute. These ids are declared in the client config
+  * and used in client code to look up an attribute value.
   */
 using FSchemaAttributeId = FName;
 /**
@@ -307,7 +307,7 @@ struct FSchemaAttributeDescriptor
 	TArray<ESchemaAttributeFlags> Flags;
 	/**
 	  * Whether to group the attribute together with other attributes explicitly.
-	  * Providing a group id allows the application to explicitly serialize attributes to the same
+	  * Providing a group id allows the client to explicitly serialize attributes to the same
 	  * service attribute for increased network efficiency.
 	  *
 	  * Id 0 uses automatic grouping.
@@ -544,17 +544,42 @@ struct FSchemaServiceAttributeData
 	  * Additional behavior required by the attribute. Examples include making an attribute
 	  * public or available to search.
 	  */
-	ESchemaAttributeFlags Flags = ESchemaAttributeFlags::None;
+	ESchemaServiceAttributeFlags Flags = ESchemaServiceAttributeFlags::None;
 	/**
 	  * The attribute value.
 	  */
 	FSchemaVariant Value;
 };
 
+/** Full snapshot of all set service attributes. */
+struct FSchemaServiceSnapshot
+{
+	TMap<FSchemaServiceAttributeId, FSchemaVariant> Attributes;
+};
+
 /**
-  * Changes to be applied to the service data following schema attribute changes.
+  * Changes from the client data to be translated into service changes.
   */
-struct FSchemaServiceChanges
+struct FSchemaClientChanges
+{
+	/**
+	  * Change to schema id.
+	  */
+	TOptional<FSchemaId> SchemaId;
+	/**
+	  * Added or changed attributes and their values.
+	  */
+	TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
+	/**
+	  * Attributes to be cleared.
+	  */
+	TSet<FSchemaAttributeId> RemovedAttributes;
+};
+
+/**
+  * Changes to be applied to the service data following client schema attribute changes.
+  */
+struct FSchemaClientServiceChanges
 {
 	/**
 	  * Added or changed attributes and their values.
@@ -563,13 +588,13 @@ struct FSchemaServiceChanges
 	/**
 	  * Removed attribute ids.
 	  */
-	TSet<FSchemaAttributeId> RemovedAttributes;
+	TSet<FSchemaServiceAttributeId> RemovedAttributes;
 };
 
 /**
-  * Changes to be applied to the application data following service attribute changes.
+  * Changes to be applied to the client data following service attribute changes.
   */
-struct FSchemaApplicationChanges
+struct FSchemaServiceClientChanges
 {
 	/**
 	  * Change to schema id.
@@ -589,70 +614,53 @@ struct FSchemaApplicationChanges
 	TSet<FSchemaAttributeId> RemovedAttributes;
 };
 
-#if 0 // todo
-struct FSchemaCategoryInstanceChangeSchema
+struct FSchemaCategoryInstancePrepareClientChanges
 {
-	static constexpr TCHAR Name[] = TEXT("ChangeSchema");
-
 	struct Params
 	{
-		/** Schema Id to switch to. The schema must be configured and be a sibling of the current
-		  * schema.
-		  * A parent schema field definition for SchemaId must exist to enable this feature.
-		  */
-		FSchemaId SchemaId;
+		/** Changes from the client to be applied to the service. */
+		FSchemaClientChanges ClientChanges;
 	};
 
 	struct Result
 	{
 		/** Attribute changes to be notified to the service. */
-		TSharedRef<FSchemaServiceChanges> ServiceChanges;
-
-	public:
-		Result() = delete; // cannot default construct due to TSharedRef
+		FSchemaClientServiceChanges ServiceChanges;
 	};
 };
-#endif
 
-struct FSchemaCategoryInstanceApplyApplicationDelta
+struct FSchemaCategoryInstanceCommitClientChanges
 {
-	static constexpr TCHAR Name[] = TEXT("ApplyApplicationDelta");
-
-	struct Params
-	{
-		/** Attributes notified from the application. */
-		TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
-		/** Removed attributes notified from the application. */
-		TSet<FSchemaAttributeId> RemovedAttributes;
-	};
-
 	struct Result
 	{
-		/** Attribute changes to be notified to the service. */
-		FSchemaServiceChanges ServiceChanges;
-
-	public:
-		Result() = delete; // cannot default construct due to TSharedRef
+		/** Attribute changes to be notified to the client. */
+		FSchemaServiceClientChanges ClientChanges;
 	};
 };
 
-struct FSchemaCategoryInstanceApplyServiceSnapshot
+struct FSchemaCategoryInstancePrepareServiceSnapshot
 {
-	static constexpr TCHAR Name[] = TEXT("ApplyServiceSnapshot");
-
 	struct Params
 	{
+		/** Optional schema id for applying a schema change from external state. */
+		TOptional<FSchemaId> SchemaId;
 		/** Full attribute snapshot from the service. */
-		TMap<FSchemaServiceAttributeId, FSchemaVariant> Attributes;
+		FSchemaServiceSnapshot ServiceSnapshot;
 	};
 
 	struct Result
 	{
-		/** Attribute changes to be notified to the application. */
-		FSchemaApplicationChanges ApplicationChanges;
+		/** The new derived schema id when set from the service. */
+		TOptional<FSchemaId> DerivedSchemaId;
+	};
+};
 
-	public:
-		Result() = delete; // cannot default construct due to TSharedRef
+struct FSchemaCategoryInstanceCommitServiceSnapshot
+{
+	struct Result
+	{
+		/** Attribute changes to be notified to the client. */
+		FSchemaServiceClientChanges ClientChanges;
 	};
 };
 

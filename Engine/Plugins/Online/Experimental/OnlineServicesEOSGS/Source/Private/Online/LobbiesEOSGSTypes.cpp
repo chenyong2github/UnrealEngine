@@ -9,20 +9,20 @@ namespace UE::Online {
 
 namespace Private {
 
-EOS_EComparisonOp TranslateSearchComparison(ELobbyComparisonOp Op)
+EOS_EComparisonOp TranslateSearchComparison(ESchemaAttributeComparisonOp Op)
 {
 	switch (Op)
 	{
-	default:									checkNoEntry(); // Intentional fallthrough
-	case ELobbyComparisonOp::Equals:			return EOS_EComparisonOp::EOS_CO_EQUAL;
-	case ELobbyComparisonOp::NotEquals:			return EOS_EComparisonOp::EOS_CO_NOTEQUAL;
-	case ELobbyComparisonOp::GreaterThan:		return EOS_EComparisonOp::EOS_CO_GREATERTHAN;
-	case ELobbyComparisonOp::GreaterThanEquals:	return EOS_EComparisonOp::EOS_CO_GREATERTHANOREQUAL;
-	case ELobbyComparisonOp::LessThan:			return EOS_EComparisonOp::EOS_CO_LESSTHAN;
-	case ELobbyComparisonOp::LessThanEquals:	return EOS_EComparisonOp::EOS_CO_LESSTHANOREQUAL;
-	case ELobbyComparisonOp::Near:				return EOS_EComparisonOp::EOS_CO_DISTANCE;
-	case ELobbyComparisonOp::In:				return EOS_EComparisonOp::EOS_CO_ONEOF;
-	case ELobbyComparisonOp::NotIn:				return EOS_EComparisonOp::EOS_CO_NOTANYOF;
+	default:												checkNoEntry(); // Intentional fallthrough
+	case ESchemaAttributeComparisonOp::Equals:				return EOS_EComparisonOp::EOS_CO_EQUAL;
+	case ESchemaAttributeComparisonOp::NotEquals:			return EOS_EComparisonOp::EOS_CO_NOTEQUAL;
+	case ESchemaAttributeComparisonOp::GreaterThan:			return EOS_EComparisonOp::EOS_CO_GREATERTHAN;
+	case ESchemaAttributeComparisonOp::GreaterThanEquals:	return EOS_EComparisonOp::EOS_CO_GREATERTHANOREQUAL;
+	case ESchemaAttributeComparisonOp::LessThan:			return EOS_EComparisonOp::EOS_CO_LESSTHAN;
+	case ESchemaAttributeComparisonOp::LessThanEquals:		return EOS_EComparisonOp::EOS_CO_LESSTHANOREQUAL;
+	case ESchemaAttributeComparisonOp::Near:				return EOS_EComparisonOp::EOS_CO_DISTANCE;
+	case ESchemaAttributeComparisonOp::In:					return EOS_EComparisonOp::EOS_CO_ONEOF;
+	case ESchemaAttributeComparisonOp::NotIn:				return EOS_EComparisonOp::EOS_CO_NOTANYOF;
 
 	// todo:
 	// EOS_EComparisonOp::EOS_CO_ANYOF
@@ -47,45 +47,52 @@ FLobbyBucketIdEOS::FLobbyBucketIdEOS(FString ProductName, int32 ProductVersion)
 }
 
 // Attribute translators.
-FLobbyAttributeTranslator<ELobbyTranslationType::ToService>::FLobbyAttributeTranslator(const TPair<FLobbyAttributeId, FLobbyVariant>& FromAttributeData)
-	: FLobbyAttributeTranslator(FromAttributeData.Key, FromAttributeData.Value)
-{
-}
-
-FLobbyAttributeTranslator<ELobbyTranslationType::ToService>::FLobbyAttributeTranslator(FLobbyAttributeId FromAttributeId, const FLobbyVariant& FromAttributeData)
-	: KeyConverterStorage(*FromAttributeId.ToString())
+FLobbyAttributeTranslator<ELobbyTranslationType::ToService>::FLobbyAttributeTranslator(const FSchemaServiceAttributeData& FromAttributeData)
+	: KeyConverterStorage(*FromAttributeData.Id.ToString().ToLower())
+	, AttributeVisibility(EOS_ELobbyAttributeVisibility::EOS_LAT_PRIVATE)
 {
 	AttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
 	AttributeData.Key = KeyConverterStorage.Get();
 	static_assert(EOS_LOBBY_ATTRIBUTEDATA_API_LATEST == 1, "EOS_Lobby_AttributeData updated, check new fields");
 
-	if (FromAttributeData.VariantData.IsType<FString>())
+	switch (FromAttributeData.Value.GetType())
 	{
-		ValueConverterStorage.Emplace(*FromAttributeData.VariantData.Get<FString>());
+	case ESchemaAttributeType::String:
+		ValueConverterStorage.Emplace(*FromAttributeData.Value.GetString());
 		AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;
 		AttributeData.Value.AsUtf8 = ValueConverterStorage->Get();
-	}
-	else if (FromAttributeData.VariantData.IsType<int64>())
-	{
+		break;
+
+	case ESchemaAttributeType::Int64:
 		AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_INT64;
-		AttributeData.Value.AsInt64 = FromAttributeData.VariantData.Get<int64>();
-	}
-	else if (FromAttributeData.VariantData.IsType<double>())
-	{
+		AttributeData.Value.AsInt64 = FromAttributeData.Value.GetInt64();
+		break;
+
+	case ESchemaAttributeType::Double:
 		AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_DOUBLE;
-		AttributeData.Value.AsDouble = FromAttributeData.VariantData.Get<double>();
-	}
-	else if (FromAttributeData.VariantData.IsType<bool>())
-	{
+		AttributeData.Value.AsDouble = FromAttributeData.Value.GetDouble();
+		break;
+
+	case ESchemaAttributeType::Bool:
 		AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_BOOLEAN;
-		AttributeData.Value.AsBool = FromAttributeData.VariantData.Get<bool>();
+		AttributeData.Value.AsBool = FromAttributeData.Value.GetBoolean();
+		break;
+
+	case ESchemaAttributeType::None:
+	default:
+		checkNoEntry();
+	}
+
+	if (EnumHasAnyFlags(FromAttributeData.Flags, ESchemaServiceAttributeFlags::Public))
+	{
+		AttributeVisibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC;
 	}
 }
 
 FLobbyAttributeTranslator<ELobbyTranslationType::FromService>::FLobbyAttributeTranslator(const EOS_Lobby_AttributeData& FromAttributeData)
 {
-	FLobbyAttributeId AttributeId(UTF8_TO_TCHAR(FromAttributeData.Key));
-	FLobbyVariant VariantData;
+	FSchemaAttributeId AttributeId(UTF8_TO_TCHAR(FromAttributeData.Key));
+	FSchemaVariant VariantData;
 
 	switch (FromAttributeData.ValueType)
 	{
@@ -110,7 +117,7 @@ FLobbyAttributeTranslator<ELobbyTranslationType::FromService>::FLobbyAttributeTr
 		break;
 	}
 
-	AttributeData = TPair<FLobbyAttributeId, FLobbyVariant>(MoveTemp(AttributeId), MoveTemp(VariantData));
+	AttributeData = TPair<FSchemaAttributeId, FSchemaVariant>(MoveTemp(AttributeId), MoveTemp(VariantData));
 }
 
 FLobbyBucketIdTranslator<ELobbyTranslationType::ToService>::FLobbyBucketIdTranslator(const FLobbyBucketIdEOS& BucketId)
@@ -291,14 +298,14 @@ bool FLobbyDetailsEOS::IsBucketCompatible() const
 	return LobbyDetailsInfo->GetBucketId() == Prerequisites->BucketId;
 }
 
-TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDetailsEOS::GetLobbySnapshot() const
+TFuture<TDefaultErrorResultInternal<FLobbyServiceSnapshot>> FLobbyDetailsEOS::GetLobbySnapshot() const
 {
 	TSharedPtr<FAuthEOSGS> AuthInterface = Prerequisites->AuthInterface.Pin();
 	if (!AuthInterface)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::GetLobbySnapshot] Failed: Auth interface missing. Lobby[%s]"),
 			UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()));
-		return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>>(Errors::MissingInterface()).GetFuture();
+		return MakeFulfilledPromise<TDefaultErrorResultInternal<FLobbyServiceSnapshot>>(Errors::MissingInterface()).GetFuture();
 	}
 
 	EOS_LobbyDetails_GetMemberCountOptions GetMemberCountOptions = {};
@@ -320,8 +327,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 		MemberProductUserIds->Emplace(EOS_LobbyDetails_GetMemberByIndex(LobbyDetailsHandle, &GetMemberByIndexOptions));
 	}
 
-	TPromise<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> Promise;
-	TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> Future = Promise.GetFuture();
+	TPromise<TDefaultErrorResultInternal<FLobbyServiceSnapshot>> Promise;
+	TFuture<TDefaultErrorResultInternal<FLobbyServiceSnapshot>> Future = Promise.GetFuture();
 
 	// Resolve lobby member product user ids to FAccountId before proceeding.
 	AuthInterface->ResolveAccountIds(AssociatedLocalUser, *MemberProductUserIds)
@@ -335,9 +342,9 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 			return;
 		}
 
-		TSharedRef<FClientLobbySnapshot> ClientLobbySnapshot = MakeShared<FClientLobbySnapshot>();
-		ClientLobbySnapshot->MaxMembers = StrongThis->GetInfo()->GetMaxMembers();
-		ClientLobbySnapshot->JoinPolicy = TranslateJoinPolicy(StrongThis->GetInfo()->GetPermissionLevel());
+		FLobbyServiceSnapshot LobbyServiceSnapshot;
+		LobbyServiceSnapshot.MaxMembers = StrongThis->GetInfo()->GetMaxMembers();
+		LobbyServiceSnapshot.JoinPolicy = TranslateJoinPolicy(StrongThis->GetInfo()->GetPermissionLevel());
 
 		// Resolve member info.
 		{
@@ -354,10 +361,10 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 
 				if (MemberProductUserId == LobbyOwner)
 				{
-					ClientLobbySnapshot->OwnerAccountId = ResolvedMemberAccountId;
+					LobbyServiceSnapshot.OwnerAccountId = ResolvedMemberAccountId;
 				}
 
-				ClientLobbySnapshot->Members.Add(ResolvedMemberAccountId);
+				LobbyServiceSnapshot.Members.Add(ResolvedMemberAccountId);
 			}
 		}
 
@@ -391,28 +398,27 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 				}
 
 				FLobbyAttributeTranslator<ELobbyTranslationType::FromService> AttributeTranslator(*LobbyAttribute->Data);
-				ClientLobbySnapshot->Attributes.Add(MoveTemp(AttributeTranslator.GetMutableAttributeData()));
+				LobbyServiceSnapshot.SchemaServiceSnapshot.Attributes.Add(MoveTemp(AttributeTranslator.GetMutableAttributeData()));
 			}
 		}
 
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FLobbyDetailsEOS::GetLobbySnapshot] Succeeded: Lobby[%s]"),
 			UTF8_TO_TCHAR(StrongThis->GetInfo()->GetLobbyIdEOS()));
-		Promise.EmplaceValue(MoveTemp(ClientLobbySnapshot));
+		Promise.EmplaceValue(MoveTemp(LobbyServiceSnapshot));
 	});
-
 
 	return Future;
 }
 
-TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> FLobbyDetailsEOS::GetLobbyMemberSnapshot(FAccountId MemberAccountId) const
+TDefaultErrorResultInternal<FLobbyMemberServiceSnapshot> FLobbyDetailsEOS::GetLobbyMemberSnapshot(FAccountId MemberAccountId) const
 {
 	EOS_ProductUserId MemberProductUserId = GetProductUserIdChecked(MemberAccountId);
 
-	TSharedRef<FClientLobbyMemberSnapshot> LobbyMemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
-	LobbyMemberSnapshot->AccountId = MemberAccountId;
+	FLobbyMemberServiceSnapshot LobbyMemberServcieSnapshot;
+	LobbyMemberServcieSnapshot.AccountId = MemberAccountId;
 	// Todo: 
-	//ClientMemberData->PlatformAccountId;
-	//ClientMemberData->PlatformDisplayName;
+	//LobbyMemberServcieSnapshot.PlatformAccountId;
+	//LobbyMemberServcieSnapshot.PlatformDisplayName;
 
 	// Fetch attributes.
 	{
@@ -441,22 +447,20 @@ TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> FLobbyDetail
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::GetLobbyMemberSnapshot] EOS_LobbyDetails_CopyMemberAttributeByIndex Failed: Member[%s], Lobby[%s], Result[%s]"),
 					*ToLogString(MemberAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *LexToString(EOSResult));
-				return TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>>(Errors::FromEOSResult(EOSResult));
+				return TDefaultErrorResultInternal<FLobbyMemberServiceSnapshot>(Errors::FromEOSResult(EOSResult));
 			}
 
 			FLobbyAttributeTranslator<ELobbyTranslationType::FromService> AttributeTranslator(*LobbyAttribute->Data);
-			LobbyMemberSnapshot->Attributes.Add(MoveTemp(AttributeTranslator.GetMutableAttributeData()));
+			LobbyMemberServcieSnapshot.SchemaServiceSnapshot.Attributes.Add(MoveTemp(AttributeTranslator.GetMutableAttributeData()));
 		}
 	}
 
 	UE_LOG(LogTemp, VeryVerbose, TEXT("[FLobbyDetailsEOS::GetLobbyMemberSnapshot] Succeeded: Member[%s], Lobby[%s]"),
 		*ToLogString(MemberAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()));
-	return TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>>(MoveTemp(LobbyMemberSnapshot));
+	return TDefaultErrorResultInternal<FLobbyMemberServiceSnapshot>(MoveTemp(LobbyMemberServcieSnapshot));
 }
 
-TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
-	FAccountId LocalAccountId,
-	const FClientLobbyDataChanges& Changes) const
+TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(FAccountId LocalAccountId, const FLobbyClientServiceChanges& ServiceChanges) const
 {
 	EOS_HLobbyModification LobbyModificationHandle = nullptr;
 
@@ -481,11 +485,11 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	}
 
 	// Set lobby join policy.
-	if (Changes.JoinPolicy)
+	if (ServiceChanges.JoinPolicy)
 	{
 		EOS_LobbyModification_SetPermissionLevelOptions SetPermissionOptions = {};
 		SetPermissionOptions.ApiVersion = EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST;
-		SetPermissionOptions.PermissionLevel = TranslateJoinPolicy(*Changes.JoinPolicy);
+		SetPermissionOptions.PermissionLevel = TranslateJoinPolicy(*ServiceChanges.JoinPolicy);
 		static_assert(EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST == 1, "EOS_LobbyModification_SetPermissionLevelOptions updated, check new fields");
 
 		EOSResult = EOS_LobbyModification_SetPermissionLevel(LobbyModificationHandle, &SetPermissionOptions);
@@ -498,29 +502,29 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	}
 
 	// Add attributes.
-	for (const TPair<FLobbyAttributeId, FLobbyVariant>& MutatedAttribute : Changes.MutatedAttributes)
+	for (const TPair<FSchemaAttributeId, FSchemaServiceAttributeData>& UpdatedAttribute : ServiceChanges.UpdatedAttributes)
 	{
-		const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(MutatedAttribute);
+		const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(UpdatedAttribute.Value);
 
 		EOS_LobbyModification_AddAttributeOptions AddAttributeOptions = {};
 		AddAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
 		AddAttributeOptions.Attribute = &AttributeTranslator.GetAttributeData();
-		AddAttributeOptions.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC; // todo - get from schema
+		AddAttributeOptions.Visibility = AttributeTranslator.GetAttributeVisibility();
 		static_assert(EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_AddAttributeOptions updated, check new fields");
 
 		EOSResult = EOS_LobbyModification_AddAttribute(LobbyModificationHandle, &AddAttributeOptions);
 		if (EOSResult != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges] EOS_LobbyModification_AddAttribute Failed: User[%s], Lobby[%s], Key[%s], Value[%s], Result[%s]"),
-				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *MutatedAttribute.Key.ToString().ToLower(), *ToLogString(MutatedAttribute.Value), *LexToString(EOSResult));
+				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *UpdatedAttribute.Key.ToString().ToLower(), *ToLogString(UpdatedAttribute.Value.Value), *LexToString(EOSResult));
 			return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
 		}
 	}
 
 	// Remove attributes.
-	for (const FLobbyAttributeId& ClearedAttribute : Changes.ClearedAttributes)
+	for (const FSchemaAttributeId& RemovedAttribute : ServiceChanges.RemovedAttributes)
 	{
-		const FTCHARToUTF8 KeyConverter(*ClearedAttribute.ToString());
+		const FTCHARToUTF8 KeyConverter(*RemovedAttribute.ToString());
 
 		EOS_LobbyModification_RemoveAttributeOptions RemoveAttributeOptions = {};
 		RemoveAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_REMOVEATTRIBUTE_API_LATEST;
@@ -531,7 +535,46 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 		if (EOSResult != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges] EOS_LobbyModification_RemoveAttribute Failed: User[%s], Lobby[%s], Key[%s], Result[%s]"),
-				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), UTF8_TO_TCHAR(KeyConverter.Get()), *LexToString(EOSResult));
+				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *RemovedAttribute.ToString().ToLower(), *LexToString(EOSResult));
+			return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
+		}
+	}
+
+	// Add member attributes.
+	for (const TPair<FSchemaAttributeId, FSchemaServiceAttributeData>& UpdatedAttribute : ServiceChanges.UpdatedMemberAttributes)
+	{
+		const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(UpdatedAttribute.Value);
+
+		EOS_LobbyModification_AddMemberAttributeOptions AddMemberAttributeOptions = {};
+		AddMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST;
+		AddMemberAttributeOptions.Attribute = &AttributeTranslator.GetAttributeData();
+		AddMemberAttributeOptions.Visibility = AttributeTranslator.GetAttributeVisibility();
+		static_assert(EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_AddMemberAttributeOptions updated, check new fields");
+
+		EOSResult = EOS_LobbyModification_AddMemberAttribute(LobbyModificationHandle, &AddMemberAttributeOptions);
+		if (EOSResult != EOS_EResult::EOS_Success)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] EOS_LobbyModification_AddMemberAttribute Failed: User[%s], Lobby[%s], Key[%s], Value[%s], Result[%s]"),
+				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *UpdatedAttribute.Key.ToString().ToLower(), *ToLogString(UpdatedAttribute.Value.Value), *LexToString(EOSResult));
+			return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
+		}
+	}
+
+	// Remove member attributes.
+	for (const FSchemaAttributeId& RemovedAttribute : ServiceChanges.RemovedMemberAttributes)
+	{
+		const FTCHARToUTF8 KeyConverter(*RemovedAttribute.ToString());
+
+		EOS_LobbyModification_RemoveMemberAttributeOptions RemoveMemberAttributeOptions = {};
+		RemoveMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_REMOVEMEMBERATTRIBUTE_API_LATEST;
+		RemoveMemberAttributeOptions.Key = KeyConverter.Get();
+		static_assert(EOS_LOBBYMODIFICATION_REMOVEMEMBERATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_RemoveMemberAttributeOptions updated, check new fields");
+
+		EOSResult = EOS_LobbyModification_RemoveMemberAttribute(LobbyModificationHandle, &RemoveMemberAttributeOptions);
+		if (EOSResult != EOS_EResult::EOS_Success)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] EOS_LobbyModification_RemoveMemberAttribute Failed: User[%s], Lobby[%s], Key[%s], Result[%s]"),
+				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *RemovedAttribute.ToString().ToLower(), *LexToString(EOSResult));
 			return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
 		}
 	}
@@ -561,100 +604,6 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 
 		Promise.EmplaceValue(Data->ResultCode);
 	});
-	return Future;
-}
-
-TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges(
-	FAccountId LocalAccountId,
-	const FClientLobbyMemberDataChanges& Changes) const
-{
-	EOS_HLobbyModification LobbyModificationHandle = {};
-
-	ON_SCOPE_EXIT
-	{
-		EOS_LobbyModification_Release(LobbyModificationHandle);
-	};
-
-	// Create lobby modification handle.
-	EOS_Lobby_UpdateLobbyModificationOptions ModificationOptions = {};
-	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
-	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalAccountId);
-	ModificationOptions.LobbyId = GetInfo()->GetLobbyIdEOS();
-	static_assert(EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST == 1, "EOS_Lobby_UpdateLobbyModificationOptions updated, check new fields");
-
-	EOS_EResult EOSResult = EOS_Lobby_UpdateLobbyModification(Prerequisites->LobbyInterfaceHandle, &ModificationOptions, &LobbyModificationHandle);
-	if (EOSResult != EOS_EResult::EOS_Success)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] EOS_Lobby_UpdateLobbyModification Failed: User[%s], Lobby[%s], Result[%s]"),
-			*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *LexToString(EOSResult));
-		return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
-	}
-
-	// Add member attributes.
-	for (const TPair<FLobbyAttributeId, FLobbyVariant>& MutatedAttribute : Changes.MutatedAttributes)
-	{
-		const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(MutatedAttribute);
-
-		EOS_LobbyModification_AddMemberAttributeOptions AddMemberAttributeOptions = {};
-		AddMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST;
-		AddMemberAttributeOptions.Attribute = &AttributeTranslator.GetAttributeData();
-		AddMemberAttributeOptions.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC; // todo - get from schema
-		static_assert(EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_AddMemberAttributeOptions updated, check new fields");
-		
-		EOSResult = EOS_LobbyModification_AddMemberAttribute(LobbyModificationHandle, &AddMemberAttributeOptions);
-		if (EOSResult != EOS_EResult::EOS_Success)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] EOS_LobbyModification_AddMemberAttribute Failed: User[%s], Lobby[%s], Key[%s], Value[%s], Result[%s]"),
-				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), *MutatedAttribute.Key.ToString().ToLower(), *ToLogString(MutatedAttribute.Value), *LexToString(EOSResult));
-			return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
-		}
-	}
-
-	// Remove member attributes.
-	for (const FLobbyAttributeId& ClearedAttribute : Changes.ClearedAttributes)
-	{
-		const FTCHARToUTF8 KeyConverter(*ClearedAttribute.ToString());
-
-		EOS_LobbyModification_RemoveMemberAttributeOptions RemoveMemberAttributeOptions = {};
-		RemoveMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_REMOVEMEMBERATTRIBUTE_API_LATEST;
-		RemoveMemberAttributeOptions.Key = KeyConverter.Get();
-		static_assert(EOS_LOBBYMODIFICATION_REMOVEMEMBERATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_RemoveMemberAttributeOptions updated, check new fields");
-		
-		EOSResult = EOS_LobbyModification_RemoveMemberAttribute(LobbyModificationHandle, &RemoveMemberAttributeOptions);
-		if (EOSResult != EOS_EResult::EOS_Success)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] EOS_LobbyModification_RemoveMemberAttribute Failed: User[%s], Lobby[%s], Key[%s], Result[%s]"),
-				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(GetInfo()->GetLobbyIdEOS()), UTF8_TO_TCHAR(KeyConverter.Get()), *LexToString(EOSResult));
-			return MakeFulfilledPromise<EOS_EResult>(EOSResult).GetFuture();
-		}
-	}
-
-	// Apply lobby updates.
-	EOS_Lobby_UpdateLobbyOptions UpdateLobbyOptions = {};
-	UpdateLobbyOptions.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
-	UpdateLobbyOptions.LobbyModificationHandle = LobbyModificationHandle;
-	static_assert(EOS_LOBBY_UPDATELOBBY_API_LATEST == 1, "EOS_Lobby_UpdateLobbyOptions updated, check new fields");
-
-	TPromise<EOS_EResult> Promise;
-	TFuture<EOS_EResult> Future = Promise.GetFuture();
-
-	EOS_Async(EOS_Lobby_UpdateLobby, Prerequisites->LobbyInterfaceHandle, UpdateLobbyOptions,
-	[LocalAccountId, LobbyInfo = GetInfo(), Promise = MoveTemp(Promise)](const EOS_Lobby_UpdateLobbyCallbackInfo* Data) mutable
-	{
-		if (Data->ResultCode != EOS_EResult::EOS_Success && Data->ResultCode != EOS_EResult::EOS_NoChange)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] EOS_Lobby_UpdateLobby Failed: User[%s], Lobby[%s], Result[%s]"),
-				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(LobbyInfo->GetLobbyIdEOS()), *LexToString(Data->ResultCode));
-		}
-		else
-		{
-			UE_LOG(LogTemp, VeryVerbose, TEXT("[FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges] Succeeded: User[%s], Lobby[%s], Result[%s]"),
-				*ToLogString(LocalAccountId), UTF8_TO_TCHAR(LobbyInfo->GetLobbyIdEOS()), *LexToString(Data->ResultCode));
-		}
-
-		Promise.EmplaceValue(Data->ResultCode);
-	});
-
 	return Future;
 }
 
@@ -707,7 +656,7 @@ FLobbyDataEOS::~FLobbyDataEOS()
 {
 	if (UnregisterFn)
 	{
-		UnregisterFn(ClientLobbyData->GetPublicData().LobbyId);
+		UnregisterFn(LobbyClientData->GetPublicData().LobbyId);
 	}
 }
 
@@ -747,10 +696,10 @@ TSharedPtr<FLobbyDetailsEOS> FLobbyDataEOS::GetActiveLobbyDetails() const
 }
 
 FLobbyDataEOS::FLobbyDataEOS(
-	const TSharedRef<FClientLobbyData>& ClientLobbyData,
+	const TSharedRef<FLobbyClientData>& LobbyClientData,
 	const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo,
 	FUnregisterFn UnregisterFn)
-	: ClientLobbyData(ClientLobbyData)
+	: LobbyClientData(LobbyClientData)
 	, LobbyDetailsInfo(LobbyDetailsInfo)
 	, UnregisterFn(MoveTemp(UnregisterFn))
 	, LobbyIdString(UTF8_TO_TCHAR(LobbyDetailsInfo->GetLobbyIdEOS()))
@@ -758,6 +707,7 @@ FLobbyDataEOS::FLobbyDataEOS(
 }
 
 TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::Create(
+	TSharedRef<FLobbyPrerequisitesEOS> Prerequisites,
 	FLobbyId LobbyId,
 	const TSharedRef<FLobbyDetailsEOS>& LobbyDetails,
 	FUnregisterFn UnregisterFn)
@@ -771,9 +721,10 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::C
 		Promise = MoveTemp(Promise),
 		LobbyId,
 		LobbyDetails,
+		Prerequisites,
 		UnregisterFn = MoveTemp(UnregisterFn)
 	]
-	(TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>&& Result) mutable
+	(TDefaultErrorResultInternal<FLobbyServiceSnapshot>&& Result) mutable
 	{
 		if (Result.IsError())
 		{
@@ -783,14 +734,14 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::C
 			return;
 		}
 
-		TSharedRef<FClientLobbySnapshot> LobbySnapshot = Result.GetOkValue();
-		TSharedRef<FClientLobbyData> NewClientLobbyData = MakeShared<FClientLobbyData>(LobbyId);
+		FLobbyServiceSnapshot LobbySnapshot = MoveTemp(Result.GetOkValue());
+		TSharedRef<FLobbyClientData> NewLobbyClientData = MakeShared<FLobbyClientData>(LobbyId, Prerequisites->SchemaRegistry);
 
 		// Fetch member data and apply them to the lobby.
-		TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> MemberSnapshots;
-		for (FAccountId MemberAccountId : LobbySnapshot->Members)
+		TMap<FAccountId, FLobbyMemberServiceSnapshot> MemberSnapshots;
+		for (FAccountId MemberAccountId : LobbySnapshot.Members)
 		{
-			TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshotResult = LobbyDetails->GetLobbyMemberSnapshot(MemberAccountId);
+			TDefaultErrorResultInternal<FLobbyMemberServiceSnapshot> LobbyMemberSnapshotResult = LobbyDetails->GetLobbyMemberSnapshot(MemberAccountId);
 			if (LobbyMemberSnapshotResult.IsError())
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[FLobbyDataEOS::Create] FLobbyDetailsEOS::GetLobbyMemberSnapshot Failed: Lobby[%s], User[%s], Result[%s]"),
@@ -802,12 +753,23 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::C
 			MemberSnapshots.Emplace(MemberAccountId, MoveTemp(LobbyMemberSnapshotResult.GetOkValue()));
 		}
 
-		NewClientLobbyData->ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(*LobbySnapshot), MoveTemp(MemberSnapshots));
+		TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> PrepareServiceLobbySnapshotResult =
+			NewLobbyClientData->PrepareServiceSnapshot({ MoveTemp(LobbySnapshot), MoveTemp(MemberSnapshots), {} });
+
+		if (PrepareServiceLobbySnapshotResult.IsError())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbyDataEOS::Create] FLobbyClientData::PrepareServiceSnapshot Failed: Lobby[%s], Result[%s]"),
+				*ToLogString(LobbyId), *PrepareServiceLobbySnapshotResult.GetErrorValue().GetLogString());
+			Promise.EmplaceValue(MoveTemp(PrepareServiceLobbySnapshotResult.GetErrorValue()));
+			return;
+		}
+
+		NewLobbyClientData->CommitServiceSnapshot({});
 
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FLobbyDataEOS::Create] Succeeded: Lobby[%s]"),
 			UTF8_TO_TCHAR(LobbyDetails->GetInfo()->GetLobbyIdEOS()));
 		Promise.EmplaceValue(MakeShared<FLobbyDataEOS>(
-			NewClientLobbyData,
+			NewLobbyClientData,
 			LobbyDetails->GetInfo(),
 			MoveTemp(UnregisterFn)));
 	});
@@ -851,7 +813,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegist
 	const FLobbyId LobbyId = FLobbyId(EOnlineServices::Epic, NextHandleIndex++);
 
 	// Create lobby data from lobby details.
-	FLobbyDataEOS::Create(LobbyId, LobbyDetails, MakeUnregisterFn())
+	FLobbyDataEOS::Create(Prerequisites, LobbyId, LobbyDetails, MakeUnregisterFn())
 	.Next([WeakThis = AsWeak(), Promise = MoveTemp(Promise), LocalAccountId, LobbyDetails](TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>&& Result) mutable
 	{
 		TSharedPtr<FLobbyDataRegistryEOS> StrongThis = WeakThis.Pin();
@@ -1062,10 +1024,21 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 			}
 		}
 
-		for (const FFindLobbySearchFilter& Filter :  Params.Filters)
+		// Create schema category instance to verify search filter attributes using the base lobby schema.
+		FSchemaCategoryInstance SchemaCategoryInstance(FSchemaId(), LobbyBaseSchemaId, LobbySchemaCategoryId, Prerequisites->SchemaRegistry);
+		for (const FFindLobbySearchFilter& Filter : Params.Filters)
 		{
+			FSchemaServiceAttributeId SchemaServiceAttributeId;
+			ESchemaServiceAttributeFlags SchemaServiceAttributeFlags = ESchemaServiceAttributeFlags::None;
+			if (!SchemaCategoryInstance.VerifyBaseAttributeData(Filter.AttributeName, Filter.ComparisonValue, SchemaServiceAttributeId, SchemaServiceAttributeFlags))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbySearchEOS::Create] VerifyBaseAttributeData failed: User[%s], Key[%s], Value[%s]"),
+					*ToLogString(Params.LocalAccountId), *Filter.AttributeName.ToString().ToLower(), *ToLogString(Filter.ComparisonValue));
+				return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(Errors::InvalidParams()).GetFuture();
+			}
+
 			const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(
-				Filter.AttributeName, Filter.ComparisonValue);
+				{ SchemaServiceAttributeId, SchemaServiceAttributeFlags, Filter.ComparisonValue });
 
 			EOS_LobbySearch_SetParameterOptions SetParameterOptions = {};
 			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
@@ -1173,7 +1146,7 @@ TArray<TSharedRef<const FLobby>> FLobbySearchEOS::GetLobbyResults() const
 
 	for (const TSharedRef<FLobbyDataEOS>& LobbyData : Lobbies)
 	{
-		Result.Add(LobbyData->GetClientLobbyData()->GetPublicDataPtr());
+		Result.Add(LobbyData->GetLobbyClientData()->GetPublicDataPtr());
 	}
 
 	return Result;

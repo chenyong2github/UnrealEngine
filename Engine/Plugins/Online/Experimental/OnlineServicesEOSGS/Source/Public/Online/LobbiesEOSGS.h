@@ -151,36 +151,9 @@ struct FLobbiesModifyLobbyDataImpl
 		// The local user agent which will perform the action.
 		FAccountId LocalAccountId;
 
-		// The changes to apply to the lobby data.
-		TSharedPtr<FClientLobbyDataChanges> Changes;
+		/** Translated changes to be applied to the service. */
+		FLobbyClientServiceChanges ServiceChanges;
 	};
-
-	// Todo: += operator.
-	// Mergeable op must be queued by lobby id.
-
-	struct Result
-	{
-	};
-};
-
-struct FLobbiesModifyLobbyMemberDataImpl
-{
-	static constexpr TCHAR Name[] = TEXT("ModifyLobbyMemberDataImpl");
-
-	struct Params
-	{
-		// The lobby handle data.
-		TSharedPtr<FLobbyDataEOS> LobbyData;
-
-		// The local user agent which will perform the action.
-		FAccountId LocalAccountId;
-
-		// The changes to apply to the lobby member data.
-		TSharedPtr<FClientLobbyMemberDataChanges> Changes;
-	};
-
-	// Todo: += operator.
-	// Mergeable op must be queued on union of lobby id + lobby member account id.
 
 	struct Result
 	{
@@ -264,7 +237,6 @@ protected:
 	TFuture<TDefaultErrorResult<FLobbiesKickLobbyMemberImpl>> KickLobbyMemberImpl(FLobbiesKickLobbyMemberImpl::Params&& Params);
 	TFuture<TDefaultErrorResult<FLobbiesPromoteLobbyMemberImpl>> PromoteLobbyMemberImpl(FLobbiesPromoteLobbyMemberImpl::Params&& Params);
 	TFuture<TDefaultErrorResult<FLobbiesModifyLobbyDataImpl>> ModifyLobbyDataImpl(FLobbiesModifyLobbyDataImpl::Params&& Params);
-	TFuture<TDefaultErrorResult<FLobbiesModifyLobbyMemberDataImpl>> ModifyLobbyMemberDataImpl(FLobbiesModifyLobbyMemberDataImpl::Params&& Params);
 	TOnlineAsyncOpHandle<FLobbiesProcessLobbyNotificationImpl> ProcessLobbyNotificationImplOp(FLobbiesProcessLobbyNotificationImpl::Params&& Params);
 
 	EOSEventRegistrationPtr OnLobbyUpdatedEOSEventRegistration;
@@ -341,14 +313,6 @@ BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyDataImpl::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyDataImpl::Result)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyMemberDataImpl::Params)
-	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyMemberDataImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyMemberDataImpl::Params, LocalAccountId)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyMemberDataImpl::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesProcessLobbyNotificationImpl::Params)

@@ -43,10 +43,10 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembe
 	}
 }
 
-inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const TMap<FLobbyAttributeId, FLobbyVariant>& Map)
+inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const TMap<FSchemaAttributeId, FSchemaVariant>& Map)
 {
 	Ar << Map.Num();
-	for (const TPair<FLobbyAttributeId, FLobbyVariant>& Pair : Map)
+	for (const TPair<FSchemaAttributeId, FSchemaVariant>& Pair : Map)
 	{
 		Ar << Pair.Key;
 		Ar << Pair.Value.GetString();
@@ -89,13 +89,13 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMemberI
 	}
 }
 
-inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, TMap<FLobbyAttributeId, FLobbyVariant>& Map)
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, TMap<FSchemaAttributeId, FSchemaVariant>& Map)
 {
 	int32 Size;
 	Ar >> Size;
 	for (int i = 0; i < Size; i++)
 	{
-		FLobbyAttributeId LobbyAttributeId;
+		FSchemaAttributeId LobbyAttributeId;
 		FString LobbyData;
 		Ar >> LobbyAttributeId;
 		Ar >> LobbyData;

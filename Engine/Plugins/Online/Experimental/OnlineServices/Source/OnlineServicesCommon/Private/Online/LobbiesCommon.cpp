@@ -10,6 +10,7 @@ namespace UE::Online {
 
 FLobbiesCommon::FLobbiesCommon(FOnlineServicesCommon& InServices)
 	: TOnlineComponent(TEXT("Lobbies"), InServices)
+	, SchemaRegistry(MakeShared<FSchemaRegistry>())
 {
 }
 
@@ -17,32 +18,12 @@ void FLobbiesCommon::Initialize()
 {
 	TOnlineComponent<ILobbies>::Initialize();
 
-	LobbySchemaRegistry = MakeShared<FLobbySchemaRegistry>();
-	ServiceSchema = MakeShared<FLobbySchema>();
+	FSchemaRegistryDescriptorConfig SchemaConfig;
+	LoadConfig(SchemaConfig);
 
-	FLobbyConfig LobbyConfig;
-	// Todo: LoadConfig(LobbyConfig);
-
-	if (LobbyConfig.RegisteredSchemas.Num() > 0)
+	if (!SchemaRegistry->ParseConfig(SchemaConfig))
 	{
-		TArray<FLobbySchemaConfig> LobbySchemaConfigs;
-		LobbySchemaConfigs.Reserve(LobbyConfig.RegisteredSchemas.Num());
-
-		for (FLobbySchemaId LobbySchemaId : LobbyConfig.RegisteredSchemas)
-		{
-			FLobbySchemaConfig LobbySchemaConfig;
-			// Todo: LoadConfig(LobbySchemaConfig, LobbySchemaId.ToString());
-			LobbySchemaConfigs.Add(MoveTemp(LobbySchemaConfig));
-		}
-
-		if (!LobbySchemaRegistry->Initialize(MoveTemp(LobbySchemaConfigs)))
-		{
-			// Todo: Log error.
-		}
-	}
-	else
-	{
-		// Todo: Log error.
+		UE_LOG(LogOnlineServices, Error, TEXT("[FLobbiesCommon::Initialize] Failed to initialize schema registry"));
 	}
 }
 
