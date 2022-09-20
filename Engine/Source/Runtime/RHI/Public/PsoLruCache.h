@@ -273,7 +273,7 @@ public:
 	 * Find the value of an entry using a predicate.
 	 *
 	 * @param Pred The predicate functor to apply to each entry.
-	 * @return A value for which the predicate returned true, or nullptr if not found.
+	 * @return Pointer to value for which the predicate returned true, or nullptr if not found.
 	 * @see ContainsByPredicate, FilterByPredicate, RemoveByPredicate
 	 */
 	template<typename Predicate>
@@ -283,7 +283,7 @@ public:
 		{
 			if (Pred(Entry->Key, Entry->Value))
 			{
-				return Entry->Value;
+				return &Entry->Value;
 			}
 		}
 
