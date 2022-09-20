@@ -33,7 +33,6 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	bPreviewFeatureLevelActive = false;
 	bPreviewFeatureLevelWasDefault = true;
 	PreviewDeviceProfileName = NAME_None;
-	PreviewShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 }
 
 void UEditorPerProjectUserSettings::PostInitProperties()

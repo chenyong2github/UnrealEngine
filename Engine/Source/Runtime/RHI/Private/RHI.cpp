@@ -2668,6 +2668,26 @@ void FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms()
 	}
 }
 
+const EShaderPlatform FGenericDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(const FName ShaderPlatformName)
+{
+	EShaderPlatform ShaderPlatformToPreview = EShaderPlatform::SP_NumPlatforms;
+	for (int32 i = 0; i < SP_NumPlatforms; ++i)
+	{
+		const EShaderPlatform Platform = static_cast<EShaderPlatform>(i);
+		if (!Infos[Platform].bContainsValidPlatformInfo)
+		{
+			continue;
+		}
+
+		if (Infos[Platform].Name == ShaderPlatformName)
+		{
+			ShaderPlatformToPreview = Platform;
+			break;
+		}
+	}
+	return ShaderPlatformToPreview;
+}
+
 //
 //	MSAA sample offsets.
 //

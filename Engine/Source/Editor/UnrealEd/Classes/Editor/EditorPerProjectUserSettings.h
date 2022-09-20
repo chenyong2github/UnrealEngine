@@ -162,10 +162,6 @@ public:
 	UPROPERTY(config)
 	int32 PreviewFeatureLevel;
 
-	/** The Preview EShaderPlatform used for Preview */
-	UPROPERTY(config)
-	int32 PreviewShaderPlatform;
-
 	/** The platform name to preview, or NAME_None if there is no preview platform */
 	UPROPERTY(config)
 	FName PreviewPlatformName;
