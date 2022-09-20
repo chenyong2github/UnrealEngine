@@ -40,8 +40,8 @@ protected:
 	void ToggleEnableDisplay();
 	bool CanEnableDisplayConfiguration();
 	bool GetDisplayConfigurationState();
-	void OnSourceColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace);
-	void OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace);
+	void OnSourceColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView&);
+	void OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView);
 
 protected:
 	FViewport* Viewport;

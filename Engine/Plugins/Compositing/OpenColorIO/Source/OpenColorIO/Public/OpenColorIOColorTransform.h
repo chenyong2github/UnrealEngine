@@ -33,6 +33,7 @@ public:
 
 public:
 	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
+	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection = true);
 
 	/**
 	 * Cache resource shaders for cooking on the given shader platform.
@@ -71,6 +72,7 @@ public:
 	bool GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource);
 
 	bool IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const;
+	bool IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection = true) const;
 
 	// For all ColorTransforms, UOpenColorIOColorTransform::CacheResourceShadersForRendering
 	static void AllColorTransformsCacheResourceShadersForRendering();
@@ -103,6 +105,7 @@ protected:
 	 * @return true if parameters are valid.
 	 */
 	bool GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
+	bool GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection = true);
 
 	/**
 	 * Helper function returning the color space transform name based on source and destination color spaces.
@@ -163,11 +166,19 @@ public:
 	TObjectPtr<UOpenColorIOConfiguration> ConfigurationOwner;
 
 	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
+	bool bIsDisplayViewType = false;
+
+	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
 	FString SourceColorSpace;
 
 	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
 	FString DestinationColorSpace;
 
+	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
+	FString Display;
+
+	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
+	FString View;
 private:
 
 	/** If the color space requires textures, this will contains the data to do the transform */

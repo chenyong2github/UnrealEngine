@@ -66,6 +66,8 @@ void SOpenColorIODisplay::Construct(const FArguments& InArgs)
 		.Config(Configuration.ColorConfiguration.ConfigurationSource)
 		.InitialColorSpace(Configuration.ColorConfiguration.SourceColorSpace)
 		.RestrictedColor(Configuration.ColorConfiguration.DestinationColorSpace)
+		.InitialDisplayView(FOpenColorIODisplayView())
+		.IsDestination(false)
 		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnSourceColorSpaceChanged));
 
 	// Source color space picker widget
@@ -74,6 +76,8 @@ void SOpenColorIODisplay::Construct(const FArguments& InArgs)
 		.Config(Configuration.ColorConfiguration.ConfigurationSource)
 		.InitialColorSpace(Configuration.ColorConfiguration.DestinationColorSpace)
 		.RestrictedColor(Configuration.ColorConfiguration.SourceColorSpace)
+		.InitialDisplayView(Configuration.ColorConfiguration.DestinationDisplayView)
+		.IsDestination(true)
 		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnDestinationColorSpaceChanged));
 	
 	Section.AddEntry(FToolMenuEntry::InitWidget("SourceColor", SourceColorSpace.ToSharedRef(), FText::GetEmpty(), true, false));
@@ -168,7 +172,7 @@ bool SOpenColorIODisplay::GetDisplayConfigurationState()
 	return Configuration.bIsEnabled;
 }
 
-void SOpenColorIODisplay::OnSourceColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace)
+void SOpenColorIODisplay::OnSourceColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView&)
 {
 	//When color space changes, assign it, update restriction on the other picker and let know our listeners we changed
 	Configuration.ColorConfiguration.SourceColorSpace = NewColorSpace;
@@ -176,10 +180,10 @@ void SOpenColorIODisplay::OnSourceColorSpaceChanged(const FOpenColorIOColorSpace
 	OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);
 }
 
-void SOpenColorIODisplay::OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace)
+void SOpenColorIODisplay::OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView)
 {
 	Configuration.ColorConfiguration.DestinationColorSpace = NewColorSpace;
-	SourceColorSpace->SetRestrictedColorSpace(NewColorSpace);
+	Configuration.ColorConfiguration.DestinationDisplayView = NewDisplayView;
 	OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);
 }
 

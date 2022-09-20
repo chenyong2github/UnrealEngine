@@ -59,12 +59,19 @@ bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeat
 {
 	TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
 	{
-		return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->DestinationColorSpace == InSettings.DestinationColorSpace.ColorSpaceName;
+		if(InTransform->bIsDisplayViewType)
+		{
+			return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->Display == InSettings.DestinationDisplayView.Display && InTransform->View == InSettings.DestinationDisplayView.View;
+		}
+		else
+		{
+			return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->DestinationColorSpace == InSettings.DestinationColorSpace.ColorSpaceName;
+		}
 	});
 
 	if (TransformPtr == nullptr)
 	{
-		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform data from %s to %s was not found."), *InSettings.SourceColorSpace.ColorSpaceName, *InSettings.DestinationColorSpace.ColorSpaceName);
+		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform for [%s] was not found."), *InSettings.SourceColorSpace.ToString());
 		return false;
 	}
 
@@ -100,9 +107,24 @@ bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, 
 	return (TransformData != nullptr);
 }
 
+bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView)
+{
+	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
+		{
+			return InTransformData->IsTransform(InSourceColorSpace, InDisplay, InView);
+		});
+
+	return (TransformData != nullptr);
+}
+
 bool UOpenColorIOConfiguration::HasDesiredColorSpace(const FOpenColorIOColorSpace& ColorSpace) const
 {
 	return DesiredColorSpaces.Find(ColorSpace) != INDEX_NONE;
+}
+
+bool UOpenColorIOConfiguration::HasDesiredDisplayView(const FOpenColorIODisplayView& DisplayView) const
+{
+	return DesiredDisplayViews.Find(DisplayView) != INDEX_NONE;
 }
 
 bool UOpenColorIOConfiguration::Validate() const
@@ -130,7 +152,9 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 {
 #if WITH_EDITOR && WITH_OCIO
 	TArray<FOpenColorIOColorSpace> ColorSpacesToBeReloaded = DesiredColorSpaces;
+	TArray<FOpenColorIODisplayView> DisplayViewsToBeReloaded = DesiredDisplayViews;
 	DesiredColorSpaces.Reset();
+	DesiredDisplayViews.Reset();
 	CleanupTransforms();
 	LoadConfigurationFile();
 
@@ -157,6 +181,20 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 		DesiredColorSpaces.Add(ColorSpace);
 	}
 
+	for (const FOpenColorIODisplayView& ExistingDisplayView : DisplayViewsToBeReloaded)
+	{
+		const auto DisplayName = StringCast<ANSICHAR>(*ExistingDisplayView.Display);
+		const auto ViewName = StringCast<ANSICHAR>(*ExistingDisplayView.View);
+		const auto TransformName = LoadedConfig->getDisplayViewTransformName(DisplayName.Get(), ViewName.Get());
+		if (TransformName == nullptr)
+		{
+			// Name not found, therefore we don't need to re-add this display-view.
+			continue;
+		}
+
+		DesiredDisplayViews.Add(ExistingDisplayView);
+	}
+
 	// Genereate new shaders.
 	for (int32 indexTop = 0; indexTop < DesiredColorSpaces.Num(); ++indexTop)
 	{
@@ -168,6 +206,12 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 			CreateColorTransform(TopColorSpace.ColorSpaceName, OtherColorSpace.ColorSpaceName);
 			CreateColorTransform(OtherColorSpace.ColorSpaceName, TopColorSpace.ColorSpaceName);
+		}
+
+		for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
+		{
+			// note: we only support display-view transforms in the forward direction currently.
+			CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View);
 		}
 	}
 #endif
@@ -286,38 +330,74 @@ void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColo
 	}
 }
 
+void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bForwardDirection)
+{
+	if (InSourceColorSpace.IsEmpty() || InDisplay.IsEmpty() || InView.IsEmpty())
+	{
+		return;
+	}
+
+	if (HasTransform(InSourceColorSpace, InDisplay, InView))
+	{
+		UE_LOG(LogOpenColorIO, Log, TEXT("OCIOConfig already contains %s to %s-%s transform."), *InSourceColorSpace, *InDisplay, *InView);
+		return;
+	}
+
+	UOpenColorIOColorTransform* NewTransform = NewObject<UOpenColorIOColorTransform>(this, NAME_None, RF_NoFlags);
+	const bool bSuccess = NewTransform->Initialize(this, InSourceColorSpace, InDisplay, InView, bForwardDirection);
+
+	if (bSuccess)
+	{
+		ColorTransforms.Add(NewTransform);
+	}
+	else
+	{
+		UE_LOG(LogOpenColorIO, Warning, TEXT("Could not create color space transform from %s to %s - %s. Verify your OCIO config file, it may have errors in it."), *InSourceColorSpace, *InDisplay, *InView);
+	}
+}
+
 void UOpenColorIOConfiguration::CleanupTransforms()
 {
-	for (int32 i = 0; i < ColorTransforms.Num(); ++i)
-	{
-		UOpenColorIOColorTransform* Transform = ColorTransforms[i];
-
-		//Check if the source color space of this transform is desired. If not, remove that transform from the list and move on.
-		const FOpenColorIOColorSpace* FoundSourceColorPtr = DesiredColorSpaces.FindByPredicate([&](const FOpenColorIOColorSpace& InOtherColorSpace)
+	ColorTransforms = ColorTransforms.FilterByPredicate([this](const TObjectPtr<UOpenColorIOColorTransform>& InTransform) -> bool
 		{
-			return InOtherColorSpace.ColorSpaceName == Transform->SourceColorSpace;
+			//Check if the source color space of this transform is desired. If not, remove that transform from the list.
+			const FOpenColorIOColorSpace* FoundSourceColorPtr = DesiredColorSpaces.FindByPredicate([InTransform](const FOpenColorIOColorSpace& InOtherColorSpace)
+				{
+					return InOtherColorSpace.ColorSpaceName == InTransform->SourceColorSpace;
+				});
+
+			if (FoundSourceColorPtr == nullptr)
+			{
+				return false;
+			}
+
+			void* DestinationPtr = nullptr;
+
+			//The source was there so check if the destination color space/display view of this transform is desired. If not, remove that transform from the list.
+			if (InTransform->bIsDisplayViewType)
+			{
+				DestinationPtr = DesiredDisplayViews.FindByPredicate([InTransform](const FOpenColorIODisplayView& InOtherDisplayView)
+					{
+						return InOtherDisplayView.Display.Equals(InTransform->Display) && InOtherDisplayView.View.Equals(InTransform->View);
+					});
+
+			}
+			else
+			{
+				DestinationPtr = DesiredColorSpaces.FindByPredicate([InTransform](const FOpenColorIOColorSpace& InOtherColorSpace)
+					{
+						return InOtherColorSpace.ColorSpaceName == InTransform->DestinationColorSpace;
+					});
+			}
+
+			if (DestinationPtr == nullptr)
+			{
+				return false;
+			}
+
+			// Both source and destination are in the desired collections, so we keep the transform.
+			return true;
 		});
-
-		if (FoundSourceColorPtr == nullptr)
-		{
-			ColorTransforms.RemoveSingleSwap(Transform, true);
-			--i;
-			continue;
-		}
-
-		//The source was there so check if the destination color space of this transform is desired. If not, remove that transform from the list and move on.
-		const FOpenColorIOColorSpace* FoundDestinationColorPtr = DesiredColorSpaces.FindByPredicate([&](const FOpenColorIOColorSpace& InOtherColorSpace)
-		{
-			return InOtherColorSpace.ColorSpaceName == Transform->DestinationColorSpace;
-		});
-
-		if (FoundDestinationColorPtr == nullptr)
-		{
-			ColorTransforms.RemoveSingleSwap(Transform, true);
-			--i;
-			continue;
-		}
-	}
 }
 
 void UOpenColorIOConfiguration::PostLoad()
@@ -377,6 +457,31 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 					CreateColorTransform(TopColorSpace.ColorSpaceName, OtherColorSpace.ColorSpaceName);
 					CreateColorTransform(OtherColorSpace.ColorSpaceName, TopColorSpace.ColorSpaceName);
+				}
+
+				for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
+				{
+					// note: we only support display-view transforms in the forward direction currently.
+					CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View);
+				}
+			}
+		}
+
+		if (PropertyChangedEvent.ChangeType & (EPropertyChangeType::ArrayRemove | EPropertyChangeType::ArrayClear | EPropertyChangeType::ValueSet))
+		{
+			CleanupTransforms();
+		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, DesiredDisplayViews))
+	{
+		if (PropertyChangedEvent.ChangeType & (EPropertyChangeType::ArrayAdd | EPropertyChangeType::Duplicate | EPropertyChangeType::ValueSet))
+		{
+			for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
+			{
+				for (const FOpenColorIOColorSpace& SourceColorSpace : DesiredColorSpaces)
+				{
+					// note: we only support display-view transforms in the forward direction currently.
+					CreateColorTransform(SourceColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View);
 				}
 			}
 		}

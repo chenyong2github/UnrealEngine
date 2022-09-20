@@ -20,6 +20,8 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 	Configuration = InArgs._Config;
 	ColorSpaceSelection = InArgs._InitialColorSpace;
 	RestrictedColorSpace = InArgs._RestrictedColor;
+	DisplayViewSelection = InArgs._InitialDisplayView;
+	bIsDestination = InArgs._IsDestination;
 	OnColorSpaceChanged = InArgs._OnColorSpaceChanged;
 
 	SelectionButton = SNew(SComboButton)
@@ -36,7 +38,11 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 			SNew(STextBlock)
 			.Text(MakeAttributeLambda([=]
 				{
-					if (ColorSpaceSelection.ColorSpaceIndex != INDEX_NONE)
+					if (DisplayViewSelection.IsValid())
+					{
+						return FText::FromString(*DisplayViewSelection.ToString());
+					}
+					else if (ColorSpaceSelection.ColorSpaceIndex != INDEX_NONE)
 					{
 						return FText::FromString(*ColorSpaceSelection.ToString());
 					}
@@ -87,9 +93,25 @@ void SOpenColorIOColorSpacePicker::SetRestrictedColorSpace(const FOpenColorIOCol
 void SOpenColorIOColorSpacePicker::SetCurrentColorSpace(const FOpenColorIOColorSpace& NewColorSpace)
 {
 	ColorSpaceSelection = NewColorSpace;
+	DisplayViewSelection.Reset();
 	
 	// Let listeners know selection has changed
-	OnColorSpaceChanged.ExecuteIfBound(ColorSpaceSelection);
+	OnColorSpaceChanged.ExecuteIfBound(ColorSpaceSelection, DisplayViewSelection);
+
+	//Close our menu
+	if (SelectionButton.IsValid())
+	{
+		SelectionButton->SetIsOpen(false);
+	}
+}
+
+void SOpenColorIOColorSpacePicker::SetCurrentDisplayView(const FOpenColorIODisplayView& NewDisplayView)
+{
+	ColorSpaceSelection.Reset();
+	DisplayViewSelection = NewDisplayView;
+
+	// Let listeners know selection has changed
+	OnColorSpaceChanged.ExecuteIfBound(ColorSpaceSelection, DisplayViewSelection);
 
 	//Close our menu
 	if (SelectionButton.IsValid())
@@ -106,7 +128,7 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 		const bool bShouldCloseWindowAfterClosing = false;
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
 
-		MenuBuilder.BeginSection("AvailableColorSpaces", LOCTEXT("AvailableCoorSpaces", "Available Color Spaces"));
+		MenuBuilder.BeginSection("AvailableColorSpaces", LOCTEXT("AvailableColorSpaces", "Available Color Spaces"));
 		{
 			bool ColorSpaceAdded = false;
 
@@ -149,6 +171,53 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 		}
 		MenuBuilder.EndSection();
 
+		if (bIsDestination)
+		{
+			MenuBuilder.BeginSection("AvailableDisplayViews", LOCTEXT("AvailableDisplayViews", "Available Display-Views"));
+			{
+				bool DisplayViewAdded = false;
+
+				for (int32 i = 0; i < ConfigurationObject->DesiredDisplayViews.Num(); ++i)
+				{
+					const FOpenColorIODisplayView& DisplayView = ConfigurationObject->DesiredDisplayViews[i];
+					if (DisplayView == DisplayViewSelection || !DisplayView.IsValid())
+					{
+						continue;
+					}
+
+					MenuBuilder.AddMenuEntry
+					(
+						FText::FromString(DisplayView.ToString()),
+						FText::FromString(DisplayView.ToString()),
+						FSlateIcon(),
+						FUIAction
+						(
+							FExecuteAction::CreateLambda([this, DisplayView]
+							{
+								SetCurrentDisplayView(DisplayView);
+							}),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateLambda([=]
+							{
+								return DisplayViewSelection == DisplayView;
+							})
+						),
+						NAME_None,
+						EUserInterfaceActionType::RadioButton
+					);
+
+					DisplayViewAdded = true;
+				}
+
+				if (!DisplayViewAdded)
+				{
+					MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("NoDisplayViewFound", "No available display-view"), false, false);
+				}
+			}
+			MenuBuilder.EndSection();
+		}
+
+
 		return MenuBuilder.MakeWidget();
 	}
 
@@ -158,12 +227,13 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 FReply SOpenColorIOColorSpacePicker::OnResetToDefault()
 {
 	SetCurrentColorSpace(FOpenColorIOColorSpace());
+	SetCurrentDisplayView(FOpenColorIODisplayView());
 	return FReply::Handled();
 }
 
 EVisibility SOpenColorIOColorSpacePicker::ShouldShowResetToDefaultButton() const
 {
-	return ColorSpaceSelection != FOpenColorIOColorSpace() ? EVisibility::Visible : EVisibility::Hidden;
+	return (ColorSpaceSelection.IsValid() || DisplayViewSelection.IsValid()) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 #undef LOCTEXT_NAMESPACE

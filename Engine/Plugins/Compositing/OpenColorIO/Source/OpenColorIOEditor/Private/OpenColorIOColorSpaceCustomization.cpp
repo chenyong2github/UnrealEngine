@@ -17,15 +17,15 @@ void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	CachedConfigFile.reset();
 	LoadedFilePath = FFilePath();
 	
-	ColorSpaceProperty = InPropertyHandle;
+	CachedProperty = InPropertyHandle;
 
-	if (ColorSpaceProperty->GetNumPerObjectValues() == 1 && ColorSpaceProperty->IsValidHandle())
+	if (CachedProperty->GetNumPerObjectValues() == 1 && CachedProperty->IsValidHandle())
 	{
-		FProperty* Property = ColorSpaceProperty->GetProperty();
+		FProperty* Property = CachedProperty->GetProperty();
 		check(Property && CastField<FStructProperty>(Property) && CastField<FStructProperty>(Property)->Struct && CastField<FStructProperty>(Property)->Struct->IsChildOf(FOpenColorIOColorSpace::StaticStruct()));
 
 		TArray<void*> RawData;
-		ColorSpaceProperty->AccessRawData(RawData);
+		CachedProperty->AccessRawData(RawData);
 
 		check(RawData.Num() == 1);
 		FOpenColorIOColorSpace* ColorSpaceValue = reinterpret_cast<FOpenColorIOColorSpace*>(RawData[0]);
@@ -34,39 +34,7 @@ void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 		TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 
 		// Get the ConfigurationFile to read color space from
-		{
-			static FName NAME_ConfigFile = TEXT("OCIOConfigFile");
-
-			//Verify if we're in an array before accessing the property directly. Need to go deeper for array properties.
-			TSharedPtr<IPropertyHandle> ParentArrayHandle = InPropertyHandle->GetParentHandle();
-			TSharedPtr<IPropertyHandleArray> ParentHandleAsArray = ParentArrayHandle->AsArray();
-			if (ParentHandleAsArray.IsValid())
-			{
-				//Struct is in an array, parent class is access through more layers
-				if (ParentArrayHandle->GetProperty()->HasMetaData(NAME_ConfigFile))
-				{
-					const FString& ConfigFileVariableName = ParentArrayHandle->GetProperty()->GetMetaData(NAME_ConfigFile);
-					TSharedPtr<IPropertyHandle> ClassHandle = ParentArrayHandle->GetParentHandle()->GetParentHandle();
-					if (ClassHandle.IsValid() && !ConfigFileVariableName.IsEmpty())
-					{
-						ConfigurationFileProperty = ClassHandle->GetChildHandle(*ConfigFileVariableName);
-					}
-				}
-			}
-			else
-			{
-				if (ColorSpaceProperty->HasMetaData(NAME_ConfigFile))
-				{
-					const FString& ConfigFileVariableName = ColorSpaceProperty->GetMetaData(NAME_ConfigFile);
-					TSharedPtr<IPropertyHandle> ClassHandle = ColorSpaceProperty->GetParentHandle();
-					if (ClassHandle.IsValid() && !ConfigFileVariableName.IsEmpty())
-					{
-						ConfigurationFileProperty = ClassHandle->GetChildHandle(*ConfigFileVariableName);
-					}
-				}
-			}
-		}
-
+		ConfigurationFileProperty = GetConfigurationFileProperty();
 
 		HeaderRow
 			.NameContent()
@@ -97,12 +65,101 @@ void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	}
 }
 
-void FOpenColorIOColorSpaceCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FOpenColorIODisplayViewCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	//Reset internals
+	ConfigurationFileProperty.Reset();
+	CachedConfigFile.reset();
+	LoadedFilePath = FFilePath();
+
+	CachedProperty = InPropertyHandle;
+
+	if (CachedProperty->GetNumPerObjectValues() == 1 && CachedProperty->IsValidHandle())
+	{
+		FProperty* Property = CachedProperty->GetProperty();
+		check(Property && CastField<FStructProperty>(Property) && CastField<FStructProperty>(Property)->Struct && CastField<FStructProperty>(Property)->Struct->IsChildOf(FOpenColorIODisplayView::StaticStruct()));
+
+		TArray<void*> RawData;
+		CachedProperty->AccessRawData(RawData);
+
+		check(RawData.Num() == 1);
+		FOpenColorIODisplayView* DisplayViewValue = reinterpret_cast<FOpenColorIODisplayView*>(RawData[0]);
+
+		check(DisplayViewValue);
+		TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
+
+		// Get the ConfigurationFile to read color space from
+		ConfigurationFileProperty = GetConfigurationFileProperty();
+
+		HeaderRow
+			.NameContent()
+			[
+				InPropertyHandle->CreatePropertyNameWidget()
+			]
+		.ValueContent()
+			.MaxDesiredWidth(512)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(MakeAttributeLambda([=] { return FText::FromString(DisplayViewValue->ToString()); }))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+				.VAlign(VAlign_Center)
+				[
+					SNew(SComboButton)
+					.OnGetMenuContent(this, &FOpenColorIODisplayViewCustomization::HandleSourceComboButtonMenuContent)
+					.ContentPadding(FMargin(4.0, 2.0))
+				]
+			].IsEnabled(MakeAttributeLambda([=] { return !InPropertyHandle->IsEditConst() && PropertyUtils->IsPropertyEditingEnabled(); }));
+	}
 }
 
+TSharedPtr<IPropertyHandle> IPropertyTypeCustomizationOpenColorIO::GetConfigurationFileProperty() const
+{
+	if (CachedProperty.IsValid())
+	{
+		static FName NAME_ConfigFile = TEXT("OCIOConfigFile");
 
-bool FOpenColorIOColorSpaceCustomization::LoadConfigurationFile(const FFilePath& InFilePath)
+		//Verify if we're in an array before accessing the property directly. Need to go deeper for array properties.
+		TSharedPtr<IPropertyHandle> ParentArrayHandle = CachedProperty->GetParentHandle();
+		TSharedPtr<IPropertyHandleArray> ParentHandleAsArray = ParentArrayHandle->AsArray();
+		if (ParentHandleAsArray.IsValid())
+		{
+			//Struct is in an array, parent class is access through more layers
+			if (ParentArrayHandle->GetProperty()->HasMetaData(NAME_ConfigFile))
+			{
+				const FString& ConfigFileVariableName = ParentArrayHandle->GetProperty()->GetMetaData(NAME_ConfigFile);
+				TSharedPtr<IPropertyHandle> ClassHandle = ParentArrayHandle->GetParentHandle()->GetParentHandle();
+				if (ClassHandle.IsValid() && !ConfigFileVariableName.IsEmpty())
+				{
+					return ClassHandle->GetChildHandle(*ConfigFileVariableName);
+				}
+			}
+		}
+		else
+		{
+			if (CachedProperty->HasMetaData(NAME_ConfigFile))
+			{
+				const FString& ConfigFileVariableName = CachedProperty->GetMetaData(NAME_ConfigFile);
+				TSharedPtr<IPropertyHandle> ClassHandle = CachedProperty->GetParentHandle();
+				if (ClassHandle.IsValid() && !ConfigFileVariableName.IsEmpty())
+				{
+					return ClassHandle->GetChildHandle(*ConfigFileVariableName);
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+bool IPropertyTypeCustomizationOpenColorIO::LoadConfigurationFile(const FFilePath& InFilePath)
 {
 #if WITH_OCIO
 #if !PLATFORM_EXCEPTIONS_DISABLED
@@ -143,6 +200,26 @@ bool FOpenColorIOColorSpaceCustomization::LoadConfigurationFile(const FFilePath&
 #else //WITH_OCIO
 	return false;
 #endif //WITH_OCIO
+}
+
+bool IPropertyTypeCustomizationOpenColorIO::CheckValidConfiguration()
+{
+	if (ConfigurationFileProperty.IsValid())
+	{
+		TArray<void*> RawData;
+		ConfigurationFileProperty->AccessRawData(RawData);
+
+		check(RawData.Num() == 1);
+		FFilePath* ConfigFilePath = reinterpret_cast<FFilePath*>(RawData[0]);
+		check(ConfigFilePath);
+
+		if (!ConfigFilePath->FilePath.IsEmpty() && ConfigFilePath->FilePath != LoadedFilePath.FilePath)
+		{
+			return LoadConfigurationFile(*ConfigFilePath);
+		}
+	}
+
+	return false;
 }
 
 void FOpenColorIOColorSpaceCustomization::ProcessColorSpaceForMenuGeneration(FMenuBuilder& InMenuBuilder, const int32 InMenuDepth, const FString& InPreviousFamilyHierarchy, const FOpenColorIOColorSpace& InColorSpace, TArray<FString>& InOutExistingMenuFilter)
@@ -212,15 +289,15 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 		FUIAction(
 			FExecuteAction::CreateLambda([=]
 			{
-				if (FStructProperty* StructProperty = CastField<FStructProperty>(ColorSpaceProperty->GetProperty()))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(CachedProperty->GetProperty()))
 				{
 					TArray<void*> RawData;
-					ColorSpaceProperty->AccessRawData(RawData);
+					CachedProperty->AccessRawData(RawData);
 					FOpenColorIOColorSpace* PreviousColorSpaceValue = reinterpret_cast<FOpenColorIOColorSpace*>(RawData[0]);
 
 					FString TextValue;
 					StructProperty->Struct->ExportText(TextValue, &InColorSpace, PreviousColorSpaceValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-					ensure(ColorSpaceProperty->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+					ensure(CachedProperty->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
 				}
 			}
 			),
@@ -228,7 +305,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 			FIsActionChecked::CreateLambda([=]
 			{
 				TArray<void*> RawData;
-				ColorSpaceProperty->AccessRawData(RawData);
+				CachedProperty->AccessRawData(RawData);
 				FOpenColorIOColorSpace* ColorSpaceValue = reinterpret_cast<FOpenColorIOColorSpace*>(RawData[0]);
 				return *ColorSpaceValue == InColorSpace;
 			})
@@ -240,21 +317,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 
 TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButtonMenuContent()
 {
-	bool bValidConfiguration = false;
-	if (ConfigurationFileProperty.IsValid())
-	{
-		TArray<void*> RawData;
-		ConfigurationFileProperty->AccessRawData(RawData);
-
-		check(RawData.Num() == 1);
-		FFilePath* ConfigFilePath = reinterpret_cast<FFilePath*>(RawData[0]);
-		check(ConfigFilePath);
-
-		if (!ConfigFilePath->FilePath.IsEmpty() && ConfigFilePath->FilePath != LoadedFilePath.FilePath)
-		{
-			bValidConfiguration = LoadConfigurationFile(*ConfigFilePath);
-		}
-	}
+	bool bValidConfiguration = CheckValidConfiguration();
 
 	// Generate menu
 	FMenuBuilder MenuBuilder(true, nullptr);
@@ -288,6 +351,94 @@ TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButton
 			if (ColorSpaceCount <= 0)
 			{
 				MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("NoColorSpaceFound", "No color space found"), false, false);
+			}
+		}
+		else
+		{
+			MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("InvalidConfigurationFile", "Invalid configuration file"), false, false);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void FOpenColorIODisplayViewCustomization::PopulateViewSubMenu(FMenuBuilder& InMenuBuilder, FOpenColorIODisplayView InDisplayView)
+{
+	const int32 ViewCount = CachedConfigFile->getNumViews(TCHAR_TO_ANSI(*InDisplayView.Display));
+	for (int32 i = 0; i < ViewCount; ++i)
+	{
+		const char* ViewName = CachedConfigFile->getView(TCHAR_TO_ANSI(*InDisplayView.Display), i);
+		InDisplayView.View = StringCast<TCHAR>(ViewName).Get();
+		
+		AddMenuEntry(InMenuBuilder, InDisplayView);
+	}
+}
+
+void FOpenColorIODisplayViewCustomization::AddMenuEntry(FMenuBuilder& InMenuBuilder, const FOpenColorIODisplayView& InDisplayView)
+{
+	InMenuBuilder.AddMenuEntry(
+		FText::FromString(InDisplayView.View),
+		FText::FromString(InDisplayView.ToString()),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([=]
+				{
+					if (FStructProperty* StructProperty = CastField<FStructProperty>(CachedProperty->GetProperty()))
+					{
+						TArray<void*> RawData;
+						CachedProperty->AccessRawData(RawData);
+						FOpenColorIODisplayView* PreviousDisplayViewValue = reinterpret_cast<FOpenColorIODisplayView*>(RawData[0]);
+
+						FString TextValue;
+						StructProperty->Struct->ExportText(TextValue, &InDisplayView, PreviousDisplayViewValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+						ensure(CachedProperty->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+					}
+				}
+			),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([=]
+				{
+					TArray<void*> RawData;
+					CachedProperty->AccessRawData(RawData);
+					FOpenColorIODisplayView* DisplayViewValue = reinterpret_cast<FOpenColorIODisplayView*>(RawData[0]);
+					return *DisplayViewValue == InDisplayView;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+}
+
+TSharedRef<SWidget> FOpenColorIODisplayViewCustomization::HandleSourceComboButtonMenuContent()
+{
+	bool bValidConfiguration = CheckValidConfiguration();
+
+	// Generate menu
+	FMenuBuilder MenuBuilder(true, nullptr);
+	TArray<FString> ExistingSubMenus;
+
+	MenuBuilder.BeginSection("AllDisplayViews", LOCTEXT("AllDisplayViewsSection", "Display - View"));
+	{
+		if (bValidConfiguration)
+		{
+			const int32 DisplayCount = CachedConfigFile->getNumDisplays();
+			for (int32 i = 0; i < DisplayCount; ++i)
+			{
+				const char* DisplayName = CachedConfigFile->getDisplay(i);
+
+				const FOpenColorIODisplayView DisplayViewValue = { StringCast<TCHAR>(DisplayName).Get(), TEXT("<Invalid>") };
+
+				MenuBuilder.AddSubMenu(
+					FText::FromString(DisplayViewValue.Display),
+					LOCTEXT("OpensDisplayViewSubMenu", "Display - View Family Sub Menu"),
+					FNewMenuDelegate::CreateRaw(this, &FOpenColorIODisplayViewCustomization::PopulateViewSubMenu, DisplayViewValue)
+				);
+			}
+
+			if (DisplayCount <= 0)
+			{
+				MenuBuilder.AddWidget(SNullWidget::NullWidget, LOCTEXT("NoDisplayFound", "No display found"), false, false);
 			}
 		}
 		else

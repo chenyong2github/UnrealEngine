@@ -24,7 +24,7 @@ FString FOpenColorIOColorSpace::ToString() const
 {
 	if (IsValid())
 	{
-		return FString::Printf(TEXT("%s"), *ColorSpaceName);
+		return ColorSpaceName;
 	}
 	return TEXT("<Invalid>");
 }
@@ -64,6 +64,43 @@ FString FOpenColorIOColorSpace::GetFamilyNameAtDepth(int32 InDepth) const
 }
 
 /*
+ * FOpenColorIODisplayView implementation
+ */
+
+FOpenColorIODisplayView::FOpenColorIODisplayView()
+	: Display()
+	, View()
+{
+}
+
+FOpenColorIODisplayView::FOpenColorIODisplayView(FStringView InDisplayName, FStringView InViewName)
+	: Display(InDisplayName)
+	, View(InViewName)
+{
+}
+
+FString FOpenColorIODisplayView::ToString() const
+{
+	if (IsValid())
+	{
+		return Display + TEXT(" - ") + View;
+	}
+
+	return TEXT("<Invalid>");
+}
+
+bool FOpenColorIODisplayView::IsValid() const
+{
+	return !Display.IsEmpty() && !View.IsEmpty();
+}
+
+void FOpenColorIODisplayView::Reset()
+{
+	Display.Reset();
+	View.Reset();
+}
+
+/*
  * FOpenColorIOColorConversionSettings implementation
  */
 
@@ -77,7 +114,14 @@ FString FOpenColorIOColorConversionSettings::ToString() const
 {
 	if (ConfigurationSource)
 	{
-		return FString::Printf(TEXT("%s config - %s to %s"), *ConfigurationSource->GetName(), *SourceColorSpace.ToString(), *DestinationColorSpace.ToString());
+		if (IsDisplayView())
+		{
+			return FString::Printf(TEXT("%s config - %s to %s"), *ConfigurationSource->GetName(), *SourceColorSpace.ToString(), *DestinationDisplayView.ToString());
+		}
+		else
+		{
+			return FString::Printf(TEXT("%s config - %s to %s"), *ConfigurationSource->GetName(), *SourceColorSpace.ToString(), *DestinationColorSpace.ToString());
+		}
 	}
 	return TEXT("<Invalid Conversion>");
 }
@@ -86,7 +130,14 @@ bool FOpenColorIOColorConversionSettings::IsValid() const
 {
 	if (ConfigurationSource)
 	{
-		return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationColorSpace.ColorSpaceName);
+		if (IsDisplayView())
+		{
+			return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View);
+		}
+		else
+		{
+			return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationColorSpace.ColorSpaceName);
+		}
 	}
 
 	return false;
@@ -101,14 +152,32 @@ void FOpenColorIOColorConversionSettings::ValidateColorSpaces()
 			SourceColorSpace.Reset();
 		}
 
-		if (!ConfigurationSource->HasDesiredColorSpace(DestinationColorSpace))
+		if (IsDisplayView())
 		{
+			if (!ConfigurationSource->HasDesiredDisplayView(DestinationDisplayView))
+			{
+				DestinationDisplayView.Reset();
+			}
 			DestinationColorSpace.Reset();
+		}
+		else
+		{
+			if (!ConfigurationSource->HasDesiredColorSpace(DestinationColorSpace))
+			{
+				DestinationColorSpace.Reset();
+			}
+			DestinationDisplayView.Reset();
 		}
 	}
 	else
 	{
 		SourceColorSpace.Reset();
 		DestinationColorSpace.Reset();
+		DestinationDisplayView.Reset();
 	}
+}
+
+bool FOpenColorIOColorConversionSettings::IsDisplayView() const
+{
+	return DestinationDisplayView.IsValid();
 }

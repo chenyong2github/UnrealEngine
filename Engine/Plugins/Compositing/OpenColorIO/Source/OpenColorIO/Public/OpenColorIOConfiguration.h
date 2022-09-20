@@ -39,7 +39,9 @@ public:
 	UE_DEPRECATED(5.1, "GetShaderAndLUTResources is deprecated, please use GetRenderResources instead.")
 	bool GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource);
 	bool HasTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
+	bool HasTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView);
 	bool HasDesiredColorSpace(const FOpenColorIOColorSpace& ColorSpace) const;
+	bool HasDesiredDisplayView(const FOpenColorIODisplayView& DisplayView) const;
 	bool Validate() const;
 
 	/** This forces to reload colorspaces and corresponding shaders if those are not loaded already. */
@@ -57,6 +59,7 @@ public:
 
 protected:
 	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
+	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bForwardDirection = true);
 	void CleanupTransforms();
 
 	/** Same as above except user can specify the path manually. */
@@ -90,6 +93,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ColorSpace", meta=(OCIOConfigFile="ConfigurationFile"))
 	TArray<FOpenColorIOColorSpace> DesiredColorSpaces;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ColorSpace", DisplayName="Desired Display-Views", meta = (OCIOConfigFile = "ConfigurationFile"))
+	TArray<FOpenColorIODisplayView> DesiredDisplayViews;
 
 private:
 

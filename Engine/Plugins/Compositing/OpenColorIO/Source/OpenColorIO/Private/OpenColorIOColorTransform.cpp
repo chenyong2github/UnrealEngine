@@ -38,6 +38,21 @@ namespace {
 
 		return static_cast<OptimizationFlags>(OptimizationFlags::OPTIMIZATION_DEFAULT | OptimizationFlags::OPTIMIZATION_NO_DYNAMIC_PROPERTIES);
 	}
+
+	OCIO_NAMESPACE::ConstProcessorRcPtr GetTransformProcessor(UOpenColorIOColorTransform* InTransform, const OCIO_NAMESPACE::ConstConfigRcPtr& CurrentConfig)
+	{
+		if (InTransform->bIsDisplayViewType)
+		{
+			return CurrentConfig->getProcessor(StringCast<ANSICHAR>(*InTransform->SourceColorSpace).Get(),
+				StringCast<ANSICHAR>(*InTransform->Display).Get(),
+				StringCast<ANSICHAR>(*InTransform->View).Get(),
+				OCIO_NAMESPACE::TransformDirection::TRANSFORM_DIR_FORWARD);
+		}
+		else
+		{
+			return CurrentConfig->getProcessor(StringCast<ANSICHAR>(*InTransform->SourceColorSpace).Get(), StringCast<ANSICHAR>(*InTransform->DestinationColorSpace).Get());
+		}
+	}
 #endif
 }
 
@@ -150,6 +165,13 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	return GenerateColorTransformData(InSourceColorSpace, InDestinationColorSpace);
 }
 
+bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection)
+{
+	check(InOwner);
+	ConfigurationOwner = InOwner;
+	return GenerateColorTransformData(InSourceColorSpace, InDisplay, InView, bInForwardDirection);
+}
+
 void UOpenColorIOColorTransform::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -226,8 +248,7 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 			try
 #endif
 			{
-				OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = CurrentConfig->getProcessor(StringCast<ANSICHAR>(*SourceColorSpace).Get(), StringCast<ANSICHAR>(*DestinationColorSpace).Get());
-				
+				OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = GetTransformProcessor(this, CurrentConfig);				
 				if (TransformProcessor)
 				{
 					OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();
@@ -437,7 +458,22 @@ bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type 
 
 bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const
 {
-	return SourceColorSpace == InSourceColorSpace && DestinationColorSpace == InDestinationColorSpace;
+	if (!bIsDisplayViewType)
+	{
+		return SourceColorSpace == InSourceColorSpace && DestinationColorSpace == InDestinationColorSpace;
+	}
+
+	return false;
+}
+
+bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection) const
+{
+	if (bIsDisplayViewType)
+	{
+		return SourceColorSpace == InSourceColorSpace && Display == InDisplay && View == InView;
+	}
+
+	return false;
 }
 
 void UOpenColorIOColorTransform::AllColorTransformsCacheResourceShadersForRendering()
@@ -460,6 +496,28 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 
 	SourceColorSpace = InSourceColorSpace;
 	DestinationColorSpace = InDestinationColorSpace;
+	bIsDisplayViewType = false;
+
+	CacheResourceTextures();
+	CacheResourceShadersForRendering(true);
+
+	return true;
+#endif //WITH_EDITOR
+	return false;
+}
+
+bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection)
+{
+#if WITH_EDITOR && WITH_OCIO
+	if (InSourceColorSpace.IsEmpty() || InDisplay.IsEmpty() || InView.IsEmpty())
+	{
+		return false;
+	}
+
+	SourceColorSpace = InSourceColorSpace;
+	Display = InDisplay;
+	View = InView;
+	bIsDisplayViewType = true;
 
 	CacheResourceTextures();
 	CacheResourceShadersForRendering(true);
@@ -471,7 +529,14 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 
 FString UOpenColorIOColorTransform::GetTransformFriendlyName()
 {
-	return SourceColorSpace + TEXT(" to ") + DestinationColorSpace;
+	if (bIsDisplayViewType)
+	{
+		return SourceColorSpace + TEXT(" to ") + Display + TEXT(" - ") + View;
+	}
+	else
+	{
+		return SourceColorSpace + TEXT(" to ") + DestinationColorSpace;
+	}
 }
 
 bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash)
@@ -485,7 +550,7 @@ bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FS
 		try
 #endif
 		{
-			OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = CurrentConfig->getProcessor(StringCast<ANSICHAR>(*SourceColorSpace).Get(), StringCast<ANSICHAR>(*DestinationColorSpace).Get());
+			OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = GetTransformProcessor(this, CurrentConfig);
 			if (TransformProcessor)
 			{
 				OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();

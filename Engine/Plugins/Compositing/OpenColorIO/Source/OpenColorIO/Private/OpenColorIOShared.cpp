@@ -207,7 +207,7 @@ void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatu
 
 	ShaderCodeAndConfigHash = FullHash.ToString();
 	ShaderCode = InShadercode;
-	FriendlyName = InFriendlyName;
+	FriendlyName = InFriendlyName.Replace(TEXT("/"), TEXT(""));
 #if WITH_EDITOR
 	AssetPath = InAssetPath;
 #endif // WITH_EDITOR
