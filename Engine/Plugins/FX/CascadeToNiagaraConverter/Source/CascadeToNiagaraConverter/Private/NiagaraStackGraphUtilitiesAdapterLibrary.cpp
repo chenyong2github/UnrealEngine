@@ -1795,6 +1795,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 	TSharedRef<FNiagaraSystemViewModel> OwningSystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
 	TArray<UNiagaraStackItemGroup*> StackItemGroups;
 	EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->GetUnfilteredChildrenOfType<UNiagaraStackItemGroup>(StackItemGroups);
+	EmitterHandleViewModel->SetIsEnabled(bEnabled);
 
 	// Helper lambda to get the UNiagaraStackItemGroup for any FStackEntryID.
 	auto GetStackItemGroupForStackEntryID = [&StackItemGroups, this](const FStackEntryID& StackEntryID)->UNiagaraStackItemGroup* const* {
