@@ -1649,7 +1649,8 @@ bool UVCamComponent::IsCameraInVPRole() const
 	// We are in a valid camera role if the user has not assigned a role or the current VPSettings role matches the
 	// assigned role.
 	//
-	return !Role.IsValid() || GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>()->HasActiveRole(Role);
+	UVirtualProductionRolesSubsystem* VPRolesSubsystem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>();
+	return !Role.IsValid() || (VPRolesSubsystem && VPRolesSubsystem->HasActiveRole(Role));
 #else
 	return true;
 #endif

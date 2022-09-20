@@ -22,7 +22,10 @@ namespace StageMonitorUtils
 
 		if (GEngine)
 		{
-			Descriptor.RolesStringified = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>()->GetActiveRolesString();
+			if (const UVirtualProductionRolesSubsystem* VPRolesSubsystem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>())
+			{
+				Descriptor.RolesStringified = VPRolesSubsystem->GetActiveRolesString();
+			}
 		}
 
 		Descriptor.FriendlyName = GetDefault<UStageMonitoringSettings>()->CommandLineFriendlyName;

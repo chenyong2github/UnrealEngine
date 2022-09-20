@@ -191,10 +191,13 @@ bool FStageDataProvider::IsMessageTypeExcluded(UScriptStruct* MessageType) const
 	{
 		if (GEngine)
 		{
-			const FGameplayTagContainer& CurrentRoles = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>()->GetRolesContainer_Private();
-			if (!SupportedRoles->HasAny(CurrentRoles))
+			if (UVirtualProductionRolesSubsystem* VPRolesSubsytem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>())
 			{
-				return true;
+				const FGameplayTagContainer& CurrentRoles = VPRolesSubsytem->GetRolesContainer_Private();
+				if (!SupportedRoles->HasAny(CurrentRoles))
+				{
+					return true;
+				}
 			}
 		}
 	}
