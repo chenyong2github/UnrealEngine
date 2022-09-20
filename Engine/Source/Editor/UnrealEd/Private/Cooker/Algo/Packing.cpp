@@ -48,7 +48,7 @@ void ScheduleValues(TConstArrayView<int32> Values, int32 NumBuckets, TConstArray
 		}
 	}
 
-	// Initialize remaining values to the entire list of values, and sort them nto the order in which we should
+	// Initialize remaining values to the entire list of values, and sort them into the order in which we should
 	// try to place them.
 	TArray<int32> RemainingValueIndices = RangeArray<TArray<int32>>(0, NumValues);
 
@@ -71,9 +71,8 @@ void ScheduleValues(TConstArrayView<int32> Values, int32 NumBuckets, TConstArray
 	};
 	Algo::Sort(RemainingValueIndices, ValueIndexSelectionOrder);
 
-	// After every piece we place we need to resort the modified smallest bucket back
-	// into the list and find the new smallest.
-	// FBucketData is our sortable information about a bucket
+	// After every piece we place we need to resort the modified smallest bucket back into the list and find the new
+	// smallest. FBucketData is our sortable information about a bucket
 	struct FBucketData
 	{
 		TArray<int32>* Bucket = nullptr;
@@ -95,14 +94,13 @@ void ScheduleValues(TConstArrayView<int32> Values, int32 NumBuckets, TConstArray
 		{
 			return A.Size > B.Size;
 		}
-		// When buckets are equal, prefer to add to the earlier buckets, by pushing them
-		// to the back of the list
+		// When buckets are equal, prefer to add to the earlier buckets, by pushing them to the back of the list
 		return A.Bucket > B.Bucket;
 	};
 	Algo::Sort(SortedBuckets, SortBucketDataDescending);
 
-	// Main loop: iterate over piece and put it into the current smallest bucket
-	// (or the smallest valid bucket if the piece is in an exclusion group)
+	// Main loop: iterate over each piece and put it into the current smallest bucket (or the smallest valid bucket
+	// if the piece is in an exclusion group)
 	for (int32 ValueIndex : RemainingValueIndices)
 	{
 		int32* ExclusionGroupIndex = ExclusionGroupOfValueIndex.Find(ValueIndex);
@@ -123,9 +121,7 @@ void ScheduleValues(TConstArrayView<int32> Values, int32 NumBuckets, TConstArray
 					break;
 				}
 			}
-			// All exclusiongroups are <= NumBuckets in size and we only add each cluster (and therefore each member of
-			// an exclusiongroup) to a single bucket, so we should always have a free bucket for the last member of an
-			// exclusiongroup
+			// exclusiongroups are <= NumBuckets in size so we always have a free bucket for an exclusiongroup member
 			check(BestBucketIndex != INDEX_NONE);
 		}
 

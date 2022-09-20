@@ -462,7 +462,7 @@ void FLoadBalanceBuilder::PackClusters(TArray<FCluster>&& InDisjointSubgraphs, T
 
 		TArray<FCluster> NewClusters = SplitCluster(MoveTemp(ClusterToSplit), SplitSize, DesiredSpread);
 
-		// Remove the SplitCluster from whereever it is in the middle of Clusters, and shift down by one all of our
+		// Remove the SplitCluster from wherever it is in the middle of Clusters, and shift down by one all of our
 		// indices in data that persists between loops that were pointing to clusters at a higher index.
 		Clusters.RemoveAt(IndexToSplit);
 		ClusterCosts.RemoveAt(IndexToSplit);

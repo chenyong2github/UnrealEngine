@@ -15,7 +15,7 @@ namespace Algo::Graph
  * A transitively-closed set of vertices means that if a vertex is present in a bucket then all vertices reachable
  * from it are also present.
  * 
- * The definition of longpoleandspreadminimized is:
+ * The definition of longpoleandspread-minimized is:
  * 1) The size of the largest bucket is minimized.
  * 2) If multiple assignments achieve that minimum, the difference in size between the largest bucket and smallest
  *    bucket is minimized.
@@ -31,6 +31,10 @@ namespace Algo::Graph
 void ConstructLoadBalance(TConstArrayView<TConstArrayView<FVertex>> Graph, int32 NumBuckets, 
 	TArray<TArray<FVertex>>& OutAssignments);
 
+/**
+ * Expanded arguments for ConstructLoadBalance for callers that want to provide as input or receive as output some
+ * of the intermediate data.
+ */
 struct FLoadBalanceContext
 {
 	/**
@@ -62,10 +66,7 @@ struct FLoadBalanceContext
 	int32 NumBuckets = 1;
 };
 
-/**
- * Expanded arguments for ConstructLoadBalance for callers that want to provide as input or receive as output some
- * of the intermediate data. @see FLoadBalanceContext for argument descriptions.
- */
+/** ConstructLoadBalance that takes extra arguments. @see FLoadBalanceContext for argument descriptions. */
 void ConstructLoadBalance(FLoadBalanceContext& Context);
 
 
