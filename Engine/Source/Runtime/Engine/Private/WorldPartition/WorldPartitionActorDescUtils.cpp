@@ -22,10 +22,6 @@ UClass* FWorldPartitionActorDescUtils::GetActorNativeClassFromAssetData(const FA
 	FString ActorMetaDataClass;
 	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass))
 	{
-		// Avoid an assert when calling StaticFindObject during save to retrieve the actor's class.
-		// Since we are only looking for a native class, the call to StaticFindObject is legit.
-		TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
-
 		FString ActorClassName;
 		FString ActorPackageName;
 		if (!ActorMetaDataClass.Split(TEXT("."), &ActorPackageName, &ActorClassName))
@@ -96,6 +92,10 @@ void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* I
 	// If the actor is not added to a world, we can't retrieve its bounding volume, so try to get the existing one
 	if (ULevel* Level = InActor->GetLevel(); !Level || !Level->Actors.Contains(InActor))
 	{
+		// Avoid an assert when calling StaticFindObject during save to retrieve the actor's class.
+		// Since we are only looking for a native class, the call to StaticFindObject is legit.
+		TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
+
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 		FARFilter Filter;
