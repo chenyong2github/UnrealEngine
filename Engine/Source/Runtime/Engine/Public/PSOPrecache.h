@@ -33,6 +33,7 @@ struct FPSOPrecacheParams
 		bCastShadow = true;
 		bAffectDynamicIndirectLighting = true;
 		bReverseCulling = false;
+		bDisableBackFaceCulling = false;
 		bCastShadowAsTwoSided = false;
 		bForceLODModel = false;
 		Mobility = (uint8)EComponentMobility::Static;
@@ -93,13 +94,14 @@ struct FPSOPrecacheParams
 
 			uint32 bAffectDynamicIndirectLighting : 1;
 			uint32 bReverseCulling : 1;
+			uint32 bDisableBackFaceCulling : 1;
 			uint32 bCastShadowAsTwoSided : 1;
 			uint32 bForceLODModel : 1;
 
 			uint32 Mobility : 4;
 			uint32 StencilWriteMask : 4;
 
-			uint32 Unused : 10;
+			uint32 Unused : 9;
 		};
 		uint32 Data;
 	};
@@ -254,13 +256,6 @@ namespace PSOCollectorStats
 		FPrecacheUsageData MissData;			//< PSOs which are used during rendering and have not been precached (but should have been)
 		FPrecacheUsageData UntrackedData;		//< PSOs which are used during rendering but are currently not precached because for example the MeshPassProcessor or VertexFactory type don't support PSO precaching yet
 	};
-
-	// Stats for the complete PSO
-	static FCriticalSection FullPSOPrecacheLock;
-	static FPrecacheStats FullPSOPrecacheStats;
-
-	// Cache stats on hash - TODO: should use FGraphicsPipelineStateInitializer as key and use FGraphicsPSOInitializerKeyFuncs for search
-	static Experimental::TRobinHoodHashMap<uint64, FShaderStateUsage> FullPSOPrecacheMap;
 
 	/**
 	 * Add PSO initializer to cache for validation & state tracking

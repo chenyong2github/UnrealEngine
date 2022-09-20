@@ -39,9 +39,16 @@ static FAutoConsoleVariableRef CVarValidatePSOPrecaching(
 	ECVF_ReadOnly
 );
 
+// Stats for the complete PSO
+static FCriticalSection FullPSOPrecacheLock;
+static PSOCollectorStats::FPrecacheStats FullPSOPrecacheStats;
+
+// Cache stats on hash - TODO: should use FGraphicsPipelineStateInitializer as key and use FGraphicsPSOInitializerKeyFuncs for search
+static Experimental::TRobinHoodHashMap<uint64, PSOCollectorStats::FShaderStateUsage> FullPSOPrecacheMap;
+
 int32 PSOCollectorStats::IsPrecachingValidationEnabled()
 {
-	return GValidatePrecaching;
+	return PipelineStateCache::IsPSOPrecachingEnabled() && GValidatePrecaching;
 }
 
 void PSOCollectorStats::AddPipelineStateToCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
@@ -58,7 +65,7 @@ void PSOCollectorStats::AddPipelineStateToCache(const FGraphicsPipelineStateInit
 	static bool bFirstTime = true;
 	if (bFirstTime)
 	{
-		PSOCollectorStats::FullPSOPrecacheStats.Empty();
+		FullPSOPrecacheStats.Empty();
 		bFirstTime = false;
 	}
 

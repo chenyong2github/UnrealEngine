@@ -1030,7 +1030,7 @@ FDistortionMeshProcessor::FDistortionMeshProcessor(
 	const FMeshPassProcessorRenderState& InPassDrawRenderState,
 	const FMeshPassProcessorRenderState& InDistortionPassStateNoDepthTest,
 	FMeshPassDrawListContext* InDrawListContext)
-	: FMeshPassProcessor(EMeshPass::Distortion, Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::Distortion, Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
 	, PassDrawRenderStateNoDepthTest(InDistortionPassStateNoDepthTest)
 {}

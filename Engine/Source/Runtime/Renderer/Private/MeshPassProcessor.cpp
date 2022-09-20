@@ -1809,10 +1809,8 @@ FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings FMeshPassProcessor::Compu
 {
 	FMeshDrawingPolicyOverrideSettings OverrideSettings;
 	OverrideSettings.MeshPrimitiveType = PT_TriangleList;
-
-	//OverrideSettings.MeshOverrideFlags |= Mesh.bDisableBackfaceCulling ? EDrawingPolicyOverrideFlags::TwoSided : EDrawingPolicyOverrideFlags::None;
-	//OverrideSettings.MeshOverrideFlags |= Mesh.bDitheredLODTransition ? EDrawingPolicyOverrideFlags::DitheredLODTransition : EDrawingPolicyOverrideFlags::None;
-	//OverrideSettings.MeshOverrideFlags |= Mesh.bWireframe ? EDrawingPolicyOverrideFlags::Wireframe : EDrawingPolicyOverrideFlags::None;
+		
+	OverrideSettings.MeshOverrideFlags |= PrecachePSOParams.bDisableBackFaceCulling ? EDrawingPolicyOverrideFlags::TwoSided : EDrawingPolicyOverrideFlags::None;
 	OverrideSettings.MeshOverrideFlags |= PrecachePSOParams.bReverseCulling ? EDrawingPolicyOverrideFlags::ReverseCullMode : EDrawingPolicyOverrideFlags::None;
 	return OverrideSettings;
 }
@@ -2252,6 +2250,16 @@ void SetupGBufferRenderTargetInfo(const FSceneTexturesConfig& SceneTexturesConfi
 }
 
 #if PSO_PRECACHING_VALIDATE
+
+// Stats for PSO shaders only (no state, only VS/PS/GS usage)
+static FCriticalSection PSOShadersPrecacheLock;
+static PSOCollectorStats::FPrecacheStats PSOShadersPrecacheStats;
+static Experimental::TRobinHoodHashMap<FGraphicsMinimalPipelineStateInitializer, PSOCollectorStats::FShaderStateUsage> PSOShadersPrecacheMap;
+
+// Stats for minimal PSO initializer data during MeshDrawCommand building (doesn't contain render target info)
+static FCriticalSection MinimalPSOPrecacheLock;
+static PSOCollectorStats::FPrecacheStats MinimalPSOPrecacheStats;
+static Experimental::TRobinHoodHashMap<uint64, PSOCollectorStats::FShaderStateUsage> MinimalPSOPrecacheMap;
 
 // Helper function to remove certain members of the PSO initializer to help track down issues with PSO precache misses
 // eg Remove BlendState and check if the misses are gone for example

@@ -961,9 +961,12 @@ public:
 
 		FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
 		FPrecacheTask* FindResult = ActivePrecachingTasks.Find(PrecachePSOHash);
-		check(FindResult);
-		verify(ActivePrecachingTasks.Remove(PrecachePSOHash) == 1);
-		PrecachedPSOs.Add(FindResult->PSO);
+		// Might have already been processed because the task got rescheduled
+		if (FindResult != nullptr)
+		{
+			verify(ActivePrecachingTasks.Remove(PrecachePSOHash) == 1);
+			PrecachedPSOs.Add(FindResult->PSO);
+		}
 	}
 
 	void ProcessDelayedCleanup()
