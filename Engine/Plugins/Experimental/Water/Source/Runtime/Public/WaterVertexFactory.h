@@ -216,6 +216,11 @@ private:
 	const float LODScale = 0.0f;
 };
 
+DECLARE_TEMPLATE_SPECIALIZATION_VERTEX_FACTORY_TYPE(template<>, TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>);
+
+#if WITH_WATER_SELECTION_SUPPORT
+DECLARE_TEMPLATE_SPECIALIZATION_VERTEX_FACTORY_TYPE(template<>, TWaterVertexFactory</*bWithWaterSelectionSupport = */ true>);
+#endif // WITH_WATER_SELECTION_SUPPORT
 
 /**
  * Water user data provided to FMeshBatchElement(s)
