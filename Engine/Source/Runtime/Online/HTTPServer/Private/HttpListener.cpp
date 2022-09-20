@@ -64,6 +64,10 @@ bool FHttpListener::StartListening()
 	{
 		BindAddress->SetAnyAddress();
 	}
+	else if (0 == Config.BindAddress.Compare(TEXT("localhost"), ESearchCase::IgnoreCase))
+	{
+		BindAddress->SetLoopbackAddress();
+	}
 	else
 	{
 		bool bIsValidAddress = false;

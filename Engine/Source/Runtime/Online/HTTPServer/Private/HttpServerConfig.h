@@ -10,7 +10,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogHttpServerConfig, Log, All);
 struct FHttpServerListenerConfig
 {
 	/** The address to bind */
-	FString BindAddress = FString(TEXT("127.0.0.1"));
+	FString BindAddress = FString(TEXT("localhost"));
 	/** Maximum send buffer size */
 	int32 BufferSize = 512 * 1024;
 	/** Number of pending connections to queue */
