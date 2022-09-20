@@ -37,6 +37,14 @@ struct FKismetFunctionContext;
 //////////////////////////////////////////////////////////////////////////
 // FKismetCompilerUtilities
 
+// Used by DoSignaturesHaveConvertibleFloatTypes
+enum class ConvertibleSignatureMatchResult
+{
+	ExactMatch,					// The function signatures are an exact match
+	HasConvertibleFloatParams,	// The function signatures are identical, except for float/double mismatches, which can be converted
+	Different					// The function signatures are completely different
+};
+
 /** This is a loose collection of utilities used when 'compiling' a new UClass from a K2 graph. */
 class KISMETCOMPILER_API FKismetCompilerUtilities
 {
@@ -136,6 +144,13 @@ public:
 
 	// Helper function used by CheckFunctionThreadSafety. Split out to allow the ability to examine individual compiled statement lists (e.g. for the ubergraph)
 	static bool CheckFunctionCompiledStatementsThreadSafety(const UEdGraphNode* InNode, const UEdGraph* InSourceGraph, const TArray<FBlueprintCompiledStatement*>& InStatements, FCompilerResultsLog& InMessageLog, bool InbEmitErrors = true, TSet<const FBPTerminal*>* InThreadSafeObjectTerms = nullptr);
+
+	/** Similar to UFunction::IsSignatureCompatibleWith, but also checks if the function signatures are convertible.
+	 *
+	 * For example, if a parameter in SourceFunction is of type float, but its corresponding type in OtherFunction is double, then the function is deemed "convertible".
+	 * This is primarily used for binding Blueprint functions with native delegate signatures that use float types.
+	 */
+	static ConvertibleSignatureMatchResult DoSignaturesHaveConvertibleFloatTypes(const UFunction* SourceFunction, const UFunction* OtherFunction);
 };
 
 //////////////////////////////////////////////////////////////////////////

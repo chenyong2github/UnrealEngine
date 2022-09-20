@@ -12,12 +12,6 @@ public class GraphEditor : ModuleRules
 				"StructViewer",
 			}
         );
-         
-//         PublicDependencyModuleNames.AddRange(
-//             new string[] {
-//                 "AudioEditor"
-//             }
-//         );
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -34,6 +28,7 @@ public class GraphEditor : ModuleRules
 				"UnrealEd",
 				"AssetRegistry",
 				"Kismet",
+				"KismetCompiler",
 				"KismetWidgets",
 				"BlueprintGraph",
 				"Documentation",

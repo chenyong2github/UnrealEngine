@@ -1180,6 +1180,8 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 {
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CreateClassVariables);
 
+	check(NewClass);
+
 	// Grab the blueprint variables
 	NewClass->NumReplicatedProperties = 0;	// Keep track of how many replicated variables this blueprint adds
 
@@ -3453,6 +3455,23 @@ FName FKismetCompilerContext::GetEventStubFunctionName(UK2Node_Event* SrcEventNo
 	return EventNodeName;
 }
 
+void FKismetCompilerContext::RegisterClassDelegateProxiesFromBlueprint()
+{
+	check(Blueprint);
+
+	ConvertibleDelegates.Empty();
+
+	for (const TObjectPtr<UEdGraph>& Graph : Blueprint->FunctionGraphs)
+	{
+		RegisterConvertibleDelegates(Graph);
+	}
+
+	for (const TObjectPtr<UEdGraph>& Graph : Blueprint->UbergraphPages)
+	{
+		RegisterConvertibleDelegates(Graph);
+	}
+}
+
 void FKismetCompilerContext::CreateFunctionStubForEvent(UK2Node_Event* SrcEventNode, UObject* OwnerOfTemporaries)
 {
 	FName EventNodeName = GetEventStubFunctionName(SrcEventNode);
@@ -3955,6 +3974,8 @@ void FKismetCompilerContext::CreateAndProcessUbergraph()
 		// Expand out nodes that need it
 		ExpansionStep(ConsolidatedEventGraph, true);
 
+		ReplaceConvertibleDelegates(ConsolidatedEventGraph);
+
 		// If a function in the graph cannot be overridden/placed as event make sure that it is not.
 		VerifyValidOverrideEvent(ConsolidatedEventGraph);
 
@@ -4352,6 +4373,8 @@ void FKismetCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool
 
 	ExpansionStep(FunctionGraph, false);
 
+	ReplaceConvertibleDelegates(FunctionGraph);
+
 	// Cull the entire construction script graph if after node culling it's trivial, this reduces event spam on object construction:
 	if (SourceGraph->GetFName() == Schema->FN_UserConstructionScript )
 	{
@@ -4688,6 +4711,8 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 		FBlueprintEditorUtils::ConformImplementedInterfaces(Blueprint);
 	}
 
+	// If applicable, register any delegate proxy functions and their captured actor variables
+	RegisterClassDelegateProxiesFromBlueprint();
 
 	// Run thru the class defined variables first, get them registered
 	CreateClassVariablesFromBlueprint();
@@ -4698,6 +4723,9 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 
 	// Construct a context for each function, doing validation and building the function interface
 	CreateFunctionList();
+
+	// Function list creation should process captured variables. Something went wrong if we missed any.
+	UE_CLOG(!ConvertibleDelegates.IsEmpty(), LogK2Compiler, Warning, TEXT("%d convertible delegates were not processed during class layout compilation."), ConvertibleDelegates.Num());
 
 	// Precompile the functions
 	// Handle delegates signatures first, because they are needed by other functions
@@ -5224,15 +5252,15 @@ bool FKismetCompilerContext::ValidateGeneratedClass(UBlueprintGeneratedClass* Cl
 	return UBlueprint::ValidateGeneratedClass(Class);
 }
 
-UEdGraph* FKismetCompilerContext::SpawnIntermediateFunctionGraph(const FString& InDesiredFunctionName)
+UEdGraph* FKismetCompilerContext::SpawnIntermediateFunctionGraph(const FString& InDesiredFunctionName, const UFunction* InSignature, bool bUseUniqueName)
 {
-	FName UniqueGraphName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, InDesiredFunctionName);
+	FName UniqueGraphName = bUseUniqueName ? FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, InDesiredFunctionName) : *InDesiredFunctionName;
 
 	UEdGraph* GeneratedFunctionGraph = FBlueprintEditorUtils::CreateNewGraph(Blueprint, UniqueGraphName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
 	GeneratedFunctionGraph->SetFlags(RF_Transient);
 	GeneratedFunctionGraph->bEditable = false;
 
-	FBlueprintEditorUtils::CreateFunctionGraph(Blueprint, GeneratedFunctionGraph, false, (UClass*)nullptr);
+	FBlueprintEditorUtils::CreateFunctionGraph(Blueprint, GeneratedFunctionGraph, false, InSignature);
 
 	// Add the function graph to the list of generated graphs for this compile
 	GeneratedFunctionGraphs.Add(GeneratedFunctionGraph);
@@ -5571,6 +5599,222 @@ void FKismetCompilerContext::ProcessIntermediateTunnelBoundary(UK2Node_Tunnel* T
 				}
 			}
 		}
+	}
+}
+
+void FKismetCompilerContext::RegisterConvertibleDelegates(UEdGraph* Graph)
+{
+	check(Graph);
+
+	TArray<UK2Node_CreateDelegate*> CreateDelegateNodes;
+	Graph->GetNodesOfClass<UK2Node_CreateDelegate>(CreateDelegateNodes);
+
+	for (UK2Node_CreateDelegate* CreateDelegateNode : CreateDelegateNodes)
+	{
+		check(CreateDelegateNode);
+
+		FMemberReference MemberReference;
+		MemberReference.SetDirect(CreateDelegateNode->SelectedFunctionName, CreateDelegateNode->SelectedFunctionGuid, CreateDelegateNode->GetScopeClass(), false);
+
+		const UFunction* BoundFunction = MemberReference.ResolveMember<UFunction>();
+		const UFunction* DelegateSignature = CreateDelegateNode->GetDelegateSignature();
+
+		if (BoundFunction && DelegateSignature)
+		{
+			ConvertibleSignatureMatchResult Result = FKismetCompilerUtilities::DoSignaturesHaveConvertibleFloatTypes(BoundFunction, DelegateSignature);
+			if (Result == ConvertibleSignatureMatchResult::HasConvertibleFloatParams)
+			{
+				int Counter = ConvertibleDelegates.Num();
+
+				FDelegateInfo DelegateInfo;
+				DelegateInfo.ProxyFunctionName = *FString::Printf(TEXT("CREATEDELEGATE_PROXYFUNCTION_%d"), Counter);
+
+				const UEdGraphPin* DelegateNodeSelfPin = CreateDelegateNode->FindPinChecked(UEdGraphSchema_K2::PSC_Self);
+				if (DelegateNodeSelfPin->LinkedTo.Num() > 0)
+				{
+					const UEdGraphPin* TargetActorPin = DelegateNodeSelfPin->LinkedTo[0];
+					check(TargetActorPin);
+
+					DelegateInfo.CapturedVariableName = *FString::Printf(TEXT("CREATEDELEGATE_CAPTUREDVARIABLE_%d"), Counter);
+
+					verify(CreateVariable(DelegateInfo.CapturedVariableName, TargetActorPin->PinType) != nullptr);
+				}
+
+				ConvertibleDelegates.Add(CreateDelegateNode, MoveTemp(DelegateInfo));
+			}
+		}
+	}
+}
+
+void FKismetCompilerContext::ReplaceConvertibleDelegates(UEdGraph* Graph)
+{
+	check(Graph);
+
+	TArray<UK2Node_CreateDelegate*> CreateDelegateNodes;
+	Graph->GetNodesOfClass<UK2Node_CreateDelegate>(CreateDelegateNodes);
+
+	for (UK2Node_CreateDelegate* CreateDelegateNode : CreateDelegateNodes)
+	{
+		check(CreateDelegateNode);
+
+		const UK2Node_CreateDelegate* SourceCreateDelegateNode = Cast<const UK2Node_CreateDelegate>(MessageLog.FindSourceObject(CreateDelegateNode));
+
+		if (const FDelegateInfo* DelegateInfo = ConvertibleDelegates.Find(SourceCreateDelegateNode))
+		{
+			// Create the new function graph
+
+			const UFunction* DelegateSignature = CreateDelegateNode->GetDelegateSignature();
+			UEdGraph* DelegateProxyGraph = SpawnIntermediateFunctionGraph(DelegateInfo->ProxyFunctionName.ToString(), DelegateSignature, false);
+			check(DelegateProxyGraph);
+			const UEdGraphSchema_K2* K2Schema = CastChecked<UEdGraphSchema_K2>(Graph->GetSchema());
+
+			// Create a function call node from the original delegate signature
+
+			FMemberReference MemberReference;
+			MemberReference.SetDirect(CreateDelegateNode->SelectedFunctionName, CreateDelegateNode->SelectedFunctionGuid, CreateDelegateNode->GetScopeClass(), false);
+			const UFunction* BoundFunction = MemberReference.ResolveMember<UFunction>();
+			UK2Node_CallFunction* BoundFunctionNode = SpawnIntermediateNode<UK2Node_CallFunction>(CreateDelegateNode, DelegateProxyGraph);
+			check(BoundFunctionNode);
+			BoundFunctionNode->SetFromFunction(BoundFunction);
+			BoundFunctionNode->AllocateDefaultPins();
+
+			// Link the entry node and the function node pins
+
+			TArray<UK2Node_FunctionEntry*> EntryNodes;
+			DelegateProxyGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryNodes);
+			check(EntryNodes.Num() == 1);
+			UK2Node_FunctionEntry* ProxyEntryNode = EntryNodes[0];
+			check(ProxyEntryNode);
+			UEdGraphPin* EntryNodeThenPin = ProxyEntryNode->FindPinChecked(UEdGraphSchema_K2::PN_Then);
+			UEdGraphPin* FunctionNodeExecPin = BoundFunctionNode->GetExecPin();
+			verify(K2Schema->TryCreateConnection(EntryNodeThenPin, FunctionNodeExecPin));
+
+			// Link function entry outputs to the bound function's inputs.
+			// Note that we intentionally skip the "self" pin, since that's a special condition that we handle separately.
+
+			int EntryNodePinCursor = -1;
+			int FunctionNodePinCursor = -1;
+
+			for (int i = 0; i < ProxyEntryNode->Pins.Num(); ++i)
+			{
+				const UEdGraphPin* CurrentPin = ProxyEntryNode->Pins[i];
+				check(CurrentPin);
+				if (!K2Schema->IsMetaPin(*CurrentPin))
+				{
+					EntryNodePinCursor = i;
+					break;
+				}
+			}
+			check(EntryNodePinCursor != -1);
+
+			for (int i = 0; i < BoundFunctionNode->Pins.Num(); ++i)
+			{
+				const UEdGraphPin* CurrentPin = BoundFunctionNode->Pins[i];
+				check(CurrentPin)
+				if (!K2Schema->IsMetaPin(*CurrentPin) && !K2Schema->IsSelfPin(*CurrentPin))
+				{
+					FunctionNodePinCursor = i;
+					break;
+				}
+			}
+			check(FunctionNodePinCursor != -1);
+
+			while (EntryNodePinCursor < ProxyEntryNode->Pins.Num())
+			{
+				UEdGraphPin* OutputPin = ProxyEntryNode->Pins[EntryNodePinCursor];
+				UEdGraphPin* InputPin = BoundFunctionNode->Pins[FunctionNodePinCursor];
+
+				verify(K2Schema->TryCreateConnection(OutputPin, InputPin));
+
+				++EntryNodePinCursor;
+				++FunctionNodePinCursor;
+			}
+
+			// Add and set a capture variable if our self pin is linked to a different actor.
+
+			UEdGraphPin* DelegateNodeSelfPin = CreateDelegateNode->FindPinChecked(UEdGraphSchema_K2::PSC_Self);
+			if (DelegateNodeSelfPin->LinkedTo.Num() > 0)
+			{
+				check(DelegateNodeSelfPin->LinkedTo.Num() == 1);
+
+				// Modify main graph
+				{
+					// Break our delegate node's current self pin
+					// Our replacement proxy func implies the use of 'self'
+
+					UEdGraphPin* TargetActorPin = DelegateNodeSelfPin->LinkedTo[0];
+					check(TargetActorPin);
+					DelegateNodeSelfPin->BreakAllPinLinks();
+
+					// Create our setter node for the captured variable
+
+					UK2Node_VariableSet* SetCapturedVarNode = SpawnIntermediateNode<UK2Node_VariableSet>(CreateDelegateNode, Graph);
+					check(SetCapturedVarNode);
+					SetCapturedVarNode->VariableReference.SetSelfMember(DelegateInfo->CapturedVariableName);
+					SetCapturedVarNode->AllocateDefaultPins();
+
+					// Link the setter node's input to the original actor pin
+
+					UEdGraphPin* SetCapturedVarNodeVariablePin = SetCapturedVarNode->FindPinChecked(DelegateInfo->CapturedVariableName, EGPD_Input);
+					verify(K2Schema->TryCreateConnection(TargetActorPin, SetCapturedVarNodeVariablePin));
+
+					// In order to set the capture variable, we need to find an execution path to insert our setter node.
+					// The best likely candidate is the linked UK2Node_BaseMCDelegate node, which either binds or unbinds a delegate.
+					// We can insert our setter node to its execution pin.
+
+					UEdGraphPin* DelegateOutPin = CreateDelegateNode->GetDelegateOutPin();
+					check(DelegateOutPin);
+					check(DelegateOutPin->LinkedTo.Num() == 1);
+
+					UEdGraphPin* TargetDelegatePin = FBlueprintEditorUtils::FindFirstCompilerRelevantLinkedPin(DelegateOutPin->LinkedTo[0]);
+					check(TargetDelegatePin);
+					UK2Node_BaseMCDelegate* BaseMCDelegateNode = CastChecked<UK2Node_BaseMCDelegate>(TargetDelegatePin->GetOwningNode());
+
+					// Insert the setter node
+
+					UEdGraphPin* SetCapturedVarNodeExecPin = SetCapturedVarNode->GetExecPin();
+					UEdGraphPin* SetCapturedVarNodeThenPin = SetCapturedVarNode->GetThenPin();
+					UEdGraphPin* BaseMCDelegateNodeExecPin = BaseMCDelegateNode->GetExecPin();
+
+					for (UEdGraphPin* LinkedPin : BaseMCDelegateNodeExecPin->LinkedTo)
+					{
+						check(LinkedPin);
+						UEdGraphPin* InputThenPin = FBlueprintEditorUtils::FindFirstCompilerRelevantLinkedPin(LinkedPin);
+						BaseMCDelegateNodeExecPin->BreakLinkTo(InputThenPin);
+
+						verify(K2Schema->TryCreateConnection(InputThenPin, SetCapturedVarNodeExecPin));
+						verify(K2Schema->TryCreateConnection(SetCapturedVarNodeThenPin, BaseMCDelegateNodeExecPin));
+					}
+
+					// Node expansion for the setter node needs to happen, which prunes the default 'get' pin that's normally added during pin allocation
+
+					SetCapturedVarNode->ExpandNode(*this, Graph);
+				}
+
+				// Modify proxy delegate graph
+				{
+					// Create our getter node for the captured variable
+
+					UK2Node_VariableGet* GetCapturedVarNode = SpawnIntermediateNode<UK2Node_VariableGet>(CreateDelegateNode, DelegateProxyGraph);
+					check(GetCapturedVarNode);
+					GetCapturedVarNode->VariableReference.SetSelfMember(DelegateInfo->CapturedVariableName);
+					GetCapturedVarNode->AllocateDefaultPins();
+
+					// Link our getter node to the original function
+
+					UEdGraphPin* BoundFunctionNodeSelfPin = BoundFunctionNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+					UEdGraphPin* GetCapturedVarNodeVariablePin = GetCapturedVarNode->FindPinChecked(DelegateInfo->CapturedVariableName, EGPD_Output);
+
+					verify(K2Schema->TryCreateConnection(GetCapturedVarNodeVariablePin, BoundFunctionNodeSelfPin));
+				}
+			}
+
+			// Finally, update the original node to use our new function
+
+			CreateDelegateNode->SetFunction(DelegateProxyGraph->GetFName());
+		}
+
+		ConvertibleDelegates.Remove(SourceCreateDelegateNode);
 	}
 }
 

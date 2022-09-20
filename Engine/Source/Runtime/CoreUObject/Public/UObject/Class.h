@@ -3794,7 +3794,7 @@ inline T* GetMutableDefault(UClass *Class)
 
 struct FStructUtils
 {
-	static bool ArePropertiesTheSame(const FProperty* A, const FProperty* B, bool bCheckPropertiesNames);
+	COREUOBJECT_API static bool ArePropertiesTheSame(const FProperty* A, const FProperty* B, bool bCheckPropertiesNames);
 
 	/** Do structures have exactly the same memory layout */
 	COREUOBJECT_API static bool TheSameLayout(const UStruct* StructA, const UStruct* StructB, bool bCheckPropertiesNames = false);

@@ -19,6 +19,7 @@
 #include "FileHelpers.h"
 #include "FindInBlueprintManager.h"
 #include "IMessageLogListing.h"
+#include "K2Node_CreateDelegate.h"
 #include "K2Node_CustomEvent.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_FunctionResult.h"
@@ -2881,6 +2882,28 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		}
 	};
 
+	const auto CreateDelegateProxyFunctions = [Ret, &CompilerContext](UField**& InCurrentFieldStorageLocation)
+	{
+		for (const auto& DelegateInfo : CompilerContext.ConvertibleDelegates)
+		{
+			check(DelegateInfo.Key);
+
+			const UFunction* DelegateSignature = DelegateInfo.Key->GetDelegateSignature();
+
+			// The original signature function is actually a UDelegateFunction type.
+			// When we create our own function from the original, we need to ensure that it's a standard UFunction.
+
+			UObject* NewObject =
+				StaticDuplicateObject(DelegateSignature, Ret, DelegateInfo.Value.ProxyFunctionName, RF_AllFlags, UFunction::StaticClass());
+			UFunction* NewFunction = CastChecked<UFunction>(NewObject);
+
+			NewFunction->FunctionFlags &= ~(FUNC_Delegate | FUNC_MulticastDelegate);
+
+			*InCurrentFieldStorageLocation = NewFunction;
+			InCurrentFieldStorageLocation = &NewFunction->Next;
+		}
+	};
+
 	Ret->SetSuperStruct(ParentClass);
 	
 	Ret->ClassFlags |= (ParentClass->ClassFlags & CLASS_Inherit);
@@ -2960,10 +2983,17 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 
 	{
 		CompilerContext.NewClass = Ret;
+		CompilerContext.RegisterClassDelegateProxiesFromBlueprint();
+		CompilerContext.NewClass = OriginalNewClass;
+	}
+
+	{
+		CompilerContext.NewClass = Ret;
 		TGuardValue<bool> GuardAssignDelegateSignatureFunction( CompilerContext.bAssignDelegateSignatureFunction, true);
 		CompilerContext.CreateClassVariablesFromBlueprint();
 		CompilerContext.NewClass = OriginalNewClass;
 	}
+
 	UField* Iter = Ret->Children;
 	while(Iter)
 	{
@@ -2971,6 +3001,8 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		Iter = Iter->Next;
 	}
 	
+	CreateDelegateProxyFunctions(CurrentFieldStorageLocation);
+
 	AddFunctionForGraphs(TEXT(""), BP->FunctionGraphs, CurrentFieldStorageLocation, BPTYPE_FunctionLibrary == BP->BlueprintType, false);
 	AddFunctionForGraphs(TEXT(""), CompilerContext.GeneratedFunctionGraphs, CurrentFieldStorageLocation, BPTYPE_FunctionLibrary == BP->BlueprintType, false);
 

@@ -2099,6 +2099,49 @@ bool FKismetCompilerUtilities::CheckFunctionCompiledStatementsThreadSafety(const
 	return bIsThreadSafe;
 }
 
+ConvertibleSignatureMatchResult FKismetCompilerUtilities::DoSignaturesHaveConvertibleFloatTypes(const UFunction* A, const UFunction* B)
+{
+	check(A);
+	check(B);
+
+	if (!A->IsSignatureCompatibleWith(B))
+	{
+		TFieldIterator<FProperty> PropAIt(A);
+		TFieldIterator<FProperty> PropBIt(B);
+
+		while (PropAIt)
+		{
+			if (PropBIt)
+			{
+				if (!FStructUtils::ArePropertiesTheSame(*PropAIt, *PropBIt, false))
+				{
+					bool bHasConvertibleProperties =
+						(PropAIt->IsA<FFloatProperty>() && PropBIt->IsA<FDoubleProperty>()) ||
+						(PropAIt->IsA<FDoubleProperty>() && PropBIt->IsA<FFloatProperty>());
+
+					if (!bHasConvertibleProperties)
+					{
+						return ConvertibleSignatureMatchResult::Different;
+					}
+				}
+			}
+			else
+			{
+				// Mismatched parameter count
+				return ConvertibleSignatureMatchResult::Different;
+			}
+
+			++PropAIt;
+			++PropBIt;
+		}
+
+		// If PropBIt still has parameters, then there was a mismatch
+		return PropBIt ? ConvertibleSignatureMatchResult::Different : ConvertibleSignatureMatchResult::HasConvertibleFloatParams;
+	}
+
+	return ConvertibleSignatureMatchResult::ExactMatch;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FNodeHandlingFunctor
 

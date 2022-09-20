@@ -16,6 +16,7 @@
 #include "K2Node_CustomEvent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "KismetCompilerMisc.h"
 #include "K2Node.h"
 #include "K2Node_CreateDelegate.h"
 #include "Layout/Margin.h"
@@ -308,7 +309,8 @@ void SGraphNodeK2CreateDelegate::CreateBelowPinControls(TSharedPtr<SVerticalBox>
 			for (TFieldIterator<UFunction> It(ScopeClass); It; ++It)
 			{
 				UFunction* Func = *It;
-				if (Func && FunctionSignature->IsSignatureCompatibleWith(Func) &&
+				if (Func && 
+					(FKismetCompilerUtilities::DoSignaturesHaveConvertibleFloatTypes(Func, FunctionSignature) != ConvertibleSignatureMatchResult::Different) &&
 					UEdGraphSchema_K2::FunctionCanBeUsedInDelegate(Func))
 				{
 					FFunctionItemData ItemData;
