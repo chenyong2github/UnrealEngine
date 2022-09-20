@@ -14,6 +14,9 @@ int TransB;
 uint M;
 uint N;
 uint K;
+uint MxK;
+uint KxN;
+uint MxN;
 uint CWidth;
 uint CHeight;
 
@@ -24,7 +27,53 @@ Buffer<BUFFER_TYPE> B;
 Buffer<BUFFER_TYPE> C;
 RWBuffer<BUFFER_TYPE> Y;
 
+// x: StackShapeA[0], ..., StackShapeA[NUM_STACK_DIMENSIONS - 1]
+// y: StackShapeB[0], ..., StackShapeB[NUM_STACK_DIMENSIONS - 1]
+// z: StackStrideA[0], ..., StackStrideA[NUM_STACK_DIMENSIONS - 1]
+// w: StackStrideB[0], ..., StackStrideB[NUM_STACK_DIMENSIONS - 1]
+uint4 StackShapeA_StackShapeB_StackStrideA_StackStrideB[MAX_NUM_STACK_DIMENSIONS];
 
+uint3 GetMatrixStackOffsets(const uint3 GroupID)
+{
+// Must correspond to FGemmNumDimensions defined in NNXGemmCS.h
+#if NUM_STACK_DIMENSIONS == 0
+	return uint3(0, 0, 0);
+#else
+	uint stackCoordA[NUM_STACK_DIMENSIONS];
+	uint stackCoordB[NUM_STACK_DIMENSIONS];
+
+	uint stackStrideOutput[NUM_STACK_DIMENSIONS];
+	stackStrideOutput[NUM_STACK_DIMENSIONS - 1] = 1;
+	for (int i = NUM_STACK_DIMENSIONS - 2; i >= 0; i--)
+	{
+		uint maxDim = max(StackShapeA_StackShapeB_StackStrideA_StackStrideB[i + 1][0], StackShapeA_StackShapeB_StackStrideA_StackStrideB[i + 1][1]);
+		stackStrideOutput[i] = maxDim * stackStrideOutput[i + 1];
+	}
+
+	uint idx = GroupID.z;
+	for (int i = 0; i < NUM_STACK_DIMENSIONS; i++)
+	{
+		uint coord = idx / stackStrideOutput[i];
+		stackCoordA[i] = coord % StackShapeA_StackShapeB_StackStrideA_StackStrideB[i][0];
+		stackCoordB[i] = coord % StackShapeA_StackShapeB_StackStrideA_StackStrideB[i][1];
+
+		idx = idx % stackStrideOutput[i];
+	}
+
+	uint stackOffsetA = 0;
+	uint stackOffsetB = 0;
+	for (int i = 0; i < NUM_STACK_DIMENSIONS; i++)
+	{
+		stackOffsetA += stackCoordA[i] * StackShapeA_StackShapeB_StackStrideA_StackStrideB[i][2];
+		stackOffsetB += stackCoordB[i] * StackShapeA_StackShapeB_StackStrideA_StackStrideB[i][3];
+	}
+
+	return uint3(
+		stackOffsetA	* MxK,
+		stackOffsetB	* KxN,
+		GroupID.z		* MxN);
+#endif
+}
 
 WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 {
@@ -50,7 +99,7 @@ WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 #elif ALGORITHM == 3
 [numthreads(256, 1, 1)]
 #endif
-void main(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupID : SV_GroupID)
 {
 	if (DispatchThreadID.y >= M || DispatchThreadID.x >= N)
 	{
@@ -82,6 +131,10 @@ void main(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 		BIdx = DispatchThreadID.x * K; // Index of the first element in the row
 		BIdxIncrement = 1; // The loop goes over the whole row
 	}
+
+	const uint3 StackOffsets = GetMatrixStackOffsets(GroupID);
+	AIdx += StackOffsets.x;
+	BIdx += StackOffsets.y;
 	
 	WORK_TYPE Result = 0.0;
 	for (int k = 0; k < K; k++)
@@ -91,7 +144,7 @@ void main(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 		BIdx += BIdxIncrement;
 	}
 	
-	Y[DispatchThreadID.y * N + DispatchThreadID.x] = WRITE(Alpha * Result + GetBetaTimesC(DispatchThreadID));
+	Y[StackOffsets.z + DispatchThreadID.y * N + DispatchThreadID.x] = WRITE(Alpha * Result + GetBetaTimesC(DispatchThreadID));
 }
 
 #elif ALGORITHM < 7
@@ -108,7 +161,7 @@ groupshared WORK_TYPE SharedMemoryA[GROUP_SIZE * GROUP_SIZE];
 groupshared WORK_TYPE SharedMemoryB[GROUP_SIZE * GROUP_SIZE];
 
 [numthreads(GROUP_SIZE, GROUP_SIZE, 1)]
-void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID)
+void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID, in const uint3 GroupID : SV_GroupID)
 {
 	// Calculate the number of steps each group needs to make to cover the full length of the matrix
 	uint NumGroupSteps = (uint)ceil((float)K / (float)GROUP_SIZE);
@@ -143,6 +196,10 @@ void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 
 		BIdx = DispatchThreadID.x * K + GroupThreadID.y;
 		BIdxIncrement = GROUP_SIZE;
 	}
+
+	const uint3 StackOffsets = GetMatrixStackOffsets(GroupID);
+	AIdx += StackOffsets.x;
+	BIdx += StackOffsets.y;
 	
 	// Multiply and accumulate the blocks along one dimension of the matrices
 	WORK_TYPE Result = 0.0;
@@ -195,7 +252,7 @@ void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 
 		return;
 	}
 	
-	Y[DispatchThreadID.y * N + DispatchThreadID.x] = WRITE(Alpha * Result + GetBetaTimesC(DispatchThreadID));
+	Y[StackOffsets.z + DispatchThreadID.y * N + DispatchThreadID.x] = WRITE(Alpha * Result + GetBetaTimesC(DispatchThreadID));
 }
 
 #else
@@ -292,6 +349,10 @@ void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 
 		BIdxInnerIncrement = GROUP_SIZE_Y;
 	}
 
+	const uint3 StackOffsets = GetMatrixStackOffsets(GroupID);
+	AIdx += StackOffsets.x;
+	BIdx += StackOffsets.y;
+
 	// Multiply and accumulate the blocks
 	uint GroupIdx = 0;
 	for (uint GroupStep = 0; GroupStep < NumGroupSteps; GroupStep++) 
@@ -379,7 +440,7 @@ void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 
 			return;
 		}
 		
-		Y[RowIdx + Column] = WRITE(Alpha * Results[LoadIdx] + GetBetaTimesC(uint3(Column, Row, 0)));
+		Y[StackOffsets.z + RowIdx + Column] = WRITE(Alpha * Results[LoadIdx] + GetBetaTimesC(uint3(Column, Row, 0)));
     }
 }
 

@@ -40,11 +40,21 @@ class NNXHLSLSHADERS_API FMLGemmCS : public FGlobalShader
 
 	class FGemmCScalar : SHADER_PERMUTATION_ENUM_CLASS("C_SCALAR", EGemmCScalar);
 	class FGemmAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EGemmAlgorithm);
-	using FPermutationDomain = TShaderPermutationDomain<FGemmCScalar, FGemmAlgorithm>;
+	class FGemmNumStackDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_STACK_DIMENSIONS", 0, NNXRT_GEMM_MAX_NUM_STACK_DIMENSIONS);
+	using FPermutationDomain = TShaderPermutationDomain<FGemmCScalar, FGemmAlgorithm, FGemmNumStackDimensions>;
 
 public:
 	NNXRT_GEMM_PARAMETER_STRUCT()
 
-	static FIntVector GetGroupCount(const FMLGemmCS::FParameters& Parameters, EGemmAlgorithm Algorithm);
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+
+	static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, uint32 M, uint32 N, uint32 K, uint32 CWidth, uint32 CHeight, float CScalar, FMLGemmCS::FParameters& Parameters);
+
+	static uint32 GetShapeSize(TArray<uint32> Shape);
+	static uint32 GetMatMulOutputSize(TArray<uint32> ShapeA, TArray<uint32> ShapeB);
+
+	static void FillInParametersMatMul(TArray<uint32> ShapeA, TArray<uint32> ShapeB, FMLGemmCS::FParameters& Parameters);
+
+	static FIntVector GetGroupCount(const FMLGemmCS::FParameters& Parameters, EGemmAlgorithm Algorithm, int32 NumStackDimensions);
 	static EGemmAlgorithm GetAlgorithm(const FMLGemmCS::FParameters& Parameters);
 };
