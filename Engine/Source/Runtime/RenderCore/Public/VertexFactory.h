@@ -548,12 +548,6 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	FactoryClass::ModifyCompilationEnvironment, \
 	FactoryClass::ValidateCompiledResult
 
- /**
-  * A macro for declaring a template specialization vertex factory type so it can be used everywhere
-  */
-#define DECLARE_TEMPLATE_SPECIALIZATION_VERTEX_FACTORY_TYPE(TemplatePrefix, FactoryClass) \
-	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) FVertexFactoryType FactoryClass::StaticType;
-
 /**
  * A macro for implementing the static vertex factory type object, and specifying parameters used by the type.
  */

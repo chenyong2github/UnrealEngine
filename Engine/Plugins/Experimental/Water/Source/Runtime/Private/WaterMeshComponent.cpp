@@ -3,7 +3,6 @@
 #include "WaterMeshComponent.h"
 #include "WaterBodyActor.h"
 #include "WaterSplineComponent.h"
-#include "WaterVertexFactory.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
 #include "PhysicsEngine/AggregateGeom.h"
@@ -73,29 +72,6 @@ UWaterMeshComponent::UWaterMeshComponent()
 void UWaterMeshComponent::PostLoad()
 {
 	Super::PostLoad();
-}
-
-void UWaterMeshComponent::PrecachePSOs()
-{
-	if (!FApp::CanEverRender())
-	{
-		return;
-	}
-
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
-
-	if (FarDistanceMaterial)
-	{
-		FarDistanceMaterial->PrecachePSOs(&TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>::StaticType, PrecachePSOParams);
-	}
-	for (UMaterialInterface* MaterialInterface : UsedMaterials)
-	{
-		if (MaterialInterface)
-		{
-			MaterialInterface->PrecachePSOs(&TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>::StaticType, PrecachePSOParams);
-		}
-	}
 }
 
 void UWaterMeshComponent::PostInitProperties()
@@ -591,7 +567,6 @@ void UWaterMeshComponent::Update()
 		LODScaleBiasScalability = NewLODScaleBias;
 		const float LODCountBiasFactor = FMath::Pow(2.0f, (float)LODCountBiasScalability);
 		RebuildWaterMesh(TileSize / LODCountBiasFactor, FIntPoint(FMath::CeilToInt(ExtentInTiles.X * LODCountBiasFactor), FMath::CeilToInt(ExtentInTiles.Y * LODCountBiasFactor)));
-		PrecachePSOs();
 		bNeedsRebuild = false;
 	}
 }

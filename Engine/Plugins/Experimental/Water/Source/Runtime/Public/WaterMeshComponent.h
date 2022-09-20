@@ -41,8 +41,6 @@ public:
 #endif // WITH_EDITOR
 	//~ End UPrimitiveComponent Interface
 
-	virtual void PrecachePSOs() override;
-
 	void Update();
 
 	/** Use this instead of GetMaterialRelevance, since this one will go over all materials from all tiles */
