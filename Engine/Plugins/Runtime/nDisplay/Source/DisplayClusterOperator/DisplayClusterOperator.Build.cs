@@ -17,6 +17,7 @@ public class DisplayClusterOperator : ModuleRules
 				"Engine",
 				"InputCore",
 				"Kismet",
+				"Projects",
 				"Slate",
 				"SlateCore",
 				"ToolWidgets",

@@ -2,6 +2,7 @@
 
 #include "DisplayClusterOperatorModule.h"
 
+#include "DisplayClusterOperatorStyle.h"
 #include "DisplayClusterOperatorViewModel.h"
 #include "SDisplayClusterOperatorPanel.h"
 #include "DisplayClusterRootActor.h"
@@ -24,6 +25,8 @@ void FDisplayClusterOperatorModule::StartupModule()
 	OperatorViewModel = MakeShared<FDisplayClusterOperatorViewModel>();
 	OperatorToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();
 
+	FDisplayClusterOperatorStyle::Get();
+	
 	RegisterTabSpawners();
 }
 
@@ -92,8 +95,9 @@ void FDisplayClusterOperatorModule::RegisterTabSpawners()
 {
 	// Register the nDisplay operator panel tab spawner
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OperatorPanelTabName, FOnSpawnTab::CreateRaw(this, &FDisplayClusterOperatorModule::SpawnOperatorPanelTab))
-		.SetDisplayName(LOCTEXT("TabDisplayName", "nDisplay Operator"))
-		.SetTooltipText(LOCTEXT("TabTooltip", "Open the nDisplay Operator tab."))
+		.SetDisplayName(LOCTEXT("TabDisplayName", "In-Camera VFX"))
+		.SetTooltipText(LOCTEXT("TabTooltip", "Open the In-Camera VFX tab."))
+		.SetIcon(FSlateIcon(FDisplayClusterOperatorStyle::Get().GetStyleSetName(), (TEXT("OperatorPanel.Icon"))))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
 }
 
@@ -106,6 +110,7 @@ TSharedRef<SDockTab> FDisplayClusterOperatorModule::SpawnOperatorPanelTab(const 
 {
 	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
+		.IconColor(FDisplayClusterOperatorStyle::Get().GetColor(TEXT("OperatorPanel.AssetColor")))
 		.OnTabClosed_Raw(this, &FDisplayClusterOperatorModule::OnOperatorPanelTabClosed);
 
 	MajorTab->SetContent(SAssignNew(ActiveOperatorPanel, SDisplayClusterOperatorPanel, OperatorViewModel->CreateTabManager(MajorTab), SpawnTabArgs.GetOwnerWindow()));
