@@ -31,6 +31,7 @@ float2 PrevOutputBufferUVMin;
 float2 PrevOutputBufferUVMax;
 float WorldDepthToDepthError;
 float VelocityExtrapolationMultiplier;
+uint bOutputIsMovingTexture;
 
 Texture2D<float> SceneDepthTexture;
 Texture2D SceneVelocityTexture;
@@ -39,7 +40,7 @@ RWTexture2D<float2> DilatedVelocityOutput;
 RWTexture2D<float> ClosestDepthOutput;
 RWTexture2D<uint> PrevUseCountOutput;
 RWTexture2D<uint> PrevClosestDepthOutput;
-RWTexture2D<uint> ParallaxFactorOutput;
+RWTexture2DArray<uint> R8Output;
 
 RWTexture2D<float3>	VelocityFlattenOutput;
 RWTexture2D<float4>	VelocityTileOutput0;
@@ -151,7 +152,7 @@ void MainCS(
 	#endif
 	
 	// Camera motion for pixel.
-	float2 FinalScreenVelocity = 0.0;
+	float3 FinalScreenVelocity = 0.0;
 
 	// Compute final screen vecocity.
 	#if CONFIG_VELOCITY_EXTRAPOLATION
@@ -169,24 +170,24 @@ void MainCS(
 		float4 EncodedVelocity1 = SceneVelocityTexture[PixelCoord1];
 		float4 EncodedVelocity2 = SceneVelocityTexture[PixelCoord2];
 
-		float2 ScreenVelocity1 = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ1);
-		float2 ScreenVelocity2 = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ2);
+		float3 ScreenVelocity1 = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ1);
+		float3 ScreenVelocity2 = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ2);
 		
 		#if CONFIG_USE_SCENE_VELOCITY
 		{
 			if (EncodedVelocity1.x > 0.0)
 			{
-				ScreenVelocity1 = DecodeVelocityFromTexture(EncodedVelocity1).xy;
+				ScreenVelocity1 = DecodeVelocityFromTexture(EncodedVelocity1);
 			}
 			if (EncodedVelocity2.x > 0.0)
 			{
-				ScreenVelocity2 = DecodeVelocityFromTexture(EncodedVelocity2).xy;
+				ScreenVelocity2 = DecodeVelocityFromTexture(EncodedVelocity2);
 			}
 		}
 		#endif
 
-		float2 VelocityDelta = ScreenVelocity1 - ScreenVelocity2;
-		float ExtrapolationBilateral = ComputeScreenVelocityBilateralWeight(VelocityDelta);
+		float3 VelocityDelta = ScreenVelocity1 - ScreenVelocity2;
+		float ExtrapolationBilateral = ComputeScreenVelocityBilateralWeight(VelocityDelta.xy);
 
 		FinalScreenVelocity = ScreenVelocity1 + VelocityDelta * ExtrapolationBilateral * VelocityExtrapolationMultiplier;
 	}
@@ -201,17 +202,38 @@ void MainCS(
 		{
 			if (EncodedVelocity.x > 0.0)
 			{
-				FinalScreenVelocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
+				FinalScreenVelocity = DecodeVelocityFromTexture(EncodedVelocity);
 			}
 		}
 		#endif
+	}
+
+	tsr_half IsMovingMask = tsr_half(0.0);
+	BRANCH
+	if (bOutputIsMovingTexture)
+	{
+		float Depth = ConvertFromDeviceZ(ClosestDeviceZ);
+		float PrevDepth = ConvertFromDeviceZ(ClosestDeviceZ - FinalScreenVelocity.z);
+		float2 PrevScreenPos = ScreenPos - FinalScreenVelocity.xy;
+
+		float4 ClipPosition = float4(ScreenPos * (View.ViewToClip[3][3] < 1.0f ? Depth : 1.0f), Depth, 1);
+		float4 PrevClipPosition = float4(PrevScreenPos * (View.ViewToClip[3][3] < 1.0f ? PrevDepth : 1.0f), PrevDepth, 1);
+		
+		float3 PreViewTranslationOffset = LWCToFloat(LWCSubtract(PrimaryView.PreViewTranslation, PrimaryView.PrevPreViewTranslation));
+		float3 TranslatedWorldPosition = mul(ClipPosition, View.ScreenToTranslatedWorld).xyz;
+		float3 PrevTranslatedWorldPosition = mul(PrevClipPosition, View.PrevScreenToTranslatedWorld).xyz + PreViewTranslationOffset;
+		
+		float WorldDepthToPixelWorldRadius = 2.0 * GetTanHalfFieldOfView().x * View.ViewSizeAndInvSize.z;
+		float StaticWorldRadius = Depth * WorldDepthToPixelWorldRadius;
+
+		IsMovingMask = tsr_half(saturate(length(TranslatedWorldPosition - PrevTranslatedWorldPosition) * rcp(StaticWorldRadius) - 1.0));
 	}
 
 	// Do motion blur velocity flatten.
 	#if DIM_MOTION_BLUR_DIRECTIONS > 0
 		FVelocityRange VelocityPolarRange;
 		float2 VelocityPolar;
-		ReduceVelocityFlattenTile(GroupThreadIndex, FinalScreenVelocity, /* out */ VelocityPolarRange, /* out */ VelocityPolar);
+		ReduceVelocityFlattenTile(GroupThreadIndex, FinalScreenVelocity.xy, /* out */ VelocityPolarRange, /* out */ VelocityPolar);
 	#endif
 
 	Debug.rg = VelocityPixelOffset * 0.5 + 0.5;
@@ -222,10 +244,10 @@ void MainCS(
 		// Scatter parallax rejection
 		#if 1
 		{
-			float2 PrevScreenPos = ScreenPos - FinalScreenVelocity;
+			float2 PrevScreenPos = ScreenPos - FinalScreenVelocity.xy;
 			float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 
-			float2 PixelVelocity = FinalScreenVelocity * 0.5 * InputInfo_ViewportSize;
+			float2 PixelVelocity = FinalScreenVelocity.xy * 0.5 * InputInfo_ViewportSize;
 			uint EncodedHoleFillingVelocity = EncodeHoleFillingVelocity(PixelVelocity);
 
 			uint PrevClosestDepth = (f32tof16(ClosestDeviceZ) << VELOCITY_HOLE_FILLING_BITS) | EncodedHoleFillingVelocity;
@@ -264,10 +286,16 @@ void MainCS(
 		
 		uint2 OutputPixelPos = bValidOutputPixel ? InputPixelPos : uint(~0).xx;
 
-		//DilatedVelocityOutput[OutputPixelPos] = EncodedVelocity.xy; //EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
-		DilatedVelocityOutput[OutputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
+		//DilatedVelocityOutput[OutputPixelPos] = EncodedVelocity.xy; //EncodeVelocityToTexture(float3(FinalScreenVelocity.xy, 0.0)).xy;
+		DilatedVelocityOutput[OutputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity.xy, 0.0)).xy;
 		ClosestDepthOutput[OutputPixelPos] = ClosestDeviceZ;
-		ParallaxFactorOutput[OutputPixelPos] = CompressParallaxFactor(tsr_half(ParallaxFactorForHistory)) | (CompressParallaxFactor(tsr_half(ParallaxFactorForHistoryRejection)) << 4);
+		R8Output[uint3(OutputPixelPos, 0)] = CompressParallaxFactor(tsr_half(ParallaxFactorForHistory)) | (CompressParallaxFactor(tsr_half(ParallaxFactorForHistoryRejection)) << 4);
+
+		BRANCH
+		if (bOutputIsMovingTexture)
+		{
+			R8Output[uint3(OutputPixelPos, 1)] = uint(round(IsMovingMask * 255.0));
+		}
 
 		// Output motion blur velocity flatten
 		#if DIM_MOTION_BLUR_DIRECTIONS > 0

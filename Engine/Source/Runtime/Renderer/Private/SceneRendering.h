@@ -917,6 +917,7 @@ struct FTSRHistory
 
 	// Filterable input resolution representation of the output
 	TRefCountPtr<IPooledRenderTarget> Guide;
+	TRefCountPtr<IPooledRenderTarget> Moire;
 
 	FIntRect InputViewportRect;
 	FIntRect OutputViewportRect;

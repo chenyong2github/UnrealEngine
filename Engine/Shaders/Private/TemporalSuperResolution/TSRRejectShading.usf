@@ -29,7 +29,10 @@
 #define CONFIG_FIREFLY_REMOVAL 1
 
 /** Whether to compose translucency to the input. */
-#define CONFIG_COMPOSE_TRANSLUCENCY (!DIM_SEPARATE_TRANSLUCENCY)
+#define CONFIG_COMPOSE_TRANSLUCENCY 1
+
+/** Whether to detect flickering. */
+#define CONFIG_MOIRE_DETECTION (DIM_FLICKERING_DETECTION)
 
 
 //------------------------------------------------------- DERIVED
@@ -81,13 +84,17 @@ FScreenTransform InputPixelPosToTranslucencyTextureUV;
 float2 TranslucencyTextureUVMin;
 float2 TranslucencyTextureUVMax;
 float3 HistoryGuideQuantizationError;
+float FlickeringFramePeriod;
 
 Texture2D<tsr_halfC> InputTexture;
 Texture2D<tsr_half4> InputSceneTranslucencyTexture;
 Texture2D<tsr_halfC> ReprojectedHistoryGuideTexture;
+Texture2D<tsr_half4> ReprojectedHistoryMoireTexture;
 Texture2D<tsr_half> ParallaxRejectionMaskTexture;
+Texture2D<tsr_ushort> IsMovingMaskTexture;
 
 RWTexture2D<tsr_halfC> HistoryGuideOutput;
+RWTexture2D<tsr_half4> HistoryMoireOutput;
 RWTexture2D<tsr_half> HistoryRejectionOutput;
 RWTexture2D<tsr_half> InputSceneColorLdrLumaOutput;
 
@@ -346,12 +353,16 @@ void MainCS(
 		tsr_short(-TILE_OVERSCAN_PADDING).xx);
 		
 	// Load
-	tsr_simd_halfC OriginalInput;
+	tsr_simd_halfC OriginalOpaqueInput;
 	#if CONFIG_COMPOSE_TRANSLUCENCY
 		tsr_simd_half4 OriginalTranslucencyInput;
 	#endif
 	tsr_simd_halfC OriginalHistory;
 	tsr_simd_half bIsValid;
+	#if CONFIG_MOIRE_DETECTION
+		tsr_simd_half4 PrevMoire;
+		tsr_simd_half bIsStatic;
+	#endif
 	ISOLATE
 	{
 		UNROLL_N(SIMD_SIZE)
@@ -363,12 +374,16 @@ void MainCS(
 			ClampedFetchPixelPos = ClampPixelOffset(ClampedFetchPixelPos, InputPixelPosMin, InputPixelPosMax);
 			TranslucencyTextureUV = clamp(TranslucencyTextureUV, TranslucencyTextureUVMin, TranslucencyTextureUVMax);
 
-			OriginalInput.SetElement(SimdIndex, InputTexture[ClampedFetchPixelPos]);
+			OriginalOpaqueInput.SetElement(SimdIndex, InputTexture[ClampedFetchPixelPos]);
 			#if CONFIG_COMPOSE_TRANSLUCENCY
 				OriginalTranslucencyInput.SetElement(SimdIndex, InputSceneTranslucencyTexture.SampleLevel(GlobalBilinearClampedSampler, TranslucencyTextureUV, 0));
 			#endif
 			OriginalHistory.SetElement(SimdIndex, ReprojectedHistoryGuideTexture[ClampedFetchPixelPos]);
 			bIsValid.SetElement(SimdIndex, ParallaxRejectionMaskTexture[ClampedFetchPixelPos] > tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD) ? tsr_half(1.0) : tsr_half(0.0));
+			#if CONFIG_MOIRE_DETECTION
+				PrevMoire.SetElement(SimdIndex, ReprojectedHistoryMoireTexture[ClampedFetchPixelPos]);
+				bIsStatic.SetElement(SimdIndex, tsr_half(1.0) - tsr_half(IsMovingMaskTexture[ClampedFetchPixelPos]) * rcp(tsr_half(255.0)));
+			#endif
 		}
 	}
 	
@@ -379,7 +394,7 @@ void MainCS(
 		UNROLL_N(SIMD_SIZE)
 		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
 		{
-			tsr_half3 Color = OriginalInput.GetElement(SimdIndex).rgb;
+			tsr_half3 Color = OriginalOpaqueInput.GetElement(SimdIndex).rgb;
 			
 			#if CONFIG_COMPOSE_TRANSLUCENCY
 				tsr_half4 Translucency = OriginalTranslucencyInput.GetElement(SimdIndex);
@@ -390,6 +405,8 @@ void MainCS(
 			CenterLumaLDR.SetElement(SimdIndex, CenterLuma / (SpatialAAExposure + CenterLuma));
 		}
 	}
+	
+	tsr_simd_halfC OriginalInput = OriginalOpaqueInput;
 
 	#if CONFIG_COMPOSE_TRANSLUCENCY
 	{
@@ -398,7 +415,7 @@ void MainCS(
 		UNROLL_N(SIMD_SIZE)
 		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
 		{
-			tsr_halfC Color = OriginalInput.GetElement(SimdIndex);
+			tsr_halfC Color = OriginalOpaqueInput.GetElement(SimdIndex);
 			tsr_half4 Translucency = FilteredTranslucencyInput.GetElement(SimdIndex);
 
 			Color.rgb = Color.rgb * Translucency.a + Translucency.rgb;
@@ -412,8 +429,155 @@ void MainCS(
 	#endif
 	
 	// Convert input to LDR
+	OriginalOpaqueInput = OriginalOpaqueInput * rcp(OriginalOpaqueInput + tsr_simd_halfC::Const(1.0));
 	OriginalInput = OriginalInput * rcp(OriginalInput + tsr_simd_halfC::Const(1.0));
 	
+	// Analyses the moire pattern overtime.
+	#if CONFIG_MOIRE_DETECTION
+	tsr_simd_half4 FinalMoire = tsr_simd_half4::Const(0.0);
+	tsr_simd_half MoireError = tsr_simd_half::Const(0.0);
+	{
+		const tsr_half BlendFinal = tsr_half(0.05);
+		//const tsr_half BlendFinal = tsr_half(0.2);
+		const tsr_half MoireEncodingError = tsr_half(rcp(127.0));
+		const tsr_half MaxPrevTotalVariationCount = tsr_half(20.0);
+
+		// Compute the threshold at which the variation count should quick in
+		const tsr_half TotalVariationCountThreshold = tsr_half(1.0 / (1.0 - pow(1.0 - BlendFinal, tsr_half(FlickeringFramePeriod))));
+
+
+		tsr_simd_half InputLuma;
+		{
+			UNROLL_N(SIMD_SIZE)
+			for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+			{
+				const tsr_half3 LumaWeights = tsr_half3(0.333f, 0.333f, 0.333f);
+				
+				InputLuma.SetElement(SimdIndex, dot(OriginalOpaqueInput.GetElement(SimdIndex).rgb, LumaWeights));
+			}
+		}
+		
+		// Convolve the input luma to have the exact same moire pattern as FilteredInput below.
+		InputLuma = Convolve3x3HV<TAccumulatorAvg<tsr_simd_half>, tsr_simd_half>(InputLuma, bIsValid, GroupThreadIndex);
+
+		// Unpack history
+		tsr_simd_half PrevFlickeringHistory = PrevMoire[0];
+		tsr_simd_half PrevGradient = PrevMoire[1] * tsr_half(2.0) - tsr_half(1.0);
+		//tsr_simd_half PrevTotalVariation = PrevMoire[2] * tsr_simd_half::Const(1.0 - BlendFinal);
+		tsr_simd_half PrevTotalVariation = PrevMoire[2] * tsr_simd_half::Const(tsr_half(1.0) - BlendFinal);
+		tsr_simd_half PrevTotalVariationCount = PrevMoire[3] * MaxPrevTotalVariationCount * tsr_simd_half::Const(tsr_half(1.0) - BlendFinal);
+		
+		// Discard history on moving objects.
+		PrevTotalVariation = PrevTotalVariation * bIsStatic;
+		PrevTotalVariationCount = PrevTotalVariationCount * bIsStatic;
+
+
+		// Compute clamping box of the limance.
+		tsr_simd_half InputLumaMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_half>, tsr_simd_half>(InputLuma, bIsValid, GroupThreadIndex);
+		tsr_simd_half InputLumaMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_half>, tsr_simd_half>(InputLuma, bIsValid, GroupThreadIndex);
+
+		// Clamp and contribue the history.		
+		tsr_simd_half ClampedPrevFlickeringHistory = clamp(PrevFlickeringHistory, InputLumaMin, InputLumaMax);
+		tsr_simd_half FinalFlickeringHistory = InputLuma * tsr_simd_half::Const(BlendFinal) - ClampedPrevFlickeringHistory * tsr_simd_half::Const(BlendFinal - tsr_half(1.0));
+	
+		// Measure the flickering gradient of the current frame.
+		//tsr_simd_half CurrentGradient = FinalFlickeringHistory - PrevFlickeringHistory;
+		tsr_simd_half CurrentGradient = ClampedPrevFlickeringHistory - PrevFlickeringHistory;
+		
+		#if 0
+			tsr_simd_half InputBoxSize = InputLumaMax - InputLumaMin;
+			CurrentGradient = sign(CurrentGradient) * max(abs(CurrentGradient) - tsr_simd_half::Const(0.5) * InputBoxSize, tsr_simd_half::Const(0.0));
+		#endif
+
+		tsr_simd_half IsFlicker;
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_half LocalCurrentGradient = CurrentGradient.GetElement(SimdIndex);
+			tsr_half LocalPrevGradient = PrevGradient.GetElement(SimdIndex);
+
+			bool bGradientsAreSameSign = LocalCurrentGradient * LocalPrevGradient > tsr_half(0.0);
+			bool bGradientsAreWithinError = abs(LocalCurrentGradient) < MoireEncodingError || abs(LocalPrevGradient) < MoireEncodingError;
+			//bool bCurrentGradientSubstentialEnough = abs(LocalCurrentGradient) > View.GeneralPurposeTweak * abs(LocalPrevGradient); // - 2.0 * MoireEncodingError;
+
+			tsr_half LocalIsFlicker = select((
+				bGradientsAreSameSign ||
+				bGradientsAreWithinError ||
+				//!bCurrentGradientSubstentialEnough ||
+				bCameraCut), tsr_half(0.0), tsr_half(1.0));
+
+			IsFlicker.SetElement(SimdIndex, LocalIsFlicker);
+		}
+
+		// Compute the total variation of the gradient over time.
+		tsr_simd_half GradientVariation = min(abs(PrevGradient), abs(CurrentGradient)) * IsFlicker;
+
+		// Dilates the total variation and contribution to keep stability despite inacuracies in the history reprojection
+		// of these need a nearest filter which isn't precise at all.
+		tsr_simd_half TotalVariationContribution = Convolve3x3HV<TAccumulatorMax<tsr_simd_half>, tsr_simd_half>(GradientVariation, tsr_simd_half::Const(1.0), GroupThreadIndex);
+		tsr_simd_half TotalVariationCountContribution = Convolve3x3HV<TAccumulatorMax<tsr_simd_half>, tsr_simd_half>(IsFlicker, tsr_simd_half::Const(1.0), GroupThreadIndex);
+
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_half LocalCurrentGradient = CurrentGradient.GetElement(SimdIndex);
+
+			tsr_half LocalPrevGradient = PrevGradient.GetElement(SimdIndex);
+			tsr_half LocalPrevTotalVariation = PrevTotalVariation.GetElement(SimdIndex);
+			tsr_half LocalPrevTotalVariationCount = PrevTotalVariationCount.GetElement(SimdIndex);
+			tsr_half LocalIsValid = bIsValid.GetElement(SimdIndex);
+
+			tsr_half LocalIsFlicker = IsFlicker.GetElement(SimdIndex);
+
+			tsr_half LocalTotalVariationContribution = TotalVariationContribution.GetElement(SimdIndex);
+			tsr_half LocalTotalVariationCountContribution = TotalVariationCountContribution.GetElement(SimdIndex);
+			
+			// Blend out previous gradient
+			tsr_half LocalPrevBlendedGradient = LocalPrevGradient * (tsr_half(1.0) - BlendFinal) * (tsr_half(1.0) - LocalIsFlicker);
+
+			// Compute new gradient.
+			#if 0
+				tsr_half LocalNewGradient = LocalPrevBlendedGradient + LocalCurrentGradient;
+			#else
+				tsr_half LocalNewGradient = abs(LocalPrevBlendedGradient) > abs(LocalCurrentGradient) ? LocalPrevBlendedGradient : LocalCurrentGradient;
+			#endif
+			
+			// Accumulate current frame variation.
+			tsr_half LocalNewTotalVariation = LocalPrevTotalVariation + LocalTotalVariationContribution;
+			tsr_half LocalNewTotalVariationCount = LocalPrevTotalVariationCount + LocalTotalVariationCountContribution;
+
+			// Discard all moire history on parallax disocclusion.
+			LocalNewGradient *= LocalIsValid;
+			LocalNewTotalVariation *= LocalIsValid;
+			LocalNewTotalVariationCount *= LocalIsValid;
+
+			// Quantise total variation and count to history bit depth to variation drift in the history over time.
+			tsr_half LocalQuantizedNewTotalVariationCount = floor(LocalNewTotalVariationCount * (tsr_half(255.0) / MaxPrevTotalVariationCount)) * (MaxPrevTotalVariationCount / tsr_half(255.0));
+			LocalNewTotalVariation *= LocalQuantizedNewTotalVariationCount * SafeRcp(LocalNewTotalVariationCount);
+
+			// Compute the final luminance 
+			#if 1
+				tsr_half LocalCountFadeIn = saturate(LocalNewTotalVariationCount / TotalVariationCountThreshold - tsr_half(0.5));
+			#else
+				tsr_half LocalCountFadeIn = saturate(LocalNewTotalVariationCount - TotalVariationCountThreshold);
+			#endif
+			tsr_half LocalMoireError = abs(LocalNewTotalVariation * SafeRcp(LocalNewTotalVariationCount)) * LocalCountFadeIn;
+
+			FinalMoire.RegisterArray[SimdIndex][0] = FinalFlickeringHistory.GetElement(SimdIndex);
+			FinalMoire.RegisterArray[SimdIndex][1] = LocalNewGradient * tsr_half(0.5) + tsr_half(0.5);
+			FinalMoire.RegisterArray[SimdIndex][2] = LocalNewTotalVariation;
+			FinalMoire.RegisterArray[SimdIndex][3] = LocalQuantizedNewTotalVariationCount * rcp(MaxPrevTotalVariationCount);
+
+			MoireError.SetElement(SimdIndex, LocalMoireError);
+		}
+		
+		// Moving object in the scene have very low chance of creating moire pattern with TAA jitter, so discard the moire error to still
+		// have character animation ghost free evem as environement shadow project different things on character.
+		MoireError = MoireError * bIsStatic;
+	}
+	#endif
+
+	// Top secret sauce with paper and salt.
 	tsr_simd_halfC ClampedInput = OriginalInput;
 	tsr_simd_halfC ClampedHistory = OriginalHistory;
 	#if CONFIG_FIREFLY_REMOVAL
@@ -432,22 +596,51 @@ void MainCS(
 	Rejection.SetAllElements(tsr_half(1.0));
 	#if 1
 	{
+		const tsr_half FilteringWeight = rcp(tsr_half(1.0 + 4 * 0.5 + 4 * 0.25));
+
 		tsr_simd_halfC BackbufferError = tsr_simd_halfC::Const(MeasureBackbufferLDRQuantizationError());
 
 		tsr_simd_halfC FilteredBoxMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_halfC>, tsr_simd_halfC>(FilteredInput, bIsValid, GroupThreadIndex) - BackbufferError;
 		tsr_simd_halfC FilteredBoxMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_halfC>, tsr_simd_halfC>(FilteredInput, bIsValid, GroupThreadIndex) + BackbufferError;
-		tsr_simd_halfC ClampedFilteredHistory = clamp(FilteredHistory, FilteredBoxMin, FilteredBoxMax);
+		
+		tsr_simd_halfC ClampedFilteredHistory;
+		#if CONFIG_MOIRE_DETECTION
+		{
+			UNROLL_N(SIMD_SIZE)
+			for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+			{
+				// TODO: improve this 3.0 *
+				ClampedFilteredHistory.SetElement(SimdIndex, clamp(
+					FilteredHistory.GetElement(SimdIndex),
+					FilteredBoxMin.GetElement(SimdIndex) - tsr_half(3.0) * MoireError.GetElement(SimdIndex),
+					FilteredBoxMax.GetElement(SimdIndex) + tsr_half(3.0) * MoireError.GetElement(SimdIndex)));
+			}
+		}
+		#else
+			ClampedFilteredHistory = clamp(FilteredHistory, FilteredBoxMin, FilteredBoxMax);
+		#endif
 		
 		tsr_simd_halfC OriginalBoxMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_halfC>, tsr_simd_halfC>(OriginalInput, bIsValid, GroupThreadIndex);
 		tsr_simd_halfC OriginalBoxMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_halfC>, tsr_simd_halfC>(OriginalInput, bIsValid, GroupThreadIndex);
-		tsr_simd_halfC BoxSize = (OriginalBoxMax - OriginalBoxMin + (BackbufferError + BackbufferError)) * rcp(tsr_half(1.0 + 4 * 0.5 + 4 * 0.25));
+		tsr_simd_halfC BoxSize = (OriginalBoxMax - OriginalBoxMin + (BackbufferError + BackbufferError)) * FilteringWeight;
 		
 		UNROLL_N(SIMD_SIZE)
 		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
 		{
+			#if CONFIG_MOIRE_DETECTION
+				tsr_halfC ClampedEnergy = abs(ClampedFilteredHistory.GetElement(SimdIndex) - FilteredHistory.GetElement(SimdIndex));
+				tsr_halfC ClampedEnergyAmount = ClampedEnergy * SafeRcp(ClampedEnergy[0] + ClampedEnergy[1] + ClampedEnergy[2]);
+
+				// Apply the moire error on each individual channel based on how much they need to clamp.
+				tsr_halfC MoireErrorSize = ClampedEnergyAmount * ((FilteringWeight * tsr_half(3.0)) * MoireError.GetElement(SimdIndex));
+				//tsr_halfC MoireErrorSize = FilteringWeight * 3.0 * MoireError.GetElement(SimdIndex);
+			#else
+				const tsr_halfC MoireErrorSize = tsr_half(0.0);
+			#endif
+
 			Rejection.SetElement(SimdIndex, MeasureRejectionFactor(
 				FilteredHistory.GetElement(SimdIndex), ClampedFilteredHistory.GetElement(SimdIndex),
-				FilteredInput.GetElement(SimdIndex), tsr_half(0.0), BoxSize.GetElement(SimdIndex),
+				FilteredInput.GetElement(SimdIndex), tsr_half(0.0), max(BoxSize.GetElement(SimdIndex), MoireErrorSize),
 				MeasureBackbufferLDRQuantizationError()));
 		}
 		
@@ -521,6 +714,9 @@ void MainCS(
 			#endif
 
 			HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
+			#if CONFIG_MOIRE_DETECTION
+				HistoryMoireOutput[OutputPixelPos] = FinalMoire.GetElement(SimdIndex);
+			#endif
 			HistoryRejectionOutput[OutputPixelPos] = Rejection.GetElement(SimdIndex);
 			InputSceneColorLdrLumaOutput[OutputPixelPos] = CenterLumaLDR.GetElement(SimdIndex);
 			

@@ -26,6 +26,9 @@
 	#endif
 #endif // CONFIG_VELOCITY_SAMPLES != 1
 
+/** Whether to compile the moire reprojection. */
+#define CONFIG_MOIRE_REPROJECTION (DIM_MOIRE_REPROJECTION)
+
 
 //------------------------------------------------------- PARAMETERS
 
@@ -40,6 +43,7 @@ Texture2D<tsr_subpixel_payload> ParallaxFactorTexture;
 Texture2D<tsr_subpixel_details> PrevHistorySubpixelDetails;
 
 Texture2D<tsr_halfC> PrevHistoryGuide;
+Texture2D<tsr_half4> PrevHistoryMoire;
 float2 PrevGuideInfo_Extent;
 float2 PrevGuideInfo_ExtentInverse;
 uint2  PrevGuideInfo_ViewportMin;
@@ -54,6 +58,7 @@ float3 HistoryGuideQuantizationError;
 
 
 RWTexture2D<tsr_halfC> ReprojectedHistoryGuideOutput;
+RWTexture2D<tsr_half4> ReprojectedHistoryMoireOutput;
 
 RWTexture2D<float2> HoleFilledVelocityOutput;
 RWTexture2D<tsr_half2> HoleFilledVelocityMaskOutput;
@@ -262,6 +267,9 @@ void MainCS(
 	uint HistoryClosestDeviceZSamples[4];
 	
 	tsr_halfC ReprojectedHistoryGuideColor;
+	#if CONFIG_MOIRE_REPROJECTION
+		tsr_half4 ReprojectedHistoryMoireColor;
+	#endif
 	FSubpixelNeighborhood SubpixelNeigborhood;
 	bool bIsOffScreen;
 
@@ -327,6 +335,15 @@ void MainCS(
 				ReprojectedHistoryGuideColor += PrevHistoryGuide.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0) * tsr_half(Samples.Weight[i]);
 			}
 			ReprojectedHistoryGuideColor *= tsr_half(Samples.FinalMultiplier);
+
+			#if CONFIG_MOIRE_REPROJECTION
+			{
+				uint2 Random = Rand3DPCG16(int3(InputPixelPos - InputInfo_ViewportMin, View.StateFrameIndexMod8)).xy;
+				float2 E = Hammersley16(0, 1, Random).xy;
+
+				ReprojectedHistoryMoireColor = PrevHistoryMoire.SampleLevel(GlobalPointClampedSampler, KernelHistoryBufferUV + (E - 0.5) * PrevGuideInfo_ExtentInverse, 0);
+			}
+			#endif
 		}
 
 		{
@@ -562,6 +579,9 @@ void MainCS(
 		tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(InputPixelPos, InputInfo_ViewportMax);
 
 		ReprojectedHistoryGuideOutput[OutputPixelPos] = ReprojectedHistoryGuideColor;
+		#if CONFIG_MOIRE_REPROJECTION
+			ReprojectedHistoryMoireOutput[OutputPixelPos] = ReprojectedHistoryMoireColor;
+		#endif
 		HoleFilledVelocityOutput[OutputPixelPos] = EncodedScreenVelocity;
 		HoleFilledVelocityMaskOutput[InputPixelPos] = tsr_half2(0.0, RejectHighFrequency);
 		ParallaxRejectionMaskOutput[OutputPixelPos] = ParallaxRejectionMask;

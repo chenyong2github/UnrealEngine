@@ -820,14 +820,14 @@ bool TakeOnlyOneSamplePair(float2 Offset)
 	return Offset.y > 0.0 || (Offset.x > 0.0 && Offset.y == 0.0);
 }
 
-float2 ComputeStaticVelocity(float2 ScreenPos, float DeviceZ)
+float3 ComputeStaticVelocity(float2 ScreenPos, float DeviceZ)
 {
 	float3 PosN = float3(ScreenPos, DeviceZ);
 
 	float4 ThisClip = float4(PosN, 1);
 	float4 PrevClip = mul( ThisClip, View.ClipToPrevClip );
-	float2 PrevScreen = PrevClip.xy / PrevClip.w;
-	return PosN.xy - PrevScreen;
+	float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+	return PosN - PrevScreen;
 }
 
 tsr_half ComputePredictionCompleteness(tsr_half SampleHistoryValidity)
