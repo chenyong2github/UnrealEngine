@@ -276,8 +276,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			.OnTextCommitted(this, &SDetailsView::OnFilterTextCommitted)
 			.AddMetaData<FTagMetaData>(TEXT("Details.Search"))
 		];
-
-	if (DetailsViewArgs.bShowPropertyMatrixButton)
+	
 	{
 		FilterRowHBox->AddSlot()
 			.Padding(0)
@@ -290,6 +289,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
 				.OnClicked(this, &SDetailsView::OnOpenRawPropertyEditorClicked)
 				.IsEnabled(this, &SDetailsView::CanOpenRawPropertyEditor)
+				.Visibility(this, &SDetailsView::CanShowRawPropertyEditorButton, DetailsViewArgs.bShowPropertyMatrixButton)
 				.ToolTipText(LOCTEXT("RawPropertyEditorButtonLabel", "Open Selection in Property Matrix"))
 				[
 					SNew(SImage)
@@ -449,6 +449,12 @@ TSharedRef<SDetailTree> SDetailsView::ConstructTreeView( TSharedRef<SScrollBar>&
 bool SDetailsView::CanOpenRawPropertyEditor() const
 {
 	return SelectedObjects.Num() > 0 && IsPropertyEditingEnabled();
+}
+
+EVisibility SDetailsView::CanShowRawPropertyEditorButton(const bool bAllowedByDetailsViewArgs) const
+{
+	const bool bShowPropertyMatrixOverride =  FModuleManager::LoadModuleChecked<FPropertyEditorModule>( "PropertyEditor" ).GetCanUsePropertyMatrix();
+	return (DetailsViewArgs.bShowPropertyMatrixButton && bShowPropertyMatrixOverride) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SDetailsView::OnOpenRawPropertyEditorClicked()

@@ -404,6 +404,12 @@ public:
 	/** Get the global row extension generators. */
 	FOnGenerateGlobalRowExtension& GetGlobalRowExtensionDelegate() { return OnGenerateGlobalRowExtension; }
 
+	const bool GetCanUsePropertyMatrix() const { return bCanUsePropertyMatrixOverride; } 
+	void SetCanUsePropertyMatrix(const bool bInCanUsePropertyMatrix) 
+	{ 
+		bCanUsePropertyMatrixOverride = bInCanUsePropertyMatrix; 
+	} 
+
 private:
 
 	/**
@@ -447,4 +453,6 @@ private:
 	UStruct* StructOnScopePropertyOwner;
 	/** Delegate called to extend the name column widget on a property row. */
 	FOnGenerateGlobalRowExtension OnGenerateGlobalRowExtension;
+	/** Override for if the Property Matrix is availabe */
+	bool bCanUsePropertyMatrixOverride = true;
 };

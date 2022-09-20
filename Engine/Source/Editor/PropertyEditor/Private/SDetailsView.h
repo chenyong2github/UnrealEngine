@@ -152,6 +152,9 @@ private:
 	/** Whether the property matrix button should be enabled */
 	bool CanOpenRawPropertyEditor() const;
 
+	/** Whether the property matrix button should be shown */
+	EVisibility CanShowRawPropertyEditorButton(const bool bAllowedByDetailsViewArgs) const;
+
 	/**
 	 * Called to open the raw property editor (property matrix)                                                              
 	 */
