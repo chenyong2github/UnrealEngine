@@ -3109,8 +3109,6 @@ namespace Audio
 			}
 		}
 
-		const int32 CurrentRenderThreadIndex = RenderThreadCommandBufferIndex.GetValue();
-
 		// Pump the MPSC command queue
 		TOptional Opt{ MpscCommandQueue.Dequeue() };
 		while (Opt.IsSet())
