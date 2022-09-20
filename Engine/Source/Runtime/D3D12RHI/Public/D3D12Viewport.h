@@ -167,6 +167,7 @@ public:
 	}
 
 private:
+	bool IsPresentAllowed();
 
 	/**
 	 * Create the dummy back buffer textures

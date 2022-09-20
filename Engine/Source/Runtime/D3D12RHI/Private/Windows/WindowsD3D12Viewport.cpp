@@ -630,6 +630,12 @@ FD3D12Texture* FD3D12Viewport::GetBackBuffer_RenderThread() const
 	return DummyBackBuffer;
 }
 
+bool FD3D12Viewport::IsPresentAllowed()
+{
+	FD3D12DynamicRHI& RHI = *ParentAdapter->GetOwningRHI();
+	return !RHI.RHIIsRenderingSuspended();
+}
+
 void FD3D12DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
 {
 	OutDisplayInformation.Append(DisplayList);

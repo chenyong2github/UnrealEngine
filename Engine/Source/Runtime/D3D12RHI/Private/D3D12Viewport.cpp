@@ -655,7 +655,8 @@ void FD3D12Viewport::AdvanceExpectedBackBufferIndex_RenderThread()
 {
 	bool bNeedsNativePresent = IsValidRef(CustomPresent) ? 
 		CustomPresent->NeedsNativePresent() || CustomPresent->NeedsAdvanceBackbuffer() : true;
-	if (bNeedsNativePresent)
+
+	if (bNeedsNativePresent && IsPresentAllowed())
 	{
 #if WITH_MGPU
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
@@ -878,6 +879,11 @@ void FD3D12Viewport::PresentWithVsyncDWM()
 
 bool FD3D12Viewport::Present(bool bLockToVsync)
 {
+	if (!IsPresentAllowed())
+	{
+		return false;
+	}
+
 	FD3D12Adapter* Adapter = GetParentAdapter();
 	
 	for (uint32 GPUIndex : FRHIGPUMask::All())
@@ -1097,12 +1103,8 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 	ParentAdapter->SubmissionGapRecorder.SetPresentSlotIdx(CurrentSlotIdx);
 #endif
 
-	bool bNativelyPresented = false; 
-	if (!RHI.RHIIsRenderingSuspended())
-	{
-		bNativelyPresented = Viewport->Present(bLockToVsync);
-	}
-
+	bool bNativelyPresented = Viewport->Present(bLockToVsync);
+	
 	// Multi-GPU support : here each GPU wait's for it's own frame completion. Note that even in AFR, each GPU renders an (empty) frame.
 	if (bNativelyPresented)
 	{
