@@ -42,7 +42,7 @@ class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 };
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ISPC_DX11_FORMAT_VERSION 7
+#define BASE_ISPC_DX11_FORMAT_VERSION 8
 
 // For debugging intermediate image results by saving them out as files.
 #define DEBUG_SAVE_INTERMEDIATE_IMAGES 0
