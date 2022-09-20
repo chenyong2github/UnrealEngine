@@ -3,7 +3,6 @@
 
 #include "Chaos/Collision/CollisionDetector.h"
 #include "Chaos/Collision/CollisionContext.h"
-#include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/EvolutionResimCache.h"
 #include "Chaos/PBDCollisionConstraints.h"
@@ -14,15 +13,16 @@ namespace Chaos
 	class CHAOS_API FSpatialAccelerationCollisionDetector : public FCollisionDetector
 	{
 	public:
-		FSpatialAccelerationCollisionDetector(FSpatialAccelerationBroadPhase& InBroadPhase, FNarrowPhase& InNarrowPhase, FPBDCollisionConstraints& InCollisionContainer)
+		FSpatialAccelerationCollisionDetector(FSpatialAccelerationBroadPhase& InBroadPhase, FPBDCollisionConstraints& InCollisionContainer)
 			: FCollisionDetector(InCollisionContainer)
 			, BroadPhase(InBroadPhase)
-			, NarrowPhase(InNarrowPhase)
 		{
 		}
 
-		FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
-		FNarrowPhase& GetNarrowPhase() { return NarrowPhase; }
+		FSpatialAccelerationBroadPhase& GetBroadPhase()
+		{ 
+			return BroadPhase;
+		}
 
 		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* ResimCache) override
 		{
@@ -38,14 +38,21 @@ namespace Chaos
 			CollisionContainer.BeginDetectCollisions();
 
 			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> CollisionAllocator -[serial]-> Container
-			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, ResimCache);
+			BroadPhase.ProduceOverlaps(Dt, &CollisionContainer.GetConstraintAllocator(), Settings, ResimCache);
 
 			CollisionContainer.EndDetectCollisions();
 
 			// If we have a resim cache restore and save contacts
 			if(ResimCache)
 			{
-				CollisionContainer.GetConstraintAllocator().AddResimConstraints(ResimCache->GetAndSanitizeConstraints());
+				// Ensure we have at least one allocator
+				CollisionContainer.GetConstraintAllocator().SetMaxContexts(1);
+
+				FCollisionContext Context;
+				Context.SetSettings(Settings);
+				Context.SetAllocator(CollisionContainer.GetConstraintAllocator().GetContextAllocator(0));
+
+				CollisionContainer.GetConstraintAllocator().AddResimConstraints(ResimCache->GetAndSanitizeConstraints(), Context);
 
 				ResimCache->SaveConstraints(CollisionContainer.GetConstraints());
 			}
@@ -53,6 +60,5 @@ namespace Chaos
 
 	private:
 		FSpatialAccelerationBroadPhase& BroadPhase;
-		FNarrowPhase& NarrowPhase;
 	};
 }

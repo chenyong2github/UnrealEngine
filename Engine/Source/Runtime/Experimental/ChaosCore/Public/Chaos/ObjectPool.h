@@ -26,7 +26,8 @@ namespace Chaos
 		// Alignment of the stored type
 		constexpr static int32 ItemAlign = alignof(ObjectType);
 
-		using Ptr = ObjectType*;
+		using FObject = ObjectType;
+		using FPtr = ObjectType*;
 
 		explicit TObjectPool(int32 InNumPerBlock, int32 InitialBlocks = 1)
 			: NumPerBlock(InNumPerBlock)
@@ -58,7 +59,7 @@ namespace Chaos
 		 * @return The newly allocated object
 		 */
 		template<typename... TArgs>
-		Ptr Alloc(TArgs&&... Args)
+		FPtr Alloc(TArgs&&... Args)
 		{
 			// Need a new Block
 			if(FreeCount == 0)
@@ -75,23 +76,22 @@ namespace Chaos
 
 			if (Blocks[0].IsFull())
 			{
-				// Set BackIndex to the first empty block from the end
-				int32 BackIndex = Blocks.Num() - 1;
-				while(BackIndex > 0)
+				// Find the fullest block that is not completely full
+				int32 SelectedIndex = INDEX_NONE;
+				int32 SelectedNumFree = TNumericLimits<int32>::Max();
+				for (int32 Index = 0; Index < Blocks.Num(); ++Index)
 				{
-					if(Blocks[BackIndex].IsFull())
+					const int32 BlockNumFree = Blocks[Index].NumFree;
+					if ((BlockNumFree > 0) && (BlockNumFree < SelectedNumFree))
 					{
-						--BackIndex;
-					}
-					else
-					{
-						break;
+						SelectedNumFree = BlockNumFree;
+						SelectedIndex = Index;
 					}
 				}
 
-				checkf(!Blocks[BackIndex].IsFull(), TEXT("Could not find an empty block"));
-
-				Swap(Blocks[0], Blocks[BackIndex]);
+				// Move the selected block to the front
+				checkf(SelectedIndex != INDEX_NONE, TEXT("Could not find an empty block"));
+				Swap(Blocks[0], Blocks[SelectedIndex]);
 			}
 
 			// Ensure any writes to Blocks[0] cannot be reordered so that the GetNextFree
@@ -114,7 +114,7 @@ namespace Chaos
 		 * this will not be asserted
 		 * @param Object The object to free
 		 */
-		void Free(Ptr Object)
+		void Free(FPtr Object)
 		{
 			int32 BlockIndex = FindBlock(Object);
 			Blocks[BlockIndex].Free(Object);
@@ -334,7 +334,7 @@ namespace Chaos
 				FMemory::Free(Begin);
 			}
 
-			Ptr GetNextFree()
+			FPtr GetNextFree()
 			{
 				if(FreeList != INDEX_NONE)
 				{
@@ -559,21 +559,24 @@ namespace Chaos
 	/**
 	 * A deleter for use with TUniquePtr and a TObjectPool item
 	 */
-	template<typename ObjectType>
+	template<typename ObjectPoolType>
 	class TObjectPoolDeleter
 	{
 	public:
+		using FObjectPool = ObjectPoolType;
+		using FObject = typename FObjectPool::FObject;
+
 		TObjectPoolDeleter()
 			: Pool(nullptr)
 		{
 		}
 
-		TObjectPoolDeleter(TObjectPool<ObjectType>& InPool)
+		TObjectPoolDeleter(FObjectPool& InPool)
 			: Pool(&InPool)
 		{
 		}
 
-		void operator()(ObjectType* Object)
+		void operator()(FObject* Object)
 		{
 			if (Object != nullptr)
 			{
@@ -583,6 +586,6 @@ namespace Chaos
 		}
 
 	private:
-		TObjectPool<ObjectType>* Pool;
+		FObjectPool* Pool;
 	};
 }

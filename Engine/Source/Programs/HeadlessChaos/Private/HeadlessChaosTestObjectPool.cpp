@@ -17,7 +17,7 @@ namespace ChaosTest
 		// Fill fist page
 		Pool.Alloc(1);
 		Pool.Alloc(2);
-		FPool::Ptr Ptr = Pool.Alloc(3);
+		FPool::FPtr Ptr = Pool.Alloc(3);
 
 		const int32 PoolSize = Pool.GetAllocatedSize();
 
@@ -53,7 +53,7 @@ namespace ChaosTest
 		// Fill fist page
 		Pool.Alloc(1, 1.0f);
 		Pool.Alloc(2, 2.0f);
-		FPool::Ptr Ptr = Pool.Alloc(3, 3.0f);
+		FPool::FPtr Ptr = Pool.Alloc(3, 3.0f);
 
 		const int32 PoolSize = Pool.GetAllocatedSize();
 
@@ -99,7 +99,7 @@ namespace ChaosTest
 		// Fill fist page
 		Pool.Alloc(ConstructorCount, DestructorCount);
 		Pool.Alloc(ConstructorCount, DestructorCount);
-		FPool::Ptr Ptr = Pool.Alloc(ConstructorCount, DestructorCount);
+		FPool::FPtr Ptr = Pool.Alloc(ConstructorCount, DestructorCount);
 
 		const int32 PoolSize = Pool.GetAllocatedSize();
 
@@ -125,7 +125,7 @@ namespace ChaosTest
 		using FPool = TObjectPool<int>;
 		FPool Pool(32);
 
-		TArray<FPool::Ptr> PooledInts;
+		TArray<FPool::FPtr> PooledInts;
 
 		for(int32 i = 0; i < 32; ++i)
 		{
@@ -174,10 +174,10 @@ namespace ChaosTest
 		using FPool = TObjectPool<FRefIncrementOnConstructDestroy>;
 		FPool Pool(3);
 
-		TArray<FPool::Ptr> PooledInts;
+		TArray<FPool::FPtr> PooledInts;
 
 		// Fill fist page
-		TArray<FPool::Ptr> Ptrs;
+		TArray<FPool::FPtr> Ptrs;
 
 		// Add 32 items
 		for(int32 i = 0; i < 32; ++i)
@@ -208,7 +208,7 @@ namespace ChaosTest
 		using FPool = TObjectPool<int>;
 		FPool Pool(3);
 
-		FPool::Ptr Objects[9];
+		FPool::FPtr Objects[9];
 
 		// Fill 3 pages
 		for(int32 i = 0; i < 9; ++i)

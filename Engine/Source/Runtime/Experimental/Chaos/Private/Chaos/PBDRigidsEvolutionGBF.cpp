@@ -141,9 +141,29 @@ namespace Chaos
 		// @chaos(todo): remove this when no longer needed
 		bool bChaos_Solver_TestMode  = false;
 		FAutoConsoleVariableRef CVarChaosSolverTestMode(TEXT("p.Chaos.Solver.TestMode"), bChaos_Solver_TestMode, TEXT(""));
+
+	}
+	using namespace CVars;
+
+	// We want to have largish blocks, but when we are running on multiple cores we don't want to waste too much memory
+	int32 CalculateNumCollisionsPerBlock()
+	{
+		const int32 NumCollisionsPerBlock = 2000;
+		const int32 MinCollisionsPerBlock = 100;
+
+		const bool bIsMultithreaded = (FApp::ShouldUseThreadingForPerformance() && !GSingleThreadedPhysics);
+		if (!bIsMultithreaded)
+		{
+			return NumCollisionsPerBlock;
+		}
+		else
+		{
+			const int32 NumWorkers = FMath::Min(FTaskGraphInterface::Get().GetNumWorkerThreads(), Chaos::MaxNumWorkers);
+			const int32 NumTasks = FMath::Max(NumWorkers, 1);
+			return FMath::Max(NumCollisionsPerBlock / NumTasks, MinCollisionsPerBlock);
+		}
 	}
 
-	using namespace CVars;
 
 #if !UE_BUILD_SHIPPING
 template <typename TEvolution>
@@ -598,10 +618,9 @@ void FPBDRigidsEvolutionGBF::TestModeResetCollisions()
 FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers, bool InIsSingleThreaded)
 	: Base(InParticles, SolverPhysicsMaterials, InIsSingleThreaded)
 	, Clustering(*this, Particles.GetClusteredParticles())
-	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, DefaultNumCollisionsPerBlock, DefaultRestitutionThreshold)
+	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, CalculateNumCollisionsPerBlock(), DefaultRestitutionThreshold)
 	, BroadPhase(InParticles)
-	, NarrowPhase(DefaultCollisionCullDistance, BoundsThicknessVelocityMultiplier, CollisionConstraints.GetConstraintAllocator())
-	, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
+	, CollisionDetector(BroadPhase, CollisionConstraints)
 	, PostIntegrateCallback(nullptr)
 	, PreApplyCallback(nullptr)
 	, CurrentStepResimCacheImp(nullptr)
@@ -614,6 +633,9 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	SetNumProjectionIterations(DefaultNumProjectionIterations);
 
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
+
+	CollisionDetector.SetBoundsExpansion(DefaultCollisionCullDistance);
+	CollisionDetector.SetBoundsVelocityInflation(BoundsThicknessVelocityMultiplier);
 
 	SetParticleUpdatePositionFunction([this](const TParticleView<FPBDRigidParticles>& ParticlesInput, const FReal Dt)
 	{

@@ -144,6 +144,42 @@ void Chaos::PhysicsParallelForRange(int32 InNum, TFunctionRef<void(int32, int32)
 	::ParallelFor(RangeIndex.Num() - 1, PassThrough, !!GSingleThreadedPhysics || bDisablePhysicsParallelFor || bForceSingleThreaded);
 }
 
+void Chaos::PhysicsParallelForWithContext(int32 InNum, TFunctionRef<int32 (int32, int32)> InContextCreator, TFunctionRef<void(int32, int32)> InCallable, bool bForceSingleThreaded)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Chaos_PhysicsParallelFor);
+	using namespace Chaos;
+
+	// Passthrough for now, except with global flag to disable parallel
+#if PHYSICS_THREAD_CONTEXT
+	const bool bIsInPhysicsSimContext = IsInPhysicsThreadContext();
+	const bool bIsInGameThreadContext = IsInGameThreadContext();
+#else
+	const bool bIsInPhysicsSimContext = false;
+	const bool bIsInGameThreadContext = false;
+#endif
+
+	auto PassThrough = [InCallable, bIsInPhysicsSimContext, bIsInGameThreadContext](int32 ContextIndex, int32 Idx)
+	{
+#if PHYSICS_THREAD_CONTEXT
+		FPhysicsThreadContextScope PTScope(bIsInPhysicsSimContext);
+		FGameThreadContextScope GTScope(bIsInGameThreadContext);
+#endif
+		InCallable(Idx, ContextIndex);
+	};
+
+	const bool bSingleThreaded = !!GSingleThreadedPhysics || bDisablePhysicsParallelFor || bForceSingleThreaded;
+	const EParallelForFlags Flags = bSingleThreaded ? (EParallelForFlags::ForceSingleThread) : (EParallelForFlags::None);
+
+	// Unfortunately ParallelForWithTaskContext takes an array of context objects - we don't use it and in our case
+	// it ends up being an array where array[index] = index.
+	// The reason we don't need it is that our ContextCreator returns the context index we want to use on a given
+	// worker thread, and this is passed to the user function. The user function can just captures its array of
+	// contexts and use the context indeex to get its context from it.
+	TArray<int32, TInlineAllocator<16>> Contexts;
+
+	::ParallelForWithTaskContext(Contexts, InNum, InContextCreator, PassThrough, Flags);
+}
+
 
 //class FRecursiveDivideTask
 //{

@@ -39,12 +39,13 @@ public:
 		: EmptyParticles(UniqueIndices)
 		, SpatialAcceleration(EmptyParticles.GetNonDisabledView())
 		, CollisionConstraints(EmptyParticles, EmptyCollided, EmptyPhysicsMaterials, EmptyUniquePhysicsMaterials, nullptr)
-		, NarrowPhase((FReal)1, (FReal)0, CollisionConstraints.GetConstraintAllocator())
 		, BroadPhase(EmptyParticles)
-		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
+		, CollisionDetector(BroadPhase, CollisionConstraints)
 		, ConstraintSolver()
 	{
 		CollisionConstraints.SetContainerId(0);
+
+		CollisionDetector.SetBoundsExpansion(FReal(1));
 
 		ConstraintSolver.SetConstraintSolver(CollisionConstraints.GetContainerId(), CollisionConstraints.CreateSceneSolver(0));
 	}
@@ -54,13 +55,14 @@ public:
 		: EmptyParticles(UniqueIndices)
 		, SpatialAcceleration(InParticles.GetNonDisabledView())
 		, CollisionConstraints(InParticles, Collided, PerParticleMaterials, PerParticleUniqueMaterials, nullptr)
-		, NarrowPhase((FReal)1, (FReal)0, CollisionConstraints.GetConstraintAllocator())
 		, BroadPhase(InParticles)
-		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
+		, CollisionDetector(BroadPhase, CollisionConstraints)
 		, ConstraintSolver()
 	{
 		CollisionConstraints.SetContainerId(0);
-		
+
+		CollisionDetector.SetBoundsExpansion(FReal(1));
+
 		ConstraintSolver.SetConstraintSolver(CollisionConstraints.GetContainerId(), CollisionConstraints.CreateSceneSolver(0));
 	}
 
@@ -69,10 +71,12 @@ public:
 	void ComputeConstraints(FReal Dt)
 	{
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(&SpatialAcceleration);
-		CollisionDetector.GetNarrowPhase().GetContext().GetSettings().bFilteringEnabled = true;
-		CollisionDetector.GetNarrowPhase().GetContext().GetSettings().bDeferNarrowPhase = false;
-		CollisionDetector.GetNarrowPhase().GetContext().GetSettings().bAllowManifolds = true;
-		CollisionDetector.GetCollisionContainer().SetDetectorSettings(CollisionDetector.GetNarrowPhase().GetContext().GetSettings());
+
+		FCollisionDetectorSettings DetectorSettings = CollisionDetector.GetSettings();
+		DetectorSettings.bFilteringEnabled = true;
+		DetectorSettings.bDeferNarrowPhase = false;
+		DetectorSettings.bAllowManifolds = true;
+		CollisionDetector.SetSettings(DetectorSettings);
 		
 		CollisionDetector.DetectCollisions(Dt, nullptr);
 		
@@ -165,7 +169,6 @@ public:
 
 	FAccelerationStructure SpatialAcceleration;
 	FCollisionConstraints CollisionConstraints;
-	FNarrowPhase NarrowPhase;
 	FSpatialAccelerationBroadPhase BroadPhase;
 	FCollisionDetector CollisionDetector;
 	FPBDSceneConstraintGroupSolver ConstraintSolver;

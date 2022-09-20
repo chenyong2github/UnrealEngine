@@ -69,7 +69,7 @@ namespace Chaos
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
 		const bool bUseManifold,
-		FCollisionConstraintAllocator& Allocator)
+		const FCollisionContext& Context)
 	{
 		const FImplicitObject* Implicit0 = InShape0->GetLeafGeometry();
 		const FBVHParticles* BVHParticles0 = FConstGenericParticleHandle(Particle0)->CollisionParticles().Get();
@@ -78,7 +78,7 @@ namespace Chaos
 		const FBVHParticles* BVHParticles1 = FConstGenericParticleHandle(Particle1)->CollisionParticles().Get();
 		const FRigidTransform3& ShapeRelativeTransform1 = (FRigidTransform3)InShape1->GetLeafRelativeTransform();
 
-		return Allocator.CreateCollisionConstraint(Particle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
+		return Context.GetAllocator()->CreateConstraint(Particle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
 
 	FPBDCollisionConstraintPtr CreateImplicitPairConstraint(
@@ -95,9 +95,9 @@ namespace Chaos
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
 		const bool bUseManifold,
-		FCollisionConstraintAllocator& Allocator)
+		const FCollisionContext& Context)
 	{
-		return Allocator.CreateCollisionConstraint(Particle0, Implicit0, Shape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
+		return Context.GetAllocator()->CreateConstraint(Particle0, Implicit0, Shape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
 
 
@@ -175,7 +175,7 @@ namespace Chaos
 	{
 	}
 
-	bool FSingleShapePairCollisionDetector::DoBoundsOverlap(const FReal CullDistance)
+	bool FSingleShapePairCollisionDetector::DoBoundsOverlap(const FReal CullDistance, const int32 CurrentEpoch)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_ShapeBounds);
 
@@ -209,7 +209,7 @@ namespace Chaos
 		// However, it is quite expensive to do this all the time so we only do this test when we did not 
 		// collide last frame. This is ok if we assume not much changes from frame to frame, but it means
 		// we might call the narrow phase one time too many when shapes become separated.
-		const int32 LastEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch() - 1;
+		const int32 LastEpoch = CurrentEpoch - 1;
 		const bool bCollidedLastTick = IsUsedSince(LastEpoch);
 		if ((Flags.bEnableOBBCheck0 || Flags.bEnableOBBCheck1) && !bCollidedLastTick)
 		{
@@ -241,9 +241,10 @@ namespace Chaos
 	int32 FSingleShapePairCollisionDetector::GenerateCollision(
 		const FReal CullDistance,
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
-		if (DoBoundsOverlap(CullDistance))
+		const int32 CurrentEpoch = Context.GetAllocator()->GetCurrentEpoch();
+		if (DoBoundsOverlap(CullDistance, CurrentEpoch))
 		{
 			return GenerateCollisionImpl(CullDistance, Dt, Context);
 		}
@@ -253,28 +254,29 @@ namespace Chaos
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionCCD(
 		const FReal CullDistance,
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
 		return GenerateCollisionCCDImpl(CullDistance, Dt, Context);
 	}
 
-	void FSingleShapePairCollisionDetector::CreateConstraint(const FReal CullDistance, FCollisionContext& Context)
+	void FSingleShapePairCollisionDetector::CreateConstraint(const FReal CullDistance, const FCollisionContext& Context)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
 		check(!Constraint.IsValid());
 
-		Constraint = CreateShapePairConstraint(GetParticle0(), Shape0, GetParticle1(), Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, MidPhase.GetCollisionAllocator());
+		Constraint = CreateShapePairConstraint(GetParticle0(), Shape0, GetParticle1(), Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, Context);
 
+		const int32 CurrentEpoch = Context.GetAllocator()->GetCurrentEpoch();
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = false;
-		Constraint->GetContainerCookie().CreationEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+		Constraint->GetContainerCookie().CreationEpoch = CurrentEpoch;
 		LastUsedEpoch = -1;
 	}
 
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionImpl(
 		const FReal CullDistance, 
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
 		if (Flags.bIsProbe)
 		{
@@ -296,7 +298,7 @@ namespace Chaos
 
 			const FRigidTransform3 ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(GetParticle0());
 			const FRigidTransform3 ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(GetParticle1());
-			const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+			const int32 CurrentEpoch = Context.GetAllocator()->GetCurrentEpoch();
 			const int32 LastEpoch = CurrentEpoch - 1;
 			const bool bWasUpdatedLastTick = IsUsedSince(LastEpoch);
 
@@ -342,7 +344,7 @@ namespace Chaos
 			// don't know in advance whether we will pass the Phi check (deferred narrow phase is used with RBAN)
 			if (Constraint->GetPhi() <= CullDistance || Context.GetSettings().bDeferNarrowPhase)
 			{
-				if (MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get()))
+				if (Context.GetAllocator()->ActivateConstraint(Constraint.Get()))
 				{
 					// If we had any mods last tick, undo them
 					Constraint->ResetModifications();
@@ -359,7 +361,7 @@ namespace Chaos
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionCCDImpl(
 		const FReal CullDistance, 
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
 		if (Flags.bIsProbe)
 		{
@@ -413,8 +415,8 @@ namespace Chaos
 				Constraint->SetCCDEnabled(false);
 			}
 
-			MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get());
-			LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+			Context.GetAllocator()->ActivateConstraint(Constraint.Get());
+			LastUsedEpoch = Context.GetAllocator()->GetCurrentEpoch();
 
 			return 1;
 		}
@@ -425,7 +427,7 @@ namespace Chaos
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionProbeImpl(
 		const FReal CullDistance, 
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
 		// Same as regular constraint generation, but always defer narrow phase.
 		// Don't do any initial constraint computations.
@@ -439,15 +441,15 @@ namespace Chaos
 		{
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraintProbe);
 
-			MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get());
-			LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+			Context.GetAllocator()->ActivateConstraint(Constraint.Get());
+			LastUsedEpoch = Context.GetAllocator()->GetCurrentEpoch();
 			return 1;
 		}
 
 		return 0;
 	}
 
-	void FSingleShapePairCollisionDetector::WakeCollision(const int32 SleepEpoch)
+	void FSingleShapePairCollisionDetector::WakeCollision(const int32 SleepEpoch, const int32 CurrentEpoch)
 	{
 		if (Constraint.IsValid() && IsUsedSince(SleepEpoch))
 		{
@@ -458,8 +460,7 @@ namespace Chaos
 
 			// We need to refresh the epoch so that the constraint state will be used as the previous
 			// state if the pair is still colliding in the next tick
-			const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
-			Constraint->GetContainerCookie().LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+			Constraint->GetContainerCookie().LastUsedEpoch = CurrentEpoch;
 			LastUsedEpoch = CurrentEpoch;
 
 			// We have skipped collision detection for this particle because it was asleep, so we need to update the transforms...
@@ -469,14 +470,14 @@ namespace Chaos
 		}
 	}
 
-	// This fucntion is called by the resim system to add/replace a collision with one from the history buffer
-	void FSingleShapePairCollisionDetector::SetCollision(const FPBDCollisionConstraint& SourceConstraint)
+	// This function is called by the resim system to add/replace a collision with one from the history buffer
+	void FSingleShapePairCollisionDetector::SetCollision(const FPBDCollisionConstraint& SourceConstraint, const FCollisionContext& Context)
 	{
-		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+		const int32 CurrentEpoch = Context.GetAllocator()->GetCurrentEpoch();
 
 		if (!Constraint.IsValid())
 		{
-			Constraint = MidPhase.GetCollisionAllocator().CreateCollisionConstraint();
+			Constraint = Context.GetAllocator()->CreateConstraint();
 			Constraint->GetContainerCookie().MidPhase = &MidPhase;
 			Constraint->GetContainerCookie().bIsMultiShapePair = false;
 			Constraint->GetContainerCookie().CreationEpoch = CurrentEpoch;
@@ -487,7 +488,7 @@ namespace Chaos
 
 		// Add the constraint to the active list
 		// If the constraint already existed and was already active, this will do nothing
-		MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get());
+		Context.GetAllocator()->ActivateConstraint(Constraint.Get());
 		LastUsedEpoch = CurrentEpoch;
 	}
 
@@ -531,7 +532,7 @@ namespace Chaos
 	int32 FMultiShapePairCollisionDetector::GenerateCollisions(
 		const FReal CullDistance,
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
 		FConstGenericParticleHandle P0 = Particle0;
 		FConstGenericParticleHandle P1 = Particle1;
@@ -565,7 +566,7 @@ namespace Chaos
 			Dt,
 			LocalContext);
 
-		int32 NumActiveConstraints = ProcessNewConstraints();
+		int32 NumActiveConstraints = ProcessNewConstraints(Context);
 
 		// @todo(chaos): we could clean up unused collisions between this pair, but probably not worth it
 		// and we would have to prevent cleanup for sleeping particles because the collisions will still
@@ -588,7 +589,8 @@ namespace Chaos
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
-		const bool bUseManifold)
+		const bool bUseManifold,
+		const FCollisionContext& Context)
 	{
 		// This is a callback from the low-level collision function. It should always be the same two particles, though the
 		// shapes may be some children in the implicit hierarchy. The particles could be in the opposite order though, and
@@ -619,7 +621,7 @@ namespace Chaos
 		if (Constraint == nullptr)
 		{
 			// NOTE: Using InParticle0 and InParticle1 here because the order may be different to what we have stored
-			Constraint = CreateConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Key);
+			Constraint = CreateConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Key, Context);
 		}
 
 		// @todo(chaos): we already have the shape world transforms at the calling site - pass them in
@@ -648,10 +650,11 @@ namespace Chaos
 		const FBVHParticles* BVHParticles1,
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
-		const EContactShapesType ShapePairType)
+		const EContactShapesType ShapePairType,
+		const FCollisionContext& Context)
 	{
 		const bool bUseManifold = true;
-		FPBDCollisionConstraint* Constraint = FindOrCreateConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
+		FPBDCollisionConstraint* Constraint = FindOrCreateConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Context);
 		if (Constraint != nullptr)
 		{
 			Constraint->SetCCDEnabled(true);
@@ -683,21 +686,22 @@ namespace Chaos
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
 		const bool bUseManifold,
-		const FCollisionParticlePairConstraintKey& Key)
+		const FCollisionParticlePairConstraintKey& Key,
+		const FCollisionContext& Context)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
-		FPBDCollisionConstraintPtr Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, MidPhase.GetCollisionAllocator());
+		FPBDCollisionConstraintPtr Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Context);
 
+		const int32 CurrentEpoch = Context.GetAllocator()->GetCurrentEpoch();
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = true;
-		Constraint->GetContainerCookie().CreationEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+		Constraint->GetContainerCookie().CreationEpoch = CurrentEpoch;
 
 		return Constraints.Add(Key.GetKey(), MoveTemp(Constraint)).Get();
 	}
 
-	void FMultiShapePairCollisionDetector::WakeCollisions(const int32 SleepEpoch)
+	void FMultiShapePairCollisionDetector::WakeCollisions(const int32 SleepEpoch, const int32 CurrentEpoch)
 	{
-		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 		for (auto& KVP : Constraints)
 		{
 			FPBDCollisionConstraintPtr& Constraint = KVP.Value;
@@ -708,14 +712,14 @@ namespace Chaos
 		}
 	}
 
-	int32 FMultiShapePairCollisionDetector::ProcessNewConstraints()
+	int32 FMultiShapePairCollisionDetector::ProcessNewConstraints(const FCollisionContext& Context)
 	{
 		int32 NumActiveConstraints = 0;
 		for (FPBDCollisionConstraint* Constraint : NewConstraints)
 		{
 			if (Constraint->GetPhi() < Constraint->GetCullDistance())
 			{
-				MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint);
+				Context.GetAllocator()->ActivateConstraint(Constraint);
 				++NumActiveConstraints;
 			}
 		}
@@ -723,12 +727,10 @@ namespace Chaos
 		return NumActiveConstraints;
 	}
 
-	void FMultiShapePairCollisionDetector::PruneConstraints()
+	void FMultiShapePairCollisionDetector::PruneConstraints(const int32 CurrentEpoch)
 	{
 		// We don't prune from NewCollisions - must call ProcessNewCollisions before Prune
 		check(NewConstraints.Num() == 0);
-
-		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 
 		// Find all the expired collisions
 		TArray<uint32> Pruned;
@@ -762,7 +764,6 @@ namespace Chaos
 		, CullDistanceScale(1)
 		, Flags()
 		, Key()
-		, CollisionAllocator(nullptr)
 		, LastUsedEpoch(INDEX_NONE)
 		, NumActiveConstraints(0)
 		, ParticleCollisionsIndex0(INDEX_NONE)
@@ -775,11 +776,6 @@ namespace Chaos
 	FParticlePairMidPhase::~FParticlePairMidPhase()
 	{
 		Reset();
-	}
-
-	int32 FParticlePairMidPhase::GetCurrentEpoch() const
-	{
-		return CollisionAllocator->GetCurrentEpoch();
 	}
 
 	void FParticlePairMidPhase::DetachParticle(FGeometryParticleHandle* Particle)
@@ -809,15 +805,13 @@ namespace Chaos
 	void FParticlePairMidPhase::Init(
 		FGeometryParticleHandle* InParticle0,
 		FGeometryParticleHandle* InParticle1,
-		const FCollisionParticlePairKey& InKey,
-		FCollisionConstraintAllocator& InCollisionAllocator)
+		const FCollisionParticlePairKey& InKey)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_Filter);
 
 		Particle0 = InParticle0;
 		Particle1 = InParticle1;
 		Key = InKey;
-		CollisionAllocator = &InCollisionAllocator;
 
 		Flags.bIsCCD = FConstGenericParticleHandle(Particle0)->CCDEnabled() || FConstGenericParticleHandle(Particle1)->CCDEnabled();
 
@@ -926,7 +920,7 @@ namespace Chaos
 	void FParticlePairMidPhase::GenerateCollisions(
 		const FReal InCullDistance,
 		const FReal Dt,
-		FCollisionContext& Context)
+		const FCollisionContext& Context)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_NarrowPhase);
@@ -968,10 +962,10 @@ namespace Chaos
 			NumActiveConstraints += MultiShapePair.GenerateCollisions(CullDistance, Dt, Context);
 		}
 
-		LastUsedEpoch = CollisionAllocator->GetCurrentEpoch();
+		LastUsedEpoch = Context.GetAllocator()->GetCurrentEpoch();
 	}
 
-	void FParticlePairMidPhase::InjectCollision(const FPBDCollisionConstraint& Constraint)
+	void FParticlePairMidPhase::InjectCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context)
 	{
 		if (!Constraint.GetContainerCookie().bIsMultiShapePair)
 		{
@@ -984,7 +978,7 @@ namespace Chaos
 			{
 				if (((Shape0 == ShapePair.GetShape0()) && (Shape1 == ShapePair.GetShape1())) || ((Shape0 == ShapePair.GetShape1()) && (Shape1 == ShapePair.GetShape0())))
 				{
-					ShapePair.SetCollision(Constraint);
+					ShapePair.SetCollision(Constraint, Context);
 					break;
 				}
 			}
@@ -995,10 +989,10 @@ namespace Chaos
 			ensure(false);
 		}
 
-		LastUsedEpoch = CollisionAllocator->GetCurrentEpoch();
+		LastUsedEpoch = Context.GetAllocator()->GetCurrentEpoch();
 	}
 
-	void FParticlePairMidPhase::SetIsSleeping(const bool bInIsSleeping)
+	void FParticlePairMidPhase::SetIsSleeping(const bool bInIsSleeping, const int32 CurrentEpoch)
 	{
 		// This can be called from two locations:
 		// 1)	At the start of the tick as a results of some state change from the game thread such as an explicit wake event,
@@ -1019,18 +1013,18 @@ namespace Chaos
 			const bool bWakingUp = !bInIsSleeping;
 			if (bWakingUp)
 			{
-				if (LastUsedEpoch < CollisionAllocator->GetCurrentEpoch())
+				if (LastUsedEpoch < CurrentEpoch)
 				{
 					// Restore all constraints that were active when we were put to sleep
 					for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 					{
-						ShapePair.WakeCollision(LastUsedEpoch);
+						ShapePair.WakeCollision(LastUsedEpoch, CurrentEpoch);
 					}
 					for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
 					{
-						MultiShapePair.WakeCollisions(LastUsedEpoch);
+						MultiShapePair.WakeCollisions(LastUsedEpoch, CurrentEpoch);
 					}
-					LastUsedEpoch = CollisionAllocator->GetCurrentEpoch();
+					LastUsedEpoch = CurrentEpoch;
 				}
 			}
 			// If we are going to sleep, there is nothing to do (see comments above)

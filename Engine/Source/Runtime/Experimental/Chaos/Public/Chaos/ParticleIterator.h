@@ -28,39 +28,49 @@ class THandleView;
 // The function ParticlesParallelFor may be called on ParticleViews, HandleViews,
 // or plain old manually curated arrays of either. In each case, the implementation
 // can differ. The following set of templates will select for the right case.
+//
+// Signatures:
+// Lambda:				void(auto& Particle, int32 Index, const int32 ContextIndex)
+// ContextCreator:		int32 (int32 WorkerIndex, int32 NumWorkers)
+//
+// There will be one context creation call per worker thread and they are all created prior
+// to starting the work. The ContextCreator should return the context index (which is
+// usually just the WorkerIndex but, for example, it can also be used to generate a single context
+// for use by all workers, assuming the context has appropriate locks in place.)
+//
 
-template <typename TParticleView, typename Lambda>
-void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Func);
+template <typename TParticleView, typename ContextCreatorType, typename Lambda>
+void ParticleViewParallelForImp(const TParticleView& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func);
 
-template <typename THandleView, typename Lambda>
-void HandleViewParallelForImp(const THandleView& HandleView, const Lambda& Func);
+template <typename THandleView, typename ContextCreatorType, typename Lambda>
+void HandleViewParallelForImp(const THandleView& HandleView, const ContextCreatorType& ContextCreator, const Lambda& Func);
 
-template <typename TSOA, typename Lambda>
-void ParticlesParallelForImp(const TConstHandleView<TSOA>& Particles, const Lambda& Func)
+template <typename TSOA, typename ContextCreatorType, typename Lambda>
+void ParticlesParallelForImp(const TConstHandleView<TSOA>& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
-	Chaos::HandleViewParallelForImp(Particles, Func);
+	Chaos::HandleViewParallelForImp(Particles, ContextCreator, Func);
 }
 
-template <typename TSOA, typename Lambda>
-void ParticlesParallelForImp(const THandleView<TSOA>& Particles, const Lambda& Func)
+template <typename TSOA, typename ContextCreatorType, typename Lambda>
+void ParticlesParallelForImp(const THandleView<TSOA>& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
-	Chaos::HandleViewParallelForImp(Particles, Func);
+	Chaos::HandleViewParallelForImp(Particles, ContextCreator, Func);
 }
 
-template <typename TSOA, typename Lambda>
-void ParticlesParallelForImp(const TConstParticleView<TSOA>& Particles, const Lambda& Func)
+template <typename TSOA, typename ContextCreatorType, typename Lambda>
+void ParticlesParallelForImp(const TConstParticleView<TSOA>& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
-	Chaos::ParticleViewParallelForImp(Particles, Func);
+	Chaos::ParticleViewParallelForImp(Particles, ContextCreator, Func);
 }
 
-template <typename TSOA, typename Lambda>
-void ParticlesParallelForImp(const TParticleView<TSOA>& Particles, const Lambda& Func)
+template <typename TSOA, typename ContextCreatorType, typename Lambda>
+void ParticlesParallelForImp(const TParticleView<TSOA>& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
-	Chaos::ParticleViewParallelForImp(Particles, Func);
+	Chaos::ParticleViewParallelForImp(Particles, ContextCreator, Func);
 }
 
-template <typename TParticle, typename Lambda>
-void ParticlesParallelForImp(const TArray<TParticle>& Particles, const Lambda& Func)
+template <typename TParticle, typename ContextCreatorType, typename Lambda>
+void ParticlesParallelForImp(const TArray<TParticle>& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
 	// When ParticlesParallelFor is called with a plain old TArray,
 	// just do normal parallelization.
@@ -71,30 +81,32 @@ void ParticlesParallelForImp(const TArray<TParticle>& Particles, const Lambda& F
 	});
 }
 
-template <typename TView, typename Lambda>
-void ParticlesSequentialFor(const TView& Particles, const Lambda& Func)
+
+template <typename TView, typename ContextCreatorType, typename Lambda>
+void ParticlesSequentialFor(const TView& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesSequentialFor);
 
+	const int32 ContextIndex = ContextCreator(0, 1);
 	int32 Index = 0;
 	for (auto& Particle : Particles)
 	{
-		Func(Particle, Index++);
+		Func(Particle, Index++, ContextIndex);
 	}
 }
 
-template <typename TView, typename Lambda>
-void ParticlesParallelFor(const TView& Particles, const Lambda& Func, bool bForceSingleThreaded = false)
+template <typename TView, typename ContextCreatorType, typename Lambda>
+void ParticlesParallelFor(const TView& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func, bool bForceSingleThreaded = false)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesParallelFor);
 
 	if (!bForceSingleThreaded && !bDisableParticleParallelFor)
 	{
-		Chaos::ParticlesParallelForImp(Particles, Func);
+		Chaos::ParticlesParallelForImp(Particles, ContextCreator, Func);
 	}
 	else
 	{
-		Chaos::ParticlesSequentialFor(Particles, Func);
+		Chaos::ParticlesSequentialFor(Particles, ContextCreator, Func);
 	}
 }
 
@@ -230,13 +242,22 @@ public:
 	TConstHandleIterator<TSOA> End() const { return TConstHandleIterator<TSOA>(); }
 	TConstHandleIterator<TSOA> end() const { return End(); }
 
-	template <typename TParticleView, typename Lambda>
-	friend void HandleViewParallelForImp(const TParticleView& Particles, const Lambda& Func);
+	template <typename TParticleView, typename ContextCreatorType, typename Lambda>
+	friend void HandleViewParallelForImp(const TParticleView& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func);
+
+	template <typename ContextCreatorType, typename Lambda>
+	void ParallelFor(const ContextCreatorType& ContextCreator, const Lambda& Func) const
+	{
+		ParticlesParallelFor(*this, ContextCreator, Func);
+	}
 
 	template <typename Lambda>
 	void ParallelFor(const Lambda& Func) const
 	{
-		ParticlesParallelFor(*this, Func);
+		// Dummy context creator and a context-stripping function wrapper
+		auto EmptyContextCreator = [](int32 WorkerIndex, int32 NumWorkers) -> int32 { return WorkerIndex; };
+		auto ContextFunc = [&Func](auto& Particle, int32 Index, int32 WorkerIndex) { return Func(Particle, Index); };
+		ParticlesParallelFor(*this, EmptyContextCreator, ContextFunc);
 	}
 
 protected:
@@ -269,10 +290,19 @@ public:
 	THandleIterator<TSOA> End() const { return THandleIterator<TSOA>(); }
 	THandleIterator<TSOA> end() const { return End(); }
 
+	template <typename ContextCreatorType, typename Lambda>
+	void ParallelFor(const ContextCreatorType& ContextCreator, const Lambda& Func) const
+	{
+		ParticlesParallelFor(*this, ContextCreator, Func);
+	}
+
 	template <typename Lambda>
 	void ParallelFor(const Lambda& Func) const
 	{
-		ParticlesParallelFor(*this, Func);
+		// Dummy context creator and a context-stripping function wrapper
+		auto EmptyContextCreator = [](int32 WorkerIndex, int32 NumWorkers) -> int32 { return WorkerIndex; };
+		auto ContextFunc = [&Func](auto& Particle, int32 Index, int32 WorkerIndex) { return Func(Particle, Index); };
+		ParticlesParallelFor(*this, EmptyContextCreator, ContextFunc);
 	}
 };
 
@@ -579,14 +609,24 @@ public:
 	TConstParticleIterator<TSOA> End() const { return TConstParticleIterator<TSOA>(); }
 	TConstParticleIterator<TSOA> end() const { return End(); }
 
+	template <typename ContextCreatorType, typename Lambda>
+	void ParallelFor(const ContextCreatorType& ContextCreator, const Lambda& Func, bool bForceSingleThreaded = false) const
+	{
+		ParticlesParallelFor(*this, ContextCreator, Func, bForceSingleThreaded);
+	}
+
 	template <typename Lambda>
 	void ParallelFor(const Lambda& Func, bool bForceSingleThreaded = false) const
 	{
-		ParticlesParallelFor(*this, Func, bForceSingleThreaded);
+		// Dummy context creator and a context-stripping function wrapper
+		auto EmptyContextCreator = [](int32 WorkerIndex, int32 NumWorkers) -> int32 { return WorkerIndex; };
+		auto ContextFunc = [&Func](auto& Particle, int32 Index, int32 WorkerIndex) { return Func(Particle, Index); };
+
+		ParticlesParallelFor(*this, EmptyContextCreator, ContextFunc, bForceSingleThreaded);
 	}
 
-	template <typename TParticleView, typename Lambda>
-	friend void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Func);
+	template <typename TParticleView, typename ContextCreatorType, typename Lambda>
+	friend void ParticleViewParallelForImp(const TParticleView& Particles, const ContextCreatorType& ContextCreator, const Lambda& Func);
 
 protected:
 
@@ -620,10 +660,20 @@ public:
 	TParticleIterator<TSOA> End() const { return TParticleIterator<TSOA>(); }
 	TParticleIterator<TSOA> end() const { return End(); }
 
+	template <typename ContextCreatorType, typename Lambda>
+	void ParallelFor(const ContextCreatorType& ContextCreator, const Lambda& Func, bool bForceSingleThreaded = false) const
+	{
+		ParticlesParallelFor(*this, ContextCreator, Func, bForceSingleThreaded);
+	}
+
 	template <typename Lambda>
 	void ParallelFor(const Lambda& Func, bool bForceSingleThreaded = false) const
 	{
-		ParticlesParallelFor(*this, Func, bForceSingleThreaded);
+		// Dummy context creator and a context-stripping function wrapper
+		auto EmptyContextCreator = [](int32 WorkerIndex, int32 NumWorkers) -> int32 { return WorkerIndex; };
+		auto ContextFunc = [&Func](auto& Particle, int32 Index, int32 WorkerIndex) { return Func(Particle, Index); };
+
+		ParticlesParallelFor(*this, EmptyContextCreator, ContextFunc, bForceSingleThreaded);
 	}
 };
 
@@ -663,8 +713,8 @@ TParticleView<TSOA> MakeParticleView(TSOA* SOA)
 
 // The non-parallel implementation of iteration should not deviate in behavior from
 // this parallel implementation.  They must be kept in sync.
-template <typename TParticleView, typename Lambda>
-void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& UserFunc)
+template <typename TParticleView, typename ContextCreatorType, typename Lambda>
+void ParticleViewParallelForImp(const TParticleView& Particles, const ContextCreatorType& ContextCreator, const Lambda& UserFunc)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticleViewParallelForImp);
 
@@ -673,11 +723,11 @@ void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Us
 	using THandleBase = typename THandle::THandleBase;
 	using TTransientHandle = typename THandle::TTransientHandle;
 
-	auto Func = [&UserFunc](auto& Handle, const int32 Idx)
+	auto Func = [&UserFunc](auto& Handle, const int32 Idx, const int32 ContextIndex)
 	{
 		if (!Handle.LightWeightDisabled())
 		{
-			UserFunc(Handle, Idx);
+			UserFunc(Handle, Idx, ContextIndex);
 		}
 	};
 
@@ -697,45 +747,45 @@ void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Us
 		{
 			// Do a regular parallel for over the handles in this SOA view
 			const int32 HandleCount = CurHandlesArray->Num();
-			PhysicsParallelFor(HandleCount, [&Func, CurHandlesArray, ParticleIdxOff](const int32 HandleIdx)
+			PhysicsParallelForWithContext(HandleCount, ContextCreator, [&Func, CurHandlesArray, ParticleIdxOff](const int32 HandleIdx, const int32 ContextIndex)
 			{
 				// Reconstruct the TransientHandle so that it has a chance to update
 				// other data members, like the particle type in the case of geometry 
 				// particles.
 				THandle* HandlePtr = (*CurHandlesArray)[HandleIdx];
 				THandleBase Handle(HandlePtr->GeometryParticles, HandlePtr->ParticleIdx);
-				Func(static_cast<TTransientHandle&>(Handle), ParticleIdxOff + HandleIdx);
+				Func(static_cast<TTransientHandle&>(Handle), ParticleIdxOff + HandleIdx, ContextIndex);
 			});
 			ParticleIdxOff += HandleCount;
 		}
 		else
 		{
 			// Do a regular parallel for over the particles in this SOA view
-			PhysicsParallelFor(ParticleCount, [&Func, &SOAView, ParticleIdxOff](const int32 ParticleIdx)
+			PhysicsParallelForWithContext(ParticleCount, ContextCreator, [&Func, &SOAView, ParticleIdxOff](const int32 ParticleIdx, const int32 ContextIndex)
 			{
 				// Reconstruct the TransientHandle so that it has a chance to update
 				// other data members, like the particle type in the case of geometry 
 				// particles.
 				THandleBase Handle(SOAView.SOA, ParticleIdx);
-				Func(static_cast<TTransientHandle&>(Handle), ParticleIdxOff + ParticleIdx);
+				Func(static_cast<TTransientHandle&>(Handle), ParticleIdxOff + ParticleIdx, ContextIndex);
 			});
 			ParticleIdxOff += ParticleCount;
 		}
 	}
 }
 
-template <typename THandleView, typename Lambda>
-void HandleViewParallelForImp(const THandleView& HandleView, const Lambda& Func)
+template <typename THandleView, typename ContextCreatorType, typename Lambda>
+void HandleViewParallelForImp(const THandleView& HandleView, const ContextCreatorType& ContextCreator, const Lambda& Func)
 {
 	SCOPE_CYCLE_COUNTER(STAT_HandleViewParallelForImp);
 
 	using THandle = typename THandleView::THandle;
 	const int32 HandleCount = HandleView.Handles.Num();
-	PhysicsParallelFor(HandleCount, [&HandleView, &Func](const int32 Index)
+	PhysicsParallelForWithContext(HandleCount, ContextCreator, [&HandleView, &Func](const int32 Index, const int32 ContextIndex)
 	{
 		if (!HandleView.Handles[Index]->LightWeightDisabled())
 		{
-			Func(static_cast<THandle&>(*HandleView.Handles[Index]), Index);
+			Func(static_cast<THandle&>(*HandleView.Handles[Index]), Index, ContextIndex);
 		}
 	});
 }

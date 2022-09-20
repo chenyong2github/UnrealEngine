@@ -10,7 +10,6 @@
 #include "PhysicsEngine/ConstraintInstance.h"
 
 #include "Chaos/ChaosDebugDraw.h"
-#include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
 #include "Chaos/Collision/ParticlePairCollisionDetector.h"
 #include "Chaos/DebugDrawQueue.h"
@@ -301,8 +300,7 @@ namespace ImmediatePhysics_Chaos
 			, Joints()
 			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr, ChaosImmediate_Evolution_NumCollisionsPerBlock, 2000)
 			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr)
-			, NarrowPhase(FReal(0), FReal(0), Collisions.GetConstraintAllocator())
-			, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
+			, CollisionDetector(BroadPhase, Collisions)
 			, Evolution(Particles, ParticlePrevXs, ParticlePrevRs, CollisionDetector, FReal(0))
 			, NumActiveDynamicActorHandles(0)
 			, SimulationSpace()
@@ -339,7 +337,6 @@ namespace ImmediatePhysics_Chaos
 		Chaos::FPBDJointConstraints Joints;
 		Chaos::FPBDCollisionConstraints Collisions;
 		Chaos::FBasicBroadPhase BroadPhase;
-		Chaos::FNarrowPhase NarrowPhase;
 		Chaos::FBasicCollisionDetector CollisionDetector;
 		Chaos::FPBDMinEvolution Evolution;
 
@@ -380,12 +377,13 @@ namespace ImmediatePhysics_Chaos
 		// RBAN collision customization
 		Implementation->Collisions.DisableHandles();
 
-		Implementation->NarrowPhase.GetContext().GetSettings().bFilteringEnabled = false;
-		Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifoldReuse = false;
-		Implementation->NarrowPhase.GetContext().GetSettings().bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
-		Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
-		Implementation->NarrowPhase.GetContext().GetSettings().bAllowCCD = false;
-		Implementation->Collisions.SetDetectorSettings(Implementation->NarrowPhase.GetContext().GetSettings());
+		FCollisionDetectorSettings DetectorSettings = Implementation->CollisionDetector.GetSettings();
+		DetectorSettings.bFilteringEnabled = false;
+		DetectorSettings.bAllowManifoldReuse = false;
+		DetectorSettings.bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);;
+		DetectorSettings.bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);;
+		DetectorSettings.bAllowCCD = false; 
+		Implementation->CollisionDetector.SetSettings(DetectorSettings);
 	}
 
 	FSimulation::~FSimulation()
@@ -750,7 +748,7 @@ namespace ImmediatePhysics_Chaos
 
 		if (CullDistance >= FReal(0))
 		{
-			Implementation->NarrowPhase.SetBoundsExpansion(CullDistance);
+			Implementation->CollisionDetector.SetBoundsExpansion(CullDistance);
 		}
 
 		if (MaxDepenetrationVelocity >= FReal(0))
@@ -861,10 +859,11 @@ namespace ImmediatePhysics_Chaos
 
 			Implementation->Evolution.SetConstraintContainerPriority(Implementation->Collisions.GetContainerId(), ChaosImmediate_Collision_Priority);
 
-			Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifoldReuse = false;
-			Implementation->NarrowPhase.GetContext().GetSettings().bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
-			Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
-			Implementation->Collisions.SetDetectorSettings(Implementation->NarrowPhase.GetContext().GetSettings());
+			FCollisionDetectorSettings DetectorSettings = Implementation->CollisionDetector.GetSettings();
+			DetectorSettings.bAllowManifoldReuse = false;
+			DetectorSettings.bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);;
+			DetectorSettings.bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);;
+			Implementation->CollisionDetector.SetSettings(DetectorSettings);
 
 			Implementation->Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
 

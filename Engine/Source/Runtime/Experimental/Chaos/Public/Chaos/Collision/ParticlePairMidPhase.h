@@ -7,25 +7,35 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionKeys.h"
 #include "Chaos/Collision/CollisionVisitor.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/ObjectPool.h"
 #include "Chaos/ParticleHandleFwd.h"
-
 #include "ProfilingDebugging/CsvProfiler.h"
+
+	// Whether to use a pool for MidPhases
+#define CHAOS_COLLISION_OBJECTPOOL_ENABLED 1
 
 namespace Chaos
 {
 	class FCollisionContext;
 	class FCollisionConstraintAllocator;
 	class FParticlePairMidPhase;
-	class FPBDCollisionConstraint;
 	class FPBDCollisionConstraints;
 	class FPerShapeData;
 	class FSingleShapePairCollisionDetector;
 
-	// Collision constraints are stored in an ObjectPool. @see FCollisionConstraintAllocator
+#if CHAOS_COLLISION_OBJECTPOOL_ENABLED 
+	// Collision and MidPhases are stored in an ObjectPool (if CHAOS_COLLISION_OBJECTPOOL_ENABLED is set). @see FCollisionConstraintAllocator
 	using FPBDCollisionConstraintPool = TObjectPool<FPBDCollisionConstraint>;
-	using FPBDCollisionConstraintDeleter = TObjectPoolDeleter<FPBDCollisionConstraint>;
+	using FParticlePairMidPhasePool = TObjectPool<FParticlePairMidPhase>;
+	using FPBDCollisionConstraintDeleter = TObjectPoolDeleter<FPBDCollisionConstraintPool>;
 	using FPBDCollisionConstraintPtr = TUniquePtr<FPBDCollisionConstraint, FPBDCollisionConstraintDeleter>;
+	using FParticlePairMidPhaseDeleter = TObjectPoolDeleter<FParticlePairMidPhasePool>;
+	using FParticlePairMidPhasePtr = TUniquePtr<FParticlePairMidPhase, FParticlePairMidPhaseDeleter>;
+#else 
+	using FPBDCollisionConstraintPtr = TUniquePtr<FPBDCollisionConstraint>;
+	using FParticlePairMidPhasePtr = TUniquePtr<FParticlePairMidPhase>;
+#endif
 
 	/**
 	 * @brief Handles collision detection for a pair of simple shapes (i.e., not compound shapes)
@@ -74,7 +84,7 @@ namespace Chaos
 		int32 GenerateCollision(
 			const FReal CullDistance,
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief Generate a SweptConstraint as long as AABBs overlap
@@ -83,47 +93,47 @@ namespace Chaos
 		int32 GenerateCollisionCCD(
 			const FReal CullDistance,
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief Reactivate the constraint
 		 * @parame SleepEpoch The tick on which the particle went to sleep.
 		 * Only constraints that were active when the particle went to sleep should be reactivated.
 		*/
-		void WakeCollision(const int32 SleepEpoch);
+		void WakeCollision(const int32 SleepEpoch, const int32 CurrentEpoch);
 
 		/**
 		 * @brief Set the collision from the parameter and activate it
 		 * This is used by the Resim restore functionality
 		*/
-		void SetCollision(const FPBDCollisionConstraint& Constraint);
+		void SetCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context);
 
 	private:
 		int32 GenerateCollisionImpl(
 			const FReal CullDistance, 
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 			
 		int32 GenerateCollisionCCDImpl(
 			const FReal CullDistance, 
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 
 		int32 GenerateCollisionProbeImpl(
 			const FReal CullDistance, 
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief Whether the two shapes are separated by less than CullDistance (i.e., we should run the narrow phase).
 		 * Also returns true if bounds checking is disabled (globally or for this pair)
 		*/
-		bool DoBoundsOverlap(const FReal CullDistance);
+		bool DoBoundsOverlap(const FReal CullDistance, const int32 CurrentEpoch);
 
 		/**
 		 * @brief Create a constraint
 		*/
-		void CreateConstraint(const FReal CullDistance, FCollisionContext& Context);
+		void CreateConstraint(const FReal CullDistance, const FCollisionContext& Context);
 
 		FParticlePairMidPhase& MidPhase;
 		FPBDCollisionConstraintPtr Constraint;
@@ -176,7 +186,7 @@ namespace Chaos
 		int32 GenerateCollisions(
 			const FReal CullDistance,
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief Callback from the narrow phase to create a collision constraint for this particle pair.
@@ -196,7 +206,8 @@ namespace Chaos
 			const FRigidTransform3& ShapeRelativeTransform1,
 			const FReal CullDistance,
 			const EContactShapesType ShapePairType,
-			const bool bInUseManifold);
+			const bool bUseManifold,
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief FindOrCreateConstraint for swept constraints 
@@ -213,26 +224,27 @@ namespace Chaos
 			const FBVHParticles* BVHParticles1,
 			const FRigidTransform3& ShapeRelativeTransform1,
 			const FReal CullDistance,
-			EContactShapesType ShapePairType);
+			const EContactShapesType ShapePairType,
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief Reactivate the constraint
 		 * @parame SleepEpoch The tick on which the particle went to sleep.
 		 * Only constraints that were active when the particle went to sleep should be reactivated.
 		*/
-		void WakeCollisions(const int32 SleepEpoch);
+		void WakeCollisions(const int32 SleepEpoch, const int32 CurrentEpoch);
 
 		/**
 		 * @brief Visit all the collisions
 		*/
 		template<typename TLambda>
-		ECollisionVisitorResult VisitCollisions(const int32 LastEpoch, const TLambda& Visitor, const bool bOnlyActive = true);
+		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor, const bool bOnlyActive = true);
 
 		/**
 		 * @brief Visit all the collisions
 		*/
 		template<typename TLambda>
-		ECollisionVisitorResult VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor, const bool bOnlyActive = true) const;
+		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive = true) const;
 
 	private:
 		FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
@@ -251,10 +263,11 @@ namespace Chaos
 			const FReal CullDistance,
 			const EContactShapesType ShapePairType,
 			const bool bInUseManifold,
-			const FCollisionParticlePairConstraintKey& Key);
+			const FCollisionParticlePairConstraintKey& Key,
+			const FCollisionContext& Context);
 
-		int32 ProcessNewConstraints();
-		void PruneConstraints();
+		int32 ProcessNewConstraints(const FCollisionContext& Context);
+		void PruneConstraints(const int32 CurrentEpoch);
 
 		FParticlePairMidPhase& MidPhase;
 		TMap<uint32, FPBDCollisionConstraintPtr> Constraints;
@@ -301,16 +314,13 @@ namespace Chaos
 		void Init(
 			FGeometryParticleHandle* InParticle0,
 			FGeometryParticleHandle* InParticle1,
-			const FCollisionParticlePairKey& InKey,
-			FCollisionConstraintAllocator& InCollisionAllocator);
+			const FCollisionParticlePairKey& InKey);
 
 		inline FGeometryParticleHandle* GetParticle0() { return Particle0; }
 
 		inline FGeometryParticleHandle* GetParticle1() { return Particle1; }
 
 		inline const FCollisionParticlePairKey& GetKey() const { return Key; }
-
-		inline FCollisionConstraintAllocator& GetCollisionAllocator() { return *CollisionAllocator; }
 
 		inline bool IsValid() const { return (Particle0 != nullptr) && (Particle1 != nullptr); }
 
@@ -339,7 +349,7 @@ namespace Chaos
 		 * If this switches the state to Awake, it will reactivate any collisions between the particle pair that
 		 * were active when they went to sleep.
 		*/
-		void SetIsSleeping(const bool bInIsSleeping);
+		void SetIsSleeping(const bool bInIsSleeping, const int32 CurrentEpoch);
 
 		bool IsInConstraintGraph() const;
 
@@ -361,16 +371,14 @@ namespace Chaos
 		void GenerateCollisions(
 			const FReal CullDistance,
 			const FReal Dt,
-			FCollisionContext& Context);
+			const FCollisionContext& Context);
 
 		/**
 		 * @brief Copy a collision and activate it
 		 * This is used by the Resim system to restore saved colisions. If there is already a matching constraint
 		 * it will be overwritten, otherwise a new constraint will be added.
 		*/
-		void InjectCollision(const FPBDCollisionConstraint& Constraint);
-
-		int32 GetCurrentEpoch() const;
+		void InjectCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context);
 
 		/**
 		 * @brief Call a lambda on each active collision constraint
@@ -460,7 +468,6 @@ namespace Chaos
 		} Flags; // 4 bytes
 
 		FCollisionParticlePairKey Key; //8 bytes
-		FCollisionConstraintAllocator* CollisionAllocator; // 8 bytes
 
 		int32 LastUsedEpoch;  //4 bytes
 		int32 NumActiveConstraints; // 4 bytes

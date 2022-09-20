@@ -13,15 +13,13 @@ namespace Chaos
 	class CHAOS_API FBasicCollisionDetector : public FCollisionDetector
 	{
 	public:
-		FBasicCollisionDetector(FBasicBroadPhase& InBroadPhase, FNarrowPhase& InNarrowPhase, FPBDCollisionConstraints& InCollisionContainer)
+		FBasicCollisionDetector(FBasicBroadPhase& InBroadPhase, FPBDCollisionConstraints& InCollisionContainer)
 			: FCollisionDetector(InCollisionContainer)
 			, BroadPhase(InBroadPhase)
-			, NarrowPhase(InNarrowPhase)
 		{
 		}
 
 		FBasicBroadPhase& GetBroadPhase() { return BroadPhase; }
-		FNarrowPhase& GetNarrowPhase() { return NarrowPhase; }
 
 		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* Unused) override
 		{
@@ -36,15 +34,16 @@ namespace Chaos
 
 			CollisionContainer.BeginDetectCollisions();
 
-			// Collision detection pipeline: BroadPhase -> NarrowPhase -> Container
-			BroadPhase.ProduceOverlaps(Dt, NarrowPhase);
+			FCollisionConstraintAllocator& Allocator = GetCollisionContainer().GetConstraintAllocator();
+
+			// Collision detection pipeline: BroadPhase -> MidPhase ->NarrowPhase -> Container
+			BroadPhase.ProduceOverlaps(Dt, &Allocator, GetSettings());
 
 			CollisionContainer.EndDetectCollisions();
 		}
 
 	private:
 		FBasicBroadPhase& BroadPhase;
-		FNarrowPhase& NarrowPhase;
 	};
 
 }

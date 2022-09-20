@@ -407,7 +407,7 @@ namespace Chaos
 		// constraints on the same particle pair is a little wasteful. It early-outs on subsequent calls, but still not ideal.
 		// @todo(chaos): we only need to set sleeping on particle pairs or particles, not constraints (See UpdateSleepState in IslandManager.cpp)
 		check(ContainerCookie.MidPhase != nullptr);
-		ContainerCookie.MidPhase->SetIsSleeping(bInIsSleeping);
+		ContainerCookie.MidPhase->SetIsSleeping(bInIsSleeping, ConcreteContainer()->GetConstraintAllocator().GetCurrentEpoch());
 	}
 
 	FVec3 FPBDCollisionConstraint::CalculateWorldContactLocation() const

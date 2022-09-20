@@ -5,19 +5,28 @@
 
 namespace Chaos
 {
+	class FCollisionContextAllocator;
 	class FMultiShapePairCollisionDetector;
 
 	class FCollisionDetectorSettings
 	{
 	public:
 		FCollisionDetectorSettings()
-			: bFilteringEnabled(true)
+			: BoundsExpansion(0)
+			, BoundsVelocityInflation(0)
+			, bFilteringEnabled(true)
 			, bDeferNarrowPhase(false)
 			, bAllowManifolds(true)
 			, bAllowManifoldReuse(true)
 			, bAllowCCD(true)
 		{
 		}
+
+		// Shape bounds are expanded by this in all 3 directions. This is also used as the CullDistance for collision response.
+		FReal BoundsExpansion;
+		
+		// Shape bounds in the broadphase are expanded by this multiple of velocity
+		FReal BoundsVelocityInflation;
 
 		// Whether to check the shape query flags in the narrow phase (e.g., Rigid Body nodes have already performed filtering prior to collision detection)
 		bool bFilteringEnabled;
@@ -45,16 +54,25 @@ namespace Chaos
 	{
 	public:
 		FCollisionContext()
-			: Settings()
+			: Settings(nullptr)
+			, Allocator(nullptr)
 			, MultiShapeCollisionDetector(nullptr)
 		{
 		}
 
-		const FCollisionDetectorSettings& GetSettings() const { return Settings; }
-		FCollisionDetectorSettings& GetSettings() { return Settings; }
-		void SetSettings(const FCollisionDetectorSettings& InSettings) { Settings = InSettings; }
+		const FCollisionDetectorSettings& GetSettings() const { return *Settings; }
+		void SetSettings(const FCollisionDetectorSettings& InSettings) { Settings = &InSettings; }
 
-		FCollisionDetectorSettings Settings;
+		FCollisionContextAllocator* GetAllocator() const { return Allocator; }
+		void SetAllocator(FCollisionContextAllocator* InAllocator) { Allocator = InAllocator; }
+
+		FMultiShapePairCollisionDetector* GetMultiShapePairCollisionDetector() const { return MultiShapeCollisionDetector; }
+		void SetMultiShapePairCollisionDetector(FMultiShapePairCollisionDetector* InDetector) { MultiShapeCollisionDetector = InDetector; }
+
+
+		const FCollisionDetectorSettings* Settings;
+
+		FCollisionContextAllocator* Allocator;
 
 		// This is used in the older collision detection path which is still used for particles that do not flatten their implicit hierrarchies
 		// into the Particle's ShapesArray. Currently this is only Clusters.

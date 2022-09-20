@@ -12,7 +12,6 @@
 namespace Chaos
 {
 	class FImplicitObject;
-	class FNarrowPhase;
 	class FBasicBroadPhase;
 	class FBasicCollisionDetector;
 	class FPBDJointConstraintHandle;

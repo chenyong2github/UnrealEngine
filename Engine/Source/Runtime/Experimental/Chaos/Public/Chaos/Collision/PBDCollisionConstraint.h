@@ -18,6 +18,7 @@
 namespace Chaos
 {
 	class FCollisionConstraintAllocator;
+	class FCollisionContextAllocator;
 	class FConstGenericParticleHandle;
 	class FImplicitObject;
 	class FParticlePairMidPhase;
@@ -220,6 +221,7 @@ namespace Chaos
 	class CHAOS_API FPBDCollisionConstraint final : public FPBDCollisionConstraintHandle
 	{
 		friend class FCollisionConstraintAllocator;
+		friend class FCollisionContextAllocator;
 		friend class FMultiShapePairCollisionDetector;
 		friend class FParticlePairMidPhase;
 		friend class FPBDCollisionConstraints;

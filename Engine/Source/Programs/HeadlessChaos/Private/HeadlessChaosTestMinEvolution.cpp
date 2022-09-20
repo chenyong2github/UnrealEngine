@@ -2,7 +2,6 @@
 
 #include "HeadlessChaos.h"
 
-#include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
 #include "Chaos/Collision/ParticlePairCollisionDetector.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
@@ -41,8 +40,7 @@ namespace ChaosTest
 		TArrayCollectionArray<FRotation3> ParticlePrevRs;
 		FCollisionConstraints Collisions(ParticlesContainer, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr);
 		FBasicBroadPhase BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr);
-		FNarrowPhase NarrowPhase(0, 0, Collisions.GetConstraintAllocator());
-		FCollisionDetector CollisionDetector(BroadPhase, NarrowPhase, Collisions);
+		FCollisionDetector CollisionDetector(BroadPhase, Collisions);
 		// End collisions stuff
 
 		// Springs

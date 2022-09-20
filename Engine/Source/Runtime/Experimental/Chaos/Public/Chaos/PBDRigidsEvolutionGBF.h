@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Chaos/ChaosPerfTest.h"
-#include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/Collision/SpatialAccelerationCollisionDetector.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
@@ -66,7 +65,6 @@ namespace Chaos
 		static constexpr FRealSingle DefaultCollisionCullDistance = 3.0f;
 		static constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;
 		static constexpr int32 DefaultRestitutionThreshold = 1000;
-		static constexpr int32 DefaultNumCollisionsPerBlock = 1000;
 
 		CHAOS_API FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
 		CHAOS_API ~FPBDRigidsEvolutionGBF();
@@ -156,11 +154,11 @@ namespace Chaos
 			//SCOPE_CYCLE_COUNTER(STAT_Integrate);
 			CHAOS_SCOPED_TIMER(Integrate);
 
-			const FReal BoundsThickness = GetNarrowPhase().GetBoundsExpansion();
+			const FReal BoundsThickness = GetCollisionDetector().GetSettings().BoundsExpansion;
 			const FReal MaxAngularSpeedSq = CVars::HackMaxAngularVelocity * CVars::HackMaxAngularVelocity;
 			const FReal MaxSpeedSq = CVars::HackMaxVelocity * CVars::HackMaxVelocity;
-			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) {
-	
+			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) 
+			{
 				//question: can we enforce this at the API layer? Right now islands contain non dynamic which makes this hard
 				auto PBDParticle = GeomParticle.CastToRigidParticle();
 				if (PBDParticle && PBDParticle->ObjectState() == EObjectStateType::Dynamic)
@@ -291,7 +289,6 @@ namespace Chaos
 		CHAOS_API void SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache);
 
 		CHAOS_API FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
-		CHAOS_API FNarrowPhase& GetNarrowPhase() { return NarrowPhase; }
 
 		CHAOS_API void TransferJointConstraintCollisions();
 
@@ -335,7 +332,6 @@ namespace Chaos
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
 		FSpatialAccelerationBroadPhase BroadPhase;
-		FNarrowPhase NarrowPhase;
 		FSpatialAccelerationCollisionDetector CollisionDetector;
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;

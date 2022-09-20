@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionConstraintFlags.h"
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/StatsData.h"
-#include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/ISpatialAccelerationCollection.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/ParticleHandle.h"
@@ -121,7 +122,8 @@ namespace Chaos
 		 */
 		void ProduceOverlaps(
 			FReal Dt, 
-			FNarrowPhase& NarrowPhase, 
+			FCollisionConstraintAllocator* Allocator,
+			const FCollisionDetectorSettings& Settings,
 			IResimCacheBase* ResimCache
 			)
 		{
@@ -135,19 +137,19 @@ namespace Chaos
 
 			if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
 			{
-				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, ResimCache);
+				ProduceOverlaps(Dt, *AABBTree, Allocator, Settings, ResimCache);
 			}
 			else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<FAccelerationStructureHandle>>())
 			{
-				ProduceOverlaps(Dt, *BV, NarrowPhase, ResimCache);
+				ProduceOverlaps(Dt, *BV, Allocator, Settings, ResimCache);
 			}
 			else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>>())
 			{
-				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, ResimCache);
+				ProduceOverlaps(Dt, *AABBTreeBV, Allocator, Settings, ResimCache);
 			}
 			else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>())
 			{
-				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, ResimCache);
+				Collection->PBDComputeConstraintsLowLevel(Dt, *this, Allocator, Settings, ResimCache);
 			}
 			else
 			{
@@ -164,23 +166,59 @@ namespace Chaos
 		 * */
 
 		template<bool bNeedsResim, bool bOnlyRigid, typename ViewType, typename SpatialAccelerationType>
-		void ComputeParticlesOverlaps(ViewType& OverlapView, FReal Dt,
-			const SpatialAccelerationType& InSpatialAcceleration, FNarrowPhase& NarrowPhase)
+		void ComputeParticlesOverlaps(
+			ViewType& OverlapView, 
+			FReal Dt,
+			const SpatialAccelerationType& InSpatialAcceleration, 
+			FCollisionConstraintAllocator* Allocator,
+			const FCollisionDetectorSettings& Settings)
 		{
-			 OverlapView.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
-			 {
-			 	ProduceParticleOverlaps<bNeedsResim,bOnlyRigid>(Dt, Particle1.Handle(), InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
-			},bDisableCollisionParallelFor);
+			// A set of contexts, one for each worker thread, containing the allocation buffers etc.
+			// NOTE: Ideally contexts would not resize after the initial creation, but actually it might because
+			// of the way the ParticleView parallel-for is implemented. If the view is a set of sub-views, we
+			// will get a parallel-for per sub-view which will have different numbers of particles and may
+			// therefore require a different number of workers.
+			// Fortunately, we only get calls to ContextCreator for a sub-view (with a possibly different NumWorkers)
+			// after the previous sub-view's parallel-for has completed, so we don't need to worry about context addresses 
+			// changing (we could use TChunkedArray, or allocate contexts on the heap if we ever need to handle that).
+			TArray<FCollisionContext> Contexts;
+			auto ContextCreator = [Allocator, &Settings, &Contexts](const int32 WorkerIndex, const int32 NumWorkers) -> int32
+			{
+				Contexts.SetNum(NumWorkers);
+
+				// Retrieve the midphase/collision allocator for this context
+				Allocator->SetMaxContexts(NumWorkers);
+				FCollisionContextAllocator* ContextAllocator = Allocator->GetContextAllocator(WorkerIndex);
+
+				// Build the context for the worker
+				Contexts[WorkerIndex].SetSettings(Settings);
+				Contexts[WorkerIndex].SetAllocator(ContextAllocator);
+
+				return WorkerIndex;
+			};
+
+			// Detect collisions for a single particle versus all others
+			auto ParticleCollisionGenerator = [this, Dt, &InSpatialAcceleration, &Contexts](auto& Particle1, const int32 ActiveIdxIdx, const int32 ContextIndex)
+			{
+				ProduceParticleOverlaps<bNeedsResim, bOnlyRigid>(Dt, Particle1.Handle(), InSpatialAcceleration, Contexts[ContextIndex]);
+			};
+
+			OverlapView.ParallelFor(ContextCreator, ParticleCollisionGenerator, bDisableCollisionParallelFor);
 		}
 
 		template<typename T_SPATIALACCELERATION>
 		void ProduceOverlaps(
 			FReal Dt, 
 			const T_SPATIALACCELERATION& InSpatialAcceleration, 
-			FNarrowPhase& NarrowPhase, 
+			FCollisionConstraintAllocator* Allocator,
+			const FCollisionDetectorSettings& Settings,
 			IResimCacheBase* ResimCache
 			)
 		{
+			// Select the set of particles that we loop over in the outer collision detection loop.
+			// The goal is to detection all required collisions (dynamic-vs-everything) while not
+			// visiting pairs that cannot collide (e.g., kinemtic-kinematic, or kinematic-sleeping for
+			// stationary kinematics)
 			const bool bDisableParallelFor = bDisableCollisionParallelFor;
 			auto* EvolutionResimCache = static_cast<FEvolutionResimCache*>(ResimCache);
 			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming();
@@ -189,20 +227,23 @@ namespace Chaos
 				const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
 				const TParticleView<TKinematicGeometryParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
 
+				// Usually we ignore sleeping particles in the outer loop and iterate over awake-dynamics and moving-kinematics. 
+				// However, for scenes with a very large number of moving kinematics, it is faster to loop over awake-dynamics
+				// and sleeping-dynamics, even though this means we visit sleeping pairs.
 				if(DynamicSleepingView.Num() < DynamicMovingKinematicView.Num())
 				{
-					ComputeParticlesOverlaps<false, true>(DynamicSleepingView, Dt, InSpatialAcceleration, NarrowPhase);
+					ComputeParticlesOverlaps<false, true>(DynamicSleepingView, Dt, InSpatialAcceleration, Allocator, Settings);
 				}
 				else
 				{
-					ComputeParticlesOverlaps<false, false>(DynamicMovingKinematicView, Dt, InSpatialAcceleration, NarrowPhase);
+					ComputeParticlesOverlaps<false, false>(DynamicMovingKinematicView, Dt, InSpatialAcceleration, Allocator, Settings);
 				}
 			}
 			else
 			{
 				const TParticleView<TGeometryParticles<FReal, 3>>& DesyncedView = ResimCache->GetDesyncedView();
 				
-				ComputeParticlesOverlaps<true,false>(DesyncedView, Dt, InSpatialAcceleration, NarrowPhase);
+				ComputeParticlesOverlaps<true,false>(DesyncedView, Dt, InSpatialAcceleration, Allocator, Settings);
 			}
 		}
 
@@ -215,8 +256,7 @@ namespace Chaos
 		    FReal Dt,
 		    FGeometryParticleHandle* Particle1,
 		    const T_SPATIALACCELERATION& InSpatialAcceleration,
-		    FNarrowPhase& NarrowPhase,
-			int32 EntryIndex)
+			const FCollisionContext& Context)
 		{
 			TArray<FSimOverlapVisitorEntry> PotentialIntersections;
 
@@ -267,7 +307,6 @@ namespace Chaos
 					FSimOverlapVisitor OverlapVisitor(Particle1, ParticleSimData, PotentialIntersections);
 					InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
 				}
-						
 			}
 			else
 			{
@@ -430,7 +469,7 @@ namespace Chaos
 				// NOTE: This searches the array of existing midphases on the particle specified in the last parameter. The assumption
 				// here is that Particle1 is more likely to have less collision on it because it is dynamic. Kinematics can often be
 				// large and may collide with many objects. Maybe we should consider using size instead.
-				FParticlePairMidPhase* MidPhase = NarrowPhase.GetParticlePairMidPhase(ParticleA, ParticleB, Particle1);
+				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(ParticleA, ParticleB, Particle1);
 				if (MidPhase != nullptr)
 				{
 					MidPhases.Add(MidPhase);
@@ -454,7 +493,7 @@ namespace Chaos
 				}
 
 				// Run MidPhase + NarrowPhase
-				NarrowPhase.GenerateCollisions(Dt, MidPhases[Index]);
+				MidPhases[Index]->GenerateCollisions(Context.GetSettings().BoundsExpansion, Dt, Context);
 			}
 
 			PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);
