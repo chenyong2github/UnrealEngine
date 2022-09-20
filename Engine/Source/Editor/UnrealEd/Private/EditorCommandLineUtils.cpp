@@ -441,11 +441,11 @@ static void EditorCommandLineUtilsImpl::ForceCloseEditor()
 }
 
 //------------------------------------------------------------------------------
-static void EditorCommandLineUtilsImpl::RunAssetDiffCommand(TSharedPtr<SWindow> MainEditorWindow, bool bIsRunningProjBrowser, FString CommandArgs)
+static void EditorCommandLineUtilsImpl::RunAssetDiffCommand(TSharedPtr<SWindow> MainEditorWindow, bool bIsRunningStartupDialog, FString CommandArgs)
 {
-	// if the editor is running the project browser, then the user has to first 
-	// select a project (and then the editor will re-launch with this command).
-	if (bIsRunningProjBrowser) 
+	// if the editor is running the project browser (or another like dialog on startup), 
+	// then the user has to first make a selection (and then the editor will re-launch with this command).
+	if (bIsRunningStartupDialog)
 	{
 		// @TODO: can we run without loading a project?
 		return;

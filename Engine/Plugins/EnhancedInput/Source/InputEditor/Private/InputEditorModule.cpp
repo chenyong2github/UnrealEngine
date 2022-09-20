@@ -425,7 +425,7 @@ void FInputEditorModule::ShutdownModule()
 	}
 }
 
-void FInputEditorModule::OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
+void FInputEditorModule::OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog)
 {
 	AutoUpgradeDefaultInputClasses();
 }

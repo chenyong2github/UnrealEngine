@@ -696,9 +696,9 @@ void UStatusBarSubsystem::CreateContentBrowserIfNeeded()
 	}
 }
 
-void UStatusBarSubsystem::CreateAndShowNewUserTipIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsNewProjectDialog)
+void UStatusBarSubsystem::CreateAndShowNewUserTipIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsRunningStartupDialog)
 {
-	if(!bIsNewProjectDialog)
+	if(!bIsRunningStartupDialog)
 	{
 		FString CurrentState = GetNewUserTipState();
 
@@ -735,13 +735,13 @@ const FString UStatusBarSubsystem::GetNewUserTipState() const
 	return CurrentState;
 }
 
-void UStatusBarSubsystem::CreateAndShowOneTimeIndustryQueryIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsNewProjectDialog)
+void UStatusBarSubsystem::CreateAndShowOneTimeIndustryQueryIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsRunningStartupDialog)
 {
 	// Only show for external builds where editor analytics are on and the industry popup is not suppressed
 	if(SOneTimeIndustryQuery::ShouldShowIndustryQuery())
 	{
 		FString NewUserTipState = GetNewUserTipState();
-		if (!bIsNewProjectDialog && NewUserTipState == TEXT("1"))
+		if (!bIsRunningStartupDialog && NewUserTipState == TEXT("1"))
 		{
 			const FString StoreId = TEXT("Epic Games");
 			const FString SectionName = TEXT("Unreal Engine/Editor");

@@ -11,6 +11,24 @@
 #include "UnrealEdMisc.h"
 #include "Frame/MainFrameHandler.h"
 #include "Misc/CompilationResult.h"
+#include "Interfaces/IEditorMainFrameProvider.h"
+
+/** 
+ * Utility class, which hooks into the editor's main window startup and 
+ * supplies a project dialog window if the project hasn't been set. 
+ */
+class FProjectDialogProvider : public IEditorMainFrameProvider
+{
+public:
+	void Register();
+	void UnRegister();
+
+	//~ Begin IEditorMainFrameProvider interface
+	virtual bool IsRequestingMainFrameControl() const override;
+	virtual FMainFrameWindowOverrides GetDesiredWindowConfiguration() const override;
+	virtual TSharedRef<SWidget> CreateMainFrameContentWidget() const override;
+	//~ End IEditorMainFrameProvider interface
+};
 
 /**
  * Editor main frame module
@@ -196,16 +214,6 @@ public:
 	}
 
 	static void HandleResizeMainFrameCommand(const TArray<FString>& Args);
-protected:
-
-	/**
-	 * Checks whether the project dialog should be shown at startup.
-	 *
-	 * The project dialog should be shown if the Editor was started without a game specified.
-	 *
-	 * @return true if the project dialog should be shown, false otherwise.
-	 */
-	bool ShouldShowProjectDialogAtStartup( ) const;
 
 public:
 
@@ -292,4 +300,7 @@ private:
 
 	// Is recreating Default Main Frame
 	bool bRecreatingDefaultMainFrame;
+
+	// Instantiation of the object responsible for spawning the editor's project dialog on startup
+	FProjectDialogProvider ProjectDialogProvider;
 };

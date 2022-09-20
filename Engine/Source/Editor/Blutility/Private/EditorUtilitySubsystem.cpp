@@ -110,7 +110,7 @@ void UEditorUtilitySubsystem::AddReferencedObjects(UObject* InThis, FReferenceCo
 	}
 }
 
-void UEditorUtilitySubsystem::MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
+void UEditorUtilitySubsystem::MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog)
 {
 	HandleStartup();
 }

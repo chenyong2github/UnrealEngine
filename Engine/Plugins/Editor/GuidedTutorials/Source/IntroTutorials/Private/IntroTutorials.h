@@ -73,7 +73,7 @@ private:
 	void AddSummonBlueprintTutorialsMenuExtension(FMenuBuilder& MenuBuilder, UObject* PrimaryObject);
 
 	/** Event to be called when the main frame is loaded */
-	void MainFrameLoad(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
+	void MainFrameLoad(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog);
 
 	/** Summon tutorial home page to front */
 	void SummonTutorialHome();

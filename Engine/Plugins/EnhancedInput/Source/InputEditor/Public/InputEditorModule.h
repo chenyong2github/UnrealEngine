@@ -43,7 +43,7 @@ private:
 		CreatedAssetTypeActions.Add(Action);
 	}
 
-	void OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
+	void OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog);
 	
 	/** Automatically upgrade the current project to use Enhanced Input if it is currently set to the legacy input classes. */
 	void AutoUpgradeDefaultInputClasses();

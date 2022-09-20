@@ -86,7 +86,7 @@ private:
 	TSharedRef<SDockTab> HandleSpawnPluginCreatorTab(const FSpawnTabArgs& SpawnTabArgs);
 
 	/** Callback for the main frame finishing load */
-	void OnMainFrameLoaded(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
+	void OnMainFrameLoaded(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog);
 
 	/** Callback for when the user selects to edit installed plugins */
 	void OnNewPluginsPopupSettingsClicked();

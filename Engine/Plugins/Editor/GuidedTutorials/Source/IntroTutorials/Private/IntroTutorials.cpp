@@ -268,9 +268,9 @@ void FIntroTutorials::AddSummonBlueprintTutorialsMenuExtension(FMenuBuilder& Men
 	MenuBuilder.EndSection();
 }
 
-void FIntroTutorials::MainFrameLoad(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
+void FIntroTutorials::MainFrameLoad(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog)
 {
-	if (!bIsNewProjectWindow)
+	if (!bIsRunningStartupDialog)
 	{
 		// install a root widget for the tutorial overlays to hang off
 		if(InRootWindow.IsValid() && !TutorialRoot.IsValid())
