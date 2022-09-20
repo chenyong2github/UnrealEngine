@@ -17,7 +17,7 @@ namespace Geometry
 
 
 template<typename RealType>
-void TExtremePoints3<RealType>::Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon)
+void TExtremePoints3<RealType>::Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, RealType Epsilon)
 {
 	TVector<RealType> FirstPoint;
 	int FirstPtIdx = -1;
@@ -118,14 +118,14 @@ void TExtremePoints3<RealType>::Init(int32 NumPoints, TFunctionRef<TVector<RealT
 	Basis[1] = GetPointFunc(Extreme[2]) - Origin;
 	// project Basis[1] to be orthogonal to Basis[0]
 	Basis[1] -= (Basis[0].Dot(Basis[1])) * Basis[0];
-	if (!Basis[1].Normalize(RealType(Epsilon))) // points too collinear to form a valid basis
+	if (!Basis[1].Normalize(Epsilon)) // points too collinear to form a valid basis
 	{
 		Dimension = 1;
 		Extreme[3] = Extreme[2] = Extreme[1];
 		return;
 	}
 	Basis[2] = Basis[0].Cross(Basis[1]);
-	if (!Basis[2].Normalize(RealType(Epsilon))) // points too collinear to form a valid basis
+	if (!Basis[2].Normalize(Epsilon)) // points too collinear to form a valid basis
 	{
 		Dimension = 1;
 		Extreme[3] = Extreme[2] = Extreme[1];
