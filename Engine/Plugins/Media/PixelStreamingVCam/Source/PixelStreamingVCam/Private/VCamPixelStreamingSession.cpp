@@ -25,6 +25,7 @@ namespace VCamPixelStreamingSession
 
 void UVCamPixelStreamingSession::Initialize()
 {
+	DisplayType = EVPWidgetDisplayType::Viewport;
 	Super::Initialize();
 }
 
