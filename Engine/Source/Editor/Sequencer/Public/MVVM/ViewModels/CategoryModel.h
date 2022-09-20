@@ -9,6 +9,7 @@
 #include "MVVM/Extensions/IDeletableExtension.h"
 #include "MVVM/Extensions/IGeometryExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
 #include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Extensions/LinkedOutlinerExtension.h"
@@ -81,9 +82,10 @@ class SEQUENCER_API FCategoryGroupModel
 	, public ITrackAreaExtension
 	, public ICompoundOutlinerExtension
 	, public IDeletableExtension
+	, public IRecyclableExtension
 {
 public:
-	UE_SEQUENCER_DECLARE_CASTABLE(FCategoryGroupModel, FOutlinerItemModel, ITrackAreaExtension, ICompoundOutlinerExtension, IDeletableExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FCategoryGroupModel, FOutlinerItemModel, ITrackAreaExtension, ICompoundOutlinerExtension, IDeletableExtension, IRecyclableExtension);
 
 	explicit FCategoryGroupModel(FName InCategoryName, const FText& InDisplayText);
 
@@ -126,6 +128,9 @@ public:
 	/*~ IDeletableExtension */
 	bool CanDelete(FText* OutErrorMessage) const override;
 	void Delete() override;
+
+	/*~ IRecyclableExtension */
+	void OnRecycle() override;
 
 private:
 

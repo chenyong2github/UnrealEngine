@@ -15,6 +15,7 @@
 #include "MVVM/Extensions/IMutableExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/IPinnableExtension.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "MVVM/Extensions/IRenameableExtension.h"
 #include "MVVM/Extensions/IResizableExtension.h"
 #include "MVVM/Extensions/ISelectableExtension.h"
@@ -53,6 +54,7 @@ UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IMutableExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IOutlinerDropTargetOutlinerExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IOutlinerExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IPinnableExtension);
+UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IRecyclableExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IRenameableExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IResizableExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(ISelectableExtension);

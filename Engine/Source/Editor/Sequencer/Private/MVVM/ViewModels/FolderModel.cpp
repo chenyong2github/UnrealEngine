@@ -7,6 +7,7 @@
 #include "MVVM/ViewModels/LayerBarModel.h"
 #include "MVVM/ViewModels/ObjectBindingModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "MVVM/Views/SOutlinerItemViewBase.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
@@ -111,7 +112,7 @@ void FFolderModel::RepopulateChildren()
 
 	// Keep our existing children alive
 	FScopedViewModelListHead RecycledOutliner(This, EViewModelListType::Recycled);
-	OutlinerChildren.MoveChildrenTo(RecycledOutliner.GetChildren());
+	OutlinerChildren.MoveChildrenTo<IRecyclableExtension>(RecycledOutliner.GetChildren(), IRecyclableExtension::CallOnRecycle);
 
 	// Create/recycle models for any children
 	for (UMovieSceneFolder* ChildFolder : Folder->GetChildFolders())

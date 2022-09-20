@@ -2,6 +2,7 @@
 
 #include "MVVM/ViewModels/TrackModel.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/FolderModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
@@ -198,8 +199,8 @@ void FTrackModel::ForceUpdate()
 		TSharedPtr<FViewModel> SectionsTail;
 
 		FScopedViewModelListHead RecycledModels(AsShared(), EViewModelListType::Recycled);
-		GetChildrenForList(&SectionList).MoveChildrenTo(RecycledModels.GetChildren());
-		OutlinerChildren.MoveChildrenTo(RecycledModels.GetChildren());
+		GetChildrenForList(&SectionList).MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
+		OutlinerChildren.MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
 
 		// Add all sections directly to this track row
 		for (UMovieSceneSection* Section : Track->GetAllSections())
@@ -244,12 +245,8 @@ void FTrackModel::ForceUpdate()
 		// This should only be required if this track previously represented
 		// a single row, but now there are multiple rows
 		FScopedViewModelListHead RecycledModels(AsShared(), EViewModelListType::Recycled);
-		GetChildrenForList(&SectionList).MoveChildrenTo(RecycledModels.GetChildren());
-		OutlinerChildren.MoveChildrenTo(RecycledModels.GetChildren());
-
-		// Also clear our outliner children but keep them alive, because there could be category groups or channel
-		// groups in there, if we previously only had 1 row before
-		TSharedPtr<FViewModel> OldOutlinerItems = OutlinerChildList.ReliquishList();
+		GetChildrenForList(&SectionList).MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
+		OutlinerChildren.MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
 
 		// We need to build row models so let's grab the storage for that
 		FTrackRowModelStorageExtension* TrackRowModelStorage = SequenceModel->CastDynamic<FTrackRowModelStorageExtension>();
@@ -287,7 +284,7 @@ void FTrackModel::ForceUpdate()
 
 				// Keep sections on rows alive as well
 				RowModels[RowIndex].OldSections = MakeUnique<FScopedViewModelListHead>(TrackRowModel, EViewModelListType::Recycled);
-				TrackRowModel->GetSectionModels().MoveChildrenTo(RowModels[RowIndex].OldSections->GetChildren());
+				TrackRowModel->GetSectionModels().MoveChildrenTo<IRecyclableExtension>(RowModels[RowIndex].OldSections->GetChildren(), IRecyclableExtension::CallOnRecycle);
 			}
 		}
 

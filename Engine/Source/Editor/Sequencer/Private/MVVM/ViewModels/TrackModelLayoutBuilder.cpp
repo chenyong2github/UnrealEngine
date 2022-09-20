@@ -8,6 +8,7 @@
 #include "HAL/Platform.h"
 #include "ISequencerSection.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "MVVM/ViewModels/CategoryModel.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/SectionModel.h"
@@ -57,7 +58,7 @@ void FHierarchicalModelListRefresher::RecycleChildren(const TSharedPtr<FViewMode
 		RecycledLists.Last().Emplace(InModel, EViewModelListType::Recycled);
 
 		FViewModelChildren RecycledChildren = InModel->GetChildList(EViewModelListType::Recycled);
-		InExistingChildren.MoveChildrenTo(RecycledChildren);
+		InExistingChildren.MoveChildrenTo<IRecyclableExtension>(RecycledChildren, IRecyclableExtension::CallOnRecycle);
 	}
 }
 

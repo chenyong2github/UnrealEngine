@@ -11,6 +11,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
 #include "MVVM/Views/SOutlinerObjectBindingView.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "Modules/ModuleManager.h"
 #include "ISequencerModule.h"
 #include "MovieScene.h"
@@ -208,7 +209,7 @@ void FObjectBindingModel::OnConstruct()
 	check(Binding);
 
 	FScopedViewModelListHead RecycledHead(AsShared(), EViewModelListType::Recycled);
-	GetChildrenForList(&OutlinerChildList).MoveChildrenTo(RecycledHead.GetChildren());
+	GetChildrenForList(&OutlinerChildList).MoveChildrenTo<IRecyclableExtension>(RecycledHead.GetChildren(), IRecyclableExtension::CallOnRecycle);
 
 	for (UMovieSceneTrack* Track : Binding->GetTracks())
 	{

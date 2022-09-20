@@ -211,6 +211,19 @@ struct SEQUENCERCORE_API FViewModelChildren
 	void MoveChildrenTo(const FViewModelChildren& OutDestination);
 
 	/**
+	 * Invoke a callback on these children, and move them all into the specified destination list, changing parent pointers if necessary
+	 */
+	template<typename T, typename Callback>
+	void MoveChildrenTo(const FViewModelChildren& OutDestination, Callback&& InCallback)
+	{
+		for (const TViewModelPtr<T>& Item : IterateSubList<T>())
+		{
+			InCallback(Item);
+		}
+		MoveChildrenTo(OutDestination);
+	}
+
+	/**
 	 * Empty this specific sub-list, resetting all parent ptrs
 	 */
 	void Empty();

@@ -229,6 +229,11 @@ void FCategoryGroupModel::Delete()
 	}
 }
 
+void FCategoryGroupModel::OnRecycle()
+{
+	Categories.Empty();
+}
+
 } // namespace Sequencer
 } // namespace UE
 

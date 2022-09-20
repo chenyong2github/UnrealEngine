@@ -13,6 +13,7 @@
 #include "MVVM/Extensions/IGeometryExtension.h"
 #include "MVVM/Extensions/IKeyExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/IRecyclableExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
 #include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Extensions/LinkedOutlinerExtension.h"
@@ -54,11 +55,12 @@ class SEQUENCER_API FChannelModel
 	, public FGeometryExtensionShim
 	, public FLinkedOutlinerComputedSizingShim
 	, public ITrackLaneExtension
+	, public IRecyclableExtension
 	, public IKeyExtension
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FChannelModel, FViewModel, FLinkedOutlinerExtension, IGeometryExtension, ITrackLaneExtension, IKeyExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FChannelModel, FViewModel, FLinkedOutlinerExtension, IGeometryExtension, ITrackLaneExtension, IRecyclableExtension, IKeyExtension);
 
 	FChannelModel(FName InChannelName, TWeakPtr<ISequencerSection> InSection, FMovieSceneChannelHandle InChannel);
 	~FChannelModel();
@@ -92,6 +94,9 @@ public:
 	TSharedPtr<ITrackLaneWidget> CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams) override;
 	FTrackLaneVirtualAlignment ArrangeVirtualTrackLaneView() const override;
 
+	/*~ IRecyclableExtension */
+	void OnRecycle() override;
+
 	/*~ IKeyExtension */
 	bool UpdateCachedKeys(TSharedPtr<FCachedKeys>& OutCachedKeys) const override;
 	bool GetFixedExtents(double& OutFixedMin, double& OutFixedMax) const override;
@@ -115,10 +120,11 @@ private:
 class SEQUENCER_API FChannelGroupModel
 	: public FViewModel
 	, public ITrackAreaExtension
+	, public IRecyclableExtension
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FChannelGroupModel, FViewModel, ITrackAreaExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FChannelGroupModel, FViewModel, ITrackAreaExtension, IRecyclableExtension);
 
 	FChannelGroupModel(FName InChannelName, const FText& InDisplayText);
 	~FChannelGroupModel();
@@ -163,6 +169,9 @@ public:
 	/*~ ITrackAreaExtension */
 	FTrackAreaParameters GetTrackAreaParameters() const override;
 	FViewModelVariantIterator GetTrackAreaModelList() const override;
+
+	/*~ IRecyclableExtension */
+	void OnRecycle() override;
 
 	void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels);
 	bool HasCurves() const;

@@ -133,6 +133,11 @@ FTrackLaneVirtualAlignment FChannelModel::ArrangeVirtualTrackLaneView() const
 	return FTrackLaneVirtualAlignment::Proportional(TRange<FFrameNumber>(), 1.f);
 }
 
+void FChannelModel::OnRecycle()
+{
+	KeyArea = nullptr;
+}
+
 bool FChannelModel::UpdateCachedKeys(TSharedPtr<FCachedKeys>& OutCachedKeys) const
 {
 	struct FSequencerCachedKeys : FCachedKeys
@@ -372,6 +377,11 @@ FTrackAreaParameters FChannelGroupModel::GetTrackAreaParameters() const
 FViewModelVariantIterator FChannelGroupModel::GetTrackAreaModelList() const
 {
 	return &Channels;
+}
+
+void FChannelGroupModel::OnRecycle()
+{
+	Channels.Empty();
 }
 
 void FChannelGroupModel::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
