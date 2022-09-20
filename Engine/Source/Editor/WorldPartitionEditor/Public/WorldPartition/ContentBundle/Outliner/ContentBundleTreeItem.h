@@ -26,7 +26,7 @@ public:
 		const FContentBundleMode& Mode;
 	};
 
-	FContentBundleTreeItem(FInitializationValues InitializationValues);
+	FContentBundleTreeItem(const FInitializationValues& InitializationValues);
 	TWeakPtr<FContentBundleEditor> GetContentBundleEditor() const { return IsValid() ? ContentBundleEditor : nullptr; }
 	TSharedPtr<FContentBundleEditor> GetContentBundleEditorPin() const { return IsValid() ? ContentBundleEditor.Pin() : nullptr; }
 

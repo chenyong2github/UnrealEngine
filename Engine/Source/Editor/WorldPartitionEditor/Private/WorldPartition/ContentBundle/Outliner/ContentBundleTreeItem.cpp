@@ -12,7 +12,7 @@
 
 const FSceneOutlinerTreeItemType FContentBundleTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
-FContentBundleTreeItem::FContentBundleTreeItem(FInitializationValues InitializationValues)
+FContentBundleTreeItem::FContentBundleTreeItem(const FInitializationValues& InitializationValues)
 	: ISceneOutlinerTreeItem(Type)
 	, ContentBundleEditor(InitializationValues.ContentBundleEditor)
 	, Mode(InitializationValues.Mode)
