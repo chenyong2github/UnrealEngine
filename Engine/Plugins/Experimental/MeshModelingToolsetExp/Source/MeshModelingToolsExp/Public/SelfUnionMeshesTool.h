@@ -97,6 +97,8 @@ protected:
 
 	// for visualization of any errors in the currently-previewed merge operation
 	TArray<int> CreatedBoundaryEdges;
+
+	FVector3d CombinedCenter;
 };
 
 
