@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "AssetRegistry/AssetData.h"
 #include "ActorDescContainer.generated.h"
 
 class FLinkerInstancingContext;
