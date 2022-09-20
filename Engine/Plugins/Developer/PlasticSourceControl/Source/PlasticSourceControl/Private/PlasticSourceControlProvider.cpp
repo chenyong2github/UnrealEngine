@@ -409,6 +409,11 @@ bool FPlasticSourceControlProvider::UsesCheckout() const
 	return GetDefault<UPlasticSourceControlProjectSettings>()->bPromptForCheckoutOnChange;
 }
 
+bool FPlasticSourceControlProvider::UsesFileRevisions() const
+{
+	return true;
+}
+
 TSharedPtr<IPlasticSourceControlWorker, ESPMode::ThreadSafe> FPlasticSourceControlProvider::CreateWorker(const FName& InOperationName)
 {
 	const FGetPlasticSourceControlWorker* Operation = WorkersMap.Find(InOperationName);

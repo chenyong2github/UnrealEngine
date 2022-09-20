@@ -2477,7 +2477,7 @@ void FAssetFileContextMenu::CacheCanExecuteVars()
 					bCanExecuteSCCHistory = true;
 				}
 
-				if(!SourceControlState->IsCurrent())
+				if(!SourceControlState->IsCurrent() && SourceControlProvider.UsesFileRevisions())
 				{
 					bCanExecuteSCCSync = true;
 				}

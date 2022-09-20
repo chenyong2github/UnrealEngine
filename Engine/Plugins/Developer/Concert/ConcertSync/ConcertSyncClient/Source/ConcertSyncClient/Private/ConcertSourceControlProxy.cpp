@@ -493,6 +493,15 @@ bool FConcertSourceControlProxy::UsesCheckout() const
 	return false;
 }
 
+bool FConcertSourceControlProxy::UsesFileRevisions() const
+{
+	if (ActualProvider)
+	{
+		return ActualProvider->UsesFileRevisions();
+	}
+	return false;
+}
+
 void FConcertSourceControlProxy::Tick()
 {
 	if (ActualProvider)

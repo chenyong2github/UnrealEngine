@@ -415,7 +415,15 @@ bool FAssetFolderContextMenu::CanExecuteSCCCheckIn() const
 
 bool FAssetFolderContextMenu::CanExecuteSCCSync() const
 {
-	return SelectedPaths.Num() > 0;
+	if (SelectedPaths.Num() > 0)
+	{
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		if (SourceControlProvider.IsEnabled() && SourceControlProvider.UsesFileRevisions())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool FAssetFolderContextMenu::CanExecuteSCCConnect() const

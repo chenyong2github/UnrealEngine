@@ -94,6 +94,11 @@ bool FDefaultSourceControlProvider::UsesCheckout() const
 	return false;
 }
 
+bool FDefaultSourceControlProvider::UsesFileRevisions() const
+{
+	return true;
+}
+
 void FDefaultSourceControlProvider::Tick()
 {
 

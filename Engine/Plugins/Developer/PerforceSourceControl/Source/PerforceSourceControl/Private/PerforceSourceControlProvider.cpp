@@ -488,6 +488,11 @@ bool FPerforceSourceControlProvider::UsesCheckout() const
 	return true;
 }
 
+bool FPerforceSourceControlProvider::UsesFileRevisions() const
+{
+	return true;
+}
+
 void FPerforceSourceControlProvider::OutputCommandMessages(const FPerforceSourceControlCommand& InCommand) const
 {
 	if (IsInGameThread()) // On the game thread we can use FMessageLog
