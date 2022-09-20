@@ -75,7 +75,7 @@ struct COREUOBJECT_API FSoftObjectPath
 	explicit FSoftObjectPath(const ANSICHAR* Path)				{ SetPath(FAnsiStringView(Path)); }
 	explicit FSoftObjectPath(TYPE_OF_NULLPTR)					{}
 
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This constructor should be used only temporarily to fix up old codepaths that produce an FName.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This constructor should be used only temporarily to fix up old codepaths that produce an FName.")
 	explicit FSoftObjectPath(FName Path) 
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -84,7 +84,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 
 	/** Construct from an asset FName and subobject pair */
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This constructor should be used only temporarily to fix up old codepaths that produce an FName.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This constructor should be used only temporarily to fix up old codepaths that produce an FName.")
 	FSoftObjectPath(FName InAssetPathName, FString InSubPathString);
 	
 	template <typename T>
@@ -120,7 +120,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FSoftObjectPath& operator=(const ANSICHAR* Path)					{ SetPath(FAnsiStringView(Path)); return *this; }
 	FSoftObjectPath& operator=(TYPE_OF_NULLPTR)							{ Reset(); return *this; }
 
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This assignment operator should be used only temporarily to fix up old codepaths that produce an FName.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This assignment operator should be used only temporarily to fix up old codepaths that produce an FName.")
 	FSoftObjectPath& operator=(FName Path) 
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -132,7 +132,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	/** Returns string representation of reference, in form /package/path.assetname[:subpath] */
 	FString ToString() const;
 
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This function should be used only temporarily to interface with old APIs that require an FName.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This function should be used only temporarily to interface with old APIs that require an FName.")
 	FName ToFName() const { return *ToString(); }
 
 	/** Append string representation of reference, in form /package/path.assetname[:subpath] */
@@ -155,10 +155,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 	
 	/** Returns the entire asset path as an FName, including both package and asset but not sub object */
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. Use GetAssetPath instead.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. Use GetAssetPath instead.")
 	FName GetAssetPathName() const;
 	
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. Use SetAssetPath instead.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. Use SetAssetPath instead.")
 	void SetAssetPathName(FName InAssetPathName);
 
 	/** Returns string version of asset path, including both package and asset but not sub object */
@@ -214,7 +214,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	void SetPath(FWideStringView Path);
 	void SetPath(FAnsiStringView Path);
 	void SetPath(FUtf8StringView Path);
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This function should be used only temporarily to fix up old codepaths that produce an FName.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This function should be used only temporarily to fix up old codepaths that produce an FName.")
 	void SetPath(FName Path);
 	void SetPath(const WIDECHAR* Path)			{ SetPath(FWideStringView(Path)); }
 	void SetPath(const ANSICHAR* Path)			{ SetPath(FAnsiStringView(Path)); }
@@ -587,7 +587,7 @@ struct FSoftObjectPathFixupArchive : public FArchiveUObject
 
 namespace UE::SoftObjectPath::Private
 {
-	// UE_DEPRECATED(5.1, "This function is only for use in fixing up deprecated APIs.")
+	UE_DEPRECATED(5.1, "This function is only for use in fixing up deprecated APIs.")
 	inline TArray<FName> ConvertSoftObjectPaths(TConstArrayView<FSoftObjectPath> InPaths)
 	{
 		TArray<FName> Out;
@@ -598,7 +598,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Out;
 	}
 
-	// UE_DEPRECATED(5.1, "This function is only for use in fixing up deprecated APIs.")
+	UE_DEPRECATED(5.1, "This function is only for use in fixing up deprecated APIs.")
 	inline TArray<FSoftObjectPath> ConvertObjectPathNames(TConstArrayView<FName> InPaths)
 	{
 		TArray<FSoftObjectPath> Out;

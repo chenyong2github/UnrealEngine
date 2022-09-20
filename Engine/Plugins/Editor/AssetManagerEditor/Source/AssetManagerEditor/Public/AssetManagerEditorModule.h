@@ -217,7 +217,7 @@ public:
 		}
 	}
 
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	FAssetData GetAssetByObjectPath(FName ObjectPath) const
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

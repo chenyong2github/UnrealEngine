@@ -155,7 +155,7 @@ public:
 
 public:
 	/** The object path for the asset in the form PackageName.ObjectName, or PackageName.ObjectName:SubObjectName. */
-	// UE_DEPRECATED(5.1, "FName asset paths have been deprecated. Use GetSoftObjectPath to get the path this asset will use in memory when loaded.")
+	UE_DEPRECATED(5.1, "FName asset paths have been deprecated. Use GetSoftObjectPath to get the path this asset will use in memory when loaded.")
 	FName ObjectPath;
 	/** The name of the package in which the asset is found, this is the full long package name such as /Game/Path/Package */
 	FName PackageName;
@@ -164,7 +164,7 @@ public:
 	/** The name of the asset without the package */
 	FName AssetName;
 	/** The name of the asset's class */
-	// UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use AssetClassPath.")
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use AssetClassPath.")
 	FName AssetClass;
 	/** The path of the asset's class, e.g. /Script/Engine.StaticMesh */
 	FTopLevelAssetPath AssetClassPath;

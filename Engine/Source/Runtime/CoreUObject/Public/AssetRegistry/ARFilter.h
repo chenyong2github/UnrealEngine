@@ -32,7 +32,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<FName> PackagePaths;
 
 	/** The filter component containing specific object paths */
-	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
+	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	TArray<FName> ObjectPaths;
 
 	/** 
@@ -161,7 +161,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TSet<FName> PackagePaths;
 
 	/** The filter component containing specific object paths */
-	// UE_DEPRECATED(5.1, "Object path FNames have been deprecated, use FSoftObjectPath instead.")
+	UE_DEPRECATED(5.1, "Object path FNames have been deprecated, use FSoftObjectPath instead.")
 	TSet<FName> ObjectPaths;
 
 	/** The filter component containing specific object paths */

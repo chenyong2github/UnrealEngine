@@ -36,7 +36,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FName BundleName;
 
 	/** List of string assets contained in this bundle */
-	// UE_DEPRECATED(5.1, "BundleAssets has been replaced with AssetPaths.")
+	UE_DEPRECATED(5.1, "BundleAssets has been replaced with AssetPaths.")
 	TArray<FSoftObjectPath> BundleAssets;
 
 	/** List of references to top-level assets contained in this bundle */
@@ -110,22 +110,22 @@ struct COREUOBJECT_API FAssetBundleData
 	}
 
 	/** Adds or updates an entry with the given BundleName -> Path. Scope is empty and will be filled in later */
-	// UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
+	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
 	void AddBundleAsset(FName BundleName, const FSoftObjectPath& AssetPath);
 
 	template< typename T >
-	// UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
+	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
 	void AddBundleAsset(FName BundleName, const TSoftObjectPtr<T>& SoftObjectPtr)
 	{
 		AddBundleAsset(BundleName, SoftObjectPtr.ToSoftObjectPath().GetAssetPath());
 	}
 
 	/** Adds multiple assets at once */
-	// UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
+	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
 	void AddBundleAssets(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
 
 	/** A fast set of asset bundle assets, will destroy copied in path list */
-	// UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
+	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
 	void SetBundleAssets(FName BundleName, TArray<FSoftObjectPath>&& AssetPaths);
 
 	/** Adds or updates an entry with the given BundleName -> Path.*/
