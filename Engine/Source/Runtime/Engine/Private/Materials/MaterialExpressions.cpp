@@ -8777,12 +8777,6 @@ bool UMaterialExpressionChannelMaskParameter::SetParameterValue(FName InParamete
 			SendPostEditChangeProperty(this, TEXT("MaskChannel"));
 		}
 
-		// Update caption and preview
-		if (GraphNode)
-		{
-			CastChecked<UMaterialGraphNode>(GraphNode)->RecreateAndLinkNode();
-		}
-
 		return true;
 	}
 
