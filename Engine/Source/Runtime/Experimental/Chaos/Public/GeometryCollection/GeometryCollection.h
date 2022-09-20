@@ -31,7 +31,7 @@ class CHAOS_API FGeometryCollection : public FTransformCollection,
 {
 
 public:
-	FGeometryCollection();
+	FGeometryCollection(FClassType InType = {});
 	FGeometryCollection(FGeometryCollection &) = delete;
 	FGeometryCollection& operator=(const FGeometryCollection &) = delete;
 	FGeometryCollection(FGeometryCollection &&) = default;
@@ -125,6 +125,9 @@ public:
 	//
 	//
 	//
+
+	/** Type name for this class. */
+	static FName StaticType() { return FName("FGeometryCollection"); }
 
 	/**
 	 * Create a GeometryCollection from Vertex and Indices arrays

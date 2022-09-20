@@ -11,11 +11,12 @@ DEFINE_LOG_CATEGORY_STATIC(FManagedArrayCollectionLogging, NoLogging, All);
 int8 FManagedArrayCollection::Invalid = INDEX_NONE;
 
 
-FManagedArrayCollection::FManagedArrayCollection()
+FManagedArrayCollection::FManagedArrayCollection(FClassType InType)
+	: ClassType(InType)
 {
+	ClassType.Add(FManagedArrayCollection::StaticType());
 	Version = 9;
 }
-
 
 void FManagedArrayCollection::AddGroup(FName Group)
 {

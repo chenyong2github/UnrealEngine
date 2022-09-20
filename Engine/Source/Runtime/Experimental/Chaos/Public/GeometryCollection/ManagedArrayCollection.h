@@ -47,7 +47,10 @@ struct CHAOS_API FManagedArrayCollection
 	friend FSimulationProperties;
 
 public:
-	FManagedArrayCollection();
+	typedef TSet<FName> FClassType;
+
+
+	FManagedArrayCollection(FClassType InType = {});
 	virtual ~FManagedArrayCollection() {}
 
 	FManagedArrayCollection(const FManagedArrayCollection& In) { In.CopyTo(this); }
@@ -57,7 +60,6 @@ public:
 
 	static int8 Invalid;
 	typedef EManagedArrayType EArrayType;
-
 	/**
 	*
 	*/
@@ -96,6 +98,20 @@ public:
 		TManagedType(FName InName, FName InGroup) :
 			FManagedType(ManagedArrayType<T>(), InName, InGroup) {}			
 	};
+
+	/**
+	* Type name for this class.
+	*/
+	static FName StaticType() { return FName("FManagedArrayCollection"); }
+
+	template<class T>
+	bool IsA() { return ClassType.Contains(T::StaticType())?true:false; }
+
+	template<class T>
+	T* Cast() { return ClassType.Contains(T::StaticType())?static_cast<T*>(this):nullptr; }
+
+	template<class T>
+	const T* Cast() const { return ClassType.Contains(T::StaticType()) ? static_cast<const T*>(this) : nullptr; }
 
 	/**
 	* Add an attribute of Type(T) to the group
@@ -594,6 +610,7 @@ private:
 
 	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) {};
 
+	FClassType ClassType;
 	TMap< FKeyType, FValueType> Map;	//data is owned by the map explicitly
 	TMap< FName, FGroupInfo> GroupInfo;
 	bool bDirty;
