@@ -268,7 +268,7 @@ namespace BlackmagicMediaPlayerHelpers
 
 				if (InFrameInfo.VideoBuffer)
 				{
-					const bool bIsProgressivePicture = InFrameInfo.FieldDominance != BlackmagicDesign::EFieldDominance::Interlaced;
+					const bool bIsProgressivePicture = InFrameInfo.FieldDominance == BlackmagicDesign::EFieldDominance::Progressive;
 					EMediaTextureSampleFormat SampleFormat = EMediaTextureSampleFormat::CharBGRA;
 					EMediaIOCoreEncodePixelFormat EncodePixelFormat = EMediaIOCoreEncodePixelFormat::CharUYVY;
 					FString OutputFilename = "";
