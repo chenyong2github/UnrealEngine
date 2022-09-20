@@ -92,6 +92,7 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImagePassBase : public U
 public:
 	UMoviePipelineImagePassBase()
 		: UMoviePipelineRenderPass()
+		, bAllowCameraAspectRatio(true)
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("ImagePassBase");
 	}
@@ -103,6 +104,8 @@ protected:
 	// UMoviePipelineRenderPass API
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
+	virtual void WaitUntilTasksComplete() override;
 	virtual void TeardownImpl() override;
 	// ~UMovieRenderPassAPI
 
@@ -125,23 +128,35 @@ protected:
 	virtual bool IsAntiAliasingSupported() const { return true; }
 	virtual int32 GetOutputFileSortingOrder() const { return -1; }
 	virtual FSceneViewStateInterface* GetSceneViewStateInterface(IViewCalcPayload* OptPayload = nullptr) { return ViewState.GetReference(); }
-	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload = nullptr) const { return TileRenderTarget.Get(); }
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) { }
 	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const { return true; }
 	virtual FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
 	virtual UE::MoviePipeline::FImagePassCameraViewData GetCameraInfo(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr) const;
+
+	virtual TWeakObjectPtr<UTextureRenderTarget2D> GetOrCreateViewRenderTarget(const FIntPoint& InSize, IViewCalcPayload* OptPayload = nullptr);
+	virtual TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> GetOrCreateSurfaceQueue(const FIntPoint& InSize, IViewCalcPayload* OptPayload = nullptr);
+
+	virtual TWeakObjectPtr<UTextureRenderTarget2D> CreateViewRenderTargetImpl(const FIntPoint& InSize, IViewCalcPayload* OptPayload = nullptr) const;
+	virtual TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> CreateSurfaceQueueImpl(const FIntPoint& InSize, IViewCalcPayload* OptPayload = nullptr) const;
+
+	UE_DEPRECATED(5.1, "GetViewRenderTarget is deprecated, please use GetOrCreateViewRenderTarget")
+	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload = nullptr) const { return nullptr; }
+
 public:
 	
 
 protected:
 	/** A temporary render target that we render the view to. */
-	TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
+	TMap<FIntPoint, TWeakObjectPtr<UTextureRenderTarget2D>> TileRenderTargets;
 
 	/** The history for the view */
 	FSceneViewStateReference ViewState;
 
 	/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
-	TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
+	TMap<FIntPoint, TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>> SurfaceQueues;
+
+	/** Some render passes may ignore the aspect ratio of the camera. */
+	bool bAllowCameraAspectRatio;
 
 	FMoviePipelinePassIdentifier PassIdentifier;
 

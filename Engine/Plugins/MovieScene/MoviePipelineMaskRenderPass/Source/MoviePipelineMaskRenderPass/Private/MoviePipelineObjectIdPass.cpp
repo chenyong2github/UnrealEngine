@@ -119,6 +119,27 @@ UMoviePipelineObjectIdRenderPass::UMoviePipelineObjectIdRenderPass()
 	}
 }
 
+TWeakObjectPtr<UTextureRenderTarget2D> UMoviePipelineObjectIdRenderPass::CreateViewRenderTargetImpl(const FIntPoint& InSize, IViewCalcPayload* OptPayload) const
+{
+	// Crete the render target with the correct bit depth.
+	TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
+	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	// Ensure there's no gamma in the RT otherwise the HitProxy color ids don't round trip properly.
+	TileRenderTarget->TargetGamma = 0.f;
+	TileRenderTarget->InitCustomFormat(InSize.X, InSize.Y, EPixelFormat::PF_B8G8R8A8, true);
+	TileRenderTarget->AddToRoot();
+
+	return TileRenderTarget;
+}
+
+TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> UMoviePipelineObjectIdRenderPass::CreateSurfaceQueueImpl(const FIntPoint& InSize, IViewCalcPayload* OptPayload) const
+{
+	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(InSize, EPixelFormat::PF_B8G8R8A8, 3, false);
+
+	return SurfaceQueue;
+}
+
 void UMoviePipelineObjectIdRenderPass::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
 	// Don't call the super which adds the generic PassIdentifier, which in this case is numberless and incorrect for the final output spec.
@@ -130,17 +151,11 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 {
 	Super::SetupImpl(InPassInitSettings);
 
-	// Re-initialize the render target with the correct bit depth.
-	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
-	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-	// Ensure there's no gamma in the RT otherwise the HitProxy color ids don't round trip properly.
-	TileRenderTarget->TargetGamma = 0.f;
-	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_B8G8R8A8, true);
-	TileRenderTarget->AddToRoot();
+	// Re-initialize the render target and surface queue
+	GetOrCreateViewRenderTarget(InPassInitSettings.BackbufferResolution);
+	GetOrCreateSurfaceQueue(InPassInitSettings.BackbufferResolution);
 
 	AccumulatorPool = MakeShared<TAccumulatorPool<FMaskOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_B8G8R8A8, 3, false);
 
 	UE::MoviePipeline::FObjectIdAccelerationData AccelData = UE::MoviePipeline::FObjectIdAccelerationData();
 
@@ -167,21 +182,7 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 
 void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 {
-	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
-	if (SurfaceQueue.IsValid())
-	{
-		SurfaceQueue->Shutdown();
-	}
-
-	// Stall until the task graph has completed any pending accumulations.
-	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
-	OutstandingTasks.Reset();
 	ManifestAnnotation.RemoveAnnotation(this);
-
-	if (TileRenderTarget.IsValid())
-	{
-		TileRenderTarget->RemoveFromRoot();
-	}
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();
@@ -303,21 +304,21 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 		return;
 	}
 
+	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
 	Super::RenderSample_GameThreadImpl(InSampleState);
 
 	FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
 
-	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
-		SurfaceQueue->BlockUntilAnyAvailable();
-	}
-	
 	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
 	
 	// Submit to be rendered. Main render pass always uses target 0. We do this before making the Hitproxy cache because
 	// BeginRenderingViewFamily ensures render state for things are created.
-	FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+	TWeakObjectPtr<UTextureRenderTarget2D> ViewRenderTarget = GetOrCreateViewRenderTarget(InSampleState.BackbufferSize);
+	check(ViewRenderTarget.IsValid());
+
+	FRenderTarget* RenderTarget = ViewRenderTarget->GameThread_GetRenderTargetResource();
+	check(RenderTarget);
+
 	FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ViewFamily->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
@@ -490,7 +491,7 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 			this->OutstandingTasks.Add(Event);
 		};
 
-		TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
+		TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> LocalSurfaceQueue = GetOrCreateSurfaceQueue(InSampleState.BackbufferSize, (IViewCalcPayload*)(&FramePayload.Get()));
 
 		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
 			[LocalSurfaceQueue, FramePayload, Callback, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable

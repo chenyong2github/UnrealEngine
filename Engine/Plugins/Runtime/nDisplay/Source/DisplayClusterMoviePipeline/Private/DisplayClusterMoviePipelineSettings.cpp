@@ -16,7 +16,7 @@ ADisplayClusterRootActor* UDisplayClusterMoviePipelineSettings::GetRootActor(con
 		{
 			if (ADisplayClusterRootActor* RootActorPtr = RootActorRef.Get())
 			{
-				if (!DCRootActor.IsValid() || RootActorPtr->GetFName() == DCRootActor->GetFName())
+				if (!Configuration.DCRootActor.IsValid() || RootActorPtr->GetFName() == Configuration.DCRootActor->GetFName())
 				{
 					return RootActorPtr;
 				}
@@ -27,8 +27,11 @@ ADisplayClusterRootActor* UDisplayClusterMoviePipelineSettings::GetRootActor(con
 	return nullptr;
 }
 
-bool UDisplayClusterMoviePipelineSettings::GetViewports(const UWorld* InWorld, TArray<FString>& OutViewports) const
+bool UDisplayClusterMoviePipelineSettings::GetViewports(const UWorld* InWorld, TArray<FString>& OutViewports, TArray<FIntPoint>& OutViewportResolutions) const
 {
+	// When DCRA not selected we get first suitable actor from scene, but always render all viewports
+	const bool bForceRenderAllViewports = !Configuration.DCRootActor.IsValid() || Configuration.bRenderAllViewports;
+
 	if (ADisplayClusterRootActor* RootActorPtr = GetRootActor(InWorld))
 	{
 		if (const UDisplayClusterConfigurationData* InConfigurationData = RootActorPtr->GetConfigData())
@@ -47,9 +50,14 @@ bool UDisplayClusterMoviePipelineSettings::GetViewports(const UWorld* InWorld, T
 								if (InConfigurationViewport->bAllowRendering)
 								{
 									const FString& InViewportId = InConfigurationViewportIt.Key;
-									if (bRenderAllViewports || AllowedViewportNamesList.Find(InViewportId) != INDEX_NONE)
+									if (bForceRenderAllViewports || Configuration.AllowedViewportNamesList.Find(InViewportId) != INDEX_NONE)
 									{
 										OutViewports.Add(InViewportId);
+
+										if (Configuration.bUseViewportResolutions)
+										{
+											OutViewportResolutions.Add(InConfigurationViewportIt.Value->Region.ToRect().Size());
+										}
 									}
 								}
 							}

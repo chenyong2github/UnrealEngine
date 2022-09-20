@@ -121,7 +121,6 @@ protected:
 	virtual int32 GetOutputFileSortingOrder() const override { return 1; }
 	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return false; }
 	virtual FSceneViewStateInterface* GetSceneViewStateInterface(IViewCalcPayload* OptPayload) override;
-	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload) const override;
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) override;
 	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const override { return false; }
 	virtual FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr) override;
@@ -132,7 +131,9 @@ protected:
 	// ~FGCObject Interface
 
 	void ScheduleReadbackAndAccumulation(const FMoviePipelineRenderPassMetrics& InSampleState, const FPanoPane& InPane, FCanvas& InCanvas);
-	void GetFieldOfView(float& OutHorizontal, float& OutVertical, const bool bInStereo);
+	void GetFieldOfView(float& OutHorizontal, float& OutVertical, const bool bInStereo) const;
+	FIntPoint GetPaneResolution(const FIntPoint& InSize) const;
+
 public:
 
 	/**
@@ -181,16 +182,12 @@ public:
 
 protected:
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
-	FIntPoint PaneResolution;
 
 	// ToDo: One per high-res tile per pano-pane?
 	TArray<FSceneViewStateReference> OptionalPaneViewStates;
 
 	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
-
-	UPROPERTY(Transient, DuplicateTransient)
-	TObjectPtr<UTextureRenderTarget2D> CanvasReadbackTexture;
 
 	TSharedPtr<MoviePipeline::IMoviePipelineOutputMerger> PanoramicOutputBlender;
 	bool bHasWarnedSettings;

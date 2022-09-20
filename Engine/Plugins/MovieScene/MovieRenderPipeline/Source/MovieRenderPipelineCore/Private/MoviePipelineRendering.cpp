@@ -362,12 +362,6 @@ void UMoviePipeline::RenderFrame()
 					SpatialShiftY = r * FMath::Sin(Theta);
 				}
 
-				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt((float)OutputResolution.X / (float)OriginalTileCount.X), FMath::CeilToInt((float)OutputResolution.Y / (float)OriginalTileCount.Y));
-				FIntPoint TileResolution = BackbufferResolution;
-
-				// Apply size padding.
-				BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
-
 				// We take all of the information needed to render a single sample and package it into a struct.
 				FMoviePipelineRenderPassMetrics SampleState;
 				SampleState.FrameIndex = FrameIndex;
@@ -377,37 +371,29 @@ void UMoviePipeline::RenderFrame()
 				SampleState.SceneCaptureSource = (ColorSettings && ColorSettings->bDisableToneCurve) ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
 				SampleState.OutputState.CameraIndex = 0; // Initialize to a sane default for non multi-cam passes.
-				SampleState.ProjectionMatrixJitterAmount = FVector2D((float)(SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)SpatialShiftY * -2.0f / BackbufferResolution.Y);
 				SampleState.TileIndexes = FIntPoint(TileX, TileY);
 				SampleState.TileCounts = TileCount;
+				SampleState.OriginalTileCounts = OriginalTileCount;
+				SampleState.SpatialShiftX = SpatialShiftX;
+				SampleState.SpatialShiftY = SpatialShiftY;
 				SampleState.bDiscardResult = CachedOutputState.bDiscardRenderResult;
 				SampleState.SpatialSampleIndex = SpatialSampleIndex;
 				SampleState.SpatialSampleCount = NumSpatialSamples;
 				SampleState.TemporalSampleIndex = CachedOutputState.TemporalSampleIndex;
 				SampleState.TemporalSampleCount = AntiAliasingSettings->TemporalSampleCount;
 				SampleState.AccumulationGamma = AntiAliasingSettings->AccumulationGamma;
-				SampleState.BackbufferSize = BackbufferResolution;
-				SampleState.TileSize = TileResolution;
 				SampleState.FrameInfo = FrameInfo;
 				SampleState.bWriteSampleToDisk = bWriteAllSamples;
 				SampleState.TextureSharpnessBias = HighResSettings->TextureSharpnessBias;
 				SampleState.OCIOConfiguration = ColorSettings ? &ColorSettings->OCIOConfiguration : nullptr;
 				SampleState.GlobalScreenPercentageFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();
-				{
-					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapRatio), 
-														   FMath::CeilToInt(TileResolution.Y * HighResSettings->OverlapRatio));
-					SampleState.OverlappedOffset = FIntPoint(TileX * TileResolution.X - SampleState.OverlappedPad.X,
-															  TileY * TileResolution.Y - SampleState.OverlappedPad.Y);
-
-					// Move the final render by this much in the accumulator to counteract the offset put into the view matrix.
-					// Note that when bAllowSpatialJitter is false, SpatialShiftX/Y will always be zero.
-					SampleState.OverlappedSubpixelShift = FVector2D(0.5f - SpatialShiftX, 0.5f - SpatialShiftY);
-				}
 				SampleState.OverscanPercentage = FMath::Clamp(CameraSettings->OverscanPercentage, 0.0f, 1.0f);
+
 				// Render each output pass
+				FMoviePipelineRenderPassMetrics SampleStateForCurrentResolution = UE::MoviePipeline::GetRenderPassMetrics(GetPipelineMasterConfig(), ActiveShotList[CurrentShotIndex], SampleState, OutputResolution);
 				for (UMoviePipelineRenderPass* RenderPass : InputBuffers)
 				{
-					RenderPass->RenderSample_GameThread(SampleState);
+					RenderPass->RenderSample_GameThread(SampleStateForCurrentResolution);
 				}
 			}
 		}

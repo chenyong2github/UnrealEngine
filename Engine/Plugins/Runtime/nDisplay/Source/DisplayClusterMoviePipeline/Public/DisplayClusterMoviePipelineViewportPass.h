@@ -24,17 +24,8 @@ class DISPLAYCLUSTERMOVIEPIPELINE_API UDisplayClusterMoviePipelineViewportPassBa
 	};
 
 public:
-	UDisplayClusterMoviePipelineViewportPassBase()
-		: UMoviePipelineDeferredPassBase(), RenderPassName(TEXT("nDisplayLit"))
-	{
-		PassIdentifier = FMoviePipelinePassIdentifier(RenderPassName);
-	}
-
-	UDisplayClusterMoviePipelineViewportPassBase(const FString& InRenderPassName)
-		: UMoviePipelineDeferredPassBase(), RenderPassName(InRenderPassName)
-	{
-		PassIdentifier = FMoviePipelinePassIdentifier(RenderPassName);
-	}
+	UDisplayClusterMoviePipelineViewportPassBase(const FString& InRenderPassName);
+	UDisplayClusterMoviePipelineViewportPassBase() : UDisplayClusterMoviePipelineViewportPassBase(TEXT("nDisplayLit")) { }
 
 public:
 	// UMoviePipelineDeferredPassBase
@@ -51,6 +42,8 @@ public:
 
 	virtual UE::MoviePipeline::FImagePassCameraViewData GetCameraInfo(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr) const override;
 	virtual void BlendPostProcessSettings(FSceneView* InView, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr) override;
+
+	virtual FIntPoint GetEffectiveOutputResolutionForCamera(const int32 InCameraIndex) const override;
 	// ~UMoviePipelineDeferredPassBase
 
 #if WITH_EDITOR
@@ -85,6 +78,7 @@ private:
 
 	// Names of viewports to render in the current shot
 	TArray<FString> DisplayClusterViewports;
+	TArray<FIntPoint> DisplayClusterViewportSizes;
 
 	// Cache view info for viewports
 	TMap<int32, FDisplayClusterViewInfo> DCViews;

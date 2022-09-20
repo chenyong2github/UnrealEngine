@@ -63,6 +63,29 @@ UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase()
 	bUse32BitPostProcessMaterials = false;
 }
 
+FIntPoint UMoviePipelineDeferredPassBase::GetEffectiveOutputResolutionForCamera(const int32 InCameraIndex) const
+{
+	// Add here the the output resolution for each camera. Now only one size is implemented, obtained from the settings.
+
+	UMoviePipelineMasterConfig* MasterConfig = GetPipeline()->GetPipelineMasterConfig();
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+
+	const FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(MasterConfig, CurrentShot);
+
+	return OutputResolution;
+}
+
+FMoviePipelineRenderPassMetrics UMoviePipelineDeferredPassBase::GetRenderPassMetricsForCamera(const int32 InCameraIndex, const FMoviePipelineRenderPassMetrics& InSampleState) const
+{
+	// Add per-camera custom backbuffer size support here.
+	UMoviePipelineMasterConfig* MasterConfig = GetPipeline()->GetPipelineMasterConfig();
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	check(MasterConfig);
+	check(CurrentShot);
+
+	return UE::MoviePipeline::GetRenderPassMetrics(MasterConfig, CurrentShot, InSampleState, GetEffectiveOutputResolutionForCamera(InCameraIndex));
+}
+
 int32 UMoviePipelineDeferredPassBase::GetNumCamerasToRender() const
 {
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
@@ -101,31 +124,6 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	Super::SetupImpl(InPassInitSettings);
 	LLM_SCOPE_BYNAME(TEXT("MoviePipeline/DeferredPassSetup"));
 
-	// [0] is FinalImage, [1] is Default Layer, [1+] is Stencil Layers. Not used by post processing materials
-	// Render Target that the GBuffer is copied to
-	int32 NumRenderTargets = (bAddDefaultLayer ? 1 : 0) + GetNumStencilLayers() + 1;
-	for (int32 Index = 0; Index < NumRenderTargets; Index++)
-	{
-		UTextureRenderTarget2D* NewTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
-		NewTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-		// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
-		NewTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
-
-		// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
-		// We use this render target to render to via a display extension that utilizes Display Gamma
-		// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
-		NewTarget->TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
-
-		TileRenderTargets.Add(NewTarget);
-	}
-
-
-	if (GetPipeline()->GetPreviewTexture() == nullptr)
-	{
-		GetPipeline()->SetPreviewTexture(TileRenderTargets[0]);
-	}
-
 	{
 		TSoftObjectPtr<UMaterialInterface> StencilMatRef = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(StencilLayerMaterialAsset));
 		StencilLayerMaterial = StencilMatRef.LoadSynchronous();
@@ -147,8 +145,6 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 		}
 	}
 
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
-
 	// Create a view state. Each individual camera, tile, and stencil layer need their own unique state as this includes visual history for anti-aliasing, etc. 
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
 	UMoviePipelineHighResSetting* HighResSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineHighResSetting>(CurrentShot);
@@ -157,6 +153,10 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	int32 TotalNumberOfAccumulators = 0;
 	for (int32 CamIndex = 0; CamIndex < NumCameras; CamIndex++)
 	{
+		// Re-initialize the render target and surface queue for the current camera
+		GetOrCreateViewRenderTarget(GetEffectiveOutputResolutionForCamera(CamIndex));
+		CreateSurfaceQueueImpl(GetEffectiveOutputResolutionForCamera(CamIndex));
+
 		FMultiCameraViewStateData& CameraData = CameraViewStateData.AddDefaulted_GetRef();
 
 		// We don't always want to allocate a unique history per tile as very large resolutions can OOM the GPU in backbuffer images alone.
@@ -265,18 +265,6 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 
 void UMoviePipelineDeferredPassBase::TeardownImpl()
 {
-	GetPipeline()->SetPreviewTexture(nullptr);
-
-	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
-	if (SurfaceQueue.IsValid())
-	{
-		SurfaceQueue->Shutdown();
-	}
-
-	// Stall until the task graph has completed any pending accumulations.
-	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
-	OutstandingTasks.Reset();
-
 	ActivePostProcessMaterials.Reset();
 
 	for (FMultiCameraViewStateData& CameraData : CameraViewStateData)
@@ -295,7 +283,6 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 		}
 	}
 	CameraViewStateData.Reset();
-	TileRenderTargets.Reset();
 	
 	OCIOSceneViewExtension.Reset();
 	OCIOSceneViewExtension = nullptr;
@@ -382,23 +369,6 @@ FSceneViewStateInterface* UMoviePipelineDeferredPassBase::GetSceneViewStateInter
 	return nullptr;
 }
 
-UTextureRenderTarget2D* UMoviePipelineDeferredPassBase::GetViewRenderTarget(IViewCalcPayload* OptPayload) const
-{
-	return TileRenderTargets[0];
-	UE::MoviePipeline::FDeferredPassRenderStatePayload* Payload = (UE::MoviePipeline::FDeferredPassRenderStatePayload*)OptPayload;
-	check(Payload);
-
-	// ToDo: Is it really necessary to have a unique RT for each render? Only the last one gets shown (right now)
-	// if (CurrentLayerIndex == INDEX_NONE)
-	// {
-	// 	return TileRenderTargets[0];
-	// }
-	// else
-	// {
-	// 	return TileRenderTargets[CurrentLayerIndex + 1];
-	// }
-}
-
 void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
 	// No super call here because multiple cameras makes this all complicated
@@ -465,13 +435,8 @@ void UMoviePipelineDeferredPassBase::AddViewExtensions(FSceneViewFamilyContext& 
 
 void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
-	Super::RenderSample_GameThreadImpl(InSampleState);
-
 	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
-		SurfaceQueue->BlockUntilAnyAvailable();
-	}
+	Super::RenderSample_GameThreadImpl(InSampleState);
 
 	const int32 NumCameras = GetNumCamerasToRender();
 	for (int32 CameraIndex = 0; CameraIndex < NumCameras; CameraIndex++)
@@ -483,7 +448,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		// Main Render Pass
 		if (bRenderMainPass)
 		{
-			FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+			FMoviePipelineRenderPassMetrics InOutSampleState = GetRenderPassMetricsForCamera(CameraIndex, InSampleState);
 			// InOutSampleState.OutputState.CameraCount = NumCameras;
 			InOutSampleState.OutputState.CameraIndex = CameraIndex;
 			InOutSampleState.OutputState.CameraNameOverride = GetCameraNameOverride(CameraIndex);
@@ -530,7 +495,12 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 			View->FinalPostProcessSettings.bBufferVisualizationDumpRequired = NumValidMaterials > 0;
 
 			// Submit to be rendered. Main render pass always uses target 0.
-			FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+			TWeakObjectPtr<UTextureRenderTarget2D> ViewRenderTarget = GetOrCreateViewRenderTarget(InOutSampleState.BackbufferSize, (IViewCalcPayload*)(&Payload));
+			check(ViewRenderTarget.IsValid());
+
+			FRenderTarget* RenderTarget = ViewRenderTarget->GameThread_GetRenderTargetResource();
+			check(RenderTarget);
+
 			FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), View->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
 			GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
@@ -541,7 +511,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 
 		// Now do the stencil layer submission (which doesn't support additional post processing materials)
 		{
-			FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+			FMoviePipelineRenderPassMetrics InOutSampleState = GetRenderPassMetricsForCamera(CameraIndex, InSampleState);
 			InOutSampleState.OutputState.CameraIndex = CameraIndex;
 			InOutSampleState.OutputState.CameraNameOverride = GetCameraNameOverride(CameraIndex);
 
@@ -652,7 +622,12 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 					BlendableInterface->OverrideBlendableSettings(*View, 1.f);
 
 					{
-						FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+						TWeakObjectPtr<UTextureRenderTarget2D> ViewRenderTarget = GetOrCreateViewRenderTarget(InOutSampleState.BackbufferSize, (IViewCalcPayload*)(&Payload));
+						check(ViewRenderTarget.IsValid());
+
+						FRenderTarget* RenderTarget = ViewRenderTarget->GameThread_GetRenderTargetResource();
+						check(RenderTarget);
+
 						FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), View->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
 						GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
@@ -684,7 +659,6 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
 		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, InPassIdentifier);
 	}
-	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 	FramePayload->PassIdentifier = InPassIdentifier;
@@ -872,12 +846,14 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		check(OutputSettings);
 		
 		// Taking overscan into account.
-		FIntPoint FullOutputSize = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipeline()->GetPipelineMasterConfig(), GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()]);
+		const FIntPoint FullOutputSize = InSampleState.EffectiveOutputResolution;
 
-		float OutputSizeAspectRatio = FullOutputSize.X / (float)FullOutputSize.Y;
-		const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > OutputSizeAspectRatio ?
-			FIntPoint(FullOutputSize.X, FMath::CeilToInt((double)FullOutputSize.X / (double)CameraCache.AspectRatio)) :
-			FIntPoint(FMath::CeilToInt(CameraCache.AspectRatio * FullOutputSize.Y), FullOutputSize.Y);
+		const float OutputSizeAspectRatio = FullOutputSize.X / (float)FullOutputSize.Y;
+		const float CameraAspectRatio = bAllowCameraAspectRatio ? CameraCache.AspectRatio : OutputSizeAspectRatio;
+
+		const FIntPoint ConstrainedFullSize = CameraAspectRatio > OutputSizeAspectRatio ?
+			FIntPoint(FullOutputSize.X, FMath::CeilToInt((double)FullOutputSize.X / (double)CameraAspectRatio)) :
+			FIntPoint(FMath::CeilToInt(CameraAspectRatio * FullOutputSize.Y), FullOutputSize.Y);
 
 		const FIntPoint TileViewMin = InSampleState.OverlappedOffset;
 		const FIntPoint TileViewMax = TileViewMin + InSampleState.BackbufferSize;
@@ -931,12 +907,13 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
 		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, InPassIdentifier);
 	}
-	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
 
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 	FramePayload->PassIdentifier = InPassIdentifier;
 	FramePayload->SampleState = InSampleState;
 	FramePayload->SortingOrder = InSortingOrder;
+
+	TSharedPtr<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe> LocalSurfaceQueue = GetOrCreateSurfaceQueue(InSampleState.BackbufferSize, (IViewCalcPayload*)(&FramePayload.Get()));
 
 	MoviePipeline::FImageSampleAccumulationArgs AccumulationArgs;
 	{

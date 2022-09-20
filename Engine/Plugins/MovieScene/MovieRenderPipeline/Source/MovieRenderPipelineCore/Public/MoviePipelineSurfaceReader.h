@@ -16,9 +16,10 @@
 * surface until it has been written to, combined with a round-robin of surfaces to avoid stalls.
 */
 struct MOVIERENDERPIPELINECORE_API FMoviePipelineSurfaceReader
+	: public TSharedFromThis<FMoviePipelineSurfaceReader, ESPMode::ThreadSafe>
 {
 	/** Construct a surface reader with the given pixel format and size. This will be the output specification. */
-	FMoviePipelineSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InSurfaceSize, bool bInInvertAlpha);
+	FMoviePipelineSurfaceReader(EPixelFormat InPixelFormat, bool bInInvertAlpha);
 
 	~FMoviePipelineSurfaceReader();
 
@@ -46,12 +47,13 @@ struct MOVIERENDERPIPELINECORE_API FMoviePipelineSurfaceReader
 	* Maps the ReadbackTexture to the CPU (which should have been resolved to before this point) and copies the data over.
 	*/
 	void CopyReadbackTexture_RenderThread(TUniqueFunction<void(TUniquePtr<FImagePixelData>&&)>&& InFunctionCallback, TSharedPtr<FImagePixelDataPayload, ESPMode::ThreadSafe> InFramePayload);
+
 protected:
-
-
+	friend struct FMoviePipelineSurfaceQueue;
 	/** Set up this surface to the specified width/height */
-	void Resize(uint32 Width, uint32 Height);
+	void ResizeImpl(uint32 Width, uint32 Height);
 
+protected:
 	/** Optional event that is triggered when the surface is no longer in use */
 	FEvent* AvailableEvent;
 
@@ -93,11 +95,12 @@ private:
 		UE_NONCOPYABLE(FResolveSurface);
 
 		FResolveSurface(const EPixelFormat InPixelFormat, const FIntPoint InSurfaceSize, const bool bInInvertAlpha)
-			: Surface(InPixelFormat, InSurfaceSize, bInInvertAlpha)
+			: Surface(new FMoviePipelineSurfaceReader(InPixelFormat, bInInvertAlpha))
 		{
+			Surface->ResizeImpl(InSurfaceSize.X, InSurfaceSize.Y);
 		}
 
-		FMoviePipelineSurfaceReader Surface;
+		const TSharedRef<FMoviePipelineSurfaceReader, ESPMode::ThreadSafe> Surface;
 
 		TUniqueFunction<void(TUniquePtr<FImagePixelData>&&)> FunctionCallback;
 		TSharedPtr<FImagePixelDataPayload, ESPMode::ThreadSafe> FunctionPayload;

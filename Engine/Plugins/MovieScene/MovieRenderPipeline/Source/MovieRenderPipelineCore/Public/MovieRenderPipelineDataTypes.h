@@ -894,10 +894,20 @@ public:
 	ESceneCaptureSource SceneCaptureSource;
 
 	/** How many tiles on X and Y are there total. */
+	FIntPoint OriginalTileCounts;
+
+	/** How many tiles on X and Y are there total. */
 	FIntPoint TileCounts;
 
 	/** Of the TileCount, which X/Y Tile is this sample for. */
 	FIntPoint TileIndexes;
+
+	/** SpatialJitter offset X. */
+	float SpatialShiftX;
+
+	/** SpatialJitter offset Y. */
+	float SpatialShiftY;
+
 
 	/** Get a 0-(TileCount-1) version of TileIndex. */
 	FORCEINLINE int32 GetTileIndex() const
@@ -912,6 +922,9 @@ public:
 
 	/** How big is the back buffer for this sample? This is the final target size divided by the number of tiles with padding added. */
 	FIntPoint BackbufferSize;
+
+	/** Full Output image resolution for this shot. */
+	FIntPoint EffectiveOutputResolution;
 
 	/** How big is an individual tile for this sample? This is the final target size divided by the number of tiles (without padding added) */
 	FIntPoint TileSize;

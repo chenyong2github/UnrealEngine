@@ -23,6 +23,7 @@ public:
 
 	void Teardown()
 	{
+		WaitUntilTasksComplete();
 		TeardownImpl();
 	}
 
@@ -52,6 +53,7 @@ protected:
 #endif
 protected:
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) {}
+	virtual void WaitUntilTasksComplete() {}
 	virtual void TeardownImpl() {}
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) {}
 	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) {}

@@ -52,7 +52,6 @@ protected:
 	virtual int32 GetOutputFileSortingOrder() const override { return 0; }
 	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulatorIncludesAlpha; }
 	virtual FSceneViewStateInterface* GetSceneViewStateInterface(IViewCalcPayload* OptPayload = nullptr) override;
-	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload = nullptr) const override;
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) override;
 	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const override;
 	virtual void BlendPostProcessSettings(FSceneView* InView, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
@@ -69,6 +68,9 @@ protected:
 	virtual int32 GetNumCamerasToRender() const;
 	virtual FString GetCameraName(const int32 InCameraIndex) const;
 	virtual FString GetCameraNameOverride(const int32 InCameraIndex) const;
+
+	virtual FMoviePipelineRenderPassMetrics GetRenderPassMetricsForCamera(const int32 InCameraIndex, const FMoviePipelineRenderPassMetrics& InSampleState) const;
+	virtual FIntPoint GetEffectiveOutputResolutionForCamera(const int32 InCameraIndex) const;
 
 	bool IsUsingDataLayers() const;
 	int32 GetNumStencilLayers() const;
@@ -153,9 +155,6 @@ protected:
 
 	UPROPERTY(Transient, DuplicateTransient)
 	TObjectPtr<UMaterialInterface> StencilLayerMaterial;
-
-	UPROPERTY(Transient, DuplicateTransient)
-	TArray<TObjectPtr<UTextureRenderTarget2D>> TileRenderTargets;
 
 	struct FMultiCameraViewStateData
 	{

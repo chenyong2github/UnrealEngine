@@ -20,6 +20,9 @@ namespace DisplayClusterMoviePipelineHelpers
 {
 	static void DisplayClusterWarpBlendImpl_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureRHIRef& RenderTargetRHI, IDisplayClusterViewportManagerProxy* InViewportManagerProxy, const FString& InViewportId, const FIntPoint& OffsetMin, const FIntPoint& OffsetMax)
 	{
+		check(InViewportManagerProxy);
+		check(RenderTargetRHI.IsValid());
+
 		if (InViewportManagerProxy)
 		{
 			if (IDisplayClusterViewportProxy* InViewportProxy = InViewportManagerProxy->FindViewport_RenderThread(InViewportId))
@@ -80,6 +83,15 @@ using namespace DisplayClusterMoviePipelineHelpers;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // UDisplayClusterMoviePipelineViewportPassBase
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+UDisplayClusterMoviePipelineViewportPassBase::UDisplayClusterMoviePipelineViewportPassBase(const FString& InRenderPassName)
+	: UMoviePipelineDeferredPassBase()
+	, RenderPassName(InRenderPassName)
+{
+	PassIdentifier = FMoviePipelinePassIdentifier(RenderPassName);
+
+	bAllowCameraAspectRatio = false;
+}
+
 void UDisplayClusterMoviePipelineViewportPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	InitializeDisplayCluster();
@@ -92,6 +104,21 @@ void UDisplayClusterMoviePipelineViewportPassBase::TeardownImpl()
 	ReleaseDisplayCluster();
 
 	Super::TeardownImpl();
+}
+
+FIntPoint UDisplayClusterMoviePipelineViewportPassBase::GetEffectiveOutputResolutionForCamera(const int32 InCameraIndex) const
+{
+	if (DisplayClusterViewportSizes.IsValidIndex(InCameraIndex))
+	{
+		return DisplayClusterViewportSizes[InCameraIndex];
+	}
+
+	// Use one size from OutputSettings
+	UMoviePipelineMasterConfig* MasterConfig = GetPipeline()->GetPipelineMasterConfig();
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	const FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(MasterConfig, CurrentShot);
+
+	return OutputResolution;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -412,7 +439,7 @@ bool UDisplayClusterMoviePipelineViewportPassBase::InitializeDisplayCluster()
 	UDisplayClusterMoviePipelineSettings* DisplayClusterCSettings = GetPipeline()->FindOrAddSettingForShot<UDisplayClusterMoviePipelineSettings>(CurrentShot);
 
 	// Initialize
-	if (DisplayClusterCSettings && GetRootActor(*DisplayClusterCSettings) && DisplayClusterCSettings->GetViewports(GetWorld(), DisplayClusterViewports))
+	if (DisplayClusterCSettings && GetRootActor(*DisplayClusterCSettings) && DisplayClusterCSettings->GetViewports(GetWorld(), DisplayClusterViewports, DisplayClusterViewportSizes))
 	{
 		bDisplayClusterInitialized = true;
 

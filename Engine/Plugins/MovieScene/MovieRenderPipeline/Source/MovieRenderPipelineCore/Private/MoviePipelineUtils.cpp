@@ -3,6 +3,10 @@
 #include "MoviePipelineUtils.h"
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "MoviePipelineAntiAliasingSetting.h"
+#include "MoviePipelineBlueprintLibrary.h"
+#include "MoviePipelineCameraSetting.h"
+#include "MoviePipelineHighResSetting.h"
 #include "MoviePipelineSetting.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
@@ -17,6 +21,7 @@
 #include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "Math/Halton.h"
 #include "Misc/Paths.h"
 #include "Misc/FrameRate.h"
 #include "MoviePipelineQueue.h"
@@ -895,5 +900,47 @@ namespace UE
 			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/roll"), *CamName), FString::SanitizeFloat(InPrevRot.Roll));
 		}
 
+	}
+}
+namespace UE
+{
+	namespace MoviePipeline
+	{
+		FMoviePipelineRenderPassMetrics GetRenderPassMetrics(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot, const FMoviePipelineRenderPassMetrics& InRenderPassMetrics, const FIntPoint& InEffectiveOutputResolution)
+		{
+			FMoviePipelineRenderPassMetrics OutRenderPassMetrics = InRenderPassMetrics;
+
+			if (InMasterConfig && InPipelineExecutorShot)
+			{
+				const UMoviePipelineHighResSetting* HighResSettings = Cast<const UMoviePipelineHighResSetting>(UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(UMoviePipelineHighResSetting::StaticClass(), InMasterConfig, InPipelineExecutorShot));
+				check(HighResSettings);
+
+				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt((float)InEffectiveOutputResolution.X / (float)InRenderPassMetrics.OriginalTileCounts.X), FMath::CeilToInt((float)InEffectiveOutputResolution.Y / (float)InRenderPassMetrics.OriginalTileCounts.Y));
+				const FIntPoint TileResolution = BackbufferResolution;
+
+				// Apply size padding.
+				BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
+
+
+				OutRenderPassMetrics.TileSize = TileResolution;
+				OutRenderPassMetrics.ProjectionMatrixJitterAmount = FVector2D((float)(InRenderPassMetrics.SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)InRenderPassMetrics.SpatialShiftY * -2.0f / BackbufferResolution.Y);
+
+				OutRenderPassMetrics.BackbufferSize = BackbufferResolution;
+				OutRenderPassMetrics.EffectiveOutputResolution = InEffectiveOutputResolution;
+
+				{
+					OutRenderPassMetrics.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapRatio),
+						FMath::CeilToInt(TileResolution.Y * HighResSettings->OverlapRatio));
+					OutRenderPassMetrics.OverlappedOffset = FIntPoint(InRenderPassMetrics.TileIndexes.X * TileResolution.X - InRenderPassMetrics.OverlappedPad.X,
+						InRenderPassMetrics.TileIndexes.Y * TileResolution.Y - InRenderPassMetrics.OverlappedPad.Y);
+
+					// Move the final render by this much in the accumulator to counteract the offset put into the view matrix.
+					// Note that when bAllowSpatialJitter is false, SpatialShiftX/Y will always be zero.
+					OutRenderPassMetrics.OverlappedSubpixelShift = FVector2D(0.5f - InRenderPassMetrics.SpatialShiftX, 0.5f - InRenderPassMetrics.SpatialShiftY);
+				}
+			}
+
+			return OutRenderPassMetrics;
+		}
 	}
 }
