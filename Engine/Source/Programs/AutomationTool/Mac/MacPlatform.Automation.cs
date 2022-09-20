@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
+using UnrealBuildBase;
 using EpicGames.Core;
 
 public class MacPlatform : Platform
@@ -172,8 +173,13 @@ public class MacPlatform : Platform
 					}
 				}
 			}
-
-			Target.UBTArgs += string.Format(" -architecture={0}", UBTArchitectureParam);
+			
+			// TODO - This needs to be handled in a more graceful way, however for now
+			// when in an installedbuild just leave it to the default arch and don't add anything extra
+			if (!Unreal.IsEngineInstalled())
+			{
+				Target.UBTArgs += string.Format(" -architecture={0}", UBTArchitectureParam);
+			}
 		}
 	}
 
