@@ -174,6 +174,11 @@ void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 	OutMaterials.Add(MaterialInterface ? MaterialInterface : ToRawPtr(Material));
 }
 
+const FVertexFactoryType* UNiagaraRibbonRendererProperties::GetVertexFactoryType() const
+{
+	return &FNiagaraRibbonVertexFactory::StaticType;
+}
+
 bool UNiagaraRibbonRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
 {
 	bool bAnyAdded = Super::PopulateRequiredBindings(InParameterStore);

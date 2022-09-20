@@ -36,6 +36,9 @@ class UParticleModuleTypeDataBase : public UParticleModule
 	// @todo document
 	virtual FParticleEmitterInstance* CreateInstance(UParticleEmitter* InEmitterParent, UParticleSystemComponent* InComponent);
 
+	virtual const FVertexFactoryType* GetVertexFactoryType() const { return nullptr; }
+	virtual EPrimitiveType GetPrimitiveType() const { return PT_TriangleList; }
+
 	/** Cache any desired module pointers inside this type data */
 	virtual void CacheModuleInfo(UParticleEmitter* Emitter) {}
 

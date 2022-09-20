@@ -13,6 +13,7 @@
 #include "Particles/Trail/ParticleModuleTrailSource.h"
 #include "Particles/TypeData/ParticleModuleTypeDataAnimTrail.h"
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
+#include "ParticleBeamTrailVertexFactory.h"
 
 UParticleModuleTrailBase::UParticleModuleTrailBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -237,6 +238,11 @@ FParticleEmitterInstance* UParticleModuleTypeDataRibbon::CreateInstance(UParticl
 	return Instance;
 }
 
+const FVertexFactoryType* UParticleModuleTypeDataRibbon::GetVertexFactoryType() const
+{
+	return &FParticleBeamTrailVertexFactory::StaticType;
+}
+
 /*-----------------------------------------------------------------------------
 	UParticleModuleTypeDataAnimTrail implementation.
 -----------------------------------------------------------------------------*/
@@ -261,4 +267,9 @@ FParticleEmitterInstance* UParticleModuleTypeDataAnimTrail::CreateInstance(UPart
 	check(Instance);
 	Instance->InitParameters(InEmitterParent, InComponent);
 	return Instance;
+}
+
+const FVertexFactoryType* UParticleModuleTypeDataAnimTrail::GetVertexFactoryType() const
+{
+	return &FParticleBeamTrailVertexFactory::StaticType;
 }

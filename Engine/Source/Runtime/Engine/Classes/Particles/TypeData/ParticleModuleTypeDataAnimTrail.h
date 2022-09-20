@@ -81,6 +81,8 @@ class UParticleModuleTypeDataAnimTrail : public UParticleModuleTypeDataBase
 
 	//~ Begin UParticleModuleTypeDataBase Interface
 	virtual FParticleEmitterInstance* CreateInstance(UParticleEmitter* InEmitterParent, UParticleSystemComponent* InComponent) override;
+	virtual const FVertexFactoryType* GetVertexFactoryType() const override;
+	virtual EPrimitiveType GetPrimitiveType() const override { return PT_TriangleStrip; }
 	//~ End UParticleModuleTypeDataBase Interface
 };
 

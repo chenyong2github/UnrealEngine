@@ -334,6 +334,8 @@ public:
 
 	bool AllowScalabilityForLocalPlayerFX()const;
 
+	void PrecachePSOs();
+
 private:
 	bool IsReadyToRunInternal() const;
 

@@ -50,6 +50,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "PipelineStateCache.h"
 #if WITH_EDITOR
 #include "Engine/InterpCurveEdSetup.h"
 #include "ObjectEditorUtils.h"
@@ -2504,6 +2505,8 @@ void UParticleSystem::PostLoad()
 		}
 	}
 
+	PrecachePSOs();
+
 #if WITH_EDITOR
 	// Due to there still being some ways that LODLevel counts get mismatched,
 	// when loading in the editor LOD levels will always be checked and fixed
@@ -2602,6 +2605,77 @@ void UParticleSystem::PostLoad()
 
 	// Set up the SoloTracking...
 	SetupSoloing();
+}
+
+void UParticleSystem::PrecachePSOs()
+{
+	if (!FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		return;
+	}
+
+	struct VFsPerMaterialData
+	{
+		UMaterialInterface* MaterialInterface;
+		EPrimitiveType PrimitiveType;
+		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+	};
+	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
+
+	// No per component emitter materials known at this point in time
+	TArray<UMaterialInterface*> EmptyEmitterMaterials;
+	// Cached array to collect all materials used for LOD level
+	TArray<UMaterialInterface*> Materials;
+
+	for (int32 EmitterIdx = 0; EmitterIdx < Emitters.Num(); ++EmitterIdx)
+	{
+		const UParticleEmitter* Emitter = Emitters[EmitterIdx];
+		if (!Emitter)
+		{
+			continue;
+		}
+
+		for (int32 LodIndex = 0; LodIndex < Emitter->LODLevels.Num(); ++LodIndex)
+		{
+			const UParticleLODLevel* LOD = Emitter->LODLevels[LodIndex];
+			if (LOD && LOD->bEnabled)
+			{
+				const FVertexFactoryType* VFType = LOD->TypeDataModule ? LOD->TypeDataModule->GetVertexFactoryType() : &FParticleSpriteVertexFactory::StaticType;
+				check(VFType);
+				EPrimitiveType PrimitiveType = LOD->TypeDataModule ? LOD->TypeDataModule->GetPrimitiveType() : PT_TriangleList;
+
+				Materials.Empty();
+				LOD->GetUsedMaterials(Materials, NamedMaterialSlots, EmptyEmitterMaterials);
+
+				for (UMaterialInterface* MaterialInterface : Materials)
+				{
+					VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialInterface, PrimitiveType](const VFsPerMaterialData& Other)
+						{
+							return Other.MaterialInterface == MaterialInterface && Other.PrimitiveType == PrimitiveType;
+						});
+					if (VFsPerMaterial == nullptr)
+					{
+						VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
+						VFsPerMaterial->MaterialInterface = MaterialInterface;
+						VFsPerMaterial->PrimitiveType = PrimitiveType;
+					}
+					VFsPerMaterial->VertexFactoryTypes.AddUnique(VFType);
+				}
+			}
+		}
+	}
+
+	FPSOPrecacheParams PreCachePSOParams;
+	PreCachePSOParams.SetMobility(EComponentMobility::Movable);
+
+	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	{
+		if (VFsPerMaterial.MaterialInterface)
+		{
+			PreCachePSOParams.PrimitiveType = VFsPerMaterial.PrimitiveType;
+			VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams);
+		}
+	}
 }
 
 void UParticleSystem::Serialize(FArchive& Ar)
@@ -7643,7 +7717,7 @@ void UParticleLODLevel::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 	{
 		const UParticleModuleTypeDataMesh* MeshTypeData = Cast<UParticleModuleTypeDataMesh>(TypeDataModule);
 
-		if (MeshTypeData && MeshTypeData->Mesh)
+		if (MeshTypeData && MeshTypeData->Mesh && MeshTypeData->Mesh->GetRenderData())
 		{
 			const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->GetRenderData()->LODResources[0];
 

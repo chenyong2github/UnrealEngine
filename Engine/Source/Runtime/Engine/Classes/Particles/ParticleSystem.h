@@ -437,6 +437,8 @@ public:
 
 	//~ End UObject Interface.
 
+	void PrecachePSOs();
+
 	bool CanBePooled()const;
 
 	// @todo document

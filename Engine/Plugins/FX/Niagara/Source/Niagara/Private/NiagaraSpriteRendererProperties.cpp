@@ -119,6 +119,11 @@ void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 	OutMaterials.Add(MaterialInterface ? MaterialInterface : ToRawPtr(Material));
 }
 
+const FVertexFactoryType* UNiagaraSpriteRendererProperties::GetVertexFactoryType() const
+{
+	return NeedsPreciseMotionVectors() ? &FNiagaraSpriteVertexFactoryEx::StaticType : &FNiagaraSpriteVertexFactory::StaticType;
+}
+
 void UNiagaraSpriteRendererProperties::PostLoad()
 {
 	Super::PostLoad();

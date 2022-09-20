@@ -33,6 +33,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectThreadContext.h"
 #include "ShaderCompiler.h"
+#include "PipelineStateCache.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -939,7 +940,70 @@ void UNiagaraSystem::PostLoad()
 		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	PrecachePSOs();
 }
+
+void UNiagaraSystem::PrecachePSOs()
+{
+	if (!FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		return;
+	}
+
+	struct VFsPerMaterialData
+	{
+		UMaterialInterface* MaterialInterface;
+		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+	};
+	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+	{
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
+		if (EmitterData && EmitterHandle.GetIsEnabled())
+		{
+			EmitterData->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
+				{
+					const FVertexFactoryType* VFType = Properties->GetVertexFactoryType();
+					if (VFType == nullptr)
+					{
+						return;
+					}
+
+					// Don't have an instance yet to retrieve the possible material override data from
+					const FNiagaraEmitterInstance* EmitterInstance = nullptr;
+					TArray<UMaterialInterface*> Mats;
+					Properties->GetUsedMaterials(EmitterInstance, Mats);
+
+					for (UMaterialInterface* MaterialInterface : Mats)
+					{
+						VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialInterface](const VFsPerMaterialData& Other) { return Other.MaterialInterface == MaterialInterface; });
+						if (VFsPerMaterial == nullptr)
+						{
+							VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
+							VFsPerMaterial->MaterialInterface = MaterialInterface;
+						}
+						VFsPerMaterial->VertexFactoryTypes.AddUnique(VFType);
+					}
+				}
+			);
+		}
+	}
+
+	FPSOPrecacheParams PreCachePSOParams;
+	PreCachePSOParams.SetMobility(EComponentMobility::Movable);
+
+	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	{
+		if (VFsPerMaterial.MaterialInterface)
+		{
+			VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams);
+		}
+	}
+}
+
 
 #if WITH_EDITORONLY_DATA
 

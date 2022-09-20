@@ -3400,6 +3400,11 @@ FParticleEmitterInstance* UParticleModuleTypeDataMesh::CreateInstance(UParticleE
 	return Instance;
 }
 
+const FVertexFactoryType* UParticleModuleTypeDataMesh::GetVertexFactoryType() const
+{
+	return &FMeshParticleVertexFactory::StaticType;
+}
+
 void UParticleModuleTypeDataMesh::SetToSensibleDefaults(UParticleEmitter* Owner)
 {
 	if ((Mesh == NULL) && GIsEditor )
@@ -4910,6 +4915,10 @@ FParticleEmitterInstance* UParticleModuleTypeDataGpu::CreateInstance(UParticleEm
 	return Instance;
 }
 
+const FVertexFactoryType* UParticleModuleTypeDataGpu::GetVertexFactoryType() const
+{
+	return &FGPUSpriteVertexFactory::StaticType;
+}
 
 /*-----------------------------------------------------------------------------
 	UParticleModulePivotOffset implementation.

@@ -516,6 +516,14 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 				CachedData.bExternalConstantBufferUsed |= NiagaraShader->ExternalConstantBufferParam[i].IsBound() ? BitToSet : 0;
 			}
 			CachedData.bViewUniformBufferUsed |= NiagaraShader->bNeedsViewUniformBuffer;
+
+			// request precache the compute shader
+			{
+				check(NiagaraShader->GetFrequency() == SF_Compute)
+				FRHIShader* RHIShader = GameThreadShaderMap->GetResource()->GetShader(Shader->GetResourceIndex());
+				FRHIComputeShader* RHIComputeShader = static_cast<FRHIComputeShader*>(RHIShader);
+				PipelineStateCache::PrecacheComputePipelineState(RHIComputeShader);
+			}
 		}
 	}
 	else

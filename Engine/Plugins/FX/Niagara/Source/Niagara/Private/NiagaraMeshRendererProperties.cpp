@@ -449,6 +449,11 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 	}
 }
 
+const FVertexFactoryType* UNiagaraMeshRendererProperties::GetVertexFactoryType() const
+{
+	return NeedsPreciseMotionVectors() ? &FNiagaraMeshVertexFactoryEx::StaticType : &FNiagaraMeshVertexFactory::StaticType;
+}
+
 void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
 	TArray<UMaterialInterface*> OrderedMeshMaterials;

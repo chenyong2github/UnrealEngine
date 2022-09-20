@@ -22,6 +22,7 @@
 #include "Particles/ParticleLODLevel.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
 #include "Engine/InterpCurveEdSetup.h"
+#include "ParticleBeamTrailVertexFactory.h"
 
 /*-----------------------------------------------------------------------------
 	Abstract base modules used for categorization.
@@ -693,6 +694,11 @@ FParticleEmitterInstance* UParticleModuleTypeDataBeam2::CreateInstance(UParticle
 	Instance->InitParameters(InEmitterParent, InComponent);
 
 	return Instance;
+}
+
+const FVertexFactoryType* UParticleModuleTypeDataBeam2::GetVertexFactoryType() const
+{
+	return &FParticleBeamTrailVertexFactory::StaticType;
 }
 
 void UParticleModuleTypeDataBeam2::CacheModuleInfo(UParticleEmitter* Emitter)

@@ -224,6 +224,8 @@ class UParticleModuleTypeDataBeam2 : public UParticleModuleTypeDataBase
 	//~ Begin UParticleModuleTypeDataBase Interface
 	virtual FParticleEmitterInstance* CreateInstance(UParticleEmitter* InEmitterParent, UParticleSystemComponent* InComponent) override;
 	virtual void CacheModuleInfo(UParticleEmitter* Emitter) override;
+	virtual const FVertexFactoryType* GetVertexFactoryType() const override;
+	virtual EPrimitiveType GetPrimitiveType() const { return PT_TriangleStrip; }
 	//~ End UParticleModuleTypeDataBase Interface
 
 
