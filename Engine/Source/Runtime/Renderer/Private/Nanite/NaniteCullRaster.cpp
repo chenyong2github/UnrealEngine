@@ -219,6 +219,18 @@ static bool AllowProgrammableRaster(EShaderPlatform ShaderPlatform)
 	return GNaniteAllowProgrammableRaster != 0;
 }
 
+#if WANTS_DRAW_MESH_EVENTS
+static FORCEINLINE const TCHAR* GetRasterMaterialName(const FMaterialRenderProxy* InRasterMaterial, const FMaterialRenderProxy* InFixedFunction)
+{
+	if ((InRasterMaterial == nullptr) || (InRasterMaterial == InFixedFunction))
+	{
+		return TEXT("Fixed Function");
+	}
+
+	return *InRasterMaterial->GetMaterialName();
+}
+#endif
+
 struct FCompactedViewInfo
 {
 	uint32 StartOffset;
@@ -2490,7 +2502,7 @@ FBinningData AddPass_Rasterize(
 		RDG_EVENT_NAME("HW Rasterize"),
 		RasterPassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
+		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, FixedMaterialProxy, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("HW Rasterize"));
 		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
@@ -2509,10 +2521,9 @@ FBinningData AddPass_Rasterize(
 
 		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 		{
-#if WANTS_DRAW_MESH_EVENTS
-			const FMaterialRenderProxy* RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial;
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, HWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
-#endif
+		#if WANTS_DRAW_MESH_EVENTS
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, HWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
+		#endif
 
 			Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 
@@ -2576,17 +2587,16 @@ FBinningData AddPass_Rasterize(
 			RDG_EVENT_NAME("SW Rasterize"),
 			RasterPassParameters,
 			ComputePassFlags,
-			[RasterPassParameters, &RasterizerPasses, &SceneView](FRHIComputeCommandList& RHICmdList)
+			[RasterPassParameters, &RasterizerPasses, &SceneView, FixedMaterialProxy](FRHIComputeCommandList& RHICmdList)
 		{
 			FRasterizePassParameters Parameters = *RasterPassParameters;
 			Parameters.IndirectArgs->MarkResourceAsUsed();
 
 			for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 			{
-#if WANTS_DRAW_MESH_EVENTS
-				const FMaterialRenderProxy* RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial;
-				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
-#endif
+			#if WANTS_DRAW_MESH_EVENTS
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
+			#endif
 
 				Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 
