@@ -440,11 +440,10 @@ bool FTcpMessageTransportConnection::ReceiveMessages()
 			RecvMessageDataRemaining -= BytesRead;
 			if (RecvMessageDataRemaining == 0)
 			{
-				// @todo gmp: move message deserialization into an async task
-				FTcpDeserializedMessage* DeserializedMessage = new FTcpDeserializedMessage(nullptr);
+				TSharedPtr<FTcpDeserializedMessage, ESPMode::ThreadSafe> DeserializedMessage = MakeShareable(new FTcpDeserializedMessage(nullptr));
 				if (DeserializedMessage->Deserialize(RecvMessageData))
 				{
-					Inbox.Enqueue(MakeShareable(DeserializedMessage));
+					Inbox.Enqueue(DeserializedMessage);
 				}
 				RecvMessageData.Reset();
 			}
