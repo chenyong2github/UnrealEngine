@@ -28,6 +28,12 @@ void FMeshProxySettings::PostSerialize(const FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		MaterialSettings.MaterialMergeType = EMaterialMergeType::MaterialMergeType_Simplygon;
+
+		if (bGenerateNaniteEnabledMesh_DEPRECATED)
+		{
+			NaniteSettings.bEnabled = true;
+			NaniteSettings.FallbackPercentTriangles = NaniteProxyTrianglePercent_DEPRECATED / 100.0f;
+		}
 	}
 }
 
@@ -72,6 +78,12 @@ void FMeshMergingSettings::PostSerialize(const FArchive& Ar)
 		{
 			SpecificLOD = ExportSpecificLOD_DEPRECATED;
 			LODSelectionType = EMeshLODSelectionType::SpecificLOD;
+		}
+
+		if (bGenerateNaniteEnabledMesh_DEPRECATED)
+		{
+			NaniteSettings.bEnabled = true;
+			NaniteSettings.FallbackPercentTriangles = NaniteFallbackTrianglePercent_DEPRECATED / 100.0f;
 		}
 	}
 }

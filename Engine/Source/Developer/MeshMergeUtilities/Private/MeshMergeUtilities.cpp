@@ -2920,6 +2920,9 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			StaticMesh->SetLightMapCoordinateIndex(LightMapUVChannel);
 		}
 
+		// Ray tracing support
+		StaticMesh->bSupportRayTracing = InSettings.bSupportRayTracing;
+
 		const bool bContainsImposters = ImposterComponents.Num() > 0;
 		TArray<UMaterialInterface*> ImposterMaterials;
 		FBox ImposterBounds(EForceInit::ForceInit);
@@ -3044,9 +3047,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		StaticMesh->SetLightMapResolution(InSettings.bComputedLightMapResolution ? DataTracker.GetLightMapDimension() : InSettings.TargetLightMapResolution);
 
 		// Nanite settings
-		StaticMesh->NaniteSettings.bEnabled = InSettings.bGenerateNaniteEnabledMesh;
-		StaticMesh->NaniteSettings.FallbackPercentTriangles = InSettings.NaniteFallbackTrianglePercent * 0.01f;
-		StaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
+		StaticMesh->NaniteSettings = InSettings.NaniteSettings;
 
 #if WITH_EDITOR
 		//If we are running the automation test

@@ -202,6 +202,8 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	StaticMesh->SetLightMapResolution(Data->MergeData->InProxySettings.LightMapResolution);
 	StaticMesh->SetLightMapCoordinateIndex(1);
 
+	// Ray tracing support
+	StaticMesh->bSupportRayTracing = Data->MergeData->InProxySettings.bSupportRayTracing;
 
 	FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
 	/*Don't allow the engine to recalculate normals*/
@@ -296,9 +298,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	}
 
 	// Nanite settings
-	StaticMesh->NaniteSettings.bEnabled = Data->MergeData->InProxySettings.bGenerateNaniteEnabledMesh;
-	StaticMesh->NaniteSettings.FallbackPercentTriangles = Data->MergeData->InProxySettings.NaniteProxyTrianglePercent * 0.01f;
-	StaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
+	StaticMesh->NaniteSettings = Data->MergeData->InProxySettings.NaniteSettings;
 
 	//Set the Imported version before calling the build
 	StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
