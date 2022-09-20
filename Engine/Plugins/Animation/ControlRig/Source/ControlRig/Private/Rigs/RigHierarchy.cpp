@@ -2271,9 +2271,13 @@ URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)
 	}
 	else if(bCreateIfNeeded)
 	{
-		 if(!IsGarbageCollecting())
+		 if(ensure(!IsGarbageCollecting()))
 		 {
 			 HierarchyController = NewObject<URigHierarchyController>(this, TEXT("HierarchyController"), RF_Transient);
+			 if(!ensure(IsInGameThread()))
+			 {
+				 HierarchyController->ClearInternalFlags(EInternalObjectFlags::Async);
+			 }
 			 HierarchyController->SetHierarchy(this);
 			 return HierarchyController;
 		 }
