@@ -535,12 +535,11 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 	TestP4.SetProtocol("tag", "");
 	TestP4.SetProtocol("enableStreams", "");
 
-	if (NewServerName.Len() && NewUserName.Len() && NewClientSpecName.Len())
+	if (!NewServerName.IsEmpty())
 	{
-		//attempt connection with given settings
 		TestP4.SetPort(TCHAR_TO_ANSI(*NewServerName));
 
-		if(InConnectionInfo.HostOverride.Len() > 0)
+		if (!InConnectionInfo.HostOverride.IsEmpty())
 		{
 			TestP4.SetHost(TCHAR_TO_ANSI(*InConnectionInfo.HostOverride));
 		}
@@ -566,10 +565,8 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("OwningSystem"), FText::FromString(SCCProvider.GetOwnerName()));
 		Arguments.Add( TEXT("PortName"), FText::FromString(NewServerName) );
-		Arguments.Add( TEXT("UserName"), FText::FromString(NewUserName) );
-		Arguments.Add( TEXT("ClientSpecName"), FText::FromString(NewClientSpecName) );
 		Arguments.Add( TEXT("Ticket"), FText::FromString(InConnectionInfo.Ticket) );
-		SourceControlLog.Error(FText::Format(LOCTEXT("P4ConnectErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
+		SourceControlLog.Error(FText::Format(LOCTEXT("P4ConnectErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, Ticket={Ticket}"), Arguments));
 	}
 
 	// run an info command to determine unicode status
@@ -585,10 +582,8 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("OwningSystem"), FText::FromString(SCCProvider.GetOwnerName()));
 			Arguments.Add( TEXT("PortName"), FText::FromString(NewServerName) );
-			Arguments.Add( TEXT("UserName"), FText::FromString(NewUserName) );
-			Arguments.Add( TEXT("ClientSpecName"), FText::FromString(NewClientSpecName) );
 			Arguments.Add( TEXT("Ticket"), FText::FromString(InConnectionInfo.Ticket) );
-			SourceControlLog.Error(FText::Format(LOCTEXT("P4UnicodeErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
+			SourceControlLog.Error(FText::Format(LOCTEXT("P4UnicodeErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, Ticket={Ticket}"), Arguments));
 		}
 		else
 		{
