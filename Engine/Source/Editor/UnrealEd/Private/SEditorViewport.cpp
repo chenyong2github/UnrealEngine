@@ -20,7 +20,6 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "MaterialShaderQualitySettings.h"
-#include "RHIShaderPlatformDefinitions.inl"
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "GPUSkinCacheVisualizationMenuCommands.h"
 #include "GPUSkinCache.h"
@@ -861,7 +860,7 @@ FText SEditorViewport::GetCurrentFeatureLevelPreviewText(bool bDrawOnlyLabel) co
 		{
 			ERHIFeatureLevel::Type TargetFeatureLevel = World->FeatureLevel;
 			EShaderPlatform ShaderPlatform = GetShaderPlatformHelper(TargetFeatureLevel);
-			const FText& PlatformText = GetFriendlyShaderPlatformName(ShaderPlatform);
+			const FText& PlatformText = FDataDrivenShaderPlatformInfo::GetFriendlyName(ShaderPlatform);
 			LabelName = FText::Format(LOCTEXT("WorldFeatureLevel", "{0}"), PlatformText);
 		}
 	}

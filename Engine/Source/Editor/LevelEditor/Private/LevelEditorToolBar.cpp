@@ -53,7 +53,6 @@
 #include "LauncherPlatformModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "MaterialShaderQualitySettings.h"
-#include "RHIShaderPlatformDefinitions.inl"
 #include "LevelEditorMenuContext.h"
 #include "ToolMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -1415,8 +1414,8 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				EShaderPlatform MaxRHIFeatureLevelPlatform = GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel);
 
 				{
-					const FText& RenderingAsPlatformName = GetFriendlyShaderPlatformName(GEditor->PreviewPlatform.bPreviewFeatureLevelActive ? PreviewShaderPlatform : MaxRHIFeatureLevelPlatform);
-                    const FText& SwitchToPlatformName = GetFriendlyShaderPlatformName(GEditor->PreviewPlatform.bPreviewFeatureLevelActive ? MaxRHIFeatureLevelPlatform : PreviewShaderPlatform);
+					const FText& RenderingAsPlatformName = FDataDrivenShaderPlatformInfo::GetFriendlyName(GEditor->PreviewPlatform.bPreviewFeatureLevelActive ? PreviewShaderPlatform : MaxRHIFeatureLevelPlatform);
+                    const FText& SwitchToPlatformName = FDataDrivenShaderPlatformInfo::GetFriendlyName(GEditor->PreviewPlatform.bPreviewFeatureLevelActive ? MaxRHIFeatureLevelPlatform : PreviewShaderPlatform);
 					if (PreviewShaderPlatform == MaxRHIFeatureLevelPlatform)
 					{
 						return FText::Format(LOCTEXT("PreviewModeViewingAs", "Viewing {0}."), RenderingAsPlatformName);

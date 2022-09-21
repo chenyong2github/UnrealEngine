@@ -3715,16 +3715,29 @@ void FLevelEditorCommands::RegisterCommands()
 	// Add preview platforms
 	for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
 	{
+		EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Item.ShaderPlatformPreview);
+		FText FriendlyName = FDataDrivenShaderPlatformInfo::GetFriendlyName(ShaderPlatform);
+
 		PreviewPlatformOverrides.Add(
 			FUICommandInfoDecl(
 				this->AsShared(),
 				FName(*FString::Printf(TEXT("PreviewPlatformOverrides_%s_%s"), *Item.PlatformName.ToString(), *Item.ShaderFormat.ToString())),
-				Item.MenuText,
+				FriendlyName,
 				Item.MenuTooltip)
 			.UserInterfaceType(EUserInterfaceActionType::Check)
 			.DefaultChord(FInputChord())
 		);
 	}
+
+	PreviewPlatformOverrides.Add(
+		FUICommandInfoDecl(
+			this->AsShared(),
+			FName(TEXT("Disable Preview Command")),
+			NSLOCTEXT("PreviewPlatform", "PreviewMenuText_DisablePreview", "Disable Preview"),
+			NSLOCTEXT("PreviewPlatform", "PreviewMenuTooltip_DisablePreview", "Disable the current Preview Shader Platform"))
+		.UserInterfaceType(EUserInterfaceActionType::Check)
+		.DefaultChord(FInputChord())
+	);
 
 	UI_COMMAND(OpenMergeActor, "Merge Actors", "Opens the Merge Actor panel", EUserInterfaceActionType::Button, FInputChord());
 }

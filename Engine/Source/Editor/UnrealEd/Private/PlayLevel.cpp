@@ -71,7 +71,6 @@
 #include "Slate/SceneViewport.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "RHIShaderPlatformDefinitions.inl"
 
 
 #include "LevelEditor.h"
@@ -3199,7 +3198,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("GameName"), FText::FromString(FString(WindowTitleOverride.IsEmpty() ? FApp::GetProjectName() : WindowTitleOverride.ToString())));
 	Args.Add(TEXT("PlatformBits"), FText::FromString(PlatformBitsString));
-	Args.Add(TEXT("RHIName"), GetFriendlyShaderPlatformName(GetFeatureLevelShaderPlatform(InFeatureLevel)));
+	Args.Add(TEXT("RHIName"), FDataDrivenShaderPlatformInfo::GetFriendlyName(GetFeatureLevelShaderPlatform(InFeatureLevel)));
 	
 	if (InNetMode == PIE_Client)
 	{

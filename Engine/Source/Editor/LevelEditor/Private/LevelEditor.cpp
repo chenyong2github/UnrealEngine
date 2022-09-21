@@ -1787,7 +1787,8 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::IsPreviewModeButtonVisible));
 
 	const TArray<FPreviewPlatformMenuItem>& MenuItems = FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems();
-	check(MenuItems.Num() == Commands.PreviewPlatformOverrides.Num());
+	// We need one extra slot for the Disable Preview option
+	check(MenuItems.Num() + 1 == Commands.PreviewPlatformOverrides.Num());
 
 	for (int32 Index=0; Index < MenuItems.Num(); Index++)
 	{
@@ -1817,6 +1818,16 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 		ActionList.MapAction(
 			Commands.PreviewPlatformOverrides[Index],
+			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, PreviewFeatureLevelInfo),
+			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecutePreviewPlatform, PreviewFeatureLevelInfo),
+			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, PreviewFeatureLevelInfo));
+	}
+
+	// Add the Disable Preview Menu Item
+	{
+		FPreviewPlatformInfo PreviewFeatureLevelInfo(GMaxRHIFeatureLevel, GMaxRHIShaderPlatform, NAME_None, NAME_None, NAME_None, true, NAME_None);
+		ActionList.MapAction(
+			Commands.PreviewPlatformOverrides[MenuItems.Num()],
 			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, PreviewFeatureLevelInfo),
 			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecutePreviewPlatform, PreviewFeatureLevelInfo),
 			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, PreviewFeatureLevelInfo));

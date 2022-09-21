@@ -104,7 +104,6 @@ struct FPreviewPlatformMenuItem
 	FName ActiveIconName;
 	FString InactiveIconPath;
 	FName InactiveIconName;
-	FText MenuText;
 	FText MenuTooltip;
 	FText IconText;
 	FName DeviceProfileName;
