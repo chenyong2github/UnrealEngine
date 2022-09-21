@@ -48,7 +48,7 @@ struct FLightCardAlphaGradientSettings
 	float Angle = 0;
 };
 
-UCLASS(Blueprintable, DisplayName = "Light Card")
+UCLASS(Blueprintable, DisplayName = "Light Card", HideCategories = (Tick, Physics, Collision, Replication, Cooking, Input, Actor))
 class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor, public IDisplayClusterStageActor
 {
 	GENERATED_BODY()
@@ -260,7 +260,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Default")
 	TMap<FName, TObjectPtr<UActorComponent>> ExtenderNameToComponentMap;
 
-	UPROPERTY(VisibleAnywhere, transient, BlueprintReadOnly, Category = "Default")
+	UPROPERTY(transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UDisplayClusterLabelComponent> LabelComponent;
 
 	/** The current owner of the light card */
