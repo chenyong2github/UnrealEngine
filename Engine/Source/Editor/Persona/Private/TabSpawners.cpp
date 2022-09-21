@@ -583,7 +583,7 @@ FPoseWatchManagerSummoner::FPoseWatchManagerSummoner(TSharedPtr<class FBlueprint
 	, BlueprintEditor(InBlueprintEditor)
 {
 	TabLabel = LOCTEXT("PoseWatchManager", "Pose Watch Manager");
-	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimGraph.PoseWatch.Icon");
 	bIsSingleton = true;
 }
 

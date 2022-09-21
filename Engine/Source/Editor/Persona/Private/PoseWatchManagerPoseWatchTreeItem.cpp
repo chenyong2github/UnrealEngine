@@ -95,7 +95,7 @@ private:
 
 	const FSlateBrush* GetIcon() const
 	{
-		return FAppStyle::Get().GetBrush(TEXT("ClassIcon.PoseAsset"));
+		return FAppStyle::Get().GetBrush("AnimGraph.PoseWatch.Icon");
 	}
 
 	const FSlateBrush* GetIconOverlay() const

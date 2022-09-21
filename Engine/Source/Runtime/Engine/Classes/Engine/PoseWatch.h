@@ -428,7 +428,7 @@ protected:
 	FText Label;
 
 	UPROPERTY()
-	FName IconName;
+	FName IconName_DEPRECATED;
 
 	UPROPERTY()
 	TWeakObjectPtr<UPoseWatchFolder> Parent;

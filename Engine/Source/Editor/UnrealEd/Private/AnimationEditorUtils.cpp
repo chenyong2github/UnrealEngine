@@ -974,7 +974,7 @@ namespace AnimationEditorUtils
 		UPoseWatch* NewPoseWatch = NewObject<UPoseWatch>(AnimBlueprint);
 		NewPoseWatch->Node = Node;
 		NewPoseWatch->SetUniqueDefaultLabel();
-		NewPoseWatch->AddElement<UPoseWatchPoseElement>(LOCTEXT("PoseWatchElementLabel_PoseWatch", "Pose Watch"), TEXT("ClassIcon.PoseAsset"));
+		NewPoseWatch->AddElement<UPoseWatchPoseElement>(LOCTEXT("PoseWatchElementLabel_PoseWatch", "Pose Watch"), TEXT("AnimGraph.PoseWatch.Icon"));
 		AnimBlueprint->PoseWatches.Add(NewPoseWatch);
 		SetPoseWatch(NewPoseWatch, AnimBlueprint);
 		return NewPoseWatch;

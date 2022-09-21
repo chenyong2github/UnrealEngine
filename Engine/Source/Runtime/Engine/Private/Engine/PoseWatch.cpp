@@ -477,7 +477,7 @@ UPoseWatchPoseElement::UPoseWatchPoseElement(const FObjectInitializer& ObjectIni
 	ViewportOffset = FVector3d::ZeroVector;
 
 	Label = GetDefaultLabel();
-	SetIconName("ClassIcon.PoseAsset");
+	SetIconName("AnimGraph.PoseWatch.Icon");
 #endif
 }
 
@@ -490,7 +490,7 @@ bool UPoseWatchPoseElement::GetIsEnabled() const
 
 FSlateIcon UPoseWatchPoseElement::StaticGetIcon()
 {
-	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset");
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "AnimGraph.PoseWatch.Icon");
 	return Icon;
 }
 
