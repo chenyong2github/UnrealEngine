@@ -4,6 +4,7 @@
 
 #include "Containers/StringConv.h"
 #include "Containers/StringView.h"
+#include "Misc/QueuedThreadPool.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -122,6 +123,34 @@ bool LoadFromCompactBinary(FCbFieldView Field, EPriority& OutPriority, const EPr
 	}
 	OutPriority = Default;
 	return false;
+}
+
+EQueuedWorkPriority ConvertToQueuedWorkPriority(EPriority Priority)
+{
+	switch (Priority)
+	{
+	case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
+	case EPriority::Highest:  return EQueuedWorkPriority::Highest;
+	case EPriority::High:     return EQueuedWorkPriority::High;
+	case EPriority::Normal:   return EQueuedWorkPriority::Normal;
+	case EPriority::Low:      return EQueuedWorkPriority::Low;
+	case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
+	default: checkNoEntry();  return EQueuedWorkPriority::Normal;
+	}
+}
+
+EPriority ConvertFromQueuedWorkPriority(EQueuedWorkPriority Priority)
+{
+	switch (Priority)
+	{
+	case EQueuedWorkPriority::Blocking: return EPriority::Blocking;
+	case EQueuedWorkPriority::Highest:  return EPriority::Highest;
+	case EQueuedWorkPriority::High:     return EPriority::High;
+	case EQueuedWorkPriority::Normal:   return EPriority::Normal;
+	case EQueuedWorkPriority::Low:      return EPriority::Low;
+	case EQueuedWorkPriority::Lowest:   return EPriority::Lowest;
+	default: checkNoEntry();            return EPriority::Normal;
+	}
 }
 
 FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, EStatus Status) { return Private::StatusToString(Builder, Status); }

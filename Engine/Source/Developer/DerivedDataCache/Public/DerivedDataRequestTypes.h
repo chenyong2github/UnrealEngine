@@ -9,6 +9,7 @@
 
 class FCbFieldView;
 class FCbWriter;
+enum class EQueuedWorkPriority : uint8;
 
 namespace UE::DerivedData
 {
@@ -60,6 +61,11 @@ UE_API bool TryLexFromString(EPriority& OutPriority, FWideStringView String);
 
 UE_API FCbWriter& operator<<(FCbWriter& Writer, EPriority Priority);
 UE_API bool LoadFromCompactBinary(FCbFieldView Field, EPriority& OutPriority, EPriority Default = EPriority::Normal);
+
+/** Converts to a queued work priority. Asserts on invalid priority values. */
+UE_API EQueuedWorkPriority ConvertToQueuedWorkPriority(EPriority Priority);
+/** Converts from a queued work priority. Asserts on invalid priority values. */
+UE_API EPriority ConvertFromQueuedWorkPriority(EQueuedWorkPriority Priority);
 
 /** Status of a request that has completed. */
 enum class EStatus : uint8

@@ -327,21 +327,16 @@ FQueuedThreadPool* GCacheThreadPool;
 class FCacheThreadPoolTaskRequest final : public FRequestBase, private IQueuedWork
 {
 public:
-	inline FCacheThreadPoolTaskRequest(
-		IRequestOwner& InOwner,
-		TUniqueFunction<void ()>&& InTaskBody)
+	inline FCacheThreadPoolTaskRequest(IRequestOwner& InOwner, TUniqueFunction<void ()>&& InTaskBody)
 		: Owner(InOwner)
 		, TaskBody(MoveTemp(InTaskBody))
 	{
-	}
-
-	inline void Start(EPriority Priority)
-	{
 		Owner.Begin(this);
 		DoneEvent.Reset();
-		GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
+		GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
 	}
 
+private:
 	inline void Execute()
 	{
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
@@ -359,7 +354,7 @@ public:
 	{
 		if (GCacheThreadPool->RetractQueuedWork(this))
 		{
-			GCacheThreadPool->AddQueuedWork(this, GetPriority(Priority));
+			GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Priority));
 		}
 	}
 
@@ -395,21 +390,6 @@ public:
 		}
 	}
 
-private:
-	static EQueuedWorkPriority GetPriority(EPriority Priority)
-	{
-		switch (Priority)
-		{
-		case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
-		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
-		case EPriority::High:     return EQueuedWorkPriority::High;
-		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
-		case EPriority::Low:      return EQueuedWorkPriority::Low;
-		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
-		default: checkNoEntry();  return EQueuedWorkPriority::Normal;
-		}
-	}
-
 	// IQueuedWork Interface
 
 	inline void DoThreadedWork() final { Execute(); }
@@ -430,8 +410,7 @@ void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&
 {
 	if (GCacheThreadPool)
 	{
-		FCacheThreadPoolTaskRequest* Request = new FCacheThreadPoolTaskRequest(Owner, MoveTemp(TaskBody));
-		Request->Start(Owner.GetPriority());
+		new FCacheThreadPoolTaskRequest(Owner, MoveTemp(TaskBody));
 	}
 	else
 	{
