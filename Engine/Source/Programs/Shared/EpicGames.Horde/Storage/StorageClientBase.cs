@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -31,10 +32,28 @@ namespace EpicGames.Horde.Storage
 		#region Blobs
 
 		/// <inheritdoc/>
-		public abstract Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default);
+		public abstract Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public abstract Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default);
+		public abstract Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default);
+
+		#endregion
+
+		#region Bundles
+
+		/// <inheritdoc/>
+		public virtual async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			using Stream stream = await ReadBlobAsync(locator, cancellationToken);
+			return await Bundle.FromStreamAsync(stream, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public virtual async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		{
+			using ReadOnlySequenceStream stream = new ReadOnlySequenceStream(bundle.AsSequence());
+			return await WriteBlobAsync(stream, prefix, cancellationToken);
+		}
 
 		#endregion
 

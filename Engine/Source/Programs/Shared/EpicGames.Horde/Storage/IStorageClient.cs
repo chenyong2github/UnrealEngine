@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -90,6 +91,27 @@ namespace EpicGames.Horde.Storage
 	public interface IStorageClient
 	{
 		#region Blobs
+
+		/// <summary>
+		/// Reads data for a blob from the store
+		/// </summary>
+		/// <param name="locator">The blob identifier</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Writes a new blob to the store
+		/// </summary>
+		/// <param name="stream">Blob data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <param name="prefix">Prefix for blob names. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
+		/// <returns>Unique identifier for the blob</returns>
+		Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default);
+
+		#endregion
+
+		#region Bundles
 
 		/// <summary>
 		/// Reads data for a bundle from the store
@@ -200,6 +222,16 @@ namespace EpicGames.Horde.Storage
 			public TypedStorageClient(IStorageClient inner) => _inner = inner;
 
 			#region Blobs
+
+			/// <inheritdoc/>
+			public Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default) => _inner.ReadBlobAsync(locator, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteBlobAsync(stream, prefix, cancellationToken);
+
+			#endregion
+
+			#region Bundles
 
 			/// <inheritdoc/>
 			public Task<Bundle> ReadBundleAsync(BlobLocator id, CancellationToken cancellationToken = default) => _inner.ReadBundleAsync(id, cancellationToken);

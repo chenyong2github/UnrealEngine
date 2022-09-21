@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -42,17 +43,18 @@ namespace EpicGames.Horde.Storage.Backends
 		#region Blobs
 
 		/// <inheritdoc/>
-		public override Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		public override Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(_blobs[locator]);
+			Stream stream = new ReadOnlySequenceStream(_blobs[locator].AsSequence());
+			return Task.FromResult(stream);
 		}
 
 		/// <inheritdoc/>
-		public override Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = BlobLocator.Create(HostId.Empty, prefix);
-			_blobs[locator] = bundle;
-			return Task.FromResult(locator);
+			_blobs[locator] = await Bundle.FromStreamAsync(stream, cancellationToken);
+			return locator;
 		}
 
 		#endregion

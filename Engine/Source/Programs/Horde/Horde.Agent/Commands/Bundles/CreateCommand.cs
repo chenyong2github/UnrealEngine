@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -32,34 +31,27 @@ namespace Horde.Agent.Commands.Bundles
 			FileReference GetRefFile(RefName name) => FileReference.Combine(_rootDir, name.ToString() + ".ref");
 			FileReference GetBlobFile(BlobLocator id) => FileReference.Combine(_rootDir, id.Inner.ToString() + ".blob");
 
-			static async Task WriteAsync(FileReference file, ReadOnlySequence<byte> sequence, CancellationToken cancellationToken)
-			{
-				using (FileStream stream = FileReference.Open(file, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
-				{
-					foreach (ReadOnlyMemory<byte> memory in sequence)
-					{
-						await stream.WriteAsync(memory, cancellationToken);
-					}
-				}
-			}
-
 			#region Blobs
 
-			public override async Task<Bundle> ReadBundleAsync(BlobLocator id, CancellationToken cancellationToken = default)
+			public override Task<Stream> ReadBlobAsync(BlobLocator id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetBlobFile(id);
 				_logger.LogInformation("Reading {File}", file);
-				byte[] bytes = await FileReference.ReadAllBytesAsync(file, cancellationToken);
-				return new Bundle(new MemoryReader(bytes));
+				return Task.FromResult<Stream>(FileReference.Open(file, FileMode.Open, FileAccess.Read));
 			}
 
-			public override async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+			public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
 				BlobLocator id = BlobLocator.Create(HostId.Empty, prefix);
 				FileReference file = GetBlobFile(id);
 				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
-				await WriteAsync(file, bundle.AsSequence(), cancellationToken);
+
+				using (FileStream fileStream = FileReference.Open(file, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+				{
+					await stream.CopyToAsync(fileStream, cancellationToken);
+				}
+
 				return id;
 			}
 

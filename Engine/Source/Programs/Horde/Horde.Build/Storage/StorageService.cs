@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
@@ -72,30 +73,26 @@ namespace Horde.Build.Storage
 
 			#region Blobs
 
-			public override async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+			public override async Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 			{
 				string path = GetBlobPath(locator.BlobId);
 
-				ReadOnlyMemory<byte>? data = await _backend.ReadBytesAsync(path, cancellationToken);
-				if (data == null)
+				Stream? stream = await _backend.ReadAsync(path, cancellationToken);
+				if (stream == null)
 				{
 					throw new StorageException($"Unable to read data from {path}");
 				}
 
-				return new Bundle(new MemoryReader(data.Value));
+				return stream;
 			}
 
 			/// <inheritdoc/>
-			public override async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+			public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
 				BlobId id = BlobId.CreateNew(prefix);
-				string path = GetBlobPath(id);
 
-				ReadOnlySequence<byte> sequence = bundle.AsSequence();
-				using (ReadOnlySequenceStream stream = new ReadOnlySequenceStream(sequence))
-				{
-					await _backend.WriteAsync(path, stream, cancellationToken);
-				}
+				string path = GetBlobPath(id);
+				await _backend.WriteAsync(path, stream, cancellationToken);
 
 				return new BlobLocator(HostId.Empty, id);
 			}

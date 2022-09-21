@@ -103,8 +103,7 @@ namespace Horde.Build.Storage
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 			using (Stream stream = file.OpenReadStream())
 			{
-				Bundle bundle = await Bundle.FromStreamAsync(stream, cancellationToken);
-				BlobLocator locator = await client.WriteBundleAsync(bundle, cancellationToken: cancellationToken);
+				BlobLocator locator = await client.WriteBlobAsync(stream, cancellationToken: cancellationToken);
 				return new WriteBundleResponse { Locator = locator };
 			}
 		}
@@ -125,10 +124,10 @@ namespace Horde.Build.Storage
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			Bundle bundle = await client.ReadBundleAsync(locator, cancellationToken);
+			Stream stream = await client.ReadBlobAsync(locator, cancellationToken);
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
-			return File(new ReadOnlySequenceStream(bundle.AsSequence()), "application/x-ue-bundle");
+			return File(stream, "application/octet-stream");
 #pragma warning restore CA2000 // Dispose objects before losing scope
 		}
 
