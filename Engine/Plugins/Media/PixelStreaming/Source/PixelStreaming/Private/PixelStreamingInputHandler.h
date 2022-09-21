@@ -96,6 +96,22 @@ namespace UE::PixelStreaming
 		FGamepadKeyNames::Type ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis);
 		FGamepadKeyNames::Type ConvertButtonIndexToGamepadButton(uint8 ButtonIndex);
 
+		struct FCachedTouchEvent
+		{
+			FVector2D Location;
+			float Force;
+			int32 ControllerIndex;
+		};
+
+		// Keep a cache of the last touch events as we need to fire Touch Moved every frame while touch is down
+		TMap<int32, FCachedTouchEvent> CachedTouchEvents;
+
+		// Track which touch events we processed this frame so we can avoid re-processing them
+		TSet<int32> TouchIndicesProcessedThisFrame;
+
+		// Sends Touch Moved events for any touch index which is currently down but wasn't already updated this frame
+		void BroadcastActiveTouchMoveEvents();
+
 		void FindFocusedWidget();
 		bool FilterKey(const FKey& Key);
 
