@@ -5,6 +5,7 @@
 
 class UStaticMesh;
 class USkeletalMesh;
+class USkeleton;
 class USkeletalMeshComponent;
 class UGeometryCollection;
 class UMaterialInterface;
@@ -105,6 +106,14 @@ public:
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
 	static bool AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, int32 MaterialStartIndex, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection, bool bReindexMaterials = true);
+
+	/**
+	*  Appends a skeleton mesh to a GeometryCollection.
+	*  @param USkeleton : Const mesh to read vertex/normals/index data from
+	*  @param SkeletalMeshTransform : Mesh transform.
+	*  @param GeometryCollection    : Collection to append the mesh into.
+	*/
+	static void AppendSkeleton(const USkeleton* Skeleton, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection);
 
 	/**
 	*  Appends a skeletal mesh to a GeometryCollectionComponent.

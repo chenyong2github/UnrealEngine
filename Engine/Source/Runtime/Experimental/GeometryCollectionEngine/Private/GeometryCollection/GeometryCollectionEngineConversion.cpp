@@ -10,6 +10,7 @@
 #include "Engine/Selection.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
+#include "GeometryCollection/Facades/CollectionTransformSourceFacade.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -1106,6 +1107,52 @@ bool FGeometryCollectionEngineConversion::AppendSkeletalMesh(const USkeletalMesh
 	}
 
 	return true;
+}
+
+void FGeometryCollectionEngineConversion::AppendSkeleton(const USkeleton* InSkeleton, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection)
+{
+	//UE_LOG(UGeometryCollectionConversionLogging, Log, TEXT("FGeometryCollectionEngineConversion::AppendSkeletalMesh()"));
+	if (!InCollection || !InSkeleton)
+	{
+		return;
+	}
+	FGeometryCollection::DefineTransformSchema(*InCollection);
+	GeometryCollection::Facades::FTransformSource TransformSourceFacade(InCollection);
+
+	TManagedArray<FTransform>& Transform = InCollection->ModifyAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
+	TManagedArray<FLinearColor>& BoneColor = InCollection->ModifyAttribute<FLinearColor>("BoneColor", FTransformCollection::TransformGroup);
+	TManagedArray<FString>& BoneName = InCollection->ModifyAttribute<FString>("BoneName", FTransformCollection::TransformGroup);
+	TManagedArray<int32>& Parent = InCollection->ModifyAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
+	TManagedArray< TSet<int32> >& Child = InCollection->ModifyAttribute< TSet<int32> >(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup);
+
+	const FReferenceSkeleton& Skeleton = InSkeleton->GetReferenceSkeleton();
+	int32 NumBones = Skeleton.GetNum();
+	if (NumBones)
+	{
+		const TArray<FTransform>& RestTransform = Skeleton.GetRefBonePose();
+		const TArray<FMeshBoneInfo>& BoneInfo = Skeleton.GetRefBoneInfo();
+
+		TSet<int32> Roots;
+		int32 TransformBaseIndex = InCollection->AddElements(NumBones, FGeometryCollection::TransformGroup);
+		for (int i = 0, Idx = TransformBaseIndex; i < NumBones; i++, Idx++)
+		{
+			Transform[Idx] = RestTransform[i];
+			BoneColor[Idx] = FLinearColor(FColor(FMath::Rand() % 100 + 5, FMath::Rand() % 100 + 5, FMath::Rand() % 100 + 5, 255));
+			BoneName[Idx] = BoneInfo[i].Name.ToString();
+			Parent[Idx] = BoneInfo[i].ParentIndex;
+			if (Parent[Idx] != INDEX_NONE)
+			{
+				Child[Parent[Idx]].Add(Idx);
+			}
+			else
+			{
+				Roots.Add(Idx);
+			}
+		}
+
+		ensure(Roots.Num());
+		TransformSourceFacade.AddTransformSource(InCollection, InSkeleton->GetName(), InSkeleton->GetGuid(), Roots);
+	}
 }
 
 const FSkeletalMeshLODRenderData* FGeometryCollectionEngineConversion::GetSkeletalMeshLOD(const USkeletalMesh* SkeletalMesh, int32 LOD)
