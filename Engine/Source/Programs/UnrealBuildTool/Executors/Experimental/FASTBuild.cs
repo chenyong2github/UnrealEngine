@@ -767,7 +767,7 @@ namespace UnrealBuildTool
 				// it probably means we are building for another platform.
                 if(BuildType == FBBuildType.Windows)
                 {
-					VCEnv = VCEnvironment.Create(WindowsPlatform.GetDefaultCompiler(null, WindowsArchitecture.x64, Logger), WindowsCompiler.Default, UnrealTargetPlatform.Win64, WindowsArchitecture.x64, null, null, null, false, Logger);
+					VCEnv = VCEnvironment.Create(WindowsPlatform.GetDefaultCompiler(null, WindowsArchitecture.x64, Logger), WindowsCompiler.Default, UnrealTargetPlatform.Win64, WindowsArchitecture.x64, null, null, null, false, false, Logger);
 				}
             }
 			catch (Exception)

@@ -190,6 +190,14 @@ namespace UnrealBuildTool
 		public string? CompilerVersion = null;
 
 		/// <summary>
+		/// True if we should use the Clang linker (LLD) when we are compiling with Clang, or Intel linker (xilink\xilib) when we are compiling with Intel oneAPI, otherwise we use the MSVC linker.
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "bAllowClangLinker")]
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-ClangLinker")]
+		public bool bAllowClangLinker = false;
+		
+		/// <summary>
 		/// The specific Windows SDK version to use. This may be a specific version number (for example, "8.1", "10.0" or "10.0.10150.0"), or the string "Latest", to select the newest available version.
 		/// By default, and if it is available, we use the Windows SDK version indicated by WindowsPlatform.DefaultWindowsSdkVersion (otherwise, we use the latest version).
 		/// </summary>
@@ -561,6 +569,11 @@ namespace UnrealBuildTool
 			get { return Inner.bUseCPPWinRT; }
 		}
 
+		public bool bAllowClangLinker
+		{
+			get { return Inner.bAllowClangLinker; }
+		}
+
 		public bool bEnableRayTracing
 		{
 			get { return Inner.bEnableRayTracing; }
@@ -782,17 +795,7 @@ namespace UnrealBuildTool
 	}
 
 	class WindowsPlatform : UEBuildPlatform
-	{
-		/// <summary>
-		/// True if we should use the Clang linker (LLD) when we are compiling with Clang, otherwise we use the MSVC linker
-		/// </summary>
-		public static readonly bool bAllowClangLinker = false;
-
-		/// <summary>
-		/// True if we should use the Intel linker (xilink\xilib) when we are compiling with Intel oneAPI, otherwise we use the MSVC linker
-		/// </summary>
-		public static readonly bool bAllowIntelLinker = true;
-		
+	{		
 		MicrosoftPlatformSDK SDK;
 
 		/// <summary>
@@ -824,7 +827,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		protected virtual VCEnvironment CreateVCEnvironment(TargetRules Target)
 		{
-			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.ToolChain, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Logger);
+			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.ToolChain, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Target.WindowsPlatform.bAllowClangLinker, Logger);
 		}
 
 		/// <summary>
