@@ -2728,6 +2728,10 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	static FAutoPackageBackupDelegate AutoPackageBackupDelegate;
 #endif // WITH_EDITOR
 
+	/** Called when new sparse class data has been created (and the base data initialized) for the given class */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPostInitSparseClassData, UClass*, UScriptStruct*, void*);
+	static FOnPostInitSparseClassData OnPostInitSparseClassData;
+
 	/** Called by ReloadPackage during package reloading. It will be called several times for different phases of fix-up to allow custom code to handle updating objects as needed */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPackageReloaded, EPackageReloadPhase, FPackageReloadedEvent*);
 	static FOnPackageReloaded OnPackageReloaded;

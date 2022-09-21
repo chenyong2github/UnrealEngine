@@ -5567,6 +5567,8 @@ void* UClass::CreateSparseClassData()
 		{
 			SparseClassDataArchetypeStruct->CopyScriptStruct(SparseClassData, SparseArchetypeData);
 		}
+
+		FCoreUObjectDelegates::OnPostInitSparseClassData.Broadcast(this, SparseClassDataStruct, SparseClassData);
 	}
 
 	return SparseClassData;
