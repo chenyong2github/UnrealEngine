@@ -287,6 +287,8 @@ void UMeshVertexSculptTool::Setup()
 
 	AddToolPropertySource(UMeshSculptToolBase::GizmoProperties);
 	SetToolPropertySourceEnabled(UMeshSculptToolBase::GizmoProperties, false);
+	// Move the gizmo toward the center of the mesh, without changing the plane it represents
+	UMeshSculptToolBase::GizmoProperties->RecenterGizmoIfFar(GetSculptMeshComponent()->GetComponentTransform().TransformPosition(Bounds.Center()), Bounds.MaxDim());
 
 	AddToolPropertySource(UMeshSculptToolBase::ViewProperties);
 

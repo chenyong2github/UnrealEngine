@@ -185,7 +185,7 @@ public:
 	UPROPERTY( meta = (TransientToolProperty) )
 	bool bPropertySetEnabled = true;
 
-	/** Toggle whether Work Plane Positioing Gizmo is visible */
+	/** Toggle whether Work Plane Positioning Gizmo is visible */
 	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	bool bShowGizmo = true;
 
@@ -194,6 +194,17 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	FQuat Rotation = FQuat::Identity;
+
+	// Recenter the gizmo around the target position (without changing work plane), if it is "too far" (> 10 meters + max bounds dim) from that position currently
+	void RecenterGizmoIfFar(FVector CenterPosition, double BoundsMaxDim, double TooFarDistance = 1000)
+	{
+		double DistanceTolSq = (BoundsMaxDim + TooFarDistance) * (BoundsMaxDim + TooFarDistance);
+		if (FVector::DistSquared(CenterPosition, Position) > DistanceTolSq)
+		{
+			FVector Normal = Rotation.GetAxisZ();
+			Position = CenterPosition - (CenterPosition - Position).ProjectOnToNormal(Normal);
+		}
+	}
 };
 
 

@@ -143,7 +143,8 @@ void UDynamicMeshSculptTool::Setup()
 	PendingTargetUpdate.Wait();
 
 	// initialize brush radius range interval, brush properties
-	double MaxDimension = DynamicMeshComponent->GetMesh()->GetBounds(true).MaxDim();
+	FAxisAlignedBox3d Bounds = DynamicMeshComponent->GetMesh()->GetBounds(true);
+	double MaxDimension = Bounds.MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
 	BrushProperties = NewObject<UDynamicMeshBrushProperties>(this);
 	BrushProperties->BrushSize.InitializeWorldSizeRange(
@@ -194,6 +195,7 @@ void UDynamicMeshSculptTool::Setup()
 	GizmoProperties = NewObject<UFixedPlaneBrushProperties>();
 	GizmoProperties->RestoreProperties(this);
 	AddToolPropertySource(GizmoProperties);
+	GizmoProperties->RecenterGizmoIfFar(CurTargetTransform.TransformPosition(Bounds.Center()), Bounds.MaxDim());
 
 	if (this->bEnableRemeshing)
 	{
