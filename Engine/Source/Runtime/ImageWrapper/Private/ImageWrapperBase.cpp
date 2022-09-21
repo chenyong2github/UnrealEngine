@@ -117,17 +117,32 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 
 	int BytesPerRow = GetBytesPerRow();
 	
-	// stride not supported :
-	check( InBytesPerRow == 0 || BytesPerRow == InBytesPerRow );
 
-	check( InRawSize == BytesPerRow * Height );
+	int64 RawSize = BytesPerRow * Height;
+	RawData.Empty(RawSize);
+	RawData.AddUninitialized(RawSize);
 
-	// this is usually an unnecessary allocation and copy
-	// we should compress directly from the source buffer
+	// copy the incoming data directly
+	if ((InBytesPerRow == 0 || BytesPerRow == InBytesPerRow) && (RawSize == InRawSize))
+	{
+		// this is usually an unnecessary allocation and copy
+		// we should compress directly from the source buffer
 
-	RawData.Empty(InRawSize);
-	RawData.AddUninitialized(InRawSize);
-	FMemory::Memcpy(RawData.GetData(), InRawData, InRawSize);
+		FMemory::Memcpy(RawData.GetData(), InRawData, InRawSize);
+
+	}
+	else
+	{
+		// The supported image formats (PNG, BMP, etc) don't support strided data (although turbo jpeg does).
+		// Therefore we de-stride the data here so we can uniformly support strided input data with all the supported
+		// image formats.
+		check(RawSize < Height* InBytesPerRow);
+
+		for (int32 y = 0; y < Height; y++)
+		{
+			FMemory::Memcpy(RawData.GetData() + (y * BytesPerRow), (uint8*)InRawData + (y * InBytesPerRow), BytesPerRow);
+		}
+	}
 
 	return true;
 }
