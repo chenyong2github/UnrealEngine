@@ -45,33 +45,37 @@ namespace Horde.Build.Storage
 			[BsonElement("k")]
 			public RefName Name { get; set; }
 
-			[BsonElement("v")]
-			public BlobLocator Value { get; set; }
+			[BsonElement("l")]
+			public BlobLocator Locator { get; set; }
+
+			[BsonElement("e")]
+			public int ExportIdx { get; set; }
 
 			public RefDocument()
 			{
 				Name = RefName.Empty;
-				Value = BlobLocator.Empty;
+				Locator = BlobLocator.Empty;
 			}
 
-			public RefDocument(NamespaceId namespaceId, RefName name, BlobLocator value)
+			public RefDocument(NamespaceId namespaceId, RefName name, RefTarget target)
 			{
 				NamespaceId = namespaceId;
 				Name = name;
-				Value = value;
+				Locator = target.Locator;
+				ExportIdx = target.ExportIdx;
 			}
 		}
 
 		class CachedRefValue
 		{
 			public RefName Name { get; }
-			public BlobLocator Value { get; }
+			public RefTarget? Target { get; }
 			public DateTime Time { get; }
 
-			public CachedRefValue(RefName name, BlobLocator value)
+			public CachedRefValue(RefName name, RefTarget? target)
 			{
 				Name = name;
-				Value = value;
+				Target = target;
 				Time = DateTime.UtcNow;
 			}
 		}
@@ -90,13 +94,13 @@ namespace Horde.Build.Storage
 			_cache = cache;
 		}
 
-		CachedRefValue AddRefToCache(NamespaceId namespaceId, RefName name, BlobLocator value)
+		CachedRefValue AddRefToCache(NamespaceId namespaceId, RefName name, RefTarget? target)
 		{
-			CachedRefValue cacheValue = new CachedRefValue(name, value);
+			CachedRefValue cacheValue = new CachedRefValue(name, target);
 			using (ICacheEntry newEntry = _cache.CreateEntry(new RefKey(namespaceId, name)))
 			{
 				newEntry.Value = cacheValue;
-				newEntry.SetSize(name.Text.Length + value.Inner.Length);
+				newEntry.SetSize(name.Text.Length);
 				newEntry.SetSlidingExpiration(TimeSpan.FromMinutes(5.0));
 			}
 			return cacheValue;
@@ -106,28 +110,38 @@ namespace Horde.Build.Storage
 		public async Task DeleteRefAsync(NamespaceId namespaceId, RefName name, CancellationToken cancellationToken = default)
 		{
 			await _refs.DeleteOneAsync(x => x.NamespaceId == namespaceId && x.Name == name, cancellationToken);
-			AddRefToCache(namespaceId, name, BlobLocator.Empty);
+			AddRefToCache(namespaceId, name, null);
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public async Task<RefTarget?> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			CachedRefValue entry;
 			if (!_cache.TryGetValue(name, out entry) || entry.Time < cacheTime)
 			{
 				RefDocument? refDocument = await _refs.Find(x => x.NamespaceId == namespaceId && x.Name == name).FirstOrDefaultAsync(cancellationToken);
-				BlobLocator value = (refDocument == null) ? BlobLocator.Empty : refDocument.Value;
-				entry = AddRefToCache(namespaceId, name, value);
+
+				RefTarget? target;
+				if (refDocument == null)
+				{
+					target = null;
+				}
+				else
+				{
+					target = new RefTarget(refDocument.Locator, refDocument.ExportIdx);
+				}
+
+				entry = AddRefToCache(namespaceId, name, target);
 			}
-			return entry.Value;
+			return entry.Target;
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
+		public async Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, RefTarget target, CancellationToken cancellationToken = default)
 		{
-			RefDocument refDocument = new RefDocument(namespaceId, name, locator);
+			RefDocument refDocument = new RefDocument(namespaceId, name, target);
 			await _refs.ReplaceOneAsync(x => x.NamespaceId == namespaceId && x.Name == name, refDocument, new ReplaceOptions { IsUpsert = true }, cancellationToken);
-			AddRefToCache(namespaceId, name, locator);
+			AddRefToCache(namespaceId, name, target);
 		}
 	}
 }

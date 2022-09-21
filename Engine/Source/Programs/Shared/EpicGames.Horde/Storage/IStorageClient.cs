@@ -3,6 +3,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -32,9 +33,10 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Value for a ref
+	/// Target for a ref
 	/// </summary>
-	public class BundleRef : Bundle
+	[DebuggerDisplay("{Locator}#{Export}")]
+	public class RefTarget
 	{
 		/// <summary>
 		/// Location of the blob
@@ -42,12 +44,43 @@ namespace EpicGames.Horde.Storage
 		public BlobLocator Locator { get; }
 
 		/// <summary>
+		/// Index of the blob export
+		/// </summary>
+		public int ExportIdx { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleRef(BlobLocator locator, Bundle bundle)
-			: base(bundle.Header, bundle.Payload)
+		public RefTarget(BlobLocator locator, int exportIdx)
 		{
 			Locator = locator;
+			ExportIdx = exportIdx;
+		}
+	}
+
+	/// <summary>
+	/// Value for a ref
+	/// </summary>
+	[DebuggerDisplay("{Target}")]
+	public class RefValue
+	{
+		/// <summary>
+		/// Target for the ref
+		/// </summary>
+		public RefTarget Target { get; }
+
+		/// <summary>
+		/// Bundle referenced as the target
+		/// </summary>
+		public Bundle Bundle { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public RefValue(RefTarget target, Bundle bundle)
+		{
+			Target = target;
+			Bundle = bundle;
 		}
 	}
 
@@ -107,7 +140,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		Task<RefValue?> TryReadRefValueAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
@@ -116,26 +149,27 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new ref to the store which points to a new blob
 		/// </summary>
 		/// <param name="name">Ref to write</param>
 		/// <param name="bundle">Bundle to write</param>
+		/// <param name="exportIdx">Index of the export to target for the ref</param>
 		/// <param name="prefix">Prefix for blob names.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default);
+		Task<RefTarget> WriteRefValueAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new ref to the store
 		/// </summary>
 		/// <param name="name">Ref to write</param>
-		/// <param name="locator">The target for the ref</param>
+		/// <param name="target">The target for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default);
+		Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
@@ -191,16 +225,16 @@ namespace EpicGames.Horde.Storage
 			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.DeleteRefAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefAsync(name, cacheTime, cancellationToken);
+			public Task<RefValue?> TryReadRefValueAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefValueAsync(name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			public Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, bundle, prefix, cancellationToken);
+			public Task<RefTarget> WriteRefValueAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteRefValueAsync(name, bundle, exportIdx, prefix, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task WriteRefTargetAsync(RefName name, BlobLocator blobId, CancellationToken cancellationToken = default) => _inner.WriteRefTargetAsync(name, blobId, cancellationToken);
+			public Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default) => _inner.WriteRefTargetAsync(name, target, cancellationToken);
 
 			#endregion
 		}
@@ -222,8 +256,8 @@ namespace EpicGames.Horde.Storage
 		/// <returns>True if the ref exists, false if it did not exist</returns>
 		public static async Task<bool> HasRefAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			BlobLocator locator = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			return locator.IsValid();
+			RefTarget? locator = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			return locator != null;
 		}
 
 		/// <summary>
@@ -251,27 +285,27 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// Attempts to reads a ref from the store
 		/// </summary>
 		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Id for the ref</param>
+		/// <param name="name">Name of the ref</param>
 		/// <param name="maxAge">Maximum age of any cached ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The blob instance</returns>
-		public static Task<BundleRef?> TryReadRefAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		/// <returns>The ref value</returns>
+		public static Task<RefValue?> TryReadRefValueAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
-			return store.TryReadRefAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
+			return store.TryReadRefValueAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
 
 		/// <summary>
-		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// Attempts to reads a ref from the store
 		/// </summary>
 		/// <param name="store">The store instance to read from</param>
 		/// <param name="name">Id for the ref</param>
 		/// <param name="maxAge">Maximum age of any cached ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The blob instance</returns>
-		public static Task<BlobLocator> TryReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		/// <returns>The ref target</returns>
+		public static Task<RefTarget?> TryReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return store.TryReadRefTargetAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
@@ -284,14 +318,14 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static async Task<BundleRef> ReadRefAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public static async Task<RefValue> ReadRefValueAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			BundleRef? bundleRef = await store.TryReadRefAsync(name, cacheTime, cancellationToken);
-			if (bundleRef == null)
+			RefValue? refValue = await store.TryReadRefValueAsync(name, cacheTime, cancellationToken);
+			if (refValue == null)
 			{
 				throw new RefNameNotFoundException(name);
 			}
-			return bundleRef;
+			return refValue;
 		}
 
 		/// <summary>
@@ -301,10 +335,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="name">Id for the ref</param>
 		/// <param name="maxAge">Maximum age for any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The blob instance</returns>
-		public static Task<BundleRef> ReadRefAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		/// <returns>The ref value</returns>
+		public static Task<RefValue> ReadRefValueAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
-			return ReadRefAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
+			return ReadRefValueAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
 
 		/// <summary>
@@ -314,15 +348,15 @@ namespace EpicGames.Horde.Storage
 		/// <param name="name">Id for the ref</param>
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The blob instance</returns>
-		public static async Task<BlobLocator> ReadRefTargetAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		/// <returns>The ref target</returns>
+		public static async Task<RefTarget> ReadRefTargetAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			BlobLocator locator = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (!locator.IsValid())
+			RefTarget? refTarget = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (refTarget == null)
 			{
 				throw new RefNameNotFoundException(name);
 			}
-			return locator;
+			return refTarget;
 		}
 
 		/// <summary>
@@ -333,7 +367,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxAge">Maximum age for any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static Task<BlobLocator> ReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		public static Task<RefTarget> ReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
 			return ReadRefTargetAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
 		}

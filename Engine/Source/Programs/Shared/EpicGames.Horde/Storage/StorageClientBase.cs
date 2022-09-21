@@ -60,32 +60,30 @@ namespace EpicGames.Horde.Storage
 		public abstract Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public virtual async Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public virtual async Task<RefValue?> TryReadRefValueAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			BlobLocator locator = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (locator.IsValid())
-			{
-				return new BundleRef(locator, await ReadBundleAsync(locator, cancellationToken));
-			}
-			else
+			RefTarget? refTarget = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (refTarget == null)
 			{
 				return null;
 			}
+			return new RefValue(refTarget, await ReadBundleAsync(refTarget.Locator, cancellationToken));
 		}
 
 		/// <inheritdoc/>
-		public abstract Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		public abstract Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public virtual async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public virtual async Task<RefTarget> WriteRefValueAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = await WriteBundleAsync(bundle, prefix, cancellationToken);
-			await WriteRefTargetAsync(name, locator, cancellationToken);
-			return locator;
+			RefTarget target = new RefTarget(locator, exportIdx);
+			await WriteRefTargetAsync(name, target, cancellationToken);
+			return target;
 		}
 
 		/// <inheritdoc/>
-		public abstract Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default);
+		public abstract Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default);
 
 		#endregion
 	}

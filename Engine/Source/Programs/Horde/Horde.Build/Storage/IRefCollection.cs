@@ -25,17 +25,17 @@ namespace Horde.Build.Storage
 		/// <param name="name">The ref name</param>
 		/// <param name="cacheTime">Minimum age for a cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The ref value</returns>
-		Task<BlobLocator> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		/// <returns>The ref target</returns>
+		Task<RefTarget?> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a ref to storage
 		/// </summary>
 		/// <param name="namespaceId">Namespace for the ref</param>
 		/// <param name="name">The ref name</param>
-		/// <param name="locator">Value for the ref</param>
+		/// <param name="target">Target for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, BlobLocator locator, CancellationToken cancellationToken = default);
+		Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, RefTarget target, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Delete a ref from storage

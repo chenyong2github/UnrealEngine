@@ -112,15 +112,15 @@ namespace Horde.Build.Tests
 			for(int idx = 0; idx < 2; idx++)
 			{
 				RefName refName = new RefName("hello");
-				await store.WriteRefTargetAsync(refName, locator3);
-				BlobLocator refTargetId = await store.ReadRefTargetAsync(refName);
-				Assert.AreEqual(locator3, refTargetId);
+				await store.WriteRefTargetAsync(refName, new RefTarget(locator3, 0));
+				RefTarget refTarget = await store.ReadRefTargetAsync(refName);
+				Assert.AreEqual(locator3, refTarget.Locator);
 			}
 
 			RefName refName2 = new RefName("hello2");
 
-			BlobLocator refTargetId2 = await store.WriteRefAsync(refName2, CreateTestBundle(new ReadOnlySequence<byte>(input3), new BlobLocator[] { locator1, locator2 }));
-			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2);
+			RefTarget refTargetId2 = await store.WriteRefValueAsync(refName2, CreateTestBundle(new ReadOnlySequence<byte>(input3), new BlobLocator[] { locator1, locator2 }));
+			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Locator);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
 			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { locator1, locator2 }));
 		}

@@ -23,13 +23,13 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Map of ref name to ref data
 		/// </summary>
-		readonly ConcurrentDictionary<RefName, BlobLocator> _refs = new ConcurrentDictionary<RefName, BlobLocator>();
+		readonly ConcurrentDictionary<RefName, RefTarget> _refs = new ConcurrentDictionary<RefName, RefTarget>();
 
 		/// <inheritdoc cref="_blobs"/>
 		public IReadOnlyDictionary<BlobLocator, Bundle> Blobs => _blobs;
 
 		/// <inheritdoc cref="_refs"/>
-		public IReadOnlyDictionary<RefName, BlobLocator> Refs => _refs;
+		public IReadOnlyDictionary<RefName, RefTarget> Refs => _refs;
 
 		/// <summary>
 		/// Constructor
@@ -63,22 +63,17 @@ namespace EpicGames.Horde.Storage.Backends
 		public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(name, out _));
 
 		/// <inheritdoc/>
-		public override Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public override Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			if (_refs.TryGetValue(name, out BlobLocator locator))
-			{
-				return Task.FromResult(locator);
-			}
-			else
-			{
-				return Task.FromResult(BlobLocator.Empty);
-			}
+			RefTarget? refTarget;
+			_refs.TryGetValue(name, out refTarget);
+			return Task.FromResult(refTarget);
 		}
 
 		/// <inheritdoc/>
-		public override Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
+		public override Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default)
 		{
-			_refs[name] = locator;
+			_refs[name] = target;
 			return Task.CompletedTask;
 		}
 

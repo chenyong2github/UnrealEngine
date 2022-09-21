@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,25 +72,30 @@ namespace Horde.Agent.Commands.Bundles
 				throw new NotImplementedException();
 			}
 
-			public override async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+			public override async Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
-				if(!FileReference.Exists(file))
+				if (!FileReference.Exists(file))
 				{
-					return BlobLocator.Empty;
+					return null;
 				}
 
 				_logger.LogInformation("Reading {File}", file);
 				string text = await FileReference.ReadAllTextAsync(file, cancellationToken);
-				return new BlobLocator(text.Trim());
+
+				int hashIdx = text.IndexOf('#', StringComparison.Ordinal);
+				BlobLocator locator = new BlobLocator(text.Substring(0, hashIdx));
+				int exportIdx = Int32.Parse(text.Substring(hashIdx + 1), CultureInfo.InvariantCulture);
+
+				return new RefTarget(locator, exportIdx);
 			}
 
-			public override async Task WriteRefTargetAsync(RefName name, BlobLocator id, CancellationToken cancellationToken = default)
+			public override async Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
-				await FileReference.WriteAllTextAsync(file, id.ToString());
+				await FileReference.WriteAllTextAsync(file, $"{target.Locator}#{target.ExportIdx}");
 			}
 
 			#endregion

@@ -172,9 +172,9 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, store.Blobs.Count);
 
 			// Check the ref
-			BundleRef bundle = await store.ReadRefAsync(refName);
-			Assert.AreEqual(0, bundle.Header.Imports.Count);
-			Assert.AreEqual(3, bundle.Header.Exports.Count);
+			RefValue refValue = await store.ReadRefValueAsync(refName);
+			Assert.AreEqual(0, refValue.Bundle.Header.Imports.Count);
+			Assert.AreEqual(3, refValue.Bundle.Header.Exports.Count);
 
 			// Create a new bundle and read it back in again
 			DirectoryNode newRoot = await store.ReadTreeAsync<DirectoryNode>(refName);

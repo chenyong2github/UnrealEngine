@@ -395,7 +395,7 @@ namespace EpicGames.Horde.Storage
 
 				// Write a reference to the blob containing this node
 				ImportedNodeState importedState = (ImportedNodeState)last.State;
-				await _owner._blobStore.WriteRefTargetAsync(refName, importedState.BundleInfo.Locator, cancellationToken);
+				await _owner._blobStore.WriteRefTargetAsync(refName, new RefTarget(importedState.BundleInfo.Locator, 0), cancellationToken);
 			}
 
 			async Task<NodeInfo> FlushInternalAsync(CancellationToken cancellationToken)
@@ -699,8 +699,8 @@ namespace EpicGames.Horde.Storage
 		public async Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default)
 		{
 			// Read the blob referenced by this ref
-			BundleRef? bundleRef = await _blobStore.TryReadRefAsync(name, maxAge, cancellationToken);
-			if (bundleRef == null)
+			RefValue? refValue = await _blobStore.TryReadRefValueAsync(name, maxAge, cancellationToken);
+			if (refValue == null)
 			{
 				return null;
 			}
@@ -709,8 +709,8 @@ namespace EpicGames.Horde.Storage
 			BundleContext context = new BundleContext();
 
 			// Add the new bundle to it
-			BundleInfo bundleInfo = context.FindOrAddBundle(bundleRef.Locator, bundleRef.Header.Exports.Count);
-			MountBundle(bundleInfo, bundleRef);
+			BundleInfo bundleInfo = context.FindOrAddBundle(refValue.Target.Locator, refValue.Bundle.Header.Exports.Count);
+			MountBundle(bundleInfo, refValue.Bundle);
 
 			// Return the last node from the bundle as the root
 			return await GetNodeAsync(bundleInfo.Exports[^1]!, cancellationToken);
