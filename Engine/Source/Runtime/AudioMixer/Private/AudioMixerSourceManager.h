@@ -302,7 +302,7 @@ namespace Audio
 		struct FAudioMixerThreadCommand
 		{
 			// ctor
-			FAudioMixerThreadCommand(TFunction<void()> InFunction, FName InCallerDebugInfo);
+			FAudioMixerThreadCommand(TFunction<void()> InFunction, FName InCallerDebugInfo, bool bInDeferExecution = false);
 
 			// function-call operator
 			void operator()() const;
@@ -312,6 +312,11 @@ namespace Audio
 			FName CallerDebugInfo;
 #endif // #if WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
 			TFunction<void()> Function;
+
+			// Defers the execution by a single call to PumpCommandQueue()
+			// (used for commands that affect a playing source,
+			// and that source gets initialized after the command executes
+			bool bDeferExecution;
 		};
 
 		struct FCurrentAudioMixerThreadCommandInfo
@@ -326,7 +331,7 @@ namespace Audio
 
 		FCurrentAudioMixerThreadCommandInfo CurrentAudioMixerThreadCommandInfo;
 
-		void AudioMixerThreadCommand(TFunction<void()> InFunction, FName CallingFunction = {});
+		void AudioMixerThreadCommand(TFunction<void()> InFunction, FName CallingFunction = {}, bool bInDeferExecution = false);
 
 		
 		static const int32 NUM_BYTES_PER_SAMPLE = 2;
