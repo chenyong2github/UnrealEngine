@@ -27,7 +27,7 @@ public:
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
+	virtual TSharedPtr<class SWidget> GetInlineContent() const override;
 
 	// initialize toolkit widgets that need to wait until mode is initialized/entered
 	virtual void InitializeAfterModeSetup();
