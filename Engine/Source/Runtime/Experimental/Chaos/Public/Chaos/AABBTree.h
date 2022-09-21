@@ -403,14 +403,13 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		VectorRegister4Double TOI;
 		for (const auto& Elem : Elems)
 		{
-			if (PrePreFilterHelper(Elem.Payload, Visitor))
-			{
-				continue;
-			}
-
 			const FAABBVectorizedDouble InstanceBounds(Elem.Bounds);
 			if (InstanceBounds.RaycastFast(Start, InvDir, Parallel, Length, TOI))
 			{
+				if (PrePreFilterHelper(Elem.Payload, Visitor))
+				{
+					continue;
+				}
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, FAABB3(Elem.Bounds.Min(), Elem.Bounds.Max()));
 				const bool bContinue = Visitor.VisitRaycast(VisitData, QueryFastData);
 				if (!bContinue)
