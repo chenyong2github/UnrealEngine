@@ -43,14 +43,6 @@ bool FPhysicsControlComponentImpl::GetBoneData(
 //======================================================================================================================
 FPhysicsControlRecord* FPhysicsControlComponentImpl::FindControlRecord(const FName Name)
 {
-	if (PhysicsControlRecords.IsEmpty())
-	{
-		return nullptr;
-	}
-	if (Name.IsNone())
-	{
-		return &PhysicsControlRecords.CreateIterator().Value();
-	}
 	if (FPhysicsControlRecord* Record = PhysicsControlRecords.Find(Name))
 	{
 		return Record;
@@ -626,18 +618,6 @@ void FPhysicsControlComponentImpl::ApplyControl(FPhysicsControlRecord& Record)
 //======================================================================================================================
 FPhysicsBodyModifier* FPhysicsControlComponentImpl::FindBodyModifier(const FName Name)
 {
-	if (PhysicsBodyModifiers.IsEmpty())
-	{
-		return nullptr;
-	}
-	if (Name.IsNone())
-	{
-		return &PhysicsBodyModifiers.CreateIterator().Value();
-	}
-	if (FPhysicsBodyModifier* Record = PhysicsBodyModifiers.Find(Name))
-	{
-		return Record;
-	}
-	return nullptr;
+	return PhysicsBodyModifiers.Find(Name);
 }
 
