@@ -3490,6 +3490,12 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 						Recompute(ContainedNode);
 					}
 				}
+
+				// If the OuterNode is referencing a non-existing function, the contained graph might be empty
+				if (OuterNode->GetContainedGraph() == nullptr)
+				{
+					return;
+				}
 				
 				{
 					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetGraph(), false);
