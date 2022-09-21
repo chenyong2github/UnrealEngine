@@ -88,6 +88,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VirtualTextureFeedbackUAV)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, WorldNormalRoughnessTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, WorldNormalRoughnessTextureSampler)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 	// GBuffer
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferATexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferBTexture)

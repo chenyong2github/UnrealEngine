@@ -29,6 +29,10 @@ enum class EVelocityPass : uint32
 
 EMeshPass::Type GetMeshPassFromVelocityPass(EVelocityPass VelocityPass);
 
+// Returns whether velocity is enabled and there primitives to draw in the view
+bool IsMobileVelocityActive(const FViewInfo& View);
+bool IsMobileVelocityActive(const FViewInfo* Views, int32 NumViews);
+
 // Group Velocity Rendering accessors, types, etc.
 struct FVelocityRendering
 {

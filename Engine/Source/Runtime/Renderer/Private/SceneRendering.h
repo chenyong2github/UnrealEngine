@@ -33,6 +33,8 @@
 #include "GpuDebugRendering.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 
+enum class EVelocityPass : uint32;
+
 // Forward declarations.
 class FScene;
 class FSceneViewState;
@@ -2084,6 +2086,16 @@ protected:
 	bool ShouldRenderVolumetricFog() const;
 	void SetupVolumetricFog();
 	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext);
+
+	bool ShouldRenderVelocities() const;
+
+	void RenderVelocities(
+		FRDGBuilder& GraphBuilder,
+		FRDGTextureRef SceneDepthTexture,
+		FRDGTextureRef& VelocityTexture,
+		TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		EVelocityPass VelocityPass,
+		bool bForceVelocity);
 
 	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
 	void UpdateMovablePointLightUniformBufferAndShadowInfo();

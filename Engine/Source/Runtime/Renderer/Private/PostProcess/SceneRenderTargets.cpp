@@ -2541,6 +2541,12 @@ static void SetupMobileSceneTextureUniformParameters(
 		SceneTextureParameters.WorldNormalRoughnessTextureSampler = TStaticSamplerState<>::GetRHI();
 	}
 
+	// Velocity
+	{
+		SceneTextureParameters.VelocityTexture = SceneContext.SceneVelocity ? GetRDG(SceneContext.SceneVelocity) : BlackDefault2D;
+		SceneTextureParameters.VelocityTextureSampler = TStaticSamplerState<>::GetRHI();
+	}
+
 	// Mobile GBuffer
 	{
 		const bool bCanReadGBufferUniforms = IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);

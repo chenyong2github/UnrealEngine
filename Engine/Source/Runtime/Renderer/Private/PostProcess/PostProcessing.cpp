@@ -1331,6 +1331,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	const FScreenPassTexture SceneDepth((*Inputs.SceneTextures)->SceneDepthTexture, FinalOutputViewRect);
 	const FScreenPassTexture CustomDepth((*Inputs.SceneTextures)->CustomDepthTexture, FinalOutputViewRect);
 	const FScreenPassTexture BlackAlphaOneDummy(GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder));
+	const FScreenPassTexture SceneVelocity((*Inputs.SceneTextures)->VelocityTexture, FinalOutputViewRect);
 
 	// Scene color is updated incrementally through the post process pipeline.
 	FScreenPassTexture SceneColor((*Inputs.SceneTextures)->SceneColorTexture, FinalOutputViewRect);
@@ -2003,7 +2004,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 				UpscalerPassInputs.DownsampleOverrideFormat = PF_FloatRGB;
 				UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 				UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
-				UpscalerPassInputs.SceneVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+				UpscalerPassInputs.SceneVelocityTexture = SceneVelocity.Texture;
 				UpscalerPassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 				FScreenPassTexture HalfResolutionSceneColor;
