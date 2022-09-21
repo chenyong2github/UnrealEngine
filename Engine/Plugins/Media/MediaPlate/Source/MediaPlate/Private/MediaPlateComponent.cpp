@@ -521,9 +521,13 @@ void UMediaPlateComponent::ResumeWhenVisible()
 	{
 		if (MediaPlayer->IsPaused())
 		{
-			FTimespan PlayTime = GetResumeTime();
-			MediaPlayer->Seek(PlayTime);
-			MediaPlayer->Play();
+			// Should we be playing?
+			if (CurrentRate != 0.0f)
+			{
+				FTimespan PlayTime = GetResumeTime();
+				MediaPlayer->Seek(PlayTime);
+				MediaPlayer->Play();
+			}
 		}
 		else if (bWantsToPlayWhenVisible)
 		{
