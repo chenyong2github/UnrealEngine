@@ -253,6 +253,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							{
 								builder.Append(" return TEnumAsByte<").Append(byteProperty.Enum.CppType).Append(">(").AppendNullConstructorArg(returnProperty, false).Append("); ");
 							}
+							else if (returnProperty is UhtEnumProperty enumProperty && enumProperty.Enum.CppForm != UhtEnumCppForm.EnumClass)
+							{
+								builder.Append(" return TEnumAsByte<").Append(enumProperty.Enum.CppType).Append(">(").AppendNullConstructorArg(returnProperty, false).Append("); ");
+							}
 							else
 							{
 								builder.Append(" return ").AppendNullConstructorArg(returnProperty, false).Append("; ");
