@@ -32,8 +32,33 @@ namespace DatasmithMaxDirectLink
 void FMaterialsCollectionTracker::AddActualMaterial(FMaterialTracker& MaterialTracker, Mtl* Material)
 {
 	// Record relationships between tracked material and actual materials used on geometry(e.g. submaterials of a tracked multisubobj material)
-	UsedMaterialToMaterialTracker.FindOrAdd(Material).Add(&MaterialTracker);
 	MaterialTracker.AddActualMaterial(Material);
+	TSet<FMaterialTracker*>& MaterialTrackersForMaterial = ActualMaterialToMaterialTracker.FindOrAdd(Material);
+	MaterialTrackersForMaterial.Add(&MaterialTracker);
+}
+
+void FMaterialsCollectionTracker::ReleaseActualMaterial(FMaterialTracker& MaterialTracker, Mtl* Material)
+{
+	TSet<FMaterialTracker*>* Found = ActualMaterialToMaterialTracker.Find(Material);
+	if (!Found)
+	{
+		return;
+	}
+
+	TSet<FMaterialTracker*>& MaterialTrackersForMaterial = *Found;
+	MaterialTrackersForMaterial.Remove(&MaterialTracker);
+	if (!MaterialTrackersForMaterial.Num())
+	{
+		//Clean up material when it's not used by other tracked materials
+		ActualMaterialToMaterialTracker.Remove(Material);
+
+		if (FString Name; UsedMaterialToDatasmithMaterialName.RemoveAndCopyValue(Material, Name))
+		{
+			MaterialNameProvider.RemoveExistingName(Name);
+		}
+
+		RemoveDatasmithMaterialForUsedMaterial(Material);
+	}
 }
 
 const TCHAR* FMaterialsCollectionTracker::GetMaterialName(Mtl* Material)
@@ -46,11 +71,98 @@ const TCHAR* FMaterialsCollectionTracker::GetMaterialName(Mtl* Material)
 		MaterialNameProvider.GenerateUniqueName(FDatasmithUtils::SanitizeObjectName(Material->GetName().data())));
 }
 
-void FMaterialsCollectionTracker::AssignMeshMaterials(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels)
+bool FMaterialsCollectionTracker::IsMaterialUsed(Mtl* Material)
+{
+	return (UsedMaterialToMeshElementSlot.Contains(Material) || UsedMaterialToMeshActorSlot.Contains(Material));
+}
+
+void FMaterialsCollectionTracker::SetMaterialForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* MaterialAssignedToNode, Mtl* ActualMaterial, uint16 SlotId)
+{
+	MeshElement->SetMaterial(GetMaterialName(ActualMaterial), SlotId);
+
+	if (!UsedMaterialToDatasmithMaterial.Contains(ActualMaterial))
+	{
+		// Invalidate material assigned directly to node to make it build its submaterials
+		// Rebuilding individual submaterials looks much more complex especially taking into account that Update can be cancelled/resumed
+		InvalidateMaterial(MaterialAssignedToNode);
+	}
+
+	UsedMaterialToMeshElementSlot.FindOrAdd(ActualMaterial).FindOrAdd(MeshElement.Get()).Add(SlotId);
+	MeshElementToUsedMaterialSlot.FindOrAdd(MeshElement.Get()).FindOrAdd(ActualMaterial).Add(SlotId);
+}
+
+void FMaterialsCollectionTracker::SetMaterialForMeshActorElement(
+	const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* MaterialAssignedToNode, Mtl* Material, int32 SlotId)
+{
+	MeshActor->AddMaterialOverride(GetMaterialName(Material), SlotId);
+
+	UsedMaterialToMeshActorSlot.FindOrAdd(Material).FindOrAdd(MeshActor.Get()).Add(SlotId);
+	MeshActorToUsedMaterialSlot.FindOrAdd(MeshActor.Get()).FindOrAdd(Material).Add(SlotId);
+}
+
+void FMaterialsCollectionTracker::UnSetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement)
+{
+	if (!MeshElement)
+	{
+		return;
+	}
+
+	if (!MeshElementToUsedMaterialSlot.Contains(MeshElement.Get()))
+	{
+		return;
+	}
+
+	TArray<Mtl*> Materials;
+	MeshElementToUsedMaterialSlot[MeshElement.Get()].GetKeys(Materials);
+	for (Mtl* Material : Materials)
+	{
+		UsedMaterialToMeshElementSlot[Material].Remove(MeshElement.Get());
+		if (UsedMaterialToMeshElementSlot[Material].IsEmpty())
+		{
+			if (!IsMaterialUsed(Material))
+			{
+				RemoveDatasmithMaterialForUsedMaterial(Material);
+			}
+			UsedMaterialToMeshElementSlot.Remove(Material);
+		}
+	}
+	MeshElementToUsedMaterialSlot.Remove(MeshElement.Get());
+}
+
+void FMaterialsCollectionTracker::UnSetMaterialsForMeshActor(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor)
+{
+	if (!MeshActor)
+	{
+		return;
+	}
+
+	if (!MeshActorToUsedMaterialSlot.Contains(MeshActor.Get()))
+	{
+		return;
+	}
+
+	TArray<Mtl*> Materials;
+	MeshActorToUsedMaterialSlot[MeshActor.Get()].GetKeys(Materials);
+	for (Mtl* Material : Materials)
+	{
+		UsedMaterialToMeshActorSlot[Material].Remove(MeshActor.Get());
+		if (UsedMaterialToMeshActorSlot[Material].IsEmpty())
+		{
+			if (!IsMaterialUsed(Material))
+			{
+				RemoveDatasmithMaterialForUsedMaterial(Material);
+			}
+			UsedMaterialToMeshActorSlot.Remove(Material);
+		}
+	}
+	MeshActorToUsedMaterialSlot.Remove(MeshActor.Get());
+}
+
+void FMaterialsCollectionTracker::SetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels)
 {
 	if (FDatasmithMaxMatHelper::GetMaterialClass(Material) == EDSMaterialType::XRefMat)
 	{
-		AssignMeshMaterials(MeshElement, FDatasmithMaxMatHelper::GetRenderedXRefMaterial(Material), SupportedChannels);
+		SetMaterialsForMeshElement(MeshElement, FDatasmithMaxMatHelper::GetRenderedXRefMaterial(Material), SupportedChannels);
 		return;
 	}
 	if (Material != nullptr)
@@ -70,32 +182,32 @@ void FMaterialsCollectionTracker::AssignMeshMaterials(const TSharedPtr<IDatasmit
 				{
 					if (FDatasmithMaxMatHelper::GetMaterialClass(SubMaterial) == EDSMaterialType::TheaRandom)
 					{
-						MeshElement->SetMaterial(*FDatasmithMaxSceneExporter::GetRandomSubMaterial(SubMaterial, MeshElement->GetDimensions()), DisplayedChannelID);
+						SetMaterialForMeshElement(MeshElement, Material, FDatasmithMaxSceneExporter::GetRandomSubMaterial(SubMaterial, MeshElement->GetDimensions()), DisplayedChannelID);
 					}
 					else
 					{
-						MeshElement->SetMaterial(GetMaterialName(SubMaterial), DisplayedChannelID);
+						SetMaterialForMeshElement(MeshElement, Material, SubMaterial, DisplayedChannelID);
 					}
 				}
 			}
 			else if (FDatasmithMaxMatHelper::GetMaterialClass(Material) == EDSMaterialType::TheaRandom)
 			{
-				MeshElement->SetMaterial(*FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, MeshElement->GetDimensions()), DisplayedChannelID);
+				SetMaterialForMeshElement(MeshElement, Material, FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, MeshElement->GetDimensions()), DisplayedChannelID);
 			}
 			// Single material
 			else
 			{
-				MeshElement->SetMaterial(GetMaterialName(Material), DisplayedChannelID);
+				SetMaterialForMeshElement(MeshElement, Material, Material, DisplayedChannelID);
 			}
 		}
 	}
 }
 
-void FMaterialsCollectionTracker::AssignMeshActorMaterials(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* Material, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed)
+void FMaterialsCollectionTracker::SetMaterialsForMeshActor(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* Material, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed)
 {
 	if (FDatasmithMaxMatHelper::GetMaterialClass(Material) == EDSMaterialType::XRefMat)
 	{
-		AssignMeshActorMaterials(MeshActor, FDatasmithMaxMatHelper::GetRenderedXRefMaterial(Material), SupportedChannels, RandomSeed);
+		SetMaterialsForMeshActor(MeshActor, FDatasmithMaxMatHelper::GetRenderedXRefMaterial(Material), SupportedChannels, RandomSeed);
 		return;
 	}
 
@@ -107,11 +219,11 @@ void FMaterialsCollectionTracker::AssignMeshActorMaterials(const TSharedPtr<IDat
 			{
 				if (FDatasmithMaxMatHelper::GetMaterialClass(Material) != EDSMaterialType::TheaRandom)
 				{
-					MeshActor->AddMaterialOverride(GetMaterialName(Material), -1);
+					SetMaterialForMeshActorElement(MeshActor, Material, Material, -1);
 				}
 				else
 				{
-					MeshActor->AddMaterialOverride( *FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, RandomSeed), -1 );
+					SetMaterialForMeshActorElement(MeshActor, Material, FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, RandomSeed), -1 );
 				}
 			}
 			else
@@ -130,11 +242,11 @@ void FMaterialsCollectionTracker::AssignMeshActorMaterials(const TSharedPtr<IDat
 				{
 					if (FDatasmithMaxMatHelper::GetMaterialClass(SubMaterial) != EDSMaterialType::TheaRandom)
 					{
-						MeshActor->AddMaterialOverride(GetMaterialName(SubMaterial), -1);
+						SetMaterialForMeshActorElement(MeshActor, Material, SubMaterial, -1);
 					}
 					else
 					{
-						MeshActor->AddMaterialOverride( *FDatasmithMaxSceneExporter::GetRandomSubMaterial(SubMaterial, RandomSeed), -1 );
+						SetMaterialForMeshActorElement(MeshActor, Material, FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, RandomSeed), -1 );
 					}
 				}
 			}
@@ -149,11 +261,11 @@ void FMaterialsCollectionTracker::AssignMeshActorMaterials(const TSharedPtr<IDat
 				{
 					if (FDatasmithMaxMatHelper::GetMaterialClass(Material) != EDSMaterialType::TheaRandom)
 					{
-						MeshActor->AddMaterialOverride(GetMaterialName(Material), ActualSubObj);
+						SetMaterialForMeshActorElement(MeshActor, Material, Material, ActualSubObj);
 					}
 					else
 					{
-						MeshActor->AddMaterialOverride( *FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, RandomSeed), ActualSubObj );
+						SetMaterialForMeshActorElement(MeshActor, Material, FDatasmithMaxSceneExporter::GetRandomSubMaterial(Material, RandomSeed), -1);
 					}
 				}
 				else
@@ -167,11 +279,11 @@ void FMaterialsCollectionTracker::AssignMeshActorMaterials(const TSharedPtr<IDat
 						if (FDatasmithMaxMatHelper::GetMaterialClass(SubMaterial) != EDSMaterialType::TheaRandom)
 						{
 							//Material slots in Max are not zero-based, so we serialize our SlotID starting from 1 for better visual consistency.
-							MeshActor->AddMaterialOverride(GetMaterialName(SubMaterial), Mid + 1);
+							SetMaterialForMeshActorElement(MeshActor, Material, SubMaterial, Mid + 1);
 						}
 						else
 						{
-							MeshActor->AddMaterialOverride( *FDatasmithMaxSceneExporter::GetRandomSubMaterial(SubMaterial, RandomSeed), MaterialIndex + 1 );
+							SetMaterialForMeshActorElement(MeshActor, Material, FDatasmithMaxSceneExporter::GetRandomSubMaterial(SubMaterial, RandomSeed), MaterialIndex + 1);
 						}
 					}
 				}
@@ -233,13 +345,16 @@ void FMaterialsCollectionTracker::Reset()
 	MaterialTrackers.Reset();
 	InvalidatedMaterialTrackers.Reset();
 
-	EncounteredMaterials.Reset();
-	EncounteredTextures.Reset();
-	MaterialNames.Reset();
+	ActualMaterialToMaterialTracker.Reset();
 
-	UsedMaterialToMaterialTracker.Reset();
 	UsedMaterialToDatasmithMaterial.Reset();
 	UsedMaterialToDatasmithMaterialName.Reset();
+	UsedMaterialToMeshElementSlot.Reset();
+	MeshElementToUsedMaterialSlot.Reset();
+
+	UsedMaterialToMeshActorSlot.Reset();
+	MeshActorToUsedMaterialSlot.Reset();
+
 	MaterialNameProvider.Clear();
 
 	UsedTextureToMaterialTracker.Reset();
@@ -268,6 +383,8 @@ void FMaterialsCollectionTracker::AddDatasmithMaterialForUsedMaterial(TSharedRef
 
 void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDatasmithScene> DatasmithScene, const TCHAR* AssetsPath, TSet<Texmap*>& TexmapsConverted)
 {
+	SCENE_UPDATE_STAT_INC(UpdateMaterials, Total);
+
 	if (UsedMaterialToDatasmithMaterial.Contains(Material))
 	{
 		// Material might have been already converted - if it's present in UsedMaterialToDatasmithMaterial this means that it(or multisubobj it's part of) wasn't changed
@@ -275,7 +392,12 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 		return;
 	}
 
-	SCENE_UPDATE_STAT_INC(UpdateMaterials, Total);
+	if (!IsMaterialUsed(Material))
+	{
+		// Don't convert materials that don't have visible geometry exported
+		// This happens when a submaterial of MultiSubobj material is unused on a mesh
+		return;
+	}
 
 	TSet<Texmap*> TexmapsUsedByMaterial;
 	FMaterialConversionContext MaterialConversionContext = {TexmapsUsedByMaterial, *this};
@@ -293,7 +415,7 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 	// Tie texture used by an actual material to tracked material
 	for (Texmap* Tex : TexmapsUsedByMaterial)
 	{
-		for (FMaterialTracker* MaterialTracker : UsedMaterialToMaterialTracker[Material])
+		for (FMaterialTracker* MaterialTracker : ActualMaterialToMaterialTracker[Material])
 		{
 			MaterialTracker->AddActualTexture(Tex);
 			UsedTextureToMaterialTracker.FindOrAdd(Tex).Add(MaterialTracker);
@@ -311,28 +433,20 @@ void FMaterialsCollectionTracker::ReleaseMaterial(FMaterialTracker& MaterialTrac
 	InvalidatedMaterialTrackers.Remove(&MaterialTracker);
 }
 
+void FMaterialsCollectionTracker::RemoveDatasmithMaterialForUsedMaterial(Mtl* Material)
+{
+	TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial;
+	if(UsedMaterialToDatasmithMaterial.RemoveAndCopyValue(Material, DatasmithMaterial))
+	{
+		SceneTracker.RemoveMaterial(DatasmithMaterial);
+	}
+}
 
 void FMaterialsCollectionTracker::RemoveConvertedMaterial(FMaterialTracker& MaterialTracker)
 {
 	for (Mtl* Material: MaterialTracker.GetActualMaterials())
 	{
-		TSet<FMaterialTracker*>& MaterialTrackersForMaterial = UsedMaterialToMaterialTracker[Material];
-		MaterialTrackersForMaterial.Remove(&MaterialTracker);
-		if (!MaterialTrackersForMaterial.Num())
-		{
-			UsedMaterialToMaterialTracker.Remove(Material);
-
-			if (FString Name; UsedMaterialToDatasmithMaterialName.RemoveAndCopyValue(Material, Name))
-			{
-				MaterialNameProvider.RemoveExistingName(Name);
-			}
-
-			TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial;
-			if(UsedMaterialToDatasmithMaterial.RemoveAndCopyValue(Material, DatasmithMaterial))
-			{
-				SceneTracker.RemoveMaterial(DatasmithMaterial);
-			}
-		}
+		ReleaseActualMaterial(MaterialTracker, Material);
 	}
 
 	for (Texmap* Tex: MaterialTracker.GetActualTexmaps())

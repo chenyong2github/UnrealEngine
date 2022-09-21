@@ -46,16 +46,16 @@ class FLayerTracker;
 class FMaterialsCollectionTracker;
 
 
-// Global export options, stored in preferences
+/** Global export options, stored in preferences */
 class IPersistentExportOptions
 {
 public:
 
-	// Whether to export animation or not
+	/** Whether to export animation or not */
 	virtual void SetAnimatedTransforms(bool) = 0;
 	virtual bool GetAnimatedTransforms() = 0;
 
-	// Whether to output export statistics to listener/log
+	/** Whether to output export statistics to listener/log */
 	virtual void SetStatSync(bool) = 0;
 	virtual bool GetStatSync() = 0;
 
@@ -67,7 +67,7 @@ public:
 
 };
 
-//---- Main class for export/change tracking
+/** Main class for export/change tracking */
 class IExporter
 {
 	public:
@@ -82,15 +82,15 @@ class IExporter
 
 	virtual void InitializeScene() = 0;
 
-	// Scene update
+	/** Scene update */
 	virtual bool UpdateScene(bool bQuiet) = 0;
 
 	virtual void ResetSceneTracking() = 0;
 
-	// ChangeTracking
+	/** ChangeTracking */
 	virtual void StartSceneChangeTracking() = 0;
 
-	// DirectLink
+	/** DirectLink */
 	virtual void InitializeDirectLinkForScene() = 0;
 	virtual void UpdateDirectLinkScene() = 0;
 	virtual bool ToggleAutoSync() = 0;
@@ -101,7 +101,8 @@ class IExporter
 	virtual void PerformSync(bool bQuiet) = 0;
 };
 
-bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath); // Create exporter with ability for DirectLink change tracking
+/** Create exporter with ability for DirectLink change tracking */
+bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath); 
 IExporter* GetExporter();
 void ShutdownExporter();
 bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet, bool bSelected);
@@ -123,13 +124,13 @@ struct FXRefScene
 	operator bool(){ return XRefFileIndex != -1; }
 };
 
-// Incapsulating time slider value to distinguish usage of TimeValue specifically for point on timeslider where we syncing
+/** Incapsulating time slider value to distinguish usage of TimeValue specifically for point on timeslider where we syncing */
 struct FSyncPoint
 {
 	TimeValue Time;
 };
 
-// Incapsulating time interval value to distinguish usage of Interval specifically for validity of synced entity 
+/** Incapsulating time interval value to distinguish usage of Interval specifically for validity of synced entity */
 struct FValidity
 {
 	explicit FValidity()
@@ -158,14 +159,14 @@ struct FValidity
 		return ValidityInterval.InInterval(State.Time) != 0;
 	}
 
-	// Maximize validity interval before updating invalidated 
+	/** Maximize validity interval before updating invalidated */
 	void ResetValidityInterval()
 	{
 		check(bIsInvalidated);
 		ValidityInterval.SetInfinite();
 	}
 
-	// Intersect
+	/** Intersect current validity interval with the param*/
 	void NarrowValidityToInterval(const Interval& InValidityInterval)
 	{
 		ValidityInterval &= InValidityInterval;
@@ -176,9 +177,11 @@ struct FValidity
 		NarrowValidityToInterval(Validity.ValidityInterval);
 	}
 
-	// this Validity contains another validity interval fully
-	// Used to determine if this validity doesn't need to be updated
-	// @return True is this validity doesn't need to be updated
+	/**
+	This Validity contains another validity interval fully.
+	Used to determine if this validity doesn't need to be updated
+	@return True is this validity doesn't need to be updated
+	*/
 	bool Overlaps(const FValidity& Validity) const
 	{
 		return ValidityInterval.IsSubset(Validity.ValidityInterval);
@@ -193,11 +196,13 @@ private:
 	bool bIsInvalidated; 
 };
 
-// NodeTracker - associated with INode, plus validity
-// Converter - holds convertion data for SPECIFIC node object type, e.g. geometry, railclone, light, dummy
-// Converted - holds Datasmith converted data for node
+/**
+NodeTracker - associated with INode, plus validity
+Converter - holds convertion data for SPECIFIC node object type, e.g. geometry, railclone, light, dummy
+Converted - holds Datasmith converted data for node
+*/
 
-// Identifies Max node to track its changes, including tracked dependencies
+/** Identifies Max node to track its changes, including tracked dependencies */
 class FNodeTracker: FNoncopyable
 {
 public:
@@ -271,42 +276,54 @@ public:
 		Converter.Reset();
 	}
 
-	// Node entity identification data
+	/** Node entity identification data */
 	FNodeKey NodeKey;
 	INode* const Node;
-	// Keep root node and xref index when this node is a direct child of an XRef scene
-	// This is needed to retrieve parent node(e.g. when updated)
-	// Keeping parent node itself doesn't work - it can change and the only way to get it when it's changed is to call INode::GetXRefParent
+
+	/**
+	Keep root node and xref index when this node is a direct child of an XRef scene
+	This is needed to retrieve parent node(e.g. when updated)
+	Keeping parent node itself doesn't work - it can change and the only way to get it when it's changed is to call INode::GetXRefParent
+	*/
 	FXRefScene XRefScene;
 	FString Name;
 
-	// Node validity
-	bool bParsed = false; // 
+	/** Node validity */
+	bool bParsed = false;
 	bool bDeleted = false;
 	FValidity Validity;
 	FValidity SubtreeValidity;
 
-	// Other related tracked entities
+	/** Other related tracked entities */
 	FNodeTracker* Collision = nullptr;
 	FLayerTracker* Layer = nullptr;
 	TSet<class FMaterialTracker*> MaterialTrackers; 
 
-	// Node conversion state
-	TUniquePtr<FNodeConverted> Converted = nullptr; // Datasmith element that this Node is converted to
-	TUniquePtr<FNodeConverter> Converter = nullptr; // Converter for specific Max object type
+	/** Node conversion state */
+
+	/** Datasmith element that this Node is converted to */
+	TUniquePtr<FNodeConverted> Converted = nullptr;
+	/** Converter for specific Max object type */
+	TUniquePtr<FNodeConverter> Converter = nullptr; 
 };
 
 class FMeshConverterSource
 {
 public:
-	// Node this mesh instantiates. When this is a 'regular' node it's  just instantiates mesh for Params
-	// but it's possible that this Node wants mesh to be bounding-box(when DatasmithAttributes spicifies it)
+	/**
+	Node this mesh instantiates. When this is a 'regular' node it's  just instantiates mesh for Params
+	but it's possible that this Node wants mesh to be bounding-box(when DatasmithAttributes spicifies it)
+	*/
 	INode* Node;
 
-	FString MeshName; // Suggested Mesh name, resulting mesh name should be this???
+	/** Suggested Mesh name */
+	FString MeshName;
 
-	GeomUtils::FRenderMeshForConversion RenderMesh; // Extracted render mesh
-	bool bConsolidateMaterialIds; // Whether to join all materials id into single material slot for render mesh (used when a geometry doesn't have a multimaterial assigned)
+	/*Extracted render mesh*/
+	GeomUtils::FRenderMeshForConversion RenderMesh;
+
+	/** Whether to join all materials id into single material slot for render mesh (used when a geometry doesn't have a multimaterial assigned) */
+	bool bConsolidateMaterialIds; 
 
 	GeomUtils::FRenderMeshForConversion CollisionMesh;
 };
@@ -363,14 +380,16 @@ struct FSceneUpdateStats
 #define SCENE_UPDATE_STAT_GET(Category, Name) Stats.##Category##Name
 
 
-// Modifies Datasmith scene in responce to change notification calls
-// Subscription to various Max notification systems is done separately, see  FNotifications
+/**
+Modifies Datasmith scene in responce to change notification calls
+Subscription to various Max notification systems is done separately, see  FNotifications
+*/
 class ISceneTracker
 {
 public:
 	virtual ~ISceneTracker(){}
 
-	// Change notifications
+	/** Change notifications */
 	virtual void NodeAdded(INode* Node) = 0;
 	virtual void NodeDeleted(INode* Node) = 0;
 	virtual void NodeGeometryChanged(INode* Node) = 0;
@@ -390,7 +409,7 @@ public:
 
 	virtual bool IsUpdateInProgress() = 0;
 
-	// Scene modification
+	/** Scene modification*/
 	virtual void AddMeshElement(TSharedPtr<IDatasmithMeshElement>& Mesh, FDatasmithMesh& DatasmithMesh, FDatasmithMesh* CollisionMesh) = 0;
 	virtual void ReleaseMeshElement(FMeshConverted& Converted) = 0;
 	virtual void SetupActor(FNodeTracker& NodeTracker) = 0;
@@ -400,7 +419,7 @@ public:
 	virtual void NodeXRefMerged(INode* Node) = 0;
 	virtual void RemapConvertedMaterialUVChannels(Mtl* ActualMaterial, const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
 	
-	// Sync/Update
+	/** Sync/Update */
 	FSyncPoint CurrentSyncPoint;
 
 	virtual void AddGeometryNodeInstance(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter, Object* Obj) = 0;
@@ -415,27 +434,32 @@ public:
 	virtual TSharedRef<IDatasmithScene> GetDatasmithSceneRef() = 0;
 	virtual const TCHAR* GetAssetsOutputPath() = 0;
 
-	// Utility
+	/** Utility */
 	virtual FNodeTracker* GetNodeTrackerByNodeName(const TCHAR* Name) = 0;
 	virtual FSceneUpdateStats& GetStats() = 0;
 };
 
-// Input data for mesh conversion
+/** Input data for mesh conversion*/
 struct MeshConversionParams
 {
-	INode* Node; // Node, this geom object created from
-	const GeomUtils::FRenderMeshForConversion& RenderMesh; // Extracted render mesh
-	bool bConsolidateMaterialIds; // Whether to join all materials id into single material slot (used when a geometry doesn't have a multimaterial assigned)
+	/** Node, this geom object created from */
+	INode* Node;
+
+	/** Extracted render mesh */
+	const GeomUtils::FRenderMeshForConversion& RenderMesh;
+
+	/** Whether to join all materials id into single material slot (used when a geometry doesn't have a multimaterial assigned) */
+	bool bConsolidateMaterialIds;
 };
 
-// Creates Mesh element and converts max mesh into it
+/** Creates Mesh element and converts max mesh into it */
 bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted);
 
 bool OpenDirectLinkUI();
 const TCHAR* GetDirectlinkCacheDirectory();
 
 
-//---- Max Notifications/Events/Callbacks handling
+/** Max Notifications/Events/Callbacks handling */
 class FNodeEventCallback;
 class FNodeObserver;
 class FMaterialObserver;
@@ -517,7 +541,7 @@ public:
 	}
 };
 
-//---- Material change tracking
+/** Material change tracking */
 class FMaterialTracker
 {
 public:
@@ -526,7 +550,8 @@ public:
 
 	Mtl* Material;
 
-	TArray<Mtl*> Materials; // Actual materials used for this assigned material
+	/*Actual materials used for this assigned material*/
+	TArray<Mtl*> Materials;
 	TArray<Texmap*> Textures;
 
 	bool bInvalidated = true;
@@ -544,7 +569,7 @@ public:
 	void ResetActualMaterialAndTextures()
 	{
 		Materials.Reset();
-		Textures.Reset(); //todo: unregister textures
+		Textures.Reset();
 	}
 
 	void AddActualMaterial(Mtl* ActualMaterial)
@@ -578,9 +603,11 @@ private:
 	}
 };
 
-// Converts texmap to texture element
-// This is different from IDatasmithMaxTexmapToUEPbr which performs texmap conversion to full MaterialExpression which is used in material graph
-// IDatasmithMaxTexmapToUEPbr uses ToTextureElementConverter when it needs a texture element
+/**
+Converts texmap to texture element
+This is different from IDatasmithMaxTexmapToUEPbr which performs texmap conversion to full MaterialExpression which is used in material graph
+IDatasmithMaxTexmapToUEPbr uses ToTextureElementConverter when it needs a texture element
+*/
 class ITexmapToTextureElementConverter
 {
 public:
@@ -598,27 +625,42 @@ public:
 
 	void Reset();
 
-	FMaterialTracker* AddMaterial(Mtl* Material); // Add material to track its changes
-
-	void AddActualMaterial(FMaterialTracker& MaterialTracker, Mtl* Material); // Add material used in a tracked material's graph
-	const TCHAR* GetMaterialName(Mtl* SubMaterial); // Get name used for Datasmith material. Datasmith material names must be unique(used to identify elements)
-
-	void AssignMeshMaterials(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels);
-	void AssignMeshActorMaterials(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* Material, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed);
-
-	void AddDatasmithMaterialForUsedMaterial(TSharedRef<IDatasmithScene> DatasmithScene, Mtl* Material, TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial); // Record which Datasmith material was created for a Max material, not only for tracked(assigned) materials
-
-	void InvalidateMaterial(Mtl* Material); // Mark changed
-
-	void UpdateMaterial(FMaterialTracker* MaterialTracker); // Reparse source material
-
-	void ConvertMaterial(Mtl* Material, TSharedRef<IDatasmithScene> DatasmithScene, const TCHAR* AssetsPath, TSet<Texmap*>& TexmapsConverted); // Convert to Datasmith
-
-	// When Material is not used my scene anymore - stop tracking it
+	/** Add material to track its changes*/
+	FMaterialTracker* AddMaterial(Mtl* Material);
+	/** When Material is not used in scene anymore - stop tracking it*/
 	void ReleaseMaterial(FMaterialTracker& MaterialTracker);
+	/** Mark changed*/
+	void InvalidateMaterial(Mtl* Material);
+	/** Reparse source material*/
+	void UpdateMaterial(FMaterialTracker* MaterialTracker);
+	/** Convert to Datasmith */
+	void ConvertMaterial(Mtl* Material, TSharedRef<IDatasmithScene> DatasmithScene, const TCHAR* AssetsPath, TSet<Texmap*>& TexmapsConverted);
 
-	// Clean all converted data, remove from datasmith scene(e.g. before rebuilding material)
+	/** Clean all converted data, remove from datasmith scene(e.g. before rebuilding material) */
 	void RemoveConvertedMaterial(FMaterialTracker& MaterialTracker);
+
+	/** Add material used in a specific tracked material's graph */
+	void AddActualMaterial(FMaterialTracker& MaterialTracker, Mtl* Material);
+	/** Reverse of AddActualMaterial*/
+	void ReleaseActualMaterial(FMaterialTracker& MaterialTracker, Mtl* Material);
+
+	/** Get name used for Datasmith material. Datasmith material names must be unique(used to identify elements) */
+	const TCHAR* GetMaterialName(Mtl* SubMaterial);
+
+	/** If material is used on a mesh/actor to create a datamsith element */
+	bool IsMaterialUsed(Mtl* Material);
+	/** Set datasmith materials for static mesh for assigned max material */
+	void SetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels);
+	void SetMaterialForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* MaterialAssignedToNode, Mtl* ActualMaterial, uint16 SlotId);
+	void UnSetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement);
+	/** Set datasmith materials for mesh actor for assigned max material */
+	void SetMaterialsForMeshActor(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* Material, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed);
+	void SetMaterialForMeshActorElement(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* MaterialAssignedToNode, Mtl* Material, int32 SlotId);
+	void UnSetMaterialsForMeshActor(const TSharedPtr<IDatasmithMeshActorElement>&);
+
+	/** Record which Datasmith material was created for a Max material, not only for tracked(assigned) materials */
+	void AddDatasmithMaterialForUsedMaterial(TSharedRef<IDatasmithScene> DatasmithScene, Mtl* Material, TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial);
+	void RemoveDatasmithMaterialForUsedMaterial(Mtl* Material);
 
 	void ResetInvalidatedMaterials()
 	{
@@ -632,7 +674,7 @@ public:
 
 	void UpdateTexmap(Texmap* Texmap);
 
-	// Adds a texmap that need to be converted to texture element
+	/** Adds a texmap that need to be converted to texture element */
 	void AddTexmapForConversion(Texmap* Texmap, const FString& DesiredTextureElementName, const TSharedPtr<ITexmapToTextureElementConverter>& Converter);
 
 	void AddTextureElement(const TSharedPtr<IDatasmithTextureElement>& );
@@ -640,26 +682,47 @@ public:
 
 	ISceneTracker& SceneTracker;
 
-	TMap<FMaterialKey, FMaterialTrackerHandle> MaterialTrackers; // Tracks all assigned materials
-	TSet<FMaterialTracker*> InvalidatedMaterialTrackers; // Materials needing update
+	/** Tracks all assigned materials */
+	TMap<FMaterialKey, FMaterialTrackerHandle> MaterialTrackers;
+	/** Materials needing update */
+	TSet<FMaterialTracker*> InvalidatedMaterialTrackers;
 
-	TSet<Mtl*> EncounteredMaterials; // All materials from the assigned material's graphs 
-	TSet<Texmap*> EncounteredTextures; // All materials from the assigned material's graphs 
+	/**
+	3ds Max Materials can be:
+	- Tracked. When a material is assigned to a 3ds Max node. Assigned materials are tracked for changes by the plugin.
+	- Used. When a material is used to create a DatasmithMaterialElement associated with it and this element is used by a DatasmithStaticMesh or MeshActor
+	- Actual. Tracked + Used + <all unused submaterials>  - 
+	 Tracked material won't necessarily be Used, for various reasons, e.g. it can be a composite material(in this case only its submaterials are be Used). Or material is assigned but all geometry is invisible.
+	 Used materials can be missing in Tracked - a submaterial of an MultiSubobj material assigned to node is not assigned directly.
+	 */
 
-	TArray<FString> MaterialNames; // todo: UETOOL-4369 fix changing materials names(to make them unique for easy export)
-
-	TMap<Mtl*, TSet<FMaterialTracker*>> UsedMaterialToMaterialTracker; // Materials uses by nodes keep set of assigned materials they are used for
+	/** Tracked material for every Actual material (i.e. set of material which use an Mtl as a submaterial ) */
+	TMap<Mtl*, TSet<FMaterialTracker*>> ActualMaterialToMaterialTracker;
+	/** All materials that have a corresponding Datasmith material created */
 	TMap<Mtl*, TSharedPtr<IDatasmithBaseMaterialElement>> UsedMaterialToDatasmithMaterial;
 
+	/** Cached unique name for each used material for Datasmith Element */
 	TMap<Mtl*, FString> UsedMaterialToDatasmithMaterialName;
 
-	TMap<Texmap*, TSet<FMaterialTracker*>> UsedTextureToMaterialTracker; // Materials uses by nodes keep set of assigned textures they are used for
-	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> UsedTextureToDatasmithElement; // Keep track of Datasmith Element created for texmap to simplify update/removal(no need to search DatasmithScene)
-	TMap<TSharedPtr<IDatasmithTextureElement>, TSet<Texmap*>> TextureElementToTexmap; // Back reference - which texture elements correspond to which texmaps(different texmaps can make same element)
+	/** Track materials used for static meshes */
+	TMap<Mtl*, TMap<IDatasmithMeshElement*, TSet<int32>>> UsedMaterialToMeshElementSlot;
+	TMap<IDatasmithMeshElement*, TMap<Mtl*, TSet<int32>>> MeshElementToUsedMaterialSlot;
+
+	/** Track materials used for overrides on mesh actors */
+	TMap<Mtl*, TMap<IDatasmithMeshActorElement*, TSet<int32>>> UsedMaterialToMeshActorSlot;
+	TMap<IDatasmithMeshActorElement*, TMap<Mtl*, TSet<int32>>> MeshActorToUsedMaterialSlot;
+
+	/** Texmaps tracking */
+	/** Materials uses by nodes keep set of assigned textures they are used for */
+	TMap<Texmap*, TSet<FMaterialTracker*>> UsedTextureToMaterialTracker;
+	/** Keep track of Datasmith Element created for texmap to simplify update/removal(no need to search DatasmithScene) */
+	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> UsedTextureToDatasmithElement;
+	/** Back reference - which texture elements correspond to which texmaps(different texmaps can make same element) */
+	TMap<TSharedPtr<IDatasmithTextureElement>, TSet<Texmap*>> TextureElementToTexmap;
 
 	TMap<Texmap*, TSharedPtr<ITexmapToTextureElementConverter>> TexmapConverters;
 
-	// Bitmap textures using the same file become same texture element
+	/** Bitmap textures using the same file become same texture element */
 	TMap<FString, TSharedPtr<IDatasmithTextureElement>>  BitmapTextureElements;
 
 	TSet<TSharedPtr<IDatasmithTextureElement>> TextureElementsAddedToScene;
@@ -669,7 +732,7 @@ public:
 	FDatasmithUniqueNameProvider MaterialNameProvider;
 };
 
-//----
+/** Logging */
 
 void LogFlush();
 
@@ -688,7 +751,7 @@ void LogWarningDialog(const FString& Msg);
 void LogCompletionDialog(const FString& Msg);
 void LogInfoDialog(const FString& Msg);
 
-// Debug logging
+/** Debug logging */
 void LogDebugImpl(const FString& Msg);
 void LogDebugDialog(const FString& Msg);
 

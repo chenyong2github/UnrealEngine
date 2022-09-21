@@ -181,7 +181,7 @@ struct FInstances: FNoncopyable
 	void AssignMaterialToStaticMesh(FMaterialsCollectionTracker& MaterialsCollectionTracker,  Mtl* InMaterial)
 	{
 		Material = InMaterial;
-		MaterialsCollectionTracker.AssignMeshMaterials(Converted.DatasmithMeshElement, Material, Converted.SupportedChannels);
+		MaterialsCollectionTracker.SetMaterialsForMeshElement(Converted.DatasmithMeshElement, Material, Converted.SupportedChannels);
 	}
 };
 
@@ -1365,7 +1365,6 @@ public:
 	 // returns if any change in scene was encountered and scene update completed(i.e. DirectLink Sync can be run)
 	bool UpdateInternal(FUpdateProgress::FStage& MainStage)
 	{
-
 		CurrentSyncPoint.Time = GetCOREInterface()->GetTime();
 
 		// Changes present only when there are modified layers(changes checked manually), nodes(notified by Max) or materials(notified by Max with all changes in dependencies)
@@ -2108,10 +2107,14 @@ public:
 			// Remove mesh actor before removing its parent Actor in case there a separate MeshActor
 			if (Converted.DatasmithMeshActor)
 			{
-				// if (NodeTracker.DatasmithMeshActor != NodeTracker.DatasmithActorElement)
+				if (Converted.DatasmithActorElement != Converted.DatasmithMeshActor)
 				{
 					Converted.DatasmithActorElement->RemoveChild(Converted.DatasmithMeshActor);
 				}
+
+				MaterialsCollectionTracker.UnSetMaterialsForMeshActor(Converted.DatasmithMeshActor);
+
+
 				Converted.DatasmithMeshActor.Reset();
 				// todo: consider pool of MeshActors
 			}
@@ -2142,6 +2145,7 @@ public:
 	// Called when mesh element is not needed anymore and should be removed from the scene
 	virtual void ReleaseMeshElement(FMeshConverted& Converted) override
 	{
+		MaterialsCollectionTracker.UnSetMaterialsForMeshElement(Converted.DatasmithMeshElement);
 		GetDatasmithScene().RemoveMesh(Converted.DatasmithMeshElement);
 		Converted.ReleaseMeshConverted();
 	}
@@ -2621,11 +2625,11 @@ public:
 		NodeTracker.Validity.NarrowValidityToInterval(ValidityInterval);
 	}
 
-	void RegisterNodeForMaterial(FNodeTracker& NodeTracker, Mtl* Material)
+	FMaterialTracker* RegisterNodeForMaterial(FNodeTracker& NodeTracker, Mtl* Material)
 	{
 		if (!Material)
 		{
-			return;
+			return nullptr;
 		}
 
 		FMaterialTracker* MaterialTracker = MaterialsCollectionTracker.AddMaterial(Material);
@@ -2636,6 +2640,7 @@ public:
 		{
 			NotificationsHandler->AddMaterial(Material);
 		}
+		return MaterialTracker;
 	}
 
 	virtual void UnregisterNodeForMaterial(FNodeTracker& NodeTracker) override 
@@ -2702,7 +2707,7 @@ public:
 			return;
 		}
 
-		TSet<FMaterialTracker*>* MaterialTrackers = MaterialsCollectionTracker.UsedMaterialToMaterialTracker.Find(ActualMaterial);
+		TSet<FMaterialTracker*>* MaterialTrackers = MaterialsCollectionTracker.ActualMaterialToMaterialTracker.Find(ActualMaterial);
 
 		if (!MaterialTrackers)
 		{
@@ -2744,7 +2749,6 @@ public:
 	virtual void AddGeometryNodeInstance(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter, Object* Obj) override
 	{
 		InvalidateInstances(InstancesManager.AddNodeTracker(NodeTracker, MeshConverter, Obj));
-		
 	}
 
 	virtual void RemoveGeometryNodeInstance(FNodeTracker& NodeTracker) override
@@ -2860,7 +2864,7 @@ public:
 			{
 				if (Instances.Material != Material)
 				{
-					MaterialsCollectionTracker.AssignMeshActorMaterials(NodeTracker.GetConverted().DatasmithMeshActor, Material, Instances.Converted.SupportedChannels, FVector3f(NodeTracker.GetConverted().DatasmithMeshActor->GetTranslation()));
+					MaterialsCollectionTracker.SetMaterialsForMeshActor(NodeTracker.GetConverted().DatasmithMeshActor, Material, Instances.Converted.SupportedChannels, FVector3f(NodeTracker.GetConverted().DatasmithMeshActor->GetTranslation()));
 				}
 			}
 		}
@@ -2992,7 +2996,7 @@ public:
 				NodeConverter.Meshes.Add(MeshConverted);
 
 				RegisterNodeForMaterial(NodeTracker, Material);
-				MaterialsCollectionTracker.AssignMeshMaterials(MeshConverted.DatasmithMeshElement, Material, MeshConverted.SupportedChannels);
+				MaterialsCollectionTracker.SetMaterialsForMeshElement(MeshConverted.DatasmithMeshElement, Material, MeshConverted.SupportedChannels);
 
 				FString MeshLabel = NodeTrackersNames.GetNodeName(NodeTracker) + (TEXT("_") + FString::FromInt(MeshIndex));
 				MeshConverted.DatasmithMeshElement->SetLabel(*MeshLabel);
@@ -3002,7 +3006,7 @@ public:
 				// todo: override material
 				TSharedPtr< IDatasmithActorElement > InversedHISMActor;
 				// todo: ExportHierarchicalInstanceStaticMeshActor CustomMeshNode only used for Material - can be simplified, Material anyway is dealt with outside too
-				TSharedRef<IDatasmithActorElement> HismActorElement = FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor(NodeTracker.Node, MeshSource.Node, *MeshLabel, MeshConverted.SupportedChannels,
+				TSharedRef<IDatasmithActorElement> HismActorElement = ExportHierarchicalInstanceStaticMeshActor(NodeTracker.Node, MeshSource.Node, *MeshLabel, MeshConverted.SupportedChannels,
 					Material, &Transforms, *MeshName, Converter.UnitToCentimeter, EStaticMeshExportMode::Default, InversedHISMActor);
 				NodeTracker.GetConverted().DatasmithActorElement->AddChild(HismActorElement, EDatasmithActorAttachmentRule::KeepWorldTransform);
 				if (InversedHISMActor)
@@ -3013,6 +3017,136 @@ public:
 			}
 		});
 	}
+
+	TSharedRef< IDatasmithActorElement > ExportHierarchicalInstanceStaticMeshActor(INode* Node, INode* CustomMeshNode, const TCHAR* Label, TSet<uint16>& SupportedChannels, Mtl* StaticMeshMtl, const TArray<Matrix3>* Instances,
+		const TCHAR* MeshName, float UnitMultiplier, const EStaticMeshExportMode& ExportMode, TSharedPtr< IDatasmithActorElement >& OutInversedHISMActor)
+	{
+		check(Node && Instances && MeshName);
+
+		TSharedPtr< IDatasmithMeshActorElement > MeshActor;
+		FVector Pos, Scale;
+		FQuat Rotation;
+
+		const FVector3f RandomSeed(FMath::Rand(), FMath::Rand(), FMath::Rand());
+		auto FinalizeHISMActor = [&](TSharedPtr< IDatasmithMeshActorElement >& FinalizingActor, FVector3f Seed, const TCHAR* ActorLabel)
+		{
+			FinalizingActor->SetStaticMeshPathName(MeshName);
+
+			INode* MeshNode = CustomMeshNode ? CustomMeshNode : Node;
+
+			if (ExportMode == EStaticMeshExportMode::Default && StaticMeshMtl != MeshNode->GetMtl())
+			{
+				TSharedRef< IDatasmithMeshActorElement > MeshActorRef = FinalizingActor.ToSharedRef();
+				MaterialsCollectionTracker.SetMaterialsForMeshActor(MeshActorRef, StaticMeshMtl, SupportedChannels, Seed);
+			}
+
+			if (ActorLabel)
+			{
+				FinalizingActor->SetLabel(ActorLabel);
+			}
+
+			FinalizingActor->SetIsAComponent(true);
+
+			switch (ExportMode)
+			{
+			case EStaticMeshExportMode::BoundingBox:
+				FinalizingActor->AddTag(TEXT("Datasmith.Attributes.Geometry: BoundingBox"));
+				break;
+			default:
+				break;
+			}
+		};
+
+		if (Node->GetWSMDerivedObject() != nullptr)
+		{
+			FDatasmithMaxSceneExporter::MaxToUnrealCoordinates(Node->GetObjTMAfterWSM(GetCOREInterface()->GetTime()), Pos, Rotation, Scale, UnitMultiplier);
+		}
+		else
+		{
+			FDatasmithMaxSceneExporter::MaxToUnrealCoordinates(Node->GetObjectTM(GetCOREInterface()->GetTime()), Pos, Rotation, Scale, UnitMultiplier);
+		}
+
+		const int32 InstancesCount = Instances->Num();
+		if ( InstancesCount == 1 )
+		{
+			// Export the the hism as a normal static mesh
+			MeshActor = FDatasmithSceneFactory::CreateMeshActor(MeshName);
+
+			// Apply the relative transfrom of the instance to the forest world transform
+			FTransform WithoutInstance(Rotation, Pos, Scale);
+			FVector InstancePos, InstanceScale;
+			FQuat InstanceRotation;
+			FDatasmithMaxSceneExporter::MaxToUnrealCoordinates((*Instances)[0], InstancePos, InstanceRotation, InstanceScale, UnitMultiplier);
+			FTransform WithInstance(FTransform(InstanceRotation, InstancePos, InstanceScale) * WithoutInstance);
+
+			MeshActor->SetTranslation(WithInstance.GetLocation());
+			MeshActor->SetScale(WithInstance.GetScale3D());
+			MeshActor->SetRotation(WithInstance.GetRotation());
+		}
+		else
+		{
+			TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > HierarchicalInstanceStaticMeshActor = FDatasmithSceneFactory::CreateHierarchicalInstanceStaticMeshActor(MeshName);
+			MeshActor = HierarchicalInstanceStaticMeshActor;
+
+			FTransform HISMActorTransform(Rotation, Pos, Scale);
+			MeshActor->SetTranslation(Pos);
+			MeshActor->SetScale(Scale);
+			MeshActor->SetRotation(Rotation);
+
+			TArray< FTransform > InstancesTransform;
+			InstancesTransform.Reserve(InstancesCount);
+			for (int32 i = 0; i < InstancesCount; i++)
+			{
+				FDatasmithMaxSceneExporter::MaxToUnrealCoordinates((*Instances)[i], Pos, Rotation, Scale, UnitMultiplier);
+				InstancesTransform.Emplace(Rotation, Pos, Scale);
+			}
+
+			TArray< FTransform > NonInvertedTransforms, InvertedTransforms;
+			DatasmithMaxHelper::FilterInvertedScaleTransforms(InstancesTransform, NonInvertedTransforms, InvertedTransforms);
+
+			HierarchicalInstanceStaticMeshActor->ReserveSpaceForInstances(NonInvertedTransforms.Num());
+			for (const FTransform& InstanceTransform : NonInvertedTransforms)
+			{
+				HierarchicalInstanceStaticMeshActor->AddInstance(InstanceTransform);
+			}
+
+			//Adding an inverted HierarchicalInstancedStaticMeshActorElement for the instances with an inverted mesh due to negative scaling.
+			if (InvertedTransforms.Num() > 0)
+			{
+				FString InvertedHISMName = FString(MeshName).Append("_inv");
+				TSharedPtr< IDatasmithHierarchicalInstancedStaticMeshActorElement > InvertedHierarchicalInstanceStaticMeshActor = FDatasmithSceneFactory::CreateHierarchicalInstanceStaticMeshActor(*InvertedHISMName);
+				OutInversedHISMActor = InvertedHierarchicalInstanceStaticMeshActor;
+
+				OutInversedHISMActor->SetTranslation( HISMActorTransform.GetTranslation() );
+				OutInversedHISMActor->SetScale( -1 * HISMActorTransform.GetScale3D() );
+				OutInversedHISMActor->SetRotation( HISMActorTransform.GetRotation() );
+				
+				InvertedHierarchicalInstanceStaticMeshActor->ReserveSpaceForInstances(InvertedTransforms.Num());
+				for (const FTransform& InstanceTransform : InvertedTransforms)
+				{
+					//Correcting the instance transform to reverse the negative scaling of the parent.
+					InvertedHierarchicalInstanceStaticMeshActor->AddInstance( FTransform( InstanceTransform.GetRotation(), -1 * InstanceTransform.GetTranslation(), -1 * InstanceTransform.GetScale3D() ) );
+				}
+
+				TSharedPtr< IDatasmithMeshActorElement > InvertedMeshActor = InvertedHierarchicalInstanceStaticMeshActor;
+				if (Label)
+				{
+					FString InversedLabelString = FString(Label).Append("_inv");
+					FinalizeHISMActor(InvertedMeshActor, RandomSeed, *InversedLabelString);
+				}
+				else
+				{
+					FinalizeHISMActor(InvertedMeshActor, RandomSeed, nullptr);
+				}
+			}
+		}
+
+		FinalizeHISMActor(MeshActor, RandomSeed, Label);
+
+		return MeshActor.ToSharedRef();
+	}
+
+
 
 	void ConvertNamedCollisionNode(FNodeTracker& NodeTracker)
 	{
