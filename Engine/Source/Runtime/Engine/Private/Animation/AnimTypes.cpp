@@ -110,6 +110,13 @@ bool FAnimNotifyEvent::IsBranchingPoint() const
 	return GetLinkedMontage() && ((MontageTickType == EMontageNotifyTickType::BranchingPoint) || (Notify && Notify->bIsNativeBranchingPoint) || (NotifyStateClass && NotifyStateClass->bIsNativeBranchingPoint));
 }
 
+bool FAnimNotifyEvent::IsBlueprintNotify() const
+{
+	return (
+		(Notify && Notify->GetClass() && !Notify->GetClass()->IsNative()) ||
+		(NotifyStateClass && NotifyStateClass->GetClass() && !NotifyStateClass->GetClass()->IsNative())
+		);
+}
 
 void FAnimNotifyEvent::SetTime(float NewTime, EAnimLinkMethod::Type ReferenceFrame /*= EAnimLinkMethod::Absolute*/)
 {
