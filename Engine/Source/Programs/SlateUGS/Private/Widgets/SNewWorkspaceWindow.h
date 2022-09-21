@@ -11,10 +11,9 @@ class SNewWorkspaceWindow final : public SWindow
 {
 public:
 	SLATE_BEGIN_ARGS(SNewWorkspaceWindow) {}
-	SLATE_ARGUMENT(UGSTab*, Tab)
-SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
-void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, UGSTab* InTab);
 
 private:
 	FReply OnBrowseStreamClicked();
@@ -23,7 +22,7 @@ private:
 	FReply OnCreateClicked();
 	FReply OnCancelClicked();
 
-	TSharedPtr<SEditableTextBox> LocalFileText = nullptr;
+	TSharedPtr<SEditableTextBox> LocalFileText;
 	FString WorkspacePathText;
 
 	UGSTab* Tab = nullptr;

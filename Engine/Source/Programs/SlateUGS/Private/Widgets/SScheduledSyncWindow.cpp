@@ -21,9 +21,9 @@
 // Todo: remove checkbox and make the positive action button the thing that schedules the sync
 // Todo: show UI if a scheduled sync already exists and provide the ability to cancel it
 
-void SScheduledSyncWindow::Construct(const FArguments& InArgs)
+void SScheduledSyncWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 {
-	Tab = InArgs._Tab;
+	Tab = InTab;
 	UserSettings = Tab->GetUserSettings();
 
 	SWindow::Construct(SWindow::FArguments()

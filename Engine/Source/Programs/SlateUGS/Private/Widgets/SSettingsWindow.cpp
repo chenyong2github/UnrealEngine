@@ -15,9 +15,9 @@
 
 // Todo: Make settings only save when the positive action button is hit
 
-void SSettingsWindow::Construct(const FArguments& InArgs)
+void SSettingsWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 {
-	Tab = InArgs._Tab;
+	Tab = InTab;
 	UserSettings = Tab->GetUserSettings();
 
 	SWindow::Construct(SWindow::FArguments()

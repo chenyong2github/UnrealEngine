@@ -16,9 +16,9 @@
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 
-void SWorkspaceWindow::Construct(const FArguments& InArgs)
+void SWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 {
-	Tab = InArgs._Tab;
+	Tab = InTab;
 
 	SWindow::Construct(SWindow::FArguments()
 	.Title(LOCTEXT("WindowTitle", "Open Project"))
@@ -266,7 +266,7 @@ FReply SWorkspaceWindow::OnBrowseClicked()
 
 FReply SWorkspaceWindow::OnNewClicked()
 {
-	FSlateApplication::Get().AddModalWindow(SNew(SNewWorkspaceWindow).Tab(Tab), SharedThis(this), false);
+	FSlateApplication::Get().AddModalWindow(SNew(SNewWorkspaceWindow, Tab), SharedThis(this), false);
 
 	return FReply::Handled();
 }

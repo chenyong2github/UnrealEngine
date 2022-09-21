@@ -12,14 +12,13 @@ namespace UGSCore
 	struct FUserSettings;
 }
 
-class SScheduledSyncWindow : public SWindow
+class SScheduledSyncWindow final : public SWindow
 {
 public:
 	SLATE_BEGIN_ARGS(SScheduledSyncWindow) {}
-		SLATE_ARGUMENT(UGSTab*, Tab)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, UGSTab* InTab);
 
 private:
 	/** Handles getting the text color of the editable text box. */
@@ -41,6 +40,6 @@ private:
 	bool bInputValid = false;
 	FString Input;
 
-	UGSTab* Tab;
+	UGSTab* Tab = nullptr;
 	TSharedPtr<UGSCore::FUserSettings> UserSettings;
 };

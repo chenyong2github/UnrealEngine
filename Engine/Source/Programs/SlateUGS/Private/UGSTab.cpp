@@ -24,8 +24,8 @@
 
 UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   TabWidget(SNew(SDockTab)),
-				   EmptyTabView(SNew(SEmptyTab).Tab(this)),
-				   GameSyncTabView(SNew(SGameSyncTab).Tab(this)),
+				   EmptyTabView(SNew(SEmptyTab, this)),
+				   GameSyncTabView(SNew(SGameSyncTab, this)),
 				   bHasQueuedMessages(false),
 				   bNeedUpdateGameTabBuildList(false)
 {
@@ -46,6 +46,8 @@ void UGSTab::Initialize(TSharedPtr<UGSCore::FUserSettings> InUserSettings)
 
 	TabWidget->SetContent(EmptyTabView);
 	TabWidget->SetLabel(FText(LOCTEXT("TabName", "Select a Project")));
+
+	PerforceClient = MakeShared<UGSCore::FPerforceConnection>(TEXT(""), TEXT(""), TEXT(""));
 }
 
 void UGSTab::SetTabManager(UGSTabManager* InTabManager)
@@ -198,6 +200,15 @@ UGSCore::EBuildConfig UGSTab::GetEditorBuildConfig() const
 bool UGSTab::ShouldSyncPrecompiledEditor() const
 {
 	return UserSettings->bSyncPrecompiledEditor && PerforceMonitor->HasZippedBinaries();
+}
+
+TArray<FString> UGSTab::GetAllStreamNames() const
+{
+	TArray<FString> Result;
+	FEvent* AbortEvent = FPlatformProcess::GetSynchEventFromPool(true);
+	PerforceClient->FindStreams("//*/*", Result, AbortEvent, *MakeShared<FLineWriter>());
+
+	return Result;
 }
 
 // Honestly ... seems ... super hacky/hardcoded. With out all these you assert when trying to merge build targets sooo a bit odd
@@ -644,7 +655,7 @@ bool UGSTab::SetupWorkspace()
 	ProjectFileName = UGSCore::FUtility::GetPathWithCorrectCase(ProjectFileName);
 
 	// TODO likely should also log this on an Empty tab... so we can show logging info when we are loading things
-	DetectSettings = MakeShared<UGSCore::FDetectProjectSettingsTask>(MakeShared<UGSCore::FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
+	DetectSettings = MakeShared<UGSCore::FDetectProjectSettingsTask>(PerforceClient.ToSharedRef(), ProjectFileName, MakeShared<FLineWriter>());
 
 	TSharedRef<UGSCore::FModalTaskResult> Result = ExecuteModalTask(
 		FSlateApplication::Get().GetActiveModalWindow(),

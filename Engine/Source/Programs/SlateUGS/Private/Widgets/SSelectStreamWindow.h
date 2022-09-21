@@ -6,11 +6,12 @@
 #include "Widgets/Input/SEditableTextBox.h"
 
 class UGSTab;
+struct FStreamNode;
 
-class SWorkspaceWindow final : public SWindow
+class SSelectStreamWindow final : public SWindow
 {
 public:
-	SLATE_BEGIN_ARGS(SWorkspaceWindow) {}
+	SLATE_BEGIN_ARGS(SSelectStreamWindow) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UGSTab* InTab);
@@ -19,12 +20,8 @@ private:
 	FReply OnOkClicked();
 	FReply OnCancelClicked();
 
-	FReply OnBrowseClicked();
-	FReply OnNewClicked();
-
-	bool bIsLocalFileSelected = true;
-	TSharedPtr<SEditableTextBox> LocalFileText = nullptr;
-	FString WorkspacePathText;
+	TSharedPtr<SEditableTextBox> FilterText;
+	TArray<TSharedPtr<FStreamNode>> StreamsTree;
 
 	UGSTab* Tab = nullptr;
 };

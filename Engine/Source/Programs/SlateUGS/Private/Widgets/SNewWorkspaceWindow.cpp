@@ -9,12 +9,13 @@
 #include "SGameSyncTab.h"
 #include "SPrimaryButton.h"
 #include "Widgets/Layout/SHeader.h"
+#include "Widgets/SSelectStreamWindow.h"
 
 #define LOCTEXT_NAMESPACE "UGSNewWorkspaceWindow"
 
-void SNewWorkspaceWindow::Construct(const FArguments& InArgs)
+void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 {
-	Tab = InArgs._Tab;
+	Tab = InTab;
 
 	SWindow::Construct(SWindow::FArguments()
 	.Title(LOCTEXT("WindowTitle", "New Workspace"))
@@ -77,7 +78,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs)
 						[
 							SNew(SButton)
 							.Text(LOCTEXT("BrowseStreamButtonText", "Browse..."))
-							//.OnClicked(this, &SNewWorkspaceWindow::/* callback here */)
+							.OnClicked(this, &SNewWorkspaceWindow::OnBrowseStreamClicked)
 						]
 					]
 					+SVerticalBox::Slot()
@@ -94,7 +95,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs)
 						[
 							SNew(SButton)
 							.Text(LOCTEXT("BrowseRootDirectoryButtonText", "Browse..."))
-							//.OnClicked(this, &SNewWorkspaceWindow::/* callback here */)
+							.OnClicked(this, &SNewWorkspaceWindow::OnBrowseRootDirectoryClicked)
 						]
 					]
 					+SVerticalBox::Slot()
@@ -133,6 +134,8 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs)
 
 FReply SNewWorkspaceWindow::OnBrowseStreamClicked()
 {
+	FSlateApplication::Get().AddModalWindow(SNew(SSelectStreamWindow, Tab), SharedThis(this), false);
+
 	return FReply::Handled();
 }
 
@@ -142,7 +145,7 @@ FReply SNewWorkspaceWindow::OnBrowseRootDirectoryClicked()
 }
 
 FReply SNewWorkspaceWindow::OnCreateClicked()
-{	
+{
 	return FReply::Handled();
 }
 

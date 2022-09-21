@@ -11,14 +11,13 @@
 
 class UGSTab;
 
-class SSyncFilterWindow : public SWindow
+class SSyncFilterWindow final : public SWindow
 {
 public:
 	SLATE_BEGIN_ARGS(SSyncFilterWindow) {}
-		SLATE_ARGUMENT(UGSTab*, Tab)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, UGSTab* InTab);
 
 private:
 	FReply OnShowCombinedFilterClicked();
@@ -29,7 +28,7 @@ private:
 	void ConstructSyncFilters();
 	void ConstructCustomSyncViewTextBoxes();
 
-	UGSTab* Tab;
+	UGSTab* Tab = nullptr;
 	TArray<UGSCore::FWorkspaceSyncCategory> WorkspaceCategoriesCurrent;
 	TArray<UGSCore::FWorkspaceSyncCategory> WorkspaceCategoriesAll;
 

@@ -8,7 +8,6 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SHeader.h"
 #include "SPrimaryButton.h"
-#include "SSimpleButton.h"
 #include "SPopupTextWindow.h"
 
 #define LOCTEXT_NAMESPACE "SSyncFilterWindow"
@@ -77,9 +76,9 @@ void SSyncFilterWindow::ConstructCustomSyncViewTextBoxes()
 	.Text(FText::FromString(FString::Join(Tab->GetSyncViews(SyncCategoryType::AllWorkspaces), TEXT("\n"))));
 }
 
-void SSyncFilterWindow::Construct(const FArguments& InArgs)
+void SSyncFilterWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 {
-	Tab = InArgs._Tab;
+	Tab = InTab;
 
 	ConstructSyncFilters();
 	ConstructCustomSyncViewTextBoxes();

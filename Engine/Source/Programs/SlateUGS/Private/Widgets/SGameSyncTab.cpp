@@ -237,7 +237,7 @@ TSharedRef<SWidget> SGameSyncTab::MakeSyncButtonDropdown()
 		FText::FromString(TEXT("Setup Schedule Sync")),
 		FText::FromString(TEXT("Setup a schedule sync to run at specific time")),
 		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateLambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SScheduledSyncWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); } )),
+		FUIAction(FExecuteAction::CreateLambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SScheduledSyncWindow, Tab), Tab->GetTabArgs().GetOwnerWindow(), false); } )),
 		NAME_None,
 		EUserInterfaceActionType::Button
 	);
@@ -245,9 +245,9 @@ TSharedRef<SWidget> SGameSyncTab::MakeSyncButtonDropdown()
 	return MenuBuilder.MakeWidget();
 }
 
-void SGameSyncTab::Construct(const FArguments& InArgs)
+void SGameSyncTab::Construct(const FArguments& InArgs, UGSTab* InTab)
 {
-	Tab = InArgs._Tab;
+	Tab = InTab;
 
 	this->ChildSlot
 	[
@@ -374,7 +374,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("Filter", "Filter"))
 						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Filter"))
 						// Todo: this is probably the wrong "Filter" button. The functionality below should probably be in the settings dropdown
-						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSyncFilterWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
+						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSyncFilterWindow, Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -383,7 +383,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Settings", "Settings"))
 						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Settings"))
-						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSettingsWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
+						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSettingsWindow, Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
 					]
 				]
 			]

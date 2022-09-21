@@ -73,6 +73,7 @@ public:
 	UGSTabManager* GetTabManager();
 	TSharedPtr<UGSCore::FUserSettings> GetUserSettings() const;
 	bool ShouldSyncPrecompiledEditor() const;
+	TArray<FString> GetAllStreamNames() const;
 
 	void UpdateGameTabBuildList();
 	void RefreshBuildList();
