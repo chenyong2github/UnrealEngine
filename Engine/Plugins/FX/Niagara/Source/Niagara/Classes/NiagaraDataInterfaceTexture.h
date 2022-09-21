@@ -14,7 +14,8 @@ class NIAGARA_API UNiagaraDataInterfaceTexture : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
-		SHADER_PARAMETER(FVector2f,				TextureSize)
+		SHADER_PARAMETER(FIntPoint,				TextureSize)
+		SHADER_PARAMETER(int32,					MipLevels)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D,	Texture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,	TextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
@@ -45,9 +46,10 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	//UNiagaraDataInterface Interface End
 
-	void SampleTexture(FVectorVMExternalFunctionContext& Context);
-	void GetTextureDimensions(FVectorVMExternalFunctionContext& Context);
-	void SamplePseudoVolumeTexture(FVectorVMExternalFunctionContext& Context);
+	void VMSampleTexture(FVectorVMExternalFunctionContext& Context);
+	void VMSamplePseudoVolumeTexture(FVectorVMExternalFunctionContext& Context);
+	void VMGetTextureDimensions(FVectorVMExternalFunctionContext& Context);
+	void VMGetNumMipLevels(FVectorVMExternalFunctionContext& Context);
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
@@ -56,6 +58,7 @@ public:
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
 	virtual bool UseLegacyShaderBindings() const override { return false; }
 	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
@@ -70,5 +73,6 @@ protected:
 	static const TCHAR* TemplateShaderFilePath;
 	static const FName SampleTexture2DName;
 	static const FName SamplePseudoVolumeTextureName;
-	static const FName TextureDimsName;
+	static const FName GetTextureDimensionsName;
+	static const FName GetNumMipLevelsName;
 };
