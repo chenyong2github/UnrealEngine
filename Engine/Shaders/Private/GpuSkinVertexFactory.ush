@@ -32,10 +32,6 @@
 #define GPUSKIN_USE_BONES_SRV_BUFFER	0	// Use a Buffer<float4> if 1, otherwise a uniform buffer   
 #endif
 
-#ifndef GPUSKIN_MULTIPLE_CLOTH_INFLUENCES
-#define GPUSKIN_MULTIPLE_CLOTH_INFLUENCES 0
-#endif
-
 #define MAX_INFLUENCES_PER_STREAM	4
 
 #define FIXED_VERTEX_INDEX 0xFFFF
@@ -138,13 +134,11 @@ struct FVertexFactoryInput
 // .x = Draw Index Buffer offset, .y = Offset into Cloth Vertex Buffer
 uint2 GPUSkinApexClothStartIndexOffset;
 
-#if GPUSKIN_MULTIPLE_CLOTH_INFLUENCES
 // This must match NUM_INFLUENCES_PER_VERTEX in ClothingMeshUtils.cpp and GpuSkinCacheComputeShader.usf
+// It represents the maximum number of influences so perhaps should be renamed. Right now we are keeping the name matching for easy search.
 // TODO: Make this easier to change in without messing things up
 #define NUM_INFLUENCES_PER_VERTEX 5
-#else
-#define NUM_INFLUENCES_PER_VERTEX 1
-#endif
+uint ClothNumInfluencesPerVertex;
 
 struct FClothVertex
 {
@@ -179,9 +173,10 @@ void SetupClothVertex(uint VertexIndex, out FClothVertex ClothVertexInfluences[N
 {
 	const uint MinVertexIndex = GPUSkinApexClothStartIndexOffset.x;
 	const uint ClothIndexOffset = GPUSkinApexClothStartIndexOffset.y;
-    VertexIndex = NUM_INFLUENCES_PER_VERTEX * (VertexIndex - MinVertexIndex) + ClothIndexOffset;
+    VertexIndex = ClothNumInfluencesPerVertex * (VertexIndex - MinVertexIndex) + ClothIndexOffset;
 
-    for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
+    UNROLL_N(NUM_INFLUENCES_PER_VERTEX)
+	for (int i = 0; i < ClothNumInfluencesPerVertex; ++i )
     {
         const uint Offset = (VertexIndex + i) * NUM_FLOAT4S_PER_VERTEX_INFLUENCE;
 
@@ -420,7 +415,8 @@ float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 	float SimulWeight = 0.0f; 
 	float3 AveragedSimulatedPosition = float3(0, 0, 0);
 
-    for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
+	UNROLL_N(NUM_INFLUENCES_PER_VERTEX)
+    for (int i = 0; i < ClothNumInfluencesPerVertex; ++i )
     {
         const FClothVertex Influence = ClothVertexInfluences[i];
 
@@ -439,7 +435,7 @@ float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 	    	SimulWeight += GetClothSimulWeight(Influence.SimulIndices.w);
 	    	
 			float Weight = 1.0f;
-			if ( NUM_INFLUENCES_PER_VERTEX > 1 )
+			if ( ClothNumInfluencesPerVertex > 1 )
 			{
 				Weight = Influence.Weight;
 				SumWeights += Weight;
@@ -474,7 +470,10 @@ float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 		SimulWeight = 0.0f;			// Fall back to skinned vertex position by setting this lerp param to zero
 	}
 
-	SimulWeight /= NUM_INFLUENCES_PER_VERTEX;
+	if (ClothNumInfluencesPerVertex > 1)
+	{
+		SimulWeight /= ClothNumInfluencesPerVertex;
+	}
 
 	return float4(AveragedSimulatedPosition, SimulWeight);
 }
@@ -712,7 +711,7 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 	    float SumWeights = 0.0;
 		float SimulWeight = 0.0;
 
-        for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
+        for (int i = 0; i < ClothNumInfluencesPerVertex; ++i )
         {
             const FClothVertex Influence = Intermediates.ClothVertexInfluences[i];
 
@@ -732,7 +731,7 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 	        	SimulWeight += GetClothSimulWeight(Influence.SimulIndices.w);
 	        	
 			    float Weight = 1.0f;
-			    if ( NUM_INFLUENCES_PER_VERTEX > 1 )
+			    if ( ClothNumInfluencesPerVertex > 1 )
 			    {
 				    // Weight is packed in the last coordinate
 				    Weight = Influence.Weight;
@@ -755,7 +754,10 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 	        }
         }
 
-		SimulWeight /= NUM_INFLUENCES_PER_VERTEX;
+		if (ClothNumInfluencesPerVertex > 1)
+		{
+			SimulWeight /= ClothNumInfluencesPerVertex;
+		}
 	
         if ( NumInfluences > 0 && SumWeights > 1e-4f )
         {

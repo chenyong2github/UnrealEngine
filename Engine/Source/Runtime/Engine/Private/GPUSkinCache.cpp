@@ -369,7 +369,7 @@ public:
         // cloth input
 		uint32 ClothBufferOffset = 0;
         float ClothBlendWeight = 0.0f;
-
+		uint32 ClothNumInfluencesPerVertex = 1;
         FMatrix44f ClothToLocal = FMatrix44f::Identity;
 
 		// triangle index buffer (input for the RecomputeSkinTangents, might need special index buffer unique to position and normal, not considering UV/vertex color)
@@ -527,20 +527,30 @@ public:
 			Data.MorphBufferOffset = Section->BaseVertexIndex;
 		}
 
-		if (ClothVertexBuffer && ClothVertexBuffer->GetClothIndexMapping().Num() > SectionIndex)
+		if (ClothVertexBuffer)
 		{
-			const FClothBufferIndexMapping& ClothBufferIndexMapping = ClothVertexBuffer->GetClothIndexMapping()[SectionIndex];
+			constexpr int32 ClothLODBias0 = 0;  // Use the same cloth LOD mapping (= 0 bias) to get the number of deformer weights
+			const uint32 NumWrapDeformerWeights = Data.Section->ClothMappingDataLODs.Num() ? Data.Section->ClothMappingDataLODs[ClothLODBias0].Num() : 0;
+			// NumInfluencesPerVertex should be a whole integer
+			check(NumWrapDeformerWeights % Data.NumVertices == 0);
+			Data.ClothNumInfluencesPerVertex = NumWrapDeformerWeights / Data.NumVertices;
 
-			check(SimData->LODIndex != INDEX_NONE && SimData->LODIndex <= LOD);
-			const uint32 ClothLODBias = (uint32)(LOD - SimData->LODIndex);
+			if (ClothVertexBuffer->GetClothIndexMapping().Num() > SectionIndex)
+			{
 
-			const uint32 ClothBufferOffset = ClothBufferIndexMapping.MappingOffset + ClothBufferIndexMapping.LODBiasStride * ClothLODBias;
+				const FClothBufferIndexMapping& ClothBufferIndexMapping = ClothVertexBuffer->GetClothIndexMapping()[SectionIndex];
 
-			// Set the buffer offset depending on whether enough deformer mapping data exists (RaytracingMinLOD/RaytracingLODBias/ClothLODBiasMode settings)
-			const uint32 NumInfluences = NumVertices ? ClothBufferIndexMapping.LODBiasStride / NumVertices : 1;
-			Data.ClothBufferOffset = (ClothBufferOffset + NumVertices * NumInfluences <= ClothVertexBuffer->GetNumVertices()) ?
-				ClothBufferOffset :                     // If the offset is valid, set the calculated LODBias offset
-				ClothBufferIndexMapping.MappingOffset;  // Otherwise fallback to a 0 ClothLODBias to prevent from reading pass the buffer (but still raytrace broken shadows/reflections/etc.)
+				check(SimData->LODIndex != INDEX_NONE && SimData->LODIndex <= LOD);
+				const uint32 ClothLODBias = (uint32)(LOD - SimData->LODIndex);
+
+				const uint32 ClothBufferOffset = ClothBufferIndexMapping.MappingOffset + ClothBufferIndexMapping.LODBiasStride * ClothLODBias;
+
+				// Set the buffer offset depending on whether enough deformer mapping data exists (RaytracingMinLOD/RaytracingLODBias/ClothLODBiasMode settings)
+				const uint32 NumInfluences = NumVertices ? ClothBufferIndexMapping.LODBiasStride / NumVertices : 1;
+				Data.ClothBufferOffset = (ClothBufferOffset + NumVertices * NumInfluences <= ClothVertexBuffer->GetNumVertices()) ?
+					ClothBufferOffset :                     // If the offset is valid, set the calculated LODBias offset
+					ClothBufferIndexMapping.MappingOffset;  // Otherwise fallback to a 0 ClothLODBias to prevent from reading pass the buffer (but still raytrace broken shadows/reflections/etc.)
+			}
 		}
 
 		//INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
@@ -657,6 +667,7 @@ public:
 		ClothBufferOffset.Bind(Initializer.ParameterMap, TEXT("ClothBufferOffset"));
 		ClothBlendWeight.Bind(Initializer.ParameterMap, TEXT("ClothBlendWeight"));
 		ClothToLocal.Bind(Initializer.ParameterMap, TEXT("ClothToLocal"));
+		ClothNumInfluencesPerVertex.Bind(Initializer.ParameterMap, TEXT("ClothNumInfluencesPerVertex"));
 	}
 
 	void SetParameters(
@@ -705,6 +716,7 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBufferOffset, DispatchData.ClothBufferOffset);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothBlendWeight, DispatchData.ClothBlendWeight);
 			SetShaderValue(RHICmdList, ShaderRHI, ClothToLocal, DispatchData.ClothToLocal);
+			SetShaderValue(RHICmdList, ShaderRHI, ClothNumInfluencesPerVertex, DispatchData.ClothNumInfluencesPerVertex);
 		}
 
 		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheDebug, CVarGPUSkinCacheDebug.GetValueOnRenderThread());
@@ -751,18 +763,16 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ClothBufferOffset)
 	LAYOUT_FIELD(FShaderParameter, ClothBlendWeight)
 	LAYOUT_FIELD(FShaderParameter, ClothToLocal)
-
+	LAYOUT_FIELD(FShaderParameter, ClothNumInfluencesPerVertex)
 };
 
 /** Compute shader that skins a batch of vertices. */
 // @param SkinType 0:normal, 1:with morph targets calculated outside the cache, 2: with cloth, 3:with morph target calculated insde the cache (not yet implemented)
 //        BoneInfluenceType 0:normal, 1:extra bone influences, 2:unlimited bone influences
 //        BoneIndex16 0: 8-bit indices, 1: 16-bit indices
-//        MultipleClothInfluences 0:single influence 1:multiple influences
 template <int Permutation>
 class TGPUSkinCacheCS : public FBaseGPUSkinCacheCS
 {
-	constexpr static bool bMultipleClothInfluences = (32 == (Permutation & 32));
 	constexpr static bool bBoneIndex16 = (16 == (Permutation & 16));
 	constexpr static bool bUnlimitedBoneInfluence = (8 == (Permutation & 12));
 	constexpr static bool bUseExtraBoneInfluencesT = (4 == (Permutation & 12));
@@ -785,12 +795,10 @@ public:
 		const uint32 UseExtraBoneInfluences = bUseExtraBoneInfluencesT;
 		const uint32 MorphBlend = bMorphBlend;
 		const uint32 ApexCloth = bApexCloth;
-		const uint32 MultipleClothInfluences = bMultipleClothInfluences;
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), UnlimitedBoneInfluence);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_EXTRA_INFLUENCES"), UseExtraBoneInfluences);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"), MorphBlend);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"), ApexCloth);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_MULTIPLE_CLOTH_INFLUENCES"), MultipleClothInfluences);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_X"), FGPUSkinCache::RWTangentXOffsetInFloats);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_Z"), FGPUSkinCache::RWTangentZOffsetInFloats);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_BONE_INDEX_UINT16"), BoneIndex16);
@@ -821,12 +829,6 @@ IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<18>, TEXT("/Engine/Private/Gpu
 IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<20>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_0 
 IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<21>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_1 
 IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<22>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_2 
-// Multi-influences for cloth:
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<34>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_0, SkinType_2, MultipleClothInfluences_1
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<38>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_1, SkinType_2, MultipleClothInfluences_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<42>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_2, SkinType_2, MultipleClothInfluences_1
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<50>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_0, SkinType_2, MultipleClothInfluences_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<54>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_2, MultipleClothInfluences_1 
 
 FGPUSkinCache::FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit, UWorld* InWorld)
 	: UsedMemoryInBytes(0)
@@ -1850,10 +1852,6 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
 	const FString RayTracingTag = (Entry->Mode == EGPUSkinCacheEntryMode::RayTracing ? TEXT("[RT]") : TEXT(""));
 	
-	constexpr int32 ClothLODBias = 0;  // Use the same cloth LOD mapping (= 0 bias) to get the number of deformer weights
-	const uint32 NumWrapDeformerWeights = DispatchData.Section->ClothMappingDataLODs.Num() ? DispatchData.Section->ClothMappingDataLODs[ClothLODBias].Num(): 0;
-	const bool bMultipleWrapDeformerInfluences = (DispatchData.NumVertices < NumWrapDeformerWeights);
-
 	SCOPED_DRAW_EVENTF(RHICmdList, SkinCacheDispatch,
 		TEXT("%sSkinning%d%d%d Mesh=%s LOD=%d Chunk=%d InStreamStart=%d OutStart=%d Vert=%d Morph=%d/%d"),
 		*RayTracingTag, (int32)Entry->bUse16BitBoneIndex, (int32)Entry->BoneInfluenceType, DispatchData.SkinType, *GetSkeletalMeshObjectName(Entry->GPUSkin), Entry->LOD,
@@ -1874,13 +1872,6 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	TShaderMapRef<TGPUSkinCacheCS<20>>  SkinCacheCS110(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_0
 	TShaderMapRef<TGPUSkinCacheCS<21>>  SkinCacheCS111(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_1
 	TShaderMapRef<TGPUSkinCacheCS<22>>  SkinCacheCS112(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_2
-
-	// Multi-influences for cloth:
-	TShaderMapRef<TGPUSkinCacheCS<34>>  SkinCacheCS0021(GlobalShaderMap);	// 16bit_0, BoneInfluenceType_0, SkinType_2, MultipleClothInfluences_1
-	TShaderMapRef<TGPUSkinCacheCS<38>>  SkinCacheCS0121(GlobalShaderMap);	// 16bit_0, BoneInfluenceType_1, SkinType_2, MultipleClothInfluences_1
-	TShaderMapRef<TGPUSkinCacheCS<42>>  SkinCacheCS0221(GlobalShaderMap);	// 16bit_0, BoneInfluenceType_2, SkinType_2, MultipleClothInfluences_1
-	TShaderMapRef<TGPUSkinCacheCS<50>>  SkinCacheCS1021(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_0, SkinType_2, MultipleClothInfluences_1
-	TShaderMapRef<TGPUSkinCacheCS<54>>  SkinCacheCS1121(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_2, MultipleClothInfluences_1
 
 	TShaderRef<FBaseGPUSkinCacheCS> Shader;
 	switch (DispatchData.SkinType)
@@ -1918,41 +1909,20 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		}
 		break;
 	case 2:
-		if (bMultipleWrapDeformerInfluences)
+		// Cloth
+		if (Entry->BoneInfluenceType == 0)
 		{
-			// Multiple influences for cloth skinning
-			if (Entry->BoneInfluenceType == 0)
-			{
-				if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS1021;
-				else Shader = SkinCacheCS0021;
-			}
-			else if (Entry->BoneInfluenceType == 1)
-			{
-				if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS1121;
-				else Shader = SkinCacheCS0121;
-			}
-			else
-			{
-				Shader = SkinCacheCS0221;
-			}
+			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS102;
+			else Shader = SkinCacheCS002;
+		}
+		else if (Entry->BoneInfluenceType == 1)
+		{
+			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS112;
+			else Shader = SkinCacheCS012;
 		}
 		else
 		{
-			// Single influence for cloth skinning
-			if (Entry->BoneInfluenceType == 0)
-			{
-				if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS102;
-				else Shader = SkinCacheCS002;
-			}
-			else if (Entry->BoneInfluenceType == 1)
-			{
-				if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS112;
-				else Shader = SkinCacheCS012;
-			}
-			else
-			{
-				Shader = SkinCacheCS022;
-			}
+			Shader = SkinCacheCS022;
 		}
 		break;
 	default:

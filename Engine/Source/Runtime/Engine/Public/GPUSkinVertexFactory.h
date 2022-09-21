@@ -604,7 +604,6 @@ public:
 	struct ClothShaderType
 	{
 		ClothShaderType()
-			: ClothBlendWeight(1.0f)
 		{
 			Reset();
 		}
@@ -703,7 +702,8 @@ public:
 		 * weight to blend between simulated positions and key-framed poses
 		 * if ClothBlendWeight is 1.0, it shows only simulated positions and if it is 0.0, it shows only key-framed animation
 		 */
-		float ClothBlendWeight;
+		float ClothBlendWeight = 1.0f;
+		uint32 NumInfluencesPerVertex = 1;
 
 	private:
 		// fallback for ClothSimulPositionNormalBuffer if the shadermodel doesn't allow it
@@ -801,6 +801,11 @@ public:
 		}
 	};
 
+	FGPUBaseSkinAPEXClothVertexFactory(uint32 InNumInfluencesPerVertex)
+	{
+		ClothShaderData.NumInfluencesPerVertex = InNumInfluencesPerVertex;
+	}
+
 	virtual ~FGPUBaseSkinAPEXClothVertexFactory() {}
 
 	/** accessor */
@@ -881,8 +886,9 @@ public:
 	 *
 	 * @param	InBoneMatrices	Reference to shared bone matrices array.
 	 */
-	TGPUSkinAPEXClothVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumVertices)
-		: TGPUSkinVertexFactory<BoneInfluenceType>(InFeatureLevel, InNumVertices)
+	TGPUSkinAPEXClothVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumVertices, uint32 InNumInfluencesPerVertex)
+		: FGPUBaseSkinAPEXClothVertexFactory(InNumInfluencesPerVertex)
+		, TGPUSkinVertexFactory<BoneInfluenceType>(InFeatureLevel, InNumVertices)
 	{}
 
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
@@ -929,20 +935,3 @@ protected:
 	FGPUSkinAPEXClothDataType* ClothDataPtr = nullptr;
 };
 
-
-template<GPUSkinBoneInfluenceType BoneInfluenceType>
-class TMultipleInfluenceClothVertexFactory : public TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>
-{
-	DECLARE_VERTEX_FACTORY_TYPE(TMultipleInfluenceClothVertexFactory<BoneInfluenceType>);
-
-	typedef TGPUSkinAPEXClothVertexFactory<BoneInfluenceType> Super;
-
-public:
-
-	TMultipleInfluenceClothVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, uint32 InNumVertices)
-		: Super(InFeatureLevel, InNumVertices)
-	{}
-
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-};
