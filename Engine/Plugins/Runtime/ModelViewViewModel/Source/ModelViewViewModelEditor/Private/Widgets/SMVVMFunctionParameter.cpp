@@ -122,11 +122,6 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 				]
 			]
 		];
-
-	if (Pin == nullptr)
-	{
-		OnBindArgumentChecked(ECheckBoxState::Checked);
-	}
 }
 
 EVisibility SFunctionParameter::OnGetVisibility(bool bDefaultValue) const
