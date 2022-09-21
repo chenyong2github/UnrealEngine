@@ -132,7 +132,7 @@ public:
 			FValueType Value(ManagedArrayType<T>(), *(new TManagedArray<T>()));
 			Value.Value->Resize(NumElements(Group));
 			Value.Saved = Parameters.Saved;
-			if (ensure(!HasCycle(Group, Parameters.GroupIndexDependency)))
+			if (ensure(!IsConnected(Parameters.GroupIndexDependency,Group)))
 			{
 				Value.GroupIndexDependency = Parameters.GroupIndexDependency;
 			}
@@ -199,7 +199,7 @@ public:
 		FValueType Value(ManagedArrayType<T>(), ValueIn);
 		Value.Value->Resize(NumElements(Group));
 		Value.Saved = Parameters.Saved;
-		if (ensure(!HasCycle(Group, Parameters.GroupIndexDependency)))
+		if (ensure(!IsConnected(Parameters.GroupIndexDependency, Group)))
 		{
 			Value.GroupIndexDependency = Parameters.GroupIndexDependency;
 		}
@@ -240,6 +240,13 @@ public:
 	* @return starting index of the new ManagedArray<T> entries (same as Position).
 	*/
 	int32 InsertElements(int32 NumberElements, int32 Position, FName Group);
+
+
+	/**
+	* Append Collection and reindex dependencies on this collection. 
+	* @param InCollection : Collection to add. 
+	*/
+	virtual void Append(const FManagedArrayCollection& Collection);
 
 	/**
 	* Returns attribute(Name) of Type(T) from the group
@@ -495,8 +502,15 @@ public:
 
 	/**
 	* Serialize
-		*/
+	*/
 	virtual void Serialize(Chaos::FChaosArchive& Ar);
+
+	/**
+	* Cycle Checking. 
+	* Search for TargetNode from the StartingNode. 
+	*/
+	bool IsConnected(FName StartingNode, FName TargetNode);
+
 
 	/**
 	* Dump the contents to a FString
@@ -614,9 +628,6 @@ private:
 	TMap< FKeyType, FValueType> Map;	//data is owned by the map explicitly
 	TMap< FName, FGroupInfo> GroupInfo;
 	bool bDirty;
-
-	FName GetDependency(FName SearchGroup);
-	bool HasCycle(FName Group, FName DependencyGroup);
 
 protected:
 

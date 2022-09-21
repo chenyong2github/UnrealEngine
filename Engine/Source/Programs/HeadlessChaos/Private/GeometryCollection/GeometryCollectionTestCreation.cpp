@@ -1462,4 +1462,258 @@ namespace GeometryCollectionTest
 
 		delete Collection;
 	}
+
+
+	void AppendManagedArrayCollectionTest()
+	{
+		//--gtest_filter=GeometryCollection_CreationTest.AppendManagedArrayCollectionTest
+
+		//
+		// Build two ManagedArryaCollections then append CollectionA to CollectionB. 
+		//
+		// At the end of the test CollectionA should be moved and CollectionB
+		// should be at the start of the arrays. 
+		//
+		
+		auto Build = [](FManagedArrayCollection& InCollection, int Offset, FName GroupName)
+		{
+			FManagedArrayCollection::FConstructionParameters DependencyOnShared("Shared");
+
+			// single array with 10 entries from 0 to 1.0
+			InCollection.AddGroup("Shared");
+			InCollection.AddElements(10, "Shared");
+			TManagedArray<float>& IntInShared = InCollection.AddAttribute<float>("Float", "Shared");
+			for (int i = 0; i < 10; i++)
+			{
+				IntInShared[i] = i * 0.1 + Offset;
+			}
+
+			// two arrays, where Int is dependent on Shared, and Intf is a copy of shared.
+			// Intf is used to check the reordering of the groups. 
+			InCollection.AddGroup(GroupName);
+			InCollection.AddElements(10, GroupName);
+			TManagedArray<int32>& IntIn = InCollection.AddAttribute<int32>("Int", GroupName, DependencyOnShared);
+			TManagedArray<float>& SharedValue = InCollection.AddAttribute<float>("SharedValue", GroupName);
+			for (int i = 0; i < 10; i++)
+			{
+				// int32
+				IntIn[i] = i;
+				SharedValue[i] = IntInShared[IntIn[i]];
+			}
+		};
+
+		FManagedArrayCollection CollectionA; Build(CollectionA, 0, FName("GroupA"));
+		FManagedArrayCollection CollectionB; Build(CollectionB, 1, FName("GroupB"));
+
+		CollectionA.Append(CollectionB);
+
+		// check the union of shared
+		const TManagedArray<float>& Shared = CollectionA.GetAttribute<float>("Float", "Shared");
+		EXPECT_TRUE(CollectionA.NumElements("Shared") == 20);
+		for (int i = 0; i < 10; i++) // 0 to 9 greater than one
+		{
+			float val = (float)i * 0.1 + 1;
+			EXPECT_TRUE( FMath::IsNearlyEqual(Shared[i], val));
+		}
+		for (int i = 10; i < 20; i++) // 10 to 19 lass than one
+		{
+			float val = (float)(i-10) * 0.1;
+			EXPECT_TRUE(FMath::IsNearlyEqual(Shared[i], val));
+		}
+		
+		// check reindexing of GroupA
+		const TManagedArray<int32>& IntInA = CollectionA.GetAttribute<int32>("Int", "GroupA");
+		for (int i = 0; i < 10; i++)
+		{
+			EXPECT_TRUE(IntInA[i] == i + 10);
+		}
+
+		// check indexing of GroupB
+		const TManagedArray<int32>& IntInB = CollectionA.GetAttribute<int32>("Int", "GroupB");
+		for (int i = 0; i < 10; i++)
+		{
+			EXPECT_TRUE(IntInB[i] == i);
+		}
+
+		// check reindexing into shared for A
+		const TManagedArray<float>& SharedValueA = CollectionA.GetAttribute<float>("SharedValue", "GroupA");
+		for (int i = 0; i < 10; i++)
+		{
+			EXPECT_TRUE(SharedValueA[i] == Shared[IntInA[i]]);
+		}
+
+		// check reindexing into shared for B
+		const TManagedArray<float>& SharedValueB = CollectionA.GetAttribute<float>("SharedValue", "GroupB");
+		for (int i = 0; i < 10; i++)
+		{
+			EXPECT_TRUE(SharedValueB[i] == Shared[IntInB[i]]);
+		}
+
+		EXPECT_TRUE(true);
+	}
+
+
+	void AppendTransformCollectionTest()
+	{
+		//--gtest_filter=GeometryCollection_CreationTest.AppendTransformCollectionTest
+
+		//
+		// Build two TranformCollections then append CollectionA to CollectionB. 
+		//
+		// At the end of the test CollectionA should be moved and CollectionB
+		// should be at the start of the arrays. The parenting of CollectionA
+		// should be updated to maintain the parent-child relationships.  
+		//
+		auto Build = [](FTransformCollection& InCollection, int32 Offset)
+		{
+			InCollection.AddElements(8, FTransformCollection::TransformGroup);
+
+			//  0
+			//  ...1
+			//  ...5
+			//  ......6
+			//  ......3
+			//  ...2
+			//  ......7
+			//  .........4
+			(InCollection.Parent)[0] = -1;
+			(InCollection.Children)[0].Add(1);
+			(InCollection.Children)[0].Add(5);
+			(InCollection.Children)[0].Add(2);
+			(InCollection.Parent)[1] = 0;
+			(InCollection.Parent)[2] = 0;
+			(InCollection.Children)[2].Add(7);
+			(InCollection.Parent)[3] = 5;
+			(InCollection.Parent)[4] = 7;
+			(InCollection.Parent)[5] = 0;
+			(InCollection.Children)[5].Add(6);
+			(InCollection.Children)[5].Add(3);
+			(InCollection.Parent)[6] = 5;
+			(InCollection.Parent)[7] = 2;
+			(InCollection.Children)[7].Add(4);
+
+			for (int i = 0; i < 8; i++)
+			{
+				(InCollection.BoneName)[i] = FString::FromInt(i);
+			}
+		};
+
+		FTransformCollection CollectionA; Build(CollectionA, 0);
+		FTransformCollection CollectionB; Build(CollectionB, 10);
+
+		// add some random dependent attribute to the transform group. 
+		FManagedArrayCollection::FConstructionParameters TransformDependency(FTransformCollection::TransformGroup);
+		TManagedArray<int32>& ExtraA = CollectionA.AddAttribute<int32>("UserAttr", FTransformCollection::TransformGroup, TransformDependency);
+		TManagedArray<int32>& ExtraB = CollectionB.AddAttribute<int32>("UserAttr", FTransformCollection::TransformGroup, TransformDependency);
+		for (int i = ExtraA.Num()-1, j = 0; i >= 0; i--, j++) { ExtraA[i] = j; ExtraB[i] = j; } // count down
+
+		// add some random transform dependent attribute to a different group. 
+		FManagedArrayCollection::FConstructionParameters OtherDependency("Other");
+		CollectionA.AddGroup("Other"); CollectionB.AddGroup("Other");
+		CollectionA.AddElements(5, "Other"); CollectionB.AddElements(6, "Other");
+		TManagedArray<int32>& OtherA = CollectionA.AddAttribute<int32>("UserAttr", "Other", TransformDependency);
+		TManagedArray<int32>& OtherB = CollectionB.AddAttribute<int32>("UserAttr", "Other", TransformDependency);
+		for (int i = 0; i < OtherA.Num();  i++) { OtherA[i] = i;} // count up
+		for (int i = 0; i < OtherB.Num(); i++) { OtherB[i] = i; } // count up
+
+		// What we are testing! - Append
+		CollectionA.Append(CollectionB);
+
+		// validate that the collectionB is at the start of A, and A is indexed correctly
+		int32 Size = CollectionA.NumElements(FTransformCollection::TransformGroup);
+		EXPECT_TRUE(Size==16);
+
+		// validate appended transform hierarchy
+		for (int32 Idx = 0, Sdx = Size/2; Idx < Size/2; Idx++, Sdx++)
+		{
+			EXPECT_TRUE(CollectionA.BoneName[Idx]== CollectionA.BoneName[Sdx]);
+			if (CollectionA.Parent[Idx] == INDEX_NONE)
+				EXPECT_TRUE(CollectionA.Parent[Sdx] == INDEX_NONE);
+			else
+				EXPECT_TRUE(CollectionA.Parent[Idx] == CollectionA.Parent[Sdx] - Size / 2);
+			EXPECT_TRUE(CollectionA.Children[Idx].Num() == CollectionA.Children[Sdx].Num());
+			for (int i : CollectionA.Children[Sdx])
+				EXPECT_TRUE(CollectionA.Children[Idx].Contains(i - Size / 2) );
+
+			// validate dependent user attributes in transform group
+			EXPECT_TRUE(ExtraA[Idx] == ExtraA[Sdx]-Size/2);
+
+		}
+
+		EXPECT_TRUE(CollectionA.NumElements("Other") == 11);
+		for (int32 Idx = 0; Idx < CollectionA.NumElements("Other"); Idx++)
+		{
+			if (Idx <= 5)
+			{
+				EXPECT_TRUE(OtherA[Idx] == OtherB[Idx]);
+			}
+			else
+			{
+				EXPECT_TRUE(OtherA[Idx] == Idx+2);
+			}
+		}
+
+
+		EXPECT_TRUE(true);
+
+	}
+
+
+	void CollectionCycleTest()
+	{
+		//--gtest_filter=GeometryCollection_CreationTest.CollectionCycleTest
+
+		//
+		// Build dependent attributes and check for connections using HasCycle
+		// 
+		//
+		FManagedArrayCollection Collection;
+		Collection.AddGroup("A");
+		Collection.AddGroup("B");
+		Collection.AddGroup("C");
+		Collection.AddGroup("D");
+
+		EXPECT_FALSE(Collection.IsConnected("A", "C"));
+		EXPECT_FALSE(Collection.IsConnected("A", "B"));
+		EXPECT_FALSE(Collection.IsConnected("A", "D"));
+		EXPECT_FALSE(Collection.IsConnected("B", "C"));
+
+		//  A
+		//  |
+		//  |--->B "A depends on B"
+		//  |    |
+		//  |    |--->C "B depends on C"
+		//  | 
+		//  |--->D  "A depends on D
+		FManagedArrayCollection::FConstructionParameters ADependency("A");
+		FManagedArrayCollection::FConstructionParameters BDependency("B");
+		FManagedArrayCollection::FConstructionParameters CDependency("C");
+		FManagedArrayCollection::FConstructionParameters DDependency("D");
+
+		Collection.AddAttribute<int32>("AOnB", "A", BDependency);
+		Collection.AddAttribute<int32>("AOnD", "A", DDependency);
+		Collection.AddAttribute<int32>("BOnC", "B", CDependency);
+		Collection.AddAttribute<int32>("C", "C"); // None
+		Collection.AddAttribute<int32>("D", "D"); // None
+
+		// A cycle would be "C depending on A", which would fail attribute creation.
+		EXPECT_FALSE(Collection.IsConnected("C", "A"));
+
+		// So if we tried to create a dependency on A from C, we would first want to
+		// know if A already connects to C, and throw an error if so. 
+		EXPECT_TRUE(Collection.IsConnected("A","C"));
+
+		EXPECT_TRUE(Collection.IsConnected("A", "B"));
+		EXPECT_TRUE(Collection.IsConnected("A", "D"));
+		EXPECT_TRUE(Collection.IsConnected("B", "C"));
+
+		EXPECT_FALSE(Collection.IsConnected("A", "A"));
+		EXPECT_FALSE(Collection.IsConnected("B", "A"));
+		EXPECT_FALSE(Collection.IsConnected("B","D"));
+		EXPECT_FALSE(Collection.IsConnected("D", "B"));
+		EXPECT_FALSE(Collection.IsConnected("B", "D"));
+		EXPECT_FALSE(Collection.IsConnected("D", "B"));
+		EXPECT_FALSE(Collection.IsConnected("D", "A"));
+	}
+
 }

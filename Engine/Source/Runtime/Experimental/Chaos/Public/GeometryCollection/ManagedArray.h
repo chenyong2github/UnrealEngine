@@ -118,6 +118,12 @@ protected:
 	*/
 	virtual void Init(const FManagedArrayBase& ) {};
 
+	/**
+	* Copy a range of values from the ConstArray into this
+	*/
+	virtual void CopyRange(const FManagedArrayBase& ConstArray, int32 Start, int32 Stop, int32 Offset = 0) {};
+
+
 public:
 	FManagedArrayBase()
 	{
@@ -204,6 +210,10 @@ template <typename T>
 void InitHelper(TArray<T>& Array, const TManagedArrayBase<T>& NewTypedArray, int32 Size);
 template <typename T>
 void InitHelper(TArray<TUniquePtr<T>>& Array, const TManagedArrayBase<TUniquePtr<T>>& NewTypedArray, int32 Size);
+template <typename T>
+void CopyRangeHelper(TArray<T>& Target, const TManagedArrayBase<T>& Source, int32 Start, int32 Stop, int32 Offset);
+template <typename T>
+void CopyRangeHelper(TArray<TUniquePtr<T>>& Array, const TManagedArrayBase<TUniquePtr<T>>& ConstArray, int32 Start, int32 Stop, int32 Offset);
 
 /***
 *  Managed Array
@@ -297,7 +307,6 @@ public:
  		Array.Shrink();
 	}
 
-
 	/**
 	* Init from a predefined Array of matching type
 	*/
@@ -309,6 +318,19 @@ public:
 
 		Resize(Size);
 		InitHelper(Array, NewTypedArray, Size);
+	}
+
+	/**
+	* Copy from a predefined Array of matching type
+	*/
+	virtual void CopyRange(const FManagedArrayBase& ConstArray, int32 Start, int32 Stop, int32 Offset = 0) override
+	{
+		ensureMsgf(ConstArray.GetTypeSize() == GetTypeSize(), TEXT("TManagedArrayBase<T>::Init : Invalid array types."));
+		if (ensureMsgf(Stop + Offset < Array.Num(), TEXT("Error : Index out of bounds")))
+		{
+			const TManagedArrayBase<ElementType>& TypedConstArray = static_cast<const TManagedArrayBase<ElementType>&>(ConstArray);
+			CopyRangeHelper(Array, TypedConstArray, Start, Stop, Offset);
+		}
 	}
 
 	/**
@@ -550,12 +572,32 @@ void InitHelper(TArray<TUniquePtr<T>>& Array, const TManagedArrayBase<TUniquePtr
 	}
 }
 
+template <typename T>
+void CopyRangeHelper(TArray<T>& Target, const TManagedArrayBase<T>& Source, int32 Start, int32 Stop, int32 Offset)
+{
+	for (int32 Sdx = Start, Tdx = Start + Offset; Sdx < Source.Num() && Tdx < Target.Num() && Sdx < Stop; Sdx++, Tdx++)
+	{
+		Target[Tdx] = Source[Sdx];
+	}
+}
+
+template <typename T>
+void CopyRangeHelper(TArray<TUniquePtr<T>>& Target, const TManagedArrayBase<TUniquePtr<T>>& Source, int32 Start, int32 Stop, int32 Offset)
+{
+	for (int32 Sdx = Start, Tdx = Start+Offset; Sdx<Source.Num() && Tdx<Target.Num() && Sdx<Stop; Sdx++, Tdx++)
+	{
+		Target[Tdx].Reset((T*)Source[Sdx]->Copy().Release());
+	}
+}
+
 //
 //
 //
 #define UNSUPPORTED_UNIQUE_ARRAY_COPIES(TYPE, NAME) \
 template<> inline void InitHelper(TArray<TYPE>& Array, const TManagedArrayBase<TYPE>& NewTypedArray, int32 Size) { \
-	UE_LOG(LogChaos,Warning, TEXT("Cannot make a copy of unique array of type (%s) within the managed array collection. Regenerate unique pointer attributes if needed."), NAME); \
+	UE_LOG(LogChaos,Warning, TEXT("Cannot make a copy of unique array of type (%s) within the managed array collection. Regenerate unique pointer attributes if needed."), NAME); }\
+template<> inline void CopyRangeHelper(TArray<TYPE>& Target, const TManagedArrayBase<TYPE>& Source, int32 Start, int32 Stop, int32 Offset) {\
+	UE_LOG(LogChaos, Warning, TEXT("Cannot make a range copy of unique array of type (%s) within the managed array collection. Regenerate unique pointer attributes if needed."), NAME); \
 }
 
 typedef TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>> LOCAL_MA_UniqueTGeometryParticle;

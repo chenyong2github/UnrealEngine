@@ -66,6 +66,12 @@ public:
 	*/
 	static FTransformCollection SingleTransform(const FTransform& TransformRoot = FTransform::Identity);
 
+	/**
+	* Append Collection and reindex dependencies on this collection.
+	* @param InCollection : Collection to add.
+	*/
+	virtual void Append(const FManagedArrayCollection& Collection);
+
 	/*
 	* AppendTransform:
 	*   Append a transform at the end of the collection without

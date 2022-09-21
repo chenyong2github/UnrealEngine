@@ -39,4 +39,10 @@ namespace GeometryCollectionTest
 
 	void IntListReindexOnDeletionTest();
 
+	void AppendManagedArrayCollectionTest();
+
+	void AppendTransformCollectionTest();
+
+	void CollectionCycleTest();
+
 }

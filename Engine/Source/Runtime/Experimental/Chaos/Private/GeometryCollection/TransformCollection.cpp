@@ -31,8 +31,6 @@ void FTransformCollection::DefineTransformSchema(FManagedArrayCollection& InColl
 
 void FTransformCollection::Construct()
 {
-	FManagedArrayCollection::FConstructionParameters TransformDependency(FTransformCollection::TransformGroup);
-
 	// Hierarchy Group
 	AddExternalAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup, Transform);
 	AddExternalAttribute<FString>("BoneName", FTransformCollection::TransformGroup, BoneName);
@@ -70,6 +68,28 @@ FTransformCollection FTransformCollection::SingleTransform(const FTransform& Tra
 	TransformCollection.Transform[0] = TransformRoot;
 	TransformCollection.Parent[0] = Invalid;
 	return TransformCollection;
+}
+
+void FTransformCollection::Append(const FManagedArrayCollection& InCollection)
+{
+	if (const FTransformCollection* InTypedCollection = InCollection.Cast<FTransformCollection>())
+	{
+		int32 Offset = InCollection.NumElements(TransformGroup);
+		Super::Append(InCollection);
+
+		int32 Size = NumElements(TransformGroup);
+		for (int Idx = Offset; Idx < Size; Idx++)
+		{
+			if (Parent[Idx] != INDEX_NONE)
+				Parent[Idx] += Offset;			
+			for (int32& Val : Children[Idx])
+				Val += Offset;
+		}
+	}
+	else
+	{
+		Super::Append(InCollection);
+	}
 }
 
 
