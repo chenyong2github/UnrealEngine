@@ -41,9 +41,9 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 	}
 
 	// We change the name to reflect the current number of curves selected.
-	TAttribute<FText> BufferedCurvesText = FText::Format(LOCTEXT("StoreCurvesContextMenu", "Store {0} Curves"), NumActiveCurves);
-	TAttribute<FText> SwapBufferedCurvesText = FText::Format(LOCTEXT("SwapStoredCurvesContextMenu", "Swap {0} Stored Curves onto {1} Selected Curves"), NumBufferedCurves, NumActiveCurves);
-	TAttribute<FText> ApplyBufferedCurvesText = FText::Format(LOCTEXT("ApplyStoredCurvesContextMenu", "Apply {0} Stored Curves onto {1} Selected Curves"), NumBufferedCurves, NumActiveCurves);
+	TAttribute<FText> BufferedCurvesText = FText::Format(LOCTEXT("BufferCurvesContextMenu", "Buffer {0} Curves"), NumActiveCurves);
+	TAttribute<FText> SwapBufferedCurvesText = FText::Format(LOCTEXT("SwapBufferedCurvesContextMenu", "Swap {0} Buffered Curves onto {1} Selected Curves"), NumBufferedCurves, NumActiveCurves);
+	TAttribute<FText> ApplyBufferedCurvesText = FText::Format(LOCTEXT("ApplyBufferedCurvesContextMenu", "Apply {0} Buffered Curves onto {1} Selected Curves"), NumBufferedCurves, NumActiveCurves);
 
 	const FCurveModel* HoveredCurve = HoveredCurveID.IsSet() ? CurveEditor->FindCurve(HoveredCurveID.GetValue()) : nullptr;
 
