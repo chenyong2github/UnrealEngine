@@ -374,6 +374,7 @@ namespace UnrealBuildTool
 		/// Creates an environment with the given settings
 		/// </summary>
 		/// <param name="Compiler">The compiler version to use</param>
+		/// <param name="ToolChain">The toolchain version to use, when a non-msvc compiler is used</param>
 		/// <param name="Platform">The platform to target</param>
 		/// <param name="Architecture">The Architecture to target</param>
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
@@ -383,9 +384,9 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>New environment object with paths for the given settings</returns>
 		[SupportedOSPlatform("windows")]
-		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, ILogger Logger)
+		public static VCEnvironment Create(WindowsCompiler Compiler, WindowsCompiler ToolChain, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, ILogger Logger)
 		{
-			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion, bUseCPPWinRT, Logger), Logger );
+			return Create( new VCEnvironmentParameters(Compiler, ToolChain, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion, bUseCPPWinRT, Logger), Logger );
 		}
 
 		/// <summary>
@@ -445,6 +446,7 @@ namespace UnrealBuildTool
 		/// Creates VC environment construction parameters with the given settings
 		/// </summary>
 		/// <param name="Compiler">The compiler version to use</param>
+		/// <param name="ToolChain">The toolchain version to use, when a non-msvc compiler is used</param>
 		/// <param name="Platform">The platform to target</param>
 		/// <param name="Architecture">The Architecture to target</param>
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
@@ -454,7 +456,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>Creation parameters for VC environment</returns>
 		[SupportedOSPlatform("windows")]
-		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, ILogger Logger)
+		public VCEnvironmentParameters (WindowsCompiler Compiler, WindowsCompiler ToolChain, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, ILogger Logger)
 		{
 			// Get the compiler version info
 			VersionNumber? SelectedCompilerVersion;
@@ -466,20 +468,16 @@ namespace UnrealBuildTool
 			}
 
 			// Get the toolchain info
-			WindowsCompiler ToolChain;
 			VersionNumber? SelectedToolChainVersion;
 			DirectoryReference? SelectedToolChainDir;
-			if(Compiler.IsClang())
+			if (Compiler.IsClang())
 			{
-				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, Architecture, Logger, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
+				if (ToolChain.IsClang() || ToolChain == WindowsCompiler.Default)
 				{
-					ToolChain = WindowsCompiler.VisualStudio2019;
+					throw new BuildException("{0} is not a valid ToolChain for Compiler {1}", WindowsPlatform.GetCompilerName(ToolChain), WindowsPlatform.GetCompilerName(Compiler));
 				}
-				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2022, null, Architecture, Logger, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
-				{
-					ToolChain = WindowsCompiler.VisualStudio2022;
-				}
-				else
+
+				if (!WindowsPlatform.TryGetToolChainDir(ToolChain, null, Architecture, Logger, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					throw new BuildException("{0} or {1} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(WindowsCompiler.VisualStudio2019), WindowsPlatform.GetCompilerName(WindowsCompiler.VisualStudio2022));
 				}

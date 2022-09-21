@@ -165,6 +165,11 @@ namespace UnrealBuildTool
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
 
 		/// <summary>
+		/// Version of the toolchain to use on Windows platform when a non-msvc Compiler is in use, to locate include paths etc.
+		/// </summary>
+		public WindowsCompiler ToolChain => Compiler.IsMSVC() ? Compiler : WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture, Target.Logger);
+
+		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
 		public WindowsArchitecture Architecture
@@ -819,7 +824,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		protected virtual VCEnvironment CreateVCEnvironment(TargetRules Target)
 		{
-			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Logger);
+			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.ToolChain, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Logger);
 		}
 
 		/// <summary>
@@ -858,18 +863,7 @@ namespace UnrealBuildTool
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
-				if (Target.StaticAnalyzer == StaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2019, Target.WindowsPlatform.Architecture, Logger))
-				{
-					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2019;
-				}
-				if (Target.StaticAnalyzer == StaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2022, Target.WindowsPlatform.Architecture, Logger))
-				{
-					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2022;
-				}
-				else
-				{
-					Target.WindowsPlatform.Compiler = GetDefaultCompiler(Target.ProjectFile, Target.WindowsPlatform.Architecture, Logger);
-				}
+				Target.WindowsPlatform.Compiler = GetDefaultCompiler(Target.ProjectFile, Target.WindowsPlatform.Architecture, Logger);
 			}
 
 			// Disable linking and ignore build outputs if we're using a static analyzer
