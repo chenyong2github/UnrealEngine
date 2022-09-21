@@ -82,7 +82,7 @@ namespace Horde.Build.Tests.Fleet
 			await CreateAgentAsync(pool, false);
 
 			List<PoolSizeData> poolSizeDatas = await service.GetPoolSizeDataAsync();
-			poolSizeDatas = await service.CalculateDesiredPoolSizesAsync(poolSizeDatas);
+			poolSizeDatas = await service.CalculatePoolSizesAsync(poolSizeDatas, CancellationToken.None);
 			Assert.AreEqual(1, poolSizeDatas.Count);
 			Assert.AreEqual(2, poolSizeDatas[0].Agents.Count);
 		}
