@@ -15,7 +15,8 @@ public class UMG : ModuleRules
 				"Slate",
 				"SlateCore",
 				"RenderCore",
-				"RHI"
+				"RHI",
+				"ApplicationCore"
 			}
 		);
 

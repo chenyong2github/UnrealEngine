@@ -9,6 +9,7 @@
 #include "Framework/Application/SlateUser.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 #include "Components/WidgetComponent.h"
 
@@ -445,21 +446,39 @@ void UWidgetInteractionComponent::PressPointerKey(FKey Key)
 	FWidgetPath WidgetPathUnderFinger = LastWidgetPath.ToWidgetPath();
 
 	ensure(PointerIndex >= 0);
+
 	FPointerEvent PointerEvent;
+
+	// Find the primary input device for this Slate User
+	FInputDeviceId InputDeviceId = INPUTDEVICEID_NONE;
+	if (TSharedPtr<FSlateUser> SlateUser = FSlateApplication::Get().GetUser(VirtualUser->GetUserIndex()))
+	{
+		FPlatformUserId PlatUser = SlateUser->GetPlatformUserId();
+		InputDeviceId = IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser(PlatUser);
+	}
+
+	// Just in case there was no input device assigned to this virtual user, get the default platform
+	// input device
+	if (!InputDeviceId.IsValid())
+	{
+		InputDeviceId = IPlatformInputDeviceMapper::Get().GetDefaultInputDevice();
+	}
+	
 	if (Key.IsTouch())
 	{
 		PointerEvent = FPointerEvent(
-			VirtualUser->GetUserIndex(),
+			InputDeviceId,
 			(uint32)PointerIndex,
 			LocalHitLocation,
 			LastLocalHitLocation,
 			1.0f,
 			false);
+		
 	}
 	else
 	{
 		PointerEvent = FPointerEvent(
-			VirtualUser->GetUserIndex(),
+			InputDeviceId,
 			(uint32)PointerIndex,
 			LocalHitLocation,
 			LastLocalHitLocation,
