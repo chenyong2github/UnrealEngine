@@ -237,5 +237,6 @@ public:
 	/** Set an ObjectField named FieldName and value of JsonObject */
 	void SetObjectField( const FString& FieldName, const TSharedPtr<FJsonObject>& JsonObject );
 
+	static void Duplicate(const TSharedPtr<const FJsonObject>& Source, const TSharedPtr<FJsonObject>& Dest);
 	static void Duplicate(const TSharedPtr<FJsonObject>& Source, TSharedPtr<FJsonObject>& Dest);
 };

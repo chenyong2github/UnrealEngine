@@ -209,10 +209,18 @@ void FJsonObject::SetObjectField( const FString& FieldName, const TSharedPtr<FJs
 	}
 }
 
+void FJsonObject::Duplicate(const TSharedPtr<const FJsonObject>& Source, const TSharedPtr<FJsonObject>& Dest)
+{
+	if (Source && Dest)
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Source->Values)
+		{
+			Dest->SetField(Pair.Key, FJsonValue::Duplicate(Pair.Value));
+		}
+	}
+}
+
 void FJsonObject::Duplicate(const TSharedPtr<FJsonObject>& Source, TSharedPtr<FJsonObject>& Dest)
 {
-	for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Source->Values)
-	{
-		Dest->SetField(Pair.Key, FJsonValue::Duplicate(Pair.Value));
-	}
+	Duplicate(ConstCastSharedPtr<const FJsonObject>(Source), Dest);
 }
