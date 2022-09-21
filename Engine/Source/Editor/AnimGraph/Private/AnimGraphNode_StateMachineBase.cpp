@@ -23,6 +23,7 @@
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimStateConduitNode.h"
 #include "AnimGraphNode_LinkedAnimGraphBase.h"
+#include "AnimGraphNode_RandomPlayer.h"
 #include "AnimGraphNode_TransitionPoseEvaluator.h"
 #include "AnimGraphNode_CustomTransitionResult.h"
 #include "AnimBlueprintExtension_StateMachine.h"
@@ -564,13 +565,23 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 
 		TArray<UAnimGraphNode_LinkedAnimGraphBase*> LinkedAnimGraphNodes;
 		TArray<UAnimGraphNode_AssetPlayerBase*> AssetPlayerNodes;
+		TArray<UAnimGraphNode_RandomPlayer*> AssetRandomPlayerPlayerNodes;
 		for (UEdGraph* ChildGraph : GraphsToCheck)
 		{
 			ChildGraph->GetNodesOfClass(AssetPlayerNodes);
+			ChildGraph->GetNodesOfClass(AssetRandomPlayerPlayerNodes);
 			ChildGraph->GetNodesOfClass(LinkedAnimGraphNodes);
 		}
 
 		for (UAnimGraphNode_AssetPlayerBase* Node : AssetPlayerNodes)
+		{
+			if (int32* IndexPtr = OutCompiledData.GetAnimBlueprintDebugData().NodeGuidToIndexMap.Find(Node->NodeGuid))
+			{
+				BakedState.PlayerNodeIndices.Add(*IndexPtr);
+			}
+		}
+
+		for (UAnimGraphNode_RandomPlayer* Node : AssetRandomPlayerPlayerNodes)
 		{
 			if (int32* IndexPtr = OutCompiledData.GetAnimBlueprintDebugData().NodeGuidToIndexMap.Find(Node->NodeGuid))
 			{

@@ -15,6 +15,7 @@
 
 class IAnimClassInterface;
 struct FAnimNode_AssetPlayerBase;
+struct FAnimNode_AssetPlayerRelevancyBase;
 struct FAnimNode_StateMachine;
 struct FAnimNode_TransitionPoseEvaluator;
 
@@ -306,10 +307,22 @@ protected:
 		return GetRelevantAnimTimeRemainingFraction(Context.AnimInstanceProxy, StateIndex);
 	}
 
-	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const;
+	UE_DEPRECATED(5.1, "Please use GetRelevantAssetPlayerInterfaceFromState")
+	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const
+	{
+		return nullptr;
+	}
+
+	UE_DEPRECATED(5.1, "Please use GetRelevantAssetPlayerInterfaceFromState")
 	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo) const
 	{
-		return GetRelevantAssetPlayerFromState(Context.AnimInstanceProxy, StateInfo);
+		return nullptr;
+	}
+
+	const FAnimNode_AssetPlayerRelevancyBase* GetRelevantAssetPlayerInterfaceFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const;
+	const FAnimNode_AssetPlayerRelevancyBase* GetRelevantAssetPlayerInterfaceFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo) const
+	{
+		return GetRelevantAssetPlayerInterfaceFromState(Context.AnimInstanceProxy, StateInfo);
 	}
 
 	void LogInertializationRequestError(const FAnimationUpdateContext& Context, int32 PreviousState, int32 NextState);

@@ -5,33 +5,18 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimationAsset.h"
-#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNode_RelevantAssetPlayerBase.h"
 #include "AnimNode_AssetPlayerBase.generated.h"
 
 /* Base class for any asset playing anim node */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
+struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerRelevancyBase
 {
 	GENERATED_BODY()
 
 	friend class UAnimGraphNode_AssetPlayerBase;
 
 	FAnimNode_AssetPlayerBase() = default;
-
-	/** Get the last encountered blend weight for this node */
-	virtual float GetCachedBlendWeight() const;
-	
-	/** Set the cached blendweight to zero */
-	void ClearCachedBlendWeight();
-
-	/** Get the currently referenced time within the asset player node */
-	virtual float GetAccumulatedTime() const;
-
-	/** Override the currently accumulated time */
-	virtual void SetAccumulatedTime(float NewTime);
-
-	/** Get the animation asset associated with the node, derived classes should implement this */
-	virtual UAnimationAsset* GetAnimAsset() const;
 
 	/** Initialize function for setup purposes */
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -47,11 +32,6 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	// Create a tick record for this node
 	void CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate);
 
-	// Functions to report data to getters, this is required for all asset players (but can't be pure abstract because of struct instantiation generated code).
-	virtual float GetCurrentAssetLength() const { return 0.0f; }
-	virtual float GetCurrentAssetTime() const { return 0.0f; }
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const { return GetCurrentAssetTime(); }
-
 	// Get the sync group name we are using
 	virtual FName GetGroupName() const { return NAME_None; }
 
@@ -60,9 +40,6 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 
 	// Get the sync group method we are using
 	virtual EAnimSyncMethod GetGroupMethod() const { return EAnimSyncMethod::DoNotSync; }
-
-	// Check whether this node should be ignored when testing for relevancy in state machines
-	virtual bool GetIgnoreForRelevancyTest() const { return false; }
 
 	// Set the sync group name we are using
 	virtual bool SetGroupName(FName InGroupName) { return false; }
@@ -73,8 +50,12 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	// Set the sync group method we are using
 	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) { return false; }
 
-	// Set whether this node should be ignored when testing for relevancy in state machines
-	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) { return false; }
+	// --- FAnimNode_RelevantAssetPlayerBase ---
+	virtual float GetAccumulatedTime() const override;
+	virtual void SetAccumulatedTime(float NewTime) override;
+	virtual float GetCachedBlendWeight() const override;
+	virtual void ClearCachedBlendWeight() override;
+	// --- End of FAnimNode_RelevantAssetPlayerBase ---
 
 private:
 #if WITH_EDITORONLY_DATA

@@ -3757,9 +3757,14 @@ TArray<FAnimNode_AssetPlayerBase*> UAnimInstance::GetMutableInstanceAssetPlayers
 	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetMutableInstanceAssetPlayers(GraphName);
 }
 
-const FAnimNode_AssetPlayerBase* UAnimInstance::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const
+TArray<const FAnimNode_AssetPlayerRelevancyBase*> UAnimInstance::GetInstanceRelevantAssetPlayers(const FName& GraphName) const
 {
-	return GetProxyOnGameThread<FAnimInstanceProxy>().GetRelevantAssetPlayerFromState(MachineIndex, StateIndex);
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetInstanceRelevantAssetPlayers(GraphName);
+}
+
+TArray<FAnimNode_AssetPlayerRelevancyBase*> UAnimInstance::GetMutableInstanceRelevantAssetPlayers(const FName& GraphName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetMutableInstanceRelevantAssetPlayers(GraphName);
 }
 
 int32 UAnimInstance::GetSyncGroupIndexFromName(FName SyncGroupName) const

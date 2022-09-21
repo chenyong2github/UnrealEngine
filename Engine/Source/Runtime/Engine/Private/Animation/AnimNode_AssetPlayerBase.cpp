@@ -49,11 +49,6 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 	TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 }
 
-float FAnimNode_AssetPlayerBase::GetCachedBlendWeight() const
-{
-	return BlendWeight;
-}
-
 float FAnimNode_AssetPlayerBase::GetAccumulatedTime() const
 {
 	return InternalTimeAccumulator;
@@ -64,12 +59,13 @@ void FAnimNode_AssetPlayerBase::SetAccumulatedTime(float NewTime)
 	InternalTimeAccumulator = NewTime;
 }
 
-UAnimationAsset* FAnimNode_AssetPlayerBase::GetAnimAsset() const
+float FAnimNode_AssetPlayerBase::GetCachedBlendWeight() const
 {
-	return nullptr;
+	return BlendWeight;
 }
 
 void FAnimNode_AssetPlayerBase::ClearCachedBlendWeight()
 {
 	BlendWeight = 0.0f;
 }
+
