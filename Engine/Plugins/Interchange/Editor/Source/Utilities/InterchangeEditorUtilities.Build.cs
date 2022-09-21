@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"DesktopPlatform",
 					"Slate",
 					"SlateCore",
+					"UnrealEd"
 				}
 			);
 		}
