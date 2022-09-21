@@ -6821,15 +6821,6 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 					//SharedShaderJobs.Add(ShaderTypePermutation, Job);
 					PermutationCountToCompile++;
 				}
-				else if (GlobalShader.IsValid())
-				{
-					// try and precache if compute
-					if (GlobalShader->GetFrequency() == SF_Compute)
-					{
-						FRHIComputeShader* RHIComputeShader = GlobalShader.GetComputeShader();
-						PipelineStateCache::PrecacheComputePipelineState(RHIComputeShader);
-					}
-				}
 			}
 		}
 
@@ -6923,6 +6914,37 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, const TArray<const FShaderType*>* OutdatedShaderTypes, const TArray<const FShaderPipelineType*>* OutdatedShaderPipelineTypes)
 {
 	VerifyGlobalShaders(Platform, nullptr, bLoadedFromCacheFile, OutdatedShaderTypes, OutdatedShaderPipelineTypes);
+}
+
+void PrecacheComputePipelineStatesForGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
+{
+	FPlatformTypeLayoutParameters LayoutParams;
+	LayoutParams.InitializeForPlatform(TargetPlatform);
+	EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
+
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Platform);
+
+	for (TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList()); ShaderTypeIt; ShaderTypeIt.Next())
+	{
+		FGlobalShaderType* GlobalShaderType = ShaderTypeIt->GetGlobalShaderType();
+		if (!GlobalShaderType)
+		{
+			continue;
+		}
+
+		for (int32 PermutationId = 0; PermutationId < GlobalShaderType->GetPermutationCount(); PermutationId++)
+		{
+			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, PermutationFlags))
+			{
+				TShaderRef<FShader> GlobalShader = GlobalShaderMap->GetShader(GlobalShaderType, PermutationId);
+				if (GlobalShader.IsValid() && GlobalShader->GetFrequency() == SF_Compute)
+				{
+					FRHIComputeShader* RHIComputeShader = GlobalShader.GetComputeShader();
+					PipelineStateCache::PrecacheComputePipelineState(RHIComputeShader);
+				}
+			}
+		}
+	}
 }
 
 #include "Misc/PreLoadFile.h"

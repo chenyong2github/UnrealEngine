@@ -2044,8 +2044,16 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 	if (bNeededToWait)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(BlockingShaderLoad);
-		UE_LOG(LogShaderLibrary, Warning, TEXT("Blocking wait for shader preload, NumRefs: %d, FramePreloadStarted: %d"), PreloadEntryPtr->NumRefs, PreloadEntryPtr->FramePreloadStarted);
+
+		double TimeStarted = FPlatformTime::Seconds();
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event);
+		double WaitDuration = FPlatformTime::Seconds() - TimeStarted;
+
+		// only complain if we spent more than 1ms waiting
+		if (TimeStarted > 0.001)
+		{
+			UE_LOG(LogShaderLibrary, Warning, TEXT("Spent %.2f ms in a blocking wait for shader preload, NumRefs: %d, FramePreloadStarted: %d, CurrentFrame: %d"), WaitDuration * 1000.0, PreloadEntryPtr->NumRefs, PreloadEntryPtr->FramePreloadStarted, GFrameNumber);
+		}
 	}
 
 	const uint8* ShaderCode = PreloadEntryPtr->IoRequest.GetResultOrDie().Data();
