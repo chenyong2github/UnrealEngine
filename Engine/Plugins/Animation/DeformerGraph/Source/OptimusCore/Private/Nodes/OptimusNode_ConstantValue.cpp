@@ -82,15 +82,16 @@ void UOptimusNode_ConstantValue::PostLoad()
 
 #if WITH_EDITOR
 
-void UOptimusNode_ConstantValue::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+void UOptimusNode_ConstantValue::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	UOptimusNodeGraph* Graph = GetOwningGraph();
+	if (UOptimusNodePin* ValuePin = FindPinFromPath({ TEXT("Value") }))
 	{
-		UOptimusNodeGraph* Graph = GetOwningGraph();
-		Graph->GlobalNotify(EOptimusGlobalNotifyType::ConstantValueChanged, this);
+		Graph->Notify(EOptimusGraphNotifyType::PinValueChanged, ValuePin);
 	}
+	Graph->GlobalNotify(EOptimusGlobalNotifyType::ConstantValueChanged, this);
 }
 
 #endif // WITH_EDITOR

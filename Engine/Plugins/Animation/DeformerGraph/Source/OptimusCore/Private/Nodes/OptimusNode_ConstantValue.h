@@ -57,7 +57,7 @@ public:
 	void PostLoad() override;
 
 #if WITH_EDITOR
-	void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	// IOptimusValueProvider overrides 
