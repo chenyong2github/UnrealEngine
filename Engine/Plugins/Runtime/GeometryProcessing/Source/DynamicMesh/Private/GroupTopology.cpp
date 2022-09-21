@@ -171,7 +171,7 @@ bool FGroupTopology::ShouldVertBeCorner(int VertexID, bool* bIsAnExtraCornerOut)
 	{
 		FIndex2i EdgeTris = Mesh->GetEdgeT(Eid);
 		if (EdgeTris.B == IndexConstants::InvalidID
-			|| Mesh->GetTriangleGroup(EdgeTris.A) != Mesh->GetTriangleGroup(EdgeTris.B))
+			|| GetGroupID(EdgeTris.A) != GetGroupID(EdgeTris.B))
 		{
 			// This is a group edge.
 			if (AttachedGroupEdgeEids[0] == IndexConstants::InvalidID)
