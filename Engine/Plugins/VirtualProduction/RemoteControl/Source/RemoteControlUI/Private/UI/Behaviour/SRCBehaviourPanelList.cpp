@@ -11,6 +11,7 @@
 #include "SRCBehaviourPanel.h"
 #include "SlateOptMacros.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Action/SRCActionPanel.h"
 #include "UI/Behaviour/Builtin/Bind/RCBehaviourBindModel.h"
 #include "UI/Behaviour/Builtin/Conditional/RCBehaviourConditionalModel.h"
 #include "UI/Behaviour/Builtin/Path/RCBehaviourSetAssetByPathModel.h"
@@ -95,6 +96,41 @@ void SRCBehaviourPanelList::AddNewLogicItem(UObject* InLogicItem)
 	AddBehaviourToList(Cast<URCBehaviour>(InLogicItem));
 
 	RequestRefresh();
+}
+
+void SRCBehaviourPanelList::AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder)
+{
+	if (TSharedPtr<FRCBehaviourModel> BehaviourItem = GetSelectedBehaviourItem())
+	{
+		const bool bIsEnabled = BehaviourItem->IsBehaviourEnabled();
+
+		FUIAction Action(FExecuteAction::CreateSP(this, &SRCBehaviourPanelList::SetIsBehaviourEnabled, !bIsEnabled));
+
+		FText Label, Tooltip;
+		if (bIsEnabled)
+		{
+			Label = LOCTEXT("LabelDisableBehaviour", "Disable");
+			Tooltip = LOCTEXT("TooltipDisableBehaviour", "Disables the current behaviour. Actions will not be processed for this behaviour when the Controller value changes");
+		}
+		else
+		{
+			Label = LOCTEXT("LabelEnableBehaviour", "Enable");
+			Tooltip = LOCTEXT("TooltipDisableBehaviour", "Enables the current behaviour. Restores functioning of Actions associated with this behaviour.");
+		}
+
+		MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), Action);
+	}
+}
+
+void SRCBehaviourPanelList::SetIsBehaviourEnabled(const bool bIsEnabled)
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		if (TSharedPtr<SRCActionPanel> ActionPanel = RemoteControlPanel->GetLogicActionPanel())
+		{
+			ActionPanel->SetIsBehaviourEnabled(bIsEnabled);
+		}
+	}
 }
 
 void SRCBehaviourPanelList::AddBehaviourToList(URCBehaviour* InBehaviour)

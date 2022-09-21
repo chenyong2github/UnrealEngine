@@ -16,18 +16,23 @@
 
 #define LOCTEXT_NAMESPACE "FRCBehaviourModel"
 
-FRCBehaviourModel::FRCBehaviourModel(URCBehaviour* InBehaviour,
-	const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel /*= nullptr*/)
-	: FRCLogicModeBase(InRemoteControlPanel),
-	BehaviourWeakPtr(InBehaviour)
+FRCBehaviourModel::FRCBehaviourModel(URCBehaviour* InBehaviour
+	, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel /*= nullptr*/)
+	: FRCLogicModeBase(InRemoteControlPanel)
+	, BehaviourWeakPtr(InBehaviour)
 {
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.BehaviourPanel");
 
-	const FText BehaviorDisplayName = BehaviourWeakPtr->GetDisplayName().ToUpper();
+	if (BehaviourWeakPtr.IsValid())
+	{
+		const FText BehaviorDisplayName = BehaviourWeakPtr->GetDisplayName().ToUpper();
+		
+		SAssignNew(BehaviourTitleText, STextBlock)
+			.Text(BehaviorDisplayName)
+			.TextStyle(&RCPanelStyle->HeaderTextStyle);
 
-	SAssignNew(BehaviourTitleText, STextBlock)
-		.Text(BehaviorDisplayName)
-		.TextStyle(&RCPanelStyle->HeaderTextStyle);
+		RefreshIsBehaviourEnabled(BehaviourWeakPtr->bIsEnabled);
+	}
 }
 
 URCAction* FRCBehaviourModel::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
@@ -99,8 +104,13 @@ void FRCBehaviourModel::SetIsBehaviourEnabled(const bool bIsEnabled)
 	{
 		Behaviour->bIsEnabled = bIsEnabled;
 
-		BehaviourTitleText->SetEnabled(bIsEnabled);
+		RefreshIsBehaviourEnabled(bIsEnabled);
 	}
+}
+
+void FRCBehaviourModel::RefreshIsBehaviourEnabled(const bool bIsEnabled)
+{
+	BehaviourTitleText->SetEnabled(bIsEnabled);
 }
 
 TSharedPtr<SRCLogicPanelListBase> FRCBehaviourModel::GetActionsListWidget(TSharedRef<SRCActionPanel> InActionPanel)

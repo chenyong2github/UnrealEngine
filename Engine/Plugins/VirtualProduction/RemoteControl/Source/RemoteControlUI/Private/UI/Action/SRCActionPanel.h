@@ -4,14 +4,19 @@
 
 #include "UI/BaseLogicUI/SRCLogicPanelBase.h"
 
+enum class ECheckBoxState : uint8;
+
 struct FRCPanelStyle;
 class FRCActionModel;
 struct FRemoteControlField;
 class FRCBehaviourModel;
 class SBox;
+class SCheckBox;
+class SRCBehaviourDetails;
 class SRCLogicPanelListBase;
 class SRemoteControlPanel;
 class URCAction;
+class URCBehaviour;
 
 /*
 * ~ SRCActionPanel ~
@@ -69,6 +74,15 @@ public:
 		bAddActionMenuNeedsRefresh = true;
 	}
 
+	/** Fetches the currently selected behaviour item*/
+	TSharedPtr<FRCBehaviourModel> GetSelectedBehaviourItem()
+	{
+		return SelectedBehaviourItemWeakPtr.Pin();
+	}
+
+	/** Set the Enabled state of our parent Behaviour */
+	void SetIsBehaviourEnabled(const bool bIsEnabled);
+
 protected:
 	/** Warns user before deleting a selected panel item. */
 	virtual FReply RequestDeleteSelectedItem() override;
@@ -91,6 +105,12 @@ private:
 
 	/** Handles click event for Open Behaviour Blueprint button*/
 	FReply OnClickOverrideBlueprintButton();
+
+	/** Handles click event for toggling Enable/Disable behaviour*/
+	void OnToggleEnableBehaviour(ECheckBoxState State);
+
+	/** Refreshes the UI widgets enabled state depending on whether the parent behaviour is currently enabled */
+	void RefreshIsBehaviourEnabled(const bool bIsEnabled);
 
 	/**
 	 * Builds a menu containing the list of all possible Actions
@@ -127,6 +147,12 @@ private:
 
 	/** Widget representing List of Actions */
 	TSharedPtr<SRCLogicPanelListBase> ActionPanelList;
+
+	/** Behaviour specific details widget*/
+	TSharedPtr<SRCBehaviourDetails> BehaviourDetailsWidget;
+
+	/** Toggle Behaviour button*/
+	TSharedPtr<SCheckBox> ToggleBehaviourButton;
 
 	/** Helper widget for behavior details. */
 	static TSharedPtr<SBox> NoneSelectedWidget;

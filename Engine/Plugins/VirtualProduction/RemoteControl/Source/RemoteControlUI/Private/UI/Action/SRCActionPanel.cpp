@@ -170,52 +170,34 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, AddAllActionsButton);
 		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedActionButton);
 
-		// Duplicate Dock Panel
-		TSharedPtr<SRCMinorPanel> DuplicateDockPanel = SNew(SRCMinorPanel)
-			.HeaderLabel(LOCTEXT("DuplicateLabel", "Duplicate"))
+		// Header Dock Panel
+		TSharedPtr<SRCMinorPanel> HeaderDockPanel = SNew(SRCMinorPanel)
+			.HeaderLabel(LOCTEXT("HeaderDockLabel", ""))
 			[
-				SNew(SRCBehaviourDetails, SharedThis(this), InBehaviourItem.ToSharedRef())
-			];
-
-		// Duplicate Behaviour Button
-		const TSharedRef<SWidget> DuplicateBehaviourButton = SNew(SButton)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Duplicate Behavior")))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ContentPadding(FMargin(4.f, 2.f))
-			.OnClicked(this, &SRCActionPanel::OnClickOverrideBlueprintButton)
-			[
-				SNew(SBox)
-				.WidthOverride(RCPanelStyle->IconSize.X)
-				.HeightOverride(RCPanelStyle->IconSize.Y)
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
-				]
+				SAssignNew(BehaviourDetailsWidget, SRCBehaviourDetails, SharedThis(this), InBehaviourItem.ToSharedRef())
 			];
 		
 		// Toggle Behaviour Button
-		// TODO : Replace this with the actual algorithm to disable or enable behaviour.
-		const bool bIsChecked = FMath::RandBool();
-		const TSharedRef<SWidget> ToggleBehaviourButton = SNew(SCheckBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Duplicate Behavior")))
+		const bool bIsChecked = InBehaviourItem->IsBehaviourEnabled();
+		SAssignNew(ToggleBehaviourButton, SCheckBox)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Toggle Behavior")))
+			.ToolTipText(LOCTEXT("EditModeTooltip", "Enable/Disable this Behaviour.\nWhen a behaviour is disabled its Actions will not be processed when the Controller value changes"))
 			.HAlign(HAlign_Center)
 			.Style(&RCPanelStyle->ToggleButtonStyle)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.IsChecked_Lambda([bIsChecked]() { return bIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; });
+			.IsChecked(bIsChecked)
+			.OnCheckStateChanged(this, &SRCActionPanel::OnToggleEnableBehaviour);
 
-		DuplicateDockPanel->AddHeaderToolbarItem(EToolbar::Left, DuplicateBehaviourButton);
-		DuplicateDockPanel->AddHeaderToolbarItem(EToolbar::Right, ToggleBehaviourButton);
+		RefreshIsBehaviourEnabled(bIsChecked);
+
+		HeaderDockPanel->AddHeaderToolbarItem(EToolbar::Left, ToggleBehaviourButton.ToSharedRef());
 
 		TSharedRef<SRCMajorPanel> ActionsPanel = SNew(SRCMajorPanel)
 			.EnableFooter(false)
 			.EnableHeader(false)
 			.ChildOrientation(Orient_Vertical);
 
-		ActionsPanel->AddPanel(DuplicateDockPanel.ToSharedRef(), 0.5f);
+		ActionsPanel->AddPanel(HeaderDockPanel.ToSharedRef(), 0.5f);
 		ActionsPanel->AddPanel(ActionDockPanel.ToSharedRef(), 0.5f);
 
 		WrappedBoxWidget->SetContent(ActionsPanel);
@@ -239,6 +221,31 @@ FReply SRCActionPanel::OnClickOverrideBlueprintButton()
 	}
 
 	return FReply::Handled();
+}
+
+void SRCActionPanel::OnToggleEnableBehaviour(ECheckBoxState State)
+{
+	SetIsBehaviourEnabled(State == ECheckBoxState::Checked);
+}
+
+void SRCActionPanel::SetIsBehaviourEnabled(const bool bIsEnabled)
+{
+	if (TSharedPtr<FRCBehaviourModel> BehaviourItem = GetSelectedBehaviourItem())
+	{
+		BehaviourItem->SetIsBehaviourEnabled(bIsEnabled);
+
+		RefreshIsBehaviourEnabled(bIsEnabled);
+	}
+}
+
+void SRCActionPanel::RefreshIsBehaviourEnabled(const bool bIsEnabled)
+{
+	if (ToggleBehaviourButton && BehaviourDetailsWidget && ActionPanelList)
+	{
+		ToggleBehaviourButton->SetIsChecked(bIsEnabled);
+		BehaviourDetailsWidget->SetEnabled(bIsEnabled);
+		ActionPanelList->SetEnabled(bIsEnabled);
+	}
 }
 
 TSharedRef<SWidget> SRCActionPanel::GetActionMenuContentWidget()

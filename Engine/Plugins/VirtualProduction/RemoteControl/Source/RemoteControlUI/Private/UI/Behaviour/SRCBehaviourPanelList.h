@@ -64,7 +64,13 @@ public:
 
 	virtual void AddNewLogicItem(UObject* InLogicItem) override;
 
+	/** Allows Logic panels to add special functionality to the Context Menu based on context */
+	virtual void AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder) override;
+
 private:
+
+	/** Enables or Disables the currently selected behaviour*/
+	void SetIsBehaviourEnabled(const bool bIsEnabled);
 
 	void AddBehaviourToList(URCBehaviour* InBehaviour);
 

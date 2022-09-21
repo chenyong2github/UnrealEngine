@@ -60,6 +60,11 @@ public:
 	/** Allows Logic panels to add special functionality to the Context Menu based on context */
 	virtual void AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder) {};
 
+	TSharedPtr<SRemoteControlPanel> GetRemoteControlPanel()
+	{
+		return RemoteControlPanelWeakPtr.Pin();
+	}
+
 private:
 
 	/** Refreshes the list from the latest state of the model*/

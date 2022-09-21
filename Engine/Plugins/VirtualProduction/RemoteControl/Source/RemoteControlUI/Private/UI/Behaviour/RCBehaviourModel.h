@@ -46,6 +46,9 @@ public:
 	/** Set the Enabled state of our underlying Behaviour */
 	void SetIsBehaviourEnabled(const bool bIsEnabled);
 
+	/** Refreshes the UI widgets enabled state depending on whether the parent behaviour is currently enabled */
+	void RefreshIsBehaviourEnabled(const bool bIsEnabled);
+
 	/** The Actions List widget to be used for this Behaviour.
 	* The default actions table is used if a behaviour doesn't specify it.
 	*/
