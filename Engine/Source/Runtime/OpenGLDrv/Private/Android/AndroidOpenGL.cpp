@@ -144,7 +144,7 @@ struct FOpenGLRemoteGLProgramCompileJNI
 		}
 
 		bAllFound = OGLServiceAccessor && DispatchProgramLink && StartRemoteProgramLink && StopRemoteProgramLink && ProgramResponseClass && ProgramResponse_SuccessField && ProgramResponse_CompiledBinaryField && ProgramResponse_ErrorField;
-		UE_CLOG(!bAllFound, LogRHI, Error, TEXT("Failed to find JNI GL remote program compiler."));
+		UE_CLOG(!bAllFound, LogRHI, Fatal, TEXT("Failed to find JNI GL remote program compiler."));
 	}
 }OpenGLRemoteGLProgramCompileJNI;
 

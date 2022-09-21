@@ -1170,7 +1170,7 @@ struct FVKRemoteProgramCompileJNI
 		}
 
 		bAllFound = PSOServiceAccessor && DispatchPSOCompile && StartRemoteProgramLink && StopRemoteProgramLink && ProgramResponseClass && ProgramResponse_SuccessField && ProgramResponse_CompiledBinaryField && ProgramResponse_ErrorField;
-		UE_CLOG(!bAllFound, LogRHI, Error, TEXT("Failed to find JNI Vulkan remote program compiler."));
+		UE_CLOG(!bAllFound, LogRHI, Fatal, TEXT("Failed to find JNI Vulkan remote program compiler."));
 	}
 }VKRemoteProgramCompileJNI;
 
