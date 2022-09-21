@@ -880,17 +880,20 @@ namespace GLTF
 		SetupObjects(MaterialCount, TEXT("materials"), [this](const FJsonObject& Object) { SetupMaterial(Object); });
 
 
-		/*
-		* Returns true if all required extensions are supported.
-		* According to gltf specification checking only the top-level extensionsRequired property in order to decide
-		* if the model import is supported should be sufficient as the documentation states:
-		* "All glTF extensions required to load and/or render an asset MUST be listed in the top-level extensionsRequired array"
-		*/
+		/**
+		 * Returns true if all required extensions are supported.
+		 * According to gltf specification checking only the top-level extensionsRequired property in order to decide
+		 * if the model import is supported should be sufficient as the documentation states:
+		 * "All glTF extensions required to load and/or render an asset MUST be listed in the top-level extensionsRequired array"
+		 */
+		const TArray<TSharedPtr<FJsonValue>>* ExtensionsRequired;
+		if (JsonRoot->TryGetArrayField(TEXT("extensionsRequired"), ExtensionsRequired))
 		{
-			for (const TSharedPtr<FJsonValue>& Extension : JsonRoot->GetArrayField(TEXT("extensionsRequired")))
+			check(ExtensionsRequired);
+			OutAsset.RequiredExtensions.Reserve(OutAsset.RequiredExtensions.Num() + ExtensionsRequired->Num());
+			for (const TSharedPtr<FJsonValue>& Extension : *ExtensionsRequired)
 			{
-				FString ExtensionString = Extension->AsString();
-				OutAsset.RequiredExtensions.Add(ExtensionString);
+				OutAsset.RequiredExtensions.Add(Extension->AsString());
 			}
 		}
 
