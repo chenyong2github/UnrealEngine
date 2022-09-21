@@ -334,6 +334,18 @@ FKeyHandle AddOrUpdateKey(
 	return FKeyHandle::Invalid();
 }
 
+FKeyHandle AddOrUpdateKey(
+	FMovieSceneConstraintChannel* Channel,
+	UMovieSceneSection* SectionToKey,
+	const TMovieSceneExternalValue<bool>& EditorData,
+	FFrameNumber InTime,
+	ISequencer& Sequencer,
+	const FGuid& InObjectBindingID,
+	FTrackInstancePropertyBindings* PropertyBindings)
+{
+	return FKeyHandle::Invalid();
+}
+
 bool CanCreateKeyEditor(const FMovieSceneConstraintChannel* InChannel)
 {
 	return false;

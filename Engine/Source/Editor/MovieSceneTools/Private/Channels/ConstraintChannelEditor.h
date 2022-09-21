@@ -51,6 +51,15 @@ FKeyHandle AddOrUpdateKey(
 	const FGuid& ObjectBindingID,
 	FTrackInstancePropertyBindings* PropertyBindings);
 
+FKeyHandle AddOrUpdateKey(
+	FMovieSceneConstraintChannel* Channel,
+	UMovieSceneSection* SectionToKey,
+	const TMovieSceneExternalValue<bool>& EditorData,
+	FFrameNumber InTime,
+	ISequencer& Sequencer,
+	const FGuid& InObjectBindingID,
+	FTrackInstancePropertyBindings* PropertyBindings);
+
 /** Key editor overrides */
 bool CanCreateKeyEditor(const FMovieSceneConstraintChannel* InChannel);
 
