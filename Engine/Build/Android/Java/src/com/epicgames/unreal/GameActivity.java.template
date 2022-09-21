@@ -5391,7 +5391,22 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public boolean AndroidThunkJava_SetNativeDisplayRefreshRate(int RefreshRate)
 	{
-		if(ANDROID_BUILD_VERSION >= 24)
+		if (ANDROID_BUILD_VERSION >= 30)
+		{
+			final int FinalRefreshRate = RefreshRate;
+			_activity.runOnUiThread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					MySurfaceView.getHolder().getSurface().setFrameRate(FinalRefreshRate, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+				}
+			});
+			Log.debug("SetNativeDisplayRefreshRate - setFrameRate " + RefreshRate);
+
+			return true;
+		}
+		else if(ANDROID_BUILD_VERSION >= 24)
 		{
 			WindowManager windowManager =  getWindowManager();
 			Display display = windowManager.getDefaultDisplay();
