@@ -10223,6 +10223,13 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 					}
 					break;
 				}
+				case STRATA_OPERATOR_WEIGHT:
+				{
+					// If a BSDF modified by a weight operator, its weight will be < 1.0f, and it won't be a single material anymore
+					bStrataMaterialIsSimple = false;
+					bStrataMaterialIsSingle = false;
+					break;
+				}
 				}
 			}
 			bStrataMaterialIsSingle = bStrataMaterialIsSingle && !bStrataMaterialIsSimple;
