@@ -17,6 +17,7 @@ void UUVLayoutPreview::CreateInWorld(UWorld* World)
 {
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(World, FTransform::Identity);
+	PreviewMesh->SetShadowsEnabled(false);
 
 	TriangleComponent = NewObject<UTriangleSetComponent>(PreviewMesh->GetActor());
 	TriangleComponent->SetupAttachment(PreviewMesh->GetRootComponent());
