@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		{
 			if (RuntimePlatform.IsMac)
 			{
-				MinVersion = "12.4.0";
+				MinVersion = "13.4.0";
 				MaxVersion = "14.9.9";
 			}
 			else
@@ -36,5 +36,30 @@ namespace UnrealBuildTool
 		{
 			MinVersion = MaxVersion = null;
 		}
+
+		/// <summary>
+		/// The minimum Clang version that a macOS static library can be built with
+		/// </summary>
+		public virtual Version MinimumStaticLibClangVersion
+		{
+			get
+			{
+				// return new Version("1200.00.32.29"); // UE 5.0 (Xcode 12.4)
+				// return new Version("1300.00.29.30"); // UE 5.1 (Xcode 13.2.1)
+				return new Version("1400.00.28.1"); // UE 5.1 (Xcode 14.0)
+			}
+		}
+
+		/// <summary>
+		/// The minimum macOS SDK version that a dynamic library can be built with
+		/// </summary>
+		public virtual Version MinimumDynamicLibSDKVersion
+		{
+			get
+			{
+				return new Version("12.1");		// SDK used in Xcode13.2.1
+			}
+		}
+
 	}
 }

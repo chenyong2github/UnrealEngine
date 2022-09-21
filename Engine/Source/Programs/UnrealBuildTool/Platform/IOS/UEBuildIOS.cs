@@ -6,6 +6,7 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
@@ -51,6 +52,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-skipcrashlytics")]
 		public bool bSkipCrashlytics = false;
+
+		/// <summary>
+		/// Disables clang build verification checks on static libraries
+		/// </summary>
+		[CommandLine("-skipclangvalidation", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bSkipClangValidation")]
+		public bool bSkipClangValidation = false;
 
 		/// <summary>
 		/// Mark the build for distribution
@@ -152,6 +160,11 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics
 		{
 			get { return Inner.bSkipCrashlytics; }
+		}
+
+		public bool bSkipClangValidation
+		{
+			get { return Inner.bSkipClangValidation; }
 		}
 
 		public bool bForDistribution
@@ -820,6 +833,52 @@ namespace UnrealBuildTool
 
 			Target.bCheckSystemHeadersForModification = false;
 		}
+
+		public override void ValidateModule(UEBuildModule Module, ReadOnlyTargetRules Target)
+		{ 
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !Target.IOSPlatform.bSkipClangValidation)
+			{
+				IOSPlatformSDK SDK = (IOSPlatformSDK?)GetSDK() ?? new IOSPlatformSDK(Logger);
+				foreach (FileReference LibLoc in Module.PublicLibraries)
+				{
+					switch (LibLoc.GetExtension())
+					{
+						case ".a":
+							{
+								// When static lib, grep it
+								string Args = "-c \"strings ";
+								Args += LibLoc.FullName;
+								Args += " | grep -m1 -i \\(clang\"";
+								string StdOutResult = Utils.RunLocalProcessAndReturnStdOut("bash", Args);
+								if (string.IsNullOrEmpty(StdOutResult))
+								{
+									continue;
+								}
+
+								// This Regex will extract a 2-4 segment version code from string containing a 2-5 segment code 
+								// ie: if given string: "Apple clang version 14.0.0 (clang-1400.0.17.3.1)"
+								//     it'll extract: "1400.0.17.3"  (note the dropped 5th segment)
+								Match M = Regex.Match(StdOutResult, @"(\(clang-(?<ver>\d+.\d+(.(\d+))?(.(\d+))?)(.(\d+))?\))");
+								if (M.Success)
+								{
+									string LibString = M.Groups["ver"].ToString();
+									Version? LibVersion = new Version(LibString);
+									if (LibVersion != null && LibVersion > SDK.MinimumStaticLibClangVersion)
+									{
+										throw new BuildException("iOS Static Library:'{0}' is built with a version of clang newer than UE supports ({1} > {2}). \nPlease rebuild {3} with the minimum supported version of Xcode/clang.", LibLoc.GetFileName(), LibString, SDK.MinimumStaticLibClangVersion, LibLoc);
+									}
+								}
+							}
+							break;
+
+						default:
+							// For now, we don't validate any other types of libs (dylib, Framework, etc)
+							break;
+					}
+				}
+			}
+		}
+
 
 		/// <summary>
 		/// Allows the platform to override whether the architecture name should be appended to the name of binaries.

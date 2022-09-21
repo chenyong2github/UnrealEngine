@@ -2713,6 +2713,13 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Allow each platform to run any needed validation on the module.
+			// ie: iOS/macOS do a static library version build check for unsupported clang version builds.
+			foreach (UEBuildModule Module in Modules.Values)
+			{
+				UEBuildPlatform.GetBuildPlatform(Platform).ValidateModule(Module, Rules);
+			}
+
 			if (!bCompileMonolithic)
 			{
 				if (Platform == UnrealTargetPlatform.Win64)

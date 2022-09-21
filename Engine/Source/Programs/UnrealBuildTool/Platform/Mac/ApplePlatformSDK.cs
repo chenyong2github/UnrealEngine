@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 ///////////////////////////////////////////////////////////////////
 // If you are looking for supported version numbers, look in the
 // ApplePlatformSDK.Versions.cs file next to this file, and
-// als Mac/IOSPlatformSDK.Versions.cs
+// als IOS/IOSPlatformSDK.Versions.cs
 ///////////////////////////////////////////////////////////////////
 
 namespace UnrealBuildTool

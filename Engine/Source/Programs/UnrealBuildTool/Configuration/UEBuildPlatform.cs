@@ -583,6 +583,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Validate a UEBuildModule before it's processed
+		/// <param name="Module">The UEBuildModule that needs to be validated</param>
+		/// <param name="Target">Options for the target being built</param>
+		/// </summary>
+		public virtual void ValidateModule(UEBuildModule Module, ReadOnlyTargetRules Target)
+		{
+		}
+
+		/// <summary>
 		/// Return whether the given platform requires a monolithic build
 		/// </summary>
 		/// <param name="InPlatform">The platform of interest</param>
