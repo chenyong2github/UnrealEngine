@@ -129,6 +129,10 @@ SDeviceOutputLog::~SDeviceOutputLog()
 {
 	ITargetPlatform::OnDeviceDiscovered().RemoveAll(this);
 	ITargetPlatform::OnDeviceLost().RemoveAll(this);
+
+	// Clearing the pointer manually to ensure that when the pointed device output object is destroyed
+	// SDeviceOutputLog is still in a valid state in case CurrentDeviceOutputPtr wanted to dereference it.
+	CurrentDeviceOutputPtr.Reset();
 }
 
 void SDeviceOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
