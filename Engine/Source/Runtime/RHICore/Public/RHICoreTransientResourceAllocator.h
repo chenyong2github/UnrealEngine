@@ -889,6 +889,7 @@ public:
 		uint32 AllocationCount = 0;
 		uint32 AllocationMatchingCount = 0;
 		uint32 PagesRemaining = 0;
+		uint32 MaxAllocationPage = 0;
 		uint32 PagesAllocated = 0;
 		uint32 PageSpansAllocated = 0;
 		uint32 PagesMapped = 0;
@@ -1075,7 +1076,7 @@ private:
 	static constexpr uint64 KB = 1024;
 	static constexpr uint64 MB = 1024 * KB;
 
-	void AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* DebugName, uint32 PassIndex, bool bFastPoolRequested);
+	void AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* DebugName, uint32 PassIndex, bool bFastPoolRequested, float FastPoolPercentageRequested);
 	void DeallocateMemoryInternal(FRHITransientResource* Resource, uint32 PassIndex);
 
 	//////////////////////////////////////////////////////////////////////////

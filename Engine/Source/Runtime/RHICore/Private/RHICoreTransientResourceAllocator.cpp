@@ -1194,7 +1194,9 @@ void FRHITransientPagePool::Allocate(FAllocationContext& Context)
 {
 	uint32 SpanIndex = 0;
 	uint32 PagesAllocated = 0;
-	if (Allocator.Allocate(Context.PagesRemaining, PagesAllocated, SpanIndex))
+
+	uint32 PagesRemaining = Context.MaxAllocationPage > 0 ? FMath::Min(Context.PagesRemaining, Context.MaxAllocationPage) : Context.PagesRemaining;
+	if (Allocator.Allocate(PagesRemaining, PagesAllocated, SpanIndex))
 	{
 		const uint64 DestinationGpuVirtualAddress = Context.GpuVirtualAddress + Context.PagesAllocated * Initializer.PageSize;
 		const uint32 PageSpanOffsetMin = PageSpans.Num();
@@ -1405,9 +1407,12 @@ FRHITransientTexture* FRHITransientResourcePageAllocator::CreateTexture(
 		return CreateTextureInternal(CreateInfo, DebugName, Hash);
 	});
 
+	const bool bFastPool = EnumHasAnyFlags(CreateInfo.Flags, ETextureCreateFlags::FastVRAM) || EnumHasAnyFlags(CreateInfo.Flags, ETextureCreateFlags::FastVRAMPartialAlloc);
+	const float FastPoolPercentageRequested = bFastPool ? CreateInfo.FastVRAMPercentage / 255.f : 0.f;
+
 	check(Texture);
 	Texture->Acquire(DebugName, PassIndex, CurrentCycle);
-	AllocateMemoryInternal(Texture, DebugName, PassIndex, EnumHasAnyFlags(CreateInfo.Flags, ETextureCreateFlags::FastVRAM));
+	AllocateMemoryInternal(Texture, DebugName, PassIndex, bFastPool, FastPoolPercentageRequested);
 	Stats.AllocateTexture(Texture->GetSize());
 	IF_RHICORE_TRANSIENT_ALLOCATOR_DEBUG(ActiveResources.Emplace(Texture));
 	return Texture;
@@ -1426,19 +1431,22 @@ FRHITransientBuffer* FRHITransientResourcePageAllocator::CreateBuffer(
 
 	check(Buffer);
 	Buffer->Acquire(DebugName, PassIndex, CurrentCycle);
-	AllocateMemoryInternal(Buffer, DebugName, PassIndex, EnumHasAnyFlags(CreateInfo.Usage, EBufferUsageFlags::FastVRAM));
+	AllocateMemoryInternal(Buffer, DebugName, PassIndex, EnumHasAnyFlags(CreateInfo.Usage, EBufferUsageFlags::FastVRAM), false);
 	Stats.AllocateBuffer(Buffer->GetSize());
 	IF_RHICORE_TRANSIENT_ALLOCATOR_DEBUG(ActiveResources.Emplace(Buffer));
 	return Buffer;
 }
 
-void FRHITransientResourcePageAllocator::AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* DebugName, uint32 PassIndex, bool bFastPoolRequested)
+void FRHITransientResourcePageAllocator::AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* DebugName, uint32 PassIndex, bool bFastPoolRequested, float FastPoolPercentageRequested)
 {
 	FRHITransientPagePool::FAllocationContext AllocationContext(*Resource, PageSize);
 
 	if (bFastPoolRequested && FastPagePool)
 	{
+		// If a partial allocation is requested, compute the max. number of page which should be allocated in fast memory
+		AllocationContext.MaxAllocationPage = FastPoolPercentageRequested > 0 ? FMath::CeilToInt(AllocationContext.PagesRemaining * FastPoolPercentageRequested) : AllocationContext.MaxAllocationPage;
 		FastPagePool->Allocate(AllocationContext);
+		AllocationContext.MaxAllocationPage = 0;
 	}
 
 	if (!AllocationContext.IsComplete())
