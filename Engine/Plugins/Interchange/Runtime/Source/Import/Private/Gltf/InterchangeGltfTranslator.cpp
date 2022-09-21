@@ -1038,8 +1038,10 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			SceneNode->InitializeNode( SceneNodeUid, SceneName, EInterchangeNodeContainerType::TranslatedScene );
 			NodeContainer.AddNode( SceneNode );
 
-			TArray<int32> SkinnedMeshNodes;
+			//All scene node should have a valid local transform
+			SceneNode->SetCustomLocalTransform(&NodeContainer, FTransform::Identity);
 
+			TArray<int32> SkinnedMeshNodes;
 			for ( const int32 NodeIndex : GltfScene.Nodes )
 			{
 				if ( GltfAsset.Nodes.IsValidIndex( NodeIndex ) )

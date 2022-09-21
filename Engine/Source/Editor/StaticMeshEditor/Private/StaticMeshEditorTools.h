@@ -664,6 +664,8 @@ private:
 	IDetailCategoryBuilder* LodCustomCategory;
 
 	bool DetailDisplayLODs[MAX_STATIC_MESH_LODS];
+
+	FDelegateHandle OnAssetPostLODImportDelegateHandle;
 };
 
 /**

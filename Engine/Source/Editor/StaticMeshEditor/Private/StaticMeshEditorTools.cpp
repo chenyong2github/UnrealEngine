@@ -3277,6 +3277,15 @@ FLevelOfDetailSettingsLayout::FLevelOfDetailSettingsLayout( FStaticMeshEditor& I
 	LODCount = StaticMeshEditor.GetStaticMesh()->GetNumLODs();
 
 	UpdateLODNames();
+
+	OnAssetPostLODImportDelegateHandle = GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostLODImport.AddLambda([this](UObject* InObject, int32 InLODIndex)
+		{
+			UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+			if (InObject == StaticMesh)
+			{
+				StaticMeshEditor.RefreshTool();
+			}
+		});
 }
 
 /** Returns true if automatic mesh reduction is available. */
@@ -3871,6 +3880,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 
 FLevelOfDetailSettingsLayout::~FLevelOfDetailSettingsLayout()
 {
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostLODImport.Remove(OnAssetPostLODImportDelegateHandle);
 }
 
 FString FLevelOfDetailSettingsLayout::GetSourceImportFilename(int32 LODIndex) const

@@ -4111,19 +4111,28 @@ bool UStaticMesh::SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 Destin
 
 	//Copy the mesh description of the source into the destination
 	*DestinationMeshDescription = *SourceMeshDescription;
+	
 
 	if(IsInGameThread())
 	{
 		PostEditChange();
-		MarkPackageDirty();
+		//Commit the mesh description to update the ddc key
+		FCommitMeshDescriptionParams CommitMeshDescriptionParams;
+		CommitMeshDescriptionParams.bMarkPackageDirty = true;
+		CommitMeshDescriptionParams.bUseHashAsGuid = false;
+		CommitMeshDescription(DestinationLodIndex, CommitMeshDescriptionParams);
 	}
 	else
 	{
 		UStaticMesh* ThisMesh = this;
-		Async(EAsyncExecution::TaskGraphMainThread, [ThisMesh]()
+		Async(EAsyncExecution::TaskGraphMainThread, [ThisMesh, DestinationLodIndex]()
 		{
 			ThisMesh->PostEditChange();
-			ThisMesh->MarkPackageDirty();
+			//Commit the mesh description to update the ddc key
+			FCommitMeshDescriptionParams CommitMeshDescriptionParams;
+			CommitMeshDescriptionParams.bMarkPackageDirty = true;
+			CommitMeshDescriptionParams.bUseHashAsGuid = false;
+			ThisMesh->CommitMeshDescription(DestinationLodIndex, CommitMeshDescriptionParams);
 		});
 	}
 
