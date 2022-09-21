@@ -133,6 +133,7 @@ void FRigVMRegistry::InitializeIfNeeded()
 			if (AssetRegistryModule->TryGet())
 			{
 				AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&s_RigVMRegistry);
+				AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(&s_RigVMRegistry);
 			}
 		}
 
@@ -141,6 +142,7 @@ void FRigVMRegistry::InitializeIfNeeded()
 	
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FRigVMRegistry::OnAssetRemoved);
+	AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FRigVMRegistry::OnAssetRenamed);
 
 	UE::Anim::AttributeTypes::GetOnAttributeTypesChanged().AddRaw(this, &FRigVMRegistry::OnAnimationAttributeTypesChanged);
 }
@@ -195,28 +197,21 @@ void FRigVMRegistry::Refresh()
 	}
 }
 
+void FRigVMRegistry::OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath)
+{
+	const FSoftObjectPath OldPath(InOldObjectPath);
+	
+	if (const TRigVMTypeIndex* TypeIndexPtr = UserDefinedTypeToIndex.Find(OldPath))
+	{
+		const TRigVMTypeIndex TypeIndex = *TypeIndexPtr;
+		UserDefinedTypeToIndex.Remove(OldPath);
+		UserDefinedTypeToIndex.Add(InAssetData.ToSoftObjectPath()) = TypeIndex;
+	}
+}
+
 void FRigVMRegistry::OnAssetRemoved(const FAssetData& InAssetData)
 {
-	const bool bLoadAsset = false;
-	UObject* Asset = InAssetData.FastGetAsset(bLoadAsset);
-
-	if (UObjectRedirector* RedirectedStruct = Cast<UObjectRedirector>(Asset))
-	{
-		Asset = RedirectedStruct->DestinationObject;
-	}
-
-	bool bTypeRemoved = false;
-	
-	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Asset))
-	{
-		bTypeRemoved = RemoveType(ScriptStruct);
-	}
-	else if (UEnum* Enum = Cast<UEnum>(Asset))
-	{
-		bTypeRemoved = RemoveType(Enum);
-	}
-
-	if (bTypeRemoved)
+	if (RemoveType(InAssetData))
 	{
 		OnRigVMRegistryChangedDelegate.Broadcast();
 	}
@@ -499,8 +494,18 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType_Internal(const FRigVMTemplateArgum
 #endif
 			}			
 		}
-
-		return GetTypeIndex(InType);
+		
+		Index = GetTypeIndex(InType);
+		if (IsValid(CPPTypeObject))
+		{
+			if (CPPTypeObject->IsA<UUserDefinedStruct>() || CPPTypeObject->IsA<UUserDefinedEnum>())
+			{
+				// used to track name changes to user defined types
+				UserDefinedTypeToIndex.FindOrAdd(CPPTypeObject) = Index;
+			}
+		}
+		
+		return Index;
 	}
 	
 	return Index;
@@ -522,96 +527,104 @@ void FRigVMRegistry::RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategor
 	}
 }
 
-bool FRigVMRegistry::RemoveType(const FRigVMTemplateArgumentType& InType)
+bool FRigVMRegistry::RemoveType(const FAssetData& InAssetData)
 {
-	check(!InType.IsArray())
+	const FSoftObjectPath AssetPath = InAssetData.ToSoftObjectPath();
+	const UClass* TypeClass = InAssetData.GetClass();
 	
-	TRigVMTypeIndex Index = GetTypeIndex(InType);
-	
-	if(Index == INDEX_NONE)
+	if (const TRigVMTypeIndex* TypeIndexPtr = UserDefinedTypeToIndex.Find(AssetPath))
 	{
-		return false;
-	}
-
-	TArray<TRigVMTypeIndex> Indices;
-	Indices.Init(INDEX_NONE, 3);
-	Indices[0] = Index;
-	Indices[1] = GetArrayTypeFromBaseTypeIndex(Indices[0]);
-
-	// any type that can be removed should have 3 entries in the registry
-	if (ensure(Indices[1] != INDEX_NONE))
-	{
-		Indices[2] = GetArrayTypeFromBaseTypeIndex(Indices[1]);
-	}
-	
-	const UObject* CPPTypeObject = InType.CPPTypeObject;
-
-	for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
-	{
-		Index = Indices[ArrayDimension];
+		const TRigVMTypeIndex TypeIndex = *TypeIndexPtr;
 		
-		if (Index == INDEX_NONE)
+		UserDefinedTypeToIndex.Remove(AssetPath);
+		
+		if(TypeIndex == INDEX_NONE)
 		{
-			break;
+			return false;
+		}
+
+		check(!IsArrayType(TypeIndex));
+
+		TArray<TRigVMTypeIndex> Indices;
+		Indices.Init(INDEX_NONE, 3);
+		Indices[0] = TypeIndex;
+		Indices[1] = GetArrayTypeFromBaseTypeIndex(Indices[0]);
+
+		// any type that can be removed should have 3 entries in the registry
+		if (ensure(Indices[1] != INDEX_NONE))
+		{
+			Indices[2] = GetArrayTypeFromBaseTypeIndex(Indices[1]);
 		}
 		
-		if(const UUserDefinedEnum* Enum = Cast<UUserDefinedEnum>(CPPTypeObject))
+		for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
 		{
-			switch(ArrayDimension)
+			const TRigVMTypeIndex Index = Indices[ArrayDimension];
+			
+			if (Index == INDEX_NONE)
 			{
-			default:
-			case 0:
+				break;
+			}
+			
+			if(TypeClass == UUserDefinedEnum::StaticClass())
+			{
+				switch(ArrayDimension)
 				{
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleEnumValue, Index);
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
-					break;
-				}
-			case 1:
-				{
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayEnumValue, Index);
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
-					break;
-				}
-			case 2:
-				{
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayEnumValue, Index);
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
-					break;
+				default:
+				case 0:
+					{
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleEnumValue, Index);
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
+						break;
+					}
+				case 1:
+					{
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayEnumValue, Index);
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
+						break;
+					}
+				case 2:
+					{
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayEnumValue, Index);
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
+						break;
+					}
 				}
 			}
-		}
-		else if(const UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(CPPTypeObject))
-		{
-			switch(ArrayDimension)
+			else if(TypeClass == UUserDefinedStruct::StaticClass())
 			{
-			default:
-			case 0:
+				switch(ArrayDimension)
 				{
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, Index);
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
-					break;
-				}
-			case 1:
-				{
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, Index);
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
-					break;
-				}
-			case 2:
-				{
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, Index);
-					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
-					break;
+				default:
+				case 0:
+					{
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, Index);
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
+						break;
+					}
+				case 1:
+					{
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, Index);
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
+						break;
+					}
+				case 2:
+					{
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, Index);
+						RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
+						break;
+					}
 				}
 			}
+
+			// remove the type from the registry entirely
+			TypeToIndex.Remove(GetType(Index));
+			Types[Index] = FTypeInfo();
 		}
 
-		// remove the type from the registry entirely
-		TypeToIndex.Remove(GetType(Index));
-		Types[Index] = FTypeInfo();
+		return true;	
 	}
-
-	return true;
+	
+	return false;
 }
 
 void FRigVMRegistry::RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, TRigVMTypeIndex InTypeIndex)

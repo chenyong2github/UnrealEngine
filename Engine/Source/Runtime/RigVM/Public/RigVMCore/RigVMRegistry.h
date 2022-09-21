@@ -58,6 +58,9 @@ public:
 	// Refreshes the list and finds the function pointers
 	// based on the names.
 	void Refresh();
+
+	// Update the registry when types are renamed
+	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath);
 	
 	// Update the registry when old types are removed
     void OnAssetRemoved(const FAssetData& InAssetData);
@@ -78,7 +81,7 @@ public:
 
 	// Removes a type from the registry, and updates all dependent templates
 	// which also creates invalid permutations in templates that we should ignore
-	bool RemoveType(const FRigVMTemplateArgumentType& InType);
+	bool RemoveType(const FAssetData& InAssetData);
 
 	// Returns the type index given a type
 	TRigVMTypeIndex GetTypeIndex(const FRigVMTemplateArgumentType& InType) const;
@@ -307,6 +310,10 @@ private:
 	// Lookup per type category to know which argument to keep in sync
 	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<TPair<int32,int32>>> ArgumentsPerCategory;
 
+	// Name loop up for user defined types since they can be deleted.
+	// When that happens, it won't be safe to reload deleted assets so only type names are reliable
+	TMap<FSoftObjectPath, TRigVMTypeIndex> UserDefinedTypeToIndex;
+	
 	// Notifies other system that types have been added/removed, and template permutations have been updated
 	FOnRigVMRegistryChanged OnRigVMRegistryChangedDelegate;
 	
