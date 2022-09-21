@@ -6,8 +6,10 @@
 #include "ObjectMixerEditorStyle.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/SObjectMixerEditorList.h"
+#include "Views/Widgets/SHyperlinkWithTextHighlight.h"
 
 #include "Customizations/ColorStructCustomization.h"
+#include "Editor.h"
 #include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"
 #include "Input/DragAndDrop.h"
@@ -20,7 +22,6 @@
 #include "Styling/StyleColors.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
@@ -334,19 +335,19 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 			if (UClass* ActorClass = Object->GetClass())
 			{
 				if (UBlueprint* AsBlueprint = UBlueprint::GetBlueprintFromClass(ActorClass))
-				{
+				{					
 					bNeedsStandardTextBlock = false;
-					
-					FEditorClassUtils::FSourceLinkParams SourceLinkParams;
-					SourceLinkParams.Object = Object;
-					SourceLinkParams.bUseDefaultFormat = false;
-					SourceLinkParams.bUseFormatIfNoLink = true;
-					SourceLinkParams.BlueprintFormat = &DisplayName;
-
+			
 					HBox->AddSlot()
 					.Padding(FMargin(10.0, 0, 0, 0))
 					[
-						FEditorClassUtils::GetSourceLink(ActorClass, SourceLinkParams)
+						SNew(SHyperlinkWithTextHighlight)
+						.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
+						.Visibility(EVisibility::Visible)
+						.Text(DisplayName)
+						.ToolTipText(LOCTEXT("ClickToEditBlueprint", "Click to edit Blueprint"))
+						.OnNavigate(this, &SObjectMixerEditorListRow::OnClickBlueprintLink, AsBlueprint, Object.Get())
+						.HighlightText(this, &SObjectMixerEditorListRow::GetHighlightText)
 					];
 				}
 			}
@@ -368,10 +369,11 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 			.Padding(FMargin(10.0, 0, 0, 0))
 			[
 				SNew(STextBlock)
-				.Visibility(EVisibility::Visible)
+				.Visibility(EVisibility::SelfHitTestInvisible)
 				.Justification(ETextJustify::Left)
 				.Text(DisplayName)
 				.ToolTipText(TooltipText)
+				.HighlightText(this, &SObjectMixerEditorListRow::GetHighlightText)
 			];
 		}
 		
@@ -526,7 +528,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 	return nullptr;
 }
 
-void SObjectMixerEditorListRow::OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty)
+void SObjectMixerEditorListRow::OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty) const
 {
 	if (Property && ContainerWithChangedProperty)
 	{
@@ -557,6 +559,34 @@ void SObjectMixerEditorListRow::OnPropertyChanged(const FProperty* Property, voi
 			}
 		}
 	}
+}
+
+void SObjectMixerEditorListRow::OnClickBlueprintLink(UBlueprint* AsBlueprint, UObject* Object)
+{
+	if (AsBlueprint)
+	{
+		if (Object)
+		{
+			if (ensure(Object->GetClass()->ClassGeneratedBy == AsBlueprint))
+			{
+				AsBlueprint->SetObjectBeingDebugged(Object);
+			}
+		}
+		// Open the blueprint
+		GEditor->EditObject(AsBlueprint);
+	}
+}
+
+FText SObjectMixerEditorListRow::GetHighlightText() const
+{
+	check (Item.IsValid());
+
+	if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = Item.Pin()->GetListViewPtr().Pin())
+	{
+		return PinnedListView->GetSearchTextFromSearchInputField();
+	}
+
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE

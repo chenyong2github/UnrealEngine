@@ -413,6 +413,13 @@ void SObjectMixerEditorMainPanel::OnSearchTextChanged(const FText& Text)
 	ExecuteListViewSearchOnAllRows(Text.ToString(), true);
 }
 
+FText SObjectMixerEditorMainPanel::GetSearchTextFromSearchInputField() const
+{
+	return ensureAlwaysMsgf(SearchBoxPtr.IsValid(),
+		TEXT("%hs: SearchBoxPtr is not valid. Check to make sure it was created."), __FUNCTION__)
+	? SearchBoxPtr->GetText() : FText::GetEmpty();
+}
+
 FString SObjectMixerEditorMainPanel::GetSearchStringFromSearchInputField() const
 {
 	return ensureAlwaysMsgf(SearchBoxPtr.IsValid(),

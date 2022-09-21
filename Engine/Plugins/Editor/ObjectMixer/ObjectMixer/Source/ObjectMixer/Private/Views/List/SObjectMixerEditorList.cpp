@@ -279,13 +279,22 @@ void SObjectMixerEditorList::ClearSoloRows()
 	GetListModelPtr().Pin()->ClearSoloRows();
 }
 
-FString SObjectMixerEditorList::GetSearchStringFromSearchInputField() const
+FText SObjectMixerEditorList::GetSearchTextFromSearchInputField() const
 {
-	check(ListModelPtr.IsValid());
-	check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
+	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+	check(PinnedListModel && PinnedListModel->GetMainPanelModel().IsValid());
 	check(HeaderRow);
 	
-	return ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetSearchStringFromSearchInputField();
+	return PinnedListModel->GetMainPanelModel().Pin()->GetSearchTextFromSearchInputField();
+}
+
+FString SObjectMixerEditorList::GetSearchStringFromSearchInputField() const
+{
+	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+	check(PinnedListModel && PinnedListModel->GetMainPanelModel().IsValid());
+	check(HeaderRow);
+	
+	return PinnedListModel->GetMainPanelModel().Pin()->GetSearchStringFromSearchInputField();
 }
 
 void SObjectMixerEditorList::ExecuteListViewSearchOnAllRows(
@@ -530,8 +539,8 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
 			FUIAction(
 				FExecuteAction::CreateLambda([this, PropertyName]()
 				{
-					check(ListModelPtr.IsValid());
-					check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
+					TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+					check(PinnedListModel && PinnedListModel->GetMainPanelModel().IsValid());
 					check(HeaderRow);
 
 					const bool bNewColumnEnabled = !HeaderRow->IsColumnVisible(PropertyName);
@@ -540,7 +549,7 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
 
 					if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
 					{
-						if (const TSubclassOf<UObjectMixerObjectFilter> Filter = ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetObjectFilterClass())
+						if (const TSubclassOf<UObjectMixerObjectFilter> Filter = PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterClass())
 						{
 							const FName FilterName = Filter->GetFName();
 							SerializedData->SetShouldShowColumn(FilterName, PropertyName, bNewColumnEnabled);
@@ -667,15 +676,15 @@ void SObjectMixerEditorList::AddBuiltinColumnsToHeaderRow()
 
 TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 {
-	check(ListModelPtr.IsValid());
-	check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
+	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+	check(PinnedListModel && PinnedListModel->GetMainPanelModel().IsValid());
 	check(HeaderRow);
 
 	HeaderRow->ClearColumns();
 	ListViewColumns.Empty(ListViewColumns.Num());
 	
 	TSet<UClass*> SpecifiedClasses =
-		ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetObjectFilter()->GetParentAndChildClassesFromSpecifiedClasses(
+		PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilter()->GetParentAndChildClassesFromSpecifiedClasses(
 			ObjectClassesToFilterCache, PropertyInheritanceInclusionOptionsCache);
 	
 	for (const UClass* Class : SpecifiedClasses)
@@ -801,7 +810,7 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 			// Then load visible columns from SerializedData
 			if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
 			{
-				if (const TSubclassOf<UObjectMixerObjectFilter> Filter = ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetObjectFilterClass())
+				if (const TSubclassOf<UObjectMixerObjectFilter> Filter = PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterClass())
 				{
 					const FName FilterName = Filter->GetFName();
 					if (SerializedData->IsColumnDataSerialized(FilterName, ColumnInfo.PropertyName))
@@ -950,15 +959,15 @@ void SObjectMixerEditorList::RestoreTreeState(const bool bFlushCache)
 
 void SObjectMixerEditorList::BuildPerformanceCacheAndGenerateHeaderIfNeeded()
 {
-	check(ListModelPtr.IsValid());
-	check(ListModelPtr.Pin()->GetMainPanelModel().IsValid());
+	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+	check(PinnedListModel && PinnedListModel->GetMainPanelModel().IsValid());
 	
 	// If any of the following overrides change, we need to regenerate the header row. Otherwise skip regeneration for performance reasons.
 	// GetObjectClassesToFilter, GetColumnsToShowByDefault, GetColumnsToExclude,
 	// GetForceAddedColumns, GetObjectMixerPropertyInheritanceInclusionOptions, ShouldIncludeUnsupportedProperties
 	bool bNeedToGenerateHeaders = false;
 	
-	const TObjectPtr<UObjectMixerObjectFilter> SelectedFilter = ListModelPtr.Pin()->GetMainPanelModel().Pin()->GetObjectFilter();
+	const TObjectPtr<UObjectMixerObjectFilter> SelectedFilter = PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilter();
 	if (!SelectedFilter)
 	{
 		UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: No classes defined in UObjectMixerObjectFilter class."), __FUNCTION__);
@@ -1157,7 +1166,8 @@ void CreateFolderRowsForTopLevelRow(
 
 void SObjectMixerEditorList::GenerateTreeView()
 {
-	check(ListModelPtr.IsValid());
+	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+	check(PinnedListModel);
 	
 	if (!ensure(TreeViewPtr.IsValid()))
 	{
@@ -1206,7 +1216,7 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	TreeViewRootObjects.StableSort(SortByTypeThenName);
 
-	if (TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ListModelPtr.Pin()->GetMainPanelModel().Pin())
+	if (TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = PinnedListModel->GetMainPanelModel().Pin())
 	{
 		MainPanel->RebuildCollectionSelector();
 	}

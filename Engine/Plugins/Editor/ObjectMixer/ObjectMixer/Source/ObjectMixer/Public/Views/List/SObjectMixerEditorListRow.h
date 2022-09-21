@@ -49,7 +49,10 @@ private:
 
 	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem);
 
-	void OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty);
+	void OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty) const;
+
+	void OnClickBlueprintLink(UBlueprint* AsBlueprint, UObject* Object = nullptr);
+	FText GetHighlightText() const;
 	
 	TWeakPtr<FObjectMixerEditorListRow> Item;
 	

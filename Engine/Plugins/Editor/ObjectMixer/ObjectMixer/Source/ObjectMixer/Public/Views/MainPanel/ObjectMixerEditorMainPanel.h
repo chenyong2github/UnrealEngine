@@ -48,6 +48,7 @@ public:
 
 	void RebuildCollectionSelector();
 
+	FText GetSearchTextFromSearchInputField() const;
 	FString GetSearchStringFromSearchInputField() const;
 
 	void OnClassSelectionChanged(UClass* InNewClass);

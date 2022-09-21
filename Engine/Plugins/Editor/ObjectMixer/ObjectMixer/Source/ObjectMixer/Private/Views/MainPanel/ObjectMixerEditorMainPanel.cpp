@@ -57,6 +57,11 @@ void FObjectMixerEditorMainPanel::RebuildCollectionSelector()
 	MainPanelWidget->RebuildCollectionSelector();
 }
 
+FText FObjectMixerEditorMainPanel::GetSearchTextFromSearchInputField() const
+{
+	return MainPanelWidget->GetSearchTextFromSearchInputField();
+}
+
 FString FObjectMixerEditorMainPanel::GetSearchStringFromSearchInputField() const
 {
 	return MainPanelWidget->GetSearchStringFromSearchInputField();
