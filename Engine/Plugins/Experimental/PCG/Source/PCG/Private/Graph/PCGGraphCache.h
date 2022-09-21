@@ -18,7 +18,6 @@ struct FPCGGraphCacheEntry
 	bool Matches(const FPCGDataCollection& InInput, int32 InSettingsCrc32, int32 InComponentSeed) const;
 
 	FPCGDataCollection Input;
-	TObjectPtr<UPCGSettings> Settings;
 	FPCGDataCollection Output;
 	int32 SettingsCrc32;
 	int32 ComponentSeed;
@@ -34,7 +33,7 @@ typedef TArray<FPCGGraphCacheEntry> FPCGGraphCacheEntries;
 */
 struct FPCGGraphCache
 {
-	FPCGGraphCache(TWeakObjectPtr<UObject> InOwner);
+	FPCGGraphCache(TWeakObjectPtr<UObject> InOwner, FPCGRootSet* InRootSet);
 	~FPCGGraphCache();
 
 	/** Returns true if data was found from the cache, in which case the outputs are written in OutOutput */
@@ -58,7 +57,7 @@ private:
 	TWeakObjectPtr<UObject> Owner = nullptr;
 
 	/** To prevent garbage collection on data in the cache, we'll need to root some data */
-	FPCGRootSet RootSet;
+	FPCGRootSet* RootSet = nullptr;
 
 	mutable FRWLock CacheLock;
 };

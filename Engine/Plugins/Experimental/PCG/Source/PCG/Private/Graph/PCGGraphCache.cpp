@@ -30,8 +30,6 @@ FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, cons
 	: Input(InInput)
 	, Output(InOutput)
 {
-	// Note: we don't need to root the settings since they'll be owned by the subsystem
-	Settings = InSettings ? Cast<UPCGSettings>(StaticDuplicateObject(InSettings, InOwner.Get())) : nullptr;
 	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : PCGGraphCache::NullSettingsCrc32;
 	ComponentSeed = PCGGraphCache::GetComponentSeed(InSettings, InComponent);
 
@@ -44,9 +42,10 @@ bool FPCGGraphCacheEntry::Matches(const FPCGDataCollection& InInput, int32 InSet
 	return (SettingsCrc32 == InSettingsCrc32) && (Input == InInput) && (ComponentSeed == InComponentSeed);
 }
 
-FPCGGraphCache::FPCGGraphCache(TWeakObjectPtr<UObject> InOwner)
-	: Owner(InOwner)
+FPCGGraphCache::FPCGGraphCache(TWeakObjectPtr<UObject> InOwner, FPCGRootSet* InRootSet)
+	: Owner(InOwner), RootSet(InRootSet)
 {
+	check(InOwner.Get() && InRootSet);
 }
 
 FPCGGraphCache::~FPCGGraphCache()
@@ -100,18 +99,25 @@ void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGDataCo
 		Entries = &(CacheData.Add(InElement));
 	}
 
-	Entries->Emplace(InInput, InSettings, InComponent, InOutput, Owner, RootSet);
+	Entries->Emplace(InInput, InSettings, InComponent, InOutput, Owner, *RootSet);
 }
 
 void FPCGGraphCache::ClearCache()
 {
 	FWriteScopeLock ScopedWriteLock(CacheLock);
 
+	// Unroot all previously rooted data
+	for (TPair<const IPCGElement*, FPCGGraphCacheEntries>& CacheEntry : CacheData)
+	{
+		for (FPCGGraphCacheEntry& Entry : CacheEntry.Value)
+		{
+			Entry.Input.RemoveFromRootSet(*RootSet);
+			Entry.Output.RemoveFromRootSet(*RootSet);
+		}
+	}
+
 	// Remove all entries
 	CacheData.Reset();
-
-	// Unroot all previously rooted data
-	RootSet.Clear();
 }
 
 #if WITH_EDITOR
@@ -128,13 +134,8 @@ void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement)
 	{
 		for (FPCGGraphCacheEntry& Entry : *Entries)
 		{
-			Entry.Input.RemoveFromRootSet(RootSet);
-			Entry.Output.RemoveFromRootSet(RootSet);
-
-			if (Entry.Settings)
-			{
-				RootSet.Remove(Entry.Settings);
-			}
+			Entry.Input.RemoveFromRootSet(*RootSet);
+			Entry.Output.RemoveFromRootSet(*RootSet);
 		}
 	}
 

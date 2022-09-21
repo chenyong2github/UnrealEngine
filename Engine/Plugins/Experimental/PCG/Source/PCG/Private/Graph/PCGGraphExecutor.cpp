@@ -38,7 +38,7 @@ static TAutoConsoleVariable<bool> CVarGraphMultithreading(
 
 FPCGGraphExecutor::FPCGGraphExecutor(UObject* InOwner)
 	: GraphCompiler(MakeUnique<FPCGGraphCompiler>())
-	, GraphCache(InOwner)
+	, GraphCache(InOwner, &DataRootSet)
 #if WITH_EDITOR
 	, GenerationProgressNotification(GetNotificationTextFormat())
 #endif
@@ -47,6 +47,11 @@ FPCGGraphExecutor::FPCGGraphExecutor(UObject* InOwner)
 
 FPCGGraphExecutor::~FPCGGraphExecutor()
 {
+	// We don't really need to do this here (it would be done in the destructor of these both)
+	// but this is to clarify/ensure the order in which this happens
+	GraphCache.ClearCache();
+	DataRootSet.Clear();
+
 #if WITH_EDITOR
 	EndGenerationNotification();
 #endif
@@ -297,7 +302,6 @@ void FPCGGraphExecutor::Execute()
 
 					FPCGContext* Context = Task.Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
 					Context->TaskId = Task.NodeId;
-					Context->Cache = &GraphCache;
 					ActiveTask.Context = TUniquePtr<FPCGContext>(Context);
 
 #if WITH_EDITOR
@@ -552,7 +556,7 @@ void FPCGGraphExecutor::StoreResults(FPCGTaskId InTaskId, const FPCGDataCollecti
 	OutputData.Add(InTaskId, InTaskOutput);
 
 	// Root any non-rooted results, otherwise they'll get garbage-collected
-	InTaskOutput.AddToRootSet(ResultsRootSet);
+	InTaskOutput.AddToRootSet(DataRootSet);
 }
 
 void FPCGGraphExecutor::ClearResults()
@@ -564,9 +568,12 @@ void FPCGGraphExecutor::ClearResults()
 	{
 		NextTaskId = 0;
 	}
-	OutputData.Reset();
 
-	ResultsRootSet.Clear();
+	for (const TPair<FPCGTaskId, FPCGDataCollection>& TaskOutput : OutputData)
+	{
+		TaskOutput.Value.RemoveFromRootSet(DataRootSet);
+	}
+	OutputData.Reset();
 
 	ScheduleLock.Unlock();
 }

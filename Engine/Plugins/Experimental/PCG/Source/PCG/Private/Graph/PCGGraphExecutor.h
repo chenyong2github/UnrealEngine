@@ -114,6 +114,9 @@ private:
 	/** Graph compiler that turns a graph into tasks */
 	TUniquePtr<FPCGGraphCompiler> GraphCompiler;
 
+	/** Rootset to hold temporary results (for current computation) + graph cache */
+	FPCGRootSet DataRootSet;
+
 	/** Graph results cache */
 	FPCGGraphCache GraphCache;
 
@@ -127,7 +130,6 @@ private:
 	TArray<FPCGGraphTask> ReadyTasks;
 	TArray<FPCGGraphActiveTask> ActiveTasks;
 	TMap<FPCGTaskId, TSet<FPCGTaskId>> TaskSuccessors;
-	FPCGRootSet ResultsRootSet;
 	/** Map of node instances to their output, could be cleared once execution is done */
 	/** Note: this should at some point unload based on loaded/unloaded proxies, otherwise memory cost will be unbounded */
 	TMap<FPCGTaskId, FPCGDataCollection> OutputData;
