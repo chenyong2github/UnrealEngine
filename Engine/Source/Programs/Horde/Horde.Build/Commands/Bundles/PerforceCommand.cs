@@ -68,7 +68,7 @@ namespace Horde.Build.Commands.Bundles
 			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
 			StorageService storageService = serviceProvider.GetRequiredService<StorageService>();
 
-			IStorageClient storage = await storageService.GetClientAsync(Namespace.Perforce);
+			IStorageClient storage = await storageService.GetClientAsync(Namespace.Perforce, CancellationToken.None);
 
 			IStream? stream = await streamCollection.GetAsync(new StreamId(StreamId));
 			if (stream == null)

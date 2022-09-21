@@ -187,9 +187,9 @@ namespace Horde.Build.Storage
 			}
 		}
 
-		async ValueTask<NamespaceInfo> GetNamespaceInfo(NamespaceId namespaceId)
+		async ValueTask<NamespaceInfo> GetNamespaceInfoAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
 		{
-			State state = await _cachedState.GetAsync();
+			State state = await _cachedState.GetAsync(cancellationToken);
 			if (!state.Namespaces.TryGetValue(namespaceId, out NamespaceInfo? namespaceInfo))
 			{
 				throw new StorageException($"No namespace '{namespaceId}' is configured.");
@@ -201,10 +201,11 @@ namespace Horde.Build.Storage
 		/// Gets a storage client for the given namespace
 		/// </summary>
 		/// <param name="namespaceId">Namespace identifier</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<IStorageClient> GetClientAsync(NamespaceId namespaceId)
+		public async ValueTask<IStorageClient> GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
 		{
-			NamespaceInfo namespaceInfo = await GetNamespaceInfo(namespaceId);
+			NamespaceInfo namespaceInfo = await GetNamespaceInfoAsync(namespaceId, cancellationToken);
 			return namespaceInfo.Client;
 		}
 
@@ -215,10 +216,11 @@ namespace Horde.Build.Storage
 		/// <param name="user"></param>
 		/// <param name="action"></param>
 		/// <param name="cache">Global permissions cache</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task<bool> AuthorizeAsync(NamespaceId namespaceId, ClaimsPrincipal user, AclAction action, GlobalPermissionsCache? cache)
+		public async Task<bool> AuthorizeAsync(NamespaceId namespaceId, ClaimsPrincipal user, AclAction action, GlobalPermissionsCache? cache, CancellationToken cancellationToken)
 		{
-			NamespaceInfo namespaceInfo = await GetNamespaceInfo(namespaceId);
+			NamespaceInfo namespaceInfo = await GetNamespaceInfoAsync(namespaceId, cancellationToken);
 
 			bool? result = namespaceInfo.Acl?.Authorize(action, user);
 			if (result == null)

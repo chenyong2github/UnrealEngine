@@ -364,7 +364,7 @@ namespace Horde.Build.Perforce
 				}
 				else
 				{
-					IStorageClient storage = await _storageService.GetClientAsync(Namespace.Perforce);
+					IStorageClient storage = await _storageService.GetClientAsync(Namespace.Perforce, cancellationToken);
 
 					// Update the stream, updating the reservation every 30 seconds
 					Task internalTask = Task.Run(() => UpdateStreamContentInternalAsync(storage, stream, streamChanges, cancellationToken), cancellationToken);

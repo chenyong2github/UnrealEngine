@@ -77,10 +77,55 @@ namespace Horde.Build.Utilities
 		/// <summary>
 		/// Tries to get the current value
 		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>The cached value, if valid</returns>
-		public Task<T> GetAsync()
+		public Task<T> GetAsync(CancellationToken cancellationToken = default)
 		{
-			return GetAsync(_maxRefreshTime);
+			return GetAsync(_maxRefreshTime, cancellationToken);
+		}
+
+		/// <summary>
+		/// Tries to get the current value
+		/// </summary>
+		/// <returns>The cached value, if valid</returns>
+		public Task<T> GetAsync(TimeSpan maxAge, CancellationToken cancellationToken = default)
+		{
+			Task<T> task = GetInternalAsync(maxAge);
+			if (cancellationToken.CanBeCanceled)
+			{
+				// The returned task object is shared, so we don't want to cancel computation of it; just the wait for a result.
+				task = WrapCancellation(task, cancellationToken);
+			}
+			return task;
+		}
+
+		static async Task<T> WrapCancellation(Task<T> task, CancellationToken cancellationToken)
+		{
+			await Task.WhenAny(task, Task.Delay(-1, cancellationToken));
+			cancellationToken.ThrowIfCancellationRequested();
+			return await task;
+		}
+
+		async Task<T> GetInternalAsync(TimeSpan maxAge)
+		{
+			Task<State> stateTask = CreateOrGetStateTask(ref _current);
+
+			State state = await stateTask;
+			if (state._next != null && state._next.IsCompleted)
+			{
+				_ = Interlocked.CompareExchange(ref _current, state._next, stateTask);
+				state = await state._next;
+			}
+			if (state.Elapsed > maxAge)
+			{
+				state = await CreateOrGetStateTask(ref state._next);
+			}
+			if (state.Elapsed > _minRefreshTime)
+			{
+				_ = CreateOrGetStateTask(ref state._next);
+			}
+
+			return state.Value;
 		}
 
 		Task<State> CreateOrGetStateTask(ref Task<State>? stateTask)
@@ -104,32 +149,6 @@ namespace Horde.Build.Utilities
 		async Task<State> CreateState()
 		{
 			return new State(await _generator());
-		}
-
-		/// <summary>
-		/// Tries to get the current value
-		/// </summary>
-		/// <returns>The cached value, if valid</returns>
-		public async Task<T> GetAsync(TimeSpan maxAge)
-		{
-			Task<State> stateTask = CreateOrGetStateTask(ref _current);
-
-			State state = await stateTask;
-			if (state._next != null && state._next.IsCompleted)
-			{
-				_ = Interlocked.CompareExchange(ref _current, state._next, stateTask);
-				state = await state._next;
-			}
-			if (state.Elapsed > maxAge)
-			{
-				state = await CreateOrGetStateTask(ref state._next);
-			}
-			if (state.Elapsed > _minRefreshTime)
-			{
-				_ = CreateOrGetStateTask(ref state._next);
-			}
-
-			return state.Value;
 		}
 	}
 }

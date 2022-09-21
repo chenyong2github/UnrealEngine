@@ -12,6 +12,7 @@ using System.Reflection.Metadata;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Net.WebRequestMethods;
 
 namespace EpicGames.Horde.Storage
 {
@@ -71,6 +72,21 @@ namespace EpicGames.Horde.Storage
 			Header = new BundleHeader(reader);
 			int length = (int)reader.ReadUnsignedVarInt();
 			Payload = new ReadOnlySequence<byte>(reader.ReadFixedLengthBytes(length));
+		}
+
+		/// <summary>
+		/// Reads a bundle from the given stream
+		/// </summary>
+		/// <param name="stream">Stream to read from</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Bundle that was read</returns>
+		public static async Task<Bundle> FromStreamAsync(Stream stream, CancellationToken cancellationToken)
+		{
+			using (MemoryStream memoryStream = new MemoryStream())
+			{
+				await stream.CopyToAsync(memoryStream, cancellationToken);
+				return new Bundle(new MemoryReader(memoryStream.ToArray()));
+			}
 		}
 
 		/// <summary>
