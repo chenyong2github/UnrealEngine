@@ -545,7 +545,10 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 			else
 			{
 #if !NO_LOGGING
-				UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s' in asset '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString(), *AssetName);
+				if (::Metasound::MetaSoundParameterEnableWarningOnIgnoredParameterCVar)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Failed to set invalid parameter '%s' in asset '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString(), *AssetName);
+				}
 #endif // !NO_LOGGING
 				constexpr bool bAllowShrinking = false;
 				InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
@@ -555,8 +558,12 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 		{
 			constexpr bool bAllowShrinking = false;
 			InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
+
 #if !NO_LOGGING
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to set parameter '%s' in asset '%s': No name specified, no transmittable input found, or type mismatch."), *Parameter.ParamName.ToString(), *AssetName);
+			if (::Metasound::MetaSoundParameterEnableWarningOnIgnoredParameterCVar)
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to set parameter '%s' in asset '%s': No name specified, no transmittable input found, or type mismatch."), *Parameter.ParamName.ToString(), *AssetName);
+			}
 #endif // !NO_LOGGING
 		}
 	}
@@ -909,6 +916,8 @@ TUniquePtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransm
 	{
 		InitParams.Infos.Add(InfoAndName.SendInfo);
 	}
+
+	InitParams.DebugMetaSoundName = GetFName();
 
 	TUniquePtr<Audio::IParameterTransmitter> NewTransmitter = MakeUnique<Metasound::FMetaSoundParameterTransmitter>(InitParams);
 

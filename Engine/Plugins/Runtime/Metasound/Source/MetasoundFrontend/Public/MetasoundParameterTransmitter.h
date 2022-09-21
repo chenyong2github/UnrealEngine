@@ -12,9 +12,10 @@
 
 struct FMetasoundFrontendLiteral;
 
-
 namespace Metasound
 {
+	extern METASOUNDFRONTEND_API int32 MetaSoundParameterEnableWarningOnIgnoredParameterCVar;
+
 	namespace Frontend
 	{
 		METASOUNDFRONTEND_API FLiteral ConvertParameterToLiteral(FAudioParameter&& InValue);
@@ -62,13 +63,15 @@ namespace Metasound
 			/** Available input parameters on MetaSound instance. */
 			TArray<FSendInfo> Infos;
 
+			/** Name of MetaSound used to log parameter related errors. */
+			FName DebugMetaSoundName;
+
 			FInitParams(const FOperatorSettings& InSettings, uint64 InInstanceID, const TArray<FSendInfo>& InInfos=TArray<FSendInfo>())
 			: OperatorSettings(InSettings)
 			, InstanceID(InInstanceID)
 			, Infos(InInfos)
 			{
 			}
-
 		};
 
 		/** Creates a unique send address using the given MetaSound environment. */
@@ -114,9 +117,10 @@ namespace Metasound
 		// Create and store a new ISender for the given FSendInfo.
 		ISender* AddSender(const FSendInfo& InInfo);
 
-		TArray<FSendInfo> SendInfos;
 		FOperatorSettings OperatorSettings;
 		uint64 InstanceID;
+		FName DebugMetaSoundName;
+		TArray<FSendInfo> SendInfos;
 
 		TMap<FName, TUniquePtr<ISender>> InputSends;
 	};

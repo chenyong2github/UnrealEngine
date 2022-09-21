@@ -9,6 +9,15 @@
 
 namespace Metasound
 {
+	int32 MetaSoundParameterEnableWarningOnIgnoredParameterCVar = 0;
+
+	FAutoConsoleVariableRef CVarMetaSoundParameterEnableWarningOnIgnoredParameter(
+		TEXT("au.MetaSound.Parameter.EnableWarningOnIgnoredParameter"),
+		MetaSoundParameterEnableWarningOnIgnoredParameterCVar,
+		TEXT("If enabled, a warning will be logged when a parameters sent to a MetaSound is ignored.\n")
+		TEXT("0: Disabled (default), !0: Enabled"),
+		ECVF_Default);
+
 	namespace Frontend
 	{
 		FLiteral ConvertParameterToLiteral(FAudioParameter&& InValue)
@@ -146,9 +155,10 @@ namespace Metasound
 	}
 
 	FMetaSoundParameterTransmitter::FMetaSoundParameterTransmitter(const FMetaSoundParameterTransmitter::FInitParams& InInitParams)
-	: SendInfos(InInitParams.Infos)
-	, OperatorSettings(InInitParams.OperatorSettings)
+	: OperatorSettings(InInitParams.OperatorSettings)
 	, InstanceID(InInitParams.InstanceID)
+	, DebugMetaSoundName(InInitParams.DebugMetaSoundName)
+	, SendInfos(InInitParams.Infos)
 	{
 	}
 
@@ -205,6 +215,12 @@ namespace Metasound
 			{
 				return Sender->PushLiteral(InLiteral);
 			}
+		}
+
+		// Enable / disable via CVAR to avoid log spam.
+		if (MetaSoundParameterEnableWarningOnIgnoredParameterCVar)
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Failed to set parameter %s in asset %s on instance %d with value %s. No runtime modifiable input with that name exists on instance."), *InParameterName.ToString(), *DebugMetaSoundName.ToString(), InstanceID, *LexToString(InLiteral));
 		}
 
 		return false;
