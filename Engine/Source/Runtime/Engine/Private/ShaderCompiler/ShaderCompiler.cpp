@@ -3134,17 +3134,21 @@ void FShaderCompilerStats::WriteStatSummary()
 	if (ShaderTimings.Num())
 	{
 		// calculate effective parallelization (total time needed to compile all shaders divided by actual wall clock time spent processing at least 1 shader)
-		double TotalTimeForAllShaders = 0;
+		double TotalThreadTimeForAllShaders = 0.0;
+		double TotalThreadPreprocessTimeForAllShaders = 0.0;
 		for (TMap<FString, FShaderTimings>::TConstIterator Iter(ShaderTimings); Iter; ++Iter)
 		{
-			TotalTimeForAllShaders += Iter.Value().TotalCompileTime;
+			TotalThreadTimeForAllShaders += Iter.Value().TotalCompileTime;
+			TotalThreadPreprocessTimeForAllShaders += Iter.Value().TotalPreprocessTime;
 		}
 
-		UE_LOG(LogShaderCompilers, Display, TEXT("Total thread time: %.2f s"), TotalTimeForAllShaders);
+		UE_LOG(LogShaderCompilers, Display, TEXT("Total thread time: %.2f s"), TotalThreadTimeForAllShaders);
+		UE_LOG(LogShaderCompilers, Display, TEXT("Total thread preprocess time: %.2f s"), TotalThreadPreprocessTimeForAllShaders);
+		UE_LOG(LogShaderCompilers, Display, TEXT("Percentage time preprocessing: %.2f%%"), TotalThreadTimeForAllShaders > 0.0 ? (TotalThreadPreprocessTimeForAllShaders / TotalThreadTimeForAllShaders) * 100.0 : 0.0);
 
 		if (TotalTimeAtLeastOneJobWasInFlight > 0.0)
 		{
-			double EffectiveParallelization = TotalTimeForAllShaders / TotalTimeAtLeastOneJobWasInFlight;
+			double EffectiveParallelization = TotalThreadTimeForAllShaders / TotalTimeAtLeastOneJobWasInFlight;
 			if (DistributedJobBatchesSeen == 0)
 			{
 				UE_LOG(LogShaderCompilers, Display, TEXT("Effective parallelization: %.2f (times faster than compiling all shaders on one thread). Compare with number of workers: %d"), EffectiveParallelization, GShaderCompilingManager->GetNumLocalWorkers());
@@ -3185,7 +3189,7 @@ void FShaderCompilerStats::WriteStatSummary()
 			const FShaderTimings& Timings = Iter.Value();
 
 			UE_LOG(LogShaderCompilers, Display, TEXT("%60s - %.2f%% of total time (compiled %4d times, average %4.2f sec, max %4.2f sec, min %4.2f sec)"), 
-				*Iter.Key(), 100.0 * Timings.TotalCompileTime / TotalTimeForAllShaders, Timings.NumCompiled, Timings.AverageCompileTime, Timings.MaxCompileTime, Timings.MinCompileTime);
+				*Iter.Key(), 100.0 * Timings.TotalCompileTime / TotalThreadTimeForAllShaders, Timings.NumCompiled, Timings.AverageCompileTime, Timings.MaxCompileTime, Timings.MinCompileTime);
 			if (++Idx >= MaxShadersToPrint)
 			{
 				break;
@@ -3295,6 +3299,7 @@ void FShaderCompilerStats::RegisterFinishedJob(FShaderCommonCompileJob& Job)
 			Existing->MinCompileTime = FMath::Min(Existing->MinCompileTime, static_cast<float>(SingleJob->Output.CompileTime));
 			Existing->MaxCompileTime = FMath::Max(Existing->MaxCompileTime, static_cast<float>(SingleJob->Output.CompileTime));
 			Existing->TotalCompileTime += SingleJob->Output.CompileTime;
+			Existing->TotalPreprocessTime += SingleJob->Output.PreprocessTime;
 			Existing->NumCompiled++;
 			// calculate as an optimization to make sorting later faster
 			Existing->AverageCompileTime = Existing->TotalCompileTime / static_cast<float>(Existing->NumCompiled);
@@ -3305,6 +3310,7 @@ void FShaderCompilerStats::RegisterFinishedJob(FShaderCommonCompileJob& Job)
 			New.MinCompileTime = SingleJob->Output.CompileTime;
 			New.MaxCompileTime = New.MinCompileTime;
 			New.TotalCompileTime = New.MinCompileTime;
+			New.TotalPreprocessTime += SingleJob->Output.PreprocessTime;
 			New.AverageCompileTime = New.MinCompileTime;
 			New.NumCompiled = 1;
 			ShaderTimings.Add(ShaderName, New);

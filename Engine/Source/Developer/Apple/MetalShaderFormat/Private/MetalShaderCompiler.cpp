@@ -1003,6 +1003,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 	AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_DUAL_SOURCE_BLENDING_SLOT_DECORATION"), (uint32)1);
 
+	const double StartPreprocessTime = FPlatformTime::Seconds();
+
 	if (Input.bSkipPreprocessedCache)
 	{
 		if (!FFileHelper::LoadFileToString(PreprocessedShader, *Input.VirtualSourceFilePath))
@@ -1050,6 +1052,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 	// Process TEXT macro.
 	TransformStringIntoCharacterArray(PreprocessedShader);
+
+	Output.PreprocessTime = FPlatformTime::Seconds() - StartPreprocessTime;
 	
 	uint32 CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniformsIntoUniformBufferWithNames | HLSLCC_FixAtomicReferences | HLSLCC_RetainSizes | HLSLCC_KeepSamplerAndImageNames;
 	if (!bDirectCompile || UE_BUILD_DEBUG)

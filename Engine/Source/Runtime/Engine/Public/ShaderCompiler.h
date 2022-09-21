@@ -707,11 +707,12 @@ public:
 	/** Structure used to describe compiling time of a shader type (for all the instances of it that we have seen). */
 	struct FShaderTimings
 	{
-		float MinCompileTime;
-		float MaxCompileTime;
-		float TotalCompileTime;
-		int32 NumCompiled;
-		float AverageCompileTime;	// stored explicitly as an optimization
+		float MinCompileTime = 0.0f;
+		float MaxCompileTime = 0.0f;
+		float TotalCompileTime = 0.0f;
+		float TotalPreprocessTime = 0.0f;
+		int32 NumCompiled = 0;
+		float AverageCompileTime = 0.0f;	// stored explicitly as an optimization
 	};
 
 	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));

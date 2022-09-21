@@ -2327,6 +2327,8 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	AdditionalDefines.SetDefine(TEXT("VULKAN_BINDLESS_SAMPLER_ARRAY_PREFIX"), VulkanBindless::kBindlessSamplerArrayPrefix);
 	AdditionalDefines.SetDefine(TEXT("VULKAN_BINDLESS_RESOURCE_ARRAY_PREFIX"), VulkanBindless::kBindlessResourceArrayPrefix);
 
+	const double StartPreprocessTime = FPlatformTime::Seconds();
+
 	// Preprocess the shader.
 	FString PreprocessedShaderSource;
 	const bool bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
@@ -2362,6 +2364,8 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	// Process TEXT macro.
 	TransformStringIntoCharacterArray(PreprocessedShaderSource);
+
+	Output.PreprocessTime = FPlatformTime::Seconds() - StartPreprocessTime;
 
 	FCompilerInfo CompilerInfo(Input, WorkingDirectory, HlslFrequency);
 

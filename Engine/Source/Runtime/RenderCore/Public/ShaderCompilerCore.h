@@ -19,7 +19,7 @@ class Error;
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
 const int32 ShaderCompileWorkerInputVersion = 17;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
-const int32 ShaderCompileWorkerOutputVersion = 7;
+const int32 ShaderCompileWorkerOutputVersion = 8;
 // this is for the protocol, not the data.
 const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data.
@@ -445,6 +445,7 @@ struct FShaderCompilerOutput
 	:	NumInstructions(0)
 	,	NumTextureSamplers(0)
 	,	CompileTime(0.0)
+	,	PreprocessTime(0.0)
 	,	bSucceeded(false)
 	,	bFailedRemovingUnused(false)
 	,	bSupportsQueryingUsedAttributes(false)
@@ -461,6 +462,7 @@ struct FShaderCompilerOutput
 	uint32 NumInstructions;
 	uint32 NumTextureSamplers;
 	double CompileTime;
+	double PreprocessTime;
 	bool bSucceeded;
 	bool bFailedRemovingUnused;
 	bool bSupportsQueryingUsedAttributes;
@@ -484,6 +486,7 @@ struct FShaderCompilerOutput
 		Ar << Output.ParameterMap << Output.Errors << Output.Target << Output.ShaderCode << Output.OutputHash << Output.NumInstructions << Output.NumTextureSamplers << Output.bSucceeded;
 		Ar << Output.bFailedRemovingUnused << Output.bSupportsQueryingUsedAttributes << Output.UsedAttributes;
 		Ar << Output.CompileTime;
+		Ar << Output.PreprocessTime;
 		Ar << Output.OptionalPreprocessedShaderSource;
 		Ar << Output.OptionalFinalShaderSource;
 		Ar << Output.PlatformDebugData;
