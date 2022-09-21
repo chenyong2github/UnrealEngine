@@ -261,6 +261,10 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 
 	// We do not want the connection to have a client workspace so explicitly set it to empty
 	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideExisting);
+	if (!ServerAddress.IsEmpty())
+	{
+		SCCSettings.AddSetting(TEXT("P4Port"), ServerAddress);
+	}
 	SCCSettings.AddSetting(TEXT("P4Client"), TEXT(""));
 
 	SCCProvider = ISourceControlModule::Get().CreateProvider(FName("Perforce"), TEXT("Virtualization"), SCCSettings);
@@ -809,6 +813,19 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 	}
 
 	// Now parse the optional config values
+
+	{
+		FParse::Value(*ConfigEntry, TEXT("Server="), ServerAddress);
+
+		if (!ClientStream.IsEmpty())
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Using server address: '%s'"), *GetDebugName(), *ServerAddress);
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Will connect to the default server address"), *GetDebugName());
+		}
+	}
 
 	// If the depot root is within a perforce stream then we must specify which stream. This may be a virtual stream with a custom view.
 	{

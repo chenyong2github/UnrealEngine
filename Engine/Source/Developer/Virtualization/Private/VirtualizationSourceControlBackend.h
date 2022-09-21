@@ -26,8 +26,10 @@ class FSemaphore;
  * depot where the payload files are being stored.
  * 
  * Optional Values:
+ * Server [string]:				When set the backend will use this server address to connect to. When not
+ *								set the backend will use the environment defaults. [Default=""]
  * ClientStream [string]:		Used when the payloads are stored in a stream based depot. It should contain
- *								the stream name to use when creating a workspace for payload submission.
+ *								the stream name to use when creating a workspace for payload submission. [Default=""]
  * UsePartitionedClient [bool]:	When true the temporary workspace client created to submit payloads 
  *								from will be created as a partitioned workspace which is less overhead
  *								on the source control server. If your server does not support this then
@@ -95,6 +97,9 @@ private:
 
 	/** The root where the virtualized payloads are stored in source control */
 	FString DepotRoot;
+
+	/** Address of the server to connect to */
+	FString ServerAddress;
 
 	/** The stream containing the DepotRoot where the virtualized payloads are stored in source control */
 	FString ClientStream;
