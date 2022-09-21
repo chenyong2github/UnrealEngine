@@ -259,7 +259,7 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 		if (ManifestType != EMediaFormatType::Unknown)
 		{
 			TArray<FTimespan> SeekablePositions;
-			FTimeRange RestrictedPlaybackRange;
+			FTimeRange RestrictedPlaybackRange, ActivePlaybackRange;
 			TSharedPtrTS<IManifest> NewPresentation = ManifestReader->GetManifest();
 			check(NewPresentation.IsValid());
 
@@ -273,14 +273,18 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 			// like example.mp4#t=10.8,18.4
 			// These do not override any user defined range values!
 			RestrictedPlaybackRange = NewPresentation->GetPlaybackRange();
-			if (RestrictedPlaybackRange.Start.IsValid() && !GetOptions().HaveKey(OptionPlayRangeStart))
+			ActivePlaybackRange = PlaybackState.GetActivePlayRange();
+			if (RestrictedPlaybackRange.Start.IsValid() && !ActivePlaybackRange.Start.IsValid())
 			{
-				GetOptions().Set(OptionPlayRangeStart, FVariantValue(RestrictedPlaybackRange.Start));
+				ActivePlaybackRange.Start = RestrictedPlaybackRange.Start;
 			}
-			if (RestrictedPlaybackRange.End.IsValid() && !GetOptions().HaveKey(OptionPlayRangeEnd))
+			if (RestrictedPlaybackRange.End.IsValid() && !ActivePlaybackRange.End.IsValid())
 			{
-				GetOptions().Set(OptionPlayRangeEnd, FVariantValue(RestrictedPlaybackRange.End));
+				ActivePlaybackRange.End = RestrictedPlaybackRange.End;
 			}
+			// Set the new range, but say it did not change. This is the first start and we do not need to issue a seek.
+			PlaybackState.SetPlayRange(ActivePlaybackRange);
+			PlaybackState.ActivateNewPlayRange(nullptr);
 
 			TArray<FTrackMetadata> VideoTrackMetadata;
 			TArray<FTrackMetadata> AudioTrackMetadata;

@@ -193,6 +193,8 @@ struct FPlaybackState
 		CurrentLiveLatency.SetToInvalid();
 		EndPlaybackAtTime.SetToInvalid();
 		LoopState = {};
+		ActivePlaybackRange.Reset();
+		NewPlaybackRange.Reset();
 		bHaveMetadata = false;
 		bHasEnded = false;
 		bIsSeeking = false;
@@ -213,6 +215,8 @@ struct FPlaybackState
 	FTimeValue								CurrentLiveLatency;
 	FTimeValue								EndPlaybackAtTime;
 	IAdaptiveStreamingPlayer::FLoopState	LoopState;
+	FTimeRange								ActivePlaybackRange;
+	FTimeRange								NewPlaybackRange;
 	bool									bHaveMetadata;
 	bool									bHasEnded;
 	bool									bIsSeeking;
@@ -446,16 +450,64 @@ struct FPlaybackState
 		LoopState.bIsEnabled = bEnable;
 	}
 
-	void SetPlayRangeHasChanged(bool bWasChanged)
+	void SetPlayRange(const IAdaptiveStreamingPlayer::FPlaybackRange& InNewRange)
 	{
 		FScopeLock lock(&Lock);
-		bPlayrangeHasChanged = bWasChanged;
+		FTimeValue NewRangeStart = InNewRange.Start.IsSet() ? InNewRange.Start.GetValue() : FTimeValue();
+		FTimeValue NewRangeEnd = InNewRange.End.IsSet() ? InNewRange.End.GetValue() : FTimeValue();
+		if (NewRangeStart != NewPlaybackRange.Start || NewRangeEnd != NewPlaybackRange.End)
+		{
+			NewPlaybackRange.Start = NewRangeStart;
+			NewPlaybackRange.End = NewRangeEnd;
+			bPlayrangeHasChanged = true;
+		}
+	}
+	void SetPlayRange(const FTimeRange& InNewRange)
+	{
+		FScopeLock lock(&Lock);
+		if (InNewRange.Start != NewPlaybackRange.Start || InNewRange.End != NewPlaybackRange.End)
+		{
+			NewPlaybackRange = InNewRange;
+			bPlayrangeHasChanged = true;
+		}
+	}
+	FTimeRange GetPlayRange()
+	{
+		FScopeLock lock(&Lock);
+		return NewPlaybackRange;
+	}
+	void GetPlayRange(IAdaptiveStreamingPlayer::FPlaybackRange& OutRange)
+	{
+		OutRange.Start.Reset();
+		OutRange.End.Reset();
+		FScopeLock lock(&Lock);
+		if (NewPlaybackRange.Start.IsValid())
+		{
+			OutRange.Start = NewPlaybackRange.Start;
+		}
+		if (NewPlaybackRange.End.IsValid())
+		{
+			OutRange.End = NewPlaybackRange.End;
+		}
+	}
+	void ActivateNewPlayRange(const FTimeRange* InTimeRange)
+	{
+		FScopeLock lock(&Lock);
+		ActivePlaybackRange = InTimeRange ? *InTimeRange : NewPlaybackRange;
+		bPlayrangeHasChanged = InTimeRange ? bPlayrangeHasChanged : false;
+	}
+	FTimeRange GetActivePlayRange()
+	{
+		FScopeLock lock(&Lock);
+		return ActivePlaybackRange;
 	}
 	bool GetPlayRangeHasChanged()
 	{
 		FScopeLock lock(&Lock);
 		return bPlayrangeHasChanged;
 	}
+
+
 	void SetLoopStateHasChanged(bool bWasChanged)
 	{
 		FScopeLock lock(&Lock);
@@ -1691,6 +1743,7 @@ private:
 			PendingRequest.Reset();
 			ActiveRequest.Reset();
 			LastFinishedRequest.Reset();
+			PlayrangeOnRequest.Reset();
 			bForScrubbing = false;
 			bScrubPrerollDone = false;
 		}
@@ -1713,9 +1766,10 @@ private:
 		TOptional<FSeekParam> ActiveRequest;
 		TOptional<FSeekParam> LastFinishedRequest;
 
-		FCriticalSection Lock;
+		mutable FCriticalSection Lock;
 		// The pending request must be accessed under lock since it is written to by the main thread and read from the worker thread!
 		TOptional<FSeekParam> PendingRequest;
+		FTimeRange PlayrangeOnRequest;
 	};
 
 	struct FStreamBitrateInfo
@@ -1931,7 +1985,7 @@ private:
 	void FeedDecoder(EStreamType Type, IAccessUnitBufferInterface* Decoder, bool bHandleUnderrun);
 	void ClearAllDecoderEODs();
 
-	void InternalStartAt(const FSeekParam& NewPosition);
+	void InternalStartAt(const FSeekParam& NewPosition, const FTimeRange* InTimeRange);
 	void InternalPause();
 	void InternalResume();
 	void InternalRebuffer();
