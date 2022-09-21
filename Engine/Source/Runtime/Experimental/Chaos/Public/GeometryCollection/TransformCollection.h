@@ -18,11 +18,12 @@ class CHAOS_API FTransformCollection : public FManagedArrayCollection
 public:
 	typedef FManagedArrayCollection Super;
 
-	FTransformCollection(FClassType InType = {});
+	FTransformCollection();
 	FTransformCollection(FTransformCollection &) = delete;
 	FTransformCollection& operator=(const FTransformCollection&) = delete;
 	FTransformCollection(FTransformCollection&&) = default;
 	FTransformCollection& operator=(FTransformCollection&&) = default;
+	MANAGED_ARRAY_COLLECTION_INTERNAL(FTransformCollection);
 
 	/***
 	*  Attribute Groups
@@ -50,8 +51,6 @@ public:
 	static const FName ChildrenAttribute;
 	static const FName ParticlesAttribute;
 
-	/** Type name for this class. */
-	static FName StaticType() { return FName("FTransformCollection"); }
 
 	/** Schema */
 	static void DefineTransformSchema(FManagedArrayCollection&);

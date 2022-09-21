@@ -47,10 +47,9 @@ struct CHAOS_API FManagedArrayCollection
 	friend FSimulationProperties;
 
 public:
-	typedef TSet<FName> FClassType;
 
 
-	FManagedArrayCollection(FClassType InType = {});
+	FManagedArrayCollection();
 	virtual ~FManagedArrayCollection() {}
 
 	FManagedArrayCollection(const FManagedArrayCollection& In) { In.CopyTo(this); }
@@ -104,14 +103,16 @@ public:
 	*/
 	static FName StaticType() { return FName("FManagedArrayCollection"); }
 
-	template<class T>
-	bool IsA() { return ClassType.Contains(T::StaticType())?true:false; }
+	virtual bool IsAType(FName InTypeName) const { return InTypeName.IsEqual(FManagedArrayCollection::StaticType()); }
+
+	template<typename T>
+	bool IsA() { return IsAType(T::StaticType()); }
 
 	template<class T>
-	T* Cast() { return ClassType.Contains(T::StaticType())?static_cast<T*>(this):nullptr; }
+	T* Cast() { return IsAType(T::StaticType())?static_cast<T*>(this):nullptr; }
 
 	template<class T>
-	const T* Cast() const { return ClassType.Contains(T::StaticType()) ? static_cast<const T*>(this) : nullptr; }
+	const T* Cast() const { return IsAType(T::StaticType())? static_cast<const T*>(this) : nullptr; }
 
 	/**
 	* Add an attribute of Type(T) to the group
@@ -624,7 +625,6 @@ private:
 
 	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) {};
 
-	FClassType ClassType;
 	TMap< FKeyType, FValueType> Map;	//data is owned by the map explicitly
 	TMap< FName, FGroupInfo> GroupInfo;
 	bool bDirty;
@@ -675,3 +675,11 @@ protected:
 	FManagedArrayCollection* ManagedCollection;
 
 };
+
+
+#define MANAGED_ARRAY_COLLECTION_INTERNAL(TYPE_NAME)					\
+	static FName StaticType() { return FName(#TYPE_NAME); }				\
+	virtual bool IsAType(FName InTypeName) const override {				\
+		return InTypeName.IsEqual(TYPE_NAME::StaticType())				\
+				|| Super::IsAType(InTypeName);							\
+	}

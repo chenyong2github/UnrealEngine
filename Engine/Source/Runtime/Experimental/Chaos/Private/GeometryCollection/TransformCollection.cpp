@@ -13,8 +13,8 @@ const FName FTransformCollection::ParentAttribute = "Parent";
 const FName FTransformCollection::ChildrenAttribute = "Children";
 const FName FTransformCollection::ParticlesAttribute = "Particles";
 
-FTransformCollection::FTransformCollection(FClassType InType)
-	: FManagedArrayCollection(InType.Union({ FTransformCollection::StaticType() }))
+FTransformCollection::FTransformCollection()
+	: FManagedArrayCollection()
 {
 	Construct();
 }

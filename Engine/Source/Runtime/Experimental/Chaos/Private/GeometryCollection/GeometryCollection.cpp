@@ -32,14 +32,14 @@ const FName FGeometryCollection::SimulatableParticlesAttribute("SimulatableParti
 const FName FGeometryCollection::SimulationTypeAttribute("SimulationType");
 const FName FGeometryCollection::StatusFlagsAttribute("StatusFlags");
 
-FGeometryCollection::FGeometryCollection(FClassType InType)
-	: FTransformCollection(InType.Union({ FGeometryCollection::StaticType() }))
+FGeometryCollection::FGeometryCollection()
+	: FTransformCollection()
 	, FGeometryCollectionConvexPropertiesInterface(this)
 {
 	Construct();
 }
 
-void FGeometryCollection::DefineGeometryScheam(FManagedArrayCollection& InCollection)
+void FGeometryCollection::DefineGeometrySchema(FManagedArrayCollection& InCollection)
 {
 	FTransformCollection::DefineTransformSchema(InCollection);
 

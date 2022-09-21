@@ -919,7 +919,7 @@ bool FGeometryCollectionEngineConversion::AppendSkeletalMesh(const USkeletalMesh
 	{
 		return false;
 	}
-	FGeometryCollection::DefineGeometryScheam(*InCollection);
+	FGeometryCollection::DefineGeometrySchema(*InCollection);
 
 	const FSkeletalMeshLODRenderData* MeshLODData = GetSkeletalMeshLOD(SkeletalMesh, 0);
 	if (!MeshLODData)

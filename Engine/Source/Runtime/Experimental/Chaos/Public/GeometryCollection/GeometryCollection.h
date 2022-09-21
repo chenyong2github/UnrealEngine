@@ -31,13 +31,15 @@ class CHAOS_API FGeometryCollection : public FTransformCollection,
 {
 
 public:
-	FGeometryCollection(FClassType InType = {});
+	typedef FTransformCollection Super;
+
+	FGeometryCollection();
 	FGeometryCollection(FGeometryCollection &) = delete;
 	FGeometryCollection& operator=(const FGeometryCollection &) = delete;
 	FGeometryCollection(FGeometryCollection &&) = default;
 	FGeometryCollection& operator=(FGeometryCollection &&) = default;
+	MANAGED_ARRAY_COLLECTION_INTERNAL(FGeometryCollection);
 
-	typedef FTransformCollection Super;
 		/***
 		*  Attribute Groups
 		*
@@ -122,19 +124,14 @@ public:
 		FS_IgnoreCollisionInParentCluster = 0x00000008
 
 	};
-	//
-	//
-	//
 
-	/** Type name for this class. */
-	static FName StaticType() { return FName("FGeometryCollection"); }
 
 	/**
 	 * Create a GeometryCollection from Vertex and Indices arrays
 	 */
 	static FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
 	static void Init(FGeometryCollection* Collection, const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
-	static void DefineGeometryScheam(FManagedArrayCollection&);
+	static void DefineGeometrySchema(FManagedArrayCollection&);
 
 	/**
 	* Create a GeometryCollection from Vertex, Indices, BoneMap, Transform, BoneHierarchy arrays
