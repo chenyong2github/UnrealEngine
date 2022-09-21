@@ -543,17 +543,16 @@ void FThreadManager::Tick()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSingleThreadManager_Tick);
 
-		FScopeLock ThreadsLock(&ThreadsCritical);
-
-		// Tick all registered fake threads.
-		for (TPair<uint32, FRunnableThread*>& ThreadPair : Threads)
-		{
-			// Only fake and forkable threads are ticked by the ThreadManager
-			if( ThreadPair.Value->GetThreadType() != FRunnableThread::ThreadType::Real )
+		ForEachThread(
+			[] (uint32 ThreadId, FRunnableThread* Thread)
 			{
-				ThreadPair.Value->Tick();
+				// Only fake and forkable threads are ticked by the ThreadManager
+				if (Thread->GetThreadType() != FRunnableThread::ThreadType::Real)
+				{
+					Thread->Tick();
+				}
 			}
-		}
+		);
 	}
 }
 
@@ -602,19 +601,23 @@ void FThreadManager::GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& 
 	StackTraces.Empty(NumThreads);
 	GetAllThreadStackBackTraces_ProcessSingle(CurThreadId, GGameThreadId, TEXT("GameThread"), StackTraces.AddDefaulted_GetRef());
 
-	for (const TPair<uint32, FRunnableThread*>& Pair : Threads)
-	{
-		const uint32 Id = Pair.Key;
-		const FString& Name = Pair.Value->GetThreadName();
-		GetAllThreadStackBackTraces_ProcessSingle(CurThreadId, Id, *Name, StackTraces.AddDefaulted_GetRef());
-	}
+	ForEachThread(
+		[CurThreadId, &StackTraces] (uint32 ThreadId, FRunnableThread* Thread)
+		{
+			const FString& Name = Thread->GetThreadName();
+			GetAllThreadStackBackTraces_ProcessSingle(CurThreadId, ThreadId, *Name, StackTraces.AddDefaulted_GetRef());
+		}
+	);
 }
 #endif
 
-void FThreadManager::ForEachThread(TFunction<void(uint32, class FRunnableThread*)> Func)
+void FThreadManager::ForEachThread(TFunction<void(uint32, FRunnableThread*)> Func)
 {
 	FScopeLock Lock(&ThreadsCritical);
-	for (const TPair<uint32, FRunnableThread*>& Pair : Threads)
+	// threads can be added or removed while iterating over them, thus invalidating the iterator, so we iterate over the copy of threads collection
+	FThreads ThreadsCopy = Threads;
+
+	for (const TPair<uint32, FRunnableThread*>& Pair : ThreadsCopy)
 	{
 		Func(Pair.Key, Pair.Value);
 	}
@@ -629,14 +632,15 @@ FThreadManager& FThreadManager::Get()
 TArray<FRunnableThread*> FThreadManager::GetForkableThreads()
 {
 	TArray<FRunnableThread*> ForkableThreads;
-	FScopeLock Lock(&ThreadsCritical);
-	for (const TPair<uint32, FRunnableThread*>& Pair : Threads)
-	{
-		if (Pair.Value->GetThreadType() == FRunnableThread::ThreadType::Forkable)
+	ForEachThread(
+		[&ForkableThreads] (uint32 ThreadId, FRunnableThread* Thread)
 		{
-			ForkableThreads.Add(Pair.Value);
+			if (Thread->GetThreadType() == FRunnableThread::ThreadType::Forkable)
+			{
+				ForkableThreads.Add(Thread);
+			}
 		}
-	}
+	);
 
 	return ForkableThreads;
 }

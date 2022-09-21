@@ -11,6 +11,8 @@
 	#define PLATFORM_SUPPORTS_ALL_THREAD_BACKTRACES (PLATFORM_WINDOWS || PLATFORM_MAC)
 #endif
 
+class FRunnableThread;
+
 /**
  * Manages runnables and runnable threads.
  */
@@ -19,8 +21,9 @@ class CORE_API FThreadManager
 	/** Critical section for ThreadList */
 	FCriticalSection ThreadsCritical;
 
+	using FThreads = TMap<uint32, FRunnableThread*, TInlineSetAllocator<256>>;
 	/** List of thread objects to be ticked. */
-	TMap<uint32, class FRunnableThread*, TInlineSetAllocator<256>> Threads;
+	FThreads Threads;
 
 public:
 
@@ -30,7 +33,7 @@ public:
 	* @param Thread thread object.
 	* @see RemoveThread
 	*/
-	void AddThread(uint32 ThreadId, class FRunnableThread* Thread);
+	void AddThread(uint32 ThreadId, FRunnableThread* Thread);
 
 	/**
 	* Used internally to remove thread object.
@@ -38,7 +41,7 @@ public:
 	* @param Thread thread object to be removed.
 	* @see AddThread
 	*/
-	void RemoveThread(class FRunnableThread* Thread);
+	void RemoveThread(FRunnableThread* Thread);
 
 	/** Get the number of registered threads */
 	int32 NumThreads() const { return Threads.Num(); }
@@ -79,7 +82,7 @@ public:
 	 * Enumerate each thread.
 	 *
 	 */
-	void ForEachThread(TFunction<void(uint32, class FRunnableThread*)> Func);
+	void ForEachThread(TFunction<void(uint32 ThreadId, FRunnableThread* Thread)> Func);
 
 	/**
 	 * Access to the singleton object.
