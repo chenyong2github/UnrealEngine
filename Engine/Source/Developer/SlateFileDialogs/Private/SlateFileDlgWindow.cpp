@@ -137,7 +137,19 @@ public:
 			return true; // no filters. everything passes.
 		}
 
-		FString Extension = FPaths::GetExtension(FString(Filename), true);
+		FString BaseFile = Filename;
+		FString Extension = FPaths::GetExtension(BaseFile, true);
+		if (!Extension.IsEmpty() && FCString::IsNumeric(*Extension))
+		{
+			BaseFile.LeftChopInline(Extension.Len());
+			const int32 DotPos = BaseFile.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+			if (DotPos != INDEX_NONE)
+			{
+				Extension = BaseFile.Right(DotPos);
+				Extension += TEXT(".*");
+			}
+		}
+
 		// See if it matches any of the extensions
 		for (const FString& FilterExt : FilterList)
 		{
