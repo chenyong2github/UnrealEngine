@@ -6,23 +6,34 @@
 #include "NNXCore.h"
 #include "NNXRuntime.h"
 #include "NNXInferenceModel.h"
-#include "NNXRuntimeORTProviders.h"
 #include "NeuralStatistics.h"
-
 #include "ThirdPartyWarningDisabler.h"
+
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
+
 #include "core/session/onnxruntime_cxx_api.h"
+
+#include "core/providers/cpu/cpu_provider_factory.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/MinWindows.h"
+
+#ifdef USE_DML
+#include "core/providers/dml/dml_provider_factory.h"
+#endif
+#endif
+
 NNI_THIRD_PARTY_INCLUDES_END
 
-#define NNX_RUNTIME_ORT_NAME_CPU L"NNXRuntimeORTCpu"
-#define NNX_RUNTIME_ORT_NAME_DML L"NNXRuntimeORTDml"
-#define NNX_RUNTIME_ORT_NAME_CUDA L"NNXRuntimeORTCuda"
+#define NNX_RUNTIME_ORT_NAME_CPU TEXT("NNXRuntimeORTCpu")
+#define NNX_RUNTIME_ORT_NAME_DML TEXT("NNXRuntimeORTDml")
+#define NNX_RUNTIME_ORT_NAME_CUDA TEXT("NNXRuntimeORTCuda")
 
 namespace NNX
 {
-	struct NNXRUNTIMEORT_API FMLInferenceNNXORTConf
+	struct FMLInferenceNNXORTConf
 	{
 		FMLInferenceNNXORTConf() {};
 		FMLInferenceNNXORTConf(
@@ -62,6 +73,7 @@ namespace NNX
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
 	};
 
+#if PLATFORM_WINDOWS
 	class FRuntimeORTDml : public IRuntime
 	{
 	public:
@@ -73,10 +85,14 @@ namespace NNX
 		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
 	};
+#endif
 
 	static TUniquePtr<FRuntimeORTCpu> GORTCPURuntime;
 	static TUniquePtr<FRuntimeORTCuda> GORTCUDARuntime;
+
+#if PLATFORM_WINDOWS
 	static TUniquePtr<FRuntimeORTDml> GORTDMLRuntime;
+#endif
 
 	inline TUniquePtr<FRuntimeORTCpu> FRuntimeORTCPUCreate()
 	{
@@ -92,6 +108,8 @@ namespace NNX
 
 		return Runtime;
 	};
+
+#if PLATFORM_WINDOWS
 	inline TUniquePtr<FRuntimeORTDml> FRuntimeORTDMLCreate()
 	{
 		Ort::InitApi();
@@ -99,6 +117,7 @@ namespace NNX
 
 		return Runtime;
 	};
+#endif
 
 	inline IRuntime* FRuntimeORTCPUStartup()
 	{
@@ -108,6 +127,7 @@ namespace NNX
 		}
 		return GORTCPURuntime.Get();
 	};
+
 	inline IRuntime* FRuntimeORTCUDAStartup()
 	{
 		if (!GORTCUDARuntime)
@@ -116,6 +136,8 @@ namespace NNX
 		}
 		return GORTCUDARuntime.Get();
 	};
+
+#if PLATFORM_WINDOWS
 	inline IRuntime* FRuntimeORTDMLStartup()
 	{
 		if (!GORTDMLRuntime)
@@ -124,6 +146,7 @@ namespace NNX
 		}
 		return GORTDMLRuntime.Get();
 	};
+#endif
 
 	inline void FRuntimeORTCPUShutdown()
 	{
@@ -132,6 +155,7 @@ namespace NNX
 			GORTCPURuntime.Release();
 		}
 	};
+
 	inline void FRuntimeORTCUDAShutdown()
 	{
 		if (GORTCUDARuntime)
@@ -139,6 +163,8 @@ namespace NNX
 			GORTCUDARuntime.Release();
 		}
 	};
+
+#if PLATFORM_WINDOWS
 	inline void FRuntimeORTDMLShutdown()
 	{
 		if (GORTDMLRuntime)
@@ -146,8 +172,9 @@ namespace NNX
 			GORTDMLRuntime.Release();
 		}
 	};
+#endif
 
-	class NNXRUNTIMEORT_API FMLInferenceModelORT : public FMLInferenceModel
+	class FMLInferenceModelORT : public FMLInferenceModel
 	{
 
 	public:
@@ -194,7 +221,7 @@ namespace NNX
 		FNeuralStatisticsEstimator InputTransferStatisticsEstimator;
 	};
 
-	class NNXRUNTIMEORT_API FMLInferenceModelORTCpu : public NNX::FMLInferenceModelORT
+	class FMLInferenceModelORTCpu : public NNX::FMLInferenceModelORT
 	{
 	public:
 		FMLInferenceModelORTCpu(Ort::Env* InORTEnvironment, const FMLInferenceNNXORTConf& InORTConfiguration);
@@ -202,15 +229,17 @@ namespace NNX
 		virtual bool InitializedAndConfigureMembers() override;
 	};
 
-	class NNXRUNTIMEORT_API FMLInferenceModelORTDml : public NNX::FMLInferenceModelORT
+#if PLATFORM_WINDOWS
+	class FMLInferenceModelORTDml : public NNX::FMLInferenceModelORT
 	{
 	public:
 		FMLInferenceModelORTDml(Ort::Env* InORTEnvironment, const FMLInferenceNNXORTConf& InORTConfiguration);
 
 		virtual bool InitializedAndConfigureMembers() override;
 	};
+#endif
 
-	class NNXRUNTIMEORT_API FMLInferenceModelORTCuda : public NNX::FMLInferenceModelORT
+	class FMLInferenceModelORTCuda : public NNX::FMLInferenceModelORT
 	{
 	public:
 		FMLInferenceModelORTCuda(Ort::Env* InORTEnvironment, const FMLInferenceNNXORTConf& InORTConfiguration);

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NNXRuntimeORT.h"
+
 #include "NeuralTimer.h"
-#include "NNXRuntimeORTProviders.h"
 #include "NNXRuntimeORTUtils.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
 // NOTE: For now we only have DML on Windows, we should add support for XSX
-//#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <unknwn.h>
@@ -16,6 +16,7 @@
 #include "ID3D12DynamicRHI.h"
 #include "D3D12RHIBridge.h"
 #include "DirectML.h"
+#endif
 
 using namespace NNX;
 
@@ -29,10 +30,12 @@ FString FRuntimeORTCuda::GetRuntimeName() const
 	return NNX_RUNTIME_ORT_NAME_CUDA;
 }
 
+#if PLATFORM_WINDOWS
 FString FRuntimeORTDml::GetRuntimeName() const
 {
 	return NNX_RUNTIME_ORT_NAME_DML;
 }
+#endif
 
 EMLRuntimeSupportFlags FRuntimeORTCpu::GetSupportFlags() const
 {
@@ -44,10 +47,12 @@ EMLRuntimeSupportFlags FRuntimeORTCuda::GetSupportFlags() const
 	return EMLRuntimeSupportFlags::GPU;
 }
 
+#if PLATFORM_WINDOWS
 EMLRuntimeSupportFlags FRuntimeORTDml::GetSupportFlags() const
 {
 	return EMLRuntimeSupportFlags::GPU;
 }
+#endif
 
 FMLInferenceModel* FRuntimeORTCpu::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
 {
@@ -73,6 +78,7 @@ FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InMo
 	return ORTModel;
 }
 
+#if PLATFORM_WINDOWS
 FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
 {
 	FMLInferenceModelORTDml* ORTModel = new FMLInferenceModelORTDml(&NNXEnvironmentORT, InConf);
@@ -84,6 +90,7 @@ FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InMod
 
 	return ORTModel;
 }
+#endif
 
 FMLInferenceModel* FRuntimeORTCpu::CreateInferenceModel(UMLInferenceModel* InModel)
 {
@@ -97,11 +104,13 @@ FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InMo
 	return CreateInferenceModel(InModel, ORTInferenceConf);
 }
 
+#if PLATFORM_WINDOWS
 FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InModel)
 {
 	FMLInferenceNNXORTConf ORTInferenceConf;
 	return CreateInferenceModel(InModel, ORTInferenceConf);
 }
+#endif
 
 FMLInferenceModelORT::FMLInferenceModelORT(
 	Ort::Env* InORTEnvironment, 
@@ -357,12 +366,19 @@ bool FMLInferenceModelORTCuda::InitializedAndConfigureMembers()
 
 	SessionOptions->EnableCpuMemArena();
 
-	OrtSessionOptionsAppendExecutionProvider_CUDA(*SessionOptions.Get(), ORTConfiguration.DeviceId);
+	OrtStatusPtr Status = OrtSessionOptionsAppendExecutionProvider_CUDA(*SessionOptions.Get(), ORTConfiguration.DeviceId);
+	if (Status)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Failed to initialize session options for ORT CUDA EP"));
+		return false;
+	}
 
 	return true;
 }
 
 //-------------
+#if PLATFORM_WINDOWS
+
 FMLInferenceModelORTDml::FMLInferenceModelORTDml(Ort::Env* InORTEnvironment, const FMLInferenceNNXORTConf& InORTConfiguration) :
 	FMLInferenceModelORT(InORTEnvironment, EMLInferenceModelType::GPU, InORTConfiguration)
 {}
@@ -429,7 +445,14 @@ bool FMLInferenceModelORTDml::InitializedAndConfigureMembers()
 	ID3D12CommandQueue* CmdQ = RHI->RHIGetCommandQueue();
 
 	//OrtSessionOptionsAppendExecutionProvider_DML(*SessionOptions.Get(), ORTConfiguration.DeviceId);
-	OrtSessionOptionsAppendExecutionProviderEx_DML(*SessionOptions.Get(), DmlDevice, CmdQ);
+	
+	OrtStatusPtr Status = OrtSessionOptionsAppendExecutionProviderEx_DML(*SessionOptions.Get(), DmlDevice, CmdQ);
+	if (Status)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Failed to initialize session options for ORT Dml EP"));
+		return false;
+	}
 
 	return true;
 }
+#endif
