@@ -22,7 +22,11 @@ static bool ReadTexture_PlatformData(
 	// Note that the current code cannot run on a background thread, UpdateResource() will call FlushRenderingCommands()
 	// which will check() if it's on the Game Thread
 
-	check(TextureMap->GetPlatformData());
+	if (TextureMap->GetPlatformData() == nullptr)
+	{
+		return false;
+	}
+
 	const int32 Width = TextureMap->GetPlatformData()->Mips[0].SizeX;
 	const int32 Height = TextureMap->GetPlatformData()->Mips[0].SizeY;
 	const FImageDimensions Dimensions = FImageDimensions(Width, Height);
@@ -31,16 +35,29 @@ static bool ReadTexture_PlatformData(
 
 	// convert built platform texture data to uncompressed RGBA8 format
 	const TextureCompressionSettings InitialCompressionSettings = TextureMap->CompressionSettings;
+
+	// the Platform BulkData for most texture formats is compressed and we cannot process it on
+	// the CPU. However TC_VectorDisplacementmap is uncompressed RGBA8.
+	// in the Editor, we can temporarily change the texture type and rebuild the PlatformData.
+	// However at Runtime we cannot, and so we can only error-out if we do not have a readable compression type.
 #if WITH_EDITOR
 	const TextureMipGenSettings InitialMipGenSettings = TextureMap->MipGenSettings;
+	bool bNeedToRevertTextureChanges = false;
+	if (InitialMipGenSettings != TextureMipGenSettings::TMGS_NoMipmaps || InitialCompressionSettings != TextureCompressionSettings::TC_VectorDisplacementmap)
+	{
+		TextureMap->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+		TextureMap->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
+		TextureMap->UpdateResource();
+		bNeedToRevertTextureChanges = true;
+	}
+#else
+	if (InitialCompressionSettings != TC_VectorDisplacementmap)
+	{
+		return false;
+	}
 #endif
-	TextureMap->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-#if WITH_EDITOR
-	TextureMap->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
-#endif
-	TextureMap->UpdateResource();
 
-	// lock texture and read as FColor
+	// lock texture and read as FColor (RGBA8)
 	const FColor* FormattedImageData = reinterpret_cast<const FColor*>(TextureMap->GetPlatformData()->Mips[0].BulkData.LockReadOnly());
 
 	// maybe could be done more quickly by row?
@@ -53,13 +70,17 @@ static bool ReadTexture_PlatformData(
 		DestImage.SetPixel(i, ToVector4<float>(FloatColor));
 	}
 
-	// restore built platform texture data to initial state
 	TextureMap->GetPlatformData()->Mips[0].BulkData.Unlock();
-	TextureMap->CompressionSettings = InitialCompressionSettings;
+
 #if WITH_EDITOR
-	TextureMap->MipGenSettings = InitialMipGenSettings;
+	// restore built platform texture data to initial state, if we modified it
+	if (bNeedToRevertTextureChanges)
+	{
+		TextureMap->CompressionSettings = InitialCompressionSettings;
+		TextureMap->MipGenSettings = InitialMipGenSettings;
+		TextureMap->UpdateResource();
+	}
 #endif
-	TextureMap->UpdateResource();
 
 	return true;
 }
