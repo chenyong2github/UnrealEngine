@@ -33,6 +33,22 @@ void FOptimusCoreModule::ShutdownModule()
 	FOptimusDataTypeRegistry::UnregisterAllTypes();
 }
 
+
+bool FOptimusCoreModule::RegisterDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass)
+{
+	if (InDataInterfaceClass)
+	{
+		UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(InDataInterfaceClass->GetDefaultObject());
+		if (ensure(DataInterface))
+		{
+			DataInterface->RegisterTypes();
+			return true;
+		}
+	}
+	return false;
+}
+
+
 IMPLEMENT_MODULE(FOptimusCoreModule, OptimusCore)
 
 DEFINE_LOG_CATEGORY(LogOptimusCore);
