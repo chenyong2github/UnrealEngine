@@ -85,6 +85,35 @@ public:
 
 };
 
+
+USTRUCT()
+struct FAppendCollectionAssetsDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FAppendCollectionAssetsDataflowNode, "AppendCollections", "GeometryCollection", "")
+
+public:
+	typedef FManagedArrayCollection DataType;
+
+	UPROPERTY(meta = (DataflowInput, DisplayOutput, DisplayName = "Collection", Passthrough = "Collection"))
+	FManagedArrayCollection Collection1;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection2;
+
+
+	FAppendCollectionAssetsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterOutputConnection(&Collection1, &Collection1);
+		RegisterInputConnection(&Collection1);
+		RegisterInputConnection(&Collection2);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
 USTRUCT()
 struct FResetGeometryCollectionDataflowNode : public FDataflowNode
 {

@@ -14,6 +14,7 @@ namespace Dataflow
 	void RegisterSkeletalMeshNodes()
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSkeletalMeshDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSkeletonDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSkeletalMeshBoneDataflowNode);
 	}
 }
@@ -25,16 +26,37 @@ void FGetSkeletalMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 	{
 		SetValue<DataType>(Context, SkeletalMesh, &SkeletalMesh);
 
-		if (SkeletalMesh)
+		if (!SkeletalMesh)
 		{
-			SetValue<DataType>(Context, SkeletalMesh, &SkeletalMesh);
-		}
-		else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
-		{
-			if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
-				EngineContext->Owner, PropertyName))
+			if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 			{
-				SetValue<DataType>(Context, DataType(SkeletalMeshFromOwner), &SkeletalMesh);
+				if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
+					EngineContext->Owner, PropertyName))
+				{
+					SetValue<DataType>(Context, DataType(SkeletalMeshFromOwner), &SkeletalMesh);
+				}
+			}
+		}
+	}
+}
+
+
+void FGetSkeletonDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	typedef TObjectPtr<const USkeleton> DataType;
+	if (Out->IsA<DataType>(&Skeleton))
+	{
+		SetValue<DataType>(Context, Skeleton, &Skeleton);
+
+		if (!Skeleton)
+		{
+			if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+			{
+				if (const USkeleton* SkeletonFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeleton>(
+					EngineContext->Owner, PropertyName))
+				{
+					SetValue<DataType>(Context, DataType(SkeletonFromOwner), &Skeleton);
+				}
 			}
 		}
 	}

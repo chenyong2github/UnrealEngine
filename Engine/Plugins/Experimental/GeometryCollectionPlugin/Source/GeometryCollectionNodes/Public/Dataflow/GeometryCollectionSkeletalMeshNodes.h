@@ -11,26 +11,24 @@
 class USkeletalMesh;
 
 USTRUCT()
-struct FSkeletalMeshToCollectionDataflowNode : public FDataflowNode
+struct FSkeletonToCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSkeletalMeshToCollectionDataflowNode, "SkeletalMeshToCollection", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSkeletonToCollectionDataflowNode, "SkeletonToCollection", "GeometryCollection", "")
 
 public:
 	typedef FManagedArrayCollection DataType;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "Skeleton"))
+	TObjectPtr<const USkeleton> Skeleton = nullptr;
 
-	UPROPERTY(meta = (DataflowInput, DisplayName = "SkeletalMesh"))
-	TObjectPtr<const USkeletalMesh> SkeletalMesh = nullptr;
-
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
-	FSkeletalMeshToCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	FSkeletonToCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterInputConnection(&SkeletalMesh);
-		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&Skeleton);
 		RegisterOutputConnection(&Collection);
 	}
 

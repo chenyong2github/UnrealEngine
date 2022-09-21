@@ -6,29 +6,29 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionEngineConversion.h"
 
 
 namespace Dataflow
 {
 	void GeometryCollectionSkeletalMeshNodes()
 	{
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSkeletalMeshToCollectionDataflowNode);
-
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSkeletonToCollectionDataflowNode);
 	}
 }
 
-void FSkeletalMeshToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FSkeletonToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<DataType>(&Collection))
 	{
-		DataType InCollection = GetValue<DataType>(Context, &Collection);
-
-		//
-		// @todo(dataflow) : Implemention conversion from skeletal mesh to TManagedArrayCollection
-		//
-
-		SetValue<DataType>(Context, InCollection, &Collection);
+		DataType OutCollection;
+		TObjectPtr<const USkeleton> SkeletonValue = GetValue<TObjectPtr<const USkeleton>>(Context, &Skeleton);
+		if (SkeletonValue)
+		{
+			FGeometryCollectionEngineConversion::AppendSkeleton(SkeletonValue.Get(), FTransform::Identity, &OutCollection);
+		}
+		SetValue<DataType>(Context, OutCollection, &Collection);
 	}
 }
 
-
+									

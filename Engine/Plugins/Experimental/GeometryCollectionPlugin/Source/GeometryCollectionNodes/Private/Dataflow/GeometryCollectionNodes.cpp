@@ -30,6 +30,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionAssetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExampleCollectionEditDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetCollectionAssetDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAppendCollectionAssetsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FResetGeometryCollectionDataflowNode);
 
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FPrintStringDataflowNode);
@@ -132,6 +133,17 @@ void FSetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 			CollectionAsset->SetGeometryCollection(NewCollection);
 			CollectionAsset->InvalidateCollection();
 		}
+	}
+}
+
+void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<DataType>(&Collection1))
+	{
+		DataType InCollection1 = GetValue<DataType>(Context, &Collection1);
+		DataType InCollection2 = GetValue<DataType>(Context, &Collection2);
+		InCollection1.Append(InCollection2);
+		SetValue<DataType>(Context, Collection1, &Collection1); // prime to avoid ensure
 	}
 }
 
