@@ -156,8 +156,8 @@ public class EOSSDK : ModuleRules
 
 			if (!bUseProjectBinary)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "armeabi-v7a", RuntimeLibraryFileName));
-				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "arm64-v8a", RuntimeLibraryFileName));
+				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "static-stdc++", "libs", "armeabi-v7a", RuntimeLibraryFileName));
+				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "static-stdc++", "libs", "arm64-v8a", RuntimeLibraryFileName));
 
 				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
 				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "EOSSDK_UPL.xml"));

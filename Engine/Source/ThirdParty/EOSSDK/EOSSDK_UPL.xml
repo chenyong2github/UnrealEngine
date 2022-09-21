@@ -28,7 +28,7 @@
 				repositories {
 				flatDir {
 			</insert>
-			<insertValue value="dirs '$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/SDK/Bin/Android/aar'"/>
+			<insertValue value="dirs '$S(AbsEngineDir)/Source/ThirdParty/EOSSDK/SDK/Bin/Android/static-stdc++/aar'"/>
 			<insertNewline/>
 			<insert>
 				}
