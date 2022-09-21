@@ -271,6 +271,7 @@ public:
 		// emitted. Respects bUseStableUnwrapCanonicalIDsForEdges.
 		virtual TArray<FUVToolSelection> GetBefore() const;
 
+		virtual bool HasExpired(UObject* Object) const override;
 		virtual void Apply(UObject* Object) override;
 		virtual void Revert(UObject* Object) override;
 		virtual FString ToString() const override;
@@ -292,6 +293,7 @@ public:
 
 		virtual const TArray<FUVToolSelection>& GetBefore() const;
 
+		virtual bool HasExpired(UObject* Object) const override;
 		virtual void Apply(UObject* Object) override;
 		virtual void Revert(UObject* Object) override;
 		virtual FString ToString() const override;
@@ -300,6 +302,10 @@ public:
 		TArray<FUVToolSelection> Before;
 		TArray<FUVToolSelection> After;
 	};
+
+	// Returns true in between Initialize() and Shutdown(). Used by undo/redo to expire transactions
+	// when editor is closed.
+	bool IsActive() const { return bIsActive; }
 
 	/**
 	 * Preps a selection change transaction, if the user wants more control on what the previous and
@@ -359,6 +365,8 @@ protected:
 
 	FVector3d CachedUnwrapSelectionBoundingBoxCenter;
 	bool bCachedUnwrapSelectionBoundingBoxCenterValid = false;
+
+	bool bIsActive = false;
 };
 
 // UInterface for IUVToolSupportsSelection

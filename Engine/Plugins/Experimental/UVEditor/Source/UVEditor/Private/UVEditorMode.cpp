@@ -107,11 +107,9 @@ namespace UVEditorModeLocals
 
 		virtual bool HasExpired(UObject* Object) const override
 		{
-			// To not be expired, we must be in some tool.
+			// To not be expired, we must be active and in some non-default tool.
 			UUVEditorMode* Mode = Cast<UUVEditorMode>(Object);
-			return !(Mode && Mode->GetInteractiveToolsContext()
-				&& Mode->GetInteractiveToolsContext()->ToolManager
-				&& Mode->GetInteractiveToolsContext()->ToolManager->HasAnyActiveTool());
+			return !(Mode && Mode->IsActive() && !Mode->IsDefaultToolActive());
 		}
 
 		virtual FString ToString() const override
@@ -667,7 +665,7 @@ void UUVEditorMode::ActivateDefaultTool()
 
 bool UUVEditorMode::IsDefaultToolActive()
 {
-	return GetInteractiveToolsContext()->IsToolActive(EToolSide::Mouse, DefaultToolIdentifier);
+	return GetInteractiveToolsContext() && GetInteractiveToolsContext()->IsToolActive(EToolSide::Mouse, DefaultToolIdentifier);
 }
 
 void UUVEditorMode::BindCommands()

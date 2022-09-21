@@ -59,6 +59,8 @@ void UUVToolSelectionAPI::Initialize(
 	SelectionMechanic->Initialize(UnwrapWorld, LivePreviewAPI->GetLivePreviewWorld(), this);
 
 	UnwrapInputRouter->RegisterSource(MechanicAdapter);
+
+	bIsActive = true;
 }
 
 void UUVToolSelectionAPI::SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
@@ -105,6 +107,8 @@ void UUVToolSelectionAPI::Shutdown()
 		Target->OnCanonicalModified.RemoveAll(this);
 	}
 	Targets.Empty();
+
+	bIsActive = false;
 }
 
 void UUVToolSelectionAPI::ClearSelections(bool bBroadcast, bool bEmitChange)
@@ -595,6 +599,12 @@ TArray<FUVToolSelection> UUVToolSelectionAPI::FSelectionChange::GetBefore() cons
 	return SelectionsOut;
 }
 
+bool UUVToolSelectionAPI::FSelectionChange::HasExpired(UObject* Object) const
+{
+	UUVToolSelectionAPI* SelectionAPI = Cast<UUVToolSelectionAPI>(Object);
+	return !(SelectionAPI && SelectionAPI->IsActive());
+}
+
 void UUVToolSelectionAPI::FSelectionChange::Apply(UObject* Object) 
 {
 	UUVToolSelectionAPI* SelectionAPI = Cast<UUVToolSelectionAPI>(Object);
@@ -655,6 +665,12 @@ void UUVToolSelectionAPI::FUnsetSelectionChange::SetAfter(TArray<FUVToolSelectio
 const TArray<FUVToolSelection>& UUVToolSelectionAPI::FUnsetSelectionChange::GetBefore() const
 {
 	return Before;
+}
+
+bool UUVToolSelectionAPI::FUnsetSelectionChange::HasExpired(UObject* Object) const
+{
+	UUVToolSelectionAPI* SelectionAPI = Cast<UUVToolSelectionAPI>(Object);
+	return !(SelectionAPI && SelectionAPI->IsActive());
 }
 
 void UUVToolSelectionAPI::FUnsetSelectionChange::Apply(UObject* Object)
