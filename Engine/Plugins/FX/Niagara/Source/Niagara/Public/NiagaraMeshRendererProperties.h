@@ -281,6 +281,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
+	/**
+	Scale factor applied to all of the meshes bounds.
+	This impacts distance based and per instance frustum culling.  Per instance frustum culling is enabled by default
+	when GPU scene is enabled.  When using WPO with a material that may expand the mesh beyond the original bounds instances
+	can be frustum culled incorrectly, this allows you to grow the bounds to avoid this issue.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", AdvancedDisplay)
+	FVector MeshBoundsScale = FVector::OneVector;
+
 	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", ClampMin = 0.0f))
 	float MinCameraDistance;
 

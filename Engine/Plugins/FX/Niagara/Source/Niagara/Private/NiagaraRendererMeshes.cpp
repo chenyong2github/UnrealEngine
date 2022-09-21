@@ -187,6 +187,8 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			MeshData.Scale = (FVector3f)MeshProperties.Scale;
 			MeshData.Rotation = FQuat4f(MeshProperties.Rotation.Quaternion());
 			MeshData.LocalBounds = Mesh->GetExtendedBounds().GetBox();
+			MeshData.LocalBounds.Min *= Properties->MeshBoundsScale;
+			MeshData.LocalBounds.Max *= Properties->MeshBoundsScale;
 
 			// Create an index remap from mesh material index to it's index in the base material list
 			TArray<UMaterialInterface*> MeshMaterials;
@@ -566,8 +568,8 @@ void FNiagaraRendererMeshes::PreparePerMeshData(FParticleMeshRenderData& Particl
 {
 	// Calculate pivot offset / culling sphere
 	FBox MeshLocalBounds = MeshData.LocalBounds;
-	MeshLocalBounds.Min *= (FVector)MeshData.Scale;
-	MeshLocalBounds.Max *= (FVector)MeshData.Scale;
+	MeshLocalBounds.Min *= FVector(MeshData.Scale);
+	MeshLocalBounds.Max *= FVector(MeshData.Scale);
 	ParticleMeshRenderData.CullingSphere.Center = MeshLocalBounds.GetCenter();
 	ParticleMeshRenderData.CullingSphere.W = MeshLocalBounds.GetExtent().Length();
 
