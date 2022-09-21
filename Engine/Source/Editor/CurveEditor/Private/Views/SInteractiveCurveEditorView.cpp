@@ -1051,6 +1051,10 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 					double MouseTime = CurveSpace.ScreenToSeconds(MousePixel.X);
 					double MouseValue = CurveSpace.ScreenToValue(MousePixel.Y);
 
+					FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(HoveredCurve.GetValue());
+					MouseTime = SnapMetrics.SnapInputSeconds(MouseTime);
+					MouseValue = SnapMetrics.SnapOutput(MouseValue);
+
 					// If control is pressed. Keep the curve unchanged
 					if (MouseEvent.IsControlDown())
 					{
@@ -1070,10 +1074,6 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 						double LeftTangent = GetTangentValue(MouseTime, MouseValue, CurveToAddTo, -DeltaTime);
 						KeyAttributes.SetArriveTangent(LeftTangent);
 					}
-
-					FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(HoveredCurve.GetValue());
-					MouseTime = SnapMetrics.SnapInputSeconds(MouseTime);
-					MouseValue = SnapMetrics.SnapOutput(MouseValue);
 
 					// When adding to a curve with no variance, add it with the same value so that
 					// curves don't pop wildly in normalized views due to a slight difference between the keys
