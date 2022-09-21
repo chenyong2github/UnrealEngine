@@ -116,3 +116,18 @@ IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE(template<>, TWaterVertexFactory</*bWithWa
 );
 
 #endif // WITH_WATER_SELECTION_SUPPORT
+
+const FVertexFactoryType* GetWaterVertexFactoryType(bool bWithWaterSelectionSupport)
+{
+#if WITH_WATER_SELECTION_SUPPORT
+	if (bWithWaterSelectionSupport)
+	{
+		return &TWaterVertexFactory</*bWithWaterSelectionSupport = */ true>::StaticType;
+	}
+	else
+#endif // WITH_WATER_SELECTION_SUPPORT
+	{
+		check(!bWithWaterSelectionSupport);
+		return &TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>::StaticType;
+	}
+}

@@ -216,6 +216,8 @@ private:
 	const float LODScale = 0.0f;
 };
 
+extern const FVertexFactoryType* GetWaterVertexFactoryType(bool bWithWaterSelectionSupport);
+
 
 /**
  * Water user data provided to FMeshBatchElement(s)

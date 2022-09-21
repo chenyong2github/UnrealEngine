@@ -74,6 +74,30 @@ void UWaterMeshComponent::PostLoad()
 	Super::PostLoad();
 }
 
+void UWaterMeshComponent::PrecachePSOs()
+{
+	if (!FApp::CanEverRender())
+	{
+		return;
+	}
+
+	FPSOPrecacheParams PrecachePSOParams;
+	SetupPrecachePSOParams(PrecachePSOParams);
+
+	const FVertexFactoryType* WaterVertexFactoryType = GetWaterVertexFactoryType(/*bWithWaterSelectionSupport = */ false);
+	if (FarDistanceMaterial)
+	{
+		FarDistanceMaterial->PrecachePSOs(WaterVertexFactoryType, PrecachePSOParams);
+	}
+	for (UMaterialInterface* MaterialInterface : UsedMaterials)
+	{
+		if (MaterialInterface)
+		{
+			MaterialInterface->PrecachePSOs(WaterVertexFactoryType, PrecachePSOParams);
+		}
+	}
+}
+
 void UWaterMeshComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -567,6 +591,7 @@ void UWaterMeshComponent::Update()
 		LODScaleBiasScalability = NewLODScaleBias;
 		const float LODCountBiasFactor = FMath::Pow(2.0f, (float)LODCountBiasScalability);
 		RebuildWaterMesh(TileSize / LODCountBiasFactor, FIntPoint(FMath::CeilToInt(ExtentInTiles.X * LODCountBiasFactor), FMath::CeilToInt(ExtentInTiles.Y * LODCountBiasFactor)));
+		PrecachePSOs();
 		bNeedsRebuild = false;
 	}
 }
