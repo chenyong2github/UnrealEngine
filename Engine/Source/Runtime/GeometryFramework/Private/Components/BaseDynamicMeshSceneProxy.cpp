@@ -37,7 +37,7 @@ FMeshRenderBufferSet* FBaseDynamicMeshSceneProxy::AllocateNewRenderBufferSet()
 	FMeshRenderBufferSet* RenderBufferSet = new FMeshRenderBufferSet(GetScene().GetFeatureLevel());
 
 	RenderBufferSet->Material = UMaterial::GetDefaultMaterial(MD_Surface);
-	RenderBufferSet->bEnableRaytracing = this->bEnableRaytracing;
+	RenderBufferSet->bEnableRaytracing = this->bEnableRaytracing && this->IsVisibleInRayTracing();
 
 	AllocatedSetsLock.Lock();
 	AllocatedBufferSets.Add(RenderBufferSet);
@@ -239,6 +239,12 @@ bool FBaseDynamicMeshSceneProxy::IsRayTracingRelevant() const
 {
 	return true;
 }
+
+bool FBaseDynamicMeshSceneProxy::HasRayTracingRepresentation() const
+{
+	return true;
+}
+
 
 void FBaseDynamicMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
