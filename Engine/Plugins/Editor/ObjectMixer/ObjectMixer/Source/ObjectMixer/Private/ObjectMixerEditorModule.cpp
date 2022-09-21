@@ -71,6 +71,9 @@ void FObjectMixerEditorModule::Teardown()
 	if (GEditor)
 	{
 		GEditor->OnBlueprintCompiled().RemoveAll(this);
+		GEditor->OnLevelActorAdded().RemoveAll(this);
+		GEditor->OnLevelActorDeleted().RemoveAll(this);
+		GEditor->GetSelectedActors()->SelectionChangedEvent.RemoveAll(this);
 	}
 	
 	FEditorDelegates::MapChange.RemoveAll(this);
@@ -304,6 +307,10 @@ void FObjectMixerEditorModule::BindDelegates()
 	}));
 
 	DelegateHandles.Add(GEditor->OnBlueprintCompiled().AddLambda([this] ()
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEditor->OnLevelActorAdded().AddLambda([this] (AActor*)
 	{
 		RequestRebuildList();
 	}));
