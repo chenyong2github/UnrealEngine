@@ -17099,7 +17099,8 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 			{
 				if (OtherTemplate->IsA<URigVMFunctionEntryNode>() || OtherTemplate->IsA<URigVMFunctionReturnNode>())
 				{
-					if (!OtherTemplate->GetTemplate()->FindArgument(OtherPin->GetFName()))
+					const URigVMPin* OtherPinRoot = OtherPin->GetRootPin();
+					if (!OtherTemplate->GetTemplate()->FindArgument(OtherPinRoot->GetFName()))
 					{
 						if (!AddArgumentForPin(OtherPin, Pin, bSetupUndoRedo))
 						{
