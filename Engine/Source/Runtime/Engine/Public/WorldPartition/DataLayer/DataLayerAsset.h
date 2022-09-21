@@ -11,7 +11,7 @@
 
 #include "DataLayerAsset.generated.h"
 
-UCLASS(editinlinenew)
+UCLASS(BlueprintType, editinlinenew)
 class ENGINE_API UDataLayerAsset : public UObject
 {
 	GENERATED_UCLASS_BODY()
