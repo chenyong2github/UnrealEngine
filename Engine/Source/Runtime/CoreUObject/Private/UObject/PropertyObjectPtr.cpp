@@ -151,7 +151,7 @@ TObjectPtr<UObject> FObjectPtrProperty::GetObjectPtrPropertyValue(const void* Pr
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
-	return GetPropertyValue(PropertyValueAddress);
+	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const
