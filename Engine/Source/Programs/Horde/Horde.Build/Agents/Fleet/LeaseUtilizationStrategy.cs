@@ -11,6 +11,7 @@ using Horde.Build.Agents.Pools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -30,6 +31,8 @@ namespace Horde.Build.Agents.Fleet
 	/// </summary>
 	public class LeaseUtilizationStrategy : IPoolSizeStrategy
 	{
+		private const string CacheKey = nameof(LeaseUtilizationStrategy);
+		
 		struct UtilizationSample
 		{
 			public double _jobWork;
@@ -90,6 +93,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly IPoolCollection _poolCollection;
 		private readonly ILeaseCollection _leaseCollection;
 		private readonly IClock _clock;
+		private readonly IMemoryCache _cache;
 		private readonly TimeSpan _sampleTime = TimeSpan.FromMinutes(6.0);
 		private readonly int _numSamples = 10;
 		private readonly int _numSamplesForResult = 9;
@@ -101,15 +105,17 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="poolCollection"></param>
 		/// <param name="leaseCollection"></param>
 		/// <param name="clock"></param>
+		/// <param name="cache"></param>
 		/// <param name="numSamples">Number of samples to collect for calculating lease utilization</param>
 		/// <param name="numSamplesForResult">Min number of samples for a valid result</param>
 		/// <param name="sampleTime">Time period for each sample</param>
-		public LeaseUtilizationStrategy(IAgentCollection agentCollection, IPoolCollection poolCollection, ILeaseCollection leaseCollection, IClock clock, int numSamples = 10, int numSamplesForResult = 9, TimeSpan? sampleTime = null)
+		public LeaseUtilizationStrategy(IAgentCollection agentCollection, IPoolCollection poolCollection, ILeaseCollection leaseCollection, IClock clock, IMemoryCache cache, int numSamples = 10, int numSamplesForResult = 9, TimeSpan? sampleTime = null)
 		{
 			_agentCollection = agentCollection;
 			_poolCollection = poolCollection;
 			_leaseCollection = leaseCollection;
 			_clock = clock;
+			_cache = cache;
 			_numSamples = numSamples;
 			_numSamplesForResult = numSamplesForResult;
 			_sampleTime = sampleTime ?? _sampleTime;
@@ -195,7 +201,16 @@ namespace Horde.Build.Agents.Fleet
 		/// <inheritdoc/>
 		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
-			Dictionary<PoolId, PoolData> poolToData = await GetPoolDataAsync();
+			Dictionary<PoolId, PoolData> poolToData;
+			
+			// Cache pool data for a short while for faster runs when many pools are scaled
+			if (!_cache.TryGetValue(CacheKey, out poolToData))
+			{
+				// Pool sizes haven't been cached, update them (might happen from multiple tasks but that is fine)
+				poolToData = await GetPoolDataAsync();
+				_cache.Set(CacheKey, poolToData, TimeSpan.FromSeconds(60));
+			}
+			
 			List<PoolSizeData> result = new();
 
 			foreach (PoolData poolData in poolToData.Values.OrderByDescending(x => x.Agents.Count))

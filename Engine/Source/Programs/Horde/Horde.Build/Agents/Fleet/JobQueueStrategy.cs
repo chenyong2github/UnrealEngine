@@ -11,6 +11,7 @@ using Horde.Build.Jobs.Graphs;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build.Agents.Fleet
 {
@@ -64,12 +65,14 @@ namespace Horde.Build.Agents.Fleet
 	/// </summary>
 	public class JobQueueStrategy : IPoolSizeStrategy
 	{
+		private const string CacheKey = nameof(JobQueueStrategy);
 		internal JobQueueSettings Settings { get; }
 		
 		private readonly IJobCollection _jobs;
 		private readonly IGraphCollection _graphs;
 		private readonly StreamService _streamService;
 		private readonly IClock _clock;
+		private readonly IMemoryCache _cache;
 		
 		/// <summary>
 		/// How far back in time to look for job batches (that potentially are in the queue)
@@ -93,14 +96,16 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="graphs"></param>
 		/// <param name="streamService"></param>
 		/// <param name="clock"></param>
+		/// <param name="cache"></param>
 		/// <param name="settings"></param>
 		/// <param name="samplePeriod">Time period for each sample</param>
-		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, JobQueueSettings? settings = null, TimeSpan? samplePeriod = null)
+		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, IMemoryCache cache, JobQueueSettings? settings = null, TimeSpan? samplePeriod = null)
 		{
 			_jobs = jobs;
 			_graphs = graphs;
 			_streamService = streamService;
 			_clock = clock;
+			_cache = cache;
 			_samplePeriod = samplePeriod ?? _samplePeriod;
 			Settings = settings ?? _defaultPoolSettings;
 		}
@@ -173,7 +178,15 @@ namespace Horde.Build.Agents.Fleet
 		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
 			DateTimeOffset minCreateTime = _clock.UtcNow - _samplePeriod;
-			Dictionary<PoolId, int> poolQueueSizes = await GetPoolQueueSizesAsync(minCreateTime);
+			Dictionary<PoolId, int> poolQueueSizes;// = await GetPoolQueueSizesAsync(minCreateTime);
+
+			// Cache pool queue sizes for a short while for faster runs when many pools are scaled
+			if (!_cache.TryGetValue(CacheKey, out poolQueueSizes))
+			{
+				// Pool sizes haven't been cached, update them (might happen from multiple tasks but that is fine)
+				poolQueueSizes = await GetPoolQueueSizesAsync(minCreateTime);
+				_cache.Set(CacheKey, poolQueueSizes, TimeSpan.FromSeconds(60));
+			}
 
 			return pools.Select(current =>
 			{

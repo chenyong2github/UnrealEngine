@@ -18,6 +18,7 @@ using Horde.Build.Jobs.Graphs;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -49,6 +50,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly IAmazonEC2 _ec2;
 		private readonly IAmazonAutoScaling _awsAutoScaling;
 		private readonly IClock _clock;
+		private readonly IMemoryCache _cache;
 		private readonly ITicker _ticker;
 		private readonly ITicker _tickerHighFrequency;
 		private readonly TimeSpan _defaultScaleOutCooldown;
@@ -74,6 +76,7 @@ namespace Horde.Build.Agents.Fleet
 			IAmazonEC2 ec2,
 			IAmazonAutoScaling awsAutoScaling,
 			IClock clock,
+			IMemoryCache cache,
 			IOptions<ServerSettings> settings,
 			ILoggerFactory loggerFactory,
 			Func<IPool, IFleetManager>? fleetManagerFactory = null)
@@ -88,6 +91,7 @@ namespace Horde.Build.Agents.Fleet
 			_ec2 = ec2;
 			_awsAutoScaling = awsAutoScaling;
 			_clock = clock;
+			_cache = cache;
 			_logger = loggerFactory.CreateLogger<AutoscaleServiceV2>();
 			_loggerFactory = loggerFactory;
 			_ticker = clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, _logger);
@@ -345,11 +349,11 @@ namespace Horde.Build.Agents.Fleet
 							case PoolSizeStrategy.JobQueue:
 								JobQueueSettings? settings = JsonSerializer.Deserialize<JobQueueSettings>(info.Config);
 								if (settings == null) throw new ArgumentException("Unable to deserialize pool sizing config");
-								return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, settings);
+								return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, settings);
 							
 							case PoolSizeStrategy.LeaseUtilization:
 								// No settings for lease utilization strategy
-								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock);
+								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache);
 							
 							case PoolSizeStrategy.NoOp:
 								return new NoOpPoolSizeStrategy();
@@ -365,9 +369,9 @@ namespace Horde.Build.Agents.Fleet
 			switch (pool.SizeStrategy)
 			{
 				case PoolSizeStrategy.JobQueue:
-					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, pool.JobQueueSettings);
+					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, pool.JobQueueSettings);
 				case PoolSizeStrategy.LeaseUtilization:
-					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock);
+					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache);
 				case PoolSizeStrategy.NoOp:
 					return new NoOpPoolSizeStrategy();
 				default:

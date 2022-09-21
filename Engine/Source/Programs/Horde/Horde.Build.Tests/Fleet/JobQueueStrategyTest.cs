@@ -144,7 +144,7 @@ namespace Horde.Build.Tests.Fleet
 			}
 
 			JobQueueSettings settings = new ();
-			return (new (JobCollection, GraphCollection, StreamService, Clock, settings), poolSize);
+			return (new (JobCollection, GraphCollection, StreamService, Clock, Cache, settings), poolSize);
 		}
 		
 		private async Task<IJob> AddPlaceholderJob(IGraph graph, StreamId streamId, string nodeNameToExecute)

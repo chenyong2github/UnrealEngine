@@ -97,7 +97,7 @@ namespace Horde.Build.Tests.Fleet
 
 		private async Task AssertPoolSizeAsync(IPool pool, int expectedNumAgents)
 		{
-			LeaseUtilizationStrategy strategy = new (AgentCollection, PoolCollection, LeaseCollection, Clock);
+			LeaseUtilizationStrategy strategy = new (AgentCollection, PoolCollection, LeaseCollection, Clock, Cache);
 			List<PoolSizeData> output = await strategy.CalcDesiredPoolSizesAsync(new() { new(pool, _poolAgents, null) });
 			Assert.AreEqual(1, output.Count);
 			Assert.AreEqual(expectedNumAgents, output[0].DesiredAgentCount);

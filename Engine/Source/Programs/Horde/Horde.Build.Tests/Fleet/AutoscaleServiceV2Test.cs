@@ -140,7 +140,7 @@ namespace Horde.Build.Tests.Fleet
 			Mock<IAmazonAutoScaling> mockAwsAutoScaling = new ();
 
 			AutoscaleServiceV2 service = new (AgentCollection, GraphCollection, JobCollection, LeaseCollection, PoolCollection,
-				StreamService, _dogStatsD, mockEc2.Object, mockAwsAutoScaling.Object, Clock, serverSettingsOpt, loggerFactory,
+				StreamService, _dogStatsD, mockEc2.Object, mockAwsAutoScaling.Object, Clock, Cache, serverSettingsOpt, loggerFactory,
 				_ => fleetManager);
 			return service;
 		}
