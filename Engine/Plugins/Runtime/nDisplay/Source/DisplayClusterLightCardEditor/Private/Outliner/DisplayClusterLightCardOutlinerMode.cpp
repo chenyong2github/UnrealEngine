@@ -107,7 +107,7 @@ struct FActorSelector
 FDisplayClusterLightCardOutlinerMode::FDisplayClusterLightCardOutlinerMode(SSceneOutliner* InSceneOutliner,
 	TWeakPtr<SDisplayClusterLightCardOutliner> InLightCardOutliner, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
 	: FActorMode(FActorModeParams(InSceneOutliner, InSpecifiedWorldToDisplay,
-	/* bHideComponents */ true, /* bHideLevelInstanceHierarchy */ true, /* bHideUnloadedActors */ true, /* bHideEmptyFolders */ false)),
+	/* bHideComponents */ true, /* bHideLevelInstanceHierarchy */ true, /* bHideUnloadedActors */ true, /* bHideEmptyFolders */ true)),
 	LightCardOutliner(InLightCardOutliner)
 {
 }
