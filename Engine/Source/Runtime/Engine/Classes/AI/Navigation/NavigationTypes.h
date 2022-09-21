@@ -36,8 +36,6 @@ struct FNavigationPath;
 /** uniform identifier type for navigation data elements may it be a polygon or graph node */
 typedef uint64 NavNodeRef;
 
-// LWC_TODO_AI: Most the floats in this file should really be FReal. Probably not until after 5.0
-
 namespace FNavigationSystem
 {
 	/** used as a fallback value for navigation agent radius, when none specified via UNavigationSystemV1::SupportedAgents */
@@ -48,7 +46,7 @@ namespace FNavigationSystem
 
 	static const FBox InvalidBoundingBox(ForceInit);
 
-	static const FVector InvalidLocation = FVector(FLT_MAX);
+	static const FVector InvalidLocation = FVector(TNumericLimits<FVector::FReal>::Max());
 
 	FORCEINLINE bool IsValidLocation(const FVector& TestLocation)
 	{

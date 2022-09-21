@@ -30,8 +30,8 @@ namespace ispc { struct DEFAULT_TYPENAME; }							/* ISPC forward declaration */
 #define UE_REAL_TO_FLOAT(argument) static_cast<float>(argument)
 
 // Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range clamped to max float.
-#define UE_REAL_TO_FLOAT_CLAMPED_MAX(argument) static_cast<float>(FMath::Min(argument, TNumericLimits<float>::Max()))
+#define UE_REAL_TO_FLOAT_CLAMPED_MAX(argument) static_cast<float>(FMath::Min(argument, (FVector::FReal)TNumericLimits<float>::Max()))
 
 // Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range clamped to min / max float.
-#define UE_REAL_TO_FLOAT_CLAMPED(argument) static_cast<float>(FMath::Clamp(argument, TNumericLimits<float>::Lowest(), TNumericLimits<float>::Max()))
+#define UE_REAL_TO_FLOAT_CLAMPED(argument) static_cast<float>(FMath::Clamp(argument, (FVector::FReal)TNumericLimits<float>::Lowest(), (FVector::FReal)TNumericLimits<float>::Max()))
 

@@ -20,8 +20,6 @@ class FNavigationOctree;
 class UNavigationPath;
 class ANavigationData;
 
-// LWC_TODO_AI: A lot of the floats in this file should be FVector::FReal. Not until after 5.0!
-
 struct NAVIGATIONSYSTEM_API FPathFindingQueryData
 {
 	TWeakObjectPtr<const UObject> Owner;
@@ -30,7 +28,7 @@ struct NAVIGATIONSYSTEM_API FPathFindingQueryData
 	FSharedConstNavQueryFilter QueryFilter;
 
 	/** cost limit of nodes allowed to be added to the open list */
-	float CostLimit;
+	FVector::FReal CostLimit;
 	
 	/** additional flags passed to navigation data handling request */
 	int32 NavDataFlags;
@@ -40,7 +38,7 @@ struct NAVIGATIONSYSTEM_API FPathFindingQueryData
 
 	FPathFindingQueryData() : StartLocation(FNavigationSystem::InvalidLocation), EndLocation(FNavigationSystem::InvalidLocation), CostLimit(FLT_MAX), NavDataFlags(0), bAllowPartialPaths(true) {}
 
-	FPathFindingQueryData(const UObject* InOwner, const FVector& InStartLocation, const FVector& InEndLocation, FSharedConstNavQueryFilter InQueryFilter = nullptr, int32 InNavDataFlags = 0, bool bInAllowPartialPaths = true, const float InCostLimit = FLT_MAX) :
+	FPathFindingQueryData(const UObject* InOwner, const FVector& InStartLocation, const FVector& InEndLocation, FSharedConstNavQueryFilter InQueryFilter = nullptr, int32 InNavDataFlags = 0, bool bInAllowPartialPaths = true, const FVector::FReal InCostLimit = TNumericLimits<FVector::FReal>::Max()) :
 		Owner(InOwner), StartLocation(InStartLocation), EndLocation(InEndLocation), QueryFilter(InQueryFilter), CostLimit(InCostLimit), NavDataFlags(InNavDataFlags), bAllowPartialPaths(bInAllowPartialPaths) {}
 };
 
@@ -52,8 +50,8 @@ struct NAVIGATIONSYSTEM_API FPathFindingQuery : public FPathFindingQueryData
 
 	FPathFindingQuery() : FPathFindingQueryData() {}
 	FPathFindingQuery(const FPathFindingQuery& Source);
-	FPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter = NULL, FNavPathSharedPtr InPathInstanceToFill = NULL, const float CostLimit = FLT_MAX);
-	FPathFindingQuery(const INavAgentInterface& InNavAgent, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter = NULL, FNavPathSharedPtr InPathInstanceToFill = NULL, const float CostLimit = FLT_MAX);
+	FPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter = NULL, FNavPathSharedPtr InPathInstanceToFill = NULL, const FVector::FReal CostLimit = TNumericLimits<FVector::FReal>::Max());
+	FPathFindingQuery(const INavAgentInterface& InNavAgent, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter = NULL, FNavPathSharedPtr InPathInstanceToFill = NULL, const FVector::FReal CostLimit = TNumericLimits<FVector::FReal>::Max());
 
 	explicit FPathFindingQuery(FNavPathSharedRef PathToRecalculate, const ANavigationData* NavDataOverride = NULL);
 
@@ -64,7 +62,7 @@ struct NAVIGATIONSYSTEM_API FPathFindingQuery : public FPathFindingQueryData
 	/** utility function to compute a cost limit using an Euclidean heuristic, an heuristic scale and a cost limit factor
 	*	CostLimitFactor: multiplier used to compute the cost limit value from the initial heuristic
 	*	MinimumCostLimit: minimum clamping value used to prevent low cost limit for short path query */
-	float ComputeCostLimitFromHeuristic(const FVector& StartPos, const FVector& EndPos, const float HeuristicScale, const float CostLimitFactor, const float MinimumCostLimit) const;
+	FVector::FReal ComputeCostLimitFromHeuristic(const FVector& StartPos, const FVector& EndPos, const FVector::FReal HeuristicScale, const FVector::FReal CostLimitFactor, const FVector::FReal MinimumCostLimit) const;
 };
 
 namespace EPathFindingMode

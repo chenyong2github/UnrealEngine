@@ -25,7 +25,7 @@ static TAutoConsoleVariable<int32> CVarDestroyNavDataInCleanUpAndMarkPendingKill
 //----------------------------------------------------------------------//
 // FPathFindingQuery
 //----------------------------------------------------------------------//
-FPathFindingQuery::FPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter, FNavPathSharedPtr InPathInstanceToFill, const float CostLimit) :
+FPathFindingQuery::FPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter, FNavPathSharedPtr InPathInstanceToFill, const FVector::FReal CostLimit) :
 	FPathFindingQueryData(InOwner, Start, End, SourceQueryFilter, 0 /*InNavDataFlags*/, true /*bInAllowPartialPaths*/, CostLimit),
 	NavData(&InNavData), PathInstanceToFill(InPathInstanceToFill), NavAgentProperties(InNavData.GetConfig())
 {
@@ -35,7 +35,7 @@ FPathFindingQuery::FPathFindingQuery(const UObject* InOwner, const ANavigationDa
 	}
 }
 
-FPathFindingQuery::FPathFindingQuery(const INavAgentInterface& InNavAgent, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter, FNavPathSharedPtr InPathInstanceToFill, const float CostLimit) :
+FPathFindingQuery::FPathFindingQuery(const INavAgentInterface& InNavAgent, const ANavigationData& InNavData, const FVector& Start, const FVector& End, FSharedConstNavQueryFilter SourceQueryFilter, FNavPathSharedPtr InPathInstanceToFill, const FVector::FReal CostLimit) :
 	FPathFindingQueryData(Cast<UObject>(&InNavAgent), Start, End, SourceQueryFilter, 0 /*InNavDataFlags*/, true /*bInAllowPartialPaths*/, CostLimit),
 	NavData(&InNavData), PathInstanceToFill(InPathInstanceToFill), NavAgentProperties(InNavAgent.GetNavAgentPropertiesRef())
 {
@@ -88,7 +88,7 @@ FPathFindingQuery::FPathFindingQuery(FNavPathSharedRef PathToRecalculate, const 
 	}
 }
 
-float FPathFindingQuery::ComputeCostLimitFromHeuristic(const FVector& StartPos, const FVector& EndPos, const float HeuristicScale, const float CostLimitFactor, const float MinimumCostLimit) const
+FVector::FReal FPathFindingQuery::ComputeCostLimitFromHeuristic(const FVector& StartPos, const FVector& EndPos, const FVector::FReal HeuristicScale, const FVector::FReal CostLimitFactor, const FVector::FReal MinimumCostLimit) const
 {
 	if (CostLimitFactor == FLT_MAX)
 	{
@@ -96,8 +96,8 @@ float FPathFindingQuery::ComputeCostLimitFromHeuristic(const FVector& StartPos, 
 	}
 	else
 	{
-		const float OriginalHeuristicEstimate = HeuristicScale * FVector::Dist(StartPos, EndPos);
-		return FMath::Clamp(CostLimitFactor * OriginalHeuristicEstimate, MinimumCostLimit, FLT_MAX);
+		const FVector::FReal OriginalHeuristicEstimate = HeuristicScale * FVector::Dist(StartPos, EndPos);
+		return FMath::Clamp(CostLimitFactor * OriginalHeuristicEstimate, MinimumCostLimit, TNumericLimits<FVector::FReal>::Max());
 	}
 }
 
@@ -106,7 +106,7 @@ float FPathFindingQuery::ComputeCostLimitFromHeuristic(const FVector& StartPos, 
 //----------------------------------------------------------------------//
 uint32 FAsyncPathFindingQuery::LastPathFindingUniqueID = INVALID_NAVQUERYID;
 
-FAsyncPathFindingQuery::FAsyncPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, const FNavPathQueryDelegate& Delegate, FSharedConstNavQueryFilter SourceQueryFilter, const float CostLimit)
+FAsyncPathFindingQuery::FAsyncPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, const FNavPathQueryDelegate& Delegate, FSharedConstNavQueryFilter SourceQueryFilter, const FVector::FReal CostLimit)
 : FPathFindingQuery(InOwner, InNavData, Start, End, SourceQueryFilter)
 , QueryID(GetUniqueID())
 , OnDoneDelegate(Delegate)
@@ -875,4 +875,36 @@ uint32 ANavigationData::LogMemUsed() const
 void ANavigationData::DrawDebugPath(FNavigationPath* Path, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
 {
 	DrawDebugPath(Path, PathColor, Canvas, bPersistent, -1.f, NextPathPointIndex);
+}
+
+ENavigationQueryResult::Type ANavigationData::CalcPathCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter, const UObject* Querier) const
+{
+	FVector::FReal PathCost = OutPathCost;
+
+	const ENavigationQueryResult::Type Result = CalcPathCost(PathStart, PathEnd, PathCost, QueryFilter, Querier);
+	OutPathCost = UE_REAL_TO_FLOAT_CLAMPED(PathCost);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type ANavigationData::CalcPathLength(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, FSharedConstNavQueryFilter QueryFilter, const UObject* Querier) const
+{
+	FVector::FReal PathLength = OutPathLength;
+
+	const ENavigationQueryResult::Type Result = CalcPathLength(PathStart, PathEnd, PathLength, QueryFilter, Querier);
+	OutPathLength = UE_REAL_TO_FLOAT_CLAMPED(PathLength);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type ANavigationData::CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter, const UObject* Querier) const
+{
+	FVector::FReal PathLength = OutPathLength;
+	FVector::FReal PathCost = OutPathCost;
+
+	const ENavigationQueryResult::Type Result = CalcPathLengthAndCost(PathStart, PathEnd, PathLength, PathCost, QueryFilter, Querier);
+	OutPathLength = UE_REAL_TO_FLOAT_CLAMPED(PathLength);
+	OutPathCost = UE_REAL_TO_FLOAT_CLAMPED(PathCost);
+
+	return Result;
 }

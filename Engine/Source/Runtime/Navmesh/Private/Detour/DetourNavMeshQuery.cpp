@@ -307,7 +307,7 @@ void dtNavMeshQuery::updateLinkFilter(dtQuerySpecialLinkFilter* linkFilter)
 	}
 }
 
-// LWC_TODO_AI: Should be double(*frand)() to be consistent with the rest of the API
+// LWC_TODO_AI: Should be double(*frand)() to be consistent with the rest of the API, UE currently does not have a double rand function but it is planned!
 dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float(*frand)(),
 										 dtPolyRef* randomRef, dtReal* randomPt) const
 {

@@ -20,7 +20,9 @@
 #define RECAST_DEFAULT_AREA			(RECAST_MAX_AREAS - 1)
 #define RECAST_LOW_AREA				(RECAST_MAX_AREAS - 2)
 #define RECAST_NULL_AREA			0
-#define RECAST_UNWALKABLE_POLY_COST	FLT_MAX // LWC_TODO_AI: This should be TNumericLimits<FVector::FReal>::Max() when costs are upgraded to FReals. Not until after 5.0!
+// Note poly costs are still floats in UE so we are using FLT_MAX as unwalkable still. 
+// Path CostLimit and Distance are based on FVector::FReal.
+#define RECAST_UNWALKABLE_POLY_COST	FLT_MAX 
 
 // If set, recast will use async workers for rebuilding tiles in runtime
 // All access to tile data must be guarded with critical sections
@@ -120,9 +122,9 @@ struct FRecastDebugPathfindingNode
 {
 	NavNodeRef PolyRef;
 	NavNodeRef ParentRef;
-	float Cost; // LWC_TODO_AI: These should be FVector::FReal in the long run! Not until after 5.0!
-	float TotalCost;
-	float Length;
+	FVector::FReal Cost = 0.;
+	FVector::FReal TotalCost = 0.;
+	FVector::FReal Length = 0.;
 
 	FVector NodePos;
 	TArray<FVector3f, TInlineAllocator<6> > Verts; // LWC_TODO: Precision loss. Issue here is regarding debug rendering needing to work with FVector3f.
@@ -132,14 +134,14 @@ struct FRecastDebugPathfindingNode
 	uint8 bOffMeshLink : 1;
 	uint8 bModified : 1;
 
-	FRecastDebugPathfindingNode() : PolyRef(0), ParentRef(0), NumVerts(0) {}
-	FRecastDebugPathfindingNode(NavNodeRef InPolyRef) : PolyRef(InPolyRef), ParentRef(0), NumVerts(0) {}
+	FRecastDebugPathfindingNode() : PolyRef(0), ParentRef(0), NumVerts(0), bOpenSet(0), bOffMeshLink(0), bModified(0) {}
+	FRecastDebugPathfindingNode(NavNodeRef InPolyRef) : PolyRef(InPolyRef), ParentRef(0), NumVerts(0), bOpenSet(0), bOffMeshLink(0), bModified(0) {}
 
 	FORCEINLINE bool operator==(const NavNodeRef& OtherPolyRef) const { return PolyRef == OtherPolyRef; }
 	FORCEINLINE bool operator==(const FRecastDebugPathfindingNode& Other) const { return PolyRef == Other.PolyRef; }
 	FORCEINLINE friend uint32 GetTypeHash(const FRecastDebugPathfindingNode& Other) { return GetTypeHash(Other.PolyRef); }
 
-	FORCEINLINE float GetHeuristicCost() const { return TotalCost - Cost; }
+	FORCEINLINE FVector::FReal GetHeuristicCost() const { return TotalCost - Cost; }
 };
 
 namespace ERecastDebugPathfindingFlags
@@ -563,7 +565,6 @@ namespace FNavMeshConfig
 	};
 }
 
-// LWC_TODO_AI: Many of the virtual methods and members should be changed from float to FVector::FReal. Not for 5.0!
 UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,Transformation,Actor,Layers,Replication), notplaceable)
 class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 {
@@ -947,9 +948,9 @@ public:
 	 *	@note function will assert if item's FNavigationProjectionWork.ProjectionLimit is invalid */
 	virtual void BatchProjectPoints(TArray<FNavigationProjectionWork>& Workload, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
 	
-	virtual ENavigationQueryResult::Type CalcPathCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
-	virtual ENavigationQueryResult::Type CalcPathLength(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const override;
-	virtual ENavigationQueryResult::Type CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const override;
+	virtual ENavigationQueryResult::Type CalcPathCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathCost, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const override;
+	virtual ENavigationQueryResult::Type CalcPathLength(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const override;
+	virtual ENavigationQueryResult::Type CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FVector::FReal& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const override;
 	virtual bool DoesNodeContainLocation(NavNodeRef NodeRef, const FVector& WorldSpaceLocation) const override;
 
 	virtual UPrimitiveComponent* ConstructRenderingComponent() override;
@@ -1114,7 +1115,7 @@ public:
 	FVector GetModifiedQueryExtent(const FVector& QueryExtent) const
 	{
 		// Using HALF_WORLD_MAX instead of BIG_NUMBER, else using the extent for a box will result in NaN.
-		return FVector(QueryExtent.X, QueryExtent.Y, QueryExtent.Z >= (float)HALF_WORLD_MAX ? (float)HALF_WORLD_MAX : (QueryExtent.Z + FMath::Max(0.0f, VerticalDeviationFromGroundCompensation)));
+		return FVector(QueryExtent.X, QueryExtent.Y, QueryExtent.Z >= HALF_WORLD_MAX ? HALF_WORLD_MAX : (QueryExtent.Z + FMath::Max(0., VerticalDeviationFromGroundCompensation)));
 	}
 
 	//----------------------------------------------------------------------//
@@ -1158,13 +1159,13 @@ public:
 
 	/** Finds the polygons along the navigation graph that touch the specified circle. */
 	bool FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const FVector::FReal Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys = nullptr, TArray<NavNodeRef>* OutPolysParent = nullptr, TArray<float>* OutPolysCost = nullptr, int32* OutPolysCount = nullptr) const;
-
+	
 	/** Returns nearest navmesh polygon to Loc, or INVALID_NAVMESHREF if Loc is not on the navmesh. */
 	NavNodeRef FindNearestPoly(FVector const& Loc, FVector const& Extent, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const;
 
 	/** Finds the distance to the closest wall, limited to MaxDistance
 	 *	[out] OutClosestPointOnWall, if supplied, will be set to closest point on closest wall. Will not be set if no wall in the area (return value 0.f) */
-	float FindDistanceToWall(const FVector& StartLoc, FSharedConstNavQueryFilter Filter = nullptr, float MaxDistance = FLT_MAX, FVector* OutClosestPointOnWall = nullptr) const;
+	FVector::FReal FindDistanceToWall(const FVector& StartLoc, FSharedConstNavQueryFilter Filter = nullptr, FVector::FReal MaxDistance = TNumericLimits<FVector::FReal>::Max(), FVector* OutClosestPointOnWall = nullptr) const;
 
 	/** Retrieves center of the specified polygon. Returns false on error. */
 	bool GetPolyCenter(NavNodeRef PolyID, FVector& OutCenter) const;
@@ -1223,7 +1224,7 @@ public:
 	 *	@NOTE query is not using string-pulled path distance (for performance reasons),
 	 *		it measured distance between middles of portal edges, do you might want to 
 	 *		add an extra margin to PathingDistance */
-	bool GetPolysWithinPathingDistance(FVector const& StartLoc, const float PathingDistance, TArray<NavNodeRef>& FoundPolys,
+	bool GetPolysWithinPathingDistance(FVector const& StartLoc, const FVector::FReal PathingDistance, TArray<NavNodeRef>& FoundPolys,
 		FSharedConstNavQueryFilter Filter = nullptr, const UObject* Querier = nullptr, FRecastDebugPathfindingData* DebugData = nullptr) const;
 
 	/** Filters nav polys in PolyRefs with Filter */

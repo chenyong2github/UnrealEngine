@@ -2195,7 +2195,6 @@ void FRecastTileGenerator::PrepareVoxelCache(const TNavStatArray<uint8>& RawColl
 
 	VoxelCacheContext.SetupForTile(TileConfig.bmin, TileConfig.bmax, RasterizationPadding);
 
-	// LWC_TODO_AI: Precision loss and unnecessary float cast (if ModifyWalkableFloorZ() takes FVector::FReal). Not until after 5.0!
 	float SlopeCosPerActor = UE_REAL_TO_FLOAT(WalkableSlopeCos);
 	CachedCollisions.Header.SlopeOverride.ModifyWalkableFloorZ(SlopeCosPerActor);
 
@@ -4175,7 +4174,7 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 
 			// Only scaling and translation
 			FVector Scale3D = LocalToWorld.GetScale3D().GetAbs();
-			// LWC_TODO_AI: Precision loss FCylinderNavAreaData should probably work with FVector::FReal. Probably not until after 5.0!
+
 			CylinderData.Height = UE_REAL_TO_FLOAT(CylinderData.Height * Scale3D.Z);
 			CylinderData.Radius = UE_REAL_TO_FLOAT(CylinderData.Radius * FMath::Max(Scale3D.X, Scale3D.Y));
 			CylinderData.Origin = LocalToWorld.TransformPosition(CylinderData.Origin);

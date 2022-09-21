@@ -19,7 +19,7 @@ FMetaNavMeshPath::FMetaNavMeshPath()
 	// suggested value: 5-10x agent radius
 	WaypointSwitchRadius = 200.0f;
 
-	ApproximateLength = 0.0f;
+	ApproximateLength = 0.;
 	PathGoalTetherDistance = 0.0f;
 
 	// initialize to 0, path following will try to update it immediately after receiving request
@@ -140,7 +140,7 @@ bool FMetaNavMeshPath::ConditionalMoveToNextSection(const FVector& AgentLocation
 {
 	if (Waypoints.IsValidIndex(TargetWaypointIdx))
 	{
-		const float DistSq = FVector::DistSquared(AgentLocation, Waypoints[TargetWaypointIdx]);
+		const FVector::FReal DistSq = FVector::DistSquared(AgentLocation, Waypoints[TargetWaypointIdx]);
 		if (((Reason == EMetaPathUpdateReason::PathFinished) || (DistSq < FMath::Square(WaypointSwitchRadius)))
 			&& (GetSourceActorAsNavAgent() == nullptr || GetSourceActorAsNavAgent()->ShouldPostponePathUpdates() == false))
 		{
@@ -213,13 +213,13 @@ void FMetaNavMeshPath::CopyFrom(const FMetaNavMeshPath& Other)
 	ApproximateLength = Other.ApproximateLength;
 }
 
-float FMetaNavMeshPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const
+FVector::FReal FMetaNavMeshPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const
 {
 	// return approximation of full path, there's not enough data to give accurate value
 	return ApproximateLength;
 }
 
-float FMetaNavMeshPath::GetCostFromIndex(int32 PathPointIndex) const
+FVector::FReal FMetaNavMeshPath::GetCostFromIndex(int32 PathPointIndex) const
 {
 	// return approximation of full path * default cost, there's not enough data to give accurate value
 	const UNavArea* DefaultAreaOb = static_cast<const UNavArea*>(FNavigationSystem::GetDefaultWalkableArea().GetDefaultObject());

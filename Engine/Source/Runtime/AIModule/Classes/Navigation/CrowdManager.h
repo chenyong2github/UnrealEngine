@@ -109,7 +109,6 @@ struct AIMODULE_API FCrowdAvoidanceConfig
 	{}
 };
 
-// LWC_TODO_AI: Info.Angles and Info.Radii should be FReals. Most likely leave this until after 5.0
 USTRUCT()
 struct AIMODULE_API FCrowdAvoidanceSamplingPattern
 {

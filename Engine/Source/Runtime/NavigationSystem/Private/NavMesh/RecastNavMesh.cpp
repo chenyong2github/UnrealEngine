@@ -1724,21 +1724,21 @@ bool ARecastNavMesh::ProjectPointMulti(const FVector& Point, TArray<FNavLocation
 	return RecastNavMeshImpl && RecastNavMeshImpl->ProjectPointMulti(Point, OutLocations, Extent, MinZ, MaxZ, GetRightFilterRef(Filter), QueryOwner);
 }
 
-ENavigationQueryResult::Type ARecastNavMesh::CalcPathCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter, const UObject* QueryOwner) const
+ENavigationQueryResult::Type ARecastNavMesh::CalcPathCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathCost, FSharedConstNavQueryFilter QueryFilter, const UObject* QueryOwner) const
 {
-	float TmpPathLength = 0.f;
+	FVector::FReal TmpPathLength = 0.f;
 	ENavigationQueryResult::Type Result = CalcPathLengthAndCost(PathStart, PathEnd, TmpPathLength, OutPathCost, QueryFilter, QueryOwner);
 	return Result;
 }
 
-ENavigationQueryResult::Type ARecastNavMesh::CalcPathLength(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, FSharedConstNavQueryFilter QueryFilter, const UObject* QueryOwner) const
+ENavigationQueryResult::Type ARecastNavMesh::CalcPathLength(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FSharedConstNavQueryFilter QueryFilter, const UObject* QueryOwner) const
 {
-	float TmpPathCost = 0.f;
+	FVector::FReal TmpPathCost = 0.f;
 	ENavigationQueryResult::Type Result = CalcPathLengthAndCost(PathStart, PathEnd, OutPathLength, TmpPathCost, QueryFilter, QueryOwner);
 	return Result;
 }
 
-ENavigationQueryResult::Type ARecastNavMesh::CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter, const UObject* QueryOwner) const
+ENavigationQueryResult::Type ARecastNavMesh::CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FVector::FReal& OutPathCost, FSharedConstNavQueryFilter QueryFilter, const UObject* QueryOwner) const
 {
 	ENavigationQueryResult::Type Result = ENavigationQueryResult::Invalid;
 
@@ -1746,7 +1746,7 @@ ENavigationQueryResult::Type ARecastNavMesh::CalcPathLengthAndCost(const FVector
 	{
 		if ((PathStart - PathEnd).IsNearlyZero() == true)
 		{
-			OutPathLength = 0.f;
+			OutPathLength = 0.;
 			Result = ENavigationQueryResult::Success;
 		}
 		else
@@ -1754,16 +1754,14 @@ ENavigationQueryResult::Type ARecastNavMesh::CalcPathLengthAndCost(const FVector
 			TSharedRef<FNavMeshPath> Path = MakeShareable(new FNavMeshPath());
 			Path->SetWantsStringPulling(false);
 			Path->SetWantsPathCorridor(true);
-			
-			// LWC_TODO_AI: CostLimit should be FVector::FReal. Not until after 5.0!
-			const float CostLimit = FLT_MAX;
+
+			const FVector::FReal CostLimit = TNumericLimits<FVector::FReal>::Max();
 			Result = RecastNavMeshImpl->FindPath(PathStart, PathEnd, CostLimit, Path.Get(), GetRightFilterRef(QueryFilter), QueryOwner);
 
 			if (Result == ENavigationQueryResult::Success || (Result == ENavigationQueryResult::Fail && Path->IsPartial()))
 			{
-				// LWC_TODO_AI: These should be FVector::FReal. Not until after 5.0!
-				OutPathLength = FMath::Min(TNumericLimits<float>::Max(), Path->GetTotalPathLength());
-				OutPathCost = FMath::Min(TNumericLimits<float>::Max(), Path->GetCost());
+				OutPathLength = Path->GetTotalPathLength();
+				OutPathCost = Path->GetCost();
 			}
 		}
 	}
@@ -1805,11 +1803,11 @@ NavNodeRef ARecastNavMesh::FindNearestPoly(FVector const& Loc, FVector const& Ex
 	return PolyRef;
 }
 
-float ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNavQueryFilter Filter, float MaxDistance, FVector* OutClosestPointOnWall) const
+FVector::FReal ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNavQueryFilter Filter, FVector::FReal MaxDistance, FVector* OutClosestPointOnWall) const
 {
 	if (HasValidNavmesh() == false)
 	{
-		return 0.f;
+		return 0.;
 	}
 
 	const FNavigationQueryFilter& FilterToUse = GetRightFilterRef(Filter);
@@ -1820,7 +1818,7 @@ float ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNa
 	if (QueryFilter == nullptr)
 	{
 		UE_VLOG(this, LogNavigation, Warning, TEXT("ARecastNavMesh::FindDistanceToWall failing due to QueryFilter == NULL"));
-		return 0.f;
+		return 0.;
 	}
 
 	const FVector NavExtent = GetModifiedQueryExtent(GetDefaultQueryExtent());
@@ -1844,11 +1842,11 @@ float ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FSharedConstNa
 			{
 				*OutClosestPointOnWall = Recast2UnrealPoint(TmpHitPos);
 			}
-			return UE_REAL_TO_FLOAT_CLAMPED_MAX(DistanceToWall);
+			return DistanceToWall;
 		}
 	}
 
-	return 0.f;
+	return 0.;
 }
 
 void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
@@ -2116,7 +2114,7 @@ bool ARecastNavMesh::GetClusterBounds(NavNodeRef ClusterRef, FBox& OutBounds) co
 }
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
-bool ARecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const float PathingDistance, TArray<NavNodeRef>& FoundPolys,
+bool ARecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const FVector::FReal PathingDistance, TArray<NavNodeRef>& FoundPolys,
 	FSharedConstNavQueryFilter Filter, const UObject* QueryOwner, FRecastDebugPathfindingData* DebugData) const
 {
 	return RecastNavMeshImpl && RecastNavMeshImpl->GetPolysWithinPathingDistance(StartLoc, PathingDistance, GetRightFilterRef(Filter), QueryOwner, FoundPolys, DebugData);

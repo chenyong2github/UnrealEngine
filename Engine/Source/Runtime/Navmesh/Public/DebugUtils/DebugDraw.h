@@ -25,8 +25,6 @@
 #include "CoreMinimal.h"
 #include "DebugDrawLargeWorldCoordinates.h"
 
-//@UE BEGIN Adding support for LWCoords.
-// LWC_TODO_AI: Remove the float version of these functions when we go to doubles.Before 5.0!
 // Some math headers don't have PI defined.
 static const duReal DU_PI = 3.14159265358979323846;
 
@@ -69,7 +67,6 @@ inline double duSqrt(double x)
 {
 	return sqrt(x);
 }
-//@UE END Adding support for LWCoords.
 
 enum duDebugDrawPrimitives
 {

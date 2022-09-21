@@ -524,8 +524,7 @@ bool dtPathCorridor::optimizePathTopology(dtNavMeshQuery* navquery, const dtQuer
 	
 	dtPolyRef res[MAX_RES];
 	int nres = 0;
-	// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0, as UE side has not been converted to taking FReals for Costs.
-	const dtReal costLimit = FLT_MAX; //@UE
+	const dtReal costLimit = DT_REAL_MAX; //@UE
 	navquery->initSlicedFindPath(m_path[0], m_path[m_npath-1], m_pos, m_target, costLimit, filter); //@UE
 	navquery->updateSlicedFindPath(MAX_ITER, 0);
 	dtStatus status = navquery->finalizeSlicedFindPathPartial(m_path, m_npath, res, &nres, MAX_RES);

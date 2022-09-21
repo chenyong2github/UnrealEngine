@@ -28,8 +28,7 @@ dtLocalBoundary::dtLocalBoundary() :
 	m_nsegs(0),
 	m_npolys(0)
 {
-	// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0 to ease licensee LWCoord integration pain for 5.0!
-	dtVset(m_center, FLT_MAX, FLT_MAX, FLT_MAX);
+	dtVset(m_center, DT_REAL_MAX, DT_REAL_MAX, DT_REAL_MAX);
 }
 
 dtLocalBoundary::~dtLocalBoundary()
@@ -38,8 +37,7 @@ dtLocalBoundary::~dtLocalBoundary()
 
 void dtLocalBoundary::reset()
 {
-	// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0 to ease licensee LWCoord integration pain for 5.0!
-	dtVset(m_center, FLT_MAX, FLT_MAX, FLT_MAX);
+	dtVset(m_center, DT_REAL_MAX, DT_REAL_MAX, DT_REAL_MAX);
 	m_npolys = 0;
 	m_nsegs = 0;
 }
@@ -118,8 +116,7 @@ void dtLocalBoundary::update(dtPolyRef ref, const dtReal* pos, const dtReal coll
 	
 	if (!ref)
 	{
-		// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0 to ease licensee LWCoord integration pain for 5.0!!
-		dtVset(m_center, FLT_MAX, FLT_MAX, FLT_MAX);
+		dtVset(m_center, DT_REAL_MAX, DT_REAL_MAX, DT_REAL_MAX);
 		m_nsegs = 0;
 		m_npolys = 0;
 		return;

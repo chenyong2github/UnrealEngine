@@ -367,7 +367,6 @@ void FRecastQueryFilter::SetAllAreaCosts(const float* CostArray, const int32 Cou
 	}
 }
 
-// LWC_TODO_AI: These costs should probably be FVector::FReal. Not until after 5.0!
 void FRecastQueryFilter::GetAllAreaCosts(float* CostArray, float* FixedCostArray, const int32 Count) const
 {
 	const FVector::FReal* DetourCosts = getAllAreaCosts();
@@ -376,7 +375,6 @@ void FRecastQueryFilter::GetAllAreaCosts(float* CostArray, float* FixedCostArray
 
 	for (int i = 0; i < NumItems; ++i)
 	{
-		// LWC_TODO_AI: Replace with memcpy when we move to FReal. Not until after 5.0!
 		CostArray[i] = UE_REAL_TO_FLOAT_CLAMPED(DetourCosts[i]);
 		FixedCostArray[i] = UE_REAL_TO_FLOAT_CLAMPED(DetourFixedCosts[i]);
 	}
@@ -1091,11 +1089,11 @@ void FPImplRecastNavMesh::Raycast(const FVector& StartLoc, const FVector& EndLoc
 
 ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, FNavMeshPath& Path, const FNavigationQueryFilter& Filter, const UObject* Owner) const
 {
-	return FindPath(StartLoc, EndLoc, FLT_MAX, Path, Filter, Owner);
+	return FindPath(StartLoc, EndLoc, TNumericLimits<FVector::FReal>::Max(), Path, Filter, Owner);
 }
 
 // @TODONAV
-ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, const float CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner) const
+ENavigationQueryResult::Type FPImplRecastNavMesh::FindPath(const FVector& StartLoc, const FVector& EndLoc, const FVector::FReal CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner) const
 {
 	// temporarily disabling this check due to it causing too much "crashes"
 	// @todo but it needs to be back at some point since it realy checks for a buggy setup
@@ -1289,13 +1287,13 @@ bool FPImplRecastNavMesh::InitPathfinding(const FVector& UnrealStart, const FVec
 	return true;
 }
 
-float FPImplRecastNavMesh::CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQueryFilter* Filter, const FVector& StartLoc, const FVector& EndLoc) const
+FVector::FReal FPImplRecastNavMesh::CalcSegmentCostOnPoly(NavNodeRef PolyID, const dtQueryFilter* Filter, const FVector& StartLoc, const FVector& EndLoc) const
 {
 	uint8 AreaID = RECAST_DEFAULT_AREA;
 	DetourNavMesh->getPolyArea(PolyID, &AreaID);
 
 	const FVector::FReal AreaTravelCost = Filter->getAreaCost(AreaID);
-	return UE_REAL_TO_FLOAT_CLAMPED_MAX(AreaTravelCost * (EndLoc - StartLoc).Size());
+	return AreaTravelCost * (EndLoc - StartLoc).Size();
 }
 
 void FPImplRecastNavMesh::PostProcessPath(dtStatus FindPathStatus, FNavMeshPath& Path,
@@ -1526,9 +1524,9 @@ static void StorePathfindingDebugData(const dtNavMeshQuery& NavQuery, const dtNa
 		FRecastDebugPathfindingNode NodeInfo;
 		NodeInfo.PolyRef = Node->id;
 		NodeInfo.ParentRef = ParentNode ? ParentNode->id : 0;
-		NodeInfo.Cost = UE_REAL_TO_FLOAT_CLAMPED_MAX(Node->cost); // LWC_TODO_AI: Make FRecastDebugPathfindingNode::Cost and FRecastDebugPathfindingNode::Total FVector::FReal. Not until after 5.0!
-		NodeInfo.TotalCost = UE_REAL_TO_FLOAT_CLAMPED_MAX(Node->total);
-		NodeInfo.Length = 0.0f;
+		NodeInfo.Cost = Node->cost; 
+		NodeInfo.TotalCost = Node->total;
+		NodeInfo.Length = 0.;
 		NodeInfo.bOpenSet = (Node->flags & DT_NODE_OPEN) != 0;
 		NodeInfo.bModified = true;
 		NodeInfo.NodePos = Recast2UnrealPoint(&Node->pos[0]);
@@ -1561,8 +1559,7 @@ static void StorePathfindingDebugData(const dtNavMeshQuery& NavQuery, const dtNa
 			
 			NodePathLength[NodePoolIdx] = LinkAndParentLength;
 
-			// LWC_TODO_AI: Make Length FVector::FReal. Not until after 5.0!
-			NodeInfo.Length = UE_REAL_TO_FLOAT_CLAMPED_MAX(LinkAndParentLength);
+			NodeInfo.Length = LinkAndParentLength;
 		}
 
 		Data.Nodes.Add(NodeInfo);
@@ -1601,7 +1598,7 @@ static void StorePathfindingDebugStep(const dtNavMeshQuery& NavQuery, const dtNa
 	}
 }
 
-int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVector& EndLoc, const float CostLimit, const FNavigationQueryFilter& Filter, const UObject* Owner, TArray<FRecastDebugPathfindingData>& Steps)
+int32 FPImplRecastNavMesh::DebugPathfinding(const FVector& StartLoc, const FVector& EndLoc, const FVector::FReal CostLimit, const FNavigationQueryFilter& Filter, const UObject* Owner, TArray<FRecastDebugPathfindingData>& Steps)
 {
 	int32 NumSteps = 0;
 
@@ -1909,7 +1906,6 @@ bool FPImplRecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const 
 		return false;
 	}
 
-	// LWC_TODO_AI: Remove this when costs are treated as FReals throughout. Not until after 5.0!
 	TArray<FVector::FReal> PolysCost;
 
 	// limit max number of polys found by that function
@@ -1960,11 +1956,11 @@ bool FPImplRecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const 
 	return false;
 }
 
-bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const float PathingDistance,
+bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const FVector::FReal PathingDistance,
 	const FNavigationQueryFilter& Filter, const UObject* Owner,
 	TArray<NavNodeRef>& FoundPolys, FRecastDebugPathfindingData* OutDebugData) const
 {
-	ensure(PathingDistance > 0.0f && "PathingDistance <= 0 doesn't make sense");
+	ensure(PathingDistance > 0. && "PathingDistance <= 0 doesn't make sense");
 	
 	// limit max number of polys found by that function
 	// if you need more, please scan manually using ARecastNavMesh::GetPolyNeighbors for A*/Dijkstra loop

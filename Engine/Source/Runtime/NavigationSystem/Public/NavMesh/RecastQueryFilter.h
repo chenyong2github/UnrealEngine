@@ -14,7 +14,6 @@
 
 class UNavigationSystemV1;
 
-// LWC_TODO_AI: make a lot of the float params used in this class FReals. Not until after 5.0!
 class NAVIGATIONSYSTEM_API FRecastQueryFilter : public INavigationQueryFilterInterface, public dtQueryFilter
 {
 public:

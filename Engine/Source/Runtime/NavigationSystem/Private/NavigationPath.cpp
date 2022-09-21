@@ -215,7 +215,7 @@ void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor
 	// draw last vert
 	if (NumPathVerts > 0)
 	{
-		DrawDebugBox(World, PathPoints[NumPathVerts-1].Location + NavigationDebugDrawing::PathOffset, FVector(15.f), PathColor, bPersistent, LifeTime);
+		DrawDebugBox(World, PathPoints[NumPathVerts-1].Location + NavigationDebugDrawing::PathOffset, FVector(15.), PathColor, bPersistent, LifeTime);
 	}
 
 	// if observing goal actor draw a radius and a line to the goal
@@ -223,7 +223,7 @@ void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor
 	{
 		const FVector GoalLocation = GetGoalLocation() + NavigationDebugDrawing::PathOffset;
 		const FVector EndLocation = GetEndLocation() + NavigationDebugDrawing::PathOffset;
-		static const FVector CylinderHalfHeight = FVector::UpVector * 10.f;
+		static const FVector CylinderHalfHeight = FVector::UpVector * 10.;
 		DrawDebugCylinder(World, EndLocation - CylinderHalfHeight, EndLocation + CylinderHalfHeight, FMath::Sqrt(GoalActorLocationTetherDistanceSq), 16, PathColor, bPersistent, LifeTime);
 		DrawDebugLine(World, EndLocation, GoalLocation, Grey, bPersistent, LifeTime);
 	}
@@ -244,7 +244,7 @@ bool FNavigationPath::ContainsNode(NavNodeRef NodeRef) const
 	return ShortcutNodeRefs.Find(NodeRef) != INDEX_NONE;
 }
 
-float FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const
+FVector::FReal FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const
 {
 	if (NextPathPointIndex >= (uint32)PathPoints.Num())
 	{
@@ -252,7 +252,7 @@ float FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPa
 	}
 	
 	const uint32 PathPointsCount = PathPoints.Num();
-	FVector::FReal PathDistance = 0.f;
+	FVector::FReal PathDistance = 0.;
 
 	for (uint32 PathIndex = NextPathPointIndex; PathIndex < PathPointsCount; ++PathIndex)
 	{
@@ -261,7 +261,7 @@ float FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint32 NextPa
 		SegmentStart = SegmentEnd;
 	}
 
-	return UE_REAL_TO_FLOAT_CLAMPED_MAX(PathDistance);
+	return PathDistance;
 }
 
 bool FNavigationPath::ContainsCustomLink(uint32 LinkUniqueId) const
@@ -524,16 +524,16 @@ void UNavigationPath::EnableRecalculationOnInvalidation(TEnumAsByte<ENavigationO
 	}
 }
 
-float UNavigationPath::GetPathLength() const
+double UNavigationPath::GetPathLength() const
 {
 	check((SharedPath.IsValid() && SharedPath->IsValid()) == !!bIsValid);
-	return !!bIsValid ? SharedPath->GetLength() : -1.f;
+	return !!bIsValid ? SharedPath->GetLength() : -1.;
 }
 
-float UNavigationPath::GetPathCost() const
+double UNavigationPath::GetPathCost() const
 {
 	check((SharedPath.IsValid() && SharedPath->IsValid()) == !!bIsValid);
-	return !!bIsValid ? SharedPath->GetCost() : -1.f;
+	return !!bIsValid ? SharedPath->GetCost() : -1.;
 }
 
 bool UNavigationPath::IsPartial() const

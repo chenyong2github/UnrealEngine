@@ -85,8 +85,6 @@ template<class T> inline T dtClamp(T v, T mn, T mx) { return v < mn ? mn : (v > 
 inline dtReal dtClamp(dtReal v, dtReal mn, dtReal mx) { return dtClamp<dtReal>(v, mn, mx); }
 //@UE END Adding support for LWCoords.
 
-//@UE BEGIN Adding support for LWCoords.
-// LWC_TODO_AI: Remove the float version of these functions when we go to doubles. Remove prior to 5.0!
 inline float dtFloor(float x)
 {
 	return floorf(x);
@@ -156,7 +154,6 @@ inline double dtfMod(double x, double y)
 {
 	return fmod(x, y);
 }
-//@UE END Adding support for LWCoords.
 
 /// @}
 /// @name Vector helper functions.

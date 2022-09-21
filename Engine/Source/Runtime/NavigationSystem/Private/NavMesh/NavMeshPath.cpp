@@ -53,7 +53,7 @@ void FNavMeshPath::InternalResetNavMeshPath()
 	// - bWantsPathCorridor
 }
 
-float FNavMeshPath::GetStringPulledLength(const int32 StartingPoint) const
+FVector::FReal FNavMeshPath::GetStringPulledLength(const int32 StartingPoint) const
 {
 	if (IsValid() == false || StartingPoint >= PathPoints.Num())
 	{
@@ -69,10 +69,10 @@ float FNavMeshPath::GetStringPulledLength(const int32 StartingPoint) const
 		TotalLength += FVector::Dist(PrevPoint->Location, PathPoint->Location);
 	}
 
-	return UE_REAL_TO_FLOAT_CLAMPED_MAX(TotalLength);
+	return TotalLength;
 }
 
-float FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
+FVector::FReal FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
 {
 	if (bCorridorEdgesGenerated == false)
 	{
@@ -80,7 +80,7 @@ float FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
 	}
 	else if (StartingEdge >= PathCorridorEdges.Num())
 	{
-		return StartingEdge == 0 && PathPoints.Num() > 1 ? UE_REAL_TO_FLOAT_CLAMPED_MAX(FVector::Dist(PathPoints[0].Location, PathPoints[PathPoints.Num()-1].Location)) : 0.f;
+		return StartingEdge == 0 && PathPoints.Num() > 1 ? FVector::Dist(PathPoints[0].Location, PathPoints[PathPoints.Num()-1].Location) : 0.;
 	}
 	
 	const FNavigationPortalEdge* PrevEdge = PathCorridorEdges.GetData() + StartingEdge;
@@ -97,7 +97,7 @@ float FNavMeshPath::GetPathCorridorLength(const int32 StartingEdge) const
 		PrevEdgeMiddle = CurrentEdgeMiddle;
 	}
 	// @todo add distance to last point here!
-	return UE_REAL_TO_FLOAT_CLAMPED_MAX(TotalLength);
+	return TotalLength;
 }
 
 const TArray<FNavigationPortalEdge>& FNavMeshPath::GeneratePathCorridorEdges() const
@@ -279,7 +279,7 @@ void AppendPathPointsHelper(TArray<FNavPathPoint>& PathPoints, const TArray<FPat
 	}
 }
 
-void FNavMeshPath::OffsetFromCorners(float Distance)
+void FNavMeshPath::OffsetFromCorners(FVector::FReal Distance)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_OffsetFromCorners);
 

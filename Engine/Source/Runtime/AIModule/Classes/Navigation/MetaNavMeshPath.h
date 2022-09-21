@@ -97,10 +97,10 @@ struct AIMODULE_API FMetaNavMeshPath : public FNavMeshPath
 	void SetWaypointSwitchRadius(float InSwitchRadius) { WaypointSwitchRadius = InSwitchRadius; }
 
 	/** returns approximate length of path, ignores parameters */
-	virtual float GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const override;
+	virtual FVector::FReal GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const override;
 	
-	/** returns approximate length of path, ignores parameter */
-	virtual float GetCostFromIndex(int32 PathPointIndex) const override;
+	/** returns approximate cost of path, ignores parameter */
+	virtual FVector::FReal GetCostFromIndex(int32 PathPointIndex) const override;
 
 #if ENABLE_VISUAL_LOG
 	virtual void DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const override;
@@ -113,7 +113,7 @@ protected:
 	TArray<FMetaPathWayPoint> Waypoints;
 
 	/** sum of 3D distance along waypoints, used for approximating length of path */
-	float ApproximateLength;
+	FVector::FReal ApproximateLength;
 
 	/** update navmesh path when this close to target waypoint */
 	float WaypointSwitchRadius;

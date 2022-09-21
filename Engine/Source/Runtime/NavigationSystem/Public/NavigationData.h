@@ -24,8 +24,6 @@ class INavLinkCustomInterface;
 class UNavArea;
 class UPrimitiveComponent;
 
-// LWC_TODO_AI: A lot of the floats in this file should be FVector::FReal. Not until after 5.0!
-
 USTRUCT()
 struct NAVIGATIONSYSTEM_API FSupportedAreaData
 {
@@ -245,26 +243,26 @@ struct NAVIGATIONSYSTEM_API FNavigationPath : public TSharedFromThis<FNavigation
 	virtual bool ContainsNode(NavNodeRef NodeRef) const;
 
 	/** get cost of path, starting from given point */
-	virtual float GetCostFromIndex(int32 PathPointIndex) const
+	virtual FVector::FReal GetCostFromIndex(int32 PathPointIndex) const
 	{
-		return 0.0f;
+		return 0.;
 	}
 
 	/** get cost of path, starting from given node */
-	virtual float GetCostFromNode(NavNodeRef PathNode) const
+	virtual FVector::FReal GetCostFromNode(NavNodeRef PathNode) const
 	{
-		return 0.0f;
+		return 0.;
 	}
 
-	FORCEINLINE float GetCost() const
+	FORCEINLINE FVector::FReal GetCost() const
 	{
 		return GetCostFromIndex(0);
 	}
 
 	/** calculates total length of segments from NextPathPoint to the end of path, plus distance from CurrentPosition to NextPathPoint */
-	virtual float GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const;
+	virtual FVector::FReal GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const;
 
-	FORCEINLINE float GetLength() const
+	FORCEINLINE FVector::FReal GetLength() const
 	{
 		return PathPoints.Num() ? GetLengthFromPosition(PathPoints[0].Location, 1) : 0.0f;
 	}
@@ -863,20 +861,28 @@ public:
 	 *	@note function should assert if item's FNavigationProjectionWork.ProjectionLimit is invalid */
 	virtual void BatchProjectPoints(TArray<FNavigationProjectionWork>& Workload, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::BatchProjectPoints, );
 
-	/** Calculates path from PathStart to PathEnd and retrieves its cost. 
-	 *	@NOTE this function does not generate string pulled path so the result is an (over-estimated) approximation
-	 *	@NOTE potentially expensive, so use it with caution */
-	virtual ENavigationQueryResult::Type CalcPathCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::CalcPathCost, return ENavigationQueryResult::Invalid;);
+	UE_DEPRECATED(5.2, "Use new version with FVector::FReal")
+	virtual ENavigationQueryResult::Type CalcPathCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const final;
+
+	/** Calculates path from PathStart to PathEnd and retrieves its cost.
+ *	@NOTE this function does not generate string pulled path so the result is an (over-estimated) approximation
+ *	@NOTE potentially expensive, so use it with caution */
+	virtual ENavigationQueryResult::Type CalcPathCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::CalcPathCost, return ENavigationQueryResult::Invalid;);
+
+	UE_DEPRECATED(5.2, "Use new version with FVector::FReal")
+	virtual ENavigationQueryResult::Type CalcPathLength(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const final;
 
 	/** Calculates path from PathStart to PathEnd and retrieves its length.
 	 *	@NOTE this function does not generate string pulled path so the result is an (over-estimated) approximation
 	 *	@NOTE potentially expensive, so use it with caution */
-	virtual ENavigationQueryResult::Type CalcPathLength(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::CalcPathLength, return ENavigationQueryResult::Invalid;);
+	virtual ENavigationQueryResult::Type CalcPathLength(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::CalcPathLength, return ENavigationQueryResult::Invalid;);
 
+	UE_DEPRECATED(5.2, "Use new version with FVector::FReal")
+	virtual ENavigationQueryResult::Type CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const final;
 	/** Calculates path from PathStart to PathEnd and retrieves its length.
 	 *	@NOTE this function does not generate string pulled path so the result is an (over-estimated) approximation
 	 *	@NOTE potentially expensive, so use it with caution */
-	virtual ENavigationQueryResult::Type CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, float& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::CalcPathLength, return ENavigationQueryResult::Invalid;);
+	virtual ENavigationQueryResult::Type CalcPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FVector::FReal& OutPathCost, FSharedConstNavQueryFilter QueryFilter = NULL, const UObject* Querier = NULL) const PURE_VIRTUAL(ANavigationData::CalcPathLengthAndCost, return ENavigationQueryResult::Invalid;);
 
 	/** Checks if specified navigation node contains given location 
 	 *	@param Location is expressed in WorldSpace, navigation data is responsible for tansforming if need be */
@@ -1046,7 +1052,7 @@ struct FAsyncPathFindingQuery : public FPathFindingQuery
 		, Mode(EPathFindingMode::Regular)
 	{ }
 
-	FAsyncPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, const FNavPathQueryDelegate& Delegate, FSharedConstNavQueryFilter SourceQueryFilter, const float CostLimit = FLT_MAX);
+	FAsyncPathFindingQuery(const UObject* InOwner, const ANavigationData& InNavData, const FVector& Start, const FVector& End, const FNavPathQueryDelegate& Delegate, FSharedConstNavQueryFilter SourceQueryFilter, const FVector::FReal CostLimit = TNumericLimits<FVector::FReal>::Max());
 	FAsyncPathFindingQuery(const FPathFindingQuery& Query, const FNavPathQueryDelegate& Delegate, const EPathFindingMode::Type QueryMode);
 
 protected:

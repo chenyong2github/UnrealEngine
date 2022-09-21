@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+// For now leave all the real numbers here as floats instead of conversion to FVector::FReal. Its not worth changing the virtual functions and breaking
+// any existing code. Its not required for heuristic scale or area costs to be larger or have greater precison than a float.
 class INavigationQueryFilterInterface
 {
 public:

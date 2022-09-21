@@ -33,7 +33,7 @@
 //@UE BEGIN
 #define WITH_FIXED_AREA_ENTERING_COST 1
 
-// LWC_TODO_AI: This should be DT_REAL_MAX but leaving as FLT_MAX until after 5.0, as UE side has not been converted to taking FReals for Costs.
+// Note poly costs are still floats in UE so we are using FLT_MAX as unwalkable still.
 #define DT_UNWALKABLE_POLY_COST FLT_MAX
 //@UE END
 

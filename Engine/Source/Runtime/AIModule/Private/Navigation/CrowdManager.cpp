@@ -920,7 +920,6 @@ void UCrowdManager::CreateCrowdManager()
 			const FCrowdAvoidanceSamplingPattern& Info = SamplingPatterns[Idx];
 			if (Info.Angles.Num() > 0 && Info.Angles.Num() == Info.Radii.Num())
 			{
-				// LWC_TODO_AI: Info.Angles and Info.Radii should be FReal. Probably not until after 5.0!
 				const TArray<FVector::FReal> Angles = UE::LWC::ConvertArrayType<FVector::FReal>(Info.Angles);
 				const TArray<FVector::FReal> Radii = UE::LWC::ConvertArrayType<FVector::FReal>(Info.Radii);
 

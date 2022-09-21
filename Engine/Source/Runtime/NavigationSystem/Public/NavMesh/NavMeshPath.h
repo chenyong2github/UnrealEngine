@@ -10,7 +10,6 @@
 
 #define RECAST_STRAIGHTPATH_OFFMESH_CONNECTION 0x04
 
-// LWC_TODO_AI: A lot of the floats in this file should be FVector::FReal. Not until after 5.0!
 /** Helper to translate FNavPathPoint.Flags. */
 struct NAVIGATIONSYSTEM_API FNavMeshNodeFlags
 {
@@ -59,7 +58,7 @@ struct NAVIGATIONSYSTEM_API FNavMeshPath : public FNavigationPath
 
 	bool ContainsWithSameEnd(const FNavMeshPath* Other) const;
 
-	void OffsetFromCorners(float Distance);
+	void OffsetFromCorners(FVector::FReal Distance);
 
 	void ApplyFlags(int32 NavDataFlags);
 
@@ -69,10 +68,10 @@ struct NAVIGATIONSYSTEM_API FNavMeshPath : public FNavigationPath
 	bool GetNodeFlags(int32 NodeIdx, FNavMeshNodeFlags& Flags) const;
 
 	/** get cost of path, starting from next poly in corridor */
-	virtual float GetCostFromNode(NavNodeRef PathNode) const override { return GetCostFromIndex(PathCorridor.Find(PathNode) + 1); }
+	virtual FVector::FReal GetCostFromNode(NavNodeRef PathNode) const override { return GetCostFromIndex(PathCorridor.Find(PathNode) + 1); }
 
 	/** get cost of path, starting from given point */
-	virtual float GetCostFromIndex(int32 PathPointIndex) const override
+	virtual FVector::FReal GetCostFromIndex(int32 PathPointIndex) const override
 	{
 		FVector::FReal TotalCost = 0.f;
 		const FVector::FReal* Cost = PathCorridorCost.GetData();
@@ -81,11 +80,10 @@ struct NAVIGATIONSYSTEM_API FNavMeshPath : public FNavigationPath
 			TotalCost += *Cost;
 		}
 
-		// LWC_TODO_AI: Precision Loss. This should return a FReal. Not until after 5.0!
-		return UE_REAL_TO_FLOAT_CLAMPED_MAX(TotalCost);
+		return TotalCost;
 	}
 
-	FORCEINLINE_DEBUGGABLE float GetTotalPathLength() const
+	FORCEINLINE_DEBUGGABLE FVector::FReal GetTotalPathLength() const
 	{
 		return bStringPulled ? GetStringPulledLength(0) : GetPathCorridorLength(0);
 	}
@@ -122,12 +120,12 @@ protected:
 	/** calculates total length of string pulled path. Does not generate string pulled
 	*	path if it's not already generated (see bWantsStringPulling and bStrigPulled)
 	*	Internal use only */
-	float GetStringPulledLength(const int32 StartingPoint) const;
+	FVector::FReal GetStringPulledLength(const int32 StartingPoint) const;
 
 	/** calculates estimated length of path expressed as sequence of navmesh edges.
 	*	It basically sums up distances between every subsequent nav edge pair edge middles.
 	*	Internal use only */
-	float GetPathCorridorLength(const int32 StartingEdge) const;
+	FVector::FReal GetPathCorridorLength(const int32 StartingEdge) const;
 
 	/** it's only const to be callable in const environment. It's not supposed to be called directly externally anyway,
 	*	just as part of retrieving corridor on demand or generating it in internal processes. It fills a mutable

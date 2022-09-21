@@ -65,14 +65,14 @@ void UEnvQueryGenerator_PathingGrid::ProjectAndFilterNavPoints(TArray<FNavLocati
 
 		for (int32 ContextIdx = 0; ContextIdx < ContextLocations.Num() && Points.Num(); ContextIdx++)
 		{
-			float CollectDistanceSq = 0.0f;
+			FVector::FReal CollectDistanceSq = 0.0f;
 			for (int32 Idx = 0; Idx < Points.Num(); Idx++)
 			{
-				const float TestDistanceSq = FVector::DistSquared(Points[Idx].Location, ContextLocations[ContextIdx]);
+				const FVector::FReal TestDistanceSq = FVector::DistSquared(Points[Idx].Location, ContextLocations[ContextIdx]);
 				CollectDistanceSq = FMath::Max(CollectDistanceSq, TestDistanceSq);
 			}
 
-			const float MaxPathDistance = FMath::Sqrt(CollectDistanceSq) * RangeMultiplierValue;
+			const FVector::FReal MaxPathDistance = FMath::Sqrt(CollectDistanceSq) * RangeMultiplierValue;
 
 			Polys.Reset();
 

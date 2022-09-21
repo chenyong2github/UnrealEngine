@@ -1643,6 +1643,17 @@ bool UNavigationSystemV1::GetRandomPointInNavigableRadius(const FVector& Origin,
 
 ENavigationQueryResult::Type UNavigationSystemV1::GetPathCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, const ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter) const
 {
+	FVector::FReal PathCost = OutPathCost;
+
+	const ENavigationQueryResult::Type Result = GetPathCost(PathStart, PathEnd, PathCost, NavData, QueryFilter);
+
+	OutPathCost = UE_REAL_TO_FLOAT_CLAMPED(PathCost);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type UNavigationSystemV1::GetPathCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathCost, const ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter) const
+{
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_QueriesTimeSync);
 
 	if (NavData == NULL)
@@ -1655,6 +1666,17 @@ ENavigationQueryResult::Type UNavigationSystemV1::GetPathCost(const FVector& Pat
 
 ENavigationQueryResult::Type UNavigationSystemV1::GetPathLength(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, const ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter) const
 {
+	FVector::FReal PathLength = OutPathLength;
+
+	const ENavigationQueryResult::Type Result = GetPathLength(PathStart, PathEnd, PathLength, NavData, QueryFilter);
+
+	OutPathLength = UE_REAL_TO_FLOAT_CLAMPED(PathLength);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type UNavigationSystemV1::GetPathLength(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, const ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter) const
+{
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_QueriesTimeSync);
 
 	if (NavData == NULL)
@@ -1666,6 +1688,19 @@ ENavigationQueryResult::Type UNavigationSystemV1::GetPathLength(const FVector& P
 }
 
 ENavigationQueryResult::Type UNavigationSystemV1::GetPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, float& OutPathCost, const ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter) const
+{
+	FVector::FReal PathLength = OutPathLength;
+	FVector::FReal PathCost = OutPathCost;
+
+	const ENavigationQueryResult::Type Result = GetPathLengthAndCost(PathStart, PathEnd, PathLength, PathCost, NavData, QueryFilter);
+
+	OutPathLength = UE_REAL_TO_FLOAT_CLAMPED(PathLength);
+	OutPathCost = UE_REAL_TO_FLOAT_CLAMPED(PathCost);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type UNavigationSystemV1::GetPathLengthAndCost(const FVector& PathStart, const FVector& PathEnd, FVector::FReal& OutPathLength, FVector::FReal& OutPathCost, const ANavigationData* NavData, FSharedConstNavQueryFilter QueryFilter) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_QueriesTimeSync);
 
@@ -4338,6 +4373,17 @@ bool UNavigationSystemV1::K2_GetRandomLocationInNavigableRadius(UObject* WorldCo
 
 ENavigationQueryResult::Type UNavigationSystemV1::GetPathCost(UObject* WorldContextObject, const FVector& PathStart, const FVector& PathEnd, float& OutPathCost, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
 {
+	FVector::FReal PathCost = OutPathCost;
+
+	const ENavigationQueryResult::Type Result = GetPathCost(WorldContextObject, PathStart, PathEnd, PathCost, NavData, FilterClass);
+
+	OutPathCost = UE_REAL_TO_FLOAT_CLAMPED(PathCost);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type UNavigationSystemV1::GetPathCost(UObject* WorldContextObject, const FVector& PathStart, const FVector& PathEnd, double& OutPathCost, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+{
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 	if (NavSys)
@@ -4354,8 +4400,17 @@ ENavigationQueryResult::Type UNavigationSystemV1::GetPathCost(UObject* WorldCont
 
 ENavigationQueryResult::Type UNavigationSystemV1::GetPathLength(UObject* WorldContextObject, const FVector& PathStart, const FVector& PathEnd, float& OutPathLength, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
 {
-	float PathLength = 0.f;
+	FVector::FReal PathLength = OutPathLength;
 
+	const ENavigationQueryResult::Type Result = GetPathLength(WorldContextObject, PathStart, PathEnd, PathLength, NavData, FilterClass);
+
+	OutPathLength = UE_REAL_TO_FLOAT_CLAMPED(PathLength);
+
+	return Result;
+}
+
+ENavigationQueryResult::Type UNavigationSystemV1::GetPathLength(UObject* WorldContextObject, const FVector& PathStart, const FVector& PathEnd, double& OutPathLength, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+{
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 	if (NavSys)
