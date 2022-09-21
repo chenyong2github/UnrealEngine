@@ -284,7 +284,17 @@ namespace MacMenuHelper
 	}
 	
 	bool GMacPostInitStartupRequested = false;
-	bool GMacPostInitStartUpComplete = false; 
+	bool GMacPostInitStartUpComplete = false;
+
+	void ConditionalDelayPostStartup()
+	{
+		// In case an obsecure app startup sequence has not managed to finish the menu startup correctly
+		// However only do this if the post init has been called
+		if(!MacMenuHelper::GMacPostInitStartUpComplete && MacMenuHelper::GMacPostInitStartupRequested)
+		{
+			FSlateMacMenu::PostInitStartup();
+		}
+	}
 };
 
 // Bind all low-level Application hooks that require to access this high-level MacMenu system which includes NSApp Menu's and slate menus
@@ -443,13 +453,8 @@ void FSlateMacMenu::LanguageChanged()
 
 void FSlateMacMenu::UpdateApplicationMenu(bool bMacApplicationModalMode)
 {
-	// In case an obsecure app startup sequence has not managed to finish the menu startup correctly
-	// However only do this if the post init has been called
-	if(!MacMenuHelper::GMacPostInitStartUpComplete && MacMenuHelper::GMacPostInitStartupRequested)
-	{
-		PostInitStartup();
-	}
-
+	MacMenuHelper::ConditionalDelayPostStartup();
+	
     NSMenu* MainMenu = [NSApp mainMenu];
     NSMenuItem* AppMenuItem = [MainMenu itemWithTitle:@"AppMenuItem"];
     NSMenu* AppMenu = [AppMenuItem submenu];
@@ -521,6 +526,8 @@ void FSlateMacMenu::UpdateWindowMenu(bool bMacApplicationModalMode)
 
 void FSlateMacMenu::UpdateWithMultiBox(const TSharedPtr< FMultiBox > MultiBox)
 {
+	MacMenuHelper::ConditionalDelayPostStartup();
+	
 	// The dispatch block can't handle TSharedPtr correctly, so we use a small trick to pass MultiBox safely
 	struct FSafeMultiBoxPass
 	{

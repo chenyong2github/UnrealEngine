@@ -25,7 +25,7 @@
 
 - (void)SetAccessibilityWindowAsAccessibilityChild:(AccessibleWidgetId)InWindowId
 {
-	checkf(!IsInGameThread(), TEXT("Updating accessibility view from Game Thread! Accessibility  can only be done on Main Thread!"));
+	checkf([NSThread isMainThread], TEXT("Updating accessibility view in FCocoaWindow from wrong Thread! Accessibility can only be done on Main Thread!"));
 	checkf(InWindowId != IAccessibleWidget::InvalidAccessibleWidgetId, TEXT("Cannot update view with invalid accessible widget Id! use RemoveAccessibilityWindow if trying to remove window."));
 	FMacAccessibilityElement* InAccessibleWindow = [[FMacAccessibilityManager AccessibilityManager]GetAccessibilityElement:InWindowId];
 	check(InAccessibleWindow != Nil);
@@ -37,7 +37,7 @@
 
 - (void)RemoveAccessibilityWindow
 {
-	checkf(!IsInGameThread(), TEXT("Clearing accessibility view from Game Thread! Accessibility  can only be done on Main Thread!"));
+	checkf([NSThread isMainThread], TEXT("Updating accessibility view in FCocoaWindow from wrong Thread! Accessibility can only be done on Main Thread!"));
 	if(self.AccessibleWindow != Nil)
 	{
 		self.AccessibleWindow.accessibilityParent = Nil;

@@ -556,7 +556,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 
 - (void)UpdateAccessibilityView:(AccessibleWidgetId) InAccessibilityWindowId
 {
-	checkf(!IsInGameThread(), TEXT("Updating accessibility view in FCocoaWindow from Game Thread! Accessibility  can only be done on Main Thread!"));
+	checkf([NSThread isMainThread], TEXT("Updating accessibility view in FCocoaWindow from wrong Thread! Accessibility can only be done on Main Thread!"));
 	NSView* OpenGLView = [self openGLView];
 	// FCocoaAccessibilityView is the base class all custom NSViews must inherit from to support accessibility
 	if([OpenGLView isKindOfClass:[FCocoaAccessibilityView class]])
@@ -568,7 +568,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 
 - (void)ClearAccessibilityView
 {
-	checkf(!IsInGameThread(), TEXT("Updating accessibility view in FCocoaWindow from Game Thread! Accessibility  can only be done on Main Thread!"));
+	checkf([NSThread isMainThread], TEXT("Updating accessibility view in FCocoaWindow from wrong Thread! Accessibility can only be done on Main Thread!"));
 	NSView* OpenGLView = [self openGLView];
 	// FCocoaAccessibilityView is the base class all custom NSViews must inherit from to support accessibility
 	if([OpenGLView isKindOfClass:[FCocoaAccessibilityView class]])
