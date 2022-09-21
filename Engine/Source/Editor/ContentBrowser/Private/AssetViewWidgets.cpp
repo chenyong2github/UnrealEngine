@@ -165,6 +165,7 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 		// TODO: Allow items to customize their widget
 
 		const bool bDeveloperFolder = ContentBrowserUtils::IsItemDeveloperContent(InTileOrListItem->AssetItem->GetItem());
+		const bool bCodeFolder = EnumHasAnyFlags(InTileOrListItem->AssetItem->GetItem().GetItemCategory(), EContentBrowserItemFlags::Category_Class);
 
 		const bool bCollectionFolder = EnumHasAnyFlags(InTileOrListItem->AssetItem->GetItem().GetItemCategory(), EContentBrowserItemFlags::Category_Collection);
 		ECollectionShareType::Type CollectionFolderShareType = ECollectionShareType::CST_All;
@@ -175,7 +176,9 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 
 		const FSlateBrush* FolderBaseImage = bDeveloperFolder
 			? FAppStyle::GetBrush("ContentBrowser.ListViewDeveloperFolderIcon") 
-			: FAppStyle::GetBrush("ContentBrowser.ListViewFolderIcon");
+			: bCodeFolder
+				? FAppStyle::GetBrush("ContentBrowser.ListViewCodeFolderIcon")
+				: FAppStyle::GetBrush("ContentBrowser.ListViewFolderIcon");
 
 		// Folder base
 		ItemContentsOverlay->AddSlot()

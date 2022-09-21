@@ -127,7 +127,8 @@ private:
 	const FSlateBrush* FolderClosedBrush;
 	const FSlateBrush* FolderOpenCodeBrush;
 	const FSlateBrush* FolderClosedCodeBrush;
-	const FSlateBrush* FolderDeveloperBrush;
+	const FSlateBrush* FolderOpenDeveloperBrush;
+	const FSlateBrush* FolderClosedDeveloperBrush;
 
 	/** Delegate called to get the selection state of an asset path */
 	FIsSelected IsSelected;

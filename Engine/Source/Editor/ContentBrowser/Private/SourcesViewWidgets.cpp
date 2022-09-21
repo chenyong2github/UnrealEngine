@@ -56,8 +56,9 @@ void SAssetTreeItem::Construct( const FArguments& InArgs )
 	FolderClosedBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
 	FolderOpenCodeBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderOpenCode");
 	FolderClosedCodeBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderClosedCode");
-	FolderDeveloperBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderDeveloper");
-	
+	FolderOpenDeveloperBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderOpenDeveloper");
+	FolderClosedDeveloperBrush = FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderClosedDeveloper");
+
 	FolderType = EFolderType::Normal;
 	if (ContentBrowserUtils::IsItemDeveloperContent(InArgs._TreeItem->GetItem()))
 	{
@@ -215,7 +216,7 @@ const FSlateBrush* SAssetTreeItem::GetFolderIcon() const
 		return ( IsItemExpanded.Get() ) ? FolderOpenCodeBrush : FolderClosedCodeBrush;
 
 	case EFolderType::Developer:
-		return FolderDeveloperBrush;
+		return (IsItemExpanded.Get()) ? FolderOpenDeveloperBrush : FolderClosedDeveloperBrush;
 
 	default:
 		return ( IsItemExpanded.Get() ) ? FolderOpenBrush : FolderClosedBrush;
