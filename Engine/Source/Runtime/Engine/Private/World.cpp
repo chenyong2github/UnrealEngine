@@ -7343,7 +7343,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			// verify that we successfully cleaned up the old world
-			GEngine->VerifyLoadMapWorldCleanup(&CurrentContext);
+			GEngine->CheckAndHandleStaleWorldObjectReferences(&CurrentContext);
 #endif
 			// Clean out NetDriver's Packagemaps, since they may have a lot of NULL object ptrs rotting in the lookup maps.
 			if (NetDriver)

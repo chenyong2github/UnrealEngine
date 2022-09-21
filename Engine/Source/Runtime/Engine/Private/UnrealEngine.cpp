@@ -436,10 +436,10 @@ static FAutoConsoleVariableRef GDelayTrimMemoryDuringMapLoadModeCVar(
 	ECVF_Default
 );
 
-static bool GVerifyLoadMapWorldCleanupEnabled = !UE_BUILD_SHIPPING;
-static FAutoConsoleVariableRef GVerifyLoadMapWorldCleanupEnabledCVar(
-	TEXT("Engine.VerifyLoadMapWorldCleanupEnabled"),
-	GVerifyLoadMapWorldCleanupEnabled,
+static bool GShouldLogReferencesToLeakedWorldObjects = !UE_BUILD_SHIPPING;
+static FAutoConsoleVariableRef GShouldLogReferencesToLeakedWorldObjectsCVar(
+	TEXT("Engine.ShouldLogReferencesToLeakedWorldObjects"),
+	GShouldLogReferencesToLeakedWorldObjects,
 	TEXT("Enables logging references preventing the previous world objects from being cleaned up during map load"),
 	ECVF_Default
 );
@@ -14529,7 +14529,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	if (GDelayTrimMemoryDuringMapLoadMode == 0)
 	{
 		// Dump info
-		VerifyLoadMapWorldCleanup(&WorldContext);
+		CheckAndHandleStaleWorldObjectReferences(&WorldContext);
 	}
 
 	FMoviePlayerProxy::BlockingTick();
@@ -15547,14 +15547,9 @@ bool UEngine::IsWorldDuplicate(const UWorld* const InWorld)
 	return false;
 }
 
-void UEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForWorldContext)
+void UEngine::CheckAndHandleStaleWorldObjectReferences(FWorldContext* WorldContext)
 {
-	if (!GVerifyLoadMapWorldCleanupEnabled)
-	{
-		return;
-	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(VerifyLoadMapWorldCleanup);
+	TRACE_CPUPROFILER_EVENT_SCOPE(CheckAndHandleStaleWorldObjectReferences);
 	// All worlds at this point should be the CurrentWorld of some context, preview worlds, or streaming level
 	// worlds that are owned by the CurrentWorld of some context.
 	TArray<UObject*> LeakedObjects;
@@ -15573,24 +15568,28 @@ void UEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForWorldContext)
 		}
 	}
 
-	if (ForWorldContext)
+	if (WorldContext)
 	{
-		for (FObjectKey Key : ForWorldContext->GarbageObjectsToVerify)
+		for (FObjectKey Key : WorldContext->GarbageObjectsToVerify)
 		{
 			if (UObject* Obj = Key.ResolveObjectPtrEvenIfPendingKill())
 			{
 				LeakedObjects.Add(Obj);
 			}
 		}
-		ForWorldContext->GarbageObjectsToVerify.Reset();
+		WorldContext->GarbageObjectsToVerify.Reset();
 	}
 
 	if (LeakedObjects.Num())
 	{
 		UE_LOG(LogLoad, Error, TEXT("Some previously active worlds or related objects were not cleaned up by garbage collection!"));
-		UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. Dumping reference chains:"));
+		UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded."));
 
-		FindAndPrintStaleReferencesToObjects(LeakedObjects, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+		if (GShouldLogReferencesToLeakedWorldObjects)
+		{
+			UE_LOG(LogLoad, Error, TEXT("Dumping reference chains:"));
+			FindAndPrintStaleReferencesToObjects(LeakedObjects, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+		}
 
 		if (!UObjectBaseUtility::IsPendingKillEnabled())
 		{

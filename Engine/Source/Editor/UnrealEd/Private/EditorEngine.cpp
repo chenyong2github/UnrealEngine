@@ -7145,9 +7145,9 @@ bool UEditorEngine::NetworkRemapPath( UPendingNetGame *PendingNetGame, FString& 
 	return NetworkRemapPath_local(Context, Str, bReading, PendingNetGame->GetDemoNetDriver() != nullptr);
 }
 
-void UEditorEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForContext)
+void UEditorEngine::CheckAndHandleStaleWorldObjectReferences(FWorldContext* InWorldContext)
 {
-	// This does the same as UEngine::VerifyLoadMapWorldCleanup except it also allows Editor Worlds as a valid world.
+	// This does the same as UEngine::CheckAndHandleStaleWorldObjectReferences except it also allows Editor Worlds as a valid world.
 
 	// All worlds at this point should be the CurrentWorld of some context or preview worlds.
 	
@@ -7204,9 +7204,9 @@ void UEditorEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForContext)
 		}
 	}
 	
-	if (ForContext)
+	if (InWorldContext)
 	{
-		for (FObjectKey Key : ForContext->GarbageObjectsToVerify)
+		for (FObjectKey Key : InWorldContext->GarbageObjectsToVerify)
 		{
 			if (UObject* Object = Key.ResolveObjectPtrEvenIfPendingKill())
 			{
@@ -7216,7 +7216,7 @@ void UEditorEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForContext)
 					UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
 			}
 		}
-		ForContext->GarbageObjectsToVerify.Reset();
+		InWorldContext->GarbageObjectsToVerify.Reset();
 	}
 }
 

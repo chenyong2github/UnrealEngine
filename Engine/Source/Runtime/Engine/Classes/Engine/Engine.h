@@ -3259,8 +3259,12 @@ public:
 	 */
 	UWorld* GetCurrentPlayWorld(UWorld* PossiblePlayWorld = nullptr) const;
 
-	/** Verify any remaining World(s) are valid after ::LoadMap destroys a world. May also check that "must-destroy" objects associated with the world context have been destroyed. */
-	virtual void VerifyLoadMapWorldCleanup(FWorldContext* ForWorldContext = nullptr);
+	/**
+	 * Finds any World(s) and related objects that are still referenced after being destroyed by ::LoadMap and logs which objects are holding the references.
+	 * May rename packages for the dangling objects to allow the world to be reloaded without conflicting with the existing one.
+	 * @param InWorldContext The optional world context for which we want to check references to additional "must-destroy" objects.
+	 */
+	virtual void CheckAndHandleStaleWorldObjectReferences(FWorldContext* InWorldContext = nullptr);
 
 	/**
 	 * Attempts to find what is referencing a world that should have been garbage collected
