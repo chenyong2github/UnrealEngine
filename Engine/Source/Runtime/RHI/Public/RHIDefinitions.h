@@ -1043,6 +1043,10 @@ public:
 #if WITH_EDITOR
 	static FORCEINLINE_DEBUGGABLE FText GetFriendlyName(const FStaticShaderPlatform Platform)
 	{
+		if (IsRunningCommandlet())
+		{
+			return FText();
+		}
 		check(IsValid(Platform));
 		return Infos[Platform].FriendlyName;
 	}
