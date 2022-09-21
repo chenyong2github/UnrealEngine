@@ -70,8 +70,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	bool bSnapToClosestFrameBoundary = false;
 
-	/** Import if custom attribute as a curve within the animation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
+	/** If true, import node attributes as either Animation Curves or Animation Attributes */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (DisplayName = "Import Attributes as Curves or Animation Attributes"))
 	bool bImportCustomAttribute = true;
 
 	/** Set Material Curve Type for all custom attributes that exists */
@@ -90,12 +90,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (EditCondition = "bImportCustomAttribute", DisplayName = "Do not import curves with only 0 values"))
 	bool bDoNotImportCurveWithZero = false;
 
-	/** If true, all previous non-curve custom attributes will be deleted when doing a re-import. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
+	/** If true, all previous node attributes imported as Animation Attributes will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (DisplayName = "Delete existing Animation Attributes"))
 	bool bDeleteExistingNonCurveCustomAttributes = false;
 
-	/** If true, all previous custom attribute curves will be deleted when doing a re-import. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
+	/** If true, all previous node attributes imported as Animation Curves will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (DisplayName = "Delete existing Animation Curves"))
 	bool bDeleteExistingCustomAttributeCurves = false;
 
 	/** If true, all previous morph target curves will be deleted when doing a re-import */

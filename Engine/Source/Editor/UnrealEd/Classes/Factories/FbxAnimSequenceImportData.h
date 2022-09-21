@@ -73,16 +73,16 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	UPROPERTY()
 	FString SourceAnimationName;
 
-	/** Import if custom attribute as a curve within the animation */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	/** If true, import node attributes as either Animation Curves or Animation Attributes */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta = (DisplayName = "Import Attributes as Curves or Animation Attributes"))
 	bool bImportCustomAttribute;
 
-	/** If true, all previous custom attribute curves will be deleted when doing a re-import. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	/** If true, all previous node attributes imported as Animation Curves will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta = (DisplayName = "Delete existing Animation Curves"))
 	bool bDeleteExistingCustomAttributeCurves;
 
-	/** If true, all previous non-curve custom attributes will be deleted when doing a re-import. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	/** If true, all previous node attributes imported as Animation Attributes will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta = (DisplayName = "Delete existing Animation Attributes"))
 	bool bDeleteExistingNonCurveCustomAttributes;
 	
 	/** Import bone transform tracks. If false, this will discard any bone transform tracks. (useful for curves only animations)*/

@@ -84,16 +84,16 @@ class UFbxSceneImportOptionsSkeletalMesh : public UObject
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation, meta = (ToolTip = "If enabled, snaps the animation to the closest frame boundary using the import sampling rate"))
 	bool bSnapToClosestFrameBoundary;
 
-	/** Import if custom attribute as a curve within the animation **/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation)
+	/** If true, import node attributes as either Animation Curves or Animation Attributes */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation, meta = (DisplayName = "Import Attributes as Curves or Animation Attributes"))
 	bool bImportCustomAttribute;
 
-	/** If true, all previous custom attribute curves will be deleted when doing a re-import. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation)
+	/** If true, all previous node attributes imported as Animation Curves will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation, meta = (DisplayName = "Delete existing Animation Curves"))
 	bool bDeleteExistingCustomAttributeCurves;
 
-	/** If true, all previous non-curve custom attributes will be deleted when doing a re-import. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	/** If true, all previous node attributes imported as Animation Attributes will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Animation, meta = (DisplayName = "Delete existing Animation Attributes"))
 	bool bDeleteExistingNonCurveCustomAttributes;
 
 	/** Type of asset to import from the FBX file */
