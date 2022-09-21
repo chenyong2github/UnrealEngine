@@ -267,6 +267,11 @@ public:
 		return PCGDefaultValueKey;
 	}
 
+	void SetDefaultValue(const T& Value)
+	{
+		DefaultValue = Value;
+	}
+
 protected:
 	/** Code related to computing compared values (min, max, sub, add) */
 	template<typename IT = T, typename TEnableIf<PCG::Private::MetadataTraits<IT>::CanMinMax>::Type* = nullptr>
@@ -441,6 +446,7 @@ namespace PCGMetadataAttribute
 			AllocatePCGMetadataAttributeOnType(int32);
 			AllocatePCGMetadataAttributeOnType(int64);
 			AllocatePCGMetadataAttributeOnType(FVector);
+			AllocatePCGMetadataAttributeOnType(FVector2D);
 			AllocatePCGMetadataAttributeOnType(FVector4);
 			AllocatePCGMetadataAttributeOnType(FQuat);
 			AllocatePCGMetadataAttributeOnType(FTransform);
@@ -454,5 +460,119 @@ namespace PCGMetadataAttribute
 		}
 
 #undef AllocatePCGMetadataAttributeOnType
+	}
+
+	template <typename Func>
+	inline decltype(auto) CallbackWithRightType(uint16 TypeId, Func Callback)
+	{
+		using ReturnType = decltype(Callback(double{}));
+
+		switch (TypeId)
+		{
+		case (uint16)EPCGMetadataTypes::Integer32:
+			return Callback(int32{});
+		case (uint16)EPCGMetadataTypes::Integer64:
+			return Callback(int64{});
+		case (uint16)EPCGMetadataTypes::Float:
+			return Callback(float{});
+		case (uint16)EPCGMetadataTypes::Double:
+			return Callback(double{});
+		case (uint16)EPCGMetadataTypes::Vector2:
+			return Callback(FVector2D{});
+		case (uint16)EPCGMetadataTypes::Vector:
+			return Callback(FVector{});
+		case (uint16)EPCGMetadataTypes::Vector4:
+			return Callback(FVector4{});
+		case (uint16)EPCGMetadataTypes::Quaternion:
+			return Callback(FQuat{});
+		case (uint16)EPCGMetadataTypes::Transform:
+			return Callback(FTransform{});
+		case (uint16)EPCGMetadataTypes::String:
+			return Callback(FString{});
+		case (uint16)EPCGMetadataTypes::Boolean:
+			return Callback(bool{});
+		case (uint16)EPCGMetadataTypes::Rotator:
+			return Callback(FRotator{});
+		case (uint16)EPCGMetadataTypes::Name:
+			return Callback(FName{});
+		default:
+		{
+			// ReturnType{} is invalid if ReturnType is void
+			if constexpr (std::is_same_v<ReturnType, void>)
+			{
+				return;
+			}
+			else
+			{
+				return ReturnType{};
+			}
+		}
+		}
+	}
+
+	template <typename OutType>
+	inline OutType GetValueWithBroadcast(const FPCGMetadataAttributeBase* InAttribute, PCGMetadataEntryKey InKey)
+	{
+		auto Func = [InAttribute, InKey](auto DummyInType) -> OutType
+		{
+			using InType = decltype(DummyInType);
+			InType Value = static_cast<const FPCGMetadataAttribute<InType>*>(InAttribute)->GetValueFromItemKey(InKey);
+
+			if constexpr (std::is_same_v<OutType, InType>)
+			{
+				return Value;
+			}
+			else
+			{
+				if constexpr (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<InType>::Id, PCG::Private::MetadataTypes<OutType>::Id))
+				{
+					return OutType{};
+				}
+				else
+				{
+					if constexpr (std::is_same_v<OutType, FVector4>)
+					{
+						if constexpr (std::is_same_v<InType, FVector> || std::is_same_v<InType, FVector2D>)
+						{
+							// TODO: Should it be 0? 1? Something else? Depending on operation?
+							// For now it is too ambiguous, so don't support it
+							return FVector4();
+						}
+						else
+						{
+							return FVector4(Value, Value, Value, Value);
+						}
+					}
+					else
+					{
+						// Seems like the && condition is not evaluated correctly on Linux, so we cut the condition in two `if constexpr`.
+						if constexpr (std::is_same_v<OutType, FVector>)
+						{
+							if constexpr (std::is_same_v<InType, FVector2D>)
+							{
+								return FVector(Value, 0.0);
+							}
+							else
+							{
+								return OutType(Value);
+							}
+						}
+						else
+						{
+							return OutType(Value);
+						}
+					}
+				}
+			}
+		};
+
+		if (PCG::Private::MetadataTypes<OutType>::Id == InAttribute->GetTypeId())
+		{
+			return Func(OutType{});
+		}
+		else
+		{
+			return CallbackWithRightType(InAttribute->GetTypeId(), Func);
+		}
 	}
 }

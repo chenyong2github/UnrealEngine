@@ -252,6 +252,11 @@ FText SPCGListViewItemRow::ConvertMetadataAttributeToText(const FPCGMetadataAttr
 			const bool bMetaBool = static_cast<const FPCGMetadataAttribute<bool>*>(AttributeBase)->GetValueFromItemKey(ItemKey);
 			return bMetaBool ? FText::FromString(TEXT("true")) : FText::FromString(TEXT("false"));
 		}
+	case PCG::Private::MetadataTypes<FVector2D>::Id:
+	{
+		const FVector2D MetaVector = static_cast<const FPCGMetadataAttribute<FVector2D>*>(AttributeBase)->GetValueFromItemKey(ItemKey);
+		return FText::AsNumber(MetaVector[(*MetadataInfo).Index]);
+	}
 	case PCG::Private::MetadataTypes<FVector>::Id:
 		{
 			const FVector MetaVector = static_cast<const FPCGMetadataAttribute<FVector>*>(AttributeBase)->GetValueFromItemKey(ItemKey);
@@ -683,6 +688,12 @@ void SPCGEditorGraphAttributeListView::GenerateColumnsFromMetadata(const UPCGMet
 				AddMetadataColumn(ColumnName, AttributeName);
 				break;
 			}
+		case EPCGMetadataTypes::Vector2:
+		{
+			AddMetadataColumn(ColumnName, AttributeName, 0, TEXT("_X"));
+			AddMetadataColumn(ColumnName, AttributeName, 1, TEXT("_Y"));
+			break;
+		}
 		case EPCGMetadataTypes::Vector:
 			{
 				AddMetadataColumn(ColumnName, AttributeName, 0, TEXT("_X"));

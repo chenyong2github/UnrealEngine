@@ -39,6 +39,13 @@ public:
 
 	bool AllowsInterpolation() const { return bAllowsInterpolation; }
 
+	int32 GetNumberOfEntries() const { return EntryToValueKeyMap.Num(); }
+
+	// This call is not thread safe
+	const TMap<PCGMetadataEntryKey, PCGMetadataValueKey>& GetEntryToValueKeyMap_NotThreadSafe() const { return EntryToValueKeyMap; }
+
+	const FPCGMetadataAttributeBase* GetParent() const { return Parent; }
+
 protected:
 	TMap<PCGMetadataEntryKey, PCGMetadataValueKey> EntryToValueKeyMap;
 	mutable FRWLock EntryMapLock;

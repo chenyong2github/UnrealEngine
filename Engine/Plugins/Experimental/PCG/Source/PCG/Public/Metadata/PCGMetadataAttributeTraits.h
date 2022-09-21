@@ -22,6 +22,9 @@ enum class EPCGMetadataTypes : uint8
 	Boolean,
 	Rotator,
 	Name,
+
+	Count UMETA(Hidden),
+
 	Unknown = 255
 };
 
@@ -52,6 +55,68 @@ namespace PCG
 		PCGMetadataGenerateDataTypes(FName, Name);
 
 #undef PCGMetadataGenerateDataTypes
+
+		// Wrapper around a standard 2-dimensional CArray that is constexpr, to know if a type is broadcastable to another.
+		// First index is the original type, second index is the wanted type. Returns true if we can broadcast first type into second type.
+		struct UBroadcastableTypes
+		{
+			constexpr UBroadcastableTypes() : Values{{false}}
+			{
+				for (uint8 i = 0; i < (uint8)EPCGMetadataTypes::Count; ++i)
+				{
+					Values[i][i] = true;
+				}
+
+#define PCGMetadataBroadcastable(FirstType, SecondType) Values[(uint8)EPCGMetadataTypes::FirstType][(uint8)EPCGMetadataTypes::SecondType] = true
+
+				// Finally set all cases where it is broadcastable
+				PCGMetadataBroadcastable(Float, Double);
+				PCGMetadataBroadcastable(Float, Vector2);
+				PCGMetadataBroadcastable(Float, Vector);
+				PCGMetadataBroadcastable(Float, Vector4);
+
+				PCGMetadataBroadcastable(Double, Vector2);
+				PCGMetadataBroadcastable(Double, Vector);
+				PCGMetadataBroadcastable(Double, Vector4);
+
+				PCGMetadataBroadcastable(Integer32, Float);
+				PCGMetadataBroadcastable(Integer32, Double);
+				PCGMetadataBroadcastable(Integer32, Integer64);
+				PCGMetadataBroadcastable(Integer32, Vector2);
+				PCGMetadataBroadcastable(Integer32, Vector);
+				PCGMetadataBroadcastable(Integer32, Vector4);
+
+				PCGMetadataBroadcastable(Integer64, Float);
+				PCGMetadataBroadcastable(Integer64, Double);
+				PCGMetadataBroadcastable(Integer64, Vector2);
+				PCGMetadataBroadcastable(Integer64, Vector);
+				PCGMetadataBroadcastable(Integer64, Vector4);
+
+				PCGMetadataBroadcastable(Vector2, Vector);
+
+				PCGMetadataBroadcastable(Quaternion, Rotator);
+				PCGMetadataBroadcastable(Rotator, Quaternion);
+
+#undef PCGMetadataBroadcastable
+			}
+
+			constexpr const bool* operator[](int i) const { return Values[i]; }
+
+			bool Values[(uint8)EPCGMetadataTypes::Count][(uint8)EPCGMetadataTypes::Count];
+		};
+
+		inline static constexpr UBroadcastableTypes BroadcastableTypes{};
+
+		constexpr inline bool IsBroadcastable(uint16 FirstType, uint16 SecondType)
+		{
+			// Unknown types aren't broadcastable
+			if (FirstType >= static_cast<uint16>(EPCGMetadataTypes::Count) || SecondType >= static_cast<uint16>(EPCGMetadataTypes::Count))
+			{
+				return false;
+			}
+
+			return BroadcastableTypes[FirstType][SecondType];
+		}
 
 		template<typename T>
 		struct DefaultOperationTraits
