@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/Union.h"
+#include "StageActor/DisplayClusterWeakStageActorPtr.h"
+
 #include "DisplayClusterMeshProjectionRenderer.h"
+
 #include "SceneView.h"
-#include "UObject/StrongObjectPtr.h"
 #include "UnrealClient.h"
+#include "Containers/Union.h"
+#include "UObject/StrongObjectPtr.h"
 
 class ADisplayClusterLightCardActor;
 class ADisplayClusterRootActor;
@@ -176,36 +178,36 @@ public:
 	/**
 	 * Moves the given light cards to the specified pixel position within the provided scene view.
 	 *
-	 * @param LightCards The light cards that we are moving
-	 * @param PixelPos The pixel location to move the light cards to
+	 * @param Actors The actors that we are moving
+	 * @param PixelPos The pixel location to move the actors to
 	 * @param SceneView The scene view used to convert from pixel position to 3D position
 	*/
-	DISPLAYCLUSTERSCENEPREVIEW_API void MoveLightCardsToPixel(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& SceneView);
+	DISPLAYCLUSTERSCENEPREVIEW_API void MoveActorsToPixel(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView);
 
 	/**
-	 * Moves specified cards to desired coordinates. Actual radius will be based on flush constraint and LightCard's RadialOffset.
+	 * Moves specified actors to desired coordinates. Actual radius will be based on flush constraint and actor's RadialOffset.
 	 *
-	 * @param LightCards The light cards that we are moving
-	 * @param SphericalCoords The desired location of light card in spherical coordinates with respect to view origin.
+	 * @param Actors The actors that we are moving
+	 * @param SphericalCoords The desired location of the actors in spherical coordinates with respect to view origin.
 	*/
-	DISPLAYCLUSTERSCENEPREVIEW_API void MoveLightCardsTo(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FSphericalCoordinates& SphericalCoords);
-
+	DISPLAYCLUSTERSCENEPREVIEW_API void MoveActorsTo(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FSphericalCoordinates& SphericalCoords);
+	
 	/**
 	 * Moves specified cards to a coordinate in viewport space as if dragged by a translate widget.
 	 * 
-	 * @param LightCards The light cards that we are moving
+	 * @param Actors The actors that we are moving
 	 * @param PixelPos The screen pixel position of the widget
 	 * @param SceneView The scene view used to convert from pixel position to 3D position
 	 * @param CoordinateSystem The coordinate system to use when computing drag constraints
 	 * @param DragWidgetOffset The offset between the actual cursor position and the position of the widget when the drag action started
 	 * @param DragAxis The axis along which the widget is being dragged
-	 * @param PrimaryLightCard The light card used to calculate the translation/rotation delta. If not provided, the last entry in LightCards will be used.
+	 * @param PrimaryActor The actor used to calculate the translation/rotation delta. If not provided, the last entry in Actors will be used.
 	 */
-	DISPLAYCLUSTERSCENEPREVIEW_API void DragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& SceneView,
-		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard = nullptr);
-
-	/** Ensures that the light card root component is at the same location as the projection/view origin */
-	DISPLAYCLUSTERSCENEPREVIEW_API void VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor& LightCard);
+	DISPLAYCLUSTERSCENEPREVIEW_API void DragActors(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView,
+		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor = nullptr);
+	
+	/** Ensures that the actor root component is at the same location as the projection/view origin */
+	DISPLAYCLUSTERSCENEPREVIEW_API void VerifyAndFixActorOrigin(const FDisplayClusterWeakStageActorPtr& Actor);
 
 	/**
 	 * Calculates the relative normal vector and world position in the specified direction from the given view origin.
@@ -254,8 +256,8 @@ public:
 		const FMatrix* InRotationMatrix = nullptr,
 		float InDPIScale = 1.f);
 
-	/** Gets the spherical coordinates of the specified light card. */
-	DISPLAYCLUSTERSCENEPREVIEW_API FSphericalCoordinates GetLightCardCoordinates(const ADisplayClusterLightCardActor& LightCard);
+	/** Gets the spherical coordinates of the specified actor. */
+	DISPLAYCLUSTERSCENEPREVIEW_API FSphericalCoordinates GetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor);
 
 private:
 	/**
@@ -274,25 +276,25 @@ private:
 	FVector GetProjectionOrigin() const;
 
 	/** Determines the appropriate delta rotation needed to move the specified light card to the given position within the view. */
-	FRotator GetLightCardRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard,
+	FRotator GetActorRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, const FDisplayClusterWeakStageActorPtr& Actor,
 		ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
 
-	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the given position within the view. */
-	FSphericalCoordinates GetLightCardTranslationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard,
+	/** Determines the appropriate delta in spherical coordinates needed to move the specified actor to the given position within the view. */
+	FSphericalCoordinates GetActorTranslationDelta(const FIntPoint& PixelPos, const FSceneView& View, const FDisplayClusterWeakStageActorPtr& Actor,
 		ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
 
-	/** Moves specified card to desired coordinates immediately using the current normal maps. Requires valid normal maps. */
-	void InternalMoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& Position, bool bIsFinalChange) const;
+	/** Moves specified actor to desired coordinates immediately using the current normal maps. Requires valid normal maps. */
+	void InternalMoveActorTo(const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& Position, bool bIsFinalChange) const;
 
-	/** Moves specified cards to a coordinate in viewport space as if dragged by a widget. Requires valid normal maps. */
-	void InternalDragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& View,
-		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard);
+	/** Moves specified actors to a coordinate in viewport space as if dragged by a widget. Requires valid normal maps. */
+	void InternalDragActors(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& View,
+		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor);
 
 	/** Gets the scene view init options to use when rendering the normal map cache */
 	void GetNormalMapSceneViewInitOptions(const FVector& ViewDirection, FSceneViewInitOptions& OutViewInitOptions);
 
-	/** Sets the light card position to the given spherical coordinates */
-	void SetLightCardCoordinates(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& SphericalCoords) const;
+	/** Sets the actor position to the given spherical coordinates */
+	void SetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& SphericalCoords) const;
 
 	/** Performs a ray trace against the stage's geometry, and returns the hit point. */
 	bool TraceStage(const FVector& RayStart, const FVector& RayEnd, FVector& OutHitLocation);
@@ -327,8 +329,8 @@ private:
 #endif
 
 #if WITH_EDITOR
-	/** Send property change events for any properties that may have changed due to a lightcard being moved. */
-	void PostEditChangePropertiesForMovedLightCard(ADisplayClusterLightCardActor& LightCard) const;
+	/** Send property change events for any properties that may have changed due to a actor being moved. */
+	void PostEditChangePropertiesForMovedActor(const FDisplayClusterWeakStageActorPtr& Actor) const;
 #endif
 
 private:

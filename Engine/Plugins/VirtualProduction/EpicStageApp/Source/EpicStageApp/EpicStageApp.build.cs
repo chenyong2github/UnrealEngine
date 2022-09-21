@@ -19,6 +19,7 @@ public class EpicStageApp : ModuleRules
 				"DeveloperSettings",
 				"DisplayCluster",
 				"DisplayClusterLightCardEditorShaders",
+				"DisplayClusterLightCardExtender",
 				"DisplayClusterScenePreview",
 				"Engine",
 				"ImageWrapper",

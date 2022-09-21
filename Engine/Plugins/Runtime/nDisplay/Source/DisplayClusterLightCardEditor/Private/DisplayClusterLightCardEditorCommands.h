@@ -53,4 +53,6 @@ public:
 
 	TSharedPtr<FUICommandInfo> ToggleAllLabels;
 	TSharedPtr<FUICommandInfo> ToggleLightCardLabels;
+
+	TSharedPtr<FUICommandInfo> ToggleIconVisibility;
 };

@@ -40,6 +40,7 @@ struct FDisplayClusterLightCardEditorRecentItem
 	static const FName Type_LightCard;
 	static const FName Type_Flag;
 	static const FName Type_LightCardTemplate;
+	static const FName Type_Dynamic;
 
 	/** Path of object to instantiate */
 	UPROPERTY()
@@ -83,4 +84,12 @@ public:
 	/** Last used viewport type user has set */
 	UPROPERTY(config)
 	uint8 RenderViewportType;
+
+	/** Display icons in the light card editor where applicable */
+	UPROPERTY(config, EditAnywhere, Category = Icons)
+	bool bDisplayIcons;
+
+	/** Scale icon size where applicable */
+	UPROPERTY(config, EditAnywhere, Category = Icons)
+	float IconScale;
 };

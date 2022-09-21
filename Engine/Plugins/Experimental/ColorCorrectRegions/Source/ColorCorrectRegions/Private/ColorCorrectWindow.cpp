@@ -16,6 +16,15 @@ AColorCorrectWindow::AColorCorrectWindow(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, WindowType(EColorCorrectWindowType::Square)
 {
+	PositionalParams.DistanceFromCenter = 300.f;
+	PositionalParams.Longitude = 0.f;
+	PositionalParams.Latitude = 30.f;
+	PositionalParams.Spin = 0.f;
+	PositionalParams.Pitch = 0.f;
+	PositionalParams.Yaw = 0.5;
+	PositionalParams.RadialOffset = -0.5f;
+	PositionalParams.Scale = FVector2D(1.f);
+	
 	UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/ColorCorrectRegions/Materials/M_ColorCorrectRegionTransparentPreview.M_ColorCorrectRegionTransparentPreview"), NULL, LOAD_None, NULL);
 	const TArray<UStaticMesh*> StaticMeshes =
 	{
@@ -50,6 +59,36 @@ void AColorCorrectWindow::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	{
 		SetMeshVisibilityForWindowType();
 	}
+	else
+	{
+		const FStructProperty* StructProperty = CastField<FStructProperty>(PropertyChangedEvent.MemberProperty);
+		const bool bIsOrientation = StructProperty ? StructProperty->Struct == FDisplayClusterPositionalParams::StaticStruct() : false;
+	
+		if (bIsOrientation)
+		{
+			UpdateStageActorTransform();
+			// Updates MU in real-time. Skip our method as the positional coordinates are already correct.
+			AActor::PostEditMove(PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive);
+		}
+		else if (
+			PropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
+			PropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
+			PropertyName == USceneComponent::GetRelativeScale3DPropertyName())
+		{
+			bNotifyOnParamSetter = false;
+			UpdatePositionalParamsFromTransform();
+			bNotifyOnParamSetter = true;
+		}
+	}
+}
+
+void AColorCorrectWindow::PostEditMove(bool bFinished)
+{
+	Super::PostEditMove(bFinished);
+
+	bNotifyOnParamSetter = false;
+	UpdatePositionalParamsFromTransform();
+	bNotifyOnParamSetter = true;
 }
 #endif //WITH_EDITOR
 
@@ -114,3 +153,121 @@ void AColorCorrectWindow::SetMeshVisibilityForWindowType()
 		}
 	}
 }
+
+#define NOTIFY_PARAM_SETTER()\
+	if (bNotifyOnParamSetter)\
+	{\
+		UpdateStageActorTransform();\
+	}\
+
+void AColorCorrectWindow::SetLongitude(double InValue)
+{
+	PositionalParams.Longitude = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetLongitude() const
+{
+	return PositionalParams.Longitude;
+}
+
+void AColorCorrectWindow::SetLatitude(double InValue)
+{
+	PositionalParams.Latitude = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetLatitude() const
+{
+	return PositionalParams.Latitude;
+}
+
+void AColorCorrectWindow::SetDistanceFromCenter(double InValue)
+{
+	PositionalParams.DistanceFromCenter = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetDistanceFromCenter() const
+{
+	return PositionalParams.DistanceFromCenter;
+}
+
+void AColorCorrectWindow::SetSpin(double InValue)
+{
+	PositionalParams.Spin = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetSpin() const
+{
+	return PositionalParams.Spin;
+}
+
+void AColorCorrectWindow::SetPitch(double InValue)
+{
+	PositionalParams.Pitch = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetPitch() const
+{
+	return PositionalParams.Pitch;
+}
+
+void AColorCorrectWindow::SetYaw(double InValue)
+{
+	PositionalParams.Yaw = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetYaw() const
+{
+	return PositionalParams.Yaw;
+}
+
+void AColorCorrectWindow::SetRadialOffset(double InValue)
+{
+	PositionalParams.RadialOffset = InValue;
+	NOTIFY_PARAM_SETTER()
+}
+
+double AColorCorrectWindow::GetRadialOffset() const
+{
+	return PositionalParams.RadialOffset;
+}
+
+void AColorCorrectWindow::SetScale(const FVector2D& InScale)
+{
+	PositionalParams.Scale = InScale;
+	NOTIFY_PARAM_SETTER()
+}
+
+FVector2D AColorCorrectWindow::GetScale() const
+{
+	return PositionalParams.Scale;
+}
+
+void AColorCorrectWindow::SetOrigin(const FTransform& InOrigin)
+{
+	Origin = InOrigin;
+	NOTIFY_PARAM_SETTER()
+}
+
+FTransform AColorCorrectWindow::GetOrigin() const
+{
+	return Origin;
+}
+
+void AColorCorrectWindow::SetPositionalParams(const FDisplayClusterPositionalParams& InParams)
+{
+	PositionalParams = InParams;
+	NOTIFY_PARAM_SETTER()
+}
+
+FDisplayClusterPositionalParams AColorCorrectWindow::GetPositionalParams() const
+{
+	return PositionalParams;
+}
+
+#undef NOTIFY_PARAM_SETTER

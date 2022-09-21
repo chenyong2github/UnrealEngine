@@ -12,6 +12,7 @@
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterLightCardEditorWidget.h"
 #include "DisplayClusterLightCardEditorHelper.h"
+#include "StageActor/DisplayClusterWeakStageActorPtr.h"
 
 class ADisplayClusterRootActor;
 class SDisplayClusterLightCardEditor;
@@ -90,8 +91,8 @@ public:
 	/** Remove proxies of the specified type */
 	void DestroyProxies(EDisplayClusterLightCardEditorProxyType ProxyType);
 	
-	/** Selects the light card proxies that correspond to the specified light cards */
-	void SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
+	/** Selects the actor proxies that correspond to the specified actors */
+	void SelectActors(const TArray<AActor*>& ActorsToSelect);
 
 	FDisplayClusterLightCardEditorWidget::EWidgetMode GetEditorWidgetMode() const { return EditorWidget->GetWidgetMode(); }
 	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode);
@@ -123,19 +124,19 @@ public:
 	/** Sets the editor widget's coordinate system to the specified coordinate system */
 	void SetCoordinateSystem(FDisplayClusterLightCardEditorHelper::ECoordinateSystem NewCoordinateSystem);
 
-	/** Moves specified card to desired coordinates. Actual radius will be based on flush constraint and LightCard's RadialOffset.
+	/** Moves specified card to desired coordinates. Actual radius will be based on flush constraint and Actor's RadialOffset.
 	 *
-	 * @param LightCard The light card that we are moving
-	 * @param SphericalCoords specifies desired location of light card in spherical coordinates with respect to view origin.
+	 * @param Actor The actor that we are moving
+	 * @param SphericalCoords specifies desired location of actor in spherical coordinates with respect to view origin.
 	 * 
 	*/
-	void MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates& SphericalCoords) const;
+	void MoveActorTo(const FDisplayClusterWeakStageActorPtr& Actor, const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates& SphericalCoords) const;
 
 	/** Places the given light card in the middle of the current viewport */
-	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
+	void CenterActorInView(const FDisplayClusterWeakStageActorPtr& Actor);
 
 	/** Moves all selected light cards to the specified pixel position */
-	void MoveSelectedLightCardsToPixel(const FIntPoint& PixelPos);
+	void MoveSelectedActorsToPixel(const FIntPoint& PixelPos);
 
 	/** Returns the current input mode */
 	EInputMode GetInputMode() { return InputMode; }
@@ -168,41 +169,41 @@ private:
 	/** Finds a suitable primitive component on the stage actor to use as a projection origin */
 	USceneComponent* FindProjectionOriginComponent(const ADisplayClusterRootActor* InRootActor) const;
 
-	/** Callback to check if an light card actor is among the list of selected light card actors */
-	bool IsLightCardSelected(const AActor* Actor);
+	/** Callback to check if an actor is among the list of selected actors */
+	bool IsActorSelected(const AActor* Actor);
 
-	/** Adds the specified light card actor the the list of selected light cards */
-	void SelectLightCard(ADisplayClusterLightCardActor* Actor, bool bAddToSelection = false);
+	/** Adds the specified actor the the list of selected actors */
+	void SelectActor(AActor* Actor, bool bAddToSelection = false);
 
-	/** Notifies the light card editor of the currently selected light cards so that it may update other UI components to match */
-	void PropagateLightCardSelection();
+	/** Notifies the light card editor of the currently selected actors so that it may update other UI components to match */
+	void PropagateActorSelection();
 
-	/** Propagates the specified light card proxy's transform back to its level instance version */
-	void PropagateLightCardTransform(ADisplayClusterLightCardActor* LightCardProxy);
+	/** Propagates the specified actor proxy's transform back to its level instance version */
+	void PropagateActorTransform(const FDisplayClusterWeakStageActorPtr& ActorProxy);
 
-	/** Moves the currently selected light cards */
-	void MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
+	/** Moves the currently selected actors */
+	void MoveSelectedActors(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
-	/** Moves all given light cards to the specified pixel position */
-	void MoveLightCardsToPixel(const FIntPoint& PixelPos, const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& InLightCards);
+	/** Moves all given actors to the specified pixel position */
+	void MoveActorsToPixel(const FIntPoint& PixelPos, const TArray<FDisplayClusterWeakStageActorPtr>& InActors);
 
-	/** Moves the currently selected UV light cards */
-	void MoveSelectedUVLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
+	/** Moves the currently selected UV actors */
+	void MoveSelectedUVActors(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
-	/** Determines the appropriate delta in UV coordinates needed to move the specified light card to the mouse's location */
-	FVector2D GetUVLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
+	/** Determines the appropriate delta in UV coordinates needed to move the specified actor to the mouse's location */
+	FVector2D GetUVActorTranslationDelta(FViewport* InViewport, const FDisplayClusterWeakStageActorPtr& InActor, EAxisList::Type CurrentAxis);
 
-	/** Scales the currently selected light cards */
-	void ScaleSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
+	/** Scales the currently selected actors */
+	void ScaleSelectedActors(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
-	/** Determines the appropriate scale delta needed to scale the light card */
-	FVector2D GetLightCardScaleDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
+	/** Determines the appropriate scale delta needed to scale the actor */
+	FVector2D GetActorScaleDelta(FViewport* InViewport, const FDisplayClusterWeakStageActorPtr& InActor, EAxisList::Type CurrentAxis);
 
-	/** Rotates the currently selected light cards around the light card's normal axis */
-	void SpinSelectedLightCards(FViewport* InViewport);
+	/** Rotates the currently selected actors around the actor's normal axis */
+	void SpinSelectedActors(FViewport* InViewport);
 
 	/** Determines the appropriate spin delta needed to rotate the light card */
-	double GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard);
+	double GetActorSpinDelta(FViewport* InViewport);
 
 	/** Traces to find the light card corresponding to a click on a stage screen */
 	ADisplayClusterLightCardActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);
@@ -213,7 +214,7 @@ private:
 	/** Converts a direction vector from world space to screen screen space, and returns true of the direction vector is on the screen */
 	bool WorldToScreenDirection(const FSceneView& View, const FVector& WorldPos, const FVector& WorldDirection, FVector2D& OutScreenDir);
 
-	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
+	/** Calculates the world transform to render the editor widget with to align it with the selected actor */
 	bool CalcEditorWidgetTransform(FTransform& WidgetTransform);
 
 	/** Checks if the location is approaching the edge of the view space */
@@ -237,8 +238,8 @@ private:
 	/** Creates a new light card using a polygon alpha mask as defined by the given mouse positions on the viewport */
 	void CreateDrawnLightCard(const TArray<FIntPoint>& MousePositions);
 
-	/** Calculates the final distance from the origin of a light card, given its flush distance and a desired offset */
-	double CalculateFinalLightCardDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
+	/** Calculates the final distance from the origin of an actor, given its flush distance and a desired offset */
+	double CalculateFinalActorDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
 
 	/** Callback passed into the mesh projection renderer to filter which primitives are drawn */
 	bool ShouldRenderPrimitive(const UPrimitiveComponent* PrimitiveComponent);
@@ -262,35 +263,55 @@ private:
 	/** The radius of the bounding sphere that entirely encapsulates the root actor */
 	float RootActorBoundingRadius = 0.0f;
 
-	struct FLightCardProxy
+	struct FActorProxy
 	{
-		TWeakObjectPtr<ADisplayClusterLightCardActor> LevelInstance;
-		TWeakObjectPtr<ADisplayClusterLightCardActor> Proxy;
+		FDisplayClusterWeakStageActorPtr LevelInstance;
+		FDisplayClusterWeakStageActorPtr Proxy;
 
-		FLightCardProxy(ADisplayClusterLightCardActor* InLevelInstance, ADisplayClusterLightCardActor* InProxy)
+		FActorProxy(const AActor* InLevelInstance, const AActor* InProxy)
 			: LevelInstance(InLevelInstance)
 			, Proxy(InProxy)
-		{ }
+		{
+		}
 
-		bool operator==(AActor* Actor) const { return (LevelInstance.IsValid() && LevelInstance.Get() == Actor) || (Proxy.IsValid() && Proxy.Get() == Actor); }
+		bool operator==(const AActor* Actor) const { return (LevelInstance.IsValid() && LevelInstance.AsActor() == Actor) || (Proxy.IsValid() && Proxy.AsActor() == Actor); }
 	};
 
-	TArray<FLightCardProxy> LightCardProxies;
-	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> SelectedLightCards;
+	struct FSpriteProxy
+	{
+		TObjectPtr<UTexture2D> Sprite;
+		FVector WorldPosition;
+		float U;
+		float UL;
+		float V;
+		float VL;
+		float ScreenSize;
+		float SpriteScale;
+		float OpacityMaskRefVal;
 
-	/** The light card in the selected light card list that was selected last */
-	TWeakObjectPtr<ADisplayClusterLightCardActor> LastSelectedLightCard = nullptr;
+		bool bIsScreenSizeScaled = false;
+
+		/** Construct a sprite proxy from a billboard component */
+		static FSpriteProxy FromBillboard(const UBillboardComponent* InBillboardComponent);
+	};
+
+	TArray<FActorProxy> ActorProxies;
+	TArray<TWeakObjectPtr<UBillboardComponent>> BillboardComponentProxies;
+	TArray<FDisplayClusterWeakStageActorPtr> SelectedActors;
+
+	/** The actor in the selected actor list that was selected last */
+	FDisplayClusterWeakStageActorPtr LastSelectedActor;
 
 	/** Light card preview actors being dropped on the scene */
-	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> DropPreviewLightCards;
+	TArray<FDisplayClusterWeakStageActorPtr> DropPreviewLightCards;
 	
 	/** The index of the scene preview renderer returned from IDisplayClusterScenePreview */
 	int32 PreviewRendererId = -1;
 
-	/** Helper used to convert between screen and world coordinates for lightcard positions. */
+	/** Helper used to convert between screen and world coordinates for actor positions. */
 	TSharedPtr<FDisplayClusterLightCardEditorHelper> ProjectionHelper;
 	
-	/** The LC editor widget used to manipulate light cards */
+	/** The LC editor widget used to manipulate actors */
 	TSharedPtr<FDisplayClusterLightCardEditorWidget> EditorWidget;
 
 	/** The cached editor widget transform in unprojected world space */

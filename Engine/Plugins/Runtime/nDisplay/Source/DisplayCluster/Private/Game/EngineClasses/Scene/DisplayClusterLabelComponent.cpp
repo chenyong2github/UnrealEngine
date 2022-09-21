@@ -98,7 +98,7 @@ void UDisplayClusterLabelComponent::UpdateWidgetComponent()
 		const USceneComponent* Viewpoint = RootActor.IsValid() ? RootActor->GetCommonViewPoint() : nullptr;
 		if (Viewpoint != nullptr)
 		{
-			const FTransform LightCardTransform = LightCardActor->GetLightCardTransform();
+			const FTransform LightCardTransform = LightCardActor->GetStageActorTransform();
 			const FVector LightCardLocation = LightCardTransform.GetLocation();
 			const FVector DestinationPoint = Viewpoint->GetComponentLocation();
 

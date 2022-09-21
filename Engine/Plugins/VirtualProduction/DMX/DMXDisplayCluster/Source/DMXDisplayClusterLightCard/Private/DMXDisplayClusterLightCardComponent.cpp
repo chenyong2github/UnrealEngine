@@ -47,7 +47,7 @@ struct FDMXDisplayClusterLightCardActorData
 {
 	void Apply(ADisplayClusterLightCardActor* Actor)
 	{
-		if (!Actor || Actor->bIsProxy) 
+		if (!Actor || Actor->IsProxy()) 
 		{
 			return;
 		}
@@ -223,7 +223,7 @@ struct FDMXDisplayClusterLightCardActorData
 		// Apply changes
 		if (bNeedsUpdateLightCardTransform)
 		{
-			Actor->UpdateLightCardTransform();
+			Actor->UpdateStageActorTransform();
 		}
 
 		if (bNeedsUpdateLightCardMaterialInstance)

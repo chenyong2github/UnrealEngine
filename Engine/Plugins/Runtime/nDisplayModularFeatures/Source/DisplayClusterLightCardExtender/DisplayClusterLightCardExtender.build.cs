@@ -11,6 +11,7 @@ public class DisplayClusterLightCardExtender : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"Engine"
 			});
 	}
 }

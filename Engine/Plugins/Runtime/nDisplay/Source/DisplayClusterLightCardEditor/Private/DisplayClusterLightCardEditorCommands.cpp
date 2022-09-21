@@ -42,6 +42,8 @@ void FDisplayClusterLightCardEditorCommands::RegisterCommands()
 
 	UI_COMMAND(ToggleAllLabels, "Labels", "Display labels in the preview and wall", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleLightCardLabels, "Light Card Labels", "Display labels on light cards in the preview and wall", EUserInterfaceActionType::ToggleButton, FInputChord());
+
+	UI_COMMAND(ToggleIconVisibility, "Icons", "Display icons in the light card editor where applicable", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

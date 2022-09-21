@@ -401,8 +401,8 @@ const UTexture2D* FDisplayClusterLightCardEditorHelper::GetNormalMapTexture(bool
 	return NormalMapTexture;
 }
 
-void FDisplayClusterLightCardEditorHelper::MoveLightCardsToPixel(
-	const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& SceneView)
+void FDisplayClusterLightCardEditorHelper::MoveActorsToPixel(
+	const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView)
 {
 	FVector Origin;
 	FVector Direction;
@@ -410,15 +410,15 @@ void FDisplayClusterLightCardEditorHelper::MoveLightCardsToPixel(
 
 	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 	{
-		// Find the average position of all selected light cards. This group average is what is moved to the specified pixel
+		// Find the average position of all selected actors. This group average is what is moved to the specified pixel
 		FVector2D AverageUVCoords = FVector2D::ZeroVector;
 		int32 NumLightCards = 0;
 
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : LightCards)
+		for (const FDisplayClusterWeakStageActorPtr& Actor : Actors)
 		{
-			if (LightCard.IsValid() && LightCard->bIsUVLightCard)
+			if (Actor.IsValid() && Actor->IsUVActor())
 			{
-				AverageUVCoords += LightCard->UVCoordinates;
+				AverageUVCoords += Actor->GetUVCoordinates();
 				++NumLightCards;
 			}
 		}
@@ -435,11 +435,11 @@ void FDisplayClusterLightCardEditorHelper::MoveLightCardsToPixel(
 
 		const FVector2D DeltaUVCoords = DesiredUVCoords - AverageUVCoords;
 
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : LightCards)
+		for (const FDisplayClusterWeakStageActorPtr& Actor : Actors)
 		{
-			if (LightCard.IsValid() && LightCard->bIsUVLightCard)
+			if (Actor.IsValid() && Actor->IsUVActor())
 			{
-				LightCard->UVCoordinates += DeltaUVCoords;
+				Actor->SetUVCoordinates(Actor->GetUVCoordinates() + DeltaUVCoords);
 			}
 		}
 	}
@@ -447,22 +447,27 @@ void FDisplayClusterLightCardEditorHelper::MoveLightCardsToPixel(
 	{
 		// Find the average position of all selected light cards. This group average is what is moved to the specified pixel
 		FSphericalCoordinates AverageCoords = FSphericalCoordinates();
-		int32 NumLightCards = 0;
+		int32 NumActors = 0;
 
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor> LightCard : LightCards)
+		for (const FDisplayClusterWeakStageActorPtr& Actor : Actors)
 		{
-			if (LightCard.IsValid())
+			if (Actor.IsValid())
 			{
-				const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(*LightCard);
+				const FSphericalCoordinates ActorCoords = GetActorCoordinates(Actor);
 
-				AverageCoords = AverageCoords + LightCardCoords;
-				++NumLightCards;
+				AverageCoords = AverageCoords + ActorCoords;
+				++NumActors;
 			}
 		}
 
-		AverageCoords.Radius /= NumLightCards;
-		AverageCoords.Azimuth /= NumLightCards;
-		AverageCoords.Inclination /= NumLightCards;
+		if (NumActors == 0)
+		{
+			NumActors = 1;
+		}
+		
+		AverageCoords.Radius /= NumActors;
+		AverageCoords.Azimuth /= NumActors;
+		AverageCoords.Inclination /= NumActors;
 		AverageCoords.Conform();
 
 		// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
@@ -470,21 +475,21 @@ void FDisplayClusterLightCardEditorHelper::MoveLightCardsToPixel(
 		const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
 
 		// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor> LightCard : LightCards)
+		for (const FDisplayClusterWeakStageActorPtr& LightCard : Actors)
 		{
-			if (LightCard.IsValid() && !LightCard->bIsUVLightCard)
+			if (LightCard.IsValid() && !LightCard->IsUVActor())
 			{
-				const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(*LightCard);
+				const FSphericalCoordinates LightCardCoords = GetActorCoordinates(LightCard);
 				const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
 
-				MoveLightCardsTo({ LightCard }, NewCoords);
+				MoveActorsTo({ LightCard }, NewCoords);
 			}
 		}
 	}
 }
 
-void FDisplayClusterLightCardEditorHelper::MoveLightCardsTo(
-	const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FSphericalCoordinates& SphericalCoords)
+void FDisplayClusterLightCardEditorHelper::MoveActorsTo(
+	const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FSphericalCoordinates& SphericalCoords)
 {
 	ADisplayClusterRootActor* RootActor = UpdateRootActor();
 	if (!RootActor)
@@ -497,26 +502,28 @@ void FDisplayClusterLightCardEditorHelper::MoveLightCardsTo(
 		return;
 	}
 
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor> LightCard : LightCards)
+	for (const FDisplayClusterWeakStageActorPtr& Actor : Actors)
 	{
-		if (!LightCard.IsValid())
+		if (!Actor.IsValid())
 		{
 			continue;
 		}
 
-		InternalMoveLightCardTo(*LightCard, SphericalCoords, true);
+		InternalMoveActorTo(Actor, SphericalCoords, true);
 	}
 }
 
-void FDisplayClusterLightCardEditorHelper::DragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& SceneView,
-	ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard)
+void FDisplayClusterLightCardEditorHelper::DragActors(
+	const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos,
+	const FSceneView& SceneView, ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis,
+	FDisplayClusterWeakStageActorPtr PrimaryActor)
 {
-	if (LightCards.IsEmpty())
+	if (Actors.IsEmpty())
 	{
 		return;
 	}
 
-	ADisplayClusterRootActor* RootActor = UpdateRootActor();
+	const ADisplayClusterRootActor* RootActor = UpdateRootActor();
 	if (!RootActor)
 	{
 		return;
@@ -526,23 +533,23 @@ void FDisplayClusterLightCardEditorHelper::DragLightCards(const TArray<TWeakObje
 	{
 		return;
 	}
-
+	
 	// Maps are already ready, so we can move immediately
-	InternalDragLightCards(LightCards, PixelPos, SceneView, CoordinateSystem, DragWidgetOffset, DragAxis, PrimaryLightCard);
+	InternalDragActors(Actors, PixelPos, SceneView, CoordinateSystem, DragWidgetOffset, DragAxis, PrimaryActor);
 }
 
-void FDisplayClusterLightCardEditorHelper::VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor& LightCard)
+void FDisplayClusterLightCardEditorHelper::VerifyAndFixActorOrigin(const FDisplayClusterWeakStageActorPtr& Actor)
 {
-	// Center lightcard on the current view origin, let it keep its current world placement 
-	// (but not its spin/yaw/pitch since that will be happen later using the cache).
+	// Center actor on the current view origin, let it keep its current world placement 
+	// (but not its spin/yaw/pitch since that will be happen later using the cache)
 
-	ADisplayClusterRootActor* RootActor = UpdateRootActor();
-	const ADisplayClusterRootActor* LightCardRootActor = (LightCard.bIsProxy || !LevelInstanceRootActor.IsValid()) ? RootActor : LevelInstanceRootActor.Get();
+	const ADisplayClusterRootActor* RootActor = UpdateRootActor();
+	const ADisplayClusterRootActor* OwningRootActor = (Actor->IsProxy() || !LevelInstanceRootActor.IsValid()) ? RootActor : LevelInstanceRootActor.Get();
 
 	const USceneComponent* OriginComponent = nullptr;
-	if (LightCardRootActor)
+	if (OwningRootActor)
 	{
-		OriginComponent = LightCard.bIsProxy ? ProjectionOriginComponent.Get() : LightCardRootActor->GetCommonViewPoint();
+		OriginComponent = Actor->IsProxy() && ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent.Get() : OwningRootActor->GetCommonViewPoint();
 	}
 
 	if (!OriginComponent)
@@ -550,27 +557,24 @@ void FDisplayClusterLightCardEditorHelper::VerifyAndFixLightCardOrigin(ADisplayC
 		return;
 	}
 
-	// Set location at the view origin
-	const FVector& NewLightCardActorLocation = OriginComponent ? OriginComponent->GetComponentLocation() : FVector::ZeroVector;
+	// Set location and rotation to match the root actor
+	const FVector& NewActorLocation = OriginComponent ? OriginComponent->GetComponentLocation() : FVector::ZeroVector;
+	const FRotator& NewActorRotation = OwningRootActor ? OwningRootActor->GetActorRotation() : FRotator::ZeroRotator;
+	
+	Actor->SetOrigin({ NewActorRotation, NewActorLocation, FVector::One() });
+	
+	if (Actor.AsActorChecked()->IsA<ADisplayClusterLightCardActor>())
+	{
+		// Update the light card spherical coordinates to match its current world coordinates
+		const FVector LightCardEndEffectorLocation = Actor->GetStageActorTransform(true).GetLocation();
+		const FVector ActorRelativeLocation = NewActorRotation.UnrotateVector(LightCardEndEffectorLocation);
 
-	// Set rotation to match the root actor
-	const FRotator& NewLightCardActorRotation = LightCardRootActor ? LightCardRootActor->GetActorRotation() : FRotator::ZeroRotator;
-
-	const FVector LightCardEndEffectorLocation = LightCard.GetLightCardTransform().GetLocation();
-
-	LightCard.SetActorLocation(NewLightCardActorLocation);
-	LightCard.SetActorRotation(NewLightCardActorRotation);
-
-	// Update the light card spherical coordinates to match its current world coordinates
-
-	const FVector LightCardRelativeLocation = NewLightCardActorRotation.UnrotateVector(LightCardEndEffectorLocation - NewLightCardActorLocation);
-
-	const FSphericalCoordinates SphericalCoords(LightCardRelativeLocation);
-
-	SetLightCardCoordinates(LightCard, SphericalCoords);
+		const FSphericalCoordinates SphericalCoords(ActorRelativeLocation);
+		SetActorCoordinates(Actor, SphericalCoords);
+	}
 
 #if WITH_EDITOR
-	PostEditChangePropertiesForMovedLightCard(LightCard);
+	PostEditChangePropertiesForMovedActor(Actor);
 #endif
 }
 
@@ -838,22 +842,21 @@ void FDisplayClusterLightCardEditorHelper::GetSceneViewInitOptions(
 	OutViewInitOptions.FOV = InFOV;
 }
 
-FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLightCardEditorHelper::GetLightCardCoordinates(const ADisplayClusterLightCardActor& LightCard)
+FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLightCardEditorHelper::GetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor)
 {
-	const FVector LightCardLocation = LightCard.GetLightCardTransform().GetTranslation() - LightCard.GetActorLocation();
-
-	FSphericalCoordinates LightCardCoords(LightCardLocation);
+	const FVector ActorLocation = Actor->GetStageActorTransform(true).GetTranslation();
+	FSphericalCoordinates ActorSphericalCoords(ActorLocation);
 
 	// If the light card points at any of the poles, the spherical coordinates will have an "undefined" azimuth value. 
 	// For continuity when dragging a light card positioned there, 
 	// we can manually set the azimuthal value to match the light card's configured longitude
 
-	if (LightCardCoords.IsPointingAtPole())
+	if (ActorSphericalCoords.IsPointingAtPole())
 	{
-		LightCardCoords.Azimuth = FMath::DegreesToRadians(LightCard.Longitude + 180);
+		ActorSphericalCoords.Azimuth = FMath::DegreesToRadians(Actor->GetLongitude() + 180.f);
 	}
 
-	return LightCardCoords;
+	return ActorSphericalCoords;
 }
 
 ADisplayClusterRootActor* FDisplayClusterLightCardEditorHelper::UpdateRootActor()
@@ -931,11 +934,11 @@ FVector FDisplayClusterLightCardEditorHelper::GetProjectionOrigin() const
 	return FVector::Zero();
 }
 
-FRotator FDisplayClusterLightCardEditorHelper::GetLightCardRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard,
+FRotator FDisplayClusterLightCardEditorHelper::GetActorRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, const FDisplayClusterWeakStageActorPtr& Actor,
 	ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset)
 {
-	const FSphericalCoordinates DeltaCoords = GetLightCardTranslationDelta(PixelPos, View, LightCard, CoordinateSystem, DragAxis, DragWidgetOffset);
-	const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
+	const FSphericalCoordinates DeltaCoords = GetActorTranslationDelta(PixelPos, View, Actor, CoordinateSystem, DragAxis, DragWidgetOffset);
+	const FSphericalCoordinates LightCardCoords = GetActorCoordinates(Actor);
 	const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
 
 	const FVector LightCardPos = LightCardCoords.AsCartesian();
@@ -954,10 +957,10 @@ FRotator FDisplayClusterLightCardEditorHelper::GetLightCardRotationDelta(const F
 	return FQuat(AxisOfRotation, Angle).Rotator();
 }
 
-FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLightCardEditorHelper::GetLightCardTranslationDelta(
+FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLightCardEditorHelper::GetActorTranslationDelta(
 	const FIntPoint& PixelPos,
 	const FSceneView& View,
-	ADisplayClusterLightCardActor& LightCard,
+	const FDisplayClusterWeakStageActorPtr& Actor,
 	ECoordinateSystem CoordinateSystem,
 	EAxisList::Type DragAxis,
 	const FVector& DragWidgetOffset)
@@ -971,10 +974,11 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 		Direction = (Direction - DragWidgetOffset).GetSafeNormal();
 	}
 
-	const FVector LocalDirection = LightCard.GetActorRotation().RotateVector(Direction);
-	const FVector LightCardLocation = LightCard.GetLightCardTransform().GetTranslation() - Origin;
-	const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
+	checkSlow(CachedRootActor.IsValid());
 
+	const FVector LocalDirection = CachedRootActor->GetActorRotation().RotateVector(Direction);
+	const FVector LightCardLocation = Actor->GetStageActorTransform().GetTranslation() - Origin;
+	const FSphericalCoordinates ActorCoords = GetActorCoordinates(Actor);
 	FSphericalCoordinates DeltaCoords;
 
 	// If we are in a cartesian coordinate system and are constraining to an axis, perform the constraint calculations in
@@ -1000,7 +1004,7 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 			Axis = FVector::ZAxisVector;
 		}
 
-		const FVector LocalAxis = LightCard.GetActorRotation().RotateVector(Axis);
+		const FVector LocalAxis = CachedRootActor->GetActorRotation().RotateVector(Axis);
 
 		// Compute the offset between the requested location and the light card's current location, and project that
 		// offset onto the constraint axis
@@ -1009,7 +1013,7 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 		const FVector ConstrainedLocation = LightCardLocation + DeltaLocation;
 
 		const FSphericalCoordinates ConstrainedCoords(ConstrainedLocation);
-		DeltaCoords = ConstrainedCoords - LightCardCoords;
+		DeltaCoords = ConstrainedCoords - ActorCoords;
 	}
 	else
 	{
@@ -1019,16 +1023,16 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 		// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
 		if (LightCardLocation.Z < 0.0f)
 		{
-			SouthNormalMap.GetNormalAndDistanceAtPosition(LightCard.GetLightCardTransform().GetTranslation(), Normal, Distance);
+			SouthNormalMap.GetNormalAndDistanceAtPosition(Actor->GetStageActorTransform(true).GetTranslation(), Normal, Distance);
 		}
 		else
 		{
-			NorthNormalMap.GetNormalAndDistanceAtPosition(LightCard.GetLightCardTransform().GetTranslation(), Normal, Distance);
+			NorthNormalMap.GetNormalAndDistanceAtPosition(Actor->GetStageActorTransform(true).GetTranslation(), Normal, Distance);
 		}
 
 		const FSphericalCoordinates RequestedCoords(LocalDirection * Distance);
 
-		DeltaCoords = RequestedCoords - LightCardCoords;
+		DeltaCoords = RequestedCoords - ActorCoords;
 
 		if (CoordinateSystem == ECoordinateSystem::Spherical)
 		{
@@ -1049,7 +1053,7 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 				const double FixedAzimuth = FMath::RoundToInt(DeltaCoords.Azimuth / PI) * PI;
 
 				DeltaCoords.Azimuth = FixedAzimuth;
-				DeltaCoords.Inclination = FixedInclination - LightCardCoords.Inclination;
+				DeltaCoords.Inclination = FixedInclination - ActorCoords.Inclination;
 			}
 		}
 	}
@@ -1057,8 +1061,8 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 	return DeltaCoords;
 }
 
-void FDisplayClusterLightCardEditorHelper::InternalMoveLightCardTo(
-	ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& Position, bool bIsFinalChange) const
+void FDisplayClusterLightCardEditorHelper::InternalMoveActorTo(
+	const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& Position, bool bIsFinalChange) const
 {
 	if (bNormalMapInvalid || !CachedRootActor.IsValid())
 	{
@@ -1086,68 +1090,70 @@ void FDisplayClusterLightCardEditorHelper::InternalMoveLightCardTo(
 	// which already takes the root actor rotation into account as part of its view matrix.
 	const FQuat RootRotation = CachedRootActor->GetTransform().GetRotation().Inverse();
 	const FVector InverseRotatedPosition = RootRotation.RotateVector(Position.AsCartesian());
-	SetLightCardCoordinates(LightCard, FSphericalCoordinates(InverseRotatedPosition));
 
-	LightCard.DistanceFromCenter = CalculateFinalLightCardDistance(DesiredDistance);
+	SetActorCoordinates(Actor, FSphericalCoordinates(InverseRotatedPosition));
+	
+	const double FinalDistance = CalculateFinalLightCardDistance(DesiredDistance);
+	Actor->SetDistanceFromCenter(FinalDistance);
 
 	const FRotator Rotation = FRotationMatrix::MakeFromX(-DesiredNormal).Rotator();
-
-	LightCard.Pitch = Rotation.Pitch;
-	LightCard.Yaw = Rotation.Yaw;
+	
+	Actor->SetPitch(Rotation.Pitch);
+	Actor->SetYaw(Rotation.Yaw);
 
 #if WITH_EDITOR
-	if (bIsFinalChange && !LightCard.bIsProxy)
+	if (bIsFinalChange && !Actor->IsProxy())
 	{
-		PostEditChangePropertiesForMovedLightCard(LightCard);
+		PostEditChangePropertiesForMovedActor(Actor);
 	}
 #endif
 }
 
-void FDisplayClusterLightCardEditorHelper::InternalDragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& View,
-	ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard)
+void FDisplayClusterLightCardEditorHelper::InternalDragActors(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& View,
+	ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor)
 {
-	if (LightCards.IsEmpty() || !ensure(!bNormalMapInvalid) || !UpdateRootActor())
+	if (Actors.IsEmpty() || !ensure(!bNormalMapInvalid) || !UpdateRootActor())
 	{
 		return;
 	}
 
-	if (!PrimaryLightCard)
+	if (!PrimaryActor.IsValid())
 	{
-		PrimaryLightCard = LightCards.Last().Get();
+		PrimaryActor = Actors.Last();
 	}
 
-	if (PrimaryLightCard && !PrimaryLightCard->bIsUVLightCard)
+	if (PrimaryActor.IsValid() && !PrimaryActor->IsUVActor())
 	{
 		const bool bUseDeltaRotation = (DragAxis == EAxisList::Type::XYZ) || (DragAxis == EAxisList::Type::Y) || (CoordinateSystem == ECoordinateSystem::Cartesian);
 
 		const FRotator DeltaRotation =
 			bUseDeltaRotation ?
-			GetLightCardRotationDelta(PixelPos, View, *PrimaryLightCard, CoordinateSystem, DragAxis, DragWidgetOffset)
+			GetActorRotationDelta(PixelPos, View, PrimaryActor, CoordinateSystem, DragAxis, DragWidgetOffset)
 			: FRotator::ZeroRotator;
 
 		const FSphericalCoordinates DeltaCoords =
 			bUseDeltaRotation ?
 			FSphericalCoordinates()
-			: GetLightCardTranslationDelta(PixelPos, View, *PrimaryLightCard, CoordinateSystem, DragAxis, DragWidgetOffset);
+			: GetActorTranslationDelta(PixelPos, View, PrimaryActor, CoordinateSystem, DragAxis, DragWidgetOffset);
 
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor> LightCard : LightCards)
+		for (const FDisplayClusterWeakStageActorPtr& Actor : Actors)
 		{
-			if (!LightCard.IsValid() || LightCard->bIsUVLightCard)
+			if (!Actor.IsValid() || Actor->IsUVActor())
 			{
 				continue;
 			}
 
-			VerifyAndFixLightCardOrigin(*LightCard);
+			VerifyAndFixActorOrigin(Actor);
 
-			// Note: GetLightCardCoordinates maintains last known Azimuth when looking at the poles
-			const FSphericalCoordinates CurrentCoords = GetLightCardCoordinates(*LightCard.Get());
+			// Note: GetActorCoordinates maintains last known Azimuth when looking at the poles
+			const FSphericalCoordinates CurrentCoords = GetActorCoordinates(Actor);
 
 			// We will adjust the spin (to maintain the apparent spin) when using center of gizmo
 			// or dragging longitudinally (this seems to provide an intuitive behavior)
 			if (bUseDeltaRotation) // Dragging center of gizmo
 			{
 				// We might need this to put back the LightCard exactly as it was
-				const ADisplayClusterLightCardActor::PositionalParams OriginalPositionalParams = LightCard->GetPositionalParams();
+				const FDisplayClusterPositionalParams OriginalPositionalParams = Actor->GetPositionalParams();
 
 				const FVector CurrentPos = CurrentCoords.AsCartesian();
 				const FVector NewPos = DeltaRotation.RotateVector(CurrentPos);
@@ -1155,13 +1161,13 @@ void FDisplayClusterLightCardEditorHelper::InternalDragLightCards(const TArray<T
 				// Calculations are only valid if translation is not too small
 				const FSphericalCoordinates NewCoords(NewPos);
 
-				const FTransform Transform_A = LightCard->GetLightCardTransform(false /*bIgnoreSpinYawPitch*/);
+				const FTransform Transform_A = Actor->GetStageActorTransform(true);
 
 				// Don't fire off property change events yet since we're not done modifying the lightcard
-				InternalMoveLightCardTo(*LightCard, NewCoords, false);
-				LightCard->UpdateLightCardTransform(); // We must call this for GetLightCardTransform to be valid
+				InternalMoveActorTo(Actor, NewCoords, false);
+				Actor->UpdateStageActorTransform(); // We must call this for GetStageActorTransform to be valid
 
-				const FTransform Transform_B = LightCard->GetLightCardTransform(false /*bIgnoreSpinYawPitch*/);
+				const FTransform Transform_B = Actor->GetStageActorTransform(true);
 
 				// Calculate world delta translation of moving from A to B
 				FVector WorldDelta = Transform_B.GetLocation() - Transform_A.GetLocation(); // X towards front of stage. Y towards right of stage. Z towards ceiling.
@@ -1195,21 +1201,21 @@ void FDisplayClusterLightCardEditorHelper::InternalDragLightCards(const TArray<T
 					const double DeltaSpin = RelativeSpinAngle_B - RelativeSpinAngle_A;
 
 					// Apply delta spin to lightcard
-					LightCard->Spin += FMath::RadiansToDegrees(DeltaSpin);
+					Actor->SetSpin(Actor->GetSpin() + FMath::RadiansToDegrees(DeltaSpin));
 				}
 				else
 				{
 					// Leave it where it was to avoid apparent spins even though motion would have been insignificant.
-					LightCard->SetPositionalParams(OriginalPositionalParams);
+					Actor->SetPositionalParams(OriginalPositionalParams);
 				}
 
 #if WITH_EDITOR
-				PostEditChangePropertiesForMovedLightCard(*LightCard);
+				PostEditChangePropertiesForMovedActor(Actor);
 #endif
 			}
 			else // Dragging latitudinally
 			{
-				InternalMoveLightCardTo(*LightCard, CurrentCoords + DeltaCoords, true);
+				InternalMoveActorTo(Actor, CurrentCoords + DeltaCoords, true);
 			}
 		}
 	}
@@ -1293,16 +1299,16 @@ void FDisplayClusterLightCardEditorHelper::GetNormalMapSceneViewInitOptions(cons
 #endif
 }
 
-void FDisplayClusterLightCardEditorHelper::SetLightCardCoordinates(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& SphericalCoords) const
+void FDisplayClusterLightCardEditorHelper::SetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& SphericalCoords) const
 {
-	LightCard.DistanceFromCenter = SphericalCoords.Radius;
-	LightCard.Latitude = 90.f - FMath::RadiansToDegrees(SphericalCoords.Inclination);
+	Actor->SetDistanceFromCenter(SphericalCoords.Radius);
+	Actor->SetLatitude(90.f - FMath::RadiansToDegrees(SphericalCoords.Inclination));
 
 	// Keep the same longitude when pointing at the pole. This helps with continuity 
 	// and also mitigates sudden changes in apparent spin when moving around the poles
 	if (!SphericalCoords.IsPointingAtPole())
 	{
-		LightCard.Longitude = FRotator::ClampAxis(FMath::RadiansToDegrees(SphericalCoords.Azimuth) - 180);
+		Actor->SetLongitude(FRotator::ClampAxis(FMath::RadiansToDegrees(SphericalCoords.Azimuth) - 180.f));
 	}
 }
 
@@ -1568,38 +1574,40 @@ void FDisplayClusterLightCardEditorHelper::OnRootActorBlueprintCompiled(UBluepri
 #endif
 
 #if WITH_EDITOR
-void FDisplayClusterLightCardEditorHelper::PostEditChangePropertiesForMovedLightCard(ADisplayClusterLightCardActor& LightCard) const
+void FDisplayClusterLightCardEditorHelper::PostEditChangePropertiesForMovedActor(const FDisplayClusterWeakStageActorPtr& Actor) const
 {
-	if (LightCard.bIsProxy)
+	if (Actor->IsProxy())
 	{
 		return;
 	}
 
-	LightCard.Modify();
+	Actor.AsActorChecked()->Modify();
 
-	auto ModifyLightCardProperty = [&](const FName& PropertyName)
+	auto ModifyLightCardProperty = [&](const FName& PropertyName) -> FProperty*
 	{
-		FProperty* Property = FindFProperty<FProperty>(LightCard.GetClass(), PropertyName);
+		if (FProperty* Property = FindFProperty<FProperty>(Actor.AsActorChecked()->GetClass(), PropertyName))
+		{
+			// Broadcast the event directly instead of PostEditChangeProperty on the object itself, which would attempt to create unnecessary snapshots for each call
+			FPropertyChangedEvent PropertyChangedEvent(Property, EPropertyChangeType::Interactive);
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor.AsActorChecked(), PropertyChangedEvent);
 
-		// Broadcast the event directly instead of PostEditChangeProperty on the object itself, which would attempt to create unnecessary snapshots for each call
-		FPropertyChangedEvent PropertyChangedEvent(Property, EPropertyChangeType::Interactive);
-		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(&LightCard, PropertyChangedEvent);
-
-		return Property;
+			return Property;
+		}
+		return nullptr;
 	};
 
-	const FProperty* ChangedProperties[] =
+	const TSet<FName>& PropertyNames = Actor->GetPositionalPropertyNames();
+	
+	TArray<const FProperty*> ChangedProperties;
+	ChangedProperties.Reserve(PropertyNames.Num());
+	for (const FName& PropertyName : PropertyNames)
 	{
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Longitude)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, DistanceFromCenter)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale)),
-		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, UVCoordinates)),
-	};
+		if (const FProperty* Property = ModifyLightCardProperty(PropertyName))
+		{
+			ChangedProperties.Add(Property);
+		}
+	}
 
-	SnapshotTransactionBuffer(&LightCard, ChangedProperties);
+	SnapshotTransactionBuffer(Actor.AsActorChecked(), MakeArrayView(ChangedProperties.GetData(), ChangedProperties.Num()));
 }
 #endif

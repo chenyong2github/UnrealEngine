@@ -6,7 +6,6 @@
 #include "DisplayClusterLightCardEditorWidget.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 
-#include "Blueprints/DisplayClusterBlueprintLib.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
@@ -16,6 +15,7 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterLightCardEditorLog.h"
+#include "DisplayClusterLightCardEditorUtils.h"
 #include "IDisplayClusterScenePreview.h"
 #include "SDisplayClusterLightCardEditor.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
@@ -50,6 +50,7 @@
 #include "Slate/SceneViewport.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealWidget.h"
+#include "Components/BillboardComponent.h"
 #include "Widgets/Docking/SDockTab.h"
 
 
@@ -80,7 +81,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	PreviewRendererId = PreviewModule.CreateRenderer();
 	PreviewModule.SetRendererActorSelectedDelegate(
 		PreviewRendererId,
-		FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected)
+		FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsActorSelected)
 	);
 	PreviewModule.SetRendererRenderSimpleElementsDelegate(
 		PreviewRendererId,
@@ -466,7 +467,64 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
-	if (LastSelectedLightCard.IsValid() && LastSelectedLightCard->bIsUVLightCard == bIsUVProjection)
+
+	// Draw any sprites
+	for (const TWeakObjectPtr<UBillboardComponent>& BillboardComponent : BillboardComponentProxies)
+	{
+		if (!BillboardComponent.IsValid())
+		{
+			continue;
+		}
+		FSpriteProxy SpriteProxy = FSpriteProxy::FromBillboard(BillboardComponent.Get());
+		
+		FSceneViewInitOptions SceneViewInitOptions;
+		GetSceneViewInitOptions(SceneViewInitOptions);
+		FViewMatrices ViewMatrices(SceneViewInitOptions);
+		
+		FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, ViewMatrices);
+		
+		if (const FTexture* TextureResource = SpriteProxy.Sprite ? SpriteProxy.Sprite->GetResource() : nullptr)
+		{
+			const UDisplayClusterLightCardEditorSettings* Settings = GetDefault<UDisplayClusterLightCardEditorSettings>();
+			
+			PDI->SetHitProxy(new HActor(BillboardComponent->GetOwner(), BillboardComponent.Get()));
+
+			if (Settings->bDisplayIcons)
+			{
+				const float UL = SpriteProxy.UL == 0.0f ? TextureResource->GetSizeX() : SpriteProxy.UL;
+				const float VL = SpriteProxy.VL == 0.0f ? TextureResource->GetSizeY() : SpriteProxy.VL;
+			
+				// Calculate the view-dependent scaling factor.
+				float ViewedSizeX = SpriteProxy.SpriteScale * UL;
+				float ViewedSizeY = SpriteProxy.SpriteScale * VL;
+
+				if (SpriteProxy.bIsScreenSizeScaled && (View->ViewMatrices.GetProjectionMatrix().M[3][3] != 1.0f))
+				{
+					const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
+					if(ZoomFactor != 0.0f)
+					{
+						const float Radius = View->WorldToScreen(ProjectedLocation).W * (SpriteProxy.ScreenSize / ZoomFactor);
+
+						if (Radius < 1.0f)
+						{
+							ViewedSizeX *= Radius;
+							ViewedSizeY *= Radius;
+						}					
+					}
+				}
+				
+				ViewedSizeX *= Settings->IconScale;
+				ViewedSizeY *= Settings->IconScale;
+			
+				PDI->DrawSprite(ProjectedLocation, ViewedSizeX, ViewedSizeY, TextureResource, FLinearColor::White, SDPG_World,
+					SpriteProxy.U, UL, SpriteProxy.V, VL, SE_BLEND_Masked, SpriteProxy.OpacityMaskRefVal);
+			}
+			
+			PDI->SetHitProxy(nullptr);
+		}
+	}
+		
+	if (LastSelectedActor.IsValid() && LastSelectedActor->IsUVActor() == bIsUVProjection)
 	{
 		// Project the editor widget's world position into projection space so that it renders at the appropriate screen location.
 		// This needs to be computed on the render thread using the render thread's scene view, which will be behind the game thread's scene view
@@ -628,27 +686,27 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 	}
 	else
 	{
-		if (CurrentAxis != EAxisList::Type::None && SelectedLightCards.Num())
+		if (CurrentAxis != EAxisList::Type::None && SelectedActors.Num())
 		{
 			switch (EditorWidget->GetWidgetMode())
 			{
 			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate:
 				if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 				{
-					MoveSelectedUVLightCards(InViewport, CurrentAxis);
+					MoveSelectedUVActors(InViewport, CurrentAxis);
 				}
 				else
 				{
-					MoveSelectedLightCards(InViewport, CurrentAxis);
+					MoveSelectedActors(InViewport, CurrentAxis);
 				}
 				break;
 
 			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_RotateZ:
-				SpinSelectedLightCards(InViewport);
+				SpinSelectedActors(InViewport);
 				break;
 
 			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Scale:
-				ScaleSelectedLightCards(InViewport, CurrentAxis);
+				ScaleSelectedActors(InViewport, CurrentAxis);
 				break;
 			}
 
@@ -666,7 +724,7 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(
 	bool bIsDraggingWidget,
 	bool bNudge)
 {
-	if ((InputMode == EInputMode::Idle) && bIsDraggingWidget && InInputState.IsLeftMouseButtonPressed() && SelectedLightCards.Num())
+	if ((InputMode == EInputMode::Idle) && bIsDraggingWidget && InInputState.IsLeftMouseButtonPressed() && SelectedActors.Num())
 	{
 		// Start dragging actor
 		InputMode = EInputMode::DraggingActor;
@@ -726,7 +784,7 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStopped()
 		DragWidgetOffset = FVector::ZeroVector;
 		EndTransaction();
 
-		if (SelectedLightCards.Num())
+		if (SelectedActors.Num())
 		{
 			GEditor->DisableDeltaModification(false);
 		}
@@ -939,7 +997,7 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 
 	FScopedTransaction Transaction(LOCTEXT("AddNewLightCard", "Add New Light Card"));
 
-	ADisplayClusterLightCardActor* LightCard = LightCardEditorPtr.Pin()->SpawnLightCard();
+	ADisplayClusterLightCardActor* LightCard = LightCardEditorPtr.Pin()->SpawnActorAs<ADisplayClusterLightCardActor>(TEXT("LightCard"));
 
 	if (!LightCard)
 	{
@@ -989,11 +1047,11 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	else
 	{
 		const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates LightCardCoords(LightCardLocation - ViewOrigin);
-		MoveLightCardTo(*LightCard, LightCardLocation - ViewOrigin);
+		MoveActorTo(LightCard, LightCardLocation - ViewOrigin);
 	}
 }
 
-double FDisplayClusterLightCardEditorViewportClient::CalculateFinalLightCardDistance(double FlushDistance, double DesiredOffsetFromFlush) const
+double FDisplayClusterLightCardEditorViewportClient::CalculateFinalActorDistance(double FlushDistance, double DesiredOffsetFromFlush) const
 {
 	double Distance = FMath::Min(FlushDistance, RootActorBoundingRadius) + DesiredOffsetFromFlush;
 
@@ -1023,25 +1081,25 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 				if (ActorHitProxy->PrimComponent && ActorHitProxy->PrimComponent->IsA<UStaticMeshComponent>())
 				{
 					ADisplayClusterLightCardActor* TracedLightCard = TraceScreenForLightCard(View, HitX, HitY);
-					SelectLightCard(TracedLightCard, bMultiSelect);
+					SelectActor(TracedLightCard, bMultiSelect);
 				}
 			}
-			else if (ActorHitProxy->Actor->IsA<ADisplayClusterLightCardActor>() && LightCardProxies.Contains(ActorHitProxy->Actor))
+			else if (UE::DisplayClusterLightCardEditorUtils::IsProxySelectable(ActorHitProxy->Actor) && ActorProxies.Contains(ActorHitProxy->Actor))
 			{
-				SelectLightCard(Cast<ADisplayClusterLightCardActor>(ActorHitProxy->Actor), bMultiSelect);
+				SelectActor(ActorHitProxy->Actor, bMultiSelect);
 			}
 			else if (!bMultiSelect)
 			{
-				SelectLightCard(nullptr);
+				SelectActor(nullptr);
 			}
 		}
 	}
 	else
 	{
-		SelectLightCard(nullptr);
+		SelectActor(nullptr);
 	}
 	
-	PropagateLightCardSelection();
+	PropagateActorSelection();
 
 	if (bIsRightClickSelection)
 	{
@@ -1144,7 +1202,7 @@ EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FView
 						}
 					}
 				}
-				else if (LightCardProxies.Contains(ActorHitProxy->Actor))
+				else if (ActorProxies.Contains(ActorHitProxy->Actor))
 				{
 					MouseCursor = EMouseCursor::Crosshairs;
 				}
@@ -1171,7 +1229,7 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyDropPreviewActors()
 	{
 		for (auto ActorIt = DropPreviewLightCards.CreateConstIterator(); ActorIt; ++ActorIt)
 		{
-			ADisplayClusterLightCardActor* PreviewActor = (*ActorIt).Get();
+			AActor* PreviewActor = (*ActorIt).AsActor();
 			if (PreviewActor)
 			{
 				IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, PreviewActor);
@@ -1195,15 +1253,15 @@ bool FDisplayClusterLightCardEditorViewportClient::UpdateDropPreviewActors(int32
 
 	const FIntPoint NewMousePos { MouseX, MouseY };
 
-	for (TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : DropPreviewLightCards)
+	for (const FDisplayClusterWeakStageActorPtr& Actor : DropPreviewLightCards)
 	{
-		if (LightCard.IsValid())
+		if (Actor.IsValid())
 		{
-			ProjectionHelper->VerifyAndFixLightCardOrigin(*LightCard);
+			ProjectionHelper->VerifyAndFixActorOrigin(Actor);
 		}
 	}
 	
-	MoveLightCardsToPixel(NewMousePos, DropPreviewLightCards);
+	MoveActorsToPixel(NewMousePos, DropPreviewLightCards);
 	
 	return true;
 }
@@ -1228,14 +1286,14 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 
 	if (bSelectActors)
 	{
-		SelectedLightCards.Empty();
+		SelectedActors.Empty();
 	}
 	
-	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> CreatedLightCards;
+	TArray<FDisplayClusterWeakStageActorPtr> CreatedLightCards;
 	CreatedLightCards.Reserve(DroppedObjects.Num());
 
-	SelectLightCard(nullptr);
-	PropagateLightCardSelection();
+	SelectActor(nullptr);
+	PropagateActorSelection();
 	
 	for (UObject* DroppedObject : DroppedObjects)
 	{
@@ -1245,7 +1303,7 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 				bCreateDropPreview ? PreviewWorld->GetCurrentLevel() : nullptr, bCreateDropPreview);
 			check(LightCardActor);
 
-			ProjectionHelper->VerifyAndFixLightCardOrigin(*LightCardActor);
+			ProjectionHelper->VerifyAndFixActorOrigin(LightCardActor);
 			
 			CreatedLightCards.Add(LightCardActor);
 			
@@ -1253,7 +1311,7 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 			{
 				DropPreviewLightCards.Add(LightCardActor);
 				
-				LightCardActor->bIsProxy = true;
+				LightCardActor->SetFlags(RF_Transient);
 				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, LightCardActor);
 			}
 			else
@@ -1265,8 +1323,8 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 					GetOnNextSceneRefresh().AddLambda([this, LightCardActor]()
 					{
 						// Select on next refresh so the persistent level and corresponding proxy has spawned.
-						SelectLightCard(LightCardActor, true);
-						PropagateLightCardSelection();
+						SelectActor(LightCardActor, true);
+						PropagateActorSelection();
 					});
 				}
 			}
@@ -1276,7 +1334,7 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 	}
 
 	const FIntPoint NewMousePos { MouseX, MouseY };
-	MoveLightCardsToPixel(NewMousePos, CreatedLightCards);
+	MoveActorsToPixel(NewMousePos, CreatedLightCards);
 
 	return bSuccess;
 }
@@ -1374,62 +1432,78 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
 				ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
 			{
-				TSet<ADisplayClusterLightCardActor*> LightCards;
-				UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActorPtr.Get(), LightCards);
-				
-				SelectLightCard(nullptr);
-				
+				SelectActor(nullptr);
 				const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
 
-				for (ADisplayClusterLightCardActor* LightCard : LightCards)
+				if (LightCardEditorPtr.IsValid())
 				{
-					FObjectDuplicationParameters DupeActorParameters(LightCard, PreviewWorld->GetCurrentLevel());
-					DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
-					DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
-				
-					ADisplayClusterLightCardActor* LightCardProxy = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObjectEx(DupeActorParameters));
-					PreviewWorld->GetCurrentLevel()->AddLoadedActor(LightCardProxy);
-
-					const FTransform LCLevelRelativeToRALevel = LightCard->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
-
-					LightCardProxy->SetActorTransform(LCLevelRelativeToRALevel);
-					LightCardProxy->PolygonMask = LightCard->PolygonMask;
-					LightCardProxy->bIsProxy = true;
-
-					// Change mesh to proxy mesh with more vertices
-					if (const UStaticMesh* LightCardMesh = LightCardProxy->GetStaticMesh())
-					{
-						// Only change the mesh if we are using the default one.
+					TArray<AActor*> ManagedActors = LightCardEditorPtr.Pin()->FindAllManagedActors();
 					
-						const FString DefaultPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlane.SM_LightCardPlane");
-						const UStaticMesh* DefaultPlane = Cast<UStaticMesh>(FSoftObjectPath(DefaultPlanePath).TryLoad());
+					for (AActor* Actor : ManagedActors)
+					{
+						// Create proxy
+						FObjectDuplicationParameters DupeActorParameters(Actor, PreviewWorld->GetCurrentLevel());
+						DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
+						DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
 
-						if (DefaultPlane == LightCardMesh)
+						AActor* ActorProxy = CastChecked<AActor>(StaticDuplicateObjectEx(DupeActorParameters));
+						ActorProxy->SetFlags(RF_Transient); // This signals to the stage actor it is a proxy
+						PreviewWorld->GetCurrentLevel()->AddLoadedActor(ActorProxy);
+
+						const FTransform LCLevelRelativeToRALevel = ActorProxy->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
+						ActorProxy->SetActorTransform(LCLevelRelativeToRALevel);
+						
+						if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
 						{
-							const FString LightCardPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlaneSubdivided.SM_LightCardPlaneSubdivided");
-							if (UStaticMesh* LightCardPlaneMesh = Cast<UStaticMesh>(FSoftObjectPath(LightCardPlanePath).TryLoad()))
+							ADisplayClusterLightCardActor* LightCardProxy = CastChecked<ADisplayClusterLightCardActor>(ActorProxy);
+							LightCardProxy->PolygonMask = LightCard->PolygonMask;
+
+							// Change mesh to proxy mesh with more vertices
+							if (const UStaticMesh* LightCardMesh = LightCardProxy->GetStaticMesh())
 							{
-								LightCardProxy->SetStaticMesh(LightCardPlaneMesh);
+								// Only change the mesh if we are using the default one.
+					
+								const FString DefaultPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlane.SM_LightCardPlane");
+								const UStaticMesh* DefaultPlane = Cast<UStaticMesh>(FSoftObjectPath(DefaultPlanePath).TryLoad());
+
+								if (DefaultPlane == LightCardMesh)
+								{
+									const FString LightCardPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlaneSubdivided.SM_LightCardPlaneSubdivided");
+									if (UStaticMesh* LightCardPlaneMesh = Cast<UStaticMesh>(FSoftObjectPath(LightCardPlanePath).TryLoad()))
+									{
+										LightCardProxy->SetStaticMesh(LightCardPlaneMesh);
+									}
+								}
 							}
 						}
-					}
+						else
+						{
+							// Misc actor proxies
+							TArray<UBillboardComponent*> BillboardComponents;
+							ActorProxy->GetComponents<UBillboardComponent>(BillboardComponents);
 
-					LightCardProxies.Add(FLightCardProxy(LightCard, LightCardProxy));
+							BillboardComponentProxies.Append(BillboardComponents);
+						}
+						
+						ActorProxies.Add(FActorProxy(Actor, ActorProxy));
+						ProjectionHelper->VerifyAndFixActorOrigin(Actor);
+						ProjectionHelper->VerifyAndFixActorOrigin(ActorProxy);
+					}
 				}
 
 				// Update the selected light card proxies to match the currently selected light cards in the light card list
-				TArray<ADisplayClusterLightCardActor*> CurrentlySelectedLightCards;
+				TArray<AActor*> CurrentlySelectedActors;
 				if (LightCardEditorPtr.IsValid())
 				{
-					LightCardEditorPtr.Pin()->GetSelectedLightCards(CurrentlySelectedLightCards);
+					LightCardEditorPtr.Pin()->GetSelectedActors(CurrentlySelectedActors);
 				}
 
-				SelectLightCards(CurrentlySelectedLightCards);
+				SelectActors(CurrentlySelectedActors);
 			}
 
-			for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+			for (const FActorProxy& ActorProxy : ActorProxies)
 			{
-				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, LightCardProxy.Proxy.Get(), [this](const UPrimitiveComponent* PrimitiveComponent)
+				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, ActorProxy.Proxy.AsActor(), [this, ActorProxy](const UPrimitiveComponent* PrimitiveComponent)
 				{
 					// Always add the light card mesh component to the renderer's scene even if it is marked hidden in game, since UV light cards will purposefully
 					// hide the light card mesh since it isn't supposed to exist in 3D space. The light card mesh will be appropriately filtered when the scene is
@@ -1458,25 +1532,20 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms()
 			RootActorProxy->SetActorScale3D(RootActorLevelInstance->GetActorScale3D());
 		}
 		
-		for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+		for (const FActorProxy& ActorProxy : ActorProxies)
 		{
-			if (LightCardProxy.LevelInstance.IsValid() && LightCardProxy.Proxy.IsValid())
+			if (ActorProxy.LevelInstance.IsValid() && ActorProxy.Proxy.IsValid())
 			{
 				const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
-				const FTransform LCLevelRelativeToRALevel = LightCardProxy.LevelInstance->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
-
-				LightCardProxy.Proxy->SetActorTransform(LCLevelRelativeToRALevel);
-
+				const FTransform LCLevelRelativeToRALevel = ActorProxy.LevelInstance.AsActorChecked()->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
+				ActorProxy.Proxy.AsActorChecked()->SetActorTransform(LCLevelRelativeToRALevel);
+				
+				// When dealing with light card actors the transform scale can be set separately from the stage actor 2d scale. When updating the
+				// transform scale on the level instance it won't impact the positional params so the proxy transform scale won't update unless we manually set it
+				ActorProxy.Proxy.AsActorChecked()->SetActorScale3D(ActorProxy.LevelInstance.AsActorChecked()->GetActorScale3D());
+				
 				// Need to update these manually or the proxy's position will be out of sync next update
-				LightCardProxy.Proxy->Longitude = LightCardProxy.LevelInstance->Longitude;
-				LightCardProxy.Proxy->Latitude = LightCardProxy.LevelInstance->Latitude;
-				LightCardProxy.Proxy->DistanceFromCenter = LightCardProxy.LevelInstance->DistanceFromCenter;
-				LightCardProxy.Proxy->Spin = LightCardProxy.LevelInstance->Spin;
-				LightCardProxy.Proxy->Pitch = LightCardProxy.LevelInstance->Pitch;
-				LightCardProxy.Proxy->Yaw = LightCardProxy.LevelInstance->Yaw;
-				LightCardProxy.Proxy->Scale = LightCardProxy.LevelInstance->Scale;
-				LightCardProxy.Proxy->UVCoordinates = LightCardProxy.LevelInstance->UVCoordinates;
-				LightCardProxy.Proxy->RadialOffset = LightCardProxy.LevelInstance->RadialOffset;
+				ActorProxy.Proxy->SetPositionalParams(ActorProxy.LevelInstance->GetPositionalParams());
 			}
 		}
 	}
@@ -1496,11 +1565,11 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 		break;
 
 	case EDisplayClusterLightCardEditorProxyType::LightCards:
-		for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+		for (const FActorProxy& ActorProxy : ActorProxies)
 		{
-			if (LightCardProxy.Proxy.IsValid())
+			if (ActorProxy.Proxy.IsValid())
 			{
-				IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, LightCardProxy.Proxy.Get());
+				IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, ActorProxy.Proxy.AsActor());
 			}
 		}
 		break;
@@ -1535,28 +1604,29 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 	if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
 		ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
 	{
-		for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+		for (const FActorProxy& ActorProxy : ActorProxies)
 		{
-			if (LightCardProxy.Proxy.IsValid())
+			if (ActorProxy.Proxy.IsValid())
 			{
-				PreviewWorld->EditorDestroyActor(LightCardProxy.Proxy.Get(), false);
+				PreviewWorld->EditorDestroyActor(ActorProxy.Proxy.AsActor(), false);
 			}
 		}
 
-		LightCardProxies.Empty();	
+		ActorProxies.Empty();
+		BillboardComponentProxies.Empty();
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect)
+void FDisplayClusterLightCardEditorViewportClient::SelectActors(const TArray<AActor*>& ActorsToSelect)
 {
-	SelectLightCard(nullptr);
-	for (AActor* LightCard : LightCardsToSelect)
+	SelectActor(nullptr);
+	for (AActor* Actor : ActorsToSelect)
 	{
-		if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(LightCard))
+		if (const FActorProxy* FoundProxy = ActorProxies.FindByKey(Actor))
 		{
 			if (FoundProxy->Proxy.IsValid())
 			{
-				SelectLightCard(FoundProxy->Proxy.Get(), true);
+				SelectActor(FoundProxy->Proxy.AsActor(), true);
 			}
 		}
 	}
@@ -1676,36 +1746,34 @@ void FDisplayClusterLightCardEditorViewportClient::SetCoordinateSystem(FDisplayC
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates& SphericalCoords) const
+void FDisplayClusterLightCardEditorViewportClient::MoveActorTo(const FDisplayClusterWeakStageActorPtr& Actor, const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates& SphericalCoords) const
 {
-	const FVector Origin = GetViewLocation(); // Assumed the same as the LC origin in proxy space. Call VerifyAndFixLightCardOrigin to ensure this.
-
-	ProjectionHelper->MoveLightCardsTo({ &LightCard }, SphericalCoords);
+	ProjectionHelper->MoveActorsTo({ Actor }, SphericalCoords);
 }
 
-void FDisplayClusterLightCardEditorViewportClient::CenterLightCardInView(ADisplayClusterLightCardActor& LightCard)
+void FDisplayClusterLightCardEditorViewportClient::CenterActorInView(const FDisplayClusterWeakStageActorPtr& Actor)
 {
-	ProjectionHelper->VerifyAndFixLightCardOrigin(LightCard);
+	ProjectionHelper->VerifyAndFixActorOrigin(Actor);
 
-	if (LightCard.bIsUVLightCard)
+	if (Actor->IsUVActor())
 	{
-		LightCard.UVCoordinates = FVector2D(0.5, 0.5);
+		Actor->SetUVCoordinates(FVector2D(0.5, 0.5));
 	}
 	else
 	{
-		MoveLightCardTo(LightCard, FDisplayClusterLightCardEditorHelper::FSphericalCoordinates(GetViewRotation().RotateVector(FVector::ForwardVector)));
+		MoveActorTo(Actor, FDisplayClusterLightCardEditorHelper::FSphericalCoordinates(GetViewRotation().RotateVector(FVector::ForwardVector)));
 	}
 
 	// If this is a proxy light, propagate to its counterpart in the level.
-	if (LightCard.bIsProxy)
+	if (Actor->IsProxy())
 	{
-		PropagateLightCardTransform(&LightCard);
+		PropagateActorTransform(Actor);
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCardsToPixel(const FIntPoint& PixelPos)
+void FDisplayClusterLightCardEditorViewportClient::MoveSelectedActorsToPixel(const FIntPoint& PixelPos)
 {
-	MoveLightCardsToPixel(PixelPos, SelectedLightCards);
+	MoveActorsToPixel(PixelPos, SelectedActors);
 }
 
 void FDisplayClusterLightCardEditorViewportClient::BeginTransaction(const FText& Description)
@@ -1872,34 +1940,34 @@ USceneComponent* FDisplayClusterLightCardEditorViewportClient::FindProjectionOri
 	return InRootActor->GetCommonViewPoint();
 }
 
-bool FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected(const AActor* Actor)
+bool FDisplayClusterLightCardEditorViewportClient::IsActorSelected(const AActor* Actor)
 {
-	return SelectedLightCards.Contains(Actor);
+	return Actor->Implements<UDisplayClusterStageActor>() && SelectedActors.Contains(Actor);
 }
 
-void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(ADisplayClusterLightCardActor* Actor, bool bAddToSelection)
+void FDisplayClusterLightCardEditorViewportClient::SelectActor(AActor* Actor, bool bAddToSelection)
 {
-	TArray<ADisplayClusterLightCardActor*> UpdatedActors;
+	TArray<AActor*> UpdatedActors;
 
 	if (!bAddToSelection)
 	{
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		for (const FDisplayClusterWeakStageActorPtr& SelectedActor : SelectedActors)
 		{
-			if (LightCard.IsValid())
+			if (SelectedActor.IsValid())
 			{
-				UpdatedActors.Add(LightCard.Get());
+				UpdatedActors.Add(SelectedActor.AsActor());
 			}
 		}
 
-		SelectedLightCards.Empty();
-		LastSelectedLightCard = nullptr;
+		SelectedActors.Empty();
+		LastSelectedActor.Reset();
 	}
 
 	if (Actor)
 	{
-		SelectedLightCards.Add(Actor);
+		SelectedActors.Add(Actor);
 		UpdatedActors.Add(Actor);
-		LastSelectedLightCard = Actor;
+		LastSelectedActor = Actor;
 	}
 
 	for (AActor* UpdatedActor : UpdatedActors)
@@ -1908,48 +1976,45 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(ADisplayClust
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardSelection()
+void FDisplayClusterLightCardEditorViewportClient::PropagateActorSelection()
 {
-	TArray<ADisplayClusterLightCardActor*> SelectedLevelInstances;
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& SelectedLightCard : SelectedLightCards)
+	TArray<AActor*> SelectedLevelInstances;
+	for (const FDisplayClusterWeakStageActorPtr& SelectedActor : SelectedActors)
 	{
-		if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(SelectedLightCard.Get()))
+		if (const FActorProxy* FoundProxy = ActorProxies.FindByKey(SelectedActor.AsActor()))
 		{
 			if (FoundProxy->LevelInstance.IsValid())
 			{
-				SelectedLevelInstances.Add(FoundProxy->LevelInstance.Get());
+				SelectedLevelInstances.Add(FoundProxy->LevelInstance.AsActor());
 			}
 		}
 	}
 
-	LightCardEditorPtr.Pin()->SelectLightCards(SelectedLevelInstances);
+	LightCardEditorPtr.Pin()->SelectActors(SelectedLevelInstances);
 }
 
-void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardTransform(ADisplayClusterLightCardActor* LightCardProxy)
+void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const FDisplayClusterWeakStageActorPtr& ActorProxy)
 {
-	const FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(LightCardProxy);
-	if (FoundProxy && FoundProxy->Proxy == LightCardProxy && FoundProxy->LevelInstance.IsValid())
+	const FActorProxy* FoundProxy = ActorProxies.FindByKey(ActorProxy.AsActor());
+	if (FoundProxy && FoundProxy->Proxy == ActorProxy && FoundProxy->LevelInstance.IsValid())
 	{
-		ADisplayClusterLightCardActor* LevelInstance = FoundProxy->LevelInstance.Get();
-
+		AActor* LevelInstance = FoundProxy->LevelInstance.AsActorChecked();
 		LevelInstance->Modify();
-
-		TArray<const FProperty*> ChangedProperties;
 		
 		// Set the level instance property value to our proxy property value.
-		auto TryChangeProperty = [&](FName InPropertyName) -> void
+		auto TryChangeProperty = [&](FName InPropertyName, TArray<const FProperty*>& InOutChangedProperties) -> void
 		{
-			const FProperty* Property = FindFProperty<FProperty>(LevelInstance->GetClass(), InPropertyName);
-			check(Property);
-			
-			// Only change if values are different.
-			if (!Property->Identical_InContainer(LightCardProxy, LevelInstance))
+			if (const FProperty* Property = FindFProperty<FProperty>(LevelInstance->GetClass(), InPropertyName))
 			{
-				void* NewValue = nullptr;
-				Property->GetValue_InContainer(LightCardProxy, &NewValue);
-				Property->SetValue_InContainer(LevelInstance, &NewValue);
+				// Only change if values are different.
+				if (!Property->Identical_InContainer(ActorProxy.AsActorChecked(), LevelInstance))
+				{
+					void* NewValue = nullptr;
+					Property->GetValue_InContainer(ActorProxy.AsActorChecked(), &NewValue);
+					Property->SetValue_InContainer(LevelInstance, &NewValue);
 
-				ChangedProperties.Add(Property);
+					InOutChangedProperties.Add(Property);
+				}
 			}
 		};
 		
@@ -1962,27 +2027,29 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardTransform(A
 
 		const FTransform RALevelTransformNoScale(RALevelRotation, RALevelLocation, FVector::OneVector);
 
-		LevelInstance->SetActorTransform(LightCardProxy->GetTransform() * RALevelTransformNoScale);
+		LevelInstance->SetActorTransform(ActorProxy.AsActorChecked()->GetTransform() * RALevelTransformNoScale);
 
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Longitude));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, DistanceFromCenter));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, UVCoordinates));
-		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, RadialOffset));
+		const TSet<FName>& PropertyNames = ActorProxy->GetPositionalPropertyNames();
+
+		TArray<const FProperty*> ChangedProperties;
+		ChangedProperties.Reserve(PropertyNames.Num());
+		for (const FName& PropertyName : PropertyNames)
+		{
+			TryChangeProperty(PropertyName, ChangedProperties);
+		}
 		
 		// Snapshot the changed properties so multi-user can update while dragging.
 		if (ChangedProperties.Num() > 0)
 		{
 			SnapshotTransactionBuffer(LevelInstance, MakeArrayView(ChangedProperties));
 		}
+
+		// Allows MU to receive the update in real-time.
+		LevelInstance->PostEditMove(false);
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
+void FDisplayClusterLightCardEditorViewportClient::MoveSelectedActors(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InViewport,
@@ -1997,12 +2064,12 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 	InViewport->GetMousePos(MousePos);
 
 	// Move the light cards
-	ProjectionHelper->DragLightCards(SelectedLightCards, MousePos, *View, EditorWidgetCoordinateSystem, DragWidgetOffset, CurrentAxis, LastSelectedLightCard.Get());
+	ProjectionHelper->DragActors(SelectedActors, MousePos, *View, EditorWidgetCoordinateSystem, DragWidgetOffset, CurrentAxis, LastSelectedActor);
 
 	// Update the level instances
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+	for (const FDisplayClusterWeakStageActorPtr& SelectedActor : SelectedActors)
 	{
-		PropagateLightCardTransform(LightCard.Get());
+		PropagateActorTransform(SelectedActor);
 	}
 
 	FSceneViewInitOptions SceneViewInitOptions;
@@ -2023,7 +2090,7 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::MoveLightCardsToPixel(const FIntPoint& PixelPos, const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& InLightCards)
+void FDisplayClusterLightCardEditorViewportClient::MoveActorsToPixel(const FIntPoint& PixelPos, const TArray<FDisplayClusterWeakStageActorPtr>& InActors)
 {
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		Viewport,
@@ -2034,41 +2101,40 @@ void FDisplayClusterLightCardEditorViewportClient::MoveLightCardsToPixel(const F
 
 	FSceneView* View = CalcSceneView(&ViewFamily);
 
-	ProjectionHelper->MoveLightCardsToPixel(SelectedLightCards, PixelPos, *View);
+	ProjectionHelper->MoveActorsToPixel(SelectedActors, PixelPos, *View);
 
-	// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+	// Update each light card with the delta coordinates; the flush constraint is applied by MoveActorTo, ensuring the light card is always flush to screens
+	for (const FDisplayClusterWeakStageActorPtr& LightCard : InActors)
 	{
 		if (LightCard.IsValid() &&
-			((LightCard->bIsUVLightCard && ProjectionMode == EDisplayClusterMeshProjectionType::UV) ||
-			(!LightCard->bIsUVLightCard && ProjectionMode != EDisplayClusterMeshProjectionType::UV)))
+			((LightCard->IsUVActor() && ProjectionMode == EDisplayClusterMeshProjectionType::UV) ||
+			(!LightCard->IsUVActor() && ProjectionMode != EDisplayClusterMeshProjectionType::UV)))
 		{
-			PropagateLightCardTransform(LightCard.Get());
+			PropagateActorTransform(LightCard);
 		}
 	}
 }
 
-
-void FDisplayClusterLightCardEditorViewportClient::MoveSelectedUVLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
+void FDisplayClusterLightCardEditorViewportClient::MoveSelectedUVActors(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
-	if (LastSelectedLightCard.IsValid() && LastSelectedLightCard->bIsUVLightCard)
+	if (LastSelectedActor.IsValid() && LastSelectedActor->IsUVActor())
 	{
-		const FVector2D DeltaUV = GetUVLightCardTranslationDelta(InViewport, LastSelectedLightCard.Get(), CurrentAxis);
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		const FVector2D DeltaUV = GetUVActorTranslationDelta(InViewport, LastSelectedActor, CurrentAxis);
+		for (const FDisplayClusterWeakStageActorPtr& Actor : SelectedActors)
 		{
-			if (!LightCard.IsValid() || !LightCard->bIsUVLightCard)
+			if (!Actor.IsValid() || !Actor->IsUVActor())
 			{
 				continue;
 			}
 
-			LightCard->UVCoordinates += DeltaUV;
+			Actor->SetUVCoordinates(Actor->GetUVCoordinates() + DeltaUV);
 
-			PropagateLightCardTransform(LightCard.Get());
+			PropagateActorTransform(Actor);
 		}
 	}
 }
 
-FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis)
+FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVActorTranslationDelta(FViewport* InViewport, const FDisplayClusterWeakStageActorPtr& InActor, EAxisList::Type CurrentAxis)
 {
 	FIntPoint MousePos;
 	InViewport->GetMousePos(MousePos);
@@ -2094,7 +2160,7 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVLightCardTranslatio
 	const FVector DesiredLocation = PlaneIntersection - DragWidgetOffset;
 	const FVector2D DesiredUVLocation = FVector2D(DesiredLocation.Y / UVProjectionPlaneSize + 0.5f, 0.5f - DesiredLocation.Z / UVProjectionPlaneSize);
 
-	const FVector2D UVDelta = DesiredUVLocation - LightCard->UVCoordinates;
+	const FVector2D UVDelta = DesiredUVLocation - InActor->GetUVCoordinates();
 
 	FVector2D UVAxis = FVector2D::ZeroVector;
 	if (CurrentAxis & EAxisList::Type::X)
@@ -2110,27 +2176,26 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVLightCardTranslatio
 	return UVDelta * UVAxis;
 }
 
-void FDisplayClusterLightCardEditorViewportClient::ScaleSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
+void FDisplayClusterLightCardEditorViewportClient::ScaleSelectedActors(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
-	if (LastSelectedLightCard.IsValid())
+	if (LastSelectedActor.IsValid())
 	{
-		const FVector2D DeltaScale = GetLightCardScaleDelta(InViewport, LastSelectedLightCard.Get(), CurrentAxis);
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		const FVector2D DeltaScale = GetActorScaleDelta(InViewport, LastSelectedActor, CurrentAxis);
+		for (const FDisplayClusterWeakStageActorPtr& SelectedActor : SelectedActors)
 		{
-			if (!LightCard.IsValid())
-			{
-				continue;
-			}
-
-			LightCard->Scale += DeltaScale;
-
-			PropagateLightCardTransform(LightCard.Get());
+			SelectedActor->SetScale(SelectedActor->GetScale() + DeltaScale);
+			PropagateActorTransform(SelectedActor);
 		}
 	}
 }
 
-FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis)
+FVector2D FDisplayClusterLightCardEditorViewportClient::GetActorScaleDelta(FViewport* InViewport, const FDisplayClusterWeakStageActorPtr& InActor, EAxisList::Type CurrentAxis)
 {
+	if (InActor == nullptr)
+	{
+		return FVector2D();
+	}
+	
 	FIntPoint MousePos;
 	InViewport->GetMousePos(MousePos);
 
@@ -2174,7 +2239,7 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(F
 
 	// First, obtain the size of the unscaled light card in the direction the user is scaling. Convert to screen space as the scale and drag vectors are in screen space
 	const bool bLocalSpace = true;
-	const FVector LightCardSize3D = LightCard->GetLightCardBounds(bLocalSpace).GetSize();
+	const FVector LightCardSize3D = InActor->GetBoxBounds(bLocalSpace).GetSize();
 	const FVector2D SizeToScale = FVector2D((CurrentAxis & EAxisList::X) * LightCardSize3D.Y, (CurrentAxis & EAxisList::Y) * LightCardSize3D.Z);
 	const double DistanceFromCamera = FMath::Max(FVector::Dist(WorldWidgetOrigin, View->ViewMatrices.GetViewOrigin()), 1.0f);
 	const double ScreenSize = RenderViewportType == LVT_Perspective 
@@ -2190,32 +2255,33 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(F
 	if ((CurrentAxis & EAxisList::Type::X) && (CurrentAxis & EAxisList::Type::Y))
 	{
 		// Ensure the signs of the deltas remain the same, and avoid potential divide by zero
-		ScaleDelta.Y = ScaleDelta.X * FMath::Abs(LightCard->Scale.Y) / FMath::Max(0.001, FMath::Abs(LightCard->Scale.X));
+		FVector2D Scale = InActor->GetScale();
+		ScaleDelta.Y = ScaleDelta.X * FMath::Abs(Scale.Y) / FMath::Max(0.001, FMath::Abs(Scale.X));
 	}
 
 	return ScaleDelta;
 }
 
-void FDisplayClusterLightCardEditorViewportClient::SpinSelectedLightCards(FViewport* InViewport)
+void FDisplayClusterLightCardEditorViewportClient::SpinSelectedActors(FViewport* InViewport)
 {
-	if (LastSelectedLightCard.IsValid())
+	if (LastSelectedActor.IsValid())
 	{
-		const double DeltaSpin = GetLightCardSpinDelta(InViewport, LastSelectedLightCard.Get());
-		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		const double DeltaSpin = GetActorSpinDelta(InViewport);
+		for (const FDisplayClusterWeakStageActorPtr& Actor : SelectedActors)
 		{
-			if (!LightCard.IsValid())
+			if (!Actor.IsValid())
 			{
 				continue;
 			}
 
-			LightCard->Spin += DeltaSpin;
+			Actor->SetSpin(Actor->GetSpin() + DeltaSpin);
 
-			PropagateLightCardTransform(LightCard.Get());
+			PropagateActorTransform(Actor);
 		}
 	}
 }
 
-double FDisplayClusterLightCardEditorViewportClient::GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard)
+double FDisplayClusterLightCardEditorViewportClient::GetActorSpinDelta(FViewport* InViewport)
 {
 	FIntPoint MousePos;
 	InViewport->GetMousePos(MousePos);
@@ -2297,7 +2363,7 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::Tra
 							{
 								if (ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(HitResult.GetActor()))
 								{
-									if (LightCardProxies.Contains(LightCardActor))
+									if (ActorProxies.Contains(LightCardActor))
 									{
 										return LightCardActor;
 									}
@@ -2307,7 +2373,7 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::Tra
 					}
 				}
 			}
-			else if (HitActor->IsA<ADisplayClusterLightCardActor>() && LightCardProxies.Contains(HitActor))
+			else if (UE::DisplayClusterLightCardEditorUtils::IsProxySelectable(HitActor) && ActorProxies.Contains(HitActor))
 			{
 				return Cast<ADisplayClusterLightCardActor>(HitActor);
 			}
@@ -2356,19 +2422,19 @@ bool FDisplayClusterLightCardEditorViewportClient::WorldToScreenDirection(const 
 
 bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTransform& WidgetTransform)
 {
-	if (!SelectedLightCards.Num())
+	if (!SelectedActors.Num())
 	{
 		return false;
 	}
 
-	if (!LastSelectedLightCard.IsValid())
+	if (!LastSelectedActor.IsValid())
 	{
 		return false;
 	}
 
-	FVector LightCardPosition = LastSelectedLightCard->GetLightCardTransform().GetTranslation();
+	const FVector ActorPosition = LastSelectedActor->GetStageActorTransform(false).GetTranslation();
 
-	WidgetTransform = FTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
+	WidgetTransform = FTransform(FRotator::ZeroRotator, ActorPosition, FVector::OneVector);
 
 	FQuat WidgetOrientation;
 	if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
@@ -2383,7 +2449,7 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 			{
 				// The translation widget should be oriented to show the x axis pointing in the longitudinal direction and the y axis pointing in the latitudinal direction
 				const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
-				const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
+				const FVector RadialVector = (ActorPosition - ProjectionOrigin).GetSafeNormal();
 				const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
 				const FVector InclinationVector = RadialVector ^ AzimuthalVector;
 
@@ -2398,7 +2464,7 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 	else
 	{
 		// Otherwise, orient the widget to match the light card's local orientation (spin, pitch, yaw)
-		const FQuat LightCardOrientation = LastSelectedLightCard->GetLightCardTransform().GetRotation();
+		const FQuat LightCardOrientation = LastSelectedActor->GetStageActorTransform(false).GetRotation();
 		const FVector Normal = LightCardOrientation.RotateVector(FVector::XAxisVector);
 		const FVector Tangent = LightCardOrientation.RotateVector(FVector::YAxisVector);
 		const FVector Binormal = LightCardOrientation.RotateVector(FVector::ZAxisVector);
@@ -2559,7 +2625,7 @@ void FDisplayClusterLightCardEditorViewportClient::EnterDrawingLightCardMode()
 	if (InputMode == EInputMode::Idle)
 	{
 		InputMode = EInputMode::DrawingLightCard;
-		SelectLightCard(nullptr);
+		SelectActor(nullptr);
 	}
 }
 
@@ -2599,6 +2665,24 @@ bool FDisplayClusterLightCardEditorViewportClient::ShouldApplyProjectionToPrimit
 	}
 
 	return true;
+}
+
+FDisplayClusterLightCardEditorViewportClient::FSpriteProxy FDisplayClusterLightCardEditorViewportClient::FSpriteProxy::
+FromBillboard(const UBillboardComponent* InBillboardComponent)
+{
+	check(InBillboardComponent);
+	return FSpriteProxy{
+		InBillboardComponent->Sprite,
+		InBillboardComponent->GetComponentLocation(),
+		InBillboardComponent->U,
+		InBillboardComponent->UL,
+		InBillboardComponent->V,
+		InBillboardComponent->VL,
+		InBillboardComponent->ScreenSize,
+		InBillboardComponent->GetComponentTransform().GetMaximumAxisScale() * InBillboardComponent->GetOwner()->SpriteScale * 0.25f,
+		InBillboardComponent->OpacityMaskRefVal,
+		static_cast<bool>(InBillboardComponent->bIsScreenSizeScaled)
+	};
 }
 
 #undef LOCTEXT_NAMESPACE

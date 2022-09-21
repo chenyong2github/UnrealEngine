@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "StageActor/IDisplayClusterStageActor.h"
+
 #include "GameFramework/Actor.h"
 
 #include "DisplayClusterLightCardActor.generated.h"
@@ -48,27 +49,11 @@ struct FLightCardAlphaGradientSettings
 };
 
 UCLASS(Blueprintable, DisplayName = "Light Card")
-class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor
+class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor, public IDisplayClusterStageActor
 {
 	GENERATED_BODY()
 
 public:
-
-	struct PositionalParams
-	{
-		double DistanceFromCenter;
-		double Longitude;
-		double Latitude;
-		double Spin;
-		double Pitch;
-		double Yaw;
-		double RadialOffset;
-	};
-
-public:
-	/** The rotation used to orient the plane mesh used for the light card so that its normal points radially inwards */
-	static const FRotator PlaneMeshRotation;
-
 	/** The default size of the porjection plane UV light cards are rendered to */
 	static const float UVPlaneDefaultSize;
 
@@ -88,15 +73,6 @@ public:
 	virtual FName GetCustomIconName() const override;
 #endif
 
-	/**
-	 * Gets the transform in world space of the light card component
-	 * @param bIgnoreSpinYawPitch - If the light card component's spin, yaw, and pitch should be ignored when computing the transform
-	 */
-	FTransform GetLightCardTransform(bool bIgnoreSpinYawPitch = false) const;
-
-	/** Gets the object oriented bounding box of the light card component */
-	FBox GetLightCardBounds(bool bLocalSpace = false) const;
-
 	/** Gets the light card mesh component */
 	UStaticMeshComponent* GetLightCardMeshComponent() const { return LightCardComponent.Get(); }
 
@@ -105,15 +81,6 @@ public:
 
 	/** Sets a new static mesh for the light card */
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
-
-	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
-	void UpdateLightCardTransform();
-
-	/** Retrieves positional parameters */
-	PositionalParams GetPositionalParams();
-
-	/** Set positional parameters */
-	void SetPositionalParams(const PositionalParams& Params);
 
 	/** Updates the card's material instance parameters */
 	void UpdateLightCardMaterialInstance();
@@ -132,6 +99,51 @@ public:
 	
 	/** Return the current owner, providing one was set */
 	TWeakObjectPtr<ADisplayClusterRootActor> GetRootActorOwner() const { return RootActorOwner; }
+
+	// ~Begin IDisplayClusterStageActor interface
+	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
+	virtual void UpdateStageActorTransform() override;
+	
+	/**
+	 * Gets the transform in world space of the light card component
+	 */
+	virtual FTransform GetStageActorTransform(bool bRemoveOrigin = false) const override;
+
+	/** Gets the object oriented bounding box of the light card component */
+	virtual FBox GetBoxBounds(bool bLocalSpace = false) const override;
+	
+	virtual void SetLongitude(double InValue) override;
+	virtual double GetLongitude() const override;
+
+	virtual void SetLatitude(double InValue) override;
+	virtual double GetLatitude() const override;
+
+	virtual void SetDistanceFromCenter(double InValue) override;
+	virtual double GetDistanceFromCenter() const override;
+
+	virtual void SetSpin(double InValue) override;
+	virtual double GetSpin() const override;
+
+	virtual void SetPitch(double InValue) override;
+	virtual double GetPitch() const override;
+
+	virtual void SetYaw(double InValue) override;
+	virtual double GetYaw() const override;
+
+	virtual void SetRadialOffset(double InValue) override;
+	virtual double GetRadialOffset() const override;
+
+	virtual bool IsUVActor() const override;
+
+	virtual void SetOrigin(const FTransform& InOrigin) override;
+	virtual FTransform GetOrigin() const override;
+
+	virtual void SetScale(const FVector2D& InScale) override;
+	virtual FVector2D GetScale() const override;
+
+	virtual void SetUVCoordinates(const FVector2D& InUVCoordinates) override;
+	virtual FVector2D GetUVCoordinates() const override;
+	// ~End IDisplayClusterStageActor interface
 	
 public:
 
@@ -211,10 +223,6 @@ public:
 	/** Indicates if the light card exists in 3D space or in UV space */
 	UPROPERTY()
 	bool bIsUVLightCard = false;
-
-	/** Used to flag this light card as a proxy of a "real" light card. Used by the LightCard Editor */
-	UPROPERTY(Transient)
-	bool bIsProxy = false;
 
 	/** Polygon points when using this type of mask */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")

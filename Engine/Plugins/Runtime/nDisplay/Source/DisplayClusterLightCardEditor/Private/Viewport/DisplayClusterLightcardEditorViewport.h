@@ -103,6 +103,12 @@ private:
 
 	/** If light card labels are currently toggled */
 	bool AreLabelsToggled() const;
+
+	/** Toggles all icons on or off */
+	void ToggleIcons();
+
+	/** If icons are currently toggled */
+	bool AreIconsToggled() const;
 	
 private:
 	/** The preview scene to use by the viewport client to manage the preview 3D world */

@@ -15,6 +15,7 @@
 #include "RemoteControlWebsocketRoute.h"
 #include "StageAppResponse.h"
 #include "WebRemoteControlUtils.h"
+#include "StageActor/DisplayClusterWeakStageActorPtr.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -515,7 +516,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 									continue;
 								}
 
-								WorldPosition = LightCard->GetLightCardTransform().GetTranslation();
+								WorldPosition = LightCard->GetStageActorTransform().GetTranslation();
 							}
 							else
 							{
@@ -730,10 +731,24 @@ void FStageAppRouteHandler::DragLightCards(FPerRendererData& PerRendererData, FV
 		FMath::RoundToInt(DragPosition.Y * Resolution.Y)
 	);
 	const FVector DragWidgetOffset = FVector::ZeroVector;
+
+	// Light card editor supports any type of actor implementing IDisplayClusterStageActor which is managed by
+	// a custom weak ptr. Convert the LightCard actors to the actor weak ptr array.
+	TArray<FDisplayClusterWeakStageActorPtr> StageActors;
+	StageActors.Reserve(PerRendererData.DraggedLightCards.Num());
+	Algo::TransformIf(PerRendererData.DraggedLightCards, StageActors,
+		[](const TWeakObjectPtr<ADisplayClusterLightCardActor>& WeakPtr)
+		{
+			return WeakPtr.IsValid();
+		},
+		[](const TWeakObjectPtr<ADisplayClusterLightCardActor>& WeakPtr)
+		{
+			return FDisplayClusterWeakStageActorPtr(WeakPtr.Get());
+		});
 	
 	FDisplayClusterLightCardEditorHelper& LightCardHelper = PerRendererData.GetLightCardHelper();
-	LightCardHelper.DragLightCards(
-		PerRendererData.DraggedLightCards,
+	LightCardHelper.DragActors(
+		MoveTemp(StageActors),
 		PixelPos,
 		View,
 		FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical,

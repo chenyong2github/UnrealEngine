@@ -29,7 +29,6 @@ static FAutoConsoleVariableRef CVarDisplayClusterLightCardPolygonTextureSize(
 	ECVF_Default
 );
 
-const FRotator ADisplayClusterLightCardActor::PlaneMeshRotation = FRotator(0.0f, -90.0f, 90.0f);
 const float ADisplayClusterLightCardActor::UVPlaneDefaultSize = 200.0f;
 const float ADisplayClusterLightCardActor::UVPlaneDefaultDistance = 100.0f;
 
@@ -73,7 +72,7 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	LightCardComponent->Mobility = EComponentMobility::Movable;
 	LightCardComponent->SetStaticMesh(PlaneObj.Object);
 
-	UpdateLightCardTransform();
+	UpdateStageActorTransform();
 
 	LabelComponent = CreateOptionalDefaultSubobject<UDisplayClusterLabelComponent>(TEXT("Label"), true);
 	LabelComponent->AttachToComponent(LightCardComponent, FAttachmentTransformRules::KeepRelativeTransform);
@@ -109,30 +108,9 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (Longitude < 0 || Longitude > 360)
-	{
-		Longitude = FRotator::ClampAxis(Longitude);
-	}
+	ClampLatitudeAndLongitude(Latitude, Longitude);
 
-	if (Latitude < -90 || Latitude > 90)
-	{
-		// If latitude exceeds [-90, 90], mod it back into the appropriate range, and apply a shift of 180 degrees if
-		// needed to the longitude, to allow the latitude to be continuous (increasing latitude indefinitely should result in the LC 
-		// orbiting around a polar great circle)
-		double Parity = FMath::Fmod(FMath::Abs(Latitude) + 90, 360) - 180;
-		double DeltaLongitude = Parity > 1 ? 180.f : 0.f;
-
-		double LatMod = FMath::Fmod(Latitude + 90.f, 180.f);
-		if (LatMod < 0.f)
-		{
-			LatMod += 180.f;
-		}
-
-		Latitude = LatMod - 90;
-		Longitude = FRotator::ClampAxis(Longitude + DeltaLongitude);
-	}
-
-	UpdateLightCardTransform();
+	UpdateStageActorTransform();
 	UpdateLightCardMaterialInstance();
 	UpdateLightCardVisibility();
 }
@@ -152,7 +130,7 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bIsUVLightCard)))
 	{
-		UpdateLightCardTransform();
+		UpdateStageActorTransform();
 	}
 
 	if (PropertyChangedEvent.Property && (
@@ -196,74 +174,14 @@ FName ADisplayClusterLightCardActor::GetCustomIconName() const
 
 #endif
 
-FTransform ADisplayClusterLightCardActor::GetLightCardTransform(bool bIgnoreSpinYawPitch) const
+UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const
 {
-	FTransform Transform;
-
-	Transform.SetLocation(LightCardComponent->GetComponentLocation());
-
-	FQuat LightCardOrientation;
-
-	if (!bIgnoreSpinYawPitch)
-	{
-		// Use the light card component's orientation, but remove the plane mesh rotation so that the returned transform's local x axis
-		// points radially inwards to match engine convention
-		LightCardOrientation = LightCardComponent->GetComponentQuat() * PlaneMeshRotation.Quaternion().Inverse();
-	}
-	else
-	{
-		LightCardOrientation = LightCardTransformerComponent->GetComponentQuat();
-	}
-
-	Transform.SetRotation(LightCardOrientation);
-
-	return Transform;
+	return LightCardComponent->GetStaticMesh();
 }
 
-FBox ADisplayClusterLightCardActor::GetLightCardBounds(bool bLocalSpace) const
+void ADisplayClusterLightCardActor::SetStaticMesh(UStaticMesh* InStaticMesh)
 {
-	FTransform ObjectOrientedTransform;
-	ObjectOrientedTransform.SetRotation(PlaneMeshRotation.Quaternion());
-
-	if (!bLocalSpace)
-	{
-		ObjectOrientedTransform.SetTranslation(LightCardComponent->GetComponentLocation());
-		ObjectOrientedTransform.SetScale3D(LightCardComponent->GetComponentScale());
-	}
-
-	return LightCardComponent->CalcBounds(ObjectOrientedTransform).GetBox();
-}
-
-void ADisplayClusterLightCardActor::UpdateLightCardTransform()
-{
-	// If the light card is in UV space, set the spring arm's trasform to be zero, effectively removing it from the transform hierarchy
-	// This allows the light card to be positioned with the actor's cartesian coordinates instead of longitude and latitude
-	if (bIsUVLightCard)
-	{
-		MainSpringArmComponent->TargetArmLength = 0.0f;
-		MainSpringArmComponent->SetRelativeRotation(FRotator(0.0, 180.0, 0.0));
-
-		// Set world location and rotation such that the light card is always projected onto a YZ plane a distance of UVPlaneDefaultDistance from the world origin, facing in the -X direction
-		// This ensures that when the UV light cards are rendered to the light card map, they are always positioned and oriented correctly regardless of the stages location and rotation.
-		
-		// We place them slightly closer than UVPlaneDefaultDistance so that mouse clicks hit it first instead of DCRA meshes (avoids re-linetracing).
-		// UV LCs operate in orthographic projection so this should have no visual effect.
-		constexpr float DistanceFactor = 0.99f;
-
-		LightCardTransformerComponent->SetWorldLocation(FVector(DistanceFactor * UVPlaneDefaultDistance, -UVPlaneDefaultSize * (0.5 - UVCoordinates.X), UVPlaneDefaultSize * (0.5 - UVCoordinates.Y)));
-		LightCardTransformerComponent->SetWorldRotation(FVector(-1, 0, 0).Rotation());
-		LightCardTransformerComponent->SetWorldScale3D(FVector::OneVector);
-	}
-	else
-	{
-		MainSpringArmComponent->TargetArmLength = DistanceFromCenter + RadialOffset;
-		MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
-	}
-
-	FRotator LightCardOrientation = FRotator(-Pitch, Yaw, Spin);
-
-	LightCardComponent->SetRelativeRotation((LightCardOrientation.Quaternion() * PlaneMeshRotation.Quaternion()).Rotator());
-	LightCardComponent->SetRelativeScale3D(FVector(Scale, 1.f));
+	LightCardComponent->SetStaticMesh(InStaticMesh);
 }
 
 void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
@@ -280,7 +198,7 @@ void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Tint"), Tint);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Exposure"), Exposure);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Gain"), Gain);
-		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), bIsProxy ? ProxyOpacity : Opacity);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), IsProxy() ? ProxyOpacity : Opacity);
 		LightCardMaterialInstance->SetTextureParameterValue(TEXT("Texture"), Texture);
 		LightCardMaterialInstance->SetTextureParameterValue(TEXT("AlphaTexture"), PolygonMask);
 
@@ -408,7 +326,7 @@ void ADisplayClusterLightCardActor::UpdatePolygonTexture()
 
 void ADisplayClusterLightCardActor::UpdateLightCardVisibility()
 {
-	const bool bShouldBeVisible = !bIsUVLightCard || bIsProxy;
+	const bool bShouldBeVisible = !bIsUVLightCard || IsProxy();
 	const bool bIsVisible = !IsHidden();
 	if (bIsVisible != bShouldBeVisible)
 	{
@@ -461,40 +379,177 @@ void ADisplayClusterLightCardActor::SetRootActorOwner(ADisplayClusterRootActor* 
 	RootActorOwner = MakeWeakObjectPtr(InRootActor);
 }
 
-UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const
+void ADisplayClusterLightCardActor::UpdateStageActorTransform()
 {
-	return LightCardComponent->GetStaticMesh();
+	// If the light card is in UV space, set the spring arm's trasform to be zero, effectively removing it from the transform hierarchy
+	// This allows the light card to be positioned with the actor's cartesian coordinates instead of longitude and latitude
+	if (bIsUVLightCard)
+	{
+		MainSpringArmComponent->TargetArmLength = 0.0f;
+		MainSpringArmComponent->SetRelativeRotation(FRotator(0.0, 180.0, 0.0));
+
+		// Set world location and rotation such that the light card is always projected onto a YZ plane a distance of UVPlaneDefaultDistance from the world origin, facing in the -X direction
+		// This ensures that when the UV light cards are rendered to the light card map, they are always positioned and oriented correctly regardless of the stages location and rotation.
+		
+		// We place them slightly closer than UVPlaneDefaultDistance so that mouse clicks hit it first instead of DCRA meshes (avoids re-linetracing).
+		// UV LCs operate in orthographic projection so this should have no visual effect.
+		constexpr float DistanceFactor = 0.99f;
+
+		LightCardTransformerComponent->SetWorldLocation(FVector(DistanceFactor * UVPlaneDefaultDistance, -UVPlaneDefaultSize * (0.5 - UVCoordinates.X), UVPlaneDefaultSize * (0.5 - UVCoordinates.Y)));
+		LightCardTransformerComponent->SetWorldRotation(FVector(-1, 0, 0).Rotation());
+		LightCardTransformerComponent->SetWorldScale3D(FVector::OneVector);
+	}
+	else
+	{
+		MainSpringArmComponent->TargetArmLength = DistanceFromCenter + RadialOffset;
+		MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
+	}
+
+	FRotator LightCardOrientation = FRotator(-Pitch, Yaw, Spin);
+
+	LightCardComponent->SetRelativeRotation((LightCardOrientation.Quaternion() * PlaneMeshRotation.Quaternion()).Rotator());
+	LightCardComponent->SetRelativeScale3D(FVector(Scale, 1.f));
 }
 
-void ADisplayClusterLightCardActor::SetStaticMesh(UStaticMesh* InStaticMesh)
+FTransform ADisplayClusterLightCardActor::GetStageActorTransform(bool bRemoveOrigin) const
 {
-	LightCardComponent->SetStaticMesh(InStaticMesh);
+	FTransform Transform;
+
+	FVector Position = LightCardComponent->GetComponentLocation();
+	if (bRemoveOrigin)
+	{
+		Position -= GetActorLocation();
+	}
+	Transform.SetLocation(MoveTemp(Position));
+
+	// Use the light card component's orientation, but remove the plane mesh rotation so that the returned transform's local x axis
+	// points radially inwards to match engine convention
+	const FQuat LightCardOrientation = LightCardComponent->GetComponentQuat() * PlaneMeshRotation.Quaternion().Inverse();
+
+	Transform.SetRotation(LightCardOrientation);
+
+	return Transform;
 }
 
-ADisplayClusterLightCardActor::PositionalParams ADisplayClusterLightCardActor::GetPositionalParams()
+FBox ADisplayClusterLightCardActor::GetBoxBounds(bool bLocalSpace) const
 {
-	PositionalParams Params;
+	FTransform ObjectOrientedTransform;
+	ObjectOrientedTransform.SetRotation(PlaneMeshRotation.Quaternion());
 
-	Params.DistanceFromCenter = DistanceFromCenter;
-	Params.Latitude = Latitude;
-	Params.Longitude = Longitude;
-	Params.Pitch = Pitch;
-	Params.Spin = Spin;
-	Params.Yaw = Yaw;
-	Params.RadialOffset = RadialOffset;
+	if (!bLocalSpace)
+	{
+		ObjectOrientedTransform.SetTranslation(LightCardComponent->GetComponentLocation());
+		ObjectOrientedTransform.SetScale3D(LightCardComponent->GetComponentScale());
+	}
 
-	return Params;
+	return LightCardComponent->CalcBounds(ObjectOrientedTransform).GetBox();
 }
 
-void ADisplayClusterLightCardActor::SetPositionalParams(const PositionalParams& Params)
+void ADisplayClusterLightCardActor::SetLongitude(double InValue)
 {
-	DistanceFromCenter = Params.DistanceFromCenter;
-	Latitude = Params.Latitude;
-	Longitude = Params.Longitude;
-	Pitch = Params.Pitch;
-	Spin = Params.Spin;
-	Yaw = Params.Yaw;
-	RadialOffset = Params.RadialOffset;
+	Longitude = InValue;
+}
+
+double ADisplayClusterLightCardActor::GetLongitude() const
+{
+	return Longitude;
+}
+
+void ADisplayClusterLightCardActor::SetLatitude(double InValue)
+{
+	Latitude = InValue;
+}
+
+double ADisplayClusterLightCardActor::GetLatitude() const
+{
+	return Latitude;
+}
+
+void ADisplayClusterLightCardActor::SetDistanceFromCenter(double InValue)
+{
+	DistanceFromCenter = InValue;
+}
+
+double ADisplayClusterLightCardActor::GetDistanceFromCenter() const
+{
+	return DistanceFromCenter;
+}
+
+void ADisplayClusterLightCardActor::SetSpin(double InValue)
+{
+	Spin = InValue;
+}
+
+void ADisplayClusterLightCardActor::SetPitch(double InValue)
+{
+	Pitch = InValue;
+}
+
+double ADisplayClusterLightCardActor::GetSpin() const
+{
+	return Spin;
+}
+
+double ADisplayClusterLightCardActor::GetPitch() const
+{
+	return Pitch;
+}
+
+void ADisplayClusterLightCardActor::SetYaw(double InValue)
+{
+	Yaw = InValue;
+}
+
+double ADisplayClusterLightCardActor::GetYaw() const
+{
+	return Yaw;
+}
+
+void ADisplayClusterLightCardActor::SetRadialOffset(double InValue)
+{
+	RadialOffset = InValue;
+}
+
+double ADisplayClusterLightCardActor::GetRadialOffset() const
+{
+	return RadialOffset;
+}
+
+bool ADisplayClusterLightCardActor::IsUVActor() const
+{
+	return bIsUVLightCard;
+}
+
+void ADisplayClusterLightCardActor::SetOrigin(const FTransform& InOrigin)
+{
+	SetActorLocation(InOrigin.GetLocation());
+	SetActorRotation(InOrigin.GetRotation());
+	// Scale not currently used for origin
+}
+
+FTransform ADisplayClusterLightCardActor::GetOrigin() const
+{
+	return {GetActorRotation(), GetActorLocation(), FVector::One()};
+}
+
+void ADisplayClusterLightCardActor::SetScale(const FVector2D& InScale)
+{
+	Scale = InScale;
+}
+
+FVector2D ADisplayClusterLightCardActor::GetScale() const
+{
+	return Scale;
+}
+
+void ADisplayClusterLightCardActor::SetUVCoordinates(const FVector2D& InUVCoordinates)
+{
+	UVCoordinates = InUVCoordinates;
+}
+
+FVector2D ADisplayClusterLightCardActor::GetUVCoordinates() const
+{
+	return UVCoordinates;
 }
 
 void ADisplayClusterLightCardActor::CreateComponentsForExtenders()

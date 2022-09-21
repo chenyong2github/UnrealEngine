@@ -31,13 +31,13 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"RenderCore",
 				"Renderer",
 				"RHI",
+				"SceneOutliner",
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
-				"WorkspaceMenuStructure",
-				"ToolWidgets",
 				"ToolMenus",
-				"SceneOutliner"
+				"ToolWidgets",
+				"WorkspaceMenuStructure"
 			});
 	}
 }

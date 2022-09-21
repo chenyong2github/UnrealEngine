@@ -202,6 +202,7 @@ public:
 			MenuBuilder.BeginSection("LightCardEditorShow", LOCTEXT("ShowMenuHeader", "Show Flags"));
 			{
 				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleAllLabels);
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleIconVisibility);
 			}
 			MenuBuilder.EndSection();
 		}
@@ -545,6 +546,12 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::ToggleLabels),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AreLabelsToggled));
+
+		CommandList->MapAction(
+			Commands.ToggleIconVisibility,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::ToggleIcons),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AreIconsToggled));
 	}
 }
 
@@ -752,8 +759,8 @@ void SDisplayClusterLightCardEditorViewport::PasteLightCardsHere()
 {
 	if (LightCardEditorPtr.IsValid())
 	{
-		const bool bOffsetLightCardPositions = false;
-		LightCardEditorPtr.Pin()->PasteLightCards(bOffsetLightCardPositions);
+		const bool bOffsetActorPosition = false;
+		LightCardEditorPtr.Pin()->PasteActors(bOffsetActorPosition);
 
 		if (ViewportClient.IsValid())
 		{
@@ -761,7 +768,7 @@ void SDisplayClusterLightCardEditorViewport::PasteLightCardsHere()
 			// regenerated until then
 			ViewportClient->GetOnNextSceneRefresh().AddLambda([this]()
 			{
-				ViewportClient->MoveSelectedLightCardsToPixel(FIntPoint(PasteHerePos.X, PasteHerePos.Y));
+				ViewportClient->MoveSelectedActorsToPixel(FIntPoint(PasteHerePos.X, PasteHerePos.Y));
 			});
 		}
 	}
@@ -771,7 +778,7 @@ bool SDisplayClusterLightCardEditorViewport::CanPasteLightCardsHere() const
 {
 	if (LightCardEditorPtr.IsValid())
 	{
-		return LightCardEditorPtr.Pin()->CanPasteLightCards();
+		return LightCardEditorPtr.Pin()->CanPasteActors();
 	}
 
 	return false;
@@ -790,6 +797,19 @@ bool SDisplayClusterLightCardEditorViewport::AreLabelsToggled() const
 {
 	// TODO: Handle CCR
 	return LightCardEditorPtr.IsValid() && LightCardEditorPtr.Pin()->ShouldShowLightCardLabels();
+}
+
+void SDisplayClusterLightCardEditorViewport::ToggleIcons()
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->ShowIcons(!AreIconsToggled());
+	}
+}
+
+bool SDisplayClusterLightCardEditorViewport::AreIconsToggled() const
+{
+	return LightCardEditorPtr.IsValid() && LightCardEditorPtr.Pin()->ShouldShowIcons();
 }
 
 #undef LOCTEXT_NAMESPACE

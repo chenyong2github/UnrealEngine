@@ -8,6 +8,9 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Classes/Components/MeshComponent.h"
 #include "Engine/Scene.h"
+
+#include "StageActor/IDisplayClusterStageActor.h"
+
 #include "ColorCorrectWindow.generated.h"
 
 
@@ -26,7 +29,7 @@ enum class EColorCorrectWindowType : uint8
  * 
  */
 UCLASS(Blueprintable, notplaceable)
-class COLORCORRECTREGIONS_API AColorCorrectWindow : public AColorCorrectRegion
+class COLORCORRECTREGIONS_API AColorCorrectWindow : public AColorCorrectRegion, public IDisplayClusterStageActor
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -41,6 +44,7 @@ public:
 #if WITH_EDITOR
 	/** Called when any of the properties are changed. */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditMove(bool bFinished) override;
 #endif
 
 private:
@@ -51,4 +55,67 @@ private:
 	/** Swaps meshes for different CCW. */
 	void SetMeshVisibilityForWindowType();
 
+public:
+
+	// ~Begin IDisplayClusterStageActor interface
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetLongitude(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetLongitude() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetLatitude(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetLatitude() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetDistanceFromCenter(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetDistanceFromCenter() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetSpin(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetSpin() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetPitch(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetPitch() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetYaw(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetYaw() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetRadialOffset(double InValue) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual double GetRadialOffset() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetScale(const FVector2D& InScale) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual FVector2D GetScale() const override;
+
+	UFUNCTION(BlueprintSetter)
+	virtual void SetOrigin(const FTransform& InOrigin) override;
+	UFUNCTION(BlueprintGetter)
+	virtual FTransform GetOrigin() const override;
+
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual void SetPositionalParams(const FDisplayClusterPositionalParams& InParams) override;
+	UFUNCTION(BlueprintCallable, Category = Orientation)
+	virtual FDisplayClusterPositionalParams GetPositionalParams() const override;
+	// ~End IDisplayClusterStageActor interface
+	
+protected:
+	UPROPERTY(EditAnywhere, Category = Orientation, meta = (ShowOnlyInnerProperties))
+	FDisplayClusterPositionalParams PositionalParams;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintSetter=SetOrigin, BlueprintGetter=GetOrigin, Category = Orientation)
+	FTransform Origin;
+
+	/** Update the transform when a positional setter is called */
+	bool bNotifyOnParamSetter = true;
 };

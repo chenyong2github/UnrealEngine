@@ -70,21 +70,30 @@ public:
 	/** The current active root actor for this light card editor */
 	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
 
-	/** Selects the specified light cards in the light card list and details panel */
-	void SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
+	/** Iterate the world actors looking for all actors this editor is managing */
+	TArray<AActor*> FindAllManagedActors() const;
 
-	/** Gets the light cards that are selected in the light card list */
-	void GetSelectedLightCards(TArray<ADisplayClusterLightCardActor*>& OutSelectedLightCards);
+	/** Selects the specified actors in the outliner and details panel */
+	void SelectActors(const TArray<AActor*>& ActorsToSelect);
 
-	/** Selects the light card proxies that correspond to the specified light cards */
-	void SelectLightCardProxies(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
+	/** Gets the actors that are selected in the outliner */
+	void GetSelectedActors(TArray<AActor*>& OutSelectedActors);
+
+	/** Selects the actor proxies that correspond to the specified actors */
+	void SelectActorProxies(const TArray<AActor*>& ActorsToSelect);
 
 	/** Places the given light card in the middle of the viewport */
-	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
+	void CenterActorInView(AActor* Actor);
 
-	/** Spawns a new light card and adds it to the root actor */
-	ADisplayClusterLightCardActor* SpawnLightCard(const FName& LightCardName = TEXT("LightCard"));
+	/** Spawns a new actor and adds it to the root actor if it is a light card */
+	AActor* SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName = NAME_None);
 
+	template<typename T>
+	T* SpawnActorAs(const FName& InActorName = NAME_None)
+	{
+		return Cast<T>(SpawnActor(T::StaticClass(), InActorName));
+	}
+	
 	/** Spawns a new light card from a light card template */
 	ADisplayClusterLightCardActor* SpawnLightCardFromTemplate(const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel = nullptr, bool bIsPreview = false);
 
@@ -97,51 +106,54 @@ public:
 	/** Adds a new light card configured as a flag */
 	void AddNewFlag();
 
+	/** Add a new actor dynamically based on a class */
+	void AddNewDynamic(UClass* InClass);
+
 	/** Adds the given Light Card to the root actor */
-	void AddLightCardsToActor(TArray<ADisplayClusterLightCardActor*> LightCards);
+	void AddLightCardsToActor(const TArray<ADisplayClusterLightCardActor*>& LightCards);
 
 	/** If a Light Card can currently be added */
 	bool CanAddLightCard() const;
 
-	/** Copies any selected light cards to the clipboard, and then deletes them */
-	void CutLightCards();
+	/** Copies any selected actors to the clipboard, and then deletes them */
+	void CutSelectedActors();
 
-	/** Determines if there are selected light cards that can be cut */
-	bool CanCutLightCards();
+	/** Determines if there are selected actors that can be cut */
+	bool CanCutSelectedActors();
 
-	/** Copies any selected light cards to the clipboard */
-	void CopyLightCards();
+	/** Copies any selected actors to the clipboard */
+	void CopySelectedActors();
 
-	/** Determines if there are selected light cards that can be copied */
-	bool CanCopyLightCards() const;
+	/** Determines if there are selected actors that can be copied */
+	bool CanCopySelectedActors() const;
 
-	/** Pastes any light cards in the clipboard to the current root actor */
-	void PasteLightCards(bool bOffsetLightCardPosition);
+	/** Pastes any actors in the clipboard to the current root actor */
+	void PasteActors(bool bOffsetActorPosition);
 
-	/** Determines if there are any light cards that can be pasted from the clipboard */
-	bool CanPasteLightCards() const;
+	/** Determines if there are any actors that can be pasted from the clipboard */
+	bool CanPasteActors() const;
 
-	/** Copies any selected light cards to the clipboard and then pastes them */
-	void DuplicateLightCards();
+	/** Copies any selected actors to the clipboard and then pastes them */
+	void DuplicateSelectedActors();
 
-	/** Determines if there are selected light cards that can be duplicated */
-	bool CanDuplicateLightCards() const;
+	/** Determines if there are selected actors that can be duplicated */
+	bool CanDuplicateSelectedActors() const;
 
 	/**
 	 * Remove the light card from the actor
 	 *@param bDeleteLightCardActor Delete the actor from the level
 	 */
-	void RemoveLightCards(bool bDeleteLightCardActor);
+	void RemoveSelectedActors(bool bDeleteLightCardActor);
 
 	/**
 	 * Remove the given light cards from the actor
-	 * @param InLightCardsToRemove Light cards which should be removed
-	 * @param bDeleteLightCards If the light cards should be deleted from the level
+	 * @param InActorsToRemove Actors which should be removed
+	 * @param bDeleteActors If the light cards should be deleted from the level
 	 */
-	void RemoveLightCards(const TArray<ADisplayClusterLightCardActor*>& InLightCardsToRemove, bool bDeleteLightCards);
+	void RemoveActors(const TArray<AActor*>& InActorsToRemove, bool bDeleteActors);
 	
-	/** If the selected Light Card can be removed */
-	bool CanRemoveLightCards() const;
+	/** If the selected actors can be removed */
+	bool CanRemoveSelectedActors() const;
 
 	/** Creates a template of the selected light card */
 	void CreateLightCardTemplate();
@@ -163,6 +175,18 @@ public:
 
 	/** Update light card label scale */
 	void SetLightCardLabelScale(float NewValue);
+
+	/** Set all icon visibility */
+	void ShowIcons(bool bVisible);
+
+	/** If all icons should be visible */
+	bool ShouldShowIcons() const;
+
+	/** Return the current icon scale */
+	TOptional<float> GetIconScale() const;
+
+	/** Update all icons scale */
+	void SetIconScale(float NewValue);
 	
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */

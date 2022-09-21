@@ -25,5 +25,11 @@
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "nDisplayModularFeatures",
+			"Enabled": true
+		}
 	]
 }

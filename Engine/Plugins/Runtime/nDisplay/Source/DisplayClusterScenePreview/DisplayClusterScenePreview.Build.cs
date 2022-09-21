@@ -9,6 +9,7 @@ public class DisplayClusterScenePreview : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"DisplayClusterLightCardEditorShaders",
+				"DisplayClusterLightCardExtender",
 				"RHI"
 			});
 

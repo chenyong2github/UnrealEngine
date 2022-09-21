@@ -25,6 +25,7 @@ UDisplayClusterLightCardEditorProjectSettings::UDisplayClusterLightCardEditorPro
 const FName FDisplayClusterLightCardEditorRecentItem::Type_LightCard = "LightCard";
 const FName FDisplayClusterLightCardEditorRecentItem::Type_Flag = "Flag";
 const FName FDisplayClusterLightCardEditorRecentItem::Type_LightCardTemplate = "LightCardTemplate";
+const FName FDisplayClusterLightCardEditorRecentItem::Type_Dynamic = "Dynamic";
 
 FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 {
@@ -38,7 +39,9 @@ FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 	}
 	if (const UObject* Object = ObjectPath.LoadSynchronous())
 	{
-		return FText::FromString(Object->GetName());
+		FString ObjectName = Object->GetName();
+		ObjectName.RemoveFromEnd(TEXT("_C"));
+		return FText::FromString(MoveTemp(ObjectName));
 	}
 
 	return FText::GetEmpty();
@@ -46,7 +49,7 @@ FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 
 const FSlateBrush* FDisplayClusterLightCardEditorRecentItem::GetSlateBrush() const
 {
-	if (ItemType == Type_LightCard || ItemType == Type_Flag)
+	if (ItemType == Type_LightCard || ItemType == Type_Flag || ItemType == Type_Dynamic)
 	{
 		return FSlateIconFinder::FindIconBrushForClass(ADisplayClusterLightCardActor::StaticClass());
 	}
@@ -83,6 +86,9 @@ UDisplayClusterLightCardEditorSettings::UDisplayClusterLightCardEditorSettings()
 {
 	ProjectionMode = EDisplayClusterMeshProjectionType::Azimuthal;
 	RenderViewportType = ELevelViewportType::LVT_Perspective;
+	
+	bDisplayIcons = true;
+    IconScale = 0.5f;
 }
 
 #undef LOCTEXT_NAMESPACE

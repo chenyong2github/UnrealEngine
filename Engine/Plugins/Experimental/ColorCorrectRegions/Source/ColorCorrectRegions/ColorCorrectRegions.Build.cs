@@ -23,6 +23,7 @@ public class ColorCorrectRegions : ModuleRules
 			{
 				"Core",
 				"RenderCore",
+				"DisplayClusterLightCardExtender"
 			}
 		);
 			

@@ -13,6 +13,8 @@
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
 
+#include "StageActor/IDisplayClusterStageActor.h"
+
 #include "ActorTreeItem.h"
 #include "ClassIconFinder.h"
 #include "FolderTreeItem.h"
@@ -45,68 +47,60 @@ void SDisplayClusterLightCardOutliner::Construct(const FArguments& InArgs, TShar
 
 void SDisplayClusterLightCardOutliner::SetRootActor(ADisplayClusterRootActor* NewRootActor)
 {
-	TArray<ADisplayClusterLightCardActor*> PreviouslySelectedLightCards;
-	GetSelectedLightCards(PreviouslySelectedLightCards);
+	TArray<AActor*> PreviouslySelectedActors;
+	GetSelectedActors(PreviouslySelectedActors);
 	
 	RootActor = NewRootActor;
-	FillLightCardList();
+	FillActorList();
 
 	CreateWorldOutliner();
 	
-	for (const TSharedPtr<FLightCardTreeItem>& LightCardTreeItem : LightCardTree)
-	{
-		if (LightCardTreeItem->IsActorLayer())
-		{
-			LightCardTreeView->SetItemExpansion(LightCardTreeItem, true);
-		}
-	}
-	
 	// Select previously selected light cards. This fixes an issue where the details panel may clear in some cases
 	// and also supports maintaining the selection of shared light cards across different root actors.
-	SelectLightCards(MoveTemp(PreviouslySelectedLightCards));
+	SelectActors(MoveTemp(PreviouslySelectedActors));
 }
 
-void SDisplayClusterLightCardOutliner::GetSelectedLightCards(TArray<ADisplayClusterLightCardActor*>& OutSelectedLightCards) const
+void SDisplayClusterLightCardOutliner::GetSelectedActors(TArray<AActor*>& OutSelectedActors) const
 {
-	TArray<FSceneOutlinerTreeItemPtr> SelectedOutlinerLightCards = SceneOutliner->GetSelectedItems();
-	for (const FSceneOutlinerTreeItemPtr& SelectedLightCard : SelectedOutlinerLightCards)
+	TArray<FSceneOutlinerTreeItemPtr> SelectedOutlinerActors = SceneOutliner->GetSelectedItems();
+	for (const FSceneOutlinerTreeItemPtr& SelectedLightCard : SelectedOutlinerActors)
 	{
-		TSharedPtr<FLightCardTreeItem> MatchingLightCard = GetLightCardTreeItemFromOutliner(SelectedLightCard);
-		if (MatchingLightCard.IsValid() && MatchingLightCard->LightCardActor.IsValid())
+		TSharedPtr<FStageActorTreeItem> MatchingTreeItem = GetStageActorTreeItemFromOutliner(SelectedLightCard);
+		if (MatchingTreeItem.IsValid() && MatchingTreeItem->Actor.IsValid())
 		{
-			OutSelectedLightCards.Add(MatchingLightCard->LightCardActor.Get());
+			OutSelectedActors.Add(MatchingTreeItem->Actor.Get());
 		}
 	}
 }
 
-void SDisplayClusterLightCardOutliner::SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect)
+void SDisplayClusterLightCardOutliner::SelectActors(const TArray<AActor*>& ActorsToSelect)
 {
-	TArray<ADisplayClusterLightCardActor*> ActualSelectedLightCards;
+	TArray<AActor*> ActualSelectedActors;
 	TArray<FSceneOutlinerTreeItemPtr> SelectedTreeItems;
 	CachedSelectedActors.Reset();
 	
-	for (const TSharedPtr<FLightCardTreeItem>& TreeItem : LightCardActors)
+	for (const TSharedPtr<FStageActorTreeItem>& TreeItem : StageActorTreeItems)
 	{
-		if (LightCardsToSelect.Contains(TreeItem->LightCardActor))
+		if (ActorsToSelect.Contains(TreeItem->Actor))
 		{
-			if (FSceneOutlinerTreeItemPtr OutlinerItem = SceneOutliner->GetTreeItem(TreeItem->LightCardActor.Get()))
+			if (FSceneOutlinerTreeItemPtr OutlinerItem = SceneOutliner->GetTreeItem(TreeItem->Actor.Get()))
 			{
 				SelectedTreeItems.Add(OutlinerItem);
-				ActualSelectedLightCards.Add(TreeItem->LightCardActor.Get());
-				CachedSelectedActors.Add(TreeItem->LightCardActor);
+				ActualSelectedActors.Add(TreeItem->Actor.Get());
+				CachedSelectedActors.Add(TreeItem->Actor);
 			}
 		}
 	}
 	
 	SceneOutliner->SetItemSelection(SelectedTreeItems, true);
 	
-	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<TArray<UObject*>*>(&ActualSelectedLightCards));
+	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<TArray<UObject*>*>(&ActualSelectedActors));
 }
 
 void SDisplayClusterLightCardOutliner::RestoreCachedSelection()
 {
-	TArray<ADisplayClusterLightCardActor*> ActorsToSelect;
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& CachedActor : CachedSelectedActors)
+	TArray<AActor*> ActorsToSelect;
+	for (const TWeakObjectPtr<AActor>& CachedActor : CachedSelectedActors)
 	{
 		if (CachedActor.IsValid())
 		{
@@ -114,7 +108,7 @@ void SDisplayClusterLightCardOutliner::RestoreCachedSelection()
 		}
 	}
 	
-	SelectLightCards(MoveTemp(ActorsToSelect));
+	SelectActors(MoveTemp(ActorsToSelect));
 }
 
 void SDisplayClusterLightCardOutliner::CreateWorldOutliner()
@@ -196,82 +190,45 @@ void SDisplayClusterLightCardOutliner::CreateWorldOutliner()
 	];
 }
 
-bool SDisplayClusterLightCardOutliner::FillLightCardList()
+bool SDisplayClusterLightCardOutliner::FillActorList()
 {
-	TArray<TSharedPtr<FLightCardTreeItem>> OriginalTree = MoveTemp(LightCardTree);
-	LightCardActors.Empty();
+	TArray<TSharedPtr<FStageActorTreeItem>> OriginalTree = MoveTemp(StageActorTree);
+	StageActorTreeItems.Empty();
 
-	if (RootActor.IsValid())
+	if (LightCardEditorPtr.IsValid())
 	{
-		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = RootActor->GetConfigData()->StageSettings.Lightcard.ShowOnlyList;
-
-		for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
+		TArray<AActor*> ManagedActors = LightCardEditorPtr.Pin()->FindAllManagedActors();
+		StageActorTreeItems.Reserve(ManagedActors.Num());
+		
+		for (AActor* Actor : ManagedActors)
 		{
-			TSharedPtr<FLightCardTreeItem> LightCardTreeItem = MakeShared<FLightCardTreeItem>();
-			LightCardTreeItem->ActorLayer = ActorLayer.Name;
-			LightCardTree.Add(LightCardTreeItem);
-		}
-
-		for (const TSoftObjectPtr<AActor>& LightCardActor : RootActorLightCards.Actors)
-		{
-			if (LightCardActor.IsValid() && LightCardActor->IsA<ADisplayClusterLightCardActor>())
-			{
-				TSharedPtr<FLightCardTreeItem> LightCardTreeItem = MakeShared<FLightCardTreeItem>();
-				LightCardTreeItem->LightCardActor = CastChecked<ADisplayClusterLightCardActor>(LightCardActor.Get());
-				LightCardTree.Add(LightCardTreeItem);
-				LightCardActors.Add(LightCardTreeItem);
-			}
-		}
-
-		// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
-		// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
-		// in multiple layers
-		if (RootActorLightCards.ActorLayers.Num())
-		{
-			if (UWorld* World = RootActor->GetWorld())
-			{
-				for (const TWeakObjectPtr<ADisplayClusterLightCardActor> WeakActor : TActorRange<ADisplayClusterLightCardActor>(World))
-				{
-					if (WeakActor.IsValid())
-					{
-						for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
-						{
-							if (WeakActor->Layers.Contains(ActorLayer.Name))
-							{
-								TSharedPtr<FLightCardTreeItem> LightCardReference = MakeShared<FLightCardTreeItem>();
-								LightCardReference->LightCardActor = WeakActor.Get();
-								LightCardReference->ActorLayer = ActorLayer.Name;
-								LightCardActors.Add(LightCardReference);
-								break;
-							}
-						}
-					}
-				}
-			}
+			const TSharedPtr<FStageActorTreeItem> TreeItem = MakeShared<FStageActorTreeItem>();
+			TreeItem->Actor = Actor;
+			StageActorTree.Add(TreeItem);
+			StageActorTreeItems.Add(TreeItem);
 		}
 	}
 
-	TrackedActors.Empty(LightCardActors.Num());
+	TrackedActors.Empty(StageActorTreeItems.Num());
 
-	for (const TSharedPtr<FLightCardTreeItem>& LightCard : LightCardActors)
+	for (const TSharedPtr<FStageActorTreeItem>& LightCard : StageActorTreeItems)
 	{
-		TrackedActors.Add(LightCard->LightCardActor.Get(), LightCard);
+		TrackedActors.Add(LightCard->Actor.Get(), LightCard);
 	}
 	
 	// Check if the tree items have changed.
 	{
-		if (OriginalTree.Num() != LightCardTree.Num())
+		if (OriginalTree.Num() != StageActorTree.Num())
 		{
 			return true;
 		}
 	
-		for (const TSharedPtr<FLightCardTreeItem>& OriginalTreeItem : OriginalTree)
+		for (const TSharedPtr<FStageActorTreeItem>& OriginalTreeItem : OriginalTree)
 		{
-			if (!LightCardTree.ContainsByPredicate([OriginalTreeItem](const TSharedPtr<FLightCardTreeItem>& LightCardTreeItem)
+			if (!StageActorTree.ContainsByPredicate([OriginalTreeItem](const TSharedPtr<FStageActorTreeItem>& LightCardTreeItem)
 			{
 				return OriginalTreeItem.IsValid() && LightCardTreeItem.IsValid() &&
-					OriginalTreeItem->LightCardActor.Get() == LightCardTreeItem->LightCardActor.Get() &&
-						OriginalTreeItem->ActorLayer == LightCardTreeItem->ActorLayer;
+					OriginalTreeItem->Actor.Get() == LightCardTreeItem->Actor.Get();
 			}))
 			{
 				return true;
@@ -287,23 +244,23 @@ void SDisplayClusterLightCardOutliner::OnOutlinerSelectionChanged(FSceneOutliner
 {
 	MostRecentSelectedItem = TreeItem;
 
-	TArray<ADisplayClusterLightCardActor*> SelectedLightCards;
-	GetSelectedLightCards(SelectedLightCards);
+	TArray<AActor*> SelectedLightCards;
+	GetSelectedActors(SelectedLightCards);
 
 	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<TArray<UObject*>*>(&SelectedLightCards));
 
 	if (LightCardEditorPtr.IsValid())
 	{
-		LightCardEditorPtr.Pin()->SelectLightCardProxies(SelectedLightCards);
+		LightCardEditorPtr.Pin()->SelectActorProxies(SelectedLightCards);
 	}
 }
 
-TSharedPtr<SDisplayClusterLightCardOutliner::FLightCardTreeItem> SDisplayClusterLightCardOutliner::
-GetLightCardTreeItemFromOutliner(FSceneOutlinerTreeItemPtr InOutlinerTreeItem) const
+TSharedPtr<SDisplayClusterLightCardOutliner::FStageActorTreeItem> SDisplayClusterLightCardOutliner::
+GetStageActorTreeItemFromOutliner(FSceneOutlinerTreeItemPtr InOutlinerTreeItem) const
 {
 	if (const FActorTreeItem* ActorTreeItem = InOutlinerTreeItem->CastTo<FActorTreeItem>())
 	{
-		if (const TSharedPtr<FLightCardTreeItem>* MatchingLightCard = TrackedActors.Find(
+		if (const TSharedPtr<FStageActorTreeItem>* MatchingLightCard = TrackedActors.Find(
 			ActorTreeItem->Actor.Get()))
 		{
 			return *MatchingLightCard;
@@ -366,15 +323,15 @@ void SDisplayClusterLightCardOutliner::RegisterContextMenu(FName& InName, FToolM
 			{
 				// If a delete operation was undone the most recent selection will be invalid.
 				// Assume a single entry light card is correct.
-				TArray<ADisplayClusterLightCardActor*> SelectedLightCardActors;
-				GetSelectedLightCards(SelectedLightCardActors);
+				TArray<AActor*> SelectedLightCardActors;
+				GetSelectedActors(SelectedLightCardActors);
 				if (SelectedLightCardActors.Num() == 1)
 				{
 					Actor = SelectedLightCardActors[0];
 				}
 			}
 			
-			bool bAddFullEditMenu = false;
+			const bool bAddFullEditMenu = Actor && Actor->Implements<UDisplayClusterStageActor>();
 			
 			if (ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(Actor))
 			{
@@ -382,7 +339,6 @@ void SDisplayClusterLightCardOutliner::RegisterContextMenu(FName& InName, FToolM
 
 				Section.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
 				Section.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
-				bAddFullEditMenu = true;
 			}
 			
 			FToolMenuSection& Section = InMenu->AddSection("LightCardEditSection", LOCTEXT("LightCardEditSectionName", "Edit"));
