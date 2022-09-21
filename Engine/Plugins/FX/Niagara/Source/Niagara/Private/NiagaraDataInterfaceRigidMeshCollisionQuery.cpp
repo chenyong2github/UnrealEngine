@@ -300,7 +300,8 @@ void CountCollisionPrimitives(TConstArrayView<TComponentType*> Components, uint3
 
 		if (HasConvexElements)
 		{
-			UE_LOG(LogRigidMeshCollision, Warning, TEXT("Convex collision objects encountered and will be interpreted as a bounding box on %s"), *Component->GetOwner()->GetName());
+			// suppress warning since we get it a lot
+			// UE_LOG(LogRigidMeshCollision, Warning, TEXT("Convex collision objects encountered and will be interpreted as a bounding box on %s"), *Component->GetOwner()->GetName());
 		}
 	}
 }
