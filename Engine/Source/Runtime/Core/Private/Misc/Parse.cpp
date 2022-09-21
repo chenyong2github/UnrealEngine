@@ -79,7 +79,7 @@ public:
 	}
 };
 
-void ConsoleCommandLibrary_DumpLibrary(UWorld* InWorld, FExec& SubSystem, const FString& Pattern, FOutputDevice& Ar)
+bool ConsoleCommandLibrary_DumpLibrary(UWorld* InWorld, FExec& SubSystem, const FString& Pattern, FOutputDevice& Ar)
 {
 	ConsoleCommandLibrary LocalConsoleCommandLibrary(Pattern);
 
@@ -110,9 +110,11 @@ void ConsoleCommandLibrary_DumpLibrary(UWorld* InWorld, FExec& SubSystem, const 
 		Ar.Logf(TEXT("ERROR: The function was supposed to only find matching commands but not have any side effect."));
 		Ar.Logf(TEXT("However Exec() returned true which means we either executed a command or the command parsing returned true where it shouldn't."));
 	}
+
+	return true;
 }
 
-void ConsoleCommandLibrary_DumpLibraryHTML(UWorld* InWorld, FExec& SubSystem, const FString& OutPath)
+bool ConsoleCommandLibrary_DumpLibraryHTML(UWorld* InWorld, FExec& SubSystem, const FString& OutPath)
 {
 	const FString& Pattern(TEXT("*"));
 	ConsoleCommandLibrary LocalConsoleCommandLibrary(Pattern);
@@ -205,9 +207,12 @@ void ConsoleCommandLibrary_DumpLibraryHTML(UWorld* InWorld, FExec& SubSystem, co
 
 			delete File;
 			File = 0;
+
+			return true;
 		}
 	}
 
+	return false;
 /*
 	// the pattern (e.g. Motion*) should not really trigger the execution
 	if(bExecuted)
