@@ -801,7 +801,7 @@ void FLatticeControlPointsMechanicMovementChange::Apply(UObject* Object)
 {
 	ULatticeControlPointsMechanic* Mechanic = Cast<ULatticeControlPointsMechanic>(Object);
 	Mechanic->UpdatePointLocations(NewPositions);
-	Mechanic->bHasChanged = false;
+	Mechanic->bHasChanged = true;
 	Mechanic->OnPointsChanged.Broadcast();
 }
 
