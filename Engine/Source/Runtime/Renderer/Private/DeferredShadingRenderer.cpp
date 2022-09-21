@@ -650,14 +650,16 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 
 		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene.PrimitiveSceneProxies.Num(); PrimitiveIndex++)
 		{
-			// Find the next TypeOffsetTable entry that's relevant to this primitive idnex.
+			// Find the next TypeOffsetTable entry that's relevant to this primitive index.
 			while (PrimitiveIndex >= int(Scene.TypeOffsetTable[BroadIndex].Offset))
 			{
 				BroadIndex++;
 			}
 
+			const ERayTracingPrimitiveFlags Flags = Scene.PrimitiveRayTracingFlags[PrimitiveIndex];
+
 			// Skip before dereferencing SceneInfo
-			if (Scene.PrimitiveRayTracingFlags[PrimitiveIndex] == ERayTracingPrimitiveFlags::UnsupportedProxyType)
+			if (Flags == ERayTracingPrimitiveFlags::UnsupportedProxyType)
 			{
 				// Find the index of a proxy of the next type, skipping over a batch of proxies that are the same type as current.
 				// This assumes that FPrimitiveSceneProxy::IsRayTracingRelevant() is consistent for all proxies of the same type.
@@ -696,7 +698,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 			}
 
 			// Marked visible and used after point, check if streaming then mark as used in the TLAS (so it can be streamed in)
-			if (EnumHasAnyFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Streaming))
+			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::Streaming))
 			{
 				// Is the cached data dirty?
 				if (SceneInfo->bCachedRaytracingDataDirty)
@@ -715,7 +717,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 			FRayTracingRelevantPrimitive Item;
 			Item.PrimitiveIndex = PrimitiveIndex;
 
-			if (EnumHasAnyFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::StaticMesh)
+			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::StaticMesh)
 				&& View.Family->EngineShowFlags.StaticMeshes
 				&& RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0)
 			{
@@ -724,7 +726,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 			}
 			else if (View.Family->EngineShowFlags.SkeletalMeshes)
 			{
-				checkf(!EnumHasAllFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::CacheInstances), 
+				checkf(!EnumHasAllFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances),
 					TEXT("Only static primitives are expected to use CacheInstances flag."));
 
 				Item.bStatic = false;
@@ -749,10 +751,11 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 
 			const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
 			const FPrimitiveSceneInfo* SceneInfo = Scene.Primitives[PrimitiveIndex];
+			const ERayTracingPrimitiveFlags Flags = Scene.PrimitiveRayTracingFlags[PrimitiveIndex];
 
 			int8 LODIndex = 0;
 
-			if (EnumHasAnyFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::ComputeLOD))
+			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::ComputeLOD))
 			{
 				const FPrimitiveBounds& Bounds = Scene.PrimitiveBounds[PrimitiveIndex];
 				const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo = Scene.Primitives[PrimitiveIndex];
@@ -769,7 +772,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 				LODIndex = LODToRender.GetRayTracedLOD();
 			}
 
-			if (!EnumHasAllFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::CacheInstances))
+			if (!EnumHasAllFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
 			{
 				FRHIRayTracingGeometry* RayTracingGeometryInstance = SceneInfo->GetStaticRayTracingGeometryInstance(LODIndex);
 				if (RayTracingGeometryInstance == nullptr)
@@ -779,6 +782,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 
 				// Sometimes LODIndex is out of range because it is clamped by ClampToFirstLOD, like the requested LOD is being streamed in and hasn't been available
 				// According to InitViews, we should hide the static mesh instance
+				check(EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands));
 				if (SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.IsValidIndex(LODIndex))
 				{
 					RelevantPrimitive.LODIndex = LODIndex;
@@ -810,7 +814,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 
 					RelevantPrimitive.InstanceMask |= RelevantPrimitive.bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
-					if (EnumHasAllFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField))
+					if (EnumHasAllFlags(Flags, ERayTracingPrimitiveFlags::FarField))
 					{
 						RelevantPrimitive.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
 					}

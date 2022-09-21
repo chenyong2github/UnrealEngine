@@ -767,6 +767,42 @@ public:
 };
 
 template<bool bDeferLODCommandIndices, class T>
+void CacheRayTracingMeshBatch(
+	const FMeshBatch& MeshBatch,
+	FPrimitiveSceneInfo* SceneInfo,
+	T& Commands,
+	FCachedRayTracingMeshCommandContext<T>& CommandContext,
+	FRayTracingMeshProcessor& RayTracingMeshProcessor,
+	TArray<DeferredMeshLODCommandIndex>* DeferredMeshLODCommandIndices,
+	bool bMustEmitCommand)
+{
+	// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
+	// Also note that the code below assumes only a single command was generated per batch (see SupportsCachingMeshDrawCommands(...))
+	const uint64 BatchElementMask = ~0ull;
+	RayTracingMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, SceneInfo->Proxy);
+
+	check(!bMustEmitCommand || CommandContext.CommandIndex >= 0);
+
+	if (bMustEmitCommand || CommandContext.CommandIndex >= 0)
+	{
+		uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[MeshBatch.LODIndex];
+		Hash <<= 1;
+		Hash ^= Commands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+
+		if (bDeferLODCommandIndices)
+		{
+			DeferredMeshLODCommandIndices->Add({ SceneInfo, MeshBatch.LODIndex, CommandContext.CommandIndex });
+		}
+		else
+		{
+			SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[MeshBatch.LODIndex].Add(CommandContext.CommandIndex);
+		}
+
+		CommandContext.CommandIndex = -1;
+	}
+}
+
+template<bool bDeferLODCommandIndices, class T>
 void CacheRayTracingPrimitive(
 	FScene* Scene, 
 	FPrimitiveSceneInfo* SceneInfo,
@@ -774,53 +810,9 @@ void CacheRayTracingPrimitive(
 	FCachedRayTracingMeshCommandContext<T>& CommandContext,
 	FRayTracingMeshProcessor& RayTracingMeshProcessor,
 	TArray<DeferredMeshLODCommandIndex>* DeferredMeshLODCommandIndices,
-	FRayTracingInstance& CachedRayTracingInstance, 
-	ERayTracingPrimitiveFlags& Flags)
+	FRayTracingInstance& OutCachedRayTracingInstance, 
+	ERayTracingPrimitiveFlags& OutFlags)
 {
-	if (SceneInfo->GetRayTracingGeometryNum() > 0 && SceneInfo->StaticMeshes.Num() > 0)
-	{
-		int32 MaxLOD = -1;
-		for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
-		{
-			MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
-		}
-
-		SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Empty(MaxLOD + 1);
-		SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(MaxLOD + 1);
-
-		SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(MaxLOD + 1);
-		SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(MaxLOD + 1);
-
-		for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
-		{
-			// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
-			// Also note that the code below assumes only a single command was generated per batch (see SupportsCachingMeshDrawCommands(...))
-			const uint64 BatchElementMask = ~0ull;
-			RayTracingMeshProcessor.AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
-
-			if (CommandContext.CommandIndex >= 0)
-			{
-				uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
-				Hash <<= 1;
-				Hash ^= Commands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
-
-				if (bDeferLODCommandIndices)
-				{
-					DeferredMeshLODCommandIndices->Add({ SceneInfo,Mesh.LODIndex, CommandContext.CommandIndex });
-				}
-				else
-				{
-					SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
-				}
-
-				CommandContext.CommandIndex = -1;
-			}
-		}
-	}
-
-	// This path is mutually exclusive with the old path (used by normal static meshes) and is only used by Nanite proxies now.
-	// TODO: move normal static meshes to this path, but needs testing to not break FN
-
 	// Write group id
 	const int32 RayTracingGroupId = SceneInfo->Proxy->GetRayTracingGroupId();
 	if (RayTracingGroupId != -1)
@@ -829,45 +821,53 @@ void CacheRayTracingPrimitive(
 	}
 
 	// Write flags
-	Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
+	OutFlags = SceneInfo->Proxy->GetCachedRayTracingInstance(OutCachedRayTracingInstance);
 
 	// Cache the coarse mesh streaming handle
 	SceneInfo->CoarseMeshStreamingHandle = SceneInfo->Proxy->GetCoarseMeshStreamingHandle();
 
-	if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
+	if (EnumHasAnyFlags(OutFlags, ERayTracingPrimitiveFlags::CacheMeshCommands))
 	{
-		// TODO: LOD w/ screen size support. Probably needs another array parallel to OutRayTracingInstances
-		// We assume it is exactly 1 LOD now (true for Nanite proxies)
-		SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Empty(1);
-		SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(1);
+		int32 MaxLOD = -1;
 
-		SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(1);
-		SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(1);
-
-		for (const FMeshBatch& Mesh : CachedRayTracingInstance.Materials)
+		if (OutCachedRayTracingInstance.Materials.Num() > 0)
 		{
-			// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
-			// Also note that the code below assumes only a single command was generated per batch (see SupportsCachingMeshDrawCommands(...))
-			const uint64 BatchElementMask = ~0ull;
-			RayTracingMeshProcessor.AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
+			// TODO: LOD w/ screen size support. Probably needs another array parallel to OutRayTracingInstances
+			// We assume it is exactly 1 LOD now (true for Nanite proxies)
+			MaxLOD = 0;
+		}
+		else
+		{
+			for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
+			{
+				MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
+			}
+		}
 
+		SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Empty(MaxLOD + 1);
+		SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(MaxLOD + 1); // should be initialzied to -1?
+
+		SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(MaxLOD + 1);
+		SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(MaxLOD + 1);
+
+		if (OutCachedRayTracingInstance.Materials.Num() > 0)
+		{
 			// The material section must emit a command. Otherwise, it should have been excluded earlier
-			check(CommandContext.CommandIndex >= 0);
-			
-			uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
-			Hash <<= 1;
-			Hash ^= Commands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+			const bool bMustEmitCommand = true;
 
-			if (bDeferLODCommandIndices)
+			for (const FMeshBatch& Mesh : OutCachedRayTracingInstance.Materials)
 			{
-				DeferredMeshLODCommandIndices->Add({ SceneInfo,Mesh.LODIndex, CommandContext.CommandIndex });
+				CacheRayTracingMeshBatch<bDeferLODCommandIndices>(Mesh, SceneInfo, Commands, CommandContext, RayTracingMeshProcessor, DeferredMeshLODCommandIndices, bMustEmitCommand);
 			}
-			else
-			{
-				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
-			}
+		}
+		else
+		{
+			const bool bMustEmitCommand = false;
 
-			CommandContext.CommandIndex = -1;
+			for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
+			{
+				CacheRayTracingMeshBatch<bDeferLODCommandIndices>(Mesh, SceneInfo, Commands, CommandContext, RayTracingMeshProcessor, DeferredMeshLODCommandIndices, bMustEmitCommand);
+			}
 		}
 	}
 }
