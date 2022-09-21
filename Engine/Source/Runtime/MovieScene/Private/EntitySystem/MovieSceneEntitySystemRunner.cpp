@@ -986,25 +986,20 @@ void FMovieSceneEntitySystemRunner::GameThread_PostEvaluationPhase(UMovieSceneEn
 		}
 	}
 
-	// Append our cached updates if there are outstanding updates from a re-entrant call, otherwise
-	// just swap them back
-	if (UpdateQueue.Num() > 0 && TmpUpdateQueue.Num() > 0)
+	// If we had any updates _before_ we called the external callbacks (which are stored in TmpUpdateQueue), make sure those are maintained first
+	Swap(TmpUpdateQueue, UpdateQueue);
+
+	// TmpUpdateQueue now contains any updates that were queued _during_ the external callbacks, so we append those to our old queue (which is now stored back in UpdateQueue)
+	if (TmpUpdateQueue.Num() > 0)
 	{
 		UpdateQueue.Append(TmpUpdateQueue);
 	}
-	else
-	{
-		Swap(TmpUpdateQueue, UpdateQueue);
-	}
 
-	// Same with the dissected updates
-	if (DissectedUpdates.Num() > 0 && TmpDissectedUpdates.Num() > 0)
+	// Do the same with the dissected updates
+	Swap(TmpDissectedUpdates, DissectedUpdates);
+	if (TmpDissectedUpdates.Num() > 0)
 	{
 		DissectedUpdates.Append(TmpDissectedUpdates);
-	}
-	else
-	{
-		Swap(TmpDissectedUpdates, DissectedUpdates);
 	}
 
 	// If we have any pending updates, we need to run another evaluation.
