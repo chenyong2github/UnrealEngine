@@ -473,7 +473,7 @@ const StepTrendsPanelInner: React.FC<{ jobDetails: JobDetailsV2; dataView: Trend
          TemplateCache.getStreamTemplates(jobDetails.stream).then(templates => {
             templates.forEach(template => {
                if (template.id === jobDetails.template?.id || template.name === jobDetails.template?.name) {
-                  setSelectedTemplateRef(template.ref);
+                  setSelectedTemplateRef(template);
                   return;
                }
             });

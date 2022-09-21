@@ -4,7 +4,7 @@ import moment from "moment";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import backend from "../backend";
-import { GetJobResponse, GetJobsTabResponse, GetJobStepRefResponse, JobData, JobQuery, TabType, TemplateData } from "../backend/Api";
+import { GetJobResponse, GetJobsTabResponse, GetJobStepRefResponse, JobData, JobQuery, TabType, GetTemplateRefResponse } from "../backend/Api";
 import dashboard from "../backend/Dashboard";
 import { projectStore } from "../backend/ProjectStore";
 import templateCache from '../backend/TemplateCache';
@@ -25,7 +25,7 @@ export const JobSearchSimpleModal: React.FC<{ streamId: string, onClose: () => v
    };
 
    const [searchState, setSearchState] = useState<{ items: JobItem[], groups?: IGroup[], templateId?: string, name?: string, userId?: string, global?: boolean, streamIdOverride?: string, preflights: boolean, preflightOnly?: boolean, minDate?: Date, maxDate?: Date, minCL?: string, maxCL?: string, querying: boolean, containsStep?: string }>({ items: [], querying: false, preflights: false });
-   const [templateData, setTemplateData] = useState<{ streamId: string; templates: TemplateData[] } | undefined>(undefined);
+   const [templateData, setTemplateData] = useState<{ streamId: string; templates: GetTemplateRefResponse[] } | undefined>(undefined);
 
    const stream = projectStore.streamById(streamId);
 
@@ -62,7 +62,7 @@ export const JobSearchSimpleModal: React.FC<{ streamId: string, onClose: () => v
    let templateOptions: IContextualMenuItem[] = [];
 
 
-   const sorted = new Map<string, TemplateData[]>();
+   const sorted = new Map<string, GetTemplateRefResponse[]>();
 
    templates.forEach(t => {
 
@@ -72,7 +72,7 @@ export const JobSearchSimpleModal: React.FC<{ streamId: string, onClose: () => v
          }
 
          const jtab = tab as GetJobsTabResponse;
-         if (!jtab.templates?.find(template => template === t.ref?.id)) {
+         if (!jtab.templates?.find(template => template === t.id)) {
             return;
          }
 
@@ -273,10 +273,10 @@ export const JobSearchSimpleModal: React.FC<{ streamId: string, onClose: () => v
 
             let stepTemplates: string[] = [];
 
-            if (template?.ref?.id) {
-               stepTemplates.push(template.ref.id);
+            if (template?.id) {
+               stepTemplates.push(template.id);
             } else {
-               stepTemplates = templates.filter(t => !!t.ref?.id).map(t => t.ref!.id!);
+               stepTemplates = templates.filter(t => !!t.id).map(t => t.id);
             }
 
             const numTemplates = stepTemplates.length;
@@ -313,7 +313,7 @@ export const JobSearchSimpleModal: React.FC<{ streamId: string, onClose: () => v
                filter: "id,name,change,createTime,streamId,preflightChange,startedByUserInfo,streamId",
                minChange: minCL,
                maxChange: maxCL,
-               template: (!searchState.global && template?.ref?.id && !searchState.containsStep) ? [template.ref.id] : undefined,
+               template: (!searchState.global && template?.id && !searchState.containsStep) ? [template.id] : undefined,
                minCreateTime: minCreateTime?.toUTCString(),
                maxCreateTime: maxCreateTime?.toUTCString(),
                includePreflight: searchState.preflights || !!searchState.preflightOnly,

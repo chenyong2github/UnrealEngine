@@ -5,7 +5,7 @@ import moment from "moment";
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useHistory, useLocation } from "react-router-dom";
 import backend from "../backend";
-import { CreateExternalIssueResponse, CreateJobRequest, EventSeverity, GetChangeSummaryResponse, GetExternalIssueProjectResponse, GetExternalIssueResponse, GetIssueResponse, GetIssueSpanResponse, GetIssueStepResponse, GetIssueStreamResponse, GetLogEventResponse, GetTemplateRefResponse, GetThinUserInfoResponse, GetUserResponse, IssueSeverity, TemplateData, UpdateIssueRequest } from "../backend/Api";
+import { CreateExternalIssueResponse, CreateJobRequest, EventSeverity, GetChangeSummaryResponse, GetExternalIssueProjectResponse, GetExternalIssueResponse, GetIssueResponse, GetIssueSpanResponse, GetIssueStepResponse, GetIssueStreamResponse, GetLogEventResponse, GetTemplateRefResponse, GetThinUserInfoResponse, GetUserResponse, IssueSeverity, UpdateIssueRequest } from "../backend/Api";
 import dashboard, { StatusColor } from "../backend/Dashboard";
 import { projectStore } from "../backend/ProjectStore";
 import templateCache from '../backend/TemplateCache';
@@ -2954,7 +2954,7 @@ export const IssueForceCloseModal: React.FC<{ onClose: () => void }> = ({ onClos
 const TestFixModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
    const history = useHistory();
-   const [state, setState] = useState<{ loadingTemplates?: boolean, templates?: Map<string, TemplateData[]>, error?: string, submitting?: boolean, shelvedCL?: string, baseCL?: string, streamId?: string, templateId?: string, target?: string, updateIssues?: boolean }>({ updateIssues: true });
+   const [state, setState] = useState<{ loadingTemplates?: boolean, templates?: Map<string, GetTemplateRefResponse[]>, error?: string, submitting?: boolean, shelvedCL?: string, baseCL?: string, streamId?: string, templateId?: string, target?: string, updateIssues?: boolean }>({ updateIssues: true });
 
    const issue = details.issue!;
 
@@ -2979,7 +2979,7 @@ const TestFixModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
          const getTemplates = async () => {
 
-            const templateMap: Map<string, TemplateData[]> = new Map();
+            const templateMap: Map<string, GetTemplateRefResponse[]> = new Map();
 
             for (let i = 0; i < testStreams.length; i++) {
 
@@ -3066,7 +3066,7 @@ const TestFixModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
          error = "Target not set";
       }
 
-      const template = state.templates?.get(state.streamId!)?.find(t => t.ref?.id === state.templateId);
+      const template = state.templates?.get(state.streamId!)?.find(t => t.id === state.templateId);
       if (!template) {
          error = `Unable to find stream ${state.streamId} template ${state.templateId}`;
          console.log(state.templates?.get(state.streamId!));

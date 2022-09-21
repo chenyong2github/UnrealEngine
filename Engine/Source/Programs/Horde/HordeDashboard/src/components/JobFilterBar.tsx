@@ -4,7 +4,7 @@ import { action, observable } from "mobx";
 import { Dropdown, IDropdownOption, Stack } from "@fluentui/react";
 import React, { useEffect, useState } from "react";
 import { useBackend } from "../backend";
-import { GetJobsTabResponse, TabType, TemplateData } from "../backend/Api";
+import { GetJobsTabResponse, TabType, GetTemplateRefResponse } from "../backend/Api";
 import { FilterStatus } from "../backend/JobHandler";
 import templateCache from '../backend/TemplateCache';
 import { hordeClasses, modeColors } from "../styles/Styles";
@@ -43,7 +43,7 @@ export class JobFilter {
         this.updated++;
     }
 
-    set(templates?: TemplateData[], status?: FilterStatus[]) {
+    set(templates?: GetTemplateRefResponse[], status?: FilterStatus[]) {
 
         let templatesDirty = true;
 
@@ -90,7 +90,7 @@ export class JobFilter {
     @observable
     updated: number = 0;
 
-    templates?: TemplateData[];
+    templates?: GetTemplateRefResponse[];
     status?: FilterStatus[];
 }
 
@@ -98,7 +98,7 @@ export const jobFilter = new JobFilter();
 
 interface CategoryItem extends IDropdownOption {
 
-    templates: TemplateData[];
+    templates: GetTemplateRefResponse[];
 }
 
 // Job filter bar for "all" jobs view
@@ -106,7 +106,7 @@ export const JobFilterBar: React.FC<{ streamId: string }> = ({ streamId }) => {
 
     const { projectStore } = useBackend();
 
-    const [state, setState] = useState<{ streamId?: string; templates?: TemplateData[], categories?: string[], status?: FilterStatus | "All" | undefined }>({});
+    const [state, setState] = useState<{ streamId?: string; templates?: GetTemplateRefResponse[], categories?: string[], status?: FilterStatus | "All" | undefined }>({});
 
     const stream = projectStore.streamById(streamId);
 
@@ -132,13 +132,13 @@ export const JobFilterBar: React.FC<{ streamId: string }> = ({ streamId }) => {
         return null;
     } 
 
-    let templates: TemplateData[] = state.templates.map(t => t);
+    let templates: GetTemplateRefResponse[] = state.templates.map(t => t);
 
     if (!templates.length) {
         return null;
     }
 
-    const catMap = new Map<string, TemplateData[]>();
+    const catMap = new Map<string, GetTemplateRefResponse[]>();
 
     stream.tabs?.forEach(t => {
 
@@ -148,7 +148,7 @@ export const JobFilterBar: React.FC<{ streamId: string }> = ({ streamId }) => {
 
         let tab = t as GetJobsTabResponse;
 
-        const ctemps = tab.templates?.map(tid => templates.find(t => t.ref?.id === tid)).filter(t => !!t) as TemplateData[];
+        const ctemps = tab.templates?.map(tid => templates.find(t => t.id === tid)).filter(t => !!t) as GetTemplateRefResponse[];
 
         if (!ctemps?.length) {
             return;

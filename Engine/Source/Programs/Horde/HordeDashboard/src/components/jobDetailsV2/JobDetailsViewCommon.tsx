@@ -5,7 +5,7 @@ import moment from "moment";
 import React, { useState } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import backend from "../../backend";
-import { BatchData, GetJobTimingResponse, GetLabelResponse, GroupData, JobData, JobState, LabelState, NodeData, ReportPlacement, StepData, StreamData, TemplateData } from "../../backend/Api";
+import { BatchData, GetJobTimingResponse, GetLabelResponse, GetTemplateRefResponse, GroupData, JobData, JobState, LabelState, NodeData, ReportPlacement, StepData, StreamData } from "../../backend/Api";
 import { JobLabel } from "../../backend/JobDetails";
 import { PollBase } from "../../backend/PollBase";
 import { projectStore } from "../../backend/ProjectStore";
@@ -633,7 +633,7 @@ export class JobDetailsV2 extends PollBase {
       let forceUpdate = false;
       if (initialRequest) {
          const templates = await TemplateCache.getStreamTemplates(this.stream);
-         this.template = templates.find(t => t.ref?.id === jobData.templateId);
+         this.template = templates.find(t => t.id === jobData.templateId);
          if (!this.template) {
             throw new Error(`Unable to get stream template for job ${this.jobId}`)
          }
@@ -704,7 +704,7 @@ export class JobDetailsV2 extends PollBase {
    groups: GroupData[] = [];
    nodes: NodeData[] = [];
    batches: BatchData[] = [];
-   template?: TemplateData;
+   template?: GetTemplateRefResponse;
 
    // artifact id => report contents (markdown)
    private reportData = new Map<string, string>();

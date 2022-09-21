@@ -5,7 +5,7 @@ import { observer } from 'mobx-react-lite';
 import moment from 'moment';
 import React, { useState } from 'react';
 import backend, { useBackend } from '../backend';
-import { BoolParameterData, ChangeQueryRequest, CreateJobRequest, GetJobsTabResponse, GroupParameterData, JobsTabData, ListParameterData, ListParameterItemData, ListParameterStyle, ParameterData, ParameterType, Priority, TabType, TemplateData, TextParameterData } from '../backend/Api';
+import { BoolParameterData, CreateJobRequest, GetJobsTabResponse, GroupParameterData, JobsTabData, ListParameterData, ListParameterItemData, ListParameterStyle, ParameterData, ParameterType, Priority, TabType, GetTemplateRefResponse, TextParameterData, ChangeQueryConfig } from '../backend/Api';
 
 import templateCache from '../backend/TemplateCache';
 import { ErrorHandler } from "../components/ErrorHandler";
@@ -27,7 +27,7 @@ class BuildParameters {
 
    static paramKey = 0;
 
-   constructor(template: TemplateData, jobDetails?: JobDetailsV2, existing?: BuildParameters) {
+   constructor(template: GetTemplateRefResponse, jobDetails?: JobDetailsV2, existing?: BuildParameters) {
 
       BuildParameters.paramKey++;
 
@@ -292,7 +292,7 @@ class BuildParameters {
    copySettings(src: BuildParameters) {
 
       this.change = src.change;
-      this.changeSuccess = src.changeSuccess;
+      this.changeOption = src.changeOption;
       this.preflight = src.preflight;
       this.autoSubmit = src.autoSubmit;
 
@@ -518,7 +518,7 @@ class BuildParameters {
 
          try {
             regex = new RegExp(param.validation, 'gm');
-         } catch (reason:any) {
+         } catch (reason: any) {
 
             errors.push({
                param: param,
@@ -577,7 +577,7 @@ class BuildParameters {
       this.changed++;
    }
 
-   template: TemplateData;
+   template: GetTemplateRefResponse;
 
    jobDetails?: JobDetailsV2;
 
@@ -587,7 +587,7 @@ class BuildParameters {
    // base settings
 
    change?: string;
-   changeSuccess?: boolean;
+   changeOption?: string;
    preflight?: string;
    autoSubmit?: boolean;
 
@@ -608,11 +608,11 @@ class BuildParameters {
 
 export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (newJobId: string | undefined) => void, jobKey?: string; jobDetails?: JobDetailsV2, readOnly?: boolean }> = observer(({ streamId, jobKey, show, onClose, jobDetails, readOnly }) => {
 
-   const { projectStore } = useBackend();   
+   const { projectStore } = useBackend();
    const query = useQuery();
-   const [build, setBuild] = useState<{ template?: TemplateData; buildParams?: BuildParameters }>({});
+   const [build, setBuild] = useState<{ template?: GetTemplateRefResponse; buildParams?: BuildParameters }>({});
    const [submitting, setSubmitting] = useState(false);
-   const [templateData, setTemplateData] = useState<{ streamId: string; templates: TemplateData[] } | undefined>(undefined);
+   const [templateData, setTemplateData] = useState<{ streamId: string; templates: GetTemplateRefResponse[] } | undefined>(undefined);
    const [mode, setMode] = useState<"Basic" | "Advanced">("Basic");
    const [showAllTemplates, setShowAllTemplates] = useState<boolean>(false);
    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -635,7 +635,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       return null;
    }
 
-   let templates: TemplateData[] = [];
+   let templates: GetTemplateRefResponse[] = [];
 
    // @todo: better way of checking whether we are in a preflight submit
    const isPreflightSubmit = !!query.get("shelvedchange");
@@ -672,21 +672,6 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       return null;
    }
 
-   let preflightDefaultTemplate: TemplateData | undefined;
-   let preflightDefaultTemplateRefId = stream.defaultPreflight?.templateId ?? stream.defaultPreflightTemplate;
-   const preflightChangeTemplateRefId = stream.defaultPreflight?.change?.templateId ?? stream.defaultPreflight?.changeTemplateId;
-   let preflightChangeTemplate: TemplateData | undefined;
-
-   if (preflightDefaultTemplateRefId) {
-      preflightDefaultTemplate = templateData.templates.find(t => t.ref?.id === preflightDefaultTemplateRefId)
-   }
-
-   if (preflightChangeTemplateRefId) {
-      preflightChangeTemplate = templateData.templates.find(t => t.ref?.id === preflightChangeTemplateRefId)
-      if (!preflightChangeTemplate) {
-         console.error(`Unable to find preflight change template ${preflightChangeTemplateRefId} in stream templates`);
-      }
-   }
 
    if (!jobDetails) {
 
@@ -709,7 +694,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
          templates = [];
 
          tab.templates?.forEach(templateName => {
-            const t = templateData.templates.find(t => t.ref?.id === templateName);
+            const t = templateData.templates.find(t => t.id === templateName);
             if (!t) {
                console.error(`Could not find template ${templateName}`);
                return;
@@ -746,13 +731,33 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
    const template = build.template;
    const buildParams = build.buildParams;
 
+   let defaultPreflightQuery: ChangeQueryConfig[] | undefined;
+
+   if (template?.defaultChange) {
+      defaultPreflightQuery = template.defaultChange;
+   }
+
+   const defaultStreamPreflightTemplate = stream.templates.find(t => t.id === stream.defaultPreflight?.templateId);
+
+   if (!defaultPreflightQuery && stream.defaultPreflight?.templateId) {
+
+      if (defaultStreamPreflightTemplate) {
+         defaultPreflightQuery = defaultStreamPreflightTemplate.defaultChange;
+      }
+
+      if (!defaultPreflightQuery) {
+         console.error(`Unable to find default stream preflight template ${stream.defaultPreflight?.templateId} in stream templates`);
+      }
+   }
+
+
    if (buildParams?.preflight) {
       templates = templates.filter(t => t.allowPreflights);
    }
 
    if (!template || templates.indexOf(template) === -1) {
 
-      let t: TemplateData | undefined;
+      let t: GetTemplateRefResponse | undefined;
 
       if (jobDetails?.template) {
          t = templates.find(t => t.name === jobDetails.template!.name);
@@ -761,9 +766,9 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       // handle preflight redirect case
       if (!t && defaultShelvedChange && !jobDetails) {
 
-         t = preflightDefaultTemplate;
+         t = defaultStreamPreflightTemplate;
          if (!t) {
-            console.error(`Stream default preflight template cannot be found for stream ${stream.fullname} : defaultPreflightTemplate ${preflightDefaultTemplateRefId}, will use first template in list`);
+            console.error(`Stream default preflight template cannot be found for stream ${stream.fullname} : stream defaultPreflightTemplate ${stream.defaultPreflight?.templateId}, will use first template in list`);
          }
       }
 
@@ -771,7 +776,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       if (!t && (showAllTemplates) && stream.tabs.length > 0) {
          const stab = stream.tabs[0] as JobsTabData;
          if (stab.templates && stab.templates.length > 0) {
-            t = templates.find(t => t.ref?.id === stab.templates![0]);
+            t = templates.find(t => t.id === stab.templates![0]);
          }
       }
 
@@ -797,7 +802,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
          // when coming from P4V, always clear the base CL
          if (isFromP4V) {
             p.change = undefined;
-            p.changeSuccess = false;
+            p.changeOption = undefined;
          }
 
          setBuild({ template: t, buildParams: p });
@@ -831,7 +836,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       }).sort((a, b) => a.text < b.text ? -1 : 1);
    } else {
 
-      const sorted = new Map<string, TemplateData[]>();
+      const sorted = new Map<string, GetTemplateRefResponse[]>();
 
       templates.forEach(t => {
 
@@ -841,7 +846,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
             }
 
             const jtab = tab as GetJobsTabResponse;
-            if (!jtab.templates?.find(template => template === t.ref?.id)) {
+            if (!jtab.templates?.find(template => template === t.id)) {
                return;
             }
 
@@ -1245,20 +1250,20 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
          }
       }
 
-      let changeQuery: ChangeQueryRequest | undefined;
+      let changeQueries: ChangeQueryConfig[] | undefined;
 
-      if (buildParams.changeSuccess && preflightChangeTemplateRefId) {
-         change = undefined;
-
-         if (stream.defaultPreflight?.change) {
-            changeQuery = stream.defaultPreflight?.change;
-         } else {
-            changeQuery = {
-               templateId: preflightChangeTemplateRefId
-            };
+      if (typeof change !== 'number') {
+         const changeOption = buildParams.changeOption ?? "Default Change";
+         if (changeOption === "Default Change" && defaultPreflightQuery) {
+            changeQueries = defaultPreflightQuery;
+         }
+         else {
+            const changeQuery = defaultPreflightQuery?.find(p => p.name === buildParams.changeOption);
+            if (changeQuery) {
+               changeQueries = [{ ...changeQuery, condition: undefined }];
+            }
          }
       }
-
 
       if (buildParams!.preflight) {
          preflight = parseInt(buildParams!.preflight);
@@ -1274,7 +1279,6 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       buildParams!.validate(errors);
 
       const args = buildParams!.generateArguments();
-
 
       let additionalArgs: string[] = [];
 
@@ -1313,7 +1317,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
 
       allArgs = allArgs.map(a => a.trim());
 
-      const templateId = template?.ref?.id ? template.ref.id : jobDetails?.jobData?.templateId;
+      const templateId = template?.id ? template.id : jobDetails?.jobData?.templateId;
       const updateIssues = template?.updateIssues ? undefined : buildParams!.advUpdateIssues;
 
       const data: CreateJobRequest = {
@@ -1322,7 +1326,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
          name: buildParams!.advJobName,
          priority: buildParams!.advJobPriority,
          updateIssues: updateIssues,
-         changeQuery: changeQuery,
+         changeQueries: changeQueries,
          arguments: allArgs
       };
 
@@ -1375,7 +1379,7 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
                }
 
                redirected = true;
-               onClose(data.id);               
+               onClose(data.id);
             }).catch(reason => {
                // "Not Found" is generally a permissions error
                errorReason = reason ? reason : "Unknown";
@@ -1453,22 +1457,21 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
 
    // change setup
 
+   const changeOptions = ["Default Change"];
 
-   const changeItems: IComboBoxOption[] = [
-      { key: 'ChangeLatest', text: 'Latest Change' }
-   ];
-
-   if (preflightChangeTemplate) {
-      changeItems.push({ key: 'ChangeSuccess', text: `Latest Success - ${preflightChangeTemplate.name}` });
+   if (defaultPreflightQuery) {
+      changeOptions.push(...defaultPreflightQuery.filter(n => !!n.name).map(n => n.name!));
    }
+
+   const changeItems: IComboBoxOption[] = changeOptions.map(name => { return { key: `key_change_option_${name}`, text: name } });
 
    let changeText: string | undefined;
 
    if (buildParams.change) {
       changeText = buildParams.change;
    }
-   if (buildParams.changeSuccess) {
-      changeText = "Latest Success";
+   if (buildParams.changeOption) {
+      changeText = buildParams.changeOption;
    }
 
    const parameterGap = 6;
@@ -1558,26 +1561,20 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
                      </Stack>
                      <Stack grow />
                      <Stack>
-                        <ComboBox label="Change" text={changeText} options={changeItems} disabled={readOnly} allowFreeform autoComplete="off" placeholder="Latest Change" defaultValue={jobDetails?.jobData?.change?.toString()} onChange={(ev, option, index, value) => {
+                        <ComboBox style={{ width: 240 }} label="Change" text={changeText} options={changeItems} disabled={readOnly} allowFreeform autoComplete="off" placeholder="Default Change" defaultValue={jobDetails?.jobData?.change?.toString()} onChange={(ev, option, index, value) => {
                            ev.preventDefault();
 
                            if (option) {
-                              if (option.key === "ChangeLatest") {
-                                 buildParams.change = undefined;
-                                 buildParams.changeSuccess = false;
-                              } else if (option.key === "ChangeSuccess") {
-                                 buildParams.change = undefined;
-                                 buildParams.changeSuccess = true;
-                              }
+                              buildParams.change = undefined;
+                              buildParams.changeOption = option.text;
                            } else {
-                              buildParams.changeSuccess = false;
+                              buildParams.changeOption = undefined;
                               if (!value) {
                                  buildParams.change = undefined;
                               } else {
                                  buildParams.change = value;
                               }
                            }
-
                            buildParams!.setChanged();
                         }}
                         />
