@@ -197,7 +197,7 @@ void UMetaDataRegistrySource::DetermineRuntimeNames(TArray<FName>& OutRuntimeNam
 			TempRules.bSkipVirtualPathExpansion = true;
 		}
 
-		AssetManager.SearchAssetRegistryPaths(AssetDataList, SearchRules);
+		AssetManager.SearchAssetRegistryPaths(AssetDataList, TempRules);
 
 		if (bExpandedVirtual)
 		{
