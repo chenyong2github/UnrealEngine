@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.CompilerServices;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
@@ -420,9 +421,19 @@ namespace EpicGames.UHT.Parsers
 					break;
 
 				case UhtTokenType.Symbol:
-					// Ignore any extra semicolons
+					// C++ UHT TODO - Generate errors when extra ';' are found.  
+					// UPROPERTY has code to remove extra ';'
 					if (token.IsSymbol(';'))
 					{
+						UhtToken nextToken = topScope.TokenReader.PeekToken();
+						if (nextToken.TokenType.IsEndType())
+						{
+							topScope.TokenReader.LogError("Extra ';' before end of file");
+						}
+						else
+						{
+							topScope.TokenReader.LogError($"Extra ';' before '{nextToken}'");
+						}
 						return true;
 					}
 					parseResult = DispatchKeyword(topScope, ref token);

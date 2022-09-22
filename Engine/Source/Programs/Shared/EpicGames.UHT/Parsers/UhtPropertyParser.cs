@@ -1251,6 +1251,18 @@ namespace EpicGames.UHT.Parsers
 			UhtPropertyParseOptions options = UhtPropertyParseOptions.ParseLayoutMacro | UhtPropertyParseOptions.List | UhtPropertyParseOptions.AddModuleRelativePath;
 			topScope.HeaderParser.GetCachedPropertyParser().Parse(topScope, EPropertyFlags.ParmFlags, options, UhtPropertyCategory.Member, s_propertyDelegate);
 			topScope.TokenReader.Require(';');
+
+			// C++ UHT TODO - Skip any extra ';'.  This can be removed if we remove UhtHeaderfileParser.ParserStatement generating errors
+			// when extra ';' are found.  Oddly, UPROPERTY specifically skips extra ';'
+			while (true)
+			{
+				UhtToken nextToken = topScope.TokenReader.PeekToken();
+				if (!nextToken.IsSymbol(';'))
+				{
+					break;
+				}
+				topScope.TokenReader.ConsumeToken();
+			}
 			return UhtParseResult.Handled;
 		}
 		#endregion

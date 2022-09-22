@@ -48,7 +48,8 @@ namespace EpicGames.UHT.Parsers
 
 			classObj.GeneratedBodyLineNumber = topScope.TokenReader.InputLine;
 
-			topScope.TokenReader.Optional(';');
+			// C++ UHT TODO - In the C++ version, we don't skip any trailing ';'.  ParseStatement will generate an error
+			//topScope.TokenReader.Optional(';');
 			return UhtParseResult.Handled;
 		}
 		#endregion
