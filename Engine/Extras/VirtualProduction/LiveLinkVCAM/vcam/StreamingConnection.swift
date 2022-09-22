@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 
-protocol StreamingConnectionDelegate {
+protocol StreamingConnectionDelegate : AnyObject {
     
     func streamingConnectionDidConnect(_ connection : StreamingConnection)
     func streamingConnection(_ connection : StreamingConnection, didDisconnectWithError err: Error?)
@@ -52,7 +52,7 @@ class StreamingConnectionStats {
 
 class StreamingConnection : NSObject {
 
-    var delegate: StreamingConnectionDelegate?
+    weak var delegate: StreamingConnectionDelegate?
     var subjectName : String!
     
     var renderView : UIView?
@@ -98,9 +98,12 @@ class StreamingConnection : NSObject {
     required init(subjectName: String) {
         self.subjectName = subjectName
     }
+    
+    func shutdown() {
+        assertionFailure("not implemented")
+    }
 
     func connect() throws {
-        assertionFailure("not implemented")
     }
 
     func reconnect() {

@@ -112,6 +112,7 @@ class StartViewController : BaseViewController {
         // initial & value changes for the connection type instantiates a new StreamingConnection object
         observers.append(observe(\.appSettings.connectionType, options: [.initial, .old,.new], changeHandler: { object, change in
             
+            self.streamingConnection?.shutdown()
             self.streamingConnection = nil
 
             let connectionType = self.appSettings.connectionType
@@ -149,6 +150,7 @@ class StartViewController : BaseViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        self.streamingConnection?.disconnect()
     }
     
     override func viewDidDisappear(_ animated: Bool) {

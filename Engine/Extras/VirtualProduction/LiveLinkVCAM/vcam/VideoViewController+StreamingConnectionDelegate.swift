@@ -29,7 +29,7 @@ extension VideoViewController : StreamingConnectionDelegate {
             if self.dismissOnDisconnect {
                 self.forceDisconnectAndDismiss()
             } else {
-                self.showReconnecting(true, animated: true)
+                self.reconnect()
             }
         }
 

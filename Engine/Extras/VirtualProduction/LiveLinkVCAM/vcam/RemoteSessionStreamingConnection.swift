@@ -91,6 +91,14 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
         
         restartLiveLink()
     }
+    
+    deinit {
+        Log.info("Destroyed RemoteSessionStreamingConnection")
+    }
+    
+    override func shutdown() {
+        disconnect()
+    }
 
     override func connect() throws {
         self.oscConnection = nil
@@ -101,8 +109,6 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
             if let conn = self.oscConnection {
                 if conn.isConnected {
                     conn.send(OSCAddressPattern.ping)
-                } else {
-                    conn.reconnect()
                 }
             }
             

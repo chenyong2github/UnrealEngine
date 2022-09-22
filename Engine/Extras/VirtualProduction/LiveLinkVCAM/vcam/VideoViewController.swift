@@ -140,48 +140,6 @@ class VideoViewController : BaseViewController {
         
         self.streamingConnection?.renderView = self.renderView
         
-        /*
-        
-        arView.session.run(config, options: [ .resetTracking ] )
-        arView.session.delegate = self
-        arView.delegate = self
-        
-        if self.demoMode {
-            arView.automaticallyUpdatesLighting = true
-            arView.debugOptions = [ .showWorldOrigin ]
-
-            let floor = SCNNode(geometry: SCNPlane(width: 14, height: 14))
-            floor.rotation = SCNVector4(1, 0, 0, GLKMathDegreesToRadians(-90))
-            floor.position = SCNVector3(0, -1, 0)
-            floor.geometry?.firstMaterial?.diffuse.contents = UIImage(named: "checkerboard")
-            floor.geometry?.firstMaterial?.diffuse.contentsTransform = SCNMatrix4MakeScale(50, 50, 0)
-            floor.geometry?.firstMaterial?.diffuse.wrapS = .repeat
-            floor.geometry?.firstMaterial?.diffuse.wrapT = .repeat
-            arView.scene.rootNode.addChildNode(floor)
-
-            for x in 0...1 {
-                for z in 0...1 {
-                    let box = SCNNode(geometry: SCNBox(width: 1, height: 1, length: 1, chamferRadius: 0))
-                    box.position = SCNVector3(-5.0 + Double(x) * 10.0, -0.5, -5.0 + Double(z) * 10.0)
-                    box.rotation = SCNVector4(0,1,0, Float.random(in: 0...3.14))
-                    for i in 0...5 {
-                        let mat = SCNMaterial()
-                        mat.diffuse.contents = UIImage(named: "UnrealLogo")
-                        if i == 0 {
-                            box.geometry?.firstMaterial = mat
-                        } else {
-                            box.geometry?.materials.append(mat)
-                        }
-                    }
-                    arView.scene.rootNode.addChildNode(box)
-                }
-            }
-
-        } else {
-            arView.scene.background.contents = UIColor.black
-        }
-        
-         */
         
         let coachingOverlayView = ARCoachingOverlayView()
         
@@ -241,6 +199,8 @@ class VideoViewController : BaseViewController {
     }
     
     func reconnect() {
+        
+        showReconnecting(true, animated: true)
         self.streamingConnection?.reconnect()
     }
     

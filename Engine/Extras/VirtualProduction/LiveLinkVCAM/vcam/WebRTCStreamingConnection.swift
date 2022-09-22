@@ -113,40 +113,51 @@ class WebRTCStreamingConnection : StreamingConnection {
     }
     
     deinit {
-        _statsTimer?.invalidate()
+        
+        Log.info("Destroyed WebRTCStreamingConnection")
+
         webRTCClient = nil
     }
 
+    override func shutdown() {
+        _statsTimer?.invalidate()
+        disconnect()
+    }
+    
     override func connect() throws {
         
-        disconnect()
-        
-        // We will use 3rd party library for websockets.
-        let webSocketProvider: WebSocketProvider
-        
-        if #available(iOS 13.0, *) {
-            webSocketProvider = NativeWebSocketProvider(url: self._url!, timeout: 2.0)
-        } else {
-            webSocketProvider = StarscreamWebSocket(url: self._url!)
+        if signalClient == nil {
+            
+            // We will use 3rd party library for websockets.
+            let webSocketProvider: WebSocketProvider
+            
+            if #available(iOS 13.0, *) {
+                webSocketProvider = NativeWebSocketProvider(url: self._url!, timeout: 2.0)
+            } else {
+                webSocketProvider = StarscreamWebSocket(url: self._url!)
+            }
+            
+            self.signalClient = SignalingClient(webSocket: webSocketProvider)
+            self.signalClient?.delegate = self
+            self.signalClient?.connect()
+
         }
-        
-        self.signalClient = SignalingClient(webSocket: webSocketProvider)
-        self.signalClient?.delegate = self
-        self.signalClient?.connect()
     }
     
     override func reconnect() {
-        disconnect()
-        do {
-            try connect()
-        } catch {
-            Log.error(error.localizedDescription)
-        }
+        //disconnect()
+        //do {
+        //    try connect()
+        //} catch {
+        //    Log.error(error.localizedDescription)
+        //}
     }
     
     override func disconnect() {
-        self.signalClient?.close()
-        self.signalClient = nil
+        signalClient?.delegate = nil
+        signalClient?.close()
+        signalClient = nil
+
         signalingConnected = false
         hasLocalSdp = false
         hasRemoteSdp = false
@@ -420,6 +431,8 @@ extension WebRTCStreamingConnection: WebRTCClientDelegate {
             
         case .disconnected:
             self.delegate?.streamingConnection(self, didDisconnectWithError: nil)
+        case .failed:
+            self.delegate?.streamingConnection(self, didDisconnectWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey : "Failed to connect." ] ))
         default:
             break
         }

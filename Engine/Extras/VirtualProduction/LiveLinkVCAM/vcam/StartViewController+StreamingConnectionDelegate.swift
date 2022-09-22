@@ -24,6 +24,7 @@ extension StartViewController : StreamingConnectionDelegate {
 
         DispatchQueue.main.async {
 
+            connection.disconnect()
             self.hideConnectingAlertView() {
                 if let e = err {
                     Log.info("StreamingConnection \(connection.name) disconnected with error : \(e.localizedDescription)")
