@@ -11,7 +11,7 @@
 
 TUniquePtr<ISoundfieldEncodingSettingsProxy> UResonanceAudioSoundfieldSettings::GetProxy() const
 {
-	LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+	AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 	FResonanceAmbisonicsSettingsProxy* Proxy = new FResonanceAmbisonicsSettingsProxy();
 
 	switch (RenderMode)

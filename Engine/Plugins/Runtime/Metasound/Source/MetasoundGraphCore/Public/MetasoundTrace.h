@@ -30,8 +30,6 @@
 
 #endif
 
-LLM_DECLARE_TAG_API(MetaSound, METASOUNDGRAPHCORE_API);
-// Convenience macro for MetaSound LLM scope to avoid misspells. 
-//
-#define METASOUND_LLM_SCOPE LLM_SCOPE_BYTAG(MetaSound);
-
+LLM_DECLARE_TAG_API(Audio_MetaSound, METASOUNDGRAPHCORE_API);
+// Convenience macro for Audio_MetaSound LLM scope to avoid misspells.
+#define METASOUND_LLM_SCOPE LLM_SCOPE_BYTAG(Audio_MetaSound);

@@ -25,7 +25,7 @@ public:
 
 	virtual void StartupModule() override
 	{
-		LLM_SCOPE_BYTAG(AudioAnalysis);
+		AUDIO_ANALYSIS_LLM_SCOPE
 		RegisterAssetActions();
 	}
 

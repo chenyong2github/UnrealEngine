@@ -31,7 +31,7 @@ UAudioAnalyzerSubsystem* UAudioAnalyzerSubsystem::Get()
 
 bool UAudioAnalyzerSubsystem::Tick(float DeltaTime)
 {
-	LLM_SCOPE_BYTAG(AudioAnalysis);
+	AUDIO_ANALYSIS_LLM_SCOPE
 
 	// Loop through all analyzers and if they're ready to analyze, do it
 	for (UAudioAnalyzer* Analyzer : AudioAnalyzers)
@@ -54,7 +54,7 @@ void UAudioAnalyzerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UAudioAnalyzerSubsystem::Deinitialize()
 {
-	LLM_SCOPE_BYTAG(AudioAnalysis);
+	AUDIO_ANALYSIS_LLM_SCOPE
 
 	// Release our audio analyzers
 	AudioAnalyzers.Reset();
@@ -62,7 +62,7 @@ void UAudioAnalyzerSubsystem::Deinitialize()
 
 void UAudioAnalyzerSubsystem::RegisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer)
 {
-	LLM_SCOPE_BYTAG(AudioAnalysis);
+	AUDIO_ANALYSIS_LLM_SCOPE
 
 	if (!TickerHandle.IsValid())
 	{
@@ -73,7 +73,7 @@ void UAudioAnalyzerSubsystem::RegisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer)
 
 void UAudioAnalyzerSubsystem::UnregisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer)
 {
-	LLM_SCOPE_BYTAG(AudioAnalysis);
+	AUDIO_ANALYSIS_LLM_SCOPE
 
 	AudioAnalyzers.Remove(InAnalyzer);
 	if (AudioAnalyzers.IsEmpty() && TickerHandle.IsValid())

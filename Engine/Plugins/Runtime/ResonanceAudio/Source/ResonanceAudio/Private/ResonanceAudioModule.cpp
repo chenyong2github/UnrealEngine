@@ -31,7 +31,7 @@ namespace ResonanceAudio
 
 	void FResonanceAudioModule::StartupModule()
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 		check(bModuleInitialized == false);
 		bModuleInitialized = true;
 
@@ -62,7 +62,7 @@ namespace ResonanceAudio
 
 	void FResonanceAudioModule::ShutdownModule()
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 		check(bModuleInitialized == true);
 		bModuleInitialized = false;
 		UE_LOG(LogResonanceAudio, Log, TEXT("Resonance Audio Module is Shutdown"));
@@ -85,7 +85,7 @@ namespace ResonanceAudio
 
 	void FResonanceAudioModule::RegisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 		if (!RegisteredAudioDevices.Contains(AudioDeviceHandle))
 		{
 			TAudioPluginListenerPtr NewResonanceAudioPluginListener = TAudioPluginListenerPtr(new FResonanceAudioPluginListener());
@@ -96,7 +96,7 @@ namespace ResonanceAudio
 
 	void FResonanceAudioModule::UnregisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 		RegisteredAudioDevices.Remove(AudioDeviceHandle);
 		UE_LOG(LogResonanceAudio, Log, TEXT("Audio Device unregistered from Resonance"));
 	}
@@ -108,7 +108,7 @@ namespace ResonanceAudio
 
 	TAudioSpatializationPtr FSpatializationPluginFactory::CreateNewSpatializationPlugin(FAudioDevice* OwningDevice)
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 		// Register the audio device to the Resonance Audio module.
 		FResonanceAudioModule* Module = &FModuleManager::GetModuleChecked<FResonanceAudioModule>("ResonanceAudio");
 		if (Module != nullptr)
@@ -120,7 +120,7 @@ namespace ResonanceAudio
 
 	TAudioReverbPtr FReverbPluginFactory::CreateNewReverbPlugin(FAudioDevice* OwningDevice)
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 		// Register the audio device to the Resonance Audio module.
 		FResonanceAudioModule* Module = &FModuleManager::GetModuleChecked<FResonanceAudioModule>("ResonanceAudio");
 		if (Module != nullptr)

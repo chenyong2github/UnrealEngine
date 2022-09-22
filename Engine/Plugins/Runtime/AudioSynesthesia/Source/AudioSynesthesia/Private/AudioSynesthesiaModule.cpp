@@ -18,7 +18,7 @@ namespace Audio
 {
 	void FAudioSynesthesiaModule::StartupModule()
 	{
-		LLM_SCOPE_BYTAG(AudioAnalysis);
+		AUDIO_ANALYSIS_LLM_SCOPE
 		FModuleManager::Get().LoadModuleChecked<IModuleInterface>("AudioSynesthesiaCore");
 		FModuleManager::Get().LoadModuleChecked<FAudioAnalyzerModule>("AudioAnalyzer");
 	}

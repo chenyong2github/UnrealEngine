@@ -122,7 +122,7 @@ bool UAudioAnalyzerNRT::ShouldEventTriggerAnalysis(struct FPropertyChangedEvent 
 
 void UAudioAnalyzerNRT::AnalyzeAudio()
 {
-	LLM_SCOPE_BYTAG(AudioAnalysis);
+	AUDIO_ANALYSIS_LLM_SCOPE
 
 	TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe> NewResult;
 
@@ -269,7 +269,7 @@ void UAudioAnalyzerNRT::Serialize(FArchive& Ar)
 
 TUniquePtr<Audio::IAnalyzerNRTSettings> UAudioAnalyzerNRT::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
-	LLM_SCOPE_BYTAG(AudioAnalysis);
+	AUDIO_ANALYSIS_LLM_SCOPE
 
 	return MakeUnique<Audio::IAnalyzerNRTSettings>();
 }

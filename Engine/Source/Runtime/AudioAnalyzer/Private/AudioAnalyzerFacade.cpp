@@ -10,7 +10,7 @@ namespace Audio
 {
 	IAnalyzerFactory* GetAnalyzerFactory(FName InFactoryName)
 	{
-		LLM_SCOPE_BYTAG(AudioAnalysis);
+		AUDIO_ANALYSIS_LLM_SCOPE
 
 		// Get all analyzer nrt factories implementations.
 		IModularFeatures::Get().LockModularFeatureList();
@@ -45,7 +45,7 @@ namespace Audio
 
 	TUniquePtr<IAnalyzerResult> FAnalyzerFacade::AnalyzeAudioBuffer(const TArray<float>& InAudioBuffer, int32 InNumChannels, float InSampleRate)
 	{
-		LLM_SCOPE_BYTAG(AudioAnalysis);
+		LLM_SCOPE_BYTAG(Audio_Analysis);
 
 		if (nullptr == Factory)
 		{

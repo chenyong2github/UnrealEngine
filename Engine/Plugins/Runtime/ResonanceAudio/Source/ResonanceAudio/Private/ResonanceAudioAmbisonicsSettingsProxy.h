@@ -22,7 +22,7 @@ public:
 
 	virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> Duplicate() const override
 	{
-		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
+		AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE
 		FResonanceAmbisonicsSettingsProxy* Proxy = new FResonanceAmbisonicsSettingsProxy();
 		Proxy->RenderingMode = RenderingMode;
 		return TUniquePtr<ISoundfieldEncodingSettingsProxy>(Proxy);
