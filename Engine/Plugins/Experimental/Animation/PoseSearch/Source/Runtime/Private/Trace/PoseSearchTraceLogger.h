@@ -6,7 +6,8 @@
 
 UE_TRACE_CHANNEL_EXTERN(PoseSearchChannel, POSESEARCH_API);
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 bool IsTracing(const FAnimationBaseContext& InContext);
 
@@ -142,4 +143,4 @@ ENUM_CLASS_FLAGS(FTraceMotionMatchingState::EFlags)
 
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State);
 
-}}
+} // namespace UE::PoseSearch

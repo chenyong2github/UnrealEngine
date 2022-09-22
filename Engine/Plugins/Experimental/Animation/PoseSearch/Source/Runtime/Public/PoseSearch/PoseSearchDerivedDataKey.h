@@ -12,7 +12,8 @@
 
 #if WITH_EDITORONLY_DATA
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 //////////////////////////////////////////////////////////////////////////
 // TObjectHasher

@@ -8,8 +8,8 @@
 #include "TraceServices/Model/AnalysisSession.h"
 
 
-namespace UE { namespace PoseSearch {
-
+namespace UE::PoseSearch
+{
 
 /** Motion matching state message container */
 struct FTraceMotionMatchingStateMessage : FTraceMotionMatchingState, FTraceMessage
@@ -162,4 +162,4 @@ private:
 
 	TraceServices::IAnalysisSession& Session;
 };
-}}
+} // namespace UE::PoseSearch

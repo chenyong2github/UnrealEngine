@@ -3,11 +3,6 @@
 #include "PoseSearch/PoseSearch.h"
 #include "PoseSearch/PoseSearchAnimNotifies.h"
 
-#if WITH_EDITORONLY_DATA
-// @todo: deleted this include after deleting the *_DEPRECATED properties
-#include "PoseSearch/PoseSearchFeatureChannels.h"
-#endif // WITH_EDITORONLY_DATA
-
 #include "PoseSearchDerivedData.h"
 #include "PoseSearchEigenHelper.h"
 
@@ -78,7 +73,7 @@ namespace UE::PoseSearch
 	constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 #endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
 
-float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset)
+static inline float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset)
 {
 	float Sum = 0.f;
 	const int32 EndIndex = StartIndex + Offset;
@@ -89,40 +84,7 @@ float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset
 	return Sum;
 }
 
-void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue)
-{
-	const int32 Num = View.Num();
-	check(Num == Min.Num() && Num == Max.Num());
-	for (int i = 0; i < Num; ++i)
-	{
-		const float Value = View[i];
-		if (Value != InvalidValue)
-		{
-			Min[i] = FMath::Min(Min[i], Value);
-			Max[i] = FMath::Max(Max[i], Value);
-		}
-	}
-}
-
-void ArraySafeNormalize(TConstArrayView<const float> View, TConstArrayView<const float> Min, TConstArrayView<const float> Max, TArrayView<float> NormalizedView)
-{
-	const int32 Num = View.Num();
-	check(Num == Min.Num() && Num == Max.Num() && Num == NormalizedView.Num());
-	for (int i = 0; i < Num; ++i)
-	{
-		const float Delta = Max[i] - Min[i];
-		if (FMath::IsNearlyZero(Delta, UE_KINDA_SMALL_NUMBER))
-		{
-			NormalizedView[i] = 0.f;
-		}
-		else
-		{
-			NormalizedView[i] = (View[i] - Min[i]) / Delta;
-		}
-	}
-}
-
-float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt)
+static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num());
 
@@ -133,7 +95,7 @@ float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<cons
 	return ((VA - VB) * VW).square().sum();
 }
 
-float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B)
+static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B)
 {
 	check(A.Num() == B.Num());
 
@@ -160,7 +122,7 @@ static inline bool IsSamplingRangeValid(FFloatInterval Range)
 	return Range.IsValid() && (Range.Min >= 0.0f);
 }
 
-static FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequence, FFloatInterval RequestedSamplingRange)
+static inline FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequence, FFloatInterval RequestedSamplingRange)
 {
 	const bool bSampleAll = (RequestedSamplingRange.Min == 0.0f) && (RequestedSamplingRange.Max == 0.0f);
 	const float SequencePlayLength = Sequence->GetPlayLength();
@@ -357,7 +319,8 @@ void UPoseSearchFeatureChannel::ComputeMeanDeviations(const Eigen::MatrixXd& Cen
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 {
@@ -404,155 +367,7 @@ void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)
 void UPoseSearchSchema::PostLoad()
 {
 	Super::PostLoad();
-
-	bool bNeedFinalize = false;
-
-	// Migrate deprecated schema properties into channels
-#if WITH_EDITORONLY_DATA
-	if (SchemaCardinality == 0)
-	{
-		bNeedFinalize = true;
-	}
-
-	if (!TrajectorySampleTimes_DEPRECATED.IsEmpty())
-	{
-		bNeedFinalize = true;
-
-		UPoseSearchFeatureChannel_Trajectory* Channel = NewObject<UPoseSearchFeatureChannel_Trajectory>(this);
-		Channel->Domain = EPoseSearchFeatureDomain::Time;
-		Channel->SampleOffsets_DEPRECATED = TrajectorySampleTimes_DEPRECATED;
-		Channel->bUseFacingDirections_DEPRECATED = bUseTrajectoryForwardVectors_DEPRECATED;
-		Channel->bUseLinearVelocities_DEPRECATED = bUseTrajectoryVelocities_DEPRECATED;
-		Channel->bUsePositions_DEPRECATED = bUseTrajectoryPositions_DEPRECATED;
-		Channels.Add(Channel);
-
-		TrajectorySampleTimes_DEPRECATED.Empty();
-	}
-
-	if (!TrajectorySampleDistances_DEPRECATED.IsEmpty())
-	{
-		bNeedFinalize = true;
-
-		UPoseSearchFeatureChannel_Trajectory* Channel = NewObject<UPoseSearchFeatureChannel_Trajectory>(this);
-		Channel->Domain = EPoseSearchFeatureDomain::Distance;
-		Channel->SampleOffsets_DEPRECATED = TrajectorySampleDistances_DEPRECATED;
-		Channel->bUseFacingDirections_DEPRECATED = bUseTrajectoryForwardVectors_DEPRECATED;
-		Channel->bUseLinearVelocities_DEPRECATED = bUseTrajectoryVelocities_DEPRECATED;
-		Channel->bUsePositions_DEPRECATED = bUseTrajectoryPositions_DEPRECATED;
-		Channels.Add(Channel);
-
-		TrajectorySampleDistances_DEPRECATED.Empty();
-	}
-
-	if (!PoseSampleTimes_DEPRECATED.IsEmpty())
-	{
-		bNeedFinalize = true;
-
-		UPoseSearchFeatureChannel_Pose* Channel = NewObject<UPoseSearchFeatureChannel_Pose>(this);
-		Channel->SampledBones = SampledBones_DEPRECATED;
-		Channel->SampleTimes = PoseSampleTimes_DEPRECATED;
-		Channels.Add(Channel);
-
-		SampledBones_DEPRECATED.Empty();
-		PoseSampleTimes_DEPRECATED.Empty();
-	}
-
-	if (!bNeedFinalize)
-	{
-		for (UPoseSearchFeatureChannel* Channel : Channels)
-		{
-			if (Channel->ChannelDataOffset == -1 || Channel->ChannelCardinality == -1)
-			{
-				bNeedFinalize = true;
-				break;
-			}
-		}
-	}
-
-	for (UPoseSearchFeatureChannel* Channel : Channels)
-	{
-		if (UPoseSearchFeatureChannel_Pose* ChannelPose = Cast<UPoseSearchFeatureChannel_Pose>(Channel))
-		{
-			for (FPoseSearchBone& SampledBone : ChannelPose->SampledBones)
-			if (SampledBone.bUseVelocity_DEPRECATED ||
-				SampledBone.bUsePosition_DEPRECATED ||
-				SampledBone.bUseRotation_DEPRECATED ||
-				SampledBone.bUsePhase_DEPRECATED)
-			{
-				SampledBone.Flags = 0;
-				if (SampledBone.bUseVelocity_DEPRECATED)
-				{
-					SampledBone.Flags |= EPoseSearchBoneFlags::Velocity;
-					SampledBone.bUseVelocity_DEPRECATED = false;
-				}
-				
-				if (SampledBone.bUsePosition_DEPRECATED)
-				{
-					SampledBone.Flags |= EPoseSearchBoneFlags::Position;
-					SampledBone.bUsePosition_DEPRECATED = false;
-				}
-
-				if (SampledBone.bUseRotation_DEPRECATED)
-				{
-					SampledBone.Flags |= EPoseSearchBoneFlags::Rotation;
-					SampledBone.bUseRotation_DEPRECATED = false;
-				}
-
-				if (SampledBone.bUsePhase_DEPRECATED)
-				{
-					SampledBone.Flags |= EPoseSearchBoneFlags::Phase;
-					SampledBone.bUsePhase_DEPRECATED = false;
-				}
-
-				bNeedFinalize = true;
-			}
-		}
-
-		if (UPoseSearchFeatureChannel_Trajectory* ChannelTrajectory = Cast<UPoseSearchFeatureChannel_Trajectory>(Channel))
-		{
-			if (ChannelTrajectory->SampleOffsets_DEPRECATED.Num() > 0)
-			{
-				ChannelTrajectory->Samples.Reset();
-
-				for (float Offset : ChannelTrajectory->SampleOffsets_DEPRECATED)
-				{
-					FPoseSearchTrajectorySample Sample;
-					Sample.Flags = 0;
-					if (ChannelTrajectory->bUsePositions_DEPRECATED)
-					{
-						Sample.Flags |= EPoseSearchTrajectoryFlags::Position;
-					}
-					if (ChannelTrajectory->bUseLinearVelocities_DEPRECATED)
-					{
-						Sample.Flags |= EPoseSearchTrajectoryFlags::Velocity;
-					}
-					if (ChannelTrajectory->bUseFacingDirections_DEPRECATED)
-					{
-						Sample.Flags |= EPoseSearchTrajectoryFlags::FacingDirection;
-					}
-					Sample.Offset = Offset;
-					Sample.Weight = 1.f;
-					ChannelTrajectory->Samples.Add(Sample);
-				}
-
-				ChannelTrajectory->SampleOffsets_DEPRECATED.Reset();
-				ChannelTrajectory->bUsePositions_DEPRECATED = false;
-				ChannelTrajectory->bUseLinearVelocities_DEPRECATED = false;
-				ChannelTrajectory->bUseFacingDirections_DEPRECATED = false;
-			}
-		}		
-	}
-
-#endif // WITH_EDITORONLY_DATA
-
-	if (bNeedFinalize)
-	{
-		Finalize();
-	}
-	else
-	{
-		ResolveBoneReferences();
-	}
+	ResolveBoneReferences();
 }
 
 #if WITH_EDITOR
@@ -4419,11 +4234,12 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 	}
 
 	Eigen::VectorXd ChannelsMeanDeviations = ComputeChannelsDeviations(Database->GetSearchIndex());
-	SearchIndex.Deviation.Init(1.f, NumDimensions);
+	TArray<float> Deviation;
+	Deviation.Init(1.f, NumDimensions);
 	for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
 	{
 		const float ChannelsMeanDeviation = ChannelsMeanDeviations[Dimension];
-		SearchIndex.Deviation[Dimension] = ChannelsMeanDeviation;
+		Deviation[Dimension] = ChannelsMeanDeviation;
 	}
 
 	EPoseSearchDataPreprocessor DataPreprocessor = Database->GetSearchIndex()->Schema->DataPreprocessor;
@@ -4450,9 +4266,13 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 		for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
 		{
 			// the idea here is to premultiply the weights by the inverse of the variance (proportional to the square of the deviation) to have a "weighted Mahalanobis" distance
-			SearchIndex.WeightsSqrt[Dimension] /= SearchIndex.Deviation[Dimension];
+			SearchIndex.WeightsSqrt[Dimension] /= Deviation[Dimension];
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	SearchIndex.Deviation = Deviation;
+#endif // WITH_EDITORONLY_DATA
 }
 
 // it calcualtes Mean and PCAProjectionMatrix
@@ -4526,10 +4346,12 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UP
 		AccumulatedVariance += EigenValues[Indexer[PCAComponentIndex]];
 	}
 
+#if WITH_EDITORONLY_DATA
 	// calculating the total variance knowing that eigen values measure variance along the principal components:
 	const float TotalVariance = EigenValues.sum();
 	// and explained variance as ratio between AccumulatedVariance and TotalVariance: https://ro-che.info/articles/2017-12-11-pca-explained-variance
 	SearchIndex.PCAExplainedVariance = TotalVariance > UE_KINDA_SMALL_NUMBER ? AccumulatedVariance / TotalVariance : 0.f;
+#endif // WITH_EDITORONLY_DATA
 
 	MapPCAValues = CenteredValues * PCAProjectionMatrix;
 

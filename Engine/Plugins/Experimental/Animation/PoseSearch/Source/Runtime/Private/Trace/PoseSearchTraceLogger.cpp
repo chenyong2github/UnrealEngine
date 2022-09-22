@@ -12,7 +12,8 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(uint8[], Data)
 UE_TRACE_EVENT_END()
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 const FName FTraceLogger::Name("PoseSearch");
 const FName FTraceMotionMatchingState::Name("MotionMatchingState");
@@ -140,4 +141,4 @@ const FTraceMotionMatchingStatePoseEntry* FTraceMotionMatchingState::GetCurrentP
 	return &DbEntry.PoseEntries[CurrentPoseEntryIdx];
 }
 
-}}
+} // namespace UE::PoseSearch

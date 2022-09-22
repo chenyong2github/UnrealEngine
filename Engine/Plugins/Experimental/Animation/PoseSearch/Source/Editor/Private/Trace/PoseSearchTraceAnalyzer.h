@@ -10,7 +10,8 @@ namespace TraceServices
 class IAnalysisSession;
 }
 
-namespace UE { namespace PoseSearch { 
+namespace UE::PoseSearch
+{ 
 
 class FTraceProvider;
 
@@ -37,4 +38,4 @@ private:
 	FTraceProvider& TraceProvider;
 };
 
-}}
+} // namespace UE::PoseSearch

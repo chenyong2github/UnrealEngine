@@ -6,7 +6,8 @@
 
 #define LOCTEXT_NAMESPACE "AnimNode_PoseSearchHistoryCollector"
 
-namespace UE { namespace PoseSearch { namespace Private {
+namespace UE::PoseSearch::Private
+{
 
 class FPoseHistoryProvider : public IPoseHistoryProvider
 {
@@ -30,7 +31,7 @@ public:
 	FAnimNode_PoseSearchHistoryCollector& Node;
 };
 
-}}} // namespace UE::PoseSearch::Private
+} // namespace UE::PoseSearch::Private
 
 
 /////////////////////////////////////////////////////

@@ -7,7 +7,7 @@
 
 class FArchive;
 
-namespace UE { namespace PoseSearch
+namespace UE::PoseSearch
 {
 struct FKDTreeImplementation;
 
@@ -123,4 +123,4 @@ struct POSESEARCH_API FKDTree
 };
 
 FArchive& Serialize(FArchive& Ar, FKDTree& KDTree, const float* data);
-}} // namespace UE::PoseSearch
+} // namespace UE::PoseSearch

@@ -2,7 +2,8 @@
 
 #include "PoseSearchTraceProvider.h"
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 const FName FTraceProvider::ProviderName("PoseSearchTraceProvider");
 
@@ -45,4 +46,4 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateMessage& State)
 	return Ar;
 }
 
-}}
+} // namespace UE::PoseSearch

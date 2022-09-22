@@ -48,7 +48,7 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include <sstream>
 #endif
 
-namespace UE { namespace PoseSearch
+namespace UE::PoseSearch
 {
 	using RowMajorVector = Eigen::Matrix<float, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using RowMajorVectorMap = Eigen::Map<RowMajorVector, Eigen::RowMajor>;
@@ -77,4 +77,4 @@ namespace UE { namespace PoseSearch
 	}
 #endif
 
-}}
+} // namespace UE::PoseSearch

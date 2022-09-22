@@ -155,7 +155,8 @@ public:
 };
 
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 /** Draw flags for the view's debug draw */
 enum class ESkeletonDrawFlags : uint32

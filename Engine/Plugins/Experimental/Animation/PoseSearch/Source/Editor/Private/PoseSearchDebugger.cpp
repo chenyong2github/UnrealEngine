@@ -31,7 +31,8 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 static FLinearColor LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, float BlendParam)
 {
@@ -45,6 +46,39 @@ static void LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColor
 	for (int i = 0; i < Num; ++i)
 	{
 		BlendedColors[i] = LinearColorBlend(LinearColorA, LinearColorB, BlendParam[i]);
+	}
+}
+
+static void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue)
+{
+	const int32 Num = View.Num();
+	check(Num == Min.Num() && Num == Max.Num());
+	for (int i = 0; i < Num; ++i)
+	{
+		const float Value = View[i];
+		if (Value != InvalidValue)
+		{
+			Min[i] = FMath::Min(Min[i], Value);
+			Max[i] = FMath::Max(Max[i], Value);
+		}
+	}
+}
+
+static void ArraySafeNormalize(TConstArrayView<const float> View, TConstArrayView<const float> Min, TConstArrayView<const float> Max, TArrayView<float> NormalizedView)
+{
+	const int32 Num = View.Num();
+	check(Num == Min.Num() && Num == Max.Num() && Num == NormalizedView.Num());
+	for (int i = 0; i < Num; ++i)
+	{
+		const float Delta = Max[i] - Min[i];
+		if (FMath::IsNearlyZero(Delta, UE_KINDA_SMALL_NUMBER))
+		{
+			NormalizedView[i] = 0.f;
+		}
+		else
+		{
+			NormalizedView[i] = (View[i] - Min[i]) / Delta;
+		}
 	}
 }
 
@@ -213,7 +247,8 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 }
 
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData>
 {

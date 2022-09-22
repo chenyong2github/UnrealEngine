@@ -4,7 +4,8 @@
 #include "PoseSearchTraceAnalyzer.h"
 #include "PoseSearchTraceProvider.h"
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 const FName FTraceModule::ModuleName("PoseSearchTrace");
 
@@ -31,4 +32,4 @@ void FTraceModule::GenerateReports(const TraceServices::IAnalysisSession& Sessio
 {
 }
 
-}}
+} // namespace UE::PoseSearch

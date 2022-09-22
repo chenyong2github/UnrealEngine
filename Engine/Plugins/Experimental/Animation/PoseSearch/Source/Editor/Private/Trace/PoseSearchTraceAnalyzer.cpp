@@ -7,7 +7,8 @@
 #include "Runtime/Private/Trace/PoseSearchTraceLogger.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 FTraceAnalyzer::FTraceAnalyzer(TraceServices::IAnalysisSession& InSession, FTraceProvider& InTraceProvider)
 : Session(InSession), TraceProvider(InTraceProvider)
@@ -48,4 +49,4 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 
 	return true;
 }
-}}
+} // namespace UE::PoseSearch

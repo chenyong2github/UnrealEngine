@@ -12,7 +12,7 @@ THIRD_PARTY_INCLUDES_END
 #endif
 // @third party code - END nanoflann
 
-namespace UE { namespace PoseSearch
+namespace UE::PoseSearch
 {
 
 #if UE_POSE_SEARCH_USE_NANOFLANN
@@ -179,4 +179,4 @@ FArchive& Serialize(FArchive& Ar, FKDTree& KDTree, const float* KDTreeData)
 	return Ar;
 }
 
-} }
+} // namespace UE::PoseSearch

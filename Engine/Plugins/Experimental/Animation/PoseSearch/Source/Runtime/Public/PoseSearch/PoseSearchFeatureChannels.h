@@ -9,7 +9,7 @@
 #include "PoseSearchFeatureChannels.generated.h"
 
 UENUM(BlueprintType)
-enum class InputQueryPose : uint8
+enum class EInputQueryPose : uint8
 {
 	// use character pose to compose the query
 	UseCharacterPose,
@@ -48,7 +48,7 @@ public:
 	int32 ColorPresetIndex = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	InputQueryPose InputQueryPose = InputQueryPose::UseContinuingPose;
+	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
 
 	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
 	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
@@ -67,7 +67,7 @@ public:
 // UPoseSearchFeatureChannel_Heading
 
 UENUM(BlueprintType)
-enum class HeadingAxis : uint8
+enum class EHeadingAxis : uint8
 {
 	X,
 	Y,
@@ -93,7 +93,7 @@ public:
 	float SampleTimeOffset = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	HeadingAxis HeadingAxis = HeadingAxis::X;	
+	EHeadingAxis HeadingAxis = EHeadingAxis::X;	
 
 	UPROPERTY()
 	int8 SchemaBoneIdx;
@@ -102,7 +102,7 @@ public:
 	int32 ColorPresetIndex = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	InputQueryPose InputQueryPose = InputQueryPose::UseContinuingPose;
+	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
 
 	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
 	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
@@ -120,6 +120,36 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
+UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EPoseSearchBoneFlags : uint32
+{
+	Velocity = 1 << 0,
+	Position = 1 << 1,
+	Rotation = 1 << 2,
+	Phase = 1 << 3,
+};
+ENUM_CLASS_FLAGS(EPoseSearchBoneFlags);
+constexpr bool EnumHasAnyFlags(int32 Flags, EPoseSearchBoneFlags Contains) { return (Flags & int32(Contains)) != 0; }
+inline int32& operator|=(int32& Lhs, EPoseSearchBoneFlags Rhs) { return Lhs |= int32(Rhs); }
+
+USTRUCT()
+struct POSESEARCH_API FPoseSearchBone
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Config)
+	FBoneReference Reference;
+
+	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/PoseSearch.EPoseSearchBoneFlags"), Category = Config)
+	int32 Flags = int32(EPoseSearchBoneFlags::Position);
+
+	UPROPERTY(EditAnywhere, Category = Config)
+	float Weight = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = Config, meta=(ExcludeFromHash))
+	int32 ColorPresetIndex = 0;
+};
+
 // UPoseSearchFeatureChannel_Pose
 UCLASS(BlueprintType, EditInlineNew)
 class POSESEARCH_API UPoseSearchFeatureChannel_Pose : public UPoseSearchFeatureChannel
@@ -140,7 +170,7 @@ public:
 	TArray<int8> SchemaBoneIdx;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	InputQueryPose InputQueryPose = InputQueryPose::UseContinuingPose;
+	EInputQueryPose InputQueryPose = EInputQueryPose::UseContinuingPose;
 
 	// UObject interface
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
@@ -164,6 +194,15 @@ protected:
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Trajectory
+UENUM()
+enum class EPoseSearchFeatureDomain : int32
+{
+	Time,
+	Distance,
+
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
+};
 
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EPoseSearchTrajectoryFlags : uint32
@@ -205,27 +244,12 @@ class POSESEARCH_API UPoseSearchFeatureChannel_Trajectory : public UPoseSearchFe
 	GENERATED_BODY()
 
 public:
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bUseLinearVelocities_DEPRECATED = true;
-
-	UPROPERTY()
-	bool bUsePositions_DEPRECATED = true;
-
-	UPROPERTY()
-	bool bUseFacingDirections_DEPRECATED = false;
-#endif
-
 	UPROPERTY(EditAnywhere, Category="Settings")
 	EPoseSearchFeatureDomain Domain = EPoseSearchFeatureDomain::Time;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	float Weight = 1.f;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	TArray<float> SampleOffsets_DEPRECATED;
-#endif
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FPoseSearchTrajectorySample> Samples;
 

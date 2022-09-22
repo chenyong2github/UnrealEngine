@@ -50,7 +50,6 @@ struct FDebugDrawParams;
 struct FSchemaInitializer;
 struct FQueryBuildingContext;
 struct FSearchContext;
-
 } // namespace UE::PoseSearch
 
 // eigen forward declaration
@@ -62,31 +61,8 @@ namespace Eigen
 	using VectorXd = Matrix<double, -1, 1, 0, -1, 1>;
 }
 
-
-namespace UE::PoseSearch
-{
-	// @todo: move this in an utils file and make them inline
-	POSESEARCH_API float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset);
-	POSESEARCH_API void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue);
-	POSESEARCH_API void ArraySafeNormalize(TConstArrayView<const float> View, TConstArrayView<const float> Min, TConstArrayView<const float> Max, TArrayView<float> NormalizedView);
-	POSESEARCH_API float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt);
-	POSESEARCH_API float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B);
-	POSESEARCH_API void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result);
-}
-
 //////////////////////////////////////////////////////////////////////////
 // Constants
-
-// @todo: move this enum in PoseSearchFeatureChannel.h since only used by UPoseSearchFeatureChannel_Trajectory
-UENUM()
-enum class EPoseSearchFeatureDomain : int32
-{
-	Time,
-	Distance,
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
-};
 
 UENUM()
 enum class EPoseSearchBooleanRequest : uint8
@@ -140,7 +116,8 @@ enum class ESearchIndexAssetType : int32
 	BlendSpace,
 };
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 	
 enum class EPoseComparisonFlags : int32
 {
@@ -200,58 +177,11 @@ struct FPoseSearchBlockTransitionParameters
 	float SequenceEndInterval = 0.0f;
 };
 
-// @todo: move it into PoseSearchFeatureChannels after removing SampledBones_DEPRECATED 
-UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
-enum class EPoseSearchBoneFlags : uint32
-{
-	Velocity = 1 << 0,
-	Position = 1 << 1,
-	Rotation = 1 << 2,
-	Phase = 1 << 3,
-};
-ENUM_CLASS_FLAGS(EPoseSearchBoneFlags);
-constexpr bool EnumHasAnyFlags(int32 Flags, EPoseSearchBoneFlags Contains) { return (Flags & int32(Contains)) != 0; }
-inline int32& operator|=(int32& Lhs, EPoseSearchBoneFlags Rhs) { return Lhs |= int32(Rhs); }
-
-// @todo: move it into PoseSearchFeatureChannels after removing SampledBones_DEPRECATED 
-USTRUCT()
-struct POSESEARCH_API FPoseSearchBone
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = Config)
-	FBoneReference Reference;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bUseVelocity_DEPRECATED = false;
-
-	UPROPERTY()
-	bool bUsePosition_DEPRECATED = false;
-
-	UPROPERTY()
-	bool bUseRotation_DEPRECATED = false;
-
-	UPROPERTY()
-	bool bUsePhase_DEPRECATED = false;
-#endif
-
-	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/PoseSearch.EPoseSearchBoneFlags"), Category = Config)
-	int32 Flags = int32(EPoseSearchBoneFlags::Position);
-
-	// @todo: temporary location for the channel bone weight to help the weights refactoring
-	UPROPERTY(EditAnywhere, Category = Config)
-	float Weight = 1.f;
-
-	UPROPERTY(EditAnywhere, Category = Config, meta=(ExcludeFromHash))
-	int32 ColorPresetIndex = 0;
-};
-
-
 //////////////////////////////////////////////////////////////////////////
 // Asset sampling and indexing
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 struct POSESEARCH_API FAssetSamplingContext
 {
@@ -462,7 +392,8 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 // Schema
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 struct POSESEARCH_API FSchemaInitializer
 {
@@ -522,29 +453,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> Channels;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool bUseTrajectoryVelocities_DEPRECATED = true;
-
-	UPROPERTY()
-	bool bUseTrajectoryPositions_DEPRECATED = true;
-
-	UPROPERTY()
-	bool bUseTrajectoryForwardVectors_DEPRECATED = false;
-
-	UPROPERTY()
-	TArray<FPoseSearchBone> SampledBones_DEPRECATED;
-
-	UPROPERTY()
-	TArray<float> PoseSampleTimes_DEPRECATED;
-
-	UPROPERTY()
-	TArray<float> TrajectorySampleTimes_DEPRECATED;
-
-	UPROPERTY()
-	TArray<float> TrajectorySampleDistances_DEPRECATED;
-#endif // WITH_EDITOR
 
 	// If set, this schema will support mirroring pose search databases
 	UPROPERTY(EditAnywhere, Category = "Schema")
@@ -708,13 +616,13 @@ struct POSESEARCH_API FPoseSearchIndex
 	UPROPERTY()
 	TArray<float> PCAValues;
 
-	// @todo: editor only data?
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(Category = Info, VisibleAnywhere)
 	float PCAExplainedVariance = 0.f;
 	
-	// @todo: editor only data?
 	UPROPERTY(Category = Info, VisibleAnywhere)
 	TArray<float> Deviation;
+#endif // WITH_EDITORONLY_DATA
 
 	UE::PoseSearch::FKDTree KDTree;
 
@@ -1452,6 +1360,7 @@ public:
 POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector);
 POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx);
 POSESEARCH_API void DrawSearchIndex(const FDebugDrawParams& DrawParams);
+POSESEARCH_API void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result);
 
 /**
 * Creates a pose search index for an animation sequence

@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 #include "TraceServices/ModuleService.h"
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 /**
 * Module used for loading our PoseSearch tracing systems
@@ -26,4 +27,4 @@ protected:
 	virtual const TCHAR* GetCommandLineArgument() override { return TEXT("posesearchtrace"); }
 };
 
-}}
+} // namespace UE::PoseSearch
