@@ -190,7 +190,7 @@ void UNiagaraDataInterfaceTexture::GetFunctions(TArray<FNiagaraFunctionSignature
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumMipLevels"));
-		Sig.SetDescription(LOCTEXT("TextureDimsDesc", "Get the number of Mip Levels."));
+		Sig.SetDescription(LOCTEXT("GetNumMipLevelsDesc", "Get the number of Mip Levels."));
 		Sig.SetFunctionVersion(FNDITextureFunctionVersion::LatestVersion);
 	}
 }
