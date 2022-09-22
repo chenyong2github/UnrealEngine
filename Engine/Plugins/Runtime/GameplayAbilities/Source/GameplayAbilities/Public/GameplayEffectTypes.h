@@ -1047,16 +1047,16 @@ namespace EGameplayCueEvent
 	/** Indicates what type of action happened to a specific gameplay cue tag. Sometimes you will get multiple events at once */
 	enum Type
 	{
-		/** Called when GameplayCue is activated */
+		/** Called when a GameplayCue with duration is first activated, this will only be called if the client witnessed the activation */
 		OnActive,
 
-		/** Called when GameplayCue is active, even if it wasn't actually just applied (Join in progress, etc) */
+		/** Called when a GameplayCue with duration is first seen as active, even if it wasn't actually just applied (Join in progress, etc) */
 		WhileActive,
 
-		/** Called when a GameplayCue is executed: instant effects or periodic tick */
+		/** Called when a GameplayCue is executed, this is used for instant effects or periodic ticks */
 		Executed,
 
-		/** Called when GameplayCue is removed */
+		/** Called when a GameplayCue with duration is removed */
 		Removed
 	};
 }
