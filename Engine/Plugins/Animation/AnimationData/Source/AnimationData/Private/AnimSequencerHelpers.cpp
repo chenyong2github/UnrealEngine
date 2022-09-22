@@ -16,6 +16,9 @@ void AnimSequencerHelpers::ConvertFloatChannelToRichCurve(const FMovieSceneFloat
 	const int32 NumKeys = Channel.GetNumKeys();
 	OutCurve.Keys.SetNum(NumKeys);
 
+	OutCurve.PreInfinityExtrap = Channel.PreInfinityExtrap;
+	OutCurve.PostInfinityExtrap = Channel.PostInfinityExtrap;
+
 	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
 		// Convert from channel to requested frame-rate

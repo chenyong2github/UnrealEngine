@@ -1215,6 +1215,41 @@ bool UAnimDataController::SetCurveKeys(const FAnimationCurveIdentifier& CurveId,
 	return false;
 }
 
+
+bool UAnimDataController::SetCurveAttributes(const FAnimationCurveIdentifier& CurveId, const FCurveAttributes& Attributes, bool bShouldTransact)
+{
+	ValidateModel();
+
+	FRichCurve* RichCurve = Model->GetMutableRichCurve(CurveId);
+	if (RichCurve)
+	{
+		FTransaction Transaction = ConditionalTransaction(LOCTEXT("SettingNamedCurveAttributes", "Setting Curve Attributes"), bShouldTransact);
+
+		FCurveAttributes CurrentAttributes;
+		CurrentAttributes.SetPreExtrapolation(RichCurve->PreInfinityExtrap);
+		CurrentAttributes.SetPostExtrapolation(RichCurve->PostInfinityExtrap);		
+		ConditionalAction<UE::Anim::FSetRichCurveAttributesAction>(bShouldTransact, CurveId, CurrentAttributes);
+
+		if(Attributes.HasPreExtrapolation())
+		{
+			RichCurve->PreInfinityExtrap = Attributes.GetPreExtrapolation();
+		}
+
+		if(Attributes.HasPostExtrapolation())
+		{
+			RichCurve->PostInfinityExtrap = Attributes.GetPostExtrapolation();
+		}		
+
+		FCurveChangedPayload Payload;
+		Payload.Identifier = CurveId;
+		Model->GetNotifier().Notify(EAnimDataModelNotifyType::CurveChanged, Payload);
+
+		return true;
+	}
+
+	return false;
+}
+
 void UAnimDataController::NotifyPopulated()
 {
 	ValidateModel();

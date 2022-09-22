@@ -24,6 +24,7 @@ class FText;
 class UAssetUserData;
 class IAnimationDataModel;
 
+struct FCurveAttributes;
 struct FAnimationCurveIdentifier;
 struct FAnimationAttributeIdentifier;
 
@@ -464,6 +465,17 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
 	virtual bool SetCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FRichCurveKey>& CurveKeys, bool bShouldTransact = true) = 0;
+
+	/**
+	* Changes the attributes of the curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
+	*
+	* @param	CurveId				Identifier of the curve to change the color for
+	* @param	Attributes			Attribute values to be applied
+	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the curve attributes were set successfully
+	*/
+	virtual bool SetCurveAttributes(const FAnimationCurveIdentifier& CurveId, const FCurveAttributes& Attributes, bool bShouldTransact = true) = 0;
 
 	/**
 	* Updates the display name values for any stored curve, with the names being retrieved from the provided skeleton. Broadcasts a EAnimDataModelNotifyType::CurveRenamed for each to-be-updated curve name, wrapped within BracketOpened/BracketClosed notifies.

@@ -103,6 +103,13 @@ void FRichCurveEditorModelNamed::SetKeyAttributes(TArrayView<const FKeyHandle> I
 	}
 }
 
+void FRichCurveEditorModelNamed::SetCurveAttributes(const FCurveAttributes& InCurveAttributes)
+{
+	Modify();		
+	IAnimationDataController& Controller = AnimSequence->GetController();
+	Controller.SetCurveAttributes(CurveId, InCurveAttributes);
+}
+
 void FRichCurveEditorModelNamed::CurveHasChanged()
 {	
 	IAnimationDataController& Controller = AnimSequence->GetController();

@@ -1387,6 +1387,73 @@ bool UAnimSequencerController::SetCurveKeys(const FAnimationCurveIdentifier& Cur
 	return false;
 }
 
+bool UAnimSequencerController::SetCurveAttributes(const FAnimationCurveIdentifier& CurveId, const FCurveAttributes& Attributes, bool bShouldTransact)
+{
+	ValidateModel();
+
+	const FRichCurve* RichCurve = Model->GetMutableRichCurve(CurveId);
+	if (RichCurve)
+	{
+		FTransaction Transaction = ConditionalTransaction(LOCTEXT("SettingNamedCurveAttributes", "Setting Curve Attributes"), bShouldTransact);
+
+		FCurveAttributes CurrentAttributes;
+		CurrentAttributes.SetPreExtrapolation(RichCurve->PreInfinityExtrap);
+		CurrentAttributes.SetPostExtrapolation(RichCurve->PostInfinityExtrap);
+
+		if (UMovieSceneControlRigParameterSection* Section = Model->GetFKControlRigSection())
+		{
+			UControlRig* ControlRig = Section->GetControlRig();
+
+			if (UFKControlRig* FKRig = Cast<UFKControlRig>(ControlRig))
+			{
+				const URigHierarchy* Hierarchy = FKRig->GetHierarchy();
+				if (Hierarchy ||  IgnoreSkeletonValidation())
+				{
+					const FRigElementKey CurveKey(CurveId.InternalName.DisplayName, ERigElementType::Curve);
+					const FRigElementKey CurveControlKey(UFKControlRig::GetControlName(CurveId.InternalName.DisplayName, ERigElementType::Curve), ERigElementType::Control);
+
+					const bool bContainsCurve = Hierarchy ? Hierarchy->Contains(CurveKey) : IgnoreSkeletonValidation();
+					const bool bContainsCurveControl = Hierarchy ? Hierarchy->Contains(CurveControlKey) : IgnoreSkeletonValidation();
+
+					if(bContainsCurve && bContainsCurveControl)
+					{
+						const bool bHasCurveControlChannel = Section->HasScalarParameter(CurveControlKey.Name);
+						if (!bHasCurveControlChannel)
+						{
+							Section->AddScalarParameter(CurveControlKey.Name, TOptional<float>(), Model->bPopulated);
+						}
+										
+						FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](const FScalarParameterNameAndCurve& Parameter)
+						{
+							return Parameter.ParameterName == CurveControlKey.Name;
+						});
+						check(ParameterCurvePair);
+						
+						ConditionalAction<UE::Anim::FSetRichCurveAttributesAction>(bShouldTransact, CurveId, CurrentAttributes);	
+						if (Attributes.HasPreExtrapolation())
+						{							
+							ParameterCurvePair->ParameterCurve.PreInfinityExtrap = Attributes.GetPreExtrapolation();
+						}
+
+						if (Attributes.HasPostExtrapolation())
+						{
+							ParameterCurvePair->ParameterCurve.PostInfinityExtrap = Attributes.GetPostExtrapolation();							
+						}
+					
+						FCurveChangedPayload Payload;
+						Payload.Identifier = CurveId;
+						Model->GetNotifier().Notify(EAnimDataModelNotifyType::CurveChanged, Payload);
+
+						return true;						
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void UAnimSequencerController::NotifyPopulated()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NotifyPopulated);
@@ -2317,6 +2384,10 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 					if (CurveId.IsValid() || IgnoreSkeletonValidation())
 					{
 						AddCurve(CurveId, Curve.GetCurveTypeFlags(), false);
+						FCurveAttributes Attributes;
+						Attributes.SetPreExtrapolation(Curve.FloatCurve.PreInfinityExtrap);
+						Attributes.SetPostExtrapolation(Curve.FloatCurve.PostInfinityExtrap);						
+						SetCurveAttributes(CurveId, Attributes, false);
 						SetCurveKeys(CurveId, Curve.FloatCurve.GetConstRefOfKeys(), false);
 					}
 				}
