@@ -445,10 +445,11 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	UTickableConstraint* Constraint = Manager->Constraints[InConstraintIndex];
 	
 	// notify deletion
-	Manager->Modify();
-	Manager->Constraints[InConstraintIndex]->Modify();
+
 	ConstraintRemoved.Broadcast(ConstraintName);
 	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint);
+	Manager->Constraints[InConstraintIndex]->Modify();
+	Manager->Modify();
 
 	Manager->Constraints[InConstraintIndex]->SetActive(false);
 	Manager->Constraints.RemoveAt(InConstraintIndex);

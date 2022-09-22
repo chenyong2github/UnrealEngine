@@ -519,7 +519,7 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
 	{
 		return;
 	}
-
+	InSection->Modify();
 	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
 	if (const UTransformableHandle* ControlHandle =Constraint->ChildTRSHandle)
 	{
