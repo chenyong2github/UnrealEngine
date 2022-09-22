@@ -9,6 +9,7 @@
 #include "SGameSyncTab.h"
 #include "SPrimaryButton.h"
 #include "Widgets/Layout/SHeader.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "UGSNewWorkspaceWindow"
 
