@@ -358,7 +358,7 @@ void UMassCompositeProcessor::Initialize(UObject& Owner)
 void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProcessorInstances, const TSharedPtr<FMassEntityManager>& EntityManager)
 {
 	// figure out dependencies
-	FProcessorDependencySolver Solver(InProcessorInstances);
+	FMassProcessorDependencySolver Solver(InProcessorInstances);
 	TArray<FMassProcessorOrderInfo> SortedProcessors;
 	Solver.ResolveDependencies(SortedProcessors, EntityManager);
 

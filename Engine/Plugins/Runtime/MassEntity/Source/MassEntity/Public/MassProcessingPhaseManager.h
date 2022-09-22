@@ -97,7 +97,7 @@ struct MASSENTITY_API FMassPhaseProcessorConfigurationHelper
 	{
 	}
 
-	void Configure(const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), FProcessorDependencySolver::FResult* OutOptionalResult = nullptr);
+	void Configure(const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), FMassProcessorDependencySolver::FResult* OutOptionalResult = nullptr);
 
 	UMassCompositeProcessor& PhaseProcessor;
 	const FMassProcessingPhaseConfig& PhaseConfig;
@@ -193,7 +193,7 @@ protected:
 protected:	
 	struct FPhaseGraphBuildState
 	{
-		FProcessorDependencySolver::FResult LastResult;
+		FMassProcessorDependencySolver::FResult LastResult;
 		bool bNewArchetypes = true;
 		bool bInitialized = false;
 	};

@@ -136,13 +136,13 @@ void FMassProcessingPhase::Initialize(FMassProcessingPhaseManager& InPhaseManage
 //----------------------------------------------------------------------//
 // FPhaseProcessorConfigurator
 //----------------------------------------------------------------------//
-void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEntityManager>& EntityManager, FProcessorDependencySolver::FResult* OutOptionalResult)
+void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEntityManager>& EntityManager, FMassProcessorDependencySolver::FResult* OutOptionalResult)
 {
 	FMassRuntimePipeline TmpPipeline;
 	TmpPipeline.CreateFromArray(PhaseConfig.ProcessorCDOs, ProcessorOuter);
 
 	TArray<FMassProcessorOrderInfo> SortedProcessors;
-	FProcessorDependencySolver Solver(TmpPipeline.Processors, bIsGameRuntime);
+	FMassProcessorDependencySolver Solver(TmpPipeline.Processors, bIsGameRuntime);
 
 	Solver.ResolveDependencies(SortedProcessors, EntityManager, OutOptionalResult);
 
@@ -194,7 +194,7 @@ void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<F
 			// populating the phase processor with initial data for editor world so that the default processing graph
 			// can be investigated in the editor without running PIE.
 			// Runtime processing graph are initialized at runtime base on the actual archetypes instantiated at call time.
-			FProcessorDependencySolver::FResult Result;
+			FMassProcessorDependencySolver::FResult Result;
 			Result.DependencyGraphFileName = DependencyGraphFileName;
 			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], InOwner);
 			Configurator.bIsGameRuntime = false;
@@ -318,7 +318,7 @@ void FMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass Rebuild Phase Graph");
 
 		FPhaseGraphBuildState& GraphBuildState = ProcessingGraphBuildStates[PhaseAsInt];
-		if (GraphBuildState.bInitialized == false || FProcessorDependencySolver::IsResultUpToDate(GraphBuildState.LastResult, EntityManager) == false)
+		if (GraphBuildState.bInitialized == false || FMassProcessorDependencySolver::IsResultUpToDate(GraphBuildState.LastResult, EntityManager) == false)
 		{
 			UMassCompositeProcessor* PhaseProcessor = ProcessingPhases[PhaseAsInt].PhaseProcessor;
 			check(PhaseProcessor);

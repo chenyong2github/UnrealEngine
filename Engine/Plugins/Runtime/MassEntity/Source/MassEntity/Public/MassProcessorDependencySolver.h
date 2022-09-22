@@ -58,7 +58,7 @@ struct MASSENTITY_API FMassExecutionRequirements
 	int32 ResourcesUsedCount = INDEX_NONE;
 };
 
-struct FProcessorDependencySolver
+struct FMassProcessorDependencySolver
 {
 private:
 	struct FNode
@@ -116,7 +116,7 @@ private:
 
 		template<typename TBitSet>
 		void HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
-			, const TMassExecutionAccess<TBitSet>& TestedRequirements, FProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex);
+			, const TMassExecutionAccess<TBitSet>& TestedRequirements, FMassProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex);
 
 		template<typename TBitSet>
 		static bool CanAccess(const TMassExecutionAccess<TBitSet>& StoredElements, const TMassExecutionAccess<TBitSet>& TestedElements);
@@ -143,7 +143,7 @@ public:
 		}
 	};
 
-	MASSENTITY_API FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime = true);
+	MASSENTITY_API FMassProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime = true);
 	MASSENTITY_API void ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult, TSharedPtr<FMassEntityManager> EntityManager = nullptr, FResult* InOutOptionalResult = nullptr);
 
 	MASSENTITY_API static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);

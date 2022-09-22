@@ -98,7 +98,7 @@ FMassArchetypeCompositionDescriptor FMassExecutionRequirements::AsCompositionDes
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FResourceUsage
 //----------------------------------------------------------------------//
-FProcessorDependencySolver::FResourceUsage::FResourceUsage(const TArray<FNode>& InAllNodes)
+FMassProcessorDependencySolver::FResourceUsage::FResourceUsage(const TArray<FNode>& InAllNodes)
 	: AllNodesView(InAllNodes)
 {
 	for (int i = 0; i < EMassAccessOperation::MAX; ++i)
@@ -111,8 +111,8 @@ FProcessorDependencySolver::FResourceUsage::FResourceUsage(const TArray<FNode>& 
 }
 
 template<typename TBitSet>
-void FProcessorDependencySolver::FResourceUsage::HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
-	, const TMassExecutionAccess<TBitSet>& TestedRequirements, FProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex)
+void FMassProcessorDependencySolver::FResourceUsage::HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
+	, const TMassExecutionAccess<TBitSet>& TestedRequirements, FMassProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex)
 {
 	using UE::Mass::Private::DoArchetypeContainersOverlap;
 
@@ -185,7 +185,7 @@ void FProcessorDependencySolver::FResourceUsage::HandleElementType(TMassExecutio
 }
 
 template<typename TBitSet>
-bool FProcessorDependencySolver::FResourceUsage::CanAccess(const TMassExecutionAccess<TBitSet>& StoredElements, const TMassExecutionAccess<TBitSet>& TestedElements)
+bool FMassProcessorDependencySolver::FResourceUsage::CanAccess(const TMassExecutionAccess<TBitSet>& StoredElements, const TMassExecutionAccess<TBitSet>& TestedElements)
 {
 	// see if there's an overlap of tested write operations with existing read & write operations, as well as 
 	// tested read operations with existing write operations
@@ -200,7 +200,7 @@ bool FProcessorDependencySolver::FResourceUsage::CanAccess(const TMassExecutionA
 	);
 }
 
-bool FProcessorDependencySolver::FResourceUsage::HasArchetypeConflict(TMassExecutionAccess<FResourceAccess> ElementAccess, const TArray<FMassArchetypeHandle>& InArchetypes) const
+bool FMassProcessorDependencySolver::FResourceUsage::HasArchetypeConflict(TMassExecutionAccess<FResourceAccess> ElementAccess, const TArray<FMassArchetypeHandle>& InArchetypes) const
 {
 	using UE::Mass::Private::DoArchetypeContainersOverlap;
 
@@ -227,7 +227,7 @@ bool FProcessorDependencySolver::FResourceUsage::HasArchetypeConflict(TMassExecu
 	return false;
 }
 
-bool FProcessorDependencySolver::FResourceUsage::CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements, const TArray<FMassArchetypeHandle>& InArchetypes) const
+bool FMassProcessorDependencySolver::FResourceUsage::CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements, const TArray<FMassArchetypeHandle>& InArchetypes) const
 {
 	bool bCanAccess = (CanAccess<FMassFragmentBitSet>(Requirements.Fragments, TestedRequirements.Fragments) || !HasArchetypeConflict(FragmentsAccess, InArchetypes))
 		&& (CanAccess<FMassChunkFragmentBitSet>(Requirements.ChunkFragments, TestedRequirements.ChunkFragments) || !HasArchetypeConflict(ChunkFragmentsAccess, InArchetypes))
@@ -237,7 +237,7 @@ bool FProcessorDependencySolver::FResourceUsage::CanAccessRequirements(const FMa
 	return bCanAccess;
 }
 
-void FProcessorDependencySolver::FResourceUsage::SubmitNode(const int32 NodeIndex, FNode& InOutNode)
+void FMassProcessorDependencySolver::FResourceUsage::SubmitNode(const int32 NodeIndex, FNode& InOutNode)
 {
 	HandleElementType<FMassFragmentBitSet>(FragmentsAccess, InOutNode.Requirements.Fragments, InOutNode, NodeIndex);
 	HandleElementType<FMassChunkFragmentBitSet>(ChunkFragmentsAccess, InOutNode.Requirements.ChunkFragments, InOutNode, NodeIndex);
@@ -250,7 +250,7 @@ void FProcessorDependencySolver::FResourceUsage::SubmitNode(const int32 NodeInde
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FNode
 //----------------------------------------------------------------------//
-void FProcessorDependencySolver::FNode::IncreaseWaitingNodesCount(TArrayView<FProcessorDependencySolver::FNode> InAllNodes)
+void FMassProcessorDependencySolver::FNode::IncreaseWaitingNodesCount(TArrayView<FMassProcessorDependencySolver::FNode> InAllNodes)
 {
 	// cycle-protection check. If true it means we have a cycle and the whole algorithm result will be unreliable 
 	if (TotalWaitingNodes >= FMath::Square(InAllNodes.Num()))
@@ -269,12 +269,12 @@ void FProcessorDependencySolver::FNode::IncreaseWaitingNodesCount(TArrayView<FPr
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver
 //----------------------------------------------------------------------//
-FProcessorDependencySolver::FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime)
+FMassProcessorDependencySolver::FMassProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime)
 	: Processors(InProcessors)
 	, bGameRuntime(bIsGameRuntime)
 {}
 
-bool FProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices)
+bool FMassProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices)
 {
 	int32 AcceptedNodeIndex = INDEX_NONE;
 	int32 FallbackAcceptedNodeIndex = INDEX_NONE;
@@ -332,7 +332,7 @@ bool FProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage
 	return false;
 }
 
-void FProcessorDependencySolver::CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames)
+void FMassProcessorDependencySolver::CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames)
 {
 	// the function will convert composite group name into a series of progressively more precise group names
 	// so "A.B.C" will result in ["A", "A.B", "A.B.C"]
@@ -353,7 +353,7 @@ void FProcessorDependencySolver::CreateSubGroupNames(FName InGroupName, TArray<F
 	}
 }
 
-int32 FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
+int32 FMassProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 {
 	check(Processor.GetClass());
 	const FName ProcName = Processor.GetClass()->GetFName();
@@ -421,7 +421,7 @@ int32 FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 	return NodeIndex;
 }
 
-void FProcessorDependencySolver::BuildDependencies()
+void FMassProcessorDependencySolver::BuildDependencies()
 {
 	// at this point we have collected all the known processors and groups in AllNodes so we can transpose 
 	// A.ExecuteBefore(B) type of dependencies into B.ExecuteAfter(A)
@@ -535,7 +535,7 @@ void FProcessorDependencySolver::BuildDependencies()
 	}
 }
 
-void FProcessorDependencySolver::LogNode(const FNode& Node, int Indent)
+void FMassProcessorDependencySolver::LogNode(const FNode& Node, int Indent)
 {
 	using UE::Mass::Private::NameViewToString;
 
@@ -948,7 +948,7 @@ void FProcessorDependencySolver::DumpGraph(FArchive& LogFile) const
 
 #endif // 0; disabled the graph building for now, leaving the old code here for reference
 
-void FProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResult)
+void FMassProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResult)
 {
 	using UE::Mass::Private::NameViewToString;
 
@@ -1041,7 +1041,7 @@ void FProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResul
 	}
 }
 
-void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult, TSharedPtr<FMassEntityManager> EntityManager, FProcessorDependencySolver::FResult* InOutOptionalResult)
+void FMassProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult, TSharedPtr<FMassEntityManager> EntityManager, FMassProcessorDependencySolver::FResult* InOutOptionalResult)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass ResolveDependencies");
 
@@ -1163,7 +1163,7 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderI
 	}
 }
 
-bool FProcessorDependencySolver::IsResultUpToDate(const FProcessorDependencySolver::FResult& InResult, TSharedPtr<FMassEntityManager> EntityManager)
+bool FMassProcessorDependencySolver::IsResultUpToDate(const FMassProcessorDependencySolver::FResult& InResult, TSharedPtr<FMassEntityManager> EntityManager)
 {
 	if (InResult.PrunedProcessorClasses.Num() == 0 || !EntityManager || InResult.ArchetypeDataVersion == EntityManager->GetArchetypeDataVersion())
 	{

@@ -56,7 +56,7 @@ void UMassEntitySettings::BuildPhases()
 			PhaseConfig.PhaseProcessor->SetProcessingPhase(EMassProcessingPhase(i));
 			const FString PhaseDumpDependencyGraphFileName = !DumpDependencyGraphFileName.IsEmpty() ? DumpDependencyGraphFileName + TEXT("_") + PhaseConfig.PhaseName.ToString() : FString();
 
-			FProcessorDependencySolver::FResult Result;
+			FMassProcessorDependencySolver::FResult Result;
 			Result.DependencyGraphFileName = PhaseDumpDependencyGraphFileName;
 			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseConfig.PhaseProcessor, PhaseConfig, *this);
 			Configurator.bInitializeCreatedProcessors = false;
