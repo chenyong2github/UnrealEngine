@@ -153,7 +153,7 @@ static ETextureCreateFlags GetSceneDepthStencilCreateFlags(uint32 NumSamples, bo
 	ETextureCreateFlags DepthCreateFlags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | ExtraSceneDepthCreateFlags;
 	if (!bKeepDepthContent || (NumSamples > 1 && bMemorylessMSAA))
 	{
-		DepthCreateFlags = TexCreate_Memoryless;
+		DepthCreateFlags |= TexCreate_Memoryless;
 	}
 	if (NumSamples == 1 && GRHISupportsDepthUAV)
 	{
@@ -207,9 +207,10 @@ void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSett
 	bRequireMultiView		= InitSettings.bRequireMultiView;
 	bIsUsingGBuffers		= IsUsingGBuffers(ShaderPlatform);
 	bSupportsXRTargetManagerDepthAlloc = InitSettings.bSupportsXRTargetManagerDepthAlloc;
-
-	GetSceneColorFormatAndCreateFlags(FeatureLevel, InitSettings.bRequiresAlphaChannel, InitSettings.ExtraSceneColorCreateFlags, NumSamples, bMemorylessMSAA, ColorFormat, ColorCreateFlags);
-	DepthCreateFlags = GetSceneDepthStencilCreateFlags(NumSamples, bKeepDepthContent, bMemorylessMSAA, InitSettings.ExtraSceneDepthCreateFlags);
+    ExtraSceneColorCreateFlags = InitSettings.ExtraSceneColorCreateFlags;
+    ExtraSceneDepthCreateFlags = InitSettings.ExtraSceneDepthCreateFlags;
+    
+    BuildSceneColorAndDepthFlags();
 
 	if (bIsUsingGBuffers)
 	{
@@ -250,6 +251,12 @@ void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSett
 		GBufferE = BindingCache.GBufferE;
 		GBufferVelocity = BindingCache.GBufferVelocity;
 	}
+}
+
+void FSceneTexturesConfig::BuildSceneColorAndDepthFlags()
+{
+    GetSceneColorFormatAndCreateFlags(FeatureLevel, bRequiresAlphaChannel, ExtraSceneColorCreateFlags, NumSamples, bMemorylessMSAA, ColorFormat, ColorCreateFlags);
+    DepthCreateFlags = GetSceneDepthStencilCreateFlags(NumSamples, bKeepDepthContent, bMemorylessMSAA, ExtraSceneDepthCreateFlags);
 }
 
 uint32 FSceneTexturesConfig::GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const 

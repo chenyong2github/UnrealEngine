@@ -213,6 +213,8 @@ RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
 		{
 			ResolveFlags |= TexCreate_ResolveTargetable;
 		}
+        ResolveFlags &= ~(TexCreate_Memoryless);
+        
 		Desc.Flags = ResolveFlags | ResolveFlagsToAdd;
 		Texture.Resolve = GraphBuilder.CreateTexture(Desc, Name);
 	}

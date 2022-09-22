@@ -583,6 +583,8 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 	{
 		return;
 	}
+    
+    bool bIsMSAARequired = CreateDesc.NumSamples > 1 && !FParse::Param(FCommandLine::Get(), TEXT("nomsaa"));
 
 	FResourceBulkDataInterface* BulkData = CreateDesc.BulkData;
 
@@ -639,25 +641,46 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 		const bool bBufferCompatibleOption = 	(CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2D || CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) &&
 												CreateDesc.NumMips == 1 && CreateDesc.ArraySize == 1 && CreateDesc.NumSamples == 1 && CreateDesc.Desc.GetDepth() == 1;
 
+        FMetalTextureCreateDesc NewCreateDesc = CreateDesc;
+        
+#if PLATFORM_IOS
+        // If we are attempting to create an MSAA texture the texture cannot be memoryless unless we are creating a depth texture
+        if(bIsMSAARequired && CreateDesc.Format != PF_DepthStencil && EnumHasAllFlags(CreateDesc.Flags, TexCreate_Memoryless))
+        {
+            NewCreateDesc.Flags &= ~TexCreate_Memoryless;
+            
+            if (GMetalForceIOSTexturesShared)
+            {
+                NewCreateDesc.Desc.SetStorageMode(mtlpp::StorageMode::Shared);
+                NewCreateDesc.Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+            }
+            else
+            {
+                NewCreateDesc.Desc.SetStorageMode(mtlpp::StorageMode::Private);
+                NewCreateDesc.Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModePrivate));
+            }
+        }
+#endif
+        
 		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
 		{
 			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
 
 			const uint32 MinimumByteAlignment = Device.GetMinimumLinearTextureAlignmentForPixelFormat(CreateDesc.MTLFormat);
-			const NSUInteger BytesPerRow = Align(CreateDesc.Desc.GetWidth() * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
+			const NSUInteger BytesPerRow = Align(NewCreateDesc.Desc.GetWidth() * GPixelFormats[NewCreateDesc.Format].BlockBytes, MinimumByteAlignment);
 
 			// Backing buffer resource options must match the texture we are going to create from it
-			FMetalPooledBufferArgs Args(Device, BytesPerRow * CreateDesc.Desc.GetHeight(), BUF_Dynamic, mtlpp::StorageMode::Private, CreateDesc.Desc.GetCpuCacheMode());
+			FMetalPooledBufferArgs Args(Device, BytesPerRow * NewCreateDesc.Desc.GetHeight(), BUF_Dynamic, mtlpp::StorageMode::Private, NewCreateDesc.Desc.GetCpuCacheMode());
 			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 
-			Texture = Buffer.NewTexture(CreateDesc.Desc, 0, BytesPerRow);
+			Texture = Buffer.NewTexture(NewCreateDesc.Desc, 0, BytesPerRow);
 		}
 		else
 		{
 			// If we are in here then either the texture description is not buffer compatable or these flags were not set
 			// assert that these flag combinations are not set as they require a buffer backed texture and the texture description is not compatible with that
-			checkf(!EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible), TEXT("Requested buffer backed texture that breaks Metal linear texture limitations: %s"), *FString([CreateDesc.Desc description]));
-			Texture = GetMetalDeviceContext().CreateTexture(this, CreateDesc.Desc);
+			checkf(!EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible), TEXT("Requested buffer backed texture that breaks Metal linear texture limitations: %s"), *FString([NewCreateDesc.Desc description]));
+			Texture = GetMetalDeviceContext().CreateTexture(this, NewCreateDesc.Desc);
 		}
 		
 		METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([CreateDesc.Desc description]));
@@ -687,7 +710,7 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 	// calculate size of the texture
 	TotalTextureSize = GetMemorySize();
 
-	if (CreateDesc.NumSamples > 1 && !FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
+	if (bIsMSAARequired)
 	{
 		mtlpp::TextureDescriptor Desc = CreateDesc.Desc;
 		check(CreateDesc.bIsRenderTarget);
@@ -705,8 +728,9 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 		}
 
 		bool bMemoryless = false;
+        
 #if PLATFORM_IOS
-		if (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
+		if (EnumHasAllFlags(CreateDesc.Flags, TexCreate_Memoryless))
 		{
 			bMemoryless = true;
 			Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);

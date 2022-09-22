@@ -122,6 +122,7 @@ struct ENGINE_API FSceneTexturesConfig
 	{}
 
 	void Init(const FSceneTexturesConfigInitSettings& InitSettings);
+    void BuildSceneColorAndDepthFlags();
 	uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const;
 
 	FORCEINLINE bool IsValid() const
@@ -159,6 +160,10 @@ struct ENGINE_API FSceneTexturesConfig
 	ETextureCreateFlags ColorCreateFlags = ETextureCreateFlags::None;
 	ETextureCreateFlags DepthCreateFlags = ETextureCreateFlags::None;
 
+    // Flags passed in from initializer
+    ETextureCreateFlags ExtraSceneColorCreateFlags = ETextureCreateFlags::None;
+    ETextureCreateFlags ExtraSceneDepthCreateFlags = ETextureCreateFlags::None;
+    
 	// Optimized clear values to use for color / depth textures.
 	FClearValueBinding ColorClearValue = FClearValueBinding::Black;
 	FClearValueBinding DepthClearValue = FClearValueBinding::DepthFar;
@@ -192,6 +197,9 @@ struct ENGINE_API FSceneTexturesConfig
 
 	// (XR) True if we can request an XR depth swapchain
 	uint32 bSupportsXRTargetManagerDepthAlloc : 1;
+    
+    // True if we require an alpha channel for scene color
+    bool bRequiresAlphaChannel = false;
 
 private:
 	static FSceneTexturesConfig GlobalInstance;

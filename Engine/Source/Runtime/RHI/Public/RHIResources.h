@@ -1454,7 +1454,7 @@ struct RHI_API FRHITextureDesc
 
 		// Remove UAV flag for textures that don't need it (some formats are incompatible).
 		Flags |= TexCreate_RenderTargetable;
-		Flags &= ~(TexCreate_UAV | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget);
+		Flags &= ~(TexCreate_UAV | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget | TexCreate_Memoryless);
 	}
 
 	/** Returns whether this descriptor conforms to requirements. */
