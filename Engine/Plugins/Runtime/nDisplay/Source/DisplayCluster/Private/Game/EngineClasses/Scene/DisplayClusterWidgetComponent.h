@@ -12,7 +12,7 @@
 UCLASS(transient, NotBlueprintable, NotBlueprintType)
 class UDisplayClusterWidgetComponent final : public UWidgetComponent
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 public:
 	UDisplayClusterWidgetComponent();
 	virtual ~UDisplayClusterWidgetComponent() override;
