@@ -26,9 +26,16 @@ public:
 	UPROPERTY()
 	FString LongDisplayName;
 
-	/** This curve's intention (such as Transform.X or Scale.X). Used internally to match up curves when saving/restoring curves between different objects. */
+	/** This curve's short intention (such as Transform.X or Scale.X). Used internally to match up curves when saving/restoring curves between different objects. */
 	UPROPERTY()
 	FString IntentionName;
+
+	/** 
+	* This curve's long intention (such as foot_fk_l.Transform.X or foot_fk_r.Scale.X). Used internally to match up curves when saving/restoring curves between different objects.
+	* Long intention names have priority in copy/paste over short intention names, but we fall back to short intention if it's unclear what the user is trying to do.
+	*/
+	UPROPERTY()
+	FString LongIntentionName;
 };
 
 UCLASS()

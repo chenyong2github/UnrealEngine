@@ -79,6 +79,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> AddKeyHovered;
 	TSharedPtr<FUICommandInfo> PasteKeysHovered;
+	TSharedPtr<FUICommandInfo> PasteOverwriteRange;
 
 	TSharedPtr<FUICommandInfo> AddKeyToAllCurves;
 

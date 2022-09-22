@@ -63,6 +63,8 @@ struct FMovieSceneChannelMetaData
 	FText Group;
 	/** Intent name */
 	FText IntentName;
+	/* Optional. If unspecified IKeyArea::CreateCurveEditorModel will create a fallback. */
+	FText LongIntentNameFormat;
 	/** Optional color to draw underneath the keys on this channel */
 	TOptional<FLinearColor> Color;
 };

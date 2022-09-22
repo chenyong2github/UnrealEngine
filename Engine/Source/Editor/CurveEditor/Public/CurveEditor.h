@@ -47,6 +47,7 @@ class ITimeSliderController;
 class SCurveEditorPanel;
 class SCurveEditorView;
 class UCurveEditorCopyBuffer;
+class UCurveEditorCopyableCurveKeys;
 class UCurveEditorSettings;
 struct FCurveDrawParams;
 struct FCurveEditorInitParams;
@@ -467,6 +468,8 @@ public:
 
 protected:
 	void ImportCopyBufferFromText(const FString& TextToImport, /*out*/ TArray<UCurveEditorCopyBuffer*>& ImportedCopyBuffers) const;
+	TSet<FCurveModelID> GetTargetCurvesForPaste() const;
+	bool CopyBufferCurveToCurveID(const UCurveEditorCopyableCurveKeys* InSourceCurve, const FCurveModelID InTargetCurve, TOptional<double> InTimeOffset, const bool bInAddToSelection, const bool bInOverwriteRange);
 
 	void GetChildCurveModelIDs(const FCurveEditorTreeItemID TreeItemID, TSet<FCurveModelID>& CurveModelIDs) const;
 
@@ -474,7 +477,7 @@ public:
 	/**
 	 * Paste keys
 	 */
-	void PasteKeys(TSet<FCurveModelID> CurveModelIDs);
+	void PasteKeys(TSet<FCurveModelID> CurveModelIDs, const bool bInOverwriteRange = false);
 
 	/**
 	 * Delete the currently selected keys

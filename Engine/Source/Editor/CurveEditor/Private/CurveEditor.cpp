@@ -375,6 +375,7 @@ bool FCurveEditor::ShouldAutoFrame() const
 	return Settings->GetAutoFrameCurveEditor();
 }
 
+
 void FCurveEditor::BindCommands()
 {
 	UCurveEditorSettings* CurveSettings = Settings;
@@ -385,7 +386,8 @@ void FCurveEditor::BindCommands()
 
 	CommandList->MapAction(FGenericCommands::Get().Cut, FExecuteAction::CreateSP(this, &FCurveEditor::CutSelection));
 	CommandList->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FCurveEditor::CopySelection));
-	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys, TSet<FCurveModelID>()));
+	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys, TSet<FCurveModelID>(), false));
+	CommandList->MapAction(FCurveEditorCommands::Get().PasteOverwriteRange, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys, TSet<FCurveModelID>(), true));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFit, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::All));
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFitHorizontal, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::X));
@@ -1259,6 +1261,7 @@ void FCurveEditor::CopySelection() const
 
 					CopyableCurveKeys->ShortDisplayName = Curve->GetShortDisplayName().ToString();
 					CopyableCurveKeys->LongDisplayName = Curve->GetLongDisplayName().ToString();
+					CopyableCurveKeys->LongIntentionName = Curve->GetLongIntentionName();
 					CopyableCurveKeys->IntentionName = Curve->GetIntentionName();
 					CopyableCurveKeys->KeyPositions.SetNum(NumKeys, false);
 					CopyableCurveKeys->KeyAttributes.SetNum(NumKeys, false);
@@ -1401,7 +1404,119 @@ void FCurveEditor::ImportCopyBufferFromText(const FString& TextToImport, /*out*/
 	TempPackage->RemoveFromRoot();
 }
 
-void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
+TSet<FCurveModelID> FCurveEditor::GetTargetCurvesForPaste() const
+{
+	TSet<FCurveModelID> TargetCurves;
+
+	TOptional<FCurveModelID> HoveredID;
+	if (WeakPanel.IsValid())
+	{
+		for (TSharedPtr<SCurveEditorView> View : WeakPanel.Pin()->GetViews())
+		{
+			if (View.IsValid() && View->GetHoveredCurve().IsSet())
+			{
+				HoveredID = View->GetHoveredCurve().GetValue();
+				break;
+			}
+		}
+	}
+
+	if (HoveredID.IsSet())
+	{
+		TargetCurves.Add(HoveredID.GetValue());
+	}
+	else
+	{
+		TArray<FCurveEditorTreeItemID> NodesToSearch;
+
+		// Try nodes with selected keys
+		for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : Selection.GetAll())
+		{
+			TargetCurves.Add(Pair.Key);
+		}
+
+		// Try selected nodes
+		if (TargetCurves.Num() == 0)
+		{
+			for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
+			{
+				NodesToSearch.Add(Pair.Key);
+			}
+		}
+
+		for (const FCurveEditorTreeItemID& TreeItemID : NodesToSearch)
+		{
+			const FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
+			for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
+			{
+				TargetCurves.Add(CurveModelID);
+			}
+		}
+	}
+
+	return TargetCurves;
+}
+
+bool FCurveEditor::CopyBufferCurveToCurveID(const UCurveEditorCopyableCurveKeys* InSourceCurve, const FCurveModelID InTargetCurve, TOptional<double> InTimeOffset, const bool bInAddToSelection, const bool bInOverwriteRange)
+{
+	FCurveModel* TargetCurve = FindCurve(InTargetCurve);
+	if (!InSourceCurve || !TargetCurve)
+	{
+		return false;
+	}
+
+	// Sometimes when you paste you want to delete any keys that already exist in the timerange you'll be replacing
+	// because mixing the pasted results with the original results wouldn't make any sense.
+	if (bInOverwriteRange)
+	{
+		TArray<FKeyHandle> KeysToRemove;
+		double MinKeyTime = TNumericLimits<double>::Max();
+		double MaxKeyTime = TNumericLimits<double>::Lowest(); 
+		for (int32 Index = 0; Index < InSourceCurve->KeyPositions.Num(); ++Index)
+		{
+			FKeyPosition KeyPosition = InSourceCurve->KeyPositions[Index];
+			if (InTimeOffset.IsSet())
+			{
+				KeyPosition.InputValue += InTimeOffset.GetValue();
+			}
+			if (KeyPosition.InputValue < MinKeyTime)
+			{
+				MinKeyTime = KeyPosition.InputValue;
+			}
+			if (KeyPosition.InputValue > MaxKeyTime)
+			{
+				MaxKeyTime = KeyPosition.InputValue;
+			}
+		}
+
+		// Just double checking we actually set a Min/Max time so we don't wipe out every key to infinity.
+		if (InSourceCurve->KeyPositions.Num() > 0)
+		{
+			TargetCurve->GetKeys(*this, MinKeyTime, MaxKeyTime, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeysToRemove);
+		}
+
+		TargetCurve->RemoveKeys(KeysToRemove);
+	}
+
+	for (int32 Index = 0; Index < InSourceCurve->KeyPositions.Num(); ++Index)
+	{
+		FKeyPosition KeyPosition = InSourceCurve->KeyPositions[Index];
+		if (InTimeOffset.IsSet())
+		{
+			KeyPosition.InputValue += InTimeOffset.GetValue();
+		}
+
+		TOptional<FKeyHandle> KeyHandle = TargetCurve->AddKey(KeyPosition, InSourceCurve->KeyAttributes[Index]);
+		if (KeyHandle.IsSet() && bInAddToSelection)
+		{
+			Selection.Add(FCurvePointHandle(InTargetCurve, ECurvePointType::Key, KeyHandle.GetValue()));
+		}
+	}
+
+	return true;
+}
+
+void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs, const bool bInOverwriteRange)
 {
 	// Grab the text to paste from the clipboard
 	FString TextToImport;
@@ -1415,182 +1530,178 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 		return;
 	}
 
-	// Determine whether all the copied keys are from the same curve, if yes, they can all be pasted to the target curves without name matching
-	bool bAllCopiedCurvesLongNameEqual = true;
-	FString AllCopiedCurvesLongName;
-	for (UCurveEditorCopyBuffer* CopyBuffer : ImportedCopyBuffers)
-	{
-		for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
-		{
-			if (AllCopiedCurvesLongName.IsEmpty())
-			{
-				AllCopiedCurvesLongName = CopyableCurveKeys->LongDisplayName;
-			}
-			else if (CopyableCurveKeys->LongDisplayName != AllCopiedCurvesLongName)
-			{
-				bAllCopiedCurvesLongNameEqual = false;
-				break;
-			}			
-		}
-	}
-
-	bool bSelectionNeedsLongNames = false;
-
-	if (CurveModelIDs.Num() == 0)
-	{
-		TOptional<FCurveModelID> HoveredID;
-		if (WeakPanel.IsValid())
-		{
-			for (TSharedPtr<SCurveEditorView> View : WeakPanel.Pin()->GetViews())
-			{
-				if (View.IsValid() && View->GetHoveredCurve().IsSet())
-				{
-					HoveredID = View->GetHoveredCurve().GetValue();
-					break;
-				}
-			}
-		}
+	// There are numerous scenarios that Copy/Paste needs to handle.
+	// 1:1				 - Copying a single curve to another single curve should always work.
+	// 1:Multiple		 - Copying a single curve with multiple target curves should always work, the value will just be written into each one.
+	// Multiple (Related): Multiple (Related) 
+	//					 - Copying multiple curves between related controls, ie: fk_foot_l and fk_foot_r from one rig to another.
+	//					 - If their long intent name matches, we consider them to be related controls. If their intent name doesn't match
+	//					 - then we consider them unrelated controls.
+	// Multiple (Unrelated):Multiple (Unrelated)
+	//					 - If the long name doesn't match then we fall back to just the intent name. We want to handle copying both from one
+	//					 - group of controls to multiple groups of controls, matching each by short intent name. This lets you copy fk_foot_l
+	//					 - onto fk_foot_r and fk_spine_1 at the same time. We also handle trying to copy from multiple groups of controls
+	//					 - onto multiple groups of controls - this falls back to a index-in-array order based copy and tries to ensure that
+	//					 - the intent for each one (ie: transform.x) copies onto the first target transform.x, and then the next source that
+	//					 - has a transform.x intent gets copied onto the *second* target transform.x.
+	// Multiple (Unrelated):1
+	//					 - This one is mostly an unhandled case and the last source intent will win on the target group, so fk_foot_l and fk_foot_r
+	// 					 - pasted onto fk_spine_1, fk_spine_1 will just get the intents from fk_foot_r and fk_foot_l is ignored. This order isn't
+	//					 - guranteed though because it's using the order the curves are in the internal arrays.
 	
-		if (HoveredID.IsSet())
-		{
-			CurveModelIDs.Add(HoveredID.GetValue());
-		}
-		else
-		{
-			TArray<FCurveEditorTreeItemID> NodesToSearch;
+	// There should only be one copy buffer, but the way the import works returns an array.
+	ensureMsgf(ImportedCopyBuffers.Num() == 1, TEXT("Multiple copy buffers pasted at one time, only the first one will be used!"));
+	UCurveEditorCopyBuffer* SourceBuffer = ImportedCopyBuffers[0];
 
-			// Try nodes with selected keys
-			for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : Selection.GetAll())
-			{
-				CurveModelIDs.Add(Pair.Key);
-			}
-
-			// Try selected nodes
-			if (CurveModelIDs.Num() == 0)
-			{
-				for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& Pair : GetTreeSelection())
-				{
-					NodesToSearch.Add(Pair.Key);
-				}
-
-				// If no curves are selected, paste to the entire tree using fully qualified long names
-				if (NodesToSearch.Num() == 0)
-				{
-					bSelectionNeedsLongNames = true;
-					bAllCopiedCurvesLongNameEqual = false;
-					if (Tree.GetAllItems().GetKeys(NodesToSearch) == 0)
-					{
-						// If we don't have any curves to paste in to, exit now
-						return;
-					}
-				}
-			}
-
-			for (const FCurveEditorTreeItemID& TreeItemID: NodesToSearch)
-			{
-				FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
-				for (const FCurveModelID& CurveModelID : TreeItem.GetCurves())
-				{
-					CurveModelIDs.Add(CurveModelID);
-				}
-			}
-		}
-	}
+	// Figure out which CurveModelIDs we're trying to paste to. If they're not already specified, we try to find hovered curves,
+	// and failing that we try to find all curves.
+	TSet<FCurveModelID> TargetCurves = CurveModelIDs.Num() > 0 ? CurveModelIDs : GetTargetCurvesForPaste();
 	
-	if (CurveModelIDs.Num() == 0)
+	if (TargetCurves.Num() == 0)
 	{
 		return;
 	}
 
-	FScopedTransaction Transaction(LOCTEXT("PasteKeys", "Paste Keys"));
+	// When we're pasting keys, we want the first key to paste where the timeslider is
+	TOptional<double> TimeOffset;
+	bool bApplyOffset = !SourceBuffer->bAbsolutePosition;
 
+	if (bApplyOffset)
+	{
+		TSharedPtr<ITimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
+		if (TimeSliderController.IsValid())
+		{
+			FFrameRate TickResolution = TimeSliderController->GetTickResolution();
+
+			TimeOffset = TimeSliderController->GetScrubPosition() / TickResolution;
+		}
+		else
+		{
+			TimeOffset = SourceBuffer->TimeOffset;
+		}
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("PasteKeys", "Paste Keys"));
 	Selection.Clear();
 
-	// We don't expect/want multiple copy buffers, but the way serialization works it's a possibile edge case,
-	// so we'll try to handle it sanely and treat each one as an individual block to paste.
-	for (UCurveEditorCopyBuffer* CopyBuffer : ImportedCopyBuffers)
+
+	// Two simple cases, 1 to 1 and 1 to many.
+	TArray<TPair<UCurveEditorCopyableCurveKeys*, FCurveModelID>> CopyPairs;
+
+	if (SourceBuffer->Curves.Num() == 1)
 	{
-		bool bUseLongDisplayName = bSelectionNeedsLongNames;
-
-		double TimeOffset = 0.0f;
-		bool bApplyOffset = !CopyBuffer->bAbsolutePosition;
-
-		if (bApplyOffset)
+		for (FCurveModelID TargetCurveID : TargetCurves)
 		{
-			TSharedPtr<ITimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
-			if (TimeSliderController.IsValid())
-			{
-				FFrameRate TickResolution = TimeSliderController->GetTickResolution();
-
-				TimeOffset = TimeSliderController->GetScrubPosition() / TickResolution;
-			}
-			else
-			{
-				TimeOffset = CopyBuffer->TimeOffset;
-			}
+			CopyPairs.Add(TPair<UCurveEditorCopyableCurveKeys*, FCurveModelID>(SourceBuffer->Curves[0], TargetCurveID));
 		}
+	}
+	else
+	{
+		// The more complicated is the Multiple:Multiple / Multiple:1 (which is really just the same). We want to
+		// prioritize matching up longer names if possible - this allows us to copy multiple controls to multiple
+		// controls, such as starting with fk_foot_l and fk_foot_r and pasting to fk_foot_l, fk_foot_r, fk_neck_01.
+		// We will match up the transform/scale/rotation for the fk_foot_l/fk_foot_r and don't touch fk_neck_01 in this
+		// example. If no matches are made, then we fall back to the shorter intent string - where we just copy
+		// transform.xyz to transform.xyz even though the source may be fk_foot_l and the target is fk_foot_r.
 
-		TArray<UCurveEditorCopyableCurveKeys*> UsedCurves;
-
-		for (FCurveModelID CurveID : CurveModelIDs)
+		// If any of the long names match (ie: fk_foot_l.transform.x) then we'll use long name matching for all.
+		bool bUseLongNameForMatches = false;
+		for (const UCurveEditorCopyableCurveKeys* SourceCurveKeys : SourceBuffer->Curves)
 		{
-			FCurveModel* Curve = FindCurve(CurveID);
-			if (Curve)
+			for (const FCurveModelID& TargetCurveID : TargetCurves)
 			{
-				const FString CurveLongDisplayName = Curve->GetLongDisplayName().ToString();
-				const FString CurveIntentionName = Curve->GetIntentionName();
-				
-				bool bFoundMatch = false;
-				for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
+				FCurveModel* TargetCurve = FindCurve(TargetCurveID);
+				if (TargetCurve)
 				{
-					// Use up all curves in the copied buffer before reusing. For example, if the following 6 curves have been copied,
-					//   Cube1.Location.X, Cube1.Location.Y, Cube1.Location.Z
-					//   Cube2.Location.X, Cube2.Location.Y, Cube2.Location.Z
-					// and the user attempts to paste onto multiple objects, Cube1's curves will match before Cube2's curves if this restriction is not in place.
-					//
-					if (UsedCurves.Contains(CopyableCurveKeys))
+					if (SourceCurveKeys->LongIntentionName == TargetCurve->GetLongIntentionName())
 					{
-						continue;
-					}
-
-					if (bAllCopiedCurvesLongNameEqual ||
-						(!bUseLongDisplayName && CurveIntentionName.Equals(CopyableCurveKeys->IntentionName))
-						|| (bUseLongDisplayName && CurveLongDisplayName.Equals(CopyableCurveKeys->LongDisplayName)))
-					{
-						bFoundMatch = true;
-
-						for (int32 Index = 0; Index < CopyableCurveKeys->KeyPositions.Num(); ++Index)
-						{
-							FKeyPosition KeyPosition = CopyableCurveKeys->KeyPositions[Index];
-							if (bApplyOffset)
-							{
-								KeyPosition.InputValue += TimeOffset;
-							}
-
-							TOptional<FKeyHandle> KeyHandle = Curve->AddKey(KeyPosition, CopyableCurveKeys->KeyAttributes[Index]);
-							if (KeyHandle.IsSet())
-							{
-								Selection.Add(FCurvePointHandle(CurveID, ECurvePointType::Key, KeyHandle.GetValue()));
-							}
-						}
-
-						UsedCurves.Add(CopyableCurveKeys);
-
-						if (UsedCurves.Num() == CopyBuffer->Curves.Num())
-						{
-							UsedCurves.Empty();
-						}
-
-						break; // Just paste one of the matching curves
+						bUseLongNameForMatches = true;
+						break;
 					}
 				}
+			}
 
-				if (!bFoundMatch)
-				{
-					UE_LOG(LogCurveEditor, Warning, TEXT("Failed to find matching curve to copy onto: %s"), *CurveLongDisplayName);		
-				}			
+			// Exit out of the outer loop too if we've got a match.
+			if (bUseLongNameForMatches)
+			{
+				break;
 			}
 		}
+
+		// Multiple to Multiple curve copying can get complicated when we only have the short intent name to deal with it, so
+		// this creates an edge case where you're copying one set of intents (ie: transform.x, transform.y, transform.z) onto
+		// multiple objects with those intents... we want to support this, but we don't support copying from multiple objects
+		// onto multiple objects unless their LongIntentionName matches as it gets too confusing to match up.
+		bool bOnlyOneSetOfSourceIntentions = true;
+		{
+			TMap<FString, int32> IntentionUseCounts;
+			for (UCurveEditorCopyableCurveKeys* SourceCurveKeys : SourceBuffer->Curves)
+			{
+				IntentionUseCounts.FindOrAdd(SourceCurveKeys->IntentionName)++;
+			}
+
+			for (TPair<FString, int32>& Pair : IntentionUseCounts)
+			{
+				if (Pair.Value > 1)
+				{
+					bOnlyOneSetOfSourceIntentions = false;
+					break;
+				}
+			}
+		}
+		
+		TSet<FCurveModelID> CurvesToMatchTo = TargetCurves;
+		for (UCurveEditorCopyableCurveKeys* SourceCurveKeys : SourceBuffer->Curves)
+		{
+			TArray<FCurveModelID> CurvesToRemove;
+			for (const FCurveModelID& TargetCurveID : CurvesToMatchTo)
+			{
+				FCurveModel* TargetCurve = FindCurve(TargetCurveID);
+				if (TargetCurve)
+				{
+					const bool bNameMatches = bUseLongNameForMatches ?
+						SourceCurveKeys->LongIntentionName == TargetCurve->GetLongIntentionName() :
+						SourceCurveKeys->IntentionName == TargetCurve->GetIntentionName();
+
+					if (bNameMatches)
+					{
+						CopyPairs.Add(TPair<UCurveEditorCopyableCurveKeys*, FCurveModelID>(SourceCurveKeys, TargetCurveID));
+
+						// Don't try to match to this curve again. This lets us try to handle the case where we have
+						// multiple source objects (fk_foot_l, fk_foot_r) trying to copy to unrelated objects (cube1, cube2).
+						// They will fail the LongDisplayName check but get the IntentionName check, but we need to remove
+						// cube1 after the first time we match it so that fk_foot_r has a chance to paste into cube2 instead of cube1.
+						CurvesToRemove.Add(TargetCurveID);
+
+						// If we're copying from one object with multiple curves (ie: fk_foot_l) but we have multiple destination
+						// objects, we loop through all of the target curves and apply them using the IntentionName matches check.
+						// This only happens when using short intention names (as it's the more vague logic case), and we only
+						// do this when you have multiple source curves, but only one of each kind. If you have multiple source
+						// curves with multiple copies of the same intention, then we only apply it once to the first curve
+						// who's intention matches and then remove it from the pool so that the next source with the same
+						// intention (such as the second foot in the above example) gets a chance to write to the second
+						// target curve with the same destination.
+						bool bCopyToMultipleDestCurves = bOnlyOneSetOfSourceIntentions && !bUseLongNameForMatches;
+						if (!bCopyToMultipleDestCurves)
+						{
+							break;
+						}
+					}
+				}
+			}
+
+			for (FCurveModelID Curve : CurvesToRemove)
+			{
+				CurvesToMatchTo.Remove(Curve);
+			}
+		}
+	}
+
+	// Now that we've calculated the source curve for each destination curve, copy them over.
+	for (const TPair<UCurveEditorCopyableCurveKeys*, FCurveModelID>& Pair : CopyPairs)
+	{
+		const bool bAddToSelection = true;
+		CopyBufferCurveToCurveID(Pair.Key, Pair.Value, TimeOffset, bAddToSelection, bInOverwriteRange);
 	}
 
 	if (ShouldAutoFrame())
