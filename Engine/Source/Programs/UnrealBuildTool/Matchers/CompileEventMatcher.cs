@@ -23,18 +23,27 @@ namespace UnrealBuildTool.Matchers
 				// any path character
 				@"[^:<>*?""]+" +
 				// valid source file extension (or extensionless file)
-				@"(?:\.(?i)(?:h|hpp|hxx|c|cc|cpp|cxx|inc|inl|cs|targets)|[/\\][a-zA-Z0-9]+)" +
+				@"(?:\.(?i)(?:h|hpp|hxx|c|cc|cpp|cxx|inc|inl|cs|targets|verse)|[/\\][a-zA-Z0-9]+)" +
 				// or the string "<scratch space>"
 			@")|<scratch space>)";
 
 		const string VisualCppLocationPattern =
 			@"\(" +
-				@"(?<line>\d+)" + // line number
-				@"(?:,(?<column>\d+))?" + // optional column number
+				@"(?:" + 
+					@"(?<line>\d+)" + // (line)
+					@"|" +
+					@"(?:(?<line>\d+)-(?<maxline>\d+))" + // (line-line)
+					@"|" +
+					@"(?:(?<line>\d+),(?<column>\d+))" + // (line,col)
+					@"|" +
+					@"(?:(?<line>\d+),(?<column>\d+)-(?<maxcolumn>\d+))" + // (line,col-col)
+					@"|" +
+					@"(?:(?<line>\d+),(?<column>\d+),\s*(?<maxline>\d+),(?<maxcolumn>\d+))" + // (line,col,line,col)
+				@")" +
 			@"\)";
 
 		const string VisualCppSeverity =
-			@"(?<severity>fatal error|[Ee]rror|[Ww]arning)(?: (?<code>[A-Z]+[0-9]+))?"; // "E"rror/"W"arning are from UHT
+			@"(?:Verse compiler )?(?<severity>fatal error|[Ee]rror|[Ww]arning)(?: (?<code>[A-Z]+[0-9]+))?"; // "E"rror/"W"arning are from UHT
 
 		const string ClangLocationPattern =
 			@":" +
@@ -243,6 +252,8 @@ namespace UnrealBuildTool.Matchers
 			builder.AnnotateSourceFile(match.Groups["file"], sourceFileBaseDir);
 			builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 			builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
+			builder.TryAnnotate(match.Groups["maxline"], LogEventMarkup.LineNumber);
+			builder.TryAnnotate(match.Groups["maxcolumn"], LogEventMarkup.ColumnNumber);
 
 			string indent = ExtractIndent(builder.Current.CurrentLine ?? String.Empty);
 			string nextIndent = indent + " ";

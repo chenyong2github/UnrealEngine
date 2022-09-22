@@ -956,6 +956,46 @@ namespace UnrealBuildToolTests
 			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
 		}
 
+		[TestMethod]
+		public void UhtErrorMatcher2()
+		{
+			string[] lines =
+			{
+				@"Parsing headers for UnrealEditor",
+				@"  Running Internal UnrealHeaderTool UnrealEditor /Users/build/Build/U5M+Inc/Sync/Engine/Intermediate/Build/Mac/x86_64/UnrealEditor/Debug/UnrealEditor.uhtmanifest -WarningsAsErrors",
+				@"/Users/build/Build/U5M+Inc/Sync/Engine/Restricted/NotForLicensees/Plugins/Compositor/Source/Compositor/Public/Assets/Composite.h(88): Error: Native pointer usage in member declaration detected [[[UComposite*]]].  This is disallowed for the target/module, consider TObjectPtr as an alternative.",
+				@"/Users/build/Build/U5M+Inc/Sync/Engine/Restricted/NotForLicensees/Plugins/Compositor/Source/Compositor/Public/Components/CompositeCaptureComponent2D.h(53): Error: Native pointer usage in member declaration detected [[[APlayerCameraManager*]]].  This is disallowed for the target/module, consider TObjectPtr as an alternative.",
+				@"/Users/build/Build/U5M+Inc/Sync/Engine/Restricted/NotForLicensees/Plugins/Compositor/Source/Compositor/Public/Assets/Composite.h(92): Error: Native pointer usage in member declaration detected [[[UComposite*]]].  This is disallowed for the target/module, consider TObjectPtr as an alternative.",
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(3, logEvents.Count);
+			CheckEventGroup(logEvents.Slice(0, 1), 2, 1, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents.Slice(1, 1), 3, 1, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents.Slice(2, 1), 4, 1, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
+			Assert.AreEqual(@"/Users/build/Build/U5M+Inc/Sync/Engine/Restricted/NotForLicensees/Plugins/Compositor/Source/Compositor/Public/Assets/Composite.h", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+		}
+
+		[TestMethod]
+		public void VerseErrorMatcher()
+		{
+			string[] lines =
+			{
+				@"C:/Horde/TestGame/Plugins/TestPlugin/Test.verse(9,9, 9,43): Verse compiler error V3587: Something went wrong"
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(1, logEvents.Count);
+			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
+			Assert.AreEqual(@"C:/Horde/TestGame/Plugins/TestPlugin/Test.verse", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+		}
+
 		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));
