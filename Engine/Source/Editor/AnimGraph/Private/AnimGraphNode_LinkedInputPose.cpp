@@ -28,6 +28,7 @@
 #include "K2Node_VariableGet.h"
 #include "AnimBlueprintCompiler.h"
 #include "AnimGraphAttributes.h"
+#include "AnimGraphNode_LinkedAnimLayer.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 
 #define LOCTEXT_NAMESPACE "LinkedInputPose"
@@ -106,6 +107,24 @@ void UAnimGraphNode_LinkedInputPose::ExpandNode(class FKismetCompilerContext& In
 	});
 }
 
+void UAnimGraphNode_LinkedInputPose::ReconstructLayerNodes(UBlueprint* InBlueprint)
+{
+	if(InBlueprint)
+	{
+		TArray<UAnimGraphNode_LinkedAnimLayer*> LinkedAnimLayers;
+		FBlueprintEditorUtils::GetAllNodesOfClass<UAnimGraphNode_LinkedAnimLayer>(InBlueprint, LinkedAnimLayers);
+
+		for(UAnimGraphNode_LinkedAnimLayer* LinkedAnimLayer : LinkedAnimLayers)
+		{
+			// Only reconstruct 'self' nodes in this manner - external layers will be rebuilt via the compilation machinery
+			if(LinkedAnimLayer->Node.Interface.Get() == nullptr)
+			{
+				LinkedAnimLayer->ReconstructNode();
+			}
+		}
+	}
+}
+
 void UAnimGraphNode_LinkedInputPose::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -121,6 +140,7 @@ void UAnimGraphNode_LinkedInputPose::PostEditChangeProperty(FPropertyChangedEven
 			ReconstructNode();
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetAnimBlueprint());
 			ReconstructNode();
+			ReconstructLayerNodes(GetAnimBlueprint());
 		}
 	}
 }

@@ -29,5 +29,12 @@ class ANIMGRAPH_API UAnimationGraph : public UEdGraph
 	/** Returns contained graph nodes of the specified (or child) class */
 	UFUNCTION(BlueprintCallable, Category=AnimationGraph)
 	void GetGraphNodesOfClass(TSubclassOf<UAnimGraphNode_Base> NodeClass, TArray<UAnimGraphNode_Base*>& GraphNodes, bool bIncludeChildClasses = true);
+
+private:
+	// UObject interface
+	virtual void PostEditUndo() override;
+
+	// Reconstruct layer nodes post-undo
+	void ReconstructLayerNodes() const;
 };
 

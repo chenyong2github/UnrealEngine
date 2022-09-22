@@ -19,6 +19,7 @@
 #include "SKismetInspector.h"
 #include "AnimationGraph.h"
 #include "AnimationGraphSchema.h"
+#include "AnimGraphNode_LinkedAnimLayer.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -293,6 +294,10 @@ FReply FAnimGraphDetails::OnAddNewInputPoseClicked()
 
 	FEdGraphSchemaAction_K2NewNode::SpawnNode<UAnimGraphNode_LinkedInputPose>(Graph, NewNodePosition, EK2NewNodeFlags::None);
 
+	TSharedPtr<IAnimationBlueprintEditor> AnimBlueprintEditor = AnimBlueprintEditorPtr.Pin();
+	UBlueprint* Blueprint = AnimBlueprintEditor->GetBlueprintObj();
+	UAnimGraphNode_LinkedInputPose::ReconstructLayerNodes(Blueprint);
+
 	DetailLayoutBuilder->ForceRefreshDetails();
 	
 	return FReply::Handled();
@@ -311,8 +316,11 @@ FReply FAnimGraphDetails::OnRemoveInputPoseClicked(UAnimGraphNode_LinkedInputPos
 	}
 
 	TSharedPtr<IAnimationBlueprintEditor> AnimBlueprintEditor = AnimBlueprintEditorPtr.Pin();
-	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(AnimBlueprintEditor->GetBlueprintObj());
+	UBlueprint* Blueprint = AnimBlueprintEditor->GetBlueprintObj();
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 
+	UAnimGraphNode_LinkedInputPose::ReconstructLayerNodes(Blueprint);
+	
 	DetailLayoutBuilder->ForceRefreshDetails();
 
 	return FReply::Handled();

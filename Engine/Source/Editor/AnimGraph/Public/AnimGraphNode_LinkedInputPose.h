@@ -112,6 +112,9 @@ public:
 	void IterateFunctionParameters(TFunctionRef<void(const FName&, const FEdGraphPinType&)> InFunc) const;
 
 private:
+	friend class FAnimGraphDetails;
+	friend class UAnimationGraph;
+	
 	// Helper function for common code in AllocateDefaultPins and ReallocatePinsDuringReconstruction
 	void AllocatePinsInternal();
 
@@ -121,6 +124,9 @@ private:
 	/** Create pins from the stub function FunctionReference */
 	void CreatePinsFromStubFunction(const UFunction* Function);
 
+	/** Reconstruct any layer nodes in this BP post-edit */
+	static void ReconstructLayerNodes(UBlueprint* InBlueprint);
+	
 private:
 	/** UI helper functions */
 	void HandleInputPoseArrayChanged();

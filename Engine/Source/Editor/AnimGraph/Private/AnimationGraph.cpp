@@ -2,6 +2,8 @@
 
 #include "AnimationGraph.h"
 
+#include "AnimGraphNode_LinkedInputPose.h"
+
 #define LOCTEXT_NAMESPACE "AnimationGraph"
 
 /////////////////////////////////////////////////////
@@ -26,6 +28,20 @@ void UAnimationGraph::GetGraphNodesOfClass(TSubclassOf<UAnimGraphNode_Base> Node
 			}
 		}
 	}
+}
+
+void UAnimationGraph::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// We may have added/removed input nodes, which requires a refresh of any node that use them
+	// We need to defer this a tick to make sure we reconstruct nodes post-compile
+	GEditor->GetTimerManager()->SetTimerForNextTick(this, &UAnimationGraph::ReconstructLayerNodes);
+}
+
+void UAnimationGraph::ReconstructLayerNodes() const
+{
+	UAnimGraphNode_LinkedInputPose::ReconstructLayerNodes(GetTypedOuter<UBlueprint>());
 }
 
 #undef LOCTEXT_NAMESPACE
