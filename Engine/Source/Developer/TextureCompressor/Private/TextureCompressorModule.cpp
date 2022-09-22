@@ -2811,7 +2811,7 @@ static bool ApplyCompositeTexture(FImage& DestRoughness, const FImage& SourceNor
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ApplyCompositeTexture);
 
 	FLinearColor* FirstColor = (&DestRoughness.AsRGBA32F()[0]);
-	
+		
 	float* TargetValuePtr;
 
 	switch((ECompositeTextureMode)CompositeTextureMode)
@@ -2840,9 +2840,9 @@ static bool ApplyCompositeTexture(FImage& DestRoughness, const FImage& SourceNor
 
 		const FLinearColor* NormalColors = (&SourceNormals.AsRGBA32F()[0]);
 
-	for ( int64 i=0; i<Count; i++ )
-	{
-		const FLinearColor & NormalColor = NormalColors[i];
+		for ( int64 i=0; i<Count; i++ )
+		{
+			const FLinearColor & NormalColor = NormalColors[i];
 
 			float Roughness = TargetValuePtr[i*4];
 			TargetValuePtr[i*4] = CompositeNormalToRoughness(NormalColor,Roughness,CompositePower);
@@ -2872,9 +2872,9 @@ static bool ApplyCompositeTexture(FImage& DestRoughness, const FImage& SourceNor
 			{
 				const FLinearColor & NormalColor = NormalColors[i];
 				
-		FVector3f Normal = FVector3f(NormalColor.R * 2.0f - 1.0f, NormalColor.G * 2.0f - 1.0f, NormalColor.B * 2.0f - 1.0f);
+				FVector3f Normal = FVector3f(NormalColor.R * 2.0f - 1.0f, NormalColor.G * 2.0f - 1.0f, NormalColor.B * 2.0f - 1.0f);
 				
-		float LengthN = FMath::Min( Normal.Size(), 1.0f );
+				float LengthN = FMath::Min( Normal.Size(), 1.0f );
 
 				SourceNormalLengths[i] = LengthN;
 			}
@@ -2892,7 +2892,7 @@ static bool ApplyCompositeTexture(FImage& DestRoughness, const FImage& SourceNor
 			for( int64 DestX=0; DestX< DestRoughness.SizeX; DestX++)
 			{
 				float U = (DestX + 0.5f) * InvDestW;
-		
+				
 				//const FLinearColor NormalColor = LookupSourceMipBilinearUV(NormalColors,U,V);
 				const float NormalLength = LookupFloatBilinearUV(SourceNormalLengthsPlane,SourceNormals.SizeX,SourceNormals.SizeY,U,V);
 
@@ -3362,7 +3362,7 @@ public:
 
 			// apply a smooth Gaussian filter to the top level of the normal map
 			// the original comment says :
-			// "helps to reduce aliasing further"
+			//  "helps to reduce aliasing further"
 			// what's happening here is the blur on the top mip will reduce the length of normals in rough areas
 			//	whereas without it the top mip would always have normals of length 1.0 , hence zero roughness per Toksvig
 			DefaultSettings.MipSharpening = -3.5f;
@@ -3903,7 +3903,7 @@ private:
 			if ( 
 				DestRoughnessMips[DestLevel].SizeX != NormalSourceMips[SourceNormalMipLevel].SizeX ||
 				DestRoughnessMips[DestLevel].SizeY != NormalSourceMips[SourceNormalMipLevel].SizeY )
-		{
+			{
 				UE_LOG(LogTextureCompressor, Display, 
 					TEXT( "ApplyCompositeTexture: Couldn't find matching mip size, will stretch.  (dest: %dx%d with %d mips, source: %dx%d with %d mips).  current: (dest: %dx%d at %d, source: %dx%d at %d)" ),
 					DestRoughnessMips[0].SizeX,
@@ -3918,11 +3918,11 @@ private:
 					NormalSourceMips[SourceNormalMipLevel].SizeX,
 					NormalSourceMips[SourceNormalMipLevel].SizeY,
 					SourceNormalMipLevel
-				);
-		}
+					);
+			}
 
 			if ( ! ApplyCompositeTexture(DestRoughnessMips[DestLevel], NormalSourceMips[SourceNormalMipLevel], CompositeTextureMode, CompositePower) )
-		{
+			{
 				return false;
 			}
 		}
