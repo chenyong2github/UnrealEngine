@@ -244,9 +244,39 @@ namespace Gauntlet
 		}
 
 		/// <summary>
-		/// Helper class that turns our wishes into reality
+		/// Dictionary of Sessions for each test, by test name
 		/// </summary>
-		protected UnrealSession UnrealApp;
+		static protected Dictionary<string, UnrealSession> TestSessions = new Dictionary<string, UnrealSession>();
+
+		/// <summary>
+		/// Helper class that turns our wishes into reality
+		/// Indexed from the dictionary of Sessions by Test Name
+		/// </summary>
+		protected UnrealSession UnrealApp
+		{
+			get
+			{
+				if (TestSessions.ContainsKey(Name))
+				{
+					return TestSessions[Name];
+				}
+				else
+				{
+					return null;
+				}
+			}
+			set
+			{
+				if (TestSessions.ContainsKey(Name))
+				{
+					TestSessions[Name] = value;
+				}
+				else
+				{
+					TestSessions.Add(Name, value);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Used to track how much of our app log has been written out
@@ -511,7 +541,15 @@ namespace Gauntlet
 
 			if (UnrealApp != null)
 			{
-				throw new AutomationException("Node already has an UnrealApp, was PrepareUnrealSession called twice?");
+				if (NumPasses > 1 && CurrentPass + 1 < NumPasses)
+				{
+					// Already prepared from a previous pass
+					return true;
+				}
+				else
+				{
+					throw new AutomationException("Node already has an UnrealApp, was PrepareUnrealSession called twice?");
+				}
 			}
 
 			// pass through any arguments such as -TestNameArg or -TestNameArg=Value
@@ -702,9 +740,20 @@ namespace Gauntlet
 		/// <returns></returns>
 		public override bool StartTest(int Pass, int InNumPasses)
 		{
-			if (UnrealApp == null)
+			if (InNumPasses > 1
+				&& Pass + 1 < InNumPasses)
 			{
-				throw new AutomationException("Node already has a null UnrealApp, was PrepareUnrealSession or IsReadyToStart called?");
+				if (UnrealApp == null)
+				{
+					throw new AutomationException("Node already has a null UnrealApp, was PrepareUnrealSession or IsReadyToStart called?");
+				}
+				else
+				{
+					bool bReacquireDevicesPerPass = Globals.Params.ParseParam("ReacquireDevicesPerPass");
+					bool ShouldRetain = (!bReacquireDevicesPerPass && InNumPasses > 1 && Pass + 1 < InNumPasses) ? true : false;
+					UnrealApp.ShouldRetainDevices = ShouldRetain;
+					Log.Verbose("ShouldRetainDevices: {0}", UnrealApp.ShouldRetainDevices);
+				}
 			}
 
 			// ensure we reset things
@@ -716,7 +765,7 @@ namespace Gauntlet
 			LastAppLogCount = 0;
 			LastEditorLogCount = 0;
 			LastHeartbeatTime = DateTime.MinValue;
-			LastActiveHeartbeatTime = DateTime.MinValue;			
+			LastActiveHeartbeatTime = DateTime.MinValue;
 
 			TConfigClass Config = GetCachedConfiguration();
 
@@ -819,9 +868,16 @@ namespace Gauntlet
 
 			if (UnrealApp != null)
 			{
-				UnrealApp.Dispose();
-				UnrealApp = null;
-			}			
+				if (CurrentPass + 1 == NumPasses)
+				{
+					UnrealApp.Dispose();
+					UnrealApp = null;
+				}
+				else
+				{
+					UnrealApp.ShutdownInstance();
+				}
+			}
 		}
 
 		/// <summary>
@@ -992,14 +1048,17 @@ namespace Gauntlet
 				Log.Warning("Failed to save artifacts. {0}", Ex);
 			}
 
-			try
+			if (CurrentPass + 1 == NumPasses)
 			{
-				// Artifacts have been saved, release devices back to pool for other tests to use
-				UnrealApp.UnrealDeviceReservation.ReleaseDevices();
-			}
-			catch (Exception Ex)
-			{
-				Log.Warning("Failed to release devices. {0}", Ex);
+				try
+				{
+					// Artifacts have been saved, release devices back to pool for other tests to use
+					UnrealApp.UnrealDeviceReservation.ReleaseDevices();
+				}
+				catch (Exception Ex)
+				{
+					Log.Warning("Failed to release devices. {0}", Ex);
+				}
 			}
 
 

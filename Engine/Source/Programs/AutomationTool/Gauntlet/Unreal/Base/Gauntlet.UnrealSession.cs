@@ -487,6 +487,16 @@ namespace Gauntlet
 		public string Sandbox { get; set; }
 
 		/// <summary>
+		/// Whether or not we should retain our devices this pass
+		/// </summary>
+		public bool ShouldRetainDevices { get; set; }
+
+		/// <summary>
+		/// Record of our installations in case we want to re-use them in a later pass
+		/// </summary>
+		public Dictionary<UnrealSessionRole, IAppInstall> RolesToInstalls;
+
+		/// <summary>
 		/// Constructor that takes a build source and a number of roles
 		/// </summary>
 		/// <param name="InSource"></param>
@@ -566,7 +576,16 @@ namespace Gauntlet
 				RequiredDeviceTypes[C.Constraint]++;
 			});
 
-			return UnrealDeviceReservation.TryReserveDevices(RequiredDeviceTypes, RolesNeedingDevices.Count());
+
+			if (UnrealDeviceReservation.ReservedDevices != null && UnrealDeviceReservation.ReservedDevices.Count > 0
+				&& ShouldRetainDevices)
+			{
+				return true;
+			}
+			else
+			{
+				return UnrealDeviceReservation.TryReserveDevices(RequiredDeviceTypes, RolesNeedingDevices.Count());
+			}
 		}
 
 		/// <summary>
@@ -731,56 +750,77 @@ namespace Gauntlet
 
 					// todo - should this be elsewhere?
 					AppConfig.Sandbox = Sandbox;
-
-					// Tag the device for report result
-					if(BuildHostPlatform.Current.Platform != Device.Platform)
-					{
-						AppConfig.CommandLineParams.Add("DeviceTag", Device.Name);
-					}
-
-					IAppInstall Install = null;
-
-					IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Device, IDeviceUsageReporter.EventState.Success);
-					IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success, BuildSource.BuildName);
-					try
-					{
-						Install = Device.InstallApplication(AppConfig);
-						IDeviceUsageReporter.RecordEnd(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success);
-					}
-					catch (System.Exception Ex)
-					{
-						// Warn, ignore the device, and do not continue
-						string ErrorMessage = string.Format("Failed to install app onto device {0} for role {1}. {2}. Will retry with new device", Device, Role, Ex);
-						if (ErrorMessage.Contains("not enough space"))
-						{
-							Log.Warning(ErrorMessage);
-							if(Device.Platform == BuildHostPlatform.Current.Platform)
-							{
-								// If on desktop platform, we are not retrying.
-								// It is unlikely that space is going to be made and InstallBuildParallel has marked the build path as problematic.
-								SessionRetries = 0;
-							}
-						}
-						else
-						{
-							Log.Info(ErrorMessage);
-						}
-						UnrealDeviceReservation.MarkProblemDevice(Device);
-						InstallSuccess = false;
-						IDeviceUsageReporter.RecordEnd(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Failure);
-						break;
-					}
 					
-
-					if (Globals.CancelSignalled)
+					IAppInstall Install = null;
+					bool bReinstallPerPass = Globals.Params.ParseParam("ReinstallPerPass");
+					if (RolesToInstalls == null || !RolesToInstalls.ContainsKey(Role) || bReinstallPerPass)
 					{
-						break;
+
+						// Tag the device for report result
+						if(BuildHostPlatform.Current.Platform != Device.Platform)
+						{
+							AppConfig.CommandLineParams.Add("DeviceTag", Device.Name);
+						}
+
+						IAppInstall Install = null;
+
+						IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Device, IDeviceUsageReporter.EventState.Success);
+						IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success, BuildSource.BuildName);
+						try
+						{
+							Install = Device.InstallApplication(AppConfig);
+							IDeviceUsageReporter.RecordEnd(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success);
+						}
+						catch (System.Exception Ex)
+						{
+							// Warn, ignore the device, and do not continue
+							string ErrorMessage = string.Format("Failed to install app onto device {0} for role {1}. {2}. Will retry with new device", Device, Role, Ex);
+							if (ErrorMessage.Contains("not enough space"))
+							{
+								Log.Warning(ErrorMessage);
+								if (Device.Platform == BuildHostPlatform.Current.Platform)
+								{
+									// If on desktop platform, we are not retrying.
+									// It is unlikely that space is going to be made and InstallBuildParallel has marked the build path as problematic.
+									SessionRetries = 0;
+								}
+							}
+							else
+							{
+								Log.Info(ErrorMessage);
+							}
+							UnrealDeviceReservation.MarkProblemDevice(Device);
+							InstallSuccess = false;
+							IDeviceUsageReporter.RecordEnd(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Failure);
+							break;
+						}
+
+
+						if (Globals.CancelSignalled)
+						{
+							break;
+						}
+
+						// Device has app installed, give role a chance to configure device
+						Role.ConfigureDevice?.Invoke(Device);
+
+						InstallsToRoles[Install] = Role;
+
+						if(RolesToInstalls == null)
+						{
+							RolesToInstalls = new Dictionary<UnrealSessionRole, IAppInstall>();
+						}
+						if (!bReinstallPerPass)
+						{
+							RolesToInstalls[Role] = Install;
+						}
 					}
-
-					// Device has app installed, give role a chance to configure device
-					Role.ConfigureDevice?.Invoke(Device);
-
-					InstallsToRoles[Install] = Role;
+					else
+					{
+						Install = RolesToInstalls[Role];
+						InstallsToRoles[Install] = Role;
+						Log.Info("Using previous install of {0} on {1}", Install.Name, Install.Device.Name);
+					}
 				}
 
 				if (InstallSuccess == false)
@@ -883,19 +923,30 @@ namespace Gauntlet
 			return LaunchSession();
 		}
 
-		/// <summary>
-		/// Shuts down the current session (if any)
+		///<summary>
+		/// Shuts down any running apps
 		/// </summary>
-		/// <returns></returns>
-		public void ShutdownSession()
+		public void ShutdownInstance()
 		{
 			if (SessionInstance != null)
 			{
 				SessionInstance.Dispose();
 				SessionInstance = null;
 			}
+		}
 
-			UnrealDeviceReservation.ReleaseDevices();
+		/// <summary>
+		/// Shuts down the current session (if any)
+		/// </summary>
+		/// <returns></returns>
+		public void ShutdownSession()
+		{
+			ShutdownInstance();
+
+			if (!ShouldRetainDevices)
+			{
+				UnrealDeviceReservation.ReleaseDevices();
+			}
 		}
 
 		/// <summary>
