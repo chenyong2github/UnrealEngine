@@ -184,7 +184,6 @@ public:
 	TField(const FLiteralName& Name, uint32 ReferencedUid)
 		: FieldDesc(Name, Tid, Offset, Size, ReferencedUid)
 	{
-		check(ReferencedUid != 0);
 	}
 };
 
