@@ -178,6 +178,7 @@ namespace DetailedCookStats
 	double TickCookOnTheSideResolveRedirectorsTimeSec = 0.0;
 	double TickCookOnTheSideSaveCookedPackageTimeSec = 0.0;
 	double TickCookOnTheSidePrepareSaveTimeSec = 0.0;
+	double BlockOnAssetRegistryTimeSec = 0.0;
 	double GameCookModificationDelegateTimeSec = 0.0;
 
 	// Stats tracked through FAutoRegisterCallback

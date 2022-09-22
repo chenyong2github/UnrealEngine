@@ -73,6 +73,7 @@ extern double TickCookOnTheSideLoadPackagesTimeSec;
 extern double TickCookOnTheSideResolveRedirectorsTimeSec;
 extern double TickCookOnTheSideSaveCookedPackageTimeSec;
 extern double TickCookOnTheSidePrepareSaveTimeSec;
+extern double BlockOnAssetRegistryTimeSec;
 extern double GameCookModificationDelegateTimeSec;
 double TickLoopGCTimeSec = 0.0;
 double TickLoopRecompileShaderRequestsTimeSec = 0.0;
@@ -94,7 +95,8 @@ FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager:
 	ADD_COOK_STAT_FLT(" 0. 0", StartupWallTimeSec);
 	ADD_COOK_STAT_FLT(" 0. 1", CookByTheBookTimeSec);
 	ADD_COOK_STAT_FLT(" 0. 1. 0", StartCookByTheBookTimeSec);
-	ADD_COOK_STAT_FLT(" 0. 1. 0. 0", GameCookModificationDelegateTimeSec);
+	ADD_COOK_STAT_FLT(" 0. 1. 0. 0", BlockOnAssetRegistryTimeSec);
+	ADD_COOK_STAT_FLT(" 0. 1. 0. 1", GameCookModificationDelegateTimeSec);
 	ADD_COOK_STAT_FLT(" 0. 1. 1", TickCookOnTheSideTimeSec);
 	ADD_COOK_STAT_FLT(" 0. 1. 1. 0", TickCookOnTheSideLoadPackagesTimeSec);
 	ADD_COOK_STAT_FLT(" 0. 1. 1. 1", TickCookOnTheSideSaveCookedPackageTimeSec);

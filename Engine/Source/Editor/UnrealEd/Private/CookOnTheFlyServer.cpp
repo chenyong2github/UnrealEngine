@@ -7107,6 +7107,8 @@ void UCookOnTheFlyServer::BlockOnAssetRegistry()
 		return;
 	}
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::BlockOnAssetRegistry);
+	COOK_STAT(FScopedDurationTimer TickTimer(DetailedCookStats::BlockOnAssetRegistryTimeSec));
+
 	UE_LOG(LogCook, Display, TEXT("Waiting for Asset Registry"));
 	// Blocking on the AssetRegistry has to be done on the game thread since some AssetManager functions require it
 	check(IsInGameThread());
