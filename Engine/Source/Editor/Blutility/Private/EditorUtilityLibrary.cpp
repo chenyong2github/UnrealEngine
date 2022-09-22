@@ -327,6 +327,12 @@ TArray<FString> UEditorUtilityLibrary::GetSelectedFolderPaths()
 	return Paths;
 }
 
+void UEditorUtilityLibrary::SyncBrowserToFolders(const TArray<FString>& FolderList)
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	ContentBrowserModule.Get().SyncBrowserToFolders( FolderList, false, true );
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE
