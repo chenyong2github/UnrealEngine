@@ -2009,10 +2009,7 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const
 				// Only change if values are different.
 				if (!Property->Identical_InContainer(ActorProxy.AsActorChecked(), LevelInstance))
 				{
-					void* NewValue = nullptr;
-					Property->GetValue_InContainer(ActorProxy.AsActorChecked(), &NewValue);
-					Property->SetValue_InContainer(LevelInstance, &NewValue);
-
+					Property->CopyCompleteValue_InContainer(LevelInstance, ActorProxy.AsActorChecked());
 					InOutChangedProperties.Add(Property);
 				}
 			}
