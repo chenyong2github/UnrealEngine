@@ -57,10 +57,12 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/ScopedSlowTask.h"
 #include "TextureCompiler.h"
 #include "Editor.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
+#include "LandscapeNotification.h"
+#include "LandscapeSubsystem.h"
 #include "ObjectCacheContext.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "UnrealEdGlobals.h" // GUnrealEd
+#include "Editor/UnrealEdEngine.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -1682,36 +1684,6 @@ typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersWeightmapShaderParam
 
 #if WITH_EDITOR
 
-void ALandscape::ShowEditLayersResourcesNotification(const FText& InText, TWeakPtr<SNotificationItem>& NotificationItem)
-{
-	TSharedPtr<SNotificationItem> PinnedItem = NotificationItem.Pin();
-	if (!PinnedItem.IsValid())
-	{
-		FNotificationInfo Info(InText);
-		Info.bUseThrobber = true;
-		PinnedItem = FSlateNotificationManager::Get().AddNotification(Info);
-		NotificationItem = PinnedItem;
-	}
-	else
-	{
-		PinnedItem->SetText(InText);
-	}
-	PinnedItem->SetCompletionState(SNotificationItem::ECompletionState::CS_Pending);
-	PinnedItem->SetExpireDuration(1.0f);
-	PinnedItem->ExpireAndFadeout();
-}
-
-void ALandscape::HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>& InNotificationItem)
-{
-	TSharedPtr<SNotificationItem> PinnedItem = InNotificationItem.Pin();
-	if (PinnedItem.IsValid() && (PinnedItem->GetCompletionState() != SNotificationItem::ECompletionState::CS_Success))
-	{
-		PinnedItem->SetCompletionState(SNotificationItem::ECompletionState::CS_Success);
-		PinnedItem->SetExpireDuration(1.0f);
-		PinnedItem->ExpireAndFadeout();
-	}
-}
-
 bool ALandscape::IsTextureReady(UTexture2D* InTexture, bool bInWaitForStreaming)
 {
 	check(InTexture);
@@ -2526,7 +2498,7 @@ struct FLandscapeEditLayerComponentReadbackResult
 	/** Indicates which of the component's weightmaps is not needed anymore. */
 	TArray<ULandscapeLayerInfoObject*> AllZeroLayers;
 
-	FLandscapeEditLayerComponentReadbackResult(ULandscapeComponent* InLandscapeComponent, uint32 InUpdateModes = 0)
+	FLandscapeEditLayerComponentReadbackResult(ULandscapeComponent* InLandscapeComponent, uint32 InUpdateModes)
 		: LandscapeComponent(InLandscapeComponent)
 		, UpdateModes(InUpdateModes)
 	{}
@@ -7779,14 +7751,17 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_UpdateLayersContent);
 
-	bool bHideEditLayerResourcesNotification = true;
+	bool bHideNotifications = true;
 	ON_SCOPE_EXIT
 	{
-		// Make sure to hide the notification if necessary when we early-out :
-		if (bHideEditLayerResourcesNotification)
+		// Make sure that we don't leave any notification behind when we leave this function without explicitly displaying one :
+		if (bHideNotifications)
 		{
-			HideEditLayersResourcesNotification(EditLayersResourcesNotification);
-			WaitingForResourcesStartTime = -1.0;
+			WaitingForTexturesNotification.Reset();
+			WaitingForBrushesNotification.Reset();
+			InvalidShadingModelNotification.Reset();
+			WaitingForLandscapeResourcesStartTime = -1.0;
+			WaitingForLandscapeBrushResourcesStartTime = -1.0;
 		}
 	};
 
@@ -7858,30 +7833,77 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	{
 		return;
 	}
+	
+	FLandscapeNotificationManager* LandscapeNotificationManager = GetWorld()->GetSubsystem<ULandscapeSubsystem>()->GetNotificationManager();
+	
+	// The Edit layers shaders only work on SM5 : cancel any update that might happen when SM5+ shading model is not active :
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->FeatureLevel : GMaxRHIFeatureLevel;
+	if (FeatureLevel < ERHIFeatureLevel::SM5)
+	{
+		if (!InvalidShadingModelNotification.IsValid())
+		{
+			InvalidShadingModelNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::ShadingModelInvalid);
+			static const FText NotificationText(LOCTEXT("InvalidShadingModel", "Landscape editor cannot update landscape with a feature level less than SM5!"));
+			InvalidShadingModelNotification->NotificationText = NotificationText;
+		}
+		LandscapeNotificationManager->RegisterNotification(InvalidShadingModelNotification);
+		bHideNotifications = false;
+		return;
+	}
+	else
+	{
+		InvalidShadingModelNotification.Reset();
+	}
 
 	// We need to wait until layers texture resources are ready to initialize the landscape to avoid taking the sizes and format of the default texture:
+	static constexpr double TimeBeforeDisplayingWaitingForResourcesNotification = 3.0;
+
 	bResourcesReady &= PrepareLayersTextureResources(bInWaitForStreaming);
-	// We need to wait until brushes texture/shader resources are ready to process the edit layers:
+	if (!bResourcesReady)
+	{
+		if (WaitingForLandscapeResourcesStartTime < 0.0)
+		{
+			WaitingForLandscapeResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+			if (!WaitingForTexturesNotification.IsValid())
+			{
+				WaitingForTexturesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeResourcesNotReady);
+				static const FText NotificationText(LOCTEXT("WaitForLanscapeResources", "Landscape editor waiting for landscape resources to be ready."));
+				WaitingForTexturesNotification->NotificationText = NotificationText;
+				WaitingForTexturesNotification->NotificationStartTime = WaitingForLandscapeResourcesStartTime + TimeBeforeDisplayingWaitingForResourcesNotification;
+			}
+			LandscapeNotificationManager->RegisterNotification(WaitingForTexturesNotification);
+			bHideNotifications = false;
+		}
+	}
+	else
+	{
+		WaitingForTexturesNotification.Reset();
+	}
+
 	bResourcesReady &= PrepareLayersBrushResources(bInWaitForStreaming);
 	if (!bResourcesReady)
 	{
-		if (FSlateApplicationBase::IsInitialized() && !bInWaitForStreaming)
+		if (WaitingForLandscapeBrushResourcesStartTime < 0.0)
 		{
-			static constexpr double TimeBeforeDisplayingNotification = 3.0;
-			if (WaitingForResourcesStartTime < 0.0)
+			WaitingForLandscapeBrushResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+			if (!WaitingForBrushesNotification.IsValid())
 			{
-				WaitingForResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+				WaitingForBrushesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeResourcesNotReady);
+				static const FText NotificationText(LOCTEXT("WaitForLanscapeResources", "Landscape editor waiting for landscape resources to be ready."));
+				WaitingForBrushesNotification->NotificationText = NotificationText;
+				WaitingForBrushesNotification->NotificationStartTime = WaitingForLandscapeResourcesStartTime + TimeBeforeDisplayingWaitingForResourcesNotification;
 			}
-
-			if ((FSlateApplicationBase::Get().GetCurrentTime() - WaitingForResourcesStartTime) > TimeBeforeDisplayingNotification)
-			{
-				// let the user know we are waiting for resources :
-				static const FText NotificationText(LOCTEXT("WaitForLayersResources", "Landscape editor waiting for edit layers resources to be ready."));
-				ShowEditLayersResourcesNotification(NotificationText, EditLayersResourcesNotification);
-			}
-			// The notification may not be visible yet (because of the initial delay) but it should not be hidden and the initial delay timer shouldn't be reset : 
-			bHideEditLayerResourcesNotification = false;
+			LandscapeNotificationManager->RegisterNotification(WaitingForBrushesNotification);
+			bHideNotifications = false;
 		}
+	}
+	else
+	{
+		WaitingForBrushesNotification.Reset();
+	}
+
+	if (!bResourcesReady)
+	{
 		return;
 	}
 

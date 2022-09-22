@@ -16,7 +16,7 @@ class SNotificationItem;
 class UStreamableRenderAsset;
 class FMaterialResource;
 struct FLandscapeEditLayerComponentReadbackResult;
-struct FNotificationInfo;
+struct FLandscapeNotification;
 struct FTextureToComponentHelper;
 struct FUpdateLayersContentContext;
 struct FEditLayersHeightmapMergeParams;
@@ -253,6 +253,7 @@ public:
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif // WITH_EDITOR
 
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
@@ -441,8 +442,6 @@ private:
 
 	static bool IsTextureReady(UTexture2D* InTexture, bool bInWaitForStreaming);
 	static bool IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation);
-	static void ShowEditLayersResourcesNotification(const FText& InText, TWeakPtr<SNotificationItem>& NotificationItem);
-	static void HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>& InNotificationItem);
 #endif // WITH_EDITOR
 
 public:
@@ -541,11 +540,18 @@ private:
 	UPROPERTY(Transient)
 	bool bSplineLayerUpdateRequested;
 
-	/** Time since waiting for edit layers resources to be ready (for displaying a notification to the user) */
-	double WaitingForResourcesStartTime = -1.0;
+	/** Time since waiting for landscape resources to be ready (for displaying a notification to the user) */
+	double WaitingForLandscapeResourcesStartTime = -1.0;
 
-	/** User notification for when edit layer resources are not ready */
-	TWeakPtr<SNotificationItem> EditLayersResourcesNotification;
+	/** Time since waiting for brush resources to be ready (for displaying a notification to the user) */
+	double WaitingForLandscapeBrushResourcesStartTime = -1.0;
+
+	/** Non-stackable user notifications for landscape editor */
+	TSharedPtr<FLandscapeNotification> WaitingForTexturesNotification;
+	TSharedPtr<FLandscapeNotification> WaitingForBrushesNotification;
+	TSharedPtr<FLandscapeNotification> InvalidShadingModelNotification;
+	TSharedPtr<FLandscapeNotification> TextureBakingNotification;
+	TSharedPtr<FLandscapeNotification> GrassRenderingNotification;
 
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;

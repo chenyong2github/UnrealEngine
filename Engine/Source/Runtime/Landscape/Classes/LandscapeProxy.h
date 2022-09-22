@@ -1115,6 +1115,7 @@ public:
 
 	/* For the grassmap rendering notification */
 	int32 NumComponentsNeedingGrassMapRender;
+	UE_DEPRECATED(5.1, "No longer used for the grassmap rendering notification.")
 	LANDSCAPE_API static int32 TotalComponentsNeedingGrassMapRender;
 
 	/* To throttle texture streaming when we're trying to render a grassmap */
@@ -1123,6 +1124,7 @@ public:
 
 	/* For the texture baking notification */
 	int32 NumComponentsNeedingTextureBaking;
+	UE_DEPRECATED(5.1, "No longer used for the texture baking notification.")
 	LANDSCAPE_API static int32 TotalComponentsNeedingTextureBaking;
 
 	/** remove an overlapping component. Called from MapCheck. */

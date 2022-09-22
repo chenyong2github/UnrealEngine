@@ -9,6 +9,7 @@
 
 class ALandscapeProxy;
 class ULandscapeInfo;
+class FLandscapeNotificationManager;
 
 UCLASS(MinimalAPI)
 class ULandscapeSubsystem : public UTickableWorldSubsystem
@@ -45,6 +46,7 @@ public:
 	LANDSCAPE_API void SaveModifiedLandscapes();
 	LANDSCAPE_API bool HasModifiedLandscapes() const;
 	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
+	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
 #endif
 
 private:
@@ -63,5 +65,7 @@ private:
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
 	class FLandscapeGIBakedTextureBuilder* GIBakedTextureBuilder;
 	class FLandscapePhysicalMaterialBuilder* PhysicalMaterialBuilder;
+	
+	FLandscapeNotificationManager* NotificationManager;
 #endif
 };

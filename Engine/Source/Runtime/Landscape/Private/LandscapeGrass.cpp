@@ -2611,7 +2611,6 @@ void ALandscapeProxy::UpdateGrassData(bool bInShouldMarkDirty, FScopedSlowTask* 
 	NumTexturesToStreamForVisibleGrassMapRender = 0;
 
 	// Remove local count from global count
-	TotalComponentsNeedingGrassMapRender -= NumComponentsNeedingGrassMapRender;
 	NumComponentsNeedingGrassMapRender = 0;
 
 	// Wait for Texture Streaming
@@ -3185,9 +3184,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 					}
 				}
 
-				TotalComponentsNeedingGrassMapRender -= NumComponentsNeedingGrassMapRender;
 				NumComponentsNeedingGrassMapRender = ComponentsNeedingGrassMapRender.Num() - NumComponentsRendered - NumComponentsUnableToRender;
-				TotalComponentsNeedingGrassMapRender += NumComponentsNeedingGrassMapRender;
 
 				// Update resident flags
 				for (auto Texture : DesiredForceStreamedTextures.Difference(CurrentForcedStreamedTextures))
