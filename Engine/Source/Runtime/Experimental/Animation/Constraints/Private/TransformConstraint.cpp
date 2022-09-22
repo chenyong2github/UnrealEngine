@@ -251,6 +251,29 @@ void UTickableTransformConstraint::ResolveBoundObjects(FMovieSceneSequenceID Loc
 	}
 }
 
+void UTickableTransformConstraint::Evaluate(bool bTickHandlesAlso) const
+{
+	if (bTickHandlesAlso)
+	{
+		if (ParentTRSHandle)
+		{
+			ParentTRSHandle->TickForBaking();
+		}
+
+		Super::Evaluate();
+
+		if (ChildTRSHandle)
+		{
+			ChildTRSHandle->TickForBaking();
+		}
+	}
+	else
+	{
+		Super::Evaluate();
+	}
+}
+
+
 void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InGlobal) const
 {
 	if(ChildTRSHandle && ChildTRSHandle->IsValid())

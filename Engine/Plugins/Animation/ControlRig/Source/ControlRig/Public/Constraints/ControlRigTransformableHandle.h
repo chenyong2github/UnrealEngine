@@ -68,6 +68,9 @@ public:
 	/** Resolve the bound objects so that any object it references are resolved and correctly set up*/
 	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) override;
 
+	/** tick things when baking*/ 
+	virtual void TickForBaking() override;
+
 	/** Returns the skeletal mesh bound to ControlRig. */
 	USkeletalMeshComponent* GetSkeletalMesh() const;
 

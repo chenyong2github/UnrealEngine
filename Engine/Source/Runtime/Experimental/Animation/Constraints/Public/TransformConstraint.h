@@ -40,7 +40,6 @@ public:
 	
 	/** Test whether an InObject is referenced by that constraint. (i.e. is it's parent or child). */
 	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const override;
-	
 	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
 	virtual bool HasBoundObjects() const override;
 	
@@ -49,6 +48,10 @@ public:
 
 	/** If Active and the handles and targets are valid*/
 	virtual bool IsFullyActive() const override;
+
+
+	/** Override the evaluate so we can tick our handles*/
+	virtual void Evaluate(bool bTickHandlesAlso = false) const override;
 
 	/** The transformable handle representing the parent of that constraint. */
 	UPROPERTY(BlueprintReadWrite, Category = "Handle")

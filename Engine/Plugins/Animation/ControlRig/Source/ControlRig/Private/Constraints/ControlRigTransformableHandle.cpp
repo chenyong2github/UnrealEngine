@@ -48,6 +48,33 @@ bool UTransformableControlHandle::IsValid() const
 	return true;
 }
 
+void UTransformableControlHandle::TickForBaking()
+{
+	USkeletalMeshComponent* SkeletalMeshComponent = GetSkeletalMesh();
+	if (SkeletalMeshComponent)
+	{
+		const AActor* Parent = SkeletalMeshComponent->GetOwner();
+		while (Parent)
+		{
+			TArray<USkeletalMeshComponent*> MeshComps;
+			Parent->GetComponents(MeshComps, true);
+
+			for (USkeletalMeshComponent* MeshComp : MeshComps)
+			{
+				MeshComp->TickAnimation(0.03f, false);
+				MeshComp->RefreshBoneTransforms();
+				MeshComp->RefreshFollowerComponents();
+				MeshComp->UpdateComponentToWorld();
+				MeshComp->FinalizeBoneTransform();
+				MeshComp->MarkRenderTransformDirty();
+				MeshComp->MarkRenderDynamicDataDirty();
+			}
+
+			Parent = Parent->GetAttachParentActor();
+		}
+	}
+}
+
 // NOTE should we cache the skeletal mesh and the CtrlIndex to avoid looking for if every time
 // probably not for handling runtime changes
 void UTransformableControlHandle::SetGlobalTransform(const FTransform& InGlobal) const
