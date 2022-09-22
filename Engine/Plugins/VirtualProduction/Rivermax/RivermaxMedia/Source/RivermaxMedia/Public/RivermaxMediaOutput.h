@@ -17,6 +17,7 @@ enum class ERivermaxMediaOutputPixelFormat : uint8
 	PF_10BIT_YUV422 UMETA(DisplayName = "10bit YUV422"),
 	PF_8BIT_RGB UMETA(DisplayName = "8bit RGB"),
 	PF_10BIT_RGB UMETA(DisplayName = "10bit RGB"),
+	PF_12BIT_RGB UMETA(DisplayName = "12bit RGB"),
 	PF_FLOAT16_RGB UMETA(DisplayName = "16bit Float RGB")
 };
 

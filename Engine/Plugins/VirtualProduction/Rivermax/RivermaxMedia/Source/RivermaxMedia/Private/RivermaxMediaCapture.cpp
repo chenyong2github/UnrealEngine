@@ -74,6 +74,11 @@ namespace UE::RivermaxMediaCaptureUtil
 
 		switch (InPixelFormat)
 		{
+		case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
+		{
+			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToYUV8Bit422CS::FYUV8Bit422Buffer);
+			break;
+		}
 		case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 		{
 			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToYUV10Bit422LittleEndianCS::FYUV10Bit422LEBuffer);
@@ -87,6 +92,11 @@ namespace UE::RivermaxMediaCaptureUtil
 		case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
 		{
 			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToRGB10BitCS::FRGB10BitBuffer);
+			break;
+		}
+		case ERivermaxMediaOutputPixelFormat::PF_12BIT_RGB:
+		{
+			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToRGB12BitCS::FRGB12BitBuffer);
 			break;
 		}
 		case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
@@ -261,9 +271,11 @@ EMediaCaptureResourceType URivermaxMediaCapture::GetCustomOutputResourceType() c
 
 	switch (RivermaxOutput->PixelFormat)
 	{
+	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 	case ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
+	case ERivermaxMediaOutputPixelFormat::PF_12BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
 	{
 		return EMediaCaptureResourceType::Buffer; //we use compute shader for all since output format doesn't match texture formats
@@ -298,6 +310,20 @@ void URivermaxMediaCapture::OnCustomCapture_RenderingThread(FRDGBuilder& GraphBu
 	
 	switch (RivermaxOutput->PixelFormat)
 	{
+	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
+	{
+		TShaderMapRef<FRGBToYUV8Bit422CS> ComputeShader(GlobalShaderMap);
+		FRGBToYUV8Bit422CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InSourceTexture, SourceSize, ViewRect, DesiredOutputSize, MediaShaders::RgbToYuvRec709Scaled, MediaShaders::YUVOffset8bits, bDoLinearToSRGB, OutputBuffer);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder
+			, RDG_EVENT_NAME("RGBAToYUV8Bit422")
+			, ComputeShader
+			, Parameters
+			, GroupCount);
+
+		break;
+	}
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 	{
 		TShaderMapRef<FRGBToYUV10Bit422LittleEndianCS> ComputeShader(GlobalShaderMap);
@@ -334,6 +360,20 @@ void URivermaxMediaCapture::OnCustomCapture_RenderingThread(FRDGBuilder& GraphBu
 		FComputeShaderUtils::AddPass(
 			GraphBuilder
 			, RDG_EVENT_NAME("RGBAToRGB10Bit")
+			, ComputeShader
+			, Parameters
+			, GroupCount);
+
+		break;
+	}
+	case ERivermaxMediaOutputPixelFormat::PF_12BIT_RGB:
+	{
+		TShaderMapRef<FRGBToRGB12BitCS> ComputeShader(GlobalShaderMap);
+		FRGBToRGB12BitCS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InSourceTexture, SourceSize, ViewRect, DesiredOutputSize, OutputBuffer);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder
+			, RDG_EVENT_NAME("RGBAToRGB12Bit")
 			, ComputeShader
 			, Parameters
 			, GroupCount);

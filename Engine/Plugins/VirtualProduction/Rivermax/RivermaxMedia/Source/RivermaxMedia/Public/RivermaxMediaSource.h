@@ -18,7 +18,8 @@ enum class ERivermaxMediaSourcePixelFormat : uint8
 	YUV422_10bit UMETA(DisplayName = "10bit YUV422"),
 	RGB_8bit UMETA(DisplayName = "8bit RGB"),
 	RGB_10bit UMETA(DisplayName = "10bit RGB"),
-	//Todo Add support for float16 rgb
+	RGB_12bit UMETA(DisplayName = "12bit RGB"),
+	RGB_16bit_Float UMETA(DisplayName = "16bit Float RGB"),
 };
 
 /**

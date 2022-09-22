@@ -26,16 +26,8 @@ FIntPoint URivermaxMediaOutput::GetRequestedSize() const
 
 EPixelFormat URivermaxMediaOutput::GetRequestedPixelFormat() const
 {
+	// All output types go through buffer conversion
 	EPixelFormat Result = EPixelFormat::PF_A2B10G10R10;
-	switch (PixelFormat)
-	{
-	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
-		Result = EPixelFormat::PF_B8G8R8A8; //To be updated to use compute shader
-		break;
-	default: // All pixel formats use output buffer as their output so no need for a texture format
-		Result = EPixelFormat::PF_A2B10G10R10;
-		break;
-	}
 	return Result;
 }
 
@@ -45,11 +37,10 @@ EMediaCaptureConversionOperation URivermaxMediaOutput::GetConversionOperation(EM
 	switch (PixelFormat)
 	{
 	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
-		Result = EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT;
-		break;
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 	case ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
+	case ERivermaxMediaOutputPixelFormat::PF_12BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
 	default:
 		Result = EMediaCaptureConversionOperation::CUSTOM; //We handle all conversion for rivermax since it's really tied to endianness of 2110

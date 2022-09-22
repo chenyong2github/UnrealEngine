@@ -26,6 +26,10 @@ namespace UE::RivermaxMediaUtils::Private
 		{
 			return ESamplingType::RGB_10bit;
 		}
+		case ERivermaxMediaOutputPixelFormat::PF_12BIT_RGB:
+		{
+			return ESamplingType::RGB_12bit;
+		}
 		case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
 		{
 			return ESamplingType::RGB_16bitFloat;
@@ -59,6 +63,14 @@ namespace UE::RivermaxMediaUtils::Private
 		case ERivermaxMediaSourcePixelFormat::RGB_10bit:
 		{
 			return ESamplingType::RGB_10bit;
+		}
+		case ERivermaxMediaSourcePixelFormat::RGB_12bit:
+		{
+			return ESamplingType::RGB_12bit;
+		}
+		case ERivermaxMediaSourcePixelFormat::RGB_16bit_Float:
+		{
+			return ESamplingType::RGB_16bitFloat;
 		}
 		default:
 		{
