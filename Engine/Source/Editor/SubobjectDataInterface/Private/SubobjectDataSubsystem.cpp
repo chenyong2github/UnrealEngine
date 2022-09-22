@@ -134,7 +134,7 @@ FSubobjectDataHandle USubobjectDataSubsystem::FindOrCreateAttachParentForCompone
 			if (!ParentHandle.IsValid())
 			{
 				// Recursively add the parent handle to the tree if it does not exist yet
-				ParentHandle = FactoryCreateSubobjectDataWithParent(SceneComponent, FindOrCreateAttachParentForComponent(
+				ParentHandle = FactoryCreateSubobjectDataWithParent(SceneComponent->GetAttachParent(), FindOrCreateAttachParentForComponent(
 					SceneComponent->GetAttachParent(),
 					ActorRootHandle,
 					ExistingHandles)
