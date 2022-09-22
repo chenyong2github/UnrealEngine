@@ -88,14 +88,7 @@ URenderGridQueue* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const F
 	{
 		if (StartFrameOfRender.IsSet())
 		{
-			if (bSuccess)
-			{
-				StartFrameOfRenders.Add(JobId, StartFrameOfRender.Get(0));
-			}
-			else
-			{
-				StartFrameOfRenders.Remove(JobId);
-			}
+			StartFrameOfRenders.Add(JobId, StartFrameOfRender.Get(0));
 		}
 		Callback.ExecuteIfBound(bSuccess);
 	});

@@ -478,6 +478,7 @@ void URenderGridQueue::OnProcessJob(URenderGridJob* Job)
 
 void URenderGridQueue::OnFinish()
 {
+	bool bSuccess = !bCanceled;
 	Cancel();// to prevent any new jobs from being added to it
 
 	RenderGrid->EndBatchRender(this);
@@ -486,5 +487,5 @@ void URenderGridQueue::OnFinish()
 	PreviousFrameLimitSettings = FRenderGridPreviousEngineFpsSettings();
 
 	RemoveFromRoot();
-	OnExecuteFinishedDelegate.Broadcast(this, !bCanceled);
+	OnExecuteFinishedDelegate.Broadcast(this, bSuccess);
 }
