@@ -2233,7 +2233,7 @@ struct FEditorShaderStableInfo
 		FCbFieldView StableShaderKeyAndValuesField = Field["StableShaderKeyAndValues"];
 		int32 NumInfos = StableShaderKeyAndValuesField.AsArrayView().Num();
 		bool bOk = !StableShaderKeyAndValuesField.HasError();
-		for (FCbFieldView InfoView : Field)
+		for (FCbFieldView InfoView : StableShaderKeyAndValuesField)
 		{
 			FStableShaderKeyAndValue StableInfo;
 			if (LoadFromCompactBinary(InfoView, StableInfo, Hashes))
