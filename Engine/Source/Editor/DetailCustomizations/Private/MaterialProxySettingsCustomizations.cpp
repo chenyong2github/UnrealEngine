@@ -184,12 +184,12 @@ EVisibility FMaterialProxySettingsCustomizations::IsTextureSizeEnabled() const
 	uint8 TypeValue;
 	EnumHandle->GetValue(TypeValue);
 
-	if (TypeValue == TextureSizingType_UseSimplygonAutomaticSizing || TypeValue == TextureSizingType_UseManualOverrideTextureSize)
+	if (TypeValue == TextureSizingType_UseSingleTextureSize || TypeValue == TextureSizingType_UseAutomaticBiasedSizes)
 	{		
-		return EVisibility::Hidden;
+		return EVisibility::Visible;
 	}
 
-	return EVisibility::Visible;	
+	return EVisibility::Hidden;
 }
 
 EVisibility FMaterialProxySettingsCustomizations::IsSimplygonMaterialMergingVisible() const
