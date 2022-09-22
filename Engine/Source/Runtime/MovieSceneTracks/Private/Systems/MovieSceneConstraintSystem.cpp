@@ -70,7 +70,6 @@ UMovieSceneConstraintSystem::UMovieSceneConstraintSystem(const FObjectInitialize
 
 	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
-	//RelevantComponent = TracksComponents->ConstraintName;
 	RelevantComponent = TracksComponents->ConstraintChannel;
 
 	// Run constraints during instantiation or evaluation
@@ -111,15 +110,18 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 
 		struct FEvaluateConstraintChannels
 		{
-			FEvaluateConstraintChannels(FConstraintsManagerController* InController, UMovieSceneConstraintSystem* InSystem) :Controller(InController), System(InSystem) { check(Controller); check(System) };
-			void ForEachEntity(UObject* BoundObject, const FConstraintComponentData& ConstraintChannel, FFrameTime FrameTime)
+			FEvaluateConstraintChannels(FInstanceRegistry* InInstanceRegistry, FConstraintsManagerController* InController, UMovieSceneConstraintSystem* InSystem) : InstanceRegistry(InInstanceRegistry), Controller(InController), System(InSystem) { check(InstanceRegistry); check(Controller); check(System) };
+			void ForEachEntity(UObject* BoundObject, UE::MovieScene::FInstanceHandle InstanceHandle, const FConstraintComponentData& ConstraintChannel, FFrameTime FrameTime)
 			{
+				const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
+
 				UTickableConstraint* Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
 				if (Constraint)
 				{
 					bool Result = false;
 					ConstraintChannel.Channel->Evaluate(FrameTime, Result);
 					Constraint->SetActive(Result);
+					Constraint->ResolveBoundObjects(TargetInstance.GetSequenceID(), *TargetInstance.GetPlayer());
 					if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
 					{
 						if (UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(TransformConstraint->ChildTRSHandle))
@@ -132,6 +134,7 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 					}
 				}
 			}
+			FInstanceRegistry* InstanceRegistry;
 			FConstraintsManagerController* Controller;
 			UMovieSceneConstraintSystem* System;
 		};
@@ -140,9 +143,10 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 		FEntityTaskBuilder()
 			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 			.Read(BuiltInComponents->BoundObject)
+			.Read(BuiltInComponents->InstanceHandle)
 			.Read(TracksComponents->ConstraintChannel)
 			.Read(BuiltInComponents->EvalTime)
-			.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, &Controller, this);
+			.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, Linker->GetInstanceRegistry(), &Controller, this);
 	}
 	else if (CurrentPhase == ESystemPhase::Finalization)
 	{

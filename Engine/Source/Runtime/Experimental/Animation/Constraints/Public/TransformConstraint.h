@@ -41,6 +41,15 @@ public:
 	/** Test whether an InObject is referenced by that constraint. (i.e. is it's parent or child). */
 	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const override;
 	
+	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
+	virtual bool HasBoundObjects() const override;
+	
+	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) override;
+
+	/** If Active and the handles and targets are valid*/
+	virtual bool IsFullyActive() const override;
+
 	/** The transformable handle representing the parent of that constraint. */
 	UPROPERTY(BlueprintReadWrite, Category = "Handle")
 	TObjectPtr<UTransformableHandle> ParentTRSHandle;

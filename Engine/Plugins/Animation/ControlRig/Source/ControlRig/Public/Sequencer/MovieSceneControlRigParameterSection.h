@@ -489,6 +489,8 @@ protected:
 	virtual void PostEditImport() override;
 	virtual void PostLoad() override;
 	virtual float GetTotalWeightValue(FFrameTime InTime) const override;
+	virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) override;
+	virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
 
 
 	// When true we do not set a key on the section, since it will be set because we changed the value

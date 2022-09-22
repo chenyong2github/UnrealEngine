@@ -75,5 +75,8 @@ private:
 
 	/** END COMPONENT SECTION */
 
+	/** For the given handle create any movie scene binding for it based upon the current sequencer that's open*/
+	static void CreateBindingIDForHandle(UTransformableHandle* InHandle);
+
 	
 };

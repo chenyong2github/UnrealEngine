@@ -32,6 +32,21 @@ UTransformableHandle::FHandleModifiedEvent& UTransformableHandle::HandleModified
 	return OnHandleModified;
 }
 
+bool UTransformableHandle::HasBoundObjects() const
+{
+	return ConstraintBindingID.IsValid();
+}
+
+void UTransformableHandle::OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player)
+{
+	if (ConstraintBindingID.IsValid())
+	{
+		UE::MovieScene::FFixedObjectBindingID FixedBindingID = ConstraintBindingID.ResolveToFixed(LocalSequenceID, Player);
+		Modify();
+		ConstraintBindingID = OldFixedToNewFixedMap[FixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
+	}
+}
+
 /**
  * UTransformableComponentHandle
  */
@@ -472,6 +487,21 @@ bool UTransformableComponentHandle::AddTransformKeys(const TArray<FFrameNumber>&
 	return true;
 }
 
+void UTransformableComponentHandle::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)
+{
+	for (TWeakObjectPtr<> ParentObject : ConstraintBindingID.ResolveBoundObjects(LocalSequenceID, Player))
+	{
+		if (AActor* Actor = Cast<AActor>(ParentObject.Get()))
+		{
+			Component = Actor->GetRootComponent();
+		}
+		else if (USceneComponent* Comp = Cast<USceneComponent>(ParentObject.Get()))
+		{
+			Component = Comp;
+		}
+		break; //just do one
+	}
+}
 
 #if WITH_EDITOR
 FString UTransformableComponentHandle::GetLabel() const

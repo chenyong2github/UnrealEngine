@@ -514,8 +514,10 @@ bool UTransformableControlHandle::AddTransformKeys(const TArray<FFrameNumber>& I
 	return true;
 }
 
-
-
+void UTransformableControlHandle::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)
+{
+	//don't do anything for ControlRigs since they don't get removed when it's actor is destroyed or respawned since the track owns it. In the template
+}
 
 #if WITH_EDITOR
 

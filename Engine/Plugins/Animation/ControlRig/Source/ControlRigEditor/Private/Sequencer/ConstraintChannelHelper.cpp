@@ -19,6 +19,7 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "MovieSceneConstraintChannelHelper.h"
+#include "MovieSceneSpawnableAnnotation.h"
 
 
 #define LOCTEXT_NAMESPACE "Constraints"
@@ -82,15 +83,46 @@ void FConstraintChannelHelper::SmartConstraintKey(UTickableTransformConstraint* 
 
 	if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InConstraint->ChildTRSHandle))
 	{
-		return SmartComponentConstraintKey(InConstraint, WeakSequencer.Pin());
+		SmartComponentConstraintKey(InConstraint, WeakSequencer.Pin());
 	}
 	
-	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
+	else if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
 	{
-		return SmartControlConstraintKey(InConstraint, WeakSequencer.Pin());
+		SmartControlConstraintKey(InConstraint, WeakSequencer.Pin());
 	}
+
+	FConstraintChannelHelper::CreateBindingIDForHandle(InConstraint->ChildTRSHandle);
+	FConstraintChannelHelper::CreateBindingIDForHandle(InConstraint->ParentTRSHandle);
 }
 
+
+void FConstraintChannelHelper::CreateBindingIDForHandle(UTransformableHandle* InHandle)
+{
+	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
+	if (InHandle == nullptr || WeakSequencer.IsValid() == false)
+	{
+		return;
+	}
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(InHandle->GetTarget().Get()))
+	{
+		AActor* Actor = SceneComponent->GetTypedOuter<AActor>();
+		if (Actor)
+		{
+			TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Actor);
+			if (Spawnable.IsSet())
+			{
+				// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
+				InHandle->ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(WeakSequencer.Pin()->GetFocusedTemplateID(), Spawnable->SequenceID, Spawnable->ObjectBindingID,
+					*(WeakSequencer.Pin().Get()));
+			}
+			else
+			{
+				FGuid Guid = WeakSequencer.Pin()->GetHandleToObject(Actor, false); //don't create it???
+				InHandle->ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(Guid);
+			}
+		}
+	}
+}
 
 UMovieSceneControlRigParameterSection* FConstraintChannelHelper::GetControlSection(
 	const UTransformableControlHandle* InHandle,
@@ -288,7 +320,7 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 	
 				Section->Modify();
 
-				//new for compensatio
+				//new for compensation
 
 				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
 

@@ -3391,7 +3391,14 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable(UControlRig* ControlRi
 	if (!IsInLevelEditor())
 	{
 		if (!IsTransformDelegateAvailable())
+		{
+			return false;
+		}
+	}
+	else //do check for the binding though
 	{
+		if (GetHostingSceneComponent(ControlRig) == nullptr)
+		{
 			return false;
 		}
 	}

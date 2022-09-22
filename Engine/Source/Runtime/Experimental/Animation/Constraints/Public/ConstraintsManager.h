@@ -4,9 +4,10 @@
 
 #include "UObject/Object.h"
 #include "Engine/EngineBaseTypes.h"
-
+#include "MovieSceneSequenceID.h"
 #include "ConstraintsManager.generated.h"
 
+class IMovieScenePlayer;
 class UTickableConstraint;
 class ULevel;
 
@@ -87,9 +88,16 @@ public:
 	/** Sets the Active value and enable/disable the tick function. */
 	void SetActive(const bool bIsActive);
 	
+	/** Get whether or not it's fully active, it's set to active and all pieces are set up,e.g. objects really exist that are being constrainted*/
+	virtual bool IsFullyActive() const;
+	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
+	virtual bool HasBoundObjects() const PURE_VIRTUAL(HasBoundObjects, return false;);
+	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)  PURE_VIRTUAL(ResolveBoundObjects);
+
 	/** @todo document */
 	virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
-	/** @todo document */
+	/** Whether or not this object references this object. If it HasBoundObjects you should ResolveBoundObjects if you expect this to be up to date */
 	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const PURE_VIRTUAL(ReferencesObject, return false;);
 
 #if WITH_EDITOR

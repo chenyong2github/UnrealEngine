@@ -17,6 +17,7 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Algo/AnyOf.h"
 #include "TransformConstraint.h"
+#include "TransformableHandle.h"
 
 #if WITH_EDITOR
 
@@ -345,6 +346,48 @@ UMovieScene3DTransformSection::UMovieScene3DTransformSection(const FObjectInitia
 	Scale[0].SetDefault(1.f);
 	Scale[1].SetDefault(1.f);
 	Scale[2].SetDefault(1.f);
+}
+
+void UMovieScene3DTransformSection::OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player)
+{
+	if (Constraints)
+	{
+		for (FConstraintAndActiveChannel& ConstraintChannel : Constraints->ConstraintsChannels)
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(ConstraintChannel.Constraint.Get()))
+			{
+				if (TransformConstraint->ChildTRSHandle)
+				{
+					TransformConstraint->ChildTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+				}
+				if (TransformConstraint->ParentTRSHandle)
+				{
+					TransformConstraint->ParentTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+				}
+			}
+		}
+	}
+}
+
+void UMovieScene3DTransformSection::GetReferencedBindings(TArray<FGuid>& OutBindings)
+{
+	if (Constraints)
+	{
+		for (FConstraintAndActiveChannel& ConstraintChannel : Constraints->ConstraintsChannels)
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(ConstraintChannel.Constraint.Get()))
+			{
+				if (TransformConstraint->ChildTRSHandle && TransformConstraint->ChildTRSHandle->ConstraintBindingID.IsValid())
+				{
+					OutBindings.Add(TransformConstraint->ChildTRSHandle->ConstraintBindingID.GetGuid());
+				}
+				if (TransformConstraint->ParentTRSHandle && TransformConstraint->ParentTRSHandle->ConstraintBindingID.IsValid())
+				{
+					OutBindings.Add(TransformConstraint->ParentTRSHandle->ConstraintBindingID.GetGuid());
+				}
+			}
+		}
+	}
 }
 
 template<typename BaseBuilderType>

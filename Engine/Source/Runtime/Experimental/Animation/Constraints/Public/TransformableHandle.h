@@ -4,7 +4,7 @@
 
 #include "UObject/Object.h"
 #include "Engine/EngineBaseTypes.h"
-
+#include "MovieSceneObjectBindingID.h"
 #include "TransformableHandle.generated.h"
 
 struct FTickFunction;
@@ -15,6 +15,10 @@ class UMovieSceneSection;
 struct FFRameNumber;
 struct FFrameRate;
 enum class EMovieSceneTransformChannel : uint32;
+class IMovieScenePlayer;
+namespace UE { namespace MovieScene {struct FFixedObjectBindingID;} }
+struct FMovieSceneSequenceHierarchy;
+struct FMovieSceneSequenceID;
 
 UENUM()
 enum class EHandleEvent : uint8
@@ -56,8 +60,16 @@ public:
 	/** Gets the local transform of the underlying transformable object in it's parent space. */
 	virtual FTransform GetLocalTransform() const PURE_VIRTUAL(GetLocalTransform, return FTransform::Identity;);
 
-	/** Performan any special ticking needed for this handle, by default it does nothing
-	todo need to see if we need to tick control rig also*/
+	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
+	virtual bool HasBoundObjects() const;
+
+	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) PURE_VIRTUAL(ResolveBoundObjects);
+
+	/** Fix up Binding in case it has changed*/
+	void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player);
+	
+	/** Perform any special ticking needed for this handle, by default it does nothing, todo need to see if we need to tick control rig also*/
 	virtual void TickForBaking() {};
 	/** Get the array of float channels for the specified section*/
 	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const PURE_VIRTUAL(GetFloatChannels, return TArrayView<FMovieSceneFloatChannel*>(); );
@@ -101,6 +113,9 @@ public:
 	virtual FString GetFullLabel() const PURE_VIRTUAL(GetFullLabel, return FString(););
 #endif
 
+	//possible bindingID
+	UPROPERTY(EditAnywhere, Category = "Binding")
+	FMovieSceneObjectBindingID ConstraintBindingID;
 protected:
 	FHandleModifiedEvent OnHandleModified;
 };
@@ -161,6 +176,9 @@ public:
 		const FFrameRate& InTickResolution,
 		UMovieSceneSection* InSection,
 		const bool bLocal = true) const override;
+
+	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) override;
 
 #if WITH_EDITOR
 	/** Returns labels used for UI. */

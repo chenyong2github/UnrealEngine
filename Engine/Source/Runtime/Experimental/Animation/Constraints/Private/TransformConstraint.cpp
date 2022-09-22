@@ -226,6 +226,31 @@ bool UTickableTransformConstraint::ReferencesObject(TWeakObjectPtr<UObject> InOb
 	return false;
 }
 
+bool UTickableTransformConstraint::HasBoundObjects() const
+{
+	if (ChildTRSHandle && ChildTRSHandle->HasBoundObjects())
+	{
+		return true;
+	}
+	if (ParentTRSHandle && ParentTRSHandle->HasBoundObjects())
+	{
+		return true;
+	}
+	return false;
+}
+
+void UTickableTransformConstraint::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)
+{
+	if (ChildTRSHandle && ChildTRSHandle->HasBoundObjects())
+	{
+		ChildTRSHandle->ResolveBoundObjects(LocalSequenceID, Player);
+	}
+	if (ParentTRSHandle && ParentTRSHandle->HasBoundObjects())
+	{
+		ParentTRSHandle->ResolveBoundObjects(LocalSequenceID, Player);
+	}
+}
+
 void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InGlobal) const
 {
 	if(ChildTRSHandle && ChildTRSHandle->IsValid())
@@ -279,6 +304,12 @@ void UTickableTransformConstraint::OnHandleModified(UTransformableHandle* InHand
 	}
 }
 
+bool UTickableTransformConstraint::IsFullyActive() const
+{
+	return (Active && IsValid(ChildTRSHandle) && ChildTRSHandle->IsValid() 
+		&& IsValid(ParentTRSHandle) && ParentTRSHandle->IsValid());
+}
+
 /** 
  * UTickableTranslationConstraint
  **/
@@ -329,7 +360,7 @@ FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetF
 {
 	return [this]()
 	{
-		if (!Active)
+		if (!IsFullyActive())
 		{
 			return;
 		}
@@ -357,7 +388,7 @@ void UTickableTranslationConstraint::OnHandleModified(UTransformableHandle* InHa
 {
 	Super::OnHandleModified(InHandle, InEvent);
 	
-	if (!Active || !bDynamicOffset)
+	if (!IsFullyActive() || !bDynamicOffset)
 	{
 		return;
 	}
@@ -461,7 +492,7 @@ FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunc
 {
 	return [this]()
 	{
-		if (!Active)
+		if (!IsFullyActive())
 		{
 			return;
 		}
@@ -490,7 +521,7 @@ void UTickableRotationConstraint::OnHandleModified(UTransformableHandle* InHandl
 {
 	Super::OnHandleModified(InHandle, InEvent);
 	
-	if (!Active || !bDynamicOffset)
+	if (!IsFullyActive() || !bDynamicOffset)
 	{
 		return;
 	}
@@ -598,7 +629,7 @@ FConstraintTickFunction::ConstraintFunction UTickableScaleConstraint::GetFunctio
 {
 	return [this]()
 	{
-		if (!Active)
+		if (!IsFullyActive())
 		{
 			return;
 		}
@@ -626,7 +657,7 @@ void UTickableScaleConstraint::OnHandleModified(UTransformableHandle* InHandle, 
 {
 	Super::OnHandleModified(InHandle, InEvent);
 	
-	if (!Active || !bDynamicOffset)
+	if (!IsFullyActive() || !bDynamicOffset)
 	{
 		return;
 	}
@@ -723,7 +754,7 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 {
 	return [this]()
 	{
-		if (!Active)
+		if (!IsFullyActive())
 		{
 			return;
 		}
@@ -768,7 +799,7 @@ void UTickableParentConstraint::OnHandleModified(UTransformableHandle* InHandle,
 {
 	Super::OnHandleModified(InHandle, InEvent);
 	
-	if (!Active || !bDynamicOffset)
+	if (!IsFullyActive() || !bDynamicOffset)
 	{
 		return;
 	}
@@ -852,7 +883,7 @@ FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFuncti
 	// @todo handle weight here
 	return [this]()
 	{
-		if (!Active)
+		if (!IsFullyActive())
 		{
 			return;
 		}
@@ -1334,7 +1365,7 @@ TOptional<FTransform> FTransformConstraintUtils::GetConstraintRelativeTransform(
     {
     	if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
     	{
-    		return InConstraint->Active && TransformConstraint->bDynamicOffset;
+    		return InConstraint->IsFullyActive() && TransformConstraint->bDynamicOffset;
     	}
     	return false;
     });

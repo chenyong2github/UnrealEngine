@@ -19,6 +19,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Constraints/ControlRigTransformableHandle.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "TransformConstraint.h"
+#include "TransformableHandle.h"
 
 #if WITH_EDITOR
 #include "AnimPose.h"
@@ -718,6 +720,42 @@ UMovieSceneControlRigParameterSection::UMovieSceneControlRigParameterSection() :
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(Weight);
 
 #endif
+}
+
+void UMovieSceneControlRigParameterSection::OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player)
+{
+	for (FConstraintAndActiveChannel& ConstraintChannel : ConstraintsChannels)
+	{
+		if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(ConstraintChannel.Constraint.Get()))
+		{
+			if (TransformConstraint->ChildTRSHandle)
+			{
+				TransformConstraint->ChildTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+			}
+			if (TransformConstraint->ParentTRSHandle)
+			{
+				TransformConstraint->ParentTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+			}
+		}
+	}
+}
+
+void UMovieSceneControlRigParameterSection::GetReferencedBindings(TArray<FGuid>& OutBindings)
+{
+	for (FConstraintAndActiveChannel& ConstraintChannel : ConstraintsChannels)
+	{
+		if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(ConstraintChannel.Constraint.Get()))
+		{
+			if (TransformConstraint->ChildTRSHandle && TransformConstraint->ChildTRSHandle->ConstraintBindingID.IsValid())
+			{
+				OutBindings.Add(TransformConstraint->ChildTRSHandle->ConstraintBindingID.GetGuid());
+			}
+			if (TransformConstraint->ParentTRSHandle && TransformConstraint->ParentTRSHandle->ConstraintBindingID.IsValid())
+			{
+				OutBindings.Add(TransformConstraint->ParentTRSHandle->ConstraintBindingID.GetGuid());
+			}
+		}
+	}
 }
 
 bool UMovieSceneControlRigParameterSection::RenameParameterName(const FName& OldParameterName, const FName& NewParameterName)

@@ -458,7 +458,7 @@ void SEditableConstraintItem::Construct(
 				{
 					return FStyleColors::Transparent;
 				}
-				return Constraint->Active ? FStyleColors::Select : FStyleColors::Transparent;
+				return Constraint->IsFullyActive() ? FStyleColors::Select : FStyleColors::Transparent;
 			})
 			.Content()
 			[

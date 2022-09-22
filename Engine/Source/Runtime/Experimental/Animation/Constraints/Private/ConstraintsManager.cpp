@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstraintsManager.h"
-
 #include "ConstraintsActor.h"
 
 #include "Algo/Copy.h"
@@ -69,6 +68,11 @@ void UTickableConstraint::SetActive(const bool bIsActive)
 {
 	Active = bIsActive;
 	ConstraintTick.SetTickFunctionEnable(bIsActive);
+}
+
+bool UTickableConstraint::IsFullyActive() const
+{
+	return Active;
 }
 
 void UTickableConstraint::Evaluate(bool bTickHandlesAlso) const
@@ -151,7 +155,8 @@ void UConstraintsManager::OnActorDestroyed(AActor* InActor)
 		TArray< int32 > IndicesToRemove;
 		for (int32 Index = 0; Index < Constraints.Num(); ++Index)
 		{
-			if (IsValid(Constraints[Index]) && Constraints[Index]->ReferencesObject(SceneComponent))
+			//if the constraint has a bound object(in sequencer) we don't remove the constraint, it could be a spawnable
+			if (IsValid(Constraints[Index]) &&  Constraints[Index]->HasBoundObjects() == false && Constraints[Index]->ReferencesObject(SceneComponent))
 			{
 				IndicesToRemove.Add(Index);
 			}
