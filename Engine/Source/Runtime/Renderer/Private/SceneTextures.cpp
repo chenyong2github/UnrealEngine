@@ -181,23 +181,18 @@ public:
 					{
 						if (!bIsSceneCapture && !bIsReflectionCapture)
 						{
-							// If this isn't a scene capture, and it's a VR scene, and the size has changed since the last time we
-							// rendered a VR scene (or this is the first time), use the requested size method.
+							// If this is VR, but not a capture (only current XR capture is for Planar Reflections), then we want
+							// to use the requested size. Ideally, capture targets will be able to 'grow' into the VR extents.
 							if (DesiredFamilyExtent.X != LastStereoExtent.X || DesiredFamilyExtent.Y != LastStereoExtent.Y)
 							{
 								LastStereoExtent = DesiredFamilyExtent;
-								SceneTargetsSizingMethod = RequestedSize;
 								UE_LOG(LogRenderer, Warning, TEXT("Resizing VR buffer to %d by %d"), DesiredFamilyExtent.X, DesiredFamilyExtent.Y);
 							}
-							else
-							{
-								// Otherwise use the grow method.
-								SceneTargetsSizingMethod = Grow;
-							}
+							SceneTargetsSizingMethod = RequestedSize;
 						}
 						else
 						{
-							// If this is a scene capture, and it's smaller than the VR view size, then don't re-allocate buffers, just use the "grow" method.
+							// If this is a VR scene capture (i.e planar reflection), and it's smaller than the VR view size, then don't re-allocate buffers, just use the "grow" method.
 							// If it's bigger than the VR view, then log a warning, and use resize method.
 							if (DesiredFamilyExtent.X > LastStereoExtent.X || DesiredFamilyExtent.Y > LastStereoExtent.Y)
 							{
