@@ -1535,6 +1535,9 @@ void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& Property
 						OtherPin->DefaultValue = NewDefaultValue;
 					}
 				}
+
+				// Propagate he parameter value change so that it updates the other caches.
+				Material->PropagateExpressionParameterChanges(this);
 			}
 		}
 	}
