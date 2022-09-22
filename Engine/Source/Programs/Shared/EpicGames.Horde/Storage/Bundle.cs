@@ -5,14 +5,11 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Net.WebRequestMethods;
 
 namespace EpicGames.Horde.Storage
 {
@@ -121,6 +118,11 @@ namespace EpicGames.Horde.Storage
 		/// LZ4 compression
 		/// </summary>
 		LZ4 = 1,
+
+		/// <summary>
+		/// Gzip compression
+		/// </summary>
+		Gzip = 2,
 	}
 
 	/// <summary>
