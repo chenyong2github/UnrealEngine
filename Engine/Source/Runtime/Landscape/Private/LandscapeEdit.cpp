@@ -4248,6 +4248,15 @@ void ALandscape::PostEditImport()
 		}
 	}
 
+	// We need to reparent brushes that may have been part of the copy/pasted actors :
+	for (FLandscapeLayer& Layer : LandscapeLayers)
+	{
+		for (FLandscapeLayerBrush& Brush : Layer.Brushes)
+		{
+			Brush.SetOwner(this);
+		}
+	}
+
 	// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
 	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 

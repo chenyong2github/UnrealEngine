@@ -175,28 +175,37 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 		const bool bIncludeChildActors = false;
 		const FBox ActorBounds = Actor->GetComponentsBoundingBox(bNonColliding, bIncludeChildActors);
 
+		ALandscape* FallbackLandscape = nullptr;
 		for (ALandscape* Landscape : TActorRange<ALandscape>(ActorWorld))
 		{
-			const FBox LandscapeBounds = Landscape->GetCompleteBounds();
-			if (LandscapeBounds.Intersect(ActorBounds))
+			// This function is called while copy-pasting landscapes, before the landscape properties have been imported
+			// in which case the Guid will be invalid, and trying to GetCompleteBounds will assert.
+			// Note that skipping this logic means that we won't automatically create Water layers / Water brushes,
+			// and any automatically created Water Zone may not be initialized to the full bounds of the landscapes
+			if (Landscape->GetLandscapeGuid().IsValid())
 			{
-				FoundLandscapes.Add(Landscape);
-				// Make sure the water zone's bounds is large enough to fit all landscapes that intersect with this water body :
-				WaterZoneBounds += LandscapeBounds;
-				bFoundIntersectingLandscape = true;
+				if (FallbackLandscape == nullptr)
+				{
+					FallbackLandscape = Landscape;
+				}
+
+				const FBox LandscapeBounds = Landscape->GetCompleteBounds();
+				if (LandscapeBounds.Intersect(ActorBounds))
+				{
+					FoundLandscapes.Add(Landscape);
+					// Make sure the water zone's bounds is large enough to fit all landscapes that intersect with this water body :
+					WaterZoneBounds += LandscapeBounds;
+					bFoundIntersectingLandscape = true;
+				}
 			}
 		}
 
-		// If no intersectiong landscape was found, use the first one available, if any :
-		if (!bFoundIntersectingLandscape)
+		// If no intersecting landscape was found, use the first valid one as a fallback
+		if (!bFoundIntersectingLandscape && FallbackLandscape != nullptr)
 		{
-			const TActorIterator<ALandscape> It(ActorWorld);
-			if (ALandscape* Landscape = It ? *It : nullptr)
-			{
-				FoundLandscapes.Add(Landscape);
-				const FBox LandscapeBounds = Landscape->GetCompleteBounds();
-				WaterZoneBounds += LandscapeBounds;
-			}
+			FoundLandscapes.Add(FallbackLandscape);
+			const FBox LandscapeBounds = FallbackLandscape->GetCompleteBounds();
+			WaterZoneBounds += LandscapeBounds;
 		}
 
 		// Automatically setup landscape-affecting features (water brush) if needed : 
