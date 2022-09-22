@@ -5,6 +5,7 @@
 #if WITH_EOS_SDK
 
 #include "Features/IModularFeatures.h"
+#include "Templates/UniquePtr.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
@@ -78,6 +79,9 @@ public:
 	virtual void LogPresenceInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const = 0;
 	virtual void LogFriendsInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const = 0;
 	virtual void LogConnectInfo(const EOS_HPlatform Platform, const EOS_ProductUserId LoggedInAccount, int32 Indent = 0) const = 0;
+
+	/** Assign ownership of a callback object, to be free'd after EOS_Shutdown */
+	virtual void AddCallbackObject(TUniquePtr<class FCallbackBase> CallbackObj) = 0;
 
 	FEOSSDKManagerOnPreInitializeSDK OnPreInitializeSDK;
 	FEOSSDKManagerOnPreCreatePlatform OnPreCreatePlatform;

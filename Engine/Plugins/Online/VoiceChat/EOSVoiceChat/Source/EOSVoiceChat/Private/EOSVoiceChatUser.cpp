@@ -9,12 +9,14 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 #include "EOSShared.h"
+#include "EOSSharedTypes.h"
 #include "EOSVoiceChat.h"
 #include "EOSVoiceChatErrors.h"
 #include "EOSVoiceChatModule.h"
 #include "EOSVoiceChatTypes.h"
 #include "VoiceChatErrors.h"
 #include "EOSAudioDevicePool.h"
+#include "IEOSSDKManager.h"
 
 #include "eos_common.h"
 #include "eos_lobby.h"
@@ -78,6 +80,8 @@ namespace
 			return TEXT("Unknown");
 		}
 	}
+
+	using FAudioBeforeSendCallback = TEOSGlobalCallback<EOS_RTCAudio_OnAudioBeforeSendCallback, EOS_RTCAudio_AudioBeforeSendCallbackInfo, FEOSVoiceChatUser>;
 }
 
 static TAutoConsoleVariable<bool> CVarFakeAudioInputEnabled(
@@ -99,6 +103,7 @@ FEOSVoiceChatUser::FEOSVoiceChatUser(FEOSVoiceChat& InEOSVoiceChat)
 
 FEOSVoiceChatUser::~FEOSVoiceChatUser()
 {
+	bInDestructor = true;
 	ClearLoginSession();
 }
 
@@ -1395,10 +1400,20 @@ void FEOSVoiceChatUser::BindChannelCallbacks(FChannelSession& ChannelSession)
 		static_assert(EOS_RTCAUDIO_ADDNOTIFYAUDIOBEFORESEND_API_LATEST == 1, "EOS_RTC_AddNotifyAudioBeforeSendOptions updated, check new fields");
 		AudioBeforeSendOptions.LocalUserId = LoginSession.LocalUserProductUserId;
 		AudioBeforeSendOptions.RoomName = Utf8RoomName.Get();
-		ChannelSession.OnAudioBeforeSendNotificationId = EOS_RTCAudio_AddNotifyAudioBeforeSend(EOS_RTC_GetAudioInterface(GetRtcInterface()), &AudioBeforeSendOptions, this, &FEOSVoiceChatUser::OnChannelAudioBeforeSendStatic);
+
+		// Protect against callbacks occurring after this object is destroyed, by wrapping in a TEOSGlobalCallback. This can occur when LeaveRoom during Logout fails.
+		TUniquePtr<FAudioBeforeSendCallback> Callback = MakeUnique<FAudioBeforeSendCallback>(AsWeak());
+		Callback->CallbackLambda = [this](const EOS_RTCAudio_AudioBeforeSendCallbackInfo* Data) { OnChannelAudioBeforeSend(Data); };
+		Callback->bIsGameThreadCallback = false;
+
+		ChannelSession.OnAudioBeforeSendNotificationId = EOS_RTCAudio_AddNotifyAudioBeforeSend(EOS_RTC_GetAudioInterface(GetRtcInterface()), &AudioBeforeSendOptions, Callback.Get(), Callback->GetCallbackPtr());
 		if (ChannelSession.OnAudioBeforeSendNotificationId == EOS_INVALID_NOTIFICATIONID)
 		{
 			EOSVOICECHATUSER_LOG(Warning, TEXT("BindChannelCallbacks EOS_RTCAudio_AddNotifyAudioBeforeSend failed"));
+		}
+		else
+		{
+			ChannelSession.AudioBeforeSendCallback = MoveTemp(Callback);
 		}
 	}
 
@@ -1458,6 +1473,19 @@ void FEOSVoiceChatUser::UnbindChannelCallbacks(FChannelSession& ChannelSession)
 	{
 		EOS_RTCAudio_RemoveNotifyAudioBeforeSend(EOS_RTC_GetAudioInterface(GetRtcInterface()), ChannelSession.OnAudioBeforeSendNotificationId);
 		ChannelSession.OnAudioBeforeSendNotificationId = EOS_INVALID_NOTIFICATIONID;
+
+		if (ChannelSession.AudioBeforeSendCallback)
+		{
+			if (bInDestructor)
+			{
+				// After an OnLeaveRoom callback, it is guaranteed this callback will no longer be fired. This method is in almost all cases called
+				// in response to an OnLeaveRoom callback, so it's safe to release it here. The one exception, is if we are being destroyed. In that
+				// case, the callback may be fired even after unbinding, so we move ownership of the callback to EOSShared so it can outlive this,
+				// and be cleaned up eventually after EOS_Shutdown.
+				EOSVoiceChat.SDKManager.AddCallbackObject(MoveTemp(ChannelSession.AudioBeforeSendCallback));
+			}
+			ChannelSession.AudioBeforeSendCallback.Reset();
+		}
 	}
 
 	if (ChannelSession.OnAudioBeforeRenderNotificationId != EOS_INVALID_NOTIFICATIONID)
@@ -2202,25 +2230,6 @@ void FEOSVoiceChatUser::OnChannelParticipantAudioUpdated(const EOS_RTCAudio_Part
 	else
 	{
 		EOSVOICECHATUSER_LOG(Warning, TEXT("OnChannelParticipantAudioUpdated ChannelName=[%s] not found"), *ChannelName);
-	}
-}
-
-void EOS_CALL FEOSVoiceChatUser::OnChannelAudioBeforeSendStatic(const EOS_RTCAudio_AudioBeforeSendCallbackInfo* CallbackInfo)
-{
-	if (CallbackInfo)
-	{
-		if (FEOSVoiceChatUser* EosVoiceChatPtr = static_cast<FEOSVoiceChatUser*>(CallbackInfo->ClientData))
-		{
-			EosVoiceChatPtr->OnChannelAudioBeforeSend(CallbackInfo);
-		}
-		else
-		{
-			UE_LOG(LogEOSVoiceChat, Warning, TEXT("OnChannelAudioBeforeSendStatic Error EosVoiceChatPtr=nullptr"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogEOSVoiceChat, Warning, TEXT("OnChannelAudioBeforeSendStatic Error CallbackInfo=nullptr"));
 	}
 }
 

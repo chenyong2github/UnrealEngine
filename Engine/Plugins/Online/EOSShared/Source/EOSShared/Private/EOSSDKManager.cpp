@@ -19,6 +19,7 @@
 #include "CoreGlobals.h"
 
 #include "EOSShared.h"
+#include "EOSSharedTypes.h"
 
 #include "eos_auth.h"
 #include "eos_connect.h"
@@ -457,6 +458,8 @@ void FEOSSDKManager::Shutdown()
 		const EOS_EResult Result = EOS_Shutdown();
 		UE_LOG(LogEOSSDK, Log, TEXT("FEOSSDKManager::Shutdown EOS_Shutdown Result=[%s]"), *LexToString(Result));
 
+		CallbackObjects.Empty();
+
 		bInitialized = false;
 	}
 }
@@ -805,6 +808,11 @@ void FEOSSDKManager::LogConnectInfo(const EOS_HPlatform Platform, const EOS_Prod
 
 		Indent--;
 	}
+}
+
+void FEOSSDKManager::AddCallbackObject(TUniquePtr<FCallbackBase> CallbackObj)
+{
+	CallbackObjects.Emplace(MoveTemp(CallbackObj));
 }
 
 FEOSPlatformHandle::~FEOSPlatformHandle()

@@ -47,6 +47,8 @@ public:
 	virtual void LogPresenceInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const override;
 	virtual void LogFriendsInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const override;
 	virtual void LogConnectInfo(const EOS_HPlatform Platform, const EOS_ProductUserId LoggedInAccount, int32 Indent = 0) const override;
+
+	virtual void AddCallbackObject(TUniquePtr<class FCallbackBase> CallbackObj) override;
 	// End IEOSSDKManager
 
 	// Begin FSelfRegisteringExec
@@ -83,6 +85,8 @@ private:
 	TArray<EOS_HPlatform> ReleasedPlatforms;
 	/** Handle to ticker delegate for Tick(), valid whenever there are ActivePlatforms to tick, or ReleasedPlatforms to release. */
 	FTSTicker::FDelegateHandle TickerHandle;
+	/** Callback objects, to be released after EOS_Shutdown */
+	TArray<TUniquePtr<FCallbackBase>> CallbackObjects;
 
 	// Config
 	/** Interval between platform ticks. 0 means we tick every frame. */

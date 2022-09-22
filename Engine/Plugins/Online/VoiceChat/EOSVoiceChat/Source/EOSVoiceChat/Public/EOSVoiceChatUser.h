@@ -17,6 +17,8 @@ public:
 	FEOSVoiceChatUser(FEOSVoiceChat& InEOSVoiceChat);
 	virtual ~FEOSVoiceChatUser();
 
+	FEOSVoiceChatUser(const FEOSVoiceChatUser&) = delete;
+
 	// ~Begin IVoiceChatUser Interface
 	virtual void SetSetting(const FString& Name, const FString& Value) override;
 	virtual FString GetSetting(const FString& Name) override;
@@ -146,7 +148,11 @@ protected:
 	// Representation of a particular channel
 	struct FChannelSession
 	{
+		FChannelSession() = default;
+		FChannelSession(FChannelSession&&) = default;
 		~FChannelSession();
+
+		FChannelSession(const FChannelSession&) = delete;
 
 		bool IsLocalUser(const FChannelParticipant& Participant);
 		bool IsLobbySession() const;
@@ -190,6 +196,8 @@ protected:
 		EOS_NotificationId OnAudioBeforeSendNotificationId = EOS_INVALID_NOTIFICATIONID;
 		EOS_NotificationId OnAudioBeforeRenderNotificationId = EOS_INVALID_NOTIFICATIONID;
 		EOS_NotificationId OnAudioInputStateNotificationId = EOS_INVALID_NOTIFICATIONID;
+
+		TUniquePtr<class FCallbackBase> AudioBeforeSendCallback;
 	};
 
 	enum class ELoginState
@@ -203,7 +211,11 @@ protected:
 	// When logged in, contains the state for the current login session. Reset by Logout
 	struct FLoginSession
 	{
+		FLoginSession() = default;
+		FLoginSession& operator=(FLoginSession&&) = default;
 		~FLoginSession();
+
+		FLoginSession(const FLoginSession&) = delete;
 
 		// The numeric platform id for the local user
 		FPlatformUserId PlatformId = PLATFORMUSERID_NONE;
@@ -288,6 +300,7 @@ protected:
 	FEOSVoiceChat& EOSVoiceChat;
 
 	bool bFakeAudioInput = false;
+	bool bInDestructor = false;
 
 	// Helper methods
 	bool IsInitialized();
@@ -345,7 +358,6 @@ protected:
 	void OnChannelParticipantStatusChanged(const EOS_RTC_ParticipantStatusChangedCallbackInfo* CallbackInfo);
 	static void EOS_CALL OnChannelParticipantAudioUpdatedStatic(const EOS_RTCAudio_ParticipantUpdatedCallbackInfo* CallbackInfo);
 	void OnChannelParticipantAudioUpdated(const EOS_RTCAudio_ParticipantUpdatedCallbackInfo* CallbackInfo);
-	static void EOS_CALL OnChannelAudioBeforeSendStatic(const EOS_RTCAudio_AudioBeforeSendCallbackInfo* CallbackInfo);
 	void OnChannelAudioBeforeSend(const EOS_RTCAudio_AudioBeforeSendCallbackInfo* CallbackInfo);
 	static void EOS_CALL OnChannelAudioBeforeRenderStatic(const EOS_RTCAudio_AudioBeforeRenderCallbackInfo* CallbackInfo);
 	void OnChannelAudioBeforeRender(const EOS_RTCAudio_AudioBeforeRenderCallbackInfo* CallbackInfo);
