@@ -1654,25 +1654,56 @@ void SSkeletonTree::RegisterBlendProfileMenu()
 void SSkeletonTree::CreateBlendProfileMenu(UToolMenu* InMenu)
 {
 	const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
+	
+	static const FName BlendProfileSectionNames[]
+	{
+		TEXT("BlendProfileTimeActions"),
+		TEXT("BlendProfileWeightActions"),
+		TEXT("BlendMaskActions")
+	};
 
-	FToolMenuSection& ProfilesSection = InMenu->AddSection(TEXT("BlendProfileActions"), LOCTEXT("BlendProfiles", "Blend Profiles"));
+	InMenu->AddSection(BlendProfileSectionNames[0], LOCTEXT("BlendProfilesTime", "Blend Profiles - Time"));
+	InMenu->AddSection(BlendProfileSectionNames[1], LOCTEXT("BlendProfilesWeight", "Blend Profiles - Weight"));
+	InMenu->AddSection(BlendProfileSectionNames[2], LOCTEXT("BlendProfiles", "Blend Masks"));
+	FToolMenuSection* BlendProfileSections[] = 
+	{
+		InMenu->FindSection(BlendProfileSectionNames[0]),
+		InMenu->FindSection(BlendProfileSectionNames[1]),
+		InMenu->FindSection(BlendProfileSectionNames[2])
+	};
+
+	static const FText SelectBlendProfileToolTipText = LOCTEXT("SelectBlendProfileTooltip", "Select this blend profile for editing.");
+	static const FText SelectBlendMaskToolTipText = LOCTEXT("SelectBlendProfileTooltip", "Select this blend mask for editing.");
+	static const FText SelectBlendProfileToolTipTexts[] = 
+	{
+		SelectBlendProfileToolTipText,
+		SelectBlendProfileToolTipText,
+		SelectBlendMaskToolTipText
+	};	
+
+	UEnum* ModeEnum = StaticEnum<EBlendProfileMode>();
+	check(ModeEnum);
 
 	for (UBlendProfile* Profile : GetEditableSkeletonInternal()->GetBlendProfiles())
 	{
-		ProfilesSection.AddMenuEntry(
-			Profile->GetFName(),
-			FText::FromName(Profile->GetFName()),
-			LOCTEXT("SelectBlendProfileTooltip", "Select this profile for editing."),
-			FSlateIcon(),
-			FToolUIActionChoice(
-				FUIAction(
-					FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::SetSelectedProfile, Profile, true),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SSkeletonTree::IsBlendProfileSelected, Profile->GetFName())
-				)
-			),
-			EUserInterfaceActionType::RadioButton
-		);
+		if (Profile)
+		{
+			int32 EnumIndex = ModeEnum->GetIndexByValue((int64)Profile->GetMode());
+			BlendProfileSections[EnumIndex]->AddMenuEntry(
+						Profile->GetFName(),
+						FText::FromName(Profile->GetFName()),
+						SelectBlendProfileToolTipTexts[EnumIndex],
+						FSlateIcon(),
+						FToolUIActionChoice(
+							FUIAction(
+								FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::SetSelectedProfile, Profile, true),
+								FCanExecuteAction(),
+								FIsActionChecked::CreateSP(this, &SSkeletonTree::IsBlendProfileSelected, Profile->GetFName())
+							)
+						),
+						EUserInterfaceActionType::RadioButton
+					);
+		}
 	}
 
 	if (BlendProfilePicker->GetSelectedBlendProfileName() != NAME_None)
@@ -1682,7 +1713,7 @@ void SSkeletonTree::CreateBlendProfileMenu(UToolMenu* InMenu)
 		EditSection.AddMenuEntry(
 			"ClearBlendProfile",
 			LOCTEXT("Clear", "Clear Selected"),
-			LOCTEXT("Clear_ToolTip", "Clear the selected blend profile."),
+			LOCTEXT("Clear_ToolTip", "Clear the selected blend profile/mask."),
 			FSlateIcon(),
 			FToolUIActionChoice(FUIAction(FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnClearSelection))));
 

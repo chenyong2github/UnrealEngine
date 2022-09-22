@@ -393,38 +393,55 @@ TSharedRef<SWidget> SBlendProfilePicker::GetMenuContent()
 		MenuBuilder.EndSection();
 	}
 
-	const static FText AvailableModesHeadings[] = { LOCTEXT("BlendProfiles", "Available Blend Profiles"), LOCTEXT("BlendMasks", "Available Blend Masks") };
-	const static EBlendProfilePickerMode AvailableModesFilters[] = { EBlendProfilePickerMode::BlendProfile, EBlendProfilePickerMode::BlendMask };
-	static_assert(UE_ARRAY_COUNT(AvailableModesHeadings) == UE_ARRAY_COUNT(AvailableModesFilters), "Arrays must be of same size");
-
-	for (int32 ModeIndex = 0; ModeIndex < UE_ARRAY_COUNT(AvailableModesHeadings); ++ModeIndex)
+	const static FText BlendProfileHeaders[] =
 	{
-		// Skip section if we don't support it
-		if (EnumHasAnyFlags(SupportedBlendProfileModes, AvailableModesFilters[ModeIndex]))
+		LOCTEXT("BlendProfilesTimeBased", "Blend Profiles - Time"),
+		LOCTEXT("BlendProfilesWeightBased", "Blend Profiles - Weight"),
+		LOCTEXT("BlendMasks", "Blend Masks")
+	};
+
+	UEnum* ModeEnum = StaticEnum<EBlendProfileMode>();
+	check(ModeEnum);
+	// Last enum entry is _MAX
+	int32 NumEnums = ModeEnum->NumEnums() - 1;
+
+	TArray<TArray<UBlendProfile*>> BlendProfilesFiltered;
+	BlendProfilesFiltered.SetNum(NumEnums);
+
+	// Build a filtered profile list by mode
+	for (UBlendProfile* Profile : EditableSkeleton->GetBlendProfiles())
+	{
+		if (Profile)
+		{
+			BlendProfilesFiltered[ModeEnum->GetIndexByValue((int64)Profile->GetMode())].Add(Profile);
+		}
+	}
+
+	const bool bSupportsBlendMasks = EnumHasAnyFlags(SupportedBlendProfileModes, EBlendProfilePickerMode::BlendMask);
+	const bool bSupportsBlendProfiles = EnumHasAnyFlags(SupportedBlendProfileModes, EBlendProfilePickerMode::BlendProfile);
+	for (int32 ModeIndex = 0; ModeIndex < NumEnums; ++ModeIndex)
+	{
+		EBlendProfileMode IndexMode = (EBlendProfileMode)ModeEnum->GetValueByIndex(ModeIndex);
+		if ((IndexMode == EBlendProfileMode::BlendMask && bSupportsBlendMasks)
+			|| (IndexMode != EBlendProfileMode::BlendMask && bSupportsBlendProfiles))
 		{
 			// Note: Section won't get populated if there are no available items for this mode type
-			MenuBuilder.BeginSection(NAME_None, AvailableModesHeadings[ModeIndex]);
+			MenuBuilder.BeginSection(NAME_None, BlendProfileHeaders[ModeIndex]);
+			for (UBlendProfile* Profile : BlendProfilesFiltered[ModeIndex])
 			{
-				if (EditableSkeleton.IsValid())
+				if (IndexMode == Profile->GetMode())
 				{
-					for (UBlendProfile* Profile : EditableSkeleton->GetBlendProfiles())
-					{
-						// Only display blend profiles w/ a matching mode
-						if ((AvailableModesFilters[ModeIndex] == EBlendProfilePickerMode::BlendMask) ? Profile->IsBlendMask() : !Profile->IsBlendMask())
-						{
-							MenuBuilder.AddWidget(
-								SNew(SBlendProfileMenuEntry)
-								.LabelOverride(FText::FromString(Profile->GetName()))
-								.OnOpenClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileSelected, Profile->GetFName()))
-								.OnRemoveClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileRemoved, Profile->GetFName()))
-								.OnProfileModeChangedDelegate(SBlendProfileMenuEntry::FBlendProfileModeChanged::CreateSP(this, &SBlendProfilePicker::OnProfileModeChanged, Profile->GetFName()))
-								.BlendProfile(MakeWeakObjectPtr(Profile))
-								.AllowModify(bAllowModify),
-								FText(),
-								true
-							);
-						}
-					}
+					MenuBuilder.AddWidget(
+						SNew(SBlendProfileMenuEntry)
+						.LabelOverride(FText::FromString(Profile->GetName()))
+						.OnOpenClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileSelected, Profile->GetFName()))
+						.OnRemoveClickedDelegate(FExecuteAction::CreateSP(this, &SBlendProfilePicker::OnProfileRemoved, Profile->GetFName()))
+						.OnProfileModeChangedDelegate(SBlendProfileMenuEntry::FBlendProfileModeChanged::CreateSP(this, &SBlendProfilePicker::OnProfileModeChanged, Profile->GetFName()))
+						.BlendProfile(MakeWeakObjectPtr(Profile))
+						.AllowModify(bAllowModify),
+						FText(),
+						true
+					);
 				}
 			}
 		}
