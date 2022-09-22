@@ -69,6 +69,18 @@ public:
 	FString GetFamilyNameAtDepth(int32 InDepth) const;
 };
 
+
+/**
+ * Transformation direction type for display-view transformations.
+ */
+UENUM(BlueprintType)
+enum class EOpenColorIOViewTransformDirection : uint8
+{
+	Forward = 0     UMETA(DisplayName = "Forward"),
+	Inverse = 1     UMETA(DisplayName = "Inverse")
+};
+
+
 USTRUCT(BlueprintType)
 struct OPENCOLORIO_API FOpenColorIODisplayView
 {
@@ -130,6 +142,10 @@ public:
 	/** The destination display view name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
 	FOpenColorIODisplayView DestinationDisplayView;
+
+	/** The display view direction. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
+	EOpenColorIOViewTransformDirection DisplayViewDirection = EOpenColorIOViewTransformDirection::Forward;
 
 public:
 

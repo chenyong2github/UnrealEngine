@@ -94,7 +94,11 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeChildren(TShared
 	
 			//Create custom rows for source and destination color space of the conversion. Since the struct is hooked to an OCIOConfiguration
 			//We use it to populate the available color spaces instead of using a raw configuration file.
-			if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FOpenColorIOColorConversionSettings, SourceColorSpace))
+			if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FOpenColorIOColorConversionSettings, ConfigurationSource))
+			{
+				StructBuilder.AddProperty(ChildHandle).IsEnabled(true).ShowPropertyButtons(false);
+			}
+			else if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FOpenColorIOColorConversionSettings, SourceColorSpace))
 			{
 				SourceColorSpaceProperty = ChildHandle;
 
@@ -118,10 +122,6 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeChildren(TShared
 				FDetailWidgetRow& ColorSpaceWidget = StructBuilder.AddCustomRow(FText::FromName(ChildHandle->GetProperty()->GetFName()));
 				ColorSpaceWidget.Visibility(DestinationDisplayViewVisibility);
 				AddPropertyRow(ColorSpaceWidget, ChildHandle, StructCustomizationUtils, true);
-			}
-			else
-			{
-				StructBuilder.AddProperty(ChildHandle).IsEnabled(true).ShowPropertyButtons(false);
 			}
 		}
 	}

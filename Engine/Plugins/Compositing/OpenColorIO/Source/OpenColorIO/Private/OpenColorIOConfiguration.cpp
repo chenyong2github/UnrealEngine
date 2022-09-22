@@ -59,9 +59,11 @@ bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeat
 {
 	TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
 	{
-		if(InTransform->bIsDisplayViewType)
+		EOpenColorIOViewTransformDirection DisplayViewDirection;
+
+		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
 		{
-			return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->Display == InSettings.DestinationDisplayView.Display && InTransform->View == InSettings.DestinationDisplayView.View;
+			return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->Display == InSettings.DestinationDisplayView.Display && InTransform->View == InSettings.DestinationDisplayView.View && InSettings.DisplayViewDirection == DisplayViewDirection;
 		}
 		else
 		{
@@ -71,7 +73,7 @@ bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeat
 
 	if (TransformPtr == nullptr)
 	{
-		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform for [%s] was not found."), *InSettings.SourceColorSpace.ToString());
+		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform [%s] was not found."), *InSettings.ToString());
 		return false;
 	}
 
@@ -107,11 +109,11 @@ bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, 
 	return (TransformData != nullptr);
 }
 
-bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView)
+bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection)
 {
 	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
 		{
-			return InTransformData->IsTransform(InSourceColorSpace, InDisplay, InView);
+			return InTransformData->IsTransform(InSourceColorSpace, InDisplay, InView, InDirection);
 		});
 
 	return (TransformData != nullptr);
@@ -119,12 +121,22 @@ bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, 
 
 bool UOpenColorIOConfiguration::HasDesiredColorSpace(const FOpenColorIOColorSpace& ColorSpace) const
 {
-	return DesiredColorSpaces.Find(ColorSpace) != INDEX_NONE;
+	if (ColorSpace.IsValid())
+	{
+		return DesiredColorSpaces.Find(ColorSpace) != INDEX_NONE;
+	}
+
+	return false;
 }
 
 bool UOpenColorIOConfiguration::HasDesiredDisplayView(const FOpenColorIODisplayView& DisplayView) const
 {
-	return DesiredDisplayViews.Find(DisplayView) != INDEX_NONE;
+	if (DisplayView.IsValid())
+	{
+		return DesiredDisplayViews.Find(DisplayView) != INDEX_NONE;
+	}
+
+	return false;
 }
 
 bool UOpenColorIOConfiguration::Validate() const
@@ -211,7 +223,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 		for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
 		{
 			// note: we only support display-view transforms in the forward direction currently.
-			CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View);
+			CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
 		}
 	}
 #endif
@@ -330,21 +342,21 @@ void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColo
 	}
 }
 
-void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bForwardDirection)
+void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection)
 {
 	if (InSourceColorSpace.IsEmpty() || InDisplay.IsEmpty() || InView.IsEmpty())
 	{
 		return;
 	}
 
-	if (HasTransform(InSourceColorSpace, InDisplay, InView))
+	if (HasTransform(InSourceColorSpace, InDisplay, InView, InDirection))
 	{
 		UE_LOG(LogOpenColorIO, Log, TEXT("OCIOConfig already contains %s to %s-%s transform."), *InSourceColorSpace, *InDisplay, *InView);
 		return;
 	}
 
 	UOpenColorIOColorTransform* NewTransform = NewObject<UOpenColorIOColorTransform>(this, NAME_None, RF_NoFlags);
-	const bool bSuccess = NewTransform->Initialize(this, InSourceColorSpace, InDisplay, InView, bForwardDirection);
+	const bool bSuccess = NewTransform->Initialize(this, InSourceColorSpace, InDisplay, InView, InDirection);
 
 	if (bSuccess)
 	{
@@ -462,7 +474,7 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 				for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
 				{
 					// note: we only support display-view transforms in the forward direction currently.
-					CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View);
+					CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
 				}
 			}
 		}
@@ -481,7 +493,7 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 				for (const FOpenColorIOColorSpace& SourceColorSpace : DesiredColorSpaces)
 				{
 					// note: we only support display-view transforms in the forward direction currently.
-					CreateColorTransform(SourceColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View);
+					CreateColorTransform(SourceColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
 				}
 			}
 		}

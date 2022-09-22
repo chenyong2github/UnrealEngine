@@ -41,12 +41,16 @@ namespace {
 
 	OCIO_NAMESPACE::ConstProcessorRcPtr GetTransformProcessor(UOpenColorIOColorTransform* InTransform, const OCIO_NAMESPACE::ConstConfigRcPtr& CurrentConfig)
 	{
-		if (InTransform->bIsDisplayViewType)
+		EOpenColorIOViewTransformDirection DisplayViewDirection;
+
+		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
 		{
+			OCIO_NAMESPACE::TransformDirection OcioDirection = static_cast<OCIO_NAMESPACE::TransformDirection>(DisplayViewDirection);
+
 			return CurrentConfig->getProcessor(StringCast<ANSICHAR>(*InTransform->SourceColorSpace).Get(),
 				StringCast<ANSICHAR>(*InTransform->Display).Get(),
 				StringCast<ANSICHAR>(*InTransform->View).Get(),
-				OCIO_NAMESPACE::TransformDirection::TRANSFORM_DIR_FORWARD);
+				OcioDirection);
 		}
 		else
 		{
@@ -165,11 +169,11 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	return GenerateColorTransformData(InSourceColorSpace, InDestinationColorSpace);
 }
 
-bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection)
+bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection)
 {
 	check(InOwner);
 	ConfigurationOwner = InOwner;
-	return GenerateColorTransformData(InSourceColorSpace, InDisplay, InView, bInForwardDirection);
+	return GenerateColorTransformData(InSourceColorSpace, InDisplay, InView, InDirection);
 }
 
 void UOpenColorIOColorTransform::Serialize(FArchive& Ar)
@@ -466,14 +470,24 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 	return false;
 }
 
-bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection) const
+bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection) const
 {
 	if (bIsDisplayViewType)
 	{
-		return SourceColorSpace == InSourceColorSpace && Display == InDisplay && View == InView;
+		return SourceColorSpace == InSourceColorSpace && Display == InDisplay && View == InView && DisplayViewDirection == InDirection;
 	}
 
 	return false;
+}
+
+bool UOpenColorIOColorTransform::GetDisplayViewDirection(EOpenColorIOViewTransformDirection& OutDirection) const
+{
+	if (bIsDisplayViewType)
+	{
+		OutDirection = DisplayViewDirection;
+	}
+
+	return bIsDisplayViewType;
 }
 
 void UOpenColorIOColorTransform::AllColorTransformsCacheResourceShadersForRendering()
@@ -506,7 +520,7 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 	return false;
 }
 
-bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection)
+bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection)
 {
 #if WITH_EDITOR && WITH_OCIO
 	if (InSourceColorSpace.IsEmpty() || InDisplay.IsEmpty() || InView.IsEmpty())
@@ -515,9 +529,11 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 	}
 
 	SourceColorSpace = InSourceColorSpace;
+	DestinationColorSpace.Empty();
 	Display = InDisplay;
 	View = InView;
 	bIsDisplayViewType = true;
+	DisplayViewDirection = InDirection;
 
 	CacheResourceTextures();
 	CacheResourceShadersForRendering(true);
@@ -531,7 +547,16 @@ FString UOpenColorIOColorTransform::GetTransformFriendlyName()
 {
 	if (bIsDisplayViewType)
 	{
-		return SourceColorSpace + TEXT(" to ") + Display + TEXT(" - ") + View;
+		switch (DisplayViewDirection)
+		{
+		case EOpenColorIOViewTransformDirection::Forward:
+			return SourceColorSpace + TEXT(" to ") + Display + TEXT(" - ") + View;
+		case EOpenColorIOViewTransformDirection::Inverse:
+			return Display + TEXT(" - ") + View + TEXT(" to ") + SourceColorSpace;
+		default:
+			checkNoEntry();
+			return FString();
+		}
 	}
 	else
 	{

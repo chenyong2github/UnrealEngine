@@ -33,7 +33,7 @@ public:
 
 public:
 	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
-	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection = true);
+	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection);
 
 	/**
 	 * Cache resource shaders for cooking on the given shader platform.
@@ -72,7 +72,15 @@ public:
 	bool GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource);
 
 	bool IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const;
-	bool IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection = true) const;
+	bool IsTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection) const;
+
+	/**
+	 * Get the display view direction type, when applicable.
+	 *
+	 * @param OutDirection The returned direction.
+	 * @return True if the transformation is of display-view type.
+	 */
+	bool GetDisplayViewDirection(EOpenColorIOViewTransformDirection& OutDirection) const;
 
 	// For all ColorTransforms, UOpenColorIOColorTransform::CacheResourceShadersForRendering
 	static void AllColorTransformsCacheResourceShadersForRendering();
@@ -105,7 +113,7 @@ protected:
 	 * @return true if parameters are valid.
 	 */
 	bool GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
-	bool GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bInForwardDirection = true);
+	bool GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection);
 
 	/**
 	 * Helper function returning the color space transform name based on source and destination color spaces.
@@ -179,6 +187,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
 	FString View;
+
+	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
+	EOpenColorIOViewTransformDirection DisplayViewDirection = EOpenColorIOViewTransformDirection::Forward;
 private:
 
 	/** If the color space requires textures, this will contains the data to do the transform */

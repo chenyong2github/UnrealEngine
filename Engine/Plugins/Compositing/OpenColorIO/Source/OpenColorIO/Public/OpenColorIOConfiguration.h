@@ -39,7 +39,7 @@ public:
 	UE_DEPRECATED(5.1, "GetShaderAndLUTResources is deprecated, please use GetRenderResources instead.")
 	bool GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource);
 	bool HasTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
-	bool HasTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView);
+	bool HasTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection);
 	bool HasDesiredColorSpace(const FOpenColorIOColorSpace& ColorSpace) const;
 	bool HasDesiredDisplayView(const FOpenColorIODisplayView& DisplayView) const;
 	bool Validate() const;
@@ -59,7 +59,7 @@ public:
 
 protected:
 	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
-	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, bool bForwardDirection = true);
+	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection);
 	void CleanupTransforms();
 
 	/** Same as above except user can specify the path manually. */

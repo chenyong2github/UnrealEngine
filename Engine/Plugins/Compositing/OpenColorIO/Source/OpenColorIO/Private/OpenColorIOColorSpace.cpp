@@ -116,7 +116,16 @@ FString FOpenColorIOColorConversionSettings::ToString() const
 	{
 		if (IsDisplayView())
 		{
-			return FString::Printf(TEXT("%s config - %s to %s"), *ConfigurationSource->GetName(), *SourceColorSpace.ToString(), *DestinationDisplayView.ToString());
+			switch (DisplayViewDirection)
+			{
+			case EOpenColorIOViewTransformDirection::Forward:
+				return FString::Printf(TEXT("%s config - %s to %s"), *ConfigurationSource->GetName(), *SourceColorSpace.ToString(), *DestinationDisplayView.ToString());
+			case EOpenColorIOViewTransformDirection::Inverse:
+				return FString::Printf(TEXT("%s config - %s to %s"), *ConfigurationSource->GetName(), *DestinationDisplayView.ToString(), *SourceColorSpace.ToString());
+			default:
+				checkNoEntry();
+				return FString();
+			}
 		}
 		else
 		{
@@ -132,7 +141,16 @@ bool FOpenColorIOColorConversionSettings::IsValid() const
 	{
 		if (IsDisplayView())
 		{
-			return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View);
+			switch (DisplayViewDirection)
+			{
+			case EOpenColorIOViewTransformDirection::Forward:
+				return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View, EOpenColorIOViewTransformDirection::Forward);
+			case EOpenColorIOViewTransformDirection::Inverse:
+				return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
+			default:
+				checkNoEntry();
+				return false;
+			}
 		}
 		else
 		{
@@ -151,21 +169,12 @@ void FOpenColorIOColorConversionSettings::ValidateColorSpaces()
 		{
 			SourceColorSpace.Reset();
 		}
-
-		if (IsDisplayView())
+		if (!ConfigurationSource->HasDesiredColorSpace(DestinationColorSpace))
 		{
-			if (!ConfigurationSource->HasDesiredDisplayView(DestinationDisplayView))
-			{
-				DestinationDisplayView.Reset();
-			}
 			DestinationColorSpace.Reset();
 		}
-		else
+		if (!ConfigurationSource->HasDesiredDisplayView(DestinationDisplayView))
 		{
-			if (!ConfigurationSource->HasDesiredColorSpace(DestinationColorSpace))
-			{
-				DestinationColorSpace.Reset();
-			}
 			DestinationDisplayView.Reset();
 		}
 	}
