@@ -435,6 +435,11 @@ UAnimBlueprintFactory::UAnimBlueprintFactory(const FObjectInitializer& ObjectIni
 	ParentClass = UAnimInstance::StaticClass();
 }
 
+FText UAnimBlueprintFactory::GetDisplayName() const
+{
+	return LOCTEXT("AnimationBlueprintFactoryDescription", "Animation Blueprint");
+}
+
 bool UAnimBlueprintFactory::ConfigureProperties()
 {
 	TSharedRef<SAnimBlueprintCreateDialog> Dialog = SNew(SAnimBlueprintCreateDialog);

@@ -9,7 +9,7 @@ class FAssetTypeActions_AnimBlueprintInterface : public FAssetTypeActions_AnimBl
 {
 public:
 	// IAssetTypeActions Implementation
-	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AnimBlueprintInterface", "Animation Blueprint Interface"); }
+	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AnimLayerInterface", "Animation Layer Interface"); }
 	virtual void BuildBackendFilter(FARFilter& InFilter) override;
 	virtual FName GetFilterName() const override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override {}
