@@ -681,31 +681,33 @@ void FPathViews::AppendPath(FStringBuilderBase& InOutPath, FStringView AppendPat
 	}
 }
 
-FStringView FPathViews::GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix /*= nullptr*/)
+FStringView FPathViews::GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix /*= nullptr*/, bool bInWithoutSlashes /*= true*/)
 {
 	FStringView MountPointStringView;
-
-	int32 SecondForwardSlash = INDEX_NONE;
-	if (FStringView(InPath.GetData() + 1, InPath.Len() - 1).FindChar(TEXT('/'), SecondForwardSlash))
+	if (InPath.Len() > 0 && InPath[0] == '/')
 	{
-		MountPointStringView = FStringView(InPath.GetData() + 1, SecondForwardSlash);
-	}
-	else
-	{
-		MountPointStringView = FStringView(InPath.GetData() + 1, InPath.Len() - 1);
-	}
+		int32 SecondForwardSlash = InPath.Len();
+		int32 WithoutSlashes = bInWithoutSlashes ? 1 : 0;
+		if (FStringView(InPath.GetData() + 1, InPath.Len() - 1).FindChar(TEXT('/'), SecondForwardSlash))
+		{
+			MountPointStringView = FStringView(InPath.GetData() + WithoutSlashes, SecondForwardSlash + 1 - WithoutSlashes);
+		}
+		else
+		{
+			MountPointStringView = FStringView(InPath.GetData() + WithoutSlashes, InPath.Len() - WithoutSlashes);
+		}
 
-	static const FString ClassesPrefix = TEXT("Classes_");
-	const bool bHasClassesPrefix = MountPointStringView.StartsWith(ClassesPrefix);
-	if (bHasClassesPrefix)
-	{
-		MountPointStringView.RightInline(MountPointStringView.Len() - ClassesPrefix.Len());
-	}
+		static const FString ClassesPrefix = TEXT("Classes_");
+		const bool bHasClassesPrefix = MountPointStringView.StartsWith(ClassesPrefix);
+		if (bHasClassesPrefix)
+		{
+			MountPointStringView.RightInline(MountPointStringView.Len() - ClassesPrefix.Len());
+		}
 
-	if (bOutHadClassesPrefix)
-	{
-		*bOutHadClassesPrefix = bHasClassesPrefix;
+		if (bOutHadClassesPrefix)
+		{
+			*bOutHadClassesPrefix = bHasClassesPrefix;
+		}
 	}
-
 	return MountPointStringView;
 }

@@ -340,9 +340,10 @@ public:
 	static void AppendPath(FStringBuilderBase& InOutPath, FStringView AppendPath);
 
 	/**
-	 * Returns the name of the first folder in a path
-	 * Removes starting forward slash and Classes_ prefix
-	 * Example: "/Classes_A/Textures" returns "A" and sets bOutHadClassesPrefix=true
+	 * Returns the name of the mount point in a path
+	 * Removes starting forward slash and Classes_ prefix if bInWithoutSlashes is true
+	 * Example: "/Classes_A/Textures" returns "A" and sets bOutHadClassesPrefix=true if bInWithoutSlashes is true
+	 *           returns "/Classes_A" otherwise and sets bOutHadClassesPrefix=false
 	 */
-	static FStringView GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix = nullptr);
+	static FStringView GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix = nullptr, bool bInWithoutSlashes = true);
 };

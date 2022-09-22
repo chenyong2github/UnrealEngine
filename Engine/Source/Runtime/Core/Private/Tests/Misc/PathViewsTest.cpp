@@ -708,6 +708,43 @@ bool FPathViewsAppendPathTest::RunTest(const FString& InParameters)
 	return true;
 }
 
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsGetMountPointNameTest, FPathViewsTest, "System.Core.Misc.PathViews.GetMountPointNameFromPath", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FPathViewsGetMountPointNameTest::RunTest(const FString& InParameters)
+{
+	auto RunGetMountPointName = [this](const TCHAR* Base, const TCHAR* ExpectedWithoutSlash, const TCHAR* ExpectedWithSlash)
+	{
+		TStringBuilder<128> BaseBuilder;
+		BaseBuilder << Base;
+		bool bHadClassPrefix = false;
+		FStringView Result = FPathViews::GetMountPointNameFromPath(Base, &bHadClassPrefix, true);
+		if (Result != FStringView(ExpectedWithoutSlash))
+		{
+			AddError(FString::Printf(TEXT("GetMountPointNameFromPath(\"%s\", &bHadClassPrefix, true) == \"%.*s\", expected \"%s\"."),
+				Base, Result.Len(), Result.GetData(), ExpectedWithoutSlash));
+		}
+		Result = FPathViews::GetMountPointNameFromPath(Base, &bHadClassPrefix, false);
+		if (Result != FStringView(ExpectedWithSlash))
+		{
+			AddError(FString::Printf(TEXT("AppendPath(\"%s\", \"%s\") == \"%.*s\", expected \"%s\"."),
+				Base, Result.Len(), Result.GetData(), ExpectedWithSlash));
+		}
+	};
+
+	RunGetMountPointName(TEXT(""), TEXT(""), TEXT(""));
+	RunGetMountPointName(TEXT("Root"), TEXT(""), TEXT(""));
+	RunGetMountPointName(TEXT("/"), TEXT(""), TEXT("/"));
+	RunGetMountPointName(TEXT("/Root"), TEXT("Root"), TEXT("/Root"));
+	RunGetMountPointName(TEXT("\\Root"), TEXT(""), TEXT(""));
+	RunGetMountPointName(TEXT("/Root/"), TEXT("Root"), TEXT("/Root"));
+	RunGetMountPointName(TEXT("/Root/A/B/"), TEXT("Root"), TEXT("/Root"));
+	RunGetMountPointName(TEXT("/Classes/A/"), TEXT("Classes"), TEXT("/Classes"));
+	RunGetMountPointName(TEXT("/Classes_A/B/"), TEXT("A"), TEXT("/Classes_A"));
+
+	return true;
+}
+
+
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsToAbsoluteTest, FPathViewsTest, "System.Core.Misc.PathViews.ToAbsolute", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FPathViewsToAbsoluteTest::RunTest(const FString& InParameters)
 {
