@@ -54,6 +54,6 @@ FDeferredLightData ConvertLocalToDeferredLight(
 FDeferredLightData ConvertLocalToDeferredLight(const FLocalLightData In)
 {
 	half4 OutPreviewShadowMapChannelMask = 0;
-	uint OutLightingChannelMask = 0x7;
+	uint OutLightingChannelMask = LIGHING_CHANNEL_MASK;
 	return ConvertLocalToDeferredLight(In, 1.0f, OutPreviewShadowMapChannelMask, OutLightingChannelMask);
 }

@@ -243,7 +243,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 	for (uint LocalLightListIndex = 0; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
 	{
 		half4 PreviewShadowMapChannelMask = 1;
-		uint  LocalLightingChannelMask = 0x7;
+		uint  LocalLightingChannelMask = LIGHING_CHANNEL_MASK;
 		const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
 		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight, SpecularScale, PreviewShadowMapChannelMask, LocalLightingChannelMask);
 		#if USE_HAIR_COMPLEX_TRANSMITTANCE

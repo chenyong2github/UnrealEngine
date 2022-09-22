@@ -12,6 +12,7 @@
 #define LIGHT_TYPE_SPOT				2 
 #define LIGHT_TYPE_RECT				3 
 #define LIGHT_TYPE_MAX				4 
+#define LIGHING_CHANNEL_MASK		0x7
 
 #if INSTANCED_STEREO
 	#if MATERIALBLENDING_ANY_TRANSLUCENT
@@ -283,7 +284,7 @@ float4 UnpackShadowMapChannelMask(uint In)
 
 uint UnpackLightingChannelMask(uint In)
 {
-	return (In >> 8) & 0x7;
+	return (In >> 8) & LIGHING_CHANNEL_MASK;
 }
 
 uint UnpackLightType(uint ShadowMapChannelMaskPacked)
