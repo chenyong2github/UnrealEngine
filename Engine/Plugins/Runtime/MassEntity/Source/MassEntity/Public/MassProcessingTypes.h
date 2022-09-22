@@ -140,4 +140,5 @@ struct FMassProcessorOrderInfo
 	UMassProcessor* Processor = nullptr;
 	EDependencyNodeType NodeType = EDependencyNodeType::Invalid;
 	TArray<FName> Dependencies;
+	int32 SequenceIndex = INDEX_NONE;
 };

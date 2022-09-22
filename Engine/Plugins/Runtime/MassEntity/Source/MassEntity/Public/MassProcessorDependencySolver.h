@@ -4,6 +4,7 @@
 
 #include "MassProcessingTypes.h"
 #include "MassEntityTypes.h"
+#include "MassArchetypeTypes.h"
 #include "Containers/StaticArray.h"
 
 
@@ -45,6 +46,7 @@ struct MASSENTITY_API FMassExecutionRequirements
 	void CountResourcesUsed();
 	int32 GetTotalBitsUsedCount();
 	bool IsEmpty() const;
+	FMassArchetypeCompositionDescriptor AsCompositionDescriptor() const;
 
 	TMassExecutionAccess<FMassFragmentBitSet> Fragments;
 	TMassExecutionAccess<FMassChunkFragmentBitSet> ChunkFragments;
@@ -65,6 +67,9 @@ private:
 			: Name(InName), Processor(InProcessor), NodeIndex(InNodeIndex)
 		{}
 
+		bool IsGroup() const { return Processor == nullptr; }
+		void IncreaseWaitingNodesCount(TArrayView<FNode> InAllNodes);
+
 		FName Name = TEXT("");
 		UMassProcessor* Processor = nullptr;
 		TArray<int32> OriginalDependencies;
@@ -73,16 +78,22 @@ private:
 		TArray<FName> ExecuteAfter;
 		FMassExecutionRequirements Requirements;
 		int32 NodeIndex = INDEX_NONE;
+		/** indicates how often given node can be found in dependencies sequence for other nodes  */
+		int32 TotalWaitingNodes = 0;
+		/** 
+		 * indicates how deep within dependencies graph this give node is, or in other words, what's the longest sequence 
+		 * from this node to a dependency-less "parent" node 
+		 */
+		int32 SequencePositionIndex = 0;
 		TArray<int32> SubNodeIndices;
-
-		bool IsGroup() const { return Processor == nullptr; }
+		TArray<FMassArchetypeHandle> ValidArchetypes;
 	};
 
 	struct FResourceUsage
 	{
-		FResourceUsage();
+		FResourceUsage(const TArray<FNode>& InAllNodes);
 
-		bool CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements) const;
+		bool CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements, const TArray<FMassArchetypeHandle>& InArchetypes) const;
 		void SubmitNode(const int32 NodeIndex, FNode& InOutNode);
 
 	private:
@@ -101,21 +112,44 @@ private:
 		TMassExecutionAccess<FResourceAccess> ChunkFragmentsAccess;
 		TMassExecutionAccess<FResourceAccess> SharedFragmentsAccess;
 		TMassExecutionAccess<FResourceAccess> RequiredSubsystemsAccess;
+		TConstArrayView<FNode> AllNodesView;
 
 		template<typename TBitSet>
-		static void HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
+		void HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
 			, const TMassExecutionAccess<TBitSet>& TestedRequirements, FProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex);
 
 		template<typename TBitSet>
 		static bool CanAccess(const TMassExecutionAccess<TBitSet>& StoredElements, const TMassExecutionAccess<TBitSet>& TestedElements);
+
+		/** Determines whether any of the Elements' (i.e. Fragment, Tag,...) users operate on any of the archetypes given via InArchetypes */
+		bool HasArchetypeConflict(TMassExecutionAccess<FResourceAccess> ElementAccess, const TArray<FMassArchetypeHandle>& InArchetypes) const;
 	};
 
 public:
+	/** Optionally returned by ResolveDependencies and contains information about processors that have been pruned and 
+	 *  other potentially useful bits. To be used in a transient fashion. */
+	struct FResult
+	{
+		FString DependencyGraphFileName;
+		TArray<TSubclassOf<UMassProcessor>> PrunedProcessorClasses;
+		int32 MaxSequenceLength = 0;
+		uint32 ArchetypeDataVersion = 0;
 
-	MASSENTITY_API FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName = FString());
-	MASSENTITY_API void ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult);
+		void Reset()
+		{
+			PrunedProcessorClasses.Reset();
+			MaxSequenceLength = 0;
+			ArchetypeDataVersion = 0;
+		}
+	};
+
+	MASSENTITY_API FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime = true);
+	MASSENTITY_API void ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult, TSharedPtr<FMassEntityManager> EntityManager = nullptr, FResult* InOutOptionalResult = nullptr);
 
 	MASSENTITY_API static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);
+
+	/** Determines whether the dependency solving that produced InResult will produce different results if run with a given EntityManager */
+	static bool IsResultUpToDate(const FResult& InResult, TSharedPtr<FMassEntityManager> EntityManager);
 
 protected:
 	// note that internals are protected rather than private to support unit testing
@@ -128,7 +162,7 @@ protected:
 	 */
 	bool PerformSolverStep(FResourceUsage& ResourceUsage, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices);
 	
-	void CreateNodes(UMassProcessor& Processor);
+	int32 CreateNodes(UMassProcessor& Processor);
 	void BuildDependencies();
 	void Solve(TArray<FMassProcessorOrderInfo>& OutResult);
 	void LogNode(const FNode& Node, int Indent = 0);
@@ -139,8 +173,8 @@ protected:
 
 	TArrayView<UMassProcessor*> Processors;
 	bool bAnyCyclesDetected = false;
+	const bool bGameRuntime = true;
 	FString DependencyGraphFileName;
-	FName CollectionName;
 	TArray<FNode> AllNodes;
 	TMap<FName, int32> NodeIndexMap;
 };

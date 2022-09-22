@@ -25,6 +25,18 @@ namespace UE::Mass::Private
 		}
 		return ReturnVal + TEXT("]");
 	}
+
+	bool DoArchetypeContainersOverlap(TConstArrayView<FMassArchetypeHandle> A, const TArray<FMassArchetypeHandle>& B)
+	{
+		for (const FMassArchetypeHandle& HandleA : A)
+		{
+			if (B.Contains(HandleA))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 //----------------------------------------------------------------------//
@@ -75,10 +87,19 @@ bool FMassExecutionRequirements::IsEmpty() const
 		&& RequiredAllTags.IsEmpty() && RequiredAnyTags.IsEmpty() && RequiredNoneTags.IsEmpty();
 }
 
+FMassArchetypeCompositionDescriptor FMassExecutionRequirements::AsCompositionDescriptor() const
+{
+	return FMassArchetypeCompositionDescriptor(Fragments.Read + Fragments.Write
+		, RequiredAllTags + RequiredAnyTags
+		, ChunkFragments.Read + ChunkFragments.Write
+		, SharedFragments.Read + SharedFragments.Write);
+}
+
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FResourceUsage
 //----------------------------------------------------------------------//
-FProcessorDependencySolver::FResourceUsage::FResourceUsage()
+FProcessorDependencySolver::FResourceUsage::FResourceUsage(const TArray<FNode>& InAllNodes)
+	: AllNodesView(InAllNodes)
 {
 	for (int i = 0; i < EMassAccessOperation::MAX; ++i)
 	{
@@ -93,31 +114,61 @@ template<typename TBitSet>
 void FProcessorDependencySolver::FResourceUsage::HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
 	, const TMassExecutionAccess<TBitSet>& TestedRequirements, FProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex)
 {
-	// for every bit set in TestedRequirements we do the following
-	// 1. For every read only requirement we make InOutNode depend on the currently stored Writer of this resource
+	using UE::Mass::Private::DoArchetypeContainersOverlap;
+
+	// for every bit set in TestedRequirements we do the following:
+	// 1. For every read-only requirement we make InOutNode depend on the currently stored Writer of this resource
 	//    - note that this operation is not destructive, meaning we don't destructively consume the data, since all 
 	//      subsequent read access to the given resource will also depend on the Writer
+	//    - note 2: we also fine tune what we store as a dependency for InOutNode by checking if InOutNode's archetype
+	//      overlap with whoever the current Writer is 
+	//    - this will result in InOutNode wait for the current Writer to finish before starting its own work and 
+	//      that's exactly what we need to do to avoid accessing data while it's potentially being written
 	// 2. For every read-write requirement we make InOutNode depend on all the readers and writers currently stored. 
 	//    - once that's done we clean currently stored Readers and Writers since every subsequent operation on this 
 	//      resource will be blocked by currently considered InOutNode (as the new Writer)
+	//    - again, we do check corresponding archetype collections overlap
+	//    - similarly to the read operation waiting on write operations in pt 1. we want to hold off the write 
+	//      operations to be performed by InOutNode until all currently registered (and conflicting) writers and readers 
+	//      are done with their operations 
 	// 3. For all accessed resources we store information that InOutNode is accessing it
+	//    - we do this so that the following nodes know that they'll have to wait for InOutNode if an access 
+	//      conflict arises. 
 
 	// 1. For every read only requirement we make InOutNode depend on the currently stored Writer of this resource
 	for (auto It = TestedRequirements.Read.GetIndexIterator(); It; ++It)
 	{
-		InOutNode.OriginalDependencies.Append(ElementAccess.Write.Access[*It].Users);
+		for (int32 UserIndex : ElementAccess.Write.Access[*It].Users)
+		{
+			if (DoArchetypeContainersOverlap(AllNodesView[UserIndex].ValidArchetypes, InOutNode.ValidArchetypes))
+			{
+				InOutNode.OriginalDependencies.Add(UserIndex);
+			}
+		}
 	}
 
 	// 2. For every read-write requirement we make InOutNode depend on all the readers and writers currently stored. 
 	for (auto It = TestedRequirements.Write.GetIndexIterator(); It; ++It)
 	{
-		InOutNode.OriginalDependencies.Append(ElementAccess.Read.Access[*It].Users);
-		ElementAccess.Read.Access[*It].Users.Reset();
+		for (int32 i = ElementAccess.Read.Access[*It].Users.Num() - 1; i >= 0; --i)
+		{
+			const int32 UserIndex = ElementAccess.Read.Access[*It].Users[i];
+			if (DoArchetypeContainersOverlap(AllNodesView[UserIndex].ValidArchetypes, InOutNode.ValidArchetypes))
+			{	
+				InOutNode.OriginalDependencies.Add(UserIndex);
+				ElementAccess.Read.Access[*It].Users.RemoveAtSwap(i);
+			}
+		}
 
-		// with the algorithm described above we expect there to only ever be at most one Writer
-		ensure(ElementAccess.Write.Access[*It].Users.Num() <= 1);
-		InOutNode.OriginalDependencies.Append(ElementAccess.Write.Access[*It].Users);
-		ElementAccess.Write.Access[*It].Users.Reset();
+		for (int32 i = ElementAccess.Write.Access[*It].Users.Num() - 1; i >= 0; --i)
+		{
+			const int32 UserIndex = ElementAccess.Write.Access[*It].Users[i];
+			if (DoArchetypeContainersOverlap(AllNodesView[UserIndex].ValidArchetypes, InOutNode.ValidArchetypes))
+			{
+				InOutNode.OriginalDependencies.Add(UserIndex);
+				ElementAccess.Write.Access[*It].Users.RemoveAtSwap(i);
+			}
+		}
 	}
 
 	// 3. For all accessed resources we store information that InOutNode is accessing it
@@ -149,11 +200,38 @@ bool FProcessorDependencySolver::FResourceUsage::CanAccess(const TMassExecutionA
 	);
 }
 
-bool FProcessorDependencySolver::FResourceUsage::CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements) const
+bool FProcessorDependencySolver::FResourceUsage::HasArchetypeConflict(TMassExecutionAccess<FResourceAccess> ElementAccess, const TArray<FMassArchetypeHandle>& InArchetypes) const
 {
-	bool bCanAccess = CanAccess<FMassFragmentBitSet>(Requirements.Fragments, TestedRequirements.Fragments)
-		&& CanAccess<FMassChunkFragmentBitSet>(Requirements.ChunkFragments, TestedRequirements.ChunkFragments)
-		&& CanAccess<FMassSharedFragmentBitSet>(Requirements.SharedFragments, TestedRequirements.SharedFragments)
+	using UE::Mass::Private::DoArchetypeContainersOverlap;
+
+	// this function is being run when we've already determined there's an access conflict on given ElementsAccess,
+	// meaning whoever's asking is trying to access Elements that are already being used. We can still grant access 
+	// though provided that none of the current users of Element access the same archetypes the querier does (as provided 
+	// by InArchetypes).
+	// @todo this operation could be even more efficient and precise if we tracked which operation (read/write) and which
+	// specific Element were conflicting and the we could limit the check to that. That would however significantly 
+	// complicate the code and would require a major refactor to keep things clean.
+	for (int i = 0; i < EMassAccessOperation::MAX; ++i)
+	{
+		for (const FResourceUsers& Resource : ElementAccess[i].Access)
+		{
+			for (const int32 UserIndex : Resource.Users)
+			{
+				if (DoArchetypeContainersOverlap(AllNodesView[UserIndex].ValidArchetypes, InArchetypes))
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool FProcessorDependencySolver::FResourceUsage::CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements, const TArray<FMassArchetypeHandle>& InArchetypes) const
+{
+	bool bCanAccess = (CanAccess<FMassFragmentBitSet>(Requirements.Fragments, TestedRequirements.Fragments) || !HasArchetypeConflict(FragmentsAccess, InArchetypes))
+		&& (CanAccess<FMassChunkFragmentBitSet>(Requirements.ChunkFragments, TestedRequirements.ChunkFragments) || !HasArchetypeConflict(ChunkFragmentsAccess, InArchetypes))
+		&& (CanAccess<FMassSharedFragmentBitSet>(Requirements.SharedFragments, TestedRequirements.SharedFragments) || !HasArchetypeConflict(SharedFragmentsAccess, InArchetypes))
 		&& CanAccess<FMassExternalSubsystemBitSet>(Requirements.RequiredSubsystems, TestedRequirements.RequiredSubsystems);
 
 	return bCanAccess;
@@ -170,12 +248,30 @@ void FProcessorDependencySolver::FResourceUsage::SubmitNode(const int32 NodeInde
 }
 
 //----------------------------------------------------------------------//
+//  FProcessorDependencySolver::FNode
+//----------------------------------------------------------------------//
+void FProcessorDependencySolver::FNode::IncreaseWaitingNodesCount(TArrayView<FProcessorDependencySolver::FNode> InAllNodes)
+{
+	// cycle-protection check. If true it means we have a cycle and the whole algorithm result will be unreliable 
+	if (TotalWaitingNodes >= FMath::Square(InAllNodes.Num()))
+	{
+		return;
+	}
+
+	++TotalWaitingNodes;
+
+	for (const int32 DependencyIndex : OriginalDependencies)
+	{
+		check(&InAllNodes[DependencyIndex] != this);
+		InAllNodes[DependencyIndex].IncreaseWaitingNodesCount(InAllNodes);
+	}
+}
+//----------------------------------------------------------------------//
 //  FProcessorDependencySolver
 //----------------------------------------------------------------------//
-FProcessorDependencySolver::FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName /*= FString()*/)
+FProcessorDependencySolver::FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime)
 	: Processors(InProcessors)
-	, DependencyGraphFileName(InDependencyGraphFileName)
-	, CollectionName(Name)
+	, bGameRuntime(bIsGameRuntime)
 {}
 
 bool FProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices)
@@ -188,7 +284,7 @@ bool FProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage
 		const int32 NodeIndex = InOutIndicesRemaining[i];
 		if (AllNodes[NodeIndex].TransientDependencies.Num() == 0)
 		{
-			if (ResourceUsage.CanAccessRequirements(AllNodes[NodeIndex].Requirements))
+			if (ResourceUsage.CanAccessRequirements(AllNodes[NodeIndex].Requirements, AllNodes[NodeIndex].ValidArchetypes))
 			{
 				AcceptedNodeIndex = NodeIndex;
 				break;
@@ -206,17 +302,24 @@ bool FProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage
 	{
 		const int32 NodeIndex = AcceptedNodeIndex != INDEX_NONE ? AcceptedNodeIndex : FallbackAcceptedNodeIndex;
 
+		FNode& Node = AllNodes[NodeIndex];
+
 		// Note that this is not an unexpected event and will happen during every dependency solving. It's a part 
 		// of the algorithm. We initially look for all the things we can run without conflicting with anything else. 
 		// But that can't last forever, at some point we'll end up in a situation where every node left waits for 
 		// something that has been submitted already. Then we just pick one of the waiting ones (the one indicated by 
 		// FallbackAcceptedNodeIndex), "run it" and proceed.
 		UE_CLOG(AcceptedNodeIndex == INDEX_NONE, LogMass, Verbose, TEXT("No dependency-free node can be picked, due to resource requirements. Picking %s as the next node.")
-			, *AllNodes[NodeIndex].Name.ToString());
+			, *Node.Name.ToString());
 
-		ResourceUsage.SubmitNode(NodeIndex, AllNodes[NodeIndex]);
+		ResourceUsage.SubmitNode(NodeIndex, Node);
 		InOutIndicesRemaining.RemoveSingle(NodeIndex);
 		OutNodeIndices.Add(NodeIndex);
+		for (const int32 DependencyIndex : Node.OriginalDependencies)
+		{
+			Node.SequencePositionIndex = FMath::Max(Node.SequencePositionIndex, AllNodes[DependencyIndex].SequencePositionIndex);
+		}
+		++Node.SequencePositionIndex;
 
 		for (const int32 RemainingNodeIndex : InOutIndicesRemaining)
 		{
@@ -250,16 +353,16 @@ void FProcessorDependencySolver::CreateSubGroupNames(FName InGroupName, TArray<F
 	}
 }
 
-void FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
+int32 FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 {
 	check(Processor.GetClass());
 	const FName ProcName = Processor.GetClass()->GetFName();
 
-	if (NodeIndexMap.Find(ProcName) != nullptr)
+	if (const int32* NodeIndexPtr = NodeIndexMap.Find(ProcName))
 	{
 		UE_LOG(LogMass, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
 			, ANSI_TO_TCHAR(__FUNCTION__), *ProcName.ToString());
-		return;
+		return *NodeIndexPtr;
 	}
 
 	const FMassProcessorExecutionOrder& ExecutionOrder = Processor.GetExecutionOrder();
@@ -314,6 +417,8 @@ void FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 	{
 		AllNodes[ParentGroupNodeIndex].SubNodeIndices.Add(NodeIndex);
 	}
+
+	return NodeIndex;
 }
 
 void FProcessorDependencySolver::BuildDependencies()
@@ -855,6 +960,7 @@ void FProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResul
 	for (FNode& Node : AllNodes)
 	{
 		Node.TransientDependencies = Node.OriginalDependencies;
+		Node.TotalWaitingNodes = 0;
 	}
 
 	TArray<int32> IndicesRemaining;
@@ -865,15 +971,16 @@ void FProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResul
 		if (AllNodes[i].IsGroup() == false)
 		{
 			IndicesRemaining.Add(i);
+			AllNodes[i].IncreaseWaitingNodesCount(AllNodes);
 		}
 	}
-	// order the indices to process according to calculated resource hunger
+
 	IndicesRemaining.Sort([this](const int32 IndexA, const int32 IndexB){
-		return AllNodes[IndexA].Requirements.ResourcesUsedCount < AllNodes[IndexB].Requirements.ResourcesUsedCount;
+		return AllNodes[IndexA].TotalWaitingNodes > AllNodes[IndexB].TotalWaitingNodes;
 	});
 
 	// this is where we'll be tracking what's being accessed by whom
-	FResourceUsage ResourceUsage;
+	FResourceUsage ResourceUsage(AllNodes);
 
 	TArray<int32> SortedNodeIndices;
 	SortedNodeIndices.Reserve(AllNodes.Num());
@@ -929,19 +1036,26 @@ void FProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResul
 		// at this point we expect SortedNodeIndices to only point to regular processors (i.e. no groups)
 		if (ensure(AllNodes[NodeIndex].Processor != nullptr))
 		{
-			OutResult.Add({ AllNodes[NodeIndex].Name, AllNodes[NodeIndex].Processor, FMassProcessorOrderInfo::EDependencyNodeType::Processor, DependencyNames });
+			OutResult.Add({ AllNodes[NodeIndex].Name, AllNodes[NodeIndex].Processor, FMassProcessorOrderInfo::EDependencyNodeType::Processor, DependencyNames, AllNodes[NodeIndex].SequencePositionIndex });
 		}
 	}
 }
 
-void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult)
+void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult, TSharedPtr<FMassEntityManager> EntityManager, FProcessorDependencySolver::FResult* InOutOptionalResult)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass ResolveDependencies");
+
 	if (Processors.Num() == 0)
 	{
 		return;
 	}
 
 	FScopedCategoryAndVerbosityOverride LogOverride(TEXT("LogMass"), ELogVerbosity::Log);
+
+	if (InOutOptionalResult)
+	{
+		DependencyGraphFileName = InOutOptionalResult->DependencyGraphFileName;
+	}
 
 	bAnyCyclesDetected = false;
 
@@ -952,8 +1066,19 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderI
 	// as the very first node we add a "root" node that represents the "top level group" and also simplifies the rest
 	// of the lookup code - if a processor declares it's in group None or depends on Node it we don't need to check that 
 	// explicitly. 
-	AllNodes.Add(FNode(CollectionName, nullptr, 0));
+	AllNodes.Add(FNode(FName(), nullptr, 0));
 	NodeIndexMap.Add(FName(), 0);
+
+	const bool bCreateVirtualArchetypes = (!EntityManager);
+	if (bCreateVirtualArchetypes)
+	{
+		// create FMassEntityManager instance that we'll use to sort out processors' overlaps
+		// the idea for this is that for every processor we have we create an archetype matching given processor's requirements. 
+		// Once that's done we have a collection of "virtual" archetypes our processors expect. Then we ask every processor 
+		// to cache the archetypes they'd accept, using processors' owned queries. The idea is that some of the nodes will 
+		// end up with more than just the virtual archetype created for that specific node. The practice proved the idea correct. 
+		EntityManager = MakeShareable(new FMassEntityManager());
+	}
 
 	// gather the processors information first
 	for (UMassProcessor* Processor : Processors)
@@ -963,8 +1088,48 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderI
 			UE_LOG(LogMass, Warning, TEXT("%s nullptr found in Processors collection being processed"), ANSI_TO_TCHAR(__FUNCTION__));
 			continue;
 		}
-		CreateNodes(*Processor);
+
+		const int32 ProcessorNodeIndex = CreateNodes(*Processor);
+
+		if (bCreateVirtualArchetypes)
+		{
+			// this line is a part of a nice trick we're doing here utilizing EntityManager's archetype creation based on 
+			// what each processor expects, and EntityQuery's capability to cache archetypes matching its requirements (used below)
+			EntityManager->CreateArchetype(AllNodes[ProcessorNodeIndex].Requirements.AsCompositionDescriptor());
+		}
 	}
+
+	UE_LOG(LogMass, Verbose, TEXT("Pruning processors..."));
+
+	int32 PrunedProcessorsCount = 0;
+	for (FNode& Node : AllNodes)
+	{
+		if (Node.IsGroup() == false)
+		{
+			// for each processor-representing node we cache information on which archetypes among the once we've created 
+			// above (see the EntityManager.CreateArchetype call in the previous loop) match this processor. 
+			Node.Processor->GetArchetypesMatchingOwnedQueries(*EntityManager.Get(), Node.ValidArchetypes);
+
+			// prune the archetype-less processors
+			if (Node.ValidArchetypes.Num() == 0 && Node.Processor->ShouldAllowQueryBasedPruning(bGameRuntime))
+			{
+				CA_ASSUME(Node.Processor);
+				UE_LOG(LogMass, Verbose, TEXT("\t%s"), *Node.Processor->GetName());
+
+				if (InOutOptionalResult)
+				{
+					InOutOptionalResult->PrunedProcessorClasses.Add(Node.Processor->GetClass());
+				}
+
+				// clearing out the processor will result in the rest of the algorithm to treat it as a group - we still 
+				// want to preserve the configured ExecuteBefore and ExecuteAfter dependencies
+				Node.Processor = nullptr;
+				++PrunedProcessorsCount;
+			}
+		}
+	}
+
+	UE_LOG(LogMass, Verbose, TEXT("Number of processors pruned: %d"), PrunedProcessorsCount);
 
 	check(AllNodes.Num());
 	LogNode(AllNodes[0]);
@@ -982,6 +1147,42 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderI
 	{
 		UE_LOG(LogMass, Verbose, TEXT("\t%s"), *Info.Name.ToString());
 	}
+
+	int32 MaxSequenceLength = 0;
+	for (FNode& Node : AllNodes)
+	{
+		MaxSequenceLength = FMath::Max(MaxSequenceLength, Node.SequencePositionIndex);
+	}
+
+	UE_LOG(LogMass, Verbose, TEXT("Max sequence length: %d"), MaxSequenceLength);
+
+	if (InOutOptionalResult)
+	{
+		InOutOptionalResult->MaxSequenceLength = MaxSequenceLength;
+		InOutOptionalResult->ArchetypeDataVersion = EntityManager->GetArchetypeDataVersion();
+	}
+}
+
+bool FProcessorDependencySolver::IsResultUpToDate(const FProcessorDependencySolver::FResult& InResult, TSharedPtr<FMassEntityManager> EntityManager)
+{
+	if (InResult.PrunedProcessorClasses.Num() == 0 || !EntityManager || InResult.ArchetypeDataVersion == EntityManager->GetArchetypeDataVersion())
+	{
+		return true;
+	}
+
+	// this is inefficient right now since we're using CDOs and need to check all archetypes every time.
+	// Would be more efficient if we had a common place where all processors live, both active and inactive, so that we can utilize those. 
+	for (const TSubclassOf<UMassProcessor>& ProcessorClass : InResult.PrunedProcessorClasses)
+	{
+		if (UMassProcessor* ProcessorCDO = ProcessorClass.GetDefaultObject())
+		{
+			if (ProcessorCDO->DoesAnyArchetypeMatchOwnedQueries(*EntityManager.Get()))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE 

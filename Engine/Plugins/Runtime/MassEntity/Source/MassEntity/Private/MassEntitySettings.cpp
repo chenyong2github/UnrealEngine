@@ -7,6 +7,7 @@
 #include "Misc/CoreDelegates.h"
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
+#include "CoreGlobals.h"
 #endif // WITH_EDITOR
 
 //----------------------------------------------------------------------//
@@ -44,19 +45,39 @@ void UMassEntitySettings::BuildProcessorListAndPhases()
 void UMassEntitySettings::BuildPhases()
 {
 #if WITH_EDITOR
-	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
+	if (GIsEditor)
 	{
-		FMassProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
-		PhaseConfig.PhaseProcessor = NewObject<UMassCompositeProcessor>(this, PhaseConfig.PhaseGroupClass
-			, *FString::Printf(TEXT("ProcessingPhase_%s"), *PhaseConfig.PhaseName.ToString()));
-		PhaseConfig.PhaseProcessor->SetGroupName(PhaseConfig.PhaseName);
-		PhaseConfig.PhaseProcessor->SetProcessingPhase(EMassProcessingPhase(i));
-		const FString PhaseDumpDependencyGraphFileName = !DumpDependencyGraphFileName.IsEmpty() ? DumpDependencyGraphFileName + TEXT("_") + PhaseConfig.PhaseName.ToString() : FString();
-		PhaseConfig.PhaseProcessor->CopyAndSort(PhaseConfig, PhaseDumpDependencyGraphFileName);
-		
-		FStringOutputDevice Ar;
-		PhaseConfig.PhaseProcessor->DebugOutputDescription(Ar);
-		PhaseConfig.Description = FText::FromString(Ar);
+		for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
+		{
+			FMassProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
+			PhaseConfig.PhaseProcessor = NewObject<UMassCompositeProcessor>(this, PhaseConfig.PhaseGroupClass
+				, *FString::Printf(TEXT("ProcessingPhase_%s"), *PhaseConfig.PhaseName.ToString()));
+			PhaseConfig.PhaseProcessor->SetGroupName(PhaseConfig.PhaseName);
+			PhaseConfig.PhaseProcessor->SetProcessingPhase(EMassProcessingPhase(i));
+			const FString PhaseDumpDependencyGraphFileName = !DumpDependencyGraphFileName.IsEmpty() ? DumpDependencyGraphFileName + TEXT("_") + PhaseConfig.PhaseName.ToString() : FString();
+
+			FProcessorDependencySolver::FResult Result;
+			Result.DependencyGraphFileName = PhaseDumpDependencyGraphFileName;
+			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseConfig.PhaseProcessor, PhaseConfig, *this);
+			Configurator.bInitializeCreatedProcessors = false;
+			Configurator.bIsGameRuntime = false;
+			Configurator.Configure(/*EntityManager=*/nullptr, &Result);
+
+			if (Result.PrunedProcessorClasses.Num() > 0)
+			{
+				UE_VLOG_UELOG(this, LogMass, Warning, TEXT("Calculating dependencies for phase %s resulted in pruned processors:")
+					, *PhaseConfig.PhaseName.ToString());
+				for (const TSubclassOf<UMassProcessor>& ProcessorClass : Result.PrunedProcessorClasses)
+				{
+					UE_VLOG_UELOG(this, LogMass, Warning, TEXT("\t%s"), *GetNameSafe(ProcessorClass));
+				}
+				UE_VLOG_UELOG(this, LogMass, Warning, TEXT("Make sure EntityQueries owned by these processors got registered or override UMassProcessor::ShouldAllowQueryBasedPruning to return the appropriate result"));
+			}
+
+			FStringOutputDevice Ar;
+			PhaseConfig.PhaseProcessor->DebugOutputDescription(Ar);
+			PhaseConfig.Description = FText::FromString(Ar);
+		}
 	}
 #endif // WITH_EDITOR
 }

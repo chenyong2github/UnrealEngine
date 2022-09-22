@@ -33,7 +33,7 @@ struct FDependencySolverBase : FAITestBase
 	void Solve()
 	{
 		Result.Reset();
-		FProcessorDependencySolver Solver(MakeArrayView((UMassProcessor**)Processors.GetData(), Processors.Num()), TEXT("Test") );
+		FProcessorDependencySolver Solver(MakeArrayView((UMassProcessor**)Processors.GetData(), Processors.Num()));
 		Solver.ResolveDependencies(Result);
 	}
 };	
@@ -209,6 +209,8 @@ struct FComplexScenario : FDependencySolverBase
 	virtual bool InstantTest() override
 	{
 		Solve();
+
+		AITEST_TRUE("None of the processors should have been pruned", Result.Num() == Processors.Num());
 
 		for (int32 i = 0; i < Result.Num(); ++i)
 		{

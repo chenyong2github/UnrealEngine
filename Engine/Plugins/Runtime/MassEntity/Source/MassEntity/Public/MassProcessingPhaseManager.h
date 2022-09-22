@@ -9,6 +9,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "MassProcessingTypes.h"
 #include "MassProcessor.h"
+#include "MassProcessorDependencySolver.h"
 #include "MassProcessingPhaseManager.generated.h"
 
 
@@ -89,6 +90,22 @@ private:
 };
 
 
+struct MASSENTITY_API FMassPhaseProcessorConfigurationHelper
+{
+	FMassPhaseProcessorConfigurationHelper(UMassCompositeProcessor& InOutPhaseProcessor, const FMassProcessingPhaseConfig& InPhaseConfig, UObject& InProcessorOuter)
+		: PhaseProcessor(InOutPhaseProcessor), PhaseConfig(InPhaseConfig), ProcessorOuter(InProcessorOuter)
+	{
+	}
+
+	void Configure(const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), FProcessorDependencySolver::FResult* OutOptionalResult = nullptr);
+
+	UMassCompositeProcessor& PhaseProcessor;
+	const FMassProcessingPhaseConfig& PhaseConfig;
+	UObject& ProcessorOuter;
+	bool bInitializeCreatedProcessors = true;
+	bool bIsGameRuntime = true;
+};
+
 /** 
  * MassProcessingPhaseManager owns separate FMassProcessingPhase instances for every ETickingGroup. When activated
  * via Start function it registers and enables the FMassProcessingPhase instances which themselves are tick functions 
@@ -104,6 +121,7 @@ public:
 	FMassProcessingPhaseManager(const FMassProcessingPhaseManager& Other) = delete;
 	FMassProcessingPhaseManager& operator=(const FMassProcessingPhaseManager& Other) = delete;
 
+	const TSharedPtr<FMassEntityManager>& GetEntityManager() { return EntityManager; }
 	FMassEntityManager& GetEntityManagerRef() { check(EntityManager); return *EntityManager.Get(); }
 
 	/** Retrieves OnPhaseStart multicast delegate's reference for a given Phase */
@@ -170,13 +188,25 @@ protected:
 	 */
 	void OnPhaseEnd(FMassProcessingPhase& Phase);
 
+	void OnNewArchetype(const FMassArchetypeHandle& NewArchetype);
+
 protected:	
+	struct FPhaseGraphBuildState
+	{
+		FProcessorDependencySolver::FResult LastResult;
+		bool bNewArchetypes = true;
+		bool bInitialized = false;
+	};
 
 	FMassProcessingPhase ProcessingPhases[(uint8)EMassProcessingPhase::MAX];
+	FPhaseGraphBuildState ProcessingGraphBuildStates[(uint8)EMassProcessingPhase::MAX];
+	TArray<FMassProcessingPhaseConfig> ProcessingPhasesConfig;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	EMassProcessingPhase CurrentPhase = EMassProcessingPhase::MAX;
 
 	TWeakObjectPtr<UObject> Owner;
+
+	FDelegateHandle OnNewArchetypeHandle;
 };

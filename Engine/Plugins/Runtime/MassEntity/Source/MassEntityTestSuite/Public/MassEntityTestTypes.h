@@ -114,6 +114,7 @@ public:
 	{
 		RequirementsFunction(EntityQuery);
 	}
+	virtual bool ShouldAllowQueryBasedPruning(const bool bRuntimeMode = true) const { return false; }
 
 	TFunction<void(FMassEntityManager& EntityManager, FMassExecutionContext& Context)> ExecutionFunction;
 	TFunction<void(FMassEntityQuery& Query)> RequirementsFunction;

@@ -134,28 +134,53 @@ void FMassProcessingPhase::Initialize(FMassProcessingPhaseManager& InPhaseManage
 }
 
 //----------------------------------------------------------------------//
+// FPhaseProcessorConfigurator
+//----------------------------------------------------------------------//
+void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEntityManager>& EntityManager, FProcessorDependencySolver::FResult* OutOptionalResult)
+{
+	FMassRuntimePipeline TmpPipeline;
+	TmpPipeline.CreateFromArray(PhaseConfig.ProcessorCDOs, ProcessorOuter);
+
+	TArray<FMassProcessorOrderInfo> SortedProcessors;
+	FProcessorDependencySolver Solver(TmpPipeline.Processors, bIsGameRuntime);
+
+	Solver.ResolveDependencies(SortedProcessors, EntityManager, OutOptionalResult);
+
+	PhaseProcessor.Populate(SortedProcessors);
+
+	PhaseProcessor.BuildFlatProcessingGraph(SortedProcessors);
+
+	if (bInitializeCreatedProcessors)
+	{
+		PhaseProcessor.Initialize(ProcessorOuter);
+	}
+}
+
+//----------------------------------------------------------------------//
 // FMassProcessingPhaseManager
 //----------------------------------------------------------------------//
-void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<FMassProcessingPhaseConfig> ProcessingPhasesConfig, const FString& DependencyGraphFileName)
+void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<FMassProcessingPhaseConfig> InProcessingPhasesConfig, const FString& DependencyGraphFileName)
 {
+#if WITH_EDITOR
+	UWorld* World = InOwner.GetWorld();
+	const bool bIsEditorWorld = (World != 0) && (World->IsEditorWorld() && !World->IsGameWorld());
+#endif // WITH_EDITOR
 	Owner = &InOwner;
+	ProcessingPhasesConfig = InProcessingPhasesConfig;
 
-	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
+	for (int PhaseAsInt = 0; PhaseAsInt < int(EMassProcessingPhase::MAX); ++PhaseAsInt)
 	{		
-		const EMassProcessingPhase Phase = EMassProcessingPhase(i);
+		const EMassProcessingPhase Phase = EMassProcessingPhase(PhaseAsInt);
 
 		UMassCompositeProcessor* PhaseProcessor = NewObject<UMassCompositeProcessor>(&InOwner, UMassCompositeProcessor::StaticClass()
 			, *FString::Printf(TEXT("ProcessingPhase_%s"), *UEnum::GetDisplayValueAsText(Phase).ToString()));
 	
 		check(PhaseProcessor);
-		ProcessingPhases[i].Initialize(*this, Phase, UE::Mass::Private::PhaseToTickingGroup[i], *PhaseProcessor);
+		ProcessingPhases[PhaseAsInt].Initialize(*this, Phase, UE::Mass::Private::PhaseToTickingGroup[PhaseAsInt], *PhaseProcessor);
 
 		REDIRECT_OBJECT_TO_VLOG(PhaseProcessor, &InOwner);
 		PhaseProcessor->SetProcessingPhase(Phase);
 		PhaseProcessor->SetGroupName(FName(FString::Printf(TEXT("%s Group"), *UEnum::GetDisplayValueAsText(Phase).ToString())));
-
-		check(&InOwner);
-		PhaseProcessor->Initialize(InOwner);
 
 #if WITH_MASSENTITY_DEBUG
 		FStringOutputDevice Ar;
@@ -163,27 +188,20 @@ void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<F
 		UE_VLOG(&InOwner, LogMass, Log, TEXT("Setting new group processor for phase %s:\n%s"), *UEnum::GetValueAsString(Phase), *Ar);
 #endif // WITH_MASSENTITY_DEBUG
 
-		const FMassProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
-		FString FileName = !DependencyGraphFileName.IsEmpty() ? FString::Printf(TEXT("%s_%s"), *DependencyGraphFileName, *PhaseConfig.PhaseName.ToString()) : FString();
-		PhaseProcessor->CopyAndSort(PhaseConfig, FileName);
-		PhaseProcessor->Initialize(InOwner);
-	}
-
-#if WITH_MASSENTITY_DEBUG
-	// print it all out to vislog
-	UE_VLOG_UELOG(&InOwner, LogMass, Verbose, TEXT("Phases initialization done. Current composition:"));
-
-	FStringOutputDevice OutDescription;
-	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
-	{
-		if (ProcessingPhases[i].PhaseProcessor)
+#if WITH_EDITOR
+		if (bIsEditorWorld)
 		{
-			ProcessingPhases[i].PhaseProcessor->DebugOutputDescription(OutDescription);
-			UE_VLOG_UELOG(&InOwner, LogMass, Verbose, TEXT("--- %s"), *OutDescription);
-			OutDescription.Reset();
+			// populating the phase processor with initial data for editor world so that the default processing graph
+			// can be investigated in the editor without running PIE.
+			// Runtime processing graph are initialized at runtime base on the actual archetypes instantiated at call time.
+			FProcessorDependencySolver::FResult Result;
+			Result.DependencyGraphFileName = DependencyGraphFileName;
+			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], InOwner);
+			Configurator.bIsGameRuntime = false;
+			Configurator.Configure(/*EntityManager=*/nullptr, &Result);
 		}
-	}	
-#endif // WITH_MASSENTITY_DEBUG
+#endif // WITH_EDITOR
+	}
 }
 
 void FMassProcessingPhaseManager::Deinitialize()
@@ -200,8 +218,7 @@ void FMassProcessingPhaseManager::Start(UWorld& World)
 
 	if (ensure(EntitySubsystem))
 	{
-		EntityManager = EntitySubsystem->GetMutableEntityManager().AsShared();
-		EnableTickFunctions(World);
+		Start(EntitySubsystem->GetMutableEntityManager().AsShared());
 	}
 	else
 	{
@@ -214,6 +231,9 @@ void FMassProcessingPhaseManager::Start(const TSharedPtr<FMassEntityManager>& In
 	UWorld* World = InEntityManager->GetWorld();
 	check(World);
 	EntityManager = InEntityManager;
+
+	OnNewArchetypeHandle = EntityManager->GetOnNewArchetypeEvent().AddRaw(this, &FMassProcessingPhaseManager::OnNewArchetype);
+
 	EnableTickFunctions(*World);
 }
 
@@ -260,7 +280,11 @@ void FMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 
 void FMassProcessingPhaseManager::Stop()
 {
-	EntityManager.Reset();
+	if (EntityManager)
+	{
+		EntityManager->GetOnNewArchetypeEvent().Remove(OnNewArchetypeHandle);
+		EntityManager.Reset();
+	}
 	
 	for (FMassProcessingPhase& Phase : ProcessingPhases)
 	{
@@ -283,6 +307,43 @@ void FMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase
 {
 	ensure(CurrentPhase == EMassProcessingPhase::MAX);
 	CurrentPhase = Phase.Phase;
+
+	const int32 PhaseAsInt = int32(Phase.Phase);
+	if (Owner.IsValid()
+		&& ensure(Phase.Phase != EMassProcessingPhase::MAX)
+		&& ProcessingGraphBuildStates[PhaseAsInt].bNewArchetypes
+		// if not a valid index then we're not able to recalculate dependencies 
+		&& ensure(ProcessingPhasesConfig.IsValidIndex(PhaseAsInt)))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass Rebuild Phase Graph");
+
+		FPhaseGraphBuildState& GraphBuildState = ProcessingGraphBuildStates[PhaseAsInt];
+		if (GraphBuildState.bInitialized == false || FProcessorDependencySolver::IsResultUpToDate(GraphBuildState.LastResult, EntityManager) == false)
+		{
+			UMassCompositeProcessor* PhaseProcessor = ProcessingPhases[PhaseAsInt].PhaseProcessor;
+			check(PhaseProcessor);
+
+			GraphBuildState.LastResult.Reset();
+
+			FMassPhaseProcessorConfigurationHelper Configurator(*PhaseProcessor, ProcessingPhasesConfig[PhaseAsInt], *Owner.Get());
+			Configurator.Configure(EntityManager, &GraphBuildState.LastResult);
+
+			GraphBuildState.bInitialized = true;
+
+#if WITH_MASSENTITY_DEBUG
+			UObject* OwnerPtr = Owner.Get();
+			// print it all out to vislog
+			UE_VLOG_UELOG(OwnerPtr, LogMass, Verbose, TEXT("Phases initialization done. Current composition:"));
+
+			FStringOutputDevice OutDescription;
+			PhaseProcessor->DebugOutputDescription(OutDescription);
+			UE_VLOG_UELOG(OwnerPtr, LogMass, Verbose, TEXT("--- %s"), *OutDescription);
+			OutDescription.Reset();
+#endif // WITH_MASSENTITY_DEBUG
+		}
+
+		ProcessingGraphBuildStates[PhaseAsInt].bNewArchetypes = false;
+	}
 }
 
 void FMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
@@ -307,6 +368,14 @@ void FMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 FString FMassProcessingPhaseManager::GetName() const
 {
 	return GetNameSafe(Owner.Get()) + TEXT("_MassProcessingPhaseManager");
+}
+
+void FMassProcessingPhaseManager::OnNewArchetype(const FMassArchetypeHandle& NewArchetype)
+{
+	for (FPhaseGraphBuildState& GraphBuildState : ProcessingGraphBuildStates)
+	{
+		GraphBuildState.bNewArchetypes = true;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
