@@ -1195,8 +1195,6 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 	];
 
 	GLog->AddOutputDevice(this);
-	// Remove itself on crash (crashmalloc has limited memory and echoing logs here at that point is useless).
-	FCoreDelegates::OnHandleSystemError.AddRaw(this, &SOutputLog::OnCrash);
 
 #if WITH_EDITOR
 	// Listen for style changes
@@ -1236,14 +1234,6 @@ void SOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCurrentT
 	}
 
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-}
-
-void SOutputLog::OnCrash()
-{
-	if (GLog != nullptr)
-	{
-		GLog->RemoveOutputDevice(this);
-	}
 }
 
 static const FName NAME_StyleLogCommand(TEXT("Log.Command"));
