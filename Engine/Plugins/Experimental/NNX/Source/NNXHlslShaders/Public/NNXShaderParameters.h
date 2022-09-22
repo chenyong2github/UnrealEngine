@@ -115,3 +115,35 @@ NNXRT_ELEMENTWISEBINARY_PARAMETER_STRUCT()
 #ifdef NNXRT_RDG_DML
 NNXRT_GEMM_PARAMETER_STRUCT()
 #endif
+
+//Conv
+#define NNXRT_CONV_MAX_NUM_DIMENSIONS 4
+
+#define NNXRT_CONV_PARAMETER_STRUCT() \
+	NNXRT_BEGIN_SHADER_PARAMETER_STRUCT(FMLConvParameters) \
+		NNXRT_RDG_BUFFER_SRV(Buffer<float>, X) \
+		NNXRT_RDG_BUFFER_SRV(Buffer<float>, W) \
+		NNXRT_RDG_BUFFER_UAV(RWBuffer<float>, Y) \
+		NNXRT_RDG_BUFFER_SRV(Buffer<float>, B) \
+		SHADER_PARAMETER_ARRAY(FIntVector4, Dilation_Stride_XBlockStartOffset_DilationXBlockStride, [NNXRT_CONV_MAX_NUM_DIMENSIONS]) \
+		SHADER_PARAMETER_ARRAY(FIntVector4, GroupStride_GroupShape_GroupThreadStride_StrideXBlockStride, [NNXRT_CONV_MAX_NUM_DIMENSIONS]) \
+		SHADER_PARAMETER_ARRAY(FIntVector4, YDimension_YMemoryStride_XDimension_XMemoryStride, [NNXRT_CONV_MAX_NUM_DIMENSIONS]) \
+		SHADER_PARAMETER_ARRAY(FIntVector4, XBlockStartStride_XBlockStride_WDimension_WDimensionDilationXBlockStride, [NNXRT_CONV_MAX_NUM_DIMENSIONS]) \
+		SHADER_PARAMETER_ARRAY(FVector4f, OneDiv_GroupStride_GroupThreadStride_XBlockStride, [NNXRT_CONV_MAX_NUM_DIMENSIONS]) \
+		SHADER_PARAMETER(int32, NumWChannels) \
+		SHADER_PARAMETER(int32, YBatchStride) \
+		SHADER_PARAMETER(int32, YOutputKernelStride) \
+		SHADER_PARAMETER(int32, XBatchStride) \
+		SHADER_PARAMETER(int32, XChannelStride) \
+		SHADER_PARAMETER(int32, XBlockSize) \
+		SHADER_PARAMETER(int32, NumChannelBatches) \
+		SHADER_PARAMETER(int32, NumChannelsPerBatch) \
+		SHADER_PARAMETER(int32, WOutputKernelStride) \
+		SHADER_PARAMETER(int32, WChannelBatchSize) \
+		SHADER_PARAMETER(int32, WChannelSize) \
+		SHADER_PARAMETER(float, GroupsDivM) \
+	NNXRT_END_SHADER_PARAMETER_STRUCT()
+
+#ifdef NNXRT_RDG_DML
+NNXRT_CONV_PARAMETER_STRUCT()
+#endif
