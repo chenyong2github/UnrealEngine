@@ -27,10 +27,7 @@ void FWorldPartitionAssetDependencyGatherer::GatherDependencies(const FAssetData
 
 		for (const FAssetData& FilteredAsset : FilteredAssets)
 		{
-			if (const UClass* FilteredAssetClass = FilteredAsset.GetClass(); FilteredAssetClass && FilteredAssetClass->IsChildOf(AActor::StaticClass()))
-			{
-				OutDependencies.Emplace(IAssetDependencyGatherer::FGathereredDependency{ FilteredAsset.PackageName, UE::AssetRegistry::EDependencyProperty::Game });
-			}
+			OutDependencies.Emplace(IAssetDependencyGatherer::FGathereredDependency{ FilteredAsset.PackageName, UE::AssetRegistry::EDependencyProperty::Game });
 		}
 	}
 }
