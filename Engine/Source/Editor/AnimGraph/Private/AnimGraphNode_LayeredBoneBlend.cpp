@@ -169,13 +169,13 @@ void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class US
 		for (int32 MaskIndex = 0; MaskIndex < NumBlendMasks; ++MaskIndex)
 		{
 			const UBlendProfile* BlendMask = Node.BlendMasks[MaskIndex];
-			if (BlendMask == nullptr)
+			if (BlendMask == nullptr && !GetAnimBlueprint()->bIsTemplate)
 			{
 				MessageLog.Error(*FText::Format(LOCTEXT("LayeredBlendNullMask", "@@ has null BlendMask for Blend Pose {0}. "), FText::AsNumber(MaskIndex)).ToString(), this, BlendMask);
 				bCompilationError = true;
-				continue;
 			}
-			else if (BlendMask->Mode != EBlendProfileMode::BlendMask)
+			
+			if (BlendMask && BlendMask->Mode != EBlendProfileMode::BlendMask)
 			{
 				MessageLog.Error(*FText::Format(LOCTEXT("LayeredBlendProfileModeError", "@@ is using a BlendProfile(@@) without a BlendMask mode for Blend Pose {0}. "), FText::AsNumber(MaskIndex)).ToString(), this, BlendMask);
 				bCompilationError = true;

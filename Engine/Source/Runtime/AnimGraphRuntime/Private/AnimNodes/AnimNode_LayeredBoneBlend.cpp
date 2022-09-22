@@ -300,3 +300,14 @@ void FAnimNode_LayeredBoneBlend::GatherDebugData(FNodeDebugData& DebugData)
 		BlendPoses[ChildIndex].GatherDebugData(DebugData.BranchFlow(BlendWeights[ChildIndex]));
 	}
 }
+
+void FAnimNode_LayeredBoneBlend::SetBlendMask(int32 InPoseIndex, UBlendProfile* InBlendMask)
+{
+	check(BlendMode == ELayeredBoneBlendMode::BlendMask);
+	check(BlendPoses.IsValidIndex(InPoseIndex));
+	check(BlendMasks.IsValidIndex(InPoseIndex));
+
+	BlendMasks[InPoseIndex] = InBlendMask;
+
+	InvalidatePerBoneBlendWeights();
+}

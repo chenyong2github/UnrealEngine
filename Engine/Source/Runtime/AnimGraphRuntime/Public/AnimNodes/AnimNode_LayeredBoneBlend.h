@@ -157,6 +157,9 @@ public:
 		}
 	}
 
+	// Set the blend mask for the specified input pose
+	void SetBlendMask(int32 InPoseIndex, UBlendProfile* InBlendMask);
+	
 	// Invalidate the cached per-bone blend weights from the skeleton
 	void InvalidatePerBoneBlendWeights() { RequiredBonesSerialNumber = 0; SkeletonGuid = FGuid(); VirtualBoneGuid = FGuid(); }
 	

@@ -2152,7 +2152,6 @@ void FAnimationRuntime::CreateMaskWeights(TArray<FPerBoneBlendWeight>& BoneBlend
 
 			if (!BlendMask || BlendMask->Mode != EBlendProfileMode::BlendMask)
 			{
-				ensureMsgf(false, TEXT("FAnimationRuntime::CreateMaskWeights BlendMask null or BlendProfile mode is not blend mask.  BlendProfile=%s"), *GetNameSafe(BlendMask));
 				continue;
 			}
 
