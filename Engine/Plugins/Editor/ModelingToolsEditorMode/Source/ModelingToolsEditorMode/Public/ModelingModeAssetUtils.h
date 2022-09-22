@@ -34,6 +34,12 @@ MODELINGTOOLSEDITORMODE_API FString GetNewAssetPathName(const FString& BaseName,
 MODELINGTOOLSEDITORMODE_API FString GetWorldRelativeAssetRootPath(const UWorld* World);
 
 /**
+ * Determines the global asset root path.
+ * @return Global asset root path.
+ */
+MODELINGTOOLSEDITORMODE_API FString GetGlobalAssetRootPath();
+
+/**
  * Utility function that may auto-save a newly created asset depending on current mode settings,
  * and posts notifications for the Editor
  * @param Asset the new asset object (eg UStaticMesh, UTexture2D, etc)
