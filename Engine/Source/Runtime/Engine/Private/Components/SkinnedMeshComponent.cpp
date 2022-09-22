@@ -30,6 +30,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/SkinWeightProfileManager.h"
 #include "GPUSkinCache.h"
+#include "PipelineStateCache.h"
 #include "SkeletalRender.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
@@ -542,6 +543,77 @@ void USkinnedMeshComponent::PostLoad()
 	{
 		// Set default for new bSetMeshDeformer flag.
 		bSetMeshDeformer = MeshDeformer != nullptr;
+	}
+
+	PrecachePSOs();
+}
+
+void USkinnedMeshComponent::PrecachePSOs()
+{
+	if (GetSkinnedAsset() == nullptr ||
+		GetSkinnedAsset()->GetResourceForRendering() == nullptr ||
+		!FApp::CanEverRender() || 
+		!PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		return;
+	}
+
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkinnedAsset()->GetResourceForRendering();
+	int32 MinLODIndex = ComputeMinLOD();
+
+	bool bAnySectionCastsShadows = false;
+
+	struct VFsPerMaterialData
+	{
+		int16 MaterialIndex;
+		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+	};
+	TArray<VFsPerMaterialData, TInlineAllocator<4>> VFsPerMaterials;
+
+	for (int32 LODIndex = MinLODIndex; LODIndex < SkelMeshRenderData->LODRenderData.Num(); LODIndex++)
+	{
+		FSkeletalMeshLODRenderData& LODRenderData = SkelMeshRenderData->LODRenderData[LODIndex];
+		
+		// Check all render sections for the used material indices
+		for (FSkelMeshRenderSection& RenderSection : LODRenderData.RenderSections)
+		{
+			bAnySectionCastsShadows |= RenderSection.bCastShadow;
+
+			uint16 MaterialIndex = RenderSection.MaterialIndex;
+
+			VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialIndex](const VFsPerMaterialData& Other) { return Other.MaterialIndex == MaterialIndex; });
+			if (VFsPerMaterial == nullptr)
+			{
+				VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
+				VFsPerMaterial->MaterialIndex = MaterialIndex;
+			}
+
+			// Find all the possible used vertex factory types needed to render this render section
+			if (bRenderStatic || ShouldCPUSkin())
+			{
+				// Force static from GPU point of view
+				VFsPerMaterial->VertexFactoryTypes.AddUnique(&FLocalVertexFactory::StaticType);
+			}
+			else if (!SkelMeshRenderData->RequiresCPUSkinning(FeatureLevel, MinLODIndex))
+			{
+				// Add all the vertex factories which can be used for gpu skinning
+				FSkeletalMeshObjectGPUSkin::GetUsedVertexFactories(LODRenderData, RenderSection, FeatureLevel, VFsPerMaterial->VertexFactoryTypes);
+			}
+		}
+	}
+
+	FPSOPrecacheParams PrecachePSOParams;
+	SetupPrecachePSOParams(PrecachePSOParams);
+	PrecachePSOParams.bCastShadow = PrecachePSOParams.bCastShadow && bAnySectionCastsShadows;
+
+	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	{
+		UMaterialInterface* MaterialInterface = GetMaterial(VFsPerMaterial.MaterialIndex);
+		if (MaterialInterface)
+		{
+			MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+		}
 	}
 }
 
@@ -1909,6 +1981,8 @@ void USkinnedMeshComponent::SetSkinnedAssetAndUpdate(USkinnedAsset* InSkinnedAss
 			MorphTargetWeights.Empty();
 			ExternalMorphWeightData.Empty();
 		}
+
+		PrecachePSOs();
 
 		// Re-init the MeshDeformer which might come from the SkelMesh.
 		UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();

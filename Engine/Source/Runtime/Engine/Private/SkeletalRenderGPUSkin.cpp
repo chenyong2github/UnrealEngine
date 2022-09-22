@@ -1731,6 +1731,19 @@ public:
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers VertexBuffers;
 };
 
+static const FVertexFactoryType* GetVertexFactoryType(FSkeletalMeshLODRenderData& LODRenderData, ERHIFeatureLevel::Type FeatureLevel)
+{
+	GPUSkinBoneInfluenceType BoneInfluenceType = LODRenderData.SkinWeightVertexBuffer.GetBoneInfluenceType();
+	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+	{
+		return &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType;
+	}
+	else
+	{
+		return &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>::StaticType;
+	}
+}
+
 /**
  * Creates a vertex factory entry for the given type and initialize it on the render thread
  */
@@ -1883,6 +1896,19 @@ static void UpdateVertexFactoryMorph(TArray<TUniquePtr<FGPUBaseSkinVertexFactory
 
 // APEX cloth
 
+static const FVertexFactoryType* GetVertexFactoryTypeCloth(FSkeletalMeshLODRenderData& LODRenderData, ERHIFeatureLevel::Type FeatureLevel)
+{
+	GPUSkinBoneInfluenceType BoneInfluenceType = LODRenderData.SkinWeightVertexBuffer.GetBoneInfluenceType();
+	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+	{
+		return &TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType;
+	}
+	else
+	{
+		return &TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>::StaticType;
+	}
+}
+
 /**
  * Creates a vertex factory entry for the given type and initialize it on the render thread
  */
@@ -1946,6 +1972,25 @@ static void UpdateVertexFactoryCloth(TArray<TUniquePtr<FGPUBaseSkinAPEXClothVert
 	}
 }
 
+
+void FSkeletalMeshObjectGPUSkin::GetUsedVertexFactories(FSkeletalMeshLODRenderData& LODRenderData, FSkelMeshRenderSection& RenderSection, ERHIFeatureLevel::Type InFeatureLevel, TArray<const FVertexFactoryType*, TInlineAllocator<2>>& VertexFactoryTypes)
+{
+	// TODO: optimize types to add based on if SkinCache is used and allowed for given Mesh (UE-164762)
+	VertexFactoryTypes.AddUnique(&FGPUSkinPassthroughVertexFactory::StaticType);
+
+	// Add GPU skin cloth vertex factory type is needed
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
+	const bool bClothEnabled = FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(ShaderPlatform);
+	if (bClothEnabled && RenderSection.HasClothingData())
+	{
+		VertexFactoryTypes.AddUnique(GetVertexFactoryTypeCloth(LODRenderData, InFeatureLevel));
+	}
+	else
+	{
+		// Add GPU skin vertex factory type
+		VertexFactoryTypes.AddUnique(GetVertexFactoryType(LODRenderData, InFeatureLevel));
+	}
+}
 
 /**
  * Determine the current vertex buffers valid for the current LOD

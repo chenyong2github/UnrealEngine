@@ -1071,6 +1071,9 @@ public:
 	 */
 	void SetForceWireframe(bool InForceWireframe);
 
+	/** Precache all PSOs which can be used by the component */
+	virtual void PrecachePSOs() override;
+	
 #if WITH_EDITOR
 	/** Return value of SectionIndexPreview  */
 	int32 GetSectionPreview() const { return SectionIndexPreview;  }
