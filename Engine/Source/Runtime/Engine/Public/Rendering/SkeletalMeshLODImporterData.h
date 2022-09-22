@@ -364,6 +364,7 @@ public:
 	// Alternate influence imported(i.e. FBX) data. The name is the alternate skinning profile name
 	TArray<FSkeletalMeshImportData> AlternateInfluences;
 	TArray<FString> AlternateInfluenceProfileNames;
+	
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -455,6 +456,8 @@ struct FReductionBaseSkeletalMeshBulkData
 
 	//The custom version when this was load
 	FCustomVersionContainer SerializeLoadingCustomVersionContainer;
+	FPackageFileVersion UEVersion;
+	int32 LicenseeUEVersion = 0;
 	bool bUseSerializeLoadingCustomVersion = false;
 
 	uint32 CacheLODVertexNumber = MAX_uint32;
@@ -534,6 +537,8 @@ class FRawSkeletalMeshBulkData
 
 	//The custom version when this was load
 	FCustomVersionContainer SerializeLoadingCustomVersionContainer;
+	FPackageFileVersion UEVersion;
+	int32 LicenseeUEVersion = 0;
 	bool bUseSerializeLoadingCustomVersion = false;
 
 public:
