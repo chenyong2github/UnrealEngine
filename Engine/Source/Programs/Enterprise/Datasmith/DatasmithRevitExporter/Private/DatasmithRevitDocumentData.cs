@@ -1307,25 +1307,27 @@ namespace DatasmithRevitExporter
 			// Cache document section boxes
 			if (CurrentDocument.ActiveView != null)
 			{
-				BoundingBoxXYZ BBox = (GetElement(CurrentDocument.ActiveView.Id) as View3D).GetSectionBox();
+				View3D CurrentView3d = (GetElement(CurrentDocument.ActiveView.Id) as View3D);
 
-				if (BBox.IsSet && BBox.Enabled)
+				SectionBox = null;
+				SectionBoxOutline = null;
+
+				if (CurrentView3d != null && CurrentView3d.IsSectionBoxActive)
 				{
-					SectionBox = new OrientatedBoundingBox(BBox.Transform, BBox.Min, BBox.Max, true);
-					if (!SectionBox.bIsValidData)
+					BoundingBoxXYZ BBox = CurrentView3d.GetSectionBox();
+
+					if (BBox.IsSet && BBox.Enabled)
 					{
-						SectionBox = null;
-						SectionBoxOutline = null;
+						SectionBox = new OrientatedBoundingBox(BBox.Transform, BBox.Min, BBox.Max, true);
+						if (SectionBox.bIsValidData)
+						{
+							SectionBoxOutline = new Outline(SectionBox.AxisAllignedMin, SectionBox.AxisAllignedMax);
+						}
+						else
+						{
+							SectionBox = null;
+						}
 					}
-					else
-					{
-						SectionBoxOutline = new Outline(SectionBox.AxisAllignedMin, SectionBox.AxisAllignedMax);
-					}
-				}
-				else
-				{
-					SectionBox = null;
-					SectionBoxOutline = null;
 				}
 			}
 
