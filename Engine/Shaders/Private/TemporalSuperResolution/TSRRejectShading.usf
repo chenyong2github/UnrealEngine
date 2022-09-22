@@ -702,8 +702,10 @@ void MainCS(
 			tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(GroupPixelOffset + LaneSimdPixelOffset, InputInfo_ViewportMax);
 			OutputPixelPos.x = select(bIsNonOverscanPixel, OutputPixelPos.x, ~tsr_short(0));
 		
+			tsr_half LocalRejection = Rejection.GetElement(SimdIndex);
 			tsr_halfC FinalGuideColor = FinalGuide.GetElement(SimdIndex);
-
+			
+			LocalRejection = LocalRejection - 0.5 * rcp(tsr_half(256.0));
 			#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 			{
 				uint2 Random = Rand3DPCG16(int3(LaneSimdPixelOffset, View.StateFrameIndexMod8)).xy;
@@ -717,7 +719,7 @@ void MainCS(
 			#if CONFIG_MOIRE_DETECTION
 				HistoryMoireOutput[OutputPixelPos] = FinalMoire.GetElement(SimdIndex);
 			#endif
-			HistoryRejectionOutput[OutputPixelPos] = Rejection.GetElement(SimdIndex);
+			HistoryRejectionOutput[OutputPixelPos] = LocalRejection;
 			InputSceneColorLdrLumaOutput[OutputPixelPos] = CenterLumaLDR.GetElement(SimdIndex);
 			
 			#if DEBUG_OUTPUT
