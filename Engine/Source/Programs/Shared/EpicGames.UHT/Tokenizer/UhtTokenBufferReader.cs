@@ -625,22 +625,21 @@ Restart:
 				for (; ; )
 				{
 					char nextChar = InternalGetChar(span);
-					if (nextChar == '\r' || nextChar == '\n')
+					if (nextChar == '\r' || nextChar == '\n' || nextChar == 0)
 					{
-						// throw
+						throw new UhtException(this, "Unterminated character constant");
 					}
 
-					if (nextChar == '\\')
+					else if (nextChar == '\\')
 					{
 						nextChar = InternalGetChar(span);
-						if (nextChar == '\r' || nextChar == '\n')
+						if (nextChar == '\r' || nextChar == '\n' || nextChar == 0)
 						{
-							// throw
+							throw new UhtException(this, "Unterminated character constant");
 						}
-						nextChar = InternalGetChar(span);
 					}
 
-					if (nextChar == '"')
+					else if (nextChar == '"')
 					{
 						break;
 					}
