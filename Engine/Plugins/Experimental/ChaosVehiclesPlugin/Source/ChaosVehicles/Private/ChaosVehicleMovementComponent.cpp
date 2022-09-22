@@ -1254,7 +1254,13 @@ void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSt
 
 	if (!GetUseAutoGears())
 	{
-		SetTargetGear(InCurrentGear, true);
+		if (UWorld* World = GetWorld())
+		{
+			if (World->GetNetMode() == NM_DedicatedServer)
+			{
+				SetTargetGear(InCurrentGear, true);
+			}
+		}
 	}
 
 	// update state of inputs
