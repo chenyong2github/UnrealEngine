@@ -456,7 +456,7 @@ namespace UnrealBuildTool
 			if (Target.bPGOOptimize || Target.bPGOProfile)
 			{
 				Logger.LogInformation("PGO {PgoType} build", Target.bPGOOptimize ? "optimize" : "profile");
-				if(Target.bPGOOptimize)
+				if (Target.bPGOOptimize)
 				{
 					CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile)!.FullName, "Platforms", "Android", "Build", "PGO");
 					CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-Android", Target.Name);
@@ -467,6 +467,14 @@ namespace UnrealBuildTool
 					Logger.LogInformation("PGO Dir: {PgoDir}", CompileEnvironment.PGODirectory);
 					Logger.LogInformation("PGO Prefix: {PgoPrefix}", CompileEnvironment.PGOFilenamePrefix);
 				}
+			}
+
+			// For consistency with other platforms, also enable LTO whenever doing profile-guided optimizations.
+			// Obviously both PGI (instrumented) and PGO (optimized) binaries need to have that
+			if (CompileEnvironment.bPGOProfile || CompileEnvironment.bPGOOptimize)
+			{
+				CompileEnvironment.bAllowLTCG = true;
+				LinkEnvironment.bAllowLTCG = true;
 			}
 
 			CompileEnvironment.Definitions.Add("INT64_T_TYPES_NOT_LONG_LONG=1");
@@ -531,6 +539,10 @@ namespace UnrealBuildTool
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			ClangToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
+			if (Target.bAllowLTCG && Target.bPreferThinLTO)
+			{
+				Options |= ClangToolChainOptions.EnableThinLTO;
+			}
 			return new AndroidToolChain(Target.ProjectFile, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options, Logger);
 		}
 		public virtual UEToolChain CreateTempToolChainForProject(FileReference? ProjectFile)

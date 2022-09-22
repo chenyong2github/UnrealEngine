@@ -711,9 +711,6 @@ namespace UnrealBuildTool
 				Result += " -Wno-backend-plugin";
 
 				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(CompileEnvironment.PGODirectory!, CompileEnvironment.PGOFilenamePrefix!));
-
-				//TODO: measure LTO.
-				//Result += " -flto=thin";
 			}
 			else if (CompileEnvironment.bPGOProfile)
 			{
@@ -722,9 +719,19 @@ namespace UnrealBuildTool
 				Result += " -fprofile-generate";
 				//  for sampling-based profile collection to generate minimal debug information:
 				Result += " -gline-tables-only";
+			}
 
-				//TODO: check LTO improves perf.
-				//Result += " -flto=thin";
+			bool bEnableLTO = CompileEnvironment.bPGOOptimize || CompileEnvironment.bPGOProfile;
+			if (CompileEnvironment.bAllowLTCG || bEnableLTO)
+			{
+				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
+				{
+					Result += " -flto=thin";
+				}
+				else
+				{
+					Result += " -flto";
+				}
 			}
 
 			if (Architecture == "-arm64")
@@ -872,9 +879,6 @@ namespace UnrealBuildTool
 				Result += " -Wno-profile-instr-unprofiled";
 
 				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix!));
-
-				//TODO: check LTO improves perf.
-				//Result += " -flto=thin";
 			}
 			else if (LinkEnvironment.bPGOProfile)
 			{
@@ -882,6 +886,19 @@ namespace UnrealBuildTool
 				Result += " -fprofile-generate";
 				//  for sampling-based profile collection to generate minimal debug information:
 				Result += " -gline-tables-only";
+			}
+
+			bool bEnableLTO = LinkEnvironment.bPGOOptimize || LinkEnvironment.bPGOProfile;
+			if (LinkEnvironment.bAllowLTCG || bEnableLTO)
+			{
+				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
+				{
+					Result += " -flto=thin";
+				}
+				else
+				{
+					Result += " -flto";
+				}
 			}
 
 			// verbose output from the linker
