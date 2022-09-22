@@ -532,6 +532,15 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 	}
 }
 
+void SDisplayClusterColorGradingDrawer::SetDrawerStateToDefault()
+{
+	// The nDisplay stage actor is always the first item in the root actor color grading items list, so set that as the currently selected item
+	if (RootActorList.IsValid() && RootActorColorGradingItems.Num() > 0)
+	{
+		RootActorList->SetSelectedItems({ RootActorColorGradingItems[0] });
+	}
+}
+
 TSharedRef<SWidget> SDisplayClusterColorGradingDrawer::CreateDockInLayoutButton()
 {
 	if (bIsInDrawer)
@@ -949,6 +958,13 @@ void SDisplayClusterColorGradingDrawer::OnListSelectionChanged(TSharedRef<SDispl
 	}
 
 	ColorGradingDataModel->SetObjects(ObjectsToColorGrade);
+
+	// If the current drawer mode is the details view but the newly selected objects don't have any details sections to display,
+	// switch to the color grading drawer mode
+	if (CurrentDrawerMode == EDisplayClusterColorGradingDrawerMode::DetailsView && ColorGradingDataModel->DetailsSections.Num() == 0)
+	{
+		CurrentDrawerMode = EDisplayClusterColorGradingDrawerMode::ColorGrading;
+	}
 }
 
 FReply SDisplayClusterColorGradingDrawer::DockInLayout()

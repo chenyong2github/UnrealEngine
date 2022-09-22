@@ -96,6 +96,10 @@ TSharedRef<SWidget> FDisplayClusterColorGradingDrawerSingleton::CreateDrawerCont
 			ColorGradingDrawer.Pin()->SetDrawerState(PreviousDrawerState.GetValue());
 			PreviousDrawerState.Reset();
 		}
+		else
+		{
+			ColorGradingDrawer.Pin()->SetDrawerStateToDefault();
+		}
 
 		return Drawer.ToSharedRef();
 	}

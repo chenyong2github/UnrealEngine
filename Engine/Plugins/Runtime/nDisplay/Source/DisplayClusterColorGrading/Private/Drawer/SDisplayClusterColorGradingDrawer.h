@@ -85,6 +85,9 @@ public:
 	/** Sets the state of the drawer UI */
 	void SetDrawerState(const FDisplayClusterColorGradingDrawerState& InDrawerState);
 
+	/** Sets the state of the drawer UI to its default value, which is to have the nDisplay stage actor selected */
+	void SetDrawerStateToDefault();
+
 private:
 	/** Creates the button used to dock the drawer in the operator panel */
 	TSharedRef<SWidget> CreateDockInLayoutButton();
