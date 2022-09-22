@@ -61,6 +61,7 @@ namespace Metasound
 
 			void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override;
 			const FMetasoundFrontendDocumentMetadata& GetMetadata() const override;
+			FMetasoundFrontendDocumentMetadata* GetMetadata() override;
 
 			void RemoveUnreferencedDependencies() override;
 			TArray<FConstClassAccessPtr> SynchronizeDependencyMetadata() override;

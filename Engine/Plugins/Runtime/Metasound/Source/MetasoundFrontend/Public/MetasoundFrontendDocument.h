@@ -47,6 +47,62 @@ namespace Metasound
 	} // namespace Frontend
 } // namespace Metasound
 
+
+#if WITH_EDITORONLY_DATA
+// Struct containing any modified data breadcrumbs to inform what the editor/view layer must synchronize or refresh.
+class METASOUNDFRONTEND_API FMetasoundFrontendDocumentModifyContext
+{
+private:
+	// Whether or not the owning asset's MetaSoundDocument has been modified. True by default to force refreshing views on loading/reloading asset.
+	bool bDocumentModified = true;
+
+	// Whether or not to force refresh all views. True by default to force refreshing views on loading/reloading asset.
+	bool bForceRefreshViews = true;
+
+	// Which Interfaces have been modified since the last editor graph synchronization
+	TSet<FName> InterfacesModified;
+
+	// Which MemberIDs have been modified since the last editor graph synchronization
+	TSet<FGuid> MemberIDsModified;
+
+	// Which NodeIDs have been modified since the last editor graph synchronization
+	TSet<FGuid> NodeIDsModified;
+
+public:
+	void ClearDocumentModified();
+
+	bool GetDocumentModified() const;
+	bool GetForceRefreshViews() const;
+	const TSet<FName>& GetInterfacesModified() const;
+	const TSet<FGuid>& GetNodeIDsModified() const;
+	const TSet<FGuid>& GetMemberIDsModified() const;
+
+	void Reset();
+
+	void SetDocumentModified();
+	void SetForceRefreshViews();
+
+	// Adds an interface name to the set of interfaces that have been modified since last context reset/construction
+	void AddInterfaceModified(FName InInterfaceModified);
+
+	// Performs union of provided interface set with the set of interfaces that have been modified since last context reset/construction
+	void AddInterfacesModified(const TSet<FName>& InInterfacesModified);
+
+	// Adds a MemberID to the set of interfaces that have been modified since last context reset/construction
+	void AddMemberIDModified(const FGuid& InMemberIDModified);
+
+	// Performs union of provided MemberIDs set with the set of MemberIDs that have been modified since last context reset/construction
+	void AddMemberIDsModified(const TSet<FGuid>& InMemberIDsModified);
+
+	// Performs union of provided NodeID set with the set of NodeIDs that have been modified since last context reset/construction
+	void AddNodeIDModified(const FGuid& InNodeIDModified);
+
+	// Performs union of provided interface set with the set of interfaces that have been modified since last context reset/construction
+	void AddNodeIDsModified(const TSet<FGuid>& InNodeIDsModified);
+};
+#endif // WITH_EDITORONLY_DATA
+
+
 // Describes how a vertex accesses the data connected to it. 
 UENUM()
 enum class EMetasoundFrontendVertexAccessType
@@ -1361,6 +1417,10 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocumentMetadata
 
 	UPROPERTY()
 	FMetasoundFrontendVersion Version;
+
+#if WITH_EDITORONLY_DATA
+	FMetasoundFrontendDocumentModifyContext ModifyContext;
+#endif // WITH_EDITORONLY_DATA
 };
 
 USTRUCT()

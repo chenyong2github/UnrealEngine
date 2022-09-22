@@ -99,9 +99,6 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphMember : public UObject
 	GENERATED_BODY()
 
 public:
-	/** Delegate called when the name of the associated Frontend Node is changed */
-	FOnMetasoundMemberNameChanged NameChanged;
-
 	/** Delegate called when a rename is requested on a renameable member node. */
 	FOnMetasoundMemberRenameRequested OnRenameRequested;
 
@@ -383,8 +380,10 @@ public:
 	UObject& GetMetasoundChecked();
 	const UObject& GetMetasoundChecked() const;
 
-	void IterateInputs(TUniqueFunction<void(UMetasoundEditorGraphInput&)> InFunction) const;
-	void IterateOutputs(TUniqueFunction<void(UMetasoundEditorGraphOutput&)> InFunction) const;
+	void IterateInputs(TFunctionRef<void(UMetasoundEditorGraphInput&)> InFunction) const;
+	void IterateOutputs(TFunctionRef<void(UMetasoundEditorGraphOutput&)> InFunction) const;
+	void IterateVariables(TFunctionRef<void(UMetasoundEditorGraphVariable&)> InFunction) const;
+	void IterateMembers(TFunctionRef<void(UMetasoundEditorGraphMember&)> InFunction) const;
 
 	bool ContainsInput(const UMetasoundEditorGraphInput& InInput) const;
 	bool ContainsOutput(const UMetasoundEditorGraphOutput& InOutput) const;
@@ -394,13 +393,10 @@ public:
 	bool IsPreviewing() const;
 	bool IsEditable() const;
 
-	void SetForceRefreshNodes();
-	void ClearForceRefreshNodes();
-	bool RequiresForceRefreshNodes() const;
-
 	// UMetasoundEditorGraphBase Implementation
 	virtual void RegisterGraphWithFrontend() override;
-	virtual void SetSynchronizationRequired() override;
+	virtual FMetasoundFrontendDocumentModifyContext& GetModifyContext() override;
+	virtual const FMetasoundFrontendDocumentModifyContext& GetModifyContext() const override;
 
 	virtual void ClearVersionedOnLoad() override;
 	virtual bool GetVersionedOnLoad() const override;

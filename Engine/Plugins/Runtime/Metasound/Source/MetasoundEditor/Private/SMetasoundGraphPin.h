@@ -182,18 +182,20 @@ namespace Metasound
 												if (ensure(Member))
 												{
 													Member->ResetToClassDefault();
+													MetaSoundGraph->GetModifyContext().AddMemberIDsModified({ Member->GetMemberID() });
+												}
+												else
+												{
+													MetaSoundGraph->GetModifyContext().SetDocumentModified();
 												}
 											}
 											else
 											{
 												FInputHandle InputHandle = GetInputHandle();
 												InputHandle->ClearLiteral();
+												MetaSoundGraph->GetModifyContext().SetDocumentModified();
 											}
 										}
-
-										// Full node synchronization required as custom
-										// node-level widgets may need to be refreshed
-										MetaSoundGraph->SetSynchronizationRequired();
 									}
 								}
 							}

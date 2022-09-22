@@ -219,13 +219,22 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 		OnClampChanged.Broadcast(ClampDefault);
 	}
 
-	// TODO: Remove this once widget Metadata is migrated to frontend
-	// style, which will inherently update the change guid and issue
-	// resync.
 	UMetasoundEditorGraphMember* Member = GetParentMember();
 	if (ensure(Member))
 	{
-		Member->GetOwningGraph()->SetForceRefreshNodes();
+		FMetasoundFrontendDocumentModifyContext& ModifyContext = Member->GetOwningGraph()->GetModifyContext();
+
+		// Only update member on non-interactive changes to avoid refreshing the details panel mid-update
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+		{
+			ModifyContext.AddMemberIDsModified({ Member->GetMemberID() });
+		}
+
+		// Mark all nodes as modified to refresh them on synchronization.  This ensures all corresponding widgets get updated.
+		const TArray<UMetasoundEditorGraphMemberNode*> MemberNodes = Member->GetNodes();
+		TSet<FGuid> NodesToRefresh;
+		Algo::Transform(MemberNodes, NodesToRefresh, [](const UMetasoundEditorGraphMemberNode* MemberNode) { return MemberNode->GetNodeID(); });
+		ModifyContext.AddNodeIDsModified({ NodesToRefresh });
 	}
 
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);

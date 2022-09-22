@@ -473,6 +473,7 @@ namespace Metasound
 
 				virtual void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override { }
 				virtual const FMetasoundFrontendDocumentMetadata& GetMetadata() const override { return Invalid::GetInvalidDocumentMetadata(); }
+				virtual FMetasoundFrontendDocumentMetadata* GetMetadata() override { return nullptr; }
 
 				virtual void RemoveUnreferencedDependencies() override { }
 				virtual TArray<FConstClassAccessPtr> SynchronizeDependencyMetadata() override { return { }; }

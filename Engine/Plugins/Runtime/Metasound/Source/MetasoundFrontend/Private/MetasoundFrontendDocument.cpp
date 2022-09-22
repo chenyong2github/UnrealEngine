@@ -104,6 +104,95 @@ namespace Metasound
 	} // namespace DocumentPrivate
 } // namespace Metasound
 
+#if WITH_EDITORONLY_DATA
+void FMetasoundFrontendDocumentModifyContext::ClearDocumentModified()
+{
+	bDocumentModified = false;
+}
+
+bool FMetasoundFrontendDocumentModifyContext::GetDocumentModified() const
+{
+	return bDocumentModified;
+}
+
+bool FMetasoundFrontendDocumentModifyContext::GetForceRefreshViews() const
+{
+	return bForceRefreshViews;
+}
+
+const TSet<FName>& FMetasoundFrontendDocumentModifyContext::GetInterfacesModified() const
+{
+	return InterfacesModified;
+}
+
+const TSet<FGuid>& FMetasoundFrontendDocumentModifyContext::GetMemberIDsModified() const
+{
+	return MemberIDsModified;
+}
+
+const TSet<FGuid>& FMetasoundFrontendDocumentModifyContext::GetNodeIDsModified() const
+{
+	return NodeIDsModified;
+}
+
+void FMetasoundFrontendDocumentModifyContext::Reset()
+{
+	bDocumentModified = false;
+	bForceRefreshViews = false;
+	InterfacesModified.Empty();
+	MemberIDsModified.Empty();
+	NodeIDsModified.Empty();
+}
+
+void FMetasoundFrontendDocumentModifyContext::SetDocumentModified()
+{
+	bDocumentModified = true;
+}
+
+void FMetasoundFrontendDocumentModifyContext::SetForceRefreshViews()
+{
+	bDocumentModified = true;
+	bForceRefreshViews = true;
+}
+
+void FMetasoundFrontendDocumentModifyContext::AddInterfaceModified(FName InInterfaceModified)
+{
+	bDocumentModified = true;
+	InterfacesModified.Add(InInterfaceModified);
+}
+
+void FMetasoundFrontendDocumentModifyContext::AddInterfacesModified(const TSet<FName>& InInterfacesModified)
+{
+	bDocumentModified = true;
+	InterfacesModified.Append(InInterfacesModified);
+}
+
+void FMetasoundFrontendDocumentModifyContext::AddMemberIDModified(const FGuid& InMemberIDModified)
+{
+	bDocumentModified = true;
+	MemberIDsModified.Add(InMemberIDModified);
+}
+
+void FMetasoundFrontendDocumentModifyContext::AddMemberIDsModified(const TSet<FGuid>& InMemberIDsModified)
+{
+	bDocumentModified = true;
+	MemberIDsModified.Append(InMemberIDsModified);
+}
+
+void FMetasoundFrontendDocumentModifyContext::AddNodeIDModified(const FGuid& InNodeIDModified)
+{
+	bDocumentModified = true;
+	NodeIDsModified.Add(InNodeIDModified);
+}
+
+void FMetasoundFrontendDocumentModifyContext::AddNodeIDsModified(const TSet<FGuid>& InNodesModified)
+{
+	bDocumentModified = true;
+	NodeIDsModified.Append(InNodesModified);
+}
+#endif // WITH_EDITORONLY_DATA
+
+
 FMetasoundFrontendNodeInterface::FMetasoundFrontendNodeInterface(const FMetasoundFrontendClassInterface& InClassInterface)
 {
 	for (const FMetasoundFrontendClassInput& Input : InClassInterface.Inputs)

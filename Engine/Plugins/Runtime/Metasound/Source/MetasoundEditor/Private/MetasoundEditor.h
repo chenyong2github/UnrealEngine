@@ -154,7 +154,7 @@ namespace Metasound
 			void DuplicateNodes();
 
 			/** Forces all UX pertaining to the root graph's details panel to be refreshed. */
-			void RefreshDetails(bool bRefreshReferencedAssetEditors = false);
+			void RefreshDetails();
 			
 			/** Pastes node(s) from the clipboard to the graph */
 			void PasteNodes(const FVector2D* InLocation = nullptr);
@@ -168,7 +168,7 @@ namespace Metasound
 			void RefreshGraphMemberMenu();
 
 			/** Forces refresh of interfaces list. */
-			void RefreshInterfaces(bool bRefreshReferencedAssetEditors = false);
+			void RefreshInterfaces();
 
 			/** Updates selected node classes to highest class found in the MetaSound Class Registry. */
 			void UpdateSelectedNodeClasses();
@@ -182,10 +182,6 @@ namespace Metasound
 			{
 				return MetasoundGraphEditor->GetSelectedNodes().Num();
 			}
-
-			void OnInputNameChanged(FGuid InNodeID);
-			void OnOutputNameChanged(FGuid InNodeID);
-			void OnVariableNameChanged(FGuid InVariableID);
 
 			/** Creates analyzers */
 			void CreateAnalyzers();
@@ -325,7 +321,11 @@ namespace Metasound
 			/** Called to redo the last undone action */
 			void RedoGraphAction();
 
+			void RefreshEditorContext();
+
 		private:
+			void RemoveInvalidSelection();
+
 			void SetPreviewID(uint32 InPreviewID);
 
 			/** FNotifyHook interface */
@@ -429,8 +429,6 @@ namespace Metasound
 
 			/** The Metasound asset being edited */
 			UObject* Metasound = nullptr;
-
-			TMap<FGuid, FDelegateHandle> NameChangeDelegateHandles;
 
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;

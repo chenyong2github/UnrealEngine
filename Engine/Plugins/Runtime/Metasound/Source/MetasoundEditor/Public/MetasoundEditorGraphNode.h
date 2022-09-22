@@ -110,14 +110,8 @@ public:
 
 	FText GetCachedTitle() const { return CachedTitle; }
 
-	// Returns whether or not Metadata has been changed since the last node refresh
-	bool ContainsMetadataChange() const;
-
-	// Returns whether or not Interface has been changed since the last node refresh
-	bool ContainsInterfaceChange() const;
-
-	// Returns whether or not Style has been changed since the last node refresh
-	bool ContainsStyleChange() const;
+	// Returns whether or not the class interface, metadata, or style has been changed since the last node refresh
+	bool ContainsClassChange() const;
 
 protected:
 	FGuid InterfaceChangeID;

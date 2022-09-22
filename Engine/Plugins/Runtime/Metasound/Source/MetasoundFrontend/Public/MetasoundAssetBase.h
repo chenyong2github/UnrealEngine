@@ -140,14 +140,8 @@ public:
 	 */
 	void CacheRegistryMetadata();
 
-	// TODO: These flags & associated functions are highly UE editor-specific.
-	// Split synchronization requirement flag into synchronization required &
-	// object type refresh or checking frontend class guids when synchronizing.
-	bool GetSynchronizationRequired() const;
-	bool GetSynchronizationUpdateDetails() const;
-	void ResetSynchronizationState();
-	void SetUpdateDetailsOnSynchronization();
-	void SetSynchronizationRequired();
+	FMetasoundFrontendDocumentModifyContext& GetModifyContext();
+	const FMetasoundFrontendDocumentModifyContext& GetModifyContext() const;
 #endif // WITH_EDITOR
 
 	// Calls the outermost package and marks it dirty.
@@ -182,11 +176,6 @@ protected:
 
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const = 0;
-
-#if WITH_EDITORONLY_DATA
-	bool bSynchronizationRequired = true;
-	bool bSynchronizationUpdateDetails = false;
-#endif // WITH_EDITORONLY_DATA
 
 protected:
 	// Container for runtime data of MetaSound graph.

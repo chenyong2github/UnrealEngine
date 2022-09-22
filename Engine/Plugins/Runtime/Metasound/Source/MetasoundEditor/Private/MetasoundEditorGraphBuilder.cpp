@@ -80,7 +80,23 @@ namespace Metasound
 				return FName(*NewName);
 			}
 
-			bool SynchronizeGraphRecursively(UObject& InMetaSound, bool bForceRefreshNodes, bool bEditorGraphModified = false)
+			void RecurseClearDocumentModified(FMetasoundAssetBase& InAssetBase)
+			{
+				using namespace Metasound::Frontend;
+
+				InAssetBase.GetModifyContext().ClearDocumentModified();
+
+				TArray<FMetasoundAssetBase*> References;
+				ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(InAssetBase, References));
+				for (FMetasoundAssetBase* Reference : References)
+				{
+					check(Reference);
+					Reference->GetModifyContext().ClearDocumentModified();
+					RecurseClearDocumentModified(*Reference);
+				}
+			};
+
+			bool SynchronizeGraphRecursively(UObject& InMetaSound, bool bEditorGraphModified = false)
 			{
 				using namespace Frontend;
 
@@ -94,7 +110,12 @@ namespace Metasound
 				for (FMetasoundAssetBase* Reference : References)
 				{
 					check(Reference);
-					SynchronizeGraphRecursively(*Reference->GetOwningAsset(), bForceRefreshNodes, bEditorGraphModified);
+					bEditorGraphModified |= SynchronizeGraphRecursively(*Reference->GetOwningAsset(), bEditorGraphModified);
+				}
+
+				if (!MetaSoundAsset->GetModifyContext().GetDocumentModified())
+				{
+					return bEditorGraphModified;
 				}
 
 				// If no graph is set, MetaSound has been created outside of asset factory, so initialize it here.
@@ -494,7 +515,7 @@ namespace Metasound
 							Variable->UpdateFrontendDefaultLiteral(bPostTransaction);
 						}
 
-						MetasoundGraph->SetSynchronizationRequired();
+						MetasoundGraph->GetModifyContext().AddNodeIDsModified({ NewGraphNode->GetNodeID() });
 						NewGraphNode->SetNodeLocation(InLocation);
 					}
 				}
@@ -534,7 +555,7 @@ namespace Metasound
 					constexpr bool bPostTransaction = false;
 					Output->UpdateFrontendDefaultLiteral(bPostTransaction);
 
-					MetasoundGraph->SetSynchronizationRequired();
+					MetasoundGraph->GetModifyContext().AddNodeIDsModified({ NewGraphNode->GetNodeID() });
 				}
 
 				NewGraphNode->CacheTitle();
@@ -550,56 +571,28 @@ namespace Metasound
 			RebuildNodePins(*NewGraphNode);
 		}
 
-		EMessageSeverity::Type FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes)
+		FGraphValidationResults FGraphBuilder::ValidateGraph(UObject& InMetaSound)
 		{
 			using namespace Frontend;
 
-			TSharedPtr<SGraphEditor> GraphEditor;
-			TSharedPtr<FEditor> MetaSoundEditor = GetEditorForMetasound(InMetaSound);
-			if (MetaSoundEditor.IsValid())
-			{
-				GraphEditor = MetaSoundEditor->GetGraphEditor();
-			}
-
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
-			UMetasoundEditorGraph& Graph = *CastChecked<UMetasoundEditorGraph>(&MetaSoundAsset->GetGraphChecked());
 
-			bForceRefreshNodes |= Graph.RequiresForceRefreshNodes();
-			Graph.ClearForceRefreshNodes();
-
-			int8 HighestMessageSeverity = EMessageSeverity::Info;
+			// Validate referenced graphs first to ensure all editor data
+			// is up-to-date prior to validating this referencing graph to
+			// allow errors to bubble up.
+			TArray<FMetasoundAssetBase*> References;
+			ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*MetaSoundAsset, References));
+			for (FMetasoundAssetBase* Reference : References)
+			{
+				check(Reference);
+				ValidateGraph(*Reference->GetOwningAsset());
+			}
 
 			FGraphValidationResults Results;
+			UMetasoundEditorGraph& Graph = *CastChecked<UMetasoundEditorGraph>(&MetaSoundAsset->GetGraphChecked());
 			Graph.ValidateInternal(Results);
-			for (const FGraphNodeValidationResult& Result : Results.GetResults())
-			{
-				UMetasoundEditorGraphNode& Node = Result.GetNodeChecked();
-				const bool bInterfaceChange = Node.ContainsInterfaceChange();
-				const bool bMetadataChange = Node.ContainsMetadataChange();
-				const bool bStyleChange = Node.ContainsStyleChange();
-
-				const FText Title = Node.GetCachedTitle();
-				Node.CacheTitle();
-				const bool bTitleUpdated = !Title.IdenticalTo(Node.GetCachedTitle());
-
-				if (Result.GetHasDirtiedNode() || bTitleUpdated || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
-				{
-					Node.SyncChangeIDs();
-
-					if (GraphEditor.IsValid())
-					{
-						GraphEditor->RefreshNode(Node);
-					}
-				}
-			}
-
-			if (MetaSoundEditor.IsValid())
-			{
-				MetaSoundEditor->RefreshGraphMemberMenu();
-			}
-
-			return Results.GetHighestMessageSeverity();
+			return Results;
 		}
 
 		TArray<FString> FGraphBuilder::GetDataTypeNameCategories(const FName& InDataTypeName)
@@ -990,7 +983,7 @@ namespace Metasound
 			{
 				NewGraphNode->SetNodeLocation(InLocation);
 				RebuildNodePins(*NewGraphNode);
-				MetasoundGraph->SetSynchronizationRequired();
+				MetasoundGraph->GetModifyContext().AddNodeIDsModified({ NewGraphNode->GetNodeID() });
 				return NewGraphNode;
 			}
 
@@ -1511,7 +1504,7 @@ namespace Metasound
 
 			UObject& MetaSound = Node->GetMetasoundChecked();
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&MetaSound);
-			MetaSoundAsset->SetSynchronizationRequired();
+			MetaSoundAsset->GetModifyContext().SetDocumentModified();
 		}
 
 		void FGraphBuilder::InitMetaSound(UObject& InMetaSound, const FString& InAuthor)
@@ -1533,9 +1526,9 @@ namespace Metasound
 
 			// 2. Set default doc version Metadata
 			FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
-			FMetasoundFrontendDocumentMetadata DocMetadata = DocumentHandle->GetMetadata();
-			DocMetadata.Version.Number = FMetasoundFrontendDocument::GetMaxVersion();
-			DocumentHandle->SetMetadata(DocMetadata);
+			FMetasoundFrontendDocumentMetadata* DocMetadata = DocumentHandle->GetMetadata();
+			check(DocMetadata);
+			DocMetadata->Version.Number = FMetasoundFrontendDocument::GetMaxVersion();
 
 			MetaSoundAsset->AddDefaultInterfaces();
 
@@ -1826,7 +1819,7 @@ namespace Metasound
 							EditedMetaSound->RebuildReferencedAssetClassKeys();
 							if (EditedMetaSound->IsReferencedAsset(*MetaSoundAsset))
 							{
-								EditedMetaSound->SetSynchronizationRequired();
+								EditedMetaSound->GetModifyContext().SetDocumentModified();
 							}
 						}
 					}
@@ -1933,6 +1926,30 @@ namespace Metasound
 			}
 
 			return NewPin;
+		}
+
+		bool FGraphBuilder::RecurseGetDocumentModified(FMetasoundAssetBase& InAssetBase)
+		{
+			using namespace Metasound::Frontend;
+
+			if (InAssetBase.GetModifyContext().GetDocumentModified())
+			{
+				return true;
+			}
+
+			TArray<FMetasoundAssetBase*> References;
+			ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(InAssetBase, References));
+			for (FMetasoundAssetBase* Reference : References)
+			{
+				check(Reference);
+				const bool bReferenceDocumentModified = RecurseGetDocumentModified(*Reference);
+				if (bReferenceDocumentModified)
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		bool FGraphBuilder::SynchronizePinType(const IMetasoundEditorModule& InEditorModule, UEdGraphPin& InPin, const FName InDataType)
@@ -2074,29 +2091,55 @@ namespace Metasound
 			return bIsGraphDirty;
 		}
 
-		int32 FGraphBuilder::SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes)
+		bool FGraphBuilder::SynchronizeGraph(UObject& InMetaSound)
 		{
 			using namespace Frontend;
 
-			int32 HighestMessageSeverity = EMessageSeverity::Info;
-
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
-			if (MetaSoundAsset->GetSynchronizationRequired())
-			{
-				const bool bEditorGraphModified = GraphBuilderPrivate::SynchronizeGraphRecursively(InMetaSound, bForceRefreshNodes);
-				bForceRefreshNodes |= bEditorGraphModified;
-				HighestMessageSeverity = ValidateGraph(InMetaSound, bForceRefreshNodes);
 
-				MetaSoundAsset->ResetSynchronizationState();
-			}
-			else
+			if (RecurseGetDocumentModified(*MetaSoundAsset))
 			{
-				const UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetaSoundAsset->GetGraph());
-				HighestMessageSeverity = Graph->GetHighestMessageSeverity();
+				TArray<FMetasoundAssetBase*> EditedReferencingMetaSounds;
+				if (GEditor)
+				{
+					TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+					for (UObject* Asset : EditedAssets)
+					{
+						if (Asset != &InMetaSound)
+						{
+							if (FMetasoundAssetBase* EditedMetaSound = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Asset))
+							{
+								if (EditedMetaSound->IsReferencedAsset(*MetaSoundAsset))
+								{
+									EditedReferencingMetaSounds.Add(EditedMetaSound);
+								}
+							}
+						}
+					}
+				}
+
+				if (EditedReferencingMetaSounds.IsEmpty())
+				{
+					MetaSoundAsset->CacheRegistryMetadata();
+					const bool bEditorGraphModified = GraphBuilderPrivate::SynchronizeGraphRecursively(InMetaSound);
+					GraphBuilderPrivate::RecurseClearDocumentModified(*MetaSoundAsset);
+				}
+				else
+				{
+					for (FMetasoundAssetBase* EditedMetaSound : EditedReferencingMetaSounds)
+					{
+						check(EditedMetaSound);
+						UObject* OwningMetaSound = EditedMetaSound->GetOwningAsset();
+						check(OwningMetaSound);
+						SynchronizeGraph(*OwningMetaSound);
+					}
+				}
+
+				return true;
 			}
 
-			return HighestMessageSeverity;
+			return false;
 		}
 
 		bool FGraphBuilder::SynchronizeNodeMembers(UObject& InMetaSound)

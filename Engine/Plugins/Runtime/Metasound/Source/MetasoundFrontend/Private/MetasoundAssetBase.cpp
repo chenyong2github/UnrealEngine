@@ -135,7 +135,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 #if WITH_EDITOR
 		if (bAutoUpdated || InRegistrationOptions.bForceViewSynchronization)
 		{
- 			SetSynchronizationRequired();
+			GetModifyContext().SetForceRefreshViews();
 		}
 #endif // WITH_EDITOR
 	}
@@ -144,7 +144,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 #if WITH_EDITOR
 		if (InRegistrationOptions.bForceViewSynchronization)
 		{
-			SetSynchronizationRequired();
+			GetModifyContext().SetForceRefreshViews();
 		}
 #endif // WITH_EDITOR
 	}
@@ -534,76 +534,14 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 	}
 }
 
-bool FMetasoundAssetBase::GetSynchronizationRequired() const
+FMetasoundFrontendDocumentModifyContext& FMetasoundAssetBase::GetModifyContext()
 {
-	using namespace Metasound::Frontend;
-
-	if (bSynchronizationRequired)
-	{
-		return true;
-	}
-
-	TArray<FMetasoundAssetBase*> References;
-	ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
-	for (FMetasoundAssetBase* Reference : References)
-	{
-		const bool bReferenceSyncRequired = Reference->GetSynchronizationRequired();
-		if (bReferenceSyncRequired)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return GetDocumentChecked().Metadata.ModifyContext;
 }
 
-bool FMetasoundAssetBase::GetSynchronizationUpdateDetails() const
+const FMetasoundFrontendDocumentModifyContext& FMetasoundAssetBase::GetModifyContext() const
 {
-	using namespace Metasound::Frontend;
-
-	if (bSynchronizationUpdateDetails)
-	{
-		return true;
-	}
-
-	TArray<FMetasoundAssetBase*> References;
-	ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
-	for (FMetasoundAssetBase* Reference : References)
-	{
-		const bool bReferenceSyncRequired = Reference->GetSynchronizationUpdateDetails();
-		if (bReferenceSyncRequired)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void FMetasoundAssetBase::SetSynchronizationRequired()
-{
-	bSynchronizationRequired = true;
-}
-
-void FMetasoundAssetBase::SetUpdateDetailsOnSynchronization()
-{
-	bSynchronizationUpdateDetails = true;
-	bSynchronizationRequired = true;
-}
-
-void FMetasoundAssetBase::ResetSynchronizationState()
-{
-	using namespace Metasound::Frontend;
-
-	bSynchronizationUpdateDetails = false;
-	bSynchronizationRequired = false;
-
-	TArray<FMetasoundAssetBase*> References;
-	ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
-	for (FMetasoundAssetBase* Reference : References)
-	{
-		Reference->ResetSynchronizationState();
-	}
+	return GetDocumentChecked().Metadata.ModifyContext;
 }
 #endif // WITH_EDITOR
 

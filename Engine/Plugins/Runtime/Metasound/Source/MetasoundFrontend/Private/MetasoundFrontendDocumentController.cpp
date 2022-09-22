@@ -156,6 +156,9 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
+#if WITH_EDITOR
+				Doc->Metadata.ModifyContext.AddInterfaceModified({ InVersion.Name });
+#endif // WITH_EDITOR
 				Doc->Interfaces.Add(InVersion);
 			}
 		}
@@ -164,6 +167,9 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
+#if WITH_EDITOR
+				Doc->Metadata.ModifyContext.AddInterfaceModified({ InVersion.Name });
+#endif // WITH_EDITOR
 				Doc->Interfaces.Remove(InVersion);
 			}
 		}
@@ -249,6 +255,16 @@ namespace Metasound
 			}
 
 			return Invalid::GetInvalidDocumentMetadata();
+		}
+
+		FMetasoundFrontendDocumentMetadata* FDocumentController::GetMetadata()
+		{
+			if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
+			{
+				return &Document->Metadata;
+			}
+
+			return nullptr;
 		}
 
 		FConstClassAccessPtr FDocumentController::FindClass(const FNodeRegistryKey& InKey) const

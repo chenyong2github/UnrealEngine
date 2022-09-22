@@ -280,8 +280,6 @@ namespace Metasound
 			ECheckBoxState OnGetDataTypeArrayCheckState(TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember) const;
 			void OnDataTypeSelected(FName InSelectedTypeName);
 			FName GetDataType() const;
-
-			TFunction<void()> OnDataTypeChanged;
 		
 		private:
 			TWeakObjectPtr<UMetasoundEditorGraphMember> GraphMember;

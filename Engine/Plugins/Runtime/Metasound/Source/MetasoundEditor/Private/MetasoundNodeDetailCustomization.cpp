@@ -169,7 +169,10 @@ namespace Metasound
 						FloatLiteral->OnClampChanged.Remove(OnClampChangedDelegateHandle);
 						if (FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(FloatLiteral->GetOutermostObject()))
 						{
-							MetasoundAsset->SetSynchronizationRequired();
+							if (const UMetasoundEditorGraphMember* Member = Cast<UMetasoundEditorGraphMember>(FloatLiteral->GetOuter()))
+							{
+								MetasoundAsset->GetModifyContext().AddMemberIDsModified({ Member->GetMemberID() });
+							}
 						}
 					}
 				});
@@ -675,11 +678,6 @@ namespace Metasound
 			if (GraphMember.IsValid())
 			{
 				GraphMember->SetDataType(NewDataTypeName);
-
-				if (FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(GraphMember->GetOutermostObject()))
-				{
-					MetasoundAsset->SetUpdateDetailsOnSynchronization();
-				}
 			}
 		}
 
@@ -838,11 +836,6 @@ namespace Metasound
 
 					const FName DataType = InNewState == ECheckBoxState::Checked ? ArrayTypeName : BaseTypeName;
 					InGraphMember->SetDataType(DataType);
-
-					if (FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(GraphMember->GetOutermostObject()))
-					{
-						MetasoundAsset->SetUpdateDetailsOnSynchronization();
-					}
 				}
 			}
 		}
@@ -1345,7 +1338,7 @@ namespace Metasound
 				
 				if (FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(GraphMember->GetOutermostObject()))
 				{
-					MetasoundAsset->SetUpdateDetailsOnSynchronization();
+					MetasoundAsset->GetModifyContext().AddMemberIDsModified({ GraphMember->GetMemberID() });
 				}
 			}
 		}

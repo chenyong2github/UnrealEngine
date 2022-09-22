@@ -26,18 +26,14 @@ namespace Metasound
 			public:
 				bool Transform(FDocumentHandle InDocument) const override
 				{
-					const FMetasoundFrontendDocumentMetadata& Metadata = InDocument->GetMetadata();
-					if (Metadata.Version.Number >= GetTargetVersion())
+					FMetasoundFrontendDocumentMetadata* Metadata = InDocument->GetMetadata();
+					if (Metadata && Metadata->Version.Number >= GetTargetVersion())
 					{
 						return false;
 					}
 
 					TransformInternal(InDocument);
-
-					FMetasoundFrontendDocumentMetadata NewMetadata = Metadata;
-					NewMetadata.Version.Number = GetTargetVersion();
-					InDocument->SetMetadata(NewMetadata);
-
+					Metadata->Version.Number = GetTargetVersion();
 					return true;
 				}
 		};
@@ -186,8 +182,10 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
-				check(InDocument->GetMetadata().Version.Number.Major == 1);
-				check(InDocument->GetMetadata().Version.Number.Minor == 3);
+				FMetasoundFrontendDocumentMetadata* Metadata = InDocument->GetMetadata();
+				check(Metadata);
+				check(Metadata->Version.Number.Major == 1);
+				check(Metadata->Version.Number.Minor == 3);
 
 				const TSet<FMetasoundFrontendVersion>& Interfaces = InDocument->GetInterfaceVersions();
 
@@ -499,7 +497,9 @@ namespace Metasound
 
 			bool bWasUpdated = false;
 
-			const FMetasoundFrontendVersionNumber InitVersionNumber = InDocument->GetMetadata().Version.Number;
+			FMetasoundFrontendDocumentMetadata* Metadata = InDocument->GetMetadata();
+			check(Metadata);
+			const FMetasoundFrontendVersionNumber InitVersionNumber = Metadata->Version.Number;
 
 			// Add additional transforms here after defining them above, example below.
 			bWasUpdated |= FVersionDocument_1_1(Name, Path).Transform(InDocument);
@@ -515,7 +515,7 @@ namespace Metasound
 
 			if (bWasUpdated)
 			{
-				const FMetasoundFrontendVersionNumber NewVersionNumber = InDocument->GetMetadata().Version.Number;
+				const FMetasoundFrontendVersionNumber& NewVersionNumber = Metadata->Version.Number;
 				UE_LOG(LogMetaSound, Display, TEXT("MetaSound at '%s' Document Versioned: '%s' --> '%s'"), *Path, *InitVersionNumber.ToString(), *NewVersionNumber.ToString());
 			}
 

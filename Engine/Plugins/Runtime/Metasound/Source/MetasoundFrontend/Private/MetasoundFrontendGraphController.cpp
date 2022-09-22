@@ -286,6 +286,12 @@ namespace Metasound
 					Variable.TypeName = Info.DataTypeName;
 					Variable.Literal.SetFromLiteral(Registry.CreateDefaultLiteral(InDataType));
 					Variable.ID = VariableID;
+#if WITH_EDITOR
+					if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+					{
+						DocMetadata->ModifyContext.AddMemberIDModified(Variable.ID);
+					}
+#endif // WITH_EDITOR
 
 					FMetasoundFrontendClass VariableNodeClass;
 					if (IDataTypeRegistry::Get().GetFrontendVariableClass(Variable.TypeName, VariableNodeClass))
@@ -364,6 +370,13 @@ namespace Metasound
 						NodeHandle = GetNodeWithID(NodeID);
 						RemoveNode(*NodeHandle);
 					}
+
+#if WITH_EDITOR
+					if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+					{
+						DocMetadata->ModifyContext.AddMemberIDModified(InVariableID);
+					}
+#endif // WITH_EDITOR
 
 					auto IsVariableWithID = [&](const FMetasoundFrontendVariable& InVariable)
 					{
@@ -1001,6 +1014,12 @@ namespace Metasound
 								NewInput.VertexID = FGuid::NewGuid();
 							}
 
+#if WITH_EDITOR
+							if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+							{
+								DocMetadata->ModifyContext.AddMemberIDModified(NewInput.NodeID);
+							}
+#endif // WITH_EDITOR
 							GraphClass->Interface.UpdateChangeID();
 
 							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
@@ -1135,6 +1154,13 @@ namespace Metasound
 								// to output.
 								NewOutput.VertexID = FGuid::NewGuid();
 							}
+
+#if WITH_EDITOR
+							if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+							{
+								DocMetadata->ModifyContext.AddMemberIDModified(NewOutput.VertexID);
+							}
+#endif // WITH_EDITO
 
 							// Mark interface as changed.
 							GraphClass->Interface.UpdateChangeID();
@@ -1621,6 +1647,12 @@ namespace Metasound
 					}
 					Node.UpdateID(InNodeGuid);
 
+#if WITH_EDITOR
+					if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+					{
+						DocMetadata->ModifyContext.AddNodeIDModified(InNodeGuid);
+					}
+#endif // WITH_EDITOR
 					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 					return GetNodeHandle(FGraphController::FNodeAndClass { NodePtr, InExistingDependency });
 				}
@@ -1644,6 +1676,16 @@ namespace Metasound
 
 				OwningDocument->RemoveUnreferencedDependencies();
 
+#if WITH_EDITOR
+				if (NumRemoved > 0)
+				{
+					if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+					{
+						DocMetadata->ModifyContext.AddNodeIDModified(InDesc.GetID());
+					}
+				}	
+#endif // WITH_EDITOR
+
 				return (NumRemoved > 0);
 			}
 			return false;
@@ -1659,6 +1701,12 @@ namespace Metasound
 
 				if (NumInputsRemoved > 0)
 				{
+#if WITH_EDITOR
+					if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+					{
+						DocMetadata->ModifyContext.AddMemberIDModified(InNode.GetID());
+					}
+#endif // WITH_EDITOR
 					GraphClass->Interface.UpdateChangeID();
 				}
 
@@ -1680,6 +1728,12 @@ namespace Metasound
 
 				if (NumOutputsRemoved)
 				{
+#if WITH_EDITOR
+					if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
+					{
+						DocMetadata->ModifyContext.AddMemberIDModified(InNode.GetID());
+					}
+#endif // WITH_EDITOR
 					GraphClass->Interface.UpdateChangeID();
 				}
 

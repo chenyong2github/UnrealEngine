@@ -685,7 +685,7 @@ namespace Metasound
 
 								if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
 								{
-									Graph->SetSynchronizationRequired();
+									Graph->GetModifyContext().AddMemberIDsModified({ GraphMember->GetMemberID() });
 								}
 							}
 						};

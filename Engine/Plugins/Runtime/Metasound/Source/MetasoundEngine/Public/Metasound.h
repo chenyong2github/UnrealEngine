@@ -30,10 +30,11 @@ public:
 	virtual bool IsEditorOnly() const override { return true; }
 	virtual bool NeedsLoadForEditorGame() const override { return false; }
 
-	virtual void SetSynchronizationRequired() PURE_VIRTUAL(UMetasoundEditorGraphBase::SetSynchronizationRequired, )
 	virtual void RegisterGraphWithFrontend() PURE_VIRTUAL(UMetasoundEditorGraphBase::RegisterGraphWithFrontend(), )
 
 #if WITH_EDITORONLY_DATA
+	virtual FMetasoundFrontendDocumentModifyContext& GetModifyContext() PURE_VIRTUAL(UMetasoundEditorGraphBase::GetModifyContext, static FMetasoundFrontendDocumentModifyContext InvalidModifyData; return InvalidModifyData; )
+	virtual const FMetasoundFrontendDocumentModifyContext& GetModifyContext() const PURE_VIRTUAL(UMetasoundEditorGraphBase::GetModifyContext, static const FMetasoundFrontendDocumentModifyContext InvalidModifyData; return InvalidModifyData; )
 	virtual void ClearVersionedOnLoad() PURE_VIRTUAL(UMetasoundEditorGraphBase::ClearVersionedOnLoad, )
 	virtual bool GetVersionedOnLoad() const PURE_VIRTUAL(UMetasoundEditorGraphBase::GetVersionedOnLoad, return false; )
 	virtual void SetVersionedOnLoad() PURE_VIRTUAL(UMetasoundEditorGraphBase::SetVersionedOnLoad, )
@@ -49,7 +50,7 @@ namespace Metasound
 	template <typename TMetaSoundObject>
 	void PostEditUndo(TMetaSoundObject& InMetaSound)
 	{
-		InMetaSound.SetUpdateDetailsOnSynchronization();
+		InMetaSound.GetModifyContext().SetForceRefreshViews();
 		if (UMetasoundEditorGraphBase* Graph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
 			Graph->RegisterGraphWithFrontend();
@@ -70,7 +71,7 @@ namespace Metasound
 			if (!InSaveContext.IsCooking())
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();
-				MetaSoundGraph->SetSynchronizationRequired();
+				MetaSoundGraph->GetModifyContext().SetForceRefreshViews();
 			}
 		}
 #endif // WITH_EDITORONLY_DATA

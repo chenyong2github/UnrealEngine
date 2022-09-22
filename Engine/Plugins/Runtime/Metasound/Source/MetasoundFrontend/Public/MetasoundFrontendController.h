@@ -1035,6 +1035,7 @@ namespace Metasound
 
 			virtual void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) = 0;
 			virtual const FMetasoundFrontendDocumentMetadata& GetMetadata() const = 0;
+			virtual FMetasoundFrontendDocumentMetadata* GetMetadata() = 0;
 
 			/** Returns an existing Metasound class description corresponding to 
 			 * a dependency which matches the provided class information.

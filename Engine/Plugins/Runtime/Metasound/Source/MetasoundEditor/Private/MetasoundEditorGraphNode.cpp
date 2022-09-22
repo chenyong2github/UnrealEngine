@@ -242,28 +242,14 @@ void UMetasoundEditorGraphNode::Validate(Metasound::Editor::FGraphNodeValidation
 #endif // WITH_EDITOR
 }
 
-bool UMetasoundEditorGraphNode::ContainsMetadataChange() const
+bool UMetasoundEditorGraphNode::ContainsClassChange() const
 {
 	using namespace Metasound::Frontend;
 	FConstNodeHandle NodeHandle = GetConstNodeHandle();
 
-	return MetadataChangeID != NodeHandle->GetClassMetadata().GetChangeID();
-}
-
-bool UMetasoundEditorGraphNode::ContainsInterfaceChange() const
-{
-	using namespace Metasound::Frontend;
-	FConstNodeHandle NodeHandle = GetConstNodeHandle();
-
-	return InterfaceChangeID != NodeHandle->GetClassInterface().GetChangeID();
-}
-
-bool UMetasoundEditorGraphNode::ContainsStyleChange() const
-{
-	using namespace Metasound::Frontend;
-	FConstNodeHandle NodeHandle = GetConstNodeHandle();
-
-	return StyleChangeID != NodeHandle->GetClassStyle().GetChangeID();
+	return InterfaceChangeID != NodeHandle->GetClassInterface().GetChangeID()
+	|| StyleChangeID != NodeHandle->GetClassStyle().GetChangeID()
+	|| MetadataChangeID != NodeHandle->GetClassMetadata().GetChangeID();
 }
 
 void UMetasoundEditorGraphNode::ReconstructNode()
@@ -633,7 +619,7 @@ void UMetasoundEditorGraphOutputNode::PinDefaultValueChanged(UEdGraphPin* InPin)
 							FGraphBuilder::RegisterGraphWithFrontend(MetaSound);
 							if (FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&MetaSound))
 							{
-								MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+								MetaSoundAsset->GetModifyContext().AddMemberIDsModified({ Output->GetMemberID() });
 							}
 						}
 					}
@@ -821,7 +807,10 @@ void UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		{
 			if (UObject* AssetObject = Path->ResolveObject())
 			{
-				const EMessageSeverity::Type MaxGraphMsg = FGraphBuilder::ValidateGraph(*AssetObject, false /* bForceRefreshNodes */);
+				FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(AssetObject);
+				check(MetaSoundAsset);
+				const UMetasoundEditorGraph* NodeGraph = CastChecked<UMetasoundEditorGraph>(&MetaSoundAsset->GetGraphChecked());
+				const EMessageSeverity::Type MaxGraphMsg = static_cast<EMessageSeverity::Type>(NodeGraph->GetHighestMessageSeverity());
 				switch (MaxGraphMsg)
 				{
 					case EMessageSeverity::Error:
@@ -1200,7 +1189,7 @@ void UMetasoundEditorGraphVariableNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 								FGraphBuilder::RegisterGraphWithFrontend(MetaSound);
 								if (FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&MetaSound))
 								{
-									MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+									MetaSoundAsset->GetModifyContext().AddNodeIDsModified({ NodeID });
 								}
 							}
 						}

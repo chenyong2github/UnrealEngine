@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "MetasoundEditorGraphValidation.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -70,7 +71,11 @@ namespace Metasound
 			static TSharedPtr<FEditor> GetEditorForPin(const UEdGraphPin& InEdPin);
 
 			// Validates MetaSound graph, returning the highest EMessageSeverity integer value
-			static EMessageSeverity::Type ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes);
+			static FGraphValidationResults ValidateGraph(UObject& InMetaSound);
+
+			// Recursively checks whether the provided Asset's Document is marked as modified since last
+			// EdGraph synchronization, or if any of its referenced asset graphs have been marked as modified.
+			static bool RecurseGetDocumentModified(FMetasoundAssetBase& InAssetBase);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			// @param InMetaSound - MetaSound to register
@@ -252,9 +257,8 @@ namespace Metasound
 			// FMetasoundFrontendDocument model. Validates the graph (and those referenced recursively).
 			//
 			// @param InMetaSound - MetaSound to synchronize and optionally validate.
-			// @param bForceRefreshNodes - Refreshes all transient data stored on editor nodes & redraws them
-			// @return Highest MessageSeverity integer value listed on validated nodes post synchronization.
-			static int32 SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes = false);
+			// @return whether or not EditorGraph synchronization was performed.
+			static bool SynchronizeGraph(UObject& InMetaSound);
 
 			// Synchronizes editor nodes with frontend nodes, removing editor nodes that are not represented in the frontend, and adding editor nodes to represent missing frontend nodes.
 			//
