@@ -72,7 +72,6 @@
 
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Settings/EditorExperimentalSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
@@ -265,11 +264,8 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 	// Warn that were about to reimport, so prep for it
 	PreReimport.Broadcast( Obj );
 
-	bool bUseInterchangeFramework = false;
+	bool bUseInterchangeFramework = UInterchangeManager::IsInterchangeImportEnabled();;
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-
-	bUseInterchangeFramework = EditorExperimentalSettings->bEnableInterchangeFramework;
 
 	bool bSuccess = false;
 	if ( Obj )

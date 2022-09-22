@@ -42,6 +42,15 @@ namespace UE
 {
 	namespace Interchange
 	{
+		class INTERCHANGEENGINE_API FScopedInterchangeImportEnableState
+		{
+		public:
+			explicit FScopedInterchangeImportEnableState(const bool bScopeValue);
+			~FScopedInterchangeImportEnableState();
+		private:
+			bool bOriginalInterchangeImportEnableState;
+		};
+
 		class INTERCHANGEENGINE_API FScopedSourceData
 		{
 		public:
@@ -312,6 +321,9 @@ public:
 
 	/** Return the interchange manager singleton.*/
 	static UInterchangeManager& GetInterchangeManager();
+
+	/** Return the CVar which make interchange enable or not.*/
+	static bool IsInterchangeImportEnabled();
 
 	/** delegate type fired when new assets have been imported. Note: InCreatedObject can be NULL if import failed. Params: UFactory* InFactory, UObject* InCreatedObject */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FInterchangeOnAssetPostImport, UObject*);

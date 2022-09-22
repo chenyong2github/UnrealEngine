@@ -1774,15 +1774,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	// Use Interchange if it's enabled and we weren't asked to use a specific UFactory
 	const bool bUseInterchangeFramework = [SpecifiedFactory, &InterchangeManager]()
 	{
-		bool bResult = false;
-		
-#if WITH_EDITOR
-		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-		bResult = EditorExperimentalSettings->bEnableInterchangeFramework;
-#endif
-
-		bResult = bResult && (SpecifiedFactory == nullptr);
-		return bResult;
+		return UInterchangeManager::IsInterchangeImportEnabled() && (SpecifiedFactory == nullptr);
 	}();
 
 	FScopedSlowTask SlowTask(ValidFiles.Num(), LOCTEXT("ImportSlowTask", "Importing"), !bUseInterchangeFramework);
@@ -4220,8 +4212,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialogImplementation(const FSt
 	// Generate the file types and extensions represented by the selected factories
 	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
-	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-	if (EditorExperimentalSettings->bEnableInterchangeFramework)
+	if (UInterchangeManager::IsInterchangeImportEnabled())
 	{
 		TArray<FString> InterchangeFileExtensions = UInterchangeManager::GetInterchangeManager().GetSupportedFormats(EInterchangeTranslatorType::Assets);
 		ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions);

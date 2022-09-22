@@ -40,6 +40,13 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 
+static bool GInterchangeImportEnable = true;
+static FAutoConsoleVariableRef CCvarInterchangeImportEnable(
+	TEXT("Interchange.FeatureFlags.Import.Enable"),
+	GInterchangeImportEnable,
+	TEXT("Whether Interchange import is enabled."),
+	ECVF_Default);
+
 namespace UE::Interchange::Private
 {
 	const FLogCategoryBase* GetLogInterchangePtr()
@@ -155,6 +162,17 @@ namespace UE::Interchange::Private
 		FString EventString = FString::Printf(TEXT("Interchange.Usage.Import.Pipeline.%s"), *PipelineChainName);
 		FEngineAnalytics::GetProvider().RecordEvent(EventString, PipelineAttribs);
 	}
+}
+
+UE::Interchange::FScopedInterchangeImportEnableState::FScopedInterchangeImportEnableState(const bool bScopeValue)
+{
+	bOriginalInterchangeImportEnableState = CCvarInterchangeImportEnable->GetBool();
+	CCvarInterchangeImportEnable->Set(bScopeValue);
+}
+
+UE::Interchange::FScopedInterchangeImportEnableState::~FScopedInterchangeImportEnableState()
+{
+	CCvarInterchangeImportEnable->Set(bOriginalInterchangeImportEnableState);
 }
 
 UE::Interchange::FScopedSourceData::FScopedSourceData(const FString& Filename)
@@ -700,12 +718,16 @@ bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 TArray<FString> UInterchangeManager::GetSupportedFormats(const EInterchangeTranslatorType ForTranslatorType) const
 {
 	TArray<FString> FileExtensions;
+	if (!IsInterchangeImportEnabled())
+	{
+		return FileExtensions;
+	}
 
 	for (const UClass* TranslatorClass : RegisteredTranslatorsClass)
 	{
 		const UInterchangeTranslatorBase* TranslatorBaseCDO = TranslatorClass->GetDefaultObject<UInterchangeTranslatorBase>();
 
-		if(EnumHasAnyFlags(TranslatorBaseCDO->GetTranslatorType(), ForTranslatorType))
+		if (EnumHasAnyFlags(TranslatorBaseCDO->GetTranslatorType(), ForTranslatorType))
 		{
 			FileExtensions.Append(TranslatorBaseCDO->GetSupportedFormats());
 		}
@@ -717,6 +739,10 @@ TArray<FString> UInterchangeManager::GetSupportedFormats(const EInterchangeTrans
 TArray<FString> UInterchangeManager::GetSupportedAssetTypeFormats(const EInterchangeTranslatorAssetType ForTranslatorAssetType) const
 {
 	TArray<FString> FileExtensions;
+	if (!IsInterchangeImportEnabled())
+	{
+		return FileExtensions;
+	}
 
 	for (const UClass* TranslatorClass : RegisteredTranslatorsClass)
 	{
@@ -733,11 +759,21 @@ TArray<FString> UInterchangeManager::GetSupportedAssetTypeFormats(const EInterch
 
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
+	if (!IsInterchangeImportEnabled())
+	{
+		return false;
+	}
+
 	return GetTranslatorForSourceData(SourceData) != nullptr;
 }
 
 bool UInterchangeManager::CanReimport(const UObject* Object, TArray<FString>& OutFilenames) const
 {
+	if (!IsInterchangeImportEnabled())
+	{
+		return false;
+	}
+
 	const UClass* RegisteredFactoryClass = GetRegisteredFactoryClass(Object->GetClass());
 	if (!RegisteredFactoryClass)
 	{
@@ -767,6 +803,7 @@ bool UInterchangeManager::CanReimport(const UObject* Object, TArray<FString>& Ou
 void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeManager::StartQueuedTasks")
+	ensure(IsInterchangeImportEnabled());
 	if (!ensure(IsInGameThread()))
 	{
 		//Do not crash but we will not start any queued tasks if we are not in the game thread
@@ -894,6 +931,7 @@ TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResu
 UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters, const UE::Interchange::EImportType ImportType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeManager::ImportInternal")
+	ensure(IsInterchangeImportEnabled());
 	check(IsInGameThread());
 	static int32 GeneratedUniqueID = 0;
 	int32 UniqueId = ++GeneratedUniqueID;
@@ -1252,6 +1290,11 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 	PreReturn();
 	return TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>{ AsyncHelper->AssetImportResult, AsyncHelper->SceneImportResult };
+}
+
+bool UInterchangeManager::IsInterchangeImportEnabled()
+{
+	return CCvarInterchangeImportEnable->GetBool();
 }
 
 bool UInterchangeManager::ExportAsset(const UObject* Asset, bool bIsAutomated)

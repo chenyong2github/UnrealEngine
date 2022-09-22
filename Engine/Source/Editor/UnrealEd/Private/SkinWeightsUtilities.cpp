@@ -40,7 +40,6 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinWeightsUtilities, Log, All);
 
@@ -68,11 +67,8 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 
 	//If Interchange is enable use it if not use the old path
 
-	bool bUseInterchangeFramework = false;
+	bool bUseInterchangeFramework = UInterchangeManager::IsInterchangeImportEnabled();
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-#if WITH_EDITOR
-	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
-#endif
 	const FString FileExtension = FPaths::GetExtension(AbsoluteFilePath);
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
@@ -403,10 +399,7 @@ FString FSkinWeightsUtilities::PickSkinWeightPath(int32 LODIndex, USkeletalMesh*
 {
 	FString PickedFileName("");
 	
-	bool bUseInterchangeFramework = false;
-#if WITH_EDITOR
-	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
-#endif
+	bool bUseInterchangeFramework = UInterchangeManager::IsInterchangeImportEnabled();
 	const UInterchangeAssetImportData* SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData());
 
 	if (bUseInterchangeFramework && SelectedInterchangeAssetImportData)

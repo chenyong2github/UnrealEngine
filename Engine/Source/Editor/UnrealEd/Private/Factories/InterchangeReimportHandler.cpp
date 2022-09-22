@@ -12,7 +12,6 @@
 #include "InterchangeAssetImportData.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeManager.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 
@@ -26,16 +25,8 @@ UInterchangeReimportHandler::UInterchangeReimportHandler(const FObjectInitialize
 //~ Begin FReimportHandler Interface
 bool UInterchangeReimportHandler::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-	const bool bUseInterchange = EditorExperimentalSettings->bEnableInterchangeFramework;
-
-	if (bUseInterchange)
-	{
-		const UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-		return InterchangeManager.CanReimport(Obj, OutFilenames);
-	}
-
-	return false;
+	const UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+	return InterchangeManager.CanReimport(Obj, OutFilenames);
 }
 
 void UInterchangeReimportHandler::SetReimportPaths(UObject* Obj, const FString& NewReimportPath, const int32 SourceFileIndex)

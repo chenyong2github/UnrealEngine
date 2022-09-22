@@ -31,7 +31,6 @@
 #include "InterchangeManager.h"
 #include "InterchangeMeshUtilities.h"
 #include "InterchangeProjectSettings.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #include "Misc/FbxErrors.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -138,9 +137,8 @@ namespace FbxMeshUtils
 		}
 
 		//We will use interchange only if interchange is enabled and the mesh we want to add a LOD was imported with interchange
-		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 		const UInterchangeAssetImportData* SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(BaseStaticMesh->GetAssetImportData());
-		if (EditorExperimentalSettings->bEnableInterchangeFramework && SelectedInterchangeAssetImportData)
+		if (UInterchangeManager::IsInterchangeImportEnabled() && SelectedInterchangeAssetImportData)
 		{
 			UInterchangeSourceData* SourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(Filename);
 			//Call interchange mesh utilities to import custom LOD
@@ -425,9 +423,8 @@ namespace FbxMeshUtils
 		}
 
 		//We will use interchange only if interchange is enable and the skeletalmesh we want to add a LOD was import with interchange
-		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 		UInterchangeAssetImportData* SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SelectedSkelMesh->GetAssetImportData());
-		if (EditorExperimentalSettings->bEnableInterchangeFramework && SelectedInterchangeAssetImportData)
+		if (UInterchangeManager::IsInterchangeImportEnabled() && SelectedInterchangeAssetImportData)
 		{
 			UInterchangeSourceData* SourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(Filename);
 			//Call interchange mesh utilities to import custom LOD
@@ -860,8 +857,7 @@ namespace FbxMeshUtils
 		const bool bPromptOnFail = bSourceFileExists;
 
 		//We will use interchange only if interchange is enable and the skeletalmesh we want to add a LOD was import with interchange
-		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-		if(EditorExperimentalSettings->bEnableInterchangeFramework && SelectedInterchangeAssetImportData)
+		if(UInterchangeManager::IsInterchangeImportEnabled() && SelectedInterchangeAssetImportData)
 		{
 			auto CustomLodImportContinuation = [bNotifyCB, SkeletalMesh, StaticMesh, LODLevel](TFuture<bool> Result)
 			{
