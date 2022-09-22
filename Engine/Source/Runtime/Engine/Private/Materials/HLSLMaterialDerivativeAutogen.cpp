@@ -1238,11 +1238,24 @@ int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Transl
 		}
 		else
 		{
-			CodeFinite = FString::Printf(
-				TEXT("(%s ? %s : %s)"),
-				*CompareGreaterEqual,
-				*GreaterFinite, *LessFinite
-			);
+			if (ResultType == MCT_ShadingModel)
+			{
+				// @lh-todo: Workaround SPIR-V bug in DXC: Wrong literal type is deduced during implicit type deduction from int to uint
+				// GitHub PR: https://github.com/microsoft/DirectXShaderCompiler/pull/4626
+				CodeFinite = FString::Printf(
+					TEXT("(%s ? (uint)%s : (uint)%s)"),
+					*CompareGreaterEqual,
+					*GreaterFinite, *LessFinite
+				);
+			}
+			else
+			{
+				CodeFinite = FString::Printf(
+					TEXT("(%s ? %s : %s)"),
+					*CompareGreaterEqual,
+					*GreaterFinite, *LessFinite
+				);
+			}
 		}
 	}
 
