@@ -896,6 +896,7 @@ void FDisplayClusterSpec::DoColorGradingRenderingSettingsPropagationTests(TFunct
 	COLOR_GRADING_RENDERING_SETTINGS_TEST_INTERNAL(UDisplayClusterConfigurationData, 13.7f, 11.5f, AutoExposureBias);
 	COLOR_GRADING_RENDERING_SETTINGS_TEST_INTERNAL(UDisplayClusterConfigurationData, 0.78f, 0.6f, ColorCorrectionShadowsMax);
 	COLOR_GRADING_RENDERING_SETTINGS_TEST_INTERNAL(UDisplayClusterConfigurationData, -0.34f, -0.2f, ColorCorrectionHighlightsMin);
+	COLOR_GRADING_RENDERING_SETTINGS_TEST_INTERNAL(UDisplayClusterConfigurationData, 1.34f, 3.2f, ColorCorrectionHighlightsMax);
 	COLOR_GRADING_RENDERING_SETTINGS_MISC_TEST_INTERNAL(UDisplayClusterConfigurationData, 0.22f, 0.42f, BlueCorrection);
 	COLOR_GRADING_RENDERING_SETTINGS_MISC_TEST_INTERNAL(UDisplayClusterConfigurationData, 0.67f, 0.45f, ExpandGamut);
 	COLOR_GRADING_RENDERING_SETTINGS_MISC_TEST_INTERNAL(UDisplayClusterConfigurationData, FLinearColor(0.6f, 0.2f, 0.9f, 0.3f), FLinearColor(0.2f, 0.5f, 0.1f, 0.8f), SceneColorTint);

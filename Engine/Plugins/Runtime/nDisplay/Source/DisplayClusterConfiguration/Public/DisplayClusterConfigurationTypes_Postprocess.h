@@ -175,6 +175,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 		FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings()
 		: bOverride_AutoExposureBias(0)
 		, bOverride_ColorCorrectionHighlightsMin(0)
+		, bOverride_ColorCorrectionHighlightsMax(0)
 		, bOverride_ColorCorrectionShadowsMax(0)
 		, Global()
 		, Shadows()
@@ -182,6 +183,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 		, Midtones()
 		, Highlights()
 		, ColorCorrectionHighlightsMin(0)
+		, ColorCorrectionHighlightsMax(1)
 	{
 	}
 	
@@ -189,6 +191,8 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 	uint8 bOverride_AutoExposureBias:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_ColorCorrectionHighlightsMin:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ColorCorrectionHighlightsMax:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_ColorCorrectionShadowsMax:1;
 
@@ -225,6 +229,9 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_ColorCorrectionHighlightsMin", DisplayName = "HighlightsMin"))
 	float ColorCorrectionHighlightsMin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "1.0", UIMax = "10.0", EditCondition = "bOverride_ColorCorrectionHighlightsMax", DisplayName = "HighlightsMax"))
+	float ColorCorrectionHighlightsMax;
 
 	// Highlights color grading misc settings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")

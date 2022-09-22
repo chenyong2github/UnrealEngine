@@ -426,6 +426,7 @@ static void ImplBlendPostProcessSettings(FPostProcessSettings& OutputPP, const F
 {
 	PP_CONDITIONAL_BLEND(+, , , , AutoExposureBias, , );
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionHighlightsMin, , );
+	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionHighlightsMax, , );
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionShadowsMax, , );
 
 	PP_CONDITIONAL_OVERRIDE(, , WhiteBalance., TemperatureType);
@@ -488,6 +489,7 @@ static void ImplCopyPPSStruct(bool bIsConditionalCopy, FDisplayClusterConfigurat
 	{
 		PP_CONDITIONAL_COPY(, , , AutoExposureBias);
 		PP_CONDITIONAL_COPY(, , , ColorCorrectionHighlightsMin);
+		PP_CONDITIONAL_COPY(, , , ColorCorrectionHighlightsMax);
 		PP_CONDITIONAL_COPY(, , , ColorCorrectionShadowsMax);
 
 		PP_CONDITIONAL_COPY(, WhiteBalance., , TemperatureType);
