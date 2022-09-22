@@ -202,12 +202,6 @@ public:
 	void InitInputInfo();
 	void InitPreviousWeights();
 
-#define EDITORONLY_PROPERTY_HELPERS(TYPE, NAME) \
-	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")\
-	const TYPE Get##NAME() const { return NAME; }\
-	\
-	static FName Get##NAME##PropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, NAME); }
-
 #if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId);
 	const TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId) const;
@@ -229,16 +223,40 @@ public:
 	void ValidateNearestNeighborData() {bNearestNeighborDataValid = true; }
 	bool IsClothPartDataValid() { return bClothPartDataValid; }
 	bool IsNearestNeighborDataValid() { return bNearestNeighborDataValid; }
+#endif
 
+#if WITH_EDITOR
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const int32	GetInputDim() const { return InputDim; }
+	static FName GetInputDimPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, InputDim); }
 
-	EDITORONLY_PROPERTY_HELPERS(int32, InputDim)
-	EDITORONLY_PROPERTY_HELPERS(TArray<int32>, HiddenLayerDims)
-	EDITORONLY_PROPERTY_HELPERS(int32, OutputDim)
-	EDITORONLY_PROPERTY_HELPERS(int32, NumEpochs)
-	EDITORONLY_PROPERTY_HELPERS(int32, BatchSize)
-	EDITORONLY_PROPERTY_HELPERS(float, LearningRate)
-	EDITORONLY_PROPERTY_HELPERS(TArray<FClothPartEditorData>, ClothPartEditorData)
-	EDITORONLY_PROPERTY_HELPERS(TArray<FSkeletonCachePair>, NearestNeighborData)
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const TArray<int32>& GetHiddenLayerDims() const { return HiddenLayerDims; }
+	static FName GetHiddenLayerDimsPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, HiddenLayerDims); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const int32	GetOutputDim() const { return OutputDim; }
+	static FName GetOutputDimPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, OutputDim); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const int32	GetNumEpochs() const { return NumEpochs; }
+	static FName GetNumEpochsPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, NumEpochs); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const int32	GetBatchSize() const { return BatchSize; }
+	static FName GetBatchSizePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, BatchSize); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const int32	GetLearningRate() const { return LearningRate; }
+	static FName GetLearningRatePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, LearningRate); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const TArray<FClothPartEditorData>&	GetClothPartEditorData() const { return ClothPartEditorData; }
+	static FName GetClothPartEditorDataPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, ClothPartEditorData); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	const TArray<FSkeletonCachePair>& GetNearestNeighborData() const { return NearestNeighborData; }
+	static FName GetNearestNeighborDataPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, NearestNeighborData); }
 #endif
 
 
@@ -281,10 +299,10 @@ public:
 	UPROPERTY()
 	TArray<FClothPartData> ClothPartData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Network Inputs")
+	UPROPERTY(BlueprintReadWrite, Category = "Network Inputs")
 	TArray<float> InputsMin;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Network Inputs")
+	UPROPERTY(BlueprintReadWrite, Category = "Network Inputs")
 	TArray<float> InputsMax;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator")
