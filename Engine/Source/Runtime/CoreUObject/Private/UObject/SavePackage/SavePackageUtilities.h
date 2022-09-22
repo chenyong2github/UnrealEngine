@@ -442,6 +442,9 @@ namespace SavePackageUtilities
 	void AsyncWriteFile(EAsyncWriteOptions Options, FSavePackageOutputFile& File);
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
+
+	/** Returns result of IsEditorOnlyObject if Engine:[Core.System]:CanStripEditorOnlyExportsAndImports (ini) is set to true */
+	bool IsStrippedEditorOnlyObject(const UObject* InObject, bool bCheckRecursive = true, bool bCheckMarks = true);
 }
 
 #if ENABLE_COOK_STATS

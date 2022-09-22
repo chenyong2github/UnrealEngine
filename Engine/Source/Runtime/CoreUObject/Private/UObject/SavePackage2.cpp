@@ -50,9 +50,6 @@
 // defined in UObjectGlobals.cpp
 COREUOBJECT_API extern bool GOutputCookingWarnings;
 
-// bring the UObectGlobal declaration visible to non editor
-bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks);
-
 namespace
 {
 

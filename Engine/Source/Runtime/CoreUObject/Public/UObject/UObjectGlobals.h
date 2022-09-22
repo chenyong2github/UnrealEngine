@@ -2960,7 +2960,7 @@ struct FAssetMsg
  * or
  * - if bCheckMarks is true, if it has the EditorOnly object mark
  * or 
- * - if bCheckRecursive is true, if it's class, outer, or archetypes are editor only
+ * - if bCheckRecursive is true, if its class, super struct, outer, or archetypes are editor only
  */
 COREUOBJECT_API bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive = true, bool bCheckMarks = true);
 #endif //WITH_EDITOR

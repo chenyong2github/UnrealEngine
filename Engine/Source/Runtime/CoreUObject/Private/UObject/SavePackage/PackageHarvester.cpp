@@ -9,9 +9,6 @@
 #include "UObject/UObjectHash.h"
 #include "Interfaces/ITargetPlatform.h"
 
-// bring the UObectGlobal declaration visible to non editor
-bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks);
-
 EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatform* TargetPlatform)
 {
 	EObjectMark Marks = OBJECTMARK_NOMARKS;
@@ -49,7 +46,7 @@ EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatfor
 #endif
 	
 	// CDOs must be included if their class is so only inherit marks, for everything else we check the native overrides as well
-	if (IsEditorOnlyObject(InObject, false, false))
+	if (SavePackageUtilities::IsStrippedEditorOnlyObject(InObject, false, false))
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
 	}
@@ -203,7 +200,7 @@ void FPackageHarvester::ProcessExport(const FExportWithContext& InProcessContext
 	UObject* Export = InProcessContext.Export;
 
 	// No need to check marks since we do not set them on objects anymore
-	bool bReferencerIsEditorOnly = IsEditorOnlyObject(Export, true /* bCheckRecursive */, false /* bCheckMarks */) && !Export->HasNonEditorOnlyReferences();
+	bool bReferencerIsEditorOnly = SavePackageUtilities::IsStrippedEditorOnlyObject(Export, true /* bCheckRecursive */, false /* bCheckMarks */) && !Export->HasNonEditorOnlyReferences();
 	FExportScope HarvesterScope(*this, InProcessContext, bReferencerIsEditorOnly);
 	
 	// The export scope set the current harvesting context
