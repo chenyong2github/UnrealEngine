@@ -5,6 +5,26 @@
 #include "NeuralNetwork.h"
 #include "Components/SkeletalMeshComponent.h"
 
+void UMLDeformerMorphModelInstance::Release()
+{
+	Super::Release();
+
+	if (SkeletalMeshComponent == nullptr)
+	{
+		return;
+	}
+
+	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
+	if (MorphModel == nullptr)
+	{
+		return;
+	}
+
+	const int32 LOD = 0;
+	SkeletalMeshComponent->RemoveExternalMorphSet(LOD, MorphModel->GetExternalMorphSetID());
+	SkeletalMeshComponent->RefreshExternalMorphTargetWeights();
+}
+
 // Run the neural network, which calculates its outputs, which are the weights of our morph targets.
 void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
 {

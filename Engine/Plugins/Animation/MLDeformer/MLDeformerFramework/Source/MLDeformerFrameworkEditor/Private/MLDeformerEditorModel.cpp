@@ -69,6 +69,8 @@ namespace UE::MLDeformer
 		WorkingRange = TRange<double>(0.0, 100.0);
 		PlaybackRange = TRange<double>(0.0, 100.0);
 
+		AnimSequenceFlags.SetAsset(Model->GetAnimSequence());
+
 		PostEditPropertyDelegateHandle = Model->OnPostEditChangeProperty().AddRaw(this, &FMLDeformerEditorModel::OnPostEditChangeProperty);
 	}
 
@@ -254,8 +256,6 @@ namespace UE::MLDeformer
 
 		PreviewScene->DeselectAll();
 		PreviewScene->SetPreviewAnimationAsset(nullptr);
-		PreviewScene->SetPreviewAnimationBlueprint(nullptr, nullptr);
-		PreviewScene->SetPreviewMesh(nullptr);
 		PreviewScene->SetPreviewMeshComponent(nullptr);
 		PreviewScene->SetActor(nullptr);
 
@@ -481,8 +481,6 @@ namespace UE::MLDeformer
 			SkeletalMeshComponent->SetPlayRate(TestAnimSpeed);
 			SkeletalMeshComponent->Play(true);
 		}
-
-		SetResamplingInputOutputsNeeded(true);
 	}
 
 	void FMLDeformerEditorModel::OnPostInputAssetChanged()
@@ -608,6 +606,7 @@ namespace UE::MLDeformer
 		}
 		else if (Property->GetFName() == UMLDeformerModel::GetAnimSequencePropertyName())
 		{
+			AnimSequenceFlags.SetAsset(Model->GetAnimSequence());
 			TriggerInputAssetChanged();
 			SetResamplingInputOutputsNeeded(true);
 		}

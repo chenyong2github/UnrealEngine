@@ -9,6 +9,7 @@
 #include "MLDeformerEditorActor.h"
 #include "Misc/FrameTime.h"
 #include "MLDeformerVizSettings.h"
+#include "MLDeformerModule.h"
 
 class UMLDeformerModel;
 class UMLDeformerInputInfo;
@@ -53,6 +54,44 @@ namespace UE::MLDeformer
 	class FMLDeformerEditorToolkit;
 	class FMLDeformerSampler;
 	class FMLDeformerEditorModel;
+
+	/**
+	 * A helper template to keep track of the packaging flags for a given object. 
+	 * We use this to restore some flags of the current asset when user changes the asset to another one.
+	 */
+	template <class T>
+	class FMLDeformerEditorOnlyAssetFlags
+	{
+	public:
+		/** Update the current asset and flags state. */
+		void SetAsset(T* InAsset)
+		{
+			// Restore flags of the current asset, before we change to the new.
+			if (Asset)
+			{
+				if (bEditorOnly)
+				{
+					Asset->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+				}
+				else
+				{
+					Asset->GetPackage()->ClearPackageFlags(PKG_EditorOnly);
+					UE_LOG(LogMLDeformer, Display, TEXT("Unmarked '%s' as editor only asset. Asset can be included in packaging again."), *Asset->GetName());
+				}
+			}
+
+			// Update to the new asset.
+			Asset = InAsset;
+			bEditorOnly = !Asset.IsNull() ? static_cast<bool>(Asset->GetPackage()->GetPackageFlags() & PKG_EditorOnly) : false;
+		}
+
+	private:
+		/** A pointer to the current asset. */
+		TObjectPtr<T> Asset = nullptr;
+
+		/** Was this asset previously marked as editor only already? */
+		bool bEditorOnly = false;
+	};
 
 	/**
 	 * The base class for the editor side of an UMLDeformerModel.
@@ -831,6 +870,9 @@ namespace UE::MLDeformer
 
 		/** A pointer to the sampler, which can sample target meshes to calculate deltas. */
 		FMLDeformerSampler* Sampler = nullptr;
+
+		/** The flags state of the anim sequence. */
+		FMLDeformerEditorOnlyAssetFlags<UAnimSequence> AnimSequenceFlags;
 
 		/**
 		 * The input info as currently setup in the editor.

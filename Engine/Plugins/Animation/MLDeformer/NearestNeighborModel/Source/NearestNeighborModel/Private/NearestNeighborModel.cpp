@@ -29,17 +29,15 @@ UNearestNeighborModel::UNearestNeighborModel(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
-	VizSettings = ObjectInitializer.CreateEditorOnlyDefaultSubobject<UNearestNeighborModelVizSettings>(this, TEXT("VizSettings"));
+	SetVizSettings(ObjectInitializer.CreateEditorOnlyDefaultSubobject<UNearestNeighborModelVizSettings>(this, TEXT("VizSettings")));
 #endif
-
-	ExternalMorphSetID = 100;
 }
 
 UMLDeformerInputInfo* UNearestNeighborModel::CreateInputInfo()
 {
 	UNearestNeighborModelInputInfo* NearestNeighborModelInputInfo = NewObject<UNearestNeighborModelInputInfo>(this);
 #if WITH_EDITORONLY_DATA
-	NearestNeighborModelInputInfo->InitRefBoneRotations(SkeletalMesh);
+	NearestNeighborModelInputInfo->InitRefBoneRotations(GetSkeletalMesh());
 #endif
 	return NearestNeighborModelInputInfo;
 }
@@ -108,7 +106,7 @@ void UNearestNeighborModel::UpdatePCACoeffNums()
 
 void UNearestNeighborModel::UpdateNetworkInputDim()
 {
-	InputDim = 3 * BoneIncludeList.Num();
+	InputDim = 3 * GetBoneIncludeList().Num();
 }
 
 void UNearestNeighborModel::UpdateNetworkOutputDim()
@@ -221,7 +219,7 @@ void UNearestNeighborModel::InitInputInfo()
 	UNearestNeighborModelInputInfo* NearestNeighborModelInputInfo = static_cast<UNearestNeighborModelInputInfo*>(GetInputInfo());
 	check(NearestNeighborModelInputInfo != nullptr);
 #if WITH_EDITORONLY_DATA
-	NearestNeighborModelInputInfo->InitRefBoneRotations(SkeletalMesh);
+	NearestNeighborModelInputInfo->InitRefBoneRotations(GetSkeletalMesh());
 #endif
 }
 

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "MLDeformerMorphModel.h"
+#include "GeometryCache.h"
 #include "NeuralMorphModel.generated.h"
 
 class USkeletalMesh;

@@ -16,6 +16,9 @@ class UMLDeformerModelInstance;
  * The ML mesh deformer component.
  * This works in combination with a MLDeformerAsset and SkeletalMeshComponent.
  * The component will perform runtime inference of the deformer model setup inside the asset.
+ * When you have multiple skeletal mesh components on your actor, this component will try to use the skeletal mesh component that uses
+ * the same skeletal mesh as the applied deformer was trained on.
+ * If it cannot find that, it will use the first skeletal mesh component it finds.
  */
 UCLASS(Blueprintable, ClassGroup = Component, BlueprintType, meta = (BlueprintSpawnableComponent))
 class MLDEFORMERFRAMEWORK_API UMLDeformerComponent
@@ -38,14 +41,9 @@ public:
 
 	/** 
 	 * Setup the ML Deformer, by picking the deformer asset and skeletal mesh component. 
-	 * Call this when you want to assign a specific ML Deformer to a specific skeletal mesh component.
-	 * This is used in case there are multiple skeletal mesh components on your actor.
-	 * On default the first skeletal mesh component it finds will be used. This function allows you to change that behavior.
-	 * Keep in mind that the ML Deformer asset has to be trained using the same Skeletal Mesh as used by the skeletal mesh component you pick.
 	 * @param InDeformerAsset The ML Deformer asset to apply to the specified skeletal mesh component.	 
 	 * @param InSkelMeshComponent The skeletal mesh component to apply the specified deformer to.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
 	void SetupComponent(UMLDeformerAsset* InDeformerAsset, USkeletalMeshComponent* InSkelMeshComponent);
 
 	/** 

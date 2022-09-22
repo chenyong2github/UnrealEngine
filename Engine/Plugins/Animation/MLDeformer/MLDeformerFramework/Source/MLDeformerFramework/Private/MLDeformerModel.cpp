@@ -66,6 +66,12 @@ void UMLDeformerModel::Serialize(FArchive& Archive)
 	#if WITH_EDITOR
 		if (Archive.IsSaving() && Archive.IsPersistent())
 		{
+			if (Archive.IsCooking())
+			{
+				AnimSequence = nullptr;
+				VizSettings = nullptr;
+			}
+
 			InitVertexMap();
 			UpdateCachedNumVertices();
 		}
@@ -108,20 +114,21 @@ void UMLDeformerModel::PostLoad()
 		InputInfo->OnPostLoad();
 	}
 
-	if (NeuralNetwork)
+	UNeuralNetwork* Network = GetNeuralNetwork();
+	if (Network)
 	{
 		// If we run the neural network on the GPU.
 		if (IsNeuralNetworkOnGPU())
 		{
-			NeuralNetwork->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);
-			if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
+			Network->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);
+			if (Network->GetDeviceType() != ENeuralDeviceType::GPU || Network->GetOutputDeviceType() != ENeuralDeviceType::GPU || Network->GetInputDeviceType() != ENeuralDeviceType::CPU)
 			{
 				UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *GetDeformerAsset()->GetName());
 			}
 		}
 		else // We run our neural network on the CPU.
 		{
-			NeuralNetwork->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
+			Network->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
 		}
 	}
 
@@ -139,14 +146,9 @@ void UMLDeformerModel::SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
 // Used for the FBoenReference, so it knows what skeleton to pick bones from.
 USkeleton* UMLDeformerModel::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
 {
-	#if WITH_EDITOR
-		bInvalidSkeletonIsError = false;
-		if (SkeletalMesh)
-		{
-			return SkeletalMesh->GetSkeleton();
-		}
-	#endif
-	return nullptr;
+	bInvalidSkeletonIsError = false;
+	USkeletalMesh* SkelMesh = GetSkeletalMesh();
+	return (SkelMesh != nullptr) ? SkelMesh->GetSkeleton() : nullptr;
 }
 
 void UMLDeformerModel::BeginDestroy()
@@ -186,7 +188,7 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 #if WITH_EDITOR
 	void UMLDeformerModel::UpdateNumBaseMeshVertices()
 	{
-		NumBaseMeshVerts = UMLDeformerModel::ExtractNumImportedSkinnedVertices(SkeletalMesh);
+		NumBaseMeshVerts = UMLDeformerModel::ExtractNumImportedSkinnedVertices(GetSkeletalMesh());
 	}
 
 	void UMLDeformerModel::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -211,12 +213,24 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 		return SkeletalMesh ? SkeletalMesh->GetNumImportedVertices() : 0;
 	}
 
+	void UMLDeformerModel::MarkObjectAsEditorOnly(UObject* InObject, bool bLogMessage)
+	{
+		if (InObject == nullptr)
+		{
+			return;
+		}
+
+		InObject->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+
+		if (bLogMessage)
+		{
+			UE_LOG(LogMLDeformer, Display, TEXT("Marking '%s' as editor only asset. Asset will be excluded from packaging."), *InObject->GetName());
+		}
+	}
+
 	void UMLDeformerModel::SetAssetEditorOnlyFlags()
 	{
-		if (AnimSequence)
-		{
-			AnimSequence->GetPackage()->SetPackageFlags(PKG_EditorOnly);
-		}
+		MarkObjectAsEditorOnly(GetAnimSequence());
 	}
 #endif	// #if WITH_EDITOR
 
@@ -224,10 +238,11 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 	void UMLDeformerModel::InitVertexMap()
 	{
 		VertexMap.Empty();
-		if (SkeletalMesh)
+		const USkeletalMesh* SkelMesh = GetSkeletalMesh();
+		if (SkelMesh)
 		{
-			FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
-			if (SkeletalMeshModel)
+			const FSkeletalMeshModel* SkeletalMeshModel = SkelMesh->GetImportedModel();
+			if (SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(0))
 			{
 				VertexMap = SkeletalMeshModel->LODModels[0].MeshToImportVertexMap;
 			}

@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/Object.h"
+#include "UObject/SoftObjectPtr.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "BoneContainer.h"
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
+#include "NeuralNetwork.h"
+#include "Animation/AnimSequence.h"
 #include "MLDeformerCurveReference.h"
 #include "MLDeformerModel.generated.h"
 
@@ -17,9 +20,6 @@ class UMLDeformerVizSettings;
 class UMLDeformerModelInstance;
 class UMLDeformerComponent;
 class UMLDeformerInputInfo;
-class UAnimSequence;
-class UGeometryCache;
-class UNeuralNetwork;
 
 namespace UE::MLDeformer
 {
@@ -139,6 +139,21 @@ public:
 	 */
 	virtual FString GetDefaultDeformerGraphAssetPath() const	{ return FString(); }
 
+	/**
+	 * Get the skeletal mesh that is used during training.
+	 * You typically want to apply the ML Deformer on this specific skeletal mesh in your game as well.
+	 * @return A pointer to the skeletal mesh.
+	 */
+	const USkeletalMesh* GetSkeletalMesh() const			{ return SkeletalMesh.Get(); }
+	USkeletalMesh* GetSkeletalMesh()						{ return SkeletalMesh.Get(); }
+
+	/**
+	 * Set the skeletal mesh that this deformer uses.
+	 * @param SkelMesh The skeletal mesh.
+	 */
+	void SetSkeletalMesh(USkeletalMesh* SkelMesh)			{ SkeletalMesh = SkelMesh; }
+
+
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Check whether this model currently has a training mesh setup or not.
@@ -156,6 +171,14 @@ public:
 #endif
 
 #if WITH_EDITOR
+	/**
+	 * Set an object to be editor only.
+	 * This will add the PKG_EditorOnly package flag. This will cause it to not be included during packaging of the project.
+	 * @param InObject The object to mark as editor only.
+	 * @param bLogMessage Set to true when you wish to log a message about this marking.
+	 */
+	void MarkObjectAsEditorOnly(UObject* InObject, bool bLogMessage=true);
+
 	/**
 	 * Update the cached number of vertices of both base and target meshes.
 	 */ 
@@ -217,21 +240,21 @@ public:
 	 * Inputs are things like bone transforms and curve values.
 	 * @return A pointer to the input info object.
 	 */
-	UMLDeformerInputInfo* GetInputInfo() const				{ return InputInfo.Get(); }
+	UMLDeformerInputInfo* GetInputInfo() const					{ return InputInfo.Get(); }
 
 	/**
 	 * Get the number of vertices in the base mesh (linear skinned skeletal mesh).
 	 * This is the number of vertices in the DCC, so not the render vertex count.
 	 * @return The number of imported vertices inside linear skinned skeletal mesh.
 	 */
-	int32 GetNumBaseMeshVerts() const						{ return NumBaseMeshVerts; }
+	int32 GetNumBaseMeshVerts() const							{ return NumBaseMeshVerts; }
 
 	/**
 	 * Get the number of vertices of the target mesh.
 	 * This is the number of vertices in the DCC, so not the render vertex count.
 	 * @return The number of imported vertices inside the target mesh.
 	 */
-	int32 GetNumTargetMeshVerts() const						{ return NumTargetMeshVerts; }
+	int32 GetNumTargetMeshVerts() const							{ return NumTargetMeshVerts; }
 
 	/**
 	 * The mapping that maps from render vertices into dcc vertices.
@@ -239,7 +262,14 @@ public:
 	 * For a cube with 32 render vertices, the item values would be between 0..7 as in the dcc the cube has 8 vertices.
 	 * @return A reference to the array that contains the DCC vertex number for each render vertex.
 	 */
-	const TArray<int32>& GetVertexMap() const				{ return VertexMap; }
+	const TArray<int32>& GetVertexMap() const					{ return VertexMap; }
+
+	/**
+	 * Manually set the vertex map. This normally gets initialized automatically.
+	 * @param Map The original vertex number indices for each render vertex.
+	 * @see GetVertexMap.
+	 */
+	void SetVertexMap(const TArray<int32>& Map)					{ VertexMap = Map; }
 
 	/**
 	 * Get the GPU buffer of the VertexMap.
@@ -253,7 +283,7 @@ public:
 	 * This network is used during inference.
 	 * @return A pointer to the neural network, or nullptr when the network has not yet been trained.
 	 */
-	UNeuralNetwork* GetNeuralNetwork() const				{ return NeuralNetwork.Get(); }
+	UNeuralNetwork* GetNeuralNetwork() const					{ return NeuralNetwork.Get(); }
 
 	/**
 	 * Set the neural network object that we use during inference.
@@ -285,14 +315,28 @@ public:
 	 * Check whether we should include bone transforms as input to the model during training or not.
 	 * @return Returns true when bone transfomations should be a part of the network inputs, during the training process.
 	 */
-	bool ShouldIncludeBonesInTraining() const				{ return bIncludeBones; }
+	bool ShouldIncludeBonesInTraining() const					{ return bIncludeBones; }
+
+	/**
+	 * Set whether we want to include bones during training or not.
+	 * This will make bone transforms part of the neural network inputs.
+	 * @param bInclude Set to true if you wish bone transforms to be included during training and at inference time.
+	 */
+	void SetShouldIncludeBonesInTraining(bool bInclude)			{ bIncludeBones = bInclude; }
 
 	/**
 	 * Check whether we should include curve values as input to the model during training or not.
 	 * Curve values are single floats.
 	 * @return Returns true when curve values should be a part of the network inputs, during the training process.
 	 */
-	bool ShouldIncludeCurvesInTraining() const				{ return bIncludeCurves; }
+	bool ShouldIncludeCurvesInTraining() const					{ return bIncludeCurves; }
+
+	/**
+	 * Set whether we want to include curves during training.
+	 * This will make curves part of the neural network inputs.
+	 * @param bInclude Set to true to include curves during training and inference time.
+	 */
+	void SetShouldIncludeCurvesInTraining(bool bInclude)		{ bIncludeCurves = bInclude; }
 
 	/**
 	 * The delegate that gets fired when a property value changes.
@@ -307,29 +351,15 @@ public:
 	 * @return A pointer to the visualization settings. You can cast this to the type specific for your model, in case you inherited from 
 	 *         the UMLDeformerVizSettings base class. This never return a nullptr.
 	 */
-	UMLDeformerVizSettings* GetVizSettings() const			{ return VizSettings; }
-
-	/**
-	 * Get the skeletal mesh that is used during training.
-	 * You typically want to apply the ML Deformer on this specific skeletal mesh in your game as well.
-	 * @return A pointer to the skeletal mesh.
-	 */
-	const USkeletalMesh* GetSkeletalMesh() const			{ return SkeletalMesh;  }
-	USkeletalMesh* GetSkeletalMesh()						{ return SkeletalMesh; }
-
-	/**
-	 * Set the skeletal mesh that this deformer uses.
-	 * @param SkelMesh The skeletal mesh.
-	 */
-	void SetSkeletalMesh(USkeletalMesh* SkelMesh)			{ SkeletalMesh = SkelMesh; }
+	UMLDeformerVizSettings* GetVizSettings() const				{ return VizSettings; }
 
 	/**
 	 * Get the animation sequence that is used during training.
 	 * Each frame of this anim sequence will contain a training pose.
 	 * @return A pointer to the animation sequence used for training.
 	 */
-	const UAnimSequence* GetAnimSequence() const			{ return AnimSequence;  }
-	UAnimSequence* GetAnimSequence()						{ return AnimSequence; }
+	const UAnimSequence* GetAnimSequence() const				{ return AnimSequence.LoadSynchronous();  }
+	UAnimSequence* GetAnimSequence()							{ return AnimSequence.LoadSynchronous(); }
 
 	/**
 	 * Get the maximum number of training frames to use during training.
@@ -337,7 +367,14 @@ public:
 	 * want to train on only 2000 frames instead. You can do this by setting the maximum training frames to 2000.
 	 * @return The max number of frames to use during training.
 	 */
-	int32 GetTrainingFrameLimit() const						{ return MaxTrainingFrames; }
+	int32 GetTrainingFrameLimit() const							{ return MaxTrainingFrames; }
+
+	/**
+	 * Set the maximum number of frames to train on.
+	 * For example if your training data has 10000 frames, but you wish to only train on 2000 frames, you can set this to 2000.
+	 * @param MaxNumFrames The maximum number of frames to train on.
+	 */
+	void SetTrainingFrameLimit(int32 MaxNumFrames)				{ MaxTrainingFrames = MaxNumFrames; }
 
 	/**
 	 * Get the target mesh alignment tranformation.
@@ -347,7 +384,14 @@ public:
 	 * The alignment transform is then used to correct this and align both base and target mesh.
 	 * @return The alignment transformation. When set to Identity it will not do anything, which is its default.
 	 */
-	const FTransform& GetAlignmentTransform() const			{ return AlignmentTransform; }
+	const FTransform& GetAlignmentTransform() const				{ return AlignmentTransform; }
+
+	/**
+	 * Set the alignment transform, which is the transform applied to the target mesh vertices, before calculating the deltas.
+	 * @param Transform The transformation to apply.
+	 * @see GetAlignmentTransform.
+	 */
+	void SetAlignmentTransform(const FTransform& Transform)		{ AlignmentTransform = Transform; }
 
 	/**
 	 * Get the list of bones that we configured to be included during training.
@@ -363,6 +407,14 @@ public:
 	const TArray<FBoneReference>& GetBoneIncludeList() const	{ return BoneIncludeList; }
 
 	/**
+	 * Set the list of bones that should be included during training.
+	 * This list is ignored if ShouldIncludeBonesInTraining() returns false.
+	 * If the list is empty, all bones will be included.
+	 * @param List The list of bones to include.
+	 */
+	void SetBoneIncludeList(const TArray<FBoneReference>& List)	{ BoneIncludeList = List; }
+
+	/**
 	 * Get the list of curves that we configured to be included during training.
 	 * A curve reference is basically just a name of a curve.
 	 * This can be different from the curve list inside the InputInfo property though.
@@ -376,12 +428,35 @@ public:
 	const TArray<FMLDeformerCurveReference>& GetCurveIncludeList() const	{ return CurveIncludeList; }
 
 	/**
+	 * Set the list of curves that should be included during training.
+	 * This list is ignored if ShouldIncludeCurvesInTraining() returns false.
+	 * If the list is empty, all curves will be included.
+	 * @param List The list of curves to include.
+	 */
+	void SetCurveIncludeList(const TArray<FMLDeformerCurveReference>& List)	{ CurveIncludeList = List; }
+
+	/**
 	 * Get the delta cutoff length. Deltas that have a length larger than this length will be set to zero.
 	 * This can be useful when there are some vertices that due to incorrect data have a very long length.
 	 * Skipping those deltas will prevent issues.
 	 * @return The length after which deltas will be ignored. So anything delta length larger than this value will be ignored.
 	 */
-	float GetDeltaCutoffLength() const					{ return DeltaCutoffLength; }
+	float GetDeltaCutoffLength() const										{ return DeltaCutoffLength; }
+
+	/**
+	 * Set the delta cutoff length. Deltas that are larger than this length will be set to zero.
+	 * This can be useful when there are some vertices that due to incorrect data have a very long length.
+	 * Skipping those deltas will prevent issues.
+	 * @param Length The new delta cutoff length.
+	 */
+	void SetDeltaCutoffLength(float Length)									{ DeltaCutoffLength = Length; }
+
+	/**
+	 * Set the visualization settings object.
+	 * You need to call this in the constructor of your model.
+	 * @param VizSettings The visualization settings object for this model.
+	 */
+	void SetVizSettings(UMLDeformerVizSettings* VizSettingsObject)			{ VizSettings = VizSettingsObject; }
 
 	// Get property names.
 	static FName GetSkeletalMeshPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, SkeletalMesh); }
@@ -413,7 +488,21 @@ protected:
 	 */
 	void FloatArrayToVector3Array(const TArray<float>& FloatArray, TArray<FVector3f>& OutVectorArray);
 
-protected:
+	/**
+	 * Set the number of vertices in the base mesh.
+	 * This is the number of imported (dcc) vertices, so not render vertices.
+	 * @param NumVerts The number of vertices.
+	 */
+	void SetNumBaseMeshVerts(int32 NumVerts)			{ NumBaseMeshVerts = NumVerts; }
+
+	/**
+	 * Set the number of vertices in the target mesh.
+	 * This is the number of imported (dcc) vertices, so not render vertices.
+	 * @param NumVerts The number of vertices.
+	 */
+	void SetNumTargetMeshVerts(int32 NumVerts)			{ NumTargetMeshVerts = NumVerts; }
+
+private:
 	/** The deformer asset that this model is part of. */
 	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 
@@ -451,6 +540,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UNeuralNetwork> NeuralNetwork = nullptr;
 
+	/** The skeletal mesh that represents the linear skinned mesh. */
+	UPROPERTY(EditAnywhere, Category = "Base Mesh")
+	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<UMLDeformerVizSettings> VizSettings = nullptr;
@@ -463,19 +556,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
 	bool bIncludeCurves = false;
 
-	/** The skeletal mesh that represents the linear skinned mesh. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base Mesh")
-	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
-
 	/**
 	 * The animation sequence to apply to the base mesh. This has to match the animation of the target mesh's geometry cache. 
 	 * Internally we force the Interpolation property for this motion to be "Step".
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base Mesh")
-	TObjectPtr<UAnimSequence> AnimSequence = nullptr;
+	UPROPERTY(EditAnywhere, Category = "Base Mesh")
+	TSoftObjectPtr<UAnimSequence> AnimSequence = nullptr;
 
 	/** The transform that aligns the Geometry Cache to the SkeletalMesh. This will mostly apply some scale and a rotation, but no translation. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Target Mesh")
+	UPROPERTY(EditAnywhere, Category = "Target Mesh")
 	FTransform AlignmentTransform = FTransform::Identity;
 
 	/** The bones to include during training. When none are provided, all bones of the Skeleton will be included. */
@@ -487,14 +576,14 @@ protected:
 	TArray<FMLDeformerCurveReference> CurveIncludeList;
 
 	/** The maximum numer of training frames (samples) to train on. Use this to train on a sub-section of your full training data. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inputs and Output", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (ClampMin = "1"))
 	int32 MaxTrainingFrames = 1000000;
 
 	/**
 	 * Sometimes there can be some vertices that cause some issues that cause deltas to be very long. We can ignore these deltas by setting a cutoff value. 
 	 * Deltas that are longer than the cutoff value (in units), will be ignored and set to zero length. 
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inputs and Output", meta = (ClampMin = "0.01", ForceUnits="cm"))
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (ClampMin = "0.01", ForceUnits="cm"))
 	float DeltaCutoffLength = 30.0f;
 #endif
 };

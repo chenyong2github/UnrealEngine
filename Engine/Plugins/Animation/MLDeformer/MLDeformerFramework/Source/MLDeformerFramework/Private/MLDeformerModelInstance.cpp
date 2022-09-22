@@ -152,32 +152,6 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 				UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *InputErrorString);
 			}
 		}
-
-		// Check if the neural network is on the right device, if not, we can't continue.
-		if (Model->IsNeuralNetworkOnGPU())
-		{
-			if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
-			{
-				const FString DeviceErrorString = "The neural network is expected to run and output on the GPU, but it isn't.";
-				ErrorText += DeviceErrorString + "\n";
-				if (LogIssues)
-				{
-					UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *DeviceErrorString);
-				}
-			}
-		}
-		else
-		{
-			if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::CPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::CPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
-			{
-				const FString DeviceErrorString = "The neural network is expected to run fully on the CPU, but it isn't.";
-				ErrorText += DeviceErrorString + "\n";
-				if (LogIssues)
-				{
-					UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *DeviceErrorString);
-				}
-			}
-		}
 	}
 
 	return ErrorText;

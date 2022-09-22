@@ -21,6 +21,7 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerMorphModelInstance
 
 public:
 	// UMLDeformerModelInstance overrides.
+	virtual void Release() override;
 	virtual void RunNeuralNetwork(float ModelWeight) override;
 	// ~END UMLDeformerModelInstance overrides.
 };

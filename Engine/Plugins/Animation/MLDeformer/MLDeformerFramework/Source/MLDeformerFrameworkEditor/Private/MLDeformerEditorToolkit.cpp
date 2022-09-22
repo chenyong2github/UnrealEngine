@@ -636,6 +636,7 @@ namespace UE::MLDeformer
 			ActiveModel->OnInputAssetsChanged();
 			ActiveModel->CreateHeatMapAssets();
 			ActiveModel->SetHeatMapMaterialEnabled(ActiveModel->GetModel()->GetVizSettings()->GetShowHeatMap());
+			ActiveModel->SetResamplingInputOutputsNeeded(true);
 		}
 	}
 

@@ -17,6 +17,6 @@ FString UMLDeformerTestModel::GetDisplayName() const
 #if WITH_EDITOR
 	void UMLDeformerTestModel::UpdateNumTargetMeshVertices()
 	{
-		NumTargetMeshVerts = NumBaseMeshVerts;
+		SetNumTargetMeshVerts(GetNumBaseMeshVerts());
 	}
 #endif

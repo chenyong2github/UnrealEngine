@@ -27,6 +27,7 @@ namespace UE::MLDeformer
 		// ~END FGCObject overrides.
 
 		// FMLDeformerEditorModel overrides.
+		virtual void Init(const InitSettings& Settings) override;
 		virtual FMLDeformerEditorActor* CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const override;
 		virtual FMLDeformerSampler* CreateSampler() const override;
 		virtual void CreateTrainingGroundTruthActor(UWorld* World) override;
@@ -62,5 +63,12 @@ namespace UE::MLDeformer
 		 * @param bIsTrainingActor Set this to true when the actor is an actor to be used in training mode, or set to false when it is to be used in testing mode.
 		 */
 		void CreateGeomCacheActor(UWorld* World, int32 ActorID, const FName& Name, UGeometryCache* GeomCache, FLinearColor LabelColor, FLinearColor WireframeColor, const FText& LabelText, bool bIsTrainingActor);
+
+	protected:
+		/** Packaging flag handling for the training ground truth. */
+		FMLDeformerEditorOnlyAssetFlags<UGeometryCache> TrainingGroundTruthFlags;
+
+		/** Packaging flag handling for the test ground truth. */
+		FMLDeformerEditorOnlyAssetFlags<UGeometryCache> TestGroundTruthFlags;
 	};
 }	// namespace UE::MLDeformer

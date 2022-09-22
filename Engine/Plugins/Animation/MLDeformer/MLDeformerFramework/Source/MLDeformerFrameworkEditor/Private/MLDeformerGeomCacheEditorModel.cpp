@@ -22,6 +22,14 @@
 
 namespace UE::MLDeformer
 {
+	void FMLDeformerGeomCacheEditorModel::Init(const InitSettings& Settings)
+	{
+		FMLDeformerEditorModel::Init(Settings);
+
+		TrainingGroundTruthFlags.SetAsset(GetGeomCacheModel()->GetGeometryCache());
+		TestGroundTruthFlags.SetAsset(GetGeomCacheVizSettings()->GetTestGroundTruth());
+	}
+	
 	FMLDeformerSampler* FMLDeformerGeomCacheEditorModel::CreateSampler() const
 	{
 		FMLDeformerGeomCacheSampler* NewSampler = new FMLDeformerGeomCacheSampler();
@@ -236,11 +244,13 @@ namespace UE::MLDeformer
 		// Properties specific to the geometry cache editor model.
 		if (Property->GetFName() == UMLDeformerGeomCacheModel::GetGeometryCachePropertyName())
 		{
+			TrainingGroundTruthFlags.SetAsset(GetGeomCacheModel()->GetGeometryCache());
 			SetResamplingInputOutputsNeeded(true);
 			TriggerInputAssetChanged(true);
 		}
 		else if (Property->GetFName() == UMLDeformerGeomCacheVizSettings::GetTestGroundTruthPropertyName())
 		{
+			TestGroundTruthFlags.SetAsset(GetGeomCacheVizSettings()->GetTestGroundTruth());
 			TriggerInputAssetChanged(true);
 		}
 	}

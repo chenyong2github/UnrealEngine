@@ -26,7 +26,7 @@ UNeuralMorphModel::UNeuralMorphModel(const FObjectInitializer& ObjectInitializer
 	// Never directly create one of the frameworks base classes such as the FMLDeformerMorphModelVizSettings as
 	// that can cause issues with detail customizations.
 #if WITH_EDITORONLY_DATA
-	VizSettings = ObjectInitializer.CreateEditorOnlyDefaultSubobject<UNeuralMorphModelVizSettings>(this, TEXT("VizSettings"));
+	SetVizSettings(ObjectInitializer.CreateEditorOnlyDefaultSubobject<UNeuralMorphModelVizSettings>(this, TEXT("VizSettings")));
 #endif
 }
 

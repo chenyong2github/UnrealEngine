@@ -9,15 +9,27 @@
 
 #define LOCTEXT_NAMESPACE "MLDeformerGeomCacheModel"
 
+void UMLDeformerGeomCacheModel::Serialize(FArchive& Archive)
+{
+	#if WITH_EDITOR
+		if (Archive.IsSaving() && Archive.IsPersistent() && Archive.IsCooking())
+		{
+			GeometryCache = nullptr;
+		}
+	#endif
+
+	Super::Serialize(Archive);
+}
+
 #if WITH_EDITOR
 void UMLDeformerGeomCacheModel::UpdateNumTargetMeshVertices()
 {
-	NumTargetMeshVerts = UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GeometryCache);
+	SetNumTargetMeshVerts(UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GetGeometryCache()));
 }
 
 UMLDeformerGeomCacheVizSettings* UMLDeformerGeomCacheModel::GetGeomCacheVizSettings() const
 {
-	return Cast<UMLDeformerGeomCacheVizSettings>(VizSettings);
+	return Cast<UMLDeformerGeomCacheVizSettings>(GetVizSettings());
 }
 
 void UMLDeformerGeomCacheModel::SetAssetEditorOnlyFlags()
@@ -25,20 +37,14 @@ void UMLDeformerGeomCacheModel::SetAssetEditorOnlyFlags()
 	// Set the flags for the base class, which filters out the training anim sequence.
 	UMLDeformerModel::SetAssetEditorOnlyFlags();
 
-	// The training geometry cache is something we don't want to package.
-	if (GeometryCache)
-	{
-		GeometryCache->GetPackage()->SetPackageFlags(PKG_EditorOnly);
-	}
+	// The training geometry cache.
+	MarkObjectAsEditorOnly(GetGeometryCache());
 
-	// Filter the viz settings specific assets.
-	UMLDeformerGeomCacheVizSettings* GeomCacheVizSettings = GetGeomCacheVizSettings();
+	// The testing geometry cache (ground truth of the test anim sequence).
+	const UMLDeformerGeomCacheVizSettings* GeomCacheVizSettings = GetGeomCacheVizSettings();
 	if (GeomCacheVizSettings)
 	{
-		if (GeomCacheVizSettings->GetTestGroundTruth())
-		{
-			GeomCacheVizSettings->GetTestGroundTruth()->GetPackage()->SetPackageFlags(PKG_EditorOnly);
-		}
+		MarkObjectAsEditorOnly(GeomCacheVizSettings->GetTestGroundTruth());
 	}
 }
 #endif // WITH_EDITOR
@@ -60,16 +66,16 @@ void UMLDeformerGeomCacheModel::SampleGroundTruthPositions(float SampleTime, TAr
 	{
 		TArray<FString> FailedImportedMeshNames;
 		TArray<FString> VertexMisMatchNames;
-		UE::MLDeformer::GenerateGeomCacheMeshMappings(SkeletalMesh, GeomCache, MeshMappings, FailedImportedMeshNames, VertexMisMatchNames);
+		UE::MLDeformer::GenerateGeomCacheMeshMappings(GetSkeletalMesh(), GeomCache, MeshMappings, FailedImportedMeshNames, VertexMisMatchNames);
 	}
 
 	UE::MLDeformer::SampleGeomCachePositions(
 		0,
 		SampleTime,
 		MeshMappings,
-		SkeletalMesh,
+		GetSkeletalMesh(),
 		GeomCache,
-		AlignmentTransform,
+		GetAlignmentTransform(),
 		OutPositions);
 }
 #endif

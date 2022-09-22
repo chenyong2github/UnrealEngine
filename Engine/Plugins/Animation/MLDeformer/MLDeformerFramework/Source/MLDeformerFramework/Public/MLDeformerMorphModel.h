@@ -35,6 +35,9 @@ public:
 	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold; }
 	float GetMorphTargetErrorTolerance() const				{ return MorphTargetErrorTolerance; }
 
+	void SetMorphTargetDeltaThreshold(float Threshold)		{ MorphTargetDeltaThreshold = Threshold; }
+	void SetMorphTargetErrorTolerance(float Tolerance)		{ MorphTargetErrorTolerance = Tolerance; }
+
 	// Get property names.
 	static FName GetMorphTargetDeltaThresholdPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetDeltaThreshold); }
 	static FName GetMorphTargetErrorTolerancePropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetErrorTolerance); }
@@ -102,7 +105,7 @@ public:
 	 */
 	int32 GetMorphTargetDeltaStartIndex(int32 MorphTargetIndex) const;
 
-protected:
+private:
 	/** The next free morph target set ID. This is used to generate unique ID's for each morph model. */
 	static TAtomic<int32> NextFreeMorphSetID;
 
@@ -117,7 +120,7 @@ protected:
 
 	/** 
 	 * The external morph set data type ID, specific to this model.
-	 * If you inherit your model from this base class, you should set this to some unique value, that represents your model.
+	 * This will get automatically set. Each model instance will get its own unique ID, using the NextFreeMorphSetID atomic that will be increased.
 	 */
 	int32 ExternalMorphSetID = -1;
 
@@ -127,11 +130,11 @@ protected:
 	 * This essentially removes small deltas from morph targets, which will lower the memory usage at runtime, however when set too high it can also introduce visual artifacts.
 	 * A value of 0 will result in the highest quality morph targets, at the cost of higher runtime memory usage.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Morph Targets", meta = (ClampMin = "0.0", ClampMax = "1.0", ForceUnits="cm"))
+	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (ClampMin = "0.0", ClampMax = "1.0", ForceUnits="cm"))
 	float MorphTargetDeltaThreshold = 0.01f;
 
 	/** The morph target error tolerance. Higher values result in larger compression, but could result in visual artifacts. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Morph Targets", meta = (ClampMin = "0.01", ClampMax = "500"))
+	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (ClampMin = "0.01", ClampMax = "500"))
 	float MorphTargetErrorTolerance = 50.0f;
 #endif // WITH_EDITORONLY_DATA
 };

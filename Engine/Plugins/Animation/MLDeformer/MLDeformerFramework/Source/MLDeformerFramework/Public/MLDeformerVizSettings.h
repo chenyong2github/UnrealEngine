@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPtr.h"
+#include "Animation/MeshDeformer.h"
 #include "MLDeformerVizSettings.generated.h"
 
 class UMeshDeformer;
@@ -67,8 +69,8 @@ public:
 	int32 GetTrainingFrameNumber() const					{ return TrainingFrameNumber; }
 	int32 GetTestingFrameNumber() const						{ return TestingFrameNumber; }
 	float GetAnimPlaySpeed() const							{ return AnimPlaySpeed; }
-	const UAnimSequence* GetTestAnimSequence() const		{ return TestAnimSequence; }
-	UAnimSequence* GetTestAnimSequence()					{ return TestAnimSequence; }
+	const UAnimSequence* GetTestAnimSequence() const		{ return TestAnimSequence.LoadSynchronous(); }
+	UAnimSequence* GetTestAnimSequence()					{ return TestAnimSequence.LoadSynchronous(); }
 	bool GetDrawLinearSkinnedActor() const					{ return bDrawLinearSkinnedActor; }
 	bool GetDrawMLDeformedActor() const						{ return bDrawMLDeformedActor; }
 	bool GetDrawGroundTruthActor() const					{ return bDrawGroundTruthActor; }
@@ -76,7 +78,7 @@ public:
 	EMLDeformerHeatMapMode GetHeatMapMode() const			{ return HeatMapMode; }
 	float GetHeatMapMax() const								{ return HeatMapMax; }
 	float GetGroundTruthLerp() const						{ return HeatMapMode == EMLDeformerHeatMapMode::GroundTruth ? GroundTruthLerp : 0.0f; }
-	UMeshDeformer* GetDeformerGraph() const					{ return DeformerGraph; }
+	UMeshDeformer* GetDeformerGraph() const					{ return DeformerGraph.LoadSynchronous(); }
 	float GetWeight() const									{ return Weight; }
 	bool GetXRayDeltas() const								{ return bXRayDeltas; }
 	bool GetDrawVertexDeltas() const						{ return bDrawDeltas; }
@@ -112,11 +114,11 @@ protected:
 
 	/** The animation sequence to play on the skeletal mesh. */
 	UPROPERTY(EditAnywhere, Category = "Test Assets")
-	TObjectPtr<UAnimSequence> TestAnimSequence = nullptr;
+	TSoftObjectPtr<UAnimSequence> TestAnimSequence = nullptr;
 
 	/** The deformer graph to use on the asset editor's deformed test actor. */
 	UPROPERTY(EditAnywhere, Category = "Test Assets")
-	TObjectPtr<UMeshDeformer> DeformerGraph = nullptr;
+	TSoftObjectPtr<UMeshDeformer> DeformerGraph = nullptr;
 
 	/** The play speed factor of the test anim sequence. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "2.0", ForceUnits="Multiplier"))

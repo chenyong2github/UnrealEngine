@@ -22,6 +22,10 @@ void UMLDeformerComponent::Init()
 	// If there is no deformer asset linked, release what we currently have.
 	if (DeformerAsset == nullptr)
 	{
+		if (ModelInstance)
+		{
+			ModelInstance->Release();
+		}
 		ModelInstance = nullptr;
 		return;
 	}
@@ -124,14 +128,16 @@ void UMLDeformerComponent::BeginDestroy()
 void UMLDeformerComponent::Activate(bool bReset)
 {
 	// If we haven't pointed to some skeletal mesh component to use, then try to find one on the actor.
-	if (SkelMeshComponent == nullptr)
+	SkelMeshComponent = nullptr;
+	if (!DeformerAsset.IsNull())
 	{
 		// First search for a skeletal mesh component with the expected number of vertices.
 		// This will try to find a skeletal mesh with the same number of vertices.
 		const UMLDeformerModel* Model = DeformerAsset ? DeformerAsset->GetModel() : nullptr;
-		const int32 NumModelVertices = Model ? Model->GetVertexMap().Num() : -1;
-		if (NumModelVertices > 0)
+		if (Model && Model->GetSkeletalMesh())
 		{
+			const USkeletalMesh* ModelSkeletalMesh = Model->GetSkeletalMesh();
+
 			// Get a list of all skeletal mesh components on the actor.
 			TArray<USkeletalMeshComponent*> Components;
 			AActor* Actor = Cast<AActor>(GetOuter());
@@ -140,11 +146,8 @@ void UMLDeformerComponent::Activate(bool bReset)
 			// Find a component that uses a mesh with the same vertex count.
 			for (USkeletalMeshComponent* Component : Components)
 			{
-				const USkeletalMesh* SkeletalMesh = Component->GetSkeletalMeshAsset();
-				const FSkeletalMeshRenderData* RenderData = SkeletalMesh ? SkeletalMesh->GetResourceForRendering() : nullptr;
-				const int32 NumComponentVertices = RenderData && RenderData->LODRenderData.IsValidIndex(0) ? RenderData->LODRenderData[0].GetNumVertices() : -1;
-
-				if (NumComponentVertices == NumModelVertices)
+				const USkeletalMesh* ComponentSkeletalMesh = Component->GetSkeletalMeshAsset();
+				if (ComponentSkeletalMesh == ModelSkeletalMesh)
 				{
 					SkelMeshComponent = Component;
 					break;
@@ -161,12 +164,15 @@ void UMLDeformerComponent::Activate(bool bReset)
 	}
 
 	SetupComponent(DeformerAsset, SkelMeshComponent);
+
+	Super::Activate(bReset);
 }
 
 void UMLDeformerComponent::Deactivate()
 {
 	RemoveNeuralNetworkModifyDelegate();
 	ModelInstance = nullptr;
+	Super::Deactivate();
 }
 
 void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
