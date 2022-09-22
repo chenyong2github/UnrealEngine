@@ -98,13 +98,11 @@ TSharedPtr<IDatasmithScene> FClothScene::Export()
 			}
 		}
 
-#if 0 // require tvariant serial
+		// #ue_ds_sdk_todo Proper data API
+		// eg. SetVertices, SetVertexParameter...
 		FParameterData& Param = Pattern.Parameters.AddDefaulted_GetRef();
+		Param.Name = TEXT("Test");
 		Param.Data.Set<TArray<double>>({1,2,3});
-
-		FParameterData& Paramf = Pattern.Parameters.AddDefaulted_GetRef();
-		Paramf.Data.Set<TArray<float>>({1,2,3});
-#endif
 
 		FDatasmithMeshExporter MeshExporter;
 		FString ClothFilePath = FString(DatasmithSceneExporter.GetAssetsOutputPath()) / ClothElement->GetName();
