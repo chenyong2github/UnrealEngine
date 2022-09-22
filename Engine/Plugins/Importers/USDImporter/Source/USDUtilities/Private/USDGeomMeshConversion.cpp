@@ -153,6 +153,12 @@ namespace UE::UsdGeomMeshConversion::Private
 
 			// Normals
 			{
+				// We need to emit this if we're writing normals (which we always are) because any DCC that can
+				// actually subdivide (like usdview) will just discard authored normals and fully recompute them
+				// on-demand in case they have a valid subdivision scheme (which is the default state).
+				// Reference: https://graphics.pixar.com/usd/release/api/class_usd_geom_mesh.html#UsdGeom_Mesh_Normals
+				ensure( UsdMesh.CreateSubdivisionSchemeAttr( pxr::VtValue{ pxr::UsdGeomTokens->none } ) );
+
 				pxr::UsdAttribute NormalsAttribute = UsdMesh.CreateNormalsAttr();
 				if ( NormalsAttribute )
 				{
