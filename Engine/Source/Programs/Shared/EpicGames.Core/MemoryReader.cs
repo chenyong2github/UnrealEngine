@@ -15,7 +15,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="minSize">Minimum size of the returned data</param>
 		/// <returns>Memory of at least the given size</returns>
-		ReadOnlyMemory<byte> GetMemory(int minSize);
+		ReadOnlyMemory<byte> GetMemory(int minSize = 1);
 
 		/// <summary>
 		/// Updates the current position within the input buffer

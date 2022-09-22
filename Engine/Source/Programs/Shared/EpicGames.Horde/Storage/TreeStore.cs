@@ -648,8 +648,7 @@ namespace EpicGames.Horde.Storage
 				{
 					case BundleCompressionFormat.None:
 						{
-							builder.Append(inputSpan);
-							builder.Advance(inputSpan.Length);
+							builder.WriteFixedLengthBytes(inputSpan);
 							return inputSpan.Length;
 						}
 					case BundleCompressionFormat.LZ4:

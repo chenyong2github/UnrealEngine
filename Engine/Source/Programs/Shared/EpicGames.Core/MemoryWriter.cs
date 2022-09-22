@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace EpicGames.Core
@@ -22,8 +23,8 @@ namespace EpicGames.Core
 		/// Gets a block of memory with at least the given size
 		/// </summary>
 		/// <param name="minSize">Minimum size of the returned data</param>
-		/// <returns>Memory of at least the given size</returns>
-		Memory<byte> GetMemory(int minSize);
+		/// <returns>Memory of at least the given size. Note that the returned buffer may be larger than the requested size.</returns>
+		Memory<byte> GetMemory(int minSize = 1);
 
 		/// <summary>
 		/// Updates the current position within the input buffer
@@ -88,6 +89,25 @@ namespace EpicGames.Core
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="minSize">Minimum size for the returned span</param>
 		public static Span<byte> GetSpan(this IMemoryWriter writer, int minSize) => writer.GetMemory(minSize).Span;
+
+		/// <summary>
+		/// Writes a byte to memory
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="length">Length of the required span</param>
+		public static Memory<byte> GetMemoryAndAdvance(this IMemoryWriter writer, int length)
+		{
+			Memory<byte> memory = writer.GetMemory(length);
+			writer.Advance(length);
+			return memory.Slice(0, length); // Returned memory may be larger than requested
+		}
+
+		/// <summary>
+		/// Writes a byte to memory
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="length">Length of the required span</param>
+		public static Span<byte> GetSpanAndAdvance(this IMemoryWriter writer, int length) => GetMemoryAndAdvance(writer, length).Span;
 
 		/// <summary>
 		/// Writes a boolean to memory
@@ -219,14 +239,25 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Appends a sequence of bytes to the buffer
+		/// Appends a span of bytes to the buffer, without a length field.
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="span">Bytes to write</param>
+		public static void WriteFixedLengthBytes(this IMemoryWriter writer, ReadOnlySpan<byte> span)
+		{
+			Span<byte> target = GetSpanAndAdvance(writer, span.Length);
+			span.CopyTo(target);
+		}
+
+		/// <summary>
+		/// Appends a sequence of bytes to the buffer, without a length field.
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="sequence">Sequence to append</param>
-		public static void WriteSequence(this IMemoryWriter writer, ReadOnlySequence<byte> sequence)
+		public static void WriteFixedLengthBytes(this IMemoryWriter writer, ReadOnlySequence<byte> sequence)
 		{
-			Memory<byte> memory = writer.GetMemory((int)sequence.Length);
-			sequence.CopyTo(memory.Span);
+			Span<byte> span = GetSpanAndAdvance(writer, (int)sequence.Length);
+			sequence.CopyTo(span);
 		}
 
 		/// <summary>
@@ -237,10 +268,9 @@ namespace EpicGames.Core
 		public static void WriteVariableLengthBytes(this IMemoryWriter writer, ReadOnlySpan<byte> bytes)
 		{
 			int lengthBytes = VarInt.MeasureUnsigned(bytes.Length);
-			Span<byte> span = GetSpan(writer, lengthBytes + bytes.Length);
+			Span<byte> span = GetSpanAndAdvance(writer, lengthBytes + bytes.Length);
 			VarInt.WriteUnsigned(span, bytes.Length);
 			bytes.CopyTo(span[lengthBytes..]);
-			writer.Advance(lengthBytes + bytes.Length);
 		}
 
 		/// <summary>
@@ -252,18 +282,6 @@ namespace EpicGames.Core
 		{
 			writer.WriteInt32(bytes.Length);
 			writer.WriteFixedLengthBytes(bytes);
-		}
-
-		/// <summary>
-		/// Write a fixed-length sequence of bytes to the buffer
-		/// </summary>
-		/// <param name="writer">Writer to serialize to</param>
-		/// <param name="bytes">The bytes to write</param>
-		public static void WriteFixedLengthBytes(this IMemoryWriter writer, ReadOnlySpan<byte> bytes)
-		{
-			Span<byte> span = GetSpan(writer, bytes.Length);
-			bytes.CopyTo(span);
-			writer.Advance(bytes.Length);
 		}
 
 		/// <summary>

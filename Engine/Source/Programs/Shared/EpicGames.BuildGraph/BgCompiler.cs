@@ -155,7 +155,7 @@ namespace EpicGames.BuildGraph
 			/// <inheritdoc/>
 			public override void WriteOpcode(BgOpcode opcode)
 			{
-				_builder.WriteByte((byte)opcode);
+				_builder.WriteUInt8((byte)opcode);
 			}
 
 			/// <inheritdoc/>
@@ -177,7 +177,7 @@ namespace EpicGames.BuildGraph
 				int textLength = Encoding.UTF8.GetByteCount(str);
 				int lengthLength = VarInt.MeasureUnsigned(textLength);
 
-				Span<byte> buffer = _builder.GetWritableSpan(lengthLength + textLength);
+				Span<byte> buffer = _builder.GetSpanAndAdvance(lengthLength + textLength);
 				VarInt.WriteUnsigned(buffer, textLength);
 				Encoding.UTF8.GetBytes(str, buffer.Slice(lengthLength));
 			}
