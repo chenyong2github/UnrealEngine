@@ -10,11 +10,12 @@
 #include "Views/Widgets/SCollectionSelectionButton.h"
 #include "Views/Widgets/SObjectMixerPlacementAssetMenuEntry.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "SPositiveActionButton.h"
-#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/StyleColors.h"
 #include "Views/List/ObjectMixerEditorListFilters/IObjectMixerEditorListFilter.h"
 #include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
@@ -189,15 +190,52 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateAddObjectButtonMenu()
 	;
 }
 
+bool IsBlueprintFilter(const FAssetData& BlueprintClassData)
+{
+	UClass* BlueprintFilterClass = UObjectMixerBlueprintObjectFilter::StaticClass();
+		
+	const FString NativeParentClassPath = BlueprintClassData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
+	const FSoftClassPath ClassPath(NativeParentClassPath);
+			
+	UClass* NativeParentClass = ClassPath.ResolveClass();
+	const bool bInheritsFromBlueprintFilter =
+		NativeParentClass // Class may have been removed, or renamed and not correctly redirected
+		&& (NativeParentClass == BlueprintFilterClass || NativeParentClass->IsChildOf(BlueprintFilterClass));
+
+	return bInheritsFromBlueprintFilter;
+}
+
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	// Get C++ Derivatives (and maybe Blueprint derivatives)
 	TArray<UClass*> DerivedClasses;
 	GetDerivedClasses(UObjectMixerObjectFilter::StaticClass(), DerivedClasses, true);
 
 	DerivedClasses.Remove(UObjectMixerObjectFilter::StaticClass());
 	DerivedClasses.Remove(UObjectMixerBlueprintObjectFilter::StaticClass());
+
+	// Get remaining Blueprint derivatives
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked< FAssetRegistryModule >(FName("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	TArray< FAssetData > Assets;
+	AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), Assets);	
+	for (const FAssetData& Asset : Assets)
+	{
+		if (IsBlueprintFilter(Asset))
+		{
+			if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(Asset.GetAsset()))
+			{
+				UClass* LoadedClass = BlueprintAsset->GeneratedClass;
+				if (ensure(LoadedClass && BlueprintAsset->ParentClass))
+				{
+					DerivedClasses.AddUnique(LoadedClass);
+				}
+			}
+		}
+	}
 
 	DerivedClasses.Sort([](UClass& A, UClass& B)
 	{
@@ -225,8 +263,8 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu()
 					}
 					
 					MenuBuilder.AddMenuEntry(
-					   FText::FromName(DerivedClass->GetFName()),
-					   FText::GetEmpty(),
+					   FText::FromString(DerivedClass->GetName().EndsWith(TEXT("_C")) ? DerivedClass->GetName().LeftChop(2) : DerivedClass->GetName()),
+					   FText::FromString(DerivedClass->GetClassPathName().ToString()),
 					   FSlateIcon(),
 					   FUIAction(
 						   FExecuteAction::CreateSP(MainPanelModel.Pin().ToSharedRef(), &FObjectMixerEditorMainPanel::SetObjectFilterClass, DerivedClass),
