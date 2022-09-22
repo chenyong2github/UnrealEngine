@@ -2668,6 +2668,18 @@ void FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms()
 	}
 }
 
+#if WITH_EDITOR
+FText FGenericDataDrivenShaderPlatformInfo::GetFriendlyName(const FStaticShaderPlatform Platform)
+{
+	if (IsRunningCommandlet() || GUsingNullRHI)
+	{
+		return FText();
+	}
+	check(IsValid(Platform));
+	return Infos[Platform].FriendlyName;
+}
+#endif
+
 const EShaderPlatform FGenericDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(const FName ShaderPlatformName)
 {
 	for (int32 i = 0; i < SP_NumPlatforms; ++i)
