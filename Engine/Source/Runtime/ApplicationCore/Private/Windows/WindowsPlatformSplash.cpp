@@ -19,6 +19,7 @@
 #include "Stats/Stats.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/ScopeExit.h"
 #include "Windows/WindowsApplication.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
