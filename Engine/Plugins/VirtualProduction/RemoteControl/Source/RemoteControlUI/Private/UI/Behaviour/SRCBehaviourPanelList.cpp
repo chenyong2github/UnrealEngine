@@ -115,7 +115,7 @@ void SRCBehaviourPanelList::AddSpecialContextMenuOptions(FMenuBuilder& MenuBuild
 		else
 		{
 			Label = LOCTEXT("LabelEnableBehaviour", "Enable");
-			Tooltip = LOCTEXT("TooltipDisableBehaviour", "Enables the current behaviour. Restores functioning of Actions associated with this behaviour.");
+			Tooltip = LOCTEXT("TooltipEnableBehaviour", "Enables the current behaviour. Restores functioning of Actions associated with this behaviour.");
 		}
 
 		MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), Action);
