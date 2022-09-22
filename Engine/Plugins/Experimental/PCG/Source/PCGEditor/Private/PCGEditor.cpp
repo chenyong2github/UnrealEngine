@@ -327,6 +327,13 @@ void FPCGEditor::RegisterToolbar() const
 			 TAttribute<FText>(),
 			 TAttribute<FText>(),
 			 FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDebugger.TabIcon")));
+
+		Section.AddSeparator(NAME_None);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			 PCGEditorCommands.EditClassDefaults,
+			 TAttribute<FText>(),
+			 TAttribute<FText>(),
+			 FSlateIcon(FAppStyle::GetAppStyleSetName(), "FullBlueprintEditor.EditClassDefaults")));
 	}
 }
 
@@ -353,6 +360,12 @@ void FPCGEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnDeterminismGraphTest),
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismGraphTest));
 
+	ToolkitCommands->MapAction(
+		PCGEditorCommands.EditClassDefaults,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnEditClassDefaults),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsEditClassDefaultsToggled));
+	
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.CollapseNodes,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnCollapseNodesInSubgraph),
@@ -583,6 +596,17 @@ void FPCGEditor::OnDeterminismGraphTest()
 	{
 		TabManager->TryInvokeTab(FPCGEditor_private::DeterminismID);
 	}
+}
+
+void FPCGEditor::OnEditClassDefaults() const
+{
+	PropertyDetailsWidget->SetObject(PCGGraphBeingEdited);
+}
+
+bool FPCGEditor::IsEditClassDefaultsToggled() const
+{
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyDetailsWidget->GetSelectedObjects();
+	return SelectedObjects.Num() == 1 && SelectedObjects[0] == PCGGraphBeingEdited;
 }
 
 bool FPCGEditor::CanCollapseNodesInSubgraph() const
@@ -1565,26 +1589,19 @@ TSharedRef<SPCGEditorGraphProfilingView> FPCGEditor::CreateProfilingWidget()
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
-
-	if (NewSelection.Num() == 0)
+	
+	for (UObject* Object : NewSelection)
 	{
-		SelectedObjects.Add(PCGGraphBeingEdited);
-	}
-	else
-	{
-		for (UObject* Object : NewSelection)
+		if (UPCGEditorGraphNodeBase* PCGGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
 		{
-			if (UPCGEditorGraphNodeBase* PCGGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
+			if (UPCGNode* PCGNode = PCGGraphNode->GetPCGNode())
 			{
-				if (UPCGNode* PCGNode = PCGGraphNode->GetPCGNode())
-				{
-					SelectedObjects.Add(PCGNode->DefaultSettings);
-				}
+				SelectedObjects.Add(PCGNode->DefaultSettings);
 			}
-			else if (UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object))
-			{
-				SelectedObjects.Add(GraphNode);
-			}
+		}
+		else if (UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object))
+		{
+			SelectedObjects.Add(GraphNode);
 		}
 	}
 

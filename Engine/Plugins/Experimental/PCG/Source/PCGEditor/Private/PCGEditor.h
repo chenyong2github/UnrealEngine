@@ -119,6 +119,11 @@ private:
 	/** Run the determinism test on the current graph */
 	void OnDeterminismGraphTest();
 
+	/** Open details view for the PCG object being edited */
+	void OnEditClassDefaults() const;
+	/** Whether the PCG object being edited is opened in details view or not */
+	bool IsEditClassDefaultsToggled() const;
+
 	/** Whether or not an execution mode is active for the selected nodes */
 	bool IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const;
 
