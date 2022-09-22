@@ -326,22 +326,15 @@ void ADisplayClusterLightCardActor::UpdatePolygonTexture()
 
 void ADisplayClusterLightCardActor::UpdateLightCardVisibility()
 {
-	const bool bShouldBeVisible = !bIsUVLightCard || IsProxy();
-	const bool bIsVisible = !IsHidden();
-	if (bIsVisible != bShouldBeVisible)
+	if (bIsUVLightCard)
 	{
-		SetActorHiddenInGame(!bShouldBeVisible);
+		// Only render the UV light card if this is a proxy actor
+		const bool bShouldBeVisible = IsProxy();
+		if (LightCardComponent->IsVisible() != bShouldBeVisible)
+		{
+			LightCardComponent->SetVisibility(bShouldBeVisible);
+		}
 	}
-
-#if WITH_EDITORONLY_DATA
-	const bool bShouldHideFromEditor = !bShouldBeVisible;
-	if (bShouldHideFromEditor != bHiddenEdLevel)
-	{
-		bHiddenEdLevel = bShouldHideFromEditor;
-		bHiddenEdLayer = bShouldHideFromEditor;
-		MarkComponentsRenderStateDirty();
-	}
-#endif
 }
 
 void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)

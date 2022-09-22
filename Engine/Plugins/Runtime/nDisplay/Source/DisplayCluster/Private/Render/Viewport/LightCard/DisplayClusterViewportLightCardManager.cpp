@@ -121,6 +121,11 @@ void FDisplayClusterViewportLightCardManager::RenderFrame()
 			bool bLoadedPrimitives = false;
 			for (ADisplayClusterLightCardActor* LightCard : UVLightCards)
 			{
+				if (LightCard->IsHidden())
+				{
+					continue;
+				}
+
 				UStaticMeshComponent* LightCardMeshComp = LightCard->GetLightCardMeshComponent();
 				if (LightCardMeshComp && LightCardMeshComp->SceneProxy == nullptr)
 				{
