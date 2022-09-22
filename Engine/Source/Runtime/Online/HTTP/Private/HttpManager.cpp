@@ -396,6 +396,7 @@ void FHttpManager::AddRequest(const FHttpRequestRef& Request)
 	FScopeLock ScopeLock(&RequestLock);
 	check(!bFlushing);
 	Requests.Add(Request);
+	RequestAddedDelegate.ExecuteIfBound(Request);
 }
 
 void FHttpManager::RemoveRequest(const FHttpRequestRef& Request)
@@ -409,9 +410,7 @@ void FHttpManager::AddThreadedRequest(const TSharedRef<IHttpThreadedRequest, ESP
 {
 	check(Thread);
 	{
-		FScopeLock ScopeLock(&RequestLock);
-		check(!bFlushing);
-		Requests.Add(Request);
+		AddRequest(Request);
 	}
 	Thread->AddRequest(&Request.Get());
 }

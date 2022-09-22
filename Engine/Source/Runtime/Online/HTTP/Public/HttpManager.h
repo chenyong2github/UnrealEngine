@@ -37,6 +37,13 @@ ENUM_RANGE_BY_COUNT(EHttpFlushReason, EHttpFlushReason::Count)
 const TCHAR* LexToString(const EHttpFlushReason& FlushReason);
 
 /**
+ * Delegate called when an Http request added
+ *
+ * @param Request Http request that start things
+ */
+DECLARE_DELEGATE_OneParam(FHttpManagerRequestAddedDelegate, const FHttpRequestRef& /*Request*/);
+
+/**
  * Manages Http request that are currently being processed
  */
 class HTTP_API FHttpManager
@@ -68,6 +75,9 @@ public:
 	 * @param Request - the request object to add
 	 */
 	void AddRequest(const FHttpRequestRef& Request);
+
+	/** Delegate that will get called once request added */
+	FHttpManagerRequestAddedDelegate RequestAddedDelegate;
 
 	/**
 	 * Removes an Http request instance from the manager
