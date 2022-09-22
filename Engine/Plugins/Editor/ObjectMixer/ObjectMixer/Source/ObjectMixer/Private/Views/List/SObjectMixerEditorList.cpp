@@ -220,15 +220,24 @@ void SObjectMixerEditorList::SyncEditorSelectionToListSelection()
 		{
 			bShouldPauseSyncSelection = true;
 			TreeViewPtr->ClearSelection();
-		
+
+			FObjectMixerEditorListRowPtr* ListRowPtr = nullptr;
 			for (int32 SelectionItr = 0; SelectionItr < SelectionCount; SelectionItr++)
 			{
 				UObject* SelectedActor = SelectedActors->GetSelectedObject(SelectionItr);
 
-				if (const FObjectMixerEditorListRowPtr* Match = ObjectsToRowsCreated.Find(SelectedActor))
+				ListRowPtr = ObjectsToRowsCreated.Find(SelectedActor);
+
+				if (ListRowPtr)
 				{
-					TreeViewPtr->SetItemSelection(*Match, true);
+					TreeViewPtr->SetItemSelection(*ListRowPtr, true);
 				}
+			}
+			
+			// Scroll to the last selected item
+			if (ListRowPtr)
+			{
+				TreeViewPtr->RequestScrollIntoView(*ListRowPtr);
 			}
 		}
 	}
