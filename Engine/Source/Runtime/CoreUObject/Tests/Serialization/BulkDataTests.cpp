@@ -216,6 +216,8 @@ TEST_CASE("CoreUObject::Serialization::FBulkData::Basic", "[CoreUObject][Seriali
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+
 TEST_CASE("CoreUObject::Serialization::FBulkData::Serialize", "[CoreUObject][Serialization]")
 {
 	SECTION("Serialize to memory archive")
@@ -350,6 +352,8 @@ TEST_CASE("CoreUObject::Serialization::FBulkData::Serialize", "[CoreUObject][Ser
 		}
 	}
 }
+
+#endif // WITH_EDITORONLY_DATA
 
 } // namespace UE::Serialization::BulkDataTest
 
