@@ -51,6 +51,7 @@ class SWebBrowserView;
 -(void)create:(TSharedPtr<SIOSWebBrowserWidget>)InWebBrowserWidget useTransparency : (bool)InUseTransparency
 supportsMetal : (bool)InSupportsMetal supportsMetalMRT : (bool)InSupportsMetalMRT;
 -(void)close;
+-(void)dealloc;
 -(void)updateframe:(CGRect)InFrame;
 -(void)loadstring:(NSString*)InString dummyurl:(NSURL*)InURL;
 -(void)loadurl:(NSURL*)InURL;
@@ -69,10 +70,10 @@ supportsMetal : (bool)InSupportsMetal supportsMetalMRT : (bool)InSupportsMetalMR
 -(void)SetVideoTextureValid:(bool)Condition;
 -(bool)IsVideoTextureValid;
 -(bool)UpdateVideoFrame:(void*)ptr;
-- (void)updateWebViewMetalTexture : (id<MTLTexture>)texture;
+-(void)updateWebViewMetalTexture : (id<MTLTexture>)texture;
 #if !PLATFORM_TVOS
-- (void)webView:(WKWebView*)InWebView decidePolicyForNavigationAction : (WKNavigationAction*)InNavigationAction decisionHandler : (void(^)(WKNavigationActionPolicy))InDecisionHandler;
--(void)webView:(WKWebView *)InWebView didCommitNavigation : (WKNavigation *)InNavigation;
+-(void)webView:(WKWebView*)InWebView decidePolicyForNavigationAction : (WKNavigationAction*)InNavigationAction decisionHandler : (void(^)(WKNavigationActionPolicy))InDecisionHandler;
+-(void)webView:(WKWebView*)InWebView didCommitNavigation : (WKNavigation*)InNavigation;
 #endif
 @end
 

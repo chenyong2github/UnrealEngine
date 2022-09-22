@@ -485,6 +485,7 @@ supportsMetal : (bool)InSupportsMetal supportsMetalMRT : (bool)InSupportsMetalMR
 			[self.WebView setOpaque : YES];
 		}
 
+		[theConfiguration release];
 		[self setDefaultVisibility];
 	});
 #endif
@@ -498,10 +499,35 @@ supportsMetal : (bool)InSupportsMetal supportsMetalMRT : (bool)InSupportsMetalMR
 	{
 		[self.WebViewContainer removeFromSuperview];
 		[self.WebView removeFromSuperview];
+		
+		[WebView release];
+		[WebViewContainer release];
+
 		WebView = nil;
 		WebViewContainer = nil;
 	});
 #endif
+}
+
+-(void)dealloc;
+{
+#if !PLATFORM_TVOS
+	if (WebView != nil)
+	{
+		WebView.navigationDelegate = nil;
+		[WebView release];
+		WebView = nil;
+	};
+
+	[WebViewContainer release];
+	WebViewContainer = nil;
+#endif
+	[NextContent release];
+	NextContent = nil;
+	[NextURL release];
+	NextURL = nil;
+
+	[super dealloc];
 }
 
 -(void)updateframe:(CGRect)InFrame;
@@ -590,7 +616,7 @@ supportsMetal : (bool)InSupportsMetal supportsMetalMRT : (bool)InSupportsMetalMR
 	dispatch_async(dispatch_get_main_queue(), ^
 	{
 		self.NextContent = InString;
-	self.NextURL = InURL;
+		self.NextURL = InURL;
 	});
 }
 
