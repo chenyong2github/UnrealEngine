@@ -1367,6 +1367,9 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 
 	const int32 NumOfNonOptionalMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonOptionalMips());
 	const int32 NumOfNonStreamingMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonStreamingMips());
+	// Optional mips must be streaming mips :
+	check( NumOfNonOptionalMips >= NumOfNonStreamingMips );
+
 	const int32 AssetMipIdxForResourceFirstMip = FMath::Max<int32>(0, PlatformData->Mips.Num() - NumMips);
 
 	bool bMakeStreamble = false;
@@ -1420,6 +1423,9 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 		{
 			NumRequestedMips = NumOfNonOptionalMips;
 		}
+
+		// Ensure we don't request a top mip in the NonStreamingMips
+		NumRequestedMips = FMath::Max(NumRequestedMips,NumOfNonStreamingMips);
 	}
 
 	if (NumRequestedMips < MinRequestMipCount && MinRequestMipCount < NumMips)
