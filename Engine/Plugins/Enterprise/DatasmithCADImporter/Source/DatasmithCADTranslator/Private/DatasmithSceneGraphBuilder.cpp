@@ -323,9 +323,12 @@ TSharedPtr<IDatasmithActorElement>  FDatasmithSceneBaseGraphBuilder::BuildInstan
 
 					FCadId RootId = 1;
 					Reference = &(SceneGraph->GetReference(RootId));
+					if (Reference)
+					{
+						Reference->SetGraphicProperties(UnloadedReference);
+					}
 				}
 			}
-			Reference->SetGraphicProperties(UnloadedReference);
 		}
 
 		if (!Reference)
