@@ -373,6 +373,13 @@ void FContextSwitchesProvider::AddThreadInfo(uint32 ThreadId, uint32 SystemThrea
 	if (OldSystemThreadIdPtr)
 	{
 		uint32 OldSystemThreadId = *OldSystemThreadIdPtr;
+		if (ThreadId == 2 /*GameThread*/ && OldSystemThreadId != SystemThreadId)
+		{
+			// When -nothreading is used, multiple fake threads (FFakeThread) are created from the game thread.
+			// These will have same trace ThreadId == 2 and different SystemThreadId.
+			SystemToTraceThreadIdMap.Add(SystemThreadId, ThreadId);
+			return;
+		}
 		ensure(OldSystemThreadId == SystemThreadId);
 	}
 
