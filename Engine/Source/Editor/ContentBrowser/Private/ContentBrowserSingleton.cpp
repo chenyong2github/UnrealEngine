@@ -705,7 +705,7 @@ void FContentBrowserSingleton::ChooseNewPrimaryBrowser()
 	}
 
 	// Set the content browser drawer as the primary browser
-	if (!PrimaryContentBrowser.IsValid())
+	if (!PrimaryContentBrowser.IsValid() && ContentBrowserDrawer.IsValid())
 	{
 		SetPrimaryContentBrowser(ContentBrowserDrawer.Pin().ToSharedRef());
 	}

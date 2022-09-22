@@ -1637,20 +1637,14 @@ void FUnrealEdMisc::OnGotoAsset(const FString& InAssetPath) const
 		TArray<FAssetData> AssetDataToSync;
 
 		// if its a package, sync the browser to the assets inside the package
-		if(AssetData.GetClass() == UPackage::StaticClass())
+		if(AssetData.GetClass() == UPackage::StaticClass() && !AssetData.HasAnyPackageFlags(PKG_ContainsMapData | PKG_ContainsNoAsset))
 		{
-			TArray<UPackage*> Packages;
-			Packages.Add(CastChecked<UPackage>(AssetData.GetAsset()));
-			TArray<UObject*> ObjectsInPackages;
-			UPackageTools::GetObjectsInPackages(&Packages, ObjectsInPackages);
-
-			for(auto It(ObjectsInPackages.CreateConstIterator()); It; ++It)
+			TArray<FAssetData> AssetsInPackage;
+			if (AssetRegistry.GetAssetsByPackageName(AssetData.PackageName, AssetsInPackage))
 			{
-				UObject* ObjectInPackage = *It;
-				if(ObjectInPackage->IsAsset())
+				for (const FAssetData& SubAssetData : AssetsInPackage)
 				{
-					FAssetData SubAssetData(ObjectInPackage);
-					if(SubAssetData.IsValid())
+					if (SubAssetData.IsValid() && SubAssetData.IsUAsset())
 					{
 						AssetDataToSync.Add(SubAssetData);
 					}
