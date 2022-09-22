@@ -1486,7 +1486,12 @@ ERayTracingPrimitiveFlags FPrimitiveSceneProxy::GetCachedRayTracingInstance(FRay
 
 	if (IsRayTracingStaticRelevant())
 	{
-		check(PrimitiveSceneInfo->GetRayTracingGeometryNum() > 0 && PrimitiveSceneInfo->StaticMeshes.Num() > 0);
+		if (PrimitiveSceneInfo->GetRayTracingGeometryNum() == 0)
+		{
+			return ERayTracingPrimitiveFlags::Excluded;
+		}
+
+		check(PrimitiveSceneInfo->StaticMeshes.Num() > 0);
 
 		// overwrite flag if static
 		ResultFlags = ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::ComputeLOD | ERayTracingPrimitiveFlags::CacheMeshCommands;
