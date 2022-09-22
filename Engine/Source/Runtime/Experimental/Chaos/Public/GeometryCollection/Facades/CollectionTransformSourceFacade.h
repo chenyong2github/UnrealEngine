@@ -56,7 +56,7 @@ namespace GeometryCollection::Facades
 		/**
 		*  Is the Facade defined on the collection?
 		*/
-		static bool HasFacade(FManagedArrayCollection* Collection);
+		static bool HasFacade(const FManagedArrayCollection* Collection);
 
 		/**
 		* Add a transform root mapping.
@@ -71,7 +71,7 @@ namespace GeometryCollection::Facades
 		* @param Name : Name of the owner of the transform set.  
 		* @param Guid : Guid of the owner of the transform set.
 		*/
-		static TSet<int32> GetTransformSource(FManagedArrayCollection* Collection, const FString& Name, const FGuid& Guid);
+		static TSet<int32> GetTransformSource(const FManagedArrayCollection* Collection, const FString& Name, const FGuid& Guid);
 
 
 	};

@@ -42,7 +42,7 @@ namespace GeometryCollection::Facades
 		Collection->AddAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup, TransformDependency);
 	}
 
-	bool FTransformSource::HasFacade(FManagedArrayCollection* Collection)
+	bool FTransformSource::HasFacade(const FManagedArrayCollection* Collection)
 	{
 		return Collection->HasGroup(TransformSourceGroup) &&
 			Collection->FindAttribute<FString>(SourceNameAttribute, TransformSourceGroup) &&
@@ -68,7 +68,7 @@ namespace GeometryCollection::Facades
 	//
 
 
-	TSet<int32> FTransformSource::GetTransformSource(FManagedArrayCollection* Collection, const FString& InName, const FGuid& InGuid)
+	TSet<int32> FTransformSource::GetTransformSource(const FManagedArrayCollection* Collection, const FString& InName, const FGuid& InGuid)
 	{
 		if (Collection->HasGroup(TransformSourceGroup))
 		{
