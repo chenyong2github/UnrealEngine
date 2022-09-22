@@ -216,7 +216,7 @@ FExrImgMediaReader::EReadResult FExrImgMediaReaderGpu::ReadMip
 					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("ExrReaderGpu.StartCopy %d"), ConverterParams->FrameId));
 					if (BufferRegionsToCopy.IsEmpty())
 					{
-						RHICmdList.CopyBuffer(BufferData->UploadBufferRef, BufferData->ShaderAccessBufferRef);
+						RHICmdList.CopyBufferRegion(BufferData->ShaderAccessBufferRef, 0, BufferData->UploadBufferRef, 0, BufferData->ShaderAccessBufferRef->GetSize());
 					}
 					else
 					{
