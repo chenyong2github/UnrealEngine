@@ -172,7 +172,7 @@ namespace MenuStackInternal
 		if (Key == EKeys::Escape)
 		{
 			FSlateApplication::Get().DismissAllMenus();
-			return FReply::Handled();
+			return FReply::Handled().ClearUserFocus();
 		}
 
 		return FReply::Unhandled();
