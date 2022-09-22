@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
-
 #include "UObject/ObjectPtr.h"
 
 #include "ObjectRefTrackingTestBase.h"
@@ -136,6 +134,8 @@ static_assert(TModels<CEqualityComparableWith, FMutableObjectPtr, TYPE_OF_NULLPT
 static_assert(!TModels<CEqualityComparableWith, FConstObjectPtr, long>::Value, "Should not be able to compare equality and inequality bidirectionally between TObjectPtr<const UObject> and long");
 static_assert(!TModels<CEqualityComparableWith, FMutableObjectPtr, long>::Value, "Should not be able to compare equality and inequality bidirectionally between TObjectPtr<UObject> and long");
 #endif // #if !UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT
+
+#if WITH_LOW_LEVEL_TESTS
 
 // Ensure that the use of incomplete types doesn't provide a means to bypass type safety on TObjectPtr
 // NOTE: This is disabled because we're permitting this operation with a deprecation warning.
@@ -358,9 +358,9 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[Cor
 // 	return true;
 // }
 
+#endif
+
 class UForwardDeclaredObjDerived: public UObject {};
 class FForwardDeclaredNotObjDerived {};
 
 }
-
-#endif
