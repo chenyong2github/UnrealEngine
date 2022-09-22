@@ -1150,8 +1150,8 @@ Buffer<float> GPUSkinCachePreviousPositionBuffer;
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	FLWCMatrix PreviousLocalToWorld = GetInstanceData(Intermediates).PrevLocalToWorld;
-	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(PreviousLocalToWorld, ResolvedView.PrevPreViewTranslation);
 
+	float4 PrevLocalPosition;
 #if SUPPORT_GPUSKIN_PASSTHROUGH
 	if (IsGPUSkinPassThrough())
 	{
@@ -1160,26 +1160,26 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 		PreviousPos.x = GPUSkinCachePreviousPositionBuffer[Offset + 0];
 		PreviousPos.y = GPUSkinCachePreviousPositionBuffer[Offset + 1];
 		PreviousPos.z = GPUSkinCachePreviousPositionBuffer[Offset + 2];
-		return mul(float4(PreviousPos, 1), PreviousLocalToWorldTranslated);	
+		PrevLocalPosition = float4(PreviousPos, 1);	
 	}
 	else
 #endif // SUPPORT_GPUSKIN_PASSTHROUGH
 	{
 	#if USE_INSTANCING
 		float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
-		return mul(mul(Input.Position, InstanceTransform), PreviousLocalToWorldTranslated);
+		PrevLocalPosition = mul(Input.Position, InstanceTransform);
 	#elif USE_SPLINEDEFORM
 		// Just like CalcWorldPosition...
 		float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
 	
 		// Transform into mesh space
-		float4 LocalPos = float4(mul(Input.Position, SliceTransform), Input.Position.w);
-	
-		return mul(LocalPos, PreviousLocalToWorldTranslated);
+		PrevLocalPosition = float4(mul(Input.Position, SliceTransform), Input.Position.w);
 	#else
-		return mul(Input.Position, PreviousLocalToWorldTranslated);
+		PrevLocalPosition = Input.Position;
 	#endif	// USE_INSTANCING
 	}
+
+	return TransformPreviousLocalPositionToTranslatedWorld(PrevLocalPosition.xyz, PreviousLocalToWorld);
 }
 
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION

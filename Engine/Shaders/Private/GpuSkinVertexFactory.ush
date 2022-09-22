@@ -964,8 +964,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
-{
-	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(Intermediates.PrevLocalToWorld, ResolvedView.PrevPreViewTranslation);
+{	
 	float3 PrevSkinnedPosition = SkinPreviousPosition(Input, Intermediates);
 #if GPUSKIN_APEX_CLOTH
 #if GPUSKIN_APEX_CLOTH_PREVIOUS
@@ -977,7 +976,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	}
 #endif // GPUSKIN_APEX_CLOTH_PREVIOUS
 #endif // GPUSKIN_APEX_CLOTH
-	return mul(float4(PrevSkinnedPosition,1), PreviousLocalToWorldTranslated);
+	return TransformPreviousLocalPositionToTranslatedWorld(PrevSkinnedPosition, Intermediates.PrevLocalToWorld);
 }
 
 

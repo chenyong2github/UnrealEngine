@@ -134,6 +134,18 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition, float4x4 LocalToWor
 	return TransformLocalToTranslatedWorld(LocalPosition, LWCPromote(LocalToWorld));
 }
 
+float4 TransformPreviousLocalPositionToTranslatedWorld(float3 PrevLocalPosition, FLWCMatrix PrevLocalToWorld)
+{
+	FLWCVector3 PrevWorldPosition = LWCMultiply(PrevLocalPosition, PrevLocalToWorld);
+	FLWCVector3 PrevTranslatedWorldPosition = LWCAdd(PrevWorldPosition, ResolvedView.PrevPreViewTranslation);
+	return float4(LWCToFloat(PrevTranslatedWorldPosition), 1.0f);
+}
+
+float4 TransformPreviousLocalPositionToTranslatedWorld(float3 PrevLocalPosition, float4x4 PrevLocalToWorld)
+{
+	return TransformPreviousLocalPositionToTranslatedWorld(PrevLocalPosition, LWCPromote(PrevLocalToWorld));
+}
+
 float3 RotateLocalToWorld(float3 LocalDirection, float3x3 LocalToWorld, float3 InvScale)
 {
 	return
