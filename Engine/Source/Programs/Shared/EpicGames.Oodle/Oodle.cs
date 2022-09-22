@@ -309,11 +309,10 @@ namespace EpicGames.Compression
 		/// <summary>
 		/// Decompresses a block of data
 		/// </summary>
-		/// <param name="compressor">Type of the compressor</param>
 		/// <param name="inputData">The compressed buffer</param>
 		/// <param name="outputData">Output buffer for decompressed data</param>
 		/// <returns></returns>
-        public static unsafe int Decompress(OodleCompressorType compressor, ReadOnlySpan<byte> inputData, Span<byte> outputData)
+        public static unsafe int Decompress(ReadOnlySpan<byte> inputData, Span<byte> outputData)
         {
 			fixed (byte* inputPtr = inputData)
 			fixed (byte* outputPtr = outputData)

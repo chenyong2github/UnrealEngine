@@ -14,6 +14,10 @@ using EpicGames.Core;
 using K4os.Compression.LZ4;
 using Microsoft.Extensions.Caching.Memory;
 
+#if WITH_OODLE
+using EpicGames.Compression;
+#endif
+
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
@@ -656,7 +660,7 @@ namespace EpicGames.Horde.Storage
 						{
 							int maxSize = LZ4Codec.MaximumOutputSize(input.Length);
 
-							Span<byte> outputSpan = builder.GetMemory(maxSize).Span;
+							Span<byte> outputSpan = builder.GetSpan(maxSize);
 							int encodedLength = LZ4Codec.Encode(input.Span, outputSpan);
 							builder.Advance(encodedLength);
 
@@ -668,6 +672,20 @@ namespace EpicGames.Horde.Storage
 							using GZipStream gzipStream = new GZipStream(outputStream, CompressionLevel.Fastest);
 							gzipStream.Write(input.Span);
 							return (int)outputStream.Length;
+						}
+					case BundleCompressionFormat.Oodle:
+						{
+#if WITH_OODLE
+							int maxSize = Oodle.MaximumOutputSize(OodleCompressorType.Selkie, input.Length);
+
+							Span<byte> outputSpan = builder.GetSpan(maxSize);
+							int encodedLength = Oodle.Compress(OodleCompressorType.Selkie, input.Span, outputSpan, OodleCompressionLevel.HyperFast);
+							builder.Advance(encodedLength);
+
+							return encodedLength;
+#else
+							throw new NotSupportedException("Oodle is not compiled into this build.");
+#endif
 						}
 					default:
 						throw new InvalidDataException($"Invalid compression format '{(int)format}'");
@@ -985,6 +1003,13 @@ namespace EpicGames.Horde.Storage
 						inputStream.CopyTo(outputStream);
 						break;
 					}
+				case BundleCompressionFormat.Oodle:
+#if WITH_OODLE
+					Oodle.Decompress(input.Span, output.Span);
+					break;
+#else
+					throw new NotSupportedException("Oodle is not compiled into this build.");
+#endif
 				default:
 					throw new InvalidDataException($"Invalid compression format '{(int)format}'");
 			}

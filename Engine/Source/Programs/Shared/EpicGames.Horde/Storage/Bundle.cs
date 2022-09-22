@@ -123,6 +123,11 @@ namespace EpicGames.Horde.Storage
 		/// Gzip compression
 		/// </summary>
 		Gzip = 2,
+
+		/// <summary>
+		/// Oodle compression (Kraken)
+		/// </summary>
+		Oodle = 3,
 	}
 
 	/// <summary>
