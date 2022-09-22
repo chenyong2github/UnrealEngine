@@ -532,10 +532,16 @@ void USkeletalMeshComponent::FinalizeAttributeEvaluationResults(const FBoneConta
 
 bool USkeletalMeshComponent::NeedToSpawnAnimScriptInstance() const
 {
+	USkeletalMesh* MeshAsset = GetSkeletalMeshAsset();
 	IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(AnimClass);
-	const USkeleton* AnimSkeleton = (AnimClassInterface) ? AnimClassInterface->GetTargetSkeleton() : nullptr;
-	const bool bSkeletonCompatible = (GetSkeletalMeshAsset() && AnimSkeleton && GetSkeletalMeshAsset()->GetSkeleton()) ? GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimSkeleton) : false;
-	const bool bSkelMeshCompatible = (GetSkeletalMeshAsset() && AnimSkeleton) ? AnimSkeleton->IsCompatibleMesh(GetSkeletalMeshAsset(), false) : false;
+	USkeleton* AnimSkeleton = (AnimClassInterface) ? AnimClassInterface->GetTargetSkeleton() : nullptr;
+	if(AnimSkeleton == nullptr)
+	{
+		// Fall back to mesh skeleton (anim BP could have been a template)
+		AnimSkeleton = MeshAsset ? MeshAsset->GetSkeleton() : nullptr;
+	}
+	const bool bSkeletonCompatible = (MeshAsset && AnimSkeleton && MeshAsset->GetSkeleton()) ? MeshAsset->GetSkeleton()->IsCompatible(AnimSkeleton) : false;
+	const bool bSkelMeshCompatible = (MeshAsset && AnimSkeleton) ? AnimSkeleton->IsCompatibleMesh(MeshAsset, false) : false;
 	const bool bAnimSkelValid = !AnimClassInterface || (bSkeletonCompatible && bSkelMeshCompatible);
 
 	if (AnimationMode == EAnimationMode::AnimationBlueprint && AnimClass && bAnimSkelValid)
