@@ -13,6 +13,7 @@
 
 struct FDataflowInput;
 struct FDataflowOutput;
+class UScriptStruct;
 
 namespace Dataflow {
 	struct DATAFLOWCORE_API FNodeParameters {
@@ -106,6 +107,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	virtual void SerializeInternal(FArchive& Ar) { check(false); }
 	virtual FStructOnScope* NewStructOnScope() { return nullptr; }
+	virtual const UScriptStruct* TypedScriptStruct() const { return nullptr; }
 
 	/** Register the Input and Outputs after the creation in the factory */
 	void RegisterInputConnection(const void* Property);
@@ -216,6 +218,8 @@ public:																				\
 	virtual FName GetCategory() const override { return TYPE::StaticCategory(); }	\
 	virtual FString GetTags() const override { return TYPE::StaticTags(); }			\
 	virtual FString GetToolTip() const override { return TYPE::StaticToolTip(); }	\
+	virtual const UScriptStruct* TypedScriptStruct() const override					\
+		{return TYPE::StaticStruct();}												\
 	TYPE() {}																		\
 private:
 

@@ -7,6 +7,7 @@
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowCore.h"
 #include "Logging/LogMacros.h"
+#include "SourceCodeNavigation.h"
 #include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "SDataflowEdNode"
@@ -22,6 +23,22 @@ void SDataflowEdNode::Construct(const FArguments& InArgs, UDataflowEdNode* InNod
 
 FReply SDataflowEdNode::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (GraphNode)
+	{
+		if (UDataflowEdNode* DataflowNode = Cast<UDataflowEdNode>(GraphNode))
+		{
+			if (TSharedPtr<Dataflow::FGraph> Graph = DataflowNode->GetDataflowGraph())
+			{
+				if (TSharedPtr<FDataflowNode> Node = Graph->FindBaseNode(DataflowNode->GetDataflowNodeGuid()))
+				{
+					if (FSourceCodeNavigation::CanNavigateToStruct(Node->TypedScriptStruct()))
+					{
+						FSourceCodeNavigation::NavigateToStruct(Node->TypedScriptStruct());
+					}
+				}
+			}
+		}
+	}
 	return Super::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 }
 
