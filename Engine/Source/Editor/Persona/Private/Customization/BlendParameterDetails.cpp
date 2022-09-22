@@ -32,7 +32,8 @@ void FBlendParameterDetails::CustomizeChildren(TSharedRef<IPropertyHandle> Struc
 				RangeProperties[RangeValueIndex] = ChildHandle;
 				bValidRangeValue[RangeValueIndex] = true;
 				
-				ChildBuilder.AddCustomRow(ChildHandle->GetPropertyDisplayName())
+				ChildBuilder.AddProperty(ChildHandle)
+				.CustomWidget()
 				.NameWidget
 				[
 					ChildHandle->CreatePropertyNameWidget()

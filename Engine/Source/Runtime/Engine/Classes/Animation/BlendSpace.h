@@ -100,11 +100,11 @@ struct FBlendParameter
 	FString DisplayName;
 
 	/** Minimum value for this axis range. */
-	UPROPERTY(EditAnywhere, DisplayName = "Minimum Axis Value", Category=BlendParameter)
+	UPROPERTY(EditAnywhere, DisplayName = "Minimum Axis Value", Category=BlendParameter, meta=(NoResetToDefault))
 	float Min;
 
 	/** Maximum value for this axis range. */
-	UPROPERTY(EditAnywhere, DisplayName = "Maximum Axis Value", Category=BlendParameter)
+	UPROPERTY(EditAnywhere, DisplayName = "Maximum Axis Value", Category=BlendParameter, meta=(NoResetToDefault))
 	float Max;
 
 	/** The number of grid divisions along this axis. */
