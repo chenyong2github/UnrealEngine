@@ -52,7 +52,7 @@ struct ENGINE_API FDialogueContextMapping
 	FDialogueContext Context;
 
 	/** The soundwave to play for this dialogue. */
-	UPROPERTY(EditAnywhere, Category=DialogueContextMapping )
+	UPROPERTY(EditAnywhere, Category=DialogueContextMapping, meta = (DisallowedClasses="MetaSoundSource, SoundSourceBus"))
 	TObjectPtr<USoundWave> SoundWave;
 
 	/**
