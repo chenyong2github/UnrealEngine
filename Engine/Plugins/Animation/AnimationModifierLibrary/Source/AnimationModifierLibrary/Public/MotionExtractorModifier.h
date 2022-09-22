@@ -4,42 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "AnimationModifier.h"
+#include "MotionExtractorTypes.h"
 #include "MotionExtractorModifier.generated.h"
-
-/** Type of motion to extract */
-UENUM(BlueprintType)
-enum class EMotionExtractor_MotionType : uint8
-{
-	Translation,
-	Rotation,
-	Scale,
-	TranslationSpeed,
-	RotationSpeed
-};
-
-/** Axis to get the final value from */
-UENUM(BlueprintType)
-enum class EMotionExtractor_Axis : uint8
-{
-	X,
-	Y,
-	Z,
-	XY,
-	XZ,
-	YZ,
-	XYZ
-};
-
-/** Math operations that can be applied to the extracted value before add it to the curve */
-UENUM(BlueprintType)
-enum class EMotionExtractor_MathOperation : uint8
-{
-	None,
-	Addition,
-	Subtraction,
-	Division,
-	Multiplication
-};
 
 /** Extracts motion from a bone in the animation and bakes it into a curve */
 UCLASS()
@@ -113,10 +79,4 @@ public:
 
 	/** Returns the desired value from the extracted poses */
 	float GetDesiredValue(const FTransform& BoneTransform, const FTransform& LastBoneTransform, float DeltaTime) const;
-
-	/** Helper function to extract the pose for a given bone at a given time */
-	static FTransform ExtractBoneTransform(UAnimSequence* Animation, const FBoneContainer& BoneContainer, FCompactPoseBoneIndex CompactPoseBoneIndex, float Time, bool bComponentSpace);
-
-	/** Helper function to calculate the magnitude of a vector only considering a specific axis or axes */
-	static float CalculateMagnitude(const FVector& Vector, EMotionExtractor_Axis Axis);
 };
