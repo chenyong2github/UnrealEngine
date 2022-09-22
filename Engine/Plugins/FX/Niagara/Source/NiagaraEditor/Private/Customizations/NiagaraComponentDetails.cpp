@@ -1135,6 +1135,7 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		Section->AddCategory(TEXT("Activation"));
 		Section->AddCategory(ScriptCategoryName);
 		Section->AddCategory(TEXT("Randomness"));
+		Section->AddCategory(TEXT("Warmup"));
 		bFirstTime = false;
 	}
 
@@ -1163,6 +1164,7 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	DetailBuilder.EditCategory("Attachment", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	DetailBuilder.EditCategory("Randomness", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	DetailBuilder.EditCategory("Parameters", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
+	DetailBuilder.EditCategory("Warmup", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	DetailBuilder.EditCategory("Materials", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	
 	if (ObjectsCustomized.Num() == 1 && ObjectsCustomized[0]->IsA<UNiagaraComponent>())

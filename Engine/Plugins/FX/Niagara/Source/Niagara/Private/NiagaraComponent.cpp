@@ -447,6 +447,8 @@ void FNiagaraSceneProxy::GatherSimpleLights(const FSceneViewFamily& ViewFamily, 
 UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bForceSolo(false)
+	, bOverrideWarmupSettings(false)
+	, WarmupTickDelta(1.0f / 15.0f)
 	, AgeUpdateMode(ENiagaraAgeUpdateMode::TickDeltaTime)
 	, DesiredAge(0.0f)
 	, LastHandledDesiredAge(0.0f)
@@ -941,8 +943,8 @@ bool UNiagaraComponent::InitializeSystem()
 		const bool bPooled = PoolingMethod != ENCPoolMethod::None;
 		OverrideParameters.MarkParametersDirty(); // new system instance means new lwc tile, so any position user params need to be re-evaluated
 
-		SystemInstanceController = MakeShared<FNiagaraSystemInstanceController, ESPMode::ThreadSafe>();
-		SystemInstanceController->Initialize(*World, *Asset, &OverrideParameters, this, TickBehavior, bPooled, RandomSeedOffset, RequiresSoloMode());
+		SystemInstanceController = MakeShared<FNiagaraSystemInstanceController, ESPMode::ThreadSafe>();		
+		SystemInstanceController->Initialize(*World, *Asset, &OverrideParameters, this, TickBehavior, bPooled, RandomSeedOffset, RequiresSoloMode(), bOverrideWarmupSettings ? WarmupTickCount : -1, WarmupTickDelta);
 		SystemInstanceController->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstanceController->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
 
@@ -953,7 +955,7 @@ bool UNiagaraComponent::InitializeSystem()
 		{
 			SystemInstanceController->SetGpuComputeDebug(bEnableGpuComputeDebug != 0);
 		}
-
+		
 		if (bEnablePreviewLODDistance)
 		{
 			SystemInstanceController->SetLODDistance(PreviewLODDistance, PreviewMaxDistance, true);

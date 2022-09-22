@@ -107,6 +107,18 @@ private:
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	uint32 bEnableGpuComputeDebug : 1;
 
+	/** When true then this instance will override the system's warmup settings. */
+	UPROPERTY(EditAnywhere, Category = Warmup)
+	uint32 bOverrideWarmupSettings : 1;
+	
+	/** Number of ticks to process for warmup of the system. Total warmup time is WarmupTickCount * WarmupTickDelta. */
+	UPROPERTY(EditAnywhere, Category = Warmup, meta=(EditCondition="bOverrideWarmupSettings", ClampMin = "0"))
+	int32 WarmupTickCount = 0;
+
+	/** Delta time used when ticking the system in warmup mode. */
+	UPROPERTY(EditAnywhere, Category = Warmup, meta = (EditCondition="bOverrideWarmupSettings", ForceUnits=s, UIMin = "0.01", UIMax = "1"))
+	float WarmupTickDelta;
+
 	FNiagaraSystemInstanceControllerPtr SystemInstanceController;
 
 	/** Defines the mode use when updating the System age. */

@@ -598,6 +598,12 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 #endif
 }
 
+void FNiagaraSystemInstance::SetWarmupSettings(int32 InWarmupTickCount, float InWarmupTickDelta)
+{
+	WarmupTickCount = InWarmupTickCount;
+	WarmupTickDelta = InWarmupTickDelta;
+}
+
 UActorComponent* FNiagaraSystemInstance::GetPrereqComponent() const
 {
 	UActorComponent* PrereqComponent = AttachComponent.Get();
@@ -916,12 +922,17 @@ void FNiagaraSystemInstance::Reset(EResetMode Mode)
 			// Add instance to simulation
 			SystemSimulation->AddInstance(this);
 
-			UNiagaraSystem* System = GetSystem();
-			if (System->NeedsWarmup())
+			int32 WarmupTicks = WarmupTickCount;
+			float WarmupDt = WarmupTickDelta;
+			if (WarmupTickCount == -1)
 			{
-				int32 WarmupTicks = System->GetWarmupTickCount();
-				float WarmupDt = System->GetWarmupTickDelta();
-
+				UNiagaraSystem* System = GetSystem();
+				WarmupTicks = System->GetWarmupTickCount();
+				WarmupDt = System->GetWarmupTickDelta();
+			}
+			
+			if (WarmupTicks > 0 && WarmupDt > SMALL_NUMBER)
+			{
 				AdvanceSimulation(WarmupTicks, WarmupDt);
 
 				//Reset age to zero.

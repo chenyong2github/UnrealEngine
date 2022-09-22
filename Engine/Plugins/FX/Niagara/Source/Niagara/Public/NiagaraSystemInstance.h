@@ -127,6 +127,7 @@ public:
 	void SetSolo(bool bInSolo);
 
 	void SetGpuComputeDebug(bool bEnableDebug);
+	void SetWarmupSettings(int32 WarmupTickCount, float WarmupTickDelta);
 
 	UActorComponent* GetPrereqComponent() const;
 
@@ -473,6 +474,9 @@ private:
 	float LODDistance;
 	float MaxLODDistance;
 
+	int32 WarmupTickCount = -1;
+	float WarmupTickDelta = 0;
+	
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
 	FOnPostTick OnPostTickDelegate;

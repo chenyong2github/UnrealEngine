@@ -12,13 +12,14 @@ FNiagaraSystemInstanceController::FNiagaraSystemInstanceController()
 }
 
 void FNiagaraSystemInstanceController::Initialize(UWorld& World, UNiagaraSystem& System, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
-	USceneComponent* AttachComponent, ENiagaraTickBehavior TickBehavior, bool bPooled, int32 RandomSeedOffset, bool bForceSolo)
+	USceneComponent* AttachComponent, ENiagaraTickBehavior TickBehavior, bool bPooled, int32 RandomSeedOffset, bool bForceSolo, int32 InWarmupTickCount, float InWarmupTickDelta)
 {
 	OverrideParameters = InOverrideParameters;
 
 	FNiagaraSystemInstance::AllocateSystemInstance(SystemInstance, World, System, OverrideParameters, AttachComponent, TickBehavior, bPooled);
 	//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 	SystemInstance->SetRandomSeedOffset(RandomSeedOffset);
+	SystemInstance->SetWarmupSettings(InWarmupTickCount, InWarmupTickDelta);
 	SystemInstance->Init(bForceSolo);
 
 	WorldManager = FNiagaraWorldManager::Get(&World);
