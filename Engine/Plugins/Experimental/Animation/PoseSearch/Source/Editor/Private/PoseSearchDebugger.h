@@ -85,9 +85,6 @@ struct FPoseSearchDebuggerFeatureDrawOptions
 
 	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
 	bool bDrawSampleLabels = false;
-
-	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
-	bool bDrawSamplesWithColorGradient = false;
 };
 
 /**
@@ -155,11 +152,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
 	TArray<float> CostVector;
-
-	// Cost comparison of selected and active poses. A negative value indicates the cost in the selected pose is lower;
-	// a positive value indicates the cost in the selected pose is higher.
-	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	TArray<float> CostVectorDifference;
 };
 
 
@@ -558,7 +550,7 @@ private:
 		TWeakObjectPtr<AActor> Actor = nullptr;
 
 		/** Derived skeletal mesh for setting the skeleton in the scene */
-		UPoseSearchMeshComponent* Component = nullptr;
+		TWeakObjectPtr<UPoseSearchMeshComponent> Component = nullptr;
 		
 		/** Type of the asset being played */
 		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
@@ -637,8 +629,8 @@ public:
 	virtual void Update(float DeltaTime, IRewindDebugger* InRewindDebugger) override;
 	virtual ~FDebugger() = default;
 
-	virtual void RecordingStarted(IRewindDebugger* RewindDebugger);
-	virtual void RecordingStopped(IRewindDebugger* RewindDebugger);
+	virtual void RecordingStarted(IRewindDebugger* RewindDebugger) override;
+	virtual void RecordingStopped(IRewindDebugger* RewindDebugger) override;
 
 	static FDebugger* Get() { return Debugger; }
 	static void Initialize();

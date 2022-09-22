@@ -53,7 +53,9 @@ struct FSearchContext;
 
 } // namespace UE::PoseSearch
 
-namespace Eigen {
+// eigen forward declaration
+namespace Eigen
+{
 	template<typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 	class Matrix;
 	using MatrixXd = Matrix<double, -1, -1, 0, -1, -1>;
@@ -386,25 +388,11 @@ public:
 	// ...to finally wrap the section up by calling EndBreakDownSection
 	virtual void EndBreakDownSection(const FText& Label) = 0;
 
-	// most common case implementation
-	void AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality)
-	{
-		BeginBreakDownSection(Label);
-
-		const int32 Count = Num();
-		for (int32 i = 0; i < Count; ++i)
-		{
-			if (IsCostVectorFromSchema(i, Schema))
-			{
-				const float CostBreakdown = ArraySum(GetCostVector(i, Schema), DataOffset, Cardinality);
-				SetCostBreakDown(CostBreakdown, i, Schema);
-			}
-		}
-
-		EndBreakDownSection(Label);
-	}
-
+	// true if want the channel to be verbose and generate the cost breakdown labels
 	virtual bool IsVerbose() const { return true; }
+
+	// most common case implementation
+	void AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality);
 };
 
 } // namespace UE::PoseSearch
@@ -970,9 +958,6 @@ enum class EDebugDrawFlags : uint32
 	// Label samples with their indices
 	DrawSampleLabels = 1 << 3,
 
-	// Fade colors
-	DrawSamplesWithColorGradient = 1 << 4,
-
 	// Draw Bone Names
 	DrawBoneNames = 1 << 5,
 
@@ -998,7 +983,7 @@ struct POSESEARCH_API FDebugDrawParams
 	TWeakObjectPtr<const USkinnedMeshComponent> Mesh = nullptr;
 
 	bool CanDraw() const;
-	FColor GetColor(int32 ColorPreset, float GradientPercentage = 0.f) const;
+	FColor GetColor(int32 ColorPreset) const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
 };
@@ -1025,6 +1010,7 @@ struct FSearchResult
 	// lerp value to find AssetTime from PrevPoseIdx -> AssetTime -> NextPoseIdx, within range [-0.5, 0.5]
 	float LerpValue = 0.f;
 
+	// @todo: it should be a weak pointer
 	const FPoseSearchIndexAsset* SearchIndexAsset = nullptr;
 	TWeakObjectPtr<const UPoseSearchDatabase> Database = nullptr;
 	FPoseSearchFeatureVectorBuilder ComposedQuery;

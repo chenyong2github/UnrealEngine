@@ -56,11 +56,13 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Search PCA/KNN"), STAT_PoseSearchPCAKNN, STATGRO
 DEFINE_STAT(STAT_PoseSearchBruteForce);
 DEFINE_STAT(STAT_PoseSearchPCAKNN);
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch
+{
 
 //////////////////////////////////////////////////////////////////////////
 // Constants and utilities
 
+// @todo: set UE_POSE_SEARCH_FORCE_SINGLE_THREAD to 0
 // Temporarily disable parallel indexing due to a bug
 // A single BoneContainer is being used while indexing assets, but some
 // const BoneContainer methods change mutable lookup tables.
@@ -323,7 +325,7 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 	return NonSelectableIdxUsedSize;
 }
 
-}} // namespace UE::PoseSearch
+} // namespace UE::PoseSearch
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -1508,16 +1510,6 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIn
 		}
 	}
 
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// @todo: remove this code! A licensee noticed a degradation in their MM setup caused by "removing deprecated db groups" with CL 21928385,
-	// ultimately caused by this missing scrambling of assets (the sort actually move the first item in the list...), so we'll reintroduce it until we have a better solution
-	// that most likely involves handling duplicate datapoints representing different animation poses
-	OutSearchIndex.Assets.Sort([](const FPoseSearchIndexAsset& InOne, const FPoseSearchIndexAsset& InTwo)
-	{
-		return false;
-	});
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	if (bAnyMirrored && !Schema->MirrorDataTable)
 	{
 		UE_LOG(
@@ -2233,7 +2225,7 @@ bool FPoseSearchFeatureVectorBuilder::IsCompatible(const FPoseSearchFeatureVecto
 	return IsInitialized() && (Schema == OtherBuilder.Schema);
 }
 
-namespace UE { namespace PoseSearch
+namespace UE::PoseSearch
 {
 
 void FPoseIndicesHistory::Update(const FSearchResult& SearchResult, float DeltaTime, float MaxTime)
@@ -2774,7 +2766,7 @@ bool FDebugDrawParams::CanDraw() const
 	return SearchIndex->IsValid() && !SearchIndex->IsEmpty();
 }
 
-FColor FDebugDrawParams::GetColor(int32 ColorPreset, float GradientPercentage) const
+FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 {
 	FLinearColor Color = FLinearColor::Red;
 
@@ -2804,12 +2796,6 @@ FColor FDebugDrawParams::GetColor(int32 ColorPreset, float GradientPercentage) c
 		{
 			Color = Schema->ColorPresets[ColorPreset].Result;
 		}
-	}
-
-	if (EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawSamplesWithColorGradient))
-	{
-		constexpr float DrawDebugGradientStrength = 0.8f;
-		Color = Color * (1.0f - DrawDebugGradientStrength * GradientPercentage);
 	}
 
 	return Color.ToFColor(true);
@@ -2967,6 +2953,25 @@ FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform)
 	return Result;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// class ICostBreakDownData
+
+void ICostBreakDownData::AddEntireBreakDownSection(const FText& Label, const UPoseSearchSchema* Schema, int32 DataOffset, int32 Cardinality)
+{
+	BeginBreakDownSection(Label);
+
+	const int32 Count = Num();
+	for (int32 i = 0; i < Count; ++i)
+	{
+		if (IsCostVectorFromSchema(i, Schema))
+		{
+			const float CostBreakdown = ArraySum(GetCostVector(i, Schema), DataOffset, Cardinality);
+			SetCostBreakDown(CostBreakdown, i, Schema);
+		}
+	}
+
+	EndBreakDownSection(Label);
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Root motion extrapolation
@@ -5108,7 +5113,7 @@ void FModule::OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveCont
 }
 #endif // WITH_EDITOR
 
-}} // namespace UE::PoseSearch
+} // namespace UE::PoseSearch
 
 #undef LOCTEXT_NAMESPACE
 

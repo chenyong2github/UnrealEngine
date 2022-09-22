@@ -1076,8 +1076,7 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 			{
 				BonePos[SubsampleIdx] = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-				const float GradientPercentage = NumSubsamples > 1 ? float(SubsampleIdx) / float(NumSubsamples - 1) : 0.f;
-				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex, GradientPercentage);
+				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex);
 
 				BonePos[SubsampleIdx] = DrawParams.RootTransform.TransformPosition(BonePos[SubsampleIdx]);
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
@@ -1155,8 +1154,7 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 			{
 				const FVector2D Phase = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
 
-				const float GradientPercentage = NumSubsamples > 1 ? float(SubsampleIdx) / float(NumSubsamples - 1) : 0.f;
-				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex, GradientPercentage);
+				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex);
 
 				static float ScaleFactor = 1.f;
 
@@ -1773,6 +1771,8 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 	int32 DataOffset = ChannelDataOffset;
 	int32 SampleIdx = 0;
 	TrajectoryPositionReconstructor TrajectoryPositionReconstructor;
+	TArray<FVector> TrajSplinePos;
+	TArray<FColor> TrajSplineColor;
 	for (const FPoseSearchTrajectorySample& Sample : Samples)
 	{
 		bool bIsTrajectoryPosValid = false;
@@ -1782,13 +1782,13 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		{
 			TrajectoryPos = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 			TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
+			
 			bIsTrajectoryPosValid = true;
 
 			// validating TrajectoryPositionReconstructor
 			check((TrajectoryPositionReconstructor.GetReconstructedTrajectoryPos(*this, PoseVector, DrawParams.RootTransform, Sample.Offset) - TrajectoryPos).IsNearlyZero());
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 			{
@@ -1798,6 +1798,9 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			{
 				DrawDebugSphere(DrawParams.World, TrajectoryPos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
 			}
+
+			TrajSplinePos.Add(TrajectoryPos);
+			TrajSplineColor.Add(Color);
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
 		{
@@ -1808,8 +1811,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 				TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
 				bIsTrajectoryPosValid = true;
 
-				const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-				const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+				const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 				{
@@ -1819,20 +1821,26 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 				{
 					DrawDebugSphere(DrawParams.World, TrajectoryPos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
 				}
+
+				TrajSplinePos.Add(TrajectoryPos);
+				TrajSplineColor.Add(Color);
 			}
 		}
 		
 		if (!bIsTrajectoryPosValid)
 		{
 			TrajectoryPos = TrajectoryPositionReconstructor.GetReconstructedTrajectoryPos(*this, PoseVector, DrawParams.RootTransform, Sample.Offset);
+			
+			TrajSplinePos.Add(TrajectoryPos);
+			const FColor Color = TrajSplineColor.IsEmpty() ? FColor::Black : TrajSplineColor.Last();
+			TrajSplineColor.Add(Color);
 		}
 
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity))
 		{
 			FVector TrajectoryVel = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			TrajectoryVel *= DrawDebugVelocityScale;
 			TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
@@ -1863,8 +1871,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			const FVector2D TrajectoryVel2D = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
 			FVector TrajectoryVel(TrajectoryVel2D.X, TrajectoryVel2D.Y, 0.f);
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			TrajectoryVel *= DrawDebugVelocityScale;
 			TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
@@ -1895,8 +1902,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		{
 			FVector TrajectoryVelDirection = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			TrajectoryVelDirection = DrawParams.RootTransform.TransformVector(TrajectoryVelDirection);
 
@@ -1926,8 +1932,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			const FVector2D TrajectoryVelDirection2D = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
 			FVector TrajectoryVelDirection(TrajectoryVelDirection2D.X, TrajectoryVelDirection2D.Y, 0.f);
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			TrajectoryVelDirection = DrawParams.RootTransform.TransformVector(TrajectoryVelDirection);
 
@@ -1956,8 +1961,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		{
 			FVector TrajectoryForward = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
 
@@ -1987,8 +1991,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			const FVector2D TrajectoryForward2D = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
 			FVector TrajectoryForward(TrajectoryForward2D.X, TrajectoryForward2D.Y, 0.f);
 
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
 
@@ -2015,8 +2018,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 
 		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSampleLabels))
 		{
-			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
-			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex);
 
 			const FString SampleLabel = FString::Format(TEXT("{0}"), { SampleIdx });
 
@@ -2033,6 +2035,8 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 
 		++SampleIdx;
 	}
+
+	DrawCentripetalCatmullRomSpline(DrawParams.World, TrajSplinePos, TrajSplineColor, 0.5f, 8.f, bPersistent, LifeTime, DepthPriority, 0.f);
 
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }

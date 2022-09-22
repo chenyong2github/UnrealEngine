@@ -818,9 +818,13 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					Row->bMirrored = SearchIndexAsset->bMirrored;
 					Row->PoseCost = PoseEntry.Cost;
 
-					Row->CostVector.SetNum(DbEntry.QueryVector.Num());
+					Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
 					TConstArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseEntry.DbPoseIdx);
-					CompareFeatureVectors(PoseValues, DbEntry.QueryVector, SearchIndex->WeightsSqrt, Row->CostVector);
+
+					// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a DbEntry.QueryVector saved with the previous schema
+					// so the cardinality of DbEntry.QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
+					const bool bIsQueryVectorValid = DbEntry.QueryVector.Num() == PoseValues.Num();
+					CompareFeatureVectors(PoseValues, bIsQueryVectorValid ? DbEntry.QueryVector : PoseValues, SearchIndex->WeightsSqrt, Row->CostVector);
 
 					if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
 					{
@@ -1185,7 +1189,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 		.HeaderRow(FilteredDatabaseView.HeaderRow.ToSharedRef())
 		.OnGenerateRow(this, &SDebuggerDatabaseView::HandleGenerateDatabaseRow)
 		.ExternalScrollbar(FilteredDatabaseView.ScrollBar)
-		.SelectionMode(ESelectionMode::SingleToggle)
+		.SelectionMode(ESelectionMode::Multi)
 		.ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible)
 		.OnSelectionChanged(this, &SDebuggerDatabaseView::OnDatabaseRowSelectionChanged);
 
@@ -1453,7 +1457,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
 	Reflection->bFollowUpAnimation = EnumHasAnyFlags(State.Flags, FTraceMotionMatchingState::EFlags::FollowupAnimation);
 
-
 	Reflection->AssetPlayerAssetName = "None";
 	if (CurrentSearchIndex)
 	{
@@ -1463,7 +1466,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		}
 	}
 
-
 	Reflection->AssetPlayerTime = State.AssetPlayerTime;
 	Reflection->LastDeltaTime = State.DeltaTime;
 	Reflection->SimLinearVelocity = State.SimLinearVelocity;
@@ -1471,9 +1473,21 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
 	Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
 	 
-	// @todo: fix me
 	// Query pose
-	//Reflection->QueryPoseVector = State.QueryVector;
+	Reflection->QueryPoseVector.Reset();
+	for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
+	{
+		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+		if (Database == CurrentDatabase)
+		{
+			const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
+			if (SearchIndex && SearchIndex->IsValid())
+			{
+				Reflection->QueryPoseVector = DbEntry.QueryVector;
+				break;
+			}
+		}
+	}
 
 	// Active pose
 	if (CurrentSearchIndex)
@@ -1498,14 +1512,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 			}
 
 			Reflection->CostVector = Selected->CostVector;
-
-			// @todo: fix me
-			//const FTraceMotionMatchingStatePoseEntry* ActivePoseEntry = State.GetCurrentPoseEntry();
-			//Reflection->CostVectorDifference = Reflection->CostVector;
-			//for (int i = 0; i < Reflection->CostVectorDifference.Num(); ++i)
-			//{
-			//	Reflection->CostVectorDifference[i] -= ActivePoseEntry->Cost.CostVector[i];
-			//}
 		}
 	}
 }
@@ -1720,13 +1726,6 @@ void SDebuggerView::DrawFeatures(
 	const USkinnedMeshComponent* Mesh
 ) const
 {
-	// Set shared state
-	FDebugDrawParams DrawParams;
-	DrawParams.World = &DebuggerWorld;
-	DrawParams.RootTransform = Transform;
-	DrawParams.DefaultLifeTime = 0.0f; // Single frame render
-	DrawParams.Mesh = Mesh;
-
 	auto SetDrawFlags = [](FDebugDrawParams& InDrawParams, const FPoseSearchDebuggerFeatureDrawOptions& Options)
 	{
 		InDrawParams.Flags = EDebugDrawFlags::None;
@@ -1741,26 +1740,41 @@ void SDebuggerView::DrawFeatures(
 			{
 				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawSampleLabels);
 			}
-
-			if (Options.bDrawSamplesWithColorGradient)
-			{
-				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawSamplesWithColorGradient);
-			}
 		}
 	};
 
 	const TObjectPtr<UPoseSearchDebuggerReflection> Reflection = DetailsView->GetReflection();
 
-	// @todo: fix me
 	// Draw query vector
 	{
-		//DrawParams.Database = ViewModel.Get()->GetCurrentDatabase();
-		//SetDrawFlags(DrawParams, Reflection ? Reflection->QueryDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
-		//EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
-		//DrawFeatureVector(DrawParams, State.QueryVector);
-		//EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+		const UPoseSearchDatabase* CurrentDatabase = ViewModel.Get()->GetCurrentDatabase();
+		if (CurrentDatabase)
+		{
+			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
+			{
+				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+				if (Database == CurrentDatabase)
+				{
+					const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
+					if (SearchIndex && SearchIndex->IsValid() && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality)
+					{
+						// Set shared state
+						FDebugDrawParams DrawParams;
+						DrawParams.World = &DebuggerWorld;
+						DrawParams.RootTransform = Transform;
+						DrawParams.DefaultLifeTime = 0.0f; // Single frame render
+						DrawParams.Mesh = Mesh;
+						DrawParams.Database = CurrentDatabase;
+						SetDrawFlags(DrawParams, Reflection ? Reflection->QueryDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
+						EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+						DrawFeatureVector(DrawParams, DbEntry.QueryVector);
+						EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+						break;
+					}
+				}
+			}
+		}
 	}
-
 
 	// Draw selected poses
 	{
@@ -1768,6 +1782,11 @@ void SDebuggerView::DrawFeatures(
 		TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DatabaseRows->GetSelectedItems();
 	
 		// Red for non-active database view
+		FDebugDrawParams DrawParams;
+		DrawParams.World = &DebuggerWorld;
+		DrawParams.RootTransform = Transform;
+		DrawParams.DefaultLifeTime = 0.0f; // Single frame render
+		DrawParams.Mesh = Mesh;
 		SetDrawFlags(DrawParams, Reflection ? Reflection->SelectedPoseDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
 
 		// Draw any selected database vectors
@@ -1789,6 +1808,11 @@ void SDebuggerView::DrawFeatures(
 		if (!ActiveRows.IsEmpty())
 		{		
 			// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
+			FDebugDrawParams DrawParams;
+			DrawParams.World = &DebuggerWorld;
+			DrawParams.RootTransform = Transform;
+			DrawParams.DefaultLifeTime = 0.0f; // Single frame render
+			DrawParams.Mesh = Mesh;
 			DrawParams.Database = ActiveRows[0]->SourceDatabase.Get();
 			DrawFeatureVector(DrawParams, ActiveRows[0]->PoseIdx);
 		}
@@ -1804,6 +1828,11 @@ void SDebuggerView::DrawFeatures(
 
 		if (!ContinuingRows.IsEmpty())
 		{
+			FDebugDrawParams DrawParams;
+			DrawParams.World = &DebuggerWorld;
+			DrawParams.RootTransform = Transform;
+			DrawParams.DefaultLifeTime = 0.0f; // Single frame render
+			DrawParams.Mesh = Mesh;
 			DrawParams.Database = ContinuingRows[0]->SourceDatabase.Get();
 			DrawFeatureVector(DrawParams, ContinuingRows[0]->PoseIdx);
 		}
@@ -2174,7 +2203,7 @@ const UPoseSearchSearchableAsset* FDebuggerViewModel::GetSearchableAsset() const
 
 void FDebuggerViewModel::ShowSelectedSkeleton(const UPoseSearchDatabase* Database, int32 DbPoseIdx, float Time)
 {
-	UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component;
+	UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component.Get();
 	if (!Component)
 	{
 		return;
@@ -2237,7 +2266,7 @@ void FDebuggerViewModel::OnUpdate()
 			Skeleton.Actor = World->SpawnActor<AActor>(ActorSpawnParameters);
 			Skeleton.Actor->SetActorLabel(TEXT("PoseSearch"));
 			Skeleton.Component = NewObject<UPoseSearchMeshComponent>(Skeleton.Actor.Get());
-			Skeleton.Actor->AddInstanceComponent(Skeleton.Component);
+			Skeleton.Actor->AddInstanceComponent(Skeleton.Component.Get());
 			Skeleton.Component->RegisterComponentWithWorld(World);
 		}
 		FWorldDelegates::OnWorldCleanup.AddRaw(this, &FDebuggerViewModel::OnWorldCleanup);
@@ -2313,10 +2342,10 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 		}
 	};
 	const bool bDrawActivePose = EnumHasAnyFlags(DrawParams.Flags, ESkeletonDrawFlags::ActivePose);
-	SetDrawSkeleton(Skeletons[ActivePose].Component, bDrawActivePose);
+	SetDrawSkeleton(Skeletons[ActivePose].Component.Get(), bDrawActivePose);
 	// If flag is set and we are currently in a valid drawing state
 	const bool bDrawSelectedPose = EnumHasAnyFlags(DrawParams.Flags, ESkeletonDrawFlags::SelectedPose) && bSelecting;
-	SetDrawSkeleton(Skeletons[SelectedPose].Component, bDrawSelectedPose);
+	SetDrawSkeleton(Skeletons[SelectedPose].Component.Get(), bDrawSelectedPose);
 
 	FillCompactPoseAndComponentRefRotations();
 
@@ -2328,7 +2357,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 
 	if (bDrawSelectedPose)
 	{
-		UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component;
+		UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component.Get();
 		if (Component && Component->RequiredBones.IsValid())
 		{
 			if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::Sequence)
@@ -2373,7 +2402,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 	const bool bDrawAsset = EnumHasAnyFlags(DrawParams.Flags, ESkeletonDrawFlags::Asset);
 	if (bDrawAsset && AssetData.bActive)
 	{
-		UPoseSearchMeshComponent* Component = Skeletons[Asset].Component;
+		UPoseSearchMeshComponent* Component = Skeletons[Asset].Component.Get();
 		if (Component && Component->RequiredBones.IsValid())
 		{
 			SetDrawSkeleton(Component, true);
@@ -2472,9 +2501,9 @@ void FDebuggerViewModel::UpdateFromTimeline()
 
 				return TraceServices::EEventEnumerate::Stop;
 			}
-			UPoseSearchMeshComponent* ActiveComponent = Skeletons[ActivePose].Component;
-			UPoseSearchMeshComponent* SelectedComponent = Skeletons[SelectedPose].Component;
-			UPoseSearchMeshComponent* AssetComponent = Skeletons[Asset].Component;
+			UPoseSearchMeshComponent* ActiveComponent = Skeletons[ActivePose].Component.Get();
+			UPoseSearchMeshComponent* SelectedComponent = Skeletons[SelectedPose].Component.Get();
+			UPoseSearchMeshComponent* AssetComponent = Skeletons[Asset].Component.Get();
 			USkeletalMesh* SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).LoadSynchronous();
 			if (SkeletalMesh)
 			{
@@ -2510,7 +2539,7 @@ void FDebuggerViewModel::UpdateAsset()
 	}
 
 	FSkeleton& AssetSkeleton = Skeletons[Asset];
-	UPoseSearchMeshComponent* Component = AssetSkeleton.Component;
+	UPoseSearchMeshComponent* Component = AssetSkeleton.Component.Get();
 
 	auto RestartAsset = [&]()
 	{
@@ -2597,7 +2626,7 @@ const USkinnedMeshComponent* FDebuggerViewModel::GetMeshComponent() const
 {
 	if (Skeletons.Num() > FDebuggerViewModel::Asset)
 	{
-		return Skeletons[FDebuggerViewModel::Asset].Component;
+		return Skeletons[FDebuggerViewModel::Asset].Component.Get();
 	}
 	return nullptr;
 }
@@ -2633,7 +2662,7 @@ void FDebuggerViewModel::PlaySelection(int32 PoseIdx, float Time)
 	{
 		return;
 	}
-	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component;
+	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component.Get();
 	if (!Component)
 	{
 		return;
@@ -2658,7 +2687,7 @@ void FDebuggerViewModel::PlaySelection(int32 PoseIdx, float Time)
 }
 void FDebuggerViewModel::StopSelection()
 {
-	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component;
+	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component.Get();
 	if (!Component)
 	{
 		return;
