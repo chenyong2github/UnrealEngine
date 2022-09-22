@@ -248,34 +248,42 @@ namespace Metasound
 
 		void UpdateFilterSettings()
 		{
-			bool bNeedsUpdate = false;
+			bool bNeedsReinitFilters = false;
+			bool bNeedsUpdateCrossovers = false;
 
 			for (int32 CrossoverIndex = 0; CrossoverIndex < Crossovers.Num(); CrossoverIndex++)
 			{
 				if (Crossovers[CrossoverIndex] != *CrossoverFrequencies[CrossoverIndex])
 				{
-					bNeedsUpdate = true;
+					bNeedsUpdateCrossovers = true;
 					Crossovers[CrossoverIndex] = *CrossoverFrequencies[CrossoverIndex];
 				}
 			}
 
 			if (*bPhaseCompensate != bPrevPhaseCompensate)
 			{
-				bNeedsUpdate = true;
+				bNeedsReinitFilters = true;
 				bPrevPhaseCompensate = *bPhaseCompensate;
 			}
 
 			if (PrevFilterOrder != GetFilterOrder(*FilterOrder))
 			{
-				bNeedsUpdate = true;
+				bNeedsReinitFilters = true;
 				PrevFilterOrder = GetFilterOrder(*FilterOrder);
 			}
 
-			if (bNeedsUpdate)
+			if (bNeedsReinitFilters)
 			{
 				for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
 				{
 					Filters[ChannelIndex].Init(1, Settings.GetSampleRate(), PrevFilterOrder, bPrevPhaseCompensate, Crossovers);
+				}
+			}
+			else if (bNeedsUpdateCrossovers)
+			{
+				for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
+				{
+					Filters[ChannelIndex].SetCrossovers(Crossovers);
 				}
 			}
 		}
