@@ -665,6 +665,8 @@ void UBaseIteratePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filena
 				PerformAdditionalOperations(Object, bSavePackage);
 			});
 			
+			PostPerformAdditionalOperations(Package);
+
 			VerboseMessage(TEXT("Post PerformAdditionalOperations Loop"));
 
 			if (bStripEditorOnlyContent)

@@ -224,6 +224,8 @@ protected:
 	*/
 	virtual void PerformAdditionalOperations(class UWorld* World, bool& bSavePackage) { }
 
+	virtual void PostPerformAdditionalOperations(class UPackage* Package) { }
+
 	/**
 	 * Allows the commandlet to do something after all the packages have been processed
 	 */
