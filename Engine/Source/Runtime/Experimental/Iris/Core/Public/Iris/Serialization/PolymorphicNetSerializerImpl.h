@@ -46,10 +46,21 @@ namespace UE::Net
   *
   * Helper to implement serializers that requires dynamic polymorphism.
   * It can either be used to declare a typed serializer or be used as an internal helper.
-  * 
   * ExternalSourceType is the class/struct that has the TSharedPtr<ExternalSourceItemType> data.
   * ExternalSourceItemType is the polymorphic struct type
   * GetItem is a function that will return a reference to the TSharedPtr<ExternalSourceItemType>
+  *
+  * !BIG DISCLAIMER:!
+  *
+  * This serializer was written to mimic the behavior seen in FGameplayAbilityTargetDataHandle and FGameplayEffectContextHandle 
+  * which both are written with the intent of being used for RPCs and not being used for replicated properties and uses a TSharedPointer to hold the polymorphic struct
+  *
+  * That said, IF the serializer is used for replicated properties it has very specific requirements on the implementation of the SourceType to work correctly.
+  *
+  * 1. The sourcetype MUST provide a custom assignment operator performing a deep-copy/clone
+  * 2. The sourcetype MUST define a comparison operator that compares the instance data of the stored ExternalSourceItemType
+  * 3. TStructOpsTypeTraits::WithCopy and TStructOpsTypeTraits::WithIdenticalViaEquality must be specified
+  *
   */
 template <typename ExternalSourceType, typename ExternalSourceItemType, TSharedPtr<ExternalSourceItemType>&(*GetItem)(ExternalSourceType&)>
 struct TPolymorphicStructNetSerializerImpl : protected Private::FPolymorphicStructNetSerializerInternal
@@ -67,6 +78,7 @@ struct TPolymorphicStructNetSerializerImpl : protected Private::FPolymorphicStru
 
 	typedef ExternalSourceType SourceType;
 	typedef FQuantizedData QuantizedType;
+	typedef FPolymorphicStructNetSerializerConfig ConfigType;
 
 	static void Serialize(FNetSerializationContext&, const FNetSerializeArgs&);
 	static void Deserialize(FNetSerializationContext&, const FNetDeserializeArgs&);
@@ -90,7 +102,6 @@ protected:
 
 	typedef ExternalSourceItemType SourceItemType;
 	typedef FPolymorphicNetSerializerScriptStructCache::FTypeInfo FTypeInfo;
-	typedef FPolymorphicStructNetSerializerConfig ConfigType;
 
 	struct FSourceItemTypeDeleter
 	{
@@ -121,6 +132,8 @@ private:
   *
   * Helper to implement array serializers that requires dynamic polymorphism.
   * It can either be used to declare a typed serializer or be used as an internal helper.
+  *
+  * @See: TPolymorphicStructNetSerializerImpl for requirements on external data
   */
 template <typename ExternalSourceType, typename ExternalSourceArrayItemType, TArrayView<TSharedPtr<ExternalSourceArrayItemType>>(*GetArray)(ExternalSourceType& Source), void(*SetArrayNum)(ExternalSourceType& Source, SIZE_T Num)>
 struct TPolymorphicArrayStructNetSerializerImpl : protected Private::FPolymorphicStructNetSerializerInternal
@@ -310,6 +323,9 @@ void TPolymorphicStructNetSerializerImpl<ExternalSourceType, ExternalSourceItemT
 	{
 		const FReplicationStateDescriptor* Descriptor = TypeInfo->Descriptor;
 		const UScriptStruct* ScriptStruct = TypeInfo->ScriptStruct;
+
+		// NOTE: We always allocate new memory in order to behave like the code we are trying to mimic expects, see GameplayEffectContextHandle
+		// this should really be a policy of this class as it is far from optimal.
 
 		// Allocate external struct, owned by external state therefore using global allocator
 		SourceItemType* NewData = static_cast<SourceItemType*>(FMemory::Malloc(ScriptStruct->GetStructureSize(), ScriptStruct->GetMinAlignment()));
@@ -633,6 +649,9 @@ void TPolymorphicArrayStructNetSerializerImpl<ExternalSourceType, ExternalSource
 		{
 			const FReplicationStateDescriptor* Descriptor = TypeInfo->Descriptor;
 			const UScriptStruct* ScriptStruct = TypeInfo->ScriptStruct;
+
+			// NOTE: We always allocate new memory in order to behave like the code we are trying to mimic expects, see GameplayEffectContextHandle
+			// this should really be a policy of this class as it is far from optimal.
 
 			// Allocate external struct, owned by external state therefore using global allocator
 			SourceArrayItemType* NewData = static_cast<SourceArrayItemType*>(FMemory::Malloc(ScriptStruct->GetStructureSize(), ScriptStruct->GetMinAlignment()));

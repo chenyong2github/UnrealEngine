@@ -10,13 +10,16 @@
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Iris/ReplicationState/PropertyNetSerializerInfoRegistry.h"
 #include "Iris/Serialization/NetReferenceCollector.h"
+#include "Net/UnrealNetwork.h"
+#include "Core/Public/Iris/ReplicationSystem/ReplicationFragmentUtil.h"
 
 namespace UE::Net
 {
 
-// Custom NetSerializer declaration based on GameplayAbilityTargetHandle
-struct FTestPolymorphicArrayStructNetSerializer : public TPolymorphicArrayStructNetSerializerImpl<FExamplePolymorphicArrayStruct, FExamplePolymorphicArrayItem, FExamplePolymorphicArrayStruct::GetArray, FExamplePolymorphicArrayStruct::SetArrayNum>
+struct FTestPolymorphicArrayStructNetSerializer : public TPolymorphicArrayStructNetSerializerImpl<FExamplePolymorphicArrayStruct, FExamplePolymorphicStructBase, FExamplePolymorphicArrayStruct::GetArray, FExamplePolymorphicArrayStruct::SetArrayNum>
 {
+	typedef TPolymorphicArrayStructNetSerializerImpl<FExamplePolymorphicArrayStruct, FExamplePolymorphicStructBase, FExamplePolymorphicArrayStruct::GetArray, FExamplePolymorphicArrayStruct::SetArrayNum> InternalNetSerializerType;
+
 	static const uint32 Version = 0;
 	static const ConfigType DefaultConfig;
 };
@@ -24,6 +27,23 @@ struct FTestPolymorphicArrayStructNetSerializer : public TPolymorphicArrayStruct
 const FTestPolymorphicArrayStructNetSerializer::ConfigType FTestPolymorphicArrayStructNetSerializer::DefaultConfig;
 
 UE_NET_IMPLEMENT_SERIALIZER(FTestPolymorphicArrayStructNetSerializer);
+
+struct FTestPolymorphicStructNetSerializer : public TPolymorphicStructNetSerializerImpl<FExamplePolymorphicStruct, FExamplePolymorphicStructBase, FExamplePolymorphicStruct::GetItem>
+{
+	typedef TPolymorphicStructNetSerializerImpl<FExamplePolymorphicStruct, FExamplePolymorphicStructBase, FExamplePolymorphicStruct::GetItem> InternalNetSerializerType;
+
+	static void InitTypeCache()
+	{
+		InternalNetSerializerType::InitTypeCache<FTestPolymorphicStructNetSerializer>();
+	}
+
+	static const uint32 Version = 0;
+	static const ConfigType DefaultConfig;
+};
+
+const FTestPolymorphicStructNetSerializer::ConfigType FTestPolymorphicStructNetSerializer::DefaultConfig;
+
+UE_NET_IMPLEMENT_SERIALIZER(FTestPolymorphicStructNetSerializer);
 
 }
 
@@ -59,6 +79,9 @@ protected:
 
 	FTestPolymorphicArrayStructNetSerializerConfig PolymorphicNetSerializerConfig;
 	const FNetSerializer* PolymorphicNetSerializer = &UE_NET_GET_SERIALIZER(FTestPolymorphicArrayStructNetSerializer);
+
+	FTestPolymorphicStructNetSerializerConfig PolymorphicStructNetSerializerConfig;
+	const FNetSerializer* PolymorphicStructNetSerializer = &UE_NET_GET_SERIALIZER(FTestPolymorphicStructNetSerializer);
 
 	FExamplePolymorphicArrayStruct PolymorphicStructInstance0;
 	FExamplePolymorphicArrayStruct PolymorphicStructInstance1;
@@ -173,7 +196,8 @@ namespace UE::Net::Private
 
 static const FName PropertyNetSerializerRegistry_NAME_ExamplePolymorphicStructD(TEXT("ExamplePolymorphicStructD"));
 UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_ExamplePolymorphicStructD, FExamplePolymorphicStructDNetSerializer);
-
+static const FName PropertyNetSerializerRegistry_NAME_TestPolymorphicStructNetSerializer(TEXT("ExamplePolymorphicStruct"));
+UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_TestPolymorphicStructNetSerializer, FTestPolymorphicStructNetSerializer);
 
 UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestQuantize)
 {
@@ -343,11 +367,14 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SetUp()
 	if (!bHasRegisteredStructDNetSerializer)
 	{
 		UE_NET_REGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_ExamplePolymorphicStructD);
+		UE_NET_REGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_TestPolymorphicStructNetSerializer);
+
 		bHasRegisteredStructDNetSerializer = true;
 	}
 
 	// Init type registry, note that we set it up for the context we provide rather than the default config
-	PolymorphicNetSerializerConfig.RegisteredTypes.InitForType(FExamplePolymorphicArrayItem::StaticStruct());
+	PolymorphicNetSerializerConfig.RegisteredTypes.InitForType(FExamplePolymorphicStructBase::StaticStruct());
+	PolymorphicStructNetSerializerConfig.RegisteredTypes.InitForType(FExamplePolymorphicStructBase::StaticStruct());
 }
 
 void FTestPolymorphicArrayStructNetSerializerFixture::ValidateExpectedState(const FExamplePolymorphicArrayStruct& StructInstance)
@@ -552,4 +579,145 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Validate()
 	PolymorphicNetSerializer->Validate(NetSerializationContext, Args);
 }
 
+UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymorphicStructNetSerializer_Modify)
+{
+	// InitTypeCache as we do actual serialization
+	FTestPolymorphicStructNetSerializer::InitTypeCache();
+
+	// Add a client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Spawn objects on server
+	UTestPolymorphicStructNetSerializer_TestObject* ServerObject = Server->CreateObject<UTestPolymorphicStructNetSerializer_TestObject>();
+	
+	ServerObject->PolyStruct.Raise<FExamplePolymorphicStructB>();
+	ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat = 12.0f;
+
+	// Replicate
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+	
+	auto ClientObject = Client->GetObjectAs<UTestPolymorphicStructNetSerializer_TestObject>(ServerObject->NetHandle);
+	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
+	UE_NET_ASSERT_TRUE(ClientObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat == 12.0f);
+
+	// Modify
+	ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat += 1.0f;
+
+	// Replicate
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+
+	// Verify that we detected the modification
+	UE_NET_ASSERT_TRUE(ClientObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat == ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat);
+
+	// Switch type
+	ServerObject->PolyStruct.Raise<FExamplePolymorphicStructD>();
+	ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue = 100;
+
+	// Replicate
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+
+	UE_NET_ASSERT_TRUE(ClientObject->PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue == ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue);	
+}
+
+UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymorphicStructNetSerializer_ModifyFastArray)
+{
+	// InitTypeCache as we do actual serialization
+	FTestPolymorphicStructNetSerializer::InitTypeCache();
+
+	// Add a client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Spawn objects on server
+	UTestPolymorphicStructNetSerializer_TestObject* ServerObject = Server->CreateObject<UTestPolymorphicStructNetSerializer_TestObject>();
+
+	// Add a few entries for the fastarray
+	FExamplePolymorphicStructFastArrayItem Item;
+
+	Item.PolyStruct.Raise<FExamplePolymorphicStructA>();
+	ServerObject->PolyStructFastArray.Edit().Add(Item);
+
+	Item.PolyStruct.Raise<FExamplePolymorphicStructB>();
+	ServerObject->PolyStructFastArray.Edit().Add(Item);
+
+	Item.PolyStruct.Raise<FExamplePolymorphicStructC>();
+	ServerObject->PolyStructFastArray.Edit().Add(Item);
+
+	Item.PolyStruct.Raise<FExamplePolymorphicStructD>();
+	ServerObject->PolyStructFastArray.Edit().Add(Item);
+	ServerObject->PolyStructFastArray.Edit()[3].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue = 100;
+	
+	// Replicate
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+	
+	auto ClientObject = Client->GetObjectAs<UTestPolymorphicStructNetSerializer_TestObject>(ServerObject->NetHandle);
+	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
+	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray().Num(), ServerObject->PolyStructFastArray.GetItemArray().Num());
+	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray()[3].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue, 100U);
+
+	// Modify value and see that it is replicated as expected
+	ServerObject->PolyStructFastArray.Edit()[3].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue += 3;
+
+	// Replicate
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+
+	// Verified that the client got the modified value
+	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray()[3].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue, 103U);
+
+	// Switch type
+	ServerObject->PolyStructFastArray.Edit()[2].PolyStruct.Raise<FExamplePolymorphicStructD>();
+	ServerObject->PolyStructFastArray.Edit()[2].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue = 1;
+
+	// Replicate
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+
+	// Verified that the client got the modified value
+	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray()[2].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue, 1U);
+}
+
+}
+
+void FExamplePolymorphicStructFastArrayItem::PostReplicatedAdd(const struct FExamplePolymorphicStructFastArraySerializer& InArraySerializer)
+{
+	const_cast<FExamplePolymorphicStructFastArraySerializer&>(InArraySerializer).bHitReplicatedAdd = true;
+}
+
+void FExamplePolymorphicStructFastArrayItem::PostReplicatedChange(const struct FExamplePolymorphicStructFastArraySerializer& InArraySerializer)
+{
+	const_cast<FExamplePolymorphicStructFastArraySerializer&>(InArraySerializer).bHitReplicatedChange = true;
+}
+
+void FExamplePolymorphicStructFastArrayItem::PreReplicatedRemove(const struct FExamplePolymorphicStructFastArraySerializer& InArraySerializer)
+{
+	const_cast<FExamplePolymorphicStructFastArraySerializer&>(InArraySerializer).bHitReplicatedRemove = true;
+}
+
+UTestPolymorphicStructNetSerializer_TestObject::UTestPolymorphicStructNetSerializer_TestObject()
+: UReplicatedTestObject()
+{
+}
+
+void UTestPolymorphicStructNetSerializer_TestObject::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = false;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(UTestPolymorphicStructNetSerializer_TestObject, PolyStruct, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UTestPolymorphicStructNetSerializer_TestObject, PolyStructFastArray, Params);
+}
+
+void UTestPolymorphicStructNetSerializer_TestObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
 }
