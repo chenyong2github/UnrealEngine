@@ -115,6 +115,7 @@ float SampleAmbientOcclusion(in FPixelMaterialInputs PixelMaterialInputs)
 #include "LightGridCommon.ush"
 #define SUPPORT_CONTACT_SHADOWS 0
 #include "DeferredLightingCommon.ush"
+#include "LightData.ush"
 #endif
 
 
