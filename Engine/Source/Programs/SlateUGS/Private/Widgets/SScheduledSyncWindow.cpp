@@ -115,7 +115,7 @@ void SScheduledSyncWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("CancelButtonText", "Cancel"))
+					.Text(LOCTEXT("CancelButtonText", "Close")) // Todo: temporary fix, change the text back to "Cancel" when canceling actually cancels changes
 					.OnClicked(this, &SScheduledSyncWindow::OnCancelClicked)
 				]
 			]
