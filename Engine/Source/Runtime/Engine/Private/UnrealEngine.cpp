@@ -13375,7 +13375,6 @@ namespace UE::Private
 				NetDriver->SetWorld(NULL);
 				NetDriver->Shutdown();
 				NetDriver->LowLevelDestroy();
-				NetDriver->MarkAsGarbage();
 
 				if (UWorld* World = Context.World())
 				{

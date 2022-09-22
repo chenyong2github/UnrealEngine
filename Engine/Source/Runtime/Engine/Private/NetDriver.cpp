@@ -1516,7 +1516,7 @@ void UNetDriver::Shutdown()
 				 {
 					 GuidsToLog.Append(ActorChannel->PendingGuidResolves);
 				 }
-				 ActorChannel->BreakAndReleaseReferences();
+				 ActorChannel->CleanupReplicators();
 			 }
 		}
 
@@ -1544,7 +1544,6 @@ void UNetDriver::Shutdown()
 		// Calls Channel[0]->Close to send a close bunch to server
 		ServerConnection->Close();
 		ServerConnection->FlushNet();
-		ServerConnection->MarkAsGarbage();
 	}
 
 	// Server closing connections with clients
