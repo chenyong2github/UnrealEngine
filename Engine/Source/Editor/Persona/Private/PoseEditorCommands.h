@@ -36,6 +36,9 @@ public:
 
 	/** Update selected pose to match viewport */
 	TSharedPtr< FUICommandInfo > UpdatePoseToCurrent;
+
+	TSharedPtr< FUICommandInfo > AddPoseFromCurrent;	
+	TSharedPtr< FUICommandInfo > AddPoseFromReference;
 };
 
 

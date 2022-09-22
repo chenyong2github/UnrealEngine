@@ -137,7 +137,7 @@ private:
 	bool DeleteCurve(FSmartName CurveName);
 	bool InsertTrack(const FName& InTrackName, USkeleton* InSkeleton, const TArray<FTransform>& RefPose);
 	
-	bool FillUpSkeletonPose(FPoseData* PoseData, USkeleton* InSkeleton);
+	bool FillUpSkeletonPose(FPoseData* PoseData, const USkeleton* InSkeleton);
 	void RetrieveSourcePoseFromExistingPose(bool bAdditive, int32 InBasePoseIndex, const TArray<FTransform>& InBasePose, const TArray<float>& InBaseCurve);
 
 	// editor features for full pose <-> additive pose
@@ -259,8 +259,9 @@ public:
 	UFUNCTION(BlueprintPure, Category=PoseAsset)
 	void GetPoseNames(TArray<FName>& PoseNames) const;
 	
-	ENGINE_API bool AddOrUpdatePoseWithUniqueName(USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName = nullptr);
-	ENGINE_API void AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshComponent* MeshComponent, bool bUpdateCurves = true);
+	ENGINE_API bool AddOrUpdatePoseWithUniqueName(const USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName = nullptr);
+	ENGINE_API void AddOrUpdatePose(const FSmartName& PoseName, const USkeletalMeshComponent* MeshComponent, bool bUpdateCurves = true);
+	ENGINE_API void AddReferencePose(const FSmartName& PoseName, const FReferenceSkeleton& ReferenceSkeleton);
 	ENGINE_API void CreatePoseFromAnimation(class UAnimSequence* AnimSequence, const TArray<FSmartName>* InPoseNames = nullptr);
 
 	/** Contained poses are re-generated from the provided Animation Sequence*/
@@ -316,6 +317,9 @@ public:
 	{
 		OnPoseListChanged.Remove(Handle);
 	}
+
+	ENGINE_API static FName GetUniquePoseName(const USkeleton* Skeleton);
+	ENGINE_API static FSmartName GetUniquePoseSmartName(USkeleton* Skeleton);
 
 protected:
 	virtual void RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces) override;
