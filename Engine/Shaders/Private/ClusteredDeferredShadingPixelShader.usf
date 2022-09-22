@@ -35,6 +35,7 @@
 #include "ShadingModels.ush"
 #include "LightGridCommon.ush"
 #include "DeferredLightingCommon.ush"
+#include "LightData.ush"
 #include "VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush"
 #include "Strata/StrataEvaluation.ush"
 #include "Strata/StrataDeferredLighting.ush"
@@ -118,49 +119,6 @@ bool IsLightVisible(const FLocalLightData In, float3 TranslatedWorldPosition)
 	return length2(TranslatedWorldPosition - In.LightPositionAndInvRadius.xyz) * InvLightRadiusSq <= 1.0f;
 }
 
-/**
- * Convert a FLocalLightData into a FDeferredLightData
- */
-FDeferredLightData ConvertLocalToDeferredLight(const FLocalLightData In)
-{
-	const uint LightTypeAndPackedShadowMapChannelMask = asuint(In.LightDirectionAndShadowMask.w);
-
-	// bits [17:16] really
-	const uint LightType = UnpackLightType(LightTypeAndPackedShadowMapChannelMask);
-
-	FDeferredLightData Out = (FDeferredLightData)0;
-	Out.TranslatedWorldPosition = In.LightPositionAndInvRadius.xyz;
-	Out.InvRadius = In.LightPositionAndInvRadius.w;
-	Out.Color = In.LightColorAndFalloffExponent.xyz;
-	//Out.Color.xy = 0.0f;
-	Out.FalloffExponent = In.LightColorAndFalloffExponent.w;
-	Out.Direction = In.LightDirectionAndShadowMask.xyz;
-	Out.SpotAngles = In.SpotAnglesAndSourceRadiusPacked.xy;
-	Out.SourceRadius = In.SpotAnglesAndSourceRadiusPacked.z;
-	Out.SourceLength = f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w));
-	Out.Tangent = In.LightTangentAndSoftSourceRadius.xyz;
-	Out.SoftSourceRadius = In.LightTangentAndSoftSourceRadius.w;
-	Out.bInverseSquared = Out.FalloffExponent == 0;
-	// Only directional is not radial, and this loop is only non-directional lights (LIGHT_SOURCE_SHAPE > 0 in trad) 
-	Out.bRadialLight = true;
-	// Setting it to true follows how it is setup in standard deferred, where only the directional lights are not doing this (LIGHT_SOURCE_SHAPE > 0)
-	//Out.bSpotLight = true;
-	//Out.bSpotLight = Out.SpotAngles.x > -2.0f;
-	Out.SpecularScale = In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
-	// TODO: not sure if this check is even needed, standard deferred always seems to set it to true?
-	Out.bSpotLight = (LightType == LIGHT_TYPE_SPOT);
-	// NOTE: supporting the rect-light code path adds ~30% overhead on NVIDIA (RTX 2060) even when not used! 
-	// Presumed register pressure increase again, not profiled in detail.
-	// Rect lights are now disabled by the sorting, so the shader should not handle them, for now.
-	Out.bRectLight = false;// (LightType == LIGHT_TYPE_RECT);
-	// bits [7:0]
-	Out.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
-	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-	Out.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
-	Out.ShadowedBits = 1;
-	Out.HairTransmittance = InitHairTransmittanceData();
-	return Out;
-}
 
 /**
  * Adds local lighting of simple lights and returns the index at which non-simple light should starts
@@ -205,7 +163,8 @@ float4 GetSimpleLightLighting(
 		}
 
 	#if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
-		const FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
+		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
+		LightData.ShadowedBits = 1;
 		const FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 
 		const float3 ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
@@ -306,7 +265,7 @@ float4 GetLightGridLocalLighting(
 		}
 
 		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
-
+		LightData.ShadowedBits = 1;
 		float4 LightAttenuation = float4(1, 1, 1, 1);
 		if (LocalLightListIndex < GetPackedShadowMaskMaxLightCount())
 		{

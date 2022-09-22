@@ -9,6 +9,7 @@
 
 #include "DeferredLightingCommon.ush"
 #include "LightGridCommon.ush"
+#include "LightData.ush"
 
 #define FILTER_DIRECTIONAL_LIGHT_SHADOWING 1
 #include "ForwardShadowingCommon.ush"
@@ -241,30 +242,10 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 	LOOP
 	for (uint LocalLightListIndex = 0; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
 	{
+		half4 PreviewShadowMapChannelMask = 1;
+		uint  LocalLightingChannelMask = 0x7;
 		const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
-		 
-		FDeferredLightData LightData = (FDeferredLightData)0;
-		LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
-		LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
-		LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
-		LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
-		LightData.Direction = LocalLight.LightDirectionAndShadowMask.xyz;
-		LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
-		LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
-		LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-		LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-		LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
-		LightData.bInverseSquared = LightData.FalloffExponent == 0;
-		LightData.bRadialLight = true;
-		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-		LightData.SpecularScale = SpecularScale * LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
-		// Initialize rect light once parameters are supported onto FLocalLightData
-		// LightData.RectLightAtlasMaxLevel = LocalLight.RectLightAtlasMaxLevel;
-		// LightData.RectLightAtlasUVOffset = LocalLight.RectLightAtlasUVOffset;
-		// LightData.RectLightAtlasUVScale  = LocalLight.RectLightAtlasUVScale;
-		// LightData.RectLightBarnCosAngle	= DeferredLightUniforms.RectLightBarnCosAngle;
-		// LightData.RectLightBarnLength	= DeferredLightUniforms.RectLightBarnLength;
-		LightData.HairTransmittance = InitHairTransmittanceData();
+		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight, SpecularScale, PreviewShadowMapChannelMask, LocalLightingChannelMask);
 		#if USE_HAIR_COMPLEX_TRANSMITTANCE
 		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
 		{
@@ -272,24 +253,13 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 		}
 		#endif
 
-		// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
-		uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);
-
-		// TODO: currently LightType is ignored and the code always sets 'LightData.bRectLight' to false (initialization)
-		//       but the light grid adds rect lights as well so this probably leads to artifacts.
-		uint LightType = UnpackLightType(LightTypeAndPackedShadowMapChannelMask);
-
-		LightData.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
-		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
-		float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask >> 4);
 		float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 		float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);
 		float SurfaceShadow = 1.0f;
 		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), SurfaceShadow);
 
 		FLATTEN
-		if ((LightTypeAndPackedShadowMapChannelMask >> 8) & LightingChannelMask)
+		if (LocalLightingChannelMask & LightingChannelMask)
 		{
 			DirectLighting.DiffuseLighting += NewLighting.DiffuseLighting;
 			DirectLighting.SpecularLighting += NewLighting.SpecularLighting;

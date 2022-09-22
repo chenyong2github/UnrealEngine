@@ -1,0 +1,59 @@
+/*=============================================================================
+	LightGridInjection.usf
+=============================================================================*/
+
+#pragma once
+
+#include "Common.ush"
+#include "LightGridCommon.ush"
+#include "DeferredLightingCommon.ush"
+
+// Helper function for converting FLocalLightData into FDeferredLightData
+FDeferredLightData ConvertLocalToDeferredLight(
+	const FLocalLightData In, 
+	float InSpecularScale, 
+	inout half4 OutPreviewShadowMapChannelMask,
+	inout uint  OutLightingChannelMask)
+{
+	FDeferredLightData Out = (FDeferredLightData)0;
+
+	const uint LightTypeAndPackedShadowMapChannelMask = asuint(In.LightDirectionAndShadowMask.w);
+	const uint LightType = UnpackLightType(LightTypeAndPackedShadowMapChannelMask);
+
+	Out.TranslatedWorldPosition = In.LightPositionAndInvRadius.xyz;
+	Out.InvRadius				= In.LightPositionAndInvRadius.w;
+	Out.Color					= In.LightColorAndFalloffExponent.xyz;
+	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
+	Out.Direction				= In.LightDirectionAndShadowMask.xyz;
+	Out.SpotAngles				= In.SpotAnglesAndSourceRadiusPacked.xy;
+	Out.SourceRadius			= In.SpotAnglesAndSourceRadiusPacked.z;
+	Out.SourceLength			= f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w));
+	Out.Tangent					= In.LightTangentAndSoftSourceRadius.xyz;
+	Out.SoftSourceRadius		= In.LightTangentAndSoftSourceRadius.w;
+	Out.bInverseSquared			= Out.FalloffExponent == 0;
+	Out.SpecularScale			= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w * InSpecularScale;
+	Out.bRadialLight			= true;
+	Out.bSpotLight				= LightType == LIGHT_TYPE_SPOT;
+	Out.bRectLight				= LightType == LIGHT_TYPE_RECT;
+	Out.HairTransmittance		= InitHairTransmittanceData();
+
+	// Shadow
+	// * Static shadowing uses ShadowMapChannel, 
+	// * Dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
+	// Data Layout on [10:0] with:
+	// * ShadowMapChannelMask	= [3:0]
+	// * PreviewShadowMapChannel= [7:4] 
+	// * LightincChannelMask    = [8:10] 
+	Out.ShadowedBits				= (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
+	Out.ShadowMapChannelMask		= UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
+	OutPreviewShadowMapChannelMask	= UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask >> 4);
+	OutLightingChannelMask			= UnpackLightingChannelMask(LightTypeAndPackedShadowMapChannelMask);
+	return Out;
+}
+
+FDeferredLightData ConvertLocalToDeferredLight(const FLocalLightData In)
+{
+	half4 OutPreviewShadowMapChannelMask = 0;
+	uint OutLightingChannelMask = 0x7;
+	return ConvertLocalToDeferredLight(In, 1.0f, OutPreviewShadowMapChannelMask, OutLightingChannelMask);
+}

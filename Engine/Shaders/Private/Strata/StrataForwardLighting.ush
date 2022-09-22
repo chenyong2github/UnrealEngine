@@ -4,6 +4,7 @@
 
 #define USE_STRATA_FORWARD_LIGHTING_COMMON 1
 #include "StrataLightingCommon.ush"
+#include "../LightData.ush"
 
 #define FORWARD_PER_PIXEL_SHADING (FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
@@ -12,42 +13,6 @@ void GetVolumeLightingNonDirectional(float4 AmbientLightingVector, float3 Diffus
 void GetVolumeLightingDirectional(float4 AmbientLightingVector, float3 DirectionalLightingVector, float3 WorldNormal, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
 
 float3 GetWorldBentNormalZero(in FMaterialPixelParameters MaterialParameters);
-
-FDeferredLightData ConvertLocalToDeferredLight(FLocalLightData LocalLight)
-{
-	FDeferredLightData LightData = (FDeferredLightData)0;
-	LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
-	LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
-	LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
-	LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
-	LightData.Direction = LocalLight.LightDirectionAndShadowMask.xyz;
-	LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
-	LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
-	LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-	LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-	LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
-	LightData.bInverseSquared = LightData.FalloffExponent == 0;
-	LightData.bRadialLight = true;
-	LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-	LightData.SpecularScale = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
-	// RectLight is always false due to initialisation
-	// Initialize rect light once parameters are supported onto FLocalLightData
-	// LightData.RectLightAtlasMaxLevel = LocalLight.RectLightAtlasMaxLevel;
-	// LightData.RectLightAtlasUVOffset = LocalLight.RectLightAtlasUVOffset;
-	// LightData.RectLightAtlasUVScale  = LocalLight.RectLightAtlasUVScale;
-	// LightData.RectLightBarnCosAngle	= DeferredLightUniforms.RectLightBarnCosAngle;
-	// LightData.RectLightBarnLength	= DeferredLightUniforms.RectLightBarnLength;
-	LightData.HairTransmittance = InitHairTransmittanceData();
-
-	// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
-	uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);
-
-	LightData.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
-	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-	LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
-
-	return LightData;
-}
 
 FShadingOcclusion ApplyBentNormal(
 	in float3 CameraVector,
@@ -445,20 +410,17 @@ float3 StrataForwardLighting(
 				{
 					const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
 
-					// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
-					const uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);
-
+					half4 PreviewShadowMapChannelMask = 1;
+					uint  LightChannelMask = 0x7;
+					const FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight, 1.0f /*SpecularScale*/, PreviewShadowMapChannelMask, LightChannelMask);
+					
 					// Skip rect light. This is not done explicitely in the legacy path (resulting in no lighting) but we do it for strata in order to avoid visual artefact.
 					// This can be removed when LocalLight properly supports rect lights.
-					const uint LightType = UnpackLightType(LightTypeAndPackedShadowMapChannelMask);
-					if (LightType == LIGHT_TYPE_RECT)
+					if (LightData.bRectLight)
 					{
 						continue;
 					}
 
-					const FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
-
-					float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask >> 4);
 					float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 					float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);
 
@@ -472,8 +434,6 @@ float3 StrataForwardLighting(
 
 					// Update the strata BSDF context accordgin to the new L
 					StrataUpdateBSDFContext(StrataBSDFContext, ToLight);
-
-					uint LightChannelMask = LightTypeAndPackedShadowMapChannelMask >> 8;
 
 					bool bEvaluateHasBeenExecuted = false;
 					FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;

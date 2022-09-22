@@ -12,6 +12,7 @@
 #include "../RayTracing/RayTracingCapsuleLight.ush"
 #include "../RayTracing/RayTracingSphereLight.ush"
 #include "../RayTracing/RayTracingRectLight.ush"
+#include "../LightData.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -20,41 +21,6 @@
 RWTexture2D<float4> RWScreenProbeLightSampleDirection;
 RWTexture2D<uint> RWScreenProbeLightSampleFlags;
 RWTexture2D<float3> RWScreenProbeLightSampleRadiance;
-
-FDeferredLightData ConvertToDeferredLight(FLocalLightData LocalLight)
-{
-	FDeferredLightData LightData = (FDeferredLightData)0;
-	LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
-	LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
-	LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
-	LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
-	LightData.Direction = LocalLight.LightDirectionAndShadowMask.xyz;
-	LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
-	LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
-	LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-	LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-	LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
-	LightData.bInverseSquared = LightData.FalloffExponent == 0;
-	LightData.bRadialLight = true;
-	LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-	LightData.SpecularScale = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
-	// Initialize rect light once parameters are supported onto FLocalLightData
-	// LightData.RectLightAtlasMaxLevel = LocalLight.RectLightAtlasMaxLevel;
-	// LightData.RectLightAtlasUVOffset = LocalLight.RectLightAtlasUVOffset;
-	// LightData.RectLightAtlasUVScale  = LocalLight.RectLightAtlasUVScale;
-	// LightData.RectLightBarnCosAngle	= DeferredLightUniforms.RectLightBarnCosAngle;
-	// LightData.RectLightBarnLength	= DeferredLightUniforms.RectLightBarnLength;
-	LightData.HairTransmittance = InitHairTransmittanceData();
-
-	// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
-	uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);
-
-	LightData.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
-	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-	LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
-
-	return LightData;
-}
 
 FLightShaderParameters ConvertToLightShaderParameters(FDeferredLightData DeferredLightData)
 {
@@ -199,7 +165,7 @@ void ScreenProbeGenerateLightSamplesCS(
 				{
 					const FLocalLightData LocalLight = GetLocalLightData(CulledLightGridData.DataStartIndex + LightIndex, EyeIndex);
 
-					FDeferredLightData LightData = ConvertToDeferredLight(LocalLight);
+					FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
 
 					float3 L = LightData.Direction;
 					float3 ToLight = L;

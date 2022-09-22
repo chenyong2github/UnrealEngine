@@ -985,27 +985,11 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				{
 					const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, 0);
 			
-					float VolumetricScatteringIntensity = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w) >> 16);
+					const float VolumetricScatteringIntensity = UnpackVolumetricScatteringIntensity(LocalLight);
 
 					if (VolumetricScatteringIntensity > 0)
 					{
-						FDeferredLightData LightData = (FDeferredLightData)0;
-						LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
-						LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
-						LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
-						LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
-						LightData.Direction = LocalLight.LightDirectionAndShadowMask.xyz;
-						LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
-						LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
-						LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-						LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-						LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
-						LightData.bInverseSquared = LightData.FalloffExponent == 0;
-						LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.x;
-						LightData.RectLightBarnLength = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.y;
-						LightData.bRadialLight = true;
-						LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-						LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
+						const FDeferredLightData LightData = ConvertLocalLightToDeferredLight(LocalLight);
 
 						float3 L = 0;
 						float3 ToLight = 0;
