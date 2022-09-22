@@ -77,12 +77,12 @@ public:
 
 public:
 	FString MaterialName;
-	FColor Diffuse;
-	FColor Ambient;
-	FColor Specular;
-	float Shininess;
-	float Transparency;
-	float Reflexion;
+	FColor Diffuse = FColor(255, 255, 255);
+	FColor Ambient = FColor(255, 255, 255);
+	FColor Specular = FColor(255, 255, 255);
+	float Shininess = 0.f;
+	float Transparency = 0.f;
+	float Reflexion = 0.f;
 	FString TextureName;
 };
 
