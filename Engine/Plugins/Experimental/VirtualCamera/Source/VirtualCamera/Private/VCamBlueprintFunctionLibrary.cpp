@@ -10,6 +10,8 @@
 #include "AssetRegistry/AssetData.h"
 #include "VirtualCameraUserSettings.h"
 #include "GameFramework/PlayerController.h"
+#include "MovieScene.h"
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/Transactor.h"
@@ -25,6 +27,8 @@
 #include "Subsystems/UnrealEditorSubsystem.h"
 #include "LevelEditor/Public/LevelEditorSubsystem.h"
 #include "Modules/ModuleManager.h"
+#include "Recorder/TakeRecorderBlueprintLibrary.h"
+#include "Recorder/TakeRecorderPanel.h"
 #endif
 
 bool UVCamBlueprintFunctionLibrary::IsGameRunning()
@@ -383,11 +387,13 @@ void UVCamBlueprintFunctionLibrary::EditorSetGameView(bool bIsToggled)
 
 void UVCamBlueprintFunctionLibrary::EnableDebugFocusPlane(UCineCameraComponent* CineCamera, bool bEnabled)
 {
+#if WITH_EDITOR
 	if (!CineCamera)
 	{
 		return;
 	}
 	CineCamera->FocusSettings.bDrawDebugFocusPlane = bEnabled;
+#endif
 }
 
 FString UVCamBlueprintFunctionLibrary::GetNextUndoDescription()
@@ -431,6 +437,24 @@ void UVCamBlueprintFunctionLibrary::SetActorLabel(AActor* Actor, const FString& 
 	{
 		Actor->SetActorLabel(NewActorLabel);
 	}
+#endif
+}
+
+bool UVCamBlueprintFunctionLibrary::IsTakeRecorderPanelOpen()
+{
+#if WITH_EDITOR
+	return IsValid(UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel());
+#else
+	return false;
+#endif
+}
+
+bool UVCamBlueprintFunctionLibrary::TryOpenTakeRecorderPanel()
+{
+#if WITH_EDITOR
+	return IsValid(UTakeRecorderBlueprintLibrary::OpenTakeRecorderPanel());
+#else
+	return false;
 #endif
 }
 

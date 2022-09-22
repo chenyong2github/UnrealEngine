@@ -31,11 +31,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera | Streaming")
 	bool IsStreaming() const;
 
+#if WITH_EDITOR
 	UFUNCTION()
 	void HandleSelectionChangedEvent(UObject* SelectedObject);
 
 	UFUNCTION()
 	void HandleSelectObjectEvent(UObject* SelectedObject);
+#endif
 
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	TScriptInterface<IVirtualCameraController> GetVirtualCameraController() const;

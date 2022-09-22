@@ -229,6 +229,7 @@ void UVirtualCameraCineCameraComponent::SetFocusChangeSmoothness(const float New
 
 void UVirtualCameraCineCameraComponent::SetFocusVisualization(bool bShowFocusVisualization)
 {
+#if WITH_EDITOR
 	if (FocusSettings.FocusMethod == ECameraFocusMethod::Disable)
 	{
 		UE_LOG(LogActor, Warning, TEXT("Camera focus mode is currently set to none, cannot display focus plane!"))
@@ -236,11 +237,16 @@ void UVirtualCameraCineCameraComponent::SetFocusVisualization(bool bShowFocusVis
 	}
 
 	FocusSettings.bDrawDebugFocusPlane = bShowFocusVisualization;
+#endif
 }
 
 bool UVirtualCameraCineCameraComponent::IsFocusVisualizationActivated() const
 {
+#if WITH_EDITOR
 	return FocusSettings.FocusMethod != ECameraFocusMethod::Disable && FocusSettings.bDrawDebugFocusPlane;
+#else
+	return false;
+#endif
 }
 
 int32 UVirtualCameraCineCameraComponent::FindClosestPresetIndex(const TArray<float>& ArrayToSearch, const float SearchValue) const

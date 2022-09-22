@@ -54,8 +54,9 @@ public:
 	* Extend the default ULevelSequence asset registry tags
 	*/
 	virtual void ExtendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-
+#if WITH_EDITOR
 	virtual void ExtendAssetRegistryTagMetaData(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
+#endif
 
 public:
 	/**

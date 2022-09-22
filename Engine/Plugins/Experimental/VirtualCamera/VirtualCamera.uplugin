@@ -41,7 +41,7 @@
 		},
 		{
 			"Name": "VirtualCamera",
-			"Type": "UncookedOnly",
+			"Type": "Runtime",
 			"LoadingPhase": "PostDefault",
 			"PlatformAllowList": [
 				"Win64",

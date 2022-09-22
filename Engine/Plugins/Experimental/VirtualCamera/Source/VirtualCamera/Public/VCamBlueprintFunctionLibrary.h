@@ -150,6 +150,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static void SetActorLabel(AActor* Actor, const FString& NewActorLabel);
 
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	static bool IsTakeRecorderPanelOpen();
+
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static bool TryOpenTakeRecorderPanel();
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);

@@ -9,8 +9,10 @@ UVirtualCameraSubsystem::UVirtualCameraSubsystem()
 	: bIsStreaming(false)
 {
 	SequencePlaybackController = CreateDefaultSubobject<ULevelSequencePlaybackController>("SequencePlaybackController");
+#if WITH_EDITOR
 	USelection::SelectionChangedEvent.AddUObject(this, &UVirtualCameraSubsystem::HandleSelectionChangedEvent);
 	USelection::SelectObjectEvent.AddUObject(this, &UVirtualCameraSubsystem::HandleSelectObjectEvent);
+#endif
 }
 
 bool UVirtualCameraSubsystem::StartStreaming()
@@ -60,7 +62,7 @@ bool UVirtualCameraSubsystem::IsStreaming() const
 	return bIsStreaming;
 }
 
-
+#if WITH_EDITOR
 void UVirtualCameraSubsystem::HandleSelectionChangedEvent(UObject* ChangedObject)
 {
 	USelection* Selection = Cast<USelection>(ChangedObject);
@@ -84,7 +86,7 @@ void UVirtualCameraSubsystem::HandleSelectObjectEvent(UObject* ChangedObject)
 		OnSelectedActorInViewportDelegate.Broadcast(SelectedActorCheck2);
 	}
 }
-
+#endif
 
 TScriptInterface<IVirtualCameraController> UVirtualCameraSubsystem::GetVirtualCameraController() const
 {

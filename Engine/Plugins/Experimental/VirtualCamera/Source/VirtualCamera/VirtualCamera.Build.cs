@@ -25,8 +25,6 @@ public class VirtualCamera : ModuleRules
 				"UMG",
 				"VCamCore",
 				"VPUtilities",
-				"VPUtilitiesEditor",
-				"TakesCore",
 				"AssetRegistry",
 			}
 		);
@@ -68,6 +66,8 @@ public class VirtualCamera : ModuleRules
 			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 			PrivateDependencyModuleNames.Add("EditorScriptingUtilities");
+			PrivateDependencyModuleNames.Add("VPUtilitiesEditor");
+			PrivateDependencyModuleNames.Add("TakesCore");
 		}
 	}
 }

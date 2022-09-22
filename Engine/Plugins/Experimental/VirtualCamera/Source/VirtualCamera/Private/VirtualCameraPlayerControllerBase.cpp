@@ -882,11 +882,12 @@ EUnit AVirtualCameraPlayerControllerBase::GetDesiredDistanceUnits()
 
 FColor AVirtualCameraPlayerControllerBase::GetFocusPlaneColor()
 {
+#if WITH_EDITOR
 	if (UVirtualCameraCineCameraComponent* CineCamera = GetVirtualCameraCineCameraComponent())
 	{
 		return CineCamera->FocusSettings.DebugFocusPlaneColor;
 	}
-
+#endif
 	return FColor();
 }
 
@@ -1248,10 +1249,12 @@ void AVirtualCameraPlayerControllerBase::SetFocusMethod(const EVirtualCameraFocu
 
 void AVirtualCameraPlayerControllerBase::SetFocusPlaneColor(const FColor NewFocusPlaneColor)
 {
+#if WITH_EDITOR
 	if (GetVirtualCameraCineCameraComponent())
 	{
 		GetVirtualCameraCineCameraComponent()->FocusSettings.DebugFocusPlaneColor = NewFocusPlaneColor;
 	}
+#endif
 }
 
 void AVirtualCameraPlayerControllerBase::SetFocusVisualization(bool bShowFocusVisualization)

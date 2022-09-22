@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "LevelSequence.h"
 #include "Modules/ModuleManager.h"
+#include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "UObject/UObjectBase.h"
 #include "UObject/UObjectIterator.h"

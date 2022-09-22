@@ -268,6 +268,7 @@ void AVirtualCameraActor::SetTrackedActorForFocus_Implementation(AActor* InActor
 
 void AVirtualCameraActor::SetFocusVisualization_Implementation(bool bInShowFocusVisualization)
 {
+#if WITH_EDITOR
 	UCineCameraComponent* CineCamera = GetCineCameraComponent();
 	if (CineCamera)
 	{
@@ -278,6 +279,7 @@ void AVirtualCameraActor::SetFocusVisualization_Implementation(bool bInShowFocus
 		}
 		CineCamera->FocusSettings.bDrawDebugFocusPlane = bInShowFocusVisualization;
 	}
+#endif
 }
 
 void AVirtualCameraActor::SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate)
@@ -663,7 +665,11 @@ void AVirtualCameraActor::SaveSettings()
 	SaveGameInstance->CameraSettings.FocalLength = CineCamera->CurrentFocalLength;
 	SaveGameInstance->CameraSettings.Aperture = CineCamera->CurrentAperture;
 	SaveGameInstance->CameraSettings.bAllowFocusVisualization = bAllowFocusVisualization;
+#if WITH_EDITORONLY_DATA
 	SaveGameInstance->CameraSettings.DebugFocusPlaneColor = CineCamera->FocusSettings.DebugFocusPlaneColor;
+#else
+	SaveGameInstance->CameraSettings.DebugFocusPlaneColor = FColor();
+#endif
 
 	// Save filmback settings
 	SaveGameInstance->CameraSettings.FilmbackName = CineCamera->GetFilmbackPresetName();
@@ -703,10 +709,12 @@ void AVirtualCameraActor::LoadSettings()
 
 	bAllowFocusVisualization = SaveGameInstance->CameraSettings.bAllowFocusVisualization;
 
+#if WITH_EDITORONLY_DATA
 	if (SaveGameInstance->CameraSettings.DebugFocusPlaneColor != FColor())
 	{
 		CineCamera->FocusSettings.DebugFocusPlaneColor = SaveGameInstance->CameraSettings.DebugFocusPlaneColor;
 	}
+#endif
 
 	CineCamera->SetCurrentFocalLength(SaveGameInstance->CameraSettings.FocalLength);
 	CineCamera->CurrentAperture = SaveGameInstance->CameraSettings.Aperture;

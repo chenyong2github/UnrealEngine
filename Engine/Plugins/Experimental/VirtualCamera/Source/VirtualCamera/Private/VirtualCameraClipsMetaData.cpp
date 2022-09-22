@@ -36,7 +36,7 @@ void UVirtualCameraClipsMetaData::ExtendAssetRegistryTags(TArray<FAssetRegistryT
 	OutTags.Emplace(AssetRegistryTag_bIsACineCameraRecording, IsRecordedFromACineCameraActor, FAssetRegistryTag::ETagType::TT_Alphabetical, FAssetRegistryTag::TD_None);
 }
 
-
+#if WITH_EDITOR
 void UVirtualCameraClipsMetaData::ExtendAssetRegistryTagMetaData(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const
 {
 	OutMetadata.Add(AssetRegistryTag_FocalLength, FAssetRegistryTagMetadata()
@@ -76,9 +76,8 @@ void UVirtualCameraClipsMetaData::ExtendAssetRegistryTagMetaData(TMap<FName, FAs
 		.SetDisplayName(NSLOCTEXT("ClipsMetaData", "IsACineCameraRecording_Label", "bIsACineCameraRecording"))
 		.SetTooltip(NSLOCTEXT("ClipsMetaData", "IsACineCameraRecording_Tip", "If the level sequence was recorded with a CineCameraActor."))
 	);
-
-
 }
+#endif
 
 float UVirtualCameraClipsMetaData::GetFocalLength() const 
 {

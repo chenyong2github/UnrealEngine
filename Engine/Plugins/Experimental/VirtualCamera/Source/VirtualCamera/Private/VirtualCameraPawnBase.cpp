@@ -424,7 +424,11 @@ void AVirtualCameraPawnBase::SaveSettings()
 	SaveGameInstance->CameraSettings.FocalLength = CineCamera->GetCurrentFocalLength();
 	SaveGameInstance->CameraSettings.Aperture = CineCamera->GetCurrentAperture();
 	SaveGameInstance->CameraSettings.bAllowFocusVisualization = bAllowFocusVisualization;
+#if WITH_EDITORONLY_DATA
 	SaveGameInstance->CameraSettings.DebugFocusPlaneColor = CineCamera->FocusSettings.DebugFocusPlaneColor;
+#else
+	SaveGameInstance->CameraSettings.DebugFocusPlaneColor = FColor();
+#endif
 
 	// Save filmback settings
 	SaveGameInstance->CameraSettings.FilmbackName = CineCamera->GetCurrentFilmbackName();
@@ -486,10 +490,12 @@ void AVirtualCameraPawnBase::LoadSettings()
 
 	bAllowFocusVisualization = SaveGameInstance->CameraSettings.bAllowFocusVisualization;
 
+#if WITH_EDITORONLY_DATA
 	if (SaveGameInstance->CameraSettings.DebugFocusPlaneColor != FColor())
 	{
 		CineCamera->FocusSettings.DebugFocusPlaneColor = SaveGameInstance->CameraSettings.DebugFocusPlaneColor;
 	}
+#endif
 
 	// Load focal length
 	if (CineCamera->FocalLengthOptions.Contains(SaveGameInstance->CameraSettings.FocalLength))
