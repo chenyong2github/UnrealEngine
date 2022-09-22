@@ -278,7 +278,7 @@ bool FPCGMetadataMathsElement::DoOperation(FOperationData& OperationData) const
 					PCGMetadataEntryKey EntryKey = *Iterator1;
 
 					// If the entry key is invalid, nothing to do
-					if (EntryKey == PCGInvalidEntryKey)
+					if (EntryKey != PCGInvalidEntryKey)
 					{
 						AttributeType Value = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey);
 
@@ -320,7 +320,7 @@ bool FPCGMetadataMathsElement::DoOperation(FOperationData& OperationData) const
 					PCGMetadataEntryKey EntryKey2 = *Iterator2;
 
 					// If the entry key is invalid, nothing to do
-					if (EntryKey1 == PCGInvalidEntryKey)
+					if (EntryKey1 != PCGInvalidEntryKey)
 					{
 						AttributeType Value1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey1);
 						AttributeType Value2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], EntryKey2);
@@ -369,7 +369,7 @@ bool FPCGMetadataMathsElement::DoOperation(FOperationData& OperationData) const
 					PCGMetadataEntryKey EntryKey3 = *Iterator3;
 
 					// If the entry key is invalid, nothing to do
-					if (EntryKey1 == PCGInvalidEntryKey)
+					if (EntryKey1 != PCGInvalidEntryKey)
 					{
 						AttributeType Value1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey1);
 						AttributeType Value2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], EntryKey2);

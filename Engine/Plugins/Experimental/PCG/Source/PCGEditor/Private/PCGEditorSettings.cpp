@@ -19,6 +19,7 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	SamplerNodeColor = FLinearColor(0.8f, 1.0f, 0.4f);
 	SpawnerNodeColor = FLinearColor(1.0f, 0.6f, 0.4f);
 	SubgraphNodeColor = FLinearColor(1.0f, 0.1f, 0.1f);
+	ParamDataNodeColor = FLinearColor(1.0f, 0.6f, 0.0f);
 	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
 
 	DefaultPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
@@ -81,6 +82,10 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 	else if (Settings->GetType() == EPCGSettingsType::Debug)
 	{
 		return DebugNodeColor;
+	}
+	else if (Settings->GetType() == EPCGSettingsType::Param)
+	{
+		return ParamDataNodeColor;
 	}
 	else
 	{

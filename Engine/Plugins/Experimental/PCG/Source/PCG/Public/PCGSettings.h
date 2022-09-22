@@ -38,7 +38,8 @@ enum class EPCGSettingsType : uint8
 	Spawner,
 	Subgraph,
 	Debug,
-	Generic
+	Generic,
+	Param
 };
 
 #if WITH_EDITOR
