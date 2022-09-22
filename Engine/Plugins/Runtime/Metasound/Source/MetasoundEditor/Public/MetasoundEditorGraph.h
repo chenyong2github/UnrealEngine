@@ -3,7 +3,6 @@
 
 #include "AudioParameterControllerInterface.h"
 #include "MetasoundEditor.h"
-#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
