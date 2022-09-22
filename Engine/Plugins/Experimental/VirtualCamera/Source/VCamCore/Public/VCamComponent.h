@@ -67,6 +67,7 @@ public:
 
 	virtual void CheckForErrors() override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
