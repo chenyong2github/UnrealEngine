@@ -36,7 +36,7 @@ class NNXHLSLSHADERS_API FMLConvTransposeCS : public FGlobalShader
 	class FConvTransposeAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EConvTransposeAlgorithm);
 	class FConvTransposeGroupSize : SHADER_PERMUTATION_ENUM_CLASS("GROUP_SIZE", EConvTransposeGroupSize);
 	class FConvTransposeNumStackDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_STACK_DIMENSIONS", 1, NNXRT_CONVTRANSPOSE_MAX_NUM_STACK_DIMENSIONS);
-	class FConvTransposeNumReadsPerThread : SHADER_PERMUTATION_RANGE_INT("NUM_READS_PER_THREAD_POW2", NNXRT_CONVTRANSPOSE_MIN_NUM_READS_PER_THREAD_POW2, NNXRT_CONVTRANSPOSE_MIN_NUM_READS_PER_THREAD_POW2);
+	class FConvTransposeNumReadsPerThread : SHADER_PERMUTATION_RANGE_INT("NUM_READS_PER_THREAD_POW2", NNXRT_CONVTRANSPOSE_MIN_NUM_READS_PER_THREAD_POW2, NNXRT_CONVTRANSPOSE_MAX_NUM_READS_PER_THREAD_POW2);
 	class FConvTransposeHasB : SHADER_PERMUTATION_BOOL("HAS_B");
 	using FPermutationDomain = TShaderPermutationDomain<FConvTransposeAlgorithm, FConvTransposeGroupSize, FConvTransposeNumStackDimensions, FConvTransposeNumReadsPerThread, FConvTransposeHasB>;
 
