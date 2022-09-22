@@ -30,8 +30,9 @@ namespace UE::Interchange::MaterialX
 {
 	bool IsStandardSurfacePackageLoaded()
 	{
-		auto IsPackageLoaded = [](const FString & TextPath) -> bool
+		static const bool bStandardSurfacePackageLoaded = []() -> bool
 		{
+			const FString TextPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'") };
 			const FString FunctionPath{ FPackageName::ExportTextPathToObjectPath(TextPath) };
 			if(FPackageName::DoesPackageExist(FunctionPath))
 			{
@@ -50,11 +51,7 @@ namespace UE::Interchange::MaterialX
 			}
 
 			return false;
-		};
-
-		static const bool bStandardSurfacePackageLoaded =
-			IsPackageLoaded(TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'")) &&
-			IsPackageLoaded(TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'"));
+		}();
 
 		return bStandardSurfacePackageLoaded;
 	}
