@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -202,7 +202,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Optional list of platforms to generate projects for
 		/// </summary>
-		readonly List<UnrealTargetPlatform> ProjectPlatforms = new List<UnrealTargetPlatform>();
+		protected readonly List<UnrealTargetPlatform> ProjectPlatforms = new List<UnrealTargetPlatform>();
 
 		/// <summary>
 		/// Whether to append the list of platform names after the solution

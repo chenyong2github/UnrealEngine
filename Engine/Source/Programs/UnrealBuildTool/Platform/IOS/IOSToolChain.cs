@@ -1211,6 +1211,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			if (bUseModernXcode)
+			{
+				// update version xcconfig file so xcode can update the .plist with our incrementing build version
+				OutputFiles.Add(UpdateVersionFile(BinaryLinkEnvironment, Executable, Graph));
+			}
+
 			// strip the debug info from the executable if needed. creates a dummy output file for the action graph to track that it's out of date.
 			if (Target.IOSPlatform.bStripSymbols || (Target.Configuration == UnrealTargetConfiguration.Shipping))
 			{
@@ -1230,13 +1236,6 @@ namespace UnrealBuildTool
 				StripAction.bCanExecuteRemotely = false;
 
 				OutputFiles.Add(StripCompleteFile);
-			}
-
-			bool bUseModernXcode = false;
-			if (OperatingSystem.IsMacOS())
-			{
-				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
-				Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
 			}
 
 			if (!BinaryLinkEnvironment.bIsBuildingDLL && !bUseModernXcode)
@@ -1562,10 +1561,6 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, GetActualProjectDirectory(Target.ProjectFile), UnrealTargetPlatform.IOS);
-			bool bUseModernXcode;
-			Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
-
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 			string? BundleID = ProjectSettings.BundleIdentifier;
 
@@ -1621,7 +1616,7 @@ namespace UnrealBuildTool
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
-			if (bUseModernXcode)
+			if (UseModernXcode(Target.ProjectFile))
 			{
 				// generate a run-only project file for codesigning, etc
 				DirectoryReference? GeneratedProjectFile;

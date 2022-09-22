@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -117,6 +117,61 @@ namespace UnrealBuildTool
 
 		private static void SetupXcodePaths(bool bVerbose)
 		{
+		}
+
+		public static DirectoryReference FindProductDirectory(FileReference? ProjectFile, DirectoryReference BinaryDir, string? NameIfProgram)
+		{ 
+			// a project file is always used if there is one
+			if (ProjectFile != null)
+			{
+				return ProjectFile.Directory;
+			}
+			// look to see if this is a program, and hunt down where the Programs directory is
+			if (NameIfProgram != null)
+			{
+				return FindProgramDirectoryFromSource(BinaryDir, NameIfProgram, true) ?? Unreal.EngineDirectory;
+			}
+			return Unreal.EngineDirectory;
+		}
+
+		public static DirectoryReference? FindProgramDirectoryFromSource(DirectoryReference StartingDir, string ProgramName, bool bCreateIfNotFound)
+		{
+			DirectoryReference? ProgramFinder = StartingDir;
+			while (ProgramFinder != null &&
+				string.Compare(ProgramFinder.GetDirectoryName(), "Source", true) != 0 &&
+				string.Compare(ProgramFinder.GetDirectoryName(), "Intermediate", true) != 0 &&
+				string.Compare(ProgramFinder.GetDirectoryName(), "Binaries", true) != 0)
+			{
+				ProgramFinder = ProgramFinder.ParentDirectory;
+			}
+
+			// we are now at Source or similar directory, go up one more, then into Programs, and finally the "project" directory
+			if (ProgramFinder != null)
+			{
+				DirectoryReference ProgramsDir = DirectoryReference.Combine(ProgramFinder, "../Programs");
+				// if it doesn't exist, something went wrong, and we can't use this. throw an exception to catch it, for now
+				if (!DirectoryReference.Exists(ProgramsDir))
+				{
+					throw new BuildException($"Unable to find Programs directory for {ProgramName}, when starting in {StartingDir}");
+				}
+
+				ProgramFinder = DirectoryReference.Combine(ProgramsDir, ProgramName);
+				// if it exists, we have a ProductDir we can use for plists, icons, etc
+				if (!DirectoryReference.Exists(ProgramFinder))
+				{
+					if (bCreateIfNotFound)
+					{
+						DirectoryReference.CreateDirectory(ProgramFinder);
+						return ProgramFinder;
+					}
+				}
+				else
+				{
+					return ProgramFinder;
+				}
+			}
+
+			return null;
 		}
 
 		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
@@ -714,7 +769,7 @@ namespace UnrealBuildTool
 				FixDylibDepsScript.Close();
 
 				// For non-console application, prepare a script that will create the app bundle. It'll be run by FinalizeAppBundle action
-				if (bIsBuildingAppBundle)
+				if (bIsBuildingAppBundle && !bUseModernXcode)
 				{
 					FileReference FinalizeAppBundleScriptPath = FileReference.Combine(LinkEnvironment.IntermediateDirectory!, "FinalizeAppBundle.sh");
 					StreamWriter FinalizeAppBundleScript = File.CreateText(FinalizeAppBundleScriptPath.FullName);
@@ -737,10 +792,10 @@ namespace UnrealBuildTool
                     // bundle identifier
                     // plist replacements
                     DirectoryReference? DirRef = (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : (ProjectFile != null ? ProjectFile.Directory : null));
-                    ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
+                    ConfigHierarchy IOSIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
 
                     string BundleIdentifier;
-                    Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier!);
+                    IOSIni.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier!);
 
                     string ProjectName = GameName;
 					FileReference? UProjectFilePath = ProjectFile;
@@ -829,7 +884,7 @@ namespace UnrealBuildTool
 					AppendMacLine(FinalizeAppBundleScript, FormatCopyCommand(TempInfoPlist, String.Format("{0}.app/Contents/Info.plist", ExeName)));
 					AppendMacLine(FinalizeAppBundleScript, "chmod 644 \"{0}.app/Contents/Info.plist\"", ExeName);
 
-					// Also copy it to where Xcode will look for it, now that Xcode 14 requireswe have one set up - it can't point into the .app because that
+					// Also copy it to where Xcode will look for it, now that Xcode 14 requires we have one set up - it can't point into the .app because that
 					// is where it will copy to, so it will error with reading and writing to the same location
 					string IntermediateDirectory = (ProjectFile == null ? Unreal.EngineDirectory : ProjectFile.Directory) + "/Intermediate/Mac";
 					string XcodeInputPListFile = IntermediateDirectory + "/" + ExeName + "-Info.plist";
@@ -1193,7 +1248,14 @@ namespace UnrealBuildTool
 			bool bIsBuildingAppBundle = !BinaryLinkEnvironment.bIsBuildingDLL && !BinaryLinkEnvironment.bIsBuildingLibrary && !BinaryLinkEnvironment.bIsBuildingConsoleApplication;
 			if (bIsBuildingAppBundle)
 			{
-				OutputFiles.Add(FinalizeAppBundle(BinaryLinkEnvironment, Executable, FixDylibOutputFile, Graph));
+				if (bUseModernXcode)
+				{
+					OutputFiles.Add(UpdateVersionFile(BinaryLinkEnvironment, FixDylibOutputFile, Graph));
+				}
+				else
+				{
+					OutputFiles.Add(FinalizeAppBundle(BinaryLinkEnvironment, Executable, FixDylibOutputFile, Graph));
+				}
 			}
 
 			// Add dsyms that we couldn't add before FixDylibDependencies action was created

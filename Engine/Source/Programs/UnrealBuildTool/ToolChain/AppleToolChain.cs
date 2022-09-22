@@ -161,6 +161,17 @@ namespace UnrealBuildTool
 		}
 
 		protected FileReference? ProjectFile;
+		
+		protected static bool UseModernXcode(FileReference? ProjectFile)
+		{
+			// Modern Xcode mode does this now
+			bool _bUseModernXcode = false;
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
+			Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out _bUseModernXcode);
+			return _bUseModernXcode;
+		}
+
+		protected bool bUseModernXcode => UseModernXcode(ProjectFile);
 
 		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions, ILogger InLogger) : base(InOptions, InLogger)
 		{
@@ -187,6 +198,41 @@ namespace UnrealBuildTool
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 		}
+
+		/// <summary>
+		/// Writes a versions.xcconfig file for xcode to pull in when making an app plist
+		/// </summary>
+		/// <param name="LinkEnvironment"></param>
+		/// <param name="Prerequisite">FileItem describing the Prerequisite that this will this depends on (executable or similar) </param>
+		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
+		protected FileItem UpdateVersionFile(LinkEnvironment LinkEnvironment, FileItem Prerequisite, IActionGraphBuilder Graph)
+		{
+			FileItem DestFile;
+
+			// Make the compile action
+			Action UpdateVersionAction = Graph.CreateAction(ActionType.CreateAppBundle);
+			UpdateVersionAction.WorkingDirectory = GetMacDevSrcRoot();
+			UpdateVersionAction.CommandPath = BuildHostPlatform.Current.Shell;
+			UpdateVersionAction.CommandDescription = "";
+
+			// @todo programs right nhow are sharing the Engine build version - one reason for this is that we can't get to the Engine/Programs directory from here
+			// (we can't even get to the Engine/Source/Programs directory without searching on disk), and if we did, we would create a _lot_ of Engine/Programs directories
+			// on disk that don't exist in p4. So, we just re-use Engine version, not Project version
+			//				DirectoryReference ProductDirectory = FindProductDirectory(ProjectFile, LinkEnvironment.OutputDirectory!, Graph.Makefile.TargetType);
+			DirectoryReference ProductDirectory = (ProjectFile?.Directory) ?? Unreal.EngineDirectory;
+			FileReference OutputVersionFile = FileReference.Combine(ProductDirectory, "Intermediate/Build/Versions.xcconfig");
+			DestFile = FileItem.GetItemByFileReference(OutputVersionFile);
+
+			// make path to the script
+			FileItem BundleScript = FileItem.GetItemByFileReference(FileReference.Combine(Unreal.EngineDirectory, "Build/BatchFiles/Mac/UpdateVersionAfterBuild.sh"));
+			UpdateVersionAction.CommandArguments = $"\"{BundleScript.AbsolutePath}\" {ProductDirectory} {LinkEnvironment.Platform}";
+			UpdateVersionAction.PrerequisiteItems.Add(Prerequisite);
+			UpdateVersionAction.ProducedItems.Add(DestFile);
+			UpdateVersionAction.StatusDescription = $"Updating version file: {OutputVersionFile}";
+
+			return DestFile;
+		}
+
 
 		/// <inheritdoc/>
 		protected override string EscapePreprocessorDefinition(string Definition)

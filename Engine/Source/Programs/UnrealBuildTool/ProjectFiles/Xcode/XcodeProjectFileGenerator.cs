@@ -243,10 +243,10 @@ namespace UnrealBuildTool
 			}
 
 			string ProjectName = PrimaryProjectName;
-			if (ProjectFilePlatform != XcodeProjectFilePlatform.All)
-			{
-				ProjectName += ProjectFilePlatform == XcodeProjectFilePlatform.Mac ? "_Mac" : (ProjectFilePlatform == XcodeProjectFilePlatform.iOS ? "_IOS" : "_TVOS");
-			}
+			//if (ProjectFilePlatform != XcodeProjectFilePlatform.All)
+			//{
+			//	ProjectName += ProjectFilePlatform == XcodeProjectFilePlatform.Mac ? "_Mac" : (ProjectFilePlatform == XcodeProjectFilePlatform.iOS ? "_IOS" : "_TVOS");
+			//}
 			string WorkspaceDataFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/contents.xcworkspacedata";
 			bSuccess = WriteFileIfChanged(WorkspaceDataFilePath, WorkspaceDataContent.ToString(), Logger, new UTF8Encoding());
 			if (bSuccess)
@@ -269,47 +269,55 @@ namespace UnrealBuildTool
 			return WriteXcodeWorkspace(Logger);
 		}
 
-		[Flags]
-		public enum XcodeProjectFilePlatform
-		{
-			Mac = 1 << 0,
-			iOS = 1 << 1,
-			tvOS = 1 << 2,
-			All = Mac | iOS | tvOS
-		}
+		/// <summary>
+		/// A static copy of ProjectPlatforms from the base class
+		/// </summary>
+		static public List<UnrealTargetPlatform> XcodePlatforms = new();
 
-		/// Which platforms we should generate targets for
-		static public XcodeProjectFilePlatform ProjectFilePlatform = XcodeProjectFilePlatform.All;
-
-		/// Should we generate a special project to use for iOS signing instead of a normal one
-		static public bool bGeneratingRunIOSProject = false;
-
-		/// Should we generate a special project to use for tvOS signing instead of a normal one
-		static public bool bGeneratingRunTVOSProject = false;
+		/// <summary>
+		/// Should we generate only a run project (no build/index targets)
+		/// </summary>
+		static public bool bGenerateRunOnlyProject = false;
 
 		/// <inheritdoc/>
 		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)
 		{
 			// Call parent implementation first
 			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms, Logger);
-			ProjectFilePlatform = IncludeAllPlatforms ? XcodeProjectFilePlatform.All : XcodeProjectFilePlatform.Mac;
+
+			if (ProjectPlatforms.Count > 0)
+			{
+				XcodePlatforms.AddRange(ProjectPlatforms);
+			}
+			else
+			{
+				// add platforms that have synced platform support
+				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.Mac, EProjectType.Code))
+				{
+					XcodePlatforms.Add(UnrealTargetPlatform.Mac);
+				}
+				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.IOS, EProjectType.Code))
+				{
+					XcodePlatforms.Add(UnrealTargetPlatform.IOS);
+				}
+				if (InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.TVOS, EProjectType.Code))
+				{
+					XcodePlatforms.Add(UnrealTargetPlatform.TVOS);
+				}
+			}
 
 			foreach (string CurArgument in Arguments)
 			{
-				if (CurArgument.StartsWith("-iOSDeployOnly", StringComparison.InvariantCultureIgnoreCase))
+				if (CurArgument.Contains("-iOSDeployOnly", StringComparison.InvariantCultureIgnoreCase) ||
+					CurArgument.Contains("-tvOSDeployOnly", StringComparison.InvariantCultureIgnoreCase) ||
+					CurArgument.Contains("-DeployOnly", StringComparison.InvariantCultureIgnoreCase))
 				{
-					bGeneratingRunIOSProject = true;
-					break;
-				}
-
-				if (CurArgument.StartsWith("-tvOSDeployOnly", StringComparison.InvariantCultureIgnoreCase))
-				{
-					bGeneratingRunTVOSProject = true;
+					bGenerateRunOnlyProject = true;
 					break;
 				}
 			}
 
-			if (bGeneratingRunIOSProject || bGeneratingRunTVOSProject)
+			if (bGenerateRunOnlyProject)
 			{
 				bIncludeEnginePrograms = false;
 				//bIncludeEngineSource = false;
