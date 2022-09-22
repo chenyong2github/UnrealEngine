@@ -6,9 +6,12 @@
 #include "SRCBindingWarning.h"
 #include "SRCProtocolRangeList.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
+#include "Widgets/Masks/SRCProtocolBindingMask.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SRCProtocolEntity.h"
+#include "Widgets/SRCProtocolShared.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
@@ -118,6 +121,14 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 				[
 					SNew(SRCProtocolEntity, ViewModel.ToSharedRef())
 				]
+				
+				+ SVerticalBox::Slot()
+				.Padding(Padding)
+				.VAlign(VAlign_Center)
+				.AutoHeight()
+				[
+					ConstructMaskingWidget()
+				]
 
 				+ SVerticalBox::Slot()
 				.Padding(Padding)
@@ -144,6 +155,55 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 			]
 		],
 		InOwnerTableView);
+}
+
+TSharedRef<SWidget> SRCProtocolBinding::ConstructMaskingWidget()
+{
+	const TSharedPtr<SWidget> LeftWidget = SNew(SHorizontalBox)
+
+		// Masking Label
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.f, 2.f)
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("OverrideMaskingLabel", "Override Masks"))
+			.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.ShadowOffset(FVector2D(1.f, 1.f))
+		]
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.f)
+		[
+			SNew(SSpacer)
+		];
+
+		const TSharedPtr<SWidget> RightWidget = SNew(SHorizontalBox)
+
+			// Masking Widget
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.Padding(4.f, 2.f)
+			.AutoWidth()
+			[
+				SNew(SRCProtocolBindingMask, ViewModel.ToSharedRef())
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			[
+				SNew(SSpacer)
+			];
+
+	TSharedRef<SWidget> Widget = SNew(RemoteControlProtocolWidgetUtils::SCustomSplitter)
+		.LeftWidget(LeftWidget.ToSharedRef())
+		.RightWidget(RightWidget.ToSharedRef())
+		.ColumnSizeData(PrimaryColumnSizeData);
+
+	return Widget;
 }
 
 FReply SRCProtocolBinding::OnDelete()

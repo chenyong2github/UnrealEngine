@@ -38,6 +38,26 @@ enum class EMaskingType : uint8
 	Unsupported
 };
 
+namespace RemoteControlProtocolMasking
+{
+	static TMap<UScriptStruct*, EMaskingType> StructsToMaskingTypes = { { TBaseStructure<FColor>::Get(), EMaskingType::Color }
+		, { TBaseStructure<FLinearColor>::Get(), EMaskingType::Color }
+		, { TBaseStructure<FRotator>::Get(), EMaskingType::Rotator }
+		, { TBaseStructure<FVector>::Get(), EMaskingType::Vector }
+		, { TBaseStructure<FIntVector>::Get(), EMaskingType::Vector }
+		, { TBaseStructure<FVector4>::Get(), EMaskingType::Quat }
+		, { TBaseStructure<FIntVector4>::Get(), EMaskingType::Quat }
+		, { TBaseStructure<FQuat>::Get(), EMaskingType::Quat }
+	};
+
+	static TSet<UScriptStruct*> OptionalMaskStructs = {
+		TBaseStructure<FLinearColor>::Get(),
+		TBaseStructure<FVector4>::Get(),
+		TBaseStructure<FQuat>::Get(),
+		TBaseStructure<FIntVector4>::Get()
+	};
+}
+
 /**
  * A widget that represents a triplet mask.
  */

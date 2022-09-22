@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,9 +14,6 @@ struct FRemoteControlProtocolEntity;
 struct FSlateColor;
 
 class FProtocolBindingViewModel;
-class FProtocolBindingViewModel;
-class FProtocolRangeViewModel;
-class FProtocolRangeViewModel;
 class FProtocolRangeViewModel;
 class ITableRow;
 class SRCProtocolRangeList;
@@ -42,6 +39,9 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedRef<FProtocolBindingViewModel>& InViewModel);
 
 private:
+	/** Constructs the masking widget. */
+	TSharedRef<SWidget> ConstructMaskingWidget();
+
 	/** Called when Delete button pressed. */
 	FReply OnDelete();
 

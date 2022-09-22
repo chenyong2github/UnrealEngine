@@ -698,7 +698,15 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, ObjectRef.PropertyPathInfo, ObjectRef);
 
 		TSharedPtr<FRCMaskingOperation> MaskingOperation = MakeShared<FRCMaskingOperation>(ObjectRef.PropertyPathInfo, Object);
-		MaskingOperation->Masks = RemoteControlProperty->GetActiveMasks();
+
+		if (OverridenMasks == ERCMask::NoMask)
+		{
+			MaskingOperation->Masks = RemoteControlProperty->GetActiveMasks();
+		}
+		else
+		{
+			MaskingOperation->Masks = OverridenMasks;
+		}
 
 		// Cache the values.
 		IRemoteControlModule::Get().PerformMasking(MaskingOperation.ToSharedRef());
@@ -736,6 +744,21 @@ ERCBindingStatus FRemoteControlProtocolEntity::ToggleBindingStatus()
 void FRemoteControlProtocolEntity::ResetDefaultBindingState()
 {
 	BindingStatus = ERCBindingStatus::Unassigned;
+}
+
+void FRemoteControlProtocolEntity::ClearMask(ERCMask InMaskBit)
+{
+	OverridenMasks &= ~InMaskBit;
+}
+
+void FRemoteControlProtocolEntity::EnableMask(ERCMask InMaskBit)
+{
+	OverridenMasks |= InMaskBit;
+}
+
+bool FRemoteControlProtocolEntity::HasMask(ERCMask InMaskBit) const
+{
+	return (OverridenMasks & InMaskBit) != ERCMask::NoMask;
 }
 
 #if WITH_EDITOR

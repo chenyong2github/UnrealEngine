@@ -51,7 +51,7 @@ public:
 	FGuid OperationId;
 
 	/** Masks to be applied. */
-	ERCMask Masks = ERCMask::NoMask;
+	ERCMask Masks = RC_AllMasks;
 
 	/** Holds Object reference. */
 	FRCObjectReference ObjectRef;

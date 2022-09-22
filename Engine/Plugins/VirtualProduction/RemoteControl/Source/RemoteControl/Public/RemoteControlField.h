@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RemoteControlCommon.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlProtocolBinding.h"
@@ -9,33 +10,6 @@
 
 class IRemoteControlPropertyHandle;
 struct FPropertyChangedEvent;
-
-UENUM()
-namespace ERCProtocolBinding
-{
-	enum Op
-	{
-		Added,
-
-		Removed
-	};
-}
-
-UENUM()
-enum class ERCMask : uint8
-{
-	NoMask = 0x00000000,
-
-	MaskA = 0x00000001,
-
-	MaskB = 0x00000002,
-
-	MaskC = 0x00000004,
-
-	MaskD = 0x00000008,
-};
-
-ENUM_CLASS_FLAGS(ERCMask);
 
 /**
  * The type of the exposed field.
@@ -77,8 +51,6 @@ struct REMOTECONTROL_API FRemoteControlField : public FRemoteControlEntity
 	virtual void EnableMask(ERCMask InMaskBit);
 	/** Returns true if the given mask is enabled, false otherwise. */
 	virtual bool HasMask(ERCMask InMaskBit) const;
-	/** Returns true if this field has optional mask. */
-	virtual bool HasOptionalMask() const { return false; }
 	/** Returns true if this field supports masking. */
 	virtual bool SupportsMasking() const { return false; }
 
@@ -134,7 +106,7 @@ protected:
 	
 	/** Holds the actively enabled masks. */
 	UPROPERTY()
-	ERCMask ActiveMasks = ERCMask::NoMask;
+	ERCMask ActiveMasks = RC_AllMasks;
 
 protected:
 	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*> InBindings);
@@ -174,7 +146,6 @@ public:
 	//~ End FRemoteControlEntity interface
 	
 	//~ Begin FRemoteControlField interface
-	virtual bool HasOptionalMask() const override;
 	virtual bool SupportsMasking() const override;
 	//~ End FRemoteControlField interface
 

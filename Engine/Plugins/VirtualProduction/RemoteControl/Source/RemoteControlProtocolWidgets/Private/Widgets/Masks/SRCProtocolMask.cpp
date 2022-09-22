@@ -6,19 +6,6 @@
 
 #define LOCTEXT_NAMESPACE "SRCProtocolMask"
 
-namespace RemoteControlProtocolMasking
-{
-	static TMap<UScriptStruct*, EMaskingType> StructsToMaskingTypes = { { TBaseStructure<FColor>::Get(), EMaskingType::Color }
-		, { TBaseStructure<FLinearColor>::Get(), EMaskingType::Color }
-		, { TBaseStructure<FRotator>::Get(), EMaskingType::Rotator }
-		, { TBaseStructure<FVector>::Get(), EMaskingType::Vector }
-		, { TBaseStructure<FIntVector>::Get(), EMaskingType::Vector }
-		, { TBaseStructure<FVector4>::Get(), EMaskingType::Quat }
-		, { TBaseStructure<FIntVector4>::Get(), EMaskingType::Quat }
-		, { TBaseStructure<FQuat>::Get(), EMaskingType::Quat }
-	};
-}
-
 void SRCProtocolMask::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField)
 {
 	WeakField = MoveTemp(InField);
@@ -74,7 +61,13 @@ bool SRCProtocolMask::HasOptionalMask() const
 {
 	if (TSharedPtr<FRemoteControlField> RCField = WeakField.Pin())
 	{
-		return RCField->HasOptionalMask();
+		if (TSharedPtr<FRemoteControlProperty> RCProperty = StaticCastSharedPtr<FRemoteControlProperty>(RCField))
+		{
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(RCProperty->GetProperty()))
+			{
+				return RemoteControlProtocolMasking::OptionalMaskStructs.Contains(StructProperty->Struct);
+			}
+		}
 	}
 
 	return false;

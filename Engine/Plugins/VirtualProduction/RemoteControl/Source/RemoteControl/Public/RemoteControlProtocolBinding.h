@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "RemoteControlCommon.h"
 #include "RCPropertyUtilities.h"
 #include "RCTypeTraits.h"
 #include "Containers/UnrealString.h"
@@ -426,6 +427,15 @@ public:
 	 */
 	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) { return false; }
 
+	/** Masking Support */
+
+	/** Disables the given mask. */
+	virtual void ClearMask(ERCMask InMaskBit);
+	/** Enables the given mask. */
+	virtual void EnableMask(ERCMask InMaskBit);
+	/** Returns true if the given mask is enabled, false otherwise. */
+	virtual bool HasMask(ERCMask InMaskBit) const;
+
 #if WITH_EDITOR
 
 	/** Retrieves the name of property corresponding to the given column name. */
@@ -535,7 +545,11 @@ protected:
 	 */
 	UPROPERTY()
 	TSet<FRemoteControlProtocolMapping> Mappings;
-	
+
+	/** Holds the overriden masks. */
+	UPROPERTY()
+	ERCMask OverridenMasks = ERCMask::NoMask;
+
 #if WITH_EDITOR
 
 	/**
@@ -657,7 +671,7 @@ public:
 	/** Custom struct serialize */
 	bool Serialize(FArchive& Ar);
 	friend FArchive& operator<<(FArchive& Ar, FRemoteControlProtocolBinding& InProtocolBinding);
-
+	
 private:
 	/** Return FRemoteControlProtocolEntity pointer from RemoteControlProtocolEntityPtr */
 	FRemoteControlProtocolEntity* GetRemoteControlProtocolEntity();
