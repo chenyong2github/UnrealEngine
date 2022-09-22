@@ -64,6 +64,8 @@ $ MinSourceFilesForUnityBuildOverride (Int32): The number of source files in thi
 
 $ MinFilesUsingPrecompiledHeaderOverride (Int32): Overrides BuildConfiguration.MinFilesUsingPrecompiledHeader if non-zero.
 
+$ NumIncludedBytesPerUnityCPPOverride (Int32): Overrides Target.NumIncludedBytesPerUnityCPP if non-zero.
+
 $ bBuildLocallyWithSNDBS (Boolean): Module uses a #import so must be built locally when compiling with SN-DBS
 
 $ IsRedistributableOverride (Nullable&lt;Boolean&gt;): Redistribution override flag for this module.
