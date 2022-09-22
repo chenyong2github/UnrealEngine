@@ -186,7 +186,7 @@ FSkeletonRemapping::FSkeletonRemapping(const USkeleton* InSourceSkeleton, const 
 	: SourceSkeleton(InSourceSkeleton)
 	, TargetSkeleton(InTargetSkeleton)
 {
-	if (!InSourceSkeleton || !InTargetSkeleton)
+	if (!GetSourceSkeleton().IsValid() || !GetTargetSkeleton().IsValid())
 	{
 		return;
 	}
