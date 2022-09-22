@@ -604,7 +604,7 @@ FStrataIrradianceAndOcclusion InitIrradianceAndOcclusion(float InAO=1.0f)
 	FStrataIrradianceAndOcclusion Out;
 	Out.MaterialAO = 1.0f;
 	Out.IndirectIrradiance = 1.0f;
-	Out.DiffuseIndirectSampleOcclusion = 0xFFu;
+	Out.DiffuseIndirectSampleOcclusion = 0x0u;
 	return Out;
 }
 
