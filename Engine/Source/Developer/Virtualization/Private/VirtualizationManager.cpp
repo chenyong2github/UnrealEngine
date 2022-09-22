@@ -671,15 +671,15 @@ EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(const TArray
 	OutDescriptionTags.Reset();
 	OutErrors.Reset();
 
-	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutErrors);
-
-	// If we had no new errors add the validation tag to indicate that the packages are safe for submission. 
-	// TODO: Currently this is a simple tag to make it easier for us to track which assets were submitted via the
-	// virtualization process in a test project. This should be expanded when we add proper p4 server triggers.
-	if (OutErrors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
+	if (IsEnabled() && IsPushingEnabled(EStorageType::Persistent))
 	{
-		FText Tag = FText::FromString(VirtualizationProcessTag);
-		OutDescriptionTags.Add(Tag);
+		UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutErrors);
+
+		if (OutErrors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
+		{
+			FText Tag = FText::FromString(VirtualizationProcessTag);
+			OutDescriptionTags.Add(Tag);
+		}
 	}
 
 	return OutErrors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;

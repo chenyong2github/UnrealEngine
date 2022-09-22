@@ -160,19 +160,6 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 	IVirtualizationSystem& System = IVirtualizationSystem::Get();
 
-	// TODO: We could check to see if the package is virtualized even if it is disabled for the project
-	// as a safety feature?
-	if (!System.IsEnabled())
-	{
-		return;
-	}
-
-	if (!System.IsPushingEnabled(EStorageType::Persistent))
-	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("Pushing to persistent backend storage is disabled"));
-		return;
-	}
-
 	const double StartTime = FPlatformTime::Seconds();
 
 	FScopedSlowTask Progress(5.0f, LOCTEXT("Virtualization_Task", "Virtualizing Assets..."));
