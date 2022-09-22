@@ -62,7 +62,7 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 
 	// Compile the shader environment passed in with the shader type's source code.
 	::GlobalBeginCompileShader(
-		Material->GetFriendlyName(),
+		Material->GetFriendlyName() / LexToString(Material->GetQualityLevel()),
 		VertexFactoryType,
 		ShaderType,
 		ShaderPipeline,
