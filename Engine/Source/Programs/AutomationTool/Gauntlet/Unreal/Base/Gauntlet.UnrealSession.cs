@@ -755,14 +755,11 @@ namespace Gauntlet
 					bool bReinstallPerPass = Globals.Params.ParseParam("ReinstallPerPass");
 					if (RolesToInstalls == null || !RolesToInstalls.ContainsKey(Role) || bReinstallPerPass)
 					{
-
 						// Tag the device for report result
 						if(BuildHostPlatform.Current.Platform != Device.Platform)
 						{
 							AppConfig.CommandLineParams.Add("DeviceTag", Device.Name);
 						}
-
-						IAppInstall Install = null;
 
 						IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Device, IDeviceUsageReporter.EventState.Success);
 						IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success, BuildSource.BuildName);
