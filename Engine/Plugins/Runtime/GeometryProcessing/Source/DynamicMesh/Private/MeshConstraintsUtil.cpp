@@ -322,7 +322,7 @@ void FMeshConstraintsUtil::SetBoundaryConstraintsWithProjection(
 		Topology = MakeUnique<FGroupTopology>(&Mesh, true);		
 		break;
 	case EBoundaryType::MaterialID:
-		if (!ensure(Mesh.HasAttributes() && Mesh.Attributes()->GetMaterialID() != nullptr))
+		if (!(Mesh.HasAttributes() && Mesh.Attributes()->GetMaterialID() != nullptr))
 		{
 			return;
 		}
