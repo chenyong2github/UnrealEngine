@@ -2,13 +2,6 @@
 
 #pragma once
 
-
-#if RAYCALLABLESHADER || RAYGENSHADER || RAYHITGROUPSHADER || RAYMISSSHADER
-#	define SHADER_PARAMETERS_HAS_SOURCETEXTURE 1
-#else
-#	define SHADER_PARAMETERS_HAS_SOURCETEXTURE 0
-#endif
-
 // Mirrors FLightShaderParameters on C++ side.
 struct FLightShaderParameters
 {
@@ -25,9 +18,6 @@ struct FLightShaderParameters
 	float  SourceLength;
 	float  RectLightBarnCosAngle;
 	float  RectLightBarnLength;
-	#if SHADER_PARAMETERS_HAS_SOURCETEXTURE
-	Texture2D SourceTexture;
-	#endif
 };
 
 
@@ -58,7 +48,6 @@ float  Light_SoftSourceRadius;
 float  Light_SourceLength;
 float  Light_RectLightBarnCosAngle;
 float  Light_RectLightBarnLength;
-Texture2D Light_SourceTexture;
 
 
 /** Returns the FLightShaderParameters from the root shader parameters. */
@@ -79,8 +68,5 @@ FLightShaderParameters GetRootLightShaderParameters()
 	LightParameters.SourceLength = Light_SourceLength;
 	LightParameters.RectLightBarnCosAngle = Light_RectLightBarnCosAngle;
 	LightParameters.RectLightBarnLength = Light_RectLightBarnLength;
-	#if SHADER_PARAMETERS_HAS_SOURCETEXTURE
-	LightParameters.SourceTexture = Light_SourceTexture;
-	#endif
 	return LightParameters;
 }

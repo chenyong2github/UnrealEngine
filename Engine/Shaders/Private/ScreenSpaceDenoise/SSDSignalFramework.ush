@@ -75,11 +75,6 @@ DECLARE_SCALAR_ARRAY(uint, LightType, MAX_SIGNAL_BATCH_SIZE);
 
 uint FrameIndex;
 
-#if SHADER_PARAMETERS_HAS_SOURCETEXTURE
-Texture2D UnusedLightSourceTexture;
-#endif
-
-
 /** Returns the FLightShaderParameters from the root shader parameters. */
 FSSDSignalDomainKnowledge GetSignalDomainKnowledge(uint BatchedSignalId)
 {
@@ -91,11 +86,7 @@ FSSDSignalDomainKnowledge GetSignalDomainKnowledge(uint BatchedSignalId)
 	SignalDomain.Light.Tangent = 0;
 	SignalDomain.Light.SpotAngles = 0;
 	SignalDomain.Light.SpecularScale = 0;
-	SignalDomain.Light.SoftSourceRadius = 0;
-	#if SHADER_PARAMETERS_HAS_SOURCETEXTURE
-	SignalDomain.Light.SourceTexture = UnusedLightSourceTexture;
-	#endif
-	
+	SignalDomain.Light.SoftSourceRadius = 0;	
 	SignalDomain.Light.TranslatedWorldPosition = LightPositionAndRadius[BatchedSignalId].xyz;
 	SignalDomain.Light.Direction = LightDirectionAndLength[BatchedSignalId].xyz;
 	SignalDomain.Light.SourceRadius = LightPositionAndRadius[BatchedSignalId].w;
