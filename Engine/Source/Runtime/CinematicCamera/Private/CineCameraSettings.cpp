@@ -113,6 +113,39 @@ TArray<FNamedPlateCropPreset> const& UCineCameraSettings::GetCropPresets()
 	return GetDefault<UCineCameraSettings>()->CropPresets;
 }
 
+bool UCineCameraSettings::GetLensPresetByName(const FString PresetName, FCameraLensSettings& LensSettings)
+{
+	FNamedLensPreset* NamedLensPreset = LensPresets.FindByPredicate([PresetName](const FNamedLensPreset& Preset)
+	{
+		return Preset.Name == PresetName;
+	});
+
+	LensSettings = NamedLensPreset ? NamedLensPreset->LensSettings : FCameraLensSettings();
+	return NamedLensPreset != nullptr;
+}
+
+bool UCineCameraSettings::GetFilmbackPresetByName(const FString PresetName, FCameraFilmbackSettings& FilmbackSettings)
+{
+	FNamedFilmbackPreset* NamedFilmbackPreset = FilmbackPresets.FindByPredicate([PresetName](const FNamedFilmbackPreset& Preset)
+	{
+		return Preset.Name == PresetName;
+	});
+
+	FilmbackSettings = NamedFilmbackPreset ? NamedFilmbackPreset->FilmbackSettings : FCameraFilmbackSettings();
+	return NamedFilmbackPreset != nullptr;
+}
+
+bool UCineCameraSettings::GetCropPresetByName(const FString PresetName, FPlateCropSettings& CropSettings)
+{
+	FNamedPlateCropPreset* NamedCropPreset = CropPresets.FindByPredicate([PresetName](const FNamedPlateCropPreset& Preset)
+	{
+		return Preset.Name == PresetName;
+	});
+
+	CropSettings = NamedCropPreset ? NamedCropPreset->CropSettings : FPlateCropSettings();
+	return NamedCropPreset != nullptr;
+}
+
 UCineCameraSettings* UCineCameraSettings::GetCineCameraSettings()
 {
 	return GetMutableDefault<UCineCameraSettings>();

@@ -315,6 +315,21 @@ public:
 	static TArray<FNamedFilmbackPreset> const& GetFilmbackPresets();
 	static TArray<FNamedPlateCropPreset> const& GetCropPresets();
 
+	// Gets the Lens settings associated with a given preset name
+	// Returns true if a preset with the given name was found
+	UFUNCTION(BlueprintCallable, Category=Cinematics, meta=(ReturnDisplayName = "Success"))
+	bool GetLensPresetByName(const FString PresetName, FCameraLensSettings& LensSettings);
+
+	// Gets the Filmback settings associated with a given preset name
+	// Returns true if a preset with the given name was found
+	UFUNCTION(BlueprintCallable, Category=Cinematics, meta=(ReturnDisplayName = "Success"))
+	bool GetFilmbackPresetByName(const FString PresetName, FCameraFilmbackSettings& FilmbackSettings);
+
+	// Gets the Crop settings associated with a given preset name
+	// Returns true if a preset with the given name was found
+	UFUNCTION(BlueprintCallable, Category=Cinematics, meta=(ReturnDisplayName = "Success"))
+	bool GetCropPresetByName(const FString PresetName, FPlateCropSettings& CropSettings);
+
 private:
 	UFUNCTION(BlueprintCallable, Category=Cinematics)
 	static UCineCameraSettings* GetCineCameraSettings();
