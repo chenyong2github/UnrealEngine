@@ -87,4 +87,8 @@ public:
 	/** Get the looping state of the sequence player */
 	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static bool GetLoopAnimation(const FSequencePlayerReference& SequencePlayer);
+
+	/** Returns the Play Rate to provide when playing this animation if a specific animation duration is desired */
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
+	static float ComputePlayRateFromDuration(const FSequencePlayerReference& SequencePlayer, float Duration = 1.f);
 };

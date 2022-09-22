@@ -179,3 +179,21 @@ bool USequencePlayerLibrary::GetLoopAnimation(const FSequencePlayerReference& Se
 
 	return bLoopAnimation;
 }
+
+float USequencePlayerLibrary::ComputePlayRateFromDuration(const FSequencePlayerReference& SequencePlayer, float Duration /* = 1.0f */)
+{
+	float PlayRate = 1.f;
+	if (Duration > 0.f)
+	{
+	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("GetPlayRate"),
+		[&PlayRate, Duration](const FAnimNode_SequencePlayer& InSequencePlayer)
+		{
+			if (const UAnimSequenceBase* Sequence = InSequencePlayer.GetSequence())
+			{
+				PlayRate = Sequence->GetPlayLength() / Duration;
+			}
+		});
+	}
+	return PlayRate;
+}
