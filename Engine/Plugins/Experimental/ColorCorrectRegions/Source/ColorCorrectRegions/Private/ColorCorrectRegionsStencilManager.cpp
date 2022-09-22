@@ -68,7 +68,12 @@ namespace
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
 		ActorToAssignStencilTo->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
+#if WITH_EDITOR
+		if (!bSoftAssign)
+		{
+			ActorToAssignStencilTo->Modify();
+		}
+#endif
 		uint8 StencilIdMin = FMath::Min(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
 		uint8 StencilIdMax = FMath::Max(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
 		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
@@ -97,6 +102,9 @@ namespace
 				PrimitiveComponent->SetRenderCustomDepth(true);
 				PrimitiveComponent->CustomDepthStencilValue = static_cast<int32>(StencilData->AssignedStencil);
 				PrimitiveComponent->MarkRenderStateDirty();
+#if WITH_EDITOR
+				ActorToAssignStencilTo->Modify();
+#endif
 			}
 			else
 			{
@@ -116,7 +124,9 @@ namespace
 		{
 			TArray<UPrimitiveComponent*> PrimitiveComponents;
 			ActorToAssignStencilTo->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
+#if WITH_EDITOR
+			ActorToAssignStencilTo->Modify();
+#endif
 			for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 			{
 				// If the stencil id is within our range then it is managed by us, so we should reset this to default.
@@ -125,6 +135,9 @@ namespace
 					PrimitiveComponent->SetRenderCustomDepth(false);
 					PrimitiveComponent->CustomDepthStencilValue = 0;
 					PrimitiveComponent->MarkRenderStateDirty();
+#if WITH_EDITOR
+					PrimitiveComponent->Modify();
+#endif
 				}
 			}
 		}
@@ -207,7 +220,7 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 
 		if (Region->PerAffectedActorStencilData.Num() > 0)
 		{
-			for (TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>> ActorDataPair : Region->PerAffectedActorStencilData)
+			for (const TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>>& ActorDataPair : Region->PerAffectedActorStencilData)
 			{
 				if (!IsActorAssignedToOtherCCR(Region, ActorDataPair.Key, AllCCRsInCurrentLevel))
 				{
@@ -263,7 +276,7 @@ void FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(UW
 	TSet<TSoftObjectPtr<AActor>> ActorsToCleanup;
 
 	// Accumulate all CCRs that were removed.
-	for (TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>> ActorDataPair : Region->PerAffectedActorStencilData)
+	for (const TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>>& ActorDataPair : Region->PerAffectedActorStencilData)
 	{
 		if (!Region->AffectedActors.Contains(ActorDataPair.Key))
 		{
@@ -299,6 +312,41 @@ void FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(UW
 			ClearStencilIdFromActor(ActorToRemove);
 		}
 	}
+}
+
+void FColorCorrectRegionsStencilManager::OnCCRRemoved(UWorld* CurrentWorld, AColorCorrectRegion* Region)
+{
+	ULevel* CurrentLevel = CurrentWorld->GetCurrentLevel();
+	TArray<AActor*> AllCCRsInCurrentLevel = CurrentLevel->Actors.FilterByPredicate([](const AActor* Actor) { return Cast<AColorCorrectRegion>(Actor) != nullptr; });
+
+	// For each actor that was removed, remove Ids if it is unused by any other CCR, or otherwise assign a new id.
+	for (const TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>>& ActorDataPair : Region->PerAffectedActorStencilData)
+	{
+		bool bUsedByAnotherActor = false;
+		for (AActor* ActorCCR : AllCCRsInCurrentLevel)
+		{
+			AColorCorrectRegion* OtherCCR = Cast<AColorCorrectRegion>(ActorCCR);
+			if (OtherCCR == Region)
+			{
+				continue;
+			}
+
+			if (OtherCCR->PerAffectedActorStencilData.Contains(ActorDataPair.Key))
+			{
+				OtherCCR->PerAffectedActorStencilData.Remove(ActorDataPair.Key);
+				AssignStencilNumberToActorForSelectedRegion(CurrentWorld, OtherCCR, ActorDataPair.Key, true, false);
+				bUsedByAnotherActor = true;
+				break;
+			}
+		}
+
+		// This actor is not used by any aother actor. Remove it.
+		if (!bUsedByAnotherActor)
+		{
+			ClearStencilIdFromActor(ActorDataPair.Key);
+		}
+	}
+	Region->PerAffectedActorStencilData.Empty();
 }
 
 void FColorCorrectRegionsStencilManager::ClearInvalidActorsForSelectedRegion(AColorCorrectRegion* Region)
@@ -350,7 +398,7 @@ void FColorCorrectRegionsStencilManager::CheckAssignedActorsValidity(AColorCorre
 				{
 					if (PrimitiveComponent->CustomDepthStencilValue != StencilDataPair.Value->AssignedStencil || !PrimitiveComponent->bRenderCustomDepth)
 					{
-						auto Text = FString::Printf(TEXT("Custom Stencil Id for Actor: '%s', Component: '%s' is managed by Color Correct Region '%s' and has been modified manually. Would you like to change it back?"), *Actor->GetName(), *PrimitiveComponent->GetName(), *Region->GetName());
+						auto Text = FString::Printf(TEXT("Custom Stencil Id for Actor: '%s', Component: '%s' is managed by Color Correct Region '%s' and has been modified manually. Would you like to change the id back?"), *Actor->GetName(), *PrimitiveComponent->GetName(), *Region->GetName());
 						EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(Text));
 						if (Answer == EAppReturnType::No)
 						{

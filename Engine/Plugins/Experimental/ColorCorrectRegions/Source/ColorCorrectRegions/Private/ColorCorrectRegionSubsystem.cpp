@@ -15,6 +15,8 @@
 #include "Editor.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "CCR"
+
 namespace
 {
 	bool IsRegionValid(AColorCorrectRegion* InRegion, UWorld* CurrentWorld)
@@ -124,6 +126,11 @@ void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 #endif
 	{
 		AsRegion->Cleanup();
+
+#if WITH_EDITOR
+		FColorCorrectRegionsStencilManager::OnCCRRemoved(GetWorld(), AsRegion);
+#endif
+
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 		RegionsPriorityBased.Remove(AsRegion);
 		RegionsDistanceBased.Remove(AsRegion);
@@ -161,12 +168,41 @@ void UColorCorrectRegionsSubsystem::SortRegionsByDistance(const FVector& ViewLoc
 
 void UColorCorrectRegionsSubsystem::AssignStencilIdsToPerActorCC(AColorCorrectRegion* Region, bool bIgnoreUserNotificaion, bool bSoftAssign)
 {
+#if WITH_EDITOR
+	if (!bSoftAssign && GEditor)
+	{
+		GEditor->BeginTransaction(LOCTEXT("PerActorCCActorAssigned", "Per actor CC Actor Assigned"));
+	}
+#endif
 	FColorCorrectRegionsStencilManager::AssignStencilIdsToAllActorsForCCR(GetWorld(), Region, bIgnoreUserNotificaion, bSoftAssign);
+
+#if WITH_EDITOR
+	if (!bSoftAssign && GEditor)
+	{
+		this->Modify();
+		GEditor->EndTransaction();
+	}
+#endif
 }
 
 void UColorCorrectRegionsSubsystem::ClearStencilIdsToPerActorCC(AColorCorrectRegion* Region)
 {
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		GEditor->BeginTransaction(LOCTEXT("PerActorCCActorRemoved", "Per actor CC Actor Removed"));
+	}
+#endif
+
 	FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(GetWorld(), Region);
+	this->Modify();
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		GEditor->EndTransaction();
+	}
+#endif
 }
 
 void UColorCorrectRegionsSubsystem::CheckAssignedActorsValidity(AColorCorrectRegion* Region)
@@ -217,3 +253,4 @@ void UColorCorrectRegionsSubsystem::RefreshRegions()
 	RefreshStenciIdAssignmentForAllCCR();
 }
 
+#undef LOCTEXT_NAMESPACE
