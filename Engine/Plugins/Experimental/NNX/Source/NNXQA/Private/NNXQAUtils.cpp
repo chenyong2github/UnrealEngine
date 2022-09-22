@@ -83,6 +83,20 @@ namespace Test
 		return TestSuffix;
 	}
 
+	FString ShapeToString(TArrayView<const int32> Shape)
+	{
+		FString TestSuffix(TEXT("["));
+		bool bIsFirstDim = true;
+		for (uint32 size : Shape)
+		{
+			if (!bIsFirstDim) TestSuffix += TEXT(",");
+			TestSuffix += FString::Printf(TEXT("%d"), size);
+			bIsFirstDim = false;
+		}
+		TestSuffix += TEXT("]");
+		return TestSuffix;
+	}
+
 	FString FMLTensorDescToString(const FMLTensorDesc& desc)
 	{
 		TArrayView<const uint32> Shape(desc.Sizes, desc.Dimension);
@@ -362,7 +376,7 @@ namespace Test
 		return ReturnValue;
 	}
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FString& Name, TArrayView<uint8> ONNXModelData, const FTests::FTestSetup* AutomationTestSetup)
+	bool CompareONNXModelInferenceAcrossRuntimes(const FString& Name, TArrayView<uint8> ONNXModelData, const FTests::FTestSetup* AutomationTestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
 		if (AutomationTestSetup != nullptr && AutomationTestSetup->AutomationExcludedPlatform.Contains(CurrentPlatform))
@@ -394,7 +408,14 @@ namespace Test
 		{
 			const FString& RuntimeName = Runtime->GetRuntimeName();
 			if (RuntimeName == RefName)
+			{
 				continue;
+			}
+
+			if (!RuntimeFilter.IsEmpty() && RuntimeName != RuntimeFilter)
+			{
+				continue;
+			}
 
 			FString TestResult;
 
@@ -437,14 +458,19 @@ namespace Test
 		}
 		return bAllTestsSucceeded;
 	}
+	FTests::FTestSetup& FTests::AddTest(const FString & Category, const FString & ModelOrOperatorName, const FString & TestSuffix)
+	{
+		FString TestName = Category + ModelOrOperatorName + TestSuffix;
+		//Test name should be unique
+		check(nullptr == TestSetups.FindByPredicate([TestName](const FTestSetup& Other) { return Other.TestName == TestName; }));
+		TestSetups.Emplace(Category, ModelOrOperatorName, TestSuffix);
+		return TestSetups.Last(0);
+	}
 
 	FTests::FTestSetup& FTests::AddTest(const FString& ModelOrOperatorName, const FString& TestSuffix)
 	{
-		FString TestName = ModelOrOperatorName + TestSuffix;
-		//Test name should be unique
-		check(nullptr == TestSetups.FindByPredicate([TestName](const FTestSetup& Other) { return Other.TestName == TestName; }));
-		TestSetups.Emplace(ModelOrOperatorName, TestSuffix);
-		return TestSetups.Last(0);
+		//TODO cleanup: always use the 3 parameter path.
+		return AddTest(TEXT(""), ModelOrOperatorName, TestSuffix);
 	}
 
 } // namespace Test

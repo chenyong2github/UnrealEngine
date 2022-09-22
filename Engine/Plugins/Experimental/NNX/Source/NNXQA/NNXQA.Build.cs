@@ -18,6 +18,8 @@ public class NNXQA : ModuleRules
 			new string[]
 			{
 				"Engine",
+				"Projects",
+				"Json",
 				"CoreUObject",
 				"NNXCore",
 				"NNXUtils"

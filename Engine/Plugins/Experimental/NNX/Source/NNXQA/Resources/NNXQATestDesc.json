@@ -1,0 +1,124 @@
+{
+	"$schema": "./NNXQATestDescSchema.json",
+	"model_test_categories": [
+		{
+			"category": "OnnxZoo",
+			"is_model_test": true,
+			"targets": [
+				{
+					"target": "resnet50-v2-7",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeORTDml", "relative_error": 1.0 },
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+					]
+				},
+				{
+					"target": "Mosaic-9",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeORTDml", "absolute_error": 5e-2, "relative_error": 50.0,
+							"comment": "//Worst relative error 43.367836 % (epsilon 0.001000 %) at position 112558, got -0.003391 expected -0.002365. TODO we need an automatic balance between relative error and absolute error"
+						},
+						{ "name": "NNXRuntimeCPU", "absolute_error": 1e-3, "relative_error": 3.0 },
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+					]
+				}
+			]
+		},
+		{
+			"category": "InHouse",
+			"is_model_test": true,
+			"targets": [
+				{
+					"target": "NeuralMorphModel_global",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeORTDml", "relative_error": 0.02 },
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+					]
+				},
+				{
+					"target": "NeuralMorphModel_Local",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeORTDml", "relative_error": 0.04 },
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+					]
+				},
+				{
+					"target": "VertexDeltaModel",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeORTDml", "absolute_error": 1e-4, "relative_error": 10.0,
+							"comment": "TODO check, relative error is very high."
+						},
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+					]
+				}
+			]
+		}
+	],
+
+	"operator_test_categories": [
+		{
+			"category": "Elementwise.Unary",
+			"targets": [
+				{
+					"target": "Abs",
+					"additional_datasets": [ "Elementwise.Slow" ]
+				},
+				{
+					"target": "Tanh",
+					"runtimes": [
+						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.5},
+						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.5},
+						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.5}
+					]
+				},
+				{
+					"target": "BitShift",
+					"skip": true,
+					"comment": "need attributes"
+				}
+			]
+		}
+	],
+
+	"input_output_sets": [
+		{
+			"name": "Elementwise.Unary.Regular",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 256, 256 ] } ], "comment": "if not specified output is defaulted as the first input" },
+				{ "inputs": [ { "shape": [ 1 ] } ] },
+				{ "inputs": [ { "shape": [ 4 ] } ] }
+			]
+		},
+		{
+			"name": "Elementwise.Unary.ZeroSized",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 0 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "skip": true, "comment": "RDG does not support 0 sized tensor" },
+						{ "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG does not support 0 sized tensor" }
+					]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.Slow",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 65536, 513 ] } ]
+				}
+			]
+		}
+	]
+	
+}

@@ -1,0 +1,197 @@
+{
+	"description": "schema for NNX test",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"model_test_categories": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/test_config_category" }
+		},
+		"operator_test_categories": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/test_config_category" }
+		},
+		"input_output_sets": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/test_config_input_output_set" }
+		},
+		"comment": {
+			"type": "string",
+			"description": "Unused by test system, usefull to add clarification in json file"
+		}
+	},
+
+	"$defs": {
+		"test_config_tensor": {
+			"type": "object",
+			"required": [ "shape" ],
+			"properties": {
+				"shape": {
+					"type": "array",
+					"items": { "type": "number" }
+				}
+			},
+			"comment": {
+				"type": "string",
+				"description": "Unused by test system, usefull to add clarification in json file"
+			}
+		},
+
+		"test_config_runtime": {
+			"type": "object",
+			"required": [ "name" ],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "name of the runtime to specialize for"
+				},
+				"skip": {
+					"type": "boolean",
+					"description": "true to skip the test for this runtime, false by default"
+				},
+				"absolute_error": {
+					"type": "number",
+					"minimum": 0,
+					"description": "max absolute error, 0 to keep engine default (1e-5)"
+				},
+				"relative_error": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 100,
+					"description": "max relative error in percent, 0 to keep engine default (1e-4 in %)"
+				},
+				"comment": {
+					"type": "string",
+					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		},
+
+		"test_config_dataset": {
+			"type": "object",
+			"required": [ "inputs" ],
+			"additionalProperties": false,
+			"properties": {
+				"inputs": {
+					"type": "array",
+					"description": "input shapes to test",
+					"items": { "$ref": "#/$defs/test_config_tensor" }
+				},
+				"outputs": {
+					"type": "array",
+					"description": "output shapes to test",
+					"items": { "$ref": "#/$defs/test_config_tensor" }
+				},
+				"runtimes": {
+					"type": "array",
+					"description": "Array of operator to test",
+					"items": { "$ref": "#/$defs/test_config_runtime" }
+				},
+				"comment": {
+					"type": "string",
+					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		},
+
+		"test_config_target": {
+			"type": "object",
+			"required": [ "target" ],
+			"additionalProperties": false,
+			"properties": {
+				"target": {
+					"type": "string",
+					"description": "Name of the operator or model to run (for model .onnx should be ommited)"
+				},
+				"tags": {
+					"type": "array",
+					"description": "array of tags associated with the test, test can be filtered by tag when runned from command line",
+					"items": { "type": "string" }
+				},
+				"additional_datasets": {
+					"type": "array",
+					"description": "additional dataset associated with this target, by default all dataset witch name are a super set of this category name will be runned, you can specify more dataset using this parameter",
+					"items": { "type": "string" }
+				},
+				"skip": {
+					"type": "boolean",
+					"description": "true to skip this operator or model test entirely, false by default"
+				},
+				"absolute_error": {
+					"type": "number",
+					"minimum": 0,
+					"description": "max absolute error, 0 to keep engine default (1e-5)"
+				},
+				"relative_error": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 100,
+					"description": "max relative error in percent, 0 to keep engine default (1e-4 in %)"
+				},
+				"runtimes": {
+					"type": "array",
+					"description": "Array of runtimes to specialize test behavior for",
+					"items": { "$ref": "#/$defs/test_config_runtime" }
+				},
+				"comment": {
+					"type": "string",
+					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		},
+
+		"test_config_category": {
+			"type": "object",
+			"required": [ "category", "targets" ],
+			"additionalProperties": false,
+			"properties": {
+				"category": {
+					"type": "string",
+					"description": "Name of the category"
+				},
+				"targets": {
+					"type": "array",
+					"description": "Array of models or operators to test",
+					"items": { "$ref": "#/$defs/test_config_target" }
+				},
+				"skip": {
+					"type": "boolean",
+					"description": "true to skip this category entirely, false by default"
+				},
+				"is_model_test": {
+					"type": "boolean",
+					"description": "true if the category contain model tests, false for operators tests"
+				},
+				"comment": {
+					"type": "string",
+					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		},
+
+		"test_config_input_output_set": {
+			"type": "object",
+			"required": [ "name", "datasets" ],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name of this dataset, any test name witch is a super set of this dataset name will use it"
+				},
+				"datasets": {
+					"type": "array",
+					"description": "Array of inputs/output to test",
+					"items": { "$ref": "#/$defs/test_config_dataset" }
+				},
+				"comment": {
+					"type": "string",
+					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		}
+	}
+}
