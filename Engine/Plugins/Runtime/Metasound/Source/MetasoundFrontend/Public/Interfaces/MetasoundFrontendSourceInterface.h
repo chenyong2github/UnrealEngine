@@ -5,8 +5,8 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendTransform.h"
 #include "UObject/NameTypes.h"
-//#include "MetasoundEngineArchetypes.h"
 #include "MetasoundFrontendController.h"
+
 // Forward Declarations
 struct FMetasoundFrontendVersion;
 
@@ -76,8 +76,5 @@ namespace Metasound
 				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override;
 			};
 		}
-
-
-
 	} // namespace Frontend
 } // namespace Metasound
