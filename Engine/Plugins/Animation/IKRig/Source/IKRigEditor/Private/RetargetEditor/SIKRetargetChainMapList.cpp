@@ -16,6 +16,7 @@
 #include "SSearchableComboBox.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Retargeter/IKRetargetSettings.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
@@ -130,9 +131,9 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn(const FNam
 		.Padding(3.0f, 1.0f)
 		[
 			SNew(SButton)
-			//.OnClicked(this, &SIKRetargetChainMapRow::OnResetToDefaultClicked) TODO 
-			//.Visibility(this, &SIKRetargetChainMapRow::GetResetToDefaultVisibility) TODO 
-			.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+			.OnClicked(this, &SIKRetargetChainMapRow::OnResetToDefaultClicked) 
+			.Visibility(this, &SIKRetargetChainMapRow::GetResetToDefaultVisibility) 
+			.ToolTipText(LOCTEXT("ResetChainToDefaultToolTip", "Reset Chain Settings to Default"))
 			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.Content()
 			[
@@ -145,6 +146,19 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn(const FNam
 	
 	checkNoEntry();
 	return SNullWidget::NullWidget;
+}
+
+FReply SIKRetargetChainMapRow::OnResetToDefaultClicked()
+{
+	ChainMapElement.Pin()->ChainMap->Settings = FTargetChainSettings();
+	return FReply::Handled();
+}
+
+EVisibility SIKRetargetChainMapRow::GetResetToDefaultVisibility() const
+{
+	const FTargetChainSettings& DefaultSettings = FTargetChainSettings();
+	const FTargetChainSettings& Settings = ChainMapElement.Pin()->ChainMap->Settings;
+	return (Settings == DefaultSettings) ? EVisibility::Hidden : EVisibility::Visible;
 }
 
 void SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged(TSharedPtr<FString> InName, ESelectInfo::Type SelectInfo)

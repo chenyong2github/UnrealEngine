@@ -26,9 +26,9 @@ enum class ERetargetRotationMode : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FTargetChainSpeedPlantSettings
+struct IKRIG_API FTargetChainSpeedPlantSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	/** The name of the curve on the source animation that contains the speed of the end effector bone.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
@@ -50,10 +50,12 @@ struct FTargetChainSpeedPlantSettings
 	// How much damping to apply to the spring (0 means no damping, 1 means critically damped which means no oscillation)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Plant IK by Speed", meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "1.0"))
 	float UnplantCriticalDamping = 1.0f;
+
+	bool operator==(const FTargetChainSpeedPlantSettings& Other) const;
 };
 
 USTRUCT(BlueprintType)
-struct FTargetChainFKSettings
+struct IKRIG_API FTargetChainFKSettings
 {
 	GENERATED_BODY()
 
@@ -98,12 +100,14 @@ struct FTargetChainFKSettings
 	/** Range +/- 180. Default 0. An angular offset, in degrees, for the pole direction of the chain. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FK Adjustments", meta = (UIMin = "-180.0", UIMax = "180.0"))
 	float PoleVectorOffset = 0.0f;
+
+	bool operator==(const FTargetChainFKSettings& Other) const;
 };
 
 USTRUCT(BlueprintType)
-struct FTargetChainIKSettings
+struct IKRIG_API FTargetChainIKSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	/** Whether to modify the location of the IK goal on this chain. Default is true.
 	 * NOTE: This only has an effect if the chain has an IK Goal assigned to it in the Target IK Rig asset.
@@ -146,12 +150,14 @@ struct FTargetChainIKSettings
 	/** Is this IK goal affected by the stride warping (in Global Settings). Typically this is true for all feet, but not for hands.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping, meta = (DisplayName = "Affected by IK Warping"))
 	bool bAffectedByIKWarping = true;
+
+	bool operator==(const FTargetChainIKSettings& Other) const;
 };
 
 USTRUCT(BlueprintType)
-struct FTargetChainSettings
+struct IKRIG_API FTargetChainSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 public:
 
@@ -171,12 +177,14 @@ public:
 	FTargetChainSpeedPlantSettings SpeedPlanting;
 	
 	void CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings);
+
+	bool operator==(const FTargetChainSettings& Other) const;
 };
 
 USTRUCT(BlueprintType)
 struct IKRIG_API FTargetRootSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 public:
 
@@ -259,7 +267,7 @@ enum class EWarpingDirectionSource
 USTRUCT(BlueprintType)
 struct IKRIG_API FRetargetGlobalSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 	
 	/** When false, the motion of the Retarget Root bone is not copied from the source. Useful for debugging issues with the root settings.
 	 * Note: the retargeting order is: Root > FK > IK

@@ -60,6 +60,10 @@ public:
 	void OnSourceChainComboSelectionChanged(TSharedPtr<FString> InName, ESelectInfo::Type SelectInfo);
 	
 private:
+
+	FReply OnResetToDefaultClicked();
+
+	EVisibility GetResetToDefaultVisibility() const;
 	
 	FText GetSourceChainName() const;
 
