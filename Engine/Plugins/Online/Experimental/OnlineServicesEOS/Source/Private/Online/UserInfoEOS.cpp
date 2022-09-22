@@ -28,58 +28,62 @@ void FUserInfoEOS::Initialize()
 TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo::Params&& InParams)
 {
 	TOnlineAsyncOpRef<FQueryUserInfo> Op = GetJoinableOp<FQueryUserInfo>(MoveTemp(InParams));
-	const FQueryUserInfo::Params& Params = Op->GetParams();
-
-	if (Params.AccountIds.IsEmpty())
+	if (!Op->IsReady())
 	{
-		Op->SetError(Errors::InvalidParams());
-		return Op->GetHandle();
-	}
+		const FQueryUserInfo::Params& Params = Op->GetParams();
 
-	for (const FAccountId TargetAccountId : Params.AccountIds)
-	{
-		Op->Then([this, TargetAccountId](TOnlineAsyncOp<FQueryUserInfo>& Op, TPromise<const EOS_UserInfo_QueryUserInfoCallbackInfo*>&& Promise)
+		if (Params.AccountIds.IsEmpty())
 		{
-			const FQueryUserInfo::Params& Params = Op.GetParams();
+			Op->SetError(Errors::InvalidParams());
+			return Op->GetHandle();
+		}
 
-			if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
-			{
-				Op.SetError(Errors::NotLoggedIn());
-				Promise.EmplaceValue();
-				return;
-			}
-
-			const EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(TargetAccountId);
-			if (!EOS_EpicAccountId_IsValid(TargetUserEasId))
-			{
-				Op.SetError(Errors::InvalidParams());
-				Promise.EmplaceValue();
-				return;
-			}
-
-			EOS_UserInfo_QueryUserInfoOptions QueryUserInfoOptions = {};
-			QueryUserInfoOptions.ApiVersion = EOS_USERINFO_QUERYUSERINFO_API_LATEST;
-			static_assert(EOS_USERINFO_QUERYUSERINFO_API_LATEST == 1, "EOS_UserInfo_QueryUserInfoOptions updated, check new fields");
-			QueryUserInfoOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
-			QueryUserInfoOptions.TargetUserId = TargetUserEasId;
-
-			EOS_Async(EOS_UserInfo_QueryUserInfo, UserInfoHandle, QueryUserInfoOptions, MoveTemp(Promise));
-		}).Then([this](TOnlineAsyncOp<FQueryUserInfo>& Op, const EOS_UserInfo_QueryUserInfoCallbackInfo* CallbackInfo) mutable
+		for (const FAccountId TargetAccountId : Params.AccountIds)
 		{
-			if (CallbackInfo->ResultCode != EOS_EResult::EOS_Success)
+			Op->Then([this, TargetAccountId](TOnlineAsyncOp<FQueryUserInfo>& Op, TPromise<const EOS_UserInfo_QueryUserInfoCallbackInfo*>&& Promise)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("EOS_UserInfo_QueryUserInfo failed with result=[%s]"), *LexToString(CallbackInfo->ResultCode));
-				Op.SetError(Errors::FromEOSResult(CallbackInfo->ResultCode));
-			}
-		});
-	}
+				const FQueryUserInfo::Params& Params = Op.GetParams();
 
-	Op->Then([](TOnlineAsyncOp<FQueryUserInfo>& Op)
-	{
-		Op.SetResult({});
-	});
-	
-	Op->Enqueue(GetSerialQueue());
+				if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
+				{
+					Op.SetError(Errors::NotLoggedIn());
+					Promise.EmplaceValue();
+					return;
+				}
+
+				const EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(TargetAccountId);
+				if (!EOS_EpicAccountId_IsValid(TargetUserEasId))
+				{
+					Op.SetError(Errors::InvalidParams());
+					Promise.EmplaceValue();
+					return;
+				}
+
+				EOS_UserInfo_QueryUserInfoOptions QueryUserInfoOptions = {};
+				QueryUserInfoOptions.ApiVersion = EOS_USERINFO_QUERYUSERINFO_API_LATEST;
+				static_assert(EOS_USERINFO_QUERYUSERINFO_API_LATEST == 1, "EOS_UserInfo_QueryUserInfoOptions updated, check new fields");
+				QueryUserInfoOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
+				QueryUserInfoOptions.TargetUserId = TargetUserEasId;
+
+				EOS_Async(EOS_UserInfo_QueryUserInfo, UserInfoHandle, QueryUserInfoOptions, MoveTemp(Promise));
+			})
+			.Then([this](TOnlineAsyncOp<FQueryUserInfo>& Op, const EOS_UserInfo_QueryUserInfoCallbackInfo* CallbackInfo) mutable
+			{
+				if (CallbackInfo->ResultCode != EOS_EResult::EOS_Success)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("EOS_UserInfo_QueryUserInfo failed with result=[%s]"), *LexToString(CallbackInfo->ResultCode));
+					Op.SetError(Errors::FromEOSResult(CallbackInfo->ResultCode));
+				}
+			});
+		}
+
+		Op->Then([](TOnlineAsyncOp<FQueryUserInfo>& Op)
+			{
+				Op.SetResult({});
+			});
+
+		Op->Enqueue(GetSerialQueue());
+	}
 	return Op->GetHandle();
 }
 
