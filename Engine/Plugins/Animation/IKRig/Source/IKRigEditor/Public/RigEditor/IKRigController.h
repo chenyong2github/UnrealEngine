@@ -202,20 +202,24 @@ private:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnIKRigNeedsInitialized, UIKRigDefinition*);
 	FOnIKRigNeedsInitialized IKRigNeedsInitialized;
 
-	/** Called whenever a retarget chain is renamed.*/
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnRetargetChainRenamed, UIKRigDefinition*, FName /*old name*/, FName /*new name*/);
-	FOnRetargetChainRenamed RetargetChainRenamed;
+	/** Called whenever a retarget chain is added.*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargetChainAdded, UIKRigDefinition*);
+	FOnRetargetChainAdded RetargetChainAdded;
 
 	/** Called whenever a retarget chain is removed.*/
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRetargetChainRemoved, UIKRigDefinition*, const FName& /*chain name*/);
 	FOnRetargetChainRemoved RetargetChainRemoved;
 
+	/** Called whenever a retarget chain is renamed.*/
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnRetargetChainRenamed, UIKRigDefinition*, FName /*old name*/, FName /*new name*/);
+	FOnRetargetChainRenamed RetargetChainRenamed;
+
 public:
 	
 	FOnIKRigNeedsInitialized& OnIKRigNeedsInitialized(){ return IKRigNeedsInitialized; };
-
-	FOnRetargetChainRenamed& OnRetargetChainRenamed(){ return RetargetChainRenamed; };
+	FOnRetargetChainAdded& OnRetargetChainAdded(){ return RetargetChainAdded; };
 	FOnRetargetChainRemoved& OnRetargetChainRemoved(){ return RetargetChainRemoved; };
+	FOnRetargetChainRenamed& OnRetargetChainRenamed(){ return RetargetChainRenamed; };
 
 private:
 

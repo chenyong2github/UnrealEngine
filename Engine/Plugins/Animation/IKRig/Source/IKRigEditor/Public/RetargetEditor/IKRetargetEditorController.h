@@ -63,6 +63,8 @@ public:
 	void BindToIKRigAsset(UIKRigDefinition* InIKRig);
 	/** callback when IK Rig asset requires reinitialization */
 	void HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
+	/** callback when IK Rig asset's retarget chain's have been added or removed*/
+	void HandleRetargetChainAdded(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain has been renamed */
 	void HandleRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const;
 	/** callback when IK Rig asset's retarget chain has been removed */
@@ -295,6 +297,7 @@ private:
 	FDelegateHandle ReInitDelegateHandle;
 	UIKRigDefinition* BoundToIKRig;
 	FDelegateHandle ReInitIKDelegateHandle;
+	FDelegateHandle AddedChainDelegateHandle;
 	FDelegateHandle RenameChainDelegateHandle;
 	FDelegateHandle RemoveChainDelegateHandle;
 };

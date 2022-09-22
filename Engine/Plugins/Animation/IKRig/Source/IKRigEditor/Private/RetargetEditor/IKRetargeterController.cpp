@@ -260,6 +260,20 @@ void UIKRetargeterController::AutoMapChains() const
 	BroadcastNeedsReinitialized();
 }
 
+void UIKRetargeterController::OnRetargetChainAdded(UIKRigDefinition* IKRig) const
+{
+	const bool bIsTargetRig = IKRig == Asset->GetTargetIKRig();
+	if (!bIsTargetRig)
+	{
+		// if a source chain is added, it will simply be available as a new option, no need to reinitialize until it's used
+		return;
+	}
+
+	// add the new chain to the mapping data
+	constexpr bool bForceReinitialization = true;
+	CleanChainMapping(bForceReinitialization);
+}
+
 void UIKRetargeterController::OnRetargetChainRenamed(UIKRigDefinition* IKRig, FName OldChainName, FName NewChainName) const
 {
 	const bool bIsSourceRig = IKRig == Asset->GetSourceIKRig();

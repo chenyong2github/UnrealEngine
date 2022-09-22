@@ -55,6 +55,8 @@ public:
 	void CleanChainMapping(const bool bForceReinitialization=true) const;
 	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
 	void AutoMapChains() const;
+	/** Callback when IK Rig chain is added or removed. */
+	void OnRetargetChainAdded(UIKRigDefinition* IKRig) const;
 	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
 	void OnRetargetChainRenamed(UIKRigDefinition* IKRig, FName OldChainName, FName NewChainName) const;
 	/** Callback when IK Rig chain is removed. */

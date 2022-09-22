@@ -161,6 +161,8 @@ void UIKRigController::AddRetargetChain(const FBoneChain& BoneChain) const
 	Asset->Modify();
 	
 	Asset->RetargetDefinition.BoneChains.Emplace(ChainToAdd);
+	
+	RetargetChainAdded.Broadcast(Asset);
 	BroadcastNeedsReinitialized();
 }
 

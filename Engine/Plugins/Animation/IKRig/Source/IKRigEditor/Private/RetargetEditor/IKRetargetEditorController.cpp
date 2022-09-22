@@ -56,13 +56,13 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 void FIKRetargetEditorController::Close() const
 {
 	AssetController->OnRetargeterNeedsInitialized().Remove(ReInitDelegateHandle);
-
 	
 	if (UIKRigController* IKRigController = UIKRigController::GetIKRigController(BoundToIKRig))
 	{
 		IKRigController->OnIKRigNeedsInitialized().Remove(ReInitDelegateHandle);
-		IKRigController->OnRetargetChainRenamed().Remove(RenameChainDelegateHandle);
+		IKRigController->OnRetargetChainAdded().Remove(AddedChainDelegateHandle);
 		IKRigController->OnRetargetChainRemoved().Remove(RemoveChainDelegateHandle);
+		IKRigController->OnRetargetChainRenamed().Remove(RenameChainDelegateHandle);
 	}
 }
 
@@ -79,8 +79,9 @@ void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
 	if (!Controller->OnIKRigNeedsInitialized().IsBoundToObject(this))
 	{
 		ReInitIKDelegateHandle = Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleIKRigNeedsInitialized);
-		RenameChainDelegateHandle = Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRenamed);
+		AddedChainDelegateHandle = Controller->OnRetargetChainAdded().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainAdded);
 		RemoveChainDelegateHandle = Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRemoved);
+		RenameChainDelegateHandle = Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRenamed);
 	}
 }
 
@@ -101,10 +102,16 @@ void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* 
 	HandleRetargeterNeedsInitialized(Retargeter);
 }
 
+void FIKRetargetEditorController::HandleRetargetChainAdded(UIKRigDefinition* ModifiedIKRig) const
+{
+	check(ModifiedIKRig)
+	AssetController->OnRetargetChainAdded(ModifiedIKRig);
+	RefreshAllViews();
+}
+
 void FIKRetargetEditorController::HandleRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const
 {
 	check(ModifiedIKRig)
-	
 	AssetController->OnRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
 }
 
