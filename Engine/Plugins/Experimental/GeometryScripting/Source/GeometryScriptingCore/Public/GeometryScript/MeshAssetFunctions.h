@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "Engine/EngineTypes.h"   // FMeshNaniteSettings
 #include "MeshAssetFunctions.generated.h"
 
 class UStaticMesh;
@@ -78,9 +79,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bApplyNaniteSettings = false;
 
+	/** FGeometryScriptNaniteOptions is no longer in use */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Replaced FGeometryScriptNaniteOptions with usage of Engine FMeshNaniteSettings"))
+	FGeometryScriptNaniteOptions NaniteSettings_DEPRECATED = FGeometryScriptNaniteOptions();
+
 	/** Nanite Settings applied to the target Asset, if bApplyNaniteSettings = true */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
-	FGeometryScriptNaniteOptions NaniteSettings = FGeometryScriptNaniteOptions();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (DisplayName = "Nanite Settings"))
+	FMeshNaniteSettings NewNaniteSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bEmitTransaction = true;

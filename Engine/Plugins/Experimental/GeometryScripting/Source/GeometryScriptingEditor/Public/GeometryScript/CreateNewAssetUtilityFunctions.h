@@ -54,8 +54,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEnableNanite = false;
 
+	/** Nanite settings to set on new StaticMesh Asset */
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	float NaniteProxyTrianglePercent = 0.0f;
+	FMeshNaniteSettings NaniteSettings;
+
+	/** NaniteProxyTrianglePercent property has been replaced by the more general NaniteSettings property */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Replaced NaniteProxyTrianglePercent with usage of Engine FMeshNaniteSettings, use NaniteSettings property instead"))
+	float NaniteProxyTrianglePercent_DEPRECATED = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEnableCollision = true;

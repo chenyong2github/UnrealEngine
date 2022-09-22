@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/EngineTypes.h"   // FMeshNaniteSettings
 #include "BodySetupEnums.h"
 
 class UPackage;
@@ -64,8 +65,10 @@ namespace AssetUtils
 
 		// Whether to generate a nanite-enabled mesh
 		bool bGenerateNaniteEnabledMesh = false;
-		// Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh
-		float NaniteProxyTrianglePercent = 0;
+		// Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh. DEPRECATED, use NaniteSettings instead.
+		float NaniteProxyTrianglePercent_DEPRECATED = 0;
+		// Nanite settings to set on static mesh asset
+		FMeshNaniteSettings NaniteSettings = FMeshNaniteSettings();
 
 		// Whether ray tracing will be supported on this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance
 		bool bSupportRayTracing = true;

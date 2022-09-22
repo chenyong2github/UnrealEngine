@@ -306,11 +306,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 
 	if (Options.bApplyNaniteSettings)
 	{
-		FMeshNaniteSettings NewNaniteSettings = ToStaticMeshAsset->NaniteSettings;
-		NewNaniteSettings.bEnabled = Options.NaniteSettings.bEnabled;
-		NewNaniteSettings.FallbackPercentTriangles = FMath::Clamp(Options.NaniteSettings.FallbackPercentTriangles / 100.0f, 0.0f, 1.0f);
-		NewNaniteSettings.FallbackRelativeError = FMath::Max(Options.NaniteSettings.FallbackRelativeError, 0.0f);
-		ToStaticMeshAsset->NaniteSettings = NewNaniteSettings;
+		ToStaticMeshAsset->NaniteSettings = Options.NewNaniteSettings;
 	}
 
 	if (Options.bReplaceMaterials)

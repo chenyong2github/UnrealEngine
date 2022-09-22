@@ -1268,7 +1268,8 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 	MeshAssetOptions.SourceMeshes.DynamicMeshes.Add(FinalMesh);
 
 	MeshAssetOptions.bGenerateNaniteEnabledMesh = Options.bGenerateNaniteEnabledMesh;
-	MeshAssetOptions.NaniteProxyTrianglePercent = Options.NaniteProxyTrianglePercent;
+	MeshAssetOptions.NaniteSettings.bEnabled = Options.bGenerateNaniteEnabledMesh;
+	MeshAssetOptions.NaniteSettings.FallbackPercentTriangles = Options.NaniteProxyTrianglePercent / 100.0;	// NaniteSettings wants value in range 0-1
 
 	MeshAssetOptions.bSupportRayTracing = Options.bSupportRayTracing;
 	MeshAssetOptions.bAllowDistanceField = Options.bAllowDistanceField;

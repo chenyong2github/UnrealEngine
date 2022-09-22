@@ -148,11 +148,10 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 	}
 
 	// Nanite options
-	NewStaticMesh->NaniteSettings.bEnabled = Options.bGenerateNaniteEnabledMesh;
+	NewStaticMesh->NaniteSettings.bEnabled = false;
 	if (Options.bGenerateNaniteEnabledMesh)
 	{
-		NewStaticMesh->NaniteSettings.FallbackPercentTriangles = Options.NaniteProxyTrianglePercent * 0.01f;
-		NewStaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
+		NewStaticMesh->NaniteSettings = Options.NaniteSettings;
 	}
 
 	// Ray tracing

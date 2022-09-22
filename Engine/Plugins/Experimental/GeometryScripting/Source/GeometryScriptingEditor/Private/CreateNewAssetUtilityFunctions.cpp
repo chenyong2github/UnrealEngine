@@ -177,7 +177,7 @@ UStaticMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMesh
 	AssetOptions.bEnableRecomputeNormals = Options.bEnableRecomputeNormals;
 	AssetOptions.bEnableRecomputeTangents = Options.bEnableRecomputeTangents;
 	AssetOptions.bGenerateNaniteEnabledMesh = Options.bEnableNanite;
-	AssetOptions.NaniteProxyTrianglePercent = Options.NaniteProxyTrianglePercent;
+	AssetOptions.NaniteSettings = Options.NaniteSettings;
 
 	AssetOptions.bCreatePhysicsBody = Options.bEnableCollision;
 	AssetOptions.CollisionType = Options.CollisionMode;

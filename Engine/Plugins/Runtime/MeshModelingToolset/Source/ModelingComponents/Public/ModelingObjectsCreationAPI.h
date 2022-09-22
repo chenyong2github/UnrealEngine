@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "BodySetupEnums.h"
+#include "Engine/EngineTypes.h"   // FMeshNaniteSettings
 #include "MeshDescription.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Misc/Optional.h"
@@ -160,9 +161,12 @@ struct MODELINGCOMPONENTS_API FCreateMeshObjectParams
 	bool bEnableNanite = false;
 
 	/** Specify the Nanite proxy triangle percentage for this new mesh object */
-	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
-	float NaniteProxyTrianglePercent = 100.0f;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Replaced NaniteProxyTrianglePercent with usage of Engine FMeshNaniteSettings"))
+	float NaniteProxyTrianglePercent_DEPRECATED = 100.0f;
 
+	/** Specify the Nanite Settings for this new mesh object, only used if bEnableNanite=true */
+	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
+	FMeshNaniteSettings NaniteSettings = FMeshNaniteSettings();
 
 	//
 	// The Mesh Object should be created based on the mesh data structures below.

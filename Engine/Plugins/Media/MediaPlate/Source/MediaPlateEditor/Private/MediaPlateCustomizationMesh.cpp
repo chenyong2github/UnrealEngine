@@ -168,7 +168,7 @@ UStaticMesh* FMediaPlateCustomizationMesh::CreateStaticMeshAsset(FDynamicMesh3* 
 	AssetOptions.bEnableRecomputeNormals = false;
 	AssetOptions.bEnableRecomputeTangents = false;
 	AssetOptions.bGenerateNaniteEnabledMesh = false;
-	AssetOptions.NaniteProxyTrianglePercent = 100.0f;
+	AssetOptions.NaniteSettings.FallbackPercentTriangles = 1.0;
 
 	AssetOptions.bCreatePhysicsBody = true;;
 	AssetOptions.CollisionType = ECollisionTraceFlag::CTF_UseComplexAsSimple;

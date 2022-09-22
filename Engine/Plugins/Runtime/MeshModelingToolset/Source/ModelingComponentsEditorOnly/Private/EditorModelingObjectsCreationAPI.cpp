@@ -289,7 +289,7 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset
 	AssetOptions.bEnableRecomputeNormals = CreateMeshParams.bEnableRecomputeNormals;
 	AssetOptions.bEnableRecomputeTangents = CreateMeshParams.bEnableRecomputeTangents;
 	AssetOptions.bGenerateNaniteEnabledMesh = CreateMeshParams.bEnableNanite;
-	AssetOptions.NaniteProxyTrianglePercent = CreateMeshParams.NaniteProxyTrianglePercent;
+	AssetOptions.NaniteSettings = CreateMeshParams.NaniteSettings;
 
 	AssetOptions.bCreatePhysicsBody = CreateMeshParams.bEnableCollision;
 	AssetOptions.CollisionType = CreateMeshParams.CollisionMode;
