@@ -28,6 +28,10 @@ public:
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
 	static ADisplayClusterLightCardActor* CreateLightCard(ADisplayClusterRootActor* RootActor);
 
+	/** Create duplicates of a list of existing light cards. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
+	static void DuplicateLightCards(TArray<ADisplayClusterLightCardActor*> OriginalLightcards, TArray<ADisplayClusterLightCardActor*>& OutNewLightCards);
+
 	/** Gets a list of all light card actors on the level linked to the specified root actor. */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
 	static DISPLAYCLUSTER_API void FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards);

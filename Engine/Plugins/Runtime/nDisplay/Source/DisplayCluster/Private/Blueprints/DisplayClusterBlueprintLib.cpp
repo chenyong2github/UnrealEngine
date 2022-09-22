@@ -52,6 +52,10 @@ ADisplayClusterLightCardActor* UDisplayClusterBlueprintLib::CreateLightCard(ADis
 		RootActor->GetWorld()->SpawnActor(ADisplayClusterLightCardActor::StaticClass(),
 			&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
 
+	NewActor->Latitude = 30.0;
+	NewActor->Longitude = 180.0;
+	NewActor->Color = FLinearColor::Gray;
+
 #if WITH_EDITOR
 	NewActor->SetActorLabel(NewActor->GetName());
 #endif
@@ -67,6 +71,70 @@ ADisplayClusterLightCardActor* UDisplayClusterBlueprintLib::CreateLightCard(ADis
 	RootActorLightCards.Actors.Add(NewActor);
 
 	return NewActor;
+}
+
+void UDisplayClusterBlueprintLib::DuplicateLightCards(TArray<ADisplayClusterLightCardActor*> OriginalLightcards, TArray<ADisplayClusterLightCardActor*>& OutNewLightCards)
+{
+#if WITH_EDITOR
+	TMap<UWorld*, FCachedActorLabels> ActorLabelsByWorld;
+	FScopedTransaction Transaction(LOCTEXT("DuplicateLightCard", "Duplicate Light Cards"));
+#endif
+
+	for (ADisplayClusterLightCardActor* OriginalLightcard : OriginalLightcards)
+	{
+		if (!OriginalLightcard)
+		{
+			continue;
+		}
+
+		ADisplayClusterRootActor* RootActor = OriginalLightcard->GetRootActorOwner().Get();
+		if (!RootActor)
+		{
+			continue;
+		}
+
+		UWorld* World = RootActor->GetWorld();
+		ULevel* Level = World ? World->GetCurrentLevel() : nullptr;
+		if (!Level)
+		{
+			continue;
+		}
+
+		const FName UniqueName = MakeUniqueObjectName(Level, OriginalLightcard->GetClass());
+		ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(OriginalLightcard, Level, UniqueName));
+
+#if WITH_EDITOR
+		Level->AddLoadedActor(NewLightCard);
+
+		FCachedActorLabels* ActorLabels = ActorLabelsByWorld.Find(World);
+		if (!ActorLabels)
+		{
+			ActorLabels = &ActorLabelsByWorld.Emplace(World, World);
+		}
+
+		FActorLabelUtilities::SetActorLabelUnique(NewLightCard, NewLightCard->GetActorLabel(), ActorLabels);
+		ActorLabels->Add(NewLightCard->GetActorLabel());
+#endif
+
+		FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepWorld, false);
+		NewLightCard->AttachToActor(RootActor, AttachmentRules);
+
+		// Add it to the root actor
+		UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
+		ConfigData->Modify();
+		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
+
+		RootActorLightCards.Actors.Add(NewLightCard);
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			GEditor->BroadcastLevelActorAdded(NewLightCard);
+		}
+#endif
+
+		OutNewLightCards.Add(NewLightCard);
+	}
 }
 
 void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards)
