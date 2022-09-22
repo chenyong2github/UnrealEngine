@@ -497,7 +497,18 @@ protected:
 	mutable bool bDoNotKey;
 
 public:
-	/** Special list of Names that we should only Modify. Needed to handle Interaction (FK/IK) since Control Rig expecting only changed value to be set
-	not all Controls*/
+	// Special list of Names that we should only Modify. Needed to handle Interaction (FK/IK) since Control Rig expecting only changed value to be set
+	//not all Controls
 	mutable TSet<FName> ControlsToSet;
+
+
+public:
+	//Test Controls really are new
+	bool IsDifferentThanLastControlsUsedToReconstruct(const TArray<FRigControlElement*>& NewControls) const;
+
+private:
+	void StoreLastControlsUsedToReconstruct(const TArray<FRigControlElement*>& NewControls);
+	//Last set of Controls used to reconstruct the channel proxies, used to make sure controls really changed if we want to reconstruct
+	//only care to check name and type
+	TArray<TPair<FName, ERigControlType>> LastControlsUsedToReconstruct;
 };

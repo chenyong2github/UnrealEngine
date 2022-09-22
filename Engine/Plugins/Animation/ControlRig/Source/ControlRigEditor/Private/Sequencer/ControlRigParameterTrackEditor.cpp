@@ -406,6 +406,7 @@ FControlRigParameterTrackEditor::~FControlRigParameterTrackEditor()
 	FMovieSceneToolsModule::Get().UnregisterAnimationBakeHelper(this);
 }
 
+
 void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
 {
 	if (ControlRig && BoundControlRigs.Contains(ControlRig) == false)
@@ -2907,6 +2908,29 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 		if (ControlRig->IsA<UFKControlRig>())
 		{
 			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);
+		}
+	}
+	//also do to new procedural rigs, we may be creating controls dynamically, so here we need to check to see if we need to reconstruct channels
+	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
+	{
+		UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
+		if (Track && Track->GetControlRig() == ControlRig)
+		{
+			TArray<FRigControlElement*> SortedControls;
+			ControlRig->GetControlsInOrder(SortedControls);
+			for (UMovieSceneSection* BaseSection : Track->GetAllSections())
+			{
+				if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(BaseSection))
+				{
+					if (Section->IsDifferentThanLastControlsUsedToReconstruct(SortedControls))
+					{
+						Section->ReconstructChannelProxy();
+						Section->MarkAsChanged();
+					}
+				}
+			}
 		}
 	}
 }

@@ -1386,6 +1386,37 @@ const TArray< FSpaceControlNameAndChannel>& UMovieSceneControlRigParameterSectio
 	return SpaceChannels;
 }
 
+bool UMovieSceneControlRigParameterSection::IsDifferentThanLastControlsUsedToReconstruct(const TArray<FRigControlElement*>& NewControls) const
+{
+	if (NewControls.Num() != LastControlsUsedToReconstruct.Num())
+	{
+		return true;
+	}
+	for (int32 Index = 0; Index < LastControlsUsedToReconstruct.Num(); ++Index)
+	{
+		//for the channel proxy we really just care about name and type, and if any are nullptr's
+		if (LastControlsUsedToReconstruct[Index].Key != NewControls[Index]->GetName() ||
+			LastControlsUsedToReconstruct[Index].Value != NewControls[Index]->Settings.ControlType)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UMovieSceneControlRigParameterSection::StoreLastControlsUsedToReconstruct(const TArray<FRigControlElement*>& NewControls)
+{
+	LastControlsUsedToReconstruct.SetNum(NewControls.Num());
+	for (int32 Index = 0; Index < LastControlsUsedToReconstruct.Num(); ++Index)
+	{
+		if (NewControls[Index])
+		{
+			LastControlsUsedToReconstruct[Index].Key = NewControls[Index]->GetName();
+			LastControlsUsedToReconstruct[Index].Value = NewControls[Index]->Settings.ControlType;
+		}
+	}
+}
+
 void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 {
 	FMovieSceneChannelProxyData Channels;
@@ -1395,6 +1426,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 	{
 		TArray<FRigControlElement*> SortedControls;
 		ControlRig->GetControlsInOrder(SortedControls);
+		StoreLastControlsUsedToReconstruct(SortedControls);
 		bool bIsInUndo = false;
 #if WITH_EDITORONLY_DATA
 		bIsInUndo = GIsTransacting;
