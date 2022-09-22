@@ -7,10 +7,9 @@
 #include "UObject/ObjectPtr.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Animation/MeshDeformer.h"
+#include "Animation/AnimSequence.h"
 #include "MLDeformerVizSettings.generated.h"
 
-class UMeshDeformer;
-class UAnimSequence;
 
 /** The visualization mode, which selects whether you want to view the training data, or test your already trained model. */
 UENUM()
