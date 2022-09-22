@@ -1170,17 +1170,17 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 
 	GetWorld()->SetCurrentLevel(LoadedLevel);
 
-	// Don't force saving of unsaved/temp packages onto the user.
-	if (!FPackageName::IsTempPackage(NewLevelInstanceActor->GetPackage()->GetName()))
-	{
-		DirtyPackages.Add(NewLevelInstanceActor->GetPackage()->GetFName());
-	}
-	
 	// Commit will always pop the actor editor context, make sure to push one here
 	UActorEditorContextSubsystem::Get()->PushContext();
 	bool bCommitted = CommitLevelInstanceInternal(StackLevelInstanceEdit.LevelInstanceEdit, /*bDiscardEdits=*/false, /*bDiscardOnFailure=*/true, &DirtyPackages);
 	check(bCommitted);
 	check(!StackLevelInstanceEdit.LevelInstanceEdit);
+
+	// Don't force saving of unsaved/temp packages onto the user. 
+	if (!FPackageName::IsTempPackage(NewLevelInstanceActor->GetPackage()->GetName()))
+	{
+		FEditorFileUtils::PromptForCheckoutAndSave({ NewLevelInstanceActor->GetPackage() }, /*bCheckDirty*/false, /*bPromptToSave*/false);
+	}
 
 	// EditorLevelUtils::CreateNewStreamingLevelForWorld deactivates all modes. Re-activate if needed
 	if (LevelInstanceEdit)

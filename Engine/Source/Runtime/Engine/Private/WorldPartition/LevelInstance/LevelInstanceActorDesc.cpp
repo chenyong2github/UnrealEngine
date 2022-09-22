@@ -80,14 +80,6 @@ void FLevelInstanceActorDesc::UpdateBounds()
 	ContainerBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 }
 
-void FLevelInstanceActorDesc::OnLevelInstanceChanged(FName PackageName)
-{
-	if (LevelInstanceContainer.IsValid() && (LevelInstanceContainer->GetContainerPackage() == PackageName))
-	{
-		UpdateBounds();
-	}
-}
-
 void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorld)
 {
 	if (InWorld)
@@ -98,11 +90,11 @@ void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorld)
 		{
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(InWorld);
 			check(LevelInstanceSubsystem);
-			LevelInstanceSubsystem->OnLevelInstanceChanged().AddRaw(this, &FLevelInstanceActorDesc::OnLevelInstanceChanged);
 
 			LevelInstanceContainer = LevelInstanceSubsystem->RegisterContainer(LevelPackage);
 			check(LevelInstanceContainer.IsValid());
 
+			// Should only be called on RegisterContainerInstance before ActorDesc is hashed
 			UpdateBounds();
 		}
 	}
@@ -114,8 +106,6 @@ void FLevelInstanceActorDesc::UnregisterContainerInstance()
 	{
 		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainer->GetWorld());
 		check(LevelInstanceSubsystem);
-
-		LevelInstanceSubsystem->OnLevelInstanceChanged().RemoveAll(this);
 
 		LevelInstanceSubsystem->UnregisterContainer(LevelInstanceContainer.Get());
 		LevelInstanceContainer.Reset();
