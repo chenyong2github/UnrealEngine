@@ -7,7 +7,7 @@ public class NNX_ONNXRuntime : ModuleRules
 	public NNX_ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
 		ShortName = "ORT"; // Shorten to avoid path-too-long errors
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = Target.StaticAnalyzer == StaticAnalyzer.None ? ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs : ModuleRules.PCHUsageMode.NoPCHs;
 
 		PublicIncludePaths.AddRange(
 			new string[] {
@@ -145,5 +145,8 @@ public class NNX_ONNXRuntime : ModuleRules
 			//PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST");
 			//PublicDefinitions.Add("USE_DML = 1");
 		}
+
+		// Disable all static analysis checkers for this module
+		StaticAnalyzerDisabledCheckers.Add("all");
 	}
 }
