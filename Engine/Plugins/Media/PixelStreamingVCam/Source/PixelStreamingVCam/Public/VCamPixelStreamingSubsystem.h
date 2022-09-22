@@ -21,11 +21,16 @@ public:
 	void RegisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider);
 	void UnregisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider);
 
+	// Get the LiveLinkSource if it already exists or attempt to create one
+	TSharedPtr<FPixelStreamingLiveLinkSource> TryGetLiveLinkSource();
+	
+	// Get the LiveLinkSource if it already exists or attempt to create one
+	// Additionally registers the OutputProvider to the Source if a new source was created
+	TSharedPtr<FPixelStreamingLiveLinkSource> TryGetLiveLinkSource(UVCamPixelStreamingSession* OutputProvider);
+
 	TSharedPtr<UE::PixelStreamingServers::IServer> LaunchSignallingServer(int StreamerPort, int PlayerPort);
 	void StopSignallingServer();
 	
-	// An associated Live Link Source shared by all output providers
-	TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource;
 private:
 	// Keep track of which output providers are currently active
 	UPROPERTY(Transient)
@@ -36,4 +41,7 @@ private:
 
 	// Download process for PS web frontend files (if we want to view output in the browser)
 	TSharedPtr<FMonitoredProcess> DownloadProcess;
+
+	// An associated Live Link Source shared by all output providers
+	TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource;
 };

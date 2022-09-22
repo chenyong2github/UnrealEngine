@@ -9,13 +9,6 @@
 void UVCamPixelStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
-	{
-		ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		LiveLinkSource = MakeShared<FPixelStreamingLiveLinkSource>();
-		LiveLinkClient->AddSource(LiveLinkSource);
-	}
 }
 
 void UVCamPixelStreamingSubsystem::Deinitialize()
@@ -54,6 +47,43 @@ void UVCamPixelStreamingSubsystem::UnregisterActiveOutputProvider(UVCamPixelStre
 	{
 		LiveLinkSource->RemoveSubject(OutputProvider->GetFName());
 	}
+}
+
+TSharedPtr<FPixelStreamingLiveLinkSource> UVCamPixelStreamingSubsystem::TryGetLiveLinkSource()
+{
+	if (!LiveLinkSource.IsValid())
+	{
+		IModularFeatures& ModularFeatures = IModularFeatures::Get();
+		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+		{
+			ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+			LiveLinkSource = MakeShared<FPixelStreamingLiveLinkSource>();
+			LiveLinkClient->AddSource(LiveLinkSource);
+		}
+	}
+	return LiveLinkSource;
+}
+
+TSharedPtr<FPixelStreamingLiveLinkSource> UVCamPixelStreamingSubsystem::TryGetLiveLinkSource(UVCamPixelStreamingSession* OutputProvider)
+{
+	if (!LiveLinkSource.IsValid())
+	{
+		IModularFeatures& ModularFeatures = IModularFeatures::Get();
+		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+		{
+			ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+			LiveLinkSource = MakeShared<FPixelStreamingLiveLinkSource>();
+			LiveLinkClient->AddSource(LiveLinkSource);
+
+			if (IsValid(OutputProvider))
+			{
+				ActiveOutputProviders.AddUnique(OutputProvider);
+				LiveLinkSource->CreateSubject(OutputProvider->GetFName());
+				LiveLinkSource->PushTransformForSubject(OutputProvider->GetFName(), FTransform::Identity);
+			}
+		}
+	}
+	return LiveLinkSource;
 }
 
 TSharedPtr<UE::PixelStreamingServers::IServer> UVCamPixelStreamingSubsystem::LaunchSignallingServer(int StreamerPort, int PlayerPort)
