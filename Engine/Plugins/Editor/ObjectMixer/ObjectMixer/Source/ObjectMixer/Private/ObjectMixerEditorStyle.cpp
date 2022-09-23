@@ -85,6 +85,7 @@ TSharedRef< FSlateStyleSet > FObjectMixerEditorStyle::Create()
 	Style->Set("ObjectMixer.ToolbarButton.Small", new IMAGE_BRUSH_SVG("Icons/ObjectMixer", Icon20x20));
 	
 	Style->Set("ObjectMixer.Solo", new IMAGE_BRUSH_SVG("Icons/Solo", Icon16x16));
+	Style->Set("ObjectMixer.SoloHoverOff", new IMAGE_BRUSH_SVG("Icons/DashSmall", Icon16x16));
 	
 	return Style;
 }

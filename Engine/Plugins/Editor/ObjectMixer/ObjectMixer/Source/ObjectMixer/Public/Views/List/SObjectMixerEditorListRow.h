@@ -46,6 +46,7 @@ private:
 	
 	/** Get the brush for this widget */
 	const FSlateBrush* GetVisibilityBrush() const;
+	const FSlateBrush* GetSoloBrush() const;
 
 	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem);
 
@@ -60,6 +61,9 @@ private:
 	const FSlateBrush* VisibleNotHoveredBrush = nullptr;
 	const FSlateBrush* NotVisibleHoveredBrush = nullptr;
 	const FSlateBrush* NotVisibleNotHoveredBrush = nullptr;
+	
+	const FSlateBrush* SoloOnBrush = nullptr;
+	const FSlateBrush* SoloOffHoveredBrush = nullptr;
 
 	/** The offset applied to text widgets so that the text aligns with the column header text */
 	float TextBlockLeftPadding = 3.0f;

@@ -57,6 +57,9 @@ void SObjectMixerEditorListRow::Construct(
 	VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(VisibleNotHoveredBrushName);
 	NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NotVisibleHoveredBrushName);
 	NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NotVisibleNotHoveredBrushName);
+	
+	SoloOnBrush = FObjectMixerEditorStyle::Get().GetBrush("ObjectMixer.Solo");
+	SoloOffHoveredBrush = FObjectMixerEditorStyle::Get().GetBrush("ObjectMixer.SoloHoverOff");
 }
 
 TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateWidgetForColumn(const FName& InColumnName)
@@ -300,6 +303,19 @@ const FSlateBrush* SObjectMixerEditorListRow::GetVisibilityBrush() const
 	return bIsHovered ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
 }
 
+const FSlateBrush* SObjectMixerEditorListRow::GetSoloBrush() const
+{
+	check(Item.IsValid());
+
+	// make the foreground brush transparent if it is not selected, hovered or solo
+	if (Item.Pin()->IsThisRowSolo())
+	{
+		return SoloOnBrush;
+	}
+
+	return SoloOffHoveredBrush;
+}
+
 TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 	const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem)
 {
@@ -445,7 +461,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 				[
 					SNew(SImage)
 					.ColorAndOpacity(this, &SObjectMixerEditorListRow::GetSoloIconForegroundColor)
-					.Image(FObjectMixerEditorStyle::Get().GetBrush("ObjectMixer.Solo"))
+					.Image(this, &SObjectMixerEditorListRow::GetSoloBrush)
 					.OnMouseButtonDown_Lambda(
 						[this] (const FGeometry& MyGeometry, const FPointerEvent& Event)
 						{
