@@ -254,6 +254,180 @@ EOS_EResult FEOSSDKManager::Initialize()
 	}
 }
 
+const FEOSSDKPlatformConfig* FEOSSDKManager::GetPlatformConfig(const FString& PlatformConfigName, bool bLoadIfMissing)
+{
+	if (PlatformConfigName.IsEmpty())
+	{
+		UE_LOG(LogEOSSDK, Warning, TEXT("Platform name can't be empty"));
+		return nullptr;
+	}
+
+	FEOSSDKPlatformConfig* PlatformConfig = PlatformConfigs.Find(PlatformConfigName);
+	if (PlatformConfig || !bLoadIfMissing)
+	{
+		return PlatformConfig;
+	}
+
+	const FString SectionName(TEXT("EOSSDK.Platform.") + PlatformConfigName);
+	if (!GConfig->DoesSectionExist(*SectionName, GEngineIni))
+	{
+		UE_LOG(LogEOSSDK, Warning, TEXT("Could not find platform config: %s"), *PlatformConfigName);
+		return nullptr;
+	}
+
+	PlatformConfig = &PlatformConfigs.Emplace(PlatformConfigName);
+
+	PlatformConfig->Name = PlatformConfigName;
+	GConfig->GetString(*SectionName, TEXT("ProductId"), PlatformConfig->ProductId, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("SandboxId"), PlatformConfig->SandboxId, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("ClientId"), PlatformConfig->ClientId, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("ClientSecret"), PlatformConfig->ClientSecret, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("EncryptionKey"), PlatformConfig->EncryptionKey, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("OverrideCountryCode"), PlatformConfig->OverrideCountryCode, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("OverrideLocaleCode"), PlatformConfig->OverrideLocaleCode, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("DeploymentId"), PlatformConfig->DeploymentId, GEngineIni);
+	GConfig->GetString(*SectionName, TEXT("CacheDirectory"), PlatformConfig->CacheDirectory, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bIsServer"), PlatformConfig->bIsServer, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bLoadingInEditor"), PlatformConfig->bLoadingInEditor, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bDisableOverlay"), PlatformConfig->bDisableOverlay, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bDisableSocialOverlay"), PlatformConfig->bDisableSocialOverlay, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bWindowsEnableOverlayD3D9"), PlatformConfig->bWindowsEnableOverlayD3D9, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bWindowsEnableOverlayD3D10"), PlatformConfig->bWindowsEnableOverlayD3D10, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bWindowsEnableOverlayOpenGL"), PlatformConfig->bWindowsEnableOverlayOpenGL, GEngineIni);
+	GConfig->GetBool(*SectionName, TEXT("bEnableRTC"), PlatformConfig->bEnableRTC, GEngineIni);
+	GConfig->GetInt(*SectionName, TEXT("TickBudgetInMilliseconds"), PlatformConfig->TickBudgetInMilliseconds, GEngineIni);
+	GConfig->GetArray(*SectionName, TEXT("OptionalConfig"), PlatformConfig->OptionalConfig, GEngineIni);
+
+	UE_LOG(LogEOSSDK, Verbose, TEXT("Loaded platform config: %s"), *PlatformConfigName);
+	return PlatformConfig;
+}
+
+bool FEOSSDKManager::AddPlatformConfig(const FEOSSDKPlatformConfig& PlatformConfig)
+{
+	if (PlatformConfig.Name.IsEmpty())
+	{
+		UE_LOG(LogEOSSDK, Warning, TEXT("Platform name can't be empty"));
+		return false;
+	}
+
+	if (PlatformConfigs.Find(PlatformConfig.Name))
+	{
+		UE_LOG(LogEOSSDK, Warning, TEXT("Platform config already exists: %s"), *PlatformConfig.Name);
+		return false;
+	}
+
+	PlatformConfigs.Emplace(PlatformConfig.Name, PlatformConfig);
+	UE_LOG(LogEOSSDK, Verbose, TEXT("Added platform config: %s"), *PlatformConfig.Name);
+	return true;
+}
+
+const FString& FEOSSDKManager::GetDefaultPlatformConfigName()
+{
+	if (DefaultPlatformConfigName.IsEmpty())
+	{
+		FString PlatformConfigName;
+		if (GConfig->GetString(TEXT("EOSSDK"), TEXT("DefaultPlatformConfigName"), PlatformConfigName, GEngineIni))
+		{
+			SetDefaultPlatformConfigName(PlatformConfigName);
+		}
+	}
+
+	return DefaultPlatformConfigName;
+}
+
+void FEOSSDKManager::SetDefaultPlatformConfigName(const FString& PlatformConfigName)
+{
+	if (DefaultPlatformConfigName != PlatformConfigName)
+	{
+		UE_LOG(LogEOSSDK, Verbose, TEXT("Default platform name changed: New=%s Old=%s"), *PlatformConfigName, *DefaultPlatformConfigName);
+		OnDefaultPlatformConfigNameChanged.Broadcast(PlatformConfigName, DefaultPlatformConfigName);
+		DefaultPlatformConfigName = PlatformConfigName;
+	}
+}
+
+IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const FString& PlatformConfigName)
+{
+	if (PlatformConfigName.IsEmpty())
+	{
+		UE_LOG(LogEOSSDK, Warning, TEXT("Platform name can't be empty"));
+		return IEOSPlatformHandlePtr();
+	}
+
+	IEOSPlatformHandleWeakPtr* WeakPlatformHandle = PlatformHandles.Find(PlatformConfigName);
+	if (WeakPlatformHandle)
+	{
+		if (WeakPlatformHandle->IsValid())
+		{
+			UE_LOG(LogEOSSDK, Verbose, TEXT("Found existing platform handle: %s"), *PlatformConfigName);
+			return WeakPlatformHandle->Pin();
+		}
+
+		UE_LOG(LogEOSSDK, Verbose, TEXT("Removing stale platform handle pointer: %s"), *PlatformConfigName);
+		PlatformHandles.Remove(PlatformConfigName);
+	}
+
+	const FEOSSDKPlatformConfig* const PlatformConfig = GetPlatformConfig(PlatformConfigName, true);
+	if (!PlatformConfig)
+	{
+		return IEOSPlatformHandlePtr();
+	}
+
+	const FTCHARToUTF8 Utf8ProductId(*PlatformConfig->ProductId);
+	const FTCHARToUTF8 Utf8SandboxId(*PlatformConfig->SandboxId);
+	const FTCHARToUTF8 Utf8ClientId(*PlatformConfig->ClientId);
+	const FTCHARToUTF8 Utf8ClientSecret(*PlatformConfig->ClientSecret);
+	const FTCHARToUTF8 Utf8EncryptionKey(*PlatformConfig->EncryptionKey);
+	const FTCHARToUTF8 Utf8OverrideCountryCode(*PlatformConfig->OverrideCountryCode);
+	const FTCHARToUTF8 Utf8OverrideLocaleCode(*PlatformConfig->OverrideLocaleCode);
+	const FTCHARToUTF8 Utf8DeploymentId(*PlatformConfig->DeploymentId);
+	const FTCHARToUTF8 Utf8CacheDirectory(*PlatformConfig->CacheDirectory);
+
+	static_assert(EOS_PLATFORM_OPTIONS_API_LATEST == 12, "EOS_Platform_Options updated");
+	EOS_Platform_Options PlatformOptions = {};
+	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
+	PlatformOptions.Reserved = nullptr;
+	PlatformOptions.ProductId = Utf8ProductId.Length() ? Utf8ProductId.Get() : nullptr;
+	PlatformOptions.SandboxId = Utf8SandboxId.Length() ? Utf8SandboxId.Get() : nullptr;
+	PlatformOptions.ClientCredentials.ClientId = Utf8ClientId.Length() ? Utf8ClientId.Get() : nullptr;
+	PlatformOptions.ClientCredentials.ClientSecret = Utf8ClientSecret.Length() ? Utf8ClientSecret.Get() : nullptr;
+	PlatformOptions.bIsServer = PlatformConfig->bIsServer;
+	PlatformOptions.EncryptionKey = Utf8EncryptionKey.Length() ? Utf8EncryptionKey.Get() : nullptr;
+	PlatformOptions.OverrideCountryCode = Utf8OverrideCountryCode.Length() ? Utf8OverrideCountryCode.Get() : nullptr;
+	PlatformOptions.OverrideLocaleCode = Utf8OverrideLocaleCode.Length() ? Utf8OverrideLocaleCode.Get() : nullptr;
+	PlatformOptions.DeploymentId = Utf8DeploymentId.Length() ? Utf8DeploymentId.Get() : nullptr;
+
+	PlatformOptions.Flags = 0;
+	if (PlatformConfig->bLoadingInEditor) PlatformOptions.Flags |= EOS_PF_LOADING_IN_EDITOR;
+	if (PlatformConfig->bDisableOverlay) PlatformOptions.Flags |= EOS_PF_DISABLE_OVERLAY;
+	if (PlatformConfig->bDisableSocialOverlay) PlatformOptions.Flags |= EOS_PF_DISABLE_SOCIAL_OVERLAY;
+
+	PlatformOptions.CacheDirectory = Utf8CacheDirectory.Length() ? Utf8DeploymentId.Get() : nullptr;
+	PlatformOptions.TickBudgetInMilliseconds = PlatformConfig->TickBudgetInMilliseconds;
+
+	static_assert(EOS_PLATFORM_RTCOPTIONS_API_LATEST == 1, "EOS_Platform_RTCOptions updated");
+	EOS_Platform_RTCOptions PlatformRTCOptions = {};
+	PlatformRTCOptions.ApiVersion = EOS_PLATFORM_RTCOPTIONS_API_LATEST;
+	PlatformRTCOptions.PlatformSpecificOptions = nullptr;
+	PlatformOptions.RTCOptions = PlatformConfig->bEnableRTC ? &PlatformRTCOptions : nullptr;
+
+	PlatformOptions.IntegratedPlatformOptionsContainerHandle = nullptr;
+
+	IEOSPlatformHandlePtr PlatformHandle = CreatePlatform(*PlatformConfig, PlatformOptions);
+	if (PlatformHandle.IsValid())
+	{
+		UE_LOG(LogEOSSDK, Verbose, TEXT("Created platform handle: %s"), *PlatformConfigName);
+		PlatformHandles.Emplace(PlatformConfigName, PlatformHandle);
+	}
+
+	return PlatformHandle;
+}
+
+IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const FEOSSDKPlatformConfig& PlatformConfig, EOS_Platform_Options& PlatformOptions)
+{
+	OnPreCreateNamedPlatform.Broadcast(PlatformConfig, PlatformOptions);
+	return CreatePlatform(PlatformOptions);
+}
+
 IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& PlatformOptions)
 {
 	IEOSPlatformHandlePtr SharedPlatform;

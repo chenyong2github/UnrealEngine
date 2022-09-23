@@ -13,7 +13,33 @@
 #include "eos_init.h"
 #include "eos_types.h"
 
+struct FEOSSDKPlatformConfig
+{
+	FString Name;
+	FString ProductId;
+	FString SandboxId;
+	FString ClientId;
+	FString ClientSecret;
+	FString EncryptionKey;
+	FString OverrideCountryCode;
+	FString OverrideLocaleCode;
+	FString DeploymentId;
+	FString CacheDirectory;
+	bool bIsServer = false;
+	bool bLoadingInEditor = false;
+	bool bDisableOverlay = false;
+	bool bDisableSocialOverlay = false;
+	bool bWindowsEnableOverlayD3D9 = false;
+	bool bWindowsEnableOverlayD3D10 = false;
+	bool bWindowsEnableOverlayOpenGL = false;
+	bool bEnableRTC = true;
+	int32 TickBudgetInMilliseconds = 1;
+	TArray<FString> OptionalConfig;
+};
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FEOSSDKManagerOnPreInitializeSDK, EOS_InitializeOptions& Options);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FEOSSDKManagerOnDefaultPlatformConfigNameChanged, const FString& NewName, const FString& OldName);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FEOSSDKManagerOnPreCreateNamedPlatform, const FEOSSDKPlatformConfig& Config, EOS_Platform_Options& Options);
 DECLARE_MULTICAST_DELEGATE_OneParam(FEOSSDKManagerOnPreCreatePlatform, EOS_Platform_Options& Options);
 
 class IEOSPlatformHandle
@@ -39,7 +65,9 @@ public:
 protected:
 	EOS_HPlatform PlatformHandle;
 };
+
 using IEOSPlatformHandlePtr = TSharedPtr<IEOSPlatformHandle, ESPMode::ThreadSafe>;
+using IEOSPlatformHandleWeakPtr = TWeakPtr<IEOSPlatformHandle, ESPMode::ThreadSafe>;
 
 class IEOSSDKManager : public IModularFeature
 {
@@ -64,6 +92,18 @@ public:
 	virtual EOS_EResult Initialize() = 0;
 	virtual bool IsInitialized() const = 0;
 
+	virtual const FEOSSDKPlatformConfig* GetPlatformConfig(const FString& PlatformConfigName, bool bLoadIfMissing = false) = 0;
+	virtual bool AddPlatformConfig(const FEOSSDKPlatformConfig& PlatformConfig) = 0;
+	virtual const FString& GetDefaultPlatformConfigName() = 0;
+	virtual void SetDefaultPlatformConfigName(const FString& PlatformConfigName) = 0;
+
+	/**
+	 * Create a platform handle for a platform config name. Config is loaded from .ini files if it was not added with AddPlatformConfig.
+	 * If a platform handle already exists for the config name, this will return a shared pointer to that handle and not create a new one.
+	 */
+	virtual IEOSPlatformHandlePtr CreatePlatform(const FString& PlatformConfigName) = 0;
+
+	/** Create a platform handle using EOSSDK options directly. */
 	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions) = 0;
 
 	virtual FString GetProductName() const = 0;
@@ -84,6 +124,8 @@ public:
 	virtual void AddCallbackObject(TUniquePtr<class FCallbackBase> CallbackObj) = 0;
 
 	FEOSSDKManagerOnPreInitializeSDK OnPreInitializeSDK;
+	FEOSSDKManagerOnDefaultPlatformConfigNameChanged OnDefaultPlatformConfigNameChanged;
+	FEOSSDKManagerOnPreCreateNamedPlatform OnPreCreateNamedPlatform;
 	FEOSSDKManagerOnPreCreatePlatform OnPreCreatePlatform;
 };
 

@@ -32,6 +32,12 @@ public:
 	virtual EOS_EResult Initialize() override;
 	virtual bool IsInitialized() const override { return bInitialized; }
 
+	virtual const FEOSSDKPlatformConfig* GetPlatformConfig(const FString& PlatformConfigName, bool bLoadIfMissing = false) override;
+	virtual bool AddPlatformConfig(const FEOSSDKPlatformConfig& PlatformConfig) override;
+	virtual const FString& GetDefaultPlatformConfigName() override;
+	virtual void SetDefaultPlatformConfigName(const FString& PlatformConfigName) override;
+
+	virtual IEOSPlatformHandlePtr CreatePlatform(const FString& PlatformConfigName) override;
 	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions) override;
 
 	virtual FString GetProductName() const override;
@@ -59,6 +65,7 @@ public:
 
 protected:
 	virtual EOS_EResult EOSInitialize(EOS_InitializeOptions& Options);
+	virtual IEOSPlatformHandlePtr CreatePlatform(const FEOSSDKPlatformConfig& PlatformConfig, EOS_Platform_Options& PlatformOptions);
 
 private:
 	friend struct FEOSPlatformHandle;
@@ -87,6 +94,12 @@ private:
 	FTSTicker::FDelegateHandle TickerHandle;
 	/** Callback objects, to be released after EOS_Shutdown */
 	TArray<TUniquePtr<FCallbackBase>> CallbackObjects;
+	/** Cache of named platform configs that have been loaded from ini files or added manually. */
+	TMap<FString, FEOSSDKPlatformConfig> PlatformConfigs;
+	/** Default platform config name to use. */
+	FString DefaultPlatformConfigName;
+	/** Cache of named platform handles that have been created. */
+	TMap<FString, IEOSPlatformHandleWeakPtr> PlatformHandles;
 
 	// Config
 	/** Interval between platform ticks. 0 means we tick every frame. */
