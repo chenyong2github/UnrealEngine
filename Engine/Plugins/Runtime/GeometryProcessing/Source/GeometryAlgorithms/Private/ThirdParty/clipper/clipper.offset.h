@@ -1,10 +1,10 @@
 /*******************************************************************************
 * Author    :  Angus Johnson                                                   *
-* Version   :  Clipper2 - beta                                                 *
-* Date      :  20 June 2022                                                    *
+* Version   :  Clipper2 - ver.1.0.4                                            *
+* Date      :  14 August 2022                                                  *
 * Website   :  http://www.angusj.com                                           *
 * Copyright :  Angus Johnson 2010-2022                                         *
-* Purpose   :  Polygon offsetting                                              *
+* Purpose   :  Path Offset (Inflate/Shrink)                                    *
 * License   :  http://www.boost.org/LICENSE_1_0.txt                            *
 *******************************************************************************/
 
@@ -21,6 +21,11 @@
 
 namespace Clipper2Lib {
 
+// @UE BEGIN
+// default calculation results in far too many vertices, so divide by amount below
+constexpr static int32 StepsPerRadianDivisor = 1000;
+// @UE END
+
 enum class JoinType { Square, Round, Miter };
 
 enum class EndType {Polygon, Joined, Butt, Square, Round};
@@ -30,26 +35,27 @@ enum class EndType {Polygon, Joined, Butt, Square, Round};
 //Joined : offsets both sides of a path, with joined ends
 //Polygon: offsets only one side of a closed path
 
-class PathGroup {
-public:
-	Paths64 paths_in_;
-	Paths64 paths_out_;
-	Path64 path_;
-	bool is_reversed_ = false;
-	JoinType join_type_;
-	EndType end_type_;
-	PathGroup(const Paths64& paths, JoinType join_type, EndType end_type):
-		paths_in_(paths), join_type_(join_type), end_type_(end_type) {}
-};
-
 class ClipperOffset {
 private:
-	double delta_ = 0.0;
+	class Group {
+	public:
+		Paths64 paths_in_;
+		Paths64 paths_out_;
+		Path64 path_;
+		bool is_reversed_ = false;
+		JoinType join_type_;
+		EndType end_type_;
+		Group(const Paths64& paths, JoinType join_type, EndType end_type) :
+			paths_in_(paths), join_type_(join_type), end_type_(end_type) {}
+	};
+
+	double group_delta_ = 0.0;
+	double abs_group_delta_ = 0.0;
 	double temp_lim_ = 0.0;
 	double steps_per_rad_ = 0.0;
 	PathD norms;
 	Paths64 solution;
-	std::vector<PathGroup> groups_;
+	std::vector<Group> groups_;
 	JoinType join_type_ = JoinType::Square;
 	
 	double miter_limit_ = 0.0;
@@ -58,15 +64,15 @@ private:
 	bool preserve_collinear_ = false;
 	bool reverse_solution_ = false;
 
-	void DoSquare(PathGroup& group, const Path64& path, size_t j, size_t k);
-	void DoMiter(PathGroup& group, const Path64& path, size_t j, size_t k, double cos_a);
-	void DoRound(PathGroup& group, const Point64& pt, const PointD& norm1, const PointD& norm2, double angle);
+	void DoSquare(Group& group, const Path64& path, size_t j, size_t k);
+	void DoMiter(Group& group, const Path64& path, size_t j, size_t k, double cos_a);
+	void DoRound(Group& group, const Path64& path, size_t j, size_t k, double angle);
 	void BuildNormals(const Path64& path);
-	void OffsetPolygon(PathGroup& group, Path64& path);
-	void OffsetOpenJoined(PathGroup& group, Path64& path);
-	void OffsetOpenPath(PathGroup& group, Path64& path, EndType endType);
-	void OffsetPoint(PathGroup& group, Path64& path, size_t j, size_t& k);
-	void DoGroupOffset(PathGroup &group, double delta);
+	void OffsetPolygon(Group& group, Path64& path);
+	void OffsetOpenJoined(Group& group, Path64& path);
+	void OffsetOpenPath(Group& group, Path64& path, EndType endType);
+	void OffsetPoint(Group& group, Path64& path, size_t j, size_t& k);
+	void DoGroupOffset(Group &group, double delta);
 public:
 	ClipperOffset(double miter_limit = 2.0,
 		double arc_tolerance = 0.0,

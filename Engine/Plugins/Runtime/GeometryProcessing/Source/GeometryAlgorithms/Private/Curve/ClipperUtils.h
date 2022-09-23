@@ -14,8 +14,8 @@ namespace UE::Geometry::Private
 	// Matches what's in the clipper lib, precision can change per platform and int64 doesn't reflect this
 	using IntegralType = int64;
 
-	static constexpr IntegralType IntMin = -((TNumericLimits<IntegralType>::Max() >> 2) - 1); // Want padding (so reduce range), and even number, so negate max to get min (actual max is this +1)
-	static constexpr IntegralType IntMax = -IntMin;
+	static constexpr IntegralType IntMin = 0;
+	static constexpr IntegralType IntMax = 9007199254740991; // fit to double bits, product of 2^53 - 1
 	static constexpr IntegralType IntRange = IntMax - IntMin;
 	
 	template <typename RealType, typename OutputType>

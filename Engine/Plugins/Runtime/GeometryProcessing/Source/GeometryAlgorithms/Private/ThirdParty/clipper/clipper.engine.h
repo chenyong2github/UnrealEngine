@@ -1,7 +1,7 @@
 /*******************************************************************************
 * Author    :  Angus Johnson                                                   *
-* Version   :  Clipper2 - beta                                                 *
-* Date      :  14 July 2022                                                    *
+* Version   :  Clipper2 - ver.1.0.4                                            *
+* Date      :  4 September 2022                                                *
 * Website   :  http://www.angusj.com                                           *
 * Copyright :  Angus Johnson 2010-2022                                         *
 * Purpose   :  This is the main polygon clipping module                        *
@@ -23,6 +23,7 @@
 #include <queue>
 #include <stdexcept>
 #include <vector>
+#include <functional>
 // @UE BEGIN
 #include "ThirdParty/clipper/clipper.core.h"
 // @UE END
@@ -40,14 +41,7 @@ namespace Clipper2Lib {
 	//Note: all clipping operations except for Difference are commutative.
 	enum class ClipType { None, Intersection, Union, Difference, Xor };
 	
-	enum class PointInPolygonResult { IsOn, IsInside, IsOutside };
-
 	enum class PathType { Subject, Clip };
-
-	//By far the most widely used filling rules for polygons are EvenOdd
-	//and NonZero, sometimes called Alternate and Winding respectively.
-	//https://en.wikipedia.org/wiki/Nonzero-rule
-	enum class FillRule { EvenOdd, NonZero, Positive, Negative };
 
 	enum class VertexFlags : uint32_t {
 		None = 0, OpenStart = 1, OpenEnd = 2, LocalMax = 4, LocalMin = 8
@@ -107,6 +101,8 @@ namespace Clipper2Lib {
 		Active* back_edge = nullptr;
 		OutPt* pts = nullptr;
 		PolyPath64* polypath = nullptr;
+		Rect64 bounds = {};
+		Path64 path;
 		bool is_open = false;
 		~OutRec() { if (splits) delete splits; };
 	};
@@ -162,8 +158,11 @@ namespace Clipper2Lib {
 	};
 
 #ifdef USINGZ
-	typedef void (*ZFillCallback)(const Point64& e1bot, const Point64& e1top, 
-		const Point64& e2bot, const Point64& e2top, Point64& pt);
+	typedef std::function<void(const Point64& e1bot, const Point64& e1top,
+		const Point64& e2bot, const Point64& e2top, Point64& pt)> ZCallback64;
+
+	typedef std::function<void(const PointD& e1bot, const PointD& e1top,
+		const PointD& e2bot, const PointD& e2top, PointD& pt)> ZCallbackD;
 #endif
 
 	// ClipperBase -------------------------------------------------------------
@@ -214,10 +213,6 @@ namespace Clipper2Lib {
 		void ProcessIntersectList();
 		void SwapPositionsInAEL(Active& edge1, Active& edge2);
 		OutPt* AddOutPt(const Active &e, const Point64& pt);
-		bool TestJoinWithPrev1(const Active& e, int64 curr_y);
-		bool TestJoinWithPrev2(const Active& e, const Point64& curr_pt);
-		bool TestJoinWithNext1(const Active& e, int64 curr_y);
-		bool TestJoinWithNext2(const Active& e, const Point64& curr_pt);
 
 		OutPt* AddLocalMinPoly(Active &e1, Active &e2, 
 			const Point64& pt, bool is_new = false);
@@ -235,7 +230,7 @@ namespace Clipper2Lib {
 		OutPt* DoSplitOp(OutPt* outRecOp, OutPt* splitOp);
 		Joiner* GetHorzTrialParent(const OutPt* op);
 		bool OutPtInTrialHorzList(OutPt* op);
-		void SafeDisposeOutPts(OutPt* op);
+		void SafeDisposeOutPts(OutPt*& op);
 		void SafeDeleteOutPtJoiners(OutPt* op);
 		void AddTrialHorzJoin(OutPt* op);
 		void DeleteTrialHorzJoin(OutPt* op);
@@ -244,15 +239,15 @@ namespace Clipper2Lib {
 		void DeleteJoin(Joiner* joiner);
 		void ProcessJoinerList();
 		OutRec* ProcessJoin(Joiner* joiner);
-		virtual bool ExecuteInternal(ClipType ct, FillRule ft, bool use_polytrees);
+		bool ExecuteInternal(ClipType ct, FillRule ft, bool use_polytrees);
+		bool DeepCheckOwner(OutRec* outrec, OutRec* owner);
 		void BuildPaths(Paths64& solutionClosed, Paths64* solutionOpen);
 		void BuildTree(PolyPath64& polytree, Paths64& open_paths);
+	protected:
 #ifdef USINGZ
-		ZFillCallback zfill_func_; // custom callback 
+		ZCallback64 zCallback_ = nullptr;
 		void SetZ(const Active& e1, const Active& e2, Point64& pt);
 #endif
-	protected:
-		bool orientation_is_reversed_ = true;
 		void CleanUp();  // unlike Clear, CleanUp preserves added paths
 		void AddPath(const Path64& path, PathType polytype, bool is_open);
 		void AddPaths(const Paths64& paths, PathType polytype, bool is_open);
@@ -261,26 +256,10 @@ namespace Clipper2Lib {
 			FillRule fill_rule, Paths64& solution_closed);
 		bool Execute(ClipType clip_type,
 			FillRule fill_rule, Paths64& solution_closed, Paths64& solution_open);
+		bool Execute(ClipType clip_type, FillRule fill_rule, PolyTree64& polytree);
 		bool Execute(ClipType clip_type,
 			FillRule fill_rule, PolyTree64& polytree, Paths64& open_paths);
 	public:
-#ifdef USINGZ
-		void ZFillFunction(ZFillCallback zFillFunc) { zfill_func_ = zFillFunc; }
-		ClipperBase(bool use_reverse_orientation = DEFAULT_ORIENTATION_REVERSED)
-		{ 
-			ReverseSolution = use_reverse_orientation;
-			if (use_reverse_orientation)
-				fillpos = FillRule::Negative;
-			zfill_func_ = nullptr;
-		};
-#else
-		explicit ClipperBase(bool orientation_is_reversed = DEFAULT_ORIENTATION_IS_REVERSED)
-		{
-			orientation_is_reversed_ = orientation_is_reversed;
-			if (orientation_is_reversed_)
-				fillpos = FillRule::Negative;
-		}
-#endif
 		virtual ~ClipperBase();
 		bool PreserveCollinear = true;
 		bool ReverseSolution = false;
@@ -295,7 +274,7 @@ namespace Clipper2Lib {
 	//paths that contain (or own) other paths. This will be useful to some users.
 
 	template <typename T>
-	class PolyPath {
+	class PolyPath final {
 	private:
 		double scale_;
 		Path<T> polygon_;
@@ -313,11 +292,16 @@ namespace Clipper2Lib {
 			parent_ = nullptr;
 		}
 
-		virtual ~PolyPath() { Clear(); };
+		~PolyPath() { Clear(); };
 		
 		//https://en.cppreference.com/w/cpp/language/rule_of_three
 		PolyPath(const PolyPath&) = delete;
 		PolyPath& operator=(const PolyPath&) = delete;
+
+		PolyPath<T>* operator [] (size_t index) { return childs_[index]; }
+
+		typename std::vector<PolyPath*>::const_iterator begin() const { return childs_.cbegin(); }
+		typename std::vector<PolyPath*>::const_iterator end() const { return childs_.cend(); }
 
 		void Clear() { 
 			for (PolyPath<T>* child : childs_) delete child;
@@ -335,9 +319,7 @@ namespace Clipper2Lib {
 			return childs_.back();
 		}
 
-		size_t ChildCount() const { return childs_.size(); }
-
-		const PolyPath<T>* operator [] (size_t index) const { return childs_[index]; }
+		size_t Count() const { return childs_.size(); }
 
 		const PolyPath<T>* parent() const { return parent_; }
 
@@ -352,9 +334,7 @@ namespace Clipper2Lib {
 			return is_hole;
 		}
 
-		const Path<T>& polygon() const { return polygon_; }
-
-		const std::vector<PolyPath*>& childs() const { return childs_; }
+		const Path<T>& Polygon() const { return polygon_; }
 
 		double Area() const
 		{
@@ -372,7 +352,9 @@ namespace Clipper2Lib {
 	class Clipper64 : public ClipperBase
 	{
 	public:
-		using ClipperBase::ClipperBase;
+#ifdef USINGZ
+		void SetZCallback(ZCallback64 cb) { zCallback_ = cb; }
+#endif
 		
 		void AddSubject(const Paths64& subjects)
 		{
@@ -399,21 +381,63 @@ namespace Clipper2Lib {
 			return ClipperBase::Execute(clip_type, fill_rule, closed_paths, open_paths);
 		}
 
+		bool Execute(ClipType clip_type, FillRule fill_rule, PolyTree64& polytree)
+		{
+			return ClipperBase::Execute(clip_type, fill_rule, polytree);
+		}
 		bool Execute(ClipType clip_type,
 			FillRule fill_rule, PolyTree64& polytree, Paths64& open_paths)
 		{
 			return ClipperBase::Execute(clip_type, fill_rule, polytree, open_paths);
 		}
-
 	};
 
 	class ClipperD : public ClipperBase {
 	private:
-		const double scale_;
+		double scale_ = 1.0, invScale_ = 1.0;
+#ifdef USINGZ
+		ZCallbackD zCallback_ = nullptr;
+#endif
 	public:
-		explicit ClipperD(int precision = 0,
-      bool use_reverse_orientation = DEFAULT_ORIENTATION_IS_REVERSED) : 
-      ClipperBase(use_reverse_orientation), scale_(std::pow(10, precision)) {}
+		explicit ClipperD(int precision = 2) : ClipperBase()
+		{
+			scale_ = std::pow(10, precision);
+			invScale_ = 1 / scale_;
+		}
+
+#ifdef USINGZ
+		void SetZCallback(ZCallbackD cb) { zCallback_ = cb; };
+
+		void ZCB(const Point64& e1bot, const Point64& e1top,
+			const Point64& e2bot, const Point64& e2top, Point64& pt)
+		{
+			// de-scale (x & y)
+			// temporarily convert integers to their initial float values
+			// this will slow clipping marginally but will make it much easier
+			// to understand the coordinates passed to the callback function
+			PointD tmp = PointD(pt) * invScale_;
+			PointD e1b = PointD(e1bot) * invScale_;
+			PointD e1t = PointD(e1top) * invScale_;
+			PointD e2b = PointD(e2bot) * invScale_;
+			PointD e2t = PointD(e2top) * invScale_;
+			zCallback_(e1b,e1t, e2b, e2t, tmp);
+			pt.z = tmp.z; // only update 'z'
+		};
+
+		void CheckCallback()
+		{
+			if(zCallback_)
+				// if the user defined float point callback has been assigned 
+				// then assign the proxy callback function
+				ClipperBase::zCallback_ = 
+					std::bind(&ClipperD::ZCB, this, std::placeholders::_1,
+					std::placeholders::_2, std::placeholders::_3,
+					std::placeholders::_4, std::placeholders::_5); 
+			else
+				ClipperBase::zCallback_ = nullptr;
+		}
+
+#endif
 
 		void AddSubject(const PathsD& subjects)
 		{
@@ -432,27 +456,47 @@ namespace Clipper2Lib {
 
 		bool Execute(ClipType clip_type, FillRule fill_rule, PathsD& closed_paths)
 		{
+#ifdef USINGZ
+			CheckCallback();
+#endif
 			Paths64 closed_paths64;
 			if (!ClipperBase::Execute(clip_type, fill_rule, closed_paths64)) return false;
-			closed_paths = ScalePaths<double, int64>(closed_paths64, 1 / scale_);
+			closed_paths = ScalePaths<double, int64>(closed_paths64, invScale_);
 			return true;
 		}
 
 		bool Execute(ClipType clip_type,
 			FillRule fill_rule, PathsD& closed_paths, PathsD& open_paths)
 		{
+#ifdef USINGZ
+			CheckCallback();
+#endif			
 			Paths64 closed_paths64;
 			Paths64 open_paths64;
 			if (!ClipperBase::Execute(clip_type,
 				fill_rule, closed_paths64, open_paths64)) return false;
-			closed_paths = ScalePaths<double, int64>(closed_paths64, 1 / scale_);
-			open_paths = ScalePaths<double, int64>(open_paths64, 1 / scale_);
+			closed_paths = ScalePaths<double, int64>(closed_paths64, invScale_);
+			open_paths = ScalePaths<double, int64>(open_paths64, invScale_);
+			return true;
+		}
+		
+		bool Execute(ClipType clip_type, FillRule fill_rule, PolyTreeD& polytree)
+		{
+#ifdef USINGZ
+			CheckCallback();
+#endif
+			PolyTree64 tree_result;
+			if (!ClipperBase::Execute(clip_type, fill_rule, tree_result)) return false;;
+			Polytree64ToPolytreeD(tree_result, polytree);
 			return true;
 		}
 
 		bool Execute(ClipType clip_type,
 			FillRule fill_rule, PolyTreeD& polytree, Paths64& open_paths)
 		{
+#ifdef USINGZ
+			CheckCallback();
+#endif
 			PolyTree64 tree_result;
 			if (!ClipperBase::Execute(clip_type, fill_rule, tree_result, open_paths)) return false;;
 			Polytree64ToPolytreeD(tree_result, polytree);

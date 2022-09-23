@@ -17,9 +17,10 @@ namespace UE::Geometry::Private
 		const EPolygonOffsetJoinType& InJoinType,
 		const EPolygonOffsetEndType& InEndType,
 		const RealType& InOffset,
+		const RealType& InMiterLimit,
 		TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutResult)
 	{
-		// Get combined bounds (min, max) of points
+		// Get combined bounds (min, max) of points 
 		UE::Math::TBox2<RealType> InputBounds(EForceInit::ForceInitToZero);
 		for(const TArrayView<TVector2<RealType>>& Polygon : InPolygons) 
 		{
@@ -31,37 +32,47 @@ namespace UE::Geometry::Private
 		}
 
 		Clipper2Lib::ClipperOffset ClipperOffset;
-		
-		InputBounds.ExpandBy(InOffset * static_cast<RealType>(ClipperOffset.MiterLimit())); // pad to allow for offset geometry
+		ClipperOffset.ReverseSolution(FMath::Sign(InOffset) < 0);
+
+		InputBounds.ExpandBy(FMath::Max(0, InOffset * InOffset)); // pad to allow for offset geometry
 		RealType InputRange = InputBounds.GetSize().GetMax();
 		
 		const Clipper2Lib::Paths<IntegralType> Paths = ConvertPolygonsToPaths<RealType, IntegralType>(InPolygons, InputBounds.Min, InputRange);
 
 		ClipperOffset.MergeGroups(false); // This disables union clipping so we can perform it later to get a polytree
 		ClipperOffset.AddPaths(Paths, static_cast<Clipper2Lib::JoinType>(InJoinType), static_cast<Clipper2Lib::EndType>(InEndType));
+		ClipperOffset.MiterLimit(InMiterLimit);
 
-		RealType ScaledOffset = static_cast<RealType>((InOffset / InputRange) * static_cast<RealType>(IntRange)); // scale to account for value normalization
-		Clipper2Lib::Paths64 OffsetResultPaths = ClipperOffset.Execute(ScaledOffset);
+		RealType ScaledOffset = FMath::Floor(static_cast<RealType>((InOffset / InputRange) * static_cast<RealType>(IntRange))); // scale to account for value normalization
+		Clipper2Lib::Paths64 OffsetResultPaths = ClipperOffset.Execute(FMath::Abs(ScaledOffset));
 
 		if(OffsetResultPaths.size() <= 0)
 		{
 			return false;
 		}
-		
-		// ...then union to merge and get polytree
-		Clipper2Lib::Clipper64 Clipper;
-		Clipper.PreserveCollinear = false;
-		Clipper.AddSubject(OffsetResultPaths);
-		
-		Clipper2Lib::PolyTree64 UnionResultPolyTree;
-		Clipper2Lib::Paths64 UnionResultOpenPaths;
-		const bool bExecuteResult = Clipper.Execute(Clipper2Lib::ClipType::Union, Clipper2Lib::FillRule::NonZero, UnionResultPolyTree, UnionResultOpenPaths);
 
-		if(bExecuteResult)
+		bool bExecuteResult = true;
+		if(OffsetResultPaths.size() > 1)
 		{
-			ConvertPolyTreeToPolygons<IntegralType, RealType>(&UnionResultPolyTree, OutResult, InputBounds.Min, InputRange);
-		}
+			// ...then union to merge and get polytree
+			Clipper2Lib::Clipper64 Clipper;
+			Clipper.PreserveCollinear = false;
+			Clipper.AddSubject(OffsetResultPaths);
 		
+			Clipper2Lib::PolyTree64 UnionResultPolyTree;
+			Clipper2Lib::Paths64 UnionResultOpenPaths;
+			bExecuteResult = Clipper.Execute(Clipper2Lib::ClipType::Union, Clipper2Lib::FillRule::NonZero, UnionResultPolyTree, UnionResultOpenPaths);
+
+			if(bExecuteResult)
+			{
+				ConvertPolyTreeToPolygons<IntegralType, RealType>(&UnionResultPolyTree, OutResult, InputBounds.Min, InputRange);
+			}
+		}
+		else
+		{
+			OutResult.Add(ConvertPathToPolygon(OffsetResultPaths.back(), InputBounds.Min, InputRange));
+		}
+
 		return bExecuteResult;
 	}
 }; 
@@ -77,7 +88,8 @@ TOffsetPolygon2<GeometryType, RealType>::TOffsetPolygon2(
 template <typename GeometryType, typename RealType>
 bool TOffsetPolygon2<GeometryType, RealType>::ComputeResult()
 {
-	return Private::Offset<RealType>(Polygons, JoinType, EndType, Offset, Result);
+	MiterLimit = FMath::Max<RealType>(static_cast<RealType>(2.0), MiterLimit); // Clamps lower value to 2.0
+	return Private::Offset<RealType>(Polygons, JoinType, EndType, Offset, MiterLimit, Result);
 }
 
 namespace UE::Geometry

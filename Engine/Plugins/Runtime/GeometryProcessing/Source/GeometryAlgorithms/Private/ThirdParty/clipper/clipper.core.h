@@ -1,7 +1,7 @@
 /*******************************************************************************
 * Author    :  Angus Johnson                                                   *
-* Version   :  Clipper2 - beta                                                 *
-* Date      :  20 June 2022                                                    *
+* Version   :  Clipper2 - ver.1.0.4                                            *
+* Date      :  7 August 2022                                                   *
 * Website   :  http://www.angusj.com                                           *
 * Copyright :  Angus Johnson 2010-2022                                         *
 * Purpose   :  Core Clipper Library structures and functions                   *
@@ -26,45 +26,30 @@
 
 namespace Clipper2Lib 
 {
-
-	//The classic Cartesian plane is defined by an X-axis that's positive toward
-	//the right and a Y-axis that's positive upwards. However, many modern
-	//graphics libraries use an inverted Y-axis (where Y is positive downward).
-	//This effectively flips polygons upside down, with winding directions that
-	//were clockwise becoming anti-clockwise, and areas that were positive
-	//becoming negative. Nevertheless, in Cartesian coordinates the area of a
-	//convex polygon is defined to be positive if the points are arranged in a
-	//counterclockwise order, and negative if they are in clockwise order
-	//(see https://mathworld.wolfram.com/PolygonArea.html). If this "normal"
-	//winding direction is inconvenient for whatever reason the following 
-	//constant can be changed to accommodate this. Note however that winding 
-	//direction is only important when using Clipper's Positive and Negative 
-	//filling rules. (Reversing orientation has no effect on NonZero an EvenOdd 
-	//filling.) The constant below is intended as "set and perhaps not quite 
-  // forget". While this sets the default orientation, the Clipper class
-  // constructor contains a parameter which can override this default setting.
-	static bool const DEFAULT_ORIENTATION_IS_REVERSED = false;
-
 	// @UE BEGIN
-	// PIE Moved to clipper.h
+	// PI Moved to clipper.h
 	// @UE END
 
+	//By far the most widely used filling rules for polygons are EvenOdd
+	//and NonZero, sometimes called Alternate and Winding respectively.
+	//https://en.wikipedia.org/wiki/Nonzero-rule
+	enum class FillRule { EvenOdd, NonZero, Positive, Negative };
+	
 // Point ------------------------------------------------------------------------
 
 template <typename T>
 struct Point {
 	T x;
 	T y;
+#ifdef USINGZ
+	int64 z;
+#endif
 
 	template <typename T2>
-	//inline 
-		void Init(const T2 x_ = 0, const T2 y_ = 0)
+	inline void Init(const T2 x_ = 0, const T2 y_ = 0)
 	{
-		// @UE BEGIN
-		// constexpr
 		if constexpr (std::numeric_limits<T>::is_integer &&
 			!std::numeric_limits<T2>::is_integer)
-		// @UE END
 		{
 			x = static_cast<T>(std::round(x_));
 			y = static_cast<T>(std::round(y_));
@@ -73,19 +58,18 @@ struct Point {
 		{
 			x = static_cast<T>(x_);
 			y = static_cast<T>(y_);
-		} 
+		}		
 	}
 
 #ifdef USINGZ
-	T z;
 
 	explicit Point() : x(0), y(0), z(0) {};
 
 	template <typename T2>
-	explicit Point(const T2 x_ = 0, const T2 y_ = 0)
+	Point(const T2 x_, const T2 y_, const int64 z_ = 0)
 	{
 		Init(x_, y_);
-		z = 0;
+		z = z_;
 	}
 
 	template <typename T2>
@@ -94,6 +78,12 @@ struct Point {
 		Init(p.x, p.y);
 		z = 0;
 	}
+
+	Point operator * (const double scale) const
+	{
+		return Point(x * scale, y * scale, z);
+	}
+
 
 	friend std::ostream& operator<<(std::ostream& os, const Point& point)
 	{
@@ -106,14 +96,19 @@ struct Point {
 	explicit Point() : x(0), y(0) {};
 
 	template <typename T2>
-	explicit Point(const T2 x_ = 0, const T2 y_ = 0) { Init(x_, y_); }
+	Point(const T2 x_, const T2 y_) { Init(x_, y_); }
 
 	template <typename T2>
 	explicit Point<T>(const Point<T2>& p) { Init(p.x, p.y); }
 
+	Point operator * (const double scale) const
+	{
+		return Point(x * scale, y * scale);
+	}
+
 	friend std::ostream& operator<<(std::ostream& os, const Point& point)
 	{
-		os << point.x << "," << point.y;
+		os << point.x << "," << point.y << " ";
 		return os;
 	}
 
@@ -127,11 +122,6 @@ struct Point {
 	friend bool operator!=(const Point& a, const Point& b)
 	{
 		return !(a == b);
-	}
-
-	Point operator * (const double scale) const
-	{
-		return Point(x * scale, y * scale);
 	}
 
 	inline Point<T> operator-() const
@@ -149,6 +139,8 @@ struct Point {
 		return Point(x-b.x, y-b.y);
 	}
 
+	inline void Negate() { x = -x; y = -y; }
+
 };
 
 //nb: using 'using' here (instead of typedef) as they can be used in templates
@@ -163,7 +155,7 @@ using Paths = std::vector<Path<T>>;
 using Path64 = Path<int64>;
 using PathD = Path<double>;
 using Paths64 = std::vector< Path64>;
-using PathsD = std::vector< PathD>; 
+using PathsD = std::vector< PathD>;
 
 template <typename T>
 std::ostream& operator << (std::ostream& outstream, const Path<T>& path)
@@ -191,11 +183,16 @@ inline Path<T1> ScalePath(const Path<T2>& path, double scale)
 {
 	Path<T1> result;
 	result.reserve(path.size());
-	for (const Point<T2> pt : path)
+#ifdef USINGZ
+	for (const Point<T2>& pt : path)
+		result.push_back(Point<T1>(static_cast<T1>(static_cast<double>(pt.x) * scale, static_cast<T1>(static_cast<double>(pt.y) * scale, static_cast<T1>(static_cast<double>(pt.z)));
+#else
+	for (const Point<T2>& pt : path)
 		// @UE BEGIN
 		// explicit casts
 		result.push_back(Point<T1>(static_cast<T1>(static_cast<double>(pt.x) * scale), static_cast<T1>(static_cast<double>(pt.y) * scale)));
 		// @UE END
+#endif		
 	return result;
 }
 
@@ -372,12 +369,29 @@ struct Rect {
 		return Point<T>((left + right) / 2, (top + bottom) / 2);
 	}
 
-	bool PtIsInside(const Point<T> pt)
+	Path<T> AsPath() const
 	{
-		return pt.x > left && pt.x < right && pt.y > top && pt.y < bottom;
+		Path<T> result;
+		result.reserve(4);
+		result.push_back(Point<T>(left, top));
+		result.push_back(Point<T>(right, top));
+		result.push_back(Point<T>(right, bottom));
+		result.push_back(Point<T>(left, bottom));
+		return result;
 	}
 
-	void Scale(double scale) { 
+	bool Contains(const Point<T> pt)
+	{
+		return pt.x > left && pt.x < right&& pt.y > top && pt.y < bottom;
+	}
+
+	bool Contains(const Rect<T> rec)
+	{
+		return rec.left >= left && rec.right <= right && 
+			rec.top >= top && rec.bottom <= bottom;
+	}
+
+	void Scale(double scale) {
 		left *= scale; 
 		top *= scale;
 		right *= scale;
@@ -418,6 +432,12 @@ inline double CrossProduct(const Point<T>& pt1, const Point<T>& pt2, const Point
 }
 
 template <typename T>
+inline double CrossProduct(const Point<T>& vec1, const Point<T>& vec2)
+{
+	return static_cast<double>(vec1.y * vec2.x) - static_cast<double>(vec2.y * vec1.x);
+}
+
+template <typename T>
 inline double DotProduct(const Point<T>& pt1, const Point<T>& pt2, const Point<T>& pt3) {
 	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.x - pt2.x) + 
 		static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.y - pt2.y));
@@ -451,8 +471,7 @@ inline double DistanceFromLineSqrd(const Point<T>& pt, const Point<T>& ln1, cons
 }
 
 template <typename T>
-inline double Area(const Path<T>& path,
-	bool orientation_is_reversed = DEFAULT_ORIENTATION_IS_REVERSED)
+inline double Area(const Path<T>& path)
 {
 	size_t cnt = path.size();
 	if (cnt < 3) return 0.0;
@@ -463,23 +482,22 @@ inline double Area(const Path<T>& path,
 	{
 		// @UE BEGIN
 		// explicit casts
-		a += static_cast<double>((it2->y + it1->y) * (it2->x - it1->x));
+		a += static_cast<double>(it2->y + it1->y) * static_cast<double>(it2->x - it1->x);
 		it2 = it1 + 1;
-		a += static_cast<double>((it1->y + it2->y) * (it1->x - it2->x));
-		it1 += 2;		
+		a += static_cast<double>(it1->y + it2->y) * static_cast<double>(it1->x - it2->x);
+		it1 += 2;
+		// @UE END
 	}
 	if (cnt & 1)
-		a += static_cast<double>((it2->y + it1->y) * (it2->x - it1->x));
+		// @UE BEGIN
+		// explicit casts
+		a += static_cast<double>(it2->y + it1->y) * static_cast<double>(it2->x - it1->x);
 		// @UE END
-	if (orientation_is_reversed)
-		return a * -0.5;
-	else
-		return a * 0.5;
+	return a * 0.5;
 }
 
 template <typename T>
-inline double Area(const Paths<T>& paths,
-	bool orientation_is_reversed = DEFAULT_ORIENTATION_IS_REVERSED)
+inline double Area(const Paths<T>& paths)
 {
 	double a = 0.0;
 	for (typename Paths<T>::const_iterator paths_iter = paths.cbegin();
@@ -487,21 +505,84 @@ inline double Area(const Paths<T>& paths,
 	{
 		// @UE BEGIN
 		// explicit casts
-		a += static_cast<double>(Area<T>(*paths_iter, orientation_is_reversed));
+		a += static_cast<double>(Area<T>(*paths_iter));
 		// @UE END
 	}
 	return a;
 }
 
 template <typename T>
-inline bool IsPositive(const Path<T>& poly,
-	bool orientation_is_reversed = DEFAULT_ORIENTATION_IS_REVERSED)
+inline bool IsPositive(const Path<T>& poly)
 {
 	// A curve has positive orientation [and area] if a region 'R' 
 	// is on the left when traveling around the outside of 'R'.
 	//https://mathworld.wolfram.com/CurveOrientation.html
 	//nb: This statement is premised on using Cartesian coordinates
-	return Area<T>(poly, orientation_is_reversed) >= 0;
+	return Area<T>(poly) >= 0;
 }
 
+
+enum class PointInPolygonResult { IsOn, IsInside, IsOutside };
+
+template <typename T>
+inline PointInPolygonResult PointInPolygon(const Point<T>& pt, const Path<T>& polygon)
+{
+	if (polygon.size() < 3)
+		return PointInPolygonResult::IsOutside;
+
+	int val = 0;
+	typename Path<T>::const_iterator start = polygon.cbegin(), cit = start;
+	typename Path<T>::const_iterator cend = polygon.cend(), pit = cend - 1;
+
+	while (pit->y == pt.y)
+	{
+		if (pit == start) return PointInPolygonResult::IsOutside;
+		--pit;
+	}
+	bool is_above = pit->y < pt.y;
+
+	while (cit != cend)
+	{
+		if (is_above)
+		{
+			while (cit != cend && cit->y < pt.y) ++cit;
+			if (cit == cend) break;
+		}
+		else
+		{
+			while (cit != cend && cit->y > pt.y) ++cit;
+			if (cit == cend) break;
+		}
+
+		if (cit == start) pit = cend - 1;
+		else  pit = cit - 1;
+
+		if (cit->y == pt.y)
+		{
+			if (cit->x == pt.x || (cit->y == pit->y &&
+				((pt.x < pit->x) != (pt.x < cit->x))))
+				return PointInPolygonResult::IsOn;
+			++cit;
+			continue;
+		}
+
+		if (pt.x < cit->x && pt.x < pit->x)
+		{
+			// we're only interested in edges crossing on the left
+		}
+		else if (pt.x > pit->x && pt.x > cit->x)
+			val = 1 - val; // toggle val
+		else
+		{
+			double d = CrossProduct(*pit, *cit, pt);
+			if (d == 0) return PointInPolygonResult::IsOn;
+			if ((d < 0) == is_above) val = 1 - val;
+		}
+		is_above = !is_above;
+		++cit;
+	}
+	return (val == 0) ? 
+		PointInPolygonResult::IsOutside :
+		PointInPolygonResult::IsInside;
+}
 }  // namespace

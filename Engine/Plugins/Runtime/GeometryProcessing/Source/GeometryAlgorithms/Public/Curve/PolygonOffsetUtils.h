@@ -9,9 +9,9 @@ namespace UE::Geometry
 {
 	enum class EPolygonOffsetJoinType : uint8
 	{
-		Square,
-		Round,
-		Miter,
+		Square,		/* Uniform squaring on all convex edge joins. */
+		Round,		/* Arcs on all convex edge joins. */
+		Miter,		/* Squaring of convex edge joins with acute angles ("spikes"). Use in combination with MiterLimit. */
 	};
 
 	enum class EPolygonOffsetEndType : uint8
@@ -23,7 +23,7 @@ namespace UE::Geometry
 		Round,		/* Offsets both sides of a path, with round extended ends */
 	};
 	
-	/** Offsets a given polygon (a polyline or closed polygon), determined by EndType by a given amount.  */
+	/** Offsets a given polygon (a polyline or closed polygon), determined by EndType by a  given amount.  */
 	template <typename GeometryType, typename RealType>
 	class TOffsetPolygon2
 	{
@@ -31,6 +31,7 @@ namespace UE::Geometry
 		// Input
 		TArray<GeometryType> Polygons;
 		RealType Offset = 1.0;
+		RealType MiterLimit = 2.0; // Minimum value is clamped to 2.0
 		EPolygonOffsetJoinType JoinType = EPolygonOffsetJoinType::Square;
 		EPolygonOffsetEndType EndType = EPolygonOffsetEndType::Polygon;
 

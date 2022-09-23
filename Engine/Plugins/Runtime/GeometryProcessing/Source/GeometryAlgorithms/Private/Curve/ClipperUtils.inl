@@ -120,7 +120,7 @@ namespace UE::Geometry::Private
 	template <typename InputType, typename RealType>
 	void ConvertPolyTreeToPolygon(const Clipper2Lib::PolyPath<InputType>* InPaths, UE::Geometry::TGeneralPolygon2<RealType>& OutPolygon, const TVector2<RealType>& InMin, const RealType& InRange)
 	{
-		const Clipper2Lib::Path<InputType>& InputPolygon = InPaths->polygon();
+		const Clipper2Lib::Path<InputType>& InputPolygon = InPaths->Polygon();
 		TPolygon2<RealType> OutputPolygon = ConvertPathToPolygon<InputType, RealType>(InputPolygon, InMin, InRange);
 
 		if(OutputPolygon.VertexCount() > 0)
@@ -130,16 +130,16 @@ namespace UE::Geometry::Private
 			OutPolygon.AddHole(OutputPolygon, false, false);
 		}
 
-		for(int32 ChildIdx = 0; ChildIdx < InPaths->ChildCount(); ++ChildIdx)
+		for(const Clipper2Lib::PolyPath<InputType>* const Child : *InPaths)
 		{
-			ConvertPolyTreeToPolygon<InputType, RealType>(InPaths->childs()[ChildIdx], OutPolygon, InMin, InRange);
+			ConvertPolyTreeToPolygon<InputType, RealType>(Child, OutPolygon, InMin, InRange);
 		}
 	}
 
 	template <typename InputType, typename RealType>
 	void ConvertPolyTreeToPolygons(const Clipper2Lib::PolyPath<InputType>* InPaths, TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutPolygons, const TVector2<RealType>& InMin, const RealType& InRange)
 	{
-		const Clipper2Lib::Path<InputType>& InputPolygon = InPaths->polygon();
+		const Clipper2Lib::Path<InputType>& InputPolygon = InPaths->Polygon();
 		TPolygon2<RealType> OutputPolygon = ConvertPathToPolygon<InputType, RealType>(InputPolygon, InMin, InRange);
 
 		if(OutputPolygon.VertexCount() > 0)
@@ -151,17 +151,17 @@ namespace UE::Geometry::Private
 		int32 PolygonIdx = OutPolygons.Num() - 1;
 		if(PolygonIdx >= 0)
 		{
-			for(int32 ChildIdx = 0; ChildIdx < InPaths->ChildCount(); ++ChildIdx)
+			for(const Clipper2Lib::PolyPath<InputType>* const ChildPath : *InPaths)
 			{
-				ConvertPolyTreeToPolygon<InputType, RealType>(InPaths->childs()[ChildIdx], OutPolygons[PolygonIdx], InMin, InRange);	
+				ConvertPolyTreeToPolygon<InputType, RealType>(ChildPath, OutPolygons[PolygonIdx], InMin, InRange);
 			}
 		}
 		else
 		{
-			for(int32 ChildIdx = 0; ChildIdx < InPaths->ChildCount(); ++ChildIdx)
+			for(const Clipper2Lib::PolyPath<InputType>* const ChildPath : *InPaths)
 			{
-				ConvertPolyTreeToPolygons<InputType, RealType>(InPaths->childs()[ChildIdx], OutPolygons, InMin, InRange);	
-			}
+				ConvertPolyTreeToPolygons<InputType, RealType>(ChildPath, OutPolygons, InMin, InRange);
+			}			
 		}
 	}
 }
