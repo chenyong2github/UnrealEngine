@@ -194,17 +194,19 @@ bool UStateTree::Link()
 		{
 			if (State.Type == EStateTreeStateType::Subtree)
 			{
-				if (State.ParameterInstanceIndex.IsValid() == false
-					|| State.ParameterDataViewIndex.IsValid() == false)
+				if (State.ParameterInstanceIndex.IsValid() == false)
 				{
 					UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
 					return false;
 				}
 
 				// Subtree is a bind source, update bag struct.
-				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
-				FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
-				Desc.Struct = Params.Parameters.GetPropertyBagStruct();
+				if (State.ParameterDataViewIndex.IsValid())
+				{
+					const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+					FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
+					Desc.Struct = Params.Parameters.GetPropertyBagStruct();
+				}
 			}
 			else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
 			{

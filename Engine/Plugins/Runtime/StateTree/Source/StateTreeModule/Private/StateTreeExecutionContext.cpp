@@ -132,35 +132,42 @@ void FStateTreeExecutionContext::UpdateLinkedStateParameters(const FStateTreeIns
 	const FStateTreeDataView StateParamsInstance = InstanceData.GetMutableStruct(ParameterInstanceIndex);
 	const FCompactStateTreeParameters& StateParams = StateParamsInstance.GetMutable<FCompactStateTreeParameters>();
 
-	// Parameters property bag
-	const FStateTreeDataView ParametersView(StateParams.Parameters.GetMutableValue());
-	if (StateParams.BindingsBatch.IsValid())
+	// Update parameters if the state has any.
+	if (StateParams.Parameters.IsValid())
 	{
-		StateTree->PropertyBindings.CopyTo(DataViews, StateParams.BindingsBatch, ParametersView);
-	}
+		// Parameters property bag
+		const FStateTreeDataView ParametersView(StateParams.Parameters.GetMutableValue());
+		if (StateParams.BindingsBatch.IsValid())
+		{
+			StateTree->PropertyBindings.CopyTo(DataViews, StateParams.BindingsBatch, ParametersView);
+		}
 
-	// Set the parameters as the input parameters for the linked state.
-	check(State.LinkedState.IsValid());
-	const FCompactStateTreeState& LinkedState = StateTree->States[State.LinkedState.Index];
-	check(LinkedState.ParameterDataViewIndex.IsValid());
-	DataViews[LinkedState.ParameterDataViewIndex.Get()] = ParametersView;
+		// Set the parameters as the input parameters for the linked state.
+		check(State.LinkedState.IsValid());
+		const FCompactStateTreeState& LinkedState = StateTree->States[State.LinkedState.Index];
+		check(LinkedState.ParameterDataViewIndex.IsValid());
+		DataViews[LinkedState.ParameterDataViewIndex.Get()] = ParametersView;
+	}
 }
 
 void FStateTreeExecutionContext::UpdateSubtreeStateParameters(const FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State)
 {
-	check(State.ParameterDataViewIndex.IsValid());
 	check(State.ParameterInstanceIndex.IsValid());
-	
-	// Usually the subtree parameter view is set by the linked state. If it's not (i.e. transitioned into a parametrized subtree), we'll set the view default params.
-	if (DataViews[State.ParameterDataViewIndex.Get()].IsValid())
-	{
-		return;
-	}
 
-	// Set view to default parameters.
-	const FStateTreeDataView ParamInstanceView = StateTree->DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()); // These are used as const, so get them from the tree initial values.
-	const FCompactStateTreeParameters& Params = ParamInstanceView.GetMutable<FCompactStateTreeParameters>();
-	DataViews[State.ParameterDataViewIndex.Get()] = FStateTreeDataView(Params.Parameters.GetMutableValue());
+	// Update parameters if the state has any.
+	if (State.ParameterDataViewIndex.IsValid())
+	{
+		// Usually the subtree parameter view is set by the linked state. If it's not (i.e. transitioned into a parametrized subtree), we'll set the view default params.
+		if (DataViews[State.ParameterDataViewIndex.Get()].IsValid())
+		{
+			return;
+		}
+
+		// Set view to default parameters.
+		const FStateTreeDataView ParamInstanceView = StateTree->DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()); // These are used as const, so get them from the tree initial values.
+		const FCompactStateTreeParameters& Params = ParamInstanceView.GetMutable<FCompactStateTreeParameters>();
+		DataViews[State.ParameterDataViewIndex.Get()] = FStateTreeDataView(Params.Parameters.GetMutableValue());
+	}
 }
 
 EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* ExternalInstanceData)

@@ -844,7 +844,7 @@ struct FStateTreeTestConditionInstanceData
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	int32 Count = 1;
 
 	static std::atomic<int32> GlobalCounter;

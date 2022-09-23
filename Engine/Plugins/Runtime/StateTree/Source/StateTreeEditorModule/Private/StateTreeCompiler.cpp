@@ -367,49 +367,61 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 
 			if (SourceState->Type == EStateTreeStateType::Subtree)
 			{
-				// Register a binding source
-				const FStateTreeBindableStructDesc SubtreeParamsDesc = {
+				// Register a binding source if we have parameters
+				int32 SourceStructIndex = INDEX_NONE;
+
+				if (SourceState->Parameters.Parameters.IsValid())
+				{
+					const FStateTreeBindableStructDesc SubtreeParamsDesc = {
 						SourceState->Name,
 						SourceState->Parameters.Parameters.GetPropertyBagStruct(),
 						EStateTreeBindableStructSource::State,
 						SourceState->Parameters.ID
 					};
-				const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(SubtreeParamsDesc);
-				if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(SourceStructIndex); Validation.DidFail())
-				{
-					Validation.Log(Log, TEXT("SourceStructIndex"), SubtreeParamsDesc);
-					return false;
+					SourceStructIndex = BindingsCompiler.AddSourceStruct(SubtreeParamsDesc);
+					
+					if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(SourceStructIndex); Validation.DidFail())
+					{
+						Validation.Log(Log, TEXT("SourceStructIndex"), SubtreeParamsDesc);
+						return false;
+					}
 				}
+				
 				CompactState.ParameterDataViewIndex = FStateTreeIndex16(SourceStructIndex);
 			}
 			else if (SourceState->Type == EStateTreeStateType::Linked)
 			{
-				// Binding target
-				FStateTreeBindableStructDesc LinkedParamsDesc = {
+				int32 BatchIndex = INDEX_NONE;
+
+				if (SourceState->Parameters.Parameters.IsValid())
+				{
+					// Binding target
+					FStateTreeBindableStructDesc LinkedParamsDesc = {
 						SourceState->Name,
 						SourceState->Parameters.Parameters.GetPropertyBagStruct(),
 						EStateTreeBindableStructSource::State,
 						SourceState->Parameters.ID
 					};
 
-				// Check that the bindings for this struct are still all valid.
-				TArray<FStateTreeEditorPropertyBinding> Bindings;
-				if (!GetAndValidateBindings(LinkedParamsDesc, Bindings))
-				{
-					return false;
+					// Check that the bindings for this struct are still all valid.
+					TArray<FStateTreeEditorPropertyBinding> Bindings;
+					if (!GetAndValidateBindings(LinkedParamsDesc, Bindings))
+					{
+						return false;
+					}
+
+					if (!BindingsCompiler.CompileBatch(LinkedParamsDesc, Bindings, BatchIndex))
+					{
+						return false;
+					}
+					
+					if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(BatchIndex); Validation.DidFail())
+					{
+						Validation.Log(Log, TEXT("BatchIndex"), LinkedParamsDesc);
+						return false;
+					}
 				}
 
-				int32 BatchIndex = INDEX_NONE;
-				if (!BindingsCompiler.CompileBatch(LinkedParamsDesc, Bindings, BatchIndex))
-				{
-					return false;
-				}
-
-				if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(BatchIndex); Validation.DidFail())
-				{
-					Validation.Log(Log, TEXT("BatchIndex"), LinkedParamsDesc);
-					return false;
-				}
 				CompactParams.BindingsBatch = FStateTreeIndex16(BatchIndex);
 			}
 		}
@@ -1032,7 +1044,13 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 
 bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
 {
-	check(TargetStruct.Struct != nullptr);
+	if (TargetStruct.Struct == nullptr)
+	{
+		Log.Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("The type of binding target '%s' is invalid."),
+				*TargetStruct.Name.ToString());
+		return false;
+	}
 	
 	OutBindings.Reset();
 	
