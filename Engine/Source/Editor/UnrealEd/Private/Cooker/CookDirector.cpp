@@ -200,6 +200,8 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 		Pair.Value->AppendAssignments(RemoteBatches[Pair.Key]);
 	}
 	TickWorkerConnects();
+
+	bIsFirstAssignment = false;
 }
 
 void FCookDirector::RemoveFromWorker(FPackageData& PackageData)
@@ -295,6 +297,7 @@ void FCookDirector::ShutdownCookSession()
 
 	// Restore the FCookDirector to its original state so that it is ready for a new session
 	ResetCookWorkerCount();
+	bIsFirstAssignment = true;
 }
 
 void FCookDirector::Register(IMPCollector* Collector)
@@ -621,16 +624,17 @@ void FCookDirector::LoadBalance(TConstArrayView<FCookWorkerServer*> SortedWorker
 		AllWorkers.Add(Worker->GetWorkerId());
 	}
 	OutAssignments.Reset(Requests.Num());
+	bool bLogResults = bIsFirstAssignment;
 
 	switch (LoadBalanceAlgorithm)
 	{
 	case ELoadBalanceAlgorithm::Striped:
-		return LoadBalanceStriped(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
+		return LoadBalanceStriped(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments, bLogResults);
 	case ELoadBalanceAlgorithm::CookBurden:
-		return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
+		return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments, bLogResults);
 	}
 	checkNoEntry();
-	return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
+	return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments, bLogResults);
 }
 
 void FCookDirector::AbortWorker(FWorkerId WorkerId)

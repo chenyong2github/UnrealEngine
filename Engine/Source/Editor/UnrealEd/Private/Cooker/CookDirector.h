@@ -125,6 +125,7 @@ private:
 	int32 CookWorkerCount = 0;
 	int32 WorkerConnectPort = 0;
 	bool bWorkersStalled = false;
+	bool bIsFirstAssignment = true;
 	EShowWorker ShowWorkerOption = EShowWorker::CombinedLogs;
 	ELoadBalanceAlgorithm LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden;
 

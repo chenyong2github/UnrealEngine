@@ -14,10 +14,10 @@ namespace UE::Cook
 
 /** Divides requests evenly without considering dependencies or load/save burden. */
 void LoadBalanceStriped(TConstArrayView<FWorkerId> Workers, TArrayView<FPackageData*> Requests,
-	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
+	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments, bool bInLogResults);
 
 /** Balances "CookBurden" (considers load and save cost) across the CookWorkers. */
 void LoadBalanceCookBurden(TConstArrayView<FWorkerId> Workers, TArrayView<FPackageData*> Requests,
-	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
+	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments, bool bInLogResults);
 
 }
