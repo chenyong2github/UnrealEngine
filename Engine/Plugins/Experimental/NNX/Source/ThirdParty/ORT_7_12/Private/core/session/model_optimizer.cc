@@ -373,9 +373,11 @@ public:
 			initializer.proto = it.second;
 			
 			const auto& proto = *it.second;
-			
-			auto status = utils::GetSizeInBytesFromTensorProto<0>(proto, &initializer.dataSize);
-			//status;
+
+			// auto status = utils::GetSizeInBytesFromTensorProto<0>(proto, &initializer.dataSize);
+			size_t dataSize_aux = 0;
+			auto status = utils::GetSizeInBytesFromTensorProto<0>(proto, &dataSize_aux);
+			initializer.dataSize = static_cast<uint64_t>(dataSize_aux);
 
 			tensorInitializers_.push_back(initializer);
 		}
