@@ -109,7 +109,7 @@ static FAutoConsoleVariableRef CVarTaskDynamicPrioritization(
 );
 
 CORE_API int32 GUseNewTaskBackend = 1;
-int32 GNumForegroundWorkers = 2;
+CORE_API int32 GNumForegroundWorkers = 2;
 static FAutoConsoleVariableRef CVarNumForegroundWorkers(
 	TEXT("TaskGraph.NumForegroundWorkers"),
 	GNumForegroundWorkers,

@@ -88,6 +88,8 @@ private:
 	bool TryCreateWorkerConnectSocket();
 	/** Initialization helper: add the local Server for a remote worker, worker process not yet created. */
 	void InitializeWorkers();
+	/** Reduce memory settings, cpusettings, and anything else that needs to be shared with CookWorkers. */
+	void ActivateMachineResourceReduction();
 	/** Tick helper: tick any workers that have not yet finished initialization. */
 	void TickWorkerConnects();
 	/** Tick helper: tick any workers that are shutting down. */
@@ -124,8 +126,10 @@ private:
 	int32 RequestedCookWorkerCount = 0;
 	int32 CookWorkerCount = 0;
 	int32 WorkerConnectPort = 0;
+	int32 CoreLimit = 0;
 	bool bWorkersStalled = false;
 	bool bIsFirstAssignment = true;
+	bool bHasReducedMachineResources = false;
 	EShowWorker ShowWorkerOption = EShowWorker::CombinedLogs;
 	ELoadBalanceAlgorithm LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden;
 
