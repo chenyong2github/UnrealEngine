@@ -276,8 +276,6 @@ void AActor::PostNetReceivePhysicState()
 		const FRepMovement& ThisReplicatedMovement = GetReplicatedMovement();
 		FRigidBodyState NewState;
 		ThisReplicatedMovement.CopyTo(NewState, this);
-
-		FVector DeltaPos(FVector::ZeroVector);
 		RootPrimComp->SetRigidBodyReplicatedTarget(NewState, NAME_None, ThisReplicatedMovement.ServerFrame, ThisReplicatedMovement.ServerPhysicsHandle);
 	}
 }
