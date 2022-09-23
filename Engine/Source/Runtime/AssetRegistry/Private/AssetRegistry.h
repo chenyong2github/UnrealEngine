@@ -239,6 +239,13 @@ private:
 	void GetInheritanceContextWithRequiredLock(FRWScopeLock& InOutScopeLock,
 		UE::AssetRegistry::Impl::FClassInheritanceContext& InheritanceContext,
 		UE::AssetRegistry::Impl::FClassInheritanceBuffer& StackBuffer);
+	void GetInheritanceContextWithRequiredLock(FWriteScopeLock& InOutScopeLock,
+		UE::AssetRegistry::Impl::FClassInheritanceContext& InheritanceContext,
+		UE::AssetRegistry::Impl::FClassInheritanceBuffer& StackBuffer);
+	void GetInheritanceContextAfterVerifyingLock(uint64 CurrentClassesVersionNumber,
+		UE::AssetRegistry::Impl::FClassInheritanceContext& InheritanceContext,
+		UE::AssetRegistry::Impl::FClassInheritanceBuffer& StackBuffer);
+
 
 #if WITH_EDITOR
 	/**

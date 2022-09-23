@@ -134,10 +134,12 @@ public:
 	void SetTemporaryCachingMode(bool bEnable);
 	void SetTemporaryCachingModeInvalidated();
 	bool AddPath(Impl::FEventContext& EventContext, const FString& PathToAdd);
-	void SearchAllAssets(Impl::FEventContext& EventContext, bool bSynchronousSearch);
+	void SearchAllAssets(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
+		bool bSynchronousSearch);
 	void ScanPathsSynchronous(Impl::FScanPathContext& Context);
 	void PrioritizeSearchPath(const FString& PathToPrioritize);
-	void ScanModifiedAssetFiles(Impl::FEventContext& EventContext, const TArray<FString>& InFilePaths);
+	void ScanModifiedAssetFiles(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
+		const TArray<FString>& InFilePaths);
 	void Serialize(FArchive& Ar, Impl::FEventContext& EventContext);
 	void AppendState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState);
 	void GetAllocatedSize(bool bLogDetailed, SIZE_T& StateSize, SIZE_T& StaticSize, SIZE_T& SearchSize) const;
@@ -148,11 +150,12 @@ public:
 	bool SetPrimaryAssetIdForObjectPath(Impl::FEventContext& EventContext, const FSoftObjectPath& ObjectPath, FPrimaryAssetId PrimaryAssetId);
 	bool ResolveRedirect(const FString& InPackageName, FString& OutPackageName) const;
 #if WITH_EDITOR
-	void OnDirectoryChanged(Impl::FEventContext& EventContext, TArray<FFileChangeData>& FileChangesProcessed);
+	void OnDirectoryChanged(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
+		TArray<FFileChangeData>& FileChangesProcessed);
 	void AddLoadedAssetToProcess(const UObject& AssetLoaded);
 #endif
-	void OnContentPathMounted(Impl::FEventContext& EventContext, const FString& InAssetPath,
-		const FString& AssetPathWithTrailingSlash, const FString& FileSystemPath);
+	void OnContentPathMounted(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
+		const FString& InAssetPath, const FString& AssetPathWithTrailingSlash, const FString& FileSystemPath);
 	void OnContentPathDismounted(Impl::FEventContext& EventContext, const FString& InAssetPath,
 		const FString& AssetPathNoTrailingSlash, const FString& FileSystemPath);
 
@@ -177,7 +180,8 @@ public:
 	/** Callback type for TickGatherer */
 	typedef TFunctionRef<void(const TRingBuffer<FAssetData*>&)> FAssetsFoundCallback;
 	/** Consume any results from the gatherer and return its status */
-	Impl::EGatherStatus TickGatherer(Impl::FEventContext& EventContext, const double TickStartTime, bool& bOutInterrupted,
+	Impl::EGatherStatus TickGatherer(Impl::FEventContext& EventContext,
+		Impl::FClassInheritanceContext& InheritanceContext, const double TickStartTime, bool& bOutInterrupted,
 		TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
 	/** Look for and load a single AssetData result from the gatherer. */
 	void TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath);
@@ -186,13 +190,15 @@ public:
 	void PushProcessLoadedAssetsBatch(Impl::FEventContext& EventContext,
 		TArrayView<FAssetData> LoadedAssetDatas, TArrayView<const UObject*> UnprocessedFromBatch);
 	/** Call LoadCalculatedDependencies on each Package updated after the last LoadCalculatedDependencies. */
-	void LoadCalculatedDependencies(TArray<FName>* AssetPackageNamessToCalculate, double TickStartTime, bool& bOutInterrupted);
+	void LoadCalculatedDependencies(TArray<FName>* AssetPackageNamessToCalculate, double TickStartTime, 
+		Impl::FClassInheritanceContext& InheritanceContext, bool& bOutInterrupted);
 	/**
 	 * Look for a CalculatedDependencies function registered for the asset(s) in the given package
 	 * and call that function to add calculated dependencies. Calculated dependencies are added only after
 	 * all normal dependencies gathered from the AssetRegistry data stored in the package have been loaded.
 	 */
-	void LoadCalculatedDependencies(FName PackageName, bool& bOutHadActivity);
+	void LoadCalculatedDependencies(FName PackageName, Impl::FClassInheritanceContext& InheritanceContext,
+		bool& bOutHadActivity);
 	/** Add a watch on a directory that to modify data for a package whenever packages in the directory are modified. */
 	void AddDirectoryReferencer(FName PackageName, const FString& DirectoryLocalPathOrLongPackageName);
 	/** Remove all directory watches for PackageName. */
@@ -253,13 +259,14 @@ private:
 	void EnumerateAssetsByPathNoTags(FName PackagePath,
 		TFunctionRef<bool(const FAssetData&)> Callback, bool bRecursive, bool bIncludeOnlyOnDiskAssets) const;
 	/** Create redirectors read by this->GetRedirectedObjectPath, based on plugin settings */
-	void InitRedirectors(Impl::FEventContext& EventContext, bool& bOutRedirectorsNeedSubscribe);
+	void InitRedirectors(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
+		bool& bOutRedirectorsNeedSubscribe);
 	/** If collecting dependencies, create an FAssetPackageData for every script package, to make sure dependencies can find a data for them. */
 	void ReadScriptPackages();
 	/* Construct the gatherer if it does not already exist */
 	void ConstructGatherer();
 	/**  Called to set up timing variables and launch the on-constructor SearchAllAssets async call */
-	void SearchAllAssetsInitialAsync(Impl::FEventContext& EventContext);
+	void SearchAllAssetsInitialAsync(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext);
 	/**
 	 * Called every tick to when data is retrieved by the background asset search.
 	 * If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches
@@ -489,8 +496,9 @@ struct FClassInheritanceContext
 /** Context to transform, collect, and pass along ScanPathsSynchronous arguments and results */
 struct FScanPathContext
 {
-	FScanPathContext(FEventContext& InEventContext, const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-		bool bInForceRescan = false, bool bInIgnoreDenyListScanFilters = false, TArray<FSoftObjectPath>* FoundAssets = nullptr);
+	FScanPathContext(FEventContext& InEventContext, FClassInheritanceContext& InInheritanceContext,
+		const TArray<FString>& InDirs, const TArray<FString>& InFiles, bool bInForceRescan = false,
+		bool bInIgnoreDenyListScanFilters = false, TArray<FSoftObjectPath>* FoundAssets = nullptr);
 
 	TArray<FString> PackageDirs;
 	TArray<FString> LocalDirs;
@@ -498,6 +506,7 @@ struct FScanPathContext
 	TArray<FString> LocalFiles;
 	TArray<FString> LocalPaths;
 	FEventContext& EventContext;
+	FClassInheritanceContext& InheritanceContext;
 	TArray<FSoftObjectPath>* OutFoundAssets = nullptr;
 	int32 NumFoundAssets = 0;
 	bool bForceRescan = false;
