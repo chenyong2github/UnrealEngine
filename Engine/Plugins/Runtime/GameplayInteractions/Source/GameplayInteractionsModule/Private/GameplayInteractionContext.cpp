@@ -9,6 +9,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "StateTreeReference.h"
 #include "VisualLogger/VisualLogger.h"
+#include "GameplayInteractionStateTreeSchema.h"
 
 bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& Definition)
 {
@@ -23,27 +24,32 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 	
 	if (StateTree == nullptr)
 	{
-		UE_VLOG_UELOG(InteractorActor, LogGameplayInteractions, Error,
+		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
 			TEXT("Failed to activate interaction for %s. Definition %s doesn't point to a valid StateTree asset."),
-			*GetNameSafe(InteractorActor),
+			*GetNameSafe(ContextActor),
 			*Definition.GetFullName());
 		return false;
 	}
 	
-	if (!StateTreeContext.Init(*InteractorActor, *StateTree, EStateTreeStorage::Internal))
+	if (!StateTreeContext.Init(*ContextActor, *StateTree, EStateTreeStorage::Internal))
 	{
-		UE_VLOG_UELOG(InteractorActor, LogGameplayInteractions, Error,
+		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
 			TEXT("Failed to activate interaction for %s. Unable to initialize StateTree execution context for StateTree asset: %s."),
-			*GetNameSafe(InteractorActor),
+			*GetNameSafe(ContextActor),
 			*StateTree->GetFullName());
 		return false;
 	}
 
+	if (!ValidateSchema())
+	{
+		return false;
+	}
+	
 	if (!SetContextRequirements())
 	{
-		UE_VLOG_UELOG(InteractorActor, LogGameplayInteractions, Error,
+		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
 			TEXT("Failed to activate interaction for %s. Unable to provide all external data views for StateTree asset: %s."),
-			*GetNameSafe(InteractorActor),
+			*GetNameSafe(ContextActor),
 			*StateTree->GetFullName());
 		return false;
 	}
@@ -72,18 +78,62 @@ void FGameplayInteractionContext::Deactivate()
 	}
 }
 
+bool FGameplayInteractionContext::ValidateSchema() const
+{
+	// Ensure that the actor and smart object match the schema.
+	const UGameplayInteractionStateTreeSchema* Schema = Cast<UGameplayInteractionStateTreeSchema>(StateTreeContext.GetStateTree()->GetSchema());
+	if (Schema == nullptr)
+	{
+		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
+			TEXT("Failed to activate interaction for %s. Expecting %s schema for StateTree asset: %s."),
+			*GetNameSafe(ContextActor),
+			*GetNameSafe(UGameplayInteractionStateTreeSchema::StaticClass()),
+			*GetFullNameSafe(StateTreeContext.GetStateTree()));
+
+		return false;
+	}
+	if (!ContextActor || !ContextActor->IsA(Schema->GetContextActorClass()))
+	{
+		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
+			TEXT("Failed to activate interaction for %s. Expecting Actor to be of type %s (found %s) for StateTree asset: %s."),
+			*GetNameSafe(ContextActor),
+			*GetNameSafe(Schema->GetContextActorClass()),
+			*GetNameSafe(ContextActor ? ContextActor->GetClass() : nullptr),
+			*GetFullNameSafe(StateTreeContext.GetStateTree()));
+
+		return false;
+	}
+	if (!SmartObjectActor || !SmartObjectActor->IsA(Schema->GetSmartObjectActorClass()))
+	{
+		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
+			TEXT("Failed to activate interaction for %s. SmartObject Actor to be of type %s (found %s) for StateTree asset: %s."),
+			*GetNameSafe(ContextActor),
+			*GetNameSafe(Schema->GetSmartObjectActorClass()),
+			*GetNameSafe(SmartObjectActor ? SmartObjectActor->GetClass() : nullptr),
+			*GetFullNameSafe(StateTreeContext.GetStateTree()));
+
+		return false;
+	}
+
+	return true;
+}
+
 bool FGameplayInteractionContext::SetContextRequirements()
 {
 	if (!StateTreeContext.IsValid())
 	{
 		return false;
 	}
-	
+
 	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetContextDataDescs())
 	{
-		if (ItemDesc.Name == UE::GameplayInteraction::Names::InteractableActor)
+		if (ItemDesc.Name == UE::GameplayInteraction::Names::ContextActor)
 		{
-			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(InteractableActor));
+			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(ContextActor));
+		}
+		else if (ItemDesc.Name == UE::GameplayInteraction::Names::SmartObjectActor)
+		{
+			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(SmartObjectActor));
 		}
 		else if (ItemDesc.Name == UE::GameplayInteraction::Names::SmartObjectClaimedHandle)
         {
@@ -95,8 +145,8 @@ bool FGameplayInteractionContext::SetContextRequirements()
 		}
 	}
 
-	checkf(InteractorActor != nullptr, TEXT("Should never reach this point with an invalid InteractorActor since it is required to get a valid StateTreeContext."));
-	const UWorld* World = InteractorActor->GetWorld();
+	checkf(ContextActor != nullptr, TEXT("Should never reach this point with an invalid InteractorActor since it is required to get a valid StateTreeContext."));
+	const UWorld* World = ContextActor->GetWorld();
 	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetExternalDataDescs())
 	{
 		if (ItemDesc.Struct != nullptr)
@@ -108,7 +158,7 @@ bool FGameplayInteractionContext::SetContextRequirements()
 			}
 			else if (ItemDesc.Struct->IsChildOf(AActor::StaticClass()))
 			{
-				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(InteractorActor));
+				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(ContextActor));
 			}
 		}
 	}

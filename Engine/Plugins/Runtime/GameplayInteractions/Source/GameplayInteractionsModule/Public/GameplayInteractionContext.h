@@ -20,11 +20,18 @@ struct FGameplayInteractionContext
 
 public:
 	void SetClaimedHandle(const FSmartObjectClaimHandle& InClaimedHandle) { ClaimedHandle = InClaimedHandle; }
-	void SetInteractorActor(AActor* InInteractorActor) { InteractorActor = InInteractorActor; }
-	void SetInteractableActor(AActor* InInteractableActor) { InteractableActor = InInteractableActor; }
+	
+	UE_DEPRECATED(5.1, "Please use SetContextActor")
+	void SetInteractorActor(AActor* InInteractorActor) { ContextActor = InInteractorActor; }
+	UE_DEPRECATED(5.1, "Please use SetSmartObjectActor")
+	void SetInteractableActor(AActor* InInteractableActor) { SmartObjectActor = InInteractableActor; }
+	
+	void SetContextActor(AActor* InContextActor) { ContextActor = InContextActor; }
+	void SetSmartObjectActor(AActor* InSmartObjectActor) { SmartObjectActor = InSmartObjectActor; }
+
 	void SetAbortContext(const FGameplayInteractionAbortContext& InAbortContext) { AbortContext = InAbortContext; }
 
-	bool IsValid() const { return ClaimedHandle.IsValid() && InteractorActor != nullptr && InteractableActor != nullptr; }
+	bool IsValid() const { return ClaimedHandle.IsValid() && ContextActor != nullptr && SmartObjectActor != nullptr; }
 
 	/**
 	 * Prepares the StateTree execution context using provided Definition then starts the underlying StateTree 
@@ -50,6 +57,9 @@ protected:
 	 */
 	bool SetContextRequirements();
 
+	/** @return true of the ContextActor and SmartObjectActor match the ones set in schema. */
+	bool ValidateSchema() const;
+	
 	UPROPERTY()
 	FStateTreeExecutionContext StateTreeContext;
     
@@ -60,8 +70,8 @@ protected:
 	FGameplayInteractionAbortContext AbortContext;
 
 	UPROPERTY()
-    TObjectPtr<AActor> InteractorActor = nullptr;
+    TObjectPtr<AActor> ContextActor = nullptr;
     
     UPROPERTY()
-    TObjectPtr<AActor> InteractableActor = nullptr;
+    TObjectPtr<AActor> SmartObjectActor = nullptr;
 };

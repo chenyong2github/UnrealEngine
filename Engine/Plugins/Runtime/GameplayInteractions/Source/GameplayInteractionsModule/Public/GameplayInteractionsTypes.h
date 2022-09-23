@@ -12,7 +12,8 @@ GAMEPLAYINTERACTIONSMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogGameplayInteractio
 
 namespace UE::GameplayInteraction::Names
 {
-	const FName InteractableActor = TEXT("InteractableActor");
+	const FName ContextActor = TEXT("Actor");					// The actor performing the interaction, using short name to be consistent with naming with StateTreeComponentSchema.
+	const FName SmartObjectActor = TEXT("SmartObjectActor");	// The SmartObjectActor participating in the interaction.
 	const FName SmartObjectClaimedHandle = TEXT("SmartObjectClaimedHandle");
 	const FName AbortContext = TEXT("AbortContext");
 };

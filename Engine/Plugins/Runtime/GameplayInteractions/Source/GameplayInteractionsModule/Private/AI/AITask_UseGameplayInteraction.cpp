@@ -90,8 +90,8 @@ void UAITask_UseGameplayInteraction::Activate()
 	}
 
 	const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
-	GameplayInteractionContext.SetInteractorActor(OwnerController->GetPawn() ? Cast<AActor>(OwnerController->GetPawn()) : OwnerController);
-	GameplayInteractionContext.SetInteractableActor(SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr);
+	GameplayInteractionContext.SetContextActor(OwnerController->GetPawn() ? Cast<AActor>(OwnerController->GetPawn()) : OwnerController);
+	GameplayInteractionContext.SetSmartObjectActor(SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr);
 	GameplayInteractionContext.SetClaimedHandle(ClaimedHandle);
 
 	if (!GameplayInteractionContext.Activate(*SmartObjectGameplayBehaviorDefinition))
