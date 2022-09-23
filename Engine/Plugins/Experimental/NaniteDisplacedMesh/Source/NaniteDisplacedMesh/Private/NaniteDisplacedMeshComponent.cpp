@@ -2,6 +2,19 @@
 
 #include "NaniteDisplacedMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "ComponentRecreateRenderStateContext.h"
+
+int32 GRenderNaniteDisplacedMesh = 1;
+FAutoConsoleVariableRef CVarRenderNaniteDisplacedMesh(
+	TEXT("r.Nanite.DisplacedMesh"),
+	GRenderNaniteDisplacedMesh,
+	TEXT("Render Nanite displaced meshes"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 void UNaniteDisplacedMeshComponent::PostLoad()
 {
@@ -37,6 +50,11 @@ void UNaniteDisplacedMeshComponent::TickComponent(float DeltaTime, ELevelTick Ti
 const Nanite::FResources* UNaniteDisplacedMeshComponent::GetNaniteResources() const
 {
 	// TODO: Refactor API to support also overriding the mesh section info
+
+	if (GRenderNaniteDisplacedMesh == 0)
+	{
+		return nullptr;
+	}
 
 	if (IsValid(DisplacedMesh) && DisplacedMesh->HasValidNaniteData())
 	{

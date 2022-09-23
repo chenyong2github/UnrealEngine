@@ -191,7 +191,7 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 
 	if (Response.Status == EStatus::Ok)
 	{
-		((IRequestOwner&)Owner).LaunchTask(TEXT("NaniteDisplacedMeshSerialize"), [this, Value = MoveTemp(Response.Value)]
+		Owner.LaunchTask(TEXT("NaniteDisplacedMeshSerialize"), [this, Value = MoveTemp(Response.Value)]
 		{
 			// Release execution resource as soon as the task is done
 			ON_SCOPE_EXIT { ExecutionResource = nullptr; };
@@ -203,13 +203,13 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 				Data->Resources.Serialize(Ar, DisplacedMesh, /*bCooked*/ false);
 				Ar << Data->MeshSections;
 
-				// The initialization of the resources is done by the nanite FNaniteDisplacedMeshCompilingManager to avoid race conditions
+				// The initialization of the resources is done by FNaniteDisplacedMeshCompilingManager to avoid race conditions
 			}
 		});
 	}
 	else if (Response.Status == EStatus::Error)
 	{
-		((IRequestOwner&)Owner).LaunchTask(TEXT("NaniteDisplacedMeshBuild"), [this, Name = Response.Name, Key = Response.Key]
+		Owner.LaunchTask(TEXT("NaniteDisplacedMeshBuild"), [this, Name = Response.Name, Key = Response.Key]
 		{
 			// Release execution resource as soon as the task is done
 			ON_SCOPE_EXIT { ExecutionResource = nullptr; };
@@ -227,7 +227,7 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 
 				GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(RecordData)))} }, Owner);
 
-				// The initialization of the resources is done by the nanite FNaniteDisplacedMeshCompilingManager to avoid race conditions
+				// The initialization of the resources is done by FNaniteDisplacedMeshCompilingManager to avoid race conditions
 			}
 		});
 	}
@@ -320,7 +320,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		true
 	);
 
-	if (((IRequestOwner&)Owner).IsCanceled())
+	if (Owner.IsCanceled())
 	{
 		return false;
 	}
@@ -343,7 +343,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		bNeeds32BitIndices
 	);
 
-	if (((IRequestOwner&)Owner).IsCanceled())
+	if (Owner.IsCanceled())
 	{
 		return false;
 	}
@@ -384,7 +384,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		return false;
 	}
 
-	if (((IRequestOwner&)Owner).IsCanceled())
+	if (Owner.IsCanceled())
 	{
 		return false;
 	}
@@ -412,7 +412,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		return false;
 	}
 
-	if (((IRequestOwner&)Owner).IsCanceled())
+	if (Owner.IsCanceled())
 	{
 		return false;
 	}
