@@ -287,7 +287,8 @@ void FMediaProfileSettingsCustomization::Configure(const FMediaProfileSettingsCu
 			bool bOnlyIfIsDirty = false;
 			UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bOnlyIfIsDirty);
 
-			GetMutableDefault<UMediaProfileSettings>()->SaveConfig();
+			// This will log a warning if the default file was read-only
+			GetMutableDefault<UMediaProfileSettings>()->TryUpdateDefaultConfigFile();
 
 			// Reapply the media profile if it exist
 			UMediaProfile* MediaProfile = IMediaProfileManager::Get().GetCurrentMediaProfile();
