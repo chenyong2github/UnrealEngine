@@ -318,7 +318,6 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 			View->AntiAliasingMethod = AAM_None;
 		}
 	}
-	View->SetupAntiAliasingMethod();
 
 	// Anti Aliasing
 	{
