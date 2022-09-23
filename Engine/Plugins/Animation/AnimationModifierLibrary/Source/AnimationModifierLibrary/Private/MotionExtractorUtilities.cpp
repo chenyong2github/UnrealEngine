@@ -148,7 +148,7 @@ FTransform UMotionExtractorUtilityLibrary::ExtractBoneTransform(UAnimSequence* A
 	FBlendedCurve Curve;
 	Curve.InitFrom(BoneContainer);
 
-	FAnimExtractContext Context(Time, false);
+	FAnimExtractContext Context(static_cast<double>(Time), false);
 	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData AnimationPoseData(Pose, Curve, Attributes);
 
