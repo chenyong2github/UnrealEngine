@@ -330,7 +330,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 						.ButtonContent()
 					[
 						SNew(SImage)
-						.Image(FRewindDebuggerStyle::Get().GetBrush("RewindDebugger.MenuIcon"))
+						.Image(FAppStyle::Get().GetBrush("ClassIcon.CameraComponent"))
 					]
 				]
 				+SHorizontalBox::Slot().FillWidth(1.0)
