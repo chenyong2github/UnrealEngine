@@ -10,7 +10,9 @@ public class ORTDefault : ModuleRules
     {
 		Type = ModuleType.External;
 		// Win64
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || 
+			Target.Platform == UnrealTargetPlatform.Mac ||
+			Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			// PublicSystemIncludePaths
 			// string IncPath = Path.Combine(ModuleDirectory, "include/");
@@ -28,25 +30,75 @@ public class ORTDefault : ModuleRules
 			// PublicAdditionalLibraries
 			string PlatformDir = Target.Platform.ToString();
 			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
-			string[] LibFileNames = new string[] {
-				"onnxruntime",
-				"onnxruntime_providers_cuda",
-				"onnxruntime_providers_shared",
-				"custom_op_library",
-				"test_execution_provider"
-			};
 
+
+			string[] LibFileNames;
+			if(Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				LibFileNames = new string[] {
+					"onnxruntime",
+					"onnxruntime_providers_cuda",
+					"onnxruntime_providers_shared",
+					"custom_op_library",
+					"test_execution_provider"
+				};
+			}
+			else if(Target.Platform == UnrealTargetPlatform.Linux)
+			{
+				LibFileNames = new string[] {
+					"onnxruntime",
+					"onnxruntime_providers_shared",
+					"custom_op_library",
+					"test_execution_provider"
+				};
+			}
+			else if(Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				LibFileNames = new string[] {
+					"onnxruntime",
+					"custom_op_library"
+				};
+			}
+			else 
+			{
+				LibFileNames = new string[] {};
+			}
 
 			string BinaryThirdPartyDirPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "bin", PlatformDir));
+			
 			foreach (string LibFileName in LibFileNames)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
-				// PublicDelayLoadDLLs
-				string DLLFileName = LibFileName + ".dll";
-				PublicDelayLoadDLLs.Add(DLLFileName);
-				// RuntimeDependencies
-				string DLLFullPath = Path.Combine(BinaryThirdPartyDirPath, DLLFileName);
-				RuntimeDependencies.Add(DLLFullPath);
+
+				if(Target.Platform == UnrealTargetPlatform.Win64)
+				{
+					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
+					
+					// PublicDelayLoadDLLs
+					string DLLFileName = LibFileName + ".dll";
+					PublicDelayLoadDLLs.Add(DLLFileName);
+
+					// RuntimeDependencies
+					string DLLFullPath = Path.Combine(BinaryThirdPartyDirPath, DLLFileName);
+					RuntimeDependencies.Add(DLLFullPath);
+				} 
+				else if(Target.Platform == UnrealTargetPlatform.Linux)
+				{
+					// PublicDelayLoadDLLs
+					string DLLFileName = "lib" + LibFileName + ".so";
+				}
+				else if(Target.Platform == UnrealTargetPlatform.Mac)
+				{
+					// PublicDelayLoadDLLs
+					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, "lib" + LibFileName + ".dylib");
+					PublicAdditionalLibraries.Add(CurrentLibPath);
+
+				}
+				else
+				{
+					
+				}
+
+
 			}
 
 			// PublicDefinitions
@@ -54,7 +106,20 @@ public class ORTDefault : ModuleRules
 			PublicDefinitions.Add("WITH_ONNXRUNTIME");
 			PublicDefinitions.Add("ORTDEFAULT_PLATFORM_PATH=bin/" + PlatformDir);
 			PublicDefinitions.Add("ORTDEFAULT_PLATFORM_BIN_PATH=" + BinaryThirdPartyDirPath.Replace('\\', '/'));
-			PublicDefinitions.Add("ONNXRUNTIME_DLL_NAME=" + "onnxruntime.dll");
+			
+			if(Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PublicDefinitions.Add("ONNXRUNTIME_DLL_NAME=" + "onnxruntime.dll");
+			}
+			else if(Target.Platform == UnrealTargetPlatform.Linux)
+			{
+				PublicDefinitions.Add("ONNXRUNTIME_DLL_NAME=" + "libonnxruntime.so");
+			}
+			else if(Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				PublicDefinitions.Add("ONNXRUNTIME_DLL_NAME=" + "libonnxruntime.dylib");
+			}
+
 			PublicDefinitions.Add("ORT_API_MANUAL_INIT");
 		}
 	}
