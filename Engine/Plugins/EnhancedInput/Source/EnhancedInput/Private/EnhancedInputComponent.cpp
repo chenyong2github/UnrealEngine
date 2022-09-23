@@ -34,6 +34,26 @@ bool UEnhancedInputComponent::HasBindings( ) const
 	return GetActionEventBindings().Num() > 0 || GetActionValueBindings().Num() > 0 || GetDebugKeyBindings().Num() > 0 || Super::HasBindings();
 }
 
+void UEnhancedInputComponent::ClearActionBindings()
+{
+	Super::ClearActionBindings();
+
+	ClearActionEventBindings();
+}
+
+void UEnhancedInputComponent::ClearBindingsForObject(UObject* InOwner)
+{
+	Super::ClearBindingsForObject(InOwner);
+
+	for (int32 Index = EnhancedActionEventBindings.Num() - 1; Index >= 0; --Index)
+	{
+		if (EnhancedActionEventBindings[Index]->IsBoundToObject(InOwner))
+		{
+			EnhancedActionEventBindings.RemoveAtSwap(Index, 1, false);
+		}
+	}
+}
+
 template<typename T>
 bool RemoveBindingByIndex(TArray<T>& Bindings, const int32 BindingIndex)
 {

@@ -171,6 +171,7 @@ public:
 	virtual void Execute(const FInputActionInstance& ActionData) const = 0;
 	virtual TUniquePtr<FEnhancedInputActionEventBinding> Clone() const = 0;
 	virtual void SetShouldFireWithEditorScriptGuard(const bool bNewValue) = 0;
+	virtual bool IsBoundToObject(void const* Object) const = 0;
 };
 
 /** Binds an action value for later reference. CurrentValue will be kept up to date with the value of the bound action */
@@ -258,6 +259,11 @@ public:
 	virtual void SetShouldFireWithEditorScriptGuard(const bool bNewValue)
 	{
 		Delegate.SetShouldFireWithEditorScriptGuard(bNewValue);
+	}
+
+	virtual bool IsBoundToObject(void const* Object) const override
+	{
+		return Delegate.IsBoundToObject(Object);
 	}
 
 	TEnhancedInputUnifiedDelegate<TSignature> Delegate;
@@ -366,6 +372,12 @@ public:
 	void ClearActionEventBindings() { EnhancedActionEventBindings.Reset(); }
 	void ClearActionValueBindings() { EnhancedActionValueBindings.Reset(); }
 	void ClearDebugKeyBindings() { DebugKeyBindings.Reset(); }
+
+	/** Removes all action bindings. */
+	virtual void ClearActionBindings() override;
+	
+	/** Clears any input callback delegates from the given UObject */
+	virtual void ClearBindingsForObject(UObject* InOwner) override;
 
 	/**
 	 * Gets all action bindings of type

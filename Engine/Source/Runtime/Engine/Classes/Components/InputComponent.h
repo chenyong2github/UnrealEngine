@@ -765,7 +765,7 @@ public:
 	uint8 bBlockInput:1;
 
 	/** Clears any inut callback delegates from the given UObject */
-	void ClearBindingsForObject(UObject* InOwner);
+	virtual void ClearBindingsForObject(UObject* InOwner);
 	
 	void ConditionalBuildKeyMap(UPlayerInput* PlayerInput);
 
@@ -818,7 +818,7 @@ public:
 	 *
 	 * @see AddActionBinding, GetActionBinding, GetNumActionBindings, RemoveActionBinding
 	 */
-	void ClearActionBindings();
+	virtual void ClearActionBindings();
 
 	/**
 	 * Gets the action binding with the specified index.
