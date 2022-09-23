@@ -546,18 +546,44 @@ struct TAreaWeightingModeBinder
 		{
 			if (InstData->SamplingRegionIndices.Num() > 1)
 			{
-				bAreaWeighting = InstData->SamplingRegionAreaWeightedSampler.IsValid();
+				if (InstData->SamplingRegionAreaWeightedSampler.IsValid())
+				{
+					bAreaWeighting = true;
+
+					// check that all the regions have sampling data
+					const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->SkeletalMesh->GetSamplingInfo();
+
+					for (int32 RegionIndex : InstData->SamplingRegionIndices)
+					{
+						const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(RegionIndex);
+						const FSkeletalMeshSamplingRegionBuiltData& RegionBuiltData = SamplingInfo.GetRegionBuiltData(RegionIndex);
+
+						if (RegionBuiltData.AreaWeightedSampler.GetNumEntries() == 0)
+						{
+							bAreaWeighting = false;
+						}
+					}
+				}
 			}
 			else if (InstData->SamplingRegionIndices.Num() == 1)
 			{
+				const int32 RegionIndex = InstData->SamplingRegionIndices[0];
+
 				const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->SkeletalMesh->GetSamplingInfo();
-				const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
-				bAreaWeighting = Region.bSupportUniformlyDistributedSampling;
+				const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(RegionIndex);
+
+				bAreaWeighting = Region.bSupportUniformlyDistributedSampling
+					&& (SamplingInfo.GetRegionBuiltData(RegionIndex).AreaWeightedSampler.GetNumEntries() > 0);
 			}
 			else
 			{
-				int32 LODIndex = InstData->GetLODIndex();
-				bAreaWeighting = InstData->SkeletalMesh->GetLODInfo(LODIndex)->bSupportUniformlyDistributedSampling;
+				const int32 LODIndex = InstData->GetLODIndex();
+
+				const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->SkeletalMesh->GetSamplingInfo();
+				const FSkeletalMeshSamplingLODBuiltData& WholeMeshBuiltData = SamplingInfo.GetWholeMeshLODBuiltData(LODIndex);
+
+				bAreaWeighting = InstData->SkeletalMesh->GetLODInfo(LODIndex)->bSupportUniformlyDistributedSampling
+					&& (WholeMeshBuiltData.AreaWeightedTriangleSampler.GetNumEntries() > 0);
 			}
 		}
 
