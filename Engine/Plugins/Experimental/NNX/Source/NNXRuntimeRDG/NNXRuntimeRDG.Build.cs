@@ -40,5 +40,10 @@ public class NNXRuntimeRDG : ModuleRules
 		{	
 			PrivateDependencyModuleNames.Add("MetalRHI");
 		}
+
+		if (Target.Platform == UnrealTargetPlatform.Linux)
+		{	
+			PrivateDependencyModuleNames.Add("VulkanRHI");
+		}
 	}
 }
