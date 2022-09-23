@@ -95,10 +95,20 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reads data for a blob from the store
 		/// </summary>
-		/// <param name="locator">The blob identifier</param>
+		/// <param name="locator">The blob locator</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
+		/// <returns>Stream containing the data</returns>
 		Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Reads part of a blob from storage
+		/// </summary>
+		/// <param name="locator">The blob locator</param>
+		/// <param name="offset">Offset within the blob to read from</param>
+		/// <param name="length">Maximum length of data to read. The stream will be truncated if the blob is shorter than this.</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Stream containing the data</returns>
+		Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset = 0, int length = Int32.MaxValue, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new blob to the store
@@ -108,27 +118,6 @@ namespace EpicGames.Horde.Storage
 		/// <param name="prefix">Prefix for blob names. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
 		/// <returns>Unique identifier for the blob</returns>
 		Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default);
-
-		#endregion
-
-		#region Bundles
-
-		/// <summary>
-		/// Reads data for a bundle from the store
-		/// </summary>
-		/// <param name="locator">The blob identifier</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Writes a new bundle to the store
-		/// </summary>
-		/// <param name="bundle">Bundle data</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <param name="prefix">Prefix for blob names. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
-		/// <returns>Unique identifier for the blob</returns>
-		Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default);
 
 		#endregion
 
@@ -227,17 +216,10 @@ namespace EpicGames.Horde.Storage
 			public Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default) => _inner.ReadBlobAsync(locator, cancellationToken);
 
 			/// <inheritdoc/>
+			public Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default) => _inner.ReadBlobRangeAsync(locator, offset, length, cancellationToken);
+
+			/// <inheritdoc/>
 			public Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteBlobAsync(stream, prefix, cancellationToken);
-
-			#endregion
-
-			#region Bundles
-
-			/// <inheritdoc/>
-			public Task<Bundle> ReadBundleAsync(BlobLocator id, CancellationToken cancellationToken = default) => _inner.ReadBundleAsync(id, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteBundleAsync(bundle, prefix, cancellationToken);
 
 			#endregion
 
@@ -277,6 +259,33 @@ namespace EpicGames.Horde.Storage
 		/// <param name="blobStore">Regular blob store instance</param>
 		/// <returns></returns>
 		public static IStorageClient<T> ForType<T>(this IStorageClient blobStore) => new TypedStorageClient<T>(blobStore);
+
+		/// <summary>
+		/// Reads data for a bundle from the store
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="locator">The blob identifier</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public static async Task<Bundle> ReadBundleAsync(this IStorageClient store, BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			using Stream stream = await store.ReadBlobAsync(locator, cancellationToken);
+			return await Bundle.FromStreamAsync(stream, cancellationToken);
+		}
+
+		/// <summary>
+		/// Writes a new bundle to the store
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="bundle">Bundle data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <param name="prefix">Prefix for blob names. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
+		/// <returns>Unique identifier for the blob</returns>
+		public static async Task<BlobLocator> WriteBundleAsync(this IStorageClient store, Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		{
+			using ReadOnlySequenceStream stream = new ReadOnlySequenceStream(bundle.AsSequence());
+			return await store.WriteBlobAsync(stream, prefix, cancellationToken);
+		}
 
 		/// <summary>
 		/// Checks if the given ref exists
