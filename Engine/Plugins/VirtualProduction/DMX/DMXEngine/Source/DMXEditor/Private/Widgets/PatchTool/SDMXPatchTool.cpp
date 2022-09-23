@@ -57,7 +57,7 @@ void SDMXPatchTool::Construct(const FArguments& InArgs)
 				.MaxDesiredWidth(160.f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DMXLibraryComboboxLabel", "DXM Library"))
+					.Text(LOCTEXT("DMXLibraryComboboxLabel", "DMX Library"))
 					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
 				]
 			]
