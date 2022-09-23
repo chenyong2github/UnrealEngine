@@ -17,11 +17,11 @@ struct FPlaybackTickRecord;
 DECLARE_LOG_CATEGORY_EXTERN(LogCacheAdapter, Log, All);
 
 struct FPendingFrameWrite;
+class AChaosCacheManager;
 
 namespace Chaos
 {
 	class FComponentCacheAdapter;
-	class AChaosCacheManager;
 	struct FAdapterUtil
 	{
 		static CHAOSCACHING_API FComponentCacheAdapter* GetBestAdapterForClass(TSubclassOf<UPrimitiveComponent> InComponentClass, bool bAllowDerived = true);
