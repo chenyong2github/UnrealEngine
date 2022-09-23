@@ -8,7 +8,7 @@
 #include "Logging/LogMacros.h"
 
 // The version number used for determining network compatibility. If zero, uses the engine compatible version.
-#define ENGINE_NET_VERSION  21735710
+#define ENGINE_NET_VERSION  0
 
 // The version number used for determining replay compatibility
 #define ENGINE_REPLAY_VERSION  ENGINE_NET_VERSION
