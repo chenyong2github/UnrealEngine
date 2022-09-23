@@ -2184,7 +2184,6 @@ private:
 
 struct FAsyncPackage2
 {
-	friend struct FScopedAsyncPackageEvent2;
 	friend struct FAsyncPackageScope2;
 	friend class FAsyncLoadingThread2;
 	friend class FAsyncLoadEventQueue2;
@@ -2541,20 +2540,6 @@ public:
 
 	/** Serialization context for this package */
 	FUObjectSerializeContext* GetSerializeContext();
-};
-
-struct FScopedAsyncPackageEvent2
-{
-	/** Current scope package */
-	FAsyncPackage2* Package;
-	/** Outer scope package */
-	FAsyncPackage2* PreviousPackage;
-#if WITH_EDITOR
-	IAsyncPackageLoader* PreviousAsyncPackageLoader;
-#endif
-
-	FScopedAsyncPackageEvent2(FAsyncPackage2* InPackage);
-	~FScopedAsyncPackageEvent2();
 };
 
 class FAsyncLoadingThread2 final
@@ -3857,34 +3842,6 @@ bool FAsyncLoadEventQueue2::ExecuteSyncLoadEvents(FAsyncLoadingThreadState2& Thr
 	return bDidSomething;
 }
 
-FScopedAsyncPackageEvent2::FScopedAsyncPackageEvent2(FAsyncPackage2* InPackage)
-	:Package(InPackage)
-{
-	check(Package);
-
-	// Update the thread context with the current package. This is used by NotifyConstructedDuringAsyncLoading.
-	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-	PreviousPackage = static_cast<FAsyncPackage2*>(ThreadContext.AsyncPackage);
-	ThreadContext.AsyncPackage = Package;
-#if WITH_IOSTORE_IN_EDITOR
-	PreviousAsyncPackageLoader = ThreadContext.AsyncPackageLoader;
-	ThreadContext.AsyncPackageLoader = &InPackage->AsyncLoadingThread;
-#endif
-	Package->BeginAsyncLoad();
-}
-
-FScopedAsyncPackageEvent2::~FScopedAsyncPackageEvent2()
-{
-	Package->EndAsyncLoad();
-
-	// Restore the package from the outer scope
-	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-	ThreadContext.AsyncPackage = PreviousPackage;
-#if WITH_IOSTORE_IN_EDITOR
-	ThreadContext.AsyncPackageLoader = PreviousAsyncPackageLoader;
-#endif
-}
-
 FUObjectSerializeContext* FAsyncPackage2::GetSerializeContext()
 {
 	return FUObjectThreadContext::Get().GetSerializeContext();
@@ -4335,6 +4292,8 @@ void FAsyncPackage2::CreateLinker(const FLinkerInstancingContext* InstancingCont
 	}
 	check(Linker);
 	check(Linker->LinkerRoot == LinkerRoot);
+	check(!Linker->AsyncRoot);
+	Linker->AsyncRoot = this;
 	LinkerLoadState->Linker = Linker;
 #if ALT2_ENABLE_NEW_ARCHIVE_FOR_LINKERLOAD
 	Linker->ResetStatusInfo();
@@ -4345,6 +4304,8 @@ void FAsyncPackage2::DetachLinker()
 {
 	if (LinkerLoadState.IsSet() && LinkerLoadState->Linker)
 	{
+		check(LinkerLoadState->Linker->AsyncRoot == this);
+		LinkerLoadState->Linker->AsyncRoot = nullptr;
 		LinkerLoadState->Linker = nullptr;
 	}
 }
@@ -4879,7 +4840,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessPackageSummary(FAsync
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::WaitingForIo);
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessPackageSummary;
 
-	FScopedAsyncPackageEvent2 Scope(Package);
+	FAsyncPackageScope2 Scope(Package);
 
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
 	if (Package->LinkerLoadState.IsSet())
@@ -5045,7 +5006,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
 
-	FScopedAsyncPackageEvent2 Scope(Package);
+	FAsyncPackageScope2 Scope(Package);
 
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
 	if (Package->LinkerLoadState.IsSet())

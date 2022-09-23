@@ -264,7 +264,7 @@ public:
 	}
 
 	/** The async package associated with this linker */
-	struct FAsyncPackage* AsyncRoot;
+	void* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
 	TArray<FBulkData*> BulkDataLoaders;

@@ -66,6 +66,7 @@
 #include "UObject/PropertyWithSetterAndGetter.h"
 #include "UObject/AnyPackagePrivate.h"
 #include "UObject/UObjectGlobalsInternal.h"
+#include "Serialization/AsyncPackageLoader.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -3038,11 +3039,6 @@ bool StaticAllocateObjectErrorTests( const UClass* InClass, UObject* InOuter, FN
 }
 
 /**
-* Call back into the async loading code to inform of the creation of a new object
-*/
-void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject);
-
-/**
 * For object overwrites, the class may want to persist some info over the re-initialize
 * this is only used for classes in the script compiler
 **/
@@ -3295,7 +3291,12 @@ UObject* StaticAllocateObject
 
 	if (IsInAsyncLoadingThread())
 	{
-		NotifyConstructedDuringAsyncLoading(Obj, bSubObject);
+		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
+		if (ThreadContext.AsyncPackageLoader)
+		{
+			LLM_SCOPE(ELLMTag::AsyncLoading);
+			ThreadContext.AsyncPackageLoader->NotifyConstructedDuringAsyncLoading(Obj, bSubObject);
+		}
 	}
 	else
 	{

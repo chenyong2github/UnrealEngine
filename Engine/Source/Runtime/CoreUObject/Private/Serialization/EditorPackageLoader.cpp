@@ -179,12 +179,7 @@ public:
 
 	virtual void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override
 	{
-		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-
-		if (ThreadContext.AsyncPackageLoader)
-		{
-			ThreadContext.AsyncPackageLoader->NotifyConstructedDuringAsyncLoading(Object, bSubObject);
-		}
+		checkf(false, TEXT("This is never called"));
 	}
 
 	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) override

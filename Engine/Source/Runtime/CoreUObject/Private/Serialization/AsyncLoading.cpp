@@ -542,9 +542,7 @@ struct FAsyncPackageScope
 {
 	/** Outer scope package */
 	void* PreviousPackage;
-#if WITH_IOSTORE_IN_EDITOR
 	IAsyncPackageLoader* PreviousAsyncPackageLoader;
-#endif
 	/** Cached ThreadContext so we don't have to access it again */
 	FUObjectThreadContext& ThreadContext;
 
@@ -553,17 +551,13 @@ struct FAsyncPackageScope
 	{
 		PreviousPackage = ThreadContext.AsyncPackage;
 		ThreadContext.AsyncPackage = InPackage;
-#if WITH_IOSTORE_IN_EDITOR
 		PreviousAsyncPackageLoader = ThreadContext.AsyncPackageLoader;
 		ThreadContext.AsyncPackageLoader = &InPackage->AsyncLoadingThread;
-#endif
 	}
 	~FAsyncPackageScope()
 	{
 		ThreadContext.AsyncPackage = PreviousPackage;
-#if WITH_IOSTORE_IN_EDITOR
 		ThreadContext.AsyncPackageLoader = PreviousAsyncPackageLoader;
-#endif
 	}
 };
 
@@ -1730,10 +1724,8 @@ FScopedAsyncPackageEvent::FScopedAsyncPackageEvent(FAsyncPackage* InPackage)
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	PreviousPackage = static_cast<FAsyncPackage*>(ThreadContext.AsyncPackage);
 	ThreadContext.AsyncPackage = Package;
-#if WITH_IOSTORE_IN_EDITOR
 	PreviousAsyncPackageLoader = ThreadContext.AsyncPackageLoader;
 	ThreadContext.AsyncPackageLoader = &InPackage->AsyncLoadingThread;
-#endif
 	Package->BeginAsyncLoad();
 	FExclusiveLoadPackageTimeTracker::PushLoadPackage(Package->Desc.PackagePath.GetPackageFName());
 }
@@ -1748,9 +1740,7 @@ FScopedAsyncPackageEvent::~FScopedAsyncPackageEvent()
 	// Restore the package from the outer scope
 	FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 	ThreadContext.AsyncPackage = PreviousPackage;
-#if WITH_IOSTORE_IN_EDITOR
 	ThreadContext.AsyncPackageLoader = PreviousAsyncPackageLoader;
-#endif
 }
 
 FORCENOINLINE static bool CheckForFileOpenLogCommandLine()

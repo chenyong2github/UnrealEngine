@@ -676,12 +676,6 @@ void NotifyRegistrationComplete()
 	GPackageLoader->StartThread();
 }
 
-void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject)
-{
-	LLM_SCOPE(ELLMTag::AsyncLoading);
-	GetAsyncPackageLoader().NotifyConstructedDuringAsyncLoading(Object, bSubObject);
-}
-
 void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
