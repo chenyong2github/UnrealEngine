@@ -23,19 +23,18 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			IStorageClient storage = CreateStorageClient(logger);
 
-			Bundle blob;
+			BundleHeader header;
 			if (BlobId != null)
 			{
-				blob = await storage.ReadBundleAsync(BlobId.Value);
+				header = await storage.ReadBundleHeaderAsync(BlobId.Value);
 				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
 			}
 			else
 			{
-				blob = (await storage.ReadRefValueAsync(RefName)).Bundle;
+				header = (await storage.ReadRefValueAsync(RefName)).Bundle.Header;
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 
-			BundleHeader header = blob.Header;
 			int packetStart = 0;
 
 			logger.LogInformation("");

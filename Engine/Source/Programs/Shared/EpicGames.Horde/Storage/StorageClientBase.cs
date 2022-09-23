@@ -94,7 +94,13 @@ namespace EpicGames.Horde.Storage
 			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 		}
 
+		readonly IMemoryCache? _cache;
 		readonly TreeStore _treeStore;
+		readonly object _lockObject = new object();
+
+		// Active read tasks at any moment. If a BundleObject is not available in the cache, we start a read and add an entry to this dictionary
+		// so that other threads can also await it.
+		readonly Dictionary<string, Task<Bundle>> _readTasks = new Dictionary<string, Task<Bundle>>();
 
 		/// <summary>
 		/// Constructor
@@ -102,7 +108,8 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cache"></param>
 		protected StorageClientBase(IMemoryCache? cache)
 		{
-			_treeStore = new TreeStore(this, cache);
+			_cache = cache;
+			_treeStore = new TreeStore(this);
 		}
 
 		#region Blobs
@@ -120,6 +127,146 @@ namespace EpicGames.Horde.Storage
 
 		/// <inheritdoc/>
 		public abstract Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default);
+
+		#endregion
+
+		#region Bundles
+
+		static string GetBundleCacheKey(BlobId blobId) => $"bundle:{blobId}";
+
+		/// <summary>
+		/// Adds a bundle to the cache
+		/// </summary>
+		/// <param name="blobId">Blob id for the bundle</param>
+		/// <param name="bundle">The bundle data</param>
+		void AddBundleToCache(BlobId blobId, Bundle bundle)
+		{
+			if (_cache != null)
+			{
+				string cacheKey = GetBundleCacheKey(blobId);
+				using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
+				{
+					int length = bundle.Packets.Sum(x => x.Length);
+					entry.SetSize(length);
+					entry.SetValue(bundle);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Reads a bundle from the given blob id, or retrieves it from the cache
+		/// </summary>
+		/// <param name="locator"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			string cacheKey = GetBundleCacheKey(locator.BlobId);
+			if (_cache == null || !_cache.TryGetValue<Bundle>(cacheKey, out Bundle? bundle))
+			{
+				Task<Bundle>? readTask;
+				lock (_lockObject)
+				{
+					if (!_readTasks.TryGetValue(cacheKey, out readTask))
+					{
+						readTask = Task.Run(() => ReadBundleInternalAsync(cacheKey, locator, cancellationToken), cancellationToken);
+						_readTasks.Add(cacheKey, readTask);
+					}
+				}
+				bundle = await readTask;
+			}
+			return bundle;
+		}
+
+		async Task<Bundle> ReadBundleInternalAsync(string cacheKey, BlobLocator locator, CancellationToken cancellationToken)
+		{
+			// Perform another (sequenced) check whether an object has been added to the cache, to counteract the race between a read task being added and a task completing.
+			lock (_lockObject)
+			{
+				if (_cache != null && _cache.TryGetValue<Bundle>(cacheKey, out Bundle? cachedObject))
+				{
+					return cachedObject;
+				}
+			}
+
+			// Read the data from storage
+			Bundle bundle;
+			using (Stream stream = await ReadBlobAsync(locator, cancellationToken))
+			{
+				bundle = await Bundle.FromStreamAsync(stream, cancellationToken);
+			}
+
+			// Add the object to the cache
+			AddBundleToCache(locator.BlobId, bundle);
+
+			// Remove this object from the list of read tasks
+			lock (_lockObject)
+			{
+				_readTasks.Remove(cacheKey);
+			}
+			return bundle;
+		}
+
+		/// <inheritdoc/>
+		public Task<Stream> CreateBundleStreamAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			return ReadBlobAsync(locator, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			Bundle bundle = await ReadBundleAsync(locator, cancellationToken);
+			return bundle.Header;
+		}
+
+		/// <inheritdoc/>
+		public async Task<ReadOnlyMemory<byte>> ReadBundlePacketAsync(BlobLocator locator, int packetIdx, CancellationToken cancellationToken = default)
+		{
+			Bundle bundle = await ReadBundleAsync(locator, cancellationToken);
+			return DecodePacket(locator, packetIdx, bundle.Header.Packets[packetIdx], bundle.Header.CompressionFormat, bundle.Packets[packetIdx]);
+		}
+
+		/// <summary>
+		/// Gets a decoded block from the store
+		/// </summary>
+		/// <param name="locator">Information about the bundle</param>
+		/// <param name="packetIdx">Index of the packet</param>
+		/// <param name="packet">The decoded block location and size</param>
+		/// <param name="format">Compression type in the bundle</param>
+		/// <param name="encodedPacket">The encoded packet data</param>
+		/// <returns>The decoded data</returns>
+		ReadOnlyMemory<byte> DecodePacket(BlobLocator locator, int packetIdx, BundlePacket packet, BundleCompressionFormat format, ReadOnlyMemory<byte> encodedPacket)
+		{
+			if (_cache == null)
+			{
+				return DecodePacketUncached(packet, format, encodedPacket);
+			}
+			else
+			{
+				string cacheKey = $"bundle-packet:{locator.BlobId}#{packetIdx}";
+				return _cache.GetOrCreate<ReadOnlyMemory<byte>>(cacheKey, entry =>
+				{
+					ReadOnlyMemory<byte> decodedPacket = DecodePacketUncached(packet, format, encodedPacket);
+					entry.SetSize(packet.DecodedLength);
+					return decodedPacket;
+				});
+			}
+		}
+
+		static ReadOnlyMemory<byte> DecodePacketUncached(BundlePacket packet, BundleCompressionFormat format, ReadOnlyMemory<byte> encodedPacket)
+		{
+			byte[] decodedPacket = new byte[packet.DecodedLength];
+			BundleData.Decompress(format, encodedPacket, decodedPacket);
+			return decodedPacket;
+		}
+
+		/// <inheritdoc/>
+		public async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		{
+			using ReadOnlySequenceStream stream = new ReadOnlySequenceStream(bundle.AsSequence());
+			return await WriteBlobAsync(stream, prefix, cancellationToken);
+		}
 
 		#endregion
 
@@ -152,7 +299,7 @@ namespace EpicGames.Horde.Storage
 			{
 				return null;
 			}
-			return new RefValue(refTarget, await this.ReadBundleAsync(refTarget.Locator, cancellationToken));
+			return new RefValue(refTarget, await ReadBundleAsync(refTarget.Locator, cancellationToken));
 		}
 
 		/// <inheritdoc/>
