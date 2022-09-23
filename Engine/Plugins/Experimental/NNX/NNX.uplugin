@@ -16,68 +16,68 @@
 	"IsExperimentalVersion": true,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win64"
+		"Win64", "Linux"
 	],
 	"Modules": [
 		{
 			"Name": "NNXCore",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXHlslShaders",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXUtils",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXProfiling",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXQA",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXRuntimeCPU",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXRuntimeRDG",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNXRuntimeORT",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "NNX_ONNXRuntime",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "ORTHelper",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [ "Win64", "Linux" ]
 		}
 	]
 }

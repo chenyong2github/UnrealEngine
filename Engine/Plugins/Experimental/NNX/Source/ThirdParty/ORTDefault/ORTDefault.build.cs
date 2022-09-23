@@ -83,8 +83,10 @@ public class ORTDefault : ModuleRules
 				} 
 				else if(Target.Platform == UnrealTargetPlatform.Linux)
 				{
-					// PublicDelayLoadDLLs
-					string DLLFileName = "lib" + LibFileName + ".so";
+
+					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, "lib" + LibFileName + ".so");			
+					PublicAdditionalLibraries.Add(CurrentLibPath);
+
 				}
 				else if(Target.Platform == UnrealTargetPlatform.Mac)
 				{
@@ -97,13 +99,17 @@ public class ORTDefault : ModuleRules
 				{
 					
 				}
-
-
 			}
 
 			// PublicDefinitions
 			PublicDefinitions.Add("ONNXRUNTIME_USE_DLLS");
 			PublicDefinitions.Add("WITH_ONNXRUNTIME");
+
+			if (!Target.bBuildEditor)
+			{
+				PublicDefinitions.Add("ORT_NO_EXCEPTIONS");
+			}
+			
 			PublicDefinitions.Add("ORTDEFAULT_PLATFORM_PATH=bin/" + PlatformDir);
 			PublicDefinitions.Add("ORTDEFAULT_PLATFORM_BIN_PATH=" + BinaryThirdPartyDirPath.Replace('\\', '/'));
 			

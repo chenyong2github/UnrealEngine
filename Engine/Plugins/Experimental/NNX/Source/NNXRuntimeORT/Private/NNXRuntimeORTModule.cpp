@@ -45,7 +45,14 @@ void FNNXRuntimeORTModule::StartupModule()
 
 	for (FString DLLFileName : DLLFileNames)
 	{
-		const FString DLLFilePath = ORTDefaultRuntimeBinPath / DLLFileName + ".dll";
+		#if PLATFORM_WINDOWS
+			const FString DLLFilePath = ORTDefaultRuntimeBinPath / DLLFileName + ".dll";
+		#elif PLATFORM_LINUX
+			const FString DLLFilePath = ORTDefaultRuntimeBinPath / "lib" + DLLFileName + ".so";
+		#elif PLATFORM_MAC
+			const FString DLLFilePath = ORTDefaultRuntimeBinPath / "lib" + DLLFileName + ".dylib";
+		#endif
+
 		// Sanity check
 		if (!FPaths::FileExists(DLLFilePath))
 		{
