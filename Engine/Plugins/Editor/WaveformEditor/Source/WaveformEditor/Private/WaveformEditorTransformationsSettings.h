@@ -12,7 +12,7 @@
 /**
  * Settings to regulate Waveform Transformations behavior inside Waveform Editor plugin.
  */
-UCLASS(config = WaveformEditor, defaultconfig, meta = (DisplayName = "Waveform Editor Transformations"))
+UCLASS(config = EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Waveform Editor Transformations"))
 class UWaveformEditorTransformationsSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()

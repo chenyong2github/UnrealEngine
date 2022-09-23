@@ -8,7 +8,7 @@
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWaveformEditorWidgetsSettingsChanged, const FName& /*Property Name*/, const UWaveformEditorWidgetsSettings*);
 
-UCLASS(config = WaveformEditor, defaultconfig, meta = (DisplayName = "Waveform Editor Display"))
+UCLASS(config = EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Waveform Editor Display"))
 class UWaveformEditorWidgetsSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
