@@ -425,10 +425,9 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 
 		TArray<FBox> BricksToCut;
 
-		// space the bricks by the grout setting, constrained to not erase the bricks or have zero grout
-		// (currently zero grout bricks would break assumptions in the fracture)
+		// space the bricks by the grout setting, constrained to not erase the bricks
 		const float MinDim = FMath::Min3(BrickHalfDimensions.X, BrickHalfDimensions.Y, BrickHalfDimensions.Z);
-		const float HalfGrout = FMath::Clamp(0.5f * CutterSettings->Grout, MinDim * 0.02f, MinDim * 0.98f);
+		const float HalfGrout = FMath::Clamp(0.5f * CutterSettings->Grout, 0, MinDim * 0.98f);
 		const FVector HalfBrick(BrickHalfDimensions - HalfGrout);
 		const FBox BrickBox(-HalfBrick, HalfBrick);
 
@@ -441,7 +440,8 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 		BrickOp->Selection = FractureContext.GetSelection();
 		BrickOp->Grout = 0; // CutterSettings->Grout; // Note: Grout is currently baked directly into the brick cells above
 		BrickOp->PointSpacing = CollisionSettings->GetPointSpacing();
-		BrickOp->Cells = FPlanarCells(BricksToCut);
+		const bool bBricksAreTouching = CutterSettings->Grout <= UE_KINDA_SMALL_NUMBER;
+		BrickOp->Cells = FPlanarCells(BricksToCut, bBricksAreTouching);
 		if (CutterSettings->Amplitude > 0.0f)
 		{
 			FNoiseSettings Settings;

@@ -50,7 +50,7 @@ struct PLANARCUT_API FPlanarCells
 	}
 	FPlanarCells(const FPlane& Plane);
 	FPlanarCells(const TArrayView<const FVector> Sites, FVoronoiDiagram &Voronoi);
-	FPlanarCells(const TArrayView<const FBox> Boxes);
+	FPlanarCells(const TArrayView<const FBox> Boxes, bool bResolveAdjacencies = false);
 	FPlanarCells(const FBox &Region, const FIntVector& CubesPerAxis);
 	FPlanarCells(const FBox &Region, const TArrayView<const FColor> Image, int32 Width, int32 Height);
 
@@ -126,11 +126,12 @@ struct PLANARCUT_API FPlanarCells
 		PlaneBoundaries.Emplace();
 	}
 
-	inline void AddPlane(const FPlane &P, int32 CellIdxBehind, int32 CellIdxInFront, const TArray<int32>& PlaneBoundary)
+	inline int32 AddPlane(const FPlane &P, int32 CellIdxBehind, int32 CellIdxInFront, const TArray<int32>& PlaneBoundary)
 	{
-		Planes.Add(P);
+		int32 PlaneIdx = Planes.Add(P);
 		PlaneCells.Emplace(CellIdxBehind, CellIdxInFront);
 		PlaneBoundaries.Add(PlaneBoundary);
+		return PlaneIdx;
 	}
 
 	void SetNoise(FNoiseSettings Noise = FNoiseSettings())
