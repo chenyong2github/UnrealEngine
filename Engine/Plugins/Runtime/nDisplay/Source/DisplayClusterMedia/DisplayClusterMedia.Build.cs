@@ -12,6 +12,11 @@ public class DisplayClusterMedia : ModuleRules
 		string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private"));
 
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"DisplayClusterShaders",
+			});
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

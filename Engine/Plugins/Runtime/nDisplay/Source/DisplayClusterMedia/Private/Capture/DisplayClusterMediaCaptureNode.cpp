@@ -52,10 +52,28 @@ FIntPoint FDisplayClusterMediaCaptureNode::GetCaptureSize() const
 	return FIntPoint();
 }
 
+FTextureRHIRef FDisplayClusterMediaCaptureNode::CreateIntermediateTexture_RenderThread(EPixelFormat Format, ETextureCreateFlags Flags, const FIntPoint& Size)
+{
+	// Prepare description
+	FRHITextureCreateDesc Desc =
+		FRHITextureCreateDesc::Create2D(TEXT("DisplayClusterFrameQueueCacheTexture"), Size.X, Size.Y, Format)
+		.SetClearValue(FClearValueBinding::Black)
+		.SetNumMips(1)
+		.SetFlags(ETextureCreateFlags::Dynamic)
+		.AddFlags(ETextureCreateFlags::MultiGPUGraphIgnore)
+		.SetInitialState(ERHIAccess::SRVMask);
+
+	// Leave original flags, but make sure it's ResolveTargetable but not RenderTargetable
+	Flags &= ~ETextureCreateFlags::RenderTargetable;
+	Flags |= ETextureCreateFlags::ResolveTargetable;
+	Desc.SetFlags(Flags);
+
+	// Create texture
+	return RHICreateTexture(Desc);
+}
+
 void FDisplayClusterMediaCaptureNode::OnPostFrameRender_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport)
 {
-	ensure(ViewportManagerProxy);
-
 	TArray<FRHITexture*> Textures;
 	TArray<FIntPoint>    Regions;
 
@@ -63,11 +81,28 @@ void FDisplayClusterMediaCaptureNode::OnPostFrameRender_RenderThread(FRHICommand
 	{
 		if (Textures.Num() > 0 && Regions.Num() > 0 && Textures[0])
 		{
-			FMediaTextureInfo TextureInfo{ Textures[0], FIntRect(Regions[0], Regions[0] + Textures[0]->GetDesc().Extent) };
+			// Create interim texture if not already available
+			if (!InterimTexture.IsValid() && Viewport)
+			{
+				if (FRHITexture* const BackbufferTexture = Viewport->GetRenderTargetTexture())
+				{
+					InterimTexture = CreateIntermediateTexture_RenderThread(Textures[0]->GetDesc().Format, Textures[0]->GetDesc().Flags, BackbufferTexture->GetDesc().Extent);
+				}
+			}
 
-			FRDGBuilder Builder(RHICmdList);
-			ExportMediaData(Builder, TextureInfo);
-			Builder.Execute();
+			if (InterimTexture.IsValid())
+			{
+				// Copy texture to the intermediate buffer
+				FRHICopyTextureInfo CopyInfo;
+				CopyInfo.Size = Textures[0]->GetDesc().GetSize();
+				RHICmdList.CopyTexture(Textures[0], InterimTexture, CopyInfo);
+
+				// Capture intermediate texture
+				FMediaTextureInfo TextureInfo{ InterimTexture, FIntRect(FIntPoint::ZeroValue, InterimTexture->GetDesc().Extent) };
+				FRDGBuilder Builder(RHICmdList);
+				ExportMediaData(Builder, TextureInfo);
+				Builder.Execute();
+			}
 		}
 	}
 }

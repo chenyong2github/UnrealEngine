@@ -6,12 +6,14 @@
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
 
+#include "MediaTexture.h"
+
 #include "RHICommandList.h"
 #include "RHIResources.h"
 
 
-FDisplayClusterMediaInputViewport::FDisplayClusterMediaInputViewport(const FString& InMediaId, const FString& InClusterNodeId, const FString& InViewportId, UMediaSource* InMediaSource, UMediaPlayer* InMediaPlayer, UMediaTexture* InMediaTexture)
-	: FDisplayClusterMediaInputBase(InMediaId, InClusterNodeId, InMediaSource, InMediaPlayer, InMediaTexture)
+FDisplayClusterMediaInputViewport::FDisplayClusterMediaInputViewport(const FString& InMediaId, const FString& InClusterNodeId, const FString& InViewportId, UMediaSource* InMediaSource)
+	: FDisplayClusterMediaInputBase(InMediaId, InClusterNodeId, InMediaSource)
 	, ViewportId(InViewportId)
 {
 }
@@ -22,7 +24,7 @@ bool FDisplayClusterMediaInputViewport::Play()
 	// If playback has started successfully, subscribe for rendering callbacks
 	if (FDisplayClusterMediaInputBase::Play())
 	{
-		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreFrameRender_RenderThread().AddRaw(this, &FDisplayClusterMediaInputViewport::PreFrameRender_RenderThread);
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostCrossGpuTransfer_RenderThread().AddRaw(this, &FDisplayClusterMediaInputViewport::PostCrossGpuTransfer_RenderThread);
 		return true;
 	}
 
@@ -32,12 +34,12 @@ bool FDisplayClusterMediaInputViewport::Play()
 void FDisplayClusterMediaInputViewport::Stop()
 {
 	// Stop receiving notifications
-	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreFrameRender_RenderThread().RemoveAll(this);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostCrossGpuTransfer_RenderThread().RemoveAll(this);
 	// Stop playing
 	FDisplayClusterMediaInputBase::Stop();
 }
 
-void FDisplayClusterMediaInputViewport::PreFrameRender_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport)
+void FDisplayClusterMediaInputViewport::PostCrossGpuTransfer_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport)
 {
 	checkSlow(ViewportManagerProxy);
 

@@ -16,7 +16,7 @@ class FDisplayClusterMediaInputViewport
 	: public FDisplayClusterMediaInputBase
 {
 public:
-	FDisplayClusterMediaInputViewport(const FString& MediaId, const FString& ClusterNodeId, const FString& ViewportId, UMediaSource* MediaSource, UMediaPlayer* MediaPlayer, UMediaTexture* MediaTexture);
+	FDisplayClusterMediaInputViewport(const FString& MediaId, const FString& ClusterNodeId, const FString& ViewportId, UMediaSource* MediaSource);
 
 public:
 	virtual bool Play() override;
@@ -28,7 +28,7 @@ public:
 	}
 
 private:
-	void PreFrameRender_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport);
+	void PostCrossGpuTransfer_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport);
 
 private:
 	const FString ViewportId;

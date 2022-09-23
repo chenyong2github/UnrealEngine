@@ -22,7 +22,7 @@ class FDisplayClusterMediaInputBase
 	, public FGCObject
 {
 public:
-	FDisplayClusterMediaInputBase(const FString& MediaId, const FString& ClusterNodeId, UMediaSource* MediaSource, UMediaPlayer* MediaPlayer, UMediaTexture* MediaTexture);
+	FDisplayClusterMediaInputBase(const FString& MediaId, const FString& ClusterNodeId, UMediaSource* MediaSource);
 
 public:
 	//~ Begin FGCObject interface

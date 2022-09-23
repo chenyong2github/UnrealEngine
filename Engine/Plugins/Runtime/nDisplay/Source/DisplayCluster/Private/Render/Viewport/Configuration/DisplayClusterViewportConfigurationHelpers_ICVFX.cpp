@@ -568,21 +568,20 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 	// Set media related configuration (runtime only for now)
 	if (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		const FDisplayClusterConfigurationICVFXMedia& MediaSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
-		if (MediaSettings.bEnabled)
-		{
-			const bool bThisNodeSharesMedia = MediaSettings.MediaOutputNode.Equals(DstViewport.GetClusterNodeId(), ESearchCase::IgnoreCase);
+		const FDisplayClusterConfigurationMedia& MediaSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
 
-			// In most cases there is no need to render ICVFX view if media input set up. The only exception
-			// is when this camera is used as media source for other cluster nodes. In this case media input
-			// settings are ignored, and media capture is used.
-			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.MediaInput.bEnabled ?
-					!(MediaSettings.MediaOutput.bEnabled && bThisNodeSharesMedia) :
-					false;
+		const FString ThisClusterNodeId = DstViewport.GetClusterNodeId();
+		const bool bThisNodeSharesMedia = MediaSettings.IsMediaSharingUsed() && MediaSettings.MediaSharingNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
 
-			// Set media capture flag if media capture is used
-			DstViewport.RenderSettings.bIsBeingCaptured = InCameraComponent.CameraSettings.RenderSettings.Media.MediaOutput.bEnabled;
-		}
+		// Don't render the viewport if media input assigned
+		DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.IsMediaSharingUsed() ?
+			!bThisNodeSharesMedia :
+			!!MediaSettings.MediaSource;
+
+		// Mark this viewport is going to be captured by a capture device
+		DstViewport.RenderSettings.bIsBeingCaptured = MediaSettings.IsMediaSharingUsed() ?
+			bThisNodeSharesMedia :
+			!!MediaSettings.MediaOutput;
 	}
 }
 

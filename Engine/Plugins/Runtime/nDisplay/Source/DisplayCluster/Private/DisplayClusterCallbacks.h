@@ -102,14 +102,29 @@ public:
 		return DisplayClusterPostWarpViewportEvent;
 	}
 
-	virtual FDisplayClusterPreFrameRender_RenderThread& OnDisplayClusterPreFrameRender_RenderThread() override
+	virtual FDisplayClusterPostCrossGpuTransfer_RenderThread& OnDisplayClusterPostCrossGpuTransfer_RenderThread() override
 	{
-		return DisplayClusterPreFrameRenderEvent;
+		return DisplayClusterPostCrossGpuTransferEvent;
+	}
+
+	virtual FDisplayClusterProcessLatency_RenderThread& OnDisplayClusterProcessLatency_RenderThread() override
+	{
+		return FDisplayClusterProcessLatencyEvent;
 	}
 
 	virtual FDisplayClusterPostFrameRender_RenderThread& OnDisplayClusterPostFrameRender_RenderThread() override
 	{
 		return DisplayClusterPostFrameRenderEvent;
+	}
+
+	virtual FDisplayClusterPostBackbufferUpdate_RenderThread& OnDisplayClusterPostBackbufferUpdate_RenderThread() override
+	{
+		return DisplayClusterPostBackbufferUpdateEvent;
+	}
+
+	virtual FDisplayClusterPreProcessIcvfx_RenderThread& OnDisplayClusterPreProcessIcvfx_RenderThread() override
+	{
+		return FDisplayClusterPreProcessIcvfxEvent;
 	}
 
 private:
@@ -129,10 +144,13 @@ private:
 	FDisplayClusterPresentationPostSynchronization_RHIThread DisplayClusterPresentationPostSynchronizationEvent;
 
 	FDisplayClusterPostRenderViewFamily_RenderThread DisplayClusterPostRenderViewFamily;
-	FDisplayClusterPreWarp_RenderThread          DisplayClusterPreWarpEvent;
-	FDisplayClusterPreWarpViewport_RenderThread  DisplayClusterPreWarpViewportEvent;
-	FDisplayClusterPostWarp_RenderThread         DisplayClusterPostWarpEvent;
-	FDisplayClusterPostWarpViewport_RenderThread DisplayClusterPostWarpViewportEvent;
-	FDisplayClusterPreFrameRender_RenderThread   DisplayClusterPreFrameRenderEvent;
-	FDisplayClusterPostFrameRender_RenderThread  DisplayClusterPostFrameRenderEvent;
+	FDisplayClusterPreWarp_RenderThread              DisplayClusterPreWarpEvent;
+	FDisplayClusterPreWarpViewport_RenderThread      DisplayClusterPreWarpViewportEvent;
+	FDisplayClusterPostWarp_RenderThread             DisplayClusterPostWarpEvent;
+	FDisplayClusterPostWarpViewport_RenderThread     DisplayClusterPostWarpViewportEvent;
+	FDisplayClusterPostCrossGpuTransfer_RenderThread DisplayClusterPostCrossGpuTransferEvent;
+	FDisplayClusterProcessLatency_RenderThread       FDisplayClusterProcessLatencyEvent;
+	FDisplayClusterPostFrameRender_RenderThread      DisplayClusterPostFrameRenderEvent;
+	FDisplayClusterPostBackbufferUpdate_RenderThread DisplayClusterPostBackbufferUpdateEvent;
+	FDisplayClusterPreProcessIcvfx_RenderThread      FDisplayClusterPreProcessIcvfxEvent;
 };

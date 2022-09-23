@@ -13,52 +13,6 @@
 
 
 /*
- * Media input settings
- */
-USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaInput
-{
-	GENERATED_BODY()
-
-public:
-	/** Enable/disable media input */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Input", meta = (DisplayName = "Enable"))
-	bool bEnabled = false;
-
-	/** Media source to use */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Input", meta = (EditCondition = "bEnabled"))
-	TObjectPtr<UMediaSource> MediaSource = nullptr;
-
-	/** Media player to use */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Input", meta = (EditCondition = "bEnabled"))
-	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
-
-	/** Media texture to use */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Input", meta = (EditCondition = "bEnabled"))
-	TObjectPtr<UMediaTexture> MediaTexture = nullptr;
-};
-
-
-/*
- * Media output settings
- */
-USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaOutput
-{
-	GENERATED_BODY()
-
-public:
-	/** Enable/disable media capture */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Output", meta = (DisplayName = "Enable"))
-	bool bEnabled = false;
-
-	/** Media output to use */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Output", meta = (EditCondition = "bEnabled"))
-	TObjectPtr<UMediaOutput> MediaOutput = nullptr;
-};
-
-
-/*
  * Media settings
  */
 USTRUCT(Blueprintable)
@@ -67,37 +21,41 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMedia
 	GENERATED_BODY()
 
 public:
-	/** Enable/disable media features */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (DisplayName = "Enable"))
-	bool bEnabled = false;
+	/** Enable/disable in-cluster media sharing */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Sharing")
+	bool bMediaSharing = false;
 
-	/** Media input settings */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
-	FDisplayClusterConfigurationMediaInput MediaInput;
+	/** When in-cluster media sharing us used, the cluster node specified here will be used as a source (Tx node). The others will be Tx'es. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Sharing")
+	FString MediaSharingNode;
 
-	/** Media capture settings */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
-	FDisplayClusterConfigurationMediaOutput MediaOutput;
+	/** Media source to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Input")
+	TObjectPtr<UMediaSource> MediaSource = nullptr;
+
+	/** Media output to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Output")
+	TObjectPtr<UMediaOutput> MediaOutput = nullptr;
+
+public:
+	/** Returns true if media sharing is used */
+	bool IsMediaSharingUsed() const
+	{
+		return bMediaSharing && MediaSource && MediaOutput && !MediaSharingNode.IsEmpty();
+	}
 };
 
+
 /*
- * ICVFX media settings
+ * Global media settings
  */
 USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFXMedia
-	: public FDisplayClusterConfigurationMedia
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationGlobalMediaSettings
 {
 	GENERATED_BODY()
 
 public:
-	/** When in-cluster media sharing us used, the cluster node specified here will be used as a source (Tx node) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
-	FString MediaOutputNode;
-
-public:
-	/** Returns true if media sharing is used */
-	bool IsMediaSharingRequired() const
-	{
-		return bEnabled && MediaInput.bEnabled && MediaOutput.bEnabled;
-	}
+	/** Media latency */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (ClampMin = "0", ClampMax = "9", UIMin = "0", UIMax = "9"))
+	int32 Latency = 0;
 };

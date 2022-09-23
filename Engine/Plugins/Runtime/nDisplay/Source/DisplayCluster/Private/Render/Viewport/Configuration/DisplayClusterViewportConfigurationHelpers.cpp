@@ -210,13 +210,18 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 	{
 		const FDisplayClusterConfigurationMedia& MediaSettings = InConfigurationViewport.RenderSettings.Media;
 
-		if (MediaSettings.bEnabled)
-		{
-			// In case this viewport consumes data from a media input device, there is no need to render scene
-			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.MediaInput.bEnabled;
-			// Set media capture flag if media capture is used
-			DstViewport.RenderSettings.bIsBeingCaptured = InConfigurationViewport.RenderSettings.Media.MediaOutput.bEnabled;
-		}
+		const FString ThisClusterNodeId = IDisplayCluster::Get().GetClusterMgr()->GetNodeId();
+		const bool bThisNodeSharesMedia = MediaSettings.IsMediaSharingUsed() && MediaSettings.MediaSharingNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
+
+		// Don't render the viewport if media input assigned
+		DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.IsMediaSharingUsed() ?
+			!bThisNodeSharesMedia :
+			!!MediaSettings.MediaSource;
+
+		// Mark this viewport is going to be captured by a capture device
+		DstViewport.RenderSettings.bIsBeingCaptured = MediaSettings.IsMediaSharingUsed() ?
+			bThisNodeSharesMedia :
+			!!MediaSettings.MediaOutput;
 	}
 
 	// FDisplayClusterConfigurationViewport_ICVFX property:

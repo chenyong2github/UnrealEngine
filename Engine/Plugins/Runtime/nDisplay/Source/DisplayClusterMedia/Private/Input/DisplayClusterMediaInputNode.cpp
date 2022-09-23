@@ -12,8 +12,8 @@
 #include "RHIResources.h"
 
 
-FDisplayClusterMediaInputNode::FDisplayClusterMediaInputNode(const FString& InMediaId, const FString& InClusterNodeId, UMediaSource* InMediaSource, UMediaPlayer* InMediaPlayer, UMediaTexture* InMediaTexture)
-	: FDisplayClusterMediaInputBase(InMediaId, InClusterNodeId, InMediaSource, InMediaPlayer, InMediaTexture)
+FDisplayClusterMediaInputNode::FDisplayClusterMediaInputNode(const FString& InMediaId, const FString& InClusterNodeId, UMediaSource* InMediaSource)
+	: FDisplayClusterMediaInputBase(InMediaId, InClusterNodeId, InMediaSource)
 {
 }
 

@@ -4,7 +4,9 @@
 #include "SceneViewExtension.h"
 
 class IDisplayClusterViewportManager;
-/** 
+
+
+/**
  * View extension applying an DC Viewport features
  */
 class FDisplayClusterViewportManagerViewExtension : public FSceneViewExtensionBase
@@ -12,15 +14,24 @@ class FDisplayClusterViewportManagerViewExtension : public FSceneViewExtensionBa
 public:
 	FDisplayClusterViewportManagerViewExtension(const FAutoRegister& AutoRegister, const IDisplayClusterViewportManager* InViewportManager);
 
+public:
 	//~ Begin ISceneViewExtension interface
-	virtual int32 GetPriority() const override { return -1; }
+	virtual int32 GetPriority() const override
+	{
+		return -1;
+	}
 
-	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
-	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override
+	{ }
 
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {};
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override
+	{ }
+
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override
+	{ }
 
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override;
+
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 	virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;

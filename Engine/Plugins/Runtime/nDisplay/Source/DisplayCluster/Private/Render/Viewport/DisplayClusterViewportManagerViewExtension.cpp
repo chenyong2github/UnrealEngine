@@ -44,35 +44,18 @@ bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(con
 
 void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
-	// Since FSceneViewFamily has no direct references to the nD viewport it relates to,
-	// we find a proper viewport ID by comparing RenderTarget addresses.
+	// FSceneViewFamily::ProfileDescription is used currently as a viewport ID holder, so we use it to find a proper viewport proxy.
 	if (ViewportManager)
 	{
-		const IDisplayClusterViewportManagerProxy* const ViewportMgrPoxy = ViewportManager->GetProxy();
-		if (ViewportMgrPoxy)
+		if (const IDisplayClusterViewportManagerProxy* const ViewportMgrPoxy = ViewportManager->GetProxy())
 		{
-			// Get all available viewport proxies
-			const TArrayView<IDisplayClusterViewportProxy*> ViewportProxies = ViewportMgrPoxy->GetViewports_RenderThread();
-
-			// Filter those viewports that refer to the RenderTarget used in the ViewFamily
-			const TArray<IDisplayClusterViewportProxy*> FoundViewportProxies = ViewportProxies.FilterByPredicate([&InViewFamily](const IDisplayClusterViewportProxy* ViewportProxy)
-			{	
-				TArray<FRHITexture*> RenderTargets;
-				if (ViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, RenderTargets))
-				{
-					if (RenderTargets.Contains(InViewFamily.RenderTarget->GetRenderTargetTexture()))
-					{
-						return true;
-					}
-				}
-
-				return false;
-			});
-			
-			// Now we can perform per-viewport notification
-			for (const IDisplayClusterViewportProxy* ViewportProxy : FoundViewportProxies)
+			if (!InViewFamily.ProfileDescription.IsEmpty())
 			{
-				IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostRenderViewFamily_RenderThread().Broadcast(GraphBuilder, InViewFamily, ViewportProxy);
+				if (IDisplayClusterViewportProxy* ViewportProxy = ViewportMgrPoxy->FindViewport_RenderThread(InViewFamily.ProfileDescription))
+				{
+					// Notify about viewport rendering finish
+					IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostRenderViewFamily_RenderThread().Broadcast(GraphBuilder, InViewFamily, ViewportProxy);
+				}
 			}
 		}
 	}

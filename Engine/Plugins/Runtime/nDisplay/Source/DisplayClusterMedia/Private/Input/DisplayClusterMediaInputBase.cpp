@@ -10,14 +10,28 @@
 #include "MediaTexture.h"
 
 
-FDisplayClusterMediaInputBase::FDisplayClusterMediaInputBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaSource* InMediaSource, UMediaPlayer* InMediaPlayer, UMediaTexture* InMediaTexture)
+FDisplayClusterMediaInputBase::FDisplayClusterMediaInputBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaSource* InMediaSource)
 	: FDisplayClusterMediaBase(InMediaId, InClusterNodeId)
 	, MediaSource(InMediaSource)
-	, MediaPlayer(InMediaPlayer)
-	, MediaTexture(InMediaTexture)
 {
-	// We expect these to always be valid
-	check(MediaSource && MediaPlayer && MediaTexture);
+	checkSlow(MediaSource);
+
+	// Instantiate media player
+	MediaPlayer = NewObject<UMediaPlayer>();
+	if (MediaPlayer)
+	{
+		MediaPlayer->SetLooping(false);
+		MediaPlayer->PlayOnOpen = false;
+
+		// Instantiate media texture
+		MediaTexture = NewObject<UMediaTexture>();
+		if (MediaTexture)
+		{
+			MediaTexture->NewStyleOutput = true;
+			MediaTexture->SetMediaPlayer(MediaPlayer);
+			MediaTexture->UpdateResource();
+		}
+	}
 }
 
 
@@ -74,8 +88,6 @@ void FDisplayClusterMediaInputBase::ImportMediaData(FRHICommandListImmediate& RH
 		}
 		else
 		{
-			UE_LOG(LogDisplayClusterMedia, Log, TEXT(""));
-
 			DisplayClusterMediaHelpers::ResampleTexture_RenderThread(
 				RHICmdList, SrcTexture, DstTexture,
 				FIntRect(FIntPoint(0, 0), SrcTexture->GetDesc().Extent),

@@ -16,7 +16,7 @@ class FDisplayClusterMediaInputNode
 	: public FDisplayClusterMediaInputBase
 {
 public:
-	FDisplayClusterMediaInputNode(const FString& MediaId, const FString& ClusterNodeId, UMediaSource* MediaSource, UMediaPlayer* MediaPlayer, UMediaTexture* MediaTexture);
+	FDisplayClusterMediaInputNode(const FString& MediaId, const FString& ClusterNodeId, UMediaSource* MediaSource);
 
 public:
 	virtual bool Play() override;

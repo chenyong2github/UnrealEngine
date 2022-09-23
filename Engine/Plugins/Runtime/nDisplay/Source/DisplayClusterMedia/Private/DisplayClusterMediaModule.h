@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
+#include "Synchronization/DisplayClusterFrameQueue.h"
+
 class FDisplayClusterMediaCaptureBase;
 class FDisplayClusterMediaCaptureICVFX;
 class FDisplayClusterMediaCaptureNode;
@@ -37,7 +39,7 @@ protected:
 	/** Start media capture (all sources) */
 	void StartCapture();
 
-	/** Stop media capture (all soureces) */
+	/** Stop media capture (all sources) */
 	void StopCapture();
 
 	/** Start playing media (all inputs) */
@@ -58,4 +60,7 @@ private:
 	TMap<FString, TUniquePtr<FDisplayClusterMediaInputViewport>>   InputViewports;
 	TUniquePtr<FDisplayClusterMediaInputNode>                      InputNode;
 	TArray<FDisplayClusterMediaInputBase*>                         AllInputs;
+
+	// Latency queue
+	FDisplayClusterFrameQueue FrameQueue;
 };
