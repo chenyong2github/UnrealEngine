@@ -10,6 +10,7 @@
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
 #include "GameplayTagsEditorModule.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "EditorFontGlyphs.h"
@@ -213,6 +214,30 @@ FReply FGameplayTagContainerCustomization::OnSingleTagMouseButtonPressed(const F
 			FText::Format(LOCTEXT("SingleTagSearchForReferencesTooltip", "Find references to the tag {0}"), FText::AsCultureInvariant(TagName)),
 			FSlateIcon(),
 			SearchForReferencesAction);
+		
+		if (StructPropertyHandle)
+		{
+			FUIAction CopyAction = FUIAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnCopyTag, TagName));
+			FUIAction PasteAction = FUIAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnPasteTag),FCanExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::CanPaste));
+			
+			if (CopyAction.IsBound() && PasteAction.IsBound())
+			{
+				FMenuEntryParams CopyContentParams;
+				CopyContentParams.LabelOverride = NSLOCTEXT("PropertyView", "CopyProperty", "Copy");
+				CopyContentParams.ToolTipOverride = FText::Format(LOCTEXT("SingleTagSearchForReferencesTooltip", "Copy tag {0}"), FText::AsCultureInvariant(TagName));
+				CopyContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy");
+				CopyContentParams.DirectActions = CopyAction;
+				MenuBuilder.AddMenuEntry(CopyContentParams);
+
+				FMenuEntryParams PasteContentParams;
+				PasteContentParams.LabelOverride = NSLOCTEXT("PropertyView", "PasteProperty", "Paste");
+				PasteContentParams.ToolTipOverride = FText::Format(LOCTEXT("SingleTagSearchForReferencesTooltip", "Paste tag {0}"), FText::AsCultureInvariant(TagName));
+				PasteContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste");
+				PasteContentParams.DirectActions = PasteAction;
+				MenuBuilder.AddMenuEntry(PasteContentParams);
+			}
+		}
+		
 		MenuBuilder.EndSection();
 
 		// Spawn context menu
@@ -375,6 +400,52 @@ FGameplayTagContainerCustomization::~FGameplayTagContainerCustomization()
 	}
 
 	GEditor->UnregisterForUndo(this);
+}
+
+void FGameplayTagContainerCustomization::OnCopyTag(FString TagName)
+{
+	FPlatformApplicationMisc::ClipboardCopy(*TagName);
+}
+
+void FGameplayTagContainerCustomization::OnPasteTag()
+{
+	FString TagName;
+	FPlatformApplicationMisc::ClipboardPaste(TagName);
+	
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+
+	if (Tag.IsValid())
+	{
+		TArray<FString> NewValues;
+		SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&Tag, &NewValues](const SGameplayTagWidget::FEditableGameplayTagContainerDatum& EditableTagContainer)
+		{
+			FGameplayTagContainer TagContainerCopy;
+			if (const FGameplayTagContainer* Container = EditableTagContainer.TagContainer)
+			{
+				TagContainerCopy = *Container;
+			}
+			TagContainerCopy.AddTag(Tag);
+
+			NewValues.Add(TagContainerCopy.ToString());
+			return true;
+		});
+
+		{
+			FScopedTransaction Transaction(LOCTEXT("PasteGameplayTagFromContainer", "Paste Gameplay Tag"));
+			StructPropertyHandle->SetPerObjectValues(NewValues);
+		}
+
+		RefreshTagList();
+	}
+}
+
+bool FGameplayTagContainerCustomization::CanPaste()
+{
+	FString TagName;
+	FPlatformApplicationMisc::ClipboardPaste(TagName);
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+
+	return Tag.IsValid();
 }
 
 #undef LOCTEXT_NAMESPACE

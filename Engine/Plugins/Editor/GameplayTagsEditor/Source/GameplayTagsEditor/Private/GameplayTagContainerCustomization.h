@@ -79,5 +79,9 @@ private:
 	FReply OnSingleTagMouseButtonPressed(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FString TagName);
 	void OnSingleTagSearchForReferences(FString TagName);
 	void OnWholeContainerSearchForReferences();
+
+	void OnCopyTag(FString TagName);
+	void OnPasteTag();
+	bool CanPaste();
 };
 
