@@ -27,6 +27,9 @@
 	#define CONFIG_INTERPOLATE_VELOCITY 1
 	#define CONFIG_REJECTION_ANTI_ALIASING 1
 
+	// To support sg.AntiAliasingQuality=4 with same temporal response as sg.AntiAliasingQuality=3
+	#define CONFIG_APPLY_CONTRIBUTION_MULTIPLIER 1
+
 #else
 	#error Unknown history update quality
 #endif
@@ -70,6 +73,10 @@
 	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 1
 #else
 	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 0
+#endif
+
+#ifndef CONFIG_APPLY_CONTRIBUTION_MULTIPLIER
+	#define CONFIG_APPLY_CONTRIBUTION_MULTIPLIER 0
 #endif
 
 #ifndef PLATFORM_SPECIFIC_ISOLATE
@@ -122,6 +129,7 @@ float3 HistoryQuantizationError;
 float MinTranslucencyRejection;
 float InvWeightClampingPixelSpeed;
 float InputToHistoryFactor;
+float InputContributionMultiplier;
 uint ResponsiveStencilMask;
 uint bGenerateOutputMip1;
 uint bHasSeparateTranslucency;
@@ -764,6 +772,10 @@ void MainCS(
 			
 			InputPixelAlignement = ComputeSampleWeigth(KernelInputToHistoryAlignmentFactor, dInputKO, /* MinimalContribution = */ float(0.0));
 		
+			#if CONFIG_APPLY_CONTRIBUTION_MULTIPLIER
+				InputPixelAlignement *= tsr_half(InputContributionMultiplier);
+			#endif
+
 			UNROLL_N(CONFIG_SAMPLES)
 			for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 			{
