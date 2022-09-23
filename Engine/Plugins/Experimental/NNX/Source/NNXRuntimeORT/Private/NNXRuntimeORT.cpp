@@ -25,12 +25,12 @@ FString FRuntimeORTCpu::GetRuntimeName() const
 	return NNX_RUNTIME_ORT_NAME_CPU;
 }
 
+#if PLATFORM_WINDOWS
 FString FRuntimeORTCuda::GetRuntimeName() const
 {
 	return NNX_RUNTIME_ORT_NAME_CUDA;
 }
 
-#if PLATFORM_WINDOWS
 FString FRuntimeORTDml::GetRuntimeName() const
 {
 	return NNX_RUNTIME_ORT_NAME_DML;
@@ -42,12 +42,12 @@ EMLRuntimeSupportFlags FRuntimeORTCpu::GetSupportFlags() const
 	return EMLRuntimeSupportFlags::CPU;
 }
 
+#if PLATFORM_WINDOWS
 EMLRuntimeSupportFlags FRuntimeORTCuda::GetSupportFlags() const
 {
 	return EMLRuntimeSupportFlags::GPU;
 }
 
-#if PLATFORM_WINDOWS
 EMLRuntimeSupportFlags FRuntimeORTDml::GetSupportFlags() const
 {
 	return EMLRuntimeSupportFlags::GPU;
@@ -66,6 +66,7 @@ FMLInferenceModel* FRuntimeORTCpu::CreateInferenceModel(UMLInferenceModel* InMod
 	return ORTModel;
 }
 
+#if PLATFORM_WINDOWS
 FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
 {
 	FMLInferenceModelORTCuda* ORTModel = new FMLInferenceModelORTCuda(&NNXEnvironmentORT, InConf);
@@ -78,7 +79,6 @@ FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InMo
 	return ORTModel;
 }
 
-#if PLATFORM_WINDOWS
 FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
 {
 	FMLInferenceModelORTDml* ORTModel = new FMLInferenceModelORTDml(&NNXEnvironmentORT, InConf);
@@ -98,13 +98,13 @@ FMLInferenceModel* FRuntimeORTCpu::CreateInferenceModel(UMLInferenceModel* InMod
 	return CreateInferenceModel(InModel, ORTInferenceConf);
 }
 
+#if PLATFORM_WINDOWS
 FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InModel)
 {
 	FMLInferenceNNXORTConf ORTInferenceConf;
 	return CreateInferenceModel(InModel, ORTInferenceConf);
 }
 
-#if PLATFORM_WINDOWS
 FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InModel)
 {
 	FMLInferenceNNXORTConf ORTInferenceConf;
@@ -352,6 +352,7 @@ bool FMLInferenceModelORTCpu::InitializedAndConfigureMembers()
 	return true;
 }
 
+#if PLATFORM_WINDOWS
 //-------------
 FMLInferenceModelORTCuda::FMLInferenceModelORTCuda(Ort::Env* InORTEnvironment, const FMLInferenceNNXORTConf& InORTConfiguration) :
 	FMLInferenceModelORT(InORTEnvironment, EMLInferenceModelType::GPU, InORTConfiguration)
@@ -377,7 +378,6 @@ bool FMLInferenceModelORTCuda::InitializedAndConfigureMembers()
 }
 
 //-------------
-#if PLATFORM_WINDOWS
 
 FMLInferenceModelORTDml::FMLInferenceModelORTDml(Ort::Env* InORTEnvironment, const FMLInferenceNNXORTConf& InORTConfiguration) :
 	FMLInferenceModelORT(InORTEnvironment, EMLInferenceModelType::GPU, InORTConfiguration)

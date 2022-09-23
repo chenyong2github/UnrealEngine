@@ -61,6 +61,7 @@ namespace NNX
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
 	};
 
+#if PLATFORM_WINDOWS
 	class FRuntimeORTCuda : public IRuntime
 	{
 	public:
@@ -73,7 +74,6 @@ namespace NNX
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
 	};
 
-#if PLATFORM_WINDOWS
 	class FRuntimeORTDml : public IRuntime
 	{
 	public:
@@ -88,9 +88,9 @@ namespace NNX
 #endif
 
 	static TUniquePtr<FRuntimeORTCpu> GORTCPURuntime;
-	static TUniquePtr<FRuntimeORTCuda> GORTCUDARuntime;
 
 #if PLATFORM_WINDOWS
+	static TUniquePtr<FRuntimeORTCuda> GORTCUDARuntime;
 	static TUniquePtr<FRuntimeORTDml> GORTDMLRuntime;
 #endif
 
@@ -101,6 +101,8 @@ namespace NNX
 
 		return Runtime;
 	};
+
+#if PLATFORM_WINDOWS
 	inline TUniquePtr<FRuntimeORTCuda> FRuntimeORTCUDACreate()
 	{
 		Ort::InitApi();
@@ -109,7 +111,6 @@ namespace NNX
 		return Runtime;
 	};
 
-#if PLATFORM_WINDOWS
 	inline TUniquePtr<FRuntimeORTDml> FRuntimeORTDMLCreate()
 	{
 		Ort::InitApi();
@@ -128,6 +129,8 @@ namespace NNX
 		return GORTCPURuntime.Get();
 	};
 
+#if PLATFORM_WINDOWS
+
 	inline IRuntime* FRuntimeORTCUDAStartup()
 	{
 		if (!GORTCUDARuntime)
@@ -137,7 +140,6 @@ namespace NNX
 		return GORTCUDARuntime.Get();
 	};
 
-#if PLATFORM_WINDOWS
 	inline IRuntime* FRuntimeORTDMLStartup()
 	{
 		if (!GORTDMLRuntime)
@@ -156,6 +158,8 @@ namespace NNX
 		}
 	};
 
+#if PLATFORM_WINDOWS
+
 	inline void FRuntimeORTCUDAShutdown()
 	{
 		if (GORTCUDARuntime)
@@ -164,7 +168,6 @@ namespace NNX
 		}
 	};
 
-#if PLATFORM_WINDOWS
 	inline void FRuntimeORTDMLShutdown()
 	{
 		if (GORTDMLRuntime)
@@ -237,7 +240,6 @@ namespace NNX
 
 		virtual bool InitializedAndConfigureMembers() override;
 	};
-#endif
 
 	class FMLInferenceModelORTCuda : public NNX::FMLInferenceModelORT
 	{
@@ -246,5 +248,7 @@ namespace NNX
 
 		virtual bool InitializedAndConfigureMembers() override;
 	};
+#endif
+
 
 }
