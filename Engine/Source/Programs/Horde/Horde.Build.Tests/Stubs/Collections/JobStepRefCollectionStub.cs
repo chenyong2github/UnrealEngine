@@ -31,15 +31,17 @@ namespace Horde.Build.Tests.Stubs.Collections
 		public PoolId? PoolId { get; set; }
 		public AgentId? AgentId { get; set; }
 		public JobStepOutcome? Outcome { get; set; }
+		public bool UpdateIssues { get; set; } = false;
 		public int? LastSuccess { get; set; }
 		public int? LastWarning { get; set; }
+
 
 		public virtual float BatchWaitTime => throw new NotImplementedException();
 		public virtual float BatchInitTime => throw new NotImplementedException();
 		public virtual DateTime StartTimeUtc => throw new NotImplementedException();
 		public virtual DateTime? FinishTimeUtc => throw new NotImplementedException();
 
-		public JobStepRefStub(JobId jobId, SubResourceId batchId, SubResourceId stepId, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, JobStepOutcome? outcome)
+		public JobStepRefStub(JobId jobId, SubResourceId batchId, SubResourceId stepId, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, JobStepOutcome? outcome, bool updateIssues)
 		{
 			Id = new JobStepRefId(jobId, batchId, stepId);
 			JobName = jobName;
@@ -48,6 +50,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 			TemplateId = templateId;
 			Change = change;
 			Outcome = outcome;
+			UpdateIssues = updateIssues;
 		}
 	}
 
@@ -60,12 +63,12 @@ namespace Horde.Build.Tests.Stubs.Collections
 			_refs.Add(jobStepRef);
 		}
 
-		public Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
+		public Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
 		{
 			IJobStepRef? nextRef = null;
 			foreach (IJobStepRef jobStepRef in _refs)
 			{
-				if (jobStepRef.StreamId == streamId && jobStepRef.TemplateId == templateId && jobStepRef.NodeName == nodeName && jobStepRef.Change > change)
+				if (jobStepRef.StreamId == streamId && jobStepRef.TemplateId == templateId && jobStepRef.NodeName == nodeName && jobStepRef.Change > change && (outcome == null ? jobStepRef.Outcome != null : jobStepRef.Outcome == outcome) && (updateIssues != null ? jobStepRef.UpdateIssues == updateIssues : true) )
 				{
 					if (nextRef == null || jobStepRef.Change < nextRef.Change)
 					{
@@ -76,12 +79,12 @@ namespace Horde.Build.Tests.Stubs.Collections
 			return Task.FromResult(nextRef);
 		}
 
-		public Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
+		public Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
 		{
 			IJobStepRef? prevRef = null;
 			foreach (IJobStepRef jobStepRef in _refs)
 			{
-				if (jobStepRef.StreamId == streamId && jobStepRef.TemplateId == templateId && jobStepRef.NodeName == nodeName && jobStepRef.Change < change)
+				if (jobStepRef.StreamId == streamId && jobStepRef.TemplateId == templateId && jobStepRef.NodeName == nodeName && jobStepRef.Change < change && (outcome == null ? jobStepRef.Outcome != null : jobStepRef.Outcome == outcome) && (updateIssues != null ? jobStepRef.UpdateIssues == updateIssues : true))
 				{
 					if (prevRef == null || jobStepRef.Change > prevRef.Change)
 					{
@@ -97,7 +100,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTime, DateTime? finishTime)
+		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateRefId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTime, DateTime? finishTime)
 		{
 			throw new NotImplementedException();
 		}

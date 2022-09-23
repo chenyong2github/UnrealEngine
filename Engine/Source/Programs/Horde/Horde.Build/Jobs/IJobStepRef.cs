@@ -162,6 +162,11 @@ namespace Horde.Build.Jobs
 		public JobStepOutcome? Outcome { get; }
 
 		/// <summary>
+		/// Whether this step should update issues
+		/// </summary>
+		public bool UpdateIssues { get; }
+
+		/// <summary>
 		/// The last change that succeeded. Note that this is only set when the ref is updated; it is not necessarily consistent with steps run later.
 		/// </summary>
 		public int? LastSuccess { get; }

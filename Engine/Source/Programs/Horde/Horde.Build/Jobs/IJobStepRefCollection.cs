@@ -36,13 +36,14 @@ namespace Horde.Build.Jobs
 		/// <param name="poolId">The pool id</param>
 		/// <param name="agentId">The agent id</param>
 		/// <param name="outcome">Outcome of this step, if known</param>
+		/// <param name="updateIssues">Whether this step ref is included for issue updates</param>
 		/// <param name="lastSuccess">The last change that completed with success</param>
 		/// <param name="lastWarning">The last change that completed with a warning (or success)</param>
 		/// <param name="waitTime">Time taken for the batch containing this step to start</param>
 		/// <param name="initTime">Time taken for the batch containing this step to initializer</param>
 		/// <param name="startTimeUtc">Start time</param>
 		/// <param name="finishTimeUtc">Finish time for the step, if known</param>
-		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId id, string jobName, string stepName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTimeUtc, DateTime? finishTimeUtc);
+		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId id, string jobName, string stepName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTimeUtc, DateTime? finishTimeUtc);
 
 		/// <summary>
 		/// Gets the history of a given node
@@ -63,8 +64,10 @@ namespace Horde.Build.Jobs
 		/// <param name="templateId">The template id</param>
 		/// <param name="nodeName">Name of the step to find</param>
 		/// <param name="change">The current changelist number</param>
+		/// <param name="outcome">The outcome to filter by or include all outcomes if null</param>
+		/// <param name="updateIssues">If true, constrain to steps which update issues</param>		 
 		/// <returns>The previous job, or null.</returns>
-		Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change);
+		Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null);
 
 		/// <summary>
 		/// Gets the next job that ran a given step
@@ -73,8 +76,10 @@ namespace Horde.Build.Jobs
 		/// <param name="templateId">The template id</param>
 		/// <param name="nodeName">Name of the step to find</param>
 		/// <param name="change">The current changelist number</param>
+		/// <param name="outcome">The outcome to filter by or include all outcomes if null</param>
+		/// <param name="updateIssues">If true, constrain to steps which update issues</param>
 		/// <returns>The previous job, or null.</returns>
-		Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change);
+		Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null);
 	}
 
 	static class JobStepRefCollectionExtensions
@@ -114,7 +119,7 @@ namespace Horde.Build.Jobs
 					outcome = JobStepOutcome.Unspecified;
 				}
 
-				await jobStepRefs.InsertOrReplaceAsync(new JobStepRefId(job.Id, batch.Id, step.Id), job.Name, nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, batch.PoolId, batch.AgentId, outcome, lastSuccess, lastWarning, waitTime, initTime, step.StartTimeUtc ?? DateTime.UtcNow, step.FinishTimeUtc);
+				await jobStepRefs.InsertOrReplaceAsync(new JobStepRefId(job.Id, batch.Id, step.Id), job.Name, nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, batch.PoolId, batch.AgentId, outcome, job.UpdateIssues, lastSuccess, lastWarning, waitTime, initTime, step.StartTimeUtc ?? DateTime.UtcNow, step.FinishTimeUtc);
 			}
 		}
 	}

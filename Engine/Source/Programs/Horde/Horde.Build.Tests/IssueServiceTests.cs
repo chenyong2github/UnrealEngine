@@ -200,7 +200,7 @@ namespace Horde.Build.Tests
 			return node.Object;
 		}
 
-		public IJob CreateJob(StreamId streamId, int change, string name, IGraph graph, TimeSpan time = default, bool promoteByDefault = true)
+		public IJob CreateJob(StreamId streamId, int change, string name, IGraph graph, TimeSpan time = default, bool promoteByDefault = true, bool updateIssues = true)
 		{
 			JobId jobId = JobId.GenerateNewId();
 
@@ -244,6 +244,7 @@ namespace Horde.Build.Tests
 			job.SetupGet(x => x.ShowUgsBadges).Returns(promoteByDefault);
 			job.SetupGet(x => x.ShowUgsAlerts).Returns(promoteByDefault);
 			job.SetupGet(x => x.PromoteIssuesByDefault).Returns(promoteByDefault);
+			job.SetupGet(x => x.UpdateIssues).Returns(updateIssues);
 			job.SetupGet(x => x.NotificationChannel).Returns("#devtools-horde-slack-testing");
 			return job.Object;
 		}
@@ -252,11 +253,15 @@ namespace Horde.Build.Tests
 		{
 			IJobStepBatch batch = job.Batches[batchIdx];
 			IJobStep step = batch.Steps[stepIdx];
-			await IssueService.UpdateCompleteStep(job, _graph, batch.Id, step.Id);
+
+			if (job.UpdateIssues)
+			{
+				await IssueService.UpdateCompleteStep(job, _graph, batch.Id, step.Id);
+			}			
 
 			JobStepRefId jobStepRefId = new JobStepRefId(job.Id, batch.Id, step.Id);
 			string nodeName = _graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
-			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, null, null, 0.0f, 0.0f, step.StartTimeUtc!.Value, step.StartTimeUtc);
+			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, job.UpdateIssues, null, null, 0.0f, 0.0f, step.StartTimeUtc!.Value, step.StartTimeUtc);
 		}
 
 		async Task AddEvent(IJob job, int batchIdx, int stepIdx, object data, EventSeverity severity = EventSeverity.Error)
@@ -477,7 +482,7 @@ namespace Horde.Build.Tests
 			// Expected: No issues are created
 			{
 				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
-				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
 				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
 				Assert.AreEqual(0, issues.Count);
@@ -519,7 +524,7 @@ namespace Horde.Build.Tests
 			// Expected: No issues are created
 			{
 				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
-				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
 
 				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
 				Assert.AreEqual(0, issues.Count);
@@ -1435,7 +1440,7 @@ namespace Horde.Build.Tests
 				Assert.AreEqual("Hashed", issue.Fingerprints[0].Type);
 
 				IIssueSpan span = spans[0];
-				Assert.AreEqual(120, span.LastSuccess?.Change);
+				Assert.AreEqual(105, span.LastSuccess?.Change);
 				Assert.AreEqual(null, span.NextSuccess?.Change);
 			}
 		}
@@ -2056,6 +2061,81 @@ namespace Horde.Build.Tests
 			}
 
 		}
+
+		[TestMethod]
+		public async Task UpdateIssuesFlagTest()
+		{
+			int hour = 0;
+
+			// #1
+			// Scenario: Job is created that doesn't update issues at CL 225 with a successful outcome
+			// Expected: No new issue is created
+			{
+				IJob job = CreateJob(_mainStreamId, 225, "Test Build", _graph, TimeSpan.FromHours(hour++), true, false);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+			}
+
+			// #2
+			// Scenario: Job is created that doesn't update issues at CL 226 with a failure outcome
+			// Expected: No new issue is created
+			{
+				IJob job = CreateJob(_mainStreamId, 226, "Test Build", _graph, TimeSpan.FromHours(hour++), true, false);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Error) }, EventSeverity.Error);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+			}
+
+			// #3
+			// Scenario: Job is created at an earlier CL than in #1, with a warning outcome 
+			// Expected: Default issue is created
+			{
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph, TimeSpan.FromHours(hour++));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);				
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
+
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+				
+			}
+
+			// #4
+			// Scenario: Job is run which doesn't update issues, with a failure 
+			// Expected: Existing issue is not updated and remains a warning
+			{
+				IJob job = CreateJob(_mainStreamId, 225, "Test Build", _graph, TimeSpan.FromHours(hour++), true, false);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Error) }, EventSeverity.Error);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(1, issues[0].Id);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
+
+			}
+
+			// #5
+			// Scenario: Job is run which updates issue, with a failure 
+			// Expected: Existing issue is updated and becomes an error
+			{
+				IJob job = CreateJob(_mainStreamId, 225, "Test Build", _graph, TimeSpan.FromHours(hour++));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Error) }, EventSeverity.Error);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(1, issues[0].Id);
+				Assert.AreEqual(IssueSeverity.Error, issues[0].Severity);
+			}
+
+
+		}
+
 
 
 		private async Task ParseAsync(LogId logId, string[] lines)

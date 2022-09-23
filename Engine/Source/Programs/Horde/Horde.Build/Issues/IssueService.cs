@@ -811,14 +811,14 @@ namespace Horde.Build.Issues
 				// Get the span data
 				NewIssueSpanData spanData = new NewIssueSpanData(stream.Id, stream.Name, job.TemplateId, node.Name, eventGroup.Fingerprint, stepData);
 
-				IJobStepRef? prevJob = await _jobStepRefs.GetPrevStepForNodeAsync(job.StreamId, job.TemplateId, node.Name, job.Change);
+				IJobStepRef? prevJob = await _jobStepRefs.GetPrevStepForNodeAsync(job.StreamId, job.TemplateId, node.Name, job.Change, JobStepOutcome.Success, true);
 				if (prevJob != null)
 				{
 					spanData.LastSuccess = new NewIssueStepData(prevJob);
 					spanData.Suspects = await FindSuspectsForSpanAsync(stream, spanData.Fingerprint, spanData.LastSuccess.Change + 1, spanData.FirstFailure.Change);
 				}
 
-				IJobStepRef? nextJob = await _jobStepRefs.GetNextStepForNodeAsync(job.StreamId, job.TemplateId, node.Name, job.Change);
+				IJobStepRef? nextJob = await _jobStepRefs.GetNextStepForNodeAsync(job.StreamId, job.TemplateId, node.Name, job.Change, JobStepOutcome.Success, true);
 				if (nextJob != null)
 				{
 					spanData.NextSuccess = new NewIssueStepData(nextJob);

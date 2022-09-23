@@ -64,11 +64,15 @@ namespace Horde.Build.Jobs
 			[BsonIgnoreIfNull]
 			public DateTime? FinishTimeUtc { get; set; }
 
+			[BsonIgnoreIfNull]
+			public bool? UpdateIssues { get; set; }
+
 			DateTime IJobStepRef.StartTimeUtc => StartTimeUtc ?? StartTime?.UtcDateTime ?? default;
 			DateTime? IJobStepRef.FinishTimeUtc => FinishTimeUtc ?? FinishTime?.UtcDateTime;
 			string IJobStepRef.NodeName => Name;
+			bool IJobStepRef.UpdateIssues => UpdateIssues ?? false;
 
-			public JobStepRef(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float batchWaitTime, float batchInitTime, DateTime startTimeUtc, DateTime? finishTimeUtc)
+			public JobStepRef(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float batchWaitTime, float batchInitTime, DateTime startTimeUtc, DateTime? finishTimeUtc)
 			{
 				Id = id;
 				JobName = jobName;
@@ -80,6 +84,7 @@ namespace Horde.Build.Jobs
 				PoolId = poolId;
 				AgentId = agentId;
 				Outcome = outcome;
+				UpdateIssues = updateIssues;
 				LastSuccess = lastSuccess;
 				LastWarning = lastWarning;
 				BatchWaitTime = batchWaitTime;
@@ -103,9 +108,9 @@ namespace Horde.Build.Jobs
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId id, string jobName, string stepName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTimeUtc, DateTime? finishTimeUtc)
+		public async Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId id, string jobName, string stepName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime startTimeUtc, DateTime? finishTimeUtc)
 		{
-			JobStepRef newJobStepRef = new JobStepRef(id, jobName, stepName, streamId, templateId, change, logId, poolId, agentId, outcome, lastSuccess, lastWarning, waitTime, initTime, startTimeUtc, finishTimeUtc);
+			JobStepRef newJobStepRef = new JobStepRef(id, jobName, stepName, streamId, templateId, change, logId, poolId, agentId, outcome, updateIssues, lastSuccess, lastWarning, waitTime, initTime, startTimeUtc, finishTimeUtc);
 			await _jobStepRefs.ReplaceOneAsync(Builders<JobStepRef>.Filter.Eq(x => x.Id, newJobStepRef.Id), newJobStepRef, new ReplaceOptions { IsUpsert = true });
 			return newJobStepRef;
 		}
@@ -134,15 +139,59 @@ namespace Horde.Build.Jobs
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change)
+		public async Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
 		{
-			return await _jobStepRefs.Find(x => x.StreamId == streamId && x.TemplateId == templateId && x.Name == nodeName && x.Change < change && x.Outcome != null).SortByDescending(x => x.Change).FirstOrDefaultAsync();
+			FilterDefinitionBuilder<JobStepRef> filterBuilder = Builders<JobStepRef>.Filter;
+
+			FilterDefinition<JobStepRef> filter = FilterDefinition<JobStepRef>.Empty;
+			filter &= filterBuilder.Eq(x => x.StreamId, streamId);
+			filter &= filterBuilder.Eq(x => x.TemplateId, templateId);
+			filter &= filterBuilder.Eq(x => x.Name, nodeName);
+			filter &= filterBuilder.Lt(x => x.Change, change);
+
+			if (outcome != null)
+			{
+				filter &= filterBuilder.Eq(x => x.Outcome, outcome);
+			}
+			else
+			{
+				filter &= filterBuilder.Ne(x => x.Outcome, null);
+			}
+
+			if (updateIssues != null)
+			{
+				filter &= filterBuilder.Eq(x => x.UpdateIssues, updateIssues);
+			}
+
+			return await _jobStepRefs.Find(filter).SortByDescending(x => x.Change).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change)
+		public async Task<IJobStepRef?> GetNextStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null)
 		{
-			return await _jobStepRefs.Find(x => x.StreamId == streamId && x.TemplateId == templateId && x.Name == nodeName && x.Change > change && x.Outcome != null).SortBy(x => x.Change).FirstOrDefaultAsync();
+			FilterDefinitionBuilder<JobStepRef> filterBuilder = Builders<JobStepRef>.Filter;
+
+			FilterDefinition<JobStepRef> filter = FilterDefinition<JobStepRef>.Empty;
+			filter &= filterBuilder.Eq(x => x.StreamId, streamId);
+			filter &= filterBuilder.Eq(x => x.TemplateId, templateId);
+			filter &= filterBuilder.Eq(x => x.Name, nodeName);
+			filter &= filterBuilder.Gt(x => x.Change, change);
+			
+			if (outcome != null)
+			{
+				filter &= filterBuilder.Eq(x => x.Outcome, outcome);
+			}
+			else
+			{
+				filter &= filterBuilder.Ne(x => x.Outcome, null);
+			}
+
+			if (updateIssues != null)
+			{
+				filter &= filterBuilder.Eq(x => x.UpdateIssues, updateIssues);
+			}		
+
+			return await _jobStepRefs.Find(filter).SortBy(x => x.Change).FirstOrDefaultAsync();
 		}
 	}
 }
