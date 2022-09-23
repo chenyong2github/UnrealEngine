@@ -526,7 +526,9 @@ namespace UnrealBuildTool
 					// Try to get the correct mode
 					if(!ModeNameToType.TryGetValue(Options.Mode, out ModeType))
 					{
-						Logger.LogError("No mode named '{Name}'. Available modes are:\n  {ModeList}", Options.Mode, String.Join("\n  ", ModeNameToType.Keys));
+						List<string> ModuleNameList = ModeNameToType.Keys.ToList();
+						ModuleNameList.Sort(StringComparer.OrdinalIgnoreCase);
+						Logger.LogError("No mode named '{Name}'. Available modes are:\n  {ModeList}", Options.Mode, String.Join("\n  ", ModuleNameList));
 						return 1;
 					}
 				}
