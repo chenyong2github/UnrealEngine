@@ -385,6 +385,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
+	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
@@ -392,6 +393,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		bRequriesAmbientOcclusionPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
+		bShouldRenderVelocities ||
 		Views[0].bIsReflectionCapture;
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
@@ -833,6 +835,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					RenderHzb(GraphBuilder, MobileSceneTexturesPerView[ViewIndex]);
 
 					RenderScreenSpaceReflection(GraphBuilder, Views[ViewIndex], SceneContext);
+
+					FRDGTextureRef SceneDepthTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneDepthZ);
+					FRDGTextureRef VelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
+					RenderVelocities(GraphBuilder, SceneDepthTexture, VelocityTexture, MobileSceneTexturesPerView[ViewIndex], EVelocityPass::Opaque, false);
 				}
 
 				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");

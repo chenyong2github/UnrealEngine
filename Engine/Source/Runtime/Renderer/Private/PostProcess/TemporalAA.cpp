@@ -186,6 +186,7 @@ class FTAAStandaloneCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+		SHADER_PARAMETER_SRV(Buffer<float4>, EyeAdaptationBuffer)
 
 		// Inputs
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColor)
@@ -294,7 +295,7 @@ class FTAAStandaloneCS : public FGlobalShader
 			return false;
 		}
 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -883,7 +884,14 @@ FTAAOutputs AddTemporalAAPass(
 				ResDivisorInv * InputViewRect.Min.Y * InvSizeY);
 		}
 
-		PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+		if (IsMobilePlatform(View.GetShaderPlatform()))
+		{
+			PassParameters->EyeAdaptationBuffer = GetEyeAdaptationBuffer(View);
+		}
+		else
+		{
+			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+		}
 
 		// Temporal upsample specific shader parameters.
 		{

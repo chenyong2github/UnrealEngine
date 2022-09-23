@@ -97,6 +97,14 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	TEXT("Only available for testing in non-shipping builds."),
 	ECVF_RenderThreadSafe);
 #endif
+
+TAutoConsoleVariable<int32> CVarMobileUseStandaloneTAA(
+	TEXT("r.Mobile.UseStandaloneTAA"),
+	0,
+	TEXT("Whether to use standalone temporal AA on mobile platforms."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 } //! namespace
 
 bool IsPostProcessingWithComputeEnabled(ERHIFeatureLevel::Type FeatureLevel)
@@ -1323,6 +1331,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	const FScreenPassTexture SceneDepth((*Inputs.SceneTextures)->SceneDepthTexture, FinalOutputViewRect);
 	const FScreenPassTexture CustomDepth((*Inputs.SceneTextures)->CustomDepthTexture, FinalOutputViewRect);
 	const FScreenPassTexture BlackAlphaOneDummy(GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder));
+	const FScreenPassTexture SceneVelocity((*Inputs.SceneTextures)->VelocityTexture, FinalOutputViewRect);
 
 	// Scene color is updated incrementally through the post process pipeline.
 	FScreenPassTexture SceneColor((*Inputs.SceneTextures)->SceneColorTexture, FinalOutputViewRect);
@@ -1421,7 +1430,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	static const auto VarTonemapperUpscale = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileTonemapperUpscale"));
 	bool bDisableUpscaleInTonemapper = !VarTonemapperUpscale || VarTonemapperUpscale->GetValueOnRenderThread() == 0;
 
-	bool bShouldPrimaryUpscale = (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect);
+	bool bUseStandaloneTAA = (View.AntiAliasingMethod == AAM_TemporalAA) && MobileUseStandaloneTAA(View.GetShaderPlatform());
+	bool bShouldPrimaryUpscale = (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect) || bUseStandaloneTAA;
 
 	PassSequence.SetEnabled(EPass::Tonemap, bUseToneMapper);
 	PassSequence.SetEnabled(EPass::HighResolutionScreenshotMask, bUseHighResolutionScreenshotMask);
@@ -1487,7 +1497,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			// Skip if we don't have any exposure range to generate (eye adaptation will clamp).
 			View.FinalPostProcessSettings.AutoExposureMinBrightness < View.FinalPostProcessSettings.AutoExposureMaxBrightness;
 
-		bool bUseAa = View.AntiAliasingMethod == AAM_TemporalAA;
+		bool bUseMobileTAA = (View.AntiAliasingMethod == AAM_TemporalAA) && !MobileUseStandaloneTAA(View.GetShaderPlatform());
 
 		bool bUseDistortion = IsMobileDistortionActive(View);
 
@@ -1504,7 +1514,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassSequence.SetEnabled(EPass::EyeAdaptation, bUseEyeAdaptation);
 		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
-		PassSequence.SetEnabled(EPass::TAA, bUseAa);
+		PassSequence.SetEnabled(EPass::TAA, bUseMobileTAA);
 		PassSequence.Finalize();
 			
 		if (PassSequence.IsEnabled(EPass::Distortion))
@@ -1815,17 +1825,17 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			SunMergeInputs.SunBlur = SunBlurOutputs;
 			SunMergeInputs.bUseBloom = bUseBloom;
 			SunMergeInputs.bUseSun = bUseSun;
-			SunMergeInputs.bUseAa = bUseAa;
+			SunMergeInputs.bUseAa = bUseMobileTAA;
 
 			BloomOutput = AddMobileSunMergePass(GraphBuilder, View, SunMergeInputs);
 
-			if (bUseAa && View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+			if (bUseMobileTAA && View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 			{
 				GraphBuilder.QueueTextureExtraction(BloomOutput.Texture, &View.ViewState->PrevFrameViewInfo.MobileAaBloomSunVignette);
 			}
 
 			// Mobile temporal AA requires a composite of two of these frames.
-			if (bUseAa)
+			if (bUseMobileTAA)
 			{
 				FMobileSunAvgInputs SunAvgInputs;
 				SunAvgInputs.SunMerge = BloomOutput;
@@ -1962,6 +1972,46 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	if (IsPostProcessingEnabled(View))
 	{
 		AddPostProcessMaterialPass(BL_AfterTonemapping, true);
+
+		if (bUseStandaloneTAA)
+		{
+			int32 UpscaleMode = ITemporalUpscaler::GetTemporalUpscalerMode();
+
+			const ITemporalUpscaler* DefaultTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
+			const ITemporalUpscaler* UpscalerToUse = (UpscaleMode == 0 || !View.Family->GetTemporalUpscalerInterface()) ? DefaultTemporalUpscaler : View.Family->GetTemporalUpscalerInterface();
+
+			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
+
+			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
+			RDG_EVENT_SCOPE_CONDITIONAL(
+				GraphBuilder,
+				UpscalerToUse != DefaultTemporalUpscaler,
+				"ThirdParty %s %dx%d -> %dx%d",
+				UpscalerToUse->GetDebugName(),
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
+
+			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
+
+			UpscalerPassInputs.bAllowDownsampleSceneColor = false;
+			UpscalerPassInputs.DownsampleOverrideFormat = PF_FloatRGB;
+			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
+			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
+			UpscalerPassInputs.SceneVelocityTexture = SceneVelocity.Texture;
+			UpscalerPassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+
+			FScreenPassTexture HalfResolutionSceneColor;
+			FIntRect SecondaryViewRect = View.ViewRect;
+
+			UpscalerToUse->AddPasses(
+				GraphBuilder,
+				View,
+				UpscalerPassInputs,
+				&SceneColor.Texture,
+				&SecondaryViewRect,
+				&HalfResolutionSceneColor.Texture,
+				&HalfResolutionSceneColor.ViewRect);
+		}
 
 		if (PassSequence.IsEnabled(EPass::TAA))
 		{
