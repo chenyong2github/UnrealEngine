@@ -21,6 +21,7 @@ void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const 
 	ChildSlot
 		[
 			SNew(SBox)
+			.Visibility(EVisibility::HitTestInvisible)
 			.WidthOverride(this, &SDMXPixelMappingPreviewViewport::GetPreviewAreaWidth)
 			.HeightOverride(this, &SDMXPixelMappingPreviewViewport::GetPreviewAreaHeight)
 			[
