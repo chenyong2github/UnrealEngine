@@ -22,25 +22,21 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& Params)
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	FDelegateHandle OnAssetAddedHandle = AssetRegistry.OnAssetAdded().AddUObject(this, &UGenerateNaniteDisplacedMeshCommandlet::ProcessAssetData);
+
+	// This is automatically called in the regular editor but not when running a commandlet (unless cooking)
+	// Must also search synchronously because AssetRegistry.IsLoadingAssets() won't account for this search
+	AssetRegistry.SearchAllAssets(true);
 
 	TArray<FAssetData> WorldsAssetData;
 	AssetRegistry.GetAssetsByClass(UWorld::StaticClass()->GetClassPathName(), WorldsAssetData);
 
 	FNaniteDisplacedMeshEditorModule::GetModule().OnLinkDisplacedMeshOverride.BindUObject(this, &UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMesh);
 
-
 	for (const FAssetData& WorldAssetData : WorldsAssetData)
 	{
 		ProcessAssetData(WorldAssetData);
 	}
 
-	while (AssetRegistry.IsLoadingAssets())
-	{
-		CommandletHelpers::TickEngine();
-	}
-
-	AssetRegistry.OnAssetAdded().Remove(OnAssetAddedHandle);
 	FNaniteDisplacedMeshEditorModule::GetModule().OnLinkDisplacedMeshOverride.Unbind();
 
 	return 0;
@@ -62,55 +58,53 @@ UNaniteDisplacedMesh* UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMes
 
 void UGenerateNaniteDisplacedMeshCommandlet::ProcessAssetData(const FAssetData& InAssetData)
 {
-	if (UClass* AssetClass = InAssetData.GetClass())
+	if (InAssetData.GetClass() != UWorld::StaticClass())
 	{
-		if (AssetClass->IsChildOf<UWorld>())
+		return;
+	}
+
+	UWorld* World = Cast<UWorld>(InAssetData.GetAsset());
+	if (World == nullptr)
+	{
+		return;
+	}
+
+	World->AddToRoot();
+
+	// Load the external actors (we should look with the open world team to see if there is a better way to do this)
+	if (ULevel* PersistantLevel = World->PersistentLevel)
+	{
+		if (PersistantLevel->bUseExternalActors || PersistantLevel->bIsPartitioned)
 		{
-			if (UWorld* World = Cast<UWorld>(InAssetData.GetAsset()))
+			FString ExternalActorsPath = ULevel::GetExternalActorsPath(InAssetData.PackageName.ToString());
+			FString ExternalActorsFilePath = FPackageName::LongPackageNameToFilename(ExternalActorsPath);
+
+			if (IFileManager::Get().DirectoryExists(*ExternalActorsFilePath))
 			{
-				World->AddToRoot();
-
-				// Load the external actors (we should look with the open world team to see if there is a better way to do this)
-				if (ULevel* PersistantLevel = World->PersistentLevel)
-				{
-					if (PersistantLevel->bUseExternalActors || PersistantLevel->bIsPartitioned)
+				bool bResult = IFileManager::Get().IterateDirectoryRecursively(*ExternalActorsFilePath, [](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 					{
-						FString ExternalActorsPath = ULevel::GetExternalActorsPath(InAssetData.PackageName.ToString());
-						FString ExternalActorsFilePath = FPackageName::LongPackageNameToFilename(ExternalActorsPath);
-
-						if (IFileManager::Get().DirectoryExists(*ExternalActorsFilePath))
+						if (!bIsDirectory)
 						{
-							bool bResult = IFileManager::Get().IterateDirectoryRecursively(*ExternalActorsFilePath, [](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-								{
-									if (!bIsDirectory)
-									{
-										FString Filename(FilenameOrDirectory);
-										if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
-										{
-											AActor* MainPackageActor = nullptr;
-											AActor* PotentialMainPackageActor = nullptr;
+							FString Filename(FilenameOrDirectory);
+							if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+							{
+								AActor* MainPackageActor = nullptr;
+								AActor* PotentialMainPackageActor = nullptr;
 
-											const FString PackageName = FPackageName::FilenameToLongPackageName(*Filename);
-											LoadPackage(nullptr, *Filename, LOAD_None, nullptr, nullptr);
-										}
-									}
-
-									return true;
-								});
-
-
+								const FString PackageName = FPackageName::FilenameToLongPackageName(*Filename);
+								LoadPackage(nullptr, *Filename, LOAD_None, nullptr, nullptr);
+							}
 						}
-					}
 
-				}
-
-				World->RemoveFromRoot();
-
-				CollectGarbage(RF_NoFlags);
-
-
-				CommandletHelpers::TickEngine();
+						return true;
+					});
 			}
 		}
 	}
+
+	World->RemoveFromRoot();
+
+	CollectGarbage(RF_NoFlags);
+
+	CommandletHelpers::TickEngine();
 }
