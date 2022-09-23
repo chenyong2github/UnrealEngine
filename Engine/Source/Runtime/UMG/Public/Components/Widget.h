@@ -473,7 +473,7 @@ public:
 
 public:
 	/** */
-	FWidgetTransform GetRenderTransform() const;
+	const FWidgetTransform& GetRenderTransform() const;
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")

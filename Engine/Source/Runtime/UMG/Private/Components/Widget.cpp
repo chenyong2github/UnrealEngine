@@ -207,7 +207,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FWidgetTransform UWidget::GetRenderTransform() const
+const FWidgetTransform& UWidget::GetRenderTransform() const
 {
 	return RenderTransform;
 }
