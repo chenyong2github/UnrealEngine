@@ -247,7 +247,7 @@ public:
 	FORCEINLINE int32 EmplaceAt(int32 Index, ArgsType&&... Args)
 	{
 		FSparseArrayAllocationInfo Allocation;
-		if(!AllocationFlags[Index])
+		if(!AllocationFlags.IsValidIndex(Index) || !AllocationFlags[Index])
 		{
 			Allocation = InsertUninitialized(Index);
 		}
