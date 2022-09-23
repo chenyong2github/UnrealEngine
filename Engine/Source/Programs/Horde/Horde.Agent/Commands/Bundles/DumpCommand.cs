@@ -35,7 +35,6 @@ namespace Horde.Agent.Commands.Bundles
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 
-			ReadOnlyMemory<byte> data = blob.Payload.AsSingleSegment();
 			BundleHeader header = blob.Header;
 			int packetStart = 0;
 

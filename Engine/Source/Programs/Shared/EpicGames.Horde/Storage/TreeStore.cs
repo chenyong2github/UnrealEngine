@@ -94,12 +94,14 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		class PacketInfo
 		{
+			public readonly int Index;
 			public readonly int Offset;
 			public readonly int DecodedLength;
 			public readonly int EncodedLength;
 
-			public PacketInfo(int offset, BundlePacket packet)
+			public PacketInfo(int index, int offset, BundlePacket packet)
 			{
+				Index = index;
 				Offset = offset;
 				DecodedLength = packet.DecodedLength;
 				EncodedLength = packet.EncodedLength;
@@ -460,9 +462,10 @@ namespace EpicGames.Horde.Storage
 				// Update the node states to reference the written bundle
 				int exportIdx = 0;
 				int packetOffset = 0;
-				foreach (BundlePacket packet in bundle.Header.Packets)
+				for (int packetIdx = 0; packetIdx < bundle.Header.Packets.Count; packetIdx++)
 				{
-					PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
+					BundlePacket packet = bundle.Header.Packets[packetIdx];
+					PacketInfo packetInfo = new PacketInfo(packetIdx, packetOffset, packet);
 
 					int nodeOffset = 0;
 					for (; exportIdx < header.Exports.Count && nodeOffset + bundle.Header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
@@ -552,15 +555,15 @@ namespace EpicGames.Horde.Storage
 					imports.Add(new BundleImport(bundleInfo.Locator, bundleInfo.Exports.Length, exportInfos));
 				}
 
-				// Preallocate data in the encoded buffer to reduce fragmentation if we have to resize
-				ByteArrayBuilder builder = new ByteArrayBuilder(options.MinCompressionPacketSize * 2);
-
 				// Create the export list
 				List<BundleExport> exports = new List<BundleExport>();
 				List<BundlePacket> packets = new List<BundlePacket>();
 
 				// Size of data currently stored in the block buffer
 				int blockSize = 0;
+
+				// List of data packets
+				List<ReadOnlyMemory<byte>> packetBlocks = new List<ReadOnlyMemory<byte>>();
 
 				// Segments of data in the current block
 				List<ReadOnlyMemory<byte>> blockSegments = new List<ReadOnlyMemory<byte>>();
@@ -574,7 +577,7 @@ namespace EpicGames.Horde.Storage
 					// If we can't fit this data into the current block, flush the contents of it first
 					if (blockSize > 0 && blockSize + nodeData.Length > options.MinCompressionPacketSize)
 					{
-						FlushPacket(_options.CompressionFormat, blockSegments, blockSize, builder, packets);
+						FlushPacket(_options.CompressionFormat, blockSegments, blockSize, packets, packetBlocks);
 						blockSize = 0;
 					}
 
@@ -591,14 +594,14 @@ namespace EpicGames.Horde.Storage
 					}
 					else
 					{
-						FlushPacket(options.CompressionFormat, nodeData.First, builder, packets);
+						FlushPacket(options.CompressionFormat, nodeData.First, packets, packetBlocks);
 					}
 				}
-				FlushPacket(options.CompressionFormat, blockSegments, blockSize, builder, packets);
+				FlushPacket(options.CompressionFormat, blockSegments, blockSize, packets, packetBlocks);
 
 				// Flush the data
 				BundleHeader header = new BundleHeader(options.CompressionFormat, imports, exports, packets);
-				return new Bundle(header, builder.AsSequence());
+				return new Bundle(header, packetBlocks);
 			}
 
 			static int AddSegments(ReadOnlySequence<byte> sequence, List<ReadOnlyMemory<byte>> segments)
@@ -612,13 +615,13 @@ namespace EpicGames.Horde.Storage
 				return size;
 			}
 
-			static void FlushPacket(BundleCompressionFormat format, List<ReadOnlyMemory<byte>> blockSegments, int blockSize, ByteArrayBuilder builder, List<BundlePacket> packets)
+			static void FlushPacket(BundleCompressionFormat format, List<ReadOnlyMemory<byte>> blockSegments, int blockSize, List<BundlePacket> packets, List<ReadOnlyMemory<byte>> packetBlocks)
 			{
 				if (blockSize > 0)
 				{
 					if (blockSegments.Count == 1)
 					{
-						FlushPacket(format, blockSegments[0], builder, packets);
+						FlushPacket(format, blockSegments[0], packets, packetBlocks);
 					}
 					else
 					{
@@ -631,64 +634,19 @@ namespace EpicGames.Horde.Storage
 							output = output.Slice(blockSegment.Length);
 						}
 
-						FlushPacket(format, buffer.Memory.Slice(0, blockSize), builder, packets);
+						FlushPacket(format, buffer.Memory.Slice(0, blockSize), packets, packetBlocks);
 					}
 				}
 				blockSegments.Clear();
 			}
 
-			static void FlushPacket(BundleCompressionFormat format, ReadOnlyMemory<byte> inputData, ByteArrayBuilder builder, List<BundlePacket> packets)
+			static void FlushPacket(BundleCompressionFormat format, ReadOnlyMemory<byte> inputData, List<BundlePacket> packets, List<ReadOnlyMemory<byte>> packetBlocks)
 			{
 				if (inputData.Length > 0)
 				{
-					int encodedLength = Encode(format, inputData, builder);
-					Debug.Assert(encodedLength >= 0);
-					packets.Add(new BundlePacket(encodedLength, inputData.Length));
-				}
-			}
-
-			static int Encode(BundleCompressionFormat format, ReadOnlyMemory<byte> input, ByteArrayBuilder builder)
-			{
-				switch (format)
-				{
-					case BundleCompressionFormat.None:
-						{
-							builder.WriteFixedLengthBytes(input.Span);
-							return input.Length;
-						}
-					case BundleCompressionFormat.LZ4:
-						{
-							int maxSize = LZ4Codec.MaximumOutputSize(input.Length);
-
-							Span<byte> outputSpan = builder.GetSpan(maxSize);
-							int encodedLength = LZ4Codec.Encode(input.Span, outputSpan);
-							builder.Advance(encodedLength);
-
-							return encodedLength;
-						}
-					case BundleCompressionFormat.Gzip:
-						{
-							using MemoryWriterStream outputStream = new MemoryWriterStream(builder);
-							using GZipStream gzipStream = new GZipStream(outputStream, CompressionLevel.Fastest);
-							gzipStream.Write(input.Span);
-							return (int)outputStream.Length;
-						}
-					case BundleCompressionFormat.Oodle:
-						{
-#if WITH_OODLE
-							int maxSize = Oodle.MaximumOutputSize(OodleCompressorType.Selkie, input.Length);
-
-							Span<byte> outputSpan = builder.GetSpan(maxSize);
-							int encodedLength = Oodle.Compress(OodleCompressorType.Selkie, input.Span, outputSpan, OodleCompressionLevel.HyperFast);
-							builder.Advance(encodedLength);
-
-							return encodedLength;
-#else
-							throw new NotSupportedException("Oodle is not compiled into this build.");
-#endif
-						}
-					default:
-						throw new InvalidDataException($"Invalid compression format '{(int)format}'");
+					ReadOnlyMemory<byte> encodedData = BundleData.Compress(format, inputData);
+					packets.Add(new BundlePacket(encodedData.Length, inputData.Length));
+					packetBlocks.Add(encodedData);
 				}
 			}
 		}
@@ -757,7 +715,7 @@ namespace EpicGames.Horde.Storage
 			ExportedNodeState exportedState = await GetExportedStateAsync(node, cancellationToken);
 
 			Bundle bundle = await ReadBundleAsync(exportedState.BundleInfo.Locator, cancellationToken);
-			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo.Locator, exportedState.PacketInfo, bundle.Header.CompressionFormat, bundle.Payload);
+			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo.Locator, exportedState.PacketInfo, bundle.Header.CompressionFormat, bundle.Packets[exportedState.PacketInfo.Index]);
 			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportedState.Offset, exportedState.Length);
 
 			return new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), exportedState.References);
@@ -835,7 +793,8 @@ namespace EpicGames.Horde.Storage
 			{
 				using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
 				{
-					entry.SetSize(bundle.Payload.Length);
+					int length = bundle.Packets.Sum(x => x.Length);
+					entry.SetSize(length);
 					entry.SetValue(bundle);
 				}
 			}
@@ -879,9 +838,10 @@ namespace EpicGames.Horde.Storage
 			// Create the exported nodes, or update the state of any imported nodes to exported
 			int exportIdx = 0;
 			int packetOffset = 0;
-			foreach (BundlePacket packet in header.Packets)
+			for (int packetIdx = 0; packetIdx < header.Packets.Count; packetIdx++)
 			{
-				PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
+				BundlePacket packet = header.Packets[packetIdx];
+				PacketInfo packetInfo = new PacketInfo(packetIdx, packetOffset, packet);
 
 				int nodeOffset = 0;
 				for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
@@ -939,7 +899,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="format">Compression type in the bundle</param>
 		/// <param name="payload">The bundle payload</param>
 		/// <returns>The decoded data</returns>
-		ReadOnlyMemory<byte> DecodePacket(BlobLocator locator, PacketInfo packetInfo, BundleCompressionFormat format, ReadOnlySequence<byte> payload)
+		ReadOnlyMemory<byte> DecodePacket(BlobLocator locator, PacketInfo packetInfo, BundleCompressionFormat format, ReadOnlyMemory<byte> payload)
 		{
 			if (_cache == null)
 			{
@@ -957,13 +917,10 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		static ReadOnlyMemory<byte> DecodePacketUncached(PacketInfo packetInfo, BundleCompressionFormat format, ReadOnlySequence<byte> payload)
+		static ReadOnlyMemory<byte> DecodePacketUncached(PacketInfo packetInfo, BundleCompressionFormat format, ReadOnlyMemory<byte> encodedPacket)
 		{
-			ReadOnlyMemory<byte> encodedPacket = payload.Slice(packetInfo.Offset, packetInfo.EncodedLength).AsSingleSegment();
-
 			byte[] decodedPacket = new byte[packetInfo.DecodedLength];
-			Decode(format, encodedPacket, decodedPacket);
-
+			BundleData.Decompress(format, encodedPacket, decodedPacket);
 			return decodedPacket;
 		}
 
@@ -984,35 +941,6 @@ namespace EpicGames.Horde.Storage
 			IoHash.Compute(data).CopyTo(span);
 
 			return IoHash.Compute(buffer);
-		}
-
-		static void Decode(BundleCompressionFormat format, ReadOnlyMemory<byte> input, Memory<byte> output)
-		{
-			switch (format)
-			{
-				case BundleCompressionFormat.None:
-					input.CopyTo(output);
-					break;
-				case BundleCompressionFormat.LZ4:
-					LZ4Codec.Decode(input.Span, output.Span);
-					break;
-				case BundleCompressionFormat.Gzip:
-					{
-						using ReadOnlyMemoryStream inputStream = new ReadOnlyMemoryStream(input);
-						using GZipStream outputStream = new GZipStream(new MemoryWriterStream(new MemoryWriter(output)), CompressionMode.Decompress, false);
-						inputStream.CopyTo(outputStream);
-						break;
-					}
-				case BundleCompressionFormat.Oodle:
-#if WITH_OODLE
-					Oodle.Decompress(input.Span, output.Span);
-					break;
-#else
-					throw new NotSupportedException("Oodle is not compiled into this build.");
-#endif
-				default:
-					throw new InvalidDataException($"Invalid compression format '{(int)format}'");
-			}
 		}
 
 		#endregion

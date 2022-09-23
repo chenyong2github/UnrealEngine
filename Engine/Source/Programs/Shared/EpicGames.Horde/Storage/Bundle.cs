@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using K4os.Compression.LZ4;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -50,15 +52,15 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Packet data as described in the header
 		/// </summary>
-		public ReadOnlySequence<byte> Payload { get; }
+		public IReadOnlyList<ReadOnlyMemory<byte>> Packets { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Bundle(BundleHeader header, ReadOnlySequence<byte> payload)
+		public Bundle(BundleHeader header, IReadOnlyList<ReadOnlyMemory<byte>> packets)
 		{
 			Header = header;
-			Payload = payload;
+			Packets = packets;
 		}
 
 		/// <summary>
@@ -67,8 +69,15 @@ namespace EpicGames.Horde.Storage
 		public Bundle(IMemoryReader reader)
 		{
 			Header = new BundleHeader(reader);
-			int length = (int)reader.ReadUnsignedVarInt();
-			Payload = new ReadOnlySequence<byte>(reader.ReadFixedLengthBytes(length));
+
+			ReadOnlyMemory<byte>[] packets = new ReadOnlyMemory<byte>[Header.Packets.Count];
+			for (int idx = 0; idx < Header.Packets.Count; idx++)
+			{
+				BundlePacket packet = Header.Packets[idx];
+				packets[idx] = reader.ReadFixedLengthBytes(packet.EncodedLength);
+			}
+
+			Packets = packets;
 		}
 
 		/// <summary>
@@ -79,11 +88,20 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Bundle that was read</returns>
 		public static async Task<Bundle> FromStreamAsync(Stream stream, CancellationToken cancellationToken)
 		{
-			using (MemoryStream memoryStream = new MemoryStream())
+			BundleHeader header = await BundleHeader.FromStreamAsync(stream, cancellationToken);
+
+			ReadOnlyMemory<byte>[] packets = new ReadOnlyMemory<byte>[header.Packets.Count];
+			for (int idx = 0; idx < header.Packets.Count; idx++)
 			{
-				await stream.CopyToAsync(memoryStream, cancellationToken);
-				return new Bundle(new MemoryReader(memoryStream.ToArray()));
+				BundlePacket packet = header.Packets[idx];
+
+				byte[] data = new byte[packet.EncodedLength];
+				await stream.ReadFixedLengthBytesAsync(data, cancellationToken);
+
+				packets[idx] = data;
 			}
+
+			return new Bundle(header, packets);
 		}
 
 		/// <summary>
@@ -94,11 +112,14 @@ namespace EpicGames.Horde.Storage
 		{
 			ByteArrayBuilder builder = new ByteArrayBuilder();
 			Header.Write(builder);
-			builder.WriteUnsignedVarInt((ulong)Payload.Length);
 
 			ReadOnlySequenceBuilder<byte> sequence = new ReadOnlySequenceBuilder<byte>();
 			sequence.Append(builder.AsSequence());
-			sequence.Append(Payload);
+
+			foreach (ReadOnlyMemory<byte> packet in Packets)
+			{
+				sequence.Append(packet);
+			}
 
 			return sequence.Construct();
 		}
@@ -212,29 +233,19 @@ namespace EpicGames.Horde.Storage
 		/// <param name="stream">Stream to read from</param>
 		/// <param name="cancellationToken">Cancellation token for the stream</param>
 		/// <returns>New header</returns>
-		public static async Task<BundleHeader> ReadAsync(Stream stream, CancellationToken cancellationToken)
+		public static async Task<BundleHeader> FromStreamAsync(Stream stream, CancellationToken cancellationToken)
 		{
 			byte[] prelude = new byte[8];
-
-			int length = await stream.ReadAsync(prelude, cancellationToken);
-			if (length != 8)
-			{
-				throw new InvalidDataException("Unexpected end of stream while reading prelude data");
-			}
+			await stream.ReadFixedLengthBytesAsync(prelude, cancellationToken);
 			CheckPrelude(prelude);
 
 			int headerLength = BinaryPrimitives.ReadInt32BigEndian(prelude.AsSpan(4));
 			using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(headerLength))
 			{
-				Memory<byte> header = owner.Memory.Slice(headerLength);
+				Memory<byte> header = owner.Memory.Slice(0, headerLength);
 				prelude.CopyTo(header);
 
-				int readLength = await stream.ReadAsync(header.Slice(8), cancellationToken);
-				if (readLength != headerLength)
-				{
-					throw new InvalidDataException("Unexpected end of file in stream");
-				}
-
+				await stream.ReadFixedLengthBytesAsync(header.Slice(prelude.Length), cancellationToken);
 				return new BundleHeader(new MemoryReader(header));
 			}
 		}
@@ -360,12 +371,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Encoded length of the packet
 		/// </summary>
-		public int EncodedLength { get; set; }
+		public int EncodedLength { get; }
 
 		/// <summary>
 		/// Decoded length of the packet
 		/// </summary>
-		public int DecodedLength { get; set; }
+		public int DecodedLength { get; }
 
 		/// <summary>
 		/// Constructor
@@ -464,6 +475,96 @@ namespace EpicGames.Horde.Storage
 			for(int idx = 0; idx < References.Count; idx++)
 			{
 				writer.WriteUnsignedVarInt(References[idx]);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Utility methods for bundles
+	/// </summary>
+	public static class BundleData
+	{
+		/// <summary>
+		/// Compress a data packet
+		/// </summary>
+		/// <param name="format"></param>
+		/// <param name="input"></param>
+		/// <returns>The compressed data</returns>
+		public static ReadOnlyMemory<byte> Compress(BundleCompressionFormat format, ReadOnlyMemory<byte> input)
+		{
+			switch (format)
+			{
+				case BundleCompressionFormat.None:
+					{
+						return input;
+					}
+				case BundleCompressionFormat.LZ4:
+					{
+						int maxSize = LZ4Codec.MaximumOutputSize(input.Length);
+						using (IMemoryOwner<byte> buffer = MemoryPool<byte>.Shared.Rent(maxSize))
+						{
+							int encodedLength = LZ4Codec.Encode(input.Span, buffer.Memory.Span);
+							return buffer.Memory.Slice(0, encodedLength).ToArray();
+						}
+					}
+				case BundleCompressionFormat.Gzip:
+					{
+						using MemoryStream outputStream = new MemoryStream(input.Length);
+						using GZipStream gzipStream = new GZipStream(outputStream, CompressionLevel.Fastest);
+						gzipStream.Write(input.Span);
+						return outputStream.ToArray();
+					}
+				case BundleCompressionFormat.Oodle:
+					{
+#if WITH_OODLE
+						int maxSize = Oodle.MaximumOutputSize(OodleCompressorType.Selkie, input.Length);
+
+						Span<byte> outputSpan = builder.GetSpan(maxSize);
+						int encodedLength = Oodle.Compress(OodleCompressorType.Selkie, input.Span, outputSpan, OodleCompressionLevel.HyperFast);
+						builder.Advance(encodedLength);
+
+						return encodedLength;
+#else
+						throw new NotSupportedException("Oodle is not compiled into this build.");
+#endif
+					}
+				default:
+					throw new InvalidDataException($"Invalid compression format '{(int)format}'");
+			}
+		}
+
+		/// <summary>
+		/// Decompress a packet of data
+		/// </summary>
+		/// <param name="format">Format of the compressed data</param>
+		/// <param name="input">Compressed data</param>
+		/// <param name="output">Buffer to receive the decompressed data</param>
+		public static void Decompress(BundleCompressionFormat format, ReadOnlyMemory<byte> input, Memory<byte> output)
+		{
+			switch (format)
+			{
+				case BundleCompressionFormat.None:
+					input.CopyTo(output);
+					break;
+				case BundleCompressionFormat.LZ4:
+					LZ4Codec.Decode(input.Span, output.Span);
+					break;
+				case BundleCompressionFormat.Gzip:
+					{
+						using ReadOnlyMemoryStream inputStream = new ReadOnlyMemoryStream(input);
+						using GZipStream outputStream = new GZipStream(new MemoryWriterStream(new MemoryWriter(output)), CompressionMode.Decompress, false);
+						inputStream.CopyTo(outputStream);
+						break;
+					}
+				case BundleCompressionFormat.Oodle:
+#if WITH_OODLE
+					Oodle.Decompress(input.Span, output.Span);
+					break;
+#else
+					throw new NotSupportedException("Oodle is not compiled into this build.");
+#endif
+				default:
+					throw new InvalidDataException($"Invalid compression format '{(int)format}'");
 			}
 		}
 	}
