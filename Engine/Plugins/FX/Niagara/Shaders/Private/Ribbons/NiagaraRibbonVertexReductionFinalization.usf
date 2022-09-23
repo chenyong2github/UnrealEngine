@@ -5,8 +5,6 @@
 
 
 Buffer<uint> SortedIndices;
-// Tangent of the particle, and the distance along the ribbon if we're computing it
-RWBuffer<float> TangentsAndDistances;
 // Index of the ribbon for this particle
 // created through prefix sum across all the starting points of the ribbons
 #if HAS_RIBBON_ID
@@ -45,6 +43,33 @@ int FinalizationThreadBlockSize;
 void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint TotalNumParticles = GetTotalNumParticles();
+	const uint OutputCommandBufferOffset = OutputCommandBufferIndex * VERTEX_GEN_OUTPUT_DATA_STRIDE;
+
+	// Early out if we have no particles
+	if ( TotalNumParticles == 0 )
+	{
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_FINALIZATION_INDIRECT_ARGS_OFFSET + 0] = 0;
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_FINALIZATION_INDIRECT_ARGS_OFFSET + 1] = 0;
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_FINALIZATION_INDIRECT_ARGS_OFFSET + 2] = 0;
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_SEGMENTS_OFFSET] = 0;
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_RIBBONS_OFFSET] = 0;
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_SEGMENTS_OFFSET] = 0;
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_RIBBONS_OFFSET] = 0;
+	#if RIBBONS_WANTS_AUTOMATIC_TESSELLATION
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_ANGLE] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURVATURE] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_ANGLE] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_CURVATURE] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TOTAL_SEGMENT_LENGTH] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_TOTAL_SEGMENT_LENGTH] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_SEGMENT_LENGTH] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_SEGMENT_ANGLE] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_TWIST_ANGLE] = asuint(0.0f);
+		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_WIDTH] = asuint(0.0f);
+	#endif
+		return;
+	}
+
 	const uint RawParticleID = DispatchThreadId.x;
 	const uint LastParticleIndex = TotalNumParticles - 1;
 	
@@ -55,8 +80,8 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 	{
 		// First we Gen the ribbon lookup table if we have multiribbon enabled
 		const uint CurrRibbonIndex = MultiRibbonIndices[RawParticleID];
-		const uint PrevRibbonIndex = RawParticleID > 0? MultiRibbonIndices[RawParticleID - 1] : INDEX_NONE;
-		const uint NextRibbonIndex = RawParticleID < (TotalNumParticles - 1)? MultiRibbonIndices[RawParticleID + 1] : INDEX_NONE;
+		const uint PrevRibbonIndex = RawParticleID > 0 ? MultiRibbonIndices[RawParticleID - 1] : INDEX_NONE;
+		const uint NextRibbonIndex = RawParticleID < LastParticleIndex ? MultiRibbonIndices[RawParticleID + 1] : INDEX_NONE;
 		
 		// Track the starting index of each ribbon segment
 		BRANCH
@@ -78,7 +103,6 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 	PackedPerRibbonData[PACKED_PER_RIBBON_ENDPARTICLEOFFSET] = LastParticleIndex;
 #endif
 
-
 	// Very first compute instance, we grab all the stats into the output buffer
 	// This is so if we don't need multiribbon, then we'll only run one compute instance
 #if HAS_RIBBON_ID	
@@ -92,21 +116,17 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const int TotalNumRibbons = MultiRibbonIndices[LastParticleIndex] + 1;
 #endif		
 
-		const uint OutputCommandBufferOffset = OutputCommandBufferIndex * VERTEX_GEN_OUTPUT_DATA_STRIDE;
-
 		// Calculate the indirect args for the finalization shader
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_FINALIZATION_INDIRECT_ARGS_OFFSET + 0] = DivideAndRoundUp(TotalNumRibbons, FinalizationThreadBlockSize);
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_FINALIZATION_INDIRECT_ARGS_OFFSET + 1] = 1;
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_FINALIZATION_INDIRECT_ARGS_OFFSET + 2] = 1;
 		
-
 		// Total num segments, we can get it from taking the last segment index and adding one to get the count (segments is one less in length than sorted particles, so we need the 2nd to last particle
 		const int TotalSegments = Segments[LastParticleIndex - 1] + 1;
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_SEGMENTS_OFFSET] = TotalSegments;
 
 		// Total num ribbons
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_RIBBONS_OFFSET] = TotalNumRibbons;
-
 
 #if RIBBONS_WANTS_AUTOMATIC_TESSELLATION
 #if RIBBON_HAS_TWIST
@@ -125,14 +145,22 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float AverageWidth = 0;
 #endif
 		
-		float TessellationAngle = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_ANGLE]);
-		float TessellationCurvature = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURVATURE]);
-		float TessellationTwistAngle = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_ANGLE]);
-		float TessellationTwistCurvature = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_CURVATURE]);
-		float TessellationTotalSegmentLength = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TOTAL_SEGMENT_LENGTH]);		
+		// Generate smoothed tessellation information
+		float TessellationAngle = 0.0f;
+		float TessellationCurvature = 0.0f;
+		float TessellationTwistAngle = 0.0f;
+		float TessellationTwistCurvature = 0.0f;
+		float TessellationTotalSegmentLength = 0.0f;
 		
 		if (TotalSegmentLength > 0.0)
 		{				
+			// Read Tessellation Smmothing Data (accumulated between frames)
+			TessellationAngle = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_ANGLE]);
+			TessellationCurvature = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURVATURE]);
+			TessellationTwistAngle = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_ANGLE]);
+			TessellationTwistCurvature = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_CURVATURE]);
+			TessellationTotalSegmentLength = asfloat(OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TOTAL_SEGMENT_LENGTH]);		
+
 			// Blend the result between the last frame tessellation factors and the current frame base on the total length of all segments.
 			// This is only used to increase the tessellation value of the current frame data to prevent glitches where tessellation is significantly changin between frames.
 			const float OneOverTotalSegmentLength = 1.f / max(1.0f, TotalSegmentLength);
@@ -146,7 +174,6 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 			TessellationAngle = lerp(AverageSegmentAngle, max(TessellationAngle, AverageSegmentAngle), AveragingFactor);
 			TessellationCurvature = lerp(AverageSegmentCurvature, max(TessellationCurvature, AverageSegmentCurvature), AveragingFactor);
 			
-
 #if RIBBON_HAS_TWIST				
 			AverageTwistAngle *= OneOverTotalSegmentLength;
 			AverageWidth *= OneOverTotalSegmentLength;
@@ -155,26 +182,13 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 			TessellationTwistCurvature = lerp(AverageWidth, max(TessellationTwistCurvature, AverageWidth), AveragingFactor);		
 #endif
 		}
-		else
-		{
-			TessellationAngle = 0;
-			TessellationCurvature = 0;
-			TessellationTwistAngle = 0;
-			TessellationTwistCurvature = 0;
-			TessellationTotalSegmentLength = 0;
-		}
 
-		// TessellationAngle
+		// Output Tessellation Smmothing Data (accumulated between frames)
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_ANGLE] = asuint(TessellationAngle);
-		// TessellationCurvature
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURVATURE] = asuint(TessellationCurvature);
-		// TessellationTwistAngle
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_ANGLE] = asuint(TessellationTwistAngle);
-		// TessellationTwistCurvature
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_CURVATURE] = asuint(TessellationTwistCurvature);
-		// TessellationTotalSegmentLength
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TOTAL_SEGMENT_LENGTH] = asuint(TessellationTotalSegmentLength);
-
 
 		// Write out current frame tessellation stats
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_TOTAL_SEGMENT_LENGTH] = asuint(TotalSegmentLength);
@@ -182,7 +196,6 @@ void OutputRibbonStats(uint3 DispatchThreadId : SV_DispatchThreadID)
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_SEGMENT_ANGLE] = asuint(AverageSegmentAngle);
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_TWIST_ANGLE] = asuint(AverageTwistAngle);
 		OutputCommandBuffer[OutputCommandBufferOffset + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_CURRENT_FRAME_AVERAGE_WIDTH] = asuint(AverageWidth);
-
-#endif
+#endif //RIBBONS_WANTS_AUTOMATIC_TESSELLATION
 	}
 }

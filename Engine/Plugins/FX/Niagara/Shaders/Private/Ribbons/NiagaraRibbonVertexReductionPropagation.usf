@@ -29,10 +29,6 @@ RWBuffer<float> OutputTessellationStats;
 
 int PrefixScanStride;
 
-
-
-
-
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void VertexGenPrefixSumPropagation(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -137,9 +133,5 @@ void VertexGenPrefixSumPropagation(uint3 DispatchThreadId : SV_DispatchThreadID)
 #endif
 #endif
 		}
-
 	}
 }
-
-
-

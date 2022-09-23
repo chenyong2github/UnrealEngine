@@ -472,12 +472,15 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	return Result;
 }
 
-#if 0
-float3 SafeNormalize(float3 V)
+float3 SafeNormalize(float3 V, float3 Default)
 {
-	return rsqrt(max(0.001, dot(V,V))) * V;
+	const float len2 = dot(V, V);
+	if ( len2 > 0.0f )
+	{
+		return V * rsqrt(len2);
+	}
+	return Default;
 }
-#endif
 
 float4 GetDirectionAndMagnitude(float3 V)
 {
@@ -536,7 +539,7 @@ FRibbonPositionIntermediates GetRibbonPositionIntermediates(
 			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId1, 3));
 		
 		Intermediates.Position = TransformPosition(LocalToWorld, CubicInterp(Pos0, TangentAndDist0.xyz, Pos1, TangentAndDist1.xyz, InterpVtxData.Alpha, TangentAndDist1.w - TangentAndDist0.w));
-		Intermediates.Direction = normalize(TransformVector(LocalToWorld, InvScale, lerp(TangentAndDist0.xyz, TangentAndDist1.xyz, InterpVtxData.Alpha)));
+		Intermediates.Direction = SafeNormalize(TransformVector(LocalToWorld, InvScale, lerp(TangentAndDist0.xyz, TangentAndDist1.xyz, InterpVtxData.Alpha)), float3(0, 0, 0));
 		Intermediates.DistanceOnSegment = lerp(TangentAndDist0.w, TangentAndDist1.w, InterpVtxData.Alpha);
 	}
 
@@ -547,14 +550,16 @@ FRibbonPositionIntermediates GetRibbonPositionIntermediates(
 	{
 		const float3 Facing0 = GetVec3(FacingDataOffset, InterpVtxData.ParticleId0);
 		const float3 Facing1 = GetVec3(FacingDataOffset, InterpVtxData.ParticleId1);
-		Facing = normalize(TransformVector(LocalToWorld, InvScale, lerp(Facing0, Facing1, InterpVtxData.Alpha)));
+		Facing = TransformVector(LocalToWorld, InvScale, lerp(Facing0, Facing1, InterpVtxData.Alpha));
 	}
 	else
 	{
-		Facing = normalize(LWCToFloat(LWCSubtract(ResolvedView.WorldCameraOrigin, Intermediates.Position)));
+		Facing = LWCToFloat(LWCSubtract(ResolvedView.WorldCameraOrigin, Intermediates.Position));
 	}
+	Facing = SafeNormalize(Facing, float3(0, 0, 0));
 
-	float3 Right = normalize(cross(Facing, Intermediates.Direction));
+	float3 Right = cross(Facing, Intermediates.Direction);
+	Right = SafeNormalize(Right, float3(0, 0, 0));
 	
 	if (NiagaraRibbonVFLooseParameters.FacingMode == 2 /* CustomSide */)
 	{
@@ -588,11 +593,11 @@ FRibbonPositionIntermediates GetRibbonPositionIntermediates(
 	
 	Intermediates.TangentZ = NiagaraRibbonVFLooseParameters.Shape >= 1 ? Intermediates.GeoUp : Facing; // Intermediates.GeoUp;
 	
-	Intermediates.TangentZ = normalize((Intermediates.TangentZ * SliceVertexNormals.y + Intermediates.TangentX * SliceVertexNormals.x));
+	Intermediates.TangentZ = SafeNormalize(Intermediates.TangentZ * SliceVertexNormals.y + Intermediates.TangentX * SliceVertexNormals.x, float3(0, 0, 1));
 	
 	// Flip the normal only for multiplane shape if the normal is looking away from the camera.
 	// This lets us still render as two sided, but at least gets the normals corrected so the plane faces the camera.
-	float3 ViewNormal = normalize(LWCToFloat(LWCSubtract(ResolvedView.WorldCameraOrigin, Intermediates.Position)));
+	float3 ViewNormal = SafeNormalize(LWCToFloat(LWCSubtract(ResolvedView.WorldCameraOrigin, Intermediates.Position)), float3(0,0,0));
 	Intermediates.TangentZ *= (NiagaraRibbonVF.ShouldFlipNormalToView > 0 && dot(ViewNormal, Intermediates.TangentZ) < 0) ? -1 : 1;
 	
 	Intermediates.TangentX = cross(Intermediates.TangentZ, Intermediates.TangentY);

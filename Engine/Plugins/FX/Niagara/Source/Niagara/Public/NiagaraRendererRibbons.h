@@ -256,7 +256,7 @@ struct FNiagaraRibbonGpuBuffer
 		Release();
 	}
 
-	bool Allocate(uint32 NumElements, uint32 MaxElements, ERHIAccess InResourceState, bool bGpuReadOnly);
+	bool Allocate(uint32 NumElements, uint32 MaxElements, ERHIAccess InResourceState, bool bGpuReadOnly, EBufferUsageFlags AdditionalBufferUsage = EBufferUsageFlags::None);
 	void Release();
 
 	const TCHAR*				DebugName = nullptr;
@@ -430,5 +430,5 @@ protected:
 	mutable FNiagaraRibbonTessellationSmoothingData TessellationSmoothingData;
 	int32 RibbonIDParamDataSetOffset;
 
-	friend class FNiagaraRibbonComputeDispatchManager;
+	friend class FNiagaraGpuRibbonsDataManager;
 };

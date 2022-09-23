@@ -405,7 +405,12 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 
 	if (RenderData)
 	{
-		RenderData->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, *this);
+		// Renderers often rely upon executing GPU code, such as sorting / culling, if the FX system is invalid then the count manager, etc,
+		// will not run but the mesh batch building will assume they do.  We will early out here for consistency across all Niagara renderers.
+		if (ViewFamily.Scene->GetFXSystem() != nullptr)
+		{
+			RenderData->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, *this);
+		}
 	}
 
 	if (ViewFamily.EngineShowFlags.Particles && ViewFamily.EngineShowFlags.Niagara)

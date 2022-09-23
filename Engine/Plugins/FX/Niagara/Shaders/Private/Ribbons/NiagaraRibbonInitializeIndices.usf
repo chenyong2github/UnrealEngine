@@ -31,11 +31,32 @@ float GNiagaraRibbonTessellationMinDisplacementError;
 #define TESSELLATIONMODE_CUSTOM 1
 #define TESSELLATIONMODE_DISABLED 2
 
-
 [numthreads(1, 1, 1)]
 void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint TotalNumParticles = GetTotalNumParticles();
+	const uint IndirectDrawOffset = IndirectDrawOutputIndex * INDEX_GEN_INDIRECT_ARGS_STRIDE;
+
+	// Early out for no particles
+	if (TotalNumParticles == 0)
+	{
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 0] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 1] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_EXECUTE_INDIRECT_OFFSET + 2] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_TESSELLATION_FACTOR_OFFSET] = 0;
+			
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 0] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 1] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 2] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 3] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_INDIRECT_DRAW_OFFSET + 4] = 0;
+	
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SEGMENTS_OFFSET] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SUB_SEGMENTS_OFFSET] = 0;
+		IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_ONE_OVER_NUM_SUB_SEGMENTS_OFFSET] = asuint(0.0f);
+		return;
+	}
+
 #if RIBBONS_WANTS_AUTOMATIC_TESSELLATION
 	
 	bool bUseConstantFactor = false;
@@ -68,7 +89,6 @@ void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float TessellationTwistCurvature = asfloat(VertexGenerationResults[VertexGenerationResultsIndex * VERTEX_GEN_OUTPUT_DATA_STRIDE + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TWIST_CURVATURE]);
 	float TessellationTotalSegmentLength = asfloat(VertexGenerationResults[VertexGenerationResultsIndex * VERTEX_GEN_OUTPUT_DATA_STRIDE + VERTEX_GEN_OUTPUT_DATA_TESSELLATION_TOTAL_SEGMENT_LENGTH]);
 
-
 	if (bUseConstantFactor)
 	{
 		SegmentTessellation = TessellationFactor;
@@ -91,6 +111,9 @@ void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Tess = max(TwistTess, Tess);
 		}
 		SegmentTessellation = clamp(uint(round(Tess)), uint(round(MinTesselation)), TessellationFactor);
+
+		// Ensure we don't blow the max tessellation allowed, this shouldn't happen but let's be safe
+		SegmentTessellation = min(SegmentTessellation, GNiagaraRibbonMaxTessellation);
 	}
 #elif RIBBONS_WANTS_CONSTANT_TESSELLATION
 	// Has a constant factor so just use it
@@ -105,8 +128,6 @@ void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint NumThreadGroups = DivideAndRoundUp(TotalNumInvocations, IndexGenThreadSize);
 
 	const uint SegmentCount = VertexGenerationResults[VertexGenerationResultsIndex * VERTEX_GEN_OUTPUT_DATA_STRIDE + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_SEGMENTS_OFFSET];
-
-	const uint IndirectDrawOffset = IndirectDrawOutputIndex * INDEX_GEN_INDIRECT_ARGS_STRIDE;
 
 	const float OneOverSubSegmentTessellation = 1.0f / float(SegmentTessellation);
 	
@@ -134,8 +155,4 @@ void InitializeIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_NUM_SUB_SEGMENTS_OFFSET] = SegmentTessellation;
 	// 1/SubSegmentCount
 	IndirectDrawOutput[IndirectDrawOffset + INDEX_GEN_ONE_OVER_NUM_SUB_SEGMENTS_OFFSET] = asuint(OneOverSubSegmentTessellation);
-
 }
-
-
-

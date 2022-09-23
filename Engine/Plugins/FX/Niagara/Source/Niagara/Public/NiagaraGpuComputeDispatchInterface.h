@@ -4,6 +4,7 @@
 
 #include "NiagaraCommon.h"
 #include "NiagaraEmptyUAVPool.h"
+#include "NiagaraGpuComputeDataManager.h"
 #include "NiagaraGPUInstanceCountManager.h"
 #include "FXSystem.h"
 
@@ -51,6 +52,25 @@ public:
 	 * Return true if the work was registered, or false it GPU sorting is not available or impossible.
 	 */
 	virtual bool AddSortedGPUSimulation(struct FNiagaraGPUSortInfo& SortInfo) = 0;
+
+	/** Get or create the a data manager, must be done on the rendering thread only. */
+	template<typename TManager>
+	TManager& GetOrCreateDataManager()
+	{	
+		check(IsInRenderingThread());
+		const FName ManagerName = TManager::GetManagerName();
+		for (auto& DataManager : GpuDataManagers)
+		{
+			if (DataManager.Key == ManagerName)
+			{
+				return *static_cast<TManager*>(DataManager.Value.Get());
+			}
+		}
+
+		TManager* Manager = new TManager(this);
+		GpuDataManagers.Emplace(ManagerName, Manager);
+		return *Manager;
+	}
 
 	/** Get access to the instance count manager. */
 	FORCEINLINE FNiagaraGPUInstanceCountManager& GetGPUInstanceCounterManager() { check(IsInRenderingThread()); return GPUInstanceCounterManager; }
@@ -149,4 +169,6 @@ protected:
 
 	// GPU emitter instance count buffer. Contains the actual particle / instance count generate in the GPU tick.
 	FNiagaraGPUInstanceCountManager			GPUInstanceCounterManager;
+
+	TArray<TPair<FName, TUniquePtr<FNiagaraGpuComputeDataManager>>> GpuDataManagers;
 };

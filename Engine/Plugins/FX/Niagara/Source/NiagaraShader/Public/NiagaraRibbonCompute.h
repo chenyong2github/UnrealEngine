@@ -68,8 +68,6 @@ class FRibbonWantsAutomaticTessellation : SHADER_PERMUTATION_BOOL("RIBBONS_WANTS
 class FRibbonHasTwist : SHADER_PERMUTATION_BOOL("RIBBON_HAS_TWIST");
 
 class FRibbonHasHighSliceComplexity : SHADER_PERMUTATION_BOOL("RIBBON_HAS_HIGH_SLICE_COMPLEXITY");
-using FRibbonComputePermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasCustomLinkOrder, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist, FRibbonHasHighSliceComplexity>;
-
 
 struct FNiagaraRibbonComputeCommon
 {	
@@ -161,8 +159,7 @@ class NIAGARASHADER_API FNiagaraRibbonVertexReductionPropagateCS : public FGloba
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonVertexReductionPropagateCS, FGlobalShader);
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
-	using FParameters = FNiagaraRibbonVertexReductionParameters
-	;
+	using FParameters = FNiagaraRibbonVertexReductionParameters;
 	
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
@@ -219,13 +216,11 @@ class NIAGARASHADER_API FNiagaraRibbonUVParamCalculationCS : public FGlobalShade
 	DECLARE_GLOBAL_SHADER(FNiagaraRibbonUVParamCalculationCS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraRibbonUVParamCalculationCS, FGlobalShader);
 	
-	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
+	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation>;
 	using FParameters = FNiagaraRibbonVertexFinalizationParameters;
 	
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
-
-
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraRibbonInitializeIndices, NIAGARASHADER_API)
 	SHADER_PARAMETER_UAV(RWBuffer<uint32>, IndirectDrawOutput)

@@ -37,9 +37,6 @@ uint SegmentBitMask;
 uint SubSegmentBitShift;
 uint SubSegmentBitMask;
 
-
-
-
 uint PackIndex(uint SortedIndex, uint SubSegmentID, uint SliceVertex)
 {
 	return	((SortedIndex	& SegmentBitMask)		<< SegmentBitShift) |
@@ -47,12 +44,11 @@ uint PackIndex(uint SortedIndex, uint SubSegmentID, uint SliceVertex)
 			((SliceVertex	& BitMaskForShape));
 }
 
-
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void GenerateIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint TotalNumParticles = GetTotalNumParticles();
-	const uint MaxPossibleSegments = TotalNumParticles - 1;
+	const uint MaxPossibleSegments = TotalNumParticles > 0 ? TotalNumParticles - 1 : 0;
 	
 	const uint IndirectDrawOffset = IndirectDrawInfoIndex * INDEX_GEN_INDIRECT_ARGS_STRIDE;
 	
@@ -106,9 +102,9 @@ void GenerateIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 				GeneratedIndicesBuffer[IndicesOffset + 0] = CurrSegment | FirstIndex;
 				GeneratedIndicesBuffer[IndicesOffset + 1] = CurrSegment | SecondIndex;				
 				GeneratedIndicesBuffer[IndicesOffset + 2] = NextSegment | FirstIndex;				
-				GeneratedIndicesBuffer[IndicesOffset + 3] = GeneratedIndicesBuffer[IndicesOffset + 1];				
+				GeneratedIndicesBuffer[IndicesOffset + 3] = CurrSegment | SecondIndex;	//GeneratedIndicesBuffer[IndicesOffset + 1];				
 				GeneratedIndicesBuffer[IndicesOffset + 4] = NextSegment | SecondIndex;				
-				GeneratedIndicesBuffer[IndicesOffset + 5] = GeneratedIndicesBuffer[IndicesOffset + 2];
+				GeneratedIndicesBuffer[IndicesOffset + 5] = NextSegment | FirstIndex;	//GeneratedIndicesBuffer[IndicesOffset + 2];
 
 				IndicesOffset += 6;
 			}
@@ -126,8 +122,8 @@ void GenerateIndices(uint3 DispatchThreadId : SV_DispatchThreadID)
 				GeneratedIndicesBuffer[IndicesOffset + 0] = CurrSegment | FirstIndex;				
 				GeneratedIndicesBuffer[IndicesOffset + 1] = CurrSegment | SecondIndex;				
 				GeneratedIndicesBuffer[IndicesOffset + 2] = NextSegment | SecondIndex;				
-				GeneratedIndicesBuffer[IndicesOffset + 3] = GeneratedIndicesBuffer[IndicesOffset + 0];				
-				GeneratedIndicesBuffer[IndicesOffset + 4] = GeneratedIndicesBuffer[IndicesOffset + 2];				
+				GeneratedIndicesBuffer[IndicesOffset + 3] = CurrSegment | FirstIndex;	//GeneratedIndicesBuffer[IndicesOffset + 0];				
+				GeneratedIndicesBuffer[IndicesOffset + 4] = NextSegment | SecondIndex;	//GeneratedIndicesBuffer[IndicesOffset + 2];				
 				GeneratedIndicesBuffer[IndicesOffset + 5] = NextSegment | FirstIndex;
 				
 				IndicesOffset += 6;

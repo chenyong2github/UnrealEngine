@@ -15,8 +15,6 @@ RWBuffer<uint> PackedPerRibbonData;
 Buffer<uint> CommandBuffer;
 int CommandBufferOffset;
 
-int TotalNumRibbons;
-
 // Settings for UV Channel 0
 float2 UV0Settings_Offset;
 float2 UV0Settings_Scale;
@@ -90,7 +88,6 @@ struct FRibbonUVScaleAndOffsets
 #define UV_DISTRIBUTION_MODE_SCALED_USING_RIBBON_SEGMENT_LENGTH 1
 #define UV_DISTRIBUTION_MODE_TILED_OVER_RIBBON_LENGTH 2
 #define UV_DISTRIBUTION_MODE_TILED_FROM_START_OVER_RIBBON_LENGTH 3
-
 
 float3 LoadTangent(int Index)
 {
@@ -203,7 +200,6 @@ FRibbonUVScaleAndOffsets CalculateUVScaleAndOffsets(const FNiagaraRibbonUVSettin
 	return Output;
 }
 
-
 // We only need a single thread if we're not accounting for ribbon ids
 #if HAS_RIBBON_ID
 [numthreads(THREADGROUP_SIZE, 1, 1)]
@@ -212,7 +208,6 @@ FRibbonUVScaleAndOffsets CalculateUVScaleAndOffsets(const FNiagaraRibbonUVSettin
 #endif
 void GenerateRibbonUVParams(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint TotalNumParticles = GetTotalNumParticles();
 #if HAS_RIBBON_ID
 	const int RibbonIndex = DispatchThreadId.x;
 	const int TotalNumRibbons = CommandBuffer[CommandBufferOffset * VERTEX_GEN_OUTPUT_DATA_STRIDE + VERTEX_GEN_OUTPUT_DATA_TOTAL_NUM_RIBBONS_OFFSET];
@@ -229,49 +224,47 @@ void GenerateRibbonUVParams(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		// Grab the total length from the last particle
 		const float TotalLength = GetSegmentDistance(LastParticleID);
-		
+		const uint NumSegments = LastParticleID - FirstParticleID;
+	
 		const FNiagaraRibbonUVSettings UV0Settings = GetUV0Params();
 		const FNiagaraRibbonUVSettings UV1Settings = GetUV1Params();
 
 		const int PackedPerRibbonDataOffsetUVs = PackedPerRibbonDataOffset + PACKED_PER_RIBBON_UVDATAOFFSET;
+		if ( NumSegments > 1 )
+		{
+			// UV0
+			BRANCH
+			if (UV0Settings.bEnablePerParticleUOverride && U0OverrideDataOffset != INDEX_NONE)
+			{
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 0] = asuint(1.0f);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 1] = asuint(0.0f);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 2] = asuint(1.0f);
+			}
+			else
+			{
+				const FRibbonUVScaleAndOffsets UVData = CalculateUVScaleAndOffsets(UV0Settings, FirstParticleID, LastParticleID, TotalLength);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 0] = asuint(UVData.UScale);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 1] = asuint(UVData.UOffset);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 2] = asuint(UVData.UDistributionScalar);
+			}
 		
-		// UV0
-		BRANCH
-		if (UV0Settings.bEnablePerParticleUOverride && U0OverrideDataOffset != INDEX_NONE)
-		{
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 0] = asuint(1.0f);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 1] = asuint(0.0f);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 2] = asuint(1.0f);
-		}
-		else
-		{
-			const FRibbonUVScaleAndOffsets UVData = CalculateUVScaleAndOffsets(UV0Settings, FirstParticleID, LastParticleID, TotalLength);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 0] = asuint(UVData.UScale);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 1] = asuint(UVData.UOffset);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 2] = asuint(UVData.UDistributionScalar);
-		}
-		
-		// UV1
-		BRANCH
-		if (UV1Settings.bEnablePerParticleUOverride && U1OverrideDataOffset != INDEX_NONE)
-		{
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 3] = asuint(1.0f);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 4] = asuint(0.0f);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 5] = asuint(1.0f);
-		}
-		else
-		{
-			const FRibbonUVScaleAndOffsets UVData = CalculateUVScaleAndOffsets(UV1Settings, FirstParticleID, LastParticleID, TotalLength);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 3] = asuint(UVData.UScale);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 4] = asuint(UVData.UOffset);
-			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 5] = asuint(UVData.UDistributionScalar);
-		}
+			// UV1
+			BRANCH
+			if (UV1Settings.bEnablePerParticleUOverride && U1OverrideDataOffset != INDEX_NONE)
+			{
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 3] = asuint(1.0f);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 4] = asuint(0.0f);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 5] = asuint(1.0f);
+			}
+			else
+			{
+				const FRibbonUVScaleAndOffsets UVData = CalculateUVScaleAndOffsets(UV1Settings, FirstParticleID, LastParticleID, TotalLength);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 3] = asuint(UVData.UScale);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 4] = asuint(UVData.UOffset);
+				PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 5] = asuint(UVData.UDistributionScalar);
+			}
 
-		const uint NumSegments = LastParticleID - FirstParticleID;
-		
-		// Update the tangents for the first and last vertex, apply a reflect vector logic so that the initial and final curvature is continuous.
-		if (NumSegments > 1)
-		{
+			// Update the tangents for the first and last vertex, apply a reflect vector logic so that the initial and final curvature is continuous.
 			const float3 FirstTangent = LoadTangent(FirstParticleID);
 			const float3 NextToFirstTangent = LoadTangent(FirstParticleID + 1);
 			StoreTangent(FirstParticleID, (2.0f * dot(FirstTangent, NextToFirstTangent)) * FirstTangent - NextToFirstTangent);
@@ -280,8 +273,15 @@ void GenerateRibbonUVParams(uint3 DispatchThreadId : SV_DispatchThreadID)
 			const float3 PrevToLastTangent = LoadTangent(LastParticleID - 1);
 			StoreTangent(LastParticleID, (2.0f * dot(LastTangent, PrevToLastTangent)) * LastTangent - PrevToLastTangent);
 		}
-		
-		
+		else
+		{
+			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 0] = asuint(1.0f);
+			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 1] = asuint(0.0f);
+			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 2] = asuint(1.0f);
+			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 3] = asuint(1.0f);
+			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 4] = asuint(0.0f);
+			PackedPerRibbonData[PackedPerRibbonDataOffsetUVs + 5] = asuint(1.0f);
+		}
 #if HAS_RIBBON_ID
 	}
 #endif
