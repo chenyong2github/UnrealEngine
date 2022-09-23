@@ -39,19 +39,12 @@ POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMessage& State);
 
 struct POSESEARCH_API FTraceMotionMatchingStatePoseEntry
 {
-	enum class EFlags : uint8
-	{
-		None			= 0,
-		ContinuingPose	= 1 << 0,
-		CurrentPose		= 1 << 1,
-	};
 	int32 DbPoseIdx = INDEX_NONE;
-	EFlags Flags = EFlags::None;
+	EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;
 	FPoseSearchCost Cost;
 
 	bool operator==(const FTraceMotionMatchingStatePoseEntry& Other) const { return DbPoseIdx == Other.DbPoseIdx; }
 };
-ENUM_CLASS_FLAGS(FTraceMotionMatchingStatePoseEntry::EFlags);
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry);
 
 struct POSESEARCH_API FTraceMotionMatchingStateDatabaseEntry

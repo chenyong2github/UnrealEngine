@@ -53,7 +53,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry)
 {
 	Ar << Entry.DbPoseIdx;
 	FPoseSearchCost::StaticStruct()->SerializeItem(Ar, &Entry.Cost, nullptr);
-	Ar << Entry.Flags;
+	Ar << Entry.PoseCandidateFlags;
 	return Ar;
 }
 

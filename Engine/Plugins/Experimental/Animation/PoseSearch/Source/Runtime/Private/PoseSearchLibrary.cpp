@@ -225,6 +225,7 @@ static void TraceMotionMatchingState(
 		FTraceMotionMatchingStatePoseEntry PoseEntry;
 		PoseEntry.DbPoseIdx = PoseCandidate.PoseIdx;
 		PoseEntry.Cost = PoseCandidate.Cost;
+		PoseEntry.PoseCandidateFlags = PoseCandidate.PoseCandidateFlags;
 
 		DbEntry.PoseEntries.Add(PoseEntry);
 	}
@@ -240,7 +241,7 @@ static void TraceMotionMatchingState(
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[LastResultPoseEntryIdx];
 
 		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.ContinuingPoseCost;
-		PoseEntry.Flags = FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose;
+		PoseEntry.PoseCandidateFlags = EPoseCandidateFlags::Valid_ContinuingPose;
 	}
 
 	if (MotionMatchingState.CurrentSearchResult.PoseCost.IsValid())
@@ -252,7 +253,7 @@ static void TraceMotionMatchingState(
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[PoseEntryIdx];
 
 		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.PoseCost;
-		PoseEntry.Flags = FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose;
+		PoseEntry.PoseCandidateFlags = EPoseCandidateFlags::Valid_CurrentPose;
 
 		TraceState.CurrentDbEntryIdx = DbEntryIdx;
 		TraceState.CurrentPoseEntryIdx = PoseEntryIdx;

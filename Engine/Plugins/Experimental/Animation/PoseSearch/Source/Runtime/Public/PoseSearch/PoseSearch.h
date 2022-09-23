@@ -1151,6 +1151,24 @@ public: // UObject
 namespace UE::PoseSearch
 {
 
+enum class EPoseCandidateFlags : uint8
+{
+	None = 0,
+
+	Valid_Pose = 1 << 0,
+	Valid_ContinuingPose = 1 << 1,
+	Valid_CurrentPose = 1 << 2,
+
+	AnyValidMask = Valid_Pose | Valid_ContinuingPose | Valid_CurrentPose,
+
+	DiscardedBy_PoseJumpThresholdTime = 1 << 3,
+	DiscardedBy_PoseReselectHistory = 1 << 4,
+	DiscardedBy_BlockTransition = 1 << 5,
+
+	AnyDiscardedMask = DiscardedBy_PoseJumpThresholdTime | DiscardedBy_PoseReselectHistory | DiscardedBy_BlockTransition,
+};
+ENUM_CLASS_FLAGS(EPoseCandidateFlags);
+
 /** Helper class for extracting and encoding features into a float buffer */
 class POSESEARCH_API FFeatureVectorHelper
 {
@@ -1314,6 +1332,7 @@ public:
 		FPoseSearchCost Cost;
 		int32 PoseIdx = 0;
 		const UPoseSearchDatabase* Database = nullptr;
+		EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;
 
 		bool operator<(const FPoseCandidate& Other) const { return Other.Cost < Cost; } // Reverse compare because BestCandidates is a max heap
 		bool operator==(const FSearchResult& SearchResult) const { return (PoseIdx == SearchResult.PoseIdx) && (Database == SearchResult.Database.Get()); }
@@ -1326,7 +1345,7 @@ public:
 
 		int32 MaxPoseCandidates = 100;
 
-		void Add(const FPoseSearchCost& Cost, int32 PoseIdx, const UPoseSearchDatabase* Database)
+		void Add(const FPoseSearchCost& Cost, int32 PoseIdx, const UPoseSearchDatabase* Database, EPoseCandidateFlags PoseCandidateFlags)
 		{
 			if (Num() < MaxPoseCandidates || Cost < HeapTop().Cost)
 			{
@@ -1340,6 +1359,7 @@ public:
 				PoseCandidate.Cost = Cost;
 				PoseCandidate.PoseIdx = PoseIdx;
 				PoseCandidate.Database = Database;
+				PoseCandidate.PoseCandidateFlags = PoseCandidateFlags;
 				HeapPush(PoseCandidate);
 			}
 		}

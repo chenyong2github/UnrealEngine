@@ -34,12 +34,12 @@
 namespace UE::PoseSearch
 {
 
-static FLinearColor LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, float BlendParam)
+inline static FLinearColor LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, float BlendParam)
 {
 	return LinearColorA + (LinearColorB - LinearColorA) * BlendParam;
 }
 
-static void LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, TConstArrayView<const float> BlendParam, TArray<FLinearColor>& BlendedColors)
+inline static void LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, TConstArrayView<const float> BlendParam, TArray<FLinearColor>& BlendedColors)
 {
 	const int32 Num = BlendParam.Num();
 	BlendedColors.SetNumUninitialized(Num);
@@ -258,7 +258,7 @@ public:
 	ESearchIndexAssetType AssetType = ESearchIndexAssetType::Invalid;
 	int32 PoseIdx = 0;
 	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
-	FTraceMotionMatchingStatePoseEntry::EFlags PoseEntryFlags = FTraceMotionMatchingStatePoseEntry::EFlags::None;
+	EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;
 	FString DatabaseName = "";
 	FString DatabasePath = "";
 	FString AssetName = "";
@@ -617,6 +617,58 @@ namespace DebuggerDatabaseColumns
 			}
 		}
 	};
+
+	struct FPoseCandidateFlags : ITextColumn
+	{
+		using ITextColumn::ITextColumn;
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelPoseCandidateFlags", "Flags"); }
+
+		virtual FSortPredicate GetSortPredicate() const override
+		{
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCandidateFlags < Row1->PoseCandidateFlags; };
+		}
+
+		virtual FText GetRowText(const FRowDataRef& Row) const override
+		{
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::AnyDiscardedMask))
+			{
+				auto AddDelimiter = [](FTextBuilder& TextBuilder, bool& bNeedDelimiter)
+				{
+					if (bNeedDelimiter)
+					{
+						TextBuilder.AppendLine(LOCTEXT("DiscardedBy_Delimiter", " | "));
+					}
+					bNeedDelimiter = true;
+				};
+
+				bool bNeedDelimiter = false;
+
+				FTextBuilder TextBuilder;
+				if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseJumpThresholdTime))
+				{
+					AddDelimiter(TextBuilder, bNeedDelimiter);
+					TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseJumpThresholdTime", "PoseJumpThresholdTime"));
+				}
+				
+				if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory))
+				{
+					AddDelimiter(TextBuilder, bNeedDelimiter);
+					TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseReselectHistory", "PoseReselectHistory"));
+				}
+
+				if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_BlockTransition))
+				{
+					AddDelimiter(TextBuilder, bNeedDelimiter);
+					TextBuilder.AppendLine(LOCTEXT("DiscardedBy_BlockTransition", "BlockTransition"));
+				}
+
+				return TextBuilder.ToText();
+			}
+
+			return FText::GetEmpty();
+		}
+	};
 }
 
 
@@ -817,6 +869,11 @@ private:
 
 void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State)
 {
+	// row cost color palette
+	static const FLinearColor DiscardedRowColor(0.314f, 0.314f, 0.314f); // darker gray
+	static const FLinearColor BestScoreRowColor = FLinearColor::Green;
+	static const FLinearColor WorstScoreRowColor = FLinearColor::Red;
+
 	using namespace DebuggerDatabaseColumns;
 
 	bool bIsVerbose = false;
@@ -848,7 +905,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 						Row->SourceDatabase = Database;
 						Row->DatabaseName = Database->GetName();
 						Row->DatabasePath = Database->GetPathName();
-						Row->PoseEntryFlags = PoseEntry.Flags;
+						Row->PoseCandidateFlags = PoseEntry.PoseCandidateFlags;
 						Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
 						Row->AssetTime = Time;
 						Row->bMirrored = SearchIndexAsset->bMirrored;
@@ -922,13 +979,20 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		{
 			ArrayMinMax(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, UE_MAX_FLT);
 		}
-
+		
 		TArray<float> CostBreakdownsColorBlend;
 		CostBreakdownsColorBlend.Init(0, CostBreakdownsCardinality);
 		for (auto& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			ArraySafeNormalize(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, CostBreakdownsColorBlend);
-			LinearColorBlend(FLinearColor::Green, FLinearColor::Red, CostBreakdownsColorBlend, UnfilteredRow->CostBreakdownsColors);
+			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
+			{
+				ArraySafeNormalize(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, CostBreakdownsColorBlend);
+				LinearColorBlend(BestScoreRowColor, WorstScoreRowColor, CostBreakdownsColorBlend, UnfilteredRow->CostBreakdownsColors);
+			}
+			else
+			{
+				UnfilteredRow->CostBreakdownsColors.Init(DiscardedRowColor, CostBreakdownsCardinality);
+			}
 		}
 
 		float MinCost = UE_MAX_FLT;
@@ -943,8 +1007,15 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		const float DeltaCost = MaxCost - MinCost;
 		for (auto& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			const float CostColorBlend = DeltaCost > UE_KINDA_SMALL_NUMBER ? (UnfilteredRow->PoseCost.GetTotalCost() - MinCost) / DeltaCost : 0.f;
-			UnfilteredRow->CostColor = UE::PoseSearch::LinearColorBlend(FLinearColor::Green, FLinearColor::Red, CostColorBlend);
+			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
+			{
+				const float CostColorBlend = DeltaCost > UE_KINDA_SMALL_NUMBER ? (UnfilteredRow->PoseCost.GetTotalCost() - MinCost) / DeltaCost : 0.f;
+				UnfilteredRow->CostColor = UE::PoseSearch::LinearColorBlend(BestScoreRowColor, WorstScoreRowColor, CostColorBlend);
+			}
+			else
+			{
+				UnfilteredRow->CostColor = DiscardedRowColor;
+			}
 		}
 	}
 
@@ -979,6 +1050,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		AddColumn(MakeShared<FLooping>(ColumnIdx++));
 		AddColumn(MakeShared<FPoseIdx>(ColumnIdx++));
 		AddColumn(MakeShared<FBlendParameters>(ColumnIdx++));
+		AddColumn(MakeShared<FPoseCandidateFlags>(ColumnIdx++));
 
 		SortColumn = CostColumn->ColumnId;
 
@@ -1114,13 +1186,13 @@ void SDebuggerDatabaseView::PopulateViewRows()
 	for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 	{
 		bool bTryAddToFilteredDatabaseViewRows = true;
-		if (EnumHasAnyFlags(UnfilteredRow->PoseEntryFlags, FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose))
+		if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::Valid_ContinuingPose))
 		{
 			ContinuingPoseView.Rows.Add(UnfilteredRow);
 			bTryAddToFilteredDatabaseViewRows = false;
 		}
 
-		if (EnumHasAnyFlags(UnfilteredRow->PoseEntryFlags, FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose))
+		if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::Valid_CurrentPose))
 		{
 			ActiveView.Rows.Add(UnfilteredRow);
 			bTryAddToFilteredDatabaseViewRows = false;
