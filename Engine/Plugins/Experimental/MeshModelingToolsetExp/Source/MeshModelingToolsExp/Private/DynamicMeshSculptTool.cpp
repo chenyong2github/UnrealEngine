@@ -2210,6 +2210,10 @@ UPreviewMesh* UDynamicMeshSculptTool::MakeDefaultSphereMesh(UObject* Parent, UWo
 		SphereMesh->SetMaterial(BrushIndicatorMaterial);
 	}
 
+	// make sure raytracing is disabled on the brush indicator
+	Cast<UDynamicMeshComponent>(SphereMesh->GetRootComponent())->SetEnableRaytracing(false);
+	SphereMesh->SetShadowsEnabled(false);
+
 	return SphereMesh;
 }
 

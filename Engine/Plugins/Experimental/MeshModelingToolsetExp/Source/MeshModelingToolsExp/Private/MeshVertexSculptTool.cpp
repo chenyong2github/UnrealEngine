@@ -375,6 +375,10 @@ UPreviewMesh* UMeshVertexSculptTool::MakeBrushIndicatorMesh(UObject* Parent, UWo
 		PlaneMesh->SetMaterial(BrushIndicatorMaterial);
 	}
 
+	// make sure raytracing is disabled on the brush indicator
+	Cast<UDynamicMeshComponent>(PlaneMesh->GetRootComponent())->SetEnableRaytracing(false);
+	PlaneMesh->SetShadowsEnabled(false);
+
 	return PlaneMesh;
 }
 

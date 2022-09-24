@@ -1208,6 +1208,10 @@ UPreviewMesh* UMeshSculptToolBase::MakeBrushIndicatorMesh(UObject* Parent, UWorl
 		SphereMesh->SetMaterial(BrushIndicatorMaterial);
 	}
 
+	// make sure raytracing is disabled on the brush indicator
+	Cast<UDynamicMeshComponent>(SphereMesh->GetRootComponent())->SetEnableRaytracing(false);
+	SphereMesh->SetShadowsEnabled(false);
+
 	return SphereMesh;
 }
 
