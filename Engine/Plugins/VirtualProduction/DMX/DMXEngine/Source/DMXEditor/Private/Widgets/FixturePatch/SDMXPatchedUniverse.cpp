@@ -324,11 +324,17 @@ void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* Fi
 
 	if (NodePtr && FixturePatch && UniverseID != FixturePatch->GetUniverseID())
 	{
+		// Patch was moved out of this universe
 		Unpatch(*NodePtr);
 	}
 	else if (!NodePtr && UniverseID == FixturePatch->GetUniverseID())
 	{
+		// Patch was moved to this universe
 		SharedData->SelectUniverse(UniverseID);
+	}
+	else if (NodePtr && (*NodePtr)->NeedsUpdateGrid())
+	{
+		RequestRefresh();
 	}
 }
 

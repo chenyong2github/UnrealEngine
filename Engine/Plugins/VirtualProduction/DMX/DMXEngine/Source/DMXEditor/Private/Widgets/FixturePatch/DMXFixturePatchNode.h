@@ -51,10 +51,10 @@ public:
 	/** Returns the Universe ID the Node currently resides in. Returns a negative Value if not assigned to a Universe. */
 	int32 GetUniverseID() const;
 
-	/** Returns the Starting Channel the Node currently resides on */
+	/** Returns the Starting Channel of the Patch */
 	int32 GetStartingChannel() const;
 
-	/** Returns the Channel Span the Node currently occupies */
+	/** Returns the Channel Span of the Patch */
 	int32 GetChannelSpan() const;
 
 	/** Sets the ZOrder of the Node */
@@ -63,6 +63,9 @@ public:
 	/** Gets the ZOrder of the Node */
 	int32 GetZOrder() const { return ZOrder; }
 
+	/** Returns true if the patch was moved on the grid and new widgets need be generated. */
+	bool NeedsUpdateGrid() const;
+
 private:
 	/** Called when a patch node was selected */
 	void OnSelectionChanged();
@@ -70,10 +73,10 @@ private:
 	/** Universe the patch is assigned to */
 	TSharedPtr<SDMXPatchedUniverse> UniverseWidget;
 
-	/** Starting channel of the patch */	
+	/** Cached starting channel of the patch */	
 	int32 StartingChannel = 0;
 
-	/** Channel span of the patch */
+	/** Cached channel span of the patch */
 	int32 ChannelSpan = 0;
 
 	/** Last transacted Universe ID, required for propert undo/redo */

@@ -405,7 +405,7 @@ TArray<TSharedPtr<SDMXFixturePatchFragment>> FDMXFixturePatchNode::GenerateWidge
 bool FDMXFixturePatchNode::OccupiesChannels(int32 Channel, int32 Span) const
 {
 	check(Span != 0);
-	if ((Channel + Span <= StartingChannel) || (Channel >= StartingChannel + ChannelSpan))
+	if ((Channel + Span <= GetStartingChannel()) || (Channel >= GetStartingChannel() + GetChannelSpan()))
 	{
 		return false;
 	}
@@ -450,6 +450,13 @@ int32 FDMXFixturePatchNode::GetChannelSpan() const
 	}
 
 	return -1;
+}
+
+bool FDMXFixturePatchNode::NeedsUpdateGrid() const
+{
+	return 
+		StartingChannel != GetStartingChannel() ||
+		ChannelSpan != GetChannelSpan();
 }
 
 void FDMXFixturePatchNode::OnSelectionChanged()
