@@ -46,7 +46,7 @@ public:
 	TArray<int32, SceneRenderingAllocator> ViewIds;
 	//TArray<FMeshDrawCommandInfo, SceneRenderingAllocator> MeshDrawCommandInfos;
 	TArray<FRHIDrawIndexedIndirectParameters, SceneRenderingAllocator> IndirectArgs;
-	TArray<FInstanceCullingContext::FDrawCommandDesc, SceneRenderingAllocator> DrawCommandDescs;
+	TArray<uint32, SceneRenderingAllocator> DrawCommandDescs;
 	TArray<FInstanceCullingContext::FPayloadData, SceneRenderingAllocator> PayloadData;
 	TArray<uint32, SceneRenderingAllocator> InstanceIdOffsets;
 	TArray<FInstanceCullingContext::FCompactionData, SceneRenderingAllocator> DrawCommandCompactionData;

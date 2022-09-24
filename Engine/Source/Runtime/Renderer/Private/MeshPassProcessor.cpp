@@ -1919,6 +1919,7 @@ bool FMeshPassProcessor::ShouldSkipMeshDrawCommand(const FMeshBatch& RESTRICT Me
 FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FScene& InScene)
 	: Scene(InScene)
 	, bUseGPUScene(UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
+	, bUseStateBucketsAuxData(InScene.GetShadingPath() == EShadingPath::Mobile)
 {
 }
 
@@ -2057,6 +2058,13 @@ void FCachedPassMeshDrawListContextImmediate::FinalizeCommand(
 		}
 
 		CommandInfo.StateBucketId = SetId.GetIndex();
+
+		if (bUseStateBucketsAuxData)
+		{
+			// grow MDC AuxData array in sync with MDC StateBuckets
+			Scene.CachedStateBucketsAuxData[CurrMeshPass].SetNum(BucketMap.GetMaxIndex() + 1, false);
+			Scene.CachedStateBucketsAuxData[CurrMeshPass][CommandInfo.StateBucketId] = FStateBucketAuxData(MeshBatch);
+		}
 	}
 	else
 	{
@@ -2102,6 +2110,11 @@ void FCachedPassMeshDrawListContextDeferred::FinalizeCommand(
 		DeferredCommandHashes.Add(FStateBucketMap::ComputeHash(MeshDrawCommand));
 
 		CommandInfo.StateBucketId = Index;
+
+		if (bUseStateBucketsAuxData)
+		{
+			DeferredStateBucketsAuxData.Add(FStateBucketAuxData(MeshBatch));
+		}
 	}
 	else
 	{
@@ -2120,17 +2133,25 @@ void FCachedPassMeshDrawListContextDeferred::DeferredFinalizeMeshDrawCommands(co
 			{				
 				check(CmdInfo.MeshPass < EMeshPass::Num);
 				FStateBucketMap& BucketMap = Scene.CachedMeshDrawCommandStateBuckets[CmdInfo.MeshPass];
+				int32 DeferredIndex = CmdInfo.StateBucketId;
 
-				check(CmdInfo.StateBucketId >= 0 && CmdInfo.StateBucketId < DeferredCommands.Num());
+				check(DeferredIndex >= 0 && DeferredIndex < DeferredCommands.Num());
 				check(CmdInfo.CommandIndex == -1);
-				FMeshDrawCommand& Command = DeferredCommands[CmdInfo.StateBucketId];
-				const Experimental::FHashType CommandHash = DeferredCommandHashes[CmdInfo.StateBucketId];
+				FMeshDrawCommand& Command = DeferredCommands[DeferredIndex];
+				const Experimental::FHashType CommandHash = DeferredCommandHashes[DeferredIndex];
 
 				Experimental::FHashElementId SetId = BucketMap.FindOrAddIdByHash(CommandHash, MoveTemp(Command), FMeshDrawCommandCount());
 				FMeshDrawCommandCount& DrawCount = BucketMap.GetByElementId(SetId).Value;
 				DrawCount.Num++;
 
 				CmdInfo.StateBucketId = SetId.GetIndex();
+
+				if (bUseStateBucketsAuxData)
+				{
+					// grow MDC AuxData array in sync with MDC StateBuckets
+					Scene.CachedStateBucketsAuxData[CmdInfo.MeshPass].SetNum(BucketMap.GetMaxIndex() + 1, false);
+					Scene.CachedStateBucketsAuxData[CmdInfo.MeshPass][CmdInfo.StateBucketId] = DeferredStateBucketsAuxData[DeferredIndex];
+				}
 			}
 		}
 	}
@@ -2155,6 +2176,7 @@ void FCachedPassMeshDrawListContextDeferred::DeferredFinalizeMeshDrawCommands(co
 
 	DeferredCommands.Reset();
 	DeferredCommandHashes.Reset();
+	DeferredStateBucketsAuxData.Reset();
 }
 
 PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath::Num][EMeshPass::Num] = {};

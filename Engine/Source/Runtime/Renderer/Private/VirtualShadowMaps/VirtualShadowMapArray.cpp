@@ -2026,7 +2026,7 @@ public:
 		SHADER_PARAMETER(FVector3f, CullingViewOriginTile)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedView >, InViews)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FDrawCommandDesc >, DrawCommandDescs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, DrawCommandDescs)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FContextBatchInfo >, BatchInfos)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVSMCullingBatchInfo >, VSMCullingBatchInfos)
@@ -2154,7 +2154,7 @@ struct FCullingResult
 template <typename InstanceCullingLoadBalancerType>
 static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	const TConstArrayView<FRHIDrawIndexedIndirectParameters> &IndirectArgs,
-	const TConstArrayView<FInstanceCullingContext::FDrawCommandDesc>& DrawCommandDescs,
+	const TConstArrayView<uint32>& DrawCommandDescs,
 	const TConstArrayView<uint32>& InstanceIdOffsets,
 	InstanceCullingLoadBalancerType *LoadBalancer,
 	const TConstArrayView<FInstanceCullingMergedContext::FContextBatchInfo> BatchInfos,

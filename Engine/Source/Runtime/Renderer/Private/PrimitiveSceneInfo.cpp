@@ -492,6 +492,13 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 				{
 					Scene->CachedMeshDrawCommandStateBuckets[PassIndex].RemoveByElementId(CachedCommand.StateBucketId);
 				}
+
+				// shrink MDC AuxData array in sync with MDC StateBuckets 
+				int32 StateBucketsNum = Scene->CachedMeshDrawCommandStateBuckets[PassIndex].GetMaxIndex() + 1;
+				if (Scene->CachedStateBucketsAuxData[PassIndex].Num() > StateBucketsNum) 
+				{
+					Scene->CachedStateBucketsAuxData[PassIndex].SetNum(StateBucketsNum, true);
+				}
 			}
 
 			FGraphicsMinimalPipelineStateId::RemovePersistentId(CachedPipelineId);

@@ -14,8 +14,17 @@
 
 struct FDrawCommandDesc
 {
-	uint bMaterialUsesWorldPositionOffset;
+	bool bMaterialUsesWorldPositionOffset;
+	uint MeshLODIndex;
 };
+
+FDrawCommandDesc UnpackDrawCommandDesc(uint PackedData)
+{
+	FDrawCommandDesc Desc;
+	Desc.bMaterialUsesWorldPositionOffset = (PackedData & 1U) != 0;
+	Desc.MeshLODIndex = (PackedData >> 1U) & 0x000000FFU;
+	return Desc;
+}
 
 struct FContextBatchInfo
 {

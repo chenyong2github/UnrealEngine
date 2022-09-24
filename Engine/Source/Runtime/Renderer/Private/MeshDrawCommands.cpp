@@ -940,7 +940,13 @@ public:
 
 			if (Context.bUseGPUScene)
 			{
-				Context.InstanceCullingContext.SetupDrawCommands(Context.MeshDrawCommands, true, Context.MaxInstances, Context.VisibleMeshDrawCommandsNum, Context.NewPassVisibleMeshDrawCommandsNum);
+				Context.InstanceCullingContext.SetupDrawCommands(
+					Context.Scene->CachedStateBucketsAuxData[Context.PassType],
+					Context.MeshDrawCommands, 
+					true, 
+					Context.MaxInstances, 
+					Context.VisibleMeshDrawCommandsNum, 
+					Context.NewPassVisibleMeshDrawCommandsNum);
 			}
 		}
 	}

@@ -160,6 +160,15 @@ public:
 
 
 	void SetupDrawCommands(
+		TArrayView<const FStateBucketAuxData> StateBucketsAuxData,
+		FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+		bool bCompactIdenticalCommands,
+		// Stats
+		int32& MaxInstancesOut,
+		int32& VisibleMeshDrawCommandsNumOut,
+		int32& NewPassVisibleMeshDrawCommandsNumOut);
+
+	void SetupDrawCommands(
 		FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
 		bool bCompactIdenticalCommands,
 		// Stats
@@ -196,12 +205,6 @@ public:
 		uint32 IndirectArgsOffsetOrNumInstances : 31U;
 		// offset into per-instance buffer
 		uint32 InstanceDataByteOffset;
-	};
-
-	// TODO: bit-pack
-	struct FDrawCommandDesc
-	{
-		uint32 bMaterialUsesWorldPositionOffset;
 	};
 
 	struct FPayloadData
@@ -258,7 +261,7 @@ public:
 
 	TArray<FMeshDrawCommandInfo, SceneRenderingAllocator> MeshDrawCommandInfos;
 	TArray<FRHIDrawIndexedIndirectParameters, SceneRenderingAllocator> IndirectArgs;
-	TArray<FDrawCommandDesc, SceneRenderingAllocator> DrawCommandDescs;
+	TArray<uint32, SceneRenderingAllocator> DrawCommandDescs;
 	TArray<FPayloadData, SceneRenderingAllocator> PayloadData;
 	TArray<uint32, SceneRenderingAllocator> InstanceIdOffsets;
 

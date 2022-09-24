@@ -51,6 +51,13 @@ static bool IsInstanceOrderPreservationAllowed(ERHIFeatureLevel::Type FeatureLev
 	return GInstanceCullingAllowOrderPreservation && FeatureLevel > ERHIFeatureLevel::ES3_1;
 }
 
+static uint32 PackDrawCommandDesc(bool bMaterialUsesWorldPositionOffset, uint32 MeshLODIndex)
+{
+	uint32 PackedData = bMaterialUsesWorldPositionOffset ? 1U : 0U;
+	PackedData |= ((MeshLODIndex & 0x000000FFU) << 1U);
+	return PackedData;
+}
+
 FMeshDrawCommandOverrideArgs GetMeshDrawCommandOverrideArgs(const FInstanceCullingDrawParams& InstanceCullingDrawParams)
 {
 	FMeshDrawCommandOverrideArgs Result;
@@ -373,7 +380,7 @@ public:
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceProcessingGPULoadBalancer::FShaderParameters, LoadBalancerParameters)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FDrawCommandDesc >, DrawCommandDescs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, DrawCommandDescs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FPayloadData >, InstanceCullingPayloads)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, ViewIds)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< Nanite::FPackedView >, InViews)
@@ -1110,6 +1117,17 @@ void FInstanceCullingContext::AddClearIndirectArgInstanceCountPass(FRDGBuilder& 
 	}
 }
 
+void FInstanceCullingContext::SetupDrawCommands(
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+	bool bCompactIdenticalCommands,
+	int32& MaxInstances,
+	int32& VisibleMeshDrawCommandsNum,
+	int32& NewPassVisibleMeshDrawCommandsNum)
+{
+	TArrayView<const FStateBucketAuxData> StateBucketsAuxData;
+	SetupDrawCommands(StateBucketsAuxData, VisibleMeshDrawCommandsInOut, bCompactIdenticalCommands, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
+}
+
 /**
  * Allocate indirect arg slots for all meshes to use instancing,
  * add commands that populate the indirect calls and index & id buffers, and
@@ -1117,6 +1135,7 @@ void FInstanceCullingContext::AddClearIndirectArgInstanceCountPass(FRDGBuilder& 
  * NOTE: VisibleMeshDrawCommandsInOut can only become shorter.
  */
 void FInstanceCullingContext::SetupDrawCommands(
+	TArrayView<const FStateBucketAuxData> StateBucketsAuxData,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
 	bool bCompactIdenticalCommands,
 	// Stats
@@ -1213,8 +1232,14 @@ void FInstanceCullingContext::SetupDrawCommands(
 				DrawCmd.bUseIndirect = bUseIndirectDraw;
 				
 				CurrentIndirectArgsOffset = AllocateIndirectArgs(MeshDrawCommand);
-				DrawCommandDescs.Emplace(FDrawCommandDesc{bMaterialUsesWorldPositionOffset });
-
+				
+				uint32 MeshLODIndex = 0;
+				if (StateBucketsAuxData.IsValidIndex(VisibleMeshDrawCommand.StateBucketId))
+				{
+					MeshLODIndex = StateBucketsAuxData[VisibleMeshDrawCommand.StateBucketId].MeshLODIndex;
+				}
+				DrawCommandDescs.Add(PackDrawCommandDesc(bMaterialUsesWorldPositionOffset, MeshLODIndex));
+				
 				if (bUseIndirectDraw)
 				{
 					DrawCmd.IndirectArgsOffsetOrNumInstances = CurrentIndirectArgsOffset * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);

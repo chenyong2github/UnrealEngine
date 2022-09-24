@@ -55,7 +55,7 @@ float3 CullingViewOriginTile;
 
 float MaxMaterialPositionInvalidationRange;
 
-StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
+StructuredBuffer<uint> DrawCommandDescs;
 
 RWBuffer<uint> DrawIndirectArgsBufferOut;
 
@@ -250,7 +250,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		}
 
 		uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
-		FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[Payload.IndirectArgIndex];
+		FDrawCommandDesc DrawCommandDesc = UnpackDrawCommandDesc(DrawCommandDescs[Payload.IndirectArgIndex]);
 
 		// Load relevant instance data
 		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);

@@ -33,7 +33,7 @@ uint GPUSceneNumInstances;
 uint GPUSceneNumPrimitives;
 uint GPUSceneNumLightmapDataItems;
 
-StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
+StructuredBuffer<uint> DrawCommandDescs;
 Buffer<uint> InstanceIdOffsetBuffer;
 StructuredBuffer<uint> ViewIds;
 
@@ -95,7 +95,7 @@ float2 PackLocalBoundsExtent(float3 Extent)
 	return Result;
 }
 
-void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
+void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex, uint MeshLODIndex)
 {
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	
@@ -104,8 +104,7 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 #if ALLOW_STATIC_LIGHTING 
 	float4 LightMapUVScaleBias = float4(1,1,0,0);
 	float4 ShadowMapUVScaleBias = float4(1,1,0,0);
-	// FIXME: need LODIndex to compute correct LightmapDataIndex
-	uint LightmapDataIndex = PrimitiveData.LightmapDataIndex; // + LODIndex;
+	uint LightmapDataIndex = PrimitiveData.LightmapDataIndex + MeshLODIndex;
 	if (LightmapDataIndex < GPUSceneNumLightmapDataItems)
 	{
 		LightMapUVScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;
@@ -122,7 +121,7 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 		LightmapDataIndex = 0;
 	}
 	InstanceAuxData4 = PackLightmapData(LightMapUVScaleBias, ShadowMapUVScaleBias);
-	InstanceAuxData1 = asfloat(LightmapDataIndex);
+	InstanceAuxData1 = asfloat(PrimitiveData.LightmapDataIndex);
 #else
 	InstanceAuxData4.xy = PackLocalBoundsCenter(InstanceData.LocalBoundsCenter);
 	InstanceAuxData4.zw = PackLocalBoundsExtent(InstanceData.LocalBoundsExtent);
@@ -151,12 +150,12 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 }
 #endif
 
-void WriteInstance(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
+void WriteInstance(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex, uint MeshLODIndex)
 {
 	checkSlow(InstanceId < GPUSceneNumInstances);
 
 #if USES_PACKED_INSTANCE_DATA
-	WritePackedInstanceData(Offset, InstanceId, InstanceData, ViewIdIndex);
+	WritePackedInstanceData(Offset, InstanceId, InstanceData, ViewIdIndex, MeshLODIndex);
 #else
 	uint PackedId = InstanceId | (ViewIdIndex << 28U);
 	checkStructuredBufferAccessSlow(InstanceIdsBufferOut, Offset);
@@ -295,7 +294,7 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 	}
 
 	// Load auxiliary per-instanced-draw command info
-	const FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[Payload.IndirectArgIndex];
+	const FDrawCommandDesc DrawCommandDesc = UnpackDrawCommandDesc(DrawCommandDescs[Payload.IndirectArgIndex]);
 
 	// Extract compaction data (if applicable)	
 #if ENABLE_INSTANCE_COMPACTION
@@ -341,8 +340,8 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 	{
 		uint OutputOffset;
 		InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 2U, OutputOffset);				
-		WriteInstance(InstanceDataOutputOffset + OutputOffset + 0U, InstanceId, InstanceData, 0U);
-		WriteInstance(InstanceDataOutputOffset + OutputOffset + 1U, InstanceId, InstanceData, 1U);
+		WriteInstance(InstanceDataOutputOffset + OutputOffset + 0U, InstanceId, InstanceData, 0U, DrawCommandDesc.MeshLODIndex);
+		WriteInstance(InstanceDataOutputOffset + OutputOffset + 1U, InstanceId, InstanceData, 1U, DrawCommandDesc.MeshLODIndex);
 	}
 #else // !STEREO_CULLING_MODE
 
@@ -366,7 +365,7 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 			uint OutputOffset;
 			InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 1U, OutputOffset);
 
-			WriteInstance(InstanceDataOutputOffset + OutputOffset, InstanceId, InstanceData, ViewIdIndex);
+			WriteInstance(InstanceDataOutputOffset + OutputOffset, InstanceId, InstanceData, ViewIdIndex, DrawCommandDesc.MeshLODIndex);
 		}
 	}
 #endif // STEREO_CULLING_MODE

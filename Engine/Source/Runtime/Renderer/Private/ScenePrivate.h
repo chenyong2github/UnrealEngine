@@ -2730,6 +2730,9 @@ public:
 	void RefreshRayTracingInstances();
 #endif
 
+	/* Mobile specific. Auxilary data for each cached command state bucket. This data can be used during mesh draw command batching */
+	TArray<FStateBucketAuxData> CachedStateBucketsAuxData[EMeshPass::Num];
+
 	/** Nanite shading material commands. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
 	FNaniteMaterialCommands NaniteMaterials[ENaniteMeshPass::Num];
 
