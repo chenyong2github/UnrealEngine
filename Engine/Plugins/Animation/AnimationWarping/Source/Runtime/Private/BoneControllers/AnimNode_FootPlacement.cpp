@@ -1406,7 +1406,7 @@ void FAnimNode_FootPlacement::ProcessCharacterState(const UE::Anim::FootPlacemen
 
 		// Only compensate vertical motion
 		const FVector CapsuleMoveOffsetWS =
-			(ComponentLocationWS - LastComponentLocationWS) * -Context.ApproachDirWS;
+			(ComponentLocationWS - OwningComponentAdjustedLastLocationWS) * -Context.ApproachDirWS;
 		if (!CapsuleMoveOffsetWS.IsNearlyZero(KINDA_SMALL_NUMBER))
 		{
 			const FVector CapsuleMoveOffsetCS =
