@@ -6,8 +6,10 @@
 #include "DisplayClusterMediaBase.h"
 #include "UObject/GCObject.h"
 
+#include "RHI.h"
+#include "RHIResources.h"
+
 class FRDGBuilder;
-class FRHICommandListImmediate;
 class UMediaCapture;
 class UMediaOutput;
 

@@ -10,8 +10,6 @@
 #include "MediaOutput.h"
 
 #include "RenderGraphBuilder.h"
-#include "RHIResources.h"
-
 
 
 FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaOutput* InMediaOutput)
