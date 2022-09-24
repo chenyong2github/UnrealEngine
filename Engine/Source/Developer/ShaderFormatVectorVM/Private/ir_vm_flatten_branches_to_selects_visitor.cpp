@@ -18,9 +18,10 @@ PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 #include "ir_optimization.h"
 #include "ir_expression_flattening.h"
 #include "ir.h"
+#include "ir_vm_helper.h"
 
 //Helper visitor to replace any flatten branches (currently all) with selection statements the VM can deal with.
-class ir_flatten_branch_to_select_visitor final : public ir_hierarchical_visitor
+class ir_flatten_branch_to_select_visitor final : public ir_rvalue_visitor
 {
 public:
 
@@ -29,6 +30,9 @@ public:
 	TArray<ir_assignment*>* curr_assignments;
 	TArray<ir_assignment*> a_assignments;
 	TArray<ir_assignment*> b_assignments;
+
+	// keeps track of the rvalues created (branch_flattened) to hold the temporary value calculated within a then/else block
+	TArray<ir_rvalue*> curr_branch_flattened_rvalues;
 
 	TMap<const glsl_type*, ir_function_signature*> select_functions;
 
@@ -124,10 +128,14 @@ public:
 		visit_list_elements(this, &curr_if->then_instructions, true);
 		base_ir->insert_before(&curr_if->then_instructions);
 
+		curr_branch_flattened_rvalues.Reset();
+
 		check(b_assignments.Num() == 0);
 		curr_assignments = &b_assignments;
 		visit_list_elements(this, &curr_if->else_instructions, true);
 		base_ir->insert_before(&curr_if->else_instructions);
+
+		curr_branch_flattened_rvalues.Reset();
 
 		TArray<bool> HandledBAssignments;
 		HandledBAssignments.SetNumZeroed(b_assignments.Num());
@@ -215,7 +223,49 @@ public:
 			ir_var_temporary);
 		base_ir->insert_before(var);
 
-		return new(parse_state)ir_dereference_variable(var);
+		ir_dereference_variable* new_deref_var = new(parse_state)ir_dereference_variable(var);
+
+		curr_branch_flattened_rvalues.Add(new_deref_var);
+
+		return new_deref_var;
+	}
+
+	// check if the LHS of any of our current assignments are using the current rvalue, if so we'll 
+	// need to replace it with the temporary that we've stashed in curr_branch_flattened_rvalues
+	// Example code that this is trying to resolve:
+	// if (Condition)
+	// {
+	//   Foo = Bar;					// this would have been replaced with:	branch_flattened_temp0 = Bar;
+	//   Foo2 = Foo;				// this would have been replaced with:	branch_flattened_temp1 = Foo; this should have been replaced by:
+	//																		branch_flattened_temp1 = branch_flattened_temp0;
+	// }
+	virtual void handle_rvalue(ir_rvalue** rvalue) override
+	{
+		if (rvalue && *rvalue && curr_if && curr_assignments && !curr_assignments->IsEmpty())
+		{
+			check(curr_branch_flattened_rvalues.Num() == curr_assignments->Num());
+
+			uint32 ComponentIndex = 0;
+			if (ir_variable* Variable = ir_vm_helper::get_rvalue_variable(*rvalue, ComponentIndex))
+			{
+				int32 AssignmentCount = curr_assignments->Num();
+
+				for (int32 AssignIt = 0; AssignIt < AssignmentCount; ++AssignIt)
+				{
+					ir_assignment* prev_assign = (*curr_assignments)[AssignIt];
+
+					uint32 AssignComponentIndex = 0;
+					if (ir_variable* prev_assign_variable = ir_vm_helper::get_rvalue_variable(prev_assign->lhs, AssignComponentIndex))
+					{
+						if (prev_assign_variable == Variable && AssignComponentIndex == ComponentIndex)
+						{
+							ir_rvalue* new_rval = curr_branch_flattened_rvalues[AssignIt]->clone(parse_state, nullptr);
+							(*rvalue) = new_rval;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	ir_visitor_status visit_leave(ir_assignment * assign)

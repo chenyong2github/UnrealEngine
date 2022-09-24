@@ -20,53 +20,8 @@ PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 #include "ir_expression_flattening.h"
 #include "ir.h"
 
+#include "ir_vm_helper.h"
 #include "VectorVM.h"
-
-namespace ir_propagate_helper
-{
-
-static unsigned get_component_from_matrix_array_deref(ir_dereference_array* array_deref)
-{
-	check(array_deref);
-	check(array_deref->variable_referenced()->type->is_matrix());
-	ir_constant* index = array_deref->array_index->as_constant();
-	check((index->type == glsl_type::uint_type || index->type == glsl_type::int_type) && index->type->is_scalar());
-	unsigned deref_idx = index->type == glsl_type::uint_type ? index->value.u[0] : index->value.i[0];
-	return deref_idx * array_deref->variable_referenced()->type->vector_elements;
-}
-
-static ir_variable* get_rvalue_variable(ir_rvalue* rvalue, unsigned int& search_comp)
-{
-	ir_dereference* deref = rvalue->as_dereference();
-	ir_dereference_array* array_deref = rvalue->as_dereference_array();
-	ir_swizzle* swiz = rvalue->as_swizzle();
-
-	ir_variable* search_var = rvalue->variable_referenced();
-	if (swiz)
-	{
-		if (ir_dereference_array* swiz_array_deref = swiz->val->as_dereference_array())
-		{
-			search_comp = get_component_from_matrix_array_deref(swiz_array_deref);
-		}
-		search_comp += swiz->mask.x;
-	}
-	else if (array_deref)
-	{
-		//We can only handle matrix array derefs but these will have an outer swizzle that we'll work with. 
-		check(array_deref->array->type->is_matrix());
-		search_var = nullptr;
-	}
-	else if (!deref || !deref->type->is_scalar())
-	{
-		//If we're not a deref or we're not a straight scalar deref then we should leave this alone.
-		search_var = nullptr;
-	}
-
-	return search_var;
-}
-
-};
-
 
 // before we worry about propagating expressions we want to clean up our existing assignments
 // so that we get rid of any redundant assignments (A = A) as well as move towards an SSA
@@ -91,7 +46,7 @@ public:
 		if (rvalue && *rvalue)
 		{
 			uint32 ComponentIndex = 0;
-			if (ir_variable* Variable = ir_propagate_helper::get_rvalue_variable(*rvalue, ComponentIndex))
+			if (ir_variable* Variable = ir_vm_helper::get_rvalue_variable(*rvalue, ComponentIndex))
 			{
 				if (ir_rvalue** Replacement = ReplacementMap.Find(MakeTuple(Variable, ComponentIndex)))
 				{
@@ -115,7 +70,7 @@ public:
 
 		// remove redundant assignments
 		uint32 rhs_component_index = 0;
-		if (const ir_variable* rhsVariable = ir_propagate_helper::get_rvalue_variable(assign->rhs, rhs_component_index))
+		if (const ir_variable* rhsVariable = ir_vm_helper::get_rvalue_variable(assign->rhs, rhs_component_index))
 		{
 			if (lhs == rhsVariable && rhs_component_index == ComponentIndex)
 			{
@@ -216,7 +171,7 @@ public:
 			ir_rvalue** to_replace = rvalue;
 
 			unsigned int search_comp = 0;
-			ir_variable* search_var = ir_propagate_helper::get_rvalue_variable(*rvalue, search_comp);
+			ir_variable* search_var = ir_vm_helper::get_rvalue_variable(*rvalue, search_comp);
 
 			//Search to see if this deref matches any of the non-expression assignments LHS. If so then clone the rhs in it's place.
 
@@ -283,7 +238,7 @@ public:
 		for (int32 previous_assign_idx = assign_idx - 1; previous_assign_idx >= 0; --previous_assign_idx)
 		{
 			uint32 rhs_component = 0;
-			ir_variable* rhs_variable = ir_propagate_helper::get_rvalue_variable(assignments[previous_assign_idx]->rhs, rhs_component);
+			ir_variable* rhs_variable = ir_vm_helper::get_rvalue_variable(assignments[previous_assign_idx]->rhs, rhs_component);
 			if (rhs_variable == lhs && ((1 << rhs_component) & assign->write_mask))
 			{
 				ir_variable* previous_lhs = assignments[previous_assign_idx]->lhs->variable_referenced();
@@ -307,7 +262,7 @@ public:
 				if (num_expr == 0)
 				{
 					unsigned int rhs_component = 0;
-					ir_variable* rhs_variable = ir_propagate_helper::get_rvalue_variable(assign->rhs, rhs_component);
+					ir_variable* rhs_variable = ir_vm_helper::get_rvalue_variable(assign->rhs, rhs_component);
 
 					// handle the case of redundant self assignment
 					if (assign_comp != rhs_component || lhs != rhs_variable)
