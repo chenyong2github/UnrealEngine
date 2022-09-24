@@ -203,6 +203,8 @@ void FAnimNode_BlendStack::Evaluate_AnyThread(FPoseContext& Output)
 		TArray<float> Weights;
 		for (int32 i = BlendStackSize - 2; i >= 0; --i)
 		{
+			// Since we're re-using the same pose context for different players, curves need to be reset before extraction.
+			EvaluationPoseContext.Curve.InitFrom(Output.AnimInstanceProxy->GetRequiredBones());
 			AnimPlayers[i].Evaluate_AnyThread(EvaluationPoseContext);
 			
 			if (AnimPlayers[i].GetBlendInWeights(Weights))
