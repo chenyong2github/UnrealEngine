@@ -26,7 +26,7 @@ namespace HeterogeneousVolumes
 {
 	// CVars
 	FIntVector GetVolumeResolution();
-	FIntVector GetTransmittanceVolumeResolution();
+	FIntVector GetLightingCacheResolution();
 
 	float GetShadowStepSize();
 	float GetMaxTraceDistance();
@@ -36,6 +36,7 @@ namespace HeterogeneousVolumes
 
 	int32 GetMipLevel();
 	int32 GetDebugMode();
+	int32 GetLightingCacheMode();
 	uint32 GetSparseVoxelMipBias();
 
 	bool ShouldJitter();
@@ -43,7 +44,8 @@ namespace HeterogeneousVolumes
 	bool UseHardwareRayTracing();
 	bool UseSparseVoxelPipeline();
 	bool UseSparseVoxelPerTileCulling();
-	bool UseTransmittanceVolume();
+	bool UseLightingCacheForInscattering();
+	bool UseLightingCacheForTransmittance();
 
 	// Convenience Utils
 	int GetVoxelCount(FIntVector VolumeResolution);
@@ -72,7 +74,7 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FSparseVoxelUniformBufferParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
 
 	// Resolution
-	SHADER_PARAMETER(FIntVector, TransmittanceVolumeResolution)
+	SHADER_PARAMETER(FIntVector, LightingCacheResolution)
 
 	// Sparse voxel data
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumVoxelsBuffer)
@@ -86,9 +88,9 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FSparseVoxelUniformBufferParameters, )
 	SHADER_PARAMETER(float, ShadowStepSize)
 END_UNIFORM_BUFFER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FTransmittanceVolumeParameters, )
-	SHADER_PARAMETER(FIntVector, TransmittanceVolumeResolution)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TransmittanceVolumeTexture)
+BEGIN_SHADER_PARAMETER_STRUCT(FLightingCacheParameters, )
+	SHADER_PARAMETER(FIntVector, LightingCacheResolution)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, LightingCacheTexture)
 END_SHADER_PARAMETER_STRUCT()
 
 // Render specializations
@@ -106,7 +108,7 @@ void RenderWithLiveShading(
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
 	// Transmittance acceleration
-	FRDGTextureRef TransmittanceVolumeTexture,
+	FRDGTextureRef LightingCacheTexture,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeRadiance
 );
@@ -126,7 +128,7 @@ void RenderWithPreshading(
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
 	// Transmittance acceleration
-	FRDGTextureRef TransmittanceVolumeTexture,
+	FRDGTextureRef LightingCacheTexture,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeRadiance
 );
@@ -201,7 +203,7 @@ void GenerateRayTracingScene(
 	FRayTracingScene& RayTracingScene
 );
 
-void RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
+void RenderLightingCacheWithPreshadingHardwareRayTracing(
 	FRDGBuilder& GraphBuilder,
 	// Scene data
 	const FScene* Scene,
@@ -213,6 +215,8 @@ void RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
+	// Shadow data
+	const FVisibleLightInfo* VisibleLightInfo,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data
@@ -220,7 +224,7 @@ void RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
 	// Ray tracing data
 	FRayTracingScene& RayTracingScene,
 	// Output
-	FRDGTextureRef& TransmittanceVolumeTexture
+	FRDGTextureRef& LightingCacheTexture
 );
 
 void RenderSingleScatteringWithPreshadingHardwareRayTracing(
@@ -244,7 +248,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	// Ray tracing data
 	FRayTracingScene& RayTracingScene,
 	// Transmittance volume
-	FRDGTextureRef TransmittanceVolumeTexture,
+	FRDGTextureRef LightingCacheTexture,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeTexture
 );

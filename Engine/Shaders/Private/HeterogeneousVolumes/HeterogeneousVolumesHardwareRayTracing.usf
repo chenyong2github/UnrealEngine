@@ -372,8 +372,10 @@ RAY_TRACING_ENTRY_RAYGEN(SparseVoxelsRayGenerationShader1)
 	}
 }
 
+// Lighting
 int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
+int bApplyShadowTransmittance;
 int LightType;
 
 float3 ComputeTransmittanceHardwareRayTracing(
@@ -395,24 +397,24 @@ float3 ComputeTransmittanceHardwareRayTracing(
 
 uint3 DispatchRaysToVoxelIndex(uint2 DispatchRaysIndex)
 {
-	uint3 VolumeResolution = GetTransmittanceVolumeResolution();
+	uint3 VolumeResolution = GetLightingCacheResolution();
 	uint3 VoxelIndex = uint3(DispatchRaysIndex.x,
-		DispatchRaysIndex.y % TransmittanceVolumeResolution.y,
-		DispatchRaysIndex.y / TransmittanceVolumeResolution.y);
+		DispatchRaysIndex.y % LightingCacheResolution.y,
+		DispatchRaysIndex.y / LightingCacheResolution.y);
 	return VoxelIndex;
 }
 
-RWTexture3D<float3> RWTransmittanceVolumeTexture;
+RWTexture3D<float3> RWLightingCacheTexture;
 
-RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
+RAY_TRACING_ENTRY_RAYGEN(RenderLightingCacheWithPreshadingRGS)
 {
 	uint3 VoxelIndex = DispatchRaysToVoxelIndex(DispatchRaysIndex().xy);
-	if (any(VoxelIndex >= TransmittanceVolumeResolution))
+	if (any(VoxelIndex >= LightingCacheResolution))
 	{
 		return;
 	}
 
-	float3 UVW = (VoxelIndex + 0.5) / float3(TransmittanceVolumeResolution);
+	float3 UVW = (VoxelIndex + 0.5) / float3(LightingCacheResolution);
 
 	float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
 	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
@@ -426,11 +428,17 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 	float Epsilon = 1.0e-7;
 	if (all(Extinction < Epsilon))
 	{
-		RWTransmittanceVolumeTexture[VoxelIndex] = 1.0f;
+#if DIM_LIGHTING_CACHE_MODE == LIGHTING_CACHE_TRANSMITTANCE
+		RWLightingCacheTexture[VoxelIndex] = 1.0f;
+
+#elif DIM_LIGHTING_CACHE_MODE == LIGHTING_CACHE_INSCATTERING
+		RWLightingCacheTexture[VoxelIndex] = 0.0f;
+#endif // DIM_LIGHTING_CACHE_MODE
 		return;
 	}
 
 	FDeferredLightData LightData = LoadLightData(LightType);
+#if DIM_LIGHTING_CACHE_MODE == LIGHTING_CACHE_TRANSMITTANCE
 	float3 L = LightData.Direction;
 	float3 ToLight = L * GetMaxShadowTraceDistance();
 	if (LightType != LIGHT_TYPE_DIRECTIONAL)
@@ -448,44 +456,14 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
 		}
 	}
-	float3 WorldRayEnd = WorldRayOrigin + ToLight;
-	float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), GetWorldToLocal()).xyz;
 
-	float3 WorldRayDirection = normalize(WorldRayEnd - WorldRayOrigin);
-	float3 LocalRayDirection = LocalRayEnd - LocalRayOrigin;
+	float3 Transmittance = ComputeTransmittance(WorldRayOrigin, ToLight, MaxStepCount);
+	RWLightingCacheTexture[VoxelIndex] = Transmittance;
 
-	float LocalRayTMin = 0.0f;
-	float LocalRayTMax = length(LocalRayDirection);
-	LocalRayDirection /= LocalRayTMax;
-
-	float RayBias = 0.5;
-	float StepSize = GetShadowStepSize();
-	int bApplyEmissionAndTransmittance = 0;
-	int bApplyDirectLighting = 0;
-	int bApplyShadowTransmittance = 0;
-	FRayMarchingContext RayMarchingContext = (FRayMarchingContext)0;
-	RayMarchingContext = CreateRayMarchingContext(
-		// Local-space
-		LocalRayOrigin,
-		LocalRayDirection,
-		LocalRayTMin,
-		LocalRayTMax,
-		// World-space
-		WorldRayOrigin,
-		WorldRayDirection,
-		// Ray-step attributes
-		RayBias,
-		StepSize,
-		MaxStepCount,
-		// Lighting
-		bApplyEmissionAndTransmittance,
-		bApplyDirectLighting,
-		bApplyShadowTransmittance
-	);
-	RayMarchingContext.MipLevel = 0;
-
-	float3 Transmittance = ComputeTransmittance(RayMarchingContext);
-	RWTransmittanceVolumeTexture[VoxelIndex] = Transmittance;
+#elif DIM_LIGHTING_CACHE_MODE == LIGHTING_CACHE_INSCATTERING
+	float3 Inscattering = ComputeInscattering(WorldRayOrigin, LightData, LightType, MaxStepCount, bApplyShadowTransmittance);
+	RWLightingCacheTexture[VoxelIndex] += Inscattering;
+#endif // DIM_LIGHTING_CACHE_MODE
 }
 
 RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)

@@ -136,15 +136,18 @@ static TAutoConsoleVariable<float> CVarHeterogeneousVolumesStepSize(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesTransmittanceVolume(
-	TEXT("r.HeterogeneousVolumes.TransmittanceVolume"),
-	1,
-	TEXT("Enalbes transmittance volume optimized pre-pass (Default = 1)"),
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesLightingCache(
+	TEXT("r.HeterogeneousVolumes.LightingCache"),
+	2,
+	TEXT("Enables an optimized pre-pass, caching certain volumetric rendering lighting quantities (Default = 2)\n")
+	TEXT("0: Disabled\n")
+	TEXT("1: Cache transmittance\n")
+	TEXT("2: Cache in-scattering\n"),
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesTransmittanceVolumeDownsampleFactor(
-	TEXT("r.HeterogeneousVolumes.TransmittanceVolume.DownsampleFactor"),
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesLightingCacheDownsampleFactor(
+	TEXT("r.HeterogeneousVolumes.LightingCache.DownsampleFactor"),
 	1,
 	TEXT("Determines the downsample factor, relative to the preshading volume resolution (Default = 1)"),
 	ECVF_RenderThreadSafe
@@ -254,9 +257,19 @@ namespace HeterogeneousVolumes
 		return CVarHeterogeneousVolumesSparseVoxelPerTileCulling.GetValueOnRenderThread() != 0;
 	}
 
-	bool UseTransmittanceVolume()
+	int32 GetLightingCacheMode()
 	{
-		return CVarHeterogeneousVolumesTransmittanceVolume.GetValueOnRenderThread() != 0;
+		return CVarHeterogeneousVolumesLightingCache.GetValueOnRenderThread();
+	}
+
+	bool UseLightingCacheForInscattering()
+	{
+		return CVarHeterogeneousVolumesLightingCache.GetValueOnRenderThread() == 2;
+	}
+
+	bool UseLightingCacheForTransmittance()
+	{
+		return CVarHeterogeneousVolumesLightingCache.GetValueOnRenderThread() == 1;
 	}
 
 	bool ShouldJitter()
@@ -291,12 +304,12 @@ namespace HeterogeneousVolumes
 		);
 	}
 
-	FIntVector GetTransmittanceVolumeResolution()
+	FIntVector GetLightingCacheResolution()
 	{
-		float DownsampleFactor = CVarHeterogeneousVolumesTransmittanceVolumeDownsampleFactor.GetValueOnRenderThread();
-		FIntVector TransmittanceVolumeResolution = GetVolumeResolution() / DownsampleFactor;
+		float DownsampleFactor = CVarHeterogeneousVolumesLightingCacheDownsampleFactor.GetValueOnRenderThread();
+		FIntVector LightingCacheResolution = GetVolumeResolution() / DownsampleFactor;
 
-		return TransmittanceVolumeResolution;
+		return LightingCacheResolution;
 	}
 }
 
@@ -341,16 +354,17 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 
 				// Allocate transmittance volume
 				// TODO: Allow option for scalar transmittance to conserve bandwidth
-				FIntVector TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
-				uint32 NumMips = FMath::Log2(float(FMath::Min(FMath::Min(TransmittanceVolumeResolution.X, TransmittanceVolumeResolution.Y), TransmittanceVolumeResolution.Z))) + 1;
-				FRDGTextureDesc TransmittanceVolumeDesc = FRDGTextureDesc::Create3D(
-					TransmittanceVolumeResolution,
+				FIntVector LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution();
+				uint32 NumMips = FMath::Log2(float(FMath::Min(FMath::Min(LightingCacheResolution.X, LightingCacheResolution.Y), LightingCacheResolution.Z))) + 1;
+				FRDGTextureDesc LightingCacheDesc = FRDGTextureDesc::Create3D(
+					LightingCacheResolution,
 					PF_FloatR11G11B10,
 					FClearValueBinding::Black,
 					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling,
 					NumMips
 				);
-				FRDGTextureRef TransmittanceVolumeTexture = GraphBuilder.CreateTexture(TransmittanceVolumeDesc, TEXT("HeterogeneousVolumes.TransmittanceVolumeTexture"));
+				FRDGTextureRef LightingCacheTexture = GraphBuilder.CreateTexture(LightingCacheDesc, TEXT("HeterogeneousVolumes.LightingCacheTexture"));
+				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(LightingCacheTexture), FLinearColor::Black);
 
 				// Material baking executes a pre-shading pipeline
 				if (CVarHeterogeneousVolumesPreshading.GetValueOnRenderThread())
@@ -369,7 +383,7 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 						PrimitiveId,
 						LocalBoxSphereBounds,
 						// Transmittance accleration
-						TransmittanceVolumeTexture,
+						LightingCacheTexture,
 						// Output
 						HeterogeneousVolumeRadiance
 					);
@@ -390,7 +404,7 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 						PrimitiveId,
 						LocalBoxSphereBounds,
 						// Transmittance accleration
-						TransmittanceVolumeTexture,
+						LightingCacheTexture,
 						// Output
 						HeterogeneousVolumeRadiance
 					);

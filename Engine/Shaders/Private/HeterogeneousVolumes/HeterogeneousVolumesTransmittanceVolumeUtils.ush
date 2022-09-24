@@ -4,18 +4,21 @@
 #define DIM_USE_TRANSMITTANCE_VOLUME 0
 #endif // DIM_USE_TRANSMITTANCE_VOLUME
 
-uint3 TransmittanceVolumeResolution;
-Texture3D TransmittanceVolumeTexture;
+#define LIGHTING_CACHE_TRANSMITTANCE 0
+#define LIGHTING_CACHE_INSCATTERING 1
 
-uint3 GetTransmittanceVolumeResolution()
+uint3 LightingCacheResolution;
+Texture3D LightingCacheTexture;
+
+uint3 GetLightingCacheResolution()
 {
-	return TransmittanceVolumeResolution;
+	return LightingCacheResolution;
 }
 
-float3 SampleTransmittanceVolume(float3 UVW, float MipLevel)
+float3 SampleLightingCache(float3 UVW, float MipLevel)
 {
 	float3 Transmittance = Texture3DSampleLevel(
-		TransmittanceVolumeTexture,
+		LightingCacheTexture,
 		View.SharedTrilinearClampedSampler,
 		UVW,
 		MipLevel).r;
