@@ -474,6 +474,11 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		}
 	}
 
+	bool operator!=(const FNiagaraFunctionSignature& Other) const
+	{
+		return !(*this == Other);
+	}
+
 	bool operator==(const FNiagaraFunctionSignature& Other) const
 	{
 		bool bFunctionSpecifiersEqual = [&]()

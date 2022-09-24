@@ -106,10 +106,14 @@ void UNiagaraNodeFunctionCall::PostLoad()
 		if ((Signature.Inputs.Num() > 0) && Signature.Inputs[0].GetType().IsDataInterface())
 		{
 			UNiagaraDataInterface* CDO = CastChecked<UNiagaraDataInterface>(Signature.Inputs[0].GetType().GetClass()->GetDefaultObject());
+			FNiagaraFunctionSignature CopyForComparison = Signature;
 			if (CDO->UpgradeFunctionCall(Signature))
 			{
 				FunctionDisplayName.Empty();
-				ReallocatePins();
+				if (Signature != CopyForComparison)
+				{
+					ReallocatePins();
+				}
 			}
 		}
 	}

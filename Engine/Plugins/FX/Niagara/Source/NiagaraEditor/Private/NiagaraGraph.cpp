@@ -92,7 +92,18 @@ void FNiagaraGraphScriptUsageInfo::PostLoad(UObject* Owner)
 			CompileHash = FNiagaraCompileHash(DataHash_DEPRECATED);
 			CompileHashFromGraph = FNiagaraCompileHash(DataHash_DEPRECATED);
 		}
+	}	
+}
+
+bool FNiagaraGraphScriptUsageInfo::IsValid() const
+{
+	for (int32 i = 0; i < Traversal.Num(); i++)
+	{
+		if (Traversal[i] == nullptr)
+			return false;
 	}
+
+	return true;
 }
 
 UNiagaraGraph::UNiagaraGraph(const FObjectInitializer& ObjectInitializer)
@@ -182,9 +193,20 @@ void UNiagaraGraph::PostLoad()
 		Node->ConditionalPostLoad();
 	}
 
+	// There was a bug where the graph traversal could have nullptr entries in it, which causes crashes later. Detect these and just clear out the cache.
+	bool bAnyInvalid = false;
 	for (FNiagaraGraphScriptUsageInfo& CachedUsageInfoItem : CachedUsageInfo)
 	{
 		CachedUsageInfoItem.PostLoad(this);
+		if (!CachedUsageInfoItem.IsValid())
+		{
+			bAnyInvalid = true;
+		}
+	}
+	if (bAnyInvalid)
+	{
+		CachedUsageInfo.Empty();
+		LastBuiltTraversalDataChangeId = FGuid();
 	}
 
 	// In the past, we didn't bother setting the CallSortPriority and just used lexicographic ordering.
@@ -1458,6 +1480,7 @@ void BuildCompleteTraversal(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& Al
 	}
 }
 
+
 UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptUsage>& CompileUsages)
 {
 	check(!bIsForCompilationOnly);
@@ -1522,11 +1545,37 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 		Node->SetFlags(RF_Transactional);
 		DuplicationMapping.Add(Node, DupNode);
 	}
+
+	// Detect any invalidations that might have snuck in on the source graph!
+	for (UEdGraphNode* Node : Result->Nodes)
+	{
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			for (int j = 0; j < Pin->LinkedTo.Num(); j++)
+			{
+				if (Pin->LinkedTo[j])
+				{
+					UEdGraphNode* NodeB = Pin->LinkedTo[j]->GetOwningNode();
+					if (Node && NodeB && Node->GetGraph() != NodeB->GetGraph())
+					{
+						UE_LOG(LogNiagaraEditor, Error, TEXT(""), *NodeB->GetPathName());
+						const FText WarningTemplate = LOCTEXT("DuplicationErrorToast", "Duplication Error! {0} was touched when cloning for compilation. Please report this issue to the Niagara team! ");
+						FText MismatchWarning = FText::Format(
+							WarningTemplate,
+							FText::FromString(NodeB->GetPathName()));
+						FNiagaraEditorUtilities::WarnWithToastAndLog(MismatchWarning);
+					}
+				}
+			}
+		}
+	}
+
 	for (UEdGraphNode* Node : NewNodes)
 	{
 		// fix up linked pins
 		for (UEdGraphPin* Pin : Node->Pins)
 		{
+			ensure(Pin->GetOwningNode()->GetGraph() == Result);
 			for (int i = 0; i < Pin->LinkedTo.Num(); i++)
 			{
 				UEdGraphPin* LinkedPin = Pin->LinkedTo[i];

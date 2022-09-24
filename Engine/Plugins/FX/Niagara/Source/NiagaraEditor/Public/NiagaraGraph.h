@@ -117,6 +117,8 @@ public:
 
 	void PostLoad(UObject* Owner);
 
+	bool IsValid() const;
+
 private:
 	UPROPERTY()
 	TArray<uint8> DataHash_DEPRECATED;
