@@ -275,8 +275,8 @@ void ComposeHeightfieldsIntoPagesCS(
 	FLWCVector3 VoxelWorldCenter = LWCSubtract(VoxelTranslatedWorldCenter, PreViewTranslation);
 
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
-	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
-	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
+	FGlobalDistanceFieldPage Page = UnpackGlobalDistanceFieldPage(PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0)));
+	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
 	PageAtlasCoord += TexelCoordInPage;
 
 	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, VoxelWorldCenter);
@@ -304,7 +304,7 @@ void ComposeHeightfieldsIntoPagesCS(
 				if (bThreadWritesCoverage && abs(HeightfieldDistance) < ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE
 					&& all(CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS))
 				{
-					uint3 CoverageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;
+					uint3 CoverageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;
 					RWCoverageAtlasTexture[CoverageAtlasCoord] = 1.0f;
 				}
 			}
@@ -328,7 +328,7 @@ void CompositeHeightfieldsIntoObjectGridPagesCS(
 
 	uint3 PageGridCoord = UnpackPageUpdateTile(ComposeTileBuffer[GroupId.x]);
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
-	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
+	FGlobalDistanceFieldPage Page = UnpackGlobalDistanceFieldPage(PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0)));
 
 	float3 ObjectGridCellPageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + (CellCoordInPage + 0.5f) * (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION / float(DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION));
 	float3 ObjectGridCellTranslatedWorldCenter = ObjectGridCellPageCoord * PageCoordToVoxelTranslatedCenterScale + PageCoordToVoxelTranslatedCenterBias;
@@ -344,10 +344,10 @@ void CompositeHeightfieldsIntoObjectGridPagesCS(
 		if (HeightfieldDistance < MaxQueryDistance)
 		{
 			FObjectGridCell GridCell = InitObjectGridCell();
-			GridCell.PackedIndex4 = RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * PageId + CellOffsetInPage];
+			GridCell.PackedIndex4 = RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * Page.PageIndex + CellOffsetInPage];
 			AddToObjectGridCell(GridCell, GetHeightfieldGPUSceneInstanceIndex(HeightfieldSample.HeightfieldIndex), HeightfieldDistance, ObjectGridCellWorldExtent, MaxQueryDistance);
 			SortObjectGridCell(GridCell);
-			RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * PageId + CellOffsetInPage] = GridCell.PackedIndex4;
+			RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * Page.PageIndex + CellOffsetInPage] = GridCell.PackedIndex4;
 		}
 	}
 }

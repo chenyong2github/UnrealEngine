@@ -22,6 +22,7 @@ RWTexture3D<UNORM float> RWPageAtlasTexture;
 RWTexture3D<UNORM float> RWCoverageAtlasTexture;
 
 Texture3D<uint> PageTableLayerTexture;
+RWTexture3D<uint> RWPageTableCombinedTexture;
 Texture3D<uint> ParentPageTableLayerTexture;
 
 StructuredBuffer<uint> ComposeTileBuffer;
@@ -42,7 +43,7 @@ StructuredBuffer<uint> CullGridObjectHeader;
 StructuredBuffer<uint> CullGridObjectArray;
 uint3 CullGridResolution;
 
-void CompositeMeshSDF(uint ObjectIndex, FLWCVector3 VoxelWorldCenter, inout float MinDistance, inout bool bVoxelHasOneSidedMeshes)
+void CompositeMeshSDF(uint ObjectIndex, FLWCVector3 VoxelWorldCenter, inout float MinDistance, inout bool bVoxelHasOneSidedMeshes, inout bool bVoxelHasTwoSidedMeshes)
 {
 	float MaxEarlyOutDistance = 0.0f;
 
@@ -58,12 +59,21 @@ void CompositeMeshSDF(uint ObjectIndex, FLWCVector3 VoxelWorldCenter, inout floa
 	MinDistance = min(MinDistance, DistanceToOccluder);
 
 #if COMPOSITE_COVERAGE_ATLAS
-	if (!DFObjectData.bMostlyTwoSided && abs(DistanceToOccluder) < ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE)
+	if (abs(DistanceToOccluder) < ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE)
 	{
-		bVoxelHasOneSidedMeshes = true;
+		if (DFObjectData.bMostlyTwoSided)
+		{
+			bVoxelHasTwoSidedMeshes = true;
+		}
+		else
+		{
+			bVoxelHasOneSidedMeshes = true;
+		}
 	}
 #endif
 }
+
+groupshared uint SharedCompositeMask;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void CompositeObjectsIntoPagesCS(
@@ -71,6 +81,13 @@ void CompositeObjectsIntoPagesCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID) 
 {
+	if (all(GroupThreadId == 0))
+	{
+		SharedCompositeMask = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
 	const FLWCVector3 PreViewTranslation = MakeLWCVector3(-ViewTilePosition, RelativePreViewTranslation);
 
 	uint ThreadIndex = (GroupThreadId.z * THREADGROUP_SIZE + GroupThreadId.y) * THREADGROUP_SIZE + GroupThreadId.x;
@@ -93,8 +110,8 @@ void CompositeObjectsIntoPagesCS(
 	const FLWCVector3 VoxelWorldCenter = LWCSubtract(VoxelTranslatedWorldCenter, PreViewTranslation);
 
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
-	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
-	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + TexelCoordInPage;
+	FGlobalDistanceFieldPage Page = UnpackGlobalDistanceFieldPage(RWPageTableCombinedTexture[PageTableTextureCoord]);
+	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + TexelCoordInPage;
 
 	uint CullGridLinearIndex = (CullGridCoord.z * CullGridResolution.y + CullGridCoord.y) * CullGridResolution.x + CullGridCoord.x;
 	uint CullGridObjectNum = CullGridObjectHeader[CullGridLinearIndex * 2 + 0];
@@ -102,6 +119,7 @@ void CompositeObjectsIntoPagesCS(
 
 	float MinDistance = InfluenceRadius;
 	bool bVoxelHasOneSidedMeshes = false;
+	bool bVoxelHasTwoSidedMeshes = false;
 
 #if PROCESS_DISTANCE_FIELDS
 #undef USE_OBJECT_COMPOSITING_TILE_CULLING
@@ -146,7 +164,7 @@ void CompositeObjectsIntoPagesCS(
 		for (uint ListObjectIndex = 0; ListObjectIndex < LocalNumTileCulledObjects; ListObjectIndex++)
 		{
 			uint ObjectIndex = SharedCulledObjectList[ListObjectIndex];
-			CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasOneSidedMeshes);
+			CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasOneSidedMeshes, bVoxelHasTwoSidedMeshes);
 		}
 	}
 
@@ -155,11 +173,13 @@ void CompositeObjectsIntoPagesCS(
 	for (uint IndexInCullGrid = 0; IndexInCullGrid < CullGridObjectNum; ++IndexInCullGrid)
 	{
 		uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullGrid];
-		CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasOneSidedMeshes);
+		CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasOneSidedMeshes, bVoxelHasTwoSidedMeshes);
 	}
 
 #endif
 #endif // PROCESS_DISTANCE_FIELDS
+
+	GroupMemoryBarrierWithGroupSync();
 
 	if (all(TexelCoordInPage < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS))
 	{
@@ -167,16 +187,13 @@ void CompositeObjectsIntoPagesCS(
 		bool bThreadWritesCoverage = all(and(
 			TexelCoordInPage % GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR == 0,
 			CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS));
-		// Only voxels near one sided meshes will have full coverage
-		// This allows compositing the parent coverage correctly, but has the side effect that empty space is considered not covered
-		float Coverage = bVoxelHasOneSidedMeshes ? 1.0f : 0.0f;
 
 		#if COMPOSE_PARENT_DISTANCE_FIELD
 		{
-			uint ParentPageId = ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
-			if (ParentPageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			FGlobalDistanceFieldPage ParentPage = UnpackGlobalDistanceFieldPage(ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0)));
+			if (ParentPage.bValid)
 			{
-				uint3 ParentPageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(ParentPageId);
+				uint3 ParentPageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(ParentPage);
 				uint3 ParentPageAtlasCoord = ParentPageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + TexelCoordInPage;
 				float ParentDistanceField = DecodeGlobalDistanceFieldPageDistance(RWPageAtlasTexture[ParentPageAtlasCoord].x, InfluenceRadius);
 
@@ -186,7 +203,20 @@ void CompositeObjectsIntoPagesCS(
 				if (bThreadWritesCoverage)
 				{
 					uint3 ParentCoverageAtlasCoord = ParentPageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;
-					Coverage = max(Coverage, RWCoverageAtlasTexture[ParentCoverageAtlasCoord]);
+
+					// Composite parent coverage
+					if (abs(ParentDistanceField) < ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE)
+					{
+						float ParentCoverage = RWCoverageAtlasTexture[ParentCoverageAtlasCoord];
+						if (ParentCoverage < 0.5f)
+						{
+							bVoxelHasTwoSidedMeshes = true;
+						}
+						else
+						{
+							bVoxelHasOneSidedMeshes = true;
+						}
+					}
 				}
 				#endif
 			}
@@ -199,11 +229,28 @@ void CompositeObjectsIntoPagesCS(
 		{
 			if (bThreadWritesCoverage)
 			{
-				uint3 CoverageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;
+				// Voxel containing only two sided meshes in all cache layers will be marked as 0
+				float Coverage = 1.0f;
+				if (bVoxelHasTwoSidedMeshes && !bVoxelHasOneSidedMeshes)
+				{
+					InterlockedOr(SharedCompositeMask, GLOBAL_DISTANCE_FIELD_PAGE_COVERAGE_BIT);
+					Coverage = 0.0f;
+				}
+
+				uint3 CoverageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;
 				RWCoverageAtlasTexture[CoverageAtlasCoord] = Coverage;
 			}
 		}
 		#endif
+
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Mark page containing coverage values below 1
+	if (all(GroupThreadId == 0) && SharedCompositeMask != 0)
+	{
+		InterlockedOr(RWPageTableCombinedTexture[PageTableTextureCoord], SharedCompositeMask);
 	}
 }
 
@@ -227,7 +274,7 @@ void CompositeObjectsIntoObjectGridPagesCS(
 	uint CellOffsetInPage = ZOrder3DEncode(CellCoordInPage, log2(DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION));
 
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
-	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
+	FGlobalDistanceFieldPage Page = UnpackGlobalDistanceFieldPage(PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0)));
 
 	uint3 CullGridCoord = PageGridCoord / CULL_GRID_FACTOR;
 	uint CullGridLinearIndex = (CullGridCoord.z * CullGridResolution.y + CullGridCoord.y) * CullGridResolution.x + CullGridCoord.x;
@@ -246,10 +293,10 @@ void CompositeObjectsIntoObjectGridPagesCS(
 	#if COMPOSE_PARENT_DISTANCE_FIELD
 	{
 		// Load parent data in order to composite movable and static cache layers
-		uint ParentPageId = ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
-		if (ParentPageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+		FGlobalDistanceFieldPage ParentPage = UnpackGlobalDistanceFieldPage(ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0)));
+		if (ParentPage.bValid)
 		{
-			ObjectGridCell.PackedIndex4 = RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * ParentPageId + CellOffsetInPage];
+			ObjectGridCell.PackedIndex4 = RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * ParentPage.PageIndex + CellOffsetInPage];
 		}
 	}
 	#endif
@@ -314,5 +361,5 @@ void CompositeObjectsIntoObjectGridPagesCS(
 #endif
 
 	SortObjectGridCell(ObjectGridCell);
-	RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * PageId + CellOffsetInPage] = ObjectGridCell.PackedIndex4;
+	RWPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * Page.PageIndex + CellOffsetInPage] = ObjectGridCell.PackedIndex4;
 }

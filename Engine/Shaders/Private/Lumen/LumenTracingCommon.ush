@@ -702,14 +702,14 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 	float SampleWeightSum = 0.0f;
 
 	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, SDFTraceResult.HitClipmapIndex);
-	uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
-	if (RadianceFactor > 0.0f && PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+	FGlobalDistanceFieldPage Page = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
+	if (RadianceFactor > 0.0f && Page.bValid)
 	{
 		float3 PageTableCoord = saturate(ClipmapVolumeUV) * GlobalDistanceFieldClipmapSizeInPages;
 		uint3 CellCoordInPage = frac(frac(PageTableCoord)) * DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION;
 		uint CellOffsetInPage = ZOrder3DEncode(CellCoordInPage, log2(DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION));
 
-		uint4 DistanceFieldObjectGridCell = GlobalDistanceFieldPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * PageIndex + CellOffsetInPage];
+		uint4 DistanceFieldObjectGridCell = GlobalDistanceFieldPageObjectGridBuffer[DISTANCE_FIELD_OBJECT_GRID_PAGE_STRIDE * Page.PageIndex + CellOffsetInPage];
 
 		for (uint ObjectIndexInList = 0; ObjectIndexInList < DISTANCE_FIELD_OBJECT_GRID_CELL_SIZE; ++ObjectIndexInList)
 		{
@@ -986,7 +986,7 @@ float InvFullSkylightLeakingDistance;
 
 float CalculateSkylightLeakingAmount(float HitDistance)
 {
-	return SkylightLeaking * saturate(HitDistance  * InvFullSkylightLeakingDistance);
+	return SkylightLeaking * saturate(HitDistance * InvFullSkylightLeakingDistance);
 }
 
 float3 GetSkylightLeaking(float3 ConeDirection, float HitDistance)

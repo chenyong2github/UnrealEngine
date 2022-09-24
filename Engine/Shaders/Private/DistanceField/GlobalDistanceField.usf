@@ -413,12 +413,12 @@ void AllocatePagesCS(
 		}
 #endif // PROCESS_DISTANCE_FIELDS
 
-		uint PageId = RWPageTableLayerTexture[PageTableTextureCoord];
+		FGlobalDistanceFieldPage Page = UnpackGlobalDistanceFieldPage(RWPageTableLayerTexture[PageTableTextureCoord]);
 
 		if (bAnyObjectsInPage)
 		{
 			// Allocate new page if required
-			if (PageId == GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			if (!Page.bValid)
 			{
 				int FreeListSize = 0;
 				InterlockedAdd(RWPageFreeListAllocatorBuffer[0], -1, FreeListSize);
@@ -432,41 +432,43 @@ void AllocatePagesCS(
 
 				if (AllocatedPageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
 				{
-					RWPageTableLayerTexture[PageTableTextureCoord] = AllocatedPageId;
-					PageId = AllocatedPageId;
+					Page.PageIndex = AllocatedPageId;
+					Page.bCoverage = false;
+					Page.bValid = true;
+					RWPageTableLayerTexture[PageTableTextureCoord] = PackGlobalDistanceFieldPage(Page);
 				}
 			}
 		}
 		else
 		{
-			if (PageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			if (Page.bValid)
 			{
 				// Delete current page and return it to the free list
 
 				// Return to the free list
 				uint FreeListReturnIndex = 0;
 				InterlockedAdd(RWPageFreeListReturnAllocatorBuffer[0], 1, FreeListReturnIndex);
-				RWPageFreeListReturnBuffer[FreeListReturnIndex] = PageId;
+				RWPageFreeListReturnBuffer[FreeListReturnIndex] = Page.PageIndex;
 
-				PageId = GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID;
-				RWPageTableLayerTexture[PageTableTextureCoord] = GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID;
+				Page.bValid = false;
+				RWPageTableLayerTexture[PageTableTextureCoord] = PackGlobalDistanceFieldPage(Page);
 			}
 		}
 
 		// Update combined (static and movable) page table
-		uint CombinedPageId = PageId;
+		FGlobalDistanceFieldPage CombinedPage = Page;
 		#if COMPOSE_PARENT_DISTANCE_FIELD
 		{
-			if (CombinedPageId == GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			if (!CombinedPage.bValid)
 			{
-				CombinedPageId = ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
+				CombinedPage = UnpackGlobalDistanceFieldPage(ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0)));
 			}
+			RWPageTableCombinedTexture[PageTableTextureCoord] = PackGlobalDistanceFieldPage(CombinedPage);
 		}
-		RWPageTableCombinedTexture[PageTableTextureCoord] = CombinedPageId;
 		#endif
 
 		// Add new dispatch tile for this page if compose is required for it
-		if (PageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+		if (Page.bValid)
 		{
 			uint DestIndex;
 			InterlockedAdd(RWPageComposeIndirectArgBuffer[0], GLOBAL_DISTANCE_FIELD_PAGE_GROUP_NUM, DestIndex);
