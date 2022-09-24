@@ -131,10 +131,7 @@ FArchiveInstance& FArchiveSceneGraph::AddInstance(const FArchiveCADObject& Paren
 
 	int32 Index = Instances.Emplace(InstanceId, Parent);
 	CADIdToIndex.Add(Index);
-	FArchiveInstance& Instance = Instances[Index];
-	Instance.Unit = Parent.Unit;
-
-	return Instance;
+	return Instances[Index];
 }
 
 FArchiveInstance& FArchiveSceneGraph::GetInstance(FCadId CadId)
@@ -207,7 +204,6 @@ FArchiveReference& FArchiveSceneGraph::AddOccurence(FArchiveReference& Parent)
 	Parent.AddChild(Instance.Id);
 	FArchiveReference& Reference = AddReference(Instance);
 	Instance.ReferenceNodeId = Reference.Id;
-	Reference.Unit = Parent.Unit;
 	return Reference;
 }
 
