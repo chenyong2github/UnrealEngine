@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
-
 #include "GenerateNaniteDisplacedMeshCommandlet.generated.h"
 
 class UNaniteDisplacedMesh;
@@ -21,15 +19,23 @@ UCLASS()
 class UGenerateNaniteDisplacedMeshCommandlet : public UCommandlet
 {
 	GENERATED_BODY()
+
 public:
+
 	//~ Begin UCommandlet Interface
-	virtual int32 Main(const FString& Params) override;
+	virtual int32 Main(const FString& CmdLineParams) override;
 	//~ End UCommandlet Interface
 
 private:
-	UNaniteDisplacedMesh* OnLinkDisplacedMesh(const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder);
 
-	void ProcessAssetData(const FAssetData& InAssetData);
+	UNaniteDisplacedMesh* OnLinkDisplacedMesh(const FNaniteDisplacedMeshParams& Parameters, const FString& Folder);
 
-	FDelegateHandle OnLinkDisplacedMeshHandle;
+	static void LoadLevel(const FAssetData& AssetData);
+
+	static void GetPackagesInFolder(const FString& InFolder, TSet<FString>& OutAssets);
+
+	static FString SetToString(const TSet<FString>& Set);
+
+	TSet<FString> GeneratedPackages;
+	TSet<FString> GeneratedFolders;
 };

@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"TargetPlatform",
 					"UnrealEd",
+					"SourceControl",
 				}
 			);
 
