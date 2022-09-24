@@ -538,6 +538,8 @@ public:
 	/** If this component was previously having it's significance managed by gameplay code. Allows us to refresh render data when this changes. */
 	uint8 bWasManagingSignificance : 1;
 
+	uint8 bIsDuringRegister : 1;
+
 	UPROPERTY()
 	uint8 bWarmingUp:1;
 

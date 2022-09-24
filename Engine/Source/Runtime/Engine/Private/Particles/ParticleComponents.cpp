@@ -3497,6 +3497,7 @@ UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& Obj
 	LastSignificantTime = 0.0f;
 	bIsManagingSignificance = 0;
 	bWasManagingSignificance = 0;
+	bIsDuringRegister = 0;
 
 	ManagerHandle = INDEX_NONE;
 	bPendingManagerAdd = false;
@@ -3923,6 +3924,8 @@ bool UParticleSystemComponent::ParticleLineCheck(FHitResult& Hit, AActor* Source
 
 void UParticleSystemComponent::OnRegister()
 {
+	FGuardValue_Bitfield(bIsDuringRegister, true);
+	
 	ForceAsyncWorkCompletion(STALL);
 	check(FXSystem == nullptr);
 
@@ -6230,7 +6233,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 		}
 
 		//We are definitely insignificant already so set insignificant before we ever begin ticking.
-		if (bIsManagingSignificance && Template->GetHighestSignificance() < RequiredSignificance && Template->InsignificanceDelay == 0.0f)
+		if (!bIsDuringRegister && bIsManagingSignificance && Template->GetHighestSignificance() < RequiredSignificance && Template->InsignificanceDelay == 0.0f)
 		{
 			OnSignificanceChanged(false, true);
 		}
