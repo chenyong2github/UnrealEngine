@@ -104,6 +104,8 @@ void UStateTree::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray
 	}
 }
 
+#endif // WITH_EDITOR
+
 void UStateTree::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	Super::AddReferencedObjects(InThis, Collector);
@@ -123,8 +125,6 @@ void UStateTree::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		}
 	}
 }
-
-#endif // WITH_EDITOR
 
 void UStateTree::PostLoad()
 {
