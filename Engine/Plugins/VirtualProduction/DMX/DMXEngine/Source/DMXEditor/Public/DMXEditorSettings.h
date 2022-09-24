@@ -19,10 +19,6 @@ struct FDMXMVRFixtureListSettings
 	UPROPERTY()
 	float FixtureIDColumnWidth = 0.f;
 
-	/** Width of the Name column */
-	UPROPERTY()
-	float NameColumnWidth = 0.f;
-
 	/** With of the Fixture Type column */
 	UPROPERTY()
 	float FixtureTypeColumnWidth = 0.f;

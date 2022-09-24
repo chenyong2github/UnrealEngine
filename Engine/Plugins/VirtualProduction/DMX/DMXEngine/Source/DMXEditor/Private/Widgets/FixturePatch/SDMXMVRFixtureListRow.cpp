@@ -384,10 +384,6 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateWidgetForColumn(const FName& 
 	{
 		return GenerateFixtureIDRow();
 	}
-	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
-	{
-		return GenerateMVRFixtureNameRow();
-	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::FixtureType)
 	{
 		return GenerateFixtureTypeRow();
@@ -548,58 +544,6 @@ void SDMXMVRFixtureListRow::OnFixtureIDCommitted(const FText& InNewText, ETextCo
 		FixtureIDTextBlocK->SetText(FText::FromString(ParsedFixtureIDString));
 
 		OnRowRequestsStatusRefresh.ExecuteIfBound();
-	}
-}
-
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateMVRFixtureNameRow()
-{
-	return
-		SNew(SBorder)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		.Padding(4.f)
-		.BorderImage(FAppStyle::GetBrush("NoBorder"))
-		.OnMouseDoubleClick(this, &SDMXMVRFixtureListRow::OnMVRFixtureNameBorderDoubleClicked)
-		[
-			SNew(SBorder)
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
-			.IsEnabled(true)
-			.BorderImage(FDMXEditorStyle::Get().GetBrush("DMXEditor.RoundedPropertyBorder"))
-			[
-				SAssignNew(NameTextBlock, SInlineEditableTextBlock)
-				.Text_Lambda([this]()
-				{
-					const FString& Name = Item->GetMVRFixtureName();
-					return FText::FromString(Name);
-				})
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnMVRFixtureNameCommitted)
-				.IsSelected(IsSelected)
-			]
-		];
-
-}
-
-FReply SDMXMVRFixtureListRow::OnMVRFixtureNameBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-	{
-		if (NameTextBlock.IsValid())
-		{
-			NameTextBlock->EnterEditingMode();
-		}
-	}
-
-	return FReply::Handled();
-}
-
-void SDMXMVRFixtureListRow::OnMVRFixtureNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
-{
-	const FString NameString = InNewText.ToString();
-	if (Item->SetMVRFixtureName(NameString))
-	{
-		NameTextBlock->SetText(FText::FromString(NameString));
 	}
 }
 

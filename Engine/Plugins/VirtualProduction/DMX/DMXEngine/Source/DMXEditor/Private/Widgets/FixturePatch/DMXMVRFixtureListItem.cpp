@@ -38,12 +38,15 @@ FDMXMVRFixtureListItem::FDMXMVRFixtureListItem(TWeakPtr<FDMXEditor> InDMXEditor,
 			return FixturePatch->GetMVRFixtureUUID() == MVRFixtureUUID;
 		});
 
-	if (ensureAlwaysMsgf(FixturePatchPtr, TEXT("Trying to create an MVR Fixture List Item, but there's no corresponding Fixture Patch for the MVR Fixture UUID.")))
+	if (!ensureAlwaysMsgf(FixturePatchPtr, TEXT("Trying to create an MVR Fixture List Item, but there's no corresponding Fixture Patch for the MVR Fixture UUID.")))
 	{
-		WeakFixturePatch = *FixturePatchPtr;
+		return;
 	}
-	
+	WeakFixturePatch = *FixturePatchPtr;
+
+	// Keep the MVR Fixture Name sync with the Fixture Patch name
 	MVRFixtureNode = FindMVRFixture();
+	MVRFixtureNode->Name = WeakFixturePatch->Name;
 }
 
 const FGuid& FDMXMVRFixtureListItem::GetMVRUUID() const
@@ -90,6 +93,10 @@ void FDMXMVRFixtureListItem::SetFixturePatchName(const FString& InDesiredName, F
 		FixturePatch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UDMXEntity, Name)));
 
 		FixturePatch->SetName(InDesiredName);
+		OutNewName = FixturePatch->Name;
+
+		MVRFixtureNode = FindMVRFixture();
+		MVRFixtureNode->Name = FixturePatch->Name;
 
 		FixturePatch->PostEditChange();
 	}
@@ -112,27 +119,6 @@ void FDMXMVRFixtureListItem::SetFixtureID(int32 InFixtureID)
 
 		DMXLibrary->PostEditChange();
 	}
-}	
-
-const FString& FDMXMVRFixtureListItem::GetMVRFixtureName() const
-{
-	return MVRFixtureNode->Name;
-}
-
-bool FDMXMVRFixtureListItem::SetMVRFixtureName(const FString& Name)
-{
-	UDMXLibrary* DMXLibrary = GetDMXLibrary();
-	if (!Name.IsEmpty() && MVRFixtureNode && DMXLibrary)
-	{
-		const FScopedTransaction SetMVRFixtureNameTransaction(LOCTEXT("SetMVRFixtureNameTransaction", "Set MVR Fixture Name"));
-		DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetGeneralSceneDescriptionPropertyName()));
-
-		MVRFixtureNode->Name = Name;
-
-		DMXLibrary->PostEditChange();
-	}
-
-	return false;
 }
 
 UDMXEntityFixtureType* FDMXMVRFixtureListItem::GetFixtureType() const

@@ -68,15 +68,6 @@ private:
 	/** Called when a Fixture ID was committed */
 	void OnFixtureIDCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
 
-	/** Generates the row that displays the MVR Fixture Name */
-	TSharedRef<SWidget> GenerateMVRFixtureNameRow();
-
-	/** Called when the Name Border was double-clicked */
-	FReply OnMVRFixtureNameBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
-
-	/** Called when the MVR Fixture Name was committed */
-	void OnMVRFixtureNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
-
 	/** Generates the row that displays the Fixture Type */
 	TSharedRef<SWidget> GenerateFixtureTypeRow();
 

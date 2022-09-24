@@ -30,7 +30,6 @@ struct FDMXMVRFixtureListCollumnIDs
 	static const FName Status;
 	static const FName FixturePatchName;
 	static const FName FixtureID;
-	static const FName MVRFixtureName;
 	static const FName FixtureType;
 	static const FName Mode;
 	static const FName Patch;

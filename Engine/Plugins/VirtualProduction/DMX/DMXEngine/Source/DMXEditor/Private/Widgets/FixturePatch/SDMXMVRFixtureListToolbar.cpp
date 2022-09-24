@@ -257,9 +257,7 @@ TArray<TSharedPtr<FDMXMVRFixtureListItem>> SDMXMVRFixtureListToolbar::FilterItem
 
 	Result.RemoveAll([this](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
 		{
-			return
-				!Item->GetFixturePatchName().Contains(SearchString) &&
-				!Item->GetMVRFixtureName().Contains(SearchString);
+			return !Item->GetFixturePatchName().Contains(SearchString);
 		});
 
 	return Result;

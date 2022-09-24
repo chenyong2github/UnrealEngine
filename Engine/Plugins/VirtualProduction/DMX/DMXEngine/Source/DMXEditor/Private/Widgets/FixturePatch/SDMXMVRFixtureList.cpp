@@ -302,7 +302,7 @@ private:
 	static FText MakeBeautifulItemText(const TSharedPtr<FDMXMVRFixtureListItem>& Item)
 	{
 		const FString AddressesString = FString::FromInt(Item->GetUniverse()) + TEXT(".") + FString::FromInt(Item->GetAddress());
-		const FString ItemNameString = TEXT("'") + Item->GetMVRFixtureName() + TEXT("'");
+		const FString ItemNameString = TEXT("'") + Item->GetFixturePatchName() + TEXT("'");
 		const FString BeautifulItemString = ItemNameString + TEXT(" (") + AddressesString + TEXT(")");;
 		return FText::FromString(BeautifulItemString);
 	}
@@ -315,7 +315,6 @@ private:
 const FName FDMXMVRFixtureListCollumnIDs::Status = "Status";
 const FName FDMXMVRFixtureListCollumnIDs::FixturePatchName = "FixturePatchName";
 const FName FDMXMVRFixtureListCollumnIDs::FixtureID = "FixtureID";
-const FName FDMXMVRFixtureListCollumnIDs::MVRFixtureName = "MVRFixtureName";
 const FName FDMXMVRFixtureListCollumnIDs::FixtureType = "FixtureType";
 const FName FDMXMVRFixtureListCollumnIDs::Mode = "Mode";
 const FName FDMXMVRFixtureListCollumnIDs::Patch = "Patch";
@@ -771,15 +770,6 @@ TSharedRef<SHeaderRow> SDMXMVRFixtureList::GenerateHeaderRow()
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId(FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
-		.SortMode(this, &SDMXMVRFixtureList::GetColumnSortMode, FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
-		.OnSort(this, &SDMXMVRFixtureList::SortByColumnID)
-		.DefaultLabel(LOCTEXT("NameColumnLabel", "Fixture Name"))
-		.FillWidth(0.2f)
-	);
-
-	HeaderRow->AddColumn(
-		SHeaderRow::FColumn::FArguments()
 		.ColumnId(FDMXMVRFixtureListCollumnIDs::FixtureType)
 		.SortMode(this, &SDMXMVRFixtureList::GetColumnSortMode, FDMXMVRFixtureListCollumnIDs::FixtureType)
 		.OnSort(this, &SDMXMVRFixtureList::SortByColumnID)
@@ -822,11 +812,7 @@ void SDMXMVRFixtureList::SaveHeaderRowSettings()
 			{
 				EditorSettings->MVRFixtureListSettings.FixtureIDColumnWidth = Column.Width.Get();
 			}
-			if (Column.ColumnId == FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
-			{
-				EditorSettings->MVRFixtureListSettings.NameColumnWidth = Column.Width.Get();
-			}
-			else if (Column.ColumnId == FDMXMVRFixtureListCollumnIDs::FixtureType)
+			if (Column.ColumnId == FDMXMVRFixtureListCollumnIDs::FixtureType)
 			{
 				EditorSettings->MVRFixtureListSettings.FixtureTypeColumnWidth = Column.Width.Get();
 			}
@@ -852,12 +838,6 @@ void SDMXMVRFixtureList::RestoresHeaderRowSettings()
 		if (FixtureIDColumnWidth > 20.f)
 		{
 			HeaderRow->SetColumnWidth(FDMXMVRFixtureListCollumnIDs::FixtureID, FixtureIDColumnWidth);
-		}
-
-		const float NameColumnWidth = EditorSettings->MVRFixtureListSettings.NameColumnWidth;
-		if (NameColumnWidth > 20.f)
-		{
-			HeaderRow->SetColumnWidth(FDMXMVRFixtureListCollumnIDs::MVRFixtureName, NameColumnWidth);
 		}
 
 		const float FixtureTypeColumnWidth = EditorSettings->MVRFixtureListSettings.FixtureTypeColumnWidth;
@@ -934,17 +914,6 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 					}
 				}();
 
-				return bAscending ? !bIsGreater : bIsGreater;
-			});
-	}
-	else if (ColumnId == FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
-	{
-		Algo::Sort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
-			{
-				const FString MVRFixtureNameA = ItemA->GetMVRFixtureName();
-				const FString MVRFixtureNameB = ItemB->GetMVRFixtureName();
-
-				const bool bIsGreater = MVRFixtureNameA >= MVRFixtureNameB;
 				return bAscending ? !bIsGreater : bIsGreater;
 			});
 	}

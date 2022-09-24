@@ -43,12 +43,6 @@ public:
 	/** Sets the Fixture ID. Note, as other hard- and software, we allow to set integer values only. */
 	void SetFixtureID(int32 InFixtureID);
 
-	/** Returns the Name of the MVR Fixture */
-	const FString& GetMVRFixtureName() const;
-
-	/** Sets the Name of the MVR Fixture */
-	bool SetMVRFixtureName(const FString& Name);
-
 	/** Returns the Fixture Type of the MVR Fixture */
 	UDMXEntityFixtureType* GetFixtureType() const;
 	
