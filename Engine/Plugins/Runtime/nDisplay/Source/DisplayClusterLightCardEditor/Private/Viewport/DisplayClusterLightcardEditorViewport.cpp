@@ -456,6 +456,16 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CycleEditorWidgetMode),
 			FCanExecuteAction()
 		);
+
+		// Remove commands that are being replaced by new specific commands for the nDisplay operator
+		CommandList->UnmapAction(Commands.Top);
+		CommandList->UnmapAction(Commands.Bottom);
+		CommandList->UnmapAction(Commands.Left);
+		CommandList->UnmapAction(Commands.Right);
+		CommandList->UnmapAction(Commands.Front);
+		CommandList->UnmapAction(Commands.Back);
+		CommandList->UnmapAction(Commands.FocusViewportToSelection);
+		CommandList->UnmapAction(Commands.FocusAllViewportsToSelection);
 	}
 
 	{
@@ -512,6 +522,12 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 		CommandList->MapAction(
 			Commands.ResetCamera,
 			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera, false));
+
+		CommandList->MapAction(
+			Commands.FrameSelection,
+			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::FrameSelection),
+			FCanExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::HasSelection)
+		);
 
 		CommandList->MapAction(
 			Commands.CycleEditorWidgetCoordinateSystem,
@@ -660,6 +676,12 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditorViewport::MakeContextMenu()
 	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
 	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
 	
+	MenuBuilder.BeginSection("View", LOCTEXT("ViewSection", "View"));
+	{
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().FrameSelection);
+	}
+	MenuBuilder.EndSection();
+
 	MenuBuilder.BeginSection("Edit", LOCTEXT("EditSection", "Edit"));
 	{
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);

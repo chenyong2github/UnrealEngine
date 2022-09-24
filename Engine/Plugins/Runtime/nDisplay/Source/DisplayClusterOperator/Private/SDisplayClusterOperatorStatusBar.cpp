@@ -25,6 +25,16 @@ void SDisplayClusterOperatorStatusBar::RegisterDrawer(FWidgetDrawerConfig&& Draw
 	WidgetDrawer->RegisterDrawer(MoveTemp(Drawer), SlotIndex);
 }
 
+bool SDisplayClusterOperatorStatusBar::IsDrawerOpened(const FName DrawerId) const
+{
+	return WidgetDrawer->IsDrawerOpened(DrawerId);
+}
+
+void SDisplayClusterOperatorStatusBar::OpenDrawer(const FName DrawerId)
+{
+	WidgetDrawer->OpenDrawer(DrawerId);
+}
+
 bool SDisplayClusterOperatorStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
 {
 	return WidgetDrawer->DismissDrawer(NewlyFocusedWidget);

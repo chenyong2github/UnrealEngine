@@ -9,6 +9,7 @@ class FTabManager;
 class FLayoutExtender;
 class FSpawnTabArgs;
 class FMenuBuilder;
+class FUICommandList;
 class SBox;
 class SDockTab;
 class SWindow;
@@ -39,10 +40,20 @@ public:
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedPtr<SWindow>& WindowOwner);
 
+	//~ SWidget interface
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+	//~ End SWidget interface
+
+	/** Toggles the state of a drawer with the specified ID, closing the drawer if it is open, and opening the drawer if it is closed */
+	void ToggleDrawer(const FName DrawerId);
+
 	/** Forces the operator panel to dismiss any open drawers */
 	void ForceDismissDrawers();
 
 private:
+	/** Binds any commands to the operator panel's command list, as well as allowing any external modules to register their own commands */
+	void BindCommands();
+
 	/** Creates a tab with the operator toolbar in it */
 	TSharedRef<SDockTab> SpawnToolbarTab(const FSpawnTabArgs& Args);
 
@@ -70,6 +81,9 @@ private:
 
 	/** A reference to the operator panel's status bar widget */
 	TSharedPtr<SDisplayClusterOperatorStatusBar> StatusBar;
+
+	/** A command list for processing commands for the window */
+	TSharedPtr<FUICommandList> CommandList;
 
 	/** The delegate handle for the operator module's OnDetailObjectsChanged event */
 	FDelegateHandle DetailObjectsChangedHandle;

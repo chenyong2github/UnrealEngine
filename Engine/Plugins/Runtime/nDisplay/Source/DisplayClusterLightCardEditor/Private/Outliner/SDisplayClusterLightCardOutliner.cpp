@@ -341,20 +341,29 @@ void SDisplayClusterLightCardOutliner::RegisterContextMenu(FName& InName, FToolM
 				Section.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
 			}
 			
-			FToolMenuSection& Section = InMenu->AddSection("LightCardEditSection", LOCTEXT("LightCardEditSectionName", "Edit"));
-
-			if (bAddFullEditMenu)
+			// View section
 			{
-				Section.AddMenuEntry(FGenericCommands::Get().Cut);
-				Section.AddMenuEntry(FGenericCommands::Get().Copy);
+				FToolMenuSection& Section = InMenu->AddSection("LightCardViewSection", LOCTEXT("LightCardviewSectionName", "View"));
+				Section.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().FrameSelection);
 			}
-			
-			Section.AddMenuEntry(FGenericCommands::Get().Paste);
-			
-			if (bAddFullEditMenu)
-			{	
-				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
-				Section.AddMenuEntry(FGenericCommands::Get().Delete);
+
+			// Edit section
+			{
+				FToolMenuSection& Section = InMenu->AddSection("LightCardEditSection", LOCTEXT("LightCardEditSectionName", "Edit"));
+
+				if (bAddFullEditMenu)
+				{
+					Section.AddMenuEntry(FGenericCommands::Get().Cut);
+					Section.AddMenuEntry(FGenericCommands::Get().Copy);
+				}
+
+				Section.AddMenuEntry(FGenericCommands::Get().Paste);
+
+				if (bAddFullEditMenu)
+				{
+					Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+					Section.AddMenuEntry(FGenericCommands::Get().Delete);
+				}
 			}
 		}));
 	}

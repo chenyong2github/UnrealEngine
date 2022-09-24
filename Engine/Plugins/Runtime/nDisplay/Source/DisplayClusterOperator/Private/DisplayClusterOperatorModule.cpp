@@ -83,6 +83,14 @@ void FDisplayClusterOperatorModule::ShowDetailsForObjects(const TArray<UObject*>
 	DetailObjectsChanged.Broadcast(Objects);
 }
 
+void FDisplayClusterOperatorModule::ToggleDrawer(const FName DrawerId)
+{
+	if (ActiveOperatorPanel.IsValid())
+	{
+		ActiveOperatorPanel.Pin()->ToggleDrawer(DrawerId);
+	}
+}
+
 void FDisplayClusterOperatorModule::ForceDismissDrawers()
 {
 	if (ActiveOperatorPanel.IsValid())

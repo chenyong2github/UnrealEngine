@@ -28,6 +28,12 @@ public:
 	/** Registers a new drawer with this status bar. Registering will add a button to open and close the drawer */
 	void RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex = INDEX_NONE);
 
+	/** Gets whether a drawer with the specified ID is currently open */
+	bool IsDrawerOpened(const FName DrawerId) const;
+
+	/** Opens a drawer with the specified ID */
+	void OpenDrawer(const FName DrawerId);
+
 	/**
 	 * Dismisses an open drawer with an animation.  The drawer contents are removed once the animation is complete
 	 *

@@ -2,6 +2,7 @@
 
 #include "DisplayClusterColorGradingDrawerSingleton.h"
 
+#include "DisplayClusterColorGradingCommands.h"
 #include "DisplayClusterColorGradingStyle.h"
 
 #include "DisplayClusterRootActor.h"
@@ -36,6 +37,7 @@ FDisplayClusterColorGradingDrawerSingleton::FDisplayClusterColorGradingDrawerSin
 
 	IDisplayClusterOperator::Get().OnRegisterLayoutExtensions().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::ExtendOperatorTabLayout);
 	IDisplayClusterOperator::Get().OnRegisterStatusBarExtensions().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::ExtendOperatorStatusBar);
+	IDisplayClusterOperator::Get().OnAppendOperatorPanelCommands().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::AppendOperatorPanelCommands);
 }
 
 FDisplayClusterColorGradingDrawerSingleton::~FDisplayClusterColorGradingDrawerSingleton()
@@ -142,6 +144,19 @@ void FDisplayClusterColorGradingDrawerSingleton::ExtendOperatorStatusBar(FDispla
 	ColorGradingDrawerConfig.Icon = FDisplayClusterColorGradingStyle::Get().GetBrush("ColorGradingDrawer.Icon");
 
 	StatusBarExtender.AddWidgetDrawer(ColorGradingDrawerConfig);
+}
+
+void FDisplayClusterColorGradingDrawerSingleton::AppendOperatorPanelCommands(TSharedRef<FUICommandList> OperatorPanelCommandList)
+{
+	OperatorPanelCommandList->MapAction(
+		FDisplayClusterColorGradingCommands::Get().OpenColorGradingDrawer,
+		FExecuteAction::CreateRaw(this, &FDisplayClusterColorGradingDrawerSingleton::OpenColorGradingDrawer)
+	);
+}
+
+void FDisplayClusterColorGradingDrawerSingleton::OpenColorGradingDrawer()
+{
+	IDisplayClusterOperator::Get().ToggleDrawer(ColorGradingDrawerId);
 }
 
 void FDisplayClusterColorGradingDrawerSingleton::SaveDrawerState(const TSharedPtr<SWidget>& DrawerContent)

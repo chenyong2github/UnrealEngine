@@ -94,6 +94,9 @@ public:
 	/** Selects the actor proxies that correspond to the specified actors */
 	void SelectActors(const TArray<AActor*>& ActorsToSelect);
 
+	/** Gets whether any items are selected in the viewport */
+	bool HasSelection() const;
+
 	FDisplayClusterLightCardEditorWidget::EWidgetMode GetEditorWidgetMode() const { return EditorWidget->GetWidgetMode(); }
 	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode);
 
@@ -114,6 +117,9 @@ public:
 
 	/** Resets the camera to the initial rotation / position */
 	void ResetCamera(bool bLocationOnly = false);
+
+	/** Frames the currently selected items in the viewport */
+	void FrameSelection();
 
 	/** Cycles the editor widget's coordinate system between cartesian and spherical */
 	void CycleCoordinateSystem();

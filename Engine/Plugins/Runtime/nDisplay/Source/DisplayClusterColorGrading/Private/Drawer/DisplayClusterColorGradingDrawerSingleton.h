@@ -9,6 +9,7 @@
 class FDisplayClusterOperatorStatusBarExtender;
 class FLayoutExtender;
 class FSpawnTabArgs;
+class FUICommandList;
 class SWidget;
 class SDockTab;
 
@@ -44,6 +45,12 @@ private:
 
 	/** Status bar extender delegate callback that registers the drawer spawner with the operator panel's status bar */
 	void ExtendOperatorStatusBar(FDisplayClusterOperatorStatusBarExtender& StatusBarExtender);
+
+	/** Delegate callback that appends the operator panel command list to add color grading drawer commands */
+	void AppendOperatorPanelCommands(TSharedRef<FUICommandList> OperatorPanelCommandList);
+
+	/** Opens the color grading drawer */
+	void OpenColorGradingDrawer();
 
 	/** Delegate callback when the drawer is closed to save the drawer state */
 	void SaveDrawerState(const TSharedPtr<SWidget>& DrawerContent);

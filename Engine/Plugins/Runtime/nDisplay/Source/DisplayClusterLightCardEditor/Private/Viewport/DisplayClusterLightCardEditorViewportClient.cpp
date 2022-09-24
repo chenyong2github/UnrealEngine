@@ -1090,13 +1090,22 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 			}
 			else if (!bMultiSelect)
 			{
-				SelectActor(nullptr);
+
+				// Unless a right click is being performed, clear the selection if no geometry was clicked
+				if (!bIsRightClickSelection)
+				{
+					SelectActor(nullptr);
+				}
 			}
 		}
 	}
 	else
 	{
-		SelectActor(nullptr);
+		// Unless a right click is being performed, clear the selection if no geometry was clicked
+		if (!bIsRightClickSelection)
+		{
+			SelectActor(nullptr);
+		}
 	}
 	
 	PropagateActorSelection();
@@ -1632,6 +1641,11 @@ void FDisplayClusterLightCardEditorViewportClient::SelectActors(const TArray<AAc
 	}
 }
 
+bool FDisplayClusterLightCardEditorViewportClient::HasSelection() const
+{
+	return SelectedActors.Num() > 0;
+}
+
 void FDisplayClusterLightCardEditorViewportClient::SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode)
 {
 	// Force the coordinate system back to spherical if the widget mode is set to anything besides translate
@@ -1723,6 +1737,107 @@ void FDisplayClusterLightCardEditorViewportClient::ResetCamera(bool bLocationOnl
 
 	ResetFOVs();
 	ResetCameraProjectionTransforms();
+}
+
+void FDisplayClusterLightCardEditorViewportClient::FrameSelection()
+{
+	TArray<FVector> SelectionPositions;
+	FVector AveragePosition = FVector::ZeroVector;
+
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+	{
+		FVector2D AverageUVCoords = FVector2D::ZeroVector;
+
+		const float UVPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+		const float UVPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+		for (const FDisplayClusterWeakStageActorPtr& Actor : SelectedActors)
+		{
+			if (Actor.IsValid() && Actor->IsUVActor())
+			{
+				const FVector2D UVCoords = Actor->GetUVCoordinates();
+				const FVector ProxyPosition = FVector(UVPlaneDistance, UVPlaneSize * (UVCoords.X - 0.5f), UVPlaneSize * (0.5f - UVCoords.Y));
+				AverageUVCoords += Actor->GetUVCoordinates();
+				SelectionPositions.Add(ProxyPosition);
+			}
+		}
+
+		if (SelectionPositions.Num())
+		{
+			AverageUVCoords /= SelectionPositions.Num();
+			AveragePosition = FVector(UVPlaneDistance, UVPlaneSize *(AverageUVCoords.X - 0.5f), UVPlaneSize * (0.5f - AverageUVCoords.Y));
+
+			const FVector ViewLocation = FVector(0.0f, AveragePosition.Y, AveragePosition.Z);
+			SetViewLocation(ViewLocation);
+		}
+	}
+	else
+	{
+		for (const FDisplayClusterWeakStageActorPtr& Actor : SelectedActors)
+		{
+			if (Actor.IsValid() && !Actor->IsUVActor())
+			{
+				const FVector ActorPosition = Actor->GetStageActorTransform().GetLocation() - GetViewLocation();
+				AveragePosition += ActorPosition;
+				SelectionPositions.Add(ActorPosition);
+			}
+		}
+
+		if (SelectionPositions.Num())
+		{
+			AveragePosition /= SelectionPositions.Num();
+
+			SetViewRotation(AveragePosition.GetSafeNormal().ToOrientationRotator());
+		}
+	}
+
+	if (SelectionPositions.Num() > 1)
+	{
+		// In the case where more than one actor is selected, the view's FOV may need to be increased so that all selected items are in view
+
+		float MaxTheta = 0;
+		if (RenderViewportType == ELevelViewportType::LVT_Perspective)
+		{
+			// For perspective projection, find the largest angle from the averaged position, and if the current FOV is smaller than that, set the FOV to be equal to that angle
+			const FVector NormalizedAveragePos = AveragePosition.GetSafeNormal();
+			for (const FVector& SelectionPosition : SelectionPositions)
+			{
+				float Theta = FMath::RadiansToDegrees(FMath::Acos(SelectionPosition.GetSafeNormal() | NormalizedAveragePos));
+				MaxTheta = FMath::Clamp(MaxTheta, Theta, 90.0f);
+			}
+		}
+		else
+		{
+			// For orthographic projection, rotate each selected actor position into view space, and compute the bounding box of all positions.
+			// From this, compute the FOV needed to match those bounds (as per GetSceneViewInitOptions, the ortho projection size is equal
+			// to 0.5 * tan(0.5 * FOV) * ViewportSize / DPI)
+			const FMatrix ViewBasis = FRotationMatrix::MakeFromX(AveragePosition.GetSafeNormal());
+
+			FBox FrameBounds(EForceInit::ForceInit);
+			for (const FVector& SelectionPosition : SelectionPositions)
+			{
+				const FVector ViewPosition = ViewBasis.TransformVector(SelectionPosition);
+				FrameBounds += ViewPosition;
+			}
+
+			const FVector2D FrameSize(FrameBounds.GetSize().Y, FrameBounds.GetSize().Z);
+			const FVector2D ViewportSize = Viewport->GetSizeXY();
+			const float DPIScale = GetDPIScale();
+
+			const float ThetaX = FMath::Atan(2 * DPIScale * FrameSize.X / ViewportSize.X);
+			const float ThetaY = FMath::Atan(2 * DPIScale * FrameSize.Y / ViewportSize.Y);
+			MaxTheta = FMath::RadiansToDegrees(FMath::Max(ThetaX, ThetaY));
+		}
+
+		// Only change the FOV if the FOV needed to frame the selection is larger than the current FOV
+		const float HalfFOV = 0.5f * GetProjectionModeFOV(ProjectionMode);
+		if (MaxTheta > HalfFOV)
+		{
+			// Round up the new FOV to the nearest scroll increment, to give the frame a comfortable amount of extra space
+			const float NewFOV = FMath::DivideAndRoundUp(2.0f * MaxTheta, FOVScrollIncrement) * FOVScrollIncrement;
+			SetProjectionModeFOV(ProjectionMode, FMath::Clamp(NewFOV, CameraController->GetConfig().MinimumAllowedFOV, CameraController->GetConfig().MaximumAllowedFOV));
+		}
+	}
 }
 
 void FDisplayClusterLightCardEditorViewportClient::CycleCoordinateSystem()

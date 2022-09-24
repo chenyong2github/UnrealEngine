@@ -24,6 +24,7 @@ public:
 public:
 	// Viewport commands
 	TSharedPtr<FUICommandInfo> ResetCamera;
+	TSharedPtr<FUICommandInfo> FrameSelection;
 
 	TSharedPtr<FUICommandInfo> PerspectiveProjection;
 	TSharedPtr<FUICommandInfo> OrthographicProjection;

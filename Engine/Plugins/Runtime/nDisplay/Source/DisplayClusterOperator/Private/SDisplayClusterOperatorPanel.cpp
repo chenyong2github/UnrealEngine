@@ -8,11 +8,13 @@
 #include "SDisplayClusterOperatorStatusBar.h"
 #include "DisplayClusterOperatorStatusBarExtender.h"
 
+#include "Editor.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SKismetInspector.h"
+#include "TimerManager.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #include "Components/ActorComponent.h"
@@ -31,6 +33,9 @@ SDisplayClusterOperatorPanel::~SDisplayClusterOperatorPanel()
 
 void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedPtr<SWindow>& WindowOwner)
 {
+	CommandList = MakeShareable(new FUICommandList);
+	BindCommands();
+
 	TabManager = InTabManager;
 	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("OperatorMenuGroupName", "In-Camera VFX"));
 	TabManager->SetAllowWindowMenuBar(true);
@@ -131,11 +136,54 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 	}
 }
 
+FReply SDisplayClusterOperatorPanel::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (CommandList.IsValid() && CommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+void SDisplayClusterOperatorPanel::ToggleDrawer(const FName DrawerId)
+{
+	if (StatusBar.IsValid())
+	{
+		bool bWasDismissed = false;
+
+		if (StatusBar->IsDrawerOpened(DrawerId))
+		{
+			StatusBar->DismissDrawer(nullptr);
+			bWasDismissed = true;
+		}
+
+		if (!bWasDismissed)
+		{
+			GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this, DrawerId]()
+			{
+				if (StatusBar.IsValid())
+				{
+					StatusBar->OpenDrawer(DrawerId);
+				}
+			}));
+		}
+	}
+}
+
 void SDisplayClusterOperatorPanel::ForceDismissDrawers()
 {
 	if (StatusBar.IsValid())
 	{
 		StatusBar->DismissDrawer(nullptr);
+	}
+}
+
+void SDisplayClusterOperatorPanel::BindCommands()
+{
+	if (CommandList.IsValid())
+	{
+		IDisplayClusterOperator::Get().OnAppendOperatorPanelCommands().Broadcast(CommandList.ToSharedRef());
 	}
 }
 

@@ -23,4 +23,6 @@ public:
 	TSharedPtr<FUICommandInfo> ContrastColorWheelVisibility;
 	TSharedPtr<FUICommandInfo> ColorWheelSliderOrientationHorizontal;
 	TSharedPtr<FUICommandInfo> ColorWheelSliderOrientationVertical;
+
+	TSharedPtr<FUICommandInfo> OpenColorGradingDrawer;
 };
