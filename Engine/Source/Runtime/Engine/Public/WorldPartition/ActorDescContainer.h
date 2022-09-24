@@ -20,7 +20,27 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 	friend class FWorldPartitionActorDesc;
 
 public:
+	/* Struct of parameters passed to Initialize function. */
+	struct ENGINE_API FInitializeParams
+	{
+		FInitializeParams(UWorld* InWorld, FName InPackageName)
+			: World(InWorld)
+			, PackageName(InPackageName)
+		{}
+
+		/* The world the actor descriptor container is associated with. */
+		UWorld* World;
+			
+		/* The long package name of the container package on disk. */
+		FName PackageName;
+
+		/* Custom filter function used to filter actors descriptors. */
+		TUniqueFunction<bool(const FWorldPartitionActorDesc*)> FilterActorDesc;
+	};
+
+	UE_DEPRECATED(5.1, "UActorDescContainer::Initialize is deprecated, UActorDescContainer::Initialize with UActorDescContainer::FInitializeParams should be used instead.")
 	void Initialize(UWorld* World, FName InPackageName);
+	void Initialize(const FInitializeParams& InitParams);
 	void Uninitialize();
 	
 	virtual UWorld* GetWorld() const override;
@@ -65,7 +85,7 @@ public:
 	const FTransform& GetInstanceTransform() const;
 
 	bool HasInvalidActors() const { return InvalidActors.Num() > 0; }
-	const TArray<FAssetData>& GetInvalidActors() const { return InvalidActors; }
+	const TArray<TUniquePtr<FWorldPartitionActorDesc>>& GetInvalidActors() const { return InvalidActors; }
 	void ClearInvalidActors() { InvalidActors.Empty(); }
 #endif
 
@@ -95,7 +115,7 @@ protected:
 	FName ContainerPackageName;
 	FGuid ContentBundleGuid;
 
-	TArray<FAssetData> InvalidActors;
+	TArray<TUniquePtr<FWorldPartitionActorDesc>> InvalidActors;
 #endif
 
 private:

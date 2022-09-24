@@ -1468,7 +1468,7 @@ UActorDescContainer* ULevelInstanceSubsystem::FActorDescContainerInstanceManager
 		ExistingContainerInstance->Container = ActorDescContainer;
 		
 		// This will potentially invalidate ExistingContainerInstance due to ActorDescContainers reallocation
-		ActorDescContainer->Initialize(InWorld, PackageName);
+		ActorDescContainer->Initialize({ InWorld, PackageName });
 			
 		ExistingContainerInstance = &ActorDescContainers.FindChecked(PackageName);
 		ExistingContainerInstance->UpdateBounds();

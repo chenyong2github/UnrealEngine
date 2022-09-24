@@ -1121,23 +1121,26 @@ void FActorBrowsingMode::RepairErrors() const
 			ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 			ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
 
-			TArray<FAssetData> InvalidActors;
-			WorldPartition->ForEachActorDescContainer([&InvalidActors ](UActorDescContainer* ActorDescContainer)
+			TArray<FWorldPartitionActorDesc*> InvalidActorDescs;
+			WorldPartition->ForEachActorDescContainer([&InvalidActorDescs](UActorDescContainer* ActorDescContainer)
 			{
-				InvalidActors += ActorDescContainer->GetInvalidActors();
+				for (const TUniquePtr<FWorldPartitionActorDesc>& InvalidActor : ActorDescContainer->GetInvalidActors())
+				{
+					InvalidActorDescs.Add(InvalidActor.Get());
+				}
 				ActorDescContainer->ClearInvalidActors();
 			});
 
 			TArray<FString> ActorFilesToDelete;
 			TArray<FString> ActorFilesToRevert;
 			{
-				FScopedSlowTask SlowTask(InvalidActors.Num(), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
+				FScopedSlowTask SlowTask(InvalidActorDescs.Num(), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
 				SlowTask.MakeDialogDelayed(1.0f);
 
-				for (const FAssetData& InvalidActor : InvalidActors)
+				for (const FWorldPartitionActorDesc* InvalidActorDesc : InvalidActorDescs)
 				{
 					FPackagePath PackagePath;
-					if (FPackagePath::TryFromPackageName(InvalidActor.PackageName, PackagePath))
+					if (FPackagePath::TryFromPackageName(InvalidActorDesc->GetActorPackage(), PackagePath))
 					{
 						const FString ActorFile = PackagePath.GetLocalFullPath();
 						FSourceControlStatePtr SCState = SourceControlProvider.GetState(ActorFile, EStateCacheUsage::ForceUpdate);

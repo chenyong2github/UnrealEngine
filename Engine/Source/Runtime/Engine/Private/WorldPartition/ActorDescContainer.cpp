@@ -26,11 +26,17 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 
 void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 {
-	check(!World || World == InWorld);
-	World = InWorld;
+	Initialize({ InWorld, InPackageName });
+}
+
+void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
+{
+	check(!World || World == InitParams.World);
+	World = InitParams.World;
+
 #if WITH_EDITOR
 	check(!bContainerInitialized);
-	ContainerPackageName = InPackageName;
+	ContainerPackageName = InitParams.PackageName;
 	TArray<FAssetData> Assets;
 
 	if (!ContainerPackageName.IsNone())
@@ -53,13 +59,13 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 	{
 		TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
 
-		if (ActorDesc.IsValid())
+		if (ActorDesc.IsValid() && (!InitParams.FilterActorDesc || InitParams.FilterActorDesc(ActorDesc.Get())))
 		{
 			AddActorDescriptor(ActorDesc.Release());
 		}
 		else
 		{
-			InvalidActors.Add(Asset);
+			InvalidActors.Emplace(MoveTemp(ActorDesc));
 		}
 	}
 

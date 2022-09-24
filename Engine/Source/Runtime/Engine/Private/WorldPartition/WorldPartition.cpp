@@ -1071,22 +1071,6 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->UnhashActor(ActorHandle);
 }
-
-void UWorldPartition::HashActorDescContainer(UActorDescContainer* InActorDescContainer)
-{
-	for (UActorDescContainer::TIterator<> It(InActorDescContainer); It; ++It)
-	{
-		HashActorDesc(*It);
-	}
-}
-
-void UWorldPartition::UnhashActorDescContainer(UActorDescContainer* InActorDescContainer)
-{
-	for (UActorDescContainer::TIterator<> It(InActorDescContainer); It; ++It)
-	{
-		UnhashActorDesc(*It);
-	}
-}
 #endif
 
 void UWorldPartition::Serialize(FArchive& Ar)
@@ -1486,7 +1470,11 @@ UActorDescContainer* UWorldPartition::RegisterActorDescContainer(const FName& Co
 	if (!Contains(ContainerPackage))
 	{
 		UActorDescContainer* ContainerToRegister = NewObject<UActorDescContainer>(this);
-		ContainerToRegister->Initialize(GetWorld(), ContainerPackage);
+
+		UActorDescContainer::FInitializeParams ContainerInitParams(GetWorld(), ContainerPackage);
+		ContainerInitParams.FilterActorDesc = [this](const FWorldPartitionActorDesc* ActorDesc) { return !GetActorDesc(ActorDesc->GetGuid()); };
+		ContainerToRegister->Initialize(ContainerInitParams);
+
 		AddContainer(ContainerToRegister);
 
 		if (IsInitialized() && EditorHash != nullptr)
@@ -1501,7 +1489,10 @@ UActorDescContainer* UWorldPartition::RegisterActorDescContainer(const FName& Co
 				}
 			}
 
-			HashActorDescContainer(ContainerToRegister);
+			for (UActorDescContainer::TIterator<> It(ContainerToRegister); It; ++It)
+			{
+				HashActorDesc(*It);
+			}
 		}
 
 		OnActorDescContainerRegistered.Broadcast(ContainerToRegister);
@@ -1533,7 +1524,10 @@ bool UWorldPartition::UnregisterActorDescContainer(UActorDescContainer* InActorD
 
 		if (IsInitialized() && EditorHash != nullptr)
 		{
-			UnhashActorDescContainer(InActorDescContainer);
+			for (UActorDescContainer::TIterator<> It(InActorDescContainer); It; ++It)
+			{
+				UnhashActorDesc(*It);
+			}
 		}
 
 		InActorDescContainer->Uninitialize();

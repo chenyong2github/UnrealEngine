@@ -184,7 +184,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		{
 			// Find in memory failed, load the ActorDescContainer
 			ActorDescContainer = NewObject<UActorDescContainer>();
-			ActorDescContainer->Initialize(nullptr, MapPath.GetPackageName());
+			ActorDescContainer->Initialize({ nullptr, MapPath.GetPackageName() });
 		}
 
 		// Build a set of Relevant Actor Guids to scope error messages to what's contained in the CL 
