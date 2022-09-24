@@ -12,6 +12,8 @@
 
 FPerforceSourceControlSettings::FPerforceSourceControlSettings(const FPerforceSourceControlProvider& InSCCProvider, const FStringView& OwnerName)
 	: SCCProvider(InSCCProvider)
+	, bCanSaveToIniFile(true)
+	, bCanLoadFromIniFile(true)
 {
 	if (OwnerName.IsEmpty())
 	{
@@ -107,8 +109,23 @@ void FPerforceSourceControlSettings::ImportP4Config()
 	ConnectionInfo.Workspace = ANSI_TO_TCHAR(TestP4.GetClient().Text());
 }
 
+void FPerforceSourceControlSettings::SetAllowSave(bool bFlag)
+{
+	bCanSaveToIniFile = bFlag;
+}
+
+void FPerforceSourceControlSettings::SetAllowLoad(bool bFlag)
+{
+	bCanLoadFromIniFile = bFlag;
+}
+
 void FPerforceSourceControlSettings::LoadSettings()
 {
+	if (!bCanLoadFromIniFile)
+	{
+		return;
+	}
+
 	FScopeLock ScopeLock(&CriticalSection);
 	const FString& IniFile = SourceControlHelpers::GetSettingsIni();
 
@@ -132,7 +149,7 @@ void FPerforceSourceControlSettings::LoadSettings()
 
 void FPerforceSourceControlSettings::SaveSettings() const
 {
-	if (FApp::IsUnattended() || IsRunningCommandlet())
+	if (FApp::IsUnattended() || IsRunningCommandlet() || !bCanSaveToIniFile)
 	{
 		return;
 	}

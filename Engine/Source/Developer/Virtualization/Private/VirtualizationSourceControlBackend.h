@@ -56,6 +56,18 @@ class FSemaphore;
  *											should use as the root location to submit payloads from.
  *											If the users machine has this set then 'SubmitFromTempDir' 
  *											will be ignored. 
+ * 
+ * Perforce Setup
+ * The backend will attempt to use the current global environment settings for perforce to determine 
+ * the P4PORT and P4USER values. If you wish to set them via an ini file then they can be done per
+ * user by adding the following to Saved\Config\<platform>Editor\SourceControlSettings.ini
+ * 
+ * -----
+ * [PerforceSourceControl.VirtualizationSettings]
+ * Port=<server address>
+ * UserName=<username>
+ * -----
+ * Note that the backend will read from these ini file settings but will not write to them.
  */
 class FSourceControlBackend final : public IVirtualizationBackend
 {

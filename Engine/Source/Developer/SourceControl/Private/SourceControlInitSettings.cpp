@@ -5,16 +5,28 @@
 #include "Containers/StringView.h"
 
 FSourceControlInitSettings::FSourceControlInitSettings(EBehavior InBehavior)
-	: Behavior(InBehavior)
+	: OverrideBehavior(InBehavior)
 {
 
 }
 
+void FSourceControlInitSettings::SetConfigBehavior(EConfigBehavior InBehavior)
+{
+	ConfigBehavior = InBehavior;
+}
+
+bool FSourceControlInitSettings::CanWriteToConfigFile() const
+{
+	return ConfigBehavior == EConfigBehavior::ReadWrite;
+}
+
+bool FSourceControlInitSettings::CanReadFromConfigFile() const
+{
+	return ConfigBehavior != EConfigBehavior::None;
+}
+
 void FSourceControlInitSettings::AddSetting(FStringView SettingName, FStringView SettingValue)
 {
-//	const int32 Hash = GetTypeHash(SettingName);
-//	Settings.AddByHash(Hash, SettingName, SettingValue)
-
 	Settings.Add(FString(SettingName), FString(SettingValue));
 }
 
@@ -27,7 +39,7 @@ void FSourceControlInitSettings::OverrideSetting(FStringView SettingName, FStrin
 	{
 		InOutSettingValue = *InitialValue;
 	}
-	else if (Behavior == EBehavior::OverrideAll)
+	else if (OverrideBehavior == EBehavior::OverrideAll)
 	{
 		InOutSettingValue.Empty();
 	}

@@ -261,6 +261,8 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 
 	// We do not want the connection to have a client workspace so explicitly set it to empty
 	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideExisting);
+	SCCSettings.SetConfigBehavior(FSourceControlInitSettings::EConfigBehavior::ReadOnly);
+
 	if (!ServerAddress.IsEmpty())
 	{
 		SCCSettings.AddSetting(TEXT("P4Port"), ServerAddress);

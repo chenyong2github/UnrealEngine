@@ -60,6 +60,9 @@ FPerforceSourceControlProvider::FPerforceSourceControlProvider(const FStringView
 	, bLoginError(false)
 	, PersistentConnection(nullptr)
 {
+	AccessSettings().SetAllowSave(InInitialSettings.CanWriteToConfigFile());
+	AccessSettings().SetAllowLoad(InInitialSettings.CanReadFromConfigFile());
+
 	AccessSettings().LoadSettings();
 }
 

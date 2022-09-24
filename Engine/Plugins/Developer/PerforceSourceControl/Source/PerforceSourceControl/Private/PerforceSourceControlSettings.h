@@ -47,6 +47,12 @@ public:
 
 	void SetUseP4Config(bool bInUseP4Config);
 
+	/** When set to true the settings can be saved to an ini file, when false nothing will be saved */
+	void SetAllowSave(bool bFlag);
+	
+	/** When set to true the settings can be read from an ini file, when false nothing will be read */
+	void SetAllowLoad(bool bFlag);
+
 	/** Load settings from ini file */
 	void LoadSettings();
 
@@ -77,4 +83,10 @@ private:
 
 	/** The source control provider that this object is associated with */
 	const FPerforceSourceControlProvider& SCCProvider;
+
+	/** Controls whether the settings can be saved to an ini file or not */
+	bool bCanSaveToIniFile;
+
+	/** Controls whether the settings can be read from an ini file or not */
+	bool bCanLoadFromIniFile;
 };
