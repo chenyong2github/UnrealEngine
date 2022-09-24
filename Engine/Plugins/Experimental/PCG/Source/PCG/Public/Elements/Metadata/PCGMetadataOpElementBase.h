@@ -22,6 +22,7 @@ namespace PCGMetadataSettingsBaseConstants
 	const FName ClampMinLabel = TEXT("Min");
 	const FName ClampMaxLabel = TEXT("Max");
 	const FName LerpRatioLabel = TEXT("Ratio");
+	const FName TransformLabel = TEXT("Transform");
 }
 
 // Defines behavior when number of entries doesn't match in inputs
@@ -149,7 +150,7 @@ inline void FPCGMetadataElementBase::DoUnaryOp(FOperationData& OperationData, TF
 
 			OutType OutputValue = UnaryOp(Value);
 
-			OutputAttribute->SetValue(EntryKey, Value);
+			OutputAttribute->SetValue(EntryKey, OutputValue);
 		}
 
 		++Iterator1;
