@@ -2,4 +2,4 @@
 
 #include "Modules/ModuleManager.h"
 	
-IMPLEMENT_MODULE(FDefaultModuleImpl, UISystem)
+IMPLEMENT_MODULE(FDefaultModuleImpl, UIFramework)
