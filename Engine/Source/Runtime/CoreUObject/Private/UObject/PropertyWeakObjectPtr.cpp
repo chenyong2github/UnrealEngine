@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealType.h"
+#include "UObject/LinkerPlaceholderExportObject.h"
+#include "UObject/LinkerPlaceholderClass.h"
 
 /*-----------------------------------------------------------------------------
 	FWeakObjectProperty.
@@ -56,11 +58,31 @@ void FWeakObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* V
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
-	UObject* ObjectValue = GetObjectPropertyValue(Value);
+	UObject* OldObjectValue = GetObjectPropertyValue(Value);
 	Slot << *(FWeakObjectPtr*)Value;
-	if ((UnderlyingArchive.IsLoading() || UnderlyingArchive.IsModifyingWeakAndStrongReferences()) && ObjectValue != GetObjectPropertyValue(Value))
+
+	if (UnderlyingArchive.IsLoading() || UnderlyingArchive.IsModifyingWeakAndStrongReferences())
 	{
-		CheckValidObject(Value, nullptr); // FWeakObjectProperty is never non-nullable at this point so it's ok to pass null as the current value
+		UObject* NewObjectValue = GetObjectPropertyValue(Value);
+
+		if (OldObjectValue != NewObjectValue)
+		{
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+			if (UnderlyingArchive.IsLoading() && !UnderlyingArchive.IsObjectReferenceCollector())
+			{
+				if (ULinkerPlaceholderExportObject* PlaceholderVal = Cast<ULinkerPlaceholderExportObject>(NewObjectValue))
+				{
+					PlaceholderVal->AddReferencingPropertyValue(this, Value);
+				}
+				else if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(NewObjectValue))
+				{
+					PlaceholderClass->AddReferencingPropertyValue(this, Value);
+				}
+			}
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+
+			CheckValidObject(Value, nullptr); // FWeakObjectProperty is never non-nullable at this point so it's ok to pass null as the current value
+		}
 	}
 }
 
