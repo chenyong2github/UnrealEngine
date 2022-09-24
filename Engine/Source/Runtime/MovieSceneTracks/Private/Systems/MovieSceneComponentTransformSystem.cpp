@@ -10,6 +10,8 @@
 
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneComponentTransformSystem)
+
 UMovieSceneComponentTransformSystem::UMovieSceneComponentTransformSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -33,3 +35,4 @@ void UMovieSceneComponentTransformSystem::OnRun(FSystemTaskPrerequisites& InPrer
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+

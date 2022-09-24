@@ -2,6 +2,8 @@
 
 #include "ARTextures.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARTextures)
+
 UARTexture::UARTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -24,3 +26,4 @@ UAREnvironmentCaptureProbeTexture::UAREnvironmentCaptureProbeTexture(const FObje
 	, TextureType(EARTextureType::EnvironmentCapture)
 {
 }
+

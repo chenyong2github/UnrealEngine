@@ -12,6 +12,8 @@
 #include "Components/BrushComponent.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioVolume)
+
 FInteriorSettings::FInteriorSettings()
 	: bIsWorldSettings(false)
 	, ExteriorVolume(1.0f)
@@ -370,3 +372,4 @@ void AAudioVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 
 }
 #endif // WITH_EDITOR
+

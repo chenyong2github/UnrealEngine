@@ -12,6 +12,8 @@
 #include "Misc/CoreDelegates.h"
 #include "MoviePlayerProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameState)
+
 AGameState::AGameState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -192,3 +194,4 @@ void AGameState::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLi
 }
 
 /// @endcond
+

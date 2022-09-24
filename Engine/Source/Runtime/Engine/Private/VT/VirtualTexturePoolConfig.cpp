@@ -2,6 +2,8 @@
 
 #include "VT/VirtualTexturePoolConfig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VirtualTexturePoolConfig)
+
 UVirtualTexturePoolConfig::UVirtualTexturePoolConfig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -44,3 +46,4 @@ void UVirtualTexturePoolConfig::FindPoolConfig(TEnumAsByte<EPixelFormat> const* 
 
 	OutConfig = DefaultConfig;
 }
+

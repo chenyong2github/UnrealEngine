@@ -15,6 +15,9 @@
 #include "BehaviorTree/BTCompositeNode.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/Tasks/BTTask_RunBehavior.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BehaviorTreeManager)
+
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #endif // WITH_EDITOR
@@ -526,3 +529,4 @@ UBehaviorTreeManager* UBehaviorTreeManager::GetCurrent(UObject* WorldContextObje
 	UAISystem* AISys = UAISystem::GetCurrentSafe(World);
 	return AISys ? AISys->GetBehaviorTreeManager() : nullptr;
 }
+

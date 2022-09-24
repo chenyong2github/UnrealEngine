@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnMovementComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogPawnMovementComponent, Log, All);
 
 

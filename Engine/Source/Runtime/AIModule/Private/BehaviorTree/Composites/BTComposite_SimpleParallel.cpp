@@ -6,6 +6,8 @@
 #include "BehaviorTree/BTTaskNode.h"
 #include "BehaviorTree/BTAuxiliaryNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTComposite_SimpleParallel)
+
 UBTComposite_SimpleParallel::UBTComposite_SimpleParallel(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Simple Parallel";
@@ -208,3 +210,4 @@ FName UBTComposite_SimpleParallel::GetNodeIconName() const
 }
 
 #endif // WITH_EDITOR
+

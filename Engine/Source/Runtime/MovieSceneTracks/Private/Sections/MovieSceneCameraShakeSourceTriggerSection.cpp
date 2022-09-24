@@ -3,6 +3,8 @@
 #include "Sections/MovieSceneCameraShakeSourceTriggerSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeSourceTriggerSection)
+
 UMovieSceneCameraShakeSourceTriggerSection::UMovieSceneCameraShakeSourceTriggerSection(const FObjectInitializer& Init)
 	: Super(Init)
 {
@@ -12,4 +14,5 @@ UMovieSceneCameraShakeSourceTriggerSection::UMovieSceneCameraShakeSourceTriggerS
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(Channel);
 #endif
 }
+
 

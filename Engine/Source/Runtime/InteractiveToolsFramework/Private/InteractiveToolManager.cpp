@@ -6,6 +6,8 @@
 #include "InteractiveToolsContext.h"
 #include "ContextObjectStore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InteractiveToolManager)
+
 #define LOCTEXT_NAMESPACE "UInteractiveToolManager"
 
 
@@ -587,3 +589,4 @@ FString FToolChangeWrapperChange::ToString() const
 
 
 #undef LOCTEXT_NAMESPACE
+

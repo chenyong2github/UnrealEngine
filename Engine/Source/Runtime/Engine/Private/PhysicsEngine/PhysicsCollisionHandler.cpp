@@ -6,6 +6,8 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsCollisionHandler)
+
 UPhysicsCollisionHandler::UPhysicsCollisionHandler(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -96,3 +98,4 @@ void UPhysicsCollisionHandler::HandlePhysicsCollisions_AssumesLocked(TArray<FCol
 		}
 	}
 }
+

@@ -17,6 +17,8 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/InputSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerInput)
+
 DECLARE_CYCLE_STAT(TEXT("    PC Gesture Recognition"), STAT_PC_GestureRecognition, STATGROUP_PlayerController);
 
 bool bExecutingBindCommand = false;
@@ -2243,3 +2245,4 @@ class UWorld* UPlayerInput::GetWorld() const
 	
 	return Super::GetWorld();
 }
+

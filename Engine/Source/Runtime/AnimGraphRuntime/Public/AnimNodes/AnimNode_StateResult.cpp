@@ -2,6 +2,8 @@
 
 #include "AnimNode_StateResult.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_StateResult)
+
 bool FAnimNode_StateResult::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
 	if(Tag.Type == NAME_StructProperty && Tag.StructName == FAnimNode_Root::StaticStruct()->GetFName())
@@ -20,3 +22,4 @@ int32 FAnimNode_StateResult::GetStateIndex() const
 {
 	return GET_ANIM_NODE_DATA(int32, StateIndex);
 }
+

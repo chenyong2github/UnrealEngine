@@ -2,6 +2,8 @@
 
 #include "Animation/PreviewAssetAttachComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PreviewAssetAttachComponent)
+
 void FPreviewAssetAttachContainer::AddAttachedObject( UObject* AttachObject, FName AttachPointName )
 {
 	FPreviewAttachedObjectPair Pair;
@@ -112,3 +114,4 @@ int32 FPreviewAssetAttachContainer::ValidatePreviewAttachedObjects()
 
 	return NumBrokenAssets;
 }
+

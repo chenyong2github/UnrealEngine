@@ -6,6 +6,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneParameterTemplate)
+
 
 FMovieSceneParameterSectionTemplate::FMovieSceneParameterSectionTemplate(const UMovieSceneParameterSection& Section)
 	: Scalars(Section.GetScalarParameterNamesAndCurves())
@@ -111,3 +113,4 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 		}
 	}
 }
+

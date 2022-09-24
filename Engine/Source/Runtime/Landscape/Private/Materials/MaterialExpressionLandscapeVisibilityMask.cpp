@@ -7,6 +7,8 @@
 #include "MaterialCompiler.h"
 #include "Materials/Material.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLandscapeVisibilityMask)
+
 #define LOCTEXT_NAMESPACE "Landscape"
 
 
@@ -62,3 +64,4 @@ void UMaterialExpressionLandscapeVisibilityMask::GetCaption(TArray<FString>& Out
 
 
 #undef LOCTEXT_NAMESPACE
+

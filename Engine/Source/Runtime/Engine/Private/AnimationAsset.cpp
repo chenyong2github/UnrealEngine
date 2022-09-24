@@ -15,6 +15,8 @@
 #include "Animation/AnimNodeBase.h"
 #include "UObject/UObjectThreadContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationAsset)
+
 #define LOCTEXT_NAMESPACE "AnimationAsset"
 
 #define LEADERSCORE_ALWAYSLEADER  	2.f

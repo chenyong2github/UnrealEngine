@@ -2,6 +2,8 @@
 
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryItemType_Point)
+
 template<>
 void FEnvQueryInstance::AddItemData<UEnvQueryItemType_Point, FVector>(FVector ItemValue)
 {
@@ -61,3 +63,4 @@ void UEnvQueryItemType_Point::SetContextHelper(FEnvQueryContextData& ContextData
 		RawData += sizeof(FNavLocation);
 	}
 }
+

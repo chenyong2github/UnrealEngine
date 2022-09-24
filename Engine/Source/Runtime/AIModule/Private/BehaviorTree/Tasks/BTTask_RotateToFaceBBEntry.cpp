@@ -8,6 +8,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_RotateToFaceBBEntry)
+
 UBTTask_RotateToFaceBBEntry::UBTTask_RotateToFaceBBEntry(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Precision(10.f)
@@ -230,3 +232,4 @@ FString UBTTask_RotateToFaceBBEntry::GetStaticDescription() const
 	FString KeyDesc = BlackboardKey.SelectedKeyName.ToString();
 	return FString::Printf(TEXT("%s: %s"), *Super::GetStaticDescription(), *KeyDesc);
 }
+

@@ -7,6 +7,8 @@
 #include "Perception/AISense_Damage.h"
 #include "Perception/AISenseEvent_Damage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISenseEvent)
+
 //----------------------------------------------------------------------//
 // UAISenseEvent_Hearing
 //----------------------------------------------------------------------//
@@ -28,3 +30,4 @@ FAISenseID UAISenseEvent_Damage::GetSenseID() const
 {
 	return UAISense::GetSenseID<UAISense_Damage>();
 }
+

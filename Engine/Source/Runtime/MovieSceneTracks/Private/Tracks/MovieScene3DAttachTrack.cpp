@@ -5,6 +5,8 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DAttachTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieScene3DAttachTrack"
 
@@ -46,3 +48,4 @@ FText UMovieScene3DAttachTrack::GetDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

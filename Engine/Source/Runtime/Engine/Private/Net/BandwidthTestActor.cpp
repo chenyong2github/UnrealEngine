@@ -6,6 +6,8 @@
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BandwidthTestActor)
+
 //-----------------------------------------------------------------------------
 //
 ABandwidthTestActor::ABandwidthTestActor()
@@ -210,4 +212,5 @@ FAutoConsoleCommandWithWorldAndArgs CreateBandwidthGenerator(TEXT("Net.CreateBan
 	ABandwidthTestActor* GeneratorActor = Cast<ABandwidthTestActor>(World->SpawnActor(ABandwidthTestActor::StaticClass()));
 	check(GeneratorActor);
 }));
+
 

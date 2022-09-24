@@ -10,6 +10,8 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerInstance)
+
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

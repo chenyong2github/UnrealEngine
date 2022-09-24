@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SaveCachedPose)
+
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::Anim::FCachedPoseSkippedUpdateHandler);
 
 /////////////////////////////////////////////////////
@@ -149,3 +151,4 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 
 	CachedUpdateContexts.Reset();
 }
+

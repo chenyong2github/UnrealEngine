@@ -7,6 +7,8 @@
 #include "Animation/AssetMappingTable.h"
 #include "Animation/AnimationAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetMappingTable)
+
 //@todo should move all this window stuff somewhere else. Persona?
 
 #define LOCTEXT_NAMESPACE "AssetMappingTable"
@@ -216,3 +218,4 @@ void UAssetMappingTable::ReplaceReferredAnimations(const TMap<UAnimationAsset*, 
 }
 #endif // WITH_EDITOR
 #undef LOCTEXT_NAMESPACE 
+

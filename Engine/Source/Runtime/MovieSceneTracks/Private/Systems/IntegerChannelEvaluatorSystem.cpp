@@ -8,6 +8,8 @@
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Math/NumericLimits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IntegerChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate integer channels"), MovieSceneEval_EvaluateIntegerChannelTask, STATGROUP_MovieSceneECS);
 
 namespace UE
@@ -66,4 +68,5 @@ void UIntegerChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequis
 	.SetStat(GET_STATID(MovieSceneEval_EvaluateIntegerChannelTask))
 	.Dispatch_PerEntity<FEvaluateIntegerChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 }
+
 

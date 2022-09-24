@@ -6,6 +6,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Editor/WidgetCompilerLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicEntryBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 //////////////////////////////////////////////////////////////////////////

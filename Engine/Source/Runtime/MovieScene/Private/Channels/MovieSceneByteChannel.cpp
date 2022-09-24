@@ -7,6 +7,8 @@
 #include "Misc/FrameRate.h"
 #include "MovieSceneFrameMigration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneByteChannel)
+
 bool FMovieSceneByteChannel::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
 	static const FName IntegralCurveName("IntegralCurve");

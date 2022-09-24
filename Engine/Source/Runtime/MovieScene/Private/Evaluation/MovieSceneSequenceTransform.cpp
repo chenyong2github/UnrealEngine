@@ -2,6 +2,8 @@
 
 #include "Evaluation/MovieSceneSequenceTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequenceTransform)
+
 FString LexToString(const FMovieSceneSequenceTransform& InTransform)
 {
 	TStringBuilder<256> Builder;
@@ -66,4 +68,5 @@ FString LexToString(const FMovieSceneWarpCounter& InCounter)
 	FString OutString = Builder.ToString();
 	return OutString;
 }
+
 

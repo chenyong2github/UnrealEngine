@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputKeyDelegateBinding)
+
 UInputKeyDelegateBinding::UInputKeyDelegateBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -43,3 +45,4 @@ void UInputKeyDelegateBinding::BindToInputComponent(UInputComponent* InputCompon
 		InputComponent->KeyBindings.Add(BindsToAdd[Index]);
 	}
 }
+

@@ -4,6 +4,8 @@
 #include "Components/SplineComponent.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DPathSection)
+
 
 UMovieScene3DPathSection::UMovieScene3DPathSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -141,3 +143,4 @@ void UMovieScene3DPathSection::SetPathBindingID( const FMovieSceneObjectBindingI
 		ConstraintBindingID = InPathBindingID;
 	}
 }
+

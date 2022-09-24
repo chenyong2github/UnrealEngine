@@ -4,6 +4,8 @@
 
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalControlLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalControlLibrary, Verbose, All);
 
 FSkeletalControlReference USkeletalControlLibrary::ConvertToSkeletalControl(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)

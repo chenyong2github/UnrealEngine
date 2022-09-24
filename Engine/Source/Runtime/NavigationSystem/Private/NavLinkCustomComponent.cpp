@@ -15,6 +15,8 @@
 #include "AI/NavigationSystemHelpers.h"
 #include "AI/Navigation/PathFollowingAgentInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavLinkCustomComponent)
+
 
 UNavLinkCustomComponent::UNavLinkCustomComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -390,3 +392,4 @@ FVector UNavLinkCustomComponent::GetEndPoint() const
 {
 	return GetOwner()->GetTransform().TransformPosition(LinkRelativeEnd);
 }
+

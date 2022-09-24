@@ -10,6 +10,8 @@
 #include "UObject/UObjectThreadContext.h"
 #include "TextureResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CanvasRenderTarget2D)
+
 UCanvasRenderTarget2D::UCanvasRenderTarget2D( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer),
 	  World( nullptr )
@@ -137,3 +139,4 @@ UWorld* UCanvasRenderTarget2D::GetWorld() const
 {
 	return World.Get();
 }
+

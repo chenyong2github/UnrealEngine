@@ -6,6 +6,8 @@
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TargetPoint)
+
 ATargetPoint::ATargetPoint(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -77,3 +79,4 @@ UBillboardComponent* ATargetPoint::GetSpriteComponent() const { return SpriteCom
 /** Returns ArrowComponent subobject **/
 UArrowComponent* ATargetPoint::GetArrowComponent() const { return ArrowComponent; }
 #endif
+

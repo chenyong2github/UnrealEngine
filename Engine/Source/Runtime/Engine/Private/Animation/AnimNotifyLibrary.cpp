@@ -4,6 +4,8 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifyEndDataContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyLibrary)
+
 bool UAnimNotifyLibrary::NotifyStateReachedEnd(const FAnimNotifyEventReference& EventReference)
 {
 	const UE::Anim::FAnimNotifyEndDataContext* EndData = EventReference.GetContextData<UE::Anim::FAnimNotifyEndDataContext>();
@@ -15,3 +17,4 @@ bool UAnimNotifyLibrary::NotifyStateReachedEnd(const FAnimNotifyEventReference& 
 
 	return false;
 }
+

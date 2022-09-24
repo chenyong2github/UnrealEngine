@@ -10,6 +10,8 @@
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSlomoTemplate)
+
 
 DECLARE_CYCLE_STAT(TEXT("Slomo Track Token Execute"), MovieSceneEval_SlomoTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
@@ -119,3 +121,4 @@ void FMovieSceneSlomoSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		ExecutionTokens.Add(FSlomoExecutionToken(SlomoValue));
 	}
 }
+

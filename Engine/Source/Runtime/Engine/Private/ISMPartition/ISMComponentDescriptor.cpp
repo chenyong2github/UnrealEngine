@@ -2,6 +2,8 @@
 
 #include "ISMPartition/ISMComponentDescriptor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ISMComponentDescriptor)
+
 #if WITH_EDITOR
 
 #include "Serialization/ArchiveCrc32.h"
@@ -223,3 +225,4 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 }
 
 #endif
+

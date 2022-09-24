@@ -8,6 +8,8 @@
 #include "SceneManagement.h"
 #include "VectorUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementTorus)
+
 void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
 	FRenderTraversalState CurrentRenderState(RenderState);
@@ -253,3 +255,4 @@ bool UGizmoElementTorus::GetEndCaps() const
 {
 	return bEndCaps;
 }
+

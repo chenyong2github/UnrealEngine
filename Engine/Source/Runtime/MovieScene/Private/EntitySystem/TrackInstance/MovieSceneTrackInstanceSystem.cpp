@@ -13,6 +13,8 @@
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 #include "MovieSceneSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTrackInstanceSystem)
+
 DECLARE_CYCLE_STAT(TEXT("Generic Track Instances"), MovieSceneEval_GenericTrackInstances, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Generic Track Instances Task"), MovieSceneEval_GenericTrackInstanceTask, STATGROUP_MovieSceneECS);
 

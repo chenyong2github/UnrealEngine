@@ -4,6 +4,8 @@
 #include "PhysicsPublic.h"
 #include "PhysXIncludes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintDrives)
+
 const bool bIsAccelerationDrive = true;
 
 FConstraintDrive::FConstraintDrive()

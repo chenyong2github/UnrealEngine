@@ -2,6 +2,8 @@
 
 #include "ITimedDataInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ITimedDataInput)
+
 FFrameRate ITimedDataInput::UnknownFrameRate = FFrameRate(-1, -1);
 
 

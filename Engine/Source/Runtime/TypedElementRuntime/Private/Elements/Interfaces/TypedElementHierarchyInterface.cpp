@@ -7,6 +7,8 @@
 
 #include "UObject/Stack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementHierarchyInterface)
+
 FScriptTypedElementHandle ITypedElementHierarchyInterface::GetParentElement(const FScriptTypedElementHandle& InElementHandle, const bool bAllowCreate)
 {
 	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
@@ -38,4 +40,5 @@ class UTypedElementRegistry& ITypedElementHierarchyInterface::GetRegistry() cons
 {
 	return *UTypedElementRegistry::GetInstance();
 }
+
 

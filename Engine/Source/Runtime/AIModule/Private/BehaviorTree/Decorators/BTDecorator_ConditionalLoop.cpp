@@ -5,6 +5,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "BehaviorTree/BTCompositeNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_ConditionalLoop)
+
 UBTDecorator_ConditionalLoop::UBTDecorator_ConditionalLoop(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Conditional Loop";
@@ -65,3 +67,4 @@ FName UBTDecorator_ConditionalLoop::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

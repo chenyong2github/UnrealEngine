@@ -12,6 +12,8 @@
 #include "Systems/MovieSceneQuaternionInterpolationRotationSystem.h"
 #include "Systems/WeightAndEasingEvaluatorSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePiecewiseDoubleBlenderSystem)
+
 DECLARE_CYCLE_STAT(TEXT("Piecewise Double Blender System"),       MovieSceneEval_PiecewiseDoubleBlenderSystem,  STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Blend double values"),                   MovieSceneEval_BlendDoubleValues,        STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Default combine blended double values"), MovieSceneEval_BlendCombineDoubleValues, STATGROUP_MovieSceneECS);
@@ -763,4 +765,5 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 			.template Dispatch_PerAllocation<FChannelResultTask>(&Linker->EntityManager, FSystemTaskPrerequisites(), nullptr, Params, Output);
 	}
 }
+
 

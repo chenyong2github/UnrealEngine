@@ -4,6 +4,8 @@
 
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VirtualTextureBuildSettings)
+
 static TAutoConsoleVariable<int32> CVarVTTileSize(
 	TEXT("r.VT.TileSize"),
 	128,
@@ -21,3 +23,4 @@ void FVirtualTextureBuildSettings::Init()
 	TileSize = CVarVTTileSize.GetValueOnAnyThread();
 	TileBorderSize = CVarVTTileBorderSize.GetValueOnAnyThread();
 }
+

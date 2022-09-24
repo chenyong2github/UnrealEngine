@@ -3,6 +3,8 @@
 #include "AnimNodes/AnimNode_RotateRootBone.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RotateRootBone)
+
 /////////////////////////////////////////////////////
 // FAnimNode_RotateRootBone
 
@@ -82,3 +84,4 @@ FAnimNode_RotateRootBone::FAnimNode_RotateRootBone()
 	, ActualYaw(0.f)
 {
 }
+

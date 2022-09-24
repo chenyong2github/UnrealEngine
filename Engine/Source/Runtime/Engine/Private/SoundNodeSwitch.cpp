@@ -5,6 +5,8 @@
 #include "ActiveSound.h"
 #include "Sound/SoundCue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeSwitch)
+
 #define LOCTEXT_NAMESPACE "SoundNodeSwitch"
 
 USoundNodeSwitch::USoundNodeSwitch(const FObjectInitializer& ObjectInitializer)
@@ -70,3 +72,4 @@ FText USoundNodeSwitch::GetTitle() const
 #endif //WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

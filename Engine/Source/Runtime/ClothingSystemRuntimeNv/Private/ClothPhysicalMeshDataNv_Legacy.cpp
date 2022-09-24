@@ -2,6 +2,8 @@
 #include "ClothPhysicalMeshDataNv_Legacy.h"
 #include "ClothPhysicalMeshData.h"  // For EWeightMapTargetCommon
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothPhysicalMeshDataNv_Legacy)
+
 UClothPhysicalMeshDataNv_Legacy::UClothPhysicalMeshDataNv_Legacy()
 {
 	Super::RegisterFloatArray((uint32)EWeightMapTargetCommon::MaxDistance, &MaxDistances);
@@ -12,3 +14,4 @@ UClothPhysicalMeshDataNv_Legacy::UClothPhysicalMeshDataNv_Legacy()
 
 UClothPhysicalMeshDataNv_Legacy::~UClothPhysicalMeshDataNv_Legacy()
 {}
+

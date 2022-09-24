@@ -8,6 +8,8 @@
 #include "MovieSceneTimeHelpers.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneParticleTemplate)
+
 
 DECLARE_CYCLE_STAT(TEXT("Particle Track Token Execute"), MovieSceneEval_ParticleTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
@@ -172,3 +174,4 @@ void FMovieSceneParticleSectionTemplate::Evaluate(const FMovieSceneEvaluationOpe
 		}
 	}
 }
+

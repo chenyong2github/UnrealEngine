@@ -4,6 +4,8 @@
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InteractiveGizmo)
+
 
 UInteractiveGizmo::UInteractiveGizmo()
 {
@@ -53,3 +55,4 @@ UInteractiveGizmoManager* UInteractiveGizmo::GetGizmoManager() const
 	check(GizmoManager != nullptr);
 	return GizmoManager;
 }
+

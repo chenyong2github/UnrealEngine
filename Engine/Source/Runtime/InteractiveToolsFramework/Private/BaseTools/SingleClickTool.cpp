@@ -3,6 +3,8 @@
 #include "BaseTools/SingleClickTool.h"
 #include "InteractiveToolManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SingleClickTool)
+
 #define LOCTEXT_NAMESPACE "USingleClickTool"
 
 

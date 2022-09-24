@@ -4,6 +4,8 @@
 #include "Animation/MovieScene2DTransformSection.h"
 #include "MovieSceneCommonHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene2DTransformTrack)
+
 UMovieScene2DTransformTrack::UMovieScene2DTransformTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

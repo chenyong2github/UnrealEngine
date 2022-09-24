@@ -8,6 +8,8 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseEvent_Damage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Damage)
+
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//
@@ -134,3 +136,4 @@ void UAISense_Damage::ReportDamageEvent(UObject* WorldContextObject, AActor* Dam
 		PerceptionSystem->OnEvent(Event);
 	}
 }
+

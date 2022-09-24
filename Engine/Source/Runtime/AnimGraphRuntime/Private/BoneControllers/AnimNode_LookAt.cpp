@@ -9,6 +9,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LookAt)
+
 static const FVector DefaultLookAtAxis(0.f, 1.f, 0.f);
 static const FVector DefaultLookUpAxis(1.f, 0.f, 0.f);
 
@@ -288,3 +290,4 @@ void FAnimNode_LookAt::ModifyPoseFromDeltaRotation(FComponentSpacePoseContext& O
 	const FCompactPoseBoneIndex BoneToModifyIndex = BoneToModify.GetCompactPoseIndex(Output.Pose.GetPose().GetBoneContainer());
 	OutBoneTransforms.Add(FBoneTransform(BoneToModifyIndex, InOutBoneToModifyTransform));
 }
+

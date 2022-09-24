@@ -2,6 +2,8 @@
 
 #include "LevelSequenceBurnIn.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceBurnIn)
+
 ULevelSequenceBurnIn::ULevelSequenceBurnIn( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
@@ -21,3 +23,4 @@ void ULevelSequenceBurnIn::OnSequenceUpdated(const UMovieSceneSequencePlayer& Pl
 {
 	static_cast<const ULevelSequencePlayer&>(Player).TakeFrameSnapshot(FrameInformation);
 }
+

@@ -5,6 +5,8 @@
 #include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieSceneCVarSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCVarTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneCVarTrack"
 
@@ -95,3 +97,4 @@ FText UMovieSceneCVarTrack::GetDefaultDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -3,6 +3,8 @@
 #include "DataProviders/AIDataProvider_Random.h"
 #include "AISystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIDataProvider_Random)
+
 UAIDataProvider_Random::UAIDataProvider_Random(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

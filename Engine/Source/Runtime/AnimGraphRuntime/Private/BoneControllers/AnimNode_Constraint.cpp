@@ -7,6 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Constraint)
+
 /////////////////////////////////////////////////////
 // FAnimNode_Constraint
 
@@ -164,3 +166,4 @@ void FAnimNode_Constraint::ConditionalDebugDraw(FPrimitiveDrawInterface* PDI, US
 	}
 }
 #endif // WITH_EDITOR
+

@@ -2,6 +2,8 @@
 
 #include "ObjectTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectTrace)
+
 #if OBJECT_TRACE_ENABLED
 
 #include "CoreMinimal.h"
@@ -538,3 +540,4 @@ void FObjectTrace::OutputWorld(const UWorld* InWorld)
 }
 
 #endif
+

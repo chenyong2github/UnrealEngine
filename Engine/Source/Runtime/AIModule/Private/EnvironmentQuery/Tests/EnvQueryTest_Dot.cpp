@@ -6,6 +6,8 @@
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Item.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Dot)
+
 UEnvQueryTest_Dot::UEnvQueryTest_Dot(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	Cost = EEnvTestCost::Low;
@@ -230,3 +232,4 @@ FText UEnvQueryTest_Dot::GetDescriptionDetails() const
 {
 	return DescribeFloatTestParams();
 }
+

@@ -15,6 +15,8 @@
 #include "Sound/SoundNodeAttenuation.h"
 #include "UObject/FrameworkObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioComponent)
+
 DECLARE_CYCLE_STAT(TEXT("AudioComponent Play"), STAT_AudioComp_Play, STATGROUP_Audio);
 
 static float BakedAnalysisTimeShiftCVar = 0.0f;
@@ -1731,3 +1733,4 @@ void UAudioComponent::SetSourceEffectChain(USoundEffectSourcePresetChain* InSour
 {
 	SourceEffectChain = InSourceEffectChain;
 }
+

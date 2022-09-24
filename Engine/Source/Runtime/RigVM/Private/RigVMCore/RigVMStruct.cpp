@@ -5,6 +5,8 @@
 #include "UObject/StructOnScope.h"
 #include "RigVMModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMStruct)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FRigVMUnitNodeCreatedContext::IsValid() const
@@ -807,3 +809,4 @@ bool FRigVMStruct::ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo
 
 	return true;
 }
+

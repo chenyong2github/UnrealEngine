@@ -3,6 +3,8 @@
 #include "Tracks/MovieSceneEulerTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEulerTransformTrack)
+
 
 UMovieSceneEulerTransformTrack::UMovieSceneEulerTransformTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -25,4 +27,5 @@ UMovieSceneSection* UMovieSceneEulerTransformTrack::CreateNewSection()
 {
 	return NewObject<UMovieScene3DTransformSection>(this, NAME_None, RF_Transactional);
 }
+
 

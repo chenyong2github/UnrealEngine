@@ -38,6 +38,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "Components/LineBatchComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeSpatialHash)
+
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "CookPackageSplitter.h"
@@ -1679,3 +1681,4 @@ TArray<const FSpatialHashStreamingGrid*> UWorldPartitionRuntimeSpatialHash::GetF
 }
 
 #undef LOCTEXT_NAMESPACE
+

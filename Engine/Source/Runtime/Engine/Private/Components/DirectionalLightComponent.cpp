@@ -14,6 +14,8 @@
 #include "Engine/DirectionalLight.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightComponent)
+
 static float GMaxCSMRadiusToAllowPerObjectShadows = 8000;
 static FAutoConsoleVariableRef CVarMaxCSMRadiusToAllowPerObjectShadows(
 	TEXT("r.MaxCSMRadiusToAllowPerObjectShadows"),
@@ -1394,3 +1396,4 @@ void UDirectionalLightComponent::InvalidateLightingCacheDetailed(bool bInvalidat
 		Super::InvalidateLightingCacheDetailed(bInvalidateBuildEnqueuedLighting, bTranslationOnly);
 	}
 }
+

@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CopyBone)
+
 /////////////////////////////////////////////////////
 // FAnimNode_CopyBone
 
@@ -96,3 +98,4 @@ void FAnimNode_CopyBone::InitializeBoneReferences(const FBoneContainer& Required
 	SourceBone.Initialize(RequiredBones);
 	TargetBone.Initialize(RequiredBones);
 }
+

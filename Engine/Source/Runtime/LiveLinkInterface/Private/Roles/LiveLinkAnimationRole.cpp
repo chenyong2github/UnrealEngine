@@ -11,6 +11,8 @@
 #include "LiveLinkRoleTrait.h"
 #include "LiveLinkTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAnimationRole)
+
 #define LOCTEXT_NAMESPACE "LiveLinkRole"
 
 /**

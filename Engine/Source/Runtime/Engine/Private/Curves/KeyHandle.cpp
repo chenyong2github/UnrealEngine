@@ -2,6 +2,8 @@
 
 #include "Curves/KeyHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KeyHandle)
+
 
 FKeyHandle::FKeyHandle()
 {

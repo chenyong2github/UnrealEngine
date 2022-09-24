@@ -14,6 +14,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "DrawDebugHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CineCameraComponent)
+
 #define LOCTEXT_NAMESPACE "CineCameraComponent"
 
 
@@ -737,3 +739,4 @@ void UCineCameraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

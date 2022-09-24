@@ -5,6 +5,8 @@
 #include "Engine/Canvas.h"
 #include "EnvironmentQuery/EQSQueryResultSourceInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EQSRenderingComponent)
+
 static constexpr int32 EQSMaxItemsDrawn = 10000;
 
 namespace FEQSRenderingHelper
@@ -351,3 +353,4 @@ UEQSQueryResultSourceInterface::UEQSQueryResultSourceInterface(const FObjectInit
 	: Super(ObjectInitializer)
 {
 }
+

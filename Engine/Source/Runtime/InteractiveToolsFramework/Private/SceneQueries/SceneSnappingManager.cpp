@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SceneSnappingManager)
+
 
 
 namespace UELocal
@@ -117,3 +119,4 @@ USceneSnappingManager* USceneSnappingManager::Find(UInteractiveGizmoManager* Giz
 	}
 	return nullptr;
 }
+

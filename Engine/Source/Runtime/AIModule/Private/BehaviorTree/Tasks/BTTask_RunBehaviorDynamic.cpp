@@ -4,6 +4,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "BehaviorTree/BehaviorTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_RunBehaviorDynamic)
+
 UBTTask_RunBehaviorDynamic::UBTTask_RunBehaviorDynamic(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Run Behavior Dynamic";
@@ -77,3 +79,4 @@ FName UBTTask_RunBehaviorDynamic::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

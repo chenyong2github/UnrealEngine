@@ -3,6 +3,8 @@
 #include "BehaviorTree/Decorators/BTDecorator_TagCooldown.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_TagCooldown)
+
 UBTDecorator_TagCooldown::UBTDecorator_TagCooldown(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Tag Cooldown";
@@ -108,3 +110,4 @@ FName UBTDecorator_TagCooldown::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

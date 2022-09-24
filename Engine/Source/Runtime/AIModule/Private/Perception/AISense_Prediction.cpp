@@ -6,6 +6,8 @@
 #include "AIController.h"
 #include "Perception/AIPerceptionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Prediction)
+
 UAISense_Prediction::UAISense_Prediction(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
@@ -71,3 +73,4 @@ void UAISense_Prediction::RequestPawnPredictionEvent(APawn* Requestor, AActor* P
 		PerceptionSystem->OnEvent(Event);
 	}
 }
+

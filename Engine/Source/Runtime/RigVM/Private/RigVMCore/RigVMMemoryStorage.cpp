@@ -6,6 +6,8 @@
 #include "UObject/Interface.h"
 #include "AssetRegistry/AssetData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryStorage)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FString FRigVMPropertyDescription::ArrayPrefix = TEXT("TArray<");
@@ -1229,3 +1231,4 @@ FRigVMOperand URigVMMemoryStorage::GetOperandByName(const FName& InName, int32 I
 	const int32 PropertyIndex = GetPropertyIndexByName(InName);
 	return GetOperand(PropertyIndex, InPropertyPathIndex);
 }
+

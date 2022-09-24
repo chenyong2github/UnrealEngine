@@ -2,6 +2,8 @@
 
 #include "InputBehaviorSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputBehaviorSet)
+
 
 UInputBehaviorSet::UInputBehaviorSet()
 {
@@ -145,3 +147,4 @@ void UInputBehaviorSet::BehaviorsModified()
 	//send some kind of event...
 	//FUtil.SafeSendAnyEvent(OnSetChanged, this);
 }
+

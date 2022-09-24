@@ -7,6 +7,8 @@
 #include "Chaos/ChaosPhysicalMaterial.h"
 #include "Chaos/Defines.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosPhysicalMaterial)
+
 UChaosPhysicalMaterial::UChaosPhysicalMaterial(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -32,3 +34,4 @@ void UChaosPhysicalMaterial::CopyTo(Chaos::FChaosPhysicsMaterial& Mat) const
 	Mat.SleepingLinearThreshold = SleepingLinearVelocityThreshold;
 	Mat.SleepingAngularThreshold = SleepingAngularVelocityThreshold;
 }
+

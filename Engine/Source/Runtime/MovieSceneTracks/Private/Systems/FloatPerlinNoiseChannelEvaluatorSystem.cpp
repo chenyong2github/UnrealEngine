@@ -10,6 +10,8 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Math/NumericLimits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FloatPerlinNoiseChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate Float Perlin Noise channels"), MovieSceneEval_EvaluateFloatPerlinNoiseChannelTask, STATGROUP_MovieSceneECS);
 
 namespace UE
@@ -84,3 +86,4 @@ void UFloatPerlinNoiseChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& In
 			.Dispatch_PerEntity<FEvaluateFloatPerlinNoiseChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, GetLinker()->GetInstanceRegistry());
 	}
 }
+

@@ -35,6 +35,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetRegistry)
+
 #if WITH_EDITOR
 #include "DirectoryWatcherModule.h"
 #include "HAL/IConsoleManager.h"

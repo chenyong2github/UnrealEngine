@@ -5,6 +5,8 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_TimedParticleEffect)
+
 UAnimNotifyState_TimedParticleEffect::UAnimNotifyState_TimedParticleEffect(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -144,3 +146,4 @@ void UAnimNotifyState_TimedParticleEffect::PreEditChange(FProperty* PropertyAbou
 	}
 }
 #endif
+

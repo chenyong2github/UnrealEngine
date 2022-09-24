@@ -6,6 +6,8 @@
 
 #include "Streaming/ActorTextureStreamingBuildDataComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorTextureStreamingBuildDataComponent)
+
 #if WITH_EDITOR
 
 #include "Engine/TextureStreamingTypes.h"

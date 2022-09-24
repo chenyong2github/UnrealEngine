@@ -8,6 +8,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePrimitiveMaterialSection)
+
 namespace UE::MovieScene
 {
 	uint32 PrimitiveMaterialParameterSectionDefaultValueID = uint32(-1);

@@ -33,6 +33,8 @@ extern UNREALED_API UEditorEngine* GEditor;
 #endif // WITH_EDITOR
 #include "Misc/TimeGuard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryManager)
+
 DEFINE_LOG_CATEGORY(LogEQS);
 
 DEFINE_STAT(STAT_AI_EQS_Tick);
@@ -1287,3 +1289,4 @@ FString FEnvQueryManagerConfig::ToString() const
 {
 	return FString::Printf(TEXT("MaxAllowedTestingTime=%f bTestQueriesUsingBreadth=%d QueryCountWarningThreshold=%d QueryCountWarningInterval=%f ExecutionTimeWarningSeconds=%f HandlingResultTimeWarningSeconds=%f GenerationTimeWarningSeconds=%f"), MaxAllowedTestingTime, bTestQueriesUsingBreadth, QueryCountWarningThreshold, QueryCountWarningInterval, ExecutionTimeWarningSeconds, HandlingResultTimeWarningSeconds, GenerationTimeWarningSeconds);
 }
+

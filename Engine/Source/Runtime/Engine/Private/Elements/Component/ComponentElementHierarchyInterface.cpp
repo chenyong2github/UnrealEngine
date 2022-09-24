@@ -8,6 +8,8 @@
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComponentElementHierarchyInterface)
+
 FTypedElementHandle UComponentElementHierarchyInterface::GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate)
 {
 	if (UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
@@ -29,3 +31,4 @@ void UComponentElementHierarchyInterface::GetChildElements(const FTypedElementHa
 		Component->GetComponentChildElements(OutElementHandles, bAllowCreate);
 	}
 }
+

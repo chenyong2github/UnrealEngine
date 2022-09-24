@@ -7,6 +7,8 @@
 #include "Algo/Sort.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMTemplate)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 FRigVMTemplateArgument::FRigVMTemplateArgument()
@@ -1558,4 +1560,5 @@ void FRigVMTemplate::HandleTypeRemoval(TRigVMTypeIndex InTypeIndex)
 		Argument.TypeToPermutations.Remove(InTypeIndex);
 	}
 }
+
 

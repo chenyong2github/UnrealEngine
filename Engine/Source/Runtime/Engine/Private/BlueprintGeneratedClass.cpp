@@ -29,6 +29,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintGeneratedClass)
+
 #if WITH_EDITOR
 #include "CookerSettings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -2335,3 +2337,4 @@ void UBlueprintGeneratedClass::PurgeCookedMetaData()
 	}
 }
 #endif //if WITH_EDITORONLY_DATA
+

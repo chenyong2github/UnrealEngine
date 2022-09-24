@@ -15,6 +15,8 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "ChaosCheck.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsHandleComponent)
+
 UPhysicsHandleComponent::UPhysicsHandleComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bPendingConstraint(false)
@@ -333,3 +335,4 @@ void UPhysicsHandleComponent::SetInterpolationSpeed(float NewInterpolationSpeed)
 {
 	InterpolationSpeed = NewInterpolationSpeed;
 }
+

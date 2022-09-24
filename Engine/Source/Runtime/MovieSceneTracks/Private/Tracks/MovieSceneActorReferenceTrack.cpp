@@ -4,6 +4,8 @@
 #include "Sections/MovieSceneActorReferenceSection.h"
 #include "Evaluation/MovieSceneActorReferenceTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneActorReferenceTrack)
+
 
 UMovieSceneActorReferenceTrack::UMovieSceneActorReferenceTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -23,4 +25,5 @@ FMovieSceneEvalTemplatePtr UMovieSceneActorReferenceTrack::CreateTemplateForSect
 {
 	return FMovieSceneActorReferenceSectionTemplate(*CastChecked<UMovieSceneActorReferenceSection>(&InSection), *this);
 }
+
 

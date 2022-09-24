@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CurveSource)
+
 FAnimNode_CurveSource::FAnimNode_CurveSource()
 	: SourceBinding(ICurveSourceInterface::DefaultBinding)
 	, Alpha(1.0f)

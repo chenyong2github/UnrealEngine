@@ -6,6 +6,8 @@
 #include "Animation/AnimSubsystem_Base.h"
 #include "PropertyAccess.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimClassInterface)
+
 const IAnimClassInterface* IAnimClassInterface::GetRootClass() const
 {
 	auto GetSuperClassInterface = [](const IAnimClassInterface* InClass) -> const IAnimClassInterface*

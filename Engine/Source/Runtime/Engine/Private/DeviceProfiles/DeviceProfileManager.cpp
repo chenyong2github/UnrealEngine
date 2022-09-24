@@ -25,6 +25,8 @@
 #include "DeviceProfiles/DeviceProfileFragment.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeviceProfileManager)
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeviceProfileManager, Log, All);
 

@@ -5,6 +5,8 @@
 #include "AIController.h"
 #include "GameFramework/Character.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_PlayAnimation)
+
 //----------------------------------------------------------------------//
 // UBTTask_PlayAnimation
 //----------------------------------------------------------------------//
@@ -120,3 +122,4 @@ FName UBTTask_PlayAnimation::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

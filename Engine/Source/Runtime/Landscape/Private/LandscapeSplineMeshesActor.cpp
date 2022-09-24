@@ -9,6 +9,8 @@
 #include "Misc/MapErrors.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSplineMeshesActor)
+
 #define LOCTEXT_NAMESPACE "LandscapeSplineMeshesActor"
 
 // ----------------------------------------------------------------

@@ -36,6 +36,8 @@
 #endif
 #include "Engine/ScopedMovementUpdate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterMovementComponent)
+
 CSV_DEFINE_CATEGORY(CharacterMovement, true);
 
 DEFINE_LOG_CATEGORY_STATIC(LogCharacterMovement, Log, All);
@@ -12840,3 +12842,4 @@ bool UCharacterMovementComponent::IsAsyncCallbackRegistered() const
 {
 	return AsyncCallback != nullptr;
 }
+

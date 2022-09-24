@@ -6,6 +6,8 @@
 #include "BehaviorTree/BTCompositeNode.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_Blackboard)
+
 UBTDecorator_Blackboard::UBTDecorator_Blackboard(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Blackboard Based Condition";
@@ -290,3 +292,4 @@ void UBTDecorator_Blackboard::RefreshEnumBasedDecorator(const FBlackboardEntry& 
 		IntValue = Enum->GetValueByIndex(IntValue);
 	}
 }
+

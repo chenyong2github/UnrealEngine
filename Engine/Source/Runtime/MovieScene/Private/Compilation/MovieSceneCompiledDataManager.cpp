@@ -23,6 +23,8 @@
 #include "UObject/Package.h"
 #include "UObject/PackageReload.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCompiledDataManager)
+
 
 FString GMovieSceneCompilerVersion = TEXT("7D4B98092FAC4A6B964ECF72D8279EF8");
 FAutoConsoleVariableRef CVarMovieSceneCompilerVersion(
@@ -1683,3 +1685,4 @@ TOptional<FFrameNumber> UMovieSceneCompiledDataManager::GetLoopingSubSectionEndT
 	// indefinitely... we don't support that yet.
 	return TOptional<FFrameNumber>();
 }
+

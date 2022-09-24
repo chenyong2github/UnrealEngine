@@ -11,6 +11,8 @@
 #include "DSP/Amp.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMixerSubmixEffectReverb)
+
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
@@ -282,3 +284,4 @@ void USubmixEffectReverbPreset::SetSettings(const FSubmixEffectReverbSettings& I
 {
 	UpdateSettings(InSettings);
 }
+

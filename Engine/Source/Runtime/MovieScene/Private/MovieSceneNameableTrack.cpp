@@ -3,6 +3,8 @@
 #include "MovieSceneNameableTrack.h"
 #include "UObject/NameTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNameableTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneNameableTrack"
 
 
@@ -100,3 +102,4 @@ FText UMovieSceneNameableTrack::GetDefaultDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

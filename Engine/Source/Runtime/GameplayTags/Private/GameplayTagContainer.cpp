@@ -11,6 +11,8 @@
 #include "GameplayTagsModule.h"
 #include "Misc/OutputDeviceNull.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagContainer)
+
 const FGameplayTag FGameplayTag::EmptyTag;
 const FGameplayTagContainer FGameplayTagContainer::EmptyContainer;
 const FGameplayTagQuery FGameplayTagQuery::EmptyQuery;
@@ -1953,3 +1955,4 @@ FAutoConsoleCommand TagPackingTestCmd(
 );
 
 #endif
+

@@ -4,6 +4,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_Class)
+
 const UBlackboardKeyType_Class::FDataType UBlackboardKeyType_Class::InvalidValue = nullptr;
 
 UBlackboardKeyType_Class::UBlackboardKeyType_Class(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -55,3 +57,4 @@ bool UBlackboardKeyType_Class::TestBasicOperation(const UBlackboardComponent& Ow
 	TWeakObjectPtr<UClass> WeakObjPtr = GetValueFromMemory< TWeakObjectPtr<UClass> >(MemoryBlock);
 	return (Op == EBasicKeyOperation::Set) ? WeakObjPtr.IsValid() : !WeakObjPtr.IsValid();
 }
+

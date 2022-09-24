@@ -7,6 +7,8 @@
 #include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneObjectBindingID)
+
 
 
 namespace UE

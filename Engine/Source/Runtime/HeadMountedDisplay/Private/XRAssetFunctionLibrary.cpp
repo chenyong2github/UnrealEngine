@@ -7,6 +7,8 @@
 #include "Features/IModularFeatures.h"
 #include "XRMotionControllerBase.h" // for GetHandEnumForSourceName()
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(XRAssetFunctionLibrary)
+
 /* XRAssetFunctionLibrary_Impl
  *****************************************************************************/
 
@@ -215,3 +217,4 @@ void UAsyncTask_LoadXRDeviceVisComponent::OnLoadComplete(bool bSuccess)
 	}
 	SetReadyToDestroy();
 }
+

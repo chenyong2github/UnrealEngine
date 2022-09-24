@@ -11,6 +11,8 @@
 #include "AI/NavigationSystemConfig.h"
 #include "AI/Navigation/NavigationDataChunk.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationSystemBase)
+
 DEFINE_LOG_CATEGORY(LogNavigation);
 DEFINE_LOG_CATEGORY(LogNavigationDataBuild);
 DEFINE_LOG_CATEGORY(LogNavLink);
@@ -443,3 +445,4 @@ FNavigationSystem::FDoubleWorldBasedSignature& UNavigationSystemBase::GetWorldPa
 //----------------------------------------------------------------------//
 FNavigationSystem::FControllerBasedSignature& IPathFollowingManagerInterface::StopMovementDelegate() { return FNavigationSystem::Delegates.StopMovement; }
 FNavigationSystem::FBoolControllerBasedSignature& IPathFollowingManagerInterface::IsFollowingAPathDelegate() { return FNavigationSystem::Delegates.IsFollowingAPath; }
+

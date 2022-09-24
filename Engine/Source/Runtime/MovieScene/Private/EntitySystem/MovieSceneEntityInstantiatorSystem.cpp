@@ -9,6 +9,8 @@
 #include "MovieSceneObjectBindingID.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEntityInstantiatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("UnlinkStaleObjectBindings"), MovieSceneEval_UnlinkStaleObjectBindings, STATGROUP_MovieSceneECS);
 
 UMovieSceneEntityInstantiatorSystem::UMovieSceneEntityInstantiatorSystem(const FObjectInitializer& ObjInit)
@@ -122,3 +124,4 @@ void UMovieSceneEntityInstantiatorSystem::UnlinkStaleObjectBindings(UE::MovieSce
 		Linker->EntityManager.AddComponent(Entity, Components->Tags.NeedsUnlink, EEntityRecursion::Children);
 	}
 }
+

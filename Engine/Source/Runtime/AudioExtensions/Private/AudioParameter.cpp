@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioParameter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioParameter)
+
 
 namespace Audio
 {
@@ -233,3 +235,4 @@ void FAudioParameter::Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioPar
 	// Add the rest of the in params that have no matching out param 
 	OutParams.Append(MoveTemp(InParams));
 }
+

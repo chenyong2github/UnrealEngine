@@ -4,6 +4,8 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseBlendNode)
+
 /////////////////////////////////////////////////////
 // FAnimPoseByNameNode
 
@@ -98,4 +100,5 @@ void FAnimNode_PoseBlendNode::GatherDebugData(FNodeDebugData& DebugData)
 	FAnimNode_PoseHandler::GatherDebugData(DebugData);
 	SourcePose.GatherDebugData(DebugData.BranchFlow(1.f));
 }
+
 

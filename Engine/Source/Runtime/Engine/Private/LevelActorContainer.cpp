@@ -12,6 +12,8 @@ Level.cpp: Level-related functions
 #include "UObject/Package.h"
 #include "UObject/UObjectClusters.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelActorContainer)
+
 DEFINE_LOG_CATEGORY_STATIC(LogLevelActorContainer, Log, All);
 
 /**
@@ -233,3 +235,4 @@ void ULevelActorContainer::OnClusterMarkedAsPendingKill()
 
 	Super::OnClusterMarkedAsPendingKill();
 }
+

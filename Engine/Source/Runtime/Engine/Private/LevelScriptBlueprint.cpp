@@ -5,6 +5,8 @@
 #include "Engine/LevelScriptActor.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelScriptBlueprint)
+
 //////////////////////////////////////////////////////////////////////////
 // ULevelScriptBlueprint
 
@@ -33,4 +35,5 @@ FString ULevelScriptBlueprint::CreateLevelScriptNameFromLevel(const ULevel* Leve
 }
 
 #endif	//#if WITH_EDITOR
+
 

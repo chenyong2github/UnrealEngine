@@ -5,6 +5,8 @@
 #include "AIController.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_PawnActionBase)
+
 UBTTask_PawnActionBase::UBTTask_PawnActionBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Action Base";
@@ -113,3 +115,4 @@ void UBTTask_PawnActionBase::OnActionLost(UPawnAction& Action)
 		FinishLatentTask(*OwnerComp, EBTNodeResult::Failed);
 	}
 }
+

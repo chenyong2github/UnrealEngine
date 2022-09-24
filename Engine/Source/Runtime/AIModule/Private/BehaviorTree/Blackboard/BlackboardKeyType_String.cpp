@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Blackboard/BlackboardKeyType_String.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_String)
+
 const UBlackboardKeyType_String::FDataType UBlackboardKeyType_String::InvalidValue = FString();
 
 UBlackboardKeyType_String::UBlackboardKeyType_String(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -66,3 +68,4 @@ bool UBlackboardKeyType_String::IsEmpty(const UBlackboardComponent& OwnerComp, c
 {
 	return StringValue.IsEmpty();
 }
+

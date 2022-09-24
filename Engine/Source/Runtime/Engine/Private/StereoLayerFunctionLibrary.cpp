@@ -10,6 +10,8 @@
 #include "IXRTrackingSystem.h"
 #include "IXRLoadingScreen.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StereoLayerFunctionLibrary)
+
 static IXRLoadingScreen* GetLoadingScreen()
 {
 	if (GEngine && GEngine->XRSystem.IsValid())
@@ -134,3 +136,4 @@ void UStereoLayerFunctionLibrary::EnableAutoLoadingSplashScreen(bool InAutoShowE
 		}
 	}
 }
+

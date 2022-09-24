@@ -7,6 +7,8 @@
 #include "Engine/Blueprint.h"
 #include "Editor/WidgetCompilerLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ListViewBase)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UListViewBase::UListViewBase(const FObjectInitializer& ObjectInitializer)
@@ -239,3 +241,4 @@ void UListViewBase::HandleAnnounceGeneratedEntries()
 }
 
 #undef LOCTEXT_NAMESPACE
+

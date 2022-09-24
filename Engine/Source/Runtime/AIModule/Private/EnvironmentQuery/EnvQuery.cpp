@@ -8,6 +8,8 @@
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "EnvironmentQuery/EnvQueryOption.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQuery)
+
 namespace FEQSParamsExporter
 {
 	bool HasNamedValue(const FName& ParamName, const TArray<FAIDynamicParam>& NamedValues)
@@ -185,3 +187,4 @@ void UEnvQuery::PostDuplicate(bool bDuplicateForPIE)
 	Super::PostDuplicate(bDuplicateForPIE);
 }
 #endif // WITH_EDITOR
+

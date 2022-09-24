@@ -6,6 +6,8 @@
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "AnimationRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceEvaluatorLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSequenceEvaluatorLibrary, Verbose, All);
 
 FSequenceEvaluatorReference USequenceEvaluatorLibrary::ConvertToSequenceEvaluator(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)

@@ -2,6 +2,8 @@
 
 #include "LiveLinkTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTypes)
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 const FLiveLinkFrameRate FLiveLinkFrameRate::FPS_15(15, 1);
@@ -20,3 +22,4 @@ const FLiveLinkFrameRate FLiveLinkFrameRate::NTSC_30(30000, 1001);
 const FLiveLinkFrameRate FLiveLinkFrameRate::NTSC_60(60000, 1001);
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

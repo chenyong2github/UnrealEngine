@@ -6,6 +6,8 @@
 
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDoublePropertySystem)
+
 
 UMovieSceneDoublePropertySystem::UMovieSceneDoublePropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -23,3 +25,4 @@ void UMovieSceneDoublePropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+

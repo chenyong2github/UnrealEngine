@@ -20,6 +20,8 @@
 #include "Components/SceneComponent.h"
 #include "Evaluation/MovieSceneTemplateCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneComponentMobilitySystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -229,3 +231,4 @@ void UMovieSceneComponentMobilitySystem::RestorePreAnimatedState(const FPreAnima
 {
 
 }
+

@@ -14,6 +14,8 @@
 #include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "PBDRigidsSolver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FieldSystemComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 
 UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectInitializer)
@@ -392,6 +394,7 @@ void UFieldSystemComponent::ResetFieldSystem()
 	ConstructionCommands.ResetFieldCommands();
 	BufferCommands.ResetFieldCommands();
 }
+
 
 
 

@@ -3,6 +3,8 @@
 #include "Sections/MovieSceneObjectPropertySection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneObjectPropertySection)
+
 
 UMovieSceneObjectPropertySection::UMovieSceneObjectPropertySection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

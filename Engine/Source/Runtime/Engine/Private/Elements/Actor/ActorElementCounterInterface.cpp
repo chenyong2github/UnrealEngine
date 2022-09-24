@@ -6,6 +6,8 @@
 
 #include "Elements/Object/ObjectElementCounterInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorElementCounterInterface)
+
 void UActorElementCounterInterface::IncrementCountersForElement(const FTypedElementHandle& InElementHandle, FTypedElementCounter& InOutCounter)
 {
 	if (const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
@@ -21,3 +23,4 @@ void UActorElementCounterInterface::DecrementCountersForElement(const FTypedElem
 		UObjectElementCounterInterface::DecrementCounterForObjectClass(Actor, InOutCounter);
 	}
 }
+

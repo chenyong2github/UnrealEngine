@@ -7,6 +7,8 @@
 #include "MaterialCompiler.h"
 #include "Materials/Material.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLandscapeLayerSwitch)
+
 #define LOCTEXT_NAMESPACE "Landscape"
 
 
@@ -136,3 +138,4 @@ void UMaterialExpressionLandscapeLayerSwitch::GetLandscapeLayerNames(TArray<FNam
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

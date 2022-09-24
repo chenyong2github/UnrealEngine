@@ -9,6 +9,8 @@
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ShapeComponent)
+
 // Custom serialization version
 struct FShapeComponentCustomVersion
 {

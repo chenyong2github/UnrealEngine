@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintGameplayTagLibrary)
+
 UBlueprintGameplayTagLibrary::UBlueprintGameplayTagLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -296,3 +298,4 @@ FString UBlueprintGameplayTagLibrary::GetDebugStringFromGameplayTag(FGameplayTag
 {
 	return GameplayTag.ToString();
 }
+

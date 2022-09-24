@@ -2,6 +2,8 @@
 
 #include "WorldPartition/WorldPartitionBlueprintLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionBlueprintLibrary)
+
 #if WITH_EDITOR
 #include "Subsystems/UnrealEditorSubsystem.h"
 #include "WorldPartition/WorldPartition.h"

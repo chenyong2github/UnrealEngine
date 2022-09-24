@@ -8,6 +8,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "UObject/StructOnScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVectorSection)
+
 /* FMovieSceneVectorKeyStruct interface
  *****************************************************************************/
 
@@ -376,3 +378,4 @@ void UMovieSceneDoubleVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLin
 		.AddConditional(Components->DoubleChannel[3], &Curves[3], ChannelsUsed > 3 && Curves[3].HasAnyData())
 		.Commit(this, Params, OutImportedEntity);
 }
+

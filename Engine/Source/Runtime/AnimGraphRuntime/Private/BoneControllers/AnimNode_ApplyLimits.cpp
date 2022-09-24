@@ -6,6 +6,8 @@
 #include "AnimationRuntime.h"
 #include "AngularLimit.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ApplyLimits)
+
 /////////////////////////////////////////////////////
 // FAnimNode_ApplyLimits
 
@@ -112,4 +114,5 @@ void FAnimNode_ApplyLimits::InitializeBoneReferences(const FBoneContainer& Requi
 
 	RecalcLimits();
 }
+
 

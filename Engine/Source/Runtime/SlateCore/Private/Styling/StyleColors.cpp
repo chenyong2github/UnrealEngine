@@ -8,6 +8,8 @@
 #include "Serialization/JsonSerializer.h"
 #include "HAL/PlatformFileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StyleColors)
+
 // Note this value is not mutable by the user
 const FSlateColor FStyleColors::Transparent = FSlateColor(FLinearColor::Transparent);
 

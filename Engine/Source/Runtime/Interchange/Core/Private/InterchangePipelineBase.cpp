@@ -8,6 +8,8 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePipelineBase)
+
 INTERCHANGECORE_API bool GInterchangeEnableCustomPipelines = false;
 
 static FAutoConsoleVariableRef CCvarInterchangeEnableCustomPipelines(
@@ -284,6 +286,7 @@ void UInterchangePipelineBase::SaveSettingsInternal(const FName PipelineStackNam
 	}
 	GConfig->Flush(0);
 }
+
 
 UInterchangePipelineBase* UInterchangePipelineBase::GetMostPipelineOuter() const
 {

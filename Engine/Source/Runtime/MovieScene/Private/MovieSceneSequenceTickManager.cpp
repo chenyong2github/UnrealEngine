@@ -10,6 +10,8 @@
 #include "Misc/UObjectToken.h"
 #include "Algo/IndexOf.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequenceTickManager)
+
 #define LOCTEXT_NAMESPACE "MovieSceneSequenceTickManager"
 
 DECLARE_CYCLE_STAT(TEXT("Sequence Tick Manager"), MovieSceneEval_SequenceTickManager, STATGROUP_MovieSceneEval);

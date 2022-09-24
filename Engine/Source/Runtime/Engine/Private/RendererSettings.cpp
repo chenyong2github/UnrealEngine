@@ -7,6 +7,8 @@
 #include "ColorSpace.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RendererSettings)
+
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "Misc/MessageDialog.h"
@@ -517,3 +519,4 @@ void URendererOverrideSettings::PostEditChangeProperty(FPropertyChangedEvent& Pr
 #endif // #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

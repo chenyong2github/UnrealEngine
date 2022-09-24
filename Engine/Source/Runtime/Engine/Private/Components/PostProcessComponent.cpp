@@ -3,6 +3,8 @@
 #include "Components/PostProcessComponent.h"
 #include "Components/SphereComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PostProcessComponent)
+
 UPostProcessComponent::UPostProcessComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -55,3 +57,4 @@ bool UPostProcessComponent::EncompassesPoint(FVector Point, float SphereRadius/*
 	}
 	return true;
 }
+

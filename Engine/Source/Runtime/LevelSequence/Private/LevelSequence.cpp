@@ -35,6 +35,8 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Engine/AssetUserData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequence)
+
 
 #if WITH_EDITOR
 	#include "UObject/SequencerObjectVersion.h"
@@ -741,3 +743,4 @@ const TArray<UAssetUserData*>* ULevelSequence::GetAssetUserDataArray() const
 {
 	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
+

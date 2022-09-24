@@ -4,6 +4,8 @@
 #include "Components/ApplicationLifecycleComponent.h"
 #include "Misc/CoreDelegates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ApplicationLifecycleComponent)
+
 UApplicationLifecycleComponent::UApplicationLifecycleComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -39,3 +41,4 @@ void UApplicationLifecycleComponent::OnUnregister()
 	FCoreDelegates::OnTemperatureChange.RemoveAll(this);
 	FCoreDelegates::OnLowPowerMode.RemoveAll(this);
 }
+

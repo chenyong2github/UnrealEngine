@@ -3,6 +3,8 @@
 #include "PacketHandlers/EngineHandlerComponentFactory.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EngineHandlerComponentFactory)
+
 
 /**
  * UEngineHandlerComponentFactor
@@ -21,3 +23,4 @@ TSharedPtr<HandlerComponent> UEngineHandlerComponentFactory::CreateComponentInst
 
 	return nullptr;
 }
+

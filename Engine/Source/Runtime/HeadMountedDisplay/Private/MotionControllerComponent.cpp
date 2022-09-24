@@ -19,6 +19,8 @@
 #include "XRMotionControllerBase.h"
 #include "IXRTrackingSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionControllerComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogMotionControllerComponent, Log, All);
 
 namespace {
@@ -742,3 +744,4 @@ void UMotionControllerComponent::OnDisplayModelLoaded(UPrimitiveComponent* InDis
 		DisplayModelLoadState = EModelLoadStatus::Complete;
 	}	
 }
+

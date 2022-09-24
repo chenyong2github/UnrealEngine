@@ -15,6 +15,8 @@
 #include "Slate/SceneViewport.h"
 #include "LegacyScreenPercentageDriver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Viewport)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 namespace FocusConstants
@@ -506,3 +508,4 @@ const FText UViewport::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

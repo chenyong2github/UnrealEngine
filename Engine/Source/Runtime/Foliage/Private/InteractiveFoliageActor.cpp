@@ -5,6 +5,8 @@
 #include "Engine/CollisionProfile.h"
 #include "InteractiveFoliageComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InteractiveFoliageActor)
+
 AInteractiveFoliageActor::AInteractiveFoliageActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
 		.SetDefaultSubobjectClass<UInteractiveFoliageComponent>("StaticMeshComponent0"))
@@ -36,3 +38,4 @@ AInteractiveFoliageActor::AInteractiveFoliageActor(const FObjectInitializer& Obj
 	MaxForce = 100000.0f;
 	Mass = 1.0f;
 }
+

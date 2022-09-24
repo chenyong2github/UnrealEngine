@@ -5,6 +5,8 @@
 #include "Styling/StyleColors.h"
 #include "SlateGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateColor)
+
 bool FSlateColor::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
 	if (Tag.Type == NAME_StructProperty)
@@ -34,3 +36,4 @@ const FLinearColor& FSlateColor::GetColorFromTable() const
 {
 	return USlateThemeManager::Get().GetColor(ColorTableId);
 }
+

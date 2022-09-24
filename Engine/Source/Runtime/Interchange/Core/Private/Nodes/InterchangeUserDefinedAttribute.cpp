@@ -4,6 +4,8 @@
 
 #include "Nodes/InterchangeBaseNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeUserDefinedAttribute)
+
 const FString UInterchangeUserDefinedAttributesAPI::UserDefinedAttributeBaseKey = TEXT("UserDefined_");
 const FString UInterchangeUserDefinedAttributesAPI::UserDefinedAttributeValuePostKey = TEXT("_Value");
 const FString UInterchangeUserDefinedAttributesAPI::UserDefinedAttributePayLoadPostKey = TEXT("_Payload");
@@ -272,3 +274,4 @@ void UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(cons
 		}
 	}
 }
+

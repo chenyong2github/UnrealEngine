@@ -4,6 +4,8 @@
 #include "Animation/AnimNode_Root.h"
 #include "PropertyAccess.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimClassData)
+
 #if WITH_EDITOR
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)

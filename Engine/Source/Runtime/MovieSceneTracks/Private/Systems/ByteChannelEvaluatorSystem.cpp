@@ -8,6 +8,8 @@
 #include "Channels/MovieSceneByteChannel.h"
 #include "Math/NumericLimits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ByteChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate byte channels"), MovieSceneEval_EvaluateByteChannelTask, STATGROUP_MovieSceneECS);
 
 namespace UE
@@ -66,4 +68,5 @@ void UByteChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	.SetStat(GET_STATID(MovieSceneEval_EvaluateByteChannelTask))
 	.Dispatch_PerEntity<FEvaluateByteChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 }
+
 

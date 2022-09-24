@@ -7,6 +7,9 @@
 #include "Styling/CoreStyle.h"
 #include "AudioDeviceManager.h"
 #include "Sound/SoundClass.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundMix)
+
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -128,3 +131,4 @@ bool USoundMix::CheckForDependencyLoop(USoundClass* SoundClass, TArray<USoundCla
 	return bFoundProblemClass;
 }
 #endif // WITH_EDITOR
+

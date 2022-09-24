@@ -2,6 +2,8 @@
 
 #include "InterchangeResultsContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeResultsContainer)
+
 
 void UInterchangeResultsContainer::Empty()
 {
@@ -25,3 +27,4 @@ void UInterchangeResultsContainer::Finalize()
 		Result->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 	}
 }
+

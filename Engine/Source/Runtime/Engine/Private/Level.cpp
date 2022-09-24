@@ -97,6 +97,8 @@ Level.cpp: Level-related functions
 #include "UObject/MetaData.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Level)
+
 #define LOCTEXT_NAMESPACE "ULevel"
 DEFINE_LOG_CATEGORY(LogLevel);
 

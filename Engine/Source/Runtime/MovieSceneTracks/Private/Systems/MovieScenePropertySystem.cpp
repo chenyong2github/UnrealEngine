@@ -7,6 +7,8 @@
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertySystem)
+
 UMovieScenePropertySystem::UMovieScenePropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -130,3 +132,4 @@ void UMovieScenePropertySystem::RestorePreAnimatedState(const FPreAnimationParam
 {
 
 }
+

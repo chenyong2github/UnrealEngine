@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/SingleKeyCaptureBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SingleKeyCaptureBehavior)
+
 USingleKeyCaptureBehavior::USingleKeyCaptureBehavior()
 {
 }
@@ -59,4 +61,5 @@ FInputCaptureUpdate USingleKeyCaptureBehavior::UpdateCapture(const FInputDeviceS
 void USingleKeyCaptureBehavior::ForceEndCapture(const FInputCaptureData& Data)
 {
 }
+
 

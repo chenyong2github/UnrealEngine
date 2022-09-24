@@ -22,6 +22,8 @@
 #include "PhysicsSolver.h"  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 #include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionDebugDrawActor)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

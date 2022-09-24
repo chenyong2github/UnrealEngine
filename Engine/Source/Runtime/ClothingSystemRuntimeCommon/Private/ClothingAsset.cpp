@@ -33,6 +33,8 @@
 #include "GPUSkinPublicDefs.h"
 #include "GPUSkinVertexFactory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothingAsset)
+
 DEFINE_LOG_CATEGORY(LogClothingAsset)
 #define LOCTEXT_NAMESPACE "ClothingAsset"
 
@@ -1602,3 +1604,4 @@ void UClothingAssetCommon::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -5,6 +5,8 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEntitySystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -443,3 +445,4 @@ void UMovieSceneEntitySystem::Unlink()
 	Linker->SystemUnlinked(this);
 	Linker = nullptr;
 }
+

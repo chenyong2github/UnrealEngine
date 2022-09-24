@@ -12,6 +12,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSpawnSection)
+
 
 UMovieSceneSpawnSection::UMovieSceneSpawnSection(const FObjectInitializer& Init)
 	: Super(Init)

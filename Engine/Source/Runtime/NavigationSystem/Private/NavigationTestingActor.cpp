@@ -13,6 +13,8 @@
 #include "Components/CapsuleComponent.h"
 #include "NavigationData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationTestingActor)
+
 void FNavTestTickHelper::Tick(float DeltaTime)
 {
 #if WITH_EDITOR
@@ -498,4 +500,5 @@ FPathFindingQuery ANavigationTestingActor::BuildPathFindingQuery(const ANavigati
 	
 	return FPathFindingQuery();
 }
+
 

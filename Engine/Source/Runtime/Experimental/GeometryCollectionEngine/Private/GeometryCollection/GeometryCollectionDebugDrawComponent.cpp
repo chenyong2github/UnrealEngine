@@ -13,6 +13,8 @@
 #include "HAL/IConsoleManager.h"
 #include "PBDRigidsSolver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionDebugDrawComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDraw, Log, All);
 
 UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(const FObjectInitializer& ObjectInitializer)
@@ -25,5 +27,6 @@ UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(con
 	bTickInEditor = false;
 	PrimaryComponentTick.bCanEverTick = false;
 }
+
 
 

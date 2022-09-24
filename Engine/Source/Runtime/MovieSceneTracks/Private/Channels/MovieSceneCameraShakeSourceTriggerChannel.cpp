@@ -2,6 +2,8 @@
 
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeSourceTriggerChannel)
+
 void FMovieSceneCameraShakeSourceTriggerChannel::GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles)
 {
 	GetData().GetKeys(WithinRange, OutKeyTimes, OutKeyHandles);
@@ -58,4 +60,5 @@ void FMovieSceneCameraShakeSourceTriggerChannel::Offset(FFrameNumber DeltaPositi
 {
 	GetData().Offset(DeltaPosition);
 }
+
 

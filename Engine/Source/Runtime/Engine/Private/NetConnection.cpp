@@ -49,6 +49,8 @@
 #include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
 #endif // UE_WITH_IRIS
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetConnection)
+
 DECLARE_LLM_MEMORY_STAT(TEXT("NetConnection"), STAT_NetConnectionLLM, STATGROUP_LLMFULL);
 LLM_DEFINE_TAG(NetConnection, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetConnectionLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
 
@@ -5505,4 +5507,5 @@ void ConsumeAllChannelRecords(FWrittenChannelsRecord& WrittenChannelsRecord, Fun
 }
 
 }
+
 

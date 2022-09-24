@@ -11,6 +11,8 @@
 #include "Engine/DemoNetDriver.h"
 #include "ReplaySubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionReplay)
+
 static int32 GUseReplayStreamingSources = 1;
 static FAutoConsoleVariableRef CVarUseReplayStreamingSources(
 	TEXT("wp.Runtime.UseReplayStreamingSources"),
@@ -249,3 +251,4 @@ TArray<FWorldPartitionStreamingSource> AWorldPartitionReplay::GetRecordingStream
 	check(GetWorld()->GetWorldPartition());
 	return GetWorld()->GetWorldPartition()->GetStreamingSources();
 }
+

@@ -5,6 +5,8 @@
 #include "Application/SlateApplicationBase.h"
 #include "Types/SlateVector2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateBrush)
+
 FSlateBrush::FSlateBrush()
 	: bIsDynamicallyLoaded(false)
 	, bHasUObject_DEPRECATED(false)

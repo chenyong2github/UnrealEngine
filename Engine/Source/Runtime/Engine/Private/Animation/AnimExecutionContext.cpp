@@ -3,6 +3,8 @@
 #include "Animation/AnimExecutionContext.h"
 #include "Animation/AnimNodeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimExecutionContext)
+
 FAnimExecutionContext::FData::FData(const FAnimationInitializeContext& InContext)
 {
 	Context = const_cast<FAnimationInitializeContext*>(&InContext);

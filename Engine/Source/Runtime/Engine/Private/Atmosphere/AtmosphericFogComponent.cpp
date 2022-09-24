@@ -14,6 +14,8 @@
 #include "ScenePrivate.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AtmosphericFogComponent)
+
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
 #endif
@@ -75,3 +77,4 @@ void UAtmosphericFogComponent::Serialize(FArchive& Ar)
 	}
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

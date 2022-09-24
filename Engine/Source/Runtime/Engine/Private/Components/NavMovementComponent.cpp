@@ -5,6 +5,8 @@
 #include "Components/CapsuleComponent.h"
 #include "AI/Navigation/PathFollowingAgentInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavMovementComponent)
+
 
 //----------------------------------------------------------------------//
 // UMovementComponent
@@ -108,4 +110,5 @@ void UNavMovementComponent::SetUpdateNavAgentWithOwnersCollisions(bool bUpdateWi
 {
 	bUpdateNavAgentWithOwnersCollision = bUpdateWithOwner;
 }
+
 

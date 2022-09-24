@@ -10,6 +10,8 @@
 #include "GameFramework/PlayerState.h"
 #include "EngineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameStateBase)
+
 DEFINE_LOG_CATEGORY(LogGameState);
 
 DEFINE_STAT(STAT_GetPlayerStateFromUniqueId);
@@ -268,3 +270,4 @@ APlayerState* AGameStateBase::GetPlayerStateFromUniqueNetId(const FUniqueNetIdWr
 
 	return nullptr;
 }
+

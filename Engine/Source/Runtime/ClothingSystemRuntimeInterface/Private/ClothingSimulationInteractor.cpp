@@ -4,6 +4,8 @@
 #include "ClothingAssetBase.h"
 #include "ClothingSimulationInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothingSimulationInteractor)
+
 void UClothingSimulationInteractor::CreateClothingInteractor(const UClothingAssetBase* ClothingAsset, int32 ClothingId)
 {
 	if (ClothingAsset)
@@ -50,3 +52,4 @@ void UClothingSimulationInteractor::Sync(IClothingSimulation* Simulation, ICloth
 		}
 	}
 }
+

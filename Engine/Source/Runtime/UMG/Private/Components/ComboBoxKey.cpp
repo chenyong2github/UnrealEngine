@@ -8,6 +8,8 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComboBoxKey)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -262,3 +264,4 @@ const FText UComboBoxKey::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

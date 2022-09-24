@@ -3,6 +3,8 @@
 #include "LevelSequenceObject.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceObject)
+
 
 /* FSequencerPossessedObject interface
  *****************************************************************************/
@@ -51,3 +53,4 @@ UObject* FLevelSequenceObject::GetObject() const
 	// component not found
 	return nullptr;
 }
+

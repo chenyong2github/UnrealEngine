@@ -9,6 +9,8 @@
 #include "IMediaPlayerFactory.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BaseMediaSource)
+
 #if WITH_EDITOR
 	#include "Interfaces/ITargetPlatform.h"
 #endif
@@ -190,3 +192,4 @@ FName UBaseMediaSource::GetDesiredPlayerName() const
 	return PlayerName;
 #endif
 }
+

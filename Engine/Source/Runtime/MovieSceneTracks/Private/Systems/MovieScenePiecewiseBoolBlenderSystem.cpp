@@ -5,6 +5,8 @@
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePiecewiseBoolBlenderSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -56,4 +58,5 @@ void UMovieScenePiecewiseBoolBlenderSystem::OnRun(FSystemTaskPrerequisites& InPr
 
 	Impl.Run(Linker, AllocatedBlendChannels, InPrerequisites, Subsequents);
 }
+
 

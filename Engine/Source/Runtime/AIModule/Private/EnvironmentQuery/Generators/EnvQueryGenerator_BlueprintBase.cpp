@@ -7,6 +7,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_BlueprintBase)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 namespace UE::AI::EQS::Private
@@ -133,3 +135,4 @@ FText UEnvQueryGenerator_BlueprintBase::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

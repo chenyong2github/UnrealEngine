@@ -39,6 +39,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeManager)
 
 static bool GInterchangeImportEnable = true;
 static FAutoConsoleVariableRef CCvarInterchangeImportEnable(

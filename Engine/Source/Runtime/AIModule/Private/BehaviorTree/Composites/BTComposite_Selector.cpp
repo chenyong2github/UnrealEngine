@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Composites/BTComposite_Selector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTComposite_Selector)
+
 UBTComposite_Selector::UBTComposite_Selector(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Selector";
@@ -34,3 +36,4 @@ FName UBTComposite_Selector::GetNodeIconName() const
 }
 
 #endif
+

@@ -5,6 +5,8 @@
 #include "Net/DefaultFaultHandler.h"
 #include "Engine/NetConnection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetConnectionFaultRecovery)
+
 
 /**
  * UNetFaultConfig
@@ -172,3 +174,4 @@ void FNetConnectionFaultRecovery::NotifySeverityUpdate(const FEscalationState& O
 
 }
 }
+

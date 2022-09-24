@@ -7,6 +7,8 @@
 #include "Math/UnrealMathUtility.h"
 #include "AudioMixerDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(QuartzQuantizationUtilities)
+
 #define INVALID_DURATION -1
 
 DEFINE_LOG_CATEGORY(LogAudioQuartz);
@@ -739,3 +741,4 @@ void FQuartzTransportTimeStamp::Reset()
 	Beat = 0;
 	BeatFraction = 0.f;
 }
+

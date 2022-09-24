@@ -9,6 +9,8 @@
 #include "MovieScene.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSubTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneSubTrack"
 
@@ -200,3 +202,4 @@ FText UMovieSceneSubTrack::GetDefaultDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

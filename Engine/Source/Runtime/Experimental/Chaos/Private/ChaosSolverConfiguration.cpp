@@ -3,6 +3,8 @@
 #include "ChaosSolverConfiguration.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosSolverConfiguration)
+
 FChaosSolverConfiguration::FChaosSolverConfiguration()
 	: PositionIterations(Chaos::FPBDRigidsEvolutionGBF::DefaultNumPositionIterations)
 	, VelocityIterations(Chaos::FPBDRigidsEvolutionGBF::DefaultNumVelocityIterations)
@@ -33,3 +35,4 @@ void FChaosSolverConfiguration::MoveRenamedPropertyValues()
 		VelocityIterations = PushOutIterations_DEPRECATED;
 	}
 }
+

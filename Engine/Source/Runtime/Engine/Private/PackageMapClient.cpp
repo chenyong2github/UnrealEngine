@@ -30,6 +30,8 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "GameFramework/Controller.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PackageMapClient)
+
 #if WITH_EDITOR
 #include "UObject/ObjectRedirector.h"
 #endif // WITH_EDITOR
@@ -4143,3 +4145,4 @@ bool FNetGUIDCache::FIsOwnerOrPawnHelper::IsOwnerOrPawn() const
 	return !!CachedResult;
 }
 #endif
+

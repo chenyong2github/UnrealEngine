@@ -4,6 +4,8 @@
 #include "Tracks/MovieSceneCameraShakeTrack.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeSection)
+
 
 UMovieSceneCameraShakeSection::UMovieSceneCameraShakeSection(const FObjectInitializer& ObjectInitializer)
 	: Super( ObjectInitializer )
@@ -43,3 +45,4 @@ void UMovieSceneCameraShakeSection::PostLoad()
 
 	Super::PostLoad();
 }
+

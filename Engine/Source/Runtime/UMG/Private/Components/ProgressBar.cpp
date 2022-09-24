@@ -4,6 +4,8 @@
 #include "Slate/SlateBrushAsset.h"
 #include "Styling/UMGCoreStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProgressBar)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -207,3 +209,4 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

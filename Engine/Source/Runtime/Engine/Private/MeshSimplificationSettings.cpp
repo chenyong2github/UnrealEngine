@@ -5,6 +5,8 @@
 #include "UObject/UnrealType.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSimplificationSettings)
+
 #if WITH_EDITOR
 #include "IMeshReductionManagerModule.h"
 #endif
@@ -56,3 +58,4 @@ void UMeshSimplificationSettings::PostEditChangeProperty(struct FPropertyChanged
 
 
 #endif
+

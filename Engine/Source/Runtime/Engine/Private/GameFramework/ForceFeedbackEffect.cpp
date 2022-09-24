@@ -4,6 +4,8 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ForceFeedbackEffect)
+
 UForceFeedbackEffect::UForceFeedbackEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -102,3 +104,4 @@ bool FActiveForceFeedbackEffect::Update(const float DeltaTime, FForceFeedbackVal
 	GetValues(Values);
 	return true;
 }
+

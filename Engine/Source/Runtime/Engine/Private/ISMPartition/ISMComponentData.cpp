@@ -5,6 +5,8 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ISMComponentData)
+
 FISMComponentData::FISMComponentData()
 #if WITH_EDITORONLY_DATA
 	: Component(nullptr)
@@ -48,3 +50,4 @@ void FISMComponentData::HandleComponentMeshBoundsChanged(const FBoxSphereBounds&
 	}
 }
 #endif
+

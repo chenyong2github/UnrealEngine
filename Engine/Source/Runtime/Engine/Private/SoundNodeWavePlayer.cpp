@@ -7,6 +7,8 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeWavePlayer)
+
 #define LOCTEXT_NAMESPACE "SoundNodeWavePlayer"
 
 void USoundNodeWavePlayer::Serialize(FArchive& Ar)
@@ -279,3 +281,4 @@ int32 USoundNodeWavePlayer::GetMaxChildNodes() const
 
 
 #undef LOCTEXT_NAMESPACE
+

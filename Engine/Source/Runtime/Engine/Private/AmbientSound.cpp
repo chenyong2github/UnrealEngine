@@ -12,6 +12,9 @@
 #include "Misc/MapErrors.h"
 #include "Sound/SoundBase.h"
 #include "Misc/CommandLine.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AmbientSound)
+
 #define LOCTEXT_NAMESPACE "AmbientSound"
 
 /*-----------------------------------------------------------------------------
@@ -140,4 +143,5 @@ void AAmbientSound::Stop()
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

@@ -3,6 +3,8 @@
 #include "AnimNotifies/AnimNotify_PlayMontageNotify.h"
 #include "Animation/AnimInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_PlayMontageNotify)
+
 //////////////////////////////////////////////////////////////////////////
 // UAnimNotify_PlayMontageNotify
 //////////////////////////////////////////////////////////////////////////
@@ -89,3 +91,4 @@ bool UAnimNotify_PlayMontageNotifyWindow::CanBePlaced(UAnimSequenceBase* Animati
 	return (Animation && Animation->IsA(UAnimMontage::StaticClass()));
 }
 #endif // WITH_EDITOR
+

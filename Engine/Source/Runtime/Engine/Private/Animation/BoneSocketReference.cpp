@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Engine/SkeletalMeshSocket.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoneSocketReference)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Socket Reference 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,4 +46,5 @@ void FSocketReference::InitialzeCompactBoneIndex(const FBoneContainer& RequiredB
 		CachedSocketCompactBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(SocketBoneSkeletonIndex);
 	}
 }
+
 

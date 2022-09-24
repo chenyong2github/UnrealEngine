@@ -2,6 +2,8 @@
 
 #include "ClothPhysicalMeshDataBase_Legacy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothPhysicalMeshDataBase_Legacy)
+
 UClothPhysicalMeshDataBase_Legacy::UClothPhysicalMeshDataBase_Legacy()
 	: NumFixedVerts(0)
 	, MaxBoneWeights(0)
@@ -39,3 +41,4 @@ void UClothPhysicalMeshDataBase_Legacy::RegisterFloatArray(
 	check(!IdToArray.Contains(Id) || IdToArray[Id] == Array);
 	IdToArray.Add(Id, Array);
 }
+

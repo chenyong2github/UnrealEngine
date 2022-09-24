@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Tasks/BTTask_SetTagCooldown.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_SetTagCooldown)
+
 UBTTask_SetTagCooldown::UBTTask_SetTagCooldown(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Set Tag Cooldown";
@@ -29,3 +31,4 @@ FName UBTTask_SetTagCooldown::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

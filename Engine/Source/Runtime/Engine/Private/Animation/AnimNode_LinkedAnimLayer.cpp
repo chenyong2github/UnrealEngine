@@ -3,6 +3,8 @@
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimClassInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LinkedAnimLayer)
+
 FName FAnimNode_LinkedAnimLayer::GetDynamicLinkFunctionName() const
 {
 	return Layer;

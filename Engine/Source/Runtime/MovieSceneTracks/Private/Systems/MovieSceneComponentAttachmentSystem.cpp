@@ -21,6 +21,8 @@
 #include "MovieSceneObjectBindingID.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneComponentAttachmentSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -317,3 +319,4 @@ void UMovieSceneComponentAttachmentSystem::RestorePreAnimatedState(const FPreAni
 		);
 	}
 }
+

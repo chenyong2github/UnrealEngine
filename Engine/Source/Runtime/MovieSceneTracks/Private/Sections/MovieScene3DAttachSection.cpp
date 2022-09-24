@@ -6,6 +6,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DAttachSection)
+
 
 UMovieScene3DAttachSection::UMovieScene3DAttachSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -59,3 +61,4 @@ void UMovieScene3DAttachSection::ImportEntityImpl(UMovieSceneEntitySystemLinker*
 		.Add(TrackComponents->AttachComponent, AttachComponent)
 	);
 }
+

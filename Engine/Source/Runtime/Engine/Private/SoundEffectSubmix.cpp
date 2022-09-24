@@ -3,6 +3,8 @@
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundMix.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundEffectSubmix)
+
 USoundEffectSubmixPreset::USoundEffectSubmixPreset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -24,3 +26,4 @@ bool FSoundEffectSubmix::ProcessAudio(FSoundEffectSubmixInputData& InData, FSoun
 
 	return false;
 }
+

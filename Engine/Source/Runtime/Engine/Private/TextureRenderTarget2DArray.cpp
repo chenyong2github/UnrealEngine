@@ -13,6 +13,8 @@
 #include "Engine/Texture2DArray.h"
 #include "ClearQuad.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget2DArray)
+
 /*-----------------------------------------------------------------------------
 	UTextureRenderTarget2DArray
 -----------------------------------------------------------------------------*/
@@ -390,3 +392,4 @@ bool FTextureRenderTarget2DArrayResource::ReadPixels(TArray<FFloat16Color>& OutI
 
 	return true;
 }
+

@@ -19,6 +19,8 @@
 #include "Animation/AnimInstance.h"
 #include "Engine/DamageEvents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Character)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCharacter, Log, All);
 
 DECLARE_CYCLE_STAT(TEXT("Char OnNetUpdateSimulatedPosition"), STAT_CharacterOnNetUpdateSimulatedPosition, STATGROUP_Character);
@@ -1817,3 +1819,4 @@ void ACharacter::ApplyAsyncOutput(const FCharacterAsyncOutput& Output)
 		bPressedJump = false;
 	}
 }
+

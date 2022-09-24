@@ -4,6 +4,9 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceStaticMeshManager)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif // WITH_EDITOR
@@ -403,3 +406,4 @@ int32 ALightWeightInstanceStaticMeshManager::ConvertHandleIndexToInternalIndex(i
 {
 	return RenderingIndicesToDataIndices[InHandleIndex];
 }
+

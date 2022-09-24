@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/BTService.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTService)
+
 UBTService::UBTService(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bNotifyTick = true;
@@ -89,3 +91,4 @@ void UBTService::ScheduleNextTick(UBehaviorTreeComponent& OwnerComp, uint8* Node
 	const float NextTickTime = FMath::FRandRange(FMath::Max(0.0f, Interval - RandomDeviation), (Interval + RandomDeviation));
 	SetNextTickTime(NodeMemory, NextTickTime);
 }
+

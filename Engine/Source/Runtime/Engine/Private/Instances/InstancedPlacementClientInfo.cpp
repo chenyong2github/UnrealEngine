@@ -2,6 +2,8 @@
 
 #include "Instances/InstancedPlacementClientInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedPlacementClientInfo)
+
 #if WITH_EDITORONLY_DATA
 #include "Misc/ITransaction.h"
 #include "Instances/InstancedPlacementPartitionActor.h"
@@ -466,3 +468,4 @@ bool FClientPlacementInfo::DuplicateISMPartitionInstances(TArrayView<const FISMC
 }
 
 #endif	// WITH_EDITORONLY_DATA
+

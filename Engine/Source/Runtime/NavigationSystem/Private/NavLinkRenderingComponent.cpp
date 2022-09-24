@@ -16,6 +16,8 @@
 #include "NavLinkHostInterface.h"
 #include "NavMesh/RecastNavMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavLinkRenderingComponent)
+
 //----------------------------------------------------------------------//
 // UNavLinkRenderingComponent
 //----------------------------------------------------------------------//
@@ -457,3 +459,4 @@ uint32 FNavLinkRenderingProxy::GetAllocatedSize( void ) const
 { 
 	return(FPrimitiveSceneProxy::GetAllocatedSize() + OffMeshPointLinks.GetAllocatedSize() + OffMeshSegmentLinks.GetAllocatedSize());
 }
+

@@ -14,6 +14,8 @@
 
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBoundSceneComponentInstantiator)
+
 UMovieSceneBoundSceneComponentInstantiator::UMovieSceneBoundSceneComponentInstantiator(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -89,3 +91,4 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 	.FilterNone({ Components->Tags.NeedsUnlink })
 	.RunInline_PerAllocation(&Linker->EntityManager, ObjectBindingTask);
 }
+

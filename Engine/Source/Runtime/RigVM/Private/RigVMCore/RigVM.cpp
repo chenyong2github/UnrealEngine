@@ -10,6 +10,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVM)
+
 void FRigVMParameter::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
@@ -3419,3 +3421,4 @@ void URigVM::CopyArray(FScriptArrayHelper& TargetHelper, FRigVMMemoryHandle& Tar
 		}
 	}
 }
+

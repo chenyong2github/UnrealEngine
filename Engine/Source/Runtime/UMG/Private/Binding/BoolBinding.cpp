@@ -2,6 +2,8 @@
 
 #include "Binding/BoolBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoolBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UBoolBinding::UBoolBinding()
@@ -35,3 +37,4 @@ bool UBoolBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

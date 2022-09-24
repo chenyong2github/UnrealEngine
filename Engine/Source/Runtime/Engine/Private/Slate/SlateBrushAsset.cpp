@@ -2,6 +2,8 @@
 
 #include "Slate/SlateBrushAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateBrushAsset)
+
 USlateBrushAsset::USlateBrushAsset( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
@@ -19,3 +21,4 @@ void USlateBrushAsset::PostLoad()
 	}
 }
 #endif
+

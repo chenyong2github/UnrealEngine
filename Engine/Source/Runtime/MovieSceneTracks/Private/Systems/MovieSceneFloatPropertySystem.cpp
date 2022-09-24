@@ -6,6 +6,8 @@
 
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFloatPropertySystem)
+
 
 UMovieSceneFloatPropertySystem::UMovieSceneFloatPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -23,3 +25,4 @@ void UMovieSceneFloatPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequis
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+

@@ -7,6 +7,8 @@
 #include "SplineIK.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SplineIK)
+
 FAnimNode_SplineIK::FAnimNode_SplineIK() 
 	: BoneAxis(ESplineBoneAxis::X)
 	, bAutoCalculateSpline(true)
@@ -397,3 +399,4 @@ float FAnimNode_SplineIK::GetTwist(float InAlpha, float TotalSplineAlpha)
 	TwistBlend.SetAlpha(InAlpha / TotalSplineAlpha);
 	return TwistBlend.GetBlendedValue();
 }
+

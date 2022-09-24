@@ -8,6 +8,8 @@
 #include "IMovieScenePlayer.h"
 #include "EventHandlers/ISequenceDataEventHandler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePossessable)
+
 bool FMovieScenePossessable::BindSpawnableObject(FMovieSceneSequenceID SequenceID, UObject* Object, IMovieScenePlayer* Player)
 {
 	TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(Object);

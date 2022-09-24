@@ -17,6 +17,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsAsset)
+
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
 #endif
@@ -978,3 +980,4 @@ void UPhysicsAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -14,6 +14,8 @@
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundClass)
+
 #if WITH_EDITOR
 #include "SoundClassGraph/SoundClassGraph.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -385,3 +387,4 @@ TSharedPtr<ISoundClassAudioEditor> USoundClass::GetSoundClassAudioEditor()
 
 
 #endif
+

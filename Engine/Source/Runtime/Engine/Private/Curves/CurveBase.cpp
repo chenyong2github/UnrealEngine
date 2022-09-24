@@ -7,6 +7,8 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Serialization/JsonWriter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveBase)
+
 
 /* UCurveBase interface
  *****************************************************************************/
@@ -269,3 +271,4 @@ void UCurveBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	OnUpdateCurve.Broadcast(this, PropertyChangedEvent.ChangeType);
 }
 #endif //WITH_EDITORONLY_DATA
+

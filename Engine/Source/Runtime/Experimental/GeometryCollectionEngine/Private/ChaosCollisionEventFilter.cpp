@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosCollisionEventFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosCollisionEventFilter)
+
 void FChaosCollisionEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FCollisionDataArray& RawCollisionDataArray)
 {
 	FilteredDataArray.Reset();
@@ -138,3 +140,4 @@ void FChaosCollisionEventFilter::SortEvents(TArray<FChaosCollisionEventData>& In
 		break;
 	}
 }
+

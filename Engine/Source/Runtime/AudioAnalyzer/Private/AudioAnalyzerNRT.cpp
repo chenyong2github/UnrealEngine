@@ -6,6 +6,7 @@
 #include "SampleBuffer.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioAnalyzerNRT)
 #if WITH_EDITOR
 
 namespace 

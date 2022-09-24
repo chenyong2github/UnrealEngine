@@ -8,6 +8,8 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "UObject/ScriptInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraLensEffectInterface)
+
 TArray<UFXSystemComponent*> ICameraLensEffectInterface::GetParticleComponents() const
 {
 	const AActor* const ConstActorThis = Cast<AActor>(this);
@@ -110,3 +112,4 @@ void UCameraLensEffectInterfaceClassSupportLibrary::SetInterfaceClass(TSubclassO
 		}
 	}
 }
+

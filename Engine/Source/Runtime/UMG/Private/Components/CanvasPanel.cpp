@@ -4,6 +4,8 @@
 #include "Layout/ArrangedChildren.h"
 #include "Components/CanvasPanelSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CanvasPanel)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -120,3 +122,4 @@ const FText UCanvasPanel::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -8,6 +8,8 @@
 #include "Engine/Canvas.h"		// FCanvas, UCanvas
 #include "TimerManager.h"		// FTimerDelegate, FTimerHandle
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ViewportStatsSubsystem)
+
 DECLARE_LOG_CATEGORY_EXTERN(LogViewportStatsSubsystem, Log, All);
 DEFINE_LOG_CATEGORY(LogViewportStatsSubsystem);
 
@@ -137,3 +139,4 @@ void UViewportStatsSubsystem::AddTimedDisplay(FText Text, FLinearColor Color, fl
 }
 
 #undef LOCTEXT_NAMESPACE
+

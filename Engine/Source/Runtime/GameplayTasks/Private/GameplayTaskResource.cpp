@@ -4,6 +4,8 @@
 #include "GameplayTask.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTaskResource)
+
 #if WITH_GAMEPLAYTASK_DEBUG
 TArray<FString> UGameplayTaskResource::ResourceDescriptions;
 #endif // WITH_GAMEPLAYTASK_DEBUG
@@ -115,3 +117,4 @@ FString UGameplayTaskResource::GenerateDebugDescription() const
 
 }
 #endif // WITH_GAMEPLAYTASK_DEBUG
+

@@ -5,6 +5,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "ToolDataVisualizer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BrushStampIndicator)
+
 
 UInteractiveGizmo* UBrushStampIndicatorBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
@@ -109,3 +111,4 @@ void UBrushStampIndicator::Update(float Radius, const FTransform& WorldTransform
 		AttachedComponent->SetWorldTransform(Transform);
 	}
 }
+

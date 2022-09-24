@@ -9,6 +9,8 @@
 #include "VT/VirtualTextureBuiltData.h"
 #include "EngineModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VirtualTexture)
+
 static FAutoConsoleCommand GVTFlushAndEvictFileCacheCommand(
 	TEXT("r.VT.FlushAndEvictFileCache"),
 	TEXT("Flush both the virtual texture physcial page cache and disk file cache"),
@@ -222,3 +224,4 @@ void UVirtualTexture2D::ClearCachedCookedPlatformData(const ITargetPlatform* Tar
 }
 
 #endif
+

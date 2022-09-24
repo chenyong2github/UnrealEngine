@@ -8,6 +8,8 @@
 #include "RenderTargetPool.h"
 #include "PixelShaderUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubsurfaceProfile)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSubsurfaceProfile, Log, All);
 
 static TAutoConsoleVariable<int32> CVarSSProfilesPreIntegratedTextureResolution(
@@ -765,3 +767,4 @@ void USubsurfaceProfile::PostLoad()
 
 	UpgradeSubsurfaceProfileParameters(this->Settings);
 }
+

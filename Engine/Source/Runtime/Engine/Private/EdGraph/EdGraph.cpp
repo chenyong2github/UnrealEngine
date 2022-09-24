@@ -5,6 +5,9 @@
 #include "GraphEditAction.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EngineLogs.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraph)
+
 #if WITH_EDITOR
 #include "UObject/UObjectHash.h"
 #endif
@@ -400,3 +403,4 @@ void UEdGraph::RemovePropertyChangedNotifier(FDelegateHandle Handle )
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

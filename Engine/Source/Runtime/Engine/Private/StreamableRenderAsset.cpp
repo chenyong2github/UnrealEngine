@@ -5,6 +5,8 @@
 #include "ContentStreaming.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StreamableRenderAsset)
+
 static const TCHAR* GNoRefBiasQualityLevelCVarName = TEXT("r.Streaming.NoRefLODBiasQualityLevel");
 static const TCHAR* GNoRefBiasQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
 static int32 GNoRefBiasQualityLevel = -1;
@@ -412,3 +414,4 @@ int32 UStreamableRenderAsset::GetCurrentNoRefStreamingLODBias() const
 {
 	return GetNoRefStreamingLODBias().GetValue(GNoRefBiasQualityLevel);
 }
+

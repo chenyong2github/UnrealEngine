@@ -7,6 +7,8 @@
 #include "Animation/AnimSequence.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSet)
+
 /////////////////////////////////////////////////////
 // UAnimSet
 
@@ -283,4 +285,5 @@ void FAnimSetMeshLinkup::BuildLinkup(USkeletalMesh* InSkelMesh, UAnimSet* InAnim
 	}
 #endif
 }
+
 

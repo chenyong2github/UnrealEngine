@@ -6,6 +6,8 @@
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CancellableAsyncAction)
+
 void UCancellableAsyncAction::Cancel()
 {
 	// Child classes should override this
@@ -43,3 +45,4 @@ class FTimerManager* UCancellableAsyncAction::GetTimerManager() const
 
 	return nullptr;
 }
+

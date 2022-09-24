@@ -6,6 +6,8 @@
 #include "Dataflow/DataflowCore.h"
 #include "Logging/LogMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowEdNode)
+
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "EdGraph/EdGraphPin.h"
 #endif
@@ -152,4 +154,5 @@ FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+
 

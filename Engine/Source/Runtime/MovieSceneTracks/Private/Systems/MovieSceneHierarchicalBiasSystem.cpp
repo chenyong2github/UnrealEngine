@@ -6,6 +6,8 @@
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneHierarchicalBiasSystem)
+
 
 namespace UE
 {
@@ -149,3 +151,4 @@ void UMovieSceneHierarchicalBiasSystem::OnRun(FSystemTaskPrerequisites& InPrereq
 		.RunInline_PerAllocation(&Linker->EntityManager, Task);
 	}
 }
+

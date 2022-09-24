@@ -8,6 +8,8 @@
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneQuaternionInterpolationRotationSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Quat-interp-rot channel system"), MovieSceneEval_QuatInterpRotChannelSystem, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate quat-interp-rot channels"), MovieSceneEval_EvaluateQuatInterpRotChannelTask, STATGROUP_MovieSceneECS);
 
@@ -232,3 +234,4 @@ void UMovieSceneQuaternionInterpolationRotationSystem::OnRun(FSystemTaskPrerequi
 		.SetStat(GET_STATID(MovieSceneEval_EvaluateQuatInterpRotChannelTask))
 		.Dispatch_PerAllocation<FEvaluateQuaternionInterpolationRotationChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 }
+

@@ -4,6 +4,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Distance)
+
 #define ENVQUERYTEST_DISTANCE_NAN_DETECTION 1
 
 namespace
@@ -165,3 +167,4 @@ FText UEnvQueryTest_Distance::GetDescriptionDetails() const
 {
 	return DescribeFloatTestParams();
 }
+

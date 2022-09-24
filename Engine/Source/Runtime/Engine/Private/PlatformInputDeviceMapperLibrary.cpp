@@ -3,6 +3,8 @@
 #include "GameFramework/PlatformInputDeviceMapperLibrary.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlatformInputDeviceMapperLibrary)
+
 int32 UPlatformInputDeviceMapperLibrary::GetAllInputDevicesForUser(const FPlatformUserId UserId, TArray<FInputDeviceId>& OutInputDevices)
 {
 	return IPlatformInputDeviceMapper::Get().GetAllInputDevicesForUser(UserId, OutInputDevices);

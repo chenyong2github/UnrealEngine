@@ -12,6 +12,8 @@
 #include "Perception/AISightTargetInterface.h"
 #include "Perception/AISenseConfig_Sight.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Sight)
+
 #define DO_SIGHT_VLOGGING (0 && ENABLE_VISUAL_LOG)
 
 #if DO_SIGHT_VLOGGING
@@ -843,3 +845,4 @@ void UAISense_Sight::OnListenerForgetsAll(const FPerceptionListener& Listener)
 	ForEach(SightQueriesInRange, ForgetPreviousResult);
 	ForEach(SightQueriesOutOfRange, ForgetPreviousResult);
 }
+

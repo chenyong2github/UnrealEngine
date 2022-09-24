@@ -8,6 +8,8 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFloatChannel)
+
 static_assert(
 		sizeof(FMovieSceneFloatValue) == 28,
 		"The size of the float channel value has changed. You need to update the padding byte at the end of the structure. "
@@ -245,4 +247,5 @@ bool FMovieSceneFloatChannel::SerializeFromMismatchedTag(const FPropertyTag& Tag
 {
 	return FMovieSceneFloatChannelImpl::SerializeFromRichCurve(this, Tag, Slot);
 }
+
 

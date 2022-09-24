@@ -2,6 +2,8 @@
 
 #include "TextureEncodingSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureEncodingSettings)
+
 UTextureEncodingProjectSettings::UTextureEncodingProjectSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	bFinalUsesRDO(false),
@@ -22,3 +24,4 @@ UTextureEncodingUserSettings::UTextureEncodingUserSettings(const FObjectInitiali
 	ForceEncodeSpeed(ETextureEncodeSpeedOverride::Disabled)
 {
 }
+

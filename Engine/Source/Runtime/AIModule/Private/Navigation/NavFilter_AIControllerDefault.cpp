@@ -4,6 +4,8 @@
 #include "GameFramework/Pawn.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavFilter_AIControllerDefault)
+
 UNavFilter_AIControllerDefault::UNavFilter_AIControllerDefault(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -17,3 +19,4 @@ TSubclassOf<UNavigationQueryFilter> UNavFilter_AIControllerDefault::GetSimpleFil
 
 	return ensure(AsAIController) ? AsAIController->GetDefaultNavigationFilterClass() : nullptr;
 }
+

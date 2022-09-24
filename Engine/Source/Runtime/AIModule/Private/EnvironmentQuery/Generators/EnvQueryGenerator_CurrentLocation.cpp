@@ -5,6 +5,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_CurrentLocation)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_CurrentLocation::UEnvQueryGenerator_CurrentLocation(const FObjectInitializer& ObjectInitializer) 
@@ -37,3 +39,4 @@ FText UEnvQueryGenerator_CurrentLocation::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

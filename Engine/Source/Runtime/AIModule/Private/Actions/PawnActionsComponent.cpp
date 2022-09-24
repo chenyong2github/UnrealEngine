@@ -9,6 +9,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Actions/PawnAction_Sequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnActionsComponent)
+
 //----------------------------------------------------------------------//
 // helpers
 //----------------------------------------------------------------------//
@@ -641,3 +643,4 @@ FString UPawnActionsComponent::DescribeEventType(EPawnActionEventType::Type Even
 {
 	return GetEventName(EventType);
 }
+

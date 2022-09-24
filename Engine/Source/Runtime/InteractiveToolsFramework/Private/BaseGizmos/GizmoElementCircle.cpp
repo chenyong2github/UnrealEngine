@@ -8,6 +8,8 @@
 #include "Materials/MaterialInterface.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementCircle)
+
 void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
 	FRenderTraversalState CurrentRenderState(RenderState);
@@ -149,4 +151,5 @@ bool UGizmoElementCircle::GetHitLine() const
 {
 	return bHitLine;
 }
+
 

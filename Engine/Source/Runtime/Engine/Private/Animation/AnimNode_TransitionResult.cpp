@@ -2,6 +2,8 @@
 
 #include "Animation/AnimNode_TransitionResult.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_TransitionResult)
+
 /////////////////////////////////////////////////////
 // FAnimNode_TransitionResult
 
@@ -33,3 +35,4 @@ void FAnimNode_TransitionResult::GatherDebugData(FNodeDebugData& DebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugData.AddDebugItem(DebugLine);
 }
+

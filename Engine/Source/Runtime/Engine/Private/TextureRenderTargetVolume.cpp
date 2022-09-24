@@ -13,6 +13,8 @@
 #include "Engine/VolumeTexture.h"
 #include "ClearQuad.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTargetVolume)
+
 /*-----------------------------------------------------------------------------
 	UTextureRenderTargetVolume
 -----------------------------------------------------------------------------*/
@@ -396,3 +398,4 @@ bool FTextureRenderTargetVolumeResource::ReadPixels(TArray<FFloat16Color>& OutIm
 
 	return true;
 }
+

@@ -9,6 +9,8 @@
 #include "Distributions/DistributionFloat.h"
 #include "Distributions/DistributionVector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterpCurveEdSetup)
+
 
 void UInterpCurveEdSetup::PostLoad()
 {
@@ -220,3 +222,4 @@ void UInterpCurveEdSetup::ResetTabs()
 
 	Tabs.Add(Tab);
 }
+

@@ -3,6 +3,8 @@
 #include "ARSharedWorldGameState.h"
 #include "AugmentedRealityModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARSharedWorldGameState)
+
 AARSharedWorldGameState::AARSharedWorldGameState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PreviewImageBytesTotal(0)
@@ -105,3 +107,4 @@ void AARSharedWorldGameState::TriggerCompletionIfDone()
 		K2_OnARWorldMapIsReady();
 	}
 }
+

@@ -4,6 +4,8 @@
 #include "ClothLODData.h"
 #include "ClothPhysicalMeshDataBase_Legacy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothLODData_Legacy)
+
 FClothParameterMask_Legacy::FClothParameterMask_Legacy()
 	: MaskName(NAME_None)
 	, CurrentTarget(EWeightMapTargetCommon::None)
@@ -82,3 +84,4 @@ void UClothLODDataCommon_Legacy::MigrateTo(FClothLODDataCommon& LodData)
 	LodData.TransitionUpSkinData = MoveTemp(TransitionUpSkinData);
 	LodData.TransitionDownSkinData = MoveTemp(TransitionDownSkinData);
 }
+

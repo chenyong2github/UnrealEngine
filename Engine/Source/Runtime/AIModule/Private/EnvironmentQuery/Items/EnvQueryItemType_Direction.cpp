@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Direction.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryItemType_Direction)
+
 UEnvQueryItemType_Direction::UEnvQueryItemType_Direction(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ValueSize = sizeof(FVector);
@@ -84,3 +86,4 @@ void UEnvQueryItemType_Direction::SetContextHelper(FEnvQueryContextData& Context
 		RawData += sizeof(FVector);
 	}
 }
+

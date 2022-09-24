@@ -4,6 +4,8 @@
 #include "Components/Widget.h"
 #include "Components/VerticalBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VerticalBoxSlot)
+
 /////////////////////////////////////////////////////
 // UVerticalBoxSlot
 
@@ -144,3 +146,4 @@ void UVerticalBoxSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateS
 }
 
 #endif
+

@@ -5,6 +5,8 @@
 #include "Engine/Canvas.h"
 #include "DisplayDebugHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraModifier)
+
 //////////////////////////////////////////////////////////////////////////
 
 DEFINE_LOG_CATEGORY_STATIC(LogCamera, Log, All);
@@ -174,3 +176,4 @@ void UCameraModifier::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInf
 {
 
 }
+

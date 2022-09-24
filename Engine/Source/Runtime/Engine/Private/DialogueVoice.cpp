@@ -3,6 +3,8 @@
 #include "Sound/DialogueVoice.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DialogueVoice)
+
 UDialogueVoice::UDialogueVoice(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LocalizationGUID( FGuid::NewGuid() )
@@ -53,3 +55,4 @@ void UDialogueVoice::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 // End UObject interface. 
+

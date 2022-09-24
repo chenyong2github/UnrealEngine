@@ -23,6 +23,8 @@
 #include "Engine/GameEngine.h"
 #include "Widgets/Layout/SWindowTitleBarArea.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetBlueprintLibrary)
+
 //For PIE error messages
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -742,3 +744,4 @@ void UWidgetBlueprintLibrary::SetWindowTitleBarCloseButtonActive(bool bActive)
 }
 
 #undef LOCTEXT_NAMESPACE
+

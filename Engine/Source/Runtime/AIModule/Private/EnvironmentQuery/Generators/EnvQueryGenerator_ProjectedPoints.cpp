@@ -4,6 +4,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/EnvQueryTraceHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_ProjectedPoints)
+
 UEnvQueryGenerator_ProjectedPoints::UEnvQueryGenerator_ProjectedPoints(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ProjectionData.TraceMode = EEnvQueryTrace::Navigation;
@@ -53,3 +55,4 @@ void UEnvQueryGenerator_ProjectedPoints::PostLoad()
 	Super::PostLoad();
 	ProjectionData.OnPostLoad();
 }
+

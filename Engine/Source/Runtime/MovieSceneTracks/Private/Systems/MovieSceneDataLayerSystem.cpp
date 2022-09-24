@@ -24,6 +24,8 @@
 
 #include "Kismet/KismetSystemLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDataLayerSystem)
+
 #if WITH_EDITOR
 	#include "DataLayer/DataLayerEditorSubsystem.h"
 #endif
@@ -693,4 +695,5 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 	.FilterAll(Filter)
 	.Iterate_PerAllocation(&Linker->EntityManager, GatherDataLayers);
 }
+
 

@@ -3,6 +3,8 @@
 #include "Changes/MeshChange.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshChange)
+
 using namespace UE::Geometry;
 
 FMeshChange::FMeshChange()
@@ -47,5 +49,6 @@ void FMeshChange::ApplyChangeToMesh(FDynamicMesh3* Mesh, bool bRevert) const
 {
 	DynamicMeshChange->Apply(Mesh, bRevert);
 }
+
 
 

@@ -2,6 +2,8 @@
 
 #include "Net/OnlineBlueprintCallProxyBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBlueprintCallProxyBase)
+
 //////////////////////////////////////////////////////////////////////////
 // UOnlineBlueprintCallProxyBase
 
@@ -10,3 +12,4 @@ UOnlineBlueprintCallProxyBase::UOnlineBlueprintCallProxyBase(const FObjectInitia
 {
 	SetFlags(RF_StrongRefOnFrame);
 }
+

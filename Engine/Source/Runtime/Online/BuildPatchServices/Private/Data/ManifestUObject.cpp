@@ -9,6 +9,8 @@
 #include "Data/ManifestData.h"
 #include "BuildPatchManifest.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ManifestUObject)
+
 DECLARE_LOG_CATEGORY_EXTERN(LogManifestUObject, Log, All);
 DEFINE_LOG_CATEGORY(LogManifestUObject);
 
@@ -661,3 +663,4 @@ bool FManifestUObject::SaveInternal(FArchive& Ar, const FBuildPatchAppManifest& 
 
 #endif // !BUILDPATCHSERVICES_NOUOBJECT
 }
+

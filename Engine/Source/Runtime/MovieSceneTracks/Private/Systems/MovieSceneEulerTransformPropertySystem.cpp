@@ -8,6 +8,8 @@
 
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEulerTransformPropertySystem)
+
 UMovieSceneEulerTransformPropertySystem::UMovieSceneEulerTransformPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -24,3 +26,4 @@ void UMovieSceneEulerTransformPropertySystem::OnRun(FSystemTaskPrerequisites& In
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+

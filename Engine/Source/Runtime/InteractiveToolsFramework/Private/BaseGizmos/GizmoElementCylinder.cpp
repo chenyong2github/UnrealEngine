@@ -7,6 +7,8 @@
 #include "Materials/MaterialInterface.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementCylinder)
+
 void UGizmoElementCylinder::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
 	FRenderTraversalState CurrentRenderState(RenderState);
@@ -115,3 +117,4 @@ int32 UGizmoElementCylinder::GetNumSides() const
 {
 	return NumSides;
 }
+

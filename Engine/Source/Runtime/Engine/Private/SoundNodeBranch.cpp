@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeBranch.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeBranch)
+
 #define LOCTEXT_NAMESPACE "SoundNodeBranch"
 
 /*-----------------------------------------------------------------------------
@@ -61,3 +63,4 @@ FText USoundNodeBranch::GetTitle() const
 #endif //WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

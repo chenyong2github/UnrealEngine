@@ -6,6 +6,8 @@
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseEvent_Hearing.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Hearing)
+
 //----------------------------------------------------------------------//
 // FAINoiseEvent
 //----------------------------------------------------------------------//
@@ -195,3 +197,4 @@ void UAISense_Hearing::RegisterWrappedEvent(UAISenseEvent& PerceptionEvent)
 		RegisterEvent(HearingEvent->GetNoiseEvent());
 	}
 }
+

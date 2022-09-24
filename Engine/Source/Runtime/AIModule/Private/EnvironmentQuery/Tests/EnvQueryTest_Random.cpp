@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Tests/EnvQueryTest_Random.h"
 #include "AISystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Random)
+
 UEnvQueryTest_Random::UEnvQueryTest_Random(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	Cost = EEnvTestCost::Low;
@@ -36,3 +38,4 @@ FText UEnvQueryTest_Random::GetDescriptionDetails() const
 {
 	return DescribeFloatTestParams();
 }
+

@@ -16,6 +16,8 @@
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingPolicy)
+
 #if WITH_EDITOR
 #include "Misc/PackageName.h"
 #endif

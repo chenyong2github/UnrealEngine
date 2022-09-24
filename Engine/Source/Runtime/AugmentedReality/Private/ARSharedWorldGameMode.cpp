@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "AugmentedRealityModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARSharedWorldGameMode)
+
 AARSharedWorldGameMode::AARSharedWorldGameMode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, BufferSizePerChunk(512)
@@ -113,3 +115,4 @@ void AARSharedWorldGameMode::Logout(AController* Exiting)
 		PlayerToReplicationStateMap.Remove(PC);
 	}
 }
+

@@ -3,6 +3,8 @@
 #include "BaseGizmos/TransformSources.h"
 #include "Components/SceneComponent.h" 
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TransformSources)
+
 
 
 FTransform UGizmoComponentWorldTransformSource::GetTransform() const

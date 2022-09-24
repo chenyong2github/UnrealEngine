@@ -2,6 +2,8 @@
 
 #include "HLOD/HLODProxyDesc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODProxyDesc)
+
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
 #include "Algo/Transform.h"
@@ -406,3 +408,4 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 }
 
 #endif // #if WITH_EDITOR
+

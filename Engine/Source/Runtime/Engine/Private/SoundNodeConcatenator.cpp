@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeConcatenator.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeConcatenator)
+
 // Payload used for instances of a concatenator node
 struct FSoundNodeConcatenatorPayload
 {
@@ -188,3 +190,4 @@ void USoundNodeConcatenator::SetChildNodes(TArray<USoundNode*>& InChildNodes)
 	}
 }
 #endif //WITH_EDITOR
+

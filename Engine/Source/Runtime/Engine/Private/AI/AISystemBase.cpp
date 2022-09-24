@@ -4,6 +4,8 @@
 #include "Templates/Casts.h"
 #include "GameFramework/GameModeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISystemBase)
+
 
 UAISystemBase::UAISystemBase(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -47,3 +49,4 @@ bool UAISystemBase::ShouldInstantiateInNetMode(ENetMode NetMode)
 	UAISystemBase* AISystemDefaultObject = Cast<UAISystemBase>(StaticClass()->GetDefaultObject());
 	return AISystemDefaultObject && (AISystemDefaultObject->bInstantiateAISystemOnClient == true || NetMode != NM_Client);
 }
+

@@ -13,6 +13,9 @@
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
 #include "Algo/Transform.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerSubsystem)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Modules/ModuleManager.h"

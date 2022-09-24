@@ -14,6 +14,8 @@
 #include "Engine/FontFace.h"
 #include "HAL/FileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Font)
+
 UFontImportOptions::UFontImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -387,3 +389,4 @@ void UFont::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		}
 	}
 }
+

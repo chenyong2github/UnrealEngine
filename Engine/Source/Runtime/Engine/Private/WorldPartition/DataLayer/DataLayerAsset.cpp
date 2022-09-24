@@ -2,6 +2,8 @@
 
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerAsset)
+
 UDataLayerAsset::UDataLayerAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DataLayerType(EDataLayerType::Editor)

@@ -6,6 +6,8 @@
 
 #include "Animation/BlendSpace1D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlendSpace1D)
+
 UBlendSpace1D::UBlendSpace1D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -82,5 +84,6 @@ void UBlendSpace1D::SnapSamplesToClosestGridPoint()
 }
 
 #endif // WITH_EDITOR
+
 
 

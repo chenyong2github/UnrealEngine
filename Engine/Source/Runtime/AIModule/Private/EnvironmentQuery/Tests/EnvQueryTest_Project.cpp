@@ -7,6 +7,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/EnvQueryTraceHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Project)
+
 UEnvQueryTest_Project::UEnvQueryTest_Project(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	Cost = EEnvTestCost::Medium;
@@ -108,3 +110,4 @@ FText UEnvQueryTest_Project::GetDescriptionDetails() const
 {
 	return DescribeBoolTestParams(TEXT("projected"));
 }
+

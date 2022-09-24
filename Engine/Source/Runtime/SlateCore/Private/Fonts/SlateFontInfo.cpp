@@ -7,6 +7,8 @@
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateFontInfo)
+
 #include <limits>
 
 /* FSlateFontInfo structors

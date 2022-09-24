@@ -20,6 +20,8 @@
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSubsystem)
+
 #if WITH_EDITOR
 #include "FileHelpers.h"
 #endif

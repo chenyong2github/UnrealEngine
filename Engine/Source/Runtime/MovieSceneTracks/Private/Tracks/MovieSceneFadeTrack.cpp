@@ -6,6 +6,8 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFadeTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneFadeTrack"
 
 
@@ -41,3 +43,4 @@ FText UMovieSceneFadeTrack::GetDefaultDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

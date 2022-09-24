@@ -6,6 +6,8 @@
 #include "Widgets/Input/SVirtualJoystick.h"
 #include "Slate/DeferredCleanupSlateBrush.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TouchInterface)
+
 UTouchInterface::UTouchInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -52,3 +54,4 @@ void UTouchInterface::Activate(TSharedPtr<SVirtualJoystick> VirtualJoystick)
 		VirtualJoystick->SetControls(SlateControls);
 	}
 }
+

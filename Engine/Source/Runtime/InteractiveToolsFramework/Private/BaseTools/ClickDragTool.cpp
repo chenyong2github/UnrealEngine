@@ -4,6 +4,8 @@
 #include "InteractiveToolManager.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClickDragTool)
+
 
 #define LOCTEXT_NAMESPACE "UClickDragTool"
 

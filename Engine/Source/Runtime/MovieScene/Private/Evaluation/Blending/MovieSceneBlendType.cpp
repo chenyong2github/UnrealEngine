@@ -3,6 +3,8 @@
 #include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Misc/EnumClassFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBlendType)
+
 namespace UE
 {
 namespace MovieScene
@@ -103,3 +105,4 @@ FMovieSceneBlendTypeFieldIterator end(const FMovieSceneBlendTypeField& InField)
 	It.Offset = FMovieSceneBlendTypeFieldIterator::MaxValidOffset() + 1;
 	return It;
 }
+

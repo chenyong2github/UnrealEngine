@@ -9,6 +9,8 @@
 #include "Fonts/FontMeasure.h"
 #include "Components/RichTextBlock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RichTextBlockDecorator)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 FRichTextDecorator::FRichTextDecorator(URichTextBlock* InOwner)
@@ -88,3 +90,4 @@ TSharedPtr<ITextDecorator> URichTextBlockDecorator::CreateDecorator(URichTextBlo
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

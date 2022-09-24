@@ -4,6 +4,8 @@
 #include "UObject/Class.h"
 #include "LatentActions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LatentActionManager)
+
 FOnLatentActionsChanged FLatentActionManager::LatentActionsChangedDelegate;
 
 
@@ -399,3 +401,4 @@ FLatentActionManager::~FLatentActionManager()
 		}
 	}
 }
+

@@ -9,6 +9,8 @@
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImageWriteBlueprintLibrary)
+
 EImageFormat ImageFormatFromDesired(EDesiredImageFormat In)
 {
 	switch (In)

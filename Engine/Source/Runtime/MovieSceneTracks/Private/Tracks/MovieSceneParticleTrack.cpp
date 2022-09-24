@@ -5,6 +5,8 @@
 #include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieSceneParticleSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneParticleTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneParticleTrack"
 
@@ -93,3 +95,4 @@ FText UMovieSceneParticleTrack::GetDefaultDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -13,6 +13,8 @@
 #include "Algo/Find.h"
 #include "Math/NumericLimits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DoubleChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Double channel system"), MovieSceneEval_DoubleChannelSystem, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Gather double channels"), MovieSceneEval_GatherDoubleChannelTask, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate double channels"), MovieSceneEval_EvaluateDoubleChannelTask, STATGROUP_MovieSceneECS);
@@ -119,3 +121,4 @@ void UDoubleChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 		.Dispatch_PerEntity<FEvaluateDoubleChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 	}
 }
+

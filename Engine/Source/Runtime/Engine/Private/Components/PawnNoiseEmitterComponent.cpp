@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnNoiseEmitterComponent)
+
 UPawnNoiseEmitterComponent::UPawnNoiseEmitterComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -100,3 +102,4 @@ float UPawnNoiseEmitterComponent::GetLastNoiseTime(bool bSourceWithinNoiseEmitte
 
 	return LastRemoteNoiseTime;
 }
+

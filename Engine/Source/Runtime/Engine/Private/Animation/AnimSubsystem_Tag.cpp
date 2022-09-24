@@ -4,6 +4,8 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSubsystem_Tag)
+
 int32 FAnimSubsystem_Tag::FindNodeIndexByTag(FName InTag) const
 {
 	if(const int32* NodeIndexPtr = NodeIndices.Find(InTag))

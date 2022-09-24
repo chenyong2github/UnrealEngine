@@ -7,6 +7,8 @@
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ServerStatReplicator)
+
 AServerStatReplicator::AServerStatReplicator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -160,4 +162,5 @@ void AServerStatReplicator::Destroyed()
 	}
 	Super::Destroyed();
 }
+
 

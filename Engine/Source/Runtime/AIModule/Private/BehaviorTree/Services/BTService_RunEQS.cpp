@@ -11,6 +11,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AISystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTService_RunEQS)
+
 
 UBTService_RunEQS::UBTService_RunEQS(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -164,3 +166,4 @@ void UBTService_RunEQS::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 }
 
 #endif // WITH_EDITOR
+

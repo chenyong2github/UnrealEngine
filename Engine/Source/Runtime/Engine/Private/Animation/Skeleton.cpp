@@ -33,6 +33,8 @@
 #include "EngineUtils.h"
 #include "Misc/ScopeLock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Skeleton)
+
 #define LOCTEXT_NAMESPACE "Skeleton"
 #define ROOT_BONE_PARENT	INDEX_NONE
 
@@ -2669,3 +2671,4 @@ void USkeleton::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadP
 }
 
 #undef LOCTEXT_NAMESPACE 
+

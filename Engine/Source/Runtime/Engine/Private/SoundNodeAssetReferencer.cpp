@@ -10,6 +10,8 @@
 #include "Sound/AudioSettings.h"
 #include "AudioCompressionSettingsUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeAssetReferencer)
+
 #define ASYNC_LOAD_RANDOMIZED_SOUNDS 1
 
 // If stream caching is enabled and this is set to 0,
@@ -95,3 +97,4 @@ void USoundNodeAssetReferencer::PostEditImport()
 	LoadAsset();
 }
 #endif
+

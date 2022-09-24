@@ -11,6 +11,8 @@
 #include "Logging/MessageLog.h"
 #include "Net/Core/PushModel/PushModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTasksComponent)
+
 #define LOCTEXT_NAMESPACE "GameplayTasksComponent"
 
 namespace
@@ -951,3 +953,4 @@ FString FGameplayResourceSet::GetDebugDescription() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -3,6 +3,8 @@
 #include "Binding/CheckedStateBinding.h"
 #include "Styling/SlateTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CheckedStateBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UCheckedStateBinding::UCheckedStateBinding()
@@ -64,3 +66,4 @@ ECheckBoxState UCheckedStateBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

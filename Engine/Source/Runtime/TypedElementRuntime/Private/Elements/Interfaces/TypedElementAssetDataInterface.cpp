@@ -4,6 +4,8 @@
 
 #include "UObject/Stack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementAssetDataInterface)
+
 TArray<FAssetData> ITypedElementAssetDataInterface::GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle)
 {
 	TArray<FAssetData> AssetDatas;
@@ -45,3 +47,4 @@ FAssetData ITypedElementAssetDataInterface::GetAssetData(const FScriptTypedEleme
 
 	return GetAssetData(NativeHandle);
 }
+

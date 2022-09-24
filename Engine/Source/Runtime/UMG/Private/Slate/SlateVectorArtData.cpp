@@ -9,6 +9,8 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateVectorArtData)
+
 static void StaticMeshToSlateRenderData(const UStaticMesh& DataSource, TArray<FSlateMeshVertex>& OutSlateVerts, TArray<uint32>& OutIndexes, FVector2D& OutExtentMin, FVector2D& OutExtentMax )
 {
 	OutExtentMin = FVector2D(FLT_MAX, FLT_MAX);
@@ -206,3 +208,4 @@ FVector2D USlateVectorArtData::GetExtentMax() const
 {
 	return ExtentMax;
 }
+

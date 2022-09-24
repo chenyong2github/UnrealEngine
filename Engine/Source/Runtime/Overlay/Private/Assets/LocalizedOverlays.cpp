@@ -6,6 +6,8 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalizedOverlays)
+
 #if WITH_EDITORONLY_DATA
 #include "EditorFramework/AssetImportData.h"
 #endif	// WITH_EDITORONLY_DATA

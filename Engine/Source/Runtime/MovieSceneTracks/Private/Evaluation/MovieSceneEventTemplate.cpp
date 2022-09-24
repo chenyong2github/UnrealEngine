@@ -14,6 +14,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventTemplate)
+
 #define LOCTEXT_NAMESPACE "MovieSceneEventTemplate"
 
 DECLARE_CYCLE_STAT(TEXT("Event Track Token Execute"), MovieSceneEval_EventTrack_TokenExecute, STATGROUP_MovieSceneEval);

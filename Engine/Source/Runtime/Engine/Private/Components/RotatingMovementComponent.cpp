@@ -2,6 +2,8 @@
 
 #include "GameFramework/RotatingMovementComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RotatingMovementComponent)
+
 URotatingMovementComponent::URotatingMovementComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -47,3 +49,4 @@ void URotatingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	const bool bEnableCollision = false;
 	MoveUpdatedComponent(DeltaLocation, NewRotation, bEnableCollision);
 }
+

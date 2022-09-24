@@ -16,6 +16,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimDataModel)
+
 #if WITH_EDITOR
 #include "IAnimationDataControllerModule.h"
 #include "Modules/ModuleManager.h"

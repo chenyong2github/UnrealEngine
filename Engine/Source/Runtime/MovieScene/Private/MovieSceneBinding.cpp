@@ -6,6 +6,8 @@
 #include "MovieScene.h"
 #include "EventHandlers/ISequenceDataEventHandler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBinding)
+
 /* FMovieSceneBinding interface
  *****************************************************************************/
 

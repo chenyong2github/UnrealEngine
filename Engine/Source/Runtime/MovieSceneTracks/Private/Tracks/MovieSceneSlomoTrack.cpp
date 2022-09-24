@@ -6,6 +6,8 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSlomoTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneSlomoTrack"
 
 
@@ -44,3 +46,4 @@ FText UMovieSceneSlomoTrack::GetDefaultDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

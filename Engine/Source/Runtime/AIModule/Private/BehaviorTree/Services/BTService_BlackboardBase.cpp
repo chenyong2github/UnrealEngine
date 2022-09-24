@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Services/BTService_BlackboardBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTService_BlackboardBase)
+
 UBTService_BlackboardBase::UBTService_BlackboardBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "BlackboardBase";
@@ -18,3 +20,4 @@ void UBTService_BlackboardBase::InitializeFromAsset(UBehaviorTree& Asset)
 		BlackboardKey.ResolveSelectedKey(*BBAsset);
 	}
 }
+

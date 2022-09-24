@@ -4,6 +4,8 @@
 #include "Internationalization/StringTableCore.h"
 #include "Internationalization/StringTableRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetStringTableLibrary)
+
 #define LOCTEXT_NAMESPACE "Kismet"
 
 UKismetStringTableLibrary::UKismetStringTableLibrary(const FObjectInitializer& ObjectInitializer)
@@ -114,3 +116,4 @@ TArray<FName> UKismetStringTableLibrary::GetMetaDataIdsFromStringTableEntry(cons
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedPlacementPartitionActor)
+
 AInstancedPlacementPartitionActor::AInstancedPlacementPartitionActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -115,3 +117,4 @@ void AInstancedPlacementPartitionActor::PostAddClientInstances()
 	EndUpdate();
 }
 #endif	// WITH_EDITOR
+

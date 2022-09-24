@@ -37,6 +37,8 @@
 
 #include "NavMesh/NavMeshRenderingComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RecastNavMesh)
+
 #if WITH_RECAST
 /// Helper for accessing navigation query from different threads
 #define INITIALIZE_NAVQUERY(NavQueryVariable, NumNodes)	\
@@ -3450,3 +3452,4 @@ bool ARecastNavMesh::K2_ReplaceAreaInTileBounds(FBox Bounds, TSubclassOf<UNavAre
 	}
 	return bReplaced;
 }
+

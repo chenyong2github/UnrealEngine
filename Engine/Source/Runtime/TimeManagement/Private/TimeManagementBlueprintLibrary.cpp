@@ -4,6 +4,8 @@
 
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TimeManagementBlueprintLibrary)
+
 float UTimeManagementBlueprintLibrary::Conv_FrameRateToSeconds(const FFrameRate& InFrameRate)
 {
 	// Accept the loss of precision from conversion when in use with Blueprints.

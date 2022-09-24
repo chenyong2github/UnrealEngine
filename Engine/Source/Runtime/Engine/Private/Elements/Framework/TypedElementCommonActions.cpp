@@ -8,6 +8,8 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "UObject/Stack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementCommonActions)
+
 bool FTypedElementCommonActionsCustomization::DeleteElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
 	return InWorldInterface->DeleteElements(InElementHandles, InWorld, InSelectionSet, InDeletionOptions);
@@ -153,3 +155,4 @@ FTypedElementCommonActionsElement UTypedElementCommonActions::ResolveCommonActio
 		? FTypedElementCommonActionsElement(UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(InElementHandle), GetInterfaceCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
 		: FTypedElementCommonActionsElement();
 }
+

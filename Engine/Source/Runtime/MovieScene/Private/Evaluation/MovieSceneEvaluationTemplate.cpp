@@ -4,6 +4,8 @@
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneSubSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvaluationTemplate)
+
 FMovieSceneSubSectionData::FMovieSceneSubSectionData(UMovieSceneSubSection& InSubSection, const FGuid& InObjectBindingId, ESectionEvaluationFlags InFlags)
 	: Section(&InSubSection), ObjectBindingId(InObjectBindingId), Flags(InFlags)
 {}
@@ -120,3 +122,4 @@ const TMap<FMovieSceneTrackIdentifier, FMovieSceneEvaluationTrack>& FMovieSceneE
 {
 	return StaleTracks;
 }
+

@@ -27,6 +27,8 @@
 #include "RenderUtils.h"
 #include "Algo/RemoveIf.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingPolicy)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "LevelEditorViewport.h"

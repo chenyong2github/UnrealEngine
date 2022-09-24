@@ -75,6 +75,8 @@
 #endif
 #include "Math/UnrealMathUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameViewportClient)
+
 #define LOCTEXT_NAMESPACE "GameViewport"
 
 /** This variable allows forcing full screen of the first player controller viewport, even if there are multiple controllers plugged in and no cinematic playing. */
@@ -4284,3 +4286,4 @@ bool UGameViewportClient::LoadAvailableCursorPngs(TArray< TSharedPtr<FPngFileDat
 }
 
 #undef LOCTEXT_NAMESPACE
+

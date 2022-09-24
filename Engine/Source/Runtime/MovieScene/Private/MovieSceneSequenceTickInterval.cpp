@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequenceTickInterval)
+
 namespace UE::MovieScene
 {
 

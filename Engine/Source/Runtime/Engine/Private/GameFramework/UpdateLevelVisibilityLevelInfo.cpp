@@ -6,6 +6,8 @@
 #include "UObject/CoreNet.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UpdateLevelVisibilityLevelInfo)
+
 // CVars
 namespace PlayerControllerCVars
 {
@@ -80,5 +82,6 @@ bool FNetLevelVisibilityTransactionId::NetSerialize(FArchive& Ar, UPackageMap* P
 	bOutSuccess = !Ar.IsError();
 	return true;
 }
+
 
 

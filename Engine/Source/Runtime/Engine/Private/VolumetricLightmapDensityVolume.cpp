@@ -4,6 +4,8 @@
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumetricLightmapDensityVolume)
+
 
 AVolumetricLightmapDensityVolume::AVolumetricLightmapDensityVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,4 +20,5 @@ AVolumetricLightmapDensityVolume::AVolumetricLightmapDensityVolume(const FObject
 
 	AllowedMipLevelRange = FInt32Interval(1, 3);
 }
+
 

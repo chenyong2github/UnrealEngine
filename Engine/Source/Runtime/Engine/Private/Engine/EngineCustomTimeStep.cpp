@@ -4,6 +4,8 @@
 
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EngineCustomTimeStep)
+
 void UEngineCustomTimeStep::UpdateApplicationLastTime()
 {
 	// Updates logical last time to match logical current time from last tick
@@ -13,3 +15,4 @@ void UEngineCustomTimeStep::UpdateApplicationLastTime()
 	}
 	FApp::UpdateLastTime();
 }
+

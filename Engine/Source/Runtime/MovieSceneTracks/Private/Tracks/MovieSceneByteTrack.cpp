@@ -3,6 +3,8 @@
 #include "Tracks/MovieSceneByteTrack.h"
 #include "Sections/MovieSceneByteSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneByteTrack)
+
 UMovieSceneByteTrack::UMovieSceneByteTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
@@ -44,3 +46,4 @@ UEnum* UMovieSceneByteTrack::GetEnum() const
 {
 	return Enum;
 }
+

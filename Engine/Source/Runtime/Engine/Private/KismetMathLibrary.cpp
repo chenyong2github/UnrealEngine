@@ -10,6 +10,8 @@
 
 #include "Misc/RuntimeErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetMathLibrary)
+
 #define LOCTEXT_NAMESPACE "UKismetMathLibrary"
 
 /** Interpolate a linear alpha value using an ease mode and function. */
@@ -1521,3 +1523,4 @@ FRotator UKismetMathLibrary::DynamicWeightedMovingAverage_FRotator(FRotator Curr
 
 
 #undef LOCTEXT_NAMESPACE
+

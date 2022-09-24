@@ -8,6 +8,8 @@
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementHierarchyInterface)
+
 FTypedElementHandle USMInstanceElementHierarchyInterface::GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate)
 {
 	if (FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
@@ -21,3 +23,4 @@ FTypedElementHandle USMInstanceElementHierarchyInterface::GetParentElement(const
 	}
 	return FTypedElementHandle();
 }
+

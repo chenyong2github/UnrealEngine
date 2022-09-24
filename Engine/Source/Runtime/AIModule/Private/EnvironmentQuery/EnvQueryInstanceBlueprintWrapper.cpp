@@ -4,6 +4,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_ActorBase.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryInstanceBlueprintWrapper)
+
 UEnvQueryInstanceBlueprintWrapper::UEnvQueryInstanceBlueprintWrapper(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, QueryID(INDEX_NONE)
@@ -171,3 +173,4 @@ bool UEnvQueryInstanceBlueprintWrapper::IsSupportedForNetworking() const
 
 	return false;
 }
+

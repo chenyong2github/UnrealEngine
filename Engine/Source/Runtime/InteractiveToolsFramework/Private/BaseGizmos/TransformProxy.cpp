@@ -3,6 +3,8 @@
 #include "BaseGizmos/TransformProxy.h"
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TransformProxy)
+
 
 #define LOCTEXT_NAMESPACE "UTransformProxy"
 
@@ -264,3 +266,4 @@ FText FTransformProxyChangeSource::GetChangeDescription()
 
 
 #undef LOCTEXT_NAMESPACE
+

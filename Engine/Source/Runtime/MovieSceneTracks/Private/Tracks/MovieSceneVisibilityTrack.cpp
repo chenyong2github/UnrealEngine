@@ -4,6 +4,8 @@
 #include "Sections/MovieSceneBoolSection.h"
 #include "Evaluation/MovieSceneVisibilityTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVisibilityTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneVisibilityTrack"
 
 
@@ -61,3 +63,4 @@ FText UMovieSceneVisibilityTrack::GetDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -8,6 +8,8 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimComposite)
+
 UAnimComposite::UAnimComposite(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -166,3 +168,4 @@ void UAnimComposite::PostLoad()
 	}
 #endif
 }
+

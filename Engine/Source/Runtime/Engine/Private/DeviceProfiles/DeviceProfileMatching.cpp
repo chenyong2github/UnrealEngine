@@ -16,6 +16,8 @@
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeviceProfileMatching)
+
 // Platform independent source types
 static FName SRC_Chipset(TEXT("SRC_Chipset"));
 static FName SRC_MakeAndModel(TEXT("SRC_MakeAndModel"));
@@ -685,3 +687,4 @@ TArray<FSelectedFragmentProperties> UDeviceProfileManager::FindMatchingFragments
 
 	return MatchedFragments;
 }
+

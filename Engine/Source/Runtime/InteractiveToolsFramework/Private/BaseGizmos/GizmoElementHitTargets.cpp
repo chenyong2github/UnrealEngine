@@ -6,6 +6,8 @@
 #include "BaseGizmos/TransformProxy.h"
 #include "Engine/EngineTypes.h"    // FHitResult
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementHitTargets)
+
 
 FInputRayHit UGizmoElementHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
@@ -132,6 +134,7 @@ UGizmoElementHitMultiTarget* UGizmoElementHitMultiTarget::Construct(UGizmoElemen
 	NewHitTarget->GizmoViewContext = InGizmoViewContext;
 	return NewHitTarget;
 }
+
 
 
 

@@ -14,6 +14,8 @@
 
 #include "InteractiveGizmo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RepositionableTransformGizmo)
+
 #define LOCTEXT_NAMESPACE "URepositionableTransformGizmo"
 
 
@@ -256,3 +258,4 @@ void URepositionableTransformGizmo::SetPivotAlignmentFunctions(
 }
 
 #undef LOCTEXT_NAMESPACE
+

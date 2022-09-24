@@ -25,6 +25,8 @@
 #include "GameFramework/PlayerState.h"
 #include "ObjectTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Controller)
+
 DEFINE_LOG_CATEGORY(LogController);
 DEFINE_LOG_CATEGORY(LogPath);
 
@@ -772,3 +774,4 @@ bool AController::ShouldParticipateInSeamlessTravel() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

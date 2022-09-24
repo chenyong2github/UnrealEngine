@@ -4,6 +4,8 @@
 #include "Engine/AssetManager.h"
 #include "Engine/AssetManagerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetManagerTypes)
+
 void FPrimaryAssetTypeInfo::FillRuntimeData(bool& bIsValid, bool& bBaseClassWasLoaded)
 {
 	bBaseClassWasLoaded = false;

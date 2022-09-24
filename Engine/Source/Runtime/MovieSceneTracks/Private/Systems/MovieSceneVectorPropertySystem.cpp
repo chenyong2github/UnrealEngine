@@ -10,6 +10,8 @@
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVectorPropertySystem)
+
 UMovieSceneFloatVectorPropertySystem::UMovieSceneFloatVectorPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -45,4 +47,5 @@ void UMovieSceneDoubleVectorPropertySystem::OnRun(FSystemTaskPrerequisites& InPr
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
 

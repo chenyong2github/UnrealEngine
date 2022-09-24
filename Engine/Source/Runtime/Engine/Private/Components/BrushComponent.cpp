@@ -30,6 +30,8 @@
 #include "StaticMeshResources.h"
 #include "DynamicMeshBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BrushComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogBrushComponent, Log, All);
 
 #if WITH_EDITORONLY_DATA
@@ -809,3 +811,4 @@ bool UBrushComponent::HasInvertedPolys() const
 	return false;
 }
 #endif
+

@@ -4,6 +4,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_RunBehavior)
+
 UBTTask_RunBehavior::UBTTask_RunBehavior(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Run Behavior";
@@ -50,3 +52,4 @@ FName UBTTask_RunBehavior::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

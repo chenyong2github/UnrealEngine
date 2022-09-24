@@ -3,6 +3,8 @@
 #include "ProceduralFoliageInstance.h"
 #include "FoliageType_InstancedStaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralFoliageInstance)
+
 FProceduralFoliageInstance::FProceduralFoliageInstance()
 : Rotation(ForceInit)
 , Location(ForceInit)
@@ -93,3 +95,4 @@ void FProceduralFoliageInstance::TerminateInstance()
 {
 	bAlive = false;
 }
+

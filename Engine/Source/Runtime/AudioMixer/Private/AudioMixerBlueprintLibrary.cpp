@@ -14,6 +14,8 @@
 #include "Algo/Transform.h"
 #include "AudioDeviceManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMixerBlueprintLibrary)
+
 // This is our global recording task:
 static TUniquePtr<Audio::FAudioRecordingData> RecordingData;
 

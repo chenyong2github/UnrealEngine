@@ -11,6 +11,8 @@
 #include "Algo/RemoveIf.h"
 #include "Algo/BinarySearch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEntitySystemGraphs)
+
 
 FMovieSceneEntitySystemDirectedGraph::FDepthFirstSearch::FDepthFirstSearch(const FMovieSceneEntitySystemDirectedGraph* InGraph)
 	: Visited(false, InGraph->Nodes.Num())

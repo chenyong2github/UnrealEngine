@@ -5,6 +5,8 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequencePlayerLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSequencePlayerLibrary, Verbose, All);
 
 FSequencePlayerReference USequencePlayerLibrary::ConvertToSequencePlayer(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)

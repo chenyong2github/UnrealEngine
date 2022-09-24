@@ -9,6 +9,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UMGSequenceTickManager)
+
 DECLARE_CYCLE_STAT(TEXT("Flush End of Frame Animations"), MovieSceneEval_FlushEndOfFrameAnimations, STATGROUP_MovieSceneEval);
 
 
@@ -307,4 +309,5 @@ UUMGSequenceTickManager* UUMGSequenceTickManager::Get(UObject* PlaybackContext)
 	}
 	return TickManager;
 }
+
 

@@ -4,6 +4,8 @@
 #include "HAL/ConsoleManager.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataDrivenCVars)
+
 FDataDrivenConsoleVariable::~FDataDrivenConsoleVariable()
 {
 	if (!Name.IsEmpty())
@@ -127,3 +129,4 @@ FName UDataDrivenConsoleVariableSettings::GetCategoryName() const
 {
 	return FName(TEXT("Engine"));
 }
+

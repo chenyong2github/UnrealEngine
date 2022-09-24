@@ -14,6 +14,8 @@
 #include "Net/OnlineEngineInterface.h"
 #include "GameFramework/PlayerState.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameSession)
+
 DEFINE_LOG_CATEGORY(LogGameSession);
 
 static TAutoConsoleVariable<int32> CVarMaxPlayersOverride( TEXT( "net.MaxPlayersOverride" ), 0, TEXT( "If greater than 0, will override the standard max players count. Useful for testing full servers." ) );
@@ -433,3 +435,4 @@ void AGameSession::UpdateSessionJoinability(FName InSessionName, bool bPublicSea
 		UOnlineEngineInterface::Get()->UpdateSessionJoinability(GetWorld(), InSessionName, bPublicSearchable, bAllowInvites, bJoinViaPresence, bJoinViaPresenceFriendsOnly);
 	}
 }
+

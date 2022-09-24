@@ -4,6 +4,8 @@
 #include "Net/Core/Connection/EscalationStates.h"
 #include "Net/Core/Misc/NetCoreLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EscalationStates)
+
 
 /**
  * FEscalationState
@@ -536,5 +538,6 @@ void UEscalationManagerConfig::LoadStateConfig()
 {
 	RegisterStateConfig(EscalationSeverity, EscalationSeverityState);
 }
+
 
 

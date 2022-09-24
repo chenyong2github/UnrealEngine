@@ -10,6 +10,8 @@
 #include "Systems/MovieScenePiecewiseBoolBlenderSystem.h"
 #include "UObject/Field.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertyTrack)
+
 UMovieScenePropertyTrack::UMovieScenePropertyTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -505,3 +507,4 @@ FName FMovieScenePropertyTrackEntityImportHelper::SanitizeBoolPropertyName(FName
 	PropertyVarName.RemoveFromStart("b", ESearchCase::CaseSensitive);
 	return FName(*PropertyVarName);
 }
+

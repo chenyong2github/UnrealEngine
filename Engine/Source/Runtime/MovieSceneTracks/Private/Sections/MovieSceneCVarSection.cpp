@@ -5,6 +5,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "TrackInstances/MovieSceneCVarTrackInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCVarSection)
+
 void FMovieSceneCVarOverrides::SetFromString(const FString& InString)
 {
 	ValuesByCVar.Reset();
@@ -89,3 +91,4 @@ FString UMovieSceneCVarSection::GetString() const
 {
 	return ConsoleVariables.GetString();
 }
+

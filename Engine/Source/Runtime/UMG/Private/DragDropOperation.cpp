@@ -2,6 +2,8 @@
 
 #include "Blueprint/DragDropOperation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DragDropOperation)
+
 /////////////////////////////////////////////////////
 // UDragDropOperation
 
@@ -29,3 +31,4 @@ void UDragDropOperation::Dragged_Implementation(const FPointerEvent& PointerEven
 }
 
 /// @endcond
+

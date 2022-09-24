@@ -8,6 +8,8 @@
 #include "UObject/Stack.h"
 #include "UObject/NoExportTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImportanceSamplingLibrary)
+
 #define LOCTEXT_NAMESPACE "ImportanceSamplingLibrary"
 
 // when to switch from binary to linear search
@@ -264,3 +266,4 @@ void UImportanceSamplingLibrary::ImportanceSample(const FImportanceTexture &Text
 #undef LOCTEXT_NAMESPACE
 #undef BINARY_SEARCH_LIMIT
 #undef MAX_MIP_LEVELS
+

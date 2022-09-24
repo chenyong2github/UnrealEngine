@@ -4,6 +4,8 @@
 #include "BodySetupCore.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BodyInstanceCore)
+
 int32 UseDeprecatedBehaviorUpdateMassScaleChanges = 0;
 FAutoConsoleVariableRef CVarUseDeprecatedBehaviorUpdateMassScaleChanges(TEXT("p.UseDeprecatedBehaviorUpdateMassScaleChanges"),
 	UseDeprecatedBehaviorUpdateMassScaleChanges, TEXT("Allows FBodyInstanceCore::bUpdateMassWhenScaleChanges to default to false. This has potential issues, but allows existing projects to retain old behavior"));

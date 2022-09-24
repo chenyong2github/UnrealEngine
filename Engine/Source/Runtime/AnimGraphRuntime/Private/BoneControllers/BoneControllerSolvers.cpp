@@ -2,6 +2,8 @@
 
 #include "BoneControllers/BoneControllerSolvers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoneControllerSolvers)
+
 FTransform FIKFootPelvisPullDownSolver::Solve(FTransform PelvisTransform, TArrayView<const float> FKFootDistancesToPelvis, TArrayView<const FVector> IKFootLocations, float DeltaTime)
 {
 	const FVector InitialPelvisLocation = PelvisTransform.GetLocation();

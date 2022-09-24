@@ -2,6 +2,8 @@
 
 #include "Engine/PreviewMeshCollection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PreviewMeshCollection)
+
 void UPreviewMeshCollection::GetPreviewSkeletalMeshes(TArray<USkeletalMesh*>& OutList, TArray<TSubclassOf<UAnimInstance>>& OutAnimBP) const
 {
 	OutList.Empty();
@@ -30,3 +32,4 @@ void UPreviewMeshCollection::GetPreviewSkeletalMeshes(TArray<USkeletalMesh*>& Ou
 		}
 	}
 }
+

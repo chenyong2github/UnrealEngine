@@ -10,6 +10,8 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Inertialization)
+
 LLM_DEFINE_TAG(Animation_Inertialization);
 
 #define LOCTEXT_NAMESPACE "AnimNode_Inertialization"

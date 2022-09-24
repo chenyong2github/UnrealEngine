@@ -3,6 +3,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_NativeEnum.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_NativeEnum)
+
 const UBlackboardKeyType_NativeEnum::FDataType UBlackboardKeyType_NativeEnum::InvalidValue = UBlackboardKeyType_NativeEnum::FDataType(0);
 
 UBlackboardKeyType_NativeEnum::UBlackboardKeyType_NativeEnum(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -28,3 +30,4 @@ bool UBlackboardKeyType_NativeEnum::SetValue(UBlackboardKeyType_NativeEnum* KeyO
 {
 	return SetValueInMemory<uint8>(RawData, Value);
 }
+

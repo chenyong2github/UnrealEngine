@@ -6,6 +6,8 @@
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CCDIK)
+
 /////////////////////////////////////////////////////
 // AnimNode_CCDIK
 // Implementation of the CCDIK IK Algorithm
@@ -199,4 +201,5 @@ void FAnimNode_CCDIK::GatherDebugData(FNodeDebugData& DebugData)
 	DebugData.AddDebugItem(DebugLine);
 	ComponentPose.GatherDebugData(DebugData);
 }
+
 

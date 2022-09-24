@@ -23,6 +23,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/DecalComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMaterialParameterCollectionSystem)
+
 namespace UE::MovieScene
 {
 
@@ -285,4 +287,5 @@ void UMovieSceneMaterialParameterCollectionSystem::SavePreAnimatedState(const FP
 	VectorParameterStorage->CachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->VectorParameterName);
 	VectorParameterStorage->CachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ColorParameterName);
 }
+
 

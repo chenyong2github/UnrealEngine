@@ -3,6 +3,8 @@
 #include "AlphaBlend.h"
 #include "Curves/CurveFloat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AlphaBlend)
+
 FAlphaBlend::FAlphaBlend(float NewBlendTime) 
 	: CustomCurve(nullptr)
 	, BlendTime(NewBlendTime)
@@ -250,3 +252,4 @@ FAlphaBlendArgs::FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend)
 {
 
 }
+

@@ -10,6 +10,8 @@
 #include "Engine/NetConnection.h"
 #include "Net/OnlineEngineInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoiceChannel)
+
 /** Cleans up any voice data remaining in the queue */
 bool UVoiceChannel::CleanUp( const bool bForDestroy, EChannelCloseReason CloseReason )
 {
@@ -152,3 +154,4 @@ void UVoiceChannel::AddVoicePacket(TSharedPtr<FVoicePacket> VoicePacket)
 			*VoicePacket->GetSender()->ToDebugString());
 	}
 }
+

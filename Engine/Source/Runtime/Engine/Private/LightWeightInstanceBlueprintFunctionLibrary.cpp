@@ -4,6 +4,8 @@
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "GameFramework/LightWeightInstanceManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceBlueprintFunctionLibrary)
+
 FActorInstanceHandle ULightWeightInstanceBlueprintFunctionLibrary::CreateNewLightWeightInstance(UClass* InActorClass, FTransform InTransform, UDataLayerInstance* InLayer, UWorld* World)
 {
 	// set up initialization data
@@ -35,3 +37,4 @@ FActorInstanceHandle ULightWeightInstanceBlueprintFunctionLibrary::ConvertActorT
 
 	return FActorInstanceHandle(InActor);
 }
+

@@ -8,6 +8,8 @@
 #include "Engine/Texture2D.h"
 #include "PhysicsEngine/PhysicsThrusterComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsThruster)
+
 #define LOCTEXT_NAMESPACE "PhysicsThrusterComponent"
 
 
@@ -84,3 +86,4 @@ APhysicsThruster::APhysicsThruster(const FObjectInitializer& ObjectInitializer)
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -3,8 +3,11 @@
 #include "GameFramework/CameraBlockingVolume.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraBlockingVolume)
+
 ACameraBlockingVolume::ACameraBlockingVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	GetBrushComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);
 }
+

@@ -16,6 +16,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "EventManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosGameplayEventDispatcher)
+
 FChaosBreakEvent::FChaosBreakEvent()
 	: Component(nullptr)
 	, Location(FVector::ZeroVector)
@@ -622,3 +624,4 @@ void UChaosGameplayEventDispatcher::HandleCrumblingEvents(const Chaos::FCrumblin
 	}
 
 }
+

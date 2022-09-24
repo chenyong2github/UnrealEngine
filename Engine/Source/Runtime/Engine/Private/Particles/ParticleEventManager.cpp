@@ -2,6 +2,8 @@
 
 #include "Particles/ParticleEventManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ParticleEventManager)
+
 /*-----------------------------------------------------------------------------
 	AParticleEventManager implementation.
 -----------------------------------------------------------------------------*/
@@ -82,3 +84,4 @@ void AParticleEventManager::HandleParticleBurstEvents( UParticleSystemComponent*
 		}
 	}
 }
+

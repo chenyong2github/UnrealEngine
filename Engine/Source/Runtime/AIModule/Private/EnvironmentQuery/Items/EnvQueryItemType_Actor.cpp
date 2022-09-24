@@ -6,6 +6,8 @@
 #include "AITypes.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryItemType_Actor)
+
 UEnvQueryItemType_Actor::UEnvQueryItemType_Actor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ValueSize = sizeof(FWeakObjectPtr);
@@ -76,3 +78,4 @@ void UEnvQueryItemType_Actor::SetContextHelper(FEnvQueryContextData& ContextData
 		RawData += sizeof(FWeakObjectPtr);
 	}
 }
+

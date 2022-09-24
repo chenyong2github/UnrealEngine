@@ -2,6 +2,8 @@
 
 #include "Curves/NameCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NameCurve)
+
 
 /* FNameCurveKey interface
  *****************************************************************************/
@@ -148,3 +150,4 @@ FKeyHandle FNameCurve::UpdateOrAddKey(float InTime, const FName& InValue, float 
 	// A key wasnt found, add it now
 	return AddKey(InTime, InValue);
 }
+

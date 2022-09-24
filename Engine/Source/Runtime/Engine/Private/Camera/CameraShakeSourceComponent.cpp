@@ -12,6 +12,8 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/ConstructorHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraShakeSourceComponent)
+
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -184,3 +186,4 @@ void UCameraShakeSourceComponent::PostEditChangeProperty( struct FPropertyChange
 }
 
 #endif
+

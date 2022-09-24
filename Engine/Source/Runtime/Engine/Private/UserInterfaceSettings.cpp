@@ -7,6 +7,8 @@
 
 #include "Engine/DPICustomScalingRule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UserInterfaceSettings)
+
 #define LOCTEXT_NAMESPACE "Engine"
 
 UUserInterfaceSettings::UUserInterfaceSettings(const FObjectInitializer& ObjectInitializer)
@@ -218,3 +220,4 @@ void UUserInterfaceSettings::ForceLoadResources(bool bForceLoadEverything)
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "UObject/Package.h"
 #include "Engine/Canvas.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DebugDrawService)
+
 FCriticalSection UDebugDrawService::DelegatesLock;
 #if ENABLE_MT_DETECTOR
 FRWRecursiveAccessDetector UDebugDrawService::DelegatesDetector;
@@ -107,3 +109,4 @@ void UDebugDrawService::Draw(const FEngineShowFlags Flags, UCanvas* Canvas)
 		}
 	}
 }
+

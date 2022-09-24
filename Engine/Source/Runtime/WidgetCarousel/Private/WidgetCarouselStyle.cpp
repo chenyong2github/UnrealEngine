@@ -4,6 +4,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Framework/Application/SlateApplication.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetCarouselStyle)
+
 #define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 
@@ -132,3 +134,4 @@ const ISlateStyle& FWidgetCarouselModuleStyle::Get()
 
 #undef IMAGE_BRUSH
 #undef BOX_BRUSH
+

@@ -2,6 +2,8 @@
 
 #include "TimeSynchronizationSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TimeSynchronizationSource)
+
 #if WITH_EDITOR
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"

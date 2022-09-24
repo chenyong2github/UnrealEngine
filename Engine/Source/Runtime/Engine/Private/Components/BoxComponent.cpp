@@ -10,6 +10,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoxComponent)
+
 UBoxComponent::UBoxComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -199,3 +201,4 @@ FCollisionShape UBoxComponent::GetCollisionShape(float Inflation) const
 
 	return FCollisionShape::MakeBox(Extent);
 }
+

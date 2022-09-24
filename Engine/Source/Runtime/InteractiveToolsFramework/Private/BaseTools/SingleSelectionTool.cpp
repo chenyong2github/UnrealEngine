@@ -5,6 +5,8 @@
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SingleSelectionTool)
+
 #define LOCTEXT_NAMESPACE "USingleSelectionTool"
 
 bool USingleSelectionTool::SupportsWorldSpaceFocusBox()

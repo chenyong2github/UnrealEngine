@@ -8,6 +8,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "UMGStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NativeWidgetHost)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -81,3 +83,4 @@ const FText UNativeWidgetHost::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

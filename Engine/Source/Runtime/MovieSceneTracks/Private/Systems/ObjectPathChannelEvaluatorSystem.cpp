@@ -7,6 +7,8 @@
 #include "EntitySystem/MovieSceneEvalTimeSystem.h"
 #include "Channels/MovieSceneObjectPathChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectPathChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate object path channels"), MovieSceneEval_EvaluateObjectPathChannelTask, STATGROUP_MovieSceneECS);
 
 UObjectPathChannelEvaluatorSystem::UObjectPathChannelEvaluatorSystem(const FObjectInitializer& ObjInit)
@@ -49,3 +51,4 @@ void UObjectPathChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrereq
 	.SetStat(GET_STATID(MovieSceneEval_EvaluateObjectPathChannelTask))
 	.Dispatch_PerEntity<FEvaluateObjectPathChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 }
+

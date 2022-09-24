@@ -2,6 +2,8 @@
 
 #include "RigVMCore/RigVMNativized.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMNativized)
+
 URigVMNativized::URigVMNativized()
 	: URigVM()
 	, TemporaryArrayIndex(INDEX_NONE)
@@ -47,3 +49,4 @@ const FRigVMExecuteContext& URigVMNativized::UpdateContext(TArrayView<void*> Add
 	Context.PublicData.EventName = InEntryName;
 	return Context.PublicData;
 }
+

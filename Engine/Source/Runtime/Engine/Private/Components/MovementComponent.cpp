@@ -11,6 +11,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovementComponent)
+
 #define LOCTEXT_NAMESPACE "MovementComponent"
 DEFINE_LOG_CATEGORY_STATIC(LogMovement, Log, All);
 
@@ -821,3 +823,4 @@ void UMovementComponent::AddRadialImpulse(const FVector& Origin, float Radius, f
 }
 
 #undef LOCTEXT_NAMESPACE
+

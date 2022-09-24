@@ -37,6 +37,8 @@
 #include "AudioCompressionSettings.h"
 #include "Sound/AudioSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCue)
+
 /*-----------------------------------------------------------------------------
 	USoundCue implementation.
 -----------------------------------------------------------------------------*/
@@ -781,3 +783,4 @@ TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
 	return SoundCueAudioEditor;
 }
 #endif // WITH_EDITOR
+

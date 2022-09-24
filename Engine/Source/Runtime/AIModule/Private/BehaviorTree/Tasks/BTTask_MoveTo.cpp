@@ -11,6 +11,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Tasks/AITask_MoveTo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_MoveTo)
+
 UBTTask_MoveTo::UBTTask_MoveTo(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Move To";
@@ -377,3 +379,4 @@ void UBTTask_MoveTo::OnNodeCreated()
 }
 
 #endif	// WITH_EDITOR
+

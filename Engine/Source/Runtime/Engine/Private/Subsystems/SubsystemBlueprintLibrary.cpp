@@ -8,6 +8,8 @@
 #include "AudioDevice.h"
 #include "Blueprint/UserWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubsystemBlueprintLibrary)
+
 /*static*/  UEngineSubsystem* USubsystemBlueprintLibrary::GetEngineSubsystem(TSubclassOf<UEngineSubsystem> Class)
 {
 	return GEngine->GetEngineSubsystemBase(Class);

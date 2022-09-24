@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputVectorAxisDelegateBinding)
+
 
 UInputVectorAxisDelegateBinding::UInputVectorAxisDelegateBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -44,3 +46,4 @@ void UInputVectorAxisDelegateBinding::BindToInputComponent(UInputComponent* Inpu
 		InputComponent->VectorAxisBindings.Add(BindsToAdd[Index]);
 	}
 }
+

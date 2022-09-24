@@ -3,6 +3,8 @@
 #include "ProceduralFoliageBlockingVolume.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralFoliageBlockingVolume)
+
 static FName ProceduralFoliageBlocking_NAME(TEXT("ProceduralFoliageBlockingVolume"));
 
 AProceduralFoliageBlockingVolume::AProceduralFoliageBlockingVolume(const FObjectInitializer& ObjectInitializer)
@@ -14,3 +16,4 @@ AProceduralFoliageBlockingVolume::AProceduralFoliageBlockingVolume(const FObject
 		MyBrushComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	}
 }
+

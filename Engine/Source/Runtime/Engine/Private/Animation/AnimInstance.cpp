@@ -34,6 +34,9 @@
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/AnimStateMachineTypes.h"
 #include "Animation/ActiveMontageInstanceScope.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimInstance)
+
 #if WITH_EDITOR
 #include "Animation/DebugSkelMeshComponent.h"
 #endif
@@ -3919,3 +3922,4 @@ bool UAnimInstance::IsBeingDebugged() const
 #endif
 
 #undef LOCTEXT_NAMESPACE 
+

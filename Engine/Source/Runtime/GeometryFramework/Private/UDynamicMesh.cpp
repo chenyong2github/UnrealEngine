@@ -13,6 +13,8 @@
 #include "Engine/Engine.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UDynamicMesh)
+
 using namespace UE::Geometry;
 
 

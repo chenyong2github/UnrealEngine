@@ -6,6 +6,8 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Features/IModularFeatures.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionCache)
+
 DEFINE_LOG_CATEGORY(LogGeometryCollectionCache);
 
 FName UGeometryCollectionCache::TagName_Name = FName("CollectionName");
@@ -87,3 +89,4 @@ void UGeometryCollectionCache::ProcessRawRecordedDataInternal(const FRecordedTra
 {
 	RecordedData = FRecordedTransformTrack::ProcessRawRecordedData(InTrack);
 }
+

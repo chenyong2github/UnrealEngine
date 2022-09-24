@@ -5,6 +5,8 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARTypes)
+
 bool FARAsyncTask::HadError() const
 {
 	return bHadError;
@@ -82,4 +84,5 @@ void UARCandidateImage::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
 

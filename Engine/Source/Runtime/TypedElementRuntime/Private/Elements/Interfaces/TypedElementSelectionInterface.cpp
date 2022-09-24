@@ -8,6 +8,8 @@
 
 #include "UObject/Stack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementSelectionInterface)
+
 bool ITypedElementSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListConstPtr& InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
 	return InSelectionSet && InSelectionSet->Contains(InElementHandle);
@@ -141,3 +143,4 @@ FScriptTypedElementHandle ITypedElementSelectionInterface::GetSelectionElement(c
 
 	return NativeList->GetRegistry()->CreateScriptHandle(GetSelectionElement(NativeHandle, NativeList, InSelectionMethod).GetId());
 }
+

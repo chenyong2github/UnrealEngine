@@ -3,6 +3,8 @@
 #include "DataProviders/AIDataProvider_QueryParams.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIDataProvider_QueryParams)
+
 void UAIDataProvider_QueryParams::BindData(const UObject& Owner, int32 RequestId)
 {
 	UEnvQueryManager* QueryManager = UEnvQueryManager::GetCurrent(&Owner);
@@ -28,3 +30,4 @@ FString UAIDataProvider_QueryParams::ToString(FName PropName) const
 {
 	return FString::Printf(TEXT("QueryParam.%s"), *ParamName.ToString());
 }
+

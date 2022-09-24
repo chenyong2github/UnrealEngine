@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnAction_Repeat)
+
 UPawnAction_Repeat::UPawnAction_Repeat(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, SubActionTriggeringPolicy(EPawnSubActionTriggeringPolicy::CopyBeforeTriggering)
@@ -103,3 +105,4 @@ bool UPawnAction_Repeat::PushSubAction()
 	RecentActionCopy = ActionCopy;
 	return PushChildAction(*ActionCopy); 
 }
+

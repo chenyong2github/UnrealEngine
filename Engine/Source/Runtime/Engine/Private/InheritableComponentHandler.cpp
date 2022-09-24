@@ -9,6 +9,8 @@
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/UObjectHash.h" // for FindObjectWithOuter()
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InheritableComponentHandler)
+
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
 #endif // WITH_EDITOR
@@ -621,3 +623,4 @@ bool FComponentKey::RefreshVariableName()
 	}
 	return false;
 }
+

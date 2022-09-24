@@ -8,6 +8,8 @@
 #include "EngineDefines.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Volume)
+
 #if WITH_EDITOR
 /** Define static delegate */
 AVolume::FOnVolumeShapeChanged AVolume::OnVolumeShapeChanged;
@@ -120,6 +122,7 @@ bool AVolume::IsVolumeBrush() const
 {
 	return true;
 }
+
 
 
 

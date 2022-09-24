@@ -3,6 +3,8 @@
 #include "Animation/AnimData/CurveIdentifier.h"
 #include "EngineLogs.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveIdentifier)
+
 #if WITH_EDITOR
 FAnimationCurveIdentifier UAnimationCurveIdentifierExtensions::GetCurveIdentifier(USkeleton* InSkeleton, FName Name, ERawCurveTrackTypes CurveType)
 {
@@ -96,4 +98,5 @@ bool UAnimationCurveIdentifierExtensions::GetTransformChildCurveIdentifier(FAnim
 	return false;
 }
 #endif // WITH_EDITOR
+
 

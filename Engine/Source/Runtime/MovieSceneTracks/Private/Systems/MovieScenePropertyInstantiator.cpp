@@ -14,6 +14,8 @@
 #include "Algo/IndexOf.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertyInstantiator)
+
 DECLARE_CYCLE_STAT(TEXT("DiscoverInvalidatedProperties"), MovieSceneEval_DiscoverInvalidatedProperties, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("ProcessInvalidatedProperties"), MovieSceneEval_ProcessInvalidatedProperties, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("InitializePropertyMetaData"), MovieSceneEval_InitializePropertyMetaData, STATGROUP_MovieSceneECS);
@@ -783,3 +785,4 @@ void UMovieScenePropertyInstantiatorSystem::InitializePropertyMetaData(FSystemTa
 
 	InitializePropertyMetaDataTasks.Empty();
 }
+

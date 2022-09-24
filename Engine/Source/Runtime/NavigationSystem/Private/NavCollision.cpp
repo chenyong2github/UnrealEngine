@@ -14,6 +14,9 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "CoreGlobals.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavCollision)
+
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"

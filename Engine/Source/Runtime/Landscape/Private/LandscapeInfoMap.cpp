@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "LandscapeInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeInfoMap)
+
 ULandscapeInfoMap::ULandscapeInfoMap(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, World(nullptr)
@@ -59,3 +61,4 @@ ULandscapeInfoMap* ULandscapeInfoMap::FindLandscapeInfoMap(const UWorld* World)
 	World->PerModuleDataObjects.FindItemByClass(&FoundObject);
 	return FoundObject;
 }
+

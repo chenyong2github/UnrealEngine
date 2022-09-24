@@ -6,6 +6,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/FrameValue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FlowDirection)
+
 EFlowDirection GSlateFlowDirection = EFlowDirection::LeftToRight;
 
 static int32 GSlateEnableLayoutLocalization = 1;
@@ -40,3 +42,4 @@ EFlowDirection FLayoutLocalization::GetLocalizedLayoutDirection()
 
 	return FrameCoherentDirection.GetValue();
 }
+

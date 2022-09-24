@@ -6,6 +6,8 @@
 #include "Engine/NetworkObjectList.h"
 #include "ReplayNetConnection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReplaySubsystem)
+
 namespace ReplaySubsystem
 {
 	TAutoConsoleVariable<bool> CVarUseReplayConnection(TEXT("Replay.UseReplayConnection"), false, TEXT(""));

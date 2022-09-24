@@ -2,6 +2,8 @@
 
 #include "HandlerComponentFactory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HandlerComponentFactory)
+
 
 /**
  * UHandlerComponentFactory
@@ -10,3 +12,4 @@ UHandlerComponentFactory::UHandlerComponentFactory(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 {
 }
+

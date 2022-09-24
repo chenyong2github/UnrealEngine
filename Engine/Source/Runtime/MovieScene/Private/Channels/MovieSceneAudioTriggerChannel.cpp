@@ -7,6 +7,8 @@
 #include "MovieSceneFwd.h"
 #include "MovieSceneFrameMigration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneAudioTriggerChannel)
+
 bool FMovieSceneAudioTriggerChannel::EvaluatePossibleTriggers(const FMovieSceneContext& InContext, FMoveSceneAudioTriggerState& InState, bool& OutTriggered) const
 {
 	FFrameTime CurrentTime = InContext.GetTime();

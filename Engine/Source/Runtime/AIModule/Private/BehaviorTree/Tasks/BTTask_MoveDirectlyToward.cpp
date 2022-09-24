@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Tasks/BTTask_MoveDirectlyToward.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_MoveDirectlyToward)
+
 UBTTask_MoveDirectlyToward::UBTTask_MoveDirectlyToward(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "MoveDirectlyToward";
@@ -38,3 +40,4 @@ FName UBTTask_MoveDirectlyToward::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

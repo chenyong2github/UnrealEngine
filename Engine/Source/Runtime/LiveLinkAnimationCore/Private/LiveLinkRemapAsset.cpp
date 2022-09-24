@@ -8,6 +8,9 @@
 #include "LiveLinkTypes.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkRemapAsset)
+
   
 ULiveLinkRemapAsset::ULiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -5,6 +5,8 @@
 #include "ActiveSound.h"
 #include "AudioCompressionSettingsUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeRandom)
+
 #if WITH_EDITOR
 	#include "Editor.h"
 #endif
@@ -367,3 +369,4 @@ void USoundNodeRandom::UpdatePIEHiddenNodes()
 	}
 }
 #endif //WITH_EDITOR
+

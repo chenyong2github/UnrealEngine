@@ -9,6 +9,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/EnvQueryTraceHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_OnCircle)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 //----------------------------------------------------------------------//
@@ -371,3 +373,4 @@ void UEnvQueryGenerator_OnCircle::PostEditChangeProperty( FPropertyChangedEvent&
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

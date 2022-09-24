@@ -4,6 +4,8 @@
 #include "MovieSceneTrack.h"
 #include "MovieSceneSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTrackEvaluationField)
+
 
 FMovieSceneTrackEvaluationData FMovieSceneTrackEvaluationData::FromSection(UMovieSceneSection* InSection)
 {

@@ -7,6 +7,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "FABRIK.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Fabrik)
+
 /////////////////////////////////////////////////////
 // AnimNode_Fabrik
 // Implementation of the FABRIK IK Algorithm
@@ -245,3 +247,4 @@ void FAnimNode_Fabrik::Initialize_AnyThread(const FAnimationInitializeContext& C
 	Super::Initialize_AnyThread(Context);
 	EffectorTarget.Initialize(Context.AnimInstanceProxy);
 }
+

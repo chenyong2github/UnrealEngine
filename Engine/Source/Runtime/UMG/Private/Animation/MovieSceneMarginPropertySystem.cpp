@@ -5,6 +5,8 @@
 #include "Systems/FloatChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMarginPropertySystem)
+
 
 UMovieSceneMarginPropertySystem::UMovieSceneMarginPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -22,4 +24,5 @@ void UMovieSceneMarginPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 	{
 	Super::OnRun(InPrerequisites, Subsequents);
 	}
+
 

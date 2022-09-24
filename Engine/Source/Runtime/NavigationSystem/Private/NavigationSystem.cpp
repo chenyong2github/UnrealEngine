@@ -47,6 +47,8 @@
 #include "CrowdManagerBase.h"
 #include "AI/NavigationModifier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationSystem)
+
 
 static const uint32 INITIAL_ASYNC_QUERIES_SIZE = 32;
 static const uint32 REGISTRATION_QUEUE_SIZE = 16;	// and we'll not reallocate
@@ -5188,3 +5190,4 @@ void UNavigationSystemModuleConfig::PostEditChangeProperty(FPropertyChangedEvent
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

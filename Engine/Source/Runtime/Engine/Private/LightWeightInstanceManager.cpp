@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceManager)
+
 UActorInstanceHandleInterface::UActorInstanceHandleInterface(const FObjectInitializer& ObjectInitializer)
 {
 	// do nothing

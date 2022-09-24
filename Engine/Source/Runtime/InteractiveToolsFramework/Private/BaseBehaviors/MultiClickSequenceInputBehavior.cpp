@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MultiClickSequenceInputBehavior)
+
 
 
 UMultiClickSequenceInputBehavior::UMultiClickSequenceInputBehavior()
@@ -165,3 +167,4 @@ void UMultiClickSequenceInputBehavior::EndHoverCapture()
 {
 	// Nothing to do.
 }
+

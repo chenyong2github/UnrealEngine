@@ -7,6 +7,8 @@
 #include "EngineGlobals.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LegIK)
+
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarAnimNodeLegIKDebug(TEXT("a.AnimNode.LegIK.Debug"), 0, TEXT("Turn on debug for FAnimNode_LegIK"));
 #endif
@@ -844,3 +846,4 @@ void FAnimNode_LegIK::InitializeBoneReferences(const FBoneContainer& RequiredBon
 		}
 	}
 }
+

@@ -23,6 +23,8 @@
 #include "UObject/EditorObjectVersion.h"
 #include "Widgets/SViewport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetComponent)
+
 DECLARE_CYCLE_STAT(TEXT("3DHitTesting"), STAT_Slate3DHitTesting, STATGROUP_Slate);
 
 static int32 MaximumRenderTargetWidth = 3840;
@@ -2207,3 +2209,4 @@ void UWidgetComponent::SetWidgetClass(TSubclassOf<UUserWidget> InWidgetClass)
 		}
 	}
 }
+

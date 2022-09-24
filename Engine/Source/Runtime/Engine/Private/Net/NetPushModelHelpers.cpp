@@ -5,6 +5,8 @@
 #include "EngineLogs.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetPushModelHelpers)
+
 void UNetPushModelHelpers::MarkPropertyDirty(UObject* Object, FName PropertyName)
 {
 #if WITH_PUSH_MODEL

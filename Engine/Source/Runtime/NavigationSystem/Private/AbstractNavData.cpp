@@ -2,6 +2,8 @@
 
 #include "AbstractNavData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbstractNavData)
+
 const FNavPathType FAbstractNavigationPath::Type;
 
 FAbstractNavigationPath::FAbstractNavigationPath()
@@ -86,3 +88,4 @@ bool AAbstractNavData::RaycastAbstract(const ANavigationData* NavDataInstance, c
 {
 	return false;
 }
+

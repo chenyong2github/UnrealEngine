@@ -2,6 +2,8 @@
 
 #include "AutomationTestExcludelist.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationTestExcludelist)
+
 #if WITH_EDITOR
 	#include "HAL/PlatformFileManager.h"
 	#include "ISourceControlOperation.h"
@@ -264,4 +266,5 @@ void UAutomationTestExcludelist::SaveConfig()
 		UObject::TryUpdateDefaultConfigFile();
 	}
 }
+
 

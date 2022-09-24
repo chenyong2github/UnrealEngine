@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_CallFunction.h"
 #include "Animation/AnimInstanceProxy.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CallFunction)
 
 void FAnimNode_CallFunction::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {

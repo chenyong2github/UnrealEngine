@@ -3,6 +3,8 @@
 #include "Components/ScrollBoxSlot.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScrollBoxSlot)
+
 /////////////////////////////////////////////////////
 // UScrollBoxSlot
 
@@ -88,3 +90,4 @@ void UScrollBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
 	Super::ReleaseSlateResources(bReleaseChildren);
 	Slot = nullptr;
 }
+

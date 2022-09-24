@@ -9,6 +9,8 @@
 #include "UObject/Package.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetImportData)
+
 #if WITH_EDITOR
 #include "Editor/EditorPerProjectUserSettings.h"
 #endif
@@ -451,3 +453,4 @@ void UAssetImportData::PostLoad()
 }
 
 #endif // WITH_EDITORONLY_DATA
+

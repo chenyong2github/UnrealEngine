@@ -2,6 +2,8 @@
 
 #include "IIdentifiableXRDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IIdentifiableXRDevice)
+
 /* FXRDeviceId
  *****************************************************************************/
 
@@ -40,3 +42,4 @@ bool FXRDeviceId::operator==(const IIdentifiableXRDevice* Rhs) const
 {
 	return Rhs && SystemName == Rhs->GetSystemName() && DeviceId == Rhs->GetSystemDeviceId();
 }
+

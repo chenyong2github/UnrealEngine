@@ -25,6 +25,8 @@ extern UNREALED_API UEditorEngine* GEditor;
 #include "Engine/Selection.h"
 #include "Components/BillboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EQSTestingPawn)
+
 //----------------------------------------------------------------------//
 // AEQSTestingPawn
 //----------------------------------------------------------------------//
@@ -388,3 +390,4 @@ void AEQSTestingPawn::PostTransacted(const FTransactionObjectEvent& TransactionE
 }
 
 #endif // WITH_EDITOR
+

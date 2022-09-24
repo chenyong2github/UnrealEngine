@@ -17,6 +17,8 @@
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequence)
+
 
 UMovieSceneSequence::UMovieSceneSequence(const FObjectInitializer& Init)
 	: Super(Init)
@@ -352,3 +354,4 @@ FMovieSceneTimecodeSource UMovieSceneSequence::GetEarliestTimecodeSource() const
 
 	return MovieScene->GetEarliestTimecodeSource();
 }
+

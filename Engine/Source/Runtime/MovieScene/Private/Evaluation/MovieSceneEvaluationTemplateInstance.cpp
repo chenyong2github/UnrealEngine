@@ -15,6 +15,8 @@
 #include "UObject/Package.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvaluationTemplateInstance)
+
 DECLARE_CYCLE_STAT(TEXT("Entire Evaluation Cost"), MovieSceneEval_EntireEvaluationCost, STATGROUP_MovieSceneEval);
 
 
@@ -445,3 +447,4 @@ EMovieSceneServerClientMask FMovieSceneRootEvaluationTemplateInstance::GetEmulat
 	return EmulatedNetworkMask;
 }
 #endif
+

@@ -7,6 +7,8 @@
 
 #include "HAL/PlatformProcess.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FixedFrameRateCustomTimeStep)
+
 
 UFixedFrameRateCustomTimeStep::UFixedFrameRateCustomTimeStep(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -52,3 +54,4 @@ FFrameRate UFixedFrameRateCustomTimeStep::GetFixedFrameRate_PureVirtual() const
 {
 	return FFrameRate(24, 1);
 }
+

@@ -2,6 +2,8 @@
 #include "ClothTetherData.h"
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothTetherData)
+
 class FClothTetherDataPrivate
 {
 public:
@@ -505,3 +507,4 @@ void FClothTetherDataPrivate::GenerateGeodesicTethers(const TConstArrayView<FVec
 		check(TetherSlots[Index].Num() <= MaxNumAttachments);
 	});
 }
+

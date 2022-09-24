@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Tasks/BTTask_BlackboardBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_BlackboardBase)
+
 UBTTask_BlackboardBase::UBTTask_BlackboardBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "BlackboardBase";
@@ -23,3 +25,4 @@ void UBTTask_BlackboardBase::InitializeFromAsset(UBehaviorTree& Asset)
 		UE_LOG(LogBehaviorTree, Warning, TEXT("Can't initialize task: %s, make sure that behavior tree specifies blackboard asset!"), *GetName());
 	}
 }
+

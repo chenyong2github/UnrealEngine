@@ -15,6 +15,8 @@
 #include "Editor/WidgetCompilerLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RichTextBlock)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -422,3 +424,4 @@ void URichTextBlock::RefreshTextLayout()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

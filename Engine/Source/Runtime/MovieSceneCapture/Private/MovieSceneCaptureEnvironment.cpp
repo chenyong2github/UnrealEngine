@@ -5,6 +5,8 @@
 #include "MovieSceneCaptureModule.h"
 #include "Protocols/UserDefinedCaptureProtocol.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCaptureEnvironment)
+
 int32 UMovieSceneCaptureEnvironment::GetCaptureFrameNumber()
 {
 	UMovieSceneCapture* Capture = static_cast<UMovieSceneCapture*>(IMovieSceneCaptureModule::Get().GetFirstActiveMovieSceneCapture());

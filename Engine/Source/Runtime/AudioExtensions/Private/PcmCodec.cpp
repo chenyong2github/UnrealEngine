@@ -6,6 +6,8 @@
 
 #include "Templates/SubclassOf.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PcmCodec)
+
 namespace Audio
 {	
 	class FPcmAudioCodec : public ICodec
@@ -305,3 +307,4 @@ FString UAudioPcmEncoderSettings::GetHashForDDC() const
 	int32 Hash = 123456789; // FIXME.
 	return FString::FromInt((int32)Hash);
 }
+

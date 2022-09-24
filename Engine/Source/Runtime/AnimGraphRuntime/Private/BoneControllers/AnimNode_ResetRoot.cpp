@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ResetRoot)
+
 /////////////////////////////////////////////////////
 // FAnimNode_ResetRoot
 
@@ -77,4 +79,5 @@ void FAnimNode_ResetRoot::InitializeBoneReferences(const FBoneContainer& Require
 		}
 	}
 }
+
 

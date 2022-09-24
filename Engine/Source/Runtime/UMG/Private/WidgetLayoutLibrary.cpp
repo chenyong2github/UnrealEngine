@@ -31,6 +31,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/FrameValue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetLayoutLibrary)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -369,3 +371,4 @@ void UWidgetLayoutLibrary::RemoveAllWidgets(UObject* WorldContextObject)
 }
 
 #undef LOCTEXT_NAMESPACE
+

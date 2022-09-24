@@ -4,6 +4,8 @@
 #include "UObject/PropertyPortFlags.h"
 #include "MovieSceneFwd.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFrameMigration)
+
 bool FMovieSceneFrameRange::Serialize(FArchive& Ar)
 {
 	Ar << Value;

@@ -2,7 +2,10 @@
 
 #include "Engine/ObjectReferencer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectReferencer)
+
 UObjectReferencer::UObjectReferencer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+

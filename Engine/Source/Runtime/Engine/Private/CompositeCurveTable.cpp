@@ -11,6 +11,8 @@
 
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CompositeCurveTable)
+
 #define LOCTEXT_NAMESPACE "CompositeCurveTables"
 
 //////////////////////////////////////////////////////////////////////////
@@ -293,3 +295,4 @@ const UCompositeCurveTable* UCompositeCurveTable::FindLoops(TArray<const UCompos
 }
 
 #undef LOCTEXT_NAMESPACE
+

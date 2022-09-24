@@ -33,6 +33,8 @@
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "Components/NamedSlotInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Widget)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Created UWidgets"), STAT_SlateUTotalWidgets, STATGROUP_SlateMemory);
@@ -1909,3 +1911,4 @@ void UWidget::K2_BroadcastFieldValueChanged(FFieldNotificationId InFieldId)
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceComponent)
+
 ULevelInstanceComponent::ULevelInstanceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -5,6 +5,8 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RotationOffsetBlendSpace)
+
 /////////////////////////////////////////////////////
 // FAnimNode_RotationOffsetBlendSpace
 
@@ -104,5 +106,6 @@ void FAnimNode_RotationOffsetBlendSpace::GatherDebugData(FNodeDebugData& DebugDa
 	
 	BasePose.GatherDebugData(DebugData);
 }
+
 
 

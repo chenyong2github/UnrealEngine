@@ -3,6 +3,8 @@
 #include "Components/GridSlot.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GridSlot)
+
 /////////////////////////////////////////////////////
 // UGridSlot
 
@@ -218,3 +220,4 @@ void UGridSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot)
 }
 
 #endif
+

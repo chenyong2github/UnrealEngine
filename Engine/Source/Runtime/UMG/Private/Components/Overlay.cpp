@@ -3,6 +3,8 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Overlay)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -82,3 +84,4 @@ const FText UOverlay::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

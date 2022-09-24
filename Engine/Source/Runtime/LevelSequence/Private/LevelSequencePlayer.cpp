@@ -28,6 +28,8 @@
 #include "LevelSequenceModule.h"
 #include "Generators/MovieSceneEasingCurves.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequencePlayer)
+
 /* ULevelSequencePlayer structors
  *****************************************************************************/
 
@@ -575,3 +577,4 @@ void ULevelSequencePlayer::RewindForReplay()
 	NetSyncProps.LastKnownStatus = EMovieScenePlayerStatus::Stopped;
 	NetSyncProps.LastKnownNumLoops = 0;
 }
+

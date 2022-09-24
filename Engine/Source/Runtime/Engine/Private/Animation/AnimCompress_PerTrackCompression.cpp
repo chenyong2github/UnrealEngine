@@ -9,6 +9,8 @@
 #include "AnimEncoding.h"
 #include "AnimEncoding_PerTrackCompression.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_PerTrackCompression)
+
 struct FAnimSetMeshLinkup;
 
 struct FPerTrackCachedInfo
@@ -1657,3 +1659,4 @@ void UAnimCompress_PerTrackCompression::DecompressBone(FAnimSequenceDecompressio
 		AEFPerTrackCompressionCodec::GetBoneAtomScale(OutAtom, DecompContext, TrackIndex);
 	}
 }
+

@@ -24,6 +24,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePredictionSystem)
+
 DECLARE_CYCLE_STAT(TEXT("Prediction Initialization"), MovieSceneEval_PredictionIntialization, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Prediction Finalization"),   MovieSceneEval_PredictionFinalization,  STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Prediction Report Results"), MovieSceneEval_PredictionReportResults, STATGROUP_MovieSceneECS);

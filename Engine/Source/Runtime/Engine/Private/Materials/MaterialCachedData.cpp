@@ -43,6 +43,8 @@
 #include "Curves/CurveLinearColorAtlas.h"
 #include "Misc/MemStack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialCachedData)
+
 const FMaterialCachedParameterEntry FMaterialCachedParameterEntry::EmptyData{};
 const FMaterialCachedExpressionData FMaterialCachedExpressionData::EmptyData{};
 const FMaterialCachedExpressionEditorOnlyData FMaterialCachedExpressionEditorOnlyData::EmptyData{};
@@ -728,4 +730,5 @@ void FMaterialCachedExpressionData::GetAllGlobalParameterInfoOfType(EMaterialPar
 		}
 	}
 }
+
 

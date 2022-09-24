@@ -3,6 +3,8 @@
 #include "Binding/VisibilityBinding.h"
 #include "Components/SlateWrapperTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisibilityBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UVisibilityBinding::UVisibilityBinding()
@@ -50,3 +52,4 @@ ESlateVisibility UVisibilityBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

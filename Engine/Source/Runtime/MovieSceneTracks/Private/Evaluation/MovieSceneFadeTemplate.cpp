@@ -10,6 +10,8 @@
 #include "IMovieScenePlayer.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFadeTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Fade Track Token Execute"), MovieSceneEval_FadeTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
 struct FFadeTrackToken
@@ -141,3 +143,4 @@ void FMovieSceneFadeSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand
 		ExecutionTokens.Add(FFadeExecutionToken(FadeValue, FadeColor, bFadeAudio));
 	}
 }
+

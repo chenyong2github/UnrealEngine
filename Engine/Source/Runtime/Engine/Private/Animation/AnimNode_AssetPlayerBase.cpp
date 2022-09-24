@@ -3,6 +3,8 @@
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimSyncScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_AssetPlayerBase)
+
 void FAnimNode_AssetPlayerBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	FAnimNode_Base::Initialize_AnyThread(Context);

@@ -6,6 +6,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StackBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -108,3 +110,4 @@ const FText UStackBox::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

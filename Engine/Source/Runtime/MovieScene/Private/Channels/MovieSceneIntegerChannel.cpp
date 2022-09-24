@@ -7,6 +7,8 @@
 #include "MovieSceneFwd.h"
 #include "MovieSceneFrameMigration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneIntegerChannel)
+
 
 bool FMovieSceneIntegerChannel::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {

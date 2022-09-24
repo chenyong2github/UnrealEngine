@@ -6,6 +6,8 @@
 
 #include "Engine/TextureLightProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureLightProfile)
+
 
 /*-----------------------------------------------------------------------------
 	UTextureLightProfile
@@ -28,3 +30,4 @@ void UTextureLightProfile::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
+

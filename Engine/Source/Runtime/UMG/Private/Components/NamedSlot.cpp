@@ -7,6 +7,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NamedSlot)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -121,3 +123,4 @@ void UNamedSlot::PostLoad()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

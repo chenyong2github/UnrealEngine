@@ -6,6 +6,8 @@
 #include "AnimNodes/AnimNode_StateResult.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationStateMachineLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogAnimationStateMachineLibrary, Verbose, All);
 
 void UAnimationStateMachineLibrary::ConvertToAnimationStateResult(const FAnimNodeReference& Node, FAnimationStateResultReference& AnimationState, EAnimNodeReferenceConversionResult& Result)

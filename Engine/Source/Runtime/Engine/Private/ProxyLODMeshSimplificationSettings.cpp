@@ -3,6 +3,8 @@
 #include "Engine/ProxyLODMeshSimplificationSettings.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProxyLODMeshSimplificationSettings)
+
 UProxyLODMeshSimplificationSettings::UProxyLODMeshSimplificationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -48,3 +50,4 @@ void UProxyLODMeshSimplificationSettings::PostEditChangeProperty(struct FPropert
 
 
 #endif
+

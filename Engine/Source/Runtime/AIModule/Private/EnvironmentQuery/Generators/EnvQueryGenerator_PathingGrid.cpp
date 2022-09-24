@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_PathingGrid.h"
 #include "NavMesh/RecastNavMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_PathingGrid)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_PathingGrid::UEnvQueryGenerator_PathingGrid(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -115,3 +117,4 @@ void UEnvQueryGenerator_PathingGrid::ProjectAndFilterNavPoints(TArray<FNavLocati
 }
 
 #undef LOCTEXT_NAMESPACE
+

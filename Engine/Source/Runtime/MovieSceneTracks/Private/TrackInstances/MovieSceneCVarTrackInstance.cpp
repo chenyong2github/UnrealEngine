@@ -13,6 +13,8 @@
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
 #include "MovieSceneCommonHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCVarTrackInstance)
+
 namespace UE
 {
 namespace MovieScene
@@ -162,3 +164,4 @@ void UMovieSceneCVarTrackInstance::OnEndUpdateInputs()
 void UMovieSceneCVarTrackInstance::OnDestroyed()
 {
 }
+

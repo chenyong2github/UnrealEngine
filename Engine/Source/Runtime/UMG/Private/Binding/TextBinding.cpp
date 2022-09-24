@@ -2,6 +2,8 @@
 
 #include "Binding/TextBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 bool UTextBinding::IsSupportedDestination(FProperty* Property) const
@@ -129,3 +131,4 @@ FString UTextBinding::GetStringValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

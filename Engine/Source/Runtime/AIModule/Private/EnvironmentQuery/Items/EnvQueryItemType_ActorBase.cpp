@@ -5,6 +5,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryItemType_ActorBase)
+
 void UEnvQueryItemType_ActorBase::AddBlackboardFilters(FBlackboardKeySelector& KeySelector, UObject* FilterOwner) const
 {
 	Super::AddBlackboardFilters(KeySelector, FilterOwner);
@@ -35,3 +37,4 @@ AActor* UEnvQueryItemType_ActorBase::GetActor(const uint8* RawData) const
 {
 	return NULL;
 }
+

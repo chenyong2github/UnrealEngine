@@ -2,6 +2,8 @@
 
 #include "Sound/ReverbEffect.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReverbEffect)
+
 UReverbEffect::UReverbEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -30,3 +32,4 @@ void UReverbEffect::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	bChanged = true;
 }
 #endif
+

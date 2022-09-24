@@ -5,6 +5,8 @@
 #include "Misc/TransactionObjectEvent.h"
 #include "TransactionCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TransactionDiffingTests)
+
 void UTransactionDiffingTestObject::Serialize(FStructuredArchive::FRecord Record)
 {
 	Super::Serialize(Record);
@@ -198,3 +200,4 @@ bool FEditSoftObjectsTest::RunTest(const FString& Parameters)
 } // namespace TransactionDiffingTests
 
 #endif //WITH_DEV_AUTOMATION_TESTS
+

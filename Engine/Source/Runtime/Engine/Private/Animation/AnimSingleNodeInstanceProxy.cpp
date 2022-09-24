@@ -13,6 +13,8 @@
 #include "Animation/AnimSyncScope.h"
 #include "Animation/MirrorDataTable.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSingleNodeInstanceProxy)
+
 FAnimSingleNodeInstanceProxy::~FAnimSingleNodeInstanceProxy()
 {
 }
@@ -689,3 +691,4 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 	}
 #endif
 }
+

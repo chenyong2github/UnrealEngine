@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Net/Serialization/FastArraySerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FastArraySerializer)
+
 DEFINE_STAT(STAT_NetSerializeFastArray);
 DEFINE_STAT(STAT_NetSerializeFastArray_BuildMap);
 DEFINE_STAT(STAT_NetSerializeFastArray_DeltaStruct);
@@ -18,3 +20,4 @@ FAutoConsoleVariableRef FFastArraySerializer::CVarMaxNumberOfAllowedDeletionsPer
 	FFastArraySerializer::MaxNumberOfAllowedDeletionsPerUpdate,
 	TEXT("")
 );
+

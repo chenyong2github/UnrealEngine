@@ -41,6 +41,8 @@
 #include "Net/ReplayPlaylistTracker.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DemoNetDriver)
+
 DEFINE_LOG_CATEGORY( LogDemo );
 
 #define DEMO_CSV_PROFILING_HELPERS_ENABLED (CSV_PROFILER && (!UE_BUILD_SHIPPING))
@@ -5564,3 +5566,4 @@ void UDemoNetDriver::RequestCheckpoint()
 		ReplayHelper.RequestCheckpoint();
 	}
 }
+

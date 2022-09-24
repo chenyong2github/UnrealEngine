@@ -6,6 +6,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericApplication.h" // for EModifierKey, FModifierKeysState
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetInputLibrary)
+
 FSlateModifierKeysState::FSlateModifierKeysState(const FModifierKeysState& InModifierKeysState)
 	: ModifierKeysStateMask(EModifierKey::FromBools(
 		InModifierKeysState.IsControlDown(),
@@ -349,3 +351,4 @@ FVector2D UKismetInputLibrary::PointerEvent_GetGestureDelta(const FPointerEvent&
 }
 
 #undef LOCTEXT_NAMESPACE
+

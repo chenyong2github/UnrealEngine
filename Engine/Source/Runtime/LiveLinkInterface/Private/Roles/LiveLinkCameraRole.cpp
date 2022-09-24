@@ -3,6 +3,8 @@
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkCameraTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkCameraRole)
+
 #define LOCTEXT_NAMESPACE "LiveLinkRole"
 
 UScriptStruct* ULiveLinkCameraRole::GetStaticDataStruct() const

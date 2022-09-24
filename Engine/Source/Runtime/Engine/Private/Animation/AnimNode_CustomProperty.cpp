@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CustomProperty)
+
 FAnimNode_CustomProperty::FAnimNode_CustomProperty()
 	: FAnimNode_Base()
 	, TargetInstance(nullptr)
@@ -134,3 +136,4 @@ void FAnimNode_CustomProperty::HandleObjectsReinstanced(const TMap<UObject*, UOb
 }
 
 #endif	// #if WITH_EDITOR
+

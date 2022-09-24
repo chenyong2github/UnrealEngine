@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MouseHoverBehavior)
+
 
 UMouseHoverBehavior::UMouseHoverBehavior()
 {
@@ -63,6 +65,7 @@ void UMouseHoverBehavior::EndHoverCapture()
 	check(Target != nullptr);
 	Target->OnEndHover();
 }
+
 
 
 

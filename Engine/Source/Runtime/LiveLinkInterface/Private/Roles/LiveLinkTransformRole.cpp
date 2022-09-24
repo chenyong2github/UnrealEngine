@@ -3,6 +3,8 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTransformRole)
+
 #define LOCTEXT_NAMESPACE "LiveLinkRole"
 
 UScriptStruct* ULiveLinkTransformRole::GetStaticDataStruct() const
@@ -43,3 +45,4 @@ FText ULiveLinkTransformRole::GetDisplayName() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

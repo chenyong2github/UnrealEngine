@@ -7,6 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "TwoBoneIK.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetAnimationLibrary)
+
 #define LOCTEXT_NAMESPACE "UKismetAnimationLibrary"
 
 //////////////////////////////////////////////////////////////////////////
@@ -293,4 +295,5 @@ float UKismetAnimationLibrary::CalculateDirection(const FVector& Velocity, const
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

@@ -5,6 +5,8 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceEditorInstanceActor)
+
 ALevelInstanceEditorInstanceActor::ALevelInstanceEditorInstanceActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

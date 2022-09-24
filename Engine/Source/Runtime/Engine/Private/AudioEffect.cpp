@@ -12,6 +12,8 @@
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioEffect)
+
 #define ENABLE_REVERB_SETTINGS_PRINTING 0
 
 /** 
@@ -574,3 +576,4 @@ void FAudioEffectsManager::Update()
 }
 
 // end 
+

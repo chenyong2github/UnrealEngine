@@ -2,6 +2,8 @@
 
 #include "RigVMCore/RigVMMemoryCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryCommon)
+
 #if DEBUG_RIGVMMEMORY
 	DEFINE_LOG_CATEGORY(LogRigVMMemory);
 #endif
@@ -14,3 +16,4 @@ void FRigVMOperand::Serialize(FArchive& Ar)
 	Ar << RegisterIndex;
 	Ar << RegisterOffset;
 }
+

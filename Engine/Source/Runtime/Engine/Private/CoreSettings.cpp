@@ -8,6 +8,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CoreSettings)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCoreSettings, Log, All);
 
 int32 GUseBackgroundLevelStreaming = 1;
@@ -233,3 +235,4 @@ void UGarbageCollectionSettings::PostEditChangeProperty(FPropertyChangedEvent& P
 	}
 }
 #endif // #if WITH_EDITOR
+

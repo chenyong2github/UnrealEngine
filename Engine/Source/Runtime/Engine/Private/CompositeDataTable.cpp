@@ -17,6 +17,8 @@
 
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CompositeDataTable)
+
 #define LOCTEXT_NAMESPACE "CompositeDataTables"
 
 #define DATATABLE_CHANGE_SCOPE()	UDataTable::FScopedDataTableChange ActiveScope(this);
@@ -318,3 +320,4 @@ void UCompositeDataTable::OnParentTablesUpdated(EPropertyChangeType::Type Change
 }
 
 #undef LOCTEXT_NAMESPACE
+

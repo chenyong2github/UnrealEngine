@@ -5,6 +5,8 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UniformGridPanel)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -145,3 +147,4 @@ const FText UUniformGridPanel::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

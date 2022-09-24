@@ -8,6 +8,8 @@
 #include "Components/WindDirectionalSourceComponent.h"
 #include "Components/BillboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WindDirectionalSource)
+
 AWindDirectionalSource::AWindDirectionalSource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -284,4 +286,5 @@ bool UWindDirectionalSourceComponent::GetWindParameters(const FVector& EvaluateP
 
 	return bFoundWind;
 }
+
 

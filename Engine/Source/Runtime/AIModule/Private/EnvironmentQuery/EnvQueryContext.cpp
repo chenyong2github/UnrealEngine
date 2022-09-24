@@ -2,6 +2,8 @@
 
 #include "EnvironmentQuery/EnvQueryContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryContext)
+
 UEnvQueryContext::UEnvQueryContext(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 }
@@ -10,3 +12,4 @@ void UEnvQueryContext::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQuer
 {
 	// empty in base class
 }
+

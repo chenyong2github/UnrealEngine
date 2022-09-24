@@ -17,6 +17,8 @@
 #include "Engine/DebugCameraController.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DebugCameraHUD)
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarDebugCameraTraceComplex(
 	TEXT("g.DebugCameraTraceComplex"),
@@ -270,3 +272,4 @@ void ADebugCameraHUD::PostRender()
 	}
 #endif
 }
+

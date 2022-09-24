@@ -3,6 +3,8 @@
 #include "Elements/Framework/TypedElementCounter.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementCounter)
+
 FTypedElementCounter::FTypedElementCounter(UTypedElementRegistry* InRegistry)
 {
 	Initialize(InRegistry);
@@ -62,3 +64,4 @@ FName FTypedElementCounter::GetElementTypeCategoryName()
 	static const FName NAME_ElementType = "ElementType";
 	return NAME_ElementType;
 }
+

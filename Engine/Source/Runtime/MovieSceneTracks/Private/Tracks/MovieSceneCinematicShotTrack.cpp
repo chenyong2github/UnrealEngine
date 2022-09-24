@@ -6,6 +6,8 @@
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCinematicShotTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneCinematicShotTrack"
 
@@ -158,3 +160,4 @@ void UMovieSceneCinematicShotTrack::SortSections()
 }
 
 #undef LOCTEXT_NAMESPACE
+

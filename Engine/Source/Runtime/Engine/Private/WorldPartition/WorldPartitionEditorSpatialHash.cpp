@@ -7,6 +7,8 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorSpatialHash)
+
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
 #if WITH_EDITOR
@@ -385,3 +387,4 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

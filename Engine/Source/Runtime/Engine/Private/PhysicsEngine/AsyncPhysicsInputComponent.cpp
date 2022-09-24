@@ -20,6 +20,8 @@
 #include "UObject/ObjectKey.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AsyncPhysicsInputComponent)
+
 namespace InputCmdCVars
 {
 	static int32 ForceFault = 0;
@@ -466,3 +468,4 @@ const UAsyncPhysicsData* UAsyncPhysicsInputComponent::GetDataToConsume() const
 	
 	return (UAsyncPhysicsData*)DataClass->GetDefaultObject();
 }
+

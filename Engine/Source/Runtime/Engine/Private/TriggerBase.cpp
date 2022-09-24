@@ -6,6 +6,8 @@
 #include "Components/ShapeComponent.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TriggerBase)
+
 ATriggerBase::ATriggerBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -49,3 +51,4 @@ ATriggerBase::ATriggerBase(const FObjectInitializer& ObjectInitializer)
 	}
 #endif
 }
+

@@ -7,6 +7,8 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "ParticleHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPSCPool)
+
 static float GParticleSystemPoolKillUnusedTime = 180.0f;
 static FAutoConsoleVariableRef ParticleSystemPoolKillUnusedTime(
 	TEXT("FX.ParticleSystemPool.KillUnusedTime"),
@@ -397,3 +399,4 @@ FAutoConsoleCommandWithWorld DumpPSCPoolInfoCommand(
 	TEXT("Dump Particle System Pooling Info"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&DumpPooledWorldParticleSystemInfo)
 );
+

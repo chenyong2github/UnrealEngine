@@ -16,6 +16,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene)
+
 #define LOCTEXT_NAMESPACE "MovieScene"
 
 TOptional<TRangeBound<FFrameNumber>> GetMaxUpperBound(const UMovieSceneTrack* Track)
@@ -1761,3 +1763,4 @@ int32 UMovieScene::FindNextMarkedFrame(FFrameNumber InFrameNumber, bool bForward
 }
 
 #undef LOCTEXT_NAMESPACE
+

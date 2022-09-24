@@ -17,6 +17,8 @@
 #include "MovieScene.h"
 #include "MovieSceneTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene2DTransformSection)
+
 
 #if WITH_EDITOR
 
@@ -266,3 +268,4 @@ void UMovieScene2DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLink
 		.AddTag(UMGComponents->WidgetTransform.PropertyTag)
 	);
 }
+

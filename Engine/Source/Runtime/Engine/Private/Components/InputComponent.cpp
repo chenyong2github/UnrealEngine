@@ -4,6 +4,8 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputComponent)
+
 
 void FInputActionBinding::GenerateNewHandle()
 {
@@ -409,3 +411,4 @@ void UInputComponent::GetTouchState(int32 FingerIndex, float& LocationX, float& 
 float UInputComponent::GetControllerKeyTimeDown(FKey Key) const { return 0.f; }
 void UInputComponent::GetControllerMouseDelta(float& DeltaX, float& DeltaY) const { }
 void UInputComponent::GetControllerAnalogStickState(EControllerAnalogStick::Type WhichStick, float& StickX, float& StickY) const { }
+

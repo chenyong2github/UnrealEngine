@@ -3,6 +3,8 @@
 #include "GameFramework/AsyncActionHandleSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AsyncActionHandleSaveGame)
+
 UAsyncActionHandleSaveGame* UAsyncActionHandleSaveGame::AsyncSaveGameToSlot(UObject* WorldContextObject, USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex)
 {
 	UAsyncActionHandleSaveGame* Action = NewObject<UAsyncActionHandleSaveGame>();
@@ -62,3 +64,4 @@ void UAsyncActionHandleSaveGame::ExecuteCompleted(bool bSuccess)
 	SaveGameObject = nullptr;
 	SetReadyToDestroy();
 }
+

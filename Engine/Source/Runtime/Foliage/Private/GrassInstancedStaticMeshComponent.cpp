@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "GrassInstancedStaticMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GrassInstancedStaticMeshComponent)
+
 
 static TAutoConsoleVariable<bool> CVarEnableGrassInstancedWPOVelocity(
 	TEXT("r.Velocity.EnableLandscapeGrass"),

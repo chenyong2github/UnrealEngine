@@ -19,6 +19,8 @@
 #include "UObject/UObjectIterator.h"
 #include "StaticMeshResources.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ArrowComponent)
+
 #define DEFAULT_SCREEN_SIZE	(0.0025f)
 #define ARROW_SCALE			(80.0f)
 #define ARROW_RADIUS_FACTOR	(0.03f)
@@ -290,3 +292,4 @@ void UArrowComponent::SetEditorScale(float InEditorScale)
 	}
 }
 #endif
+

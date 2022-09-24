@@ -7,6 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimSequenceBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_PlayParticleEffect)
+
 #if WITH_EDITOR
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -128,3 +130,4 @@ UParticleSystemComponent* UAnimNotify_PlayParticleEffect::SpawnParticleSystem(cl
 
 	return ReturnComp;
 }
+

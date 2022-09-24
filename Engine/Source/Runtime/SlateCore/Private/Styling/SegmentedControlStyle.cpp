@@ -3,6 +3,8 @@
 #include "Styling/SegmentedControlStyle.h"
 #include "Brushes/SlateNoResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SegmentedControlStyle)
+
 const FName FSegmentedControlStyle::TypeName( TEXT("FSegmentedControlStyle") );
 
 FSegmentedControlStyle::FSegmentedControlStyle()

@@ -15,6 +15,8 @@
 #include "Stats/StatsMisc.h"
 #include "HAL/LowLevelMemTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialInstanceDynamic)
+
 UMaterialInstanceDynamic::UMaterialInstanceDynamic(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -515,3 +517,4 @@ float UMaterialInstanceDynamic::GetTextureDensity(FName TextureName, const struc
 	}
 	return Density;
 }
+

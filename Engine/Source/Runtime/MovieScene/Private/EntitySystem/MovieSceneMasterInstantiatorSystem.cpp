@@ -7,6 +7,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMasterInstantiatorSystem)
+
 
 UMovieSceneMasterInstantiatorSystem::UMovieSceneMasterInstantiatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

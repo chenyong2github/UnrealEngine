@@ -11,6 +11,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AISystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_RunEQSQuery)
+
 
 UBTTask_RunEQSQuery::UBTTask_RunEQSQuery(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
@@ -194,3 +196,4 @@ FName UBTTask_RunEQSQuery::GetNodeIconName() const
 }
 
 #endif
+

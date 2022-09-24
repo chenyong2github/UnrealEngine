@@ -5,6 +5,8 @@
 #include "AudioDevice.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundWaveProcedural)
+
 
 USoundWaveProcedural::USoundWaveProcedural(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -207,3 +209,4 @@ bool USoundWaveProcedural::InitAudioResource(FName Format)
 	// Nothing to be done to initialize a USoundWaveProcedural
 	return true;
 }
+

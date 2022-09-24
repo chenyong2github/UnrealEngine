@@ -11,6 +11,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SToolTip.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UICommandInfo)
+
 
 FOnBindingContextChanged FBindingContext::CommandsChanged;
 
@@ -175,3 +177,4 @@ TSharedRef<SToolTip> FUICommandInfo::MakeTooltip( const TAttribute<FText>& InTex
 			]
 		];
 }
+

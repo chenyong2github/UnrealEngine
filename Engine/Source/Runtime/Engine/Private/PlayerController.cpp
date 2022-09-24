@@ -78,6 +78,8 @@
 #include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
 #endif // UE_WITH_IRIS
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerController)
+
 DEFINE_LOG_CATEGORY(LogPlayerController);
 
 #define LOCTEXT_NAMESPACE "PlayerController"
@@ -5915,3 +5917,4 @@ const UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToConsume() const
 
 
 #undef LOCTEXT_NAMESPACE
+

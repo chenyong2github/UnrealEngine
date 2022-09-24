@@ -4,6 +4,8 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultPhysicsVolume)
+
 ADefaultPhysicsVolume::ADefaultPhysicsVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -21,3 +23,4 @@ ADefaultPhysicsVolume::ADefaultPhysicsVolume(const FObjectInitializer& ObjectIni
 	// They are not intended to actually have any collision response, as they don't have actual collision geometry.
 	GetBrushComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
+

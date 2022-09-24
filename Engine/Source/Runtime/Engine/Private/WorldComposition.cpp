@@ -21,6 +21,8 @@
 #include "Engine/AssetManager.h"
 #include "Engine/Level.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldComposition)
+
 DEFINE_LOG_CATEGORY_STATIC(LogWorldComposition, Log, All);
 
 #if WITH_EDITOR
@@ -1008,3 +1010,4 @@ FBox UWorldComposition::GetLevelBounds(ULevel* InLevel) const
 	
 	return LevelBBox;
 }
+

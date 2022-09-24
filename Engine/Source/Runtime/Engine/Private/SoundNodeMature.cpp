@@ -8,6 +8,8 @@
 #include "Sound/SoundWave.h"
 #include "Sound/SoundNodeWavePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeMature)
+
 /*-----------------------------------------------------------------------------
        USoundNodeMature implementation.
 -----------------------------------------------------------------------------*/
@@ -167,3 +169,4 @@ void USoundNodeMature::PostLoad()
 		}
 	}
 }
+

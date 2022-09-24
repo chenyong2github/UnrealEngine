@@ -51,6 +51,8 @@
 #include "Algo/Transform.h"
 #include "PipelineStateCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshComponent)
+
 #define LOCTEXT_NAMESPACE "StaticMeshComponent"
 
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh VxColor Inst Mem" ), STAT_InstVertexColorMemory, STATGROUP_MemoryStaticMesh );
@@ -3428,3 +3430,4 @@ FArchive& operator<<(FArchive& Ar,FStaticMeshComponentLODInfo& I)
 }
 
 #undef LOCTEXT_NAMESPACE
+

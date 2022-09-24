@@ -6,6 +6,8 @@
 #include "TransformableHandle.h"
 #include "ConstraintsManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintsScripting)
+
 UConstraintsManager* UConstraintsScriptingLibrary::GetManager(UWorld* InWorld)
 {
 	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
@@ -58,3 +60,4 @@ bool UConstraintsScriptingLibrary::RemoveConstraint(UWorld* InWorld, int32 InInd
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	return Controller.RemoveConstraint(InIndex);
 }
+

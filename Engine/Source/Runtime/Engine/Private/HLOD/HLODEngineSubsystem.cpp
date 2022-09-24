@@ -2,6 +2,8 @@
 
 #include "HLOD/HLODEngineSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODEngineSubsystem)
+
 #if WITH_EDITOR
 
 #include "EngineUtils.h"
@@ -195,3 +197,4 @@ void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext
 }
 
 #endif // WITH_EDITOR
+

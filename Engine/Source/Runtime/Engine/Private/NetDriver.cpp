@@ -90,6 +90,8 @@
 #endif
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetDriver)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -7308,3 +7310,4 @@ static bool NetDriverExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 /** Our entry point for all net driver related exec routing */
 FStaticSelfRegisteringExec NetDriverExecRegistration(NetDriverExec);
+

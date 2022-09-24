@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/MouseWheelBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MouseWheelBehavior)
+
 UMouseWheelInputBehavior::UMouseWheelInputBehavior()
 {
 }
@@ -54,4 +56,5 @@ void UMouseWheelInputBehavior::ForceEndCapture(const FInputCaptureData& data)
 {
 	// nothing to do
 }
+
 

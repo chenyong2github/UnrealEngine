@@ -8,6 +8,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "EngineLogs.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RPCDoSDetection)
+
 
 /**
  * RPC DoS Detection
@@ -1396,4 +1398,5 @@ void FRPCDoSDetection::SetKickPlayerFunc(FRPCDoSKickPlayer&& InKickPlayerFunc)
 {
 	KickPlayerFunc = MoveTemp(InKickPlayerFunc);
 }
+
 

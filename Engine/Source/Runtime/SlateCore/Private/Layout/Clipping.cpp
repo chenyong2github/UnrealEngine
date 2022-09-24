@@ -5,6 +5,8 @@
 #include "Logging/LogVerbosity.h"
 #include "SlateGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Clipping)
+
 FSlateClippingZone::FSlateClippingZone(const FShortRect& AxisAlignedRect)
 	: bIsAxisAligned(true)
 	, bIntersect(true)
@@ -376,3 +378,4 @@ void FSlateClippingManager::PopToStackIndex(int32 Index)
 		ClippingStack.RemoveAt(StartIndexToPop, ClippingStack.Num() - StartIndexToPop, false);
 	}
 }
+

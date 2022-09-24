@@ -16,6 +16,8 @@
 #include "UObject/UE5CookerObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshDescription)
+
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataBuildVersion.h"
 #endif
@@ -2251,4 +2253,5 @@ void FMeshDescriptionBulkData::UseHashAsGuid()
 }
 
 #endif // #if WITH_EDITORONLY_DATA
+
 

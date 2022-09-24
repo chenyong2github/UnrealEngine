@@ -6,6 +6,8 @@
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ISMPartitionActor)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -959,3 +961,4 @@ ISMInstanceManager* AISMPartitionActor::GetSMInstanceManager(const FSMInstanceId
 
 	return nullptr;
 }
+

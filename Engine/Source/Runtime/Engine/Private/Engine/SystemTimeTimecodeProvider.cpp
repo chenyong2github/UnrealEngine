@@ -6,6 +6,8 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/DateTime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SystemTimeTimecodeProvider)
+
 namespace
 {
 	static double ComputeTimeCodeOffset()
@@ -65,3 +67,4 @@ FQualifiedFrameTime USystemTimeTimecodeProvider::GetQualifiedFrameTime() const
 		FQualifiedFrameTime(bUseHighPerformanceClock ? GenerateTimecodeFromHighPerformanceClock(FrameRate) : GenerateTimecodeFromSystemTime(FrameRate), FrameRate)
 		: FQualifiedFrameTime(bUseHighPerformanceClock ? GenerateFrameTimeFromHighPerformanceClock(FrameRate) : GenerateFrameTimeFromSystemTime(FrameRate), FrameRate);
 }
+

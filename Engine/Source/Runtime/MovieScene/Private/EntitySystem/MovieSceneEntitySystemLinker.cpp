@@ -21,6 +21,8 @@
 #include "HAL/PlatformProcess.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEntitySystemLinker)
+
 DECLARE_CYCLE_STAT(TEXT("Link Relevant Systems"),		MovieSceneEval_LinkRelevantSystems,		STATGROUP_MovieSceneECS);
 
 namespace UE
@@ -598,3 +600,4 @@ void UMovieSceneEntitySystemLinker::AutoUnlinkIrrelevantSystems()
 		UnlinkIrrelevantSystems();
 	}
 }
+

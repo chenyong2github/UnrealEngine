@@ -2,6 +2,8 @@
 
 #include "Animation/TimeStretchCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TimeStretchCurve)
+
 bool FTimeStretchCurve::IsValid() const
 {
 	return Markers.Num() > 0;

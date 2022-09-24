@@ -7,6 +7,8 @@
 #include "Misc/Paths.h"
 #include "StreamMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaSource)
+
 void UMediaSource::SetCacheSettings(const FMediaSourceCacheSettings& Settings)
 {
 	SetMediaOptionBool(TEXT("ImgMediaSmartCacheEnabled"), Settings.bOverride);
@@ -208,5 +210,6 @@ void UMediaSource::SetMediaOption(const FName& Key, FVariant& Value)
 {
 	MediaOptionsMap.Emplace(Key, Value);
 }
+
 
 

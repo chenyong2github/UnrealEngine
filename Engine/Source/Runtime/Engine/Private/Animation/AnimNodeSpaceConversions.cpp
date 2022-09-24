@@ -2,6 +2,8 @@
 
 #include "Animation/AnimNodeSpaceConversions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNodeSpaceConversions)
+
 /////////////////////////////////////////////////////
 // FAnimNode_ConvertComponentToLocalSpace
 
@@ -90,3 +92,4 @@ void FAnimNode_ConvertLocalToComponentSpace::EvaluateComponentSpace_AnyThread(FC
 	OutputCSPose.Curve = MoveTemp(InputPose.Curve);
 	OutputCSPose.CustomAttributes = MoveTemp(InputPose.CustomAttributes);
 }
+

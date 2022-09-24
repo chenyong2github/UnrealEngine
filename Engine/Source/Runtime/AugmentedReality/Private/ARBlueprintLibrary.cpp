@@ -7,6 +7,8 @@
 #include "ARPin.h"
 #include "ARGeoTrackingSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARBlueprintLibrary)
+
 
 TWeakPtr<FARSupportInterface , ESPMode::ThreadSafe> UARBlueprintLibrary::RegisteredARSystem = nullptr;
 
@@ -979,3 +981,4 @@ bool UARBlueprintLibrary::GetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntr
 	}
 	return false;
 }
+

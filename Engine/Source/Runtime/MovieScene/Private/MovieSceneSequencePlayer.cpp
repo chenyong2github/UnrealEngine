@@ -18,6 +18,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Algo/BinarySearch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequencePlayer)
+
 DEFINE_LOG_CATEGORY_STATIC(LogMovieSceneRepl, Log, All);
 
 DECLARE_STATS_GROUP(TEXT("MovieSceneRepl"), STATGROUP_MovieSceneRepl, STATCAT_Advanced);
@@ -1762,4 +1764,5 @@ void UMovieSceneSequencePlayer::RunLatentActions()
 		});
 	}
 }
+
 

@@ -5,6 +5,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Camera/CameraComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraActor)
+
 #define LOCTEXT_NAMESPACE "CameraActor"
 
 //////////////////////////////////////////////////////////////////////////
@@ -117,4 +119,5 @@ void ACameraActor::BeginPlay()
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

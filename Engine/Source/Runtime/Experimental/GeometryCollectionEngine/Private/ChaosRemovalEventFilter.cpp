@@ -2,6 +2,8 @@
 
 #include "ChaosRemovalEventFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosRemovalEventFilter)
+
 void FChaosRemovalEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FRemovalDataArray& RawRemovalDataArray)
 {
 	FilteredDataArray.Reset();
@@ -90,3 +92,4 @@ void FChaosRemovalEventFilter::SortEvents(TArray<FChaosRemovalEventData>& InOutR
 		break;
 	}
 }
+

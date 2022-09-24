@@ -5,6 +5,8 @@
 #include "MovieSceneTrack.h"
 #include "Algo/Count.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFolder)
+
 void GetMovieSceneFoldersRecursive(TArrayView<UMovieSceneFolder* const> InFoldersToRecurse, TArray<UMovieSceneFolder*>& OutFolders)
 {
 	for (UMovieSceneFolder* Folder : InFoldersToRecurse)

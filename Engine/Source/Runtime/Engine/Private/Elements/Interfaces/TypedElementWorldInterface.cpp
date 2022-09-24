@@ -11,6 +11,8 @@
 #include "ShowFlags.h"
 #include "UObject/Stack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementWorldInterface)
+
 bool ITypedElementWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)
 {
 	FBoxSphereBounds Bounds;
@@ -415,3 +417,4 @@ class UTypedElementRegistry& ITypedElementWorldInterface::GetRegistry() const
 {
 	return *UTypedElementRegistry::GetInstance();
 }
+

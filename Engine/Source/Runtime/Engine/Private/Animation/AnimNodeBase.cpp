@@ -8,6 +8,8 @@
 #include "Animation/AnimAttributes.h"
 #include "Animation/AnimSubsystem_Base.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNodeBase)
+
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
 
@@ -588,3 +590,4 @@ void FNodeDebugData::GetFlattenedDebugData(TArray<FFlattenedDebugData>& Flattene
 		}
 	}
 }
+

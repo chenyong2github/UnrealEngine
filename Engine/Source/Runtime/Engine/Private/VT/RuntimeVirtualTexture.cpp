@@ -14,6 +14,8 @@
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RuntimeVirtualTexture)
+
 namespace
 {
 	/** Null producer to use as placeholder when no producer has been set on a URuntimeVirtualTexture */
@@ -670,3 +672,4 @@ namespace RuntimeVirtualTexture
 		return (InStreamingProducer == nullptr) ? InProducer : new FVirtualTextureLevelRedirector(InProducer, InStreamingProducer, InTransitionLevel);
 	}
 }
+

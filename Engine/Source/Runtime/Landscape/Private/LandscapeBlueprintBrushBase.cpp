@@ -10,6 +10,8 @@
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeBlueprintBrushBase)
+
 #define LOCTEXT_NAMESPACE "Landscape"
 
 #if WITH_EDITOR

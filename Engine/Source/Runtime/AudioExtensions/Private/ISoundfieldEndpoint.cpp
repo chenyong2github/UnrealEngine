@@ -2,6 +2,8 @@
 
 #include "ISoundfieldEndpoint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ISoundfieldEndpoint)
+
 ISoundfieldEndpoint::ISoundfieldEndpoint(int32 NumRenderCallbacksToBuffer)
 {
 	NumRenderCallbacksToBuffer = FMath::Max(NumRenderCallbacksToBuffer, 2);
@@ -172,3 +174,4 @@ bool ISoundfieldEndpointFactory::CanTranscodeToSoundfieldFormat(FName Destinatio
 {
 	return false;
 }
+

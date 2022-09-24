@@ -8,6 +8,8 @@
 #include "Particles/TypeData/ParticleModuleTypeDataAnimTrail.h"
 #include "Animation/AnimInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_Trail)
+
 #define LOCTEXT_NAMESPACE "AnimNotifyState_Trail"
 
 DEFINE_LOG_CATEGORY(LogAnimTrails);
@@ -370,3 +372,4 @@ bool UAnimNotifyState_Trail::ValidateInput(class USkeletalMeshComponent * MeshCo
 }
 
 #undef LOCTEXT_NAMESPACE
+

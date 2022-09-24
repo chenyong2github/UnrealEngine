@@ -2,6 +2,8 @@
 
 #include "IAudioEndpoint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IAudioEndpoint)
+
 DEFINE_LOG_CATEGORY(LogAudioEndpoints);
 
 TUniquePtr<IAudioEndpointSettingsProxy> UDummyEndpointSettings::GetProxy() const

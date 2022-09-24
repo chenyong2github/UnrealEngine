@@ -3,6 +3,8 @@
 
 #include "InputRouter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputRouter)
+
 
 #define LOCTEXT_NAMESPACE "UInputRouter"
 
@@ -408,3 +410,4 @@ void UInputRouter::ForceTerminateSource(IInputBehaviorSource* Source)
 
 
 #undef LOCTEXT_NAMESPACE
+

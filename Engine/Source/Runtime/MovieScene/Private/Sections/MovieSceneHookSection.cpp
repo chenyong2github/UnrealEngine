@@ -6,6 +6,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneHookSection)
+
 UMovieSceneHookSection::UMovieSceneHookSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {

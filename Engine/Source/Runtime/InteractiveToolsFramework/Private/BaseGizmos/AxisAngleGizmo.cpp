@@ -6,6 +6,8 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/GizmoMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AxisAngleGizmo)
+
 
 
 UInteractiveGizmo* UAxisAngleGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -207,5 +209,6 @@ void UAxisAngleGizmo::OnEndHover()
 {
 	HitTarget->UpdateHoverState(false);
 }
+
 
 

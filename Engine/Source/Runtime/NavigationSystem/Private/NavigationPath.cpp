@@ -12,6 +12,8 @@
 #include "NavAreas/NavArea.h"
 #include "Debug/DebugDrawService.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationPath)
+
 #define DEBUG_DRAW_OFFSET 0
 #define PATH_OFFSET_KEEP_VISIBLE_POINTS 1
 

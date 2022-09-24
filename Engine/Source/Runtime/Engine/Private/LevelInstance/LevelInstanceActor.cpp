@@ -10,6 +10,8 @@
 #include "LevelInstancePrivate.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceActor)
+
 #if WITH_EDITOR
 #include "UObject/ObjectSaveContext.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -337,3 +339,4 @@ void ALevelInstance::ResetUnsupportedWorldAsset()
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -6,6 +6,8 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/GizmoMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlanePositionGizmo)
+
 
 
 UInteractiveGizmo* UPlanePositionGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -221,3 +223,4 @@ void UPlanePositionGizmo::OnEndHover()
 {
 	HitTarget->UpdateHoverState(false);
 }
+

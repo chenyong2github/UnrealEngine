@@ -2,6 +2,8 @@
 
 #include "Kismet/BlueprintTypeConversions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintTypeConversions)
+
 #define MAKE_CONVERSION_FUNCTION_NAME(SourceType, DestType)													\
 	Convert##SourceType##To##DestType
 

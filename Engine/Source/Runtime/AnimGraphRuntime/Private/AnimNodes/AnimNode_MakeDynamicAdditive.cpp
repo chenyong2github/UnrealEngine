@@ -4,6 +4,8 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_MakeDynamicAdditive)
+
 /////////////////////////////////////////////////////
 // FAnimNode_MakeDynamicAdditive
 
@@ -68,3 +70,4 @@ void FAnimNode_MakeDynamicAdditive::GatherDebugData(FNodeDebugData& DebugData)
 	Base.GatherDebugData(DebugData.BranchFlow(1.f));
 	Additive.GatherDebugData(DebugData.BranchFlow(1.f));
 }
+

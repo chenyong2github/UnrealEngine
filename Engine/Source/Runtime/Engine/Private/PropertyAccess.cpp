@@ -3,6 +3,8 @@
 #include "PropertyAccess.h"
 #include "Misc/MemStack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyAccess)
+
 #define LOCTEXT_NAMESPACE "PropertyAccess"
 
 namespace PropertyAccess

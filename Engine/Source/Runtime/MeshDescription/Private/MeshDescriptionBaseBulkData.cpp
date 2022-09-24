@@ -4,6 +4,8 @@
 #include "MeshDescriptionBase.h"
 #include "MeshDescription.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshDescriptionBaseBulkData)
+
 
 UMeshDescriptionBaseBulkData::UMeshDescriptionBaseBulkData()
 {
@@ -158,3 +160,4 @@ FMeshDescriptionBulkData& UMeshDescriptionBaseBulkData::GetBulkData()
 }
 
 #endif
+

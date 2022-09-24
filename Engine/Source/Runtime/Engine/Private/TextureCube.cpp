@@ -17,6 +17,8 @@
 #include "ImageUtils.h"
 #include "UObject/ReleaseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureCube)
+
 #define LOCTEXT_NAMESPACE "UTextureCube"
 
 UTextureCube* UTextureCube::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat, const FName InName)
@@ -679,3 +681,4 @@ uint32 UTextureCube::GetMaximumDimension() const
 #endif // #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

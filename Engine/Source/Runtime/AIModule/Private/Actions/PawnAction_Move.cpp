@@ -7,6 +7,8 @@
 #include "AIController.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnAction_Move)
+
 UPawnAction_Move::UPawnAction_Move(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, GoalLocation(FAISystem::InvalidLocation)
@@ -393,3 +395,4 @@ bool UPawnAction_Move::IsPartialPathAllowed() const
 {
 	return bAllowPartialPath;
 }
+

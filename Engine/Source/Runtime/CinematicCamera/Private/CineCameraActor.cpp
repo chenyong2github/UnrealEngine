@@ -4,6 +4,8 @@
 #include "DrawDebugHelpers.h"
 #include "CineCameraComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CineCameraActor)
+
 #define LOCTEXT_NAMESPACE "CineCameraActor"
 
 //////////////////////////////////////////////////////////////////////////
@@ -117,3 +119,4 @@ bool ACineCameraActor::ShouldTickForTracking() const
 
 
 #undef LOCTEXT_NAMESPACE
+

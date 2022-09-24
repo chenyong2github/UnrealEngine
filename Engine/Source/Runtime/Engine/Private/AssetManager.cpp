@@ -30,6 +30,8 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetManager)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -4689,3 +4691,4 @@ static FAutoConsoleCommandWithWorldAndArgs CVarUnloadPrimaryAssetsWithType(
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "Animation/AnimSequenceBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState)
+
 /////////////////////////////////////////////////////
 // UAnimNotifyState
 
@@ -141,3 +143,4 @@ UObject* UAnimNotifyState::GetContainingAsset() const
 	}
 	return ContainingAsset;
 }
+

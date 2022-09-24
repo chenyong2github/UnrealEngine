@@ -5,6 +5,8 @@
 #include "ToolTargetManager.h"
 #include "ContextObjectStore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InteractiveToolsContext)
+
 UInteractiveToolsContext::UInteractiveToolsContext()
 {
 	InputRouter = nullptr;
@@ -269,3 +271,4 @@ void UInteractiveToolsContext::PostToolWarningMessage(const FText& Message)
 {
 	OnToolWarningMessage.Broadcast(Message);
 }
+

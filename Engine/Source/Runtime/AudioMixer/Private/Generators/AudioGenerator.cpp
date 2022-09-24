@@ -2,6 +2,8 @@
 
 #include "Generators/AudioGenerator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGenerator)
+
 UAudioGenerator::UAudioGenerator() 
 {
 }
@@ -42,4 +44,5 @@ void UAudioGenerator::OnGeneratedAudio(const float* InAudio, int32 NumSamples)
 		It.Value(InAudio, NumSamples);
 	}
 }
+
 

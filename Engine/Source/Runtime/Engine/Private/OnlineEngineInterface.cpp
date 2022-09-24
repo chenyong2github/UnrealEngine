@@ -4,6 +4,8 @@
 #include "UObject/Package.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineEngineInterface)
+
 UOnlineEngineInterface* UOnlineEngineInterface::Singleton = nullptr;
 
 UOnlineEngineInterface::UOnlineEngineInterface(const FObjectInitializer& ObjectInitializer)
@@ -39,3 +41,4 @@ UOnlineEngineInterface* UOnlineEngineInterface::Get()
 
 	return Singleton;
 }
+

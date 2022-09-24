@@ -9,6 +9,8 @@
 #include "EntitySystem/MovieScenePropertyBinding.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BuiltInComponentTypes)
+
 namespace UE
 {
 namespace MovieScene
@@ -347,3 +349,4 @@ FBuiltInComponentTypes* FBuiltInComponentTypes::Get()
 
 } // namespace MovieScene
 } // namespace UE
+

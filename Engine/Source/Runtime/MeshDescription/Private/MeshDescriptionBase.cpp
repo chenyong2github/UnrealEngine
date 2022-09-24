@@ -4,6 +4,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Algo/Copy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshDescriptionBase)
+
 
 
 void UMeshDescriptionBase::Serialize(FArchive& Ar)
@@ -995,3 +997,4 @@ int32 UMeshDescriptionBase::GetNumPolygonGroupPolygons(FPolygonGroupID PolygonGr
 
 	return GetMeshDescription().GetNumPolygonGroupPolygons(PolygonGroupID);
 }
+

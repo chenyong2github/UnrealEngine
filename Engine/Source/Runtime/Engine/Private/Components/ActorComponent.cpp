@@ -49,6 +49,8 @@
 #include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
 #endif // UE_WITH_IRIS
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorComponent)
+
 #define LOCTEXT_NAMESPACE "ActorComponent"
 
 DEFINE_LOG_CATEGORY(LogActorComponent);
@@ -2476,3 +2478,4 @@ TFunction<bool(const UActorComponent*)> GIsComponentSelectedInEditor;
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

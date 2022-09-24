@@ -12,6 +12,8 @@
 #include "DeviceProfiles/DeviceProfileFragment.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeviceProfile)
+
 DEFINE_LOG_CATEGORY_STATIC(LogDeviceProfile, Log, All);
 
 UDeviceProfileFragment::UDeviceProfileFragment(const FObjectInitializer& ObjectInitializer)

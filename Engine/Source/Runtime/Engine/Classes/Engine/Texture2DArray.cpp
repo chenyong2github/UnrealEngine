@@ -25,6 +25,8 @@
 #include "UObject/StrongObjectPtr.h"
 #include "ImageCoreUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Texture2DArray)
+
 #define LOCTEXT_NAMESPACE "UTexture2DArray"
 
 // Externed global switch to control whether streaming is enabled for texture2darray. 

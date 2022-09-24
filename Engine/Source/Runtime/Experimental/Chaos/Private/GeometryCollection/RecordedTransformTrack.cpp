@@ -2,6 +2,8 @@
 
 #include "GeometryCollection/RecordedTransformTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RecordedTransformTrack)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionCache, Log, All);
 
 TAutoConsoleVariable<int32> CVarLogCacheReduction(TEXT("p.gc.logcachereduction"), 0, TEXT("Logs amount of data removed from a cache after processing"));

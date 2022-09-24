@@ -7,6 +7,8 @@
 #include "Animation/AnimTypes.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectoryTypes)
+
 #if ENABLE_ANIM_DEBUG
 static constexpr int32 DebugTrajectorySampleDisable = 0;
 static constexpr int32 DebugTrajectorySampleCount = 1;

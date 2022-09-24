@@ -16,6 +16,8 @@
 #include "Net/NetworkProfiler.h"
 #include "Net/DataChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PendingNetGame)
+
 void UPendingNetGame::Initialize(const FURL& InURL)
 {
 	NetDriver = NULL;
@@ -514,3 +516,4 @@ void UPendingNetGame::SendJoin()
 	FNetControlMessage<NMT_Join>::Send(NetDriver->ServerConnection);
 	NetDriver->ServerConnection->FlushNet(true);
 }
+

@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Tasks/BTTask_FinishWithResult.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_FinishWithResult)
+
 UBTTask_FinishWithResult::UBTTask_FinishWithResult(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -19,3 +21,4 @@ FString UBTTask_FinishWithResult::GetStaticDescription() const
 	return FString::Printf(TEXT("%s %s"), *Super::GetStaticDescription()
 		, *UBehaviorTreeTypes::DescribeNodeResult(Result.GetValue()));
 }
+

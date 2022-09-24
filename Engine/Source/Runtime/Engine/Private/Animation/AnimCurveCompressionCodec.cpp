@@ -3,6 +3,8 @@
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCurveCompressionCodec)
+
 UAnimCurveCompressionCodec::UAnimCurveCompressionCodec(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -41,3 +43,4 @@ void UAnimCurveCompressionCodec::PopulateDDCKey(FArchive& Ar)
 	Ar << InstanceGuid;
 }
 #endif
+

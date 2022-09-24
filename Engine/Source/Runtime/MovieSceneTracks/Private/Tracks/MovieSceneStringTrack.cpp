@@ -5,6 +5,8 @@
 #include "Sections/MovieSceneStringSection.h"
 #include "Evaluation/MovieScenePropertyTemplates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneStringTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneStringTrack"
 
@@ -70,3 +72,4 @@ void UMovieSceneStringTrack::RemoveSectionAt(int32 SectionIndex)
 }
 
 #undef LOCTEXT_NAMESPACE
+

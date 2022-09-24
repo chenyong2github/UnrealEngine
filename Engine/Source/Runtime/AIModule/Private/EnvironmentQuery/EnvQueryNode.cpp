@@ -6,6 +6,8 @@
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "DataProviders/AIDataProvider_QueryParams.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryNode)
+
 UEnvQueryNode::UEnvQueryNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 }
@@ -75,3 +77,4 @@ void UEnvQueryNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 #endif // USE_EQS_DEBUGGER
 }
 #endif //WITH_EDITOR && USE_EQS_DEBUGGER
+

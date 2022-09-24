@@ -3,6 +3,8 @@
 #include "Styling/ToolBarStyle.h"
 #include "Brushes/SlateNoResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolBarStyle)
+
 const FName FToolBarStyle::TypeName(TEXT("FToolbarStyle"));
 
 FToolBarStyle::FToolBarStyle()
@@ -46,4 +48,5 @@ void FToolBarStyle::GetResources(TArray<const FSlateBrush*>& OutBrushes) const
 	SettingsButtonStyle.GetResources(OutBrushes);
 	ButtonStyle.GetResources(OutBrushes);
 }
+
 

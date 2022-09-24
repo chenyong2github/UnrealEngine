@@ -3,6 +3,8 @@
 #include "Tracks/MovieSceneDataLayerTrack.h"
 #include "Sections/MovieSceneDataLayerSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDataLayerTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneDataLayerTrack"
 
 UMovieSceneDataLayerTrack::UMovieSceneDataLayerTrack(const FObjectInitializer& ObjectInitializer)
@@ -60,3 +62,4 @@ FText UMovieSceneDataLayerTrack::GetDefaultDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

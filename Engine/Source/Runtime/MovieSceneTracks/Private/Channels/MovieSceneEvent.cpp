@@ -3,6 +3,8 @@
 #include "Channels/MovieSceneEvent.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvent)
+
 UClass* FMovieSceneEvent::GetBoundObjectPropertyClass() const 
 { 
 	if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Ptrs.BoundObjectProperty.Get()))
@@ -15,3 +17,4 @@ UClass* FMovieSceneEvent::GetBoundObjectPropertyClass() const
 	}
 	return nullptr; 
 }
+

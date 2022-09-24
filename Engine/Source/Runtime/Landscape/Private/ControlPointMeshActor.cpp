@@ -13,6 +13,8 @@
 #include "Misc/MapErrors.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlPointMeshActor)
+
 #define LOCTEXT_NAMESPACE "ControlPointMeshActor"
 
 AControlPointMeshActor::AControlPointMeshActor(const FObjectInitializer& ObjectInitializer)
@@ -76,3 +78,4 @@ void AControlPointMeshActor::CheckForErrors()
 UControlPointMeshComponent* AControlPointMeshActor::GetControlPointMeshComponent() const { return ControlPointMeshComponent; }
 
 #undef LOCTEXT_NAMESPACE
+

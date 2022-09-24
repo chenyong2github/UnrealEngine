@@ -5,6 +5,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Net/Core/Misc/NetCoreLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateStruct)
+
 
 /**
  * FStateStruct
@@ -280,4 +282,5 @@ void UStatePerObjectConfig::DebugDump() const
 	}
 }
 #endif
+
 

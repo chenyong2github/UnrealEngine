@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenlockedTimecodeProvider)
+
 namespace
 {
 	const UGenlockedCustomTimeStep* GetValidGenlock()

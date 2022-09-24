@@ -2,6 +2,8 @@
 
 #include "Components/PanelWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PanelWidget)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -266,3 +268,4 @@ const TArray<UPanelSlot*>& UPanelWidget::GetSlots() const
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

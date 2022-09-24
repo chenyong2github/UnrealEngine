@@ -12,6 +12,8 @@
 #include "EngineGlobals.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraModifier_CameraShake)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCameraShake, Warning, All);
 
 //////////////////////////////////////////////////////////////////////////
@@ -750,4 +752,5 @@ void UCameraModifier_CameraShake::DisplayDebugGraphs(class UCanvas* Canvas, cons
 }
 
 #endif
+
 

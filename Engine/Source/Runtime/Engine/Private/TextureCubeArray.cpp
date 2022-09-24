@@ -16,6 +16,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureCubeArray)
+
 #define LOCTEXT_NAMESPACE "UTextureCubeArray"
 
 class FTextureCubeArrayResource : public FTextureResource

@@ -3,6 +3,8 @@
 #include "Components/DrawSphereComponent.h"
 #include "Engine/CollisionProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DrawSphereComponent)
+
 UDrawSphereComponent::UDrawSphereComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -26,3 +28,4 @@ bool UDrawSphereComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolu
 	return false;
 }
 #endif
+

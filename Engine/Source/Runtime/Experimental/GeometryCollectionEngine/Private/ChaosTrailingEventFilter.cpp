@@ -2,6 +2,8 @@
 
 #include "ChaosTrailingEventFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosTrailingEventFilter)
+
 void FChaosTrailingEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FTrailingDataArray& RawTrailingDataArray)
 {
 	FilteredDataArray.Reset();
@@ -114,3 +116,4 @@ void FChaosTrailingEventFilter::SortEvents(TArray<FChaosTrailingEventData>& InOu
 		break;
 	}
 }
+

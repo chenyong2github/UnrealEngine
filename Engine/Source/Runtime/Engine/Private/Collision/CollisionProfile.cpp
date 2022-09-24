@@ -9,6 +9,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionProfile)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCollisionProfile, Warning, All)
 
 #define MIN_CUSTOMIZABLE_COLLISIONCHANNEL	ECC_GameTraceChannel1
@@ -847,3 +849,4 @@ bool FCollisionProfilePrivateAccessor::AddProfileTemplate(FCollisionResponseTemp
 	}
 	return false;
 }
+

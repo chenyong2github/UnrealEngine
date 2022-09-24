@@ -5,6 +5,8 @@
 #include "NavigationSystem.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavLocalGridManager)
+
 float UNavLocalGridManager::GridCellSize = 50.0f;
 
 UNavLocalGridManager::UNavLocalGridManager(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -441,3 +443,4 @@ UWorld* UNavLocalGridManager::GetWorld() const
 	return GetOuter()->GetWorld();
 }
 #endif // WITH_ENGINE
+

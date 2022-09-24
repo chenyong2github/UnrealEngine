@@ -4,6 +4,8 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Systems/MovieSceneLevelVisibilitySystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLevelVisibilitySection)
+
 
 UMovieSceneLevelVisibilitySection::UMovieSceneLevelVisibilitySection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -34,3 +36,4 @@ void UMovieSceneLevelVisibilitySection::ImportEntityImpl(UMovieSceneEntitySystem
 		.Add(FMovieSceneTracksComponentTypes::Get()->LevelVisibility, LevelVisibilityData)
 	);
 }
+

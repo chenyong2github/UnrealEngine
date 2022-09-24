@@ -36,6 +36,8 @@
 
 #include "GameDelegates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalPlayer)
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Engine/DebugCameraController.h"
 #endif
@@ -1752,4 +1754,5 @@ void ULocalPlayer::CleanupViewState()
 		}
 	}
 }
+
 

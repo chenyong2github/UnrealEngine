@@ -12,6 +12,8 @@
 #include "EngineUtils.h"
 #include "Misc/FeedbackContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralFoliageComponent)
+
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -407,3 +409,4 @@ bool UProceduralFoliageComponent::HasSpawnedAnyInstances()
 }
 
 #undef LOCTEXT_NAMESPACE
+

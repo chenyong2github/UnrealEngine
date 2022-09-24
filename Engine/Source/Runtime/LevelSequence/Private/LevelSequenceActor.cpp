@@ -13,6 +13,8 @@
 #include "LevelSequenceModule.h"
 #include "MovieSceneSequenceTickManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceActor)
+
 #if WITH_EDITOR
 	#include "PropertyCustomizationHelpers.h"
 	#include "ActorPickerMode.h"
@@ -609,3 +611,4 @@ void ULevelSequenceBurnInOptions::PostEditChangeProperty( FPropertyChangedEvent&
 }
 
 #endif // WITH_EDITOR
+

@@ -8,6 +8,8 @@
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorElementHierarchyInterface)
+
 void UActorElementHierarchyInterface::GetChildElements(const FTypedElementHandle& InElementHandle, TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate)
 {
 	if (AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
@@ -24,3 +26,4 @@ void UActorElementHierarchyInterface::GetChildElements(const FTypedElementHandle
 #endif	// WITH_EDITOR
 	}
 }
+

@@ -3,6 +3,8 @@
 #include "Kismet/BlueprintPathsLibrary.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintPathsLibrary)
+
 UBlueprintPathsLibrary::UBlueprintPathsLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -5,6 +5,8 @@
 #include "UObject/PropertyPortFlags.h"
 #include "HAL/PlatformInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputCoreTypes)
+
 DEFINE_LOG_CATEGORY(LogInput);
 
 #define LOCTEXT_NAMESPACE "InputKeys"
@@ -1570,3 +1572,4 @@ void FInputKeyManager::GetCodesFromKey(const FKey Key, const uint32*& KeyCode, c
 }
 
 #undef LOCTEXT_NAMESPACE
+

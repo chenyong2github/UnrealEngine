@@ -19,6 +19,8 @@
 #include "NavMesh/NavMeshPath.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIBlueprintHelperLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogAIBlueprint, Warning, All);
 
 #define LOCTEXT_NAMESPACE "AIBlueprintHelperLibrary"

@@ -1198,6 +1198,9 @@ void USplineMeshComponent::ApplyComponentInstanceData(FSplineMeshInstanceData* S
 
 
 #include "StaticMeshLight.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SplineMeshComponent)
+
 /** */
 class FSplineStaticLightingMesh : public FStaticMeshStaticLightingMesh
 {
@@ -1273,3 +1276,4 @@ void USplineMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 }
 #endif
+

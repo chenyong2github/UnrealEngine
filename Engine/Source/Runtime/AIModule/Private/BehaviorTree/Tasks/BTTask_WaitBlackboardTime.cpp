@@ -4,6 +4,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_WaitBlackboardTime)
+
 UBTTask_WaitBlackboardTime::UBTTask_WaitBlackboardTime(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Wait Blackboard Time";
@@ -38,4 +40,5 @@ FString UBTTask_WaitBlackboardTime::GetStaticDescription() const
 {
 	return FString::Printf(TEXT("%s: %s"), *UBTTaskNode::GetStaticDescription(), *GetSelectedBlackboardKey().ToString());
 }
+
 

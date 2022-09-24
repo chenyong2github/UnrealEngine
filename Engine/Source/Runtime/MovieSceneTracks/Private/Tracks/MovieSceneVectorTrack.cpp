@@ -3,6 +3,8 @@
 #include "Tracks/MovieSceneVectorTrack.h"
 #include "Sections/MovieSceneVectorSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVectorTrack)
+
 
 UMovieSceneFloatVectorTrack::UMovieSceneFloatVectorTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
@@ -44,3 +46,4 @@ UMovieSceneSection* UMovieSceneDoubleVectorTrack::CreateNewSection()
 	NewSection->SetChannelsUsed(NumChannelsUsed);
 	return NewSection;
 }
+

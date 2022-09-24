@@ -10,6 +10,8 @@
 #include "Engine/CollisionProfile.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DrawFrustumComponent)
+
 
 /** Represents a draw frustum to the scene manager. */
 class FDrawFrustumSceneProxy final : public FPrimitiveSceneProxy
@@ -163,3 +165,4 @@ FBoxSphereBounds UDrawFrustumComponent::CalcBounds(const FTransform& LocalToWorl
 {
 	return FBoxSphereBounds( LocalToWorld.TransformPosition(FVector::ZeroVector), FVector(FrustumEndDist), FrustumEndDist );
 }
+

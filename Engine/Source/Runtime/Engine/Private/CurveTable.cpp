@@ -9,6 +9,8 @@
 
 #include "EditorFramework/AssetImportData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveTable)
+
 DEFINE_LOG_CATEGORY(LogCurveTable);
 
 DECLARE_CYCLE_STAT(TEXT("CurveTableRowHandle Eval"),STAT_CurveTableRowHandleEval,STATGROUP_Engine);
@@ -1124,3 +1126,4 @@ void FCurveTableRowHandle::PostSerialize(const FArchive& Ar)
 		Ar.MarkSearchableName(CurveTable, RowName);
 	}
 }
+

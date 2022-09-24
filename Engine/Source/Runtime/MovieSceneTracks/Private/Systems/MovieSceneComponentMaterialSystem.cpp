@@ -15,6 +15,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/DecalComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneComponentMaterialSystem)
+
 namespace UE::MovieScene
 {
 

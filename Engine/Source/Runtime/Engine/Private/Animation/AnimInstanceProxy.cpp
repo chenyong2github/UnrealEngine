@@ -39,6 +39,9 @@
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimInstanceProxy)
+
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -3555,3 +3558,4 @@ void FAnimInstanceProxy::ForEachStateMachine(const TFunctionRef<void(FAnimNode_S
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

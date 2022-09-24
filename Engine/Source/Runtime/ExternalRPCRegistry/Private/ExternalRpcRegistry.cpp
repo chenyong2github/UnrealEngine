@@ -8,6 +8,8 @@
 #include "Serialization/JsonWriter.h"
 #include "Logging/LogMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ExternalRpcRegistry)
+
 #define USE_RPC_REGISTRY_IN_SHIPPING 0
 
 #ifndef WITH_RPC_REGISTRY
@@ -239,3 +241,4 @@ bool UExternalRpcRegistry::HttpListOpenRoutes(const FHttpServerRequest& Request,
 	return true;
 }
 IMPLEMENT_MODULE(FDefaultModuleImpl, ExternalRpcRegistry);
+

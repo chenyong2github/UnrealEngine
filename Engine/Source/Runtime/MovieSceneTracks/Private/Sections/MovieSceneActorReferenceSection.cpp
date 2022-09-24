@@ -7,6 +7,8 @@
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneActorReferenceSection)
+
 bool FMovieSceneActorReferenceData::Evaluate(FFrameTime InTime, FMovieSceneActorReferenceKey& OutValue) const
 {
 	if (KeyTimes.Num())
@@ -162,4 +164,5 @@ void UMovieSceneActorReferenceSection::OnBindingIDsUpdated(const TMap<UE::MovieS
 		}
 	}
 }
+
 

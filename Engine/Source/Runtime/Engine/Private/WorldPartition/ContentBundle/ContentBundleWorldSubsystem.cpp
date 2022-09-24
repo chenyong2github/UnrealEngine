@@ -10,6 +10,8 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBundleWorldSubsystem)
+
 
 #if WITH_EDITOR
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"

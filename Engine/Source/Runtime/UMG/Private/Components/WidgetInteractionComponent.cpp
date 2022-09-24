@@ -13,6 +13,8 @@
 
 #include "Components/WidgetComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetInteractionComponent)
+
 
 #define LOCTEXT_NAMESPACE "WidgetInteraction"
 
@@ -702,3 +704,4 @@ FVector2D UWidgetInteractionComponent::Get2DHitLocation() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -6,6 +6,8 @@
 #include "Misc/ScopeLock.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementRegistry)
+
 const FTypedElementId FTypedElementId::Unset;
 
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
@@ -346,3 +348,4 @@ void UTypedElementRegistry::OnPostGarbageCollect()
 		ProcessDeferredElementsToDestroy();
 	}
 }
+

@@ -11,6 +11,8 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScalableSphereGizmo)
+
 #define LOCTEXT_NAMESPACE "UScalableSphereGizmo"
 // UScalableSphereGizmoBuilder
 

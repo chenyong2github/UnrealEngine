@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LayeredBoneBlend)
+
 #define DEFAULT_SOURCEINDEX 0xFF
 /////////////////////////////////////////////////////
 // FAnimNode_LayeredBoneBlend

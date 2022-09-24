@@ -10,6 +10,8 @@
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneCameraShakeTrack"
 
 UMovieSceneSection* UMovieSceneCameraShakeTrack::AddNewCameraShake(FFrameNumber KeyTime, TSubclassOf<UCameraShakeBase> ShakeClass)
@@ -105,3 +107,4 @@ bool UMovieSceneCameraShakeTrack::IsEmpty() const
 
 
 #undef LOCTEXT_NAMESPACE
+

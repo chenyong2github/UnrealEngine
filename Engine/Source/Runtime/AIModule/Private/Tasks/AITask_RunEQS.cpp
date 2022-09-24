@@ -5,6 +5,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayTasksComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AITask_RunEQS)
+
 UAITask_RunEQS::UAITask_RunEQS(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -50,3 +52,4 @@ void UAITask_RunEQS::OnEQSRequestFinished(TSharedPtr<FEnvQueryResult> Result)
 		EndTask();
 	}
 }
+

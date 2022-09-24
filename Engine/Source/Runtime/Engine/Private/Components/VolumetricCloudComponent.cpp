@@ -17,6 +17,8 @@
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumetricCloudComponent)
+
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
 #endif
@@ -253,5 +255,6 @@ AVolumetricCloud::AVolumetricCloud(const FObjectInitializer& ObjectInitializer)
 
 
 #undef LOCTEXT_NAMESPACE
+
 
 

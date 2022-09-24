@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "LandscapeConfigHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeConfigHelper)
+
 #if WITH_EDITOR
 
 #include "Engine/World.h"

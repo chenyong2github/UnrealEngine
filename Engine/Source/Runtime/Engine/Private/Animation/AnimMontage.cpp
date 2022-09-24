@@ -22,6 +22,8 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/ActiveMontageInstanceScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimMontage)
+
 DEFINE_LOG_CATEGORY(LogAnimMontage);
 
 DECLARE_CYCLE_STAT(TEXT("AnimMontageInstance_Advance"), STAT_AnimMontageInstance_Advance, STATGROUP_Anim);
@@ -2957,3 +2959,4 @@ FMontageBlendSettings::FMontageBlendSettings(const FAlphaBlendArgs& BlendArgs)
 	, Blend(BlendArgs)
 	, BlendMode(EMontageBlendMode::Standard)
 {}
+

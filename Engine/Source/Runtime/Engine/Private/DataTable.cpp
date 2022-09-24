@@ -15,6 +15,8 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/UserDefinedStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataTable)
+
 namespace
 {
 #if WITH_EDITORONLY_DATA
@@ -979,3 +981,4 @@ bool FDataTableCategoryHandle::operator != (FDataTableCategoryHandle const& Othe
 {
 	return DataTable != Other.DataTable || ColumnName != Other.ColumnName || RowContents != Other.RowContents;
 }
+

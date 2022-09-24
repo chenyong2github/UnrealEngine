@@ -8,6 +8,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_DoesPathExist)
+
 UBTDecorator_DoesPathExist::UBTDecorator_DoesPathExist(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Does path exist";
@@ -107,3 +109,4 @@ FName UBTDecorator_DoesPathExist::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

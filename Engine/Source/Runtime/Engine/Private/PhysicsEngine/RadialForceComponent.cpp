@@ -11,6 +11,8 @@
 #include "PhysicsEngine/RadialForceActor.h"
 #include "DestructibleInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RadialForceComponent)
+
 //////////////////////////////////////////////////////////////////////////
 // RADIALFORCECOMPONENT
 URadialForceComponent::URadialForceComponent(const FObjectInitializer& ObjectInitializer)

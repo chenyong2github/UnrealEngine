@@ -28,6 +28,8 @@
 #include "Misc/App.h"
 #include "PhysicsEngine/BodyInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTracksComponentTypes)
+
 namespace UE
 {
 namespace MovieScene
@@ -779,4 +781,5 @@ FPerlinNoiseParams::FPerlinNoiseParams(float InFrequency, double InAmplitude)
 	, Amplitude(InAmplitude)
 {
 }
+
 

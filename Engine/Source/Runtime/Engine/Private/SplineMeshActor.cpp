@@ -13,6 +13,8 @@
 #include "Misc/MapErrors.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SplineMeshActor)
+
 #define LOCTEXT_NAMESPACE "SplineMeshActor"
 
 ASplineMeshActor::ASplineMeshActor(const FObjectInitializer& ObjectInitializer)
@@ -77,3 +79,4 @@ void ASplineMeshActor::CheckForErrors()
 USplineMeshComponent* ASplineMeshActor::GetSplineMeshComponent() const { return SplineMeshComponent; }
 
 #undef LOCTEXT_NAMESPACE
+

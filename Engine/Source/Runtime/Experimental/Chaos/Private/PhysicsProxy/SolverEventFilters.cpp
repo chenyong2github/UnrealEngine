@@ -4,6 +4,8 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/ExternalCollisionData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SolverEventFilters)
+
 namespace Chaos
 {
 
@@ -86,3 +88,4 @@ namespace Chaos
 	}
 
 } // namespace Chaos
+

@@ -4,6 +4,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryItemType_VectorBase)
+
 void UEnvQueryItemType_VectorBase::AddBlackboardFilters(FBlackboardKeySelector& KeySelector, UObject* FilterOwner) const
 {
 	KeySelector.AddVectorFilter(FilterOwner, GetClass()->GetFName());
@@ -38,3 +40,4 @@ FRotator UEnvQueryItemType_VectorBase::GetItemRotation(const uint8* RawData) con
 {
 	return FRotator::ZeroRotator;
 }
+

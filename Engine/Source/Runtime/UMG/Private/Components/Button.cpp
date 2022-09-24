@@ -8,6 +8,8 @@
 #include "Styling/UMGCoreStyle.h"
 #include "Blueprint/WidgetTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Button)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -256,3 +258,4 @@ const FText UButton::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

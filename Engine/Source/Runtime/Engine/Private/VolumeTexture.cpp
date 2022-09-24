@@ -21,6 +21,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeTexture)
+
 #define LOCTEXT_NAMESPACE "UVolumeTexture"
 
 //*****************************************************************************

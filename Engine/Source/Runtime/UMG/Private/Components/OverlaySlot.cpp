@@ -3,6 +3,8 @@
 #include "Components/OverlaySlot.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OverlaySlot)
+
 /////////////////////////////////////////////////////
 // UOverlaySlot
 
@@ -84,3 +86,4 @@ void UOverlaySlot::SynchronizeProperties()
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

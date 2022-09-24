@@ -7,6 +7,8 @@
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARLifeCycleComponent)
+
 
 UARLifeCycleComponent::FRequestSpawnARActorDelegate UARLifeCycleComponent::RequestSpawnARActorDelegate;
 UARLifeCycleComponent::FOnSpawnARActorDelegate UARLifeCycleComponent::OnSpawnARActorDelegate;
@@ -117,3 +119,4 @@ void UARLifeCycleComponent::ServerDestroyARActor_Implementation(AARActor* Actor)
 		Actor->Destroy();
 	}
 }
+

@@ -10,6 +10,8 @@
 
 #include "Algo/BinarySearch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvaluationTrack)
+
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -268,3 +270,4 @@ void FMovieSceneEvaluationTrack::Interrogate(const FMovieSceneContext& Context, 
 	// @todo: this should live higher up the callstack when whole template interrogation is supported
 	Container.Finalize(Context, BindingOverride);
 }
+

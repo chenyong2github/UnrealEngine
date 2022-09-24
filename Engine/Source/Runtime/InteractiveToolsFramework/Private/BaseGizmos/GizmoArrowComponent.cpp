@@ -8,6 +8,8 @@
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoArrowComponent)
+
 namespace GizmoArrowComponentLocals
 {
 	const float ARROW_RENDERVISIBILITY_DOT_THRESHOLD = 0.965f; //~15 degrees

@@ -3,6 +3,8 @@
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ApplyMeshSpaceAdditive)
+
 /////////////////////////////////////////////////////
 // FAnimNode_ApplyMeshSpaceAdditive
 
@@ -110,3 +112,4 @@ void FAnimNode_ApplyMeshSpaceAdditive::GatherDebugData(FNodeDebugData& DebugData
 	Base.GatherDebugData(DebugData.BranchFlow(1.f));
 	Additive.GatherDebugData(DebugData.BranchFlow(ActualAlpha));
 }
+

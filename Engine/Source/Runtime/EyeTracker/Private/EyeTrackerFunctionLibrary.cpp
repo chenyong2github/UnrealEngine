@@ -4,6 +4,8 @@
 #include "Engine/Engine.h"
 #include "IEyeTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EyeTrackerFunctionLibrary)
+
 bool UEyeTrackerFunctionLibrary::IsEyeTrackerConnected()
 {
 	IEyeTracker const* const ET = GEngine ? GEngine->EyeTrackingDevice.Get() : nullptr;
@@ -59,3 +61,4 @@ void UEyeTrackerFunctionLibrary::SetEyeTrackedPlayer(APlayerController* PlayerCo
 		ET->SetEyeTrackedPlayer(PlayerController);
 	}
 }
+

@@ -12,6 +12,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeBaseNodeContainer)
+
 UInterchangeBaseNodeContainer::UInterchangeBaseNodeContainer()
 {
 
@@ -304,3 +306,4 @@ UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildrenInternal(con
 
 	return nullptr;
 }
+

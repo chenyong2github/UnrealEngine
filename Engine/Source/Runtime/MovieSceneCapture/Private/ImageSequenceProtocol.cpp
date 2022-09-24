@@ -19,6 +19,8 @@
 #include "Widgets/SWindow.h"
 #include "HDRHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImageSequenceProtocol)
+
 struct FImageFrameData : IFramePayload
 {
 	FString Filename;
@@ -253,3 +255,4 @@ void UImageSequenceProtocol_EXR::AddFormatMappingsImpl(TMap<FString, FStringForm
 	}
 	FormatMappings.Add(TEXT("gamut"), GamutString);
 }
+

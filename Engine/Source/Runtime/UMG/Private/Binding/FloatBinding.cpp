@@ -2,6 +2,8 @@
 
 #include "Binding/FloatBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FloatBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UFloatBinding::UFloatBinding()
@@ -48,3 +50,4 @@ float UFloatBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

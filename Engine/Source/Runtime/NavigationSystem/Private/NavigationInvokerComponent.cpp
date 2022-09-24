@@ -3,6 +3,8 @@
 #include "NavigationInvokerComponent.h"
 #include "NavigationSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationInvokerComponent)
+
 UNavigationInvokerComponent::UNavigationInvokerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, TileGenerationRadius(3000)
@@ -50,3 +52,4 @@ void UNavigationInvokerComponent::SetGenerationRadii(const float GenerationRadiu
 	TileGenerationRadius = GenerationRadius;
 	TileRemovalRadius = RemovalRadius;
 }
+

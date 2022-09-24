@@ -4,6 +4,8 @@
 #include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEdNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowObject)
+
 
 #define LOCTEXT_NAMESPACE "UDataflow"
 
@@ -77,3 +79,4 @@ void UDataflow::Serialize(FArchive& Ar)
 }
 
 #undef LOCTEXT_NAMESPACE
+

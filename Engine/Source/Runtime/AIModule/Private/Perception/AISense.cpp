@@ -15,6 +15,8 @@
 #include "Perception/AISense_Prediction.h"
 #include "Perception/AISense_Touch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense)
+
 #if WITH_GAMEPLAY_DEBUGGER
 #include "GameplayDebuggerTypes.h"
 #include "GameplayDebuggerCategory.h"
@@ -325,3 +327,4 @@ TSubclassOf<UAISense> UAISenseConfig_Touch::GetSenseImplementation() const
 {
 	return UAISense_Touch::StaticClass();
 }
+

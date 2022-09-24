@@ -6,6 +6,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneFrameMigration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneStringChannel)
+
 const FString* FMovieSceneStringChannel::Evaluate(FFrameTime InTime) const
 {
 	if (Times.Num())

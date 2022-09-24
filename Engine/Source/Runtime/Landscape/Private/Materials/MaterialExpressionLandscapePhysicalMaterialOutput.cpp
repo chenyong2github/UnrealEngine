@@ -7,6 +7,8 @@
 #include "MaterialCompiler.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLandscapePhysicalMaterialOutput)
+
 #define LOCTEXT_NAMESPACE "Landscape"
 
 UMaterialExpressionLandscapePhysicalMaterialOutput::UMaterialExpressionLandscapePhysicalMaterialOutput(const FObjectInitializer& ObjectInitializer)
@@ -105,3 +107,4 @@ void UMaterialExpressionLandscapePhysicalMaterialOutput::PostEditChangeProperty(
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

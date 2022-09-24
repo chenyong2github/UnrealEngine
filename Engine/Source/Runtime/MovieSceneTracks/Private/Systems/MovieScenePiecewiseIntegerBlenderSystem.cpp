@@ -7,6 +7,9 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Systems/IntegerChannelEvaluatorSystem.h"
 #include "Systems/WeightAndEasingEvaluatorSystem.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePiecewiseIntegerBlenderSystem)
+
 //#include "Algo/Find.h"
 //#include "Algo/AnyOf.h"
 //#include "Algo/Accumulate.h"
@@ -400,4 +403,5 @@ void UMovieScenePiecewiseIntegerBlenderSystem::ZeroAccumulationBuffers()
 		FMemory::Memzero(AccumulationBuffers.AdditiveFromBase.GetData(), sizeof(FIntegerBlendResult) * AccumulationBuffers.AdditiveFromBase.Num());
 	}
 }
+
 

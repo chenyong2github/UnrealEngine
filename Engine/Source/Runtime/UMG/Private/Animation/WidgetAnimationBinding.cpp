@@ -5,6 +5,8 @@
 #include "Components/Widget.h"
 #include "Blueprint/WidgetTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetAnimationBinding)
+
 
 /* FWidgetAnimationBinding interface
  *****************************************************************************/

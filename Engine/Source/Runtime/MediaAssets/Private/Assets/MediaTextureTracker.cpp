@@ -3,6 +3,8 @@
 #include "MediaTextureTracker.h"
 #include "MediaTexture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaTextureTracker)
+
 FMediaTextureTracker& FMediaTextureTracker::Get()
 {
 	static FMediaTextureTracker Engine;
@@ -41,3 +43,4 @@ const TArray<TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe>>* FMediaT
 	const TArray<TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe>>* ObjectsPtr = MapTextureToObject.Find(InTexture);
 	return ObjectsPtr;
 }
+

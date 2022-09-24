@@ -3,6 +3,8 @@
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsConstraintTemplate)
+
 UPhysicsConstraintTemplate::UPhysicsConstraintTemplate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -184,3 +186,4 @@ void UPhysicsConstraintTemplate::CopySetupPropsToInstance(FConstraintInstance* I
 	Instance->ProfileInstance.AngularBreakThreshold			= AngularBreakThreshold_DEPRECATED;
 #endif
 }
+

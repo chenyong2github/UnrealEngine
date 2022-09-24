@@ -29,6 +29,8 @@
 #include "Materials/Material.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VectorField)
+
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
 #endif
@@ -1257,3 +1259,4 @@ void UVectorFieldAnimated::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 }
 #endif // WITH_EDITOR
+

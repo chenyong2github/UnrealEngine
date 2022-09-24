@@ -5,6 +5,8 @@
 #include "Systems/MovieScenePiecewiseIntegerBlenderSystem.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneIntegerPropertySystem)
+
 UMovieSceneIntegerPropertySystem::UMovieSceneIntegerPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -23,4 +25,5 @@ void UMovieSceneIntegerPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
 

@@ -19,6 +19,8 @@
 #include "IMovieScenePlayer.h"
 #include "IMovieScenePlaybackClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMotionVectorSimulationSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -343,3 +345,4 @@ void UMovieSceneMotionVectorSimulationSystem::ApplySimulatedTransforms(USceneCom
 		ApplySimulatedTransforms(Child, ChildTransform * ParentToWorld);
 	}
 }
+

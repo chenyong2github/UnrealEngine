@@ -9,6 +9,8 @@
 #include "AIResources.h"
 #include "GameplayTasksComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AITask_MoveTo)
+
 UAITask_MoveTo::UAITask_MoveTo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -373,3 +375,4 @@ void UAITask_MoveTo::ConditionalUpdatePath()
 		}
 	}
 }
+

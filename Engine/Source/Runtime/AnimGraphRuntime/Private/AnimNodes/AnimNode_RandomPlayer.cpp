@@ -8,6 +8,8 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimSyncScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RandomPlayer)
+
 FAnimNode_RandomPlayer::FAnimNode_RandomPlayer()
     : CurrentPlayDataIndex(0)
     , bShuffleMode(false)
@@ -486,3 +488,4 @@ void FAnimNode_RandomPlayer::BuildShuffleList(int32 LastEntry)
 		ShuffleList.Swap(RandomStream.RandRange(0, ShuffleList.Num() - 2), ShuffleList.Num() - 1);
 	}
 }
+

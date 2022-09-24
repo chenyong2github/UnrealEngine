@@ -16,6 +16,8 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComponentInstanceDataCache)
+
 class FDataCachePropertyWriter : public FObjectWriter
 {
 public:
@@ -864,3 +866,4 @@ void FComponentInstanceDataCache::CopySerializableProperties(TArray<TStructOnSco
 		}
 	}
 }
+

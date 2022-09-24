@@ -3,6 +3,8 @@
 #include "Binding/WidgetBinding.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UWidgetBinding::UWidgetBinding()
@@ -47,3 +49,4 @@ UWidget* UWidgetBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

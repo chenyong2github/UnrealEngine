@@ -3,6 +3,8 @@
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LinkedInputPose)
+
 const FName FAnimNode_LinkedInputPose::DefaultInputPoseName("InPose");
 
 // Note not calling through Initialize or CacheBones here.

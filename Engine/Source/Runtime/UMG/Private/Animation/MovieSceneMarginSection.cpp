@@ -10,6 +10,8 @@
 #include "Evaluation/MovieScenePropertyTemplate.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMarginSection)
+
 #if WITH_EDITOR
 
 struct FMarginSectionEditorData
@@ -111,3 +113,4 @@ void UMovieSceneMarginSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 		.AddConditional(Components->FloatChannel[3], &BottomCurve, BottomCurve.HasAnyData())
 		.Commit(this, Params, OutImportedEntity);
 }
+

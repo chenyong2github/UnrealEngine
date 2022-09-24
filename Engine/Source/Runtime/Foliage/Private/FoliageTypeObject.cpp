@@ -3,6 +3,8 @@
 #include "FoliageTypeObject.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FoliageTypeObject)
+
 void FFoliageTypeObject::RefreshInstance()
 {
 	//@todo: should verify that the instance is dirty before updating

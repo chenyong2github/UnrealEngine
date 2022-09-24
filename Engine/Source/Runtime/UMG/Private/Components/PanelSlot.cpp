@@ -3,6 +3,8 @@
 #include "Components/PanelSlot.h"
 #include "Components/PanelWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PanelSlot)
+
 /////////////////////////////////////////////////////
 // UPanelSlot
 
@@ -28,3 +30,4 @@ void UPanelSlot::ReleaseSlateResources(bool bReleaseChildren)
 		Content->ReleaseSlateResources(bReleaseChildren);
 	}
 }
+

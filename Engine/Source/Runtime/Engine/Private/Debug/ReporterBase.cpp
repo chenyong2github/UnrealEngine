@@ -4,6 +4,8 @@
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReporterBase)
+
 #define DASH_LINE_SIZE	5.0f
 
 UReporterBase::UReporterBase(const FObjectInitializer& ObjectInitializer) :
@@ -63,3 +65,4 @@ void UReporterBase::DrawTriangle(UCanvas* Canvas, const FVector2D& Vertex1, cons
 	TriItem.SetColor( Color );
 	Canvas->DrawItem( TriItem );
 }
+

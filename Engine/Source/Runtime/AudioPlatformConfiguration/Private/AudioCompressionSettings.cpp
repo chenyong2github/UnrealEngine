@@ -2,6 +2,8 @@
 
 #include "AudioCompressionSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioCompressionSettings)
+
 FPlatformRuntimeAudioCompressionOverrides::FPlatformRuntimeAudioCompressionOverrides()
 	: bOverrideCompressionTimes(false)
 	, DurationThreshold(5.0f)

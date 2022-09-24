@@ -5,6 +5,8 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JsonObjectWrapper)
+
 FJsonObjectWrapper::FJsonObjectWrapper()
 {
 	JsonObject = MakeShared<FJsonObject>();
@@ -98,4 +100,5 @@ bool FJsonObjectWrapper::JsonObjectFromString(const FString& Str)
 	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(Str);
 	return FJsonSerializer::Deserialize(JsonReader, JsonObject);
 }
+
 

@@ -3,6 +3,8 @@
 #include "Channels/MovieSceneChannelData.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneChannelData)
+
 namespace UE
 {
 namespace MovieScene
@@ -262,3 +264,4 @@ void FMovieSceneChannelData::Offset(FFrameNumber DeltaTime)
 	
 
 }
+

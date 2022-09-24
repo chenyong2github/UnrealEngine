@@ -6,6 +6,8 @@
 #include "UObject/Package.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementId)
+
 #if WITH_EDITORONLY_DATA
 #include "Serialization/TextReferenceCollector.h"
 #endif //WITH_EDITORONLY_DATA
@@ -388,3 +390,4 @@ void USMInstanceElementIdMapTransactor::Serialize(FArchive& Ar)
 	}
 }
 #endif	// WITH_EDITORONLY_DATA
+

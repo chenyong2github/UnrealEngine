@@ -2,6 +2,8 @@
 
 #include "Net/Core/Analytics/NetAnalyticsAggregatorConfig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetAnalyticsAggregatorConfig)
+
 
 /**
  * UNetAnalyticsAggregatorConfig
@@ -15,3 +17,4 @@ void UNetAnalyticsAggregatorConfig::OverridePerObjectConfigSection(FString& Sect
 {
 	SectionName = GetName() + TEXT(" ") + GetClass()->GetName();
 }
+

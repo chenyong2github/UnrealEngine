@@ -6,6 +6,8 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/GizmoMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AxisPositionGizmo)
+
 
 
 UInteractiveGizmo* UAxisPositionGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const

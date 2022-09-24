@@ -19,6 +19,8 @@
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DTransformSection)
+
 #if WITH_EDITOR
 
 struct F3DTransformChannelEditorData

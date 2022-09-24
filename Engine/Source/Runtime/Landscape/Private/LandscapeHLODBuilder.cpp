@@ -2,6 +2,8 @@
 
 #include "LandscapeHLODBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeHLODBuilder)
+
 #if WITH_EDITOR
 
 #include "Landscape.h"
@@ -308,3 +310,4 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 }
 
 #endif
+

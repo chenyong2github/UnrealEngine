@@ -16,6 +16,8 @@
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PoseAsset)
+
 #define LOCTEXT_NAMESPACE "PoseAsset"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1919,3 +1921,4 @@ bool UPoseAsset::GetBasePoseTransform(TArray<FTransform>& OutBasePose, TArray<fl
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE 
+

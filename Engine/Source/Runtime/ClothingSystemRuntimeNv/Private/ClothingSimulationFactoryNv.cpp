@@ -2,6 +2,8 @@
 
 #include "ClothingSimulationFactoryNv.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothingSimulationFactoryNv)
+
 // Legacy support allowing the loading of older classes that may still reference old NvCloth simulation
 // classes. These are no longer expected to work but should still load so the references can be safely changed.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -39,3 +41,4 @@ const UEnum* UClothingSimulationFactoryNv::GetWeightMapTargetEnum() const
 	return nullptr;
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

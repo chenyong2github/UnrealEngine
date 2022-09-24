@@ -3,6 +3,8 @@
 #include "BoneControllers/BoneControllerTypes.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoneControllerTypes)
+
 FVector FWarpingVectorValue::AsComponentSpaceDirection(const FAnimInstanceProxy* AnimInstanceProxy, const FTransform& IKFootRootTransform) const
 {
 	switch (Mode)

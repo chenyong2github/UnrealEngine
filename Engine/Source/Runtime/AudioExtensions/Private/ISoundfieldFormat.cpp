@@ -3,6 +3,8 @@
 #include "ISoundfieldFormat.h"
 #include "ISoundfieldEndpoint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ISoundfieldFormat)
+
 FName ISoundfieldFactory::GetFormatNameForNoEncoding()
 {
 	static FName NoEncodingFormatName = FName(TEXT("No Encoding"));
@@ -79,3 +81,4 @@ TArray<FName> ISoundfieldFactory::GetAvailableSoundfieldFormats()
 
 	return SoundfieldFormatNames;
 }
+

@@ -2,6 +2,8 @@
 
 #include "ConstraintChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintChannel)
+
 bool FMovieSceneConstraintChannel::Evaluate(FFrameTime InTime, bool& OutValue) const
 {
 	if (Times.IsEmpty())
@@ -16,3 +18,4 @@ bool FMovieSceneConstraintChannel::Evaluate(FFrameTime InTime, bool& OutValue) c
 
 	return FMovieSceneBoolChannel::Evaluate(InTime, OutValue);
 }
+

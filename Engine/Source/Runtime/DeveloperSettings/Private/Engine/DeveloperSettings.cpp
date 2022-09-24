@@ -6,6 +6,8 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/PropertyPortFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeveloperSettings)
+
 UDeveloperSettings::UDeveloperSettings(const FObjectInitializer& ObjectInitializer)
 	: UObject(ObjectInitializer)
 {
@@ -191,3 +193,4 @@ void UDeveloperSettings::ExportValuesToConsoleVariables(FProperty* PropertyThatC
 }
 
 #endif
+

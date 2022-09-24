@@ -5,6 +5,8 @@
 #include "AIController.h"
 #include "Sound/SoundCue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_PlaySound)
+
 UBTTask_PlaySound::UBTTask_PlaySound(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "PlaySound";
@@ -38,3 +40,4 @@ FName UBTTask_PlaySound::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

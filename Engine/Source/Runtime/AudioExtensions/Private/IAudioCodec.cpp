@@ -3,6 +3,8 @@
 #include "IAudioCodec.h"
 #include "Serialization/MemoryWriter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IAudioCodec)
+
 namespace Audio
 {
 	// If < C++17, constexpr requires storage for linkage on Clang.
@@ -467,3 +469,4 @@ namespace Audio
 		return false;
 	}
 }
+

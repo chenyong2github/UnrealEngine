@@ -22,6 +22,8 @@
 #include "Tracks/MovieSceneTransformTrack.h"
 #include "UObject/LinkerLoad.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraCutSection)
+
 /* UMovieSceneCameraCutSection interface
  *****************************************************************************/
 
@@ -178,3 +180,4 @@ void UMovieSceneCameraCutSection::ComputeInitialCameraCutTransform()
 		bHasInitialCameraCutTransform = true;
 	}
 }
+

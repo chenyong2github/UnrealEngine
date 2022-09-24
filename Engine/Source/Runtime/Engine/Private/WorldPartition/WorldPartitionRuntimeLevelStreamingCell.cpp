@@ -9,6 +9,8 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeLevelStreamingCell)
+
 #if WITH_EDITOR
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
@@ -409,3 +411,4 @@ void UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden()
 	check(LevelStreaming);
 	LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellHidden(this);
 }
+

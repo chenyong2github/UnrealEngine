@@ -5,6 +5,8 @@
 #include "Animation/Skeleton.h"
 #include "Animation/AnimSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AttributeIdentifier)
+
 #if WITH_EDITOR
 FAnimationAttributeIdentifier UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(UAnimationAsset* AnimationAsset, const FName AttributeName, const FName BoneName, UScriptStruct* AttributeType, bool bValidateExistsOnAsset /*= false*/)
 {

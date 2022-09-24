@@ -11,6 +11,8 @@
 #include "Engine/StaticMesh.h"
 #include "ShowFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementWorldInterface)
+
 bool USMInstanceElementWorldInterface::CanEditElement(const FTypedElementHandle& InElementHandle)
 {
 	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
@@ -140,3 +142,4 @@ TArray<FTypedElementHandle> USMInstanceElementWorldInterface::GetSelectionElemen
 
 	return {};
 }
+

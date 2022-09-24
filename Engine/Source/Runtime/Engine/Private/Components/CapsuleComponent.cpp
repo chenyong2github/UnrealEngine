@@ -10,6 +10,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CapsuleComponent)
+
 
 UCapsuleComponent::UCapsuleComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -249,3 +251,4 @@ bool UCapsuleComponent::AreSymmetricRotations(const FQuat& A, const FQuat& B, co
 	const FVector BUp = B.GetAxisZ();
 	return AUp.Equals(BUp);
 }
+

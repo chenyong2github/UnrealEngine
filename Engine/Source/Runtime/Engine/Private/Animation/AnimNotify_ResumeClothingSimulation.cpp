@@ -3,6 +3,8 @@
 #include "Animation/AnimNotifies/AnimNotify_ResumeClothingSimulation.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_ResumeClothingSimulation)
+
 UAnimNotify_ResumeClothingSimulation::UAnimNotify_ResumeClothingSimulation()
 	: Super()
 {

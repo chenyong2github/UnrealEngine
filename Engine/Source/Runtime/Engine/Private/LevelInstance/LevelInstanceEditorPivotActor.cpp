@@ -2,6 +2,8 @@
 
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceEditorPivotActor)
+
 ALevelInstancePivot::ALevelInstancePivot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -39,3 +41,4 @@ void ALevelInstancePivot::PostEditUndo()
 }
 
 #endif
+

@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "AISystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardData)
+
 UBlackboardData::FKeyUpdate UBlackboardData::OnUpdateKeys;
 
 #if WITH_EDITOR
@@ -306,4 +308,5 @@ bool UBlackboardData::IsChildOf(const UBlackboardData& OtherAsset) const
 
 	return (TmpParent == &OtherAsset);
 }
+
 

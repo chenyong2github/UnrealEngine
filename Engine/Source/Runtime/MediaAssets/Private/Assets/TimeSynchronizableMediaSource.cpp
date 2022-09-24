@@ -2,6 +2,8 @@
 
 #include "TimeSynchronizableMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TimeSynchronizableMediaSource)
+
 
 
 UTimeSynchronizableMediaSource::UTimeSynchronizableMediaSource()
@@ -67,4 +69,5 @@ bool UTimeSynchronizableMediaSource::HasMediaOption(const FName& Key) const
 
 	return Super::HasMediaOption(Key);
 }
+
 

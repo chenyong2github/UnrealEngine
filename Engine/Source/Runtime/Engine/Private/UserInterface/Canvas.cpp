@@ -30,6 +30,8 @@
 #include "CanvasRender.h"
 #include "RenderGraphUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Canvas)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCanvas, Log, All);
 
 

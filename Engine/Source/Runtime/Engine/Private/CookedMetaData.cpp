@@ -4,6 +4,8 @@
 #include "UObject/Package.h"
 #include "UObject/MetaData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CookedMetaData)
+
 bool FObjectCookedMetaDataStore::HasMetaData() const
 {
 	return ObjectMetaData.Num() > 0;
@@ -168,3 +170,4 @@ void UClassCookedMetaData::ApplyMetaData(UClass* TargetClass) const
 		}
 	}
 }
+

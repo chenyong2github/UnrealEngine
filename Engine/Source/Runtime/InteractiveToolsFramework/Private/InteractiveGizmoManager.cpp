@@ -13,6 +13,8 @@
 #include "BaseGizmos/ScalableSphereGizmo.h"
 #include "ContextObjectStore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InteractiveGizmoManager)
+
 #define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
 
 
@@ -358,3 +360,4 @@ UCombinedTransformGizmo* UInteractiveGizmoManager::CreateCustomRepositionableTra
 
 
 #undef LOCTEXT_NAMESPACE
+

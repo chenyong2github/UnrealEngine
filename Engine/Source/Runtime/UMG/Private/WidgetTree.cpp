@@ -8,6 +8,8 @@
 #include "UMGPrivate.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetTree)
+
 /////////////////////////////////////////////////////
 // UWidgetTree
 
@@ -327,3 +329,4 @@ void UWidgetTree::PostLoad()
 	AllWidgets.Empty();
 #endif
 }
+

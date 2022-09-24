@@ -15,6 +15,8 @@
 #include "SceneManagement.h"
 #include "DynamicMeshBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LineBatchComponent)
+
 FLineBatcherSceneProxy::FLineBatcherSceneProxy(const ULineBatchComponent* InComponent) :
 	FPrimitiveSceneProxy(InComponent), Lines(InComponent->BatchedLines), 
 	Points(InComponent->BatchedPoints), Meshes(InComponent->BatchedMeshes)
@@ -416,3 +418,4 @@ void ULineBatchComponent::Flush()
 		MarkRenderStateDirty();
 	}
 }
+

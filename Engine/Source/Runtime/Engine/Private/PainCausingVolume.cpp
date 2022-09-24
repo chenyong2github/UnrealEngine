@@ -5,6 +5,8 @@
 #include "GameFramework/Pawn.h"
 #include "Engine/DamageEvents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PainCausingVolume)
+
 APainCausingVolume::APainCausingVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -82,4 +84,5 @@ void APainCausingVolume::CausePainTo(AActor* Other)
 		Other->TakeDamage(DamagePerSec*PainInterval, FDamageEvent(DmgTypeClass), DamageInstigator, this);
 	}
 }
+
 

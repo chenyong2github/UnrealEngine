@@ -19,6 +19,8 @@
 #include "GameFramework/WorldSettings.h"
 #include "Channels/MovieSceneAudioTriggerChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneAudioTemplate)
+
 
 DECLARE_CYCLE_STAT(TEXT("Audio Track Evaluate"), MovieSceneEval_AudioTrack_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Audio Track Tear Down"), MovieSceneEval_AudioTrack_TearDown, STATGROUP_MovieSceneEval);
@@ -630,3 +632,4 @@ void FMovieSceneAudioSectionTemplate::TearDown(FPersistentEvaluationData& Persis
 		TrackData.StopSoundsOnSection(AudioSection);
 	}
 }
+

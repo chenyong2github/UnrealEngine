@@ -4,6 +4,8 @@
 #include "UObject/PropertyTag.h"
 #include "SlateGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateSound)
+
 
 /* FSlateSound interface
  *****************************************************************************/
@@ -88,3 +90,4 @@ FSlateSound FSlateSound::FromName_DEPRECATED( const FName& SoundName )
 
 	return Sound;
 }
+

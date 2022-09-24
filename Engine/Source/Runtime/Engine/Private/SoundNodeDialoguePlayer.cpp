@@ -6,6 +6,8 @@
 #include "Sound/SoundBase.h"
 #include "Sound/DialogueWave.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeDialoguePlayer)
+
 #define LOCTEXT_NAMESPACE "SoundNodeDialoguePlayer"
 
 USoundNodeDialoguePlayer::USoundNodeDialoguePlayer(const FObjectInitializer& ObjectInitializer)
@@ -97,3 +99,4 @@ UDialogueWave* USoundNodeDialoguePlayer::GetDialogueWave() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

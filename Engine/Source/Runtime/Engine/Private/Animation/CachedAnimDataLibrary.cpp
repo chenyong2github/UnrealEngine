@@ -2,6 +2,8 @@
 
 #include "Animation/CachedAnimDataLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CachedAnimDataLibrary)
+
 UCachedAnimDataLibrary::UCachedAnimDataLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -36,3 +38,4 @@ float UCachedAnimDataLibrary::StateMachine_GetGlobalWeight(UAnimInstance* InAnim
 
 	return 0.0f;
 }
+

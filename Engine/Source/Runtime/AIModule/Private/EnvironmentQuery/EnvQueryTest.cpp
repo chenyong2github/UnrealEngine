@@ -4,6 +4,8 @@
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Item.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_ActorBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryTest::UEnvQueryTest(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -443,3 +445,4 @@ void UEnvQueryTest::UpdatePreviewData()
 }
 
 #undef LOCTEXT_NAMESPACE
+

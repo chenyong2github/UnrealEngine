@@ -13,6 +13,8 @@
 #include "Navigation/NavLocalGridManager.h"
 #include "Misc/CommandLine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISystem)
+
 DEFINE_STAT(STAT_AI_Overall);
 
 FRandomStream UAISystem::RandomStream;
@@ -282,3 +284,4 @@ void UAISystem::LoadDebuggerPlugin()
 {
 	FModuleManager::LoadModulePtr< IModuleInterface >("GameplayDebugger");
 }
+

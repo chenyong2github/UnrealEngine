@@ -2,6 +2,8 @@
 
 #include "Components/ContentWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentWidget)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -42,3 +44,4 @@ UClass* UContentWidget::GetSlotClass() const
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -5,6 +5,8 @@
 #include "ActiveSound.h"
 #include "Kismet/KismetMathLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeDoppler)
+
 /*-----------------------------------------------------------------------------
          USoundNodeDoppler implementation.
 -----------------------------------------------------------------------------*/
@@ -82,3 +84,4 @@ float USoundNodeDoppler::GetDopplerPitchMultiplier(float& CurrentPitchScale, boo
 		return FinalPitchScale;
 	}
 }
+

@@ -8,6 +8,9 @@
 #include "Evaluation/MovieSceneEvaluationField.h"
 
 #include "MovieSceneSection.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IMovieSceneEntityProvider)
+
 namespace UE
 {
 namespace MovieScene

@@ -5,6 +5,8 @@
 #include "Animation/AnimSequence.h"
 #include "Serialization/MemoryWriter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCurveCompressionSettings)
+
 UAnimCurveCompressionSettings::UAnimCurveCompressionSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -65,3 +67,4 @@ void UAnimCurveCompressionSettings::PopulateDDCKey(FArchive& Ar)
 }
 
 #endif
+

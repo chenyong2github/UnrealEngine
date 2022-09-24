@@ -2,6 +2,8 @@
 
 #include "NavAreas/NavArea_LowHeight.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavArea_LowHeight)
+
 UNavArea_LowHeight::UNavArea_LowHeight(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
 {
@@ -11,3 +13,4 @@ UNavArea_LowHeight::UNavArea_LowHeight(const FObjectInitializer& ObjectInitializ
 	// can't traverse
 	AreaFlags = 0;
 }
+

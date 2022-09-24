@@ -5,6 +5,8 @@
 #include "Blueprint/UserWidget.h"
 #include "Animation/WidgetAnimation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetAnimationDelegateBinding)
+
 
 UWidgetAnimationDelegateBinding::UWidgetAnimationDelegateBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -38,3 +40,4 @@ void UWidgetAnimationDelegateBinding::BindDynamicDelegates(UObject* InInstance) 
 		}
 	}
 }
+

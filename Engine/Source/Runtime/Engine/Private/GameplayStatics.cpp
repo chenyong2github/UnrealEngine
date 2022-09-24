@@ -53,6 +53,8 @@
 #include "Engine/DamageEvents.h"
 #include "HAL/PlatformMisc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayStatics)
+
 #if WITH_ACCESSIBILITY
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
@@ -3293,3 +3295,4 @@ void UGameplayStatics::AnnounceAccessibleString(const FString& AnnouncementStrin
 }
 
 #undef LOCTEXT_NAMESPACE
+

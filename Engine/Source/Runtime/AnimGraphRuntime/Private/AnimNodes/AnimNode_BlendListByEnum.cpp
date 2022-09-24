@@ -2,6 +2,8 @@
 
 #include "AnimNodes/AnimNode_BlendListByEnum.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_BlendListByEnum)
+
 /////////////////////////////////////////////////////
 // FAnimNode_BlendListByEnum
 

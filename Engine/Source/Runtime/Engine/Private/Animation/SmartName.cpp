@@ -6,6 +6,8 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "Misc/ScopeRWLock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartName)
+
 namespace
 {
 	FRWLock SmartNameRWLock;
@@ -443,3 +445,4 @@ bool FSmartName::Serialize(FArchive& Ar)
 
 	return true;
 }
+

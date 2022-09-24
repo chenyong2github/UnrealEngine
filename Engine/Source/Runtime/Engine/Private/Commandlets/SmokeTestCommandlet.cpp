@@ -11,6 +11,8 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmokeTestCommandlet)
+
 USmokeTestCommandlet::USmokeTestCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -47,5 +49,6 @@ bool FRunServer::RunTest(const FString& Parameters)
 
 	return true;
 }
+
 
 

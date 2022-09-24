@@ -5,6 +5,8 @@
 #include "ILiveLinkClient.h"
 #include "LiveLinkFrameTranslator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkVirtualSubject)
+
 
 void ULiveLinkVirtualSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubclassOf<ULiveLinkRole> InRole, ILiveLinkClient* InLiveLinkClient)
 {
@@ -112,4 +114,5 @@ void ULiveLinkVirtualSubject::InvalidateFrameData()
 	FScopeLock Lock(&SnapshotAccessCriticalSection);
 	CurrentFrameSnapshot.FrameData.Reset();
 }
+
 

@@ -8,6 +8,8 @@
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectileMovementComponent)
+
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 DEFINE_LOG_CATEGORY_STATIC(LogProjectileMovement, Log, All);
 
@@ -868,3 +870,4 @@ void UProjectileMovementComponent::TickInterpolation(float DeltaTime)
 		UpdateTickRegistration();
 	}
 }
+

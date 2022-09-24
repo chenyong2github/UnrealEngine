@@ -17,6 +17,8 @@
 #include "GameFramework/CheatManager.h"
 #include "GameFramework/GameStateBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Player)
+
 //////////////////////////////////////////////////////////////////////////
 // UPlayer
 
@@ -159,3 +161,4 @@ void UPlayer::SwitchController(class APlayerController* PC)
 	PC->Player = this;
 	this->PlayerController = PC;
 }
+

@@ -5,6 +5,8 @@
 #include "InteractiveToolsContext.h"
 #include "ToolBuilderUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolTargetManager)
+
 void UToolTargetManager::Initialize()
 {
 	bIsActive = true;
@@ -116,3 +118,4 @@ TArray<TObjectPtr<UToolTarget>> UToolTargetManager::BuildAllSelectedTargetable(c
 	}
 	return Targets;
 }
+

@@ -5,6 +5,8 @@
 
 #include "Field/FieldSystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FieldSystemActor)
+
 DEFINE_LOG_CATEGORY_STATIC(AFA_Log, NoLogging, All);
 
 AFieldSystemActor::AFieldSystemActor(const FObjectInitializer& ObjectInitializer)
@@ -54,6 +56,7 @@ void AFieldSystemActor::OnConstruction(const FTransform& Transform)
 		Component->BufferCommands.ResetFieldCommands();
 	}
 }
+
 
 
 

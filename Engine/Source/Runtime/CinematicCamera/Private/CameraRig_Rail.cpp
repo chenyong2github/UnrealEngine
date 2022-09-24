@@ -8,6 +8,8 @@
 #include "Components/SplineComponent.h"
 #include "Components/SplineMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraRig_Rail)
+
 #define LOCTEXT_NAMESPACE "CameraRig_Rail"
 
 ACameraRig_Rail::ACameraRig_Rail(const FObjectInitializer& ObjectInitializer)
@@ -237,3 +239,4 @@ bool ACameraRig_Rail::ShouldTickIfViewportsOnly() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

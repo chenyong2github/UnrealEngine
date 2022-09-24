@@ -6,6 +6,8 @@
 #include "UObject/EditorObjectVersion.h"
 #include "Styling/UMGCoreStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScrollBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -446,3 +448,4 @@ void UScrollBox::OnDescendantDeselectedByDesigner( UWidget* DescendantWidget )
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

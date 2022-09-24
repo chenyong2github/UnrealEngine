@@ -13,6 +13,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/LevelStreamingDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceBindingReference)
+
 FLevelSequenceBindingReference::FLevelSequenceBindingReference(UObject* InObject, UObject* InContext)
 {
 	check(InContext && InObject);
@@ -344,3 +346,4 @@ UObject* FLevelSequenceObjectReferenceMap::ResolveBinding(const FGuid& ObjectId,
 	}
 	return nullptr;
 }
+

@@ -35,6 +35,8 @@
 #include "GameFramework/InputSettings.h"
 #include "Engine/InputDelegateBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UserWidget)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 TAutoConsoleVariable<bool> CVarUserWidgetUseParallelAnimation(
@@ -2212,3 +2214,4 @@ bool CreateWidgetHelpers::ValidateUserWidgetClass(const UClass* UserWidgetClass)
 }
 
 #undef LOCTEXT_NAMESPACE
+

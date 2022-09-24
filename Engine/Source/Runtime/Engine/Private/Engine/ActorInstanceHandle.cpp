@@ -6,6 +6,8 @@
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorInstanceHandle)
+
 FActorInstanceHandle::FActorInstanceHandle()
 	: Actor(nullptr)
 	, InstanceIndex(INDEX_NONE)
@@ -333,3 +335,4 @@ FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle)
 
 	return Ar;
 }
+

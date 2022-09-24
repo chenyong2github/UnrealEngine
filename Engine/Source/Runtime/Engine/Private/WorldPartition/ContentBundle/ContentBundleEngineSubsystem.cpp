@@ -7,6 +7,8 @@
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBundleEngineSubsystem)
+
 void UContentBundleEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);

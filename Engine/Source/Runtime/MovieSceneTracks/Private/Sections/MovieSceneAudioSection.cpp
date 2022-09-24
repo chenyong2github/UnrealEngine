@@ -10,6 +10,8 @@
 #include "Misc/FrameRate.h"
 #include "Misc/GeneratedTypeName.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneAudioSection)
+
 #if WITH_EDITOR
 
 struct FAudioChannelEditorData
@@ -357,4 +359,5 @@ USceneComponent* UMovieSceneAudioSection::GetAttachComponent(const AActor* InPar
 		return InParentActor->GetRootComponent();
 	}
 }
+
 

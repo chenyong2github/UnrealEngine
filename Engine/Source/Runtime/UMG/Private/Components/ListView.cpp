@@ -8,6 +8,8 @@
 #include "Styling/UMGCoreStyle.h"
 #include "UMGPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ListView)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////

@@ -4,6 +4,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SSpacer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Spacer)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -75,3 +77,4 @@ const FText USpacer::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

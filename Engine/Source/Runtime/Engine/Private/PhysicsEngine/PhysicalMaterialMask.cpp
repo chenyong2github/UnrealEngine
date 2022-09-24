@@ -31,6 +31,8 @@
 
 #include "Chaos/PhysicalMaterials.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicalMaterialMask)
+
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicalMaterialMask, Log, All);
 
 #if WITH_EDITOR
@@ -427,5 +429,6 @@ uint32 UPhysicalMaterialMask::GetPhysMatIndex(const TArray<uint32>& MaskData, in
 
 	return UPhysicalMaterialMask::INVALID_MASK_INDEX;
 }
+
 
 

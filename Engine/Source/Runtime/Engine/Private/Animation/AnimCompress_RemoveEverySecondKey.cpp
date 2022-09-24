@@ -8,6 +8,8 @@
 #include "AnimationCompression.h"
 #include "AnimEncoding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_RemoveEverySecondKey)
+
 UAnimCompress_RemoveEverySecondKey::UAnimCompress_RemoveEverySecondKey(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -68,3 +70,4 @@ void UAnimCompress_RemoveEverySecondKey::PopulateDDCKey(const UAnimSequenceBase&
 }
 
 #endif // WITH_EDITOR
+

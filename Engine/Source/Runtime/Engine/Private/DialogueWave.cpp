@@ -13,6 +13,8 @@
 #include "Sound/DialogueVoice.h"
 #include "SubtitleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DialogueWave)
+
 const FString FDialogueConstants::DialogueNamespace						= TEXT("Dialogue");
 const FString FDialogueConstants::DialogueNotesNamespace				= TEXT("DialogueNotes");
 const FString FDialogueConstants::SubtitleKeySuffix						= TEXT("_Subtitle");
@@ -845,3 +847,4 @@ void UDialogueWave::CopySoundBasePropertiesToProxy(const USoundBase* InSoundBase
 	Proxy->BusSends = InSoundBase->BusSends;
 	Proxy->PreEffectBusSends = InSoundBase->PreEffectBusSends;
 }
+

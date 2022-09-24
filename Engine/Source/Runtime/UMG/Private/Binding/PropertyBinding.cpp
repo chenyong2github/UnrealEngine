@@ -2,6 +2,8 @@
 
 #include "Binding/PropertyBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 DEFINE_STAT(STAT_UMGBinding);
@@ -27,3 +29,4 @@ void UPropertyBinding::Bind(FProperty* Property, FScriptDelegate* Delegate)
 }
 
 #undef LOCTEXT_NAMESPACE
+

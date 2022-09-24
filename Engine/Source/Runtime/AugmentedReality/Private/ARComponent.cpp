@@ -12,6 +12,8 @@
 #include "UObject/UObjectIterator.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARComponent)
+
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	#define AR_DEBUG_MODE 1
@@ -798,3 +800,4 @@ void UARGeoAnchorComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	}
 #endif
 }
+

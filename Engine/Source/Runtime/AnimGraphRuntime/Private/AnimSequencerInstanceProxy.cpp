@@ -3,6 +3,8 @@
 #include "AnimSequencerInstanceProxy.h"
 #include "AnimSequencerInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSequencerInstanceProxy)
+
 void FAnimSequencerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
 	FAnimInstanceProxy::Initialize(InAnimInstance);
@@ -318,4 +320,5 @@ void FAnimSequencerInstanceProxy::EnsureAnimTrack(UAnimSequenceBase* InAnimSeque
 		PlayerState->PlayerNode.SetSequence(InAnimSequence);
 	}
 }
+
 

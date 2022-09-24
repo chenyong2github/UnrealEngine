@@ -17,6 +17,8 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BehaviorTreeComponent)
+
 
 #if USE_BEHAVIORTREE_DEBUGGER
 int32 UBehaviorTreeComponent::ActiveDebuggerCounter = 0;

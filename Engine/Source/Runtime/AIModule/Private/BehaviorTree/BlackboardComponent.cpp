@@ -17,6 +17,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_String.h"
 #include "Misc/RuntimeErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogBlackboard, Log, All);
 
 UBlackboardComponent::UBlackboardComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -882,3 +884,4 @@ bool UBlackboardComponent::GetRotationFromEntry(FBlackboard::FKey KeyID, FRotato
 
 	return false;
 }
+

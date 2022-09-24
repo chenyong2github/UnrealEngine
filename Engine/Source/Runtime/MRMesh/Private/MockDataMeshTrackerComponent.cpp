@@ -9,6 +9,8 @@
 #endif
 #include "MRMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MockDataMeshTrackerComponent)
+
 
 
 class FMockDataMeshTrackerImpl
@@ -628,3 +630,4 @@ void UMockDataMeshTrackerComponent::PrePIEEnded(bool bWasSimulatingInEditor)
 	Impl->Destroy();
 }
 #endif
+

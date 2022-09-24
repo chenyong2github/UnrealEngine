@@ -12,6 +12,8 @@
 #include "IMovieSceneTracksModule.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneEventTrack"
 
 
@@ -163,3 +165,4 @@ FText UMovieSceneEventTrack::GetDefaultDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

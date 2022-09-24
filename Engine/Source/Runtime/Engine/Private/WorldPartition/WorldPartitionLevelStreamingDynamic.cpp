@@ -4,6 +4,8 @@
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingDynamic)
+
 #if WITH_EDITOR
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
@@ -608,3 +610,4 @@ UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

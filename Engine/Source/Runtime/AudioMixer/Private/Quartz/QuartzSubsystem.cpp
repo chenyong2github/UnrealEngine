@@ -11,6 +11,8 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(QuartzSubsystem)
+
 static int32 MaxQuartzSubscribersToUpdatePerTickCvar = -1;
 FAutoConsoleVariableRef CVarMaxQuartzSubscribersToUpdatePerTick(
 	TEXT("au.Quartz.MaxSubscribersToUpdatePerTick"),
@@ -643,3 +645,4 @@ Audio::FQuartzClockProxy const* UQuartzSubsystem::FindProxyByName(const FName& C
 
 	return Result;
 }
+

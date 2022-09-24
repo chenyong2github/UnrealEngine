@@ -21,6 +21,8 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartition)
+
 #if WITH_EDITOR
 #include "LevelUtils.h"
 #include "Editor.h"
@@ -1625,3 +1627,4 @@ FBox UWorldPartition::GetRuntimeWorldBounds() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

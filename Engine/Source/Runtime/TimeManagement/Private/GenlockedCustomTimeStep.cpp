@@ -3,6 +3,8 @@
 #include "GenlockedCustomTimeStep.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenlockedCustomTimeStep)
+
 TAutoConsoleVariable<int32> UGenlockedCustomTimeStep::CVarExperimentalFieldFlipFix(
 	TEXT("MediaIO.PreventFieldFlipping"), 1,
 	TEXT("Whether to enable an interlace field flipping fix. (Experimental)"),
@@ -39,3 +41,4 @@ uint32 UGenlockedCustomTimeStep::GetExpectedSyncCountDelta() const
 	const FFrameRate DeltaFrameRate = GetSyncRate() / GetFixedFrameRate();
 	return FMath::RoundToInt(DeltaFrameRate.AsDecimal());
 }
+

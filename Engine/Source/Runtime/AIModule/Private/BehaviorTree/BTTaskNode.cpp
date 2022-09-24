@@ -5,6 +5,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayTasksComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTaskNode)
+
 UBTTaskNode::UBTTaskNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bNotifyTick = false;
@@ -217,3 +219,4 @@ void UBTTaskNode::OnGameplayTaskDeactivated(UGameplayTask& Task)
 //----------------------------------------------------------------------//
 // DEPRECATED
 //----------------------------------------------------------------------//
+

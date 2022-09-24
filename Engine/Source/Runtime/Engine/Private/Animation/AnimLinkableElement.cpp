@@ -3,6 +3,8 @@
 #include "Animation/AnimLinkableElement.h"
 #include "Animation/AnimMontage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimLinkableElement)
+
 void FAnimLinkableElement::LinkMontage(UAnimMontage* Montage, float AbsMontageTime, int32 InSlotIndex)
 {
 	if(Montage && Montage->SlotAnimTracks.Num() > 0)
@@ -438,3 +440,4 @@ void FAnimLinkableElement::RefreshSegmentOnLoad()
 		}
 	}
 }
+

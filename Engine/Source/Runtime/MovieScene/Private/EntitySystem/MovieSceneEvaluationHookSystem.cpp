@@ -10,6 +10,8 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvaluationHookSystem)
+
 DECLARE_CYCLE_STAT(TEXT("Generic Hooks"),  MovieSceneECS_GenericHooks, STATGROUP_MovieSceneECS);
 
 namespace UE
@@ -293,3 +295,4 @@ void UMovieSceneEvaluationHookSystem::TriggerAllEvents()
 		}
 	}
 }
+

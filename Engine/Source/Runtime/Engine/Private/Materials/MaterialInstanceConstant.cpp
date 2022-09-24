@@ -8,6 +8,9 @@
 #include "Materials/MaterialInstanceSupport.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "MaterialCachedData.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialInstanceConstant)
+
 #if WITH_EDITOR
 #include "MaterialCachedHLSLTree.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
@@ -248,3 +251,4 @@ void UMaterialInstanceConstant::UpdateCachedData()
 }
 
 #endif // #if WITH_EDITOR
+

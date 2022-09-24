@@ -4,6 +4,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LinkedAnimGraphLibrary)
+
 FLinkedAnimGraphReference ULinkedAnimGraphLibrary::ConvertToLinkedAnimGraph(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
 {
 	return FAnimNodeReference::ConvertToType<FLinkedAnimGraphReference>(Node, Result);

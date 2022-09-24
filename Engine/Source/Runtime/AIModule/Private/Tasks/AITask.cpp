@@ -5,6 +5,8 @@
 #include "AIController.h"
 #include "AIResources.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AITask)
+
 
 UAITask::UAITask(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -66,3 +68,4 @@ void UAITask::RequestAILogicLocking()
 {
 	AddClaimedResource<UAIResource_Logic>();
 }
+

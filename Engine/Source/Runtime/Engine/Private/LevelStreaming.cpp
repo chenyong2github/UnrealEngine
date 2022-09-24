@@ -34,6 +34,8 @@
 #include "Serialization/LoadTimeTrace.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelStreaming)
+
 DEFINE_LOG_CATEGORY(LogLevelStreaming);
 
 #define LOCTEXT_NAMESPACE "World"
@@ -2324,3 +2326,4 @@ void ULevelStreamingAlwaysLoaded::GetPrestreamPackages(TArray<UObject*>& OutPres
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryContext_BlueprintBase)
+
 namespace
 {
 	FORCEINLINE bool DoesImplementBPFunction(FName FuncName, const UObject* Ob, const UClass* StopAtClass)
@@ -138,3 +140,4 @@ UWorld* UEnvQueryContext_BlueprintBase::GetWorld() const
 	// provide).  Simply returning NULL in this case fixes those erroneous blueprint compile warnings.
 	return NULL;
 }
+

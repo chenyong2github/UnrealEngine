@@ -2,6 +2,8 @@
 
 #include "ClientPilotBlackboardManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClientPilotBlackboardManager)
+
 UClientPilotBlackboardManager* UClientPilotBlackboardManager::ObjectInstance = nullptr;
 
 UClientPilotBlackboardManager* UClientPilotBlackboardManager::GetInstance()

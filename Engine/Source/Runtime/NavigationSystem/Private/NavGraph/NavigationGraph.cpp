@@ -8,6 +8,8 @@
 #include "NavGraph/NavigationGraphNodeComponent.h"
 #include "NavGraph/NavigationGraphNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationGraph)
+
 //----------------------------------------------------------------------//
 // FNavGraphNode
 //----------------------------------------------------------------------//
@@ -63,3 +65,4 @@ ANavigationGraph::ANavigationGraph(const FObjectInitializer& ObjectInitializer)
 		NavDataGenerator = MakeShareable(new FNavGraphGenerator(this));
 	}
 }
+

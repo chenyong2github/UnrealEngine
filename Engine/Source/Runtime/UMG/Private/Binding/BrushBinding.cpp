@@ -5,6 +5,8 @@
 #include "Brushes/SlateNoResource.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BrushBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UBrushBinding::UBrushBinding()
@@ -63,3 +65,4 @@ FSlateBrush UBrushBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

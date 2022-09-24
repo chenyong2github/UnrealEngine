@@ -7,6 +7,8 @@
 #include "InteractiveTool.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BaseBrushTool)
+
 
 #define LOCTEXT_NAMESPACE "UBaseBrushTool"
 
@@ -283,3 +285,4 @@ void UBaseBrushTool::ShutdownBrushStampIndicator()
 
 
 #undef LOCTEXT_NAMESPACE
+

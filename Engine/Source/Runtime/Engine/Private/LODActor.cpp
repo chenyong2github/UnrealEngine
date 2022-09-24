@@ -21,6 +21,8 @@
 #include "Engine/HLODProxy.h"
 #include "UObject/PropertyPortFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LODActor)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "HierarchicalLODUtilitiesModule.h"
@@ -1447,3 +1449,4 @@ void ALODActor::PreSave(FObjectPreSaveContext ObjectSaveContext)
 #endif	// #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

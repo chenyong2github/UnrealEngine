@@ -22,6 +22,8 @@
 #include "SkeletalMeshRestoreState.h"
 #include "AnimSequencerInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSkeletalAnimationTemplate)
+
 bool ShouldUsePreviewPlayback(IMovieScenePlayer& Player, UObject& RuntimeObject)
 {
 	// we also use PreviewSetAnimPosition in PIE when not playing, as we can preview in PIE
@@ -758,3 +760,4 @@ double FMovieSceneSkeletalAnimationSectionTemplateParameters::MapTimeToAnimation
 	SecondsFromSectionStart += InFrameRate.AsSeconds(StartFrameOffset) + InFrameRate.AsSeconds(FirstLoopStartFrameOffset);
 	return SecondsFromSectionStart;
 }
+

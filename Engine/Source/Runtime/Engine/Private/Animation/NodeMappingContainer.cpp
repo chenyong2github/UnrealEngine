@@ -3,6 +3,8 @@
 #include "Animation/NodeMappingContainer.h"
 #include "Engine/Blueprint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NodeMappingContainer)
+
 ////////////////////////////////////////////////////////////////////////////////////////
 UNodeMappingContainer::UNodeMappingContainer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -165,3 +167,4 @@ void UNodeMappingContainer::GetTargetToSourceMappingTable(TMap<FName, FName>& Ou
 		Value = Iter.Key();
 	}
 }
+

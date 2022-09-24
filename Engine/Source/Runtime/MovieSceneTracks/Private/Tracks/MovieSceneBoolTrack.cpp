@@ -5,6 +5,8 @@
 #include "Sections/MovieSceneBoolSection.h"
 #include "Evaluation/MovieScenePropertyTemplates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBoolTrack)
+
 bool UMovieSceneBoolTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UMovieSceneBoolSection::StaticClass();

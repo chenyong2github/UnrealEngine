@@ -20,6 +20,8 @@
 // default proxy for this component
 #include "Components/DynamicMeshSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicMeshComponent)
+
 using namespace UE::Geometry;
 
 namespace
@@ -1430,4 +1432,5 @@ void UDynamicMeshComponent::SetSceneProxyVerifyUsedMaterials(bool bState)
 		Proxy->SetVerifyUsedMaterials(bState);
 	}
 }
+
 

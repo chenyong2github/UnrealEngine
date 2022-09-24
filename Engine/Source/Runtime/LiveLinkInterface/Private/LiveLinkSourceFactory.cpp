@@ -2,6 +2,8 @@
 
 #include "LiveLinkSourceFactory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSourceFactory)
+
 
 TSharedPtr<SWidget> ULiveLinkSourceFactory::BuildCreationPanel(FOnLiveLinkSourceCreated OnLiveLinkSourceCreated) const
 {
@@ -17,3 +19,4 @@ TSharedPtr<ILiveLinkSource> ULiveLinkSourceFactory::OnSourceCreationPanelClosed(
 {
 	return TSharedPtr<ILiveLinkSource>();
 }
+

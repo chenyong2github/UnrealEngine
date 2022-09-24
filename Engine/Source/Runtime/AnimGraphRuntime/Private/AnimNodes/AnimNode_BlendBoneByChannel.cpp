@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_BlendBoneByChannel)
+
 /////////////////////////////////////////////////////
 // FAnimNode_BlendBoneByChannel
 
@@ -186,3 +188,4 @@ void FAnimNode_BlendBoneByChannel::GatherDebugData(FNodeDebugData& DebugData)
 	A.GatherDebugData(DebugData.BranchFlow(1.f));
 	B.GatherDebugData(DebugData.BranchFlow(InternalBlendAlpha));
 }
+

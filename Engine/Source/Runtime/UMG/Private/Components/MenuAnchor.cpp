@@ -6,6 +6,8 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Blueprint/UserWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MenuAnchor)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -202,3 +204,4 @@ const FText UMenuAnchor::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

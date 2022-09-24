@@ -7,6 +7,8 @@
 
 #include "Widgets/Layout/SExpandableArea.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ExpandableArea)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -233,3 +235,4 @@ void UExpandableArea::OnDescendantDeselectedByDesigner(UWidget* DescendantWidget
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

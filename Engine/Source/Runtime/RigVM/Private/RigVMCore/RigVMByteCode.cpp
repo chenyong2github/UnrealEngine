@@ -5,6 +5,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMByteCode)
+
 void FRigVMExecuteOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
@@ -2243,3 +2245,4 @@ void FRigVMByteCode::SetOperandsForInstruction(int32 InInstructionIndex, const F
 }
 
 #endif
+

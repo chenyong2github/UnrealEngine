@@ -3,6 +3,8 @@
 
 #include "Tests/AutomationTestSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationTestSettings)
+
 
 UAutomationTestSettings::UAutomationTestSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -14,3 +16,4 @@ UAutomationTestSettings::UAutomationTestSettings(const FObjectInitializer& Objec
 	DefaultInteractiveFramerateWaitTime = 10.f * 60.f;		// 10 minutes - assume shaders and other DDC may need to be built
 	DefaultInteractiveFramerateDuration = 5.f;
 }
+

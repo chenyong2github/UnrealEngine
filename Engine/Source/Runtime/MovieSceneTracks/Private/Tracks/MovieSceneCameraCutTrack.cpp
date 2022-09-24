@@ -10,6 +10,8 @@
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "IMovieSceneTracksModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraCutTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneCameraCutTrack"
 
 /* UMovieSceneCameraCutTrack interface
@@ -281,3 +283,4 @@ void UMovieSceneCameraCutTrack::PreCompileImpl(FMovieSceneTrackPreCompileResult&
 }
 
 #undef LOCTEXT_NAMESPACE
+

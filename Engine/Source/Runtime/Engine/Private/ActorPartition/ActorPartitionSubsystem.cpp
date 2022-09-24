@@ -11,6 +11,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorPartitionSubsystem)
+
 DEFINE_LOG_CATEGORY_STATIC(LogActorPartitionSubsystem, All, All);
 
 #if WITH_EDITOR
@@ -469,3 +471,4 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 }
 
 #endif // WITH_EDITOR
+

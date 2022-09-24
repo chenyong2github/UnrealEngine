@@ -9,6 +9,8 @@
 #include "Engine/ScopedMovementUpdate.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterMovementComponentAsync)
+
 void FCharacterMovementComponentAsyncInput::Simulate(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {
 //	SCOPE_CYCLE_COUNTER(STAT_CharacterMovement);
@@ -4630,3 +4632,4 @@ float FCharacterMovementComponentAsyncOutput::GetAxisDeltaRotation(float InAxisR
 	// Values over 360 don't do anything, see FMath::FixedTurn. However we are trying to avoid giant floats from overflowing other calculations.
 	return (InAxisRotationRate >= 0.f) ? FMath::Min(InAxisRotationRate * InDeltaTime, 360.f) : 360.f;
 }
+

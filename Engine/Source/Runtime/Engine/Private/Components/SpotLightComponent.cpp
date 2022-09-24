@@ -11,6 +11,8 @@
 #include "SceneManagement.h"
 #include "PointLightSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpotLightComponent)
+
 
 /**
  * The scene info for a spot light.
@@ -364,3 +366,4 @@ void USpotLightComponent::PostEditChangeProperty( FPropertyChangedEvent& Propert
 }
 
 #endif	// WITH_EDITOR
+

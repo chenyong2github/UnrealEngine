@@ -6,6 +6,8 @@
 #include "Internationalization/Culture.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetInternationalizationLibrary)
+
 #define LOCTEXT_NAMESPACE "Kismet"
 
 bool UKismetInternationalizationLibrary::SetCurrentCulture(const FString& Culture, const bool SaveToConfig)
@@ -170,3 +172,4 @@ FString UKismetInternationalizationLibrary::GetCultureDisplayName(const FString&
 }
 
 #undef LOCTEXT_NAMESPACE
+

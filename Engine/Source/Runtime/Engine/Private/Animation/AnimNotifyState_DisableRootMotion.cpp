@@ -5,6 +5,8 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_DisableRootMotion)
+
 UAnimNotifyState_DisableRootMotion::UAnimNotifyState_DisableRootMotion(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

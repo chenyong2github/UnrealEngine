@@ -11,6 +11,8 @@
 #include "Engine/UserDefinedStruct.h"
 #include "MovieSceneFrameMigration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventSection)
+
 /* Custom version specifically for event parameter struct serialization (serialized into FMovieSceneEventParameters::StructBytes) */
 namespace EEventParameterVersion
 {

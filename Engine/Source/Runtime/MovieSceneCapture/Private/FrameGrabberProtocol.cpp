@@ -3,6 +3,8 @@
 #include "Protocols/FrameGrabberProtocol.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FrameGrabberProtocol)
+
 bool UFrameGrabberProtocol::HasFinishedProcessingImpl() const
 {
 	return FrameGrabber.IsValid() && !FrameGrabber->HasOutstandingFrames();
@@ -50,3 +52,4 @@ void UFrameGrabberProtocol::FinalizeImpl()
 		FrameGrabber.Reset();
 	}
 }
+

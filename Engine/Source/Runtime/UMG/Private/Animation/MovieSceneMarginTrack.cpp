@@ -3,6 +3,8 @@
 #include "Animation/MovieSceneMarginTrack.h"
 #include "Animation/MovieSceneMarginSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMarginTrack)
+
 
 UMovieSceneMarginTrack::UMovieSceneMarginTrack(const FObjectInitializer& Init)
 	: Super(Init)
@@ -20,4 +22,5 @@ UMovieSceneSection* UMovieSceneMarginTrack::CreateNewSection()
 {
 	return NewObject<UMovieSceneMarginSection>(this, NAME_None, RF_Transactional);
 }
+
 

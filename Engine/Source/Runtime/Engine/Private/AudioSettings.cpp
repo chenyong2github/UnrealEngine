@@ -16,6 +16,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSettings)
+
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -325,3 +327,4 @@ FString UAudioSettings::FindQualityNameByIndex(int32 Index) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

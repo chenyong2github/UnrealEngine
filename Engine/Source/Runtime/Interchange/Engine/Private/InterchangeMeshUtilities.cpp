@@ -18,6 +18,8 @@
 #include "UObject/ObjectMacros.h"
 #include "LODUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMeshUtilities)
+
 TFuture<bool> UInterchangeMeshUtilities::ImportCustomLodAsync(UObject* MeshObject, const int32 LodIndex)
 {
 	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();

@@ -11,6 +11,8 @@
 #include "GameFramework/PhysicsVolume.h"
 #include "Components/CapsuleComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationObjectBase)
+
 DEFINE_LOG_CATEGORY_STATIC(LogNavigationPoint, Log, All);
 
 ANavigationObjectBase::ANavigationObjectBase(const FObjectInitializer& ObjectInitializer)
@@ -235,4 +237,5 @@ void ANavigationObjectBase::GetMoveGoalReachTest(const AActor* MovingActor, cons
 	GoalOffset = FVector::ZeroVector;
 	GetSimpleCollisionCylinder(GoalRadius, GoalHalfHeight);	
 }
+
 

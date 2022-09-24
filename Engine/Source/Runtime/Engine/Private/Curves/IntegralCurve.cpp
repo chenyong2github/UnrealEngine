@@ -2,6 +2,8 @@
 
 #include "Curves/IntegralCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IntegralCurve)
+
 int32 FIntegralCurve::Evaluate(float Time, int32 InDefaultValue) const
 {
 	// If the default value hasn't been initialized, use the incoming default value
@@ -253,3 +255,4 @@ void FIntegralCurve::RemoveRedundantKeys()
 		DeleteKey(GetKeyHandle(0));
 	}
 }
+

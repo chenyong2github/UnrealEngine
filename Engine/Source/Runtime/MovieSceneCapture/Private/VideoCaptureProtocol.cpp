@@ -6,6 +6,8 @@
 #include "Templates/Casts.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VideoCaptureProtocol)
+
 bool UVideoCaptureProtocol::SetupImpl()
 {
 #if PLATFORM_UNIX
@@ -134,3 +136,4 @@ bool UVideoCaptureProtocol::CanWriteToFileImpl(const TCHAR* InFilename, bool bOv
 
 	return true;
 }
+

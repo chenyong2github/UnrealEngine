@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoiceConfig)
+
 TMap<FUniqueNetIdWrapper, UVOIPTalker*> UVOIPStatics::VoiceTalkerMap;
 
 static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionAttackTime(TEXT("voice.SilenceDetectionAttackTime"),
@@ -372,3 +374,4 @@ void UVOIPTalker::UnregisterFromVoiceTalkerMap()
 	UVOIPStatics::ResetPlayerVoiceTalker(PlayerId);
 	bIsRegistered = false;
 }
+

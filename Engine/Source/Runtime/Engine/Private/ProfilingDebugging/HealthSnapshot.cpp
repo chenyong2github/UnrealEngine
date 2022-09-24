@@ -12,6 +12,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HealthSnapshot)
+
 DEFINE_LOG_CATEGORY_STATIC(LogHealthSnapshot, Log, All);
 
 //////////////////////////////////////////////////////////////////////
@@ -268,3 +270,4 @@ void UHealthSnapshotBlueprintLibrary::LogPerformanceSnapshot(const FString Snaps
 
 	Snapshot.Dump(*GLog);
 }
+

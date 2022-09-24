@@ -6,6 +6,8 @@
 #include "Widgets/SWindow.h"
 #include "Layout/WidgetPath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Events)
+
 
 /* Static initialization
  *****************************************************************************/
@@ -67,3 +69,4 @@ bool FPointerEvent::IsPointerEvent() const
 {
 	return true;
 }
+

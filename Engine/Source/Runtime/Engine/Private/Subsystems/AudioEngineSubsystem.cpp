@@ -2,6 +2,8 @@
 
 #include "Subsystems/AudioEngineSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioEngineSubsystem)
+
 UAudioEngineSubsystem::UAudioEngineSubsystem()
 	: UDynamicSubsystem()
 {
@@ -19,3 +21,4 @@ FAudioDeviceHandle UAudioEngineSubsystem::GetAudioDeviceHandle() const
 
 	return FAudioDeviceHandle();
 }
+

@@ -10,6 +10,8 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequenceHierarchy)
+
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 	: Sequence(nullptr)
 	, HierarchicalBias(0)
@@ -280,4 +282,5 @@ void FMovieSceneSequenceHierarchy::LogSubSequenceTree() const
 	Formatter.LogTree();
 }
 #endif
+
 

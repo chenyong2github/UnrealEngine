@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputAxisDelegateBinding)
+
 
 // Determines whether or not the Dynamic Delegate for the given binding
 // is a NAME_None function delegate. That implies it is a "dummy" delegate
@@ -75,3 +77,4 @@ void UInputAxisDelegateBinding::BindToInputComponent(UInputComponent* InputCompo
 		InputComponent->AxisBindings.Add(BindsToAdd[Index]);
 	}
 }
+

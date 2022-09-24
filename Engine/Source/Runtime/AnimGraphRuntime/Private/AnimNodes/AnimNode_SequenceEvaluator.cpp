@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SequenceEvaluator)
+
 float FAnimNode_SequenceEvaluatorBase::GetCurrentAssetTime() const
 {
 	return GetExplicitTime();

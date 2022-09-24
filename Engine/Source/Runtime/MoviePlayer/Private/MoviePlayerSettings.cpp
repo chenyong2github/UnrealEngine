@@ -2,6 +2,8 @@
 
 #include "MoviePlayerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePlayerSettings)
+
 
 #define LOCTEXT_NAMESPACE "MoviePlayerSettings"
 
@@ -11,3 +13,4 @@ UMoviePlayerSettings::UMoviePlayerSettings( const FObjectInitializer& ObjectInit
 }
 
 #undef LOCTEXT_NAMESPACE
+

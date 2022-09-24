@@ -7,6 +7,8 @@
 #include "EngineUtils.h"
 #include "InstancedFoliageActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FoliageStatistics)
+
 //////////////////////////////////////////////////////////////////////////
 // UFoliageStatics
 
@@ -106,3 +108,4 @@ void UFoliageStatistics::FoliageOverlappingMeshCounts_Debug(UObject* WorldContex
 		}
 	}
 }
+

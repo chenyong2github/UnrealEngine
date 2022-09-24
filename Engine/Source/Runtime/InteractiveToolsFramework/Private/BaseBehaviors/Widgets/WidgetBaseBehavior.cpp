@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/Widgets/WidgetBaseBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetBaseBehavior)
+
 bool IWidgetBaseBehavior::OnKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
 {
 	return false;
@@ -55,3 +57,4 @@ int32 IWidgetBaseBehavior::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 {
 	return LayerId;
 }
+

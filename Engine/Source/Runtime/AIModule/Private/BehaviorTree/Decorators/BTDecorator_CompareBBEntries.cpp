@@ -3,6 +3,8 @@
 #include "BehaviorTree/Decorators/BTDecorator_CompareBBEntries.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_CompareBBEntries)
+
 UBTDecorator_CompareBBEntries::UBTDecorator_CompareBBEntries(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Compare Blackboard entries";
@@ -96,3 +98,4 @@ FName UBTDecorator_CompareBBEntries::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

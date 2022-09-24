@@ -5,6 +5,8 @@
 #include "Widgets/Layout/SBackgroundBlur.h"
 #include "Components/BackgroundBlur.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BackgroundBlurSlot)
+
 /////////////////////////////////////////////////////
 // UBackgroundBlurSlot
 
@@ -128,3 +130,4 @@ void UBackgroundBlurSlot::PostEditChangeProperty(FPropertyChangedEvent& Property
 }
 
 #endif
+

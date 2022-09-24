@@ -9,6 +9,8 @@
 #include "Interfaces/IHttpResponse.h"
 #include "HttpModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AsyncTaskDownloadImage)
+
 
 //----------------------------------------------------------------------//
 // UAsyncTaskDownloadImage
@@ -140,3 +142,4 @@ void UAsyncTaskDownloadImage::HandleImageRequest(FHttpRequestPtr HttpRequest, FH
 
 #endif
 }
+

@@ -4,6 +4,8 @@
 #include "Components/ScaleBoxSlot.h"
 #include "UObject/EditorObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScaleBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -172,3 +174,4 @@ void UScaleBox::OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs)
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

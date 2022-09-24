@@ -10,6 +10,8 @@
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticlePerfStatsManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ParticleSystemManager)
+
 DECLARE_STATS_GROUP(TEXT("Particle World Manager"), STATGROUP_PSCWorldMan, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("PSC Manager Tick [GT]"), STAT_PSCMan_Tick, STATGROUP_PSCWorldMan);
 DECLARE_CYCLE_STAT(TEXT("PSC Manager Async Batch [CNC]"), STAT_PSCMan_AsyncBatch, STATGROUP_PSCWorldMan);

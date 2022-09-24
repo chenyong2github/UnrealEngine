@@ -4,6 +4,8 @@
 #include "GameplayTagsSettings.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagRedirectors)
+
 FGameplayTagRedirectors& FGameplayTagRedirectors::Get()
 {
 	static FGameplayTagRedirectors Singleton;
@@ -118,3 +120,4 @@ const FGameplayTag* FGameplayTagRedirectors::RedirectTag(const FName& InTagName)
 
 	return nullptr;
 }
+

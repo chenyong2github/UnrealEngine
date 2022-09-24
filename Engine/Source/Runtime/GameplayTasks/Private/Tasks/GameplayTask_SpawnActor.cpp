@@ -4,6 +4,8 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_SpawnActor)
+
 UGameplayTask_SpawnActor* UGameplayTask_SpawnActor::SpawnActor(TScriptInterface<IGameplayTaskOwnerInterface> TaskOwner, FVector SpawnLocation, FRotator SpawnRotation, TSubclassOf<AActor> Class, bool bSpawnOnlyOnAuthority)
 {
 	if (TaskOwner.GetInterface() == nullptr)
@@ -67,3 +69,4 @@ void UGameplayTask_SpawnActor::FinishSpawningActor(UObject* WorldContextObject, 
 
 	EndTask();
 }
+

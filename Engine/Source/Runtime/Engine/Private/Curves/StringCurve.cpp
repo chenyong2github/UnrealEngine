@@ -2,6 +2,8 @@
 
 #include "Curves/StringCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StringCurve)
+
 
 /* FStringCurveKey interface
  *****************************************************************************/
@@ -234,3 +236,4 @@ void FStringCurve::RemoveRedundantKeys()
 		DeleteKey(GetKeyHandle(0));
 	}
 }
+

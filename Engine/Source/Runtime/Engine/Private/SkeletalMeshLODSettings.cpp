@@ -10,6 +10,8 @@
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshLODSettings)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODSettings, Warning, All)
 
 
@@ -349,3 +351,4 @@ const float FSkeletalMeshLODGroupSettings::GetScreenSize() const
 {
 	return ScreenSize.Default;
 }
+

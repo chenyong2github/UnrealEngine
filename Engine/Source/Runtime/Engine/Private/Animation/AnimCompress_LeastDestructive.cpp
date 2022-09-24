@@ -7,6 +7,8 @@
 #include "Animation/AnimCompress_LeastDestructive.h"
 #include "Animation/AnimCompress_BitwiseCompressOnly.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_LeastDestructive)
+
 UAnimCompress_LeastDestructive::UAnimCompress_LeastDestructive(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -14,3 +16,4 @@ UAnimCompress_LeastDestructive::UAnimCompress_LeastDestructive(const FObjectInit
 	TranslationCompressionFormat = ACF_None;
 	RotationCompressionFormat = ACF_Float96NoW;
 }
+

@@ -3,6 +3,8 @@
 #include "Animation/AnimNotifies/AnimNotify_ResetDynamics.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_ResetDynamics)
+
 UAnimNotify_ResetDynamics::UAnimNotify_ResetDynamics()
 	: Super()
 {

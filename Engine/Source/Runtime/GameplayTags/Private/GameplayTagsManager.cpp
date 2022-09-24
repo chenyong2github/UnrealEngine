@@ -37,6 +37,8 @@ FSimpleMulticastDelegate UGameplayTagsManager::OnEditorRefreshGameplayTagTree;
 #include "UObject/StrongObjectPtr.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsManager)
+
 const FName UGameplayTagsManager::NAME_Categories("Categories");
 const FName UGameplayTagsManager::NAME_GameplayTagFilter("GameplayTagFilter");
 
@@ -2389,3 +2391,4 @@ void FGameplayTagNode::ResetNode()
 }
 
 #undef LOCTEXT_NAMESPACE
+

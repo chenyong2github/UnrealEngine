@@ -11,6 +11,8 @@
 
 #include "ChaosSolversModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsSettings)
+
 UPhysicsSettings::UPhysicsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LockedAxis_DEPRECATED(ESettingsLockedAxis::Invalid)
@@ -180,3 +182,4 @@ void FChaosPhysicsSettings::OnSettingsUpdated()
 {
 
 }
+

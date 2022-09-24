@@ -5,6 +5,8 @@
 
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_TwistCorrectiveNode)
+
 /////////////////////////////////////////////////////
 // FAnimNode_TwistCorrectiveNode
 
@@ -126,4 +128,5 @@ float FAnimNode_TwistCorrectiveNode::GetAngle(const FVector& Base, const FVector
 }
 
 /////////////////////////////////////////////////////////
+
 

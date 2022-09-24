@@ -4,6 +4,8 @@
 #include "SlateFwd.h"
 #include "Components/WidgetSwitcherSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetSwitcher)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -169,3 +171,4 @@ void UWidgetSwitcher::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseHandler)
+
 /////////////////////////////////////////////////////
 // FAnimPoseByNameNode
 
@@ -109,4 +111,5 @@ void FAnimNode_PoseHandler::UpdatePoseAssetProperty(struct FAnimInstanceProxy* I
 	CurrentPoseAsset = PoseAsset;
 	CacheBoneBlendWeights(InstanceProxy);
 }
+
 

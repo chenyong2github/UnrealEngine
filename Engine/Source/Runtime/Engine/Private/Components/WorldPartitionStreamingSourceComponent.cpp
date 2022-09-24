@@ -12,6 +12,8 @@
 #include "SceneView.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingSourceComponent)
+
 UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -148,3 +150,4 @@ bool UWorldPartitionStreamingSourceComponent::CanEditChange(const FProperty* InP
 	return Super::CanEditChange(InProperty);
 }
 #endif
+

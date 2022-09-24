@@ -7,6 +7,8 @@
 #include "UObject/Package.h"
 #include "RigVMModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryDeprecated)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FRigVMRegister::Serialize(FArchive& Ar)
@@ -1355,3 +1357,4 @@ int32 FRigVMMemoryContainer::FindOrAddScriptStruct(UScriptStruct* InScriptStruct
 	}
 	return ScriptStructs.Add(InScriptStruct);
 }
+

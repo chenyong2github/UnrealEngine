@@ -21,6 +21,8 @@
 #include "UObject/ObjectVersion.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightProfile)
+
 class ENGINE_API FSkinnedMeshComponentUpdateSkinWeightsContext
 {
 public:
@@ -830,3 +832,4 @@ void FRuntimeSkinWeightProfileData::ApplyDefaultOverride(FSkinWeightVertexBuffer
 		}
 	}
 }
+

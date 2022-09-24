@@ -4,6 +4,8 @@
 #include "Components/ArrowComponent.h"
 #include "Components/SpotLightComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpotLight)
+
 ASpotLight::ASpotLight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<USpotLightComponent>(TEXT("LightComponent0")))
 {
@@ -138,4 +140,5 @@ void ASpotLight::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 }
 #endif
+
 

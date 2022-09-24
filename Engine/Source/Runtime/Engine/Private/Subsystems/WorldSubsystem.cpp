@@ -3,6 +3,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldSubsystem)
+
 // ----------------------------------------------------------------------------------
 
 UWorldSubsystem::UWorldSubsystem()
@@ -76,3 +78,4 @@ void UTickableWorldSubsystem::Deinitialize()
 	check(bInitialized);
 	bInitialized = false;
 }
+

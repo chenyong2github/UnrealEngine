@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseByName)
+
 /////////////////////////////////////////////////////
 // FAnimPoseByNameNode
 
@@ -68,3 +70,4 @@ void FAnimNode_PoseByName::GatherDebugData(FNodeDebugData& DebugData)
 	DebugLine += FString::Printf(TEXT("('%s' Pose: %s)"), CurrentPoseAsset.IsValid()? *CurrentPoseAsset.Get()->GetName() : TEXT("None"), *PoseName.ToString());
 	DebugData.AddDebugItem(DebugLine, true);
 }
+

@@ -10,6 +10,8 @@
 #include "XRMotionControllerBase.h" // for GetHandEnumForSourceName()
 #include "IXRTrackingSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrackedDeviceFunctionLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogMotionTracking, Log, All);
 
 UMotionTrackedDeviceFunctionLibrary::UMotionTrackedDeviceFunctionLibrary(const FObjectInitializer& ObjectInitializer)
@@ -248,3 +250,4 @@ bool UMotionTrackedDeviceFunctionLibrary::IsMotionSourceTracking(int32 PlayerInd
 
 	return bIsTracking;
 }
+

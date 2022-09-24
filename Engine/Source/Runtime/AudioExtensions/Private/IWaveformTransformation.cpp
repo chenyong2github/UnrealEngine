@@ -4,6 +4,8 @@
 #include "IWaveformTransformation.h"
 #include "Templates/SharedPointer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IWaveformTransformation)
+
 TArray<Audio::FTransformationPtr> UWaveformTransformationChain::CreateTransformations() const
 {
 	TArray<Audio::FTransformationPtr> TransformationPtrs;
@@ -18,3 +20,4 @@ TArray<Audio::FTransformationPtr> UWaveformTransformationChain::CreateTransforma
 	
 	return TransformationPtrs;
 }
+

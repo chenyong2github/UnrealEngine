@@ -5,8 +5,11 @@
 #include "Elements/Object/ObjectElementData.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectElementAssetDataInterface)
+
 FAssetData UObjectElementAssetDataInterface::GetAssetData(const FTypedElementHandle& InElementHandle)
 {
 	UObject* RawObjectPtr = ObjectElementDataUtil::GetObjectFromHandle(InElementHandle);
 	return FAssetData(RawObjectPtr);
 }
+

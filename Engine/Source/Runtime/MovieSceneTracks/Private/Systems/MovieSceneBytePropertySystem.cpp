@@ -4,6 +4,8 @@
 #include "Systems/ByteChannelEvaluatorSystem.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBytePropertySystem)
+
 UMovieSceneBytePropertySystem::UMovieSceneBytePropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -21,4 +23,5 @@ void UMovieSceneBytePropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
 

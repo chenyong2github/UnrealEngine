@@ -9,6 +9,8 @@
 #include "IMediaModule.h"
 #include "MediaAssetsPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlatformMediaSource)
+
 #if WITH_EDITOR
 	#include "Interfaces/ITargetPlatform.h"
 #endif
@@ -360,3 +362,4 @@ bool UPlatformMediaSource::HasMediaOption(const FName& Key) const
 
 	return Super::HasMediaOption(Key);
 }
+

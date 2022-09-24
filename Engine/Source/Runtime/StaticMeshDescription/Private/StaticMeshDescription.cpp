@@ -4,6 +4,8 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshDescription)
+
 
 void UStaticMeshDescription::RegisterAttributes()
 {
@@ -139,5 +141,6 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 	FStaticMeshOperations::ComputeTriangleTangentsAndNormals(MeshDescription);
 	FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, EComputeNTBsFlags::Normals | EComputeNTBsFlags::Tangents);
 }
+
 
 

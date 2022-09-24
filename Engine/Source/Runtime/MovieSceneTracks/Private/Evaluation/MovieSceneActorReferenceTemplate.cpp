@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneActorReferenceTemplate)
+
 
 namespace PropertyTemplate
 {
@@ -55,3 +57,4 @@ void FMovieSceneActorReferenceSectionTemplate::Evaluate(const FMovieSceneEvaluat
 	ActorReferenceData.Evaluate(Context.GetTime(), ObjectBinding);
 	ExecutionTokens.Add(TPropertyTrackExecutionToken<UObject*, FMovieSceneObjectBindingID>(ObjectBinding.Object));
 }
+

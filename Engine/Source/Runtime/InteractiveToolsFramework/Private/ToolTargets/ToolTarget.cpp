@@ -2,6 +2,8 @@
 
 #include "ToolTargets/ToolTarget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolTarget)
+
 bool FToolTargetTypeRequirements::AreSatisfiedBy(UClass* Class) const
 {
 	// we have to support all the required interfaces

@@ -2,6 +2,8 @@
 
 #include "Framework/Commands/InputChord.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputChord)
+
 #define LOCTEXT_NAMESPACE "FInputChord"
 
 /* FInputChord interface
@@ -125,3 +127,4 @@ FInputChord::ERelationshipType FInputChord::GetRelationship( const FInputChord& 
 }
 
 #undef LOCTEXT_NAMESPACE
+

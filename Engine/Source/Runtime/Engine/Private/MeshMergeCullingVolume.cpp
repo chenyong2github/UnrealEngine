@@ -2,6 +2,8 @@
 
 #include "Engine/MeshMergeCullingVolume.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshMergeCullingVolume)
+
 AMeshMergeCullingVolume::AMeshMergeCullingVolume(const FObjectInitializer& ObjectInitializer)
 :Super(ObjectInitializer)
 {
@@ -10,4 +12,5 @@ AMeshMergeCullingVolume::AMeshMergeCullingVolume(const FObjectInitializer& Objec
 	bColored = true;
 	BrushColor = FColor(45, 225, 45);
 }
+
 

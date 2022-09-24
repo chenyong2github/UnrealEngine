@@ -14,6 +14,8 @@
 #include "RenderUtils.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RuntimeVirtualTextureComponent)
+
 #define LOCTEXT_NAMESPACE "URuntimeVirtualTextureComponent"
 
 URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectInitializer& ObjectInitializer)
@@ -319,3 +321,4 @@ void URuntimeVirtualTextureComponent::CheckForErrors()
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

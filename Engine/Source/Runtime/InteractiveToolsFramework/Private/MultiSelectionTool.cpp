@@ -3,6 +3,8 @@
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MultiSelectionTool)
+
 
 bool UMultiSelectionTool::SupportsWorldSpaceFocusBox()
 {
@@ -76,3 +78,4 @@ bool UMultiSelectionTool::GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector&
 
 	return (NearestRayParam < (double)HALF_WORLD_MAX);
 }
+

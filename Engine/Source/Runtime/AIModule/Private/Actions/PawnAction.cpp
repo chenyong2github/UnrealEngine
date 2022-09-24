@@ -8,6 +8,8 @@
 #include "AIController.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnAction)
+
 DEFINE_LOG_CATEGORY(LogPawnAction);
 
 namespace
@@ -423,3 +425,4 @@ FString UPawnAction::GetDisplayName() const
 {
 	return GetClass()->GetName();
 }
+

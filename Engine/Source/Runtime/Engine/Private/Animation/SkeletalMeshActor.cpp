@@ -11,6 +11,8 @@
 #include "Engine/CollisionProfile.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshActor)
+
 #define LOCTEXT_NAMESPACE "SkeletalMeshActor"
 
 
@@ -212,3 +214,4 @@ void ASkeletalMeshActor::LoadedFromAnotherClass(const FName& OldClassName)
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

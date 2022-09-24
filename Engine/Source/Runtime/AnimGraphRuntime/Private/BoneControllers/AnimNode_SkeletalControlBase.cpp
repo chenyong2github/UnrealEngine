@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Engine/SkeletalMeshSocket.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SkeletalControlBase)
+
 /////////////////////////////////////////////////////
 // FAnimNode_SkeletalControlBase
 

@@ -2,6 +2,8 @@
 
 #include "HLOD/HLODProxyMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODProxyMesh)
+
 FHLODProxyMesh::FHLODProxyMesh()
 	: StaticMesh(nullptr)
 {
@@ -50,3 +52,4 @@ const FName& FHLODProxyMesh::GetKey() const
 {
 	return Key;
 }
+

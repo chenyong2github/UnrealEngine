@@ -3,6 +3,7 @@
 #include "Animation/AnimationSettings.h"
 #include "Animation/AttributeTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationSettings)
 
 UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -102,3 +103,4 @@ void UAnimationSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 
 
 #endif	// WITH_EDITOR
+

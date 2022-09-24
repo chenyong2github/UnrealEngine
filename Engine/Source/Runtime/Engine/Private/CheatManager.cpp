@@ -41,6 +41,8 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Engine/DamageEvents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CheatManager)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCheatManager, Log, All);
 
 #define LOCTEXT_NAMESPACE "CheatManager"	
@@ -1431,3 +1433,4 @@ APlayerController* UCheatManager::GetPlayerController() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

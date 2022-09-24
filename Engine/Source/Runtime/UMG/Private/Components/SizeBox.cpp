@@ -6,6 +6,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Components/SizeBoxSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SizeBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////

@@ -9,6 +9,8 @@
 #include "Engine/World.h"
 #include "Engine/Level.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintsManager)
+
 /** 
  * FConstraintTickFunction
  **/

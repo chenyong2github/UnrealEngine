@@ -3,6 +3,8 @@
 #include "Engine/BlockingVolume.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlockingVolume)
+
 static FName InvisibleWall_NAME(TEXT("InvisibleWall"));
 
 ABlockingVolume::ABlockingVolume(const FObjectInitializer& ObjectInitializer)
@@ -64,3 +66,4 @@ void ABlockingVolume::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 }
 
 #endif
+

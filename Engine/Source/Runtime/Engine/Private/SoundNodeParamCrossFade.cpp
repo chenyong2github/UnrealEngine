@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeParamCrossFade.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeParamCrossFade)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeParamCrossFade implementation.
 -----------------------------------------------------------------------------*/
@@ -37,3 +39,4 @@ float USoundNodeParamCrossFade::GetMaxDistance() const
 	}
 	return MaxDistance;
 }
+

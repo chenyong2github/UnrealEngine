@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundSourceBus)
+
 USoundSourceBus::USoundSourceBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -61,4 +63,5 @@ float USoundSourceBus::GetDuration() const
 {
 	return (SourceBusDuration > 0.0f) ? SourceBusDuration : INDEFINITELY_LOOPING_DURATION;
 }
+
 

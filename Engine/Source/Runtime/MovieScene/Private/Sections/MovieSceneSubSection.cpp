@@ -15,6 +15,8 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSubSection)
+
 float DeprecatedMagicNumber = TNumericLimits<float>::Lowest();
 
 /* UMovieSceneSubSection structors
@@ -473,4 +475,5 @@ void UMovieSceneSubSection::BuildDefaultSubSectionComponents(UMovieSceneEntitySy
 		);
 	}
 }
+
 

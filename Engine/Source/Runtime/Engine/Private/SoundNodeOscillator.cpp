@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeOscillator.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeOscillator)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeOscillator implementation.
 -----------------------------------------------------------------------------*/
@@ -55,4 +57,5 @@ void USoundNodeOscillator::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 
 	Super::ParseNodes( AudioDevice, NodeWaveInstanceHash, ActiveSound, UpdatedParams, WaveInstances );
 }
+
 

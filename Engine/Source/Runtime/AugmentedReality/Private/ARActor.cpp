@@ -7,6 +7,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARActor)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -101,3 +103,4 @@ FTrackedGeometryGroup::FTrackedGeometryGroup(UARTrackedGeometry* InTrackedGeomet
 {
 	TrackedGeometry = InTrackedGeometry;
 }
+

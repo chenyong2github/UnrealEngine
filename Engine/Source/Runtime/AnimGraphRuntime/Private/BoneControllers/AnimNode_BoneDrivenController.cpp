@@ -6,6 +6,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_BoneDrivenController)
+
 /////////////////////////////////////////////////////
 // FAnimNode_BoneDrivenController
 
@@ -306,3 +308,4 @@ void FAnimNode_BoneDrivenController::InitializeBoneReferences(const FBoneContain
 	SourceBone.Initialize(RequiredBones);
 	TargetBone.Initialize(RequiredBones);
 }
+

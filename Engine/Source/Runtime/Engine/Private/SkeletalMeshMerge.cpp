@@ -13,6 +13,8 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshMerge)
+
 /*-----------------------------------------------------------------------------
 	FSkeletalMeshMerge
 -----------------------------------------------------------------------------*/
@@ -1142,3 +1144,4 @@ void FSkeletalMeshMerge::OverrideMergedSockets(const TArray<FRefPoseOverride>& P
 
 	MergeMesh->RebuildSocketMap();
 }
+

@@ -9,6 +9,8 @@
 #include "UObject/Package.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Camera Anim Track Token Execute"), MovieSceneEval_CameraAnimTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
 /** Structure that holds blended post processing settings */
@@ -409,4 +411,5 @@ void FMovieSceneCameraShakeSectionTemplate::Evaluate(const FMovieSceneEvaluation
 	ExecutionTokens.Add(FCameraShakeExecutionToken(SourceData, SectionStartTime));
 	FMovieSceneApplyAdditiveCameraDataExecutionToken::EnsureSharedToken(Operand, ExecutionTokens);
 }
+
 

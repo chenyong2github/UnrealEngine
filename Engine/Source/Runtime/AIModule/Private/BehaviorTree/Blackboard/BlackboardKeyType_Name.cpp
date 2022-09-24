@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Name.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_Name)
+
 const UBlackboardKeyType_Name::FDataType UBlackboardKeyType_Name::InvalidValue = NAME_None;
 
 UBlackboardKeyType_Name::UBlackboardKeyType_Name(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -48,3 +50,4 @@ bool UBlackboardKeyType_Name::TestTextOperation(const UBlackboardComponent& Owne
 
 	return false;
 }
+

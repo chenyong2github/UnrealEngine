@@ -18,6 +18,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_String.h"
 #include "Misc/RuntimeErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTFunctionLibrary)
+
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//
@@ -226,3 +228,4 @@ void UBTFunctionLibrary::StopUsingExternalEvent(UBTNode* NodeOwner)
 {
 	// deprecated, not removed yet
 }
+

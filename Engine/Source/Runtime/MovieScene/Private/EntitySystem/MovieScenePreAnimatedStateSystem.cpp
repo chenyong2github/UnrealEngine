@@ -10,6 +10,8 @@
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePreAnimatedStateSystem)
+
 
 
 UMovieSceneCachePreAnimatedStateSystem::UMovieSceneCachePreAnimatedStateSystem(const FObjectInitializer& ObjInit)
@@ -139,3 +141,4 @@ void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& I
 
 	Params.CacheExtension->ResetEntryInvalidation();
 }
+

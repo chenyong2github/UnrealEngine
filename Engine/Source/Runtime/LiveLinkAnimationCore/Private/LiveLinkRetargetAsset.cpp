@@ -9,6 +9,8 @@
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkRetargetAsset)
+
 ULiveLinkRetargetAsset::ULiveLinkRetargetAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

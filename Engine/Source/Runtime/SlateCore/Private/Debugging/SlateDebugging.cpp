@@ -16,6 +16,8 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateDebugging)
+
 #if UE_BUILD_SHIPPING
 CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, false);
 #else

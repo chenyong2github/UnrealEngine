@@ -5,6 +5,8 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimNode_Inertialization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Slot)
+
 /////////////////////////////////////////////////////
 // FAnimNode_Slot
 
@@ -131,3 +133,4 @@ FAnimNode_Slot::FAnimNode_Slot()
 	, bAlwaysUpdateSourcePose(false)
 {
 }
+

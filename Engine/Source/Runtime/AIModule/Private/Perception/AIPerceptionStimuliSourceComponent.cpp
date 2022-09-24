@@ -4,6 +4,8 @@
 #include "Perception/AIPerceptionSystem.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionStimuliSourceComponent)
+
 
 UAIPerceptionStimuliSourceComponent::UAIPerceptionStimuliSourceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -191,3 +193,4 @@ void UAIPerceptionStimuliSourceComponent::PostEditChangeProperty(FPropertyChange
 	}
 }
 #endif // WITH_EDITOR
+

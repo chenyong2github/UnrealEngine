@@ -19,6 +19,8 @@
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaSoundComponent)
+
 
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Sync"), STAT_MediaUtils_MediaSoundComponentSync, STATGROUP_Media);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent SampleTime"), STAT_MediaUtils_MediaSoundComponentSampleTime, STATGROUP_Media);
@@ -608,3 +610,4 @@ const FSoundAttenuationSettings* UMediaSoundComponent::GetSelectedAttenuationSet
 
 	return nullptr;
 }
+

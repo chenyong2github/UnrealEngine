@@ -3,6 +3,8 @@
 #include "MeshVertexPainter/MeshVertexPainterKismetLibrary.h"
 #include "MeshVertexPainter/MeshVertexPainter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVertexPainterKismetLibrary)
+
 
 void UMeshVertexPainterKismetLibrary::PaintVerticesSingleColor(UStaticMeshComponent* StaticMeshComponent, const FLinearColor& FillColor, bool bConvertToSRGB)
 {
@@ -18,3 +20,4 @@ void UMeshVertexPainterKismetLibrary::RemovePaintedVertices(UStaticMeshComponent
 {
 	FMeshVertexPainter::RemovePaintedVertices(StaticMeshComponent);
 }
+

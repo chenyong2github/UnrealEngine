@@ -10,6 +10,8 @@
 #include "EnvironmentQuery/EnvQueryDebugHelpers.h"
 #include "EnvironmentQuery/EQSRenderingComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerExtension)
+
 #if ENABLE_VISUAL_LOG
 void FVisualLoggerExtension::DisableEQSRendering(AActor* HelperActor)
 {
@@ -182,3 +184,4 @@ void FVisualLoggerExtension::DrawData(UWorld* InWorld, class UEQSRenderingCompon
 #endif
 }
 #endif //ENABLE_VISUAL_LOG
+

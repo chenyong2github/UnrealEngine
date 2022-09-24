@@ -149,6 +149,8 @@
 
 #include "ChaosSolversModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(World)
+
 DEFINE_LOG_CATEGORY_STATIC(LogWorld, Log, All);
 DEFINE_LOG_CATEGORY(LogSpawn);
 
@@ -8973,3 +8975,4 @@ FString ENGINE_API ToString(ENetMode NetMode)
 }
 
 #undef LOCTEXT_NAMESPACE 
+

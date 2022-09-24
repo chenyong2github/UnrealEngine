@@ -11,6 +11,8 @@
 #include "SceneManagement.h"
 #include "PointLightSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalLightComponent)
+
 ULocalLightComponent::ULocalLightComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -206,3 +208,4 @@ float ULocalLightComponent::GetUnitsConversionFactor(ELightUnits SrcUnits, ELigh
 		return CnvFactor;
 	}
 }
+

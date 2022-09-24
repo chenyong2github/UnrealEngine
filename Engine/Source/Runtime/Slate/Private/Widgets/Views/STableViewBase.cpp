@@ -17,6 +17,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListPanel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(STableViewBase)
+
 namespace ListConstants
 {
 	static const float OvershootMax = 150.0f;

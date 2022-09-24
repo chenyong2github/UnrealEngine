@@ -17,6 +17,8 @@
 
 #include "String/Join.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneWidgetMaterialSystem)
+
 namespace UE::MovieScene
 {
 

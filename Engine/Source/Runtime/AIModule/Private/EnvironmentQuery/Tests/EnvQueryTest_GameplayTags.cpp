@@ -8,6 +8,8 @@
 #include "GameplayTagAssetInterface.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_GameplayTags)
+
 UEnvQueryTest_GameplayTags::UEnvQueryTest_GameplayTags(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
@@ -132,3 +134,4 @@ void UEnvQueryTest_GameplayTags::SetTagQueryToMatch(FGameplayTagQuery& GameplayT
 {
 	TagQueryToMatch = GameplayTagQuery;
 }
+

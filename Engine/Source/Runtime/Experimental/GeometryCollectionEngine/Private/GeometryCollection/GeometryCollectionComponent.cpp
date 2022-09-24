@@ -48,6 +48,8 @@
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionComponent)
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -4187,3 +4189,4 @@ void UGeometryCollectionComponent::PostLoad()
 		PhysicalMaterialOverride_DEPRECATED = nullptr;
 	}
 }
+

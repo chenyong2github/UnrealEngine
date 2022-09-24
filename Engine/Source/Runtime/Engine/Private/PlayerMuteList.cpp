@@ -8,6 +8,8 @@
 #include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMuteList)
+
 FString LexToString(const EVoiceBlockReasons& Reason)
 {
 	FString Result;
@@ -236,3 +238,4 @@ FString DumpMutelistState(UWorld* World)
 
 	return Output;
 }
+

@@ -6,6 +6,8 @@
 
 #include "Curves/CurveFloat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveFloat)
+
 FRuntimeFloatCurve::FRuntimeFloatCurve()
 	: ExternalCurve(nullptr)
 {
@@ -68,3 +70,4 @@ bool UCurveFloat::operator==( const UCurveFloat& Curve ) const
 {
 	return bIsEventCurve == Curve.bIsEventCurve && FloatCurve == Curve.FloatCurve;
 }
+

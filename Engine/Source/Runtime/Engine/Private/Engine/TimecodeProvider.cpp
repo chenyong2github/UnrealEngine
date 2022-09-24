@@ -2,6 +2,8 @@
 
 #include "Engine/TimecodeProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TimecodeProvider)
+
 
 FQualifiedFrameTime UTimecodeProvider::GetDelayedQualifiedFrameTime() const
 {
@@ -23,3 +25,4 @@ FTimecode UTimecodeProvider::GetDelayedTimecode() const
 	const FQualifiedFrameTime NewFrameTime = GetDelayedQualifiedFrameTime();
 	return FTimecode::FromFrameNumber(NewFrameTime.Time.GetFrame(), NewFrameTime.Rate);
 }
+

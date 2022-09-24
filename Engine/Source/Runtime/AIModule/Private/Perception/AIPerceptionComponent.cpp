@@ -6,6 +6,8 @@
 #include "Perception/AISenseConfig.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionComponent)
+
 #if WITH_GAMEPLAY_DEBUGGER
 #include "GameplayDebuggerTypes.h"
 #include "GameplayDebuggerCategory.h"
@@ -883,3 +885,4 @@ void UAIPerceptionComponent::GetPerceivedActors(TSubclassOf<UAISense> SenseToUse
 {
 	GetCurrentlyPerceivedActors(SenseToUse, OutActors);
 }
+

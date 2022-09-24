@@ -4,6 +4,9 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 #include "CookedMetaData.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UserDefinedEnum)
+
 #if WITH_EDITOR
 #include "Kismet2/EnumEditorUtils.h"
 #include "UObject/MetaData.h"
@@ -280,3 +283,4 @@ void UUserDefinedEnum::PurgeCookedMetaData()
 	}
 }
 #endif // WITH_EDITORONLY_DATA
+

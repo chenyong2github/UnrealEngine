@@ -16,6 +16,8 @@
 #include "Components/DirectionalLightComponent.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkyAtmosphereComponent)
+
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
 #include "Rendering/StaticLightingSystemInterface.h"
@@ -464,5 +466,6 @@ FVector FSkyAtmosphereSceneProxy::GetAtmosphereLightDirection(int32 AtmosphereLi
 
 
 #undef LOCTEXT_NAMESPACE
+
 
 

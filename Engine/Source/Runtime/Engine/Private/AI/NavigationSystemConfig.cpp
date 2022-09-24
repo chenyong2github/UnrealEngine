@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationSystemConfig)
+
 
 UNavigationSystemConfig::UNavigationSystemConfig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -73,3 +75,4 @@ UNullNavSysConfig::UNullNavSysConfig(const FObjectInitializer& ObjectInitializer
 {
 	NavigationSystemClass.Reset();
 }
+

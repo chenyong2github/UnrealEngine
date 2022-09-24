@@ -15,6 +15,8 @@
 #include "IMovieScenePlayer.h"
 #include "IMovieScenePlaybackClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSpawnablesSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -211,3 +213,4 @@ void UMovieSceneSpawnablesSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	.FilterAll({ BuiltInComponents->Tags.NeedsUnlink })
 	.Iterate_PerEntity(&Linker->EntityManager, DestroyOldSpawnables);
 }
+

@@ -8,6 +8,8 @@
 #include "MovieSceneTrack.h"
 #include "MovieSceneSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IMovieSceneTrackTemplateProducer)
+
 FMovieSceneTrackCompilerArgs::FMovieSceneTrackCompilerArgs(UMovieSceneTrack* InTrack, IMovieSceneTemplateGenerator* InGenerator)
 	: Track(InTrack)
 	, Generator(InGenerator)

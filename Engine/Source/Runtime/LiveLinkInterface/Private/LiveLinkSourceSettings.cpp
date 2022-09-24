@@ -3,6 +3,8 @@
 #include "LiveLinkSourceSettings.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSourceSettings)
+
 void ULiveLinkSourceSettings::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -35,3 +37,4 @@ bool ULiveLinkSourceSettings::CanEditChange(const FProperty* InProperty) const
 	return false;
 }
 #endif //WITH_EDITOR
+

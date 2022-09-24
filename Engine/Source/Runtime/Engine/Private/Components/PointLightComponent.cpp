@@ -12,6 +12,8 @@
 #include "SceneManagement.h"
 #include "PointLightSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PointLightComponent)
+
 int32 GAllowPointLightCubemapShadows = 1;
 static FAutoConsoleVariableRef CVarAllowPointLightCubemapShadows(
 	TEXT("r.AllowPointLightCubemapShadows"),
@@ -321,3 +323,4 @@ void UPointLightComponent::PostInterpChange(FProperty* PropertyThatChanged)
 		Super::PostInterpChange(PropertyThatChanged);
 	}
 }
+

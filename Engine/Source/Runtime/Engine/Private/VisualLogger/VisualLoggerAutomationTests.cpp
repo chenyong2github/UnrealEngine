@@ -9,6 +9,8 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerAutomationTests)
+
 PRAGMA_DISABLE_OPTIMIZATION
 namespace
 {
@@ -608,3 +610,4 @@ bool FVisualLogRedirectionsDeepHierarchyToNewParentTest::RunTest(const FString& 
 
 #endif //ENABLE_VISUAL_LOG
 PRAGMA_ENABLE_OPTIMIZATION
+

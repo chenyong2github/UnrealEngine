@@ -7,6 +7,8 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODLayer)
+
 #if WITH_EDITOR
 #include "Serialization/ArchiveCrc32.h"
 
@@ -209,3 +211,4 @@ const void UHLODLayer::SetParentLayer(const TSoftObjectPtr<UHLODLayer>& InParent
 }
 
 #endif // WITH_EDITORONLY_DATA
+

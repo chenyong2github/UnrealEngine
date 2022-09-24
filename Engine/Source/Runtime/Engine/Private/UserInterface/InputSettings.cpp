@@ -10,6 +10,8 @@
 #include "UObject/UObjectIterator.h"
 #include "HAL/PlatformApplicationMisc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputSettings)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -487,4 +489,5 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 		InputSettings->DefaultInputComponentClass = NewDefaultInputComponentClass;	
 	}
 }
+
 

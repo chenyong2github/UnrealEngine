@@ -9,6 +9,8 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BrainComponent)
+
 const FName UBrainComponent::AIMessage_MoveFinished = TEXT("MoveFinished");
 const FName UBrainComponent::AIMessage_RepathFailed = TEXT("RepathFailed");
 const FName UBrainComponent::AIMessage_QueryFinished = TEXT("QueryFinished");

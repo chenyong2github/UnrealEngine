@@ -2,6 +2,8 @@
 
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceEditorLevelStreaming)
+
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"

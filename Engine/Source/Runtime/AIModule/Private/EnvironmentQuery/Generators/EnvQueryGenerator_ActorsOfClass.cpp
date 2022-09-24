@@ -7,6 +7,8 @@
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_ActorsOfClass)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_ActorsOfClass::UEnvQueryGenerator_ActorsOfClass(const FObjectInitializer& ObjectInitializer) :
@@ -102,3 +104,4 @@ FText UEnvQueryGenerator_ActorsOfClass::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

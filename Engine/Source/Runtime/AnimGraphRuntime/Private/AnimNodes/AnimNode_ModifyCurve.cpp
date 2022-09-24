@@ -4,6 +4,8 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ModifyCurve)
+
 FAnimNode_ModifyCurve::FAnimNode_ModifyCurve()
 {
 	ApplyMode = EModifyCurveApplyMode::Blend;
@@ -171,3 +173,4 @@ void FAnimNode_ModifyCurve::RemoveCurve(int32 PoseIndex)
 }
 
 #endif // WITH_EDITOR
+

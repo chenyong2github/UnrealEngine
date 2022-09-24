@@ -10,6 +10,8 @@
 #include "GameFramework/PlayerController.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosDebugDrawComponent)
+
 #if CHAOS_DEBUG_DRAW
 void ChaosDebugDraw_Enabled_Changed(IConsoleVariable* CVar)
 {
@@ -331,6 +333,7 @@ void UChaosDebugDrawComponent::CreateDebugDrawActor(UWorld* World)
 	Chaos::FDebugDrawQueue::GetInstance().SetRegionOfInterest(FVector::ZeroVector, ChaosDebugDraw_Radius);
 #endif
 }
+
 
 
 

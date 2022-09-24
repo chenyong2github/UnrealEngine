@@ -7,6 +7,8 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioBus)
+
 FAudioBusProxy::FAudioBusProxy(UAudioBus* InAudioBus)
 {
 	if (InAudioBus)

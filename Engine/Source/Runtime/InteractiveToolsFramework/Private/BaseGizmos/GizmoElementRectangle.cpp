@@ -8,6 +8,8 @@
 #include "SceneManagement.h"
 #include "Math/UnrealMathUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementRectangle)
+
 void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
 	FRenderTraversalState CurrentRenderState(RenderState);
@@ -210,3 +212,4 @@ bool UGizmoElementRectangle::GetHitLine() const
 {
 	return bHitLine;
 }
+

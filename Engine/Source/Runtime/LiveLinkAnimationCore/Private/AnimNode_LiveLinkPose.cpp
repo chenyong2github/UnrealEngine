@@ -11,6 +11,8 @@
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LiveLinkPose)
+
 FAnimNode_LiveLinkPose::FAnimNode_LiveLinkPose() 
 	: RetargetAsset(ULiveLinkRemapAsset::StaticClass())
 	, CurrentRetargetAsset(nullptr)
@@ -154,4 +156,5 @@ bool FAnimNode_LiveLinkPose::Serialize(FArchive& Ar)
 
 	return true;
 }
+
 

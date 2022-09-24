@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_Composite.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_Composite)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_Composite::UEnvQueryGenerator_Composite(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -108,3 +110,4 @@ void UEnvQueryGenerator_Composite::VerifyItemTypes()
 }
 
 #undef LOCTEXT_NAMESPACE
+

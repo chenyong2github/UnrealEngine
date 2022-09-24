@@ -2,6 +2,8 @@
 
 #include "WorldPartition/ActorDescContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorDescContainer)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "UObject/LinkerInstancingContext.h"
@@ -323,3 +325,4 @@ const FTransform& UActorDescContainer::GetInstanceTransform() const
 	return FTransform::Identity;
 }
 #endif
+

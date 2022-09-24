@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_TransitionPoseEvaluator)
+
 /////////////////////////////////////////////////////
 // FAnimNode_TransitionPoseEvaluator
 
@@ -104,3 +106,4 @@ void FAnimNode_TransitionPoseEvaluator::CachePose(const FPoseContext& PoseToCach
 	CachedCurve.CopyFrom(PoseToCache.Curve);
 	CachedAttributes.CopyFrom(PoseToCache.CustomAttributes);
 }
+

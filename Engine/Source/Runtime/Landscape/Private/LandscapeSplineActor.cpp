@@ -6,6 +6,8 @@
 #include "Landscape.h"
 #include "LandscapeSplinesComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSplineActor)
+
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "Components/StaticMeshComponent.h"
@@ -151,3 +153,4 @@ bool ALandscapeSplineActor::HasGeneratedLandscapeSplineMeshesActors() const
 }
 
 #endif
+

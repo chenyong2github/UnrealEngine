@@ -11,6 +11,8 @@
 #include "Sound/SoundClass.h"
 #include "Sound/SoundSubmix.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundBase)
+
 
 USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

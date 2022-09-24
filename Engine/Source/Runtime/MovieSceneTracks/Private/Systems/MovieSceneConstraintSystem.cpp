@@ -17,6 +17,8 @@
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneConstraintSystem)
+
 class UTickableConstraint;
 
 namespace UE::MovieScene
@@ -160,5 +162,6 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 		DynamicOffsets.Reset();
 	}
 }
+
 
 

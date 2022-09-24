@@ -2,6 +2,8 @@
 
 #include "FABRIK.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FABRIK)
+
 namespace AnimationCore
 {
 	/////////////////////////////////////////////////////
@@ -78,3 +80,4 @@ namespace AnimationCore
 		return bBoneLocationUpdated;
 	}
 }
+

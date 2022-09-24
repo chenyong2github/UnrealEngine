@@ -7,6 +7,8 @@
 #include "Engine/AssetManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PrimaryAssetLabel)
+
 #if WITH_EDITOR
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
@@ -88,3 +90,4 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 	Manager.SetPrimaryAssetRules(PrimaryAssetId, Rules);
 }
 #endif
+

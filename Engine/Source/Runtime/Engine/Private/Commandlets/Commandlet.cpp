@@ -10,6 +10,8 @@
 #include "HAL/ThreadManager.h"
 #include "Framework/Application/SlateApplication.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Commandlet)
+
 UCommandlet::UCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -5,6 +5,8 @@
 #include "Misc/CoreDelegates.h"
 #include "XRTrackingSystemBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VRNotificationsComponent)
+
 UVRNotificationsComponent::UVRNotificationsComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -43,3 +45,4 @@ void UVRNotificationsComponent::OnUnregister()
 	FXRTrackingSystemDelegates::OnXRTrackingOriginChanged.RemoveAll(this);
 	FXRTrackingSystemDelegates::OnXRPlayAreaChanged.RemoveAll(this);
 }
+

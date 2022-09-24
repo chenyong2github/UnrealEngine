@@ -15,6 +15,8 @@
 #include "Animation/AttributesRuntime.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSkeletalAnimationSection)
+
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationSection"
 
 namespace
@@ -684,3 +686,4 @@ void UMovieSceneSkeletalAnimationSection::ToggleShowSkeleton()
 
 
 #undef LOCTEXT_NAMESPACE 
+

@@ -7,6 +7,8 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimExecutionContextLibrary)
+
 UAnimInstance* UAnimExecutionContextLibrary::GetAnimInstance(const FAnimExecutionContext& Context)
 {
 	return CastChecked<UAnimInstance>(Context.GetBaseContext()->GetAnimInstanceObject());

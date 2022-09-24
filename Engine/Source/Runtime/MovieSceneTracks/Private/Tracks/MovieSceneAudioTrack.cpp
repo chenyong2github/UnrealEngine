@@ -12,6 +12,8 @@
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "MovieSceneCommonHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneAudioTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneAudioTrack"
 
 
@@ -157,3 +159,4 @@ UMovieSceneSection* UMovieSceneAudioTrack::CreateNewSection()
 }
 
 #undef LOCTEXT_NAMESPACE
+

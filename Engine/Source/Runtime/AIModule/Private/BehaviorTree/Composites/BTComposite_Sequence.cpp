@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Composites/BTComposite_Sequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTComposite_Sequence)
+
 UBTComposite_Sequence::UBTComposite_Sequence(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Sequence";
@@ -40,3 +42,4 @@ FName UBTComposite_Sequence::GetNodeIconName() const
 }
 
 #endif
+

@@ -8,6 +8,8 @@
 #include "DrawDebugHelpers.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpringArmComponent)
+
 //////////////////////////////////////////////////////////////////////////
 // USpringArmComponent
 
@@ -304,3 +306,4 @@ bool USpringArmComponent::IsCollisionFixApplied() const
 {
 	return bIsCameraFixed;
 }
+

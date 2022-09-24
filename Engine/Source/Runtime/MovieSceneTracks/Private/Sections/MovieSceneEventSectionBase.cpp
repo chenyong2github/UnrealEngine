@@ -5,6 +5,8 @@
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventSectionBase)
+
 #if WITH_EDITOR
 
 #include "Engine/Blueprint.h"

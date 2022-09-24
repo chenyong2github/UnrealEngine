@@ -9,6 +9,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEnumSection)
+
 UMovieSceneEnumSection::UMovieSceneEnumSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
@@ -53,3 +55,4 @@ void UMovieSceneEnumSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* Ent
 		.Add(Components->BlenderType, UMovieScenePiecewiseEnumBlenderSystem::StaticClass())
 		.Commit(this, Params, OutImportedEntity);
 }
+

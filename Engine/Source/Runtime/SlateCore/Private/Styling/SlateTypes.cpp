@@ -6,6 +6,8 @@
 #include "Widgets/InvalidateWidgetReason.h"
 #include "Widgets/SWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateTypes)
+
 FCheckBoxStyle::FCheckBoxStyle()
 : CheckBoxType(ESlateCheckBoxType::CheckBox)
 , UncheckedImage()

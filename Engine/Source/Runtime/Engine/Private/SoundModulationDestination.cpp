@@ -12,6 +12,8 @@
 #include "UObject/Object.h"
 #include "GenericPlatform/GenericPlatformCompilerPreSetup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationDestination)
+
 
 FSoundModulationDefaultSettings::FSoundModulationDefaultSettings()
 {
@@ -308,3 +310,4 @@ namespace Audio
 		FAudioThread::RunCommandOnAudioThread(MoveTemp(UpdateHandleLambda));
 	}
 } // namespace Audio
+

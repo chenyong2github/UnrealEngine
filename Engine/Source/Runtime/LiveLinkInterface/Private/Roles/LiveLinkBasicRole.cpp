@@ -3,6 +3,8 @@
 #include "Roles/LiveLinkBasicRole.h"
 #include "Roles/LiveLinkBasicTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBasicRole)
+
 #define LOCTEXT_NAMESPACE "LiveLinkRole"
 
 /**
@@ -58,3 +60,4 @@ bool ULiveLinkBasicRole::IsFrameDataValid(const FLiveLinkStaticDataStruct& InSta
 }
 
 #undef LOCTEXT_NAMESPACE
+

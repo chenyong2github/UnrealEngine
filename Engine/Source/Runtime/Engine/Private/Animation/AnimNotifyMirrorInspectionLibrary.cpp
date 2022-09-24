@@ -8,6 +8,8 @@
 #include "Animation/MirrorSyncScope.h"
 #include "Animation/ActiveStateMachineScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyMirrorInspectionLibrary)
+
 bool UAnimNotifyMirrorInspectionLibrary::IsTriggeredByMirroredAnimation(const FAnimNotifyEventReference& EventReference)
 {
 	const UE::Anim::FAnimNotifyMirrorContext * MirrorContext = EventReference.GetContextData<UE::Anim::FAnimNotifyMirrorContext>();

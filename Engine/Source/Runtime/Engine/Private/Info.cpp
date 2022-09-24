@@ -5,6 +5,8 @@
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Info)
+
 AInfo::AInfo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

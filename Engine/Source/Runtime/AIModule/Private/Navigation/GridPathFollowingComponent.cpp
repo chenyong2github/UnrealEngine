@@ -4,6 +4,8 @@
 #include "Navigation/NavLocalGridManager.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GridPathFollowingComponent)
+
 UGridPathFollowingComponent::UGridPathFollowingComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ActiveGridIdx = INDEX_NONE;
@@ -185,3 +187,4 @@ void UGridPathFollowingComponent::ResumeMove(FAIRequestID RequestID)
 		}
 	}
 }
+

@@ -4,6 +4,8 @@
 
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeTranslatorBase)
+
 bool UInterchangeTranslatorBase::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
 	const bool bIncludeDot = false;

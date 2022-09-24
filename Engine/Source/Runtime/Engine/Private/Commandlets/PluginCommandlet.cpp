@@ -6,6 +6,8 @@
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PluginCommandlet)
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogPluginCommandlet, Log, All);
 
@@ -140,3 +142,4 @@ int32 UPluginCommandlet::Main(const FString& Params)
 
 	return bSuccess ? 0 : 1;
 }
+

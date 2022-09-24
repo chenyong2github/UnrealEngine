@@ -4,6 +4,8 @@
 #include "BehaviorTree/BTCompositeNode.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTAuxiliaryNode)
+
 UBTAuxiliaryNode::UBTAuxiliaryNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bNotifyBecomeRelevant = false;
@@ -172,3 +174,4 @@ float UBTAuxiliaryNode::GetNextNeededDeltaTime(UBehaviorTreeComponent& OwnerComp
 //----------------------------------------------------------------------//
 // DEPRECATED
 //----------------------------------------------------------------------//
+

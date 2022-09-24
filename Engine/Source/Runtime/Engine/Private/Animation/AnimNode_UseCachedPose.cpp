@@ -3,6 +3,8 @@
 #include "Animation/AnimNode_UseCachedPose.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_UseCachedPose)
+
 /////////////////////////////////////////////////////
 // FAnimNode_UseCachedPose
 
@@ -49,3 +51,4 @@ void FAnimNode_UseCachedPose::GatherDebugData(FNodeDebugData& DebugData)
 	// we explicitly do not forward this call to the SaveCachePose node here.
 	// It is handled in FAnimInstanceProxy::GatherDebugData
 }
+

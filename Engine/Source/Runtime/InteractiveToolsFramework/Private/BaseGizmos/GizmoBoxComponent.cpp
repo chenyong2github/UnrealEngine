@@ -6,6 +6,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h" // FMeshElementCollector, FPrimitiveDrawInterface
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoBoxComponent)
+
 namespace GizmoBoxComponentLocals
 {
 

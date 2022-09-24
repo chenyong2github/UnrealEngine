@@ -11,6 +11,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoActor)
+
 
 #define LOCTEXT_NAMESPACE "AGizmoActor"
 

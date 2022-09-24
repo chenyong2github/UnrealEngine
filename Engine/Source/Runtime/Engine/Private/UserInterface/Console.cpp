@@ -33,6 +33,8 @@
 #include "Engine/AssetManager.h"
 #include "IO/IoDispatcher.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Console)
+
 static const uint32 MAX_AUTOCOMPLETION_LINES = 20;
 
 static const FName NAME_Typing = FName(TEXT("Typing"));
@@ -1756,3 +1758,4 @@ void UConsole::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const cl
 		}
 	}
 }
+

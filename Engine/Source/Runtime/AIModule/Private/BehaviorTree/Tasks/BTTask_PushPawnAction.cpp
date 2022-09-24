@@ -3,6 +3,8 @@
 #include "BehaviorTree/Tasks/BTTask_PushPawnAction.h"
 #include "Actions/PawnAction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_PushPawnAction)
+
 UBTTask_PushPawnAction::UBTTask_PushPawnAction(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Push PawnAction";
@@ -24,3 +26,4 @@ FString UBTTask_PushPawnAction::GetStaticDescription() const
 	//return FString::Printf(TEXT("Push Action: %s"), Action ? *Action->GetDisplayName() : TEXT("None"));
 	return FString::Printf(TEXT("Push Action: %s"), *GetNameSafe(Action));
 }
+

@@ -19,6 +19,8 @@
 #include "GameMapsSettings.h"
 #include "MoviePlayerProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameMode)
+
 namespace MatchState
 {
 	const FName EnteringMap = FName(TEXT("EnteringMap"));
@@ -822,3 +824,4 @@ bool AGameMode::SpawnPlayerFromSimulate(const FVector& NewLocation, const FRotat
 
 	return Super::SpawnPlayerFromSimulate(NewLocation, NewRotation);
 }
+

@@ -7,6 +7,8 @@
 #include "Evaluation/MovieSceneCameraShakePreviewer.h"
 #include "Sections/MovieSceneCameraShakeSourceTriggerSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeSourceTriggerTemplate)
+
 struct FCameraShakeSourceTriggerInstanceData : IPersistentEvaluationData
 {
 #if WITH_EDITOR
@@ -152,4 +154,5 @@ void FMovieSceneCameraShakeSourceTriggerSectionTemplate::TearDown(FPersistentEva
 	InstanceData.Previewer.UnRegisterViewModifier();
 #endif
 }
+
 

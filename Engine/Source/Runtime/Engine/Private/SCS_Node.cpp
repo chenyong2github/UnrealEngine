@@ -8,6 +8,8 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Engine/InheritableComponentHandler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SCS_Node)
+
 //////////////////////////////////////////////////////////////////////////
 // USCS_Node
 
@@ -660,3 +662,4 @@ EDataValidationResult USCS_Node::IsDataValid(TArray<FText>& ValidationErrors)
 }
 
 #endif // WITH_EDITOR
+

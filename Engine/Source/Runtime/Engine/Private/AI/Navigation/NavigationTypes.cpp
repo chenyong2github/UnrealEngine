@@ -10,6 +10,8 @@
 #include "GameFramework/WorldSettings.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationTypes)
+
 DEFINE_STAT(STAT_Navigation_MetaAreaTranslation);
 
 static const uint32 MAX_NAV_SEARCH_NODES = 2048;
@@ -354,3 +356,4 @@ TSubclassOf<UNavAreaBase> UNavAreaBase::PickAreaClassForAgent(const AActor& Acto
 
 	return GetClass();
 }
+

@@ -15,6 +15,8 @@
 
 #include "MovieSceneSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvaluationField)
+
 
 FMovieSceneEntityComponentFieldBuilder::FMovieSceneEntityComponentFieldBuilder(FMovieSceneEntityComponentField* InField)
 	: Field(InField)
@@ -418,3 +420,4 @@ void FMovieSceneEvaluationMetaData::DiffEntities(const FMovieSceneEvaluationMeta
 		Algo::SortBy(*NewKeys, &FMovieSceneOrderedEvaluationKey::SetupIndex);
 	}
 }
+

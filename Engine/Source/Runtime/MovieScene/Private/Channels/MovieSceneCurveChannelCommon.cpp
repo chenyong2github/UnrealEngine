@@ -5,6 +5,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCurveChannelCommon)
+
 bool FMovieSceneTangentData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
@@ -42,4 +44,5 @@ bool FMovieSceneTangentData::operator!=(const FMovieSceneTangentData& Other) con
 {
 	return !(*this == Other);
 }
+
 

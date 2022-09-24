@@ -5,6 +5,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsSettings)
+
 UGameplayTagsList::UGameplayTagsList(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -147,3 +149,4 @@ FName UGameplayTagsDeveloperSettings::GetCategoryName() const
 {
 	return NAME_Advanced;
 }
+

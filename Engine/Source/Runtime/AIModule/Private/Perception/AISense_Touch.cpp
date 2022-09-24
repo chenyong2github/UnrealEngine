@@ -6,6 +6,8 @@
 #include "Perception/AIPerceptionListenerInterface.h"
 #include "Perception/AIPerceptionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Touch)
+
 
 IAIPerceptionListenerInterface* FAITouchEvent::GetTouchedActorAsPerceptionListener() const
 {
@@ -77,3 +79,4 @@ void UAISense_Touch::ReportTouchEvent(UObject* WorldContextObject, AActor* Touch
 		PerceptionSystem->OnEvent(Event);
 	}
 }
+

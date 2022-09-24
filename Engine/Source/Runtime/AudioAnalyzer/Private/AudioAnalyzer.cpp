@@ -9,6 +9,8 @@
 #include "AudioDeviceManager.h"
 #include "AudioAnalyzerSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioAnalyzer)
+
 
 FAudioAnalyzeTask::FAudioAnalyzeTask(TUniquePtr<Audio::FAnalyzerFacade>& InAnalyzerFacade, int32 InSampleRate, int32 InNumChannels)
 	: AnalyzerFacade(InAnalyzerFacade.Release())
@@ -238,4 +240,5 @@ TUniquePtr<Audio::IAnalyzerSettings> UAudioAnalyzer::GetSettings(const int32 InS
 {
 	return MakeUnique<Audio::IAnalyzerSettings>();
 }
+
 

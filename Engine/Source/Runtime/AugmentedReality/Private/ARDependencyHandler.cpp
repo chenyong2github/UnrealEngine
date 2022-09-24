@@ -3,6 +3,8 @@
 #include "ARDependencyHandler.h"
 #include "Features/IModularFeatures.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARDependencyHandler)
+
 
 UARDependencyHandler* UARDependencyHandler::GetARDependencyHandler()
 {
@@ -14,3 +16,4 @@ UARDependencyHandler* UARDependencyHandler::GetARDependencyHandler()
 	}
 	return nullptr;
 }
+

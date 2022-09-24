@@ -11,6 +11,8 @@
 #include "Serialization/ObjectWriter.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementSelectionSet)
+
 #if WITH_EDITORONLY_DATA
 #include "Serialization/TextReferenceCollector.h"
 #endif //WITH_EDITORONLY_DATA
@@ -683,3 +685,4 @@ TArray<FScriptTypedElementHandle> UTypedElementSelectionSet::K2_GetSelectedEleme
 	TArray<FTypedElementHandle> NativeHandles = GetSelectedElementHandles(InBaseInterfaceType);
 	return TypedElementUtil::ConvertToScriptElementArray(NativeHandles, ElementList->GetRegistry());
 }
+

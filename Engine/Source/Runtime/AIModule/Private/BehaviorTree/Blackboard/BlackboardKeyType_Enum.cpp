@@ -4,6 +4,8 @@
 #include "BehaviorTree/BTNode.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_Enum)
+
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
 #include <limits>
@@ -124,3 +126,4 @@ bool UBlackboardKeyType_Enum::ValidateEnum(const UEnum& EnumType)
 	return bAllValid;
 }
 #endif // WITH_EDITOR
+

@@ -4,6 +4,8 @@
 #include "UObject/LazyObjectPtr.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelCapture)
+
 ULevelCapture::ULevelCapture(const FObjectInitializer& Init)
 	: Super(Init)
 {
@@ -58,3 +60,4 @@ void ULevelCapture::OnTick(float DeltaSeconds)
 		CaptureThisFrame(DeltaSeconds);
 	}
 }
+

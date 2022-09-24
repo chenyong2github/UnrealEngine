@@ -18,6 +18,8 @@
 #include "Navigation/MetaNavMeshPath.h"
 #include "AIConfig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PathFollowingComponent)
+
 #if UE_BUILD_TEST || UE_BUILD_SHIPPING
 #define SHIPPING_STATIC static
 #else
@@ -1879,3 +1881,4 @@ FVector UPathFollowingComponent::GetPathDestination() const
 }
 
 #undef SHIPPING_STATIC
+

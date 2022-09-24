@@ -7,6 +7,8 @@
 #include "Chaos/ArrayND.h"
 #include "Chaos/Vector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionRenderLevelSetActor)
+
 using namespace Chaos;
 
 DEFINE_LOG_CATEGORY_STATIC(LSR_LOG, Log, All);

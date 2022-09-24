@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceInterface)
+
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "LevelInstance/LevelInstanceComponent.h"
@@ -230,4 +232,5 @@ bool ILevelInstanceInterface::MoveActorsTo(const TArray<AActor*>& ActorsToMove)
 }
 
 #endif
+
 

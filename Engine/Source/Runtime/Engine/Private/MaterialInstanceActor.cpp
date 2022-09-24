@@ -6,6 +6,8 @@
 #include "Misc/MessageDialog.h"
 #include "UObject/ConstructorHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialInstanceActor)
+
 /**
  * Construct a list of static actor names.
  * @param OutString - The string containing the list of actor's names.
@@ -92,4 +94,5 @@ void AMaterialInstanceActor::PostEditChangeProperty(FPropertyChangedEvent& Prope
 /** Returns SpriteComponent subobject **/
 UBillboardComponent* AMaterialInstanceActor::GetSpriteComponent() const { return SpriteComponent; }
 #endif
+
 

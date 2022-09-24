@@ -7,6 +7,8 @@
 #include "LocalNotification.h"
 #include "EngineLogs.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintPlatformLibrary)
+
 void UPlatformGameInstance::PostInitProperties()
 
 {
@@ -262,3 +264,4 @@ EDeviceScreenOrientation UBlueprintPlatformLibrary::ConvertToDeviceScreenOrienta
 }
 
 ILocalNotificationService* UBlueprintPlatformLibrary::platformService = nullptr;
+

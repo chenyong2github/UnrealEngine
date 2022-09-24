@@ -4,6 +4,8 @@
 
 #include "Nodes/InterchangeBaseNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeAnimationAPI)
+
 const UE::Interchange::FAttributeKey UInterchangeAnimationAPI::Macro_CustomIsNodeTransformAnimatedKey = UE::Interchange::FAttributeKey(TEXT("IsNodeTransformAnimated"));
 const UE::Interchange::FAttributeKey UInterchangeAnimationAPI::Macro_CustomNodeTransformAnimationKeyCountKey = UE::Interchange::FAttributeKey(TEXT("NodeTransformAnimationKeyCount"));
 const UE::Interchange::FAttributeKey UInterchangeAnimationAPI::Macro_CustomNodeTransformAnimationStartTimeKey = UE::Interchange::FAttributeKey(TEXT("NodeTransformAnimationStartTime"));
@@ -59,3 +61,4 @@ bool UInterchangeAnimationAPI::SetCustomNodeTransformPayloadKey(UInterchangeBase
 {
 	return InterchangeBaseNode->AddStringAttribute(Macro_CustomNodeTransformPayloadKeyKey.Key, AttributeValue);
 }
+

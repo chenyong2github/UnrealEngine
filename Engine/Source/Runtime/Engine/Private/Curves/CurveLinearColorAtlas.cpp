@@ -9,6 +9,8 @@
 #include "Components/MeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveLinearColorAtlas)
+
 
 UCurveLinearColorAtlas::UCurveLinearColorAtlas(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -373,3 +375,4 @@ bool UCurveLinearColorAtlas::GetCurvePosition(UCurveLinearColor* InCurve, float&
 	}
 	return false;
 }
+

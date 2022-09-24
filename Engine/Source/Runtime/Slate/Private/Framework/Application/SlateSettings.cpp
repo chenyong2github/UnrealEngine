@@ -6,8 +6,11 @@
 
 #include "SlateSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SlateSettings)
+
 USlateSettings::USlateSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bExplicitCanvasChildZOrder(false)
 {
 }
+

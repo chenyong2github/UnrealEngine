@@ -4,6 +4,8 @@
 #include "Misc/AutomationTest.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementFrameworkTests)
+
 UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FTestTypedElementData);
 
 FText UTestTypedElementInterfaceA_ImplTyped::GetDisplayName(const FTypedElementHandle& InElementHandle)
@@ -340,3 +342,4 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
+

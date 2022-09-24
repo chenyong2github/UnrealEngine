@@ -5,6 +5,8 @@
 #include "Animation/MovieSceneUMGComponentTypes.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneWidgetMaterialTrack)
+
 UMovieSceneWidgetMaterialTrack::UMovieSceneWidgetMaterialTrack( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
@@ -85,3 +87,4 @@ void UMovieSceneWidgetMaterialTrack::SetBrushPropertyNamePath( TArray<FName> InB
 	BrushPropertyNamePath = InBrushPropertyNamePath;
 	TrackName = WidgetMaterialTrackUtilities::GetTrackNameFromPropertyNamePath( BrushPropertyNamePath );
 }
+

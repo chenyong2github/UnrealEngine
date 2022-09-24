@@ -6,6 +6,8 @@
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraShakeSourceComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeSourceShakeTemplate)
+
 enum class ECameraShakeSourceShakeStatus : uint8
 {
 	NotStarted,
@@ -316,3 +318,4 @@ void FMovieSceneCameraShakeSourceShakeSectionTemplate::TearDown(FPersistentEvalu
 	InstanceData.Previewer.UnRegisterViewModifier();
 #endif
 }
+

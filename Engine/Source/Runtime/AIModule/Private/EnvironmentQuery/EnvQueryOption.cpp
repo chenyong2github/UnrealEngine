@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/EnvQueryOption.h"
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryOption)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryOption::UEnvQueryOption(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -28,3 +30,4 @@ FText UEnvQueryOption::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

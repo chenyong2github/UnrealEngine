@@ -7,6 +7,8 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Styling/UMGCoreStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MultiLineEditableTextBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -242,3 +244,4 @@ const FText UMultiLineEditableTextBox::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

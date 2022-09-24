@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/SingleClickBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SingleClickBehavior)
+
 
 
 USingleClickInputBehavior::USingleClickInputBehavior()
@@ -65,4 +67,5 @@ void USingleClickInputBehavior::Clicked(const FInputDeviceState& input, const FI
 {
 	Target->OnClicked(GetDeviceRay(input));
 }
+
 

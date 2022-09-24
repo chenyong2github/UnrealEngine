@@ -18,6 +18,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RichTextBlockImageDecorator)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 
@@ -203,3 +205,4 @@ TSharedPtr<ITextDecorator> URichTextBlockImageDecorator::CreateDecorator(URichTe
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

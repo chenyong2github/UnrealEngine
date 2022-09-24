@@ -13,6 +13,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Perception/AISenseEvent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionSystem)
+
 DECLARE_CYCLE_STAT(TEXT("Perception System"),STAT_AI_PerceptionSys,STATGROUP_AI);
 
 DEFINE_LOG_CATEGORY(LogAIPerception);

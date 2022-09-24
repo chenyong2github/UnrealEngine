@@ -3,6 +3,8 @@
 #include "Changes/MeshReplacementChange.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshReplacementChange)
+
 using namespace UE::Geometry;
 
 FMeshReplacementChange::FMeshReplacementChange()
@@ -42,4 +44,5 @@ FString FMeshReplacementChange::ToString() const
 {
 	return FString(TEXT("Mesh Change"));
 }
+
 

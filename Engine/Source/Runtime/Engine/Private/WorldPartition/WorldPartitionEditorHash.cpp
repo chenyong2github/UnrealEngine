@@ -2,6 +2,8 @@
 
 #include "WorldPartition/WorldPartitionEditorHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorHash)
+
 UWorldPartitionEditorHash::UWorldPartitionEditorHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}

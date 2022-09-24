@@ -19,6 +19,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "Misc/FeedbackContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSection)
+
 UMovieSceneSection::UMovieSceneSection(const FObjectInitializer& ObjectInitializer)
 	: Super( ObjectInitializer )
 	, PreRollFrames(0)

@@ -9,6 +9,8 @@
 #include "UObject/UObjectIterator.h"
 #include "Chaos/PhysicalMaterials.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicalMaterial)
+
 UDEPRECATED_PhysicalMaterialPropertyBase::UDEPRECATED_PhysicalMaterialPropertyBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -140,3 +142,4 @@ EPhysicalSurface UPhysicalMaterial::DetermineSurfaceType(UPhysicalMaterial const
 	}
 	return PhysicalMaterial->SurfaceType;
 }
+

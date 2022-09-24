@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_TwoWayBlend)
+
 /////////////////////////////////////////////////////
 // FAnimNode_TwoWayBlend
 
@@ -144,3 +146,4 @@ void FAnimNode_TwoWayBlend::GatherDebugData(FNodeDebugData& DebugData)
 	A.GatherDebugData(DebugData.BranchFlow(1.f - InternalBlendAlpha));
 	B.GatherDebugData(DebugData.BranchFlow(InternalBlendAlpha));
 }
+

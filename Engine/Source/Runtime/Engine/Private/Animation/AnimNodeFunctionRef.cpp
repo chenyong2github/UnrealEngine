@@ -8,6 +8,8 @@
 #include "Animation/AnimInstance.h"
 #include "EngineLogs.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNodeFunctionRef)
+
 void FAnimNodeFunctionRef::SetFromFunction(UFunction* InFunction)
 {
 	if(InFunction)

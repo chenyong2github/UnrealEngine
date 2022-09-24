@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeModulator.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeModulator)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeModulator implementation.
 -----------------------------------------------------------------------------*/
@@ -36,3 +38,4 @@ void USoundNodeModulator::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT N
 
 	Super::ParseNodes( AudioDevice, NodeWaveInstanceHash, ActiveSound, UpdatedParams, WaveInstances );
 }
+

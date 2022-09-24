@@ -3,6 +3,9 @@
 #include "Engine/DocumentationActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/Material.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DocumentationActor)
+
 #if WITH_EDITOR
 #include "Components/MaterialBillboardComponent.h"
 #include "IDocumentation.h"
@@ -91,3 +94,4 @@ void ADocumentationActor::UpdateLinkType()
 #endif
 	
 }
+

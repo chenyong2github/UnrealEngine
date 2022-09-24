@@ -5,6 +5,9 @@
 =============================================================================*/
 
 #include "Curves/CurveEdPresetCurve.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEdPresetCurve)
+
 /**
  *	UCurveEdPresetCurve
  */
@@ -13,3 +16,4 @@ UDEPRECATED_CurveEdPresetCurve::UDEPRECATED_CurveEdPresetCurve(const FObjectInit
 	: Super(ObjectInitializer)
 {
 }
+

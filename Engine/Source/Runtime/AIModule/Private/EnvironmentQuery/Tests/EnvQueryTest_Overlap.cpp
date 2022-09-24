@@ -8,6 +8,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Overlap)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryTest_Overlap::UEnvQueryTest_Overlap(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -144,3 +146,4 @@ bool UEnvQueryTest_Overlap::RunOverlapBlocking(const FVector& ItemPos, const FCo
 }
 
 #undef LOCTEXT_NAMESPACE
+

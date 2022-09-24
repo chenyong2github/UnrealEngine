@@ -7,6 +7,8 @@
 #include "Serialization/CustomVersion.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralFoliageSpawner)
+
 #define LOCTEXT_NAMESPACE "ProceduralFoliage"
 
 UProceduralFoliageSpawner::UProceduralFoliageSpawner(const FObjectInitializer& ObjectInitializer)
@@ -155,3 +157,4 @@ int32 UProceduralFoliageSpawner::GetRandomNumber()
 }
 
 #undef LOCTEXT_NAMESPACE
+

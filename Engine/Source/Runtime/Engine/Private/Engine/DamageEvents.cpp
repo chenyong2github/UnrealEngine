@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DamageEvents)
+
 void FDamageEvent::GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const
 {
 	if (ensure(HitActor))
@@ -69,3 +71,4 @@ float FRadialDamageParams::GetDamageScale(float DistanceFromEpicenter) const
 
 	return DamageScale;
 }
+

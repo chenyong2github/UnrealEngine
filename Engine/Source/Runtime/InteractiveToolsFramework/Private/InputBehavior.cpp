@@ -3,6 +3,8 @@
 
 #include "InputBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputBehavior)
+
 
 bool operator<(const FInputCaptureRequest& l, const FInputCaptureRequest& r)
 {
@@ -86,4 +88,5 @@ void UInputBehavior::EndHoverCapture()
 {
 	return;
 }
+
 

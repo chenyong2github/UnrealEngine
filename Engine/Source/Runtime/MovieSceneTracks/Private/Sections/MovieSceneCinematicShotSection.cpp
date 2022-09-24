@@ -3,6 +3,8 @@
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MovieSceneSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCinematicShotSection)
+
 /* UMovieSceneCinematicshotSection structors
  *****************************************************************************/
 
@@ -29,3 +31,4 @@ void UMovieSceneCinematicShotSection::PostLoad()
 		DisplayName_DEPRECATED = FText::GetEmpty();
 	}
 }
+

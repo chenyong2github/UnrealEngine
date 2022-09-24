@@ -6,6 +6,8 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Systems/ByteChannelEvaluatorSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePiecewiseEnumBlenderSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -58,4 +60,5 @@ void UMovieScenePiecewiseEnumBlenderSystem::OnRun(FSystemTaskPrerequisites& InPr
 
 	Impl.Run(Linker, AllocatedBlendChannels, InPrerequisites, Subsequents);
 }
+
 

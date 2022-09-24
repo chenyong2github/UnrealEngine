@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeGroupControl.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeGroupControl)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSoundNodeGroupControl, Log, All);
 
 TMap< USoundNodeGroupControl*, TArray< TMap< FActiveSound*, int32> > > USoundNodeGroupControl::GroupControlSlotUsageMap;
@@ -225,3 +227,4 @@ void USoundNodeGroupControl::SetChildNodes(TArray<USoundNode*>& InChildNodes)
 	}
 }
 #endif //WITH_EDITOR
+

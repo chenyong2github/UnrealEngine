@@ -9,6 +9,8 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Animation/UMGSequenceTickManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UMGSequencePlayer)
+
 extern TAutoConsoleVariable<bool> CVarUserWidgetUseParallelAnimation;
 
 namespace UE::UMG
@@ -580,4 +582,5 @@ void UUMGSequencePlayer::BeginDestroy()
 
 	Super::BeginDestroy();
 }
+
 

@@ -10,6 +10,8 @@
 #include "MovieSceneSequence.h"
 #include "Evaluation/MovieScenePlayback.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceDirector)
+
 UWorld* ULevelSequenceDirector::GetWorld() const
 {
 	if (ULevel* OuterLevel = GetTypedOuter<ULevel>())
@@ -162,4 +164,5 @@ UMovieSceneSequence* ULevelSequenceDirector::GetSequence()
 		return nullptr;
 	}
 }
+
 

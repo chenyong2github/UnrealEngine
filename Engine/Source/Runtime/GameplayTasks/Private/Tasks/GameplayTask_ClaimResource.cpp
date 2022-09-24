@@ -2,6 +2,8 @@
 
 #include "Tasks/GameplayTask_ClaimResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_ClaimResource)
+
 UGameplayTask_ClaimResource::UGameplayTask_ClaimResource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -56,3 +58,4 @@ UGameplayTask_ClaimResource* UGameplayTask_ClaimResource::ClaimResources(IGamepl
 
 	return MyTask;
 }
+

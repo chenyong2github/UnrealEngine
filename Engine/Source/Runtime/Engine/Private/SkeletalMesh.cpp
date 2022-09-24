@@ -5612,6 +5612,8 @@ FSkeletalMeshSceneProxy
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMesh)
+
 const FQuat SphylBasis(FVector(1.0f / FMath::Sqrt(2.0f), 0.0f, 1.0f / FMath::Sqrt(2.0f)), UE_PI);
 
 /** 
@@ -7037,3 +7039,4 @@ void GetSkeletalMeshRefTangentBasis(const USkeletalMesh* Mesh, const FSkeletalMe
 }
 
 #undef LOCTEXT_NAMESPACE
+

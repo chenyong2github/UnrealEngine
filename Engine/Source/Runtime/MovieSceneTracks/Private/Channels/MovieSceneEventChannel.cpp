@@ -2,6 +2,8 @@
 
 #include "Channels/MovieSceneEventChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventChannel)
+
 void FMovieSceneEventChannel::GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles)
 {
 	GetData().GetKeys(WithinRange, OutKeyTimes, OutKeyHandles);
@@ -58,3 +60,4 @@ void FMovieSceneEventChannel::Offset(FFrameNumber DeltaPosition)
 {
 	GetData().Offset(DeltaPosition);
 }
+

@@ -24,6 +24,8 @@
 #include "Tasks/GameplayTask_ClaimResource.h"
 #include "NetworkingDistanceConstants.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIController)
+
 
 //----------------------------------------------------------------------//
 // AAIController
@@ -1113,3 +1115,4 @@ void AAIController::SetGenericTeamId(const FGenericTeamId& NewTeamID)
 		// @todo notify perception system that a controller changed team ID
 	}
 }
+

@@ -17,6 +17,8 @@
 #include "Misc/UObjectToken.h"
 #include "HAL/LowLevelMemTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintInstance)
+
 #if WITH_EDITOR
 #include "UObject/UnrealType.h"
 #endif
@@ -1374,3 +1376,4 @@ void FConstraintInstanceAccessor::Modify()
 }
 
 #undef LOCTEXT_NAMESPACE
+

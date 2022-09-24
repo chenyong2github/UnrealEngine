@@ -6,6 +6,8 @@
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "PhysicsEngine/ConstraintUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsConstraintActor)
+
 APhysicsConstraintActor::APhysicsConstraintActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -66,4 +68,5 @@ void APhysicsConstraintActor::LoadedFromAnotherClass( const FName& OldClassName 
 	ConstraintComp->UpdateSpriteTexture();
 }
 #endif // WITH_EDITOR
+
 

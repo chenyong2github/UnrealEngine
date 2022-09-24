@@ -7,6 +7,9 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSourceData.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeNaniteComponent)
+
 #if WITH_EDITOR
 #include "StaticMeshAttributes.h"
 #include "StaticMeshDescription.h"

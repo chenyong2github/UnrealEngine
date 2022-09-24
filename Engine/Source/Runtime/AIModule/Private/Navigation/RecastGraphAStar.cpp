@@ -6,6 +6,8 @@
 #include "NavMesh/PImplRecastNavMesh.h"
 #include "NavMesh/RecastNavMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RecastGraphAStar)
+
 void FRecastGraphWrapper::Initialize(const ARecastNavMesh* InRecastNavMeshActor)
 {
 	RecastNavMeshActor = InRecastNavMeshActor;
@@ -88,3 +90,4 @@ FRecastGraphAStarFilter::FRecastGraphAStarFilter(FRecastGraphWrapper& InRecastGr
 {
 	InRecastGraphWrapper.BindFilter(*this);
 }
+

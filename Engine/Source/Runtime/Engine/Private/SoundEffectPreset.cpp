@@ -8,6 +8,8 @@
 #include "CoreGlobals.h"
 #include "Audio.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundEffectPreset)
+
 USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bInitialized(false)
@@ -145,4 +147,5 @@ void USoundEffectPreset::RegisterInstance(USoundEffectPreset& InPreset, TSoundEf
 	// flag for update.
 	InEffectPtr->bChanged = true;
 }
+
 

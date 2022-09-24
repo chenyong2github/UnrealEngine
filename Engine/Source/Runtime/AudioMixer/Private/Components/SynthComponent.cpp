@@ -6,6 +6,8 @@
 #include "AudioMixerLog.h"
 #include "Sound/AudioSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponent)
+
 
 USynthSound::USynthSound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -628,3 +630,4 @@ ISoundGeneratorPtr USynthComponent::CreateSoundGeneratorInternal(const FSoundGen
 	LLM_SCOPE(ELLMTag::AudioSynthesis);	
 	return SoundGenerator = CreateSoundGenerator(InParams);
 }
+

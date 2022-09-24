@@ -5,6 +5,8 @@
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HitResult)
+
 FHitResult::FHitResult(class AActor* InActor, class UPrimitiveComponent* InComponent, FVector const& HitLoc, FVector const& HitNorm)
 {
 	FMemory::Memzero(this, sizeof(FHitResult));

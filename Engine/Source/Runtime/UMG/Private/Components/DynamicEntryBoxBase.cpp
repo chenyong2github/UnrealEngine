@@ -9,6 +9,8 @@
 #include "Editor/WidgetCompilerLog.h"
 #include "Widgets/Layout/SRadialBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicEntryBoxBase)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UDynamicEntryBoxBase::UDynamicEntryBoxBase(const FObjectInitializer& Initializer)

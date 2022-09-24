@@ -7,6 +7,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h" // FMeshElementCollector, FPrimitiveDrawInterface
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoCircleComponent)
+
 namespace GizmoCircleComponentLocals
 {
 	const float RENDER_VISIBILITY_DOT_THRESHOLD = 0.05;

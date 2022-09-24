@@ -25,6 +25,8 @@
 #include "GameFramework/GameStateBase.h"
 #include "BufferVisualizationData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DebugCameraController)
+
 static const float SPEED_SCALE_ADJUSTMENT = 0.5f;
 static const float MIN_ORBIT_RADIUS = 30.0f;
 
@@ -1096,3 +1098,4 @@ void ADebugCameraController::SetDisplay(bool bEnabled)
 		ToggleDisplay();
 	}
 }
+

@@ -2,6 +2,8 @@
 
 #include "LevelSequenceProjectSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceProjectSettings)
+
 ULevelSequenceProjectSettings::ULevelSequenceProjectSettings()
 	: bDefaultLockEngineToDisplayRate(false)
 	, DefaultDisplayRate("30fps")
@@ -35,4 +37,5 @@ void ULevelSequenceProjectSettings::PostEditChangeProperty(struct FPropertyChang
 }
 
 #endif
+
 

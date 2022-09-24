@@ -4,6 +4,8 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Layout/SWindowTitleBarArea.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WindowTitleBarAreaSlot)
+
 /////////////////////////////////////////////////////
 // UWindowTitleBarAreaSlot
 
@@ -84,3 +86,4 @@ void UWindowTitleBarAreaSlot::ReleaseSlateResources(bool bReleaseChildren)
 
 	WindowTitleBarArea.Reset();
 }
+

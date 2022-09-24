@@ -5,6 +5,8 @@
 
 #include "ConstraintsManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintsActor)
+
 // Sets default values
 AConstraintsActor::AConstraintsActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

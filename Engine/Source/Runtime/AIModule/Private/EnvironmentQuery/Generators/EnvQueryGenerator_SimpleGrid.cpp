@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_SimpleGrid.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_SimpleGrid)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_SimpleGrid::UEnvQueryGenerator_SimpleGrid(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -70,3 +72,4 @@ FText UEnvQueryGenerator_SimpleGrid::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

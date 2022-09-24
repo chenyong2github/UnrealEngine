@@ -9,6 +9,8 @@
 #include "ContentStreaming.h"
 #include "AudioCompressionSettingsUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNode)
+
 static int32 BypassRetainInSoundNodesCVar = 0;
 FAutoConsoleVariableRef CVarBypassRetainInSoundNodes(
 	TEXT("au.streamcache.priming.BypassRetainFromSoundCues"),
@@ -386,3 +388,4 @@ void USoundNode::PlaceNode( int32 NodeColumn, int32 NodeRow, int32 RowCount )
 }
 
 #endif //WITH_EDITOR
+

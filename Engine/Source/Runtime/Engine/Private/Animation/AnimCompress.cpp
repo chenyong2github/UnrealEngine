@@ -12,6 +12,8 @@
 #include "AnimationCompression.h"
 #include "AnimEncoding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress)
+
 DEFINE_LOG_CATEGORY(LogAnimationCompression);
 
 UAnimCompress::UAnimCompress(const FObjectInitializer& ObjectInitializer)

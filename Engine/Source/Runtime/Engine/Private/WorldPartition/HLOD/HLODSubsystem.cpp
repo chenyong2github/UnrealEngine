@@ -19,6 +19,8 @@
 #include "LevelUtils.h"
 #include "Components/StaticMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODSubsystem)
+
 #define LOCTEXT_NAMESPACE "HLODSubsystem"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODSubsystem, Log, All);
@@ -467,3 +469,4 @@ void FHLODResourcesResidencySceneViewExtension::BeginRenderViewFamily(FSceneView
 }
 
 #undef LOCTEXT_NAMESPACE
+

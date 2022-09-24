@@ -5,6 +5,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
 #include "GameFramework/Volume.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Volume)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryTest_Volume::UEnvQueryTest_Volume(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -122,3 +124,4 @@ FText UEnvQueryTest_Volume::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

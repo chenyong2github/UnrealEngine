@@ -8,6 +8,8 @@
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneByteSection)
+
 UMovieSceneByteSection::UMovieSceneByteSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 { 
@@ -53,3 +55,4 @@ void UMovieSceneByteSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* Ent
 		.Add(Components->BlenderType, UMovieScenePiecewiseByteBlenderSystem::StaticClass())
 		.Commit(this, Params, OutImportedEntity);
 }
+

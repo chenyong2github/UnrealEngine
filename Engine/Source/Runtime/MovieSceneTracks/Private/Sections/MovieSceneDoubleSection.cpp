@@ -14,6 +14,8 @@
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDoubleSection)
+
 UMovieSceneDoubleSection::UMovieSceneDoubleSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
@@ -59,3 +61,4 @@ void UMovieSceneDoubleSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 		.Add(Components->DoubleChannel[0], &DoubleCurve)
 		.Commit(this, Params, OutImportedEntity);
 }
+

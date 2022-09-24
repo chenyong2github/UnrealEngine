@@ -3,6 +3,8 @@
 #include "Evaluation/IMovieSceneCustomClockSource.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IMovieSceneCustomClockSource)
+
 FMovieSceneTimeController_Custom::FMovieSceneTimeController_Custom(const FSoftObjectPath& InObjectPath, TWeakObjectPtr<> InWeakPlaybackContext)
 	: WeakPlaybackContext(InWeakPlaybackContext)
 	, InterfacePtr(nullptr)

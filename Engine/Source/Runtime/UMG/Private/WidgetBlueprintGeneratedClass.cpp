@@ -19,6 +19,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetBlueprintGeneratedClass)
+
 
 #if WITH_EDITOR
 #include "Engine/Blueprint.h"
@@ -543,3 +545,4 @@ TArray<UWidgetBlueprintGeneratedClassExtension*> UWidgetBlueprintGeneratedClass:
 }
 
 #undef LOCTEXT_NAMESPACE
+

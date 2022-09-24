@@ -8,6 +8,8 @@
 #include "AnimSequencerInstance.h"
 #include "AnimSequencerInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSequencerInstance)
+
 /////////////////////////////////////////////////////
 // UAnimSequencerInstance
 /////////////////////////////////////////////////////
@@ -71,3 +73,4 @@ void UAnimSequencerInstance::SavePose()
 		}
 	}
 }
+

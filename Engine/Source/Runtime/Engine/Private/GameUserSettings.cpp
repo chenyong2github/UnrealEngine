@@ -22,6 +22,8 @@
 #include "HAL/PlatformFramePacer.h"
 #include "HDRHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameUserSettings)
+
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
 
 enum EGameUserSettingsVersion
@@ -987,3 +989,4 @@ bool UGameUserSettings::IsHDREnabled() const
 {
 	return bUseHDRDisplayOutput;
 }
+

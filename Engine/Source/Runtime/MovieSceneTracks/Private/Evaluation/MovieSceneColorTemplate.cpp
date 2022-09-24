@@ -14,6 +14,8 @@
 #include "Evaluation/Blending/MovieSceneBlendingActuator.h"
 #include "Evaluation/Blending/MovieSceneMultiChannelBlending.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneColorTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Color Track Token Execute"), MovieSceneEval_ColorTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
 enum class EColorType : uint8

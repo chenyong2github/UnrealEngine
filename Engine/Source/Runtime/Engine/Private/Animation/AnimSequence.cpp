@@ -73,6 +73,8 @@ LLM_DEFINE_TAG(SequenceData);
 #include "Math/UnrealMathUtility.h"
 #include "Animation/AnimCurveTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSequence)
+
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
 
@@ -5719,3 +5721,4 @@ void GatherAnimSequenceStats(FOutputDevice& Ar)
 
 
 #undef LOCTEXT_NAMESPACE 
+

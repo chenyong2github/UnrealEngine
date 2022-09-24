@@ -17,6 +17,8 @@
 #include "LevelUtils.h"
 #include "TextureCompiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BillboardComponent)
+
 namespace BillboardConstants
 {
 	static const float DefaultScreenSize = 0.0025f;
@@ -426,3 +428,4 @@ void UBillboardComponent::SetEditorScale(float InEditorScale)
 	}
 }
 #endif
+

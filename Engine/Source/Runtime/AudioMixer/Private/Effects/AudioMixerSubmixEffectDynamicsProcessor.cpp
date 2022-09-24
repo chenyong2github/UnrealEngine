@@ -7,6 +7,8 @@
 #include "AudioMixerSubmix.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMixerSubmixEffectDynamicsProcessor)
+
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
@@ -513,3 +515,4 @@ void USubmixEffectDynamicsProcessorPreset::SetSettings(const FSubmixEffectDynami
 		Instance.UpdateKeyFromSettings(InSettings);
 	});
 }
+

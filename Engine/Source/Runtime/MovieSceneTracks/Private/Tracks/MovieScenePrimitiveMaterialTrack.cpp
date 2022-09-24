@@ -5,6 +5,8 @@
 #include "Sections/MovieScenePrimitiveMaterialSection.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePrimitiveMaterialTrack)
+
 
 UMovieScenePrimitiveMaterialTrack::UMovieScenePrimitiveMaterialTrack(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

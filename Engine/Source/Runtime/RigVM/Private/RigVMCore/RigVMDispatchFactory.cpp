@@ -4,6 +4,8 @@
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatchFactory)
+
 const FString FRigVMDispatchFactory::DispatchPrefix = TEXT("DISPATCH_");
 
 FName FRigVMDispatchFactory::GetFactoryName() const
@@ -136,3 +138,4 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 	CachedTemplate = Registry.GetOrAddTemplateFromArguments(GetFactoryName(), Arguments, Delegates); 
 	return CachedTemplate;
 }
+

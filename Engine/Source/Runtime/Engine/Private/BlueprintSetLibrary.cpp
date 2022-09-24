@@ -3,6 +3,8 @@
 #include "Kismet/BlueprintSetLibrary.h"
 #include "Kismet/KismetArrayLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintSetLibrary)
+
 void UBlueprintSetLibrary::GenericSet_Add(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemPtr)
 {
 	if (TargetSet)
@@ -219,3 +221,4 @@ void UBlueprintSetLibrary::GenericSet_SetSetPropertyByName(UObject* OwnerObject,
 		}
 	}
 }
+

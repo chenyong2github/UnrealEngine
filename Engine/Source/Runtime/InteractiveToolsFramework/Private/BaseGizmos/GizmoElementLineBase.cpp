@@ -2,6 +2,8 @@
  
 #include "BaseGizmos/GizmoElementLineBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementLineBase)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGizmoElementLineBase, Log, All);
 
 bool UGizmoElementLineBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState)

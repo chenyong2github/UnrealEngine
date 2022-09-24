@@ -20,6 +20,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTrack)
+
 int32 GMovieSceneRemoveMutedTracksOnCook = 0;
 static FAutoConsoleVariableRef CVarMovieSceneRemoveMutedTracksOnCook(
 	TEXT("MovieScene.RemoveMutedTracksOnCook"),
@@ -510,3 +512,4 @@ void UMovieSceneTrack::UpdateEvaluationTree()
 	EvaluationFieldVersion = GetEvaluationFieldVersion();
 #endif
 }
+

@@ -10,6 +10,8 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimSingleNodeInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSingleNodeInstance)
+
 /////////////////////////////////////////////////////
 // UAnimSingleNodeInstance
 /////////////////////////////////////////////////////
@@ -507,3 +509,4 @@ FVector UAnimSingleNodeInstance::GetFilterLastOutput()
 
 	return FVector::ZeroVector;
 }
+

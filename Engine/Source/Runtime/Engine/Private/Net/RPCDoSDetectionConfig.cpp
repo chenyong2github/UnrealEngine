@@ -2,6 +2,8 @@
 
 #include "Net/RPCDoSDetectionConfig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RPCDoSDetectionConfig)
+
 
 /**
  * URPCDoSDetectionConfig
@@ -33,3 +35,4 @@ const TCHAR* URPCDoSDetectionConfig::GetConfigSectionName()
 {
 	return TEXT("RPCDoSDetection");
 }
+

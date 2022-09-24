@@ -2,6 +2,8 @@
 
 #include "Kismet/BlueprintMapLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintMapLibrary)
+
 void UBlueprintMapLibrary::GenericMap_Add(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, const void* ValuePtr)
 {
 	if (TargetMap)
@@ -139,3 +141,4 @@ void UBlueprintMapLibrary::GenericMap_SetMapPropertyByName(UObject* OwnerObject,
 		}
 	}
 }
+

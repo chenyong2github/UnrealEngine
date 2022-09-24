@@ -9,6 +9,8 @@
 
 #include "Animation/MovieSceneUMGComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene2DTransformPropertySystem)
+
 
 UMovieScene2DTransformPropertySystem::UMovieScene2DTransformPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -26,3 +28,4 @@ void UMovieScene2DTransformPropertySystem::OnRun(FSystemTaskPrerequisites& InPre
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+

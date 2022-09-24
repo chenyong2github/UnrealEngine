@@ -3,6 +3,8 @@
 #include "BehaviorTree/Decorators/BTDecorator_BlackboardBase.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_BlackboardBase)
+
 UBTDecorator_BlackboardBase::UBTDecorator_BlackboardBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "BlackboardBase";
@@ -74,3 +76,4 @@ FName UBTDecorator_BlackboardBase::GetNodeIconName() const
 //----------------------------------------------------------------------//
 // DEPRECATED
 //----------------------------------------------------------------------//
+

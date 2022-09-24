@@ -6,6 +6,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Class.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetCloseResult)
+
 
 /**
  * ENetCloseResult
@@ -175,3 +177,4 @@ bool FNetCloseResultEnumTest::RunTest(const FString& Parameters)
 	return true;
 }
 #endif
+

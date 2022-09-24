@@ -4,6 +4,8 @@
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeprecatedDataLayerInstance)
+
 UDeprecatedDataLayerInstance::UDeprecatedDataLayerInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	DataLayerType(EDataLayerType::Editor)

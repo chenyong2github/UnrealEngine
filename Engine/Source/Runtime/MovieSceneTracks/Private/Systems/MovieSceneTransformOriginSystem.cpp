@@ -14,6 +14,8 @@
 #include "IMovieScenePlayer.h"
 #include "IMovieScenePlaybackClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTransformOriginSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -196,4 +198,5 @@ void UMovieSceneTransformOriginSystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 		.Dispatch_PerAllocation<FAssignTransformOrigin>(&Linker->EntityManager, InPrerequisites, &Subsequents, &TransformOriginsByInstanceID);
 	}
 }
+
 

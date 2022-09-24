@@ -6,6 +6,8 @@
 #include "UObject/Package.h"
 #include "CoreGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSignedObject)
+
 namespace UE
 {
 namespace MovieScene
@@ -203,4 +205,5 @@ void UMovieSceneSignedObject::PostEditUndo(TSharedPtr<ITransactionObjectAnnotati
 	EventHandlers.Trigger(&ISignedObjectEventHandler::OnPostUndo);
 }
 #endif
+
 

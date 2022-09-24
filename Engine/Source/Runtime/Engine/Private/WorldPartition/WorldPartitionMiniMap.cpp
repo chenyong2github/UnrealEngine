@@ -14,6 +14,8 @@
 #include "RenderUtils.h"
 #include "RHI.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionMiniMap)
+
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
 AWorldPartitionMiniMap::AWorldPartitionMiniMap(const FObjectInitializer& ObjectInitializer)
@@ -126,3 +128,4 @@ void AWorldPartitionMiniMap::GetMiniMapResolution(int32& OutMinimapImageSizeX, i
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

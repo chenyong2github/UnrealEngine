@@ -7,6 +7,8 @@
 #include "BlueprintNodeHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_BlueprintBase)
+
 UBTDecorator_BlueprintBase::UBTDecorator_BlueprintBase(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
 {
@@ -311,3 +313,4 @@ bool UBTDecorator_BlueprintBase::UsesBlueprint() const
 }
 
 #endif // WITH_EDITOR
+

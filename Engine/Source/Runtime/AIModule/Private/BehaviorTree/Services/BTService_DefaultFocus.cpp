@@ -7,6 +7,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTService_DefaultFocus)
+
 UBTService_DefaultFocus::UBTService_DefaultFocus(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
 {
@@ -145,3 +147,4 @@ FName UBTService_DefaultFocus::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

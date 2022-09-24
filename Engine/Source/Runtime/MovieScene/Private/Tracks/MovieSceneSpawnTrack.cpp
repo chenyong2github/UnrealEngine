@@ -11,6 +11,8 @@
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSpawnTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneSpawnTrack"
 
 
@@ -204,3 +206,4 @@ FText UMovieSceneSpawnTrack::GetDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

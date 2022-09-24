@@ -8,6 +8,8 @@
 
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DTransformPropertySystem)
+
 UMovieScene3DTransformPropertySystem::UMovieScene3DTransformPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -24,3 +26,4 @@ void UMovieScene3DTransformPropertySystem::OnRun(FSystemTaskPrerequisites& InPre
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+

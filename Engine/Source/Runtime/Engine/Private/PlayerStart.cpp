@@ -7,6 +7,8 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/BillboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerStart)
+
 APlayerStart::APlayerStart(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -70,3 +72,4 @@ APlayerStart::APlayerStart(const FObjectInitializer& ObjectInitializer)
 /** Returns ArrowComponent subobject **/
 UArrowComponent* APlayerStart::GetArrowComponent() const { return ArrowComponent; }
 #endif
+

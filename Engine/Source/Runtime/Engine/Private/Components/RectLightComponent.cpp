@@ -17,6 +17,8 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RectLightComponent)
+
 extern int32 GAllowPointLightCubemapShadows;
 
 float GetRectLightBarnDoorMaxAngle()
@@ -275,3 +277,4 @@ bool FRectLightSceneProxy::GetWholeSceneProjectedShadowInitializer(const FSceneV
 
 	return false;
 }
+

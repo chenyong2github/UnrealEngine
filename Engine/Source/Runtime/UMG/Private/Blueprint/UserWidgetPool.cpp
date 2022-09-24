@@ -2,6 +2,8 @@
 
 #include "Blueprint/UserWidgetPool.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UserWidgetPool)
+
 FUserWidgetPool::FUserWidgetPool(UWidget& InOwningWidget)
 	: OwningWidget(&InOwningWidget)
 {}
@@ -91,3 +93,4 @@ void FUserWidgetPool::ReleaseAllSlateResources()
 {
 	CachedSlateByWidgetObject.Reset();
 }
+

@@ -26,6 +26,8 @@
 #include "Protocols/AudioCaptureProtocol.h"
 #include "Misc/DateTime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCapture)
+
 #define LOCTEXT_NAMESPACE "MovieSceneCapture"
 
 const FName UMovieSceneCapture::MovieSceneCaptureUIName = FName(TEXT("MovieSceneCaptureUIInstance"));
@@ -884,3 +886,4 @@ int32 FRealTimeCaptureStrategy::GetDroppedFrames(double CurrentTimeSeconds, uint
 }
 
 #undef LOCTEXT_NAMESPACE
+

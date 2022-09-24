@@ -6,6 +6,8 @@
 #include "Channels/IMovieSceneChannelOverrideProvider.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSectionChannelOverrideRegistry)
+
 UMovieSceneSectionChannelOverrideRegistry::UMovieSceneSectionChannelOverrideRegistry()
 {
 }
@@ -62,3 +64,4 @@ void UMovieSceneSectionChannelOverrideRegistry::PopulateEvaluationFieldImpl(cons
 		}
 	}
 }
+

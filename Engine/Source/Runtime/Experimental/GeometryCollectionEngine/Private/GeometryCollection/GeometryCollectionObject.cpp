@@ -36,6 +36,8 @@
 #include "Chaos/ChaosArchive.h"
 #include "GeometryCollectionProxyData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionObject)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionInternal, Log, All);
 
 bool GeometryCollectionAssetForceStripOnCook = false;

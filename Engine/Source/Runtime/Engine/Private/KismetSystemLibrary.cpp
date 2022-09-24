@@ -40,6 +40,8 @@
 #include "Commandlets/Commandlet.h"
 #include "PlatformFeatures.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetSystemLibrary)
+
 //////////////////////////////////////////////////////////////////////////
 // UKismetSystemLibrary
 
@@ -3396,3 +3398,4 @@ void UKismetSystemLibrary::BreakARFilter(
 }
 
 #undef LOCTEXT_NAMESPACE
+

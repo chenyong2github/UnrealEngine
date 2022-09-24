@@ -7,6 +7,8 @@
 #include "Containers/Set.h"
 #include "Misc/MemStack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RBFSolver)
+
 
 struct FRBFSolverData
 {
@@ -563,3 +565,4 @@ float FRBFSolver::GetOptimalRadiusForTargets(const FRBFParams& Params, const TAr
 
 	return FMath::RadiansToDegrees(KernelWidth);
 }
+

@@ -2,6 +2,8 @@
 
 #include "RigVMCore/RigVMDebugInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDebugInfo)
+
 void FRigVMDebugInfo::ResetState()
 {
 	BreakpointHits.Empty();
@@ -225,3 +227,4 @@ uint16 FRigVMDebugInfo::GetBreakpointHits(const FRigVMBreakpoint& InBreakpoint) 
 	}
 	return 0;
 }
+

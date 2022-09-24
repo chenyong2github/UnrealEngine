@@ -9,6 +9,8 @@
 #include "AI/RVOAvoidanceInterface.h"
 #include "AI/Navigation/NavEdgeProviderInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AvoidanceManager)
+
 DEFINE_STAT(STAT_AI_ObstacleAvoidance);
 
 FNavAvoidanceData::FNavAvoidanceData(UAvoidanceManager* Manager, IRVOAvoidanceInterface* AvoidanceComp)
@@ -667,3 +669,4 @@ void UAvoidanceManager::SetNavEdgeProvider(INavEdgeProviderInterface* InEdgeProv
 	EdgeProviderInterface = InEdgeProvider;
 	EdgeProviderOb = Cast<UObject>(InEdgeProvider);
 }
+

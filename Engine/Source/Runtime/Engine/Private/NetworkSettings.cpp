@@ -5,6 +5,8 @@
 #include "UObject/UnrealType.h"
 #include "UObject/PropertyPortFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkSettings)
+
 UNetworkSettings::UNetworkSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -34,4 +36,5 @@ void UNetworkSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	}
 }
 #endif // #if WITH_EDITOR
+
 

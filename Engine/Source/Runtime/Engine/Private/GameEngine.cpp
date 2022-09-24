@@ -833,6 +833,8 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 #include "Misc/Parse.h"
 #include "Serialization/JsonReader.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameEngine)
+
 
 class FEmbeddedCommunicationExec : public FSelfRegisteringExec
 {
@@ -1998,3 +2000,4 @@ void UGameEngine::HandleBrowseToDefaultMapFailure(FWorldContext& Context, const 
 	Super::HandleBrowseToDefaultMapFailure(Context, TextURL, Error);
 	FPlatformMisc::RequestExit(false);
 }
+

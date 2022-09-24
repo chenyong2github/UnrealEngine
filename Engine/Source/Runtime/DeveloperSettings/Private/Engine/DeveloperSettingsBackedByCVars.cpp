@@ -2,6 +2,8 @@
 
 #include "Engine/DeveloperSettingsBackedByCVars.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeveloperSettingsBackedByCVars)
+
 UDeveloperSettingsBackedByCVars::UDeveloperSettingsBackedByCVars(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -30,3 +32,4 @@ void UDeveloperSettingsBackedByCVars::PostEditChangeProperty(struct FPropertyCha
 	}
 }
 #endif
+

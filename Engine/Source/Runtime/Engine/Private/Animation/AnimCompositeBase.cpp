@@ -12,6 +12,8 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompositeBase)
+
 ///////////////////////////////////////////////////////
 // FAnimSegment
 ///////////////////////////////////////////////////////

@@ -3,6 +3,8 @@
 #include "ARBlueprintProxy.h"
 #include "ARSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARBlueprintProxy)
+
 TWeakPtr<FARSupportInterface , ESPMode::ThreadSafe> UARBaseAsyncTaskBlueprintProxy::RegisteredARSystem = nullptr;
 
 UARBaseAsyncTaskBlueprintProxy::UARBaseAsyncTaskBlueprintProxy(const FObjectInitializer& ObjectInitializer)
@@ -110,3 +112,4 @@ void UARGetCandidateObjectAsyncTaskBlueprintProxy::ReportFailure()
 {
 	OnFailed.Broadcast(nullptr);
 }
+

@@ -11,6 +11,8 @@
 #include "Engine/CollisionProfile.h"
 #include "Model.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavModifierVolume)
+
 //----------------------------------------------------------------------//
 // ANavModifierVolume
 //----------------------------------------------------------------------//
@@ -107,3 +109,4 @@ void ANavModifierVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 }
 
 #endif
+

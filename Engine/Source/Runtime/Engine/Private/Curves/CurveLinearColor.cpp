@@ -9,6 +9,8 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveLinearColor)
+
 FLinearColor FRuntimeCurveLinearColor::GetLinearColorValue(float InTime) const
 {
 	if (ExternalCurve)
@@ -354,3 +356,4 @@ void UCurveLinearColor::WritePixel(uint8* Pixel, const FLinearColor& Color)
 	Pixel[2] = FMath::RoundToInt(Color.R * 255.f);
 	Pixel[3] = FMath::RoundToInt(Color.A * 255.f);
 }
+

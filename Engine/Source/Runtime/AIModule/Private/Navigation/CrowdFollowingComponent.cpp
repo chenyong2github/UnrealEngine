@@ -14,6 +14,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CrowdFollowingComponent)
+
 
 DEFINE_LOG_CATEGORY(LogCrowdFollowing);
 
@@ -1247,3 +1249,4 @@ void UCrowdFollowingComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) c
 }
 
 #endif // ENABLE_VISUAL_LOG
+

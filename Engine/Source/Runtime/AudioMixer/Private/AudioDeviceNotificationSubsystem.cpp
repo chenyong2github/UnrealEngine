@@ -5,6 +5,8 @@
 #include "AudioThread.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioDeviceNotificationSubsystem)
+
 void UAudioDeviceNotificationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 }
@@ -176,3 +178,4 @@ EAudioDeviceChangedState UAudioDeviceNotificationSubsystem::GetDeviceChangedStat
 
 	return OutState;
 }
+

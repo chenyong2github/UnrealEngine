@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_ConeCheck)
+
 UBTDecorator_ConeCheck::UBTDecorator_ConeCheck(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Cone Check";
@@ -147,3 +149,4 @@ FName UBTDecorator_ConeCheck::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

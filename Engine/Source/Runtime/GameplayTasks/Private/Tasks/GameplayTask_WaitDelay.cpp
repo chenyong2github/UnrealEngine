@@ -5,6 +5,8 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_WaitDelay)
+
 UGameplayTask_WaitDelay::UGameplayTask_WaitDelay(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -60,3 +62,4 @@ FString UGameplayTask_WaitDelay::GetDebugString() const
 	float TimeLeft = Time - GetWorld()->TimeSince(TimeStarted);
 	return FString::Printf(TEXT("WaitDelay. Time: %.2f. TimeLeft: %.2f"), Time, TimeLeft);
 }
+

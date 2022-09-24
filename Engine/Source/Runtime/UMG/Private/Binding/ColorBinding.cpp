@@ -2,6 +2,8 @@
 
 #include "Binding/ColorBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ColorBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UColorBinding::UColorBinding()
@@ -95,3 +97,4 @@ FLinearColor UColorBinding::GetLinearValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -8,6 +8,8 @@
 #include "EngineDefines.h"
 #include "Engine/EngineTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshEditorData)
+
 #if WITH_EDITORONLY_DATA
 
 #include "Rendering/SkeletalMeshLODImporterData.h"
@@ -82,3 +84,4 @@ void USkeletalMeshEditorData::Serialize(FArchive& Ar)
 #endif //WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE
+

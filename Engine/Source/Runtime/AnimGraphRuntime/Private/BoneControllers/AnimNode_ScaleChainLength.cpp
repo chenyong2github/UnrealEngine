@@ -5,6 +5,8 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ScaleChainLength)
+
 /////////////////////////////////////////////////////
 // FAnimNode_ScaleChainLength
 
@@ -157,3 +159,4 @@ void FAnimNode_ScaleChainLength::GatherDebugData(FNodeDebugData& DebugData)
 
 	InputPose.GatherDebugData(DebugData);
 }
+

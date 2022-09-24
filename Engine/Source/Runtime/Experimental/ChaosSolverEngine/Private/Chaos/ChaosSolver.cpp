@@ -2,6 +2,8 @@
 
 #include "Chaos/ChaosSolver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosSolver)
+
 DEFINE_LOG_CATEGORY_STATIC(FSC_Log, NoLogging, All);
 
 UChaosSolver::UChaosSolver(const FObjectInitializer& ObjectInitializer)
@@ -9,5 +11,6 @@ UChaosSolver::UChaosSolver(const FObjectInitializer& ObjectInitializer)
 {
 	check(ObjectInitializer.GetClass() == GetClass());
 }
+
 
 

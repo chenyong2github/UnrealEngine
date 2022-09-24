@@ -5,6 +5,8 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CopyBoneDelta)
+
 FAnimNode_CopyBoneDelta::FAnimNode_CopyBoneDelta()
 	: bCopyTranslation(false)
 	, bCopyRotation(false)
@@ -110,3 +112,4 @@ void FAnimNode_CopyBoneDelta::InitializeBoneReferences(const FBoneContainer& Req
 	SourceBone.Initialize(RequiredBones);
 	TargetBone.Initialize(RequiredBones);
 }
+

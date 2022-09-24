@@ -17,6 +17,8 @@
 #include "Logging/LogMacros.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightProfileManager)
+
 DEFINE_LOG_CATEGORY_STATIC(LogSkinWeightProfileManager, Warning, Display);
 
 #define PROFILE_SKIN_WEIGHT_MANAGER (!UE_BUILD_SHIPPING)
@@ -370,3 +372,4 @@ void FSkinWeightProfileManagerAsyncTask::DoTask(ENamedThreads::Type CurrentThrea
 		}
 	}
 }
+

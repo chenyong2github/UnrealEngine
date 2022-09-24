@@ -3,6 +3,8 @@
 #include "NavRelevantComponent.h"
 #include "NavigationSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavRelevantComponent)
+
 UNavRelevantComponent::UNavRelevantComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 , bAttachToOwnersRoot(true)
 , bBoundsInitialized(false)
@@ -132,3 +134,4 @@ void UNavRelevantComponent::RefreshNavigationModifiers()
 		FNavigationSystem::UpdateComponentData(*this);
 	}
 }
+

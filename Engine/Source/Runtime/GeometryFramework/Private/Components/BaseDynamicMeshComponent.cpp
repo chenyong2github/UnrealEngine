@@ -4,6 +4,8 @@
 #include "Components/BaseDynamicMeshSceneProxy.h"
 #include "Materials/Material.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BaseDynamicMeshComponent)
+
 using namespace UE::Geometry;
 
 UBaseDynamicMeshComponent::UBaseDynamicMeshComponent(const FObjectInitializer& ObjectInitializer)

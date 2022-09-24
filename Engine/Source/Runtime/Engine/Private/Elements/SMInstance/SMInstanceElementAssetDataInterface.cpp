@@ -6,6 +6,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementAssetDataInterface)
+
 FAssetData USMInstanceElementAssetDataInterface::GetAssetData(const FTypedElementHandle& InElementHandle)
 {
 	if (FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
@@ -18,3 +20,4 @@ FAssetData USMInstanceElementAssetDataInterface::GetAssetData(const FTypedElemen
 
 	return FAssetData();
 }
+

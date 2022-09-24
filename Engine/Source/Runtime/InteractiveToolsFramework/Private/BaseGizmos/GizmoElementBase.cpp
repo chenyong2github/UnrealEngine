@@ -6,6 +6,8 @@
 #include "BaseGizmos/GizmoViewContext.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementBase)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGizmoElementBase, Log, All);
 
 namespace GizmoElementBaseLocals

@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterpToMovementComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogInterpToMovementComponent, Log, All);
 
 const float UInterpToMovementComponent::MIN_TICK_TIME = 0.0002f;
@@ -588,3 +590,4 @@ void UInterpToMovementComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 
 
 #endif // WITH_EDITOR
+

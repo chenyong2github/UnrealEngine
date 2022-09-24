@@ -11,6 +11,8 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventTriggerSection)
+
 
 UMovieSceneEventTriggerSection::UMovieSceneEventTriggerSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -107,3 +109,4 @@ bool UMovieSceneEventTriggerSection::PopulateEvaluationFieldImpl(const TRange<FF
 
 	return true;
 }
+

@@ -11,6 +11,8 @@
 #include "Algo/IndexOf.h"
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneInterrogatedPropertyInstantiator)
+
 
 UMovieSceneInterrogatedPropertyInstantiatorSystem::UMovieSceneInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -331,3 +333,4 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequ
 
 	PropertyTracker.ProcessInvalidatedOutputs(Linker, *this);
 }
+

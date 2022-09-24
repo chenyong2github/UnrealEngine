@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Tasks/BTTask_Wait.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_Wait)
+
 UBTTask_Wait::UBTTask_Wait(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Wait";
@@ -58,3 +60,4 @@ FName UBTTask_Wait::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

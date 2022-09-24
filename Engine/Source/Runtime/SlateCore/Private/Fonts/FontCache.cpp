@@ -12,6 +12,8 @@
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "Fonts/FontCacheUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FontCache)
+
 #include <limits>
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Font Atlases"), STAT_SlateNumFontAtlases, STATGROUP_SlateMemory);
@@ -1291,3 +1293,4 @@ void FSlateFontCache::HandleCultureChanged()
 	// We don't flush immediately as the request may come in from a different thread than the one that owns the font cache
 	RequestFlushCache(TEXT("Culture for localization was changed"));
 }
+

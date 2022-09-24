@@ -10,6 +10,8 @@
 #include "Engine/NetworkObjectList.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReplayNetConnection)
+
 static const int32 MAX_REPLAY_PACKET = 1024 * 2;
 
 UReplayNetConnection::UReplayNetConnection(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)

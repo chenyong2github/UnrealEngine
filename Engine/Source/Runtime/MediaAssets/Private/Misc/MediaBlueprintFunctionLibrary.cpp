@@ -4,6 +4,8 @@
 
 #include "MediaCaptureSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaBlueprintFunctionLibrary)
+
 
 /* UMediaBlueprintFunctionLibrary interface
  *****************************************************************************/
@@ -69,3 +71,4 @@ void UMediaBlueprintFunctionLibrary::EnumerateWebcamCaptureDevices(TArray<FMedia
 		}
 	}
 }
+

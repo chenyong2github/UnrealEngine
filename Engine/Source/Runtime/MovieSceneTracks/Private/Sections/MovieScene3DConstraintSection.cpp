@@ -6,6 +6,8 @@
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DConstraintSection)
+
 UMovieScene3DConstraintSection::UMovieScene3DConstraintSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 { 
@@ -42,3 +44,4 @@ void UMovieScene3DConstraintSection::PostLoad()
 		ConstraintId_DEPRECATED.Invalidate();
 	}
 }
+

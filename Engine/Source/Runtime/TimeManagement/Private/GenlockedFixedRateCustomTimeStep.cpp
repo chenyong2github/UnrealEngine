@@ -3,6 +3,8 @@
 #include "GenlockedFixedRateCustomTimeStep.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenlockedFixedRateCustomTimeStep)
+
 UGenlockedFixedRateCustomTimeStep::UGenlockedFixedRateCustomTimeStep(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FrameRate(24,1)
@@ -124,3 +126,4 @@ bool UGenlockedFixedRateCustomTimeStep::WaitForSync()
 
 	return true;
 }
+

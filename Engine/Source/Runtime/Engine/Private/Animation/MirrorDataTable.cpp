@@ -4,6 +4,8 @@
 #include "Animation/AnimationSettings.h"
 #include "Internationalization/Regex.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MirrorDataTable)
+
 #define LOCTEXT_NAMESPACE "MirrorDataTables"
 
 

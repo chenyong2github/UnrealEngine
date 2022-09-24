@@ -7,6 +7,8 @@
 #include "MovieSceneFwd.h"
 #include "MovieSceneFrameMigration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBoolChannel)
+
 bool FMovieSceneBoolChannel::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
 	static const FName IntegralCurveName("IntegralCurve");
@@ -134,3 +136,4 @@ void FMovieSceneBoolChannel::ClearDefault()
 {
 	bHasDefaultValue = false;
 }
+

@@ -27,6 +27,9 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
 #include "ComponentRecreateRenderStateContext.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LightComponent)
+
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -1775,3 +1778,4 @@ static FAutoConsoleCommand ToggleLightCmd(
 	FConsoleCommandWithArgsDelegate::CreateStatic(ToggleLight),
 	ECVF_Cheat
 	);
+

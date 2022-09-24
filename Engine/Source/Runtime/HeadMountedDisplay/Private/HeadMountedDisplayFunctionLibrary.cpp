@@ -12,6 +12,8 @@
 #include "Features/IModularFeatures.h"
 #include "XRMotionControllerBase.h" // for GetHandEnumForSourceName()
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HeadMountedDisplayFunctionLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogUHeadMountedDisplay, Log, All);
 
 /* UHeadMountedDisplayFunctionLibrary
@@ -634,3 +636,4 @@ void UHeadMountedDisplayFunctionLibrary::BreakKey(FKey InKey, FString& Interacti
 		Component.Reset();
 	}
 }
+

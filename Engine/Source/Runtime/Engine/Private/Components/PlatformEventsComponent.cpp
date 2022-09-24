@@ -3,6 +3,8 @@
 #include "Components/PlatformEventsComponent.h"
 #include "Misc/CoreDelegates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlatformEventsComponent)
+
 
 UPlatformEventsComponent::UPlatformEventsComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -54,3 +56,4 @@ void UPlatformEventsComponent::HandlePlatformChangedLaptopMode(EConvertibleLapto
 		PlatformChangedToTabletModeDelegate.Broadcast();
 	}
 }
+

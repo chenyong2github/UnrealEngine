@@ -6,6 +6,9 @@
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
 #include "ProfilingDebugging/CookStats.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshSourceData)
+
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 #include "RawMesh.h"
@@ -516,3 +519,4 @@ void FStaticMeshSourceModel::ConvertRawMesh(int32 LodIndex)
 }
 
 #endif // #if WITH_EDITOR
+

@@ -8,6 +8,8 @@
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVisibilityTemplate)
+
 
 DECLARE_CYCLE_STAT(TEXT("Visibility Track Evaluate"), MovieSceneEval_VisibilityTrack_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Visibility Track Token Execute"), MovieSceneEval_VisibilityTrack_TokenExecute, STATGROUP_MovieSceneEval);
@@ -137,4 +139,5 @@ void FMovieSceneVisibilitySectionTemplate::Evaluate(const FMovieSceneEvaluationO
 		ExecutionTokens.Add(FTemporarilyHiddenInGameExecutionToken(!VisibilityValue));
 	}
 }
+
 

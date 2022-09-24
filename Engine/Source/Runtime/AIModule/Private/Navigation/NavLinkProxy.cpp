@@ -17,6 +17,8 @@
 #include "NavigationOctree.h"
 #include "ObjectEditorUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavLinkProxy)
+
 ANavLinkProxy::ANavLinkProxy(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("PositionComponent"));

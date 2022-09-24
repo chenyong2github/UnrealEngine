@@ -3,6 +3,7 @@
 #include "BaseGizmos/GizmoElementGroup.h"
 #include "BaseGizmos/GizmoViewContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementGroup)
 
 void UGizmoElementGroup::ApplyUniformConstantScaleToTransform(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const
 {

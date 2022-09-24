@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CullDistanceVolume)
+
 ACullDistanceVolume::ACullDistanceVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -115,3 +117,4 @@ void ACullDistanceVolume::GetPrimitiveMaxDrawDistances(TMap<UPrimitiveComponent*
 		}
 	}
 }
+

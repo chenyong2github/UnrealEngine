@@ -10,6 +10,8 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetMaterialLibrary)
+
 //////////////////////////////////////////////////////////////////////////
 // UKismetMaterialLibrary
 
@@ -141,3 +143,4 @@ class UMaterialInstanceDynamic* UKismetMaterialLibrary::CreateDynamicMaterialIns
 }
 
 #undef LOCTEXT_NAMESPACE
+

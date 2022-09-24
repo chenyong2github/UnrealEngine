@@ -6,6 +6,8 @@
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelBounds)
+
 // Default size of the box (scale)
 static const FVector DefaultLevelSize = FVector(1000.f);
 
@@ -279,5 +281,6 @@ void ALevelBounds::UnsubscribeFromUpdateEvents()
 
 
 #endif // WITH_EDITOR
+
 
 

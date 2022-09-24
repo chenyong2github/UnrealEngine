@@ -6,6 +6,8 @@
 #include "GameFramework/SpectatorPawnMovement.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpectatorPawn)
+
 ASpectatorPawn::ASpectatorPawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
 	.SetDefaultSubobjectClass<USpectatorPawnMovement>(Super::MovementComponentName)
@@ -81,3 +83,4 @@ void ASpectatorPawn::LookUpAtRate(float Rate)
 
 	Super::LookUpAtRate(Rate);
 }
+

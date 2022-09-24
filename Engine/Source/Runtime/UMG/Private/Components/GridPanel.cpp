@@ -6,6 +6,8 @@
 #include "Components/GridSlot.h"
 #include "Editor/WidgetCompilerLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GridPanel)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -179,3 +181,4 @@ void UGridPanel::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

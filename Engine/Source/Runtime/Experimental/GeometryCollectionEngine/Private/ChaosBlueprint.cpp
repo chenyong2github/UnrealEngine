@@ -7,6 +7,8 @@
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosBlueprint)
+
 #define DISPATCH_BLUEPRINTS_IMMEDIATE 1
 
 UChaosDestructionListener::UChaosDestructionListener(FObjectInitializer const& ObjectInitializer)
@@ -540,3 +542,4 @@ void UChaosDestructionListener::HandleRemovalEvents(const Chaos::FRemovalEventDa
 #endif
 	}
 }
+

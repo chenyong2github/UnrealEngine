@@ -10,6 +10,8 @@
 #include "DSP/Dsp.h"
 #include "DSP/SpectrumAnalyzer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundSubmix)
+
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -1119,3 +1121,4 @@ ENGINE_API void SubmixUtils::RefreshEditorForSubmix(const USoundSubmixBase* InSu
 }
 
 #endif // WITH_EDITOR
+

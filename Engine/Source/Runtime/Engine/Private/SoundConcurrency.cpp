@@ -11,6 +11,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Sound/SoundBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundConcurrency)
+
 DEFINE_LOG_CATEGORY(LogAudioConcurrency);
 
 static float ConcurrencyMinVolumeScaleCVar = 1.e-3f;
@@ -1024,3 +1026,4 @@ void FSoundConcurrencyManager::UpdateSoundsToCull()
 		ConcurrenyGroupEntry.Value->CullSoundsDueToMaxConcurrency();
 	}
 }
+

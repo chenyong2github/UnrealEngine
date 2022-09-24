@@ -10,6 +10,8 @@
 #include "Materials/MaterialExpressionLandscapeLayerBlend.h"
 #include "Materials/MaterialExpressionLandscapeLayerSwitch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeProxy)
+
 #if WITH_EDITOR
 
 
@@ -23,3 +25,4 @@ LANDSCAPE_API FLandscapeImportLayerInfo::FLandscapeImportLayerInfo(const FLandsc
 }
 
 #endif // WITH_EDITOR
+

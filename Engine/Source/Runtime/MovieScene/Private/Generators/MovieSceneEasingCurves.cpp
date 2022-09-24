@@ -3,6 +3,8 @@
 #include "Generators/MovieSceneEasingCurves.h"
 #include "Curves/CurveFloat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEasingCurves)
+
 float IMovieSceneEasingFunction::EvaluateWith(const TScriptInterface<IMovieSceneEasingFunction>& ScriptInterface, float Time)
 {
 	return ScriptInterface.GetInterface() ? ScriptInterface->Evaluate(Time) : Execute_OnEvaluate(ScriptInterface.GetObject(), Time);
@@ -98,3 +100,4 @@ float UMovieSceneEasingExternalCurve::Evaluate(float InTime) const
 {
 	return Curve ? Curve->GetFloatValue(InTime) : 0.f;
 }
+

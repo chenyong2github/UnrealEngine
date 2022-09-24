@@ -2,6 +2,8 @@
 
 #include "Kismet/KismetStringLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetStringLibrary)
+
 //////////////////////////////////////////////////////////////////////////
 // UKismetStringLibrary
 
@@ -534,3 +536,4 @@ FString UKismetStringLibrary::TimeSecondsToString(float InSeconds)
 	// Create string, including leading zeroes
 	return FString::Printf(TEXT("%s%02d:%02d.%02d"), NegativeModifier, NumMinutes, NumSeconds, NumCentiseconds);
 }
+

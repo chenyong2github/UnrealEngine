@@ -2,6 +2,8 @@
 
 #include "Evaluation/MovieScenePropertyTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertyTemplate)
+
 static TMovieSceneAnimTypeIDContainer<FString> PropertyTypeIDs;
 
 // Default property ID to our own type - this implies an empty property

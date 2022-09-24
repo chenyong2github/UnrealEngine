@@ -6,6 +6,8 @@
 
 #include "UObject/Stack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementObjectInterface)
+
 UObject* ITypedElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
 {
 	return nullptr;
@@ -40,4 +42,5 @@ UClass* ITypedElementObjectInterface::GetObjectClass(const FScriptTypedElementHa
 
 	return GetObjectClass(NativeHandle);
 }
+
 

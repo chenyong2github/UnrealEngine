@@ -6,6 +6,8 @@
 #include "EngineUtils.h"
 #include "SceneInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PostProcessVolume)
+
 APostProcessVolume::APostProcessVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -248,3 +250,4 @@ bool APostProcessVolume::CanEditChange(const FProperty* InProperty) const
 }
 
 #endif // WITH_EDITOR
+

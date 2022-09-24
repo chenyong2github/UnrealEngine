@@ -10,6 +10,8 @@
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBaseValueEvaluatorSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -97,3 +99,4 @@ void UMovieSceneBaseValueEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrer
 		.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseDoubleValues());
 	}
 }
+

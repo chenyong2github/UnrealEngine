@@ -7,6 +7,8 @@
 #include "Intersection/IntrRay3OrientedBox3.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementBox)
+
 void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
 	FRenderTraversalState CurrentRenderState(RenderState);
@@ -97,4 +99,5 @@ void UGizmoElementBox::SetDimensions(const FVector& InDimensions)
 {
 	Dimensions = InDimensions;
 }
+
 

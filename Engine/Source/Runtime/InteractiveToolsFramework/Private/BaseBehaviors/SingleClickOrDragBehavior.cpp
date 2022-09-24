@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SingleClickOrDragBehavior)
+
 
 
 void USingleClickOrDragInputBehavior::Initialize(IClickBehaviorTarget* ClickTargetIn, IClickDragBehaviorTarget* DragTargetIn)
@@ -142,3 +144,4 @@ void USingleClickOrDragInputBehavior::OnClickDragReleaseInternal(const FInputDev
 {
 	DragTarget->OnClickRelease(GetDeviceRay(Input));
 }
+

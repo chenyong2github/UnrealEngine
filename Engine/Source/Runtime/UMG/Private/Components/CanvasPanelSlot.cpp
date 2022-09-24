@@ -3,6 +3,8 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/CanvasPanel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CanvasPanelSlot)
+
 /////////////////////////////////////////////////////
 // UCanvasPanelSlot
 
@@ -515,3 +517,4 @@ void UCanvasPanelSlot::RebaseLayout(bool PreserveSize)
 }
 
 #endif
+

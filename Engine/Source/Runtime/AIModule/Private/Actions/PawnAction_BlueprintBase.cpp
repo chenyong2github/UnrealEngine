@@ -3,6 +3,8 @@
 #include "Actions/PawnAction_BlueprintBase.h"
 #include "BlueprintNodeHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnAction_BlueprintBase)
+
 UPawnAction_BlueprintBase::UPawnAction_BlueprintBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -54,3 +56,4 @@ void UPawnAction_BlueprintBase::OnFinished(EPawnActionResult::Type WithResult)
 {
 	ActionFinished(GetPawn(), WithResult);
 }
+

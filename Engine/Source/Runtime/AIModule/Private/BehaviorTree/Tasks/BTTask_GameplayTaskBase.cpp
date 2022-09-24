@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_GameplayTaskBase)
+
 UBTTask_GameplayTaskBase::UBTTask_GameplayTaskBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "GameplayTask Base";
@@ -93,3 +95,4 @@ uint16 UBTTask_GameplayTaskBase::GetInstanceMemorySize() const
 {
 	return sizeof(FBTGameplayTaskMemory);
 }
+

@@ -2,6 +2,8 @@
 
 #include "Perception/AISense_Team.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Team)
+
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//
@@ -60,3 +62,4 @@ void UAISense_Team::RegisterEvent(const FAITeamStimulusEvent& Event)
 
 	RequestImmediateUpdate();
 }
+

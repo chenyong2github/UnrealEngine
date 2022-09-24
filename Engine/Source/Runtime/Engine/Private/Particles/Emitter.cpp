@@ -12,6 +12,8 @@
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Emitter)
+
 #define LOCTEXT_NAMESPACE "Emitter"
 
 /*-----------------------------------------------------------------------------
@@ -292,3 +294,4 @@ bool AEmitter::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

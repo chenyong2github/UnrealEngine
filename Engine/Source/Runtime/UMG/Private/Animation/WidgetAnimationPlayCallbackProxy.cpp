@@ -7,6 +7,8 @@
 #include "Types/WidgetActiveTimerDelegate.h"
 #include "Containers/Ticker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetAnimationPlayCallbackProxy)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UWidgetAnimationPlayCallbackProxy* UWidgetAnimationPlayCallbackProxy::CreatePlayAnimationProxyObject(class UUMGSequencePlayer*& Result, class UUserWidget* Widget, UWidgetAnimation* InAnimation, float StartAtTime, int32 NumLoopsToPlay, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed)
@@ -79,3 +81,4 @@ bool UWidgetAnimationPlayCallbackProxy::OnAnimationFinished(float /*DeltaTime*/)
 	return false;
 }
 #undef LOCTEXT_NAMESPACE
+

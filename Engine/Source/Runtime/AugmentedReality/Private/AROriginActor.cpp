@@ -4,6 +4,8 @@
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AROriginActor)
+
 AAROriginActor::AAROriginActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -46,3 +48,4 @@ AAROriginActor* AAROriginActor::GetOriginActor()
 	}
 	return nullptr;
 }
+

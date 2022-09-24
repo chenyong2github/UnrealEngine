@@ -8,6 +8,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilder)
+
 
 DEFINE_LOG_CATEGORY(LogHLODBuilder);
 
@@ -364,3 +366,4 @@ TArray<UActorComponent*> UHLODBuilder::Build(const FHLODBuildContext& InHLODBuil
 }
 
 #endif // WITH_EDITOR
+

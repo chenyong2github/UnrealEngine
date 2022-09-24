@@ -6,6 +6,8 @@
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Note)
+
 ANote::ANote(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -62,3 +64,4 @@ ANote::ANote(const FObjectInitializer& ObjectInitializer)
 	SetHidden(true);
 	SetCanBeDamaged(false);
 }
+

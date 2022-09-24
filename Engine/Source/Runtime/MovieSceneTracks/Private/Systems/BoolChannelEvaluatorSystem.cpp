@@ -8,6 +8,8 @@
 #include "EntitySystem/MovieSceneEvalTimeSystem.h"
 #include "Channels/MovieSceneBoolChannel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoolChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate bool channels"), MovieSceneEval_EvaluateBoolChannelTask, STATGROUP_MovieSceneECS);
 
 UBoolChannelEvaluatorSystem::UBoolChannelEvaluatorSystem(const FObjectInitializer& ObjInit)
@@ -49,3 +51,4 @@ void UBoolChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	.SetStat(GET_STATID(MovieSceneEval_EvaluateBoolChannelTask))
 	.Dispatch_PerEntity<FEvaluateBoolChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 }
+

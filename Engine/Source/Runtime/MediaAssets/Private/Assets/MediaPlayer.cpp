@@ -26,6 +26,8 @@
 #include "MediaSource.h"
 #include "StreamMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlayer)
+
 #if WITH_EDITOR
 #include "EngineAnalytics.h"
 #endif
@@ -1214,4 +1216,5 @@ void UMediaPlayer::OpenSourceLatent(const UObject* WorldContextObject, FLatentAc
 		}
 	}
 }
+
 

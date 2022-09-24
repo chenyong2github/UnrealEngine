@@ -5,6 +5,8 @@
 
 #include "Components/SafeZoneSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SafeZone)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 USafeZone::USafeZone()
@@ -128,3 +130,4 @@ void USafeZone::ReleaseSlateResources(bool bReleaseChildren)
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,9 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "AngularLimit.h"
 #include "Animation/AnimTrace.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Trail)
+
 /////////////////////////////////////////////////////
 // FAnimNode_Trail
 
@@ -523,3 +526,4 @@ void FAnimNode_Trail::EnsureChainSize()
 }
 
 #endif // WITH_EDITOR
+

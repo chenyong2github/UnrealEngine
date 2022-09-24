@@ -5,6 +5,8 @@
 #include "StaticMeshResources.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVertexPainter)
+
 
 void FMeshVertexPainter::PaintVerticesSingleColor(UStaticMeshComponent* StaticMeshComponent, const FLinearColor& FillColor, bool bConvertToSRGB)
 {
@@ -112,3 +114,4 @@ void FMeshVertexPainter::RemovePaintedVertices(UStaticMeshComponent* StaticMeshC
 	StaticMeshComponent->MarkRenderStateDirty();
 	StaticMeshComponent->bDisallowMeshPaintPerInstance = false;
 }
+

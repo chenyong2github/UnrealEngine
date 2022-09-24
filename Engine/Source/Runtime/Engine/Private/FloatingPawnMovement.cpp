@@ -5,6 +5,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FloatingPawnMovement)
+
 UFloatingPawnMovement::UFloatingPawnMovement(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -147,3 +149,4 @@ bool UFloatingPawnMovement::ResolvePenetrationImpl(const FVector& Adjustment, co
 	bPositionCorrected |= Super::ResolvePenetrationImpl(Adjustment, Hit, NewRotationQuat);
 	return bPositionCorrected;
 }
+

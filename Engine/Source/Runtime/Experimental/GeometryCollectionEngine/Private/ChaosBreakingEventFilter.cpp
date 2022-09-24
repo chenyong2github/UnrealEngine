@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosBreakingEventFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosBreakingEventFilter)
+
 void FChaosBreakingEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FBreakingDataArray& RawBreakingDataArray)
 {
 	FilteredDataArray.Reset();
@@ -106,3 +108,4 @@ void FChaosBreakingEventFilter::SortEvents(TArray<FChaosBreakingEventData>& InOu
 		break;
 	}
 }
+

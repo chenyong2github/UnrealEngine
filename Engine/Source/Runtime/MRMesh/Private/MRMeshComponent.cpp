@@ -27,6 +27,8 @@
 
 #include "PhysicsEngine/Experimental/ChaosDerivedData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MRMeshComponent)
+
 // See ISpatialAcceleration.h, the header is not included to avoid having a dependency on Chaos
 #ifndef CHAOS_SERIALIZE_OUT
 #define CHAOS_SERIALIZE_OUT WITH_EDITOR
@@ -1284,3 +1286,4 @@ void UMRMeshBodyHolder::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* Finish
 		MRMeshComponent->SuggestNavMeshUpdate();
 	}
 }
+

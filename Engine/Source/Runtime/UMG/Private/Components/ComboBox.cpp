@@ -2,6 +2,8 @@
 
 #include "Components/ComboBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComboBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -62,3 +64,4 @@ const FText UComboBox::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "ContextObjectStore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextObjectStore)
+
 UObject* UContextObjectStore::FindContextByClass(UClass* InClass) const
 {
 	for (UObject* ContextObject : ContextObjects)
@@ -47,3 +49,4 @@ void UContextObjectStore::Shutdown()
 {
 	ContextObjects.Empty();
 }
+

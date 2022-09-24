@@ -6,6 +6,8 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RuntimeVirtualTextureVolume)
+
 ARuntimeVirtualTextureVolume::ARuntimeVirtualTextureVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -40,3 +42,4 @@ void ARuntimeVirtualTextureVolume::Serialize(FArchive& Ar)
 		VirtualTextureComponent->SetRelativeTransform(TransformFix * VirtualTextureComponent->GetRelativeTransform());
 	}
 }
+

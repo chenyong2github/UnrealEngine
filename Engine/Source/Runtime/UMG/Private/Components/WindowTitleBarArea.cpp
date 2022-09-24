@@ -10,6 +10,8 @@
 #include "Widgets/Layout/SWindowTitleBarArea.h"
 #include "Components/WindowTitleBarAreaSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WindowTitleBarArea)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -167,3 +169,4 @@ void UWindowTitleBarArea::RequestToggleFullscreen()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

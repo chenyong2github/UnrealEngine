@@ -4,6 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/ListView.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IUserObjectListEntry)
+
 UUserObjectListEntry::UUserObjectListEntry(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
@@ -43,3 +45,4 @@ UObject* UUserObjectListEntryLibrary::GetListItemObject(TScriptInterface<IUserOb
 	}
 	return nullptr;
 }
+

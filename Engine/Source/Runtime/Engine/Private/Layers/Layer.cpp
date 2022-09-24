@@ -2,6 +2,8 @@
 #include "Layers/Layer.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Layer)
+
 ULayer::ULayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LayerName( NAME_None )

@@ -26,6 +26,8 @@
 #include "Components/BillboardComponent.h"
 #include "HAL/PlatformApplicationMisc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeGizmoActor)
+
 class FLandscapeGizmoMeshRenderProxy : public FMaterialRenderProxy
 {
 public:
@@ -1284,3 +1286,4 @@ void ALandscapeGizmoActiveActor::ImportFromClipboard()
 /** Returns SpriteComponent subobject **/
 UBillboardComponent* ALandscapeGizmoActor::GetSpriteComponent() const { return SpriteComponent; }
 #endif
+

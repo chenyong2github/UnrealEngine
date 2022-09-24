@@ -2,6 +2,8 @@
 
 #include "GameFramework/DamageType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DamageType)
+
 UDamageType::UDamageType(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -11,3 +13,4 @@ UDamageType::UDamageType(const FObjectInitializer& ObjectInitializer)
 	bScaleMomentumByMass = true;
 	DamageFalloff = 1.0f;
 }
+

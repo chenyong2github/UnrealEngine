@@ -10,6 +10,8 @@
 #include "Engine/LevelScriptBlueprint.h"
 #include "UObject/UObjectHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelScriptActor)
+
 
 //////////////////////////////////////////////////////////////////////////
 // ALevelScriptActor

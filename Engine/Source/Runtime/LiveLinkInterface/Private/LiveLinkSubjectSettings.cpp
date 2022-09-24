@@ -7,6 +7,8 @@
 #include "LiveLinkFrameTranslator.h"
 #include "LiveLinkRole.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSubjectSettings)
+
 #if WITH_EDITOR
 DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkSubjectSettings, Warning, Warning);
 void ULiveLinkSubjectSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)

@@ -8,6 +8,8 @@
 #include "Animation/MirrorSyncScope.h"
 #include "Animation/ActiveStateMachineScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyStateMachineInspectionLibrary)
+
 bool UAnimNotifyStateMachineInspectionLibrary::IsStateMachineInEventContext(const FAnimNotifyEventReference& Reference, int32 StateMachineIndex)
 {
 	const UE::Anim::FAnimNotifyStateMachineContext * StateMachineContext = Reference.GetContextData<UE::Anim::FAnimNotifyStateMachineContext>();
@@ -84,3 +86,4 @@ bool  UAnimNotifyStateMachineInspectionLibrary::IsTriggeredByState(const FAnimNo
 	}
 	return false;
 }
+

@@ -8,6 +8,8 @@
 #include "AnimationCoreLibrary.h"
 #include "AnimationCoreUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Constraint)
+
 void FConstraintOffset::ApplyInverseOffset(const FTransform& InTarget, FTransform& OutSource) const
 {
 	// in this matter, parent is accumulated first, and then individual component gets applied

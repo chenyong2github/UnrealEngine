@@ -21,6 +21,8 @@
 
 #include "Navigation/CrowdFollowingComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CrowdManager)
+
 DECLARE_STATS_GROUP(TEXT("Crowd"), STATGROUP_AICrowd, STATCAT_Advanced);
 
 DECLARE_CYCLE_STAT(TEXT("Nav Tick: crowd simulation"), STAT_AI_Crowd_Tick, STATGROUP_AICrowd);
@@ -1485,3 +1487,4 @@ UCrowdManager* UCrowdManager::GetCurrent(UWorld* World)
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 	return NavSys ? Cast<UCrowdManager>(NavSys->GetCrowdManager()) : NULL;
 }
+

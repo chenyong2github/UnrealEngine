@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputDelegateBinding)
+
 TSet<UClass*> UInputDelegateBinding::InputBindingClasses;
 
 UInputDelegateBinding::UInputDelegateBinding(const FObjectInitializer& ObjectInitializer)

@@ -2,6 +2,8 @@
 
 #include "Binding/MouseCursorBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MouseCursorBinding)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UMouseCursorBinding::UMouseCursorBinding()
@@ -49,3 +51,4 @@ EMouseCursor::Type UMouseCursorBinding::GetValue() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,9 @@
 #include "ContentStreaming.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Engine/World.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshComponent)
+
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "TextureCompiler.h"
@@ -565,3 +568,4 @@ void UMeshComponent::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) co
 }
 
 #endif
+

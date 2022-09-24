@@ -6,6 +6,8 @@
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReporterGraph)
+
 UReporterGraph::UReporterGraph(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
@@ -472,3 +474,4 @@ UFont* UReporterGraph::GetDefaultFont()
 
 	return GEngine->GetSmallFont();
 }
+

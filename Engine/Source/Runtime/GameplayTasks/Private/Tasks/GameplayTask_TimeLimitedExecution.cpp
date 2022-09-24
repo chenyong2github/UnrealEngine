@@ -7,6 +7,8 @@
 #include "GameplayTasksComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_TimeLimitedExecution)
+
 UGameplayTask_TimeLimitedExecution::UGameplayTask_TimeLimitedExecution(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -98,3 +100,4 @@ FString UGameplayTask_TimeLimitedExecution::GetDebugString() const
 	const float TimeLeft = Time - GetWorld()->TimeSince(TimeStarted);
 	return FString::Printf(TEXT("TimeLimit for %s. Time: %.2f. TimeLeft: %.2f"), *GetNameSafe(GetChildTask()), Time, TimeLeft);
 }
+

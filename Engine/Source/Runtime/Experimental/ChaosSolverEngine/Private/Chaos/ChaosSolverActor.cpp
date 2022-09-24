@@ -14,6 +14,8 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosSolverActor)
+
 //DEFINE_LOG_CATEGORY_STATIC(AFA_Log, NoLogging, All);
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
@@ -484,4 +486,5 @@ FAutoConsoleCommand SerializeForPerfTestCommand(TEXT("p.SerializeForPerfTest"), 
 #endif
 
 #endif
+
 

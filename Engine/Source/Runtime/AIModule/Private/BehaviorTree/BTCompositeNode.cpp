@@ -7,6 +7,8 @@
 #include "BehaviorTree/BTDecorator.h"
 #include "BehaviorTree/BTService.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTCompositeNode)
+
 UBTCompositeNode::UBTCompositeNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "UnknownComposite";
@@ -699,3 +701,4 @@ uint16 UBTCompositeNode::GetInstanceMemorySize() const
 {
 	return sizeof(FBTCompositeMemory);
 }
+

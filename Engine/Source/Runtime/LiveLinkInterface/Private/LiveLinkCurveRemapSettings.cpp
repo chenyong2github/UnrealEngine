@@ -3,6 +3,8 @@
 #include "LiveLinkCurveRemapSettings.h" 
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkCurveRemapSettings)
+
 #if WITH_EDITOR
 
 void ULiveLinkCurveRemapSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

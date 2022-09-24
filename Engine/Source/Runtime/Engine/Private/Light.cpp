@@ -13,6 +13,8 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Light)
+
 ALight::ALight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -361,4 +363,5 @@ bool ALight::IsToggleable() const
 {
 	return !LightComponent->HasStaticLighting();
 }
+
 

@@ -2,6 +2,8 @@
 
 #include "StreamMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StreamMediaSource)
+
 
 /* UMediaSource overrides
  *****************************************************************************/
@@ -16,3 +18,4 @@ bool UStreamMediaSource::Validate() const
 {
 	return StreamUrl.Contains(TEXT("://"));
 }
+

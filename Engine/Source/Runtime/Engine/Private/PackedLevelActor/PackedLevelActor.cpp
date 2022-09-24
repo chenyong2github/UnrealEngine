@@ -7,6 +7,8 @@
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PackedLevelActor)
+
 APackedLevelActor::APackedLevelActor()
 	: Super()
 #if WITH_EDITORONLY_DATA

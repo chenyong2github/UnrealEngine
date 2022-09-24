@@ -6,6 +6,8 @@
 #include "ActiveSound.h"
 #include "Sound/SoundWave.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeWaveParam)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeWaveParam implementation
 -----------------------------------------------------------------------------*/
@@ -35,4 +37,5 @@ void USoundNodeWaveParam::ParseNodes(FAudioDevice* AudioDevice, const UPTRINT No
 		Super::ParseNodes(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
 	}
 }
+
 

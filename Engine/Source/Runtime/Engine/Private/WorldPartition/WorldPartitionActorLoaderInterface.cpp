@@ -2,6 +2,8 @@
 
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionActorLoaderInterface)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -326,3 +328,4 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEdito
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputTouchDelegateBinding)
+
 UInputTouchDelegateBinding::UInputTouchDelegateBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -42,3 +44,4 @@ void UInputTouchDelegateBinding::BindToInputComponent(UInputComponent* InputComp
 		InputComponent->TouchBindings.Add(BindsToAdd[Index]);
 	}
 }
+

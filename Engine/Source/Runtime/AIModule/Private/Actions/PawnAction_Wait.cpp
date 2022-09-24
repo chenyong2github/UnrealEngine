@@ -4,6 +4,8 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnAction_Wait)
+
 UPawnAction_Wait::UPawnAction_Wait(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, TimeToWait(0.f)
@@ -62,3 +64,4 @@ void UPawnAction_Wait::TimerDone()
 {
 	Finish(EPawnActionResult::Success);
 }
+

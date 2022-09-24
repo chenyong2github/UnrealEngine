@@ -15,6 +15,8 @@
 #include "Animation/AnimStateMachineTypes.h"
 #include "Logging/LogMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_StateMachine)
+
 #if WITH_EDITORONLY_DATA
 #include "Animation/AnimBlueprint.h"
 #endif

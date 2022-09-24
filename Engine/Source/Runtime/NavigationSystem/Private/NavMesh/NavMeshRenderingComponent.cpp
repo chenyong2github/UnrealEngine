@@ -16,6 +16,8 @@
 #include "SceneManagement.h"
 #include "TimerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavMeshRenderingComponent)
+
 #if RECAST_INTERNAL_DEBUG_DATA
 #include "NavMesh/RecastInternalDebugData.h"
 #endif
@@ -1563,3 +1565,4 @@ FBoxSphereBounds UNavMeshRenderingComponent::CalcBounds(const FTransform& LocalT
 #endif
 	return FBoxSphereBounds(BoundingBox);
 }
+

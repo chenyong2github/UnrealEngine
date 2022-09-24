@@ -7,6 +7,9 @@
 #include "Engine/SCS_Node.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/LinkerLoad.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SimpleConstructionScript)
+
 #if WITH_EDITOR
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -1563,3 +1566,4 @@ void USimpleConstructionScript::EndEditorComponentConstruction()
 	bIsConstructingEditorComponents = false;
 }
 #endif
+

@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReplicatedState)
+
 // compile switch for disabling quantization of replicated movement, meant for testing.
 #ifndef REP_MOVEMENT_DISABLE_QUANTIZATION
 #define REP_MOVEMENT_DISABLE_QUANTIZATION 0

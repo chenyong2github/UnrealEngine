@@ -4,6 +4,8 @@
 
 #include "Net/NetworkGranularMemoryLogging.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkSubsystem)
+
 
 void UNetworkSubsystem::Serialize(FArchive& Ar)
 {

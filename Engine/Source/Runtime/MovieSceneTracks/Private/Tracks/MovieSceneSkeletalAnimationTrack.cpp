@@ -18,6 +18,8 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "BoneContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSkeletalAnimationTrack)
+
 #if WITH_EDITORONLY_DATA
 #include "AnimationBlueprintLibrary.h"
 #include "Misc/QualifiedFrameTime.h"
@@ -1140,3 +1142,4 @@ void UMovieSceneSkeletalAnimationTrack::AutoMatchSectionRoot(UMovieSceneSkeletal
 
 
 #undef LOCTEXT_NAMESPACE
+

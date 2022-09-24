@@ -3,6 +3,8 @@
 #include "BoneControllers/AnimNode_HandIKRetargeting.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_HandIKRetargeting)
+
 /////////////////////////////////////////////////////
 // FAnimNode_HandIKRetargeting
 
@@ -134,3 +136,4 @@ void FAnimNode_HandIKRetargeting::InitializeBoneReferences(const FBoneContainer&
 		IKBonesToMove[BoneIndex].Initialize(RequiredBones);
 	}
 }
+

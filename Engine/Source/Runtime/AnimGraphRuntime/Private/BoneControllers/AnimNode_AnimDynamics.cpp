@@ -6,6 +6,8 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "CommonAnimationLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_AnimDynamics)
+
 DEFINE_STAT(STAT_AnimDynamicsOverall);
 DEFINE_STAT(STAT_AnimDynamicsWindData);
 DEFINE_STAT(STAT_AnimDynamicsBoneEval);
@@ -1349,3 +1351,4 @@ bool FAnimNode_AnimDynamics::ShouldDoPhysicsUpdate() const
 
 	return bDoUpdate;
 }
+

@@ -3,6 +3,8 @@
 #include "BaseGizmos/AxisSources.h"
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AxisSources)
+
 FVector UGizmoComponentAxisSource::GetOrigin() const
 {
 	const FTransform& WorldTransform = Component->GetComponentToWorld();

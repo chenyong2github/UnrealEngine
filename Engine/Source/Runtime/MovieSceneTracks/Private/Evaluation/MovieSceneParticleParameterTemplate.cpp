@@ -6,6 +6,8 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneParticleParameterTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Particle Parameter Track Token Execute"), MovieSceneEval_ParticleParameterTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
 template<typename T>
@@ -139,3 +141,4 @@ void FMovieSceneParticleParameterSectionTemplate::Evaluate(const FMovieSceneEval
 
 	ExecutionTokens.Add(MoveTemp(ExecutionToken));
 }
+

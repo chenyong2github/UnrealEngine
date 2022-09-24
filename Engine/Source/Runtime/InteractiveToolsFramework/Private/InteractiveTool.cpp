@@ -5,6 +5,8 @@
 #include "InteractiveToolManager.h"
 #include "UObject/Class.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InteractiveTool)
+
 
 #define LOCTEXT_NAMESPACE "UInteractiveTool"
 
@@ -288,3 +290,4 @@ UInteractiveToolManager* UInteractiveTool::GetToolManager() const
 
 
 #undef LOCTEXT_NAMESPACE
+

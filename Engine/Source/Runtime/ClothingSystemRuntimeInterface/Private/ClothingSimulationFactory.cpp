@@ -4,6 +4,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Features/IModularFeatures.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothingSimulationFactory)
+
 const FName IClothingSimulationFactoryClassProvider::FeatureName = TEXT("ClothingSimulationFactoryClassProvider");
 
 namespace ClothingSimulationFactoryConsoleVariables
@@ -47,3 +49,4 @@ TSubclassOf<class UClothingSimulationFactory> UClothingSimulationFactory::GetDef
 
 	return DefaultClothingSimulationFactoryClass;
 }
+

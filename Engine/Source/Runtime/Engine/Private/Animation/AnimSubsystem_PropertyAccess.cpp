@@ -4,6 +4,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSubsystem_PropertyAccess)
+
 void FAnimSubsystem_PropertyAccess::OnPreUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const
 {
 	// Process internal batched property copies

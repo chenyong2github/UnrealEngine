@@ -6,6 +6,8 @@
 #include "ActiveSound.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeEnveloper)
+
 /*-----------------------------------------------------------------------------
 USoundNodeEnveloper implementation.
 -----------------------------------------------------------------------------*/
@@ -151,3 +153,4 @@ void USoundNodeEnveloper::PostEditChangeProperty( struct FPropertyChangedEvent& 
 	}
 }
 #endif // WITH_EDITOR
+

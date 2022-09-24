@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_Float)
+
 const UBlackboardKeyType_Float::FDataType UBlackboardKeyType_Float::InvalidValue = UBlackboardKeyType_Float::FDataType(0);
 
 UBlackboardKeyType_Float::UBlackboardKeyType_Float(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -57,3 +59,4 @@ FString UBlackboardKeyType_Float::DescribeArithmeticParam(int32 IntValue, float 
 {
 	return FString::Printf(TEXT("%f"), FloatValue);
 }
+

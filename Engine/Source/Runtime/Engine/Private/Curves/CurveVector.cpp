@@ -6,6 +6,8 @@
 
 #include "Curves/CurveVector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveVector)
+
 FVector FRuntimeVectorCurve::GetValue(float InTime) const
 {
 	if (ExternalCurve)
@@ -101,4 +103,5 @@ bool UCurveVector::IsValidCurve( FRichCurveEditInfo CurveInfo )
 		CurveInfo.CurveToEdit == &FloatCurves[1] ||
 		CurveInfo.CurveToEdit == &FloatCurves[2];
 }
+
 

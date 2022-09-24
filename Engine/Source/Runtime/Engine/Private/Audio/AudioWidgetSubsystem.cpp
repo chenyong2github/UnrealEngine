@@ -13,6 +13,8 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/CoreRedirects.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioWidgetSubsystem)
+
 
 #define LOCTEXT_NAMESPACE "AudioWidgetSubsystem"
 

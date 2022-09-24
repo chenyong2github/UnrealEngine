@@ -4,6 +4,8 @@
 
 #include "Roles/LiveLinkLightTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkLightRole)
+
 #define LOCTEXT_NAMESPACE "LiveLinkRole"
 
 UScriptStruct* ULiveLinkLightRole::GetStaticDataStruct() const
@@ -44,3 +46,4 @@ FText ULiveLinkLightRole::GetDisplayName() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StackBoxSlot)
+
 /////////////////////////////////////////////////////
 // UStackBoxSlot
 
@@ -129,3 +131,4 @@ void UStackBoxSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot
 	ParentStackBox->ShiftChild(CurrentIndex, Content);
 }
 #endif
+

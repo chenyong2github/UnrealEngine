@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_Donut.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_Donut)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_Donut::UEnvQueryGenerator_Donut(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -233,3 +235,4 @@ void UEnvQueryGenerator_Donut::PostEditChangeProperty(FPropertyChangedEvent& Pro
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

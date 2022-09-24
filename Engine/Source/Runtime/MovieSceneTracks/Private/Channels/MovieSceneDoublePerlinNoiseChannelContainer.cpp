@@ -6,6 +6,8 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Misc/Guid.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDoublePerlinNoiseChannelContainer)
+
 bool UMovieSceneDoublePerlinNoiseChannelContainer::SupportsOverride(FName DefaultChannelTypeName) const
 {
 	return FMovieSceneDoubleChannel::StaticStruct()->GetFName() == DefaultChannelTypeName;

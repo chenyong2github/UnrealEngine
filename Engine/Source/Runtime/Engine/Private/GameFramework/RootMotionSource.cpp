@@ -9,6 +9,8 @@
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RootMotionSource)
+
 #if ROOT_MOTION_DEBUG
 TAutoConsoleVariable<int32> RootMotionSourceDebug::CVarDebugRootMotionSources(
 	TEXT("p.RootMotion.Debug"),
@@ -2288,3 +2290,4 @@ void FRootMotionSourceGroup::AddStructReferencedObjects(FReferenceCollector& Col
 		}
 	}
 }
+

@@ -3,6 +3,8 @@
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/GizmoMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoInterfaces)
+
 
 
 void IGizmoAxisSource::GetAxisFrame(
@@ -18,3 +20,4 @@ void IGizmoAxisSource::GetAxisFrame(
 		GizmoMath::MakeNormalPlaneBasis(PlaneNormalOut, PlaneAxis1Out, PlaneAxis2Out);
 	}
 }
+

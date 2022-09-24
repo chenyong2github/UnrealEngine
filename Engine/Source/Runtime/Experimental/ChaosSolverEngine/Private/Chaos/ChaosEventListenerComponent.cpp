@@ -4,6 +4,8 @@
 #include "PhysicsSolver.h"
 #include "Chaos/ChaosSolverActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosEventListenerComponent)
+
 UChaosEventListenerComponent::UChaosEventListenerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -15,4 +17,5 @@ void UChaosEventListenerComponent::TickComponent(float DeltaTime, enum ELevelTic
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
+
 

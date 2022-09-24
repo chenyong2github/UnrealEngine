@@ -8,6 +8,8 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "Stats/Stats2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEvalTimeSystem)
+
 
 DECLARE_CYCLE_STAT(TEXT("EvalTime System"), MovieSceneEval_EvalTimeSystem, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Assign evaluation times"), MovieSceneEval_EvalTimes, STATGROUP_MovieSceneECS);
@@ -98,3 +100,4 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 	.SetStat(GET_STATID(MovieSceneEval_EvalTimes))
 	.Dispatch_PerEntity<FAssignEvalTimesTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, &FrameTimes);
 }
+

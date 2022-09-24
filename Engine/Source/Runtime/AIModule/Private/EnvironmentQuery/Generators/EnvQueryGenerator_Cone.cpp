@@ -4,6 +4,8 @@
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_Cone)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryGenerator_Cone::UEnvQueryGenerator_Cone(const FObjectInitializer& ObjectInitializer) 
@@ -106,3 +108,4 @@ FText UEnvQueryGenerator_Cone::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

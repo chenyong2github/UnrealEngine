@@ -27,6 +27,8 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "Algo/Find.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetCompilingManager)
+
 #define LOCTEXT_NAMESPACE "AssetCompilingManager"
 
 #if WITH_EDITOR

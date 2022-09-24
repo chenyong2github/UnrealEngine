@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_KeepInCone)
+
 UBTDecorator_KeepInCone::UBTDecorator_KeepInCone(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Keep in Cone";
@@ -138,3 +140,4 @@ FName UBTDecorator_KeepInCone::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

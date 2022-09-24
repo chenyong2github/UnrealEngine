@@ -3,6 +3,8 @@
 #include "Kismet/DataTableFunctionLibrary.h"
 #include "Engine/CurveTable.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataTableFunctionLibrary)
+
 #if WITH_EDITOR
 #include "EditorFramework/AssetImportData.h"
 #include "Factories/CSVImportFactory.h"

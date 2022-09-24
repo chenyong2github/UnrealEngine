@@ -7,6 +7,8 @@
 #include "Engine/LevelScriptBlueprint.h"
 #include "ActorReferencesUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeHash)
+
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"

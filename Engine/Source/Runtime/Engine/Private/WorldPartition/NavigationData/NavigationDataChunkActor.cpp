@@ -4,6 +4,8 @@
 #include "AI/NavigationSystemBase.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationDataChunkActor)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -156,3 +158,4 @@ FBox ANavigationDataChunkActor::GetStreamingBounds() const
 	return DataChunkActorBounds;
 }
 #endif // WITH_EDITOR
+

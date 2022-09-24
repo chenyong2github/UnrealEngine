@@ -5,6 +5,8 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimNodeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNodeData)
+
 namespace UE { namespace Anim {
 
 FNodeDataId::FNodeDataId(FName InPropertyName, const FAnimNode_Base* InNode, const UScriptStruct* InNodeStruct)

@@ -4,6 +4,8 @@
 #include "Components/Widget.h"
 #include "Components/HorizontalBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HorizontalBoxSlot)
+
 /////////////////////////////////////////////////////
 // UHorizontalBoxSlot
 
@@ -144,3 +146,4 @@ void UHorizontalBoxSlot::SynchronizeFromTemplate(const UPanelSlot* const Templat
 }
 
 #endif
+

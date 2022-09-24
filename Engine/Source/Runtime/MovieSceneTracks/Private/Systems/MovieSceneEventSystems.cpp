@@ -19,6 +19,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventSystems)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneEventSystem"
 
@@ -345,3 +347,4 @@ void UMovieScenePostEvalEventSystem::OnRun(FSystemTaskPrerequisites& InPrerequis
 }
 
 #undef LOCTEXT_NAMESPACE
+

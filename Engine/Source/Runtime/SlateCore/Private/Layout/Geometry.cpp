@@ -2,6 +2,8 @@
 
 #include "Layout/Geometry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Geometry)
+
 FGeometry::FGeometry() 
 	: Size(0.0f, 0.0f)
 	, Scale(1.0f)
@@ -24,3 +26,4 @@ FString FGeometry::ToString() const
 {
 	return FString::Printf(TEXT("[Abs=%s, Scale=%.2f, Size=%s]"), *AbsolutePosition.ToString(), Scale, *Size.ToString());
 }
+

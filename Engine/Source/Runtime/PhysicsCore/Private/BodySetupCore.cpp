@@ -3,6 +3,8 @@
 #include "BodySetupCore.h"
 #include "PhysicsSettingsCore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BodySetupCore)
+
 /** Helper for enum output... */
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);

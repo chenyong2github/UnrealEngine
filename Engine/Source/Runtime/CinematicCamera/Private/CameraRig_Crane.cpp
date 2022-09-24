@@ -6,6 +6,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/CollisionProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraRig_Crane)
+
 #define LOCTEXT_NAMESPACE "CameraRig_Crane"
 
 ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
@@ -204,3 +206,4 @@ bool ACameraRig_Crane::ShouldTickIfViewportsOnly() const
 
 
 #undef LOCTEXT_NAMESPACE
+

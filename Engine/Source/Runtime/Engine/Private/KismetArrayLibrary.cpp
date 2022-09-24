@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "Blueprint/BlueprintSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetArrayLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogArray, Warning, All);
 
 #define LOCTEXT_NAMESPACE "UKismetArrayLibrary"
@@ -647,3 +649,4 @@ void UKismetArrayLibrary::Array_RandomFromStream(const TArray<int32>& TargetArra
 
 
 #undef LOCTEXT_NAMESPACE
+

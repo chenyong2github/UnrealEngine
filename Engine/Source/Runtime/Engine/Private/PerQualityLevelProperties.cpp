@@ -4,6 +4,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PerQualityLevelProperties)
+
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
@@ -372,3 +374,4 @@ FString FPerQualityLevelInt::ToString() const
 
 	return Result;
 }
+

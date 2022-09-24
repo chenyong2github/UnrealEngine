@@ -10,6 +10,8 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextBlock)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -448,3 +450,4 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

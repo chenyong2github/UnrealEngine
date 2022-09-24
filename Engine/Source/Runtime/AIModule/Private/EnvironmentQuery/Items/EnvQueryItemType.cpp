@@ -3,6 +3,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryItemType)
+
 UEnvQueryItemType::UEnvQueryItemType(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// register in known types 
@@ -36,3 +38,4 @@ FString UEnvQueryItemType::GetDescription(const uint8* RawData) const
 {
 	return TEXT("item");
 }
+

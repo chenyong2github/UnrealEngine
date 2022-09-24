@@ -6,6 +6,8 @@
 #include "PhysXIncludes.h"
 #include "Physics/PhysicsInterfaceCore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintTypes)
+
 extern TAutoConsoleVariable<float> CVarConstraintLinearDampingScale;
 extern TAutoConsoleVariable<float> CVarConstraintLinearStiffnessScale;
 extern TAutoConsoleVariable<float> CVarConstraintAngularDampingScale;
@@ -115,3 +117,4 @@ void FTwistConstraint::UpdateTwistLimit_AssumesLocked(const FPhysicsConstraintHa
 	const bool bSkipSoftLimits = bSoftConstraint && ShouldSkipSoftLimits(Stiffness, Damping, AverageMass);
 	FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InConstraintRef, PhysicsInterfaceTypes::ELimitAxis::Twist, (bSkipSoftLimits && TwistMotion == ACM_Limited) ? EAngularConstraintMotion::ACM_Free : TwistMotion.GetValue());
 }
+

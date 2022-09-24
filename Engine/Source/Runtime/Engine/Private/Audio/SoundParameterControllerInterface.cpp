@@ -8,6 +8,8 @@
 #include "IAudioExtensionPlugin.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundParameterControllerInterface)
+
 
 namespace SoundParameterControllerInterfacePrivate
 {

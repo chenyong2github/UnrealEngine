@@ -7,6 +7,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify)
+
 /////////////////////////////////////////////////////
 // UAnimNotify
 
@@ -116,3 +118,4 @@ UObject* UAnimNotify::GetContainingAsset() const
 	}
 	return ContainingAsset;
 }
+

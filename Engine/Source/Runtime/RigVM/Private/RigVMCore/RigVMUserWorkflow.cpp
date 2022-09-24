@@ -4,6 +4,8 @@
 #include "RigVMCore/RigVMMemoryStorage.h"
 #include "RigVMModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMUserWorkflow)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool URigVMUserWorkflowOptions::RequiresDialog() const
@@ -114,3 +116,4 @@ bool FRigVMUserWorkflow::ValidateOptions(const URigVMUserWorkflowOptions* InOpti
 
 	return true;
 }
+

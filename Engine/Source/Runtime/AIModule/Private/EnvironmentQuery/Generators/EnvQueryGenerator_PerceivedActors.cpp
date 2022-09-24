@@ -9,6 +9,8 @@
 #include "GameFramework/Controller.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator_PerceivedActors)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 
@@ -167,3 +169,4 @@ FText UEnvQueryGenerator_PerceivedActors::GetDescriptionDetails() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

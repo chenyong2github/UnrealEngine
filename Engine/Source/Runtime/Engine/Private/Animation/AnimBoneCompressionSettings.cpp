@@ -10,6 +10,8 @@
 #include "UObject/Package.h"
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimBoneCompressionSettings)
+
 #define DEBUG_DUMP_ANIM_COMPRESSION_STATS 0
 
 UAnimBoneCompressionSettings::UAnimBoneCompressionSettings(const FObjectInitializer& ObjectInitializer)
@@ -330,3 +332,4 @@ void UAnimBoneCompressionSettings::PopulateDDCKey(FArchive& Ar)
 	}
 }
 #endif
+

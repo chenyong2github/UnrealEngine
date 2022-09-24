@@ -6,6 +6,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h" // FMeshElementCollector, FPrimitiveDrawInterface
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoRectangleComponent)
+
 namespace GizmoRectangleComponentLocals
 {
 	const float RECTANGLE_RENDERVISIBILITY_DOT_THRESHOLD = 0.25;

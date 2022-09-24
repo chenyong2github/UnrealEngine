@@ -3,6 +3,8 @@
 #include "Animation/BlendProfile.h"
 #include "AlphaBlend.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlendProfile)
+
 UBlendProfile::UBlendProfile()
 	: OwningSkeleton(nullptr)
 	, Mode(EBlendProfileMode::WeightFactor)
@@ -324,3 +326,4 @@ void UBlendProfile::UpdateBoneWeights(FBlendSampleData& InOutCurrentData, const 
 		InOutCurrentData.PerBoneBlendData[PerBoneIndex] = CalculateBoneWeight(GetEntryBlendScale(PerBoneIndex), Mode, BlendInfo, BlendStartAlpha, MainWeight, bInverse);
 	}
 }
+

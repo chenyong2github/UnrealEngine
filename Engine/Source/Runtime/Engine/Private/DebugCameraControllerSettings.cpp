@@ -2,6 +2,8 @@
 
 #include "Engine/DebugCameraControllerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DebugCameraControllerSettings)
+
 UDebugCameraControllerSettings::UDebugCameraControllerSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -58,3 +60,4 @@ void UDebugCameraControllerSettings::RemoveInvalidViewModes()
 }
 
 #endif
+

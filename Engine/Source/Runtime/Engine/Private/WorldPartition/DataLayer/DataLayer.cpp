@@ -8,6 +8,8 @@
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayer)
+
 #define LOCTEXT_NAMESPACE "DataLayer"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

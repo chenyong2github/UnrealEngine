@@ -4,6 +4,8 @@
 #include "BehaviorTree/BTCompositeNode.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator)
+
 UBTDecorator::UBTDecorator(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	FlowAbortMode = EBTFlowAbortMode::None;
@@ -197,4 +199,5 @@ void UBTDecorator::UpdateFlowAbortMode()
 	}
 #endif
 }
+
 

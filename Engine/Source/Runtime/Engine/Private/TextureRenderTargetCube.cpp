@@ -17,6 +17,8 @@
 #include "UObject/UObjectIterator.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTargetCube)
+
 /*-----------------------------------------------------------------------------
 	UTextureRenderTargetCube
 -----------------------------------------------------------------------------*/
@@ -497,3 +499,4 @@ bool FTextureRenderTargetCubeResource::ReadPixels(TArray<FFloat16Color>& OutImag
 
 	return true;
 }
+

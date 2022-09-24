@@ -9,6 +9,8 @@
 #include "MovieSceneCommonHelpers.h"
 #include "Algo/BinarySearch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DTransformTrack)
+
 UMovieScene3DTransformTrack::UMovieScene3DTransformTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
@@ -300,3 +302,4 @@ TArray<FTrajectoryKey> UMovieScene3DTransformTrack::GetTrajectoryData(FFrameNumb
 }
 
 #endif	// WITH_EDITOR
+

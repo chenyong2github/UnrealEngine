@@ -2,6 +2,8 @@
 
 #include "Curves/SimpleCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SimpleCurve)
+
 /* FSimpleCurveKey interface
  *****************************************************************************/
 
@@ -755,3 +757,4 @@ bool FSimpleCurve::operator==(const FSimpleCurve& Curve) const
 
 	return true;
 }
+

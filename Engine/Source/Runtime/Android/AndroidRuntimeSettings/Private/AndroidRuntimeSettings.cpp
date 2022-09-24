@@ -9,6 +9,8 @@
 #include "Engine/RendererSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidRuntimeSettings)
+
 #if WITH_EDITOR
 #include "IAndroidTargetPlatformModule.h"
 #endif
@@ -197,3 +199,4 @@ void UAndroidRuntimeSettings::EnsureValidGPUArch()
 	}
 }
 #endif
+

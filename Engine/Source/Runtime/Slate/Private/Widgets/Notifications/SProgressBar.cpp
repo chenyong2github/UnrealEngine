@@ -3,6 +3,8 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Rendering/DrawElements.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SProgressBar)
+
 
 void SProgressBar::Construct( const FArguments& InArgs )
 {
@@ -537,5 +539,6 @@ EActiveTimerReturnType SProgressBar::ActiveTick(double InCurrentTime, float InDe
 
 	return EActiveTimerReturnType::Continue;
 }
+
 
 

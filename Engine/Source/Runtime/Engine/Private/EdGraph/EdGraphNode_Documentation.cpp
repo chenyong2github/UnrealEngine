@@ -9,6 +9,8 @@
 
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphNode_Documentation)
+
 #define LOCTEXT_NAMESPACE "EdGraph"
 
 /////////////////////////////////////////////////////
@@ -97,3 +99,4 @@ TSharedPtr<class INameValidatorInterface> UEdGraphNode_Documentation::MakeNameVa
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

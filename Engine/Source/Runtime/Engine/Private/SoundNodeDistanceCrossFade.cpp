@@ -6,6 +6,8 @@
 #include "AudioDevice.h"
 #include "Sound/SoundBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeDistanceCrossFade)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeDistanceCrossFade implementation.
 -----------------------------------------------------------------------------*/
@@ -204,3 +206,4 @@ bool USoundNodeDistanceCrossFade::AllowCrossfading(FActiveSound& ActiveSound) co
 	// Ignore distance calculations for preview components as they are undefined
 	return ActiveSound.bLocationDefined;
 }
+

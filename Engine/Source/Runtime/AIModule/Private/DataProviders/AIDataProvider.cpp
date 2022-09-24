@@ -3,6 +3,8 @@
 #include "DataProviders/AIDataProvider.h"
 #include "UObject/CoreObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIDataProvider)
+
 //////////////////////////////////////////////////////////////////////////
 // FAIDataProviderValue
 
@@ -192,3 +194,4 @@ FString UAIDataProvider::ToString(FName PropName) const
 	ProviderName += PropName.ToString();
 	return ProviderName;
 }
+

@@ -8,6 +8,8 @@
 #include "HAL/PlatformFileManager.h"
 #include "UnrealEngine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCaptureProtocolBase)
+
 #define LOCTEXT_NAMESPACE "MovieSceneCaptureProtocol"
 
 UMovieSceneCaptureProtocolBase::UMovieSceneCaptureProtocolBase(const FObjectInitializer& ObjInit)

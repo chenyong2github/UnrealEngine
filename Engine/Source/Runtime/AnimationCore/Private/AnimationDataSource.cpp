@@ -2,6 +2,8 @@
 
 #include "AnimationDataSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationDataSource)
+
 bool UAnimationDataSourceRegistry::RegisterDataSource(const FName& InName, UObject* InDataSource)
 {
 	ClearInvalidDataSource();

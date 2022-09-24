@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "LODSyncInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LODSyncComponent)
+
 DEFINE_LOG_CATEGORY_STATIC(LogLODSync, Warning, All);
 
 /* ULODSyncComponent interface
@@ -312,3 +314,4 @@ FString ULODSyncComponent::GetLODSyncDebugText() const
 
 	return OutString;
 }
+

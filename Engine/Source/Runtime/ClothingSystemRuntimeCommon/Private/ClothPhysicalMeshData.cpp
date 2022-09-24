@@ -5,6 +5,8 @@
 #include "GPUSkinPublicDefs.h"  // For MAX_TOTAL_INFLUENCES
 #include "ClothTetherData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothPhysicalMeshData)
+
 FClothPhysicalMeshData::FClothPhysicalMeshData()
 	: MaxBoneWeights(0)
 	, NumFixedVerts(0)
@@ -305,3 +307,4 @@ void FClothPhysicalMeshData::ComputeFaceAveragedVertexNormals(TArray<FVector3f>&
 		}
 	}
 }
+

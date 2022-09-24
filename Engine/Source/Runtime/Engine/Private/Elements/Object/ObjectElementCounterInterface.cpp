@@ -3,6 +3,8 @@
 #include "Elements/Object/ObjectElementCounterInterface.h"
 #include "Elements/Object/ObjectElementData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectElementCounterInterface)
+
 void UObjectElementCounterInterface::IncrementCountersForElement(const FTypedElementHandle& InElementHandle, FTypedElementCounter& InOutCounter)
 {
 	if (const UObject* Object = ObjectElementDataUtil::GetObjectFromHandle(InElementHandle))
@@ -30,3 +32,4 @@ void UObjectElementCounterInterface::DecrementCounterForObjectClass(const UObjec
 	check(InObject);
 	InOutCounter.DecrementCounter(NAME_Class, InObject->GetClass());
 }
+

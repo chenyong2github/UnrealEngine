@@ -54,6 +54,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Texture2D)
+
 #if WITH_EDITORONLY_DATA
 #include "Misc/TVariant.h"
 #include "DerivedDataCacheKey.h"
@@ -1698,3 +1700,4 @@ bool UTexture2D::StreamOut(int32 NewMipCount)
 }
 
 #undef LOCTEXT_NAMESPACE
+

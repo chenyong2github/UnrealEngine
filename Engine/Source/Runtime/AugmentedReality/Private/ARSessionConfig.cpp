@@ -9,6 +9,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARSessionConfig)
+
 UARSessionConfig::UARSessionConfig()
 	: bTrackSceneObjects(true)
 	, WorldAlignment(EARWorldAlignment::Gravity)
@@ -284,3 +286,4 @@ bool UARSessionConfig::ShouldUseOptimalVideoFormat() const
 {
 	return bUseOptimalVideoFormat;
 }
+

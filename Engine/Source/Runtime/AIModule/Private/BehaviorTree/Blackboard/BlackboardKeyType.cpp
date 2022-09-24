@@ -3,6 +3,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType)
+
 UBlackboardKeyType::UBlackboardKeyType(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ValueSize = 0;
@@ -261,3 +263,4 @@ UBlackboardKeyType* UBlackboardKeyType::UpdateDeprecatedKey()
 {
 	return nullptr;
 }
+

@@ -3,6 +3,8 @@
 
 #include "Sound/SoundSubmix.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundSubmixSend)
+
 FSoundSubmixSendInfo::FSoundSubmixSendInfo()
 	: SendLevelControlMethod(ESendLevelControlMethod::Manual)
 	, SendStage(ESubmixSendStage::PostDistanceAttenuation)
@@ -15,3 +17,4 @@ FSoundSubmixSendInfo::FSoundSubmixSendInfo()
 	, MaxSendDistance(1000.0f)
 	{
 	}
+

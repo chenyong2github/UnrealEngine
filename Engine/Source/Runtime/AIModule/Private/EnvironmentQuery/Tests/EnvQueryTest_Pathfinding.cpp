@@ -8,6 +8,8 @@
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryTest_Pathfinding)
+
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 
 UEnvQueryTest_Pathfinding::UEnvQueryTest_Pathfinding(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -237,3 +239,4 @@ TSubclassOf<UNavigationQueryFilter> UEnvQueryTest_Pathfinding::GetNavFilterClass
 }
 
 #undef LOCTEXT_NAMESPACE
+

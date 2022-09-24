@@ -4,6 +4,9 @@
 #include "NavigationSystem.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavMeshBoundsVolume)
+
 #if WITH_EDITOR
 #include "ActorFactories/ActorFactory.h"
 #endif // WITH_EDITOR
@@ -98,3 +101,4 @@ void ANavMeshBoundsVolume::PostUnregisterAllComponents()
 		NavSys->OnNavigationBoundsRemoved(this);
 	}
 }
+

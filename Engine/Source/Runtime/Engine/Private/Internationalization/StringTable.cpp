@@ -12,6 +12,8 @@
 #include "Application/SlateApplicationBase.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StringTable)
+
 #if WITH_EDITORONLY_DATA
 namespace
 {
@@ -419,3 +421,4 @@ FStringTableRef UStringTable::GetMutableStringTable() const
 {
 	return StringTable.ToSharedRef();
 }
+

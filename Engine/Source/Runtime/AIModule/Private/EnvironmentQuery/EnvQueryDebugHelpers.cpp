@@ -8,6 +8,8 @@
 #include "VisualLoggerExtension.h"
 #include "EnvironmentQuery/EQSRenderingComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryDebugHelpers)
+
 #if USE_EQS_DEBUGGER
 void UEnvQueryDebugHelpers::QueryToBlobArray(FEnvQueryInstance& Query, TArray<uint8>& BlobArray, bool bUseCompression)
 {
@@ -236,3 +238,4 @@ void UEnvQueryDebugHelpers::LogQueryInternal(FEnvQueryInstance& Query, const FNa
 
 #undef PRINT_TABLE_ROW
 #endif //ENABLE_VISUAL_LOG && USE_EQS_DEBUGGER
+

@@ -2,6 +2,8 @@
 
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvQueryGenerator)
+
 UEnvQueryGenerator::UEnvQueryGenerator(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bAutoSortTests = true;
@@ -17,3 +19,4 @@ void UEnvQueryGenerator::PostLoad()
 	Super::PostLoad();
 	UpdateNodeVersion();
 }
+

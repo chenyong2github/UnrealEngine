@@ -2,6 +2,8 @@
 
 #include "ActorPartition/PartitionActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PartitionActor)
+
 #if WITH_EDITOR
 #include "Components/BoxComponent.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"

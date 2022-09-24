@@ -9,6 +9,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSpawnable)
+
 struct FIsSpawnable
 {
 	FIsSpawnable() : bIsSpawnable(false) {}

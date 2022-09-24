@@ -4,6 +4,8 @@
 #include "SlateFwd.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetSwitcherSlot)
+
 /////////////////////////////////////////////////////
 // UWidgetSwitcherSlot
 
@@ -99,3 +101,4 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetVerticalAlignment(VerticalAlignment);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+

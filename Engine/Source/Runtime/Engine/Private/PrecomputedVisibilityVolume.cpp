@@ -4,6 +4,8 @@
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PrecomputedVisibilityVolume)
+
 APrecomputedVisibilityVolume::APrecomputedVisibilityVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -15,3 +17,4 @@ APrecomputedVisibilityVolume::APrecomputedVisibilityVolume(const FObjectInitiali
 	BrushColor.A = 255;
 
 }
+

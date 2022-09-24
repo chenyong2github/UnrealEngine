@@ -3,6 +3,8 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyQueue)
+
 bool operator==(const FAnimNotifyEventReference& Lhs, const FAnimNotifyEvent& Rhs)
 {
 	if (Lhs.NotifySource && Lhs.Notify)
@@ -122,3 +124,4 @@ void FAnimNotifyQueue::ApplyMontageNotifies(const FAnimInstanceProxy& Proxy)
 	}
 	UnfilteredMontageAnimNotifies.Reset();
 }
+

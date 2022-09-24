@@ -4,6 +4,8 @@
 
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PrimitiveComponentToolTarget)
+
 bool UPrimitiveComponentToolTarget::IsValid() const
 {
 	return Component && ::IsValid(Component) && !Component->IsUnreachable() && Component->IsValidLowLevel();
@@ -62,5 +64,6 @@ UToolTarget* UPrimitiveComponentToolTargetFactory::BuildTarget(UObject* SourceOb
 	check(Target->Component && Requirements.AreSatisfiedBy(Target));
 	return Target;
 }
+
 
 

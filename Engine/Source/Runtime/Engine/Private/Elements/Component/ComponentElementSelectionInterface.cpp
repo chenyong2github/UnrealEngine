@@ -4,3 +4,6 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
 #include "Elements/Framework/TypedElementList.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComponentElementSelectionInterface)
+

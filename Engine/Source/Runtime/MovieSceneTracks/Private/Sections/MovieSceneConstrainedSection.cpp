@@ -2,7 +2,10 @@
 
 #include "Sections/MovieSceneConstrainedSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneConstrainedSection)
+
 
 IMovieSceneConstrainedSection::IMovieSceneConstrainedSection()
 {
 }
+

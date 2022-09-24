@@ -4,6 +4,8 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_MakeNoise)
+
 UBTTask_MakeNoise::UBTTask_MakeNoise(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
 	, Loudnes(1.0f)
@@ -33,3 +35,4 @@ FName UBTTask_MakeNoise::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

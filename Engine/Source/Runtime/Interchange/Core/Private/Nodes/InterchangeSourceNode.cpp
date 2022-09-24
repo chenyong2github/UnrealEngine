@@ -9,6 +9,8 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSourceNode)
+
 
 namespace UE::Interchange::SourceNode
 {
@@ -124,3 +126,4 @@ bool UInterchangeSourceNode::SetCustomImportUnusedMaterial(const bool& Attribute
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ImportUnusedMaterial, bool);
 }
+

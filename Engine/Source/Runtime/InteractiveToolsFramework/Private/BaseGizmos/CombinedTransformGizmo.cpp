@@ -24,6 +24,8 @@
 #include "Engine/World.h"
 #include "Engine/CollisionProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CombinedTransformGizmo)
+
 
 #define LOCTEXT_NAMESPACE "UCombinedTransformGizmo"
 
@@ -1002,3 +1004,4 @@ FQuat UCombinedTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) 
 }
 
 #undef LOCTEXT_NAMESPACE
+

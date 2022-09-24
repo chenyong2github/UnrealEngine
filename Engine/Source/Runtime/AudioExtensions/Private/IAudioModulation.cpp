@@ -4,6 +4,8 @@
 #include "Containers/Map.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IAudioModulation)
+
 
 namespace Audio
 {
@@ -385,3 +387,4 @@ TUniquePtr<Audio::IModulatorSettings> USoundModulatorBase::CreateProxySettings()
 	checkNoEntry();
 	return TUniquePtr<Audio::IModulatorSettings>();
 }
+

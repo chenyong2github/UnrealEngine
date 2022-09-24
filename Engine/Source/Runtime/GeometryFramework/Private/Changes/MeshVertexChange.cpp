@@ -5,6 +5,8 @@
 
 #include "Components/BaseDynamicMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVertexChange)
+
 using namespace UE::Geometry;
 
 void FMeshVertexChange::Apply(UObject* Object)

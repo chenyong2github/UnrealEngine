@@ -15,6 +15,8 @@
 #include "MovieSceneTemplateCommon.h"
 #include "Evaluation/Blending/MovieSceneMultiChannelBlending.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertyTemplates)
+
 namespace
 {
 	FName SanitizeBoolPropertyName(FName InPropertyName)
@@ -59,4 +61,5 @@ void FMovieSceneStringPropertySectionTemplate::Evaluate(const FMovieSceneEvaluat
 		ExecutionTokens.Add(TPropertyTrackExecutionToken<FString>(*Result));
 	}
 }
+
 

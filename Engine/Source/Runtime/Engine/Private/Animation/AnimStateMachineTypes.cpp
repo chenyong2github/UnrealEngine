@@ -2,6 +2,8 @@
 
 #include "Animation/AnimStateMachineTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimStateMachineTypes)
+
 /////////////////////////////////////////////////////
 // UAnimStateMachineTypes
 
@@ -49,3 +51,4 @@ int32 FBakedAnimationStateMachine::FindTransitionIndex(const int32 InStateIdxFro
 
 	return INDEX_NONE;
 }
+

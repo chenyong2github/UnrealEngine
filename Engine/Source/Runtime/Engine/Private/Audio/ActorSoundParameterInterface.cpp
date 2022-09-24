@@ -2,6 +2,8 @@
 #include "Audio/ActorSoundParameterInterface.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorSoundParameterInterface)
+
 
 UActorSoundParameterInterface::UActorSoundParameterInterface(FObjectInitializer const& InObjectInitializer)
 	: Super(InObjectInitializer)
@@ -19,3 +21,4 @@ void UActorSoundParameterInterface::Fill(const AActor* OwningActor, TArray<FAudi
 		OutParams.Append(ActorAudioParams);
 	}
 }
+

@@ -11,6 +11,8 @@
 #include "Systems/MovieScenePropertyInstantiator.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneInitialValueSystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -172,3 +174,4 @@ void UMovieSceneInitialValueSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 		}
 	}
 }
+

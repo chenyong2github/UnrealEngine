@@ -12,6 +12,8 @@
 #include "ChaosCheck.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicalAnimationComponent)
+
 const FConstraintProfileProperties UPhysicalAnimationComponent::PhysicalAnimationProfile = []()
 {
 	//Setup the default constraint profile for all joints created by physical animation system
@@ -506,3 +508,4 @@ void UPhysicalAnimationComponent::DebugDraw(FPrimitiveDrawInterface* PDI) const
 	}
 }
 #endif
+

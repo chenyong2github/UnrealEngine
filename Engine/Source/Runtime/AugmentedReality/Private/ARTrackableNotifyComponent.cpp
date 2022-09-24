@@ -3,6 +3,8 @@
 #include "ARTrackableNotifyComponent.h"
 #include "ARBlueprintLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARTrackableNotifyComponent)
+
 void UARTrackableNotifyComponent::OnRegister()
 {
 	Super::OnRegister();
@@ -138,3 +140,4 @@ void UARTrackableNotifyComponent::OnTrackableRemoved(UARTrackedGeometry* Removed
 		OnRemoveTrackedGeometry.Broadcast(Removed);
 	}
 }
+

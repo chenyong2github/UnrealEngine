@@ -4,6 +4,8 @@
 #include "Chaos/ChaosSolverActor.h"
 #include "ChaosSolversModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosSolverSettings)
+
 UChaosSolverSettings::UChaosSolverSettings()
 {
 }
@@ -55,3 +57,4 @@ void UChaosSolverSettings::PostReloadConfig(class FProperty* PropertyThatWasLoad
 
 	UpdateProperty(PropertyThatWasLoaded);
 }
+

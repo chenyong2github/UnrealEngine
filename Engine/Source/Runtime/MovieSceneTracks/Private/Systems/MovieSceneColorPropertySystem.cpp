@@ -5,6 +5,8 @@
 #include "Systems/FloatChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneColorPropertySystem)
+
 
 UMovieSceneColorPropertySystem::UMovieSceneColorPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -23,5 +25,6 @@ void UMovieSceneColorPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequis
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
 
 

@@ -2,6 +2,8 @@
 
 #include "GameFramework/LocalMessage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalMessage)
+
 FClientReceiveData::FClientReceiveData()
 	: LocalPC(NULL)
 	, MessageType(FName(TEXT("None")))
@@ -18,3 +20,4 @@ ULocalMessage::ULocalMessage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+

@@ -5,6 +5,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerKismetLibrary)
+
 namespace
 {
 	const FName NAME_Empty;
@@ -84,3 +86,4 @@ void UVisualLoggerKismetLibrary::LogSegment(UObject* WorldContextObject, const F
 			, *Text, *SegmentStart.ToString(), *SegmentStart.ToString())));
 	}
 }
+

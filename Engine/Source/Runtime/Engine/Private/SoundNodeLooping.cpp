@@ -7,6 +7,8 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SoundNodeWavePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeLooping)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeLooping implementation.
 -----------------------------------------------------------------------------*/
@@ -193,6 +195,7 @@ int32 USoundNodeLooping::GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiv
 	// sounddone hooks except for the last one (when the loop count is reached)
 	return 1;
 }
+
 
 
 

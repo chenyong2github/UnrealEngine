@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "MovieSceneSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TransformConstraint)
+
 /** 
  * UTickableTransformConstraint
  **/
@@ -1438,3 +1440,4 @@ void FTransformConstraintUtils::GetChildrenConstraints(
 
 	OutConstraints.Append(FilteredConstraints);
 }
+

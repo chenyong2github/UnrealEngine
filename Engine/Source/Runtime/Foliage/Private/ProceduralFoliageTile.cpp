@@ -5,6 +5,8 @@
 #include "CollisionQueryParams.h"
 #include "ProceduralFoliageSpawner.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralFoliageTile)
+
 #define LOCTEXT_NAMESPACE "ProceduralFoliage"
 
 UProceduralFoliageTile::UProceduralFoliageTile(const FObjectInitializer& ObjectInitializer)
@@ -594,3 +596,4 @@ void UProceduralFoliageTile::AddInstances(const TArray<FProceduralFoliageInstanc
 }
 
 #undef LOCTEXT_NAMESPACE
+

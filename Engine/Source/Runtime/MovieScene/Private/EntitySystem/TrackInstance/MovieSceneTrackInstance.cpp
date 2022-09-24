@@ -7,6 +7,8 @@
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.inl"
 #include "Algo/Sort.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTrackInstance)
+
 void UMovieSceneTrackInstance::Initialize(UObject* InAnimatedObject, UMovieSceneEntitySystemLinker* InLinker)
 {
 	// We make the difference between a master track instance, and a bound track instance that lost its binding,
@@ -152,3 +154,4 @@ UWorld* UMovieSceneTrackInstance::GetWorld() const
 {
 	return AnimatedObject ? AnimatedObject->GetWorld() : Super::GetWorld();
 }
+

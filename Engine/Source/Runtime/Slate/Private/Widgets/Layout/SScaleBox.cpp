@@ -7,6 +7,8 @@
 #include "Misc/CoreDelegates.h"
 #include "Widgets/SWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SScaleBox)
+
 
 /* SScaleBox interface
  *****************************************************************************/

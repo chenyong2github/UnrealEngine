@@ -13,6 +13,9 @@
 #include "Engine/CoreSettings.h"
 #include "Net/UnrealNetwork.h"
 #include "WorldPartition/WorldPartition.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldDataLayers)
+
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"

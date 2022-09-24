@@ -10,6 +10,8 @@
 #include "FileMediaSource.h"
 #include "StreamMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlaylist)
+
 
 /* UMediaPlaylist interface
  *****************************************************************************/
@@ -161,3 +163,4 @@ bool UMediaPlaylist::Replace(int32 Index, UMediaSource* Replacement)
 
 	return true;
 }
+

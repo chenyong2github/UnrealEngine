@@ -4,6 +4,8 @@
 #include "EngineLogs.h"
 #include "Misc/RuntimeErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetNodeHelperLibrary)
+
 UKismetNodeHelperLibrary::UKismetNodeHelperLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

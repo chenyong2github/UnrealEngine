@@ -9,6 +9,8 @@
 #include "Internationalization/Internationalization.h"
 #include "Styling/UMGCoreStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputKeySelector)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 static FButtonStyle* DefaultInputKeySelectorButtonStyle = nullptr;

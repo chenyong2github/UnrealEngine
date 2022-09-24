@@ -11,6 +11,8 @@
 #include "Interfaces/IProjectManager.h"
 #include "ProjectDescriptor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlatformSettingsManager)
+
 #if WITH_EDITOR
 FName UPlatformSettingsManager::SimulatedEditorPlatform;
 #endif
@@ -110,3 +112,4 @@ TArray<UPlatformSettings*> UPlatformSettingsManager::GetAllPlatformSettings(TSub
 	return Settings;
 }
 #endif
+

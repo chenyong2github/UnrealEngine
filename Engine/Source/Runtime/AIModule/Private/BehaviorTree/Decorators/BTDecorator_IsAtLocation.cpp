@@ -8,6 +8,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_IsAtLocation)
+
 UBTDecorator_IsAtLocation::UBTDecorator_IsAtLocation(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Is At Location";
@@ -116,3 +118,4 @@ FName UBTDecorator_IsAtLocation::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

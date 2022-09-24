@@ -9,6 +9,8 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "UObject/StructOnScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneColorSection)
+
 #if WITH_EDITOR
 struct FColorSectionEditorData
 {
@@ -176,3 +178,4 @@ void UMovieSceneColorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 		.AddConditional(Components->FloatChannel[3], &AlphaCurve, AlphaCurve.HasAnyData())
 		.Commit(this, Params, OutImportedEntity);
 }
+

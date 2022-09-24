@@ -6,6 +6,9 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimPoseSearchProvider.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SequencePlayer)
+
 #if WITH_EDITORONLY_DATA
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #endif
@@ -331,3 +334,4 @@ bool FAnimNode_SequencePlayer::SetPlayRate(float InPlayRate)
 }
 
 #undef LOCTEXT_NAMESPACE
+

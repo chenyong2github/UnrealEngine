@@ -33,6 +33,8 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameInstance)
+
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/EditorEngine.h"
@@ -1492,3 +1494,4 @@ void UGameInstance::UnregisterReferencedObject(UObject* ObjectToReference)
 {
 	ReferencedObjects.RemoveSingleSwap(ObjectToReference);
 }
+

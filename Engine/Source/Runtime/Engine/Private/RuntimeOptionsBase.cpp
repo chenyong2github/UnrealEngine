@@ -10,6 +10,8 @@
 #include "Misc/CommandLine.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RuntimeOptionsBase)
+
 DEFINE_LOG_CATEGORY_STATIC(LogRuntimeOptionsBase, Log, All);
 
 #define UE_RUNTIMEOPTIONSBASE_SUPPORT_CVARS !UE_BUILD_SHIPPING
@@ -147,3 +149,4 @@ void URuntimeOptionsBase::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 		}
 	}
 }
+

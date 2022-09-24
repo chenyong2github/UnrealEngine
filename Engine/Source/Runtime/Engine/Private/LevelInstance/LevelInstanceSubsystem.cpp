@@ -53,6 +53,8 @@
 
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceSubsystem)
+
 #define LOCTEXT_NAMESPACE "LevelInstanceSubsystem"
 
 DEFINE_LOG_CATEGORY(LogLevelInstance);
@@ -2411,3 +2413,4 @@ bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* Le
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

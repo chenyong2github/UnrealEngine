@@ -8,6 +8,8 @@
 
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComponentElementWorldInterface)
+
 bool UComponentElementWorldInterface::CanEditElement(const FTypedElementHandle& InElementHandle)
 {
 	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
@@ -144,3 +146,4 @@ bool UComponentElementWorldInterface::FindSuitableTransformAlongPath(const FType
 
 	return false;
 }
+

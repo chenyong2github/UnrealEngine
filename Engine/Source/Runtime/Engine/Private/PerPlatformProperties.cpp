@@ -3,6 +3,8 @@
 #include "PerPlatformProperties.h"
 #include "Serialization/Archive.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PerPlatformProperties)
+
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
@@ -108,3 +110,4 @@ FString FFreezablePerPlatformInt::ToString() const
 {
 	return FPerPlatformInt(*this).ToString();
 }
+

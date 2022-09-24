@@ -6,6 +6,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "RBF/RBFSolver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseDriver)
+
 
 FAnimNode_PoseDriver::FAnimNode_PoseDriver()
 	: DriveSource(EPoseDriverSource::Rotation)
@@ -492,3 +494,4 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		}
 #endif
 	}
+

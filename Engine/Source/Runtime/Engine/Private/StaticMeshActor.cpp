@@ -18,6 +18,8 @@
 #include "StaticMeshResources.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshActor)
+
 
 #define LOCTEXT_NAMESPACE "StaticMeshActor"
 FName AStaticMeshActor::StaticMeshComponentName(TEXT("StaticMeshComponent0"));
@@ -244,4 +246,5 @@ void AStaticMeshActor::CheckForErrors()
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+
 

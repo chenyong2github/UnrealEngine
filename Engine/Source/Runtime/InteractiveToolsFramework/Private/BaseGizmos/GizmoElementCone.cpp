@@ -7,6 +7,8 @@
 #include "Materials/MaterialInterface.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementCone)
+
 void UGizmoElementCone::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
 	FRenderTraversalState CurrentRenderState(RenderState);
@@ -115,4 +117,5 @@ int32 UGizmoElementCone::GetNumSides() const
 {
 	return NumSides;
 }
+
 

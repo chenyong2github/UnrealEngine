@@ -6,6 +6,8 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "IMovieSceneTracksModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLevelVisibilityTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneLevelVisibilityTrack"
 
 UMovieSceneLevelVisibilityTrack::UMovieSceneLevelVisibilityTrack( const FObjectInitializer& ObjectInitializer )
@@ -67,3 +69,4 @@ FText UMovieSceneLevelVisibilityTrack::GetDefaultDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

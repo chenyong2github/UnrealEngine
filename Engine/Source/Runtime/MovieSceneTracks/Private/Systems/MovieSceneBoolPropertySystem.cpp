@@ -4,6 +4,8 @@
 #include "Systems/MovieScenePiecewiseBoolBlenderSystem.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBoolPropertySystem)
+
 UMovieSceneBoolPropertySystem::UMovieSceneBoolPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -21,4 +23,5 @@ void UMovieSceneBoolPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
 

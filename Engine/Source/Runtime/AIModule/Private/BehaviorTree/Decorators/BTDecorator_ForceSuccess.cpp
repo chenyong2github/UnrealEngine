@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_ForceSuccess)
+
 UBTDecorator_ForceSuccess::UBTDecorator_ForceSuccess(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = TEXT("Force Success");
@@ -28,3 +30,4 @@ FName UBTDecorator_ForceSuccess::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

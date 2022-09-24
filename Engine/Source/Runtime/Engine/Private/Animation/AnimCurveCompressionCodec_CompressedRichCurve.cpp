@@ -5,6 +5,8 @@
 #include "Serialization/MemoryWriter.h"
 #include "AnimationCompression.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCurveCompressionCodec_CompressedRichCurve)
+
 UAnimCurveCompressionCodec_CompressedRichCurve::UAnimCurveCompressionCodec_CompressedRichCurve(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -163,3 +165,4 @@ float UAnimCurveCompressionCodec_CompressedRichCurve::DecompressCurve(const FCom
 
 	return 0.0f;
 }
+

@@ -4,6 +4,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/CoreRedirects.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MemberReference)
+
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintCompilationManager.h"
@@ -371,3 +373,4 @@ FField* FMemberReference::FindRemappedField(FFieldClass* FieldClass, UClass* Ini
 {
 	return FindRemappedFieldImpl<FField>(GLongCoreUObjectPackageName, FieldClass->GetFName(), InitialScope, InitialName, bInitialScopeMustBeOwnerOfField);
 }
+

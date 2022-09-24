@@ -7,6 +7,8 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "Animation/AnimSequenceBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_PlaySound)
+
 #if WITH_EDITOR
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -104,3 +106,4 @@ void UAnimNotify_PlaySound::ValidateAssociatedAssets()
 	}
 }
 #endif
+

@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSubsystem_NodeRelevancy)
+
 float FAnimNodeRelevancyStatus::GetCurrentWeight() const
 {
 	return CurrentWeight;

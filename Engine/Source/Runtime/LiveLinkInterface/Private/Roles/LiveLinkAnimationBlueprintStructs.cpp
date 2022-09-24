@@ -5,6 +5,8 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAnimationBlueprintStructs)
+
 // FCachedSubjectFrame
 
 FCachedSubjectFrame::FCachedSubjectFrame() 
@@ -407,3 +409,4 @@ void FSubjectFrameHandle::SetCachedFrame(TSharedPtr<FCachedSubjectFrame> InCache
 {
 	CachedFrame = InCachedFrame;
 };
+

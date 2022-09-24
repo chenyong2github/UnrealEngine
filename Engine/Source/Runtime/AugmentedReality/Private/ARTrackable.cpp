@@ -6,6 +6,8 @@
 #include "DrawDebugHelpers.h"
 #include "MRMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARTrackable)
+
 //
 //
 //
@@ -547,3 +549,4 @@ void UARGeoAnchor::GetNetworkPayload(FARGeoAnchorUpdatePayload& Payload)
 	Payload.AltitudeSource = AltitudeSource;
 	Payload.AnchorName = GetName();
 }
+

@@ -4,6 +4,8 @@
 #include "MovieScene.h"
 #include "MovieSceneSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFloatPerlinNoiseChannel)
+
 FMovieSceneFloatPerlinNoiseChannel::FMovieSceneFloatPerlinNoiseChannel()
 	: PerlinNoiseParams{}
 {

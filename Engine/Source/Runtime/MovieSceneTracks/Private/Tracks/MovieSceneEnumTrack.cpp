@@ -3,6 +3,8 @@
 #include "Tracks/MovieSceneEnumTrack.h"
 #include "Sections/MovieSceneEnumSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEnumTrack)
+
 UMovieSceneEnumTrack::UMovieSceneEnumTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
@@ -43,3 +45,4 @@ UEnum* UMovieSceneEnumTrack::GetEnum() const
 {
 	return Enum;
 }
+

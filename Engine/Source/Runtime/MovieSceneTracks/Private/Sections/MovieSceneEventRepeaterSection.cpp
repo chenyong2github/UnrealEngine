@@ -13,6 +13,8 @@
 
 #include "Evaluation/MovieSceneEvaluationField.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventRepeaterSection)
+
 
 void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
@@ -77,3 +79,4 @@ bool UMovieSceneEventRepeaterSection::PopulateEvaluationFieldImpl(const TRange<F
 	OutFieldBuilder->AddOneShotEntity(EffectiveRange, this, 0, OutFieldBuilder->AddMetaData(InMetaData));
 	return true;
 }
+

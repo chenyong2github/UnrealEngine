@@ -5,6 +5,8 @@
 #include "Components/BrushComponent.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocationVolume)
+
 #if WITH_EDITOR
 class ENGINE_API FLoaderAdapterLocationVolumeActor : public FLoaderAdapterActor
 {

@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/Decorators/BTDecorator_TimeLimit.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_TimeLimit)
+
 UBTDecorator_TimeLimit::UBTDecorator_TimeLimit(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "TimeLimit";
@@ -60,3 +62,4 @@ FName UBTDecorator_TimeLimit::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

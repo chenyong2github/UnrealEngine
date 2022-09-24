@@ -4,6 +4,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimStateMachineTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CachedAnimData)
+
 bool FCachedAnimStateData::IsValid(UAnimInstance& InAnimInstance) const
 {
 	if (!bInitialized)
@@ -320,3 +322,4 @@ float FCachedAnimTransitionData::GetCrossfadeDuration(UAnimInstance& InAnimInsta
 
 	return 0.f;
 }
+

@@ -16,6 +16,8 @@
 
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLevelVisibilitySystem)
+
 namespace UE
 {
 namespace MovieScene
@@ -489,4 +491,5 @@ void UMovieSceneLevelVisibilitySystem::RestorePreAnimatedState(const FPreAnimati
 {
 	SharedData.RestoreLevels(Linker);
 }
+
 

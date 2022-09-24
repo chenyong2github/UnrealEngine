@@ -5,6 +5,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Elements/Framework/TypedElementList.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementSelectionInterface)
+
 bool USMInstanceElementSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementListPtr& InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
@@ -26,3 +28,4 @@ bool USMInstanceElementSelectionInterface::DeselectElement(const FTypedElementHa
 	}
 	return false;
 }
+

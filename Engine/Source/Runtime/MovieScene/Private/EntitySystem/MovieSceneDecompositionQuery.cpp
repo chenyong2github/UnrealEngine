@@ -3,6 +3,8 @@
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "Algo/Accumulate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDecompositionQuery)
+
 
 namespace UE
 {
@@ -147,5 +149,6 @@ double FDecomposedValue::Recompose(FMovieSceneEntityID RecomposeEntity, double C
 
 } // namespace MovieScene
 } // namespace UE
+
 
 

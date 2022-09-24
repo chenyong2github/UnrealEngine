@@ -12,6 +12,8 @@
 #include "GameFramework/Volume.h"
 #include "ShowFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorElementWorldInterface)
+
 bool UActorElementWorldInterface::IsTemplateElement(const FTypedElementHandle& InElementHandle)
 {
 	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
@@ -254,3 +256,4 @@ void UActorElementWorldInterface::AddIgnoredCollisionQueryElement(const FTypedEl
 		return;
 	}
 }
+

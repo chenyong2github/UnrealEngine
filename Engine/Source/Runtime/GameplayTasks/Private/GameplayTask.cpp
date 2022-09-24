@@ -7,6 +7,8 @@
 #include "GameplayTaskResource.h"
 #include "GameplayTasksComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask)
+
 UGameplayTask::UGameplayTask(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -466,3 +468,4 @@ void UGameplayTask::OnGameplayTaskInitialized(UGameplayTask& Task)
 
 	ChildTask = &Task;
 }
+

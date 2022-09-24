@@ -3,6 +3,8 @@
 #include "Engine/TriggerVolume.h"
 #include "Components/BrushComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TriggerVolume)
+
 ATriggerVolume::ATriggerVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -35,3 +37,4 @@ void ATriggerVolume::LoadedFromAnotherClass(const FName& OldClassName)
 }
 
 #endif
+

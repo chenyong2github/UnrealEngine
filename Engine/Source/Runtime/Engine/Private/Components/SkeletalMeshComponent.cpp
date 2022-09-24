@@ -50,6 +50,8 @@
 #include "Engine/PoseWatch.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshComponent)
+
 LLM_DEFINE_TAG(SkeletalMesh_TransformData);
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"
@@ -4665,3 +4667,4 @@ void USkeletalMeshComponent::UpdatePoseWatches()
 #endif // #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

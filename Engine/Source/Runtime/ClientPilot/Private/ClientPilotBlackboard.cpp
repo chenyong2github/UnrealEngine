@@ -2,6 +2,8 @@
 
 #include "ClientPilotBlackboard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ClientPilotBlackboard)
+
 void UClientPilotBlackboard::InitializeFromProfile(FString ProfileCategoryAndName)
 {
 

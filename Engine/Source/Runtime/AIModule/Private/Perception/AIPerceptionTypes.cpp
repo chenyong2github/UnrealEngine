@@ -3,6 +3,8 @@
 #include "Perception/AIPerceptionTypes.h"
 #include "Perception/AIPerceptionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionTypes)
+
 template<>
 FAISenseCounter FAINamedID<FAISenseCounter>::Counter = FAISenseCounter();
 
@@ -139,4 +141,5 @@ const IGenericTeamAgentInterface* FPerceptionListener::GetTeamAgent() const
 	const IGenericTeamAgentInterface* OwnerTeamAgent = Cast<const IGenericTeamAgentInterface>(OwnerActor);
 	return OwnerTeamAgent != NULL ? OwnerTeamAgent : Cast<const IGenericTeamAgentInterface>(PercComponent->GetBodyActor());
 }
+
 

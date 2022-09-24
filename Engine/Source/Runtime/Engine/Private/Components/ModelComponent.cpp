@@ -15,6 +15,8 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ModelComponent)
+
 FModelElement::FModelElement(UModelComponent* InComponent,UMaterialInterface* InMaterial):
 	Component(InComponent),
 	Material(InMaterial),
@@ -742,3 +744,4 @@ bool UModelComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const
 {
 	return (Elements.Num() > 0);
 }
+

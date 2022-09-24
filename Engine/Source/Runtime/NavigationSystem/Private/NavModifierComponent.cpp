@@ -7,6 +7,8 @@
 #include "NavAreas/NavArea_Null.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavModifierComponent)
+
 UNavModifierComponent::UNavModifierComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	AreaClass = UNavArea_Null::StaticClass();
@@ -137,3 +139,4 @@ void UNavModifierComponent::OnTransformUpdated(USceneComponent* RootComponent, E
 		RefreshNavigationModifiers();
 	}
 }
+

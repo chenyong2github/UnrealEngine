@@ -7,6 +7,8 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeResult)
+
 // @TODO: move these methods out of UInterchangeResult and into InterchangeDispatcherTask?
 // Is it useful to expose this functionality at the engine level?
 
@@ -95,3 +97,4 @@ UInterchangeResult* UInterchangeResult::FromJson(const FString& JsonString)
 
 	return Result;
 }
+

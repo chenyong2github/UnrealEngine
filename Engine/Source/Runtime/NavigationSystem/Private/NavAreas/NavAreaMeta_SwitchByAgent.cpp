@@ -5,6 +5,8 @@
 #include "NavigationSystem.h"
 #include "NavAreas/NavArea_Default.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavAreaMeta_SwitchByAgent)
+
 UNavAreaMeta_SwitchByAgent::UNavAreaMeta_SwitchByAgent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	Agent0Area = UNavArea_Default::StaticClass();
@@ -88,3 +90,4 @@ void UNavAreaMeta_SwitchByAgent::UpdateAgentConfig()
 	}
 }
 #endif
+

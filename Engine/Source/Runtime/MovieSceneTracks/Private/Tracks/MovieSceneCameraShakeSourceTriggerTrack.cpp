@@ -5,6 +5,8 @@
 #include "Evaluation/MovieSceneCameraShakeSourceTriggerTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakeSourceTriggerTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneCameraShakeSourceTrigger"
 
 UMovieSceneCameraShakeSourceTriggerTrack::UMovieSceneCameraShakeSourceTriggerTrack(const FObjectInitializer& Obj)
@@ -85,4 +87,5 @@ FText UMovieSceneCameraShakeSourceTriggerTrack::GetDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+
 

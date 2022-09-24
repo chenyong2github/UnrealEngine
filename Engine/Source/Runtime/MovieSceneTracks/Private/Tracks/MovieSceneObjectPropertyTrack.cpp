@@ -4,6 +4,8 @@
 #include "Sections/MovieSceneObjectPropertySection.h"
 #include "Evaluation/MovieSceneObjectPropertyTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneObjectPropertyTrack)
+
 
 UMovieSceneObjectPropertyTrack::UMovieSceneObjectPropertyTrack(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -28,3 +30,4 @@ FMovieSceneEvalTemplatePtr UMovieSceneObjectPropertyTrack::CreateTemplateForSect
 {
 	return FMovieSceneObjectPropertyTemplate(*CastChecked<UMovieSceneObjectPropertySection>(&InSection), *this);
 }
+

@@ -2,6 +2,8 @@
 
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KeyAsModifierInputBehavior)
+
 UKeyAsModifierInputBehavior::UKeyAsModifierInputBehavior()
 {
 }
@@ -42,4 +44,5 @@ FInputCaptureUpdate UKeyAsModifierInputBehavior::UpdateCapture(const FInputDevic
 void UKeyAsModifierInputBehavior::ForceEndCapture(const FInputCaptureData& Data)
 {
 }
+
 

@@ -12,6 +12,8 @@
 #include "AIController.h"
 #include "Components/PawnNoiseEmitterComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PawnSensingComponent)
+
 DECLARE_CYCLE_STAT(TEXT("Sensing"),STAT_AI_Sensing,STATGROUP_AI);
 
 UPawnSensingComponent::UPawnSensingComponent(const FObjectInitializer& ObjectInitializer)
@@ -475,4 +477,5 @@ bool UPawnSensingComponent::ShouldCheckAudibilityOf(APawn* Pawn) const
 
 	return true;
 }
+
 

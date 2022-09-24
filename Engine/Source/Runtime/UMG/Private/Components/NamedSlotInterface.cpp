@@ -3,6 +3,8 @@
 #include "Components/NamedSlotInterface.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NamedSlotInterface)
+
 UNamedSlotInterface::UNamedSlotInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

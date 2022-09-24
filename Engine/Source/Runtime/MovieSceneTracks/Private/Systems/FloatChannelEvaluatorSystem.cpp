@@ -13,6 +13,8 @@
 
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FloatChannelEvaluatorSystem)
+
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Float channel system"), MovieSceneEval_FloatChannelSystem, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Gather float channels"), MovieSceneEval_GatherFloatChannelTask, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate float channels"), MovieSceneEval_EvaluateFloatChannelTask, STATGROUP_MovieSceneECS);
@@ -123,3 +125,4 @@ void UFloatChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisit
 		.Dispatch_PerEntity<FEvaluateFloatChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 	}
 }
+

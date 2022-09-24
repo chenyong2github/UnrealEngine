@@ -21,6 +21,8 @@
 #include "BehaviorTree/BTTaskNode.h"
 #include "BehaviorTree/BTCompositeNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BehaviorTreeTypes)
+
 //----------------------------------------------------------------------//
 // FBehaviorTreeInstance
 //----------------------------------------------------------------------//
@@ -653,3 +655,4 @@ void UBehaviorTreeTypes::SetBTLoggingContext(const UBTNode* NewBTLoggingContext)
 //----------------------------------------------------------------------//
 // DEPRECATED
 //----------------------------------------------------------------------//
+

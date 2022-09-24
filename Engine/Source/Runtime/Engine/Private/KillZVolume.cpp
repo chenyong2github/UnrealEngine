@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KillZVolume)
+
 AKillZVolume::AKillZVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -32,3 +34,4 @@ void AKillZVolume::ActorEnteredVolume(AActor* Other)
 		Other->FellOutOfWorld(*DamageType);
 	}
 }
+

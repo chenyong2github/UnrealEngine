@@ -2,6 +2,8 @@
 
 #include "GameplayTagAssetInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagAssetInterface)
+
 UGameplayTagAssetInterface::UGameplayTagAssetInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -30,3 +32,4 @@ bool IGameplayTagAssetInterface::HasAnyMatchingGameplayTags(const FGameplayTagCo
 
 	return OwnedTags.HasAny(TagContainer);
 }
+

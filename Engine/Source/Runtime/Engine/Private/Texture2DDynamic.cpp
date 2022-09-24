@@ -10,6 +10,8 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Texture2DDynamic)
+
 /*-----------------------------------------------------------------------------
 	FTexture2DDynamicResource
 -----------------------------------------------------------------------------*/
@@ -183,3 +185,4 @@ UTexture2DDynamic* UTexture2DDynamic::Create(int32 InSizeX, int32 InSizeY, const
 		return NULL;
 	}
 }
+

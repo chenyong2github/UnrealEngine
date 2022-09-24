@@ -6,6 +6,8 @@
 
 #include "Components/ListViewBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IUserListEntry)
+
 TMap<TWeakObjectPtr<const UUserWidget>, TWeakPtr<const IObjectTableRow>> IObjectTableRow::ObjectRowsByUserWidget;
 
 UUserListEntry::UUserListEntry(const FObjectInitializer& Initializer)
@@ -108,3 +110,4 @@ UListViewBase* UUserListEntryLibrary::GetOwningListView(TScriptInterface<IUserLi
 	}
 	return nullptr;
 }
+

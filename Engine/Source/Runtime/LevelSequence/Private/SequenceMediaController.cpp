@@ -14,6 +14,8 @@
 #include "LevelSequenceActor.h"
 #include "LevelSequenceModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceMediaController)
+
 
 ALevelSequenceMediaController::ALevelSequenceMediaController(const FObjectInitializer& Init)
 	: Super(Init)

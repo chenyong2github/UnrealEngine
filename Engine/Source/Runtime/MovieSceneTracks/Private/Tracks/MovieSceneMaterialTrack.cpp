@@ -8,6 +8,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMaterialTrack)
+
 UMovieSceneMaterialTrack::UMovieSceneMaterialTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -182,3 +184,4 @@ FText UMovieSceneComponentMaterialTrack::GetDefaultDisplayName() const
 	return FText::FromString(FString::Printf(TEXT("Material Element %i"), MaterialIndex));
 }
 #endif
+

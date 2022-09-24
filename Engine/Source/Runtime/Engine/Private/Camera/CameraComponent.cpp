@@ -22,6 +22,8 @@
 #include "Math/UnitConversion.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraComponent)
+
 #define LOCTEXT_NAMESPACE "CameraComponent"
 
 //////////////////////////////////////////////////////////////////////////
@@ -492,4 +494,5 @@ void UCameraComponent::GetExtraPostProcessBlends(TArray<FPostProcessSettings>& O
 
 
 #undef LOCTEXT_NAMESPACE
+
 

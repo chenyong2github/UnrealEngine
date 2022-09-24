@@ -6,6 +6,8 @@
 #include "AudioMixerDevice.h"
 #include "Engine/GameInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMixerClockHandle)
+
 
 
 // Clock Handle implementation
@@ -360,3 +362,4 @@ bool UQuartzClockHandle::GetCurrentTickRate(const UObject* WorldContextObject, A
 	OutTickRate = {};
 	return false;
 }
+

@@ -12,6 +12,8 @@
 #include "Tracks/MovieSceneMaterialParameterCollectionTrack.h"
 #include "UObject/SequencerObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WidgetAnimation)
+
 
 #define LOCTEXT_NAMESPACE "UWidgetAnimation"
 
@@ -318,3 +320,4 @@ bool UWidgetAnimation::IsPostLoadThreadSafe() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

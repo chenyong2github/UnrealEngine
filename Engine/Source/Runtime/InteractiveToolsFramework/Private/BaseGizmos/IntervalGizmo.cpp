@@ -17,6 +17,8 @@
 #include "Engine/World.h"
 #include "Engine/CollisionProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IntervalGizmo)
+
 
 #define LOCTEXT_NAMESPACE "UIntervalGizmo"
 

@@ -9,6 +9,8 @@
 #include "InputState.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementArrow)
+
 UGizmoElementArrow::UGizmoElementArrow()
 {
 	HeadType = EGizmoElementArrowHeadType::Cone;
@@ -275,3 +277,4 @@ void UGizmoElementArrow::UpdateArrowHead()
 
 	bUpdateArrowHead = false;
 }
+

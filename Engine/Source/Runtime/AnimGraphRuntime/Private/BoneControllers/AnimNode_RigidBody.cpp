@@ -18,6 +18,8 @@
 #include "Logging/MessageLog.h"
 #include "Logging/LogMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RigidBody)
+
 LLM_DEFINE_TAG(Animation_RigidBody);
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -1889,3 +1891,4 @@ bool FAnimNode_RigidBody::IsValidToEvaluate(const USkeleton* Skeleton, const FBo
 }
 
 #undef LOCTEXT_NAMESPACE
+

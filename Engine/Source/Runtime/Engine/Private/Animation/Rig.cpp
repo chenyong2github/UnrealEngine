@@ -8,6 +8,8 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "AnimationRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Rig)
+
 //@todo should move all this window stuff somewhere else. Persona?
 
 #define LOCTEXT_NAMESPACE "Rig"
@@ -510,3 +512,4 @@ void URig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNo
 	}
 }
 #undef LOCTEXT_NAMESPACE 
+

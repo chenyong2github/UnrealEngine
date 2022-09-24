@@ -8,6 +8,8 @@
 #include "VT/VirtualTextureBuiltData.h"
 #include "PlatformInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureLODSettings)
+
 int32 GUITextureLODBias = 0;
 FAutoConsoleVariableRef CVarUITextureLODBias(
 	TEXT("r.UITextureLODBias"),
@@ -397,3 +399,4 @@ ETextureMipLoadOptions UTextureLODSettings::GetMipLoadOptions(const UTexture* Te
 		return TextureLODGroups[Texture->LODGroup].MipLoadOptions;
 	}
 }
+

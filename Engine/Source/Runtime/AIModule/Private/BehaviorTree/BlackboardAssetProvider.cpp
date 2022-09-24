@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/BlackboardAssetProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardAssetProvider)
+
 
 //----------------------------------------------------------------------//
 // UBlackboardAssetProvider
@@ -15,3 +17,4 @@ UBlackboardAssetProvider::UBlackboardAssetProvider(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 {
 }
+

@@ -7,6 +7,8 @@
 #include "UObject/Package.h"
 #include "Engine/AssetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataAsset)
+
 UDataAsset::UDataAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -123,3 +125,4 @@ void UPrimaryDataAsset::PostLoad()
 	}
 #endif
 }
+

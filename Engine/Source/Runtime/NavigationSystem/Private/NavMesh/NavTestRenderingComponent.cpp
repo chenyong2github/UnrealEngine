@@ -8,6 +8,8 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "Debug/DebugDrawService.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavTestRenderingComponent)
+
 static constexpr FColor NavMeshRenderColor_OpenSet(255,128,0,255);
 static constexpr FColor NavMeshRenderColor_ClosedSet(255,196,0,255);
 static constexpr uint8 NavMeshRenderAlpha_Modified = 255;
@@ -438,3 +440,4 @@ FBoxSphereBounds UNavTestRenderingComponent::CalcBounds(const FTransform& LocalT
 
 	return FBoxSphereBounds(BoundingBox);
 }
+

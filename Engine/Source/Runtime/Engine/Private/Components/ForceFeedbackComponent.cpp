@@ -7,6 +7,8 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ForceFeedbackComponent)
+
 TArray<FForceFeedbackManager*> FForceFeedbackManager::PerWorldForceFeedbackManagers;
 FDelegateHandle FForceFeedbackManager::OnWorldCleanupHandle;
 
@@ -393,3 +395,4 @@ void UForceFeedbackComponent::Update(FVector Location, FForceFeedbackValues& Val
 		}
 	}
 }
+

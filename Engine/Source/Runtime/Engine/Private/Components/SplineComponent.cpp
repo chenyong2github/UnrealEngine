@@ -12,6 +12,8 @@
 #include "UnrealEngine.h"
 #include "Styling/StyleColors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SplineComponent)
+
 #if WITH_EDITOR
 #include "Settings/LevelEditorViewportSettings.h"
 #endif
@@ -2005,3 +2007,4 @@ void FSplinePositionLinearApproximation::Build(const FSplineCurves& InCurves, TA
 
 	OutPoints.Emplace(InCurves.Position.Points.Last().OutVal, InCurves.ReparamTable.Points.Last().OutVal);
 }
+

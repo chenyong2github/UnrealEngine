@@ -33,6 +33,8 @@
 #include "GameFramework/MovementComponent.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HUD)
+
 DEFINE_LOG_CATEGORY_STATIC(LogHUD, Log, All);
 
 #define LOCTEXT_NAMESPACE "HUD"
@@ -1357,3 +1359,4 @@ bool AHUD::IsCanvasValid_WarnIfNot() const
 
 
 #undef LOCTEXT_NAMESPACE
+

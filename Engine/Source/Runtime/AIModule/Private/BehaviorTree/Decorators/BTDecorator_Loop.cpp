@@ -5,6 +5,8 @@
 #include "BehaviorTree/BTCompositeNode.h"
 #include "BehaviorTree/Composites/BTComposite_SimpleParallel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_Loop)
+
 UBTDecorator_Loop::UBTDecorator_Loop(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Loop";
@@ -113,3 +115,4 @@ FName UBTDecorator_Loop::GetNodeIconName() const
 }
 
 #endif	// WITH_EDITOR
+

@@ -6,6 +6,8 @@
 
 #include "Engine/IntSerialization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IntSerialization)
+
 UIntSerialization::UIntSerialization(const FObjectInitializer& ObjectInitializer)
 	: UObject(ObjectInitializer)
 {
@@ -17,3 +19,4 @@ UIntSerialization::UIntSerialization(const FObjectInitializer& ObjectInitializer
 
 	Ar << UnsignedInt16Variable << UnsignedInt32Variable << UnsignedInt64Variable << SignedInt8Variable << SignedInt16Variable << SignedInt64Variable << UnsignedInt8Variable << SignedInt32Variable;
 }*/
+

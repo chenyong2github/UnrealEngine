@@ -6,6 +6,8 @@
 
 #include "Slate/SRetainerWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RetainerBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 static FName DefaultTextureParameterName("Texture");
@@ -182,3 +184,4 @@ bool URetainerBox::CanEditChange(const FProperty* InProperty) const
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

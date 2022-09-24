@@ -42,6 +42,8 @@
 #include "Engine/TextureCube.h"
 #include "Math/PackedVector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReflectionCaptureComponent)
+
 #if WITH_EDITOR
 #include "Factories/TextureFactory.h"
 #include "TextureCompiler.h"
@@ -1300,3 +1302,4 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 		MobileUniformBuffer = TUniformBufferRef<FMobileReflectionCaptureShaderParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame);
 	}
 }
+

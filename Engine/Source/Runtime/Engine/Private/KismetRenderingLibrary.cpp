@@ -23,6 +23,8 @@
 #include "Engine/Texture2D.h"
 #include "RHI.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetRenderingLibrary)
+
 #if WITH_EDITOR
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -883,3 +885,4 @@ ENGINE_API FMatrix UKismetRenderingLibrary::CalculateProjectionMatrix(const FMin
 }
 
 #undef LOCTEXT_NAMESPACE
+

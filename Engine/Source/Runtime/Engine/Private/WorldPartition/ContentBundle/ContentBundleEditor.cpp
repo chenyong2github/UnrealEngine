@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBundleEditor)
+
 #if WITH_EDITOR
 
 #include "WorldPartition/ContentBundle/ContentBundle.h"

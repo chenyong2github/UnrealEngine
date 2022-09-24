@@ -7,6 +7,8 @@
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(XRLoadingScreenFunctionLibrary)
+
 static IXRLoadingScreen* GetLoadingScreen()
 {
 	if (GEngine && GEngine->XRSystem.IsValid())
@@ -90,3 +92,4 @@ void UXRLoadingScreenFunctionLibrary::HideLoadingScreen()
 		LoadingSrcreen->HideLoadingScreen();
 	}
 }
+

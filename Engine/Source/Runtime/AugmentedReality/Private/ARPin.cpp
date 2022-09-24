@@ -8,6 +8,8 @@
 
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARPin)
+
 //
 //
 //
@@ -149,3 +151,4 @@ TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> UARPin::GetARSystem() cons
 	auto MyARSystem = ARSystem.Pin();
 	return MyARSystem;
 }
+

@@ -17,6 +17,8 @@
 #endif
 #include "Interfaces/ITargetPlatform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeQualityLevel)
+
 #if WITH_EDITOR
 
 void USoundNodeQualityLevel::ReconcileNode(bool bReconstructNode)
@@ -213,3 +215,4 @@ void USoundNodeQualityLevel::ForCurrentQualityLevel(TFunction<void(USoundNode*)>
 		Lambda(ChildNodes[QualityLevel]);
 	}
 }
+

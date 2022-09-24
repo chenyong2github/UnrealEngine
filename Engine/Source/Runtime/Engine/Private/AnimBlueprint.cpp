@@ -3,6 +3,9 @@
 #include "Animation/AnimBlueprint.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimBlueprint)
+
 #if WITH_EDITOR
 #include "Settings/AnimBlueprintSettings.h"
 #include "Modules/ModuleManager.h"

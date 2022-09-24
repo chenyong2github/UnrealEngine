@@ -19,6 +19,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialBillboardComponent)
+
 /** A material sprite vertex. */
 struct FMaterialSpriteVertex
 {

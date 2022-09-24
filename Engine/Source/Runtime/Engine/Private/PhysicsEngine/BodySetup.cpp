@@ -42,6 +42,8 @@
 #include "Chaos/CollisionConvexMesh.h"
 #include "Experimental/ChaosCooking.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BodySetup)
+
 /** Enable to verify that the cooked data matches the source data as we cook it */
 #define VERIFY_COOKED_PHYS_DATA 0
 
@@ -2273,3 +2275,4 @@ void FBodySetupObjectTextFactory::ProcessConstructedObject(UObject* NewObject)
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

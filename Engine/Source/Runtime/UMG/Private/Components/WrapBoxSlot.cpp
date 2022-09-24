@@ -3,6 +3,8 @@
 #include "Components/WrapBoxSlot.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WrapBoxSlot)
+
 /////////////////////////////////////////////////////
 // UWrapBoxSlot
 
@@ -141,3 +143,4 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetNewLine(bForceNewLine);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+

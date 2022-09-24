@@ -3,6 +3,8 @@
 #include "Engine/PoseWatch.h"
 #include "Animation/AnimBlueprint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PoseWatch)
+
 #if WITH_EDITOR
 #include "AnimationEditorUtils.h"
 #endif

@@ -12,6 +12,8 @@
 #include "UObject/EditorObjectVersion.h"
 #include "ObjectEditorUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BackgroundBlur)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 UBackgroundBlur::UBackgroundBlur(const FObjectInitializer& ObjectInitializer)
@@ -308,3 +310,4 @@ const FText UBackgroundBlur::GetPaletteCategory()
 
 
 #undef LOCTEXT_NAMESPACE
+

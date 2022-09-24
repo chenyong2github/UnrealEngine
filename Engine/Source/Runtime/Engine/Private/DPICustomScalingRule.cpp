@@ -2,8 +2,11 @@
 
 #include "Engine/DPICustomScalingRule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DPICustomScalingRule)
+
 
 float UDPICustomScalingRule::GetDPIScaleBasedOnSize(FIntPoint Size) const
 {
 	return 1;
 }
+

@@ -14,6 +14,8 @@
 #include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/RepositionableTransformGizmo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TransformGizmoUtil)
+
 const FString UCombinedTransformGizmoContextObject::DefaultAxisPositionBuilderIdentifier = TEXT("Util_StandardXFormAxisTranslationGizmo");
 const FString UCombinedTransformGizmoContextObject::DefaultPlanePositionBuilderIdentifier = TEXT("Util_StandardXFormPlaneTranslationGizmo");
 const FString UCombinedTransformGizmoContextObject::DefaultAxisAngleBuilderIdentifier = TEXT("Util_StandardXFormAxisRotationGizmo");
@@ -229,3 +231,4 @@ UCombinedTransformGizmo* UE::TransformGizmoUtil::CreateCustomRepositionableTrans
 	}
 	return nullptr;
 }
+

@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ObserveBone)
+
 /////////////////////////////////////////////////////
 // FAnimNode_ObserveBone
 
@@ -66,3 +68,4 @@ void FAnimNode_ObserveBone::InitializeBoneReferences(const FBoneContainer& Requi
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	BoneToObserve.Initialize(RequiredBones);
 }
+

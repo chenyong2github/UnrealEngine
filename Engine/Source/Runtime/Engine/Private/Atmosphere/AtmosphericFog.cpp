@@ -14,6 +14,8 @@
 #include "Components/BillboardComponent.h"
 #include "ScenePrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AtmosphericFog)
+
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
 #endif
@@ -75,3 +77,4 @@ AAtmosphericFog::AAtmosphericFog(const FObjectInitializer& ObjectInitializer)
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

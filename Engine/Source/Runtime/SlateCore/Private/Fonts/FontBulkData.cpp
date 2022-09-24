@@ -5,6 +5,8 @@
 #include "Misc/ScopeLock.h"
 #include "SlateGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FontBulkData)
+
 #include <limits>
 
 // The total amount of memory we are using to store raw font bytes in bulk data
@@ -125,3 +127,4 @@ void UFontBulkData::Serialize(FArchive& Ar)
 	}
 #endif
 }
+

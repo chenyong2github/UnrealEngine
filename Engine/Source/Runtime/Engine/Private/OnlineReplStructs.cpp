@@ -14,6 +14,8 @@
 #include "Net/OnlineEngineInterface.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineReplStructs)
+
 namespace
 {
 	static const FString InvalidUniqueNetIdStr = TEXT("INVALID");
@@ -932,3 +934,4 @@ void TestUniqueIdRepl(UWorld* InWorld)
 
 #endif
 }
+

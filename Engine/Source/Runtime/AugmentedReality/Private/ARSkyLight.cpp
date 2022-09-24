@@ -4,6 +4,8 @@
 #include "ARTrackable.h"
 #include "ARTextures.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARSkyLight)
+
 #define LOCTEXT_NAMESPACE "ARSkyLight"
 
 AARSkyLight::AARSkyLight(const FObjectInitializer& ObjectInitializer)
@@ -61,3 +63,4 @@ void AARSkyLight::SetEnvironmentCaptureProbe(UAREnvironmentCaptureProbe* InCaptu
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -3,6 +3,8 @@
 #include "Tracks/MovieSceneFloatTrack.h"
 #include "Sections/MovieSceneFloatSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFloatTrack)
+
 UMovieSceneFloatTrack::UMovieSceneFloatTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
@@ -18,4 +20,5 @@ UMovieSceneSection* UMovieSceneFloatTrack::CreateNewSection()
 {
 	return NewObject<UMovieSceneFloatSection>(this, NAME_None, RF_Transactional);
 }
+
 

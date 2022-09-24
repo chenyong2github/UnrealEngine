@@ -2,6 +2,8 @@
 
 #include "Debug/DebugDrawComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DebugDrawComponent)
+
 FPrimitiveSceneProxy* UDebugDrawComponent::CreateSceneProxy()
 {
 	FDebugRenderSceneProxy* Proxy = CreateDebugSceneProxy();
@@ -25,3 +27,4 @@ void UDebugDrawComponent::DestroyRenderState_Concurrent()
 	GetDebugDrawDelegateHelper().UnregisterDebugDrawDelegate();
 	Super::DestroyRenderState_Concurrent();
 }
+

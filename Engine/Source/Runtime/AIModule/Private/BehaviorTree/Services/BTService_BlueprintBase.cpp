@@ -6,6 +6,8 @@
 #include "BlueprintNodeHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTService_BlueprintBase)
+
 UBTService_BlueprintBase::UBTService_BlueprintBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	UClass* StopAtClass = UBTService_BlueprintBase::StaticClass();
@@ -194,3 +196,4 @@ bool UBTService_BlueprintBase::UsesBlueprint() const
 }
 
 #endif // WITH_EDITOR
+

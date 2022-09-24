@@ -9,6 +9,8 @@
 #include "Engine/Engine.h"
 #include "Engine/DemoNetDriver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChildActorComponent)
+
 #if WITH_EDITOR
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #endif

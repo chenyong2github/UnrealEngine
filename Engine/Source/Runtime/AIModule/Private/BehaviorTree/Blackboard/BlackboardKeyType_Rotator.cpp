@@ -3,6 +3,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Rotator.h"
 #include "AITypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_Rotator)
+
 const UBlackboardKeyType_Rotator::FDataType UBlackboardKeyType_Rotator::InvalidValue = FAISystem::InvalidRotation;
 
 UBlackboardKeyType_Rotator::UBlackboardKeyType_Rotator(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -63,3 +65,4 @@ bool UBlackboardKeyType_Rotator::TestBasicOperation(const UBlackboardComponent& 
 	const FRotator Rotation = GetValue(this, MemoryBlock);
 	return (Op == EBasicKeyOperation::Set) ? FAISystem::IsValidRotation(Rotation) : !FAISystem::IsValidRotation(Rotation);
 }
+

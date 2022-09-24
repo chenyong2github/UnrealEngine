@@ -33,6 +33,8 @@
 #include "Engine/DemoNetDriver.h"
 #include "Misc/NetworkVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Pawn)
+
 DEFINE_LOG_CATEGORY(LogDamage);
 DEFINE_LOG_CATEGORY_STATIC(LogPawn, Warning, All);
 
@@ -1281,3 +1283,4 @@ const FNavAgentProperties& APawn::GetNavAgentPropertiesRef() const
 	UPawnMovementComponent* MovementComponent = GetMovementComponent();
 	return MovementComponent ? MovementComponent->GetNavAgentPropertiesRef() : FNavAgentProperties::DefaultProperties;
 }
+

@@ -10,6 +10,8 @@
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceLevelStreaming)
+
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "Editor.h"
@@ -332,3 +334,4 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 		}
 	}
 }
+

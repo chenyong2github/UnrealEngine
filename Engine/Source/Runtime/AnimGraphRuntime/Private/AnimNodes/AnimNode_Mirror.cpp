@@ -8,6 +8,8 @@
 #include "Animation/AttributesRuntime.h"
 #include "Animation/MirrorSyncScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Mirror)
+
 #define LOCTEXT_NAMESPACE "AnimNode_Mirror"
 
 FAnimNode_MirrorBase::FAnimNode_MirrorBase()
@@ -433,3 +435,4 @@ bool FAnimNode_Mirror_Standalone::SetResetChildOnMirrorStateChange(bool bInReset
 }
 
 #undef LOCTEXT_NAMESPACE
+

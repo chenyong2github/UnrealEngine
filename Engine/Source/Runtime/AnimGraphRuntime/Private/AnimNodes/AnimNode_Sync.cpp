@@ -3,6 +3,8 @@
 #include "AnimNodes/AnimNode_Sync.h"
 #include "Animation/AnimSyncScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Sync)
+
 void FAnimNode_Sync::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	Source.Initialize(Context);
@@ -31,3 +33,4 @@ void FAnimNode_Sync::GatherDebugData(FNodeDebugData& DebugData)
 
 	Source.GatherDebugData(DebugData);
 }
+

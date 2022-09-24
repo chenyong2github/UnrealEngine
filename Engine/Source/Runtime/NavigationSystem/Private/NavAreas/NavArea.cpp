@@ -4,6 +4,8 @@
 #include "NavigationSystem.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavArea)
+
 
 UNavArea::UNavArea(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
@@ -120,3 +122,4 @@ void UNavArea::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	}
 }
 #endif // WITH_EDITOR
+

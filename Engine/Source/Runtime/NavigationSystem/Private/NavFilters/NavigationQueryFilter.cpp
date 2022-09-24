@@ -7,6 +7,8 @@
 #include "NavigationData.h"
 #include "EngineGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationQueryFilter)
+
 //----------------------------------------------------------------------//
 // UNavigationQueryFilter
 //----------------------------------------------------------------------//
@@ -188,3 +190,4 @@ void UNavigationQueryFilter::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	}
 }
 #endif
+

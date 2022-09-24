@@ -4,6 +4,8 @@
 
 #include "Components/SafeZone.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SafeZoneSlot)
+
 USafeZoneSlot::USafeZoneSlot()
 {
 	bIsTitleSafe = true;
@@ -19,3 +21,4 @@ void USafeZoneSlot::SynchronizeProperties()
 		CastChecked< USafeZone >( Parent )->UpdateWidgetProperties();
 	}
 }
+

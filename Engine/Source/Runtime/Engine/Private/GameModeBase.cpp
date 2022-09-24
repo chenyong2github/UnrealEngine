@@ -26,6 +26,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/LevelStreaming.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameModeBase)
+
 #if WITH_EDITOR
 	#include "IMovieSceneCapture.h"
 	#include "MovieSceneCaptureModule.h"
@@ -1438,3 +1440,4 @@ bool AGameModeBase::SpawnPlayerFromSimulate(const FVector& NewLocation, const FR
 #endif
 	return true;
 }
+

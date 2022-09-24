@@ -11,6 +11,8 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Image)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -393,3 +395,4 @@ const FText UImage::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "Templates/Casts.h"
 #include "Fonts/FontBulkData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CompositeFont)
+
 #include <limits>
 
 // The total true type memory we are using for resident font faces
@@ -289,3 +291,4 @@ FString FStandaloneCompositeFont::GetReferencerName() const
 {
 	return TEXT("FStandaloneCompositeFont");
 }
+

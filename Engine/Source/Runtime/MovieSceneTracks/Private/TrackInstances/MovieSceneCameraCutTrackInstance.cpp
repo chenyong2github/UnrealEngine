@@ -13,6 +13,8 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "MovieSceneCommonHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraCutTrackInstance)
+
 DECLARE_CYCLE_STAT(TEXT("Camera Cut Track Token Execute"), MovieSceneEval_CameraCutTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
 namespace UE
@@ -554,3 +556,4 @@ void UMovieSceneCameraCutTrackInstance::OnDestroyed()
 
 	PlayerUseCounts.Reset();
 }
+

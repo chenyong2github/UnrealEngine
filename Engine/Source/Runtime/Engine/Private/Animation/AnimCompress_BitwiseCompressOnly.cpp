@@ -8,6 +8,8 @@
 #include "AnimationCompression.h"
 #include "AnimEncoding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_BitwiseCompressOnly)
+
 UAnimCompress_BitwiseCompressOnly::UAnimCompress_BitwiseCompressOnly(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -53,3 +55,4 @@ bool UAnimCompress_BitwiseCompressOnly::DoReduction(const FCompressibleAnimData&
 }
 
 #endif // WITH_EDITOR
+

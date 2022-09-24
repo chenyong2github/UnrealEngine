@@ -7,6 +7,8 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ExposedValueHandler)
+
 void FExposedValueHandler::ClassInitialization(TArray<FExposedValueHandler>& InHandlers, UClass* InClass)
 {
 	if(const FAnimSubsystem_PropertyAccess* Subsystem = IAnimClassInterface::GetFromClass(InClass)->FindSubsystem<FAnimSubsystem_PropertyAccess>())
@@ -73,3 +75,4 @@ void FExposedValueHandler::Execute(const FAnimationBaseContext& Context) const
 		}
 	}
 }
+

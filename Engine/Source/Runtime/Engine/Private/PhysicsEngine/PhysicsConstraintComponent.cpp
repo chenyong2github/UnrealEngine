@@ -12,6 +12,8 @@
 #include "PhysicsEngine/ConstraintUtils.h"
 #include "Components/BillboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsConstraintComponent)
+
 #define LOCTEXT_NAMESPACE "ConstraintComponent"
 
 UPhysicsConstraintComponent::UPhysicsConstraintComponent(const FObjectInitializer& ObjectInitializer)
@@ -721,3 +723,4 @@ float UPhysicsConstraintComponent::GetCurrentSwing2() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

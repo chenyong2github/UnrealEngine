@@ -3,6 +3,8 @@
 #include "Components/WrapBox.h"
 #include "Components/WrapBoxSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WrapBox)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -177,3 +179,4 @@ const FText UWrapBox::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeDelay.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeDelay)
+
 static int32 PrimeDelayedSoundNodesCVar = 0;
 FAutoConsoleVariableRef CVarPrimeDelayedSoundNodes(
 	TEXT("au.streamcache.priming.PrimeDelayNodes"),
@@ -91,3 +93,4 @@ float USoundNodeDelay::GetDuration()
 	// And return the two together.
 	return ChildDuration + DelayMax;
 }
+

@@ -4,6 +4,8 @@
 #include "Sound/SoundNodeMixer.h"
 #include "ActiveSound.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeMixer)
+
 /*-----------------------------------------------------------------------------
 	USoundNodeMixer implementation.
 -----------------------------------------------------------------------------*/
@@ -67,3 +69,4 @@ void USoundNodeMixer::SetChildNodes(TArray<USoundNode*>& InChildNodes)
 	}
 }
 #endif //WITH_EDITOR
+

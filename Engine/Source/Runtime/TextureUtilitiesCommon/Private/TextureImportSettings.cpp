@@ -5,6 +5,8 @@
 #include "UObject/UnrealType.h"
 #include "UObject/PropertyPortFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureImportSettings)
+
 UTextureImportSettings::UTextureImportSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -33,4 +35,5 @@ void UTextureImportSettings::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	}
 }
 #endif // #if WITH_EDITOR
+
 

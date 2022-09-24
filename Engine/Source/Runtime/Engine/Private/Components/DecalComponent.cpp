@@ -11,6 +11,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "HAL/LowLevelMemTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DecalComponent)
+
 static TAutoConsoleVariable<float> CVarDecalFadeDurationScale(
 	TEXT("r.Decal.FadeDurationScale"),
 	1.0f,
@@ -336,4 +338,5 @@ void UDecalComponent::DestroyRenderState_Concurrent()
 	Super::DestroyRenderState_Concurrent();
 	GetWorld()->Scene->RemoveDecal(this);
 }
+
 

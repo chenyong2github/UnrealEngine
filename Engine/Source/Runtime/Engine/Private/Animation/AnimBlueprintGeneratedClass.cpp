@@ -22,6 +22,8 @@
 #include "Animation/AnimSubsystemInstance.h"
 #include "Engine/PoseWatch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimBlueprintGeneratedClass)
+
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
 

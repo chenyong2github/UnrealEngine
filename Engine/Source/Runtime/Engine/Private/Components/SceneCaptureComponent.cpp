@@ -34,6 +34,8 @@
 #include "Engine/SCS_Node.h"
 #include "Engine/TextureRenderTarget2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SceneCaptureComponent)
+
 #define LOCTEXT_NAMESPACE "SceneCaptureComponent"
 
 static TMultiMap<TWeakObjectPtr<UWorld>, TWeakObjectPtr<USceneCaptureComponent> > SceneCapturesToUpdateMap;

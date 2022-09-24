@@ -9,6 +9,8 @@
 #include "AnimEncoding.h"
 #include "Misc/FeedbackContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_RemoveLinearKeys)
+
 // Define to 1 to enable timing of the meat of linear key removal done in DoReduction
 // The times are non-trivial, but the extra log spam isn't useful if one isn't optimizing DoReduction runtime
 #define TIME_LINEAR_KEY_REMOVAL 0
@@ -1121,3 +1123,4 @@ void UAnimCompress_RemoveLinearKeys::PopulateDDCKey(const UAnimSequenceBase& Ani
 }
 
 #endif // WITH_EDITOR
+

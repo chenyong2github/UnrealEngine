@@ -5,6 +5,8 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RotationOffsetBlendSpaceGraph)
+
 void FAnimNode_RotationOffsetBlendSpaceGraph::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
@@ -70,5 +72,6 @@ void FAnimNode_RotationOffsetBlendSpaceGraph::GatherDebugData(FNodeDebugData& De
 	
 	BasePose.GatherDebugData(DebugData);
 }
+
 
 

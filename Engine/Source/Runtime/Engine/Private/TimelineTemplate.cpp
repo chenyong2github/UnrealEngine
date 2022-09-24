@@ -9,6 +9,8 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TimelineTemplate)
+
 namespace
 {
 	void SanitizePropertyName(FString& PropertyName)
@@ -522,4 +524,5 @@ bool FTTLinearColorTrack::operator==( const FTTLinearColorTrack& T2 ) const
 	}
 	return bColorCurvesEqual && FTTTrackBase::operator==(T2);
 }
+
 

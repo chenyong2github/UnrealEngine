@@ -2,6 +2,8 @@
 
 #include "MovieSceneBindingOverrides.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBindingOverrides)
+
 UMovieSceneBindingOverrides::UMovieSceneBindingOverrides(const FObjectInitializer& Init)
 	: Super(Init)
 	, bLookupDirty(true)

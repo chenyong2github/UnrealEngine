@@ -3,6 +3,9 @@
 #include "Perception/AISense_Blueprint.h"
 #include "BlueprintNodeHelpers.h"
 #include "Perception/AIPerceptionComponent.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Blueprint)
+
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #endif // WITH_EDITOR
@@ -123,3 +126,4 @@ void UAISense_Blueprint::GetAllListenerComponents(TArray<UAIPerceptionComponent*
 {
 	OutListenerComponents = ListenerContainer;
 }
+

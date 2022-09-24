@@ -3,6 +3,8 @@
 #include "Chaos/ChaosNotifyHandlerInterface.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosNotifyHandlerInterface)
+
 UChaosNotifyHandlerInterface::UChaosNotifyHandlerInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -48,3 +50,4 @@ FChaosPhysicsCollisionInfo::FChaosPhysicsCollisionInfo()
 {
 
 }
+

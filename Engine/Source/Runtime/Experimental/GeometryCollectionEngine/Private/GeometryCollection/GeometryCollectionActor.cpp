@@ -21,6 +21,8 @@ GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 #include "PhysicsSolver.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionActor)
+
 
 DEFINE_LOG_CATEGORY_STATIC(AGeometryCollectionActorLogging, Log, All);
 
@@ -144,3 +146,4 @@ bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Obj
 	return true;
 }
 #endif
+

@@ -5,6 +5,8 @@
 #include "Sections/MovieSceneObjectPropertySection.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneObjectPropertyTemplate)
+
 
 struct FMovieSceneObjectPropertyValue : IMovieScenePreAnimatedToken
 {
@@ -113,3 +115,4 @@ void FMovieSceneObjectPropertyTemplate::Evaluate(const FMovieSceneEvaluationOper
 		ExecutionTokens.Add(FObjectPropertyExecToken(Object));
 	}
 }
+

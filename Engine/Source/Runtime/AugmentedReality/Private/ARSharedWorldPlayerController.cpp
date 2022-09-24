@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "AugmentedRealityModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ARSharedWorldPlayerController)
+
 AARSharedWorldPlayerController::AARSharedWorldPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bIsReadyToReceive(false)
@@ -88,3 +90,4 @@ void AARSharedWorldPlayerController::ClientUpdateARWorldData_Implementation(int3
 
 	GetGameState()->UpdateARWorldData(Offset, Buffer.GetData(), Buffer.Num());
 }
+

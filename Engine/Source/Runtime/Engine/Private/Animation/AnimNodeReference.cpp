@@ -4,6 +4,8 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimClassInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNodeReference)
+
 FAnimNodeReference::FAnimNodeReference(UAnimInstance* InAnimInstance, FAnimNode_Base& InNode)
 	: AnimNode(&InNode)
 {

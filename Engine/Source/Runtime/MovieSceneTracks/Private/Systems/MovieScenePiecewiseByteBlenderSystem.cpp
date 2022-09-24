@@ -6,6 +6,8 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Systems/ByteChannelEvaluatorSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePiecewiseByteBlenderSystem)
+
 UMovieScenePiecewiseByteBlenderSystem::UMovieScenePiecewiseByteBlenderSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -23,4 +25,5 @@ void UMovieScenePiecewiseByteBlenderSystem::OnRun(FSystemTaskPrerequisites& InPr
 
 	Impl.Run(Linker, AllocatedBlendChannels, InPrerequisites, Subsequents);
 }
+
 
