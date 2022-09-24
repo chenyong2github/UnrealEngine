@@ -268,7 +268,8 @@ float FSplineCurves::GetSegmentLength(const int32 Index, const float Param, bool
 	}
 	else if (StartPoint.InterpMode == CIM_Constant)
 	{
-		return 0.0f;
+		// Special case: constant interpolation acts like distance = 0 for all p in [0, 1[ but for p == 1, the distance returned is the linear distance between start and end
+		return Param == 1.f ? ((P1 - P0) * Scale3D).Size() : 0.0f;
 	}
 
 	// Cache the coefficients to be fed into the function to calculate the spline derivative at each sample point as they are constant.
