@@ -8,6 +8,8 @@
 #include "Engine/Player.h"
 #include "VisualLoggerHUD.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerCameraController)
+
 
 //----------------------------------------------------------------------//
 // AVisualLoggerCameraController
@@ -154,3 +156,4 @@ void AVisualLoggerCameraController::Select(FHitResult const& Hit)
 		OnActorSelected.ExecuteIfBound(SelectedActor.Get());
 	}
 }
+

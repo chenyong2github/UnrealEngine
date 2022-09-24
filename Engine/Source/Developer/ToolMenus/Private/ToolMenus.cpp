@@ -14,6 +14,8 @@
 #include "HAL/PlatformApplicationMisc.h" // For clipboard
 #include "Widgets/Layout/SScrollBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolMenus)
+
 #define LOCTEXT_NAMESPACE "ToolMenuSubsystem"
 
 DEFINE_LOG_CATEGORY(LogToolMenus);
@@ -2489,3 +2491,4 @@ void UToolMenus::RemoveAllCustomizations()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -26,6 +26,8 @@
 #include "Misc/RuntimeErrors.h"
 #include "FunctionalTestBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalTest)
+
 DECLARE_CYCLE_STAT(TEXT("FunctionalTest - RunTest"), STAT_FunctionalTest_RunTest, STATGROUP_FunctionalTest);
 DECLARE_CYCLE_STAT(TEXT("FunctionalTest - StartTest"), STAT_FunctionalTest_StartTest, STATGROUP_FunctionalTest);
 DECLARE_CYCLE_STAT(TEXT("FunctionalTest - PrepareTest"), STAT_FunctionalTest_PrepareTest, STATGROUP_FunctionalTest);
@@ -1649,3 +1651,4 @@ void UAutomationPerformaceHelper::EndStatsFile()
 		GEngine->Exec(World, TEXT("Stat StopFile"));
 	}
 }
+

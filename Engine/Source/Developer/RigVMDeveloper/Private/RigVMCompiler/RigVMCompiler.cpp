@@ -11,6 +11,8 @@
 #include "Stats/StatsHierarchical.h"
 #include "RigVMTypeUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMCompiler)
+
 class FRigVMCompilerImportErrorContext : public FOutputDevice
 {
 public:
@@ -2934,3 +2936,4 @@ void URigVMCompiler::ReportError(const FString& InMessage)
 {
 	Settings.Report(EMessageSeverity::Error, nullptr, InMessage);
 }
+

@@ -24,6 +24,8 @@
 #include "RigVMTypeUtils.h"
 #include "Engine/UserDefinedStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMController)
+
 #if WITH_EDITOR
 #include "Exporters/Exporter.h"
 #include "UnrealExporter.h"
@@ -19150,3 +19152,4 @@ URigVMControllerSettings::URigVMControllerSettings(const FObjectInitializer& Ini
 {
 	bAutoResolveTemplateNodesWhenLinkingExecute = true;
 }
+

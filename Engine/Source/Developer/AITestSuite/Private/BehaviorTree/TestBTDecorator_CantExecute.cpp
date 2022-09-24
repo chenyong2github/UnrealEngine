@@ -2,6 +2,8 @@
 
 #include "BehaviorTree/TestBTDecorator_CantExecute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTDecorator_CantExecute)
+
 UTestBTDecorator_CantExecute::UTestBTDecorator_CantExecute(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = TEXT("Can't Exexcute");
@@ -15,3 +17,4 @@ bool UTestBTDecorator_CantExecute::CalculateRawConditionValue(UBehaviorTreeCompo
 {
 	return false;
 }
+

@@ -9,6 +9,8 @@
 #include "Internationalization/TextNamespaceUtil.h"
 #include "LocTextHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PortableObjectPipeline)
+
 DEFINE_LOG_CATEGORY_STATIC(LogPortableObjectPipeline, Log, All);
 
 namespace
@@ -739,3 +741,4 @@ void PortableObjectPipeline::ParseBasicPOFileEntry(const FPortableObjectEntry& P
 		OutTranslation = ConditionPOStringForArchive(POEntry.MsgStr[0]);
 	}
 }
+

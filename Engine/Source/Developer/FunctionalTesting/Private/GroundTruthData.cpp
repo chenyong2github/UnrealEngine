@@ -15,6 +15,8 @@
 #include "SourceControlHelpers.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroundTruthData)
+
 DEFINE_LOG_CATEGORY_STATIC(GroundTruthLog, Log, Log)
 
 UGroundTruthData::UGroundTruthData()

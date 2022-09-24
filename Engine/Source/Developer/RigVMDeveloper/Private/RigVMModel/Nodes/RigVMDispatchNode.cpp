@@ -3,6 +3,8 @@
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "RigVMUserWorkflowRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatchNode)
+
 FString URigVMDispatchNode::GetNodeTitle() const
 {
 	if (const FRigVMDispatchFactory* Factory = GetFactory())
@@ -180,3 +182,4 @@ FRigVMStructUpgradeInfo URigVMDispatchNode::GetUpgradeInfo() const
 	}
 	return FRigVMStructUpgradeInfo();
 }
+

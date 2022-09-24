@@ -25,6 +25,8 @@
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerLocalController)
+
 #if WITH_EDITOR
 #include "Editor/GameplayDebuggerEdMode.h"
 #include "EditorModeManager.h"
@@ -1081,3 +1083,4 @@ FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::SetFontSiz
 	TEXT("Configures gameplay debugger's font size. Usage: gdt.fontsize <fontSize> (default = 10)"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::SetFontSize)
 );
+

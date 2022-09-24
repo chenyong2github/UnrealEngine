@@ -4,6 +4,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "MockAI_BT.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTService_Log)
+
 UTestBTService_Log::UTestBTService_Log(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "LogService";
@@ -73,3 +75,4 @@ void UTestBTService_Log::SetFlagOnTick(FName InKeyNameTick, bool bInCallTickOnSe
 	KeyNameTick = InKeyNameTick;
 	bCallTickOnSearchStart = bInCallTickOnSearchStart;
 }
+

@@ -3,6 +3,8 @@
 #include "SourceCodeAccessSettings.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceCodeAccessSettings)
+
 USourceCodeAccessSettings::USourceCodeAccessSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -20,3 +22,4 @@ USourceCodeAccessSettings::USourceCodeAccessSettings(const FObjectInitializer& O
 	UE_LOG(LogHAL, Log, TEXT("Linux SourceCodeAccessSettings: %s"), *PreferredAccessor);
 #endif
 }
+

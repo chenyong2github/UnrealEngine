@@ -6,6 +6,8 @@
 #include "Actions/PawnActionsComponent.h"
 #include "BrainComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MockAI)
+
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//
@@ -101,4 +103,5 @@ void UMockAI::TickMe(float DeltaTime)
 		PawnActionComp->TickComponent(DeltaTime, ELevelTick::LEVELTICK_All, nullptr);
 	}
 }
+
 

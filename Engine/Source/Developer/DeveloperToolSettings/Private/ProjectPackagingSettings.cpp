@@ -8,6 +8,8 @@
 #include "DeveloperToolSettingsDelegates.h"
 #include "InstalledPlatformInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProjectPackagingSettings)
+
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
 
@@ -303,3 +305,4 @@ void UProjectPackagingSettings::SetBuildTargetForPlatform(FName PlatformName, FS
 }
 
 #undef LOCTEXT_NAMESPACE
+

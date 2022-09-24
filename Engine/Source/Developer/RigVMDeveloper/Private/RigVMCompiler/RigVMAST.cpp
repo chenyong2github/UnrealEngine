@@ -23,6 +23,8 @@
 #include "VisualGraphUtils.h"
 #include "UObject/FieldIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMAST)
+
 FRigVMExprAST::FRigVMExprAST(EType InType, const FRigVMASTProxy& InProxy)
 	: Name(NAME_None)
 	, Type(InType)

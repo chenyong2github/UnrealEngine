@@ -7,6 +7,8 @@
 //#include "EngineTypes.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidSDKSettings)
+
 DEFINE_LOG_CATEGORY_STATIC(AndroidSDKSettings, Log, All);
 
 UAndroidSDKSettings::UAndroidSDKSettings(const FObjectInitializer& ObjectInitializer)
@@ -68,3 +70,4 @@ void UAndroidSDKSettings::UpdateTargetModulePaths()
 }
 
 #endif
+

@@ -4,6 +4,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "MockAI_BT.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTTask_LatentWithFlags)
+
 UTestBTTask_LatentWithFlags::UTestBTTask_LatentWithFlags()
 {
 	INIT_TASK_NODE_NOTIFY_FLAGS();

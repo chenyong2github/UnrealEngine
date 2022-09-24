@@ -4,6 +4,8 @@
 
 #include "RigVMModel/RigVMController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMAggregateNode)
+
 URigVMAggregateNode::URigVMAggregateNode()
 	: Super()
 	, FirstInnerNodeCache(nullptr)
@@ -271,3 +273,4 @@ FText URigVMAggregateNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 	
 	return Super::GetToolTipTextForPin(InPin);
 }
+

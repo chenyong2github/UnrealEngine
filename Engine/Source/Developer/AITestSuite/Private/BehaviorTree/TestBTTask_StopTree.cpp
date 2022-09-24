@@ -3,6 +3,8 @@
 #include "BehaviorTree/TestBTTask_StopTree.h"
 #include "MockAI_BT.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTTask_StopTree)
+
 UTestBTTask_StopTree::UTestBTTask_StopTree(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	StopTimming = EBTTestTaskStopTree::DuringExecute;
@@ -51,3 +53,4 @@ void UTestBTTask_StopTree::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uin
 		OwnerComp.StopTree();
 	}
 }
+

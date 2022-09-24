@@ -16,6 +16,8 @@
 #include "Logging/MessageLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceControlHelpers)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "PackageTools.h"
@@ -1866,3 +1868,4 @@ ISourceControlProvider& FScopedSourceControl::GetProvider()
 
 
 #undef LOCTEXT_NAMESPACE
+

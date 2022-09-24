@@ -3,6 +3,8 @@
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMCollapseNode)
+
 URigVMCollapseNode::URigVMCollapseNode()
 	: URigVMLibraryNode()
 {

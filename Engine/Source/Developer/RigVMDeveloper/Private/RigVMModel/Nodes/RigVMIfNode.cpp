@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMIfNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMIfNode)
+
 const FString URigVMIfNode::IfName = TEXT("If");
 const FString URigVMIfNode::ConditionName = TEXT("Condition");
 const FString URigVMIfNode::TrueName = TEXT("True");
@@ -71,4 +73,5 @@ const FRigVMTemplate* URigVMIfNode::GetTemplate() const
 	}
 	return CachedTemplate;
 }
+
 

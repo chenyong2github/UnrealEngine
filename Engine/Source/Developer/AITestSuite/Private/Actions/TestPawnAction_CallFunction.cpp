@@ -3,6 +3,8 @@
 #include "Actions/TestPawnAction_CallFunction.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestPawnAction_CallFunction)
+
 UTestPawnAction_CallFunction::UTestPawnAction_CallFunction(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FunctionToCall(nullptr)
@@ -63,3 +65,4 @@ void UTestPawnAction_CallFunction::OnChildFinished(UPawnAction& Action, EPawnAct
 	Super::OnChildFinished(Action, WithResult);
 	(*FunctionToCall)(*GetOwnerComponent(), *this, ETestPawnActionMessage::ChildFinished);
 }
+

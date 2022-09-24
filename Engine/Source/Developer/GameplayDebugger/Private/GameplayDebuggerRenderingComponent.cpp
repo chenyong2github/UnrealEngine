@@ -4,6 +4,8 @@
 #include "GameplayDebuggerCategoryReplicator.h"
 #include "GameplayDebuggerCategory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerRenderingComponent)
+
 //////////////////////////////////////////////////////////////////////////
 // FGameplayDebuggerCompositeSceneProxy
 
@@ -169,3 +171,4 @@ FBoxSphereBounds UGameplayDebuggerRenderingComponent::CalcBounds(const FTransfor
 {
 	return FBoxSphereBounds(FBox::BuildAABB(FVector::ZeroVector, FVector(1000000.0f, 1000000.0f, 1000000.0f)));
 }
+

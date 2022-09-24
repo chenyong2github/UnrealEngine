@@ -5,6 +5,8 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalizationSettings)
+
 ULocalizationSettings::ULocalizationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, EngineTargetSet(ObjectInitializer.CreateDefaultSubobject<ULocalizationTargetSet>(this, TEXT("EngineLocalizationTargetSet")))
@@ -138,3 +140,4 @@ void FLocalizationSourceControlSettings::SetSourceControlAutoSubmitEnabled(const
 {
 	GConfig->SetBool(*LocalizationSourceControlSettingsCategoryName, *SourceControlAutoSubmitEnabledSettingName, bIsEnabled, GEditorPerProjectIni);
 }
+

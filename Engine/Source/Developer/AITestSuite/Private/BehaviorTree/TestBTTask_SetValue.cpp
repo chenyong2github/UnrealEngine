@@ -4,6 +4,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Int.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTTask_SetValue)
+
 UTestBTTask_SetValue::UTestBTTask_SetValue(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "SetValue";
@@ -28,3 +30,4 @@ EBTNodeResult::Type UTestBTTask_SetValue::AbortTask(UBehaviorTreeComponent& Owne
 	}
 	return EBTNodeResult::Aborted;	
 }
+

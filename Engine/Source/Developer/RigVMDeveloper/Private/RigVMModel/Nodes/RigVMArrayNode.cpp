@@ -4,6 +4,8 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMCore/RigVMStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMArrayNode)
+
 const FString URigVMArrayNode::ArrayName = TEXT("Array");
 const FString URigVMArrayNode::NumName = TEXT("Num");
 const FString URigVMArrayNode::IndexName = TEXT("Index");
@@ -847,3 +849,4 @@ UObject* URigVMArrayNode::GetCPPTypeObject() const
 	}
 	return ArrayPin->GetCPPTypeObject();
 }
+

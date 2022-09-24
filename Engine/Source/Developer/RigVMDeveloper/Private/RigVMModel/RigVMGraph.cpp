@@ -9,6 +9,8 @@
 #include "UObject/Package.h"
 #include "RigVMTypeUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMGraph)
+
 URigVMGraph::URigVMGraph()
 : DiagnosticsAST(nullptr)
 , RuntimeAST(nullptr)
@@ -429,4 +431,5 @@ bool URigVMGraph::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FStrin
 	}
 	return GetDiagnosticsAST()->CanLink(InSourcePin, InTargetPin, OutFailureReason);
 }
+
 

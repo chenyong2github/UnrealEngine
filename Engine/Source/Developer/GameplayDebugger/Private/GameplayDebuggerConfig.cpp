@@ -6,6 +6,8 @@
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerConfig)
+
 
 UGameplayDebuggerConfig::UGameplayDebuggerConfig(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -297,3 +299,4 @@ void UGameplayDebuggerUserSettings::SetFontSize(const int32 InFontSize)
 	GConfig->SetInt(TEXT("/Script/GameplayDebugger.GameplayDebuggerUserSettings"), TEXT("FontSize"), Setting->FontSize, *ConfigFileName);
 	GConfig->Flush(false);
 }
+

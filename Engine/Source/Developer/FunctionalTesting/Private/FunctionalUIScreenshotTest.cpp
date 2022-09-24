@@ -15,6 +15,8 @@
 #include "Slate/SceneViewport.h"
 #include "Slate/WidgetRenderer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalUIScreenshotTest)
+
 AFunctionalUIScreenshotTest::AFunctionalUIScreenshotTest( const FObjectInitializer& ObjectInitializer )
 	: AScreenshotFunctionalTestBase(ObjectInitializer)
 {
@@ -226,3 +228,4 @@ void AFunctionalUIScreenshotTest::RequestScreenshot()
 	check(OutColorData.Num() == ScreenshotSize.X * ScreenshotSize.Y);
 	GameViewportClient->OnScreenshotCaptured().Broadcast(ScreenshotSize.X, ScreenshotSize.Y, OutColorData);
 }
+

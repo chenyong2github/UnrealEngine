@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMSelectNode)
+
 const FString URigVMSelectNode::SelectName = TEXT("Select");
 const FString URigVMSelectNode::IndexName = TEXT("Index");
 const FString URigVMSelectNode::ValueName = TEXT("Values");

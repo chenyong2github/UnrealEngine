@@ -4,6 +4,8 @@
 
 #include "RigVMModel/RigVMGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMInvokeEntryNode)
+
 const FString URigVMInvokeEntryNode::EntryName = TEXT("Entry");
 
 URigVMInvokeEntryNode::URigVMInvokeEntryNode()
@@ -29,3 +31,4 @@ URigVMPin* URigVMInvokeEntryNode::GetEntryNamePin() const
 {
 	return FindPin(EntryName);
 }
+

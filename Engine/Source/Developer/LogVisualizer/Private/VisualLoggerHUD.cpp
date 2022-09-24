@@ -9,6 +9,8 @@
 #include "DrawDebugHelpers.h"
 #include "VisualLoggerCameraController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerHUD)
+
 #define LOCTEXT_NAMESPACE "AVisualLoggerHUD"
 
 //----------------------------------------------------------------------//
@@ -72,3 +74,4 @@ void AVisualLoggerHUD::PostRender()
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

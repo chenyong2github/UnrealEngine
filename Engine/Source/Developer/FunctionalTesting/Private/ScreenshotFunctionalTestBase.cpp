@@ -19,6 +19,8 @@
 #include "Logging/LogMacros.h"
 #include "UObject/AutomationObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenshotFunctionalTestBase)
+
 #define	WITH_EDITOR_AUTOMATION_TESTS	(WITH_EDITOR && WITH_AUTOMATION_TESTS)
 
 DEFINE_LOG_CATEGORY_STATIC(LogScreenshotFunctionalTest, Log, Log)
@@ -253,4 +255,5 @@ void AScreenshotFunctionalTestBase::Serialize(FArchive& Ar)
 		ScreenshotOptions.bDisableTonemapping = true;
 	}
 }
+
 

@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMParameterNode)
+
 const FString URigVMParameterNode::ParameterName = TEXT("Parameter");
 const FString URigVMParameterNode::DefaultName = TEXT("Default");
 const FString URigVMParameterNode::ValueName = TEXT("Value");
@@ -76,3 +78,4 @@ FRigVMGraphParameterDescription URigVMParameterNode::GetParameterDescription() c
 	Parameter.DefaultValue = GetDefaultValue();
 	return Parameter;
 }
+

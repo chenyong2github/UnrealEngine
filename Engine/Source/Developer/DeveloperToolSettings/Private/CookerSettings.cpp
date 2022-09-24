@@ -3,6 +3,8 @@
 #include "CookerSettings.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CookerSettings)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCookerSettings, Log, All);
 
 UCookerSettings::UCookerSettings(const FObjectInitializer& ObjectInitializer)

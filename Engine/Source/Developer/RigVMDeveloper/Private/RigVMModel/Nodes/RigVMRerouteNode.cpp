@@ -3,6 +3,8 @@
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 #include "RigVMModel/RigVMGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMRerouteNode)
+
 const FString URigVMRerouteNode::RerouteName = TEXT("Reroute");
 const FString URigVMRerouteNode::ValueName = TEXT("Value");
 
@@ -111,3 +113,4 @@ const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 	}
 	return CachedTemplate;
 }
+

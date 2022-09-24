@@ -167,6 +167,8 @@
 #include "Settings/EditorExperimentalSettings.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetTools)
+
 #define LOCTEXT_NAMESPACE "AssetTools"
 
 TScriptInterface<IAssetTools> UAssetToolsHelpers::GetAssetTools()
@@ -4317,3 +4319,4 @@ void UAssetToolsImpl::UnregisterIsNameAllowedDelegate(const FName OwnerName)
 }
 
 #undef LOCTEXT_NAMESPACE
+

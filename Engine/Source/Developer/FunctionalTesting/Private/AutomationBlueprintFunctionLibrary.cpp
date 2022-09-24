@@ -58,6 +58,8 @@
 #endif
 #include "FunctionalTestBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationBlueprintFunctionLibrary)
+
 
 #define LOCTEXT_NAMESPACE "Automation"
 
@@ -1444,3 +1446,4 @@ void UAutomationBlueprintFunctionLibrary::SetEditorViewportVisualizeBuffer( FNam
 }
 
 #undef LOCTEXT_NAMESPACE
+

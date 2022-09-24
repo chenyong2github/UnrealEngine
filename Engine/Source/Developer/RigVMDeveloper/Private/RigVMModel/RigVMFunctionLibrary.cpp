@@ -4,6 +4,8 @@
 
 #include "RigVMModel/RigVMController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunctionLibrary)
+
 URigVMFunctionLibrary::URigVMFunctionLibrary()
 : URigVMGraph()
 {
@@ -159,4 +161,5 @@ URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(URigVM
 	
 	return LocalizedFunction;
 }
+
 

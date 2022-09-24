@@ -5,6 +5,9 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLoggerDatabase.h"
 #include "VisualLogger/VisualLogger.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LogVisualizerSettings)
+
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
 #endif // WITH_EDITOR
@@ -330,3 +333,4 @@ bool FVisualLoggerFilters::IsGraphDataDisabled(FName GraphName, FName DataName)
 	const FName FullName = *(GraphName.ToString() + TEXT("$") + DataName.ToString());
 	return DisabledGraphDatas.Find(FullName) != INDEX_NONE;
 }
+

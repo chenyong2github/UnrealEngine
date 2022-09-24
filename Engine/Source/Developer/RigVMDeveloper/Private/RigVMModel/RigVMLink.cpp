@@ -3,6 +3,8 @@
 #include "RigVMModel/RigVMLink.h"
 #include "RigVMModel/RigVMGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMLink)
+
 URigVMGraph* URigVMLink::GetGraph() const
 {
 	return Cast<URigVMGraph>(GetOuter());
@@ -102,3 +104,4 @@ void URigVMLink::PrepareForCopy()
 		TargetPinPath = CurrenTargetPin->GetPinPath();
 	}
 }
+

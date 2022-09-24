@@ -2,6 +2,8 @@
 
 #include "RigVMUserWorkflowRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMUserWorkflowRegistry)
+
 URigVMUserWorkflowRegistry* URigVMUserWorkflowRegistry::Get()
 {
 	return StaticClass()->GetDefaultObject<URigVMUserWorkflowRegistry>();
@@ -49,3 +51,4 @@ TArray<FRigVMUserWorkflow> URigVMUserWorkflowRegistry::GetWorkflows(ERigVMUserWo
 
 	return Workflows;
 }
+

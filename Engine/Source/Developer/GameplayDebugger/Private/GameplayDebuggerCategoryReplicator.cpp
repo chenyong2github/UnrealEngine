@@ -10,6 +10,8 @@
 #include "Net/UnrealNetwork.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerCategoryReplicator)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Engine/Selection.h"
@@ -971,3 +973,4 @@ bool AGameplayDebuggerCategoryReplicator::IsCategoryEnabled(int32 CategoryId) co
 {
 	return Categories.IsValidIndex(CategoryId) && Categories[CategoryId]->IsCategoryEnabled(); 
 }
+

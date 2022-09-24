@@ -11,6 +11,8 @@
 #include "Internationalization/Internationalization.h"
 #include "Input/Events.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolMenuEntry)
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FToolMenuEntry::FToolMenuEntry() :
 	Type(EMultiBlockType::None),
@@ -298,3 +300,4 @@ bool FToolMenuEntry::IsScriptObjectDynamicConstruct() const
 	static const FName ConstructMenuEntryName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, ConstructMenuEntry);
 	return ScriptObject && ScriptObject->GetClass()->IsFunctionImplementedInScript(ConstructMenuEntryName);
 }
+

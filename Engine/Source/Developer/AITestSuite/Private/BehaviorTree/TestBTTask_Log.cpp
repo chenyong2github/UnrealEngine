@@ -3,6 +3,8 @@
 #include "BehaviorTree/TestBTTask_Log.h"
 #include "MockAI_BT.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTTask_Log)
+
 UTestBTTask_Log::UTestBTTask_Log(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Log";
@@ -57,3 +59,4 @@ void UTestBTTask_Log::LogExecution(UBehaviorTreeComponent& OwnerComp, int32 LogN
 		UMockAI_BT::ExecutionLog.Add(LogNumber);
 	}
 }
+

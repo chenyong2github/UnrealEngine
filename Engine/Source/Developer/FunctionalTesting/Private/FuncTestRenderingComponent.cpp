@@ -8,6 +8,8 @@
 //#include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FuncTestRenderingComponent)
+
 //----------------------------------------------------------------------//
 // FFTestRenderingSceneProxy
 //----------------------------------------------------------------------//
@@ -122,3 +124,4 @@ FBoxSphereBounds UFuncTestRenderingComponent::CalcBounds(const FTransform& Local
 
 	return FBoxSphereBounds(ForceInitToZero);
 }
+

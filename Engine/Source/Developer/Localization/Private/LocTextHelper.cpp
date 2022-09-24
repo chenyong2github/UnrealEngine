@@ -14,6 +14,8 @@
 #include "Serialization/JsonInternationalizationArchiveSerializer.h"
 #include "Serialization/JsonInternationalizationMetadataSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocTextHelper)
+
 #define LOCTEXT_NAMESPACE "LocTextHelper"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocTextHelper, Log, All);
@@ -1915,3 +1917,4 @@ TSharedPtr<FArchiveEntry> FLocTextHelper::FindTranslationImpl(const FString& InC
 }
 
 #undef LOCTEXT_NAMESPACE
+

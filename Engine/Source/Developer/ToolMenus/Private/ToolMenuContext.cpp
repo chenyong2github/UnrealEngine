@@ -10,6 +10,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolMenuContext)
+
 
 FToolMenuContext::FToolMenuContext(UObject* InContext)
 {
@@ -188,3 +190,4 @@ void FToolMenuContext::Empty()
 	CommandList.Reset();
 	Extenders.Empty();
 }
+

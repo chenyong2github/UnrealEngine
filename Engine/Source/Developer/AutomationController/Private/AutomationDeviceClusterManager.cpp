@@ -3,6 +3,8 @@
 #include "AutomationDeviceClusterManager.h"
 #include "IAutomationControllerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationDeviceClusterManager)
+
 void FAutomationDeviceClusterManager::Reset()
 {
 	Clusters.Empty();
@@ -333,3 +335,4 @@ bool FAutomationDeviceClusterManager::HasActiveDevice()
 	}
 	return IsDeviceAvailable;
 }
+

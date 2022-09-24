@@ -7,6 +7,8 @@
 #include "RigVMModel/RigVMControllerActions.h"
 #include "RigVMUserWorkflowRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMUnitNode)
+
 void URigVMUnitNode::PostLoad()
 {
 	Super::PostLoad();
@@ -341,3 +343,4 @@ FRigVMStructUpgradeInfo URigVMUnitNode::GetUpgradeInfo() const
 	}
 	return FRigVMStructUpgradeInfo();
 }
+

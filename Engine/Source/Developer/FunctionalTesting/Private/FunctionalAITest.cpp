@@ -11,6 +11,8 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "NavigationOctree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalAITest)
+
 AFunctionalAITestBase::AFunctionalAITestBase( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 	, CurrentSpawnSetIndex(INDEX_NONE)
@@ -531,3 +533,4 @@ bool AFunctionalAITest::IsValidSpawnSetIndex(const int32 Index) const
 {
 	return SpawnSets.IsValidIndex(Index);
 }
+

@@ -3,6 +3,8 @@
 #include "BehaviorTree/TestBTDecorator_DelayedAbort.h"
 #include "AITestsCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTDecorator_DelayedAbort)
+
 UTestBTDecorator_DelayedAbort::UTestBTDecorator_DelayedAbort(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Delayed Abort";
@@ -38,3 +40,4 @@ uint16 UTestBTDecorator_DelayedAbort::GetInstanceMemorySize() const
 {
 	return sizeof(FBTDelayedAbortMemory);
 }
+

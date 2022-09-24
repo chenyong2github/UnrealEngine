@@ -3,6 +3,8 @@
 #include "LiveCodingSettings.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveCodingSettings)
+
 ULiveCodingSettings::ULiveCodingSettings(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	FProperty* EngineModulesProperty = StaticClass()->FindPropertyByName("bPreloadEngineModules");
@@ -20,3 +22,4 @@ ULiveCodingSettings::ULiveCodingSettings(const FObjectInitializer& ObjectInitial
 	bPreloadProjectModules = true;
 	bPreloadProjectPluginModules = true;
 }
+

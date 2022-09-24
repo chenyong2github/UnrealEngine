@@ -10,6 +10,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolMenu)
+
 UToolMenu::UToolMenu() :
 	MenuType(EMultiBoxType::Menu)
 	, bShouldCleanupContextOnDestroy(true)
@@ -570,3 +572,4 @@ void UToolMenu::Empty()
 	SubMenuParent = nullptr;
 	ModifyBlockWidgetAfterMake.Unbind();
 }
+

@@ -15,6 +15,8 @@
 #include "Slate/SceneViewport.h"
 #include "UObject/AutomationObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenshotFunctionalTest)
+
 AScreenshotFunctionalTest::AScreenshotFunctionalTest( const FObjectInitializer& ObjectInitializer )
 	: AScreenshotFunctionalTestBase(ObjectInitializer)
 	, bCameraCutOnScreenshotPrep(true)
@@ -90,3 +92,4 @@ void AScreenshotFunctionalTest::RequestScreenshot()
 		FScreenshotRequest::RequestScreenshot(bShowUI);
 	}
 }
+

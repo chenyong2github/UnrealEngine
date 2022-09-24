@@ -3,6 +3,8 @@
 #include "BehaviorTree/TestBTService_StopTree.h"
 #include "MockAI_BT.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTService_StopTree)
+
 UTestBTService_StopTree::UTestBTService_StopTree(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "StopTreeService";

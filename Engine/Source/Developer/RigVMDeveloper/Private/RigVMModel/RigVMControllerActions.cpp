@@ -3,6 +3,8 @@
 #include "RigVMModel/RigVMControllerActions.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMControllerActions)
+
 #if WITH_EDITOR
 #include "Misc/TransactionObjectEvent.h"
 #endif
@@ -2412,3 +2414,4 @@ bool FRigVMAddInvokeEntryNodeAction::Redo(URigVMController* InController)
 #endif
 	return false;
 }
+

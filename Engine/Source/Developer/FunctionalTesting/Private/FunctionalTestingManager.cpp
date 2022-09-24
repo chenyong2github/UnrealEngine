@@ -10,6 +10,8 @@
 #include "Engine/Engine.h"
 #include "Misc/RuntimeErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalTestingManager)
+
 #if WITH_EDITOR
 
 //----------------------------------------------------------------------//
@@ -423,3 +425,4 @@ void UFunctionalTestingManager::SetReproString(FString ReproString)
 		ReproString.ParseIntoArray(TestReproStrings, FFunctionalTesting::ReproStringTestSeparator, /*InCullEmpty=*/true);
 	}
 }
+

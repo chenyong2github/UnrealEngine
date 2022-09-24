@@ -7,6 +7,8 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMUserWorkflowRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMNode)
+
 const FString URigVMNode::NodeColorName = TEXT("NodeColor");
 
 #if WITH_EDITOR

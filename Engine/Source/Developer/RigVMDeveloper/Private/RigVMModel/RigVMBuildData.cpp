@@ -2,6 +2,8 @@
 
 #include "RigVMModel/RigVMBuildData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMBuildData)
+
 FRigVMReferenceNodeData::FRigVMReferenceNodeData(URigVMFunctionReferenceNode* InReferenceNode)
 {
 	check(InReferenceNode);
@@ -268,5 +270,6 @@ void URigVMBuildData::ClearInvalidReferences()
 		MarkPackageDirty();
 	}
 }
+
 
 

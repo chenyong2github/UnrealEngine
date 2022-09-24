@@ -7,6 +7,8 @@
 #include "Serialization/JsonSerializer.h"
 #include "JsonObjectConverter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationPresetManager)
+
 FAutomationTestPresetManager::FAutomationTestPresetManager()
 {
 	// Add the None Option
@@ -124,3 +126,4 @@ void FAutomationTestPresetManager::LoadPresets()
 		}
 	}
 }
+

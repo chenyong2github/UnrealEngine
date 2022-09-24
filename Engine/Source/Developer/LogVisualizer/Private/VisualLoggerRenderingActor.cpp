@@ -6,6 +6,8 @@
 #include "VisualLoggerDatabase.h"
 #include "LogVisualizerPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerRenderingActor)
+
 AVisualLoggerRenderingActor::AVisualLoggerRenderingActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

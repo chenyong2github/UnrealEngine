@@ -3,6 +3,8 @@
 #include "FunctionalTestUtilityLibrary.h"
 #include "TraceQueryTestResults.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalTestUtilityLibrary)
+
 UTraceQueryTestResults* UFunctionalTestUtilityLibrary::TraceChannelTestUtil(UObject* WorldContextObject, const FTraceChannelTestBatchOptions& BatchOptions, const FVector Start, const FVector End, float SphereCapsuleRadius, float CapsuleHalfHeight, FVector BoxHalfSize, const FRotator Orientation, ETraceTypeQuery TraceChannel, TArray<TEnumAsByte<EObjectTypeQuery> > ObjectTypes, FName ProfileName, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, bool bIgnoreSelf, EDrawDebugTrace::Type DrawDebugType, FLinearColor TraceColor, FLinearColor TraceHitColor, float DrawTime)
 {
 	UTraceQueryTestResults* Results = NewObject<UTraceQueryTestResults>();

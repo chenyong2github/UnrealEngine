@@ -5,6 +5,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TraceQueryTestResults)
+
 FString FTraceQueryTestNames::ToString() const
 {
 	return FString::Printf(TEXT("Component:%s, Actor:%s, PhysicalMaterial:%s"), *ComponentName.ToString(), *ActorName.ToString(), *PhysicalMaterialName.ToString());
@@ -227,4 +229,5 @@ bool UTraceQueryTestResults::AssertEqual(const UTraceQueryTestResults* Expected,
 		}
 	}
 }
+
 

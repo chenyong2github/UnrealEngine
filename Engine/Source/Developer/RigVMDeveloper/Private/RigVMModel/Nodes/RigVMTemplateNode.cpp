@@ -5,6 +5,8 @@
 #include "RigVMModel/RigVMController.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMTemplateNode)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FRigVMTemplatePreferredType::UpdateStringFromIndex()
@@ -1180,3 +1182,4 @@ void URigVMTemplateNode::InitializeFilteredPermutationsFromTypes(bool bAllowCast
 		}
 	}
 }
+

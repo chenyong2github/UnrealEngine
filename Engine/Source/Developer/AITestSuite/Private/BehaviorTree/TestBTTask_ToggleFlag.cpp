@@ -4,6 +4,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBTTask_ToggleFlag)
+
 UTestBTTask_ToggleFlag::UTestBTTask_ToggleFlag(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Log";

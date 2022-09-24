@@ -4,6 +4,8 @@
 
 #include "RigVMModel/RigVMGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMVariableNode)
+
 const FString URigVMVariableNode::VariableName = TEXT("Variable");
 const FString URigVMVariableNode::ValueName = TEXT("Value");
 
@@ -133,3 +135,4 @@ URigVMPin* URigVMVariableNode::GetValuePin() const
 {
 	return FindPin(ValueName);
 }
+

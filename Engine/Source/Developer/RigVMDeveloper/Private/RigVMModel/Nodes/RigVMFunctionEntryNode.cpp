@@ -3,6 +3,8 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunctionEntryNode)
+
 const FRigVMTemplate* URigVMFunctionEntryNode::GetTemplate() const
 {
 	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())

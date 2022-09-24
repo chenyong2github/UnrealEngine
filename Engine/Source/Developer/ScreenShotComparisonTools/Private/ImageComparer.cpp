@@ -11,6 +11,8 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImageComparer)
+
 
 #define LOCTEXT_NAMESPACE "ImageComparer"
 
@@ -571,3 +573,4 @@ double FImageComparer::CompareStructuralSimilarity(const FComparableImage* Image
 }
 
 #undef LOCTEXT_NAMESPACE
+

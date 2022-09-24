@@ -8,6 +8,8 @@
 #include "VisualLoggerRenderingComponent.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerRenderingActorBase)
+
 namespace FDebugDrawing
 {
 	const FVector NavOffset(0, 0, 15);
@@ -520,3 +522,4 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 		}
 	}
 }
+

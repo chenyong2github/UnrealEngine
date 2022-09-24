@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEnumNode)
+
 const FString URigVMEnumNode::EnumName = TEXT("Enum");
 const FString URigVMEnumNode::EnumValueName = TEXT("EnumValue");
 const FString URigVMEnumNode::EnumIndexName = TEXT("EnumIndex");
@@ -53,3 +55,4 @@ FString URigVMEnumNode::GetDefaultValue(const URigVMPin::FPinOverride& InOverrid
 	}
 	return EnumValuePin->GetDefaultValue(InOverride);
 }
+

@@ -22,6 +22,8 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMPin)
+
 #if WITH_EDITOR
 #include "UObject/CoreRedirects.h"
 #endif
@@ -1947,3 +1949,4 @@ bool URigVMPin::HasInjectedUnitNodes() const
 	
 	return false;
 }
+

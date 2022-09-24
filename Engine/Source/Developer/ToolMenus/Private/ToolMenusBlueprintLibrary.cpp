@@ -3,6 +3,8 @@
 
 #include "ToolMenusBlueprintLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolMenusBlueprintLibrary)
+
 FScriptSlateIcon UToolMenuEntryExtensions::MakeScriptSlateIcon(const FName StyleSetName, const FName StyleName, const FName SmallStyleName)
 {
 	if (SmallStyleName == NAME_None)
@@ -120,3 +122,4 @@ void UToolMenuSectionExtensions::AddEntryObject(UPARAM(ref) FToolMenuSection& Se
 {
 	Section.AddEntryObject(InObject);
 }
+

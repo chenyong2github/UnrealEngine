@@ -2,6 +2,9 @@
 
 #include "RigVMModel/RigVMClient.h"
 #include "Misc/TransactionObjectEvent.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMClient)
+
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif
@@ -637,3 +640,4 @@ void FRigVMClient::DestroyObject(UObject* InObject)
 		InObject->MarkAsGarbage();
 	}
 }
+

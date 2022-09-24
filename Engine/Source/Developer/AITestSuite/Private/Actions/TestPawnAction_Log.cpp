@@ -4,6 +4,8 @@
 #include "TestLogger.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestPawnAction_Log)
+
 UTestPawnAction_Log::UTestPawnAction_Log(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
 	, Logger(nullptr)
@@ -54,3 +56,4 @@ void UTestPawnAction_Log::OnChildFinished(UPawnAction& Action, EPawnActionResult
 	Super::OnChildFinished(Action, WithResult);
 	Logger->Log(ETestPawnActionMessage::ChildFinished);
 }
+

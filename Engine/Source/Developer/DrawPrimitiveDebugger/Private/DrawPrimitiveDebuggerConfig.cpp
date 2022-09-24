@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DrawPrimitiveDebuggerConfig.h"
 #include "Misc/ConfigCacheIni.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DrawPrimitiveDebuggerConfig)
 
 void UDrawPrimitiveDebuggerUserSettings::SetFontSize(const int32 InFontSize)
 {
@@ -12,3 +14,4 @@ void UDrawPrimitiveDebuggerUserSettings::SetFontSize(const int32 InFontSize)
 	GConfig->SetInt(TEXT("/Script/DrawPrimitiveDebugger.DrawPrimitiveDebuggerUserSettings"), TEXT("FontSize"), Settings->FontSize, *ConfigFileName);
 	GConfig->Flush(false);
 }
+

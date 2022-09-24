@@ -3,6 +3,8 @@
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunctionReferenceNode)
+
 FString URigVMFunctionReferenceNode::GetNodeTitle() const
 {
 	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())

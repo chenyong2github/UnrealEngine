@@ -14,6 +14,8 @@
 #include "LocalizationConfigurationScript.h"
 #include "LocalizationSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalizationTargetTypes)
+
 #define LOCTEXT_NAMESPACE "LocalizationTargetTypes"
 
 FString FLocalizationGatherPathRootUtil::GetResolvedPathRootToken(const ELocalizationGatherPathRoot InPathRoot)
@@ -730,3 +732,4 @@ void ULocalizationTargetSet::PostEditChangeProperty(FPropertyChangedEvent& Prope
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

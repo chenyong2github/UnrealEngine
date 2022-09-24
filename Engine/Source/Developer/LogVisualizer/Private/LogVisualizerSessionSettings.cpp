@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LogVisualizerSessionSettings.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LogVisualizerSessionSettings)
+
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
 #endif // WITH_EDITOR
@@ -25,3 +28,4 @@ void ULogVisualizerSessionSettings::PostEditChangeProperty(struct FPropertyChang
 	SettingChangedEvent.Broadcast(Name);
 }
 #endif
+

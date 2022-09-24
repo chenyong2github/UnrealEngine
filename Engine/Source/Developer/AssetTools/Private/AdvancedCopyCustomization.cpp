@@ -8,6 +8,8 @@
 #include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AdvancedCopyCustomization)
+
 
 #define LOCTEXT_NAMESPACE "AdvancedCopyCustomization"
 
@@ -56,3 +58,4 @@ void UAdvancedCopyCustomization::SetPackageThatInitiatedCopy(const FString& InBa
 }
 
 #undef LOCTEXT_NAMESPACE
+

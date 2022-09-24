@@ -11,6 +11,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ToolMenuEntryScript)
+
 FScriptSlateIcon::FScriptSlateIcon()
 {
 
@@ -198,3 +200,4 @@ FToolMenuEntryScriptDataAdvanced::FToolMenuEntryScriptDataAdvanced() :
 {
 
 }
+

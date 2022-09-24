@@ -13,6 +13,8 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/GameModeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerPlayerManager)
+
 AGameplayDebuggerPlayerManager::AGameplayDebuggerPlayerManager(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;

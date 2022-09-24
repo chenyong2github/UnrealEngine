@@ -2,6 +2,8 @@
 
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMCommentNode)
+
 URigVMCommentNode::URigVMCommentNode()
 {
 	Size = FVector2D(400.f, 300.f);
@@ -29,3 +31,4 @@ bool URigVMCommentNode::GetCommentColorBubble() const
 {
 	return bColorBubble;
 }
+
