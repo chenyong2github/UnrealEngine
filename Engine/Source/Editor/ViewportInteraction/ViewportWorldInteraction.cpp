@@ -758,7 +758,14 @@ void UViewportWorldInteraction::SetRoomTransformForNextFrame(const FTransform& N
 
 float UViewportWorldInteraction::GetWorldScaleFactor() const
 {
-	return GetWorld()->GetWorldSettings()->WorldToMeters / 100.0f;
+	if (GetWorld() && GetWorld()->GetWorldSettings())
+	{
+		return GetWorld()->GetWorldSettings()->WorldToMeters / 100.0f;
+	}
+	else
+	{
+		return 1.0f;
+	}
 }
 
 FEditorViewportClient* UViewportWorldInteraction::GetDefaultOptionalViewportClient() const

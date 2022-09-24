@@ -283,6 +283,12 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "VREditorInteractor")
 	TObjectPtr<class UStaticMeshComponent> HandMeshComponent;
 
+	UFUNCTION(BlueprintNativeEvent)
+	void UpdateHandMeshRelativeTransform();
+
+	FVector3d HandMeshBaseScale;
+	FTransform HandMeshGripTransform;
+
 
 private:
 
