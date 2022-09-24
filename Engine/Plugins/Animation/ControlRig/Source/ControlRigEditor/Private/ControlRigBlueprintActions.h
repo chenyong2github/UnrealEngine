@@ -33,7 +33,7 @@ public:
 	static UControlRigBlueprint* CreateNewControlRigAsset(const FString& InDesiredPackagePath);
 	static UControlRigBlueprint* CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject);
 
-	static USkeletalMesh* GetSkeletalMeshFromControlRigBlueprint(UObject* InAsset);
+	static USkeletalMesh* GetSkeletalMeshFromControlRigBlueprint(const FAssetData& InAsset);
 	static void PostSpawningSkeletalMeshActor(AActor* InSpawnedActor, UObject* InAsset);
 	static void OnSpawnedSkeletalMeshActorChanged(UObject* InObject, FPropertyChangedEvent& InEvent, UObject* InAsset);
 

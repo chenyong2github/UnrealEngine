@@ -12,7 +12,7 @@ class AActor;
 struct FAssetData;
 class USkeletalMesh;
 
-DECLARE_DELEGATE_RetVal_OneParam(USkeletalMesh*, FGetSkeletalMeshFromAssetDelegate, UObject* /* in asset */);
+DECLARE_DELEGATE_RetVal_OneParam(USkeletalMesh*, FGetSkeletalMeshFromAssetDelegate, const FAssetData& /* in asset */);
 DECLARE_DELEGATE_TwoParams(FPostSkeletalMeshActorSpawnedDelegate, AActor* /* spawned actor */, UObject* /* asset source*/);
 
 UCLASS(MinimalAPI, config=Editor)

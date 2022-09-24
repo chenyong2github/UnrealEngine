@@ -250,9 +250,14 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 	return NewControlRigBlueprint;
 }
 
-USkeletalMesh* FControlRigBlueprintActions::GetSkeletalMeshFromControlRigBlueprint(UObject* InAsset)
+USkeletalMesh* FControlRigBlueprintActions::GetSkeletalMeshFromControlRigBlueprint(const FAssetData& InAsset)
 {
-	if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InAsset))
+	if (InAsset.GetClass() != UControlRigBlueprint::StaticClass())
+	{
+		return nullptr;
+	}
+	
+	if (const UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InAsset.GetAsset()))
 	{
 		return Blueprint->GetPreviewMesh();
 	}

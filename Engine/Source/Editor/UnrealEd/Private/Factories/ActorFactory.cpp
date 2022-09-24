@@ -1261,7 +1261,7 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 	{
 		for (const auto& Pair : UActorFactorySkeletalMesh::GetSkeletalMeshDelegates)
 		{
-			if (Pair.Value.Execute(AssetData.GetAsset()) != nullptr)
+			if (Pair.Value.Execute(AssetData) != nullptr)
 			{
 				return true;
 			}
