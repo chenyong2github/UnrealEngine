@@ -108,7 +108,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	OperationData.SourceAttributes.SetNum(NumberOfInputs);
 
-	uint16 MostComplexType = (uint16)EPCGMetadataTypes::Unknown;
+	OperationData.MostComplexInputType = (uint16)EPCGMetadataTypes::Unknown;
 	OperationData.NumberOfElementsToProcess = -1;
 
 	for (uint32 i = 0; i < NumberOfInputs; ++i)
@@ -138,11 +138,11 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		if (!bHasSpecialRequirement)
 		{
 			// In this case, check if we have a more complex type, or if we can broadcast to the most complex type.
-			if (MostComplexType == (uint16)EPCGMetadataTypes::Unknown || Settings->IsMoreComplexType(OperationData.SourceAttributes[i]->GetTypeId(), MostComplexType))
+			if (OperationData.MostComplexInputType == (uint16)EPCGMetadataTypes::Unknown || Settings->IsMoreComplexType(OperationData.SourceAttributes[i]->GetTypeId(), OperationData.MostComplexInputType))
 			{
-				MostComplexType = OperationData.SourceAttributes[i]->GetTypeId();
+				OperationData.MostComplexInputType = OperationData.SourceAttributes[i]->GetTypeId();
 			}
-			else if (MostComplexType != OperationData.SourceAttributes[i]->GetTypeId() && !PCG::Private::IsBroadcastable(OperationData.SourceAttributes[i]->GetTypeId(), MostComplexType))
+			else if (OperationData.MostComplexInputType != OperationData.SourceAttributes[i]->GetTypeId() && !PCG::Private::IsBroadcastable(OperationData.SourceAttributes[i]->GetTypeId(), OperationData.MostComplexInputType))
 			{
 				PCGE_LOG(Error, "Attribute %s cannot be broadcasted to match types for input %d", *SourceAttributeName.ToString(), i);
 				return true;
@@ -163,7 +163,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			NumberOfElements[i] = OperationData.SourceAttributes[i]->GetNumberOfEntries();
+			NumberOfElements[i] = OperationData.SourceAttributes[i]->GetNumberOfEntriesWithParents();
 
 			// No element means only dealing with the default value.
 			if (NumberOfElements[i] == 0)
@@ -209,7 +209,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], SourceAttributes[0], OutputAttribute);
 	};
 
-	OperationData.OutputType = Settings->GetOutputType(MostComplexType);
+	OperationData.OutputType = Settings->GetOutputType(OperationData.MostComplexInputType);
 
 	PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, CreateAttribute);
 

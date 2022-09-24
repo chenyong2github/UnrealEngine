@@ -85,77 +85,66 @@ namespace PCGMetadataMathsSettings
 	}
 
 	template <typename T>
-	void UnaryOp(T& Value, EPCGMedadataMathsOperation Op)
+	T UnaryOp(const T& Value, EPCGMedadataMathsOperation Op)
 	{
 		switch (Op)
 		{
 		case EPCGMedadataMathsOperation::Sign:
-			Value = PCGMetadataMaths::Sign(Value);
-			break;
+			return PCGMetadataMaths::Sign(Value);
 		case EPCGMedadataMathsOperation::Frac:
-			Value = PCGMetadataMaths::Frac(Value);
-			break;
+			return PCGMetadataMaths::Frac(Value);
 		case EPCGMedadataMathsOperation::Truncate:
-			Value = PCGMetadataMaths::Truncate(Value);
-			break;
+			return PCGMetadataMaths::Truncate(Value);
 		case EPCGMedadataMathsOperation::Round:
-			Value = PCGMetadataMaths::Round(Value);
-			break;
+			return PCGMetadataMaths::Round(Value);
 		case EPCGMedadataMathsOperation::Sqrt:
-			Value = PCGMetadataMaths::Sqrt(Value);
-			break;
+			return PCGMetadataMaths::Sqrt(Value);
 		case EPCGMedadataMathsOperation::Abs:
-			Value = PCGMetadataMaths::Abs(Value);
-			break;
+			return PCGMetadataMaths::Abs(Value);
+		default:
+			return T{};
 		}
 	}
 
 	template <typename T>
-	void BinaryOp(T& Value1, const T& Value2, EPCGMedadataMathsOperation Op)
+	T BinaryOp(const T& Value1, const T& Value2, EPCGMedadataMathsOperation Op)
 	{
 		switch (Op)
 		{
 		case EPCGMedadataMathsOperation::Add:
-			Value1 = Value1 + Value2;
-			break;
+			return Value1 + Value2;
 		case EPCGMedadataMathsOperation::Subtract:
-			Value1 = Value1 - Value2;
-			break;
+			return Value1 - Value2;
 		case EPCGMedadataMathsOperation::Multiply:
-			Value1 = Value1 * Value2;
-			break;
+			return Value1 * Value2;
 		case EPCGMedadataMathsOperation::Divide:
-			Value1 = Value1 / Value2;
-			break;
+			return Value1 / Value2;
 		case EPCGMedadataMathsOperation::Max:
-			Value1 = PCGMetadataMaths::Max(Value1, Value2);
-			break;
+			return PCGMetadataMaths::Max(Value1, Value2);
 		case EPCGMedadataMathsOperation::Min:
-			Value1 = PCGMetadataMaths::Min(Value1, Value2);
-			break;
+			return PCGMetadataMaths::Min(Value1, Value2);
 		case EPCGMedadataMathsOperation::ClampMin:
-			Value1 = PCGMetadataMaths::Clamp(Value1, Value2, Value1);
-			break;
+			return PCGMetadataMaths::Clamp(Value1, Value2, Value1);
 		case EPCGMedadataMathsOperation::ClampMax:
-			Value1 = PCGMetadataMaths::Clamp(Value1, Value1, Value2);
-			break;
+			return PCGMetadataMaths::Clamp(Value1, Value1, Value2);
 		case EPCGMedadataMathsOperation::Pow:
-			Value1 = PCGMetadataMaths::Pow(Value1, Value2);
-			break;
+			return PCGMetadataMaths::Pow(Value1, Value2);
+		default:
+			return T{};
 		}
 	}
 
 	template <typename T>
-	void TernaryOp(T& Value1, const T& Value2, const T& Value3, EPCGMedadataMathsOperation Op)
+	T TernaryOp(const T& Value1, const T& Value2, const T& Value3, EPCGMedadataMathsOperation Op)
 	{
 		switch (Op)
 		{
 		case EPCGMedadataMathsOperation::Clamp:
-			Value1 = PCGMetadataMaths::Clamp(Value1, Value2, Value3);
-			break;
+			return PCGMetadataMaths::Clamp(Value1, Value2, Value3);
 		case EPCGMedadataMathsOperation::Lerp:
-			Value1 = PCGMetadataMaths::Lerp(Value1, Value2, Value3);
-			break;
+			return PCGMetadataMaths::Lerp(Value1, Value2, Value3);
+		default:
+			return T{};
 		}
 	}
 }
@@ -240,162 +229,36 @@ bool FPCGMetadataMathsElement::DoOperation(FOperationData& OperationData) const
 
 	const UPCGMetadataMathsSettings* Settings = CastChecked<UPCGMetadataMathsSettings>(OperationData.Settings);
 
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-
-	check(OperationData.Iterators[0]);
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = (OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1]) ? *OperationData.Iterators[1] : Iterator1;
-	IPCGMetadataEntryIterator& Iterator3 = (OperationData.Iterators.Num() >= 3 && OperationData.Iterators[2]) ? *OperationData.Iterators[2] : Iterator1;
-
-	bool bShouldIncrementIterator2 = &Iterator1 != &Iterator2;
-	bool bShouldIncrementIterator3 = &Iterator1 != &Iterator3;
-
-	// And then do the operation for all elements
-	if (PCGMetadataMathsSettings::IsUnaryOp(Settings->Operation))
+	auto MathFunc = [this, Operation = Settings->Operation, &OperationData](auto DummyOutValue) -> void
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMathsElement::ExecuteInternal::UnaryOp);
-		auto UnaryFunc = [Operation = Settings->Operation, &OperationData, &Iterator1](auto DummyOutValue) -> void
+		using AttributeType = decltype(DummyOutValue);
+
+		// Need to remove types that would not compile
+		if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Vector4)
 		{
-			using AttributeType = decltype(DummyOutValue);
-
-			// Need to remove types that would not compile
-			if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Vector4)
-			{
-				return;
-			}
-			else
-			{
-				FPCGMetadataAttribute<AttributeType>* OutputAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(OperationData.OutputAttribute);
-				AttributeType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-				PCGMetadataMathsSettings::UnaryOp(DefaultValue, Operation);
-				OutputAttribute->SetDefaultValue(DefaultValue);
-
-				for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
-				{
-					PCGMetadataEntryKey EntryKey = *Iterator1;
-
-					// If the entry key is invalid, nothing to do
-					if (EntryKey != PCGInvalidEntryKey)
-					{
-						AttributeType Value = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey);
-
-						PCGMetadataMathsSettings::UnaryOp(Value, Operation);
-
-						OutputAttribute->SetValue(EntryKey, Value);
-					}
-
-					++Iterator1;
-				}
-			}
-		};
-
-		PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, UnaryFunc);
-	}
-	else if (PCGMetadataMathsSettings::IsBinaryOp(Settings->Operation))
-	{
-		auto BinaryFunc = [Operation = Settings->Operation, &OperationData, &Iterator1, &Iterator2, bShouldIncrementIterator2](auto DummyOutValue) -> void
+			return;
+		}
+		else
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMathsElement::ExecuteInternal::BinaryOp);
-			using AttributeType = decltype(DummyOutValue);
-
-			// Need to remove types that would not compile
-			if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Vector4)
+			if (PCGMetadataMathsSettings::IsUnaryOp(Operation))
 			{
-				return;
+				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMathsElement::ExecuteInternal::UnaryOp);
+				DoUnaryOp<AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value) -> AttributeType { return PCGMetadataMathsSettings::UnaryOp(Value, Operation); });
 			}
-			else
+			else if (PCGMetadataMathsSettings::IsBinaryOp(Operation))
 			{
-				FPCGMetadataAttribute<AttributeType>* OutputAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(OperationData.OutputAttribute);
-				AttributeType DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-				AttributeType DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
-				PCGMetadataMathsSettings::BinaryOp(DefaultValue1, DefaultValue2, Operation);
-				OutputAttribute->SetDefaultValue(DefaultValue1);
-
-				for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
-				{
-					PCGMetadataEntryKey EntryKey1 = *Iterator1;
-					PCGMetadataEntryKey EntryKey2 = *Iterator2;
-
-					// If the entry key is invalid, nothing to do
-					if (EntryKey1 != PCGInvalidEntryKey)
-					{
-						AttributeType Value1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey1);
-						AttributeType Value2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], EntryKey2);
-
-						PCGMetadataMathsSettings::BinaryOp(Value1, Value2, Operation);
-
-						OutputAttribute->SetValue(EntryKey1, Value1);
-					}
-
-					++Iterator1;
-					if (bShouldIncrementIterator2)
-					{
-						++Iterator2;
-					}
-				}
+				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMathsElement::ExecuteInternal::BinaryOp);
+				DoBinaryOp<AttributeType, AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2) -> AttributeType { return PCGMetadataMathsSettings::BinaryOp(Value1, Value2, Operation); });
 			}
-		};
-
-		PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, BinaryFunc);
-	}
-	else if (PCGMetadataMathsSettings::IsTernaryOp(Settings->Operation))
-	{
-		auto TernaryFunc = [Operation = Settings->Operation, &OperationData, &Iterator1, &Iterator2, &Iterator3, bShouldIncrementIterator2, bShouldIncrementIterator3](auto DummyOutValue) -> void
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMathsElement::ExecuteInternal::TernaryOp);
-			using AttributeType = decltype(DummyOutValue);
-
-			// Need to remove types that would not compile
-			if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Vector4)
+			else if (PCGMetadataMathsSettings::IsTernaryOp(Operation))
 			{
-				return;
+				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMathsElement::ExecuteInternal::TernaryOp);
+				DoTernaryOp<AttributeType, AttributeType, AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2, const AttributeType& Value3) -> AttributeType { return PCGMetadataMathsSettings::TernaryOp(Value1, Value2, Value3, Operation); });
 			}
-			else
-			{
-				FPCGMetadataAttribute<AttributeType>* OutputAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(OperationData.OutputAttribute);
-				AttributeType DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-				AttributeType DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
-				AttributeType DefaultValue3 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[2], PCGInvalidEntryKey);
-				PCGMetadataMathsSettings::TernaryOp(DefaultValue1, DefaultValue2, DefaultValue3, Operation);
-				OutputAttribute->SetDefaultValue(DefaultValue1);
+		}
+	};
 
-				for (PCGMetadataValueKey ValueKey = 0; ValueKey < OperationData.NumberOfElementsToProcess; ++ValueKey)
-				{
-					PCGMetadataEntryKey EntryKey1 = *Iterator1;
-					PCGMetadataEntryKey EntryKey2 = *Iterator2;
-					PCGMetadataEntryKey EntryKey3 = *Iterator3;
-
-					// If the entry key is invalid, nothing to do
-					if (EntryKey1 != PCGInvalidEntryKey)
-					{
-						AttributeType Value1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey1);
-						AttributeType Value2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], EntryKey2);
-						AttributeType Value3 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[2], EntryKey3);
-
-						PCGMetadataMathsSettings::TernaryOp(Value1, Value2, Value3, Operation);
-
-						OutputAttribute->SetValue(EntryKey1, Value1);
-					}
-
-					++Iterator1;
-					if (bShouldIncrementIterator2)
-					{
-						++Iterator2;
-					}
-
-					if (bShouldIncrementIterator3)
-					{
-						++Iterator3;
-					}
-				}
-			}
-		};
-
-		PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, TernaryFunc);
-	}
+	PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, MathFunc);
 
 	return true;
 }

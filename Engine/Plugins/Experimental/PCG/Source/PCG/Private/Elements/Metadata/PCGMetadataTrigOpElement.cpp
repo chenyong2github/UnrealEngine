@@ -12,40 +12,36 @@
 namespace PCGMetadataTrigSettings
 {
 	template <typename OutType>
-	void ApplyTrigOperation(OutType& Input1, const OutType& Input2, EPCGMedadataTrigOperation Operation)
+	OutType UnaryOp(const OutType& Input1, EPCGMedadataTrigOperation Operation)
 	{
 		switch (Operation)
 		{
 		case EPCGMedadataTrigOperation::Acos:
-			Input1 = FMath::Acos(Input1);
-			break;
+			return FMath::Acos(Input1);
 		case EPCGMedadataTrigOperation::Asin:
-			Input1 = FMath::Asin(Input1);
-			break;
+			return FMath::Asin(Input1);
 		case EPCGMedadataTrigOperation::Atan:
-			Input1 = FMath::Atan(Input1);
-			break;
-		case EPCGMedadataTrigOperation::Atan2:
-			Input1 = FMath::Atan2(Input1, Input2);
-			break;
+			return FMath::Atan(Input1);
 		case EPCGMedadataTrigOperation::Cos:
-			Input1 = FMath::Cos(Input1);
-			break;
+			return FMath::Cos(Input1);
 		case EPCGMedadataTrigOperation::Sin:
-			Input1 = FMath::Sin(Input1);
-			break;
+			return FMath::Sin(Input1);
 		case EPCGMedadataTrigOperation::Tan:
-			Input1 = FMath::Tan(Input1);
-			break;
+			return FMath::Tan(Input1);
 		case EPCGMedadataTrigOperation::DegToRad:
-			Input1 = FMath::DegreesToRadians(Input1);
-			break;
+			return FMath::DegreesToRadians(Input1);
 		case EPCGMedadataTrigOperation::RadToDeg:
-			Input1 = FMath::RadiansToDegrees(Input1);
-			break;
+			return FMath::RadiansToDegrees(Input1);
 		default:
-			break;
+			return OutType{};
 		}
+	}
+
+	template <typename OutType>
+	OutType BinaryOp(const OutType& Input1, const OutType& Input2)
+	{
+		// EPCGMedadataTrigOperation::Atan2:
+		return FMath::Atan2(Input1, Input2);
 	}
 }
 
@@ -121,70 +117,14 @@ bool FPCGMetadataTrigElement::DoOperation(FOperationData& OperationData) const
 
 	const UPCGMetadataTrigSettings* Settings = CastChecked<UPCGMetadataTrigSettings>(OperationData.Settings);
 
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-
-	check(OperationData.Iterators[0]);
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = (OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1]) ? *OperationData.Iterators[1] : Iterator1;
-
-	bool bShouldIncrementIterator2 = &Iterator1 != &Iterator2;
-
-	auto TrigFunc = [Operation = Settings->Operation, &Iterator1, &Iterator2, bShouldIncrementIterator2, &OperationData](auto DummyValue)
+	if (Settings->Operation == EPCGMedadataTrigOperation::Atan2)
 	{
-		using AttributeType = decltype(DummyValue);
-
-		// Need to remove types that would not compile
-		if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Double)
-		{
-			return;
-		}
-		else
-		{
-			PCGMetadataEntryKey EntryKey1 = 0;
-			PCGMetadataEntryKey EntryKey2 = 0;
-
-			FPCGMetadataAttribute<AttributeType>* OutputAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(OperationData.OutputAttribute);
-			AttributeType DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-			AttributeType DefaultValue2 = (Operation == EPCGMedadataTrigOperation::Atan2) ? PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], PCGInvalidEntryKey) : AttributeType{};
-			PCGMetadataTrigSettings::ApplyTrigOperation(DefaultValue1, DefaultValue2, Operation);
-			OutputAttribute->SetDefaultValue(DefaultValue1);
-
-			AttributeType Value1{};
-			AttributeType Value2{};
-
-			for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
-			{
-				EntryKey1 = *Iterator1;
-
-				// If the entry key is invalid, nothing to do
-				if (EntryKey1 != PCGInvalidEntryKey)
-				{
-					Value1 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], EntryKey1);
-
-					if (Operation == EPCGMedadataTrigOperation::Atan2)
-					{
-						EntryKey2 = *Iterator2;
-						Value2 = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[1], EntryKey2);
-					}
-
-					PCGMetadataTrigSettings::ApplyTrigOperation(Value1, Value2, Operation);
-
-					OutputAttribute->SetValue(EntryKey1, Value1);
-				}
-
-				++Iterator1;
-				if (bShouldIncrementIterator2)
-				{
-					++Iterator2;
-				}
-			}
-		}
-	};
-
-	PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, TrigFunc);
+		DoBinaryOp<double, double, double>(OperationData, [](const double& Value1, const double& Value2) -> double { return PCGMetadataTrigSettings::BinaryOp(Value1, Value2); });
+	}
+	else
+	{
+		DoUnaryOp<double, double>(OperationData, [Operation = Settings->Operation](const double& Value) -> double { return PCGMetadataTrigSettings::UnaryOp(Value, Operation); });
+	}
 
 	return true;
 }

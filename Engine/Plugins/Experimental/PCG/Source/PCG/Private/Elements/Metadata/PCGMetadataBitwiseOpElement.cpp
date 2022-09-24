@@ -11,6 +11,30 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+namespace PCGMetadataBitwiseSettings
+{
+	inline int64 UnaryOp(const int64& Value)
+	{
+		// EPCGMedadataBitwiseOperation::BitwiseNot
+		return ~Value;
+	}
+
+	inline int64 BinaryOp(const int64& Value1, const int64& Value2, EPCGMedadataBitwiseOperation Operation)
+	{
+		switch (Operation)
+		{
+		case EPCGMedadataBitwiseOperation::BitwiseAnd:
+			return (Value1 & Value2);
+		case EPCGMedadataBitwiseOperation::BitwiseOr:
+			return (Value1 | Value2);
+		case EPCGMedadataBitwiseOperation::BitwiseXor:
+			return (Value1 ^ Value2);
+		default:
+			return 0;
+		}
+	}
+}
+
 FName UPCGMetadataBitwiseSettings::GetInputPinLabel(uint32 Index) const
 {
 	switch (Index)
@@ -76,73 +100,13 @@ bool FPCGMetadataBitwiseElement::DoOperation(FOperationData& OperationData) cons
 
 	const UPCGMetadataBitwiseSettings* Settings = CastChecked<UPCGMetadataBitwiseSettings>(OperationData.Settings);
 
-	auto BitwiseFunc = [Settings](int64& Value1, const int64& Value2)
+	if (Settings->Operation == EPCGMedadataBitwiseOperation::BitwiseNot)
 	{
-		switch (Settings->Operation)
-		{
-		case EPCGMedadataBitwiseOperation::BitwiseAnd:
-			Value1 = (Value1 & Value2);
-			break;
-		case EPCGMedadataBitwiseOperation::BitwiseNot:
-			Value1 = ~Value1;
-			break;
-		case EPCGMedadataBitwiseOperation::BitwiseOr:
-			Value1 = (Value1 | Value2);
-			break;
-		case EPCGMedadataBitwiseOperation::BitwiseXor:
-			Value1 = (Value1 ^ Value2);
-			break;
-		}
-	};
-
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-
-	check(OperationData.Iterators[0]);
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = (OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1]) ? *OperationData.Iterators[1] : Iterator1;
-
-	bool bShouldIncrementIterator2 = &Iterator1 != &Iterator2;
-
-	PCGMetadataEntryKey EntryKey1 = 0;
-	PCGMetadataEntryKey EntryKey2 = 0;
-
-	int64 Value1 = 0;
-	int64 Value2 = 0;
-
-	FPCGMetadataAttribute<int64>* OutputAttribute = static_cast<FPCGMetadataAttribute<int64>*>(OperationData.OutputAttribute);
-	int64 DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<int64>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-	int64 DefaultValue2 = (Settings->Operation != EPCGMedadataBitwiseOperation::BitwiseNot) ? PCGMetadataAttribute::GetValueWithBroadcast<int64>(OperationData.SourceAttributes[1], PCGInvalidEntryKey) : 0;
-	BitwiseFunc(DefaultValue1, DefaultValue2);
-	OutputAttribute->SetDefaultValue(DefaultValue1);
-
-	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
+		DoUnaryOp<int64, int64>(OperationData, [](const int64& Value) -> int64 { return PCGMetadataBitwiseSettings::UnaryOp(Value); });
+	}
+	else
 	{
-		EntryKey1 = *Iterator1;
-
-		if (EntryKey1 != PCGInvalidEntryKey)
-		{
-			Value1 = PCGMetadataAttribute::GetValueWithBroadcast<int64>(OperationData.SourceAttributes[0], EntryKey1);
-
-			if (Settings->Operation != EPCGMedadataBitwiseOperation::BitwiseNot)
-			{
-				EntryKey2 = *Iterator2;
-				Value2 = PCGMetadataAttribute::GetValueWithBroadcast<int64>(OperationData.SourceAttributes[1], EntryKey2);
-			}
-
-			BitwiseFunc(Value1, Value2);
-
-			OutputAttribute->SetValue(EntryKey1, Value1);
-		}
-
-		++Iterator1;
-
-		if (bShouldIncrementIterator2)
-		{
-			++Iterator2;
-		}
+		DoBinaryOp<int64, int64, int64>(OperationData, [Operation = Settings->Operation](const int64& Value1, const int64& Value2) -> int64 { return PCGMetadataBitwiseSettings::BinaryOp(Value1, Value2, Operation); });
 	}
 
 	return true;

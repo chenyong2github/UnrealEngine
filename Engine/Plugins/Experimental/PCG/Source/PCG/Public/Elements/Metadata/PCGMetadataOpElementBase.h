@@ -5,6 +5,10 @@
 #include "PCGElement.h"
 #include "PCGSettings.h"
 
+#include "Metadata/PCGMetadataAttribute.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/PCGMetadataEntryKeyIterator.h"
+
 #include "PCGMetadataOpElementBase.generated.h"
 
 class FPCGMetadataAttributeBase;
@@ -94,18 +98,165 @@ class FPCGMetadataElementBase : public FSimplePCGElement
 public:
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return true; }
 
-protected:
-	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-
 	struct FOperationData
 	{
 		TArray<const FPCGMetadataAttributeBase*> SourceAttributes;
 		int32 NumberOfElementsToProcess = -1;
+		uint16 MostComplexInputType;
 		uint16 OutputType;
 		FPCGMetadataAttributeBase* OutputAttribute = nullptr;
 		const UPCGMetadataSettingsBase* Settings = nullptr;
 		TArray<TUniquePtr<IPCGMetadataEntryIterator>> Iterators;
 	};
 
-	virtual bool DoOperation(FOperationData& OperationData) const { return true; };
+protected:
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+
+	virtual bool DoOperation(FOperationData& OperationData) const = 0;
+
+	template <typename InType, typename OutType>
+	void DoUnaryOp(FOperationData& OperationData, TFunction<OutType(const InType&)> UnaryOp) const;
+
+	template <typename InType1, typename InType2, typename OutType>
+	void DoBinaryOp(FOperationData& OperationData, TFunction<OutType(const InType1&, const InType2&)> BinaryOp) const;
+
+	template <typename InType1, typename InType2, typename InType3, typename OutType>
+	void DoTernaryOp(FOperationData& OperationData, TFunction<OutType(const InType1&, const InType2&, const InType3&)> TernaryOp) const;
 };
+
+template <typename InType, typename OutType>
+inline void FPCGMetadataElementBase::DoUnaryOp(FOperationData& OperationData, TFunction<OutType(const InType&)> UnaryOp) const
+{
+	check(OperationData.SourceAttributes[0]);
+
+	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
+	check(OperationData.Iterators[0]);
+	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
+
+	FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttribute);
+	InType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<InType>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
+	OutType DefaultOutputValue = UnaryOp(DefaultValue);
+	OutputAttribute->SetDefaultValue(DefaultOutputValue);
+
+	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
+	{
+		PCGMetadataEntryKey EntryKey = *Iterator1;
+
+		// If the entry key is invalid, nothing to do
+		if (EntryKey != PCGInvalidEntryKey)
+		{
+			InType Value = PCGMetadataAttribute::GetValueWithBroadcast<InType>(OperationData.SourceAttributes[0], EntryKey);
+
+			OutType OutputValue = UnaryOp(Value);
+
+			OutputAttribute->SetValue(EntryKey, Value);
+		}
+
+		++Iterator1;
+	}
+}
+
+template <typename InType1, typename InType2, typename OutType>
+inline void FPCGMetadataElementBase::DoBinaryOp(FOperationData& OperationData, TFunction<OutType(const InType1&, const InType2&)> BinaryOp) const
+{
+	check(OperationData.SourceAttributes[0]);
+	check(OperationData.SourceAttributes[1]);
+
+	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
+	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
+	// We just need to make sure to not increment the first iterator multiple times in one loop.
+	check(OperationData.Iterators[0]);
+
+	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
+	IPCGMetadataEntryIterator& Iterator2 = (OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1]) ? *OperationData.Iterators[1] : Iterator1;
+
+	bool bShouldIncrementIterator2 = &Iterator1 != &Iterator2;
+
+	FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttribute);
+	InType1 DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
+	InType2 DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
+	OutType DefaultOutputValue = BinaryOp(DefaultValue1, DefaultValue2);
+	OutputAttribute->SetDefaultValue(DefaultOutputValue);
+
+	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
+	{
+		PCGMetadataEntryKey EntryKey1 = *Iterator1;
+
+		// If the entry key is invalid, nothing to do
+		if (EntryKey1 != PCGInvalidEntryKey)
+		{
+			PCGMetadataEntryKey EntryKey2 = *Iterator2;
+
+			InType1 Value1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], EntryKey1);
+			InType2 Value2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], EntryKey2);
+
+			OutType OutputValue = BinaryOp(Value1, Value2);
+
+			OutputAttribute->SetValue(EntryKey1, OutputValue);
+		}
+
+		++Iterator1;
+		if (bShouldIncrementIterator2)
+		{
+			++Iterator2;
+		}
+	}
+}
+
+template <typename InType1, typename InType2, typename InType3, typename OutType>
+inline void FPCGMetadataElementBase::DoTernaryOp(FOperationData& OperationData, TFunction<OutType(const InType1&, const InType2&, const InType3&)> TernaryOp) const
+{
+	check(OperationData.SourceAttributes[0]);
+	check(OperationData.SourceAttributes[1]);
+	check(OperationData.SourceAttributes[2]);
+
+	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
+	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
+	// We just need to make sure to not increment the first iterator multiple times in one loop.
+	check(OperationData.Iterators[0]);
+
+	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
+	IPCGMetadataEntryIterator& Iterator2 = (OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1]) ? *OperationData.Iterators[1] : Iterator1;
+	IPCGMetadataEntryIterator& Iterator3 = (OperationData.Iterators.Num() >= 3 && OperationData.Iterators[2]) ? *OperationData.Iterators[2] : Iterator1;
+
+	bool bShouldIncrementIterator2 = &Iterator1 != &Iterator2;
+	bool bShouldIncrementIterator3 = &Iterator1 != &Iterator3;
+
+	FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttribute);
+	InType1 DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
+	InType2 DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
+	InType3 DefaultValue3 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[2], PCGInvalidEntryKey);
+	OutType DefaultOutputValue = TernaryOp(DefaultValue1, DefaultValue2, DefaultValue3);
+	OutputAttribute->SetDefaultValue(DefaultOutputValue);
+
+	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
+	{
+		PCGMetadataEntryKey EntryKey1 = *Iterator1;
+
+		// If the entry key is invalid, nothing to do
+		if (EntryKey1 != PCGInvalidEntryKey)
+		{
+			PCGMetadataEntryKey EntryKey2 = *Iterator2;
+			PCGMetadataEntryKey EntryKey3 = *Iterator3;
+
+			InType1 Value1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], EntryKey1);
+			InType2 Value2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], EntryKey2);
+			InType3 Value3 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[2], EntryKey3);
+
+			OutType OutputValue = TernaryOp(Value1, Value2, Value3);
+
+			OutputAttribute->SetValue(EntryKey1, OutputValue);
+		}
+
+		++Iterator1;
+		if (bShouldIncrementIterator2)
+		{
+			++Iterator2;
+		}
+
+		if (bShouldIncrementIterator3)
+		{
+			++Iterator3;
+		}
+	}
+}

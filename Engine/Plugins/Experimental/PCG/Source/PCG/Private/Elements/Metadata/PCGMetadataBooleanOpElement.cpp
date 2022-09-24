@@ -11,6 +11,30 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+namespace PCGMetadataBooleanSettings
+{
+	inline bool UnaryOp(const bool& Value)
+	{
+		// EPCGMedadataBooleanOperation::Not
+		return !Value;
+	}
+
+	inline bool BinaryOp(const bool& Value1, const bool& Value2, EPCGMedadataBooleanOperation Operation)
+	{
+		switch (Operation)
+		{
+		case EPCGMedadataBooleanOperation::And:
+			return (Value1 && Value2);
+		case EPCGMedadataBooleanOperation::Or:
+			return (Value1 || Value2);
+		case EPCGMedadataBooleanOperation::Xor:
+			return (Value1 != Value2);
+		default:
+			return false;
+		}
+	}
+}
+
 FName UPCGMetadataBooleanSettings::GetInputPinLabel(uint32 Index) const
 {
 	switch (Index)
@@ -76,73 +100,13 @@ bool FPCGMetadataBooleanElement::DoOperation(FOperationData& OperationData) cons
 
 	const UPCGMetadataBooleanSettings* Settings = CastChecked<UPCGMetadataBooleanSettings>(OperationData.Settings);
 
-	auto BoolFunc = [Settings](bool& Value1, const bool& Value2)
+	if (Settings->Operation == EPCGMedadataBooleanOperation::Not)
 	{
-		switch (Settings->Operation)
-		{
-		case EPCGMedadataBooleanOperation::And:
-			Value1 = (Value1 && Value2);
-			break;
-		case EPCGMedadataBooleanOperation::Not:
-			Value1 = !Value1;
-			break;
-		case EPCGMedadataBooleanOperation::Or:
-			Value1 = (Value1 || Value2);
-			break;
-		case EPCGMedadataBooleanOperation::Xor:
-			Value1 = (Value1 != Value2);
-			break;
-		}
-	};
-
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-
-	check(OperationData.Iterators[0]);
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = (OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1]) ? *OperationData.Iterators[1] : Iterator1;
-
-	bool bShouldIncrementIterator2 = &Iterator1 != &Iterator2;
-
-	PCGMetadataEntryKey EntryKey1 = 0;
-	PCGMetadataEntryKey EntryKey2 = 0;
-
-	bool Value1 = false;
-	bool Value2 = false;
-
-	FPCGMetadataAttribute<bool>* OutputAttribute = static_cast<FPCGMetadataAttribute<bool>*>(OperationData.OutputAttribute);
-	bool DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<bool>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-	bool DefaultValue2 = (Settings->Operation != EPCGMedadataBooleanOperation::Not) ? PCGMetadataAttribute::GetValueWithBroadcast<bool>(OperationData.SourceAttributes[1], PCGInvalidEntryKey) : false;
-	BoolFunc(DefaultValue1, DefaultValue2);
-	OutputAttribute->SetDefaultValue(DefaultValue1);
-
-	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
+		DoUnaryOp<bool, bool>(OperationData, [](const bool& Value) -> bool { return PCGMetadataBooleanSettings::UnaryOp(Value); });
+	}
+	else
 	{
-		EntryKey1 = *Iterator1;
-
-		// If the entry key is invalid, nothing to do
-		if (EntryKey1 != PCGInvalidEntryKey)
-		{
-			Value1 = PCGMetadataAttribute::GetValueWithBroadcast<bool>(OperationData.SourceAttributes[0], EntryKey1);
-
-			if (Settings->Operation != EPCGMedadataBooleanOperation::Not)
-			{
-				EntryKey2 = *Iterator2;
-				Value2 = PCGMetadataAttribute::GetValueWithBroadcast<bool>(OperationData.SourceAttributes[1], EntryKey2);
-			}
-
-			BoolFunc(Value1, Value2);
-
-			OutputAttribute->SetValue(EntryKey1, Value1);
-		}
-
-		++Iterator1;
-		if (bShouldIncrementIterator2)
-		{
-			++Iterator2;
-		}
+		DoBinaryOp<bool, bool, bool>(OperationData, [Operation = Settings->Operation](const bool& Value1, const bool& Value2) -> bool { return PCGMetadataBooleanSettings::BinaryOp(Value1, Value2, Operation); });
 	}
 
 	return true;

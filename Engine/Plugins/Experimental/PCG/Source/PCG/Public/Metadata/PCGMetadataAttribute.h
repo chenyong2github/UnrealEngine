@@ -40,6 +40,7 @@ public:
 	bool AllowsInterpolation() const { return bAllowsInterpolation; }
 
 	int32 GetNumberOfEntries() const { return EntryToValueKeyMap.Num(); }
+	int32 GetNumberOfEntriesWithParents() const { return EntryToValueKeyMap.Num() + (Parent ? Parent->GetNumberOfEntries() : 0); }
 
 	// This call is not thread safe
 	const TMap<PCGMetadataEntryKey, PCGMetadataValueKey>& GetEntryToValueKeyMap_NotThreadSafe() const { return EntryToValueKeyMap; }
