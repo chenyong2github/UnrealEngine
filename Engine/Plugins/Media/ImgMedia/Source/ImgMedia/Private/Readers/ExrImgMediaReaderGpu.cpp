@@ -759,12 +759,7 @@ bool FExrMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDstTexture, co
 	bool bExecutionSuccessful = false;
 	if (ConvertExrBufferCallback.IsBound())
 	{
-		TMap<int32, FStructuredBufferPoolItemSharedPtr> MipBufferCopy;
-		{
-			FScopeLock MipScopeLock(&MipBufferCriticalSection);
-			MipBufferCopy = MipBuffers;
-		}
-		bExecutionSuccessful = ConvertExrBufferCallback.Execute(FRHICommandListExecutor::GetImmediateCommandList(), InDstTexture, MipBufferCopy);
+		bExecutionSuccessful = ConvertExrBufferCallback.Execute(FRHICommandListExecutor::GetImmediateCommandList(), InDstTexture, MipBuffersRenderThread);
 	}
 	return bExecutionSuccessful;
 }
