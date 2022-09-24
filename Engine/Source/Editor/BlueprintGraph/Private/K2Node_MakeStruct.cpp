@@ -108,6 +108,18 @@ static bool CanBeExposed(const FProperty* Property, UBlueprint* BP)
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		check(Schema);
 
+		// Treat all inline edit condition properties as override flags; that is, don't allow
+		// these to be exposed as part of the optional input pin set. Their value will be set
+		// implicitly at runtime based on whether or not any bound members are exposed, rather
+		// than explicitly via an exposed input pin. This emulates how the Property Editor
+		// handles setting these values at edit time (they appear as an inline checkbox that
+		// the user ticks on to set the flag and enable/override a bound property's value).
+		static const FName MD_InlineEditConditionToggle(TEXT("InlineEditConditionToggle"));
+		if (Property->HasMetaData(MD_InlineEditConditionToggle))
+		{
+			return false;
+		}
+
 		const bool bIsEditorBP = IsEditorOnlyObject(BP);
 		const bool bIsEditAnywhereProperty = Property->HasAllPropertyFlags(CPF_Edit) &&
 			!Property->HasAnyPropertyFlags(CPF_EditConst);

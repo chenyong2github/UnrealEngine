@@ -1523,43 +1523,50 @@ void FOptionalPinManager::RebuildPropertyList(TArray<FOptionalPinFromProperty>& 
 		OldPinSettings.Add(PropertyEntry.PropertyName, FOldOptionalPinSettings(PropertyEntry.bShowPin, PropertyEntry.bIsOverrideEnabled, PropertyEntry.bIsSetValuePinVisible, PropertyEntry.bIsOverridePinVisible));
 	}
 
+	// This exists to support legacy struct types that used an older convention to declare
+	// override flag properties with a "bOverride_" prefix. Any property that starts with
+	// "bOverride_" will be implicitly excluded from the optional pin set if the suffix matches
+	// another property name within the same scope. For example, a property named "bOverride_MyValue"
+	// will not be included in the output set if we find a matching property named "MyValue".
+	TMap<FString, FProperty*> OverridesMap;
+	const FString OverridePrefix(TEXT("bOverride_"));
+
 	// Rebuild the property list
 	Properties.Reset();
-
-	// find all "bOverride_" properties
-	TMap<FName, FProperty*> OverridesMap;
-	const FString OverridePrefix(TEXT("bOverride_"));
+	TSet<FProperty*> TestProperties;
 	for (TFieldIterator<FProperty> It(SourceStruct, EFieldIteratorFlags::IncludeSuper); It; ++It)
 	{
-		FProperty* TestProperty = *It;
-		if (CanTreatPropertyAsOptional(TestProperty) && TestProperty->GetName().StartsWith(OverridePrefix))
+		FProperty* Property = *It;
+		if (CanTreatPropertyAsOptional(Property))
 		{
-			FString OriginalName = TestProperty->GetName();
+			TestProperties.Add(Property);
+
+			// find all "bOverride_" properties
+			FString OriginalName = Property->GetName();
 			if (OriginalName.RemoveFromStart(OverridePrefix) && !OriginalName.IsEmpty())
 			{
-				OverridesMap.Add(FName(*OriginalName), TestProperty);
+				OverridesMap.Add(OriginalName, Property);
 			}
 		}
 	}
 
 	// handle regular properties
-	for (TFieldIterator<FProperty> It(SourceStruct, EFieldIteratorFlags::IncludeSuper); It; ++It)
+	for (FProperty* TestProperty : TestProperties)
 	{
-		FProperty* TestProperty = *It;
-		if (CanTreatPropertyAsOptional(TestProperty) && !TestProperty->GetName().StartsWith(OverridePrefix))
+		if (!TestProperty->GetName().StartsWith(OverridePrefix))
 		{
 			FName CategoryName = NAME_None;
 #if WITH_EDITOR
 			CategoryName = FObjectEditorUtils::GetCategoryFName(TestProperty);
 #endif //WITH_EDITOR
 
-			OverridesMap.Remove(TestProperty->GetFName());
+			OverridesMap.Remove(TestProperty->GetName());
 			RebuildProperty(TestProperty, CategoryName, Properties, SourceStruct, OldPinSettings);
 		}
 	}
 
 	// add remaining "bOverride_" properties
-	for (const TPair<FName, FProperty*>& Pair : OverridesMap)
+	for (const TPair<FString, FProperty*>& Pair : OverridesMap)
 	{
 		FProperty* TestProperty = Pair.Value;
 
@@ -1580,9 +1587,12 @@ void FOptionalPinManager::RebuildProperty(FProperty* TestProperty, FName Categor
 	Record->PropertyTooltip = TestProperty->GetToolTipText();
 	Record->CategoryName = CategoryName;
 
+	// Determine if the property is bound to a mutable edit condition flag, which historically indicates an additional optional
+	// "override" pin is needed. Note that some manager subtypes may choose not to include these fields in the optional pin set.
 	bool bNegate = false;
 	FProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(TestProperty, bNegate);
 	Record->bHasOverridePin = OverrideProperty != nullptr && OverrideProperty->HasAllPropertyFlags(CPF_BlueprintVisible) && !OverrideProperty->HasAllPropertyFlags(CPF_BlueprintReadOnly);
+
 	Record->bIsMarkedForAdvancedDisplay = TestProperty->HasAnyPropertyFlags(CPF_AdvancedDisplay);
 
 	// Get the defaults

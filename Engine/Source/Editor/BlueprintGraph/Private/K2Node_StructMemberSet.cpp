@@ -13,6 +13,7 @@
 #include "UObject/ObjectPtr.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
+#include "PropertyCustomizationHelpers.h"
 
 class FKismetCompilerContext;
 class UEdGraphPin;
@@ -101,6 +102,26 @@ UK2Node::ERedirectType UK2Node_StructMemberSet::DoPinsMatchForReconstruction(con
 FNodeHandlingFunctor* UK2Node_StructMemberSet::CreateNodeHandler(FKismetCompilerContext& CompilerContext) const
 {
 	return new FKCHandler_StructMemberVariableSet(CompilerContext);
+}
+
+FBoolProperty* UK2Node_StructMemberSet::GetOverrideConditionForProperty(const FProperty* InProperty) const
+{
+	bool bNegate = false;
+	if (FBoolProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(InProperty, bNegate))
+	{
+		// Determine if the edit condition is included in the optional input pin set - if so, then it is not considered to be an override condition.
+		const bool bIsOverrideExposedForInput = ShowPinForProperties.ContainsByPredicate([OverrideProperty](const FOptionalPinFromProperty& PropertyEntry)
+		{
+			return PropertyEntry.PropertyName == OverrideProperty->GetFName();
+		});
+
+		if (!bIsOverrideExposedForInput)
+		{
+			return OverrideProperty;
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

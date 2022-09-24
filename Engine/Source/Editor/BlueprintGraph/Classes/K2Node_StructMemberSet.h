@@ -18,6 +18,7 @@
 
 class FName;
 class FProperty;
+class FBoolProperty;
 class UEdGraphPin;
 class UObject;
 
@@ -50,6 +51,9 @@ class UK2Node_StructMemberSet : public UK2Node_StructOperation
 
 	// Helper for AllocateDefaultPins
 	BLUEPRINTGRAPH_API void AllocateExecPins();
+
+	// Returns the override condition that's bound to the given property, if one exists. An override is a edit condition flag that is not exposed as an optional input pin.
+	BLUEPRINTGRAPH_API FBoolProperty* GetOverrideConditionForProperty(const FProperty* InProperty) const;
 
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title/tooltip */

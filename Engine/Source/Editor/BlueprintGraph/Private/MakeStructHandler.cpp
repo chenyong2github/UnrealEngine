@@ -23,7 +23,6 @@
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
 #include "Misc/AssertionMacros.h"
-#include "PropertyCustomizationHelpers.h"
 #include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
@@ -133,9 +132,15 @@ void FKCHandler_MakeStruct::Compile(FKismetFunctionContext& Context, UEdGraphNod
 	FBPTerminal* OutputStructTerm = FoundTerm ? *FoundTerm : NULL;
 	check(OutputStructTerm);
 
+	// A set of edit condition properties that should be set to signal an override state
+	// when the condition is not exposed as a unique input alongside any bound properties.
+	TMap<FProperty*, bool> OverrideProperties;
+
+	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
+
 	for (UEdGraphPin* Pin : Node->Pins)
 	{
-		if (Pin && !Pin->bOrphanedPin && (Pin != StructPin) && (Pin->Direction == EGPD_Input) && !CompilerContext.GetSchema()->IsMetaPin(*Pin))
+		if (Pin && !Pin->bOrphanedPin && (Pin != StructPin) && (Pin->Direction == EGPD_Input) && !Schema->IsMetaPin(*Pin))
 		{
 			FProperty* BoundProperty = FindFProperty<FProperty>(Node->StructType, Pin->PinName);
 			check(BoundProperty);
@@ -157,59 +162,81 @@ void FKCHandler_MakeStruct::Compile(FKismetFunctionContext& Context, UEdGraphNod
 				}
 			}
 
-			// Handle injecting the override property values into the node if the property has any
-			bool bNegate = false;
-			FProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(BoundProperty, bNegate);
-
+			// Determine if the property bound to the input pin has an associated override flag that's linked via
+			// an edit condition. If we find an override property and it's not included in the optional pin set,
+			// it signals that we need to implicitly set it at runtime since the value bound to it is exposed as
+			// an input. This convention allows us to roughly emulate the Property Editor which injects the override
+			// flag's value when the user modifies/exposes the bound property's value as an override at edit time.
+			// 
+			// Note: This API returns a Boolean flag type only. Other condition types are not supported since the
+			// "override" concept involves a direct association with a Boolean edit condition. Override properties
+			// must also be visible to the BP runtime as well as writable, or the terms used in the implicit
+			// assignment statement below may otherwise fail to compile.
+			FBoolProperty* OverrideProperty = Node->GetOverrideConditionForProperty(BoundProperty);
 			if (OverrideProperty && OverrideProperty->HasAllPropertyFlags(CPF_BlueprintVisible) && !OverrideProperty->HasAllPropertyFlags(CPF_BlueprintReadOnly))
 			{
-				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-				FEdGraphPinType PinType;
-				Schema->ConvertPropertyToPinType(OverrideProperty, /*out*/ PinType);
-
-				// Create the term in the list
-				FBPTerminal* OverrideTerm = new FBPTerminal();
-				Context.VariableReferences.Add(OverrideTerm);
-				OverrideTerm->Type = PinType;
-				OverrideTerm->AssociatedVarProperty = OverrideProperty;
-				OverrideTerm->Context = OutputStructTerm;
-
-				FBlueprintCompiledStatement* AssignBoolStatement = new FBlueprintCompiledStatement;
-				AssignBoolStatement->Type = KCST_Assignment;
-
-				// Literal Bool Term to set the OverrideProperty to
-				FBPTerminal* BoolTerm = Context.CreateLocalTerminal(ETerminalSpecification::TS_Literal);
-				BoolTerm->Type.PinCategory = UEdGraphSchema_K2::PC_Boolean;
-				BoolTerm->bIsLiteral = true;
-				// If we are showing the pin, then we are overriding the property
-
-				// Assigning the OverrideProperty to the literal bool term
-				AssignBoolStatement->LHS = OverrideTerm;
-				AssignBoolStatement->RHS.Add(BoolTerm);
-
 				// Need to dig up what the state of the override property should be
-				for (FOptionalPinFromProperty& PropertyEntry : Node->ShowPinForProperties)
+				const FOptionalPinFromProperty* BoundPropertyEntryPtr = Node->ShowPinForProperties.FindByPredicate([BoundProperty](const FOptionalPinFromProperty& PropertyEntry)
 				{
-					if (PropertyEntry.bHasOverridePin && PropertyEntry.bShowPin && PropertyEntry.PropertyName == BoundProperty->GetFName())
+					// If we are showing the pin, then we are overriding the property
+					return PropertyEntry.bHasOverridePin && PropertyEntry.bShowPin && PropertyEntry.PropertyName == BoundProperty->GetFName();
+				});
+
+				if (BoundPropertyEntryPtr)
+				{
+					const FOptionalPinFromProperty& PropertyEntry = *BoundPropertyEntryPtr;
+
+					if (!PropertyEntry.bIsOverridePinVisible || (PropertyEntry.bIsOverridePinVisible && !PropertyEntry.bIsOverrideEnabled && PropertyEntry.bIsSetValuePinVisible))
 					{
-						if (!PropertyEntry.bIsOverridePinVisible || (PropertyEntry.bIsOverridePinVisible && !PropertyEntry.bIsOverrideEnabled && PropertyEntry.bIsSetValuePinVisible))
-						{
-							CompilerContext.MessageLog.Warning(*LOCTEXT("MakeStruct_InvalidOverrideSetting", "Selected override setting on @@ in @@ is no longer a supported workflow and it is advised that you refactor your Blueprint to not use it!").ToString(), Pin, Node->GetBlueprint());
-						}
+						CompilerContext.MessageLog.Warning(*LOCTEXT("MakeStruct_InvalidOverrideSetting", "Selected override setting on @@ in @@ is no longer a supported workflow and it is advised that you refactor your Blueprint to not use it!").ToString(), Pin, Node->GetBlueprint());
+					}
 
-						if (PropertyEntry.bIsOverridePinVisible)
-						{
-							BoolTerm->Name = PropertyEntry.bIsOverrideEnabled ? TEXT("true") : TEXT("false");
-							Context.AllGeneratedStatements.Add(AssignBoolStatement);
-
-							TArray<FBlueprintCompiledStatement*>& StatementList = Context.StatementsPerNode.FindOrAdd(Node);
-							StatementList.Add(AssignBoolStatement);
-						}
-						break;
+					// This flag is a bit of a misnomer - it's generally true, except for assets saved prior to the convention described above, in which case the pin
+					// may have been explicitly hidden by the user, and thus this flag would be false to indicate that. For backwards-compatibility, we don't want to
+					// implicitly set the value in that case, because it means the user had explicitly opted not to show it, which implies it was not previously set.
+					if (PropertyEntry.bIsOverridePinVisible)
+					{
+						// Note: bIsOverrideEnabled is generally true, but may be false for older assets that were saved with an exposed override pin with a default
+						// value prior to the change that excludes all override properties from the optional input pin set.
+						OverrideProperties.Add(OverrideProperty, PropertyEntry.bIsOverrideEnabled);
 					}
 				}
 			}
 		}
+	}
+
+	// Handle injecting the override property values into the node
+	TArray<FBlueprintCompiledStatement*>& StatementList = Context.StatementsPerNode.FindOrAdd(Node);
+	for (auto OverridePropIt = OverrideProperties.CreateConstIterator(); OverridePropIt; ++OverridePropIt)
+	{
+		FProperty* OverrideProperty = OverridePropIt.Key();
+		const bool bIsOverrideEnabled = OverridePropIt.Value();
+
+		FEdGraphPinType PinType;
+		Schema->ConvertPropertyToPinType(OverrideProperty, /*out*/ PinType);
+
+		// Create the term in the list
+		FBPTerminal* OverrideTerm = new FBPTerminal();
+		Context.VariableReferences.Add(OverrideTerm);
+		OverrideTerm->Type = PinType;
+		OverrideTerm->AssociatedVarProperty = OverrideProperty;
+		OverrideTerm->Context = OutputStructTerm;
+
+		FBlueprintCompiledStatement* AssignBoolStatement = new FBlueprintCompiledStatement();
+		AssignBoolStatement->Type = KCST_Assignment;
+
+		// Literal Bool Term to set the OverrideProperty to
+		FBPTerminal* BoolTerm = Context.CreateLocalTerminal(ETerminalSpecification::TS_Literal);
+		BoolTerm->Type.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+		BoolTerm->bIsLiteral = true;
+		BoolTerm->Name = bIsOverrideEnabled ? TEXT("true") : TEXT("false");
+
+		// Assigning the OverrideProperty to the literal bool term
+		AssignBoolStatement->LHS = OverrideTerm;
+		AssignBoolStatement->RHS.Add(BoolTerm);
+
+		Context.AllGeneratedStatements.Add(AssignBoolStatement);
+		StatementList.Add(AssignBoolStatement);
 	}
 
 	if (bAutoGenerateGotoForPure && !Node->IsNodePure())
