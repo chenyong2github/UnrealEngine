@@ -109,6 +109,7 @@ namespace NDIStaticMeshLocal
 			RefactoredV1 = 1,
 			LargeWorldCoordinates = 2,
 			LargeWorldCoordinates2 = 3,
+			AddSocketVelocity = 4,
 
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1
@@ -123,6 +124,7 @@ namespace NDIStaticMeshLocal
 
 	static const FName	GetVertexName("GetVertex");
 	static const FName	GetVertexWSName("GetVertexWS");
+	static const FName	GetVertexWSInterpolatedName("GetVertexWSInterpolated");
 	static const FName	GetVertexColorName("GetVertexColor");
 	static const FName	GetVertexUVName("GetVertexUV");
 
@@ -144,6 +146,7 @@ namespace NDIStaticMeshLocal
 
 	static const FName	GetTriangleName("GetTriangle");
 	static const FName	GetTriangleWSName("GetTriangleWS");
+	static const FName	GetTriangleWSInterpolatedName("GetTriangleWSInterpolated");
 	static const FName	GetTriangleColorName("GetTriangleColor");
 	static const FName	GetTriangleUVName("GetTriangleUV");
 
@@ -154,15 +157,25 @@ namespace NDIStaticMeshLocal
 	static const FName	GetSocketCountName("GetSocketCount");
 	static const FName	GetFilteredSocketCountName("GetFilteredSocketCount");
 	static const FName	GetUnfilteredSocketCountName("GetUnfilteredSocketCount");
+	
 	static const FName	RandomSocketName("RandomSocket");
 	static const FName	RandomFilteredSocketName("RandomFilteredSocket");
 	static const FName	RandomUnfilteredSocketName("RandomUnfilteredSocket");
+	
 	static const FName	GetSocketTransformName("GetSocketTransform");
 	static const FName	GetSocketTransformWSName("GetSocketTransformWS");
+	static const FName	GetSocketTransformWSInterpolatedName("GetSocketTransformWSInterpolated");
+
 	static const FName	GetFilteredSocketTransformName("GetFilteredSocketTransform");
 	static const FName	GetFilteredSocketTransformWSName("GetFilteredSocketTransformWS");
+	static const FName	GetFilteredSocketTransformWSInterpolatedName("GetFilteredSocketTransformWSInterpolated");
+
 	static const FName	GetUnfilteredSocketTransformName("GetUnfilteredSocketTransform");
 	static const FName	GetUnfilteredSocketTransformWSName("GetUnfilteredSocketTransformWS");
+	static const FName	GetUnfilteredSocketTransformWSInterpolatedName("GetUnfilteredSocketTransformWSInterpolated");
+
+	static const FName	GetFilteredSocketName("GetFilteredSocket");
+	static const FName	GetUnfilteredSocketName("GetUnfilteredSocket");
 
 	//////////////////////////////////////////////////////////////////////////
 	// Section functions
@@ -1233,6 +1246,45 @@ namespace NDIStaticMeshLocal
 			return Tangent;
 		}
 
+		FORCEINLINE FVector3f GetTriangleTangentXInterpolated(const FVector3f& BaryCoord, float Interp, int32 Index0, int32 Index1, int32 Index2) const
+		{
+			FVector3f Tangent;
+			Tangent = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index0) * BaryCoord.X;
+			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index1) * BaryCoord.Y;
+			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index2) * BaryCoord.Z;
+			FVector3f CurrTangent = Tangent;
+			FVector3f PrevTangent = Tangent;
+			TransformHandler.TransformVector(PrevTangent, FMatrix44f(InstanceData->PrevTransform));						// LWC_TODO: Precision loss?
+			TransformHandler.TransformVector(CurrTangent, FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss?
+			return FMath::Lerp(PrevTangent, CurrTangent, Interp);
+		}
+
+		FORCEINLINE FVector3f GetTriangleTangentYInterpolated(const FVector3f& BaryCoord, float Interp, int32 Index0, int32 Index1, int32 Index2) const
+		{
+			FVector3f Tangent;
+			Tangent = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Index0) * BaryCoord.X;
+			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Index1) * BaryCoord.Y;
+			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Index2) * BaryCoord.Z;
+			FVector3f CurrTangent = Tangent;
+			FVector3f PrevTangent = Tangent;
+			TransformHandler.TransformVector(PrevTangent, FMatrix44f(InstanceData->PrevTransform));						// LWC_TODO: Precision loss?
+			TransformHandler.TransformVector(CurrTangent, FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss?
+			return FMath::Lerp(PrevTangent, CurrTangent, Interp);
+		}
+
+		FORCEINLINE FVector3f GetTriangleTangentZInterpolated(const FVector3f& BaryCoord, float Interp, int32 Index0, int32 Index1, int32 Index2) const
+		{
+			FVector3f Tangent;
+			Tangent = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index0) * BaryCoord.X;
+			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index1) * BaryCoord.Y;
+			Tangent += LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index2) * BaryCoord.Z;
+			FVector3f CurrTangent = Tangent;
+			FVector3f PrevTangent = Tangent;
+			TransformHandler.TransformVector(PrevTangent, FMatrix44f(InstanceData->PrevTransform));						// LWC_TODO: Precision loss?
+			TransformHandler.TransformVector(CurrTangent, FMatrix44f(InstanceData->Transform));						// LWC_TODO: Precision loss?
+			return FMath::Lerp(PrevTangent, CurrTangent, Interp);
+		}
+
 		FORCEINLINE FLinearColor GetTriangleColor(const FVector3f& BaryCoord, int32 Index0, int32 Index1, int32 Index2) const
 		{
 			FLinearColor Color;
@@ -1292,6 +1344,33 @@ namespace NDIStaticMeshLocal
 			FVector3f TangentZ = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Vertex);
 			TransformHandler.TransformVector(TangentZ, FMatrix44f(InstanceData->TransformInverseTransposed));		// LWC_TODO: Precision loss?
 			return TangentZ;
+		}
+
+		FORCEINLINE FVector3f GetTangentXInterpolated(int32 Vertex, float Interp) const
+		{
+			FVector3f TangentXPrev = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Vertex);
+			FVector3f TangentXCurr = TangentXPrev;
+			TransformHandler.TransformVector(TangentXPrev, FMatrix44f(InstanceData->PrevTransformInverseTransposed));		// LWC_TODO: Precision loss?
+			TransformHandler.TransformVector(TangentXCurr, FMatrix44f(InstanceData->TransformInverseTransposed));				// LWC_TODO: Precision loss?
+			return FMath::Lerp(TangentXPrev, TangentXCurr, Interp);
+		}
+
+		FORCEINLINE FVector3f GetTangentYInterpolated(int32 Vertex, float Interp) const
+		{
+			FVector3f TangentYPrev = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(Vertex);
+			FVector3f TangentYCurr = TangentYPrev;
+			TransformHandler.TransformVector(TangentYPrev, FMatrix44f(InstanceData->PrevTransformInverseTransposed));		// LWC_TODO: Precision loss?
+			TransformHandler.TransformVector(TangentYCurr, FMatrix44f(InstanceData->TransformInverseTransposed));				// LWC_TODO: Precision loss?
+			return FMath::Lerp(TangentYPrev, TangentYCurr, Interp);
+		}
+
+		FORCEINLINE FVector3f GetTangentZInterpolated(int32 Vertex, float Interp) const
+		{
+			FVector3f TangentZPrev = LODResource->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Vertex);
+			FVector3f TangentZCurr = TangentZPrev;
+			TransformHandler.TransformVector(TangentZPrev, FMatrix44f(InstanceData->PrevTransformInverseTransposed));		// LWC_TODO: Precision loss?
+			TransformHandler.TransformVector(TangentZCurr, FMatrix44f(InstanceData->TransformInverseTransposed));				// LWC_TODO: Precision loss?
+			return FMath::Lerp(TangentZPrev, TangentZCurr, Interp);
 		}
 
 		FORCEINLINE FLinearColor GetColor(int32 Vertex) const
@@ -1410,6 +1489,22 @@ namespace NDIStaticMeshLocal
 				SectionFirstTriangle = SectionLastTriangle;
 			}
 			return 0;
+		}
+
+		FORCEINLINE void InterpolateSocket(int32 SocketIndex, float Interp, FVector3f& OutPosition, FQuat4f& OutRotation, FVector3f& OutScale, FVector3f& OutVelocity)
+		{
+			const FTransform3f& SocketTransform = InstanceData->CachedSockets[SocketIndex];
+			const FVector3f PrevPosition = PreviousTransformPosition(SocketTransform.GetLocation());
+			const FVector3f CurrPosition = TransformPosition(SocketTransform.GetLocation());
+			const FQuat4f PrevRotation = PreviousTransformRotation(SocketTransform.GetRotation());
+			const FQuat4f CurrRotation = TransformRotation(SocketTransform.GetRotation());
+			const FVector3f PrevScale = PreviousTransformVector(SocketTransform.GetScale3D());
+			const FVector3f CurrScale = TransformVector(SocketTransform.GetScale3D());
+
+			OutPosition = FMath::Lerp(PrevPosition, CurrPosition, Interp);
+			OutRotation = FQuat4f::Slerp(PrevRotation, CurrRotation, Interp);
+			OutScale = FMath::Lerp(PrevScale, CurrScale, Interp);
+			OutVelocity = (CurrPosition - PrevPosition) * GetInvDeltaSeconds();
 		}
 
 		VectorVM::FUserPtrHandler<FInstanceData_GameThread> InstanceData;
@@ -1748,6 +1843,11 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		FNiagaraFunctionSignature& WsSig = OutFunctions.Add_GetRef(Sig);
 		WsSig.Name = GetVertexWSName;
 		WsSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
+
+		FNiagaraFunctionSignature& WsInterpSig = OutFunctions.Add_GetRef(Sig);
+		WsInterpSig.Name = GetVertexWSInterpolatedName;
+		WsInterpSig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interp"));
+		WsInterpSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 	}
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
@@ -1848,6 +1948,11 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		FNiagaraFunctionSignature& WsSig = OutFunctions.Add_GetRef(Sig);
 		WsSig.Name = GetTriangleWSName;
 		WsSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
+
+		FNiagaraFunctionSignature& WsInterpSig = OutFunctions.Add_GetRef(Sig);
+		WsInterpSig.Name = GetTriangleWSInterpolatedName;
+		WsInterpSig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interp"));
+		WsInterpSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 	}
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
@@ -1899,16 +2004,32 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
 
 		FNiagaraFunctionSignature WsSig = Sig;
 		WsSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 
+		FNiagaraFunctionSignature WsInterpSig = WsSig;
+		WsInterpSig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interp"));
+
 		OutFunctions.Add_GetRef(Sig).Name = GetSocketTransformName;
 		OutFunctions.Add_GetRef(WsSig).Name = GetSocketTransformWSName;
+		OutFunctions.Add_GetRef(WsInterpSig).Name = GetSocketTransformWSInterpolatedName;
 		OutFunctions.Add_GetRef(Sig).Name = GetFilteredSocketTransformName;
 		OutFunctions.Add_GetRef(WsSig).Name = GetFilteredSocketTransformWSName;
+		OutFunctions.Add_GetRef(WsInterpSig).Name = GetFilteredSocketTransformWSInterpolatedName;
 		OutFunctions.Add_GetRef(Sig).Name = GetUnfilteredSocketTransformName;
 		OutFunctions.Add_GetRef(WsSig).Name = GetUnfilteredSocketTransformWSName;
+		OutFunctions.Add_GetRef(WsInterpSig).Name = GetUnfilteredSocketTransformWSInterpolatedName;
+	}
+
+	{
+		FNiagaraFunctionSignature Sig = BaseSignature;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Index"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("SocketIndex"));
+
+		OutFunctions.Add_GetRef(Sig).Name = GetFilteredSocketName;
+		OutFunctions.Add_GetRef(Sig).Name = GetUnfilteredSocketName;
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -2219,6 +2340,19 @@ bool UNiagaraDataInterfaceStaticMesh::UpgradeFunctionCall(FNiagaraFunctionSignat
 		}
 	}
 
+	if (FunctionSignature.FunctionVersion < EDIFunctionVersion::AddSocketVelocity)
+	{
+		if ((FunctionSignature.Name == GetSocketTransformName) ||
+			(FunctionSignature.Name == GetSocketTransformWSName) ||
+			(FunctionSignature.Name == GetFilteredSocketTransformName) ||
+			(FunctionSignature.Name == GetFilteredSocketTransformWSName) ||
+			(FunctionSignature.Name == GetUnfilteredSocketTransformName) ||
+			(FunctionSignature.Name == GetUnfilteredSocketTransformWSName))
+		{
+			FunctionSignature.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity"));
+		}
+	}
+
 	FunctionSignature.FunctionVersion = EDIFunctionVersion::LatestVersion;
 
 	return true;
@@ -2277,6 +2411,10 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	else if (BindingInfo.Name == GetVertexWSName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetVertex<FNDITransformHandler>(Context); });
+	}
+	else if (BindingInfo.Name == GetVertexWSInterpolatedName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMGetVertexInterpolated<FNDITransformHandler>);
 	}
 	else if (BindingInfo.Name == GetVertexColorName)
 	{
@@ -2341,6 +2479,10 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetTriangle<FNDITransformHandler>(Context); });
 	}
+	else if (BindingInfo.Name == GetTriangleWSInterpolatedName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMGetTriangleInterpolated<FNDITransformHandler>);
+	}
 	else if (BindingInfo.Name == GetTriangleColorName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetTriangleColor(Context); });
@@ -2388,6 +2530,10 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetSocketTransform<FNDITransformHandler>(Context); });
 	}
+	else if (BindingInfo.Name == GetSocketTransformWSInterpolatedName)
+	{
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetSocketTransformInterpolated<FNDITransformHandler>(Context); });
+	}
 	else if (BindingInfo.Name == GetFilteredSocketTransformName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetFilteredSocketTransform<FNDITransformHandlerNoop>(Context); });
@@ -2396,6 +2542,10 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetFilteredSocketTransform<FNDITransformHandler>(Context); });
 	}
+	else if (BindingInfo.Name == GetFilteredSocketTransformWSInterpolatedName)
+	{
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetFilteredSocketTransformInterpolated<FNDITransformHandler>(Context); });
+	}
 	else if (BindingInfo.Name == GetUnfilteredSocketTransformName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetUnfilteredSocketTransform<FNDITransformHandlerNoop>(Context); });
@@ -2403,6 +2553,18 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	else if (BindingInfo.Name == GetUnfilteredSocketTransformWSName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetUnfilteredSocketTransform<FNDITransformHandler>(Context); });
+	}
+	else if (BindingInfo.Name == GetUnfilteredSocketTransformWSInterpolatedName)
+	{
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetUnfilteredSocketTransformInterpolated<FNDITransformHandler>(Context); });
+	}
+	else if (BindingInfo.Name == GetFilteredSocketName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMGetFilteredSocket);
+	}
+	else if (BindingInfo.Name == GetUnfilteredSocketName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocket);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -3233,6 +3395,56 @@ void UNiagaraDataInterfaceStaticMesh::VMGetVertex(FVectorVMExternalFunctionConte
 	}
 }
 
+template<typename TTransformHandler>
+void UNiagaraDataInterfaceStaticMesh::VMGetVertexInterpolated(FVectorVMExternalFunctionContext& Context)
+{
+	NDIStaticMeshLocal::FStaticMeshCpuHelper<TTransformHandler> StaticMeshHelper(Context);
+	FNDIInputParam<int32> VertexParam(Context);
+	FNDIInputParam<float> InterpParam(Context);
+	FNDIOutputParam<FVector3f> OutPosition(Context);
+	FNDIOutputParam<FVector3f> OutVelocity(Context);
+	FNDIOutputParam<FVector3f> OutNormal(Context);
+	FNDIOutputParam<FVector3f> OutBitangent(Context);
+	FNDIOutputParam<FVector3f> OutTangent(Context);
+
+	const int32 PositionsMax = StaticMeshHelper.GetNumPositionVertices() - 1;
+	const int32 TangentsMax = StaticMeshHelper.GetNumTangentVertices() - 1;
+	if ((PositionsMax >= 0) && (PositionsMax == TangentsMax))
+	{
+		const float InvDt = StaticMeshHelper.GetInvDeltaSeconds();
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			const float Interp = InterpParam.GetAndAdvance();
+			const int32 Vertex = FMath::Clamp(VertexParam.GetAndAdvance(), 0, PositionsMax);
+			const FVector3f LocalPosition = StaticMeshHelper.GetLocalPosition(Vertex);
+			const FVector3f Position = StaticMeshHelper.TransformPosition(LocalPosition);
+			const FVector3f PreviousPosition = StaticMeshHelper.PreviousTransformPosition(LocalPosition);
+			const FVector3f Velocity = (Position - PreviousPosition) * InvDt;
+			OutPosition.SetAndAdvance(FMath::Lerp(PreviousPosition, Position, Interp));
+			OutVelocity.SetAndAdvance(Velocity);
+			OutNormal.SetAndAdvance(StaticMeshHelper.GetTangentZInterpolated(Vertex, Interp));
+			OutBitangent.SetAndAdvance(StaticMeshHelper.GetTangentYInterpolated(Vertex, Interp));
+			OutTangent.SetAndAdvance(StaticMeshHelper.GetTangentXInterpolated(Vertex, Interp));
+		}
+	}
+	else
+	{
+		const FVector3f Position = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
+		const FVector3f Velocity = FVector3f::ZeroVector;
+		const FVector3f TangentX = StaticMeshHelper.TransformVector(FVector3f(1.0f, 0.0f, 0.0f));
+		const FVector3f TangentY = StaticMeshHelper.TransformVector(FVector3f(0.0f, 1.0f, 0.0f));
+		const FVector3f TangentZ = StaticMeshHelper.TransformVector(FVector3f(0.0f, 0.0f, 1.0f));
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutPosition.SetAndAdvance(Position);
+			OutVelocity.SetAndAdvance(Velocity);
+			OutNormal.SetAndAdvance(TangentZ);
+			OutBitangent.SetAndAdvance(TangentY);
+			OutTangent.SetAndAdvance(TangentX);
+		}
+	}
+}
+
 void UNiagaraDataInterfaceStaticMesh::VMGetVertexColor(FVectorVMExternalFunctionContext& Context)
 {
 	NDIStaticMeshLocal::FStaticMeshCpuHelper StaticMeshHelper(Context);
@@ -3582,6 +3794,61 @@ void UNiagaraDataInterfaceStaticMesh::VMGetTriangle(FVectorVMExternalFunctionCon
 	}
 }
 
+template<typename TTransformHandler>
+void UNiagaraDataInterfaceStaticMesh::VMGetTriangleInterpolated(FVectorVMExternalFunctionContext& Context)
+{
+	NDIStaticMeshLocal::FStaticMeshCpuHelper<TTransformHandler> StaticMeshHelper(Context);
+	FNDIInputParam<int32> TriangleParam(Context);
+	FNDIInputParam<FVector3f> BaryCoordParam(Context);
+	FNDIInputParam<float> InterpParam(Context);
+	FNDIOutputParam<FVector3f> OutPositionParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
+	FNDIOutputParam<FVector3f> OutNormalParam(Context);
+	FNDIOutputParam<FVector3f> OutBitangentParam(Context);
+	FNDIOutputParam<FVector3f> OutTangentParam(Context);
+
+	const FIndexArrayView IndexArray = StaticMeshHelper.GetIndexArrayView();
+	const int32 TriangleMax = StaticMeshHelper.GetNumTriangles() - 1;
+	if (TriangleMax >= 0 && StaticMeshHelper.GetNumPositionVertices() > 0 && StaticMeshHelper.GetNumTangentVertices() > 0)
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			const int32 Triangle = FMath::Clamp(TriangleParam.GetAndAdvance(), 0, TriangleMax);
+			const FVector3f BaryCoord = BaryCoordParam.GetAndAdvance();
+			const float Interp = InterpParam.GetAndAdvance();
+			const FVector3f LocalPosition = StaticMeshHelper.GetLocalTrianglePosition(BaryCoord, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2]);
+			const FVector3f Position = StaticMeshHelper.TransformPosition(LocalPosition);
+			const FVector3f PreviousPosition = StaticMeshHelper.PreviousTransformPosition(LocalPosition);
+			const FVector3f Velocity = (Position - PreviousPosition) * StaticMeshHelper.GetInvDeltaSeconds();
+			const FVector3f TangentX = StaticMeshHelper.GetTriangleTangentXInterpolated(BaryCoord, Interp, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2]);
+			const FVector3f TangentY = StaticMeshHelper.GetTriangleTangentYInterpolated(BaryCoord, Interp, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2]);
+			const FVector3f TangentZ = StaticMeshHelper.GetTriangleTangentZInterpolated(BaryCoord, Interp, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2]);
+			OutPositionParam.SetAndAdvance(FMath::Lerp(PreviousPosition, Position, Interp));
+			OutVelocityParam.SetAndAdvance(Velocity);
+			OutNormalParam.SetAndAdvance(TangentZ);
+			OutBitangentParam.SetAndAdvance(TangentY);
+			OutTangentParam.SetAndAdvance(TangentX);
+		}
+	}
+	else
+	{
+		const FVector3f Position = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
+		const FVector3f PreviousPosition = StaticMeshHelper.PreviousTransformPosition(FVector3f::ZeroVector);
+		const FVector3f Velocity = FVector3f::ZeroVector;
+		const FVector3f TangentX = StaticMeshHelper.TransformVector(FVector3f(1.0f, 0.0f, 0.0f));
+		const FVector3f TangentY = StaticMeshHelper.TransformVector(FVector3f(0.0f, 1.0f, 0.0f));
+		const FVector3f TangentZ = StaticMeshHelper.TransformVector(FVector3f(0.0f, 0.0f, 1.0f));
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutPositionParam.SetAndAdvance(Position);
+			OutVelocityParam.SetAndAdvance(Velocity);
+			OutNormalParam.SetAndAdvance(TangentZ);
+			OutBitangentParam.SetAndAdvance(TangentY);
+			OutTangentParam.SetAndAdvance(TangentX);
+		}
+	}
+}
+
 void UNiagaraDataInterfaceStaticMesh::VMGetTriangleColor(FVectorVMExternalFunctionContext& Context)
 {
 	NDIStaticMeshLocal::FStaticMeshCpuHelper<FNDITransformHandlerNoop> StaticMeshHelper(Context);
@@ -3780,6 +4047,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetSocketTransform(FVectorVMExternalFunc
 	FNDIOutputParam<FVector3f> OutTranslateParam(Context);
 	FNDIOutputParam<FQuat4f> OutRotateParam(Context);
 	FNDIOutputParam<FVector3f> OutScaleParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
 
 	const int32 SocketMax = StaticMeshHelper.InstanceData->CachedSockets.Num() - 1;
 	if (SocketMax >= 0)
@@ -3788,9 +4056,13 @@ void UNiagaraDataInterfaceStaticMesh::VMGetSocketTransform(FVectorVMExternalFunc
 		{
 			const int32 SocketIndex = FMath::Clamp(SocketIndexParam.GetAndAdvance(), 0, SocketMax);
 			const FTransform3f& SocketTransform = StaticMeshHelper.InstanceData->CachedSockets[SocketIndex];
+			const FVector3f Position = StaticMeshHelper.TransformPosition(SocketTransform.GetLocation());
+			const FVector3f PreviousPosition = StaticMeshHelper.PreviousTransformPosition(SocketTransform.GetLocation());
+			const FVector3f Velocity = (Position - PreviousPosition) * StaticMeshHelper.GetInvDeltaSeconds();
 			OutTranslateParam.SetAndAdvance(StaticMeshHelper.TransformPosition(SocketTransform.GetTranslation()));
 			OutRotateParam.SetAndAdvance(StaticMeshHelper.TransformRotation(SocketTransform.GetRotation()));
 			OutScaleParam.SetAndAdvance(StaticMeshHelper.TransformVector(SocketTransform.GetScale3D()));
+			OutVelocityParam.SetAndAdvance(Velocity);
 		}
 	}
 	else
@@ -3798,11 +4070,55 @@ void UNiagaraDataInterfaceStaticMesh::VMGetSocketTransform(FVectorVMExternalFunc
 		const FVector3f DefaultTranslate = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
 		const FQuat4f DefaultRotation = StaticMeshHelper.TransformRotation(FQuat4f::Identity);
 		const FVector3f DefaultScale = StaticMeshHelper.TransformVector(FVector3f::OneVector);
+		const FVector3f DefaultVelocity = FVector3f::ZeroVector;
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutTranslateParam.SetAndAdvance(DefaultTranslate);
 			OutRotateParam.SetAndAdvance(DefaultRotation);
 			OutScaleParam.SetAndAdvance(DefaultScale);
+			OutVelocityParam.SetAndAdvance(DefaultVelocity);
+		}
+	}
+}
+
+template<typename TTransformHandler>
+void UNiagaraDataInterfaceStaticMesh::VMGetSocketTransformInterpolated(FVectorVMExternalFunctionContext& Context)
+{
+	NDIStaticMeshLocal::FStaticMeshCpuHelper<TTransformHandler> StaticMeshHelper(Context);
+	FNDIInputParam<int32> SocketIndexParam(Context);
+	FNDIInputParam<float> InterpParam(Context);
+	FNDIOutputParam<FVector3f> OutTranslateParam(Context);
+	FNDIOutputParam<FQuat4f> OutRotateParam(Context);
+	FNDIOutputParam<FVector3f> OutScaleParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
+
+	const int32 SocketMax = StaticMeshHelper.InstanceData->CachedSockets.Num() - 1;
+	if (SocketMax >= 0)
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			const int32 SocketIndex = FMath::Clamp(SocketIndexParam.GetAndAdvance(), 0, SocketMax);
+			FVector3f Position, Scale, Velocity;
+			FQuat4f Rotation;
+			StaticMeshHelper.InterpolateSocket(SocketIndex, InterpParam.GetAndAdvance(), Position, Rotation, Scale, Velocity);
+			OutTranslateParam.SetAndAdvance(Position);
+			OutRotateParam.SetAndAdvance(Rotation);
+			OutScaleParam.SetAndAdvance(Scale);
+			OutVelocityParam.SetAndAdvance(Velocity);
+		}
+	}
+	else
+	{
+		const FVector3f DefaultTranslate = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
+		const FQuat4f DefaultRotation = StaticMeshHelper.TransformRotation(FQuat4f::Identity);
+		const FVector3f DefaultScale = StaticMeshHelper.TransformVector(FVector3f::OneVector);
+		const FVector3f DefaultVelocity = FVector3f::ZeroVector;
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutTranslateParam.SetAndAdvance(DefaultTranslate);
+			OutRotateParam.SetAndAdvance(DefaultRotation);
+			OutScaleParam.SetAndAdvance(DefaultScale);
+			OutVelocityParam.SetAndAdvance(DefaultVelocity);
 		}
 	}
 }
@@ -3815,6 +4131,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetFilteredSocketTransform(FVectorVMExte
 	FNDIOutputParam<FVector3f> OutTranslateParam(Context);
 	FNDIOutputParam<FQuat4f> OutRotateParam(Context);
 	FNDIOutputParam<FVector3f> OutScaleParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
 
 	const int32 SocketMax = StaticMeshHelper.InstanceData->NumFilteredSockets - 1;
 	if (SocketMax >= 0)
@@ -3824,9 +4141,13 @@ void UNiagaraDataInterfaceStaticMesh::VMGetFilteredSocketTransform(FVectorVMExte
 			const int32 FilteredSocketIndex = FMath::Clamp(SocketIndexParam.GetAndAdvance(), 0, SocketMax);
 			const int32 SocketIndex = StaticMeshHelper.InstanceData->FilteredAndUnfilteredSockets[FilteredSocketIndex];
 			const FTransform3f& SocketTransform = StaticMeshHelper.InstanceData->CachedSockets[SocketIndex];
+			const FVector3f Position = StaticMeshHelper.TransformPosition(SocketTransform.GetLocation());
+			const FVector3f PreviousPosition = StaticMeshHelper.PreviousTransformPosition(SocketTransform.GetLocation());
+			const FVector3f Velocity = (Position - PreviousPosition) * StaticMeshHelper.GetInvDeltaSeconds();
 			OutTranslateParam.SetAndAdvance(StaticMeshHelper.TransformPosition(SocketTransform.GetTranslation()));
 			OutRotateParam.SetAndAdvance(StaticMeshHelper.TransformRotation(SocketTransform.GetRotation()));
 			OutScaleParam.SetAndAdvance(StaticMeshHelper.TransformVector(SocketTransform.GetScale3D()));
+			OutVelocityParam.SetAndAdvance(Velocity);
 		}
 	}
 	else
@@ -3834,11 +4155,56 @@ void UNiagaraDataInterfaceStaticMesh::VMGetFilteredSocketTransform(FVectorVMExte
 		const FVector3f DefaultTranslate = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
 		const FQuat4f DefaultRotation = StaticMeshHelper.TransformRotation(FQuat4f::Identity);
 		const FVector3f DefaultScale = StaticMeshHelper.TransformVector(FVector3f::OneVector);
+		const FVector3f DefaultVelocity = FVector3f::ZeroVector;
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutTranslateParam.SetAndAdvance(DefaultTranslate);
 			OutRotateParam.SetAndAdvance(DefaultRotation);
 			OutScaleParam.SetAndAdvance(DefaultScale);
+			OutVelocityParam.SetAndAdvance(DefaultVelocity);
+		}
+	}
+}
+
+template<typename TTransformHandler>
+void UNiagaraDataInterfaceStaticMesh::VMGetFilteredSocketTransformInterpolated(FVectorVMExternalFunctionContext& Context)
+{
+	NDIStaticMeshLocal::FStaticMeshCpuHelper<TTransformHandler> StaticMeshHelper(Context);
+	FNDIInputParam<int32> SocketIndexParam(Context);
+	FNDIInputParam<float> InterpParam(Context);
+	FNDIOutputParam<FVector3f> OutTranslateParam(Context);
+	FNDIOutputParam<FQuat4f> OutRotateParam(Context);
+	FNDIOutputParam<FVector3f> OutScaleParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
+
+	const int32 SocketMax = StaticMeshHelper.InstanceData->NumFilteredSockets - 1;
+	if (SocketMax >= 0)
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			const int32 FilteredSocketIndex = FMath::Clamp(SocketIndexParam.GetAndAdvance(), 0, SocketMax);
+			const int32 SocketIndex = StaticMeshHelper.InstanceData->FilteredAndUnfilteredSockets[FilteredSocketIndex];
+			FVector3f Position, Scale, Velocity;
+			FQuat4f Rotation;
+			StaticMeshHelper.InterpolateSocket(SocketIndex, InterpParam.GetAndAdvance(), Position, Rotation, Scale, Velocity);
+			OutTranslateParam.SetAndAdvance(Position);
+			OutRotateParam.SetAndAdvance(Rotation);
+			OutScaleParam.SetAndAdvance(Scale);
+			OutVelocityParam.SetAndAdvance(Velocity);
+		}
+	}
+	else
+	{
+		const FVector3f DefaultTranslate = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
+		const FQuat4f DefaultRotation = StaticMeshHelper.TransformRotation(FQuat4f::Identity);
+		const FVector3f DefaultScale = StaticMeshHelper.TransformVector(FVector3f::OneVector);
+		const FVector3f DefaultVelocity = FVector3f::ZeroVector;
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutTranslateParam.SetAndAdvance(DefaultTranslate);
+			OutRotateParam.SetAndAdvance(DefaultRotation);
+			OutScaleParam.SetAndAdvance(DefaultScale);
+			OutVelocityParam.SetAndAdvance(DefaultVelocity);
 		}
 	}
 }
@@ -3851,6 +4217,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocketTransform(FVectorVMEx
 	FNDIOutputParam<FVector3f> OutTranslateParam(Context);
 	FNDIOutputParam<FQuat4f> OutRotateParam(Context);
 	FNDIOutputParam<FVector3f> OutScaleParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
 
 	const int32 UnfilteredOffset = StaticMeshHelper.InstanceData->NumFilteredSockets;
 	const int32 SocketMax = StaticMeshHelper.InstanceData->FilteredAndUnfilteredSockets.Num() - UnfilteredOffset - 1;
@@ -3861,9 +4228,13 @@ void UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocketTransform(FVectorVMEx
 			const int32 UnfilteredSocketIndex = FMath::Clamp(SocketIndexParam.GetAndAdvance(), 0, SocketMax) + UnfilteredOffset;
 			const int32 SocketIndex = StaticMeshHelper.InstanceData->FilteredAndUnfilteredSockets[UnfilteredSocketIndex];
 			const FTransform3f& SocketTransform = StaticMeshHelper.InstanceData->CachedSockets[SocketIndex];
+			const FVector3f Position = StaticMeshHelper.TransformPosition(SocketTransform.GetLocation());
+			const FVector3f PreviousPosition = StaticMeshHelper.PreviousTransformPosition(SocketTransform.GetLocation());
+			const FVector3f Velocity = (Position - PreviousPosition) * StaticMeshHelper.GetInvDeltaSeconds();
 			OutTranslateParam.SetAndAdvance(StaticMeshHelper.TransformPosition(SocketTransform.GetTranslation()));
 			OutRotateParam.SetAndAdvance(StaticMeshHelper.TransformRotation(SocketTransform.GetRotation()));
 			OutScaleParam.SetAndAdvance(StaticMeshHelper.TransformVector(SocketTransform.GetScale3D()));
+			OutVelocityParam.SetAndAdvance(Velocity);
 		}
 	}
 	else
@@ -3871,12 +4242,91 @@ void UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocketTransform(FVectorVMEx
 		const FVector3f DefaultTranslate = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
 		const FQuat4f DefaultRotation = StaticMeshHelper.TransformRotation(FQuat4f::Identity);
 		const FVector3f DefaultScale = StaticMeshHelper.TransformVector(FVector3f::OneVector);
+		const FVector3f DefaultVelocity = FVector3f::ZeroVector;
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutTranslateParam.SetAndAdvance(DefaultTranslate);
 			OutRotateParam.SetAndAdvance(DefaultRotation);
 			OutScaleParam.SetAndAdvance(DefaultScale);
+			OutVelocityParam.SetAndAdvance(DefaultVelocity);
 		}
+	}
+}
+
+template<typename TTransformHandler>
+void UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocketTransformInterpolated(FVectorVMExternalFunctionContext& Context)
+{
+	NDIStaticMeshLocal::FStaticMeshCpuHelper<TTransformHandler> StaticMeshHelper(Context);
+	FNDIInputParam<int32> SocketIndexParam(Context);
+	FNDIInputParam<float> InterpParam(Context);
+	FNDIOutputParam<FVector3f> OutTranslateParam(Context);
+	FNDIOutputParam<FQuat4f> OutRotateParam(Context);
+	FNDIOutputParam<FVector3f> OutScaleParam(Context);
+	FNDIOutputParam<FVector3f> OutVelocityParam(Context);
+
+	const int32 UnfilteredOffset = StaticMeshHelper.InstanceData->NumFilteredSockets;
+	const int32 SocketMax = StaticMeshHelper.InstanceData->FilteredAndUnfilteredSockets.Num() - UnfilteredOffset - 1;
+	if (SocketMax >= 0)
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			const int32 UnfilteredSocketIndex = FMath::Clamp(SocketIndexParam.GetAndAdvance(), 0, SocketMax) + UnfilteredOffset;
+			const int32 SocketIndex = StaticMeshHelper.InstanceData->FilteredAndUnfilteredSockets[UnfilteredSocketIndex];
+			FVector3f Position, Scale, Velocity;
+			FQuat4f Rotation;
+			StaticMeshHelper.InterpolateSocket(SocketIndex, InterpParam.GetAndAdvance(), Position, Rotation, Scale, Velocity);
+			OutTranslateParam.SetAndAdvance(Position);
+			OutRotateParam.SetAndAdvance(Rotation);
+			OutScaleParam.SetAndAdvance(Scale);
+			OutVelocityParam.SetAndAdvance(Velocity);
+		}
+	}
+	else
+	{
+		const FVector3f DefaultTranslate = StaticMeshHelper.TransformPosition(FVector3f::ZeroVector);
+		const FQuat4f DefaultRotation = StaticMeshHelper.TransformRotation(FQuat4f::Identity);
+		const FVector3f DefaultScale = StaticMeshHelper.TransformVector(FVector3f::OneVector);
+		const FVector3f DefaultVelocity = FVector3f::ZeroVector;
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutTranslateParam.SetAndAdvance(DefaultTranslate);
+			OutRotateParam.SetAndAdvance(DefaultRotation);
+			OutScaleParam.SetAndAdvance(DefaultScale);
+			OutVelocityParam.SetAndAdvance(DefaultVelocity);
+		}
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::VMGetFilteredSocket(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<NDIStaticMeshLocal::FInstanceData_GameThread> InstanceData(Context);
+	FNDIInputParam<int32> InIndex(Context);
+	FNDIOutputParam<int32> OutSocketIndex(Context);
+
+	const int32 SocketMax = InstanceData->NumFilteredSockets - 1;
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+	{
+		const int32 Index = InIndex.GetAndAdvance();
+		const int32 FilteredSocketIndex = FMath::Clamp(Index, 0, SocketMax);
+		const int32 SocketIndex = SocketMax >= 0 ? InstanceData->FilteredAndUnfilteredSockets[FilteredSocketIndex] : INDEX_NONE;
+		OutSocketIndex.SetAndAdvance(SocketIndex);
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocket(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<NDIStaticMeshLocal::FInstanceData_GameThread> InstanceData(Context);
+	FNDIInputParam<int32> InIndex(Context);
+	FNDIOutputParam<int32> OutSocketIndex(Context);
+
+	const int32 UnfilteredOffset = InstanceData->NumFilteredSockets;
+	const int32 SocketMax = InstanceData->FilteredAndUnfilteredSockets.Num() - UnfilteredOffset - 1;
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+	{
+		const int32 Index = InIndex.GetAndAdvance();
+		const int32 UnfilteredSocketIndex = FMath::Clamp(Index, 0, SocketMax) + UnfilteredOffset;
+		const int32 SocketIndex = SocketMax >= 0 ? InstanceData->FilteredAndUnfilteredSockets[UnfilteredSocketIndex] : INDEX_NONE;
+		OutSocketIndex.SetAndAdvance(SocketIndex);
 	}
 }
 

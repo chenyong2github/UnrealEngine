@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "/Plugin/FX/Niagara/Private/NiagaraQuaternionUtils.ush"
+
 int3			{ParameterName}_NumTriangles;		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
 int				{ParameterName}_NumVertices;
 int				{ParameterName}_NumUVs;
@@ -100,6 +102,7 @@ void GetVertex_{ParameterName}(int Vertex, out float3 Position, out float3 Veloc
 		float4 TangentZ = TangentBias({ParameterName}_TangentBuffer[Vertex * 2 + 1]);
 		float3 TangentY = cross(TangentZ.xyz, TangentX.xyz) * TangentZ.w;
 
+		Velocity	= float3(0, 0, 0);
 		Normal		= TangentZ.xyz;
 		Bitangent	= TangentY;
 		Tangent		= TangentX.xyz;
@@ -125,6 +128,28 @@ void GetVertexWS_{ParameterName}(int Vertex, out float3 Position, out float3 Vel
 	Normal					= normalize(mul(float4(Normal, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
 	Bitangent				= normalize(mul(float4(Bitangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
 	Tangent					= normalize(mul(float4(Tangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
+}
+
+void GetVertexWSInterpolated_{ParameterName}(int Vertex, float Interp, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
+{
+	float3 LocalPosition, LocalNormal, LocalBitangent, LocalTangent;
+	GetVertex_{ParameterName}(Vertex, LocalPosition, Velocity, Normal, Bitangent, Tangent);
+
+	float3 PrevPosition		= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	float3 PrevNormal		= mul(float4(LocalNormal, 0), {ParameterName}_InstancePreviousTransformInverseTransposed).xyz;
+	float3 PrevBitangent	= mul(float4(LocalBitangent, 0), {ParameterName}_InstancePreviousTransformInverseTransposed).xyz;
+	float3 PrevTangent		= mul(float4(LocalTangent, 0), {ParameterName}_InstancePreviousTransformInverseTransposed).xyz;
+
+	float3 CurrPosition		= mul(float4(LocalPosition, 1), {ParameterName}_InstanceTransform).xyz;
+	float3 CurrNormal		= mul(float4(LocalNormal, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz;
+	float3 CurrBitangent	= mul(float4(LocalBitangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz;
+	float3 CurrTangent		= mul(float4(LocalTangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz;
+
+	Position				= lerp(PrevPosition, CurrPosition, Interp);
+	Velocity				= (CurrPosition - PrevPosition) * {ParameterName}_InvDeltaSeconds;
+	Normal					= normalize(lerp(PrevNormal, CurrNormal, Interp));
+	Bitangent				= normalize(lerp(PrevBitangent, CurrBitangent, Interp));
+	Tangent					= normalize(lerp(PrevTangent, CurrTangent, Interp));
 }
 
 void GetVertexColor_{ParameterName}(int Vertex, out float4 Color)
@@ -293,6 +318,28 @@ void GetTriangleWS_{ParameterName}(int Tri, float3 BaryCoord, out float3 Positio
 	Tangent					= normalize(mul(float4(Tangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
 }
 
+void GetTriangleWSInterpolated_{ParameterName}(int Tri, float3 BaryCoord, float Interp, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
+{
+	float3 LocalPosition, LocalNormal, LocalBitangent, LocalTangent;
+	GetTriangle_{ParameterName}(Tri, BaryCoord, LocalPosition, Velocity, LocalNormal, LocalBitangent, LocalTangent);
+
+	float3 PrevPosition		= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	float3 PrevNormal		= mul(float4(LocalNormal, 0), {ParameterName}_InstancePreviousTransformInverseTransposed).xyz;
+	float3 PrevBitangent	= mul(float4(LocalBitangent, 0), {ParameterName}_InstancePreviousTransformInverseTransposed).xyz;
+	float3 PrevTangent		= mul(float4(LocalTangent, 0), {ParameterName}_InstancePreviousTransformInverseTransposed).xyz;
+
+	float3 CurrPosition		= mul(float4(LocalPosition, 1), {ParameterName}_InstanceTransform).xyz;
+	float3 CurrNormal		= mul(float4(LocalNormal, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz;
+	float3 CurrBitangent	= mul(float4(LocalBitangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz;
+	float3 CurrTangent		= mul(float4(LocalTangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz;
+
+	Position				= lerp(PrevPosition, CurrPosition, Interp);
+	Velocity				= (CurrPosition - PrevPosition) * {ParameterName}_InvDeltaSeconds;
+	Normal					= normalize(lerp(PrevNormal, CurrNormal, Interp));
+	Bitangent				= normalize(lerp(PrevBitangent, CurrBitangent, Interp));
+	Tangent					= normalize(lerp(PrevTangent, CurrTangent, Interp));
+}
+
 void GetTriangleColor_{ParameterName}(int Tri, float3 BaryCoord, out float4 Color)
 {
 	int Index[3];
@@ -336,6 +383,26 @@ void GetUnfilteredSocketCount_{ParameterName}(out int Count)
 	Count = {ParameterName}_SocketCounts.z;
 }
 
+void GetFilteredSocket_{ParameterName}(int Index, out int SocketIndex)
+{
+	SocketIndex = -1;
+	if ( {ParameterName}_SocketCounts.y > 0 )
+	{
+		Index = clamp(Index, 0, {ParameterName}_SocketCounts.y - 1);
+		SocketIndex = {ParameterName}_FilteredAndUnfilteredSockets[Index];
+	}
+}
+
+void GetUnfilteredSocket_{ParameterName}(int Index, out int SocketIndex)
+{
+	SocketIndex = -1;
+	if ( {ParameterName}_SocketCounts.z > 0 )
+	{
+		Index = {ParameterName}_SocketCounts.y + clamp(Index, 0, {ParameterName}_SocketCounts.z - 1);
+		SocketIndex = {ParameterName}_FilteredAndUnfilteredSockets[Index];
+	}
+}
+
 void RandomSocket_{ParameterName}(NiagaraRandInfo RandInfo, out int Index)
 {
 	Index = -1;
@@ -365,7 +432,7 @@ void RandomUnfilteredSocket_{ParameterName}(NiagaraRandInfo RandInfo, out int In
 	}
 }
 
-void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)
+void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
 {
 	[branch]
 	if ( {ParameterName}_SocketCounts.x > 0 )
@@ -374,71 +441,122 @@ void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out flo
 		Position = {ParameterName}_SocketTransforms[Socket * 3 + 0].xyz;
 		Rotation = {ParameterName}_SocketTransforms[Socket * 3 + 1];
 		Scale    = {ParameterName}_SocketTransforms[Socket * 3 + 2].xyz;
+		Velocity = float3(0, 0, 0);
 	}
 	else
 	{
+		Velocity = float3(0, 0, 0);
 		Position = float3(0, 0, 0);
 		Rotation = float4(0, 0, 0, 1);
 		Scale = float3(1, 1, 1);
 	}
 }
 
-void GetSocketTransformWS_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)
+void GetSocketTransformWS_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
 {
-	GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
-	Position = mul(float4(Position, 1.0), {ParameterName}_InstanceTransform).xyz;
-	Rotation = NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
-	Scale = mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	float3 LocalPosition;
+	GetSocketTransform_{ParameterName}(Socket, LocalPosition, Rotation, Scale, Velocity);
+
+	Position				= mul(float4(LocalPosition, 1.0), {ParameterName}_InstanceTransform).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	Rotation				= NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
+	Scale					= mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	Velocity				= (Position - PreviousPosition) * {ParameterName}_InvDeltaSeconds;
 }
 
-void GetFilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+void GetSocketTransformWSInterpolated_{ParameterName}(int Socket, float Interp, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
+{
+	float3 LocalPosition, LocalScale, LocalVelocity;
+	float4 LocalRotation;
+	GetSocketTransform_{ParameterName}(Socket, LocalPosition, LocalRotation, LocalScale, LocalVelocity);
+
+	float3 CurrPosition		= mul(float4(LocalPosition, 1.0), {ParameterName}_InstanceTransform).xyz;
+	float3 PrevPosition		= mul(float4(LocalPosition, 1.0), {ParameterName}_InstancePreviousTransform).xyz;
+	float4 CurrRotation		= NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, LocalRotation);
+	float4 PrevRotation		= NiagaraGPU_QuatMul({ParameterName}_InstancePreviousRotation, LocalRotation);
+	float3 CurrScale		= mul(float4(LocalScale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	float3 PrevScale		= mul(float4(LocalScale, 0.0), {ParameterName}_InstancePreviousTransform).xyz;
+
+	Position	= lerp(PrevPosition, CurrPosition, Interp);
+	Rotation	= SlerpQuat(PrevRotation, CurrRotation, Interp);
+	Scale		= lerp(PrevScale, CurrScale, Interp);
+	Velocity	= (CurrPosition - PrevPosition) * {ParameterName}_InvDeltaSeconds;
+}
+
+void GetFilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
 {
 	[branch]
 	if ( {ParameterName}_SocketCounts.y > 0 )
 	{
 		SocketIndex = clamp(SocketIndex, 0, {ParameterName}_SocketCounts.y - 1);
 		int Socket = {ParameterName}_FilteredAndUnfilteredSockets[SocketIndex];
-		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
+		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale, Velocity);
+		Velocity = float3(0, 0, 0);
 	}
 	else
 	{
 		Position = float3(0, 0, 0);
 		Rotation = float4(0, 0, 0, 1);
 		Scale = float3(1, 1, 1);
+		Velocity = float3(0, 0, 0);
 	}
 }
 
-void GetFilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+void GetFilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
 {
-	GetFilteredSocketTransform_{ParameterName}(SocketIndex, Position, Rotation, Scale);
-	Position = mul(float4(Position, 1.0), {ParameterName}_InstanceTransform).xyz;
-	Rotation = NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
-	Scale = mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	float3 LocalPosition;
+	GetFilteredSocketTransform_{ParameterName}(SocketIndex, LocalPosition, Rotation, Scale, Velocity);
+
+	Position				= mul(float4(LocalPosition, 1.0), {ParameterName}_InstanceTransform).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	Rotation				= NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
+	Scale					= mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	Velocity				= (Position - PreviousPosition) * {ParameterName}_InvDeltaSeconds;
 }
 
-void GetUnfilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+void GetFilteredSocketTransformWSInterpolated_{ParameterName}(int Index, float Interp, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
+{
+	int SocketIndex;
+	GetFilteredSocket_{ParameterName}(Index, SocketIndex);
+	GetSocketTransformWSInterpolated_{ParameterName}(SocketIndex, Interp, Position, Rotation, Scale, Velocity);
+}
+
+void GetUnfilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
 {
 	[branch]
 	if ( {ParameterName}_SocketCounts.z > 0 )
 	{
 		SocketIndex = {ParameterName}_SocketCounts.y + clamp(SocketIndex, 0, {ParameterName}_SocketCounts.z - 1);
 		int Socket = {ParameterName}_FilteredAndUnfilteredSockets[SocketIndex];
-		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
+		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale, Velocity);
+		Velocity = float3(0, 0, 0);
 	}
 	else
 	{
 		Position = float3(0, 0, 0);
 		Rotation = float4(0, 0, 0, 1);
 		Scale = float3(1, 1, 1);
+		Velocity = float3(0, 0, 0);
 	}
 }
 
-void GetUnfilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+void GetUnfilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
 {
-	GetUnfilteredSocketTransform_{ParameterName}(SocketIndex, Position, Rotation, Scale);
-	Position = mul(float4(Position, 1.0), {ParameterName}_InstanceTransform).xyz;
-	Rotation = NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
-	Scale = mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	float3 LocalPosition;
+	GetUnfilteredSocketTransform_{ParameterName}(SocketIndex, LocalPosition, Rotation, Scale, Velocity);
+
+	Position				= mul(float4(LocalPosition, 1.0), {ParameterName}_InstanceTransform).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	Rotation				= NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
+	Scale					= mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
+	Velocity				= (Position - PreviousPosition) * {ParameterName}_InvDeltaSeconds;
+}
+
+void GetUnfilteredSocketTransformWSInterpolated_{ParameterName}(int Index, float Interp, out float3 Position, out float4 Rotation, out float3 Scale, out float3 Velocity)
+{
+	int SocketIndex;
+	GetUnfilteredSocket_{ParameterName}(Index, SocketIndex);
+	GetSocketTransformWSInterpolated_{ParameterName}(SocketIndex, Interp, Position, Rotation, Scale, Velocity);
 }
 
 //////////////////////////////////////////////////////////////////////////

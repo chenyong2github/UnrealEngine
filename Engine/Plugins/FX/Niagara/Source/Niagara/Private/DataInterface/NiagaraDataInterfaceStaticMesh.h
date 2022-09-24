@@ -170,6 +170,8 @@ protected:
 
 	template<typename TTransformHandler>
 	void VMGetVertex(FVectorVMExternalFunctionContext& Context);
+	template<typename TTransformHandler>
+	void VMGetVertexInterpolated(FVectorVMExternalFunctionContext& Context);
 	void VMGetVertexColor(FVectorVMExternalFunctionContext& Context);
 	void VMGetVertexUV(FVectorVMExternalFunctionContext& Context);
 
@@ -191,6 +193,8 @@ protected:
 
 	template<typename TTransformHandler>
 	void VMGetTriangle(FVectorVMExternalFunctionContext& Context);
+	template<typename TTransformHandler>
+	void VMGetTriangleInterpolated(FVectorVMExternalFunctionContext& Context);
 	void VMGetTriangleColor(FVectorVMExternalFunctionContext& Context);
 	void VMGetTriangleUV(FVectorVMExternalFunctionContext& Context);
 
@@ -206,9 +210,17 @@ protected:
 	template<typename TTransformHandler>
 	void VMGetSocketTransform(FVectorVMExternalFunctionContext& Context);
 	template<typename TTransformHandler>
+	void VMGetSocketTransformInterpolated(FVectorVMExternalFunctionContext& Context);
+	template<typename TTransformHandler>
 	void VMGetFilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
 	template<typename TTransformHandler>
+	void VMGetFilteredSocketTransformInterpolated(FVectorVMExternalFunctionContext& Context);
+	template<typename TTransformHandler>
 	void VMGetUnfilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
+	template<typename TTransformHandler>
+	void VMGetUnfilteredSocketTransformInterpolated(FVectorVMExternalFunctionContext& Context);
+	void VMGetFilteredSocket(FVectorVMExternalFunctionContext& Context);
+	void VMGetUnfilteredSocket(FVectorVMExternalFunctionContext& Context);
 
 	// Section functions
 	void VMIsValidSection(FVectorVMExternalFunctionContext& Context);
