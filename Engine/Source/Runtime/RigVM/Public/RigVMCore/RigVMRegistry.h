@@ -22,6 +22,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/GCObject.h"
 
 class FProperty;
 class UObject;
@@ -32,8 +33,10 @@ struct FRigVMDispatchFactory;
  * for use in the RigVM. The Register method is called automatically
  * when the static struct is initially constructed for each USTRUCT
  * hosting a RIGVM_METHOD enabled virtual function.
+ * 
+ * Inheriting from FGCObject to ensure that all type objects cannot be GCed
  */
-struct RIGVM_API FRigVMRegistry
+struct RIGVM_API FRigVMRegistry : public FGCObject
 {
 public:
 
@@ -44,6 +47,10 @@ public:
 	// Returns the singleton registry
 	static FRigVMRegistry& Get();
 
+	// FGCObject overrides
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+	
 	// Registers a function given its name.
 	// The name will be the name of the struct and virtual method,
 	// for example "FMyStruct::MyVirtualMethod"
@@ -317,7 +324,6 @@ private:
 	// Notifies other system that types have been added/removed, and template permutations have been updated
 	FOnRigVMRegistryChanged OnRigVMRegistryChangedDelegate;
 	
-	static FRigVMRegistry s_RigVMRegistry;
 	friend struct FRigVMStruct;
 	friend struct FRigVMTemplate;
 	friend struct FRigVMTemplateArgument;

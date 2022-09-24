@@ -11,7 +11,6 @@
 #include "UObject/UObjectIterator.h"
 #include "Misc/CoreDelegates.h"
 
-FRigVMRegistry FRigVMRegistry::s_RigVMRegistry;
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
 FRigVMRegistry::~FRigVMRegistry()
@@ -21,8 +20,30 @@ FRigVMRegistry::~FRigVMRegistry()
 
 FRigVMRegistry& FRigVMRegistry::Get()
 {
+	// static in a function scope ensures that the GC system is initiated before 
+	// the registry constructor is called
+	static FRigVMRegistry s_RigVMRegistry;
 	s_RigVMRegistry.InitializeIfNeeded();
 	return s_RigVMRegistry;
+}
+
+void FRigVMRegistry::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	// registry should hold strong references to these type objects
+	// otherwise GC may remove them without the registry known it
+	// which can happen during cook time.
+	for (FTypeInfo& Type : Types)
+	{
+		if (Type.Type.CPPTypeObject)
+		{
+			Collector.AddReferencedObject(Type.Type.CPPTypeObject);
+		}
+	}
+}
+
+FString FRigVMRegistry::GetReferencerName() const
+{
+	return TEXT("FRigVMRegistry");
 }
 
 const TArray<UScriptStruct*>& FRigVMRegistry::GetMathTypes()
@@ -124,16 +145,16 @@ void FRigVMRegistry::InitializeIfNeeded()
 	Refresh();
 
 	// hook the registry to prepare for engine shutdown
-	FCoreDelegates::OnExit.AddLambda([]()
+	FCoreDelegates::OnExit.AddLambda([&]()
 	{
-		s_RigVMRegistry.Reset();
+		Reset();
 
 		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 		{
 			if (AssetRegistryModule->TryGet())
 			{
-				AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&s_RigVMRegistry);
-				AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(&s_RigVMRegistry);
+				AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+				AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
 			}
 		}
 
