@@ -135,7 +135,7 @@ public:
 				break;
 
 			case EDisplayClusterMeshProjectionType::Azimuthal:
-				Label = LOCTEXT("ProjectionwMenuTitle_Azimuthal", "Azimuthal");
+				Label = LOCTEXT("ProjectionwMenuTitle_Azimuthal", "Dome");
 				break;
 
 			case EDisplayClusterMeshProjectionType::UV:
