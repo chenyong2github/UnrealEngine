@@ -2,6 +2,7 @@
 
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
@@ -112,13 +113,19 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 {
 	check(InActorHandle.IsValid());
 
+	const FBox ActorBounds = InActorHandle->GetIsSpatiallyLoaded() ? InActorHandle->GetBounds() : FBox(ForceInit);
+
+#if DO_CHECK
+	check(!HashedActors.Contains(InActorHandle->GetGuid()));
+	HashedActors.Add(InActorHandle->GetGuid(), ActorBounds);
+#endif
+
 	if (!InActorHandle->GetIsSpatiallyLoaded())
 	{
 		AlwaysLoadedCell->Actors.Add(InActorHandle);
 	}
 	else
 	{
-		const FBox ActorBounds = InActorHandle->GetBounds();
 		const int32 CurrentLevel = GetLevelForBox(EditorBounds);
 		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
@@ -216,13 +223,19 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 {
 	check(InActorHandle.IsValid());
 
+	const FBox ActorBounds = InActorHandle->GetIsSpatiallyLoaded() ? InActorHandle->GetBounds() : FBox(ForceInit);
+
+#if DO_CHECK
+	FBox OldActorBounds = HashedActors.FindAndRemoveChecked(InActorHandle->GetGuid());
+	check(ActorBounds == OldActorBounds);
+#endif
+
 	if (!InActorHandle->GetIsSpatiallyLoaded())
 	{
 		AlwaysLoadedCell->Actors.Remove(InActorHandle);
 	}
 	else
 	{
-		const FBox ActorBounds = InActorHandle->GetBounds();
 		const int32 CurrentLevel = GetLevelForBox(EditorBounds);
 		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 

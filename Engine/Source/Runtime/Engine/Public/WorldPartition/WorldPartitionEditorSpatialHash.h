@@ -219,7 +219,11 @@ private:
 	
 	FBox EditorBounds;
 	FBox RuntimeBounds;
-	bool bBoundsDirty;	
+	bool bBoundsDirty;
+
+#if DO_CHECK
+	TMap<FGuid, FBox> HashedActors;
+#endif
 
 public:
 	UPROPERTY(Config, meta = (AllowedClasses = "/Script/Engine.Texture2D, /Script/Engine.MaterialInterface"))
