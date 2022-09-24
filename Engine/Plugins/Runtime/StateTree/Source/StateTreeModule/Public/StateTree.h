@@ -135,6 +135,8 @@ protected:
 	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
 #endif
 
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	
 private:
 
 	/**

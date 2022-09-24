@@ -104,6 +104,26 @@ void UStateTree::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray
 	}
 }
 
+void UStateTree::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	const UStateTree* StateTree = Cast<UStateTree>(InThis);
+	check(StateTree);
+	
+	FReadScopeLock ReadLock(StateTree->PerThreadSharedInstanceDataLock);
+
+	for (const TSharedPtr<FStateTreeInstanceData>& InstanceData : StateTree->PerThreadSharedInstanceData)
+	{
+		if (InstanceData.IsValid())
+		{
+			uint8* StructMemory = (uint8*)InstanceData.Get();
+			const UScriptStruct* ScriptStruct = FStateTreeInstanceData::StaticStruct();
+			Collector.AddReferencedObjects(ScriptStruct, StructMemory);
+		}
+	}
+}
+
 #endif // WITH_EDITOR
 
 void UStateTree::PostLoad()
