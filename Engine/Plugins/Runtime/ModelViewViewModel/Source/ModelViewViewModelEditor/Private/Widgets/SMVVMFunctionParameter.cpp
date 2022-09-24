@@ -32,6 +32,7 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 	check(!ParameterName.IsNone());
 	
 	bSourceToDestination = InArgs._SourceToDestination;
+	bAllowDefault = InArgs._AllowDefault;
 
 	GetBindingModeDelegate = InArgs._OnGetBindingMode;
 	check(GetBindingModeDelegate.IsBound());
@@ -73,12 +74,14 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 		bFromViewModel = UE::MVVM::IsBackwardBinding(Binding->BindingType);
 	}
 
+	TSharedPtr<SHorizontalBox> HBox;
+
 	ChildSlot
 	[
 		SNew(SBox)
 		.MinDesiredWidth(100)
 		[
-			SNew(SHorizontalBox)
+			SAssignNew(HBox, SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.Padding(0, 2)
 			.VAlign(VAlign_Center)
@@ -98,7 +101,12 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 					.AssignableTo(Property)
 				]
 			]
-			+ SHorizontalBox::Slot()
+		]
+	];
+
+	if (InArgs._AllowDefault)
+	{
+		HBox->AddSlot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.Padding(8, 0, 0, 0)
@@ -118,14 +126,18 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 							ECheckBoxState CheckState = OnGetIsBindArgumentChecked();
 							return (CheckState == ECheckBoxState::Checked) ? FAppStyle::GetBrush("Icons.Link") : FAppStyle::GetBrush("Icons.Unlink");
 						})
-					]
 				]
-			]
-		];
+			];		
+	}
 }
 
 EVisibility SFunctionParameter::OnGetVisibility(bool bDefaultValue) const
 {
+	if (!bAllowDefault)
+	{
+		return bDefaultValue ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+
 	FMVVMBlueprintPropertyPath Path = OnGetSelectedField();
 
 	// if we're not bound then show the default value widget, otherwise show the binding widget

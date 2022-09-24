@@ -33,7 +33,8 @@ public:
 		SLATE_ARGUMENT(UWidgetBlueprint*, WidgetBlueprint)
 		SLATE_ARGUMENT(FMVVMBlueprintViewBinding*, Binding)
 		SLATE_ARGUMENT(FName, ParameterName)
-		SLATE_ARGUMENT(bool, SourceToDestination)
+		SLATE_ARGUMENT_DEFAULT(bool, SourceToDestination) = true;
+		SLATE_ARGUMENT_DEFAULT(bool, AllowDefault) = true;
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -54,8 +55,10 @@ private:
 	/** This reference is just to keep the default value widget alive. */
 	TSharedPtr<SGraphPin> GraphPin;
 	TSharedPtr<UE::MVVM::SFieldSelector> FieldSelector;
-	bool bSourceToDestination = true;
 	FGetBindingMode GetBindingModeDelegate;
+
+	bool bSourceToDestination = true;
+	bool bAllowDefault = true;
 };
 
 }

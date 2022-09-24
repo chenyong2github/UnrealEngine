@@ -824,6 +824,8 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 		const FSlateBrush* PrimaryBrush = nullptr;
 		const FSlateBrush* SecondaryBrush = nullptr;
 		FText DisplayName, ToolTip;
+
+		bool bSimpleConversionFunction = false;
 		
 		if (UEdGraphPin* Pin = EditorSubsystem->FindConversionFunctionArgumentPin(InWidgetBlueprint, *Binding, Entry->GetName(), bSourceToDestination))
 		{
@@ -836,6 +838,8 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 			// no wrapper graph, this is a simple conversion function of the form: int32 Convert(float x)
 			if (const FProperty* Argument = BindingHelper::GetFirstArgumentProperty(Function))
 			{
+				bSimpleConversionFunction = true;
+
 				PrimaryBrush = FBlueprintEditor::GetVarIconAndColorFromProperty(Argument, PrimaryColor, SecondaryBrush, SecondaryColor);
 				DisplayName = Argument->GetDisplayNameText();
 				ToolTip = Argument->GetToolTipText();
@@ -891,6 +895,7 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 						.Binding(Binding)
 						.ParameterName(Entry->GetName())
 						.SourceToDestination(bSourceToDestination)
+						.AllowDefault(!bSimpleConversionFunction)
 					]
 				]
 			]
