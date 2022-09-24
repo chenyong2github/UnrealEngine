@@ -1340,6 +1340,35 @@ namespace Chaos
 		return false;
 	}
 
+	bool FRigidClustering::BreakClustersByProxy(const IPhysicsProxyBase* Proxy)
+	{
+		bool bCrumbledAnyCluster = false;
+		// max strain will allow to unconditionally release the children when strain is evaluated
+		constexpr FReal MaxStrain = TNumericLimits<FReal>::Max();
+
+		// we should probably have a way to retrieve all the active clusters per proxy instead of going through the map 
+		for (FPBDRigidClusteredParticleHandle* ClusteredHandle : GetTopLevelClusterParents())
+		{
+			if (ClusteredHandle && ClusteredHandle->PhysicsProxy() == Proxy)
+			{
+				const TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredHandle];
+				for (FPBDRigidParticleHandle* ChildHandle : Children)
+				{
+					if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
+					{
+						ClusteredChildHandle->SetExternalStrain(MaxStrain);
+					}
+				}
+				if (Children.Num() > 0)
+				{
+					SendCrumblingEvent(ClusteredHandle);
+				}
+				bCrumbledAnyCluster = true;
+			}
+		}
+		return bCrumbledAnyCluster;
+	}
+
 	static void ConnectClusteredNodes(FPBDRigidClusteredParticleHandle* ClusteredChild1, FPBDRigidClusteredParticleHandle* ClusteredChild2)
 	{
 		check(ClusteredChild1 && ClusteredChild2);

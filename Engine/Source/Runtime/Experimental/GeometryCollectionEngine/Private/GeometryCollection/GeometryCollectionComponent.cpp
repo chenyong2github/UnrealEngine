@@ -4034,6 +4034,22 @@ void UGeometryCollectionComponent::CrumbleCluster(int32 ItemIndex)
 	}
 }
 
+void UGeometryCollectionComponent::CrumbleActiveClusters()
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->BreakActiveClusters_External();
+	}
+}
+
+void UGeometryCollectionComponent::RemoveAllAnchors()
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->RemoveAllAnchors_External();
+	}
+}
+
 void UGeometryCollectionComponent::ApplyBreakingLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity)
 {
 	if (PhysicsProxy)

@@ -373,6 +373,8 @@ public:
 	void DisableParticles_External(TArray<int32>&& TransformGroupIndices);
 
 	void BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices);
+	void BreakActiveClusters_External();
+	void RemoveAllAnchors_External();
 	void ApplyExternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue);
 	void ApplyInternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue);
 	void ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);

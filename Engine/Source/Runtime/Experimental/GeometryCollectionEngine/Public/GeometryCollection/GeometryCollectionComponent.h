@@ -535,6 +535,19 @@ public:
 	void CrumbleCluster(int32 ItemIndex);
 
 	/**
+	* Crumbe active clusters for this entire geometry collection
+	* this will apply to internal and regular clusters
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void CrumbleActiveClusters();
+
+	/**
+	* this will remove anchors on all the pieces ( inlcuding the static and kinematic initial states ones ) of the geometry colection
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void RemoveAllAnchors();
+
+	/**
 	 * Apply linear velocity on breaking pieces for a specific cluster
 	 * If ItemIndex does not represent a cluster this will do nothing  
 	 * @param ItemIndex item index ( from HitResult) of the cluster owning the breaking pieces to apply velocity on

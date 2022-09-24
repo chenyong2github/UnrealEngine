@@ -154,6 +154,15 @@ public:
 	*    @return true if the cluster was successfully found and act upon 
 	*/
 	bool BreakCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
+
+	/*
+	*  BreakClustersByProxy
+	*    Breaks clusters (internal or not) own by a specific proxy by applying max external strain to all its children
+	*
+	*    @param Proxy proxy owning the clusters to break
+	*    @return true if any cluster was successfully found and act upon
+	*/
+	bool BreakClustersByProxy(const IPhysicsProxyBase* Proxy);
 	
 	//
 	// Operational 

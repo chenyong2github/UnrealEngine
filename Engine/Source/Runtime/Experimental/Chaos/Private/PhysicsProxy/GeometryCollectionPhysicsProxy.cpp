@@ -1606,6 +1606,49 @@ void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<FGeometryCol
 	}
 }
 
+
+void FGeometryCollectionPhysicsProxy::BreakActiveClusters_External()
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver]()
+		{
+			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+			Clustering.BreakClustersByProxy(this);
+		});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::RemoveAllAnchors_External()
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver]()
+			{
+				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
+
+				// disable anchoring where relevant and collect the nodes to update
+				Chaos::FKinematicTarget NoKinematicTarget;
+				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
+				{
+					if (ParticleHandle)
+					{
+						ParticleHandle->SetIsAnchored(false);
+						if (!ParticleHandle->IsDynamic())
+						{
+							Evolution->SetParticleObjectState(ParticleHandle, Chaos::EObjectStateType::Dynamic);
+							Evolution->SetParticleKinematicTarget(ParticleHandle, NoKinematicTarget);
+						}
+					}
+				}
+			});
+	}
+}
+
 template <typename TAction>
 static void ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
 	Chaos::FRigidClustering& Clustering,
