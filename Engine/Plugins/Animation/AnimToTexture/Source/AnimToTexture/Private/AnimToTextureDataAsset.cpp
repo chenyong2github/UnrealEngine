@@ -29,8 +29,6 @@ namespace AnimToTextureParamNames
 	static const FName RowsPerFrame = TEXT("RowsPerFrame");
 	static const FName BoneWeightRowsPerFrame = TEXT("BoneWeightsRowsPerFrame");
 	static const FName NumFrames = TEXT("NumFrames (S)");
-	//static const FName UVChannel = TEXT("UVChannel");
-	//static const FName AnimateSwitch = TEXT("Animate (B)");
 	static const FName VertexPositionTexture = TEXT("PositionTexture");
 	static const FName VertexNormalTexture = TEXT("NormalTexture");
 	static const FName BonePositionTexture = TEXT("BonePositionTexture");
@@ -45,8 +43,6 @@ FAnimToTextureMaterialParamNames::FAnimToTextureMaterialParamNames()
 	RowsPerFrame = AnimToTextureParamNames::RowsPerFrame;
 	BoneWeightRowsPerFrame = AnimToTextureParamNames::BoneWeightRowsPerFrame;
 	NumFrames = AnimToTextureParamNames::NumFrames;
-	//UVChannel = AnimToTextureParamNames::UVChannel;
-	//AnimateSwitch = AnimToTextureParamNames::AnimateSwitch;
 	VertexPositionTexture = AnimToTextureParamNames::VertexPositionTexture;
 	VertexNormalTexture = AnimToTextureParamNames::VertexNormalTexture;
 	BonePositionTexture = AnimToTextureParamNames::BonePositionTexture;

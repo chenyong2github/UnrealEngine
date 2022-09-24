@@ -31,8 +31,7 @@ UAnimToTextureBPLibrary::UAnimToTextureBPLibrary(const FObjectInitializer& Objec
 
 }
 
-void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAsset,
-	const FTransform RootTransform, const bool bCreateTextures, const bool bCreateUVChannel)
+void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAsset, const FTransform RootTransform)
 {
 	if (!DataAsset)
 	{
@@ -118,66 +117,16 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		return;
 	}
 
-	// Create Temp LeaderMeshComponent
-	USkeletalMeshComponent* LeaderMeshComponent = nullptr;
-	if (DataAsset->GetLeaderSkeletalMesh())
-	{
-		LeaderMeshComponent = NewObject<USkeletalMeshComponent>(Actor);
-		LeaderMeshComponent->SetSkeletalMesh(DataAsset->GetLeaderSkeletalMesh());
-		LeaderMeshComponent->SetForcedLOD(1); // Force to LOD0
-		LeaderMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		LeaderMeshComponent->SetUpdateAnimationInEditor(true);
-		LeaderMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;		
-		LeaderMeshComponent->RegisterComponent();
-	};
-
 	// Create Temp SkeletalMesh Component
 	USkeletalMeshComponent* MeshComponent = NewObject<USkeletalMeshComponent>(Actor);
 	check(MeshComponent);
 	MeshComponent->SetSkeletalMesh(DataAsset->GetSkeletalMesh());
 	MeshComponent->SetForcedLOD(1); // Force to LOD0;
+	MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	MeshComponent->SetUpdateAnimationInEditor(true);
+	MeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	MeshComponent->RegisterComponent();
-	
-	USkeletalMeshComponent* BaseMeshComponent = nullptr;
-	if (LeaderMeshComponent)
-	{
-		MeshComponent->SetupAttachment(LeaderMeshComponent);
-		MeshComponent->SetLeaderPoseComponent(LeaderMeshComponent);
 
-		BaseMeshComponent = LeaderMeshComponent;
-	}
-	else
-	{
-		MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		MeshComponent->SetUpdateAnimationInEditor(true);
-		MeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-		
-		BaseMeshComponent = MeshComponent;
-	}
-	
-	if (BaseMeshComponent == nullptr)
-	{
-		return;
-	}
-
-	// --------------------------------------------------------------------------
-	// Set AnimBlueprint
-	UEvaluateSequenceAnimInstance* EvaluationAnimInstance = nullptr;
-	if (DataAsset->AnimInstanceClass != nullptr)
-	{
-		// Set Anim Blueprint
-		BaseMeshComponent->SetAnimInstanceClass(DataAsset->AnimInstanceClass);
-		EvaluationAnimInstance = Cast<UEvaluateSequenceAnimInstance>(BaseMeshComponent->GetAnimInstance());
-	}
-
-	// Get Mapping between Follower and Leader
-	TArray<int32> FollowerBoneMap;
-	if (DataAsset->GetLeaderSkeletalMesh() &&
-		DataAsset->Mode == EAnimToTextureMode::Bone)
-	{
-		AnimToTexture_Private::GetFollowerBoneMap(DataAsset->GetLeaderSkeletalMesh(), DataAsset->GetSkeletalMesh(), FollowerBoneMap);
-	}
-	
 	// ---------------------------------------------------------------------------
 	// Get Reference Skeleton Transforms
 	//
@@ -192,15 +141,15 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	if (DataAsset->Mode == EAnimToTextureMode::Bone)
 	{
 		// Get Number of RawBones (no virtual)
-		NumBones = AnimToTexture_Private::GetNumBones(BaseMeshComponent->GetSkeletalMeshAsset());
+		NumBones = AnimToTexture_Private::GetNumBones(MeshComponent->GetSkeletalMeshAsset());
 
 		// Get Raw Ref Bone (no virtual)
 		TArray<FTransform> RefBoneTransforms;
-		AnimToTexture_Private::GetRefBoneTransforms(BaseMeshComponent->GetSkeletalMeshAsset(), RefBoneTransforms);
+		AnimToTexture_Private::GetRefBoneTransforms(MeshComponent->GetSkeletalMeshAsset(), RefBoneTransforms);
 		AnimToTexture_Private::DecomposeTransformations(RefBoneTransforms, BoneRefPositions, BoneRefRotations);
 
 		// Get Bone Names (no virtual)
-		AnimToTexture_Private::GetBoneNames(BaseMeshComponent->GetSkeletalMeshAsset(), BoneNames);
+		AnimToTexture_Private::GetBoneNames(MeshComponent->GetSkeletalMeshAsset(), BoneNames);
 
 		// Make sure array sizes are correct.
 		check(RefBoneTransforms.Num() == NumBones && BoneNames.Num() == NumBones);
@@ -237,24 +186,16 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			continue;
 		}
 		
-		// Make sure SkelMesh and AnimSequence use same Skeleton
-		if (AnimSequence->GetSkeleton() != BaseMeshComponent->GetSkeletalMeshAsset()->GetSkeleton())
+		// Make sure SkeletalMesh is compatible with AnimSequence
+		if (!MeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimSequence->GetSkeleton()))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *BaseMeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
+			UE_LOG(LogTemp, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *MeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
 			continue;
 		}
 		// Set AnimSequence
 		else
-		{
-			if (EvaluationAnimInstance)
-			{
-				EvaluationAnimInstance->SequenceToEvaluate = AnimSequence;
-				EvaluationAnimInstance->TimeToEvaluate = 0.0f;
-			}
-			else
-			{
-				BaseMeshComponent->SetAnimation(AnimSequence);
-			}
+		{			
+			MeshComponent->SetAnimation(AnimSequence);
 		}
 
 		// -----------------------------------------------------------------------------------
@@ -293,20 +234,12 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			SampleIndex++;
 
 			// Go To Time
-			if (EvaluationAnimInstance)
-			{
-				EvaluationAnimInstance->TimeToEvaluate = Time;
-			}
-			else
-			{
-				BaseMeshComponent->SetPosition(Time);
-			}
+			MeshComponent->SetPosition(Time);
 
 			// Update SkelMesh Animation.
-			BaseMeshComponent->TickAnimation(0.0f, false /*bNeedsValidRootMotion*/);
-			// BaseMeshComponent->TickComponent(0.0f, ELevelTick::LEVELTICK_All, nullptr);
-			BaseMeshComponent->RefreshBoneTransforms(nullptr /*TickFunction*/);
-			BaseMeshComponent->RefreshFollowerComponents();
+			MeshComponent->TickAnimation(0.0f, false /*bNeedsValidRootMotion*/);
+			// MeshComponent->TickComponent(0.0f, ELevelTick::LEVELTICK_All, nullptr);
+			MeshComponent->RefreshBoneTransforms(nullptr /*TickFunction*/);
 			
 			// ---------------------------------------------------------------------------
 			// Store Vertex Deltas & Normals.
@@ -339,17 +272,15 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			{
 				// Get Relative Transforms
 				// Note: Size is of Raw bones in SkeletalMesh. These are the original/raw bones of the asset, without Virtual Bones.
-				// Note: You cannot call CacheRefToLocalMatrices on a FollowerComponent
 				TArray<FMatrix44f> RefToLocals;
-				BaseMeshComponent->CacheRefToLocalMatrices(RefToLocals);
+				MeshComponent->CacheRefToLocalMatrices(RefToLocals);
 				
 				// check size
 				check(RefToLocals.Num() == NumBones);
 
 				// Get Component Space Transforms
 				// Note returns all transforms, including VirtualBones
-				// Note: You cannot call GetComponentSpaceTransforms on a FollowerComponent
-				const TArray<FTransform>& CompSpaceTransforms = BaseMeshComponent->GetComponentSpaceTransforms();
+				const TArray<FTransform>& CompSpaceTransforms = MeshComponent->GetComponentSpaceTransforms();
 				check(CompSpaceTransforms.Num() >= RefToLocals.Num());
 
 				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
@@ -391,13 +322,6 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	MeshComponent->UnregisterComponent();
 	MeshComponent->DestroyComponent();
 
-	// Destroy Leader Component
-	if (LeaderMeshComponent)
-	{
-		LeaderMeshComponent->UnregisterComponent();
-		LeaderMeshComponent->DestroyComponent();
-	}
-	
 	Actor->Destroy();
 	
 	// ---------------------------------------------------------------------------
@@ -430,18 +354,12 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			NormalizedVertexDeltas, NormalizedVertexNormals);
 
 		// Write Textures
-		if (bCreateTextures)
-		{
-			AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexDeltas, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexPositionTexture());
-			AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexNormals, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexNormalTexture());
-		}
+		AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexDeltas, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexPositionTexture());
+		AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexNormals, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexNormalTexture());
 
+	
 		// Add Vertex UVChannel
-		if (bCreateUVChannel)
-		{
-			CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel,
-				Height, Width);
-		}
+		CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel, Height, Width);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -451,7 +369,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		// Find Best Resolution for Bone Data
 		int32 Height, Width;
 
-		// NOTE: If NumBones are > 256, you might need to use LeaderPose
+		// NOTE: If NumBones are > 256, you might need to use a simpler skeleton
 
 		// Note we are adding +1 frame for the ref pose
 		if (!FindBestResolution(DataAsset->NumFrames + 1, NumBones, 
@@ -463,7 +381,6 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 
 		// Write Bone Position and Rotation Textures
-		if (bCreateTextures)
 		{
 			// Normalize Bone Data
 			TArray<FVector3f> NormalizedBonePositions;
@@ -474,7 +391,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				NormalizedBonePositions, NormalizedBoneRotations);
 
 			// Write Textures
-			if (DataAsset->PositionAndRotationPrecision == EAnimToTextureBonePrecision::SixteenBits)
+			if (DataAsset->BonePrecision == EAnimToTextureBonePrecision::SixteenBits)
 			{
 				AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FHighPrecision>(NormalizedBonePositions, DataAsset->NumFrames + 1, DataAsset->BoneRowsPerFrame, Height, Width, DataAsset->GetBonePositionTexture());
 				AnimToTexture_Private::WriteVectorsToTexture<FVector4, AnimToTexture_Private::FHighPrecision>(NormalizedBoneRotations, DataAsset->NumFrames + 1, DataAsset->BoneRowsPerFrame, Height, Width, DataAsset->GetBoneRotationTexture());
@@ -498,7 +415,6 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 
 		// Write Weights Texture
-		if (bCreateTextures)
 		{
 			TArray<AnimToTexture_Private::TVertexSkinWeight<4>> SkinWeights;
 
@@ -510,18 +426,6 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 					*DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex,
 					StaticToSkelMapping, 
 					SkinWeights);
-
-				// Remap MeshBoneIndices to FollowerBoneMap
-				if (DataAsset->GetLeaderSkeletalMesh())
-				{
-					for (AnimToTexture_Private::TVertexSkinWeight<4>& SkinWeight : SkinWeights)
-					{
-						SkinWeight.MeshBoneIndices[0] = FollowerBoneMap[SkinWeight.MeshBoneIndices[0]];
-						SkinWeight.MeshBoneIndices[1] = FollowerBoneMap[SkinWeight.MeshBoneIndices[1]];
-						SkinWeight.MeshBoneIndices[2] = FollowerBoneMap[SkinWeight.MeshBoneIndices[2]];
-						SkinWeight.MeshBoneIndices[3] = FollowerBoneMap[SkinWeight.MeshBoneIndices[3]];
-					}
-				}
 			}
 			// If Valid Socket, set all influences to same index.
 			else
@@ -541,11 +445,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 
 		// Add Vertex UVChannel
-		if (bCreateUVChannel)
-		{
-			CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel,
-				Height, Width);
-		}
+		CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel, Height, Width);
 	}
 
 	// ---------------------------------------------------------------------------

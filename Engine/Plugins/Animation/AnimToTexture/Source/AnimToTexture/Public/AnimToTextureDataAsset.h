@@ -17,18 +17,8 @@ struct ANIMTOTEXTURE_API FAnimToTextureMaterialParamNames
 	GENERATED_BODY()
 
 	//
-	// Static Switch Parameters
-	//
-
-	// UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	// FName AnimateSwitch;
-
-	//
 	// Scalar Parameters
 	//
-
-	//UPROPERTY(EditAnywhere)
-	//FName UVChannel;
 
 	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
 	FName RowsPerFrame;
@@ -81,12 +71,6 @@ enum class EAnimToTextureMode : uint8
 	Bone,
 };
 
-//UENUM(Blueprintable)
-//enum class EAnimToTextureNumInfluences : uint8
-//{
-//	One, Two, Four,
-//};
-
 UENUM(Blueprintable)
 enum class EAnimToTextureBonePrecision : uint8
 {
@@ -95,34 +79,6 @@ enum class EAnimToTextureBonePrecision : uint8
 	/* Bone positions and rotations stored in 16 bits */
 	SixteenBits,
 };
-
-
-//USTRUCT(Blueprintable)
-//struct FSkeletalMeshInfo
-//{
-//	GENERATED_BODY()
-//
-//	UPROPERTY(EditAnywhere)
-//	USkeletalMesh* SkeletalMesh = nullptr;
-//
-//	UPROPERTY(EditAnywhere)
-//	int32 LODIndex = 0;
-//};
-
-//USTRUCT(Blueprintable)
-//struct FStaticMeshInfo
-//{
-//	GENERATED_BODY()
-//
-//	UPROPERTY(EditAnywhere)
-//	UStaticMesh* StaticMesh = nullptr;
-//
-//	UPROPERTY(EditAnywhere)
-//	int32 LODIndex = 0;
-//
-//	UPROPERTY(EditAnywhere)
-//	int32 UVChannel = 1;
-//};
 
 USTRUCT(Blueprintable)
 struct FAnimSequenceInfo
@@ -170,78 +126,119 @@ class ANIMTOTEXTURE_API UAnimToTextureDataAsset : public UPrimaryDataAsset
 public:
 	GENERATED_BODY()
 
-	// ------------------------------------------------------
-	// Skeletal Mesh
-
+	/**
+	* SkeletalMesh to bake animations from.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkeletalMesh", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
 
+	/**
+	* SkeletalMesh LOD to bake.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkeletalMesh", Meta = (DisplayName = "LODIndex"))
 	int32 SkeletalLODIndex = 0;
 
-	// ------------------------------------------------------
-	// Static Mesh
-
+	/**
+	* StaticMesh to bake to.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StaticMesh", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UStaticMesh> StaticMesh;
 
+	/**
+	* StaticMesh LOD to bake to.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StaticMesh", Meta = (DisplayName = "LODIndex"))
 	int32 StaticLODIndex = 0;
 
+	/**
+	* StaticMesh UVChannel Index for storing vertex information.
+	* Make sure this index does not conflict with the Lightmap UV Index.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StaticMesh")
 	int32 UVChannel = 1;
 
 	// ------------------------------------------------------
 	// Texture
 
+	/**
+	* Max resolution of the texture.
+	* A smaller size will be used if the data fits.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
 	int32 MaxHeight = 4096;
 
+	/**
+	* Max resolution of the texture.
+	* A smaller size will be used if the data fits.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
 	int32 MaxWidth = 4096;
 
+	/**
+	* Enforce Power Of Two on texture resolutions.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
 	bool bEnforcePowerOfTwo = false;
 
+	/**
+	* Storage Mode.
+	* Vertex: will store per-vertex position and normal.
+	* Bone: Will store per-bone position and rotation and per-vertex bone weight. 
+	        This is the preferred method if meshes share skeleton.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
 	EAnimToTextureMode Mode;
 
+	/**
+	* Texture for storing vertex positions
+	* This is only used on Vertex Mode
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Vertex", meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex"))
 	TSoftObjectPtr<UTexture2D> VertexPositionTexture;
 
+	/**
+	* Texture for storing vertex normals
+	* This is only used on Vertex Mode
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Vertex", meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex"))
 	TSoftObjectPtr<UTexture2D> VertexNormalTexture;
 
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
-	// EAnimToTextureNumInfluences NumInfluences;
-	
+	/**
+	* Texture Precision for: BonePosition and BoneRotations.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
+	EAnimToTextureBonePrecision BonePrecision = EAnimToTextureBonePrecision::EightBits;
+
+	/**
+	* Texture for storing bone positions
+	* This is only used on Bone Mode
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
 	TSoftObjectPtr<UTexture2D> BonePositionTexture;
 
+	/**
+	* Texture for storing bone rotations
+	* This is only used on Bone Mode
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
 	TSoftObjectPtr<UTexture2D> BoneRotationTexture;
 
+	/**
+	* Texture for storing vertex/bone weighting
+	* This is only used on Bone Mode
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
 	TSoftObjectPtr<UTexture2D> BoneWeightTexture;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
-	EAnimToTextureBonePrecision PositionAndRotationPrecision = EAnimToTextureBonePrecision::EightBits;
-	
 	// ------------------------------------------------------
 	// Animation
 
-	 /** This Mesh will be used as LeaderPose. Animations must use same Skeleton than this SkeletalMesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
-	TSoftObjectPtr<USkeletalMesh> LeaderSkeletalMesh;
-
-	/** Bone used for Rigid Binding. The bone needs to be part of the RawBones. 
-	*   Sockets and VirtualBones are not supported.
+	/** 
+	* Bone used for Rigid Binding. The bone needs to be part of the RawBones. 
+	* Sockets and VirtualBones are not supported.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
 	FName AttachToSocket;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
-	TSubclassOf<UAnimInstance> AnimInstanceClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	float SampleRate = 30.0f;
@@ -311,7 +308,6 @@ public:
 
 	AnimToTextureDataAsset_ASSET_ACCESSOR(UStaticMesh, StaticMesh);
 	AnimToTextureDataAsset_ASSET_ACCESSOR(USkeletalMesh, SkeletalMesh);
-	AnimToTextureDataAsset_ASSET_ACCESSOR(USkeletalMesh, LeaderSkeletalMesh);
 	AnimToTextureDataAsset_ASSET_ACCESSOR(UTexture2D, VertexPositionTexture);
 	AnimToTextureDataAsset_ASSET_ACCESSOR(UTexture2D, VertexNormalTexture);
 	AnimToTextureDataAsset_ASSET_ACCESSOR(UTexture2D, BonePositionTexture);
@@ -323,9 +319,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = Default, meta = (DisplayName = "Get Skeletal Mesh"))
 	USkeletalMesh* BP_GetSkeletalMesh() { return GetSkeletalMesh(); }
-
-	UFUNCTION(BlueprintPure, Category = Default, meta = (DisplayName = "Get Leader Skeletal Mesh"))
-	USkeletalMesh* BP_GetLeaderSkeletalMesh() { return GetLeaderSkeletalMesh(); }
 
 	UFUNCTION(BlueprintPure, Category = Default, meta = (DisplayName = "Get Bone Position Texture"))
 	UTexture2D* BP_GetBonePositionTexture() { return GetBonePositionTexture(); }
@@ -340,19 +333,17 @@ public:
 FORCEINLINE void UAnimToTextureDataAsset::Reset()
 {
 	// Common Info.
-	//this->NumVertices = 0;
 	this->NumFrames = 0;
 	this->Animations.Reset();
 
 	// Vertex Info
 	this->VertexRowsPerFrame = 1;
-	this->VertexMinBBox = FVector::ZeroVector; // { TNumericLimits<float>::Max(), TNumericLimits<float>::Max(), TNumericLimits<float>::Max() };
+	this->VertexMinBBox = FVector::ZeroVector;
 	this->VertexSizeBBox = FVector::ZeroVector;
 
 	// Bone Info
-	//this->NumBones = 0;
 	this->BoneRowsPerFrame = 1;
 	this->BoneWeightRowsPerFrame = 1;
-	this->BoneMinBBox = FVector::ZeroVector;  // { TNumericLimits<float>::Max(), TNumericLimits<float>::Max(), TNumericLimits<float>::Max() };
+	this->BoneMinBBox = FVector::ZeroVector; 
 	this->BoneSizeBBox = FVector::ZeroVector;
 };

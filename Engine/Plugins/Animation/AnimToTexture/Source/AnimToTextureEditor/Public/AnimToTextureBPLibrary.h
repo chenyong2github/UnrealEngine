@@ -26,33 +26,33 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 
 	/**
 	* Bakes Animation Data into Textures.
-	* Position & Normals.
 	*/
-	UFUNCTION(BlueprintCallable, meta = (Category = "Vertex Animation"))
-	static void AnimationToTexture(UAnimToTextureDataAsset* DataAsset,
-		const FTransform RootTransform, const bool bCreateTextures=true, const bool bCreateUVChannel=true);
+	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
+	static void AnimationToTexture(UAnimToTextureDataAsset* DataAsset, const FTransform RootTransform);
 
-	/* Utility for converting SkeletalMesh into a StaticMesh */
-	UFUNCTION(BlueprintCallable, Category = "Vertex Animation")
+	/** 
+	* Utility for converting SkeletalMesh into a StaticMesh
+	*/
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture")
 	static UStaticMesh* ConvertSkeletalMeshToStaticMesh(USkeletalMesh* SkeletalMesh, const FString PackageName, const int32 LODIndex = -1);
 
 	/**
 	* Updates a material's parameters to match those of an animToTexture data asset
 	*/
-	UFUNCTION(BlueprintCallable, meta = (Category = "Vertex Animation"))
+	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
 	static void UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, class UMaterialInstanceConstant* MaterialInstance, 
 		const FAnimToTextureMaterialParamNames& ParamNames, const EMaterialParameterAssociation MaterialParameterAssociation = EMaterialParameterAssociation::GlobalParameter);
 
 	/**
 	 * Replaces material layer function
 	 */
-	UFUNCTION(BlueprintCallable, meta = (Category = "Vertex Animation"))
+	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
 	static void UpdateMaterialLayerFunction(
 		class UMaterialInstanceConstant* MaterialInstance, 
 		class UMaterialFunctionInterface* OldMaterialFunction, 
 		class UMaterialFunctionInterface* NewMaterialFunction);
 
-	UFUNCTION(BlueprintCallable, meta = (Category = "Vertex Animation"))
+	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
 	static void SetStaticMeshBoundsExtensions(UStaticMesh* StaticMesh, const FVector& PositiveBoundsExtension, const FVector& NegativeBoundsExtension);
 
 #endif // WITH_EDITOR

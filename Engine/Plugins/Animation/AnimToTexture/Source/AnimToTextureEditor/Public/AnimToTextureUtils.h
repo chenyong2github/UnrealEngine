@@ -61,8 +61,6 @@ namespace AnimToTexture_Private
 	template<class V /* FVector / FVector4 / FIntVector */, class C /* FColor / FLinearColor */>
 	void VectorToColor(const V& Vector, C& Color);
 	
-	//template<class C /* FColor / FLinearColor */, class T /* uint8 / float */>
-	//void ColorArrayToData(const TArray<C>& Colors, TArray<T>& Data);
 }
 
 // ----------------------------------------------------------------------------
@@ -163,40 +161,6 @@ FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4& Vector, FV
 	Color.Z = FMath::RoundToInt(FMath::Clamp(Vector.Z, 0.0f, 1.0f) * MAX_uint16);
 	Color.W = FMath::RoundToInt(FMath::Clamp(Vector.W, 0.0f, 1.0f) * MAX_uint16);
 }
-
-/*
-template<>
-FORCEINLINE void AnimToTexture_Private::ColorArrayToData(const TArray<FColor>& Colors, TArray<uint8>& Data)
-{
-	// Resize Array
-	Data.Init(0, Colors.Num() * 4);
-
-	for (int32 Index = 0; Index < Colors.Num(); ++Index)
-	{
-		// NOTE: format is BGRA (swaping R <-> B)
-		Data[Index * 4 + 0] = Colors[Index].B; // B
-		Data[Index * 4 + 1] = Colors[Index].G; // G
-		Data[Index * 4 + 2] = Colors[Index].R; // R
-		Data[Index * 4 + 3] = Colors[Index].A; // A
-	}
-}
-
-template<>
-FORCEINLINE void AnimToTexture_Private::ColorArrayToData(const TArray<FLinearColor>& Colors, TArray<float>& Data)
-{
-	// Resize Array
-	Data.Init(0.0f, Colors.Num() * 4);
-
-	for (int32 Index = 0; Index < Colors.Num(); ++Index)
-	{
-		// NOTE: format is RGBA
-		Data[Index * 4 + 0] = Colors[Index].R; // R
-		Data[Index * 4 + 1] = Colors[Index].G; // G
-		Data[Index * 4 + 2] = Colors[Index].B; // B
-		Data[Index * 4 + 3] = Colors[Index].A; // A
-	}
-}
-*/
 
 
 template<class V, class TextureSettings>
