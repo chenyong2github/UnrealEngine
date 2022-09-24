@@ -106,8 +106,6 @@ bool FAssetBundleEntry::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 		return false;
 	}
 
-	UScriptStruct* TopLevelAssetPathStruct = TBaseStructure<FTopLevelAssetPath>::Get();
-	static const FString TopLevelPathStructName = TopLevelAssetPathStruct->GetName(); 
 	FOutputDeviceNull SilenceErrors;
 	bool bBundleAssetsSeen = false;
 	bool bAssetPathsSeen = false;
@@ -173,13 +171,14 @@ bool FAssetBundleEntry::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 
 			// Try multiple formats to parse our list of FTopLevelAssetPaths
 			//     - the native export converts FTopLevelAssetPaths to FSoftObjectPaths and exports the FSoftObjectPaths as strings
-			//     - the default export path (activated when defaults is not null) exports FTopLevelAssetpaths as formatted structs
+			//     - the default export path (activated when defaults is not null) delegates to FTopLevelAssetPath
 			FSoftObjectPath TempObjectPath;
 			FTopLevelAssetPath TempTopLevelPath;
 			while (true)
 			{
 				TempObjectPath.Reset();
-				// Import string e.g. /Path/To/Package.AssetName
+				TempTopLevelPath.Reset();
+				// FSoftObjectPath format 
 				if (TempObjectPath.ImportTextItem(BufferIt, PortFlags, Parent, &SilenceErrors))
 				{
 					if (!TempObjectPath.GetSubPathString().IsEmpty())
@@ -191,18 +190,15 @@ bool FAssetBundleEntry::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 					}
 					LocalObjectPaths.Emplace(MoveTemp(TempObjectPath));
 				}
-				else
+				// FTopLevelAssetPath's native ExportText will export a string that can also be parsed by FSoftObjectPath so this won't be called unless some stale data is in structured text form
+				else if(TempTopLevelPath.ImportTextItem(BufferIt, PortFlags, Parent, &SilenceErrors))
 				{
-					// Import formatted struct e.g. (PackageName="/Path/To/Package", AssetName="AssetName")
-					TempTopLevelPath.Reset();
-					const TCHAR* NewBuffer = TopLevelAssetPathStruct->ImportText(BufferIt, &TempTopLevelPath, Parent, PortFlags, &SilenceErrors, TopLevelPathStructName);;
-					if (!NewBuffer)
-					{
-						ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - unterminated or ill formed AssetPaths list while importing asset bundle entry: '%s'. When parsing import text '%s'."), BufferIt, Buffer);
-						break;
-					}
-					BufferIt = NewBuffer;
 					LocalObjectPaths.Emplace(TempTopLevelPath);
+				}
+				else
+				{					
+					ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - unterminated or ill formed AssetPaths list while importing asset bundle entry: '%s'. When parsing import text '%s'."), BufferIt, Buffer);
+					return false;
 				}
 
 				if (*BufferIt == ',')
