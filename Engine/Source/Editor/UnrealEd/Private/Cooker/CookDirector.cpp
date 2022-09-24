@@ -21,7 +21,7 @@
 #include "SocketSubsystem.h"
 #include "String/ParseTokens.h"
 
-CORE_API int32 GNumForegroundWorkers; // TaskGraph.cpp
+extern CORE_API int32 GNumForegroundWorkers; // TaskGraph.cpp
 
 namespace UE::Cook
 {
