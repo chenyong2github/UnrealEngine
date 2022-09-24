@@ -347,7 +347,7 @@ protected:
 	FVector2f GetAlignmentPointFromUDIMAndDirection(EUVEditorAlignDirectionBackend Direction, FVector2i UDIMTile);
 	void RebuildBoundingBoxes();
 	void CollectTransformElements();
-	void SortComponentsByBoundingBox();
+	void SortComponentsByBoundingBox(bool bSortXThenY = true);
 
 	TMap<int32, int32> ElementToComponent;
 	FDynamicMeshUVOverlay* ActiveUVLayer;
