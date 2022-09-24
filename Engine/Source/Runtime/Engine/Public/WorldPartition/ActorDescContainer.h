@@ -35,8 +35,10 @@ public:
 		/* The long package name of the container package on disk. */
 		FName PackageName;
 
+#if WITH_EDITOR
 		/* Custom filter function used to filter actors descriptors. */
 		TUniqueFunction<bool(const FWorldPartitionActorDesc*)> FilterActorDesc;
+#endif
 	};
 
 	UE_DEPRECATED(5.1, "UActorDescContainer::Initialize is deprecated, UActorDescContainer::Initialize with UActorDescContainer::FInitializeParams should be used instead.")
