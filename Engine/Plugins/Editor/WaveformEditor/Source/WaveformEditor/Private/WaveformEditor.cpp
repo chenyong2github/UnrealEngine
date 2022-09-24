@@ -86,15 +86,22 @@ void FWaveformEditor::AddDefaultTransformations()
 		const UWaveformEditorTransformationsSettings* TransformationsSettings = GetWaveformEditorTransformationsSettings();
 		for (const TSubclassOf<UWaveformTransformationBase> TransformationClass : TransformationsSettings->LaunchTransformations)
 		{
-			EObjectFlags MaskedOuterFlags = SoundWave ? SoundWave->GetMaskedFlags(RF_PropagateToSubObjects) : RF_NoFlags;
-
-			if (SoundWave->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+			if (TransformationClass)
 			{
-				MaskedOuterFlags |= RF_ArchetypeObject;
-			}
+				EObjectFlags MaskedOuterFlags = SoundWave ? SoundWave->GetMaskedFlags(RF_PropagateToSubObjects) : RF_NoFlags;
 
-			UWaveformTransformationBase* TransformationToAdd = NewObject<UWaveformTransformationBase>(SoundWave, TransformationClass.Get(), NAME_None, MaskedOuterFlags);
-			SoundWave->Transformations.Add(TransformationToAdd);
+				if (SoundWave->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+				{
+					MaskedOuterFlags |= RF_ArchetypeObject;
+				}
+
+				UWaveformTransformationBase* TransformationToAdd = NewObject<UWaveformTransformationBase>(SoundWave, TransformationClass.Get(), NAME_None, MaskedOuterFlags);
+				SoundWave->Transformations.Add(TransformationToAdd);
+			}
+			else
+			{
+				SoundWave->Transformations.Add(nullptr);
+			}
 		}
 	}
 }
