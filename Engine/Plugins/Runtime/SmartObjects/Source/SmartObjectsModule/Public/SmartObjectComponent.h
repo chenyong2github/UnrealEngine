@@ -37,6 +37,7 @@ protected:
 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual void BeginPlay() override;
 
 	void RegisterToSubsystem();
 

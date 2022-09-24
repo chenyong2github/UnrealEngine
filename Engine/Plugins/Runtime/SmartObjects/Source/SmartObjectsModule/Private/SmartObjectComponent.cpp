@@ -100,6 +100,27 @@ void USmartObjectComponent::OnUnregister()
 	ensureMsgf(!bInstanceTagsDelegateBound, TEXT("SmartObject runtime instance delegate is expected to be unbound after unregistration"));
 }
 
+void USmartObjectComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	/*
+	 * Ability system components can be sometimes added after the call to OnRuntimeInstanceCreated() or OnRuntimeInstanceBound().
+	 * This code attempts handle the case that the ability component was not read at the right time.
+	 * @todo: validate that this logic is correct.
+	*/
+	if (!bInstanceTagsDelegateBound)
+	{
+		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
+		{
+			if (FSmartObjectRuntime* RuntimeInstance = Subsystem->GetRuntimeInstance(RegisteredHandle))
+			{
+				OnRuntimeInstanceBound(*RuntimeInstance);
+			}
+		}
+	}
+}
+
 FBox USmartObjectComponent::GetSmartObjectBounds() const
 {
 	FBox BoundingBox(ForceInitToZero);
