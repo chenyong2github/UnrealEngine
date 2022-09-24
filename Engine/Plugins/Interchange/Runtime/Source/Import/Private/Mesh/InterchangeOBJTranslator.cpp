@@ -273,7 +273,7 @@ FMeshDescription FObjData::MakeMeshDescriptionForGroup(const FString& GroupName)
 	}
 
 	// Create UVs and initialize values
-
+	MeshDescription.SetNumUVChannels(1);
 	if (UVIndexMapping.Num() > 0)
 	{
 		const int32 UVChannel = 0;
