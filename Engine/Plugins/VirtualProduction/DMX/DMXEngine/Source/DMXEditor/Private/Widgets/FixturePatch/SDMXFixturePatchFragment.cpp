@@ -46,14 +46,15 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, const TShared
 	if (bIsText)
 	{
 		SAssignNew(ContentBorder, SBorder)
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
-			.Padding(FMargin(3.0f, 2.0f, 0.f, 1.0f))
 			.Visibility(EVisibility::SelfHitTestInvisible);
 	}
 	else
 	{
 		SAssignNew(ContentBorder, SBorder)
+			.Padding(1.f)
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Visibility(EVisibility::SelfHitTestInvisible)
@@ -91,13 +92,14 @@ void SDMXFixturePatchFragment::Construct(const FArguments& InArgs, const TShared
 				})
 			[
 				SNew(SBorder)
+				.Padding(1.f)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				.Visibility(EVisibility::SelfHitTestInvisible)
 				.BorderImage(&GetBorderImage())
 				.BorderBackgroundColor_Lambda([this]()
 					{
-						return bHighlight ? FLinearColor(1.f, 1.f, 1.0f) : FLinearColor(.2f, .2f, .2f);
+						return bHighlight ? FLinearColor(.8f, .8f, .8f) : FLinearColor(.2f, .2f, .2f);
 					})
 				[	
 					ContentBorder.ToSharedRef()
@@ -215,19 +217,19 @@ const FSlateBrush& SDMXFixturePatchFragment::GetBorderImage() const
 	}
 	else if (bIsHead && bIsTail)
 	{
-		BorderImage = FCoreStyle::Get().GetBrush("Border");
+		BorderImage = FDMXEditorStyle::Get().GetBrush("FixturePatcher.FragmentBorder.Normal");
 	}
 	else if (bIsHead)
 	{
-		BorderImage = FAppStyle::GetBrush("Profiler.EventGraph.Border.L");
+		BorderImage = FDMXEditorStyle::Get().GetBrush("FixturePatcher.FragmentBorder.L");
 	}
 	else if (bIsTail)
 	{
-		BorderImage = FAppStyle::GetBrush("Profiler.EventGraph.Border.R");
+		BorderImage = FDMXEditorStyle::Get().GetBrush("FixturePatcher.FragmentBorder.R");
 	}
 	else
 	{
-		BorderImage = FAppStyle::GetBrush("Profiler.EventGraph.Border.TB");
+		BorderImage = FDMXEditorStyle::Get().GetBrush("FixturePatcher.FragmentBorder.TB");
 	}
 	check(BorderImage);
 
