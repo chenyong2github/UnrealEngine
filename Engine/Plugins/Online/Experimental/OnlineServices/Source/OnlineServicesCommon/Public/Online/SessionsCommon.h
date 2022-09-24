@@ -205,28 +205,6 @@ struct FGetMutableSessionById
 	};
 };
 
-struct FUpdateSessionSettingsImpl
-{
-	static constexpr TCHAR Name[] = TEXT("UpdateSessionSettingsImpl");
-
-	struct Params
-	{
-		/** The local user agent which will perform the action. */
-		FAccountId LocalAccountId;
-
-		/** The local name for the session */
-		FName SessionName;
-
-		/** Changes to current session settings */
-		FSessionSettingsUpdate Mutations;
-	};
-
-	struct Result
-	{
-
-	};
-};
-
 class ONLINESERVICESCOMMON_API FSessionsCommon : public TOnlineComponent<ISessions>
 {
 public:
@@ -266,6 +244,7 @@ public:
 	virtual TOnlineEvent<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested() override;
 
 protected:
+	// Auxiliary methods
 	TOnlineResult<FGetMutableSessionByName> GetMutableSessionByName(FGetMutableSessionByName::Params&& Params) const;
 	TOnlineResult<FGetMutableSessionById> GetMutableSessionById(FGetMutableSessionById::Params&& Params) const;
 
@@ -279,40 +258,66 @@ protected:
 
 	FSessionUpdate BuildSessionUpdate(const TSharedRef<FSessionCommon>& Session, const FSessionSettingsUpdate& UpdatedValues) const;
 
-	virtual TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params);
-	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
-	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
+	// FSessionsCommon internal interface
 
-	FOnlineError CheckCreateSessionParams(const FCreateSession::Params& Params);
-	FOnlineError CheckCreateSessionState(const FCreateSession::Params& Params);
+	virtual TFuture<TOnlineResult<FCreateSession>> CreateSessionImpl(const FCreateSession::Params& Params);
 
-	FOnlineError CheckUpdateSessionSettingsParams(const FUpdateSessionSettings::Params& Params);
-	FOnlineError CheckUpdateSessionSettingsState(const FUpdateSessionSettings::Params& Params);
+	virtual TFuture<TOnlineResult<FUpdateSessionSettings>> UpdateSessionSettingsImpl(const FUpdateSessionSettings::Params& Params);
 
-	FOnlineError CheckFindSessionsParams(const FFindSessions::Params& Params);
-	FOnlineError CheckFindSessionsState(const FFindSessions::Params& Params);
+	virtual TFuture<TOnlineResult<FLeaveSession>> LeaveSessionImpl(const FLeaveSession::Params& Params);
 
-	FOnlineError CheckStartMatchmakingParams(const FStartMatchmaking::Params& Params);
-	FOnlineError CheckStartMatchmakingState(const FStartMatchmaking::Params& Params);
+	virtual TFuture<TOnlineResult<FFindSessions>> FindSessionsImpl(const FFindSessions::Params& Params);
 
-	FOnlineError CheckJoinSessionParams(const FJoinSession::Params& Params);
-	FOnlineError CheckJoinSessionState(const FJoinSession::Params& Params);
+	virtual TFuture<TOnlineResult<FStartMatchmaking>> StartMatchmakingImpl(const FStartMatchmaking::Params& Params);
 
-	FOnlineError CheckAddSessionMemberState(const FAddSessionMember::Params& Params);
+	virtual TFuture<TOnlineResult<FJoinSession>> JoinSessionImpl(const FJoinSession::Params& Params);
 
-	FOnlineError CheckRemoveSessionMemberState(const FRemoveSessionMember::Params& Params);
+	virtual TFuture<TOnlineResult<FAddSessionMember>> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
+	TOnlineResult<FAddSessionMember> AddSessionMemberInternal(const FAddSessionMember::Params& Params);
 
-	FOnlineError CheckLeaveSessionState(const FLeaveSession::Params& Params);
+	virtual TFuture<TOnlineResult<FRemoveSessionMember>> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
+	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberInternal(const FRemoveSessionMember::Params& Params);
 
-	FOnlineError CheckSendSessionInviteState(const FSendSessionInvite::Params& Params);
+	virtual TFuture<TOnlineResult<FSendSessionInvite>> SendSessionInviteImpl(const FSendSessionInvite::Params& Params);
 
-	FOnlineError CheckRejectSessionInviteState(const FRejectSessionInvite::Params& Params);
+	virtual TFuture<TOnlineResult<FRejectSessionInvite>> RejectSessionInviteImpl(const FRejectSessionInvite::Params& Params);
 
 private:
-	TOptional<FOnlineError> CheckSessionExistsByName(const FAccountId& LocalAccountId, const FName& SessionName);
+	template<typename MethodStruct>
+	TOnlineAsyncOpHandle<MethodStruct> ExecuteAsyncSessionsMethod(typename MethodStruct::Params&& Params, TFuture<TOnlineResult<MethodStruct>>(FSessionsCommon::* ImplFunc)(const typename MethodStruct::Params& Params));
 
 	void ClearSessionByName(const FName& SessionName);
 	void ClearSessionById(const FOnlineSessionId& SessionId);
+
+	TOptional<FOnlineError> CheckParams(const FCreateSession::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FCreateSession::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FUpdateSessionSettings::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FUpdateSessionSettings::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FLeaveSession::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FLeaveSession::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FFindSessions::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FFindSessions::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FStartMatchmaking::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FStartMatchmaking::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FJoinSession::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FJoinSession::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FAddSessionMember::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FAddSessionMember::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FRemoveSessionMember::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FRemoveSessionMember::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FSendSessionInvite::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FSendSessionInvite::Params& Params) const;
+
+	TOptional<FOnlineError> CheckParams(const FRejectSessionInvite::Params& Params) const;
+	TOptional<FOnlineError> CheckState(const FRejectSessionInvite::Params& Params) const;
 
 protected:
 
@@ -341,7 +346,7 @@ protected:
 	TMap<FAccountId, TArray<FOnlineSessionId>> SearchResultsUserMap;
 
 	/** Handle for an ongoing session search operation, mapped per user */
-	TMap<FAccountId, TSharedRef<TOnlineAsyncOp<FFindSessions>>> CurrentSessionSearchHandlesUserMap;
+	TMap<FAccountId, TPromise<TOnlineResult<FFindSessions>>> CurrentSessionSearchPromisesUserMap;
 
 	/** Set of every distinct FSession found, indexed by Id */
 	TMap<FOnlineSessionId, TSharedRef<FSessionCommon>> AllSessionsById;
@@ -363,15 +368,6 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetMutableSessionById::Result)
 	ONLINE_STRUCT_FIELD(FGetMutableSessionById::Result, Session)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FUpdateSessionSettingsImpl::Params)
-	ONLINE_STRUCT_FIELD(FUpdateSessionSettingsImpl::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FUpdateSessionSettingsImpl::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FUpdateSessionSettingsImpl::Params, Mutations)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FUpdateSessionSettingsImpl::Result)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

@@ -393,68 +393,42 @@ void FSessionsOSSAdapter::Shutdown()
 	Super::Shutdown();
 }
 
-TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateSession::Params&& Params)
+TFuture<TOnlineResult<FCreateSession>> FSessionsOSSAdapter::CreateSessionImpl(const FCreateSession::Params& Params)
 {
-	TOnlineAsyncOpRef<FCreateSession> Op = GetOp<FCreateSession>(MoveTemp(Params));
-	const FCreateSession::Params& OpParams = Op->GetParams();
 
-	FOnlineError ParamsCheck = CheckCreateSessionParams(OpParams);
-	if (ParamsCheck != Errors::Success())
+	TPromise<TOnlineResult<FCreateSession>> Promise;
+	TFuture<TOnlineResult<FCreateSession>> Future = Promise.GetFuture();
+
+	// Dedicated servers can update sessions so we won't check if LocalAccountId is valid
+	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
+
+	MakeMulticastAdapter(this, SessionsInterface->OnCreateSessionCompleteDelegates,
+	[this, Promise = MoveTemp(Promise), Params](FName SessionName, const bool bWasSuccessful) mutable
 	{
-		Op->SetError(MoveTemp(ParamsCheck));
-		return Op->GetHandle();
-	}
-
-	Op->Then([this](TOnlineAsyncOp<FCreateSession>& Op)
-	{
-		const FCreateSession::Params& OpParams = Op.GetParams();
-
-		FOnlineError StateCheck = CheckCreateSessionState(OpParams);
-		if (StateCheck != Errors::Success())
+		if (!bWasSuccessful)
 		{
-			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue(Errors::Unknown());
 			return;
 		}
 
-		// Dedicated servers can update sessions so we won't check if LocalAccountId is valid
-		const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(OpParams.LocalAccountId).ToSharedRef();
+		const FNamedOnlineSession* V1Session = SessionsInterface->GetNamedSession(SessionName);
 
-		MakeMulticastAdapter(this, SessionsInterface->OnCreateSessionCompleteDelegates,
-		[this, WeakOp = Op.AsWeak()](FName SessionName, const bool bWasSuccessful) mutable
-		{
-			if (TOnlineAsyncOpPtr<FCreateSession> Op = WeakOp.Pin())
-			{
-				if (!bWasSuccessful)
-				{
-					Op->SetError(Errors::Unknown());
-					return;
-				}
+		TSharedRef<FSessionCommon> V2Session = BuildV2Session(V1Session);
 
-				const FCreateSession::Params& OpParams = Op->GetParams();
+		AddSessionWithReferences(V2Session, Params.SessionName, Params.LocalAccountId, Params.bPresenceEnabled);
 
-				const FNamedOnlineSession* V1Session = SessionsInterface->GetNamedSession(SessionName);
+		Promise.EmplaceValue(FCreateSession::Result{ });
+	});
 
-				TSharedRef<FSessionCommon> V2Session = BuildV2Session(V1Session);
+	SessionsInterface->CreateSession(*LocalAccountId, Params.SessionName, BuildV1SettingsForCreate(Params));
 
-				AddSessionWithReferences(V2Session, OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
-
-				Op->SetResult({ });
-			}
-		});
-
-		SessionsInterface->CreateSession(*LocalAccountId, OpParams.SessionName, BuildV1SettingsForCreate(OpParams));
-
-		// TODO: Pending support for multiple local users
-	})
-	.Enqueue(GetSerialQueue());
-
-	return Op->GetHandle();
+	return Future;
 }
 
-TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> FSessionsOSSAdapter::UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params)
+TFuture<TOnlineResult<FUpdateSessionSettings>> FSessionsOSSAdapter::UpdateSessionSettingsImpl(const FUpdateSessionSettings::Params& Params)
 {
-	TPromise<TOnlineResult<FUpdateSessionSettingsImpl>> Promise;
-	TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> Future = Promise.GetFuture();
+	TPromise<TOnlineResult<FUpdateSessionSettings>> Promise;
+	TFuture<TOnlineResult<FUpdateSessionSettings>> Future = Promise.GetFuture();
 
 	MakeMulticastAdapter(this, SessionsInterface->OnUpdateSessionCompleteDelegates,
 	[this, Promise = MoveTemp(Promise), OpParams = Params](FName SessionName, const bool bWasSuccessful) mutable
@@ -476,7 +450,7 @@ TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> FSessionsOSSAdapter::UpdateSe
 			(*FoundSession) += SessionUpdateData;
 
 			// We set the result and fire the event
-			Promise.EmplaceValue(FUpdateSessionSettingsImpl::Result{ });
+			Promise.EmplaceValue(FUpdateSessionSettings::Result{ });
 
 			FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, SessionUpdateData };
 			SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
@@ -505,562 +479,413 @@ TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> FSessionsOSSAdapter::UpdateSe
 	return Future;
 }
 
-TOnlineAsyncOpHandle<FLeaveSession> FSessionsOSSAdapter::LeaveSession(FLeaveSession::Params&& Params)
+TFuture<TOnlineResult<FLeaveSession>> FSessionsOSSAdapter::LeaveSessionImpl(const FLeaveSession::Params& Params)
 {
-	TOnlineAsyncOpRef<FLeaveSession> Op = GetOp<FLeaveSession>(MoveTemp(Params));
-	const FLeaveSession::Params& OpParams = Op->GetParams();
+	TPromise<TOnlineResult<FLeaveSession>> Promise;
+	TFuture<TOnlineResult<FLeaveSession>> Future = Promise.GetFuture();
 
-	Op->Then([this](TOnlineAsyncOp<FLeaveSession>& Op)
+	MakeMulticastAdapter(this, SessionsInterface->OnDestroySessionCompleteDelegates,
+	[this, Promise = MoveTemp(Promise), Params](FName SessionName, const bool bWasSuccessful) mutable
 	{
-		const FLeaveSession::Params& OpParams = Op.GetParams();
-
-		FOnlineError StateCheck = CheckLeaveSessionState(OpParams);
-		if (StateCheck != Errors::Success())
+		if (!bWasSuccessful)
 		{
-			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue(Errors::Unknown());
+			SessionsInterface->ClearOnDestroySessionCompleteDelegates(this);
 			return;
 		}
 
-		MakeMulticastAdapter(this, SessionsInterface->OnDestroySessionCompleteDelegates,
-		[this, WeakOp = Op.AsWeak()](FName SessionName, const bool bWasSuccessful) mutable
+		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
+		if (GetSessionByNameResult.IsOk())
 		{
-			if (TOnlineAsyncOpPtr<FLeaveSession> Op = WeakOp.Pin())
-			{
-				if (!bWasSuccessful)
-				{
-					Op->SetError(Errors::Unknown());
-					SessionsInterface->ClearOnDestroySessionCompleteDelegates(this);
-					return;
-				}
+			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-				const FLeaveSession::Params& OpParams = Op->GetParams();
+			ClearSessionReferences(FoundSession->GetSessionId(), Params.SessionName, Params.LocalAccountId);
 
-				TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ OpParams.SessionName });
-				if (GetSessionByNameResult.IsOk())
-				{
-					TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+			Promise.EmplaceValue(FLeaveSession::Result{ });
 
-					ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId);
-				}
+			FSessionLeft SessionLeftEvent;
+			SessionLeftEvent.LocalAccountId = Params.LocalAccountId;
 
-				Op->SetResult({ });
+			SessionEvents.OnSessionLeft.Broadcast(SessionLeftEvent);
+		}
+		else
+		{
+			Promise.EmplaceValue(GetSessionByNameResult.GetErrorValue());
+		}
+	});
 
-				FSessionLeft SessionLeftEvent;
-				SessionLeftEvent.LocalAccountId = Op->GetParams().LocalAccountId;
+	SessionsInterface->DestroySession(Params.SessionName);
 
-				SessionEvents.OnSessionLeft.Broadcast(SessionLeftEvent);
-			}
-
-			SessionsInterface->ClearOnDestroySessionCompleteDelegates(this);
-		});
-
-		SessionsInterface->DestroySession(OpParams.SessionName);
-
-		// TODO: Pending support for multiple local users
-	})
-	.Enqueue(GetSerialQueue());
-
-	return Op->GetHandle();
+	return Future;
 }
 
-TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessions::Params&& Params)
+TFuture<TOnlineResult<FFindSessions>> FSessionsOSSAdapter::FindSessionsImpl(const FFindSessions::Params& Params)
 {
-	TOnlineAsyncOpRef<FFindSessions> Op = GetOp<FFindSessions>(MoveTemp(Params));
-	const FFindSessions::Params& OpParams = Op->GetParams();
+	TPromise<TOnlineResult<FFindSessions>> Promise;
+	TFuture<TOnlineResult<FFindSessions>> Future = Promise.GetFuture();
 
-	FOnlineError ParamsCheck = CheckFindSessionsParams(OpParams);
-	if (ParamsCheck != Errors::Success())
+	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
+	if (!LocalAccountId->IsValid())
 	{
-		Op->SetError(MoveTemp(ParamsCheck));
-		return Op->GetHandle();
+		Promise.EmplaceValue(Errors::InvalidUser());
+		return Future;
 	}
 
-	Op->Then([this](TOnlineAsyncOp<FFindSessions>& Op)
+	if (PendingV1SessionSearchesPerUser.Contains(Params.LocalAccountId))
 	{
-		const FFindSessions::Params& OpParams = Op.GetParams();
+		Promise.EmplaceValue(Errors::AlreadyPending());
+		return Future;
+	}
 
-		FOnlineError StateCheck = CheckFindSessionsState(OpParams);
-		if (StateCheck != Errors::Success())
-		{
-			Op.SetError(MoveTemp(StateCheck));
-			return;
-		}
+	// Before we start the search, we reset the cache and save the promise
+	SearchResultsUserMap.FindOrAdd(Params.LocalAccountId).Reset();
+	CurrentSessionSearchPromisesUserMap.Emplace(Params.LocalAccountId, MoveTemp(Promise));
 
-		const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(OpParams.LocalAccountId).ToSharedRef();
-		if (!LocalAccountId->IsValid())
+	if (Params.SessionId.IsSet())
+	{
+		if (const FUniqueNetIdPtr SessionIdPtr = GetSessionIdRegistry().GetIdValue(*Params.SessionId))
 		{
-			Op.SetError(Errors::InvalidUser());
-			return;
-		}
+			const FUniqueNetIdRef SessionIdRef = SessionIdPtr.ToSharedRef();
 
-		if (PendingV1SessionSearchesPerUser.Contains(OpParams.LocalAccountId))
-		{
-			Op.SetError(Errors::AlreadyPending());
-			return;
-		}
-
-		// If there is a target user, we will use FindFriendSession
-		if (OpParams.SessionId.IsSet())
-		{
-			if (const FUniqueNetIdPtr SessionIdPtr = GetSessionIdRegistry().GetIdValue(*OpParams.SessionId))
+			MakeMulticastAdapter(this, SessionsInterface->OnFindSessionsCompleteDelegates,
+			[this, Params](bool bWasSuccessful)
 			{
-				const FUniqueNetIdRef SessionIdRef = SessionIdPtr.ToSharedRef();
+				TPromise<TOnlineResult<FFindSessions>>& Promise = CurrentSessionSearchPromisesUserMap.FindChecked(Params.LocalAccountId);
 
-				MakeMulticastAdapter(this, SessionsInterface->OnFindSessionsCompleteDelegates,
-				[this, WeakOp = Op.AsWeak()](bool bWasSuccessful)
+				if (bWasSuccessful)
 				{
-					if (TOnlineAsyncOpPtr<FFindSessions> Op = WeakOp.Pin())
+					TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Params.LocalAccountId);
+
+					TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(PendingV1SessionSearch->SearchResults);
+					for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
 					{
-						if (bWasSuccessful)
-						{
-							TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Op->GetParams().LocalAccountId);
-
-							TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(PendingV1SessionSearch->SearchResults);
-							for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
-							{
-								AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
-							}
-
-							TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
-							Op->SetResult({ SearchResults });
-						}
-						else
-						{
-							Op->SetError(Errors::Unknown());
-						}
-
-						PendingV1SessionSearchesPerUser.Remove(Op->GetParams().LocalAccountId);
+						AddSearchResult(FoundSession, Params.LocalAccountId);
 					}
-				});
 
-				FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
-
-				FUniqueNetIdRef TargetIdRef = FUniqueNetIdString::EmptyId();
-				if (OpParams.TargetUser.IsSet())
+					TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Params.LocalAccountId);
+					Promise.EmplaceValue(FFindSessions::Result{ SearchResults });
+				}
+				else
 				{
-					TargetIdRef = ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(*OpParams.TargetUser).ToSharedRef();
+					Promise.EmplaceValue(Errors::Unknown());
 				}
 
-				PendingV1SessionSearchesPerUser.Emplace(OpParams.LocalAccountId, MakeShared<FOnlineSessionSearch>());
-
-				SessionsInterface->FindSessionById(*LocalAccountId, *SessionIdRef, *TargetIdRef, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& SingleSearchResult) mutable
-				{
-					if (TOnlineAsyncOpPtr<FFindSessions> Op = WeakOp.Pin())
-					{
-						if (!bWasSuccessful)
-						{
-							Op->SetError(Errors::Unknown());
-							return;
-						}
-
-						TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Op->GetParams().LocalAccountId);
-
-						PendingV1SessionSearch->SearchResults.Add(SingleSearchResult);
-					}
-				}));
-			}
-			else
-			{
-				Op.SetError(Errors::InvalidParams());
-				return;
-			}
-		}
-		else if (OpParams.TargetUser.IsSet())
-		{
-			int32 LocalUserNum = Services.Get<FAuthOSSAdapter>()->GetLocalUserNum(OpParams.LocalAccountId);
-
-			MakeMulticastAdapter(this, SessionsInterface->OnFindFriendSessionCompleteDelegates[LocalUserNum],
-			[this, WeakOp = Op.AsWeak()](int32 LocalAccountId, bool bWasSuccessful, const TArray<FOnlineSessionSearchResult>& FriendSearchResults)
-			{
-				if (TOnlineAsyncOpPtr<FFindSessions> Op = WeakOp.Pin())
-				{
-					if (bWasSuccessful)
-					{
-						TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(FriendSearchResults);
-						for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
-						{
-							AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
-						}
-
-						TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
-						Op->SetResult({ SearchResults });
-					}
-					else
-					{
-						Op->SetError(Errors::Unknown());						
-					}
-
-					PendingV1SessionSearchesPerUser.Remove(Op->GetParams().LocalAccountId);
-				}
+				CurrentSessionSearchPromisesUserMap.Remove(Params.LocalAccountId);
+				PendingV1SessionSearchesPerUser.Remove(Params.LocalAccountId);
 			});
 
 			FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-			TArray<FUniqueNetIdRef> TargetUniqueNetIds = { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(*OpParams.TargetUser).ToSharedRef() };
+			FUniqueNetIdRef TargetIdRef = FUniqueNetIdString::EmptyId();
+			if (Params.TargetUser.IsSet())
+			{
+				TargetIdRef = ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(*Params.TargetUser).ToSharedRef();
+			}
 
-			// The cached search information is not used in this mode, but we'll still update it to not have more than one search at the same time
-			PendingV1SessionSearchesPerUser.Emplace(OpParams.LocalAccountId, MakeShared<FOnlineSessionSearch>());
+			PendingV1SessionSearchesPerUser.Emplace(Params.LocalAccountId, MakeShared<FOnlineSessionSearch>());
 
-			SessionsInterface->FindFriendSession(*LocalAccountId, TargetUniqueNetIds);
+			SessionsInterface->FindSessionById(*LocalAccountId, *SessionIdRef, *TargetIdRef, *MakeDelegateAdapter(this, [this, Params](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& SingleSearchResult) mutable
+			{
+				TPromise<TOnlineResult<FFindSessions>>& Promise = CurrentSessionSearchPromisesUserMap.FindChecked(Params.LocalAccountId);
+
+				if (!bWasSuccessful)
+				{
+					Promise.EmplaceValue(Errors::Unknown());
+					return;
+				}
+
+				TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Params.LocalAccountId);
+
+				PendingV1SessionSearch->SearchResults.Add(SingleSearchResult);
+			}));
 		}
 		else
 		{
-			MakeMulticastAdapter(this, SessionsInterface->OnFindSessionsCompleteDelegates,
-			[this, WeakOp = Op.AsWeak()](bool bWasSuccessful) mutable
-			{
-				if (TOnlineAsyncOpPtr<FFindSessions> Op = WeakOp.Pin())
-				{
-					if (bWasSuccessful)
-					{
-						TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Op->GetParams().LocalAccountId);
-
-						TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(PendingV1SessionSearch->SearchResults);
-						for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
-						{
-							AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
-						}
-
-						TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
-						Op->SetResult({ SearchResults });
-					}
-					else
-					{
-						Op->SetError(Errors::Unknown());						
-					}
-
-					PendingV1SessionSearchesPerUser.Remove(Op->GetParams().LocalAccountId);
-				}
-			});
-
-			TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.Emplace(OpParams.LocalAccountId, BuildV1SessionSearch(OpParams));
-
-			SessionsInterface->FindSessions(*LocalAccountId, PendingV1SessionSearch);
+			Promise.EmplaceValue(Errors::InvalidParams());
+			return Future;
 		}
-	})
-	.Enqueue(GetSerialQueue());
-
-	return Op->GetHandle();
-}
-
-TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FStartMatchmaking::Params&& Params)
-{
-	TOnlineAsyncOpRef<FStartMatchmaking> Op = GetOp<FStartMatchmaking>(MoveTemp(Params));
-	const FStartMatchmaking::Params& OpParams = Op->GetParams();
-
-	FOnlineError ParamsCheck = CheckStartMatchmakingParams(OpParams);
-	if (ParamsCheck != Errors::Success())
-	{
-		Op->SetError(MoveTemp(ParamsCheck));
-		return Op->GetHandle();
 	}
-
-	Op->Then([this](TOnlineAsyncOp<FStartMatchmaking>& Op)
+	else if (Params.TargetUser.IsSet()) 	// If there is a target user, we will use FindFriendSession
 	{
-		const FStartMatchmaking::Params& OpParams = Op.GetParams();
+		int32 LocalUserNum = Services.Get<FAuthOSSAdapter>()->GetLocalUserNum(Params.LocalAccountId);
 
-		FOnlineError StateCheck = CheckStartMatchmakingState(OpParams);
-		if (StateCheck != Errors::Success())
+		MakeMulticastAdapter(this, SessionsInterface->OnFindFriendSessionCompleteDelegates[LocalUserNum],
+		[this, Params](int32 LocalAccountId, bool bWasSuccessful, const TArray<FOnlineSessionSearchResult>& FriendSearchResults)
 		{
-			Op.SetError(MoveTemp(StateCheck));
-			return;
-		}
+			TPromise<TOnlineResult<FFindSessions>>& Promise = CurrentSessionSearchPromisesUserMap.FindChecked(Params.LocalAccountId);
 
-		if (PendingV1SessionSearchesPerUser.Contains(OpParams.SessionCreationParameters.LocalAccountId))
-		{
-			Op.SetError(Errors::AlreadyPending());
-			return;
-		}
+			if (bWasSuccessful)
+			{
+				TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(FriendSearchResults);
+				for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
+				{
+					AddSearchResult(FoundSession,Params.LocalAccountId);
+				}
+
+				TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Params.LocalAccountId);
+				Promise.EmplaceValue(FFindSessions::Result{ SearchResults });
+			}
+			else
+			{
+				Promise.EmplaceValue(Errors::Unknown());
+			}
+
+			CurrentSessionSearchPromisesUserMap.Remove(Params.LocalAccountId);
+			PendingV1SessionSearchesPerUser.Remove(Params.LocalAccountId);
+		});
 
 		FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-		TArray<FSessionMatchmakingUser> MatchMakingUsers;
-		FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(OpParams.SessionCreationParameters.LocalAccountId).ToSharedRef() };
-		MatchMakingUsers.Add(NewMatchMakingUser);
+		TArray<FUniqueNetIdRef> TargetUniqueNetIds = { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(*Params.TargetUser).ToSharedRef() };
 
-		FOnlineSessionSettings NewSessionSettings = BuildV1SettingsForCreate(OpParams.SessionCreationParameters);
+		// The cached search information is not used in this mode, but we'll still update it to not have more than one search at the same time
+		PendingV1SessionSearchesPerUser.Emplace(Params.LocalAccountId, MakeShared<FOnlineSessionSearch>());
 
-		/** We build a mock params struct for FindSessions and convert it to a V1 session search */
-		FFindSessions::Params FindSessionsParams;
-		FindSessionsParams.bFindLANSessions = false;
-		FindSessionsParams.Filters = OpParams.SessionSearchFilters;
-		FindSessionsParams.LocalAccountId = OpParams.SessionCreationParameters.LocalAccountId;
-		FindSessionsParams.MaxResults = 1;
-
-		TSharedRef<FOnlineSessionSearch>& SessionSearch = PendingV1SessionSearchesPerUser.Emplace(OpParams.SessionCreationParameters.LocalAccountId, BuildV1SessionSearch(FindSessionsParams));
-
-		// QUESTION: StartMatchmaking causes both OnMatchmakingComplete and OnStartMatchmakingComplete to trigger.
-		// The first triggers the second so I used the latter, but the interface header did not specify if one should be used. Is this the correct one?
-		SessionsInterface->StartMatchmaking(MatchMakingUsers, OpParams.SessionCreationParameters.SessionName, NewSessionSettings, SessionSearch, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](FName SessionName, const ::FOnlineError& ErrorDetails, const FSessionMatchmakingResults& Results) mutable
+		SessionsInterface->FindFriendSession(*LocalAccountId, TargetUniqueNetIds);
+	}
+	else
+	{
+		MakeMulticastAdapter(this, SessionsInterface->OnFindSessionsCompleteDelegates,
+		[this, Params](bool bWasSuccessful) mutable
 		{
-			if (TOnlineAsyncOpPtr<FStartMatchmaking> Op = WeakOp.Pin())
+			TPromise<TOnlineResult<FFindSessions>>& Promise = CurrentSessionSearchPromisesUserMap.FindChecked(Params.LocalAccountId);
+
+			if (bWasSuccessful)
 			{
-				if (!ErrorDetails.bSucceeded)
+				TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Params.LocalAccountId);
+
+				TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(PendingV1SessionSearch->SearchResults);
+				for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
 				{
-					Op->SetError(Errors::Unknown()); // TODO: Proper error parsing
-					return;
+					AddSearchResult(FoundSession, Params.LocalAccountId);
 				}
 
-				const FStartMatchmaking::Params& OpParams = Op->GetParams();
-
-				TSharedRef<FSessionCommon> V2Session = BuildV2Session(SessionsInterface->GetNamedSession(SessionName));
-
-				AddSessionWithReferences(V2Session, OpParams.SessionCreationParameters.SessionName, OpParams.SessionCreationParameters.LocalAccountId, OpParams.SessionCreationParameters.bPresenceEnabled);
-
-				Op->SetResult({ });
-
-				FSessionJoined Event{ { Op->GetParams().SessionCreationParameters.LocalAccountId }, V2Session->GetSessionId()};
-
-				SessionEvents.OnSessionJoined.Broadcast(Event);
-
-				// TODO: Pending multiple local user support
+				TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Params.LocalAccountId);
+				Promise.EmplaceValue(FFindSessions::Result{ SearchResults });
 			}
-		}));
-	})
-	.Enqueue(GetSerialQueue());
+			else
+			{
+				Promise.EmplaceValue(Errors::Unknown());
+			}
 
-	return Op->GetHandle();
-}
+			CurrentSessionSearchPromisesUserMap.Remove(Params.LocalAccountId);
+			PendingV1SessionSearchesPerUser.Remove(Params.LocalAccountId);
+		});
 
-TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession::Params&& Params)
-{
-	TOnlineAsyncOpRef<FJoinSession> Op = GetOp<FJoinSession>(MoveTemp(Params));
-	const FJoinSession::Params& OpParams = Op->GetParams();
+		TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.Emplace(Params.LocalAccountId, BuildV1SessionSearch(Params));
 
-	FOnlineError ParamsCheck = CheckJoinSessionParams(OpParams);
-	if (ParamsCheck != Errors::Success())
-	{
-		Op->SetError(MoveTemp(ParamsCheck));
-		return Op->GetHandle();
+		SessionsInterface->FindSessions(*LocalAccountId, PendingV1SessionSearch);
 	}
 
-	Op->Then([this](TOnlineAsyncOp<FJoinSession>& Op)
+	return Future;
+}
+
+TFuture<TOnlineResult<FStartMatchmaking>> FSessionsOSSAdapter::StartMatchmakingImpl(const FStartMatchmaking::Params& Params)
+{
+	TPromise<TOnlineResult<FStartMatchmaking>> Promise;
+	TFuture<TOnlineResult<FStartMatchmaking>> Future = Promise.GetFuture();
+
+	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
+
+	TArray<FSessionMatchmakingUser> MatchMakingUsers;
+	FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Params.SessionCreationParameters.LocalAccountId).ToSharedRef() };
+	MatchMakingUsers.Add(NewMatchMakingUser);
+
+	FOnlineSessionSettings NewSessionSettings = BuildV1SettingsForCreate(Params.SessionCreationParameters);
+
+	/** We build a mock params struct for FindSessions and convert it to a V1 session search */
+	FFindSessions::Params FindSessionsParams;
+	FindSessionsParams.bFindLANSessions = false;
+	FindSessionsParams.Filters = Params.SessionSearchFilters;
+	FindSessionsParams.LocalAccountId = Params.SessionCreationParameters.LocalAccountId;
+	FindSessionsParams.MaxResults = 1;
+
+	TSharedRef<FOnlineSessionSearch>& SessionSearch = PendingV1SessionSearchesPerUser.Emplace(Params.SessionCreationParameters.LocalAccountId, BuildV1SessionSearch(FindSessionsParams));
+
+	SessionsInterface->StartMatchmaking(MatchMakingUsers, Params.SessionCreationParameters.SessionName, NewSessionSettings, SessionSearch, *MakeDelegateAdapter(this, [this, Promise = MoveTemp(Promise), Params](FName SessionName, const ::FOnlineError& ErrorDetails, const FSessionMatchmakingResults& Results) mutable
 	{
-		const FJoinSession::Params& OpParams = Op.GetParams();
-
-		FOnlineError StateCheck = CheckJoinSessionState(OpParams);
-		if (StateCheck != Errors::Success())
+		if (!ErrorDetails.bSucceeded)
 		{
-			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue(Errors::Unknown()); // TODO: Proper error parsing
 			return;
 		}
 
-		const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(OpParams.LocalAccountId).ToSharedRef();
-		if (!LocalAccountId->IsValid())
+		TSharedRef<FSessionCommon> V2Session = BuildV2Session(SessionsInterface->GetNamedSession(SessionName));
+
+		AddSessionWithReferences(V2Session, Params.SessionCreationParameters.SessionName, Params.SessionCreationParameters.LocalAccountId, Params.SessionCreationParameters.bPresenceEnabled);
+
+		Promise.EmplaceValue(FStartMatchmaking::Result{ });
+
+		FSessionJoined Event{ { Params.SessionCreationParameters.LocalAccountId }, V2Session->GetSessionId()};
+
+		SessionEvents.OnSessionJoined.Broadcast(Event);
+	}));
+
+	return Future;
+}
+
+TFuture<TOnlineResult<FJoinSession>> FSessionsOSSAdapter::JoinSessionImpl(const FJoinSession::Params& Params)
+{
+	TPromise<TOnlineResult<FJoinSession>> Promise;
+	TFuture<TOnlineResult<FJoinSession>> Future = Promise.GetFuture();
+
+	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
+	if (!LocalAccountId->IsValid())
+	{
+		Promise.EmplaceValue(Errors::InvalidUser());
+		return Future;
+	}
+
+	MakeMulticastAdapter(this, SessionsInterface->OnJoinSessionCompleteDelegates,
+	[this, Promise = MoveTemp(Promise), Params](FName SessionName, EOnJoinSessionCompleteResult::Type Result) mutable
+	{
+		if (Result != EOnJoinSessionCompleteResult::Success)
 		{
-			Op.SetError(Errors::InvalidUser());
+			Promise.EmplaceValue(Errors::Unknown());
 			return;
 		}
 
-		MakeMulticastAdapter(this, SessionsInterface->OnJoinSessionCompleteDelegates,
-		[this, WeakOp = Op.AsWeak()](FName SessionName, EOnJoinSessionCompleteResult::Type Result) mutable
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.SessionId });
+		if (GetSessionByIdResult.IsError())
 		{
-			if (TOnlineAsyncOpPtr<FJoinSession> Op = WeakOp.Pin())
+			// If no result is found, the id might be expired, which we should notify
+			if (GetSessionIdRegistry().IsHandleExpired(Params.SessionId))
 			{
-				if (Result != EOnJoinSessionCompleteResult::Success)
-				{
-					Op->SetError(Errors::Unknown());
-					return;
-				}
+				UE_LOG(LogTemp, Warning, TEXT("[%s] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+			}
 
-				const FJoinSession::Params& OpParams = Op->GetParams();
+			Promise.EmplaceValue(MoveTemp(GetSessionByIdResult.GetErrorValue()));
+			return;
+		}
 
-				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
-				if (GetSessionByIdResult.IsError())
-				{
-					// If no result is found, the id might be expired, which we should notify
-					if (GetSessionIdRegistry().IsHandleExpired(OpParams.SessionId))
-					{
-						UE_LOG(LogTemp, Warning, TEXT("[FSessionsOSSAdapter::JoinSession] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), *ToLogString(OpParams.SessionId));
-					}
+		TSharedRef<const ISession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
-					Op->SetError(MoveTemp(GetSessionByIdResult.GetErrorValue()));
-					return;
-				}
+		AddSessionReferences(FoundSession->GetSessionId(), Params.SessionName, Params.LocalAccountId, Params.bPresenceEnabled);
 
-				TSharedRef<const ISession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
+		// After successfully joining a session, we'll remove all related invites if any are found
+		ClearSessionInvitesForSession(Params.LocalAccountId, FoundSession->GetSessionId());
 
-				AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
+		Promise.EmplaceValue(FJoinSession::Result{ });
 
-				// After successfully joining a session, we'll remove all related invites if any are found
-				ClearSessionInvitesForSession(OpParams.LocalAccountId, FoundSession->GetSessionId());
+		FSessionJoined Event{ { Params.LocalAccountId }, FoundSession->GetSessionId() };
 
-				Op->SetResult({ });
+		SessionEvents.OnSessionJoined.Broadcast(Event);
+	});
 
-				FSessionJoined Event{ { OpParams.LocalAccountId }, FoundSession->GetSessionId() };
+	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.SessionId });
+	if (GetSessionByIdResult.IsError())
+	{
+		Promise.EmplaceValue(GetSessionByIdResult.GetErrorValue());
+		return Future;
+	}
 
-				SessionEvents.OnSessionJoined.Broadcast(Event);
+	const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+
+	FOnlineSessionSearchResult SearchResult;
+
+	if (const FCustomSessionSetting* PingInMs = FoundSession->GetSessionSettings().CustomSettings.Find(OSS_ADAPTER_SESSIONS_PING_IN_MS))
+	{
+		SearchResult.PingInMs = (int32)PingInMs->Data.GetInt64();
+	}
+
+	SearchResult.Session = BuildV1Session(FoundSession);
+
+	SessionsInterface->JoinSession(*LocalAccountId, Params.SessionName, SearchResult);
+
+	return Future;
+}
+
+TFuture<TOnlineResult<FAddSessionMember>> FSessionsOSSAdapter::AddSessionMemberImpl(const FAddSessionMember::Params& Params)
+{
+	TPromise<TOnlineResult<FAddSessionMember>> Promise;
+	TFuture<TOnlineResult<FAddSessionMember>> Future = Promise.GetFuture();
+
+	MakeMulticastAdapter(this, SessionsInterface->OnRegisterPlayersCompleteDelegates,
+		[this, Promise = MoveTemp(Promise), Params](FName SessionName, const TArray<FUniqueNetIdRef>& Players, bool bWasSuccessful) mutable
+		{
+			if (bWasSuccessful)
+			{
+				Promise.EmplaceValue(FAddSessionMember::Result{ });
+			}
+			else
+			{
+				Promise.EmplaceValue(Errors::Unknown());
 			}
 		});
 
-		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
-		if (GetSessionByIdResult.IsError())
-		{
-			Op.SetError(MoveTemp(GetSessionByIdResult.GetErrorValue()));
-			return;
-		}
+	FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
+	TArray<FUniqueNetIdRef> TargetUserNetIds;		
+	FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
+	if (TargetUserNetId->IsValid())
+	{
+		TargetUserNetIds.Add(TargetUserNetId);
+	}	
 
-		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+	SessionsInterface->RegisterPlayers(Params.SessionName, TargetUserNetIds);
 
-		FOnlineSessionSearchResult SearchResult;
-
-		if (const FCustomSessionSetting* PingInMs = FoundSession->GetSessionSettings().CustomSettings.Find(OSS_ADAPTER_SESSIONS_PING_IN_MS))
-		{
-			SearchResult.PingInMs = (int32)PingInMs->Data.GetInt64();
-		}
-
-		SearchResult.Session = BuildV1Session(FoundSession);
-
-		SessionsInterface->JoinSession(*LocalAccountId, OpParams.SessionName, SearchResult);
-
-		// TODO: Pending support for multiple local users
-	})
-	.Enqueue(GetSerialQueue());
-
-	return Op->GetHandle();
+	return Future;
 }
 
-TOnlineAsyncOpHandle<FAddSessionMember> FSessionsOSSAdapter::AddSessionMember(FAddSessionMember::Params&& Params)
+TFuture<TOnlineResult<FRemoveSessionMember>> FSessionsOSSAdapter::RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params)
 {
-	TOnlineAsyncOpRef<FAddSessionMember> Op = GetOp<FAddSessionMember>(MoveTemp(Params));
-	const FAddSessionMember::Params& OpParams = Op->GetParams();
+	TPromise<TOnlineResult<FRemoveSessionMember>> Promise;
+	TFuture<TOnlineResult<FRemoveSessionMember>> Future = Promise.GetFuture();
 
-	Op->Then([this](TOnlineAsyncOp<FAddSessionMember>& Op)
-	{
-		const FAddSessionMember::Params& OpParams = Op.GetParams();
-
-		FOnlineError StateCheck = CheckAddSessionMemberState(OpParams);
-		if (StateCheck != Errors::Success())
+	MakeMulticastAdapter(this, SessionsInterface->OnUnregisterPlayersCompleteDelegates,
+		[this, Promise = MoveTemp(Promise)](FName SessionName, const TArray<FUniqueNetIdRef>& Players, bool bWasSuccessful) mutable
 		{
-			Op.SetError(MoveTemp(StateCheck));
-			return;
-		}
-
-		SessionsInterface->AddOnRegisterPlayersCompleteDelegate_Handle(*MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](FName SessionName, const TArray<FUniqueNetIdRef>& Players, bool bWasSuccessful) mutable
-		{
-			// Clearing the delegate needs to be the last thing we do, as modifying captured variables after it would result in a crash
-
-			if (TOnlineAsyncOpPtr<FAddSessionMember> Op = WeakOp.Pin())
+			if (bWasSuccessful)
 			{
-				if (bWasSuccessful)
-				{
-					Op->SetResult({ });
-				}
-				else
-				{
-					Op->SetError(Errors::Unknown());
-				}
+				Promise.EmplaceValue(FRemoveSessionMember::Result{ });
 			}
+			else
+			{
+				Promise.EmplaceValue(Errors::Unknown());
+			}
+		});
 
-			SessionsInterface->ClearOnRegisterPlayersCompleteDelegates(this);
-		}));
+	FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
+	TArray<FUniqueNetIdRef> TargetUserNetIds;
+	FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
+	if (TargetUserNetId->IsValid())
+	{
+		TargetUserNetIds.Add(TargetUserNetId);
+	}
 
-		FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
-		TArray<FUniqueNetIdRef> TargetUserNetIds;		
-		FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(OpParams.LocalAccountId).ToSharedRef();
-		if (TargetUserNetId->IsValid())
-		{
-			TargetUserNetIds.Add(TargetUserNetId);
-		}	
+	SessionsInterface->UnregisterPlayers(Params.SessionName, TargetUserNetIds);
 
-		SessionsInterface->RegisterPlayers(OpParams.SessionName, TargetUserNetIds);
-	})
-	.Enqueue(GetSerialQueue());
-
-	return Op->GetHandle();
+	return Future;
 }
 
-TOnlineAsyncOpHandle<FRemoveSessionMember> FSessionsOSSAdapter::RemoveSessionMember(FRemoveSessionMember::Params&& Params)
+TFuture<TOnlineResult<FSendSessionInvite>> FSessionsOSSAdapter::SendSessionInviteImpl(const FSendSessionInvite::Params& Params)
 {
-	TOnlineAsyncOpRef<FRemoveSessionMember> Op = GetOp<FRemoveSessionMember>(MoveTemp(Params));
-	const FRemoveSessionMember::Params& OpParams = Op->GetParams();
+	TPromise<TOnlineResult<FSendSessionInvite>> Promise;
+	TFuture<TOnlineResult<FSendSessionInvite>> Future = Promise.GetFuture();
 
-	Op->Then([this](TOnlineAsyncOp<FRemoveSessionMember>& Op)
+	FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
+
+	const FUniqueNetIdRef LocalAccountId = Auth->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
+	if (!LocalAccountId->IsValid())
 	{
-		const FRemoveSessionMember::Params& OpParams = Op.GetParams();
+		Promise.EmplaceValue(Errors::InvalidUser());
+		return Future;
+	}
 
-		FOnlineError StateCheck = CheckRemoveSessionMemberState(OpParams);
-		if (StateCheck != Errors::Success())
-		{
-			Op.SetError(MoveTemp(StateCheck));
-			return;
-		}
-
-		SessionsInterface->AddOnUnregisterPlayersCompleteDelegate_Handle(*MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](FName SessionName, const TArray<FUniqueNetIdRef>& Players, bool bWasSuccessful) mutable
-		{
-			// Clearing the delegate needs to be the last thing we do, as modifying captured variables after it would result in a crash
-
-			if (TOnlineAsyncOpPtr<FRemoveSessionMember> Op = WeakOp.Pin())
-			{
-				if (bWasSuccessful)
-				{
-					Op->SetResult({ });
-				}
-				else
-				{
-					Op->SetError(Errors::Unknown());
-				}
-			}
-
-			SessionsInterface->ClearOnUnregisterPlayersCompleteDelegates(this);
-		}));
-
-		FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
-		TArray<FUniqueNetIdRef> TargetUserNetIds;
-		FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(OpParams.LocalAccountId).ToSharedRef();
+	TArray<FUniqueNetIdRef> TargetUserNetIds;
+	for (const FAccountId& TargetUser : Params.TargetUsers)
+	{
+		FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(TargetUser).ToSharedRef();
 		if (TargetUserNetId->IsValid())
 		{
 			TargetUserNetIds.Add(TargetUserNetId);
 		}
+	}
 
-		SessionsInterface->UnregisterPlayers(OpParams.SessionName, TargetUserNetIds);
-	})
-	.Enqueue(GetSerialQueue());
+	SessionsInterface->SendSessionInviteToFriends(*LocalAccountId, Params.SessionName, TargetUserNetIds);
 
-	return Op->GetHandle();
-}
+	Promise.EmplaceValue(FSendSessionInvite::Result{ });
 
-TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsOSSAdapter::SendSessionInvite(FSendSessionInvite::Params&& Params)
-{
-	TOnlineAsyncOpRef<FSendSessionInvite> Op = GetOp<FSendSessionInvite>(MoveTemp(Params));
-	const FSendSessionInvite::Params& OpParams = Op->GetParams();
-
-	Op->Then([this](TOnlineAsyncOp<FSendSessionInvite>& Op)
-	{
-		const FSendSessionInvite::Params& OpParams = Op.GetParams();
-
-		FOnlineError StateCheck = CheckSendSessionInviteState(OpParams);
-		if (StateCheck != Errors::Success())
-		{
-			Op.SetError(MoveTemp(StateCheck));
-			return;
-		}
-
-		FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
-
-		const FUniqueNetIdRef LocalAccountId = Auth->GetUniqueNetId(OpParams.LocalAccountId).ToSharedRef();
-		if (!LocalAccountId->IsValid())
-		{
-			Op.SetError(Errors::InvalidUser());
-			return;
-		}
-
-		TArray<FUniqueNetIdRef> TargetUserNetIds;
-		for (const FAccountId& TargetUser : OpParams.TargetUsers)
-		{
-			FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(TargetUser).ToSharedRef();
-			if (TargetUserNetId->IsValid())
-			{
-				TargetUserNetIds.Add(TargetUserNetId);
-			}
-		}
-
-		SessionsInterface->SendSessionInviteToFriends(*LocalAccountId, OpParams.SessionName, TargetUserNetIds);
-
-		Op.SetResult({ });
-	})
-	.Enqueue(GetSerialQueue());
-
-	return Op->GetHandle();
+	return Future;
 }
 
 TOnlineResult<FGetResolvedConnectString> FSessionsOSSAdapter::GetResolvedConnectString(const FGetResolvedConnectString::Params& Params)
