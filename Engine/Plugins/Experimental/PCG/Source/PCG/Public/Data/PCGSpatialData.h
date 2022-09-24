@@ -106,7 +106,7 @@ public:
 	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr, bool bInheritMetadata = true);
 
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Data)
-	TObjectPtr<AActor> TargetActor = nullptr;
+	TWeakObjectPtr<AActor> TargetActor = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)

@@ -92,7 +92,7 @@ UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOt
 
 UPCGProjectionData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther) const
 {
-	UPCGProjectionData* ProjectionData = NewObject<UPCGProjectionData>(const_cast<UPCGSpatialData*>(this));
+	UPCGProjectionData* ProjectionData = NewObject<UPCGProjectionData>();
 	ProjectionData->Initialize(this, InOther);
 
 	return ProjectionData;
@@ -128,7 +128,7 @@ UPCGMetadata* UPCGSpatialData::CreateEmptyMetadata()
 
 void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride, bool bInheritMetadata)
 {
-	if (InSource && !TargetActor)
+	if (InSource && TargetActor.IsExplicitlyNull())
 	{
 		TargetActor = InSource->TargetActor;
 	}

@@ -515,7 +515,7 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 	}
 	else
 	{
-		OutData = NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
+		OutData = NewObject<UPCGPointData>();
 		OutData->InitializeFromData(InData);
 	}
 
@@ -542,7 +542,7 @@ void UPCGBlueprintElement::MultiLoopOnPoints(FPCGContext& InContext, const UPCGP
 	}
 	else
 	{
-		OutData = NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
+		OutData = NewObject<UPCGPointData>();
 		OutData->InitializeFromData(InData);
 	}
 
@@ -569,7 +569,7 @@ void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPo
 	}
 	else
 	{
-		OutData = NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InA));
+		OutData = NewObject<UPCGPointData>();
 		OutData->InitializeFromData(InA);
 		OutData->Metadata->AddAttributes(InB->Metadata);
 	}
@@ -599,7 +599,7 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 	else
 	{
 		const UPCGSpatialData* Owner = (InA ? InA : InB);
-		OutData = Owner ? NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(Owner)) : NewObject<UPCGPointData>();
+		OutData = NewObject<UPCGPointData>();
 
 		if (Owner)
 		{

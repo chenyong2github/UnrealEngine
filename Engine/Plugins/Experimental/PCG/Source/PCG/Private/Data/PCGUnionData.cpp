@@ -176,7 +176,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 		return Data[0]->ToPointData(Context);
 	}
 
-	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGUnionData*>(this));
+	UPCGPointData* PointData = NewObject<UPCGPointData>();
 	PointData->InitializeFromData(this, Data[0]->Metadata);
 
 	// Initialize metadata

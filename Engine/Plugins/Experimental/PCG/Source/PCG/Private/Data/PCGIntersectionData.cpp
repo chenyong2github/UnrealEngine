@@ -144,7 +144,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
-	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGIntersectionData*>(this));
+	UPCGPointData* Data = NewObject<UPCGPointData>();
 	Data->InitializeFromData(this, SourcePointData->Metadata);
 	Data->Metadata->AddAttributes(Y->Metadata);
 

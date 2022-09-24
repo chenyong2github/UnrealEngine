@@ -101,7 +101,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// Priorize use the target actor from the target, irrespective of the source
-	OutPointData->TargetActor = TargetPointData->TargetActor ? TargetPointData->TargetActor : SourcePointData->TargetActor;
+	OutPointData->TargetActor = TargetPointData->TargetActor.IsValid() ? TargetPointData->TargetActor : SourcePointData->TargetActor;
 
 	check(OutPointData->Metadata && NonRootMetadata);
 

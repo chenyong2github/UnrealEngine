@@ -11,7 +11,7 @@ namespace PCGVolumeSampler
 {
 	UPCGPointData* SampleVolume(FPCGContext* Context, const UPCGSpatialData* SpatialData, const FVolumeSamplerSettings& SamplerSettings)
 	{
-		UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(SpatialData));
+		UPCGPointData* Data = NewObject<UPCGPointData>();
 		Data->InitializeFromData(SpatialData);
 		TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 

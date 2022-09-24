@@ -63,7 +63,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		AActor* TargetActor = SpatialData->TargetActor;
+		AActor* TargetActor = SpatialData->TargetActor.Get();
 
 		if (!TargetActor)
 		{

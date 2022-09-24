@@ -163,7 +163,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 		return SourcePointData;
 	}
 
-	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGDifferenceData*>(this));
+	UPCGPointData* Data = NewObject<UPCGPointData>();
 	Data->InitializeFromData(this, SourcePointData->Metadata);
 
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();

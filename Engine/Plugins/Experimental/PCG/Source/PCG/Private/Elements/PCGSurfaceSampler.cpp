@@ -149,7 +149,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		const UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(Input.Data);
 
-		if (!SpatialInput || !SpatialInput->TargetActor)
+		if (!SpatialInput || !SpatialInput->TargetActor.IsValid())
 		{
 			PCGE_LOG(Error, "Invalid input data");
 			continue;

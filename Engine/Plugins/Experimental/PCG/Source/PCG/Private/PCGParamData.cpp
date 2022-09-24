@@ -51,7 +51,7 @@ UPCGParamData* UPCGParamData::FilterParamsByName(const FName& InName) const
 
 UPCGParamData* UPCGParamData::FilterParamsByKey(int64 InKey) const
 {
-	UPCGParamData* NewParams = NewObject<UPCGParamData>(const_cast<UPCGParamData*>(this));
+	UPCGParamData* NewParams = NewObject<UPCGParamData>();
 
 	// Here instead of parenting the metadata, we will create a copy
 	// so that the only entry in the metadata (if any) will have the 0 key.

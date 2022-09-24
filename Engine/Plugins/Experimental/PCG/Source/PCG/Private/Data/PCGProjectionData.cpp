@@ -114,7 +114,7 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	const UPCGPointData* SourcePointData = Source->ToPointData(Context);
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
-	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGProjectionData*>(this));
+	UPCGPointData* PointData = NewObject<UPCGPointData>();
 	PointData->InitializeFromData(this, SourcePointData->Metadata);
 	check(PointData->Metadata);
 	PointData->Metadata->AddAttributes(Target->Metadata);

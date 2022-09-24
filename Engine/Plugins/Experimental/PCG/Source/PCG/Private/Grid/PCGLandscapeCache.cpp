@@ -274,7 +274,6 @@ void FPCGLandscapeCacheEntry::Unload()
 
 int32 FPCGLandscapeCacheEntry::GetMemorySize() const
 {
-	check(bDataLoaded);
 	int32 MemSize = PositionsAndNormals.GetAllocatedSize();
 	for (const TArray<uint8>& Layer : LayerData)
 	{

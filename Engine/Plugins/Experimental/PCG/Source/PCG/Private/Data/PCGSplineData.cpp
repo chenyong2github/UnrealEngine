@@ -57,7 +57,7 @@ FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FRe
 const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSplineData::CreatePointData);
-	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGSplineData*>(this));
+	UPCGPointData* Data = NewObject<UPCGPointData>();
 	Data->InitializeFromData(this);
 
 	FPCGSplineSamplerParams SamplerParams;

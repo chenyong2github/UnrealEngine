@@ -12,6 +12,8 @@
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::Execute);
+	check(Context && Context->NumAvailableTasks > 0);
+
 	// Early out to stop execution
 	if (Context->InputData.bCancelExecution || (Context->SourceComponent && !IsValid(Context->SourceComponent)))
 	{
@@ -102,8 +104,6 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 #if WITH_EDITOR
 			PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
-#else
-			PCGE_LOG(Log, "Executed");
 #endif
 		}
 

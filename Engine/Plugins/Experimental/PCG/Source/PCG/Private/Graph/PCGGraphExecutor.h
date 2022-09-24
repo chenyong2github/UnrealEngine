@@ -129,6 +129,7 @@ private:
 	TMap<FPCGTaskId, FPCGGraphTask> Tasks;
 	TArray<FPCGGraphTask> ReadyTasks;
 	TArray<FPCGGraphActiveTask> ActiveTasks;
+	TArray<FPCGGraphActiveTask> SleepingTasks;
 	TMap<FPCGTaskId, TSet<FPCGTaskId>> TaskSuccessors;
 	/** Map of node instances to their output, could be cleared once execution is done */
 	/** Note: this should at some point unload based on loaded/unloaded proxies, otherwise memory cost will be unbounded */
@@ -153,6 +154,7 @@ class FPCGFetchInputElement : public FSimplePCGElement
 {
 public:
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

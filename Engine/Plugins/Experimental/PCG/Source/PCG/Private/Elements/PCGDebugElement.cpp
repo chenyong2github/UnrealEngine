@@ -83,7 +83,7 @@ namespace PCGDebugElement
 				continue;
 			}
 
-			AActor* TargetActor = SpatialData->TargetActor;
+			AActor* TargetActor = SpatialData->TargetActor.Get();
 
 			if (!TargetActor)
 			{
