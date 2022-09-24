@@ -1319,6 +1319,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 	// Process TEXT macro.
 	TransformStringIntoCharacterArray(PreprocessedShaderSource);
 
+	Output.PreprocessTime = FPlatformTime::Seconds() - StartPreprocessTime;
+
 	TArray<FString> FilteredErrors;
 
 	// Run the experimental shader minifier
@@ -1354,8 +1356,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 			FilteredErrors.Add(TEXT("Shader minification failed."));
 		}
 	}
-
-	Output.PreprocessTime = FPlatformTime::Seconds() - StartPreprocessTime;
 
 	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
 	uint32 CompileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY
