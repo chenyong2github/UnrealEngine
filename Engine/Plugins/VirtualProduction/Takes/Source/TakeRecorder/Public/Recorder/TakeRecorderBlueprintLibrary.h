@@ -54,6 +54,12 @@ public:
 
 
 	/**
+	 * Set the default recorder parameters
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetDefaultParameters(const FTakeRecorderParameters& DefaultParameters);
+
+	/**
 	 * Check whether a recording is currently active
 	 */
 	UFUNCTION(BlueprintPure, Category="Take Recorder")

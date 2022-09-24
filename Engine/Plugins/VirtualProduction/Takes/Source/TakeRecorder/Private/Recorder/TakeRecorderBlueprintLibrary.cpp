@@ -82,6 +82,12 @@ FTakeRecorderParameters UTakeRecorderBlueprintLibrary::GetDefaultParameters()
 	return DefaultParams;
 }
 
+void UTakeRecorderBlueprintLibrary::SetDefaultParameters(const FTakeRecorderParameters& InDefaultParameters)
+{
+	GetMutableDefault<UTakeRecorderUserSettings>()->Settings = InDefaultParameters.User;
+	GetMutableDefault<UTakeRecorderProjectSettings>()->Settings = InDefaultParameters.Project;
+}
+
 bool UTakeRecorderBlueprintLibrary::IsRecording()
 {
 	return UTakeRecorder::GetActiveRecorder() != nullptr && UTakeRecorder::GetActiveRecorder()->GetState() == ETakeRecorderState::Started;
