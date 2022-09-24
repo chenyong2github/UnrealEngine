@@ -25,7 +25,7 @@ UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UPackage* InPackag
 	{
 		UClass *ParentClass = UOptimusValueContainer::StaticClass();
 		// Construct a value node class for this data type
-		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName, RF_Standalone);
+		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName);
 		TypeClass->SetSuperStruct(ParentClass);
 		TypeClass->PropertyLink = ParentClass->PropertyLink;
 
