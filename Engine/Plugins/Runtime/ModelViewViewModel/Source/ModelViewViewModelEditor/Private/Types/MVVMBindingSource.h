@@ -13,7 +13,7 @@ namespace UE::MVVM
 	{
 		FGuid ViewModelId;
 		FName Name;
-		UClass* Class = nullptr;
+		TWeakObjectPtr<UClass> Class;
 		FText DisplayName;
 
 		bool operator==(const FBindingSource& Other) const

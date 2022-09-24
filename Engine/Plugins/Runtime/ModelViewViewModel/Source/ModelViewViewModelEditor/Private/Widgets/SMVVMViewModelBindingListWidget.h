@@ -3,16 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/PropertyViewer/IFieldExpander.h"
 #include "Framework/PropertyViewer/IFieldIterator.h"
 #include "Misc/EnumClassFlags.h"
 #include "MVVMPropertyPath.h"
 #include "Templates/SubclassOf.h"
+#include "Templates/Tuple.h"
 #include "Types/MVVMBindingSource.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 
 class UWidgetBlueprint;
+class UWidget;
 
 struct FMVVMBlueprintViewModelContext;
 
@@ -37,6 +40,14 @@ namespace UE::MVVM
 	public:
 		FFieldIterator_Bindable(const UWidgetBlueprint* WidgetBlueprint, EFieldVisibility InVisibilityFlags, const FProperty* InAssignableTo = nullptr);
 		virtual TArray<FFieldVariant> GetFields(const UStruct*) const override;
+		EFieldVisibility GetFieldVisibilityFlags() const
+		{
+			return FieldVisibilityFlags;
+		}
+		const FProperty* GetAssignableTo() const
+		{
+			return AssignableTo;
+		}
 
 	private:
 		TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint; 
@@ -95,9 +106,12 @@ namespace UE::MVVM
 	private:
 		FOnDoubleClicked OnDoubleClicked;
 		TUniquePtr<FFieldIterator_Bindable> FieldIterator;
+		TUniquePtr<UE::PropertyViewer::FFieldExpander_Default> FieldExpander;
+		using FSourceType = TTuple<FBindingSource, SPropertyViewer::FHandle>;
 		TArray<TPair<FBindingSource, SPropertyViewer::FHandle>> Sources;
 		FMVVMBlueprintPropertyPath SelectedPath;
 		TSharedPtr<SPropertyViewer> PropertyViewer;
+		TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint;
 	};
 
 } //namespace UE::MVVM

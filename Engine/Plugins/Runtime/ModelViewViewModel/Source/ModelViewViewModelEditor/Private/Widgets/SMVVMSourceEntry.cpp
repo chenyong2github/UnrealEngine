@@ -22,7 +22,7 @@ const FSlateBrush* GetSourceIcon(const FBindingSource& Source)
 		return nullptr;
 	}
 
-	return FSlateIconFinder::FindIconBrushForClass(Source.Class);
+	return FSlateIconFinder::FindIconBrushForClass(Source.Class.Get());
 }
 
 FLinearColor GetSourceColor(const FBindingSource& Source)

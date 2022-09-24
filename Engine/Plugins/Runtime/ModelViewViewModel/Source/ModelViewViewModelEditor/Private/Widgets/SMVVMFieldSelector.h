@@ -146,7 +146,7 @@ private:
 
 	TOptional<FBindingSource> FixedSource;
 
-	const UWidgetBlueprint* WidgetBlueprint = nullptr;
+	TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint;
 	bool bViewModelProperty = false;
 
 	TArray<FBindingSource> ViewModelSources;

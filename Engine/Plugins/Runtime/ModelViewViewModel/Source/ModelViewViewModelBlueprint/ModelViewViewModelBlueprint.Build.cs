@@ -11,9 +11,10 @@ public class ModelViewViewModelBlueprint : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Engine",
 				"Core",
 				"CoreUObject",
+				"DeveloperSettings",
+				"Engine",
 				"ModelViewViewModel",
 			});
 

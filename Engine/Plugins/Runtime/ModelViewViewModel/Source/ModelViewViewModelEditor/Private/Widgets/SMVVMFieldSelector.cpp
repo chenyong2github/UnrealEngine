@@ -21,6 +21,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldSelector"
 
@@ -48,7 +49,7 @@ FBindingSource GetSourceFromPath(const UWidgetBlueprint* WidgetBlueprint, const 
 void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInViewModelProperty)
 {
 	WidgetBlueprint = InWidgetBlueprint;
-	check(WidgetBlueprint);
+	check(InWidgetBlueprint);
 	
 	BindingMode = InArgs._BindingMode;
 	check(BindingMode.IsSet());
@@ -180,9 +181,9 @@ void SFieldSelector::Refresh()
 		SelectedEntryWidget->SetField(CachedSelectedField);
 	}
 
-	if (SelectedSourceWidget.IsValid())
+	if (SelectedSourceWidget.IsValid() && WidgetBlueprint.IsValid())
 	{
-		SelectedSourceWidget->RefreshSource(Private::GetSourceFromPath(WidgetBlueprint, CachedSelectedField));
+		SelectedSourceWidget->RefreshSource(Private::GetSourceFromPath(WidgetBlueprint.Get(), CachedSelectedField));
 	}
 }
 
@@ -307,9 +308,9 @@ void SFieldSelector::OnViewModelSelected(FBindingSource Source, ESelectInfo::Typ
 
 void SFieldSelector::OnWidgetSelected(FName WidgetName, ESelectInfo::Type)
 {
-	if (BindingList.IsValid())
+	if (BindingList.IsValid() && WidgetBlueprint.IsValid())
 	{
-		FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint, WidgetName);
+		FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint.Get(), WidgetName);
 
 		BindingList->Clear();
 		BindingList->AddSource(Source);
@@ -333,7 +334,7 @@ TSharedRef<ITableRow> SFieldSelector::GenerateViewModelRow(FBindingSource ViewMo
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image(FSlateIconFinder::FindIconBrushForClass(ViewModel.Class))
+				.Image(FSlateIconFinder::FindIconBrushForClass(ViewModel.Class.Get()))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			+ SHorizontalBox::Slot()
@@ -472,6 +473,11 @@ TSharedRef<SWidget> SFieldSelector::CreateSourcePanel()
 	ViewModelList.Reset();
 	WidgetList.Reset();
 
+	if (!WidgetBlueprint.IsValid())
+	{
+		return SNullWidget::NullWidget;
+	}
+
 	// show source picker
 	TSharedPtr<SWidget> SourcePicker;
 	if (bViewModelProperty)
@@ -479,7 +485,7 @@ TSharedRef<SWidget> SFieldSelector::CreateSourcePanel()
 		FBindingSource SelectedSource;
 
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
+		if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint.Get()))
 		{
 			const TArrayView<const FMVVMBlueprintViewModelContext> ViewModels = View->GetViewModels();
 			ViewModelSources.Reserve(ViewModels.Num());
@@ -516,7 +522,7 @@ TSharedRef<SWidget> SFieldSelector::CreateSourcePanel()
 	}
 	else
 	{
-		WidgetList = SNew(SReadOnlyHierarchyView, WidgetBlueprint)
+		WidgetList = SNew(SReadOnlyHierarchyView, WidgetBlueprint.Get())
 			.OnSelectionChanged(this, &SFieldSelector::OnWidgetSelected)
 			.SelectionMode(ESelectionMode::Multi)
 			.ShowSearch(false);
@@ -527,7 +533,7 @@ TSharedRef<SWidget> SFieldSelector::CreateSourcePanel()
 	if (ShowConversionFunctions.Get(false))
 	{
 		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		TArray<UFunction*> AllConversionFunctions = Subsystem->GetAvailableConversionFunctions(WidgetBlueprint, FMVVMBlueprintPropertyPath(), FMVVMBlueprintPropertyPath());
+		TArray<UFunction*> AllConversionFunctions = Subsystem->GetAvailableConversionFunctions(WidgetBlueprint.Get(), FMVVMBlueprintPropertyPath(), FMVVMBlueprintPropertyPath());
 
 		// remove all incompatible conversion functions
 		for (int32 Idx = 0; Idx < AllConversionFunctions.Num(); ++Idx)
@@ -623,6 +629,11 @@ TSharedRef<SWidget> SFieldSelector::CreateSourcePanel()
 
 TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 {
+	if (!WidgetBlueprint.IsValid())
+	{
+		return SNullWidget::NullWidget;
+	}
+
 	TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.HAlign(HAlign_Fill)
@@ -644,7 +655,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 		AssignableToProperty = AssignableTo.Get(nullptr);
 	}
 
-	BindingList = SNew(SSourceBindingList, WidgetBlueprint)
+	BindingList = SNew(SSourceBindingList, WidgetBlueprint.Get())
 		.ShowSearchBox(false)
 		.OnDoubleClicked(this, &SFieldSelector::SetPropertySelection)
 		.FieldVisibilityFlags(GetFieldVisibilityFlags())
@@ -652,7 +663,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 
 	if (FixedSource.IsSet())
 	{
-		// single fixed source, don't show the separate source panel
+		// Single fixed source, don't show the separate source panel.
 		BindingList->AddSource(FixedSource.GetValue());
 
 		VBox->AddSlot()
