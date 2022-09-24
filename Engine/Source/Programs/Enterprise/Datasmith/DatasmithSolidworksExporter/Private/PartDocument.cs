@@ -13,6 +13,7 @@ namespace DatasmithSolidworks
 		public PartDoc SwPartDoc { get; private set; } = null;
 		private FAssemblyDocument AsmDoc = null;
 		private string ComponentName = null;
+		private string MeshName = null;
 
 		public FObjectMaterials ExportedPartMaterials { get; set; }
 
@@ -93,21 +94,13 @@ namespace DatasmithSolidworks
 			ConcurrentBag<FBody> Bodies = FBody.FetchBodies(SwPartDoc);
 			FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ExportedPartMaterials);
 
-			string MeshName = null;
+			Exporter.RemoveMesh(MeshName);
+			MeshName = null;
+			bool bHasMesh = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh);
 
-			if (MeshData != null)
+			if (bHasMesh)
 			{
-				Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh = null;
-				MeshName = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName, out NewMesh);
-
-				if (NewMesh != null)
-				{
-					DatasmithScene.AddMesh(NewMesh.Item1);
-				}
-				else
-				{
-					MeshName = null;
-				}
+				MeshName = Exporter.AddMesh(NewMesh);
 			}
 
 			FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
@@ -115,7 +108,7 @@ namespace DatasmithSolidworks
 			ExportInfo.bVisible = true;
 			ExportInfo.Label = ActorName;
 			ExportInfo.MeshName = MeshName;
-			ExportInfo.Type = MeshName != null ? EActorType.MeshActor : EActorType.SimpleActor;
+			ExportInfo.Type = bHasMesh ? EActorType.MeshActor : EActorType.SimpleActor;
 
 			Exporter.ExportOrUpdateActor(ExportInfo);
 		}

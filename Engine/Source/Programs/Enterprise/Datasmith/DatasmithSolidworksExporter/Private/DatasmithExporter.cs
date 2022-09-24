@@ -116,6 +116,27 @@ namespace DatasmithSolidworks
 			return Actor;
 		}
 
+		public string AddMesh(Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh)
+		{
+			string Name = NewMesh.Item1.GetName();
+			RemoveMesh(Name);
+			ExportedMeshesMap.TryAdd(Name, NewMesh);
+			DatasmithScene.AddMesh(NewMesh.Item1);
+			return Name;
+		}
+
+		public void RemoveMesh(string MeshName)
+		{
+            if (MeshName == null)
+            {
+                return;
+            }
+			if (ExportedMeshesMap.TryRemove(MeshName, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OldMesh))
+			{
+				DatasmithScene.RemoveMesh(OldMesh.Item1);
+			}
+		}
+
 		public void RemoveActor(string InActorName)
 		{
 			if (ExportedActorsMap.ContainsKey(InActorName))
@@ -187,21 +208,21 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public string ExportMesh(string InMeshName, FMeshData InData, string InUpdateMeshActor, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OutMeshPair)
+		public bool ExportMesh(string InMeshName, FMeshData InData, string InUpdateMeshActor, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OutMeshPair)
 		{
+			InMeshName = SanitizeName(InMeshName);  //Compute mesh name early(it might be needed to remove old mesh)
+
 			OutMeshPair = null;
 
 			if (InData.Vertices == null || InData.Normals == null || InData.TexCoords == null || InData.Triangles == null)
 			{
-				return null;
+				return false;
 			}
 
 			if (InData.Vertices.Length == 0 || InData.Normals.Length == 0 || InData.TexCoords.Length == 0 || InData.Triangles.Length == 0)
 			{
-				return null;
+				return false;
 			}
-
-			InMeshName = SanitizeName(InMeshName);
 
 			FDatasmithFacadeMesh Mesh = new FDatasmithFacadeMesh();
 			Mesh.SetName(InMeshName);
@@ -266,8 +287,6 @@ namespace DatasmithSolidworks
 
 			DatasmithScene.ExportDatasmithMesh(MeshElement, Mesh);
 
-			ExportedMeshesMap.TryAdd(InMeshName, new Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>(MeshElement, Mesh));
-
 			if (!string.IsNullOrEmpty(InUpdateMeshActor))
 			{
 				Tuple<EActorType, FDatasmithFacadeActor> ExportedActorInfo = null;
@@ -278,7 +297,7 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			return InMeshName;
+			return true;
 		}
 
 		public void ExportMetadata(FMetadata InMetadata)

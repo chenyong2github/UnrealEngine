@@ -27,10 +27,17 @@ namespace DatasmithSolidworks
 			public ConcurrentDictionary<string, FObjectMaterials> ComponentsMaterialsMap = new ConcurrentDictionary<string, FObjectMaterials>();
 			public Dictionary<string, string> ComponentToPartMap = new Dictionary<string, string>();
 			public Dictionary<string, float[]> ComponentsTransformsMap = new Dictionary<string, float[]>();
+
+			/** All updated(not dirty) components. Updated component will be removed from dirty on export end*/
 			public HashSet<string> CleanComponents = new HashSet<string>();
+
+			/** Flags for each component that needs update. Cleared when export completes*/
 			public Dictionary<string, uint> DirtyComponents = new Dictionary<string, uint>();
+
 			public HashSet<string> ComponentsToDelete = new HashSet<string>();
 			public Dictionary<string, Component2> ExportedComponentsMap = new Dictionary<string, Component2>();
+			/** Stores which mesh was exported for each component*/
+			public Dictionary<string, string> ComponentNameToMeshNameMap = new Dictionary<string, string>();
 		}
 
 		public AssemblyDoc SwAsmDoc { get; private set; } = null;
@@ -57,6 +64,13 @@ namespace DatasmithSolidworks
 				string ActorName = FDatasmithExporter.SanitizeName(CompName);
 				SyncState.ComponentToPartMap.Remove(CompName);
 				SyncState.ExportedComponentsMap.Remove(CompName);
+
+				if (SyncState.ComponentNameToMeshNameMap.TryGetValue(CompName, out string MeshName))
+				{
+					SyncState.ComponentNameToMeshNameMap.Remove(CompName);
+					Exporter.RemoveMesh(MeshName);
+				}
+
 				SyncState.ComponentsMaterialsMap.TryRemove(CompName, out FObjectMaterials _);
 				SyncState.ComponentsTransformsMap.Remove(CompName);
 				Exporter.RemoveActor(ActorName);
@@ -99,7 +113,8 @@ namespace DatasmithSolidworks
 
 			// Export meshes
 			SetExportStatus($"Component Meshes");
-			ConcurrentBag<Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>> CreatedMeshes = new ConcurrentBag<Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>>();
+			ConcurrentDictionary<Component2, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>> CreatedMeshes = new ConcurrentDictionary<Component2, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>>();
+			
 			Parallel.ForEach(MeshesToExportMap, KVP =>
 			{
 				Component2 Comp = KVP.Key;
@@ -113,18 +128,17 @@ namespace DatasmithSolidworks
 				if (MeshData != null)
 				{
 					Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh = null;
-					Exporter.ExportMesh($"{KVP.Value}_Mesh", MeshData, KVP.Value, out NewMesh);
-
-					if (NewMesh != null)
+					if (Exporter.ExportMesh($"{KVP.Value}_Mesh", MeshData, KVP.Value, out NewMesh))
 					{
-						CreatedMeshes.Add(NewMesh);
+						CreatedMeshes[Comp] = NewMesh;
 					}
 				}
 			});
-			// Adding stuff to a datasmith scene cannot be multithreaded!
-			foreach (Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> MeshPair in CreatedMeshes)
+
+			foreach (var KVP in CreatedMeshes)
 			{
-				DatasmithScene.AddMesh(MeshPair.Item1);
+				string MeshName = Exporter.AddMesh(KVP.Value);
+				SyncState.ComponentNameToMeshNameMap[MeshName] = KVP.Key.Name2;
 			}
 
 			SyncState.ComponentsToDelete.Clear();
