@@ -53,6 +53,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool PreventEditorIdle = true;
 
+	// If true then the Live Link Subject of the owning VCam Component will be set to the subject created by this Output Provider when the Provider is enabled
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	bool bAutoSetLiveLinkSubject = true;
+	
 protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPixelStreamingMediaOutput> MediaOutput = nullptr;

@@ -16,6 +16,7 @@
 #include "PixelStreamingVCamLog.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingProtocol.h"
+#include "VCamComponent.h"
 
 namespace VCamPixelStreamingSession
 {
@@ -44,6 +45,11 @@ void UVCamPixelStreamingSession::Activate()
 	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
 	{
 		PixelStreamingSubsystem->RegisterActiveOutputProvider(this);
+		UVCamComponent* VCamComponent = GetTypedOuter<UVCamComponent>();
+		if (bAutoSetLiveLinkSubject && IsValid(VCamComponent))
+		{
+			VCamComponent->LiveLinkSubject = GetFName();
+		}
 	}
 
 	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
