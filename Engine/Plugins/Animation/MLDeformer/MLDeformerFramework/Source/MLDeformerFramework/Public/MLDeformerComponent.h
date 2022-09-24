@@ -73,10 +73,22 @@ public:
 
 	/**
 	 * Set the deformer asset that is used by this component.
+	 * This will trigger the internal ML Deformer instance to be recreated.
 	 * @param InDeformerAsset A pointer to the deformer asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
-	void SetDeformerAsset(UMLDeformerAsset* InDeformerAsset)	{ DeformerAsset = InDeformerAsset; }
+	void SetDeformerAsset(UMLDeformerAsset* InDeformerAsset)	{ DeformerAsset = InDeformerAsset; UpdateSkeletalMeshComponent(); }
+
+	/**
+	 * Find the skeletal mesh component to apply the deformer on.
+	 * This will return the skeletal mesh component (on this actor) which uses the same skeletal mesh as the passed in ML Deformer asset was trained on.
+	 * If there is no such skeletal mesh component then it will return the first skeletal mesh component it finds.
+	 * In case there is no skeletal mesh component on the actor, a nullptr is returned.
+	 * @param Asset The ML Deformer asset to search a component for.
+	 * @return The skeletal mesh component that would be the best.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
+	USkeletalMeshComponent* FindSkeletalMeshComponent(UMLDeformerAsset* Asset);
 
 	/**
 	 * Get the ML Deformer model instance that this component currently uses.
@@ -92,6 +104,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const	{ return SkelMeshComponent.Get(); }
+
+	/** Find the skeletal mesh component that this deformer should work on, and set it as our target component. */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
+	void UpdateSkeletalMeshComponent();
 
 	/**
 	 * Suppress logging warnings about mesh deformers not being set.

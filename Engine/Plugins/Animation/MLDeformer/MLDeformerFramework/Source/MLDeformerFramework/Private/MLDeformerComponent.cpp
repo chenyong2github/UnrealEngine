@@ -54,6 +54,16 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerComponent::SetupComponent)
 
+	RenderCommandFence.BeginFence();
+	RenderCommandFence.Wait();
+
+	// Remove the existing skeletal mesh component as tick prerequisite.
+	if (SkelMeshComponent)
+	{
+		RemoveTickPrerequisiteComponent(SkelMeshComponent);
+	}
+
+	// Add the new one.
 	if (InSkelMeshComponent)
 	{		
 		AddTickPrerequisiteComponent(InSkelMeshComponent);
@@ -125,15 +135,13 @@ void UMLDeformerComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UMLDeformerComponent::Activate(bool bReset)
+USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDeformerAsset* Asset)
 {
-	// If we haven't pointed to some skeletal mesh component to use, then try to find one on the actor.
-	SkelMeshComponent = nullptr;
-	if (!DeformerAsset.IsNull())
+	USkeletalMeshComponent* ResultingComponent = nullptr;
+	if (Asset != nullptr)
 	{
-		// First search for a skeletal mesh component with the expected number of vertices.
-		// This will try to find a skeletal mesh with the same number of vertices.
-		const UMLDeformerModel* Model = DeformerAsset ? DeformerAsset->GetModel() : nullptr;
+		// First search for a skeletal mesh component that uses the same skeletal mesh as the ML Deformer asset was trained on.
+		const UMLDeformerModel* Model = Asset ? Asset->GetModel() : nullptr;
 		if (Model && Model->GetSkeletalMesh())
 		{
 			const USkeletalMesh* ModelSkeletalMesh = Model->GetSkeletalMesh();
@@ -149,22 +157,33 @@ void UMLDeformerComponent::Activate(bool bReset)
 				const USkeletalMesh* ComponentSkeletalMesh = Component->GetSkeletalMeshAsset();
 				if (ComponentSkeletalMesh == ModelSkeletalMesh)
 				{
-					SkelMeshComponent = Component;
+					ResultingComponent = Component;
 					break;
 				}
 			}
 		}
 	}
 
-	if (SkelMeshComponent == nullptr)
+	if (ResultingComponent == nullptr)
 	{
 		// Fall back to the first skeletal mesh component.
 		const AActor* Actor = Cast<AActor>(GetOuter());
-		SkelMeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
+		ResultingComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
 	}
 
-	SetupComponent(DeformerAsset, SkelMeshComponent);
+	return ResultingComponent;
+}
 
+void UMLDeformerComponent::UpdateSkeletalMeshComponent()
+{
+	SkelMeshComponent = FindSkeletalMeshComponent(DeformerAsset.Get());
+	SetupComponent(DeformerAsset, SkelMeshComponent);
+}
+
+void UMLDeformerComponent::Activate(bool bReset)
+{
+	UpdateSkeletalMeshComponent();
+	SetupComponent(DeformerAsset, SkelMeshComponent);
 	Super::Activate(bReset);
 }
 
@@ -201,12 +220,7 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, DeformerAsset))
 		{
-			RenderCommandFence.BeginFence();
-			RenderCommandFence.Wait();
-
-			RemoveNeuralNetworkModifyDelegate();
-			Init();
-			AddNeuralNetworkModifyDelegate();
+			SetDeformerAsset(DeformerAsset);
 		}
 	}
 #endif
