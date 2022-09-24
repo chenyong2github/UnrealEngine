@@ -33,7 +33,7 @@ struct FObjectMixerCollectionObjectSet
 	FName CollectionName = NAME_None;
 
 	UPROPERTY()
-	TSet<FObjectMixerCollectionObjectData> CollectionObjects = {};
+	TArray<FObjectMixerCollectionObjectData> CollectionObjects = {};
 
 	bool operator==(const FObjectMixerCollectionObjectSet& Other) const
 	{
