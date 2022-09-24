@@ -313,14 +313,6 @@ private:
 	bool IsVisible();
 
 	/**
-	 * Call this to see if this media plate should be visible
-	 * (but may not necessarily BE visible).
-	 * For example, this will return false if the object is marked as hidden.
-	 * Otherwise this will reeturn true, but IsVisible could still be false if this is off screen.
-	 */
-	bool ShouldBeVisible();
-
-	/**
 	 * Call this to resume playback when the media plate is visible.
 	 */
 	void ResumeWhenVisible();
