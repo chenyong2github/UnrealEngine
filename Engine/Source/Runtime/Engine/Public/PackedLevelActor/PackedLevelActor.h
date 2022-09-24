@@ -74,9 +74,6 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(VisibleAnywhere, Category = Packed)
-	TSoftObjectPtr<UBlueprint> BlueprintAsset;
-
 	UPROPERTY()
 	TArray<TSoftObjectPtr<UBlueprint>> PackedBPDependencies;
 

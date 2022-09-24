@@ -150,7 +150,6 @@ void APackedLevelActor::OnCommitChild(bool bChanged)
 
 			if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 			{
-				check(GeneratedBy == BlueprintAsset.Get());
 				Builder->UpdateBlueprint(GeneratedBy);
 				return; // return here because Actor might have been reinstanced
 			}
@@ -178,7 +177,6 @@ void APackedLevelActor::OnCommit(bool bChanged)
 	{
 		if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 		{
-			check(GeneratedBy == BlueprintAsset.Get());
 			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 			Builder->UpdateBlueprint(GeneratedBy);
 			return; // return here because Actor might have been reinstanced
