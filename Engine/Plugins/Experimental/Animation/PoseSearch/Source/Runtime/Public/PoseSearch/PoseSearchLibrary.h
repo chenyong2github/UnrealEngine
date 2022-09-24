@@ -38,6 +38,9 @@ struct POSESEARCH_API FMotionMatchingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(UseAsBlendProfile = true))
 	TObjectPtr<UBlendProfile> BlendProfile;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	EAlphaBlendOption BlendOption = EAlphaBlendOption::Linear;
+
 	// If the pose jump requires a mirroring change and this value is greater than 0, it will be used instead of BlendTime
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0", DislayAfter="BlendTime"))
 	float MirrorChangeBlendTime = 0.0f;
