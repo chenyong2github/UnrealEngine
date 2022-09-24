@@ -131,6 +131,7 @@
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMUserWorkflowRegistry.h"
 #include "UserDefinedStructureCompilerUtils.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "Units/ControlRigNodeWorkflow.h"
 #include "Units/RigDispatchFactory.h"
 
@@ -1513,6 +1514,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 					}
 
 					if (Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr || 
+						Cast<URigVMDispatchNode>(ModelPin->GetNode()) != nullptr || 
 						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr ||
 						Cast<URigVMArrayNode>(ModelPin->GetNode()) != nullptr)
 					{
