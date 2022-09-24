@@ -84,6 +84,9 @@ protected:
 	 */
 	virtual bool ShouldSkipCell(const FWorldBuilderCellCoord& CellCoord) const { return false; }
 
+	bool AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
+	bool AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
+
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;
 	FBox  IterativeWorldBounds;
@@ -94,4 +97,5 @@ protected:
 	bool bLoadInitiallyActiveDataLayers = true;
 
 	bool bAutoSubmit = false;
+	FString AutoSubmitTags;
 };

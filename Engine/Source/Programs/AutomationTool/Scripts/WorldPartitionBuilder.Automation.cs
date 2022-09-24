@@ -21,6 +21,7 @@ namespace AutomationScripts.Automation
 			string CommandletArgs = ParseOptionalStringParam("CommandletArgs");
 
 			bool bSubmitResult = ParseParam("Submit");
+			string SubmitTags = ParseOptionalStringParam("SubmitTags");
 
 			string ShelveUser = ParseOptionalStringParam("ShelveUser");
 			string ShelveWorkspace = ParseOptionalStringParam("ShelveWorkspace");
@@ -37,6 +38,11 @@ namespace AutomationScripts.Automation
 			if (bSubmitResult)
 			{
 				CommandletArgs += " -AutoSubmit";
+
+				if (SubmitTags.Length != 0)
+				{
+					CommandletArgs += " -AutoSubmitTags=\"" + SubmitTags + "\"";
+				}
 			}
 
 			string EditorExe = "UnrealEditor-Cmd.exe";

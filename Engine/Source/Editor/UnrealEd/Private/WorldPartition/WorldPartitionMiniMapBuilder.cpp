@@ -16,10 +16,6 @@
 #include "UObject/SavePackage.h"
 #include "UObject/StrongObjectPtr.h"
 
-#include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
-#include "SourceControlOperations.h"
-
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
@@ -232,22 +228,6 @@ bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControl
 		return false;
 	}
 
-	if (bAutoSubmit)
-	{
-		FText ChangelistDescription = FText::FromString(FString::Printf(TEXT("Rebuilt minimap for \"%s\" at %s"), *World->GetName(), *FEngineVersion::Current().ToString()));
-
-		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-		CheckInOperation->SetDescription(ChangelistDescription);
-		if (ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, PackageFileName) != ECommandResult::Succeeded)
-		{
-			UE_LOG(LogWorldPartitionMiniMapBuilder, Error, TEXT("Failed to submit minimap (%s) to source control."), *PackageFileName);
-			return false;
-		}
-		else
-		{
-			UE_LOG(LogWorldPartitionMiniMapBuilder, Display, TEXT("#### Submitted minimap (%s) to source control ####"), *PackageFileName);
-		}
-	}
-
-	return true;
+	const FString ChangeDescription = FString::Printf(TEXT("Rebuilt minimap for %s"), *World->GetName());
+	return AutoSubmitFiles({ PackageFileName }, ChangeDescription);
 }

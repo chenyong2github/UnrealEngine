@@ -8,6 +8,7 @@
 #include "UObject/SavePackage.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Algo/Transform.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
 #include "ActorFolder.h"
@@ -505,6 +506,15 @@ bool UWorldPartitionLandscapeSplineMeshesBuilder::RunInternal(UWorld* InWorld, c
 		}
 
 		if (!UWorldPartitionBuilder::DeletePackages(PackagesToDelete, PackageHelper))
+		{
+			return false;
+		}
+
+		TArray<FString> ModifiedFiles = MoveTemp(PackagesToDelete);
+		Algo::Transform(PackagesToSave, ModifiedFiles, [](const UPackage* InPackage) { return USourceControlHelpers::PackageFilename(InPackage); });
+
+		const FString ChangeDescription = FString::Printf(TEXT("Rebuilt landscape splines for %s"), *InWorld->GetName());
+		if (!AutoSubmitFiles(ModifiedFiles, ChangeDescription))
 		{
 			return false;
 		}

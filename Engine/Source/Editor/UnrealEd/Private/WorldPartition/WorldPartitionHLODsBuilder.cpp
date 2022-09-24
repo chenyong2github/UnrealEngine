@@ -13,10 +13,7 @@
 #include "ActorFolder.h"
 #include "EngineUtils.h"
 #include "SourceControlHelpers.h"
-
 #include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
-#include "SourceControlOperations.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DerivedDataCacheInterface.h"
@@ -573,36 +570,12 @@ bool UWorldPartitionHLODsBuilder::DeleteHLODActors()
 
 bool UWorldPartitionHLODsBuilder::SubmitHLODActors()
 {
-	bool bRet = true;
-
 	// Ensure all files modified by the source control helper are taken into account
 	ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
 
-	TArray<FString> FilesToSubmit = ModifiedFiles.GetAllFiles();
-
 	// Check in all modified files
-	if (FilesToSubmit.Num() > 0)
-	{
-		FText ChangelistDescription = FText::FromString(FString::Printf(TEXT("Rebuilt HLODs for \"%s\" at %s"), *WorldPartition->GetWorld()->GetName(), *FEngineVersion::Current().ToString()));
-
-		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-		CheckInOperation->SetDescription(ChangelistDescription);
-		bRet = ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, FilesToSubmit) == ECommandResult::Succeeded;
-		if (!bRet)
-		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to submit %d files to source control."), FilesToSubmit.Num());
-		}
-		else
-		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Submitted %d files to source control ####"), FilesToSubmit.Num());
-		}
-	}
-	else
-	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### No files to submit ####"));
-	}
-
-	return bRet;
+	const FString ChangeDescription = FString::Printf(TEXT("Rebuilt HLODs for %s"), *WorldPartition->GetWorld()->GetName());
+	return AutoSubmitFiles(ModifiedFiles.GetAllFiles(), ChangeDescription);
 }
 
 bool UWorldPartitionHLODsBuilder::DumpStats()

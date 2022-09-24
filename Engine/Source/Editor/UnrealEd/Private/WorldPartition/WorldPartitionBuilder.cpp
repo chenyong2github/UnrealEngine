@@ -20,6 +20,10 @@
 #include "UObject/SavePackage.h"
 #include "Algo/Transform.h"
 
+#include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "SourceControlOperations.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, All, All);
 
 namespace FWorldPartitionBuilderLog
@@ -49,6 +53,10 @@ UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer)
 {
 	bAutoSubmit = FParse::Param(FCommandLine::Get(), TEXT("AutoSubmit"));
+	if (bAutoSubmit)
+	{
+		FParse::Value(FCommandLine::Get(), TEXT("AutoSubmitTags="), AutoSubmitTags);
+	}
 }
 
 bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
@@ -390,4 +398,44 @@ bool UWorldPartitionBuilder::DeletePackages(const TArray<FString>& PackageNames,
 	}
 
 	return true;
+}
+
+bool UWorldPartitionBuilder::AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const
+{
+	TArray<FString> ModifiedFiles;
+	Algo::Transform(InModifiedPackages, ModifiedFiles, [](const UPackage* InPackage) { return USourceControlHelpers::PackageFilename(InPackage); });
+	return AutoSubmitFiles(ModifiedFiles, InChangelistDescription);
+}
+
+bool UWorldPartitionBuilder::AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const
+{
+	bool bSucceeded = true;
+
+	if (bAutoSubmit)
+	{
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitting changes to source control..."));
+
+		if (!InModifiedFiles.IsEmpty())
+		{
+			FText ChangelistDescription = FText::FromString(FString::Printf(TEXT("%s\nBased on CL %d\n%s"), *InChangelistDescription, FEngineVersion::Current().GetChangelist(), *AutoSubmitTags));
+
+			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
+			CheckInOperation->SetDescription(ChangelistDescription);
+			if (ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, InModifiedFiles) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogWorldPartitionBuilder, Error, TEXT("Failed to submit changes to source control."));
+				bSucceeded = false;
+			}
+			else
+			{
+				UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitted changes to source control"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogWorldPartitionBuilder, Display, TEXT("No files to submit!"));
+		}
+	}
+
+	return bSucceeded;
 }
