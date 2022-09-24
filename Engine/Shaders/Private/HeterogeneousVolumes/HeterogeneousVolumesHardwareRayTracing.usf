@@ -510,7 +510,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
 
 	// Test bounding volume
-	float2 BoundingHitT = IntersectAABB(LocalRayOrigin, LocalRayDirection, 0.0, SceneDepth, LocalBoundsMin, LocalBoundsMax);
+	float2 BoundingHitT = IntersectAABB(LocalRayOrigin, LocalRayDirection, 0.0, LocalRayLength, LocalBoundsMin, LocalBoundsMax);
 	bool bIntersectsVolume = (BoundingHitT.y - BoundingHitT.x > 0.0);
 	if (!bIntersectsVolume)
 	{

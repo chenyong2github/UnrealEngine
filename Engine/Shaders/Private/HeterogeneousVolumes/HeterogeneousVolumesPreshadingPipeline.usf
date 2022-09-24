@@ -545,7 +545,7 @@ void RenderSingleScatteringWithPreshadingCS(
 	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
 
 	// Test bounding volume
-	float2 HitT = IntersectAABB(LocalRayOrigin, LocalRayDirection, 0.0, SceneDepth, LocalBoundsMin, LocalBoundsMax);
+	float2 HitT = IntersectAABB(LocalRayOrigin, LocalRayDirection, 0.0, LocalRayLength, LocalBoundsMin, LocalBoundsMax);
 	float HitSpan = HitT.y - HitT.x;
 	if (HitSpan <= 0.0)
 	{

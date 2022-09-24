@@ -81,20 +81,22 @@ FRayMarchingContext CreateRayMarchingContext(
 	return Context;
 }
 
+float RecalculateStepSize(inout FRayMarchingContext Context)
+{
+	// Recalculate step-size if the bounding-box diagonal is greater than the maximum step-count
+	float DiagonalLength = length(2.0 * GetLocalBoundsExtent());
+	uint MaxStepCount = max(DiagonalLength / Context.StepSize, 1);
+
+	float StepSize = (MaxStepCount > Context.MaxStepCount) ? DiagonalLength / Context.MaxStepCount : Context.StepSize;
+	return StepSize;
+}
+
 uint CalcStepCount(inout FRayMarchingContext Context)
 {
-	// Instead using the active ray-span, use the maximal ray-span so the stepsize is uniform among all rays
-	//float HitSpan = length(Hit1 - Hit0)
-	float HitSpan = length(2.0 * GetLocalBoundsExtent());
-	float StepSize = Context.StepSize;
-	uint StepCount = max(ceil(HitSpan / StepSize), 1);
-	if (StepCount > Context.MaxStepCount)
-	{
-		StepCount = Context.MaxStepCount;
-		StepSize = HitSpan / StepCount;
-	}
+	Context.StepSize = RecalculateStepSize(Context);
 
-	Context.StepSize = StepSize;
+	float HitSpan = length(Context.LocalRayTMax - Context.LocalRayTMin);
+	uint StepCount = max(ceil(HitSpan / Context.StepSize), 1);
 	return StepCount;
 }
 
