@@ -13,4 +13,4 @@ void FChaosUserDataModule::ShutdownModule()
 	// we call this function before unloading the module.
 }
 
-IMPLEMENT_MODULE(FChaosUserDataModule, ChaosUserDataModule)
+IMPLEMENT_MODULE(FChaosUserDataModule, ChaosUserData)
