@@ -120,10 +120,13 @@ void UUIFrameworkWidget::SetParentPlayerOwnerRecursive()
 	UUIFrameworkWidget* Self = this;
 	AuthorityForEachChildren([Self](UUIFrameworkWidget* Child)
 		{
-			check(Child->AuthorityGetParent().IsWidget() && Child->AuthorityGetParent().AsWidget() == Self);
-			Child->OwnerPlayerComponent = Self->OwnerPlayerComponent;
-			Child->AuthorityParent = FUIFrameworkParentWidget(Self);
-			Child->SetParentPlayerOwnerRecursive();
+			if (Child != nullptr)
+			{
+				check(Child->AuthorityGetParent().IsWidget() && Child->AuthorityGetParent().AsWidget() == Self);
+				Child->OwnerPlayerComponent = Self->OwnerPlayerComponent;
+				Child->AuthorityParent = FUIFrameworkParentWidget(Self);
+				Child->SetParentPlayerOwnerRecursive();
+			}
 		});
 }
 

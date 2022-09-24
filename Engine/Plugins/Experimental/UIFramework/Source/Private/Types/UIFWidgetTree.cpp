@@ -168,10 +168,13 @@ void FUIFrameworkWidgetTree::AddChildRecursiveInternal(UUIFrameworkWidget* Widge
 	FUIFrameworkWidgetTree* Self = this;
 	Widget->AuthorityForEachChildren([Self, Widget](UUIFrameworkWidget* ChildWidget)
 		{
-			FUIFrameworkWidgetTreeEntry& NewEntry = Self->Entries.Emplace_GetRef(Widget, ChildWidget);
-			Self->MarkItemDirty(NewEntry);
-			Self->WidgetByIdMap.FindOrAdd(ChildWidget->GetWidgetId()) = ChildWidget;
-			Self->AddChildRecursiveInternal(ChildWidget);
+			if (ChildWidget != nullptr)
+			{
+				FUIFrameworkWidgetTreeEntry& NewEntry = Self->Entries.Emplace_GetRef(Widget, ChildWidget);
+				Self->MarkItemDirty(NewEntry);
+				Self->WidgetByIdMap.FindOrAdd(ChildWidget->GetWidgetId()) = ChildWidget;
+				Self->AddChildRecursiveInternal(ChildWidget);
+			}
 		});
 }
 

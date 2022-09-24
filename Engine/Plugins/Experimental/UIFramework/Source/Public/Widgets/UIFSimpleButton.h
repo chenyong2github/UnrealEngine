@@ -11,7 +11,7 @@
 /**
  *
  */
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FUIFrameworkSimpleButtonClickEvent, UUIFrameworkSimpleButton, OnClick, FUIFrameworkClickEventArgument, Argument);
+DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkSimpleButtonClickEvent, FUIFrameworkClickEventArgument);
 
 
 /**
@@ -48,6 +48,5 @@ private:
 	FText Text;
 
 public:
-	UPROPERTY(BlueprintAssignable)
 	FUIFrameworkSimpleButtonClickEvent OnClick;
 };

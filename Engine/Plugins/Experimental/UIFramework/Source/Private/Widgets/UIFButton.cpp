@@ -70,7 +70,10 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 void UUIFrameworkButton::AuthorityForEachChildren(const TFunctionRef<void(UUIFrameworkWidget*)>& Func)
 {
 	Super::AuthorityForEachChildren(Func);
-	Func(Slot.AuthorityGetWidget());
+	if (UUIFrameworkWidget* ChildWidget = Slot.AuthorityGetWidget())
+	{
+		Func(ChildWidget);
+	}
 }
 
 void UUIFrameworkButton::AuthorityRemoveChild(UUIFrameworkWidget* Widget)

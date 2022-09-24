@@ -67,7 +67,10 @@ void FUIFrameworkCanvasBoxSlotList::ForEachChildren(const TFunctionRef<void(UUIF
 {
 	for (FUIFrameworkCanvasBoxSlot& Slot : Slots)
 	{
-		Func(Slot.AuthorityGetWidget());
+		if (UUIFrameworkWidget* ChildWidget = Slot.AuthorityGetWidget())
+		{
+			Func(ChildWidget);
+		}
 	}
 }
 
