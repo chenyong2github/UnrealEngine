@@ -24,6 +24,9 @@ class FPropertyViewerImpl;
 /** */
 class ADVANCEDWIDGETS_API SPropertyViewer : public SCompoundWidget
 {
+private:
+	using Super = SCompoundWidget;
+
 public:
 	class FHandle
 	{
@@ -114,6 +117,8 @@ public:
 	void Construct(const FArguments& InArgs, const UClass* Class);
 	void Construct(const FArguments& InArgs, UObject* ObjectInstance);
 	void Construct(const FArguments& InArgs, const UFunction* Function);
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 public:
 	FHandle AddContainer(const UScriptStruct* Struct, TOptional<FText> DisplayName = TOptional<FText>());

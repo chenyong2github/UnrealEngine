@@ -134,7 +134,7 @@ FPropertyPath FTreeNode::GetPropertyPath() const
 	{
 		if (CurrentNode->Property)
 		{
-			Properties.Insert(Property, 0);
+			Properties.Insert(CurrentNode->Property, 0);
 		}
 
 		TSharedPtr<FContainer> ContainerPin = CurrentNode->Container.Pin();
@@ -248,13 +248,15 @@ void FTreeNode::GetFilterStrings(TArray<FString>& OutStrings) const
 }
 
 
-void FTreeNode::BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode)
+TArray<FTreeNode::FNodeReference> FTreeNode::BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode)
 {
-	BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, 2);
+	TArray<FNodeReference> TickReferences;
+	BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, 2, TickReferences);
+	return TickReferences;
 }
 
 
-void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode, int32 RecursiveCount)
+void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode, int32 RecursiveCount, TArray<FNodeReference>& OutTickReference)
 {
 	if (RecursiveCount <= 0)
 	{
@@ -269,12 +271,14 @@ void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldEx
 	{
 		if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 		{
-			ChildStructType = StructProperty->Struct;
+			if (FieldExpander.CanExpandScriptStruct(StructProperty))
+			{
+				ChildStructType = StructProperty->Struct;
+			}
 		}
 		else if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
 		{
-			// If the container is an instance and the object is nullptr, do not expand this object.
-			bool bIsNullptr = false;
+			UObject* Instance = nullptr;
 			if (TSharedPtr<FContainer> OwnerContainer = GetOwnerContainer())
 			{
 				if (OwnerContainer->IsInstance())
@@ -282,16 +286,19 @@ void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldEx
 					const FPropertyPath PropertyPath = GetPropertyPath();
 					if (const void* ContainerPtr = PropertyPath.GetContainerPtr())
 					{
-						bIsNullptr = ObjectProperty->GetObjectPropertyValue_InContainer(ContainerPtr) == nullptr;
+						Instance = ObjectProperty->GetObjectPropertyValue_InContainer(ContainerPtr);
 					}
 				}
 			}
 
-			if (!bIsNullptr && FieldExpander.CanExpandObject(ObjectProperty->PropertyClass))
+			TOptional<const UClass*> ClassToExpand = FieldExpander.CanExpandObject(ObjectProperty, Instance);
+			if (ClassToExpand.IsSet())
 			{
-				//todo expand the object instance, not the object class
-				//todo we want to confirm that that thing didn't change frame to frame
-				ChildStructType = ObjectProperty->PropertyClass;
+				if (Instance)
+				{
+					OutTickReference.Emplace(Instance, AsShared());
+				}
+				ChildStructType = ClassToExpand.GetValue();
 			}
 		}
 	}
@@ -314,12 +321,12 @@ void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldEx
 			if (const FProperty* PropertyIt = FieldIt.Get<FProperty>())
 			{
 				TSharedPtr<FTreeNode> Node = MakeField(AsShared(), PropertyIt, TOptional<FText>());
-				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, RecursiveCount);
+				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, RecursiveCount, OutTickReference);
 			}
 			if (const UFunction* FunctionIt = FieldIt.Get<UFunction>())
 			{
 				TSharedPtr<FTreeNode> Node = MakeField(AsShared(), FunctionIt, TOptional<FText>());
-				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, RecursiveCount);
+				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, RecursiveCount, OutTickReference);
 			}
 		}
 
@@ -388,7 +395,10 @@ FPropertyViewerImpl::FPropertyViewerImpl(const SPropertyViewer::FArguments& InAr
 	}
 	if (FieldExpander == nullptr)
 	{
-		FieldExpander = new FFieldExpander_NoExpand();
+		FFieldExpander_Default* DefaultFieldExpander = new FFieldExpander_Default();
+		DefaultFieldExpander->SetExpandObject(FFieldExpander_Default::EObjectExpandFlag::None);
+		DefaultFieldExpander->SetExpandScriptStruct(true);
+		FieldExpander = DefaultFieldExpander;
 		bOwnFieldExpander = true;
 	}
 
@@ -517,6 +527,52 @@ TSharedRef<SWidget> FPropertyViewerImpl::Construct(const SPropertyViewer::FArgum
 }
 
 
+void FPropertyViewerImpl::Tick()
+{
+	auto RemoveChild = [](const TSharedPtr<STreeView<TSharedPtr<FTreeNode>>>& InTreeWidget, const TSharedPtr<FTreeNode>& InNodePin)
+		{
+			if (TSharedPtr<FTreeNode> ParentNode = InNodePin->GetParentNode())
+			{
+				ParentNode->RemoveChild();
+			}
+			InTreeWidget->RequestListRefresh();
+		};
+
+	// If the object instance is not the same as the previous frame. Rebuild the tree.
+	for (int32 Index = NodeReferences.Num() - 1; Index >= 0; --Index)
+	{
+		UObject* PreviousPtr = NodeReferences[Index].Previous.Get();
+		TSharedPtr<FTreeNode> NodePin = NodeReferences[Index].Node.Pin();
+		if (PreviousPtr && NodePin)
+		{
+			UObject* Instance = nullptr;
+			if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(NodePin->GetField().Get<FProperty>()))
+			{
+				const FPropertyPath PropertyPath = NodePin->GetPropertyPath();
+				if (const void* ContainerPtr = PropertyPath.GetContainerPtr())
+				{
+					Instance = ObjectProperty->GetObjectPropertyValue_InContainer(ContainerPtr);
+				}
+			}
+
+			if (Instance != PreviousPtr)
+			{
+				RemoveChild(TreeWidget, NodePin);
+				NodeReferences.RemoveAtSwap(Index);
+			}
+		}
+		else
+		{
+			if (NodePin)
+			{
+				RemoveChild(TreeWidget, NodePin);
+			}
+			NodeReferences.RemoveAtSwap(Index);
+		}
+	}
+}
+
+
 void FPropertyViewerImpl::AddContainer(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UStruct* Struct)
 {
 	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, DisplayName, Struct);
@@ -547,7 +603,7 @@ void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifi
 void FPropertyViewerImpl::AddContainerInternal(SPropertyViewer::FHandle Identifier, TSharedPtr<FContainer>& NewContainer)
 {
 	TSharedPtr<FTreeNode> NewNode = FTreeNode::MakeContainer(NewContainer, NewContainer->GetDisplayName());
-	NewNode->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode);
+	NodeReferences.Append(NewNode->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode));
 	TreeSource.Add(NewNode);
 
 	if (TreeWidget)
@@ -983,7 +1039,7 @@ void FPropertyViewerImpl::HandleGetChildren(TSharedPtr<FTreeNode> InParent, TArr
 		// Do not build when filtering (only search in what it's already been built)
 		if (FilterHandler == nullptr || !FilterHandler->GetIsEnabled())
 		{
-			InParent->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode);
+			NodeReferences.Append(InParent->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode));
 		}
 	}
 	OutChildren = InParent->ChildNodes;

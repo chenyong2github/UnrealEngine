@@ -53,6 +53,13 @@ void SPropertyViewer::Construct(const FArguments& InArgs, const UFunction* Funct
 }
 
 
+void SPropertyViewer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	Implementation->Tick();
+}
+
+
 SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UScriptStruct* Struct, TOptional<FText> DisplayName)
 {
 	SPropertyViewer::FHandle Result = MakeContainerIdentifier();

@@ -5,8 +5,9 @@
 #include "Framework/PropertyViewer/PropertyPath.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 #include "Types/SlateEnums.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class ITableRow;
 class SSearchBox;
@@ -147,6 +148,11 @@ public:
 		return Property != nullptr ? FFieldVariant(Property) : Function.Get() ? FFieldVariant(Function.Get()) : FFieldVariant();
 	}
 
+	TSharedPtr<FTreeNode> GetParentNode() const
+	{
+		return ParentNode.Pin();
+	}
+
 	FPropertyPath GetPropertyPath() const;
 	TArray<FFieldVariant> GetFieldPath() const;
 
@@ -159,10 +165,27 @@ public:
 
 	void GetFilterStrings(TArray<FString>& OutStrings) const;
 
-	void BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode);
+	struct FNodeReference
+	{
+		TWeakObjectPtr<UObject> Previous;
+		TWeakPtr<FTreeNode> Node;
+
+		FNodeReference(UObject* InPrevious, const TWeakPtr<FTreeNode>& InNode)
+			: Previous(InPrevious)
+			, Node(InNode)
+		{}
+	};
+
+	// Returns the object node that was build
+	TArray<FNodeReference> BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode);
+	void RemoveChild()
+	{
+		ChildNodes.Reset();
+		bChildGenerated = false;
+	}
 
 private:
-	void BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode, int32 RecursiveCount);
+	void BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode, int32 RecursiveCount, TArray<FNodeReference>& OutTickReference);
 
 	static bool Sort(const TSharedPtr<FTreeNode>& NodeA, const TSharedPtr<FTreeNode>& NodeB);
 };
@@ -181,6 +204,7 @@ public:
 
 private:
 	TArray<TSharedPtr<FContainer>> Containers;
+	TArray<FTreeNode::FNodeReference> NodeReferences;
 
 	TSharedPtr<SSearchBox> SearchBoxWidget;
 	TSharedPtr<STreeView<TSharedPtr<FTreeNode>>> TreeWidget;
@@ -212,6 +236,7 @@ private:
 
 public:
 	TSharedRef<SWidget> Construct(const SPropertyViewer::FArguments& InArgs);
+	void Tick();
 
 	void AddContainer(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UStruct* Struct);
 	void AddContainerInstance(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, UObject* Object);
