@@ -4195,8 +4195,8 @@ bool UEditorEngine::CanParentActors( const AActor* ParentActor, const AActor* Ch
 		return false;
 	}
 
-	const ABrush* ParentBrush = Cast<const  ABrush >( ParentActor );
-	const ABrush* ChildBrush = Cast<const  ABrush >( ChildActor );
+	const ABrush* ParentBrush = Cast<const ABrush>( ParentActor );
+	const ABrush* ChildBrush = Cast<const ABrush>( ChildActor );
 	if( (ParentBrush && !ParentBrush->IsVolumeBrush() ) || ( ChildBrush && !ChildBrush->IsVolumeBrush() ) )
 	{
 		if (ReasonText)
@@ -4208,7 +4208,7 @@ bool UEditorEngine::CanParentActors( const AActor* ParentActor, const AActor* Ch
 
 	{
 		FText Reason;
-		if (!ChildActor->EditorCanAttachTo(ParentActor, Reason))
+		if (!ParentActor->EditorCanAttachFrom(ChildActor, Reason) || !ChildActor->EditorCanAttachTo(ParentActor, Reason))
 		{
 			if (ReasonText)
 			{

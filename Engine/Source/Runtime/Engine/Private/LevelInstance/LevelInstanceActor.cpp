@@ -271,6 +271,16 @@ bool ALevelInstance::OpenAssetEditor()
 	return CanEnterEdit() ? EnterEdit() : false;
 }
 
+bool ALevelInstance::EditorCanAttachFrom(const AActor* InChild, FText& OutReason) const
+{
+	if (IsEditing())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box = Super::GetComponentsBoundingBox(bNonColliding, bIncludeFromChildActors);

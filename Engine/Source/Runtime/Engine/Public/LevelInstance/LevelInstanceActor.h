@@ -97,6 +97,7 @@ public:
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const override;
 	virtual bool OpenAssetEditor() override;
+	virtual bool EditorCanAttachFrom(const AActor* InChild, FText& OutReason) const override;
 	// End of AActor interface
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
