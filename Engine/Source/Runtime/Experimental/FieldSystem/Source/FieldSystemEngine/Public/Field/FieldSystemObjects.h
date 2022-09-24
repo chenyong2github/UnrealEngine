@@ -217,8 +217,8 @@ public:
 		: Super()
 		, Radius(0)
 		, Position(FVector(0, 0, 0))
-		, InteriorValue(1.0)
-		, ExteriorValue(0.0)
+		, InteriorValue(1)
+		, ExteriorValue(0)
 		, SetMaskCondition(ESetMaskConditionType::Field_Set_Always)
 	{}
 	virtual ~URadialIntMask() {}

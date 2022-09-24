@@ -14,7 +14,7 @@ class FGestureRecognizer
 public:
 	/** Constructor **/
 	FGestureRecognizer() : bIsReadyForPinch(false), AnchorDistanceSq(0.0f), StartAngle(0.0f),
-		bIsReadyForFlick(false), FlickTime(0.0f), PreviousTouchCount(0.0f)
+		bIsReadyForFlick(false), FlickTime(0.0f), PreviousTouchCount(0)
 	{};
 
 	/** Attempt to detect touch gestures */

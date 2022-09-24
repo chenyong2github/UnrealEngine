@@ -293,7 +293,7 @@ public:
 			FTableViewDimensions DimensionsUsedSoFar(this->Orientation);
 			
 			// Index of the item at which we start generating based on how far scrolled down we are
-			int32 StartIndex = FMath::Max( 0, FMath::FloorToInt(ClampedScrollOffset / NumItemsPerLine) * NumItemsPerLine);
+			int32 StartIndex = FMath::Max( 0, FMath::FloorToInt32(ClampedScrollOffset / NumItemsPerLine) * NumItemsPerLine);
 
 			// Let the WidgetGenerator know that we are starting a pass so that it can keep track of data items and widgets.
 			this->WidgetGenerator.OnBeginGenerationPass();
@@ -316,7 +316,7 @@ public:
 					if (bFirstLine)
 					{
 						bFirstLine = false;
-						LineFraction -= FMath::Fractional(ClampedScrollOffset / NumItemsPerLine);
+						LineFraction -= (float)FMath::Fractional(ClampedScrollOffset / NumItemsPerLine);
 					}
 
 					DimensionsUsedSoFar.ScrollAxis += TileDimensions.ScrollAxis * LineFraction;
@@ -356,7 +356,7 @@ public:
 			// We have completed the generation pass. The WidgetGenerator will clean up unused Widgets.
 			this->WidgetGenerator.OnEndGenerationPass();
 
-			const float TotalGeneratedLineAxisSize = FMath::CeilToFloat(NumLinesShownOnScreen) * TileDimensions.ScrollAxis;
+			const float TotalGeneratedLineAxisSize = (float)(FMath::CeilToFloat(NumLinesShownOnScreen) * TileDimensions.ScrollAxis);
 			return STableViewBase::FReGenerateResults(ClampedScrollOffset, TotalGeneratedLineAxisSize, NumLinesShownOnScreen, bIsAtEndOfList && !bHasFilledAvailableArea);
 		}
 
@@ -406,7 +406,7 @@ protected:
 		{
 			const double NewScrollOffset = this->DesiredScrollOffset + ((ScrollByAmountInSlateUnits * GetNumItemsPerLine()) / GetTileDimensions().ScrollAxis);
 
-			return this->ScrollTo( NewScrollOffset );
+			return this->ScrollTo( (float)NewScrollOffset );
 		}
 
 		return 0.f;
@@ -435,7 +435,7 @@ protected:
 			{
 				const float NumLinesInView = FTableViewDimensions(this->Orientation, ListViewGeometry.GetLocalSize()).ScrollAxis / GetTileDimensions().ScrollAxis;
 
-				float NumLiveWidgets = this->GetNumLiveWidgets();
+				double NumLiveWidgets = this->GetNumLiveWidgets();
 				if (NumLiveWidgets == 0 && this->IsPendingRefresh())
 				{
 					// Use the last number of widgets on screen to estimate if we actually need to scroll.
@@ -455,7 +455,7 @@ protected:
 				const int32 NumItemsPerLine = GetNumItemsPerLine();
 				const double ScrollLineOffset = this->GetTargetScrollOffset() / NumItemsPerLine;
 				const int32 LineOfItem = FMath::FloorToInt((float)IndexOfItem / (float)NumItemsPerLine);
-				const int32 NumFullLinesInView = FMath::FloorToInt(ScrollLineOffset + NumLinesInView) - FMath::CeilToInt(ScrollLineOffset);
+				const int32 NumFullLinesInView = FMath::FloorToInt32(ScrollLineOffset + NumLinesInView) - FMath::CeilToInt32(ScrollLineOffset);
 				
 				const double MinDisplayedLine = this->bNavigateOnScrollIntoView ? FMath::FloorToDouble(ScrollLineOffset) : FMath::CeilToDouble(ScrollLineOffset);
 				const double MaxDisplayedLine = this->bNavigateOnScrollIntoView ? FMath::CeilToDouble(ScrollLineOffset + NumFullLinesInView) : FMath::FloorToDouble(ScrollLineOffset + NumFullLinesInView);
@@ -463,7 +463,7 @@ protected:
 				if (LineOfItem < MinDisplayedLine || LineOfItem > MaxDisplayedLine)
 				{
 					// Set the line with the item at the beginning of the view area
-					float NewLineOffset = LineOfItem;
+					float NewLineOffset = (float)LineOfItem;
 					// Center the line in the view area
 					NewLineOffset -= NumLinesInView * 0.5f;
 					// Convert the line offset into an item offset
@@ -471,7 +471,7 @@ protected:
 					// And clamp the scroll offset within the allowed limits
 					NewScrollOffset = FMath::Clamp(NewScrollOffset, 0., (double)(GetNumItemsBeingObserved() - NumItemsPerLine * NumLinesInView));
 
-					this->SetScrollOffset(NewScrollOffset);
+					this->SetScrollOffset((float)NewScrollOffset);
 				}
 				else if (this->bNavigateOnScrollIntoView)
 				{

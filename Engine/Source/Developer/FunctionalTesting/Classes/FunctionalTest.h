@@ -35,7 +35,7 @@ struct FStatsData
 	FStatsData() :NumFrames(0), SumTimeSeconds(0.0f){}
 
 	uint32 NumFrames;
-	uint32 SumTimeSeconds;
+	float SumTimeSeconds;
 	FStatisticalFloat FrameTimeTracker;
 	FStatisticalFloat GameThreadTimeTracker;
 	FStatisticalFloat RenderThreadTimeTracker;

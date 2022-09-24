@@ -178,7 +178,7 @@ int32 UCheckAndroidDeviceProfileCommandlet::Main(const FString& RawCommandLine)
 			TArray<FSelectedFragmentProperties> SelectedFragments;
 
 			UE_LOG(LogCheckAndroidDeviceProfile, Display, TEXT("%s Selected Device Profile: %s"), *DeviceName, *ProfileName);
-			int32 TotalPhysGB = FCString::Atoi64(*DeviceParameters.FindChecked(TEXT("SRC_TotalPhysicalGB")));
+			int32 TotalPhysGB = FCString::Atoi(*DeviceParameters.FindChecked(TEXT("SRC_TotalPhysicalGB")));
 			EPlatformMemorySizeBucket MemorySizeBucket = DetermineDeviceMemorySizeBucket(TotalPhysGB);
 			FString PlatformOverride(TEXT("Android"));
 			FString ProfileDescription;

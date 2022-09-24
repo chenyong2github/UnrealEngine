@@ -561,10 +561,10 @@ public:
 		MetaData[Key].Reset(Value);
 	}
 
-	void InitFieldNodes(const float& TimeSeconds, const FName& Name)
+	void InitFieldNodes(const double TimeSeconds, const FName& Name)
 	{
 		CommandName = Name;
-		TimeCreation = TimeSeconds;
+		TimeCreation = (float)TimeSeconds;
 	}
 
 	void Serialize(FArchive& Ar);

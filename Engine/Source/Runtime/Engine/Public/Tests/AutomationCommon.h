@@ -231,7 +231,7 @@ private:
 	const double kTickRate = 60.0;
 
 	// How many samples we hold
-	const int kSampleCount = kTickRate * 5;
+	const int kSampleCount = (int32)kTickRate * 5;
 };
 
 /**

@@ -1179,7 +1179,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 template<typename T>
 FORCEINLINE FIntPoint TVector2<T>::IntPoint() const
 {
-	return FIntPoint(FMath::RoundToInt(X), FMath::RoundToInt(Y));
+	if constexpr (std::is_same_v<T, float>)
+	{
+		return FIntPoint( FMath::RoundToInt32(X), FMath::RoundToInt32(Y) );
+	}
+	else
+	{
+		// FIntPoint constructor from FInt64Point checks that the int64 fits in int32.
+		return FIntPoint( FInt64Point(FMath::RoundToInt64(X), FMath::RoundToInt64(Y)) );
+	}
 }
 
 template<typename T>

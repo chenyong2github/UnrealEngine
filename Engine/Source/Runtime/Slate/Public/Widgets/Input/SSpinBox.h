@@ -219,11 +219,11 @@ public:
 
 		if (SupportDynamicSliderMaxValue.Get() && CachedExternalValue > GetMaxSliderValue())
 		{
-			ApplySliderMaxValueChanged(CachedExternalValue - GetMaxSliderValue(), true);
+			ApplySliderMaxValueChanged(float(CachedExternalValue - GetMaxSliderValue()), true);
 		}
 		else if (SupportDynamicSliderMinValue.Get() && CachedExternalValue < GetMinSliderValue())
 		{
-			ApplySliderMinValueChanged(CachedExternalValue - GetMinSliderValue(), true);
+			ApplySliderMinValueChanged(float(CachedExternalValue - GetMinSliderValue()), true);
 		}
 
 		UpdateIsSpinRangeUnlimited();
@@ -539,7 +539,7 @@ public:
 
 			if (!bDragging)
 			{
-				DistanceDragged += FMath::Abs(MouseEvent.GetCursorDelta().X);
+				DistanceDragged += (float)FMath::Abs(MouseEvent.GetCursorDelta().X);
 				if (DistanceDragged > FSlateApplication::Get().GetDragTriggerDistance())
 				{
 					ExitTextMode();
@@ -558,7 +558,7 @@ public:
 
 				// A minimum slider width to use for calculating deltas in the slider-range space
 				const float MinSliderWidth = 100.f;
-				float SliderWidthInSlateUnits = FMath::Max(MyGeometry.GetDrawSize().X, MinSliderWidth);
+				float SliderWidthInSlateUnits = FMath::Max((float)MyGeometry.GetDrawSize().X, MinSliderWidth);
 
 				const int32 CachedShiftMouseMovePixelPerDelta = ShiftMouseMovePixelPerDelta.Get();
 				if (CachedShiftMouseMovePixelPerDelta > 1 && MouseEvent.IsShiftDown())
@@ -568,7 +568,7 @@ public:
 
 				if (MouseEvent.IsControlDown())
 				{
-					float DeltaToAdd = MouseEvent.GetCursorDelta().X / SliderWidthInSlateUnits;
+					float DeltaToAdd = (float)MouseEvent.GetCursorDelta().X / SliderWidthInSlateUnits;
 
 					if (SupportDynamicSliderMaxValue.Get() && (NumericType)InternalValue == GetMaxSliderValue())
 					{
@@ -605,7 +605,7 @@ public:
 					FractionFilled *= SliderWidthInSlateUnits;
 
 					// Now add the delta to the fraction filled, this causes the spin.
-					FractionFilled += MouseEvent.GetCursorDelta().X;
+					FractionFilled += (float)MouseEvent.GetCursorDelta().X;
 
 					// Clamp the fraction to be within the bounds of the geometry.
 					FractionFilled = FMath::Clamp(FractionFilled, 0.0f, SliderWidthInSlateUnits);
@@ -692,9 +692,9 @@ public:
 			// First SetText is to update the value before calling CommitValue. Otherwise, when the text lose
 			// focus from the CommitValue, it will override the value we just committed.
 			// The second SetText is to update the text to the InternalValue since it could have been clamped.
-			EditableText->SetText(FText::FromString(Interface->ToString(NewValue)));
+			EditableText->SetText(FText::FromString(Interface->ToString((NumericType)NewValue)));
 			CommitValue(RoundedNewValue, NewValue, CommittedViaSpin, ETextCommit::OnEnter);
-			EditableText->SetText(FText::FromString(Interface->ToString(InternalValue)));
+			EditableText->SetText(FText::FromString(Interface->ToString((NumericType)InternalValue)));
 
 			return FReply::Handled();
 		}
@@ -1019,11 +1019,11 @@ protected:
 		// Update the max slider value based on the current value if we're in dynamic mode
 		if (SupportDynamicSliderMaxValue.Get() && ValueAttribute.Get() > GetMaxSliderValue())
 		{
-			ApplySliderMaxValueChanged(ValueAttribute.Get() - GetMaxSliderValue(), true);
+			ApplySliderMaxValueChanged(float(ValueAttribute.Get() - GetMaxSliderValue()), true);
 		}
 		else if (SupportDynamicSliderMinValue.Get() && ValueAttribute.Get() < GetMinSliderValue())
 		{
-			ApplySliderMinValueChanged(ValueAttribute.Get() - GetMinSliderValue(), true);
+			ApplySliderMinValueChanged(float(ValueAttribute.Get() - GetMinSliderValue()), true);
 		}
 
 		if (CommitMethod == CommittedViaTypeIn || CommitMethod == CommittedViaArrowKey)
@@ -1137,7 +1137,7 @@ private:
 	TAttribute<float> MinDesiredWidth;
 	float GetTextMinDesiredWidth() const
 	{
-		return FMath::Max(0.0f, MinDesiredWidth.Get() - Style->ArrowsImage.ImageSize.X);
+		return FMath::Max(0.0f, MinDesiredWidth.Get() - (float)Style->ArrowsImage.ImageSize.X);
 	}
 
 	/** Check whether a typed character is valid */

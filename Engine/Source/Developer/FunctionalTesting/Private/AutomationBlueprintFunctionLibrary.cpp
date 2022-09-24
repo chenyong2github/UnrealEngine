@@ -964,11 +964,11 @@ float HelperGetStat(FName StatName)
 		{
 			if(bCallCount)
 			{
-				return StatMessage->GetValue_CallCount(ValueType);
+				return (float)StatMessage->GetValue_CallCount(ValueType);
 			}
 			else
 			{
-				return FPlatformTime::ToMilliseconds(StatMessage->GetValue_Duration(ValueType));
+				return (float)FPlatformTime::ToMilliseconds64(StatMessage->GetValue_Duration(ValueType));
 			}
 		}
 	}

@@ -259,7 +259,7 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 	//GEngine->DelayGarbageCollection();
 
 	RunFrame = GFrameNumber;
-	RunTime = World->GetTimeSeconds();
+	RunTime = (float)World->GetTimeSeconds();
 
 	TotalTime = 0.f;
 	if (TimeLimit >= 0)
@@ -289,7 +289,7 @@ void AFunctionalTest::StartTest()
 	SCOPE_CYCLE_COUNTER(STAT_FunctionalTest_StartTest);
 	TotalTime = 0.f;
 	StartFrame = GFrameNumber;
-	StartTime = GetWorld()->GetTimeSeconds();
+	StartTime = (float)GetWorld()->GetTimeSeconds();
 
 	ReceiveStartTest();
 	OnTestStart.Broadcast();
@@ -1282,14 +1282,14 @@ FString FPerfStatsRecord::GetOverBudgetString() const
 {
 	double Min, Max, Avg;
 	GetRenderThreadTimes(Min, Max, Avg);
-	float RTMax = Max;
-	float RTBudgetFrac = Max / RenderThreadBudget;
+	float RTMax = (float)Max;
+	float RTBudgetFrac = (float)(Max / RenderThreadBudget);
 	GetGameThreadTimes(Min, Max, Avg);
-	float GTMax = Max;
-	float GTBudgetFrac = Max / GameThreadBudget;
+	float GTMax = (float)Max;
+	float GTBudgetFrac = (float)(Max / GameThreadBudget);
 	GetGPUTimes(Min, Max, Avg);
-	float GPUMax = Max;
-	float GPUBudgetFrac = Max / GPUBudget;
+	float GPUMax = (float)Max;
+	float GPUBudgetFrac = (float)(Max / GPUBudget);
 
 	return FString::Printf(TEXT("%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f"),
 		*Name,
