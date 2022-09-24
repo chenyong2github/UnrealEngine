@@ -17,6 +17,7 @@
 #include "Engine/Level.h"
 #include "HAL/FileManager.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Algo/Transform.h"
 
 int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 {
@@ -35,7 +36,7 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("CollectionFilter: %s"), *CollectionFilter);
 		const ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-		CollectionManager.GetObjectsInCollection(*CollectionFilter, ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
+		CollectionManager.GetObjectsInCollection(FName(*CollectionFilter), ECollectionShareType::CST_All, Filter.SoftObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
 	}
 
 	IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
@@ -59,7 +60,7 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 	{
 		const FAssetData& LevelAsset = LevelAssets[LevelIndex];
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
-		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Level: %s (%d/%d)"), *LevelAsset.ObjectPath.ToString(), LevelIndex + 1, LevelCount);
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Level: %s (%d/%d)"), *LevelAsset.GetSoftObjectPath().ToString(), LevelIndex + 1, LevelCount);
 		LoadLevel(LevelAsset);
 	}
 
