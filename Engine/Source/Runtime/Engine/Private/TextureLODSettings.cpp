@@ -220,6 +220,10 @@ int32 UTextureLODSettings::CalculateNumOptionalMips(int32 LODGroup, const int32 
 
 	int32 OptionalLOD = FMath::Min<int32>(FMath::CeilLogTwo(LODGroupInfo.OptionalMaxLODSize) + 1, NumMips);
 
+	// "MinMipToInline" actually comes from NumNonStreaming
+	//  this ensures that optional mips are always streaming mips
+	//  also streaming mips are always compression block sized aligned, therefore optional mips are too
+
 	int32 NumOptionalMips = FMath::Min(NumMips - (OptionalLOD - LODGroupInfo.OptionalLODBias), MinMipToInline);
 	return NumOptionalMips;
 }

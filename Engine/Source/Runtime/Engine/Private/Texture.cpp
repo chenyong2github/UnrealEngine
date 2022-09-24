@@ -1372,45 +1372,66 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 
 	const int32 AssetMipIdxForResourceFirstMip = FMath::Max<int32>(0, PlatformData->Mips.Num() - NumMips);
 
-	bool bMakeStreamble = false;
+	bool bMakeStreamable = false;
 	int32 NumRequestedMips = 0;
+	
+	// same conditions as IsCandidateForTextureStreaming which TextureDerivedData will use :
+	bool bTextureIsStreamable =
+	  (!NeverStream && 
+		NumOfNonStreamingMips < NumMips && 
+		LODGroup != TEXTUREGROUP_UI ); 
 
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
-	bool bWillProvideMipDataWithoutDisk = false;
-
-	// Check if any of the CustomMipData providers associated with this texture can provide mip data even without DDC or disk,
-	// if so, enable streaming for this texture
-	for (UAssetUserData* UserData : AssetUserData)
+	if ( bTextureIsStreamable )
 	{
-		UTextureMipDataProviderFactory* CustomMipDataProviderFactory = Cast<UTextureMipDataProviderFactory>(UserData);
-		if (CustomMipDataProviderFactory)
+		bool bWillProvideMipDataWithoutDisk = false;
+
+		// Check if any of the CustomMipData providers associated with this texture can provide mip data even without DDC or disk,
+		// if so, enable streaming for this texture
+		for (UAssetUserData* UserData : AssetUserData)
 		{
-			bWillProvideMipDataWithoutDisk = CustomMipDataProviderFactory->WillProvideMipDataWithoutDisk();
-			if (bWillProvideMipDataWithoutDisk)
+			UTextureMipDataProviderFactory* CustomMipDataProviderFactory = Cast<UTextureMipDataProviderFactory>(UserData);
+			if (CustomMipDataProviderFactory)
 			{
-				break;
+				bWillProvideMipDataWithoutDisk = CustomMipDataProviderFactory->WillProvideMipDataWithoutDisk();
+				if (bWillProvideMipDataWithoutDisk)
+				{
+					break;
+				}
 			}
 		}
-	}
 
-	if (!NeverStream && 
-		NumOfNonStreamingMips < NumMips && 
-		LODGroup != TEXTUREGROUP_UI && 
-		bAllowStreaming &&
-		(bSkipCanBeLoaded || PlatformData->CanBeLoaded() || bWillProvideMipDataWithoutDisk))
-	{
-		bMakeStreamble  = true;
+		if (bAllowStreaming &&
+			(bSkipCanBeLoaded || PlatformData->CanBeLoaded() || bWillProvideMipDataWithoutDisk))
+		{
+			bMakeStreamable  = true;
+		}
 	}
 #endif
 
-	if (bMakeStreamble && IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::Texture))
+	if ( ! bTextureIsStreamable )
+	{
+		// in Editor , NumOfNonStreamingMips may not be all mips
+		// but once we cook it will be
+		// so check this early to make behavior consistent
+		NumRequestedMips = NumMips;
+	}
+	else if (bMakeStreamable && IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::Texture))
 	{
 		NumRequestedMips = NumOfNonStreamingMips;
 	}
 	else
 	{
+		// we are not streaming (bMakeStreamable is false)
+		// but this may select a mip below the top mip
+		// (due to cinematic lod bias)
+		// but only if the texture itself is streamable
+
 		// Adjust CachedLODBias so that it takes into account FStreamableRenderResourceState::AssetLODBias.
 		const int32 ResourceLODBias = FMath::Max<int32>(0, GetCachedLODBias() - AssetMipIdxForResourceFirstMip);
+		//  ResourceLODBias almost always = NumCinematicMipLevels
+		//check( ResourceLODBias == NumCinematicMipLevels ); // this will be true unless you hit the MaxRuntimeMipCount clamp in NumMips
+		// if ResourceLODBias == 0 , this always selects NumRequestedMips = NumMips
 
 		// Ensure NumMipsInTail is within valid range to safeguard on the above expressions. 
 		const int32 NumMipsInTail = FMath::Clamp<int32>(PlatformData->GetNumMipsInTail(), 1, NumMips);
@@ -1428,13 +1449,17 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 		NumRequestedMips = FMath::Max(NumRequestedMips,NumOfNonStreamingMips);
 	}
 
+	// @todo Oodle : this looks like a bug; did it mean to be MinRequestMipCount <= NumMips
+	// typically MinRequestMipCount == 0
+	// the only place it's not zero is from UTexture2D::CreateResource from existing resource mem, where it is == NumMips
+	// but in that case it is ignored here because it is == NumMips, not <
 	if (NumRequestedMips < MinRequestMipCount && MinRequestMipCount < NumMips)
 	{
 		NumRequestedMips = MinRequestMipCount;
 	}
 
 	FStreamableRenderResourceState PostInitState;
-	PostInitState.bSupportsStreaming = bMakeStreamble;
+	PostInitState.bSupportsStreaming = bMakeStreamable;
 	PostInitState.NumNonStreamingLODs = (uint8)NumOfNonStreamingMips;
 	PostInitState.NumNonOptionalLODs = (uint8)NumOfNonOptionalMips;
 	PostInitState.MaxNumLODs = (uint8)NumMips;
