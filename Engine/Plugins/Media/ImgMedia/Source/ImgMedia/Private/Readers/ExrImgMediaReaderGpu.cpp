@@ -372,7 +372,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 
 	OutFrame->Format = ConverterParams->FrameInfo.NumChannels <= 3 ? EMediaTextureSampleFormat::FloatRGB : EMediaTextureSampleFormat::FloatRGBA;
 	OutFrame->Stride = ConverterParams->FullResolution.X * ConverterParams->PixelSize;
-
+	
+	ConverterParams->Viewports.KeySort(TLess<int32>());
 	CreateSampleConverterCallback(SampleConverter, ConverterParams);
 
 	UE_LOG(LogImgMedia, Verbose, TEXT("Reader %p: Read Pixels Complete. %i"), this, FrameId);
