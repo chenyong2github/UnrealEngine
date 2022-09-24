@@ -1176,6 +1176,9 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 	check(bCommitted);
 	check(!StackLevelInstanceEdit.LevelInstanceEdit);
 
+	// In case Commit caused actor to be GCed (Commit can cause BP reinstancing)
+	NewLevelInstanceActor = Cast<AActor>(GetLevelInstance(NewLevelInstanceID));
+
 	// Don't force saving of unsaved/temp packages onto the user. 
 	if (!FPackageName::IsTempPackage(NewLevelInstanceActor->GetPackage()->GetName()))
 	{
