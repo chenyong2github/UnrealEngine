@@ -73,7 +73,7 @@ namespace UE::PoseSearch
 	constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 #endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
 
-static inline float ArraySum(TConstArrayView<const float> View, int32 StartIndex, int32 Offset)
+static inline float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
 {
 	float Sum = 0.f;
 	const int32 EndIndex = StartIndex + Offset;
@@ -84,7 +84,7 @@ static inline float ArraySum(TConstArrayView<const float> View, int32 StartIndex
 	return Sum;
 }
 
-static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt)
+static inline float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num());
 
@@ -95,7 +95,7 @@ static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConst
 	return ((VA - VB) * VW).square().sum();
 }
 
-static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B)
+static inline float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B)
 {
 	check(A.Num() == B.Num());
 
@@ -105,7 +105,7 @@ static inline float CompareFeatureVectors(TConstArrayView<const float> A, TConst
 	return (VA - VB).square().sum();
 }
 
-void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result)
+void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num() && A.Num() == Result.Num());
 
@@ -184,7 +184,7 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 	return LowerBound(First, Last, Value, FIdentityFunctor(), TLess<>());
 }
 
-static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelectableIdxSize, FSearchContext& SearchContext, const UPoseSearchDatabase* Database, TArrayView<const float> QueryValues)
+static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelectableIdxBuffer, FSearchContext& SearchContext, const UPoseSearchDatabase* Database, TArrayView<const float> QueryValues)
 {
 	check(Database);
 
@@ -212,9 +212,9 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 
 			if (CurrentIndexAsset->SamplingInterval.Contains(PoseAssetPlayerTime))
 			{
-				if (NonSelectableIdxUsedSize < NonSelectableIdxSize)
+				if (NonSelectableIdxUsedSize < NonSelectableIdxBuffer.Num())
 				{
-					NonSelectableIdx[NonSelectableIdxUsedSize++] = PoseIdx;
+					NonSelectableIdxBuffer[NonSelectableIdxUsedSize++] = PoseIdx;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 					const FPoseSearchCost PoseCost = Database->ComparePoses(SearchContext, PoseIdx, EPoseComparisonFlags::None, QueryValues);
@@ -224,7 +224,9 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 				else
 				{
 					UE_LOG(LogPoseSearch, Warning, TEXT("PopulateNonSelectableIdx couldn't add all the NonSelectableIdx"));
-					return NonSelectableIdxUsedSize;
+					TArrayView<size_t> NonSelectableIdx(NonSelectableIdxBuffer.GetData(), NonSelectableIdxUsedSize);
+					NonSelectableIdx.Sort();
+					return NonSelectableIdx;
 				}
 			}
 			else
@@ -250,9 +252,9 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 
 			if (CurrentIndexAsset->SamplingInterval.Contains(PoseAssetPlayerTime))
 			{
-				if (NonSelectableIdxUsedSize < NonSelectableIdxSize)
+				if (NonSelectableIdxUsedSize < NonSelectableIdxBuffer.Num())
 				{
-					NonSelectableIdx[NonSelectableIdxUsedSize++] = PoseIdx;
+					NonSelectableIdxBuffer[NonSelectableIdxUsedSize++] = PoseIdx;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 					const FPoseSearchCost PoseCost = Database->ComparePoses(SearchContext, PoseIdx, EPoseComparisonFlags::None, QueryValues);
@@ -262,7 +264,9 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 				else
 				{
 					UE_LOG(LogPoseSearch, Warning, TEXT("PopulateNonSelectableIdx couldn't add all the NonSelectableIdx"));
-					return NonSelectableIdxUsedSize;
+					TArrayView<size_t> NonSelectableIdx(NonSelectableIdxBuffer.GetData(), NonSelectableIdxUsedSize);
+					NonSelectableIdx.Sort();
+					return NonSelectableIdx;
 				}
 			}
 			else
@@ -280,9 +284,9 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 			const FHistoricalPoseIndex& HistoricalPoseIndex = It.Key();
 			if (HistoricalPoseIndex.DatabaseKey == DatabaseKey)
 			{
-				if (NonSelectableIdxUsedSize < NonSelectableIdxSize)
+				if (NonSelectableIdxUsedSize < NonSelectableIdxBuffer.Num())
 				{
-					NonSelectableIdx[NonSelectableIdxUsedSize++] = HistoricalPoseIndex.PoseIndex;
+					NonSelectableIdxBuffer[NonSelectableIdxUsedSize++] = HistoricalPoseIndex.PoseIndex;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 					const FPoseSearchCost PoseCost = Database->ComparePoses(SearchContext, HistoricalPoseIndex.PoseIndex, EPoseComparisonFlags::None, QueryValues);
@@ -292,13 +296,17 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 				else
 				{
 					UE_LOG(LogPoseSearch, Warning, TEXT("PopulateNonSelectableIdx couldn't add all the NonSelectableIdx"));
-					return NonSelectableIdxUsedSize;
+					TArrayView<size_t> NonSelectableIdx(NonSelectableIdxBuffer.GetData(), NonSelectableIdxUsedSize);
+					NonSelectableIdx.Sort();
+					return NonSelectableIdx;
 				}
 			}
 		}
 	}
 
-	return NonSelectableIdxUsedSize;
+	TArrayView<size_t> NonSelectableIdx(NonSelectableIdxBuffer.GetData(), NonSelectableIdxUsedSize);
+	NonSelectableIdx.Sort();
+	return NonSelectableIdx;
 }
 
 } // namespace UE::PoseSearch
@@ -547,7 +555,7 @@ bool FPoseSearchIndex::IsEmpty() const
 	return bEmpty;
 }
 
-TConstArrayView<const float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
+TConstArrayView<float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
 	check(PoseIdx >= 0 && PoseIdx < NumPoses && Schema && Schema->SchemaCardinality >= 0);
 	const int32 ValueOffset = PoseIdx * Schema->SchemaCardinality;
@@ -686,7 +694,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
 	int32 PoseIdx,
 	UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags,
-	TConstArrayView<const float> QueryValues) const
+	TConstArrayView<float> QueryValues) const
 {
 	using namespace UE::PoseSearch;
 
@@ -1592,7 +1600,7 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 
 #endif // WITH_EDITOR
 
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<const float> QueryValues) const
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const
 {
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
 	check(SearchIndex);
@@ -1675,7 +1683,8 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	
 	constexpr int NonSelectableIdxDataSize = 128;
 	size_t* NonSelectableIdxData((size_t*)FMemory_Alloca(NonSelectableIdxDataSize * sizeof(size_t)));
-	
+	TArrayView<size_t> NonSelectableIdxBuffer(NonSelectableIdxData, NonSelectableIdxDataSize);
+
 	// KDTree in PCA space search
 	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
 	{
@@ -1733,8 +1742,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
 	if (SearchContext.GetCurrentBestTotalCost() > SearchIndex->MinCostAddend)
 	{
-		const int NonSelectableIdxUsedSize = PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext, this, QueryValues);
-		TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
+		TConstArrayView<size_t> NonSelectableIdx = PopulateNonSelectableIdx(NonSelectableIdxBuffer, SearchContext, this, QueryValues);
 		const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex->WeightsSqrt.GetData(), 1, NumDimensions);
 		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr, NonSelectableIdx);
 
@@ -1832,8 +1840,9 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 
 	constexpr int NonSelectableIdxDataSize = 128;
 	size_t* NonSelectableIdxData((size_t*)FMemory_Alloca(NonSelectableIdxDataSize * sizeof(size_t)));
-	const int NonSelectableIdxUsedSize = PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext, this, QueryValues);
-	TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
+	TArrayView<size_t> NonSelectableIdxBuffer(NonSelectableIdxData, NonSelectableIdxDataSize);
+	TConstArrayView<size_t> NonSelectableIdx = PopulateNonSelectableIdx(NonSelectableIdxBuffer, SearchContext, this, QueryValues);
+	check(Algo::IsSorted(NonSelectableIdx));
 
 	// since any PoseCost calculated here is at least SearchIndex->MinCostAddend,
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
@@ -1856,7 +1865,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 					continue;
 				}
 
-				if (CheckForNonSelectableIdx && NonSelectableIdx.Contains(PoseIdx))
+				if (CheckForNonSelectableIdx && Algo::BinarySearch(NonSelectableIdx, PoseIdx) != INDEX_NONE)
 				{
 					continue;
 				}
@@ -2197,7 +2206,7 @@ bool FSearchContext::IsCurrentResultFromDatabase(const UPoseSearchDatabase* Data
 	return !bForceInterrupt && CurrentResult.IsValid() && CurrentResult.Database == Database;
 }
 
-TConstArrayView<const float> FSearchContext::GetCurrentResultPrevPoseVector() const
+TConstArrayView<float> FSearchContext::GetCurrentResultPrevPoseVector() const
 {
 	check(CurrentResult.IsValid());
 	const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();
@@ -2205,7 +2214,7 @@ TConstArrayView<const float> FSearchContext::GetCurrentResultPrevPoseVector() co
 	return SearchIndex->GetPoseValues(CurrentResult.PrevPoseIdx);
 }
 
-TConstArrayView<const float> FSearchContext::GetCurrentResultPoseVector() const
+TConstArrayView<float> FSearchContext::GetCurrentResultPoseVector() const
 {
 	check(CurrentResult.IsValid());
 	const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();
@@ -2213,7 +2222,7 @@ TConstArrayView<const float> FSearchContext::GetCurrentResultPoseVector() const
 	return SearchIndex->GetPoseValues(CurrentResult.PoseIdx);
 }
 
-TConstArrayView<const float> FSearchContext::GetCurrentResultNextPoseVector() const
+TConstArrayView<float> FSearchContext::GetCurrentResultNextPoseVector() const
 {
 	check(CurrentResult.IsValid());
 	const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();

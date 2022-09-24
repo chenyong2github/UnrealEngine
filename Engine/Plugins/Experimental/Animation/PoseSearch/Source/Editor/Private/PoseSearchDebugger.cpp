@@ -39,7 +39,7 @@ inline static FLinearColor LinearColorBlend(FLinearColor LinearColorA, FLinearCo
 	return LinearColorA + (LinearColorB - LinearColorA) * BlendParam;
 }
 
-inline static void LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, TConstArrayView<const float> BlendParam, TArray<FLinearColor>& BlendedColors)
+inline static void LinearColorBlend(FLinearColor LinearColorA, FLinearColor LinearColorB, TConstArrayView<float> BlendParam, TArray<FLinearColor>& BlendedColors)
 {
 	const int32 Num = BlendParam.Num();
 	BlendedColors.SetNumUninitialized(Num);
@@ -49,7 +49,7 @@ inline static void LinearColorBlend(FLinearColor LinearColorA, FLinearColor Line
 	}
 }
 
-static void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue)
+static void ArrayMinMax(TConstArrayView<float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue)
 {
 	const int32 Num = View.Num();
 	check(Num == Min.Num() && Num == Max.Num());
@@ -64,7 +64,7 @@ static void ArrayMinMax(TConstArrayView<const float> View, TArrayView<float> Min
 	}
 }
 
-static void ArraySafeNormalize(TConstArrayView<const float> View, TConstArrayView<const float> Min, TConstArrayView<const float> Max, TArrayView<float> NormalizedView)
+static void ArraySafeNormalize(TConstArrayView<float> View, TConstArrayView<float> Min, TConstArrayView<float> Max, TArrayView<float> NormalizedView)
 {
 	const int32 Num = View.Num();
 	check(Num == Min.Num() && Num == Max.Num() && Num == NormalizedView.Num());
@@ -788,7 +788,7 @@ public:
 		return UnfilteredDatabaseRows[Index]->SourceDatabase->Schema == Schema;
 	}
 
-	virtual TConstArrayView<const float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const override
+	virtual TConstArrayView<float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const override
 	{
 		check(UnfilteredDatabaseRows[Index]->SourceDatabase->Schema == Schema);
 		return UnfilteredDatabaseRows[Index]->CostVector;
@@ -912,7 +912,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 						Row->PoseCost = PoseEntry.Cost;
 
 						Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
-						TConstArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseEntry.DbPoseIdx);
+						TConstArrayView<float> PoseValues = SearchIndex->GetPoseValues(PoseEntry.DbPoseIdx);
 
 						// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a DbEntry.QueryVector saved with the previous schema
 						// so the cardinality of DbEntry.QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero

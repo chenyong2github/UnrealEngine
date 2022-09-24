@@ -4,6 +4,7 @@
 
 #include "HAL/Platform.h"
 #include "Containers/ArrayView.h"
+#include "Algo/IsSorted.h"
 
 class FArchive;
 
@@ -42,7 +43,7 @@ struct POSESEARCH_API FKDTree
 
 	struct KNNResultSet
 	{
-		inline KNNResultSet(size_t InNumNeighbors, TArrayView<size_t> InIndexes, TArrayView<float> InDistances, TArrayView<size_t> InExcludeFromSearchIndexes = TArrayView<size_t>())
+		inline KNNResultSet(size_t InNumNeighbors, TArrayView<size_t> InIndexes, TArrayView<float> InDistances, TConstArrayView<size_t> InExcludeFromSearchIndexes = TConstArrayView<size_t>())
 		: Indexes(InIndexes)
 		, Distances(InDistances)
 		, NumNeighbors(InNumNeighbors)
@@ -53,6 +54,7 @@ struct POSESEARCH_API FKDTree
 			check(NumNeighbors > 0);
 			check(InIndexes.Num() > NumNeighbors);
 			check(InDistances.Num() > NumNeighbors);
+			check(Algo::IsSorted(InExcludeFromSearchIndexes));
 
 			Distances[NumNeighbors - 1] = UE_BIG_NUMBER;
 		}
@@ -69,8 +71,10 @@ struct POSESEARCH_API FKDTree
 
 		inline bool addPoint(size_t dist, size_t index)
 		{
-			if (ExcludeFromSearchIndexes.Contains(index))
+			if (Algo::BinarySearch(ExcludeFromSearchIndexes, index) != INDEX_NONE)
+			{
 				return true;
+			}
 
 			// shifting Distances[i] and Indexes[i] to make space for "dist" and "index" at the right "i"th slot
 			size_t i;
@@ -102,7 +106,7 @@ struct POSESEARCH_API FKDTree
 		TArrayView<float> Distances;
 		size_t NumNeighbors;
 		size_t Count;
-		const TArrayView<size_t> ExcludeFromSearchIndexes; // @todo: perhaps make it an hash if it gets too big
+		TConstArrayView<size_t> ExcludeFromSearchIndexes; // sorted array view
 	};
 	
 

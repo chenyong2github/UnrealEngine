@@ -307,7 +307,7 @@ public:
 	virtual bool IsCostVectorFromSchema(int32 Index, const UPoseSearchSchema* Schema) const = 0;
 
 	// returns the Index-th cost data vector
-	virtual TConstArrayView<const float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const = 0;
+	virtual TConstArrayView<float> GetCostVector(int32 Index, const UPoseSearchSchema* Schema) const = 0;
 
 	// every breakdown section start by calling BeginBreakDownSection...
 	virtual void BeginBreakDownSection(const FText& Label) = 0;
@@ -657,7 +657,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < NumPoses; }
 	bool IsEmpty() const;
 
-	TConstArrayView<const float> GetPoseValues(int32 PoseIdx) const;
+	TConstArrayView<float> GetPoseValues(int32 PoseIdx) const;
 
 	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
@@ -1101,7 +1101,7 @@ public:
 
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<const float> QueryValues) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const;
 
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1137,7 +1137,7 @@ public:
 	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
 
 protected:
-	FPoseSearchCost ComparePoses(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<const float> QueryValues) const;
+	FPoseSearchCost ComparePoses(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const;
 
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
@@ -1291,9 +1291,9 @@ struct POSESEARCH_API FSearchContext
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
 
-	TConstArrayView<const float> GetCurrentResultPrevPoseVector() const;
-	TConstArrayView<const float> GetCurrentResultPoseVector() const;
-	TConstArrayView<const float> GetCurrentResultNextPoseVector() const;
+	TConstArrayView<float> GetCurrentResultPrevPoseVector() const;
+	TConstArrayView<float> GetCurrentResultPoseVector() const;
+	TConstArrayView<float> GetCurrentResultNextPoseVector() const;
 
 	static constexpr int8 SchemaRootBoneIdx = -1;
 
@@ -1380,7 +1380,7 @@ public:
 POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector);
 POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx);
 POSESEARCH_API void DrawSearchIndex(const FDebugDrawParams& DrawParams);
-POSESEARCH_API void CompareFeatureVectors(TConstArrayView<const float> A, TConstArrayView<const float> B, TConstArrayView<const float> WeightsSqrt, TArrayView<float> Result);
+POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
 
 /**
 * Creates a pose search index for an animation sequence
