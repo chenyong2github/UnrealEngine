@@ -39,6 +39,7 @@ Copyright (c) 2012 Brandon Pelfrey
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4242)
+#pragma float_control(precise, on, push)
 #endif
 
 #if defined(__clang__)
@@ -10077,4 +10078,5 @@ void xatlasPackOptionsInit(xatlasPackOptions *packOptions)
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
+#pragma float_control(pop)
 #endif
