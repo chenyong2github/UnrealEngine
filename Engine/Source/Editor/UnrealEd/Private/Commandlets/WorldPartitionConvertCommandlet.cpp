@@ -227,7 +227,6 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 	if (bDisableStreaming)
 	{
 		WorldPartition->bEnableStreaming = false;
-		WorldPartition->bStreamingWasEnabled = false;
 	}
 		
 	// Read the conversion config file

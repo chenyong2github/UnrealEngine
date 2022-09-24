@@ -390,11 +390,11 @@ void SLevelViewport::ConstructViewportOverlayContent()
 			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("FloatingBorder"))
 			[
-				SNew(SWorldPartitionViewportWidget)
+				SAssignNew(WorldPartitionViewportWidget, SWorldPartitionViewportWidget)
 				.Clickable(true)
 				.Visibility_Lambda([this]() 
 				{ 
-					return (!ActiveViewport.IsValid() || IsPlayInEditorViewportActive()) ? EVisibility::Collapsed : SWorldPartitionViewportWidget::GetVisibility(GetWorld());
+					return (!ActiveViewport.IsValid() || IsPlayInEditorViewportActive()) ? EVisibility::Collapsed : WorldPartitionViewportWidget->GetVisibility(GetWorld());
 				})
 			]
 		]

@@ -232,11 +232,11 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, PinnedActors(nullptr)
 	, WorldPartitionEditor(nullptr)
 	, bStreamingWasEnabled(true)
-	, bShouldEnableStreamingWarned(false)
 	, bShouldCheckEnableStreamingWarning(false)
 	, bCanBeUsedByLevelInstance(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
+	, bEnablingStreamingJustified(false)
 	, bIsPIE(false)
 	, NumUserCreatedLoadedRegions(0)
 #endif
@@ -1226,8 +1226,10 @@ void UWorldPartition::Tick(float DeltaSeconds)
 	{
 		bShouldCheckEnableStreamingWarning = false;
 
-		if (!IsStreamingEnabled() && SupportsStreaming() && !bStreamingWasEnabled && !bShouldEnableStreamingWarned)
+		if (!IsStreamingEnabled() && SupportsStreaming())
 		{
+			bEnablingStreamingJustified = false;
+
 			FBox AllActorsBounds(ForceInit);
 			for (FActorDescContainerCollection::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 			{
@@ -1238,18 +1240,7 @@ void UWorldPartition::Tick(float DeltaSeconds)
 					// Warn the user if the world becomes larger that 4km in any axis
 					if (AllActorsBounds.GetSize().GetMax() >= 400000.0f)
 					{
-						bShouldEnableStreamingWarned = true;
-
-						if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionShouldEnableStreaming", "The size of your world has grown enough to justify enabling streaming. Enable streaming now?")) == EAppReturnType::Yes)
-						{
-							SetEnableStreaming(true);
-							bStreamingWasEnabled = true;
-							if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to our documentation for how to set up streaming.\n\nWould you like to open it now? ")) == EAppReturnType::Yes)
-							{
-								IDocumentation::Get()->Open(TEXT("world-partition-in-unreal-engine"), FDocumentationSourceInfo(TEXT("worldpartition")));
-							}
-						}
-
+						bEnablingStreamingJustified = true;
 						break;
 					}
 				}

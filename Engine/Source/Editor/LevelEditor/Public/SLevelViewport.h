@@ -11,6 +11,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "SWorldPartitionViewportWidget.h"
 #include "EditorViewportClient.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SWindow.h"
@@ -936,6 +937,9 @@ private:
 	bool bIsInViewportMenuInitialized;
 	TSharedPtr<class SInViewportDetails> InViewportMenu;
 	static bool bInViewportMenuEnabled;
+
+	TSharedPtr<SWorldPartitionViewportWidget> WorldPartitionViewportWidget;
+
 protected:
 	void LockActorInternal(AActor* NewActorToLock);
 

@@ -14,8 +14,11 @@ public:
 	void Construct(const FArguments& InArgs);
 	~SWorldPartitionViewportWidget();
 
-	static EVisibility GetVisibility(UWorld* InWorld);
-private:
+	EVisibility GetVisibility(UWorld* InWorld);
 
+private:
 	bool bClickable;
+	FText Message;
+	FText Tooltip;
+	FName InvokeTab;
 };

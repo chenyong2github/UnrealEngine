@@ -8,6 +8,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Layout/ArrangedChildren.h"
 #include "SWorldPartitionEditorGrid.h"
+#include "SWorldPartitionViewportWidget.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 
 class SWorldPartitionEditorGrid2D : public SWorldPartitionEditorGrid
@@ -160,4 +161,6 @@ protected:
 	// Profiling
 	mutable double TickTime;
 	mutable double PaintTime;
+
+	TSharedPtr<SWorldPartitionViewportWidget> ViewportWidget;
 };

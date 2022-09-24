@@ -200,6 +200,8 @@ public:
 	bool HasLoadedUserCreatedRegions() const { return !!NumUserCreatedLoadedRegions; }
 	void OnUserCreatedRegionLoaded() { NumUserCreatedLoadedRegions++; }
 	void OnUserCreatedRegionUnloaded() { check(HasLoadedUserCreatedRegions()); NumUserCreatedLoadedRegions--; }
+
+	bool IsEnablingStreamingJustified() const { return bEnablingStreamingJustified; }
 #endif
 
 public:
@@ -253,10 +255,6 @@ private:
 	UPROPERTY()
 	bool bStreamingWasEnabled;
 
-	/** Used to know if the user has already been warned about that it should enable streaming based on world size. */
-	UPROPERTY()
-	bool bShouldEnableStreamingWarned;
-
 	/** Used to know if we need to recheck if the user should enable streaming based on world size. */
 	bool bShouldCheckEnableStreamingWarning;
 
@@ -285,6 +283,7 @@ private:
 #if WITH_EDITOR
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
+	bool bEnablingStreamingJustified;
 	bool bIsPIE;
 	int32 NumUserCreatedLoadedRegions;
 #endif

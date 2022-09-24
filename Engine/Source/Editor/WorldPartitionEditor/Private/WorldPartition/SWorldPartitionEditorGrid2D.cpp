@@ -390,9 +390,9 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 		.HAlign(HAlign_Left)
 		.Padding(10.f, 0.f, 0.f, 10.f)
 		[
-			SNew(SWorldPartitionViewportWidget)
+			SAssignNew(ViewportWidget, SWorldPartitionViewportWidget)
 			.Clickable(false)
-			.Visibility_Lambda([this]() { return SWorldPartitionViewportWidget::GetVisibility(World); })
+			.Visibility_Lambda([this]() { return ViewportWidget->GetVisibility(World); })
 		]
 	];
 
@@ -569,7 +569,7 @@ void SWorldPartitionEditorGrid2D::MoveCameraHere()
 
 	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
-		WorldLocation.Z = bHitResultValid ? HitResult.ImpactPoint.Z + 250.0f : LevelVC->GetViewLocation().Z;
+		WorldLocation.Z = bHitResultValid ? HitResult.ImpactPoint.Z + 1000.0f : LevelVC->GetViewLocation().Z;
 
 		LevelVC->SetViewLocation(WorldLocation);
 		LevelVC->Invalidate();

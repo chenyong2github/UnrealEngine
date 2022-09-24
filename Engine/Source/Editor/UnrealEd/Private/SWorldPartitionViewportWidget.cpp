@@ -25,14 +25,14 @@ void SWorldPartitionViewportWidget::Construct(const FArguments& InArgs)
 		.ButtonStyle(bClickable? &FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("HoverHintOnly") : &FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 		.Cursor(EMouseCursor::Default)
 		.IsEnabled_Lambda([this]() { return bClickable; })
-		.OnClicked_Lambda([]
+		.OnClicked_Lambda([this]()
 		{
 			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 			TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-			LevelEditorTabManager->TryInvokeTab(FName("WorldBrowserPartitionEditor"));
+			LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(InvokeTab);
 			return FReply::Handled();
 		})
-		.ToolTipText(LOCTEXT("NoRegionsLoadedTooltip", "To load a region, drag select an area in the World Partition map and choose 'Load Region From Selection' from the context menu."))
+		.ToolTipText_Lambda([this]() { return Tooltip; })
 		.ContentPadding(0.f)
 		[
 			SNew(SVerticalBox)
@@ -56,28 +56,41 @@ void SWorldPartitionViewportWidget::Construct(const FArguments& InArgs)
 				.FillWidth(1)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("NoRegionsLoadedText","No regions loaded"))
+					.Text_Lambda([this]() { return Message; })
 					.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Warning"))
 				]
 			]
 		]
 	];
-
-
 }
 
 SWorldPartitionViewportWidget::~SWorldPartitionViewportWidget()
-{
-}
+{}
 
 EVisibility SWorldPartitionViewportWidget::GetVisibility(UWorld* InWorld)
 {
 	if (InWorld && InWorld->IsPartitionedWorld())
 	{
 		UWorldPartition* WorldPartition = InWorld->GetWorldPartition();
-		if (WorldPartition->IsStreamingEnabled() && !WorldPartition->HasLoadedUserCreatedRegions())
+		if (WorldPartition->IsStreamingEnabled())
 		{
-			return EVisibility::Visible;
+			if (!WorldPartition->HasLoadedUserCreatedRegions())
+			{
+				Message = LOCTEXT("NoRegionsLoadedText","No regions loaded");
+				Tooltip = LOCTEXT("NoRegionsLoadedToolTip", "To load a region, drag select an area in the World Partition map and choose 'Load Region From Selection' from the context menu.");
+				InvokeTab = TEXT("WorldBrowserPartitionEditor");
+				return EVisibility::Visible;
+			}
+		}
+		else
+		{
+			if (WorldPartition->IsEnablingStreamingJustified())
+			{
+				Message = LOCTEXT("EnablingStreamingShouldBeEnabled","Streaming Disabled");
+				Tooltip = LOCTEXT("EnablingStreamingShouldBeEnabled", "The size of your world has grown enough to justify enabling streaming.");
+				InvokeTab = TEXT("WorldSettingsTab");
+				return EVisibility::Visible;
+			}
 		}
 	}
 
