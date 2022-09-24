@@ -59,7 +59,7 @@ protected:
 	virtual void PostLoad() override;
 #endif
 	
-	bool SetContextRequirements(bool bLogErrors = false);
+	bool SetContextRequirements(FStateTreeExecutionContext& Context, bool bLogErrors = false);
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. Use StateTreeReference instead.")
@@ -75,7 +75,7 @@ protected:
 	bool bStartLogicAutomatically = true;
 
 	UPROPERTY(Transient)
-	FStateTreeExecutionContext StateTreeContext;
+	FStateTreeInstanceData InstanceData;
 
 	/** if set, state tree execution is allowed */
 	uint8 bIsRunning : 1;

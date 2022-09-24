@@ -35,7 +35,8 @@ void UStateTreeComponent::InitializeComponent()
 		return;
 	}
 
-	if (!StateTreeContext.Init(*GetOwner(), *StateTreeRef.GetStateTree(), EStateTreeStorage::Internal))
+	const FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
+	if (!Context.IsValid())
 	{
 		STATETREE_LOG(Error, TEXT("%s: Failed to init StateTreeContext."), ANSI_TO_TCHAR(__FUNCTION__));
 	}
@@ -61,9 +62,9 @@ void UStateTreeComponent::UninitializeComponent()
 {
 }
 
-bool UStateTreeComponent::SetContextRequirements(bool bLogErrors)
+bool UStateTreeComponent::SetContextRequirements(FStateTreeExecutionContext& Context, bool bLogErrors)
 {
-	if (!StateTreeContext.IsValid())
+	if (!Context.IsValid())
 	{
 		return false;
 	}
@@ -74,41 +75,41 @@ bool UStateTreeComponent::SetContextRequirements(bool bLogErrors)
 		return false;
 	}
 
-	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetExternalDataDescs())
+	for (const FStateTreeExternalDataDesc& ItemDesc : Context.GetExternalDataDescs())
 	{
 		if (ItemDesc.Struct != nullptr)
 		{
 			if (ItemDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 			{
 				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(ToRawPtr(ItemDesc.Struct))));
-				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Subsystem));
+				Context.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Subsystem));
 			}
 			else if (ItemDesc.Struct->IsChildOf(UActorComponent::StaticClass()))
 			{
 				UActorComponent* Component = GetOwner()->FindComponentByClass(Cast<UClass>(const_cast<UStruct*>(ToRawPtr(ItemDesc.Struct))));
-				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Component));
+				Context.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Component));
 			}
 			else if (ItemDesc.Struct->IsChildOf(APawn::StaticClass()))
 			{
 				APawn* OwnerPawn = (AIOwner != nullptr) ? AIOwner->GetPawn() : Cast<APawn>(GetOwner());
-				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerPawn));
+				Context.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerPawn));
 			}
 			else if (ItemDesc.Struct->IsChildOf(AAIController::StaticClass()))
 			{
 				AAIController* OwnerController = (AIOwner != nullptr) ? AIOwner.Get() : Cast<AAIController>(GetOwner());
-				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerController));
+				Context.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerController));
 			}
 			else if (ItemDesc.Struct->IsChildOf(AActor::StaticClass()))
 			{
 				AActor* OwnerActor = (AIOwner != nullptr) ? AIOwner->GetPawn() : GetOwner();
-				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
+				Context.SetExternalData(ItemDesc.Handle, FStateTreeDataView(OwnerActor));
 			}
 		}
 	}
 
 	// Make sure the actor matches one required.
 	AActor* ContextActor = nullptr;
-	const UStateTreeComponentSchema* Schema = Cast<UStateTreeComponentSchema>(StateTreeContext.GetStateTree()->GetSchema());
+	const UStateTreeComponentSchema* Schema = Cast<UStateTreeComponentSchema>(Context.GetStateTree()->GetSchema());
 	if (Schema)
 	{
 		if (AAIController* OwnerController = (AIOwner != nullptr) ? AIOwner.Get() : Cast<AAIController>(GetOwner()))
@@ -139,15 +140,15 @@ bool UStateTreeComponent::SetContextRequirements(bool bLogErrors)
 	}
 	
 	const FName ActorName(TEXT("Actor"));
-	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetContextDataDescs())
+	for (const FStateTreeExternalDataDesc& ItemDesc : Context.GetContextDataDescs())
 	{
 		if (ItemDesc.Name == ActorName)
 		{
-			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(ContextActor));
+			Context.SetExternalData(ItemDesc.Handle, FStateTreeDataView(ContextActor));
 		}
 	}
 
-	bool bResult = StateTreeContext.AreExternalDataViewsValid();
+	bool bResult = Context.AreExternalDataViewsValid();
 
 	if (!bResult && bLogErrors)
 	{
@@ -175,10 +176,11 @@ void UStateTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 	{
 		return;
 	}
-	
-	if (SetContextRequirements())
+
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
+	if (SetContextRequirements(Context))
 	{
-		StateTreeContext.Tick(DeltaTime);
+		Context.Tick(DeltaTime);
 	}
 }
 
@@ -186,11 +188,11 @@ void UStateTreeComponent::StartLogic()
 {
 	STATETREE_LOG(Log, TEXT("%s: Start Logic"), ANSI_TO_TCHAR(__FUNCTION__));
 
-	if (SetContextRequirements())
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
+	if (SetContextRequirements(Context))
 	{
-		StateTreeContext.SetParameters(StateTreeRef.GetParameters());
-
-		StateTreeContext.Start();
+		Context.SetParameters(StateTreeRef.GetParameters());
+		Context.Start();
 		bIsRunning = true;
 	}
 }
@@ -199,11 +201,11 @@ void UStateTreeComponent::RestartLogic()
 {
 	STATETREE_LOG(Log, TEXT("%s: Restart Logic"), ANSI_TO_TCHAR(__FUNCTION__));
 
-	if (SetContextRequirements())
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
+	if (SetContextRequirements(Context))
 	{
-		StateTreeContext.SetParameters(StateTreeRef.GetParameters());
-
-		StateTreeContext.Start();
+		Context.SetParameters(StateTreeRef.GetParameters());
+		Context.Start();
 		bIsRunning = true;
 	}
 }
@@ -212,9 +214,10 @@ void UStateTreeComponent::StopLogic(const FString& Reason)
 {
 	STATETREE_LOG(Log, TEXT("%s: Stopping, reason: \'%s\'"), ANSI_TO_TCHAR(__FUNCTION__), *Reason);
 
-	if (SetContextRequirements())
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
+	if (SetContextRequirements(Context))
 	{
-		StateTreeContext.Stop();
+		Context.Stop();
 		bIsRunning = false;
 	}
 }
@@ -327,14 +330,19 @@ void UStateTreeComponent::SendStateTreeEvent(const FStateTreeEvent& Event)
 		return;
 	}
 
-	StateTreeContext.SendExternalEvent(Event);
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
+	if (Context.IsValid())
+	{
+		Context.SendEvent(Event);
+	}
 }
 
 
 #if WITH_GAMEPLAY_DEBUGGER
 FString UStateTreeComponent::GetDebugInfoString() const
 {
-	return StateTreeContext.GetDebugInfoString();
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), const_cast<FStateTreeInstanceData&>(InstanceData));
+	return Context.GetDebugInfoString();
 }
 #endif // WITH_GAMEPLAY_DEBUGGER
 

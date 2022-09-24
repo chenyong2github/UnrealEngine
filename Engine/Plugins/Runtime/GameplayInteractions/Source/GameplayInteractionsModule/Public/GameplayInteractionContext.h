@@ -55,13 +55,13 @@ protected:
 	 * Updates all external data views from the provided interaction context.  
 	 * @return True if all external data views are valid, false otherwise.
 	 */
-	bool SetContextRequirements();
+	bool SetContextRequirements(FStateTreeExecutionContext& StateTreeContext) const;
 
 	/** @return true of the ContextActor and SmartObjectActor match the ones set in schema. */
-	bool ValidateSchema() const;
+	bool ValidateSchema(const FStateTreeExecutionContext& StateTreeContext) const;
 	
 	UPROPERTY()
-	FStateTreeExecutionContext StateTreeContext;
+	FStateTreeInstanceData StateTreeInstanceData;
     
     UPROPERTY()
     FSmartObjectClaimHandle ClaimedHandle;
@@ -74,4 +74,7 @@ protected:
     
     UPROPERTY()
     TObjectPtr<AActor> SmartObjectActor = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<const UGameplayInteractionSmartObjectBehaviorDefinition> Definition = nullptr;
 };

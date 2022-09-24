@@ -4,7 +4,7 @@
 
 #include "MassEntityTypes.h"
 #include "StateTreeExecutionContext.h"
-#include "MassStateTreeExecutionContext.generated.h"
+//#include "MassStateTreeExecutionContext.generated.h"
 
 struct FMassExecutionContext;
 struct FMassEntityManager;
@@ -13,14 +13,11 @@ class UMassSignalSubsystem;
 /**
  * Extends FStateTreeExecutionContext to provide additional data to Evaluators and Tasks related to MassSimulation
  */
-USTRUCT()
 struct MASSAIBEHAVIOR_API FMassStateTreeExecutionContext : public FStateTreeExecutionContext 
 {
-	GENERATED_BODY()
 public:
-	/** Should never be used but has to be public for 'void UScriptStruct::TCppStructOps<FMassStateTreeExecutionContext>::ConstructForTests(void *)' */
-	FMassStateTreeExecutionContext() = default;
-	FMassStateTreeExecutionContext(FMassEntityManager& InEntityManager, UMassSignalSubsystem& InSignalSubsystem, FMassExecutionContext& InContext);
+	// @todo: refactor subsystems out of the exec context.
+	FMassStateTreeExecutionContext(UObject& InOwner, const UStateTree& InStateTree, FStateTreeInstanceData& InInstanceData, FMassEntityManager& InEntityManager, UMassSignalSubsystem& InSignalSubsystem, FMassExecutionContext& InContext);
 
 	FMassEntityManager& GetEntityManager() const { check(EntityManager); return *EntityManager; }
 	FMassExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }

@@ -146,8 +146,8 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
-		FTestStateTreeExecutionContext Exec;
-		const bool bInitSucceeded = Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
 		AITEST_TRUE("StateTree should init", bInitSucceeded);
 
 		const FString TickStr(TEXT("Tick"));
@@ -238,8 +238,9 @@ struct FStateTreeTest_Sequence : FAITestBase
 		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
-		FTestStateTreeExecutionContext Exec;
-		const bool bInitSucceeded = Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
 		AITEST_TRUE("StateTree should init", bInitSucceeded);
 
 		const FString TickStr(TEXT("Tick"));
@@ -301,8 +302,9 @@ struct FStateTreeTest_Select : FAITestBase
 		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
-		FTestStateTreeExecutionContext Exec;
-		const bool bInitSucceeded = Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
 		AITEST_TRUE("StateTree should init", bInitSucceeded);
 
 		const FString TickStr(TEXT("Tick"));
@@ -373,8 +375,9 @@ struct FStateTreeTest_FailEnterState : FAITestBase
 		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
-		FTestStateTreeExecutionContext Exec;
-		const bool bInitSucceeded = Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
 		AITEST_TRUE("StateTree should init", bInitSucceeded);
 
 		const FString TickStr(TEXT("Tick"));
@@ -436,8 +439,9 @@ struct FStateTreeTest_SubTree : FAITestBase
 		AITEST_TRUE("StateTree should get compiled", bResult);
 
 		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
-		FTestStateTreeExecutionContext Exec;
-		const bool bInitSucceeded = Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
 		AITEST_TRUE("StateTree should init", bInitSucceeded);
 
 		const FString TickStr(TEXT("Tick"));
@@ -489,11 +493,13 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 		FStateTreeTestConditionInstanceData::GlobalCounter = 0;
 
 		bool bInitSucceeded = true;
-		TArray<FTestStateTreeExecutionContext> ExecContexts;
-		ExecContexts.SetNum(NumConcurrent);
-		for (FTestStateTreeExecutionContext& Exec : ExecContexts)
+		TArray<FStateTreeInstanceData> InstanceDatas;
+
+		InstanceDatas.SetNum(NumConcurrent);
+		for (int32 Index = 0; Index < NumConcurrent; Index++)
 		{
-			bInitSucceeded &= Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+			FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceDatas[Index]);
+			bInitSucceeded &= Exec.IsValid();
 		}
 		AITEST_TRUE("All StateTree contexts should init", bInitSucceeded);
 		AITEST_EQUAL("Test condition global counter should be 0", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, 0);
@@ -505,10 +511,11 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 		
 		ParallelForWithTaskContext(
 			RunContexts,
-			ExecContexts.Num(),
-			[&ExecContexts](FStateTreeTestRunContext& RunContext, int32 Index)
+			InstanceDatas.Num(),
+			[&InstanceDatas, &StateTree](FStateTreeTestRunContext& RunContext, int32 Index)
 			{
-				const EStateTreeRunStatus Status = ExecContexts[Index].Start();
+				FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceDatas[Index]);
+				const EStateTreeRunStatus Status = Exec.Start();
 				if (Status == EStateTreeRunStatus::Running)
 				{
 					RunContext.Count++;
@@ -522,7 +529,7 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 			StartTotalRunning += RunContext.Count;
 		}
 		AITEST_EQUAL("All StateTree contexts should be running after Start", StartTotalRunning, NumConcurrent);
-		AITEST_EQUAL("Test condition global counter should equal context count after Start", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, ExecContexts.Num());
+		AITEST_EQUAL("Test condition global counter should equal context count after Start", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, InstanceDatas.Num());
 
 		
 		// Tick in parallel
@@ -534,10 +541,11 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 
 		ParallelForWithTaskContext(
 			RunContexts,
-			ExecContexts.Num(),
-			[&ExecContexts](FStateTreeTestRunContext& RunContext, int32 Index)
+			InstanceDatas.Num(),
+			[&InstanceDatas, &StateTree](FStateTreeTestRunContext& RunContext, int32 Index)
 			{
-				const EStateTreeRunStatus Status = ExecContexts[Index].Tick(0.1f);
+				FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceDatas[Index]);
+				const EStateTreeRunStatus Status = Exec.Tick(0.1f);
 				if (Status == EStateTreeRunStatus::Running)
 				{
 					RunContext.Count++;
@@ -551,7 +559,7 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 			TickTotalRunning += RunContext.Count;
 		}
 		AITEST_EQUAL("All StateTree contexts should be running after Tick", TickTotalRunning, NumConcurrent);
-		AITEST_EQUAL("Test condition global counter should equal context count after Tick", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, ExecContexts.Num());
+		AITEST_EQUAL("Test condition global counter should equal context count after Tick", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, InstanceDatas.Num());
 
 		return true;
 	}

@@ -10,11 +10,13 @@
 #include "StateTreeTestTypes.generated.h"
 
 
-USTRUCT()
 struct FTestStateTreeExecutionContext : public FStateTreeExecutionContext
 {
-	GENERATED_BODY()
-
+	FTestStateTreeExecutionContext(UObject& InOwner, const UStateTree& InStateTree, FStateTreeInstanceData& InInstanceData)
+		: FStateTreeExecutionContext(InOwner, InStateTree, InInstanceData)
+	{
+	}
+	
 	struct FLogItem
 	{
 		FLogItem() = default;

@@ -544,18 +544,6 @@ struct STATETREEMODULE_API FCompactStateTreeParameters
 	FInstancedPropertyBag Parameters;
 };
 
-/** An offset into the StateTree runtime storage type to get a struct view to a specific Task, Evaluator, or Condition. */
-struct FStateTreeInstanceStorageOffset
-{
-	FStateTreeInstanceStorageOffset() = default;
-	FStateTreeInstanceStorageOffset(const UScriptStruct* InStruct, const int32 InOffset) : Struct(InStruct), Offset(InOffset) {}
-
-	/** Struct of the data the offset points at */
-	const UScriptStruct* Struct = nullptr;
-	/** Offset within the storage struct */
-	int32 Offset = 0;
-};
-
 UENUM()
 enum class EStateTreeExternalDataRequirement : uint8
 {

@@ -94,12 +94,11 @@ void UMassDebugStateTreeProcessor::Execute(FMassEntityManager& EntityManager, FM
 			
 			if (Entity == SelectedEntity)
 			{
-				FMassStateTreeExecutionContext StateTreeContext(EntityManager, *MassSignalSubsystem, Context);
-				StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
+				FMassStateTreeExecutionContext StateTreeContext(*MassStateTreeSubsystem, *StateTree, *InstanceData, EntityManager, *MassSignalSubsystem, Context);
 				StateTreeContext.SetEntity(Entity);
 				
 #if WITH_GAMEPLAY_DEBUGGER
-				Debugger->AppendSelectedEntityInfo(StateTreeContext.GetDebugInfoString(InstanceData));
+				Debugger->AppendSelectedEntityInfo(StateTreeContext.GetDebugInfoString());
 #endif // WITH_GAMEPLAY_DEBUGGER
 			}
 				
@@ -112,13 +111,12 @@ void UMassDebugStateTreeProcessor::Execute(FMassEntityManager& EntityManager, FM
 				const FVector ZOffset(0,0,50);
 				const FVector Position = Transform.GetTransform().GetLocation() + ZOffset;
 
-				FMassStateTreeExecutionContext StateTreeContext(EntityManager, *MassSignalSubsystem, Context);
-				StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
+				FMassStateTreeExecutionContext StateTreeContext(*MassStateTreeSubsystem, *StateTree, *InstanceData, EntityManager, *MassSignalSubsystem, Context);
 				StateTreeContext.SetEntity(Entity);
 
 				// State
 				UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, /*Thickness*/ 2, TEXT("%s %s"),
-					*Entity.DebugGetDescription(), *StateTreeContext.GetActiveStateName(InstanceData));
+					*Entity.DebugGetDescription(), *StateTreeContext.GetActiveStateName());
 			}
 		}
 	});

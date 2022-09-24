@@ -21,6 +21,25 @@ CSV_DEFINE_CATEGORY(StateTreeProcessor, true);
 namespace UE::MassBehavior
 {
 
+struct FCachedExternalDataView
+{
+	FCachedExternalDataView() = default;
+	FCachedExternalDataView(const FStateTreeExternalDataHandle InHandle, const FStateTreeDataView InDataView)
+		: Handle(InHandle)
+		, DataView(InDataView)
+	{
+	}
+	
+	FStateTreeExternalDataHandle Handle;
+	FStateTreeDataView DataView;
+};
+
+struct FCachedExternalData
+{
+	TArray<FCachedExternalDataView> DataViews;
+	const UStateTree* CachedStateTree = nullptr;
+};
+
 bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const FMassEntityManager& EntityManager)
 {
 	bool bFoundAllFragments = true;
@@ -70,16 +89,18 @@ bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const FMassEn
 	return bFoundAllFragments;
 }
 	
-bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
+bool CollectExternalSubsystems(const UWorld* World, const UStateTree& StateTree, FCachedExternalData& CachedExternalData)
 {
-	const UWorld* World = Context.GetWorld();
+	CachedExternalData.CachedStateTree = &StateTree;
+	CachedExternalData.DataViews.Reset();
+	
 	if (World == nullptr)
 	{
 		return false;
 	}
 
 	bool bFoundAllSubsystems = true;
-	for (const FStateTreeExternalDataDesc& DataDesc : Context.GetExternalDataDescs())
+	for (const FStateTreeExternalDataDesc& DataDesc : StateTree.GetExternalDataDescs())
 	{
 		if (DataDesc.Struct && DataDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 		{
@@ -87,7 +108,7 @@ bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
 			UWorldSubsystem* Subsystem = World->GetSubsystemBase(SubClass);
 			if (Subsystem)
 			{
-				Context.SetExternalData(DataDesc.Handle, FStateTreeDataView(Subsystem));
+				CachedExternalData.DataViews.Emplace(DataDesc.Handle, FStateTreeDataView(Subsystem));
 			}
 			else
 			{
@@ -103,7 +124,9 @@ bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
 }
 
 template<typename TFunc>
-void ForEachEntityInChunk(FMassExecutionContext& Context, FMassStateTreeExecutionContext& StateTreeContext, UMassStateTreeSubsystem& MassStateTreeSubsystem, TFunc&& Callback)
+void ForEachEntityInChunk(FCachedExternalData& CachedExternalData, FMassExecutionContext& Context,
+							FMassEntityManager& EntityManager, UMassSignalSubsystem& SignalSubsystem, UMassStateTreeSubsystem& MassStateTreeSubsystem,
+							TFunc&& Callback)
 {
 	const TArrayView<FMassStateTreeInstanceFragment> StateTreeInstanceList = Context.GetMutableFragmentView<FMassStateTreeInstanceFragment>();
 	const FMassStateTreeSharedFragment& SharedStateTree = Context.GetConstSharedFragment<FMassStateTreeSharedFragment>();
@@ -112,21 +135,19 @@ void ForEachEntityInChunk(FMassExecutionContext& Context, FMassStateTreeExecutio
 	const int32 NumEntities = Context.GetNumEntities();
 	check(NumEntities > 0);
 	
-	UStateTree* StateTree = SharedStateTree.StateTree;
-
+	const UStateTree* StateTree = SharedStateTree.StateTree;
+	
 	// Initialize the execution context if changed between chunks.
-	if (StateTreeContext.GetStateTree() != StateTree)
+	if (CachedExternalData.CachedStateTree != StateTree)
 	{
-		// Gather subsystems.
-		if (StateTreeContext.Init(MassStateTreeSubsystem, *StateTree, EStateTreeStorage::External))
+		if (StateTree == nullptr || !StateTree->IsReadyToRun())
 		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalSubsystems);
-			if (!ensureMsgf(UE::MassBehavior::SetExternalSubsystems(StateTreeContext), TEXT("StateTree will not execute due to missing subsystem requirements.")))
-			{
-				return;
-			}
+			return;
 		}
-		else
+		// Gather subsystems.
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalSubsystems);
+		if (!ensureMsgf(UE::MassBehavior::CollectExternalSubsystems(MassStateTreeSubsystem.GetWorld(), *StateTree, CachedExternalData),
+			TEXT("StateTree will not execute due to missing subsystem requirements.")))
 		{
 			return;
 		}
@@ -135,33 +156,38 @@ void ForEachEntityInChunk(FMassExecutionContext& Context, FMassStateTreeExecutio
 	for (int32 EntityIndex = 0; EntityIndex < NumEntities; EntityIndex++)
 	{
 		const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
-		FMassStateTreeInstanceFragment& StateTreeInstance = StateTreeInstanceList[EntityIndex];
-		
-		StateTreeContext.SetEntity(Entity);
-
-		// Gather all required fragments.
-		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalFragments);
-			if (!ensureMsgf(UE::MassBehavior::SetExternalFragments(StateTreeContext, StateTreeContext.GetEntityManager()), TEXT("StateTree will not execute due to missing required fragments.")))
-			{
-				break;
-			}
-		}
-
-		// Make sure all required external data are set.
-		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalDataValidation);
-			// TODO: disable this when not in debug.
-			if (!ensureMsgf(StateTreeContext.AreExternalDataViewsValid(), TEXT("StateTree will not execute due to missing external data.")))
-			{
-				break;
-			}
-		}
-
-		FStateTreeInstanceData* InstanceData = MassStateTreeSubsystem.GetInstanceData(StateTreeInstance.InstanceHandle);
+		FMassStateTreeInstanceFragment& StateTreeFragment = StateTreeInstanceList[EntityIndex];
+		FStateTreeInstanceData* InstanceData = MassStateTreeSubsystem.GetInstanceData(StateTreeFragment.InstanceHandle);
 		if (InstanceData != nullptr)
 		{
-			Callback(StateTreeContext, StateTreeInstance, *InstanceData);
+			FMassStateTreeExecutionContext StateTreeContext(MassStateTreeSubsystem, *StateTree, *InstanceData, EntityManager, SignalSubsystem, Context);
+			StateTreeContext.SetEntity(Entity);
+
+			for (const FCachedExternalDataView& DataView : CachedExternalData.DataViews)
+			{
+				StateTreeContext.SetExternalData(DataView.Handle, DataView.DataView);
+			}
+				
+			// Gather all required fragments.
+			{
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalFragments);
+				if (!ensureMsgf(UE::MassBehavior::SetExternalFragments(StateTreeContext, StateTreeContext.GetEntitySubsystem()), TEXT("StateTree will not execute due to missing required fragments.")))
+				{
+					break;
+				}
+			}
+
+			// Make sure all required external data are set.
+			{
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalDataValidation);
+				// TODO: disable this when not in debug.
+				if (!ensureMsgf(StateTreeContext.AreExternalDataViewsValid(), TEXT("StateTree will not execute due to missing external data.")))
+				{
+					break;
+				}
+			}
+
+			Callback(StateTreeContext, StateTreeFragment);
 		}
 	}
 }
@@ -199,11 +225,12 @@ void UMassStateTreeFragmentDestructor::Execute(FMassEntityManager& EntityManager
 	{
 		return;
 	}
-		
 	FMassStateTreeExecutionContext StateTreeContext(EntityManager, *SignalSubsystem, Context);
 
-	EntityQuery.ForEachEntityChunk(EntityManager,Context,
-		[this, &StateTreeContext, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+	UE::MassBehavior::FCachedExternalData CachedExternalData;
+
+	EntityQuery.ForEachEntityChunk(EntityManager, Context,
+		[this, &EntityManager, &CachedExternalData, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
 		{
 			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
 			const TArrayView<FMassStateTreeInstanceFragment> StateTreeInstanceList = Context.GetMutableFragmentView<FMassStateTreeInstanceFragment>();
@@ -211,11 +238,11 @@ void UMassStateTreeFragmentDestructor::Execute(FMassEntityManager& EntityManager
 
 			const int32 NumEntities = Context.GetNumEntities();
 	
-			UE::MassBehavior::ForEachEntityInChunk(Context, StateTreeContext, MassStateTreeSubsystem,
-				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeInstance, FStateTreeInstanceData& InstanceData)
+			UE::MassBehavior::ForEachEntityInChunk(CachedExternalData, Context, EntityManager, *SignalSubsystem, MassStateTreeSubsystem,
+				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeFragment)
 				{
 					// Stop the tree instance
-					StateTreeExecutionContext.Stop(&InstanceData);
+					StateTreeExecutionContext.Stop();
 				});
 
 			// Free the StateTree instance memory
@@ -263,15 +290,14 @@ void UMassStateTreeActivationProcessor::Execute(FMassEntityManager& EntityManage
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
 
-	FMassStateTreeExecutionContext StateTreeContext(EntityManager, SignalSubsystem, Context);
-
+	UE::MassBehavior::FCachedExternalData CachedExternalData;
 	const float TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
 
 	TArray<FMassEntityHandle> EntitiesToSignal;
 	int32 ActivationCounts[EMassLOD::Max] {0,0,0,0};
 	
 	EntityQuery.ForEachEntityChunk(EntityManager, Context,
-		[&EntitiesToSignal, &ActivationCounts, MaxActivationsPerLOD = BehaviorSettings->MaxActivationsPerLOD, &StateTreeContext, TimeInSeconds, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
+		[&EntitiesToSignal, &ActivationCounts, &CachedExternalData, SignalSubsystem = SignalSubsystem, &EntityManager, MaxActivationsPerLOD = BehaviorSettings->MaxActivationsPerLOD, TimeInSeconds, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
 		{
 			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
 			const int32 NumEntities = Context.GetNumEntities();
@@ -294,12 +320,12 @@ void UMassStateTreeActivationProcessor::Execute(FMassEntityManager& EntityManage
 			}
 			
 			// Start StateTree. This may do substantial amount of work, as we select and enter the first state.
-			UE::MassBehavior::ForEachEntityInChunk(Context, StateTreeContext, MassStateTreeSubsystem,
-				[TimeInSeconds](FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeInstance, FStateTreeInstanceData& InstanceData)
+			UE::MassBehavior::ForEachEntityInChunk(CachedExternalData, Context, EntitySubsystem, *SignalSubsystem, MassStateTreeSubsystem,
+				[TimeInSeconds](FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeFragment)
 				{
 					// Start the tree instance
-					StateTreeExecutionContext.Start(&InstanceData);
-					StateTreeInstance.LastUpdateTimeInSeconds = TimeInSeconds;
+					StateTreeExecutionContext.Start();
+					StateTreeFragment.LastUpdateTimeInSeconds = TimeInSeconds;
 				});
 
 			// Adding a tag on each entities to remember we have sent the state tree initialization signal
@@ -388,25 +414,25 @@ void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExecute);
 
 	const float TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
-	FMassStateTreeExecutionContext StateTreeContext(EntityManager, SignalSubsystem, Context);
 
+	UE::MassBehavior::FCachedExternalData CachedExternalData;
 	TArray<FMassEntityHandle> EntitiesToSignal;
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context,
-		[this, &StateTreeContext, TimeInSeconds, &EntitiesToSignal, World, &EntitySignals](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context,
+		[this, &TimeInSeconds, &EntitiesToSignal, &CachedExternalData, &EntityManager, SignalSubsystem = SignalSubsystem, World, &EntitySignals](FMassExecutionContext& Context)
 		{
 			// Keep stats regarding the amount of tree instances ticked per frame
 			CSV_CUSTOM_STAT(StateTreeProcessor, NumTickedStateTree, Context.GetNumEntities(), ECsvCustomStatOp::Accumulate);
 
 			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
 
-			UE::MassBehavior::ForEachEntityInChunk(Context, StateTreeContext, MassStateTreeSubsystem,
+			UE::MassBehavior::ForEachEntityInChunk(CachedExternalData, Context, EntitySubsystem, *SignalSubsystem, MassStateTreeSubsystem,
 				[TimeInSeconds, &EntitiesToSignal, &EntitySignals, &MassStateTreeSubsystem]
-				(FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeInstance, FStateTreeInstanceData& InstanceData)
+				(FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeFragment)
 				{
 					// Compute adjusted delta time
-					const float AdjustedDeltaTime = TimeInSeconds - StateTreeInstance.LastUpdateTimeInSeconds;
-					StateTreeInstance.LastUpdateTimeInSeconds = TimeInSeconds;
+					const float AdjustedDeltaTime = TimeInSeconds - StateTreeFragment.LastUpdateTimeInSeconds;
+					StateTreeFragment.LastUpdateTimeInSeconds = TimeInSeconds;
 
 #if WITH_MASSGAMEPLAY_DEBUG
 					const FMassEntityHandle Entity = StateTreeExecutionContext.GetEntity();
@@ -428,16 +454,16 @@ void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, 
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
 					// Tick the tree instance
-					StateTreeExecutionContext.Tick(AdjustedDeltaTime, &InstanceData);
+					StateTreeExecutionContext.Tick(AdjustedDeltaTime);
 
 					// When last tick status is different than "Running", the state tree need to be tick again
 					// For performance reason, tick again to see if we could find a new state right away instead of waiting the next frame.
-					if (StateTreeExecutionContext.GetLastTickStatus(&InstanceData) != EStateTreeRunStatus::Running)
+					if (StateTreeExecutionContext.GetLastTickStatus() != EStateTreeRunStatus::Running)
 					{
-						StateTreeExecutionContext.Tick(0.0f, &InstanceData);
+						StateTreeExecutionContext.Tick(0.0f);
 
 						// Could not find new state yet, try again next frame
-						if (StateTreeExecutionContext.GetLastTickStatus(&InstanceData) != EStateTreeRunStatus::Running)
+						if (StateTreeExecutionContext.GetLastTickStatus() != EStateTreeRunStatus::Running)
 						{
 							EntitiesToSignal.Add(StateTreeExecutionContext.GetEntity());
 						}

@@ -589,14 +589,13 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						// Current StateTree task
 						if (StateTree != nullptr)
 						{
-							FMassStateTreeExecutionContext StateTreeContext(EntityManager, *SignalSubsystem, Context);
-							StateTreeContext.Init(*OwnerPC, *StateTree, EStateTreeStorage::External);
-							StateTreeContext.SetEntity(Entity);
-							
 							if (FStateTreeInstanceData* InstanceData = MassStateTreeSubsystem->GetInstanceData(StateTreeInstance.InstanceHandle))
 							{
-								Status += StateTreeContext.GetActiveStateName(InstanceData);
-								Status += FString::Printf(TEXT("  {yellow}%d{white}\n"), StateTreeContext.GetStateChangeCount(InstanceData));
+								FMassStateTreeExecutionContext StateTreeContext(*OwnerPC, *StateTree, *InstanceData, EntityManager, *SignalSubsystem, Context);
+								StateTreeContext.SetEntity(Entity);
+
+								Status += StateTreeContext.GetActiveStateName();
+								Status += FString::Printf(TEXT("  {yellow}%d{white}\n"), StateTreeContext.GetStateChangeCount());
 							}
 							else
 							{

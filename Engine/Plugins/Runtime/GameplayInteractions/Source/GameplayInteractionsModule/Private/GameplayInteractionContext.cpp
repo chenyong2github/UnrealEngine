@@ -11,9 +11,12 @@
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayInteractionStateTreeSchema.h"
 
-bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& Definition)
+bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& InDefinition)
 {
-	const FStateTreeReference& StateTreeReference = Definition.StateTreeReference;
+	Definition = &InDefinition;
+	check(Definition);
+	
+	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
 	const UStateTree* StateTree = StateTreeReference.GetStateTree();
 
 	if (!IsValid())
@@ -30,8 +33,10 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 			*Definition.GetFullName());
 		return false;
 	}
-	
-	if (!StateTreeContext.Init(*ContextActor, *StateTree, EStateTreeStorage::Internal))
+
+	FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
+
+	if (!StateTreeContext.IsValid())
 	{
 		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
 			TEXT("Failed to activate interaction for %s. Unable to initialize StateTree execution context for StateTree asset: %s."),
@@ -40,12 +45,12 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 		return false;
 	}
 
-	if (!ValidateSchema())
+	if (!ValidateSchema(StateTreeContext))
 	{
 		return false;
 	}
 	
-	if (!SetContextRequirements())
+	if (!SetContextRequirements(StateTreeContext))
 	{
 		UE_VLOG_UELOG(ContextActor, LogGameplayInteractions, Error,
 			TEXT("Failed to activate interaction for %s. Unable to provide all external data views for StateTree asset: %s."),
@@ -54,15 +59,24 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 		return false;
 	}
 
-	StateTreeContext.SetParameters(StateTreeReference.GetParameters());
 	StateTreeContext.Start();
+	
 	return true;
 }
 
 bool FGameplayInteractionContext::Tick(const float DeltaTime)
 {
+	if (Definition == nullptr || !IsValid())
+	{
+		return false;
+	}
+	
+	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
+	const UStateTree* StateTree = StateTreeReference.GetStateTree();
+	FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
+
 	EStateTreeRunStatus RunStatus = EStateTreeRunStatus::Unset;
-	if (SetContextRequirements())
+	if (SetContextRequirements(StateTreeContext))
 	{
 		RunStatus = StateTreeContext.Tick(DeltaTime);
 	}
@@ -72,13 +86,22 @@ bool FGameplayInteractionContext::Tick(const float DeltaTime)
 
 void FGameplayInteractionContext::Deactivate()
 {
-	if (SetContextRequirements())
+	if (Definition == nullptr)
+	{
+		return;
+	}
+	
+	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
+	const UStateTree* StateTree = StateTreeReference.GetStateTree();
+	FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
+
+	if (SetContextRequirements(StateTreeContext))
 	{
 		StateTreeContext.Stop();
 	}
 }
 
-bool FGameplayInteractionContext::ValidateSchema() const
+bool FGameplayInteractionContext::ValidateSchema(const FStateTreeExecutionContext& StateTreeContext) const
 {
 	// Ensure that the actor and smart object match the schema.
 	const UGameplayInteractionStateTreeSchema* Schema = Cast<UGameplayInteractionStateTreeSchema>(StateTreeContext.GetStateTree()->GetSchema());
@@ -118,12 +141,19 @@ bool FGameplayInteractionContext::ValidateSchema() const
 	return true;
 }
 
-bool FGameplayInteractionContext::SetContextRequirements()
+bool FGameplayInteractionContext::SetContextRequirements(FStateTreeExecutionContext& StateTreeContext) const
 {
 	if (!StateTreeContext.IsValid())
 	{
 		return false;
 	}
+
+	if (!::IsValid(Definition))
+	{
+		return false;
+	}
+	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
+	StateTreeContext.SetParameters(StateTreeReference.GetParameters());
 
 	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetContextDataDescs())
 	{
