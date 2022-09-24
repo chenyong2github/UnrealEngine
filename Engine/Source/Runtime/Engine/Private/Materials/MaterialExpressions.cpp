@@ -10016,12 +10016,14 @@ UMaterialExpressionParticleColor::UMaterialExpressionParticleColor(const FObject
 	MenuCategories.Add(ConstructorStatics.NAME_Constants);
 
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 1, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 0, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 1, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 0, 1));
+	Outputs.Add(FExpressionOutput(TEXT("RGB"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("R"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("G"), 1, 0, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("B"), 1, 0, 0, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("A"), 1, 0, 0, 0, 1));
+	Outputs.Add(FExpressionOutput(TEXT("RGBA"), 1, 1, 1, 1, 1));
 
+	bShowOutputNameOnPin = true;
 	bShaderInputData = true;
 #endif
 }
@@ -10148,6 +10150,8 @@ UMaterialExpressionDynamicParameter::UMaterialExpressionDynamicParameter(const F
 	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 0, 1));
+	Outputs.Add(FExpressionOutput(TEXT("RGB"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("RGBA"), 1, 1, 1, 1, 1));
 
 	bShaderInputData = true;
 #endif // WITH_EDITORONLY_DATA
@@ -10172,7 +10176,6 @@ TArray<FExpressionOutput>& UMaterialExpressionDynamicParameter::GetOutputs()
 	Outputs[3].OutputName = *(ParamNames[3]);
 	return Outputs;
 }
-
 
 int32 UMaterialExpressionDynamicParameter::GetWidth() const
 {
