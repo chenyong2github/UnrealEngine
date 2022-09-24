@@ -166,25 +166,35 @@ public:
 		ConvertExrBufferCallback = Callback;
 	};
 
+	void LockMipBuffers()
+	{
+		MipBufferCriticalSection.Lock();
+	}
+
+	void UnlockMipBuffers()
+	{
+		MipBufferCriticalSection.Unlock();
+	}
+
 	FStructuredBufferPoolItemSharedPtr GetMipLevelBuffer(int32 RequestedMipLevel)
 	{
-		FScopeLock ScopeLock(&ConverterCallbacksCriticalSection);
 		if (MipBuffers.Contains(RequestedMipLevel))
 		{
 			return *MipBuffers.Find(RequestedMipLevel);
 		}
+
 		return nullptr;
 	}
 
 	void SetMipLevelBuffer(int32 RequestedMipLevel, FStructuredBufferPoolItemSharedPtr Buffer)
 	{
-		FScopeLock ScopeLock(&ConverterCallbacksCriticalSection);
 		check(!MipBuffers.Contains(RequestedMipLevel));
 		MipBuffers.Add(RequestedMipLevel, Buffer);
 	}
 
 private:
 	FCriticalSection ConverterCallbacksCriticalSection;
+	FCriticalSection MipBufferCriticalSection;
 	FExrConvertBufferCallback ConvertExrBufferCallback;
 
 	/** An array of structured buffers that are big enough to fully contain corresponding mip levels. */

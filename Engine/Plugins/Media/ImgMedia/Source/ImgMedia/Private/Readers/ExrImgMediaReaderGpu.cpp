@@ -144,6 +144,8 @@ FExrImgMediaReader::EReadResult FExrImgMediaReaderGpu::ReadMip
 	FIntPoint CurrentMipDim = ConverterParams->FullResolution / MipLevelDiv;
 
 	const SIZE_T BufferSize = GetBufferSize(CurrentMipDim, ConverterParams->FrameInfo.NumChannels, bHasTiles, OutFrame->Info.NumTiles / MipLevelDiv, ConverterParams->bCustomExr);
+	
+	SampleConverter->LockMipBuffers();
 	FStructuredBufferPoolItemSharedPtr BufferData = SampleConverter->GetMipLevelBuffer(CurrentMipLevel);
 
 	if (!BufferData.IsValid())
@@ -151,6 +153,7 @@ FExrImgMediaReader::EReadResult FExrImgMediaReaderGpu::ReadMip
 		BufferData = AllocateGpuBufferFromPool(BufferSize);
 		SampleConverter->SetMipLevelBuffer(CurrentMipLevel, BufferData);
 	}
+	SampleConverter->UnlockMipBuffers();
 
 	uint16* MipDataPtr = static_cast<uint16*>(BufferData->UploadBufferMapped);
 
@@ -756,7 +759,12 @@ bool FExrMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDstTexture, co
 	bool bExecutionSuccessful = false;
 	if (ConvertExrBufferCallback.IsBound())
 	{
-		bExecutionSuccessful = ConvertExrBufferCallback.Execute(FRHICommandListExecutor::GetImmediateCommandList(), InDstTexture, MipBuffers);
+		TMap<int32, FStructuredBufferPoolItemSharedPtr> MipBufferCopy;
+		{
+			FScopeLock MipScopeLock(&MipBufferCriticalSection);
+			MipBufferCopy = MipBuffers;
+		}
+		bExecutionSuccessful = ConvertExrBufferCallback.Execute(FRHICommandListExecutor::GetImmediateCommandList(), InDstTexture, MipBufferCopy);
 	}
 	return bExecutionSuccessful;
 }
