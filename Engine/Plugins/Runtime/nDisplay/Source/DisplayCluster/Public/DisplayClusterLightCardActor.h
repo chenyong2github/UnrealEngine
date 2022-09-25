@@ -257,18 +257,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<USceneComponent> LightCardTransformerComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UStaticMeshComponent> LightCardComponent;
 
 	/** Components added by the IDisplayLightCardActorExtender */
 	UPROPERTY(VisibleAnywhere, Category = "Default")
 	TMap<FName, TObjectPtr<UActorComponent>> ExtenderNameToComponentMap;
 
-	UPROPERTY(transient, BlueprintReadOnly, Category = "Default")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UDisplayClusterLabelComponent> LabelComponent;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(transient, BlueprintReadOnly, Category = "Default")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UStaticMeshComponent> UVIndicatorComponent;
 #endif
 
