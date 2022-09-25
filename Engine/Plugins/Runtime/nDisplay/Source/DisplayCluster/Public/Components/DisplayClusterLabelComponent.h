@@ -7,8 +7,9 @@
 
 #include "DisplayClusterLabelComponent.generated.h"
 
-class UDisplayClusterLabelWidget;
 class ADisplayClusterRootActor;
+class UDisplayClusterLabelWidget;
+class UDisplayClusterWidgetComponent;
 class UTextRenderComponent;
 class UUserWidget;
 class UWidgetComponent;
@@ -35,7 +36,11 @@ public:
 	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
+
 	virtual void OnRegister() override;
+
+	/** Returns the widget component */
+	UDisplayClusterWidgetComponent* GetWidgetComponent() const;
 
 #if WITH_EDITOR
 public:
@@ -56,7 +61,7 @@ private:
 	
 	/** The widget component to display for this label */
 	UPROPERTY(VisibleAnywhere, Category=LabelText)
-	TObjectPtr<class UDisplayClusterWidgetComponent> WidgetComponent;
+	TObjectPtr<UDisplayClusterWidgetComponent> WidgetComponent;
 
 	/** The widget class to apply to the widget component */
 	UPROPERTY(EditAnywhere, Category=LabelText)

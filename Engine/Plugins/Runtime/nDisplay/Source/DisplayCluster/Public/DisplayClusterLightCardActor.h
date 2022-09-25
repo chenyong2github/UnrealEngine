@@ -11,6 +11,7 @@
 class ADisplayClusterRootActor;
 class UActorComponent;
 class UDisplayClusterLabelComponent;
+class UMeshComponent;
 class USceneComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
@@ -74,7 +75,7 @@ public:
 #endif
 
 	/** Gets the light card mesh components */
-	void GetLightCardMeshComponents(TArray<UStaticMeshComponent*>& MeshComponents) const;
+	void GetLightCardMeshComponents(TArray<UMeshComponent*>& MeshComponents) const;
 
 	/** Returns the current static mesh used by this light card */
 	UStaticMesh* GetStaticMesh() const;

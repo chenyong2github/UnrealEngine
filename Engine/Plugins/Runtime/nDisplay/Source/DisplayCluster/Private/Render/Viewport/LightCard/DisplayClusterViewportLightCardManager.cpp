@@ -118,7 +118,7 @@ void FDisplayClusterViewportLightCardManager::RenderFrame()
 			/** A list of primitive components that have been added to the preview scene for rendering in the current frame */
 			TArray<UPrimitiveComponent*> LoadedPrimitiveComponents;
 
-			TArray<UStaticMeshComponent*> LightCardMeshComponents;
+			TArray<UMeshComponent*> LightCardMeshComponents;
 
 			bool bLoadedPrimitives = false;
 			for (ADisplayClusterLightCardActor* LightCard : UVLightCards)
@@ -131,7 +131,7 @@ void FDisplayClusterViewportLightCardManager::RenderFrame()
 				LightCardMeshComponents.Empty(LightCardMeshComponents.Num());
 				LightCard->GetLightCardMeshComponents(LightCardMeshComponents);
 
-				for (UStaticMeshComponent* LightCardMeshComp : LightCardMeshComponents)
+				for (UMeshComponent* LightCardMeshComp : LightCardMeshComponents)
 				{
 					if (LightCardMeshComp && LightCardMeshComp->SceneProxy == nullptr)
 					{

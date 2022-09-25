@@ -63,6 +63,11 @@ void UDisplayClusterLabelComponent::OnRegister()
 	WidgetComponent->SetWidgetClass(WidgetClass.LoadSynchronous());
 }
 
+UDisplayClusterWidgetComponent* UDisplayClusterLabelComponent::GetWidgetComponent() const
+{
+	return WidgetComponent.Get();
+}
+
 #if WITH_EDITOR
 
 void UDisplayClusterLabelComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

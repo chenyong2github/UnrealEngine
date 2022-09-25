@@ -194,7 +194,7 @@ FName ADisplayClusterLightCardActor::GetCustomIconName() const
 
 #endif
 
-void ADisplayClusterLightCardActor::GetLightCardMeshComponents(TArray<UStaticMeshComponent*>& MeshComponents) const
+void ADisplayClusterLightCardActor::GetLightCardMeshComponents(TArray<UMeshComponent*>& MeshComponents) const
 {
 	MeshComponents.Add(LightCardComponent.Get());
 
