@@ -73,8 +73,8 @@ public:
 	virtual FName GetCustomIconName() const override;
 #endif
 
-	/** Gets the light card mesh component */
-	UStaticMeshComponent* GetLightCardMeshComponent() const { return LightCardComponent.Get(); }
+	/** Gets the light card mesh components */
+	void GetLightCardMeshComponents(TArray<UStaticMeshComponent*>& MeshComponents) const;
 
 	/** Returns the current static mesh used by this light card */
 	UStaticMesh* GetStaticMesh() const;
@@ -90,6 +90,9 @@ public:
 
 	/** Updates the light card actor visibility */
 	void UpdateLightCardVisibility();
+
+	/** Updates the UV Indicator */
+	void UpdateUVIndicator();
 
 	/** Show or hide the light card label  */
 	void ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor);
@@ -262,6 +265,11 @@ protected:
 
 	UPROPERTY(transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UDisplayClusterLabelComponent> LabelComponent;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient, BlueprintReadOnly, Category = "Default")
+	TObjectPtr<UStaticMeshComponent> UVIndicatorComponent;
+#endif
 
 	/** The current owner of the light card */
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorOwner;

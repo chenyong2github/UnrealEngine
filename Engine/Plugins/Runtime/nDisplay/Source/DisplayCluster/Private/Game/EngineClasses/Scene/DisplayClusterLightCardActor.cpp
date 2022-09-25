@@ -64,13 +64,30 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	LightCardTransformerComponent = CreateDefaultSubobject<USceneComponent>(TEXT("LightCardTransformer"));
 	LightCardTransformerComponent->AttachToComponent(MainSpringArmComponent, FAttachmentTransformRules::KeepRelativeTransform);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneObj(TEXT("/nDisplay/LightCard/SM_LightCardPlane"));
+	{
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneObj(TEXT("/nDisplay/LightCard/SM_LightCardPlane"));
 
-	LightCardComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LightCard"));
-	LightCardComponent->AttachToComponent(LightCardTransformerComponent, FAttachmentTransformRules::KeepRelativeTransform);
-	LightCardComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
-	LightCardComponent->Mobility = EComponentMobility::Movable;
-	LightCardComponent->SetStaticMesh(PlaneObj.Object);
+		LightCardComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LightCard"));
+		LightCardComponent->AttachToComponent(LightCardTransformerComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		LightCardComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+		LightCardComponent->Mobility = EComponentMobility::Movable;
+		LightCardComponent->SetStaticMesh(PlaneObj.Object);
+	}
+
+#if WITH_EDITOR
+	{
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> UVIndicatorObj(TEXT("/nDisplay/LightCard/SM_UVIndicator"));
+
+		UVIndicatorComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("UVIndicator"));
+		UVIndicatorComponent->AttachToComponent(LightCardComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		UVIndicatorComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		UVIndicatorComponent->Mobility = EComponentMobility::Movable;
+		UVIndicatorComponent->SetStaticMesh(UVIndicatorObj.Object);
+
+		UVIndicatorComponent->SetRelativeLocation(FVector(0, 0, 1)); // Slightly in front of the parent
+		UVIndicatorComponent->SetVisibility(false);
+	}
+#endif // WITH_EDITOR
 
 	UpdateStageActorTransform();
 
@@ -113,6 +130,7 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 	UpdateStageActorTransform();
 	UpdateLightCardMaterialInstance();
 	UpdateLightCardVisibility();
+	UpdateUVIndicator();
 }
 
 #if WITH_EDITOR
@@ -175,6 +193,18 @@ FName ADisplayClusterLightCardActor::GetCustomIconName() const
 }
 
 #endif
+
+void ADisplayClusterLightCardActor::GetLightCardMeshComponents(TArray<UStaticMeshComponent*>& MeshComponents) const
+{
+	MeshComponents.Add(LightCardComponent.Get());
+
+#if WITH_EDITOR
+	if (GIsEditor && bIsUVLightCard)
+	{
+		MeshComponents.Add(UVIndicatorComponent.Get());
+	}
+#endif // WITH_EDITOR
+}
 
 UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const
 {
@@ -332,11 +362,65 @@ void ADisplayClusterLightCardActor::UpdateLightCardVisibility()
 	{
 		// Only render the UV light card if this is a proxy actor
 		const bool bShouldBeVisible = IsProxy();
+
 		if (LightCardComponent->IsVisible() != bShouldBeVisible)
 		{
 			LightCardComponent->SetVisibility(bShouldBeVisible);
 		}
 	}
+}
+
+
+void ADisplayClusterLightCardActor::UpdateUVIndicator()
+{
+#if WITH_EDITOR
+	if (GIsEditor && bIsUVLightCard && IsProxy())
+	{
+		if (!UVIndicatorComponent->IsVisible())
+		{
+			UVIndicatorComponent->SetVisibility(true);
+		}
+	}
+	else if (UVIndicatorComponent->IsVisible())
+	{
+		UVIndicatorComponent->SetVisibility(false);
+	}
+
+	if (GIsEditor && bIsUVLightCard)
+	{
+		// Keep 1:1 aspect ratio
+		if (const USceneComponent* UVParentComponent = UVIndicatorComponent->GetAttachParent())
+		{
+			const FVector ParentWorldScale = UVParentComponent->GetComponentScale();
+
+			const double ParentScaleAbsX = FMath::Abs(ParentWorldScale.X);
+			const double ParentScaleAbsY = FMath::Abs(ParentWorldScale.Y);
+
+			const double ParentScaleMin = FMath::Min(ParentScaleAbsX, ParentScaleAbsY);
+
+			if (ParentScaleMin > KINDA_SMALL_NUMBER)
+			{
+				constexpr double UVScale = 0.25;
+				FVector ScaleFactor(1, 1, 1);
+
+				if (ParentScaleAbsX > ParentScaleAbsY)
+				{
+					ScaleFactor.X = ParentScaleAbsY / ParentScaleAbsX;
+				}
+				else
+				{
+					ScaleFactor.Y = ParentScaleAbsX / ParentScaleAbsY;
+				}
+
+				// Don't let the uv indicator be overly big if the light card itself is big.
+				constexpr double MaxAllowedParentScale = 0.5;
+				const double ClampScaleFactor = FMath::Clamp(MaxAllowedParentScale / ParentScaleMin, 0, 1);
+
+				UVIndicatorComponent->SetRelativeScale3D(UVScale * ClampScaleFactor * ScaleFactor);
+			}
+		}
+	}
+#endif // WITH_EDITOR
 }
 
 void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)
