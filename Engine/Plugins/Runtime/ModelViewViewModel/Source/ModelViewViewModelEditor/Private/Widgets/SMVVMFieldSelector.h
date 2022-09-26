@@ -108,13 +108,15 @@ private:
 		FString CategoryName;
 		const UFunction* Function = nullptr;
 		TArray<TSharedPtr<FConversionFunctionItem>> Children;
+		int32 NumFunctions = 0;
 	};
 
 	TSharedPtr<FConversionFunctionItem> FindOrCreateItemForCategory(TArray<TSharedPtr<FConversionFunctionItem>>& Items, const FString& Name);
 	TSharedRef<ITableRow> GenerateConversionFunctionCategoryRow(TSharedPtr<FConversionFunctionItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void GenerateConversionFunctionItems();
 	void FilterConversionFunctionCategories();
 	/** Recursively filter the items in SourceArray and place them into DestArray. Returns true if any items were added. */
-	bool FilterConversionFunctionCategoryChildren(const TArray<FString>& FilterStrings, const TArray<TSharedPtr<FConversionFunctionItem>>& SourceArray, TArray<TSharedPtr<FConversionFunctionItem>>& OutDestArray);
+	int32 FilterConversionFunctionCategoryChildren(const TArray<FString>& FilterStrings, const TArray<TSharedPtr<FConversionFunctionItem>>& SourceArray, TArray<TSharedPtr<FConversionFunctionItem>>& OutDestArray);
 
 	void FilterConversionFunctions();
 
@@ -123,7 +125,11 @@ private:
 	
 	void AddConversionFunctionChildrenRecursive(const TSharedPtr<FConversionFunctionItem>& Parent, TArray<const UFunction*>& OutFunctions);
 
+	int32 SortConversionFunctionItemsRecursive(TArray<TSharedPtr<FConversionFunctionItem>>& Items);
+
 	void SetConversionFunctionSelection(const UFunction* SelectedFunction);
+	void ExpandAllToItem(const UFunction* Function);
+	void ExpandAll(const TArray<TSharedPtr<FConversionFunctionItem>>& Items, bool bRecursive);
 
 	TSharedRef<ITableRow> GenerateConversionFunctionRow(const UFunction* Function, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -164,15 +170,15 @@ private:
 	FOnConversionFunctionSelectionChanged OnConversionFunctionSelectionChangedDelegate;
 
 	TSharedPtr<STreeView<TSharedPtr<FConversionFunctionItem>>> ConversionFunctionCategoryTree;
-	TArray<TSharedPtr<FConversionFunctionItem>> ConversionFunctionCategories;
-	TArray<TSharedPtr<FConversionFunctionItem>> FilteredConversionFunctionCategories;
-	TArray<TSharedPtr<FConversionFunctionItem>> ConversionFunctionCategoryRoot;
+	TArray<TSharedPtr<FConversionFunctionItem>> FilteredConversionFunctionRoot;
+	TArray<TSharedPtr<FConversionFunctionItem>> ConversionFunctionRoot;
 
 	TSharedPtr<SListView<const UFunction*>> ConversionFunctionList;
 
 	TArray<const UFunction*> ConversionFunctions;
 	TArray<const UFunction*> FilteredConversionFunctions;
 
+	bool bIsMenuInitialized = false;
 }; 
 
 } // namespace UE::MVVM

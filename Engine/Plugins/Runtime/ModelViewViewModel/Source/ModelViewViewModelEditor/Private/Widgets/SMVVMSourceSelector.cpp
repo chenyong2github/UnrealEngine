@@ -47,6 +47,7 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
+				.Padding(0, 2)
 				.HAlign(HAlign_Fill)
 				[
 					SAssignNew(SelectedSourceWidget, SSourceEntry)
