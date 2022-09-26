@@ -420,8 +420,8 @@ void SSourceBindingList::SetSelectedProperty(const FMVVMBlueprintPropertyPath& P
 	SPropertyViewer::FHandle SelectedHandle;
 	for (TPair<FBindingSource, SPropertyViewer::FHandle>& Source : Sources)
 	{
-		if (Property.IsFromViewModel() && Source.Key.ViewModelId == Property.GetViewModelId() ||
-			Property.IsFromWidget() && Source.Key.Name == Property.GetWidgetName())
+		if ((Property.IsFromViewModel() && Source.Key.ViewModelId == Property.GetViewModelId()) ||
+			(Property.IsFromWidget() && Source.Key.Name == Property.GetWidgetName()))
 		{
 			SelectedHandle = Source.Value;
 			break;
