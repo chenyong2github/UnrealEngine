@@ -632,3 +632,51 @@ bool BinarySearch(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
 	uint Index = LowerBound(SearchBuffer, BufferCount, Key);
 	return SearchBuffer[Index] == Key;
 }
+
+#ifndef DEFINE_ITERATE_CLUSTER_SEGMENTS
+#	define DEFINE_ITERATE_CLUSTER_SEGMENTS (0)
+#endif
+
+// Need manually strip unused template functions here due to a compiler issue: https://github.com/microsoft/DirectXShaderCompiler/issues/4649
+#if DEFINE_ITERATE_CLUSTER_SEGMENTS
+
+template<class ClusterSegmentProcessor>
+void IterateClusterSegments(FCluster Cluster, ByteAddressBuffer InClusterPageData, inout ClusterSegmentProcessor Processor)
+{
+	BRANCH
+	if (IsMaterialFastPath(Cluster))
+	{
+		{
+			Processor.Process(0, Cluster.Material0Length, Cluster.Material0Index);
+		}
+
+		if (Cluster.Material1Length > 0)
+		{
+			Processor.Process(Cluster.Material0Length, Cluster.Material1Length, Cluster.Material1Index);
+		}
+
+		const uint Material2Length = Cluster.NumTris - Cluster.Material0Length - Cluster.Material1Length;
+		if (Material2Length > 0)
+		{
+			Processor.Process(Cluster.Material0Length + Cluster.Material1Length, Material2Length, Cluster.Material2Index);
+		}
+	}
+	else
+	{
+		uint TableOffset = Cluster.PageBaseAddress + Cluster.MaterialTableOffset * 4;
+		LOOP for (uint TableEntry = 0; TableEntry < Cluster.MaterialTableLength; ++TableEntry)
+		{
+			uint EncodedRange = InClusterPageData.Load(TableOffset);
+			TableOffset += 4;
+
+			uint TriStart;
+			uint TriLength;
+			uint MaterialIndex;
+			DecodeMaterialRange(EncodedRange, TriStart, TriLength, MaterialIndex);
+
+			Processor.Process(TriStart, TriLength, MaterialIndex);
+		}
+	}
+}
+
+#endif

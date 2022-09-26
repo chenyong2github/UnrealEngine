@@ -59,12 +59,15 @@ void StoreVisibleCluster(RWByteAddressBuffer VisibleClusters, uint ClusterIdx, F
 
 uint4 PackCandidateNode(FCandidateNode Node)
 {
-	// Leave at least one bit unused in each of the fields, so 0xFFFFFFFFu is never a valid value. Checked in C++ code.
+	// Leave at least one bit unused in each of the fields, so 0xFFFFFFFFu is never a valid value.
 	uint4 RawData;
 	RawData.x = (Node.InstanceId << NANITE_NUM_CULLING_FLAG_BITS) | Node.Flags;
 	RawData.y = (Node.ViewId << NANITE_MAX_NODES_PER_PRIMITIVE_BITS) | Node.NodeIndex;
 	RawData.z = Node.EnabledBitmask;
 	RawData.w = 0;
+
+	checkSlow(RawData.x != 0xFFFFFFFFu && RawData.y != 0xFFFFFFFFu && RawData.z != 0xFFFFFFFFu);
+
 	return RawData;
 }
 
