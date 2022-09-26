@@ -4114,6 +4114,17 @@ bool AInstancedFoliageActor::ShouldImport(FString* ActorPropString, bool IsMovin
 	return false;
 }
 
+FBox AInstancedFoliageActor::GetStreamingBounds() const
+{
+	if (UWorld* World = GetWorld(); World && World->IsPartitionedWorld())
+	{
+		const float HalfGridSize = GridSize * 0.5f;
+		return FBox(GetActorLocation() - HalfGridSize, GetActorLocation() + HalfGridSize);
+	}
+
+	return Super::GetStreamingBounds();
+}
+
 void AInstancedFoliageActor::ApplySelection(bool bApply)
 {
 	for (auto& Pair : FoliageInfos)
