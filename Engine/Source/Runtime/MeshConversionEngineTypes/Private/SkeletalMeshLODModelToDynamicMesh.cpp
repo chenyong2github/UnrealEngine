@@ -135,6 +135,23 @@ public:
 		return Mesh->NumTexCoords;
 	}
 
+	int32 NumWeightMapLayers() const
+	{
+		return 0;
+	}
+
+	float GetVertexWeight(int32, int32) const
+	{
+		ensure(false);
+		return 0.0f;
+	}
+
+	FName GetWeightMapName(int32 LayerIndex) const
+	{
+		return FName();
+	}
+
+
 	// --"Vertex Buffer" info
 	const TArray<VertIDType>& GetVertIDs() const
 	{
