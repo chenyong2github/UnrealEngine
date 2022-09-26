@@ -9,12 +9,12 @@
 #include "NNXRuntime.h"
 #include "NNXRuntimeCPU.h"
 
-//#include "ThirdPartyWarningDisabler.h"
-//NNI_THIRD_PARTY_INCLUDES_START
+//#include "NNXThirdPartyWarningDisabler.h"
+//NNX_THIRD_PARTY_INCLUDES_START
 //#undef check
 //#undef TEXT
 //#include "core/session/onnxruntime_cxx_api.h"
-//NNI_THIRD_PARTY_INCLUDES_END
+//NNX_THIRD_PARTY_INCLUDES_END
 
 
 class FNNXRuntimeCPUModule: public IModuleInterface

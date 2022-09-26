@@ -37,8 +37,8 @@ limitations under the License.
 #endif
 #endif
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START // WITH_UE: C4996: 'X': warning STL4017: std::wbuffer_convert, std::wstring_convert, and the <codecvt> header (containing [...]) are deprecated in C++17 [...]
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_START // WITH_UE: C4996: 'X': warning STL4017: std::wbuffer_convert, std::wstring_convert, and the <codecvt> header (containing [...]) are deprecated in C++17 [...]
 
 #if defined(_MSC_VER) && !defined(__clang__)
 // Chance of arithmetic overflow could be reduced
@@ -721,4 +721,4 @@ void ThreadPool::TryParallelFor(concurrency::ThreadPool* tp, std::ptrdiff_t tota
 }  // namespace concurrency
 }  // namespace onnxruntime
 
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE

@@ -7,9 +7,9 @@
 #include "NNXRuntime.h"
 #include "NNXInferenceModel.h"
 #include "NeuralStatistics.h"
-#include "ThirdPartyWarningDisabler.h"
+#include "NNXThirdPartyWarningDisabler.h"
 
-NNI_THIRD_PARTY_INCLUDES_START
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -25,7 +25,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif
 #endif
 
-NNI_THIRD_PARTY_INCLUDES_END
+NNX_THIRD_PARTY_INCLUDES_END
 
 #define NNX_RUNTIME_ORT_NAME_CPU TEXT("NNXRuntimeORTCpu")
 #define NNX_RUNTIME_ORT_NAME_DML TEXT("NNXRuntimeORTDml")

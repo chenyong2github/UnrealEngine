@@ -10,7 +10,7 @@
 #ifndef EIGEN_SPARSEMATRIXBASE_H
 #define EIGEN_SPARSEMATRIXBASE_H
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
 
 namespace Eigen { 
 
@@ -188,9 +188,9 @@ template<typename Derived> class SparseMatrixBase
     inline bool isVector() const { return rows()==1 || cols()==1; }
     /** \returns the size of the storage major dimension,
       * i.e., the number of columns for a columns major matrix, and the number of rows otherwise */
-NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_START // WITH_UE
     Index outerSize() const { return (int(Flags)&RowMajorBit) ? this->rows() : this->cols(); }
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
     /** \returns the size of the inner dimension according to the storage order,
       * i.e., the number of rows for a columns major matrix, and the number of cols otherwise */
     Index innerSize() const { return (int(Flags)&RowMajorBit) ? this->cols() : this->rows(); }

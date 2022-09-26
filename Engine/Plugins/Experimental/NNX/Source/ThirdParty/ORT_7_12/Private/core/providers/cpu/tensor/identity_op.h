@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE: Avoids cryptic protobuf/stubs/strutil.h(364): warning C4127: conditional expression is constant; note: consider using 'if constexpr' statement instead
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE: Avoids cryptic protobuf/stubs/strutil.h(364): warning C4127: conditional expression is constant; note: consider using 'if constexpr' statement instead
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #ifdef _MSC_VER
@@ -19,7 +19,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/framework/TensorSeq.h"
 #include "core/framework/tensorprotoutils.h"
 #include "core/providers/utils.h"
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 namespace onnxruntime {
 

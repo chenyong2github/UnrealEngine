@@ -11,12 +11,12 @@
 #include "core/common/logging/logging.h"
 
 #ifdef _WIN32
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include <Windows.h>
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
 #else
 #include <unistd.h>
 #if defined(__MACH__) || defined(__wasm__) || defined(__PROSPERO__) // WITH_UE: Added __PROSPERO__

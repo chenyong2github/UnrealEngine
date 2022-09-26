@@ -22,12 +22,12 @@ limitations under the License.
 #include "Misc/DateTime.h"
 #else //WITH_UE
 #include <time.h>
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include <windows.h>
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
 #include <chrono>
 #include <numeric>
 #endif //WITH_UE

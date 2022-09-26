@@ -18,14 +18,14 @@ limitations under the License.
 
 #include "core/platform/env.h"
 
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include <Windows.h>
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
 #undef CreateDirectory
 #undef GetEnvironmentVariable
 #include <string>
@@ -85,7 +85,7 @@ namespace onnxruntime {
 
 namespace {
 
-#ifndef PLATFORM_NNI_MICROSOFT
+#ifndef PLATFORM_NNX_MICROSOFT
   class UnmapFileParam {
   public:
     void* addr;
@@ -256,7 +256,7 @@ class UnrealEngineEnv : public Env {
   }
 
   int GetNumCpuCores() const override {
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer[256];
     DWORD returnLength = sizeof(buffer);
     if (GetLogicalProcessorInformation(buffer, &returnLength) == FALSE) {
@@ -279,7 +279,7 @@ class UnrealEngineEnv : public Env {
     if (!processorCoreCount)
       ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
     return processorCoreCount;
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
   // This is the simplest way to do it without writing platform dependent
   // code.
   int32 ProcessorCoreCount = 0;
@@ -289,11 +289,11 @@ class UnrealEngineEnv : public Env {
     ORT_THROW("Fatal error: 0 count processors from GetLogicalProcessorInformation");
   }
   return ProcessorCoreCount;
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
   }
 
   std::vector<size_t> GetThreadAffinityMasks() const override {
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     auto generate_vector_of_n = [](int n) {
       std::vector<size_t> ret(n);
       std::iota(ret.begin(), ret.end(), 0);
@@ -315,12 +315,12 @@ class UnrealEngineEnv : public Env {
     if (ret.empty())
       return generate_vector_of_n(std::thread::hardware_concurrency());
     return ret;
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
   // Reusing POSIX code
   std::vector<size_t> ret(std::thread::hardware_concurrency() / 2);
   std::iota(ret.begin(), ret.end(), 0);
   return ret;
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
   }
 
   static UnrealEngineEnv& Instance() {
@@ -338,7 +338,7 @@ class UnrealEngineEnv : public Env {
   }
 
   Status GetFileLength(_In_z_ const ORTCHAR_T* file_path, size_t& length) const override {
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
 #if WINVER >= _WIN32_WINNT_WIN8
     wil::unique_hfile file_handle{
         CreateFile2(file_path, FILE_READ_ATTRIBUTES, FILE_SHARE_READ, OPEN_EXISTING, NULL)};
@@ -360,7 +360,7 @@ class UnrealEngineEnv : public Env {
     }
     length = static_cast<size_t>(filesize.QuadPart);
     return Status::OK();
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
   // Path to file, conversion to FString
   FString FilePathUE(file_path);
   // Creating the FileManager
@@ -369,7 +369,7 @@ class UnrealEngineEnv : public Env {
   int64 FileSize = FileManager.FileSize(*FilePathUE);
   length = static_cast<size_t>(FileSize);
   return Status::OK();
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
   }
 
   common::Status GetFileLength(int fd, /*out*/ size_t& file_size) const override {
@@ -378,20 +378,20 @@ class UnrealEngineEnv : public Env {
       return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Invalid fd was supplied: ", fd);
     }
 
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     struct _stat buf;
     int rc = _fstat(fd, &buf);
     if (rc < 0) {
       return Status(SYSTEM, errno);
     }
 
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
   struct stat buf;
   int rc = fstat(fd, &buf);
   if (rc < 0) {
     return ReportSystemError("fstat", "");
   }
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
 
     if (buf.st_size < 0) {
       return ORT_MAKE_STATUS(SYSTEM, FAIL, "Received negative size from stat call");
@@ -411,7 +411,7 @@ class UnrealEngineEnv : public Env {
     ORT_RETURN_IF_NOT(offset >= 0, "offset < 0");
     ORT_RETURN_IF_NOT(length <= buffer.size(), "length > buffer.size()");
 
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
 #if WINVER >= _WIN32_WINNT_WIN8
     wil::unique_hfile file_handle{
         CreateFile2(file_path, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, NULL)};
@@ -457,7 +457,7 @@ class UnrealEngineEnv : public Env {
 
     return Status::OK();
 
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
   ScopedFileDescriptor file_descriptor{ open(file_path, O_RDONLY) };
   if (!file_descriptor.IsValid()) {
     return ReportSystemError("open", file_path);
@@ -495,11 +495,11 @@ class UnrealEngineEnv : public Env {
   }
 
   return Status::OK();
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
   }
 
 
-#if defined(PLATFORM_NNI_MICROSOFT) || defined(__PROSPERO__) // WITH_UE
+#if defined(PLATFORM_NNX_MICROSOFT) || defined(__PROSPERO__) // WITH_UE
 
   Status MapFileIntoMemory(_In_z_ const ORTCHAR_T*, FileOffsetType, size_t, MappedMemoryPtr&) const override {
     return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows or PS5.");
@@ -551,7 +551,7 @@ class UnrealEngineEnv : public Env {
 
 
 
-#ifndef PLATFORM_NNI_MICROSOFT
+#ifndef PLATFORM_NNX_MICROSOFT
   static common::Status ReportSystemError(const char* operation_name, const std::string& path) {
     auto e = errno;
       char buf[1024];
@@ -571,7 +571,7 @@ class UnrealEngineEnv : public Env {
       oss << operation_name << " file \"" << path << "\" failed: " << msg;
       return common::Status(common::SYSTEM, e, oss.str());
     }
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
 
     bool FolderExists(const std::string& path) const override {
     FString FilePathUE(path.c_str());
@@ -599,11 +599,11 @@ class UnrealEngineEnv : public Env {
   }
 
   common::Status FileOpenRd(const std::string& path, /*out*/ int& fd) const override {
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     _sopen_s(&fd, path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
    fd = open(path.c_str(), O_RDONLY);
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
 
     if (0 > fd) {
       return common::Status(common::SYSTEM, errno);
@@ -613,12 +613,12 @@ class UnrealEngineEnv : public Env {
 
   common::Status FileOpenWr(const std::string& path, /*out*/ int& fd) const override {
 
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     _sopen_s(&fd, path.c_str(), _O_CREAT | _O_TRUNC | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR,
              _S_IREAD | _S_IWRITE);
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
   fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
 
     if (0 > fd) {
       return common::Status(common::SYSTEM, errno);
@@ -626,7 +626,7 @@ class UnrealEngineEnv : public Env {
     return Status::OK();
   }
 
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
   bool FolderExists(const std::wstring& path) const override {
     const std::string path_str(path.begin(), path.end());
     const bool bExist = FolderExists(path_str);
@@ -657,14 +657,14 @@ class UnrealEngineEnv : public Env {
     }
     return Status::OK();
   }
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
 
   common::Status FileClose(int fd) const override {
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     int ret = _close(fd);
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
     int ret = close(fd);
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
     if (0 != ret) {
       return common::Status(common::SYSTEM, errno);
     }
@@ -674,7 +674,7 @@ class UnrealEngineEnv : public Env {
   common::Status GetCanonicalPath(
       const PathString& path,
       PathString& canonical_path) const override {
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
     // adapted from MSVC STL std::filesystem::canonical() implementation
     // https://github.com/microsoft/STL/blob/ed3cbf36416a385828e7a5987ca52cb42882d84b/stl/inc/filesystem#L2986
 #if WINVER >= _WIN32_WINNT_WIN8
@@ -739,7 +739,7 @@ class UnrealEngineEnv : public Env {
 
     return Status::OK();
 
-#else //PLATFORM_NNI_MICROSOFT
+#else //PLATFORM_NNX_MICROSOFT
 #ifdef __PROSPERO__ // WITH_UE
     MallocdStringPtr canonical_path_cstr{ strdup(path.c_str()) };
 #else //__PROSPERO__
@@ -751,10 +751,10 @@ class UnrealEngineEnv : public Env {
   }
   canonical_path.assign(canonical_path_cstr.get());
   return Status::OK();
-#endif //PLATFORM_NNI_MICROSOFT
+#endif //PLATFORM_NNX_MICROSOFT
   }
 
-#ifdef PLATFORM_NNI_MICROSOFT
+#ifdef PLATFORM_NNX_MICROSOFT
   // Return the path of the executable/shared library for the current running code. This is to make it
   // possible to load other shared libraries installed next to our core runtime code.
   std::string GetRuntimePath() const override {

@@ -20,7 +20,7 @@
 #ifndef EIGEN_MEMORY_H
 #define EIGEN_MEMORY_H
 
-#include "ThirdPartyWarningDisabler.h" // WITH_UE
+#include "NNXThirdPartyWarningDisabler.h" // WITH_UE
 
 #ifndef EIGEN_MALLOC_ALREADY_ALIGNED
 
@@ -480,9 +480,9 @@ EIGEN_DEVICE_FUNC inline Index first_aligned(const Scalar* array, Index size)
     // so that all elements of the array have the same alignment.
     return 0;
   }
-NNI_THIRD_PARTY_INCLUDES_START // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_START // WITH_UE
   else if( (UIntPtr(array) & (sizeof(Scalar)-1)) || (Alignment%ScalarSize)!=0)
-NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
+NNX_THIRD_PARTY_INCLUDES_END // WITH_UE
   {
     // The array is not aligned to the size of a single scalar, or the requested alignment is not a multiple of the scalar size.
     // Consequently, no element of the array is well aligned.

@@ -3,8 +3,8 @@
 #include "NNXCore.h"
 #include "NNXModelBuilder.h"
 
-#include "ThirdPartyWarningDisabler.h"
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h"
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -17,7 +17,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 //#include "core/session/environment.h"
 #include "core/session/onnxruntime_cxx_api.h"
 
-NNI_THIRD_PARTY_INCLUDES_END
+NNX_THIRD_PARTY_INCLUDES_END
 
 namespace NNX
 {

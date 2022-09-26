@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ThirdPartyWarningDisabler.h"
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h"
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 
@@ -45,4 +45,4 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include "core/providers/migraphx/migraphx_provider_factory.h"
 #endif
 
-NNI_THIRD_PARTY_INCLUDES_END
+NNX_THIRD_PARTY_INCLUDES_END

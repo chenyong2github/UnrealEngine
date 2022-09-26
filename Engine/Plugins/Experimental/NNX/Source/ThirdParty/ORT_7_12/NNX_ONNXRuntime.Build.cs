@@ -6,7 +6,7 @@ public class NNX_ONNXRuntime : ModuleRules
 {
 	public NNX_ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		ShortName = "ORT"; // Shorten to avoid path-too-long errors
+		ShortName = "NNX_ORT"; // Shorten to avoid path-too-long errors
 		PCHUsage = Target.StaticAnalyzer == StaticAnalyzer.None ? ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs : ModuleRules.PCHUsageMode.NoPCHs;
 
 		PublicIncludePaths.AddRange(
@@ -58,7 +58,7 @@ public class NNX_ONNXRuntime : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
-				"FlatBuffers",
+				"NNX_FlatBuffers",
 				"NNX_ONNX_1_11_0",
 				"NNX_ONNXRuntimeProto_1_11_0",
 				"NNX_ONNXRuntimeMLAS_2022_7_12",
@@ -141,7 +141,7 @@ public class NNX_ONNXRuntime : ModuleRules
 			PublicDefinitions.Add("NOMINMAX");
 			PublicDefinitions.Add("WIN32_LEAN_AND_MEAN");
 			PublicDefinitions.Add("PLATFORM_WIN64");
-			PublicDefinitions.Add("PLATFORM_NNI_MICROSOFT");
+			PublicDefinitions.Add("PLATFORM_NNX_MICROSOFT");
 			//PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST");
 			//PublicDefinitions.Add("USE_DML = 1");
 		}

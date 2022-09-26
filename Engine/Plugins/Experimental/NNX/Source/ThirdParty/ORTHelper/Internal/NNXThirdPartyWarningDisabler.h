@@ -6,16 +6,16 @@
 
 /*
 Many third party headers require some care when importing. NNI third party includes should be wrapped like this:
-	#include "ThirdPartyWarningDisabler.h"
-	NNI_THIRD_PARTY_INCLUDES_START
+	#include "NNXThirdPartyWarningDisabler.h"
+	NNX_THIRD_PARTY_INCLUDES_START
 	#undef check
 	#undef TEXT
 	// your ONNXRUNTIME include directives go here...
-	NNI_THIRD_PARTY_INCLUDES_END
+	NNX_THIRD_PARTY_INCLUDES_END
 */
 
-#ifdef PLATFORM_NNI_MICROSOFT
-#define NNI_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START \
+#ifdef PLATFORM_NNX_MICROSOFT
+#define NNX_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START \
 	__pragma(warning(disable: 4100)) /* C4100: 'inline_element_size': unreferenced formal parameter*/ \
 	__pragma(warning(disable: 4127)) /* C4127: conditional expression is constant*/ \
 	__pragma(warning(disable: 4191)) /* C4191: 'reinterpret_cast': unsafe conversion from unsafe conversion from 'X' to 'Y' */ \
@@ -31,7 +31,7 @@ Many third party headers require some care when importing. NNI third party inclu
 	UE_PUSH_MACRO("TEXT")
 #else
 // If support added for other platforms, this definition may require updating
-#define NNI_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START UE_PUSH_MACRO("check") UE_PUSH_MACRO("TEXT")
-#endif //PLATFORM_NNI_MICROSOFT
+#define NNX_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START UE_PUSH_MACRO("check") UE_PUSH_MACRO("TEXT")
+#endif //PLATFORM_NNX_MICROSOFT
 
-#define NNI_THIRD_PARTY_INCLUDES_END THIRD_PARTY_INCLUDES_END UE_POP_MACRO("check") UE_POP_MACRO("TEXT")
+#define NNX_THIRD_PARTY_INCLUDES_END THIRD_PARTY_INCLUDES_END UE_POP_MACRO("check") UE_POP_MACRO("TEXT")

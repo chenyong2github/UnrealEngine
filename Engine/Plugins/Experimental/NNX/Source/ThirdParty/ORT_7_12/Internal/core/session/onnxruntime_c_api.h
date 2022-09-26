@@ -28,12 +28,12 @@
 
 #include "GenericPlatform/GenericPlatformAffinity.h" // WITH_UE
 #ifdef _WIN32 // WITH_UE
-#include "ThirdPartyWarningDisabler.h"
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h"
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include <Windows.h>
-NNI_THIRD_PARTY_INCLUDES_END
+NNX_THIRD_PARTY_INCLUDES_END
 #endif // WITH_UE
 
 /** \brief The API version defined in this header

@@ -11,12 +11,12 @@
 #define ORT_STRING_CAST TCHAR_TO_ANSI
 #endif
 
-#include "ThirdPartyWarningDisabler.h"
-NNI_THIRD_PARTY_INCLUDES_START
+#include "NNXThirdPartyWarningDisabler.h"
+NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/session/ort_model_optimizer_api.h"
-NNI_THIRD_PARTY_INCLUDES_END
+NNX_THIRD_PARTY_INCLUDES_END
 
 #define Print(Format, ...) UE_LOG(LogNNX, Display, Format, __VA_ARGS__)
 

@@ -31,7 +31,7 @@ limitations under the License.
 #include "core/framework/arena_extend_strategy.h"
 #include "core/framework/allocator.h"
 
-#if defined(PLATFORM_NNI_MICROSOFT) // WITH_UE: Replaced PLATFORM_WINDOWS with PLATFORM_NNI_MICROSOFT
+#if defined(PLATFORM_NNX_MICROSOFT) // WITH_UE: Replaced PLATFORM_WINDOWS with PLATFORM_NNX_MICROSOFT
 #include <intrin.h>
 #endif
 namespace onnxruntime {
@@ -407,7 +407,7 @@ class BFCArena : public IAllocator {
   int Log2FloorNonZero(uint64_t n) {
 #if defined(__GNUC__)
     return 63 ^ __builtin_clzll(n);
-#elif defined(PLATFORM_NNI_MICROSOFT) // WITH_UE: Replaced PLATFORM_WINDOWS with PLATFORM_NNI_MICROSOFT
+#elif defined(PLATFORM_NNX_MICROSOFT) // WITH_UE: Replaced PLATFORM_WINDOWS with PLATFORM_NNX_MICROSOFT
     unsigned long index;
 #if defined(_WIN64)
     _BitScanReverse64(&index, n);
