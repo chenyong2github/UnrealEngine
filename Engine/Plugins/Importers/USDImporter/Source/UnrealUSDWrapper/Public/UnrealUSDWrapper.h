@@ -421,7 +421,7 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Anisotropy;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Tangent;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken SubsurfaceColor;
-	extern UNREALUSDWRAPPER_API const pxr::TfToken AmbientOcclusion;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Occlusion;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Refraction;
 
 	// Tokens used mostly for shade material conversion

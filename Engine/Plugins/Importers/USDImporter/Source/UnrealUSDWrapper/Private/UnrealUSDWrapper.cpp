@@ -113,7 +113,7 @@ namespace UnrealIdentifiers
 	const TfToken Anisotropy = TfToken("anisotropy");
 	const TfToken Tangent = TfToken("tangent");
 	const TfToken SubsurfaceColor = TfToken("subsurfaceColor");
-	const TfToken AmbientOcclusion = TfToken("ambientOcclusion");
+	const TfToken Occlusion = TfToken("occlusion");
 	const TfToken Refraction = TfToken("ior");
 
 	const TfToken Surface = TfToken("surface");

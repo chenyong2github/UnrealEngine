@@ -1621,7 +1621,7 @@ namespace UE
 						FallbackValue = pxr::GfVec4f{ 0.0, 0.0, 0.0, 1.0f };
 						break;
 					case MP_AmbientOcclusion:
-						InputToken = UnrealIdentifiers::AmbientOcclusion;
+						InputToken = UnrealIdentifiers::Occlusion;
 						InputType = pxr::SdfValueTypeNames->Float;
 						ConstantValue = UserConstantValue ? *UserConstantValue : ( *Samples )[ 0 ].R / 255.0f;
 						FallbackValue = pxr::GfVec4f{ 1.0, 1.0, 1.0, 1.0f };
@@ -1914,6 +1914,16 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		}
 	}
 
+	// Occlusion
+	{
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Occlusion, 1.0f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex, bForceVirtualTextures ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "AmbientOcclusion" ), ParameterValue, bForUsdPreviewSurface );
+			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "AmbientOcclusionTextureComponent" ) );
+			bHasMaterialInfo = true;
+		}
+	}
+
 	// Handle world space normals
 	pxr::UsdPrim UsdPrim = UsdShadeMaterial.GetPrim();
 	if ( pxr::UsdAttribute Attr = UsdPrim.GetAttribute( UnrealIdentifiers::WorldSpaceNormals ) )
@@ -2065,6 +2075,18 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		{
 			EditorOnly->Refraction.Expression = Expression;
 			SetOutputIndex( ParameterValue, EditorOnly->Refraction.OutputIndex );
+
+			bHasMaterialInfo = true;
+		}
+	}
+
+	// Occlusion
+	if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Occlusion, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
+	{
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+		{
+			EditorOnly->AmbientOcclusion.Expression = Expression;
+			SetOutputIndex( ParameterValue, EditorOnly->AmbientOcclusion.OutputIndex );
 
 			bHasMaterialInfo = true;
 		}
