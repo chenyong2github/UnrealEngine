@@ -13,6 +13,7 @@ void SReadOnlyHierarchyView::Construct(const FArguments& InArgs, const UWidgetBl
 {
 	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
 	WidgetBlueprint = InWidgetBlueprint;
+	ShowOnly = InArgs._ShowOnly;
 
 	SearchFilter = MakeShared<FTextFilter>(FTextFilter::FItemToStringArray::CreateSP(this, &SReadOnlyHierarchyView::GetFilterStringsForItem));
 	FilterHandler = MakeShared<FTreeFilterHandler>();
@@ -251,21 +252,30 @@ void SReadOnlyHierarchyView::GetItemChildren(TSharedPtr<FItem> Item, TArray<TSha
 	OutChildren.Append(Item->Children);
 }
 
-void SReadOnlyHierarchyView::BuildWidgetChildren(const TSharedPtr<FItem>& CurrentItem)
-{
-	if (const UPanelWidget* PanelWidget = Cast<UPanelWidget>(CurrentItem->Widget.Get()))
+void SReadOnlyHierarchyView::BuildWidgetChildren(const UWidget* Widget, TSharedPtr<FItem> Parent)
+{ 
+	// if we don't have a ShowOnly filter, or this widget is in it, create the item
+	if (ShowOnly.Num() == 0 || ShowOnly.Contains(Widget->GetFName()))
 	{
-		int32 NumChildren = PanelWidget->GetChildrenCount();
-		CurrentItem->Children.Reserve(NumChildren);
-
-		for (int32 Idx = 0; Idx < NumChildren; ++Idx)
+		TSharedRef<FItem> WidgetItem = MakeShared<FItem>(Widget);
+		if (Parent.IsValid())
 		{
-			if (const UWidget* Child = PanelWidget->GetChildAt(Idx))
-			{
-				TSharedRef<FItem> ChildItem = MakeShared<FItem>(Child);
-				BuildWidgetChildren(ChildItem);
-				CurrentItem->Children.Add(ChildItem);
-			}
+			Parent->Children.Add(WidgetItem);
+		}
+		else
+		{
+			RootWidgets.Add(WidgetItem);
+		}
+
+		Parent = WidgetItem;
+	}
+
+	// even if we didn't create an item for this widget, we still want to iterate over its children
+	if (const UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+	{
+		for (const UWidget* Child : PanelWidget->GetAllChildren())
+		{
+			BuildWidgetChildren(Child, Parent);
 		}
 	}
 }
@@ -273,15 +283,22 @@ void SReadOnlyHierarchyView::BuildWidgetChildren(const TSharedPtr<FItem>& Curren
 void SReadOnlyHierarchyView::RebuildTree()
 {
 	const UWidgetBlueprint* WidgetBP = WidgetBlueprint.Get();
-	TSharedRef<FItem> WidgetBPItem = MakeShared<FItem>(WidgetBP);
-	RootWidgets.Add(WidgetBPItem);
+	if (WidgetBP == nullptr)
+	{
+		return;
+	}
+	
+	// if we don't have a ShowOnly filter, or this widget blueprint is in it, create the root item
+	TSharedPtr<FItem> RootItem;
+	if (ShowOnly.Num() == 0 || ShowOnly.Contains(WidgetBP->GetFName()))
+	{
+		RootItem = MakeShared<FItem>(WidgetBP);
+		RootWidgets.Add(RootItem);
+	}
 
 	if (const UWidget* RootWidget = WidgetBP->WidgetTree->RootWidget.Get())
 	{
-		TSharedRef<FItem> RootWidgetItem = MakeShared<FItem>(RootWidget);
-		WidgetBPItem->Children.Add(RootWidgetItem);
-
-		BuildWidgetChildren(RootWidgetItem);
+		BuildWidgetChildren(RootWidget, RootItem);
 	}
 
 	ExpandAll();

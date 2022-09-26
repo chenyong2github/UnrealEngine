@@ -41,6 +41,7 @@ public:
 		SLATE_ARGUMENT_DEFAULT(bool, ShowSearch) = true;
 		SLATE_ARGUMENT_DEFAULT(ESelectionMode::Type, SelectionMode) = ESelectionMode::Single;
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+		SLATE_ARGUMENT(TArray<FName>, ShowOnly)
 	SLATE_END_ARGS()
 
 	virtual ~SReadOnlyHierarchyView();
@@ -68,7 +69,7 @@ private:
 	void OnSelectionChanged(TSharedPtr<FItem> Selected, ESelectInfo::Type SelectionType);
 
 	void RebuildTree();
-	void BuildWidgetChildren(const TSharedPtr<FItem>& CurrentItem);
+	void BuildWidgetChildren(const UWidget* Widget, TSharedPtr<FItem> Parent);
 
 	void SetItemExpansionRecursive(TSharedPtr<FItem> Item, bool bShouldBeExpanded);
 	void ExpandAll();
@@ -78,6 +79,7 @@ private:
 private:
 
 	TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint;
+	TArray<FName> ShowOnly;
 
 	TArray<TSharedPtr<FItem>> RootWidgets;
 	TArray<TSharedPtr<FItem>> FilteredRootWidgets;
