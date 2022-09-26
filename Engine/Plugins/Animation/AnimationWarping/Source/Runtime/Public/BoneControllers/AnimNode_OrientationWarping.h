@@ -67,6 +67,15 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0"))
 	float RotationInterpSpeed = 10.f;
 
+	UPROPERTY(EditAnywhere, Category = Experimental, meta=(PinHiddenByDefault, ClampMin="0.0", ClampMax="1.0"))
+	float WarpingAlpha = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = Experimental, meta=(PinHiddenByDefault, ClampMin="0.0", ClampMax="1.0"))
+	float OffsetAlpha = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = Experimental, meta=(PinHiddenByDefault, ClampMin="0.0", ClampMax="180.0"))
+	float MaxOffsetAngle = 70.0f;
+
 #if WITH_EDITORONLY_DATA
 	// Scale all debug drawing visualization by a factor
 	UPROPERTY(EditAnywhere, Category=Debug, meta=(ClampMin="0.0"))
@@ -147,6 +156,17 @@ private:
 	
 	// Internal orientation warping angle
 	float ActualOrientationAngle = 0.f;
+
+	// Our component's heading
+	float ComponentHeading = 0.0;
+
+	// Our accumulated heading offset based on component frame deltas
+	float HeadingOffset = 0.0;
+	float LastOffsetAlpha = 0.0f;
+
+	FGraphTraversalCounter UpdateCounter;
+	bool bIsFirstUpdate = false;
+	void Reset(const FAnimationBaseContext& Context);
 
 #if WITH_EDITORONLY_DATA
 	// Whether we found a root motion delta attribute in the attribute stream on graph driven mode
