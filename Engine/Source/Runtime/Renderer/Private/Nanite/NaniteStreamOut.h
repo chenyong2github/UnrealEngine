@@ -9,6 +9,8 @@
 
 #include "CoreMinimal.h"
 
+class FGlobalShaderMap;
+
 namespace Nanite
 {
 	struct FStreamOutRequest
