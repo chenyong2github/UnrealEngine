@@ -931,7 +931,7 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1SettingsForCreate(const FCrea
 	Result.bAllowJoinViaPresenceFriendsOnly = Params.SessionSettings.bAllowNewMembers;
 	Result.Settings.Add(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS, Params.bAllowSanctionedPlayers);
 	Result.bAntiCheatProtected = Params.bAntiCheatProtected;
-	Result.bIsDedicated = Params.bIsDedicatedServerSession;
+	Result.bIsDedicated = IsRunningDedicatedServer();
 	Result.bIsLANMatch = Params.bIsLANSession;
 	Result.bShouldAdvertise = Params.SessionSettings.bAllowNewMembers;
 	if (const FCustomSessionSetting* BuildUniqueId = Params.SessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID))

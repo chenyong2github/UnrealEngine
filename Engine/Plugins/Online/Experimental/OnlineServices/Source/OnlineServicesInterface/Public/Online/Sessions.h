@@ -353,9 +353,6 @@ struct FCreateSession
 		/** Whether the session is only available via the local network and not via internet connection. Only available in some platforms. False by default */
 		bool bIsLANSession = false;
 
-		/** Whether the session is configured to run from a dedicated server. Only available in some platforms. False by default */
-		bool bIsDedicatedServerSession = false;
-
 		/** Whether this session will allow sanctioned players to join it. True by default */
 		bool bAllowSanctionedPlayers = true;
 
@@ -994,7 +991,6 @@ BEGIN_ONLINE_STRUCT_META(FCreateSession::Params)
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionIdOverride),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, bPresenceEnabled),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, bIsLANSession),
-	ONLINE_STRUCT_FIELD(FCreateSession::Params, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, bAllowSanctionedPlayers),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, bAntiCheatProtected),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionSettings)
