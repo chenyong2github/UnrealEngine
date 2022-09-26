@@ -118,6 +118,10 @@ void SPropertyViewer::SetRawFilterText(const FText& InFilterText)
 	Implementation->SetRawFilterText(InFilterText);
 }
 
+void SPropertyViewer::SetSelection(FHandle Container, TArrayView<const FFieldVariant> FieldPath)
+{
+	Implementation->SetSelection(Container, FieldPath);
+}
 
 SPropertyViewer::FHandle SPropertyViewer::MakeContainerIdentifier()
 {

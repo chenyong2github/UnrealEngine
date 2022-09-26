@@ -742,6 +742,50 @@ FText FPropertyViewerImpl::SetRawFilterTextInternal(const FText& InFilterText)
 	return SearchFilter->GetFilterErrorText();
 }
 
+TSharedPtr<FTreeNode> FPropertyViewerImpl::FindExistingChild(const TSharedPtr<FTreeNode>& Node, TArrayView<const FFieldVariant> FieldPath) const
+{
+	if (FieldPath.Num() == 0)
+	{
+		return TSharedPtr<FTreeNode>();
+	}
+
+	for (const TSharedPtr<FTreeNode>& Child : Node->ChildNodes)
+	{
+		if (Child->GetField() == FieldPath[0])
+		{
+			if (FieldPath.Num() == 1)
+			{
+				return Child;
+			}
+			else
+			{
+				return FindExistingChild(Child, FieldPath.RightChop(1));
+			}
+		}
+	}
+
+	return TSharedPtr<FTreeNode>();
+}
+
+void FPropertyViewerImpl::SetSelection(SPropertyViewer::FHandle Identifier, TArrayView<const FFieldVariant> FieldPath)
+{
+	for (const TSharedPtr<FTreeNode>& Node : TreeSource)
+	{
+		if (TSharedPtr<FContainer> Container = Node->GetContainer())
+		{
+			if (Container->GetIdentifier() == Identifier)
+			{
+				TreeWidget->ClearSelection();
+
+				if (TSharedPtr<FTreeNode> FoundNode = FindChild(Node, FieldPath))
+				{
+					TreeWidget->SetItemSelection(FoundNode, true);
+				}
+			}
+		}
+	}
+}
+
 
 TSharedRef<SWidget> FPropertyViewerImpl::CreateTree(bool bHasPreWidget, bool bShowPropertyValue, bool bHasPostWidget, ESelectionMode::Type SelectionMode)
 {

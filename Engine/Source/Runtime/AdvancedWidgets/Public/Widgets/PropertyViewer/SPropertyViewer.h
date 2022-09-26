@@ -133,6 +133,7 @@ public:
 	TArray<FSelectedItem> GetSelectedItems() const;
 
 	void SetRawFilterText(const FText& InFilterText);
+	void SetSelection(FHandle Container, TArrayView<const FFieldVariant> FieldPath);
 
 private:
 	void ConstructInternal(const FArguments& InArgs);

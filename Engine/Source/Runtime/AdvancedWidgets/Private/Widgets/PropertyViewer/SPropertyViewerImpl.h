@@ -245,6 +245,7 @@ public:
 	void RemoveAll();
 	TArray<SPropertyViewer::FSelectedItem> GetSelectedItems() const;
 	void SetRawFilterText(const FText& InFilterText);
+	void SetSelection(SPropertyViewer::FHandle Identifier, TArrayView<const FFieldVariant> FieldPath);
 
 private:
 	void AddContainerInternal(SPropertyViewer::FHandle Identifier, TSharedPtr<FContainer>& NewContainer);
@@ -263,6 +264,8 @@ private:
 	TSharedPtr<SWidget> HandleContextMenuOpening();
 	void HandleSelectionChanged(TSharedPtr<FTreeNode> Item, ESelectInfo::Type SelectionType);
 	void HandleDoubleClick(TSharedPtr<FTreeNode> Item);
+
+	TSharedPtr<FTreeNode> FindChild(const TSharedPtr<FTreeNode>& ContainerNode, TArrayView<const FFieldVariant> FieldPath) const;
 
 #if WITH_EDITOR
 	void HandleBlueprintCompiled();
