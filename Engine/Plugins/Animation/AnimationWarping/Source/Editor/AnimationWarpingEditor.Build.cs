@@ -13,7 +13,10 @@ namespace UnrealBuildTool.Rules
 				"AnimationWarpingRuntime",
                 "AnimGraph",
 				"AnimGraphRuntime",
-                "Core",
+				"AnimationModifiers",
+				"AnimationBlueprintLibrary",
+				"AnimationModifierLibrary",
+				"Core",
                 "CoreUObject",
                 "Engine",
             });

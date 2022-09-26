@@ -22,6 +22,12 @@
 			"Name": "AnimationWarpingEditor",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
-		},
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "AnimationModifierLibrary",
+			"Enabled": true
+		}
 	]
 }
