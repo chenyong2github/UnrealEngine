@@ -16,7 +16,7 @@ public class Text3D : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
-           "FreeType2",
+			"FreeType2",
 			"GeometryCore",
 			"GeometryAlgorithms",
             "HarfBuzz",
