@@ -1072,7 +1072,7 @@ void UMovieSceneSkeletalAnimationTrack::ToggleShowRootMotionTrail()
 	bShowRootMotionTrail = bShowRootMotionTrail ? false : true;
 }
 #endif
-FTransform FMovieSceneSkeletalAnimRootMotionTrackParams::GetRootMotion(FFrameTime CurrentTime)  const
+TOptional<FTransform>  FMovieSceneSkeletalAnimRootMotionTrackParams::GetRootMotion(FFrameTime CurrentTime)  const
 {
 	if (RootTransforms.Num() > 0)
 	{
@@ -1113,7 +1113,8 @@ FTransform FMovieSceneSkeletalAnimRootMotionTrackParams::GetRootMotion(FFrameTim
 			return RootTransforms[0];
 		}
 	}
-	return FTransform::Identity;
+	return TOptional<FTransform>();
+
 }
 
 

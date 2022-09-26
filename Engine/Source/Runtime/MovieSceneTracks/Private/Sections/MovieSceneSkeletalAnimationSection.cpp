@@ -394,8 +394,7 @@ void UMovieSceneSkeletalAnimationSection::PostEditUndo()
 
 TOptional<FTransform> UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime, bool& bBlendFirstChildOfRoot) const
 {
-	//if we don't have an offset transform set then it's fine to return nothing, we just use the default root. Also use smaller tolerance here just in case
-	if (GetRootMotionParams() && GetOffsetTransform().Equals(FTransform::Identity, KINDA_SMALL_NUMBER)  == false)
+	if (GetRootMotionParams())
 	{
 		UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
 		if (GetRootMotionParams()->bRootMotionsDirty)
@@ -686,4 +685,3 @@ void UMovieSceneSkeletalAnimationSection::ToggleShowSkeleton()
 
 
 #undef LOCTEXT_NAMESPACE 
-
