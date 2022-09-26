@@ -26,7 +26,7 @@ namespace Test
 	public:
 		FParametricTests()
 		{
-			ReloadTestDescriptionsFromJson();
+			
 		}
 
 		bool ReloadTestDescriptionsFromJson()
@@ -464,6 +464,15 @@ namespace Test
 			}
 		)
 	);
+
+	bool InitializeParametricTests()
+	{
+		bool bResult = ParametricTests.ReloadTestDescriptionsFromJson();
+#if WITH_DEV_AUTOMATION_TESTS
+		ParametricTestAutomationRegistry.Refresh();
+#endif
+		return bResult;
+	}
 
 } // namespace Test
 } // namespace NNX

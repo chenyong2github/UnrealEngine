@@ -16,6 +16,7 @@ namespace Test
 
 	//Set the RuntimeFilter witch automation will use, Empty string to run on all runtime (this is default)
 	NNXQA_API void SetAutomationRuntimeFilter(const FString& RuntimeFilter);
-
+	
+	NNXQA_API bool InitializeParametricTests();
 } // namespace Test
 } // namespace NNX
