@@ -755,6 +755,10 @@ protected:
 	/** Whether mip callbacks have been registered and need to be removed on destroy */
 	uint8 bMipLevelCallbackRegistered:1;
 
+	/** If false, Follower components ShouldTickPose function will return false (default) */
+	UPROPERTY(Transient)
+	uint8 bFollowerShouldTickPose : 1;
+
 #if UE_ENABLE_DEBUG_DRAWING
 private:
 	/** Whether to draw this mesh's debug skeleton (regardless of showflags) */
@@ -1492,9 +1496,11 @@ public:
 	 * Set LeaderPoseComponent for this component
 	 *
 	 * @param NewLeaderBoneComponent New LeaderPoseComponent
+	 * @param bForceUpdate If false, the function will be skipped if NewLeaderBoneComponent is the same as currently setup (default)
+	 * @param bInFollowerShouldTickPose If false, Follower components will not execute TickPose (default)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false);
+	void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false, bool bInFollowerShouldTickPose = false);
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use SetLeaderPoseComponent instead.")
 	void SetMasterPoseComponent(USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate = false) { SetLeaderPoseComponent(NewMasterBoneComponent, bForceUpdate); }

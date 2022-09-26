@@ -426,6 +426,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 
 	bMipLevelCallbackRegistered = false;
 
+	bFollowerShouldTickPose = false;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	bDrawDebugSkeleton = false;
 #endif
@@ -1141,6 +1143,11 @@ void USkinnedMeshComponent::InitLODInfos()
 
 bool USkinnedMeshComponent::ShouldTickPose() const
 {
+	if (LeaderPoseComponent.IsValid() && !bFollowerShouldTickPose)
+	{
+		return false;
+	}
+
 	return ((VisibilityBasedAnimTickOption < EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered) || bRecentlyRendered);
 }
 
@@ -2142,13 +2149,15 @@ void USkinnedMeshComponent::SetPhysicsAsset(class UPhysicsAsset* InPhysicsAsset,
 	PhysicsAssetOverride = InPhysicsAsset;
 }
 
-void USkinnedMeshComponent::SetLeaderPoseComponent(class USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate)
+void USkinnedMeshComponent::SetLeaderPoseComponent(class USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate, bool bInFollowerShouldTickPose)
 {
 	// Early out if we're already setup.
 	if (!bForceUpdate && NewLeaderBoneComponent == LeaderPoseComponent)
 	{
 		return;
 	}
+
+	bFollowerShouldTickPose = bInFollowerShouldTickPose;
 
 	USkinnedMeshComponent* OldLeaderPoseComponent = LeaderPoseComponent.Get();
 	USkinnedMeshComponent* ValidNewLeaderPose = NewLeaderBoneComponent;
