@@ -3818,6 +3818,9 @@ public:
 			bAffectDynamicIndirectLighting = false;
 			bAffectDistanceFieldLighting = false;
 		}
+
+		// Overwrite filter flags to specify landscape instead of static mesh
+		FilterFlags = Nanite::EFilterFlags::Landscape;
 	}
 };
 

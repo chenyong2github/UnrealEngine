@@ -693,6 +693,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 	Instance.LocalToPrimitive.SetIdentity();
+
+	FilterFlags = EFilterFlags::StaticMesh;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)

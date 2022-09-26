@@ -1419,17 +1419,30 @@ void AddPass_PrimitiveFilter(
 	const uint32 ShowOnlyPrimitiveCount = SceneView.ShowOnlyPrimitives.IsSet() ? SceneView.ShowOnlyPrimitives->Num() : 0u;
 	
 	EFilterFlags HiddenFilterFlags = EFilterFlags::None;
+	
+	if (!SceneView.Family->EngineShowFlags.StaticMeshes)
+	{
+		HiddenFilterFlags |= EFilterFlags::StaticMesh;
+	}
+
 	if (!SceneView.Family->EngineShowFlags.InstancedStaticMeshes)
 	{
 		HiddenFilterFlags |= EFilterFlags::InstancedStaticMesh;
 	}
+
 	if (!SceneView.Family->EngineShowFlags.InstancedFoliage)
 	{
 		HiddenFilterFlags |= EFilterFlags::Foliage;
 	}
+
 	if (!SceneView.Family->EngineShowFlags.InstancedGrass)
 	{
 		HiddenFilterFlags |= EFilterFlags::Grass;
+	}
+
+	if (!SceneView.Family->EngineShowFlags.Landscape)
+	{
+		HiddenFilterFlags |= EFilterFlags::Landscape;
 	}
 
 	CullingContext.PrimitiveFilterBuffer = nullptr;

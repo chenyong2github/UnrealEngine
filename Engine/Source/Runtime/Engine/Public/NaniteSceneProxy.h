@@ -80,10 +80,12 @@ ENGINE_API bool IsWorldPositionOffsetSupported();
 
 enum class EFilterFlags : uint8
 {
-	None				= 0u,
-	InstancedStaticMesh = (1u << 0u),
-	Foliage				= (1u << 1u),
-	Grass				= (1u << 2u),
+	None					= 0u,
+	StaticMesh				= (1u << 0u),
+	InstancedStaticMesh		= (1u << 1u),
+	Foliage					= (1u << 2u),
+	Grass					= (1u << 3u),
+	Landscape				= (1u << 4u),
 };
 
 ENUM_CLASS_FLAGS(EFilterFlags)
