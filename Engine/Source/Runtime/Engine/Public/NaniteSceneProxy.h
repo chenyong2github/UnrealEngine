@@ -78,6 +78,7 @@ ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
 ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
 ENGINE_API bool IsWorldPositionOffsetSupported();
 
+// Note: Keep NANITE_FILTER_FLAGS_NUM_BITS in sync
 enum class EFilterFlags : uint8
 {
 	None					= 0u,
