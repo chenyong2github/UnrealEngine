@@ -100,9 +100,11 @@ void FTableImportTool::StartImportProcess()
 	FName TableId = GetTableID(Filenames[0]);
 	DisplayTable(TableId);
 
-	FTableImportService::ImportTable(Filenames[0], TableId, [this](FName TableViewID, TSharedPtr<TraceServices::ITable<TraceServices::FImportTableRow>> Table) {
-		this->TableImportServiceCallback(TableViewID, Table);
-	});
+	FTableImportService::ImportTable(Filenames[0],
+		TableId,
+		[this](TSharedPtr<FTableImportCallbackParams> Params) {
+			this->TableImportServiceCallback(Params);
+		});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,14 +135,26 @@ void FTableImportTool::DisplayTable(FName TableViewID)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTableImportTool::TableImportServiceCallback(FName TableViewID, TSharedPtr<TraceServices::ITable<TraceServices::FImportTableRow>> Table)
+void FTableImportTool::TableImportServiceCallback(TSharedPtr<TraceServices::FTableImportCallbackParams> Params)
 {
-	const FOpenImportedTableTabData* TableViewPtr = OpenTablesMap.Find(TableViewID);
+	ensure(Params.IsValid());
+
+	const FOpenImportedTableTabData* TableViewPtr = OpenTablesMap.Find(Params->TableId);
 	if (TableViewPtr)
 	{
 		TSharedPtr<SUntypedTableTreeView> TableView = TableViewPtr->TableTreeView;
 		TableView->ClearCurrentOperationNameOverride();
-		TableView->UpdateSourceTable(Table);
+
+		if (Params->Result == TraceServices::ETableImportResult::ESuccess)
+		{
+			TableView->UpdateSourceTable(Params->Table);
+		}
+		else
+		{
+			FMessageLog ReportMessageLog(FInsightsManager::Get()->GetLogListingName());
+			ReportMessageLog.AddMessages(Params->Messages);
+			ReportMessageLog.Notify();
+		}
 	}
 }
 

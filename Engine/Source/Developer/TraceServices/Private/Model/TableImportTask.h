@@ -8,6 +8,8 @@
 #include "Model/Tables.h"
 #include "TraceServices/Model/TableImport.h"
 
+class FTokenizedMessage;
+
 namespace TraceServices
 {
 
@@ -59,12 +61,17 @@ public:
 	bool ParseData(TArray<FString>& Lines);
 
 private:
+	ETableImportResult ImportTable();
+
 	void SplitLineIntoValues(const FString& InLine, TArray<FString>& OutValues);
 	bool LoadFileToStringArray(const FString& InFilePath, TArray<FString>& Lines);
+
+	void AddError(const FText& Msg);
 
 	FTableImportService::TableImportCallback Callback;
 	TSharedPtr<TImportTable<FImportTableRow>> Table;
 
+	TArray<TSharedRef<FTokenizedMessage>> Messages;
 	TArray<FString> ColumnNames;
 	FString FilePath;
 	FName TableId;

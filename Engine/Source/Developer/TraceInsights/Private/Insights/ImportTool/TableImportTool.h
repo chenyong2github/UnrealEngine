@@ -12,6 +12,11 @@
 class SDockTab;
 class FSpawnTabArgs;
 
+namespace TraceServices
+{
+	struct FTableImportCallbackParams;
+}
+
 namespace Insights
 {
 
@@ -56,7 +61,7 @@ public:
 	void StartImportProcess();
 
 	void DisplayTable(FName TableViewID);
-	void TableImportServiceCallback(FName TableViewID, TSharedPtr<TraceServices::ITable<TraceServices::FImportTableRow>> Table);
+	void TableImportServiceCallback(TSharedPtr<TraceServices::FTableImportCallbackParams> Params);
 
 	TSharedRef<SDockTab> SpawnTab_TableImportTreeView(const FSpawnTabArgs& Args, FName TableViewID, FText InDisplayName);
 	void OnTableImportTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);

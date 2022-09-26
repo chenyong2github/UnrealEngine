@@ -3,11 +3,14 @@
 #include "TableImportTask.h"
 
 #include "Async/TaskGraphInterfaces.h"
+#include "Logging/TokenizedMessage.h"
 #include "Misc/FileHelper.h"
 #include "Tasks/Task.h"
 
 namespace TraceServices
 {
+
+#define LOCTEXT_NAMESPACE "TableImportTask"
 
 FTableImportTask::FTableImportTask(const FString& InFilePath, FName InTableId, FTableImportService::TableImportCallback InCallback)
 	: Callback(InCallback)
@@ -22,8 +25,42 @@ FTableImportTask::~FTableImportTask()
 
 void FTableImportTask::operator()()
 {
+	ETableImportResult Result = ImportTable();
+
+	TSharedPtr<FTableImportCallbackParams> Params = MakeShared<FTableImportCallbackParams>();
+	Params->TableId = TableId;
+	Params->Result = Result;
+	Params->Table = Table;
+	Params->Messages = Messages;
+
+	FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[Callback = this->Callback, Params]()
+		{
+			Callback(Params);
+		},
+		TStatId(),
+		nullptr,
+		ENamedThreads::GameThread);
+}
+
+ETableImportResult FTableImportTask::ImportTable()
+{
+	Table = MakeShared<TImportTable<FImportTableRow>>();
+
 	TArray<FString> Lines;
-	LoadFileToStringArray(FilePath, Lines);
+	bool Result = LoadFileToStringArray(FilePath, Lines);
+
+	if (!Result)
+	{
+		AddError(FText::Format(LOCTEXT("FailedToReadMsg", "Import failed because file {0} could not be read:"), FText::FromString(FilePath)));
+		return ETableImportResult::EFail;
+	}
+
+	if (Lines.Num() < 2)
+	{
+		AddError(FText::Format(LOCTEXT("NotEnoughtLinesMsg", "Import failed because the files did not contain a minimum of 2 lines."), FText::FromString(FilePath)));
+		return ETableImportResult::EFail;
+	}
 
 	if (FilePath.EndsWith(TEXT(".csv")))
 	{
@@ -34,44 +71,46 @@ void FTableImportTask::operator()()
 		Separator = TEXT("\t");
 	}
 
-	Table = MakeShared<TImportTable<FImportTableRow>>();
-
 	if (!ParseHeader(Lines[0]))
 	{
-		return;
+		return ETableImportResult::EFail;
 	}
 
 	if (!CreateLayout(Lines[1]))
 	{
-		return;
+		return ETableImportResult::EFail;
 	}
 
 	if (!ParseData(Lines))
 	{
-		return;
+		return ETableImportResult::EFail;
 	}
 
-	FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[Callback = this->Callback, Table = this->Table, TableId = this->TableId]()
-		{
-			Callback(TableId, Table);
-		},
-		TStatId(),
-		nullptr,
-		ENamedThreads::GameThread);
+	return ETableImportResult::ESuccess;
 }
 
 bool FTableImportTask::ParseHeader(const FString& HeaderLine)
 {
 	HeaderLine.ParseIntoArray(ColumnNames, *Separator);
+	if (ColumnNames.Num() == 0)
+	{
+		AddError(FText::Format(LOCTEXT("NoColumnsMsg", "Import failed because the file did not contain any columns."), FText::FromString(FilePath)));
+		return false;
+	}
 
-	return ColumnNames.Num() > 0;
+	return true;
 }
 
 bool FTableImportTask::CreateLayout(const FString& Line)
 {
 	TArray<FString> Values;
 	SplitLineIntoValues(Line, Values);
+
+	if (Values.Num() != ColumnNames.Num())
+	{
+		AddError(LOCTEXT("ValuesMismatchMsg", "Import failed because the number of values on line 1 does not match the number of columns in the header line."));
+		return false;
+	}
 
 	TTableLayout<FImportTableRow>& Layout = Table->EditLayout();
 	for (int32 Index = 0; Index < Values.Num(); ++Index)
@@ -110,6 +149,12 @@ bool FTableImportTask::ParseData(TArray<FString>& Lines)
 	{
 		TArray<FString> Values;
 		SplitLineIntoValues(Lines[LineIndex], Values);
+
+		if (Values.Num() != ColumnNames.Num())
+		{
+			AddError(FText::Format(LOCTEXT("ValuesMismatchMsg", "Import failed because the number of values on line {0} does not match the number of columns in the header line."), LineIndex + 1));
+			return false;
+		}
 
 		FImportTableRow& NewRow = Table->AddRow();
 		NewRow.SetNumValues(Values.Num());
@@ -200,6 +245,11 @@ bool FTableImportTask::LoadFileToStringArray(const FString &InFilePath, TArray<F
 	};
 
 	return FFileHelper::LoadFileToStringWithLineVisitor(*FilePath, Visitor);
+}
+
+void FTableImportTask::AddError(const FText& Msg)
+{
+	Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Error, Msg));
 }
 
 void FTableImportService::ImportTable(const FString& InPath, FName TableId, FTableImportService::TableImportCallback InCallback)
