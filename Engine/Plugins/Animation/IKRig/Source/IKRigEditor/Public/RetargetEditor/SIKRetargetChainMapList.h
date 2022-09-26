@@ -98,6 +98,8 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRetargetEditorController> InEditorController);
 
 	void ClearSelection() const;
+
+	void ResetChainSettings(URetargetChainSettings* Settings) const;
 	
 private:
 	

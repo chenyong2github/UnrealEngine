@@ -2,7 +2,7 @@
 
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 
-
+#include "ScopedTransaction.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IPersonaToolkit.h"
@@ -150,7 +150,7 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn(const FNam
 
 FReply SIKRetargetChainMapRow::OnResetToDefaultClicked()
 {
-	ChainMapElement.Pin()->ChainMap->Settings = FTargetChainSettings();
+	ChainMapList.Pin()->ResetChainSettings(ChainMapElement.Pin()->ChainMap.Get());
 	return FReply::Handled();
 }
 
@@ -388,6 +388,14 @@ void SIKRetargetChainMapList::Construct(
 void SIKRetargetChainMapList::ClearSelection() const
 {
 	ListView->ClearSelection();
+}
+
+void SIKRetargetChainMapList::ResetChainSettings(URetargetChainSettings* ChainMap) const
+{
+	FScopedTransaction Transaction(LOCTEXT("ResetChainSettings", "Reset Retarget Chain Settings"));
+	ChainMap->Modify();
+	ChainMap->Settings = FTargetChainSettings();
+	EditorController.Pin()->RefreshDetailsView();
 }
 
 UIKRetargeterController* SIKRetargetChainMapList::GetRetargetController() const
