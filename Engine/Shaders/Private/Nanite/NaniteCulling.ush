@@ -4,29 +4,12 @@
 
 #include "../Common.ush"
 #include "NaniteDataDecode.ush"
+#include "NaniteHierarchyTraversalCommon.ush"
 
 #define CULLING_PASS_NO_OCCLUSION				0
 #define CULLING_PASS_OCCLUSION_MAIN				1
 #define CULLING_PASS_OCCLUSION_POST				2
 #define CULLING_PASS_EXPLICIT_LIST				3
-
-uint MaxCandidateClusters;
-
-struct FQueuePassState
-{
-	uint	ClusterBatchReadOffset;	// Offset in batches
-	uint	ClusterWriteOffset;		// Offset in individual clusters
-	uint	NodeReadOffset;
-	uint	NodeWriteOffset;
-	uint	NodePrevWriteOffset;	// Helper used by non-persistent culling
-	int		NodeCount;				// Can temporarily be conservatively higher
-};
-
-struct FQueueState
-{
-	uint			TotalClusters;
-	FQueuePassState PassState[2];
-};
 
 
 struct FCandidateNode
@@ -40,7 +23,6 @@ struct FCandidateNode
 
 uint GetCandidateNodeSize(bool bPostPass)		{ return bPostPass ? 12u : 8u; }
 uint GetCandidateClusterSize()					{ return 8u; }
-uint GetMaxClusterBatches()						{ return MaxCandidateClusters / NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE; }
 
 // NodesAndClusterBatches layout: Main Cluster Batches, Main Candidate Nodes, Post Cluster Batches, Post Candidate Nodes
 uint GetClusterBatchesOffset()					{ return 0u; }
@@ -48,17 +30,10 @@ uint GetCandidateNodesOffset()					{ return GetMaxClusterBatches() * 4u; }
 uint GetNodesAndBatchesOffset(bool bPostPass)	{ return bPostPass ? (GetCandidateNodesOffset() + MaxNodes * GetCandidateNodeSize(false)) : 0u; }
 uint GetCandidateClusterOffset()				{ return 0u; }
 
-FVisibleCluster LoadCandidateClusterCoherent(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex)
-{
-	checkSlow(ClusterIndex < MaxCandidateClusters);
-	uint4 RawData = uint4(CandidateClusters.Load2(GetCandidateClusterOffset() + ClusterIndex * GetCandidateClusterSize()), 0u, 0u);
-	return UnpackVisibleCluster(RawData, false);
-}
-
 // CandidateClusters must be globallycoherent here, otherwise DXC will make buffer access non-globallycoherent when targeting SM6.6.
 void StoreCandidateClusterCoherentNoCheck(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex, FVisibleCluster VisibleCluster)
 {
-	uint4 RawData = PackVisibleCluster(ClusterIndex, VisibleCluster, false);
+	uint4 RawData = PackVisibleCluster(VisibleCluster, false);
 	CandidateClusters.Store2(GetCandidateClusterOffset() + ClusterIndex * GetCandidateClusterSize(), RawData.xy);
 }
 
@@ -71,7 +46,7 @@ void StoreCandidateClusterCoherent(globallycoherent RWCoherentByteAddressBuffer 
 
 void StoreVisibleCluster(RWByteAddressBuffer VisibleClusters, uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData = false)
 {
-	uint4 RawData = PackVisibleCluster(ClusterIdx, VisibleCluster, bHasPageData);
+	uint4 RawData = PackVisibleCluster(VisibleCluster, bHasPageData);
 	if (bHasPageData)
 	{
 		VisibleClusters.Store3(ClusterIdx * 12, RawData.xyz);
@@ -102,11 +77,6 @@ FCandidateNode UnpackCandidateNode(uint4 RawData, bool bHasEnabledMask)
 	Node.ViewId			= BitFieldExtractU32(RawData.y, NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS, NANITE_MAX_NODES_PER_PRIMITIVE_BITS);
 	Node.EnabledBitmask = bHasEnabledMask ? RawData.z : 0xFFFFFFFFu;
 	return Node;
-}
-
-bool IsNodeDataReady(uint4 RawData, bool bHasEnabledMask)
-{
-	return RawData.x != 0xFFFFFFFFu && RawData.y != 0xFFFFFFFFu && (!bHasEnabledMask || RawData.z != 0xFFFFFFFFu);
 }
 
 // NodesAndClusterBatches must be globallycoherent here, otherwise DXC will make buffer access non-globallycoherent when targeting SM6.6.

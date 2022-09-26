@@ -537,6 +537,8 @@ class FNodeAndClusterCull_CS : public FNaniteGlobalShader
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
+		OutEnvironment.SetDefine(TEXT("NANITE_HIERARCHY_TRAVERSAL"), 1);
+
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
@@ -623,7 +625,7 @@ class FInitCullArgs_CS : public FNaniteGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FQueueState >,	QueueState)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FQueueState >,	OutQueueState)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >,					OutCullArgs)
 		SHADER_PARAMETER(uint32,											MaxCandidateClusters)
 		SHADER_PARAMETER(uint32,											MaxNodes)
@@ -1536,7 +1538,7 @@ static void AddPass_InitCullArgs(
 	check(CullingType == NANITE_CULLING_TYPE_NODES || CullingType == NANITE_CULLING_TYPE_CLUSTERS);
 	FInitCullArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitCullArgs_CS::FParameters >();
 
-	PassParameters->QueueState				= GraphBuilder.CreateUAV(CullingContext.QueueState);
+	PassParameters->OutQueueState			= GraphBuilder.CreateUAV(CullingContext.QueueState);
 	PassParameters->OutCullArgs				= GraphBuilder.CreateUAV(CullArgs);
 	PassParameters->MaxCandidateClusters	= Nanite::FGlobalResources::GetMaxCandidateClusters();
 	PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();

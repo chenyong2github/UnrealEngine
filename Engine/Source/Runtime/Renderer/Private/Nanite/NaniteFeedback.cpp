@@ -18,7 +18,7 @@ class FNaniteFeedbackStatusCS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER(FNaniteFeedbackStatusCS);
 	SHADER_USE_PARAMETER_STRUCT(FNaniteFeedbackStatusCS, FNaniteGlobalShader);
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FQueueState>, QueueState)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FQueueState>, OutQueueState)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InMainRasterizerArgsSWHW)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InPostRasterizerArgsSWHW)
 
@@ -128,7 +128,7 @@ bool FFeedbackManager::FBufferState::Update(const uint32 Peak, const uint32 Capa
 void FFeedbackManager::Update(FRDGBuilder& GraphBuilder, const FSharedContext& SharedContext, FCullingContext& CullingContext)
 {
 	FNaniteFeedbackStatusCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteFeedbackStatusCS::FParameters>();
-	PassParameters->QueueState = GraphBuilder.CreateUAV(CullingContext.QueueState);
+	PassParameters->OutQueueState = GraphBuilder.CreateUAV(CullingContext.QueueState);
 	PassParameters->InMainRasterizerArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
 	PassParameters->InPostRasterizerArgsSWHW = GraphBuilder.CreateSRV(CullingContext.Configuration.bTwoPassOcclusion ? CullingContext.PostRasterizeArgsSWHW : CullingContext.MainRasterizeArgsSWHW);	// Avoid permutation by doing Post=Main for single pass
 	PassParameters->GPUMessageParams = GPUMessage::GetShaderParameters(GraphBuilder);
