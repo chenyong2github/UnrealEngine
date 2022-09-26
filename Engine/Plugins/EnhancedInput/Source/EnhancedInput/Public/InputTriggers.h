@@ -197,7 +197,7 @@ public:
 	 * Should global time dilation be applied to the held duration?
 	 * Default is set to false.
 	 * 
-	 * If this is set to true, then the owning Player Controller's actor time dialtion
+	 * If this is set to true, then the owning Player Controller's actor time dilation
 	 * will be used when calculating the HeldDuration.
 	 * 
 	 * @see UInputTriggerTimedBase::CalculateHeldDuration
