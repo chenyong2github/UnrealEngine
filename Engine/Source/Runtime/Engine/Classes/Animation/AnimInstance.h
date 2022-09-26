@@ -1131,6 +1131,16 @@ public:
 	UFUNCTION(BlueprintPure, Category="Animation|Curves", meta=(BlueprintThreadSafe))
 	float GetCurveValue(FName CurveName) const;
 
+	/** 
+	* Returns whether a named curve was found, its value, and a default value when it's not found.
+	* @param	AnimInstance	The anim instance to find this curve value for.
+	* @param	CurveName		The name of the curve.
+	* @param	DefaultValue	Value to use when the curve is not found.
+	* @param	OutValue		The curve's value.
+	*/
+	UFUNCTION(BlueprintPure, Category="Animation|Curves", meta=(BlueprintThreadSafe))
+	bool GetCurveValueWithDefault(FName CurveName, float DefaultValue, float& OutValue);
+
 	/** This returns last up-to-date list of active curve names */
 	UFUNCTION(BlueprintPure, Category = "Animation|Curves", meta=(BlueprintThreadSafe))
 	void GetActiveCurveNames(EAnimCurveType CurveType, TArray<FName>& OutNames) const;

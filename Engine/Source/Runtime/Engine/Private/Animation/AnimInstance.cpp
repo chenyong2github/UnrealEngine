@@ -1675,6 +1675,12 @@ bool UAnimInstance::GetCurveValue(FName CurveName, float& OutValue) const
 	return false;
 }
 
+bool UAnimInstance::GetCurveValueWithDefault(FName CurveName, float DefaultValue, float& OutValue)
+{
+	OutValue = DefaultValue;
+	return GetCurveValue(CurveName, OutValue);
+}
+
 void UAnimInstance::GetActiveCurveNames(EAnimCurveType CurveType, TArray<FName>& OutNames) const
 {
 	TMap<FName, float> ActiveCurves;
