@@ -1279,7 +1279,7 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 		{
 			NewMesh->SetBodySetup(ExistingMeshDataPtr->ExistingBodySetup);
 		}
-		else
+		else if (NewMesh->GetBodySetup() != ExistingMeshDataPtr->ExistingBodySetup)
 		{
 			// New collision geometry, but we still want the original settings and the generated collisions
 			NewMesh->GetBodySetup()->CopyBodySetupProperty(ExistingMeshDataPtr->ExistingBodySetup);
