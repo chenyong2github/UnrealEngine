@@ -155,6 +155,16 @@ void UPhysicsControlComponent::TickComponent(
 			break;
 		}
 
+		UBodySetup* BodySetup = BodyInstance->GetBodySetup();
+		if (BodySetup)
+		{
+			int32 NumShapes = BodySetup->AggGeom.GetElementCount();
+			for (int32 ShapeIndex = 0 ; ShapeIndex != NumShapes ; ++ShapeIndex)
+			{
+				BodyInstance->SetShapeCollisionEnabled(ShapeIndex, BodyModifier.CollisionType);
+			}
+		}
+
 		if (BodyInstance->IsInstanceSimulatingPhysics())
 		{
 			float GravityZ = BodyInstance->GetPhysicsScene()->GetOwningWorld()->GetGravityZ();
@@ -1149,14 +1159,16 @@ bool UPhysicsControlComponent::GetControlEnabled(const FName Name) const
 
 //======================================================================================================================
 FName UPhysicsControlComponent::MakeBodyModifier(
-	UMeshComponent*      MeshComponent,
-	const FName          BoneName,
-	EPhysicsMovementType MovementType, 
-	float                GravityMultiplier,
-	bool                 bUseSkeletalAnimation)
+	UMeshComponent*         MeshComponent,
+	const FName             BoneName,
+	EPhysicsMovementType    MovementType, 
+	ECollisionEnabled::Type CollisionType,
+	float                   GravityMultiplier,
+	bool                    bUseSkeletalAnimation)
 {
 	FName Name = Implementation->GetUniqueBodyModifierName(BoneName);
-	if (MakeNamedBodyModifier(Name, MeshComponent, BoneName, MovementType, GravityMultiplier, bUseSkeletalAnimation))
+	if (MakeNamedBodyModifier(
+		Name, MeshComponent, BoneName, MovementType, CollisionType, GravityMultiplier, bUseSkeletalAnimation))
 	{
 		return Name;
 	}
@@ -1165,12 +1177,13 @@ FName UPhysicsControlComponent::MakeBodyModifier(
 
 //======================================================================================================================
 bool UPhysicsControlComponent::MakeNamedBodyModifier(
-	const FName          Name,
-	UMeshComponent*      MeshComponent,
-	const FName          BoneName,
-	EPhysicsMovementType MovementType,
-	float                GravityMultiplier,
-	bool                 bUseSkeletalAnimation)
+	const FName             Name,
+	UMeshComponent*         MeshComponent,
+	const FName             BoneName,
+	EPhysicsMovementType    MovementType,
+	ECollisionEnabled::Type CollisionType,
+	float                   GravityMultiplier,
+	bool                    bUseSkeletalAnimation)
 {
 	FPhysicsBodyModifier* BodyModifier = Implementation->FindBodyModifier(Name);
 	if (BodyModifier)
@@ -1186,7 +1199,8 @@ bool UPhysicsControlComponent::MakeNamedBodyModifier(
 	}
 
 	FPhysicsBodyModifier& Modifier = Implementation->PhysicsBodyModifiers.Add(
-		Name, FPhysicsBodyModifier(MeshComponent, BoneName, MovementType, GravityMultiplier, bUseSkeletalAnimation));
+		Name, FPhysicsBodyModifier(
+			MeshComponent, BoneName, MovementType, CollisionType, GravityMultiplier, bUseSkeletalAnimation));
 
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent);
 	if (SkeletalMeshComponent)
@@ -1201,11 +1215,12 @@ bool UPhysicsControlComponent::MakeNamedBodyModifier(
 //======================================================================================================================
 TArray<FName> UPhysicsControlComponent::MakeBodyModifiersFromSkeletalMeshBelow(
 	USkeletalMeshComponent* SkeletalMeshComponent,
-	FName                BoneName,
-	bool                 bIncludeSelf,
-	EPhysicsMovementType MovementType,
-	float                GravityMultiplier,
-	bool                 bUseSkeletalAnimation)
+	FName                   BoneName,
+	bool                    bIncludeSelf,
+	EPhysicsMovementType    MovementType,
+	ECollisionEnabled::Type CollisionType,
+	float                   GravityMultiplier,
+	bool                    bUseSkeletalAnimation)
 {
 	TArray<FName> Result;
 	UPhysicsAsset* PhysicsAsset = SkeletalMeshComponent ? SkeletalMeshComponent->GetPhysicsAsset() : nullptr;
@@ -1217,7 +1232,7 @@ TArray<FName> UPhysicsControlComponent::MakeBodyModifiersFromSkeletalMeshBelow(
 	SkeletalMeshComponent->ForEachBodyBelow(
 		BoneName, bIncludeSelf, /*bSkipCustomType=*/false,
 		[
-			this, PhysicsAsset, SkeletalMeshComponent, MovementType, 
+			this, PhysicsAsset, SkeletalMeshComponent, MovementType, CollisionType,
 			GravityMultiplier, bUseSkeletalAnimation, &Result
 		](const FBodyInstance* BI)
 		{
@@ -1225,7 +1240,7 @@ TArray<FName> UPhysicsControlComponent::MakeBodyModifiersFromSkeletalMeshBelow(
 			{
 				const FName BoneName = PhysicsAsset->SkeletalBodySetups[BI->InstanceBodyIndex]->BoneName;
 				FName BodyModifierName = MakeBodyModifier(
-					SkeletalMeshComponent, BoneName, MovementType, GravityMultiplier, bUseSkeletalAnimation);
+					SkeletalMeshComponent, BoneName, MovementType, CollisionType, GravityMultiplier, bUseSkeletalAnimation);
 				Result.Add(BodyModifierName);
 			}
 		});
@@ -1238,6 +1253,7 @@ TMap<FName, FPhysicsControlNameArray> UPhysicsControlComponent::MakeBodyModifier
 	FPhysicsControlNameArray&                    AllBodyModifiers,
 	const TMap<FName, FPhysicsControlLimbBones>& LimbBones,
 	EPhysicsMovementType                         MovementType,
+	ECollisionEnabled::Type                      CollisionType,
 	float                                        GravityMultiplier,
 	bool                                         bUseSkeletalAnimation)
 {
@@ -1264,7 +1280,7 @@ TMap<FName, FPhysicsControlNameArray> UPhysicsControlComponent::MakeBodyModifier
 		for (FName BoneName : BonesInLimb.BoneNames)
 		{
 			FName BodyModifierName = MakeBodyModifier(
-				BonesInLimb.SkeletalMeshComponent, BoneName, MovementType, GravityMultiplier, bUseSkeletalAnimation);
+				BonesInLimb.SkeletalMeshComponent, BoneName, MovementType, CollisionType, GravityMultiplier, bUseSkeletalAnimation);
 			if (!BodyModifierName.IsNone())
 			{
 				LimbResult.Names.Add(BodyModifierName);
@@ -1330,7 +1346,7 @@ bool UPhysicsControlComponent::SetBodyModifierKinematicTarget(
 
 //======================================================================================================================
 bool UPhysicsControlComponent::SetBodyModifierMovementType(
-		const FName          Name,
+		FName                Name,
 		EPhysicsMovementType MovementType)
 {
 	FPhysicsBodyModifier* PhysicsBodyModifier = Implementation->FindBodyModifier(Name);
@@ -1353,6 +1369,30 @@ void UPhysicsControlComponent::SetAllBodyModifierMovementType(
 	}
 }
 
+//======================================================================================================================
+bool UPhysicsControlComponent::SetBodyModifierCollisionType(
+	FName                   Name,
+	ECollisionEnabled::Type CollisionType)
+{
+	FPhysicsBodyModifier* PhysicsBodyModifier = Implementation->FindBodyModifier(Name);
+	if (PhysicsBodyModifier)
+	{
+		PhysicsBodyModifier->CollisionType = CollisionType;
+		return true;
+	}
+	return false;
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetAllBodyModifierCollisionType(
+	const TArray<FName>&    Names,
+	ECollisionEnabled::Type CollisionType)
+{
+	for (FName Name : Names)
+	{
+		SetBodyModifierCollisionType(Name, CollisionType);
+	}
+}
 
 //======================================================================================================================
 bool UPhysicsControlComponent::SetBodyModifierGravityMultiplier(

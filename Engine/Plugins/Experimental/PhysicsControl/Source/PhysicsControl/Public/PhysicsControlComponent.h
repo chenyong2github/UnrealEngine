@@ -622,23 +622,25 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	FName MakeBodyModifier(
-		UMeshComponent*      MeshComponent,
-		FName                BoneName,
-		EPhysicsMovementType MovementType = EPhysicsMovementType::Simulated, 
-		float                GravityMultiplier = 1.0f,
-		bool                 bUseSkeletalAnimation = true);
+		UMeshComponent*         MeshComponent,
+		FName                   BoneName,
+		EPhysicsMovementType    MovementType = EPhysicsMovementType::Simulated, 
+		ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
+		float                   GravityMultiplier = 1.0f,
+		bool                    bUseSkeletalAnimation = true);
 
 	/**
 	 * Makes a new body modifier for mesh components
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool MakeNamedBodyModifier(
-		FName                Name,
-		UMeshComponent*      MeshComponent,
-		FName                BoneName,
-		EPhysicsMovementType MovementType = EPhysicsMovementType::Simulated,
-		float                GravityMultiplier = 1.0f,
-		bool                 bUseSkeletalAnimation = true);
+		FName                   Name,
+		UMeshComponent*         MeshComponent,
+		FName                   BoneName,
+		EPhysicsMovementType    MovementType = EPhysicsMovementType::Simulated,
+		ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
+		float                   GravityMultiplier = 1.0f,
+		bool                    bUseSkeletalAnimation = true);
 
 	/**
 	 * Makes new body modifiers for skeletal mesh components
@@ -649,6 +651,7 @@ public:
 		FName                   BoneName,
 		bool                    bIncludeSelf,
 		EPhysicsMovementType    MovementType = EPhysicsMovementType::Simulated,
+		ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		float                   GravityMultiplier = 1.0f,
 		bool                    bUseSkeletalAnimation = true);
 
@@ -671,6 +674,7 @@ public:
 		FPhysicsControlNameArray&                    AllBodyModifiers,
 		const TMap<FName, FPhysicsControlLimbBones>& LimbBones,
 		EPhysicsMovementType                         MovementType = EPhysicsMovementType::Simulated,
+		ECollisionEnabled::Type                      CollisionType = ECollisionEnabled::QueryAndPhysics,
 		float                                        GravityMultiplier = 1.0f,
 		bool                                         bUseSkeletalAnimation = true);
 
@@ -726,13 +730,37 @@ public:
 	 * Sets the movement type for body modifiers
 	 *
 	 * @param Names The names of the body modifiers to access. Note that if you have these in a FPhysicsControlNameArray
-	 *              then it can be split.
-	 * @param MovementType Whether to enable/disable simulation on the body
+	 *        then it can be split.
+	 * @param MovementType Whether to enable/disable simulation on the bodies
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	void SetAllBodyModifierMovementType(
 		const TArray<FName>& Names,
 		EPhysicsMovementType MovementType = EPhysicsMovementType::Simulated);
+
+	/**
+	 * Sets the collision type for a body modifier
+	 *
+	 * @param Name The name of the body modifier to access.
+	 * @param CollisionType Collision type to set on the body
+	 * @return Returns true if the body modifier was found, false if not
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	bool SetBodyModifierCollisionType(
+		FName                   Name,
+		ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics);
+
+	/**
+	 * Sets the collision type for body modifiers
+	 *
+	 * @param Names The names of the body modifiers to access. Note that if you have these in a FPhysicsControlNameArray
+	 *        then it can be split.
+	 * @param CollisionType Collision type to set on the bodies
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetAllBodyModifierCollisionType(
+		const TArray<FName>&    Names,
+		ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics);
 
 	/**
 	 * Sets the gravity multiplier for a body modifier

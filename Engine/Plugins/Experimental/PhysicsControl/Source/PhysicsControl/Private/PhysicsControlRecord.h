@@ -4,6 +4,7 @@
 
 #include "PhysicsControlData.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/EngineTypes.h"
 
 struct FConstraintInstance;
 struct FBodyInstance;
@@ -65,12 +66,14 @@ struct FPhysicsBodyModifier
 	FPhysicsBodyModifier(
 		TObjectPtr<UMeshComponent> InMeshComponent, 
 		const FName&               InBoneName, 
-		EPhysicsMovementType       InMovementType, 
+		EPhysicsMovementType       InMovementType,
+		ECollisionEnabled::Type    InCollisionType,
 		float                      InGravityMultiplier,
 		bool                       InUseSkeletalAnimation)
 		: MeshComponent(InMeshComponent)
 		, BoneName(InBoneName)
 		, MovementType(InMovementType)
+		, CollisionType(InCollisionType)
 		, GravityMultiplier(InGravityMultiplier)
 		, KinematicTargetPosition(FVector::ZeroVector)
 		, KinematicTargetOrientation(FQuat::Identity)
@@ -86,6 +89,9 @@ struct FPhysicsBodyModifier
 
 	/** How the associated body should move. */
 	EPhysicsMovementType MovementType;
+
+	/** How the associated body should collide/interact */
+	ECollisionEnabled::Type CollisionType;
 
 	/**
 	 * Multiplier for gravity applied to the body. Note that if the body itself has gravity disabled, then
