@@ -481,7 +481,7 @@ namespace GLTF
 			// Unreal *is* responsible for decoding Data based on Format.
 
 			Image.URI = Object.GetStringField(TEXT("uri"));
-			if (Image.URI.StartsWith(TEXT("data:)")))
+			if (Image.URI.StartsWith(TEXT("data:")))
 			{
 				uint32  ImageSize = 0;
 				FString MimeType;
