@@ -1249,6 +1249,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	TArray<FNiagaraShaderScript> LoadedScriptResources;
 	FNiagaraShaderScript* ScriptResourcesByFeatureLevel[ERHIFeatureLevel::Num];
+	TOptional<ENiagaraScriptCompileStatus> LastGPUCompileStatus;
 #endif
 
 	/** Compute shader compiled for this script */
