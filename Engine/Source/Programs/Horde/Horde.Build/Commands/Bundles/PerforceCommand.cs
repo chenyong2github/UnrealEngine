@@ -82,11 +82,11 @@ namespace Horde.Build.Commands.Bundles
 			ReplicationNode baseContents;
 			if (BaseChange == 0)
 			{
-				baseContents = new ReplicationNode(new DirectoryNode(DirectoryFlags.WithGitHashes));
+				baseContents = new ReplicationNode(new DirectoryNode());
 			}
 			else
 			{
-				baseContents = await replicationService.ReadCommitTreeAsync(storage, stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
+				baseContents = await ReplicationService.ReadCommitTreeAsync(storage, stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
 			}
 
 			await foreach (ICommit commit in commitService.GetCollection(stream).FindAsync(Change, null, Count))

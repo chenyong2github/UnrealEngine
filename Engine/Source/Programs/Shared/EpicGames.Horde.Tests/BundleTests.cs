@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
@@ -15,13 +16,20 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Tests
 {
 	[TestClass]
-	public sealed class BundleTests
+	public sealed class BundleTests : IDisposable
 	{
+		readonly IMemoryCache _cache;
 		readonly InMemoryBlobStore _storage;
 
 		public BundleTests()
 		{
-			_storage = new InMemoryBlobStore();
+			_cache = new MemoryCache(new MemoryCacheOptions());
+			_storage = new InMemoryBlobStore(_cache);
+		}
+
+		public void Dispose()
+		{
+			_cache.Dispose();
 		}
 
 		[TestMethod]
@@ -57,7 +65,7 @@ namespace EpicGames.Horde.Tests
 		public async Task BasicChunkingTests()
 		{
 			RefName refName = new RefName("test");
-			ITreeWriter writer = _storage.CreateTreeWriter(refName.Text);
+			TreeWriter writer = new TreeWriter(_storage, new TreeOptions(), refName.Text);
 
 			ChunkingOptions options = new ChunkingOptions();
 			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
@@ -75,14 +83,14 @@ namespace EpicGames.Horde.Tests
 			node = new LeafFileNode();
 			node = await node.AppendAsync(new byte[9], options, writer, CancellationToken.None);
 			Assert.IsTrue(node is InteriorFileNode);
-			Assert.AreEqual(2, node.GetReferences().Count);
+			Assert.AreEqual(2, ((InteriorFileNode)node).Children.Count);
 
-			FileNode? childNode1 = await ((TreeNodeRef<FileNode>)node.GetReferences()[0]).ExpandAsync();
+			FileNode? childNode1 = await ((TreeNodeRef<FileNode>)((InteriorFileNode)node).Children[0]).ExpandAsync();
 			Assert.IsNotNull(childNode1);
 			Assert.IsTrue(childNode1 is LeafFileNode);
 			Assert.AreEqual(8, ((LeafFileNode)childNode1!).Data.Length);
 
-			FileNode? childNode2 = await ((TreeNodeRef<FileNode>)node.GetReferences()[1]).ExpandAsync();
+			FileNode? childNode2 = await ((TreeNodeRef<FileNode>)((InteriorFileNode)node).Children[1]).ExpandAsync();
 			Assert.IsNotNull(childNode2);
 			Assert.IsTrue(childNode2 is LeafFileNode);
 			Assert.AreEqual(1, ((LeafFileNode)childNode2!).Data.Length);
@@ -94,8 +102,8 @@ namespace EpicGames.Horde.Tests
 			BundleHeader oldHeader;
 			{
 				List<BundleImport> imports = new List<BundleImport>();
-				imports.Add(new BundleImport(new BlobLocator("import1"), 10, new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
-				imports.Add(new BundleImport(new BlobLocator("import2"), 20, new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
+				imports.Add(new BundleImport(new BlobLocator("import1"), new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
+				imports.Add(new BundleImport(new BlobLocator("import2"), new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
 
 				List<BundleExport> exports = new List<BundleExport>();
 				exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, new int[] { 1, 2 }));
@@ -121,7 +129,6 @@ namespace EpicGames.Horde.Tests
 				BundleImport newImport = newHeader.Imports[idx];
 
 				Assert.AreEqual(oldImport.Locator, newImport.Locator);
-				Assert.AreEqual(oldImport.ExportCount, newImport.ExportCount);
 				Assert.AreEqual(oldImport.Exports.Count, newImport.Exports.Count);
 
 				for (int importIdx = 0; importIdx < oldImport.Exports.Count; importIdx++)
@@ -158,26 +165,27 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task BasicTestDirectory()
 		{
-			InMemoryBlobStore store = new InMemoryBlobStore();
+			InMemoryBlobStore store = _storage;
 
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 			DirectoryNode node = root.AddDirectory("hello");
 			DirectoryNode node2 = node.AddDirectory("world");
 
 			RefName refName = new RefName("testref");
-			await store.WriteTreeAsync(refName, root);
+			await store.WriteNodeAsync(refName, root);
 
 			// Should be stored inline
 			Assert.AreEqual(1, store.Refs.Count);
 			Assert.AreEqual(1, store.Blobs.Count);
 
 			// Check the ref
-			RefValue refValue = await store.ReadRefValueAsync(refName);
-			Assert.AreEqual(0, refValue.Bundle.Header.Imports.Count);
-			Assert.AreEqual(3, refValue.Bundle.Header.Exports.Count);
+			NodeLocator refTarget = await store.ReadRefTargetAsync(refName);
+			Bundle bundle = await store.ReadBundleAsync(refTarget.Blob);
+			Assert.AreEqual(0, bundle.Header.Imports.Count);
+			Assert.AreEqual(3, bundle.Header.Exports.Count);
 
 			// Create a new bundle and read it back in again
-			DirectoryNode newRoot = await store.ReadTreeAsync<DirectoryNode>(refName);
+			DirectoryNode newRoot = await store.ReadNodeAsync<DirectoryNode>(refName);
 
 			Assert.AreEqual(0, newRoot.Files.Count);
 			Assert.AreEqual(1, newRoot.Directories.Count);
@@ -199,21 +207,19 @@ namespace EpicGames.Horde.Tests
 			TreeOptions options = new TreeOptions();
 			options.MaxBlobSize = 1;
 
-			InMemoryBlobStore storage = new InMemoryBlobStore();
-
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 			root.AddDirectory("node1");
 			root.AddDirectory("node2");
 			root.AddDirectory("node3");
 
-			Assert.AreEqual(0, storage.Refs.Count);
-			Assert.AreEqual(0, storage.Blobs.Count);
+			Assert.AreEqual(0, _storage.Refs.Count);
+			Assert.AreEqual(0, _storage.Blobs.Count);
 
 			RefName refName = new RefName("ref");
-			await storage.WriteTreeAsync(refName, root, options);
+			await _storage.WriteNodeAsync(refName, root, options);
 
-			Assert.AreEqual(1, storage.Refs.Count);
-			Assert.AreEqual(2, storage.Blobs.Count);
+			Assert.AreEqual(1, _storage.Refs.Count);
+			Assert.AreEqual(2, _storage.Blobs.Count);
 		}
 
 		[TestMethod]
@@ -232,14 +238,14 @@ namespace EpicGames.Horde.Tests
 				DirectoryNode node3 = node2.AddDirectory("node3");
 				DirectoryNode node4 = node3.AddDirectory("node4");
 
-				await _storage.WriteTreeAsync(refName, root, options);
+				await _storage.WriteNodeAsync(refName, root, options);
 
 				Assert.AreEqual(1, _storage.Refs.Count);
 				Assert.AreEqual(5, _storage.Blobs.Count);
 			}
 
 			{
-				DirectoryNode root = await _storage.ReadTreeAsync<DirectoryNode>(refName);
+				DirectoryNode root = await _storage.ReadNodeAsync<DirectoryNode>(refName);
 
 				DirectoryNode? newNode1 = await root.FindDirectoryAsync("node1", CancellationToken.None);
 				Assert.IsNotNull(newNode1);
@@ -327,7 +333,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task CoreAppendTest()
 		{
-			ITreeWriter writer = _storage.CreateTreeWriter();
+			TreeWriter writer = new TreeWriter(_storage);
 
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);
@@ -367,7 +373,7 @@ namespace EpicGames.Horde.Tests
 
 		async Task ChunkingTests(ChunkingOptions options)
 		{
-			ITreeWriter writer = _storage.CreateTreeWriter(new TreeOptions());
+			TreeWriter writer = new TreeWriter(_storage);
 
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);
@@ -420,6 +426,7 @@ namespace EpicGames.Horde.Tests
 			}
 		}
 
+#if false
 		[TestMethod]
 		public async Task SpillTestAsync()
 		{
@@ -481,5 +488,6 @@ namespace EpicGames.Horde.Tests
 			}
 			return size;
 		}
+#endif
 	}
 }

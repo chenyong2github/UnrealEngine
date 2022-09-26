@@ -49,7 +49,7 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Locator for the target blob
 		/// </summary>
-		public BlobLocator Locator { get; set; }
+		public BlobLocator Blob { get; set; }
 
 		/// <summary>
 		/// Export index for the ref
@@ -59,9 +59,9 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReadRefResponse(RefTarget target)
+		public ReadRefResponse(NodeLocator target)
 		{
-			Locator = target.Locator;
+			Blob = target.Blob;
 			ExportIdx = target.ExportIdx;
 		}
 	}
@@ -148,7 +148,7 @@ namespace Horde.Build.Storage
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			RefTarget target = new RefTarget(request.Locator, request.ExportIdx);
+			NodeLocator target = new NodeLocator(request.Locator, request.ExportIdx);
 			await client.WriteRefTargetAsync(refName, target, cancellationToken);
 
 			return Ok();
@@ -171,8 +171,8 @@ namespace Horde.Build.Storage
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 
-			RefTarget? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
-			if (target == null)
+			NodeLocator target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
+			if (!target.IsValid())
 			{
 				return NotFound();
 			}

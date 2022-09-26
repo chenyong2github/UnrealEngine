@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Bundles
@@ -19,8 +20,8 @@ namespace Horde.Agent.Commands.Bundles
 			readonly DirectoryReference _rootDir;
 			readonly ILogger _logger;
 
-			public FileBlobStore(DirectoryReference rootDir, ILogger logger)
-				: base(null)
+			public FileBlobStore(DirectoryReference rootDir, IMemoryCache cache, ILogger logger)
+				: base(cache)
 			{
 				_rootDir = rootDir;
 				_logger = logger;
@@ -64,12 +65,12 @@ namespace Horde.Agent.Commands.Bundles
 				throw new NotImplementedException();
 			}
 
-			public override async Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+			public override async Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				if (!FileReference.Exists(file))
 				{
-					return null;
+					return default;
 				}
 
 				_logger.LogInformation("Reading {File}", file);
@@ -79,15 +80,15 @@ namespace Horde.Agent.Commands.Bundles
 				BlobLocator locator = new BlobLocator(text.Substring(0, hashIdx));
 				int exportIdx = Int32.Parse(text.Substring(hashIdx + 1), CultureInfo.InvariantCulture);
 
-				return new RefTarget(locator, exportIdx);
+				return new NodeLocator(locator, exportIdx);
 			}
 
-			public override async Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default)
+			public override async Task WriteRefTargetAsync(RefName name, NodeLocator target, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
-				await FileReference.WriteAllTextAsync(file, $"{target.Locator}#{target.ExportIdx}");
+				await FileReference.WriteAllTextAsync(file, $"{target.Blob}#{target.ExportIdx}");
 			}
 
 			#endregion
@@ -98,12 +99,9 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-StorageDir=", Description = "Overrides the default storage server with a local directory")]
 		public DirectoryReference StorageDir { get; set; } = DirectoryReference.Combine(Program.AppDir, "bundles");
 
-		IStorageClient? _storageClient;
-
-		protected IStorageClient CreateStorageClient(ILogger logger)
+		protected IStorageClient CreateStorageClient(IMemoryCache cache, ILogger logger)
 		{
-			_storageClient ??= new FileBlobStore(StorageDir, logger);
-			return _storageClient;
+			return new FileBlobStore(StorageDir, cache, logger);
 		}
 	}
 
@@ -118,8 +116,9 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient store = CreateStorageClient(logger);
-			ITreeWriter writer = store.CreateTreeWriter(RefName.Text);
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			IStorageClient store = CreateStorageClient(cache, logger);
+			TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, logger, CancellationToken.None);

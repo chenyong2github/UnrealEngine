@@ -10,15 +10,31 @@ using MongoDB.Driver;
 using EpicGames.Horde.Storage;
 using System.Buffers;
 using EpicGames.Horde.Storage.Backends;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build.Tests
 {
 	[TestClass]
 	public class BlobStoreTests : TestSetup
 	{
-		static IStorageClient CreateBlobStore()
+		IMemoryCache? _cache;
+		InMemoryBlobStore? _store;
+
+		IStorageClient CreateBlobStore()
 		{
-			return new InMemoryBlobStore();
+			_cache ??= new MemoryCache(new MemoryCacheOptions());
+			_store ??= new InMemoryBlobStore(_cache);
+			return _store;
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			if (disposing)
+			{
+				_cache?.Dispose();
+			}
 		}
 
 		static byte[] CreateTestData(int length, int seed)
@@ -44,7 +60,7 @@ namespace Horde.Build.Tests
 				int index;
 				if (!locatorToIndex.TryGetValue(locator, out index))
 				{
-					BundleImport import = new BundleImport(locator, 1, new List<(int, IoHash)> { (0, IoHash.Zero) });
+					BundleImport import = new BundleImport(locator, new List<(int, IoHash)> { (0, IoHash.Zero) });
 					imports.Add(import);
 					locatorToIndex.Add(locator, imports.Count - 1);
 				}
@@ -112,15 +128,15 @@ namespace Horde.Build.Tests
 			for(int idx = 0; idx < 2; idx++)
 			{
 				RefName refName = new RefName("hello");
-				await store.WriteRefTargetAsync(refName, new RefTarget(locator3, 0));
-				RefTarget refTarget = await store.ReadRefTargetAsync(refName);
-				Assert.AreEqual(locator3, refTarget.Locator);
+				await store.WriteRefTargetAsync(refName, new NodeLocator(locator3, 0));
+				NodeLocator refTarget = await store.ReadRefTargetAsync(refName);
+				Assert.AreEqual(locator3, refTarget.Blob);
 			}
 
 			RefName refName2 = new RefName("hello2");
 
-			RefTarget refTargetId2 = await store.WriteRefValueAsync(refName2, CreateTestBundle(input3, new BlobLocator[] { locator1, locator2 }));
-			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Locator);
+			NodeLocator refTargetId2 = await store.WriteRefAsync(refName2, CreateTestBundle(input3, new BlobLocator[] { locator1, locator2 }), 0);
+			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Blob);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
 			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { locator1, locator2 }));
 		}

@@ -57,6 +57,17 @@ namespace EpicGames.Core
 			_chunkSize = chunkSize;
 		}
 
+		/// <summary>
+		/// Clear the current builder
+		/// </summary>
+		public void Clear()
+		{
+			_currentChunk = _chunks[0];
+			_currentChunk.Length = 0;
+			_chunks.RemoveRange(1, _chunks.Count - 1);
+			Length = 0;
+		}
+
 		/// <inheritdoc/>
 		public Memory<byte> GetMemory(int minSize)
 		{

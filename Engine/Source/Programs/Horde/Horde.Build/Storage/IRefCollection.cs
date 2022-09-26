@@ -3,13 +3,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.Runtime.Internal.Util;
 using EpicGames.Horde.Storage;
-using Horde.Build.Server;
-using Microsoft.Extensions.Caching.Memory;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 
 namespace Horde.Build.Storage
 {
@@ -26,7 +20,7 @@ namespace Horde.Build.Storage
 		/// <param name="cacheTime">Minimum age for a cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The ref target</returns>
-		Task<RefTarget?> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		Task<NodeLocator> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a ref to storage
@@ -35,7 +29,7 @@ namespace Horde.Build.Storage
 		/// <param name="name">The ref name</param>
 		/// <param name="target">Target for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, RefTarget target, CancellationToken cancellationToken = default);
+		Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, NodeLocator target, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Delete a ref from storage

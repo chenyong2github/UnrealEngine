@@ -49,6 +49,11 @@ namespace EpicGames.Core
 		int _length;
 
 		/// <summary>
+		/// Returns the memory that was written to
+		/// </summary>
+		public ReadOnlyMemory<byte> WrittenMemory => _memory.Slice(0, _length);
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="memory">Memory to write to</param>
@@ -76,6 +81,60 @@ namespace EpicGames.Core
 
 		/// <inheritdoc/>
 		public void Advance(int length) => _length += length;
+	}
+
+	/// <summary>
+	/// Writes into an expandable memory block
+	/// </summary>
+	public class ArrayMemoryWriter : IMemoryWriter
+	{
+		byte[] _data;
+		int _length;
+
+		public ReadOnlyMemory<byte> WrittenMemory => _data.AsMemory(0, _length);
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="initialSize">Initial size of the allocated data</param>
+		public ArrayMemoryWriter(int initialSize)
+		{
+			_data = new byte[initialSize];
+		}
+
+		/// <inheritdoc/>
+		public int Length => _length;
+
+		public void Clear()
+		{
+			_length = 0;
+		}
+
+		public void Resize(int newLength)
+		{
+			if (newLength > _length)
+			{
+				Array.Resize(ref _data, newLength);
+			}
+			_length = newLength;
+		}
+
+		/// <inheritdoc/>
+		public Memory<byte> GetMemory(int minSize = 1)
+		{
+			int requiredLength = _length + minSize;
+			if (_data.Length < requiredLength)
+			{
+				Array.Resize(ref _data, requiredLength + 4096);
+			}
+			return _data.AsMemory(_length);
+		}
+
+		/// <inheritdoc/>
+		public void Advance(int length)
+		{
+			_length += length;
+		}
 	}
 
 	/// <summary>
@@ -261,6 +320,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes a variable length array
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="list">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public static void WriteList<T>(this IMemoryWriter writer, IReadOnlyList<T> list, Action<T> writeItem)
+		{
+			WriteVariableLengthArray(writer, list, writeItem);
+		}
+
+		/// <summary>
 		/// Writes a variable length span of bytes
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
@@ -271,6 +341,19 @@ namespace EpicGames.Core
 			Span<byte> span = GetSpanAndAdvance(writer, lengthBytes + bytes.Length);
 			VarInt.WriteUnsigned(span, bytes.Length);
 			bytes.CopyTo(span[lengthBytes..]);
+		}
+
+		/// <summary>
+		/// Appends a sequence of bytes to the buffer, without a length field.
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="sequence">Sequence to append</param>
+		public static void WriteVariableLengthBytes(this IMemoryWriter writer, ReadOnlySequence<byte> sequence)
+		{
+			int lengthBytes = VarInt.MeasureUnsigned((int)sequence.Length);
+			Span<byte> span = GetSpanAndAdvance(writer, (int)(lengthBytes + sequence.Length));
+			VarInt.WriteUnsigned(span, (int)sequence.Length);
+			sequence.CopyTo(span[lengthBytes..]);
 		}
 
 		/// <summary>

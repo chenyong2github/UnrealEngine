@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+#if false
 namespace Horde.Build.Commands.Bundles
 {
 	[Command("bundle", "repo", "Synthesizes a Git repo from a bundle to the local hard drive")]
@@ -39,7 +40,7 @@ namespace Horde.Build.Commands.Bundles
 
 			IStorageClient store = serviceProvider.GetRequiredService<IStorageClient<ReplicationService>>();
 
-			ReplicationNode node = await store.ReadTreeAsync<ReplicationNode>(RefName);
+			ReplicationNode node = await store.ReadRefAsync<ReplicationNode>(RefName);
 			DirectoryNode root = await node.Contents.ExpandAsync();
 
 			Sha1Hash tree = await WriteTreeRecursiveAsync(root, CancellationToken.None);
@@ -133,3 +134,4 @@ namespace Horde.Build.Commands.Bundles
 		}
 	}
 }
+#endif

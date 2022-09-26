@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Bundles
@@ -21,20 +22,19 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient storage = CreateStorageClient(logger);
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			IStorageClient store = CreateStorageClient(cache, logger);
 
-			BundleHeader header;
-			if (BlobId != null)
+			if (BlobId == null)
 			{
-				header = await storage.ReadBundleHeaderAsync(BlobId.Value);
-				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
-			}
-			else
-			{
-				header = (await storage.ReadRefValueAsync(RefName)).Bundle.Header;
-				logger.LogInformation("Summary for ref {RefId}", RefName);
+				NodeLocator locator = await store.ReadRefTargetAsync(RefName);
+				BlobId = locator.Blob;
 			}
 
+			logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
+			Bundle bundle = await store.ReadBundleAsync(BlobId.Value);
+
+			BundleHeader header = bundle.Header;
 			int packetStart = 0;
 
 			logger.LogInformation("");
@@ -43,7 +43,7 @@ namespace Horde.Agent.Commands.Bundles
 			int refIdx = 0;
 			foreach (BundleImport import in header.Imports)
 			{
-				logger.LogInformation("  From blob {BlobId} ({NumExports}/{TotalExports} nodes)", import.Locator, import.Exports.Count, import.ExportCount);
+				logger.LogInformation("  From blob {BlobId} ({NumExports} nodes)", import.Locator, import.Exports.Count);
 				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
 				{
 					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.Locator, exportIdx, exportHash);

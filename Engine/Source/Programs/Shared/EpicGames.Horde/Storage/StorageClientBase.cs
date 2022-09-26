@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -94,22 +93,76 @@ namespace EpicGames.Horde.Storage
 			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 		}
 
-		readonly IMemoryCache? _cache;
-		readonly TreeStore _treeStore;
-		readonly object _lockObject = new object();
+		/// <summary>
+		/// Describes a bundle export
+		/// </summary>
+		/// <param name="PacketIdx">Index of the packet within a bundle</param>
+		/// <param name="Offset">Offset within the packet</param>
+		record struct ExportInfo(int PacketIdx, int Offset);
 
-		// Active read tasks at any moment. If a BundleObject is not available in the cache, we start a read and add an entry to this dictionary
-		// so that other threads can also await it.
-		readonly Dictionary<string, Task<Bundle>> _readTasks = new Dictionary<string, Task<Bundle>>();
+		/// <summary>
+		/// Computed information about a bundle
+		/// </summary>
+		class BundleInfo
+		{
+			public readonly BlobLocator Locator;
+			public readonly BundleHeader Header;
+			public readonly int[] PacketOffsets;
+			public readonly ExportInfo[] Exports;
+			public readonly (IoHash, NodeLocator)[] References;
+
+			public BundleInfo(BlobLocator locator, BundleHeader header, int headerLength)
+			{
+				Locator = locator;
+				Header = header;
+
+				PacketOffsets = new int[header.Packets.Count];
+				Exports = new ExportInfo[header.Exports.Count];
+
+				int exportIdx = 0;
+				int packetOffset = headerLength;
+				for (int packetIdx = 0; packetIdx < header.Packets.Count; packetIdx++)
+				{
+					BundlePacket packet = header.Packets[packetIdx];
+					PacketOffsets[packetIdx] = packetOffset;
+
+					int nodeOffset = 0;
+					for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
+					{
+						Exports[exportIdx] = new ExportInfo(packetIdx, nodeOffset);
+						nodeOffset += header.Exports[exportIdx].Length;
+					}
+
+					packetOffset += packet.EncodedLength;
+				}
+
+				References = new (IoHash, NodeLocator)[header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count];
+
+				int referenceIdx = 0;
+				foreach (BundleImport import in header.Imports)
+				{
+					foreach ((int importExportIdx, IoHash importExportHash) in import.Exports)
+					{
+						NodeLocator importLocator = new NodeLocator(import.Locator, importExportIdx);
+						References[referenceIdx++] = (importExportHash, importLocator);
+					}
+				}
+				for(int idx = 0; idx < header.Exports.Count; idx++)
+				{
+					References[referenceIdx++] = (header.Exports[idx].Hash, new NodeLocator(locator, idx));
+				}
+			}
+		}
+
+		readonly IMemoryCache _cache;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="cache"></param>
-		protected StorageClientBase(IMemoryCache? cache)
+		protected StorageClientBase(IMemoryCache cache)
 		{
 			_cache = cache;
-			_treeStore = new TreeStore(this);
 		}
 
 		#region Blobs
@@ -125,6 +178,24 @@ namespace EpicGames.Horde.Storage
 			return new RangedReadStream(stream, Math.Min((int)(stream.Length - offset), length));
 		}
 
+		async Task<Memory<byte>> ReadBlobRangeAsync(BlobLocator locator, int offset, Memory<byte> memory, CancellationToken cancellationToken = default)
+		{
+			using (Stream stream = await ReadBlobRangeAsync(locator, offset, memory.Length, cancellationToken))
+			{
+				int length = 0;
+				while (length < memory.Length)
+				{
+					int readBytes = await stream.ReadAsync(memory.Slice(length), cancellationToken);
+					if (readBytes == 0)
+					{
+						break;
+					}
+					length += readBytes;
+				}
+				return memory.Slice(0, length);
+			}
+		}
+
 		/// <inheritdoc/>
 		public abstract Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default);
 
@@ -132,24 +203,16 @@ namespace EpicGames.Horde.Storage
 
 		#region Bundles
 
-		static string GetBundleCacheKey(BlobId blobId) => $"bundle:{blobId}";
+		static string GetBundleInfoCacheKey(BlobId blobId) => $"bundle:{blobId}";
+		static string GetEncodedPacketCacheKey(BlobId blobId, int packetIdx) => $"encoded-packet:{blobId}#{packetIdx}";
+		static string GetDecodedPacketCacheKey(BlobId blobId, int packetIdx) => $"decoded-packet:{blobId}#{packetIdx}";
 
-		/// <summary>
-		/// Adds a bundle to the cache
-		/// </summary>
-		/// <param name="blobId">Blob id for the bundle</param>
-		/// <param name="bundle">The bundle data</param>
-		void AddBundleToCache(BlobId blobId, Bundle bundle)
+		void AddToCache(string cacheKey, object value, int size)
 		{
-			if (_cache != null)
+			using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
 			{
-				string cacheKey = GetBundleCacheKey(blobId);
-				using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
-				{
-					int length = bundle.Packets.Sum(x => x.Length);
-					entry.SetSize(length);
-					entry.SetValue(bundle);
-				}
+				entry.SetValue(value);
+				entry.SetSize(size);
 			}
 		}
 
@@ -161,103 +224,97 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
-			string cacheKey = GetBundleCacheKey(locator.BlobId);
-			if (_cache == null || !_cache.TryGetValue<Bundle>(cacheKey, out Bundle? bundle))
-			{
-				Task<Bundle>? readTask;
-				lock (_lockObject)
-				{
-					if (!_readTasks.TryGetValue(cacheKey, out readTask))
-					{
-						readTask = Task.Run(() => ReadBundleInternalAsync(cacheKey, locator, cancellationToken), cancellationToken);
-						_readTasks.Add(cacheKey, readTask);
-					}
-				}
-				bundle = await readTask;
-			}
-			return bundle;
-		}
-
-		async Task<Bundle> ReadBundleInternalAsync(string cacheKey, BlobLocator locator, CancellationToken cancellationToken)
-		{
-			// Perform another (sequenced) check whether an object has been added to the cache, to counteract the race between a read task being added and a task completing.
-			lock (_lockObject)
-			{
-				if (_cache != null && _cache.TryGetValue<Bundle>(cacheKey, out Bundle? cachedObject))
-				{
-					return cachedObject;
-				}
-			}
-
-			// Read the data from storage
-			Bundle bundle;
 			using (Stream stream = await ReadBlobAsync(locator, cancellationToken))
 			{
-				bundle = await Bundle.FromStreamAsync(stream, cancellationToken);
+				return await Bundle.FromStreamAsync(stream, cancellationToken);
 			}
+		}
 
-			// Add the object to the cache
-			AddBundleToCache(locator.BlobId, bundle);
-
-			// Remove this object from the list of read tasks
-			lock (_lockObject)
+		/// <summary>
+		/// Reads the header and structural metadata about the bundle
+		/// </summary>
+		/// <param name="locator">The bundle location</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Information about the bundle</returns>
+		async ValueTask<BundleInfo> GetBundleInfoAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			string cacheKey = GetBundleInfoCacheKey(locator.BlobId);
+			if (!_cache.TryGetValue(cacheKey, out BundleInfo bundleInfo))
 			{
-				_readTasks.Remove(cacheKey);
+				int prefetchSize = 1024 * 1024;
+				for (; ; )
+				{
+					using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(prefetchSize))
+					{
+						// Read the prefetch size from the blob
+						Memory<byte> memory = owner.Memory.Slice(0, prefetchSize);
+						memory = await ReadBlobRangeAsync(locator, 0, memory, cancellationToken);
+
+						// Make sure it's large enough to hold the header
+						int headerSize = BundleHeader.ReadPrelude(memory);
+						if (headerSize > prefetchSize)
+						{
+							prefetchSize = headerSize;
+							continue;
+						}
+
+						// Parse the header and construct the bundle info from it
+						BundleHeader header = new BundleHeader(new MemoryReader(memory));
+						bundleInfo = new BundleInfo(locator, header, headerSize);
+
+						// Add the info to the cache
+						AddToCache(cacheKey, bundleInfo, headerSize);
+
+						// Also add any encoded packets we prefetched
+						int packetOffset = headerSize;
+						for (int packetIdx = 0; packetIdx < header.Packets.Count && packetOffset + header.Packets[packetIdx].EncodedLength < memory.Length; packetIdx++)
+						{
+							int packetLength = header.Packets[packetIdx].EncodedLength;
+							ReadOnlyMemory<byte> packetData = memory.Slice(packetOffset, packetLength).ToArray();
+							AddToCache(GetEncodedPacketCacheKey(locator.BlobId, packetIdx), packetData, packetData.Length);
+							packetOffset += packetLength;
+						}
+
+						break;
+					}
+				}
 			}
-			return bundle;
-		}
-
-		/// <inheritdoc/>
-		public Task<Stream> CreateBundleStreamAsync(BlobLocator locator, CancellationToken cancellationToken = default)
-		{
-			return ReadBlobAsync(locator, cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		public async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
-		{
-			Bundle bundle = await ReadBundleAsync(locator, cancellationToken);
-			return bundle.Header;
-		}
-
-		/// <inheritdoc/>
-		public async Task<ReadOnlyMemory<byte>> ReadBundlePacketAsync(BlobLocator locator, int packetIdx, CancellationToken cancellationToken = default)
-		{
-			Bundle bundle = await ReadBundleAsync(locator, cancellationToken);
-			return DecodePacket(locator, packetIdx, bundle.Header.Packets[packetIdx], bundle.Header.CompressionFormat, bundle.Packets[packetIdx]);
+			return bundleInfo;
 		}
 
 		/// <summary>
 		/// Gets a decoded block from the store
 		/// </summary>
-		/// <param name="locator">Information about the bundle</param>
+		/// <param name="bundleInfo">Information about the bundle</param>
 		/// <param name="packetIdx">Index of the packet</param>
-		/// <param name="packet">The decoded block location and size</param>
-		/// <param name="format">Compression type in the bundle</param>
-		/// <param name="encodedPacket">The encoded packet data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The decoded data</returns>
-		ReadOnlyMemory<byte> DecodePacket(BlobLocator locator, int packetIdx, BundlePacket packet, BundleCompressionFormat format, ReadOnlyMemory<byte> encodedPacket)
+		async ValueTask<ReadOnlyMemory<byte>> ReadBundlePacketAsync(BundleInfo bundleInfo, int packetIdx, CancellationToken cancellationToken)
 		{
-			if (_cache == null)
+			string cacheKey = GetDecodedPacketCacheKey(bundleInfo.Locator.BlobId, packetIdx);
+			if (!_cache.TryGetValue(cacheKey, out ReadOnlyMemory<byte> decodedPacket))
 			{
-				return DecodePacketUncached(packet, format, encodedPacket);
-			}
-			else
-			{
-				string cacheKey = $"bundle-packet:{locator.BlobId}#{packetIdx}";
-				return _cache.GetOrCreate<ReadOnlyMemory<byte>>(cacheKey, entry =>
-				{
-					ReadOnlyMemory<byte> decodedPacket = DecodePacketUncached(packet, format, encodedPacket);
-					entry.SetSize(packet.DecodedLength);
-					return decodedPacket;
-				});
-			}
-		}
+				BundlePacket packet = bundleInfo.Header.Packets[packetIdx];
+				byte[] decodedPacketBuffer = new byte[packet.DecodedLength];
 
-		static ReadOnlyMemory<byte> DecodePacketUncached(BundlePacket packet, BundleCompressionFormat format, ReadOnlyMemory<byte> encodedPacket)
-		{
-			byte[] decodedPacket = new byte[packet.DecodedLength];
-			BundleData.Decompress(format, encodedPacket, decodedPacket);
+				ReadOnlyMemory<byte> encodedPacket;
+				if (_cache.TryGetValue(GetEncodedPacketCacheKey(bundleInfo.Locator.BlobId, packetIdx), out encodedPacket))
+				{
+					BundleData.Decompress(bundleInfo.Header.CompressionFormat, encodedPacket, decodedPacketBuffer);
+				}
+				else
+				{
+					using IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(packet.EncodedLength);
+
+					Memory<byte> buffer = owner.Memory.Slice(0, packet.EncodedLength);
+					buffer = await ReadBlobRangeAsync(bundleInfo.Locator, bundleInfo.PacketOffsets[packetIdx], buffer, cancellationToken);
+
+					BundleData.Decompress(bundleInfo.Header.CompressionFormat, buffer, decodedPacketBuffer);
+				}
+
+				decodedPacket = decodedPacketBuffer;
+				AddToCache(cacheKey, decodedPacket, decodedPacket.Length);
+			}
 			return decodedPacket;
 		}
 
@@ -270,18 +327,44 @@ namespace EpicGames.Horde.Storage
 
 		#endregion
 
-		#region Trees
+		#region Nodes
 
-		/// <inheritdoc/>
-		public ITreeWriter CreateTreeWriter(TreeOptions options, Utf8String prefix = default)
+		class NodeReader : MemoryReader, ITreeNodeReader
 		{
-			return _treeStore.CreateTreeWriter(options, prefix);
+			readonly IStorageClient _store;
+			readonly IReadOnlyList<(IoHash, NodeLocator)> _refs;
+
+			public NodeReader(IStorageClient store, ReadOnlyMemory<byte> data, IReadOnlyList<(IoHash, NodeLocator)> refs)
+				: base(data)
+			{
+				_store = store;
+				_refs = refs;
+			}
+
+			public void ReadRef(TreeNodeRef treeNodeRef)
+			{
+				treeNodeRef._store = _store;
+				(treeNodeRef._hash, treeNodeRef._locator) = _refs[(int)this.ReadUnsignedVarInt()];
+			}
 		}
 
 		/// <inheritdoc/>
-		public virtual Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default)
+		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : TreeNode
 		{
-			return _treeStore.TryReadTreeAsync(name, maxAge, cancellationToken);
+			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
+			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
+
+			ExportInfo exportInfo = bundleInfo.Exports[locator.ExportIdx];
+			ReadOnlyMemory<byte> packetData = await ReadBundlePacketAsync(bundleInfo, exportInfo.PacketIdx, cancellationToken);
+
+			(IoHash, NodeLocator)[] refs = new (IoHash, NodeLocator)[export.References.Count];
+			for (int idx = 0; idx < export.References.Count; idx++)
+			{
+				refs[idx] = bundleInfo.References[export.References[idx]];
+			}
+
+			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportInfo.Offset, export.Length);
+			return TreeNode.Deserialize<TNode>(new NodeReader(this, nodeData, refs));
 		}
 
 		#endregion
@@ -292,30 +375,30 @@ namespace EpicGames.Horde.Storage
 		public abstract Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public virtual async Task<RefValue?> TryReadRefValueAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public virtual async Task<TNode?> TryReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
 		{
-			RefTarget? refTarget = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (refTarget == null)
+			NodeLocator refTarget = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (!refTarget.IsValid())
 			{
 				return null;
 			}
-			return new RefValue(refTarget, await ReadBundleAsync(refTarget.Locator, cancellationToken));
+			return await ReadNodeAsync<TNode>(refTarget, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public abstract Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		public abstract Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public virtual async Task<RefTarget> WriteRefValueAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public virtual async Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
-			BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-			RefTarget target = new RefTarget(locator, exportIdx);
+			BlobLocator locator = await WriteBundleAsync(bundle, prefix, cancellationToken);
+			NodeLocator target = new NodeLocator(locator, exportIdx);
 			await WriteRefTargetAsync(name, target, cancellationToken);
 			return target;
 		}
 
 		/// <inheritdoc/>
-		public abstract Task WriteRefTargetAsync(RefName name, RefTarget target, CancellationToken cancellationToken = default);
+		public abstract Task WriteRefTargetAsync(RefName name, NodeLocator target, CancellationToken cancellationToken = default);
 
 		#endregion
 	}

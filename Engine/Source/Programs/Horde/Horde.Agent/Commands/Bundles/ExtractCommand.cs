@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Bundles
@@ -20,9 +21,10 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient storage = CreateStorageClient(logger);
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			IStorageClient store = CreateStorageClient(cache, logger);
 
-			DirectoryNode node = await storage.ReadTreeAsync<DirectoryNode>(RefName);
+			DirectoryNode node = await store.ReadNodeAsync<DirectoryNode>(RefName);
 			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;

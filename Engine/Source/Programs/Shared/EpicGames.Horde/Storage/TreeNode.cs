@@ -5,11 +5,14 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using EpicGames.Core;
 using EpicGames.Serialization;
+using JetBrains.Annotations;
 
 namespace EpicGames.Horde.Storage
 {
@@ -19,90 +22,93 @@ namespace EpicGames.Horde.Storage
 	public abstract class TreeNode
 	{
 		/// <summary>
-		/// Cached incoming reference to the owner of this node.
+		/// Whether the node is dirty or not
 		/// </summary>
-		internal TreeNodeRef? IncomingRef { get; set; }
+		public bool IsDirty { get; private set; }
 
 		/// <summary>
-		/// Queries if the node in its current state is read-only. Once we know that nodes are no longer going to be modified, they are favored for spilling to persistent storage.
+		/// Default constructor
 		/// </summary>
-		/// <returns>True if the node is read-only.</returns>
-		public virtual bool IsReadOnly() => false;
+		protected TreeNode()
+		{
+			IsDirty = true;
+		}
+
+		/// <summary>
+		/// Serialization constructor. Clears the dirty flag by default.
+		/// </summary>
+		/// <param name="reader"></param>
+		protected TreeNode(IMemoryReader reader)
+		{
+			_ = reader;
+			IsDirty = false;
+		}
 
 		/// <summary>
 		/// Mark this node as dirty
 		/// </summary>
-		protected void MarkAsDirty() => IncomingRef?.MarkAsDirty();
+		protected void MarkAsDirty()
+		{
+			IsDirty = true;
+		}
 
 		/// <summary>
-		/// Enumerates all the child references from this node
+		/// Serialize the contents of this node
 		/// </summary>
-		/// <returns>Children of this node</returns>
-		public abstract IReadOnlyList<TreeNodeRef> GetReferences();
+		/// <returns>Data for the node</returns>
+		public abstract void Serialize(ITreeNodeWriter writer);
 
 		/// <summary>
 		/// Static instance of the serializer for a particular <see cref="TreeNode"/> type.
 		/// </summary>
 		static class SerializerInstance<T> where T : TreeNode
 		{
-			static readonly TreeSerializerAttribute _attribute = typeof(T).GetCustomAttribute<TreeSerializerAttribute>()!;
-			public static TreeNodeSerializer<T> Serializer { get; } = (TreeNodeSerializer<T>)Activator.CreateInstance(_attribute.Type)!;
-		}
+			public static readonly TreeNodeSerializer<T> Serializer = CreateSerializer();
 
-		/// <summary>
-		/// Serialize a node to a block of memory
-		/// </summary>
-		/// <returns>New data to be stored into a blob</returns>
-		public abstract Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken);
+			static TreeNodeSerializer<T> CreateSerializer()
+			{
+				TreeSerializerAttribute? _attribute = typeof(T).GetCustomAttribute<TreeSerializerAttribute>()!;
+				if (_attribute == null)
+				{
+					return new DefaultTreeNodeSerializer<T>();
+				}
+				else
+				{
+					return (TreeNodeSerializer<T>)Activator.CreateInstance(_attribute.Type)!;
+				}
+			}
+		}
 
 		/// <summary>
 		/// Deserialize a node from data
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="blob">Blob to deserialize</param>
+		/// <param name="reader">Reader to deserialize data from</param>
 		/// <returns></returns>
-		public static T Deserialize<T>(ITreeBlob blob) where T : TreeNode
-		{
-			return SerializerInstance<T>.Serializer.Deserialize(blob);
-		}
+		public static T Deserialize<T>(ITreeNodeReader reader) where T : TreeNode => SerializerInstance<T>.Serializer.Deserialize(reader);
 	}
 
 	/// <summary>
-	/// Data to be stored in a tree blob
+	/// Reader for tree nodes
 	/// </summary>
-	public struct NewTreeBlob : ITreeBlob
+	public interface ITreeNodeReader : IMemoryReader
 	{
 		/// <summary>
-		/// The opaque data payload
+		/// Reads a reference to another node
 		/// </summary>
-		public ReadOnlySequence<byte> Data { get; }
+		void ReadRef(TreeNodeRef target);
+	}
 
+	/// <summary>
+	/// Writer for tree nodes
+	/// </summary>
+	public interface ITreeNodeWriter : IMemoryWriter
+	{
 		/// <summary>
-		/// References to other tree nodes
+		/// Write a reference to another node
 		/// </summary>
-		public IReadOnlyList<ITreeBlobRef> Refs { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="data">Data payload</param>
-		/// <param name="refs">References to other nodes</param>
-		public NewTreeBlob(ReadOnlyMemory<byte> data, IReadOnlyList<ITreeBlobRef> refs)
-		{
-			Data = new ReadOnlySequence<byte>(data);
-			Refs = refs;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="data">Data payload</param>
-		/// <param name="refs">References to other nodes</param>
-		public NewTreeBlob(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs)
-		{
-			Data = data;
-			Refs = refs;
-		}
+		/// <param name="target">Target of the reference</param>
+		void WriteRef(TreeNodeRef target);
 	}
 
 	/// <summary>
@@ -114,9 +120,46 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Deserializes data from the given data
 		/// </summary>
-		/// <param name="blob">The typed blob</param>
+		/// <param name="reader">Reader to deserialize data from</param>
 		/// <returns>New node parsed from the data</returns>
-		public abstract T Deserialize(ITreeBlob blob);
+		public abstract T Deserialize(ITreeNodeReader reader);
+	}
+
+	/// <summary>
+	/// Default implementation of <see cref="TreeNodeSerializer{T}"/> which calls a constructor taking an <see cref="ITreeNodeReader"/> argument.
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public class DefaultTreeNodeSerializer<T> : TreeNodeSerializer<T> where T : TreeNode
+	{
+		static readonly Type[] s_signature = new[] { typeof(ITreeNodeReader) };
+
+		readonly Func<ITreeNodeReader, T> _constructor;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public DefaultTreeNodeSerializer()
+		{
+			Type type = typeof(T);
+
+			ConstructorInfo? constructorInfo = type.GetConstructor(s_signature);
+			if (constructorInfo == null)
+			{
+				throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking an {typeof(ITreeNodeReader).Name} as parameter.");
+			}
+
+			DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, s_signature, true);
+
+			ILGenerator generator = method.GetILGenerator();
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Newobj, constructorInfo);
+			generator.Emit(OpCodes.Ret);
+
+			_constructor = (Func<ITreeNodeReader, T>)method.CreateDelegate(typeof(Func<ITreeNodeReader, T>));
+		}
+
+		/// <inheritdoc/>
+		public override T Deserialize(ITreeNodeReader reader) => (T)_constructor(reader);
 	}
 
 	/// <summary>
@@ -142,63 +185,14 @@ namespace EpicGames.Horde.Storage
 	public static class TreeNodeExtensions
 	{
 		/// <summary>
-		/// Writes a node to storage
+		/// 
 		/// </summary>
-		/// <param name="writer">Writer to output the nodes to</param>
-		/// <param name="node">Root node to serialize</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task<ITreeBlobRef> WriteNodeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
+		/// <typeparam name="T"></typeparam>
+		/// <param name="reader"></param>
+		/// <returns></returns>
+		public static TreeNodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : TreeNode
 		{
-			ITreeBlob blob = await node.SerializeAsync(writer, cancellationToken);
-			return await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
-		}
-
-		/// <summary>
-		/// Flushes a tree to storage using the given root node
-		/// </summary>
-		/// <param name="writer">Writer to output the nodes to</param>
-		/// <param name="name">Name of the ref to write</param>
-		/// <param name="node">Root node to serialize</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task WriteRefAsync(this ITreeWriter writer, RefName name, TreeNode node, CancellationToken cancellationToken = default)
-		{
-			ITreeBlobRef root = await writer.WriteNodeAsync(node, cancellationToken);
-			await writer.WriteRefAsync(name, root, cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		public static async Task<T?> TryReadTreeAsync<T>(this IStorageClient store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
-		{
-			ITreeBlob? root = await store.TryReadTreeAsync(name, maxAge, cancellationToken);
-			if (root == null)
-			{
-				return null;
-			}
-			return TreeNode.Deserialize<T>(root);
-		}
-
-		/// <inheritdoc/>
-		public static async Task<T> ReadTreeAsync<T>(this IStorageClient store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
-		{
-			T? result = await store.TryReadTreeAsync<T>(name, maxAge, cancellationToken);
-			if (result == null)
-			{
-				throw new RefNameNotFoundException(name);
-			}
-			return result;
-		}
-
-		/// <inheritdoc/>
-		public static Task WriteTreeAsync(this IStorageClient store, RefName name, TreeNode root, CancellationToken cancellationToken = default)
-		{
-			return WriteTreeAsync(store, name, root, new TreeOptions(), cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		public static async Task WriteTreeAsync(this IStorageClient store, RefName name, TreeNode root, TreeOptions options, CancellationToken cancellationToken = default)
-		{
-			ITreeWriter writer = store.CreateTreeWriter(options);
-			await writer.WriteRefAsync(name, root, cancellationToken);
+			return new TreeNodeRef<T>(reader);
 		}
 	}
 }

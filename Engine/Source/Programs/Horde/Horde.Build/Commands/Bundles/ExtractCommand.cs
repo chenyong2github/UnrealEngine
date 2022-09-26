@@ -37,7 +37,7 @@ namespace Horde.Build.Commands.Bundles
 
 			IStorageClient store = serviceProvider.GetRequiredService<IStorageClient<ReplicationService>>();
 
-			ReplicationNode node = await store.ReadTreeAsync<ReplicationNode>(RefName);
+			ReplicationNode node = await store.ReadNodeAsync<ReplicationNode>(RefName);
 			DirectoryNode root = await node.Contents.ExpandAsync();
 			await root.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 

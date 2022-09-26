@@ -14,6 +14,7 @@ using System.Text;
 using System.IO;
 using System.Security.Cryptography;
 using EpicGames.Core;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace EpicGames.Horde.Tests
 {
@@ -23,7 +24,9 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task TestTreeAsync()
 		{
-			InMemoryBlobStore blobStore = new InMemoryBlobStore();
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+
+			InMemoryBlobStore blobStore = new InMemoryBlobStore(cache);
 			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1024 * 1024 });
 
 			Assert.AreEqual(1, blobStore.Blobs.Count);
@@ -33,89 +36,116 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task TestTreeSeparateBlobsAsync()
 		{
-			InMemoryBlobStore blobStore = new InMemoryBlobStore();
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+
+			InMemoryBlobStore blobStore = new InMemoryBlobStore(cache);
 			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1 });
 
 			Assert.AreEqual(5, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
 
+		class SimpleNode : TreeNode
+		{
+			public ReadOnlySequence<byte> Data { get; }
+			public IReadOnlyList<TreeNodeRef<SimpleNode>> Refs { get; }
+
+			public SimpleNode(ReadOnlySequence<byte> data, IReadOnlyList<TreeNodeRef<SimpleNode>> refs)
+			{
+				Data = data;
+				Refs = refs;
+			}
+
+			public SimpleNode(ITreeNodeReader reader)
+			{
+				Data = new ReadOnlySequence<byte>(reader.ReadVariableLengthBytes());
+				Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
+			}
+
+			public override void Serialize(ITreeNodeWriter writer)
+			{
+				writer.WriteVariableLengthBytes(Data);
+				writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
+			}
+		}
+
 		static async Task TestTreeAsync(InMemoryBlobStore store, TreeOptions options)
 		{
 			// Generate a tree
 			{
-				ITreeWriter writer = store.CreateTreeWriter(options, "test");
+				TreeWriter writer = new TreeWriter(store, options, "test");
 
-				ITreeBlobRef node1 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
-				ITreeBlobRef node2 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { node1 }, CancellationToken.None);
-				ITreeBlobRef node3 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { node2 }, CancellationToken.None);
-				ITreeBlobRef node4 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
+				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<TreeNodeRef<SimpleNode>>());
+				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new TreeNodeRef<SimpleNode>(node1) });
+				SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new TreeNodeRef<SimpleNode>(node2) });
+				SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<TreeNodeRef<SimpleNode>>());
 
-				ITreeBlob root = TreeBlob.Create(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { node4, node3 });
-				await writer.WriteRefAsync(new RefName("test"), root.Data, root.Refs);
+				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new TreeNodeRef<SimpleNode>(node4), new TreeNodeRef<SimpleNode>(node3) });
+
+				await writer.WriteRefAsync(new RefName("test"), root, CancellationToken.None);
 
 				await CheckTree(root);
 			}
 
 			// Check we can read it back in
 			{
-				ITreeBlob? root = await store.TryReadTreeAsync(new RefName("test"));
-				Assert.IsNotNull(root);
+				SimpleNode root = await store.ReadNodeAsync<SimpleNode>(new RefName("test"));
 				await CheckTree(root!);
 			}
 		}
 
-		static async Task CheckTree(ITreeBlob root)
+		static async Task CheckTree(SimpleNode root)
 		{
-			ITreeBlob node5 = root;
+			SimpleNode node5 = root;
 			byte[] data5 = node5.Data.ToArray();
 			Assert.IsTrue(data5.SequenceEqual(new byte[] { 5 }));
-			IReadOnlyList<ITreeBlobRef> refs5 = node5.Refs;
+			IReadOnlyList<TreeNodeRef<SimpleNode>> refs5 = node5.Refs;
 			Assert.AreEqual(2, refs5.Count);
 
-			ITreeBlob node4 = await refs5[0].GetTargetAsync();
+			SimpleNode node4 = await refs5[0].ExpandAsync();
 			byte[] data4 = node4.Data.ToArray();
 			Assert.IsTrue(data4.SequenceEqual(new byte[] { 4 }));
-			IReadOnlyList<ITreeBlobRef> refs4 = node4.Refs;
+			IReadOnlyList<TreeNodeRef<SimpleNode>> refs4 = node4.Refs;
 			Assert.AreEqual(0, refs4.Count);
 
-			ITreeBlob node3 = await refs5[1].GetTargetAsync();
+			SimpleNode node3 = await refs5[1].ExpandAsync();
 			byte[] data3 = node3.Data.ToArray();
 			Assert.IsTrue(data3.SequenceEqual(new byte[] { 3 }));
-			IReadOnlyList<ITreeBlobRef> refs3 = node3.Refs;
+			IReadOnlyList<TreeNodeRef<SimpleNode>> refs3 = node3.Refs;
 			Assert.AreEqual(1, refs3.Count);
 
-			ITreeBlob node2 = await refs3[0].GetTargetAsync();
+			SimpleNode node2 = await refs3[0].ExpandAsync();
 			byte[] data2 = node2.Data.ToArray();
 			Assert.IsTrue(data2.SequenceEqual(new byte[] { 2 }));
-			IReadOnlyList<ITreeBlobRef> refs2 = node2.Refs;
+			IReadOnlyList<TreeNodeRef<SimpleNode>> refs2 = node2.Refs;
 			Assert.AreEqual(1, refs2.Count);
 
-			ITreeBlob node1 = await refs2[0].GetTargetAsync();
+			SimpleNode node1 = await refs2[0].ExpandAsync();
 			byte[] data1 = node1.Data.ToArray();
 			Assert.IsTrue(data1.SequenceEqual(new byte[] { 1 }));
-			IReadOnlyList<ITreeBlobRef> refs1 = node1.Refs;
+			IReadOnlyList<TreeNodeRef<SimpleNode>> refs1 = node1.Refs;
 			Assert.AreEqual(0, refs1.Count);
 		}
 
 		[TestMethod]
 		public async Task DirectoryNodesAsync()
 		{
-			InMemoryBlobStore store = new InMemoryBlobStore();
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			InMemoryBlobStore store = new InMemoryBlobStore(cache);
 
 			// Generate a tree
 			{
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
 				DirectoryNode world = hello.AddDirectory("world");
-				await store.WriteTreeAsync(new RefName("test"), root, CancellationToken.None);
+				await store.WriteNodeAsync(new RefName("test"), root);
 
 				await CheckDirectoryTreeAsync(root);
 			}
 
 			// Check we can read it back in
 			{
-				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefName("test"));
+				DirectoryNode root = await store.ReadNodeAsync<DirectoryNode>(new RefName("test"));
 				await CheckDirectoryTreeAsync(root);
 			}
 		}
@@ -136,11 +166,12 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task FileNodesAsync()
 		{
-			InMemoryBlobStore store = new InMemoryBlobStore();
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			InMemoryBlobStore store = new InMemoryBlobStore(cache);
 
 			// Generate a tree
 			{
-				ITreeWriter writer = store.CreateTreeWriter();
+				TreeWriter writer = new TreeWriter(store, new TreeOptions());
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
@@ -155,7 +186,7 @@ namespace EpicGames.Horde.Tests
 
 			// Check we can read it back in
 			{
-				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefName("test"));
+				DirectoryNode root = await store.ReadNodeAsync<DirectoryNode>(new RefName("test"));
 				await CheckFileTreeAsync(root);
 			}
 		}
@@ -179,8 +210,10 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task ChunkingTests()
 		{
-			InMemoryBlobStore store = new InMemoryBlobStore();
-			ITreeWriter writer = store.CreateTreeWriter(new TreeOptions());
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+
+			InMemoryBlobStore store = new InMemoryBlobStore(cache);
+			TreeWriter writer = new TreeWriter(store, new TreeOptions());
 
 			byte[] chunk = RandomNumberGenerator.GetBytes(256);
 
@@ -213,11 +246,13 @@ namespace EpicGames.Horde.Tests
 			long uniqueSize = uniqueChunks.Sum(x => x.Value);
 			Assert.IsTrue(uniqueSize < data.Length / 3);
 		}
-
+		/*
 		[TestMethod]
 		public async Task ChildWriterAsync()
 		{
-			InMemoryBlobStore store = new InMemoryBlobStore();
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+
+			InMemoryBlobStore store = new InMemoryBlobStore(cache);
 
 			{
 				ITreeWriter writer = store.CreateTreeWriter(new TreeOptions());
@@ -248,11 +283,12 @@ namespace EpicGames.Horde.Tests
 				Assert.AreEqual(0, childBlob2.Refs.Count);
 			}
 		}
-
+		*/
 		[TestMethod]
 		public async Task LargeFileTestAsync()
 		{
-			InMemoryBlobStore store = new InMemoryBlobStore();
+			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			InMemoryBlobStore store = new InMemoryBlobStore(cache);
 
 			const int length = 1024;
 			const int copies = 4096;
@@ -267,10 +303,11 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Generate a tree
+			DirectoryNode root;
 			{
-				ITreeWriter writer = store.CreateTreeWriter(new TreeOptions { MaxBlobSize = 1024 });
+				TreeWriter writer = new TreeWriter(store, new TreeOptions { MaxBlobSize = 1024 });
 
-				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
+				root = new DirectoryNode(DirectoryFlags.None);
 
 				ChunkingOptions options = new ChunkingOptions();
 				options.LeafOptions.MinSize = 1;
@@ -287,16 +324,59 @@ namespace EpicGames.Horde.Tests
 
 			// Check we can read it back in
 			{
-				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefName("test"));
+				DirectoryNode newRoot = await store.ReadNodeAsync<DirectoryNode>(new RefName("test"));
+				await CompareTrees(root, newRoot);
 				await CheckLargeFileTreeAsync(root, data);
 
 				TreeNodeRef<FileNode> file = root.GetFileEntry("test");
 
-				Dictionary<IoHash, long> uniqueBlobs = new Dictionary<IoHash, long>();
-				await FindUniqueBlobs(file.Target!, uniqueBlobs);
-
-				long uniqueSize = uniqueBlobs.Sum(x => x.Value);
+				long uniqueSize = store.Blobs.Values.SelectMany(x => x.Header.Packets).Sum(x => x.DecodedLength);
 				Assert.IsTrue(uniqueSize < data.Length / 3); // random fraction meaning "lots of dedupe happened"
+			}
+		}
+
+		static async Task CompareTrees(DirectoryNode oldNode, DirectoryNode newNode)
+		{
+			Assert.AreEqual(oldNode.Length, newNode.Length);
+			Assert.AreEqual(oldNode.Files.Count, newNode.Files.Count);
+			Assert.AreEqual(oldNode.Directories.Count, newNode.Directories.Count);
+
+			foreach ((FileEntry oldFileEntry, FileEntry newFileEntry) in oldNode.Files.Zip(newNode.Files))
+			{
+				FileNode oldFile = await oldFileEntry.ExpandAsync();
+				FileNode newFile = await newFileEntry.ExpandAsync();
+				await CompareTrees(oldFile, newFile);
+			}
+		}
+
+		static async Task CompareTrees(FileNode oldNode, FileNode newNode)
+		{
+			if (oldNode is InteriorFileNode oldInteriorNode)
+			{
+				InteriorFileNode newInteriorNode = (InteriorFileNode)newNode;
+
+				Assert.AreEqual(oldInteriorNode.Length, newInteriorNode.Length);
+				Assert.AreEqual(oldInteriorNode.Children.Count, newInteriorNode.Children.Count);
+				Assert.AreEqual(oldInteriorNode.RollingHash, newInteriorNode.RollingHash);
+
+				int index = 0;
+				foreach ((TreeNodeRef<FileNode> oldFileRef, TreeNodeRef<FileNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
+				{
+					FileNode oldFile = await oldFileRef.ExpandAsync();
+					FileNode newFile = await newFileRef.ExpandAsync();
+					await CompareTrees(oldFile, newFile);
+					index++;
+				}
+			}
+			else if (oldNode is LeafFileNode oldLeafNode)
+			{
+				LeafFileNode newLeafNode = (LeafFileNode)newNode;
+				Assert.AreEqual(oldLeafNode.Length, newLeafNode.Length);
+				Assert.IsTrue(oldLeafNode.Data.AsSingleSegment().Span.SequenceEqual(newLeafNode.Data.AsSingleSegment().Span));
+			}
+			else
+			{
+				throw new NotImplementedException();
 			}
 		}
 
@@ -310,20 +390,6 @@ namespace EpicGames.Horde.Tests
 			byte[] worldData = await GetFileDataAsync(world);
 			Assert.AreEqual(data.Length, worldData.Length);
 			Assert.IsTrue(worldData.SequenceEqual(data));
-		}
-
-		static async Task FindUniqueBlobs(ITreeBlobRef blobRef, Dictionary<IoHash, long> uniqueBlobs)
-		{
-			ITreeBlob blob = await blobRef.GetTargetAsync();
-
-			ReadOnlySequence<byte> data = blob.Data;
-			uniqueBlobs[blobRef.Hash] = data.Length;
-
-			IReadOnlyList<ITreeBlobRef> references = blob.Refs;
-			foreach (ITreeBlobRef reference in references)
-			{
-				await FindUniqueBlobs(reference, uniqueBlobs);
-			}
 		}
 
 		static async Task<byte[]> GetFileDataAsync(FileNode fileNode)

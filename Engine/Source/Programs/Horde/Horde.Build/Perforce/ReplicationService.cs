@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -62,7 +63,6 @@ namespace Horde.Build.Perforce
 	/// <summary>
 	/// Root node for a commit snapshot
 	/// </summary>
-	[TreeSerializer(typeof(ReplicationNodeSerializer))]
 	public class ReplicationNode : TreeNode
 	{
 		/// <summary>
@@ -79,7 +79,7 @@ namespace Horde.Build.Perforce
 		/// Constructor
 		/// </summary>
 		public ReplicationNode()
-			: this(new DirectoryNode(DirectoryFlags.WithGitHashes))
+			: this(new DirectoryNode())
 		{
 		}
 
@@ -89,48 +89,25 @@ namespace Horde.Build.Perforce
 		public ReplicationNode(DirectoryNode contents)
 		{
 			Paths = new List<Utf8String>();
-			Contents = new TreeNodeRef<DirectoryNode>(this, contents);
+			Contents = new TreeNodeRef<DirectoryNode>(contents);
 		}
 
-		private ReplicationNode(IEnumerable<Utf8String> paths, ITreeBlobRef contents)
+		/// <summary>
+		/// Deserializing constructor
+		/// </summary>
+		/// <param name="reader"></param>
+		public ReplicationNode(ITreeNodeReader reader)
 		{
-			Paths = new List<Utf8String>(paths);
-			Contents = new TreeNodeRef<DirectoryNode>(this, contents);
+			Paths = reader.ReadList(() => reader.ReadUtf8String());
+			Contents = reader.ReadRef<DirectoryNode>();
 		}
 
 		/// <inheritdoc/>
-		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
+		public override void Serialize(ITreeNodeWriter writer)
 		{
-			List<ITreeBlobRef> references = new List<ITreeBlobRef>();
-			references.Add(await Contents.CollapseAsync(writer, cancellationToken));
-
-			ByteArrayBuilder builder = new ByteArrayBuilder();
-			builder.WriteVariableLengthArray(Paths, x => builder.WriteUtf8String(x));
-
-			return new NewTreeBlob(builder.AsSequence(), references);
+			writer.WriteList(Paths, x => writer.WriteUtf8String(x));
+			writer.WriteRef(Contents);
 		}
-
-		internal static ReplicationNode Deserialize(ITreeBlob blob)
-		{
-			MemoryReader reader = new MemoryReader(blob.Data.AsSingleSegment());
-			Utf8String[] paths = reader.ReadVariableLengthArray(() => reader.ReadUtf8String());
-
-			return new ReplicationNode(paths, blob.Refs[0]);
-		}
-
-		/// <inheritdoc/>
-		public override IReadOnlyList<TreeNodeRef> GetReferences()
-		{
-			List<TreeNodeRef> refs = new List<TreeNodeRef>();
-			refs.Add(Contents);
-			return refs;
-		}
-	}
-
-	class ReplicationNodeSerializer : TreeNodeSerializer<ReplicationNode>
-	{
-		/// <inheritdoc/>
-		public override ReplicationNode Deserialize(ITreeBlob node) => ReplicationNode.Deserialize(node);
 	}
 
 	/// <summary>
@@ -420,7 +397,7 @@ namespace Horde.Build.Perforce
 				{
 					RefName prevRefName = GetRefName(stream, values[0]);
 
-					ReplicationNode? contents = await storage.TryReadTreeAsync<ReplicationNode>(prevRefName, cancellationToken: cancellationToken);
+					ReplicationNode? contents = await storage.TryReadNodeAsync<ReplicationNode>(prevRefName, cancellationToken: cancellationToken);
 					if (contents == null)
 					{
 						_logger.LogInformation("No content for CL {Change}; creating full snapshot", values[0]);
@@ -498,10 +475,10 @@ namespace Horde.Build.Perforce
 		/// <param name="revisionsOnly"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async Task<ReplicationNode> ReadCommitTreeAsync(IStorageClient storage, IStream stream, int change, string? filter, bool revisionsOnly, CancellationToken cancellationToken)
+		public static async Task<ReplicationNode> ReadCommitTreeAsync(IStorageClient storage, IStream stream, int change, string? filter, bool revisionsOnly, CancellationToken cancellationToken)
 		{
 			RefName name = GetRefName(stream.Id, change, filter, revisionsOnly);
-			return await storage.ReadTreeAsync<ReplicationNode>(name, cancellationToken: cancellationToken);
+			return await storage.ReadNodeAsync<ReplicationNode>(name, cancellationToken: cancellationToken);
 		}
 
 		/// <summary>
@@ -551,20 +528,23 @@ namespace Horde.Build.Perforce
 
 			public void Dispose() => _hash.Dispose();
 
-			public async Task AppendAsync(ReadOnlyMemory<byte> data, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
+			public async Task AppendAsync(ReadOnlyMemory<byte> data, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
 			{
 				_hash.AppendData(data.Span);
 				await _entry.AppendAsync(data, options, writer, cancellationToken);
 			}
 
-			public async Task FinishAsync(ITreeWriter writer, CancellationToken cancellationToken)
+			public async Task FinishAsync(TreeWriter writer, CancellationToken cancellationToken)
 			{
 				if (_entry.Length != _size)
 				{
 					throw new ReplicationException($"Invalid size for replicated file '{_entry.Name}'. Expected {_size}, got {_entry.Length}.");
 				}
 				UpdateHash();
-				await _entry.CollapseAsync(writer, cancellationToken);
+				if (_entry.Target != null)
+				{
+					await writer.WriteAsync(_entry.Target, cancellationToken);
+				}
 			}
 
 			void UpdateHash()
@@ -606,11 +586,10 @@ namespace Horde.Build.Perforce
 
 			RefName refName = GetRefName(stream.Id, change, filter, revisionsOnly);
 			RefName incRefName = new RefName($"{refName}-inc");
-			ITreeWriter directoryWriter = storage.CreateTreeWriter(refName.Text);
-			ITreeWriter fileWriter = directoryWriter.CreateChildWriter();
+			TreeWriter writer = new TreeWriter(storage, prefix: refName.Text);
 
 			// Get the current sync state for this change
-			ReplicationNode? syncNode = await storage.TryReadTreeAsync<ReplicationNode>(incRefName, cancellationToken: cancellationToken);
+			ReplicationNode? syncNode = await storage.TryReadNodeAsync<ReplicationNode>(incRefName, cancellationToken: cancellationToken);
 			bool deleteIncRef = syncNode != null;
 			if (syncNode == null)
 			{
@@ -643,7 +622,7 @@ namespace Horde.Build.Perforce
 					using ReadOnlyMemoryStream dataStream = new ReadOnlyMemoryStream(data);
 
 					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, cancellationToken);
-					await entry.AppendAsync(dataStream, Options.Chunking, directoryWriter, cancellationToken);
+					await entry.AppendAsync(dataStream, Options.Chunking, writer, cancellationToken);
 				}
 			}
 			else
@@ -708,7 +687,7 @@ namespace Horde.Build.Perforce
 					if (syncedSize > 0)
 					{
 						Stopwatch flushTimer = Stopwatch.StartNew();
-						await directoryWriter.WriteRefAsync(incRefName, syncNode, cancellationToken);
+						await writer.WriteRefAsync(incRefName, syncNode, cancellationToken);
 						flushTimer.Stop();
 						deleteIncRef = true;
 					}
@@ -798,7 +777,7 @@ namespace Horde.Build.Perforce
 								else if (io.Command == PerforceIoCommand.Write)
 								{
 									FileWriter file = handles[io.File];
-									await file.AppendAsync(io.Payload, Options.Chunking, fileWriter, cancellationToken);
+									await file.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
 								}
 								else if (io.Command == PerforceIoCommand.Close)
 								{
@@ -807,7 +786,7 @@ namespace Horde.Build.Perforce
 									{
 										if (handles.Remove(io.File, out file))
 										{
-											await file.FinishAsync(fileWriter, cancellationToken);
+											await file.FinishAsync(writer, cancellationToken);
 										}
 									}
 									finally
@@ -872,13 +851,13 @@ namespace Horde.Build.Perforce
 					}
 				}
 			}
-			await directoryWriter.WriteNodeAsync(syncNode, cancellationToken);
+			await writer.WriteAsync(syncNode, cancellationToken);
 
 			clientInfo.Change = change;
 
 			// Return the new root object
 			_logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", refName, stream.Id, change);
-			await directoryWriter.WriteRefAsync(refName, syncNode, cancellationToken);
+			await writer.WriteRefAsync(refName, syncNode, cancellationToken);
 
 			// Delete the incremental state
 			if (deleteIncRef)

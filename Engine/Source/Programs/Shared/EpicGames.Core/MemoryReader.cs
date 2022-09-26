@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 
 namespace EpicGames.Core
 {
@@ -241,6 +242,24 @@ namespace EpicGames.Core
 			ReadOnlyMemory<byte> bytes = reader.GetMemory(length).Slice(0, length);
 			reader.Advance(length);
 			return bytes;
+		}
+
+		/// <summary>
+		/// Reads a variable length list
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="readItem">Delegate to write an individual item</param>
+		public static List<T> ReadList<T>(this IMemoryReader reader, Func<T> readItem)
+		{
+			int length = (int)reader.ReadUnsignedVarInt();
+
+			List<T> list = new List<T>(length);
+			for (int idx = 0; idx < length; idx++)
+			{
+				list.Add(readItem());
+			}
+
+			return list;
 		}
 
 		/// <summary>

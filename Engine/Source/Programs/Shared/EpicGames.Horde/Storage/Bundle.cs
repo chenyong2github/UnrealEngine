@@ -162,6 +162,11 @@ namespace EpicGames.Horde.Storage
 		public static ReadOnlyMemory<byte> Signature { get; } = Encoding.UTF8.GetBytes("UEBN");
 
 		/// <summary>
+		/// Length of the prelude data
+		/// </summary>
+		public const int PreludeLength = 8;
+
+		/// <summary>
 		/// Compression format for the bundle
 		/// </summary>
 		public BundleCompressionFormat CompressionFormat { get; }
@@ -225,6 +230,17 @@ namespace EpicGames.Horde.Storage
 			{
 				Packets = reader.ReadVariableLengthArray(() => new BundlePacket(reader));
 			}
+		}
+
+		/// <summary>
+		/// Reads the prelude bytes from a bundle, and returns the header size.
+		/// </summary>
+		/// <param name="prelude">The prelude data</param>
+		/// <returns>Size of the header, including the prelude data</returns>
+		public static int ReadPrelude(ReadOnlyMemory<byte> prelude)
+		{
+			CheckPrelude(prelude);
+			return BinaryPrimitives.ReadInt32BigEndian(prelude.Span.Slice(4));
 		}
 
 		/// <summary>
@@ -303,11 +319,6 @@ namespace EpicGames.Horde.Storage
 		public BlobLocator Locator { get; }
 
 		/// <summary>
-		/// Number of exports from this blob.
-		/// </summary>
-		public int ExportCount { get; }
-
-		/// <summary>
 		/// Indexes of referenced nodes exported from this bundle
 		/// </summary>
 		public IReadOnlyList<(int, IoHash)> Exports { get; }
@@ -315,10 +326,9 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImport(BlobLocator locator, int exportCount, IReadOnlyList<(int, IoHash)> exports)
+		public BundleImport(BlobLocator locator, IReadOnlyList<(int, IoHash)> exports)
 		{
 			Locator = locator;
-			ExportCount = exportCount;
 			Exports = exports;
 		}
 
@@ -329,8 +339,6 @@ namespace EpicGames.Horde.Storage
 		internal BundleImport(IMemoryReader reader)
 		{
 			Locator = reader.ReadBlobLocator();
-
-			ExportCount = (int)reader.ReadUnsignedVarInt();
 
 			int count = (int)reader.ReadUnsignedVarInt();
 
@@ -351,7 +359,6 @@ namespace EpicGames.Horde.Storage
 		public void Write(IMemoryWriter writer)
 		{
 			writer.WriteBlobLocator(Locator);
-			writer.WriteUnsignedVarInt(ExportCount);
 
 			writer.WriteUnsignedVarInt(Exports.Count);
 			for(int idx = 0; idx < Exports.Count; idx++)
