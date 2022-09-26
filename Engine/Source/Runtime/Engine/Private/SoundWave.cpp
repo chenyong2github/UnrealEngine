@@ -177,6 +177,7 @@ void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
 	bIsLooping = InWave.IsLooping();
 	bIsTemplate = InWave.IsTemplate();
 	bIsStreaming = InWave.IsStreaming(nullptr);
+	bIsSeekable = InWave.IsSeekable();
 	SoundAssetCompressionType = InWave.GetSoundAssetCompressionType();
 	bShouldUseStreamCaching = InWave.ShouldUseStreamCaching();
 
@@ -3219,8 +3220,6 @@ bool USoundWave::IsSeekable() const
 	{
 		Result = false;
 	}
-
-	SoundWaveDataPtr->bIsSeekable = Result; // update shared flags
 
 	return Result;
 }

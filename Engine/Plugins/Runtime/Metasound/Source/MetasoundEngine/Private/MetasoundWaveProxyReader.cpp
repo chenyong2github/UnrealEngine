@@ -410,13 +410,26 @@ namespace Metasound
 		}
 
 		// Seek input to start time.
-		const bool bSeekSucceeded = DecoderInput->SeekToTime(InStartTimeInSeconds);
-		if (!bSeekSucceeded)
+		if (!FMath::IsNearlyEqual(0.0f, InStartTimeInSeconds))
 		{
-			UE_LOG(LogMetaSound, Warning, TEXT("Failed to seek decoder input during initialization: (format:%s) for wave (package:%s) to time '%.6f'"),
-				*Format.ToString(),
-				*WaveProxy->GetPackageName().ToString(),
-				InStartTimeInSeconds);
+			if (WaveProxy->IsSeekable())
+			{
+				const bool bSeekSucceeded = DecoderInput->SeekToTime(InStartTimeInSeconds);
+				if (!bSeekSucceeded)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Failed to seek decoder input during initialization: (format:%s) for wave (package:%s) to time '%.6f'"),
+						*Format.ToString(),
+						*WaveProxy->GetPackageName().ToString(),
+						InStartTimeInSeconds);
+				}
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Attempt to seek on non-seekable wave: (format:%s) for wave (package:%s) to time '%.6f'"),
+					*Format.ToString(),
+					*WaveProxy->GetPackageName().ToString(),
+					InStartTimeInSeconds);
+			}
 		}
 		CurrentFrameIndex = InStartTimeInSeconds * GetSampleRate();
 
