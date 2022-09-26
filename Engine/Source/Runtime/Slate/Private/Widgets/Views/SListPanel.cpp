@@ -238,7 +238,8 @@ float SListPanel::GetItemPadding(const FGeometry& AllottedGeometry, const EListI
 		// Only add padding between items if we have more total items that we can fit on a single line.  Otherwise,
 		// the padding around items would continue to change proportionately with the (ample) free space along the line axis
 		const int32 NumItemsPerLine = DesiredDimensions.LineAxis > 0.f ? FMath::FloorToInt(AllottedDimensions.LineAxis / DesiredDimensions.LineAxis) : 0;
-		if (NumItemsPerLine > 0 && Children.Num() > NumItemsPerLine)
+		
+		if (NumItemsPerLine > 0 && Children.Num() >= NumItemsPerLine)
 		{
 			return (AllottedDimensions.LineAxis - FloatingPointPrecisionOffset - (NumItemsPerLine * DesiredDimensions.LineAxis)) / NumItemsPerLine;
 		}
