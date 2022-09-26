@@ -130,19 +130,7 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	TEXT("Only available for testing in non-shipping builds."),
 	ECVF_RenderThreadSafe);
 #endif
-
-TAutoConsoleVariable<int32> CVarMobileFSRCASEnabled(
-	TEXT("r.Mobile.FSR.RCAS.Enabled"),
-	0,
-	TEXT("FidelityFX FSR/RCAS : Robust Contrast Adaptive Sharpening Filter. Requires r.FidelityFX.FSR.PrimaryUpscale 1 or r.FidelityFX.FSR.SecondaryUpscale 1"),
-	ECVF_RenderThreadSafe);
-
-TAutoConsoleVariable<int32>CVarMobileFSRUpsamplingEnabled(
-	TEXT("r.Mobile.FSR.Upsampling.Enabled"),
-	0,
-	TEXT("FidelityFX FSR/RCAS : Robust Contrast Adaptive Sharpening Filter. Requires r.FidelityFX.FSR.PrimaryUpscale 1 or r.FidelityFX.FSR.SecondaryUpscale 1"),
-	ECVF_Default);
-} //! namespace
+}
 
 EDownsampleQuality GetDownsampleQuality(const TAutoConsoleVariable<int32>& CVar)
 {
@@ -1796,7 +1784,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		SelectionOutline,
 		EditorPrimitive,
 		PrimaryUpscale,
-		Sharpen,
+		SecondaryUpscale,
 		Visualize,
 		HMDDistortion,
 		MAX
@@ -1860,10 +1848,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 	bool bUseHighResolutionScreenshotMask = IsHighResolutionScreenshotMaskEnabled(View);
 
-	bool bEnabledFSRCAS = CVarMobileFSRCASEnabled.GetValueOnRenderThread() > 0;
-	bool bEnabledFSRUpsampling = CVarMobileFSRUpsamplingEnabled.GetValueOnRenderThread() > 0;
-	bool bShouldPrimaryUpscale = (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect)
-								|| PaniniConfig.IsEnabled();
+	bool bShouldPrimaryUpscale = (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect) || PaniniConfig.IsEnabled();
+	bShouldPrimaryUpscale |= View.Family->GetPrimarySpatialUpscalerInterface() != nullptr;
 
 	PassSequence.SetEnabled(EPass::Tonemap, bUseToneMapper);
 	PassSequence.SetEnabled(EPass::HighResolutionScreenshotMask, bUseHighResolutionScreenshotMask);
@@ -1875,7 +1861,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	PassSequence.SetEnabled(EPass::EditorPrimitive, false);
 #endif
 	PassSequence.SetEnabled(EPass::PrimaryUpscale, bShouldPrimaryUpscale);
-	PassSequence.SetEnabled(EPass::Sharpen, bEnabledFSRCAS);
+	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.Family->GetSecondarySpatialUpscalerInterface() != nullptr);
 
 	PassSequence.SetEnabled(EPass::Visualize, View.Family->EngineShowFlags.ShaderComplexity);
 
@@ -2464,25 +2450,30 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		}
 		else
 		{
-			if (!bEnabledFSRUpsampling)
-			{
-				SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, EUpscaleMethod::Bilinear, PaniniConfig);
-			}
-			else
-			{
-				SceneColor = AddEASUPass(GraphBuilder, View, PassInputs);
-			}
+			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, EUpscaleMethod::Bilinear, PaniniConfig);
 		}
 	}
 
-	if (PassSequence.IsEnabled(EPass::Sharpen))
+	if (PassSequence.IsEnabled(EPass::SecondaryUpscale))
 	{
 		ISpatialUpscaler::FInputs PassInputs;
-		PassSequence.AcceptOverrideIfLastPass(EPass::Sharpen, PassInputs.OverrideOutput);
+		PassSequence.AcceptOverrideIfLastPass(EPass::SecondaryUpscale, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
-		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+		PassInputs.Stage = EUpscaleStage::SecondaryToOutput;
 
-		SceneColor = AddCASPass(GraphBuilder, View, PassInputs);
+		const ISpatialUpscaler* CustomUpscaler = View.Family ? View.Family->GetSecondarySpatialUpscalerInterface() : nullptr;
+		if (CustomUpscaler)
+		{
+			RDG_EVENT_SCOPE(
+				GraphBuilder,
+				"ThirdParty SecondaryUpscale %s %dx%d -> %dx%d",
+				CustomUpscaler->GetDebugName(),
+				SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height(),
+				View.UnscaledViewRect.Width(), View.UnscaledViewRect.Height());
+
+			SceneColor = CustomUpscaler->AddPasses(GraphBuilder, View, PassInputs);
+			check(SceneColor == ViewFamilyOutput);
+		}
 	}
 
 	if (PassSequence.IsEnabled(EPass::Visualize))
