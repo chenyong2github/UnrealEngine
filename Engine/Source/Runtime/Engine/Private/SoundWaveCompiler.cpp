@@ -114,19 +114,8 @@ void FSoundWaveCompilingManager::Shutdown()
 	bHasShutdown = true;
 	if (GetNumRemainingSoundWaves())
 	{
-		TArray<USoundWave*> PendingSoundWaves;
-		PendingSoundWaves.Reserve(GetNumRemainingSoundWaves());
-
-		for (TWeakObjectPtr<USoundWave>& WeakSoundWave : RegisteredSoundWaves)
-		{
-			if (USoundWave* SoundWave = WeakSoundWave.Get())
-			{
-				PendingSoundWaves.Add(SoundWave);
-			}
-		}
-
 		// Wait on SoundWaves already in progress we couldn't cancel
-		FinishCompilation(PendingSoundWaves);
+		FinishCompilation(GatherPendingSoundWaves());
 	}
 }
 
@@ -168,6 +157,7 @@ FSoundWaveCompilingManager& FSoundWaveCompilingManager::Get()
 
 int32 FSoundWaveCompilingManager::GetNumRemainingSoundWaves() const
 {
+	FReadScopeLock ScopeLock(Lock);
 	return RegisteredSoundWaves.Num();
 }
 
@@ -179,11 +169,13 @@ int32 FSoundWaveCompilingManager::GetNumRemainingAssets() const
 void FSoundWaveCompilingManager::AddSoundWaves(TArrayView<USoundWave* const> InSoundWaves)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSoundWaveCompilingManager::AddSoundWaves)
-	check(IsInGameThread());
 
-	for (USoundWave* SoundWave : InSoundWaves)
 	{
-		RegisteredSoundWaves.Emplace(SoundWave);
+		FWriteScopeLock ScopeLock(Lock);
+		for (USoundWave* SoundWave : InSoundWaves)
+		{
+			RegisteredSoundWaves.Emplace(SoundWave);
+		}
 	}
 
 	TRACE_COUNTER_SET(QueuedSoundWaveCompilation, GetNumRemainingSoundWaves());
@@ -199,12 +191,14 @@ void FSoundWaveCompilingManager::FinishCompilation(TArrayView<USoundWave* const>
 	TSet<USoundWave*> PendingSoundWaves;
 	PendingSoundWaves.Reserve(InSoundWaves.Num());
 
-	int32 SoundWaveIndex = 0;
-	for (USoundWave* SoundWave : InSoundWaves)
 	{
-		if (RegisteredSoundWaves.Contains(SoundWave))
+		FReadScopeLock ScopeLock(Lock);
+		for (USoundWave* SoundWave : InSoundWaves)
 		{
-			PendingSoundWaves.Add(SoundWave);
+			if (RegisteredSoundWaves.Contains(SoundWave))
+			{
+				PendingSoundWaves.Add(SoundWave);
+			}
 		}
 	}
 
@@ -247,7 +241,10 @@ void FSoundWaveCompilingManager::FinishCompilation(TArrayView<USoundWave* const>
 				USoundWave* SoundWave = static_cast<FCompilableSoundWave*>(Object)->SoundWave.Get();
 				PostCompilation(SoundWave);
 
-				RegisteredSoundWaves.Remove(SoundWave);
+				{
+					FWriteScopeLock ScopeLock(Lock);
+					RegisteredSoundWaves.Remove(SoundWave);
+				}
 			}
 		);
 
@@ -279,6 +276,28 @@ void FSoundWaveCompilingManager::PostCompilation(TArrayView<USoundWave* const> I
 	}
 }
 
+TArray<USoundWave*> FSoundWaveCompilingManager::GatherPendingSoundWaves()
+{
+	TArray<USoundWave*> PendingSoundWaves;
+	PendingSoundWaves.Reserve(GetNumRemainingSoundWaves());
+
+	// Resolve weak pointers and get rid of stale objects at the same time
+	FWriteScopeLock ScopeLock(Lock);
+	for (auto Iterator = RegisteredSoundWaves.CreateIterator(); Iterator; ++Iterator)
+	{
+		if (USoundWave* SoundWave = Iterator->Get())
+		{
+			PendingSoundWaves.Add(SoundWave);
+		}
+		else
+		{
+			Iterator.RemoveCurrent();
+		}
+	}
+
+	return MoveTemp(PendingSoundWaves);
+}
+
 void FSoundWaveCompilingManager::FinishAllCompilation()
 {
 	check(IsInGameThread());
@@ -286,18 +305,7 @@ void FSoundWaveCompilingManager::FinishAllCompilation()
 
 	if (GetNumRemainingSoundWaves())
 	{
-		TArray<USoundWave*> PendingSoundWaves;
-		PendingSoundWaves.Reserve(GetNumRemainingSoundWaves());
-
-		for (TWeakObjectPtr<USoundWave>& SoundWave : RegisteredSoundWaves)
-		{
-			if (SoundWave.IsValid())
-			{
-				PendingSoundWaves.Add(SoundWave.Get());
-			}
-		}
-
-		FinishCompilation(PendingSoundWaves);
+		FinishCompilation(GatherPendingSoundWaves());
 	}
 }
 
@@ -313,29 +321,30 @@ void FSoundWaveCompilingManager::ProcessSoundWaves(bool bLimitExecutionTime, int
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessFinishedSoundWaves);
 
+			TArray<USoundWave*> SoundWavesToProcess = GatherPendingSoundWaves();
+
 			double TickStartTime = FPlatformTime::Seconds();
-			TSet<TWeakObjectPtr<USoundWave>> SoundWavesToPostpone;
-			for (TWeakObjectPtr<USoundWave>& SoundWave : RegisteredSoundWaves)
+			for (USoundWave* SoundWave : SoundWavesToProcess)
 			{
-				if (SoundWave.IsValid())
+				const bool bHasTimeLeft = bLimitExecutionTime ? ((FPlatformTime::Seconds() - TickStartTime) < MaxSecondsPerFrame) : true;
+				if (bHasTimeLeft && SoundWave->IsAsyncWorkComplete())
 				{
-					const bool bHasTimeLeft = bLimitExecutionTime ? ((FPlatformTime::Seconds() - TickStartTime) < MaxSecondsPerFrame) : true;
-					if (bHasTimeLeft && SoundWave->IsAsyncWorkComplete())
-					{
-						PostCompilation(SoundWave.Get());
-						ProcessedSoundWaves.Add(SoundWave.Get());
-					}
-					else
-					{
-						SoundWavesToPostpone.Emplace(MoveTemp(SoundWave));
-					}
+					PostCompilation(SoundWave);
+					ProcessedSoundWaves.Add(SoundWave);
 				}
 			}
-
-			RegisteredSoundWaves = MoveTemp(SoundWavesToPostpone);
 		}
 
-		PostCompilation(ProcessedSoundWaves);
+		if (ProcessedSoundWaves.Num())
+		{
+			PostCompilation(ProcessedSoundWaves);
+
+			FWriteScopeLock WriteLock(Lock);
+			for (USoundWave* ProcessedSoundWave : ProcessedSoundWaves)
+			{
+				RegisteredSoundWaves.Remove(ProcessedSoundWave);
+			}
+		}
 	}
 }
 

@@ -1264,7 +1264,7 @@ struct FAudioCookInputs
 #endif
 	{
 #if WITH_EDITORONLY_DATA
-		checkf(IsInGameThread() || IsInAudioThread(), TEXT("FAudioCookInputs creation must happen on the game-thread or audio-thread as it reads from many non-thread safe properties of USoundWave"));
+		checkf(IsInGameThread() || IsInAudioThread() || IsInAsyncLoadingThread(), TEXT("FAudioCookInputs creation must happen on the game-thread or audio-thread as it reads from many non-thread safe properties of USoundWave"));
 
 #if FORCE_RESAMPLE
 		FPlatformAudioCookOverrides NewCompressionOverrides = FPlatformAudioCookOverrides();
