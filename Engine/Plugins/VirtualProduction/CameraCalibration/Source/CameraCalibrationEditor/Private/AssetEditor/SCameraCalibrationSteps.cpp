@@ -17,9 +17,11 @@
 #include "SSimulcamViewport.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
+#include "UI/CameraCalibrationEditorStyle.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -28,6 +30,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SUniformWrapPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
@@ -67,6 +70,154 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 		}
 	}
 	
+	// Make media playback buttons
+	TSharedRef<SWidget> RewindButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("RewindButtonTooltip", "Rewind the media to the beginning"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnRewindButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		.IsEnabled_Lambda([WeakStepsController = CalibrationStepsController]() -> bool
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->DoesMediaSupportSeeking();
+			}
+			return false;
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.RewindMedia.Small")))
+		];
+
+	TSharedRef<SWidget> ReverseButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("ReverseButtonTooltip", "Reverse media playback"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnReverseButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		.IsEnabled_Lambda([WeakStepsController = CalibrationStepsController]() -> bool
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->DoesMediaSupportNextReverseRate();
+			}
+			return false;
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.ReverseMedia.Small")))
+		];
+
+	TSharedRef<SWidget> StepBackButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("StepBackButtonTooltip", "Step back one frame, or one time interval as set in project settings"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnStepBackButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		.IsEnabled_Lambda([WeakStepsController = CalibrationStepsController]() -> bool
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->DoesMediaSupportSeeking();
+			}
+			return false;
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.StepBackMedia.Small")))
+		];
+
+	TSharedRef<SWidget> PlayButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("PlayButtonTooltip", "Start media playback"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnPlayButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.PlayMedia.Small")))
+		];
+
+	TSharedRef<SWidget> PauseButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("PauseButtonTooltip", "Pause media playback"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnPauseButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.PauseMedia.Small")))
+		];
+
+	TSharedRef<SWidget> StepForwardButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("StepForwardButtonTooltip", "Step forward one frame, or one time interval as set in project settings"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnStepForwardButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		.IsEnabled_Lambda([WeakStepsController = CalibrationStepsController]() -> bool
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->DoesMediaSupportSeeking();
+			}
+			return false;
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.StepForwardMedia.Small")))
+		];
+
+
+	TSharedRef<SWidget> ForwardButton = SNew(SButton)
+		.ToolTipText(LOCTEXT("ForwardButtonTooltip", "Fast forward media playback"))
+		.OnClicked_Lambda([WeakStepsController = CalibrationStepsController]() -> FReply
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->OnForwardButtonClicked();
+			}
+			return FReply::Unhandled();
+		})
+		.IsEnabled_Lambda([WeakStepsController = CalibrationStepsController]() -> bool
+		{
+			if (TSharedPtr<FCameraCalibrationStepsController> StepsControllerShared = WeakStepsController.Pin())
+			{
+				return StepsControllerShared->DoesMediaSupportNextForwardRate();
+			}
+			return false;
+		})
+		[
+			SNew(SImage)
+			.Image(FCameraCalibrationEditorStyle::Get().GetBrush(TEXT("CameraCalibration.ForwardMedia.Small")))
+		];
+
+
 	ChildSlot
 	[		
 		SNew(SHorizontalBox)
@@ -87,6 +238,36 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 				SNew(SSimulcamViewport, CalibrationStepsController.Pin()->GetRenderTarget())
 				.OnSimulcamViewportClicked_Raw(CalibrationStepsController.Pin().Get(), &FCameraCalibrationStepsController::OnSimulcamViewportClicked)
 				.OnSimulcamViewportInputKey_Raw(CalibrationStepsController.Pin().Get(), &FCameraCalibrationStepsController::OnSimulcamViewportInputKey)
+			]
+
+			+ SVerticalBox::Slot() // Media playback buttons
+			.AutoHeight()
+			.Padding(5)
+			[
+				SNew(SUniformWrapPanel)
+				.HAlign(HAlign_Center)
+				.Visibility(this, &SCameraCalibrationSteps::GetMediaPlaybackControlsVisibility)
+
+				+ SUniformWrapPanel::Slot()
+				[RewindButton]
+
+				+ SUniformWrapPanel::Slot()
+				[ReverseButton]
+
+				+ SUniformWrapPanel::Slot()
+				[StepBackButton]
+
+				+ SUniformWrapPanel::Slot()
+				[PlayButton]
+
+				+ SUniformWrapPanel::Slot()
+				[PauseButton]
+
+				+ SUniformWrapPanel::Slot()
+				[StepForwardButton]
+
+				+ SUniformWrapPanel::Slot()
+				[ForwardButton]
 			]
 		]
 
@@ -724,5 +905,14 @@ void SCameraCalibrationSteps::SelectStep(const FName& StepName)
 	}
 }
 
+EVisibility SCameraCalibrationSteps::GetMediaPlaybackControlsVisibility() const
+{
+	TSharedPtr<FCameraCalibrationStepsController> StepsController = CalibrationStepsController.Pin();
+	if (StepsController)
+	{
+		return StepsController->AreMediaPlaybackControlsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+	return EVisibility::Collapsed;
+}
 
 #undef LOCTEXT_NAMESPACE

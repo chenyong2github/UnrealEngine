@@ -66,6 +66,9 @@ private:
 	/** Expected to be called when user selects a new step via the UI */
 	void SelectStep(const FName& StepName);
 
+	/** Determines the visibility of the media playback control buttons */
+	EVisibility GetMediaPlaybackControlsVisibility() const;
+
 private:
 
 	/** The controller object */

@@ -151,6 +151,48 @@ public:
 	/** Called by the UI when the Simulcam Viewport receives keyboard input */
 	bool OnSimulcamViewportInputKey(const FKey& InKey, const EInputEvent& InEvent);
 
+	/** Called by the UI when the rewind button is clicked */
+	FReply OnRewindButtonClicked();
+
+	/** Called by the UI when the reverse button is clicked */
+	FReply OnReverseButtonClicked();
+
+	/** Called by the UI when the step back button is clicked */
+	FReply OnStepBackButtonClicked();
+
+	/** Called by the UI when the play button is clicked */
+	FReply OnPlayButtonClicked();
+
+	/** Called by the UI when the pause button is clicked */
+	FReply OnPauseButtonClicked();
+
+	/** Called by the UI when the step forward button is clicked */
+	FReply OnStepForwardButtonClicked();
+
+	/** Called by the UI when the forward button is clicked */
+	FReply OnForwardButtonClicked();
+
+	/** Returns true if the media player supports seeking */
+	bool DoesMediaSupportSeeking() const;
+
+	/** Returns true if the media player supports a reverse rate that is faster than its current rate */
+	bool DoesMediaSupportNextReverseRate() const;
+
+	/** Returns true if the media player supports a forward rate that is faster than its current rate */
+	bool DoesMediaSupportNextForwardRate() const;
+
+	/** Computes the reverse playback rate */
+	float GetFasterReverseRate() const;
+
+	/** Computes the fast forward playback rate */
+	float GetFasterForwardRate() const;
+
+	/** Toggle the setting that controls whether the media playback buttons will be visible in the UI */
+	void ToggleShowMediaPlaybackControls();
+
+	/** Returns true if the media playback buttons are visible in the UI  */
+	bool AreMediaPlaybackControlsVisible() const;
+
 private:
 
 	/** Finds the LiveLinkCameraController used in the given CameraActor that is also using the given LensFile */
@@ -257,4 +299,6 @@ private:
 	/** Pointer to the LensFileEvalData used in the current frame. Only valid during the current frame. */
 	const FLensFileEvalData* LensFileEvalData;
 
+	/** Setting to control whether the media playback buttons are visible */
+	bool bShowMediaPlaybackButtons = true;
 };

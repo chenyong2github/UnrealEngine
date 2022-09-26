@@ -70,6 +70,12 @@ private:
 
 	FCachedFIZData GetFIZData() const;
 
+	/** Binds the UI commands to delegates. */
+	void BindCommands();
+
+	/** Builds the toolbar widget for the camera calibration tools editor. */
+	void ExtendToolBar();
+
 	/** Extend Toolkit Menu */
 	void ExtendMenu();
 

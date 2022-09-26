@@ -13,6 +13,7 @@
 void FCameraCalibrationCommands::RegisterCommands()
 {
 	UI_COMMAND(Edit, "Edit", "Edit the current lens file.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ShowMediaPlaybackControls, "Show Media Playback Controls", "Show the media playback control buttons", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

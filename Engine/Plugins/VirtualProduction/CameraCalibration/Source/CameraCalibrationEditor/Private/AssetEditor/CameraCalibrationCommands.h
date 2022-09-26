@@ -25,4 +25,8 @@ public:
 
 	/** Edit the current lens distortion. */
 	TSharedPtr<FUICommandInfo> Edit;
+
+	/** Show the media playback control buttons. */
+	TSharedPtr<FUICommandInfo> ShowMediaPlaybackControls;
+
 };

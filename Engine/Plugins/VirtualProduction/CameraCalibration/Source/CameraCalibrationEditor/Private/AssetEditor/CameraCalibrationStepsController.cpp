@@ -6,6 +6,7 @@
 #include "CalibrationPointComponent.h"
 #include "Camera/CameraActor.h"
 #include "CameraCalibrationEditorLog.h"
+#include "CameraCalibrationSettings.h"
 #include "CameraCalibrationStep.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraCalibrationToolkit.h"
@@ -473,7 +474,7 @@ void FCameraCalibrationStepsController::CreateComp()
 		}
 
 		MediaPlayer->PlayOnOpen = true;
-
+		MediaPlayer->SetLooping(true);
 		// Create MediaTexture
 
 		MediaTexture = NewObject<UMediaTexture>(GetTransientPackage(), NAME_None, RF_Transient);
@@ -892,6 +893,164 @@ bool FCameraCalibrationStepsController::OnSimulcamViewportInputKey(const FKey& I
 	}
 
 	return bStepHandled;
+}
+
+FReply FCameraCalibrationStepsController::OnRewindButtonClicked()
+{
+	// Rewind to the beginning of the media
+	MediaPlayer->Rewind();
+	return FReply::Handled();
+}
+
+FReply FCameraCalibrationStepsController::OnReverseButtonClicked()
+{
+	// Increase the reverse media playback rate
+	MediaPlayer->SetRate(GetFasterReverseRate());
+	return FReply::Handled();
+}
+
+FReply FCameraCalibrationStepsController::OnStepBackButtonClicked() 
+{
+	const float DefaultStepRateInMilliseconds = GetDefault<UCameraCalibrationEditorSettings>()->DefaultMediaStepRateInMilliseconds;
+	const bool bForceDefaultStepRate = GetDefault<UCameraCalibrationEditorSettings>()->bForceDefaultMediaStepRate;
+
+	// The media player could return a frame rate of 0 for the current video track
+	const float MediaFrameRate = MediaPlayer->GetVideoTrackFrameRate(INDEX_NONE, INDEX_NONE);
+
+	// Use the default step rate if the media player returned an invalid frame rate or if the project settings force it
+	float MillisecondsPerStep = 0.0f;
+	if (FMath::IsNearlyEqual(MediaFrameRate, 0.0f) || bForceDefaultStepRate)
+	{
+		MillisecondsPerStep = DefaultStepRateInMilliseconds;
+	}
+	else
+	{
+		MillisecondsPerStep = 1000.0f / MediaFrameRate;
+	}
+
+	// Compute the number of ticks in one step and go backward from the media's current time (clamping to 0)
+	const FTimespan TicksInOneStep = ETimespan::TicksPerMillisecond * (MillisecondsPerStep);
+	FTimespan PreviousStepTime = MediaPlayer->GetTime() - TicksInOneStep;
+	if (PreviousStepTime < FTimespan::Zero())
+	{
+		PreviousStepTime = FTimespan::Zero();
+	}
+
+	MediaPlayer->Seek(PreviousStepTime);
+	MediaPlayer->Pause();
+
+	return FReply::Handled();
+}
+
+FReply FCameraCalibrationStepsController::OnPlayButtonClicked() 
+{
+	MediaPlayer->Play();
+	return FReply::Handled(); 
+}
+
+FReply FCameraCalibrationStepsController::OnPauseButtonClicked() 
+{
+	MediaPlayer->Pause();
+	return FReply::Handled(); 
+}
+
+FReply FCameraCalibrationStepsController::OnStepForwardButtonClicked()
+{
+	const float DefaultStepRateInMilliseconds = GetDefault<UCameraCalibrationEditorSettings>()->DefaultMediaStepRateInMilliseconds;
+	const bool bForceDefaultStepRate = GetDefault<UCameraCalibrationEditorSettings>()->bForceDefaultMediaStepRate;
+
+	// The media player could return a frame rate of 0 for the current video track
+	const float MediaFrameRate = MediaPlayer->GetVideoTrackFrameRate(INDEX_NONE, INDEX_NONE);
+
+	// Use the default step rate if the media player returned an invalid frame rate or if the project settings force it
+	float MillisecondsPerStep = 0.0f;
+	if (FMath::IsNearlyEqual(MediaFrameRate, 0.0f) || bForceDefaultStepRate)
+	{
+		MillisecondsPerStep = DefaultStepRateInMilliseconds;
+	}
+	else
+	{
+		MillisecondsPerStep = 1000.0f / MediaFrameRate;
+	}
+
+
+	// Compute the number of ticks in one step and go forward from the media's current time
+	const FTimespan TicksInOneStep = ETimespan::TicksPerMillisecond * (MillisecondsPerStep);
+	const FTimespan NextStepTime = MediaPlayer->GetTime() + TicksInOneStep;
+
+	// Ensure that we do not attempt to seek past the end of the media
+	const FTimespan Duration = MediaPlayer->GetDuration();
+	if ((NextStepTime + TicksInOneStep) < Duration)
+	{
+		MediaPlayer->Seek(NextStepTime);
+		MediaPlayer->Pause();
+	}
+
+	return FReply::Handled();
+}
+
+FReply FCameraCalibrationStepsController::OnForwardButtonClicked() 
+{
+	// Increase the forward media playback rate
+	MediaPlayer->SetRate(GetFasterForwardRate());
+	return FReply::Handled(); 
+}
+
+bool FCameraCalibrationStepsController::DoesMediaSupportSeeking() const
+{
+	return MediaPlayer->SupportsSeeking();
+}
+
+bool FCameraCalibrationStepsController::DoesMediaSupportNextReverseRate() const
+{
+	constexpr bool Unthinned = false;
+	return MediaPlayer->SupportsRate(GetFasterReverseRate(), Unthinned);
+}
+
+bool FCameraCalibrationStepsController::DoesMediaSupportNextForwardRate() const
+{
+	constexpr bool Unthinned = false;
+	return MediaPlayer->SupportsRate(GetFasterForwardRate(), Unthinned);
+}
+
+float FCameraCalibrationStepsController::GetFasterReverseRate() const
+{
+	// Get the current playback rate of the media player
+	float Rate = MediaPlayer->GetRate();
+
+	// Reverse the playback direction (if needed) to ensure the rate is going in reverse
+	if (Rate > -1.0f)
+	{
+		return -1.0f;
+	}
+
+	// Double the reverse playback rate
+	return 2.0f * Rate;
+}
+
+float FCameraCalibrationStepsController::GetFasterForwardRate() const
+{
+	// Get the current playback rate of the media player
+	float Rate = MediaPlayer->GetRate();
+
+	// Reverse the playback direction (if needed) to ensure the rate is going forward
+	if (Rate < 1.0f)
+	{
+		Rate = 1.0f;
+	}
+
+	// Double the forward playback rate
+	return 2.0f * Rate;
+}
+
+void FCameraCalibrationStepsController::ToggleShowMediaPlaybackControls()
+{
+	bShowMediaPlaybackButtons = !bShowMediaPlaybackButtons;
+}
+
+bool FCameraCalibrationStepsController::AreMediaPlaybackControlsVisible() const
+{
+	return bShowMediaPlaybackButtons;
 }
 
 ULiveLinkCameraController* FCameraCalibrationStepsController::FindLiveLinkCameraController() const

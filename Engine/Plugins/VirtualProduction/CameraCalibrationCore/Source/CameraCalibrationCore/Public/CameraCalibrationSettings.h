@@ -232,6 +232,19 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Settings")
 	ELensDisplayUnit DefaultDisplayUnit = ELensDisplayUnit::Millimeters;
 
+	/**
+	 * If true, the media player in the calibration tools will always use the default step rate. 
+	 * Otherwise, it will try to use the frame rate of the media to step by exactly one frame. 
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	bool bForceDefaultMediaStepRate = false;
+
+	/**
+	 * The default step rate (ms) that the media player in the calibration tools should use when stepping forward/back
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	float DefaultMediaStepRateInMilliseconds = 100.0f;
+
 private:
 
 	/** 
