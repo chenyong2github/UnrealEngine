@@ -95,7 +95,10 @@
 				{	"target": "BitShift", "skip": true, "comment": "//TODO need attributes" },
 				{	"target": "Cast",     "skip": true, "comment": "//TODO need attributes" },
 				{	"target": "Ceil" },
-				{	"target": "Clip", "additional_datasets": [ "Elementwise.ClipTestWithExtraInput" ], "skip": true, "comment": "//Support bool tensor in parametric tests" },
+				{	"target": "Clip", "additional_datasets": [ "Elementwise.ClipTestWithExtraInput" ], "runtimes": [
+						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need scalar tensor support"},
+						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need scalar tensor support"}						
+					]},
 				{	"target": "Cos" },
 				{	"target": "Cosh" },
 				{	"target": "Elu", "comment": "//TODO test with not-default attribute", "runtimes": [
@@ -121,7 +124,10 @@
 						{ "name": "NNXRuntimeHlsl",   "relative_error": 0.15}
 					]},
 				{	"target": "Neg" },
-				{	"target": "Not", "skip": true, "comment": "//Support bool tensor in parametric tests" },
+				{	"target": "Not", "input_type": "boolean", "output_type": "boolean", "runtimes": [
+						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
+						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need bool tensor support"}						
+					]},
 				{	"target": "Reciprocal" },
 				{	"target": "Relu" },
 				{	"target": "Round" },
@@ -177,8 +183,8 @@
 		{
 			"name": "Elementwise.ClipTestWithExtraInput",
 			"datasets": [
-				{ "inputs": [ { "shape": [1], "comment": "min" } ] },
-				{ "inputs": [ { "shape": [1], "comment": "min" }, { "shape": [1], "comment": "max" } ] }
+				{ "inputs": [ { "shape": [1], "comment": "input" }, { "shape": [1], "comment": "min" } ] },
+				{ "inputs": [ { "shape": [1], "comment": "input" }, { "shape": [1], "comment": "min" }, { "shape": [1], "comment": "max" } ] }
 			]
 		},
 		{

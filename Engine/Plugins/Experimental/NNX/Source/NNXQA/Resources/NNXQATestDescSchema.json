@@ -32,6 +32,10 @@
 				"shape": {
 					"type": "array",
 					"items": { "type": "number" }
+			    },
+				"data_type": {
+					"type": "string",
+					"enum": [ "float", "int32", "uint32", "boolean" ]
 				},
 				"comment": {
 					"type": "string",
@@ -131,6 +135,14 @@
 					"minimum": 0,
 					"maximum": 100,
 					"description": "max relative error in percent, 0 to keep engine default (1e-4 in %)"
+				},
+				"input_type": {
+					"type": "string",
+					"enum": [ "float", "int32", "uint32", "boolean" ]
+				},
+				"output_type": {
+					"type": "string",
+					"enum": [ "float", "int32", "uint32", "boolean" ]
 				},
 				"runtimes": {
 					"type": "array",

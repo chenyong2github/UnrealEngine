@@ -17,6 +17,7 @@ namespace Json
 	struct FTestConfigTensor : FJsonSerializable
 	{
 		TArray<int32> Shape;
+		FString Type;
 		//TODO Extend:
 		// by adding custom data
 		// by adding custom initializer or parameter (range, distribution)
@@ -25,7 +26,7 @@ namespace Json
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE_ARRAY("shape", Shape);
-			//JSON_SERIALIZE("type", Type);
+			JSON_SERIALIZE("data_type", Type);
 			//JSON_SERIALIZE("on_gpu", OnGpu);
 			//JSON_SERIALIZE("range", ...);
 			//JSON_SERIALIZE("data_source", DataSource);
@@ -68,6 +69,8 @@ namespace Json
 		bool Skip;
 		float AbsoluteError;
 		float RelativeError;
+		FString InputType;
+		FString OutputType;
 		TArray<FTestConfigRuntime> Runtimes;
 
 		BEGIN_JSON_SERIALIZER
@@ -75,6 +78,8 @@ namespace Json
 			JSON_SERIALIZE("skip", Skip);
 			JSON_SERIALIZE("absolute_error", AbsoluteError);
 			JSON_SERIALIZE("relative_error", RelativeError);
+			JSON_SERIALIZE("input_type", InputType);
+			JSON_SERIALIZE("output_type", OutputType);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);
 			JSON_SERIALIZE_ARRAY("tags", Tags);
 			JSON_SERIALIZE_ARRAY("additional_datasets", AdditionalDatasets);
