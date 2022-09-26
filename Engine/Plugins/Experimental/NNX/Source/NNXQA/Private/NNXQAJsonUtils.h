@@ -66,6 +66,7 @@ namespace Json
 		FString Target;
 		TArray<FString> Tags;
 		TArray<FString> AdditionalDatasets;
+		TArray<FString> RemovedDatasets;
 		bool Skip;
 		float AbsoluteError;
 		float RelativeError;
@@ -83,6 +84,7 @@ namespace Json
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);
 			JSON_SERIALIZE_ARRAY("tags", Tags);
 			JSON_SERIALIZE_ARRAY("additional_datasets", AdditionalDatasets);
+			JSON_SERIALIZE_ARRAY("removed_datasets", RemovedDatasets);
 		END_JSON_SERIALIZER
 	};
 
@@ -90,6 +92,7 @@ namespace Json
 	{
 		FString Category;
 		TArray<FTestConfigTarget> Targets;
+		TArray<FTestConfigRuntime> Runtimes;
 		bool Skip;
 		bool IsModelTest;
 
@@ -98,6 +101,7 @@ namespace Json
 			JSON_SERIALIZE("skip", Skip);
 			JSON_SERIALIZE("is_model_test", IsModelTest);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("targets", Targets, FTestConfigTarget);
+			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);
 		END_JSON_SERIALIZER
 	};
 

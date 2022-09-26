@@ -121,6 +121,11 @@
 					"description": "additional dataset associated with this target, by default all dataset witch name are a super set of this category name will be runned, you can specify more dataset using this parameter",
 					"items": { "type": "string" }
 				},
+				"removed_datasets": {
+					"type": "array",
+					"description": "dataset that will be explicitely not run with this target, by default all dataset witch name are a super set of this category name will be runned, you can specify more dataset using this parameter",
+					"items": { "type": "string" }
+				},
 				"skip": {
 					"type": "boolean",
 					"description": "true to skip this operator or model test entirely, false by default"
@@ -177,6 +182,11 @@
 				"is_model_test": {
 					"type": "boolean",
 					"description": "true if the category contain model tests, false for operators tests"
+				},
+				"runtimes": {
+					"type": "array",
+					"description": "Array of operator to test",
+					"items": { "$ref": "#/$defs/test_config_runtime" }
 				},
 				"comment": {
 					"type": "string",

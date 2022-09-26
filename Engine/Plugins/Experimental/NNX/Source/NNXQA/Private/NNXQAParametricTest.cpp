@@ -216,7 +216,7 @@ namespace Test
 
 					const FString& TestBaseName = TestTarget.Target;
 					EMLTensorDataType InputTypeFromTarget = GetTensorTypeFromJson(TestTarget.InputType, EMLTensorDataType::Float);
-					EMLTensorDataType OutputTypeFromTarget = GetTensorTypeFromJson(TestTarget.InputType, EMLTensorDataType::Float);
+					EMLTensorDataType OutputTypeFromTarget = GetTensorTypeFromJson(TestTarget.OutputType, EMLTensorDataType::Float);
 					bool bAtLeastATestWasAdded = false;
 					
 					for (const Json::FTestConfigInputOutputSet& InputOutputSet : InputOutputSets)
@@ -224,6 +224,11 @@ namespace Test
 						//If category is a substring of InputOutputSet name or if target explicitly requested the InputOutputSet name
 						if (InputOutputSet.Name.Contains(TestCategory.Category) || TestTarget.AdditionalDatasets.Contains(InputOutputSet.Name))
 						{
+							if (TestTarget.RemovedDatasets.Contains(InputOutputSet.Name))
+							{
+								continue;
+							}
+							
 							for (const Json::FTestConfigDataset& Dataset : InputOutputSet.Datasets)
 							{
 								if (Dataset.Inputs.Num() == 0)
@@ -233,6 +238,7 @@ namespace Test
 
 								FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset));
 								
+								ApplyRuntimesConfig(Test, TestCategory.Runtimes);
 								ApplyTargetConfig(Test, TestTarget);
 								ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
 								Test.IsModelTest = bIsModelCategory;
@@ -246,6 +252,7 @@ namespace Test
 					{
 						FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(""));
 						
+						ApplyRuntimesConfig(Test, TestCategory.Runtimes);
 						ApplyTargetConfig(Test, TestTarget);
 						Test.IsModelTest = bIsModelCategory;
 					}
