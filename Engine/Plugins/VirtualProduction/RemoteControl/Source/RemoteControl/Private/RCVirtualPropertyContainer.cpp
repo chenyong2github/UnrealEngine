@@ -13,12 +13,24 @@
 
 #define LOCTEXT_NAMESPACE "URCVirtualPropertyInContainer"
 
+void URCVirtualPropertyContainerBase::AddVirtualProperty(URCVirtualPropertyBase* InVirtualProperty)
+{
+	if(ensure(InVirtualProperty))
+	{
+		// Add property to Set
+		VirtualProperties.Add(InVirtualProperty);
+
+		// Initialize
+		InVirtualProperty->Init();
+	}
+}
+
 URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
 {
 	const FName PropertyName = GenerateUniquePropertyName(InPropertyName, InValueType, InValueTypeObject, this);
 	Bag.AddProperty(PropertyName, InValueType, InValueTypeObject);
 
-	// Ensure that the property has been succcefully added to the Bag
+	// Ensure that the property has been successfully added to the Bag
 	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(PropertyName);
 	if (!ensure(BagPropertyDesc))
 	{
@@ -31,9 +43,8 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(cons
 	VirtualPropertyInContainer->PresetWeakPtr = PresetWeakPtr;
 	VirtualPropertyInContainer->ContainerWeakPtr = this;
 	VirtualPropertyInContainer->Id = FGuid::NewGuid();
-	
-	// Add property to Set
-	VirtualProperties.Add(VirtualPropertyInContainer);
+
+	AddVirtualProperty(VirtualPropertyInContainer);
 
 	return VirtualPropertyInContainer;
 }
@@ -55,8 +66,7 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicatePropert
 	VirtualPropertyInContainer->ContainerWeakPtr = this;
 	VirtualPropertyInContainer->Id = FGuid::NewGuid();
 
-	// Add property to Set
-	VirtualProperties.Add(VirtualPropertyInContainer);
+	AddVirtualProperty(VirtualPropertyInContainer);
 
 	return VirtualPropertyInContainer;
 }
@@ -99,7 +109,7 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicateVirtual
 		}
 
 		// Sync Virtual Properties List
-		VirtualProperties.Add(NewVirtualProperty);
+		AddVirtualProperty(NewVirtualProperty);
 
 		return NewVirtualProperty;
 	}

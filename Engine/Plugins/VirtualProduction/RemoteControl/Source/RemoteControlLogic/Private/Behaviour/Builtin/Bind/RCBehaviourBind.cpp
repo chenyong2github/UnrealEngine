@@ -13,6 +13,8 @@
 
 URCBehaviourBind::URCBehaviourBind()
 {
+	// For Bind Behaviour we want the users to be able to scrub UI widgets like float slides and watch the Exposed Property (and their level rendering like Location, Light intenstiy, etc) update in realtime
+	bExecuteBehavioursDuringPreChange = true;
 }
 
 void URCBehaviourBind::Initialize()

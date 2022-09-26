@@ -2,11 +2,17 @@
 
 #include "Action/Bind/RCPropertyBindAction.h"
 
+#include "Action/RCAction.h"
+#include "Components/SceneComponent.h"
 #include "Controller/RCController.h"
 #include "IRemoteControlPropertyHandle.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlPreset.h"
-#include "Action/RCAction.h"
+
+#if WITH_EDITOR
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
+#endif
 
 static void SetStructPropertyFromController(const FProperty* RemoteControlProperty, TSharedRef<IRemoteControlPropertyHandle> RemoteControlHandle, const URCController* Controller)
 {
@@ -193,5 +199,23 @@ void URCPropertyBindAction::Execute() const
 		{
 			SetStructPropertyFromController(RemoteControlProperty, Handle.ToSharedRef(), Controller);
 		}
+
+		// Editor specific updates
+	#if WITH_EDITOR
+		for (UObject* Object : RemoteControlEntityAsProperty->GetBoundObjects())
+		{
+			// For Bind behaviour we want to refresh the pivot widget if we have just manipulated a Location vector via Controller
+			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+			{
+				if (AActor* Actor = SceneComponent->GetOwner())
+				{
+					if (Actor->IsSelectedInEditor())
+					{
+						GUnrealEd->UpdatePivotLocationForSelection();
+					}
+				}
+			}
+		}
+	#endif
 	}
 }

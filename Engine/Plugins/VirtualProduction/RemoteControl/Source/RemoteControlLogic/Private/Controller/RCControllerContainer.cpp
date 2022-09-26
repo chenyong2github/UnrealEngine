@@ -4,20 +4,36 @@
 #include "Controller/RCController.h"
 
 #if WITH_EDITOR
-void URCControllerContainer::OnModifyPropertyValue(const FPropertyChangedEvent& Event)
+
+URCController* URCControllerContainer::GetControllerFromChangeEvent(const FPropertyChangedEvent& Event)
 {
 	if (const FProperty* FinalProperty = (Event.Property == Event.MemberProperty) ? Event.Property : Event.MemberProperty)
 	{
-		for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
-		{
-			if (VirtualProperty && VirtualProperty->PropertyName == FinalProperty->GetFName())
-			{
-				if (URCController* Controller = Cast<URCController>(VirtualProperty))
-				{
-					Controller->OnModifyPropertyValue();
-				}
-			}
-		}
+		const FName PropertyName = FinalProperty->GetFName();
+
+		URCVirtualPropertyBase* VirtualProperty = GetVirtualProperty(PropertyName);
+
+		return Cast<URCController>(VirtualProperty);
+	}
+
+	return nullptr;
+}
+
+void URCControllerContainer::OnPreChangePropertyValue(const FPropertyChangedEvent& Event)
+{
+	if (URCController* Controller = GetControllerFromChangeEvent(Event))
+	{
+		Controller->OnPreChangePropertyValue();
+	}
+
+	Super::OnPreChangePropertyValue(Event);
+}
+
+void URCControllerContainer::OnModifyPropertyValue(const FPropertyChangedEvent& Event)
+{
+	if (URCController* Controller = GetControllerFromChangeEvent(Event))
+	{
+		Controller->OnModifyPropertyValue();
 	}
 
 	Super::OnModifyPropertyValue(Event);

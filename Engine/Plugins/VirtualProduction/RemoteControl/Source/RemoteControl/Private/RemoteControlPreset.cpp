@@ -622,6 +622,15 @@ void URemoteControlPreset::SetControllerContainer(URCVirtualPropertyContainerBas
 }
 
 #if WITH_EDITOR
+
+void URemoteControlPreset::OnNotifyPreChangeVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (ensure(ControllerContainer))
+	{
+		ControllerContainer->OnPreChangePropertyValue(PropertyChangedEvent);
+	}
+}
+
 void URemoteControlPreset::OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (ensure(ControllerContainer))

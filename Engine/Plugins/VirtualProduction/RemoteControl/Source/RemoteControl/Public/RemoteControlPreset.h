@@ -658,6 +658,10 @@ public:
 	}
 
 #if WITH_EDITOR
+	/** Called when a virtual property's value is being scrubbed by the user in the UI.
+	* This call is routed to the Controller for evaluating associated Logic & Behaviours*/
+	void OnNotifyPreChangeVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent);
+
 	/** Called when a virtual property is modified. This call is routed to the Controller for evaluating associated Logic & Behaviours*/
 	void OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif

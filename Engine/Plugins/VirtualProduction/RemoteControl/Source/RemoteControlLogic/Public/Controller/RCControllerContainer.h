@@ -6,6 +6,7 @@
 #include "RCControllerContainer.generated.h"
 
 class URCActionContainer;
+class URCController;
 
 /**
  * Controller Container which holds all virtual controller properties 
@@ -17,6 +18,12 @@ class REMOTECONTROLLOGIC_API URCControllerContainer : public URCVirtualPropertyC
 	
 private:
 #if WITH_EDITOR
+	/** Fetches the Controller underlying a given a Property Changed Event*/
+	URCController* GetControllerFromChangeEvent(const FPropertyChangedEvent& Event);
+
+	/** Delegate when the value is being scrubbed in UI*/
+	virtual void OnPreChangePropertyValue(const FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	/** Delegate when object changed */
 	virtual void OnModifyPropertyValue(const FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

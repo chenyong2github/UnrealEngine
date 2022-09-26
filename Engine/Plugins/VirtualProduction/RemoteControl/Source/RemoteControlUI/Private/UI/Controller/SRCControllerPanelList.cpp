@@ -324,6 +324,7 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 
 	FPropertyRowGeneratorArgs Args;
 	Args.bShouldShowHiddenProperties = true;
+	Args.NotifyHook = this;
 	PropertyRowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
 	
 	Reset();
@@ -431,14 +432,19 @@ void SRCControllerPanelList::OnControllerAdded(const FName& InNewPropertyName)
 	Reset();
 }
 
+void SRCControllerPanelList::OnNotifyPreChangeProperties(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		Preset->OnNotifyPreChangeVirtualProperty(PropertyChangedEvent);
+	}
+}
+
 void SRCControllerPanelList::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (TSharedPtr< SRCControllerPanel> ControllerPanel = ControllerPanelWeakPtr.Pin())
+	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		if (URemoteControlPreset* Preset = ControllerPanel->GetPreset())
-		{
-			Preset->OnModifyVirtualProperty(PropertyChangedEvent);
-		}
+		Preset->OnModifyVirtualProperty(PropertyChangedEvent);
 	}
 }
 
@@ -534,6 +540,19 @@ bool SRCControllerPanelList::IsListFocused() const
 void SRCControllerPanelList::DeleteSelectedPanelItem()
 {
 	DeleteItemFromLogicPanel<FRCControllerModel>(ControllerItems, ListView->GetSelectedItems());
+}
+
+void SRCControllerPanelList::NotifyPreChange(FEditPropertyChain* PropertyAboutToChange)
+{
+	// If a Vector is modified and the Z value changes, the sub property (corresponding to Z) gets notified to us.
+	// However for Controllers we are actually interested in the parent Struct property (corresponding to the Vector) as the Virtual Property is associated with Struct's FProperty (rather than its X/Y/Z components)
+	// For this reason the "Active Member Node" is extracted below from the child property
+	if (FEditPropertyChain::TDoubleLinkedListNode* ActiveMemberNode = PropertyAboutToChange->GetActiveMemberNode())
+	{
+		FPropertyChangedEvent PropertyChangedEvent(ActiveMemberNode->GetValue());
+
+		OnNotifyPreChangeProperties(PropertyChangedEvent);
+	}
 }
 
 void SRCControllerPanelList::EnterRenameMode()

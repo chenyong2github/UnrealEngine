@@ -120,6 +120,9 @@ public:
 	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI. */
 	virtual void PostEditUndo();
 
+	/** Delegate when the value is being scrubbed in UI*/
+	virtual void OnPreChangePropertyValue(const FPropertyChangedEvent& PropertyChangedEvent) {}
+
 	/** Delegate when object changed */
 	virtual void OnModifyPropertyValue(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif
@@ -127,6 +130,9 @@ public:
 	/** Returns the delegate that notifies changes to the virtual property container */
 	DECLARE_MULTICAST_DELEGATE(FOnVirtualPropertyContainerModified);
 	FOnVirtualPropertyContainerModified& OnVirtualPropertyContainerModified() { return OnVirtualPropertyContainerModifiedDelegate; }
+
+private:
+	void AddVirtualProperty(URCVirtualPropertyBase* InVirtualProperty);
 
 protected:
 	/** Holds bag of properties. */

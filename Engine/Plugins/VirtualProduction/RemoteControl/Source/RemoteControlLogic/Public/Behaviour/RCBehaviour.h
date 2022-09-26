@@ -120,4 +120,9 @@ public:
 	* If disabled, it will be not evaluated when the associated Controller changes */
 	UPROPERTY()
 	bool bIsEnabled = true;
+
+	/** Indicates whether we want a behavour to trigger during live scrubbing of values.
+	* For example, for a light intensity value controlled via Bind behavour we want the bound properties to update live even while the float widget is being scrubbed by the user. */
+	UPROPERTY()
+	bool bExecuteBehavioursDuringPreChange = false;
 };

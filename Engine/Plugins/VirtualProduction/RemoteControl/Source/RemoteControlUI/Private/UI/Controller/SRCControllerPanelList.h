@@ -2,12 +2,14 @@
 
 #pragma once
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Misc/NotifyHook.h"
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "Widgets/Layout/SBorder.h"
 
 class FDragDropOperation;
 struct FRCPanelStyle;
+class FEditPropertyChain;
 class FRCControllerModel;
 class FRCLogicModeBase;
 class IPropertyRowGenerator;
@@ -58,7 +60,7 @@ private:
 * UI Widget for Controllers List
 * Used as part of the RC Logic Actions Panel.
 */
-class REMOTECONTROLUI_API SRCControllerPanelList : public SRCLogicPanelListBase
+class REMOTECONTROLUI_API SRCControllerPanelList : public SRCLogicPanelListBase, public FNotifyHook
 {
 public:
 	SLATE_BEGIN_ARGS(SRCControllerPanelList)
@@ -90,6 +92,10 @@ public:
 	{
 		return GetSelectedControllerItem();
 	}
+
+	/** FNotifyHook Interface Begin */
+	virtual void NotifyPreChange(FEditPropertyChain* PropertyAboutToChange) override;
+	/** FNotifyHook Interface End */
 
 	void EnterRenameMode();
 
@@ -158,6 +164,11 @@ private:
 	void OnEmptyControllers();
 
 	void OnControllerContainerModified();
+
+	/** Pre Change listener for Controllers, propagated via FNotifyHook associated with PropertyRowGenerator
+	* Invoked while the user is scrubbing float or Vector sliders in the UI
+	*/
+	void OnNotifyPreChangeProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	/** Change listener for Controllers. Bound to the PropertyRowGenerator's delegate
 	* This is propagated to the corresponding Controller model (Virtual Property) for evaluating all associated Behaviours.

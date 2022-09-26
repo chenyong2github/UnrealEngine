@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// CCopyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,6 +19,12 @@ class REMOTECONTROLLOGIC_API URCController : public URCVirtualPropertyInContaine
 	GENERATED_BODY()
 
 public:
+	/** Initialization routine. Called after the parent container has setup data for this property */
+	virtual void Init();
+
+	/** Called post serialization. Used to reinitialize Controller metadata after a Remote Control Preset asset is loaded*/
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI Used to broadcast Undo related container changes to UI */
 	virtual void PostEditUndo();
@@ -40,13 +46,13 @@ public:
 	virtual void EmptyBehaviours();
 
 	/** Execute all behaviours for this controller. */
-	virtual void ExecuteBehaviours();
+	virtual void ExecuteBehaviours(const bool bIsPreChange = false);
+
+	/** Pre-change notification for Controllers. Triggered while the user is scrubbing a float or vector slider in the UI*/
+	virtual void OnPreChangePropertyValue() override;
 
 	/** Handles modifications to controller value; evaluates all behaviours */
-	virtual void OnModifyPropertyValue() override
-	{
-		ExecuteBehaviours();
-	}
+	virtual void OnModifyPropertyValue() override;
 
 	/** Duplicates an existing behaviour and adds it to the behaviour set of a given Controller */
 	static URCBehaviour* DuplicateBehaviour(URCController* InController, URCBehaviour* InBehaviour);
@@ -58,4 +64,9 @@ public:
 	/** Set of the behaviours */
 	UPROPERTY()
 	TSet<TObjectPtr<URCBehaviour>> Behaviours;
+
+	/** Slider exponent for Vector Controllers. Determines how fast the value change travels while scrubbing the X/Y/Z sliders in UI
+	* The default value approximates the behaviour of SceneComponent Location Vectors (see SNumericVectorInputBox in ComponentTransformDetails.cpp) */
+	UPROPERTY()
+	float SliderExponent = 0.4f;
 };

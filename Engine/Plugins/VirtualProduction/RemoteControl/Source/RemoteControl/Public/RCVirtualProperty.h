@@ -44,9 +44,16 @@ protected:
 	/** Pointer to Instanced property which is holds  bag of properties */
 	virtual const FInstancedPropertyBag* GetPropertyBagInstance() const;
 
+	/** Notifies pre change for Virtual Property value*/
+	virtual void OnPreChangePropertyValue() {}
+
+	/** Notifies post change for Virtual Property value*/
 	virtual void OnModifyPropertyValue() {}
 
 public:
+	/** Initialization routine. Called after the parent container has setup data for this property */
+	virtual void Init() {}
+
 	/** Returns const FProperty for this RC virtual property */
 	virtual const FProperty* GetProperty() const;
 
