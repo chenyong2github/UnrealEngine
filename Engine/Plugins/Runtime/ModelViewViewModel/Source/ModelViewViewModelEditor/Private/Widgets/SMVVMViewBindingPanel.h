@@ -18,6 +18,8 @@ class SBorder;
 class UBlueprintExtension;
 class UMVVMWidgetBlueprintExtension_View;
 
+enum class ECheckBoxState : uint8;
+
 namespace UE::MVVM
 {
 class SBindingsList;
@@ -59,6 +61,9 @@ private:
 	FReply HandleCreateViewModelClicked();
 
 	EVisibility GetVisibility(bool bVisibleWithBindings) const;
+
+	ECheckBoxState GetDetailsVisibleCheckState() const;
+	void ToggleDetailsVisibility();
 
 private:
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;
