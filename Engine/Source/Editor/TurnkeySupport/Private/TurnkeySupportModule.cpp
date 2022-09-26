@@ -2156,6 +2156,11 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 
 		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, ExitCode, TurnkeyProcess, OnExitHandle]()
 		{
+			if (IsEngineExitRequested())
+			{
+				return;
+			}
+
 			FScopeLock Lock(&GTurnkeySection);
 
 			if (ExitCode == 0 || ExitCode == 10)
