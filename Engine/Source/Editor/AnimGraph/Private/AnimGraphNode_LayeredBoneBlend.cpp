@@ -211,4 +211,20 @@ void UAnimGraphNode_LayeredBoneBlend::Serialize(FArchive& Ar)
 	}
 }
 
+void UAnimGraphNode_LayeredBoneBlend::PostLoad()
+{
+	Super::PostLoad();
+
+	// Post-load our blend masks, in case they've been pre-loaded, but haven't had their bone references initialized yet.
+	if (Node.BlendMode == ELayeredBoneBlendMode::BlendMask)
+	{
+		int32 NumBlendMasks = Node.BlendMasks.Num();
+		for (int32 MaskIndex = 0; MaskIndex < NumBlendMasks; ++MaskIndex)
+		{
+			UBlendProfile* BlendMask = Node.BlendMasks[MaskIndex];
+			BlendMask->ConditionalPostLoad();
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
