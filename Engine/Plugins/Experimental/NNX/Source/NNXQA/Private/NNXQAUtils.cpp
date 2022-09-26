@@ -417,6 +417,12 @@ namespace Test
 				continue;
 			}
 
+			if (RuntimeName == "NNXRuntimeORTCuda")
+			{
+				//TODO Reactivate tests for NNXRuntimeORTCuda runtime. Skipped for now as we wait for legal approval for the dlls.
+				continue;
+			}
+
 			FString TestResult;
 
 			if (AutomationTestSetup != nullptr && (

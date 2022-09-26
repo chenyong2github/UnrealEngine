@@ -370,7 +370,7 @@ bool FMLInferenceModelORTCuda::InitializedAndConfigureMembers()
 	OrtStatusPtr Status = OrtSessionOptionsAppendExecutionProvider_CUDA(*SessionOptions.Get(), ORTConfiguration.DeviceId);
 	if (Status)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to initialize session options for ORT CUDA EP"));
+		UE_LOG(LogNNX, Warning, TEXT("Failed to initialize session options for ORT CUDA EP: %s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
 		return false;
 	}
 
@@ -449,7 +449,7 @@ bool FMLInferenceModelORTDml::InitializedAndConfigureMembers()
 	OrtStatusPtr Status = OrtSessionOptionsAppendExecutionProviderEx_DML(*SessionOptions.Get(), DmlDevice, CmdQ);
 	if (Status)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to initialize session options for ORT Dml EP"));
+		UE_LOG(LogNNX, Warning, TEXT("Failed to initialize session options for ORT Dml EP: %s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
 		return false;
 	}
 
