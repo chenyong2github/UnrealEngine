@@ -45,7 +45,7 @@ class UVEDITORTOOLS_API UUVEditorChannelEditSettings : public UInteractiveToolPr
 	GENERATED_BODY()
 public:
 	/** UV Layer Edit action to preform */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (InvalidEnumValues = "NoAction"))
 	EChannelEditToolAction Action = EChannelEditToolAction::Add;
 };
 
