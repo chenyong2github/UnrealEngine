@@ -2,6 +2,7 @@
 
 #include "MVR/DMXMVRSceneActor.h"
 
+#include "DMXMVRFixtureActorInterface.h"
 #include "DMXRuntimeLog.h"
 #include "Game/DMXComponent.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -9,7 +10,6 @@
 #include "Library/DMXLibrary.h"
 #include "MVR/DMXMVRFixtureActorLibrary.h"
 #include "MVR/DMXMVRAssetUserData.h"
-#include "MVR/DMXMVRFixtureActorInterface.h"
 #include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "DatasmithAssetUserData.h"
@@ -386,7 +386,7 @@ AActor* ADMXMVRSceneActor::ReplaceMVRActor(AActor* ActorToReplace, const TSubcla
 		UDMXEntityFixturePatch* FixturePatch = nullptr;
 		if (IDMXMVRFixtureActorInterface* MVRFixtureActorInterface = Cast<IDMXMVRFixtureActorInterface>(ActorToReplace))
 		{
-			FixturePatch = MVRFixtureActorInterface->Execute_OnMVRGetFixturePatch(ActorToReplace);
+			FixturePatch = GetFixturePatch(ActorToReplace);
 		}
 		
 		if (!FixturePatch)
@@ -424,18 +424,15 @@ AActor* ADMXMVRSceneActor::ReplaceMVRActor(AActor* ActorToReplace, const TSubcla
 
 UDMXEntityFixturePatch* ADMXMVRSceneActor::GetFixturePatch(AActor* Actor) const
 {
-	UDMXEntityFixturePatch* FixturePatch = nullptr;
-	if (IDMXMVRFixtureActorInterface* MVRFixtureActorInterface = Cast<IDMXMVRFixtureActorInterface>(Actor))
+	TArray<UDMXComponent*> DMXComponents;
+	Actor->GetComponents<UDMXComponent>(DMXComponents);
+	if (!ensureAlwaysMsgf(!DMXComponents.IsEmpty(), TEXT("'%s' implements the DMXMVRFixtureActorInterface, but has no DMX component. The DMX Component is needed to patch and identify the fixture in the MVR Scene."), *Actor->GetName()))
 	{
-		FixturePatch = MVRFixtureActorInterface->Execute_OnMVRGetFixturePatch(Actor);
+		return nullptr;
 	}
-	if (!FixturePatch)
-	{
-		if (UActorComponent* Component = Actor->GetComponentByClass(UDMXComponent::StaticClass()))
-		{
-			FixturePatch = CastChecked<UDMXComponent>(Component)->GetFixturePatch();
-		}
-	}
+	ensureAlwaysMsgf(DMXComponents.Num() == 1, TEXT("'%s' implements the DMXMVRFixtureActorInterface, but has more than one DMX component. A single DMX component is required to clearly identify the fixture by MVR UUID in the MVR Scene."), *Actor->GetName());
+	
+	UDMXEntityFixturePatch* FixturePatch = DMXComponents[0]->GetFixturePatch();
 
 	return FixturePatch;
 }
@@ -447,14 +444,13 @@ void ADMXMVRSceneActor::SetFixturePatch(AActor* Actor, UDMXEntityFixturePatch* F
 		return;
 	}
 
-	// Set the patch either via the interface or via a present DMX Component.
-	// Prefer the interface way as it may further customize how the patch is set.
-	if (IDMXMVRFixtureActorInterface* MVRFixtureActorInterface = Cast<IDMXMVRFixtureActorInterface>(Actor))
+	TArray<UDMXComponent*> DMXComponents;
+	Actor->GetComponents<UDMXComponent>(DMXComponents);
+	if (!ensureAlwaysMsgf(!DMXComponents.IsEmpty(), TEXT("'%s' implements the DMXMVRFixtureActorInterface, but has no DMX component. The DMX Component is needed to patch and identify the fixture in the MVR Scene."), *Actor->GetName()))
 	{
-		MVRFixtureActorInterface->Execute_OnMVRSetFixturePatch(Actor, FixturePatch);
+		return;
 	}
-	else if (UActorComponent* Component = Actor->GetComponentByClass(UDMXComponent::StaticClass()))
-	{
-		CastChecked<UDMXComponent>(Component)->SetFixturePatch(FixturePatch);
-	}
+	ensureAlwaysMsgf(DMXComponents.Num() == 1, TEXT("'%s' implements the DMXMVRFixtureActorInterface, but has more than one DMX component. A single DMX component is required to clearly identify the fixture by MVR UUID in the MVR Scene."), *Actor->GetName());
+
+	DMXComponents[0]->SetFixturePatch(FixturePatch);
 }

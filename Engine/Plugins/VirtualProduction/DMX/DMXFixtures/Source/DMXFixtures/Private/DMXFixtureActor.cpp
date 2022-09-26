@@ -50,7 +50,6 @@ ADMXFixtureActor::ADMXFixtureActor()
 	HasBeenInitialized = false;
 }
 
-
 void ADMXFixtureActor::PostLoad()
 {
 	Super::PostLoad();
@@ -62,8 +61,6 @@ void ADMXFixtureActor::PostLoad()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-
-
 void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const
 {
 	for (UDMXFixtureComponent* DMXFixtureComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
@@ -73,18 +70,6 @@ void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FNam
 
 		OutAttributeNames.Append(SupportedAttributeNamesOfComponent);
 	}
-}
-
-void ADMXFixtureActor::OnMVRSetFixturePatch_Implementation(UDMXEntityFixturePatch* FixturePatch)
-{
-	check(DMX);
-	DMX->SetFixturePatch(FixturePatch);
-}
-
-UDMXEntityFixturePatch* ADMXFixtureActor::OnMVRGetFixturePatch_Implementation() const
-{
-	check(DMX);
-	return DMX->GetFixturePatch();
 }
 
 #if WITH_EDITOR

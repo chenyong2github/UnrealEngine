@@ -25,6 +25,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DMXModularFeatures",
+			"Enabled": true
+		},
+		{
 			"Name": "DMXProtocol",
 			"Enabled": true
 		},

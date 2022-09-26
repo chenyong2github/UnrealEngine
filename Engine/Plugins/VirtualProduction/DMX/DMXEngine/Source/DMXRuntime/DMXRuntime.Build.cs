@@ -24,6 +24,7 @@ public class DMXRuntime : ModuleRules
 			new string[]
 			{
 				"AssetRegistry",
+				"DMXFixtureActorInterface",
 				"Json",
 				"MovieScene",
 				"Projects",

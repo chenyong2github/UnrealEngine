@@ -11,6 +11,7 @@ public class DMXFixtures : ModuleRules
        PublicDependencyModuleNames.AddRange(new string[] { 
 		   "Core",
 		   "CoreUObject",
+			"DMXFixtureActorInterface",
 		   "DMXRuntime", 
 		   "DMXProtocol",
 		   "Engine",
