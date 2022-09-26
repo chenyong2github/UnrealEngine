@@ -46,7 +46,8 @@ protected:
 	{
 		Fail,
 		Success,
-		Cancelled
+		Cancelled,
+		Skipped
 	};
 
 	/* 
