@@ -2370,7 +2370,7 @@ FSharedBuffer FTextureSource::TryDecompressData() const
 			
 			UE_LOG(LogTexture, Display, TEXT("TryDecompressData failed: LayerSize = %lld PayloadSize = %lld"),LayerSize,PayloadSize);
 			UE_LOG(LogTexture, Display, TEXT("TryDecompressData failed: LoadedMainStreamObjectVersion = %d, TextureSourceVirtualization = %d, VolumetricCloudReflectionSampleCountDefaultUpdate = %d"),
-				Owner->LoadedMainStreamObjectVersion,
+				Owner ? Owner->LoadedMainStreamObjectVersion : 0,
 				FUE5MainStreamObjectVersion::TextureSourceVirtualization,
 				FUE5MainStreamObjectVersion::VolumetricCloudReflectionSampleCountDefaultUpdate);
 

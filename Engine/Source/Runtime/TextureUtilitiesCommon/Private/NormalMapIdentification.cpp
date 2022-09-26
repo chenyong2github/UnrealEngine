@@ -68,18 +68,19 @@ public:
 
 	~NormalMapSamplerBase()
 	{
-		if ( SourceTexture != NULL )
+		if ( SourceTextureData != NULL )
 		{
 			SourceTexture->Source.UnlockMip(0);
 		}
 	}
 
-	void SetSourceTexture( UTexture* Texture )
+	bool SetSourceTexture( UTexture* Texture )
 	{
 		SourceTexture = Texture;
 		TextureSizeX = Texture->Source.GetSizeX();
 		TextureSizeY = Texture->Source.GetSizeY();
 		SourceTextureData = Texture->Source.LockMipReadOnly(0);
+		return SourceTextureData != nullptr;
 	}
 
 	UTexture* SourceTexture;
@@ -285,7 +286,10 @@ public:
 		int32 NumTilesX = FMath::Min( TextureSizeX / SampleTileEdgeLength, MaxTilesPerAxis );
 		int32 NumTilesY = FMath::Min( TextureSizeY / SampleTileEdgeLength, MaxTilesPerAxis );
 
-		Sampler.SetSourceTexture( Texture );
+		if ( ! Sampler.SetSourceTexture( Texture ) )
+		{
+			return false;
+		}
 
 		if (( NumTilesX > 0 ) &&
 			( NumTilesY > 0 ))

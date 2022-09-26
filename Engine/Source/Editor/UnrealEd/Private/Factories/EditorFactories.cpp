@@ -2878,52 +2878,6 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, int64 Length, FFeedbackCo
 	// Use the magic bytes when possible to avoid calling inefficient code to check if the image is of the right format
 	EImageFormat ImageFormat = ImageWrapperModule.DetectImageFormat(Buffer, Length);
 
-	//
-	// JPEG
-	//
-	if (ImageFormat == EImageFormat::JPEG)
-	{
-		// unusual loader, retains jpeg
-		bool bRetainJpegFormat = false;
-		if (EnumHasAllFlags(Flags, EImageImportFlags::AllowReturnOfCompressedData))
-		{
-			// For now this option is opt in via the config files once there is no technical risk this will become the default path.
-			GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
-		}
-		if ( bRetainJpegFormat)
-		{
-			// does not decode jpeg, just to get width/height :
-			TSharedPtr<IImageWrapper> JpegImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
-			if (JpegImageWrapper.IsValid() && JpegImageWrapper->SetCompressed(Buffer, Length))
-			{
-				if (!IsImportResolutionValid(JpegImageWrapper->GetWidth(), JpegImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
-				{
-					return false;
-				}
-			
-				ERawImageFormat::Type RawFormat = JpegImageWrapper->GetClosestRawImageFormat();
-				check( RawFormat != ERawImageFormat::Invalid );
-				ETextureSourceFormat TextureFormat = FImageCoreUtils::ConvertToTextureSourceFormat(RawFormat);
-				bool bSRGB = JpegImageWrapper->GetSRGB();
-
-				OutImage.Init2DWithParams(
-					JpegImageWrapper->GetWidth(),
-					JpegImageWrapper->GetHeight(),
-					TextureFormat,
-					bSRGB
-				);
-
-				OutImage.RawData.Append(Buffer, Length);
-				OutImage.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
-
-				UE_LOG(LogEditorFactories,Display,TEXT("JPEG imported and retained as JPEG in uasset."));
-
-				return true;
-			}
-		}
-		// if not bRetainJpegFormat , jpeg will use generic loader
-	}
-
 	if ( ImageFormat != EImageFormat::Invalid )
 	{
 		// Generic ImageWrapper loader :
@@ -2936,6 +2890,50 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, int64 Length, FFeedbackCo
 				return false;
 			}
 		
+			// branch for JPEG, if retaining the jpeg compressed data
+			// this is inside the DecompressImage branch even though we don't use the LoadedImage at all
+			//	 just to ensure that the jpeg will decode successfully
+			if (ImageFormat == EImageFormat::JPEG)
+			{
+				// unusual loader, retains jpeg
+				bool bRetainJpegFormat = false;
+				if (EnumHasAllFlags(Flags, EImageImportFlags::AllowReturnOfCompressedData))
+				{
+					// For now this option is opt in via the config files once there is no technical risk this will become the default path.
+					GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
+				}
+				if ( bRetainJpegFormat)
+				{
+					// does not decode jpeg, just to get width/height :
+					TSharedPtr<IImageWrapper> JpegImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
+					if (JpegImageWrapper.IsValid() && JpegImageWrapper->SetCompressed(Buffer, Length))
+					{
+						check( JpegImageWrapper->GetWidth() == LoadedImage.SizeX );
+						check( JpegImageWrapper->GetHeight() == LoadedImage.SizeY );
+
+						ERawImageFormat::Type RawFormat = JpegImageWrapper->GetClosestRawImageFormat();
+						check( RawFormat != ERawImageFormat::Invalid );
+						ETextureSourceFormat TextureFormat = FImageCoreUtils::ConvertToTextureSourceFormat(RawFormat);
+						bool bSRGB = JpegImageWrapper->GetSRGB();
+
+						OutImage.Init2DWithParams(
+							JpegImageWrapper->GetWidth(),
+							JpegImageWrapper->GetHeight(),
+							TextureFormat,
+							bSRGB
+						);
+
+						OutImage.RawData.Append(Buffer, Length);
+						OutImage.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
+
+						UE_LOG(LogEditorFactories,Display,TEXT("JPEG imported and retained as JPEG in uasset."));
+
+						return true;
+					}
+				}
+				// if not bRetainJpegFormat , jpeg will continue with generic loader
+			}
+
 			if ( UE::TextureUtilitiesCommon::AutoDetectAndChangeGrayScale(LoadedImage) )
 			{
 				UE_LOG(LogEditorFactories,Display,TEXT("Auto-detected grayscale, image changed to G8"));
