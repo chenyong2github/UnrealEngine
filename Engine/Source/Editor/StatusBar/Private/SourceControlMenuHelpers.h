@@ -23,6 +23,7 @@ private:
 
 	static void ConnectToSourceControl_Clicked();
 	static bool ViewChangelists_CanExecute();
+	static bool ViewChangelists_IsVisible();
 	static void ViewChangelists_Clicked();
 	static bool CheckOutModifiedFiles_CanExecute();
 	static void CheckOutModifiedFiles_Clicked();
@@ -40,9 +41,17 @@ public:
 	static TSharedRef<FUICommandList> ActionList;
 };
 
-
-struct FSourceControlMenuHelpers
+class FSourceControlMenuHelpers
 {
+public:
+	/**
+	 * Static: Access singleton instance
+	 *
+	 * @return	Reference to the singleton object
+	 */
+	static FSourceControlMenuHelpers& Get();
+
+private:
 	enum EQueryState
 	{
 		NotQueried,
@@ -53,12 +62,38 @@ struct FSourceControlMenuHelpers
 
 	static EQueryState QueryState;
 
+public:
 	static void CheckSourceControlStatus();
+	static TSharedRef<SWidget> MakeSourceControlStatusWidget();
+
+private:
 	static void OnSourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult);
 	static TSharedRef<SWidget> GenerateSourceControlMenuContent();
 	static FText GetSourceControlStatusText();
 	static FText GetSourceControlTooltip();
-	static const FSlateBrush* GetSourceControlIcon();
-	static TSharedRef<SWidget> MakeSourceControlStatusWidget();
+	static const FSlateBrush* GetSourceControlIcon();	
+
+	/** Sync button */
+	static bool IsAtLatestRevision();
+	static EVisibility GetSourceControlSyncStatusVisibility();
+	static FText GetSourceControlSyncStatusText();
+	static FText GetSourceControlSyncStatusTooltipText();
+	static const FSlateBrush* GetSourceControlSyncStatusIcon();
+	static FReply OnSourceControlSyncClicked();
+
+	void SyncProject();
+	bool SaveDirtyPackages();
+	TArray<FString> ListAllPackages();
+
+	/** Loaded packages to reload after a Sync or Revert operation */
+	TArray<UPackage*> PackagesToReload;
+
+	/** Check-in button */
+	static int GetNumLocalChanges();
+	static EVisibility GetSourceControlCheckInStatusVisibility();
+	static FText GetSourceControlCheckInStatusText();
+	static FText GetSourceControlCheckInStatusTooltipText();
+	static const FSlateBrush* GetSourceControlCheckInStatusIcon();
+	static FReply OnSourceControlCheckInChangesClicked();
 };
 

@@ -339,6 +339,22 @@ public:
 	virtual bool UsesFileRevisions() const = 0;
 
 	/**
+	 * Whether the current source control client is at the latest version 
+	 * @note This concept is currently only implemented for the Skein source control provider.
+	 * 
+	 * @return The result of the operation if supported by the provider
+	 */
+	virtual TOptional<bool> IsAtLatestRevision() const = 0;
+
+	/**
+	 * Returns the number of changes in the local workspace
+	 * NOTE: This concept is currently only implemented for the Skein source control provider.
+	 *
+	 * @return The result of the operation if supported by the provider
+	 */
+	virtual TOptional<int> GetNumLocalChanges() const = 0;
+
+	/**
 	 * Called every update.
 	 */
 	virtual void Tick() = 0;

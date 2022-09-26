@@ -87,8 +87,17 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 	// Start selection process...
 
 	// make sure we update the SCC status of all packages (this could take a long time, so we will run it as a background task)
-	TArray<FString> Filenames = GetSourceControlLocations();
-
+	TArray<FString> Filenames;
+	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+	if (SourceControlProjectDir.IsEmpty())
+	{
+		Filenames = GetSourceControlLocations();
+	}
+	else
+	{
+		Filenames.Add(SourceControlProjectDir);
+	}
+	
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	FSourceControlOperationRef Operation = ISourceControlOperation::Create<FUpdateStatus>();
 	SourceControlProvider.Execute(
@@ -207,10 +216,18 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 		.SupportsMaximize(true)
 		.SupportsMinimize(false);
 
-	TSharedRef<SSourceControlSubmitWidget> SourceControlWidget = 
+	TSharedRef<SSourceControlSubmitWidget> SourceControlWidget =
 		SNew(SSourceControlSubmitWidget)
 		.ParentWindow(NewWindow)
-		.Items(States);
+		.Items(States)
+		.AllowUncheckFiles_Lambda([&]() 
+			{ 
+				if (SourceControlProvider.IsAvailable())
+				{
+					return SourceControlProvider.UsesFileRevisions();
+				}
+				return true;
+			});
 
 	NewWindow->SetContent(
 		SourceControlWidget
@@ -307,6 +324,7 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 	// Check in files
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 	CheckInOperation->SetDescription(Description.Description);
+	CheckInOperation->SetKeepCheckedOut(SourceControlWidget->WantToKeepCheckedOut());
 
 	ECommandResult::Type CheckInResult = SourceControlProvider.Execute(CheckInOperation, CombinedFileList);
 	bCheckinSuccess = CheckInResult == ECommandResult::Succeeded;
@@ -360,21 +378,6 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 		return false;
 	}
 
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// Do we want to to re-check out the files we just checked in?
-	if (SourceControlWidget->WantToKeepCheckedOut())
-	{
-		// Re-check out files
-		if (SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), CombinedFileList) == ECommandResult::Succeeded)
-		{
-			OutResultInfo.bAutoCheckedOut = true;
-		}
-		else
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("SCC_Checkin_ReCheckOutFailed", "Failed to re-check out files."));
-		}
-	}
-
 	SourceControlWidget->ClearChangeListDescription();
 
 	return true;
@@ -422,7 +425,16 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 		return;
 	}
 
-	TArray<FString> PendingDeletePaths = GetSourceControlLocations();
+	TArray<FString> PendingDeletePaths;	
+	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+	if (SourceControlProjectDir.IsEmpty())
+	{
+		PendingDeletePaths = GetSourceControlLocations();
+	}
+	else
+	{
+		PendingDeletePaths.Add(SourceControlProjectDir);
+	}
 
 	const bool bUseSourceControlStateCache = true;
 	PromptForCheckin(OutResultInfo, PackageNames, PendingDeletePaths, ConfigFiles, bUseSourceControlStateCache);

@@ -1847,8 +1847,11 @@ bool FEditorFileUtils::PromptToCheckoutPackagesInternal(bool bCheckDirty, const 
 		// The checkout button should be disabled if no packages can be checked out.
 		CheckoutPackagesDialogModule.AddButton(DRT_CheckOut, NSLOCTEXT("PackagesDialogModule", "Dlg_CheckOutButtonp", "Check Out Selected"), NSLOCTEXT("PackagesDialogModule", "Dlg_CheckOutTooltip", "Attempt to Check Out Checked Assets"), CheckOutSelectedDisabledAttrib );
 		
-		// Make writable button to make checked files writable
-		CheckoutPackagesDialogModule.AddButton(DRT_MakeWritable, NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableButton", "Make Writable"), NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableTooltip", "Makes selected files writable on disk"));
+		// Make writable button to make checked files writable (if supported by source control provider)
+		if (SourceControlProvider.UsesLocalReadOnlyState())
+		{
+			CheckoutPackagesDialogModule.AddButton(DRT_MakeWritable, NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableButton", "Make Writable"), NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableTooltip", "Makes selected files writable on disk"));
+		}
 
 		if (bAllowSkip)
 		{
@@ -4493,6 +4496,13 @@ void FEditorFileUtils::LoadDefaultMapAtStartup()
 
 void FEditorFileUtils::FindAllPackageFiles(TArray<FString>& OutPackages)
 {
+	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+	if (!SourceControlProjectDir.IsEmpty())
+	{
+		FPackageName::FindPackagesInDirectory(OutPackages, SourceControlProjectDir);
+		return;
+	}
+	
 #if UE_BUILD_SHIPPING
 	FString Key = TEXT("Paths");
 #else

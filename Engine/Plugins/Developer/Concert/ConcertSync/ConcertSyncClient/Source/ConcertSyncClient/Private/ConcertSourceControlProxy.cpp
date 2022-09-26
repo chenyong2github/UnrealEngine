@@ -502,6 +502,16 @@ bool FConcertSourceControlProxy::UsesFileRevisions() const
 	return false;
 }
 
+TOptional<bool> FConcertSourceControlProxy::IsAtLatestRevision() const
+{
+	return TOptional<bool>();
+}
+
+TOptional<int> FConcertSourceControlProxy::GetNumLocalChanges() const
+{
+	return TOptional<int>();
+}
+
 void FConcertSourceControlProxy::Tick()
 {
 	if (ActualProvider)

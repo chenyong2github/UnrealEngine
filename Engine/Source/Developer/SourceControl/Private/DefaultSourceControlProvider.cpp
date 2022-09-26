@@ -99,6 +99,16 @@ bool FDefaultSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+TOptional<bool> FDefaultSourceControlProvider::IsAtLatestRevision() const
+{
+	return TOptional<bool>();
+}
+
+TOptional<int> FDefaultSourceControlProvider::GetNumLocalChanges() const
+{
+	return TOptional<int>();
+}
+
 void FDefaultSourceControlProvider::Tick()
 {
 

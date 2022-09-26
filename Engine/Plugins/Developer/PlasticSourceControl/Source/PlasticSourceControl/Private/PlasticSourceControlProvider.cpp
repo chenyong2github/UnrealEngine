@@ -414,6 +414,16 @@ bool FPlasticSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+TOptional<bool> FPlasticSourceControlProvider::IsAtLatestRevision() const
+{
+	return TOptional<bool>();
+}
+
+TOptional<int> FPlasticSourceControlProvider::GetNumLocalChanges() const
+{
+	return TOptional<int>();
+}
+
 TSharedPtr<IPlasticSourceControlWorker, ESPMode::ThreadSafe> FPlasticSourceControlProvider::CreateWorker(const FName& InOperationName)
 {
 	const FGetPlasticSourceControlWorker* Operation = WorkersMap.Find(InOperationName);

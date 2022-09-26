@@ -496,6 +496,16 @@ bool FPerforceSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+TOptional<bool> FPerforceSourceControlProvider::IsAtLatestRevision() const
+{
+	return TOptional<bool>();
+}
+
+TOptional<int> FPerforceSourceControlProvider::GetNumLocalChanges() const
+{
+	return TOptional<int>();
+}
+
 void FPerforceSourceControlProvider::OutputCommandMessages(const FPerforceSourceControlCommand& InCommand) const
 {
 	if (IsInGameThread()) // On the game thread we can use FMessageLog

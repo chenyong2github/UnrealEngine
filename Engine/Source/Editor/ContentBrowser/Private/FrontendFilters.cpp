@@ -849,7 +849,16 @@ void FFrontendFilter_NotSourceControlled::RequestStatus()
 		// Request the state of files at filter construction time to make sure files have the correct state for the filter
 		TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
 
-		TArray<FString> Filenames = FSourceControlWindows::GetSourceControlLocations(/*bContentOnly*/true);
+		TArray<FString> Filenames;
+		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+		if (SourceControlProjectDir.IsEmpty())
+		{
+			Filenames = FSourceControlWindows::GetSourceControlLocations(/*bContentOnly*/true);
+		}
+		else
+		{
+			Filenames.Add(SourceControlProjectDir);
+		}
 		UpdateStatusOperation->SetCheckingAllFiles(false);
 		SourceControlProvider.Execute(UpdateStatusOperation, Filenames, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FFrontendFilter_NotSourceControlled::SourceControlOperationComplete));
 	}

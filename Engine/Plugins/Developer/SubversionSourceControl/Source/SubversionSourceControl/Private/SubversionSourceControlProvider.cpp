@@ -228,6 +228,16 @@ bool FSubversionSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+TOptional<bool> FSubversionSourceControlProvider::IsAtLatestRevision() const
+{
+	return TOptional<bool>();
+}
+
+TOptional<int> FSubversionSourceControlProvider::GetNumLocalChanges() const
+{
+	return TOptional<int>();
+}
+
 TSharedPtr<ISubversionSourceControlWorker, ESPMode::ThreadSafe> FSubversionSourceControlProvider::CreateWorker(const FName& InOperationName) const
 {
 	const FGetSubversionSourceControlWorker* Operation = WorkersMap.Find(InOperationName);
