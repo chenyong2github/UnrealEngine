@@ -57,6 +57,8 @@ public:
 
 void FSourceFilteringEditorModule::StartupModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/SourceFilteringEditor"));
+	
 	FSourceFilterStyle::Initialize();
 	FSourceFilteringCommands::Register();
 
@@ -101,6 +103,7 @@ bool FSourceFilteringEditorModule::IsSourceFilteringVisibile()
 
 void FSourceFilteringEditorModule::RegisterLayoutExtensions(FInsightsMajorTabExtender& InOutExtender)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/SourceFilteringEditor"));
 #if WITH_EDITOR
 	FTabId ExtendedTabId(GameplayInsightsTabs::DocumentTab);
 #else

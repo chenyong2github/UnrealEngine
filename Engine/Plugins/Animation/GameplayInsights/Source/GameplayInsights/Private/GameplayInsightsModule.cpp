@@ -422,6 +422,8 @@ bool FGameplayInsightsModule::IsObjectPropertyTraceEnabled(UObject* Object)
 
 void FGameplayInsightsModule::StartTrace()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/GameplayInsights"));
+	
 	if (!bTraceStarted)
 	{
 		if (!FTraceAuxiliary::IsConnected())
