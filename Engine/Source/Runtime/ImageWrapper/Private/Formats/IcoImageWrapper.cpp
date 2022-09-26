@@ -151,6 +151,7 @@ bool FIcoImageWrapper::LoadICOHeader()
 					Width = PngWrapper->GetWidth();
 					Height = PngWrapper->GetHeight();
 					Format = PngWrapper->GetFormat();
+					BitDepth = PngWrapper->GetBitDepth();
 					LargestWidth = RealWidth;
 					bFoundImage = true;
 					bIsPng = true;
@@ -165,6 +166,7 @@ bool FIcoImageWrapper::LoadICOHeader()
 					Width = BmpWrapper->GetWidth();
 					Height = BmpWrapper->GetHeight() / 2;	// ICO file spec says to divide by 2 here as height refers to combined image & mask height
 					Format = BmpWrapper->GetFormat();
+					BitDepth = BmpWrapper->GetBitDepth();
 					LargestWidth = RealWidth;
 					bFoundImage = true;
 					bIsPng = false;
