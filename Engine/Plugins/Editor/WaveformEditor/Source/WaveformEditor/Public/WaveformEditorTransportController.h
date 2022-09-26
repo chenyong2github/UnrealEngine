@@ -27,6 +27,7 @@ private:
 
 	UAudioComponent* AudioComponent = nullptr;
 	float CachedAudioStartTime = 0.f;
+	bool bCachedTimeDuringPause = false;
 
 	FDelegateHandle PlayStateChangeDelegateHandle;
 };

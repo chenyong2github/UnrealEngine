@@ -21,11 +21,16 @@ void FWaveformEditorTransportController::Play()
 	if (IsPaused())
 	{
 		AudioComponent->SetPaused(false);
-		return;
+
+		if (!bCachedTimeDuringPause)
+		{
+			return;
+		}
+		
 	}
 
 	AudioComponent->Play(CachedAudioStartTime);
-
+	
 }
 
 void FWaveformEditorTransportController::Play(const float StartTime)
@@ -64,6 +69,8 @@ void FWaveformEditorTransportController::Stop()
 	{
 		AudioComponent->SetPaused(false);
 	}
+
+	bCachedTimeDuringPause = false;
 }
 
 void FWaveformEditorTransportController::TogglePlayback()
@@ -101,6 +108,15 @@ bool FWaveformEditorTransportController::IsPlaying() const
 void FWaveformEditorTransportController::CacheStartTime(const float StartTime)
 {
 	CachedAudioStartTime = StartTime;
+
+	if (IsPaused())
+	{
+		bCachedTimeDuringPause = true;
+	}
+	else
+	{
+		bCachedTimeDuringPause = false;
+	}
 }
 
 void FWaveformEditorTransportController::Seek(const float SeekTime)
