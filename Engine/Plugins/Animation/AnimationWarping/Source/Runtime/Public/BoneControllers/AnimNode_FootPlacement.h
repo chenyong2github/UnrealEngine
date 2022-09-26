@@ -133,9 +133,9 @@ namespace UE::Anim::FootPlacement
 	struct FPlantResult
 	{
 	public:
-		FBoneTransform IkPlantTranformCS;
-		//FBoneTransform FkTipTransformCS;
-		//FBoneTransform FkHipTransformCS;
+		FBoneTransform FootTranformCS;
+		//FBoneTransform BallTransformCS;
+		//FBoneTransform HipTransformCS;
 	};
 
 #if ENABLE_ANIM_DEBUG
@@ -427,12 +427,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float AnkleTwistReduction = 0.75f;
 
-	// How much we can pull the the foot towards the hip to prevent hyperextension
-	// Before pulling the IK foot towards the FK foot
-	// While we're planted and within this threshold, the foot will roll instead of sliding
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	float ExtensionPlantedPullOffset = 2.0f;
-
 	void Initialize(const FAnimationInitializeContext& Context);
 };
 
@@ -563,10 +557,9 @@ private:
 	// Find the horizontal pelvis offset range for the foot to reach:
 	void FindPelvisOffsetRangeForLimb(
 		const UE::Anim::FootPlacement::FEvaluationContext& Context,
-		const UE::Anim::FootPlacement::FLegRuntimeData::FInputPoseData& LegInputPoseData,
+		const UE::Anim::FootPlacement::FLegRuntimeData& LegData,
 		const FVector& PlantTargetLocationCS,
 		const FTransform& PelvisTransformCS,
-		const float LimbLength,
 		FPelvisOffsetRangeForLimb& OutPelvisOffsetRangeCS) const;
 
 	// Adjust LastPlantTransformWS to current, to have the foot pivot around the ball instead of the ankle
