@@ -67,81 +67,81 @@ bool UReferenceViewerSettings::IsShowDependencies() const
 	return bIsShowDependencies;
 }
 
-void UReferenceViewerSettings::SetSearchDepthLimitEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetSearchDepthLimitEnabled(bool bNewEnabled)
 {
-	bLimitSearchDepth = newEnabled;
+	bLimitSearchDepth = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetSearchBreadthLimitEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetSearchBreadthLimitEnabled(bool bNewEnabled)
 {
-	bLimitSearchBreadth = newEnabled;
+	bLimitSearchBreadth = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowSoftReferencesEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetShowSoftReferencesEnabled(bool bNewEnabled)
 {
-	bIsShowSoftReferences = newEnabled;
+	bIsShowSoftReferences = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowHardReferencesEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetShowHardReferencesEnabled(bool bNewEnabled)
 {
-	bIsShowHardReferences = newEnabled;
+	bIsShowHardReferences = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowFilteredPackagesOnlyEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetShowFilteredPackagesOnlyEnabled(bool bNewEnabled)
 {
-	bIsShowFilteredPackagesOnly = newEnabled;
+	bIsShowFilteredPackagesOnly = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetCompactModeEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetCompactModeEnabled(bool bNewEnabled)
 {
-	bIsCompactMode = newEnabled;
+	bIsCompactMode = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowDuplicatesEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetShowDuplicatesEnabled(bool bNewEnabled)
 {
-	bIsShowDuplicates = newEnabled;
+	bIsShowDuplicates = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowEditorOnlyReferencesEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetShowEditorOnlyReferencesEnabled(bool bNewEnabled)
 {
-	bIsShowEditorOnlyReferences = newEnabled;
+	bIsShowEditorOnlyReferences = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowManagementReferencesEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetShowManagementReferencesEnabled(bool bNewEnabled)
 {
-	bIsShowManagementReferences = newEnabled;
+	bIsShowManagementReferences = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowSearchableNames(bool newEnabled)
+void UReferenceViewerSettings::SetShowSearchableNames(bool bNewEnabled)
 {
-	bIsShowSearchableNames = newEnabled;
+	bIsShowSearchableNames = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowCodePackages(bool newEnabled)
+void UReferenceViewerSettings::SetShowCodePackages(bool bNewEnabled)
 {
-	bIsShowCodePackages = newEnabled;
+	bIsShowCodePackages = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowReferencers(const bool newEnabled)
+void UReferenceViewerSettings::SetShowReferencers(const bool bNewEnabled)
 {
-	bIsShowReferencers = newEnabled;
+	bIsShowReferencers = bNewEnabled;
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowDependencies(const bool newEnabled)
+void UReferenceViewerSettings::SetShowDependencies(const bool bNewEnabled)
 {
-	bIsShowDependencies = newEnabled;
+	bIsShowDependencies = bNewEnabled;
 	SaveConfig();
 }
 
@@ -211,9 +211,20 @@ bool UReferenceViewerSettings::GetFiltersEnabled() const
 	return bFiltersEnabled;
 }
 
-void UReferenceViewerSettings::SetFiltersEnabled(bool newEnabled)
+void UReferenceViewerSettings::SetFiltersEnabled(bool bNewEnabled)
 {
-	bFiltersEnabled = newEnabled;
+	bFiltersEnabled = bNewEnabled;
+	SaveConfig();
+}
+
+bool UReferenceViewerSettings::GetFindPathEnabled() const
+{
+	return bFindPathEnabled;
+}
+
+void UReferenceViewerSettings::SetFindPathEnabled(bool bNewEnabled)
+{
+	bFindPathEnabled = bNewEnabled;
 	SaveConfig();
 }
 

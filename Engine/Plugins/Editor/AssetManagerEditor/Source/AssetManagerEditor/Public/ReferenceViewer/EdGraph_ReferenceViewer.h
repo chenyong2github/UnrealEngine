@@ -125,7 +125,7 @@ private:
 	void RecursivelyFilterNodeInfos(const FAssetIdentifier& InAssetId, TMap<FAssetIdentifier, FReferenceNodeInfo>& NodeInfos, int32 CurrentDepth, int32 MaxDepth);
 
 	/* Searches for the AssetData for the list of packages derived from the AssetReferences  */
-	void GatherAssetData(const TSet<FName>& AllPackageNames, TMap<FName, FAssetData>& OutPackageToAssetDataMap) const;
+	void GatherAssetData(TMap<FAssetIdentifier, FReferenceNodeInfo>& InNodeInfos);
 
 	/* Uses the NodeInfos map to generate and layout the graph nodes */
 	UEdGraphNode_Reference* RecursivelyCreateNodes(
@@ -151,6 +151,9 @@ private:
 	void GetSortedLinks(const TArray<FAssetIdentifier>& Identifiers, bool bReferencers, const FAssetManagerDependencyQuery& Query, TMap<FAssetIdentifier, EDependencyPinCategory>& OutLinks) const;
 	bool IsPackageIdentifierPassingFilter(const FAssetIdentifier& InAssetIdentifier) const;
 	bool IsAssetPassingSearchTextFilter(const FAssetIdentifier& InAssetIdentifier) const;
+
+	UEdGraphNode_Reference* FindPath(const FAssetIdentifier& RootId, const FAssetIdentifier& TargetId);
+	bool FindPath_Recursive(bool bInReferencers, const FAssetIdentifier& InAssetId, const FAssetIdentifier& Target, TMap<FAssetIdentifier, FReferenceNodeInfo>& InNodeInfos, TSet<FAssetIdentifier>& Visited);
 
 private:
 	/** Pool for maintaining and rendering thumbnails */
@@ -192,6 +195,8 @@ private:
 
 	/* A delegate to notify when the underlying assets changed (usually through a root or depth change) */
 	FSimpleMulticastDelegate OnAssetsChangedDelegate;
+
+	FAssetIdentifier TargetIdentifier;
 
 	friend SReferenceViewer;
 };

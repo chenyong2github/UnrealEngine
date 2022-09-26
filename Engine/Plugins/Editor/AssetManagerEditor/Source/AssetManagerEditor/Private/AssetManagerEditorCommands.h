@@ -100,6 +100,9 @@ public:
 	// Toggles whether search results are filtered or just selected 
 	TSharedPtr<FUICommandInfo> FilterSearch;
 
+	// Toggles the Find Path Mode
+	TSharedPtr<FUICommandInfo> FindPath;
+
 	// Copies the list of objects that the selected asset references
 	TSharedPtr<FUICommandInfo> CopyReferencedObjects;
 

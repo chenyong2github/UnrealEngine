@@ -39,7 +39,7 @@ public:
 	GENERATED_BODY()
 
 	bool IsSearchDepthLimited() const;
-	void SetSearchDepthLimitEnabled(bool newEnabled);
+	void SetSearchDepthLimitEnabled(bool bNewEnabled);
 
 	bool IsShowReferencers() const;
 	void SetShowReferencers(const bool bShouldShowReferencers);
@@ -54,7 +54,7 @@ public:
 	void SetSearchDependencyDepthLimit(int32 NewDepthLimit, bool bSaveConfig = true);
 
 	bool IsSearchBreadthLimited() const;
-	void SetSearchBreadthLimitEnabled(bool newEnabled);
+	void SetSearchBreadthLimitEnabled(bool bNewEnabled);
 
 	int32 GetSearchBreadthLimit() const;
 	void SetSearchBreadthLimit(int32 NewBreadthLimit);
@@ -63,44 +63,46 @@ public:
 	void SetEnableCollectionFilter(bool bEnabled);
 
 	bool IsShowSoftReferences() const;
-	void SetShowSoftReferencesEnabled(bool newEnabled);
+	void SetShowSoftReferencesEnabled(bool bNewEnabled);
 
 	bool IsShowHardReferences() const;
-	void SetShowHardReferencesEnabled(bool newEnabled);
+	void SetShowHardReferencesEnabled(bool bNewEnabled);
 
 	bool IsShowEditorOnlyReferences() const;
-	void SetShowEditorOnlyReferencesEnabled(bool newEnabled);
+	void SetShowEditorOnlyReferencesEnabled(bool bNewEnabled);
 
 	bool IsShowManagementReferences() const;
-	void SetShowManagementReferencesEnabled(bool newEnabled);
+	void SetShowManagementReferencesEnabled(bool bNewEnabled);
 
 	bool IsShowSearchableNames() const;
-	void SetShowSearchableNames(bool newEnabled);
+	void SetShowSearchableNames(bool bNewEnabled);
 
 	bool IsShowCodePackages() const;
-	void SetShowCodePackages(bool newEnabled);
+	void SetShowCodePackages(bool bNewEnabled);
 
 	bool IsShowDuplicates() const;
-	void SetShowDuplicatesEnabled(bool newEnabled);
+	void SetShowDuplicatesEnabled(bool bNewEnabled);
 
 	bool IsShowFilteredPackagesOnly() const;
-	void SetShowFilteredPackagesOnlyEnabled(bool newEnabled);
+	void SetShowFilteredPackagesOnlyEnabled(bool bNewEnabled);
 
 	bool IsCompactMode() const;
-	void SetCompactModeEnabled(bool newEnabled);
+	void SetCompactModeEnabled(bool bNewEnabled);
 
 	bool IsShowPath() const;
-	void SetShowPathEnabled(bool newEnabled);
+	void SetShowPathEnabled(bool bNewEnabled);
 
 	bool GetFiltersEnabled() const;
-	void SetFiltersEnabled(bool newEnabled);
+	void SetFiltersEnabled(bool bNewEnabled);
 
 	bool AutoUpdateFilters() const;
-	void SetAutoUpdateFilters(bool newEnabled);
+	void SetAutoUpdateFilters(bool bNewEnabled);
 
 	const TArray<FilterState>& GetUserFilters() const;
 	void SetUserFilters(TArray<FilterState>& InFilters);
 
+	bool GetFindPathEnabled() const;
+	void SetFindPathEnabled(bool bNewEnabled);
 
 private:
 	/* Whether to limit the search depth for Referencers & Dependencies */
@@ -186,4 +188,9 @@ private:
 	/* The list of filters the user has built up */
 	UPROPERTY(config)
 	TArray<FilterState> UserFilters;
+
+	/* Enable the Find Path tool */
+	UPROPERTY(config)
+	bool bFindPathEnabled;
+
 };

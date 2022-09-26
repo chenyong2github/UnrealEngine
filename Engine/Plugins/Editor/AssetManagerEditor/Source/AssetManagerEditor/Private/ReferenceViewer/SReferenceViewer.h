@@ -175,6 +175,14 @@ private:
 	bool CanZoomToFit() const;
 	void OnFind();
 
+	/** Find Path */
+	void OnFindPathAssetSelected();
+	TSharedRef<SWidget> GenerateFindPathAssetPickerMenu();
+	void OnFindPathAssetSelected( const FAssetData& AssetData );
+	void OnFindPathAssetEnterPressed( const TArray<FAssetData>& AssetData );
+	TSharedPtr<SComboButton> FindPathAssetPicker;
+	FAssetIdentifier FindPathAssetId;
+
 	/** Handlers for searching */
 	void HandleOnSearchTextChanged(const FText& SearchText);
 	void HandleOnSearchTextCommitted(const FText& SearchText, ETextCommit::Type CommitType);

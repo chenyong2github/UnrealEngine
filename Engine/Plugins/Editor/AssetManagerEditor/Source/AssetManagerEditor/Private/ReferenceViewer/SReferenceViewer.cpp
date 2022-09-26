@@ -28,6 +28,8 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
 #include "Editor.h"
 #include "AssetManagerEditorCommands.h"
 #include "EditorWidgetsModule.h"
@@ -59,6 +61,8 @@ bool IsAssetIdentifierPassingSearchTextFilter(const FAssetIdentifier& InNode, co
 
 SReferenceViewer::~SReferenceViewer()
 {
+	Settings->SetFindPathEnabled(false); 
+
 	if (!GExitPurge)
 	{
 		if ( ensure(GraphObj) )
@@ -162,7 +166,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 
 				// Path
 				+SHorizontalBox::Slot()
-				.Padding(0, 0)
+				.Padding(0, 0, 4, 0)
 				.FillWidth(1.f)
 				.VAlign(VAlign_Center)
 				[
@@ -176,6 +180,20 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 						.SelectAllTextWhenFocused(true)
 						.SelectAllTextOnCommit(true)
 						.Style(FAppStyle::Get(), "ReferenceViewer.PathText")
+					]
+				]
+				+SHorizontalBox::Slot()
+				.Padding(0, 7, 4, 8)
+				.FillWidth(1.0)
+				.VAlign(VAlign_Fill)
+				[
+					SAssignNew(FindPathAssetPicker, SComboButton)
+					.OnGetMenuContent(this, &SReferenceViewer::GenerateFindPathAssetPickerMenu)
+					.Visibility_Lambda([this]() { return !Settings->GetFindPathEnabled() ? EVisibility::Collapsed : EVisibility::Visible; })
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text_Lambda([this] { return FindPathAssetId.IsValid() ? FText::FromString(FindPathAssetId.ToString()) : LOCTEXT("ChooseTargetAsset", "Choose a target asset ... "); } )
 					]
 				]
 			]
@@ -209,6 +227,8 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.Padding(8)
 			[
 				SNew(SHorizontalBox)
+				.Visibility_Lambda([this]() { return ( Settings->GetFindPathEnabled() ? EVisibility::Collapsed : EVisibility::Visible); })
+
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				[
@@ -625,6 +645,9 @@ void SReferenceViewer::OnNodeDoubleClicked(UEdGraphNode* Node)
 
 	if (!bFoundOverflow)
 	{
+		// turn off the find path tool if the user is wanting to center on another node
+		Settings->SetFindPathEnabled(false);
+
 		TSet<UObject*> Nodes;
 		Nodes.Add(Node);
 		ReCenterGraphOnNodes( Nodes );
@@ -679,11 +702,13 @@ bool SReferenceViewer::IsForwardEnabled() const
 
 void SReferenceViewer::BackClicked()
 {
+	Settings->SetFindPathEnabled(false);
 	HistoryManager.GoBack();
 }
 
 void SReferenceViewer::ForwardClicked()
 {
+	Settings->SetFindPathEnabled(false);
 	HistoryManager.GoForward();
 }
 
@@ -1135,7 +1160,7 @@ void SReferenceViewer::OnShowDuplicatesChanged()
 
 bool SReferenceViewer::IsShowDuplicatesChecked() const
 {
-	return Settings->IsShowDuplicates();
+	return Settings->GetFindPathEnabled() || Settings->IsShowDuplicates();
 }
 
 void SReferenceViewer::OnShowEditorOnlyReferencesChanged()
@@ -1324,11 +1349,10 @@ void SReferenceViewer::RegisterActions()
 		FIsActionChecked::CreateSP(this, &SReferenceViewer::IsShowCodePackagesChecked),
 		FIsActionButtonVisible::CreateLambda([this] { return bShowShowCodePackages; }));
 
-
 	ReferenceViewerActions->MapAction(
 		FAssetManagerEditorCommands::Get().ShowDuplicates,
 		FExecuteAction::CreateSP(this, &SReferenceViewer::OnShowDuplicatesChanged),
-		FCanExecuteAction(),	
+		FCanExecuteAction::CreateLambda([this] { return !Settings->GetFindPathEnabled(); }),
 		FIsActionChecked::CreateSP(this, &SReferenceViewer::IsShowDuplicatesChecked));
 
 	ReferenceViewerActions->MapAction(
@@ -1337,7 +1361,6 @@ void SReferenceViewer::RegisterActions()
 		FCanExecuteAction(),	
 		FIsActionChecked::CreateSP(this, &SReferenceViewer::IsCompactModeChecked),
 		FIsActionButtonVisible::CreateLambda([this] { return bShowCompactMode; }));
-
 
 	ReferenceViewerActions->MapAction(
 		FAssetManagerEditorCommands::Get().FilterSearch,
@@ -1432,8 +1455,8 @@ void SReferenceViewer::RegisterActions()
 				GraphObj->RefilterGraph();
 			}
 		}),
-		FCanExecuteAction(),	
-		FIsActionChecked::CreateLambda([this] {return Settings->GetFiltersEnabled();}));
+		FCanExecuteAction::CreateLambda([this] { return !Settings->GetFindPathEnabled(); }),
+		FIsActionChecked::CreateLambda([this] {return !Settings->GetFindPathEnabled() && Settings->GetFiltersEnabled();}));
 
 	ReferenceViewerActions->MapAction(
 		FAssetManagerEditorCommands::Get().AutoFilters,
@@ -1445,8 +1468,28 @@ void SReferenceViewer::RegisterActions()
 				GraphObj->RefilterGraph();
 			}
 		}),
-		FCanExecuteAction::CreateLambda([this] {return Settings->GetFiltersEnabled();}),
-		FIsActionChecked::CreateLambda([this] {return Settings->AutoUpdateFilters();}));
+		FCanExecuteAction::CreateLambda([this] {return !Settings->GetFindPathEnabled() && Settings->GetFiltersEnabled();}),
+		FIsActionChecked::CreateLambda([this] { return !Settings->GetFindPathEnabled() && Settings->AutoUpdateFilters();}));
+
+	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().FindPath,
+		FExecuteAction::CreateLambda([this] 
+		{
+			bool bWasEnabled = Settings->GetFindPathEnabled();
+			Settings->SetFindPathEnabled(!bWasEnabled);
+
+			if (!bWasEnabled && !FindPathAssetId.IsValid())
+			{
+				FindPathAssetPicker->SetIsOpen(true);
+			}
+			
+			GraphObj->RebuildGraph();
+
+			RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SReferenceViewer::TriggerZoomToFit));
+
+		}),
+		FCanExecuteAction::CreateLambda([this] { return GraphObj ? GraphObj->GetCurrentGraphRootIdentifiers().Num() == 1 : false; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->GetFindPathEnabled();}));
 
 	ReferenceViewerActions->MapAction(
 		FAssetManagerEditorCommands::Get().CopyPaths,
@@ -2052,7 +2095,6 @@ TSharedRef<SWidget> SReferenceViewer::MakeToolBar()
 		TAttribute<FText>::CreateSP(this, &SReferenceViewer::GetHistoryBackTooltip),
 		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.ArrowLeft"));
 
-
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(
 			FExecuteAction::CreateSP(this, &SReferenceViewer::ForwardClicked),
@@ -2062,6 +2104,12 @@ TSharedRef<SWidget> SReferenceViewer::MakeToolBar()
 		TAttribute<FText>(),
 		TAttribute<FText>::CreateSP(this, &SReferenceViewer::GetHistoryForwardTooltip),
 		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.ArrowRight"));
+
+	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().FindPath,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(), 
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "BlueprintEditor.FindInBlueprint"));
 
 	ToolBarBuilder.AddSeparator();
 
@@ -2076,7 +2124,16 @@ TSharedRef<SWidget> SReferenceViewer::MakeToolBar()
 	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().ShowDuplicates,
 		NAME_None,
 		TAttribute<FText>(),
-		TAttribute<FText>(),
+		TAttribute<FText>::CreateLambda([this]() -> FText
+		{ 
+			if (Settings->GetFindPathEnabled())
+			{
+				return LOCTEXT("DuplicatesDisabledTooltip", "Duplicates are always shown when using the Find Path tool.");
+			}
+
+			return FAssetManagerEditorCommands::Get().ShowDuplicates->GetDescription();
+		}),
+
 		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.Duplicate"));
 
 	ToolBarBuilder.AddSeparator();
@@ -2084,13 +2141,31 @@ TSharedRef<SWidget> SReferenceViewer::MakeToolBar()
 	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().Filters,
 		NAME_None,
 		TAttribute<FText>(),
-		TAttribute<FText>(),
+		TAttribute<FText>::CreateLambda([this]() -> FText
+		{ 
+			if (Settings->GetFindPathEnabled())
+			{
+				return LOCTEXT("FiltersDisabledTooltip", "Filtering is disabled when using the Find Path tool.");
+			}
+
+			return FAssetManagerEditorCommands::Get().Filters->GetDescription();
+		}),
+
 		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.Filters"));
 
 	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().AutoFilters,
 		NAME_None,
 		TAttribute<FText>(),
-		TAttribute<FText>(),
+		TAttribute<FText>::CreateLambda([this]() -> FText
+		{ 
+			if (Settings->GetFindPathEnabled())
+			{
+				return LOCTEXT("AutoFiltersDisabledTooltip", "AutoFiltering is disabled when using the Find Path tool.");
+			}
+
+			return FAssetManagerEditorCommands::Get().AutoFilters->GetDescription();
+		}),
+
 		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.AutoFilters"));
 
 	ToolBarBuilder.EndSection();
@@ -2098,5 +2173,63 @@ TSharedRef<SWidget> SReferenceViewer::MakeToolBar()
 
 	return ToolBarBuilder.MakeWidget();
 }
+
+TSharedRef<SWidget> SReferenceViewer::GenerateFindPathAssetPickerMenu()
+{
+	FAssetPickerConfig AssetPickerConfig;
+	AssetPickerConfig.Filter.bRecursiveClasses = true;
+	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SReferenceViewer::OnFindPathAssetSelected);
+	AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateSP(this, &SReferenceViewer::OnFindPathAssetEnterPressed);
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+	AssetPickerConfig.bAllowNullSelection = true;
+	AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
+	AssetPickerConfig.bAllowDragging = false;
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+
+
+	return SNew(SBox)
+	.HeightOverride(500)
+	[
+		SNew( SBorder )
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
+		[
+			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+		]
+	];
+}
+
+void SReferenceViewer::OnFindPathAssetSelected( const FAssetData& AssetData )
+{
+	FindPathAssetPicker->SetIsOpen(false);
+
+	FindPathAssetId = FAssetIdentifier(AssetData.PackageName);
+
+	const TArray<FAssetIdentifier>& CurrentGraphRootIdentifiers = GraphObj->GetCurrentGraphRootIdentifiers();
+	if (!CurrentGraphRootIdentifiers.IsEmpty())
+	{
+		GraphObj->FindPath(CurrentGraphRootIdentifiers[0], FindPathAssetId);
+	}
+
+	RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SReferenceViewer::TriggerZoomToFit));
+}
+
+void SReferenceViewer::OnFindPathAssetEnterPressed( const TArray<FAssetData>& AssetData )
+{
+	FindPathAssetPicker->SetIsOpen(false);
+
+	if (!AssetData.IsEmpty())
+	{
+		FindPathAssetId = FAssetIdentifier(AssetData[0].PackageName);
+
+		const TArray<FAssetIdentifier>& CurrentGraphRootIdentifiers = GraphObj->GetCurrentGraphRootIdentifiers();
+		if (!CurrentGraphRootIdentifiers.IsEmpty())
+		{
+			GraphObj->FindPath(CurrentGraphRootIdentifiers[0], FindPathAssetId);
+		}
+	}
+
+	RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SReferenceViewer::TriggerZoomToFit));
+} 
 
 #undef LOCTEXT_NAMESPACE
