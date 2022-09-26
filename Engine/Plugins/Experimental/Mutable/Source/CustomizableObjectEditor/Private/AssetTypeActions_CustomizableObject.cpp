@@ -214,7 +214,7 @@ void FAssetTypeActions_CustomizableObject::RecompileObjects(ERecompileCO Recompi
 	{
 		for (const TWeakObjectPtr<UCustomizableObject>& Object : InObjects)
 		{
-			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*Object->GetPathName());
+			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(Object.Get()));
 			if (AssetData.IsValid())
 			{
 				ObjectsToRecompile.Add(AssetData);

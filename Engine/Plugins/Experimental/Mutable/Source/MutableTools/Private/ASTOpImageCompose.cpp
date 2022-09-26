@@ -63,7 +63,7 @@ uint64 ASTOpImageCompose::Hash() const
 //-------------------------------------------------------------------------------------------------
 mu::Ptr<ASTOp> ASTOpImageCompose::Clone(MapChildFunc& mapChild) const
 {
-    Ptr<ASTOpImageCompose> n = new ASTOpImageCompose();
+	mu::Ptr<ASTOpImageCompose> n = new ASTOpImageCompose();
     n->Layout = mapChild(Layout.child());
 	n->Base = mapChild(Base.child());
 	n->BlockImage = mapChild(BlockImage.child());
@@ -205,9 +205,9 @@ void ASTOpImageCompose::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
 }
 
 
-Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS& options) const
+mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS& options) const
 {
-	Ptr<ASTOp> at;
+	mu::Ptr<ASTOp> at;
 
 	auto baseAt = Base.child();
 	auto blockAt = BlockImage.child();
@@ -221,7 +221,7 @@ Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&
 		blockAt)
 	{
 		auto typedLayout = dynamic_cast<const ASTOpConstantResource*>(layoutAt.get());
-		Ptr<const mu::Layout> pLayout = static_cast<const mu::Layout*>(typedLayout->GetValue().get());
+		mu::Ptr<const mu::Layout> pLayout = static_cast<const mu::Layout*>(typedLayout->GetValue().get());
 
 		// Constant single-block full layout?
 		if (pLayout->GetBlockCount() == 1
@@ -245,7 +245,7 @@ Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&
 				&&
 				baseDesc.m_format != EImageFormat::IF_NONE)
 			{
-				Ptr<ASTOpImagePixelFormat> reformat = new ASTOpImagePixelFormat;
+				mu::Ptr<ASTOpImagePixelFormat> reformat = new ASTOpImagePixelFormat;
 				reformat->Format = baseDesc.m_format;
 				reformat->FormatIfAlpha = EImageFormat::IF_NONE;
 				reformat->Source = at;
@@ -258,7 +258,7 @@ Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&
 				&&
 				baseDesc.m_size[1] != 0)
 			{
-				Ptr<ASTOpFixed> resize = new ASTOpFixed;
+				mu::Ptr<ASTOpFixed> resize = new ASTOpFixed;
 				resize->op.type = OP_TYPE::IM_RESIZE;
 				resize->op.args.ImageResize.size[0] = baseDesc.m_size[0];
 				resize->op.args.ImageResize.size[1] = baseDesc.m_size[1];

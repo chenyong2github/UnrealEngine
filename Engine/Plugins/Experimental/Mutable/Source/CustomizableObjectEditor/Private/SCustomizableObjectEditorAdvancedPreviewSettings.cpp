@@ -115,7 +115,7 @@ FReply SLevelSelectWindow::OnButtonClick(EAppReturnType::Type ButtonID)
 			return FReply::Handled();
 		}
 
-		LevelAssetPath = LevelAssetData.ObjectPath.ToString();
+		LevelAssetPath = LevelAssetData.GetObjectPathString();
 
 		Result = LevelProfileManage::LoadProfileUObjectNames(LevelAssetPath, ArrayDirectionalLightName, ArrayPostProcessName, ArraySkyLightName);
 

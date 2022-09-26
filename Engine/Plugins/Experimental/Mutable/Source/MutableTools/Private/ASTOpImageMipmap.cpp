@@ -59,7 +59,7 @@ uint64 ASTOpImageMipmap::Hash() const
 
 mu::Ptr<ASTOp> ASTOpImageMipmap::Clone(MapChildFunc& mapChild) const
 {
-    Ptr<ASTOpImageMipmap> n = new ASTOpImageMipmap();
+	mu::Ptr<ASTOpImageMipmap> n = new ASTOpImageMipmap();
     n->Source = mapChild(Source.child());
 	n->Levels = Levels;
 	n->BlockLevels = BlockLevels;
@@ -106,11 +106,11 @@ void ASTOpImageMipmap::Link( PROGRAM& program, const FLinkerOptions* )
 }
 
 
-Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
+mu::Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
 {
-	Ptr<ASTOp> at;
+	mu::Ptr<ASTOp> at;
 
-	Ptr<ASTOp> sourceAt = Source.child();
+	mu::Ptr<ASTOp> sourceAt = Source.child();
 	switch (sourceAt->GetOpType())
 	{
 
@@ -128,8 +128,8 @@ Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& opti
 	{
 		// Swap unless the mipmap operation builds only the tail or is compressed.
 		// Otherwise, we could fall in a loop of swapping mipmaps and pixelformats.
-		Ptr<ASTOpImageMipmap> mop = mu::Clone<ASTOpImageMipmap>(this);
-		Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(sourceAt);
+		mu::Ptr<ASTOpImageMipmap> mop = mu::Clone<ASTOpImageMipmap>(this);
+		mu::Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(sourceAt);
 		bool isCompressedFormat = IsCompressedFormat(fop->Format);
 		if (isCompressedFormat && !mop->bOnlyTail)
 		{
@@ -227,7 +227,7 @@ bool ASTOpImageMipmap::IsImagePlainConstant(vec4<float>& colour) const
 
 mu::Ptr<ImageSizeExpression> ASTOpImageMipmap::GetImageSizeExpression() const
 {
-	Ptr<ImageSizeExpression> pRes;
+	mu::Ptr<ImageSizeExpression> pRes;
 
 	if (Source.child())
 	{
@@ -245,7 +245,7 @@ mu::Ptr<ImageSizeExpression> ASTOpImageMipmap::GetImageSizeExpression() const
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
-Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
+mu::Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
 {
 	check(root->GetOpType() == OP_TYPE::IM_MIPMAP);
 
@@ -258,7 +258,7 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
 		return nullptr;
 	}
 
-	Ptr<ASTOp> newSource;
+	mu::Ptr<ASTOp> newSource;
 	m_initialSource = m_root->Source.child();
 
 	// Before sinking, see if it is worth splitting into miptail and mip.
@@ -271,13 +271,13 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
 		)
 	{
 		// the block mipmaps can be done before composition is done.
-		Ptr<ASTOpImageMipmap> newMip = mu::Clone<ASTOpImageMipmap>(m_root);
+		mu::Ptr<ASTOpImageMipmap> newMip = mu::Clone<ASTOpImageMipmap>(m_root);
 		newMip->Levels = m_root->BlockLevels;
 		newMip->BlockLevels = m_root->BlockLevels;
 		newMip->bOnlyTail = false;
 
 		// the smallest mipmaps after the composition is done.
-		Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(m_root);
+		mu::Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(m_root);
 		topMipOp->bOnlyTail = true;
 
 		// Proceed
@@ -306,7 +306,7 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
-Ptr<ASTOp> Sink_ImageMipmapAST::Visit(Ptr<ASTOp> at, const ASTOpImageMipmap* currentMipmapOp)
+mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMipmap* currentMipmapOp)
 {
 	if (!at) return nullptr;
 
@@ -323,7 +323,7 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Visit(Ptr<ASTOp> at, const ASTOpImageMipmap* cur
 		return cacheIt->second;
 	}
 
-	Ptr<ASTOp> newAt = at;
+	mu::Ptr<ASTOp> newAt = at;
 	switch (at->GetOpType())
 	{
 
@@ -406,7 +406,7 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Visit(Ptr<ASTOp> at, const ASTOpImageMipmap* cur
 				}
 			}
 
-			Ptr<ASTOpImageMipmap> newMip = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
+			mu::Ptr<ASTOpImageMipmap> newMip = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
 			newMip->Levels = blockLevels;
 			newMip->BlockLevels = blockLevels;
 			newMip->bOnlyTail = false;
@@ -418,7 +418,7 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Visit(Ptr<ASTOp> at, const ASTOpImageMipmap* cur
 
 			// We need to add a mipmap on top to finish the mipmapping
 			{
-				Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
+				mu::Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
 				topMipOp->Source = newOp;
 				topMipOp->bOnlyTail = true;
 				newAt = topMipOp;
@@ -435,7 +435,7 @@ Ptr<ASTOp> Sink_ImageMipmapAST::Visit(Ptr<ASTOp> at, const ASTOpImageMipmap* cur
 	// end on line, replace with mipmap
 	if (at == newAt && at != m_initialSource)
 	{
-		Ptr<ASTOpImageMipmap> newOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
+		mu::Ptr<ASTOpImageMipmap> newOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
 		check(newOp->GetOpType() == OP_TYPE::IM_MIPMAP);
 
 		newOp->Source = at;

@@ -881,12 +881,12 @@ void SCustomizableObjectEditorViewportTabBody::GenerateUVMaterialOptions()
 
 	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
-		if (PreviewSkeletalMeshComponent != nullptr && PreviewSkeletalMeshComponent->SkeletalMesh != nullptr && PreviewSkeletalMeshComponent->SkeletalMesh->GetResourceForRendering() != nullptr)
+		if (PreviewSkeletalMeshComponent != nullptr && PreviewSkeletalMeshComponent->GetSkinnedAsset() != nullptr && PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering() != nullptr)
 		{
 			TMap<FString, int32> MaterialLODs;
 
 			// Add Suffix "__X" for materials with duplicated names and Suffing " LOD_X" for multiple LODs.
-			const FSkeletalMeshRenderData* MeshRes = PreviewSkeletalMeshComponent->SkeletalMesh->GetResourceForRendering();
+			const FSkeletalMeshRenderData* MeshRes = PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering();
 			const TArray<UMaterialInterface*> Materials = PreviewSkeletalMeshComponent->GetMaterials();
 			for (UMaterialInterface* m : Materials)
 			{
@@ -990,10 +990,10 @@ void SCustomizableObjectEditorViewportTabBody::GenerateUVChannelOptions(bool bRe
 
 	UDebugSkelMeshComponent* PreviewSkeletalMeshComponent = PreviewSkeletalMeshComponents[ComponentIndex];
 
-	if (PreviewSkeletalMeshComponent != nullptr && PreviewSkeletalMeshComponent->SkeletalMesh != nullptr
-		&& PreviewSkeletalMeshComponent->SkeletalMesh->GetResourceForRendering() != nullptr)
+	if (PreviewSkeletalMeshComponent != nullptr && PreviewSkeletalMeshComponent->GetSkinnedAsset() != nullptr
+		&& PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering() != nullptr)
 	{
-		const FSkeletalMeshRenderData* MeshRes = PreviewSkeletalMeshComponent->SkeletalMesh->GetResourceForRendering();
+		const FSkeletalMeshRenderData* MeshRes = PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering();
 		
 		int32 UVChannels = MeshRes->LODRenderData[LODIndex].GetNumTexCoords();
 		
@@ -1064,9 +1064,9 @@ int32 SCustomizableObjectEditorViewportTabBody::GetLODModelCount() const
 
 	for (UDebugSkelMeshComponent* PreviewComponent : GetSkeletalMeshComponents())
 	{
-		if (PreviewComponent && PreviewComponent->SkeletalMesh)
+		if (PreviewComponent && PreviewComponent->GetSkinnedAsset())
 		{
-			const TIndirectArray<FSkeletalMeshLODRenderData>& LODModels = Helper_GetLODData(PreviewComponent->SkeletalMesh);
+			const TIndirectArray<FSkeletalMeshLODRenderData>& LODModels = Helper_GetLODData(PreviewComponent->GetSkinnedAsset());
 			LODModelCount = FMath::Max(LODModelCount, LODModels.Num());
 		}
 	}

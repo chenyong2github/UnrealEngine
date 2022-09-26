@@ -48,7 +48,7 @@ void UCustomizableSkeletalComponent::SetSkeletalMesh(USkeletalMesh* SkeletalMesh
 		}
 #endif
 
-		if(Parent->SkeletalMesh == SkeletalMesh)
+		if(Parent->GetSkinnedAsset() == SkeletalMesh)
 		{
 			Parent->RecreateRenderState_Concurrent();
 		}
@@ -106,7 +106,7 @@ USkeletalMesh* UCustomizableSkeletalComponent::GetAttachedSkeletalMesh() const
 
 	if (Parent)
 	{
-		return Parent->SkeletalMesh;
+		return Parent->GetSkeletalMeshAsset();
 	}
 
 	return nullptr;

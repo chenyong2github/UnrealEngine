@@ -252,7 +252,7 @@ void FCustomizableObjectCompiler::Compile(UCustomizableObject& Object, const FCo
 
 	for (FAssetData& Element : ArrayAssetData)
 	{
-		ArrayAssetToStream.Add(FSoftObjectPath(Element.ObjectPath.ToString()));
+		ArrayAssetToStream.Add(Element.GetSoftObjectPath());
 	}
 
 	MaxConvertToMutableTextureTime = ComputeAsyncLoadingTimeLimit() * 0.001f;

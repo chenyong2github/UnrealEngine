@@ -349,7 +349,7 @@ public:
 
 	// Pass a null ptr to reset to the default InstanceLODManagement
 	void SetInstanceLODManagement(UCustomizableInstanceLODManagementBase* NewInstanceLODManagement) 
-		{ CurrentInstanceLODManagement = NewInstanceLODManagement ? NewInstanceLODManagement : DefaultInstanceLODManagement.Get(); }
+		{ CurrentInstanceLODManagement = NewInstanceLODManagement ? NewInstanceLODManagement : ToRawPtr(DefaultInstanceLODManagement); }
 
 	// Find out the version of the plugin
 	UFUNCTION(BlueprintCallable, Category = Status)

@@ -42,18 +42,18 @@ inline const TIndirectArray<FSkeletalMeshLODRenderData>& Helper_GetLODData(const
 	return Resource->LODRenderData;
 }
 
-inline TIndirectArray<FSkeletalMeshLODRenderData>& Helper_GetLODData(const USkeletalMesh* Mesh)
+inline TIndirectArray<FSkeletalMeshLODRenderData>& Helper_GetLODData(const USkinnedAsset* Mesh)
 {
 	return Mesh->GetResourceForRendering()->LODRenderData;
 }
 
-inline TArray<FSkelMeshRenderSection>& Helper_GetLODRenderSections(const USkeletalMesh* Mesh, int LODIndex)
+inline TArray<FSkelMeshRenderSection>& Helper_GetLODRenderSections(const USkinnedAsset* Mesh, int LODIndex)
 {
 	return  Mesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections;
 }
 
 #if WITH_EDITORONLY_DATA
-inline FSkeletalMeshModel* Helper_GetImportedModel(const USkeletalMesh* Mesh)
+inline FSkeletalMeshModel* Helper_GetImportedModel(const USkinnedAsset* Mesh)
 {
 	return Mesh->GetImportedModel();
 }
@@ -74,27 +74,27 @@ inline const TArray<FSkelMeshRenderSection>* Helper_LODGetSections(const FSkelet
 	return &(Resource->RenderSections);
 }
 
-inline TArray<struct FSkeletalMeshLODInfo>& Helper_GetLODInfoArray(USkeletalMesh* Mesh)
+inline TArray<struct FSkeletalMeshLODInfo>& Helper_GetLODInfoArray(USkinnedAsset* Mesh)
 {
 	return Mesh->GetLODInfoArray();
 }
 
-inline const TArray<struct FSkeletalMeshLODInfo>& Helper_GetLODInfoArray(const USkeletalMesh* Mesh)
+inline const TArray<struct FSkeletalMeshLODInfo>& Helper_GetLODInfoArray(const USkinnedAsset* Mesh)
 {
 	return Mesh->GetLODInfoArray();
 }
 
-inline int Helper_GetLODNum(const USkeletalMesh* Mesh)
+inline int Helper_GetLODNum(const USkinnedAsset* Mesh)
 {
 	return Mesh->GetLODNum();
 }
 
-inline const TArray<FBoneReference>& Helper_GetLODInfoBonesToRemove(const USkeletalMesh* Mesh, int LODIndex)
+inline const TArray<FBoneReference>& Helper_GetLODInfoBonesToRemove(const USkinnedAsset* Mesh, int LODIndex)
 {
 	return Mesh->GetLODInfo(LODIndex)->BonesToRemove;
 }
 
-inline TArray<FBoneReference>& Helper_GetLODInfoBonesToRemove(USkeletalMesh* Mesh, int LODIndex)
+inline TArray<FBoneReference>& Helper_GetLODInfoBonesToRemove(USkinnedAsset* Mesh, int LODIndex)
 {
 	return Mesh->GetLODInfo(LODIndex)->BonesToRemove;
 }

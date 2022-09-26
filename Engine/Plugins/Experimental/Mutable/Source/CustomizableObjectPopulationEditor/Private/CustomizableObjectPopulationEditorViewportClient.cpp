@@ -86,7 +86,7 @@ void FCustomizableObjectPopulationEditorViewportClient::ProcessClick(FSceneView&
 	// Checking hit
 	for (int32 i = 0; i < ColliderComponents.Num(); ++i)
 	{
-		if (SkeletalMeshComponents[i] && SkeletalMeshComponents[i]->SkeletalMesh)
+		if (SkeletalMeshComponents[i] && SkeletalMeshComponents[i]->GetSkinnedAsset())
 		{	
 			FVector BoxExtent = SkeletalMeshComponents[i]->Bounds.BoxExtent;
 			ColliderComponents[i]->SetVisibility(false);

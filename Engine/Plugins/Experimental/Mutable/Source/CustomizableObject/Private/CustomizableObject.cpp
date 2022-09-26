@@ -732,7 +732,7 @@ bool UCustomizableObject::ConditionalAutoCompile()
 	else
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*GetPathName());
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(GetPathName()));
 		System->RecompileCustomizableObjectAsync(AssetData, this);
 	}
 

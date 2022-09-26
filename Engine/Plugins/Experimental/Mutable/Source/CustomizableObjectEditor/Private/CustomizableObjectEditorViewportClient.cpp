@@ -537,7 +537,7 @@ FCustomizableObjectEditorViewportClient::FCustomizableObjectEditorViewportClient
 void FCustomizableObjectEditorViewportClient::UpdateCameraSetup()
 {
 	static FRotator CustomOrbitRotation(-33.75, -135, 0);
-	if ( (SkeletalMeshComponents.Num() && SkeletalMeshComponents[0].IsValid() && SkeletalMeshComponents[0]->SkeletalMesh)
+	if ( (SkeletalMeshComponents.Num() && SkeletalMeshComponents[0].IsValid() && SkeletalMeshComponents[0]->GetSkinnedAsset())
 		||
 		(StaticMeshComponent.IsValid() && StaticMeshComponent->GetStaticMesh()) )
 	{
@@ -844,7 +844,7 @@ void FCustomizableObjectEditorViewportClient::Draw(FViewport* InViewport, FCanva
 	// Defensive check to avoid unreal crashing inside render if the mesh is degenereated
 	for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 	{
-		if (SkeletalMeshComponent.IsValid() && SkeletalMeshComponent->GetSkeletalMesh() && Helper_GetLODInfoArray(SkeletalMeshComponent->GetSkeletalMesh()).Num() == 0)
+		if (SkeletalMeshComponent.IsValid() && SkeletalMeshComponent->GetSkinnedAsset() && Helper_GetLODInfoArray(SkeletalMeshComponent->GetSkinnedAsset()).Num() == 0)
 		{
 			SkeletalMeshComponent->SetSkeletalMesh(nullptr);
 		}
@@ -1077,7 +1077,7 @@ void FCustomizableObjectEditorViewportClient::DrawUVs(FViewport* InViewport, FCa
 
 		for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 		{
-			if (!SkeletalMeshComponent.IsValid() || !SkeletalMeshComponent->GetSkeletalMesh() || CurrentComponentIndex != ComponentIndex)
+			if (!SkeletalMeshComponent.IsValid() || !SkeletalMeshComponent->GetSkinnedAsset() || CurrentComponentIndex != ComponentIndex)
 			{
 				CurrentComponentIndex++;
 				continue;
@@ -1085,7 +1085,7 @@ void FCustomizableObjectEditorViewportClient::DrawUVs(FViewport* InViewport, FCa
 
 			bool bFoundMaterial = false;
 
-			const FSkeletalMeshRenderData* MeshRes = SkeletalMeshComponent->GetSkeletalMesh()->GetResourceForRendering();
+			const FSkeletalMeshRenderData* MeshRes = SkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering();
 			if (UVChannel < (int32)MeshRes->LODRenderData[LODLevel].GetNumTexCoords())
 			{
 				// Find material index from name
@@ -1548,9 +1548,9 @@ void FCustomizableObjectEditorViewportClient::ResetCamera()
 	float MaxSphereRadius = 0.0f;
 	for (const TWeakObjectPtr<UDebugSkelMeshComponent>& SkeletalMeshComponent : SkeletalMeshComponents)
 	{
-		if (SkeletalMeshComponent->GetSkeletalMesh())
+		if (SkeletalMeshComponent->GetSkinnedAsset())
 		{
-			MaxSphereRadius = FMath::Max(MaxSphereRadius, SkeletalMeshComponent->GetSkeletalMesh()->GetBounds().SphereRadius);
+			MaxSphereRadius = FMath::Max(MaxSphereRadius, SkeletalMeshComponent->GetSkinnedAsset()->GetBounds().SphereRadius);
 		}
 	}
 	
@@ -2031,8 +2031,8 @@ void FCustomizableObjectEditorViewportClient::SetAnimation(UAnimationAsset* Anim
 	for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 	{
 		if (SkeletalMeshComponent.IsValid() && Animation != nullptr
-			&& SkeletalMeshComponent->GetSkeletalMesh() != nullptr
-			&& SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton() == Animation->GetSkeleton()
+			&& SkeletalMeshComponent->GetSkinnedAsset() != nullptr
+			&& SkeletalMeshComponent->GetSkinnedAsset()->GetSkeleton() == Animation->GetSkeleton()
 			)
 		{
 			SkeletalMeshComponent->SetAnimationMode(AnimationType);
@@ -2131,7 +2131,7 @@ void FCustomizableObjectEditorViewportClient::SetFloorOffset(float NewValue)
 {
 	for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 	{
-		USkeletalMesh* Mesh = SkeletalMeshComponent.IsValid() ? SkeletalMeshComponent->GetSkeletalMesh() : nullptr;
+		USkeletalMesh* Mesh = SkeletalMeshComponent.IsValid() ? Cast<USkeletalMesh>(SkeletalMeshComponent->GetSkinnedAsset()) : nullptr;
 
 		if (Mesh)
 		{
@@ -2235,7 +2235,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 	int32 NumComponents = SkeletalMeshComponents.Num();
 	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 	{
-		if (SkeletalMeshComponents[ComponentIndex].IsValid() && SkeletalMeshComponents[ComponentIndex]->GetSkeletalMesh())
+		if (SkeletalMeshComponents[ComponentIndex].IsValid() && SkeletalMeshComponents[ComponentIndex]->GetSkinnedAsset())
 		{
 			bHasSkeletalMesh = true;
 		}
@@ -2304,7 +2304,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 			for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 			{
 				USkeletalMesh* Mesh = SkeletalMeshComponents.Num() && SkeletalMeshComponents[ComponentIndex].IsValid() ?
-					SkeletalMeshComponents[ComponentIndex]->GetSkeletalMesh() : nullptr;
+					Cast<USkeletalMesh>(SkeletalMeshComponents[ComponentIndex]->GetSkinnedAsset()) : nullptr;
 				
 				if (!Mesh)
 				{
@@ -2814,9 +2814,9 @@ void FCustomizableObjectEditorViewportClient::ShowInstanceGeometryInformation(FC
 	// Show total number of triangles and vertices
 	for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 	{
-		if (SkeletalMeshComponent.IsValid() && SkeletalMeshComponent->GetSkeletalMesh())
+		if (SkeletalMeshComponent.IsValid() && SkeletalMeshComponent->GetSkinnedAsset())
 		{
-			const FSkeletalMeshRenderData* MeshRes = SkeletalMeshComponent->GetSkeletalMesh()->GetResourceForRendering();
+			const FSkeletalMeshRenderData* MeshRes = SkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering();
 			int32 NumTriangles;
 			int32 NumVertices;
 			int32 NumLODLevel = MeshRes->LODRenderData.Num();

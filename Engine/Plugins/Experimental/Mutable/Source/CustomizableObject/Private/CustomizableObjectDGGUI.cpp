@@ -70,7 +70,7 @@ void UDGGUI::CustomizableSkeletalMeshPreUpdate(UCustomizableSkeletalComponent* C
 		USkeleton* NextSkeleton = NextMesh->GetSkeleton();
 		if (Parent && NextSkeleton)
 		{
-			if (USkeletalMesh* ParentSkeletalMesh = Parent->SkeletalMesh)
+			if (USkeletalMesh* ParentSkeletalMesh = Cast<USkeletalMesh>(Parent->GetSkinnedAsset()))
 			{
 				if (USkeleton* ParentSkeleton = ParentSkeletalMesh->GetSkeleton())
 				{

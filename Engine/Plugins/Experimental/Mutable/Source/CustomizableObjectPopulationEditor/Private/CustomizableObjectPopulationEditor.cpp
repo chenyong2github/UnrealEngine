@@ -615,7 +615,7 @@ void FCustomizableObjectPopulationEditor::GeneratePopulationInstances()
 			{
 				//Search for asset with the same name
 				FString ObjectPath = FilePath + FString(".") + ObjectName;
-				AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+				AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 
 				// Popup window
 				if (AssetData.IsValid() && AssetData.GetClass() == UCustomizableObjectInstance::StaticClass() && RetType != EAppReturnType::YesAll)

@@ -51,7 +51,7 @@ uint64 ASTOpMeshFormat::Hash() const
 
 mu::Ptr<ASTOp> ASTOpMeshFormat::Clone(MapChildFunc& mapChild) const
 {
-    Ptr<ASTOpMeshFormat> n = new ASTOpMeshFormat();
+	mu::Ptr<ASTOpMeshFormat> n = new ASTOpMeshFormat();
     n->Source = mapChild(Source.child());
     n->Format = mapChild(Format.child());
 	n->Buffers = Buffers;
@@ -88,9 +88,9 @@ void ASTOpMeshFormat::Link( PROGRAM& program, const FLinkerOptions* )
 }
 
 
-Ptr<ASTOp> ASTOpMeshFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
+mu::Ptr<ASTOp> ASTOpMeshFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
 {
-	Ptr<ASTOp> at = context.MeshFormatSinker.Apply(this);
+	mu::Ptr<ASTOp> at = context.MeshFormatSinker.Apply(this);
 	return at;
 }
 
@@ -120,9 +120,9 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Apply(const ASTOp* root)
 
 namespace
 {
-	Ptr<const Mesh> FindBaseMeshConstant(Ptr<ASTOp> at)
+	mu::Ptr<const Mesh> FindBaseMeshConstant(mu::Ptr<ASTOp> at)
 	{
-		Ptr<const Mesh> res;
+		mu::Ptr<const Mesh> res;
 
 		switch (at->GetOpType())
 		{
@@ -269,7 +269,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 		MeshPtrConst pTargetFormat = FindBaseMeshConstant(currentFormatOp->Format.child());
 		MeshPtrConst pTargetMorphFormat = MakeMorphTargetFormat(pTargetFormat);
 
-		Ptr<ASTOpConstantResource> motaop = new ASTOpConstantResource();
+		mu::Ptr<ASTOpConstantResource> motaop = new ASTOpConstantResource();
 		motaop->type = OP_TYPE::ME_CONSTANT;
 		motaop->SetValue(pTargetMorphFormat, false /* useDiskCache */);
 		auto targetMorphFormatAt = motaop;
@@ -278,7 +278,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 		{
 			if (newOp->children[newOp->op.args.MeshMorph2.targets[t]])
 			{
-				Ptr<ASTOpMeshFormat> newFormat = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
+				mu::Ptr<ASTOpMeshFormat> newFormat = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
 				newFormat->Buffers =
 					OP::MeshFormatArgs::BT_VERTEX
 					| OP::MeshFormatArgs::BT_IGNORE_MISSING;
@@ -312,7 +312,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 		MeshPtrConst pTargetFormat = FindBaseMeshConstant(currentFormatOp->Format.child());
 		MeshPtrConst pTargetMorphFormat = MakeMorphTargetFormat(pTargetFormat);
 
-		Ptr<ASTOpConstantResource> motaop = new ASTOpConstantResource();
+		mu::Ptr<ASTOpConstantResource> motaop = new ASTOpConstantResource();
 		motaop->type = OP_TYPE::ME_CONSTANT;
 		motaop->SetValue(pTargetMorphFormat, false /* useDiskCache */);
 		auto targetMorphFormatAt = motaop;
@@ -321,7 +321,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 		{
 			if (newOp->children[newOp->op.args.MeshInterpolate.targets[t]])
 			{
-				Ptr<ASTOpMeshFormat> newFormat = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
+				mu::Ptr<ASTOpMeshFormat> newFormat = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
 				newFormat->Buffers =
 					OP::MeshFormatArgs::BT_VERTEX
 					| OP::MeshFormatArgs::BT_IGNORE_MISSING;
@@ -386,7 +386,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 	default:
 		if (at != m_initialSource)
 		{
-			Ptr<ASTOpMeshFormat> newOp = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
+			mu::Ptr<ASTOpMeshFormat> newOp = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
 			newOp->Source = at;
 			newAt = newOp;
 		}

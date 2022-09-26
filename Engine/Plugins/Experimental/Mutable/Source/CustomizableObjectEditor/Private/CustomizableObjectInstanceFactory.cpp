@@ -118,7 +118,7 @@ void UCustomizableObjectInstanceFactory::PostSpawnActor(UObject* Asset, AActor* 
 			if (USkeletalMeshComponent* SkeletalMeshComp = NewCSMActor->GetSkeletalMeshComponentAt(ComponentIndex))
 			{
 				SkeletalMeshComp->UnregisterComponent();
-				SkeletalMeshComp->SkeletalMesh = SkeletalMesh;
+				SkeletalMeshComp->SetSkinnedAsset(SkeletalMesh);
 
 				if (ComponentIndex == 0 && NewCSMActor->GetWorld()->IsGameWorld())
 				{

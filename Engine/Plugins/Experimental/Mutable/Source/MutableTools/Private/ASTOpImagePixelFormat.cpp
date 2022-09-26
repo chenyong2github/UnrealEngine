@@ -50,7 +50,7 @@ uint64 ASTOpImagePixelFormat::Hash() const
 
 mu::Ptr<ASTOp> ASTOpImagePixelFormat::Clone(MapChildFunc& mapChild) const
 {
-    Ptr<ASTOpImagePixelFormat> n = new ASTOpImagePixelFormat();
+	mu::Ptr<ASTOpImagePixelFormat> n = new ASTOpImagePixelFormat();
     n->Source = mapChild(Source.child());
 	n->Format = Format;
 	n->FormatIfAlpha = FormatIfAlpha;
@@ -86,11 +86,11 @@ void ASTOpImagePixelFormat::Link( PROGRAM& program, const FLinkerOptions* )
 }
 
 
-Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
+mu::Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
 {
-	Ptr<ASTOp> at;
+	mu::Ptr<ASTOp> at;
 
-	Ptr<ASTOp> sourceAt = Source.child();
+	mu::Ptr<ASTOp> sourceAt = Source.child();
 
 	EImageFormat format = Format;
 	bool isCompressedFormat = IsCompressedFormat(Format);
@@ -104,7 +104,7 @@ Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&
 	{
 		// Keep only the top pixel format
 		const ASTOpImagePixelFormat* typedSource = dynamic_cast<const ASTOpImagePixelFormat*>(sourceAt.get());
-		Ptr<ASTOpImagePixelFormat> formatOp = mu::Clone<ASTOpImagePixelFormat>(this);
+		mu::Ptr<ASTOpImagePixelFormat> formatOp = mu::Clone<ASTOpImagePixelFormat>(this);
 		formatOp->Source = typedSource->Source.child();
 		at = formatOp;
 		break;
@@ -115,9 +115,9 @@ Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&
 		// This op doesn't support compressed formats
 		if (!isCompressedFormat)
 		{
-			Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
+			mu::Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
-			Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(this);
+			mu::Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(this);
 			fop->Source = newOp->children[newOp->op.args.ImageDisplace.source].child();
 			newOp->SetChild(newOp->op.args.ImageDisplace.source, fop);
 
@@ -135,7 +135,7 @@ Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&
 		{
 			auto newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
-			Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(this);
+			mu::Ptr<ASTOpImagePixelFormat> fop = mu::Clone<ASTOpImagePixelFormat>(this);
 			fop->Source = newOp->children[newOp->op.args.ImageRasterMesh.image].child();
 			newOp->SetChild(newOp->op.args.ImageRasterMesh.image, fop);
 
@@ -245,7 +245,7 @@ bool ASTOpImagePixelFormat::IsImagePlainConstant(vec4<float>& colour) const
 
 mu::Ptr<ImageSizeExpression> ASTOpImagePixelFormat::GetImageSizeExpression() const
 {
-	Ptr<ImageSizeExpression> pRes;
+	mu::Ptr<ImageSizeExpression> pRes;
 
 	if (Source.child())
 	{
@@ -263,7 +263,7 @@ mu::Ptr<ImageSizeExpression> ASTOpImagePixelFormat::GetImageSizeExpression() con
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
-Ptr<ASTOp> Sink_ImagePixelFormatAST::Apply(const ASTOp* root)
+mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Apply(const ASTOp* root)
 {
 	m_root = dynamic_cast<const ASTOpImagePixelFormat*>(root);
 	m_oldToNew.clear();
@@ -272,7 +272,7 @@ Ptr<ASTOp> Sink_ImagePixelFormatAST::Apply(const ASTOp* root)
 	check(root->GetOpType() == OP_TYPE::IM_PIXELFORMAT);
 
 	m_initialSource = m_root->Source.child();
-	Ptr<ASTOp> newSource = Visit(m_initialSource, m_root);
+	mu::Ptr<ASTOp> newSource = Visit(m_initialSource, m_root);
 
 	m_root = nullptr;
 
@@ -287,7 +287,7 @@ Ptr<ASTOp> Sink_ImagePixelFormatAST::Apply(const ASTOp* root)
 
 
 //---------------------------------------------------------------------------------------------
-Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(Ptr<ASTOp> at, const ASTOpImagePixelFormat* currentFormatOp)
+mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImagePixelFormat* currentFormatOp)
 {
 	if (!at) return nullptr;
 
@@ -308,7 +308,7 @@ Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(Ptr<ASTOp> at, const ASTOpImagePixelF
 		return cacheIt->second;
 	}
 
-	Ptr<ASTOp> newAt = at;
+	mu::Ptr<ASTOp> newAt = at;
 	switch (at->GetOpType())
 	{
 
@@ -501,7 +501,7 @@ Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(Ptr<ASTOp> at, const ASTOpImagePixelF
 	// end on tree branch, replace with format
 	if (at == newAt && at != m_initialSource)
 	{
-		Ptr<ASTOpImagePixelFormat> newOp = mu::Clone<ASTOpImagePixelFormat>(currentFormatOp);
+		mu::Ptr<ASTOpImagePixelFormat> newOp = mu::Clone<ASTOpImagePixelFormat>(currentFormatOp);
 		check(newOp->GetOpType() == OP_TYPE::IM_PIXELFORMAT);
 
 		newOp->Source = at;
