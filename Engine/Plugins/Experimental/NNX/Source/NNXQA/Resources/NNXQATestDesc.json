@@ -68,7 +68,6 @@
 	"operator_test_categories": [
 		{
 			"category": "Elementwise.Unary",
-			"runtimes": [ { "name": "NNXRuntimeDml", "skip": true, "comment": "TODO enable, a CL with related fixes is in progress."} ],
 			"targets": [
 				{	"target": "Abs", "additional_datasets": [ "Elementwise.Slow.OneInput" ]},
 				{	"target": "Acos", "runtimes": [
