@@ -8558,7 +8558,7 @@ void ALandscape::SetLayerLocked(int32 InLayerIndex, bool bLocked)
 		return;
 	}
 
-	Modify(false);
+	Modify();
 	Layer->bLocked = bLocked;
 }
 
