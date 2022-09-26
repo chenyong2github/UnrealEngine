@@ -721,8 +721,7 @@ namespace UnrealBuildTool
 				Result += " -gline-tables-only";
 			}
 
-			bool bEnableLTO = CompileEnvironment.bPGOOptimize || CompileEnvironment.bPGOProfile;
-			if (CompileEnvironment.bAllowLTCG || bEnableLTO)
+			if (CompileEnvironment.bAllowLTCG)
 			{
 				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
 				{
@@ -888,8 +887,7 @@ namespace UnrealBuildTool
 				Result += " -gline-tables-only";
 			}
 
-			bool bEnableLTO = LinkEnvironment.bPGOOptimize || LinkEnvironment.bPGOProfile;
-			if (LinkEnvironment.bAllowLTCG || bEnableLTO)
+			if (LinkEnvironment.bAllowLTCG)
 			{
 				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
 				{

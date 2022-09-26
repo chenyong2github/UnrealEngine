@@ -469,14 +469,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// For consistency with other platforms, also enable LTO whenever doing profile-guided optimizations.
-			// Obviously both PGI (instrumented) and PGO (optimized) binaries need to have that
-			if (CompileEnvironment.bPGOProfile || CompileEnvironment.bPGOOptimize)
-			{
-				CompileEnvironment.bAllowLTCG = true;
-				LinkEnvironment.bAllowLTCG = true;
-			}
-
 			CompileEnvironment.Definitions.Add("INT64_T_TYPES_NOT_LONG_LONG=1");
 
 			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment, Logger);
