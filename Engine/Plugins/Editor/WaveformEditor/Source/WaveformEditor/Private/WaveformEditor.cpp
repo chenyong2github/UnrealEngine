@@ -11,6 +11,7 @@
 #include "SWaveformTransformationsOverlay.h"
 #include "ToolMenus.h"
 #include "WaveformEditorCommands.h"
+#include "WaveformEditorDetailsCustomization.h"
 #include "WaveformEditorLog.h"
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorStyle.h"
@@ -489,9 +490,13 @@ bool FWaveformEditor::SetUpDetailsViews()
 	PropertiesDetails->SetObject(SoundWave);
 
 	TransformationsDetails = PropertyModule.CreateDetailView(Args);
-	TransformationsView = TStrongObjectPtr(NewObject<UWaveformTransformationsViewHelper>());
-	TransformationsView->SetSoundWave(SoundWave);
-	TransformationsDetails->SetObject(TransformationsView.Get());
+	FOnGetDetailCustomizationInstance TransformationsDetailsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateLambda([]() { 
+			return MakeShared<FWaveformTransformationsDetailsCustomization>(); 
+		}
+	);
+
+	TransformationsDetails->RegisterInstancedCustomPropertyLayout(SoundWave->GetClass(), TransformationsDetailsCustomizationInstance);
+	TransformationsDetails->SetObject(SoundWave);
 
 	return true;
 }

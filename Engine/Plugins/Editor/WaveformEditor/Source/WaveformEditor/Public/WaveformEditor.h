@@ -7,7 +7,6 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "WaveformEditorTransportController.h"
 #include "WaveformEditorTransportCoordinator.h"
-#include "WaveformEditorCustomDetailsHelpers.h"
 #include "WaveformEditorZoomController.h"
 
 class IToolkitHost;
@@ -112,7 +111,6 @@ private:
 
 	/** Transformations tab */
 	TSharedPtr<IDetailsView> TransformationsDetails;
-	TStrongObjectPtr<UWaveformTransformationsViewHelper> TransformationsView;
 
 	/** Settings Editor App Identifier */
 	static const FName AppIdentifier;

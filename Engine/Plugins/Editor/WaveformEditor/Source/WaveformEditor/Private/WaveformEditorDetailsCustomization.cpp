@@ -5,24 +5,23 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "Sound/SoundWave.h"
-#include "WaveformEditorCustomDetailsHelpers.h"
+
+static const FLazyName TransformationsCategoryName("Transformations");
 
 void FWaveformTransformationsDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {	
-	TArray<TWeakObjectPtr<UObject>> Objects;
-	DetailLayout.GetObjectsBeingCustomized(Objects);
+	TArray<FName> CategoryNames;
+	DetailLayout.GetCategoryNames(CategoryNames);
 
-	//there should only one soundwave per editor instance open
-	check(Objects.Num() == 1)
-
-	if (UWaveformTransformationsViewHelper* TransformationsView = CastChecked<UWaveformTransformationsViewHelper>(Objects.Last()))
+	for (FName& CategoryName : CategoryNames)
 	{
-		SoundWaveObject = TransformationsView->GetSoundWave();
+		if (CategoryName != TransformationsCategoryName)
+		{
+			DetailLayout.HideCategory(CategoryName);
+		}
 	}
 
-	IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("General");
-
-	TArray<UObject*> ObjArray{ SoundWaveObject.Get() };
-	CategoryBuilder.AddExternalObjectProperty(ObjArray, GET_MEMBER_NAME_CHECKED(USoundWave, Transformations));
+	IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("Transformations");
 	CategoryBuilder.InitiallyCollapsed(false);
+	CategoryBuilder.RestoreExpansionState(true);
 }
