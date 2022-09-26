@@ -112,8 +112,10 @@ void LumenRadiosityDistanceFieldTracingCS(
 			//#lumen_todo: derive bias from texel world size
 			float3 SamplePosition = WorldPosition + SurfaceBias * WorldRayDirection;
 
+			float3 TranslatedSamplePosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
+
 			FConeTraceInput TraceInput;
-			TraceInput.Setup(SamplePosition, WorldRayDirection, ConeHalfAngle, 0, MinTraceDistance, MaxTraceDistance, 1);
+			TraceInput.Setup(SamplePosition, TranslatedSamplePosition, WorldRayDirection, ConeHalfAngle, 0, MinTraceDistance, MaxTraceDistance, 1);
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
 			TraceInput.DitherScreenCoord = (RadiosityTexel.CardCoord >> ProbeSpacingInRadiosityTexelsDivideShift) + TraceTexelCoord;

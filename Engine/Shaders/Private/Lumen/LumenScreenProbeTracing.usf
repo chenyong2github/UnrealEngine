@@ -495,8 +495,11 @@ void TraceMeshSDFs(
 			float3 SamplePosition = WorldPosition + SurfaceBias * RayWorldDirection;
 			SamplePosition += SurfaceBias * SceneNormal;
 
+			float3 TranslatedSamplePosition = TranslatedWorldPosition + SurfaceBias * RayWorldDirection;
+			TranslatedSamplePosition += SurfaceBias * SceneNormal;
+
 			FConeTraceInput TraceInput;
-			TraceInput.Setup(SamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
+			TraceInput.Setup(SamplePosition, TranslatedSamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
 			TraceInput.VoxelTraceStartDistance = min(MaxMeshSDFTraceDistance, TraceDistance);
 			TraceInput.bDitheredTransparency = true;
 			TraceInput.DitherScreenCoord = ScreenTileCoord * ProbeTracingResolution + TraceTexelCoord;
@@ -629,6 +632,9 @@ void TraceVoxels(
 			float3 SamplePosition = WorldPosition + SurfaceBias * RayWorldDirection;
 			SamplePosition += SurfaceBias * SceneNormal;
 
+			float3 TranslatedSamplePosition = TranslatedWorldPosition + SurfaceBias * RayWorldDirection;
+			TranslatedSamplePosition += SurfaceBias * SceneNormal;
+
 			FRadianceCacheCoverage Coverage;
 			Coverage.bValid = false;
 #if RADIANCE_CACHE
@@ -641,7 +647,7 @@ void TraceVoxels(
 #endif
 
 			FConeTraceInput TraceInput;
-			TraceInput.Setup(SamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
+			TraceInput.Setup(SamplePosition, TranslatedSamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
 			TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2);
 			TraceInput.bDitheredTransparency = true;
 			TraceInput.DitherScreenCoord = ScreenTileCoord * ProbeTracingResolution + TraceTexelCoord;

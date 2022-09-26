@@ -416,10 +416,11 @@ void TraceMeshSDFs(
 	FRayData RayData = GetRayData(ReflectionTracingCoord.CoordFlatten);
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
+	float3 SampleTranslatedPosition = TranslatedWorldPosition + SurfaceBias * RayData.Direction;
 	float PullbackForSurfaceExpand = SurfaceBias;
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f), RayData.TraceDistance, 1.0f);
+	TraceInput.Setup(SamplePosition, SampleTranslatedPosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f), RayData.TraceDistance, 1.0f);
 	TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
 	uint CardGridCellIndex = ComputeCardGridCellIndex(ReflectionTracingCoord.Coord * ReflectionDownsampleFactor, SceneDepth);
@@ -512,14 +513,15 @@ void TraceVoxels(
 	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
 	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.Coord, 0)).x;
 
-	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth); // LUMEN_LWC_TODO
 	float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	FRayData RayData = GetRayData(ReflectionTracingCoord.CoordFlatten);
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
+	float3 SampleTranslatedPosition = TranslatedWorldPosition + SurfaceBias * RayData.Direction;
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, 0.0f, RayData.TraceDistance, 1.0f);
+	TraceInput.Setup(SamplePosition, SampleTranslatedPosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, 0.0f, RayData.TraceDistance, 1.0f);
 
 	uint ClipmapForSurfaceExpand = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition + TraceHitDistance * RayData.Direction);
 	// Pull back from where the previous tracing method left off so that we start outside the surface, so that the SDF expansion works properly and prevents leaking through thin objects

@@ -75,6 +75,7 @@ void TranslucencyVolumeTraceVoxelsCS(
 		if (IsFroxelVisible(GridCoordinate))
 		{
 			float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz);
+			float3 TranslatedWorldPosition = ComputeCellTranslatedWorldPosition(GridCoordinate, FrameJitterOffset.xyz);
 
 			float2 ProbeUV;
 			float ConeHalfAngle;
@@ -97,7 +98,7 @@ void TranslucencyVolumeTraceVoxelsCS(
 			float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxMeshSDFTraceDistance, false) * VoxelTraceStartDistanceScale;
 
 			FConeTraceInput TraceInput;
-			TraceInput.Setup(WorldPosition, WorldConeDirection, ConeHalfAngle, 0, 0, TraceDistance, StepFactor);
+			TraceInput.Setup(WorldPosition, TranslatedWorldPosition, WorldConeDirection, ConeHalfAngle, 0, 0, TraceDistance, StepFactor);
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
 

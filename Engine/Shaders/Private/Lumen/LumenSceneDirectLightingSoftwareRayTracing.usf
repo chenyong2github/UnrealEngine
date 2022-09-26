@@ -28,6 +28,7 @@ float SDFSurfaceBiasScale;
 
 float ShadowTraceHeightfield(
 	float3 WorldRayStart,
+	float3 TranslatedWorldRayStart,
 	float3 WorldRayDirection,
 	float MaxTraceDistance)
 {
@@ -36,6 +37,7 @@ float ShadowTraceHeightfield(
 	FConeTraceInput ConeTraceInput;
 	ConeTraceInput.Setup(
 		WorldRayStart,
+		TranslatedWorldRayStart,
 		WorldRayDirection,
 		ConeAngle,
 		MinSampleRadius,
@@ -46,7 +48,7 @@ float ShadowTraceHeightfield(
 
 	uint NumIntersectingObjects = 0;
 	uint CulledDataStart = 0;
-	GetHeightfieldShadowTileCulledData(WorldRayStart + LWCHackToFloat(PrimaryView.PreViewTranslation), CulledDataStart, NumIntersectingObjects);
+	GetHeightfieldShadowTileCulledData(TranslatedWorldRayStart, CulledDataStart, NumIntersectingObjects);
 
 	for (uint IndexInCulledList = 0; IndexInCulledList < NumIntersectingObjects; ++IndexInCulledList)
 	{
@@ -65,7 +67,7 @@ float ShadowTraceHeightfield(
 	return 1.0f;
 }
 
-float TraceOffscreenShadows(FLumenCardData CardData, uint2 TexelCoord, float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal, bool bLocalLight)
+float TraceOffscreenShadows(FLumenCardData CardData, uint2 TexelCoord, float3 WorldPosition, float3 TranslatedWorldPosition, float3 L, float3 ToLight, float3 WorldNormal, bool bLocalLight)
 {
 	float ShadowFactor = 1.0f;
 
@@ -80,8 +82,8 @@ float TraceOffscreenShadows(FLumenCardData CardData, uint2 TexelCoord, float3 Wo
 	{
 		#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF
 		{
-			float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, MeshSDFShadowRayBias);
-			float3 TranslatedWorldRayStart = WorldPositionForShadowing + LWCHackToFloat(PrimaryView.PreViewTranslation);
+			float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, MeshSDFShadowRayBias);
+			float3 TranslatedWorldRayStart = TranslatedWorldPositionForShadowing;
 			float3 TranslatedWorldRayEnd = TranslatedWorldRayStart + L * TraceDistance;
 
 			uint NumIntersectingObjects = GetCulledNumObjects();
@@ -111,9 +113,11 @@ float TraceOffscreenShadows(FLumenCardData CardData, uint2 TexelCoord, float3 Wo
 		#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS
 		{
 			float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, HeightfieldShadowRayBias * CardData.TexelSize);
+			float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, HeightfieldShadowRayBias * CardData.TexelSize);
 
 			ShadowFactor *= ShadowTraceHeightfield(
 				WorldPositionForShadowing,
+				TranslatedWorldPositionForShadowing,
 				L,
 				TraceDistance);
 		}
@@ -191,6 +195,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 		FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(CardData, CardUV, AtlasUV);
 
 		float3 WorldPosition = SurfaceCacheData.WorldPosition;
+		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 		float3 WorldNormal = SurfaceCacheData.WorldNormal;
 
 		float3 L = LightData.Direction;
@@ -200,7 +205,6 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 #if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
 		if (LightData.bRadialLight)
 		{
-			float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 			ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 			L = normalize(ToLight);
 			bLocalLight = true;
@@ -208,7 +212,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 #endif
 
 		ShadowMaskRay.bShadowFactorComplete = true;
-		ShadowMaskRay.ShadowFactor *= TraceOffscreenShadows(CardData, TexelInCardPageCoord, WorldPosition, L, ToLight, WorldNormal, bLocalLight);
+		ShadowMaskRay.ShadowFactor *= TraceOffscreenShadows(CardData, TexelInCardPageCoord, WorldPosition, TranslatedWorldPosition, L, ToLight, WorldNormal, bLocalLight);
 
 		WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy, true);
 	}

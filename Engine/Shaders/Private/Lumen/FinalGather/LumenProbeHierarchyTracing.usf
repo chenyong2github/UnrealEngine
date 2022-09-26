@@ -93,7 +93,8 @@ void CardTraceProbeCS(
 		GetProbeTracingRange(ProbeTracingCtx, /* out */ ProbeTMin, /* out */ ProbeTMax);
 
 		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
-		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float3 SampleTranslatedPosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition;
+		float3 SamplePosition = SampleTranslatedPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 		
 		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);
 		float FinalMaxTraceDistance = min(MaxTraceDistance, ProbeTMax);
@@ -101,7 +102,7 @@ void CardTraceProbeCS(
 
 		FConeTraceInput TraceInput;
 		TraceInput.Setup(
-			SamplePosition, WorldConeDirection,
+			SamplePosition, SampleTranslatedPosition, WorldConeDirection,
 			DiffuseConeHalfAngle, MinSampleRadius,
 			FinalMinTraceDistance, FinalMaxTraceDistance,
 			EffectiveStepFactor);
@@ -168,7 +169,8 @@ void VoxelTraceProbeCS(
 		float ProbeTMax;
 		GetProbeTracingRange(ProbeTracingCtx, /* out */ ProbeTMin, /* out */ ProbeTMax);
 
-		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float3 SampleTranslatedPosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition;
+		float3 SamplePosition = SampleTranslatedPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
 
 		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);
@@ -179,7 +181,7 @@ void VoxelTraceProbeCS(
 
 		FConeTraceInput TraceInput;
 		TraceInput.Setup(
-			SamplePosition, WorldConeDirection,
+			SamplePosition, SampleTranslatedPosition, WorldConeDirection,
 			DiffuseConeHalfAngle, MinSampleRadius,
 			FinalMinTraceDistance, FinalMaxTraceDistance,
 			EffectiveStepFactor);

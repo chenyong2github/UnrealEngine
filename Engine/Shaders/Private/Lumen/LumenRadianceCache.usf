@@ -670,6 +670,8 @@ void TraceFromProbesCS(
 		uint ProbeIndex;
 		GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
 
+		const float3 ProbeTranslatedWorldCenter = ProbeWorldCenter + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
+
 		if (all(ProbeTexelCoord < TraceResolution))
 		{
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
@@ -693,7 +695,7 @@ void TraceFromProbesCS(
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(
-				ProbeWorldCenter, WorldConeDirection,
+				ProbeWorldCenter, ProbeTranslatedWorldCenter, WorldConeDirection,
 				ConeHalfAngle, MinSampleRadius,
 				FinalMinTraceDistance, FinalMaxTraceDistance,
 				EffectiveStepFactor);

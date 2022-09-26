@@ -48,6 +48,7 @@
 struct FConeTraceInput
 {
 	float3 ConeOrigin;
+	float3 ConeTranslatedOrigin;
 	float3 ConeDirection;
 	
 	float ConeAngle;
@@ -89,6 +90,7 @@ struct FConeTraceInput
 
 	void Setup(
 		float3 InConeOrigin,
+		float3 InConeTranslatedOrigin,
 		float3 InConeDirection,
 		float InConeAngle,
 		float InMinSampleRadius,
@@ -97,6 +99,7 @@ struct FConeTraceInput
 		float InStepFactor)
 	{
 		ConeOrigin = InConeOrigin;
+		ConeTranslatedOrigin = InConeTranslatedOrigin;
 		ConeDirection = InConeDirection;
 		ConeAngle = InConeAngle;
 		TanConeAngle = tan(ConeAngle);

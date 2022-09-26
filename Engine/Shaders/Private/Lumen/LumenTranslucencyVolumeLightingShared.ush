@@ -21,7 +21,7 @@ float ComputeDepthFromZSlice(float ZSlice)
 	return SliceDepth;
 }
 
-float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
+float3 ComputeCellTranslatedWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
 {
 	float2 VolumeUV = (GridCoordinate.xy + CellOffset.xy) / TranslucencyGIGridSize.xy;
 	float2 VolumeNDC = (VolumeUV * 2 - 1) * float2(1, -1);
@@ -30,13 +30,18 @@ float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out flo
 
 	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
 	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), UnjitteredClipToTranslatedWorld);
-	return CenterPosition.xyz / CenterPosition.w - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	return CenterPosition.xyz / CenterPosition.w;
+}
+
+float3 ComputeCellTranslatedWorldPosition(uint3 GridCoordinate, float3 CellOffset)
+{
+	float Unused;
+	return ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset, Unused);
 }
 
 float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
 {
-	float Unused;
-	return ComputeCellWorldPosition(GridCoordinate, CellOffset, Unused);
+	return ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset) - LWCHackToFloat(PrimaryView.PreViewTranslation);
 }
 
 float3 ComputeTranslucencyGIVolumeUV(float3 WorldPosition, float4x4 WorldToClip)
