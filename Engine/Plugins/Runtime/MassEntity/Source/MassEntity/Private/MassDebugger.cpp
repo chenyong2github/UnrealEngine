@@ -274,6 +274,11 @@ TConstArrayView<struct UMassCompositeProcessor::FDependencyNode> FMassDebugger::
 	return GraphOwner.FlatProcessingGraph;
 }
 
+TConstArrayView<TObjectPtr<UMassProcessor>> FMassDebugger::GetHostedProcessors(const UMassCompositeProcessor& GraphOwner)
+{
+	return GraphOwner.ChildPipeline.Processors;
+}
+
 FString FMassDebugger::GetRequirementsDescription(const FMassFragmentRequirements& Requirements)
 {
 	TStringBuilder<256> StringBuilder;

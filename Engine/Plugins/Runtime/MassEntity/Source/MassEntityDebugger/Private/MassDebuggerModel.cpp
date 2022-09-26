@@ -281,13 +281,32 @@ FMassDebuggerProcessingGraph::FMassDebuggerProcessingGraph(const FMassDebuggerMo
 #if WITH_MASSENTITY_DEBUG
 	TConstArrayView<UMassCompositeProcessor::FDependencyNode> ProcessingGraph = FMassDebugger::GetProcessingGraph(InGraphOwner);
 
-	GraphNodes.Reserve(ProcessingGraph.Num());
-	for (const UMassCompositeProcessor::FDependencyNode& Node : ProcessingGraph)
+	if (ProcessingGraph.Num() > 0)
 	{
-		check(Node.Processor);
-		const TSharedPtr<FMassDebuggerProcessorData>& ProcessorData = DebuggerModel.GetProcessorDataChecked(*Node.Processor);
-		check(ProcessorData.IsValid());
-		GraphNodes.Add(FMassDebuggerProcessingGraphNode(ProcessorData, Node));
+		GraphNodes.Reserve(ProcessingGraph.Num());
+		for (const UMassCompositeProcessor::FDependencyNode& Node : ProcessingGraph)
+		{
+			check(Node.Processor);
+			const TSharedPtr<FMassDebuggerProcessorData>& ProcessorData = DebuggerModel.GetProcessorDataChecked(*Node.Processor);
+			check(ProcessorData.IsValid());
+			GraphNodes.Add(FMassDebuggerProcessingGraphNode(ProcessorData, Node));
+		}
+	}
+	// it's possible for the graph to be empty if InGraphOwner has been populated for a single-thread execution.
+	// See if there are any processors owned by InGraphOwner.
+	else if (InGraphOwner.IsEmpty() == false)
+	{
+		TConstArrayView<TObjectPtr<UMassProcessor>> HostedProcessors = FMassDebugger::GetHostedProcessors(InGraphOwner);
+		for (const TObjectPtr<UMassProcessor>& Processor : HostedProcessors)
+		{
+			check(Processor);
+			const TSharedPtr<FMassDebuggerProcessorData>& ProcessorData = DebuggerModel.GetProcessorDataChecked(*Processor);
+			check(ProcessorData.IsValid());
+			GraphNodes.Add(FMassDebuggerProcessingGraphNode(ProcessorData));
+		}
+
+		// if we have processors, but the flat processing graph is empty, it means it's a single-threaded composite processor
+		bSingleTheadGraph = true;
 	}
 #endif // WITH_MASSENTITY_DEBUG
 }

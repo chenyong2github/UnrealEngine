@@ -113,7 +113,7 @@ public:
 
 struct FMassDebuggerProcessingGraphNode
 {
-	FMassDebuggerProcessingGraphNode(const TSharedPtr<FMassDebuggerProcessorData>& InProcessorData, const UMassCompositeProcessor::FDependencyNode& InProcessorNode);
+	explicit FMassDebuggerProcessingGraphNode(const TSharedPtr<FMassDebuggerProcessorData>& InProcessorData, const UMassCompositeProcessor::FDependencyNode& InProcessorNode = UMassCompositeProcessor::FDependencyNode());
 	
 	FText GetLabel() const;
 
@@ -129,6 +129,7 @@ struct FMassDebuggerProcessingGraph
 
 	FString Label;
 	TArray<FMassDebuggerProcessingGraphNode> GraphNodes;
+	bool bSingleTheadGraph = !bool(MASS_DO_PARALLEL);
 };
 
 

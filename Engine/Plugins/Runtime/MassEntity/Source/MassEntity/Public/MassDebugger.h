@@ -76,6 +76,7 @@ struct MASSENTITY_API FMassDebugger
 	static const TConstArrayView<FName> GetArchetypeDebugNames(const FMassArchetypeHandle& ArchetypeHandle);
 
 	static TConstArrayView<UMassCompositeProcessor::FDependencyNode> GetProcessingGraph(const UMassCompositeProcessor& GraphOwner);
+	static TConstArrayView<TObjectPtr<UMassProcessor>> GetHostedProcessors(const UMassCompositeProcessor& GraphOwner);
 	
 	static FString GetSingleRequirementDescription(const FMassFragmentRequirementDescription& Requirement);
 	static FString GetRequirementsDescription(const FMassFragmentRequirements& Requirements);
