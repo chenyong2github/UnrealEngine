@@ -296,7 +296,7 @@ void SFieldSelector::OnViewModelSelected(FBindingSource Source, ESelectInfo::Typ
 	{
 		TArray<FBindingSource> Selection = ViewModelList->GetSelectedItems();
 
-		BindingList->Clear();
+		BindingList->ClearSources();
 		BindingList->AddSources(Selection);
 	}
 
@@ -312,7 +312,7 @@ void SFieldSelector::OnWidgetSelected(FName WidgetName, ESelectInfo::Type)
 	{
 		FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint.Get(), WidgetName);
 
-		BindingList->Clear();
+		BindingList->ClearSources();
 		BindingList->AddSource(Source);
 	}
 
@@ -991,7 +991,7 @@ void SFieldSelector::OnConversionFunctionCategorySelected(TSharedPtr<FConversion
 
 	if (BindingList.IsValid())
 	{
-		BindingList->Clear();
+		BindingList->ClearSources();
 	}
 
 	if (ViewModelList.IsValid())

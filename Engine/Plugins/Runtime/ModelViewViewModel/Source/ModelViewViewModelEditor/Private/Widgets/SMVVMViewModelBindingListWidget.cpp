@@ -64,16 +64,25 @@ namespace Private
 					return TOptional<FFieldVariant>();
 				}
 
-				if (AssignableTo != nullptr && !BindingHelper::ArePropertiesCompatible(BindingHelper::GetReturnProperty(FieldVariant.GetFunction()), AssignableTo))
+				const UFunction* Function = FieldVariant.GetFunction();
+				if (Function != nullptr && AssignableTo != nullptr && 
+					!BindingHelper::ArePropertiesCompatible(BindingHelper::GetReturnProperty(Function), AssignableTo))
 				{
 					return TOptional<FFieldVariant>();
 				}
 
-				return FFieldVariant(FieldVariant.GetFunction());
+				return FFieldVariant(Function);
 			}
 			else if (FieldVariant.IsProperty())
 			{
 				if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsPropertyAllowed(FieldVariant.GetProperty()))
+				{
+					return TOptional<FFieldVariant>();
+				}
+
+				const FProperty* Property = FieldVariant.GetProperty();
+				if (Property != nullptr && AssignableTo != nullptr && 
+					!BindingHelper::ArePropertiesCompatible(Property, AssignableTo))
 				{
 					return TOptional<FFieldVariant>();
 				}
@@ -87,12 +96,7 @@ namespace Private
 					}
 				}
 
-				if (AssignableTo != nullptr && !BindingHelper::ArePropertiesCompatible(FieldVariant.GetProperty(), AssignableTo))
-				{
-					return TOptional<FFieldVariant>();
-				}
-
-				return FFieldVariant(FieldVariant.GetProperty());
+				return FFieldVariant(Property);
 			}
 		}
 
@@ -194,19 +198,16 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
 		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked);
 
-	if (InArgs._InitialSource.IsValid())
-	{
-		AddSources(MakeArrayView(&InArgs._InitialSource, 1));
-	}
-
 	ChildSlot
 	[
 		PropertyViewer.ToSharedRef()
 	];
 }
 
-void SSourceBindingList::Clear()
+void SSourceBindingList::ClearSources()
 {
+	SelectedPath = FMVVMBlueprintPropertyPath();
+
 	Sources.Reset();
 	if (PropertyViewer)
 	{
@@ -407,6 +408,47 @@ void SSourceBindingList::SetRawFilterText(const FText& InFilterText)
 FMVVMBlueprintPropertyPath SSourceBindingList::GetSelectedProperty() const
 {
 	return SelectedPath;
+}
+
+void SSourceBindingList::SetSelectedProperty(const FMVVMBlueprintPropertyPath& Property)
+{
+	if (!PropertyViewer.IsValid())
+	{
+		return;
+	}
+
+	SPropertyViewer::FHandle SelectedHandle;
+	for (TPair<FBindingSource, SPropertyViewer::FHandle>& Source : Sources)
+	{
+		if (Property.IsFromViewModel() && Source.Key.ViewModelId == Property.GetViewModelId() ||
+			Property.IsFromWidget() && Source.Key.Name == Property.GetWidgetName())
+		{
+			SelectedHandle = Source.Value;
+			break;
+		}
+	}
+
+	TArray<FFieldVariant, TMemStackAllocator<>> FieldPath;
+	if (SelectedHandle.IsValid())
+	{
+		TArray<FMVVMConstFieldVariant> FieldVariants = Property.GetFields();
+		FieldPath.Reserve(FieldVariants.Num());
+
+		for (const FMVVMConstFieldVariant& Variant : FieldVariants)
+		{
+			FFieldVariant& Field = FieldPath.AddDefaulted_GetRef();
+			if (Variant.IsFunction())
+			{
+				Field = FFieldVariant(Variant.GetFunction());
+			}
+			else if (Variant.IsProperty())
+			{
+				Field = FFieldVariant(Variant.GetProperty());
+			}
+		}
+	}
+	
+	PropertyViewer->SetSelection(SelectedHandle, FieldPath);
 }
 
 } // namespace UE::MVVM

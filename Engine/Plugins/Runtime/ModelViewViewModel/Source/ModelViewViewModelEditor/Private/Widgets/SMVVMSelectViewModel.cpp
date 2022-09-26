@@ -135,7 +135,7 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 
 void SMVVMSelectViewModel::HandleClassPicked(UClass* ClassPicked)
 {
-	BindingListWidget->Clear();
+	BindingListWidget->ClearSources();
 	SelectedClass.Reset();
 
 	if (Private::IsValidViewModel(ClassPicked))

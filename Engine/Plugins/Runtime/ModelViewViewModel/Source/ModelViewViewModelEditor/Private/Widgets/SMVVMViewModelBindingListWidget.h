@@ -64,7 +64,6 @@ namespace UE::MVVM
 		DECLARE_DELEGATE_OneParam(FOnDoubleClicked, const FMVVMBlueprintPropertyPath&);
 	
 		SLATE_BEGIN_ARGS(SSourceBindingList) {}
-			SLATE_ARGUMENT(FBindingSource, InitialSource)
 			SLATE_ARGUMENT_DEFAULT(bool, ShowSearchBox) = false;
 			SLATE_ARGUMENT_DEFAULT(EFieldVisibility, FieldVisibilityFlags) = EFieldVisibility::All;
 			SLATE_ARGUMENT_DEFAULT(bool, EnableSelection) = true;
@@ -81,7 +80,7 @@ namespace UE::MVVM
 
 		void Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint);
 
-		void Clear();
+		void ClearSources();
 
 		void AddSource(UClass* Class, FName Name, FGuid Guid);
 		void AddSource(const FBindingSource& InSource);
@@ -91,7 +90,8 @@ namespace UE::MVVM
 		void AddWidgets(TArrayView<const UWidget*> Widgets);
 		void AddViewModels(TArrayView<const FMVVMBlueprintViewModelContext> ViewModels);
 
-		FMVVMBlueprintPropertyPath GetSelectedProperty() const;
+		FMVVMBlueprintPropertyPath GetSelectedProperty() const; 
+		void SetSelectedProperty(const FMVVMBlueprintPropertyPath& Property);
 
 		void SetRawFilterText(const FText& InFilterText);
 
