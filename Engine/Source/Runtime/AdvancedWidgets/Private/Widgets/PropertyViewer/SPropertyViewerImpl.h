@@ -265,7 +265,7 @@ private:
 	void HandleSelectionChanged(TSharedPtr<FTreeNode> Item, ESelectInfo::Type SelectionType);
 	void HandleDoubleClick(TSharedPtr<FTreeNode> Item);
 
-	TSharedPtr<FTreeNode> FindChild(const TSharedPtr<FTreeNode>& ContainerNode, TArrayView<const FFieldVariant> FieldPath) const;
+	TSharedPtr<FTreeNode> FindExistingChild(const TSharedPtr<FTreeNode>& ContainerNode, TArrayView<const FFieldVariant> FieldPath) const;
 
 #if WITH_EDITOR
 	void HandleBlueprintCompiled();

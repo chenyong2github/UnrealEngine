@@ -777,7 +777,7 @@ void FPropertyViewerImpl::SetSelection(SPropertyViewer::FHandle Identifier, TArr
 			{
 				TreeWidget->ClearSelection();
 
-				if (TSharedPtr<FTreeNode> FoundNode = FindChild(Node, FieldPath))
+				if (TSharedPtr<FTreeNode> FoundNode = FindExistingChild(Node, FieldPath))
 				{
 					TreeWidget->SetItemSelection(FoundNode, true);
 				}
