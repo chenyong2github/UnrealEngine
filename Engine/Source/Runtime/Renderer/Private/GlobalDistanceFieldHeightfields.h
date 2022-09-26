@@ -12,11 +12,12 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FMarkHeightfieldPagesCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMarkedHeightfieldPageBuffer)
 		RDG_BUFFER_ACCESS(PageUpdateIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageUpdateTileBuffer)
-		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterScale)
-		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterBias)
+		SHADER_PARAMETER(FVector3f, PageCoordToVoxelTranslatedCenterScale)
+		SHADER_PARAMETER(FVector3f, PageCoordToVoxelTranslatedCenterBias)
 		SHADER_PARAMETER(FVector3f, PageWorldExtent)
 		SHADER_PARAMETER(FVector3f, InvPageGridResolution)
 		SHADER_PARAMETER(FIntVector, PageGridResolution)

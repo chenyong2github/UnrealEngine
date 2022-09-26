@@ -28,6 +28,74 @@ float HeightfieldThickness;
 float3 ViewTilePosition;
 float3 RelativePreViewTranslation;
 
+struct FHeightfieldSample
+{
+	bool bValid;
+	uint HeightfieldIndex;
+	float3 TranslatedWorldPosition;
+	float3 WorldNormal;
+};
+
+FHeightfieldSample SampleHeightfield(FLWCVector3 PreViewTranslation, FLWCVector3 VoxelWorldCenter)
+{
+	FHeightfieldSample Sample;
+	Sample.bValid = false;
+	Sample.HeightfieldIndex = NumHeightfields;
+	Sample.TranslatedWorldPosition = float3(0.0f, 0.0f, 0.0f);
+	Sample.WorldNormal = float3(0.0f, 0.0f, 0.0f);
+
+	for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
+	{
+		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(HeightfieldIndex));
+		float4 MinMaxHeightfieldUV;
+		float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
+
+		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
+		{
+			Sample.HeightfieldIndex = HeightfieldIndex;
+			break;
+		}
+	}
+
+	if (Sample.HeightfieldIndex < NumHeightfields)
+	{
+		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(Sample.HeightfieldIndex));
+		float4 MinMaxHeightfieldUV;
+		float2 HeightfieldUV = GetHeightfieldUV(Sample.HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
+
+		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
+		{
+			float HeightfieldVisibility;
+			FLWCVector3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(Sample.HeightfieldIndex, LocalPosition.xy, HeightfieldUV, Sample.WorldNormal, HeightfieldVisibility);
+			Sample.TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldHeightfieldShadingPosition, PreViewTranslation));
+
+			// Skip holes in the heightfield
+			if (HeightfieldVisibility > 0.5f)
+			{
+				Sample.bValid = true;
+			}
+		}
+	}
+
+	return Sample;
+}
+
+float ComputeHeightfieldDistance(FHeightfieldSample HeightfieldSample, float3 TranslatedWorldPosition)
+{
+	// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
+	float DistanceToHeightfieldPlane = dot(HeightfieldSample.WorldNormal, TranslatedWorldPosition - HeightfieldSample.TranslatedWorldPosition);
+
+	// Limit negative region of a heightfield to a user defined thickness  
+	const float MinInteriorDistance = -HeightfieldThickness;
+	if (DistanceToHeightfieldPlane < MinInteriorDistance)
+	{
+		DistanceToHeightfieldPlane = MinInteriorDistance - DistanceToHeightfieldPlane;
+	}
+
+	float HeightfieldMinDistance = clamp(DistanceToHeightfieldPlane, -InfluenceRadius, InfluenceRadius);
+	return HeightfieldMinDistance;
+}
+
 groupshared uint GroupMarkedPage[64];
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -36,65 +104,33 @@ void MarkHeightfieldPagesCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	const FLWCVector3 PreViewTranslation = MakeLWCVector3(-ViewTilePosition, RelativePreViewTranslation);
-
-	uint3 VoxelCoord = uint3(GroupThreadId.xy, 0);
 	uint ThreadIndex = GroupThreadId.x + GroupThreadId.y * THREADGROUP_SIZE;
 	uint IndexInPageBuffer = GroupId.x;
-	uint3 PageGridCoord = UnpackPageUpdateTile(PageUpdateTileBuffer[IndexInPageBuffer]);
 
-	float3 PageTranslatedWorldCenter = PageGridCoord * PageCoordToPageTranslatedWorldCenterScale + PageCoordToPageTranslatedWorldCenterBias;
-	float3 VoxelTranslatedWorldCenter = PageTranslatedWorldCenter - PageWorldExtent + VoxelCoord * 2.0f * PageWorldExtent;
+	const FLWCVector3 PreViewTranslation = MakeLWCVector3(-ViewTilePosition, RelativePreViewTranslation);
+
+	uint3 TexelCoordInPage = uint3(GroupThreadId.xy, 0);
+	uint3 PageGridCoord = UnpackPageUpdateTile(PageUpdateTileBuffer[IndexInPageBuffer]);
+	float3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - GLOBAL_DISTANCE_FIELD_PAGE_BORDER;
+	float3 VoxelTranslatedWorldCenter = PageCoord * PageCoordToVoxelTranslatedCenterScale + PageCoordToVoxelTranslatedCenterBias;
 	FLWCVector3 VoxelWorldCenter = LWCSubtract(VoxelTranslatedWorldCenter, PreViewTranslation);
 
 	GroupMarkedPage[ThreadIndex] = 0;
 
-	uint ValidHeightfieldIndex = 0;
-
-	LOOP
-	for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
+	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, VoxelWorldCenter);
+	if (HeightfieldSample.bValid)
 	{
-		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(HeightfieldIndex));
-		float4 MinMaxHeightfieldUV;
-		float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
+		float3 VoxelTranslatedWorldCenterNearestZ = VoxelTranslatedWorldCenter;
 
-		if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
+		float MinZ = VoxelTranslatedWorldCenter.z + GLOBAL_DISTANCE_FIELD_PAGE_BORDER * ClipmapVoxelExtent;
+		float MaxZ = VoxelTranslatedWorldCenter.z + (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS - GLOBAL_DISTANCE_FIELD_PAGE_BORDER) * ClipmapVoxelExtent;
+		VoxelTranslatedWorldCenterNearestZ.z = clamp(HeightfieldSample.TranslatedWorldPosition.z, MinZ, MaxZ);
+
+		float HeightfieldDistance = ComputeHeightfieldDistance(HeightfieldSample, VoxelTranslatedWorldCenterNearestZ);
+
+		if (abs(HeightfieldDistance) < InfluenceRadius)
 		{
-			ValidHeightfieldIndex = HeightfieldIndex;
-			break;
-		}
-	}
-
-	float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(ValidHeightfieldIndex));
-	float4 MinMaxHeightfieldUV;
-	float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
-
-	if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
-	{
-		float3 WorldHeightfieldNormal;
-		float HeightfieldVisibility;
-		FLWCVector3 WorldHeightfieldPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
-		float3 TranslatedWorldHeightfieldPosition = LWCToFloat(LWCAdd(WorldHeightfieldPosition, PreViewTranslation));
-
-		if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
-		{
-			float3 TranslatedWorldPositionNearestZ = VoxelTranslatedWorldCenter;
-			TranslatedWorldPositionNearestZ.z = clamp(TranslatedWorldHeightfieldPosition.z, VoxelTranslatedWorldCenter.z, VoxelTranslatedWorldCenter.z + GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS * 2.0f * ClipmapVoxelExtent);
-
-			// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-			float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, TranslatedWorldPositionNearestZ - TranslatedWorldHeightfieldPosition);
-
-			// Limit negative region of a heightfield to a user defined thickness  
-			const float MinInteriorDistance = -HeightfieldThickness;
-			if (DistanceToHeightfieldPlane < MinInteriorDistance)
-			{
-				DistanceToHeightfieldPlane = MinInteriorDistance - DistanceToHeightfieldPlane;
-			}
-
-			if (DistanceToHeightfieldPlane > -InfluenceRadius && DistanceToHeightfieldPlane < InfluenceRadius)
-			{
-				GroupMarkedPage[ThreadIndex] = 1;
-			}
+			GroupMarkedPage[ThreadIndex] = 1;
 		}
 	}
 
@@ -191,74 +227,6 @@ void BuildHeightfieldComposeTilesCS(
 			RWPageComposeHeightfieldTileBuffer[DestIndex] = PackedPageGridCoord;
 		}
 	}
-}
-
-struct FHeightfieldSample
-{
-	bool bValid;
-	uint HeightfieldIndex;
-	float3 TranslatedWorldPosition;
-	float3 WorldNormal;
-};
-
-FHeightfieldSample SampleHeightfield(FLWCVector3 PreViewTranslation, FLWCVector3 VoxelWorldCenter)
-{
-	FHeightfieldSample Sample;
-	Sample.bValid = false;
-	Sample.HeightfieldIndex = NumHeightfields;
-	Sample.TranslatedWorldPosition = float3(0.0f, 0.0f, 0.0f);
-	Sample.WorldNormal = float3(0.0f, 0.0f, 0.0f);
-
-	for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
-	{
-		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(HeightfieldIndex));
-		float4 MinMaxHeightfieldUV;
-		float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
-
-		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
-		{
-			Sample.HeightfieldIndex = HeightfieldIndex;
-			break;
-		}
-	}
-
-	if (Sample.HeightfieldIndex < NumHeightfields)
-	{
-		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(Sample.HeightfieldIndex));
-		float4 MinMaxHeightfieldUV;
-		float2 HeightfieldUV = GetHeightfieldUV(Sample.HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
-
-		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
-		{
-			float HeightfieldVisibility;
-			FLWCVector3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(Sample.HeightfieldIndex, LocalPosition.xy, HeightfieldUV, Sample.WorldNormal, HeightfieldVisibility);
-			Sample.TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldHeightfieldShadingPosition, PreViewTranslation));
-
-			// Skip holes in the heightfield
-			if (HeightfieldVisibility > 0.5f)
-			{
-				Sample.bValid = true;
-			}
-		}
-	}
-
-	return Sample;
-}
-
-float ComputeHeightfieldDistance(FHeightfieldSample HeightfieldSample, float3 TranslatedWorldPosition)
-{
-	// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-	float DistanceToHeightfieldPlane = dot(HeightfieldSample.WorldNormal, TranslatedWorldPosition - HeightfieldSample.TranslatedWorldPosition);
-
-	// Limit negative region of a heightfield to a user defined thickness  
-	const float MinInteriorDistance = -HeightfieldThickness;
-	if (DistanceToHeightfieldPlane < MinInteriorDistance)
-	{
-		DistanceToHeightfieldPlane = MinInteriorDistance - DistanceToHeightfieldPlane;
-	}
-
-	float HeightfieldMinDistance = clamp(DistanceToHeightfieldPlane, -InfluenceRadius, InfluenceRadius);
-	return HeightfieldMinDistance;
 }
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]

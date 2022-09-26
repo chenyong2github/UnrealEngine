@@ -2,9 +2,71 @@
 
 #include "../Common.ush"
 #include "../ShaderPrint.ush"
+#include "GlobalDistanceFieldShared.ush"
 
 StructuredBuffer<uint> GlobalDistanceFieldPageFreeListAllocatorBuffer;
 uint GlobalDistanceFieldMaxPageNum;
+
+uint ClipmapSizeInPages;
+uint ClipmapIndex;
+float3 InvPageAtlasSize;
+RWStructuredBuffer<uint> RWPageStatsBuffer;
+StructuredBuffer<uint> PageStatsBuffer;
+Texture3D<uint> PageTableCombinedTexture;
+Texture3D PageAtlasTexture;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
+void GlobalDistanceFieldPageStatsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint3 PageTableCoord = DispatchThreadId.xyz;
+	if (all(PageTableCoord < ClipmapSizeInPages))
+	{
+		PageTableCoord.z += ClipmapIndex * ClipmapSizeInPages;
+
+		FGlobalDistanceFieldPage Page = UnpackGlobalDistanceFieldPage(PageTableCombinedTexture.Load(uint4(PageTableCoord, 0)));
+		if (Page.bValid)
+		{
+			InterlockedAdd(RWPageStatsBuffer[0], 1);
+
+			bool bFilled = false;
+
+			for (uint PageCoordZ = 0; PageCoordZ < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION; ++PageCoordZ)
+			{
+				for (uint PageCoordY = 0; PageCoordY < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION; ++PageCoordY)
+				{
+					for (uint PageCoordX = 0; PageCoordX < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION; ++PageCoordX)
+					{
+						float3 PageCoord = uint3(PageCoordX, PageCoordY, PageCoordZ);
+						uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page);
+
+						float DistanceFieldValue = PageAtlasTexture[PageAtlasOffset + PageCoord].x;
+						if (View.GeneralPurposeTweak > 0.5f)
+						{
+							// Don't sample border values which can be safely skipped
+							PageCoord = clamp(PageCoord + 0.5f, GLOBAL_DISTANCE_FIELD_PAGE_BORDER, GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION - GLOBAL_DISTANCE_FIELD_PAGE_BORDER);
+
+							float3 PageUV = (PageAtlasOffset + PageCoord) * InvPageAtlasSize;
+							DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+						}
+
+						if (DistanceFieldValue > 0.0f && DistanceFieldValue < 1.0f)
+						{
+							bFilled = true;
+						}
+					}
+				}
+			}
+
+			if (!bFilled)
+			{
+				InterlockedAdd(RWPageStatsBuffer[1], 1);
+			}
+		}
+	}
+}
 
 [numthreads(1, 1, 1)]
 void GlobalDistanceFieldDebugCS(
@@ -32,5 +94,12 @@ void GlobalDistanceFieldDebugCS(
 		Print(Context, TEXT(" Max   "));
 		Print(Context, GlobalDistanceFieldMaxPageNum);
 		Newline(Context);
+
+		Print(Context, TEXT(" Combi "));
+		Print(Context, PageStatsBuffer[0]);
+		Newline(Context);
+
+		Print(Context, TEXT(" Empty "));
+		Print(Context, PageStatsBuffer[1]);
 	}
 }
