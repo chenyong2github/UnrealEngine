@@ -3,6 +3,7 @@
 #include "LevelExporterUSDOptions.h"
 
 #include "USDAssetOptions.h"
+#include "USDExporterModule.h"
 
 #include "AnalyticsEventAttribute.h"
 
@@ -50,6 +51,11 @@ void UsdUtils::AddAnalyticsAttributes(
 void UsdUtils::HashForLevelExport( const FLevelExporterUSDOptionsInner& Options, FSHA1& HashToUpdate )
 {
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bSelectionOnly ), sizeof( Options.bSelectionOnly ) );
+	if ( Options.bSelectionOnly )
+	{
+		IUsdExporterModule::HashEditorSelection( HashToUpdate );
+	}
+
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bExportActorFolders ), sizeof( Options.bExportActorFolders ) );
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bIgnoreSequencerAnimations ), sizeof( Options.bIgnoreSequencerAnimations ) );
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bExportFoliageOnActorsLayer ), sizeof( Options.bExportFoliageOnActorsLayer ) );

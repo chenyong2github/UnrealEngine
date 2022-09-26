@@ -36,6 +36,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneTrack.h"
 #include "Sections/MovieSceneSubSection.h"
+#include "Selection.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Tracks/MovieScenePropertyTrack.h"
@@ -404,6 +405,12 @@ namespace UE
 
 				ULevelSequenceExporterUsdOptions* ExportOptions;
 
+				// If ExportOptions->bSelectionOnly is true, this specifies the components whose bindings we should export
+				TSet<UActorComponent*> SelectedComponents;
+
+				// If ExportOptions->bSelectionOnly is true, this specifies the actors whose bindings we should export
+				TSet<AActor*> SelectedActors;
+
 				// Where we store our ExportTask's bReplaceIdentical, which indicates if we should overwrite files or not
 				bool bReplaceIdentical;
 
@@ -653,10 +660,29 @@ namespace UE
 					// We always use components here because when exporting actors and components to USD we basically
 					// just ignore actors altogether and export the component attachment hierarchy instead
 					USceneComponent* BoundComponent = Cast<USceneComponent>( BoundObject );
-					if ( !BoundComponent )
+					if ( BoundComponent )
+					{
+						// Only ignore component bindings if we're actually selecting some components (including this one),
+						// and our parent actor is not selected. This so that if select some components of actor X but
+						// also actor Y directly (which has component bindings) we'll export all of Y's component bindings, but
+						// only the selected component bindings of X
+						if ( Context.ExportOptions->bSelectionOnly &&
+							 Context.SelectedComponents.Num() > 0 &&
+							 !Context.SelectedActors.Contains( BoundComponent->GetOwner() ) &&
+							 !Context.SelectedComponents.Contains( BoundComponent ) )
+						{
+							continue;
+						}
+					}
+					else
 					{
 						if ( const AActor* Actor = Cast<AActor>( BoundObject ) )
 						{
+							if ( Context.ExportOptions->bSelectionOnly && !Context.SelectedActors.Contains( Actor ) )
+							{
+								continue;
+							}
+
 							BoundComponent = Actor->GetRootComponent();
 						}
 					}
@@ -1223,7 +1249,7 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 			LevelExportTask->Options = LevelOptions;
 			LevelExportTask->Exporter = nullptr;
 			LevelExportTask->Filename = Context.LevelFilePath;
-			LevelExportTask->bSelected = false;
+			LevelExportTask->bSelected = LevelOptions->Inner.bSelectionOnly; // Move this as the level exporter will favor bSelected
 			LevelExportTask->bReplaceIdentical = ExportTask->bReplaceIdentical;
 			LevelExportTask->bPrompt = false;
 			LevelExportTask->bUseFileArchive = false;
@@ -1266,6 +1292,28 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 					AssetEditorSubsystem->CloseAllEditorsForAsset( OpenedSequence );
 				}
 			}
+		}
+	}
+
+	// Get selected objects
+	if ( GEditor && Options->bSelectionOnly )
+	{
+		USelection* ComponentSelection= GEditor->GetSelectedComponents();
+		TArray<UActorComponent*> Components;
+		ComponentSelection->GetSelectedObjects( Components );
+		Context.SelectedComponents = TSet<UActorComponent*>{ Components };
+
+		USelection* ActorSelection = GEditor->GetSelectedActors();
+		TArray<AActor*> Actors;
+		ActorSelection->GetSelectedObjects( Actors );
+		Context.SelectedActors = TSet<AActor*>{ Actors };
+		for ( const UActorComponent* Component : Components )
+		{
+			// UE will ensure that the actor selection artificially includes all owners of all selected components, so
+			// we can't tell if an actor is intentionally selected or not. To provide some control, let's make it so that
+			// if components of an actor are selected we'll select only those particular components. If the user wants
+			// the whole actor they can just select the actor itself and none of its components
+			Context.SelectedActors.Remove( Component->GetOwner() );
 		}
 	}
 

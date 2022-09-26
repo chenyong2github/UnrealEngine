@@ -3,6 +3,7 @@
 #include "LevelSequenceExporterUSDOptions.h"
 
 #include "LevelExporterUSDOptions.h"
+#include "USDExporterModule.h"
 
 #include "AnalyticsEventAttribute.h"
 
@@ -18,6 +19,7 @@ void UsdUtils::AddAnalyticsAttributes(
 		InOutAttributes.Emplace( TEXT( "StartFrame" ), LexToString( Options.StartFrame ) );
 		InOutAttributes.Emplace( TEXT( "EndFrame" ), LexToString( Options.EndFrame ) );
 	}
+	InOutAttributes.Emplace( TEXT( "SelectionOnly" ), Options.bSelectionOnly );
 	InOutAttributes.Emplace( TEXT( "ExportSubsequencesAsLayers" ), Options.bExportSubsequencesAsLayers );
 	InOutAttributes.Emplace( TEXT( "ExportLevel" ), Options.bExportLevel );
 	if ( Options.bExportLevel )
@@ -45,6 +47,13 @@ void UsdUtils::HashForLevelSequenceExport( const ULevelSequenceExporterUsdOption
 		HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.StartFrame ), sizeof( Options.StartFrame ) );
 		HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.EndFrame ), sizeof( Options.EndFrame ) );
 	}
+
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bSelectionOnly ), sizeof( Options.bSelectionOnly ) );
+	if ( Options.bSelectionOnly )
+	{
+		IUsdExporterModule::HashEditorSelection( HashToUpdate );
+	}
+
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bExportSubsequencesAsLayers ), sizeof( Options.bExportSubsequencesAsLayers ) );
 
 	const bool bUsingLevelSublayer = Options.bExportLevel && Options.bUseExportedLevelAsSublayer;

@@ -6,8 +6,10 @@
 #include "USDAssetOptions.h"
 #include "USDMemory.h"
 
+#include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "Selection.h"
 #include "UObject/ObjectSaveContext.h"
 
 class FUsdExporterModule : public IUsdExporterModule
@@ -48,6 +50,45 @@ public:
 		}
 	}
 };
+
+void IUsdExporterModule::HashEditorSelection( FSHA1& HashToUpdate )
+{
+	if ( !GEditor )
+	{
+		return;
+	}
+
+	TSet<FString> SelectedPaths;
+
+	USelection* ComponentSelection = GEditor->GetSelectedComponents();
+	TArray<UActorComponent*> Components;
+	ComponentSelection->GetSelectedObjects( Components );
+	for ( const UActorComponent* Component : Components )
+	{
+		if ( Component )
+		{
+			SelectedPaths.Add( Component->GetFullName() );
+		}
+	}
+
+	USelection* ActorSelection = GEditor->GetSelectedActors();
+	TArray<AActor*> Actors;
+	ActorSelection->GetSelectedObjects( Actors );
+	for ( const AActor* Actor : Actors )
+	{
+		if ( Actor )
+		{
+			SelectedPaths.Add( Actor->GetFullName() );
+		}
+	}
+
+	TArray<FString> SelectedPathsArray = SelectedPaths.Array();
+	SelectedPathsArray.Sort();
+	for ( const FString& Path : SelectedPathsArray )
+	{
+		HashToUpdate.UpdateWithString( *Path, Path.Len() );
+	}
+}
 
 IMPLEMENT_MODULE_USD( FUsdExporterModule, USDExporter );
 

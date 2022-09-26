@@ -47,6 +47,12 @@ public:
 	int32 EndFrame = 0;
 
 	/**
+	 * Whether to export animations exclusively from selected actors or components
+	 */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Sequence" )
+	bool bSelectionOnly = false;
+
+	/**
 	 * The effect of subsequences is always included on the main exported layer, but if this option is true we will also
 	 * export individual sublayers for each subsequence, so that they can be used by themselves if needed.
 	 */

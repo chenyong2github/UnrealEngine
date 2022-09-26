@@ -7,4 +7,6 @@
 
 class IUsdExporterModule : public IModuleInterface
 {
+public:
+	static void HashEditorSelection( FSHA1& HashToUpdate );
 };
