@@ -289,7 +289,7 @@ bool UThumbnailManager::CaptureProjectThumbnail(FViewport* Viewport, const FStri
 		int32 ScaledSize  = FMath::Min<uint32>(AutoScreenshotSize, CropSize);
 
 		//calculations for cropping
-		TArray<FColor> CroppedBitmap;
+		TArray64<FColor> CroppedBitmap;
 		CroppedBitmap.AddUninitialized(CropSize*CropSize);
 
 		//Crop the image
@@ -305,21 +305,31 @@ bool UThumbnailManager::CaptureProjectThumbnail(FViewport* Viewport, const FStri
 			FMemory::Memcpy(DstPtr, SrcPtr, CropSize * 4);
 		}
 
+		FImageView CroppedImage(CroppedBitmap.GetData(),CropSize,CropSize);
+		//Viewport ReadPixels seems to have A = 0, make sure it is set to opaque for image save
+		FImageCore::SetAlphaOpaque(CroppedImage);
+
 		//Scale image down if needed
-		TArray<FColor> ScaledBitmap;
+		FImage ScaledImage;
+		FImageView SaveImage;
 		if (ScaledSize < CropSize)
 		{
-			FImageUtils::ImageResize( CropSize, CropSize, CroppedBitmap, ScaledSize, ScaledSize, ScaledBitmap, true );
+			FImageCore::ResizeTo(CroppedImage,ScaledImage,ScaledSize,ScaledSize,ERawImageFormat::BGRA8,EGammaSpace::sRGB);
+			SaveImage = ScaledImage;
 		}
 		else
 		{
 			//just copy the data over. sizes are the same
-			ScaledBitmap = CroppedBitmap;
+			SaveImage = CroppedImage;
 		}
 
 		// Compress the scaled image
-		TArray<uint8> ScaledPng;
-		FImageUtils::ThumbnailCompressImageArray(ScaledSize, ScaledSize, ScaledBitmap, ScaledPng);
+		// OutputFilename is a .png in current use
+		TArray64<uint8> ScaledPng;
+		if ( ! FImageUtils::CompressImage(ScaledPng, *OutputFilename, SaveImage) )
+		{
+			return false;
+		}
 
 		// Save to file
 		const FString ScreenShotPath = FPaths::GetPath(OutputFilename);
@@ -358,6 +368,10 @@ bool UThumbnailManager::CaptureProjectThumbnail(FViewport* Viewport, const FStri
 
 				return true;
 			}
+		}
+		else
+		{
+			// failed to make output dir?
 		}
 	}
 

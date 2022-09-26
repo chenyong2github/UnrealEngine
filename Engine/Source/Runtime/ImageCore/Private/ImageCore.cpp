@@ -750,14 +750,17 @@ static FLinearColor SampleImage(const FLinearColor* Pixels, int Width, int Heigh
 		Color11 * (FracX1 * FracY1);
 }
 
-static void ResizeImage(const FImage& SrcImage, FImage& DestImage)
+static void ResizeImage(const FImageView & SrcImage, const FImageView & DestImage)
 {
 	// Src and Dest should both now be RGBA32F and Linear gamma
-	const FLinearColor* SrcPixels = SrcImage.AsRGBA32F().GetData();
-	FLinearColor* DestPixels = DestImage.AsRGBA32F().GetData();
+	check( SrcImage.Format == ERawImageFormat::RGBA32F );
+	check( DestImage.Format == ERawImageFormat::RGBA32F );
+	const FLinearColor* SrcPixels = (const FLinearColor*) SrcImage.RawData;
+	FLinearColor* DestPixels = (FLinearColor*) DestImage.RawData;
 	const float DestToSrcScaleX = (float)SrcImage.SizeX / (float)DestImage.SizeX;
 	const float DestToSrcScaleY = (float)SrcImage.SizeY / (float)DestImage.SizeY;
 
+	// @todo Oodle : not a correct bilinear Resize?  missing 0.5 pixel center shift
 	for (int64 DestY = 0; DestY < DestImage.SizeY; ++DestY)
 	{
 		const float SrcY = (float)DestY * DestToSrcScaleY;
@@ -852,27 +855,43 @@ void FImage::CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaS
 		DestGammaSpace = EGammaSpace::sRGB;
 	}
 
-	DestImage.SizeX = SizeX;
-	DestImage.SizeY = SizeY;
-	DestImage.NumSlices = NumSlices;
-	DestImage.Format = DestFormat;
-	DestImage.GammaSpace = DestGammaSpace;
-	InitImageStorage(DestImage);
+	DestImage.Init(SizeX,SizeY,NumSlices,DestFormat,DestGammaSpace);
+	FImageCore::CopyImage(*this, DestImage);
+}
+
+void FImageView::CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const
+{
+	// if gamma correction is done, it's always *TO* sRGB , not to Pow22
+	// so if Pow22 was requested, change to sRGB
+	// so that Float->int->Float roundtrips correctly
+	if ( DestGammaSpace == EGammaSpace::Pow22 && GammaSpace != EGammaSpace::Pow22 )
+	{
+		// fix call sites that hit this
+		UE_LOG(LogImageCore, Warning, TEXT("Pow22 should not be used as a Dest GammaSpace.  Pow22 Source should encode to sRGB Dest."));
+		DestGammaSpace = EGammaSpace::sRGB;
+	}
+
+	DestImage.Init(SizeX,SizeY,NumSlices,DestFormat,DestGammaSpace);
 	FImageCore::CopyImage(*this, DestImage);
 }
 
 void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const
 {
-	check(NumSlices == 1); // only support 1 slice for now
+	FImageCore::ResizeTo(*this,DestImage,DestSizeX,DestSizeY,DestFormat,DestGammaSpace);
+}
+
+void FImageCore::ResizeTo(const FImageView & SourceImage,FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace)
+{
+	check(SourceImage.NumSlices == 1); // only support 1 slice for now
 
 	FImage TempSrcImage;
-	const FImage* SrcImagePtr = this;
-	if (Format != ERawImageFormat::RGBA32F)
+	FImageView SrcImageView = SourceImage;
+	if (SourceImage.Format != ERawImageFormat::RGBA32F)
 	{
-		CopyTo(TempSrcImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
-		SrcImagePtr = &TempSrcImage;
+		SourceImage.CopyTo(TempSrcImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+		SrcImageView = TempSrcImage;
 	}
-	else if ( GammaSpace != EGammaSpace::Linear )
+	else if ( SourceImage.GammaSpace != EGammaSpace::Linear )
 	{
 		UE_LOG(LogImageCore, Warning, TEXT("Resize from source Format RGBA32F was called but source GammaSpace is not Linear"));
 	}
@@ -892,7 +911,7 @@ void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawI
 		DestImage.Format = DestFormat;
 		DestImage.GammaSpace = DestGammaSpace;
 		InitImageStorage(DestImage);
-		ResizeImage(*SrcImagePtr, DestImage);
+		ResizeImage(SrcImageView, DestImage);
 	}
 	else
 	{
@@ -904,7 +923,7 @@ void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawI
 		TempDestImage.Format = ERawImageFormat::RGBA32F;
 		TempDestImage.GammaSpace = EGammaSpace::Linear;
 		InitImageStorage(TempDestImage);
-		ResizeImage(*SrcImagePtr, TempDestImage);
+		ResizeImage(SrcImageView, TempDestImage);
 
 		// then convert to dest format/gamma :
 		if ( DestGammaSpace == EGammaSpace::Pow22 )
@@ -1282,7 +1301,7 @@ void FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H(const FImageView & InOu
 }
 
 
-bool FImageCore::DetectAlphaChannel(const FImage& InImage)
+bool FImageCore::DetectAlphaChannel(const FImageView & InImage)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.DetectAlphaChannel);
 
@@ -1380,4 +1399,78 @@ bool FImageCore::DetectAlphaChannel(const FImage& InImage)
 	}
 
 	return false;
+}
+
+
+void FImageCore::SetAlphaOpaque(const FImageView & InImage)
+{
+	int64 NumPixels = (int64)InImage.SizeX * InImage.SizeY * InImage.NumSlices;
+
+	if (InImage.Format == ERawImageFormat::BGRA8)
+	{
+		TArrayView64<FColor> SrcColorArray = InImage.AsBGRA8();
+		check(SrcColorArray.Num() == NumPixels);
+
+		FColor* ColorPtr = &SrcColorArray[0];
+		FColor* EndPtr = ColorPtr + SrcColorArray.Num();
+
+		for (; ColorPtr < EndPtr; ++ColorPtr)
+		{
+			ColorPtr->A = 255;
+		}
+	}
+	else if (InImage.Format == ERawImageFormat::RGBA32F)
+	{
+		TArrayView64<FLinearColor> SrcColorArray = InImage.AsRGBA32F();
+		check(SrcColorArray.Num() == NumPixels);
+
+		FLinearColor* ColorPtr = &SrcColorArray[0];
+		FLinearColor* EndPtr = ColorPtr + SrcColorArray.Num();
+
+		for (; ColorPtr < EndPtr; ++ColorPtr)
+		{
+			ColorPtr->A = 1.f;
+		}
+	}
+	else if (InImage.Format == ERawImageFormat::RGBA16)
+	{
+		TArrayView64<uint16> SrcChannelArray = InImage.AsRGBA16();
+		check(SrcChannelArray.Num() == NumPixels * 4);
+
+		uint16* ChannelPtr = &SrcChannelArray[0];
+		uint16* EndPtr = ChannelPtr + SrcChannelArray.Num();
+
+		for (; ChannelPtr < EndPtr; ChannelPtr += 4)
+		{
+			ChannelPtr[3] = 0xFFFF;
+		}
+	}
+	else if (InImage.Format == ERawImageFormat::RGBA16F)
+	{
+		TArrayView64<FFloat16Color> SrcColorArray = InImage.AsRGBA16F();
+		check(SrcColorArray.Num() == NumPixels);
+
+		FFloat16Color* ColorPtr = &SrcColorArray[0];
+		FFloat16Color* EndPtr = ColorPtr + SrcColorArray.Num();
+
+		FFloat16 One(1.f);
+
+		for (; ColorPtr < EndPtr; ++ColorPtr)
+		{
+			ColorPtr->A = One;
+		}
+	}
+	else if (InImage.Format == ERawImageFormat::G8 ||
+		InImage.Format == ERawImageFormat::BGRE8 ||
+		InImage.Format == ERawImageFormat::G16 ||
+		InImage.Format == ERawImageFormat::R16F ||
+		InImage.Format == ERawImageFormat::R32F)
+	{
+		// source image formats don't have alpha
+	}
+	else
+	{
+		// new format ?
+		check(0);
+	}
 }

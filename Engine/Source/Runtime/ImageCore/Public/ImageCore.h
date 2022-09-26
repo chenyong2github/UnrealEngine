@@ -35,6 +35,8 @@
 /* Types
  *****************************************************************************/
 
+ struct FImage;
+
 // EGammaSpace is in Color.h
 
 namespace ERawImageFormat
@@ -253,6 +255,80 @@ struct FImageView : public FImageInfo
 
 	// get an FImageView to one 2d slice
 	IMAGECORE_API FImageView GetSlice(int32 SliceIndex) const;
+	
+	/**
+	 * Copies the image to a destination image with the specified format.
+	 *
+	 * @param DestImage - The destination image.
+	 * @param DestFormat - The destination image format.
+	 * @param DestSRGB - Whether the destination image is in SRGB format.
+	 */
+	IMAGECORE_API void CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const;
+	
+	// CopyTo same format
+	IMAGECORE_API void CopyTo(FImage& DestImage) const
+	{
+		CopyTo(DestImage,Format,GammaSpace);
+	}
+	
+public:
+
+	// Convenience accessors to raw data
+	// these are const member functions because the FImageView object itself is const, but the image it points to may not be
+	
+	TArrayView64<uint8> AsG8() const
+	{
+		check(Format == ERawImageFormat::G8);
+		return { (uint8 *)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<uint16> AsG16() const
+	{
+		check(Format == ERawImageFormat::G16);
+		return { (uint16*)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<FColor> AsBGRA8() const
+	{
+		check(Format == ERawImageFormat::BGRA8);
+		return { (struct FColor*)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<FColor> AsBGRE8() const
+	{
+		check(Format == ERawImageFormat::BGRE8);
+		return { (struct FColor*)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<uint16> AsRGBA16() const
+	{
+		check(Format == ERawImageFormat::RGBA16);
+		return { (uint16*)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<FFloat16Color> AsRGBA16F() const
+	{
+		check(Format == ERawImageFormat::RGBA16F);
+		return { (class FFloat16Color*)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<FLinearColor> AsRGBA32F() const
+	{
+		check(Format == ERawImageFormat::RGBA32F);
+		return { (struct FLinearColor*)RawData, GetNumPixels() };
+	}
+
+	TArrayView64<FFloat16> AsR16F() const
+	{
+		check(Format == ERawImageFormat::R16F);
+		return { (class FFloat16*)RawData, GetNumPixels() };
+	}
+	
+	TArrayView64<float> AsR32F() const
+	{
+		check(Format == ERawImageFormat::R32F);
+		return { (float *)RawData, GetNumPixels() };
+	}
 };
 
 /**
@@ -598,7 +674,26 @@ IMAGECORE_API void SanitizeFloat16AndSetAlphaOpaqueForBC6H(const FImageView & In
  * @param InImage - The image to look for alpha in.
  * @return True if the image both supports and uses the alpha channel. False otherwise.
  */
-IMAGECORE_API bool DetectAlphaChannel(const FImage & InImage);
+IMAGECORE_API bool DetectAlphaChannel(const FImageView & InImage);
+
+/**
+ * Change alpha channel to opaque, if present
+ * 
+ * @param InImage - The image to look for alpha in.
+ */
+IMAGECORE_API void SetAlphaOpaque(const FImageView & InImage);
+
+/**
+	* Copies and resizes the image to a destination image with the specified size and format.
+	* Resize is done using bilinear filtering
+	*
+	* @param DestImage - The destination image.
+	* @param DestSizeX - Width of the resized image
+	* @param DestSizeY - Height of the resized image
+	* @param DestFormat - The destination image format.
+	* @param DestSRGB - Whether the destination image is in SRGB format.
+	*/
+IMAGECORE_API void ResizeTo(const FImageView & SourceImage,FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace);
 
 };
 
