@@ -1404,8 +1404,10 @@ namespace UsdSkelRootTranslatorImpl
 						}
 						FString SkelAnimationPrimPath = UsdToUnreal::ConvertPath( SkelAnimationPrim.GetPath() );
 
-						if ( !AnimQuery.JointTransformsMightBeTimeVarying() &&
-							( NewBlendShapes.Num() == 0 || !AnimQuery.BlendShapeWeightsMightBeTimeVarying() ) )
+						std::vector<double> JointTimeSamples;
+						std::vector<double> BlendShapeTimeSamples;
+						if ( ( !AnimQuery.GetJointTransformTimeSamples( &JointTimeSamples ) || JointTimeSamples.size() == 0 ) &&
+							( NewBlendShapes.Num() == 0 || ( !AnimQuery.GetBlendShapeWeightTimeSamples( &BlendShapeTimeSamples ) || BlendShapeTimeSamples.size() == 0 ) ) )
 						{
 							continue;
 						}

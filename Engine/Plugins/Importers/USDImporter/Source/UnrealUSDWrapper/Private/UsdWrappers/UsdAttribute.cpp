@@ -228,6 +228,15 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	size_t FUsdAttribute::GetNumTimeSamples() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdAttribute.Get().GetNumTimeSamples();
+#else
+		return 0;
+#endif // #if USE_USD_SDK
+	}
+
 	bool FUsdAttribute::HasValue() const
 	{
 #if USE_USD_SDK

@@ -74,6 +74,7 @@ namespace UE
 		FName GetTypeName() const;
 
 		bool GetTimeSamples( TArray<double>& Times ) const;
+		size_t GetNumTimeSamples() const;
 
 		bool HasValue() const;
 		bool HasFallbackValue() const;

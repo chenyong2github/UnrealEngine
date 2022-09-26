@@ -3566,11 +3566,9 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 		FFrameTime UsdStartTime = FFrameRate::TransformTime( PlaybackRange.GetLowerBoundValue(), Resolution, StageFrameRate );
 		FFrameTime UsdEndTime = FFrameRate::TransformTime( PlaybackRange.GetUpperBoundValue(), Resolution, StageFrameRate );
 
-		if ( LocationValuesX.Num() > 0 || Xformable.TransformMightBeTimeVarying() )
+		std::vector< double > UsdTimeSamples;
+		if ( LocationValuesX.Num() > 0 || ( Xformable.GetTimeSamples( &UsdTimeSamples ) && UsdTimeSamples.size() > 0 ) )
 		{
-			std::vector< double > UsdTimeSamples;
-			Xformable.GetTimeSamples( &UsdTimeSamples );
-
 			bIsDataOutOfSync = ( UsdTimeSamples.size() != LocationValuesX.Num() );
 
 			if ( !bIsDataOutOfSync )

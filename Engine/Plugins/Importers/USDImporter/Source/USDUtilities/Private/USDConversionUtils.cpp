@@ -853,7 +853,8 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 			{
 				if ( pxr::UsdGeomXformable AncestorXformable{ AncestorPrim } )
 				{
-					if ( AncestorXformable.TransformMightBeTimeVarying() )
+					std::vector<double> AncestorTimeSamples;
+					if ( AncestorXformable.GetTimeSamples( &AncestorTimeSamples ) && AncestorTimeSamples.size() > 0 )
 					{
 						return true;
 					}
@@ -875,7 +876,8 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 	const std::vector< pxr::UsdAttribute >& Attributes = Prim.GetAttributes();
 	for ( const pxr::UsdAttribute& Attribute : Attributes )
 	{
-		if ( Attribute.ValueMightBeTimeVarying() )
+		std::vector<double> TimeSamples;
+		if ( Attribute.GetTimeSamples( &TimeSamples ) && TimeSamples.size() > 0 )
 		{
 			return true;
 		}
@@ -899,7 +901,10 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 				continue;
 			}
 
-			if ( AnimQuery.JointTransformsMightBeTimeVarying() || AnimQuery.BlendShapeWeightsMightBeTimeVarying() )
+			std::vector<double> JointTimeSamples;
+			std::vector<double> BlendShapeTimeSamples;
+			if ( ( AnimQuery.GetJointTransformTimeSamples( &JointTimeSamples ) && JointTimeSamples.size() > 0 ) ||
+				 ( AnimQuery.GetBlendShapeWeightTimeSamples( &BlendShapeTimeSamples ) && BlendShapeTimeSamples.size() > 0 ) )
 			{
 				return true;
 			}
@@ -927,7 +932,8 @@ bool UsdUtils::HasAnimatedVisibility( const pxr::UsdPrim& Prim )
 	{
 		if ( pxr::UsdAttribute Attr = Imageable.GetVisibilityAttr() )
 		{
-			if ( Attr.ValueMightBeTimeVarying() )
+			std::vector<double> TimeSamples;
+			if ( Attr.GetTimeSamples( &TimeSamples ) && TimeSamples.size() > 0 )
 			{
 				return true;
 			}
