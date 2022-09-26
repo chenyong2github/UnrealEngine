@@ -27,6 +27,7 @@ public:
 		, OutputDim(FIntPoint::ZeroValue)
 		, SampleFormat(EMediaTextureSampleFormat::Undefined)
 		, Time(FTimespan::Zero())
+		, SequenceIndex(0)
 		, bIsBufferExternal(false)
 		, Stride(0)
 	{ }
@@ -134,6 +135,11 @@ public:
 	 */
 	bool IsBufferExternal() const { return bIsBufferExternal; }
 
+	/**
+	 * Sets the sequence index for the time stamp of this sample.
+	 */
+	void SetSequenceIndex(int64 Index) { SequenceIndex = Index; }
+
 public:
 
 	//~ IMediaTextureSample interface
@@ -177,7 +183,7 @@ public:
 
 	virtual FMediaTimeStamp GetTime() const override
 	{
-		return FMediaTimeStamp(Time);
+		return FMediaTimeStamp(Time, SequenceIndex);
 	}
 
 	virtual bool IsCacheable() const override
@@ -215,6 +221,9 @@ protected:
 
 	/** Presentation for which the sample was generated. */
 	FTimespan Time;
+
+	/** Sequence index used to create the FMediaTimeStamp. */
+	int64 SequenceIndex;
 
 	/** If true, then Buffer is from WmfMediaDecoder and needs to be returned to it. */
 	bool bIsBufferExternal;

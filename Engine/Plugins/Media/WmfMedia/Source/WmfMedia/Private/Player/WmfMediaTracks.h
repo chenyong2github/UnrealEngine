@@ -282,6 +282,15 @@ private:
 	 */
 	const FFormat* GetVideoFormat(int32 TrackIndex, int32 FormatIndex) const;
 
+	/**
+	 * Gets the sequence index for a specific time that fits the time range.
+	 * 
+	 * @param	TimeRange		Sequence index will be in this range.
+	 * @param	Time			Time to retrieve sequence index for.
+	 * @return					Sequence index.
+	 */
+	int64 GetSequenceIndex(const TRange<FMediaTimeStamp>& TimeRange, FTimespan Time) const;
+
 private:
 
 	/** Callback for handling media sampler pauses. */
