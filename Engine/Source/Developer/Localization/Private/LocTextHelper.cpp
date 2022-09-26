@@ -1677,7 +1677,7 @@ bool FLocTextHelper::SaveManifestImpl(const TSharedRef<const FInternationalizati
 		TSharedRef<FInternationalizationManifest> PlatformAgnosticManifest = MakeShared<FInternationalizationManifest>();
 		TMap<FName, TSharedRef<FInternationalizationManifest>> PerPlatformManifests;
 		{
-			// Always add the split platforms so that they generate an empty manifest if there are no entries for that platform in the master manifest
+			// Always add the split platforms so that they generate an empty manifest if there are no entries for that platform in the platform agnostic manifest
 			for (const FString& SplitPlatformName : GetPlatformsToSplit())
 			{
 				PerPlatformManifests.Add(*SplitPlatformName, MakeShared<FInternationalizationManifest>());
@@ -1862,7 +1862,7 @@ bool FLocTextHelper::SaveArchiveImpl(const TSharedRef<const FInternationalizatio
 		TSharedRef<FInternationalizationArchive> PlatformAgnosticArchive = MakeShared<FInternationalizationArchive>();
 		TMap<FName, TSharedRef<FInternationalizationArchive>> PerPlatformArchives;
 		{
-			// Always add the split platforms so that they generate an empty archives if there are no entries for that platform in the master archive
+			// Always add the split platforms so that they generate an empty archives if there are no entries for that platform in the platform agnostic archive
 			for (const FString& SplitPlatformName : GetPlatformsToSplit())
 			{
 				PerPlatformArchives.Add(*SplitPlatformName, MakeShared<FInternationalizationArchive>());

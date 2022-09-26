@@ -28,7 +28,7 @@ bool FTextLocalizationResourceGenerator::GenerateLocRes(const FLocTextHelper& In
 	TArray<FString> InheritedCultures = Culture->GetPrioritizedParentCultureNames();
 	InheritedCultures.Remove(Culture->GetName());
 
-	// Always add the split platforms so that they generate an empty LocRes if there are no entries for that platform in the master manifest
+	// Always add the split platforms so that they generate an empty LocRes if there are no entries for that platform in the platform agnostic manifest
 	for (const FString& SplitPlatformName : InLocTextHelper.GetPlatformsToSplit())
 	{
 		const FName SplitPlatformFName = *SplitPlatformName;
