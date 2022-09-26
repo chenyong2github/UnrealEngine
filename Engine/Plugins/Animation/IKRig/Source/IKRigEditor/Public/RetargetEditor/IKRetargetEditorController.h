@@ -48,6 +48,18 @@ enum class ERetargetSelectionType : uint8
 	NONE
 };
 
+struct FBoundIKRig
+{
+	FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorController& InController);
+	void UnBind() const;
+	
+	UIKRigDefinition* IKRig;
+	FDelegateHandle ReInitIKDelegateHandle;
+	FDelegateHandle AddedChainDelegateHandle;
+	FDelegateHandle RenameChainDelegateHandle;
+	FDelegateHandle RemoveChainDelegateHandle;
+};
+
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
 class FIKRetargetEditorController : public TSharedFromThis<FIKRetargetEditorController>, FGCObject
 {
@@ -58,9 +70,9 @@ public:
 	/** Initialize the editor */
 	void Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset);
 	/** Close the editor */
-	void Close() const;
+	void Close();
 	/** Bind callbacks to this IK Rig */
-	void BindToIKRigAsset(UIKRigDefinition* InIKRig);
+	void BindToIKRigAssets(UIKRetargeter* InAsset);
 	/** callback when IK Rig asset requires reinitialization */
 	void HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain's have been added or removed*/
@@ -71,6 +83,7 @@ public:
 	void HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
 	/** callback when IK Retargeter asset requires reinitialization */
 	void HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const;
+	FDelegateHandle RetargeterReInitDelegateHandle;
 	
 	/** all modifications to the data model should go through this controller */
 	TObjectPtr<UIKRetargeterController> AssetController;
@@ -293,12 +306,7 @@ private:
 	UPROPERTY()
 	TMap<FName,TObjectPtr<UIKRetargetBoneDetails>> AllBoneDetails;
 
-	/** to remove delegates when editor is closed */
-	FDelegateHandle ReInitDelegateHandle;
-	UIKRigDefinition* BoundToIKRig;
-	FDelegateHandle ReInitIKDelegateHandle;
-	FDelegateHandle AddedChainDelegateHandle;
-	FDelegateHandle RenameChainDelegateHandle;
-	FDelegateHandle RemoveChainDelegateHandle;
+	/** ik rigs bound to this editor (will receive callbacks when requiring reinitialization*/
+	TArray<FBoundIKRig> BoundIKRigs;
 };
 

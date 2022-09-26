@@ -26,6 +26,27 @@
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
 
 
+FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorController& InController)
+{
+	check(IKRig);
+	IKRig = InIKRig;
+	UIKRigController* IKRigController = UIKRigController::GetIKRigController(InIKRig);
+	ReInitIKDelegateHandle = IKRigController->OnIKRigNeedsInitialized().AddSP(&InController, &FIKRetargetEditorController::HandleIKRigNeedsInitialized);
+	AddedChainDelegateHandle = IKRigController->OnRetargetChainAdded().AddSP(&InController, &FIKRetargetEditorController::HandleRetargetChainAdded);
+	RemoveChainDelegateHandle = IKRigController->OnRetargetChainRemoved().AddSP(&InController, &FIKRetargetEditorController::HandleRetargetChainRemoved);
+	RenameChainDelegateHandle = IKRigController->OnRetargetChainRenamed().AddSP(&InController, &FIKRetargetEditorController::HandleRetargetChainRenamed);
+}
+
+void FBoundIKRig::UnBind() const
+{
+	check(IKRig);
+	UIKRigController* IKRigController = UIKRigController::GetIKRigController(IKRig);
+	IKRigController->OnIKRigNeedsInitialized().Remove(ReInitIKDelegateHandle);
+	IKRigController->OnRetargetChainAdded().Remove(AddedChainDelegateHandle);
+	IKRigController->OnRetargetChainRemoved().Remove(RemoveChainDelegateHandle);
+	IKRigController->OnRetargetChainRenamed().Remove(RenameChainDelegateHandle);
+}
+
 void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset)
 {
 	Editor = InEditor;
@@ -46,57 +67,51 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	AssetController->CleanPoseLists(bForceReinitialization);
 
 	// bind callbacks when SOURCE or TARGET IK Rigs are modified
-	BindToIKRigAsset(AssetController->GetAsset()->GetSourceIKRigWriteable());
-	BindToIKRigAsset(AssetController->GetAsset()->GetTargetIKRigWriteable());
+	BindToIKRigAssets(AssetController->GetAsset());
 
 	// bind callback when retargeter needs reinitialized
-	ReInitDelegateHandle = AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleRetargeterNeedsInitialized);
+	RetargeterReInitDelegateHandle = AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleRetargeterNeedsInitialized);
 }
 
-void FIKRetargetEditorController::Close() const
+void FIKRetargetEditorController::Close()
 {
-	AssetController->OnRetargeterNeedsInitialized().Remove(ReInitDelegateHandle);
-	
-	if (UIKRigController* IKRigController = UIKRigController::GetIKRigController(BoundToIKRig))
+	AssetController->OnRetargeterNeedsInitialized().Remove(RetargeterReInitDelegateHandle);
+
+	for (const FBoundIKRig& BoundIKRig : BoundIKRigs)
 	{
-		IKRigController->OnIKRigNeedsInitialized().Remove(ReInitDelegateHandle);
-		IKRigController->OnRetargetChainAdded().Remove(AddedChainDelegateHandle);
-		IKRigController->OnRetargetChainRemoved().Remove(RemoveChainDelegateHandle);
-		IKRigController->OnRetargetChainRenamed().Remove(RenameChainDelegateHandle);
+		BoundIKRig.UnBind();
 	}
 }
 
-void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
+void FIKRetargetEditorController::BindToIKRigAssets(UIKRetargeter* InAsset)
 {
-	BoundToIKRig = InIKRig;
-	
-	if (!InIKRig)
+	// unbind previously bound IK Rigs
+	for (const FBoundIKRig& BoundIKRig : BoundIKRigs)
 	{
-		return;
+		BoundIKRig.UnBind();
 	}
-	
-	UIKRigController* Controller = UIKRigController::GetIKRigController(InIKRig);
-	if (!Controller->OnIKRigNeedsInitialized().IsBoundToObject(this))
+
+	BoundIKRigs.Empty();
+
+	if (InAsset->GetSourceIKRigWriteable())
 	{
-		ReInitIKDelegateHandle = Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleIKRigNeedsInitialized);
-		AddedChainDelegateHandle = Controller->OnRetargetChainAdded().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainAdded);
-		RemoveChainDelegateHandle = Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRemoved);
-		RenameChainDelegateHandle = Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRenamed);
+		BoundIKRigs.Emplace(FBoundIKRig(InAsset->GetSourceIKRigWriteable(), *this));
+	}
+
+	if (InAsset->GetTargetIKRigWriteable())
+	{
+		BoundIKRigs.Emplace(FBoundIKRig(InAsset->GetTargetIKRigWriteable(), *this));
 	}
 }
 
 void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
 {
 	UIKRetargeter* Retargeter = AssetController->GetAsset();
-	
 	check(ModifiedIKRig && Retargeter)
 	 
 	const bool bIsSource = ModifiedIKRig == Retargeter->GetSourceIKRig();
 	const bool bIsTarget = ModifiedIKRig == Retargeter->GetTargetIKRig();
-	if (!(bIsSource || bIsTarget))
-	{
-		return;
-	}
+	check(bIsSource || bIsTarget);
 
 	// the target anim instance has the RetargetPoseFromMesh node which needs reinitialized with new asset version
 	HandleRetargeterNeedsInitialized(Retargeter);

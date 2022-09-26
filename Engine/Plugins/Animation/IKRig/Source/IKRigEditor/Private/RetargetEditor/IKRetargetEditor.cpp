@@ -430,8 +430,7 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 	if (bTargetIKRigChanged || bSourceIKRigChanged)
 	{
 		EditorController->ClearOutputLog();
-		EditorController->BindToIKRigAsset(AssetController->GetAsset()->GetTargetIKRigWriteable());
-		EditorController->BindToIKRigAsset(AssetController->GetAsset()->GetSourceIKRigWriteable());
+		EditorController->BindToIKRigAssets(AssetController->GetAsset());
 		EditorController->AssetController->CleanChainMapping();
 		EditorController->AssetController->AutoMapChains();
 	}
