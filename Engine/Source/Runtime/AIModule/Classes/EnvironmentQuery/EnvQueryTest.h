@@ -31,8 +31,9 @@ namespace EnvQueryTestVersion
 {
 	const int32 Initial = 0;
 	const int32 DataProviders = 1;
+	const int32 ReferenceValueFix = 2;
 
-	const int32 Latest = DataProviders;
+	const int32 Latest = ReferenceValueFix;
 }
 
 #if WITH_EDITORONLY_DATA
