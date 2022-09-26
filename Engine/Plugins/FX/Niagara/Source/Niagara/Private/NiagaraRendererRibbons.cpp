@@ -1907,7 +1907,7 @@ inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(c
 	VFLooseParams.SliceVertexData = ShapeState.SliceVertexDataBuffer.SRV;
 	VFLooseParams.NiagaraParticleDataFloat = RenderingResources->ParticleFloatSRV;
 	VFLooseParams.NiagaraParticleDataHalf = RenderingResources->ParticleHalfSRV;
-	VFLooseParams.NiagaraFloatDataStride = RenderingResources->ParticleFloatDataStride;
+	VFLooseParams.NiagaraFloatDataStride = FMath::Max(RenderingResources->ParticleFloatDataStride, RenderingResources->ParticleHalfDataStride);
 	VFLooseParams.FacingMode = static_cast<uint32>(FacingMode);
 	VFLooseParams.Shape = static_cast<uint32>(ShapeState.Shape);
 	VFLooseParams.NeedsPreciseMotionVectors = GenerationConfig.NeedsPreciseMotionVectors();

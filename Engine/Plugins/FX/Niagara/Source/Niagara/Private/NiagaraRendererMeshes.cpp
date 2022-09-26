@@ -658,7 +658,7 @@ FNiagaraMeshCommonParameters FNiagaraRendererMeshes::CreateCommonShaderParams(co
 	Params.NiagaraParticleDataFloat	= ParticleMeshRenderData.ParticleFloatSRV;
 	Params.NiagaraParticleDataHalf 	= ParticleMeshRenderData.ParticleHalfSRV;
 	Params.NiagaraParticleDataInt 	= ParticleMeshRenderData.ParticleIntSRV;
-	Params.NiagaraFloatDataStride 	= ParticleMeshRenderData.ParticleFloatDataStride;
+	Params.NiagaraFloatDataStride 	= FMath::Max(ParticleMeshRenderData.ParticleFloatDataStride, ParticleMeshRenderData.ParticleHalfDataStride);
 	Params.NiagaraIntDataStride 	= ParticleMeshRenderData.ParticleIntDataStride;
 	
 	Params.SortedIndices 			= ParticleMeshRenderData.ParticleSortedIndicesSRV;

@@ -1028,7 +1028,14 @@ void FHlslNiagaraTranslator::RecordParamMapDefinedAttributeToNamespaceVar(const 
 
 static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, TArray<FNiagaraVariable>& Attributes)
 {
-	if (InCompileOptions.AdditionalDefines.Contains(TEXT("CompressAttributes")))// && UNiagaraScript::IsParticleScript(InCompileOptions.TargetUsage))
+	// for now we're going to only process particle scripts as we don't currently support attributes
+	// being read transparently from the parameter store (which would be done for system/emitter scripts)
+	if (!UNiagaraScript::IsParticleScript(InCompileOptions.TargetUsage))
+	{
+		return;
+	}
+
+	if (InCompileOptions.AdditionalDefines.Contains(TEXT("CompressAttributes")))
 	{
 		static FNiagaraTypeDefinition ConvertMapping[][2] =
 		{
@@ -1070,6 +1077,18 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 			if (FNiagaraVariable::SearchArrayForPartialNameMatch(ConvertExceptions, Attribute.GetName()) != INDEX_NONE)
 			{
 				continue;
+			}
+
+			// also we'll check if the current attribute is a previous version of an exception because we wouldn't want
+			// those to be mismatched
+			if (FNiagaraParameterMapHistory::IsPreviousValue(Attribute))
+			{
+				FNiagaraVariable SrcAttribute = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Attribute);
+
+				if (FNiagaraVariable::SearchArrayForPartialNameMatch(ConvertExceptions, SrcAttribute.GetName()) != INDEX_NONE)
+				{
+					continue;
+				}
 			}
 
 			for (int32 ConvertIt = 0; ConvertIt < UE_ARRAY_COUNT(ConvertMapping); ++ConvertIt)

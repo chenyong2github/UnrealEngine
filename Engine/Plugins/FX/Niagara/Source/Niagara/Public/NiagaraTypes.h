@@ -1978,22 +1978,36 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 
 	static int32 SearchArrayForPartialNameMatch(const TArray<FNiagaraVariable>& Variables, const FName& VariableName)
 	{
-		FString VarNameStr = VariableName.ToString();
-		FString BestMatchSoFar;
+		FNameBuilder VarNameBuilder(VariableName);
+		FStringView VarNameView(VarNameBuilder);
+
+		int32 BestMatchLength = INDEX_NONE;
 		int32 BestMatchIdx = INDEX_NONE;
+
+		const int32 VarNameLength = VarNameView.Len();
 
 		for (int32 i = 0; i < Variables.Num(); i++)
 		{
 			const FNiagaraVariable& TestVar = Variables[i];
-			FString TestVarNameStr = TestVar.GetName().ToString();
-			if (TestVarNameStr == VarNameStr)
+			FNameBuilder TestVarNameBuilder(TestVar.GetName());
+			FStringView TestVarNameView(TestVarNameBuilder);
+
+			if (VarNameView.Equals(TestVarNameView))
 			{
 				return i;
 			}
-			else if (VarNameStr.StartsWith(TestVarNameStr + TEXT(".")) && (BestMatchSoFar.Len() == 0 || TestVarNameStr.Len() > BestMatchSoFar.Len()))
+			else
 			{
-				BestMatchIdx = i;
-				BestMatchSoFar = TestVarNameStr;
+				const int32 TestVarNameLength = TestVarNameView.Len();
+
+				if (VarNameLength > TestVarNameLength && (BestMatchLength == INDEX_NONE || TestVarNameLength > BestMatchLength))
+				{
+					if (VarNameView.StartsWith(TestVarNameView) && VarNameView[TestVarNameLength] == TCHAR('.'))
+					{
+						BestMatchIdx = i;
+						BestMatchLength = TestVarNameLength;
+					}
+				}
 			}
 		}
 
