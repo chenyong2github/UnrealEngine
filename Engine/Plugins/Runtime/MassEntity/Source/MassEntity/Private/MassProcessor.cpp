@@ -364,12 +364,19 @@ void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProces
 
 	Populate(SortedProcessors);
 
-	BuildFlatProcessingGraph(SortedProcessors);
+	if (Solver.IsSolvingForSingleThread() == false)
+	{
+		BuildFlatProcessingGraph(SortedProcessors);
+	}
 }
 
 void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FMassProcessorOrderInfo> SortedProcessors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BuildFlatProcessingGraph);
+#if !MASS_DO_PARALLEL
+	UE_LOG(LogMass, Warning
+		, TEXT("MassCompositeProcessor::BuildFlatProcessingGraph is not expected to run in a single-threaded Mass setup. The flat graph will not be used at runtime."));
+#endif // MASS_DO_PARALLEL
 
 	FlatProcessingGraph.Reset();
 

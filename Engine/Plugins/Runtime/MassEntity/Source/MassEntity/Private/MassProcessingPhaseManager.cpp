@@ -148,7 +148,10 @@ void FMassPhaseProcessorConfigurationHelper::Configure(const TSharedPtr<FMassEnt
 
 	PhaseProcessor.Populate(SortedProcessors);
 
-	PhaseProcessor.BuildFlatProcessingGraph(SortedProcessors);
+	if (Solver.IsSolvingForSingleThread() == false)
+	{
+		PhaseProcessor.BuildFlatProcessingGraph(SortedProcessors);
+	}
 
 	if (bInitializeCreatedProcessors)
 	{

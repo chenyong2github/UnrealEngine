@@ -284,7 +284,8 @@ bool FMassProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceU
 		const int32 NodeIndex = InOutIndicesRemaining[i];
 		if (AllNodes[NodeIndex].TransientDependencies.Num() == 0)
 		{
-			if (ResourceUsage.CanAccessRequirements(AllNodes[NodeIndex].Requirements, AllNodes[NodeIndex].ValidArchetypes))
+			// if we're solving dependencies for a single thread use we don't need to fine-tune the order based on resources nor archetypes
+			if (bSingleThreadTarget || ResourceUsage.CanAccessRequirements(AllNodes[NodeIndex].Requirements, AllNodes[NodeIndex].ValidArchetypes))
 			{
 				AcceptedNodeIndex = NodeIndex;
 				break;

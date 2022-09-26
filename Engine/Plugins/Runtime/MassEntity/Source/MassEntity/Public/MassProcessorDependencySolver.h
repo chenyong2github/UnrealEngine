@@ -151,6 +151,8 @@ public:
 	/** Determines whether the dependency solving that produced InResult will produce different results if run with a given EntityManager */
 	static bool IsResultUpToDate(const FResult& InResult, TSharedPtr<FMassEntityManager> EntityManager);
 
+	bool IsSolvingForSingleThread() const { return bSingleThreadTarget; }
+
 protected:
 	// note that internals are protected rather than private to support unit testing
 
@@ -173,6 +175,14 @@ protected:
 
 	TArrayView<UMassProcessor*> Processors;
 	bool bAnyCyclesDetected = false;
+	/**
+	 * indicates whether we're generating processor order to be run in single- or multi-threaded environment (usually
+	 * this meas Dedicated Server vs Any other configuration). In Single-Threaded mode we can skip a bunch of expensive, 
+	 * fine tunning tests.
+	 * @Note: currently the value depends on MASS_DO_PARALLEL and there's no way to configure it otherwise, but there's 
+	 * nothing inherently stopping us from letting users configure it.
+	 */
+	const bool bSingleThreadTarget = bool(!MASS_DO_PARALLEL);
 	const bool bGameRuntime = true;
 	FString DependencyGraphFileName;
 	TArray<FNode> AllNodes;
