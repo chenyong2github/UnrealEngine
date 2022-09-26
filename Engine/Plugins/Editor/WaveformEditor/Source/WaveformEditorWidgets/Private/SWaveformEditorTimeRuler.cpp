@@ -174,8 +174,8 @@ void SWaveformEditorTimeRuler::MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder
 	);
 
 	SubMenuBuilder.AddMenuEntry(
-		LOCTEXT("TimeUnitsSubMenuEntry_Samples", "Samples"),
-		LOCTEXT("TimeUnitsSubMenuEntry_Samples", "Samples"),
+		LOCTEXT("TimeUnitsSubMenuEntry_Frames", "Frames"),
+		LOCTEXT("TimeUnitsSubMenuEntry_Frames", "Frames"),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &SWaveformEditorTimeRuler::NotifyTimeUnitMenuSelection, EWaveformEditorDisplayUnit::Samples),
@@ -261,7 +261,7 @@ FReply SWaveformEditorTimeRuler::OnMouseButtonDown(const FGeometry& MyGeometry, 
 
 FReply SWaveformEditorTimeRuler::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	const bool HandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && HasMouseCapture();
+	const bool HandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
 
 	if (HandleRightMouseButton)
 	{

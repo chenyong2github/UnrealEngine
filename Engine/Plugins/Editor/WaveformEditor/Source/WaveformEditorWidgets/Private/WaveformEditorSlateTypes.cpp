@@ -20,8 +20,12 @@ const FName FWaveformViewerStyle::TypeName("FWaveformViewerStyle");
 
 FWaveformViewerStyle::FWaveformViewerStyle()
 	: WaveformColor(FLinearColor::White)
+	, WaveformLineThickness(1.f)
 	, MajorGridLineColor(FLinearColor::Black)
 	, MinorGridLineColor(FLinearColor(0.f, 0.f, 0.f, 0.5f))
+	, ZeroCrossingLineColor(FLinearColor::Black)
+	, ZeroCrossingLineThickness(1.f)
+	, SampleMarkersSize(2.5f)
 	, WaveformBackgroundColor(WaveformEditorStylesSharedParams::WaveformBackGroundColor)
 	, BackgroundBrush(*FAppStyle::GetBrush(WaveformEditorStylesSharedParams::BackgroundBrushName))
 	, DesiredWidth(WaveformEditorStylesSharedParams::ViewerWidth)

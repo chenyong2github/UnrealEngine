@@ -48,8 +48,12 @@ void FWaveformEditorStyle::Init()
 	FWaveformViewerStyle WaveViewerStyle = FWaveformViewerStyle()
 		.SetWaveformColor(Settings->WaveformColor)
 		.SetBackgroundColor(Settings->WaveformBackgroundColor)
+		.SetWaveformLineThickness(Settings->WaveformLineThickness)
+		.SetSampleMarkersSize(Settings->SampleMarkersSize)
 		.SetMajorGridLineColor(Settings->MajorGridColor)
-		.SetMinorGridLineColor(Settings->MinorGridColor);
+		.SetMinorGridLineColor(Settings->MinorGridColor)
+		.SetZeroCrossingLineColor(Settings->ZeroCrossingLineColor)
+		.SetZeroCrossingLineThickness(Settings->ZeroCrossingLineThickness);
 
 	StyleInstance->Set(WaveformViewerStyleName, WaveViewerStyle);
 
@@ -93,6 +97,14 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	{
 		WaveformViewerStyle->SetBackgroundColor(Settings->WaveformBackgroundColor);
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformLineThickness))
+	{
+		WaveformViewerStyle->SetWaveformLineThickness(Settings->WaveformLineThickness);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, SampleMarkersSize))
+	{
+		WaveformViewerStyle->SetSampleMarkersSize(Settings->SampleMarkersSize);
+	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, MajorGridColor))
 	{
 		WaveformViewerStyle->SetMajorGridLineColor(Settings->MajorGridColor);
@@ -100,6 +112,14 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, MinorGridColor))
 	{
 		WaveformViewerStyle->SetMinorGridLineColor(Settings->MinorGridColor);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, ZeroCrossingLineColor))
+	{
+		WaveformViewerStyle->SetZeroCrossingLineColor(Settings->ZeroCrossingLineColor);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, ZeroCrossingLineThickness))
+	{
+		WaveformViewerStyle->SetZeroCrossingLineThickness(Settings->ZeroCrossingLineThickness);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, PlayheadColor))
 	{

@@ -38,8 +38,20 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer")
 	FLinearColor WaveformColor;
 
+	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer", Meta = (ClampMin = "1", ClampMax = "10"))
+	float WaveformLineThickness;
+
+	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer", Meta = (ClampMin = "0", ClampMax = "30"))
+	float SampleMarkersSize;
+
 	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer")
 	FLinearColor WaveformBackgroundColor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer")
+	FLinearColor ZeroCrossingLineColor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer", Meta = (ClampMin = "1", ClampMax = "10"))
+	float ZeroCrossingLineThickness;
 
 	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer")
 	FLinearColor MajorGridColor;
