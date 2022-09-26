@@ -342,7 +342,7 @@ private:
 	void RegisterBlendProfileMenu();
 
 	/** Create Blend Profile Menu */
-	void CreateBlendProfileMenu(UToolMenu* InMenu);
+	static void CreateBlendProfileMenu(UToolMenu* InMenu);
 
 	TSharedRef<SWidget> GetBlendProfileColumnMenuContent();
 
