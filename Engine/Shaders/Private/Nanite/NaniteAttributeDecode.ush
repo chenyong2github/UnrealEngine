@@ -156,6 +156,18 @@ uint CalculateMaxAttributeBits(uint NumTexCoordInterpolators)
 	return (2 * NANITE_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + NumTexCoordInterpolators * (2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS));
 }
 
+void DecodeMaterialRange(uint EncodedRange, out uint TriStart, out uint TriLength, out uint MaterialIndex)
+{
+	// uint32 TriStart      :  8; // max 128 triangles
+	// uint32 TriLength     :  8; // max 128 triangles
+	// uint32 MaterialIndex :  6; // max  64 materials
+	// uint32 Padding       : 10;
+
+	TriStart = BitFieldExtractU32(EncodedRange, 8, 0);
+	TriLength = BitFieldExtractU32(EncodedRange, 8, 8);
+	MaterialIndex = BitFieldExtractU32(EncodedRange, 6, 16);
+}
+
 bool IsMaterialFastPath(FCluster InCluster)
 {
 	return (InCluster.Material0Length > 0);
@@ -202,16 +214,14 @@ uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 			uint EncodedRange = ClusterPageData.Load(TableOffset);
 			TableOffset += 4;
 
-			// uint32 TriStart      :  8; // max 128 triangles
-			// uint32 TriLength     :  8; // max 128 triangles
-			// uint32 MaterialIndex :  6; // max  64 materials
-			// uint32 Padding       : 10;
+			uint TriStart;
+			uint TriLength;
+			uint TriMaterialIndex;
+			DecodeMaterialRange(EncodedRange, TriStart, TriLength, TriMaterialIndex);
 
-			const uint TriStart  = BitFieldExtractU32(EncodedRange, 8, 0);
-			const uint TriLength = BitFieldExtractU32(EncodedRange, 8, 8);
 			if (InTriIndex >= TriStart && InTriIndex < (TriStart + TriLength))
 			{
-				MaterialIndex = BitFieldExtractU32(EncodedRange, 6, 16);
+				MaterialIndex = TriMaterialIndex;
 				break;
 			}
 		}

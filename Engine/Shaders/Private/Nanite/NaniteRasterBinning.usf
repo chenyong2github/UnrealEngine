@@ -370,10 +370,12 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 				const uint EncodedRange = ClusterPageData.Load(TableOffset);
 				TableOffset += 4;
 
-				const uint TriStart			= BitFieldExtractU32(EncodedRange, 8, 0);
-				const uint TriLength		= BitFieldExtractU32(EncodedRange, 8, 8);
-				const uint MaterialIndex	= BitFieldExtractU32(EncodedRange, 6, 16);
-				const uint RasterizerBinN	= GetMaterialRasterSlotFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, MaterialSlotTable);
+				uint TriStart;
+				uint TriLength;
+				uint MaterialIndex;
+				DecodeMaterialRange(EncodedRange, TriStart, TriLength, MaterialIndex);
+
+				const uint RasterizerBinN = GetMaterialRasterSlotFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, MaterialSlotTable);
 
 				const uint BatchCount = BitStreamReader_Read_RO(ClusterPageData, BatchCountStreamState, 4, 4);
 
