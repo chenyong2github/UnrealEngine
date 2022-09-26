@@ -187,23 +187,21 @@ public:
 };
 ONLINESERVICESINTERFACE_API const FString ToLogString(const ISession& Session);
 
-/** Information about an invitation to join an Online Session */
-struct FSessionInvite
+/** Interface to access all information about an invitation to join an Online Session. Read only */
+class ISessionInvite
 {
-	/* The id handle for the user which the invite got sent to */
-	FAccountId RecipientId;
+public:
+	/** Retrieves the id handle for the user who received the invite */
+	virtual const FAccountId GetRecipientId() const = 0;
 
-	/* The id handle for the user which sent the invite */
-	FAccountId SenderId;
+	/** Retrieves the id handle for the user who sent the invite */
+	virtual const FAccountId GetSenderId() const = 0;
+	virtual const FSessionInviteId GetInviteId() const = 0;
+	virtual const FOnlineSessionId GetSessionId() const = 0;
 
-	/* The invite id handle, needed for retrieving invite information and rejecting the invite */
-	FSessionInviteId InviteId;
-
-	/* The session id handle, needed for retrieving the session information */
-	FOnlineSessionId SessionId;
-
-	// TODO: Refactor into ISessionInvite, FSessionInviteCommon/EOSGS/OSSAdapter to add a ToLogString method
+	virtual FString ToLogString() const = 0;
 };
+ONLINESERVICESINTERFACE_API const FString ToLogString(const ISessionInvite& Session);
 
 // ISessions Methods
 
@@ -564,7 +562,7 @@ struct FGetSessionInviteById
 	struct Result
 	{
 		/** Reference to the invite mapped to the given id */
-		TSharedRef<const FSessionInvite> SessionInvite;
+		TSharedRef<const ISessionInvite> SessionInvite;
 	};
 };
 
@@ -581,7 +579,7 @@ struct FGetAllSessionInvites
 	struct Result
 	{
 		/** Array of invites received by the given user */
-		TArray<TSharedRef<const FSessionInvite>> SessionInvites;
+		TArray<TSharedRef<const ISessionInvite>> SessionInvites;
 	};
 };
 
@@ -920,13 +918,6 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowNewMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedCustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedCustomSettings)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FSessionInvite)
-	ONLINE_STRUCT_FIELD(FSessionInvite, RecipientId),
-	ONLINE_STRUCT_FIELD(FSessionInvite, SenderId),
-	ONLINE_STRUCT_FIELD(FSessionInvite, InviteId),
-	ONLINE_STRUCT_FIELD(FSessionInvite, SessionId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAllSessions::Params)

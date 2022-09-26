@@ -232,12 +232,12 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 
 					TSharedRef<FSessionCommon> Session = Result.GetOkValue().Session;
 
-					TSharedRef<FSessionInvite> SessionInviteRef = MakeShared<FSessionInvite>(FSessionInvite{
+					TSharedRef<FSessionInviteCommon> SessionInviteRef = MakeShared<FSessionInviteCommon>(
 						ReceiverId,
 						SenderId,
 						SessionInviteId,
 						Session->GetSessionId()
-						});
+					);
 
 					AddSessionInvite(SessionInviteRef, Session, ReceiverId);
 
@@ -1464,7 +1464,7 @@ TFuture<TOnlineResult<FRejectSessionInvite>> FSessionsEOSGS::RejectSessionInvite
 				return;
 			}
 
-			if (TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
+			if (TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
 			{
 				UserMap->Remove(Params.SessionInviteId);
 			}

@@ -171,6 +171,34 @@ public:
 	FSessionCommon& operator+=(const FSessionUpdate& SessionUpdate);
 };
 
+class ONLINESERVICESCOMMON_API FSessionInviteCommon : public ISessionInvite
+{
+public:
+	FSessionInviteCommon() = default;
+	FSessionInviteCommon(const FSessionInviteCommon& Other) = default;
+	FSessionInviteCommon(const FAccountId& InRecipientId, const FAccountId& InSenderId, const FSessionInviteId& InInviteId, const FOnlineSessionId& InSessionId);
+
+	virtual const FAccountId GetRecipientId() const override { return RecipientId; }
+	virtual const FAccountId GetSenderId() const override { return SenderId; }
+	virtual const FSessionInviteId GetInviteId() const override { return InviteId; }
+	virtual const FOnlineSessionId GetSessionId() const override { return SessionId; }
+
+	virtual FString ToLogString() const override;
+
+public:
+	/* The id handle for the user which the invite got sent to */
+	FAccountId RecipientId;
+
+	/* The id handle for the user which sent the invite */
+	FAccountId SenderId;
+
+	/* The invite id handle, needed for retrieving invite information and rejecting the invite */
+	FSessionInviteId InviteId;
+
+	/* The session id handle, needed for retrieving the session information */
+	FOnlineSessionId SessionId;
+};
+
 struct FGetMutableSessionByName
 {
 	static constexpr TCHAR Name[] = TEXT("GetMutableSessionByName");
@@ -248,7 +276,7 @@ protected:
 	TOnlineResult<FGetMutableSessionByName> GetMutableSessionByName(FGetMutableSessionByName::Params&& Params) const;
 	TOnlineResult<FGetMutableSessionById> GetMutableSessionById(FGetMutableSessionById::Params&& Params) const;
 
-	void AddSessionInvite(const TSharedRef<FSessionInvite> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId);
+	void AddSessionInvite(const TSharedRef<FSessionInviteCommon> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId);
 	void AddSearchResult(const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId);
 	void AddSessionWithReferences(const TSharedRef<FSessionCommon> Session, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
 	void AddSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
@@ -340,7 +368,7 @@ protected:
 	TMap<FAccountId, FOnlineSessionId> PresenceSessionsUserMap;
 
 	/** Cache for received session invites, mapped per user */
-	TMap<FAccountId, TMap<FSessionInviteId, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
+	TMap<FAccountId, TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>> SessionInvitesUserMap;
 
 	/** Cache for the last set of session search results, mapped per user */
 	TMap<FAccountId, TArray<FOnlineSessionId>> SearchResultsUserMap;

@@ -294,24 +294,7 @@ void FSessionsOSSAdapter::Initialize()
 	IdentityInterface = SubsystemV1.GetIdentityInterface();
 	check(IdentityInterface);
 
-	SessionsInterface->AddOnSessionInviteReceivedDelegate_Handle(FOnSessionInviteReceivedDelegate::CreateLambda([this](const FUniqueNetId& UserId, const FUniqueNetId& FromId, const FString& AppId, const FOnlineSessionSearchResult& InviteResult)
-	{
-		FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
-
-		TSharedRef<FSessionCommon> Session = BuildV2Session(&InviteResult.Session);
-
-		TSharedRef<FSessionInvite> SessionInvite = MakeShared<FSessionInvite>();
-		SessionInvite->SenderId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(FromId.AsShared());
-		SessionInvite->RecipientId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared());
-		SessionInvite->InviteId = GetSessionInviteIdRegistry().BasicRegistry.FindOrAddHandle(AppId);
-		SessionInvite->SessionId = Session->GetSessionId();
-
-		AddSessionInvite(SessionInvite, Session, SessionInvite->RecipientId);
-
-		FSessionInviteReceived Event{ ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared()), SessionInvite->InviteId };
-
-		SessionEvents.OnSessionInviteReceived.Broadcast(Event);
-	}));
+	// OnSessionInviteReceived is not used by current implementations of Sessions in V1, so we won't bind to FOnSessionInviteReceived
 
 	SessionsInterface->AddOnSessionUserInviteAcceptedDelegate_Handle(FOnSessionUserInviteAcceptedDelegate::CreateLambda([this](const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr InvitedUserIdPtr, const FOnlineSessionSearchResult& InviteResult)
 	{

@@ -85,6 +85,23 @@ namespace UE::Online {
 		}
 	}
 
+	/** FSessionInvitecommon */
+
+	FSessionInviteCommon::FSessionInviteCommon(const FAccountId& InRecipientId, const FAccountId& InSenderId, const FSessionInviteId& InInviteId, const FOnlineSessionId& InSessionId)
+		: RecipientId(InRecipientId)
+		, SenderId(InSenderId)
+		, InviteId(InInviteId)
+		, SessionId(InSessionId)
+	{
+
+	}
+
+	FString FSessionInviteCommon::ToLogString() const
+	{
+		return FString::Printf(TEXT("ISessionInvite: RecipientId [%s], SenderId [%s], InviteId [%s], SessionId [%s]"),
+			*UE::Online::ToLogString(RecipientId),*UE::Online::ToLogString(SenderId), *UE::Online::ToLogString(InviteId), *UE::Online::ToLogString(SessionId));
+	}
+
 	/** FSessionsCommon */
 
 	FSessionsCommon::FSessionsCommon(FOnlineServicesCommon& InServices)
@@ -272,9 +289,9 @@ namespace UE::Online {
 		CHECK_PARAMS_ID_HANDLE(Params.LocalAccountId, FGetSessionInviteById)
 		CHECK_PARAMS_ID_HANDLE(Params.SessionInviteId, FGetSessionInviteById)
 
-		if (const TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
+		if (const TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
 		{
-			if (const TSharedRef<FSessionInvite>* SessionInvite = UserMap->Find(Params.SessionInviteId))
+			if (const TSharedRef<FSessionInviteCommon>* SessionInvite = UserMap->Find(Params.SessionInviteId))
 			{
 				return TOnlineResult<FGetSessionInviteById>({ *SessionInvite });
 			}
@@ -295,11 +312,11 @@ namespace UE::Online {
 	{
 		CHECK_PARAMS_ID_HANDLE(Params.LocalAccountId, FGetAllSessionInvites)
 		
-		TArray<TSharedRef<const FSessionInvite>> SessionInvites;
+		TArray<TSharedRef<const ISessionInvite>> SessionInvites;
 
-		if (const TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
+		if (const TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
 		{
-			for (const TPair<FSessionInviteId, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+			for (const TPair<FSessionInviteId, TSharedRef<FSessionInviteCommon>>& Entry : *UserMap)
 			{
 				SessionInvites.Add(Entry.Value);
 			}
@@ -833,7 +850,7 @@ namespace UE::Online {
 
 	TOptional<FOnlineError> FSessionsCommon::CheckState(const FRejectSessionInvite::Params& Params) const
 	{
-		if (const TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
+		if (const TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
 		{
 			if (!UserMap->Contains(Params.SessionInviteId))
 			{
@@ -883,11 +900,11 @@ namespace UE::Online {
 
 	// Auxiliary methods
 
-	void FSessionsCommon::AddSessionInvite(const TSharedRef<FSessionInvite> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId)
+	void FSessionsCommon::AddSessionInvite(const TSharedRef<FSessionInviteCommon> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId)
 	{
 		AllSessionsById.Emplace(Session->GetSessionId(), Session);
 
-		TMap<FSessionInviteId, TSharedRef<FSessionInvite>>& SessionInvitesMap = SessionInvitesUserMap.FindOrAdd(LocalAccountId);
+		TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>& SessionInvitesMap = SessionInvitesUserMap.FindOrAdd(LocalAccountId);
 		SessionInvitesMap.Emplace(SessionInvite->InviteId, SessionInvite);
 	}
 
@@ -920,10 +937,10 @@ namespace UE::Online {
 
 	void FSessionsCommon::ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionId SessionId)
 	{
-		if (TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(LocalAccountId))
+		if (TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>* UserMap = SessionInvitesUserMap.Find(LocalAccountId))
 		{
 			TArray<FSessionInviteId> InviteIdsToRemove;
-			for (const TPair<FSessionInviteId, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+			for (const TPair<FSessionInviteId, TSharedRef<FSessionInviteCommon>>& Entry : *UserMap)
 			{
 				if (Entry.Value->SessionId == SessionId)
 				{
@@ -980,9 +997,9 @@ namespace UE::Online {
 			}
 		}
 
-		for (const TPair<FAccountId, TMap<FSessionInviteId, TSharedRef<FSessionInvite>>>& Entry : SessionInvitesUserMap)
+		for (const TPair<FAccountId, TMap<FSessionInviteId, TSharedRef<FSessionInviteCommon>>>& Entry : SessionInvitesUserMap)
 		{
-			for (const TPair<FSessionInviteId, TSharedRef<FSessionInvite>>& InviteMap : Entry.Value)
+			for (const TPair<FSessionInviteId, TSharedRef<FSessionInviteCommon>>& InviteMap : Entry.Value)
 			{
 				if (InviteMap.Value->SessionId == SessionId)
 				{

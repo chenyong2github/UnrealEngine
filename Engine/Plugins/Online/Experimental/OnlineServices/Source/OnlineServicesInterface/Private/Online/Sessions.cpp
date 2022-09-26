@@ -77,7 +77,8 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 
 FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsChanges& SettingsChanges)
 {
-	COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
+	// TODO: Full support for Schema functionality still pending
+	COPY_TOPTIONAL_VALUE_IF_SET(SchemaName)
 	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxConnections)
 	COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
 	COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
@@ -105,6 +106,11 @@ FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsChanges& Se
 const FString ToLogString(const ISession& Session)
 {
 	return Session.ToLogString();
+}
+
+const FString ToLogString(const ISessionInvite& SessionInvite)
+{
+	return SessionInvite.ToLogString();
 }
 
 const TCHAR* LexToString(EUISessionJoinRequestedSource UISessionJoinRequestedSource)
