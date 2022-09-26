@@ -150,6 +150,10 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 		if (CurveId.IsValid())
 		{
 			Controller.AddCurve(CurveId, FloatCurve.GetCurveTypeFlags());
+			FCurveAttributes Attributes;
+			Attributes.SetPreExtrapolation(FloatCurve.FloatCurve.PreInfinityExtrap);
+			Attributes.SetPostExtrapolation(FloatCurve.FloatCurve.PostInfinityExtrap);					
+			Controller.SetCurveAttributes(CurveId, Attributes);
 			Controller.SetCurveKeys(CurveId, FloatCurve.FloatCurve.GetConstRefOfKeys());
 		}
 	}
