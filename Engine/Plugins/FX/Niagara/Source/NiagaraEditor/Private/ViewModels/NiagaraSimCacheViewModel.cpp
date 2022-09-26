@@ -107,7 +107,7 @@ void FNiagaraSimCacheViewModel::SetEmitterIndex(const int32 InEmitterIndex)
 {
 	EmitterIndex = InEmitterIndex;
 	UpdateCachedFrame();
-	OnViewDataChangedDelegate.Broadcast(true);
+	OnViewDataChangedDelegate.Broadcast(false);
 }
 
 bool FNiagaraSimCacheViewModel::IsCacheValid()

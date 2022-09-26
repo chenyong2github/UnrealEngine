@@ -285,7 +285,12 @@ TSharedRef<SWidget> SNiagaraSimCacheView::BufferSelectionGenerateWidget(TSharedP
 
 void SNiagaraSimCacheView::BufferSelectionChanged(TSharedPtr<FBufferSelectionInfo> NewSelection, ESelectInfo::Type SelectInfo)
 {
-	SimCacheViewModel->SetEmitterIndex(NewSelection.IsValid() ? NewSelection->Key : INDEX_NONE);
+	if(!NewSelection.IsValid() || NewSelection->Key == SimCacheViewModel->GetEmitterIndex())
+	{
+		return;
+	}
+	
+	SimCacheViewModel->SetEmitterIndex(NewSelection->Key);
 	UpdateColumns(false);
 	UpdateRows(true);
 }
