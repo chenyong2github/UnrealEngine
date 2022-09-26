@@ -1525,7 +1525,7 @@ bool FSceneProxy::GetInstanceDrawDistanceMinMax(FVector2f& OutDistanceMinMax) co
 
 bool FSceneProxy::GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const
 {
-	OutWPODisableDistance = float(InstanceWPODisableDistance) * GetCachedScalabilityCVars().ViewDistanceScale;
+	OutWPODisableDistance = float(InstanceWPODisableDistance);
 	return InstanceWPODisableDistance != 0;
 }
 
