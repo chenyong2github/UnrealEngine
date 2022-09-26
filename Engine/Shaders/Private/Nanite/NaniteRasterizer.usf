@@ -1100,6 +1100,7 @@ void MicropolyRasterize(
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+	const bool bEvaluateWPO = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 
 #if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
 	ResolvedView = ResolveView(NaniteView);
@@ -1190,7 +1191,7 @@ void MicropolyRasterize(
 	{
 		float3 PointLocal = DecodePosition(MyVertIndex, Cluster);
 		FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Raster.Cluster, MyVertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
-		Vert = TransformNaniteVertex(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData, MyVertIndex);
+		Vert = TransformNaniteVertex(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData, MyVertIndex, bEvaluateWPO);
 		SubpixelCoords = CalculateSubpixelCoordinates(Raster, Vert.PointSubpixelClip);
 	}
 
@@ -1241,7 +1242,11 @@ void MicropolyRasterize(
 	#else
 		float3 WorldPositionOffset = 0.0f;
 	#if NANITE_VERTEX_PROGRAMMABLE
-		WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
+		BRANCH
+		if (bEvaluateWPO)
+		{
+			WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
+		}
 	#endif
 		float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
 		float4 PointSubpixelClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToSubpixelClip);
@@ -1287,7 +1292,7 @@ void MicropolyRasterize(
 		FNaniteRawAttributeData RawAttributeData[3];
 		GetRawAttributeData3(RawAttributeData, Raster.Cluster, VertIndexes, NANITE_NUM_TEXCOORDS_TO_DECODE);
 		
-		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, Verts, RawAttributeData, VertIndexes, true);
+		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, Verts, RawAttributeData, VertIndexes, bEvaluateWPO);
 
 		const float4 PointSubpixelClip[3] =
 		{

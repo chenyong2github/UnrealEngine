@@ -125,7 +125,8 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	uint DepthInt;
 	uint VisibleClusterIndex;
 	uint TriIndex;
-	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+	bool bIsImposter;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex, bIsImposter);
 
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
@@ -190,6 +191,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			NANITE_MAX_UVS
 		);
 
+		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 		const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
 		const uint VisualizeMode = GetVisualizeMode();
 
@@ -229,7 +231,8 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_RASTER_BINS)
 		{
-			const uint RasterSlot = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, MaterialSlotTable);
+			const bool bSecondaryRasterBin = !bWPOEnabled;
+			const uint RasterSlot = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, bSecondaryRasterBin, MaterialSlotTable);
 			Result = IntToColor(RasterSlot);
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_OVERDRAW)
@@ -289,7 +292,8 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET)
 		{
-			if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+			const bool bEvaluateWPO = !bIsImposter && bWPOEnabled;
+			if (bEvaluateWPO)
 			{
 				Result = float3(0, 1, 0);
 			}
@@ -438,6 +442,9 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FPrimitiveSceneData PrimitiveData			= GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
+		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+		const bool bSecondaryRasterBin = !bWPOEnabled;
+
 		FeedbackResults.PrimitiveId			= InstanceData.PrimitiveId;
 		FeedbackResults.InstanceId			= VisibleCluster.InstanceId;
 		FeedbackResults.PersistentIndex		= PrimitiveData.PersistentPrimitiveIndex;
@@ -446,7 +453,7 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.PageIndex			= VisibleCluster.PageIndex;
 		FeedbackResults.TriangleIndex		= TriIndex;
 		FeedbackResults.DepthInt			= DepthInt;
-		FeedbackResults.RasterSlot			= GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, MaterialSlotTable);
+		FeedbackResults.RasterSlot			= GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, bSecondaryRasterBin, MaterialSlotTable);
 		FeedbackResults.RasterMode			= DebugValueMax;
 		FeedbackResults.MaterialSlot		= ResolvedMaterialSlot;
 		FeedbackResults.MaterialIndex		= GetRelativeMaterialIndex(Cluster, TriIndex);

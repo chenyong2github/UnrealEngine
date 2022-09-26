@@ -244,6 +244,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = RayTracing)
 	uint8 bEvaluateWorldPositionOffsetInRayTracing : 1;
 
+	/**
+	 * Distance at which to disable World Position Offset for an entire instance (0 = Never disable WPO).
+	 * NOTE: Currently works with Nanite only.
+	 **/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering)
+	int32 WorldPositionOffsetDisableDistance = 0;
+
 protected:
 	/** Initial value of bEvaluateWorldPositionOffset when BeginPlay() was called. Can be useful if we want to reset to initial state. */
 	uint8 bInitialEvaluateWorldPositionOffset : 1;

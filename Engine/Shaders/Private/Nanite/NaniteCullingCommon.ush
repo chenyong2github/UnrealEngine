@@ -67,17 +67,23 @@ void DrawDistanceCull(
 	FInstanceSceneData InstanceData,
 	FInstanceDynamicData DynamicData,
 	bool bSkipCamPerPrimDistanceCull,
-	inout bool bVisible)
+	bool bSkipDisableWPODistance,
+	inout bool bVisible,
+	inout bool bEnableWPO)
 {
+	// Ensure WPO can be disabled at the primitive level
+	bEnableWPO = bEnableWPO && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0;
+	const bool bWPODistanceDisable = bEnableWPO && !bSkipDisableWPODistance && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE) != 0u;
+
 	BRANCH
-	if (bVisible)
+	if (bVisible || bWPODistanceDisable)
 	{
 		const float3 TranslatedWorldCenter = mul(float4(InstanceData.LocalBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
 		const float InstanceDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
 
 		// Check to cull the instance based on its distance from the main view's location (per-primitive setting)
 		BRANCH
-		if (!bSkipCamPerPrimDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL) != 0u)
+		if (bVisible && !bSkipCamPerPrimDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL) != 0u)
 		{
 			const float MinDistanceSq = PrimitiveData.InstanceDrawDistanceMinMaxSquared.x;
 			const float MaxDistanceSq = PrimitiveData.InstanceDrawDistanceMinMaxSquared.y;
@@ -94,6 +100,12 @@ void DrawDistanceCull(
 			const float MaxDistanceSq = Square(NaniteView.RangeBasedCullingDistance + InstanceRadius);
 			
 			bVisible = InstanceDistSq <= MaxDistanceSq;
+		}
+
+		// Check to disable the instance's WPO based on distance from the main view's location
+		if (bWPODistanceDisable)
+		{
+			bEnableWPO = InstanceDistSq < PrimitiveData.InstanceWPODisableDistanceSquared;
 		}
 	}
 }

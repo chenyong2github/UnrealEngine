@@ -230,19 +230,42 @@ uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 	return MaterialIndex;
 }
 
-uint RemapMaterialIndexToOffset(uint InPrimitiveIndex, uint InMaterialIndex)
+uint RemapMaterialIndexToOffset(uint InPrimitiveIndex, uint InMaterialIndex, uint BytesPerMaterial)
 {
 	// Remap local primitive material indices (i.e. 0...8) to global indices of all primitives in current scene
 	const uint MaxMaterials = 64;
-	const uint RemapOffset = (InPrimitiveIndex * MaxMaterials * 4) + (InMaterialIndex * 4);
+	const uint GlobalMaterialIndex = InPrimitiveIndex * MaxMaterials + InMaterialIndex;
+	const uint RemapOffset = GlobalMaterialIndex * BytesPerMaterial;
 	return RemapOffset;
 }
 
-uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialTable)
+struct FNaniteMaterialSlot {
+	uint MaterialIndex;
+	uint RasterSlot;
+	uint SecondaryRasterSlot;
+};
+
+FNaniteMaterialSlot UnpackMaterialSlot(uint2 Data)
 {
-	const uint RemapOffset = RemapMaterialIndexToOffset(InPrimitiveIndex, InMaterialIndex);
-	const uint MaterialId = InMaterialTable.Load(RemapOffset);
-	return MaterialId;
+	FNaniteMaterialSlot Output;
+	Output.MaterialIndex = Data.x >> 16u;
+	Output.RasterSlot = Data.x & 0xFFFFu;
+	Output.SecondaryRasterSlot = Data.y;
+
+	return Output;
+}
+
+FNaniteMaterialSlot LoadMaterialSlot(ByteAddressBuffer InMaterialTable, uint Offset)
+{
+	uint2 Data = InMaterialTable.Load2(Offset);
+	return UnpackMaterialSlot(Data);
+}
+
+FNaniteMaterialSlot LoadMaterialSlot(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialTable)
+{
+	const uint BytesPerMaterial = 4 * 2; // 2 dwords per material
+	const uint RemapOffset = RemapMaterialIndexToOffset(InPrimitiveIndex, InMaterialIndex, BytesPerMaterial);
+	return LoadMaterialSlot(InMaterialTable, RemapOffset);
 }
 
 uint GetMaterialShadingSlotFromIndex(
@@ -250,19 +273,29 @@ uint GetMaterialShadingSlotFromIndex(
 	uint InPrimitiveIndex,
 	ByteAddressBuffer InMaterialSlotTable)
 {
-	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
-	return (MaterialSlot >> 16u);
+	FNaniteMaterialSlot MaterialSlot = LoadMaterialSlot(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
+	return MaterialSlot.MaterialIndex;
 }
 
 uint GetMaterialRasterSlotFromIndex(
 	uint InRelativeMaterialIndex,
 	uint InPrimitiveIndex,
 	uint InRegularSlotCount,
+	bool bSecondaryBin,
 	ByteAddressBuffer InMaterialSlotTable)
 {
-	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
-	const uint RasterSlot = MaterialSlot & 0xFFFFu;
-	return RasterSlot < InRegularSlotCount ? RasterSlot : 0xffff - RasterSlot + InRegularSlotCount;
+	FNaniteMaterialSlot MaterialSlot = LoadMaterialSlot(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
+	uint RasterSlot = MaterialSlot.RasterSlot;
+	if (bSecondaryBin && MaterialSlot.SecondaryRasterSlot != 0xFFFFFFFFu)
+	{
+		RasterSlot = MaterialSlot.SecondaryRasterSlot;
+	}
+	if (RasterSlot >= InRegularSlotCount)
+	{
+		RasterSlot = 0xffff - RasterSlot + InRegularSlotCount;
+	}
+
+	return RasterSlot;
 }
 
 uint GetMaterialShadingSlot(
@@ -280,10 +313,11 @@ uint GetMaterialRasterSlot(
 	uint InPrimitiveIndex,
 	uint InTriIndex,
 	uint InRegularSlotCount,
+	bool bSecondaryBin,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	return GetMaterialRasterSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InRegularSlotCount, InMaterialSlotTable);
+	return GetMaterialRasterSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InRegularSlotCount, bSecondaryBin, InMaterialSlotTable);
 }
 
 uint GetMaterialDepthId(
@@ -294,6 +328,13 @@ uint GetMaterialDepthId(
 	return MaterialDepthId;
 }
 
+uint LoadMaterialHitProxyId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialHitProxyTable)
+{
+	const uint BytesPerMaterial = 4; // Hit proxy ID
+	const uint RemapOffset = RemapMaterialIndexToOffset(InPrimitiveIndex, InMaterialIndex, BytesPerMaterial);
+	return InMaterialHitProxyTable.Load(RemapOffset);
+}
+
 uint GetMaterialHitProxyId(
 	FCluster InCluster,
 	uint InPrimitiveIndex,
@@ -301,7 +342,7 @@ uint GetMaterialHitProxyId(
 	ByteAddressBuffer InMaterialHitProxyTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	const uint MaterialHitProxyId = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialHitProxyTable);
+	const uint MaterialHitProxyId = LoadMaterialHitProxyId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialHitProxyTable);
 	return MaterialHitProxyId;
 }
 

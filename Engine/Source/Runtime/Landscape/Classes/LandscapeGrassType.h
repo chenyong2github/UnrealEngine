@@ -117,6 +117,10 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category = Grass)
 	bool bKeepInstanceBufferCPUCopy;
 
+	/** Distance at which to grass instances should disable WPO for performance reasons */
+	UPROPERTY(EditAnywhere, Category = Grass)
+	uint32 InstanceWorldPositionOffsetDisableDistance;
+
 	FGrassVariety()
 		: GrassMesh(nullptr)
 		, GrassDensity(400)
@@ -136,6 +140,7 @@ struct FGrassVariety
 		, bCastDynamicShadow(true)
 		, bCastContactShadow(true)
 		, bKeepInstanceBufferCPUCopy(false)
+		, InstanceWorldPositionOffsetDisableDistance(0)
 	{
 	}
 };

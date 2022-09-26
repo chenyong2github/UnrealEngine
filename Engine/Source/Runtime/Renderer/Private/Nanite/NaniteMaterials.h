@@ -80,19 +80,29 @@ private:
 
 struct FNaniteMaterialSlot
 {
+	struct FPacked
+	{
+		uint32 Data[2];
+	};
+
 	FNaniteMaterialSlot()
 	: ShadingId(0xFFFF)
 	, RasterId(0xFFFF)
+	, SecondaryRasterId(0xFFFF)
 	{
 	}
 
-	inline uint32 Pack() const
+	inline FPacked Pack() const
 	{
-		return (ShadingId << 16u | RasterId);
+		FPacked Ret;
+		Ret.Data[0] = (ShadingId << 16u | RasterId);
+		Ret.Data[1] = SecondaryRasterId == 0xFFFFu ? 0xFFFFFFFFu : SecondaryRasterId;
+		return Ret;
 	}
 
 	uint16 ShadingId;
 	uint16 RasterId;
+	uint16 SecondaryRasterId;
 };
 
 struct FNaniteMaterialPassCommand
@@ -281,6 +291,9 @@ class FNaniteMaterialCommands
 public:
 	typedef Experimental::FHashType FCommandHash;
 	typedef Experimental::FHashElementId FCommandId;
+
+	// The size of one entry in the material slot byte address buffer
+	static const uint32 MaterialSlotSize = sizeof(FNaniteMaterialSlot::FPacked);
 
 public:
 	FNaniteMaterialCommands(uint32 MaxMaterials = NANITE_MAX_MATERIALS);

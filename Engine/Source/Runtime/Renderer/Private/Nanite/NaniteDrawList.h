@@ -24,16 +24,10 @@ public:
 		uint8 SectionIndex;
 	};
 
-	struct FDeferredPipeline
-	{
-		FNaniteRasterPipeline RasterPipeline;
-		uint8 SectionIndex;
-	};
-
 	struct FDeferredPipelines
 	{
 		FPrimitiveSceneInfo* PrimitiveSceneInfo;
-		TArray<FDeferredPipeline, TInlineAllocator<4>> Pipelines;
+		TArray<FNaniteRasterPipeline, TInlineAllocator<4>> Pipelines;
 	};
 
 public:
@@ -102,7 +96,7 @@ public:
 
 private:
 	void AddShadingCommand(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteCommandInfo& CommandInfo, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex);
-	void AddRasterBin(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteRasterBin& CommandInfo, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex);
+	void AddRasterBin(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteRasterBin& PrimaryRasterBin, const FNaniteRasterBin& SecondaryRasterBin, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex);
 
 private:
 	FMeshDrawCommand MeshDrawCommandForStateBucketing;

@@ -1412,7 +1412,7 @@ void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint3
 	ResizeByteAddressBufferIfNeeded(GraphBuilder, HitProxyTableDataBuffer, PrimitiveUpdateReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer"));
 #endif
 
-	ResizeByteAddressBufferIfNeeded(GraphBuilder, MaterialSlotDataBuffer, PrimitiveUpdateReserve * sizeof(uint32), TEXT("Nanite.MaterialSlotDataBuffer"));
+	ResizeByteAddressBufferIfNeeded(GraphBuilder, MaterialSlotDataBuffer, PrimitiveUpdateReserve * MaterialSlotSize, TEXT("Nanite.MaterialSlotDataBuffer"));
 
 	ResizeByteAddressBufferIfNeeded(GraphBuilder, MaterialDepthDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialDepthDataBuffer"));
 
@@ -1449,7 +1449,7 @@ FNaniteMaterialCommands::FUploader* FNaniteMaterialCommands::Begin(FRDGBuilder& 
 	check(MaterialEditorDataBuffer->GetSize() == MaterialSlotReserve * sizeof(uint32));
 #endif
 	check(MaterialSlotDataBuffer);
-	check(MaterialSlotDataBuffer->GetSize() == PrimitiveUpdateReserve * sizeof(uint32));
+	check(MaterialSlotDataBuffer->GetSize() == PrimitiveUpdateReserve * MaterialSlotSize);
 	check(MaterialDepthDataBuffer);
 	check(MaterialDepthDataBuffer->GetSize() == MaterialSlotReserve * sizeof(uint32));
 
@@ -1459,7 +1459,7 @@ FNaniteMaterialCommands::FUploader* FNaniteMaterialCommands::Begin(FRDGBuilder& 
 	NumPrimitiveUpdates = InNumPrimitiveUpdates;
 	if (NumPrimitiveUpdates > 0)
 	{
-		Uploader->MaterialSlotUploader = MaterialSlotUploadBuffer.Begin(GraphBuilder, Register(MaterialSlotDataBuffer), NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), TEXT("Nanite.MaterialSlotUploadBuffer"));
+		Uploader->MaterialSlotUploader = MaterialSlotUploadBuffer.Begin(GraphBuilder, Register(MaterialSlotDataBuffer), NumPrimitiveUpdates * MaxMaterials, MaterialSlotSize, TEXT("Nanite.MaterialSlotUploadBuffer"));
 	#if WITH_EDITOR
 		Uploader->HitProxyTableUploader = HitProxyTableUploadBuffer.Begin(GraphBuilder, Register(HitProxyTableDataBuffer), NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), TEXT("Nanite.HitProxyTableUploadBuffer"));
 	#endif
@@ -1590,6 +1590,17 @@ void FNaniteMaterialCommands::Finish(FRDGBuilder& GraphBuilder, FRDGExternalAcce
 	NumMaterialDepthUpdates = 0;
 }
 
+FNaniteRasterPipeline FNaniteRasterPipeline::GetFixedFunctionPipeline(bool bIsTwoSided)
+{
+	FNaniteRasterPipeline Ret;
+	Ret.RasterMaterial = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+	Ret.bIsTwoSided = bIsTwoSided;
+	Ret.bPerPixelEval = false;
+	Ret.bWPODisableDistance = false;
+
+	return Ret;
+}
+
 FNaniteRasterPipelines::FNaniteRasterPipelines()
 {
 	PipelineBins.Reserve(256);
@@ -1659,6 +1670,7 @@ FNaniteRasterBin FNaniteRasterPipelines::Register(const FNaniteRasterPipeline& I
 		// First reference
 		RasterEntry.RasterPipeline = InRasterPipeline;
 		RasterEntry.BinIndex = AllocateBin(InRasterPipeline.bPerPixelEval);
+		RasterEntry.bForceDisableWPO = InRasterPipeline.bForceDisableWPO;
 	}
 
 	++RasterEntry.ReferenceCount;
@@ -1725,9 +1737,9 @@ static FORCEINLINE bool IsVisibilityTestNeeded(
 {
 	bool bShouldTest = false;
 
-	for (const uint16& RasterBinIndex : References.RasterBins)
+	for (const FNaniteVisibility::FPrimitiveBins& RasterBins : References.RasterBins)
 	{
-		if (!Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBinIndex))]) // Raster bin reference is not marked visible
+		if (!Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Primary))]) // Raster bin reference is not marked visible
 		{
 			bShouldTest = true;
 			break;
@@ -1854,9 +1866,13 @@ static void PerformNaniteVisibility(
 				{
 					if (Query->bCullRasterBins)
 					{
-						for (const uint16 RasterBinIndex : References.RasterBins)
+						for (const FNaniteVisibility::FPrimitiveBins RasterBins : References.RasterBins)
 						{
-							Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBinIndex))].Store(true);
+							Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Primary))].Store(true);
+							if (RasterBins.Secondary != 0xFFFFu)
+							{
+								Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Secondary))].Store(true);
+							}
 						}
 					}
 
@@ -1881,9 +1897,13 @@ static void PerformNaniteVisibility(
 				{
 					if (Query->bCullRasterBins)
 					{
-						for (const uint16 RasterBinIndex : References.RasterBins)
+						for (const FNaniteVisibility::FPrimitiveBins RasterBins : References.RasterBins)
 						{
-							Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBinIndex))] = true;
+							Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Primary))] = true;
+							if (RasterBins.Secondary != 0xFFFFu)
+							{
+								Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Secondary))] = true;
+							}
 						}
 					}
 

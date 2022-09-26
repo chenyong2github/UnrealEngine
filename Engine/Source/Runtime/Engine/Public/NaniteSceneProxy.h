@@ -203,6 +203,7 @@ protected:
 	EHitProxyMode HitProxyMode = EHitProxyMode::MaterialSection;
 #endif
 	int32 MaterialMaxIndex = INDEX_NONE;
+	uint32 InstanceWPODisableDistance = 0;
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
 };
@@ -276,6 +277,7 @@ public:
 	}
 
 	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
+	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
 
 	const UStaticMesh* GetStaticMesh() const
 	{

@@ -538,6 +538,12 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 			Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
 		}
 
+		float WPODisableDistance;
+		if (GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance))
+		{
+			Builder.InstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
+		}
+
 		FPrimitiveUniformShaderParameters PrimitiveParams = Builder.Build();
 
 		if (UniformBuffer.GetReference())

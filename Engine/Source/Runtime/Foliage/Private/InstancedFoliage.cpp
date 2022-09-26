@@ -564,6 +564,7 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	bUseAsOccluder = false;
 	bVisibleInRayTracing = true;
 	bEvaluateWorldPositionOffset = true;
+	WorldPositionOffsetDisableDistance = 0;
 
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 
@@ -1649,6 +1650,11 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 		if (Component->bEvaluateWorldPositionOffsetInRayTracing != FoliageType->bEvaluateWorldPositionOffset)
 		{
 			Component->bEvaluateWorldPositionOffsetInRayTracing = FoliageType->bEvaluateWorldPositionOffset;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->WorldPositionOffsetDisableDistance != FoliageType->WorldPositionOffsetDisableDistance)
+		{
+			Component->WorldPositionOffsetDisableDistance = FoliageType->WorldPositionOffsetDisableDistance;
 			bNeedsMarkRenderStateDirty = true;
 		}
 

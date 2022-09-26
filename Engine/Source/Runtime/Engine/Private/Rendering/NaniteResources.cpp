@@ -561,6 +561,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Indicates if 1 or more materials contain settings not supported by Nanite.
 	bHasMaterialErrors = false;
 
+	InstanceWPODisableDistance = Component->WorldPositionOffsetDisableDistance;
+
 	SetLevelColor(FLinearColor::White);
 	SetPropertyColor(FLinearColor::White);
 	SetWireframeColor(Component->GetWireframeColor());
@@ -1519,6 +1521,12 @@ bool FSceneProxy::GetInstanceDrawDistanceMinMax(FVector2f& OutDistanceMinMax) co
 		OutDistanceMinMax = FVector2f(0.0f);
 		return false;
 	}
+}
+
+bool FSceneProxy::GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const
+{
+	OutWPODisableDistance = float(InstanceWPODisableDistance) * GetCachedScalabilityCVars().ViewDistanceScale;
+	return InstanceWPODisableDistance != 0;
 }
 
 #if RHI_RAYTRACING

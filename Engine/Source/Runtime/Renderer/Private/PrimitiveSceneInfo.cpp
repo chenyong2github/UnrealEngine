@@ -610,12 +610,16 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 						Nanite::FSceneProxyBase::FMaterialSection& MaterialSection = NaniteMaterialSections[MaterialSectionIndex];
 						check(MaterialSection.RasterMaterialProxy != nullptr);
 
-						FNaniteDrawListContext::FDeferredPipeline& Pipeline = PipelinesCommand.Pipelines.Emplace_GetRef();
-						Pipeline.RasterPipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
-						Pipeline.RasterPipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
-						// TODO: test PDO when supported
-						Pipeline.RasterPipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked;
-						Pipeline.SectionIndex = uint8(MaterialSectionIndex);
+						FNaniteRasterPipeline& Pipeline = PipelinesCommand.Pipelines.Emplace_GetRef();
+						Pipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
+						Pipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
+						Pipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked ||
+												  MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
+
+						float WPODisableDistance;
+						Pipeline.bWPODisableDistance =
+							MaterialSection.MaterialRelevance.bUsesWorldPositionOffset &&
+							NaniteProxy->GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
 					}
 				}
 			};

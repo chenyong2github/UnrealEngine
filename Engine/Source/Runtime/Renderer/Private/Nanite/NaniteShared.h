@@ -353,6 +353,10 @@ struct FNaniteRasterPipeline
 	const FMaterialRenderProxy* RasterMaterial = nullptr;
 	bool bIsTwoSided = false;
 	bool bPerPixelEval = false;
+	bool bForceDisableWPO = false;
+	bool bWPODisableDistance = false;
+
+	static FNaniteRasterPipeline GetFixedFunctionPipeline(bool bIsTwoSided);
 
 	inline uint32 GetPipelineHash() const
 	{
@@ -376,8 +380,31 @@ struct FNaniteRasterPipeline
 
 		HashKey.MaterialFlags  = 0;
 		HashKey.MaterialFlags |= bIsTwoSided ? 0x1u : 0x0u;
+		HashKey.MaterialFlags |= bForceDisableWPO ? 0x2u : 0x0u;
 		HashKey.MaterialHash   = FHashKey::PointerHash(RasterMaterial);
 		return uint32(CityHash64((char*)&HashKey, sizeof(FHashKey)));
+	}
+
+	inline bool GetSecondaryPipeline(FNaniteRasterPipeline& OutSecondary) const
+	{
+		if (bWPODisableDistance)
+		{
+			if (bPerPixelEval)
+			{
+				// The secondary bin must still be a programmable bin, but with WPO force disabled.
+				OutSecondary = *this;
+				OutSecondary.bWPODisableDistance = false;
+				OutSecondary.bForceDisableWPO = true;
+			}
+			else
+			{
+				// The secondary bin can be a non-programmable, fixed-function bin
+				OutSecondary = GetFixedFunctionPipeline(bIsTwoSided);
+			}
+			return true;
+		}
+
+		return false;
 	}
 
 	FORCENOINLINE friend uint32 GetTypeHash(const FNaniteRasterPipeline& Other)
@@ -390,6 +417,20 @@ struct FNaniteRasterBin
 {
 	int32  BinId = INDEX_NONE;
 	uint16 BinIndex = 0xFFFFu;
+
+	inline bool operator==(const FNaniteRasterBin Other) const
+	{
+		return Other.BinId == BinId && Other.BinIndex == BinIndex;
+	}
+	
+	inline bool operator!=(const FNaniteRasterBin Other) const
+	{
+		return !(*this == Other);
+	}
+	inline bool IsValid() const
+	{
+		return *this != FNaniteRasterBin();
+	}
 };
 
 struct FNaniteRasterEntry
@@ -397,6 +438,7 @@ struct FNaniteRasterEntry
 	FNaniteRasterPipeline RasterPipeline{};
 	uint32 ReferenceCount = 0;
 	uint16 BinIndex = 0xFFFFu;
+	bool bForceDisableWPO = false;
 };
 
 struct FNaniteRasterEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FNaniteRasterPipeline, FNaniteRasterEntry, false>
@@ -548,7 +590,13 @@ class FNaniteVisibility
 	friend class FNaniteVisibilityTask;
 
 public:
-	typedef TArray<uint16, TInlineAllocator<1>> PrimitiveBinsType;
+	struct FPrimitiveBins
+	{
+		uint16 Primary = 0xFFFFu;
+		uint16 Secondary = 0xFFFFu;
+	};
+
+	typedef TArray<FPrimitiveBins, TInlineAllocator<1>> PrimitiveBinsType;
 	typedef TArray<uint32, TInlineAllocator<1>> PrimitiveDrawType;
 
 	struct FPrimitiveReferences

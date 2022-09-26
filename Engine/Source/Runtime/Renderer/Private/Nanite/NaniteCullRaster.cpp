@@ -177,6 +177,13 @@ static FAutoConsoleVariableRef CVarNaniteCameraDistanceCulling(
 	TEXT("")
 );
 
+int32 GNaniteWPODistanceDisable = 1;
+static FAutoConsoleVariableRef CVarNaniteWPODistanceDisable(
+	TEXT("r.Nanite.WPODistanceDisable"),
+	GNaniteWPODistanceDisable,
+	TEXT("")
+);
+
 static TAutoConsoleVariable<int32> CVarLargePageRectThreshold(
 	TEXT("r.Nanite.LargePageRectThreshold"),
 	128,
@@ -790,9 +797,9 @@ static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParame
 	return bPermutationPrimitiveShader || MaterialParameters.bHasVertexPositionOffsetConnected;
 }
 
-static bool IsVertexProgrammable(const FMaterial& RasterMaterial, bool bUsePrimitiveShader)
+static bool IsVertexProgrammable(const FMaterial& RasterMaterial, bool bUsePrimitiveShader, bool bForceDisableWPO)
 {
-	return bUsePrimitiveShader || RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread();
+	return bUsePrimitiveShader || (!bForceDisableWPO && RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread());
 }
 
 static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
@@ -1332,6 +1339,11 @@ FCullingContext InitCullingContext(
 		if (GNaniteCameraDistanceCulling == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_CAMERA_DISTANCE;
+		}
+
+		if (GNaniteWPODistanceDisable == 0)
+		{
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_WPO_DISABLE_DISTANCE;
 		}
 
 		if (GNaniteShowStats != 0)
@@ -2289,7 +2301,7 @@ FBinningData AddPass_Rasterize(
 		const FNaniteRasterPipelineMap& Pipelines = RasterPipelines.GetRasterPipelineMap();
 		const FNaniteRasterBinIndexTranslator BinIndexTranslator = RasterPipelines.GetBinIndexTranslator();
 
-		RasterizerPasses.Reserve(Pipelines.Num());
+		RasterizerPasses.Reserve(RasterPipelines.GetBinCount());
 		for (auto RasterBinIter = Pipelines.begin(); RasterBinIter != Pipelines.end(); ++RasterBinIter)
 		{
 			auto& RasterBin = *RasterBinIter;
@@ -2314,7 +2326,7 @@ FBinningData AddPass_Rasterize(
 			{
 				const FMaterial& RasterMaterial		= RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
 
-				const bool bVertexProgrammable		= IsVertexProgrammable(RasterMaterial, bUsePrimitiveShader);
+				const bool bVertexProgrammable		= IsVertexProgrammable(RasterMaterial, bUsePrimitiveShader, RasterEntry.bForceDisableWPO);
 				const bool bPixelProgrammable		= IsPixelProgrammable(RasterMaterial);
 				RasterizerPass.bVertexProgrammable	= bVertexProgrammable;
 				RasterizerPass.bPixelProgrammable	= bPixelProgrammable;

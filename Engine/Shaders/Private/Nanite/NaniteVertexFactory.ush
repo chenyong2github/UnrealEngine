@@ -333,7 +333,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 	return Tri;
 }
 
-FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO, FNaniteRawAttributeData RawAttributeData, uint VertIndex)
+FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FNaniteVertTransforms Transforms, float3 PointLocalNoWPO, FNaniteRawAttributeData RawAttributeData, uint VertIndex, bool bEvaluateWPO)
 {
 	FNaniteTransformedVert Vert = (FNaniteTransformedVert)0;
 
@@ -346,7 +346,7 @@ FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FN
 
 #if USES_WORLD_POSITION_OFFSET
 	BRANCH
-	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	if (bEvaluateWPO && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 	{
 		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
@@ -621,9 +621,12 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 		FNaniteRawAttributeData RawAttributeData[3];
 		GetRawAttributeData3(RawAttributeData, Cluster, TriIndices, NANITE_NUM_TEXCOORDS_TO_DECODE);
-		
+
+		// Don't evaluate WPO for imposter pixels or for clusters that don't have WPO enabled
+		const bool bEvaluateWPO = !bIsImposter && (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+
 		const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
-		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData, TriIndices, !bIsImposter);
+		const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData, TriIndices, bEvaluateWPO);
 
 		if (bCalcBarycentrics)
 		{

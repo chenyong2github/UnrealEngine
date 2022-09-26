@@ -829,6 +829,18 @@ public:
 		return false;
 	}
 
+	/**
+	 * Retrieves the per-instance world position offset disable distance
+	 * 
+	 * @param OutWPODisableDistance	contains the distance from the camera at which the primitive's instances disable WPO
+	 * @return bool 				true if WPO disable distance is enabled for this primitive's instances
+	 **/
+	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const
+	{
+		OutWPODisableDistance = 0.0f;
+		return false;
+	}
+
 	FORCEINLINE TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
 	{
 		return InstanceSceneData;

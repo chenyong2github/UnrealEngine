@@ -183,6 +183,12 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
 	}
 
+	float WPODisableDistance;
+	if (Proxy->GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance))
+	{
+		Builder.InstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
+	}
+
 	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
 	if (InstanceBounds.Num() > 0)
 	{
@@ -273,7 +279,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 
 	Data[31].X = PrimitiveUniformShaderParameters.InstanceDrawDistanceMinMaxSquared.X;
 	Data[31].Y = PrimitiveUniformShaderParameters.InstanceDrawDistanceMinMaxSquared.Y;
-	Data[31].Z = 0.0f;
+	Data[31].Z = PrimitiveUniformShaderParameters.InstanceWPODisableDistanceSquared;
 	Data[31].W = 0.0f;
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush

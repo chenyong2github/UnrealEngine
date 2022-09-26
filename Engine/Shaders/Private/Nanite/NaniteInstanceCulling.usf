@@ -235,7 +235,11 @@ void InstanceCull(
 			return;
 		}
 
-		const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		const bool bPrimitiveWPOEnabled = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+
+		// TODO: when VSM supports WPO disable distance, this needs to be moved lower to check 'bEnableWPO'
+		const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || bPrimitiveWPOEnabled;
 #if DEBUG_FLAGS
 		BRANCH
 		if ((DebugFlags & NANITE_DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING) != 0U && !bHasMoved)
@@ -252,8 +256,6 @@ void InstanceCull(
 			return;
 		}
 	#endif
-
-		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
 		const bool bIsShadowPass = (DEPTH_ONLY != 0);
 		
@@ -290,10 +292,12 @@ void InstanceCull(
 			const bool bSkipBoxCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
 			const bool bSkipBoxCullHZB		= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
 			const bool bDebugSkipCamPerPrimDistanceCull	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_CAMERA_DISTANCE) != 0u;
+			const bool bSkipWPODisableDistance = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_WPO_DISABLE_DISTANCE) != 0u;
 #else
 			const bool bSkipBoxCullFrustum	= false;
 			const bool bSkipBoxCullHZB		= false;
 			const bool bDebugSkipCamPerPrimDistanceCull = false;
+			const bool bSkipWPODisableDistance = false;
 #endif
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
@@ -301,9 +305,11 @@ void InstanceCull(
 			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
 			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 
-			// HACK: Don't distance cull shadows for now because we don't have the main view's camera location to do it properly
+			// HACK: Don't do distance culling or WPO disable distance for shadows for now because we don't have the main view's camera location to do it properly
 			const bool bSkipCamPerPrimDistanceCull = bDebugSkipCamPerPrimDistanceCull || bIsShadowPass;
-			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bIsVisible);
+			const bool bDisableWPODisableDistance = bSkipWPODisableDistance || bIsShadowPass;
+			bool bEnableWPO = true;
+			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bDisableWPODisableDistance, bIsVisible, bEnableWPO);
 
 			FFrustumCullData Cull;
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -387,7 +393,11 @@ void InstanceCull(
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 					Flags |= NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
 #endif
-		
+					if (bEnableWPO)
+					{
+						Flags |= NANITE_CULLING_FLAG_ENABLE_WPO;
+					}
+
 					FCandidateNode Node;
 					Node.Flags = Flags;
 					Node.ViewId = ViewId;
@@ -399,7 +409,7 @@ void InstanceCull(
 			}
 		}
 #if VIRTUAL_TEXTURE_TARGET
-		bool bMaterialInvalidates = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+		bool bMaterialInvalidates = bPrimitiveWPOEnabled;
 		if (bVisibleAndShouldCacheAsStaticForAnyView && bMaterialInvalidates)
 		{
 			RecordStaticPrimitiveInvalidation(PrimitiveData.PersistentPrimitiveIndex);
@@ -580,7 +590,11 @@ void InstanceCullVSM(
 			// TODO: Distance culling for VSM is complicated because of page invalidations and because the pre-view translation
 			// is not the same as the main view's camera. This will need some work to be able to support properly if we need to
 			const bool bSkipCamPerPrimDistanceCull = /*bDebugSkipCamPerPrimDistanceCull || */ true;
-			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bVisible);
+
+			// TODO: WPO disable distance is also ignored for VSM for now, but should probably affect bHasMoved and bMaterialInvalidates
+			const bool bDisableWPODisableDistance = true;
+			bool bEnableWPO = true;
+			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bDisableWPODisableDistance, bVisible, bEnableWPO);
 
 			// TODO: add per-view tracking of whether the material invalidates (AKA WPO is enabled) and only queue for re-classification if this is the case.
 

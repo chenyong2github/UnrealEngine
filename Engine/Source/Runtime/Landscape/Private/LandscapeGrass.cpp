@@ -3037,6 +3037,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 										GrassInstancedStaticMeshComponent->OverrideMaterials = GrassVariety.OverrideMaterials;
 										GrassInstancedStaticMeshComponent->NaniteOverrideMaterials = GrassVariety.NaniteOverrideMaterials;
 										GrassInstancedStaticMeshComponent->bEvaluateWorldPositionOffset = true;
+										GrassInstancedStaticMeshComponent->WorldPositionOffsetDisableDistance = GrassVariety.InstanceWorldPositionOffsetDisableDistance;
 
 										GrassInstancedStaticMeshComponent->PrecachePSOs();
 

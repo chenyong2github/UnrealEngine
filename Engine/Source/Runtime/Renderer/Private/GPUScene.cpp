@@ -1021,12 +1021,28 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene *Scene, FRDGExte
 							// TODO: Make this more robust, and catch issues earlier on
 							const uint32 UploadEntryCount = FMath::Max(MaterialSlotCount, TableEntryCount);
 
+>>>> ORIGINAL //Fortnite/Main/Engine/Source/Runtime/Renderer/Private/GPUScene.cpp#21
+								void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, UploadEntryCount);
+								uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
+								for (uint32 Entry = 0; Entry < MaterialSlotCount; ++Entry)
+								{
+									MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry].Pack();
+								}
+==== THEIRS //Fortnite/Main/Engine/Source/Runtime/Renderer/Private/GPUScene.cpp#22
+								void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, UploadEntryCount);
+								auto MaterialSlots = static_cast<FNaniteMaterialSlot::FPacked*>(MaterialSlotRange);
+								for (uint32 Entry = 0; Entry < MaterialSlotCount; ++Entry)
+								{
+									MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry].Pack();
+								}
+==== YOURS //jamie.hayes_wfh1_fn/Engine/Source/Runtime/Renderer/Private/GPUScene.cpp
 							void* MaterialSlotRange = NaniteMaterialUploader->GetMaterialSlotPtr(UploadInfo.PrimitiveID, UploadEntryCount);
 							uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
 							for (uint32 Entry = 0; Entry < MaterialSlotCount; ++Entry)
 							{
 								MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry].Pack();
 							}
+<<<<
 
 #if WITH_EDITOR
 							if (NaniteMeshPass == ENaniteMeshPass::BasePass && NaniteSceneProxy->GetHitProxyMode() == Nanite::FSceneProxyBase::EHitProxyMode::MaterialSection)

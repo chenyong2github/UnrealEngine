@@ -266,6 +266,8 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 		FVisibleCluster VisibleCluster		= GetVisibleCluster(VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET);
 		FInstanceSceneData InstanceData		= GetInstanceSceneData(VisibleCluster, false);
 		FCluster Cluster					= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const bool bWPOEnabled				= (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+		const bool bSecondaryBin			= !bWPOEnabled; // use secondary bin where applicable when WPO disabled
 
 		// TODO: Embed fast path material uint in FVisibleCluster
 		// TODO: Upload uniform with default material bin index, directly allocate/store indirections into 0th range
@@ -294,19 +296,19 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 
 			// The 0th material range is always non-zero length
 			{
-				RasterizerBin0 = GetMaterialRasterSlotFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, MaterialSlotTable);
+				RasterizerBin0 = GetMaterialRasterSlotFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			BRANCH
 			if (Cluster.Material1Length > 0u)
 			{
-				RasterizerBin1 = GetMaterialRasterSlotFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, MaterialSlotTable);
+				RasterizerBin1 = GetMaterialRasterSlotFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			BRANCH
 			if (Material2Length > 0)
 			{
-				RasterizerBin2 = GetMaterialRasterSlotFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, MaterialSlotTable);
+				RasterizerBin2 = GetMaterialRasterSlotFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			if (RasterizerBin0 == RasterizerBin1 && RasterizerBin0 == RasterizerBin2)
@@ -375,7 +377,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 				uint MaterialIndex;
 				DecodeMaterialRange(EncodedRange, TriStart, TriLength, MaterialIndex);
 
-				const uint RasterizerBinN = GetMaterialRasterSlotFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, MaterialSlotTable);
+				const uint RasterizerBinN = GetMaterialRasterSlotFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterSlotCount, bSecondaryBin, MaterialSlotTable);
 
 				const uint BatchCount = BitStreamReader_Read_RO(ClusterPageData, BatchCountStreamState, 4, 4);
 
