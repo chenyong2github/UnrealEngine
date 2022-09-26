@@ -3141,9 +3141,8 @@ struct FAsyncPackageScope2
 {
 	/** Outer scope package */
 	void* PreviousPackage;
-#if WITH_IOSTORE_IN_EDITOR
 	IAsyncPackageLoader* PreviousAsyncPackageLoader;
-#endif
+
 	/** Cached ThreadContext so we don't have to access it again */
 	FUObjectThreadContext& ThreadContext;
 
@@ -3152,17 +3151,13 @@ struct FAsyncPackageScope2
 	{
 		PreviousPackage = ThreadContext.AsyncPackage;
 		ThreadContext.AsyncPackage = InPackage;
-#if WITH_IOSTORE_IN_EDITOR
 		PreviousAsyncPackageLoader = ThreadContext.AsyncPackageLoader;
 		ThreadContext.AsyncPackageLoader = &InPackage->AsyncLoadingThread;
-#endif
 	}
 	~FAsyncPackageScope2()
 	{
 		ThreadContext.AsyncPackage = PreviousPackage;
-#if WITH_IOSTORE_IN_EDITOR
 		ThreadContext.AsyncPackageLoader = PreviousAsyncPackageLoader;
-#endif
 	}
 };
 
