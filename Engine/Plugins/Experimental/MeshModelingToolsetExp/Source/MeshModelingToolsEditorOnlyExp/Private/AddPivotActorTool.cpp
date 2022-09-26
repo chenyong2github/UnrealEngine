@@ -140,6 +140,12 @@ void UAddPivotActorTool::Setup()
 		}
 	}
 
+
+	TransformProperties = NewObject<UPivotActorTransformProperties>();
+	AddToolPropertySource(TransformProperties);
+	TransformProperties->Position = StartTransform.GetTranslation();
+	TransformProperties->Rotation = StartTransform.GetRotation();
+
 	// Set up the gizmo.
 	TransformProxy = NewObject<UTransformProxy>(this);
 	TransformProxy->SetTransform(StartTransform);
@@ -147,10 +153,46 @@ void UAddPivotActorTool::Setup()
 		GetToolManager()->GetPairedGizmoManager(),
 		ETransformGizmoSubElements::StandardTranslateRotate, this);
 	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
+	TransformProxy->OnTransformChanged.AddUObject(this, &UAddPivotActorTool::GizmoTransformChanged);
+
+	GizmoPositionWatcher.Initialize(
+		[this]() { return TransformProperties->Position; },
+		[this](FVector NewPosition)
+		{ 
+			UpdateGizmoFromProperties();
+		}, TransformProperties->Position);
+	GizmoRotationWatcher.Initialize(
+		[this]() { return TransformProperties->Rotation; },
+		[this](FQuat NewRotation)
+		{
+			UpdateGizmoFromProperties();
+		}, TransformProperties->Rotation);
 
 	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
 	DragAlignmentMechanic->Setup(this);
 	DragAlignmentMechanic->AddToGizmo(TransformGizmo);
+}
+
+void UAddPivotActorTool::OnTick(float DeltaTime)
+{
+	GizmoPositionWatcher.CheckAndUpdate();
+	GizmoRotationWatcher.CheckAndUpdate();
+}
+
+void UAddPivotActorTool::UpdateGizmoFromProperties()
+{
+	if (TransformGizmo)
+	{
+		TransformGizmo->SetNewGizmoTransform(FTransform(TransformProperties->Rotation, TransformProperties->Position));
+	}
+}
+
+void UAddPivotActorTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform)
+{
+	TransformProperties->Position = Transform.GetTranslation();
+	TransformProperties->Rotation = Transform.GetRotation();
+	GizmoPositionWatcher.SilentUpdate();
+	GizmoRotationWatcher.SilentUpdate();
 }
 
 void UAddPivotActorTool::OnShutdown(EToolShutdownType ShutdownType)

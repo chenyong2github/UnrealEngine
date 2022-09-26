@@ -7,12 +7,28 @@
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "GameFramework/Actor.h"
+#include "Changes/ValueWatcher.h"
 
 #include "AddPivotActorTool.generated.h"
 
 class UDragAlignmentMechanic;
 class UCombinedTransformGizmo;
 class UTransformProxy;
+
+
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLYEXP_API UPivotActorTransformProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = PivotLocation)
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = PivotLocation)
+	FQuat Rotation = FQuat::Identity;
+};
 
 
 UCLASS()
@@ -47,6 +63,9 @@ public:
 
 	virtual bool HasAccept() const override { return true; }
 	virtual bool HasCancel() const override { return true; }
+
+	virtual void OnTick(float DeltaTime) override;
+
 	// Uses the base class CanAccept
 
 protected:
@@ -60,7 +79,16 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UPivotActorTransformProperties> TransformProperties;
+
 	TWeakObjectPtr<AActor> ExistingPivotActor = nullptr;
+
+	TValueWatcher<FVector> GizmoPositionWatcher;
+	TValueWatcher<FQuat> GizmoRotationWatcher;
+
+	void UpdateGizmoFromProperties();
+	void GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
 	FTransform ExistingPivotOriginalTransform;
 };
