@@ -30,5 +30,3 @@ void InitTaskGraphAndDependencies(bool MultiThreaded = false);
 void CleanupTaskGraphAndDependencies();
 
 void CleanupPlatform();
-
-void InitPlatformFile();

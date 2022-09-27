@@ -39,7 +39,6 @@ void InitAll(bool bAllowLogging, bool bMultithreaded)
 	InitForWithEditorOnlyData();
 	InitEditor();
 #endif // WITH_EDITOR
-	InitPlatformFile();
 #if WITH_COREUOBJECT
 	InitCoreUObject();
 #endif
