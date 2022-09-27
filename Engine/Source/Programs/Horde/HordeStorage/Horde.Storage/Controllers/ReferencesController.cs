@@ -971,6 +971,10 @@ namespace Horde.Storage.Controllers
             writer.BeginObject();
             writer.WriteString("title", e.Message);
             writer.WriteInteger("status", (int)statusCode);
+            if (e.StackTrace != null)
+            {
+                writer.WriteString("stackTrace", e.StackTrace);
+            }
             writer.EndObject();
             return (writer.ToObject(), statusCode);
         }
