@@ -594,7 +594,7 @@ void FLidarPointCloudEditorHelper::CalculateNormalsForSelection()
 	{
 		if(ULidarPointCloud* PointCloud = Actor->GetPointCloud())
 		{
-			PointCloud->CalculateNormals(nullptr, nullptr);
+			PointCloud->CalculateNormalsForSelection();
 		}
 	});
 }
@@ -663,7 +663,7 @@ void FLidarPointCloudEditorHelper::CalculateNormals()
 	{
 		if(ULidarPointCloud* PointCloud = Actor->GetPointCloud())
 		{
-			PointCloud->CalculateNormalsForSelection();
+			PointCloud->CalculateNormals(nullptr, nullptr);
 		}
 	});
 }

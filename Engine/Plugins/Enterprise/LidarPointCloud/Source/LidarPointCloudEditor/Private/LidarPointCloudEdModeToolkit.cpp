@@ -253,13 +253,13 @@ void SLidarEditorWidget::Construct(const FArguments& InArgs)
 			BUTTON_ANY("NormalsCalculate", "Calculate Normals",
 			{
 				FLidarPointCloudEditorHelper::SetNormalsQuality(NormalsQuality, NormalsNoiseTolerance);
-				if(IsActorSelection())
+				if(IsPointSelection())
 				{
-					FLidarPointCloudEditorHelper::CalculateNormals();
+					FLidarPointCloudEditorHelper::CalculateNormalsForSelection();
 				}
 				else
 				{
-					FLidarPointCloudEditorHelper::CalculateNormalsForSelection();
+					FLidarPointCloudEditorHelper::CalculateNormals();
 				}
 			})
 		]
@@ -387,7 +387,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 bool SLidarEditorWidget::IsActorSelection() const
 {
-	return bActorSelection && FLidarPointCloudEditorHelper::AreLidarActorsSelected();
+	return bActorSelection && FLidarPointCloudEditorHelper::AreLidarActorsSelected() && !FLidarPointCloudEditorHelper::AreLidarPointsSelected();
 }
 
 bool SLidarEditorWidget::IsPointSelection() const
