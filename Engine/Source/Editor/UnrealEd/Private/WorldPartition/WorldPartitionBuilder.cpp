@@ -59,6 +59,19 @@ UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectI
 	}
 }
 
+UWorld::InitializationValues UWorldPartitionBuilder::GetWorldInitializationValues() const
+{
+	UWorld::InitializationValues IVS;
+	IVS.RequiresHitProxies(false);
+	IVS.ShouldSimulatePhysics(false);
+	IVS.EnableTraceCollision(false);
+	IVS.CreateNavigation(false);
+	IVS.CreateAISystem(false);
+	IVS.AllowAudioPlayback(false);
+	IVS.CreatePhysicsScene(true);
+	return IVS;
+}
+
 bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 {
 	// Load configuration file & builder configuration
@@ -95,15 +108,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 		}
 		else
 		{
-			UWorld::InitializationValues IVS;
-			IVS.RequiresHitProxies(false);
-			IVS.ShouldSimulatePhysics(false);
-			IVS.EnableTraceCollision(false);
-			IVS.CreateNavigation(false);
-			IVS.CreateAISystem(false);
-			IVS.AllowAudioPlayback(false);
-			IVS.CreatePhysicsScene(true);
-			EditorWorld = MakeUnique<FScopedEditorWorld>(World, IVS);
+			EditorWorld = MakeUnique<FScopedEditorWorld>(World, GetWorldInitializationValues());
 		}
 
 		// Make sure the world is partitioned
