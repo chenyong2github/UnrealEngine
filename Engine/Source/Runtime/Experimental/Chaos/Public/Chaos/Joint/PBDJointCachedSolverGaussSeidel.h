@@ -281,8 +281,8 @@ struct FAxisConstraintDatas
 		void UpdateDerivedState(const int32 BodyIndex);
 		void UpdateDerivedState();
 
-		void UpdateMass0();
-		void UpdateMass1();
+		void UpdateMass0(const FReal& InInvM, const FVec3& InInvIL);
+		void UpdateMass1(const FReal& InInvM, const FVec3& InInvIL);
 
 		// Check to see if this constraint still needs further solved
 		// @todo(chaos): the term "active" is used inconsistently with the meaning elsewhere. Active should
