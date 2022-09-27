@@ -194,11 +194,11 @@ class ENGINE_API FAudioDeviceManagerDelegates
 {
 public:
 	// This delegate is called whenever an entirely new audio device is created.
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceCreated, Audio::FDeviceId /* AudioDeviceId*/);
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceCreated, Audio::FDeviceId /* AudioDeviceId*/);
 	static FOnAudioDeviceCreated OnAudioDeviceCreated;
 
 	// This delegate is called whenever an audio device is destroyed.
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceDestroyed, Audio::FDeviceId /* AudioDeviceId*/);
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceDestroyed, Audio::FDeviceId /* AudioDeviceId*/);
 	static FOnAudioDeviceDestroyed OnAudioDeviceDestroyed;
 };
 

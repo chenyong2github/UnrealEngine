@@ -72,7 +72,7 @@ protected:
 	ENGINE_API virtual ~IAssetCompilingManager() {}
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FAssetPostCompileEvent, const TArray<FAssetCompileData>&);
+DECLARE_TS_MULTICAST_DELEGATE_OneParam(FAssetPostCompileEvent, const TArray<FAssetCompileData>&);
 
 class FAssetCompilingManager
 {
