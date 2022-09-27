@@ -251,8 +251,8 @@ void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, 
 
 	if (!bIsFirstUVChannelValid)
 	{
-		//DatasmithMaxLogger::Get().AddGeneralError(*FString::Printf(TEXT("%s's UV channel #1 contains degenerated triangles, this can cause issues in Unreal. It is recommended to properly unfold and flatten exported UV data.")
-		//	, static_cast<const TCHAR*>(ExportedNode->GetName())));
+		LogWarning(FString::Printf(TEXT("%s's UV channel #1 contains degenerated triangles, this can cause issues in Unreal. It is recommended to properly unfold and flatten exported UV data.")
+			, static_cast<const TCHAR*>(ExportedNode->GetName())));
 	}
 
 	// Faces
