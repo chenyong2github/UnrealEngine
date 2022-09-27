@@ -394,7 +394,7 @@ protected:
 	UBTTaskNode* FindNextTask(UBTCompositeNode* ParentNode, uint16 ParentInstanceIdx, EBTNodeResult::Type LastResult);
 
 	/** called when tree runs out of nodes to execute */
-	void OnTreeFinished();
+	virtual void OnTreeFinished();
 
 	/** apply pending node updates from SearchData */
 	void ApplySearchData(UBTNode* NewActiveNode);
