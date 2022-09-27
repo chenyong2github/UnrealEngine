@@ -45,7 +45,7 @@ Initializer::Initializer(const ONNX_NAMESPACE::TensorProto& tensor_proto, const 
   data_ = std::move(w);
 }
 
-namespace {
+namespace initializer { // WITH_UE: Added named namespace so it doesn't conflict with other types when compiling with a PCH
 template <typename T>
 struct ToFp16;
 
@@ -136,21 +136,21 @@ inline void SetNameDims(const std::string& name,
 
 ONNX_NAMESPACE::TensorProto Initializer::ToFP16(const std::string& name) const {
   ONNX_NAMESPACE::TensorProto tensor_proto;
-  SetNameDims(name, data_.Shape().GetDims(), ONNX_NAMESPACE::TensorProto_DataType_FLOAT16, tensor_proto);
+  initializer::SetNameDims(name, data_.Shape().GetDims(), ONNX_NAMESPACE::TensorProto_DataType_FLOAT16, tensor_proto);
   utils::MLTypeCallDispatcher<MLFloat16, float, double> t_disp(data_.GetElementType());
-  t_disp.Invoke<TensorToProtoFP16>(data_, tensor_proto);
+  t_disp.Invoke<initializer::TensorToProtoFP16>(data_, tensor_proto);
   return tensor_proto;
 }
 
 ONNX_NAMESPACE::TensorProto Initializer::ToBFloat16(const std::string& name) const {
   ONNX_NAMESPACE::TensorProto tensor_proto;
-  SetNameDims(name, data_.Shape().GetDims(), ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16, tensor_proto);
+  initializer::SetNameDims(name, data_.Shape().GetDims(), ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16, tensor_proto);
   utils::MLTypeCallDispatcher<BFloat16, float, double> t_disp(data_.GetElementType());
-  t_disp.Invoke<TensorToProtoBFloat16>(data_, tensor_proto);
+  t_disp.Invoke<initializer::TensorToProtoBFloat16>(data_, tensor_proto);
   return tensor_proto;
 }
 
-namespace {
+namespace initializer { // WITH_UE: Added named namespace so it doesn't conflict with other types when compiling with a PCH
 
 // std::identity c++20
 template <typename T>
@@ -244,7 +244,7 @@ struct ElementWiseDiv : OpElementWise<T, std::divides<typename ToNumeric<T>::typ
 
 Initializer& Initializer::add(float value) {
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double> t_disp(data_.GetElementType());
-  t_disp.Invoke<ScalarAdd>(data_, value);
+  t_disp.Invoke<initializer::ScalarAdd>(data_, value);
   return *this;
 }
 
@@ -252,7 +252,7 @@ Initializer& Initializer::add(const Initializer& other) {
   ORT_ENFORCE(data_type() == other.data_type(), "Expecting the same data type");
   ORT_ENFORCE(size() == other.size(), "Expecting the same size");
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double, int32_t, int64_t> t_disp(data_.GetElementType());
-  t_disp.Invoke<ElementWiseAdd>(data_, other.data_);
+  t_disp.Invoke<initializer::ElementWiseAdd>(data_, other.data_);
   return *this;
 }
 
@@ -260,7 +260,7 @@ Initializer& Initializer::sub(const Initializer& other) {
   ORT_ENFORCE(data_type() == other.data_type(), "Expecting the same data type");
   ORT_ENFORCE(size() == other.size(), "Expecting the same size");
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double, int32_t, int64_t> t_disp(data_.GetElementType());
-  t_disp.Invoke<ElementWiseSub>(data_, other.data_);
+  t_disp.Invoke<initializer::ElementWiseSub>(data_, other.data_);
   return *this;
 }
 
@@ -268,7 +268,7 @@ Initializer& Initializer::mul(const Initializer& other) {
   ORT_ENFORCE(data_type() == other.data_type(), "Expecting the same data type");
   ORT_ENFORCE(size() == other.size(), "Expecting the same size");
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double, int32_t, int64_t> t_disp(data_.GetElementType());
-  t_disp.Invoke<ElementWiseMul>(data_, other.data_);
+  t_disp.Invoke<initializer::ElementWiseMul>(data_, other.data_);
   return *this;
 }
 
@@ -276,17 +276,17 @@ Initializer& Initializer::div(const Initializer& other) {
   ORT_ENFORCE(data_type() == other.data_type(), "Expecting the same data type");
   ORT_ENFORCE(size() == other.size(), "Expecting the same size");
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double, int32_t, int64_t> t_disp(data_.GetElementType());
-  t_disp.Invoke<ElementWiseDiv>(data_, other.data_);
+  t_disp.Invoke<initializer::ElementWiseDiv>(data_, other.data_);
   return *this;
 }
 
 Initializer& Initializer::sqrt() {
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double> t_disp(data_.GetElementType());
-  t_disp.Invoke<Sqrt>(data_);
+  t_disp.Invoke<initializer::Sqrt>(data_);
   return *this;
 }
 
-namespace {
+namespace initializer { // WITH_UE: Added named namespace so it doesn't conflict with other types when compiling with a PCH
 template <typename T>
 struct ScaleByAxis {
   void operator()(Tensor& data, const Tensor& scalers, const int64_t block_size, const int64_t num_blocks) const {
@@ -317,7 +317,7 @@ void Initializer::scale_by_axis(const Initializer& scalers, int axis) {
   const int64_t num_blocks = size() / block_size;
   ORT_ENFORCE(scalers.size() == 1 || scalers.size() == num_blocks, "Invalid other(scalers) size");
   utils::MLTypeCallDispatcher<MLFloat16, BFloat16, float, double, int32_t, int64_t> t_disp(data_.GetElementType());
-  t_disp.Invoke<ScaleByAxis>(data_, scalers.data_, block_size, num_blocks);
+  t_disp.Invoke<initializer::ScaleByAxis>(data_, scalers.data_, block_size, num_blocks);
 }
 
 }  // namespace onnxruntime

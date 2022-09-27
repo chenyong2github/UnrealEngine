@@ -44,6 +44,8 @@
 #include <string.h>
 #endif
 
+#include "Containers/StringConv.h" // WITH_UE
+
 #if defined(_WIN32) && !defined(PLATFORM_SCARLET) // WITH_UE: Added PLATFORM_SCARLET
 namespace onnxruntime {
 
