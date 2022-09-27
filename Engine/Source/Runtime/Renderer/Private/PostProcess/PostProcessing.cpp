@@ -2461,7 +2461,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		PassInputs.SceneColor = SceneColor;
 		PassInputs.Stage = EUpscaleStage::SecondaryToOutput;
 
-		const ISpatialUpscaler* CustomUpscaler = View.Family ? View.Family->GetSecondarySpatialUpscalerInterface() : nullptr;
+		const ISpatialUpscaler* CustomUpscaler = View.Family->GetSecondarySpatialUpscalerInterface();
 		if (CustomUpscaler)
 		{
 			RDG_EVENT_SCOPE(
