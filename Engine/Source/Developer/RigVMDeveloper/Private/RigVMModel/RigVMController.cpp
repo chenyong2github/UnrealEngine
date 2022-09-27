@@ -16055,10 +16055,10 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 	// the type required matches the one in the pin
 	if (InPin->IsStructMember())
 	{
-		int32 PinTypeIndex = InPin->GetTypeIndex();
+		TRigVMTypeIndex PinTypeIndex = InPin->GetTypeIndex();
 		
 		// Check if any of the types allows the connection
-		for (const int32& Type : InTypeIndices)
+		for (const TRigVMTypeIndex& Type : InTypeIndices)
 		{
 			if (Registry.CanMatchTypes(Type, PinTypeIndex, true))
 			{

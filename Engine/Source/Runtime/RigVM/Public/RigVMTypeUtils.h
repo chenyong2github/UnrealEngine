@@ -50,23 +50,23 @@ namespace RigVMTypeUtils
 	class RIGVM_API TypeIndex
 	{
 	public:
-		static inline TRigVMTypeIndex Execute = INDEX_NONE;	
-		static inline TRigVMTypeIndex Bool = INDEX_NONE;	
-		static inline TRigVMTypeIndex Float = INDEX_NONE;	
-		static inline TRigVMTypeIndex Double = INDEX_NONE;	
-		static inline TRigVMTypeIndex Int32 = INDEX_NONE;	
-		static inline TRigVMTypeIndex UInt8 = INDEX_NONE;	
-		static inline TRigVMTypeIndex FName = INDEX_NONE;	
-		static inline TRigVMTypeIndex FString = INDEX_NONE;
-		static inline TRigVMTypeIndex WildCard = INDEX_NONE;	
-		static inline TRigVMTypeIndex BoolArray = INDEX_NONE;	
-		static inline TRigVMTypeIndex FloatArray = INDEX_NONE;	
-		static inline TRigVMTypeIndex DoubleArray = INDEX_NONE;	
-		static inline TRigVMTypeIndex Int32Array = INDEX_NONE;	
-		static inline TRigVMTypeIndex UInt8Array = INDEX_NONE;	
-		static inline TRigVMTypeIndex FNameArray = INDEX_NONE;	
-		static inline TRigVMTypeIndex FStringArray = INDEX_NONE;	
-		static inline TRigVMTypeIndex WildCardArray = INDEX_NONE;	
+		static TRigVMTypeIndex Execute;	
+		static TRigVMTypeIndex Bool;	
+		static TRigVMTypeIndex Float;	
+		static TRigVMTypeIndex Double;	
+		static TRigVMTypeIndex Int32;	
+		static TRigVMTypeIndex UInt8;	
+		static TRigVMTypeIndex FName;	
+		static TRigVMTypeIndex FString;
+		static TRigVMTypeIndex WildCard;	
+		static TRigVMTypeIndex BoolArray;	
+		static TRigVMTypeIndex FloatArray;	
+		static TRigVMTypeIndex DoubleArray;	
+		static TRigVMTypeIndex Int32Array;	
+		static TRigVMTypeIndex UInt8Array;	
+		static TRigVMTypeIndex FNameArray;	
+		static TRigVMTypeIndex FStringArray;	
+		static TRigVMTypeIndex WildCardArray;	
 	};
 
 	// Returns true if the type specified is an array
