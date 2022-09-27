@@ -179,12 +179,6 @@ static TAutoConsoleVariable<int32> CVarMobileMultiView(
 	TEXT("0 to disable mobile multi-view, 1 to enable.\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarMultiViewport(
-	TEXT("vr.MultiViewport"),
-	1,
-	TEXT("0 to disable multi-viewport instanced stereo rendering, 1 to enable its use (if supported by the RHI/shader platform).\n"),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
 	TEXT("vr.RoundRobinOcclusion"),
 	0,

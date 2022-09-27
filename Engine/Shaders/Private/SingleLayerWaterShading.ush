@@ -50,21 +50,6 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 	float2 ViewportUV = MaterialParameters.ViewBufferUV;
 
-#if INSTANCED_STEREO && !MULTI_VIEW
-	if (IsInstancedStereo())
-	{
-		// prevent pixels from left eye from sampling "no water" texture from the right eye
-		if (ViewportUV.x < 0.5f)
-		{
-			SceneWithoutSingleLayerWaterMaxUV.x -= 0.5f;
-		}
-		else
-		{
-			SceneWithoutSingleLayerWaterMinUV.x += 0.5f;
-		}
-	}
-#endif
-
 	if (WaterVisibility > 0.0f)
 	{
 		float WaterDepth = MaterialParameters.ScreenPosition.w; // Scene depth with Pixel-Depth-Offset taken into account is in ScreenPosition.w already

@@ -48,21 +48,13 @@ void Main(
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
-	#if !MULTI_VIEW
-		, out float OutClipDistance : SV_ClipDistance1
-	#else
-		, out uint ViewportIndex : SV_ViewPortArrayIndex
-	#endif
+	, out uint ViewportIndex : SV_ViewPortArrayIndex
 #endif
 	)
 {
 #if INSTANCED_STEREO
 	const uint EyeIndex = GetEyeIndexFromVF(Input);
-	#if !MULTI_VIEW
-		OutClipDistance = 0.0;
-	#else
-		ViewportIndex = EyeIndex;
-	#endif
+	ViewportIndex = EyeIndex;
 #endif
 	ResolvedView = ResolveViewFromVF(Input);
 
@@ -84,21 +76,6 @@ void Main(
 		Output.Position = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
 	}
 
-	#if INSTANCED_STEREO && !MULTI_VIEW
-	BRANCH 
-	if (IsInstancedStereo())  
-	{
-		// Clip at the center of the screen
-		OutClipDistance = dot(Output.Position, EyeClipEdge[EyeIndex]);
-
-		// Scale to the width of a single eye viewport
-		Output.Position.x *= 0.5 * ResolvedView.HMDEyePaddingOffset;
-
-		// Shift to the eye viewport
-		Output.Position.x += (EyeOffsetScale[EyeIndex] * Output.Position.w) * (1.0f - 0.5 * ResolvedView.HMDEyePaddingOffset);
-	}
-	#endif
-	
 #if USE_GLOBAL_CLIP_PLANE
 	OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPos.xyz, 1));
 #endif

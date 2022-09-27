@@ -44,7 +44,7 @@ half4 ComputePlanarReflections(float3 TranslatedWorldPosition, half3 WorldNormal
 
 		uint EyeIndex = 0;
 
-#if !MULTI_VIEW
+#if INSTANCED_STEREO
 		if (PlanarReflectionStruct.bIsStereo)
 		{
 			EyeIndex = ResolvedView.StereoPassIndex;

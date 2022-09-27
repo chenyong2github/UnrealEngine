@@ -867,9 +867,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Query instanced stereo and multi-view state
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
 	bIsInstancedStereoEnabled = !bUsingMobileRenderer && RHISupportsInstancedStereo(ShaderPlatform) && (CVar && CVar->GetValueOnAnyThread() != 0);
+	bIsMultiViewportEnabled = GRHISupportsArrayIndexFromAnyShader && RHISupportsMultiViewport(ShaderPlatform) && bIsInstancedStereoEnabled;
 
-	static const auto CVarMultiViewport = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MultiViewport"));
-	bIsMultiViewportEnabled = RHISupportsMultiViewport(ShaderPlatform) && bIsInstancedStereoEnabled && (CVarMultiViewport && CVarMultiViewport->GetValueOnAnyThread() != 0);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsMultiViewEnabled = bIsMultiViewportEnabled;	// temporary, as a graceful way to support plugins/licensee mods
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -884,6 +883,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		bIsMobileMultiViewEnabled = bIsInstancedStereoEnabled = RHISupportsInstancedStereo(ShaderPlatform);
 	}
+
+	// If instanced stereo is enabled, we should also have either multiviewport enabled, or mmv fallback enabled.
+	// Assert this since a more graceful handling is done earlier (see PostInitRHI)
+	checkf(!bIsInstancedStereoEnabled || (bIsMultiViewportEnabled || bIsMobileMultiViewEnabled), 
+		TEXT("If instanced stereo is enabled, either multi-viewport or mobile multi-view needs to be enabled as well."));
 
 	{
 		// The shader variants that are compiled have ISR or MMV _enabled_ in the shader, even if the current ViewFamily doesn't

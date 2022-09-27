@@ -43,6 +43,7 @@
 #include "ProfilingDebugging/BootProfiling.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
+#include "StereoRenderUtils.h"
 #endif
 #if WITH_APPLICATION_CORE
 #include "HAL/PlatformApplicationMisc.h"
@@ -6381,6 +6382,24 @@ void FEngineLoop::PostInitRHI()
 		RHIUnitTests->RunAllTests();
 	}
 #endif //(!UE_BUILD_SHIPPING)
+
+	{
+		// perform an early check of hardware capabilities
+		EShaderPlatform ShaderPlatform = GMaxRHIShaderPlatform;
+		const UE::StereoRenderUtils::FStereoShaderAspects Aspects(ShaderPlatform);
+
+		// If instanced stereo is enabled, we should also have either multiviewport enabled, or mmv fallback enabled.
+		// Otherwise, exit gracefully with a message box
+		if (Aspects.IsInstancedStereoEnabled() && !Aspects.IsInstancedMultiViewportEnabled() && !Aspects.IsMobileMultiViewEnabled())
+		{
+			UE_LOG(LogInit, Log, TEXT("ShaderPlatform=%d RHISupportsInstancedStereo()=%d GRHISupportsArrayIndexFromAnyShader=%d"),
+				ShaderPlatform, RHISupportsMultiViewport(ShaderPlatform), GRHISupportsArrayIndexFromAnyShader);
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *NSLOCTEXT("InstancedStereo", "UnableToUseInstancedStereoRendering", "Instanced Stereo cannot be used due to a missing functionality on the system. Please check log files for more info.").ToString(),
+				*NSLOCTEXT("InstancedStereo", "UnableToUseInstancedStereoRendering", "Unable to use Instanced Stereo Rendering.").ToString());
+			FPlatformMisc::RequestExitWithStatus(true, 1);
+			// unreachable
+		}
+	}
 
 #endif
 }

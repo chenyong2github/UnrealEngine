@@ -56,21 +56,6 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	float3 SeparatedMainDirLightContribution = 0.0f;
 
 	float4 EffectiveSceneNoWaterMinMaxUV = SceneNoWaterMinMaxUV;
-#if INSTANCED_STEREO && !MULTI_VIEW
-	if (IsInstancedStereo())
-	{
-		// prevent pixels from left eye from sampling "no water" texture from the right eye
-		if (BufferUV.x < 0.5f)
-		{
-			EffectiveSceneNoWaterMinMaxUV.z -= 0.5f;
-		}
-		else
-		{
-			EffectiveSceneNoWaterMinMaxUV.x += 0.5f;
-		}
-	}
-#endif
-
 
 #if STRATA_ENABLED
 

@@ -33,21 +33,13 @@ void MainVertexShader(
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
-	#if !MULTI_VIEW
-		, out float OutClipDistance : SV_ClipDistance1
-	#else
-		, out uint ViewportIndex : SV_ViewPortArrayIndex
-	#endif
+	, out uint ViewportIndex : SV_ViewPortArrayIndex
 #endif
 	)
 {
 #if INSTANCED_STEREO
 	const uint EyeIndex = GetEyeIndexFromVF(Input);
-	#if !MULTI_VIEW
-		OutClipDistance = 0.0;
-	#else
-		ViewportIndex = EyeIndex;
-	#endif
+	ViewportIndex = EyeIndex;
 #endif
 	ResolvedView = ResolveViewFromVF(Input);
 	
@@ -70,20 +62,7 @@ void MainVertexShader(
 		Output.Position = INVARIANT(mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip));
 	}
 
-	#if INSTANCED_STEREO && !MULTI_VIEW
-		BRANCH 
-		if (IsInstancedStereo())  
-		{
-			// Clip at the center of the screen
-			OutClipDistance = dot(Output.Position, EyeClipEdge[EyeIndex]);
-
-			// Scale to the width of a single eye viewport
-			Output.Position.x *= 0.5 * ResolvedView.HMDEyePaddingOffset;
-
-			// Shift to the eye viewport
-			Output.Position.x += (EyeOffsetScale[EyeIndex] * Output.Position.w) * (1.0f - 0.5 * ResolvedView.HMDEyePaddingOffset);
-		}
-	#elif XBOXONE_BIAS_HACK
+	#if XBOXONE_BIAS_HACK
 		// XB1 needs a bias in the opposite direction to fix FORT-40853
 		// XBOXONE_BIAS_HACK is defined only in a custom node in a particular material
 		// This should be removed with a future shader compiler update
