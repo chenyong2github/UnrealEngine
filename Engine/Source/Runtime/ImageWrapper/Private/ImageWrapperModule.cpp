@@ -107,7 +107,7 @@ public:
 			ImageWrapper = MakeShared<FIcoImageWrapper>();
 			break;
 
-#if WITH_UNREALEXR
+#if WITH_UNREALEXR || WITH_UNREALEXR_MINIMAL
 		case EImageFormat::EXR:
 			ImageWrapper = MakeShared<FExrImageWrapper>();
 			break;

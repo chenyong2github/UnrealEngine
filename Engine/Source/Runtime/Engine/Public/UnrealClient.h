@@ -166,7 +166,7 @@ struct ENGINE_API FScreenshotRequest
 	 * @param bInShowUI				Whether or not to show Slate UI
 	 * @param bAddFilenameSuffix	Whether an auto-generated unique suffix should be added to the supplied filename
 	 */
-	static void RequestScreenshot(const FString& InFilename, bool bInShowUI, bool bAddFilenameSuffix);
+	static void RequestScreenshot(const FString& InFilename, bool bInShowUI, bool bAddFilenameSuffix, bool bHdrScreenshot=false);
 
 	/**
 	 * Resets a screenshot request
@@ -787,6 +787,7 @@ extern ENGINE_API bool IsShiftDown(FViewport* Viewport);
 extern ENGINE_API bool IsAltDown(FViewport* Viewport);
 
 extern ENGINE_API bool GetViewportScreenShot(FViewport* Viewport, TArray<FColor>& Bitmap, const FIntRect& ViewRect = FIntRect());
+extern ENGINE_API bool GetViewportScreenShotHDR(FViewport* Viewport, TArray<FLinearColor>& Bitmap, const FIntRect& ViewRect = FIntRect());
 extern ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride, bool& OutUseDateTimeAsFileName);
 
 struct FInputKeyEventArgs
@@ -1250,6 +1251,13 @@ public:
 		check( IsInRenderingThread() );
 	}
 
+	void SetupHDR(EDisplayColorGamut InDisplayColorGamut, EDisplayOutputFormat InDisplayOutputFormat, bool bInSceneHDREnabled)
+	{
+		DisplayColorGamut = InDisplayColorGamut;
+		DisplayOutputFormat = InDisplayOutputFormat;
+		bSceneHDREnabled = bInSceneHDREnabled;
+	}
+
 	virtual void*	GetWindow() override { return 0; }
 	virtual void	MoveWindow(int32 NewPosX, int32 NewPosY, int32 NewSizeX, int32 NewSizeY) override {}
 	virtual void	Destroy() override {}
@@ -1266,6 +1274,9 @@ public:
 	virtual void DeferInvalidateHitProxy() override { }
 	virtual FViewportFrame* GetViewportFrame() override { return 0; }
 	virtual FCanvas* GetDebugCanvas() override { return DebugCanvas; }
+	virtual EDisplayColorGamut GetDisplayColorGamut() const;
+	virtual EDisplayOutputFormat GetDisplayOutputFormat() const;
+	virtual bool GetSceneHDREnabled() const;
 	//~ End FViewport Interface
 
 	//~ Begin FRenderResource Interface
@@ -1280,4 +1291,7 @@ public:
 	//~ End FRenderResource Interface
 private:
 	FCanvas* DebugCanvas;
+	EDisplayColorGamut DisplayColorGamut = EDisplayColorGamut::sRGB_D65;
+	EDisplayOutputFormat DisplayOutputFormat = EDisplayOutputFormat::SDR_sRGB;
+	bool bSceneHDREnabled = false;
 };

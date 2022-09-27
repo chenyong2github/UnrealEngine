@@ -30,6 +30,7 @@ public:
 	* @param DesiredX - Optionally resize the image to the desired width before tracing. Aspect ratio is preserved.
 	*/
 	static void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
+	static void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FLinearColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
 
 	/**
 	* Returns true if the screenshot should not be writted to a file.

@@ -43,6 +43,8 @@ public class ImageWrapper : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "UElibJPG");
 		}
 
+		bool bEnableMinimalEXR = false;
+
 		// Add openEXR lib for windows builds.
 		if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
@@ -55,7 +57,15 @@ public class ImageWrapper : ModuleRules
 		else
 		{
 			PublicDefinitions.Add("WITH_UNREALEXR=0");
+
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Sony)  ||
+				Target.Platform.IsInGroup(UnrealPlatformGroup.XboxCommon)) 
+			{
+				bEnableMinimalEXR = true;
+			}
 		}
+
+		PublicDefinitions.Add("WITH_UNREALEXR_MINIMAL=" + (bEnableMinimalEXR ? "1" : "0"));
 
 		// Enable exceptions to allow error handling
 		bEnableExceptions = true;
