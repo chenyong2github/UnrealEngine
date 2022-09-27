@@ -67,6 +67,14 @@ static FAutoConsoleVariableRef CVarLoadingRangeBugItGo(
 	ECVF_Default
 );
 
+static int32 GWorldExtentToEnableStreaming = 400000;
+static FAutoConsoleVariableRef CVarWorldExtentToEnableStreaming(
+	TEXT("wp.Editor.WorldExtentToEnableStreaming"),
+	GWorldExtentToEnableStreaming,
+	TEXT("World extend to justify enabling streaming."),
+	ECVF_Default
+);
+
 static bool GDebugDedicatedServerStreaming = false;
 static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming(
 	TEXT("wp.Runtime.DebugDedicatedServerStreaming"),
@@ -1240,7 +1248,7 @@ void UWorldPartition::Tick(float DeltaSeconds)
 					AllActorsBounds += ActorDescIterator->GetBounds();
 
 					// Warn the user if the world becomes larger that 4km in any axis
-					if (AllActorsBounds.GetSize().GetMax() >= 400000.0f)
+					if (AllActorsBounds.GetSize().GetMax() >= GWorldExtentToEnableStreaming)
 					{
 						bEnablingStreamingJustified = true;
 						break;
