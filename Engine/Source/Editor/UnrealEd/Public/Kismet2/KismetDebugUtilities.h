@@ -486,6 +486,10 @@ protected:
 	static void CleanupBreakpoints(const UBlueprint* Blueprint);
 	static void CleanupWatches(const UBlueprint* Blueprint);
 	static void RemoveEmptySettings(const FString& BlueprintPath);
+
+	/** Looks along the outer chain to find the owning world and disallowing breaking on tracepoints for editor preview and inactive worlds. */
+	static bool TracepointBreakAllowedOnOwningWorld(const UObject* ObjOuter);
+
 private:
 	FKismetDebugUtilities() {}
 };

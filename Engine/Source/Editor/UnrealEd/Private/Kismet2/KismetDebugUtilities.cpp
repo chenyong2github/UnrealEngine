@@ -261,7 +261,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 			bShouldBreakExecution = true;
 			break;
 		case EBlueprintExceptionType::Tracepoint:
-			bShouldBreakExecution = bIsStepping;
+			bShouldBreakExecution = bIsStepping && TracepointBreakAllowedOnOwningWorld(ActiveObject);
 			break;
 		case EBlueprintExceptionType::WireTracepoint:
 			break;
@@ -502,6 +502,21 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 			break;
 		}
 	}
+}
+
+bool FKismetDebugUtilities::TracepointBreakAllowedOnOwningWorld(const UObject* ObjOuter)
+{
+	bool bAllowTracepointBreak = true;
+
+	const UWorld* ObjWorld = ObjOuter->GetWorld();
+
+	// Disable tracepoints on EditorPreviews or Inactive worlds
+	if (ObjWorld && (ObjWorld->WorldType == EWorldType::EditorPreview || ObjWorld->WorldType == EWorldType::Inactive))
+	{
+		bAllowTracepointBreak = false;
+	}
+
+	return bAllowTracepointBreak;
 }
 
 UClass* FKismetDebugUtilities::FindClassForNode(const UObject* Object, UFunction* Function)
