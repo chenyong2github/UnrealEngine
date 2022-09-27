@@ -16,6 +16,8 @@ class FDisplayClusterOperatorModule :
 	public IDisplayClusterOperator
 {
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAppUnregistered, const FDelegateHandle&)
+	
 	/** The name of the tab that the operator panel lives in */
 	static const FName OperatorPanelTabName;
 
@@ -26,6 +28,8 @@ public:
 	//~ End IModuleInterface interface
 
 	//~ IDisplayClusterOperator interface
+	virtual FDelegateHandle RegisterApp(const FOnGetAppInstance& InGetAppInstanceDelegate) override;
+	virtual void UnregisterApp(const FDelegateHandle& InHandle) override;
 	virtual TSharedRef<IDisplayClusterOperatorViewModel> GetOperatorViewModel() override;
 	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() override { return RegisterLayoutExtensions; }
 	virtual FOnRegisterStatusBarExtensions& OnRegisterStatusBarExtensions() override { return RegisterStatusBarExtensions; }
@@ -36,6 +40,7 @@ public:
 	virtual FName GetAuxilliaryOperatorExtensionId() override;
 	virtual FName GetDetailsTabId() override;
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorToolBarExtensibilityManager() override { return OperatorToolBarExtensibilityManager; }
+	virtual TSharedPtr<FExtensibilityManager> GetOperatorMenuExtensibilityManager() override { return OperatorMenuExtensibilityManager; }
 	virtual void GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances) override;
 	virtual void ShowDetailsForObject(UObject* Object) override;
 	virtual void ShowDetailsForObjects(const TArray<UObject*>& Objects) override;
@@ -43,6 +48,12 @@ public:
 	virtual void ForceDismissDrawers() override;
 	//~ End IDisplayClusterOperator interface
 
+	/** Retrieve currently registered app delegates */
+	const TMap<FDelegateHandle, FOnGetAppInstance>& GetRegisteredApps() const { return RegisteredApps; }
+
+	/** Broadcast when an app is unregistered */
+	FOnAppUnregistered& OnAppUnregistered() { return AppUnregisteredEvent; }
+	
 private:
 	void RegisterTabSpawners();
 	void UnregisterTabSpawners();
@@ -59,4 +70,8 @@ private:
 	TWeakPtr<SDisplayClusterOperatorPanel> ActiveOperatorPanel;
 	TSharedPtr<FDisplayClusterOperatorViewModel> OperatorViewModel;
 	TSharedPtr<FExtensibilityManager> OperatorToolBarExtensibilityManager;
+	TSharedPtr<FExtensibilityManager> OperatorMenuExtensibilityManager;
+
+	TMap<FDelegateHandle, FOnGetAppInstance> RegisteredApps;
+	FOnAppUnregistered AppUnregisteredEvent;
 };

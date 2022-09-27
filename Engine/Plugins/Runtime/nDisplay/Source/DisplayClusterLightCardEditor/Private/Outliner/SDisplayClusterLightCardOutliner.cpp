@@ -4,7 +4,7 @@
 
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardOutlinerMode.h"
-#include "SDisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardEditor.h"
 
 #include "IDisplayClusterOperator.h"
 
@@ -37,27 +37,37 @@ SDisplayClusterLightCardOutliner::~SDisplayClusterLightCardOutliner()
 	}
 }
 
-void SDisplayClusterLightCardOutliner::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<FUICommandList> InCommandList)
+void SDisplayClusterLightCardOutliner::Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<FUICommandList> InCommandList)
 {
 	LightCardEditorPtr = InLightCardEditor;
-	CommandList = InCommandList;
+	check(LightCardEditorPtr.IsValid());
 	
+	CommandList = InCommandList;
+
+	RootActor = InLightCardEditor->GetActiveRootActor();
 	CreateWorldOutliner();
+
+	SelectActors(LightCardEditorPtr.Pin()->GetSelectedActorsAs<AActor>());
 }
 
 void SDisplayClusterLightCardOutliner::SetRootActor(ADisplayClusterRootActor* NewRootActor)
 {
 	TArray<AActor*> PreviouslySelectedActors;
-	GetSelectedActors(PreviouslySelectedActors);
+	if (LightCardEditorPtr.IsValid())
+	{
+		PreviouslySelectedActors = LightCardEditorPtr.Pin()->GetSelectedActorsAs<AActor>();
+	}
 	
 	RootActor = NewRootActor;
-	FillActorList();
 
 	CreateWorldOutliner();
 	
 	// Select previously selected light cards. This fixes an issue where the details panel may clear in some cases
 	// and also supports maintaining the selection of shared light cards across different root actors.
-	SelectActors(MoveTemp(PreviouslySelectedActors));
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->SelectActors(MoveTemp(PreviouslySelectedActors));
+	}
 }
 
 void SDisplayClusterLightCardOutliner::GetSelectedActors(TArray<AActor*>& OutSelectedActors) const
@@ -75,7 +85,6 @@ void SDisplayClusterLightCardOutliner::GetSelectedActors(TArray<AActor*>& OutSel
 
 void SDisplayClusterLightCardOutliner::SelectActors(const TArray<AActor*>& ActorsToSelect)
 {
-	TArray<AActor*> ActualSelectedActors;
 	TArray<FSceneOutlinerTreeItemPtr> SelectedTreeItems;
 	CachedSelectedActors.Reset();
 	
@@ -86,15 +95,12 @@ void SDisplayClusterLightCardOutliner::SelectActors(const TArray<AActor*>& Actor
 			if (FSceneOutlinerTreeItemPtr OutlinerItem = SceneOutliner->GetTreeItem(TreeItem->Actor.Get()))
 			{
 				SelectedTreeItems.Add(OutlinerItem);
-				ActualSelectedActors.Add(TreeItem->Actor.Get());
 				CachedSelectedActors.Add(TreeItem->Actor);
 			}
 		}
 	}
 	
 	SceneOutliner->SetItemSelection(SelectedTreeItems, true);
-	
-	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<TArray<UObject*>*>(&ActualSelectedActors));
 }
 
 void SDisplayClusterLightCardOutliner::RestoreCachedSelection()
@@ -107,12 +113,17 @@ void SDisplayClusterLightCardOutliner::RestoreCachedSelection()
 			ActorsToSelect.Add(CachedActor.Get());
 		}
 	}
-	
-	SelectActors(MoveTemp(ActorsToSelect));
+
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->SelectActors(MoveTemp(ActorsToSelect));
+	}
 }
 
 void SDisplayClusterLightCardOutliner::CreateWorldOutliner()
 {
+	FillActorList();
+	
 	auto OutlinerFilterPredicate = [this](const AActor* InActor)
 	{
 		return TrackedActors.Contains(InActor);
@@ -247,10 +258,9 @@ void SDisplayClusterLightCardOutliner::OnOutlinerSelectionChanged(FSceneOutliner
 	TArray<AActor*> SelectedLightCards;
 	GetSelectedActors(SelectedLightCards);
 
-	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<TArray<UObject*>*>(&SelectedLightCards));
-
 	if (LightCardEditorPtr.IsValid())
 	{
+		LightCardEditorPtr.Pin()->SelectActors(SelectedLightCards);
 		LightCardEditorPtr.Pin()->SelectActorProxies(SelectedLightCards);
 	}
 }

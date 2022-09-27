@@ -8,6 +8,7 @@
 
 #include "Styling/AppStyle.h"
 #include "LevelEditor.h"
+#include "LevelEditorActions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Layout/SBorder.h"
@@ -75,6 +76,13 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 	
 	ToolBarBuilder.BeginSection("General");
 	{
+		// Add a generic save level option. If we ever add other types of apps that don't rely on the level
+		// instance being saved we may want to refactor this so the save option is added per app instead.
+		const FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		ToolBarBuilder.AddToolBarButton(LevelEditor.GetLevelEditorCommands().Save);
+		
+		ToolBarBuilder.AddSeparator();
+		
 		ToolBarBuilder.AddWidget(RootActorSelectionBox.ToSharedRef());
 	}
 	ToolBarBuilder.EndSection();
@@ -174,7 +182,7 @@ void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> Item
 		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(SelectedRootActor->GetClass()))
 		{
 			Blueprint->OnCompiled().RemoveAll(this);
-			Blueprint->OnCompiled().AddRaw(this, &SDisplayClusterOperatorToolbar::OnBlueprintCompiled);
+			Blueprint->OnCompiled().AddSP(this, &SDisplayClusterOperatorToolbar::OnBlueprintCompiled);
 		}
 	}
 

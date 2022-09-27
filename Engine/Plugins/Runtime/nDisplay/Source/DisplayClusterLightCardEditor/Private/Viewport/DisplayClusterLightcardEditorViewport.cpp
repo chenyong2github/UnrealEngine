@@ -5,7 +5,7 @@
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardEditorStyle.h"
 #include "DisplayClusterLightCardEditorViewportClient.h"
-#include "SDisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardEditor.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplateDragDropOp.h"
 
@@ -315,7 +315,7 @@ const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionRight = FVect
 const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionFront = FVector(1.0f, 0.0f, 0.0f);
 const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionBack = FVector(-1.0f, 0.0f, 0.0f);
 
-void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList)
+void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList)
 {
 	LightCardEditorPtr = InLightCardEditor;
 	
@@ -327,6 +327,8 @@ void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs,
 	{
 		CommandList->Append(InCommandList.ToSharedRef());
 	}
+
+	SetRootActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get());
 }
 
 SDisplayClusterLightCardEditorViewport::~SDisplayClusterLightCardEditorViewport()

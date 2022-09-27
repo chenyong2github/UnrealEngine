@@ -24,6 +24,7 @@ void FDisplayClusterOperatorModule::StartupModule()
 {
 	OperatorViewModel = MakeShared<FDisplayClusterOperatorViewModel>();
 	OperatorToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();
+	OperatorMenuExtensibilityManager = MakeShared<FExtensibilityManager>();
 
 	FDisplayClusterOperatorStyle::Get();
 	
@@ -33,6 +34,19 @@ void FDisplayClusterOperatorModule::StartupModule()
 void FDisplayClusterOperatorModule::ShutdownModule()
 {
 	UnregisterTabSpawners();
+}
+
+FDelegateHandle FDisplayClusterOperatorModule::RegisterApp(const FOnGetAppInstance& InGetAppInstanceDelegate)
+{
+	const FDelegateHandle Handle = InGetAppInstanceDelegate.GetHandle();
+	RegisteredApps.Add(Handle, InGetAppInstanceDelegate);
+	return Handle;
+}
+
+void FDisplayClusterOperatorModule::UnregisterApp(const FDelegateHandle& InHandle)
+{
+	AppUnregisteredEvent.Broadcast(InHandle);
+	RegisteredApps.Remove(InHandle);
 }
 
 TSharedRef<IDisplayClusterOperatorViewModel> FDisplayClusterOperatorModule::GetOperatorViewModel()
@@ -117,7 +131,7 @@ void FDisplayClusterOperatorModule::UnregisterTabSpawners()
 TSharedRef<SDockTab> FDisplayClusterOperatorModule::SpawnOperatorPanelTab(const FSpawnTabArgs& SpawnTabArgs)
 {
 	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
+		.TabRole(ETabRole::MajorTab)
 		.IconColor(FDisplayClusterOperatorStyle::Get().GetColor(TEXT("OperatorPanel.AssetColor")))
 		.OnTabClosed_Raw(this, &FDisplayClusterOperatorModule::OnOperatorPanelTabClosed);
 

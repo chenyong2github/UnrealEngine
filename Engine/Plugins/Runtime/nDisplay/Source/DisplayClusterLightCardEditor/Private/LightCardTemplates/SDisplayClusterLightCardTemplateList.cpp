@@ -5,7 +5,7 @@
 #include "DisplayClusterLightCardTemplate.h"
 #include "DisplayClusterLightCardTemplateDragDropOp.h"
 #include "DisplayClusterLightCardTemplateHelpers.h"
-#include "SDisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardEditor.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture.h"
@@ -182,7 +182,7 @@ SDisplayClusterLightCardTemplateList::~SDisplayClusterLightCardTemplateList()
 	AssetRegistry.OnFilesLoaded().RemoveAll(this);
 }
 
-void SDisplayClusterLightCardTemplateList::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor)
+void SDisplayClusterLightCardTemplateList::Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterLightCardEditor> InLightCardEditor)
 {
 	LightCardEditorPtr = InLightCardEditor;
 

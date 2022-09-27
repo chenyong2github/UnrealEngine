@@ -20,6 +20,7 @@ public class DisplayClusterOperator : ModuleRules
 				"Projects",
 				"Slate",
 				"SlateCore",
+				"ToolMenus",
 				"ToolWidgets",
 				"UnrealEd",
 				"WorkspaceMenuStructure",

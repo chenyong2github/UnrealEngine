@@ -6,8 +6,10 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+class IDisplayClusterOperatorApp;
 class IDisplayClusterOperatorViewModel;
 class FLayoutExtender;
+class FTabManager;
 class FExtensibilityManager;
 class FUICommandList;
 class FDisplayClusterOperatorStatusBarExtender;
@@ -25,7 +27,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterStatusBarExtensions, FDisplayClusterOperatorStatusBarExtender&);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAppendOperatorPanelCommands, TSharedRef<FUICommandList>)
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDetailObjectsChanged, const TArray<UObject*>&);
-
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<IDisplayClusterOperatorApp>, FOnGetAppInstance, TSharedRef<IDisplayClusterOperatorViewModel>);
+	
 public:
 	virtual ~IDisplayClusterOperator() = default;
 
@@ -50,6 +53,12 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(ModuleName);
 	}
 
+	/** Register an app with the operator panel */
+	virtual FDelegateHandle RegisterApp(const FOnGetAppInstance& InGetAppInstanceDelegate) = 0;
+
+	/** Unregisters an app from the operator panel */
+	virtual void UnregisterApp(const FDelegateHandle& InHandle) = 0;
+	
 	/** Gets the operator panel's view model, which stores any state used by the operator panel */
 	virtual TSharedRef<IDisplayClusterOperatorViewModel> GetOperatorViewModel() = 0;
 
@@ -77,6 +86,9 @@ public:
 	/** Gets the extensibility manager for the operator panel's toolbar */
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorToolBarExtensibilityManager() = 0;
 
+	/** Gets the extensibility manager for the operator panel's menu bar */
+	virtual TSharedPtr<FExtensibilityManager> GetOperatorMenuExtensibilityManager() = 0;
+	
 	/** Gets a list of all nDisplay root actor instances that are on the currently loaded level */
 	virtual void GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances) = 0;
 

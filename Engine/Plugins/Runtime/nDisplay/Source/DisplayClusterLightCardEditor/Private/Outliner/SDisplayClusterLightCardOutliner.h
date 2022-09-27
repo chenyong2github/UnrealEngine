@@ -11,7 +11,7 @@ class ADisplayClusterLightCardActor;
 class ITableRow;
 class FExtender;
 class FUICommandList;
-class SDisplayClusterLightCardEditor;
+class FDisplayClusterLightCardEditor;
 class STableViewBase;
 
 class SSceneOutliner;
@@ -38,7 +38,7 @@ public:
 
 	virtual ~SDisplayClusterLightCardOutliner() override;
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<FUICommandList> InCommandList);
+	void Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<FUICommandList> InCommandList);
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
 
@@ -47,24 +47,7 @@ public:
 	/** Gets a list of light card actors that are currently selected in the list */
 	void GetSelectedActors(TArray<AActor*>& OutSelectedActors) const;
 
-	template<typename T>
-	TArray<T*> GetSelectedActorsAs() const
-	{
-		TArray<AActor*> SelectedActors;
-		GetSelectedActors(SelectedActors);
-		TArray<T*> OutArray;
-		Algo::TransformIf(SelectedActors, OutArray, [](AActor* InItem)
-		{
-			return InItem && InItem->IsA<T>();
-		},
-		[](AActor* InItem)
-		{
-			return CastChecked<T>(InItem);
-		});
-		return OutArray;
-	}
-
-	/** Select light cards in the outliner and display their details */
+	/** Select light cards in the outliner */
 	void SelectActors(const TArray<AActor*>& ActorsToSelect);
 
 	/** Restores the last valid cached selection to the outliner */
@@ -96,7 +79,7 @@ private:
 
 private:
 	/** Pointer to the light card editor that owns this widget */
-	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
+	TWeakPtr<FDisplayClusterLightCardEditor> LightCardEditorPtr;
 
 	/** A hierarchical list of stage actor tree items to be displayed in the tree view */
 	TArray<TSharedPtr<FStageActorTreeItem>> StageActorTree;

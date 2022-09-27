@@ -6,6 +6,7 @@
 
 class ADisplayClusterRootActor;
 class FTabManager;
+class FWorkspaceItem;
 
 DECLARE_EVENT_OneParam(IDisplayClusterOperatorViewModel, FOnActiveRootActorChanged, ADisplayClusterRootActor*);
 
@@ -27,4 +28,7 @@ public:
 
 	/** Gets the tab manager of the active operator panel, if there is an open operator panel */
 	virtual TSharedPtr<FTabManager> GetTabManager() const = 0;
+
+	/** Gets the registered workspace menu group */
+	virtual TSharedPtr<FWorkspaceItem> GetWorkspaceMenuGroup() const = 0;
 };

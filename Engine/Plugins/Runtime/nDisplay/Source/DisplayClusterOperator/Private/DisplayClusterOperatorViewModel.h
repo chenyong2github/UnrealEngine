@@ -22,6 +22,8 @@ public:
 	virtual FOnActiveRootActorChanged& OnActiveRootActorChanged() override { return RootActorChanged; }
 
 	virtual TSharedPtr<FTabManager> GetTabManager() const override { return TabManager; }
+
+	virtual TSharedPtr<FWorkspaceItem> GetWorkspaceMenuGroup() const override { return WorkspaceItem; }
 	//~ End IDisplayClusterOperatorViewModel interface
 
 	TSharedRef<FTabManager> CreateTabManager(const TSharedRef<SDockTab>& MajorTabOwner);
@@ -30,6 +32,7 @@ public:
 private:
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActor;
 	TSharedPtr<FTabManager> TabManager;
+	TSharedPtr<FWorkspaceItem> WorkspaceItem;
 
 	FOnActiveRootActorChanged RootActorChanged;
 };

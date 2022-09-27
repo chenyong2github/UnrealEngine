@@ -15,14 +15,12 @@ class SDockTab;
 class SWindow;
 class SDisplayClusterOperatorToolbar;
 class SDisplayClusterOperatorStatusBar;
+class IDisplayClusterOperatorApp;
 
 /** The nDisplay operator panel that allows users to edit root actor instances with a variety of tools */
 class SDisplayClusterOperatorPanel : public SCompoundWidget
 {
 public:
-	/** The tab ID that the operator toolbar lives in */
-	static const FName ToolbarTabId;
-
 	/** The tab ID that the details panel lives in */
 	static const FName DetailsTabId;
 
@@ -54,15 +52,15 @@ private:
 	/** Binds any commands to the operator panel's command list, as well as allowing any external modules to register their own commands */
 	void BindCommands();
 
-	/** Creates a tab with the operator toolbar in it */
-	TSharedRef<SDockTab> SpawnToolbarTab(const FSpawnTabArgs& Args);
-
 	/** Creates a tab with the details panel in it */
 	TSharedRef<SDockTab> SpawnDetailsTab(const FSpawnTabArgs& Args);
 
 	/** Raised when something wants to display a list of objects in the operator's details panel */
 	void DisplayObjectsInDetailsPanel(const TArray<UObject*>& Objects);
 
+	/** Called when app is unregistered */
+	void OnOperatorAppUnregistered(const FDelegateHandle& InHandle);
+	
 private:
 	/** Holds the tab manager that manages the operator's tabs. */
 	TSharedPtr<FTabManager> TabManager;
@@ -87,4 +85,7 @@ private:
 
 	/** The delegate handle for the operator module's OnDetailObjectsChanged event */
 	FDelegateHandle DetailObjectsChangedHandle;
+
+	/** Loaded app instances */
+	TMap<FDelegateHandle, TSharedRef<IDisplayClusterOperatorApp>> AppInstances;
 };

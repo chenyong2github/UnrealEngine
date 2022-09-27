@@ -15,7 +15,7 @@
 #include "StageActor/DisplayClusterWeakStageActorPtr.h"
 
 class ADisplayClusterRootActor;
-class SDisplayClusterLightCardEditor;
+class FDisplayClusterLightCardEditor;
 class SDisplayClusterLightCardEditorViewport;
 class FScopedTransaction;
 class UDisplayClusterConfigurationViewport;
@@ -256,7 +256,7 @@ private:
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditorViewport> LightCardEditorViewportPtr;
-	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
+	TWeakPtr<FDisplayClusterLightCardEditor> LightCardEditorPtr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
 

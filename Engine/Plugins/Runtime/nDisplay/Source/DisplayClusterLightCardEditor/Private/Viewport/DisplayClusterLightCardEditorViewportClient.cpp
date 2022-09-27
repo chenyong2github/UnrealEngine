@@ -17,7 +17,7 @@
 #include "DisplayClusterLightCardEditorLog.h"
 #include "DisplayClusterLightCardEditorUtils.h"
 #include "IDisplayClusterScenePreview.h"
-#include "SDisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardEditor.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
 #include "AudioDevice.h"

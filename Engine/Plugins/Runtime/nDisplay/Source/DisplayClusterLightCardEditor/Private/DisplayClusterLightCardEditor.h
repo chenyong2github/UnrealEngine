@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 
 #include "DisplayClusterLightCardEditorProxyType.h"
 
 #include "EditorUndoClient.h"
+#include "IDisplayClusterOperatorApp.h"
 
 class FLayoutExtender;
 class FMenuBuilder;
@@ -23,46 +23,33 @@ class SDisplayClusterLightCardEditorViewport;
 class ADisplayClusterRootActor;
 class ADisplayClusterLightCardActor;
 class UDisplayClusterLightCardTemplate;
+class IDisplayClusterOperatorViewModel;
+struct FSlateBrush;
 
 struct FDisplayClusterLightCardEditorRecentItem;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
-class SDisplayClusterLightCardEditor : public SCompoundWidget, public FEditorUndoClient
+class FDisplayClusterLightCardEditor : public IDisplayClusterOperatorApp, public FEditorUndoClient
 {
 public:
-	/** The name of the tab that the light card editor lives in */
-	static const FName TabName;
-
+	/** The name of the tab that the viewport lives in */
+	static const FName ViewportTabName;
+	
 	/** The name of the tab that the outliner lives in */
 	static const FName OutlinerTabName;
 
-	/** Registers the light card editor with the global tab manager and adds it to the operator panel's extension tab stack */
-	static void RegisterTabSpawner();
-
-	/** Unregisters the light card editor from the global tab manager */
-	static void UnregisterTabSpawner();
-
-	/** Registers the light card editor tab with the operator panel using a layout extension */
-	static void RegisterLayoutExtension(FLayoutExtender& InExtender);
-
-	/** Creates a tab with the light card editor inside */
-	static TSharedRef<SDockTab> SpawnInTab(const FSpawnTabArgs& SpawnTabArgs);
-
-	/** Spawns in the outliner tab */
-	static TSharedRef<SDockTab> SpawnOutlinerTab(const FSpawnTabArgs& SpawnTabArgs);
+	/** Construct an instance of the light card editor */
+	static TSharedRef<IDisplayClusterOperatorApp> MakeInstance(TSharedRef<IDisplayClusterOperatorViewModel> InViewModel);
 	
-	SLATE_BEGIN_ARGS(SDisplayClusterLightCardEditor)
-	{}
-	SLATE_END_ARGS()
-
-	~SDisplayClusterLightCardEditor();
+	~FDisplayClusterLightCardEditor();
 
 	// FEditorUndoClient
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 	// ~FEditorUndoClient
-	
-	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
+
+	/** Initialize the light card editor instance */
+	void Initialize(TSharedRef<IDisplayClusterOperatorViewModel> InViewModel);
 
 	/** Return the command list for the light card editor */
 	TSharedPtr<FUICommandList> GetCommandList() const { return CommandList; }
@@ -76,6 +63,21 @@ public:
 	/** Selects the specified actors in the outliner and details panel */
 	void SelectActors(const TArray<AActor*>& ActorsToSelect);
 
+	template<typename T>
+	TArray<T*> GetSelectedActorsAs() const
+	{
+		TArray<T*> OutArray;
+		Algo::TransformIf(SelectedActors, OutArray, [](const TWeakObjectPtr<AActor>& InItem)
+		{
+			return InItem.IsValid() && InItem->IsA<T>();
+		},
+		[](const TWeakObjectPtr<AActor>& InItem)
+		{
+			return CastChecked<T>(InItem.Get());
+		});
+		return OutArray;
+	}
+	
 	/** Gets the actors that are selected in the outliner */
 	void GetSelectedActors(TArray<AActor*>& OutSelectedActors);
 
@@ -150,10 +152,13 @@ public:
 	 * @param InActorsToRemove Actors which should be removed
 	 * @param bDeleteActors If the light cards should be deleted from the level
 	 */
-	void RemoveActors(const TArray<AActor*>& InActorsToRemove, bool bDeleteActors);
+	void RemoveActors(const TArray<TWeakObjectPtr<AActor>>& InActorsToRemove, bool bDeleteActors);
 	
 	/** If the selected actors can be removed */
 	bool CanRemoveSelectedActors() const;
+
+	/** If the selected light card can be removed from the actor */
+	bool CanRemoveSelectedLightCardFromActor() const;
 
 	/** Creates a template of the selected light card */
 	void CreateLightCardTemplate();
@@ -191,7 +196,22 @@ public:
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
+	
+	/** Registers the light card editor with the global tab manager and adds it to the operator panel's extension tab stack */
+	void RegisterTabSpawners();
 
+	/** Unregisters the light card editor from the global tab manager */
+	void UnregisterTabSpawners();
+	
+	/** Registers the light card editor tab with the operator panel using a layout extension */
+	static void RegisterLayoutExtension(FLayoutExtender& InExtender);
+
+	/** Spawns in the viewport tab */
+	TSharedRef<SDockTab> SpawnViewportTab(const FSpawnTabArgs& SpawnTabArgs);
+	
+	/** Spawns in the outliner tab */
+	TSharedRef<SDockTab> SpawnOutlinerTab(const FSpawnTabArgs& SpawnTabArgs);
+	
 	/** Creates the widget used to show the list of light cards associated with the active root actor */
 	TSharedRef<SWidget> CreateLightCardOutlinerWidget();
 
@@ -219,9 +239,18 @@ private:
 	/** Register any extensions for the toolbar */
 	void RegisterToolbarExtensions();
 
+	/** Register any extensions for the menu bar */
+	void RegisterMenuExtensions();
+
 	/** Extend the toolbar for this local instance */
 	void ExtendToolbar(FToolBarBuilder& ToolbarBuilder);
 
+	/** Extend the main file menu */
+	void ExtendFileMenu(FMenuBuilder& MenuBuilder);
+	
+	/** Extend the main edit menu */
+	void ExtendEditMenu(FMenuBuilder& MenuBuilder);
+	
 	/** Refresh all preview actors */
 	void RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
 
@@ -278,6 +307,12 @@ private:
 
 	/** A reference to the root actor that is currently being operated on */
 	TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor;
+
+	/** The view model for the operator panel */
+	TWeakPtr<IDisplayClusterOperatorViewModel> OperatorViewModel;
+
+	/** Selected actors */
+	TArray<TWeakObjectPtr<AActor>> SelectedActors;
 
 	/** Delegate handle for the OnActiveRootActorChanged delegate */
 	FDelegateHandle ActiveRootActorChangedHandle;

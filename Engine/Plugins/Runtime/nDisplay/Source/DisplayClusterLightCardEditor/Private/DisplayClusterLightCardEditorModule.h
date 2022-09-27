@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IDisplayClusterLightCardEditor.h"
-#include "UObject/WeakObjectPtr.h"
 
 /**
  * Display Cluster editor module
@@ -19,12 +18,18 @@ public:
 	virtual void ShowLabels(const FLabelArgs& InArgs) override;
 	
 private:
-	void RegisterTabSpawners();
-	void UnregisterTabSpawners();
-
 	void RegisterSettings();
 	void UnregisterSettings();
 
 	void RegisterDetailCustomizations();
 	void UnregisterDetailCustomizations();
+
+	void RegisterOperatorApp();
+	void UnregisterOperatorApp();
+	
+	void HandleModuleChanged(FName InModuleName, EModuleChangeReason InChangeReason);
+	
+private:
+	FDelegateHandle ModuleChangedHandle;
+	FDelegateHandle OperatorAppHandle;
 };

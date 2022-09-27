@@ -10,7 +10,7 @@
 #include "DisplayClusterMeshProjectionRenderer.h"
 #include "DisplayClusterLightCardEditorWidget.h"
 
-class SDisplayClusterLightCardEditor;
+class FDisplayClusterLightCardEditor;
 class ADisplayClusterRootActor;
 class FDisplayClusterLightCardEditorViewportClient;
 
@@ -31,7 +31,7 @@ public:
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardEditorViewport) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList);
+	void Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList);
 	~SDisplayClusterLightCardEditorViewport();
 
 	// ICommonEditorViewportToolbarInfoProvider
@@ -44,7 +44,7 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	// ~SWidget
 
-	TWeakPtr<SDisplayClusterLightCardEditor> GetLightCardEditor() { return LightCardEditorPtr;}
+	TWeakPtr<FDisplayClusterLightCardEditor> GetLightCardEditor() { return LightCardEditorPtr;}
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
 	
@@ -116,7 +116,7 @@ private:
 	
 	/** Level viewport client */
 	TSharedPtr<FDisplayClusterLightCardEditorViewportClient> ViewportClient;
-	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
+	TWeakPtr<FDisplayClusterLightCardEditor> LightCardEditorPtr;
 
 	/** The cached mouse position used for the Paste Here command */
 	FVector2D PasteHerePos;

@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SDisplayClusterLightCardEditor;
+class FDisplayClusterLightCardEditor;
 class UDisplayClusterLightCardTemplate;
 class ITableRow;
 class STableViewBase;
@@ -38,7 +38,7 @@ public:
 
 	virtual ~SDisplayClusterLightCardTemplateList() override;
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor);
+	void Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterLightCardEditor> InLightCardEditor);
 
 	/** Find available templates and refresh the list */
 	void RefreshTemplateList();
@@ -65,7 +65,7 @@ private:
 	
 private:
 	/** Pointer to the light card editor that owns this widget */
-	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
+	TWeakPtr<FDisplayClusterLightCardEditor> LightCardEditorPtr;
 
 	/** A list of all light card tree items to be displayed in the tree view */
 	TArray<TSharedPtr<FLightCardTemplateTreeItem>> LightCardTemplateTree;

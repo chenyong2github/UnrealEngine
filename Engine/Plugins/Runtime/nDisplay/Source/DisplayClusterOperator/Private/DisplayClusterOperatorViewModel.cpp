@@ -6,6 +6,8 @@
 
 #include "Framework/Docking/TabManager.h"
 
+#define LOCTEXT_NAMESPACE "DisplayClusterOperatorViewModel"
+
 void FDisplayClusterOperatorViewModel::SetRootActor(ADisplayClusterRootActor* InRootActor)
 {
 	RootActor = InRootActor;
@@ -15,6 +17,7 @@ void FDisplayClusterOperatorViewModel::SetRootActor(ADisplayClusterRootActor* In
 TSharedRef<FTabManager> FDisplayClusterOperatorViewModel::CreateTabManager(const TSharedRef<SDockTab>& MajorTabOwner)
 {
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);
+	WorkspaceItem = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("OperatorMenuGroupName", "In-Camera VFX"));
 	return TabManager.ToSharedRef();
 }
 
@@ -22,3 +25,5 @@ void FDisplayClusterOperatorViewModel::ResetTabManager()
 {
 	TabManager.Reset();
 }
+
+#undef LOCTEXT_NAMESPACE

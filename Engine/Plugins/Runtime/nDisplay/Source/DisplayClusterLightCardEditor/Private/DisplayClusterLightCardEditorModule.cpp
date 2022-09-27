@@ -6,29 +6,43 @@
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterRootActor.h"
-#include "SDisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardEditor.h"
 #include "DetailCustomizations/DisplayClusterLightCardActorDetails.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
+#include "IDisplayClusterOperator.h"
+
 #include "ISettingsModule.h"
-#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterLightCardEditor"
 
 void FDisplayClusterLightCardEditorModule::StartupModule()
 {
-	RegisterTabSpawners();
 	RegisterSettings();
 	RegisterDetailCustomizations();
 	FDisplayClusterLightCardEditorCommands::Register();
+
+	if (FModuleManager::Get().IsModuleLoaded(IDisplayClusterOperator::ModuleName))
+	{
+		RegisterOperatorApp();
+	}
+	else
+	{
+		ModuleChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FDisplayClusterLightCardEditorModule::HandleModuleChanged);
+	}
 }
 
 void FDisplayClusterLightCardEditorModule::ShutdownModule()
 {
-	UnregisterTabSpawners();
 	UnregisterSettings();
 	UnregisterDetailCustomizations();
+	UnregisterOperatorApp();
 
+	if (ModuleChangedHandle.IsValid())
+	{
+		FModuleManager::Get().OnModulesChanged().Remove(ModuleChangedHandle);
+	}
+	
 	FDisplayClusterLightCardEditorCommands::Unregister();
 }
 
@@ -54,16 +68,6 @@ void FDisplayClusterLightCardEditorModule::ShowLabels(const FLabelArgs& InArgs)
 			}
 		}
 	}
-}
-
-void FDisplayClusterLightCardEditorModule::RegisterTabSpawners()
-{
-	SDisplayClusterLightCardEditor::RegisterTabSpawner();
-}
-
-void FDisplayClusterLightCardEditorModule::UnregisterTabSpawners()
-{
-	SDisplayClusterLightCardEditor::UnregisterTabSpawner();
 }
 
 void FDisplayClusterLightCardEditorModule::RegisterSettings()
@@ -103,6 +107,29 @@ void FDisplayClusterLightCardEditorModule::UnregisterDetailCustomizations()
 	if (PropertyModule)
 	{
 		PropertyModule->UnregisterCustomClassLayout(ADisplayClusterLightCardActor::StaticClass()->GetFName());
+	}
+}
+
+void FDisplayClusterLightCardEditorModule::RegisterOperatorApp()
+{
+	OperatorAppHandle = IDisplayClusterOperator::Get().RegisterApp(IDisplayClusterOperator::FOnGetAppInstance::CreateStatic(&FDisplayClusterLightCardEditor::MakeInstance));
+}
+
+void FDisplayClusterLightCardEditorModule::UnregisterOperatorApp()
+{
+	if (IDisplayClusterOperator* OperatorModule = FModuleManager::GetModulePtr<IDisplayClusterOperator>(IDisplayClusterOperator::ModuleName))
+	{
+		OperatorModule->UnregisterApp(OperatorAppHandle);
+	}
+}
+
+void FDisplayClusterLightCardEditorModule::HandleModuleChanged(FName InModuleName, EModuleChangeReason InChangeReason)
+{
+	if (InModuleName == IDisplayClusterOperator::ModuleName && InChangeReason == EModuleChangeReason::ModuleLoaded)
+	{
+		RegisterOperatorApp();
+		FModuleManager::Get().OnModulesChanged().Remove(ModuleChangedHandle);
+		ModuleChangedHandle.Reset();
 	}
 }
 
