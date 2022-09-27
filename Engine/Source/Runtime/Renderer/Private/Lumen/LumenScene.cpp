@@ -1478,7 +1478,7 @@ void FLumenSceneData::CopyInitialData(const FLumenSceneData& SourceSceneData)
 // When the GPU mask changes for a view specific Lumen scene, we copy all data cross GPU to avoid transient glitches and
 // potentially corrupt data.  Copying is expensive, but the assumption is that the GPU index will only change for debugging
 // or performance tweaks, not during steady rendering.
-void FLumenSceneData::UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FRHIGPUMask ViewGPUMask)
+void FLumenSceneData::UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FLumenViewState& LumenViewState, FRHIGPUMask ViewGPUMask)
 {
 	check(bViewSpecific == true);
 
@@ -1540,7 +1540,7 @@ void FLumenSceneData::UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenScene
 			#undef ADD_LUMEN_FRAME_TEMPORARY
 
 			AddPass(GraphBuilder, RDG_EVENT_NAME("LumenCrossGPUTransfer"),
-				[LumenSceneData, FrameTemporaryTextures, SourceGPUMask, DestGPUMask](FRHICommandListImmediate& RHICmdList)
+				[LumenSceneData, LumenView = &LumenViewState, FrameTemporaryTextures, SourceGPUMask, DestGPUMask](FRHICommandListImmediate& RHICmdList)
 			{
 				uint32 SourceGPUIndex = SourceGPUMask.GetFirstIndex();
 
@@ -1586,6 +1586,9 @@ void FLumenSceneData::UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenScene
 						{
 							CrossGPUTransferResources.Add(FTransferResourceParams(Texture->GetRHI(), SourceGPUIndex, DestGPUIndex, false, false));
 						}
+
+						// Also transfer the view state resources cross GPU
+						LumenView->AddCrossGPUTransfers(SourceGPUIndex, DestGPUIndex, CrossGPUTransferResources);
 					}
 				}
 

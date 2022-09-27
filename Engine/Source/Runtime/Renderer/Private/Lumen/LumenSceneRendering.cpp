@@ -2675,7 +2675,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 			if (View.ViewLumenSceneData->bViewSpecific)
 			{
 				// Update view specific scene data if the GPU mask changed (copies resources cross GPU so CPU and GPU data are coherent)
-				View.ViewLumenSceneData->UpdateGPUMask(GraphBuilder, FrameTemporaries, View.GPUMask);
+				View.ViewLumenSceneData->UpdateGPUMask(GraphBuilder, FrameTemporaries, View.ViewState->Lumen, View.GPUMask);
 			}
 			else if (View.GPUMask.GetFirstIndex() != 0)
 			{

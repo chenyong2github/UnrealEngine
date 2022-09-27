@@ -580,7 +580,7 @@ public:
 	// Copy initial data from default Lumen scene data to a view specific Lumen scene data
 	void CopyInitialData(const FLumenSceneData& SourceSceneData);
 #if WITH_MGPU
-	void UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FRHIGPUMask ViewGPUMask);
+	void UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FLumenViewState& LumenViewState, FRHIGPUMask ViewGPUMask);
 #endif
 
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
