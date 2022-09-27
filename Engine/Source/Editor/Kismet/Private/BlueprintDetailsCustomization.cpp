@@ -3567,6 +3567,234 @@ void FBlueprintGraphArgumentLayout::OnPrePinInfoChange(const FEdGraphPinType& Pi
 	}
 }
 
+void FBlueprintGraphLocalVariableGroupLayout::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
+{
+	bool WasContentAdded = false;
+	if(TargetGraph.IsValid())
+	{
+		if(const UEdGraph* TopLevelGraph = FBlueprintEditorUtils::GetTopLevelGraph(TargetGraph.Get()))
+		{
+			bool bSchemaImplementsGetLocalVariables = false;
+		
+			// grab the parent graph's name
+			if (UEdGraphSchema const* Schema = TopLevelGraph->GetSchema())
+			{
+				FGraphDisplayInfo EdGraphDisplayInfo;
+				Schema->GetGraphDisplayInformation(*TopLevelGraph, EdGraphDisplayInfo);
+
+				// Try to get the local variables from the schema
+				TArray<FBPVariableDescription> LocalVariables;
+				bSchemaImplementsGetLocalVariables = Schema->GetLocalVariables(TargetGraph.Get(), LocalVariables);
+				for (const FBPVariableDescription& LocalVariable : LocalVariables)
+				{
+					TSharedRef<class FBlueprintGraphLocalVariableLayout> BlueprintLocalVariableLayout = MakeShareable(new FBlueprintGraphLocalVariableLayout(OwningFunction, LocalVariable));
+					ChildrenBuilder.AddCustomBuilder(BlueprintLocalVariableLayout);
+					WasContentAdded = true;
+				}
+			}
+			// If the schema did not return any local variables, try to get them from the function entry
+			if (!bSchemaImplementsGetLocalVariables)
+			{
+				TArray<UK2Node_FunctionEntry*> FunctionEntryNodes;
+				TopLevelGraph->GetNodesOfClass<UK2Node_FunctionEntry>(FunctionEntryNodes);
+				if (!FunctionEntryNodes.IsEmpty())
+				{
+					TArray<FBPVariableDescription>& LocalVariables = FunctionEntryNodes[0]->LocalVariables;
+					
+					// Search in all FunctionEntry nodes for their local variables
+					FText ActionCategory;
+					for (int I = 0; I < LocalVariables.Num(); ++I)
+					{
+						TSharedPtr<class FBlueprintGraphLocalVariableLayout> BlueprintLocalVariableLayout = nullptr;
+						if (PropertyHandle)
+						{
+							BlueprintLocalVariableLayout = MakeShareable(new FBlueprintGraphLocalVariableLayout(OwningFunction, PropertyHandle->GetChildHandle(I)));
+						}
+						else
+						{
+							BlueprintLocalVariableLayout = MakeShareable(new FBlueprintGraphLocalVariableLayout(OwningFunction, LocalVariables[I]));
+						}
+						ChildrenBuilder.AddCustomBuilder(BlueprintLocalVariableLayout.ToSharedRef());
+						WasContentAdded = true;		
+					}
+				}
+			}
+		}
+	}
+	if (!WasContentAdded)
+	{
+		// Add a text widget to let the user know to hit the + icon to add parameters.
+		ChildrenBuilder.AddCustomRow(FText::GetEmpty()).WholeRowContent()
+			.MaxDesiredWidth(980.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("NoLocalVariablesAddedForBlueprint", "No Local Variables"))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+			];
+	}
+}
+
+TSharedPtr<IPropertyHandle> FBlueprintGraphLocalVariableLayout::GetPropertyHandle() const
+{
+	return Data.IsType<TSharedPtr<IPropertyHandle>>() ? Data.Get<TSharedPtr<IPropertyHandle>>() : nullptr;
+}
+
+const FBPVariableDescription& FBlueprintGraphLocalVariableLayout::GetVariable() const
+{
+	// if stored by property handle, extract value from there
+	if (const TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle())
+	{
+		void* Address;
+		PropertyHandle->GetValueData(Address);
+		return *(FBPVariableDescription*)Address;
+	}
+	// if stored as variable description, return it directly
+	return Data.Get<FBPVariableDescription>();
+}
+
+void FBlueprintGraphLocalVariableLayout::SetVariable(const FBPVariableDescription& NewValue)
+{
+	const TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
+	checkf(PropertyHandle != nullptr, TEXT("Tried to call a setter on a read-only local variable layout"));
+	
+	void* Address;
+	PropertyHandle->GetValueData(Address);
+	*(FBPVariableDescription*)Address = NewValue;
+}
+
+void FBlueprintGraphLocalVariableLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	TSharedPtr<IPropertyHandle> PropHandle = GetPropertyHandle();
+	
+	NodeRow
+	.NameContent()
+	[
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.FillWidth(1)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.MinDesiredWidth(125.f)
+			[
+				SAssignNew(VariableNameWidget, SEditableTextBox)
+				.Text( this, &FBlueprintGraphLocalVariableLayout::OnGetVarNameText )
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+				.OnTextChanged(this, &FBlueprintGraphLocalVariableLayout::OnVarNameChange)
+				.OnTextCommitted(this, &FBlueprintGraphLocalVariableLayout::OnVarNameTextCommitted)
+#endif
+				.ToolTipText(this, &FBlueprintGraphLocalVariableLayout::OnGetVarToolTipText)
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+				.IsEnabled(!ShouldVarBeReadOnly())
+			]
+		]
+	]
+	.ValueContent()
+	.MaxDesiredWidth(980.f)
+	[
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(0.0f)
+		.FillWidth(1.0f)
+		[
+			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(K2Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
+				.TargetPinType(this, &FBlueprintGraphLocalVariableLayout::OnGetVariableType)
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+				.OnPinTypePreChanged(this, &FBlueprintGraphLocalVariableLayout::OnPreVariableTypeChange)
+				.OnPinTypeChanged(this, &FBlueprintGraphLocalVariableLayout::VariableTypeChanged)
+#endif
+				.Schema(K2Schema)
+				.bAllowArrays(!ShouldVarBeReadOnly())
+				.IsEnabled(!ShouldVarBeReadOnly(true))
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+		]
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(10, 0, 0, 0)
+		.AutoWidth()
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+		[
+			PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FBlueprintGraphLocalVariableLayout::OnRemoveClicked), LOCTEXT("LocalVariableDetailsClearTooltip", "Remove this variable."), !IsVariableEditingReadOnly())
+		]
+#endif
+
+	]
+	.PropertyHandleList({GetPropertyHandle()})
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+	.DragDropHandler(/* implement drag drop handler and add it here */);
+	static_assert(false)
+#endif
+	;
+}
+
+void FBlueprintGraphLocalVariableLayout::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
+{
+	if (const UFunction* Function = OwningFunction.Get())
+	{
+		const TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope(Function));
+
+		// ensure that the default value is up to date inside property
+		for (TFieldIterator<FProperty> PropertyIterator(Function); PropertyIterator; ++PropertyIterator)
+		{
+			const FProperty *VariableProperty = *PropertyIterator;
+			if (VariableProperty->GetFName() == GetName())
+			{
+				FBlueprintEditorUtils::PropertyValueFromString(VariableProperty, GetVariable().DefaultValue, StructData->GetStructMemory());
+				break;
+			}
+		}
+		if (IDetailPropertyRow* Row = ChildrenBuilder.AddExternalStructureProperty(StructData.ToSharedRef(), GetName()))
+		{
+			Row->DisplayName(LOCTEXT("LocalVariableDefaultValue", "Default Value"));
+		}
+	}
+}
+
+bool FBlueprintGraphLocalVariableLayout::ShouldVarBeReadOnly(bool bIsEditingPinType) const
+{
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+	// if this is ever made non-const, implement this method
+	static_assert(false);
+#endif
+	return true;
+}
+
+bool FBlueprintGraphLocalVariableLayout::IsVariableEditingReadOnly(bool bIsEditingPinType) const
+{
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+	// if this is ever made non-const, implement this method
+	static_assert(false)
+#endif
+	return true;
+}
+
+FText FBlueprintGraphLocalVariableLayout::OnGetVarNameText() const
+{
+	return FText::FromName(GetName());
+}
+
+FText FBlueprintGraphLocalVariableLayout::OnGetVarToolTipText() const
+{
+	const FBPVariableDescription& Variable = GetVariable();
+	const FText PinTypeText = UEdGraphSchema_K2::TypeToText(Variable.VarType);
+	return FText::Format(LOCTEXT("BlueprintArgToolTipText", "Name: {0}\nType: {1}"), FText::FromName(Variable.VarName), PinTypeText);
+}
+
+FEdGraphPinType FBlueprintGraphLocalVariableLayout::OnGetVariableType() const
+{
+	return GetVariable().VarType;
+}
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
@@ -4127,6 +4355,25 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 			OutputsCategory.HeaderContent(OutputsHeaderContentWidget);
 		}
 
+		if (bShowLocalVariables)
+		{
+			const UEdGraph* TopLevelGraph = FBlueprintEditorUtils::GetTopLevelGraph(GetGraph());
+			TSharedPtr<IPropertyHandle> LocalVariablesProperty = nullptr;
+			if (TopLevelGraph)
+			{
+				LocalVariablesProperty = DetailLayout.AddObjectPropertyData({FunctionEntryNode}, TEXT("LocalVariables"));
+			}
+		
+			IDetailCategoryBuilder& LocalVarsCategory = DetailLayout.EditCategory("Local Variables", LOCTEXT("FunctionDetailsLocalVariables", "Local Variables"));
+			TSharedRef<FBlueprintGraphLocalVariableGroupLayout> LocalVarsArgumentGroup =
+					MakeShareable(new FBlueprintGraphLocalVariableGroupLayout(SharedThis(this), GetGraph(), GetBlueprintObj(), FindFunction(), LocalVariablesProperty));
+			LocalVarsCategory.AddCustomBuilder(LocalVarsArgumentGroup);
+		
+			TSharedRef<SHorizontalBox> LocalVarsHeaderContentWidget = SNew(SHorizontalBox);
+
+			LocalVarsCategory.HeaderContent(LocalVarsHeaderContentWidget);
+		}
+		
 		// See if anything else wants to customize our details
 		TWeakPtr<FBlueprintEditor> BlueprintEditor = MyBlueprint.Pin()->GetBlueprintEditor();
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");

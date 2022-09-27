@@ -562,18 +562,131 @@ private:
 	TSharedPtr<SGraphPin> DefaultValuePinWidget;
 };
 
+// local variables in the details view only support read-only mode at the moment.
+// the incomplete read/write functionality can be turned on by setting this to true but you'll have to write some more code to make it compile/work
+#define UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED false
+
+/** Custom struct for each group of local variables in the function editing details */
+class FBlueprintGraphLocalVariableGroupLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FBlueprintGraphLocalVariableGroupLayout>
+{
+public:
+	FBlueprintGraphLocalVariableGroupLayout(TWeakPtr<class FBaseBlueprintGraphActionDetails> InGraphActionDetails, TWeakObjectPtr<UEdGraph> InTargetGraph,
+		TWeakObjectPtr<UBlueprint> InBlueprintObj, TWeakObjectPtr<UFunction> InOwningFunction, TSharedPtr<IPropertyHandle> Property = nullptr)
+		: GraphActionDetailsPtr(InGraphActionDetails)
+		, TargetGraph(InTargetGraph)
+		, BlueprintObj(InBlueprintObj)
+		, PropertyHandle(Property)
+		, OwningFunction(InOwningFunction) {}
+	
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const override {return PropertyHandle;}
+
+private:
+	/** IDetailCustomNodeBuilder Interface*/
+	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override {}
+	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) override;
+	virtual void Tick( float DeltaTime ) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual FName GetName() const override { return NAME_None; }
+	virtual bool InitiallyCollapsed() const override { return false; }
+	
+private:
+	/** The parent graph action details customization */
+	TWeakPtr<class FBaseBlueprintGraphActionDetails> GraphActionDetailsPtr;
+
+	/** The target graph that the local variable's are on */
+	TWeakObjectPtr<UEdGraph> TargetGraph;
+
+	/** The blueprint object that the target graph is in */
+	TWeakObjectPtr<UBlueprint> BlueprintObj;
+
+	/** handle to property for array of FBPVariableDescription's */
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+
+	/** function that owns the local variable's being displayed */
+	TWeakObjectPtr<UFunction> OwningFunction;
+};
+
+/** Custom struct for each local variable in the function editing details */
+class FBlueprintGraphLocalVariableLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FBlueprintGraphLocalVariableLayout>
+{
+public:
+	FBlueprintGraphLocalVariableLayout(TWeakObjectPtr<UFunction> InOwningFunction, const FBPVariableDescription& VariableDescription)
+		: OwningFunction(InOwningFunction)
+	{
+		Data.Set<FBPVariableDescription>(VariableDescription);
+	}
+	
+	FBlueprintGraphLocalVariableLayout(TWeakObjectPtr<UFunction> InOwningFunction, TSharedPtr<IPropertyHandle> Property = nullptr)
+		: OwningFunction(InOwningFunction)
+	{
+		Data.Set<TSharedPtr<IPropertyHandle>>(Property);
+	}
+	
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const override;
+
+	const FBPVariableDescription& GetVariable() const;
+	void SetVariable(const FBPVariableDescription&);
+
+private:
+	/** IDetailCustomNodeBuilder Interface*/
+	virtual void SetOnRebuildChildren( FSimpleDelegate InOnRegenerateChildren ) override {}
+	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override;
+	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) override;
+	virtual void Tick( float DeltaTime ) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual FName GetName() const override { return GetVariable().VarName; }
+	virtual bool InitiallyCollapsed() const override { return true; }
+private:
+	
+	/** Determines if this pin should not be editable */
+	bool ShouldVarBeReadOnly(bool bIsEditingPinType = false) const;
+	
+	/** Determines if editing the pins on the node should be read only */
+	bool IsVariableEditingReadOnly(bool bIsEditingPinType = false) const;
+	
+
+	/** Callbacks for all the functionality for modifying local variables */
+	FText OnGetVarNameText() const;
+	FText OnGetVarToolTipText() const;
+	FEdGraphPinType OnGetVariableType() const;
+
+// currently this layout is for read only data. If you need to use it for read/write, you can implement the following methods.
+#if UE_BP_LOCAL_VAR_LAYOUT_SETTERS_IMPLEMENTED
+	void OnRemoveClicked();
+	void OnVarNameChange(const FText& InNewText);
+	void OnVarNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
+	void VariableTypeChanged(const FEdGraphPinType& PinType);
+	void OnPreVariableTypeChange(const FEdGraphPinType& PinType);
+#endif
+
+private:
+
+	/** Holds a weak pointer to the argument name widget, used for error notifications */
+	TWeakPtr<SEditableTextBox> VariableNameWidget;
+
+	/** The SGraphPin widget created to show/edit default value */
+	TSharedPtr<SGraphPin> DefaultValueWidget;
+
+	/** either the read only copy of FBPVariableDescription or the property handle to the original variable description */
+	TVariant<TSharedPtr<IPropertyHandle>, FBPVariableDescription> Data;
+
+	/** function that owns this local variable */
+	TWeakObjectPtr<UFunction> OwningFunction;
+};
+
 /** Details customization for functions and graphs selected in the MyBlueprint panel */
 class FBlueprintGraphActionDetails : public FBaseBlueprintGraphActionDetails
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<class IDetailCustomization> MakeInstance(TWeakPtr<SMyBlueprint> InMyBlueprint)
+	static TSharedRef<class IDetailCustomization> MakeInstance(TWeakPtr<SMyBlueprint> InMyBlueprint, bool bInShowLocalVariables = false)
 	{
-		return MakeShareable(new FBlueprintGraphActionDetails(InMyBlueprint));
+		return MakeShareable(new FBlueprintGraphActionDetails(InMyBlueprint, bInShowLocalVariables));
 	}
 
-	FBlueprintGraphActionDetails(TWeakPtr<SMyBlueprint> InMyBlueprint)
+	FBlueprintGraphActionDetails(TWeakPtr<SMyBlueprint> InMyBlueprint, bool bInShowLocalVariables = false)
 		: FBaseBlueprintGraphActionDetails(InMyBlueprint)
+		, bShowLocalVariables(bInShowLocalVariables)
 	{
 	}
 	
@@ -715,6 +828,8 @@ private:
 
 	/** External detail customizations */
 	TArray<TSharedPtr<IDetailCustomization>> ExternalDetailCustomizations;
+
+	bool bShowLocalVariables = false;
 };
 
 /** Blueprint global options - managed list details customization base */

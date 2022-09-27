@@ -97,7 +97,8 @@ void FDiffPanel::InitializeDiffPanel()
 		.HideNameArea(true)
 		.ViewIdentifier(FName("BlueprintInspector"))
 		.MyBlueprintWidget(MyBlueprint)
-		.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([] { return false; }));
+		.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([] { return false; }))
+		.ShowLocalVariables(true);
 	DetailsView = Inspector;
 	MyBlueprint->SetInspector(DetailsView);
 }
@@ -632,7 +633,6 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, TSharedPtr<TArray<FDiffSingleRes
 		}
 
 		MyBlueprint->SetFocusedGraph(Graph);
-		MyBlueprint->Refresh();
 
 		TSharedRef<SGraphEditor> Editor = SNew(SGraphEditor)
 			.AdditionalCommands(GraphEditorCommands)
@@ -784,7 +784,8 @@ void SBlueprintDiff::GenerateDifferencesList()
 			.HideNameArea(true)
 			.ViewIdentifier(FName("BlueprintInspector"))
 			.MyBlueprintWidget(InMyBlueprint)
-			.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([] { return false; }));
+			.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([] { return false; }))
+			.ShowLocalVariables(true);
 	};
 
 	PanelOld.GenerateMyBlueprintWidget();

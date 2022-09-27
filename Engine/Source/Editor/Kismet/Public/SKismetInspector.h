@@ -49,6 +49,7 @@ public:
 		, _HideNameArea(true)
 		, _SetNotifyHook(true)
 		, _ShowTitleArea(false)
+		, _ShowLocalVariables(false)
 		{}
 
 		SLATE_ARGUMENT(TWeakPtr<FBlueprintEditor>, Kismet2)
@@ -60,6 +61,7 @@ public:
 		SLATE_ARGUMENT( FName, ViewIdentifier)
 		SLATE_ARGUMENT( bool, SetNotifyHook)
 		SLATE_ARGUMENT( bool, ShowTitleArea)
+		SLATE_ARGUMENT( bool, ShowLocalVariables)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

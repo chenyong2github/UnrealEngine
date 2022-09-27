@@ -714,53 +714,143 @@ void UK2Node_FunctionEntry::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResul
 			Results.Add(Diff);
 		}
 
-		bool bLocalVarsDiffer = (LocalVariables.Num() != OtherFunction->LocalVariables.Num());
-
-		for (int32 i = 0; i < LocalVariables.Num() && !bLocalVarsDiffer; i++)
+		// constructs a map from variable guid to index in the provided array
+		auto MapVarGuidToArrayIndex = [](const TArray<FBPVariableDescription>& Variables)
 		{
-			const FBPVariableDescription& ThisVar = LocalVariables[i];
-			const FBPVariableDescription& OtherVar = OtherFunction->LocalVariables[i];
-			
-			// Can't do a raw compare, for local variable defaults we need to compare the struct
-			if (ThisVar.VarName != OtherVar.VarName
-				|| ThisVar.VarType != OtherVar.VarType
-				|| ThisVar.FriendlyName != OtherVar.FriendlyName
-				|| !ThisVar.Category.EqualTo(OtherVar.Category)
-				|| ThisVar.PropertyFlags != OtherVar.PropertyFlags
-				|| ThisVar.RepNotifyFunc != OtherVar.RepNotifyFunc
-				|| ThisVar.ReplicationCondition != OtherVar.ReplicationCondition)
+			TMap<FGuid, int32> Map;
+			for (int32 i = 0; i < Variables.Num(); i++)
 			{
-				bLocalVarsDiffer = true;
+				Map.Add(Variables[i].VarGuid, i);
 			}
-		}
+			return MoveTemp(Map);
+		};
 
-		if (bLocalVarsDiffer)
+		auto AddDiff = [this, OtherNode, &Results](const FText& DisplayString)
 		{
 			FDiffSingleResult Diff;
 			Diff.Diff = EDiffType::NODE_PROPERTY;
 			Diff.Node1 = this;
 			Diff.Node2 = OtherNode;
-			Diff.DisplayString = LOCTEXT("DIF_FunctionLocalVariables", "Function local variables have changed in structure");
-			Diff.Category = EDiffType::MODIFICATION;
-
+			Diff.DisplayString = DisplayString;
 			Results.Add(Diff);
-		}
-		else
+		};
+
+		// using maps so that order doesn't matter and it's easy to diff
+		const TMap<FGuid, int32> VarGuidToIndex = MapVarGuidToArrayIndex(LocalVariables);
+		const TMap<FGuid, int32> OtherVarGuidToIndex = MapVarGuidToArrayIndex(OtherFunction->LocalVariables);
+
+		FDiffSingleResult Diff;
+		Diff.Diff = EDiffType::NODE_PROPERTY;
+		Diff.Node1 = this;
+		Diff.Node2 = OtherNode;
+		const FText NodeName = FText::FromName(FunctionReference.GetMemberName());
+		for (const auto& [VarGuid,Index] : VarGuidToIndex)
 		{
-			TSharedPtr<FStructOnScope> MyLocals = GetFunctionVariableCache();
-			TSharedPtr<FStructOnScope> OtherLocals = OtherFunction->GetFunctionVariableCache();
-
-			if (MyLocals.IsValid() && MyLocals->IsValid() && OtherLocals.IsValid() && OtherLocals->IsValid())
+			const FBPVariableDescription& ThisVar = LocalVariables[Index];
+			const FText OldVarName = FText::FromName(ThisVar.VarName);
+			
+			if (const int32* OtherIndex = OtherVarGuidToIndex.Find(VarGuid))
 			{
-				// Check for local var diffs
-				FDiffSingleResult Diff;
-				Diff.Diff = EDiffType::NODE_PROPERTY;
-				Diff.Node1 = this;
-				Diff.Node2 = OtherNode;
-				Diff.ToolTip = LOCTEXT("DIF_FunctionLocalVariableDefaults", "Function local variable default values have changed");
 				Diff.Category = EDiffType::MODIFICATION;
-
-				DiffProperties(const_cast<UStruct*>(MyLocals->GetStruct()), const_cast<UStruct*>(OtherLocals->GetStruct()), MyLocals->GetStructMemory(), OtherLocals->GetStructMemory(), Results, Diff);
+				const FBPVariableDescription& OtherVar = OtherFunction->LocalVariables[*OtherIndex];
+				const FText NewVarName = FText::FromName(OtherVar.VarName);
+				if (ThisVar.VarName != OtherVar.VarName)
+				{
+					// variable name changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable name changed from {0}::{1} to {0}::{2}"),
+						NodeName,
+						OldVarName,
+						NewVarName
+					));
+				}
+				if (ThisVar.VarType != OtherVar.VarType)
+				{
+					// type changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} was a {2} but is now a {3}"),
+						NodeName,
+						NewVarName,
+						UEdGraphSchema_K2::TypeToText(ThisVar.VarType),
+						UEdGraphSchema_K2::TypeToText(OtherVar.VarType)
+					));
+				}
+				if (!ThisVar.Category.EqualTo(OtherVar.Category))
+				{
+					// category changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} changed category from {2} to {3}"),
+						NodeName,
+						NewVarName,
+						ThisVar.Category,
+						OtherVar.Category
+					));
+				}
+				if (ThisVar.PropertyFlags != OtherVar.PropertyFlags)
+				{
+					// property flags changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} changed property flags"),
+						NodeName,
+						NewVarName
+					));
+				}
+				if (ThisVar.RepNotifyFunc != OtherVar.RepNotifyFunc)
+				{
+					// replication notify function changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} changed RepNotifyFunc"),
+						NodeName,
+						NewVarName
+					));
+				}
+				if (ThisVar.ReplicationCondition != OtherVar.ReplicationCondition)
+				{
+					// replication condition changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} changed ReplicationCondition"),
+						NodeName,
+						NewVarName
+					));
+				}
+				if (ThisVar.DefaultValue != OtherVar.DefaultValue)
+				{
+					// replication condition changed
+					AddDiff(FText::Format(
+						LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} changed default value from '{2}' to '{3}'"),
+						NodeName,
+						NewVarName,
+						FText::FromString(ThisVar.DefaultValue),
+						FText::FromString(OtherVar.DefaultValue)
+					));
+				}
+			}
+			else
+			{
+				// local variable is in this node but not in other node
+				Diff.Category = EDiffType::SUBTRACTION;
+				AddDiff(FText::Format(
+				LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} removed"),
+					NodeName,
+					OldVarName
+				));
+			}
+		}
+		
+		for (const auto& [VarGuid,Index] : OtherVarGuidToIndex)
+		{
+			const FBPVariableDescription& OtherVar = OtherFunction->LocalVariables[Index];
+			if (!VarGuidToIndex.Contains(VarGuid))
+			{
+				const FText NewVarName = FText::FromName(OtherVar.VarName);
+				
+				// local variable is in other node but not in this node
+				Diff.Category = EDiffType::ADDITION;
+				AddDiff(FText::Format(
+				LOCTEXT("DIF_FunctionLocalVariableNameChange", "Local variable {0}::{1} added"),
+					NodeName,
+					NewVarName
+				));
 			}
 		}
 	}
