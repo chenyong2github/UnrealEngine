@@ -25,6 +25,7 @@
 #include "Materials/MaterialExpressionCameraPositionWS.h"
 #include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionViewProperty.h"
+#include "Materials/MaterialExpressionIsOrthographic.h"
 #include "Materials/MaterialExpressionTime.h"
 #include "Materials/MaterialExpressionDeltaTime.h"
 #include "Materials/MaterialExpressionScreenPosition.h"
@@ -509,6 +510,13 @@ bool UMaterialExpressionViewProperty::GenerateHLSLExpression(FMaterialHLSLGenera
 			OutExpression = Generator.GetTree().NewRcp(OutExpression);
 		}
 	}
+	return true;
+}
+
+bool UMaterialExpressionIsOrthographic::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	using namespace UE::HLSLTree::Material;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::IsOrthographic);
 	return true;
 }
 

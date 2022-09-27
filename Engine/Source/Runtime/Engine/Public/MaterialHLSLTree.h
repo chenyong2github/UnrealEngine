@@ -180,6 +180,8 @@ enum class EExternalInput : uint8
 	ParticleTranslatedWorldPosition,
 	ParticleRadius,
 
+	IsOrthographic,
+
 	Num,
 };
 static constexpr int32 MaxNumTexCoords = 8;

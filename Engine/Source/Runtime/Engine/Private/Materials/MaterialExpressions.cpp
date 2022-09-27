@@ -240,6 +240,7 @@
 #include "Materials/MaterialExpressionVertexNormalWS.h"
 #include "Materials/MaterialExpressionVertexTangentWS.h"
 #include "Materials/MaterialExpressionViewProperty.h"
+#include "Materials/MaterialExpressionIsOrthographic.h"
 #include "Materials/MaterialExpressionViewSize.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialInput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
@@ -10561,6 +10562,39 @@ int32 UMaterialExpressionViewSize::Compile(class FMaterialCompiler* Compiler, in
 void UMaterialExpressionViewSize::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("ViewSize"));
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionIsOrthographic::UMaterialExpressionIsOrthographic(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Constants;
+		FConstructorStatics()
+			: NAME_Constants(LOCTEXT("Constants", "Constants"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Constants);
+
+	bShaderInputData = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionIsOrthographic::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->IsOrthographic();
+}
+
+void UMaterialExpressionIsOrthographic::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("IsOrthographic"));
 }
 #endif // WITH_EDITOR
 

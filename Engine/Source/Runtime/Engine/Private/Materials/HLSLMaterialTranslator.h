@@ -740,6 +740,7 @@ protected:
 	virtual int32 GenericConstant(const UE::Shader::FValue& Value) override;
 	
 	virtual int32 ViewProperty(EMaterialExposedViewProperty Property, bool InvProperty) override;
+	virtual int32 IsOrthographic() override;
 
 	virtual int32 GameTime(bool bPeriodic, float Period) override;
 	virtual int32 RealTime(bool bPeriodic, float Period) override;
