@@ -327,6 +327,18 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteSelectedTrian
 }
 
 
+void FGeometryScriptAppendMeshOptions::UpdateAttributesForCombineMode(FDynamicMesh3& Target, const FDynamicMesh3& Source)
+{
+	if (CombineMode == EGeometryScriptCombineAttributesMode::EnableAllMatching)
+	{
+		Target.EnableMatchingAttributes(Source, false);
+	}
+	else if (CombineMode == EGeometryScriptCombineAttributesMode::UseSource)
+	{
+		Target.EnableMatchingAttributes(Source, true);
+	}
+	// else the mode is UseTarget, which already corresponds to the default behavior for AppendMesh
+}
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
@@ -334,6 +346,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 	UDynamicMesh* AppendMesh,
 	FTransform AppendTransform,
 	bool bDeferChangeNotifications,
+	FGeometryScriptAppendMeshOptions AppendOptions,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -351,6 +364,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 	{
 		AppendMesh->ProcessMesh([&](const FDynamicMesh3& OtherMesh)
 		{
+			AppendOptions.UpdateAttributesForCombineMode(AppendToMesh, OtherMesh);
 			FTransformSRT3d XForm(AppendTransform);
 			FMeshIndexMappings TmpMappings;
 			FDynamicMeshEditor Editor(&AppendToMesh);
@@ -379,6 +393,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshTransform
 	FTransform ConstantTransform,
 	bool bConstantTransformIsRelative,
 	bool bDeferChangeNotifications,
+	FGeometryScriptAppendMeshOptions AppendOptions,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -401,6 +416,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshTransform
 	{
 		AppendMesh->ProcessMesh([&](const FDynamicMesh3& OtherMesh)
 		{
+			AppendOptions.UpdateAttributesForCombineMode(AppendToMesh, OtherMesh);
 			FMeshIndexMappings TmpMappings;
 			FDynamicMeshEditor Editor(&AppendToMesh);
 			const FDynamicMesh3* UseOtherMesh = &OtherMesh;
@@ -452,6 +468,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 	int32 RepeatCount,
 	bool bApplyTransformToFirstInstance,
 	bool bDeferChangeNotifications,
+	FGeometryScriptAppendMeshOptions AppendOptions,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -475,6 +492,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 		}
 		TargetMesh->EditMesh([&](FDynamicMesh3& AppendToMesh)
 		{
+			AppendOptions.UpdateAttributesForCombineMode(AppendToMesh, TmpMesh);
 			FMeshIndexMappings TmpMappings;
 			FDynamicMeshEditor Editor(&AppendToMesh);
 			for (int32 k = 0; k < RepeatCount; ++k)
