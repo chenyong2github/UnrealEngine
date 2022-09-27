@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "BoneWeights.h"
 #include "GPUSkinPublicDefs.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
@@ -450,8 +451,8 @@ void FFbxExporter::BindMeshToSkeleton(const USkeletalMesh* SkelMesh, FbxNode* Me
 
 				for(int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 				{
-					int32 InfluenceBone		= Section.BoneMap[ Vert.InfluenceBones[InfluenceIndex] ];
-					float InfluenceWeight	= Vert.InfluenceWeights[InfluenceIndex] / 255.f;
+					const int32 InfluenceBone		= Section.BoneMap[ Vert.InfluenceBones[InfluenceIndex] ];
+					const float InfluenceWeight	= Vert.InfluenceWeights[InfluenceIndex] / UE::AnimationCore::MaxRawBoneWeightFloat;
 
 					if(InfluenceBone == BoneIndex && InfluenceWeight > 0.f)
 					{

@@ -317,12 +317,13 @@ void FSkeletalMeshLODRenderData::DecrementMemoryStats()
 }
 
 #if WITH_EDITOR
-void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* ImportedModel, uint32 BuildFlags)
+void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* ImportedModel, ESkeletalMeshVertexFlags BuildFlags)
 {
-	bool bUseFullPrecisionUVs = (BuildFlags & ESkeletalMeshVertexFlags::UseFullPrecisionUVs) != 0;
-	bool bUseHighPrecisionTangentBasis = (BuildFlags & ESkeletalMeshVertexFlags::UseHighPrecisionTangentBasis) != 0;
-	bool bHasVertexColors = (BuildFlags & ESkeletalMeshVertexFlags::HasVertexColors) != 0;
-	bool bUseBackwardsCompatibleF16TruncUVs = (BuildFlags & ESkeletalMeshVertexFlags::UseBackwardsCompatibleF16TruncUVs) != 0;
+	const bool bUseFullPrecisionUVs = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseFullPrecisionUVs);
+	const bool bUseHighPrecisionTangentBasis = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseHighPrecisionTangentBasis);
+	const bool bHasVertexColors = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::HasVertexColors);
+	const bool bUseBackwardsCompatibleF16TruncUVs = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseBackwardsCompatibleF16TruncUVs);
+	const bool bUseHighPrecisionWeights = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseHighPrecisionWeights);
 
 	// Copy required info from source sections
 	RenderSections.Empty();
@@ -371,10 +372,45 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 		}
 	}
 
+	int32 MaxBoneInfluences = ImportedModel->GetMaxBoneInfluences();
+	if (!bUseHighPrecisionWeights)
+	{
+		// Re-normalize the weights for 8-bits to ensure that they are distributed using the old algorithm
+		// from MeshUtilities.cpp
+		uint8 InfluenceWeights[MAX_TOTAL_INFLUENCES];
+
+		MaxBoneInfluences = 0;
+		for (FSoftSkinVertex& Vertex: Vertices)
+		{
+			uint32	TotalInfluenceWeight = 0;
+			int32	MaxInfluenceIndex = 0;
+			for (; Vertex.InfluenceWeights[MaxInfluenceIndex] && MaxInfluenceIndex < MAX_TOTAL_INFLUENCES; MaxInfluenceIndex++)
+			{
+				InfluenceWeights[MaxInfluenceIndex] = static_cast<uint8>(Vertex.InfluenceWeights[MaxInfluenceIndex] >> 8);
+				if (InfluenceWeights[MaxInfluenceIndex] == 0)
+				{
+					break;
+				}
+				TotalInfluenceWeight += InfluenceWeights[MaxInfluenceIndex];
+			}
+			InfluenceWeights[0] += 255 - TotalInfluenceWeight;
+
+			MaxBoneInfluences = FMath::Max(MaxBoneInfluences, MaxInfluenceIndex);
+
+			FMemory::Memzero(Vertex.InfluenceWeights);
+			for (int32 Index = 0; Index < MaxInfluenceIndex; Index++)
+			{
+				// Map from 8-bit range to 16-bit range.
+				Vertex.InfluenceWeights[Index] = (static_cast<uint16>(InfluenceWeights[Index]) << 8) | InfluenceWeights[Index];
+			}
+		}
+	}
+
 	// Init skin weight buffer
 	SkinWeightVertexBuffer.SetNeedsCPUAccess(true);
-	SkinWeightVertexBuffer.SetMaxBoneInfluences(ImportedModel->GetMaxBoneInfluences());
+	SkinWeightVertexBuffer.SetMaxBoneInfluences(MaxBoneInfluences);
 	SkinWeightVertexBuffer.SetUse16BitBoneIndex(ImportedModel->DoSectionsUse16BitBoneIndex());
+	SkinWeightVertexBuffer.SetUse16BitBoneWeight(bUseHighPrecisionWeights);
 	SkinWeightVertexBuffer.Init(Vertices);
 
 	// Init the color buffer if this mesh has vertex colors.

@@ -37,13 +37,13 @@ struct FSoftSkinVertex
 	// VertexColor
 	FColor			Color;
 	FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
-	uint8			InfluenceWeights[MAX_TOTAL_INFLUENCES];
+	uint16			InfluenceWeights[MAX_TOTAL_INFLUENCES];
 
 	/** If this vert is rigidly weighted to a bone, return true and the bone index. Otherwise return false. */
 	ENGINE_API bool GetRigidWeightBone(FBoneIndexType& OutBoneIndex) const;
 
 	/** Returns the maximum weight of any bone that influences this vertex. */
-	ENGINE_API uint8 GetMaximumWeight() const;
+	ENGINE_API uint16 GetMaximumWeight() const;
 
 	/**
 	* Serializer

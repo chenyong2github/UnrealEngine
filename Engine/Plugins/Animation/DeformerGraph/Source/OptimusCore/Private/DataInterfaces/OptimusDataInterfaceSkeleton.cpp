@@ -82,10 +82,11 @@ void UOptimusSkeletonDataInterface::GetShaderParameters(TCHAR const* UID, FShade
 void UOptimusSkeletonDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
 {
 	// Need to be able to support these permutations according to the skeletal mesh settings.
-	// todo[CF]: I think GPUSKIN_UNLIMITED_BONE_INFLUENCE and GPUSKIN_BONE_INDEX_UINT16 are mutually exclusive. So we could save permutations here.
+	// todo[CF]: I think GPUSKIN_UNLIMITED_BONE_INFLUENCE and GPUSKIN_BONE_INDEX_UINT16/GPUSKIN_BONE_WEIGHTS_UINT16 are mutually exclusive. So we could save permutations here.
 	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_BONES"), 2);
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), 2);
 	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_BONE_INDEX_UINT16"), 2);
+	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_BONE_WEIGHTS_UINT16"), 2);
 	//OutPermutationVector.AddPermutation(TEXT("MERGE_DUPLICATED_VERTICES"), 2);
 }
 
@@ -138,6 +139,7 @@ struct FSkeletonDataInterfacePermutationIds
 	uint32 EnableDeformerBones = 0;
 	uint32 UnlimitedBoneInfluence = 0;
 	uint32 BoneIndexUint16 = 0;
+	uint32 BoneWeightsUint16 = 0;
 
 	FSkeletonDataInterfacePermutationIds(FComputeKernelPermutationVector const& PermutationVector)
 	{
@@ -155,6 +157,11 @@ struct FSkeletonDataInterfacePermutationIds
 			static FString Name(TEXT("GPUSKIN_BONE_INDEX_UINT16"));
 			static uint32 Hash = GetTypeHash(Name);
 			BoneIndexUint16 = PermutationVector.GetPermutationBits(Name, Hash, 1);
+		}
+		{
+			static FString Name(TEXT("GPUSKIN_BONE_WEIGHTS_UINT16"));
+			static uint32 Hash = GetTypeHash(Name);
+			BoneWeightsUint16 = PermutationVector.GetPermutationBits(Name, Hash, 1);
 		}
 	}
 };
@@ -192,6 +199,7 @@ void FOptimusSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 		FRHIShaderResourceView* InputWeightLookupStreamSRV = bUnlimitedBoneInfluences ? WeightBuffer->GetLookupVertexBuffer()->GetSRV() : nullptr;
 		const bool bValidBones = (BoneBufferSRV != nullptr) && (SkinWeightBufferSRV != nullptr) && (!bUnlimitedBoneInfluences || InputWeightLookupStreamSRV != nullptr);
 		const bool bUse16BitBoneIndex = WeightBuffer->Use16BitBoneIndex();
+		const bool bUse16BitBoneWeights = WeightBuffer->Use16BitBoneWeight();
 
 		FSkeletonDataInterfaceParameters* Parameters = (FSkeletonDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->NumVertices = RenderSection.NumVertices;
@@ -199,7 +207,7 @@ void FOptimusSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 		Parameters->NumBoneInfluences = WeightBuffer->GetMaxBoneInfluences();
 		Parameters->InputWeightStart = (WeightBuffer->GetConstantInfluencesVertexStride() * RenderSection.GetVertexBufferIndex()) / sizeof(float);
 		Parameters->InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
-		Parameters->InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
+		Parameters->InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize() | (WeightBuffer->GetBoneWeightByteSize() << 8);
 		Parameters->BoneMatrices = BoneBufferSRV != nullptr ? BoneBufferSRV : NullSRVBinding;
 		Parameters->InputWeightStream = SkinWeightBufferSRV != nullptr ? SkinWeightBufferSRV : NullSRVBinding;
 		Parameters->InputWeightLookupStream = InputWeightLookupStreamSRV != nullptr ? InputWeightLookupStreamSRV : NullSRVBinding;
@@ -207,5 +215,6 @@ void FOptimusSkeletonDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 		InOutDispatchData.PermutationId[InvocationIndex] |= (bValidBones ? PermutationIds.EnableDeformerBones : 0);
 		InOutDispatchData.PermutationId[InvocationIndex] |= (bUnlimitedBoneInfluences ? PermutationIds.UnlimitedBoneInfluence : 0);
 		InOutDispatchData.PermutationId[InvocationIndex] |= (bUse16BitBoneIndex ? PermutationIds.BoneIndexUint16 : 0);
+		InOutDispatchData.PermutationId[InvocationIndex] |= (bUse16BitBoneWeights ? PermutationIds.BoneWeightsUint16 : 0);
 	}
 }

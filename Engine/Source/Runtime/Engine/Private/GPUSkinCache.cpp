@@ -472,7 +472,8 @@ public:
 	{
 		FSkinWeightVertexBuffer* WeightBuffer = GPUSkin->GetSkinWeightVertexBuffer(LOD);
 		bUse16BitBoneIndex = WeightBuffer->Use16BitBoneIndex();
-		InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
+		bUse16BitBoneWeight = WeightBuffer->Use16BitBoneWeight();
+		InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize() | (WeightBuffer->GetBoneWeightByteSize() << 8);
 		InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
 		InputWeightStreamSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
 		InputWeightLookupStreamSRV = WeightBuffer->GetLookupVertexBuffer()->GetSRV();
@@ -616,6 +617,7 @@ protected:
 	FSkeletalMeshObjectGPUSkin* GPUSkin;
 	int BoneInfluenceType;
 	bool bUse16BitBoneIndex;
+	bool bUse16BitBoneWeight;
 	uint32 InputWeightIndexSize;
 	uint32 InputWeightStride;
 	FShaderResourceViewRHIRef InputWeightStreamSRV;
@@ -767,12 +769,14 @@ private:
 };
 
 /** Compute shader that skins a batch of vertices. */
-// @param SkinType 0:normal, 1:with morph targets calculated outside the cache, 2: with cloth, 3:with morph target calculated insde the cache (not yet implemented)
+// @param SkinType 0:normal, 1:with morph targets calculated outside the cache, 2: with cloth, 3:with morph target calculated inside the cache (not yet implemented)
 //        BoneInfluenceType 0:normal, 1:extra bone influences, 2:unlimited bone influences
 //        BoneIndex16 0: 8-bit indices, 1: 16-bit indices
+//        BoneWeights16 0: 8-bit weights, 1: 16-bit weights
 template <int Permutation>
 class TGPUSkinCacheCS : public FBaseGPUSkinCacheCS
 {
+	constexpr static bool bBoneWeights16 = (32 == (Permutation & 32));
 	constexpr static bool bBoneIndex16 = (16 == (Permutation & 16));
 	constexpr static bool bUnlimitedBoneInfluence = (8 == (Permutation & 12));
 	constexpr static bool bUseExtraBoneInfluencesT = (4 == (Permutation & 12));
@@ -790,18 +794,14 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		const uint32 BoneIndex16 = bBoneIndex16;
-		const uint32 UnlimitedBoneInfluence = bUnlimitedBoneInfluence;
-		const uint32 UseExtraBoneInfluences = bUseExtraBoneInfluencesT;
-		const uint32 MorphBlend = bMorphBlend;
-		const uint32 ApexCloth = bApexCloth;
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), UnlimitedBoneInfluence);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_EXTRA_INFLUENCES"), UseExtraBoneInfluences);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"), MorphBlend);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"), ApexCloth);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), bUnlimitedBoneInfluence);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_EXTRA_INFLUENCES"), bUseExtraBoneInfluencesT);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"), bMorphBlend);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"), bApexCloth);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_X"), FGPUSkinCache::RWTangentXOffsetInFloats);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_Z"), FGPUSkinCache::RWTangentZOffsetInFloats);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_BONE_INDEX_UINT16"), BoneIndex16);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_BONE_INDEX_UINT16"), bBoneIndex16);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_BONE_WEIGHTS_UINT16"), bBoneWeights16);
 	}
 
 	TGPUSkinCacheCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -814,21 +814,29 @@ public:
 	}
 };
 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<0>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_0, SkinType_0 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<1>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_0, SkinType_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<2>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_0, SkinType_2 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<4>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_1, SkinType_0 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<5>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_1, SkinType_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<6>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_1, SkinType_2 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<8>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_2, SkinType_0 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<9>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_2, SkinType_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<10>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);	// 16bit_0, BoneInfluenceType_2, SkinType_2 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<16>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_0, SkinType_0 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<17>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_0, SkinType_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<18>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_0, SkinType_2 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<20>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_0 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<21>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_1 
-IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<22>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_2 
+#define SKIN_CACHE_SHADER(_WEIGHT16_, _INDEX16_, _INFLUENCE_TYPE_, _SKIN_TYPE_) \
+	IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<_WEIGHT16_ * 32 + _INDEX16_ * 16 + _INFLUENCE_TYPE_ * 4 + _SKIN_TYPE_>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute) 
+
+#define SKIN_CACHE_SHADER_ALL_SKIN_TYPES(_WEIGHT16_, _INDEX16_, _INFLUENCE_TYPE_) \
+	SKIN_CACHE_SHADER(_WEIGHT16_, _INDEX16_, _INFLUENCE_TYPE_, 0); \
+	SKIN_CACHE_SHADER(_WEIGHT16_, _INDEX16_, _INFLUENCE_TYPE_, 1); \
+	SKIN_CACHE_SHADER(_WEIGHT16_, _INDEX16_, _INFLUENCE_TYPE_, 2)
+
+// NOTE: Bone influence type 2 (multiple) does not require a 16-bit index or weight permutation.
+#define SKIN_CACHE_SHADER_ALL() \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(0, 0, 0); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(0, 0, 1); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(0, 1, 0); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(0, 1, 1); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(1, 0, 0); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(1, 0, 1); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(1, 1, 0); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(1, 1, 1); \
+	SKIN_CACHE_SHADER_ALL_SKIN_TYPES(0, 0, 2);
+
+SKIN_CACHE_SHADER_ALL()
+
+#undef SKIN_CACHE_SHADER
 
 FGPUSkinCache::FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit, UWorld* InWorld)
 	: UsedMemoryInBytes(0)
@@ -1853,81 +1861,40 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	const FString RayTracingTag = (Entry->Mode == EGPUSkinCacheEntryMode::RayTracing ? TEXT("[RT]") : TEXT(""));
 	
 	SCOPED_DRAW_EVENTF(RHICmdList, SkinCacheDispatch,
-		TEXT("%sSkinning%d%d%d Mesh=%s LOD=%d Chunk=%d InStreamStart=%d OutStart=%d Vert=%d Morph=%d/%d"),
-		*RayTracingTag, (int32)Entry->bUse16BitBoneIndex, (int32)Entry->BoneInfluenceType, DispatchData.SkinType, *GetSkeletalMeshObjectName(Entry->GPUSkin), Entry->LOD,
+		TEXT("%sSkinning%d%d%d%d Mesh=%s LOD=%d Chunk=%d InStreamStart=%d OutStart=%d Vert=%d Morph=%d/%d"),
+		*RayTracingTag, (int32)Entry->bUse16BitBoneIndex, (int32)Entry->bUse16BitBoneWeight, (int32)Entry->BoneInfluenceType, DispatchData.SkinType, *GetSkeletalMeshObjectName(Entry->GPUSkin), Entry->LOD,
 		DispatchData.SectionIndex, DispatchData.InputStreamStart, DispatchData.OutputStreamStart, DispatchData.NumVertices, Entry->MorphBuffer != 0, DispatchData.MorphBufferOffset);
 	auto* GlobalShaderMap = GetGlobalShaderMap(GetFeatureLevel());
-	TShaderMapRef<TGPUSkinCacheCS<0>> SkinCacheCS000(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_0, SkinType_0
-	TShaderMapRef<TGPUSkinCacheCS<1>> SkinCacheCS001(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_0, SkinType_1
-	TShaderMapRef<TGPUSkinCacheCS<2>> SkinCacheCS002(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_0, SkinType_2
-	TShaderMapRef<TGPUSkinCacheCS<4>> SkinCacheCS010(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_1, SkinType_0
-	TShaderMapRef<TGPUSkinCacheCS<5>> SkinCacheCS011(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_1, SkinType_1
-	TShaderMapRef<TGPUSkinCacheCS<6>> SkinCacheCS012(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_1, SkinType_2
-	TShaderMapRef<TGPUSkinCacheCS<8>> SkinCacheCS020(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_2, SkinType_0
-	TShaderMapRef<TGPUSkinCacheCS<9>> SkinCacheCS021(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_2, SkinType_1
-	TShaderMapRef<TGPUSkinCacheCS<10>> SkinCacheCS022(GlobalShaderMap);		// 16bit_0, BoneInfluenceType_2, SkinType_2
-	TShaderMapRef<TGPUSkinCacheCS<16>>  SkinCacheCS100(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_0, SkinType_0
-	TShaderMapRef<TGPUSkinCacheCS<17>>  SkinCacheCS101(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_0, SkinType_1
-	TShaderMapRef<TGPUSkinCacheCS<18>>  SkinCacheCS102(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_0, SkinType_2
-	TShaderMapRef<TGPUSkinCacheCS<20>>  SkinCacheCS110(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_0
-	TShaderMapRef<TGPUSkinCacheCS<21>>  SkinCacheCS111(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_1
-	TShaderMapRef<TGPUSkinCacheCS<22>>  SkinCacheCS112(GlobalShaderMap);	// 16bit_1, BoneInfluenceType_1, SkinType_2
 
-	TShaderRef<FBaseGPUSkinCacheCS> Shader;
-	switch (DispatchData.SkinType)
-	{
-	case 0:
-		if (Entry->BoneInfluenceType == 0)
-		{
-			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS100;
-			else Shader = SkinCacheCS000;
-		}
-		else if (Entry->BoneInfluenceType == 1)
-		{
-			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS110;
-			else Shader = SkinCacheCS010;
-		}
-		else
-		{
-			Shader = SkinCacheCS020;
-		}
-		break;
-	case 1:
-		if (Entry->BoneInfluenceType == 0)
-		{
-			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS101;
-			else Shader = SkinCacheCS001;
-		}
-		else if (Entry->BoneInfluenceType == 1)
-		{
-			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS111;
-			else Shader = SkinCacheCS011;
-		}
-		else
-		{
-			Shader = SkinCacheCS021;
-		}
-		break;
-	case 2:
-		// Cloth
-		if (Entry->BoneInfluenceType == 0)
-		{
-			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS102;
-			else Shader = SkinCacheCS002;
-		}
-		else if (Entry->BoneInfluenceType == 1)
-		{
-			if (Entry->bUse16BitBoneIndex) Shader = SkinCacheCS112;
-			else Shader = SkinCacheCS012;
-		}
-		else
-		{
-			Shader = SkinCacheCS022;
-		}
-		break;
-	default:
-		check(0);
+	TMap<int32, TShaderRef<FBaseGPUSkinCacheCS>> SkinCacheCSMap;
+
+#define SKIN_CACHE_SHADER(_WEIGHT16_, _INDEX16_, _INFLUENCE_TYPE_, _SKIN_TYPE_) \
+	{ \
+		constexpr int32 Index = _WEIGHT16_ * 32 + _INDEX16_ * 16 + _INFLUENCE_TYPE_ * 4 + _SKIN_TYPE_; \
+		SkinCacheCSMap.Add(Index, TShaderMapRef<TGPUSkinCacheCS<Index>>(GlobalShaderMap)); \
 	}
+
+	SKIN_CACHE_SHADER_ALL()
+
+	// For 'unlimited' bone indexes, we pass in the index and weight sizes via a shader parameter and so we
+	// can re-use the same shader permutation as for 8-bit indexes.
+	bool bUse16BitBoneIndex = Entry->bUse16BitBoneIndex;
+	bool bUse16BitBoneWeight = Entry->bUse16BitBoneWeight;
+	if (Entry->BoneInfluenceType == 2)
+	{
+		bUse16BitBoneIndex = bUse16BitBoneWeight = false;
+	}
+
+#undef SKIN_CACHE_SHADER
+	int32 ShaderIndex =
+		DispatchData.SkinType |
+		(Entry->BoneInfluenceType * 4) |
+		(static_cast<int32>(bUse16BitBoneIndex) * 16) |
+		(static_cast<int32>(bUse16BitBoneWeight) * 32) ;
+
+	check(SkinCacheCSMap.Contains(ShaderIndex));
+	
+	TShaderRef<FBaseGPUSkinCacheCS> Shader = SkinCacheCSMap[ShaderIndex];
 	check(Shader.IsValid());
 
 	const FVertexBufferAndSRV& BoneBuffer = ShaderData.GetBoneBufferForReading(false);
@@ -2334,3 +2301,7 @@ void FGPUSkinCache::DrawVisualizationInfoText(const FName& GPUSkinCacheVisualiza
 		}
 	}
 }
+
+#undef IMPLEMENT_SKIN_CACHE_SHADER_CLOTH
+#undef IMPLEMENT_SKIN_CACHE_SHADER_ALL_SKIN_TYPES
+#undef IMPLEMENT_SKIN_CACHE_SHADER

@@ -31,6 +31,10 @@
 #define GPUSKIN_BONE_INDEX_UINT16			0	// 16-bit bone index if 1, otherwise 8-bit bone index
 #endif
 
+#ifndef GPUSKIN_BONE_WEIGHTS_UINT16
+#define GPUSKIN_BONE_WEIGHTS_UINT16			0	// 16-bit bone weights if 1, otherwise 8-bit bone weights
+#endif
+
 #ifndef GPUSKIN_UNLIMITED_BONE_INFLUENCE
 #define GPUSKIN_UNLIMITED_BONE_INFLUENCE	0
 #endif

@@ -11,8 +11,8 @@
 // Find the most dominant bone for each vertex
 int32 GetDominantBoneIndex(FSoftSkinVertex* SoftVert)
 {
-	uint8 MaxWeightBone = 0;
-	uint8 MaxWeightWeight = 0;
+	uint16 MaxWeightBone = 0;
+	uint16 MaxWeightWeight = 0;
 
 	for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; i++)
 	{

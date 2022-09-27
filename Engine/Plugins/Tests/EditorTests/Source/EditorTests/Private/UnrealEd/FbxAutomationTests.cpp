@@ -1869,7 +1869,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							FoundBoneIndex = true;
 							if (Mesh->GetImportedModel() && Mesh->GetImportedModel()->LODModels.IsValidIndex(0))
 							{
-								auto IncrementInfluence = [&VertexSkinByBoneNumber, &BoneIndex](const FSkelMeshSection& Section, const FBoneIndexType (&InfluenceBones)[MAX_TOTAL_INFLUENCES], const uint8 (&InfluenceWeights)[MAX_TOTAL_INFLUENCES])
+								auto IncrementInfluence = [&VertexSkinByBoneNumber, &BoneIndex](const FSkelMeshSection& Section, const FBoneIndexType (&InfluenceBones)[MAX_TOTAL_INFLUENCES], const uint16 (&InfluenceWeights)[MAX_TOTAL_INFLUENCES])
 								{
 									for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 									{

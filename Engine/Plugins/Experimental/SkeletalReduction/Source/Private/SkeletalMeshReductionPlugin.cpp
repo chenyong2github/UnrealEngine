@@ -34,6 +34,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "BonePose.h"
+#include "BoneWeights.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshReduction"
 
@@ -527,17 +528,17 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 	{
 		// Compute the inverse of the total bone influence for this vertex.
 		
-		float InvTotalInfluence = 1.f / 255.f;   // expected default - anything else could indicate a problem with the asset.
+		float InvTotalInfluence = UE::AnimationCore::InvMaxRawBoneWeightFloat;   // expected default - anything else could indicate a problem with the asset.
 		{
 			int32 TotalInfluence = 0;
 
 			for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)
 			{
-				const uint8 BoneInfluence = Vertex.InfluenceWeights[i];
+				const uint16 BoneInfluence = Vertex.InfluenceWeights[i];
 				TotalInfluence += BoneInfluence;
 			}
 
-			if (TotalInfluence != 255) // 255 is the expected value.  This logic just allows for graceful failure.
+			if (TotalInfluence != UE::AnimationCore::MaxRawBoneWeight) // 255 is the expected value.  This logic just allows for graceful failure.
 			{
 				// Not expected value - record that.
 				bValidBoneWeights = false;
@@ -565,7 +566,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)
 		{
 			const uint16 BoneIndex    = Vertex.InfluenceBones[i];
-			const uint8 BoneInfluence = Vertex.InfluenceWeights[i];
+			const uint16 BoneInfluence = Vertex.InfluenceWeights[i];
 
 			// Accumulate the bone influence for this vert into the BlendedMatrix
 
@@ -773,8 +774,8 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 				int32 localBoneId = (int32)SkinnedVertex.InfluenceBones[i];
 				const uint16 boneId = BoneMap[localBoneId];
 
-				const uint8 Influence = SkinnedVertex.InfluenceWeights[i];
-				double boneWeight = ((double)Influence) / 255.;
+				const uint16 Influence = SkinnedVertex.InfluenceWeights[i];
+				double boneWeight = ((double)Influence) / UE::AnimationCore::MaxRawBoneWeightFloat;
 
 				// For right now, only store bone weights that are greater than zero,
 				// by default the sparse data structure assumes a value of zero for 
@@ -1491,7 +1492,7 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 					for (int32 b = 0; b < MAX_TOTAL_INFLUENCES; ++b)
 					{
 						FBoneIndexType LocalBoneId = SrcRawSkinWeight.InfluenceBones[b];
-						uint8 Weight = SrcRawSkinWeight.InfluenceWeights[b];
+						uint16 Weight = SrcRawSkinWeight.InfluenceWeights[b];
 
 						checkSlow(LocalBoneId < BoneMap.Num());
 
@@ -1500,7 +1501,7 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 
 						if (Weight > 0)
 						{
-							SkeletalMeshImportData::FRawBoneInfluence RawBoneInfluence = { (float)Weight / 255.f,  VIdx, BoneId };
+							SkeletalMeshImportData::FRawBoneInfluence RawBoneInfluence = { (float)Weight / UE::AnimationCore::MaxRawBoneWeightFloat,  VIdx, BoneId };
 
 							RawBoneInfluences.Add(RawBoneInfluence);
 						}
@@ -1616,48 +1617,40 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 
 					// Add each bone / weight. 
 					// keep track of the total weight.  should sum to 255 and the first weight is the largest
-					int32 TotalQuantizedWeight = 0;
 					int32 InfluenceIndex = 0;
+					FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES];
+					float InfluenceWeights[MAX_TOTAL_INFLUENCES];
 					for (const auto& Pair : BoneWeight.GetData())
 					{
-						int32 BoneId = Pair.Key;
-						double Weight = Pair.Value;
-
-						// Transform weight to quantized weight
-						uint8 QuantizedWeight = FMath::Clamp((uint8)(Weight*((double)0xFF)), (uint8)0x00, (uint8)0xFF);
-
-						WeightAndBones.InfluenceWeights[InfluenceIndex] = QuantizedWeight;
-
-						TotalQuantizedWeight += QuantizedWeight;
-
-						// Transform boneID to local boneID 
-						// Use the BoneMap to encode this bone
-						int32 LocalBoneId = BoneMap.Find(BoneId);
-						if (LocalBoneId != INDEX_NONE)
+						const int32 BoneId = Pair.Key;
+						const int32 LocalBoneId = BoneMap.Find(BoneId);
+						if (ensure(LocalBoneId != INDEX_NONE))
 						{
-							WeightAndBones.InfluenceBones[InfluenceIndex] = LocalBoneId;
+							InfluenceBones[InfluenceIndex] = LocalBoneId;
+							InfluenceWeights[InfluenceIndex] = static_cast<float>(Pair.Value);
+							InfluenceIndex++;
 						}
-						else
-						{
-							// Map to root of section
-							WeightAndBones.InfluenceBones[InfluenceIndex] = 0;
-
-							check(0); // should never hit this
-						}
-						InfluenceIndex++;
 					}
-					if (InfluenceIndex > MaxNumInfluences)
+					
+					using namespace UE::AnimationCore;
+					FBoneWeights QuantizedWeights = FBoneWeights::Create(InfluenceBones, InfluenceWeights, InfluenceIndex);
+					
+					if (QuantizedWeights.Num() > MaxNumInfluences)
 					{
-						MaxNumInfluences = InfluenceIndex;
+						MaxNumInfluences = QuantizedWeights.Num();
 						if (MaxNumInfluences > Section.GetMaxBoneInfluences())
 						{
 							Section.MaxBoneInfluences = MaxNumInfluences;
 						}
 					}
-					//Use the same code has the build where we modify the index 0 to have a sum of 255 for all influence per skin vertex
-					int32 ExcessQuantizedWeight = 255 - TotalQuantizedWeight;
 
-					WeightAndBones.InfluenceWeights[0] += ExcessQuantizedWeight;
+					InfluenceIndex = 0;
+					for (FBoneWeight QuantizedWeight: QuantizedWeights)
+					{
+						WeightAndBones.InfluenceBones[InfluenceIndex] = QuantizedWeight.GetBoneIndex();
+						WeightAndBones.InfluenceWeights[InfluenceIndex] = QuantizedWeight.GetRawWeight();
+						InfluenceIndex++;
+					}
 				}
 			}
 			

@@ -2604,6 +2604,10 @@ struct FSkeletalMeshBuildSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
 	uint8 bUseHighPrecisionTangentBasis:1;
 
+	/** Use 16-bit precision for rendering skin weights, instead of 8-bit precision. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
+	uint8 bUseHighPrecisionSkinWeights:1;
+
 	/** If true, UVs will be stored at full floating point precision. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bUseFullPrecisionUVs:1;
@@ -2636,6 +2640,7 @@ struct FSkeletalMeshBuildSettings
 		, bComputeWeightedNormals(false)
 		, bRemoveDegenerates(true)
 		, bUseHighPrecisionTangentBasis(false)
+		, bUseHighPrecisionSkinWeights(false)
 		, bUseFullPrecisionUVs(false)
 		, bUseBackwardsCompatibleF16TruncUVs(false)
 		, ThresholdPosition(0.00002)
@@ -2653,6 +2658,7 @@ struct FSkeletalMeshBuildSettings
 			&& bComputeWeightedNormals == Other.bComputeWeightedNormals
 			&& bRemoveDegenerates == Other.bRemoveDegenerates
 			&& bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis
+			&& bUseHighPrecisionSkinWeights == Other.bUseHighPrecisionSkinWeights
 			&& bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs
 			&& bUseBackwardsCompatibleF16TruncUVs == Other.bUseBackwardsCompatibleF16TruncUVs
 			&& ThresholdPosition == Other.ThresholdPosition

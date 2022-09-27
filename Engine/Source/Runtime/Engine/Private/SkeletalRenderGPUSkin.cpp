@@ -1631,28 +1631,30 @@ void InitGPUSkinVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData, con
 	VertexBuffers.StaticVertexBuffers->StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, *VertexFactoryData);
 	VertexBuffers.StaticVertexBuffers->StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(VertexFactory, *VertexFactoryData, MAX_TEXCOORDS);
 
-	bool bUse16BitBoneIndex = VertexBuffers.SkinWeightVertexBuffer->Use16BitBoneIndex();
+	const FSkinWeightVertexBuffer* WeightBuffer = VertexBuffers.SkinWeightVertexBuffer; 
+	const bool bUse16BitBoneIndex = WeightBuffer->Use16BitBoneIndex();
+	const bool bUse16BitBoneWeight = WeightBuffer->Use16BitBoneWeight();
 	VertexFactoryData->bUse16BitBoneIndex = bUse16BitBoneIndex;
-	VertexFactoryData->NumBoneInfluences = VertexBuffers.SkinWeightVertexBuffer->GetMaxBoneInfluences();
+	VertexFactoryData->NumBoneInfluences = WeightBuffer->GetMaxBoneInfluences();
 
-	GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
+	GPUSkinBoneInfluenceType BoneInfluenceType = WeightBuffer->GetBoneInfluenceType();
 	if (BoneInfluenceType == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence)
 	{
 		FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = VertexFactory->GetShaderData();
-		ShaderData.InputWeightIndexSize = VertexBuffers.SkinWeightVertexBuffer->GetBoneIndexByteSize();
-		ShaderData.InputWeightStream = VertexBuffers.SkinWeightVertexBuffer->GetDataVertexBuffer()->GetSRV();
+		ShaderData.InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize() | (WeightBuffer->GetBoneWeightByteSize() << 8);
+		ShaderData.InputWeightStream = WeightBuffer->GetDataVertexBuffer()->GetSRV();
 
-		const FSkinWeightLookupVertexBuffer* LookupVertexBuffer = VertexBuffers.SkinWeightVertexBuffer->GetLookupVertexBuffer();
+		const FSkinWeightLookupVertexBuffer* LookupVertexBuffer = WeightBuffer->GetLookupVertexBuffer();
 		VertexFactoryData->BlendOffsetCount = FVertexStreamComponent(LookupVertexBuffer, 0, LookupVertexBuffer->GetStride(), VET_UInt);
 	}
 	else
 	{
 		// bone indices & weights
-		const FSkinWeightDataVertexBuffer* WeightDataVertexBuffer = VertexBuffers.SkinWeightVertexBuffer->GetDataVertexBuffer();
-		const uint32 Stride = VertexBuffers.SkinWeightVertexBuffer->GetConstantInfluencesVertexStride();
-		const uint32 WeightsOffset = VertexBuffers.SkinWeightVertexBuffer->GetConstantInfluencesBoneWeightsOffset();
+		const FSkinWeightDataVertexBuffer* WeightDataVertexBuffer = WeightBuffer->GetDataVertexBuffer();
+		const uint32 Stride = WeightBuffer->GetConstantInfluencesVertexStride();
+		const uint32 WeightsOffset = WeightBuffer->GetConstantInfluencesBoneWeightsOffset();
 		VertexFactoryData->BoneIndices = FVertexStreamComponent(WeightDataVertexBuffer, 0, Stride, bUse16BitBoneIndex ? VET_UShort4 : VET_UByte4);
-		VertexFactoryData->BoneWeights = FVertexStreamComponent(WeightDataVertexBuffer, WeightsOffset, Stride, VET_UByte4N);
+		VertexFactoryData->BoneWeights = FVertexStreamComponent(WeightDataVertexBuffer, WeightsOffset, Stride, bUse16BitBoneWeight ? VET_UShort4N : VET_UByte4N);
 
 		if (VertexFactoryData->NumBoneInfluences > MAX_INFLUENCES_PER_STREAM)
 		{
@@ -1660,7 +1662,7 @@ void InitGPUSkinVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData, con
 			VertexFactoryData->ExtraBoneIndices = FVertexStreamComponent(
 				WeightDataVertexBuffer, 4 * VertexBuffers.SkinWeightVertexBuffer->GetBoneIndexByteSize(), Stride, bUse16BitBoneIndex ? VET_UShort4 : VET_UByte4);
 			VertexFactoryData->ExtraBoneWeights = FVertexStreamComponent(
-				WeightDataVertexBuffer, WeightsOffset + 4, Stride, VET_UByte4N);
+				WeightDataVertexBuffer, WeightsOffset + 4 * VertexBuffers.SkinWeightVertexBuffer->GetBoneWeightByteSize(), Stride, bUse16BitBoneWeight ? VET_UShort4N : VET_UByte4N);
 		}
 	}
 

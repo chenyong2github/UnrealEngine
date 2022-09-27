@@ -28,6 +28,7 @@
 #include "Animation/MeshDeformerInstance.h"
 #include "Animation/MorphTarget.h"
 #include "AnimationRuntime.h"
+#include "BoneWeights.h"
 #include "Animation/SkinWeightProfileManager.h"
 #include "GPUSkinCache.h"
 #include "PipelineStateCache.h"
@@ -4066,7 +4067,8 @@ void CreateSectionSkinWeightsArray(
 				TargetWeight.InfluenceWeights[InfIndex] = 0;
 
 				// if we have a valid weight, see if we have a valid bone mapping for desired bone
-				uint8 InfWeight = SrcWeight.Weights[InfIndex];
+				// Map from 8-bit weights to 16-bit by aligning the min/max range.
+				const uint16 InfWeight = (SrcWeight.Weights[InfIndex] << 8) | SrcWeight.Weights[InfIndex];
 				if (InfWeight > 0)
 				{
 					const int32 SkelBoneIndex = SrcWeight.Bones[InfIndex];
@@ -4092,7 +4094,7 @@ void CreateSectionSkinWeightsArray(
 			bWeightUnderrun = true;
 
 			TargetWeight.InfluenceBones[0] = 0;
-			TargetWeight.InfluenceWeights[0] = 255;
+			TargetWeight.InfluenceWeights[0] = UE::AnimationCore::MaxRawBoneWeight;
 
 			for (int32 InfIndex = 1; InfIndex < MAX_TOTAL_INFLUENCES; InfIndex++)
 			{

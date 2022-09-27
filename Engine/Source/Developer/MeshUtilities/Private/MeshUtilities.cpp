@@ -109,6 +109,7 @@
 #include "UnrealEdMisc.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
+#include "BoneWeights.h"
 #include "MaterialBakingStructures.h"
 #include "IMaterialBakingModule.h"
 #include "MaterialOptions.h"
@@ -4070,27 +4071,43 @@ public:
 						InfluenceCount = EXTRA_BONE_INFLUENCES;
 					}
 
-					// Setup the vertex influences.
-					Vertex.InfluenceBones[0] = 0;
-					Vertex.InfluenceWeights[0] = 255;
-					for (uint32 i = 1; i < MAX_TOTAL_INFLUENCES; i++)
-					{
-						Vertex.InfluenceBones[i] = 0;
-						Vertex.InfluenceWeights[i] = 0;
-					}
+					using namespace UE::AnimationCore;
 
-					uint32	TotalInfluenceWeight = 0;
-					for (uint32 i = 0; i < InfluenceCount; i++)
+					// Setup the vertex influences.
+					FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES];
+					float InfluenceWeights[MAX_TOTAL_INFLUENCES];
+
+					int32 ActualInfluenceCount = 0; 
+					for (uint32 Index = 0; Index < InfluenceCount; Index++)
 					{
-						FBoneIndexType BoneIndex = (FBoneIndexType)BuildData.Influences[InfIdx + i].BoneIndex;
+						const FBoneIndexType BoneIndex = BuildData.Influences[InfIdx + Index].BoneIndex;
 						if (BoneIndex >= BuildData.RefSkeleton.GetRawBoneNum())
 							continue;
-
-						Vertex.InfluenceBones[i] = BoneIndex;
-						Vertex.InfluenceWeights[i] = (uint8)(BuildData.Influences[InfIdx + i].Weight * 255.0f);
-						TotalInfluenceWeight += Vertex.InfluenceWeights[i];
+					
+						InfluenceBones[ActualInfluenceCount] = BoneIndex;
+						InfluenceWeights[ActualInfluenceCount] = (BuildData.Influences[InfIdx + Index].Weight);
+						ActualInfluenceCount++;
 					}
-					Vertex.InfluenceWeights[0] += 255 - TotalInfluenceWeight;
+
+					const FBoneWeights BoneWeights = FBoneWeights::Create(InfluenceBones, InfluenceWeights, ActualInfluenceCount);
+				
+					FMemory::Memzero(Vertex.InfluenceBones);
+					FMemory::Memzero(Vertex.InfluenceWeights);
+				
+					if (BoneWeights.Num() == 0)
+					{
+						Vertex.InfluenceWeights[0] = std::numeric_limits<uint16>::max();
+					}
+					else
+					{
+						int32 Index = 0;
+						for (FBoneWeight BoneWeight: BoneWeights)
+						{
+							Vertex.InfluenceBones[Index] = BoneWeight.GetBoneIndex();
+							Vertex.InfluenceWeights[Index] = BoneWeight.GetRawWeight();
+							Index++;
+						}
+					}
 				}
 
 				// Add the vertex as well as its original index in the points array
@@ -4809,6 +4826,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 
 			{
 				// Count the influences.
+				using namespace UE::AnimationCore;
 
 				int32 InfIdx = WedgeInfluenceIndices[Face.iWedge[VertexIndex]];
 				int32 LookIdx = InfIdx;
@@ -4822,27 +4840,40 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				InfluenceCount = FMath::Min<uint32>(InfluenceCount, MAX_TOTAL_INFLUENCES);
 
 				// Setup the vertex influences.
+				FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES];
+				float InfluenceWeights[MAX_TOTAL_INFLUENCES];
 
-				Vertex.InfluenceBones[0] = 0;
-				Vertex.InfluenceWeights[0] = 255;
-				for (uint32 i = 1; i < MAX_TOTAL_INFLUENCES; i++)
+				int32 ActualInfluenceCount = 0; 
+				for (uint32 Index = 0; Index < InfluenceCount; Index++)
 				{
-					Vertex.InfluenceBones[i] = 0;
-					Vertex.InfluenceWeights[i] = 0;
-				}
-
-				uint32	TotalInfluenceWeight = 0;
-				for (uint32 i = 0; i < InfluenceCount; i++)
-				{
-					FBoneIndexType BoneIndex = (FBoneIndexType)Influences[InfIdx + i].BoneIndex;
+					const FBoneIndexType BoneIndex = Influences[InfIdx + Index].BoneIndex;
 					if (BoneIndex >= RefSkeleton.GetRawBoneNum())
 						continue;
-
-					Vertex.InfluenceBones[i] = BoneIndex;
-					Vertex.InfluenceWeights[i] = (uint8)(Influences[InfIdx + i].Weight * 255.0f);
-					TotalInfluenceWeight += Vertex.InfluenceWeights[i];
+					
+					InfluenceBones[ActualInfluenceCount] = BoneIndex;
+					InfluenceWeights[ActualInfluenceCount] = (Influences[InfIdx + Index].Weight);
+					ActualInfluenceCount++;
 				}
-				Vertex.InfluenceWeights[0] += 255 - TotalInfluenceWeight;
+
+				const FBoneWeights BoneWeights = FBoneWeights::Create(InfluenceBones, InfluenceWeights, ActualInfluenceCount);
+				
+				FMemory::Memzero(Vertex.InfluenceBones);
+				FMemory::Memzero(Vertex.InfluenceWeights);
+				
+				if (BoneWeights.Num() == 0)
+				{
+					Vertex.InfluenceWeights[0] = std::numeric_limits<uint16>::max();
+				}
+				else
+				{
+					int32 Index = 0;
+					for (FBoneWeight BoneWeight: BoneWeights)
+					{
+						Vertex.InfluenceBones[Index] = BoneWeight.GetBoneIndex();
+						Vertex.InfluenceWeights[Index] = BoneWeight.GetRawWeight();
+						Index++;
+					}
+				}
 			}
 
 			// Add the vertex as well as its original index in the points array
@@ -5957,7 +5988,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 
 				for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 				{
-					float Weight = static_cast<float>(Vertex.InfluenceWeights[InfluenceIndex]) / 255.0f;
+					float Weight = static_cast<float>(Vertex.InfluenceWeights[InfluenceIndex]) / 65535.0f;
 					if (FMath::IsNearlyZero(Weight))
 					{
 						break;
@@ -5965,7 +5996,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 					SkeletalMeshImportData::FRawBoneInfluence& Influence = ImportData.Influences.AddZeroed_GetRef();
 					Influence.VertexIndex = PointIndex;
 					Influence.BoneIndex = Section.BoneMap[Vertex.InfluenceBones[InfluenceIndex]];
-					Influence.Weight = static_cast<float>(Vertex.InfluenceWeights[InfluenceIndex]) / 255.0f;
+					Influence.Weight = static_cast<float>(Vertex.InfluenceWeights[InfluenceIndex]) / 65535.0f;
 				}
 			}
 		}
@@ -6057,7 +6088,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 					const FRawSkinWeight& SkinWeight = ImportedSkinWeightProfileData.SkinWeights[VerticeIndex];
 					for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 					{
-						float Weight = static_cast<float>(SkinWeight.InfluenceWeights[InfluenceIndex]) / 255.0f;
+						float Weight = static_cast<float>(SkinWeight.InfluenceWeights[InfluenceIndex]) / 65535.0f;
 						if (FMath::IsNearlyZero(Weight))
 						{
 							break;

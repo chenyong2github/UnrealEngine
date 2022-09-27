@@ -1605,6 +1605,24 @@ void FSkeletalMeshBuildSettingsLayout::GenerateChildContent(IDetailChildrenBuild
 	}
 
 	{
+		ChildrenBuilder.AddCustomRow(LOCTEXT("UseHighPrecisionSkinWeights", "Use High Precision Skin Weights"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("UseHighPrecisionSkinWeights", "Use High Precision Skin Weights"))
+			.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FSkeletalMeshBuildSettingsLayout::ShouldUseHighPrecisionSkinWeights)
+			.OnCheckStateChanged(this, &FSkeletalMeshBuildSettingsLayout::OnUseHighPrecisionSkinWeightsChanged)
+			.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+		];
+	}
+
+	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("UseFullPrecisionUVs", "Use Full Precision UVs") )
 		.NameContent()
 		[
@@ -1849,6 +1867,10 @@ ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldUseHighPrecisionTangentBa
 {
 	return BuildSettings.bUseHighPrecisionTangentBasis ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
+ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldUseHighPrecisionSkinWeights() const
+{
+	return BuildSettings.bUseHighPrecisionSkinWeights ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
 ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldUseFullPrecisionUVs() const
 {
 	return BuildSettings.bUseFullPrecisionUVs ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -1931,6 +1953,20 @@ void FSkeletalMeshBuildSettingsLayout::OnUseHighPrecisionTangentBasisChanged(ECh
 		BuildSettings.bUseHighPrecisionTangentBasis = bUseHighPrecisionTangents;
 	}
 }
+
+void FSkeletalMeshBuildSettingsLayout::OnUseHighPrecisionSkinWeightsChanged(ECheckBoxState NewState)
+{
+	const bool bUseHighPrecisionSkinWeights = (NewState == ECheckBoxState::Checked) ? true : false;
+	if (BuildSettings.bUseHighPrecisionSkinWeights != bUseHighPrecisionSkinWeights)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaChangedOnHighPrecisionSkinWeightsLOD", "LOD{0} build settings: use high precision skin weights changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.bUseHighPrecisionSkinWeights = bUseHighPrecisionSkinWeights;
+	}
+}
+
 void FSkeletalMeshBuildSettingsLayout::OnUseFullPrecisionUVsChanged(ECheckBoxState NewState)
 {
 	const bool bUseFullPrecisionUVs = (NewState == ECheckBoxState::Checked) ? true : false;

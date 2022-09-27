@@ -671,7 +671,7 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 					if (DestWeight.InfluenceWeights[Idx] > 0)
 					{
 						checkSlow(MergeSectionInfo.BoneMapToMergedBoneMap.IsValidIndex(DestWeight.InfluenceBones[Idx]));
-						DestWeight.InfluenceBones[Idx] = (uint8)MergeSectionInfo.BoneMapToMergedBoneMap[DestWeight.InfluenceBones[Idx]];
+						DestWeight.InfluenceBones[Idx] = (FBoneIndexType)MergeSectionInfo.BoneMapToMergedBoneMap[DestWeight.InfluenceBones[Idx]];
 					}
 				}
 			}

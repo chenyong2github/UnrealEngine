@@ -61,7 +61,7 @@ struct FRawSkinWeight
 {
 	// MAX_TOTAL_INFLUENCES for now
 	FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES];
-	uint8 InfluenceWeights[MAX_TOTAL_INFLUENCES];
+	uint16 InfluenceWeights[MAX_TOTAL_INFLUENCES];
 
 	friend FArchive& operator<<(FArchive& Ar, FRawSkinWeight& OverrideEntry);
 };

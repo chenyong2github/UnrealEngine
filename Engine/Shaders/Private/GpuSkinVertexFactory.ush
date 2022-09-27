@@ -70,7 +70,8 @@ float4x4 PreviousClothToLocal;
 #endif// #if GPUSKIN_APEX_CLOTH
 
 #if GPUSKIN_UNLIMITED_BONE_INFLUENCE
-uint InputWeightIndexSize; // bone index size: 1 - 8bit or 2 - 16bit
+// Bits 0-7 => Size of the bone weight index in bytes / bits 8-15 => Size of the bone weight weights value in bytes
+uint InputWeightIndexSize;
 Buffer<uint> InputWeightStream;
 #endif
 
@@ -536,24 +537,44 @@ FBoneMatrix CalcBoneMatrix( FVertexFactoryInput Input )
 #if GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	int NumBoneInfluences = Input.BlendOffsetCount & 0xff;
 	int StreamOffset = Input.BlendOffsetCount >> 8;
-	int WeightsOffset = StreamOffset + (InputWeightIndexSize * NumBoneInfluences);
+	int BoneIndexSize = InputWeightIndexSize & 0xff;
+	int BoneWeightSize = InputWeightIndexSize >> 8;
+	int WeightsOffset = StreamOffset + (BoneIndexSize * NumBoneInfluences);
 
 	FBoneMatrix BoneMatrix = FBoneMatrix(float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0));
 	for (int InfluenceIdx = 0; InfluenceIdx < NumBoneInfluences; InfluenceIdx++)
 	{
-		int BoneIndexOffset = StreamOffset + (InputWeightIndexSize * InfluenceIdx);
+		int BoneIndexOffset = StreamOffset + (BoneIndexSize * InfluenceIdx);
+		int BoneWeightOffset = WeightsOffset + InfluenceIdx * BoneWeightSize;
 		int BoneIndex = InputWeightStream[BoneIndexOffset];
-		if (InputWeightIndexSize > 1)
+		if (BoneIndexSize > 1)
 		{
 			BoneIndex = InputWeightStream[BoneIndexOffset + 1] << 8 | BoneIndex;
 			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
-			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			// Q: Is this workaround still necessary?
+			float BoneWeight;
+			if (BoneWeightSize > 1)
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset + 1] << 8 | InputWeightStream[BoneWeightOffset]) / 65535.0;
+			}
+			else
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset]) / 255.0f;
+			}
 			BoneMatrix += BoneWeight * GetBoneMatrix(BoneIndex);
 		}
 		else
 		{
 			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
-			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			float BoneWeight;
+			if (BoneWeightSize > 1)
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset + 1] << 8 | InputWeightStream[BoneWeightOffset]) / 65535.0;
+			}
+			else
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset]) / 255.0f;
+			}
 			BoneMatrix += BoneWeight * GetBoneMatrix(BoneIndex);
 		}
 	}
@@ -593,24 +614,43 @@ FBoneMatrix CalcPreviousBoneMatrix( FVertexFactoryInput Input )
 #if GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	int NumBoneInfluences = Input.BlendOffsetCount & 0xff;
 	int StreamOffset = Input.BlendOffsetCount >> 8;
-	int WeightsOffset = StreamOffset + (InputWeightIndexSize * NumBoneInfluences);
+	int BoneIndexSize = InputWeightIndexSize & 0xff;
+	int BoneWeightSize = InputWeightIndexSize >> 8;
+	int WeightsOffset = StreamOffset + (BoneIndexSize * NumBoneInfluences);
 
 	FBoneMatrix BoneMatrix = FBoneMatrix(float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0));
 	for (int InfluenceIdx = 0; InfluenceIdx < NumBoneInfluences; InfluenceIdx++)
 	{
-		int BoneIndexOffset = StreamOffset + (InputWeightIndexSize * InfluenceIdx);
+		int BoneIndexOffset = StreamOffset + (BoneIndexSize * InfluenceIdx);
+		int BoneWeightOffset = WeightsOffset + InfluenceIdx * BoneWeightSize;
 		int BoneIndex = InputWeightStream[BoneIndexOffset];
-		if (InputWeightIndexSize > 1)
+		if (BoneIndexSize > 1)
 		{
 			BoneIndex = InputWeightStream[BoneIndexOffset + 1] << 8 | BoneIndex;
 			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
-			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			float BoneWeight;
+			if (BoneWeightSize > 1)
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset + 1] << 8 | InputWeightStream[BoneWeightOffset]) / 65535.0;
+			}
+			else
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset]) / 255.0f;
+			}
 			BoneMatrix += BoneWeight * GetPreviousBoneMatrix(BoneIndex);
 		}
 		else
 		{
 			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
-			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			float BoneWeight;
+			if (BoneWeightSize > 1)
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset + 1] << 8 | InputWeightStream[BoneWeightOffset]) / 65535.0;
+			}
+			else
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset]) / 255.0f;
+			}
 			BoneMatrix += BoneWeight * GetPreviousBoneMatrix(BoneIndex);
 		}
 	}

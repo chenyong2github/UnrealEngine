@@ -188,6 +188,7 @@ FArchive& operator<<(FArchive& Ar, FImportedSkinWeightProfileData& ProfileData)
 FArchive& operator<<(FArchive& Ar, FRawSkinWeight& OverrideEntry)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.IsLoading())
 	{
@@ -211,6 +212,16 @@ FArchive& operator<<(FArchive& Ar, FRawSkinWeight& OverrideEntry)
 			}
 
 			Ar << OverrideEntry.InfluenceWeights[InfluenceIndex];
+		}
+	}
+	else if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IncreasedSkinWeightPrecision)
+	{
+		for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
+		{
+			uint8 Weight = 0;
+			Ar << OverrideEntry.InfluenceBones[InfluenceIndex];
+			Ar << Weight;
+			OverrideEntry.InfluenceWeights[InfluenceIndex] = (static_cast<uint16>(Weight) << 8) | Weight;
 		}
 	}
 	else

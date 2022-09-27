@@ -12,6 +12,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "AnimationBlueprintLibrary.h"
+#include "BoneWeights.h"
 #include "Async/ParallelFor.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSequenceHelpers.h"
@@ -223,7 +224,7 @@ public:
 				{
 					FSoftSkinVertex & Vert = Section.SoftVertices[VertIndex];
 
-					auto RemapBoneInfluenceVertexIndex = [&BoneMapRemapTable](FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES], uint8 InfluenceWeights[MAX_TOTAL_INFLUENCES])
+					auto RemapBoneInfluenceVertexIndex = [&BoneMapRemapTable](FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES], uint16 InfluenceWeights[MAX_TOTAL_INFLUENCES])
 					{
 						bool ShouldRenormalize = false;
 
@@ -464,7 +465,8 @@ public:
 				FSkelMeshSection& Section = NewModel->Sections[SectionIndex];
 				if (bBakePoseToRemovedInfluences)
 				{
-					const float InfluenceMultiplier = 1.0f / 255.0f;
+					using UE::AnimationCore::InvMaxRawBoneWeightFloat;
+					
 					for (FSoftSkinVertex& Vertex : Section.SoftVertices)
 					{
 						FVector TangentX = (FVector)Vertex.TangentX;
@@ -478,11 +480,11 @@ public:
 								const int32 ArrayIndex = BoneIndices.IndexOfByKey(Section.BoneMap[Vertex.InfluenceBones[InfluenceIndex]]);
 								if (ArrayIndex != INDEX_NONE)
 								{
-									Position += (FVector(RemovedBoneMatrices[ArrayIndex].TransformPosition((FVector)Vertex.Position)) - FVector(Vertex.Position)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									Position += (FVector(RemovedBoneMatrices[ArrayIndex].TransformPosition((FVector)Vertex.Position)) - FVector(Vertex.Position)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InvMaxRawBoneWeightFloat);
 
-									TangentX += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentX)) - FVector(Vertex.TangentX)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
-									TangentY += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentY)) - FVector(Vertex.TangentY)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
-									TangentZ += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentZ)) - FVector(Vertex.TangentZ)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									TangentX += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentX)) - FVector(Vertex.TangentX)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InvMaxRawBoneWeightFloat);
+									TangentY += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentY)) - FVector(Vertex.TangentY)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InvMaxRawBoneWeightFloat);
+									TangentZ += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentZ)) - FVector(Vertex.TangentZ)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InvMaxRawBoneWeightFloat);
 								}
 							}
 				        }

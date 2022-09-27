@@ -292,6 +292,7 @@ private:
 	ECheckBoxState ShouldComputeWeightedNormals() const;
 	ECheckBoxState ShouldRemoveDegenerates() const;
 	ECheckBoxState ShouldUseHighPrecisionTangentBasis() const;
+	ECheckBoxState ShouldUseHighPrecisionSkinWeights() const;
 	ECheckBoxState ShouldUseFullPrecisionUVs() const;
 	ECheckBoxState ShouldUseBackwardsCompatibleF16TruncUVs() const;
 
@@ -301,6 +302,7 @@ private:
 	void OnComputeWeightedNormalsChanged(ECheckBoxState NewState);
 	void OnRemoveDegeneratesChanged(ECheckBoxState NewState);
 	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
+	void OnUseHighPrecisionSkinWeightsChanged(ECheckBoxState NewState);
 	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
 	void OnUseBackwardsCompatibleF16TruncUVsChanged(ECheckBoxState NewState);
 
@@ -320,6 +322,7 @@ private:
 	};
 	TArray<FSliderStateData> SliderStateDataArray;
 };
+
 
 class FPersonaMeshDetails : public IDetailCustomization
 {

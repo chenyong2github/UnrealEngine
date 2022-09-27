@@ -64,6 +64,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FSkeletalMeshBuildSetting
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseFullPrecisionUVs);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseBackwardsCompatibleF16TruncUVs);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseHighPrecisionTangentBasis);
+	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseHighPrecisionSkinWeights);
 	Ar << BuildSettings.ThresholdPosition;
 	Ar << BuildSettings.ThresholdTangentNormal;
 	Ar << BuildSettings.ThresholdUV;
@@ -98,6 +99,7 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 		FString BakePoseOverridePath = BakePoseOverride->GetFullName();
 		Ar << BakePoseOverridePath;
 	}
+	
 	FArchive_Serialize_BitfieldBool(Ar, bAllowCPUAccess);
 	FArchive_Serialize_BitfieldBool(Ar, bSupportUniformlyDistributedSampling);
 

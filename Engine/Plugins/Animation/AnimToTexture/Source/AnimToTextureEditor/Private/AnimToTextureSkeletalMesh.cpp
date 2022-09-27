@@ -389,11 +389,11 @@ void GetSkinWeightsData(const USkeletalMesh& SkeletalMesh, const int32 LODIndex,
 		// Store Weights
 		for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 		{
-			const uint8& BoneWeight = SkinWeightInfo.InfluenceWeights[InfluenceIndex];
+			const uint16& BoneWeight = SkinWeightInfo.InfluenceWeights[InfluenceIndex];
 			const uint16& BoneIndex = SkinWeightInfo.InfluenceBones[InfluenceIndex];
 			const uint16& MeshBoneIndex = RenderSection.BoneMap[BoneIndex];
 
-			SkinWeights[VertexIndex].BoneWeights[InfluenceIndex] = BoneWeight;
+			SkinWeights[VertexIndex].BoneWeights[InfluenceIndex] = BoneWeight >> 8;
 			SkinWeights[VertexIndex].BoneIndices[InfluenceIndex] = BoneIndex;
 			SkinWeights[VertexIndex].MeshBoneIndices[InfluenceIndex] = MeshBoneIndex;
 		}

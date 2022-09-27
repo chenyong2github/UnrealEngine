@@ -283,6 +283,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Reintroducing AnimationDataModelInterface_BackedOut changes
 		ReintroduceAnimationDataModelInterface,
 
+		// Support 16-bit skin weights on SkeletalMesh
+		IncreasedSkinWeightPrecision,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

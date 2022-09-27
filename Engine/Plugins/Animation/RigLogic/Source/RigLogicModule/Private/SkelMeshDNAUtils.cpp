@@ -23,6 +23,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "AnimationRuntime.h"
+#include "BoneWeights.h"
 
 #include "riglogic/RigLogic.h"
 
@@ -350,7 +351,7 @@ void USkelMeshDNAUtils::UpdateSkinWeights(USkeletalMesh* SkelMesh, IDNAReader* D
 					if (BoneMapIndex != INDEX_NONE)
 					{
 						// Update influence weight.
-						EngineWeight = (uint8)(NormalizedSkinWeights[InfluenceIndex] * 255.0f);
+						EngineWeight = (uint16)(NormalizedSkinWeights[InfluenceIndex] * UE::AnimationCore::MaxRawBoneWeightFloat);
 					}
 
 					Vertex.InfluenceWeights[InfluenceIndex] = EngineWeight;
@@ -362,8 +363,8 @@ void USkelMeshDNAUtils::UpdateSkinWeights(USkeletalMesh* SkelMesh, IDNAReader* D
 						MaxInfluenceWeight = EngineWeight;
 					}
 				}
-				// Add missing fraction to fill up to 255.
-				Vertex.InfluenceWeights[MaxInfluenceIndex] += 255 - TotalWeight;
+				// Add missing fraction to fill up the bone weights.
+				Vertex.InfluenceWeights[MaxInfluenceIndex] += UE::AnimationCore::MaxRawBoneWeight - TotalWeight;
 			}
 		}
 	}
@@ -394,7 +395,7 @@ void USkelMeshDNAUtils::RebuildRenderData(USkeletalMesh* SkelMesh)
 			}
 
 			const FSkeletalMeshLODModel* LODModelPtr = &LODModelRef;
-			LODRenderData.BuildFromLODModel(LODModelPtr, 0);
+			LODRenderData.BuildFromLODModel(LODModelPtr);
 			LODIndex++;
 		}
 	}

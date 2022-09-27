@@ -31,6 +31,19 @@ The maximum number of inline bone weights.
 */
 static constexpr int32 MaxInlineBoneWeightCount = MAX_TOTAL_INFLUENCES;
 
+/** The maximum raw weight value */
+static constexpr uint16 MaxRawBoneWeight = std::numeric_limits<uint16>::max();
+
+/** The maximum raw weight value as a float value */
+static constexpr float MaxRawBoneWeightFloat = static_cast<float>(std::numeric_limits<uint16>::max());
+
+/** The inverse of the maximum raw weight value as a float value. Used for scaling. */
+static constexpr float InvMaxRawBoneWeightFloat = 1.0f / MaxRawBoneWeightFloat;
+
+/** The threshold value at or above which a 0-1 normalized bone weight value will be stored as a non-zero value after
+ *  scaling and quantizing to a 16-bit integer */
+static constexpr float BoneWeightThreshold = InvMaxRawBoneWeightFloat;
+
 class FBoneWeight
 {
 public:
@@ -389,7 +402,7 @@ public:
 	inline typename std::enable_if<!std::is_const<CT>::value, void>::type
 	SetBoneWeights(
 		const FBoneIndexType InBones[MaxInlineBoneWeightCount],
-		const uint8 InInfluences[MaxInlineBoneWeightCount],
+		const uint16 InInfluences[MaxInlineBoneWeightCount],
 		const FBoneWeightsSettings& InSettings = {});
 
 	template<typename CT = ContainerType>
@@ -602,7 +615,7 @@ public:
 	/** A helper to create a FBoneWeights container from FSoftSkinVertex data structure. */
 	static inline FBoneWeights Create(
 	    const FBoneIndexType InBones[MaxInlineBoneWeightCount],
-	    const uint8 InWeights[MaxInlineBoneWeightCount],
+	    const uint16 InWeights[MaxInlineBoneWeightCount],
 	    const FBoneWeightsSettings& InSettings = {});
 
 	/** A helper to create a FBoneWeights container from separated bone index and weight arrays.
@@ -781,7 +794,7 @@ template<typename CT>
 typename std::enable_if<!std::is_const<CT>::value, void>::type
 TBoneWeights<ContainerAdapter>::SetBoneWeights(
 	const FBoneIndexType InBones[MaxInlineBoneWeightCount],
-	const uint8 InInfluences[MaxInlineBoneWeightCount],
+	const uint16 InInfluences[MaxInlineBoneWeightCount],
 	const FBoneWeightsSettings& InSettings /*= {}*/)
 {
 	// The weights are valid until the first zero influence.
@@ -1262,7 +1275,7 @@ void FBoneWeights::Renormalize(const FBoneWeightsSettings& InSettings /*= {}*/)
 
 FBoneWeights FBoneWeights::Create(
     const FBoneIndexType InBones[MaxInlineBoneWeightCount],
-    const uint8 InInfluences[MaxInlineBoneWeightCount],
+    const uint16 InInfluences[MaxInlineBoneWeightCount],
     const FBoneWeightsSettings& InSettings /*= {} */
 )
 {

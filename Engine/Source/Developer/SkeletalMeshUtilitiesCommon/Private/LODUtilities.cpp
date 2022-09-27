@@ -2,6 +2,8 @@
 
 #include "LODUtilities.h"
 
+#include "BoneWeights.h"
+
 #if WITH_EDITOR
 
 #include "Misc/MessageDialog.h"
@@ -47,7 +49,6 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, SkeletalMeshUtilitiesCommon)
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODUtilities, Log, All);
 
-
 /**
 * Process and update the vertex Influences using the predefined wedges
 *
@@ -79,7 +80,6 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 	int32	InfluenceCount = 0;
 
 	float TotalWeight = 0.f;
-	const float MINWEIGHT = 0.01f;
 
 	int MaxVertexInfluence = 0;
 	float MaxIgnoredWeight = 0.0f;
@@ -163,7 +163,8 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 		}
 
 		// if less than min weight, or it's more than 8, then we clear it to use weight
-		if (Influences[i].Weight > MINWEIGHT && InfluenceCount < MAX_TOTAL_INFLUENCES)
+		if (Influences[i].Weight >= UE::AnimationCore::BoneWeightThreshold &&
+			InfluenceCount < MAX_TOTAL_INFLUENCES)
 		{
 			LastNewInfluenceIndex = NewInfluences.Add(Influences[i]);
 			InfluenceCount++;
@@ -2632,12 +2633,6 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel&
 		const int32 VertexIndex = LODModelDest.MeshToImportVertexMap[VertexInstanceIndex];
 		check(VertexIndex >= 0 && VertexIndex <= LODModelDest.MaxImportVertex);
 		FRawSkinWeight& SkinWeight = SkinWeights.AddDefaulted_GetRef();
-		//Zero out all value
-		for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
-		{
-			SkinWeight.InfluenceBones[InfluenceIndex] = 0;
-			SkinWeight.InfluenceWeights[InfluenceIndex] = 0;
-		}
 
 		TMap<FBoneIndexType, float> WeightForBone;
 		for (const SkeletalMeshImportData::FVertInfluence& VertInfluence : ImportedProfileData.SourceModelInfluences)
@@ -2656,32 +2651,51 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel&
 			}
 		}
 
+		using namespace UE::AnimationCore;
 
 		//Add the prepared alternate influences for this skin vertex
-		uint32	TotalInfluenceWeight = 0;
-		int32 InfluenceBoneIndex = 0;
+		int32 InfluenceBoneCount = 0;
+		
+		FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES];
+		float InfluenceWeights[MAX_TOTAL_INFLUENCES];
+		
 		for (auto Kvp : WeightForBone)
 		{
-			SkinWeight.InfluenceBones[InfluenceBoneIndex] = Kvp.Key;
-			SkinWeight.InfluenceWeights[InfluenceBoneIndex] = FMath::Clamp((uint8)(Kvp.Value*((float)0xFF)), (uint8)0x00, (uint8)0xFF);
-			TotalInfluenceWeight += SkinWeight.InfluenceWeights[InfluenceBoneIndex];
-			InfluenceBoneIndex++;
-			if (InfluenceBoneIndex >= MaxInfluenceCount)
-			{
-				break;
-			}
+			InfluenceBones[InfluenceBoneCount] = Kvp.Key;
+			InfluenceWeights[InfluenceBoneCount] = Kvp.Value;
+			InfluenceBoneCount++;
 		}
-		//Adjust section influence count if the alternate influence bone count is greater
-		if (InfluenceBoneIndex > MaxNumInfluences)
+
+		const FBoneWeights BoneWeights = FBoneWeights::Create(InfluenceBones, InfluenceWeights, InfluenceBoneCount);
+		FMemory::Memzero(SkinWeight.InfluenceBones);
+		FMemory::Memzero(SkinWeight.InfluenceWeights);
+	
+		if (BoneWeights.Num() == 0)
 		{
-			MaxNumInfluences = InfluenceBoneIndex;
+			SkinWeight.InfluenceWeights[0] = std::numeric_limits<uint16>::max();
+			InfluenceBoneCount = 1;
+		}
+		else
+		{
+			int32 Index = 0;
+			for (FBoneWeight BoneWeight: BoneWeights)
+			{
+				SkinWeight.InfluenceBones[Index] = BoneWeight.GetBoneIndex();
+				SkinWeight.InfluenceWeights[Index] = BoneWeight.GetRawWeight();
+				Index++;
+			}
+			InfluenceBoneCount = BoneWeights.Num(); 
+		}
+
+		//Adjust section influence count if the alternate influence bone count is greater
+		if (InfluenceBoneCount > MaxNumInfluences)
+		{
+			MaxNumInfluences = InfluenceBoneCount;
 			if (MaxNumInfluences > Section.GetMaxBoneInfluences())
 			{
 				Section.MaxBoneInfluences = MaxNumInfluences;
 			}
 		}
-		//Use the same code has the build where we modify the index 0 to have a sum of 255 for all influence per skin vertex
-		SkinWeight.InfluenceWeights[0] += 255 - TotalInfluenceWeight;
 	}
 }
 

@@ -358,7 +358,7 @@ bool FBoneWeightsTestCreate::RunTest(const FString& Parameters)
 
 	{
 		static const FBoneIndexType Bones[MaxInlineBoneWeightCount] = { 0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0 };
-		static const uint8 Influences[MaxInlineBoneWeightCount] = { 255, 31, 63, 127, 0, 0, 0, 0, 0, 0, 0, 0 };
+		static const uint16 Influences[MaxInlineBoneWeightCount] = { 65535, 8191, 16383, 32767, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 		{
 			const TCHAR* Name = TEXT("FBoneWeights::Create[FSoftSkinVertex, Threshold]");

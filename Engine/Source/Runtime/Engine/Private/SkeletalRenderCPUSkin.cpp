@@ -745,6 +745,8 @@ static void SkinVertexSection(
 	float ClothBlendWeight, 
 	const FMatrix& WorldToLocal)
 {
+	static constexpr VectorRegister VECTOR_INV_65535 = MakeVectorRegisterDoubleConstant(1.0 / 65535, 1.0 / 65535, 1.0 / 65535, 1.0 / 65535);
+	
 	// VertexCopy for morph. Need to allocate right struct
 	// To avoid re-allocation, create 2 statics, and assign right struct
 	VertexType  VertexCopy;
@@ -795,23 +797,23 @@ static void SkinVertexSection(
 			}
 
 			const FBoneIndexType* RESTRICT BoneIndices = SrcWeights.InfluenceBones;
-			const uint8* RESTRICT BoneWeights = SrcWeights.InfluenceWeights;
+			const uint16* RESTRICT BoneWeights = SrcWeights.InfluenceWeights;
 
 			static VectorRegister	SrcNormals[3];
 			VectorRegister			DstNormals[3];
 			SrcNormals[0] = VectorLoadFloat3_W1( &MorphedVertex->Position);
 			SrcNormals[1] = Unpack3( &MorphedVertex->TangentX.Vector.Packed );
 			SrcNormals[2] = Unpack4( &MorphedVertex->TangentZ.Vector.Packed );
-			VectorRegister Weights = VectorMultiply( VectorLoadByte4(BoneWeights), VECTOR_INV_255 );
+			VectorRegister Weights = VectorMultiply( VectorLoadURGBA16N(BoneWeights), VECTOR_INV_65535 );
 			VectorRegister ExtraWeights = MakeVectorRegister(0.f, 0.f, 0.f, 0.f);
 			VectorRegister ExtraWeights2 = MakeVectorRegister(0.f, 0.f, 0.f, 0.f);
 			if (MaxSectionBoneInfluences > 4)
 			{
-				ExtraWeights = VectorMultiply( VectorLoadByte4(&BoneWeights[MAX_INFLUENCES_PER_STREAM]), VECTOR_INV_255 );
+				ExtraWeights = VectorMultiply( VectorLoadURGBA16N(&BoneWeights[MAX_INFLUENCES_PER_STREAM]), VECTOR_INV_65535 );
 			}
 			if (MaxSectionBoneInfluences > 8)
 			{
-				ExtraWeights2 = VectorMultiply(VectorLoadByte4(&BoneWeights[EXTRA_BONE_INFLUENCES]), VECTOR_INV_255);
+				ExtraWeights2 = VectorMultiply(VectorLoadURGBA16N(&BoneWeights[EXTRA_BONE_INFLUENCES]), VECTOR_INV_65535);
 			}
 			VectorResetFloatRegisters(); // Need to call this to be able to use regular floating point registers again after Unpack and VectorLoadByte4.
 
@@ -1121,8 +1123,6 @@ FVector4 GetTangetToColor(FPackedNormal Tangent)
  */
 static FORCEINLINE void CalculateSectionBoneWeights(FFinalSkinVertex*& DestVertex, FSkinWeightVertexBuffer& SkinWeightVertexBuffer, FSkelMeshRenderSection& Section, const TArray<int32>& BonesOfInterest)
 {
-	const float INV255 = 1.f/255.f;
-
 	int32 VertexBufferBaseIndex = 0;
 
 	//array of bone mapping
@@ -1138,14 +1138,14 @@ static FORCEINLINE void CalculateSectionBoneWeights(FFinalSkinVertex*& DestVerte
 		DestVertex->TextureCoordinates[0].Y = 0.0f;
 
 		const FBoneIndexType* RESTRICT BoneIndices = SrcWeight.InfluenceBones;
-		const uint8* RESTRICT BoneWeights = SrcWeight.InfluenceWeights;
+		const uint16* RESTRICT BoneWeights = SrcWeight.InfluenceWeights;
 
 		for (uint32 i = 0; i < SkinWeightVertexBuffer.GetMaxBoneInfluences(); i++)
 		{
 			if (BonesOfInterest.Contains(BoneMap[BoneIndices[i]]))
 			{
-				DestVertex->TextureCoordinates[0].X += BoneWeights[i] * INV255; 
-				DestVertex->TextureCoordinates[0].Y += BoneWeights[i] * INV255;
+				DestVertex->TextureCoordinates[0].X += BoneWeights[i] / 65535.0; 
+				DestVertex->TextureCoordinates[0].Y += BoneWeights[i] / 65535.0;
 			}
 		}
 	}

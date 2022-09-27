@@ -144,7 +144,8 @@ struct FVertexFactoryIntermediates
 };
 
 #if GPUSKIN_UNLIMITED_BONE_INFLUENCE
-uint InputWeightIndexSize; // bone index size: 1 - 8bit or 2 - 16bit
+// Bits 0-7 => Size of the bone weight index in bytes / bits 8-15 => Size of the bone weight weights value in bytes
+uint InputWeightIndexSize;	
 Buffer<uint> InputWeightLookupStream;
 #endif
 Buffer<uint> InputWeightStream;
@@ -155,24 +156,43 @@ FBoneMatrix CalcBoneMatrix( FVertexUnpacked VertexUnpacked, uint VertexIndex )
 	uint BlendOffsetCount = InputWeightLookupStream[VertexIndex];
 	int NumBoneInfluences = BlendOffsetCount & 0xff;
 	int StreamOffset = BlendOffsetCount >> 8;
-	int WeightsOffset = StreamOffset + (InputWeightIndexSize * NumBoneInfluences);
+	int BoneIndexSize = InputWeightIndexSize & 0xff;
+	int BoneWeightSize = InputWeightIndexSize >> 8;
+	int WeightsOffset = StreamOffset + (BoneIndexSize * NumBoneInfluences);
 
 	FBoneMatrix BoneMatrix = FBoneMatrix(float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0));
 	for (int InfluenceIdx = 0; InfluenceIdx < NumBoneInfluences; InfluenceIdx++)
 	{
-		int BoneIndexOffset = StreamOffset + (InputWeightIndexSize * InfluenceIdx);
+		int BoneIndexOffset = StreamOffset + (BoneIndexSize * InfluenceIdx);
+		int BoneWeightOffset = WeightsOffset + InfluenceIdx * BoneWeightSize;
 		int BoneIndex = InputWeightStream[BoneIndexOffset];
-		if (InputWeightIndexSize > 1)
+		if (BoneIndexSize > 1)
 		{
 			BoneIndex = InputWeightStream[BoneIndexOffset + 1] << 8 | BoneIndex;
 			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
-			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			float BoneWeight;
+			if (BoneWeightSize > 1)
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset + 1] << 8 | InputWeightStream[BoneWeightOffset]) / 65535.0;
+			}
+			else
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset]) / 255.0f;
+			}
 			BoneMatrix += BoneWeight * FBoneMatrix(BoneMatrices[BoneIndex*3], BoneMatrices[BoneIndex*3+1], BoneMatrices[BoneIndex*3+2]);
 		}
 		else
 		{
 			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
-			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			float BoneWeight;
+			if (BoneWeightSize > 1)
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset + 1] << 8 | InputWeightStream[BoneWeightOffset]) / 65535.0;
+			}
+			else
+			{
+				BoneWeight = float(InputWeightStream[BoneWeightOffset]) / 255.0f;
+			}
 			BoneMatrix += BoneWeight * FBoneMatrix(BoneMatrices[BoneIndex*3], BoneMatrices[BoneIndex*3+1], BoneMatrices[BoneIndex*3+2]);
 		}
 	}
@@ -242,6 +262,22 @@ FVertexUnpacked UnpackedVertex(uint MorphIndex, uint ClothIndex, uint ClothIndex
 	Unpacked.BlendIndices2.w = BlendIndices >> 24 & 0xff;
 #endif
 #endif // GPUSKIN_BONE_INDEX_UINT16
+#if GPUSKIN_BONE_WEIGHTS_UINT16
+	uint BlendWeights = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS];
+	Unpacked.BlendWeights.x = float(BlendWeights & 0xffff) / 65535.0f;
+	Unpacked.BlendWeights.y = float(BlendWeights >> 16 & 0xffff) / 65535.0f;
+	BlendWeights = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS + 1];
+	Unpacked.BlendWeights.z = float(BlendWeights & 0xffff) / 65535.0f;
+	Unpacked.BlendWeights.w = float(BlendWeights >> 16 & 0xffff) / 65535.0f;
+#if GPUSKIN_USE_EXTRA_INFLUENCES
+	BlendWeights = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS + 2];
+	Unpacked.BlendWeights2.x = float(BlendWeights & 0xffff) / 65535.0f;
+	Unpacked.BlendWeights2.y = float(BlendWeights >> 16 & 0xffff) / 65535.0f;
+	BlendWeights = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS + 3];
+	Unpacked.BlendWeights2.z = float(BlendWeights & 0xffff) / 65535.0f;
+	Unpacked.BlendWeights2.w = float(BlendWeights >> 16 & 0xffff) / 65535.0f;
+#endif
+#else
 	uint BlendWeights = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS];
 	Unpacked.BlendWeights.x = float(BlendWeights & 0xff) / 255.0f;
 	Unpacked.BlendWeights.y = float(BlendWeights >> 8 & 0xff) / 255.0f;
@@ -254,6 +290,8 @@ FVertexUnpacked UnpackedVertex(uint MorphIndex, uint ClothIndex, uint ClothIndex
 	Unpacked.BlendWeights2.z = float(BlendWeights >> 16 & 0xff) / 255.0f;
 	Unpacked.BlendWeights2.w = float(BlendWeights >> 24 & 0xff) / 255.0f;
 #endif
+#endif // GPUSKIN_BONE_WEIGHTS_UINT16
+
 #endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
 
 #if GPUSKIN_MORPH_BLEND

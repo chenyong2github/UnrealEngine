@@ -208,7 +208,7 @@ public:
 	virtual void SetSkinWeightProfilesData(int32 LODIndex, struct FSkinWeightProfilesData& SkinWeightProfilesData) {}
 
 	/** Computes flags for building vertex buffers. */
-	virtual uint32 GetVertexBufferFlags() const
+	virtual ESkeletalMeshVertexFlags GetVertexBufferFlags() const
 	{ return GetHasVertexColors() ? ESkeletalMeshVertexFlags::HasVertexColors : ESkeletalMeshVertexFlags::None; }
 
 	/**

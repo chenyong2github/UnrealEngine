@@ -3,6 +3,7 @@
 #include "ClothingAssetFactory.h"
 
 #include "BoneIndices.h"
+#include "BoneWeights.h"
 #include "ClothLODData.h"
 #include "ClothPhysicalMeshData.h"
 #include "ClothVertBoneData.h"
@@ -440,7 +441,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 			{
 				FName BoneName = SourceMesh->GetRefSkeleton().GetBoneName(SourceIndex);
 				BoneData.BoneIndices[InfluenceIndex] = DestAsset->UsedBoneNames.AddUnique(BoneName);
-				BoneData.BoneWeights[InfluenceIndex] = (float)SourceVert.InfluenceWeights[InfluenceIndex] / 255.0f;
+				BoneData.BoneWeights[InfluenceIndex] = (float)SourceVert.InfluenceWeights[InfluenceIndex] / UE::AnimationCore::MaxRawBoneWeightFloat;
 			}
 		}
 	}

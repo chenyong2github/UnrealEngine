@@ -31,7 +31,7 @@ struct FSoftSkinBuildVertex
 	FVector2f		UVs[MAX_TEXCOORDS]; // UVs
 	FColor			Color;		// VertexColor
 	FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
-	uint8			InfluenceWeights[MAX_TOTAL_INFLUENCES];
+	uint16			InfluenceWeights[MAX_TOTAL_INFLUENCES];
 	uint32 PointWedgeIdx;
 };
 

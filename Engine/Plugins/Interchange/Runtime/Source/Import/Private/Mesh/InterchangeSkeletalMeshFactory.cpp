@@ -582,8 +582,6 @@ namespace UE
 				int32	InfluenceCount = 0;
 
 				float TotalWeight = 0.f;
-				const float MINWEIGHT = 0.01f;
-
 				int MaxVertexInfluence = 0;
 				float MaxIgnoredWeight = 0.0f;
 
@@ -666,8 +664,9 @@ namespace UE
 						LastVertexIndex = Influences[i].VertexIndex;
 					}
 
-					// if less than min weight, or it's more than 8, then we clear it to use weight
-					if (Influences[i].Weight > MINWEIGHT && InfluenceCount < MAX_TOTAL_INFLUENCES)
+					// if less than min weight, or it's more than 12, then we clear it to use weight
+					if (Influences[i].Weight >= UE::AnimationCore::BoneWeightThreshold &&
+						InfluenceCount < MAX_TOTAL_INFLUENCES)
 					{
 						LastNewInfluenceIndex = NewInfluences.Add(Influences[i]);
 						InfluenceCount++;

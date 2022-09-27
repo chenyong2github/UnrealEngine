@@ -23,6 +23,7 @@
 #include "Animation/AnimCurveTypes.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
+#include "BoneWeights.h"
 #include "ControlRig.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "IMovieScenePlayer.h"
@@ -848,7 +849,7 @@ namespace UnrealToUsdImpl
 								int32 BoneIndex = Section.BoneMap[ Vertex.InfluenceBones[ InfluenceIndex ] ];
 
 								JointIndices.push_back( BoneIndex );
-								JointWeights.push_back( Vertex.InfluenceWeights[ InfluenceIndex ] / 255.0f );
+								JointWeights.push_back( Vertex.InfluenceWeights[ InfluenceIndex ] / UE::AnimationCore::MaxRawBoneWeightFloat );
 							}
 						}
 					}

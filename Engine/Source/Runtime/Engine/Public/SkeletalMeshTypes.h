@@ -22,17 +22,16 @@ class FSkeletalMeshRenderData;
 class FSkeletalMeshLODRenderData;
 
 /** Flags used when building vertex buffers. */
-struct ESkeletalMeshVertexFlags
+enum class ESkeletalMeshVertexFlags
 {
-	enum
-	{
-		None = 0x0,
-		UseFullPrecisionUVs = 0x1,
-		HasVertexColors = 0x2,
-		UseHighPrecisionTangentBasis = 0x4,
-		UseBackwardsCompatibleF16TruncUVs = 0x8
-	};
+	None								= 0x0,
+	UseFullPrecisionUVs					= 0x1,
+	HasVertexColors						= 0x2,
+	UseHighPrecisionTangentBasis		= 0x4,
+	UseBackwardsCompatibleF16TruncUVs	= 0x8,
+	UseHighPrecisionWeights				= 0x10,
 };
+ENUM_CLASS_FLAGS(ESkeletalMeshVertexFlags);
 
 /** Name of vertex color channels, used by recompute tangents */
 enum class ESkinVertexColorChannel : uint8

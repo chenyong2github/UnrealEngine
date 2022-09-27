@@ -59,7 +59,7 @@ struct TLegacySkinWeightInfo
 struct FSkinWeightInfo
 {
 	FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
-	uint8			InfluenceWeights[MAX_TOTAL_INFLUENCES];
+	uint16			InfluenceWeights[MAX_TOTAL_INFLUENCES];
 };
 
 struct FSkinWeightRHIInfo
@@ -218,7 +218,7 @@ public:
 	/** Delete existing resources */
 	ENGINE_API void CleanUp();
 
-	ENGINE_API void Init(uint32 InNumBones, uint32 InNumVertices);
+	ENGINE_API void Init(uint32 InNumWeights, uint32 InNumVertices);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightDataVertexBuffer& VertexBuffer);
 
@@ -236,17 +236,27 @@ public:
 	FORCEINLINE uint32 GetNumVertices() const
 	{ return NumVertices; }
 
-	/** @return number of bones in this vertex buffer */
-	FORCEINLINE uint32 GetNumBones() const
-	{ return NumBones; }
+	/** @return number of bone weights in this vertex buffer */
+	FORCEINLINE uint32 GetNumBoneWeights() const
+	{ return NumBoneWeights; }
 
 	/** @return byte size of each bone index */
 	FORCEINLINE uint32 GetBoneIndexByteSize() const
 	{ return (Use16BitBoneIndex() ? sizeof(FBoneIndex16) : sizeof(FBoneIndex8)); }
 
+	FORCEINLINE uint32 GetBoneWeightByteSize() const
+	{
+		return Use16BitBoneWeight() ? sizeof(uint16) : sizeof(uint8);
+	}
+
+	FORCEINLINE uint32 GetBoneIndexAndWeightByteSize() const
+	{
+		return GetBoneIndexByteSize() + GetBoneWeightByteSize(); 
+	}
+
 	/** @return vertex stride for when using constant number of bones per vertex buffer */
 	FORCEINLINE uint32 GetConstantInfluencesVertexStride() const
-	{ return (GetBoneIndexByteSize() + sizeof(uint8)) * MaxBoneInfluences; }
+	{ return GetBoneIndexAndWeightByteSize() * MaxBoneInfluences; }
 
 	/** @return offset position for bone weights data for each vertex */
 	FORCEINLINE uint32 GetConstantInfluencesBoneWeightsOffset() const
@@ -254,7 +264,7 @@ public:
 
 	/** @return total size of data in resource array */
 	FORCEINLINE uint32 GetVertexDataSize() const
-	{ return NumBones * (GetBoneIndexByteSize() + sizeof(uint8)); }
+	{ return NumBoneWeights * GetBoneIndexAndWeightByteSize(); }
 
 	// @param guaranteed only to be valid if the vertex buffer is valid
 	FRHIShaderResourceView* GetSRV() const
@@ -281,13 +291,21 @@ public:
 
 	FORCEINLINE bool Use16BitBoneIndex() const
 	{ return bUse16BitBoneIndex; }
+	
+	void SetUse16BitBoneWeight(bool bInUse16BitBoneWeight)
+	{ bUse16BitBoneWeight = bInUse16BitBoneWeight; }
+
+	bool Use16BitBoneWeight() const
+	{ return bUse16BitBoneWeight; }
+	
+	
 
 	ENGINE_API GPUSkinBoneInfluenceType GetBoneInfluenceType() const;
 	ENGINE_API bool GetRigidWeightBone(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, int32& OutBoneIndex) const;
 	ENGINE_API uint32 GetBoneIndex(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
 	ENGINE_API void SetBoneIndex(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint32 BoneIndex);
-	ENGINE_API uint8 GetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
-	ENGINE_API void SetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint8 BoneWeight);
+	ENGINE_API uint16 GetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const;
+	ENGINE_API void SetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex, uint16 BoneWeight);
 	ENGINE_API void ResetVertexBoneWeights(uint32 VertexWeightOffset, uint32 VertexInfluenceCount);
 
 	ENGINE_API void CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
@@ -323,17 +341,22 @@ public:
 
 	bool IsWeightDataValid() const;
 
-	FSkinWeightInfo* GetWeightData() const
+	const uint8* GetWeightData() const
 	{
-		return (FSkinWeightInfo*)Data;
+		return Data;
 	}
 
+	uint8* GetWeightData()
+	{
+		return Data;
+	}
+	
 protected:
 	// guaranteed only to be valid if the vertex buffer is valid
 	FShaderResourceViewRHIRef SRVValue;
 
 private:
-	void ResizeBuffer(uint32 InNumBones, uint32 InNumVertices);
+	void ResizeBuffer(uint32 InNumWeights, uint32 InNumVertices);
 
 	EPixelFormat GetPixelFormat() const
 	{ return bVariableBonesPerVertex ? PF_R8_UINT : PF_R32_UINT; }
@@ -352,6 +375,9 @@ private:
 	/** Use 16 bit bone index instead of 8 bit */
 	bool bUse16BitBoneIndex;
 
+	/** Use 16 bit bone weight instead of 8 bit */
+	bool bUse16BitBoneWeight;
+
 	/** The vertex data storage type */
 	FStaticMeshVertexDataInterface* WeightData;
 
@@ -361,8 +387,8 @@ private:
 	/** The cached number of vertices. */
 	uint32 NumVertices;
 
-	/** The cached number of bones. */
-	uint32 NumBones;
+	/** Total number of bone weights across all vertices */
+	uint32 NumBoneWeights;
 
 	/** Allocates the vertex data storage type. */
 	ENGINE_API void AllocateData();
@@ -436,9 +462,21 @@ public:
 	bool Use16BitBoneIndex() const
 	{ return DataVertexBuffer.Use16BitBoneIndex(); }
 
+	void SetUse16BitBoneWeight(bool bInUse16BitBoneWeight)
+	{ DataVertexBuffer.SetUse16BitBoneWeight(bInUse16BitBoneWeight); }
+	
+	bool Use16BitBoneWeight() const
+	{ return DataVertexBuffer.Use16BitBoneWeight(); }
+	
 	uint32 GetBoneIndexByteSize() const
 	{ return DataVertexBuffer.GetBoneIndexByteSize(); }
 
+	uint32 GetBoneWeightByteSize() const
+	{ return DataVertexBuffer.GetBoneWeightByteSize(); }
+	
+	uint32 GetBoneIndexAndWeightByteSize() const
+	{ return DataVertexBuffer.GetBoneIndexAndWeightByteSize(); }
+	
 	bool GetVariableBonesPerVertex() const
 	{ return DataVertexBuffer.GetVariableBonesPerVertex(); }
 
@@ -462,8 +500,8 @@ public:
 	ENGINE_API bool GetRigidWeightBone(uint32 VertexIndex, int32& OutBoneIndex) const;
 	ENGINE_API uint32 GetBoneIndex(uint32 VertexIndex, uint32 InfluenceIndex) const;
 	ENGINE_API void SetBoneIndex(uint32 VertexIndex, uint32 InfluenceIndex, uint32 BoneIndex);
-	ENGINE_API uint8 GetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex) const;
-	ENGINE_API void SetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex, uint8 BoneWeight);
+	ENGINE_API uint16 GetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex) const;
+	ENGINE_API void SetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex, uint16 BoneWeight);
 	ENGINE_API void ResetVertexBoneWeights(uint32 VertexIndex);
 
 	ENGINE_API void BeginInitResources();

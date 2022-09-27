@@ -2,6 +2,8 @@
 
 #include "AbcImporter.h"
 
+#include "BoneWeights.h"
+
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif
@@ -1759,7 +1761,7 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 				// Set up bone influence (only using one bone so maxed out weight)
 				FMemory::Memzero(NewVertex.InfluenceBones);
 				FMemory::Memzero(NewVertex.InfluenceWeights);
-				NewVertex.InfluenceWeights[0] = 255;
+				NewVertex.InfluenceWeights[0] = UE::AnimationCore::MaxRawBoneWeight;
 				
 				int32 FinalVertexIndex = INDEX_NONE;
 				if (DuplicateVertexIndices.Num())
