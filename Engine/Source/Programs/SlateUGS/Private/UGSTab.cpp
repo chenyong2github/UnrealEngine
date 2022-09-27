@@ -204,13 +204,13 @@ bool UGSTab::ShouldSyncPrecompiledEditor() const
 	return UserSettings->bSyncPrecompiledEditor && PerforceMonitor->HasZippedBinaries();
 }
 
-TArray<FString> UGSTab::GetAllStreamNames()
+TArray<FString> UGSTab::GetAllStreamNames() const
 {
 	TArray<FString> Result;
 
 	const TSharedRef<UGSCore::FModalTaskResult> TaskResult = ExecuteModalTask(
 		FSlateApplication::Get().GetActiveModalWindow(),
-		MakeShared<UGSCore::FFindStreamsTask>(PerforceClient.ToSharedRef(), MakeShared<FLineWriter>(), Result, "//*/*"),
+		MakeShared<UGSCore::FFindStreamsTask>(PerforceClient.ToSharedRef(), MakeShared<FLineWriter>(), Result, TEXT("//*/*")),
 		LOCTEXT("OpeningProjectTitle", "Finding Streams"),
 		LOCTEXT("OpeningProjectCaption", "Finding streams, please wait..."));
 	
