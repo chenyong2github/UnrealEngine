@@ -373,15 +373,17 @@ void FCookWorkerServer::SendPendingPackages()
 		return;
 	}
 
-	TArray<FConstructPackageData> ConstructDatas;
-	ConstructDatas.Reserve(PackagesToAssign.Num());
+	TArray<FAssignPackageData> AssignDatas;
+	AssignDatas.Reserve(PackagesToAssign.Num());
 	for (FPackageData* PackageData : PackagesToAssign)
 	{
-		ConstructDatas.Add(PackageData->CreateConstructData());
+		FAssignPackageData& AssignData = AssignDatas.Emplace_GetRef();
+		AssignData.ConstructData = PackageData->CreateConstructData();
+		AssignData.Instigator = PackageData->GetInstigator();
 	}
 	PendingPackages.Append(PackagesToAssign);
 	PackagesToAssign.Empty();
-	SendMessage(FAssignPackagesMessage(MoveTemp(ConstructDatas)));
+	SendMessage(FAssignPackagesMessage(MoveTemp(AssignDatas)));
 }
 
 void FCookWorkerServer::PumpReceiveMessages()
@@ -561,7 +563,7 @@ void FCookWorkerServer::AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPack
 	COTFS.QueueDiscoveredPackageData(PackageData, MoveTemp(DiscoveredPackage.Instigator));
 }
 
-FAssignPackagesMessage::FAssignPackagesMessage(TArray<FConstructPackageData>&& InPackageDatas)
+FAssignPackagesMessage::FAssignPackagesMessage(TArray<FAssignPackageData>&& InPackageDatas)
 	: PackageDatas(MoveTemp(InPackageDatas))
 {
 }
@@ -577,6 +579,49 @@ bool FAssignPackagesMessage::TryRead(FCbObject&& Object)
 }
 
 FGuid FAssignPackagesMessage::MessageType(TEXT("B7B1542B73254B679319D73F753DB6F8"));
+
+FCbWriter& operator<<(FCbWriter& Writer, const FAssignPackageData& AssignData)
+{
+	Writer.BeginObject();
+	Writer << "C" << AssignData.ConstructData;
+	Writer << "I" << AssignData.Instigator;
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FAssignPackageData& AssignData)
+{
+	bool bOk = LoadFromCompactBinary(Field["C"], AssignData.ConstructData);
+	bOk = LoadFromCompactBinary(Field["I"], AssignData.Instigator) & bOk;
+	return bOk;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FInstigator& Instigator)
+{
+	Writer.BeginObject();
+	Writer << "C" << static_cast<uint8>(Instigator.Category);
+	Writer << "R" << Instigator.Referencer;
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FInstigator& Instigator)
+{
+	uint8 CategoryInt;
+	bool bOk = true;
+	if (LoadFromCompactBinary(Field["C"], CategoryInt) &&
+		CategoryInt < static_cast<uint8>(EInstigator::Count))
+	{
+		Instigator.Category = static_cast<EInstigator>(CategoryInt);
+	}
+	else
+	{
+		Instigator.Category = EInstigator::InvalidCategory;
+		bOk = false;
+	}
+	bOk = LoadFromCompactBinary(Field["R"], Instigator.Referencer) & bOk;
+	return bOk;
+}
 
 FAbortPackagesMessage::FAbortPackagesMessage(TArray<FName>&& InPackageNames)
 	: PackageNames(MoveTemp(InPackageNames))

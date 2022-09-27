@@ -41,7 +41,6 @@ namespace UE::Cook
 	CallbackMacro(AssetManagerModifyDLCCook, true) \
 	CallbackMacro(TargetPlatformExtraPackagesToCook, true) \
 	CallbackMacro(ConsoleCommand, true) \
-	CallbackMacro(CookDirector, true) \
 	CallbackMacro(CookOnTheFly, true) \
 	CallbackMacro(IterativeCook, true) \
 	CallbackMacro(PreviousAssetRegistry, true) \

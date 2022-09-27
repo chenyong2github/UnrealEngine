@@ -543,10 +543,10 @@ void FCookWorkerClient::LogInvalidMessage(const TCHAR* MessageTypeName)
 
 void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 {
-	for (FConstructPackageData& ConstructPackageData : Message.PackageDatas)
+	for (FAssignPackageData& AssignData: Message.PackageDatas)
 	{
-		FPackageData& PackageData = COTFS.PackageDatas->FindOrAddPackageData(ConstructPackageData.PackageName,
-			ConstructPackageData.NormalizedFileName);
+		FPackageData& PackageData = COTFS.PackageDatas->FindOrAddPackageData(AssignData.ConstructData.PackageName,
+			AssignData.ConstructData.NormalizedFileName);
 		// If already InProgress, ignore the duplicate package silently
 		if (PackageData.IsInProgress())
 		{
@@ -562,7 +562,7 @@ void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 		}
 
 		PackageData.SetRequestData(OrderedSessionPlatforms , false /* bInIsUrgent */, FCompletionCallback(),
-			FInstigator(EInstigator::CookDirector));
+			FInstigator(AssignData.Instigator));
 		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
 }

@@ -7,6 +7,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/Set.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "CookPackageData.h"
 #include "CookSockets.h"
 #include "CookTypes.h"
 #include "Misc/Guid.h"
@@ -16,7 +17,6 @@ class ITargetPlatform;
 struct FProcHandle;
 namespace UE::CompactBinaryTCP { struct FMarshalledMessage; }
 namespace UE::Cook { class FCookDirector; }
-namespace UE::Cook { struct FConstructPackageData; }
 namespace UE::Cook { struct FDiscoveredPackage; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FPackageResultsMessage; }
@@ -116,19 +116,30 @@ private:
 	bool bTerminateImmediately = false;
 };
 
+/** Information about a PackageData the director sends to cookworkers. */
+struct FAssignPackageData
+{
+	FConstructPackageData ConstructData;
+	FInstigator Instigator;
+};
+FCbWriter& operator<<(FCbWriter& Writer, const FAssignPackageData& AssignData);
+bool LoadFromCompactBinary(FCbFieldView Field, FAssignPackageData& AssignData);
+FCbWriter& operator<<(FCbWriter& Writer, const FInstigator& Instigator);
+bool LoadFromCompactBinary(FCbFieldView Field, FInstigator& Instigator);
+
 /** Message from Server to Client to cook the given packages. */
 struct FAssignPackagesMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	FAssignPackagesMessage() = default;
-	FAssignPackagesMessage(TArray<FConstructPackageData>&& InPackageDatas);
+	FAssignPackagesMessage(TArray<FAssignPackageData>&& InPackageDatas);
 
 	virtual void Write(FCbWriter& Writer) const override;
 	virtual bool TryRead(FCbObject&& Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
-	TArray<FConstructPackageData> PackageDatas;
+	TArray<FAssignPackageData> PackageDatas;
 	static FGuid MessageType;
 };
 
