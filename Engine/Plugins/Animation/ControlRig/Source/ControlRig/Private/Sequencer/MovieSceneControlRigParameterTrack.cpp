@@ -458,7 +458,11 @@ void UMovieSceneControlRigParameterTrack::HandleControlRigPackageDone(UControlRi
 void UMovieSceneControlRigParameterTrack::PostEditImport()
 {
 	Super::PostEditImport();
-
+	if (ControlRig)
+	{
+		ControlRig->ClearFlags(RF_Transient); //when copied make sure it's no longer transient, sequencer does this for tracks/sections 
+											  //but not for all objects in them since the control rig itself has transient objects.
+	}
 	ReconstructControlRig();
 }
 
