@@ -70,7 +70,7 @@ namespace EpicGames.Core
 					{
 						string combinedPath = RemoveRelativeDirs(Path.Combine(baseDir, file));
 						properties = new Dictionary<Utf8String, object>();
-						properties["file"] = combinedPath;
+						properties[LogEventPropertyName.File] = combinedPath;
 					}
 					catch
 					{
@@ -106,7 +106,7 @@ namespace EpicGames.Core
 
 			// Add it to the list
 			Dictionary<Utf8String, object> properties = new Dictionary<Utf8String, object>();
-			properties["identifier"] = identifier;
+			properties[LogEventPropertyName.Identifier] = identifier;
 			builder.Annotate(group, new LogValue(LogValueType.Symbol, "", properties));
 		}
 	}

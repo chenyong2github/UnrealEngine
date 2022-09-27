@@ -63,6 +63,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Construct a source file log value with an overridden display text
+		/// </summary>
+		/// <param name="file">Source file to reference</param>
+		/// <param name="text">Display text for the fiel</param>
+		/// <returns>New log value instance</returns>
+		public static LogValue SourceFile(FileReference file, string text)
+		{
+			return new LogValue(LogValueType.SourceFile, text, new Dictionary<Utf8String, object> { [LogEventPropertyName.File] = file.FullName });
+		}
+
+		/// <summary>
 		/// Creates a LogValue from an object, overriding the type and display text for it
 		/// </summary>
 		/// <param name="obj">The object to construct from</param>

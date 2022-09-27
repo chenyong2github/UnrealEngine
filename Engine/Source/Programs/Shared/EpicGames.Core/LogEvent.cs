@@ -32,6 +32,9 @@ namespace EpicGames.Core
 		public static readonly Utf8String Type = new Utf8String("$type");
 		public static readonly Utf8String Text = new Utf8String("$text");
 
+		public static readonly Utf8String File = new Utf8String("file"); // For source file / asset types
+		public static readonly Utf8String Identifier = new Utf8String("identifier"); // For symbols
+
 		public static readonly Utf8String Exception = new Utf8String("exception");
 		public static readonly Utf8String Trace = new Utf8String("trace");
 		public static readonly Utf8String InnerException = new Utf8String("innerException");
