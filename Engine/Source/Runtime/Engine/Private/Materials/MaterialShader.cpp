@@ -2732,6 +2732,8 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 
 FGraphEventArray FMaterialShaderMap::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FMaterial* Material, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::CollectPSOs);
+
 	// Only feature level is currently set as init settings - rest is default
 	// (multiview & alpha channel not taken into account here)
 	FSceneTexturesConfigInitSettings SceneTexturesConfigInitSettings;

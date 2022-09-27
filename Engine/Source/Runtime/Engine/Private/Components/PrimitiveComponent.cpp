@@ -4249,6 +4249,7 @@ void UPrimitiveComponent::SetupPrecachePSOParams(FPSOPrecacheParams& Params)
 	Params.bStaticLighting = HasStaticLighting();
 	Params.bAffectDynamicIndirectLighting = bAffectDynamicIndirectLighting;
 	Params.bCastShadow = CastShadow;
+	Params.bRenderCustomDepth = bRenderCustomDepth;
 	Params.bCastShadowAsTwoSided = bCastShadowAsTwoSided;
 	Params.SetMobility(Mobility);	
 	Params.SetStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(CustomDepthStencilWriteMask));

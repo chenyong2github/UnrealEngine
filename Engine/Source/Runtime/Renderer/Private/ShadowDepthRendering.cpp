@@ -2132,7 +2132,8 @@ void FShadowDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesC
 	// Early out if possible
 	if (!Material.ShouldCastDynamicShadows() ||
 		!ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()) ||
-		!ShouldIncludeMaterialInDefaultOpaquePass(Material))
+		!ShouldIncludeMaterialInDefaultOpaquePass(Material) ||
+		!EnumHasAnyFlags(MeshSelectionMask, VertexFactoryType->SupportsPrimitiveIdStream() ? EShadowMeshSelection::VSM : EShadowMeshSelection::SM))
 	{
 		return;
 	}
@@ -2148,7 +2149,8 @@ void FShadowDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesC
 		CollectPSOInitializersForEachShadowDepthType(VertexFactoryType, Material, MeshFillMode, CM_CW, bCastShadowsAsTwoSided, PSOInitializers);
 		CollectPSOInitializersForEachShadowDepthType(VertexFactoryType, Material, MeshFillMode, CM_CCW, bCastShadowsAsTwoSided, PSOInitializers);
 	}
-	else if (PreCacheParams.bCastShadow && !UseDefaultMaterialForShadowDepth(Material, Material.MaterialModifiesMeshPosition_GameThread()))
+	else if (PreCacheParams.bCastShadow && 
+		!UseDefaultMaterialForShadowDepth(Material, Material.MaterialModifiesMeshPosition_GameThread()))
 	{
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);

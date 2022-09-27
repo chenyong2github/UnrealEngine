@@ -506,7 +506,7 @@ public:
 	{
 		return PrecachePSOs(MakeArrayView(&VertexFactoryType, 1), PreCacheParams);
 	}
-	virtual FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams) PURE_VIRTUAL(UMaterialInterface::PrecachePSOs, return FGraphEventArray(););
+	virtual FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams) { return FGraphEventArray(); }
 
 #if WITH_EDITORONLY_DATA
 

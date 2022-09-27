@@ -451,7 +451,7 @@ void FCustomDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesC
 
 	bool bPositionOnly = false;
 	bool bUseDefaultMaterial = UseDefaultMaterial(Material, Material.MaterialModifiesMeshPosition_GameThread(), bSupportPositionOnlyStream, bPositionOnly);
-	if (!bUseDefaultMaterial)
+	if (!bUseDefaultMaterial && PreCacheParams.bRenderCustomDepth)
 	{
 		check(!bPositionOnly);
 

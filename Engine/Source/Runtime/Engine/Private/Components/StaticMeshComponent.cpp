@@ -1543,6 +1543,9 @@ void UStaticMeshComponent::PrecachePSOs()
 		return;
 	}
 
+	UWorld* World = GetWorld();
+	ERHIFeatureLevel::Type FeatureLevel = World ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+
 	bool bAnySectionCastsShadows = false;
 	TArray<int16, TInlineAllocator<2>> UsedMaterialIndices;
 	for (FStaticMeshLODResources& LODRenderData : StaticMesh->GetRenderData()->LODResources)
@@ -1569,6 +1572,9 @@ void UStaticMeshComponent::PrecachePSOs()
 		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
 		if (MaterialInterface)
 		{
+			PrecachePSOParams.bHasWorldPositionOffsetVelocity = SupportsWorldPositionOffsetVelocity()
+				&& MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset;
+
 			MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
 		}
 	}

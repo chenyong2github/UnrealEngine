@@ -2503,11 +2503,8 @@ bool UMaterial::IsComplete() const
 FGraphEventArray UMaterial::PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& InPreCacheParams)
 {
 	FGraphEventArray GraphEvents;
-	if (FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled())
+	if (FApp::CanEverRender() && MaterialResources.Num() > 0 && PipelineStateCache::IsPSOPrecachingEnabled())
 	{
-		// Assume post load has been called on the UMaterial already and material resources are created
-		check(MaterialResources.Num() > 0);
-
 		EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
 		while (FeatureLevelsToCompile != 0)

@@ -31,12 +31,14 @@ struct FPSOPrecacheParams
 		bRenderInDepthPass = true;
 		bStaticLighting = true;
 		bCastShadow = true;
+		bRenderCustomDepth = false;
 		bAffectDynamicIndirectLighting = true;
 		bReverseCulling = false;
 		bDisableBackFaceCulling = false;
 		bCastShadowAsTwoSided = false;
 		bForceLODModel = false;
 		Mobility = (uint8)EComponentMobility::Static;
+		bHasWorldPositionOffsetVelocity = false;
 		StencilWriteMask = (uint8)EStencilMask::SM_Default;
 		Unused = 0;
 	}
@@ -91,6 +93,7 @@ struct FPSOPrecacheParams
 			uint32 bRenderInDepthPass : 1;
 			uint32 bStaticLighting : 1;
 			uint32 bCastShadow : 1;
+			uint32 bRenderCustomDepth : 1;
 
 			uint32 bAffectDynamicIndirectLighting : 1;
 			uint32 bReverseCulling : 1;
@@ -99,9 +102,10 @@ struct FPSOPrecacheParams
 			uint32 bForceLODModel : 1;
 
 			uint32 Mobility : 4;
+			uint32 bHasWorldPositionOffsetVelocity : 1;
 			uint32 StencilWriteMask : 4;
 
-			uint32 Unused : 9;
+			uint32 Unused : 7;
 		};
 		uint32 Data;
 	};

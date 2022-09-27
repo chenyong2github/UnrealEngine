@@ -199,6 +199,8 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	EMeshPassFeatures MeshPassFeatures, 
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshPassProcessor::AddGraphicsPipelineStateInitializer);
+
 	FGraphicsMinimalPipelineStateInitializer MinimalPipelineStateInitializer;
 	MinimalPipelineStateInitializer.PrimitiveType = PrimitiveType;
 	

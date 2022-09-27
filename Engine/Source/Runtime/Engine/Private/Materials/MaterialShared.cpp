@@ -2642,6 +2642,8 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 
 FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CollectPSOs);
+
 	FGraphEventArray GraphEvents;
 
 	// Only care about inline shaders for now
