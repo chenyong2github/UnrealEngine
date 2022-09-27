@@ -175,7 +175,7 @@ bool UK2Node_ComponentBoundEvent::IsDelegateValid() const
 
 bool UK2Node_ComponentBoundEvent::HasDeprecatedReference() const
 {
-	if (CVarBPEnableDeprecatedWarningForComponentDelegateNodes.GetValueOnGameThread())
+	if (CVarBPEnableDeprecatedWarningForComponentDelegateNodes.GetValueOnAnyThread())
 	{
 		if (const FMulticastDelegateProperty* DelegateProperty = GetTargetDelegateProperty())
 		{

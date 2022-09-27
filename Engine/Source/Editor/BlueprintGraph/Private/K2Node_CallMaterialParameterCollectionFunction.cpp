@@ -37,7 +37,13 @@ void UK2Node_CallMaterialParameterCollectionFunction::PreloadRequiredAssets()
 		if (UMaterialParameterCollection* Collection = Cast<UMaterialParameterCollection>(CollectionPin->DefaultObject))
 		{
 			PreloadObject(Collection);
-			Collection->ConditionalPostLoad();
+
+			// When on async loading thread, postload happens later on GT unless it's possible
+			// to do it right now safely.
+			if (IsInGameThread() || Collection->IsPostLoadThreadSafe())
+			{
+				Collection->ConditionalPostLoad();
+			}
 		}
 	}
 

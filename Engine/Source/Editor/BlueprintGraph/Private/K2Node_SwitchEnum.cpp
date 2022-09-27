@@ -47,7 +47,13 @@ void UK2Node_SwitchEnum::SetEnum(UEnum* InEnum)
 	if (Enum)
 	{
 		PreloadObject(Enum);
-		Enum->ConditionalPostLoad();
+
+		// When on async loading thread, postload happens later on GT unless it's possible
+		// to do it right now safely.
+		if (IsInGameThread() || Enum->IsPostLoadThreadSafe())
+		{
+			Enum->ConditionalPostLoad();
+		}
 
 		for (int32 EnumIndex = 0; EnumIndex < Enum->NumEnums() - 1; ++EnumIndex)
 		{
