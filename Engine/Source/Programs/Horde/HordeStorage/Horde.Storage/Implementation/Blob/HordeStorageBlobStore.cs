@@ -52,7 +52,8 @@ namespace Horde.Storage.Implementation
             // TODO: This could be done in parallel
             await foreach (string instance in _serviceDiscovery.FindOtherHordeStorageInstances())
             {
-                using HttpRequestMessage getObjectRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers=Filesystem", UriKind.Relative));
+                string filesystemLayerName = nameof(FileSystemStore);
+                using HttpRequestMessage getObjectRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
                 getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Octet);
                 HttpResponseMessage response = await GetHttpClient(instance).SendAsync(getObjectRequest);
                 if (response.StatusCode == HttpStatusCode.NotFound)
@@ -79,7 +80,8 @@ namespace Horde.Storage.Implementation
             // TODO: This could be done in parallel
             await foreach (string instance in _serviceDiscovery.FindOtherHordeStorageInstances())
             {
-                using HttpRequestMessage headObjectRequest = await BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers=Filesystem", UriKind.Relative));
+                string filesystemLayerName = nameof(FileSystemStore);
+                using HttpRequestMessage headObjectRequest = await BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
                 HttpResponseMessage response = await GetHttpClient(instance).SendAsync(headObjectRequest);
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
