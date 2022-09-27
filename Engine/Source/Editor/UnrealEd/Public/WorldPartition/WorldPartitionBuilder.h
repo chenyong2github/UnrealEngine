@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PackageSourceControlHelper.h"
+#include "Engine/World.h"
 #include "WorldPartitionBuilder.generated.h"
 
 typedef UE::Math::TIntVector3<int64> FWorldBuilderCellCoord;
