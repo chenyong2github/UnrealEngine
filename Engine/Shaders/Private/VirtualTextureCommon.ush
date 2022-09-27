@@ -734,6 +734,16 @@ float2 VirtualTextureWorldToUV(in FLWCVector3 WorldPos, in FLWCVector3 O, in flo
 	return float2(dot(P, U), dot(P, V));
 }
 
+/**	Derivative-aware helper function to convert world space to virtual texture UV space. */
+FloatDeriv2 VirtualTextureWorldToUVDeriv(in FLWCVector3Deriv WorldPos, in FLWCVector3 O, in float3 U, in float3 V)
+{
+	FloatDeriv2 Result;
+	Result.Value = VirtualTextureWorldToUV(WorldPos.Value, O, U, V);
+	Result.Ddx = float2(dot(WorldPos.Ddx, U), dot(WorldPos.Ddx, V));
+	Result.Ddy = float2(dot(WorldPos.Ddy, U), dot(WorldPos.Ddy, V));
+	return Result;
+}
+
 /** Unpack color from YCoCg stored in BC3. */
 float3 VirtualTextureUnpackBaseColorYCoCg(in float4 PackedValue)
 {

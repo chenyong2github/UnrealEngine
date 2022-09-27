@@ -26,6 +26,34 @@ struct FLWCVector4
 	float4 Offset;
 };
 
+struct FLWCScalarDeriv
+{
+	FLWCScalar Value;
+	float Ddx;
+	float Ddy;
+};
+
+struct FLWCVector2Deriv
+{
+	FLWCVector2 Value;
+	float2 Ddx;
+	float2 Ddy;
+};
+
+struct FLWCVector3Deriv
+{
+	FLWCVector3 Value;
+	float3 Ddx;
+	float3 Ddy;
+};
+
+struct FLWCVector4Deriv
+{
+	FLWCVector4 Value;
+	float4 Ddx;
+	float4 Ddy;
+};
+
 // Transforms *to* absolute world space
 struct FLWCMatrix
 {
