@@ -424,10 +424,13 @@ void UK2Node_EnhancedInputAction::GetMenuActions(FBlueprintActionDatabaseRegistr
 			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
 			check(NodeSpawner != nullptr);
 
-			if (const UInputAction* Action = Cast<const UInputAction>(ActionAsset.GetAsset()))
+			if (FPackageName::GetPackageMountPoint(ActionAsset.PackageName.ToString()) != NAME_None)
 			{
-				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(CustomizeInputNodeLambda, TWeakObjectPtr<const UInputAction>(Action));
-				ActionRegistrar.AddBlueprintAction(Action, NodeSpawner);	
+				if (const UInputAction* Action = Cast<const UInputAction>(ActionAsset.GetAsset()))
+				{
+					NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(CustomizeInputNodeLambda, TWeakObjectPtr<const UInputAction>(Action));
+					ActionRegistrar.AddBlueprintAction(Action, NodeSpawner);
+				}
 			}
 		}
 	}
