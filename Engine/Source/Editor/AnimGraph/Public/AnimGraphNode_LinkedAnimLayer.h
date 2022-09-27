@@ -99,6 +99,9 @@ protected:
 	// Helper function to setup a newly spawned node
 	void SetupFromLayerId(FName InLayerId);
 	
+	// Used during compilation to check if the blueprint structure causes any circular references or nested linked layer nodes
+	void ValidateCircularRefAndNesting(const UEdGraph* CurrentGraph, const TArray<UEdGraph*>& AllGraphs, TArray<const UEdGraph*> GraphStack, bool bWithinLinkedLayerGraph, FCompilerResultsLog& MessageLog);
+
 	// Handle used to hook into object being debugged changing
 	FDelegateHandle SetObjectBeingDebuggedHandle;
 };
