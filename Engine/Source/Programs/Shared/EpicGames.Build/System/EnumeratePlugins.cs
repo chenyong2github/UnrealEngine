@@ -148,7 +148,7 @@ namespace UnrealBuildBase
 			Plugins = null;
 
 			// Collect the list of plugins already build
-			List<FileReference> Built = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P)).ToList();
+			List<FileReference> Built = FoundPlugins.Where(P => UbtPluginFileCache.ContainsKey(P)).ToList();
 
 			// Collect the list of plugins not build
 			List<FileReference> NotBuilt = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P)).ToList();
