@@ -588,6 +588,13 @@ public:
 	//~ End EdGraphSchema Interface
 
 	/**
+	 * Determine if this graph supports collapsing nodes into subgraphs
+	 *
+	 * @return True if this schema supports collapsed node subgraphs
+	 */
+	virtual bool DoesSupportCollapsedNodes() const { return true; }
+
+	/**
 	 *
 	 *	Determine if this graph supports event dispatcher
 	 * 

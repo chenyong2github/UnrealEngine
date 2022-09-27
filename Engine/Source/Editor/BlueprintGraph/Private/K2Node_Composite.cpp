@@ -85,12 +85,15 @@ void UK2Node_Composite::PostPasteNode()
 {
 	Super::PostPasteNode();
 
-	//@TODO: Should verify that each node in the composite can be pasted into this new graph successfully (CanPasteHere)
-
-	if (BoundGraph != NULL)
+	if (BoundGraph != nullptr)
 	{
 		UEdGraph* ParentGraph = CastChecked<UEdGraph>(GetOuter());
 		ensure(BoundGraph != ParentGraph);
+
+		const UEdGraphSchema* ParentSchema = ParentGraph->GetSchema();
+		check(ParentSchema);
+
+		UBlueprint* BP = FBlueprintEditorUtils::FindBlueprintForGraphChecked(BoundGraph);
 
 		// Update the InputSinkNode / OutputSourceNode pointers to point to the new graph
 		TSet<UEdGraphNode*> BoundaryNodes;
@@ -98,21 +101,34 @@ void UK2Node_Composite::PostPasteNode()
 		{
 			UEdGraphNode* Node = BoundGraph->Nodes[NodeIndex];
 			
-			//Remove this node if it should not exist more then one in blueprint
-			if(UK2Node_Event* Event = Cast<UK2Node_Event>(Node))
+			// Remove this node if it should not exist more then one in blueprint
+			bool bRemoveNode = false;
+			if (UK2Node_Event* Event = Cast<UK2Node_Event>(Node))
 			{
-				UBlueprint* BP = FBlueprintEditorUtils::FindBlueprintForGraphChecked(BoundGraph);
-				if(FBlueprintEditorUtils::FindOverrideForFunction(BP, Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode()), Event->EventReference.GetMemberName()))
+				if (FBlueprintEditorUtils::FindOverrideForFunction(BP, Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode()), Event->EventReference.GetMemberName()))
 				{
-					FBlueprintEditorUtils::RemoveNode(BP, Node, true);
-					NodeIndex--;
-					continue;
+					bRemoveNode = true;
 				}
+			}
+
+			// Intentional that we check for exact class here!
+			bool bIsTunnelNode = false;
+			if (Node->GetClass() == UK2Node_Tunnel::StaticClass())
+			{
+				bIsTunnelNode = true;
+			}
+
+			// Also remove any nodes from the subgraph that are otherwise not schema-compatible
+			if (bRemoveNode || (!bIsTunnelNode && !ParentSchema->CanEncapuslateNode(*Node)))
+			{
+				FBlueprintEditorUtils::RemoveNode(BP, Node, true);
+				NodeIndex--;
+				continue;
 			}
 			
 			BoundaryNodes.Add(Node);
 
-			if (Node->GetClass() == UK2Node_Tunnel::StaticClass())
+			if (bIsTunnelNode)
 			{
 				// Exactly a tunnel node, should be the entrance or exit node
 				UK2Node_Tunnel* Tunnel = CastChecked<UK2Node_Tunnel>(Node);
@@ -140,6 +156,11 @@ void UK2Node_Composite::PostPasteNode()
 		//Nested composites will already be in the SubGraph array
 		if(ParentGraph->SubGraphs.Find(BoundGraph) == INDEX_NONE)
 		{
+			// Set the subgraph's schema class to match the parent (as we do when placing a new node). This is needed in
+			// order to ensure that the new subgraph will compile. We've already verified that the new subgraph is schema-
+			// compatible at this point (see above).
+			BoundGraph->Schema = ParentGraph->Schema;
+
 			ParentGraph->SubGraphs.Add(BoundGraph);
 		}
 
@@ -336,6 +357,18 @@ void UK2Node_Composite::OnRenameNode(const FString& NewName)
 TSharedPtr<class INameValidatorInterface> UK2Node_Composite::MakeNameValidator() const
 {
 	return MakeShareable(new FKismetNameValidator(GetBlueprint(), BoundGraph ? BoundGraph->GetFName() : NAME_None));
+}
+
+bool UK2Node_Composite::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* DesiredSchema) const
+{
+	if (Super::CanCreateUnderSpecifiedSchema(DesiredSchema))
+	{
+		// Check for derived schemas that don't support a collapsed subgraph.
+		const UEdGraphSchema_K2* K2Schema = CastChecked<UEdGraphSchema_K2>(DesiredSchema);
+		return K2Schema->DoesSupportCollapsedNodes();
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

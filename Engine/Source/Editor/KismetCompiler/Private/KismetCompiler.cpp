@@ -4369,7 +4369,13 @@ void FKismetCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool
 		FunctionGraph->Rename(*FunctionGraphName, nullptr, RenameFlags);
 	}
 
-	FEdGraphUtilities::MergeChildrenGraphsIn(FunctionGraph, FunctionGraph, /*bRequireSchemaMatch=*/ true);
+	FEdGraphUtilities::MergeChildrenGraphsIn(FunctionGraph, FunctionGraph, /* bRequireSchemaMatch = */ true, /* bInIsCompiling = */ true, &MessageLog);
+
+	// If we failed to merge with any child graphs due to an error, we shouldn't continue processing the intermediate graph.
+	if (MessageLog.NumErrors > 0)
+	{
+		return;
+	}
 
 	ExpansionStep(FunctionGraph, false);
 
