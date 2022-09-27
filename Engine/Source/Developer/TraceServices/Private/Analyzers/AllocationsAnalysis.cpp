@@ -55,11 +55,8 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_HeapSpec,            "Memory", "HeapSpec");
 	Builder.RouteEvent(RouteId_HeapMarkAlloc,       "Memory", "HeapMarkAlloc");
 	Builder.RouteEvent(RouteId_HeapUnmarkAlloc,     "Memory", "HeapUnmarkAlloc");
-
-	Builder.RouteEvent(RouteId_NewEvent, "Memory", "MemoryScope", false);
-	Builder.RouteEvent(RouteId_NewEvent, "Memory", "MemoryScopePtr", false);
-
-	Builder.RouteLoggerEvents(RouteId_MemScope, "Memory", true);
+	Builder.RouteEvent(RouteId_MemScopeTag,			"Memory", "MemoryScope", true);
+	Builder.RouteEvent(RouteId_MemScopePtr,			"Memory", "MemoryScopePtr", true);
 
 #if INSIGHTS_MEM_TRACE_METADATA_TEST
 	{
@@ -86,29 +83,6 @@ void FAllocationsAnalyzer::OnAnalysisEnd()
 
 	FProviderEditScopeLock _(AllocationsProvider);
 	AllocationsProvider.EditOnAnalysisCompleted(Time);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FAllocationsAnalyzer::OnNewEvent(uint16 RouteId, const FEventTypeInfo& TypeInfo)
-{
-	const ANSICHAR* LoggerName = TypeInfo.GetLoggerName();
-	const ANSICHAR* EventName = TypeInfo.GetName();
-	const uint32 EventId = TypeInfo.GetId();
-
-	if (FCStringAnsi::Strcmp(LoggerName, "Memory") == 0)
-	{
-		if (FCStringAnsi::Strcmp(EventName, "MemoryScope") == 0)
-		{
-			MemoryScopeEventId = EventId;
-		}
-		else if (FCStringAnsi::Strcmp(EventName, "MemoryScopePtr") == 0)
-		{
-			MemoryScopePtrEventId = EventId;
-		}
-	}
-
-	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,16 +323,15 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			break;
 		}
 
-		case RouteId_MemScope:
+		case RouteId_MemScopeTag:
+		case RouteId_MemScopePtr:
 		{
 			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
 			const uint8 Tracker = 0; // We only care about the default tracker for now.
 
-			const uint32 EventId = Context.EventData.GetTypeInfo().GetId();
-
 			if (Style == EStyle::EnterScope)
 			{
-				if (EventId == MemoryScopeEventId) // "MemoryScope"
+				if (RouteId == RouteId_MemScopeTag) // "MemoryScope"
 				{
 					const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
 					{
@@ -372,7 +345,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 					}
 #endif
 				}
-				else if (ensure(EventId == MemoryScopePtrEventId)) // "MemoryScopePtr"
+				else if (ensure(RouteId == RouteId_MemScopePtr)) // "MemoryScopePtr"
 				{
 					const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
 					{
@@ -390,12 +363,12 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			}
 			else // EStyle::LeaveScope
 			{
-				if (EventId == MemoryScopeEventId) // "MemoryScope"
+				if (RouteId == RouteId_MemScopeTag) // "MemoryScope"
 				{
 					FProviderEditScopeLock _(AllocationsProvider);
 					AllocationsProvider.EditPopTag(ThreadId, Tracker);
 				}
-				else if (ensure(EventId == MemoryScopePtrEventId)) // "MemoryScopePtr"
+				else if (ensure(RouteId == RouteId_MemScopePtr)) // "MemoryScopePtr"
 				{
 					FProviderEditScopeLock _(AllocationsProvider);
 					//check(AllocationsProvider.HasTagFromPtrScope(ThreadId, Tracker));
