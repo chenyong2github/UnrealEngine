@@ -78,6 +78,9 @@ public:
 	TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(const FGetResolvedConnectString::Params& Params);
 
 private:
+	/** Updates a local session's state by retrieving the equivalent from the OSS */
+	bool UpdateV2Session(const FName& SessionName);
+
 	/** Builds a V1 Session Settings data type from V2 session creation parameters */
 	FOnlineSessionSettings BuildV1SettingsForCreate(const FCreateSession::Params& Params) const;
 	/** Builds a V1 Session Settings data type from V2 session data */
