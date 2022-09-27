@@ -38,4 +38,4 @@ public:
 	}
 };
 
-IMPLEMENT_MODULE(FNNXHlslShadersModule, NNXHlslShadersModule);
+IMPLEMENT_MODULE(FNNXHlslShadersModule, NNXHlslShaders);
