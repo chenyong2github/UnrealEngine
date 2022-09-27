@@ -131,3 +131,11 @@ void FSlateNullRenderer::ClearScenes()
 {
 	// This is a no-op
 }
+
+void FSlateNullRenderer::Sync() const
+{
+	// Sync game and render thread. Either total sync or allowing one frame lag.
+	static FFrameEndSync FrameEndSync;
+	static auto CVarAllowOneFrameThreadLag = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.OneFrameThreadLag"));
+	FrameEndSync.Sync(CVarAllowOneFrameThreadLag->GetValueOnAnyThread() != 0);
+}

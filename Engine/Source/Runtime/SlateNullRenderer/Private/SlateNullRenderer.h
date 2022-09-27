@@ -42,6 +42,7 @@ public:
 	virtual int32 RegisterCurrentScene(FSceneInterface* Scene) override;
 	virtual int32 GetCurrentSceneIndex() const override;
 	virtual void ClearScenes() override;
+	virtual void Sync() const override;
 
 private:
 	TSharedPtr<FSlateShaderResourceManager> ResourceManager;
