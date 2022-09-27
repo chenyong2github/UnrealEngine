@@ -113,15 +113,18 @@ Status BFCArena::Extend(size_t rounded_bytes) {
       // attempted allocation can throw std::bad_alloc. we want to treat this the same as if it returned nullptr
       // so swallow the exception
     }
-    ORT_CATCH(const OnnxRuntimeException& ort_exception) {
+    ORT_CATCH(const OnnxRuntimeException& ex) {
       // swallow if exception is our throw from a failed cudaMalloc call.
       // re-throw otherwise.
+#ifndef ORT_NO_EXCEPTIONS
+      const OnnxRuntimeException& ort_exception = ex;
       ORT_HANDLE_EXCEPTION([&ort_exception]() {
         if (std::string(ort_exception.what()).find("cudaMalloc") == std::string::npos &&
             std::string(ort_exception.what()).find("hipMalloc") == std::string::npos) {
           ORT_RETHROW;
         }
       });
+#endif // #ifndef ORT_NO_EXCEPTIONS
     }
     return new_mem;
   };
