@@ -1287,7 +1287,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				{
 					if (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback)
 					{
-						FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
+						FPrimitiveSceneProxy* SceneProxy = Scene.PrimitiveSceneProxies[PrimitiveIndex];
 
 						if (SceneProxy->IsNaniteMesh())
 						{
