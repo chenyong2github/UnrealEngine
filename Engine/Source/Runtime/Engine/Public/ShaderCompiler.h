@@ -555,6 +555,9 @@ public:
 
 	/** Main work loop. */
 	virtual int32 CompilingLoop() = 0;
+
+	/** Events from the manager */
+	virtual void OnMachineResourcesChanged() {}
 };
 
 /** 
@@ -567,7 +570,9 @@ class FShaderCompileThreadRunnable : public FShaderCompileThreadRunnableBase
 private:
 
 	/** Information about the active workers that this thread is tracking. */
-	TArray<struct FShaderCompileWorkerInfo*> WorkerInfos;
+	TArray<TUniquePtr<struct FShaderCompileWorkerInfo>> WorkerInfos;
+	FCriticalSection WorkerInfosLock;
+
 	/** Tracks the last time that this thread checked if the workers were still active. */
 	double LastCheckForWorkersTime;
 
@@ -605,6 +610,8 @@ private:
 
 	/** Main work loop. */
 	virtual int32 CompilingLoop() override;
+
+	virtual void OnMachineResourcesChanged() override;
 };
 
 namespace FShaderCompileUtilities
@@ -927,6 +934,9 @@ private:
 	/** Used to show a notification accompanying progress. */
 	FAsyncCompilationNotification Notification;
 
+	/** Calculate NumShaderCompilingThreads, during construction or OnMachineResourcesChanged */
+	void CalculateNumberOfCompilingThreads();
+
 	/** Launches the worker, returns the launched process handle. */
 	FProcHandle LaunchWorker(const FString& WorkingDirectory, uint32 ProcessId, uint32 ThreadId, const FString& WorkerInputFile, const FString& WorkerOutputFile);
 
@@ -964,6 +974,9 @@ public:
 	
 	ENGINE_API FShaderCompilingManager();
 	ENGINE_API ~FShaderCompilingManager();
+
+	/** Called by external systems that have updated the number of worker threads available. */
+	ENGINE_API void OnMachineResourcesChanged();
 
 	ENGINE_API int32 GetNumPendingJobs() const;
 	ENGINE_API int32 GetNumOutstandingJobs() const;
