@@ -427,6 +427,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float AnkleTwistReduction = 0.75f;
 
+	// Whether to allow adjusting the heel lift before we plant
+	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	bool bAdjustHeelBeforePlanting = false;
+
 	void Initialize(const FAnimationInitializeContext& Context);
 };
 
