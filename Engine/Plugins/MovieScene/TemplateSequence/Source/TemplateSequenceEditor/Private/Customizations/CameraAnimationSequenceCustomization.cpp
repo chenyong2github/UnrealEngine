@@ -17,7 +17,7 @@ void FCameraAnimationSequenceCustomization::RegisterSequencerCustomization(FSequ
 	FSequencerCustomizationInfo Customization;
 
 	TSharedRef<FExtender> ToolbarExtender = MakeShared<FExtender>();
-	ToolbarExtender->AddToolBarExtension("Base Commands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateRaw(this, &FCameraAnimationSequenceCustomization::ExtendSequencerToolbar));
+	ToolbarExtender->AddToolBarExtension("BaseCommands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateRaw(this, &FCameraAnimationSequenceCustomization::ExtendSequencerToolbar));
 	Customization.ToolbarExtender = ToolbarExtender;
 
 	Customization.OnAssetsDrop.BindLambda([](const TArray<UObject*>&, const FAssetDragDropOp&) -> ESequencerDropResult { return ESequencerDropResult::DropDenied; });
@@ -34,6 +34,8 @@ void FCameraAnimationSequenceCustomization::UnregisterSequencerCustomization()
 
 void FCameraAnimationSequenceCustomization::ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder)
 {
+	ToolbarBuilder.BeginStyleOverride("SequencerToolBar");
+
 	ToolbarBuilder.AddSeparator();
 
 	ToolbarBuilder.AddComboButton(
@@ -42,6 +44,8 @@ void FCameraAnimationSequenceCustomization::ExtendSequencerToolbar(FToolBarBuild
 			LOCTEXT("CameraTypePicker", "Camera Type"),
 			LOCTEXT("CameraTypePickerTooltip", "Change the base camera actor type that this template sequence can bind to"),
 			FSlateIcon(FTemplateSequenceEditorStyle::Get()->GetStyleSetName(), "TemplateSequenceEditor.Chain"));
+	
+	ToolbarBuilder.EndStyleOverride();
 }
 
 TSharedRef<SWidget> FCameraAnimationSequenceCustomization::GetBoundCameraClassMenuContent()

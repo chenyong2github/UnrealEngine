@@ -40,8 +40,6 @@ public:
 
 		// toolbar icons
 		Set("TemplateSequenceEditor.Chain", new IMAGE_BRUSH("Chain_16x", Icon16x16));
-		Set("TemplateSequenceEditor.Chain", new IMAGE_BRUSH("Chain_64x", Icon64x64));
-		Set("TemplateSequenceEditor.Chain", new IMAGE_BRUSH("Chain_48x", Icon48x48));
 		Set("TemplateSequenceEditor.Chain.Small", new IMAGE_BRUSH("Chain_24x", Icon24x24));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);

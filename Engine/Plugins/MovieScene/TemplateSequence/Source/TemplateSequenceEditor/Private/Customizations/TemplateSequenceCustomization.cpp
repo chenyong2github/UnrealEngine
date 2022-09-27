@@ -19,7 +19,7 @@ void FTemplateSequenceCustomization::RegisterSequencerCustomization(FSequencerCu
 	FSequencerCustomizationInfo Customization;
 
 	TSharedRef<FExtender> ToolbarExtender = MakeShared<FExtender>();
-	ToolbarExtender->AddToolBarExtension("Base Commands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateRaw(this, &FTemplateSequenceCustomization::ExtendSequencerToolbar));
+	ToolbarExtender->AddToolBarExtension("BaseCommands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateRaw(this, &FTemplateSequenceCustomization::ExtendSequencerToolbar));
 	Customization.ToolbarExtender = ToolbarExtender;
 
 	Customization.OnAssetsDrop.BindRaw(this, &FTemplateSequenceCustomization::OnSequencerAssetsDrop);
@@ -36,6 +36,8 @@ void FTemplateSequenceCustomization::UnregisterSequencerCustomization()
 
 void FTemplateSequenceCustomization::ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder)
 {
+	ToolbarBuilder.BeginStyleOverride("SequencerToolBar");
+
 	ToolbarBuilder.AddSeparator();
 
 	ToolbarBuilder.AddComboButton(
@@ -44,6 +46,8 @@ void FTemplateSequenceCustomization::ExtendSequencerToolbar(FToolBarBuilder& Too
 			LOCTEXT("BoundActorClassPicker", "Bound Actor Class"),
 			LOCTEXT("BoundActorClassPickerTooltip", "Change the base actor type that this template sequence can bind to"),
 			FSlateIcon(FTemplateSequenceEditorStyle::Get()->GetStyleSetName(), "TemplateSequenceEditor.Chain"));
+
+	ToolbarBuilder.EndStyleOverride();
 }
 
 TSharedRef<SWidget> FTemplateSequenceCustomization::GetBoundActorClassMenuContent()
