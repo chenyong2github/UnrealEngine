@@ -644,6 +644,13 @@ namespace UnrealBuildTool
 				Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 				return (int)Ex.Result;
 			}
+			catch (BuildLogEventException Ex)
+			{
+				// BuildExceptions should have nicely formatted messages. We can log these directly.
+				Logger.Log(Ex.Event.Level, Ex.Event.Id, Ex.Event, Ex, (s, e) => s.ToString());
+				Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
+				return (int)CompilationResult.OtherCompilationError;
+			}
 			catch (BuildException Ex)
 			{
 				// BuildExceptions should have nicely formatted messages. We can log these directly.
