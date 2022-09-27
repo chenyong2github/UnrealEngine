@@ -81,7 +81,7 @@ void FDefaultSourceControlProvider::CancelOperation( const FSourceControlOperati
 
 bool FDefaultSourceControlProvider::UsesLocalReadOnlyState() const
 {
-	return false;
+	return true;
 }
 
 bool FDefaultSourceControlProvider::UsesChangelists() const
