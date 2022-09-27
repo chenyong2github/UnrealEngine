@@ -583,6 +583,7 @@ private:
 	void RemovePointCloudListener();
 	void OnPointCloudRebuilt();
 	void OnPointCloudCollisionUpdated();
+	void OnPointCloudNormalsUpdated();
 
 	void PostPointCloudSet();
 

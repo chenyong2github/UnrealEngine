@@ -82,6 +82,7 @@ void ULidarPointCloudComponent::AttachPointCloudListener()
 	{
 		PointCloud->OnPointCloudRebuilt().AddUObject(this, &ULidarPointCloudComponent::OnPointCloudRebuilt);
 		PointCloud->OnPointCloudCollisionUpdated().AddUObject(this, &ULidarPointCloudComponent::OnPointCloudCollisionUpdated);
+		PointCloud->OnPointCloudNormalsUpdated().AddUObject(this, &ULidarPointCloudComponent::OnPointCloudNormalsUpdated);
 	}
 }
 
@@ -91,6 +92,7 @@ void ULidarPointCloudComponent::RemovePointCloudListener()
 	{
 		PointCloud->OnPointCloudRebuilt().RemoveAll(this);
 		PointCloud->OnPointCloudCollisionUpdated().RemoveAll(this);
+		PointCloud->OnPointCloudNormalsUpdated().RemoveAll(this);
 	}
 }
 
@@ -119,6 +121,12 @@ void ULidarPointCloudComponent::OnPointCloudCollisionUpdated()
 		RecreatePhysicsState();
 	}
 
+	MarkRenderStateDirty();
+}
+
+void ULidarPointCloudComponent::OnPointCloudNormalsUpdated()
+{
+	PointOrientation = ELidarPointCloudSpriteOrientation::PreferFacingNormal;
 	MarkRenderStateDirty();
 }
 

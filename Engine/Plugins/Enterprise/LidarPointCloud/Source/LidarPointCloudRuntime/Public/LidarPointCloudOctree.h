@@ -490,9 +490,9 @@ public:
 	void InvertSelection();
 	int64 NumSelectedPoints() const;
 	bool HasSelectedPoints() const;
+	void GetSelectedPoints(TArray64<FLidarPointCloudPoint*>& SelectedPoints) const;
 	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform) const;
 	void GetSelectedPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box) const;
-	void CalculateNormalsForSelection(FThreadSafeBool* bCancelled, int32 Quality, float Tolerance);
 	void ClearSelection();
 	void BuildStaticMeshBuffersForSelection(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform);
 #endif

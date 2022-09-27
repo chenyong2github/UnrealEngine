@@ -632,7 +632,12 @@ void ULidarPointCloud::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>
 
 void ULidarPointCloud::CalculateNormalsForSelection()
 {
-	Octree.CalculateNormalsForSelection(nullptr, NormalsQuality, NormalsNoiseTolerance);
+	TArray64<FLidarPointCloudPoint*>* SelectedPoints = new TArray64<FLidarPointCloudPoint*>();
+	Octree.GetSelectedPoints(*SelectedPoints);
+	CalculateNormals(SelectedPoints, [SelectedPoints]
+	{
+		delete SelectedPoints;
+	});
 }
 
 void ULidarPointCloud::ClearSelection()
@@ -1348,6 +1353,7 @@ void ULidarPointCloud::CalculateNormals(TArray64<FLidarPointCloudPoint*>* Points
 		{
 			MarkPackageDirty();
 			Notification->Close(!bAsyncCancelled);
+			OnPointCloudNormalsUpdatedEvent.Broadcast();
 		});
 
 		if (_CompletionCallback)

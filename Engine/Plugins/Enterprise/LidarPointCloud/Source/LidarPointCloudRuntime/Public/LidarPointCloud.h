@@ -165,6 +165,7 @@ private:
 
 	FOnPointCloudChanged OnPointCloudRebuiltEvent;
 	FOnPointCloudChanged OnPointCloudUpdateCollisionEvent;
+	FOnPointCloudChanged OnPointCloudNormalsUpdatedEvent;
 	FOnPointCloudChanged OnPreSaveCleanupEvent;
 
 public:
@@ -172,6 +173,7 @@ public:
 
 	FOnPointCloudChanged& OnPointCloudRebuilt() { return OnPointCloudRebuiltEvent; }
 	FOnPointCloudChanged& OnPointCloudCollisionUpdated() { return OnPointCloudUpdateCollisionEvent; }
+	FOnPointCloudChanged& OnPointCloudNormalsUpdated() { return OnPointCloudNormalsUpdatedEvent; }
 	FOnPointCloudChanged& OnPreSaveCleanup() { return OnPreSaveCleanupEvent; }
 
 	// Begin UObject Interface.

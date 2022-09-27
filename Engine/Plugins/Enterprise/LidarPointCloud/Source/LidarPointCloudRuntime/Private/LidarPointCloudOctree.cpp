@@ -1928,6 +1928,11 @@ bool FLidarPointCloudOctree::HasSelectedPoints() const
 	return false;
 }
 
+void FLidarPointCloudOctree::GetSelectedPoints(TArray64<FLidarPointCloudPoint*>& SelectedPoints) const
+{
+	ITERATE_SELECTED({ SelectedPoints.Add(Point); }, {});
+}
+
 void FLidarPointCloudOctree::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform) const
 {
 	const FTransform3f Transform3F = (FTransform3f)Transform;
@@ -1949,21 +1954,6 @@ void FLidarPointCloudOctree::GetSelectedPointsInBox(TArray64<const FLidarPointCl
 			SelectedPoints.Add(Point);
 		}
 	});
-}
-
-void FLidarPointCloudOctree::CalculateNormalsForSelection(FThreadSafeBool* bCancelled, int32 Quality, float Tolerance)
-{
-	TArray64<FLidarPointCloudPoint*> SelectedPoints;
-
-	ITERATE_SELECTED({
-		SelectedPoints.Add(Point);
-		Point->Normal.Reset();
-	},{
-		CurrentNode->bCanReleaseData = false;
-		CurrentNode->bRenderDataDirty = true;
-	});
-	
-	LidarPointCloudMeshing::CalculateNormals(this, bCancelled, Quality, Tolerance, SelectedPoints);
 }
 
 void FLidarPointCloudOctree::ClearSelection()
