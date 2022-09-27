@@ -189,7 +189,7 @@ void FCustomizableObjectInstanceEditor::InitCustomizableObjectInstanceEditor( co
 	{
 		if (ObjectToEdit)
 		{
-			if (UCustomizableObject* CustomizableObject = CustomizableObjectInstance->GetCustomizableObject();
+			if (UCustomizableObject* CustomizableObject = ObjectToEdit->GetCustomizableObject();
 				CustomizableObject &&
 				!CustomizableObject->IsCompiled())
 			{
