@@ -132,6 +132,63 @@ namespace EpicGames.Horde.Storage.Nodes
 			return AppendAsync(this, input, options, writer, cancellationToken);
 		}
 
+		/// <summary>
+		/// Appends data to this file
+		/// </summary>
+		/// <param name="stream">Data to append to the file</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new node data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New node at the root of this file</returns>
+		public ValueTask<FileNode> AppendAsync(Stream stream, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		{
+			return AppendAsync(this, stream, options, writer, cancellationToken);
+		}
+
+		/// <summary>
+		/// Appends data to this file
+		/// </summary>
+		/// <param name="node">Node to append to</param>
+		/// <param name="stream">Data to append to the file</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new node data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New node at the root of this file</returns>
+		static async ValueTask<FileNode> AppendAsync(FileNode node, Stream stream, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		{
+			const int BufferLength = 32 * 1024;
+
+			using IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(BufferLength * 2);
+			Memory<byte> buffer = owner.Memory;
+
+			int readBufferOffset = 0;
+			Memory<byte> appendBuffer = Memory<byte>.Empty;
+			for (; ; )
+			{
+				// Start a read into memory
+				Memory<byte> readBuffer = buffer.Slice(readBufferOffset, BufferLength);
+				Task<int> readTask = Task.Run(async () => await stream.ReadAsync(readBuffer, cancellationToken), cancellationToken);
+
+				// In the meantime, append the last data that was read to the tree
+				if (appendBuffer.Length > 0)
+				{
+					node = await node.AppendAsync(appendBuffer, options, writer, cancellationToken);
+				}
+
+				// Wait for the read to finish
+				int numBytes = await readTask;
+				if (numBytes == 0)
+				{
+					break;
+				}
+
+				// Switch the buffers around
+				appendBuffer = readBuffer.Slice(0, numBytes);
+				readBufferOffset ^= BufferLength;
+			}
+			return node;
+		}
+
 		static async ValueTask<FileNode> AppendAsync(FileNode root, ReadOnlyMemory<byte> input, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
 		{
 			for (; ; )
@@ -303,22 +360,32 @@ namespace EpicGames.Horde.Storage.Nodes
 				return newData;
 			}
 
-			// Fast path for appending data to the buffer up to the chunk window size
-			int windowSize = options.LeafOptions.MinSize;
-			if (Length < windowSize)
+			// If the target option sizes are fixed, just chunk the data along fixed boundaries
+			if (options.LeafOptions.MinSize == options.LeafOptions.TargetSize && options.LeafOptions.MaxSize == options.LeafOptions.TargetSize)
 			{
-				int appendLength = Math.Min(windowSize - (int)Length, newData.Length);
-				AppendLeafData(newData.Span.Slice(0, appendLength));
-				newData = newData.Slice(appendLength);
-			}
-
-			// Cap the maximum amount of data to append to this node
-			int maxLength = Math.Min(newData.Length, options.LeafOptions.MaxSize - (int)Length);
-			if (maxLength > 0)
-			{
-				ReadOnlySpan<byte> inputSpan = newData.Span.Slice(0, maxLength);
-				int length = AppendLeafDataToChunkBoundary(inputSpan, options);
+				int length = Math.Min(newData.Length, options.LeafOptions.MaxSize - (int)Length);
+				AppendLeafData(newData.Span.Slice(0, length), 0);
 				newData = newData.Slice(length);
+			}
+			else
+			{
+				// Fast path for appending data to the buffer up to the chunk window size
+				int windowSize = options.LeafOptions.MinSize;
+				if (Length < windowSize)
+				{
+					int appendLength = Math.Min(windowSize - (int)Length, newData.Length);
+					AppendLeafData(newData.Span.Slice(0, appendLength));
+					newData = newData.Slice(appendLength);
+				}
+
+				// Cap the maximum amount of data to append to this node
+				int maxLength = Math.Min(newData.Length, options.LeafOptions.MaxSize - (int)Length);
+				if (maxLength > 0)
+				{
+					ReadOnlySpan<byte> inputSpan = newData.Span.Slice(0, maxLength);
+					int length = AppendLeafDataToChunkBoundary(inputSpan, options);
+					newData = newData.Slice(length);
+				}
 			}
 
 			// Mark this node as complete if we've reached the max size
@@ -518,7 +585,7 @@ namespace EpicGames.Horde.Storage.Nodes
 						}
 
 						// Collapse the final node
-						await writer.WriteAsync(Children[^1].Target!, cancellationToken);
+						await writer.WriteAsync(Children[^1], cancellationToken);
 					}
 				}
 

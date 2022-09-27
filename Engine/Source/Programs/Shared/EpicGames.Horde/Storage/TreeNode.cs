@@ -1,18 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Reflection.Metadata;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using EpicGames.Core;
-using EpicGames.Serialization;
-using JetBrains.Annotations;
 
 namespace EpicGames.Horde.Storage
 {
@@ -22,26 +13,30 @@ namespace EpicGames.Horde.Storage
 	public abstract class TreeNode
 	{
 		/// <summary>
-		/// Whether the node is dirty or not
+		/// Revision number for the node. Incremented whenever the node is modified; used to detect changes between a serialized ref and live instance.
 		/// </summary>
-		public bool IsDirty { get; private set; }
+		int _revision;
+
+		/// <summary>
+		/// Revision number for this node. Incremented Whether the node is dirty or not
+		/// </summary>
+		public int Revision => _revision;
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
 		protected TreeNode()
 		{
-			IsDirty = true;
+			_revision = 1;
 		}
 
 		/// <summary>
-		/// Serialization constructor. Clears the dirty flag by default.
+		/// Serialization constructor. Leaves the revision number zeroed by default.
 		/// </summary>
 		/// <param name="reader"></param>
 		protected TreeNode(IMemoryReader reader)
 		{
 			_ = reader;
-			IsDirty = false;
 		}
 
 		/// <summary>
@@ -49,7 +44,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		protected void MarkAsDirty()
 		{
-			IsDirty = true;
+			_revision++;
 		}
 
 		/// <summary>

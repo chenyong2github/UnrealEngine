@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Horde.Storage.Git;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -10,8 +10,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace EpicGames.Horde.Storage.Nodes
 {
@@ -75,7 +77,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Cached length of this node
 		/// </summary>
-		long _cachedLength;
+		readonly long _cachedLength;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public FileEntry(Utf8String name, FileEntryFlags flags)
+			: this(name, flags, new LeafFileNode())
+		{
+		}
 
 		/// <summary>
 		/// Constructor
@@ -135,36 +145,8 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task AppendAsync(Stream stream, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
 		{
-			const int BufferLength = 32 * 1024;
-
-			using IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(BufferLength * 2);
-			Memory<byte> buffer = owner.Memory;
-
-			int readBufferOffset = 0;
-			Memory<byte> appendBuffer = Memory<byte>.Empty;
-			for (; ; )
-			{
-				// Start a read into memory
-				Memory<byte> readBuffer = buffer.Slice(readBufferOffset, BufferLength);
-				Task<int> readTask = Task.Run(async () => await stream.ReadAsync(readBuffer, cancellationToken), cancellationToken);
-
-				// In the meantime, append the last data that was read to the tree
-				if (appendBuffer.Length > 0)
-				{
-					await AppendAsync(appendBuffer, options, writer, cancellationToken);
-				}
-
-				// Wait for the read to finish
-				int numBytes = await readTask;
-				if (numBytes == 0)
-				{
-					break;
-				}
-
-				// Switch the buffers around
-				appendBuffer = readBuffer.Slice(0, numBytes);
-				readBufferOffset ^= BufferLength;
-			}
+			FileNode node = await ExpandAsync(cancellationToken);
+			Target = await node.AppendAsync(stream, options, writer, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -346,7 +328,22 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns>True if the entry exists</returns>
 		public bool Contains(Utf8String name) => TryGetFileEntry(name, out _) || TryGetDirectoryEntry(name, out _);
 
-#region File operations
+		#region File operations
+
+		/// <summary>
+		/// Adds a new file entry to this directory
+		/// </summary>
+		/// <param name="entry">The entry to add</param>
+		public void AddFile(FileEntry entry)
+		{
+			if (TryGetDirectoryEntry(entry.Name, out _))
+			{
+				throw new ArgumentException($"A directory with the name {entry.Name} already exists");
+			}
+
+			_nameToFileEntry.Add(entry.Name, entry);
+			MarkAsDirty();
+		}
 
 		/// <summary>
 		/// Adds a new directory with the given name
@@ -356,17 +353,8 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns>The new directory object</returns>
 		public FileEntry AddFile(Utf8String name, FileEntryFlags flags)
 		{
-			if (TryGetDirectoryEntry(name, out _))
-			{
-				throw new ArgumentException($"A directory with the name {name} already exists");
-			}
-
-			FileNode newNode = new LeafFileNode();
-
-			FileEntry entry = new FileEntry(name, flags, newNode);
-			_nameToFileEntry[name] = entry;
-			MarkAsDirty();
-
+			FileEntry entry = new FileEntry(name, flags);
+			AddFile(entry);
 			return entry;
 		}
 
@@ -573,7 +561,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			return false;
 		}
 
-#endregion
+		#endregion
 
 		/// <summary>
 		/// Adds files from a directory on disk
@@ -586,18 +574,78 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns></returns>
 		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, ILogger logger, CancellationToken cancellationToken)
 		{
+			const int MaxWriters = 32;
+			const long MinSizePerWriter = 1024 * 1024;
+
+			// Enumerate all the files below this directory
+			List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files = new List<(DirectoryNode, FileInfo)>();
+			FindFilesToCopy(directoryInfo, files);
+
+			// Compute the total size
+			long totalSize = files.Sum(x => x.Item2.Length);
+			long chunkSize = Math.Max(MinSizePerWriter, totalSize / MaxWriters);
+
+			List<Task> tasks = new List<Task>();
+			long currentSize = 0;
+			long targetSize = chunkSize;
+			FileEntry[] fileEntries = new FileEntry[files.Count];
+
+			// Split it into separate writers
+			for (int minIdx = 0; minIdx < files.Count; )
+			{
+				currentSize += files[minIdx].FileInfo.Length;
+
+				int maxIdx = minIdx + 1;
+				while (maxIdx < files.Count && currentSize + files[maxIdx].FileInfo.Length <= targetSize)
+				{
+					currentSize += files[maxIdx].FileInfo.Length;
+					maxIdx++;
+				}
+
+				int minIdxCopy = minIdx;
+				tasks.Add(Task.Run(() => CopyFilesAsync(files, minIdxCopy, maxIdx, fileEntries, options, writer, logger, cancellationToken), cancellationToken));
+
+				targetSize += chunkSize;
+				minIdx = maxIdx;
+			}
+
+			// Wait for them all to finish
+			await Task.WhenAll(tasks);
+
+			// Update the directory with all the output entries
+			for (int idx = 0; idx < files.Count; idx++)
+			{
+				files[idx].DirectoryNode.AddFile(fileEntries[idx]);
+			}
+		}
+
+		void FindFilesToCopy(DirectoryInfo directoryInfo, List<(DirectoryNode, FileInfo)> files)
+		{
 			foreach (DirectoryInfo subDirectoryInfo in directoryInfo.EnumerateDirectories())
 			{
-				logger.LogInformation("Adding {Directory}", subDirectoryInfo.FullName);
-				DirectoryNode subDirectoryNode = AddDirectory(subDirectoryInfo.Name);
-				await subDirectoryNode.CopyFromDirectoryAsync(subDirectoryInfo, options, writer, logger, cancellationToken);
+				AddDirectory(subDirectoryInfo.Name).FindFilesToCopy(subDirectoryInfo, files);
 			}
 			foreach (FileInfo fileInfo in directoryInfo.EnumerateFiles())
 			{
-				logger.LogInformation("Adding {File}", fileInfo.FullName);
-				using Stream stream = fileInfo.OpenRead();
-				await AddFileAsync(fileInfo.Name, 0, stream, options, writer, cancellationToken);
+				files.Add((this, fileInfo));
 			}
+		}
+
+		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, ILogger logger, CancellationToken cancellationToken)
+		{
+			TreeWriter writer = new TreeWriter(baseWriter);
+			for(int idx = minIdx; idx < maxIdx; idx++)
+			{
+				FileInfo fileInfo = files[idx].FileInfo;
+
+				FileEntry fileEntry = new FileEntry(fileInfo.Name, FileEntryFlags.None);
+				using (Stream stream = fileInfo.OpenRead())
+				{
+					await fileEntry.AppendAsync(stream, options, writer, cancellationToken);
+				}
+				entries[idx] = fileEntry;
+			}
+			await writer.FlushAsync(cancellationToken);
 		}
 
 		/// <summary>

@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
@@ -118,12 +120,19 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			IStorageClient store = CreateStorageClient(cache, logger);
+
 			TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
-			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, logger, CancellationToken.None);
+
+			Stopwatch timer = Stopwatch.StartNew();
+
+			ChunkingOptions options = new ChunkingOptions();
+			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, logger, CancellationToken.None);
 
 			await writer.WriteRefAsync(RefName, node);
+
+			logger.LogInformation("Time: {Time}", timer.Elapsed.TotalSeconds);
 			return 0;
 		}
 	}

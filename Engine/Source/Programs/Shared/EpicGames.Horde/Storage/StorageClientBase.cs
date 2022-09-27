@@ -343,8 +343,8 @@ namespace EpicGames.Horde.Storage
 
 			public void ReadRef(TreeNodeRef treeNodeRef)
 			{
-				treeNodeRef._store = _store;
-				(treeNodeRef._hash, treeNodeRef._locator) = _refs[(int)this.ReadUnsignedVarInt()];
+				(IoHash hash, NodeLocator locator) = _refs[(int)this.ReadUnsignedVarInt()];
+				treeNodeRef.MarkAsClean(_store, hash, locator, 0);
 			}
 		}
 

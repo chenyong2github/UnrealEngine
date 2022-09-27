@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -9,35 +8,49 @@ using EpicGames.Core;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Stores a reference from a parent to child node, which can be resurrected after the child node is flushed to storage if subsequently modified.
+	/// Stores a reference from a parent to child node. The reference may be to a node in memory, or to a node in the storage system.
 	/// </summary>
-	public abstract class TreeNodeRef
+	public class TreeNodeRef
 	{
 		/// <summary>
 		/// Store containing the node data. May be null for nodes in memory.
 		/// </summary>
-		internal IStorageClient? _store;
+		public IStorageClient? Store { get; private set; }
 
 		/// <summary>
 		/// Hash of the referenced node. Invalid for nodes in memory.
 		/// </summary>
-		internal IoHash _hash;
+		public IoHash Hash { get; private set; }
 
 		/// <summary>
 		/// Locator for the blob containing this node. Invalid for nodes in memory.
 		/// </summary>
-		internal NodeLocator _locator;
+		public NodeLocator Locator { get; private set; }
+
+		/// <summary>
+		/// Revision number of the target node
+		/// </summary>
+		private int _revision;
+
+		/// <summary>
+		/// The target node in memory
+		/// </summary>
+		private TreeNode? _target;
 
 		/// <summary>
 		/// The target node, or null if the node is not resident in memory.
 		/// </summary>
-		public TreeNode? Target { get; set; }
+		public TreeNode? Target
+		{
+			get => _target;
+			set => MarkAsDirty(value);
+		}
 
 		/// <summary>
 		/// Creates a reference to a node in memory.
 		/// </summary>
 		/// <param name="target">Node to reference</param>
-		protected TreeNodeRef(TreeNode target)
+		protected internal TreeNodeRef(TreeNode target)
 		{
 			Target = target;
 		}
@@ -50,13 +63,13 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		internal TreeNodeRef(IStorageClient store, IoHash hash, NodeLocator locator)
 		{
-			_store = store;
-			_hash = hash;
-			_locator = locator;
+			Store = store;
+			Hash = hash;
+			Locator = locator;
 		}
 
 		/// <summary>
-		/// 
+		/// Deserialization constructor
 		/// </summary>
 		/// <param name="reader"></param>
 		public TreeNodeRef(ITreeNodeReader reader)
@@ -65,17 +78,61 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Determines whether the the referenced node has modified from the last version written to storage
+		/// </summary>
+		/// <returns></returns>
+		public bool IsDirty() => _target != null && _revision != _target.Revision;
+
+		/// <summary>
+		/// Update the reference to refer to a node in memory.
+		/// </summary>
+		/// <param name="target">The target node</param>
+		public void MarkAsDirty(TreeNode? target)
+		{
+			if (target == null)
+			{
+				if (!Locator.IsValid())
+				{
+					throw new InvalidOperationException("Node has not been serialized to disk; cannot clear target reference.");
+				}
+			}
+			else
+			{
+				Store = null;
+				Hash = default;
+				Locator = default;
+				_revision = 0;
+			}
+
+			_target = target;
+		}
+
+		/// <summary>
+		/// Update the reference to refer to a location in storage.
+		/// </summary>
+		/// <param name="store">The storage client</param>
+		/// <param name="hash">Hash of the node</param>
+		/// <param name="locator">Location of the node</param>
+		/// <param name="revision">Revision number for the node</param>
+		public bool MarkAsClean(IStorageClient store, IoHash hash, NodeLocator locator, int revision)
+		{
+			bool result = false;
+			if (_target == null || _target.Revision == revision)
+			{
+				Store = store;
+				Hash = hash;
+				Locator = locator;
+				_revision = revision;
+				result = true;
+			}
+			return result;
+		}
+
+		/// <summary>
 		/// Serialize the node to the given writer
 		/// </summary>
 		/// <param name="writer"></param>
 		public void Serialize(ITreeNodeWriter writer) => writer.WriteRef(this);
-
-		/// <summary>
-		/// Resolve this reference to a concrete node
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public abstract ValueTask<TreeNode> ExpandBaseAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -126,22 +183,12 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public override async ValueTask<TreeNode> ExpandBaseAsync(CancellationToken cancellationToken = default)
-		{
-			return await ExpandAsync(cancellationToken);
-		}
-
-		/// <summary>
-		/// Resolve this reference to a concrete node
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
 		public async ValueTask<T> ExpandAsync(CancellationToken cancellationToken = default)
 		{
 			T? result = Target;
 			if (result == null)
 			{
-				Target = await _store!.ReadNodeAsync<T>(_locator, cancellationToken);
+				Target = await Store!.ReadNodeAsync<T>(Locator, cancellationToken);
 				result = Target;
 			}
 			return result;

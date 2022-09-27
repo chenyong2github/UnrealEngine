@@ -41,13 +41,17 @@ namespace EpicGames.Horde.Storage
 		{
 			public readonly IoHash Hash;
 			public readonly int Length;
+			public readonly int Revision;
 			public readonly IReadOnlyList<IoHash> RefHashes;
+			public readonly TreeNodeRef NodeRef;
 
-			public NodeInfo(IoHash hash, int length, IReadOnlyList<IoHash> refs)
+			public NodeInfo(IoHash hash, int length, IReadOnlyList<IoHash> refs, TreeNodeRef nodeRef, int revision)
 			{
 				Hash = hash;
 				Length = length;
 				RefHashes = refs;
+				NodeRef = nodeRef;
+				Revision = revision;
 			}
 		}
 
@@ -90,8 +94,8 @@ namespace EpicGames.Horde.Storage
 		// Queue of nodes for the current bundle
 		readonly List<NodeInfo> _queue = new List<NodeInfo>();
 
-		// List of fences for particular nodes to be written
-		readonly Dictionary<IoHash, TaskCompletionSource<NodeLocator>> _fences = new Dictionary<IoHash, TaskCompletionSource<NodeLocator>>();
+		// Queue of nodes that are already scheduled to be written elsewhere
+		readonly List<NodeInfo> _secondaryQueue = new List<NodeInfo>();
 
 		// List of packets in the current bundle
 		readonly List<BundlePacket> _packets = new List<BundlePacket>();
@@ -101,6 +105,11 @@ namespace EpicGames.Horde.Storage
 
 		// Total size of compressed packets in the current bundle
 		int _currentBundleLength;
+
+		/// <summary>
+		/// Accessor for the store backing this writer
+		/// </summary>
+		public IStorageClient Store => _store;
 
 		/// <summary>
 		/// Constructor
@@ -117,20 +126,12 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Returns a task that can be used to wait for a particular node to be flushed to storage.
+		/// Copies settings from another tree writer
 		/// </summary>
-		/// <param name="hash">Hash of the node to wait for</param>
-		/// <returns></returns>
-		public Task<NodeLocator> WaitForFlushAsync(IoHash hash)
+		/// <param name="other">Other instance to copy from</param>
+		public TreeWriter(TreeWriter other)
+			: this(other._store, other._options, other._prefix)
 		{
-			TaskCompletionSource<NodeLocator>? tcs;
-			if (!_fences.TryGetValue(hash, out tcs))
-			{
-				_ = _hashToNode[hash]; // Make sure it exists!
-				tcs = new TaskCompletionSource<NodeLocator>();
-				_fences.Add(hash, tcs);
-			}
-			return tcs.Task;
 		}
 
 		/// <summary>
@@ -149,37 +150,53 @@ namespace EpicGames.Horde.Storage
 		public bool TryGetLocator(IoHash hash, out NodeLocator locator) => _hashToNode.TryGetValue(hash, out locator);
 
 		/// <inheritdoc/>
-		public async Task<IoHash> WriteAsync(TreeNode node, CancellationToken cancellationToken = default)
+		public async Task<IoHash> WriteAsync(TreeNodeRef nodeRef, CancellationToken cancellationToken = default)
 		{
+			// If the target node hasn't been modified, use the existing state.
+			if (!nodeRef.IsDirty())
+			{
+				Debug.Assert(nodeRef.Locator.IsValid());
+				_hashToNode.TryAdd(nodeRef.Hash, nodeRef.Locator);
+				nodeRef.Target = null;
+				return nodeRef.Hash;
+			}
+
 			// Serialize the node
 			NodeWriter nodeWriter = new NodeWriter();
-			node.Serialize(nodeWriter);
+			nodeRef.Target!.Serialize(nodeWriter);
 
 			// Write all the references first
 			IoHash[] nextRefs = new IoHash[nodeWriter.Refs.Count];
 			for (int idx = 0; idx < nodeWriter.Refs.Count; idx++)
 			{
 				TreeNodeRef reference = nodeWriter.Refs[idx];
-				if (reference.Target == null || !reference.Target.IsDirty)
-				{
-					nextRefs[idx] = reference._hash;
-				}
-				else
-				{
-					nextRefs[idx] = await WriteAsync(reference.Target, cancellationToken);
-				}
+				nextRefs[idx] = await WriteAsync(reference, cancellationToken);
 			}
 
 			// Get the hash for the new blob
 			ReadOnlySequence<byte> data = nodeWriter.Data.AsSequence();
 			IoHash hash = ComputeHash(data, nextRefs);
 
-			// Write the node if we don't already have it
-			if (!_hashToNode.ContainsKey(hash))
+			// Check if we're already tracking a node with the same hash
+			NodeInfo nodeInfo = new NodeInfo(hash, (int)data.Length, nextRefs, nodeRef, nodeRef.Target.Revision);
+			if (_hashToNode.TryGetValue(hash, out NodeLocator locator))
 			{
+				// If the node is in the lookup but not currently valid, it's already queued for writing. Add this ref to the list of refs that needs fixing up,
+				// so we can update it after flushing.
+				if (locator.IsValid())
+				{
+					nodeRef.MarkAsClean(_store, hash, locator, nodeRef.Target.Revision);
+				}
+				else
+				{
+					_secondaryQueue.Add(nodeInfo);
+				}
+			}
+			else
+			{
+				// Write the node if we don't already have it
 				_packetWriter.WriteFixedLengthBytes(data);
 
-				NodeInfo nodeInfo = new NodeInfo(hash, (int)data.Length, nextRefs);
 				_queue.Add(nodeInfo);
 				_hashToNode.Add(hash, default);
 
@@ -205,12 +222,13 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public async Task<NodeLocator> WriteRefAsync(RefName name, TreeNode node, CancellationToken cancellationToken = default)
 		{
-			IoHash hash = await WriteAsync(node, cancellationToken);
+			TreeNodeRef nodeRef = new TreeNodeRef(node);
+			await WriteAsync(nodeRef, cancellationToken);
 			await FlushAsync(cancellationToken);
 
-			NodeLocator locator = GetLocator(hash);
-			await _store.WriteRefTargetAsync(name, locator, cancellationToken);
-			return locator;
+			Debug.Assert(nodeRef.Locator.IsValid());
+			await _store.WriteRefTargetAsync(name, nodeRef.Locator, cancellationToken);
+			return nodeRef.Locator;
 		}
 
 		/// <summary>
@@ -313,24 +331,25 @@ namespace EpicGames.Horde.Storage
 				BlobLocator locator = await _store.WriteBundleAsync(bundle, _prefix, cancellationToken);
 				for (int idx = 0; idx < _queue.Count; idx++)
 				{
+					NodeLocator nodeLocator = new NodeLocator(locator, idx);
+
 					NodeInfo nodeInfo = _queue[idx];
-					_hashToNode[nodeInfo.Hash] = new NodeLocator(locator, idx);
+					nodeInfo.NodeRef.MarkAsClean(_store, nodeInfo.Hash, nodeLocator, nodeInfo.Revision);
+
+					_hashToNode[nodeInfo.Hash] = nodeLocator;
 				}
 
-				// Fire all the alerts for any nodes that have been written
-				List<IoHash> removeFences = new List<IoHash>(_fences.Keys.Where(x => nodeToIndex.ContainsKey(x)));
-				foreach ((IoHash hash, TaskCompletionSource<NodeLocator> tcs) in _fences)
+				// Update any refs with their target locator
+				int refIdx = 0;
+				for (; refIdx < _secondaryQueue.Count; refIdx++)
 				{
-					if (nodeToIndex.ContainsKey(hash))
+					NodeInfo nodeInfo = _secondaryQueue[refIdx];
+					if (_hashToNode.TryGetValue(nodeInfo.Hash, out NodeLocator refLocator))
 					{
-						tcs.SetResult(_hashToNode[hash]);
-						removeFences.Add(hash);
+						nodeInfo.NodeRef.MarkAsClean(_store, nodeInfo.Hash, refLocator, nodeInfo.Revision);
 					}
 				}
-				foreach (IoHash removeFence in removeFences)
-				{
-					_hashToNode.Remove(removeFence);
-				}
+				_secondaryQueue.RemoveRange(0, refIdx);
 
 				// Reset the output state
 				_packets.Clear();
