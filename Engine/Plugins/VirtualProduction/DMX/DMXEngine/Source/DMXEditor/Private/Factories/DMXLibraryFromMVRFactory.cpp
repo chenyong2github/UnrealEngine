@@ -162,6 +162,9 @@ EReimportResult::Type UDMXLibraryFromMVRFactory::Reimport(UObject* Obj)
 		return EReimportResult::Failed;
 	}
 
+	// Since a new General Scene Description was created, the source file has to be set anew, 
+	MVRAssetImportData->SetSourceFile(SourceFilename);
+
 	TArray<UDMXImportGDTF*> GDTFs = CreateGDTFAssets(DMXLibrary->GetOuter(), RF_NoFlags, Zip, *GeneralSceneDescription);
 	InitDMXLibrary(DMXLibrary, GDTFs, GeneralSceneDescription);
 
