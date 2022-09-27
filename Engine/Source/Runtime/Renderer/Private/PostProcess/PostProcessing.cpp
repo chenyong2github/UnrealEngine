@@ -1334,12 +1334,12 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	{
 		Distortion,
 		SunMask,
+		SeparateTranslucency,
 		BloomSetup,
 		DepthOfField,
 		Bloom,
 		EyeAdaptation,
 		SunMerge,
-		SeparateTranslucency,
 		Tonemap,
 		PostProcessMaterialAfterTonemapping,
 		TAA,
@@ -1356,12 +1356,12 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	{
 		TEXT("Distortion"),
 		TEXT("SunMask"),
+		TEXT("SeparateTranslucency"),
 		TEXT("BloomSetup"),
 		TEXT("DepthOfField"),
 		TEXT("Bloom"),
 		TEXT("EyeAdaptation"),
 		TEXT("SunMerge"),
-		TEXT("SeparateTranslucency"),
 		TEXT("Tonemap"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
 		TEXT("TAA"),
@@ -1497,12 +1497,12 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 		PassSequence.SetEnabled(EPass::Distortion, bUseDistortion);
 		PassSequence.SetEnabled(EPass::SunMask, bUseSun || bUseDof);
+		PassSequence.SetEnabled(EPass::SeparateTranslucency, bUseSeparateTranslucency);
 		PassSequence.SetEnabled(EPass::BloomSetup, bUseSun || bUseMobileDof || bUseBloom || bUseBasicEyeAdaptation || bUseHistogramEyeAdaptation);
 		PassSequence.SetEnabled(EPass::DepthOfField, bUseDof);
 		PassSequence.SetEnabled(EPass::Bloom, bUseBloom);
 		PassSequence.SetEnabled(EPass::EyeAdaptation, bUseEyeAdaptation);
 		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun);
-		PassSequence.SetEnabled(EPass::SeparateTranslucency, bUseSeparateTranslucency);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
 		PassSequence.SetEnabled(EPass::TAA, bUseAa);
 		PassSequence.Finalize();
@@ -1552,6 +1552,17 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			// set bMetalMSAAHDRDecode to false if sun shaft enabled
 			bMetalMSAAHDRDecode = (bMetalMSAAHDRDecode && !bUseSun);
 			//@todo Ronin sunmask pass isnt clipping to image only.
+		}
+
+		// mobile separate translucency
+		if (PassSequence.IsEnabled(EPass::SeparateTranslucency))
+		{
+			PassSequence.AcceptPass(EPass::SeparateTranslucency);
+			FMobileSeparateTranslucencyInputs SeparateTranslucencyInputs;
+			SeparateTranslucencyInputs.SceneColor = SceneColor;
+			SeparateTranslucencyInputs.SceneDepth = SceneDepth;
+
+			AddMobileSeparateTranslucencyPass(GraphBuilder, View, SeparateTranslucencyInputs);
 		}
 
 		FMobileBloomSetupOutputs BloomSetupOutputs;
@@ -1828,29 +1839,18 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			}
 		}
 
-		// mobile separate translucency 
-		if (PassSequence.IsEnabled(EPass::SeparateTranslucency))
-		{
-			PassSequence.AcceptPass(EPass::SeparateTranslucency);
-			FMobileSeparateTranslucencyInputs SeparateTranslucencyInputs;
-			SeparateTranslucencyInputs.SceneColor = SceneColor;
-			SeparateTranslucencyInputs.SceneDepth = SceneDepth;
-
-			AddMobileSeparateTranslucencyPass(GraphBuilder, View, SeparateTranslucencyInputs);
-		}
-
 		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
 	}
 	else
 	{
 		PassSequence.SetEnabled(EPass::Distortion, false);
 		PassSequence.SetEnabled(EPass::SunMask, false);
+		PassSequence.SetEnabled(EPass::SeparateTranslucency, false);
 		PassSequence.SetEnabled(EPass::BloomSetup, false);
 		PassSequence.SetEnabled(EPass::DepthOfField, false);
 		PassSequence.SetEnabled(EPass::Bloom, false);
 		PassSequence.SetEnabled(EPass::EyeAdaptation, false);
 		PassSequence.SetEnabled(EPass::SunMerge, false);
-		PassSequence.SetEnabled(EPass::SeparateTranslucency, false);
 		PassSequence.SetEnabled(EPass::TAA, false);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, false);
 		PassSequence.Finalize();
