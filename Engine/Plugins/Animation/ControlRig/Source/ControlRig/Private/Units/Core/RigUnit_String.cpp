@@ -123,7 +123,7 @@ FRigUnit_StringSplit_Execute()
 
 		FString ValueRemaining = Value;
 		FString Left, Right;
-		while(ValueRemaining.Split(TEXT("."), &Left, &Right, ESearchCase::CaseSensitive, ESearchDir::FromStart))
+		while(ValueRemaining.Split(Separator, &Left, &Right, ESearchCase::CaseSensitive, ESearchDir::FromStart))
 		{
 			Result.Add(Left);
 			Left.Empty();
