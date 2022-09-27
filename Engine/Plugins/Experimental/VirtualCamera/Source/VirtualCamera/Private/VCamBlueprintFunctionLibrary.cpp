@@ -285,7 +285,18 @@ void UVCamBlueprintFunctionLibrary::PilotActor(AActor* SelectedActor)
 
 		if (LevelEditorSubsystem)
 		{
-			return LevelEditorSubsystem->PilotLevelActor(SelectedActor);
+			LevelEditorSubsystem->PilotLevelActor(SelectedActor);
+
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+			TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+			if (LevelEditor)
+			{
+				TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+				if (ActiveLevelViewport && !ActiveLevelViewport->IsLockedCameraViewEnabled())
+				{
+					ActiveLevelViewport->ToggleActorPilotCameraView();
+				}
+			}
 		}
 	}
 #endif
