@@ -39,18 +39,13 @@ void GlobalDistanceFieldPageStatsCS(
 				{
 					for (uint PageCoordX = 0; PageCoordX < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION; ++PageCoordX)
 					{
-						float3 PageCoord = uint3(PageCoordX, PageCoordY, PageCoordZ);
-						uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page);
+						// Don't sample border values which can be safely skipped
+						float3 CoordInPage = uint3(PageCoordX, PageCoordY, PageCoordZ);
+						CoordInPage = clamp(CoordInPage + 0.5f, 1.0f, GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION - 1.0f);
 
-						float DistanceFieldValue = PageAtlasTexture[PageAtlasOffset + PageCoord].x;
-						if (View.GeneralPurposeTweak > 0.5f)
-						{
-							// Don't sample border values which can be safely skipped
-							PageCoord = clamp(PageCoord + 0.5f, GLOBAL_DISTANCE_FIELD_PAGE_BORDER, GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION - GLOBAL_DISTANCE_FIELD_PAGE_BORDER);
-
-							float3 PageUV = (PageAtlasOffset + PageCoord) * InvPageAtlasSize;
-							DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
-						}
+						uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
+						float3 PageUV = (PageAtlasOffset + CoordInPage) * InvPageAtlasSize;
+						float DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
 
 						if (DistanceFieldValue > 0.0f && DistanceFieldValue < 1.0f)
 						{
