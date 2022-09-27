@@ -212,6 +212,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>,		DbgBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,			DbgBuffer32)
 
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, RayTracingDataBuffer)
+
 	// Multi view
 	SHADER_PARAMETER(uint32,												MultiViewEnabled)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,					MultiViewIndices)
@@ -220,6 +222,19 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 extern TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FRDGBuilder& GraphBuilder, uint32 InstanceSceneDataSOAStride);
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteRayTracingUniformParameters, )
+	SHADER_PARAMETER(FIntVector4,	PageConstants)
+	SHADER_PARAMETER(uint32,		MaxNodes)
+	SHADER_PARAMETER(uint32,		MaxVisibleClusters)
+	SHADER_PARAMETER(uint32,		RenderFlags)
+	SHADER_PARAMETER(float,			RayTracingCutError)
+
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, HierarchyBuffer)
+
+	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, RayTracingDataBuffer)
+END_SHADER_PARAMETER_STRUCT()
 
 class FNaniteGlobalShader : public FGlobalShader
 {

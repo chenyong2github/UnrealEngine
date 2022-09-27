@@ -13,6 +13,9 @@ DEFINE_GPU_STAT(NaniteDebug);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(Nanite);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FNaniteUniformParameters, "Nanite", Nanite);
 
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(NaniteRayTracing);
+IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(FNaniteRayTracingUniformParameters, "NaniteRayTracing", NaniteRayTracing);
+
 extern float GNaniteMaxPixelsPerEdge;
 extern float GNaniteMinPixelsPerEdgeHW;
 

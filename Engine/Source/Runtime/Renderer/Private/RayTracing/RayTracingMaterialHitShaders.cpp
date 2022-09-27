@@ -5,6 +5,8 @@
 #include "PipelineStateCache.h"
 
 #if RHI_RAYTRACING
+#include "Nanite/NaniteRayTracing.h"
+
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 #include "BuiltInRayTracingShaders.h"
@@ -756,6 +758,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 						{
 							MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
 								View.ViewUniformBuffer,
+								Nanite::GRayTracingManager.GetUniformBuffer(),
 								VisibleMeshCommand.InstanceIndex,
 								MeshCommand.GeometrySegmentIndex,
 								HitGroupIndex,
@@ -780,6 +783,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 								// Full CHS is bound, however material evaluation is skipped for shadow rays using a dynamic branch on a ray payload flag.
 								MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
 									View.ViewUniformBuffer,
+									Nanite::GRayTracingManager.GetUniformBuffer(),
 									VisibleMeshCommand.InstanceIndex,
 									MeshCommand.GeometrySegmentIndex,
 									HitGroupIndex,
@@ -845,7 +849,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 							}
 						}
 
-						CallableCommand.SetRayTracingShaderBindings(BindingWriter, View.ViewUniformBuffer, CallableShaderIndex, CallableCommand.SlotInScene);
+						CallableCommand.SetRayTracingShaderBindings(BindingWriter, View.ViewUniformBuffer, Nanite::GRayTracingManager.GetUniformBuffer(), CallableShaderIndex, CallableCommand.SlotInScene);
 					}
 				},
 				TStatId(), nullptr, ENamedThreads::AnyThread));

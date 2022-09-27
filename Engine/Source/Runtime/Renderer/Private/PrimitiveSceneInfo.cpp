@@ -20,6 +20,7 @@
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "Nanite/Nanite.h"
+#include "Nanite/NaniteRayTracing.h"
 #include "Rendering/NaniteResources.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "NaniteSceneProxy.h"
@@ -954,6 +955,8 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		checkf(CachedRayTracingInstance.InstanceTransforms.IsEmpty() && CachedRayTracingInstance.InstanceTransformsView.IsEmpty(),
 			TEXT("Primitives with ERayTracingPrimitiveFlags::CacheInstances get instances transforms from GPUScene"));
 
+		FPrimitiveSceneProxy* SceneProxy = SceneInfo->Proxy;
+
 		// TODO: allocate from FRayTracingScene & do better low-level caching
 		SceneInfo->CachedRayTracingInstance.NumTransforms = CachedRayTracingInstance.NumTransforms;
 		SceneInfo->CachedRayTracingInstance.BaseInstanceSceneDataOffset = SceneInfo->GetInstanceSceneDataOffset();
@@ -961,9 +964,19 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		SceneInfo->CachedRayTracingInstanceWorldBounds.Empty();
 		SceneInfo->CachedRayTracingInstanceWorldBounds.AddUninitialized(CachedRayTracingInstance.NumTransforms);
 
-		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(SceneInfo->Proxy->GetLocalToWorld());
+		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(SceneProxy->GetLocalToWorld());
 
 		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
+
+		if (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback && SceneProxy->IsNaniteMesh())
+		{
+			FRHIRayTracingGeometry* NaniteRayTracingGeometry = Nanite::GRayTracingManager.GetRayTracingGeometry(SceneInfo);
+
+			if (NaniteRayTracingGeometry != nullptr)
+			{
+				SceneInfo->CachedRayTracingInstance.GeometryRHI = NaniteRayTracingGeometry;
+			}
+		}
 
 		// At this point (in AddToScene()) PrimitiveIndex has been set
 		check(SceneInfo->GetIndex() != INDEX_NONE);

@@ -3,6 +3,7 @@
 #include "NaniteMaterials.h"
 #include "NaniteDrawList.h"
 #include "NaniteVisualizationData.h"
+#include "NaniteRayTracing.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "RHI.h"
@@ -85,13 +86,6 @@ static FAutoConsoleVariableRef CVarNaniteClassifyWithResolve(
 	TEXT("r.Nanite.ClassifyWithResolve"),
 	GNaniteClassifyWithResolve,
 	TEXT("")
-);
-
-float GRayTracingCutError = 0.0f;
-static FAutoConsoleVariableRef CVarRayTracingCutError(
-	TEXT("r.RayTracing.Nanite.CutError"),
-	GRayTracingCutError,
-	TEXT("Global target cut error to control quality when using procedural raytracing geometry for Nanite meshes.")
 );
 
 #if WITH_EDITORONLY_DATA
@@ -384,12 +378,16 @@ TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FR
 	UniformParameters->PageConstants.Y           = Nanite::GStreamingManager.GetMaxStreamingPages();
 	UniformParameters->MaxNodes                  = Nanite::FGlobalResources::GetMaxNodes();
 	UniformParameters->MaxVisibleClusters        = Nanite::FGlobalResources::GetMaxVisibleClusters();
-	UniformParameters->RayTracingCutError        = GRayTracingCutError;
 
 	UniformParameters->ClusterPageData           = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	UniformParameters->HierarchyBuffer           = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
 	UniformParameters->VisibleClustersSWHW       = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
 	UniformParameters->MaterialTileRemap         = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
+
+#if RHI_RAYTRACING
+	UniformParameters->RayTracingCutError		= Nanite::GRayTracingManager.GetCutError();
+	UniformParameters->RayTracingDataBuffer		= Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+#endif
 
 	const FRDGSystemTextures& SystemTextures     = FRDGSystemTextures::Get(GraphBuilder);
 	UniformParameters->VisBuffer64               = SystemTextures.Black;
@@ -560,8 +558,7 @@ void DrawBasePass(
 			UniformParameters->PageConstants            = RasterResults.PageConstants;
 			UniformParameters->MaxNodes                 = RasterResults.MaxNodes;
 			UniformParameters->MaxVisibleClusters       = RasterResults.MaxVisibleClusters;
-			UniformParameters->RenderFlags              = RasterResults.RenderFlags;
-			UniformParameters->RayTracingCutError       = GRayTracingCutError;
+			UniformParameters->RenderFlags				= RasterResults.RenderFlags;
 
 			UniformParameters->MaterialConfig           = MaterialConfig;
 			UniformParameters->RectScaleOffset          = RectScaleOffset;
@@ -570,6 +567,11 @@ void DrawBasePass(
 			UniformParameters->HierarchyBuffer          = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
 			UniformParameters->VisibleClustersSWHW      = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			UniformParameters->MaterialTileRemap        = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
+
+#if RHI_RAYTRACING
+			UniformParameters->RayTracingCutError		= Nanite::GRayTracingManager.GetCutError();
+			UniformParameters->RayTracingDataBuffer		= Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+#endif
 
 			UniformParameters->VisBuffer64              = VisBuffer64;
 			UniformParameters->DbgBuffer64              = DbgBuffer64;
@@ -1194,8 +1196,6 @@ void DrawLumenMeshCapturePass(
 			UniformParameters->MaxNodes                 = Nanite::FGlobalResources::GetMaxNodes();
 			UniformParameters->MaxVisibleClusters       = Nanite::FGlobalResources::GetMaxVisibleClusters();
 			UniformParameters->RenderFlags              = CullingContext.RenderFlags;
-			UniformParameters->RayTracingCutError       = GRayTracingCutError;
-
 			UniformParameters->MaterialConfig           = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
 			UniformParameters->RectScaleOffset          = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 
@@ -1203,6 +1203,11 @@ void DrawLumenMeshCapturePass(
 			UniformParameters->HierarchyBuffer          = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
 			UniformParameters->VisibleClustersSWHW      = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 			UniformParameters->MaterialTileRemap        = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
+
+#if RHI_RAYTRACING
+			UniformParameters->RayTracingCutError		= Nanite::GRayTracingManager.GetCutError();
+			UniformParameters->RayTracingDataBuffer		= Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+#endif
 
 			UniformParameters->VisBuffer64              = RasterContext.VisBuffer64;
 			UniformParameters->DbgBuffer64              = SystemTextures.Black;

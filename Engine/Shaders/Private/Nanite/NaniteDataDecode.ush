@@ -177,6 +177,20 @@ struct FNaniteFullscreenVSToPS
 	#define ClusterPageData			Nanite.ClusterPageData
 	#define VisibleClustersSWHW		Nanite.VisibleClustersSWHW
 	#define HierarchyBuffer			Nanite.HierarchyBuffer
+	#define RayTracingDataBuffer	Nanite.RayTracingDataBuffer
+#elif NANITE_USE_RAYTRACING_UNIFORM_BUFFER
+	#define PageConstants			NaniteRayTracing.PageConstants
+	#define MaxNodes				NaniteRayTracing.MaxNodes
+	#define MaxVisibleClusters		NaniteRayTracing.MaxVisibleClusters
+	#define RenderFlags				NaniteRayTracing.RenderFlags
+	#define RayTracingCutError		NaniteRayTracing.RayTracingCutError
+	#define ClusterPageData			NaniteRayTracing.ClusterPageData
+	#define HierarchyBuffer			NaniteRayTracing.HierarchyBuffer
+	#define RayTracingDataBuffer	NaniteRayTracing.RayTracingDataBuffer
+
+	// These parameters shouldn't be used in RT shaders
+	//uint							DebugFlags;
+	//ByteAddressBuffer				VisibleClustersSWHW;
 #else
 	uint4 							PageConstants;
 	uint							MaxNodes;
@@ -187,6 +201,7 @@ struct FNaniteFullscreenVSToPS
 	ByteAddressBuffer 				ClusterPageData;
 	ByteAddressBuffer				VisibleClustersSWHW;
 	ByteAddressBuffer				HierarchyBuffer;
+	StructuredBuffer<uint>			RayTracingDataBuffer;
 #endif
 
 uint4 PackVisibleCluster(FVisibleCluster VisibleCluster, bool bHasPageData)
@@ -247,7 +262,11 @@ FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint Clust
 
 FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData )
 {
+#if NANITE_USE_RAYTRACING_UNIFORM_BUFFER
+	return (FVisibleCluster)0;
+#else
 	return GetVisibleCluster( VisibleClustersSWHW, ClusterIdx, bHasPageData );
+#endif
 }
 
 bool IsVisibleClusterIndexImposter(uint ClusterIndex)

@@ -78,6 +78,20 @@ ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
 ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
 ENGINE_API bool IsWorldPositionOffsetSupported();
 
+struct FResourceMeshInfo
+{
+	TArray<uint32> SegmentMapping;
+
+	uint32 NumClusters = 0;
+	uint32 NumNodes = 0;
+	uint32 NumVertices = 0;
+	uint32 NumTriangles = 0;
+	uint32 NumMaterials = 0;
+	uint32 NumSegments = 0;
+
+	FDebugName DebugName;
+};
+
 // Note: Keep NANITE_FILTER_FLAGS_NUM_BITS in sync
 enum class EFilterFlags : uint8
 {
@@ -163,6 +177,14 @@ public:
 		return FilterFlags;
 	}
 
+	virtual FResourceMeshInfo GetResourceMeshInfo() const = 0;
+
+	inline void SetRayTracingId(uint32 InRayTracingId) { RayTracingId = InRayTracingId; }
+	inline uint32 GetRayTracingId() const { return RayTracingId; }
+
+	inline void SetRayTracingDataOffset(uint32 InRayTracingDataOffset) { RayTracingDataOffset = InRayTracingDataOffset; }
+	inline uint32 GetRayTracingDataOffset() const { return RayTracingDataOffset; }
+
 #if WITH_EDITOR
 	inline const TConstArrayView<const FHitProxyId> GetHitProxyIds() const
 	{
@@ -209,6 +231,11 @@ protected:
 	uint32 InstanceWPODisableDistance = 0;
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
+
+private:
+
+	uint32 RayTracingId = INDEX_NONE;
+	uint32 RayTracingDataOffset = INDEX_NONE;
 };
 
 class ENGINE_API FSceneProxy : public FSceneProxyBase
@@ -272,12 +299,14 @@ public:
 
 	virtual void OnTransformChanged() override;
 
-	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const override
+	virtual void GetNaniteResourceInfo(uint32& OutResourceID, uint32& OutHierarchyOffset, uint32& OutImposterIndex) const override
 	{
-		ResourceID = Resources->RuntimeResourceID;
-		HierarchyOffset = Resources->HierarchyOffset;
-		ImposterIndex = Resources->ImposterIndex;
+		OutResourceID = Resources->RuntimeResourceID;
+		OutHierarchyOffset = Resources->HierarchyOffset;
+		OutImposterIndex = Resources->ImposterIndex;
 	}
+
+	virtual FResourceMeshInfo GetResourceMeshInfo() const override;
 
 	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
 	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
@@ -306,7 +335,7 @@ protected:
 
 #if RHI_RAYTRACING
 	int32 GetFirstValidRaytracingGeometryLODIndex() const;
-	void SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials) const;
+	void SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials, bool bUseNaniteVertexFactory) const;
 #endif // RHI_RAYTRACING
 
 #if NANITE_ENABLE_DEBUG_RENDERING

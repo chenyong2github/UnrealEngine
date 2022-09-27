@@ -1705,6 +1705,25 @@ void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& Resource
 	ImposterIndex = INDEX_NONE;	// Imposters are not supported (yet?)
 }
 
+Nanite::FResourceMeshInfo FNaniteGeometryCollectionSceneProxy::GetResourceMeshInfo() const
+{
+	Nanite::FResources& Resource = GeometryCollection->NaniteData->NaniteResource;
+
+	Nanite::FResourceMeshInfo OutInfo;
+
+	OutInfo.NumClusters = Resource.NumClusters;
+	OutInfo.NumNodes = Resource.NumHierarchyNodes;
+	OutInfo.NumVertices = Resource.NumInputVertices;
+	OutInfo.NumTriangles = Resource.NumInputTriangles;
+	OutInfo.NumMaterials = MaterialMaxIndex + 1;
+	OutInfo.DebugName = GeometryCollection->GetFName();
+
+	// TODO: SegmentMapping
+	OutInfo.NumSegments = 0;
+
+	return MoveTemp(OutInfo);
+}
+
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
 {
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();

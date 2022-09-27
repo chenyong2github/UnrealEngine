@@ -127,11 +127,14 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	uint32 NaniteHierarchyOffset = INDEX_NONE;
 	uint32 NaniteImposterIndex = INDEX_NONE;
 	uint32 NaniteFilterFlags = 0u;
+	uint32 NaniteRayTracingDataOffset = INDEX_NONE;
 
 	if (Proxy->IsNaniteMesh())
 	{
-		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
-		NaniteFilterFlags = uint32(static_cast<const Nanite::FSceneProxyBase*>(Proxy)->GetFilterFlags());
+		auto NaniteProxy = static_cast<const Nanite::FSceneProxyBase*>(Proxy);
+		NaniteProxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
+		NaniteFilterFlags = uint32(NaniteProxy->GetFilterFlags());
+		NaniteRayTracingDataOffset = NaniteProxy->GetRayTracingDataOffset();
 	}
 
 	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
@@ -174,6 +177,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.NaniteHierarchyOffset(NaniteHierarchyOffset)
 		.NaniteImposterIndex(NaniteImposterIndex)
 		.NaniteFilterFlags(NaniteFilterFlags)
+		.NaniteRayTracingDataOffset(NaniteRayTracingDataOffset)
 		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
 		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor());
 
@@ -280,7 +284,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[31].X = PrimitiveUniformShaderParameters.InstanceDrawDistanceMinMaxSquared.X;
 	Data[31].Y = PrimitiveUniformShaderParameters.InstanceDrawDistanceMinMaxSquared.Y;
 	Data[31].Z = PrimitiveUniformShaderParameters.InstanceWPODisableDistanceSquared;
-	Data[31].W = 0.0f;
+	Data[31].W = FMath::AsFloat(PrimitiveUniformShaderParameters.NaniteRayTracingDataOffset);
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
 	const int32 CustomPrimitiveDataStartIndex = 32;

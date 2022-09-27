@@ -373,6 +373,13 @@ private:
 	class FVertexFactory* VertexFactory = nullptr;
 };
 
+enum class ERayTracingMode : uint8
+{
+	Fallback = 0u,
+	StreamOut = 1u,
+};
+
+ENGINE_API ERayTracingMode GetRayTracingMode();
 
 extern ENGINE_API TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
 

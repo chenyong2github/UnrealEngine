@@ -67,6 +67,7 @@
 #include "RectLightTextureManager.h"
 
 #if RHI_RAYTRACING
+#include "Nanite/NaniteRayTracing.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingSkinnedGeometry.h"
 #include "RayTracing/RayTracingScene.h"
@@ -5335,7 +5336,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			for (int32 RemoveIndex = StartIndex; RemoveIndex < RemovedLocalPrimitiveSceneInfos.Num(); RemoveIndex++)
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = RemovedLocalPrimitiveSceneInfos[RemoveIndex];
-				FScopeCycleCounter Context(PrimitiveSceneInfo->Proxy->GetStatId());
+				FPrimitiveSceneProxy* SceneProxy = PrimitiveSceneInfo->Proxy;
+				FScopeCycleCounter Context(SceneProxy->GetStatId());
 
 				// The removed items PrimitiveIndex has already been invalidated, but a backup is kept in RemovedPrimitiveIndices
 				int32 PrimitiveIndex = RemovedPrimitiveIndices[RemoveIndex];
@@ -5365,6 +5367,13 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
 				LumenRemovePrimitive(PrimitiveSceneInfo, PrimitiveIndex);
+
+#if RHI_RAYTRACING
+				if (SceneProxy->IsNaniteMesh() && SceneProxy->HasRayTracingRepresentation())
+				{
+					Nanite::GRayTracingManager.Remove(PrimitiveSceneInfo);
+				}
+#endif
 
 				DeletedSceneInfos.Add(PrimitiveSceneInfo);
 
@@ -5680,8 +5689,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
+				FPrimitiveSceneProxy* SceneProxy = PrimitiveSceneInfo->Proxy;
 
-				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
+				if (ShouldPrimitiveOutputVelocity(SceneProxy, GetShaderPlatform()))
 				{
 					PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
 					// We must register the initial LocalToWorld with the velocity state. 
@@ -5691,6 +5701,13 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 				LumenAddPrimitive(PrimitiveSceneInfo);
+
+#if RHI_RAYTRACING
+				if (SceneProxy->IsNaniteMesh() && SceneProxy->HasRayTracingRepresentation())
+				{
+					Nanite::GRayTracingManager.Add(PrimitiveSceneInfo);
+				}
+#endif
 
 				// Flush virtual textures touched by primitive
 				PrimitiveSceneInfo->FlushRuntimeVirtualTexture();

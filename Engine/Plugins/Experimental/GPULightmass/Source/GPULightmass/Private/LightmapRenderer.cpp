@@ -1259,6 +1259,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 						MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
 							View.ViewUniformBuffer,
+							nullptr,
 							VisibleMeshCommand.InstanceIndex,
 							MeshCommand.GeometrySegmentIndex,
 							MeshCommand.MaterialShaderIndex,
@@ -1266,6 +1267,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 						MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
 							View.ViewUniformBuffer,
+							nullptr,
 							VisibleMeshCommand.InstanceIndex,
 							MeshCommand.GeometrySegmentIndex,
 							MeshCommand.MaterialShaderIndex,
@@ -1279,6 +1281,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 					MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
 						View.ViewUniformBuffer,
+						nullptr,
 						VisibleMeshCommand.InstanceIndex,
 						MeshCommand.GeometrySegmentIndex,
 						MeshCommand.MaterialShaderIndex,
@@ -1286,6 +1289,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 					MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
 						View.ViewUniformBuffer,
+						nullptr,
 						VisibleMeshCommand.InstanceIndex,
 						MeshCommand.GeometrySegmentIndex,
 						MeshCommand.MaterialShaderIndex,

@@ -4,6 +4,9 @@
 
 #include "../VertexFactoryCommon.ush"
 #include "../LightmapData.ush"
+#if RAYHITGROUPSHADER
+#include "../RayTracing/RayTracingCommon.ush"
+#endif
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
@@ -429,7 +432,7 @@ FNaniteTransformedTri MakeTransformedNaniteTriangle(FNaniteTransformedVert Vert,
 
 FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FNaniteView NaniteView, FNaniteTransformedTri Tri, FCluster Cluster, FBarycentrics Barycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
-	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
 	const float SignTest = dot(cross(Tri.Verts[1].PointSubpixelClip.xyw - Tri.Verts[0].PointSubpixelClip.xyw, Tri.Verts[2].PointSubpixelClip.xyw - Tri.Verts[0].PointSubpixelClip.xyw), Tri.Verts[0].PointSubpixelClip.xyw);
 	Result.TwoSidedSign = CondMask(SignTest < 0.0f, -1.0f, 1.0f);
@@ -588,7 +591,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 // Shared function (for Nanite raster and shading passes) to fetch a valid FMaterialPixelParameters struct, which is used by material inputs.
 FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, FBarycentrics Barycentrics, bool bCalcBarycentrics, uint3 TriIndices, bool bCalcTriIndices, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
-	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
@@ -667,6 +670,84 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 #endif // IS_NANITE_SHADING_PASS
 
+#if RAYHITGROUPSHADER
+
+struct FVertexFactoryInput
+{
+	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE13
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Material evaluation for raytracing
+
+// define this to let shaders know this alternative method is available
+#define VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS 1
+
+FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 RayDirection, float HitT, uint HitPrimitiveIndex, FRayTracingIntersectionAttributes HitAttributes, uint HitKind, out float3 WorldGeoNormal)
+{
+	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
+	uint PrimitiveId = GetInstanceUserData();
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	const uint DrawInstanceId = InstanceIndex() - GetBaseInstanceIndex();
+
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, PrimitiveId, DrawInstanceId);
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
+
+	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input); // NOTE: Input is not used when VF_USE_PRIMITIVE_SCENE_DATA == 0
+	FInstanceSceneData InstanceData = SceneData.InstanceData;
+	FPrimitiveSceneData PrimitiveData = SceneData.Primitive;
+
+	const uint InstanceId = SceneData.InstanceId;
+
+	const uint FirstTriangle = HitGroupSystemRootConstants.FirstPrimitive;
+	const uint PackedTriangleData = RayTracingDataBuffer[PrimitiveData.NaniteRayTracingDataOffset + FirstTriangle + HitPrimitiveIndex];
+
+	const uint PageIndex = PackedTriangleData & NANITE_MAX_GPU_PAGES_MASK;
+	const uint ClusterIndex = (PackedTriangleData >> NANITE_MAX_GPU_PAGES_BITS) & NANITE_MAX_CLUSTERS_PER_PAGE_MASK;
+	const uint TriIndex = (PackedTriangleData >> (NANITE_MAX_GPU_PAGES_BITS + NANITE_MAX_CLUSTERS_PER_PAGE_BITS)) & NANITE_MAX_CLUSTER_TRIANGLES_MASK;
+
+	const FNaniteView NaniteView = GetNaniteView(0);
+
+	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+	FCluster Cluster = GetCluster(PageIndex, ClusterIndex);
+
+	const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+
+	const float3 PointLocalNoWPO[3] =
+	{
+		DecodePosition(TriIndices.x, Cluster),
+		DecodePosition(TriIndices.y, Cluster),
+		DecodePosition(TriIndices.z, Cluster)
+	};
+
+	FNaniteRawAttributeData RawAttributeData[3];
+	GetRawAttributeData3(RawAttributeData, Cluster, TriIndices, NANITE_NUM_TEXCOORDS_TO_DECODE);
+
+	const FNaniteVertTransforms Transforms = CalculateNaniteVertexTransforms(InstanceData, InstanceDynamicData, NaniteView);
+	const bool bEvaluateWPO = false;
+	const FNaniteTransformedTri Tri = TransformNaniteTriangle(InstanceData, Transforms, PointLocalNoWPO, RawAttributeData, TriIndices, bEvaluateWPO);
+
+	const float2 HitBarycentrics = HitAttributes.GetBarycentrics();
+
+	FBarycentrics Barycentrics = (FBarycentrics)0; // TODO: UVW_dx, UVW_dy
+	Barycentrics.UVW = float3(1 - HitBarycentrics.x - HitBarycentrics.y, HitBarycentrics.x, HitBarycentrics.y);
+
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	float4 SvPosition;
+	FMaterialPixelParameters Result = FetchNaniteMaterialPixelParameters(InstanceData, InstanceDynamicData, NaniteView, Tri, Cluster, Barycentrics, Interpolants, SvPosition);
+
+	Result.TwoSidedSign = -1.0f; // TODO
+
+	WorldGeoNormal = Result.TangentToWorld[2];
+
+	return Result;
+}
+
+#endif // RAYHITGROUPSHADER
+
 struct FVertexFactoryRayTracingInterpolants
 {
 	FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
@@ -686,3 +767,48 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 {
 	return a;
 }
+
+#if RAYHITGROUPSHADER
+
+// Fake structs / functions required to compile RayTracingHitShaders.usf
+
+struct FVertexFactoryIntermediates
+{
+	half3x3 TangentToLocal;
+};
+
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+	return Input;
+}
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	return Intermediates;
+}
+
+half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.TangentToLocal;
+}
+
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return 0.0f;
+}
+
+FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
+{
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	return Result;
+}
+
+FVertexFactoryRayTracingInterpolants VertexFactoryGetRayTracingInterpolants(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryRayTracingInterpolants Interpolants = (FVertexFactoryRayTracingInterpolants)0;
+	return Interpolants;
+}
+
+#endif

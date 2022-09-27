@@ -58,6 +58,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(int32,			PersistentPrimitiveIndex)
 	SHADER_PARAMETER(FVector2f,		InstanceDrawDistanceMinMaxSquared)
 	SHADER_PARAMETER(float,			InstanceWPODisableDistanceSquared)
+	SHADER_PARAMETER(uint32,		NaniteRayTracingDataOffset)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -140,6 +141,7 @@ public:
 		Parameters.NaniteResourceID						= INDEX_NONE;
 		Parameters.NaniteHierarchyOffset				= INDEX_NONE;
 		Parameters.PackedNaniteFlags					= NANITE_IMPOSTER_INDEX_MASK;
+		Parameters.NaniteRayTracingDataOffset			= INDEX_NONE;
 
 		// Instance data
 		Parameters.InstanceSceneDataOffset			= INDEX_NONE;
@@ -187,6 +189,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			PrimitiveComponentId);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteRayTracingDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			LightmapUVIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			LightmapDataIndex);
 

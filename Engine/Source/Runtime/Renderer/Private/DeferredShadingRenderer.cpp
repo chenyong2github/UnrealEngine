@@ -68,6 +68,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "SceneCaptureRendering.h"
 #include "NaniteSceneProxy.h"
+#include "Nanite/NaniteRayTracing.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "GPUMessaging.h"
 #include "RectLightTextureManager.h"
@@ -786,7 +787,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 				if (SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.IsValidIndex(LODIndex))
 				{
 					RelevantPrimitive.LODIndex = LODIndex;
-					RelevantPrimitive.RayTracingGeometryRHI = SceneInfo->GetStaticRayTracingGeometryInstance(LODIndex);
+					RelevantPrimitive.RayTracingGeometryRHI = RayTracingGeometryInstance;
 
 					RelevantPrimitive.CachedRayTracingMeshCommandIndices = SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex];
 					RelevantPrimitive.StateHash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[LODIndex];
@@ -1167,6 +1168,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 		KickRayTracingMeshBatchTask();
 	}
 
+	Nanite::GRayTracingManager.Update();
+	
 	// Task to iterate over static ray tracing instances, perform auto-instancing and culling.
 	// This adds final instances to the ray tracing scene and must be done before FRayTracingScene::BuildInitializationData().
 	struct FRayTracingSceneAddInstancesTask
@@ -1282,6 +1285,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 				if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
 				{
+					if (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback)
+					{
+						FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
+
+						if (SceneProxy->IsNaniteMesh())
+						{
+							Nanite::GRayTracingManager.AddVisiblePrimitive(SceneInfo);
+						}
+					}
+					
 					// TODO: support GRayTracingExcludeDecals, but not in the form of RayTracingMeshCommand.bDecal as that requires looping over all cached MDCs
 					// Instead, either make r.RayTracing.ExcludeDecals read only or request a recache of all ray tracing commands during which decals are excluded
 
@@ -1487,6 +1500,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
+
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, HierarchyBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, RayTracingDataBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& GraphBuilder)
@@ -1737,6 +1754,9 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	ReferenceView.RayTracingSceneInitTask = {};
 
+	Nanite::GRayTracingManager.ProcessUpdateRequests(GraphBuilder, Scene->GPUScene.PrimitiveBuffer->GetSRV());
+	Nanite::GRayTracingManager.ProcessBuildRequests(GraphBuilder);
+
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	RayTracingScene.CreateWithInitializationData(GraphBuilder, &Scene->GPUScene, ReferenceView.ViewMatrices, MoveTemp(ReferenceView.RayTracingSceneInitData));
@@ -1764,7 +1784,10 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
 		PassParams->View = ReferenceView.ViewUniformBuffer;
 		PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
-		PassParams->LightDataPacked =  nullptr;
+		PassParams->LightDataPacked = nullptr;
+		PassParams->ClusterPageData = nullptr;
+		PassParams->HierarchyBuffer = nullptr;
+		PassParams->RayTracingDataBuffer = nullptr;
 
 		// Use ERDGPassFlags::NeverParallel so the pass never runs off the render thread and we always get the following order of execution on the CPU:
 		// BuildTLASInstanceBuffer, RayTracingUpdate, RayTracingEndUpdate, ..., ReleaseRayTracingResources
@@ -1882,6 +1905,19 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
 	PassParams->LightDataPacked = bIsPathTracing ? nullptr : ReferenceView.RayTracingLightDataUniformBuffer; // accessed by FRayTracingLightingMS
 
+	if (IsNaniteEnabled())
+	{
+		PassParams->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+		PassParams->HierarchyBuffer = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
+		PassParams->RayTracingDataBuffer = Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+	}
+	else
+	{
+		PassParams->ClusterPageData = nullptr;
+		PassParams->HierarchyBuffer = nullptr;
+		PassParams->RayTracingDataBuffer = nullptr;
+	}
+
 	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, PassParams, bIsPathTracing, &ReferenceView, bAnyLumenHardwareInlineRayTracingPassEnabled, RayTracingLightFunctionMap](FRHICommandListImmediate& RHICmdList)
@@ -1890,6 +1926,22 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 		if (ReferenceView.RayTracingMaterialPipeline && (ReferenceView.RayTracingMaterialBindings.Num() || ReferenceView.RayTracingCallableBindings.Num()))
 		{
+			if (IsNaniteEnabled())
+			{
+				FNaniteRayTracingUniformParameters NaniteRayTracingUniformParams;
+				NaniteRayTracingUniformParams.PageConstants.X = Scene->GPUScene.InstanceSceneDataSOAStride;
+				NaniteRayTracingUniformParams.PageConstants.Y = Nanite::GStreamingManager.GetMaxStreamingPages();
+				NaniteRayTracingUniformParams.MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
+				NaniteRayTracingUniformParams.MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
+				NaniteRayTracingUniformParams.RenderFlags = 0;
+				NaniteRayTracingUniformParams.RayTracingCutError = Nanite::GRayTracingManager.GetCutError();
+				NaniteRayTracingUniformParams.ClusterPageData = PassParams->ClusterPageData->GetRHI();
+				NaniteRayTracingUniformParams.HierarchyBuffer = PassParams->HierarchyBuffer->GetRHI();
+				NaniteRayTracingUniformParams.RayTracingDataBuffer = PassParams->RayTracingDataBuffer->GetRHI();
+
+				Nanite::GRayTracingManager.GetUniformBuffer().UpdateUniformBufferImmediate(NaniteRayTracingUniformParams);
+			}
+
 			BindRayTracingMaterialPipeline(RHICmdList, ReferenceView, ReferenceView.RayTracingMaterialPipeline);
 
 			if (bIsPathTracing)
@@ -2067,19 +2119,29 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Now that we have updated all the PrimitiveSceneInfos, update the RayTracing mesh commands cache if needed
 	{
-		ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
+		const ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
 		bool bNaniteCoarseMeshStreamingModeChanged = false;
 #if WITH_EDITOR
 		bNaniteCoarseMeshStreamingModeChanged = Nanite::FCoarseMeshStreamingManager::CheckStreamingMode();
 #endif // WITH_EDITOR
+		const bool bNaniteRayTracingModeChanged = Nanite::GRayTracingManager.CheckModeChanged();
 
-		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged)
+		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged || bNaniteRayTracingModeChanged)
 		{
 			// If we change to or from a path traced render, we need to refresh the cached ray tracing mesh commands
 			// because they contain data about the currently bound shader. This operation is a bit expensive but
 			// only happens once as we transition between modes which should be rare.
 			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
 			Scene->RefreshRayTracingMeshCommandCache();
+		}
+
+		if (bNaniteRayTracingModeChanged)
+		{
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				View.ViewState->PathTracingInvalidate();
+			}
 		}
 	}
 #endif
@@ -2528,6 +2590,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		if (bUpdateNaniteStreaming)
 		{
 			Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
+
+			const TSet<uint32> ModifiedResources = Nanite::GStreamingManager.GetAndClearModifiedResources();
+#if RHI_RAYTRACING
+			Nanite::GRayTracingManager.RequestUpdates(ModifiedResources);
+#endif
 		}
 	}
 

@@ -1015,18 +1015,25 @@ void FGraphicsMinimalPipelineStateInitializer::ComputePrecachePSOHash()
 void FRayTracingMeshCommand::SetRayTracingShaderBindingsForHitGroup(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	FRHIUniformBuffer* NaniteUniformBuffer,
 	uint32 InstanceIndex,
 	uint32 SegmentIndex,
 	uint32 HitGroupIndexInPipeline,
 	uint32 ShaderSlot) const
 {
-	check(ViewUniformBuffer);
 
 	FRayTracingLocalShaderBindings* Bindings = ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter, InstanceIndex, SegmentIndex, HitGroupIndexInPipeline, ShaderSlot);
 
 	if (ViewUniformBufferParameter.IsBound())
 	{
+		check(ViewUniformBuffer);
 		Bindings->UniformBuffers[ViewUniformBufferParameter.GetBaseIndex()] = ViewUniformBuffer;
+	}
+
+	if (NaniteUniformBufferParameter.IsBound())
+	{
+		check(NaniteUniformBuffer);
+		Bindings->UniformBuffers[NaniteUniformBufferParameter.GetBaseIndex()] = NaniteUniformBuffer;
 	}
 }
 
@@ -1036,22 +1043,29 @@ void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 	MaterialShaderIndex = Shaders.RayTracingShader.GetRayTracingHitGroupLibraryIndex();
 	MaterialShader = Shaders.RayTracingShader.GetRayTracingShader();
 	ViewUniformBufferParameter = Shaders.RayTracingShader->GetUniformBufferParameter<FViewUniformShaderParameters>();
+	NaniteUniformBufferParameter = Shaders.RayTracingShader->GetUniformBufferParameter<FNaniteRayTracingUniformParameters>();
 	ShaderBindings.Initialize(Shaders);
 }
 
 void FRayTracingShaderCommand::SetRayTracingShaderBindings(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	FRHIUniformBuffer* NaniteUniformBuffer,
 	uint32 ShaderIndexInPipeline,
 	uint32 ShaderSlot) const
 {
-	check(ViewUniformBuffer);
-
 	FRayTracingLocalShaderBindings* Bindings = ShaderBindings.SetRayTracingShaderBindings(BindingWriter, ShaderIndexInPipeline, ShaderSlot);
 
 	if (ViewUniformBufferParameter.IsBound())
 	{
+		check(ViewUniformBuffer);
 		Bindings->UniformBuffers[ViewUniformBufferParameter.GetBaseIndex()] = ViewUniformBuffer;
+	}
+
+	if (NaniteUniformBufferParameter.IsBound())
+	{
+		check(NaniteUniformBuffer);
+		Bindings->UniformBuffers[NaniteUniformBufferParameter.GetBaseIndex()] = NaniteUniformBuffer;
 	}
 }
 
@@ -1061,6 +1075,7 @@ void FRayTracingShaderCommand::SetShader(const TShaderRef<FShader>& InShader)
 	ShaderIndex = InShader.GetRayTracingCallableShaderLibraryIndex();
 	Shader = InShader.GetRayTracingShader();
 	ViewUniformBufferParameter = InShader->GetUniformBufferParameter<FViewUniformShaderParameters>();
+	NaniteUniformBufferParameter = InShader->GetUniformBufferParameter<FNaniteRayTracingUniformParameters>();
 
 	FMeshProcessorShaders Shaders;
 	Shaders.RayTracingShader = InShader;

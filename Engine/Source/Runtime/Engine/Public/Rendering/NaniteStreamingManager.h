@@ -169,6 +169,11 @@ public:
 		return !RuntimeResourceMap.IsEmpty();
 	}
 
+	TSet<uint32> GetAndClearModifiedResources()
+	{
+		return MoveTemp(ModifiedResources);
+	}
+
 	ENGINE_API void		PrefetchResource(const FResources* Resource, uint32 NumFramesUntilRender);
 	ENGINE_API void		RequestNanitePages(TArrayView<uint32> RequestData);
 #if WITH_EDITOR
@@ -241,6 +246,8 @@ private:
 	TMap< FPageKey, FStreamingPageInfo* >	CommittedStreamingPageMap;			// This update is deferred to the point where the page has been loaded and committed to memory.
 	TArray< FStreamingRequest >				PrioritizedRequestsHeap;
 	FStreamingPageInfo						StreamingPageLRU;
+
+	TSet<uint32>							ModifiedResources;
 
 	FStreamingPageInfo*						StreamingPageInfoFreeList;
 	TArray< FStreamingPageInfo >			StreamingPageInfos;

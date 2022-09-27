@@ -107,6 +107,14 @@ FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 	ECVF_RenderThreadSafe
 );
 
+static int32 GNaniteRayTracingMode = 0;
+static FAutoConsoleVariableRef CVarNaniteRayTracingMode(
+	TEXT("r.RayTracing.Nanite.Mode"),
+	GNaniteRayTracingMode,
+	TEXT("0 - fallback mesh (default);\n")
+	TEXT("1 - streamed out mesh;")
+);
+
 #define VF_NANITE_PROCEDURAL_INTERSECTOR 1
 
 static int32 GNaniteRaytracingProceduralPrimitive = 0;
@@ -118,6 +126,11 @@ static FAutoConsoleVariableRef CVarNaniteRaytracingProceduralPrimitive(
 
 namespace Nanite
 {
+ERayTracingMode GetRayTracingMode()
+{
+	return (ERayTracingMode)GNaniteRayTracingMode;
+}
+
 bool GetSupportsRayTracingProceduralPrimitive(EShaderPlatform InShaderPlatform)
 {
 	return GNaniteRaytracingProceduralPrimitive && VF_NANITE_PROCEDURAL_INTERSECTOR && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(InShaderPlatform);
@@ -408,7 +421,7 @@ bool FVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutat
 		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
 		IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
-		Parameters.ShaderType->GetFrequency() == SF_Pixel &&
+		(Parameters.ShaderType->GetFrequency() == SF_Pixel || Parameters.ShaderType->GetFrequency() == SF_RayHitGroup) &&
 		DoesPlatformSupportNanite(Parameters.Platform);
 
 	return bShouldCompile;
@@ -421,7 +434,8 @@ void FVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPerm
 	OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
 	OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
+	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() != SF_RayHitGroup);
+	OutEnvironment.SetDefine(TEXT("NANITE_USE_RAYTRACING_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() == SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 
 	// Get data from GPUSceneParameters rather than View.
@@ -440,6 +454,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(Nanite::FVertexFactory, "/Engine/Private/Nanite/Na
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 	| EVertexFactoryFlags::SupportsNaniteRendering
 	| EVertexFactoryFlags::SupportsPSOPrecaching
+	| EVertexFactoryFlags::SupportsRayTracing
 );
 
 #if WITH_EDITOR
@@ -1563,14 +1578,21 @@ int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
 	return INDEX_NONE;
 }
 
-void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials) const
+void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials, bool bUseNaniteVertexFactory) const
 {
 	check(Materials.Num() <= MaterialSections.Num());
 	for (int32 SectionIndex = 0; SectionIndex < Materials.Num(); ++SectionIndex)
 	{
 		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		FMeshBatch& MeshBatch = Materials[SectionIndex];
-		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+		if (bUseNaniteVertexFactory)
+		{
+			MeshBatch.VertexFactory = GVertexFactoryResource.GetVertexFactory();
+		}
+		else
+		{
+			MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+		}
 		MeshBatch.MaterialRenderProxy = MaterialSection.ShadingMaterialProxy;
 		MeshBatch.bWireframe = false;
 		MeshBatch.SegmentIndex = SectionIndex;
@@ -1578,6 +1600,7 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 #if RHI_RAYTRACING
 		MeshBatch.CastRayTracedShadow = CastsDynamicShadow(); // Relying on BuildRayTracingInstanceMaskAndFlags(...) to check Material.CastsRayTracedShadows()
 #endif
+		MeshBatch.Elements[0].PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
 	}
 }
 
@@ -1622,7 +1645,8 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	// Setup the cached materials again when the LOD changes
 	if (ValidLODIndex != CachedRayTracingMaterialsLODIndex)
 	{
-		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials);
+		const bool bUseNaniteVertexFactory = GetRayTracingMode() != ERayTracingMode::Fallback;
+		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials, bUseNaniteVertexFactory);
 		CachedRayTracingMaterialsLODIndex = ValidLODIndex;
 
 		// Request rebuild
@@ -1675,7 +1699,8 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 		RayTracingInstance.Materials.SetNum(MaterialSections.Num());
 	}
 
-	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials);
+	const bool bUseNaniteVertexFactory = GetRayTracingMode() != ERayTracingMode::Fallback;
+	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials, bUseNaniteVertexFactory);
 
 	const bool bIsRayTracingFarField = IsRayTracingFarField();
 
@@ -1766,6 +1791,36 @@ bool FSceneProxy::IsReversedCullingNeeded(bool bUseReversedIndices) const
 }
 
 #endif
+
+FResourceMeshInfo FSceneProxy::GetResourceMeshInfo() const
+{
+	FResourceMeshInfo OutInfo;
+
+	OutInfo.NumClusters = Resources->NumClusters;
+	OutInfo.NumNodes = Resources->NumHierarchyNodes;
+	OutInfo.NumVertices = Resources->NumInputVertices;
+	OutInfo.NumTriangles = Resources->NumInputTriangles;
+	OutInfo.NumMaterials = MaterialMaxIndex + 1;
+	OutInfo.DebugName = StaticMesh->GetFName();
+
+	{
+		const uint32 FirstLODIndex = 0; // Only data from LOD0 is used.
+		const FStaticMeshLODResources& MeshResources = RenderData->LODResources[FirstLODIndex];
+		const FStaticMeshSectionArray& MeshSections = MeshResources.Sections;
+
+		OutInfo.NumSegments = MeshSections.Num();
+
+		OutInfo.SegmentMapping.Init(INDEX_NONE, MaterialMaxIndex + 1);
+
+		for (int32 SectionIndex = 0; SectionIndex < MeshSections.Num(); ++SectionIndex)
+		{
+			const FStaticMeshSection& MeshSection = MeshSections[SectionIndex];
+			OutInfo.SegmentMapping[MeshSection.MaterialIndex] = SectionIndex;
+		}
+	}
+
+	return MoveTemp(OutInfo);
+}
 
 const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 {

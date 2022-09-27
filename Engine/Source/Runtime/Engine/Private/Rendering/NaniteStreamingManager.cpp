@@ -139,6 +139,9 @@ DECLARE_DWORD_COUNTER_STAT(		TEXT("Explicit Requests"),			STAT_NaniteExplicitReq
 DECLARE_DWORD_COUNTER_STAT(		TEXT("GPU Requests"),				STAT_NaniteGPURequests,						STATGROUP_Nanite );
 DECLARE_DWORD_COUNTER_STAT(		TEXT("Unique Requests"),			STAT_NaniteUniqueRequests,					STATGROUP_Nanite );
 
+DECLARE_DWORD_COUNTER_STAT(		TEXT("Unique New Requests"),			STAT_NaniteUniqueNewRequests,			STATGROUP_Nanite );
+DECLARE_DWORD_COUNTER_STAT(		TEXT("Unique New Requests Resources"),	STAT_NaniteUniqueNewRequestsResources,	STATGROUP_Nanite );
+
 DECLARE_DWORD_COUNTER_STAT(		TEXT("Page Installs"),				STAT_NanitePageInstalls,					STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("Total Pages"),				STAT_NaniteTotalPages,						STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("Registered Streaming Pages"),	STAT_NaniteRegisteredStreamingPages,		STATGROUP_Nanite );
@@ -1111,6 +1114,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 						{
 							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], **Resources, true);
 						}
+
+						ModifiedResources.Add(StreamingPageInfo.ResidentKey.RuntimeResourceID);
 					}
 				}
 
@@ -1158,6 +1163,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				FStreamingPageInfo* StreamingPage = &StreamingPageInfos[ PendingPage.GPUPageIndex ];
 
 				CommittedStreamingPageMap.Add(PendingPage.InstallKey, StreamingPage);
+
+				ModifiedResources.Add(PendingPage.InstallKey.RuntimeResourceID);
 
 #if WITH_EDITOR
 				const uint8* SrcPtr;
@@ -1843,6 +1850,9 @@ void FStreamingManager::AsyncUpdate()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePriorities);
 
+		TSet<uint32> ResourcesWithRequests;
+		uint32 NumNewPageRequests = 0;
+
 		struct FPrioritizedStreamingPage
 		{
 			FStreamingPageInfo* Page;
@@ -1868,9 +1878,15 @@ void FStreamingManager::AsyncUpdate()
 				{
 					// ResourcesID is valid, so add request to the queue
 					PrioritizedRequestsHeap.Push( Request );
+
+					++NumNewPageRequests;
+					ResourcesWithRequests.Add(Request.Key.RuntimeResourceID);
 				}
 			}
 		}
+
+		INC_DWORD_STAT_BY(STAT_NaniteUniqueNewRequests, NumNewPageRequests);
+		INC_DWORD_STAT_BY(STAT_NaniteUniqueNewRequestsResources, ResourcesWithRequests.Num());
 
 		PrioritizedRequestsHeap.Heapify( StreamingPriorityPredicate );
 
