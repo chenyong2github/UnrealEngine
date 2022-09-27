@@ -3918,6 +3918,8 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalLinkEnvironment.PackagePath = Rules.PackagePath;
 			GlobalLinkEnvironment.CrashDiagnosticDirectory = Rules.CrashDiagnosticDirectory;
+			GlobalLinkEnvironment.ThinLTOCacheDirectory = Rules.ThinLTOCacheDirectory;
+			GlobalLinkEnvironment.ThinLTOCachePruningArguments = Rules.ThinLTOCachePruningArguments;
 			GlobalLinkEnvironment.BundleDirectory = BuildPlatform.GetBundleDirectory(Rules, Binaries[0].OutputFilePaths);
 			GlobalLinkEnvironment.BundleVersion = Rules.BundleVersion;
 			GlobalLinkEnvironment.bAllowLTCG = Rules.bAllowLTCG;

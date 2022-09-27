@@ -278,6 +278,17 @@ namespace UnrealBuildTool
 		public string? CrashDiagnosticDirectory;
 
 		/// <summary>
+		/// Directory where to put the ThinLTO cache for platforms that support it
+		/// </summary>
+		public string? ThinLTOCacheDirectory;
+
+		/// <summary>
+		/// Arguments that will be applied to prune the ThinLTO cache for platforms that support it.
+		/// The arguments will only be applied if ThinLTOCacheDirectory is set.
+		/// </summary>
+		public string? ThinLTOCachePruningArguments;
+
+		/// <summary>
 		/// Bundle version for Mac apps
 		/// </summary>
 		public string? BundleVersion;
@@ -382,6 +393,8 @@ namespace UnrealBuildTool
 			bPrintTimingInfo = Other.bPrintTimingInfo;
 			PackagePath = Other.PackagePath;
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
+			ThinLTOCacheDirectory = Other.ThinLTOCacheDirectory;
+			ThinLTOCachePruningArguments = Other.ThinLTOCachePruningArguments;
 			BundleVersion = Other.BundleVersion;
 			InstallName = Other.InstallName;
 			InputFiles.AddRange(Other.InputFiles);

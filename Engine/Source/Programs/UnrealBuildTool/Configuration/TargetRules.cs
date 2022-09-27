@@ -1562,6 +1562,21 @@ namespace UnrealBuildTool
 		public bool bPreferThinLTO = false;
 
 		/// <summary>
+		/// Directory where to put the ThinLTO cache on supported platforms.
+		/// </summary>
+		[CommandLine("-ThinLTOCacheDirectory")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public string? ThinLTOCacheDirectory = null;
+
+		/// <summary>
+		/// Arguments that will be applied to prune the ThinLTO cache on supported platforms.
+		/// Arguments will only be applied if ThinLTOCacheDirectory is set.
+		/// </summary>
+		[CommandLine("-ThinLTOCachePruningArguments")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public string? ThinLTOCachePruningArguments = null;
+
+		/// <summary>
 		/// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
 		/// </summary>
 		[CommandLine("-PGOProfile", Value = "true")]
@@ -3287,6 +3302,16 @@ namespace UnrealBuildTool
 		public string? CrashDiagnosticDirectory
 		{
 			get { return Inner.CrashDiagnosticDirectory; }
+		}
+
+		public string? ThinLTOCacheDirectory
+		{
+			get { return Inner.ThinLTOCacheDirectory; }
+		}
+
+		public string? ThinLTOCachePruningArguments
+		{
+			get { return Inner.ThinLTOCachePruningArguments; }
 		}
 
 		public string? BundleVersion
