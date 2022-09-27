@@ -617,15 +617,15 @@ void ShaderYield()
 #endif
 
 #ifndef RWCoherentBuffer
-#define RWCoherentBuffer(TYPE) RWBuffer<TYPE>
+#define RWCoherentBuffer(TYPE) globallycoherent RWBuffer<TYPE>
 #endif
 
 #ifndef RWCoherentStructuredBuffer
-#define RWCoherentStructuredBuffer(TYPE) RWStructuredBuffer<TYPE>
+#define RWCoherentStructuredBuffer(TYPE) globallycoherent RWStructuredBuffer<TYPE>
 #endif
 
 #ifndef RWCoherentByteAddressBuffer
-#define RWCoherentByteAddressBuffer RWByteAddressBuffer
+#define RWCoherentByteAddressBuffer globallycoherent RWByteAddressBuffer
 #endif
 
 #ifndef ISOLATE

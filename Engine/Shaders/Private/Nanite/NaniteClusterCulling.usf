@@ -62,8 +62,8 @@ static const uint QueueStateIndex = 0;
 
 groupshared uint GroupOccludedBitmask[NANITE_MAX_BVH_NODES_PER_GROUP];
 
-globallycoherent RWCoherentByteAddressBuffer	MainAndPostNodesAndClusterBatches;
-globallycoherent RWCoherentByteAddressBuffer	MainAndPostCandididateClusters;
+RWCoherentByteAddressBuffer	MainAndPostNodesAndClusterBatches;
+RWCoherentByteAddressBuffer	MainAndPostCandididateClusters;
 
 struct FStreamingRequest
 {

@@ -107,7 +107,7 @@ RWTexture2D<uint>	DiffuseSampleMaskOutput;
 RWTexture2D<float3>	SpecularLightingOutput;
 RWTexture2D<uint>	SpecularSampleMaskOutput;
 
-globallycoherent RWCoherentBuffer(uint) DispatchParametersOutput;
+RWCoherentBuffer(uint) DispatchParametersOutput;
 
 
 //------------------------------------------------------- LDS

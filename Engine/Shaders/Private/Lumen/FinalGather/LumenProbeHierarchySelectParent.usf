@@ -24,7 +24,7 @@ uint ParentHierarchyId;
 uint HierarchyId;
 
 StructuredBuffer<uint> ProbePerResolveTiles;
-globallycoherent RWStructuredBuffer<FProbeInfo> ProbeArrayInout;
+RWCoherentStructuredBuffer(FProbeInfo) ProbeArrayInout;
 RWStructuredBuffer<FParentProbeInfo> ProbeParentListOutput;
 
 

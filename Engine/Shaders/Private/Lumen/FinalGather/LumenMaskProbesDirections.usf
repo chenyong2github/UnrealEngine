@@ -22,7 +22,7 @@ Texture2D<uint> ResolvedProbeIndexes;
 Texture2D<uint> DiffuseSampleMaskTexture;
 Texture2D<uint> SpecularSampleMaskTexture;
 
-globallycoherent RWStructuredBuffer<FProbeInfo> ProbeArrayInout;
+RWStructuredBuffer<FProbeInfo> ProbeArrayInout;
 RWTexture2D<float4> DebugOutput;
 
 

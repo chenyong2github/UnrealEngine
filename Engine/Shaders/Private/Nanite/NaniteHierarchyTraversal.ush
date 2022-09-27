@@ -33,7 +33,7 @@ void SetGroupNodeData(uint NodeIndex, uint4 Data) { GroupNodeData[NodeIndex] = D
 #	error "Unexpected Group Node Size."
 #endif
 
-globallycoherent RWCoherentStructuredBuffer(FQueueState)	QueueState;
+RWCoherentStructuredBuffer(FQueueState)	QueueState;
 
 groupshared uint	GroupNumCandidateNodes;
 groupshared uint	GroupCandidateNodesOffset;
