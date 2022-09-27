@@ -1168,19 +1168,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		}
 	};
 
-    if (bRenderLightmapDensity || ViewFamily.UseDebugViewPS())
+	if (bRenderLightmapDensity || ViewFamily.UseDebugViewPS())
 	{
-		if (bRenderLightmapDensity)
-		{
-			// Override the base pass with the lightmap density pass if the viewmode is enabled.
-			RenderLightMapDensities(GraphBuilder, Views, BasePassRenderTargets);
-		}
-		else if (ViewFamily.UseDebugViewPS())
-		{
-			// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
-			RenderDebugViewMode(GraphBuilder, Views, SceneTextures.QuadOverdraw, BasePassRenderTargets);
-		}
-
 		// Debug view support for Nanite
 		if (bNaniteEnabled)
 		{
@@ -1193,6 +1182,17 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				RenderNaniteDepthPass(View, ViewIndex);
 				RenderNaniteBasePass(View, ViewIndex);
 			}
+		}
+
+		if (bRenderLightmapDensity)
+		{
+			// Override the base pass with the lightmap density pass if the viewmode is enabled.
+			RenderLightMapDensities(GraphBuilder, Views, BasePassRenderTargets);
+		}
+		else if (ViewFamily.UseDebugViewPS())
+		{
+			// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
+			RenderDebugViewMode(GraphBuilder, Views, SceneTextures.QuadOverdraw, BasePassRenderTargets);
 		}
 	}
 	else
