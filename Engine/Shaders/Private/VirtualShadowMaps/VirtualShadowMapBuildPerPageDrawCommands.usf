@@ -88,27 +88,6 @@ bool WasPrimitiveRevealed(FVSMCullingBatchInfo VSMCullingBatchInfo, uint Persist
 	return (PrimitiveRevealedMask[PrimitiveIdWordOffset] & PrimitiveIdWordMask) != 0U;
 }
 
-void MarkInstanceForInvalidation(uint InstanceId)
-{
-	// Note: InstanceId can be higher than NumInvalidatingInstanceSlots because of Dynamic primitives and their instances as they are added later in the frame
-	//       Skipping them is ok, because they invalidate when they are removed (being transient).
-	if (InstanceId < uint(NumInvalidatingInstanceSlots))
-	{
-		uint InstanceIdWordOffset = InstanceId / 32U;
-		uint InstanceIdWordMask = 1U << (InstanceId % 32U);
-
-		uint PreviousWordMask = 0U;
-		InterlockedOr(OutInvalidatingInstances[1 + NumInvalidatingInstanceSlots + InstanceIdWordOffset], InstanceIdWordMask, PreviousWordMask);
-		// If the bit was not set, then we need to add it to the list of things to invaliate
-		if ((PreviousWordMask & InstanceIdWordMask) == 0U)
-		{
-			uint OutOffset = 0U;
-			WaveInterlockedAddScalar_(OutInvalidatingInstances[0], 1U, OutOffset);
-			OutInvalidatingInstances[1U + OutOffset] = InstanceId;
-		}
-	}
-}
-
 void WriteCmd(uint MipViewId, uint InstanceId, uint IndirectArgIndex, bool bStaticPage)
 {
 	FPageInfo PageInfo;
@@ -140,6 +119,7 @@ struct FSharedMarkingJob
 	bool bMaterialInvalidates;
 	bool bShouldCacheAsStatic;
 	bool bHasMoved;
+	bool bIsViewUncached;
 };
 
 groupshared uint NumSharedMarkingJobs;
@@ -149,7 +129,12 @@ uint2 PackJob(FSharedMarkingJob Job)
 {
 	uint2 Packed;
 	Packed.x = (Job.RectPages.x << 24U) | (Job.RectPages.y << 16U) | (Job.RectPages.z << 8U) | Job.RectPages.w;
-	Packed.y = (Job.VirtualShadowMapId << 6U) | (Job.MipLevel << 3U) | (Job.bHasMoved ? (1U << 2) : 0U) | (Job.bMaterialInvalidates ? (1U << 1) : 0U) | (Job.bShouldCacheAsStatic ? 1U : 0U);
+	Packed.y = (Job.VirtualShadowMapId << 7U) 
+		| (Job.MipLevel << 4U) 
+		| (Job.bIsViewUncached ?      (1U << 3) : 0U)
+		| (Job.bHasMoved ?            (1U << 2) : 0U) 
+		| (Job.bMaterialInvalidates ? (1U << 1) : 0U) 
+		| (Job.bShouldCacheAsStatic ?  1U : 0U);
 	return Packed;
 }
 
@@ -160,8 +145,10 @@ FSharedMarkingJob UnpackJob(uint2 Packed)
 	Job.RectPages.y = (Packed.x >> 16U) & 0xFF;
 	Job.RectPages.z = (Packed.x >> 8U) & 0xFF;
 	Job.RectPages.w = Packed.x & 0xFF;
-	Job.VirtualShadowMapId = Packed.y >> 6U;
-	Job.MipLevel = (Packed.y >> 3U) & 0x7;
+
+	Job.VirtualShadowMapId = Packed.y >> 7U;
+	Job.MipLevel = (Packed.y >> 4U) & 0x7;
+	Job.bIsViewUncached = (Packed.y & (1U << 3)) != 0U;
 	Job.bHasMoved = (Packed.y & (1U << 2)) != 0U;
 	Job.bMaterialInvalidates = (Packed.y & (1U << 1)) != 0U;
 	Job.bShouldCacheAsStatic = (Packed.y & 0x1) != 0U;
@@ -169,21 +156,22 @@ FSharedMarkingJob UnpackJob(uint2 Packed)
 	return Job;
 }
 
-bool MarkPageDirty(FVirtualSMLevelOffset PageTableLevelOffset, uint2 vPage, uint MipLevel, bool bMaterialInvalidates, bool bShouldCacheAsStatic, uint PageFlagMask)
+bool MarkPageDirty(FVirtualSMLevelOffset PageTableLevelOffset, uint2 vPage, uint MipLevel, bool bMaterialInvalidates, bool bShouldCacheAsStatic, bool bIsViewUncached, uint PageFlagMask)
 {
 	uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, MipLevel, vPage);
 	uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
+	// TODO: store page flags in the page table entry and only fetch that.
 	if ((PageFlag & PageFlagMask) == PageFlagMask)
 	{
 		FShadowPhysicalPage PhysPage = ShadowGetPhysicalPage(PageFlagOffset);
 		if (PhysPage.bThisLODValid)
 		{
-			// TODO: Possibly only emit invalidation for static pages (unless the uncached view override is used) to save on building HZB & merging
-			//       Alternatively store a separate flag array for static & dynamic and deal with how to use that later.
-
 			// Mark the page dirty so we regenerate HZB, etc.
 			uint PhysPageIndex = VSMPhysicalPageAddressToIndex(PhysPage.PhysicalAddress);
-			OutDirtyPageFlags[PhysPageIndex] = 1U;
+			if (bShouldCacheAsStatic || bIsViewUncached)
+			{
+				OutDirtyPageFlags[PhysPageIndex] = 1U;
+			}
 			if (bMaterialInvalidates)
 			{
 				uint Offset = VirtualShadowMap.MaxPhysicalPages * (bShouldCacheAsStatic ? 2U : 1U);
@@ -298,7 +286,8 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 			if (Cull.bIsVisible)
 			{
-				bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
+				bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
+				bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
 				uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 				bShouldCacheAsStaticForAnyView = bShouldCacheAsStaticForAnyView || bShouldCacheAsStatic;
 
@@ -352,7 +341,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 								{
 									for (uint X = RectPages.x; X <= RectPages.z; ++X)
 									{
-										if (MarkPageDirty(PageTableLevelOffset, uint2(X, Y), MipLevel, bMaterialInvalidates, bShouldCacheAsStatic, FlagMask))
+										if (MarkPageDirty(PageTableLevelOffset, uint2(X, Y), MipLevel, bMaterialInvalidates, bShouldCacheAsStatic, bIsViewUncached, FlagMask))
 										{
 											// Count pages if we're touching all of them anyway
 											++NumMappedPages;
@@ -371,6 +360,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 								Job.MipLevel = MipLevel;
 								Job.bMaterialInvalidates = bMaterialInvalidates;
 								Job.bShouldCacheAsStatic = bShouldCacheAsStatic;
+								Job.bIsViewUncached = bIsViewUncached;
 								Job.bHasMoved = bHasMoved;
 								if (JobIndex < MARKING_JOB_QUEUE_SIZE)
 								{
@@ -425,7 +415,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 			uint2 vPage = Job.RectPages.xy + uint2(Index - RectPagesSize.x * LocalPageY, LocalPageY);
 			uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(Job.bShouldCacheAsStatic, Job.bHasMoved);
 
-			MarkPageDirty(PageTableLevelOffset, vPage, Job.MipLevel, Job.bMaterialInvalidates, Job.bShouldCacheAsStatic, FlagMask);
+			MarkPageDirty(PageTableLevelOffset, vPage, Job.MipLevel, Job.bMaterialInvalidates, Job.bShouldCacheAsStatic, Job.bIsViewUncached, FlagMask);
 		}
 	}
 }

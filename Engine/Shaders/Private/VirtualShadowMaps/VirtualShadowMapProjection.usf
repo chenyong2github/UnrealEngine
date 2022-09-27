@@ -500,12 +500,26 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 			if (bValidPageAddress)
 			{
 				bool bDirty = (pPageMeta.Flags & VSM_PHYSICAL_FLAG_DIRTY) != 0U;
+
+				if (bDirty)
+				{
+					DirtyColor.x = 1.0f;
+				}
+				PageColor = lerp(PageColor, DirtyColor, 0.8f);
+			}
+			Output = 0.8f * PageColor + 0.2f * Result.ShadowFactor.xxx;
+		}
+		else if (VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_GPU_INVALIDATED_PAGE)
+		{
+			float3 PageColor = IntToColor(vPage.x + (vPage.y << 10U)) * 0.4f;
+			float3 DirtyColor = PageColor;
+			if (bValidPageAddress)
+			{
 				uint InvalidationFlags = pPageMeta.Flags >> VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT;
 				bool bUncachedDynamic = (InvalidationFlags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
 				bool bUncachedStatic = (InvalidationFlags & VSM_STATIC_UNCACHED_FLAG) != 0;
 
-				//DirtyColor = float3(0, 1, 0);
-				if (bDirty)
+				if (bUncachedStatic)
 				{
 					DirtyColor.x = 1.0f;
 				}
@@ -513,13 +527,20 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 				{
 					DirtyColor.y = 1.0f;
 				}
-				if (bUncachedStatic)
-				{
-					DirtyColor.z = 1.0f;
-				}
 				PageColor = lerp(PageColor, DirtyColor, 0.8f);
 			}
 			Output = 0.8f * PageColor + 0.2f * Result.ShadowFactor.xxx;
+		}
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_MERGED_PAGE)
+		{
+			bool bMerged = ((pPageMeta.Flags & VSM_PHYSICAL_FLAG_DIRTY) != 0U) && (pPageMeta.Flags & VSM_PHYSICAL_FLAG_VIEW_UNCACHED) == 0U;
+			float3 Color = float3(0, 1, 0);
+			if (bMerged)
+			{
+				Color = float3(1, 0, 0);
+			}
+			float3 PageColor = IntToColor(vPage.x + (vPage.y << 10U));
+			Output = 0.55f * Color + 0.25f * PageColor + 0.2f * Result.ShadowFactor.xxx;
 		}
 		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_GENERAL_DEBUG )
 		{

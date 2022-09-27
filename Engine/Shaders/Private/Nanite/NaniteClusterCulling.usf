@@ -499,7 +499,8 @@ struct FNaniteTraversalClusterCullCallback
 		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
 
 		const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
-		const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
+		const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
+		const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
 
 		// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
 		uint4 RectPages = uint4(1U, 1U, 0U, 0U);
@@ -611,7 +612,10 @@ struct FNaniteTraversalClusterCullCallback
 							FShadowPhysicalPage PhysPage = ShadowGetPhysicalPage(PageFlagOffset);
 							// Mark the page dirty so we regenerate HZB, etc.
 							uint PhysPageIndex = VSMPhysicalPageAddressToIndex(PhysPage.PhysicalAddress);
-							OutDirtyPageFlags[PhysPageIndex] = 1U;
+							if (bShouldCacheAsStatic || bIsViewUncached)
+							{
+								OutDirtyPageFlags[PhysPageIndex] = 1U;
+							}
 							if (bMaterialInvalidates)
 							{
 								uint Offset = VirtualShadowMap.MaxPhysicalPages * (bShouldCacheAsStatic ? 2U : 1U);

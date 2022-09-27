@@ -1104,15 +1104,20 @@ uint3 GetTileOffset(uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer, ino
 	return uint3(TileOffset, ArrayIndex);
 }
 
-uint3 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
+uint3 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer, inout FPhysicalPageMetaData OutMetaData)
 {
-	FPhysicalPageMetaData TmpMetaData;
 	// Pixel address of tile region for this thread group.
-	const uint3 TileOffset = GetTileOffset(GroupIndex, PageIndexBuffer, TmpMetaData);
+	const uint3 TileOffset = GetTileOffset(GroupIndex, PageIndexBuffer, OutMetaData);
 	// Pixel address of 2x2 region to sample for this thread.
 	const uint2 BasePos = TileOffset.xy + (TileThreadID.xy << 1u);
 
 	return uint3(BasePos, TileOffset.z);
+}
+
+uint3 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
+{
+	FPhysicalPageMetaData TmpMetaData;
+	return GetTileBasePos(TileThreadID, GroupIndex, PageIndexBuffer, TmpMetaData);
 }
 
 StructuredBuffer<uint> PhysicalPagesToInitialize;
@@ -1120,12 +1125,27 @@ StructuredBuffer<uint> PhysicalPagesToInitialize;
 [numthreads(TILE_THREAD_GROUP_SIZE_XY, TILE_THREAD_GROUP_SIZE_XY, 1)]
 void InitializePhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, uint GroupIndex : SV_GroupID)
 {
-	uint3 BasePos = GetTileBasePos(TileThreadID, GroupIndex, PhysicalPagesToInitialize);
+	FPhysicalPageMetaData MetaData;
+	uint3 BasePos = GetTileBasePos(TileThreadID, GroupIndex, PhysicalPagesToInitialize, MetaData);
+	bool bStaticCached = (MetaData.Flags & VSM_STATIC_UNCACHED_FLAG) == 0U;
 
-	OutPhysicalPagePool[BasePos + uint3(0U, 0U, 0)] = 0;
-	OutPhysicalPagePool[BasePos + uint3(1U, 0U, 0)] = 0;
-	OutPhysicalPagePool[BasePos + uint3(0U, 1U, 0)] = 0;
-	OutPhysicalPagePool[BasePos + uint3(1U, 1U, 0)] = 0;
+	if (bStaticCached && VirtualShadowMapShouldCacheStaticSeparately() && (MetaData.Flags & VSM_PHYSICAL_FLAG_VIEW_UNCACHED) == 0U)
+	{
+		// Initialize from the static page data
+		checkSlow(BasePos.z == 0U);
+		OutPhysicalPagePool[BasePos + uint3(0U, 0U, 0U)] = OutPhysicalPagePool[BasePos + uint3(0U, 0U, 1U)];
+		OutPhysicalPagePool[BasePos + uint3(1U, 0U, 0U)] = OutPhysicalPagePool[BasePos + uint3(1U, 0U, 1U)];
+		OutPhysicalPagePool[BasePos + uint3(0U, 1U, 0U)] = OutPhysicalPagePool[BasePos + uint3(0U, 1U, 1U)];
+		OutPhysicalPagePool[BasePos + uint3(1U, 1U, 0U)] = OutPhysicalPagePool[BasePos + uint3(1U, 1U, 1U)];
+	}
+	else
+	{
+		// Clear the page to zero
+		OutPhysicalPagePool[BasePos + uint3(0U, 0U, 0U)] = 0U;
+		OutPhysicalPagePool[BasePos + uint3(1U, 0U, 0U)] = 0U;
+		OutPhysicalPagePool[BasePos + uint3(0U, 1U, 0U)] = 0U;
+		OutPhysicalPagePool[BasePos + uint3(1U, 1U, 0U)] = 0U;
+	}
 }
 
 RWBuffer<uint> OutMergePagesIndirectArgsBuffer;
@@ -1144,11 +1164,9 @@ void SelectPagesToMergeCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 	// An uncached view is always exclusively renders into the dynamic pages, and thus require no merging.
 	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0U && (MetaData.Flags & VSM_PHYSICAL_FLAG_VIEW_UNCACHED) == 0U)
 	{
-		bool bFullyCached = (MetaData.Flags & (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG)) == 0U;
-		// TODO: Only mark for static?
 		bool bPageDirty = (MetaData.Flags & VSM_PHYSICAL_FLAG_DIRTY) != 0U;
 
-		if (!bFullyCached || bPageDirty)
+		if (bPageDirty)
 		{
 			StatsBufferInterlockedInc(VSM_STAT_NUM_PAGES_TO_MERGE);
 			EmitPageToProcess(OutMergePagesIndirectArgsBuffer, OutPhysicalPagesToMerge, PhysicalPageIndex);
