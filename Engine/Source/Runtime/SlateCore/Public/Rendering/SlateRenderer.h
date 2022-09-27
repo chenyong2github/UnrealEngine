@@ -484,12 +484,6 @@ public:
 	 */
 	virtual void PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData, SWindow* InScreenshotWindow) {}
 
-	/** 
-	 * Prepares the renderer to take a screenshot of the UI.  The Rect is portion of the rendered output
-	 * that will be stored into the TArray of FColors.
-	 */
-	virtual void PrepareToTakeHDRScreenshot(const FIntRect& Rect, TArray<FLinearColor>* OutColorData, SWindow* InScreenshotWindow) {}
-
 	/**
 	 * Pushes the rendering of the specified window to the specified render target
 	 */

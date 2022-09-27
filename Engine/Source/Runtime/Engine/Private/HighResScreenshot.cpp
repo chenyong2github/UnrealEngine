@@ -143,8 +143,7 @@ bool FHighResScreenshotConfig::ParseConsoleCommand(const FString& InCmd, FOutput
 	return false;
 }
 
-template<class FColorType, typename TChannelType>
-bool MergeMaskIntoAlphaInternal(TArray<FColorType>& InBitmap, const FIntRect& ViewRect, bool bMaskEnabled, TChannelType AlphaMultipler)
+bool FHighResScreenshotConfig::MergeMaskIntoAlpha(TArray<FColor>& InBitmap, const FIntRect& ViewRect)
 {
 	bool bWritten = false;
 
@@ -162,7 +161,7 @@ bool MergeMaskIntoAlphaInternal(TArray<FColorType>& InBitmap, const FIntRect& Vi
 			// Exact match, copy verbatim
 			for (int32 i = 0; i < InBitmap.Num(); ++i)
 			{
-				InBitmap[i].A = TChannelType((*MaskArray)[i].R) * AlphaMultipler;
+				InBitmap[i].A = (*MaskArray)[i].R;
 			}
 		}
 		else
@@ -177,7 +176,7 @@ bool MergeMaskIntoAlphaInternal(TArray<FColorType>& InBitmap, const FIntRect& Vi
 			{
 				for (int32 i = ViewRect.Min.X; i < ViewRect.Max.X; i++, OutputOffset++)
 				{
-					InBitmap[OutputOffset].A = TChannelType((*MaskArray)[j * MaskStride + i].R) * AlphaMultipler;
+					InBitmap[OutputOffset].A = (*MaskArray)[j * MaskStride + i].R;
 				}
 			}
 		}
@@ -188,21 +187,11 @@ bool MergeMaskIntoAlphaInternal(TArray<FColorType>& InBitmap, const FIntRect& Vi
 		// Ensure that all pixels' alpha is set to 255
 		for (auto& Color : InBitmap)
 		{
-			Color.A = TChannelType(255) * AlphaMultipler;
+			Color.A = 255;
 		}
 	}
 
 	return bWritten;
-}
-
-bool FHighResScreenshotConfig::MergeMaskIntoAlpha(TArray<FColor>& InBitmap, const FIntRect& ViewRect)
-{
-	return MergeMaskIntoAlphaInternal<FColor, uint8>(InBitmap, ViewRect, bMaskEnabled, 1);
-}
-
-bool FHighResScreenshotConfig::MergeMaskIntoAlpha(TArray<FLinearColor>& InBitmap, const FIntRect& ViewRect)
-{
-	return MergeMaskIntoAlphaInternal<FLinearColor, float>(InBitmap, ViewRect, bMaskEnabled, 1.0f / 255.0f);
 }
 
 void FHighResScreenshotConfig::SetHDRCapture(bool bCaptureHDRIN)

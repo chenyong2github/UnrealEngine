@@ -285,15 +285,13 @@ FUnorderedAccessViewRHIRef FRenderTarget::GetRenderTargetUAV() const
 void FScreenshotRequest::RequestScreenshot(bool bInShowUI)
 {
 	// empty string means we'll later pick the name
-	RequestScreenshot(TEXT(""), bInShowUI, /*bAddUniqueSuffix*/ true, /*bHdrScreenshot*/ false);
+	RequestScreenshot(TEXT(""), bInShowUI, true);
 }
 
-void FScreenshotRequest::RequestScreenshot(const FString& InFilename, bool bInShowUI, bool bAddUniqueSuffix, bool bHdrScreenshot)
+void FScreenshotRequest::RequestScreenshot(const FString& InFilename, bool bInShowUI, bool bAddUniqueSuffix)
 {
 	FString GeneratedFilename = InFilename;
 	CreateViewportScreenShotFilename(GeneratedFilename);
-
-	const TCHAR* ScreenshotExtension = bHdrScreenshot ? TEXT("exr") : TEXT("png");
 
 	if (bAddUniqueSuffix)
 	{
@@ -301,11 +299,11 @@ void FScreenshotRequest::RequestScreenshot(const FString& InFilename, bool bInSh
 		GeneratedFilename = FPaths::GetBaseFilename(GeneratedFilename, bRemovePath);
 		if (GetHighResScreenshotConfig().bDateTimeBasedNaming)
 		{
-			FFileHelper::GenerateDateTimeBasedBitmapFilename(GeneratedFilename, ScreenshotExtension, Filename);
+			FFileHelper::GenerateDateTimeBasedBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
 		}
 		else
 		{
-			FFileHelper::GenerateNextBitmapFilename(GeneratedFilename, ScreenshotExtension, Filename);
+			FFileHelper::GenerateNextBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
 		}
 	}
 	else
@@ -313,8 +311,7 @@ void FScreenshotRequest::RequestScreenshot(const FString& InFilename, bool bInSh
 		Filename = GeneratedFilename;
 		if (FPaths::GetExtension(Filename).Len() == 0)
 		{
-			Filename += TEXT(".");
-			Filename += ScreenshotExtension;
+			Filename += TEXT(".png");
 		}
 	}
 
@@ -1332,7 +1329,6 @@ void FViewport::HighResScreenshot()
 	const FString CachedScreenshotName = FScreenshotRequest::GetFilename();
 
 	FDummyViewport* DummyViewport = new FDummyViewport(ViewportClient);
-	DummyViewport->SetupHDR(GetDisplayColorGamut(), GetDisplayOutputFormat(), GetSceneHDREnabled());
 
 	DummyViewport->SizeX = (GScreenshotResolutionX > 0) ? GScreenshotResolutionX : SizeX;
 	DummyViewport->SizeY = (GScreenshotResolutionY > 0) ? GScreenshotResolutionY : SizeY;
@@ -1597,8 +1593,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 			{
 				const bool bShowUI = false;
 				const bool bAddFilenameSuffix = GetHighResScreenshotConfig().FilenameOverride.IsEmpty();
-				const bool bHDRScreenshot = GetSceneHDREnabled();
-				FScreenshotRequest::RequestScreenshot( FString(), bShowUI, bAddFilenameSuffix, bHDRScreenshot);
+				FScreenshotRequest::RequestScreenshot( FString(), bShowUI, bAddFilenameSuffix );
 				HighResScreenshot();
 			}
 			else if(bAnyScreenshotsRequired && bBufferVisualizationDumpingRequired)
@@ -2264,18 +2259,6 @@ ENGINE_API bool GetViewportScreenShot(FViewport* Viewport, TArray<FColor>& Bitma
 	return false;
 }
 
-ENGINE_API bool GetViewportScreenShotHDR(FViewport* Viewport, TArray<FLinearColor>& Bitmap, const FIntRect& ViewRect /*= FIntRect()*/)
-{
-	// Read the contents of the viewport into an array.
-	if (Viewport->ReadLinearColorPixels(Bitmap, FReadSurfaceDataFlags(RCM_MinMax), ViewRect))
-	{
-		check(Bitmap.Num() == ViewRect.Area() || (Bitmap.Num() == Viewport->GetSizeXY().X * Viewport->GetSizeXY().Y));
-		return true;
-	}
-
-	return false;
-}
-
 extern bool ParseResolution( const TCHAR* InResolution, uint32& OutX, uint32& OutY, int32& WindowMode );
 
 ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride, bool& OutUseDateTimeAsFileName)
@@ -2438,28 +2421,12 @@ FDummyViewport::~FDummyViewport()
 
 void FDummyViewport::InitDynamicRHI()
 {
-	EPixelFormat DummyViewportFormat = bSceneHDREnabled ? GRHIHDRDisplayOutputFormat : PF_A2B10G10R10;
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2D(TEXT("FDummyViewport"))
 		.SetExtent(SizeX, SizeY)
-		.SetFormat(DummyViewportFormat)
+		.SetFormat(PF_A2B10G10R10)
 		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 		.SetInitialState(ERHIAccess::SRVMask);
 
 	RenderTargetTextureRHI = RHICreateTexture(Desc);
-}
-
-EDisplayColorGamut FDummyViewport::GetDisplayColorGamut() const
-{
-	return DisplayColorGamut;
-}
-
-EDisplayOutputFormat FDummyViewport::GetDisplayOutputFormat() const
-{
-	return DisplayOutputFormat;
-}
-
-bool FDummyViewport::GetSceneHDREnabled() const
-{
-	return bSceneHDREnabled;
 }

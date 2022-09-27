@@ -3942,14 +3942,17 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, TArray
 	return TakeScreenshot(Widget, FIntRect(), OutColorData, OutSize);
 }
 
-bool FSlateApplication::TakeHDRScreenshot(const TSharedRef<SWidget>& Widget, TArray<FLinearColor>& OutColorData, FIntVector& OutSize)
+bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FColor>& OutColorData, FIntVector& OutSize)
 {
-	return TakeHDRScreenshot(Widget, FIntRect(), OutColorData, OutSize);
-}
+	// We can't screenshot the widget unless there's a valid window handle to draw it in.
+	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(Widget);
+	if ( !WidgetWindow.IsValid() )
+	{
+		return false;
+	}
 
+	TSharedRef<SWindow> CurrentWindowRef = WidgetWindow.ToSharedRef();
 
-void TakeScreenshotCommon(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, FIntRect& ScreenshotRect, SWindow* WidgetWindow)
-{
 	FWidgetPath WidgetPath;
 	FSlateApplication::Get().GeneratePathToWidgetChecked(Widget, WidgetPath);
 
@@ -3958,28 +3961,12 @@ void TakeScreenshotCommon(const TSharedRef<SWidget>& Widget, const FIntRect& Inn
 	FVector2D Size = ArrangedWidget.Geometry.GetDrawSize();
 	FVector2D WindowPosition = WidgetWindow->GetPositionInScreen();
 
-	ScreenshotRect = InnerWidgetArea.IsEmpty() ? FIntRect(0, 0, (int32)Size.X, (int32)Size.Y) : InnerWidgetArea;
+	FIntRect ScreenshotRect = InnerWidgetArea.IsEmpty() ? FIntRect(0, 0, (int32)Size.X, (int32)Size.Y) : InnerWidgetArea;
 
 	ScreenshotRect.Min.X += ( Position.X - WindowPosition.X );
 	ScreenshotRect.Min.Y += ( Position.Y - WindowPosition.Y );
 	ScreenshotRect.Max.X += ( Position.X - WindowPosition.X );
 	ScreenshotRect.Max.Y += ( Position.Y - WindowPosition.Y );
-}
-
-
-bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FColor>& OutColorData, FIntVector& OutSize)
-{
-	// We can't screenshot the widget unless there's a valid window handle to draw it in.
-	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(Widget);
-	if (!WidgetWindow.IsValid())
-	{
-		return false;
-	}
-
-	TSharedRef<SWindow> CurrentWindowRef = WidgetWindow.ToSharedRef();
-
-	FIntRect ScreenshotRect;
-	TakeScreenshotCommon(Widget, InnerWidgetArea, ScreenshotRect, WidgetWindow.Get());
 
 	Renderer->PrepareToTakeScreenshot(ScreenshotRect, &OutColorData, WidgetWindow.Get());
 	PrivateDrawWindows(WidgetWindow);
@@ -3989,30 +3976,6 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 
 	return (OutSize.X != 0 && OutSize.Y != 0 && OutColorData.Num() >= OutSize.X * OutSize.Y);
 }
-
-bool FSlateApplication::TakeHDRScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FLinearColor>& OutColorData, FIntVector& OutSize)
-{
-	// We can't screenshot the widget unless there's a valid window handle to draw it in.
-	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(Widget);
-	if (!WidgetWindow.IsValid())
-	{
-		return false;
-	}
-
-	TSharedRef<SWindow> CurrentWindowRef = WidgetWindow.ToSharedRef();
-
-	FIntRect ScreenshotRect;
-	TakeScreenshotCommon(Widget, InnerWidgetArea, ScreenshotRect, WidgetWindow.Get());
-
-	Renderer->PrepareToTakeHDRScreenshot(ScreenshotRect, &OutColorData, WidgetWindow.Get());
-	PrivateDrawWindows(WidgetWindow);
-
-	OutSize.X = ScreenshotRect.Size().X;
-	OutSize.Y = ScreenshotRect.Size().Y;
-
-	return (OutSize.X != 0 && OutSize.Y != 0 && OutColorData.Num() >= OutSize.X * OutSize.Y);
-}
-
 
 TSharedPtr<FSlateUser> FSlateApplication::GetUser(FPlatformUserId PlatformUser)
 {
