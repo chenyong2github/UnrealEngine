@@ -531,7 +531,7 @@ TSharedRef<SWidget> SMutableMeshViewer::GenerateBuffersListView(
 	// Headers
 	const FText BufferIndexTitle = FText(LOCTEXT("BufferIndexTitle", "Buffer"));
 	const FText BufferChannelsTitle = FText::Format(
-		LOCTEXT("SemanticLabelTitle", "{0} Buffer Channels"), InBufferSetTypeName);
+		LOCTEXT("NumberOfBufferChannels", "{0} Buffer Channels"), InBufferSetTypeName);
 
 	// Tooltips
 	const FText BufferIndexTooltip = FText(LOCTEXT("BufferIndexTooltip",

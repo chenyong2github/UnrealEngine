@@ -1995,38 +1995,45 @@ namespace impl
 		UCustomizableObjectInstance* CandidateInstance = Operation->CustomizableObjectInstance.Get();
 
 		bool bCancel = false;
+		UCustomizableObject* CustomizableObject = nullptr;
+		mu::Ptr<const mu::Parameters> Parameters;
 
 		// If the object is locked (for instance, compiling) we skip any instance update.
 		if (!CandidateInstance)
 		{
 			bCancel = true;
 		}
+		else
+		{
+			CustomizableObject = CandidateInstance->GetCustomizableObject();
+			if (!CustomizableObject || CustomizableObject->GetPrivate()->bLocked)
+			{
+				bCancel = true;
+			}
 
-		UCustomizableObject* CustomizableObject = CandidateInstance->GetCustomizableObject(); 
-		if (CustomizableObject->GetPrivate()->bLocked)
-		{
-			bCancel = true;
-		}
-		
-		// Only update resources if the instance is in range (it could have got far from the player since the task was queued)
-		if (
-			System->CurrentInstanceLODManagement->IsOnlyUpdateCloseCustomizableObjectsEnabled()
-			&& LastMinSquareDistFromComponentToPlayer > FMath::Square(System->CurrentInstanceLODManagement->GetOnlyUpdateCloseCustomizableObjectsDist())
-			&& LastMinSquareDistFromComponentToPlayer != FLT_MAX // This means it is the first frame so it has to be updated
-			)
-		{
-			bCancel = true;
-		}
+			// Only update resources if the instance is in range (it could have got far from the player since the task was queued)
+			if (
+				System->CurrentInstanceLODManagement->IsOnlyUpdateCloseCustomizableObjectsEnabled()
+				&& LastMinSquareDistFromComponentToPlayer > FMath::Square(System->CurrentInstanceLODManagement->GetOnlyUpdateCloseCustomizableObjectsDist())
+				&& LastMinSquareDistFromComponentToPlayer != FLT_MAX // This means it is the first frame so it has to be updated
+				)
+			{
+				bCancel = true;
+			}
 
-		mu::Ptr<const mu::Parameters> Parameters = Operation->GetParameters();
-		if (!Parameters)
-		{
-			bCancel = true;
+			Parameters = Operation->GetParameters();
+			if (!Parameters)
+			{
+				bCancel = true;
+			}
 		}
 
 		if (bCancel)
 		{
-			Operation->CustomizableObjectInstance->GetPrivate()->ClearCOInstanceFlags(Updating);
+			if (Operation->CustomizableObjectInstance.IsValid())
+			{
+				Operation->CustomizableObjectInstance->GetPrivate()->ClearCOInstanceFlags(Updating);
+			}
 			System->ClearCurrentMutableOperation();
 			return;
 		}

@@ -17,7 +17,8 @@
 #include <unordered_set>
 
 
-using namespace mu;
+namespace mu
+{
 
 
 namespace
@@ -988,7 +989,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
 
 
 //-------------------------------------------------------------------------------------------------
-void mu::ImageRasterProjectedPlanar( const Mesh* pMesh,
+void ImageRasterProjectedPlanar( const Mesh* pMesh,
                                      Image* pImage,
                                      const Image* pSource,
                                      const Image* pMask,
@@ -1075,7 +1076,7 @@ void mu::ImageRasterProjectedPlanar( const Mesh* pMesh,
 
 
 //-------------------------------------------------------------------------------------------------
-void mu::ImageRasterProjectedWrapping( const Mesh* pMesh,
+void ImageRasterProjectedWrapping( const Mesh* pMesh,
                                        Image* pImage,
                                        const Image* pSource,
                                        const Image* pMask,
@@ -1162,7 +1163,7 @@ void mu::ImageRasterProjectedWrapping( const Mesh* pMesh,
 
 
 //-------------------------------------------------------------------------------------------------
-void mu::ImageRasterProjectedCylindrical( const Mesh* pMesh,
+void ImageRasterProjectedCylindrical( const Mesh* pMesh,
                                           Image* pImage,
                                           const Image* pSource,
                                           const Image* pMask,
@@ -2638,7 +2639,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr mu::MeshProject( const Mesh* pMesh,
+MeshPtr MeshProject( const Mesh* pMesh,
                          const PROJECTOR& projector )
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject);
@@ -2674,7 +2675,7 @@ MeshPtr mu::MeshProject( const Mesh* pMesh,
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr mu::CreateMeshOptimisedForProjection( int layout )
+MeshPtr CreateMeshOptimisedForProjection( int layout )
 {
     MeshPtr pFormatMesh = new Mesh();
     pFormatMesh->GetVertexBuffers().SetBufferCount( 1 );
@@ -2708,7 +2709,7 @@ MeshPtr mu::CreateMeshOptimisedForProjection( int layout )
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr mu::CreateMeshOptimisedForWrappingProjection( int layout )
+MeshPtr CreateMeshOptimisedForWrappingProjection( int layout )
 {
     MeshPtr pFormatMesh = new Mesh();
     pFormatMesh->GetVertexBuffers().SetBufferCount( 1 );
@@ -2739,4 +2740,6 @@ MeshPtr mu::CreateMeshOptimisedForWrappingProjection( int layout )
               ioffsets );
 
     return pFormatMesh;
+}
+
 }

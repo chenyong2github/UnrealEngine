@@ -309,8 +309,8 @@ TSharedRef<SWidget> SMutableGraphViewer::GenerateCompileOptionsMenuContent()
 
 		// Disk as cache
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("MutableEnableTextureCompression", "Enable compiling using the disk as memory."),
-			LOCTEXT("MutableEnableTextureCompressionTooltip", "This is very slow but supports compiling huge objects. It requires a lot of free space in the OS disk."),
+			LOCTEXT("MutableDiskAsMemory", "Enable compiling using the disk as memory."),
+			LOCTEXT("MutableDiskAsMemoryTooltip", "This is very slow but supports compiling huge objects. It requires a lot of free space in the OS disk."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]() { CompileOptions.bUseDiskCompilation = !CompileOptions.bUseDiskCompilation; }),

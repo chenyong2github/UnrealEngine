@@ -683,3 +683,6 @@ mu::TablePtr GenerateMutableSourceTable(const FString& TableName, const UEdGraph
 
 	return MutableTable;
 }
+
+#undef LOCTEXT_NAMESPACE
+

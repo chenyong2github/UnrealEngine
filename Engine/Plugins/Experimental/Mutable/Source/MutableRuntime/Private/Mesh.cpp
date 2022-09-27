@@ -7,8 +7,8 @@
 #include "Platform.h"
 #include "MutableTrace.h"
 
-using namespace mu;
-
+namespace mu
+{
 
 //---------------------------------------------------------------------------------------------
 void Mesh::Serialise( const Mesh* p, OutputArchive& arch )
@@ -454,7 +454,7 @@ void Mesh::SetTag( int tagIndex, const char* strName )
 
 
 //---------------------------------------------------------------------------------------------
-const char* mu::Mesh::GetBonePoseName(int32 boneIndex) const
+const char* Mesh::GetBonePoseName(int32 boneIndex) const
 {
 	check(boneIndex >= 0 && boneIndex < GetBonePoseCount());
 	if (boneIndex >= 0 && boneIndex < GetBonePoseCount())
@@ -466,7 +466,7 @@ const char* mu::Mesh::GetBonePoseName(int32 boneIndex) const
 
 
 //---------------------------------------------------------------------------------------------
-int32 mu::Mesh::FindBonePose(const char* strName) const
+int32 Mesh::FindBonePose(const char* strName) const
 {
 	for (int32 i = 0; i < m_bonePoses.Num(); ++i)
 	{
@@ -1324,7 +1324,7 @@ static bool StaticMeshFormatIdentify_ProjectWrapping( const Mesh* pM )
 
 
 //---------------------------------------------------------------------------------------------
-STATIC_MESH_FORMAT_ID_FUNC mu::s_staticMeshFormatIdentify[] =
+STATIC_MESH_FORMAT_ID_FUNC s_staticMeshFormatIdentify[] =
 {
     StaticMeshFormatIdentify_None,
     StaticMeshFormatIdentify_Project,
@@ -1402,4 +1402,6 @@ void Mesh::Log( FString& out, int32 BufferElementLimit)
 
     out += "Faces:\n";
     LogBuffer( out, m_FaceBuffers, BufferElementLimit);
+}
+
 }

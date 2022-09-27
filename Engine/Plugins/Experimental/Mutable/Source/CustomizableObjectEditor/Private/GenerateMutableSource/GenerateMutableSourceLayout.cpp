@@ -120,3 +120,6 @@ mu::NodeLayoutPtr GenerateMutableSourceLayout(const UEdGraphPin * Pin, FMutableG
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

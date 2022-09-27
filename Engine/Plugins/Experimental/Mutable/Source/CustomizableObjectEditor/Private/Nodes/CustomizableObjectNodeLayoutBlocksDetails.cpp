@@ -44,7 +44,7 @@ void FCustomizableObjectNodeLayoutBlocksDetails::CustomizeDetails( IDetailLayout
 
 	if (Node)
 	{
-		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeLayoutBlocksDetails", "Blocks") )
+		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeLayoutBlocksDetails", "BlockInstructions") )
 		[
 			SNew( STextBlock )
 			.Text(  LOCTEXT("Use the node preview panel to set up the blocks.","Use the node preview panel to set up the blocks.") )
@@ -52,7 +52,7 @@ void FCustomizableObjectNodeLayoutBlocksDetails::CustomizeDetails( IDetailLayout
 	}
 	else
 	{
-		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeLayoutBlocksDetails", "Node") )
+		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeLayoutBlocksDetails", "NodeNotFound") )
 		[
 			SNew( STextBlock )
 			.Text( LOCTEXT( "Node not found", "Node not found" ) )

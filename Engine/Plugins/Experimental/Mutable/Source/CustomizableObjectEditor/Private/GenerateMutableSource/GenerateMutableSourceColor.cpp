@@ -336,3 +336,5 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE

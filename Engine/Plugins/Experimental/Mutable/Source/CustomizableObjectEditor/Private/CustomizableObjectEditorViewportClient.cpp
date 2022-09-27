@@ -934,7 +934,7 @@ void FCustomizableObjectEditorViewportClient::Draw(FViewport* InViewport, FCanva
 		Canvas->DrawShadowedString(
 			6,
 			2,
-			*NSLOCTEXT("UnrealEd", "UVOverlay_F", "Warning! No reference mesh is set in the Object Properties tab.").ToString(),
+			*NSLOCTEXT("CustomizableObjectEditor", "NoReferenceMeshMutable", "Warning! No reference mesh is set in the Object Properties tab.").ToString(),
 			GEngine->GetSmallFont(),
 			FLinearColor::Red
 			);
@@ -970,7 +970,7 @@ void FCustomizableObjectEditorViewportClient::DrawUVs(FViewport* InViewport, FCa
 	InCanvas->DrawShadowedString( 
 		6,
 		InTextYPos,
-		*FText::Format( NSLOCTEXT("UnrealEd", "UVOverlay_F", "Showing UV channel {0} for LOD {1}"), FText::AsNumber(UVChannel), FText::AsNumber(LODLevel) ).ToString(),
+		*FText::Format( NSLOCTEXT("CustomizableObjectEditor", "UVOverlay_F", "Showing UV channel {0} for LOD {1}"), FText::AsNumber(UVChannel), FText::AsNumber(LODLevel) ).ToString(),
 		GEngine->GetSmallFont(),
 		FLinearColor::White
 		);
@@ -2222,7 +2222,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 {
 	if (!AssetRegistryLoaded)
 	{
-		FNotificationInfo Info(NSLOCTEXT("CustomizableObject", "CustomizableObjectCompileTryLater", "Please wait until asset registry loads all assets"));
+		FNotificationInfo Info(NSLOCTEXT("CustomizableObjectEditor", "CustomizableObjectCompileTryLater", "Please wait until asset registry loads all assets"));
 		Info.bFireAndForget = true;
 		Info.bUseThrobber = true;
 		Info.FadeOutDuration = 1.0f;
@@ -2248,12 +2248,12 @@ void FCustomizableObjectEditorViewportClient::BakeInstance()
 
 	UCustomizableObjectInstance* Instance = CustomizableObjectEditorPtr.Pin()->GetPreviewInstance();
 	FString ObjectName = Instance->GetCustomizableObject()->GetName();
-	FText DefaultFileName = FText::Format(LOCTEXT("DefaultFileName", "{0}"), FText::AsCultureInvariant(ObjectName));
+	FText DefaultFileName = FText::Format(LOCTEXT("DefaultFileNameForBakeInstance", "{0}"), FText::AsCultureInvariant(ObjectName));
 	bool AddAllMaterialTextures = false;
 
 	TSharedRef<SMutableSelectFolderDlg> FolderDlg =
 		SNew(SMutableSelectFolderDlg)
-		.DefaultAssetPath(LOCTEXT("", ""))
+		.DefaultAssetPath(FText())
 		.DefaultFileName(DefaultFileName);
 
 	if (FolderDlg->ShowModal() != EAppReturnType::Cancel)
@@ -2836,7 +2836,7 @@ void FCustomizableObjectEditorViewportClient::ShowInstanceGeometryInformation(FC
 				InCanvas->DrawShadowedString(
 					6.0f,
 					YOffset,
-					*FText::Format(NSLOCTEXT("UnrealEd", "UVOverlay_F", "Component {3} LOD {0} has {1} vertices and {2} triangles"),
+					*FText::Format(NSLOCTEXT("CustomizableObjectEditor", "UVOverlay_F", "Component {3} LOD {0} has {1} vertices and {2} triangles"),
 						FText::AsNumber(i), FText::AsNumber(NumVertices), FText::AsNumber(NumTriangles), FText::AsNumber(ComponentIndex)).ToString(),
 					GEngine->GetSmallFont(),
 					FLinearColor::White

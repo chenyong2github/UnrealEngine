@@ -2332,7 +2332,7 @@ void SCreateProfileParameters::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("FileName", "Customizable Profile Name"))
+			.Text(LOCTEXT("CustomizableProfileName", "Customizable Profile Name"))
 		.Font(FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Regular.ttf"), 14))
 		]
 

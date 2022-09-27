@@ -205,3 +205,6 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 	
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

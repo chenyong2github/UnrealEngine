@@ -818,3 +818,6 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

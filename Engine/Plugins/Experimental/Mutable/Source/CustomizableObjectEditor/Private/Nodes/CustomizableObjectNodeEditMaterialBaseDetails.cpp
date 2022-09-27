@@ -51,7 +51,7 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::CustomizeDetails(IDetailLay
 
 		TSharedRef<IPropertyHandle> LayoutProperty = DetailBuilder.GetProperty("ParentLayoutIndex");
 
-		BlocksCategory.AddCustomRow(LOCTEXT("FCustomizableObjectNodeEditMaterialBaseDetails", "Blocks"))
+		BlocksCategory.AddCustomRow(LOCTEXT("BlocksRow", "Blocks"))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -83,7 +83,7 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::CustomizeDetails(IDetailLay
 	}
 	else
 	{
-		BlocksCategory.AddCustomRow(LOCTEXT("FCustomizableObjectNodeEditMaterialBaseDetails", "Node"))
+		BlocksCategory.AddCustomRow(LOCTEXT("NodeRow", "Node"))
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("Node not found", "Node not found"))

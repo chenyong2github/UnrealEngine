@@ -15,11 +15,10 @@
 std::atomic<uint32_t> mu::ASTOp::s_lastTraverseIndex(1);
 
 
-using namespace mu;
+namespace mu
+{
 
-
-
-void mu::DebugLogAST(const Ptr<ASTOp>& at, int indent, ASTOpList* done, const char* label )
+void DebugLogAST(const Ptr<ASTOp>& at, int indent, ASTOpList* done, const char* label )
 {
     if (!at) return;
 
@@ -1895,3 +1894,4 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
     return pRes;
 }
 
+}

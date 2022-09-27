@@ -1458,3 +1458,6 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

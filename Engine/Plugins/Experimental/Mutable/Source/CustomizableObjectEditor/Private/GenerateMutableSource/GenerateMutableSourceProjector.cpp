@@ -170,3 +170,6 @@ mu::NodeProjectorPtr GenerateMutableSourceProjector(const UEdGraphPin* Pin, FMut
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

@@ -169,10 +169,10 @@ void SCustomizableObjectNodeSkeletalMeshRTMorphSelector::UpdateWidget()
             (
                 SNew(SHeaderRow)
                 + SHeaderRow::Column(Internal::ViewRows::NameColumn)
-                .DefaultLabel(LOCTEXT("MorphNameLabel", "Name"))
+                .DefaultLabel(LOCTEXT("MorphNameLabelSelector", "Name"))
 
                 + SHeaderRow::Column(Internal::ViewRows::SelectionColumn)
-                .DefaultLabel(LOCTEXT("SelectionLabel", "Selection"))
+                .DefaultLabel(LOCTEXT("SelectionLabelSelector", "Selection"))
             )
         ]
     ];

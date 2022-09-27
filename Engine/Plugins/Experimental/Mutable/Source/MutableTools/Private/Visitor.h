@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//! Partially based on the visitor description of the Loki library
-
-
-#ifndef _MUTABLE_VISITOR_H_
-#define _MUTABLE_VISITOR_H_
-
+#pragma once
 
 #include "MutableTools/Private/Platform.h"
 
@@ -135,6 +130,3 @@ namespace mu
 
 
 }
-
-
-#endif

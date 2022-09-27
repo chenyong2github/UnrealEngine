@@ -164,7 +164,7 @@ void SMutableObjectViewer::Construct(const FArguments& InArgs, UCustomizableObje
 		FUIAction(FExecuteAction::CreateSP(this, &SMutableObjectViewer::CompileMutableCodePressed)),
 		NAME_None,
 		LOCTEXT("GenerateMutableCode", "Unreal to Mutable Code"),
-		LOCTEXT("GenerateMutableCodeTooltip", "Generate a mutable code from the customizable object source graph."),
+		LOCTEXT("GenerateMutableCodeTooltipFromGraph", "Generate a mutable code from the customizable object source graph."),
 		FSlateIcon(FCustomizableObjectEditorStyle::Get().GetStyleSetName(), "CustomizableObjectDebugger.CompileMutableCode", "CustomizableObjectDebugger.CompileMutableCode.Small"),
 		EUserInterfaceActionType::Button
 	);

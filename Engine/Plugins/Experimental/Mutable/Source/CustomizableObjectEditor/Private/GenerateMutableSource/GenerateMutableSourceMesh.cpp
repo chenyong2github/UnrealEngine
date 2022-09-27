@@ -2891,3 +2891,6 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

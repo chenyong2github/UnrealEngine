@@ -433,7 +433,7 @@ void SMutableCurveViewer::Construct(const FArguments& InArgs)
 				.DefaultLabel(LOCTEXT("TangentWeight", "Tangent Mode"))
 				
 				+ SHeaderRow::Column(MutableCurveKeyFramesListColumns::KeyFrameTangentWeightModeColumnID)
-				.DefaultLabel(LOCTEXT("TangentWeight", "Weight Mode"))
+				.DefaultLabel(LOCTEXT("TangentWeightMode", "Weight Mode"))
 
 			)
 		]

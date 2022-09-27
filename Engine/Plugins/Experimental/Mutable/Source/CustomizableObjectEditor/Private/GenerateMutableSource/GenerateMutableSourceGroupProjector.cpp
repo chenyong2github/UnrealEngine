@@ -616,3 +616,6 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE
+

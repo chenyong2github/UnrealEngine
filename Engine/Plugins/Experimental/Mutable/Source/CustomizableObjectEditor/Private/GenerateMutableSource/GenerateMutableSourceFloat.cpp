@@ -389,3 +389,6 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 
 	return Result;
 }
+
+#undef LOCTEXT_NAMESPACE
+

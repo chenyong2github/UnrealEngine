@@ -54,7 +54,7 @@ bool UCustomizableObjectInstanceFactory::CanCreateActorFrom(const FAssetData& As
         }
         else
         {
-            OutErrorMsg = LOCTEXT("NoCustomizableObjectInstance", "The CustomizableObjectInstance is null.");
+            OutErrorMsg = LOCTEXT("NoCustomizableObjectInstanceIsNull", "The CustomizableObjectInstance is null.");
         }
     }
 

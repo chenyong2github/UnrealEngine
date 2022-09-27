@@ -8,11 +8,13 @@
 
 #include "MutableTrace.h"
 
-using namespace mu;
+
+namespace mu
+{
 
 
 //-------------------------------------------------------------------------------------------------
-ImagePtr mu::ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
+ImagePtr ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
                                EImageFormat targetFormat, int onlyLOD )
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImagePixelFormat);
@@ -52,7 +54,7 @@ ImagePtr mu::ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
 
 
 //-------------------------------------------------------------------------------------------------
-bool mu::ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const Image* pBase,
+bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const Image* pBase,
                                   int onlyLOD )
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImagePixelFormatInPlace);
@@ -1186,3 +1188,4 @@ bool mu::ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, c
 }
 
 
+}

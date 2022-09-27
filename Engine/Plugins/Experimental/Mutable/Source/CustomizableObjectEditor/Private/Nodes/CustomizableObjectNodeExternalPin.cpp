@@ -148,7 +148,7 @@ FText UCustomizableObjectNodeExternalPin::GetNodeTitle(ENodeTitleType::Type Titl
 	}
 	else
 	{
-		return FText::Format(LOCTEXT("External_Pin_Title", "{0}\nImport {1} Pin"), FText::FromString(ExternalObject->GetName()), PinTypeName);
+		return FText::Format(LOCTEXT("External_Pin_Title_WithName", "{0}\nImport {1} Pin"), FText::FromString(ExternalObject->GetName()), PinTypeName);
 	}
 }
 

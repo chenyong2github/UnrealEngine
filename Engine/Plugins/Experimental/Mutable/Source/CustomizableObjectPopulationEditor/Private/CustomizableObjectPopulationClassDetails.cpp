@@ -1659,7 +1659,7 @@ void SRangeWidget::Construct(const FArguments& InArgs)
 				.Padding(15.0f, 0.0f, 0.0f, 0.0f)
 				[
 					SNew(SButton)
-					.ToolTipText(LOCTEXT("RemoveConstraint", "Remove Range"))
+					.ToolTipText(LOCTEXT("RemoveRange", "Remove Range"))
 					.OnClicked(this, &SRangeWidget::OnRemoveRangeButtonPressed)
 					[
 						SNew(SImage)
