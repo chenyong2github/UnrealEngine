@@ -707,6 +707,7 @@ public:
 	virtual uint32 GetLocalLoopIndex() const override;
 	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None, bool bEvaluate = true) override;
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime, bool bEvaluate = true) override;
+	virtual FFrameTime GetLastEvaluatedLocalTime() const override;
 	virtual void SetGlobalTime(FFrameTime Time, bool bEvaluate = true) override;
 	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) override;
 	virtual void RestorePlaybackSpeed() override;
@@ -1439,6 +1440,8 @@ private:
 		TWeakObjectPtr<AActor> PreviousCamera;
 		TWeakObjectPtr<AActor> NextCamera;
 	};
+	/** Frame time last evaluated at, needed to make sure we evaluate at the right time when interrogating values*/
+	FFrameTime LastEvaluatedLocalTime;
 	/** Information for previewing camera cut blends. This will be applied to the editor viewport during blends. */
 	FViewModifierInfo ViewModifierInfo;
 	/** Information cached before entering silent mode, so we can restore it afterwards. */

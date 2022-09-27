@@ -2965,6 +2965,11 @@ FQualifiedFrameTime FSequencer::GetGlobalTime() const
 	return FQualifiedFrameTime(RootTime, PlayPosition.GetOutputRate());
 }
 
+FFrameTime FSequencer::GetLastEvaluatedLocalTime() const 
+{
+	return LastEvaluatedLocalTime;
+}
+
 void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode, bool bEvaluate)
 {
 	FFrameRate LocalResolution = GetFocusedTickResolution();
@@ -3007,7 +3012,6 @@ void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode, b
 
 	SetLocalTimeDirectly(NewTime, bEvaluate);
 }
-
 
 void FSequencer::SetLocalTimeDirectly(FFrameTime NewTime, bool bEvaluate)
 {
@@ -3106,6 +3110,9 @@ void FSequencer::ForceEvaluate()
 
 void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJumped)
 {
+
+	LastEvaluatedLocalTime = GetLocalTime().Time;
+
 	if (Settings->ShouldCompileDirectorOnEvaluate())
 	{
 		RecompileDirtyDirectors();

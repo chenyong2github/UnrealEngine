@@ -415,6 +415,9 @@ public:
 	/** Set the global time directly, without performing any auto-scroll, snapping or other adjustments to the supplied time  */
 	virtual void SetGlobalTime(FFrameTime Time, bool bEvaluate = true) = 0;
 
+	/** Get the last evaluated time, which may be different form the current local time*/
+	virtual FFrameTime GetLastEvaluatedLocalTime() const = 0;
+
 	/** Play from the current time to the requested time */
 	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) = 0;
 
