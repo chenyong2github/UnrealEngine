@@ -163,23 +163,26 @@ namespace UnrealBuildTool
 
 		internal class ZenUploader
 		{
-			Dictionary<string, IoHash> FileHashes = new Dictionary<string, IoHash>();
-
+			FileHasher FileHasher;
 			Dictionary<IoHash, byte[]> Datas = new Dictionary<IoHash, byte[]>();
 			HashSet<IoHash> Uploaded = new HashSet<IoHash>();
 
+			public ZenUploader(ILogger? Logger = null)
+			{
+				FileHasher = new(Logger);
+			}
+
 			public IoHash HashFile(FileReference File)
 			{
-				if (!FileHashes.ContainsKey(File.FullName))
+				IoHash Hash = FileHasher.GetDigest(File);
+				if (!Datas.ContainsKey(Hash))
 				{
-					byte[] Data = FileReference.ReadAllBytes(File);
-					IoHash Hash = HashAndStoreData(Data);
-					lock (FileHashes)
+					lock (Datas)
 					{
-						FileHashes.TryAdd(File.FullName, Hash);
+						Datas.TryAdd(Hash, FileReference.ReadAllBytes(File));
 					}
 				}
-				return FileHashes[File.FullName];
+				return Hash;
 			}
 
 			// HashString is not cached

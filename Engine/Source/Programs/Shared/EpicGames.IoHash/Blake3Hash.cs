@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
+using System.IO;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace EpicGames.Core
 {
@@ -50,7 +54,7 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Creates a content hash for a block of data, using a given algorithm.
+		/// Creates a content hash for a block of data.
 		/// </summary>
 		/// <param name="data">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
@@ -59,6 +63,75 @@ namespace EpicGames.Core
 			byte[] output = new byte[32];
 			Blake3.Hasher.Hash(data, output);
 			return new Blake3Hash(output);
+		}
+
+		/// <summary>
+		/// Creates a content hash for a block of data.
+		/// </summary>
+		/// <param name="sequence">Data to compute the hash for</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static IoHash Compute(ReadOnlySequence<byte> sequence)
+		{
+			if (sequence.IsSingleSegment)
+			{
+				return Compute(sequence.FirstSpan);
+			}
+
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
+			{
+				foreach (ReadOnlyMemory<byte> segment in sequence)
+				{
+					hasher.Update(segment.Span);
+				}
+
+				byte[] output = new byte[32];
+				hasher.Finalize(output);
+				return new Blake3Hash(output);
+			}
+		}
+
+		/// <summary>
+		/// Creates a content hash for a stream.
+		/// </summary>
+		/// <param name="stream">Data to compute the hash for</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static IoHash Compute(Stream stream)
+		{
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
+			{
+				Span<byte> buffer = new byte[16384];
+				int length;
+				while ((length = stream.Read(buffer)) > 0)
+				{
+					hasher.Update(buffer.Slice(0, length));
+				}
+
+				byte[] output = new byte[32];
+				hasher.Finalize(output);
+				return new Blake3Hash(output);
+			}
+		}
+
+		/// <summary>
+		/// Creates a content hash for a stream asynchronously. 
+		/// </summary>
+		/// <param name="stream">Data to compute the hash for</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static async Task<IoHash> ComputeAsync(Stream stream, CancellationToken cancellationToken = default)
+		{
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
+			{
+				Memory<byte> buffer = new byte[16384];
+				int length;
+				while ((length = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+				{
+					hasher.Update(buffer.Slice(0, length).Span);
+				}
+
+				byte[] output = new byte[32];
+				hasher.Finalize(output);
+				return new Blake3Hash(output);
+			}
 		}
 
 		/// <summary>

@@ -7,6 +7,9 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.IO;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace EpicGames.Core
 {
@@ -95,6 +98,44 @@ namespace EpicGames.Core
 				foreach (ReadOnlyMemory<byte> segment in sequence)
 				{
 					hasher.Update(segment.Span);
+				}
+				return FromBlake3(hasher);
+			}
+		}
+
+		/// <summary>
+		/// Creates the IoHash for a stream.
+		/// </summary>
+		/// <param name="stream">Data to compute the hash for</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static IoHash Compute(Stream stream)
+		{
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
+			{
+				Span<byte> buffer = stackalloc byte[16384];
+				int length;
+				while ((length = stream.Read(buffer)) > 0)
+				{
+					hasher.Update(buffer.Slice(0, length));
+				}
+				return FromBlake3(hasher);
+			}
+		}
+
+		/// <summary>
+		/// Creates the IoHash for a stream asynchronously. 
+		/// </summary>
+		/// <param name="stream">Data to compute the hash for</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static async Task<IoHash> ComputeAsync(Stream stream, CancellationToken cancellationToken = default)
+		{
+			using (Blake3.Hasher hasher = Blake3.Hasher.New())
+			{
+				Memory<byte> buffer = new byte[16384];
+				int length;
+				while ((length = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+				{
+					hasher.Update(buffer.Slice(0, length).Span);
 				}
 				return FromBlake3(hasher);
 			}
