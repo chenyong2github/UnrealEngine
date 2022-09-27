@@ -30,15 +30,14 @@ FMeshDescriptionHelper::FMeshDescriptionHelper(FMeshBuildSettings* InBuildSettin
 {
 }
 
-void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription, bool bAllowNanite)
+void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription, bool bForNanite, bool bNeedTangents)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionHelper::SetupRenderMeshDescription);
 
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Owner);
 	check(StaticMesh);
 
-	const bool bNaniteBuildEnabled = bAllowNanite && StaticMesh->NaniteSettings.bEnabled;
-	float ComparisonThreshold = (BuildSettings->bRemoveDegenerates && !bNaniteBuildEnabled) ? THRESH_POINTS_ARE_SAME : 0.0f;
+	float ComparisonThreshold = (BuildSettings->bRemoveDegenerates && !bForNanite) ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
 	// Compact the mesh description prior to performing operations
 	if (RenderMeshDescription.Triangles().GetArraySize() != RenderMeshDescription.Triangles().Num() ||
@@ -68,9 +67,13 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	ComputeNTBsOptions |= BuildSettings->bUseMikkTSpace ? EComputeNTBsFlags::UseMikkTSpace : EComputeNTBsFlags::None;
 
 	// Set extra options for non-Nanite meshes
-	if (!bNaniteBuildEnabled)
+	if (!bForNanite)
 	{
 		ComputeNTBsOptions |= BuildSettings->bRemoveDegenerates ? EComputeNTBsFlags::IgnoreDegenerateTriangles : EComputeNTBsFlags::None;
+	}
+
+	if (bNeedTangents)
+	{
 		ComputeNTBsOptions |= BuildSettings->bRecomputeTangents ? EComputeNTBsFlags::Tangents : EComputeNTBsFlags::None;
 	}
 

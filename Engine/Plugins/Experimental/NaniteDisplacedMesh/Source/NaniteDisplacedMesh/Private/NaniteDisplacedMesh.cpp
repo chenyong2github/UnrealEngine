@@ -281,7 +281,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 
 	FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
 	FMeshDescriptionHelper MeshDescriptionHelper(&BuildSettings);
-	MeshDescriptionHelper.SetupRenderMeshDescription(BaseMesh, MeshDescription, true);
+	MeshDescriptionHelper.SetupRenderMeshDescription(BaseMesh, MeshDescription, true, false);
 
 	const FMeshSectionInfoMap BeforeBuildSectionInfoMap = BaseMesh->GetSectionInfoMap();
 	const FMeshSectionInfoMap BeforeBuildOriginalSectionInfoMap = BaseMesh->GetOriginalSectionInfoMap();
@@ -317,7 +317,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		InputMeshData.Vertices,
 		MeshDescriptionHelper.GetOverlappingCorners(),
 		RemapVerts,
-		true
+		false
 	);
 
 	if (Owner.IsCanceled())

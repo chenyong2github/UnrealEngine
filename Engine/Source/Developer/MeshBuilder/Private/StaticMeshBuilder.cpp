@@ -123,8 +123,12 @@ static bool BuildNanite(
 	FStaticMeshLODResources& StaticMeshLOD = LODResources[0];
 
 	// compute tangents, lightmap UVs, etc
+
+	// Until the simplifier supports tangents, only 100% fallback meshes will need them
+	const bool bNeedTangents = PercentTriangles.Num() > 0 && NaniteSettings.FallbackPercentTriangles == 1.0f && NaniteSettings.FallbackRelativeError == 0.0f;
+
 	FMeshDescriptionHelper MeshDescriptionHelper( &BuildSettings );
-	MeshDescriptionHelper.SetupRenderMeshDescription( StaticMesh, MeshDescription, true );
+	MeshDescriptionHelper.SetupRenderMeshDescription( StaticMesh, MeshDescription, true, bNeedTangents );
 
 	//Build new vertex buffers
 	TArray< FStaticMeshBuildVertex > StaticMeshBuildVertices;
@@ -152,7 +156,7 @@ static bool BuildNanite(
 		StaticMeshBuildVertices,
 		MeshDescriptionHelper.GetOverlappingCorners(),
 		RemapVerts,
-		true
+		bNeedTangents
 	);
 
 	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
@@ -400,7 +404,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 		if (bIsMeshDescriptionValid)
 		{
-			MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescriptions[LodIndex], bTargetSupportsNanite);
+			MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescriptions[LodIndex], false, true);
 		}
 		else
 		{
@@ -574,7 +578,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			StaticMeshBuildVertices,
 			MeshDescriptionHelper.GetOverlappingCorners(),
 			RemapVerts,
-			bTargetSupportsNanite
+			true
 		);
 
 		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
@@ -732,7 +736,7 @@ void BuildVertexBuffer(
 	TArray< FStaticMeshBuildVertex>& StaticMeshBuildVertices,
 	const FOverlappingCorners& OverlappingCorners,
 	TArray<int32>& RemapVerts,
-	bool bAllowNanite
+	bool bNeedTangents
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildVertexBuffer);
@@ -753,7 +757,6 @@ void BuildVertexBuffer(
 	TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const bool bHasColors = VertexInstanceColors.IsValid();
-	const bool bIgnoreTangents = bAllowNanite && StaticMesh->NaniteSettings.bEnabled;
 
 	const uint32 NumTextureCoord = VertexInstanceUVs.IsValid() ? VertexInstanceUVs.GetNumChannels() : 0;
 	const FMatrix ScaleMatrix = FScaleMatrix(BuildSettings.BuildScale3D).Inverse().GetTransposed();
@@ -824,15 +827,15 @@ void BuildVertexBuffer(
 			FStaticMeshBuildVertex StaticMeshVertex;
 
 			StaticMeshVertex.Position = FVector3f(VertexPosition * BuildSettings.BuildScale3D);
-			if (bIgnoreTangents)
-			{
-				StaticMeshVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
-				StaticMeshVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);
-			}
-			else
+			if (bNeedTangents)
 			{
 				StaticMeshVertex.TangentX = (FVector4f)ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
 				StaticMeshVertex.TangentY = (FVector4f)ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent) * VertexInstanceBinormalSign).GetSafeNormal();
+			}
+			else
+			{
+				StaticMeshVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
+				StaticMeshVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);
 			}
 			StaticMeshVertex.TangentZ = (FVector4f)ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
 

@@ -63,7 +63,7 @@ namespace UE::Private::StaticMeshBuilder
 		TArray<FStaticMeshBuildVertex>& StaticMeshBuildVertices,
 		const FOverlappingCorners& OverlappingCorners,
 		TArray<int32>& RemapVerts,
-		bool bAllowNanite
+		bool bNeedTangents
 	);
 
 	MESHBUILDER_API void BuildCombinedSectionIndices(

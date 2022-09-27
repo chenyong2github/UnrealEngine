@@ -629,7 +629,6 @@ static bool BuildNaniteData(
 		{
 			Swap( FallbackLODMeshData.Vertices,			InputMeshData.Vertices );
 			Swap( FallbackLODMeshData.TriangleIndices,	InputMeshData.TriangleIndices );
-			CalcTangents( FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices );
 		}
 		else
 		{
