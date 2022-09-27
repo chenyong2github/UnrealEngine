@@ -135,6 +135,7 @@ public:
 
 	//~ Begin UMeshComponent Interface.
 	virtual void PostLoad() override;
+	virtual void PrecachePSOs() override;
 	//~ End UMeshComponent Interface.
 
 	/** Return the guide hairs rest resources*/
