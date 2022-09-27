@@ -91,6 +91,8 @@ namespace Json
 	struct FTestCategory : FJsonSerializable
 	{
 		FString Category;
+		TArray<FString> AdditionalDatasets;
+		TArray<FString> RemovedDatasets;
 		TArray<FTestConfigTarget> Targets;
 		TArray<FTestConfigRuntime> Runtimes;
 		bool Skip;
@@ -100,6 +102,8 @@ namespace Json
 			JSON_SERIALIZE("category", Category);
 			JSON_SERIALIZE("skip", Skip);
 			JSON_SERIALIZE("is_model_test", IsModelTest);
+			JSON_SERIALIZE_ARRAY("additional_datasets", AdditionalDatasets);
+			JSON_SERIALIZE_ARRAY("removed_datasets", RemovedDatasets);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("targets", Targets, FTestConfigTarget);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);
 		END_JSON_SERIALIZER

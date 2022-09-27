@@ -194,6 +194,18 @@ namespace Test
 			}
 			return TestSuffix;
 		}
+
+		static bool IsSubstringFoundInArray(const TArray<FString>& Names, const FString& SubString)
+		{
+			for (auto&& Name : Names)
+			{
+				if (Name.Contains(SubString))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 		
 		void AddTestFromCategory(const FString& BaseTestPath, const TArray<Json::FTestCategory>& TestCategories, const TArray<Json::FTestConfigInputOutputSet> InputOutputSets)
 		{
@@ -221,10 +233,14 @@ namespace Test
 					
 					for (const Json::FTestConfigInputOutputSet& InputOutputSet : InputOutputSets)
 					{
-						//If category is a substring of InputOutputSet name or if target explicitly requested the InputOutputSet name
-						if (InputOutputSet.Name.Contains(TestCategory.Category) || TestTarget.AdditionalDatasets.Contains(InputOutputSet.Name))
+						//Accept test if category is a substring of the dataset name or one of the explicitly requested dataset names
+						if (InputOutputSet.Name.Contains(TestCategory.Category) || 
+							IsSubstringFoundInArray(TestTarget.AdditionalDatasets, InputOutputSet.Name) ||
+							IsSubstringFoundInArray(TestCategory.AdditionalDatasets, InputOutputSet.Name))
 						{
-							if (TestTarget.RemovedDatasets.Contains(InputOutputSet.Name))
+							//Reject test if dataset is explicitly rejected
+							if (IsSubstringFoundInArray(TestTarget.RemovedDatasets, InputOutputSet.Name) || 
+								IsSubstringFoundInArray(TestCategory.RemovedDatasets, InputOutputSet.Name))
 							{
 								continue;
 							}
