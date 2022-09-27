@@ -22,7 +22,9 @@ private:
 	FReply OnCreateClicked();
 	FReply OnCancelClicked();
 
-	TSharedPtr<SEditableTextBox> LocalFileText;
+	TSharedPtr<SEditableTextBox> StreamTextBox = nullptr;
+	TSharedPtr<SEditableTextBox> RootDirTextBox = nullptr;
+	TSharedPtr<SEditableTextBox> FileNameTextBox = nullptr;
 	FString WorkspacePathText;
 
 	UGSTab* Tab = nullptr;

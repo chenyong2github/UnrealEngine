@@ -204,9 +204,22 @@ bool UGSTab::ShouldSyncPrecompiledEditor() const
 
 TArray<FString> UGSTab::GetAllStreamNames() const
 {
-	TArray<FString> Result;
 	FEvent* AbortEvent = FPlatformProcess::GetSynchEventFromPool(true);
-	PerforceClient->FindStreams("//*/*", Result, AbortEvent, *MakeShared<FLineWriter>());
+	
+	TArray<FString> Result;
+	const TSharedRef<UGSCore::FModalTaskResult> TaskResult = ExecuteModalTask(
+		FSlateApplication::Get().GetActiveModalWindow(),
+		PerforceClient->FindStreams("//*/*", Result, AbortEvent, *MakeShared<FLineWriter>()),
+		LOCTEXT("OpeningProjectTitle", "Opening Project"),
+		LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
+	
+	if (TaskResult->Failed())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, TaskResult->GetMessage());
+		return TArray<FString>();
+	}
+
+	Result.Sort();
 
 	return Result;
 }

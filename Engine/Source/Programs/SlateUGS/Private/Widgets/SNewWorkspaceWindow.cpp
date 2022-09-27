@@ -70,7 +70,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
 						[
-							SNew(SEditableTextBox)
+							SAssignNew(StreamTextBox, SEditableTextBox)
 						]
 						+SHorizontalBox::Slot()
 						.FillWidth(0.225f)
@@ -87,7 +87,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
 						[
-							SNew(SEditableTextBox)
+							SAssignNew(RootDirTextBox, SEditableTextBox)
 						]
 						+SHorizontalBox::Slot()
 						.FillWidth(0.225f)
@@ -100,7 +100,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 					]
 					+SVerticalBox::Slot()
 					[
-						SNew(SEditableTextBox)
+						SAssignNew(FileNameTextBox, SEditableTextBox)
 					]
 				]
 			]
@@ -134,7 +134,10 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 
 FReply SNewWorkspaceWindow::OnBrowseStreamClicked()
 {
-	FSlateApplication::Get().AddModalWindow(SNew(SSelectStreamWindow, Tab), SharedThis(this), false);
+	FString OutStreamPath;
+	FSlateApplication::Get().AddModalWindow(SNew(SSelectStreamWindow, Tab, &OutStreamPath), SharedThis(this), false);
+
+	StreamTextBox->SetText(FText::FromString(*OutStreamPath));
 
 	return FReply::Handled();
 }
