@@ -20,7 +20,7 @@ class ULidarPointCloudComponent;
 class FLidarPointCloudEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FLidarPointCloudEditorViewportClient>
 {
 public:
-	FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, FAdvancedPreviewScene* InPreviewScene, ULidarPointCloud* InPreviewPointCloud, ULidarPointCloudComponent* InPreviewPointCloudComponent);
+	FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, FPreviewScene* InPreviewScene, ULidarPointCloudComponent* InPreviewPointCloudComponent);
 	~FLidarPointCloudEditorViewportClient();
 
 	// FEditorViewportClient interface
@@ -49,8 +49,6 @@ protected:
 	// FEditorViewportClient interface
 	virtual void PerspectiveCameraMoved() override;
 
-	/** Call back for when the user changes preview scene settings in the UI */
-	void OnAssetViewerSettingsChanged(const FName& InPropertyName);
 	/** Used to (re)-set the viewport show flags related to post processing*/
 	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
 
@@ -63,7 +61,4 @@ private:
 
 	/** Pointer back to the PointCloudEditor viewport control that owns us */
 	TWeakPtr<SLidarPointCloudEditorViewport> PointCloudEditorViewportPtr;
-
-	/** Stored pointer to the preview scene in which the point cloud is shown */
-	FAdvancedPreviewScene* AdvancedPreviewScene;
 };

@@ -31,7 +31,7 @@ namespace UE {
 	}
 }
 
-FLidarPointCloudEditorViewportClient::FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, FAdvancedPreviewScene* InPreviewScene, ULidarPointCloud* InPreviewPointCloud, ULidarPointCloudComponent* InPreviewPointCloudComponent)
+FLidarPointCloudEditorViewportClient::FLidarPointCloudEditorViewportClient(TWeakPtr<FLidarPointCloudEditor> InPointCloudEditor, const TSharedRef<SLidarPointCloudEditorViewport>& InPointCloudEditorViewport, FPreviewScene* InPreviewScene, ULidarPointCloudComponent* InPreviewPointCloudComponent)
 	: FEditorViewportClient(nullptr, InPreviewScene, StaticCastSharedRef<SEditorViewport>(InPointCloudEditorViewport))
 	, PointCloudComponent(InPreviewPointCloudComponent)
 	, PointCloudEditorPtr(InPointCloudEditor)
@@ -55,11 +55,6 @@ FLidarPointCloudEditorViewportClient::FLidarPointCloudEditorViewportClient(TWeak
 	EngineShowFlags.SetCompositeEditorPrimitives(true);
 	OverrideNearClipPlane(1.0f);
 	bUsingOrbitCamera = true;
-
-	AdvancedPreviewScene = static_cast<FAdvancedPreviewScene*>(PreviewScene);
-
-	// Register delegate to update the show flags when the post processing is turned on or off
-	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().AddRaw(this, &FLidarPointCloudEditorViewportClient::OnAssetViewerSettingsChanged);
 
 	// Set correct flags according to current profile settings
 	SetAdvancedShowFlagsForScene(UAssetViewerSettings::Get()->Profiles[GetMutableDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex].bPostProcessingEnabled);
@@ -114,19 +109,6 @@ void FLidarPointCloudEditorViewportClient::PerspectiveCameraMoved()
 	}
 
 	ToggleOrbitCamera(bUsingOrbitCamera);
-}
-
-void FLidarPointCloudEditorViewportClient::OnAssetViewerSettingsChanged(const FName& InPropertyName)
-{
-	if (InPropertyName == GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bPostProcessingEnabled) || InPropertyName == NAME_None)
-	{
-		UAssetViewerSettings* Settings = UAssetViewerSettings::Get();
-		const int32 ProfileIndex = AdvancedPreviewScene->GetCurrentProfileIndex();
-		if (Settings->Profiles.IsValidIndex(ProfileIndex))
-		{
-			SetAdvancedShowFlagsForScene(Settings->Profiles[ProfileIndex].bPostProcessingEnabled);
-		}
-	}
 }
 
 void FLidarPointCloudEditorViewportClient::SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags)

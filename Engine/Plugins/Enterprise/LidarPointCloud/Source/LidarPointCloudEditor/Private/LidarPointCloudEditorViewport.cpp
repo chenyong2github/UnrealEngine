@@ -54,9 +54,6 @@ public:
 
 void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 {
-	PreviewScene.SetFloorVisibility(false);
-	PreviewScene.SetEnvironmentVisibility(false);
-
 	PointCloudEditorPtr = InArgs._PointCloudEditor;
 
 	PointCloud = InArgs._ObjectToEdit;
@@ -162,7 +159,7 @@ bool SLidarPointCloudEditorViewport::IsVisible() const
 
 TSharedRef<FEditorViewportClient> SLidarPointCloudEditorViewport::MakeEditorViewportClient()
 {
-	EditorViewportClient = MakeShareable(new FLidarPointCloudEditorViewportClient(PointCloudEditorPtr, SharedThis(this), &PreviewScene, PointCloud, PreviewCloudComponent));
+	EditorViewportClient = MakeShareable(new FLidarPointCloudEditorViewportClient(PointCloudEditorPtr, SharedThis(this), &PreviewScene, PreviewCloudComponent));
 
 	EditorViewportClient->bSetListenerPosition = false;
 

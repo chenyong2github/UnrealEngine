@@ -97,7 +97,7 @@ private:
 	TWeakPtr<FLidarPointCloudEditor> PointCloudEditorPtr;
 
 	/** The scene for this viewport. */
-	FAdvancedPreviewScene PreviewScene;
+	FPreviewScene PreviewScene;
 
 	/** Editor viewport client */
 	TSharedPtr<FLidarPointCloudEditorViewportClient> EditorViewportClient;
