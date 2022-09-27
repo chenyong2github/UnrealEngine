@@ -250,11 +250,13 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 	return nullptr;
 }
 
+NANITEDISPLACEDMESHEDITOR_API const TCHAR* LinkedDisplacedMeshAssetNamePrefix = TEXT("NaniteDisplacedMesh_");
+
 NANITEDISPLACEDMESHEDITOR_API FString GenerateLinkedDisplacedMeshAssetName(const FNaniteDisplacedMeshParams& InParameters)
 {
 	TStringBuilder<512> StringBuilder;
 
-	StringBuilder.Append(TEXT("NaniteDisplacedMesh_"));
+	StringBuilder.Append(LinkedDisplacedMeshAssetNamePrefix);
 	StringBuilder.Append(GetAggregatedIdString(InParameters));
 	return StringBuilder.ToString();
 }

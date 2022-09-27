@@ -17,24 +17,35 @@
 #include "Engine/Level.h"
 #include "HAL/FileManager.h"
 #include "UObject/GCObjectScopeGuard.h"
-#include "Algo/Transform.h"
+
+bool UGenerateNaniteDisplacedMeshCommandlet::IsRunning()
+{
+	static UClass* ThisCommandlet = StaticClass();
+	static UClass* RunningCommandlet = GetRunningCommandletClass();
+	return RunningCommandlet != nullptr && RunningCommandlet->IsChildOf(ThisCommandlet);
+}
 
 int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 {
-	int32 ExitCode = 0;
+	const uint64 StartTime = FPlatformTime::Cycles64();
+	bool bSuccess = true;
 
 	// Process the arguments
 	TArray<FString> Tokens, Switches;
 	TMap<FString, FString> Params;
 	ParseCommandLine(*CmdLineParams, Tokens, Switches, Params);
 	const FString CollectionFilter = Params.FindRef(TEXT("GNDMCollectionFilter"));
-	const bool DeleteUnused = Switches.Contains(TEXT("GNDMDeleteUnused"));
+	const FString SubmitWithDescription = Params.FindRef(TEXT("GNDMSubmitWithDescription"));
+	const bool bDeleteUnused = Switches.Contains(TEXT("GNDMDeleteUnused"));
+
+	FPackageSourceControlHelper SourceControlHelper;
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Source control enabled: %s"), SourceControlHelper.UseSourceControl() ? TEXT("true") : TEXT("false"));
 
 	FARFilter Filter;
 	Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
 	if (!CollectionFilter.IsEmpty())
 	{
-		UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("CollectionFilter: %s"), *CollectionFilter);
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Use collection filter: %s"), *CollectionFilter);
 		const ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 		CollectionManager.GetObjectsInCollection(FName(*CollectionFilter), ECollectionShareType::CST_All, Filter.SoftObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
 	}
@@ -43,7 +54,7 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 
 	if (IsRunningCommandlet())
 	{
-		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("SearchAllAssets..."));
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Searching all assets (this may take a while)..."));
 		// This is automatically called in the regular editor but not when running a commandlet (unless cooking)
 		// Must also search synchronously because AssetRegistry.IsLoadingAssets() won't account for this search
 		AssetRegistry.SearchAllAssets(true);
@@ -56,67 +67,126 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 	Module.OnLinkDisplacedMeshOverride.BindUObject(this, &UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMesh);
 
 	const int32 LevelCount = LevelAssets.Num();
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Processing %d level(s)..."), LevelCount);
+
 	for (int LevelIndex = 0; LevelIndex < LevelCount; ++LevelIndex)
 	{
 		const FAssetData& LevelAsset = LevelAssets[LevelIndex];
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
-		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Level: %s (%d/%d)"), *LevelAsset.GetSoftObjectPath().ToString(), LevelIndex + 1, LevelCount);
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Process Level: %s (%d/%d)"), *LevelAsset.GetSoftObjectPath().ToString(), LevelIndex + 1, LevelCount);
 		LoadLevel(LevelAsset);
 	}
 
 	Module.OnLinkDisplacedMeshOverride.Unbind();
-	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("==================================================================="));
-	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("All levels processed"));
-	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("==================================================================="));
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("======================= All levels processed ======================"));
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Linked %d unique mesh(es)"), LinkedPackageNames.Num());
 
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("Collecting existing packages from %d folder(s):%s"), GeneratedFolders.Num(), *SetToString(GeneratedFolders));
-	TSet<FString> ExistingPackages;
-	for (const FString& Folder : GeneratedFolders)
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
+
+	if (LinkedPackageFolders.Num() > 0)
 	{
-		GetPackagesInFolder(Folder, ExistingPackages);
-	}
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Find existing meshes (with prefix %s) in %d folder(s):\n\t%s"), LinkedDisplacedMeshAssetNamePrefix, LinkedPackageFolders.Num(), *FString::Join(LinkedPackageFolders, TEXT("\n\t")));
 
-	const TSet<FString> AddedPackages = GeneratedPackages.Difference(ExistingPackages);
-	const TSet<FString> UnusedPackages = ExistingPackages.Difference(GeneratedPackages);
+		const TSet<FString> ExistingPackageNames  = GetPackagesInFolders(LinkedPackageFolders, LinkedDisplacedMeshAssetNamePrefix);
+		const TSet<FString> AddedPackageNames = LinkedPackageNames.Difference(ExistingPackageNames);
+		const TSet<FString> UnusedPackageNames = ExistingPackageNames.Difference(LinkedPackageNames);
 
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("-------------------------------------------------------------------"));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("Detected %d existing package(s):%s"), ExistingPackages.Num(), *SetToString(ExistingPackages));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("-------------------------------------------------------------------"));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("Detected %d generated package(s):%s"), GeneratedPackages.Num(), *SetToString(GeneratedPackages));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("-------------------------------------------------------------------"));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("Detected %d added package(s):%s"), AddedPackages.Num(), *SetToString(AddedPackages));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("-------------------------------------------------------------------"));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("Detected %d unused package(s):%s"), UnusedPackages.Num(), *SetToString(UnusedPackages));
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
 
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("==================================================================="));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("All packages detected"));
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("==================================================================="));
-
-	FPackageSourceControlHelper SourceControlHelper;
-	if (SourceControlHelper.UseSourceControl())
-	{
-		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Adding %d new package(s) to source control..."), AddedPackages.Num());
-
-		if (!SourceControlHelper.AddToSourceControl(AddedPackages.Array()))
+		if (ExistingPackageNames.Num() > 0)
 		{
-			UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Unable to add one or more packages to source control!"));
-			ExitCode = 1;
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Found %d existing mesh(es):\n\t%s"), ExistingPackageNames.Num(), *FString::Join(ExistingPackageNames, TEXT("\n\t")));
+		}
+		else
+		{
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("No existing meshes found"));
+		}
+
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
+
+		if (AddedPackageNames.Num() > 0)
+		{
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Found %d added mesh(es):\n\t%s"), AddedPackageNames.Num(), *FString::Join(AddedPackageNames, TEXT("\n\t")));
+		}
+		else
+		{
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("No added meshes found"));
+		}
+
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
+
+		if (UnusedPackageNames.Num() > 0)
+		{
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Found %d unused mesh(es):\n\t%s"), UnusedPackageNames.Num(), *FString::Join(UnusedPackageNames, TEXT("\n\t")));
+		}
+		else
+		{
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("No unused meshes found"));
+		}
+
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
+
+		TArray<FString> DeletedFilenames;	
+		if (bDeleteUnused)
+		{
+			const TArray<FString> PackagesToDelete = UnusedPackageNames.Array();
+			DeletedFilenames.Append(SourceControlHelpers::PackageFilenames(PackagesToDelete));
+
+			if (PackagesToDelete.Num() > 0)
+			{
+				UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Deleting %d unused mesh(es)..."), PackagesToDelete.Num());
+				if (!SourceControlHelper.Delete(PackagesToDelete))
+				{
+					UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to delete unused meshes!"));
+					bSuccess = false;
+				}
+			}
+			else
+			{
+				UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("No unused meshes to delete"));
+			}
+
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
+		}
+
+		if (bSuccess && !SubmitWithDescription.IsEmpty())
+		{
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Use submit description: %s"), *SubmitWithDescription);
+
+			TArray<FString> SubmitFilenames = SourceControlHelpers::PackageFilenames(AddedPackageNames.Array());
+			SubmitFilenames.Append(DeletedFilenames);
+
+			if (SubmitFilenames.Num() > 0)
+			{
+				UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Submitting %d changed mesh(es)..."), SubmitFilenames.Num());
+				if (!SourceControlHelpers::CheckInFiles(SubmitFilenames, SubmitWithDescription))
+				{
+					UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to submit changed meshes!"));
+					bSuccess = false;
+				}
+			}
+			else
+			{
+				UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("No changed meshes to submit"));
+			}
+
+			UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
 		}
 	}
-
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("DeleteUnused: %s"), DeleteUnused ? TEXT("true") : TEXT("false"));
-	if (DeleteUnused)
+	else
 	{
-		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Deleting %d unused package(s) from disk and source control (if enabled)..."), UnusedPackages.Num());
-		if (!SourceControlHelper.Delete(UnusedPackages.Array()))
-		{
-			UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Unable to delete one or more packages from disk and source control (if enabled)!"));
-			ExitCode = 1;
-		}
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("No meshes linked in processed levels"));
 	}
 
-	UE_LOG(LogNaniteDisplacedMesh, Verbose, TEXT("ExitCode: %d"), ExitCode);
-	return ExitCode;
+	const FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Peak virtual memory usage: %u MiB"), MemoryStats.PeakUsedVirtual / (1024 * 1024));
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Peak physical memory usage: %u MiB"), MemoryStats.PeakUsedPhysical / (1024 * 1024));
+
+	const uint64 EndTime = FPlatformTime::Cycles64();
+	const int64 DurationInSeconds = FMath::CeilToInt(FPlatformTime::ToSeconds64(EndTime - StartTime));
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Commandlet duration: %d second(s)"), DurationInSeconds);
+
+	return bSuccess ? 0 : 1;
 }
 
 UNaniteDisplacedMesh* UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMesh(const FNaniteDisplacedMeshParams& Parameters, const FString& Folder)
@@ -124,17 +194,15 @@ UNaniteDisplacedMesh* UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMes
 	FNaniteDisplacedMeshEditorModule& Module = FNaniteDisplacedMeshEditorModule::GetModule();
 	Module.OnLinkDisplacedMeshOverride.Unbind();
 
-	/**
-	 * This will force the saving of a new asset.
-	 */
+	// This will force the saving of a new asset as persistent and mark it for add in source control (if enabled)
 	UNaniteDisplacedMesh* NaniteDisplacedMesh = LinkDisplacedMeshAsset(nullptr, Parameters, Folder, ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset);
 	if (NaniteDisplacedMesh != nullptr)
 	{
 		const FString PackageName = NaniteDisplacedMesh->GetPackage()->GetPathName();
-		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("LinkedDisplacedMeshAsset: %s"), *PackageName);
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Linked mesh: %s"), *PackageName);
 
-		GeneratedPackages.Add(PackageName);
-		GeneratedFolders.Add(Folder);
+		LinkedPackageNames.Add(PackageName);
+		LinkedPackageFolders.Add(Folder);
 	}
 
 	Module.OnLinkDisplacedMeshOverride.BindUObject(this, &UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMesh);
@@ -189,24 +257,25 @@ void UGenerateNaniteDisplacedMeshCommandlet::LoadLevel(const FAssetData& AssetDa
 	CollectGarbage(RF_NoFlags);
 }
 
-void UGenerateNaniteDisplacedMeshCommandlet::GetPackagesInFolder(const FString& InFolder, TSet<FString>& OutAssets)
+TSet<FString> UGenerateNaniteDisplacedMeshCommandlet::GetPackagesInFolders(const TSet<FString>& Folders, const FString& NamePrefix)
 {
+	TSet<FString> PackageNames;
 	const IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
 
-	TArray<FAssetData> Assets;
-	AssetRegistry.GetAssetsByPath(*InFolder, Assets, true, true);
-
-	Algo::Transform(Assets, OutAssets, [](const FAssetData& Asset) { return Asset.PackageName.ToString(); });
-}
-
-FString UGenerateNaniteDisplacedMeshCommandlet::SetToString(const TSet<FString>& Set)
-{
-	FString Result;
-	for (const FString& Element : Set)
+	for (const FString& Folder : Folders)
 	{
-		Result += TEXT("\n - ") + Element; 
+		TArray<FAssetData> Assets;
+		AssetRegistry.GetAssetsByPath(*Folder, Assets, true, true);
+
+		const FString PackageNamePrefix = Folder / NamePrefix;
+		for (const FAssetData& Asset : Assets)
+		{
+			const FString PackageName = Asset.PackageName.ToString();
+			if (PackageName.StartsWith(PackageNamePrefix)) PackageNames.Add(PackageName);
+		}
 	}
-	return Result;
+
+	return MoveTemp(PackageNames);
 }
 
 namespace UE::GenerateNaniteDisplacedMesh::Private
@@ -216,6 +285,7 @@ namespace UE::GenerateNaniteDisplacedMesh::Private
 		TArray<FString> CmdLineArgs;
 		if (Args.IsValidIndex(0)) CmdLineArgs.Add(FString::Printf(TEXT("-GNDMCollectionFilter=\"%s\""), *Args[0]));
 		if (Args.IsValidIndex(1) && Args[1].Equals(TEXT("true"), ESearchCase::IgnoreCase)) CmdLineArgs.Add(TEXT("-GNDMDeleteUnused"));
+		if (Args.IsValidIndex(2)) CmdLineArgs.Add(FString::Printf(TEXT("-GNDMSubmitWithDescription=\"%s\""), *Args[2]));
 		const FString CmdLineParams = FString::Join(CmdLineArgs, TEXT(" "));
 
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Run commandlet GenerateNaniteDisplacedMesh: %s"), *CmdLineParams);

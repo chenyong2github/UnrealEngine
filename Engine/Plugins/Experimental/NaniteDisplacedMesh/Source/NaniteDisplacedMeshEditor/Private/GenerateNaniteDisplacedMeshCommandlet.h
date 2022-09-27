@@ -22,6 +22,8 @@ class UGenerateNaniteDisplacedMeshCommandlet : public UCommandlet
 
 public:
 
+	static bool IsRunning();
+
 	//~ Begin UCommandlet Interface
 	virtual int32 Main(const FString& CmdLineParams) override;
 	//~ End UCommandlet Interface
@@ -32,10 +34,8 @@ private:
 
 	static void LoadLevel(const FAssetData& AssetData);
 
-	static void GetPackagesInFolder(const FString& InFolder, TSet<FString>& OutAssets);
+	static TSet<FString> GetPackagesInFolders(const TSet<FString>& Folders, const FString& NamePrefix);
 
-	static FString SetToString(const TSet<FString>& Set);
-
-	TSet<FString> GeneratedPackages;
-	TSet<FString> GeneratedFolders;
+	TSet<FString> LinkedPackageNames;
+	TSet<FString> LinkedPackageFolders;
 };
