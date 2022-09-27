@@ -102,6 +102,7 @@ namespace Horde.Storage
             services.AddOptions<ScyllaSettings>().Configure(o => Configuration.GetSection("Scylla").Bind(o)).ValidateDataAnnotations();
 
             services.AddOptions<KubernetesLeaderElectionSettings>().Configure(o => Configuration.GetSection("Kubernetes").Bind(o)).ValidateDataAnnotations();
+            services.AddOptions<StaticHordeStorageServiceDiscoverySettings>().Configure(o => Configuration.GetSection("ServiceDiscovery").Bind(o)).ValidateDataAnnotations();
 
             services.AddSingleton(typeof(OodleCompressor), CreateOodleCompressor);
             services.AddSingleton(typeof(CompressedBufferUtils), CreateCompressedBufferUtils);
@@ -128,6 +129,7 @@ namespace Horde.Storage
             services.AddSingleton<AmazonS3Store>();
             services.AddSingleton<FileSystemStore>();
             services.AddSingleton<AzureBlobStore>();
+            services.AddSingleton<HordeStorageBlobStore>();
             services.AddSingleton<MemoryBlobStore>();
             services.AddSingleton<RelayBlobStore>();
 
@@ -190,6 +192,9 @@ namespace Horde.Storage
                 services.AddSingleton<KubernetesLeaderElection>(p => (KubernetesLeaderElection)p.GetService<ILeaderElection>()!);
                 services.AddHostedService<KubernetesLeaderElection>(p => p.GetService<KubernetesLeaderElection>()!);
             }
+
+            services.AddSingleton<BlobStoreConsistencyCheckService>();
+            services.AddSingleton(typeof(IHordeStorageServiceDiscovery), ServiceDiscoveryFactory);
         }
 
         private IBlobIndex BlobIndexFactory(IServiceProvider provider)
@@ -207,6 +212,20 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<CachedBlobIndex>(provider);
                 default:
                     throw new NotImplementedException($"Unknown blob index implementation: {settings.BlobIndexImplementation}");
+            }
+        }
+
+        private IHordeStorageServiceDiscovery ServiceDiscoveryFactory(IServiceProvider provider)
+        {
+            HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue!;
+            switch (settings.ServiceDiscoveryImplementation)
+            {
+                case HordeStorageSettings.ServiceDiscoveryImplementations.Kubernetes:
+                    return ActivatorUtilities.CreateInstance<KubernetesHordeStorageServiceDiscovery>(provider);
+                case HordeStorageSettings.ServiceDiscoveryImplementations.Static:
+                    return ActivatorUtilities.CreateInstance<StaticHordeStorageServiceDiscovery>(provider);
+                default:
+                    throw new NotImplementedException($"Unknown service discovery implementation: {settings.ServiceDiscoveryImplementation}");
             }
         }
 
@@ -487,6 +506,7 @@ namespace Horde.Storage
                         break;
                     case HordeStorageSettings.StorageBackendImplementations.Memory:
                     case HordeStorageSettings.StorageBackendImplementations.Relay:
+                    case HordeStorageSettings.StorageBackendImplementations.HordeStorage:
                         break;
                     default:
                         throw new ArgumentOutOfRangeException("Unhandled storage impl " + impl);

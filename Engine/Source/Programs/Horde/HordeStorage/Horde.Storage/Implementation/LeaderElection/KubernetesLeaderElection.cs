@@ -26,6 +26,8 @@ namespace Horde.Storage.Implementation.LeaderElection
 
         [Required]
         public string Namespace { get; set; } = "";
+
+        public string HordeStoragePodLabelSelector { get; set; } = "app.kubernetes.io/name: horde-storage";
     }
 
     public class KubernetesLeaderElectionState

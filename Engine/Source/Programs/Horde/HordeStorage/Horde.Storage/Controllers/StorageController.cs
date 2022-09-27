@@ -48,7 +48,8 @@ namespace Horde.Storage.Controllers
         [ProducesDefaultResponseType]
         public async Task<IActionResult> Get(
             [Required] NamespaceId ns,
-            [Required] BlobIdentifier id)
+            [Required] BlobIdentifier id,
+            [FromQuery] List<string>? storageLayers = null)
         {
             ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
@@ -58,7 +59,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                BlobContents blobContents = await GetImpl(ns, id);
+                BlobContents blobContents = await GetImpl(ns, id, storageLayers);
 
                 return File(blobContents.Stream, MediaTypeNames.Application.Octet, enableRangeProcessing: true);
             }
@@ -72,14 +73,15 @@ namespace Horde.Storage.Controllers
         [ProducesDefaultResponseType]
         public async Task<IActionResult> Head(
             [Required] NamespaceId ns,
-            [Required] BlobIdentifier id)
+            [Required] BlobIdentifier id,
+            [FromQuery] List<string>? storageLayers = null)
         {
             ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
             {
                 return result;
             }
-            bool exists = await _storage.Exists(ns, id);
+            bool exists = await _storage.Exists(ns, id, storageLayers);
 
             if (!exists)
             {
@@ -141,11 +143,11 @@ namespace Horde.Storage.Controllers
             return Ok(new HeadMultipleResponse { Needs = missingBlobs.ToArray()});
         }
 
-        private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier blob)
+        private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
         {
             try
             {
-                return await _storage.GetObject(ns, blob);
+                return await _storage.GetObject(ns, blob, storageLayers);
             }
             catch (BlobNotFoundException)
             {

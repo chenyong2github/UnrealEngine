@@ -35,11 +35,11 @@ public interface IBlobService
     Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier);
     Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier);
 
-    Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob);
+    Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null);
 
     Task<BlobContents> ReplicateObject(NamespaceId ns, BlobIdentifier blob, bool force = false);
 
-    Task<bool> Exists(NamespaceId ns, BlobIdentifier blob);
+    Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null);
 
     /// <summary>
     /// Checks that the blob exists in the root store, the store which is last in the list and thus is intended to have every blob in it
@@ -107,6 +107,7 @@ public class BlobService : IBlobService
             HordeStorageSettings.StorageBackendImplementations.FileSystem => provider.GetService<FileSystemStore>(),
             HordeStorageSettings.StorageBackendImplementations.Memory => provider.GetService<MemoryBlobStore>(),
             HordeStorageSettings.StorageBackendImplementations.Relay => provider.GetService<RelayBlobStore>(),
+            HordeStorageSettings.StorageBackendImplementations.HordeStorage => provider.GetService<HordeStorageBlobStore>(),
             _ => throw new NotImplementedException("Unknown blob store {store")
         };
         if (store == null)
@@ -206,7 +207,7 @@ public class BlobService : IBlobService
         return identifier;
     }
 
-    public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob)
+    public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
     {
         bool seenBlobNotFound = false;
         bool seenNamespaceNotFound = false;
@@ -216,9 +217,30 @@ public class BlobService : IBlobService
 
         foreach (IBlobStore store in _blobStores)
         {
+            string blobStoreName = store.GetType().Name;
+
+            // check which storage layers to skip if we have a explicit list of storage layers to use
+            if (storageLayers != null && storageLayers.Count != 0)
+            {
+                bool found = false;
+                foreach (string storageLayer in storageLayers)
+                {
+                    if (string.Equals(storageLayer, blobStoreName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    continue;
+                }
+            }
+
             using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
             scope.Span.ResourceName = blob.ToString();
-            scope.Span.SetTag("BlobStore", store.GetType().Name);
+            scope.Span.SetTag("BlobStore", blobStoreName);
             scope.Span.SetTag("ObjectFound", false.ToString());
             string storeName = store.GetType().Name;
             using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.get.{storeName}", $"Blob GET from: '{storeName}'");
@@ -249,7 +271,13 @@ public class BlobService : IBlobService
         {
             throw new NamespaceNotFoundException(ns);
         }
-        
+
+        // if we applied filters to the storage layers resulting in no blob found we consider it a miss
+        if (storageLayers != null && storageLayers.Count != 0 && blobContents == null)
+        {
+            throw new BlobNotFoundException(ns, blob);
+        }
+
         if (blobContents == null)
         {
             // Should not happen but exists to safeguard against the null pointer
@@ -367,7 +395,7 @@ public class BlobService : IBlobService
         return request;
     }
 
-    public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
+    public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, List<string>? storageLayers = null)
     {
         bool useBlobIndex = _namespacePolicyResolver.GetPoliciesForNs(ns).UseBlobIndexForExists;
         if (useBlobIndex)
@@ -389,9 +417,28 @@ public class BlobService : IBlobService
         {
             foreach (IBlobStore store in _blobStores)
             {
+                string blobStoreName = store.GetType().Name;
+                // check which storage layers to skip if we have a explicit list of storage layers to use
+                if (storageLayers != null && storageLayers.Count != 0)
+                {
+                    bool found = false;
+                    foreach (string storageLayer in storageLayers)
+                    {
+                        if (string.Equals(storageLayer, blobStoreName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        continue;
+                    }
+                }
                 using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
                 scope.Span.ResourceName = blob.ToString();
-                scope.Span.SetTag("BlobStore", store.GetType().Name);
+                scope.Span.SetTag("BlobStore", blobStoreName);
                 if (await store.Exists(ns, blob))
                 {
                     scope.Span.SetTag("ObjectFound", true.ToString());

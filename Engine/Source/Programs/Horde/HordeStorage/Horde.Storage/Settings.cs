@@ -24,7 +24,8 @@ namespace Horde.Storage
             Azure,
             FileSystem,
             Memory,
-            Relay
+            Relay,
+            HordeStorage
         }
 
         public enum ReferencesDbImplementations
@@ -52,6 +53,12 @@ namespace Horde.Storage
         }
 
         public enum LeaderElectionImplementations
+        {
+            Static, 
+            Kubernetes
+        }
+
+        public enum ServiceDiscoveryImplementations
         {
             Static, 
             Kubernetes
@@ -98,6 +105,7 @@ namespace Horde.Storage
         public LeaderElectionImplementations LeaderElectionImplementation { get; set; } = LeaderElectionImplementations.Static;
         public ContentIdStoreImplementations ContentIdStoreImplementation { get; set; } = ContentIdStoreImplementations.Memory;
         public BlobIndexImplementations BlobIndexImplementation { get; set; } = BlobIndexImplementations.Memory;
+        public ServiceDiscoveryImplementations ServiceDiscoveryImplementation { get; set; } = ServiceDiscoveryImplementations.Static;
 
         public int? MaxSingleBlobSize { get; set; } = null; // disable blob partitioning
 
