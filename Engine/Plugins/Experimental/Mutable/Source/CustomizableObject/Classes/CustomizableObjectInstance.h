@@ -153,9 +153,11 @@ public:
 	virtual FString GetDesc() override;
 	virtual bool IsEditorOnly() const override;
 
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	void SetObject(UCustomizableObject* InObject);
 
 	//Get the current CustomizableObject 
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	UCustomizableObject* GetCustomizableObject() const;
 
 	int32 GetState() const;
