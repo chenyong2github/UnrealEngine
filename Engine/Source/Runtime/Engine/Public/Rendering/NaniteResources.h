@@ -276,6 +276,7 @@ struct FResources
 	uint32							NumInputVertices	= 0;
 	uint16							NumInputMeshes		= 0;
 	uint16							NumInputTexCoords	= 0;
+	uint32							NumClusters			= 0;
 	uint32							ResourceFlags		= 0;
 
 	// Runtime State

@@ -246,6 +246,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
 		Ar << NumInputVertices;
 		Ar << NumInputMeshes;
 		Ar << NumInputTexCoords;
+		Ar << NumClusters;
 
 #if !WITH_EDITOR
 		check(!HasStreamingData() || StreamablePages.GetBulkDataSize() > 0);

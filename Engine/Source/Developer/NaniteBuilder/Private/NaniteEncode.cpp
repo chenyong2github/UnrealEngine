@@ -4346,6 +4346,10 @@ void Encode(
 	}
 
 	{
+		Resources.NumClusters = (uint32)Clusters.Num();
+	}
+
+	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::WritePages);
 		WritePages(Resources, Pages, Groups, GroupParts, Clusters, EncodingInfos, NumTexCoords);
 	}
