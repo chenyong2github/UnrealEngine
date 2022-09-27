@@ -248,6 +248,7 @@ namespace UE::PixelStreamingServers
 			TSharedRef<FJsonObject> PongJSON = MakeShared<FJsonObject>();
 			PongJSON->SetStringField(FString(TEXT("type")), FString(TEXT("pong")));
 			PongJSON->SetNumberField(FString(TEXT("time")), UnixTime);
+			UE_LOG(LogPixelStreamingServers, Log, TEXT("To Streamer id=%d: %s"), ConnectionId, *Utils::ToString(PongJSON));
 			StreamersWS->Send(ConnectionId, Utils::ToString(PongJSON));
 			return;
 		}

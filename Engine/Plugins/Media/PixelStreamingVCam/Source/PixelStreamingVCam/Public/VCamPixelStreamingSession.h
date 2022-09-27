@@ -25,18 +25,7 @@ public:
 	virtual void Tick(const float DeltaTime) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	FString IP = TEXT("ws://127.0.0.1");
-
-	// Network port number - change this only if connecting multiple RemoteSession devices to the same PC
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	int32 PortNumber = 8888;
-	
-	// Http webserver port number - e.g. Go to http://localhost:YourPort to access the streamed VCam output. Warning Ports below 1024 require sudo under Linux so it is recommended to use a higher port on that platform.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	int32 HttpPort = 80;
-	
+#endif	
 	// If using the output from a Composure Output Provider, specify it here
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 FromComposureOutputProviderIndex = INDEX_NONE;

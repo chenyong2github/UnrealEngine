@@ -5,6 +5,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
 #include "IPixelStreamingModule.h"
@@ -24,6 +25,13 @@ namespace UE::EditorPixelStreaming
         
         private:
             void RegisterMenus();
+			void RegisterEmbeddedSignallingServerConfig(FMenuBuilder& MenuBuilder);
+            void RegisterRemoteSignallingServerConfig(FMenuBuilder& MenuBuilder);
+            void RegisterSignallingServerURLs(FMenuBuilder& MenuBuilder);
+            void RegisterPixelStreamingControls(FMenuBuilder& MenuBuilder);
+            void RegisterVCamControls(FMenuBuilder& MenuBuilder);
+            void RegisterCodecConfig(FMenuBuilder& MenuBuilder);
+
             TSharedPtr<class FUICommandList> PluginCommands;
 
             IPixelStreamingModule& PixelStreamingModule;

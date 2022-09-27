@@ -93,10 +93,12 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 		for (TSharedRef<SWindow> Window : TopLevelWindows)
 		{
 			FTextureRHIRef Texture = TopLevelWindowTextures.FindRef(&Window.Get());
-			if (Window->GetOpacity() == 0.0f || Window->GetType() == EWindowType::CursorDecorator)
+			if (Window->GetOpacity() == 0.0f || 
+				Window->GetType() == EWindowType::CursorDecorator ||
+				Window->GetSizeInScreen() == FVector2D(0, 0))
 			{
 				continue;
-			}
+			}			
 
 			uint32 CompositedX = CompositedFrame->GetSizeXY().X;
 			uint32 CompositedY = CompositedFrame->GetSizeXY().Y;
@@ -109,8 +111,8 @@ void FPixelStreamingVideoInputBackBufferComposited::OnBackBufferReady(SWindow& S
 			{
 				// If so, create a new compositedframe large enough to accomodate our new texture + its position
 				// and render the contents of the old compositedframe to the new one
-				uint32 SizeX = TotalX > CompositedX ? TotalX : CompositedX;
-				uint32 SizeY = TotalY > CompositedY ? TotalY : CompositedY;
+				uint32 SizeX = (TotalX > CompositedX ? TotalX : CompositedX);
+				uint32 SizeY = (TotalY > CompositedY ? TotalY : CompositedY);
 
 				StagingTexture = UE::PixelStreaming::CreateRHITexture(SizeX, SizeY);
 				FRHICopyTextureInfo CopyInfo;

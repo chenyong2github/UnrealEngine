@@ -7,11 +7,19 @@
 #include "PixelStreamingStyle.h"
 #include "IPixelStreamingStreamer.h"
 #include "PixelStreamingVideoInputBackBufferComposited.h"
+#include "PixelStreamingVideoInputViewport.h"
 #include "Settings.h"
 #include "UnrealEngine.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "PixelStreamingProtocol.h"
 #include "Utils.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
+#include "LevelEditorViewport.h"
+#include "Slate/SceneViewport.h"
+#include "SLevelViewport.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingEditor, Log, All);
+DEFINE_LOG_CATEGORY(LogPixelStreamingEditor);
 
 FPixelStreamingEditorModule* FPixelStreamingEditorModule::PixelStreamingEditorModule = nullptr;
 
@@ -94,7 +102,27 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
 	if (Streamer->GetSignallingServerURL().IsEmpty())
 	{
-		Streamer->SetSignallingServerURL(Module.GetDefaultSignallingURL());
+		// No URL was passed on the command line, initialize defaults
+		StreamerPort = 8888;
+		SignallingDomain = TEXT("ws://127.0.0.1");
+
+		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
+	} 
+	else
+	{
+		FString SpecifiedSignallingURL = Streamer->GetSignallingServerURL();
+		TOptional<uint16> ExtractedStreamerPort = FGenericPlatformHttp::GetUrlPort(SpecifiedSignallingURL);
+		StreamerPort = (int32) ExtractedStreamerPort.Get(8888);
+
+		FString ExtractedSignallingDomain = FGenericPlatformHttp::GetUrlDomain(SpecifiedSignallingURL);
+		if(FGenericPlatformHttp::IsSecureProtocol(SpecifiedSignallingURL).Get(false))
+		{
+			SignallingDomain = FString::Printf(TEXT("wss://%s"), *ExtractedSignallingDomain);
+		}
+		else
+		{
+			SignallingDomain = FString::Printf(TEXT("ws://%s"), *ExtractedSignallingDomain);
+		}
 	}
 
 	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsRunningStartupDialog)
@@ -107,12 +135,12 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 
 		if(UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
 		{
-			StartStreaming();
+			StartStreaming(UE::EditorPixelStreaming::EStreamTypes::Editor);
 		}
 	});
 }
 
-void FPixelStreamingEditorModule::StartStreaming()
+void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStreamTypes InStreamType)
 {
 	// Activate our level editor streamer
 	IPixelStreamingModule& Module = IPixelStreamingModule::Get();
@@ -122,13 +150,44 @@ void FPixelStreamingEditorModule::StartStreaming()
 		return;
 	}
 
-	// The streamer doesn't currently have a video input so create one
-	TWeakPtr<FPixelStreamingVideoInput> VideoInput = Streamer->GetVideoInput();
-	if(!VideoInput.Pin())
+	StreamType = InStreamType;
+	switch(InStreamType)
 	{
-		Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
+		case UE::EditorPixelStreaming::EStreamTypes::LevelEditorViewport:
+		{
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+			TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+			if (!ActiveLevelViewport.IsValid())
+			{
+				return;
+			}
+
+			FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+			FSceneViewport* SceneViewport = static_cast<FSceneViewport*>(LevelViewportClient.Viewport);
+			Streamer->SetTargetViewport(SceneViewport->GetViewportWidget());
+			Streamer->SetTargetWindow(SceneViewport->FindWindow());
+			Streamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create());
+		}	
+		break;
+		case UE::EditorPixelStreaming::EStreamTypes::Editor:
+		{
+			Streamer->SetTargetViewport(nullptr);
+			Streamer->SetTargetWindow(nullptr);
+			Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
+		}
+		break;
+		default:
+		{
+			UE_LOG(LogPixelStreamingEditor, Warning, TEXT("Specified Stream Type doesn't have an associated FPixelStreamingVideoInput"));
+		}
+		// Return here as we don't want to start streaming if we didn't set a viewport
+		return;
 	}
 
+	if(!bUseExternalSignallingServer)
+	{
+		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
+	}
 	// Use the Pixel Streaming module's start streaming method to start all streamers
 	Module.StartStreaming();
 }
@@ -145,6 +204,80 @@ void FPixelStreamingEditorModule::StopStreaming()
 	Streamer->SetTargetViewport(nullptr);
 	// Use the Pixel Streaming module's stop streaming method to stop all streamers
 	Module.StopStreaming();
+}
+
+UE::EditorPixelStreaming::EStreamTypes FPixelStreamingEditorModule::GetStreamType()
+{
+	return StreamType;
+}
+
+void FPixelStreamingEditorModule::StartSignalling()
+{
+	bool bAlreadyLaunched = SignallingServer.IsValid() && SignallingServer->HasLaunched();
+	if(bAlreadyLaunched)
+	{
+		return;
+	}
+
+	// Download Pixel Streaming servers/frontend if we want to use a browser to view Pixel Streaming output
+	// but only attempt this is we haven't already started a download before.
+	if(!DownloadProcess.IsValid())
+	{
+		DownloadProcess = UE::PixelStreamingServers::DownloadPixelStreamingServers(/*bSkipIfPresent*/ true);
+		if(DownloadProcess.IsValid())
+		{
+			DownloadProcess->OnCompleted().BindLambda([this](int ExitCode){
+				StopSignalling();
+				StartSignalling();
+			});
+
+			return;
+		}
+	}
+
+	// Launch signalling server
+	SignallingServer = UE::PixelStreamingServers::MakeSignallingServer();
+
+	UE::PixelStreamingServers::FLaunchArgs LaunchArgs;
+	LaunchArgs.bPollUntilReady = false;
+	LaunchArgs.ReconnectionTimeoutSeconds = 30.0f;
+	LaunchArgs.ReconnectionIntervalSeconds = 2.0f;
+	LaunchArgs.ProcessArgs = FString::Printf(TEXT("--HttpPort=%d --StreamerPort=%d"), ViewerPort, StreamerPort);
+
+	SignallingServer->Launch(LaunchArgs);
+}
+
+void FPixelStreamingEditorModule::StopSignalling()
+{
+	if(SignallingServer.IsValid())
+	{
+		SignallingServer->Stop();
+		SignallingServer.Reset();
+	}
+}
+
+TSharedPtr<UE::PixelStreamingServers::IServer> FPixelStreamingEditorModule::GetSignallingServer() 
+{
+	if(SignallingServer.IsValid())
+	{
+		return SignallingServer;
+	}
+	return nullptr;
+}
+
+void FPixelStreamingEditorModule::SetSignallingDomain(const FString& InSignallingDomain)
+{
+	SignallingDomain = InSignallingDomain;
+}
+
+void FPixelStreamingEditorModule::SetStreamerPort(int32 InStreamerPort)
+{
+	StreamerPort = InStreamerPort;
+}
+
+void FPixelStreamingEditorModule::SetViewerPort(int32 InViewerPort)
+{
+	ViewerPort = InViewerPort;
 }
 
 FPixelStreamingEditorModule* FPixelStreamingEditorModule::GetModule()

@@ -31,7 +31,8 @@ namespace UnrealBuildTool.Rules
 				"RHI",
 				"CinematicCamera",
 				"LiveLinkInterface",
-				"PixelCapture"
+				"PixelCapture",
+				"PixelStreamingEditor"
 			});
 
 			// Can't package non-editor targets (e.g. games) with UnrealEd, so this dependency should only be added in editor.

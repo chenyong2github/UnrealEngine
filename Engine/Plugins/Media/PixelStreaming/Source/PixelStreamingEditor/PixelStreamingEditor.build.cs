@@ -35,7 +35,10 @@ namespace UnrealBuildTool.Rules
 				"EngineSettings",
 				"InputCore",
 				"Json",
-				"PixelCapture"
+				"PixelCapture",
+				"PixelStreamingServers",
+				"HTTP",
+				"Sockets"
 			});
 
 			if(Target.bBuildEditor)

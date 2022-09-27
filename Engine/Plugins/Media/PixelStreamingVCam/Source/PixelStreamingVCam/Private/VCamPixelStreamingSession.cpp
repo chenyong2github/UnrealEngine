@@ -16,6 +16,7 @@
 #include "PixelStreamingVCamLog.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingProtocol.h"
+#include "PixelStreamingEditorModule.h"
 #include "VCamComponent.h"
 
 namespace VCamPixelStreamingSession
@@ -81,14 +82,24 @@ void UVCamPixelStreamingSession::Activate()
 
 	if (StartSignallingServer)
 	{
-		if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+		if(!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
 		{
-			PixelStreamingSubsystem->LaunchSignallingServer(PortNumber, HttpPort);
+			if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+			{
+				PixelStreamingSubsystem->LaunchSignallingServer();
+			}
 		}
+		else
+		{
+			StartSignallingServer = false;
+		}
+		
 	}
 
-	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *IP, *FString::FromInt(PortNumber)));
-	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *IP, *FString::FromInt(PortNumber));
+	FString SignallingDomain = FPixelStreamingEditorModule::GetModule()->GetSignallingDomain();
+	int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
+	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort)));
+	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
 
 	MediaCapture = Cast<UPixelStreamingMediaCapture>(MediaOutput->CreateMediaCapture());
 
@@ -178,7 +189,8 @@ void UVCamPixelStreamingSession::Activate()
 
 void UVCamPixelStreamingSession::StopSignallingServer()
 {
-	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+	// Only stop the signalling server if we've been the ones to start it
+	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get(); StartSignallingServer)
 	{
 		PixelStreamingSubsystem->StopSignallingServer();
 	}
@@ -233,16 +245,10 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		static FName NAME_IP = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, IP);
-		static FName NAME_PortNumber = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, PortNumber);
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
 		static FName NAME_StartSignallingServer = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, StartSignallingServer);
 		
-		// If any of these properties change then deactivate streaming so user is forced to restart streaming
-		if ((Property->GetFName() == NAME_IP) || 
-			(Property->GetFName() == NAME_PortNumber) || 
-			(Property->GetFName() == NAME_FromComposureOutputProviderIndex) || 
-			(Property->GetFName() == NAME_StartSignallingServer))
+		if (Property->GetFName() == NAME_FromComposureOutputProviderIndex || Property->GetFName() == NAME_StartSignallingServer)
 		{
 			SetActive(false);
 		}

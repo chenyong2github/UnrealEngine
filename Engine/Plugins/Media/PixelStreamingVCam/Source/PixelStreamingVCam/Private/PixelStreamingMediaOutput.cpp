@@ -6,6 +6,8 @@
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingStreamer.h"
 #include "CineCameraComponent.h"
+#include "PixelStreamingEditorModule.h"
+#include "PixelStreamingEditorUtils.h"
 
 void UPixelStreamingMediaOutput::BeginDestroy()
 {
@@ -19,7 +21,7 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 	if (!Streamer.IsValid())
 	{
 		IPixelStreamingModule& Module = FModuleManager::LoadModuleChecked<IPixelStreamingModule>("PixelStreaming");
-		Streamer = Module.CreateStreamer(StreamID);
+		Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
 	}
 
 	Capture = nullptr;
@@ -62,7 +64,7 @@ void UPixelStreamingMediaOutput::StartStreaming()
 {
 	if (Streamer)
 	{
-		Streamer->SetSignallingServerURL(SignallingServerURL);
+		FPixelStreamingEditorModule::GetModule()->SetStreamType(UE::EditorPixelStreaming::EStreamTypes::VCam);
 		Streamer->SetVideoInput(Capture->GetVideoInput());
 
 		if (!Streamer->IsStreaming())
@@ -78,6 +80,7 @@ void UPixelStreamingMediaOutput::StopStreaming()
 	{
 		Streamer->StopStreaming();
 		Streamer->SetTargetViewport(nullptr);
+		Streamer->SetTargetWindow(nullptr);
 	}
 }
 

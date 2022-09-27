@@ -21,10 +21,14 @@ namespace UE::EditorPixelStreaming
 
         virtual void RegisterCommands() override;
 
-        TSharedPtr<FUICommandInfo> StartStreaming;
+        TSharedPtr<FUICommandInfo> ExternalSignalling;
         TSharedPtr<FUICommandInfo> StopStreaming;
         TSharedPtr<FUICommandInfo> VP8;
         TSharedPtr<FUICommandInfo> VP9;
         TSharedPtr<FUICommandInfo> H264;
+        TSharedPtr<FUICommandInfo> StartSignalling;
+        TSharedPtr<FUICommandInfo> StopSignalling;
+        TSharedPtr<FUICommandInfo> StreamLevelEditor;
+        TSharedPtr<FUICommandInfo> StreamEditor;
     };
 }
