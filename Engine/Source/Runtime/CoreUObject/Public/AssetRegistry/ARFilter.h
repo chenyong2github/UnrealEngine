@@ -31,9 +31,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** The filter component for package paths */
 	TArray<FName> PackagePaths;
 
+#if WITH_EDITORONLY_DATA
 	/** The filter component containing specific object paths */
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	TArray<FName> ObjectPaths;
+#endif
 
 	/** 
 	 * The filter component containing the paths of specific assets to match. 

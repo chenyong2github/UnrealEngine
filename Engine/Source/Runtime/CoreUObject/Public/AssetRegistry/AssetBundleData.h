@@ -35,9 +35,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Specific name of this bundle, should be unique for a given scope */
 	FName BundleName;
 
+#if WITH_EDITORONLY_DATA
 	/** List of string assets contained in this bundle */
 	UE_DEPRECATED(5.1, "BundleAssets has been replaced with AssetPaths.")
 	TArray<FSoftObjectPath> BundleAssets;
+#endif
 
 	/** List of references to top-level assets contained in this bundle */
 	TArray<FTopLevelAssetPath> AssetPaths;

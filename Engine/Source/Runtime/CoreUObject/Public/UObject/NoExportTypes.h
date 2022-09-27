@@ -2474,9 +2474,11 @@ struct FARFilter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
 	TArray<FName> PackagePaths;
 
+#if WITH_EDITORONLY_DATA
 	/** The filter component containing specific object paths. Deprecated. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry, meta=(DeprecatedProperty, DeprecationMessage="Names containing full asset paths are deprecated. Use SoftObjectPaths instead."))
+	UPROPERTY()
 	TArray<FName> ObjectPaths;
+#endif
 
 	/** The filter component containing specific object paths */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
@@ -2527,9 +2529,11 @@ struct COREUOBJECT_API FAssetBundleEntry
 	UPROPERTY()
 	FName BundleName;
 
+#if WITH_EDITORONLY_DATA
 	/** List of string assets contained in this bundle */
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Asset bundles may only contain top level asset paths which are referenced through the AssetPaths property."))
 	TArray<FSoftObjectPath> BundleAssets;
+#endif
 
 	UPROPERTY()
 	TArray<FTopLevelAssetPath> AssetPaths;
@@ -2551,8 +2555,10 @@ struct COREUOBJECT_API FAssetBundleData
 USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults)
 struct FAssetData
 {
-	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient, meta=(DeprecatedProperty, DeprecationMessage="Names containing full asset paths are deprecated. Use 'To Soft Object Path' instead."))
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
 	FName ObjectPath;
+#endif
 	/** The name of the package in which the asset is found, this is the full long package name such as /Game/Path/Package */
 	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
 	FName PackageName;

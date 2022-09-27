@@ -154,9 +154,11 @@ public:
 	};
 
 public:
+#if WITH_EDITORONLY_DATA
 	/** The object path for the asset in the form PackageName.ObjectName, or PackageName.ObjectName:SubObjectName. */
 	UE_DEPRECATED(5.1, "FName asset paths have been deprecated. Use GetSoftObjectPath to get the path this asset will use in memory when loaded.")
 	FName ObjectPath;
+#endif
 	/** The name of the package in which the asset is found, this is the full long package name such as /Game/Path/Package */
 	FName PackageName;
 	/** The path to the package in which the asset is found, this is /Game/Path with the Package stripped off */

@@ -242,9 +242,11 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 	FNameBuilder ObjectPathStr(PackageName);
 	ObjectPathStr << TEXT('.');
 	AssetName.AppendString(ObjectPathStr);
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ObjectPath = FName(FStringView(ObjectPathStr));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 
 	SetChunkIDs(InChunkIDs);
 }
@@ -255,9 +257,12 @@ FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObject
 	, PackageFlags(InPackageFlags)
 {
 	using namespace UE::AssetRegistry::Private;
+
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ObjectPath = *InObjectPath;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 
 	SetTagsAndAssetBundles(MoveTemp(InTags));
 
@@ -297,10 +302,10 @@ FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCrea
 		PackagePath = FName(*FPackageName::GetLongPackagePath(Package->GetName()));
 		AssetName = InAsset->GetFName();
 		AssetClassPath = InAsset->GetClass()->GetPathName();
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ObjectPath = FName(*InAsset->GetPathName());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#if WITH_EDITORONLY_DATA
 		if (InAsset->GetOuter() != Package)
 		{
 			OptionalOuterPath = *InAsset->GetOuter()->GetPathName();
@@ -564,12 +569,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Ar << PackageFlags;
 
+#if WITH_EDITORONLY_DATA
 	// Rebuild deprecated ObjectPath field 
 	TStringBuilder<FName::StringBufferSize> Builder;
 	AppendObjectPath(Builder);
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ObjectPath = *Builder;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 void FAssetData::NetworkWrite(FCbWriter& Writer, bool bWritePackageName) const
@@ -683,12 +690,14 @@ bool FAssetData::TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName
 	check(Algo::IsSorted(SerializedChunkIDs));
 	ChunkArrayRegistryHandle = UE::AssetRegistry::GChunkArrayRegistry.FindOrAddSorted(MoveTemp(SerializedChunkIDs));
 
+#if WITH_EDITORONLY_DATA
 	// Rebuild deprecated ObjectPath field 
 	TStringBuilder<FName::StringBufferSize> Builder;
 	AppendObjectPath(Builder);
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ObjectPath = *Builder;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 
 	return bOk;
 }

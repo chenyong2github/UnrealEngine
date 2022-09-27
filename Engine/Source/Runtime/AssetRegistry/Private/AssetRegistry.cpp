@@ -2994,9 +2994,13 @@ void FAssetRegistryImpl::CompileFilter(Impl::FClassInheritanceContext& Inheritan
 		OutCompiledFilter.PackagePaths.Add(FPathTree::NormalizePackagePath(PackagePath));
 	}
 	OutCompiledFilter.SoftObjectPaths.Append(InFilter.SoftObjectPaths);
+
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OutCompiledFilter.SoftObjectPaths.Append(UE::SoftObjectPath::Private::ConvertObjectPathNames(InFilter.ObjectPaths));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!ensureAlwaysMsgf(InFilter.ClassNames.Num() == 0, TEXT("Asset Registry Filter using ClassNames instead of ClassPaths. First class name: \"%s\""), *InFilter.ClassNames[0].ToString()))
 	{

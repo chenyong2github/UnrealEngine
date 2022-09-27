@@ -243,6 +243,7 @@ bool FAssetBundleEntry::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 		AssetPaths.Add(Path.GetAssetPath());
 	}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	BundleAssets.Reset(AssetPaths.Num());
 	for (const FTopLevelAssetPath& Path : AssetPaths)
@@ -250,6 +251,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		BundleAssets.Add(FSoftObjectPath(Path, {}));
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 
 	// Success, update how much we read for the caller
 	Buffer = BufferIt;
@@ -283,9 +285,11 @@ void FAssetBundleData::AddBundleAsset(FName BundleName, const FTopLevelAssetPath
 		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 	}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.AddUnique(FSoftObjectPath(AssetPath, {}));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 	FoundEntry->AssetPaths.AddUnique(AssetPath);
 }
 
@@ -303,9 +307,11 @@ void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FTopLevelA
 				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 			}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FoundEntry->BundleAssets.AddUnique(FSoftObjectPath(Path, {}));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 			FoundEntry->AssetPaths.AddUnique(Path);
 		}
 	}
@@ -321,10 +327,12 @@ void FAssetBundleData::SetBundleAssets(FName BundleName, TArray<FTopLevelAssetPa
 	}
 
 	FoundEntry->AssetPaths = MoveTemp(AssetPaths);
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.Reset();
 	Algo::Transform(FoundEntry->AssetPaths, FoundEntry->BundleAssets, [](FTopLevelAssetPath Path) { return FSoftObjectPath(Path, {}); });
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 void FAssetBundleData::AddBundleAsset(FName BundleName, const FSoftObjectPath& AssetPath)
@@ -341,9 +349,11 @@ void FAssetBundleData::AddBundleAsset(FName BundleName, const FSoftObjectPath& A
 		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 	}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.AddUnique(AssetPath);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 	FoundEntry->AssetPaths.AddUnique(AssetPath.GetAssetPath());
 }
 
@@ -361,9 +371,11 @@ void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FSoftObjec
 				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 			}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FoundEntry->BundleAssets.AddUnique(Path);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 			FoundEntry->AssetPaths.AddUnique(Path.GetAssetPath());
 		}
 	}
@@ -384,10 +396,12 @@ void FAssetBundleData::SetBundleAssets(FName BundleName, TArray<FSoftObjectPath>
 		FoundEntry->AssetPaths.Add(Path.GetAssetPath());
 	}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.Reset();
 	Algo::Transform(FoundEntry->AssetPaths, FoundEntry->BundleAssets, [](FTopLevelAssetPath Path) { return FSoftObjectPath(Path, {}); });
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 void FAssetBundleData::AddBundleAssetTruncated(FName BundleName, const FSoftObjectPath& AssetPath)
@@ -404,9 +418,11 @@ void FAssetBundleData::AddBundleAssetTruncated(FName BundleName, const FSoftObje
 		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 	}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.AddUnique(AssetPath.GetWithoutSubPath());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 	FoundEntry->AssetPaths.AddUnique(AssetPath.GetAssetPath());
 }
 
@@ -424,9 +440,11 @@ void FAssetBundleData::AddBundleAssetsTruncated(FName BundleName, const TArray<F
 				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 			}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FoundEntry->BundleAssets.AddUnique(Path.GetWithoutSubPath());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 			FoundEntry->AssetPaths.AddUnique(Path.GetAssetPath());
 		}
 	}
@@ -447,10 +465,12 @@ void FAssetBundleData::SetBundleAssetsTruncated(FName BundleName, const TArray<F
 		FoundEntry->AssetPaths.Add(Path.GetAssetPath());
 	}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.Reset();
 	Algo::Transform(FoundEntry->AssetPaths, FoundEntry->BundleAssets, [](FTopLevelAssetPath Path) { return FSoftObjectPath(Path); });
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif 
 }
 
 void FAssetBundleData::Reset()

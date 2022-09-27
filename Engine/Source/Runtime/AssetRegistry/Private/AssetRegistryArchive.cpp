@@ -54,6 +54,7 @@ static void LoadBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry>& Entries)
 			Path = TmpPath.GetAssetPath();
 		}
 
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Entry.BundleAssets.Reserve(Entry.AssetPaths.Num());
 		for (const FTopLevelAssetPath& Path : Entry.AssetPaths)
@@ -61,6 +62,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Entry.BundleAssets.Add(FSoftObjectPath(Path, {}));
 		}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 	}
 }
 
@@ -100,6 +102,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 		
+#if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Entry.BundleAssets.Reserve(Entry.AssetPaths.Num());
 		for (const FTopLevelAssetPath& Path : Entry.AssetPaths)
@@ -107,6 +110,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Entry.BundleAssets.Add(FSoftObjectPath(Path, {}));
 		}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 	}
 }
 
