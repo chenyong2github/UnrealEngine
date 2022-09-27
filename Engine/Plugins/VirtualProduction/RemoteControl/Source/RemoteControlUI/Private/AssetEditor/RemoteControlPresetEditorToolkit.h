@@ -43,7 +43,6 @@ public:
 private:
 	//~ Handlers that spawn remote control tabs.
 	TSharedRef<SDockTab> HandleTabManagerSpawnPanelTab(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> HandleTabManagerSpawnDetailsTab(const FSpawnTabArgs& Args);
 
 	/** Handle invoking the remote control tab. */
 	void InvokePanelTab();

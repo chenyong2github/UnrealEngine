@@ -49,7 +49,7 @@ class URCAction;
 class FRCControllerModel;
 class FRCBehaviourModel;
 
-DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
+DECLARE_DELEGATE_TwoParams(FOnLiveModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
 
 /**
  * UI representation of a remote control preset.
@@ -58,7 +58,7 @@ DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /*
 class SRemoteControlPanel : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 {
 	SLATE_BEGIN_ARGS(SRemoteControlPanel) {}
-		SLATE_EVENT(FOnEditModeChange, OnEditModeChange)
+		SLATE_EVENT(FOnLiveModeChange, OnLiveModeChange)
 		SLATE_ARGUMENT(bool, AllowGrouping)
 	SLATE_END_ARGS()
 
@@ -113,9 +113,9 @@ public:
 	void ToggleProperty(const FRCExposesPropertyArgs& InArgs);
 
 	/**
-	 * @return Whether or not the panel is in edit mode.
+	 * @return Whether or not the panel is in live mode.
 	 */
-	bool IsInEditMode() const { return bIsInEditMode; }
+	bool IsInLiveMode() const { return bIsInLiveMode; }
 
 	/**
 	 * Get the selected group.
@@ -126,9 +126,9 @@ public:
 	 * Set the edit mode of the panel.
 	 * @param bEditMode The desired mode.
 	 */
-	void SetEditMode(bool bEditMode)
+	void SetLiveMode(bool bLiveMode)
 	{
-		bIsInEditMode = bEditMode;
+		bIsInLiveMode = bLiveMode;
 	}
 
 	/**
@@ -198,9 +198,6 @@ private:
 
 	/** Handle exposing an actor. */
 	void ExposeActor(AActor* Actor);
-
-	/** Opens or closes the entity details view tab. */
-	void ToggleDetailsView();
 
 	/** Handles disabling CPU throttling. */
 	FReply OnClickDisableUseLessCPU() const;
@@ -346,16 +343,16 @@ private:
 	static const FName AuxiliaryRemoteControlPanelToolBarName;
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
-	/** Whether the panel is in edit mode. */
-	bool bIsInEditMode = true;
 	/** Whether the panel is in protocols mode. */
 	bool bIsInProtocolsMode = false;
+	/** Whether the panel is in live (or) operation mode. */
+	bool bIsInLiveMode = false;
 	/** Whether the logic panel is enabled or not. */
 	bool bIsLogicPanelEnabled = false;
 	/** Whether objects need to be re-resolved because PIE Started or ended. */
 	bool bTriggerRefreshForPIE = false;
-	/** Delegate called when the edit mode changes. */
-	FOnEditModeChange OnEditModeChange;
+	/** Delegate called when the live mode changes. */
+	FOnLiveModeChange OnLiveModeChange;
 	/** Holds the blueprint library picker */
 	TSharedPtr<SRCPanelFunctionPicker> BlueprintPicker;
 	/** Holds the actor function picker */

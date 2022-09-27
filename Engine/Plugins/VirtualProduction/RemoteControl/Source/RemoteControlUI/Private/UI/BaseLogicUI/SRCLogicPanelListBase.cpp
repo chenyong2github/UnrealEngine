@@ -56,7 +56,8 @@ TSharedPtr<SWidget> SRCLogicPanelListBase::GetContextMenuWidget()
 	MenuBuilder.AddMenuEntry(Commands.DeleteEntity);
 
 	// 4. Delete All
-	FUIAction Action(FExecuteAction::CreateSP(this, &SRCLogicPanelListBase::RequestDeleteAllItems));
+	FUIAction Action(FExecuteAction::CreateSP(this, &SRCLogicPanelListBase::RequestDeleteAllItems)
+	, FCanExecuteAction::CreateSP(this, &SRCLogicPanelListBase::CanDeleteAllItems));
 
 	MenuBuilder.AddMenuEntry(LOCTEXT("DeleteAll", "Delete All"),
 		LOCTEXT("ContextMenuEditTooltip", "Delete all the rows in this list"),
@@ -68,6 +69,16 @@ TSharedPtr<SWidget> SRCLogicPanelListBase::GetContextMenuWidget()
 	ContextMenuWidgetCached = MenuWidget;
 
 	return MenuWidget;
+}
+
+bool SRCLogicPanelListBase::CanDeleteAllItems() const
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = RemoteControlPanelWeakPtr.Pin())
+	{
+		return !RemoteControlPanel->IsInLiveMode();
+	}
+
+	return false;
 }
 
 void SRCLogicPanelListBase::RequestDeleteAllItems()

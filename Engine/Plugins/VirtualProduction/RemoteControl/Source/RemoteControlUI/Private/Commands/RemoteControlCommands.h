@@ -22,11 +22,6 @@ public:
 	//~ END : TCommands<> Implementation(s)
 
 	/**
-	 * Holds the information about UI Command that toggles edit mode in RC Panel.
-	 */
-	TSharedPtr<FUICommandInfo> ToggleEditMode;
-
-	/**
 	 * Holds the information about UI Command that finds the actively edited preset in the Content Browser.
 	 */
 	TSharedPtr<FUICommandInfo> FindPresetInContentBrowser;

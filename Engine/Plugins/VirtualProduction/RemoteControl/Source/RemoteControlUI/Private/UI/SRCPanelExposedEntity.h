@@ -31,13 +31,13 @@ struct SRCPanelExposedEntity : public SRCPanelTreeNode
 	virtual void SetHighlightText(const FText& InHightlightText = FText::GetEmpty()) override { HighlightText = InHightlightText; }
 
 protected:
-	void Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbEditMode);
+	void Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbLiveMode);
 	
 	/** Create a widget that displays the rebind button. */
 	TSharedRef<SWidget> CreateInvalidWidget();
 
 	/** Get the widget's visibility according to the panel's mode. */
-	EVisibility GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const;
+	EVisibility GetVisibilityAccordingToLiveMode(EVisibility NonEditModeVisibility) const;
 
 	/** Create an exposed entity widget with a drag handle and unexpose button. */
 	TSharedRef<SWidget> CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, TSharedPtr<SWidget> ResetWidget = SNullWidget::NullWidget, const FText& OptionalWarningMessage = FText::GetEmpty());
@@ -47,8 +47,8 @@ protected:
 	FGuid EntityId;
 	/** The underlying preset. */
 	TWeakObjectPtr<URemoteControlPreset> Preset;
-	/** Whether the panel is in edit mode or not. */
-	TAttribute<bool> bEditMode;
+	/** Whether the panel is in live mode or not. */
+	TAttribute<bool> bLiveMode;
 	/** Display name of the entity. */
 	FName CachedLabel;
 	/** Text to be highlighted while searching. */

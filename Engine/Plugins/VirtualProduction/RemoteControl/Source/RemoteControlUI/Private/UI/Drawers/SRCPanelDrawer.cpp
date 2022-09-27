@@ -419,6 +419,16 @@ bool SRCPanelDrawer::UnregisterPanel(TSharedRef<FRCPanelDrawerArgs> InPanelToRem
 
 void SRCPanelDrawer::TogglePanel(TSharedRef<FRCPanelDrawerArgs> InPanel, const bool bRemoveDrawer)
 {
+	if (!CanToggleRCPanelDelegate.IsBound())
+	{
+		return;
+	}
+
+	if (!CanToggleRCPanelDelegate.Execute())
+	{
+		return;
+	}
+
 	auto PanelFinderPredicate = [InPanel](const TPair<TSharedRef<FRCPanelDrawerArgs>, TSharedRef<SRCPanelDrawerButton>>& TabAndButton)
 	{
 		return TabAndButton.Key == InPanel;
@@ -450,7 +460,7 @@ void SRCPanelDrawer::TogglePanel(TSharedRef<FRCPanelDrawerArgs> InPanel, const b
 		RegisterPanel(InPanel);
 	}
 
-	OnRCPanelToggledHandle.ExecuteIfBound(OpenedDrawer);
+	OnRCPanelToggledDelegate.ExecuteIfBound(OpenedDrawer);
 }
 
 void SRCPanelDrawer::UpdateAppearance()

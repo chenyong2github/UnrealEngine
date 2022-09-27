@@ -32,7 +32,7 @@ struct FGenerateWidgetArgs
 	URemoteControlPreset* Preset = nullptr;
 	FRCColumnSizeData ColumnSizeData;
 	TSharedPtr<FRemoteControlEntity> Entity;
-	TAttribute<bool> bIsInEditMode;
+	TAttribute<bool> bIsInLiveMode;
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 	FText HighlightText;
 };

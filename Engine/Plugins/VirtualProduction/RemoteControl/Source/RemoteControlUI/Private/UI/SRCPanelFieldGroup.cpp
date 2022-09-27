@@ -46,7 +46,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 	OnFieldDropEvent = InArgs._OnFieldDropEvent;
 	OnGetGroupId = InArgs._OnGetGroupId;
 	OnDeleteGroup = InArgs._OnDeleteGroup;
-	bEditMode = InArgs._EditMode;
+	bLiveMode = InArgs._LiveMode;
 
 	TSharedRef<SWidget> LeftColumn = 
 		SNew(SHorizontalBox)
@@ -69,7 +69,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 		[
 			SNew(SBox)
 			.Padding(2.f, 0.f)
-			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToLiveMode, EVisibility::Collapsed)
 			[
 				SNew(SRCPanelDragHandle<FFieldGroupDragDropOp>, Id)
 				.Widget(SharedThis(this))
@@ -88,7 +88,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 			.Text(FText::FromName(Name))
 			.OnTextCommitted(this, &SRCPanelGroup::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SRCPanelGroup::OnVerifyItemLabelChanged)
-			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
+			.IsReadOnly_Lambda([this]() { return bLiveMode.Get(); })
 		];
 
 	ChildSlot
@@ -243,9 +243,9 @@ const FSlateBrush* SRCPanelGroup::GetBorderImage() const
 	return FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.TransparentBorder");
 }
 
-EVisibility SRCPanelGroup::GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const
+EVisibility SRCPanelGroup::GetVisibilityAccordingToLiveMode(EVisibility NonEditModeVisibility) const
 {
-	return bEditMode.Get() ? EVisibility::Visible : NonEditModeVisibility;
+	return !bLiveMode.Get() ? EVisibility::Visible : NonEditModeVisibility;
 }
 
 bool SRCPanelGroup::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage)

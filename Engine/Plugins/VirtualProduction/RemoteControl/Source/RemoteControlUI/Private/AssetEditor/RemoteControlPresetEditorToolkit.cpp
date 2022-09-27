@@ -97,17 +97,11 @@ void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTa
 			.SetDisplayName(LOCTEXT("RemoteControlPanelMainTab", "Remote Control Panel"))
 			.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
-
-		InTabManager->RegisterTabSpawner(FRemoteControlUIModule::EntityDetailsTabName, FOnSpawnTab::CreateSP(this, &FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnDetailsTab))
-			.SetDisplayName(LOCTEXT("RemoteControlPanelDetailsTab", "Entity Details"))
-			.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 	}
 }
 
 void FRemoteControlPresetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
-	InTabManager->UnregisterTabSpawner(FRemoteControlUIModule::EntityDetailsTabName);
 	InTabManager->UnregisterTabSpawner(FRemoteControlUIModule::RemoteControlPanelTabName);
 }
 
@@ -165,18 +159,6 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPan
 		.TabColorScale(GetTabColorScale())	
 		[
 			PanelTab.ToSharedRef()
-		];
-}
-
-TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnDetailsTab(const FSpawnTabArgs& Args)
-{
-	check(Args.GetTabId() == FRemoteControlUIModule::EntityDetailsTabName);
-
-	return SNew(SDockTab)
-		.Label(LOCTEXT("ControlPanelEntityDetailsLabel", "Entity Details"))
-		.TabColorScale(GetTabColorScale())	
-		[
-			SNullWidget::NullWidget
 		];
 }
 

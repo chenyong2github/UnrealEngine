@@ -32,7 +32,7 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const FGuid& /*GroupId*/);
 
 	SLATE_BEGIN_ARGS(SRCPanelGroup)
-		: _EditMode(true)
+		: _LiveMode(false)
 	{}
 		SLATE_ARGUMENT(FGuid, Id)
 		SLATE_ARGUMENT(FName, Name)
@@ -40,7 +40,7 @@ public:
 		SLATE_EVENT(FOnFieldDropEvent, OnFieldDropEvent)
 		SLATE_EVENT(FOnGetGroupId, OnGetGroupId)
 		SLATE_EVENT(FOnDeleteGroup, OnDeleteGroup)
-		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(bool, LiveMode)
 		
 	SLATE_END_ARGS()
 
@@ -79,7 +79,7 @@ private:
 	/** Get the border image according to the current selection. */
 	const FSlateBrush* GetBorderImage() const;
 	/** Get the visibility according to the panel's current mode. */
-	EVisibility GetVisibilityAccordingToEditMode(EVisibility DefaultHiddenVisibility) const;
+	EVisibility GetVisibilityAccordingToLiveMode(EVisibility DefaultHiddenVisibility) const;
 
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 
@@ -96,8 +96,8 @@ private:
 	FOnDeleteGroup OnDeleteGroup;
 	/** Holds the text box for the group name. */
 	TSharedPtr<SInlineEditableTextBlock> NameTextBox;
-	/** Whether the panel is currently in edit mode. */
-	TAttribute<bool> bEditMode;
+	/** Whether the panel is currently in live mode. */
+	TAttribute<bool> bLiveMode;
 	/** Whether the group needs to be renamed. (As requested by a click on the rename button) */
 	bool bNeedsRename = false;
 	/** Weak ptr to the preset that contains the field group. */

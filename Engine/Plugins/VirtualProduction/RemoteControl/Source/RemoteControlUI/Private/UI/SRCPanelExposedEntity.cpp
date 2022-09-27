@@ -99,11 +99,11 @@ void SRCPanelExposedEntity::EnterRenameMode()
 	}
 }
 
-void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbEditMode)
+void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbLiveMode)
 {
 	EntityId = InEntityId;
 	Preset = InPreset;
-	bEditMode = InbEditMode;
+	bLiveMode = InbLiveMode;
 
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
 
@@ -200,9 +200,9 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 		];
 }
 
-EVisibility SRCPanelExposedEntity::GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const
+EVisibility SRCPanelExposedEntity::GetVisibilityAccordingToLiveMode(EVisibility NonEditModeVisibility) const
 {
-	return bEditMode.Get() ? EVisibility::Visible : NonEditModeVisibility;
+	return !bLiveMode.Get() ? EVisibility::Visible : NonEditModeVisibility;
 }
 
 TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
@@ -303,7 +303,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 		.BorderImage(this, &SRCPanelExposedEntity::GetBorderImage);
 	
 	Args.DragHandle = SNew(SBox)
-		.Visibility(this, &SRCPanelExposedEntity::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+		.Visibility(this, &SRCPanelExposedEntity::GetVisibilityAccordingToLiveMode, EVisibility::Collapsed)
 		[
 			SNew(SRCPanelDragHandle<FExposedEntityDragDrop>, GetRCId())
 			.Widget(Widget)
@@ -331,7 +331,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 			.Text(FText::FromName(CachedLabel))
 			.OnTextCommitted(this, &SRCPanelExposedEntity::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SRCPanelExposedEntity::OnVerifyItemLabelChanged)
-			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
+			.IsReadOnly_Lambda([this]() { return bLiveMode.Get(); })
 			.HighlightText_Lambda([this]() { return HighlightText.Get().ToString().Len() > 3 ? HighlightText.Get() : FText::GetEmpty(); })
 		];
 

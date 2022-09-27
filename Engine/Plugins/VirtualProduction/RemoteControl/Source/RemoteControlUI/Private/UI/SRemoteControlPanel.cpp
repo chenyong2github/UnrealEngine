@@ -143,6 +143,11 @@ public:
 	{
 		if (const TSharedPtr<SRemoteControlPanel> PinnedOwner = Owner.Pin())
 		{
+			if (PinnedOwner->IsInLiveMode())
+			{
+				return false;
+			}
+
 			if (!SlateApp.HasFocusedDescendants(PinnedOwner.ToSharedRef()))
 			{
 				return false;
@@ -329,7 +334,7 @@ private:
 
 void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TSharedPtr<IToolkitHost> InToolkitHost)
 {
-	OnEditModeChange = InArgs._OnEditModeChange;
+	OnLiveModeChange = InArgs._OnLiveModeChange;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
 	WidgetRegistry = MakeShared<FRCPanelWidgetRegistry>();
 	ToolkitHost = InToolkitHost;
@@ -347,27 +352,12 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	AddToolbarWidget(SNew(SCheckBox)
 		.Style(&RCPanelStyle->ToggleButtonStyle)
 		.ToolTipText(LOCTEXT("ShowLogTooltip", "Show/Hide remote control log."))
-		.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+		.IsChecked_Lambda([this]() { return (FRemoteControlLogger::Get().IsEnabled() && !bIsInLiveMode) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 		.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
 		.Padding(4.f)
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("ShowLogLabel", "Log"))
-			.Justification(ETextJustify::Center)
-			.TextStyle(&RCPanelStyle->PanelTextStyle)
-		]);
-
-	// Edit Mode
-	AddToolbarWidget(SNew(SCheckBox)
-		.Style(&RCPanelStyle->ToggleButtonStyle)
-		.ToolTipText(LOCTEXT("EditModeTooltip", "Toggle Editing (Ctrl + E)"))
-		.IsChecked_Lambda([this]() { return this->bIsInEditMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-		.Padding(4.f)
-		.OnCheckStateChanged(this, &SRemoteControlPanel::OnEditModeCheckboxToggle)
-		.Content()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("EditLabel", "Edit"))
 			.Justification(ETextJustify::Center)
 			.TextStyle(&RCPanelStyle->PanelTextStyle)
 		]
@@ -410,7 +400,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				CachedExposedPropertyArgs.Reset();
 			}
 		)
-		.EditMode_Lambda([this]() { return bIsInEditMode; })
+		.LiveMode_Lambda([this]() {return bIsInLiveMode; })
 		.ProtocolsMode_Lambda([this]() { return IsInProtocolsMode() && ActivePanel == ERCPanels::RCP_Protocols; });
 
 	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);
@@ -549,10 +539,11 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		.EnableFooter(true);
 
 	ControllerPanel = SNew(SRCControllerPanel, SharedThis(this))
-		.Visibility_Lambda([this] { return bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
+		.LiveMode_Lambda([this]() { return bIsInLiveMode; })
+		.Visibility_Lambda([this] { return (bIsLogicPanelEnabled || bIsInLiveMode) && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_Live || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
 
 	BehaviourPanel = SNew(SRCBehaviourPanel, SharedThis(this))
-		.Visibility_Lambda([this] { return bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
+		.Visibility_Lambda([this] { return !bIsInLiveMode && bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
 
 	ControllersAndBehavioursPanel->AddPanel(ControllerPanel.ToSharedRef(), 0.5f);
 		
@@ -573,7 +564,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	// Actions Panel.
 	ActionPanel = SNew(SRCActionPanel, SharedThis(this))
-		.Visibility_Lambda([this] { return bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
+		.Visibility_Lambda([this] { return !bIsInLiveMode && bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
 
 	LogicPanel->AddPanel(ControllersAndBehavioursPanel, 0.67f);
 	LogicPanel->AddPanel(ActionPanel.ToSharedRef(), 0.33f);
@@ -706,6 +697,27 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			+ SWidgetSwitcher::Slot()
 			[
 				OutputLogDockPanel
+			]
+
+			// 6. Live (Index : 5).
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SSplitter)
+				.Orientation(EOrientation::Orient_Horizontal)						
+				
+				// Exposed entities List
+				+ SSplitter::Slot()
+				.Value(0.5f)
+				[
+					EntityList.ToSharedRef()
+				]
+			
+				// Logic Panel
+				+ SSplitter::Slot()
+				.Value(0.5f)
+				[
+					LogicPanel
+				]
 			]
 		];
 
@@ -1099,7 +1111,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 	
 	return SAssignNew(ExposeComboButton, SComboButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Expose Functions")))
-		.IsEnabled_Lambda([this]() { return this->bIsInEditMode; })
+		.IsEnabled_Lambda([this]() { return this->bIsInLiveMode; })
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
@@ -1399,6 +1411,12 @@ void SRemoteControlPanel::RegisterPanels()
 	if (PanelDrawer.IsValid())
 	{
 		PanelDrawer->OnRCPanelToggled().BindSP(this, &SRemoteControlPanel::OnRCPanelToggled);
+		
+		PanelDrawer->CanToggleRCPanel().BindLambda([this]()
+			{
+				return !bIsInLiveMode;
+			}
+		);
 
 		{// Properties Panel
 			TSharedRef<FRCPanelDrawerArgs> PropertiesPanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_Properties);
@@ -1458,6 +1476,21 @@ void SRemoteControlPanel::RegisterPanels()
 
 			RegisteredDrawers.Add(OutputLogPanel->GetPanelID(), OutputLogPanel);
 		}
+
+		{// Live Panel
+			TSharedRef<FRCPanelDrawerArgs> LivePanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_Live);
+
+			LivePanel->bDrawnByDefault = true;
+			LivePanel->bRotateIconBy90 = false;
+			LivePanel->DrawerVisibility = bIsInLiveMode ? EVisibility::Visible : EVisibility::Collapsed;
+			LivePanel->Label = LOCTEXT("LivePanelPanelLabel", "Live");
+			LivePanel->ToolTip = LOCTEXT("LivePanelTooltip", "Open live panel.");
+			LivePanel->Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer");
+
+			PanelDrawer->RegisterPanel(LivePanel);
+
+			RegisteredDrawers.Add(LivePanel->GetPanelID(), LivePanel);
+		}
 	}
 }
 
@@ -1466,6 +1499,7 @@ void SRemoteControlPanel::UnregisterPanels()
 	if (PanelDrawer.IsValid())
 	{
 		PanelDrawer->OnRCPanelToggled().Unbind();
+		PanelDrawer->CanToggleRCPanel().Unbind();
 
 		for (TMap<ERCPanels, TSharedRef<FRCPanelDrawerArgs>>::TIterator RegisteredDrawer = RegisteredDrawers.CreateIterator(); RegisteredDrawer; ++RegisteredDrawer)
 		{
@@ -1541,12 +1575,6 @@ void SRemoteControlPanel::Unexpose(const FRCExposesPropertyArgs& InPropertyArgs)
 	}
 }
 
-void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
-{
-	bIsInEditMode = (State == ECheckBoxState::Checked) ? true : false;
-	OnEditModeChange.ExecuteIfBound(SharedThis(this), bIsInEditMode);
-}
-
 void SRemoteControlPanel::OnLogCheckboxToggle(ECheckBoxState State)
 {
 	const bool bIsLogEnabled = (State == ECheckBoxState::Checked) ? true : false;
@@ -1616,28 +1644,6 @@ void SRemoteControlPanel::ExposeActor(AActor* Actor)
 		Args.GroupId = GetSelectedGroup();
 		
 		Preset->ExposeActor(Actor, Args);
-	}
-}
-
-void SRemoteControlPanel::ToggleDetailsView()
-{
-	const FTabId TabId = FTabId(FRemoteControlUIModule::EntityDetailsTabName);
-	
-	if (TSharedPtr<IToolkitHost> PinnedToolkit = ToolkitHost.Pin())
-	{
-		if (TSharedPtr<SDockTab> ExistingTab = PinnedToolkit->GetTabManager()->FindExistingLiveTab(TabId))
-		{
-			ExistingTab->RequestCloseTab();
-		}
-		else
-		{
-			// Request the Tab Manager to invoke the tab. This will spawn the tab if needed, otherwise pull it to focus. This assumes
-			// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
-			if (TSharedPtr<SDockTab> EntityDetailsTab = PinnedToolkit->GetTabManager()->TryInvokeTab(TabId))
-			{
-				EntityDetailsTab->SetContent(CreateEntityDetailsView());
-			}
-		}
 	}
 }
 
@@ -1920,7 +1926,35 @@ void SRemoteControlPanel::GenerateToolbar()
 			.DefaultMode("Setup")
 			.OnModeSwitched_Lambda([this](const SRCModeSwitcher::FRCMode& NewMode)
 				{
-					UE_LOG(LogRemoteControl, Warning, TEXT("Active Mode : %s"), *NewMode.ModeId.ToString());
+					if (NewMode.ModeId == TEXT("Operation"))
+					{
+						bIsInLiveMode = true;
+					}
+					else if (NewMode.ModeId == TEXT("Setup"))
+					{
+						bIsInLiveMode = false;
+					}
+
+					bIsLogicPanelEnabled = bIsInLiveMode;
+
+					if (PanelDrawer.IsValid())
+					{
+						TSharedRef<FRCPanelDrawerArgs> LivePanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_Live);
+
+						LivePanel->DrawerVisibility = bIsInLiveMode ? EVisibility::Visible : EVisibility::Collapsed;
+
+						// When we are not in Live Mode collapse the drawer.
+						PanelDrawer->TogglePanel(LivePanel, !bIsInLiveMode);
+
+						if (!bIsInLiveMode)
+						{
+							TSharedRef<FRCPanelDrawerArgs> PropertiesPanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_Properties);
+
+							PanelDrawer->TogglePanel(PropertiesPanel);
+						}
+					}
+
+					OnLiveModeChange.ExecuteIfBound(SharedThis(this), bIsInLiveMode);
 				}
 			)
 		
@@ -2185,12 +2219,12 @@ void SRemoteControlPanel::ToggleProtocolMappings_Execute()
 
 bool SRemoteControlPanel::CanToggleProtocolsMode() const
 {
-	return bIsInEditMode;
+	return !bIsInLiveMode;
 }
 
 bool SRemoteControlPanel::IsInProtocolsMode() const
 {
-	return bIsInEditMode && bIsInProtocolsMode;
+	return bIsInProtocolsMode;
 }
 
 void SRemoteControlPanel::ToggleLogicEditor_Execute()
@@ -2207,12 +2241,12 @@ void SRemoteControlPanel::ToggleLogicEditor_Execute()
 
 bool SRemoteControlPanel::CanToggleLogicPanel() const
 {
-	return bIsInEditMode;
+	return !bIsInLiveMode;
 }
 
 bool SRemoteControlPanel::IsLogicPanelEnabled() const
 {
-	return bIsInEditMode && bIsLogicPanelEnabled;
+	return !bIsInLiveMode && bIsLogicPanelEnabled;
 }
 
 void SRemoteControlPanel::OnRCPanelToggled(ERCPanels InPanelID)
@@ -2221,7 +2255,7 @@ void SRemoteControlPanel::OnRCPanelToggled(ERCPanels InPanelID)
 	{
 		ActivePanel = InPanelID;
 		
-		if (EntityList.IsValid())
+		if (EntityList.IsValid() && !bIsInLiveMode)
 		{
 			const bool bToggleProtcolMode = IsInProtocolsMode() && ActivePanel == ERCPanels::RCP_Protocols;
 
@@ -2288,12 +2322,17 @@ void SRemoteControlPanel::DeleteEntity_Execute()
 
 bool SRemoteControlPanel::CanDeleteEntity() const
 {
+	if (bIsInLiveMode)
+	{
+		return false;
+	}
+
 	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
 		return ActiveLogicPanel->GetSelectedLogicItem() != nullptr; // User has focus on a logic panel
 	}
 
-	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)
+	if (SelectedEntity.IsValid() && Preset.IsValid())
 	{
 		// Do not allow default group to be deleted.
 		return !Preset->Layout.IsDefaultGroup(SelectedEntity->GetRCId());
@@ -2320,12 +2359,17 @@ void SRemoteControlPanel::RenameEntity_Execute() const
 
 bool SRemoteControlPanel::CanRenameEntity() const
 {
+	if (bIsInLiveMode)
+	{
+		return false;
+	}
+
 	if (ControllerPanel->IsListFocused())
 	{
 		return true;
 	}
 
-	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)
+	if (SelectedEntity.IsValid() && Preset.IsValid())
 	{
 		// Do not allow default group to be renamed.
 		return !Preset->Layout.IsDefaultGroup(SelectedEntity->GetRCId());
@@ -2350,6 +2394,11 @@ void SRemoteControlPanel::CopyItem_Execute()
 
 bool SRemoteControlPanel::CanCopyItem() const
 {
+	if (bIsInLiveMode)
+	{
+		return false;
+	}
+
 	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
 		return ActiveLogicPanel->GetSelectedLogicItem().IsValid();
@@ -2368,6 +2417,11 @@ void SRemoteControlPanel::PasteItem_Execute()
 
 bool SRemoteControlPanel::CanPasteItem() const
 {
+	if (bIsInLiveMode)
+	{
+		return false;
+	}
+
 	if(LogicClipboardItem)
 	{
 		if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
@@ -2395,6 +2449,11 @@ void SRemoteControlPanel::DuplicateItem_Execute()
 
 bool SRemoteControlPanel::CanDuplicateItem() const
 {
+	if (bIsInLiveMode)
+	{
+		return false;
+	}
+
 	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
 		return ActiveLogicPanel->GetSelectedLogicItem().IsValid();

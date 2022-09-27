@@ -12,7 +12,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IRemoteControlModule.h"
-#include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "MaterialEditor/DEditorParameterValue.h"
 #include "Materials/Material.h"
@@ -40,7 +39,6 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlUI"
 
-const FName FRemoteControlUIModule::EntityDetailsTabName = "RemoteControl_EntityDetails";
 const FName FRemoteControlUIModule::RemoteControlPanelTabName = "RemoteControl_RemoteControlPanel";
 const FString IRemoteControlUIModule::SettingsIniSection = TEXT("RemoteControl");
 
@@ -302,23 +300,25 @@ void FRemoteControlUIModule::UnregisterMetadataCustomization(FName MetadataKey)
 
 TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset, const TSharedPtr<IToolkitHost>& ToolkitHost)
 {
+	constexpr bool bIsInLiveMode = true;
+
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
-		Panel->SetEditMode(false);
+		Panel->SetLiveMode(bIsInLiveMode);
 	}
 
 	TSharedRef<SRemoteControlPanel> PanelRef = SAssignNew(WeakActivePanel, SRemoteControlPanel, Preset, ToolkitHost)
-		.OnEditModeChange_Lambda(
-			[this](TSharedPtr<SRemoteControlPanel> Panel, bool bEditMode) 
+		.OnLiveModeChange_Lambda(
+			[this](TSharedPtr<SRemoteControlPanel> Panel, bool bLiveMode) 
 			{
-				// Activating the edit mode on a panel sets it as the active panel 
-				if (bEditMode)
+				// Activating the live mode on a panel sets it as the active panel 
+				if (bLiveMode)
 				{
 					if (TSharedPtr<SRemoteControlPanel> ActivePanel = WeakActivePanel.Pin())
 					{
 						if (ActivePanel != Panel)
 						{
-							ActivePanel->SetEditMode(false);
+							ActivePanel->SetLiveMode(true);
 						}
 					}
 					WeakActivePanel = MoveTemp(Panel);
@@ -402,29 +402,6 @@ void FRemoteControlUIModule::UnregisterEvents()
 	FEditorDelegates::PostUndoRedo.RemoveAll(this);
 }
 
-void FRemoteControlUIModule::ToggleEditMode()
-{
-	if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForObject(nullptr)) // Check whether the panel is active.
-	{
-		Panel->SetEditMode(Panel->IsInEditMode() ? false : true);
-	}
-}
-
-bool FRemoteControlUIModule::CanToggleEditMode() const
-{
-	return GetPanelForObject(nullptr).IsValid();
-}
-
-bool FRemoteControlUIModule::IsInEditMode() const
-{
-	if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForObject(nullptr)) // Check whether the panel is active.
-	{
-		return Panel->IsInEditMode();
-	}
-
-	return false;
-}
-
 URemoteControlPreset* FRemoteControlUIModule::GetActivePreset() const
 {
 	if (const TSharedPtr<SRemoteControlPanel> Panel = GetPanelForObject(nullptr))
@@ -462,33 +439,10 @@ void FRemoteControlUIModule::UnregisterAssetTools()
 void FRemoteControlUIModule::BindRemoteControlCommands()
 {
 	FRemoteControlCommands::Register();
-
-	const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
-
-	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
-
-	FUICommandList& ActionList = *MainFrame.GetMainFrameCommandBindings();
-
-	// Toggle Edit Mode
-
-	ActionList.MapAction(Commands.ToggleEditMode,
-		FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::ToggleEditMode),
-		FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleEditMode),
-		FIsActionChecked::CreateRaw(this, &FRemoteControlUIModule::IsInEditMode),
-		FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleEditMode)
-	);
 }
 
 void FRemoteControlUIModule::UnbindRemoteControlCommands()
 {
-	const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
-
-	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
-
-	FUICommandList& ActionList = *MainFrame.GetMainFrameCommandBindings();
-
-	ActionList.UnmapAction(Commands.ToggleEditMode);
-
 	FRemoteControlCommands::Unregister();
 }
 

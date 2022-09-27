@@ -21,8 +21,9 @@ class REMOTECONTROLUI_API SRCControllerPanel : public SRCLogicPanelBase
 {
 public:
 	SLATE_BEGIN_ARGS(SRCControllerPanel)
-		{
-		}
+	{}
+
+		SLATE_ATTRIBUTE(bool, LiveMode)
 
 	SLATE_END_ARGS()
 
@@ -76,6 +77,9 @@ private:
 
 	/** Widget representing List of Controllers */
 	TSharedPtr<class SRCControllerPanelList> ControllerPanelList;
+
+	/** Whether the panel is in live mode. */
+	TAttribute<bool> bIsInLiveMode;
 
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;

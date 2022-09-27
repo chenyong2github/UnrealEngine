@@ -58,9 +58,9 @@ class SRCPanelExposedEntitiesList : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SRCPanelExposedEntitiesList)
-		: _EditMode(true)
+		: _LiveMode(false)
 	{}
-		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(bool, LiveMode)
 		SLATE_ATTRIBUTE(bool, ProtocolsMode)
 		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, ExposeComboButton)
 		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
@@ -192,8 +192,8 @@ private:
 	TArray<TSharedPtr<SRCPanelTreeNode>> FieldEntities;
 	/** Map of field ids to field widgets. */
 	TMap<FGuid, TSharedPtr<SRCPanelTreeNode>> FieldWidgetMap;
-	/** Whether the panel is in edit mode. */
-	TAttribute<bool> bIsInEditMode;
+	/** Whether the panel is in live mode. */
+	TAttribute<bool> bIsInLiveMode;
 	/** Whether the panel is in protocols mode. */
 	TAttribute<bool> bIsInProtocolsMode;
 	/** Holds the preset asset. */

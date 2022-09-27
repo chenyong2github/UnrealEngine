@@ -23,6 +23,8 @@ enum class ERCPanels : uint8
 
 	RCP_OutputLog,
 
+	RCP_Live,
+
 	RCP_Count,
 };
 
@@ -119,6 +121,9 @@ DECLARE_DELEGATE_TwoParams(FOnRCPanelDrawerButtonPressed, TSharedRef<FRCPanelDra
 /** Delegate to be called when a drawer button is clicked. */
 DECLARE_DELEGATE_OneParam(FOnRCPanelToggled, ERCPanels /* PanelID */)
 
+/** Delegate to be called to check whether drawer button can be clicked or not. */
+DECLARE_DELEGATE_RetVal(bool, FCanToggleRCPanel)
+
 /**
  * A custom tab drawer tailored for RC Panels.
  */
@@ -152,8 +157,11 @@ public:
 	 */
 	bool UnregisterPanel(TSharedRef<FRCPanelDrawerArgs> InPanelToRemove);
 
+	/** Delegate to be called to check whether drawer button can be clicked or not. */
+	FCanToggleRCPanel& CanToggleRCPanel() { return CanToggleRCPanelDelegate; }
+	
 	/** Delegate to be called when a drawer button is clicked. */
-	FOnRCPanelToggled& OnRCPanelToggled() { return OnRCPanelToggledHandle; }
+	FOnRCPanelToggled& OnRCPanelToggled() { return OnRCPanelToggledDelegate; }
 
 	/** Toggles the panel. */
 	void TogglePanel(TSharedRef<FRCPanelDrawerArgs> InPanel, const bool bRemoveDrawer = false);
@@ -171,8 +179,11 @@ private:
 	/** Array of all registered panels. */
 	TArray<TPair<TSharedRef<FRCPanelDrawerArgs>, TSharedRef<SRCPanelDrawerButton>>> Panels;
 
+	/** Delegate to be called to check whether drawer button can be clicked or not. */
+	FCanToggleRCPanel CanToggleRCPanelDelegate;
+	
 	/** Delegate to be called when a drawer button is clicked. */
-	FOnRCPanelToggled OnRCPanelToggledHandle;
+	FOnRCPanelToggled OnRCPanelToggledDelegate;
 
 	/** Generally speaking one drawer is only ever open at once. */
 	ERCPanels OpenedDrawer;

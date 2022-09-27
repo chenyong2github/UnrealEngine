@@ -22,9 +22,9 @@ struct SRCPanelExposedActor : public SRCPanelExposedEntity
 	using SCompoundWidget::AsShared;
 	
 	SLATE_BEGIN_ARGS(SRCPanelExposedActor)
-		: _EditMode(true)
+		: _LiveMode(false)
 	{}
-		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(bool, LiveMode)
 	SLATE_END_ARGS()
 
 	static TSharedPtr<SRCPanelTreeNode> MakeInstance(const FGenerateWidgetArgs& Args);
@@ -50,6 +50,6 @@ private:
 	TWeakObjectPtr<URemoteControlPreset> WeakPreset;
 	/** Weak ptr to the remote control actor structure. */
 	TWeakPtr<FRemoteControlActor> WeakActor;
-	/** Holds this row's panel edit mode. */
-	TAttribute<bool> bEditMode;
+	/** Holds this row's panel live mode. */
+	TAttribute<bool> bLiveMode;
 };

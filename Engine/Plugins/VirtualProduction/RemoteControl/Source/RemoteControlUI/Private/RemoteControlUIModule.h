@@ -73,7 +73,6 @@ public:
 	}
 
 public:
-	static const FName EntityDetailsTabName;
 	static const FName RemoteControlPanelTabName;
 
 	TSharedPtr<SRCPanelTreeNode> GenerateEntityWidget(const FGenerateWidgetArgs& Args);
@@ -109,11 +108,6 @@ private:
 	//~ Common Events
 	void RegisterEvents();
 	void UnregisterEvents();
-
-	//~ Toggle Edit Mode RC Command.
-	void ToggleEditMode();
-	bool CanToggleEditMode() const;	
-	bool IsInEditMode() const;
 
 	/** Handle creating the row extensions.  */
 	void HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions);

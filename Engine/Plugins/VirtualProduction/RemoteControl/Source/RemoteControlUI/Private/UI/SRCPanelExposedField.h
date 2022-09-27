@@ -29,11 +29,11 @@ class SWidget;
 struct SRCPanelExposedField : public SRCPanelExposedEntity
 {
 	SLATE_BEGIN_ARGS(SRCPanelExposedField)
-		: _EditMode(true)
+		: _LiveMode(false)
 		, _HighlightText()
 		, _Preset(nullptr)
 	{}
-		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(bool, LiveMode)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ATTRIBUTE(URemoteControlPreset*, Preset)
 	SLATE_END_ARGS()

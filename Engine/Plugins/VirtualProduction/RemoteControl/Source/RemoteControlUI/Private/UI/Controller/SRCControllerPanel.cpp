@@ -33,6 +33,8 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 {
 	SRCLogicPanelBase::Construct(SRCLogicPanelBase::FArguments(), InPanel);
 	
+	bIsInLiveMode = InArgs._LiveMode;
+
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
 
 	// Controller Dock Panel
@@ -47,6 +49,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Add Controller")))
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
+		.IsEnabled_Lambda([this]() { return !bIsInLiveMode.Get(); })
 		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
 		.ForegroundColor(FSlateColor::UseForeground())
 		.CollapseMenuOnParentFocus(true)
@@ -77,7 +80,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
 		.ToolTipText(LOCTEXT("DeleteSelectedControllerToolTip", "Deletes the selected controller."))
 		.OnClicked(this, &SRCControllerPanel::RequestDeleteSelectedItem)
-		.IsEnabled_Lambda([this]() { return ControllerPanelList.IsValid() && ControllerPanelList->NumSelectedLogicItems() > 0; })
+		.IsEnabled_Lambda([this]() { return ControllerPanelList.IsValid() && !bIsInLiveMode.Get() && ControllerPanelList->NumSelectedLogicItems() > 0; })
 		[
 			SNew(SBox)
 			.WidthOverride(RCPanelStyle->IconSize.X)

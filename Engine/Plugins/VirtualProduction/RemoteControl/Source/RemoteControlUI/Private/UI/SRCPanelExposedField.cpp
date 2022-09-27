@@ -66,7 +66,7 @@ namespace ExposedFieldUtils
 
 TSharedPtr<SRCPanelTreeNode> SRCPanelExposedField::MakeInstance(const FGenerateWidgetArgs& Args)
 {
-	return SNew(SRCPanelExposedField, StaticCastSharedPtr<FRemoteControlField>(Args.Entity), Args.ColumnSizeData, Args.WidgetRegistry).Preset(Args.Preset).EditMode(Args.bIsInEditMode).HighlightText(Args.HighlightText);
+	return SNew(SRCPanelExposedField, StaticCastSharedPtr<FRemoteControlField>(Args.Entity), Args.ColumnSizeData, Args.WidgetRegistry).Preset(Args.Preset).LiveMode(Args.bIsInLiveMode).HighlightText(Args.HighlightText);
 }
 
 void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRCColumnSizeData InColumnSizeData, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
@@ -82,7 +82,7 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 
 	if (TSharedPtr<FRemoteControlField> FieldPtr = WeakField.Pin())
 	{
-		Initialize(FieldPtr->GetId(), InArgs._Preset.Get(), InArgs._EditMode);
+		Initialize(FieldPtr->GetId(), InArgs._Preset.Get(), InArgs._LiveMode);
 	
 		CachedLabel = FieldPtr->GetLabel();
 		EntityId = FieldPtr->GetId();

@@ -30,6 +30,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
@@ -167,7 +168,7 @@ private:
 
 void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
-	bIsInEditMode = InArgs._EditMode;
+	bIsInLiveMode = InArgs._LiveMode;
 	bIsInProtocolsMode = InArgs._ProtocolsMode;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
 	OnEntityListUpdatedDelegate = InArgs._OnEntityListUpdated;
@@ -211,7 +212,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	// Add New Group Button
 	TSharedPtr<SWidget> NewGroupButton = SNew(SButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Add Group")))
-		.IsEnabled_Lambda([this]() { return bIsInEditMode.Get(); })
+		.IsEnabled_Lambda([this]() { return !bIsInLiveMode.Get(); })
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.ForegroundColor(FSlateColor::UseForeground())
@@ -232,8 +233,8 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	// Delete All Groups Button
 	TSharedPtr<SWidget> DeleteAllGroupsButton = SNew(SButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete All Groups")))
-		.IsEnabled_Lambda([this]() { return bIsInEditMode.Get() && FieldGroups.Num() > 0; })
-		.Visibility_Lambda([this]() { return (bIsInEditMode.Get() && FieldGroups.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
+		.IsEnabled_Lambda([this]() { return !bIsInLiveMode.Get() && FieldGroups.Num() > 0; })
+		.Visibility_Lambda([this]() { return (!bIsInLiveMode.Get() && FieldGroups.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.ForegroundColor(FSlateColor::UseForeground())
@@ -297,6 +298,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	// Exposed Entities Dock Panel
 	TSharedPtr<SRCMinorPanel> ExposeDockPanel = SNew(SRCMinorPanel)
 		.HeaderLabel(this, &SRCPanelExposedEntitiesList::HandleEntityListHeaderLabel)
+		.Visibility_Lambda([this]() {return bIsInLiveMode.Get() ? EVisibility::Collapsed : EVisibility::Visible; })
 		.EnableFooter(true)
 		[
 			FieldsListView.ToSharedRef()
@@ -314,8 +316,8 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	// Delete All Entities Button
 	TSharedPtr<SWidget> DeleteAllEntitiesButton = SNew(SButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete All Entities")))
-		.IsEnabled_Lambda([this]() { return bIsInEditMode.Get() && FieldWidgetMap.Num() > 0; })
-		.Visibility_Lambda([this]() { return (bIsInEditMode.Get() && FieldWidgetMap.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
+		.IsEnabled_Lambda([this]() { return !bIsInLiveMode.Get() && FieldWidgetMap.Num() > 0; })
+		.Visibility_Lambda([this]() { return (!bIsInLiveMode.Get() && FieldWidgetMap.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.ForegroundColor(FSlateColor::UseForeground())
@@ -714,7 +716,7 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 			Args.Preset = Preset.Get();
 			Args.WidgetRegistry = WidgetRegistry;
 			Args.ColumnSizeData = ColumnSizeData;
-			Args.bIsInEditMode = bIsInEditMode;
+			Args.bIsInLiveMode = bIsInLiveMode;
 
 			FieldWidgetMap.Add(Entity->GetId(), FRemoteControlUIModule::Get().GenerateEntityWidget(Args));
 		}
@@ -756,7 +758,7 @@ void SRCPanelExposedEntitiesList::RefreshGroups()
 			.OnFieldDropEvent(this, &SRCPanelExposedEntitiesList::OnDropOnGroup)
 			.OnGetGroupId(this, &SRCPanelExposedEntitiesList::GetGroupId)
 			.OnDeleteGroup(this, &SRCPanelExposedEntitiesList::OnDeleteGroup)
-			.EditMode(bIsInEditMode);
+			.LiveMode(bIsInLiveMode);
 		
 		FieldGroups.Add(FieldGroup);
 		FieldGroup->GetNodes().Reserve(RCGroup.GetFields().Num());
@@ -1088,7 +1090,7 @@ void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 	Args.Preset = Preset.Get();
 	Args.WidgetRegistry = WidgetRegistry;
 	Args.ColumnSizeData = ColumnSizeData;
-	Args.bIsInEditMode = bIsInEditMode;
+	Args.bIsInLiveMode = bIsInLiveMode;
 	Args.Entity = Preset->GetExposedEntity(InEntityId).Pin();
 
 	ExposeEntity(FRemoteControlUIModule::Get().GenerateEntityWidget(Args));
@@ -1126,7 +1128,7 @@ void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& 
 		.OnFieldDropEvent(this, &SRCPanelExposedEntitiesList::OnDropOnGroup)
 		.OnGetGroupId(this, &SRCPanelExposedEntitiesList::GetGroupId)
 		.OnDeleteGroup(this, &SRCPanelExposedEntitiesList::OnDeleteGroup)
-		.EditMode(bIsInEditMode);
+		.LiveMode(bIsInLiveMode);
 	
 	FieldGroups.Add(FieldGroup);
 	

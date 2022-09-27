@@ -80,6 +80,9 @@ private:
 	/** Removes the given UI model item from the list of UI models for this panel list*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) = 0;
 
+	/** Returns true when we can delete all items. */
+	bool CanDeleteAllItems() const;
+	
 	/** Requests the parent logic panel to delete all items in this list*/
 	void RequestDeleteAllItems();
 
