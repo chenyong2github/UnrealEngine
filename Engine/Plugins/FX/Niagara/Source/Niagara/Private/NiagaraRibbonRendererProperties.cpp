@@ -179,6 +179,18 @@ const FVertexFactoryType* UNiagaraRibbonRendererProperties::GetVertexFactoryType
 	return &FNiagaraRibbonVertexFactory::StaticType;
 }
 
+bool UNiagaraRibbonRendererProperties::IsBackfaceCullingDisabled() const
+{
+	if (Shape == ENiagaraRibbonShapeMode::MultiPlane)
+	{
+		return !bEnableAccurateGeometry;
+	}
+	else
+	{
+		return true;
+	}
+}
+
 bool UNiagaraRibbonRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
 {
 	bool bAnyAdded = Super::PopulateRequiredBindings(InParameterStore);

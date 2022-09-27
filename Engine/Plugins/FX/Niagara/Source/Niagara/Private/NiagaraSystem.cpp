@@ -954,6 +954,7 @@ void UNiagaraSystem::PrecachePSOs()
 	struct VFsPerMaterialData
 	{
 		UMaterialInterface* MaterialInterface;
+		bool bDisableBackfaceCulling;
 		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
 	};
 	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
@@ -971,6 +972,7 @@ void UNiagaraSystem::PrecachePSOs()
 					{
 						return;
 					}
+					bool bDisableBackfaceCulling = Properties->IsBackfaceCullingDisabled();
 
 					// Don't have an instance yet to retrieve the possible material override data from
 					const FNiagaraEmitterInstance* EmitterInstance = nullptr;
@@ -979,11 +981,16 @@ void UNiagaraSystem::PrecachePSOs()
 
 					for (UMaterialInterface* MaterialInterface : Mats)
 					{
-						VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialInterface](const VFsPerMaterialData& Other) { return Other.MaterialInterface == MaterialInterface; });
+						VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialInterface, bDisableBackfaceCulling](const VFsPerMaterialData& Other) 
+						{ 
+							return (Other.MaterialInterface == MaterialInterface &&
+									Other.bDisableBackfaceCulling == bDisableBackfaceCulling);
+						});
 						if (VFsPerMaterial == nullptr)
 						{
 							VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
 							VFsPerMaterial->MaterialInterface = MaterialInterface;
+							VFsPerMaterial->bDisableBackfaceCulling = bDisableBackfaceCulling;
 						}
 						VFsPerMaterial->VertexFactoryTypes.AddUnique(VFType);
 					}
@@ -999,6 +1006,7 @@ void UNiagaraSystem::PrecachePSOs()
 	{
 		if (VFsPerMaterial.MaterialInterface)
 		{
+			PreCachePSOParams.bDisableBackFaceCulling = VFsPerMaterial.bDisableBackfaceCulling;
 			VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams);
 		}
 	}
