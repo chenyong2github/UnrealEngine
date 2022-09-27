@@ -83,6 +83,11 @@ protected:
 	
 	bool IsUsingGamepad() const;
 
+
+	bool ShouldHideCursor() const;
+
+
+
 	// Knowingly unorthodox member reference to a UObject - ok because we are a subobject of the owning router and will never outlive it
 	const UCommonUIActionRouterBase& ActionRouter;
 	ECommonInputType ActiveInputMethod;

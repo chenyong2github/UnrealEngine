@@ -339,7 +339,7 @@ bool FCommonAnalogCursor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp
 	{
 #if UE_COMMONUI_PLATFORM_SUPPORTS_TOUCH	
 		// Some platforms don't register as switching its input type, so detect touch input here to hide the cursor.
-		if (PointerEvent.IsTouchEvent())
+		if (PointerEvent.IsTouchEvent() && ShouldHideCursor())
 		{
 			//ClearCenterWidget();
 			HideCursor();
@@ -524,6 +524,18 @@ void FCommonAnalogCursor::RefreshCursorVisibility()
 bool FCommonAnalogCursor::IsUsingGamepad() const
 {
 	return ActiveInputMethod == ECommonInputType::Gamepad;
+}
+
+bool FCommonAnalogCursor::ShouldHideCursor() const
+{
+	bool bUsingMouseForTouch = FSlateApplication::Get().IsFakingTouchEvents();
+	const ULocalPlayer& LocalPlayer = *ActionRouter.GetLocalPlayerChecked();
+	if (UGameViewportClient* GameViewportClient = LocalPlayer.ViewportClient)
+	{
+		bUsingMouseForTouch |= GameViewportClient->GetUseMouseForTouch();
+	}
+
+	return !bUsingMouseForTouch;
 }
 
 void FCommonAnalogCursor::HideCursor()
