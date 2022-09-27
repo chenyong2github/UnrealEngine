@@ -21,11 +21,11 @@ UE_TRACE_EVENT_BEGIN(Memory, TagSpec, Important|NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Display)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Memory, MemoryScope)
+UE_TRACE_EVENT_BEGIN(Memory, MemoryScope, NoSync)
 	UE_TRACE_EVENT_FIELD(int32, Tag)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Memory, MemoryScopePtr)
+UE_TRACE_EVENT_BEGIN(Memory, MemoryScopePtr, NoSync)
 	UE_TRACE_EVENT_FIELD(uint64, Ptr)
 UE_TRACE_EVENT_END()
 
