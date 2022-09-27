@@ -183,8 +183,13 @@ namespace MenuStackInternal
 
 TSharedRef<IMenu> FMenuStack::Push(const FWidgetPath& InOwnerPath, const TSharedRef<SWidget>& InContent, const FVector2D& SummonLocation, const FPopupTransitionEffect& TransitionEffect, const bool bFocusImmediately, const FVector2D& SummonLocationSize, TOptional<EPopupMethod> InMethod, const bool bIsCollapsedByParent, const bool bEnablePerPixelTransparency)
 {
-	// We want to ensure that when the window is restored to restore the current keyboard focus
-	InOwnerPath.GetWindow()->SetWidgetToFocusOnActivate(FSlateApplication::Get().GetKeyboardFocusedWidget());
+	// We want to ensure that when the window is restored, we restore the current keyboard focus, 
+	// but only if it is valid, otherwise we could end up clearing a previously valid path.
+	TSharedPtr<SWidget> FocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+	if (FocusedWidget.IsValid())
+	{
+		InOwnerPath.GetWindow()->SetWidgetToFocusOnActivate(FocusedWidget);
+	}
 
 	FSlateRect Anchor(SummonLocation, SummonLocation + SummonLocationSize);
 	TSharedPtr<IMenu> ParentMenu;

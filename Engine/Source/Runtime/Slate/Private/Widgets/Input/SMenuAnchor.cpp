@@ -163,7 +163,7 @@ void SMenuAnchor::Tick( const FGeometry& AllottedGeometry, const double InCurren
 	{
 		// Ideally, do this in OnArrangeChildren(); currently not possible because OnArrangeChildren()
 		// can be called in DesktopSpace or WindowSpace, and we will not know which version of the Window
-		// geometry to use. Tick() is always in DesktopSpace, so cache the solution here and just use
+		// geometry to use. Tick() is always in DesktopSpace, so cache the position here and just use
 		// it in OnArrangeChildren().
 		const FPopupPlacement LocalPlacement(AllottedGeometry, Children[1].GetWidget()->GetDesiredSize(), Placement.Get());
 
