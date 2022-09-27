@@ -29,8 +29,8 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, bIsSpatiallyLoaded(true)
-	, CellSize(3200)
-	, LoadingRange(12800)
+	, CellSize(25600)
+	, LoadingRange(51200)
 #endif
 {
 }
