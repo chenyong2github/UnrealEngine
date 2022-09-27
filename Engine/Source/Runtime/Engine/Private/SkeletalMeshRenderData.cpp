@@ -606,8 +606,20 @@ void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkinnedAsset* Owner)
 		NumNonOptionalLODs = GetNumNonOptionalLODs();
 	}
 #endif
+	ensure(LODRenderData.Num() >= NumInlinedLODs);
 	
-	CurrentFirstLODIdx = LODRenderData.Num() - NumInlinedLODs;
+#if WITH_EDITORONLY_DATA
+	const bool bUsingCookedEditorData = Owner->GetOutermost()->bIsCookedForEditor;
+	if (bUsingCookedEditorData && Ar.IsLoading())
+	{
+		CurrentFirstLODIdx = Owner->GetMinLodIdx();
+	}
+	else
+#endif
+	{
+		CurrentFirstLODIdx = LODRenderData.Num() - NumInlinedLODs;
+	}
+
 	PendingFirstLODIdx = CurrentFirstLODIdx;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
