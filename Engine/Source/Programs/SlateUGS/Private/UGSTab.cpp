@@ -4,11 +4,13 @@
 
 #include "UGSLog.h"
 #include "ChangeInfo.h"
+#include "FindStreamsTask.h"
 #include "UGSTabManager.h"
 
 #include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
 #include "UGSCore/DetectProjectSettingsTask.h"
+#include "UGSCore/FindStreamsTask.h"
 #include "UGSCore/PerforceMonitor.h"
 #include "UGSCore/EventMonitor.h"
 
@@ -202,11 +204,23 @@ bool UGSTab::ShouldSyncPrecompiledEditor() const
 	return UserSettings->bSyncPrecompiledEditor && PerforceMonitor->HasZippedBinaries();
 }
 
-TArray<FString> UGSTab::GetAllStreamNames() const
+TArray<FString> UGSTab::GetAllStreamNames()
 {
 	TArray<FString> Result;
-	FEvent* AbortEvent = FPlatformProcess::GetSynchEventFromPool(true);
-	PerforceClient->FindStreams("//*/*", Result, AbortEvent, *MakeShared<FLineWriter>());
+
+	const TSharedRef<UGSCore::FModalTaskResult> TaskResult = ExecuteModalTask(
+		FSlateApplication::Get().GetActiveModalWindow(),
+		MakeShared<UGSCore::FFindStreamsTask>(PerforceClient.ToSharedRef(), MakeShared<FLineWriter>(), Result, "//*/*"),
+		LOCTEXT("OpeningProjectTitle", "Finding Streams"),
+		LOCTEXT("OpeningProjectCaption", "Finding streams, please wait..."));
+	
+	if (TaskResult->Failed())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, TaskResult->GetMessage());
+		return TArray<FString>();
+	}
+
+	Result.Sort();
 
 	return Result;
 }
@@ -611,7 +625,7 @@ const TArray<FString>& UGSTab::GetCombinedSyncFilter() const
 	return CombinedSyncFilter;
 }
 
-UGSTabManager* UGSTab::GetTabManager()
+UGSTabManager* UGSTab::GetTabManager() const
 {
 	return TabManager;
 }

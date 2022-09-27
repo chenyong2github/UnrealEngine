@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "FindStreamsTask.h"
 #include "Widgets/SEmptyTab.h"
 #include "Widgets/SGameSyncTab.h"
-#include "Widgets/SWorkspaceWindow.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #include "UGSCore/Workspace.h"
@@ -66,14 +66,13 @@ public:
 	// Accessors
 	bool IsSyncing() const;
 	FString GetSyncProgress() const;
-	const TArray<FString>& GetSyncFilters() const;
 	const TArray<FString>& GetCombinedSyncFilter() const;
 	TArray<UGSCore::FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
 	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
-	UGSTabManager* GetTabManager();
+	UGSTabManager* GetTabManager() const;
 	TSharedPtr<UGSCore::FUserSettings> GetUserSettings() const;
 	bool ShouldSyncPrecompiledEditor() const;
-	TArray<FString> GetAllStreamNames() const;
+	TArray<FString> GetAllStreamNames();
 
 	void UpdateGameTabBuildList();
 	void RefreshBuildList();
