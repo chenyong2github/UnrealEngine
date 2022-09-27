@@ -455,11 +455,10 @@ bool FWaveformEditor::MatchesContext(const FTransactionContext& InContext, const
 	{
 		UObject* Object = TransactionObjectPair.Key;
 		const UClass* ObjectClass = Object->GetClass();
-		const bool bIsSupportedUndoClass = ObjectClass->IsChildOf(UWaveformTransformationBase::StaticClass()) || ObjectClass->IsChildOf(USoundWave::StaticClass());
 
-		if (ObjectClass && bIsSupportedUndoClass)
+		if (ObjectClass)
 		{
-			bShoouldUndo = true;
+			bShoouldUndo = ObjectClass->IsChildOf(UWaveformTransformationBase::StaticClass()) || ObjectClass->IsChildOf(USoundWave::StaticClass());
 		}
 	}
 
