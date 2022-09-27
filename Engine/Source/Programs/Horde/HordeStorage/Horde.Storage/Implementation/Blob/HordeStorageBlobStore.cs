@@ -189,8 +189,13 @@ namespace Horde.Storage.Implementation
 
             foreach (V1Pod pod in podList.Items)
             {
+                string ip = pod.Status.PodIP;
+                if (string.IsNullOrEmpty(ip))
+                {
+                    continue;
+                }
                 // we typically expose the container on port 80
-                yield return $"{pod.Name()}:80";
+                yield return $"{ip}:80";
             }
         }
 
