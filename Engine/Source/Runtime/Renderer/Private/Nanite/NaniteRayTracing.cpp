@@ -203,7 +203,11 @@ namespace Nanite
 		for (uint32 ResourceId : InUpdateRequests)
 		{
 			uint32* Id = ResourceToRayTracingIdMap.Find(ResourceId);
-			UpdateRequests.Add(*Id);
+
+			if (Id != nullptr)
+			{
+				UpdateRequests.Add(*Id);
+			}
 		}
 	}
 
