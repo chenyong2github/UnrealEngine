@@ -187,7 +187,7 @@ bool FCookWorkerServer::TryHandleConnectMessage(FWorkerConnectMessage& Message, 
 		OrderedSessionPlatforms.Add(const_cast<ITargetPlatform*>(TargetPlatform));
 	}
 	ConfigMessage.ReadFromLocal(COTFS, OrderedSessionPlatforms,
-		*COTFS.CookByTheBookOptions, *COTFS.CookOnTheFlyOptions);
+		*COTFS.CookByTheBookOptions, *COTFS.CookOnTheFlyOptions, Director.BeginCookContext);
 	SendMessage(ConfigMessage);
 	return true;
 }
@@ -613,11 +613,13 @@ bool FAbortWorkerMessage::TryRead(FCbObject&& Object)
 
 FGuid FAbortWorkerMessage::MessageType(TEXT("83FD99DFE8DB4A9A8E71684C121BE6F3"));
 
-void FInitialConfigMessage::ReadFromLocal(const UCookOnTheFlyServer& COTFS, const TArray<ITargetPlatform*>& InOrderedSessionPlatforms,
-	const FCookByTheBookOptions& InCookByTheBookOptions, const FCookOnTheFlyOptions& InCookOnTheFlyOptions)
+void FInitialConfigMessage::ReadFromLocal(const UCookOnTheFlyServer& COTFS,
+	const TArray<ITargetPlatform*>& InOrderedSessionPlatforms, const FCookByTheBookOptions& InCookByTheBookOptions,
+	const FCookOnTheFlyOptions& InCookOnTheFlyOptions, const FBeginCookContextForWorker& InBeginContext)
 {
 	InitialSettings.CopyFromLocal(COTFS);
 	BeginCookSettings.CopyFromLocal(COTFS);
+	BeginCookContext = InBeginContext;
 	OrderedSessionPlatforms = InOrderedSessionPlatforms;
 	DirectorCookMode = COTFS.GetCookMode();
 	CookInitializationFlags = COTFS.GetCookFlags();
@@ -642,6 +644,7 @@ void FInitialConfigMessage::Write(FCbWriter& Writer) const
 	Writer.EndArray();
 	Writer << "InitialSettings" << InitialSettings;
 	Writer << "BeginCookSettings" << BeginCookSettings;
+	Writer << "BeginCookContext" << BeginCookContext;
 	Writer << "CookByTheBookOptions" << CookByTheBookOptions;
 	Writer << "CookOnTheFlyOptions" << CookOnTheFlyOptions;
 }
@@ -689,6 +692,7 @@ bool FInitialConfigMessage::TryRead(FCbObject&& Object)
 
 	bOk = LoadFromCompactBinary(Object["InitialSettings"], InitialSettings) & bOk;
 	bOk = LoadFromCompactBinary(Object["BeginCookSettings"], BeginCookSettings) & bOk;
+	bOk = LoadFromCompactBinary(Object["BeginCookContext"], BeginCookContext) & bOk;
 	bOk = LoadFromCompactBinary(Object["CookByTheBookOptions"], CookByTheBookOptions) & bOk;
 	bOk = LoadFromCompactBinary(Object["CookOnTheFlyOptions"], CookOnTheFlyOptions) & bOk;
 	return bOk;

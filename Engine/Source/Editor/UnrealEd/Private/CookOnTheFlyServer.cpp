@@ -9221,6 +9221,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	// Initialize systems that nothing in StartCookByTheBook references
 	// Functions in this section are not dependent upon each other and can be ordered arbitrarily or for async performance
+	BeginCookDirector(BeginContext);
 	BeginCookEditorSystems();
 	BeginCookEDLCookInfo(BeginContext);
 	BeginCookPackageWriters(BeginContext);
@@ -9712,6 +9713,14 @@ void UCookOnTheFlyServer::BeginCookEditorSystems()
 		AssetRegistry->ScanModifiedAssetFiles(ModifiedPackageFileList);
 	}
 	ModifiedAssetFilenames.Empty();
+}
+
+void UCookOnTheFlyServer::BeginCookDirector(FBeginCookContext& BeginContext)
+{
+	if (CookDirector)
+	{
+		CookDirector->StartCook(BeginContext);
+	}
 }
 
 namespace UE::Cook

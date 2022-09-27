@@ -181,7 +181,8 @@ public:
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 	void ReadFromLocal(const UCookOnTheFlyServer& COTFS, const TArray<ITargetPlatform*>& InOrderedSessionPlatforms,
-		const FCookByTheBookOptions& InCookByTheBookOptions, const FCookOnTheFlyOptions& InCookOnTheFlyOptions);
+		const FCookByTheBookOptions& InCookByTheBookOptions, const FCookOnTheFlyOptions& InCookOnTheFlyOptions,
+		const FBeginCookContextForWorker& InBeginContext);
 
 	ECookMode::Type GetDirectorCookMode() const { return DirectorCookMode; }
 	ECookInitializationFlags GetCookInitializationFlags() const { return CookInitializationFlags; }
@@ -189,6 +190,7 @@ public:
 	FBeginCookConfigSettings&& ConsumeBeginCookConfigSettings() { return MoveTemp(BeginCookSettings); }
 	FCookByTheBookOptions&& ConsumeCookByTheBookOptions() { return MoveTemp(CookByTheBookOptions); }
 	FCookOnTheFlyOptions&& ConsumeCookOnTheFlyOptions() { return MoveTemp(CookOnTheFlyOptions); }
+	const FBeginCookContextForWorker& GetBeginCookContext() { return BeginCookContext; }
 	const TArray<ITargetPlatform*>& GetOrderedSessionPlatforms() { return OrderedSessionPlatforms; }
 	bool IsZenStore() const { return bZenStore; }
 
@@ -197,6 +199,7 @@ public:
 private:
 	FInitializeConfigSettings InitialSettings;
 	FBeginCookConfigSettings BeginCookSettings;
+	FBeginCookContextForWorker BeginCookContext;
 	FCookByTheBookOptions CookByTheBookOptions;
 	FCookOnTheFlyOptions CookOnTheFlyOptions;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;

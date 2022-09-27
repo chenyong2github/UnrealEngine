@@ -462,6 +462,8 @@ struct FBeginCookContextPlatform
 	/** If true we are a CookWorker, and we are working on a Sandbox directory that has already been populated by a remote Director process. */
 	bool bWorkerOnSharedSandbox = false;
 };
+FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextPlatform& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextPlatform& Value);
 
 /** Data held on the stack and shared with multiple subfunctions when running StartCookByTheBook or StartCookOnTheFly */
 struct FBeginCookContext
@@ -478,6 +480,29 @@ struct FBeginCookContext
 	TArray<ITargetPlatform*> TargetPlatforms;
 	const UCookOnTheFlyServer& COTFS;
 };
+
+/** Helper struct for FBeginCookContextForWorker; holds the context data for each platform being cooked */
+struct FBeginCookContextForWorkerPlatform
+{
+	void Set(const FBeginCookContextPlatform& InContext);
+
+	const ITargetPlatform* TargetPlatform = nullptr;
+	/** If true, we are deleting all old results from disk and rebuilding every package. If false, we are building iteratively. */
+	bool bFullBuild = false;
+};
+FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextForWorkerPlatform& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorkerPlatform& Value);
+
+/** Data from the director's FBeginCookContext that needs to be copied to workers. */
+struct FBeginCookContextForWorker
+{
+	void Set(const FBeginCookContext& InContext);
+
+	/** List of the platforms we are building, with startup context data about each one */
+	TArray<FBeginCookContextForWorkerPlatform> PlatformContexts;
+};
+FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextForWorker& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& Value);
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
 LLM_DECLARE_TAG(Cooker);

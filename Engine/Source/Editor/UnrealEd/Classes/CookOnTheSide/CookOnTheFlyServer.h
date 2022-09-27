@@ -874,6 +874,7 @@ private:
 	/** Update accumulators of editor data and consume editor changes after last cook when starting cooks in the editor. */
 	void BeginCookEditorSystems();
 	void BeginCookPackageWriters(FBeginCookContext& BeginContext);
+	void BeginCookDirector(FBeginCookContext& BeginContext);
 	void InitializeSession();
 	void PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackages, TArray<UE::Cook::FPackageData*>& GCKeepPackageDatas,
 		TArray<UObject*>& LocalGCKeepObjects);

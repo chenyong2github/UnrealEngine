@@ -43,6 +43,7 @@ public:
 	FInitializeConfigSettings&& ConsumeInitializeConfigSettings();
 	FBeginCookConfigSettings&& ConsumeBeginCookConfigSettings();
 	FCookByTheBookOptions&& ConsumeCookByTheBookOptions();
+	const FBeginCookContextForWorker& GetBeginCookContext();
 	FCookOnTheFlyOptions&& ConsumeCookOnTheFlyOptions();
 	/** Mark that initialization is complete and we can free the memory for initialization settings. */
 	void DoneWithInitialSettings();

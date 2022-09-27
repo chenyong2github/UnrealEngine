@@ -398,3 +398,54 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookOnTheFlyOptions& O
 	bOk = LoadFromCompactBinary(Field["PlatformProtocol"], OutValue.bPlatformProtocol) & bOk;
 	return bOk;
 }
+
+void FBeginCookContextForWorkerPlatform::Set(const FBeginCookContextPlatform& InContext)
+{
+	bFullBuild = InContext.bFullBuild;
+	TargetPlatform = InContext.TargetPlatform;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextForWorkerPlatform& Value)
+{
+	Writer.BeginObject();
+	Writer << "Platform" << (Value.TargetPlatform ? Value.TargetPlatform->PlatformName() : FString());
+	Writer << "FullBuild" << Value.bFullBuild;
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorkerPlatform& Value)
+{
+	bool bOk = true;
+	FString PlatformName;
+	LoadFromCompactBinary(Field["Platform"], PlatformName);
+	Value.TargetPlatform = nullptr;
+	if (!PlatformName.IsEmpty())
+	{
+		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+		Value.TargetPlatform = TPM.FindTargetPlatform(*PlatformName);
+		bOk = (Value.TargetPlatform != nullptr) & bOk;
+	}
+	bOk = LoadFromCompactBinary(Field["FullBuild"], Value.bFullBuild) & bOk;
+	return bOk;
+}
+
+void FBeginCookContextForWorker::Set(const FBeginCookContext& InContext)
+{
+	PlatformContexts.SetNum(InContext.PlatformContexts.Num());
+	for (int32 Index = 0; Index < InContext.PlatformContexts.Num(); ++Index)
+	{
+		PlatformContexts[Index].Set(InContext.PlatformContexts[Index]);
+	}
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FBeginCookContextForWorker& Value)
+{
+	Writer << Value.PlatformContexts;
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& Value)
+{
+	return LoadFromCompactBinary(Field, Value.PlatformContexts);
+}

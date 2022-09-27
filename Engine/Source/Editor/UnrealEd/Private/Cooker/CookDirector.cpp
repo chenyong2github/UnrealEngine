@@ -122,6 +122,11 @@ FCookDirector::~FCookDirector()
 	Sockets::CloseSocket(WorkerConnectSocket);
 }
 
+void FCookDirector::StartCook(const FBeginCookContext& InBeginContext)
+{
+	BeginCookContext.Set(InBeginContext);
+}
+
 void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, TArray<FWorkerId>& OutAssignments,
 	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph)
 {

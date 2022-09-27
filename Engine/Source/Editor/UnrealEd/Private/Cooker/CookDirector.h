@@ -34,6 +34,8 @@ public:
 	FCookDirector(UCookOnTheFlyServer& InCOTFS);
 	~FCookDirector();
 
+	void StartCook(const FBeginCookContext& Context);
+
 	/**
 	 * Assign the given requests out to CookWorkers (or keep on local COTFS), return the list of assignments.
 	 * Input requests have been sorted by leaf to root load order.
@@ -114,6 +116,7 @@ private:
 		Striped,
 		CookBurden,
 	};
+	FBeginCookContextForWorker BeginCookContext;
 	TMap<int32, TUniquePtr<FCookWorkerServer>> RemoteWorkers;
 	TMap<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>> ShuttingDownWorkers;
 	TMap<FGuid, TRefCountPtr<IMPCollector>> MessageHandlers;

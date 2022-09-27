@@ -2,11 +2,13 @@
 
 #include "WorkerRequestsRemote.h"
 
+#include "Algo/Find.h"
 #include "Containers/SparseArray.h"
 #include "CookOnTheSide/CookLog.h"
 #include "CookPlatformManager.h"
 #include "CookTypes.h"
 #include "Cooker/CookRequests.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 #include "Misc/AssertionMacros.h"
@@ -133,16 +135,26 @@ void FWorkerRequestsRemote::GetBeginCookConfigSettings(UCookOnTheFlyServer& COTF
 
 void FWorkerRequestsRemote::GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext)
 {
+	const FBeginCookContextForWorker& DirectorBeginContext = CookWorkerClient.GetBeginCookContext();
+
 	for (FBeginCookContextPlatform& PlatformContext : BeginContext.PlatformContexts)
 	{
 		const ITargetPlatform* TargetPlatform = PlatformContext.TargetPlatform;
+		const FBeginCookContextForWorkerPlatform* DirectorPlatformContext = Algo::FindByPredicate(
+			DirectorBeginContext.PlatformContexts, [TargetPlatform](const FBeginCookContextForWorkerPlatform& Platform)
+			{
+				return Platform.TargetPlatform == TargetPlatform;
+			});
+		checkf(DirectorPlatformContext, TEXT("Director sent TargetPlatform %s, but this platform is not found in the DirectorBeginContext."),
+			*TargetPlatform->PlatformName());
+
 		UE::Cook::FPlatformData* PlatformData = PlatformContext.PlatformData;
-		PlatformContext.CurrentCookSettings = COTFS.CalculateCookSettingStrings(); // MPCOOKTODO: Copy from Director
-		PlatformContext.bHasMemoryResults = PlatformData->bIsSandboxInitialized;
-		PlatformContext.bFullBuild = true; // MPCOOKTODO: Copy from Director
-		PlatformContext.bClearMemoryResults = true;
-		PlatformContext.bPopulateMemoryResultsFromDiskResults = false;
-		PlatformContext.bIterateSharedBuild = false; // MPCOOKTODO: Copy from Director
+		PlatformContext.CurrentCookSettings.Empty(); // Not needed on CookWorkerClients
+		PlatformContext.bHasMemoryResults = false; // Not needed on CookWorkerClients
+		PlatformContext.bFullBuild = DirectorPlatformContext->bFullBuild;
+		PlatformContext.bClearMemoryResults = false; // Not needed on CookWorkerClients
+		PlatformContext.bPopulateMemoryResultsFromDiskResults = false; // Not needed on CookWorkerClients
+		PlatformContext.bIterateSharedBuild = false; // Not needed on CookWorkerClients
 		PlatformContext.bWorkerOnSharedSandbox = true;
 		PlatformData->bFullBuild = PlatformContext.bFullBuild;
 	}

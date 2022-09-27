@@ -104,6 +104,11 @@ FCookByTheBookOptions&& FCookWorkerClient::ConsumeCookByTheBookOptions()
 	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
 	return InitialConfigMessage->ConsumeCookByTheBookOptions();
 }
+const FBeginCookContextForWorker& FCookWorkerClient::GetBeginCookContext()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->GetBeginCookContext();
+}
 FCookOnTheFlyOptions&& FCookWorkerClient::ConsumeCookOnTheFlyOptions()
 {
 	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
