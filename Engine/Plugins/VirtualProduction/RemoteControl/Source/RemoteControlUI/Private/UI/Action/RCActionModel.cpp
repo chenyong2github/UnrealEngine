@@ -190,18 +190,49 @@ FRCPropertyActionType::FRCPropertyActionType(URCPropertyAction* InPropertyAction
 
 	if (InPropertyAction)
 	{
+		// Generate UI widget for Action input
 		if (const TSharedPtr<FStructOnScope> StructOnScope = InPropertyAction->PropertySelfContainer->CreateStructOnScope())
 		{
 			PropertyRowGenerator->SetStructure(StructOnScope);
-
+			
 			for (const TSharedRef<IDetailTreeNode>& CategoryNode : PropertyRowGenerator->GetRootTreeNodes())
 			{
 				TArray<TSharedRef<IDetailTreeNode>> Children;
 				CategoryNode->GetChildren(Children);
+
 				for (const TSharedRef<IDetailTreeNode>& Child : Children)
 				{
-					DetailTreeNodeWeakPtr = Child;
-					break;
+					// Special handling for any Remote Control Property that is actually a single element of an Array
+					// For example: "Override Materials" of Static Mesh Actor when exposed as a property in the Remote Control preset
+					//
+					if (TSharedPtr<FRemoteControlProperty> RemoteControlProperty = InPropertyAction->GetRemoteControlProperty())
+					{
+						if (ensure(RemoteControlProperty->FieldPathInfo.GetSegmentCount() > 0))
+						{
+							const FRCFieldPathSegment& LastSegment = RemoteControlProperty->FieldPathInfo.Segments.Last();
+							const int32 ArrayIndex = LastSegment.ArrayIndex;
+
+							// Is this a Container element?
+							if (ArrayIndex != INDEX_NONE)
+							{
+								TArray<TSharedRef<IDetailTreeNode>> InnerChildren;
+								Child->GetChildren(InnerChildren);
+
+								// If yes, extract the Detail node corresponding to that element (rather than the parent container)
+								if (ensure(InnerChildren.IsValidIndex(ArrayIndex)))
+								{
+									DetailTreeNodeWeakPtr = InnerChildren[ArrayIndex];
+								}
+							}
+						}
+					}
+
+					// For regular properties (non-container)
+					if (!DetailTreeNodeWeakPtr.IsValid())
+					{
+						DetailTreeNodeWeakPtr = Child;
+						break;
+					}
 				}
 			}
 		}

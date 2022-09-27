@@ -83,11 +83,47 @@ URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const 
 
 		return nullptr;
 	}
-	
-	if (FRCObjectReference ObjectRef; IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, InRemoteControlProperty->GetBoundObjects()[0], InRemoteControlProperty->FieldPathInfo.ToString(), ObjectRef))
+
+	bool bFoundMatchingContainer = false;
+
+	if (FProperty* Property = InRemoteControlProperty->GetProperty())
 	{
-		const FName& PropertyName = InRemoteControlProperty->GetProperty()->GetFName();
-		NewPropertyAction->PropertySelfContainer->DuplicatePropertyWithCopy(PropertyName, InRemoteControlProperty->GetProperty(), (uint8*)ObjectRef.ContainerAdress);
+		for (URCAction* Action : Actions)
+		{
+			if (URCPropertyAction* PropertyAction = Cast<URCPropertyAction>(Action))
+			{
+				if (PropertyAction->PropertySelfContainer)
+				{
+					if(FProperty* InputFieldProperty = PropertyAction->PropertySelfContainer->GetProperty())
+					{
+						if(InputFieldProperty->GetFName() == Property->GetFName())
+						{
+							if (const TSharedPtr<const FRemoteControlProperty> RemoteControlPropertyForAction = PropertyAction->GetRemoteControlProperty())
+							{
+								if (InRemoteControlProperty->GetBoundObject() == RemoteControlPropertyForAction->GetBoundObject())
+								{
+									// We already have an Action associated with this property, so this must be a container type like Array.
+									// Both the UI widget and Execute will operate on a unique index associated with this Action for this container property
+									NewPropertyAction->PropertySelfContainer = PropertyAction->PropertySelfContainer;
+
+									bFoundMatchingContainer = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if(!bFoundMatchingContainer)
+	{
+		// Create an input field for the Action by duplicating the Remote Control Property associated with it
+		if (FRCObjectReference ObjectRef; IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, InRemoteControlProperty->GetBoundObjects()[0], InRemoteControlProperty->FieldPathInfo.ToString(), ObjectRef))
+		{
+			const FName& PropertyName = InRemoteControlProperty->GetProperty()->GetFName();
+			NewPropertyAction->PropertySelfContainer->DuplicatePropertyWithCopy(PropertyName, InRemoteControlProperty->GetProperty(), (uint8*)ObjectRef.ContainerAdress);
+		}
 	}
 
 	AddAction(NewPropertyAction);
