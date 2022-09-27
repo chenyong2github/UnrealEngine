@@ -305,14 +305,14 @@ TOptional<FOnlineError> FSessionsLAN::TryHostLANSession()
 
 			LANSessionManager->StopLANSession();
 
-			Result.Emplace(Errors::RequestFailure()); // TODO: May need a new error type
+			Result.Emplace(Errors::RequestFailure());
 		}
 	}
 	else
 	{
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon already in use!"));
 
-		Result.Emplace(Errors::RequestFailure()); // TODO: May need a new error type
+		Result.Emplace(Errors::AlreadyPending());
 	}
 
 	return Result;
@@ -339,7 +339,7 @@ void FSessionsLAN::FindLANSessions(const FAccountId& LocalAccountId)
 		}
 
 		// Trigger the delegate as having failed
-		CurrentSessionSearchPromisesUserMap.FindChecked(LocalAccountId).EmplaceValue(Errors::RequestFailure()); // TODO: May need a new error type
+		CurrentSessionSearchPromisesUserMap.FindChecked(LocalAccountId).EmplaceValue(Errors::RequestFailure());
 		CurrentSessionSearchPromisesUserMap.Remove(LocalAccountId);
 
 		// If we were hosting public sessions before the search, we'll return the beacon to that state
