@@ -91,8 +91,6 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	AttributeBindings.Add(&PrevRibbonWidthBinding);
 	AttributeBindings.Add(&PrevRibbonFacingBinding);
 	AttributeBindings.Add(&PrevRibbonTwistBinding);
-	
-	Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Niagara/DefaultAssets/DefaultRibbonMaterial.DefaultRibbonMaterial"));
 }
 
 FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)

@@ -94,8 +94,6 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 
 	// The remaining bindings are not associated with attributes in the VF layout
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
-
-	Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Niagara/DefaultAssets/DefaultSpriteMaterial.DefaultSpriteMaterial"));
 }
 
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
@@ -183,7 +181,6 @@ void UNiagaraSpriteRendererProperties::PostInitProperties()
 			return;
 		}
 		InitBindings();
-
 	}
 }
 
