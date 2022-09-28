@@ -119,6 +119,11 @@ namespace Nanite
 
 	void FRayTracingManager::Add(FPrimitiveSceneInfo* SceneInfo)
 	{
+		if (!IsRayTracingEnabled())
+		{
+			return;
+		}
+
 		auto NaniteProxy = static_cast<Nanite::FSceneProxyBase*>(SceneInfo->Proxy);
 
 		uint32 NaniteResourceID = INDEX_NONE;
@@ -181,6 +186,11 @@ namespace Nanite
 
 	void FRayTracingManager::Remove(FPrimitiveSceneInfo* SceneInfo)
 	{
+		if (!IsRayTracingEnabled())
+		{
+			return;
+		}
+
 		auto NaniteProxy = static_cast<Nanite::FSceneProxyBase*>(SceneInfo->Proxy);
 
 		const uint32 Id = NaniteProxy->GetRayTracingId();
@@ -200,6 +210,11 @@ namespace Nanite
 
 	void FRayTracingManager::RequestUpdates(const TSet<uint32>& InUpdateRequests)
 	{
+		if (!IsRayTracingEnabled())
+		{
+			return;
+		}
+
 		for (uint32 ResourceId : InUpdateRequests)
 		{
 			uint32* Id = ResourceToRayTracingIdMap.Find(ResourceId);
