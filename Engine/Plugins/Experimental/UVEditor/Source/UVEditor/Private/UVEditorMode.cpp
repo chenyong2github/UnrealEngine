@@ -639,6 +639,19 @@ UObject* UUVEditorMode::GetUDIMSettingsObject()
 	return nullptr;
 }
 
+UObject* UUVEditorMode::GetToolDisplaySettingsObject()
+{
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	UUVEditorToolPropertiesAPI* ToolPropertiesAPI = ContextStore->FindContext<UUVEditorToolPropertiesAPI>();
+
+	if (ToolPropertiesAPI)
+	{
+		return ToolPropertiesAPI->GetToolDisplayProperties();
+	}
+	return nullptr;
+}
+
+
 void UUVEditorMode::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	if (SelectionAPI)
@@ -961,6 +974,8 @@ void UUVEditorMode::InitializeModeContexts()
 		GetInteractiveToolsContext()->InputRouter, LivePreviewAPI, EmitChangeAPI);
 	AddContextObject(SelectionAPI);
 
+	UUVEditorToolPropertiesAPI* UVEditorToolPropertiesAPI = NewObject<UUVEditorToolPropertiesAPI>();
+	AddContextObject(UVEditorToolPropertiesAPI);
 }
 
 void UUVEditorMode::InitializeTargets()

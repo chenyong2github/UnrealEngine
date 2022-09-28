@@ -138,6 +138,7 @@ void UUVEditorTransformTool::Setup()
 	ToolStartTimeAnalytics = FDateTime::UtcNow();
 
 	UInteractiveTool::Setup();
+	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 
 	switch(ToolMode.Get(EUVEditorUVTransformType::Transform))
 	{
@@ -157,7 +158,18 @@ void UUVEditorTransformTool::Setup()
 	//Settings->bUDIMCVAREnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	AddToolPropertySource(Settings);
 
-	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
+	DisplaySettings = NewObject<UUVEditorTransformToolDisplayProperties>(this);
+	DisplaySettings->RestoreProperties(this);
+	DisplaySettings->GetOnModified().AddLambda([this](UObject* PropertySetArg, FProperty* PropertyArg)
+	{
+		OnPropertyModified(PropertySetArg, PropertyArg);
+	});
+	UUVEditorToolPropertiesAPI* PropertiesAPI = ContextStore->FindContext<UUVEditorToolPropertiesAPI>();
+	if (PropertiesAPI)
+	{
+		PropertiesAPI->SetToolDisplayProperties(DisplaySettings);
+	}
+
 	UVToolSelectionAPI = ContextStore->FindContext<UUVToolSelectionAPI>();
 
 	UUVToolSelectionAPI::FHighlightOptions HighlightOptions;
@@ -165,9 +177,13 @@ void UUVEditorTransformTool::Setup()
 	HighlightOptions.bAutoUpdateUnwrap = true;
 	UVToolSelectionAPI->SetHighlightOptions(HighlightOptions);
 	UVToolSelectionAPI->SetHighlightVisible(true, false, true);
-	
+
+	PerTargetPivotLocations.SetNum(Targets.Num());
+
 	auto SetupOpFactory = [this](UUVEditorToolMeshInput& Target, const FUVToolSelection* Selection)
 	{
+		int32 TargetIndex = Targets.Find(&Target);
+
 		TObjectPtr<UUVEditorUVTransformOperatorFactory> Factory = NewObject<UUVEditorUVTransformOperatorFactory>();
 		Factory->TargetTransform = Target.AppliedPreview->PreviewMesh->GetTransform();
 		Factory->Settings = Settings;
@@ -199,6 +215,14 @@ void UUVEditorTransformTool::Setup()
 
 			this->UVToolSelectionAPI->RebuildUnwrapHighlight(Preview->PreviewMesh->GetTransform());
 			});
+
+		Target.UnwrapPreview->OnOpCompleted.AddLambda(
+			[this, TargetIndex](const FDynamicMeshOperator* Op)
+			{
+				const FUVEditorUVTransformBaseOp* TransformBaseOp = (const FUVEditorUVTransformBaseOp*)(Op);
+				PerTargetPivotLocations[TargetIndex] = TransformBaseOp->GetPivotLocations();
+			}
+		);
 
 		Target.UnwrapPreview->InvalidateResult();
 		return Factory;
@@ -290,6 +314,7 @@ void UUVEditorTransformTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	Settings = nullptr;
+	DisplaySettings = nullptr;
 	Targets.Empty();
 }
 
@@ -303,6 +328,11 @@ void UUVEditorTransformTool::OnTick(float DeltaTime)
 
 void UUVEditorTransformTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
+	if (PropertySet == DisplaySettings)
+	{
+		return;
+	}
+
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
 		Target->UnwrapPreview->InvalidateResult();
@@ -323,7 +353,47 @@ bool UUVEditorTransformTool::CanAccept() const
 
 void UUVEditorTransformTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
-	// TODO: Add support here for highlighting first selected item for alignment visualization
+	// TODO: Add support here for highlighting first selected item for alignment visualization	
+
+	auto ConvertUVToPixel = [RenderAPI](const FVector2D& UVIn, FVector2D& PixelOut)
+	{
+		FVector WorldPoint = FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::ExternalUVToInternalUV((FVector2f)UVIn));
+		FVector4 TestProjectedHomogenous = RenderAPI->GetSceneView()->WorldToScreen(WorldPoint);
+		bool bValid = RenderAPI->GetSceneView()->ScreenToPixel(TestProjectedHomogenous, PixelOut);
+		return bValid;
+	};
+
+	if (DisplaySettings->bDrawPivots)
+	{
+		for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+		{
+			for (const FVector2D& PivotLocation : PerTargetPivotLocations[TargetIndex])
+			{
+				FVector2D PivotLocationPixel;
+				ConvertUVToPixel(PivotLocation, PivotLocationPixel);
+
+				const int32 NumSides = FUVEditorUXSettings::PivotCircleNumSides;
+				const float Radius = FUVEditorUXSettings::PivotCircleRadius;
+				const float LineThickness = FUVEditorUXSettings::PivotLineThickness;
+				const FColor LineColor = FUVEditorUXSettings::PivotLineColor;
+
+				const float	AngleDelta = 2.0f * UE_PI / NumSides;
+				FVector2D AxisX(1.f, 0.f);
+				FVector2D AxisY(0.f, -1.f);
+				FVector2D LastVertex = PivotLocationPixel + AxisX * Radius;
+
+				for (int32 SideIndex = 0; SideIndex < NumSides; SideIndex++)
+				{
+					const FVector2D Vertex = PivotLocationPixel + (AxisX * FMath::Cos(AngleDelta * (SideIndex + 1)) + AxisY * FMath::Sin(AngleDelta * (SideIndex + 1))) * Radius;
+					FCanvasLineItem LineItem(LastVertex, Vertex);
+					LineItem.LineThickness = LineThickness;
+					LineItem.SetColor(LineColor);
+					Canvas->DrawItem(LineItem);
+					LastVertex = Vertex;
+				}
+			}
+		}
+	}
 }
 
 

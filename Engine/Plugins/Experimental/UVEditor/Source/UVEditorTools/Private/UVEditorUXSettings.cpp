@@ -67,6 +67,8 @@ const FColor FUVEditorUXSettings::GridMajorColor(FColor::FromHex("#888888"));
 const FColor FUVEditorUXSettings::GridMinorColor(FColor::FromHex("#777777"));
 const FColor FUVEditorUXSettings::RulerXColor(FColor::FromHex("#888888"));
 const FColor FUVEditorUXSettings::RulerYColor(FColor::FromHex("#888888"));
+const FColor FUVEditorUXSettings::PivotLineColor(FColor::Cyan);
+
 // Thicknesses
 const float FUVEditorUXSettings::LivePreviewHighlightThickness(2.0);
 const float FUVEditorUXSettings::LivePreviewHighlightPointSize(4);
@@ -80,11 +82,16 @@ const float FUVEditorUXSettings::AxisThickness(2.0);
 const float FUVEditorUXSettings::GridMajorThickness(1.0);
 
 const float FUVEditorUXSettings::ToolPointSize(6);
+const float FUVEditorUXSettings::PivotLineThickness(1.5);
 
 // Grid
 const int32 FUVEditorUXSettings::GridSubdivisionsPerLevel(4);
 const int32 FUVEditorUXSettings::GridLevels(3);
 const int32 FUVEditorUXSettings::RulerSubdivisionLevel(1);
+
+// Pivot Visuals
+const int32 FUVEditorUXSettings::PivotCircleNumSides(32);
+const float FUVEditorUXSettings::PivotCircleRadius(10.0);
 
 // CVARs
 

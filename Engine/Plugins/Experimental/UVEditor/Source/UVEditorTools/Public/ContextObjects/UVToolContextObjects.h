@@ -318,3 +318,40 @@ protected:
 
 	TMap<FDynamicMesh3*, TreeInputObjectPair> AABBTreeStorage;
 };
+
+
+/**
+* Stores pointers to additional property sets for the active tool, used by the UVEditor Mode and Toolkit to 
+* populate other settings menus, such as the Display menu.
+*/
+
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorToolPropertiesAPI : public UUVToolContextObject
+{
+	GENERATED_BODY()
+public:
+
+	/* Property sets passed here will be displayed in the Display menu at the top of the UV Editor. */
+	void SetToolDisplayProperties(UObject* ToolDisplayPropertesIn)
+	{
+		ToolDisplayProperties = ToolDisplayPropertesIn;
+	}
+
+	UObject* GetToolDisplayProperties() {
+		if (ToolDisplayProperties)
+		{
+			return ToolDisplayProperties;
+		}
+		return nullptr;
+	}
+
+	virtual void OnToolEnded(UInteractiveTool* DeadTool) {
+		ToolDisplayProperties = nullptr;
+	}
+
+protected:
+
+	UPROPERTY()
+	TObjectPtr<UObject> ToolDisplayProperties = nullptr;
+
+};

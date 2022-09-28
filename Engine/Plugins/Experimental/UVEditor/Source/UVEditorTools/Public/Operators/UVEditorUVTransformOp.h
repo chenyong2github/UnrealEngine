@@ -339,6 +339,7 @@ public:
 	void SetSelection(const TSet<int32>& TriangleSelection, const TSet<int32>& VertexSelection);
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
+	const TArray<FVector2D>& GetPivotLocations() const { return VisualizationPivots; }
 
 protected:
 	virtual void HandleTransformationOp(FProgressCancel* Progress) = 0;
@@ -356,6 +357,7 @@ protected:
 	TOptional< TSet<int32> > TransformingElements;
 	TSharedPtr<FMeshConnectedComponents> UVComponents;
 	TArray<int32> SpatiallyOrderedComponentIndex;
+	TArray<FVector2D> VisualizationPivots;
 
 	TOptional<TSet<int32>> TriangleSelection;
 	TOptional<TSet<int32>> VertexSelection;

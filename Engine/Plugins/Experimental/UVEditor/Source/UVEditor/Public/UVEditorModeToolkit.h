@@ -35,6 +35,9 @@ public:
 	/** Creates a widget where the visible UDIMs can be changed. */
 	virtual TSharedRef<SWidget> CreateUDIMSettingsWidget();
 
+	/** Creates a widget where the active tool's display settings can be changed. */
+	virtual TSharedRef<SWidget> GetToolDisplaySettingsWidget();
+
 	/** Enables or diables the Play in Editor mode warning for the editor */
 	virtual void EnableShowPIEWarning(bool bEnable);
 

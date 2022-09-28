@@ -97,6 +97,12 @@ public:
 	static const int32 GridLevels;
 	static const int32 RulerSubdivisionLevel;
 
+	// Pivots
+	static const int32 PivotCircleNumSides;
+	static const float PivotCircleRadius;
+	static const float PivotLineThickness;
+	static const FColor PivotLineColor;
+
 	// Background
 	static const float BackgroundQuadDepthOffset;
 

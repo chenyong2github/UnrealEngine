@@ -502,6 +502,17 @@ void FUVEditorToolkit::PostInitAssetEditor()
 				]
 				];
 
+			Container->AddSlot()
+				.AutoHeight()
+				.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+				[
+					SNew(SBox)
+					.MinDesiredWidth(500)
+				[
+					UVModeToolkit->GetToolDisplaySettingsWidget()
+				]
+				];
+
 			bool bEnableUDIMSupport = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 			if (bEnableUDIMSupport)
 			{

@@ -19,6 +19,19 @@ class UUVEditorUVTransformOperatorFactory;
 class UCanvas;
 class UUVEditorTransformTool;
 
+/**
+ * Visualization settings for the TransformTool
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorTransformToolDisplayProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Draw the tool's active pivot location if needed.*/
+	UPROPERTY(EditAnywhere, Category = "Tool Display Settings", meta = (DisplayName = "Display Tool Pivots"))
+	bool bDrawPivots = true;
+};
+
 UCLASS()
 class UVEDITORTOOLS_API UUVEditorBaseTransformToolBuilder : public UInteractiveToolBuilder
 {
@@ -107,10 +120,15 @@ protected:
 	TObjectPtr<UUVEditorUVTransformPropertiesBase> Settings = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UUVEditorTransformToolDisplayProperties> DisplaySettings = nullptr;
+
+	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorUVTransformOperatorFactory>> Factories;
 
 	UPROPERTY()
 	TObjectPtr<UUVToolSelectionAPI> UVToolSelectionAPI = nullptr;
+
+	TArray<TArray<FVector2D>> PerTargetPivotLocations;
 
 	//
 	// Analytics

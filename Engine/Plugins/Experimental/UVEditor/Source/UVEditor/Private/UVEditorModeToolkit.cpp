@@ -271,6 +271,22 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateUDIMSettingsWidget()
 	return CreateDisplaySettingsWidget(Mode->GetUDIMSettingsObject());
 }
 
+TSharedRef<SWidget> FUVEditorModeToolkit::GetToolDisplaySettingsWidget()
+{
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	UObject* SettingsObject = Mode->GetToolDisplaySettingsObject();
+	if (SettingsObject)
+	{
+		return CreateDisplaySettingsWidget(SettingsObject);
+	}
+	else
+	{
+		return SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			.Padding(0);
+	}
+}
+
 TSharedRef<SWidget> FUVEditorModeToolkit::CreateDisplaySettingsWidget(UObject* SettingsObject) const
 {
 	TSharedRef<SBorder> GridDetailsContainer =

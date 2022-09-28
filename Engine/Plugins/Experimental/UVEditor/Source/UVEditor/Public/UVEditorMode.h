@@ -42,11 +42,11 @@ class UVEDITOR_API UUVEditorGridProperties : public UInteractiveToolPropertySet
 	GENERATED_BODY()
 public:
 	/** Should the grid be shown?*/
-	UPROPERTY(EditAnywhere, Category = Grid, meta = (DisplayName = "Display Grid"))
+	UPROPERTY(EditAnywhere, Category = "Grid & Guides", meta = (DisplayName = "Display Grid"))
 	bool bDrawGrid = true;
 
 	/** Should the grid rulers be shown?*/
-	UPROPERTY(EditAnywhere, Category = Grid, meta = (DisplayName = "Display Rulers"))
+	UPROPERTY(EditAnywhere, Category = "Grid & Guides", meta = (DisplayName = "Display Rulers"))
 	bool bDrawRulers = true;
 };
 
@@ -217,6 +217,9 @@ public:
 
 	/** @return A settings object suitable for display in a details panel to control UDIM configuration. */
 	UObject* GetUDIMSettingsObject();
+
+	/** @return A settings object suitable for display in a details panel to control the active tool's visualization settings. */
+	UObject* GetToolDisplaySettingsObject();
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) ;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);

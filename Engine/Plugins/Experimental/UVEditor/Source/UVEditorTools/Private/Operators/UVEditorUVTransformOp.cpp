@@ -202,6 +202,7 @@ void FUVEditorUVTransformBaseOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
+	VisualizationPivots.Empty();
 	int UVLayerInput = UVLayerIndex;
 	ActiveUVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerInput);
 	ensure(ActiveUVLayer);
@@ -395,6 +396,30 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		ApplyTransformFunc(TranslateFunc);
 	}
 
+	// Provide pivots for tool visualization after operation completes.
+	switch (PivotMode)
+	{
+		case EUVEditorPivotTypeBackend::Origin:
+			VisualizationPivots.Add(FVector2D(0, 0));
+			break;
+		case EUVEditorPivotTypeBackend::BoundingBoxCenter:		
+			RebuildBoundingBoxes();
+			VisualizationPivots.Add((FVector2D)OverallBoundingBox.Center());
+			break;
+		case EUVEditorPivotTypeBackend::IndividualBoundingBoxCenter:
+			RebuildBoundingBoxes();
+			for (const FAxisAlignedBox2d& ComponentBoundingBox : PerComponentBoundingBoxes)
+			{
+				VisualizationPivots.Add((FVector2D)ComponentBoundingBox.Center());
+			}
+			break;
+		case EUVEditorPivotTypeBackend::Manual:
+			VisualizationPivots.Add(ManualPivot);
+			break;
+		default:
+			ensure(false);
+	}
+	
 }
 
 
@@ -517,7 +542,26 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 		}
 	}
 	
-
+	// Provide pivots for tool visualization after operation completes.
+	switch (AlignAnchor)
+	{
+		case EUVEditorAlignAnchorBackend::BoundingBox:
+		{
+			if (AlignDirection != EUVEditorAlignDirectionBackend::None)
+			{
+				FVector2f BoundingBoxAlignmentPoint = GetAlignmentPointFromBoundingBoxAndDirection(AlignDirection, OverallBoundingBox);
+				VisualizationPivots.Add((FVector2D)BoundingBoxAlignmentPoint);
+			}
+		}
+		break;
+		case EUVEditorAlignAnchorBackend::Manual:
+		{
+			VisualizationPivots.Add(ManualAnchor);
+		}
+		break;
+		default:
+			break; // Currently we don't support visualizing anchors for UDIMTiles...
+	}
 }
 
 
