@@ -157,8 +157,11 @@ public:
 	TMap<FIntPoint, FLandscapeAddCollision> XYtoAddCollisionMap;
 #endif // WITH_EDITORONLY_DATA
 
-	UPROPERTY()
+	UE_DEPRECATED(5.1, "This property has been deprecated, please use the StreamingProxies property instead")
 	TArray<TObjectPtr<ALandscapeStreamingProxy>> Proxies;
+
+	UPROPERTY()
+	TArray<TWeakObjectPtr<ALandscapeStreamingProxy>> StreamingProxies;
 
 private:
 #if WITH_EDITORONLY_DATA

@@ -5414,9 +5414,10 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 	int32 UndeletedSplineCount = 0;
 
 	// Check Registered Proxies
-	for (ALandscapeProxy* RegisteredProxy : Proxies)
+	for (TWeakObjectPtr<ALandscapeStreamingProxy> ProxyPtr : StreamingProxies)
 	{
-		if (RegisteredProxy == LandscapeActor)
+		ALandscapeProxy* RegisteredProxy = ProxyPtr.Get();
+		if (!RegisteredProxy || RegisteredProxy == LandscapeActor)
 		{
 			continue;
 		}
@@ -5448,7 +5449,8 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 						else
 						{
 							// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-							check(Proxies.Contains(LandscapeProxy) == IsValidChecked(LandscapeProxy));
+							TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr = CastChecked<ALandscapeStreamingProxy>(LandscapeProxy);
+							check(StreamingProxies.Contains(StreamingProxyPtr) == IsValidChecked(LandscapeProxy));
 						}
 					}
 				}
@@ -5697,10 +5699,13 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		if (bPropagateToProxies)
 		{
 			// Propagate Event to Proxies...
-			for (ALandscapeProxy* Proxy : Info->Proxies)
+			for (TWeakObjectPtr<ALandscapeStreamingProxy> ProxyPtr : Info->StreamingProxies)
 			{
-				Proxy->GetSharedProperties(this);
-				Proxy->PostEditChangeProperty(PropertyChangedEvent);
+				if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+				{
+					Proxy->GetSharedProperties(this);
+					Proxy->PostEditChangeProperty(PropertyChangedEvent);
+				}
 			}
 		}
 
@@ -7048,9 +7053,13 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	if (InExportLandscapeProxies && (GetLandscapeActor() == this))
 	{
 		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
-		for (ALandscapeProxy* Proxy : LandscapeInfo->Proxies)
+
+		for (TWeakObjectPtr<ALandscapeStreamingProxy> ProxyPtr : LandscapeInfo->StreamingProxies)
 		{
-			LandscapeComponentsToExport.Append(Proxy->LandscapeComponents);
+			if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+			{
+				LandscapeComponentsToExport.Append(Proxy->LandscapeComponents);
+			}
 		}
 	}
 

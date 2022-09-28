@@ -974,15 +974,16 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		if (!LandscapeInfo->LandscapeActor.Get())
 		{
 			// Use the first proxy as the landscape template
-			ALandscapeProxy* FirstProxy = LandscapeInfo->Proxies[0];
+			if (ALandscapeProxy* FirstProxy = LandscapeInfo->StreamingProxies[0].Get())
+			{
+				FActorSpawnParameters SpawnParams;
+				FTransform LandscapeTransform = FirstProxy->LandscapeActorToWorld();
+				ALandscape* NewLandscape = MainWorld->SpawnActor<ALandscape>(ALandscape::StaticClass(), LandscapeTransform, SpawnParams);
 
-			FActorSpawnParameters SpawnParams;
-			FTransform LandscapeTransform = FirstProxy->LandscapeActorToWorld();
-			ALandscape* NewLandscape = MainWorld->SpawnActor<ALandscape>(ALandscape::StaticClass(), LandscapeTransform, SpawnParams);
-			
-			NewLandscape->GetSharedProperties(FirstProxy);
+				NewLandscape->GetSharedProperties(FirstProxy);
 
-			LandscapeInfo->RegisterActor(NewLandscape);
+				LandscapeInfo->RegisterActor(NewLandscape);
+			}
 		}
 
 		auto MoveControlPointToNewSplineActor = [&NewSplineActors, LandscapeInfo](ULandscapeSplineControlPoint* ControlPoint)

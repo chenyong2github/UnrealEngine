@@ -124,10 +124,13 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 						ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
 						if (LandscapeInfo != nullptr)
 						{
-							for (ALandscapeProxy* Proxy : LandscapeInfo->Proxies)
+							for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : LandscapeInfo->StreamingProxies)
 							{
-								Proxy->UpdateNaniteRepresentation();
-								Proxy->UpdateRenderingMethod();
+								if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+								{
+									Proxy->UpdateNaniteRepresentation();
+									Proxy->UpdateRenderingMethod();
+								}
 							}
 						}
 					}

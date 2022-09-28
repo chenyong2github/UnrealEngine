@@ -3698,7 +3698,7 @@ void ALandscape::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	//ULandscapeInfo* Info = GetLandscapeInfo();
 	//if (GIsEditor && Info && !ObjectSaveContext.IsProceduralSave())
 	//{
-	//	for (TSet<ALandscapeProxy*>::TIterator It(Info->Proxies); It; ++It)
+	//	for (TSet<ALandscapeProxy*>::TIterator It(Info->StreamingProxies); It; ++It)
 	//	{
 	//		ALandscapeProxy* Proxy = *It;
 	//		if (!ensure(Proxy->LandscapeActor == this))
@@ -3864,16 +3864,15 @@ ALandscapeProxy* ULandscapeInfo::GetLandscapeProxy() const
 	}
 
 	// prefer current level proxy 
-	ALandscapeProxy* Proxy = GetCurrentLevelLandscapeProxy(true);
-	if (Proxy != nullptr)
+	if (ALandscapeProxy* Proxy = GetCurrentLevelLandscapeProxy(true))
 	{
 		return Proxy;
 	}
 
 	// any proxy in the world
-	for (auto It = Proxies.CreateConstIterator(); It; ++It)
+	for (TWeakObjectPtr<ALandscapeStreamingProxy> ProxyPtr : StreamingProxies)
 	{
-		Proxy = (*It);
+		ALandscapeStreamingProxy* Proxy = ProxyPtr.Get();
 		if (Proxy != nullptr &&
 			Proxy->GetRootComponent()->IsRegistered())
 		{
@@ -3890,7 +3889,7 @@ void ULandscapeInfo::Reset()
 {
 	LandscapeActor.Reset();
 
-	Proxies.Empty();
+	StreamingProxies.Empty();
 	XYtoComponentMap.Empty();
 	XYtoAddCollisionMap.Empty();
 
@@ -3910,9 +3909,13 @@ void ULandscapeInfo::FixupProxiesTransform(bool bDirty)
 	}
 
 	// Make sure section offset of all proxies is multiple of ALandscapeProxy::ComponentSizeQuads
-	for (auto It = Proxies.CreateConstIterator(); It; ++It)
+	for (TWeakObjectPtr<ALandscapeStreamingProxy> ProxyPtr : StreamingProxies)
 	{
-		ALandscapeProxy* Proxy = *It;
+		ALandscapeProxy* Proxy = ProxyPtr.Get();
+		if (!Proxy)
+		{
+			continue;
+		}
 
 		if (bDirty)
 		{
@@ -3937,9 +3940,14 @@ void ULandscapeInfo::FixupProxiesTransform(bool bDirty)
 
 	FTransform LandscapeTM = Landscape->LandscapeActorToWorld();
 	// Update transformations of all linked landscape proxies
-	for (auto It = Proxies.CreateConstIterator(); It; ++It)
+	for (TWeakObjectPtr<ALandscapeStreamingProxy> ProxyPtr : StreamingProxies)
 	{
-		ALandscapeProxy* Proxy = *It;
+		ALandscapeProxy* Proxy = ProxyPtr.Get();
+		if (!Proxy)
+		{
+			continue;
+		}
+
 		FTransform ProxyRelativeTM(FVector(Proxy->LandscapeSectionOffset));
 		FTransform ProxyTransform = ProxyRelativeTM * LandscapeTM;
 
@@ -4071,15 +4079,17 @@ void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
 
 void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
 {
-	ALandscape* Landscape = LandscapeActor.Get();
-	if (Landscape)
+	if (ALandscape* Landscape = LandscapeActor.Get())
 	{
 		Fn(Landscape);
 	}
 
-	for (ALandscapeProxy* LandscapeProxy : Proxies)
+	for (TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr : StreamingProxies)
 	{
-		Fn(LandscapeProxy);
+		if (ALandscapeProxy* LandscapeProxy = StreamingProxyPtr.Get())
+		{
+			Fn(LandscapeProxy);
+		}
 	}
 }
 
@@ -4128,12 +4138,15 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 #endif // WITH_EDITOR
 
 			// update proxies reference actor
-			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
+			for (TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr : StreamingProxies)
 			{
-				StreamingProxy->LandscapeActor = LandscapeActor;
+				if (ALandscapeStreamingProxy* StreamingProxy = StreamingProxyPtr.Get())
+				{
+					StreamingProxy->LandscapeActor = LandscapeActor;
 #if WITH_EDITOR
-				StreamingProxy->FixupSharedData(Landscape);
+					StreamingProxy->FixupSharedData(Landscape);
 #endif // WITH_EDITOR
+				}
 			}
 		}
 		else if (LandscapeActor == Landscape)
@@ -4143,8 +4156,17 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 	}
 	else
 	{
-		auto LamdbdaLowerBound = [](ALandscapeProxy* A, ALandscapeProxy* B)
+		auto LamdbdaLowerBound = [](TWeakObjectPtr<ALandscapeProxy> APtr, TWeakObjectPtr<ALandscapeProxy> BPtr)
 		{
+			ALandscapeProxy *A = APtr.Get();
+			ALandscapeProxy *B = BPtr.Get();
+
+			// sort nulls, assuming null < !null
+			if (!A || !B)
+			{
+				return !!B;
+			}
+			
 			FIntPoint SectionBaseA = A->GetSectionBaseOffset();
 			FIntPoint SectionBaseB = B->GetSectionBaseOffset();
 
@@ -4156,12 +4178,15 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			return SectionBaseA.Y < SectionBaseB.Y;
 		};
 
-		// Insert Proxies in a sorted fashion for generating deterministic results in the Layer system
+		// Insert Proxies in a sorted fashion into the landscape info Proxies list, for generating deterministic results in the Layer system
 		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
-		if (!Proxies.Contains(Proxy))
+		TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr = StreamingProxy;
+		if (!StreamingProxies.Contains(StreamingProxyPtr))
 		{
-			uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, LamdbdaLowerBound);
-			Proxies.Insert(StreamingProxy, InsertIndex);
+			// NOTE: if a streaming proxy somehow gets garbage collected without de-registering from the Proxies list, then
+			// this search may return a non-deterministic index because the Proxies list will contain a null
+			uint32 InsertIndex = Algo::LowerBound(StreamingProxies, StreamingProxyPtr, LamdbdaLowerBound);
+			StreamingProxies.Insert(StreamingProxyPtr, InsertIndex);
 		}
 
 		StreamingProxy->LandscapeActor = LandscapeActor;
@@ -4205,15 +4230,18 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 		}
 
 		// update proxies reference to landscape actor
-		for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
+		for (TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr : StreamingProxies)
 		{
-			StreamingProxy->LandscapeActor = LandscapeActor;
+			if (ALandscapeStreamingProxy* StreamingProxy = StreamingProxyPtr.Get())
+			{
+				StreamingProxy->LandscapeActor = LandscapeActor;
+			}
 		}
 	}
 	else
 	{
 		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
-		Proxies.Remove(StreamingProxy);
+		StreamingProxies.Remove(StreamingProxy);
 		StreamingProxy->LandscapeActor = nullptr;
 	}
 

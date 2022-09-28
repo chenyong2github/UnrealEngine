@@ -124,7 +124,7 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeResolutionValue", "{0} x {1}"), Size.X+1, Size.Y+1), true)
 				];
 
-				int32 LandscapeCount = LandscapeInfo->Proxies.Num() + (LandscapeInfo->LandscapeActor.Get() ? 1 : 0);
+				int32 LandscapeCount = LandscapeInfo->StreamingProxies.Num() + (LandscapeInfo->LandscapeActor.Get() ? 1 : 0);
 				RowDisplayText = LOCTEXT("LandscapeCount", "Landscape Count");
 				CategoryBuilder.AddCustomRow(RowDisplayText)
 				.RowTag(TEXT("LandscapeCount"))
