@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Json/GLTFJsonCore.h"
-#include "Json/GLTFJsonCameraControl.h"
 
 struct GLTFEXPORTER_API FGLTFJsonOrthographic : IGLTFJsonObject
 {
@@ -45,9 +44,7 @@ struct GLTFEXPORTER_API FGLTFJsonCamera : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	EGLTFJsonCameraType               Type;
-	TOptional<FGLTFJsonCameraControl> CameraControl;
-
+	EGLTFJsonCameraType   Type;
 	FGLTFJsonOrthographic Orthographic;
 	FGLTFJsonPerspective  Perspective;
 

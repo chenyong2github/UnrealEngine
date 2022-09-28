@@ -25,7 +25,7 @@ void FGLTFJsonRoot::WriteObject(IGLTFJsonWriter& Writer) const
 	if (Skins.Num() > 0) Writer.Write(TEXT("skins"), Skins);
 	if (Textures.Num() > 0) Writer.Write(TEXT("textures"), Textures);
 
-	if (Backdrops.Num() > 0 || Hotspots.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || EpicLevelVariantSets.Num() > 0 || KhrMaterialVariants.Num() > 0)
+	if (Backdrops.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || EpicLevelVariantSets.Num() > 0 || KhrMaterialVariants.Num() > 0)
 	{
 		Writer.StartExtensions();
 
@@ -33,13 +33,6 @@ void FGLTFJsonRoot::WriteObject(IGLTFJsonWriter& Writer) const
 		{
 			Writer.StartExtension(EGLTFJsonExtension::EPIC_HDRIBackdrops);
 			Writer.Write(TEXT("backdrops"), Backdrops);
-			Writer.EndExtension();
-		}
-
-		if (Hotspots.Num() > 0)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_AnimationHotspots);
-			Writer.Write(TEXT("hotspots"), Hotspots);
 			Writer.EndExtension();
 		}
 

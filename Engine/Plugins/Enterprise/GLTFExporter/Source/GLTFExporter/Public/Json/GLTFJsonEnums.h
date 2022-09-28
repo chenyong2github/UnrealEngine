@@ -10,10 +10,8 @@ enum class EGLTFJsonExtension
 	KHR_MaterialsVariants,
 	KHR_MeshQuantization,
 	KHR_TextureTransform,
-	EPIC_AnimationHotspots,
 	EPIC_AnimationPlayback,
 	EPIC_BlendModes,
-	EPIC_CameraControls,
 	EPIC_HDRIBackdrops,
 	EPIC_LevelVariantSets,
 	EPIC_LightmapTextures,
@@ -163,11 +161,4 @@ enum class EGLTFJsonLightType
 	Directional,
 	Point,
 	Spot
-};
-
-enum class EGLTFJsonCameraControlMode
-{
-	None = -1,
-	FreeLook,
-	Orbital
 };

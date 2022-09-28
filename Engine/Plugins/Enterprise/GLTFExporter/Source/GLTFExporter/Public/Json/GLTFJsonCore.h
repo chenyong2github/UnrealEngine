@@ -31,7 +31,6 @@ struct FGLTFJsonScene;
 struct FGLTFJsonSkin;
 struct FGLTFJsonTexture;
 struct FGLTFJsonBackdrop;
-struct FGLTFJsonHotspot;
 struct FGLTFJsonLight;
 struct FGLTFJsonLightMap;
 struct FGLTFJsonSkySphere;

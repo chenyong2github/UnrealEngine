@@ -8,7 +8,6 @@
 
 class ULightComponent;
 class UCameraComponent;
-class AGLTFHotspotActor;
 
 class UCameraComponent;
 class ULightComponent;

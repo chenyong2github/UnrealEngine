@@ -2,7 +2,6 @@
 
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFTextureUtility.h"
-#include "Actors/GLTFCameraActor.h"
 
 float FGLTFCoreUtilities::ConvertLength(const float Length, const float ConversionScale)
 {
@@ -318,15 +317,5 @@ EGLTFJsonCubeFace FGLTFCoreUtilities::ConvertCubeFace(ECubeFace CubeFace)
 		case CubeFace_PosZ:	return EGLTFJsonCubeFace::PosY;
 		case CubeFace_NegZ:	return EGLTFJsonCubeFace::NegY;
 		default:            return EGLTFJsonCubeFace::None; // TODO: add error handling in callers
-	}
-}
-
-EGLTFJsonCameraControlMode FGLTFCoreUtilities::ConvertCameraControlMode(EGLTFCameraControlMode CameraMode)
-{
-	switch (CameraMode)
-	{
-		case EGLTFCameraControlMode::FreeLook: return EGLTFJsonCameraControlMode::FreeLook;
-		case EGLTFCameraControlMode::Orbital:  return EGLTFJsonCameraControlMode::Orbital;
-		default:                               return EGLTFJsonCameraControlMode::None; // TODO: add error handling in callers
 	}
 }

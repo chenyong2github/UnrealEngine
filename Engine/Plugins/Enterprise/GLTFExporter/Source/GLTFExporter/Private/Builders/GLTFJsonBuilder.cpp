@@ -111,11 +111,6 @@ FGLTFJsonBackdrop* FGLTFJsonBuilder::AddBackdrop()
 	return JsonRoot.Backdrops.Add();
 }
 
-FGLTFJsonHotspot* FGLTFJsonBuilder::AddHotspot()
-{
-	return JsonRoot.Hotspots.Add();
-}
-
 FGLTFJsonLight* FGLTFJsonBuilder::AddLight()
 {
 	return JsonRoot.Lights.Add();

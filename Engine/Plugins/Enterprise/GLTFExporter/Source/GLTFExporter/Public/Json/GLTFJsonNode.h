@@ -16,7 +16,6 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 	FGLTFJsonSkin*      Skin;
 	FGLTFJsonMesh*      Mesh;
 	FGLTFJsonBackdrop*  Backdrop;
-	FGLTFJsonHotspot*   Hotspot;
 	FGLTFJsonLight*     Light;
 	FGLTFJsonLightMap*  LightMap;
 	FGLTFJsonSkySphere* SkySphere;
@@ -38,7 +37,6 @@ protected:
 		, Skin(nullptr)
 		, Mesh(nullptr)
 		, Backdrop(nullptr)
-		, Hotspot(nullptr)
 		, Light(nullptr)
 		, LightMap(nullptr)
 		, SkySphere(nullptr)

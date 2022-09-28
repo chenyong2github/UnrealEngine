@@ -40,8 +40,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportHiddenInGame = false;
 	ExportLights = static_cast<int32>(EGLTFSceneMobility::Stationary | EGLTFSceneMobility::Movable);
 	bExportCameras = true;
-	bExportCameraControls = false;
-	bExportAnimationHotspots = false;
 	bExportHDRIBackdrops = false;
 	bExportSkySpheres = false;
 	VariantSetsMode = EGLTFVariantSetsMode::None;

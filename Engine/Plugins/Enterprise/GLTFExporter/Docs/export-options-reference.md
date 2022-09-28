@@ -21,7 +21,7 @@ Option                         | Description
 `Export Vertex Skin Weights`   | If enabled, export vertex bone weights and indices in skeletal meshes. Necessary for animation sequences.
 `Use Mesh Quantization`        | If enabled, use quantization for vertex tangents and normals, reducing size. Requires extension KHR_mesh_quantization, which may result in the mesh not loading in some glTF viewers.
 `Export Level Sequences`       | If enabled, export level sequences. Only transform tracks are currently supported. The level sequence will be played at the assigned display rate.
-`Export Animation Sequences`   | If enabled, export single animation asset used by a skeletal mesh component or hotspot actor. Export of vertex skin weights must be enabled.
+`Export Animation Sequences`   | If enabled, export single animation asset used by a skeletal mesh component. Export of vertex skin weights must be enabled.
 `Export Playback Settings`     | If enabled, export play rate, start time, looping, and auto play for an animation or level sequence. Uses extension EPIC_animation_playback, which is supported by Unreal's glTF viewer.
 `Texture Image Format`         | Desired image format used for exported textures.
 `Texture Image Quality`        | Level of compression used for textures exported with lossy image formats, 0 (default) or value between 1 (worst quality, best compression) and 100 (best quality, worst compression).
@@ -33,8 +33,6 @@ Option                         | Description
 `Export Hidden In Game`        | If enabled, export actors and components that are flagged as hidden in-game.
 `Export Lights`                | Mobility of directional, point, and spot light components that will be exported. Uses extension KHR_lights_punctual.
 `Export Cameras`               | If enabled, export camera components.
-`Export Camera Controls`       | If enabled, export GLTFCameraActors. Uses extension EPIC_camera_controls, which is supported by Unreal's glTF viewer.
-`Export Animation Hotspots`    | If enabled, export GLTFHotspotActors. Uses extension EPIC_animation_hotspots, which is supported by Unreal's glTF viewer.
 `Export HDRI Backdrops`        | If enabled, export HDRIBackdrop blueprints. Uses extension EPIC_hdri_backdrops, which is supported by Unreal's glTF viewer.
 `Export Sky Spheres`           | If enabled, export SkySphere blueprints. Uses extension EPIC_sky_spheres, which is supported by Unreal's glTF viewer.
 `Variant Sets Mode`            | Mode determining if and how to export LevelVariantSetsActors.

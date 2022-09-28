@@ -29,7 +29,6 @@ public:
 	FGLTFJsonSkin* AddSkin();
 	FGLTFJsonTexture* AddTexture();
 	FGLTFJsonBackdrop* AddBackdrop();
-	FGLTFJsonHotspot* AddHotspot();
 	FGLTFJsonLight* AddLight();
 	FGLTFJsonLightMap* AddLightMap();
 	FGLTFJsonSkySphere* AddSkySphere();

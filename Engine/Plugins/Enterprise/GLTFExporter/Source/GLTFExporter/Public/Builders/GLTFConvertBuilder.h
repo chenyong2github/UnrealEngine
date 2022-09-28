@@ -19,7 +19,6 @@
 #include "Converters/GLTFBackdropConverters.h"
 #include "Converters/GLTFEpicLevelVariantSetsConverters.h"
 #include "Converters/GLTFLightMapConverters.h"
-#include "Converters/GLTFHotspotConverters.h"
 #include "Converters/GLTFKhrVariantConverters.h"
 #include "Converters/GLTFSkySphereConverters.h"
 
@@ -94,7 +93,6 @@ public:
 	FGLTFJsonLight* AddUniqueLight(const ULightComponent* LightComponent);
 	FGLTFJsonBackdrop* AddUniqueBackdrop(const AActor* BackdropActor);
 	FGLTFJsonLightMap* AddUniqueLightMap(const UStaticMeshComponent* StaticMeshComponent);
-	FGLTFJsonHotspot* AddUniqueHotspot(const AGLTFHotspotActor* HotspotActor);
 	FGLTFJsonSkySphere* AddUniqueSkySphere(const AActor* SkySphereActor);
 
 	FGLTFJsonEpicLevelVariantSets* AddUniqueEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets);
@@ -145,7 +143,6 @@ public:
 	TUniquePtr<IGLTFLightConverter> LightConverter = MakeUnique<FGLTFLightConverter>(*this);
 	TUniquePtr<IGLTFBackdropConverter> BackdropConverter = MakeUnique<FGLTFBackdropConverter>(*this);
 	TUniquePtr<IGLTFLightMapConverter> LightMapConverter = MakeUnique<FGLTFLightMapConverter>(*this);
-	TUniquePtr<IGLTFHotspotConverter> HotspotConverter = MakeUnique<FGLTFHotspotConverter>(*this);
 	TUniquePtr<IGLTFSkySphereConverter> SkySphereConverter = MakeUnique<FGLTFSkySphereConverter>(*this);
 
 	TUniquePtr<IGLTFEpicLevelVariantSetsConverter> EpicLevelVariantSetsConverter = MakeUnique<FGLTFEpicLevelVariantSetsConverter>(*this);

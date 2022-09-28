@@ -523,16 +523,6 @@ FGLTFJsonLightMap* FGLTFConvertBuilder::AddUniqueLightMap(const UStaticMeshCompo
 	return LightMapConverter->GetOrAdd(StaticMeshComponent);
 }
 
-FGLTFJsonHotspot* FGLTFConvertBuilder::AddUniqueHotspot(const AGLTFHotspotActor* HotspotActor)
-{
-	if (HotspotActor == nullptr)
-	{
-		return nullptr;
-	}
-
-	return HotspotConverter->GetOrAdd(HotspotActor);
-}
-
 FGLTFJsonSkySphere* FGLTFConvertBuilder::AddUniqueSkySphere(const AActor* SkySphereActor)
 {
 	if (SkySphereActor == nullptr)

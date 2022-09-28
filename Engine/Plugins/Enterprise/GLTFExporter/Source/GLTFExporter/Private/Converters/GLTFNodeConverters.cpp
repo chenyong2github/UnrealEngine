@@ -5,7 +5,6 @@
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFBlueprintUtility.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Actors/GLTFHotspotActor.h"
 #include "LevelSequenceActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/LightComponent.h"
@@ -51,13 +50,6 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 		if (Builder.ExportOptions->bExportLevelSequences)
 		{
 			Builder.AddUniqueAnimation(LevelSequenceActor);
-		}
-	}
-	else if (const AGLTFHotspotActor* HotspotActor = Cast<AGLTFHotspotActor>(Actor))
-	{
-		if (Builder.ExportOptions->bExportAnimationHotspots)
-		{
-			RootNode->Hotspot = Builder.AddUniqueHotspot(HotspotActor);
 		}
 	}
 	else
@@ -152,7 +144,7 @@ void FGLTFComponentConverter::ConvertComponentSpecialization(const USceneCompone
 		return;
 	}
 
-	if (Owner->IsA<ALevelSequenceActor>() || Owner->IsA<APawn>() || Owner->IsA<AGLTFHotspotActor>())
+	if (Owner->IsA<ALevelSequenceActor>() || Owner->IsA<APawn>())
 	{
 		return;
 	}

@@ -12,10 +12,8 @@ const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonExtension Enum)
 		case EGLTFJsonExtension::KHR_MaterialsVariants:   return TEXT("KHR_materials_variants");
 		case EGLTFJsonExtension::KHR_MeshQuantization:    return TEXT("KHR_mesh_quantization");
 		case EGLTFJsonExtension::KHR_TextureTransform:    return TEXT("KHR_texture_transform");
-		case EGLTFJsonExtension::EPIC_AnimationHotspots:  return TEXT("EPIC_animation_hotspots");
 		case EGLTFJsonExtension::EPIC_AnimationPlayback:  return TEXT("EPIC_animation_playback");
 		case EGLTFJsonExtension::EPIC_BlendModes:         return TEXT("EPIC_blend_modes");
-		case EGLTFJsonExtension::EPIC_CameraControls:     return TEXT("EPIC_camera_controls");
 		case EGLTFJsonExtension::EPIC_HDRIBackdrops:      return TEXT("EPIC_hdri_backdrops");
 		case EGLTFJsonExtension::EPIC_LevelVariantSets:   return TEXT("EPIC_level_variant_sets");
 		case EGLTFJsonExtension::EPIC_LightmapTextures:   return TEXT("EPIC_lightmap_textures");
@@ -156,18 +154,6 @@ const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonTargetPath Enum)
 		case EGLTFJsonTargetPath::Rotation:    return TEXT("rotation");
 		case EGLTFJsonTargetPath::Scale:       return TEXT("scale");
 		case EGLTFJsonTargetPath::Weights:     return TEXT("weights");
-		default:
-			checkNoEntry();
-			return TEXT("");
-	}
-}
-
-const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonCameraControlMode Enum)
-{
-	switch (Enum)
-	{
-		case EGLTFJsonCameraControlMode::FreeLook: return TEXT("freeLook");
-		case EGLTFJsonCameraControlMode::Orbital:  return TEXT("orbital");
 		default:
 			checkNoEntry();
 			return TEXT("");

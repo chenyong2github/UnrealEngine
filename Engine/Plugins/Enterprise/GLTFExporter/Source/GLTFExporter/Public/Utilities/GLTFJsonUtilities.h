@@ -24,6 +24,5 @@ struct GLTFEXPORTER_API FGLTFJsonUtilities
 	static const TCHAR* GetValue(EGLTFJsonLightType Enum);
 	static const TCHAR* GetValue(EGLTFJsonInterpolation Enum);
 	static const TCHAR* GetValue(EGLTFJsonTargetPath Enum);
-	static const TCHAR* GetValue(EGLTFJsonCameraControlMode Enum);
 	static const TCHAR* GetValue(EGLTFJsonShadingModel Enum);
 };

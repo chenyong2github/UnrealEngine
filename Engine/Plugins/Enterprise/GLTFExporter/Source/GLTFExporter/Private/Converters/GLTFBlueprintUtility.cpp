@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFBlueprintUtility.h"
-#include "Actors/GLTFHotspotActor.h"
 #include "LevelSequenceActor.h"
 
 FString FGLTFBlueprintUtility::GetClassPath(const AActor* Actor)

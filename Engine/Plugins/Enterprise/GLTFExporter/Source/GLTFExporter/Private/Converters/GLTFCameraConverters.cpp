@@ -4,7 +4,6 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Actors/GLTFCameraActor.h"
 #include "Camera/CameraComponent.h"
 
 FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
@@ -48,45 +47,6 @@ FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraCom
 		default:
 			checkNoEntry();
 			break;
-	}
-
-	const AActor* Owner = CameraComponent->GetOwner();
-	const AGLTFCameraActor* CameraActor = Owner != nullptr ? Cast<AGLTFCameraActor>(Owner) : nullptr;
-
-	if (CameraActor != nullptr)
-	{
-		if (Builder.ExportOptions->bExportCameraControls)
-		{
-			FGLTFJsonCameraControl CameraControl;
-			CameraControl.Mode = FGLTFCoreUtilities::ConvertCameraControlMode(CameraActor->Mode);
-			CameraControl.Target = Builder.AddUniqueNode(CameraActor->Target);
-			CameraControl.MaxDistance = FGLTFCoreUtilities::ConvertLength(CameraActor->DistanceMax, ExportScale);
-			CameraControl.MinDistance = FGLTFCoreUtilities::ConvertLength(CameraActor->DistanceMin, ExportScale);
-			CameraControl.MaxPitch = CameraActor->PitchAngleMax;
-			CameraControl.MinPitch = CameraActor->PitchAngleMin;
-
-			if (CameraActor->UsesYawLimits())
-			{
-				// Transform yaw limits to match right-handed system and glTF specification for cameras, i.e
-				// positive rotation is CCW, and camera looks down Z- (instead of X+).
-				const float MaxYaw = FMath::Max(-CameraActor->YawAngleMin, -CameraActor->YawAngleMax) - 90.0f;
-				const float MinYaw = FMath::Min(-CameraActor->YawAngleMin, -CameraActor->YawAngleMax) - 90.0f;
-
-				// We prefer the limits to be in the 0..360 range, but we only use MaxYaw to calculate
-				// the needed offset since we need to keep both limits a fixed distance apart from each other.
-				const float PositiveRangeOffset = FRotator::ClampAxis(MaxYaw) - MaxYaw;
-
-				CameraControl.MaxYaw = MaxYaw + PositiveRangeOffset;
-				CameraControl.MinYaw = MinYaw + PositiveRangeOffset;
-			}
-
-			CameraControl.RotationSensitivity = CameraActor->RotationSensitivity;
-			CameraControl.RotationInertia = CameraActor->RotationInertia;
-			CameraControl.DollySensitivity = CameraActor->DollySensitivity;
-			CameraControl.DollyDuration = CameraActor->DollyDuration;
-
-			JsonCamera->CameraControl = CameraControl;
-		}
 	}
 
 	return JsonCamera;

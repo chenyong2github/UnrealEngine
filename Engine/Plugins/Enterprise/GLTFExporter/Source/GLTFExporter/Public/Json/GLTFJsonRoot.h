@@ -18,7 +18,6 @@
 #include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonTexture.h"
 #include "Json/GLTFJsonBackdrop.h"
-#include "Json/GLTFJsonHotspot.h"
 #include "Json/GLTFJsonLight.h"
 #include "Json/GLTFJsonLightMap.h"
 #include "Json/GLTFJsonSkySphere.h"
@@ -47,7 +46,6 @@ struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 	TGLTFJsonIndexedObjectArray<FGLTFJsonSkin>       Skins;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonTexture>    Textures;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonBackdrop>   Backdrops;
-	TGLTFJsonIndexedObjectArray<FGLTFJsonHotspot>    Hotspots;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonLight>      Lights;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonLightMap>   LightMaps;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonSkySphere>  SkySpheres;

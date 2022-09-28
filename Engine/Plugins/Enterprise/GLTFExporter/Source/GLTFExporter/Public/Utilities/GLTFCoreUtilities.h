@@ -15,8 +15,6 @@
 #include "RHIDefinitions.h"
 #include "SceneTypes.h"
 
-enum class EGLTFCameraControlMode : unsigned char;
-
 struct GLTFEXPORTER_API FGLTFCoreUtilities
 {
 	static float ConvertLength(const float Length, const float ConversionScale = 0.01);
@@ -75,8 +73,6 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup);
 
 	static EGLTFJsonCubeFace ConvertCubeFace(ECubeFace CubeFace);
-
-	static EGLTFJsonCameraControlMode ConvertCameraControlMode(EGLTFCameraControlMode CameraMode);
 
 	template <typename ComponentType>
 	static EGLTFJsonComponentType GetComponentType()

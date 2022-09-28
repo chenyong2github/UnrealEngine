@@ -40,8 +40,6 @@ Extension                   | Description
 `EPIC_level_variant_sets`   | Scene variants by Unreal's variant manager
 `EPIC_hdri_backdrops`       | Unreal backdrop actors for HDR image projection
 `EPIC_sky_spheres`          | Unreal's default sky sphere actors
-`EPIC_animation_hotspots`   | Exporter-provided actors for interactive animations
 `EPIC_animation_playback`   | Animation looping, auto play, start time, play rate
-`EPIC_camera_controls`      | Exporter-provided actors for user-controlled cameras
 `EPIC_texture_hdr_encoding` | HDR encoding for image formats like PNG and JPEG
 `EPIC_blend_modes`          | Additive, modulate, and alpha composite blend modes

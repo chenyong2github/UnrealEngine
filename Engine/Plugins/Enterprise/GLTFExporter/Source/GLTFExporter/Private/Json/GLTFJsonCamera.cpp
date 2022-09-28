@@ -49,11 +49,4 @@ void FGLTFJsonCamera::WriteObject(IGLTFJsonWriter& Writer) const
 		default:
 			break;
 	}
-
-	if (CameraControl.IsSet())
-	{
-		Writer.StartExtensions();
-		Writer.Write(EGLTFJsonExtension::EPIC_CameraControls, CameraControl.GetValue());
-		Writer.EndExtensions();
-	}
 }

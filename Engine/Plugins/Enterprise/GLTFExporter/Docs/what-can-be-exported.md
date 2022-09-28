@@ -222,8 +222,6 @@ Support for actors in a level, can be split into two categories:
   - [`Sky Sphere`](#sky-spheres)
   - [`Level Sequence Actor`](#level-sequence-actors)
   - [`Level Variant Sets Actor`](#level-variant-sets-actors)
-  - [`GLTF Camera`](#gltf-cameras)
-  - [`GLTF Hotspot`](#gltf-hotspots)
 
 - An actor that has one or more supported components.
 
@@ -287,43 +285,6 @@ Property         | Description
 > Please note that export of `Level Variant Sets Actor` uses the glTF extension `EPIC_level_variant_sets`, which can be turned off in the export options.
 
 `Level Variant Sets Actor` is provided by an engine-distributed plugin (`Variant Manager`) and ìs responsible for querying and activating variants in a `Level Variant Sets` at runtime. Only the `Level Variant Sets` property is exported.
-
-### GLTF Cameras
-
-> Please note that export of `GLTF Camera` uses the glTF extension `EPIC_camera_controls`, which can be turned off in the export options.
-
-`GLTF Camera` is an actor provided by the exporter plugin, to add user-controlled cameras to a glTF scene. It has the following properties that are supported by the exporter:
-
-Property               | Description
------------------------| ---------------------------------------------------------------------------------------------------------
-`Mode`                 | Camera mode which can be `Orbital` (rotate the camera around a target and zoom in/out) or `Free Look` (rotate the camera in first person but no movement).
-`Target`               | Actor which the camera will focus on and subsequently orbit when using Orbital mode.
-`Pitch Angle Min`      | Minimum pitch angle (in degrees) for the camera.
-`Pitch Angle Max`      | Maximum pitch angle (in degrees) for the camera.
-`Yaw Angle Min`        | Minimum yaw angle (in degrees) for the camera.
-`Yaw Angle Max`        | Maximum yaw angle (in degrees) for the camera.
-`Distance Min`         | Closest distance the camera can approach the focused actor.
-`Distance Max`         | Farthest distance the camera can recede from the focused actor.
-`Dolly Duration`       | Duration (in seconds) that it takes the camera to complete a change in distance.
-`Dolly Sensitivity`    | Size of the dolly movement relative to user input. The higher the value, the faster it moves.
-`Rotation Inertia`     | Deceleration that occurs after rotational movement. The higher the value, the longer it takes to settle.
-`Rotation Sensitivity` | Size of the rotational movement relative to user input. The higher the value, the faster it moves.
-
-### GLTF Hotspots
-
-> Please note that export of `GLTF Hotspot` uses the glTF extension `EPIC_animation_hotspots`, which can be turned off in the export options.
-
-`GLTF Hotspot` is an actor provided by the exporter plugin, to add a clickable UI element (that triggers animations) to a glTF scene. It has the following properties that are supported by the exporter:
-
-Property                | Description
-------------------------| ------------------------------------------------------------------------------------------------------------------------
-`Skeletal Mesh Actor`   | The skeletal mesh actor that will be animated when the hotspot is clicked.
-`Animation Sequence`    | The animation sequence that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset.
-`Level Sequence`        | The level sequence that will be played in the level.
-`Image`                 | The billboard image that will be shown when the hotspot is in an inactive state or one without a specified image.
-`Hovered Image`         | The optional billboard image that will be shown when a cursor enters the hotspot
-`Toggled Image`         | The optional billboard image that will be shown when the hotspot is toggled by a click.
-`Toggled Hovered Image` | The optional billboard image that will be shown when the hotspot is toggled by a click and a cursor enters it.
 
 ## Components
 

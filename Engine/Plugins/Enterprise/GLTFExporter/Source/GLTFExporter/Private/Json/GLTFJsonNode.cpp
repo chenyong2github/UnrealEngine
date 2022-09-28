@@ -5,7 +5,6 @@
 #include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonMesh.h"
 #include "Json/GLTFJsonBackdrop.h"
-#include "Json/GLTFJsonHotspot.h"
 #include "Json/GLTFJsonLight.h"
 #include "Json/GLTFJsonLightMap.h"
 #include "Json/GLTFJsonSkySphere.h"
@@ -47,7 +46,7 @@ void FGLTFJsonNode::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("mesh"), Mesh);
 	}
 
-	if (Backdrop != nullptr || Hotspot != nullptr || Light != nullptr || LightMap != nullptr || SkySphere != nullptr)
+	if (Backdrop != nullptr || Light != nullptr || LightMap != nullptr || SkySphere != nullptr)
 	{
 		Writer.StartExtensions();
 
@@ -55,13 +54,6 @@ void FGLTFJsonNode::WriteObject(IGLTFJsonWriter& Writer) const
 		{
 			Writer.StartExtension(EGLTFJsonExtension::EPIC_HDRIBackdrops);
 			Writer.Write(TEXT("backdrop"), Backdrop);
-			Writer.EndExtension();
-		}
-
-		if (Hotspot != nullptr)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_AnimationHotspots);
-			Writer.Write(TEXT("hotspot"), Hotspot);
 			Writer.EndExtension();
 		}
 
