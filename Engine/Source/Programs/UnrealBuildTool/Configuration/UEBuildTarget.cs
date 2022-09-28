@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -1908,6 +1908,7 @@ namespace UnrealBuildTool
 			if (Rules.NativePointerMemberBehaviorOverride != null)
 			{
 				UHTAdditionalArguments.Add("-ini:Engine:[UnrealHeaderTool]:EngineNativePointerMemberBehavior=" + Rules.NativePointerMemberBehaviorOverride);
+				UHTAdditionalArguments.Add("-ini:Engine:[UnrealHeaderTool]:EnginePluginNativePointerMemberBehavior=" + Rules.NativePointerMemberBehaviorOverride);
 				UHTAdditionalArguments.Add("-ini:Engine:[UnrealHeaderTool]:NonEngineNativePointerMemberBehavior=" + Rules.NativePointerMemberBehaviorOverride);
 			}
 

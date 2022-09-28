@@ -50,6 +50,16 @@ namespace EpicGames.UHT.Utils
 		public UhtPointerMemberBehavior EngineObjectPtrMemberBehavior { get; }
 
 		/// <summary>
+		/// Pointer warning for native pointers in engine plugins
+		/// </summary>
+		public UhtPointerMemberBehavior EnginePluginNativePointerMemberBehavior { get; }
+
+		/// <summary>
+		/// Pointer warning for object pointers in engine plugins
+		/// </summary>
+		public UhtPointerMemberBehavior EnginePluginObjectPtrMemberBehavior { get; }
+
+		/// <summary>
 		/// Pointer warning for native pointers outside the engine
 		/// </summary>
 		public UhtPointerMemberBehavior NonEngineNativePointerMemberBehavior { get; }

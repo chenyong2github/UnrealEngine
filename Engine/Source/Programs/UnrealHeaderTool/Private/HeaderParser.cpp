@@ -787,6 +787,8 @@ FUHTConfig::FUHTConfig()
 	const FName GeneratedCodeVersionKey(TEXT("GeneratedCodeVersion"));
 	const FName EngineNativePointerMemberBehaviorKey(TEXT("EngineNativePointerMemberBehavior"));
 	const FName EngineObjectPtrMemberBehaviorKey(TEXT("EngineObjectPtrMemberBehavior"));
+	const FName EnginePluginNativePointerMemberBehaviorKey(TEXT("EnginePluginNativePointerMemberBehavior"));
+	const FName EnginePluginObjectPtrMemberBehaviorKey(TEXT("EnginePluginObjectPtrMemberBehavior"));
 	const FName NonEngineNativePointerMemberBehaviorKey(TEXT("NonEngineNativePointerMemberBehavior"));
 	const FName NonEngineObjectPtrMemberBehaviorKey(TEXT("NonEngineObjectPtrMemberBehavior"));
 
@@ -828,6 +830,14 @@ FUHTConfig::FUHTConfig()
 			else if (It.Key() == EngineObjectPtrMemberBehaviorKey)
 			{
 				EngineObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+			}
+			else if (It.Key() == EnginePluginNativePointerMemberBehaviorKey)
+			{
+				EnginePluginNativePointerMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+			}
+			else if (It.Key() == EnginePluginObjectPtrMemberBehaviorKey)
+			{
+				EnginePluginObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
 			}
 			else if (It.Key() == NonEngineNativePointerMemberBehaviorKey)
 			{
@@ -4451,8 +4461,20 @@ void FHeaderParser::GetVarType(
 						// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
 						if (VariableCategory == EVariableCategory::Member)
 						{
-							// TODO: Remove exclusion for plugins under engine when all plugins have had their raw pointers converted.
-							ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineNativePointerMemberBehavior : UHTConfig.NonEngineNativePointerMemberBehavior,
+							EPointerMemberBehavior PointerMemberBehavior = UHTConfig.NonEngineNativePointerMemberBehavior;
+							if (bIsCurrentModulePartOfEngine)
+							{
+								if (PackageDef.GetModule().BaseDirectory.Contains(TEXT("/Plugins/")))
+								{
+									PointerMemberBehavior = UHTConfig.EnginePluginNativePointerMemberBehavior;
+								}
+								else
+								{
+									PointerMemberBehavior = UHTConfig.EngineNativePointerMemberBehavior;
+								}
+							}
+
+							ConditionalLogPointerUsage(PointerMemberBehavior,
 								TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar(), TEXT("TObjectPtr"));
 
 							MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
@@ -4462,8 +4484,20 @@ void FHeaderParser::GetVarType(
 					}
 					else if ((PropertyType == CPT_ObjectPtrReference) && (VariableCategory == EVariableCategory::Member))
 					{
-						// TODO: Remove exclusion for plugins under engine when all plugins have had their raw pointers converted.
-						ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineObjectPtrMemberBehavior : UHTConfig.NonEngineObjectPtrMemberBehavior,
+						EPointerMemberBehavior PointerMemberBehavior = UHTConfig.NonEngineObjectPtrMemberBehavior;
+						if (bIsCurrentModulePartOfEngine)
+						{
+							if (PackageDef.GetModule().BaseDirectory.Contains(TEXT("/Plugins/")))
+							{
+								PointerMemberBehavior = UHTConfig.EnginePluginObjectPtrMemberBehavior;
+							}
+							else
+							{
+								PointerMemberBehavior = UHTConfig.EngineObjectPtrMemberBehavior;
+							}
+						}
+
+						ConditionalLogPointerUsage(PointerMemberBehavior,
 							TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar(), nullptr);
 					}
 

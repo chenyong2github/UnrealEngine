@@ -115,7 +115,7 @@ namespace EpicGames.UHT.Types
 				return null;
 			}
 
-			ConditionalLogPointerUsage(propertySettings, session.Config!.EngineObjectPtrMemberBehavior,
+			ConditionalLogPointerUsage(propertySettings, session.Config!.EngineObjectPtrMemberBehavior, session.Config!.EnginePluginObjectPtrMemberBehavior,
 				session.Config!.NonEngineObjectPtrMemberBehavior, "ObjectPtr", tokenReader, typeStartPos, null);
 
 			if (propertyClass.IsChildOf(propertyClass.Session.UClass))

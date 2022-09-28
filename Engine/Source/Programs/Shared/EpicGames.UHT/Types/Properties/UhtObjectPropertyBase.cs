@@ -226,14 +226,15 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
 		/// <param name="engineBehavior">Expected behavior for engine types</param>
+		/// <param name="enginePluginBehavior">Expected behavior for engine plugin types</param>
 		/// <param name="nonEngineBehavior">Expected behavior for non-engine types</param>
 		/// <param name="pointerTypeDesc">Description of the pointer type</param>
 		/// <param name="tokenReader">Token reader for type being parsed</param>
 		/// <param name="typeStartPos">Starting character position of the type</param>
 		/// <param name="alternativeTypeDesc">Suggested alternate declaration</param>
 		/// <exception cref="UhtIceException">Thrown if the behavior type is unexpected</exception>
-		public static void ConditionalLogPointerUsage(UhtPropertySettings propertySettings, UhtPointerMemberBehavior engineBehavior, UhtPointerMemberBehavior nonEngineBehavior,
-			string pointerTypeDesc, IUhtTokenReader tokenReader, int typeStartPos, string? alternativeTypeDesc)
+		public static void ConditionalLogPointerUsage(UhtPropertySettings propertySettings, UhtPointerMemberBehavior engineBehavior, UhtPointerMemberBehavior enginePluginBehavior,
+			UhtPointerMemberBehavior nonEngineBehavior, string pointerTypeDesc, IUhtTokenReader tokenReader, int typeStartPos, string? alternativeTypeDesc)
 		{
 			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member)
 			{
@@ -241,7 +242,18 @@ namespace EpicGames.UHT.Types
 			}
 
 			UhtPackage package = propertySettings.Outer.Package;
-			UhtPointerMemberBehavior behavior = package.IsPartOfEngine ? engineBehavior : nonEngineBehavior;
+			UhtPointerMemberBehavior behavior = nonEngineBehavior;
+			if (package.IsPartOfEngine)
+			{
+				if (package.Module.BaseDirectory.Contains("/Plugins/", StringComparison.InvariantCultureIgnoreCase) || package.Module.BaseDirectory.Contains("\\Plugins\\", StringComparison.InvariantCultureIgnoreCase))
+				{
+					behavior = enginePluginBehavior;
+				}
+				else
+				{
+					behavior = engineBehavior;
+				}
+			}
 
 			if (behavior == UhtPointerMemberBehavior.AllowSilently)
 			{

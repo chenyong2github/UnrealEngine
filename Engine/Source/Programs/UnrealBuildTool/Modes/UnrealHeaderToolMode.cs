@@ -72,6 +72,16 @@ namespace UnrealBuildTool.Modes
 		private readonly UhtPointerMemberBehavior _engineObjectPtrMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
 
 		/// <summary>
+		/// Internal version of pointer warning for native pointers in engine plugins
+		/// </summary>
+		private readonly UhtPointerMemberBehavior _enginePluginNativePointerMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+
+		/// <summary>
+		/// Internal version of pointer warning for object pointers in engine plugins
+		/// </summary>
+		private readonly UhtPointerMemberBehavior _enginePluginObjectPtrMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+
+		/// <summary>
 		/// Internal version of pointer warning for native pointers outside the engine
 		/// </summary>
 		private readonly UhtPointerMemberBehavior _nonEngineNativePointerMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
@@ -105,6 +115,12 @@ namespace UnrealBuildTool.Modes
 
 		/// <inheritdoc/>
 		public UhtPointerMemberBehavior EngineObjectPtrMemberBehavior => this._engineObjectPtrMemberBehavior;
+
+		/// <inheritdoc/>
+		public UhtPointerMemberBehavior EnginePluginNativePointerMemberBehavior => this._enginePluginNativePointerMemberBehavior;
+
+		/// <inheritdoc/>
+		public UhtPointerMemberBehavior EnginePluginObjectPtrMemberBehavior => this._enginePluginObjectPtrMemberBehavior;
 
 		/// <inheritdoc/>
 		public UhtPointerMemberBehavior NonEngineNativePointerMemberBehavior => this._nonEngineNativePointerMemberBehavior;
@@ -213,6 +229,8 @@ namespace UnrealBuildTool.Modes
 			this._defaultGeneratedCodeVersion = GetGeneratedCodeVersion("UnrealHeaderTool", "DefaultGeneratedCodeVersion", EGeneratedCodeVersion.V1);
 			this._engineNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
 			this._engineObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
+			this._enginePluginNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EnginePluginNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
+			this._enginePluginObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EnginePluginObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
 			this._nonEngineNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
 			this._nonEngineObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
 			this._areRigVMUObjectProeprtiesEnabled = GetBoolean("UnrealHeaderTool", "AreRigVMUObjectProeprtiesEnabled", false);

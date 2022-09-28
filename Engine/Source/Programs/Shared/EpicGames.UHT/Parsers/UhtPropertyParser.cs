@@ -1369,7 +1369,7 @@ namespace EpicGames.UHT.Parsers
 
 				// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
 				UhtObjectPropertyBase.ConditionalLogPointerUsage(propertySettings, session.Config!.EngineNativePointerMemberBehavior,
-					session.Config!.NonEngineNativePointerMemberBehavior, "Native pointer", tokenReader, typeStartPos, "TObjectPtr");
+					session.Config!.EnginePluginNativePointerMemberBehavior, session.Config!.NonEngineNativePointerMemberBehavior, "Native pointer", tokenReader, typeStartPos, "TObjectPtr");
 
 				if (propertySettings.PropertyCategory == UhtPropertyCategory.Member)
 				{

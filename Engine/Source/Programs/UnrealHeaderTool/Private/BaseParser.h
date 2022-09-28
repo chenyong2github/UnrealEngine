@@ -56,6 +56,9 @@ struct FUHTConfig
 	EPointerMemberBehavior EngineNativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
 	EPointerMemberBehavior EngineObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
 
+	EPointerMemberBehavior EnginePluginNativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+	EPointerMemberBehavior EnginePluginObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
+
 	EPointerMemberBehavior NonEngineNativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
 	EPointerMemberBehavior NonEngineObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
 
