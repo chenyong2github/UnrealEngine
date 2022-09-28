@@ -13,7 +13,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Styling/AppStyle.h"
 #include "Editor.h"
-#include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Images/SImage.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 void SOutputLogDialog::Open( const FText& InTitle, const FText& InHeader, const FText& InLog, const FText& InFooter )
@@ -58,7 +58,8 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 	Footer = InArgs._Footer.Get();
 	Buttons = InArgs._Buttons.Get();
 
-	MaxWidth = FSlateApplication::Get().GetPreferredWorkArea().GetSize().X * 0.8f;
+	const float DPIFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(ParentWindow->GetPositionInScreen().X, ParentWindow->GetPositionInScreen().Y);
+	MaxWidth = FSlateApplication::Get().GetPreferredWorkArea().GetSize().X * 0.8f / DPIFactor;
 
 	TSharedPtr<SUniformGridPanel> ButtonBox;
 
@@ -121,10 +122,17 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 								.VAlign(VAlign_Center)
 								.Padding(0.0f)
 								[
-									SNew(SHyperlink)
-										.OnNavigate(this, &SOutputLogDialog::HandleCopyMessageHyperlinkNavigate)
-										.Text( NSLOCTEXT("SOutputLogDialog", "CopyMessageHyperlink", "Copy Message") )
-										.ToolTipText( NSLOCTEXT("SOutputLogDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)") )
+									SNew(SButton)
+									.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+									.OnClicked(this, &SOutputLogDialog::HandleCopyMessageButtonClicked)
+									.ToolTipText(NSLOCTEXT("SOutputLogDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)"))
+									.ContentPadding(2.f)
+									.Content()
+									[
+										SNew(SImage)
+										.Image(FAppStyle::Get().GetBrush("Icons.Clipboard"))
+										.ColorAndOpacity(FSlateColor::UseForeground())
+									]
 								]
 
 							+ SHorizontalBox::Slot()
@@ -194,7 +202,8 @@ FReply SOutputLogDialog::HandleButtonClicked( int32 InResponse )
 	return FReply::Handled();
 }
 
-void SOutputLogDialog::HandleCopyMessageHyperlinkNavigate( )
+FReply SOutputLogDialog::HandleCopyMessageButtonClicked( )
 {
 	CopyMessageToClipboard();
+	return FReply::Handled();
 }

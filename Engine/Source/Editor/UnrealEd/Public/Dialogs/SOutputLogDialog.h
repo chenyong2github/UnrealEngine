@@ -46,8 +46,8 @@ private:
 	/** Handles clicking a message box button. */
 	FReply HandleButtonClicked( int32  );
 
-	/** Handles clicking the 'Copy Message' hyper link. */
-	void HandleCopyMessageHyperlinkNavigate( );
+	/** Handles clicking the 'Copy Message' button. */
+	FReply HandleCopyMessageButtonClicked( );
 
 	int32 Response;
 	TSharedPtr<SWindow> ParentWindow;

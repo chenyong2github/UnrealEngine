@@ -7,7 +7,8 @@
 #include "Styling/AppStyle.h"
 #include "Styling/SlateBrush.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
 
 void SMessageDialog::Construct(const FArguments& InArgs)
 {
@@ -39,11 +40,17 @@ void SMessageDialog::Construct(const FArguments& InArgs)
 		.OnClosed(InArgs._OnClosed)
 		.BeforeButtons()
 		[
-			SNew(SHyperlink)
-				.OnNavigate(this, &SMessageDialog::CopyMessageToClipboard)
-				// Re-use existing localization of SChoiceDialog
-				.Text( NSLOCTEXT("SChoiceDialog", "CopyMessageHyperlink", "Copy Message") )
-				.ToolTipText( NSLOCTEXT("SChoiceDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)") )
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.OnClicked(this, &SMessageDialog::OnCopyMessage)
+			.ToolTipText(NSLOCTEXT("SChoiceDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)"))
+			.ContentPadding(2.f)
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Clipboard"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
 		]
 		);
 }
@@ -58,6 +65,12 @@ FReply SMessageDialog::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 
 	//if it was some other button, ignore it
 	return FReply::Unhandled();
+}
+
+FReply SMessageDialog::OnCopyMessage()
+{
+	CopyMessageToClipboard();
+	return FReply::Handled();
 }
 
 void SMessageDialog::CopyMessageToClipboard()

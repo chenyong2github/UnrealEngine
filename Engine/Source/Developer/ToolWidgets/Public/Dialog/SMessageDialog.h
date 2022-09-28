@@ -7,7 +7,7 @@
 
 /**
  * Special case of SCustomDialog dedicated to only displaying text messages.
- * This class enforces uniform style and also adds a hyperlink for copying the message.
+ * This class enforces uniform style and also adds a button for copying the message.
  */
 class TOOLWIDGETS_API SMessageDialog : public SCustomDialog
 {
@@ -60,6 +60,8 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	virtual	FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
+	virtual	FReply OnCopyMessage();
 
 private:
 

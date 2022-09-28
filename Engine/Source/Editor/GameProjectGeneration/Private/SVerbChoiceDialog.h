@@ -46,8 +46,8 @@ protected:
 	void CopyMessageToClipboard( );
 
 private:
-	/** Handles clicking the 'Copy Message' hyperlink. */
-	void HandleCopyMessageHyperlinkNavigate( );
+	/** Handles clicking the 'Copy Message' button. */
+	FReply HandleCopyMessageButtonClicked( );
 
 	/** Handles clicking on a hyperlink. */
 	void HandleHyperlinkClicked( int32 InResponse );

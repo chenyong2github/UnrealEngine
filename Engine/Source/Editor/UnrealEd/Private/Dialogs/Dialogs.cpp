@@ -21,7 +21,6 @@
 #include "Editor.h"
 #include "ObjectTools.h"
 #include "DesktopPlatformModule.h"
-#include "Widgets/Input/SHyperlink.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformMisc.h"
 
@@ -108,10 +107,17 @@ public:
 					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
 					[
-						SNew(SHyperlink)
-							.OnNavigate(this, &SChoiceDialog::HandleCopyMessageHyperlinkNavigate)
-							.Text( NSLOCTEXT("SChoiceDialog", "CopyMessageHyperlink", "Copy Message") )
-							.ToolTipText( NSLOCTEXT("SChoiceDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)") )
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+						.OnClicked(this, &SChoiceDialog::HandleCopyMessageButtonClicked)
+						.ToolTipText(NSLOCTEXT("SChoiceDialog", "CopyMessageTooltip", "Copy the text in this message to the clipboard (CTRL+C)"))
+						.ContentPadding(2.f)
+						.Content()
+						[
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("Icons.Clipboard"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
 					]
 
 					+ SHorizontalBox::Slot()
@@ -285,10 +291,11 @@ private:
 		return FReply::Handled();
 	}
 
-	// Handles clicking the 'Copy Message' hyper link.
-	void HandleCopyMessageHyperlinkNavigate( )
+	// Handles clicking the 'Copy Message' button.
+	FReply HandleCopyMessageButtonClicked()
 	{
 		CopyMessageToClipboard();
+		return FReply::Handled();
 	}
 		
 public:
