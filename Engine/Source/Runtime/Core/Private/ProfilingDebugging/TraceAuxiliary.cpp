@@ -1467,6 +1467,26 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	{
 		Desc.TailSizeBytes <<= 20;
 	}
+
+	// Memory tracing is very chatty. To reduce load on trace we'll speed up the
+	// worker thread so it can clear events faster.
+	extern bool MemoryTrace_IsActive();
+	if (MemoryTrace_IsActive())
+	{
+		int32 SleepTimeMs = 5;
+		if (GConfig)
+		{
+			GConfig->GetInt(GTraceConfigSection, TEXT("SleepTimeWhenMemoryTracingInMS"), SleepTimeMs, GEngineIni);
+		}
+
+		if (Desc.ThreadSleepTimeInMS)
+		{
+			SleepTimeMs = FMath::Min<uint32>(Desc.ThreadSleepTimeInMS, SleepTimeMs);
+		}
+
+		Desc.ThreadSleepTimeInMS = SleepTimeMs;
+	}
+
 	UE::Trace::Initialize(Desc);
 
 	// Workaround for the fact that even if StartFromCommandlineArguments will enable channels
