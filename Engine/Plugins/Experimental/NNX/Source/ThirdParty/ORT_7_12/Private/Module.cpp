@@ -15,4 +15,4 @@ void FONNXRuntimeModule::ShutdownModule()
 {
 }
 
-IMPLEMENT_MODULE(FONNXRuntimeModule, ONNXRuntime);
+IMPLEMENT_MODULE(FONNXRuntimeModule, NNX_ONNXRuntime);
