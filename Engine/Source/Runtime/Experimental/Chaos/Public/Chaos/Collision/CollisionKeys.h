@@ -34,15 +34,17 @@ namespace Chaos
 	 * Used to order particles in a consistent way in Broadphase and Resim. Returns whether the partcile order should be reversed.
 	 * We want the particle with the lower ID first, unless only one is dynamic in which case that one is first.
 	 */
-	inline bool ShouldSwapParticleOrder(const bool bIsDynamicOrSleeping0, const bool bIsParticle0Preferred)
+	inline bool ShouldSwapParticleOrder(const bool bIsDynamicOrSleeping0, const bool bIsDynamicOrSleeping1, const bool bIsParticle0Preferred)
 	{
-		return !bIsDynamicOrSleeping0 || !bIsParticle0Preferred;
+		return !bIsDynamicOrSleeping0 || (bIsDynamicOrSleeping1 && !bIsParticle0Preferred);
 	}
 	inline bool ShouldSwapParticleOrder(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1)
 	{
 		const EObjectStateType ObjectState0 = Particle0->ObjectState();
-		const bool bIsDynamic0 = (ObjectState0 == EObjectStateType::Dynamic) || (ObjectState0 == EObjectStateType::Sleeping);
-		return ShouldSwapParticleOrder(bIsDynamic0, AreParticlesInPreferredOrder(Particle0, Particle1));
+		const EObjectStateType ObjectState1 = Particle1->ObjectState();
+		const bool bIsDynamicOrSleeping0 = (ObjectState0 == EObjectStateType::Dynamic) || (ObjectState0 == EObjectStateType::Sleeping);
+		const bool bIsDynamicOrSleeping1 = (ObjectState1 == EObjectStateType::Dynamic) || (ObjectState1 == EObjectStateType::Sleeping);
+		return ShouldSwapParticleOrder(bIsDynamicOrSleeping0, bIsDynamicOrSleeping1, AreParticlesInPreferredOrder(Particle0, Particle1));
 	}
 
 	/**

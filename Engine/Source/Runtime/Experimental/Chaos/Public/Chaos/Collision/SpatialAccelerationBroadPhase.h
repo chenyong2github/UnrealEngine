@@ -462,7 +462,7 @@ namespace Chaos
 				// Since particles can change type (between Kinematic and Dynamic) we may visit them in different orders at different times, but if we allow
 				// that it would break Resim and constraint re-use. Also, if only one particle is Dynamic, we want it in first position. This isn't a strtct 
 				// requirement but some downstream systems assume this is true (e.g., CCD, TriMesh collision).
-				const bool bSwapOrder = ShouldSwapParticleOrder((bIsDynamicAwake1 || bIsDynamicAsleep1), bIsParticle1Preferred);
+				const bool bSwapOrder = ShouldSwapParticleOrder((bIsDynamicAwake1 || bIsDynamicAsleep1), (bIsDynamicAwake2 || bIsDynamicAsleep2), bIsParticle1Preferred);
 				FGeometryParticleHandle* ParticleA = bSwapOrder ? Particle2 : Particle1;
 				FGeometryParticleHandle* ParticleB = bSwapOrder ? Particle1 : Particle2;
 
