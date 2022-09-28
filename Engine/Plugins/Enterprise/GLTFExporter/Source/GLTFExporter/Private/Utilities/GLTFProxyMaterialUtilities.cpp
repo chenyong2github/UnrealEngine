@@ -3,11 +3,20 @@
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Utilities/GLTFJsonUtilities.h"
 #include "UserData/GLTFMaterialUserData.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"
 
 #define PROXY_MATERIAL_NAME_PREFIX TEXT("M_GLTF_")
 #define PROXY_MATERIAL_ROOT_PATH   TEXT("/GLTFExporter/Materials/Proxy/")
+
+#if WITH_EDITOR
+UMaterialInstanceConstant* FGLTFProxyMaterialUtilities::CreateProxyMaterial(EGLTFJsonShadingModel ShadingModel,
+	UObject* Outer, FName Name, EObjectFlags Flags)
+{
+	UMaterialInstanceConstant* MaterialInstance = NewObject<UMaterialInstanceConstant>(Outer, Name, Flags);
+	MaterialInstance->Parent = GetBaseMaterial(ShadingModel);
+	return MaterialInstance;
+}
+#endif
 
 bool FGLTFProxyMaterialUtilities::IsProxyMaterial(const UMaterial* Material)
 {
@@ -126,48 +135,6 @@ bool FGLTFProxyMaterialUtilities::GetParameterValue(const UMaterialInterface* Ma
 	return true;
 }
 
-void FGLTFProxyMaterialUtilities::SetParameterValue(UMaterialInstanceDynamic* Material, const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool NonDefaultOnly)
-{
-	if (NonDefaultOnly)
-	{
-		float DefaultValue;
-		if (!Material->GetScalarParameterDefaultValue(ParameterInfo, DefaultValue) || DefaultValue == Value)
-		{
-			return;
-		}
-	}
-
-	Material->SetScalarParameterValueByInfo(FMaterialParameterInfo(ParameterInfo), Value);
-}
-
-void FGLTFProxyMaterialUtilities::SetParameterValue(UMaterialInstanceDynamic* Material, const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool NonDefaultOnly)
-{
-	if (NonDefaultOnly)
-	{
-		FLinearColor DefaultValue;
-		if (!Material->GetVectorParameterDefaultValue(ParameterInfo, DefaultValue) || DefaultValue == Value)
-		{
-			return;
-		}
-	}
-
-	Material->SetVectorParameterValueByInfo(FMaterialParameterInfo(ParameterInfo), Value);
-}
-
-void FGLTFProxyMaterialUtilities::SetParameterValue(UMaterialInstanceDynamic* Material, const FHashedMaterialParameterInfo& ParameterInfo, UTexture* Value, bool NonDefaultOnly)
-{
-	if (NonDefaultOnly)
-	{
-		UTexture* DefaultValue;
-		if (!Material->GetTextureParameterDefaultValue(ParameterInfo, DefaultValue) || DefaultValue == Value)
-		{
-			return;
-		}
-	}
-
-	Material->SetTextureParameterValueByInfo(FMaterialParameterInfo(ParameterInfo), Value);
-}
-
 #if WITH_EDITOR
 
 void FGLTFProxyMaterialUtilities::SetParameterValue(UMaterialInstanceConstant* Material, const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool NonDefaultOnly)
@@ -214,10 +181,10 @@ void FGLTFProxyMaterialUtilities::SetParameterValue(UMaterialInstanceConstant* M
 
 #endif
 
-bool FGLTFProxyMaterialUtilities::GetTwoSided(const UMaterialInstance* Material, bool& OutValue, bool NonDefaultOnly)
+bool FGLTFProxyMaterialUtilities::GetTwoSided(const UMaterialInterface* Material, bool& OutValue, bool NonDefaultOnly)
 {
-	const bool DefaultValue = Material->Parent->IsTwoSided();
-	const bool Value = Material->BasePropertyOverrides.bOverride_TwoSided ? Material->BasePropertyOverrides.TwoSided : DefaultValue;
+	const bool DefaultValue = Material->GetMaterial()->IsTwoSided();
+	const bool Value = Material->IsTwoSided();
 
 	if (NonDefaultOnly && Value == DefaultValue)
 	{
@@ -228,10 +195,10 @@ bool FGLTFProxyMaterialUtilities::GetTwoSided(const UMaterialInstance* Material,
 	return true;
 }
 
-bool FGLTFProxyMaterialUtilities::GetBlendMode(const UMaterialInstance* Material, EBlendMode& OutValue, bool NonDefaultOnly)
+bool FGLTFProxyMaterialUtilities::GetBlendMode(const UMaterialInterface* Material, EBlendMode& OutValue, bool NonDefaultOnly)
 {
-	const EBlendMode DefaultValue = Material->Parent->GetBlendMode();
-	const EBlendMode Value = Material->BasePropertyOverrides.bOverride_BlendMode ? Material->BasePropertyOverrides.BlendMode.GetValue() : DefaultValue;
+	const EBlendMode DefaultValue = Material->GetMaterial()->GetBlendMode();
+	const EBlendMode Value = Material->GetBlendMode();
 
 	if (NonDefaultOnly && Value == DefaultValue)
 	{
@@ -242,10 +209,10 @@ bool FGLTFProxyMaterialUtilities::GetBlendMode(const UMaterialInstance* Material
 	return true;
 }
 
-bool FGLTFProxyMaterialUtilities::GetOpacityMaskClipValue(const UMaterialInstance* Material, float& OutValue, bool NonDefaultOnly)
+bool FGLTFProxyMaterialUtilities::GetOpacityMaskClipValue(const UMaterialInterface* Material, float& OutValue, bool NonDefaultOnly)
 {
-	const float DefaultValue = Material->Parent->GetOpacityMaskClipValue();
-	const float Value = Material->BasePropertyOverrides.bOverride_OpacityMaskClipValue ? Material->BasePropertyOverrides.OpacityMaskClipValue : DefaultValue;
+	const float DefaultValue = Material->GetMaterial()->GetOpacityMaskClipValue();
+	const float Value = Material->GetOpacityMaskClipValue();
 
 	if (NonDefaultOnly && Value == DefaultValue)
 	{
@@ -256,10 +223,9 @@ bool FGLTFProxyMaterialUtilities::GetOpacityMaskClipValue(const UMaterialInstanc
 	return true;
 }
 
-void FGLTFProxyMaterialUtilities::SetTwoSided(UMaterialInstance* Material, bool Value, bool NonDefaultOnly)
+#if WITH_EDITOR
+void FGLTFProxyMaterialUtilities::SetTwoSided(UMaterialInstanceConstant* Material, bool Value, bool NonDefaultOnly)
 {
-	// TODO: Even if the exporter supports it, UMaterialInstanceDynamic won't actually reflect these overriden base properties in Unreal
-
 	if (NonDefaultOnly)
 	{
 		const bool DefaultValue = Material->Parent->IsTwoSided();
@@ -274,10 +240,8 @@ void FGLTFProxyMaterialUtilities::SetTwoSided(UMaterialInstance* Material, bool 
 	Material->TwoSided = Value;
 }
 
-void FGLTFProxyMaterialUtilities::SetBlendMode(UMaterialInstance* Material, EBlendMode Value, bool NonDefaultOnly)
+void FGLTFProxyMaterialUtilities::SetBlendMode(UMaterialInstanceConstant* Material, EBlendMode Value, bool NonDefaultOnly)
 {
-	// TODO: Even if the exporter supports it, UMaterialInstanceDynamic won't actually reflect these overriden base properties in Unreal
-
 	if (NonDefaultOnly)
 	{
 		const EBlendMode DefaultValue = Material->Parent->GetBlendMode();
@@ -292,10 +256,8 @@ void FGLTFProxyMaterialUtilities::SetBlendMode(UMaterialInstance* Material, EBle
 	Material->BlendMode = Value;
 }
 
-void FGLTFProxyMaterialUtilities::SetOpacityMaskClipValue(UMaterialInstance* Material, float Value, bool NonDefaultOnly)
+void FGLTFProxyMaterialUtilities::SetOpacityMaskClipValue(UMaterialInstanceConstant* Material, float Value, bool NonDefaultOnly)
 {
-	// TODO: Even if the exporter supports it, UMaterialInstanceDynamic won't actually reflect these overriden base properties in Unreal
-
 	if (NonDefaultOnly)
 	{
 		const float DefaultValue = Material->Parent->GetOpacityMaskClipValue();
@@ -309,3 +271,4 @@ void FGLTFProxyMaterialUtilities::SetOpacityMaskClipValue(UMaterialInstance* Mat
 	Material->BasePropertyOverrides.OpacityMaskClipValue = Value;
 	Material->OpacityMaskClipValue = Value;
 }
+#endif

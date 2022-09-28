@@ -37,19 +37,7 @@ public:
 #if WITH_EDITOR
 	void PostEngineInit()
 	{
-		LoadProxyParentsForCook();
 		AddProxyAssetActions();
-	}
-
-	static void LoadProxyParentsForCook()
-	{
-		static FGLTFObjectArrayScopeGuard ScopeGuard;
-
-		constexpr int32 NumMaterials = static_cast<int32>(EGLTFJsonShadingModel::NumShadingModels);
-		for (int32 i = 0; i < NumMaterials; ++i)
-		{
-			ScopeGuard.Add(FGLTFProxyMaterialUtilities::GetBaseMaterial(static_cast<EGLTFJsonShadingModel>(i)));
-		}
 	}
 
 	void AddProxyAssetActions()

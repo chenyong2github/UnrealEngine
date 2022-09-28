@@ -207,7 +207,7 @@ UMaterialInstanceConstant* FGLTFMaterialProxyFactory::CreateInstancedMaterial(UM
 {
 	const FString BaseName = TEXT("MI_GLTF_") + OriginalMaterial->GetName();
 	UPackage* Package = FindOrCreatePackage(BaseName);
-	return FGLTFProxyMaterialUtilities::CreateProxyMaterial<UMaterialInstanceConstant>(ShadingModel, Package, *BaseName, RF_Public | RF_Standalone);
+	return FGLTFProxyMaterialUtilities::CreateProxyMaterial(ShadingModel, Package, *BaseName, RF_Public | RF_Standalone);
 }
 
 UPackage* FGLTFMaterialProxyFactory::FindOrCreatePackage(const FString& BaseName)
