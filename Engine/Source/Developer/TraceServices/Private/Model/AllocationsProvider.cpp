@@ -293,6 +293,14 @@ const TCHAR* FTagTracker::GetTagString(TagIdType InTag) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const TCHAR* FTagTracker::GetTagFullPath(TagIdType InTag) const
+{
+	const FTagEntry* Entry = TagMap.Find(InTag);
+	return Entry ? Entry->FullPath : TEXT("Unknown");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTagTracker::EnumerateTags(TFunctionRef<void (const TCHAR*, const TCHAR*, TagIdType, TagIdType)> Callback) const
 {
 	for (const auto& EntryPair : TagMap)

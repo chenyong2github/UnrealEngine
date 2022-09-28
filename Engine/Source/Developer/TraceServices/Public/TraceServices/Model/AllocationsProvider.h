@@ -160,6 +160,7 @@ public:
 	// Returns the display name of the specified LLM tag.
 	// Lifetime of returned string matches the session lifetime.
 	virtual const TCHAR* GetTagName(TagIdType Tag) const = 0;
+	virtual const TCHAR* GetTagFullPath(TagIdType Tag) const = 0;
 };
 
 TRACESERVICES_API FName GetAllocationsProviderName();

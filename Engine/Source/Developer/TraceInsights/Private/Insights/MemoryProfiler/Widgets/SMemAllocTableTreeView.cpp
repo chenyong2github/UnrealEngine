@@ -2,6 +2,7 @@
 
 #include "SMemAllocTableTreeView.h"
 
+#include "Containers/Set.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "ISourceCodeAccessModule.h"
@@ -395,7 +396,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Size = int64(Allocation->GetSize());
 
 					Alloc.TagId = Allocation->GetTag();
-					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
+					Alloc.Tag = Provider.GetTagFullPath(Allocation->GetTag());
 
 					Alloc.Asset = nullptr;
 					Alloc.ClassName = nullptr;
@@ -1294,15 +1295,20 @@ void SMemAllocTableTreeView::PopulateLLMTagSuggestionList(const FString& Text, T
 
 	TraceServices::FProviderReadScopeLock _(*AllocationsProvider);
 
-	AllocationsProvider->EnumerateTags([&OutSuggestions, &Text](const TCHAR* Display, const TCHAR* FullPath, TraceServices::TagIdType CurrentTag, TraceServices::TagIdType ParentTag)
+	// Use a Set to avoid duplicate tag names.
+	TSet<FString> Suggestions;
+	AllocationsProvider->EnumerateTags([&Suggestions, &Text](const TCHAR* Display, const TCHAR* FullPath, TraceServices::TagIdType CurrentTag, TraceServices::TagIdType ParentTag)
 	{
-		if (Text.IsEmpty() || FCString::Stristr(Display, *Text))
+		if (Text.IsEmpty() || FCString::Stristr(FullPath, *Text))
 		{
-			OutSuggestions.Push(Display);
+			Suggestions.Add(FullPath);
 		}
 
 		return true;
 	});
+
+	OutSuggestions = Suggestions.Array();
+	OutSuggestions.Sort();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
