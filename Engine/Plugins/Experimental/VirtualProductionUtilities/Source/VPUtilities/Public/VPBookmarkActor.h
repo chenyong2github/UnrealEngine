@@ -29,15 +29,15 @@ public:
 
 	/** Mesh Representation in the world */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Components")
-	TObjectPtr<UStaticMeshComponent> BookmarkMesh;
+	TObjectPtr<UStaticMeshComponent> BookmarkMeshComponent;
 
 	/** Textrender to display bookmark name */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Components")
-	TObjectPtr<UTextRenderComponent> NameTextRender;
+	TObjectPtr<UTextRenderComponent> NameTextRenderComponent;
 
 	/** Splinemesh */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Components")
-	TObjectPtr<USplineMeshComponent> SplineMesh;
+	TObjectPtr<USplineMeshComponent> SplineMeshComponent;
 
 	/**CineCamera */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "Components")
@@ -59,7 +59,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Snapshot")
 	TObjectPtr<UTexture2D> SnapshotTexture;
 
-	/**Update the mesh color and BookmarkColor variable. Intended for use with multiuser initialisation*/
+	/**Update the mesh color and BookmarkColor variable. Intended for use with multiuser initialization*/
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Default")
 	void UpdateBookmarkColor(FLinearColor Color);
 
@@ -111,11 +111,23 @@ public:
 	
 private:
 
-	UMaterial* TextMaterial;
+	FRotator BookmarkRotation; //Actor's rotation
 
-	UStaticMesh* FoundMesh;
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> BookmarkStaticMesh; //Mesh to use main static mesh component
 
-	UMaterialInterface* SplineMaterial;
+	UPROPERTY()
+	TObjectPtr<UMaterial> TextMaterial; 
 
-	FRotator BookmarkRotation;
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> SplineStaticMesh;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> SplineMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> SplineMaterialInstance;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> LabelMaterialInstance;
 };
