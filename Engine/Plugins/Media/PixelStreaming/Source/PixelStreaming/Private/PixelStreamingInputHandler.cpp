@@ -713,7 +713,16 @@ namespace UE::PixelStreaming
 				return FGamepadKeyNames::RightShoulder;
 			}
 			break;
-			// Buttons 6 and 7 are mapped as analog axis as they are the triggers
+			case 6:
+			{
+				return FGamepadKeyNames::LeftTriggerAnalog;
+			}
+			break;
+			case 7:
+			{
+				return FGamepadKeyNames::RightTriggerAnalog;
+			}
+			break;
 			case 8:
 			{
 				return FGamepadKeyNames::SpecialLeft;
