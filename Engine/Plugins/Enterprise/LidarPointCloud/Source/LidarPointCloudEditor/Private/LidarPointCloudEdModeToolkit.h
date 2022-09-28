@@ -24,7 +24,7 @@ public:
 
 	bool IsActorSelection() const;
 	bool IsPointSelection() const;
-	bool IsAnySelection() const { return IsActorSelection() || IsPointSelection(); }
+	bool IsAnySelection() const;
 	bool IsBrushVisible() const { return BrushTool != nullptr; }
 
 	EVisibility GetActorVisibility() const { return IsActorSelection() ? EVisibility::Visible : EVisibility::Collapsed; }
