@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "Containers/StringView.h"
 #include "HAL/PlatformTime.h"
 #include "ProfilingDebugging/CallstackTrace.h"
 #include "ProfilingDebugging/TagTrace.h"
@@ -279,7 +280,39 @@ protected:
 static FUndestructed<FTraceMalloc> GTraceMalloc;
 
 ////////////////////////////////////////////////////////////////////////////////
-FMalloc* MemoryTrace_CreateInternal(FMalloc* InMalloc)
+template <typename ArgCharType>
+static bool MemoryTrace_ShouldEnable(int32 ArgC, const ArgCharType* const* ArgV)
+{
+	for (int32 ArgIndex = 1; ArgIndex < ArgC; ArgIndex++)
+	{
+		const ArgCharType* Arg = ArgV[ArgIndex];
+		TStringView<ArgCharType> ArgView(Arg);
+		if (ArgView.SubStr(0, 7).Equals("-trace=", ESearchCase::IgnoreCase))
+		{
+			const ArgCharType* Start = Arg + 7;
+			const ArgCharType* End = Arg + TCString<ArgCharType>::Strlen(Arg);
+
+			for (const ArgCharType* c = Start; c < End + 1; ++c)
+			{
+				if (*c == '\0' || *c == ',')
+				{
+					TStringView<ArgCharType> View(Start, uint32(c - Start));
+					if (View.Equals("memalloc", ESearchCase::IgnoreCase) || View.Equals("memory", ESearchCase::IgnoreCase))
+					{
+						return true;
+					}
+
+					Start = c + 1;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static FMalloc* MemoryTrace_CreateInternal(FMalloc* InMalloc)
 {
 	// Some OSes (i.e. Windows) will terminate all threads except the main
 	// one as part of static deinit. However we may receive more memory
@@ -302,6 +335,28 @@ FMalloc* MemoryTrace_CreateInternal(FMalloc* InMalloc)
 	SMallocWrapper.Construct(InMalloc);
 
 	return &SMallocWrapper;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FMalloc* MemoryTrace_CreateInternal(FMalloc* InMalloc, int32 ArgC, const WIDECHAR* const* ArgV)
+{
+	if (!MemoryTrace_ShouldEnable(ArgC, ArgV))
+	{
+		return nullptr;
+	}
+
+	return MemoryTrace_CreateInternal(InMalloc);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FMalloc* MemoryTrace_CreateInternal(FMalloc* InMalloc, int32 ArgC, const ANSICHAR* const* ArgV)
+{
+	if (!MemoryTrace_ShouldEnable(ArgC, ArgV))
+	{
+		return nullptr;
+	}
+
+	return MemoryTrace_CreateInternal(InMalloc);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

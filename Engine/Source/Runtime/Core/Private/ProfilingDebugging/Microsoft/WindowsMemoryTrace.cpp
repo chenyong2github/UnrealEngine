@@ -17,11 +17,12 @@
 #include "Trace/Trace.inl"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
+#include <shellapi.h>
 #include <winternl.h>
 #include <intrin.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-FMalloc* MemoryTrace_CreateInternal(FMalloc*);
+FMalloc* MemoryTrace_CreateInternal(FMalloc*, int32, const WIDECHAR* const*);
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAddrPack
@@ -358,42 +359,23 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc2(HANDLE Process, LPVOID BaseAddress, 
 }
 #endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 
-
 ////////////////////////////////////////////////////////////////////////////////
 FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 {
 	bool bEnabled = false;
-	const TCHAR* CmdLine = ::GetCommandLineW();
-	if (const TCHAR* TraceArg = FCString::Strstr(CmdLine, TEXT("-trace=")))
+
+	int ArgC = 0;
+	const WIDECHAR* CmdLine = ::GetCommandLineW();
+	const WIDECHAR* const* ArgV = ::CommandLineToArgvW(CmdLine, &ArgC);
+	FMalloc* OutMalloc = MemoryTrace_CreateInternal(InMalloc, ArgC, ArgV);
+	::LocalFree(HLOCAL(ArgV));
+
+	if (OutMalloc != nullptr)
 	{
-		const TCHAR* Start = TraceArg + 7;
-		const TCHAR* End = Start;
-		for (; *End != ' ' && *End != '\0'; ++End);
-
-		for (const TCHAR* c = Start; c < End + 1; ++c)
-		{
-			if (*c == ' ' || *c == '\0' || *c == ',')
-			{
-				FStringView View(Start, uint32(c - Start));
-				if (View.Equals(TEXT("memalloc"), ESearchCase::IgnoreCase) || View.Equals(TEXT("memory"), ESearchCase::IgnoreCase))
-				{
-					bEnabled = true;
-					break;
-				}
-
-				Start = c + 1;
-			}
-		}
-	}
-
-	if (bEnabled)
-	{
-		FMalloc* OutMalloc = MemoryTrace_CreateInternal(InMalloc);
-		
-	#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
+#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 		FVirtualWinApiHooks::Initialize(false);
-	#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
-		
+#endif
+
 		return OutMalloc;
 	}
 
