@@ -289,7 +289,7 @@ void UEditorEngine::csgRebuild( UWorld* InWorld )
 	}
 
 	{
-		FScopedSlowTask SlowTask(DynamicBrushes.Num(), NSLOCTEXT("UnrealEd", "RebuildCSGRebuildingDynamicBrushBSPs", "Rebuild CSG: Rebuilding Dynamic Brush BSPs") );
+		FScopedSlowTask SlowTask(static_cast<float>(DynamicBrushes.Num()), NSLOCTEXT("UnrealEd", "RebuildCSGRebuildingDynamicBrushBSPs", "Rebuild CSG: Rebuilding Dynamic Brush BSPs") );
 		for ( int32 BrushIndex = 0; BrushIndex < DynamicBrushes.Num(); BrushIndex++ )
 		{
 			SlowTask.EnterProgressFrame();

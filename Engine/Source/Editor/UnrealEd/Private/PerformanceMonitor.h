@@ -95,7 +95,8 @@ struct FMovingAverage
 			SampleAverage = Sum / Samples.Num();
 
 			// reset the accumulator and counter
-			CurrentSampleAccumulator = CurrentSampleCount = 0;
+			CurrentSampleAccumulator = 0.0f;
+			CurrentSampleCount = 0;
 			CurrentSampleStartTime = CurrentTime;
 		}
 	}

@@ -39,7 +39,7 @@ public:
 		}
 		FirstChild = nullptr;
 	}
-	FHierarchicalTimerInfo* GetChild(int InId, const char* InName)
+	FHierarchicalTimerInfo* GetChild(uint16 InId, const char* InName)
 	{
 		for (FHierarchicalTimerInfo* Child = FirstChild; Child;)
 		{
@@ -91,7 +91,7 @@ FScopeTimer::FScopeTimer(int InId, const char* InName, bool IncrementScope /*= f
 {
 	checkSlow(IsInGameThread());
 
-	HierarchyTimerInfo = CurrentTimerInfo->GetChild(InId, InName);
+	HierarchyTimerInfo = CurrentTimerInfo->GetChild(static_cast<uint16>(InId), InName);
 
 	HierarchyTimerInfo->IncrementDepth = IncrementScope;
 

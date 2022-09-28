@@ -85,7 +85,7 @@ public:
 				// Add user input block
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(2)
+				.Padding(2.0f)
 				[
 						SNew(SVerticalBox)
 						+SVerticalBox::Slot()

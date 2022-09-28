@@ -2644,7 +2644,7 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 	if (LastCookableObjectTickTime + TickCookableObjectsFrameTime <= CurrentTime)
 	{
 		UE_SCOPED_COOKTIMER(TickCookableObjects);
-		FTickableCookObject::TickObjects(CurrentTime - LastCookableObjectTickTime, false /* bTickComplete */);
+		FTickableCookObject::TickObjects(static_cast<float>(CurrentTime - LastCookableObjectTickTime), false /* bTickComplete */);
 		LastCookableObjectTickTime = CurrentTime;
 	}
 

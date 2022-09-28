@@ -1618,10 +1618,10 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 		if (SourceControlCheckPackages.Num())
 		{
 			// Update the source control status of all potentially relevant packages
-			FScopedSlowTask SlowTask(SourceControlCheckPackages.Num(), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
+			FScopedSlowTask SlowTask(static_cast<float>(SourceControlCheckPackages.Num()), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
 			SlowTask.MakeDialogDelayed(0.5f);
 			SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), SourceControlCheckPackages);
-			SlowTask.EnterProgressFrame(SourceControlCheckPackages.Num());
+			SlowTask.EnterProgressFrame(static_cast<float>(SourceControlCheckPackages.Num()));
 		}
 	}
 
@@ -2116,10 +2116,10 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 	// Attempt to check out each package the user specified to be checked out that is not read only
 	if(FinalPackageCheckoutList.Num() > 0)
 	{
-		FScopedSlowTask SlowTask(FinalPackageCheckoutList.Num(), LOCTEXT("CheckingOutPackages", "Checking out packages..."));
+		FScopedSlowTask SlowTask(static_cast<float>(FinalPackageCheckoutList.Num()), LOCTEXT("CheckingOutPackages", "Checking out packages..."));
 		SlowTask.MakeDialog();
 		CheckOutResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), FinalPackageCheckoutList);
-		SlowTask.EnterProgressFrame(FinalPackageCheckoutList.Num());
+		SlowTask.EnterProgressFrame(static_cast<float>(FinalPackageCheckoutList.Num()));
 	}
 
 	// Attempt to mark for add each package the user specified that is not already tracked by source control
@@ -3167,7 +3167,7 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveContentPackagesEx
 		}
 	}
 
-	FScopedSlowTask SlowTask(PackagesToSave.Num()*2, LOCTEXT("PerformingAutoSave_Caption", "Auto-saving out of date packages..."));
+	FScopedSlowTask SlowTask(static_cast<float>(PackagesToSave.Num() * 2), LOCTEXT("PerformingAutoSave_Caption", "Auto-saving out of date packages..."));
 
 	for (UPackage* CurPackage : PackagesToSave)
 	{
@@ -4004,7 +4004,7 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 	PackagesToSave.Reserve(FinalSaveList.Num());
 
 	{
-		FScopedSlowTask SlowTask(FinalSaveList.Num() * 2, NSLOCTEXT("UnrealEd", "SavingPackagesE", "Saving packages..."));
+		FScopedSlowTask SlowTask(static_cast<float>(FinalSaveList.Num() * 2), NSLOCTEXT("UnrealEd", "SavingPackagesE", "Saving packages..."));
 		SlowTask.MakeDialog();
 
 		UWorld* ActorsWorld = nullptr;
@@ -4047,7 +4047,7 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 		if (PackagesToClean.Num() > 0)
 		{
 			ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
-			SlowTask.EnterProgressFrame(PackagesToClean.Num());
+			SlowTask.EnterProgressFrame(static_cast<float>(PackagesToClean.Num()));
 		}
 
 		PrepareSavePackages(PackagesToSave);

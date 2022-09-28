@@ -430,7 +430,7 @@ public:
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.FillHeight(1.0f)
-			.Padding(5)
+			.Padding(5.0f)
 			[
 				SNew( STextBlock )
 				.WrapTextAt(615.0f)	// 400.0f
@@ -447,7 +447,7 @@ public:
 					SNew( SButton )
 					.Text( NSLOCTEXT("UnrealEd", "Yes", "Yes") )
 					.OnClicked( this, &SModalDialog::OnYesClicked )
-					.ContentPadding(7)
+					.ContentPadding(7.0f)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -455,7 +455,7 @@ public:
 					SNew( SButton )
 					.Text( NSLOCTEXT("UnrealEd", "No", "No") )
 					.OnClicked( this, &SModalDialog::OnNoClicked )
-					.ContentPadding(7)
+					.ContentPadding(7.0f)
 				]
 			]
 		];
@@ -904,7 +904,7 @@ void SGenericDialogWidget::Construct( const FArguments& InArgs )
 	{
 		ContentWidget = 
 			SNew(SBox)
-			.MaxDesiredHeight(InArgs._ScrollBoxMaxHeight)
+			.MaxDesiredHeight(static_cast<float>(InArgs._ScrollBoxMaxHeight))
 			[
 				SNew(SScrollBox)
 				+SScrollBox::Slot()

@@ -619,7 +619,7 @@ void FRequestCluster::FGraphSearch::AddVertices(TArray<TUniquePtr<FVertexData>>&
 
 void FRequestCluster::FGraphSearch::WaitForPollAvailability(double WaitTimeSeconds)
 {
-	uint32 WaitTime = WaitTimeSeconds > 0 ? FMath::Floor(WaitTimeSeconds * 1000) : MAX_uint32;
+	uint32 WaitTime = (WaitTimeSeconds > 0.0) ? static_cast<uint32>(FMath::Floor(WaitTimeSeconds * 1000)) : MAX_uint32;
 	PollReadyEvent->Wait(WaitTime);
 }
 

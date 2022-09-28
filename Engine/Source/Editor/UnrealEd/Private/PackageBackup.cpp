@@ -25,7 +25,7 @@
  */
 struct FBackupFileInfo
 {
-	int32 FileSize;						/** Size of the file */
+	int64 FileSize;						/** Size of the file */
 	FString FileName;					/** Name of the file */
 	FDateTime FileTimeStamp;			/** Timestamp of the file */
 };
@@ -131,7 +131,7 @@ bool FAutoPackageBackup::ShouldBackupPackage( const UPackage& InPackage, FString
 	
 	// If the package passed the initial backup checks, proceed to check more specific conditions
 	// that might disqualify the package from being backed up
-	const int32 FileSizeOfBackup = IFileManager::Get().FileSize( *OutFilename );
+	const int64 FileSizeOfBackup = IFileManager::Get().FileSize( *OutFilename );
 	if ( bShouldBackup )
 	{
 		// Ensure that the size the backup would require is less than that of the maximum allowed
@@ -156,7 +156,7 @@ bool FAutoPackageBackup::ShouldBackupPackage( const UPackage& InPackage, FString
 		FString ExistingFileNameExtension = FPaths::GetExtension(OutFilename);
 
 		bool bFoundExistingBackup = false;
-		int32 DirectorySize = 0;
+		int64 DirectorySize = 0;
 		FDateTime LastBackupTimeStamp = FDateTime::MinValue();
 
 		TArray<FBackupFileInfo> BackupFileInfoArray;
@@ -303,7 +303,7 @@ FString FAutoPackageBackup::GetBackupDirectory()
  * @return	true if the space was successfully provided, false if not or if the requested space was
  *			greater than the max allowed space by the user
  */
-bool FAutoPackageBackup::PerformBackupSpaceMaintenance( TArray<FBackupFileInfo>& InBackupFiles, int32 InSpaceUsed, int32 InSpaceRequired )
+bool FAutoPackageBackup::PerformBackupSpaceMaintenance( TArray<FBackupFileInfo>& InBackupFiles, int64 InSpaceUsed, int64 InSpaceRequired )
 {
 	bool bSpaceFreed = false;
 

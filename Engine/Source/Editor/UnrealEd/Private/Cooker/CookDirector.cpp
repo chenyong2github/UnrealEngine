@@ -424,9 +424,9 @@ void FCookDirector::InitializeWorkers()
 	}
 
 	// Find any unused RemoteIndex less than the maximum used RemoteIndex
-	TArray<int32> UnusedRemoteIndexes;
+	TArray<uint8> UnusedRemoteIndexes;
 	RemoteWorkers.KeySort(TLess<>());
-	int32 NextPossiblyOpenIndex = 0;
+	uint8 NextPossiblyOpenIndex = 0;
 	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 	{
 		check(NextPossiblyOpenIndex <= Pair.Key);
@@ -439,7 +439,7 @@ void FCookDirector::InitializeWorkers()
 	// otherwise use the next integer because all indexes up to RemoteWorkers.Num() are in use.
 	while (RemoteWorkers.Num() < CookWorkerCount)
 	{
-		int32 RemoteIndex;
+		uint8 RemoteIndex;
 		if (UnusedRemoteIndexes.Num())
 		{
 			RemoteIndex = UnusedRemoteIndexes[0];

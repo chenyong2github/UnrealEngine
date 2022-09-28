@@ -444,8 +444,8 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 	const FString FailedDiffsPath = FPaths::ProjectSavedDir() / TEXT("FailedDiffs");
 	IFileManager::Get().DeleteDirectory(*FailedDiffsPath, false, true);
 
-	float TotalPackageLoadTime = 0.0;
-	float TotalPackageSaveTime = 0.0;
+	double TotalPackageLoadTime = 0.0;
+	double TotalPackageSaveTime = 0.0;
 
 	FArchive* CSVWriter = nullptr;
 	if (InArgs.CSVFilename.Len() > 0)
@@ -472,8 +472,8 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 		int64 NumFiles = 0;
 		FString MaxTimePackage;
 		FString MinTimePackage;
-		float IterationPackageLoadTime = 0.0;
-		float IterationPackageSaveTime = 0.0;
+		double IterationPackageLoadTime = 0.0;
+		double IterationPackageSaveTime = 0.0;
 		double ThisPackageLoadTime = 0.0;
 
 		TArray<FString> PhaseSuccess;

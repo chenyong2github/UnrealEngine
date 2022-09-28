@@ -388,8 +388,8 @@ void FetchFbxCameraInScene(UnFbx::FFbxImporter *FbxImporter, FbxNode* ParentNode
 			}
 			CameraInfo->UniqueId = CameraAttribute->GetUniqueID();
 
-			float FieldOfView;
-			float FocalLength;
+			FbxDouble FieldOfView;
+			FbxDouble FocalLength;
 
 			if (CameraAttribute->GetApertureMode() == FbxCamera::eFocalLength)
 			{
@@ -402,16 +402,16 @@ void FetchFbxCameraInScene(UnFbx::FFbxImporter *FbxImporter, FbxNode* ParentNode
 				FocalLength = CameraAttribute->ComputeFocalLength(FieldOfView);
 			}
 
-			CameraInfo->AspectWidth = CameraAttribute->AspectWidth.Get();
-			CameraInfo->AspectHeight = CameraAttribute->AspectHeight.Get();
-			CameraInfo->NearPlane = CameraAttribute->NearPlane.Get();
-			CameraInfo->FarPlane = CameraAttribute->FarPlane.Get();
-			CameraInfo->ProjectionPerspective = CameraAttribute->ProjectionType.Get() == FbxCamera::ePerspective;
-			CameraInfo->OrthoZoom = CameraAttribute->OrthoZoom.Get();
-			CameraInfo->FieldOfView = FieldOfView;
-			CameraInfo->FocalLength = FocalLength;
-			CameraInfo->ApertureWidth = CameraAttribute->GetApertureWidth();
-			CameraInfo->ApertureHeight = CameraAttribute->GetApertureHeight();
+			CameraInfo->AspectWidth				= static_cast<float>(CameraAttribute->AspectWidth.Get());
+			CameraInfo->AspectHeight			= static_cast<float>(CameraAttribute->AspectHeight.Get());
+			CameraInfo->NearPlane				= static_cast<float>(CameraAttribute->NearPlane.Get());
+			CameraInfo->FarPlane				= static_cast<float>(CameraAttribute->FarPlane.Get());
+			CameraInfo->ProjectionPerspective	= CameraAttribute->ProjectionType.Get() == FbxCamera::ePerspective;
+			CameraInfo->OrthoZoom				= static_cast<float>(CameraAttribute->OrthoZoom.Get());
+			CameraInfo->FieldOfView				= static_cast<float>(FieldOfView);
+			CameraInfo->FocalLength				= static_cast<float>(FocalLength);
+			CameraInfo->ApertureWidth			= static_cast<float>(CameraAttribute->GetApertureWidth());
+			CameraInfo->ApertureHeight			= static_cast<float>(CameraAttribute->GetApertureHeight());
 			SceneInfoPtr->CameraInfo.Add(CameraInfo->UniqueId, CameraInfo);
 		}
 	}

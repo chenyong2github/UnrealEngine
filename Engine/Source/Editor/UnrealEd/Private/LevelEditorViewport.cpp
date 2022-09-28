@@ -1269,8 +1269,8 @@ static FActorPositionTraceResult TraceForPositionOn2DLayer(const FViewportCursor
 	}
 
 	FActorPositionTraceResult Result;
-	const float Numerator = FVector::DotProduct(PlaneCenter - Cursor.GetOrigin(), PlaneNormal);
-	const float Denominator = FVector::DotProduct(PlaneNormal, Cursor.GetDirection());
+	const double Numerator = FVector::DotProduct(PlaneCenter - Cursor.GetOrigin(), PlaneNormal);
+	const double Denominator = FVector::DotProduct(PlaneNormal, Cursor.GetDirection());
 	if (FMath::Abs(Denominator) < SMALL_NUMBER)
 	{
 		Result.State = FActorPositionTraceResult::Failed;
@@ -1279,7 +1279,7 @@ static FActorPositionTraceResult TraceForPositionOn2DLayer(const FViewportCursor
 	{
 		Result.State = FActorPositionTraceResult::HitSuccess;
 		Result.SurfaceNormal = PlaneNormal;
-		float D = Numerator / Denominator;
+		double D = Numerator / Denominator;
 		Result.Location = Cursor.GetOrigin() + D * Cursor.GetDirection();
 	}
 
@@ -2558,7 +2558,7 @@ void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
 				}
 			}
 
-			const float DistanceToCurrentLookAt = FVector::Dist( GetViewLocation() , GetLookAtLocation() );
+			const double DistanceToCurrentLookAt = FVector::Dist( GetViewLocation() , GetLookAtLocation() );
 
 			const FQuat CameraOrientation = FQuat::MakeFromEuler( GetViewRotation().Euler() );
 			FVector Direction = CameraOrientation.RotateVector( FVector(1,0,0) );
@@ -2658,7 +2658,7 @@ void FLevelEditorViewportClient::ProjectActorsIntoWorld(const TArray<AActor*>& A
 			if (SceneView->WorldToPixel(NewActorPosition, ScreenPos) && FMath::IsWithin<float>(ScreenPos.X, 0, ViewportSize.X) && FMath::IsWithin<float>(ScreenPos.Y, 0, ViewportSize.Y))
 			{
 				bIsOnScreen = true;
-				Cursor = FViewportCursorLocation(SceneView, this, ScreenPos.X, ScreenPos.Y);
+				Cursor = FViewportCursorLocation(SceneView, this, static_cast<int32>(ScreenPos.X), static_cast<int32>(ScreenPos.Y));
 			}
 		}
 
@@ -3383,7 +3383,7 @@ void FLevelEditorViewportClient::NudgeSelectedObjects( const struct FInputEventS
 
 		bWidgetAxisControlledByDrag = false;
 		Widget->SetCurrentAxis( VirtualAxis );
-		MouseDeltaTracker->AddDelta( this, VirtualKey , VirtualDelta, 1 );
+		MouseDeltaTracker->AddDelta( this, VirtualKey, static_cast<int32>(VirtualDelta), 1 );
 		Widget->SetCurrentAxis( VirtualAxis );
 		UpdateMouseDelta();
 		InViewport->SetMouse( StartMousePos.X , StartMousePos.Y );
@@ -4549,7 +4549,7 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 			{
 				// Allocate the material proxy and register it so it can be deleted properly once the rendering is done with it.
 				FColor VolumeColor = Brush->GetWireColor();
-				VolumeColor.A = Brush->ShadedVolumeOpacityValue * 255.0f;
+				VolumeColor.A = static_cast<uint8>(Brush->ShadedVolumeOpacityValue * 255.0f);
 				FDynamicColoredMaterialRenderProxy* MaterialProxy = new FDynamicColoredMaterialRenderProxy(GEngine->GeomMaterial->GetRenderProxy(), VolumeColor);
 				PDI->RegisterDynamicResource(MaterialProxy);
 
@@ -4593,7 +4593,8 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 							const FVector3f& PolyVertex = poly->Vertices[VertexIndex];
 							const FVector WorldLocation = FVector(BrushTransform.TransformPosition((FVector)PolyVertex));
 
-							const float Scale = View->WorldToScreen(WorldLocation).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
+							const float Scale =
+								static_cast<float>(View->WorldToScreen(WorldLocation).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]));
 
 							const FColor Color(Brush->GetWireColor());
 							PDI->SetHitProxy(new HBSPBrushVert(Brush, &poly->Vertices[VertexIndex]));
@@ -4703,7 +4704,7 @@ void FLevelEditorViewportClient::SetupViewForRendering( FSceneViewFamily& ViewFa
 
 		if(bEnableColorScaling)
 		{
-				View.ColorScale = FLinearColor(ColorScale.X,ColorScale.Y,ColorScale.Z);
+			View.ColorScale = FLinearColor(FVector3f{ ColorScale });
 		}
 	}
 

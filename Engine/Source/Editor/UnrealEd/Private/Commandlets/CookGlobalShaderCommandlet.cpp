@@ -178,10 +178,10 @@ void UCookGlobalShadersCommandlet::CookGlobalShadersOnDirectoriesChanges()
 	while (GIsRunning && !IsEngineExitRequested())
 	{
 		GEngine->UpdateTimeAndHandleMaxTickRate();
-		GEngine->Tick(FApp::GetDeltaTime(), false);
+		GEngine->Tick(static_cast<float>(FApp::GetDeltaTime()), false);
 		
 		// tick the directory watcher
-		DirectoryWatcherModule.Get()->Tick(FApp::GetDeltaTime());
+		DirectoryWatcherModule.Get()->Tick(static_cast<float>(FApp::GetDeltaTime()));
 		
 		// flush log
 		GLog->FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions::Async);

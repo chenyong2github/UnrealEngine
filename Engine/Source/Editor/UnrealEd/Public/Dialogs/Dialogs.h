@@ -176,7 +176,7 @@ class SGenericDialogWidget : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS( SGenericDialogWidget )
 		: _UseScrollBox(true)
-		, _ScrollBoxMaxHeight(300.0f)
+		, _ScrollBoxMaxHeight(300)
 	{
 	}
 		

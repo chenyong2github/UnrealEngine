@@ -328,7 +328,13 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 
 	// A DataChunkActor will be generated for each tile touching the generating bounds.
 	const TSubclassOf<APartitionActor>& NavigationDataActorClass = ANavigationDataChunkActor::StaticClass();
-	const FIntRect GeneratingBounds2D(GeneratingBounds.Min.X, GeneratingBounds.Min.Y, GeneratingBounds.Max.X, GeneratingBounds.Max.Y);
+
+	int32 XMin = static_cast<int32>(GeneratingBounds.Min.X);
+	int32 YMin = static_cast<int32>(GeneratingBounds.Min.Y);
+	int32 XMax = static_cast<int32>(GeneratingBounds.Max.X);
+	int32 YMax = static_cast<int32>(GeneratingBounds.Max.Y);
+
+	const FIntRect GeneratingBounds2D(XMin, YMin, XMax, YMax);
 	FActorPartitionGridHelper::ForEachIntersectingCell(NavigationDataActorClass, GeneratingBounds2D, World->PersistentLevel,
 		[&WorldPartition, &ActorCount, World, &ValidNavigationDataChunkActors, &NavDataBounds, this](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FIntRect& InCellBounds)->bool
 		{

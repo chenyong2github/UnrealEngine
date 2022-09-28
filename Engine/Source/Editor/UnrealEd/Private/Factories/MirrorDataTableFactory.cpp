@@ -111,7 +111,7 @@ public:
 				.MaxHeight(500)
 				[
 					SNew(SBorder)
-					.Padding(4)
+					.Padding(4.0f)
 					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
 						StructViewerModule.CreateStructViewer(Options, FOnStructPicked::CreateSP(this, &SMirrorDataTableFactoryWindow::OnPickedStruct))

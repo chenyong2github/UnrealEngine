@@ -130,7 +130,7 @@ public:
 
 	FDebugSkelMeshDynamicData* DynamicData;
 
-	uint32 GetAllocatedSize() const
+	SIZE_T GetAllocatedSize() const
 	{
 		return FSkeletalMeshSceneProxy::GetAllocatedSize();
 	}

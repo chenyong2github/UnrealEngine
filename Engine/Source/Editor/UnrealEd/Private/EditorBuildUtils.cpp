@@ -1670,7 +1670,7 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 			return true;
 		}
 
-		FScopedSlowTask BuildTask(Components.Num(), LOCTEXT("VirtualTextureBuild", "Building Virtual Textures"));
+		FScopedSlowTask BuildTask(static_cast<float>(Components.Num()), LOCTEXT("VirtualTextureBuild", "Building Virtual Textures"));
 		BuildTask.MakeDialog(true);
 
 		for (URuntimeVirtualTextureComponent* Component : Components)

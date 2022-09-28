@@ -1536,8 +1536,8 @@ void FEditorModeTools::DrawHUD( FEditorViewportClient* InViewportClient,FViewpor
 							PixelLocation.Y < 0.0f || PixelLocation.Y > View->UnscaledViewRect.Height() * InvDpiScale;
 						if (!bOutside)
 						{
-							const float X = PixelLocation.X - (TextureSizeX / 2);
-							const float Y = PixelLocation.Y - (TextureSizeY / 2);
+							const double X = PixelLocation.X - (TextureSizeX / 2);
+							const double Y = PixelLocation.Y - (TextureSizeY / 2);
 							if (bIsHitTesting)
 							{
 								Canvas->SetHitProxy(new HStaticMeshVert(Actor, Vertex));

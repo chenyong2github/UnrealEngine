@@ -107,8 +107,14 @@ bool UWorldPartitionMiniMapBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	// World X,Y to minimap X,Y
 	const FVector3d MinimapMin = WorldToMinimap.TransformPosition(ClampedBounds.Min);
 	const FVector3d MinimapMax = WorldToMinimap.TransformPosition(ClampedBounds.Max);
-	const FIntVector2 DstMin(FMath::Max(FMath::Floor(MinimapMin.X), 0), FMath::Max(FMath::Floor(MinimapMin.Y), 0));
-	const FIntVector2 DstMax(FMath::Max(FMath::Floor(MinimapMax.X), 0), FMath::Max(FMath::Floor(MinimapMax.Y), 0));
+
+	int32 XMin = static_cast<int32>(FMath::Max(FMath::Floor(MinimapMin.X), 0));
+	int32 YMin = static_cast<int32>(FMath::Max(FMath::Floor(MinimapMin.Y), 0));
+	int32 XMax = static_cast<int32>(FMath::Max(FMath::Floor(MinimapMax.X), 0));
+	int32 YMax = static_cast<int32>(FMath::Max(FMath::Floor(MinimapMax.Y), 0));
+
+	const FIntVector2 DstMin(XMin, YMin);
+	const FIntVector2 DstMax(XMax, YMax);
 
 	const uint32 CaptureWidthPixels = DstMax.X - DstMin.X;
 	const uint32 CaptureHeightPixels = DstMax.Y - DstMin.Y;

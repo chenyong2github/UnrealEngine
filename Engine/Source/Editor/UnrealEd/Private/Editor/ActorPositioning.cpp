@@ -142,7 +142,7 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 
 		for (const FHitResult& Hit : Hits)
 		{
-			const float DistanceToHitSqr = (Hit.ImpactPoint - RayStart).SizeSquared();
+			const double DistanceToHitSqr = (Hit.ImpactPoint - RayStart).SizeSquared();
 			if (DistanceToHitSqr < ClosestHitDistanceSqr)
 			{
 				ClosestHitDistanceSqr = DistanceToHitSqr;
@@ -234,7 +234,7 @@ FTransform FActorPositioning::GetSurfaceAlignedTransform(const FPositioningData&
 	const ULevelEditorViewportSettings* ViewportSettings = GetDefault<ULevelEditorViewportSettings>();
 	const float SnapOffsetExtent = (ViewportSettings->SnapToSurface.bEnabled) ? (ViewportSettings->SnapToSurface.SnapOffsetExtent) : (0.0f);
 	const FVector PlacementExtent = (Data.ActorFactory && !Data.ActorFactory->bUsePlacementExtent) ? FVector::ZeroVector : Data.PlacementExtent;
-	const float CollisionOffsetExtent = FVector::BoxPushOut(Data.SurfaceNormal, PlacementExtent);
+	const double CollisionOffsetExtent = FVector::BoxPushOut(Data.SurfaceNormal, PlacementExtent);
 
 	FVector LocationOffset = Data.SurfaceNormal * FMath::Max(SnapOffsetExtent, CollisionOffsetExtent);
 	if (Data.ActorFactory && LocationOffset.SizeSquared() < Data.ActorFactory->SpawnPositionOffset.SizeSquared())

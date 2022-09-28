@@ -125,7 +125,7 @@ void PixelInspectorRealtimeManagement(FEditorViewportClient *CurrentViewport, bo
 namespace EditorViewportClient
 {
 	static const float GridSize = 2048.0f;
-	static const int32 CellSize = 16;
+	static const int8 CellSize = 16;
 	static const float LightRotSpeed = 0.22f;
 }
 
@@ -181,13 +181,13 @@ FViewportCursorLocation::FViewportCursorLocation(const FSceneView* View, FEditor
 	: Origin(ForceInit), Direction(ForceInit), CursorPos(X, Y)
 {
 
-	FVector4 ScreenPos = View->CursorToScreen(X, Y, 0);
+	FVector4 ScreenPos = View->CursorToScreen(static_cast<float>(X), static_cast<float>(Y), 0);
 
 	const FMatrix InvViewMatrix = View->ViewMatrices.GetInvViewMatrix();
 	const FMatrix InvProjMatrix = View->ViewMatrices.GetInvProjectionMatrix();
 
-	const float ScreenX = ScreenPos.X;
-	const float ScreenY = ScreenPos.Y;
+	const double ScreenX = ScreenPos.X;
+	const double ScreenY = ScreenPos.Y;
 
 	ViewportClient = InViewportClient;
 
@@ -684,7 +684,7 @@ void FEditorViewportClient::OnEditorModeIDChanged(const FEditorModeID& EditorMod
 
 float FEditorViewportClient::GetOrthoUnitsPerPixel(const FViewport* InViewport) const
 {
-	const float SizeX = InViewport->GetSizeXY().X;
+	const float SizeX = static_cast<float>(InViewport->GetSizeXY().X);
 
 	// 15.0f was coming from the CAMERA_ZOOM_DIV marco, seems it was chosen arbitrarily
 	return (GetOrthoZoom() / (SizeX * 15.f)) * ComputeOrthoZoomFactor(SizeX);
@@ -2008,8 +2008,8 @@ void FEditorViewportClient::UpdateLightingShowFlags( FEngineShowFlags& InOutShow
 
 bool FEditorViewportClient::CalculateEditorConstrainedViewRect(FSlateRect& OutSafeFrameRect, FViewport* InViewport, float DPIScale)
 {
-	const int32 SizeX = InViewport->GetSizeXY().X / DPIScale;
-	const int32 SizeY = InViewport->GetSizeXY().Y / DPIScale;
+	const float SizeX = InViewport->GetSizeXY().X / DPIScale;
+	const float SizeY = InViewport->GetSizeXY().Y / DPIScale;
 
 	OutSafeFrameRect = FSlateRect(0, 0, SizeX, SizeY);
 	float FixedAspectRatio;
@@ -3317,7 +3317,6 @@ void FEditorViewportClient::DrawAxes(FViewport* InViewport, FCanvas* Canvas, con
 		ViewTM = FRotationMatrix( *InRotation );
 	}
 
-	const int32 SizeX = InViewport->GetSizeXY().X / Canvas->GetDPIScale();
 	const int32 SizeY = InViewport->GetSizeXY().Y / Canvas->GetDPIScale();
 
 	const FIntPoint AxisOrigin( 30, SizeY - 30 );

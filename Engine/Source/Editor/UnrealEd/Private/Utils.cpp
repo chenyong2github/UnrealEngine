@@ -70,8 +70,8 @@ void HWidgetUtilProxy::CalcVectors(FSceneView* SceneView, const FViewportClick& 
 	else
 	{
 		ScreenDir.Normalize();
-		DragDirX = ScreenDir.X;
-		DragDirY = ScreenDir.Y;
+		DragDirX = static_cast<float>(ScreenDir.X);
+		DragDirY = static_cast<float>(ScreenDir.Y);
 	}
 }
 
@@ -89,8 +89,8 @@ void FUnrealEdUtils::DrawWidget(const FSceneView* View,FPrimitiveDrawInterface* 
 	const FVector WidgetOrigin = WidgetMatrix.GetOrigin();
 
 	// Calculate size to draw widget so it takes up the same screen space.
-	const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
-	const float WidgetRadius = View->Project(WidgetOrigin).W * (UnrealEd_WidgetSize / ZoomFactor);
+	const double ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
+	const double WidgetRadius = View->Project(WidgetOrigin).W * (UnrealEd_WidgetSize / ZoomFactor);
 
 	// Choose its color. Highlight manipulated axis in yellow.
 	FColor XColor(FColor::Red);

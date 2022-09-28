@@ -81,7 +81,7 @@ void SFbxMaterialConflictWindow::Construct(const FArguments& InArgs)
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
 						.FillHeight(1.0f)
-						.Padding(2)
+						.Padding(2.0f)
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()
@@ -131,7 +131,7 @@ TSharedPtr<SWidget> SFbxMaterialConflictWindow::ConstructMaterialComparison()
 	FText MaterialCompareInstruction = bIsPreviewConflict ? LOCTEXT("SFbxMaterialConflictWindow_MaterialCompareDocumentationPreview", "Material conflict preview mode") : LOCTEXT("SFbxMaterialConflictWindow_MaterialCompareDocumentation", "To fix a material match, right click on the reimport asset material.");
 	FText MaterialCompareInstructionTooltip = bIsPreviewConflict ? LOCTEXT("SFbxMaterialConflictWindow_MaterialCompareDocumentationPreviewTooltip", "This is only a conflict preview, the material conflict dialog will show up during import to allow you to fix those conflicts.") : LOCTEXT("SFbxMaterialConflictWindow_MaterialCompareDocumentationTooltip", "To fix a material match, right click on the reimport asset material.\nUse the [Clear] option in the context menu to clear a material match.");
 	return SNew(SBox)
-	.MaxDesiredHeight(500)
+	.MaxDesiredHeight(500.0f)
 	[
 		SNew(SBorder)
 		.Padding(FMargin(3))

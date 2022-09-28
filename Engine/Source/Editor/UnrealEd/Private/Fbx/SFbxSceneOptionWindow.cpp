@@ -112,7 +112,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSceneTab(const FSpawnTabArgs& A
 				.AutoHeight()
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(2)
+					.SlotPadding(2.0f)
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SHorizontalBox)
@@ -318,7 +318,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSkeletalMeshReimportTab(const F
 					.AutoHeight()
 					[
 						SNew(SUniformGridPanel)
-						.SlotPadding(2)
+						.SlotPadding(2.0f)
 						+ SUniformGridPanel::Slot(0, 0)
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Left)

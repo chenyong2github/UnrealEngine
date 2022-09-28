@@ -879,7 +879,7 @@ namespace
 		// Comparison method
 		bool operator()( const FExportInfo& A, const FExportInfo& B ) const
 		{
-			int32 Result = 0;
+			int64 Result = 0;
 
 			for ( int32 PriorityType = 0; PriorityType < EXPORTSORT_MAX; PriorityType++ )
 			{
@@ -1782,7 +1782,7 @@ struct CompressAnimationsFunctor
 		// @todoanim: we expect this won't work properly since it won't have any skeletalmesh,
 		// but soon, the compression will changed based on skeleton. 
 		// when that happens, this doesn't have to worry about skeletalmesh not loaded
-	 	float LastSaveTime = FPlatformTime::Seconds();
+	 	double LastSaveTime = FPlatformTime::Seconds();
 		bool bDirtyPackage = false;
 		const FName& PackageName = Package->GetFName(); 
 		FString PackageFileName;
@@ -2001,7 +2001,7 @@ struct CompressAnimationsFunctor
 			if( bDirtyPackage )
 			{
 				// Save dirty package every 10 minutes at least, to avoid losing work in case of a crash on very large packages.
-				float const CurrentTime = FPlatformTime::Seconds();
+				const double CurrentTime = FPlatformTime::Seconds();
 				UE_LOG(LogPackageUtilities, Warning, TEXT("Time since last save: %f seconds"), (CurrentTime - LastSaveTime) );
 				if( (CurrentTime - LastSaveTime) > 10.f * 60.f )
 				{

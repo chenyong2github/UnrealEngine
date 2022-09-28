@@ -107,7 +107,7 @@ private:
 	 * @return	true if the space was successfully provided, false if not or if the requested space was
 	 *			greater than the max allowed space by the user
 	 */
-	static bool PerformBackupSpaceMaintenance( TArray<struct FBackupFileInfo>& InBackupFiles, int32 InSpaceUsed, int32 InSpaceRequired );
+	static bool PerformBackupSpaceMaintenance( TArray<struct FBackupFileInfo>& InBackupFiles, int64 InSpaceUsed, int64 InSpaceRequired );
 
 	// Copy constructor, Destructor, and Self-assignment operator all left private and un-implemented in
 	// order to prevent the class from being instantiated

@@ -168,7 +168,7 @@ void FWidget::ConvertMouseToAxis_Rotate(FVector2D TangentDir, FVector2D DragDir,
 		FSnappingUtils::SnapRotatorToGrid(Rotation);
 
 		// Record delta rotation (used by the widget to render the accumulated delta)
-		CurrentDeltaRotation = Rotation.Roll;
+		CurrentDeltaRotation = static_cast<float>(Rotation.Roll);
 
 		// Use to calculate the new input delta
 		EffectiveDelta = AxisDir * Rotation.Roll;
@@ -187,7 +187,7 @@ void FWidget::ConvertMouseToAxis_Rotate(FVector2D TangentDir, FVector2D DragDir,
 		Rotation = FRotator(FVector2D::DotProduct(AxisDir, DragDir), 0, 0);
 		FSnappingUtils::SnapRotatorToGrid(Rotation);
 
-		CurrentDeltaRotation = Rotation.Pitch;
+		CurrentDeltaRotation = static_cast<float>(Rotation.Pitch);
 		EffectiveDelta = AxisDir * Rotation.Pitch;
 		// Adjust the input delta according to how much rotation was actually applied
 		InOutDelta = FVector(EffectiveDelta.X, -EffectiveDelta.Y, 0.0f);
@@ -203,7 +203,7 @@ void FWidget::ConvertMouseToAxis_Rotate(FVector2D TangentDir, FVector2D DragDir,
 		Rotation = FRotator(0, FVector2D::DotProduct(AxisDir, DragDir), 0);
 		FSnappingUtils::SnapRotatorToGrid(Rotation);
 
-		CurrentDeltaRotation = Rotation.Yaw;
+		CurrentDeltaRotation = static_cast<float>(Rotation.Yaw);
 		EffectiveDelta = AxisDir * Rotation.Yaw;
 		// Adjust the input delta according to how much rotation was actually applied
 		InOutDelta = FVector(EffectiveDelta.X, -EffectiveDelta.Y, 0.0f);

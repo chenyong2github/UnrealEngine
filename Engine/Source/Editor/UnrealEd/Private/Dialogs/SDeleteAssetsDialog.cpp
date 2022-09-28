@@ -789,8 +789,8 @@ TSharedRef<SWidget> SDeleteAssetsDialog::MakeConsolidationAssetPicker()
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>( TEXT( "ContentBrowser" ) );
 
 	return SNew( SBox )
-		.HeightOverride( 250 )
-		.WidthOverride( 300 )
+		.HeightOverride( 250.0f )
+		.WidthOverride( 300.0f )
 		[
 			ContentBrowserModule.Get().CreateAssetPicker( AssetPickerConfig )
 		];

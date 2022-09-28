@@ -99,11 +99,11 @@ int32 UFileServerCommandlet::Main( const FString& Params )
 	while (GIsRunning && !IsEngineExitRequested())
 	{
 		GEngine->UpdateTimeAndHandleMaxTickRate();
-		GEngine->Tick(FApp::GetDeltaTime(), false);
+		GEngine->Tick(static_cast<float>(FApp::GetDeltaTime()), false);
 
 		// tick the directory watcher
 		FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
-		DirectoryWatcherModule.Get()->Tick(FApp::GetDeltaTime());
+		DirectoryWatcherModule.Get()->Tick(static_cast<float>(FApp::GetDeltaTime()));
 
 		// update task graph
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);

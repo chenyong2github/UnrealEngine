@@ -2595,7 +2595,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 
 		int32 LODIndex;
 		int32 SuccessfulLodIndex = 0;
-		float ProgressStep = 90.0 / MaxLODLevel;
+		float ProgressStep = static_cast<float>(90.0f / MaxLODLevel);
 		for (LODIndex = 0; LODIndex < MaxLODLevel; LODIndex++)
 		{
 			SlowTask.EnterProgressFrame(ProgressStep);

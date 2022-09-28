@@ -642,8 +642,8 @@ void ULevelEditorPlaySettings::UpdateCustomSafeZones()
 
 FMargin ULevelEditorPlaySettings::CalculateCustomUnsafeZones(TArray<FVector2D>& CustomSafeZoneStarts, TArray<FVector2D>& CustomSafeZoneDimensions, FString& DeviceType, FVector2D PreviewSize)
 {
-	int32 PreviewHeight = PreviewSize.Y;
-	int32 PreviewWidth = PreviewSize.X;
+	double PreviewHeight = PreviewSize.Y;
+	double PreviewWidth = PreviewSize.X;
 	bool bPreviewIsPortrait = PreviewHeight > PreviewWidth;
 	FMargin CustomSafeZoneOverride = FMargin();
 	CustomSafeZoneStarts.Empty();
@@ -703,7 +703,7 @@ FMargin ULevelEditorPlaySettings::CalculateCustomUnsafeZones(TArray<FVector2D>& 
 				if (!bAdjustsToDeviceRotation && ((Orientation.Contains(TEXT("L")) && bPreviewIsPortrait) ||
 					(Orientation.Contains(TEXT("P")) && !bPreviewIsPortrait)))
 				{
-					float Placeholder = Start.X;
+					double Placeholder = Start.X;
 					Start.X = Start.Y;
 					Start.Y = Placeholder;
 

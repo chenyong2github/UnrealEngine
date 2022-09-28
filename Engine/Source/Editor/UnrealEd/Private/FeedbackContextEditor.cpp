@@ -108,7 +108,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(SBox)
-					.HeightOverride(MainBarHeight)
+					.HeightOverride(static_cast<float>(MainBarHeight))
 					[
 						SNew(SProgressBar)
 						.BorderPadding(FVector2D::ZeroVector)
@@ -551,7 +551,7 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 				BuildProgressWidget->SetBuildStatusText(DisplayMessage);
 			}
 
-			BuildProgressWidget->SetBuildProgressPercent(TotalProgressInterp * 100, 100);
+			BuildProgressWidget->SetBuildProgressPercent(static_cast<int32>(TotalProgressInterp * 100), 100);
 			TickSlate(BuildProgressWindow.Pin());
 		}
 		else if (SlowTaskWindow.IsValid())

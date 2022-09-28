@@ -437,7 +437,7 @@ void FMouseDeltaTracker::AddDelta(FEditorViewportClient* InViewportClient, FKey 
 		InViewportClient->SetCurrentWidgetAxis( EAxisList::None );
 	}
 
-	FVector Wk = InViewportClient->TranslateDelta( InKey, InDelta, InNudge );
+	FVector Wk = InViewportClient->TranslateDelta( InKey, static_cast<float>(InDelta), InNudge );
 
 	EndScreen += Wk;
 
@@ -465,11 +465,11 @@ void FMouseDeltaTracker::AddDelta(FEditorViewportClient* InViewportClient, FKey 
 		{
 			if (bIsRotation)
 			{
-				float Scale = 1.0f;
+				double Scale = 1.0;
 
 				if( InViewportClient->IsOrtho() )
 				{
-					Scale = DEFAULT_ORTHOZOOM / (float)InViewportClient->GetOrthoZoom();
+					Scale = DEFAULT_ORTHOZOOM / InViewportClient->GetOrthoZoom();
 				}
 
 				Wk *= Scale;

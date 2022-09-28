@@ -228,7 +228,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		const FWorldBuilderCellCoord BeginCellCoords = MinCellCoords;
 		const FWorldBuilderCellCoord EndCellCoords = BeginCellCoords + NumCellsIterations;
 
-		auto CanIterateZ = [&BeginCellCoords, &EndCellCoords, LoadingMode](const bool bInResult, const int32 InZ) -> bool
+		auto CanIterateZ = [&BeginCellCoords, &EndCellCoords, LoadingMode](const bool bInResult, const int64 InZ) -> bool
 		{
 			if (LoadingMode == ELoadingMode::IterativeCells2D)
 			{
@@ -238,7 +238,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 			return bInResult && (InZ < EndCellCoords.Z);
 		};
 
-		const int32 IterationCount = ((LoadingMode == ELoadingMode::IterativeCells2D) ? 1 : NumCellsIterations.Z) * NumCellsIterations.Y * NumCellsIterations.X;
+		const int64 IterationCount = ((LoadingMode == ELoadingMode::IterativeCells2D) ? 1 : NumCellsIterations.Z) * NumCellsIterations.Y * NumCellsIterations.X;
 		int32 IterationIndex = 0;
 
 		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Iterative Cell Mode"));

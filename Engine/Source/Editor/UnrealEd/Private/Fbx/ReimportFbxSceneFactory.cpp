@@ -1342,7 +1342,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 			if (SortedLinks.Num() != 0)
 			{
 				//Find the number of take
-				int32 ResampleRate = DEFAULT_SAMPLERATE;
+				int32 ResampleRate = static_cast<int32>(DEFAULT_SAMPLERATE);
 				if (GlobalImportSettings->bResample)
 				{
 					if(FbxImporter->ImportOptions->ResampleRate > 0)
@@ -1412,7 +1412,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 						}
 						
 						//Get the sequence timespan
-						ResampleRate = DEFAULT_SAMPLERATE;
+						ResampleRate = static_cast<int32>(DEFAULT_SAMPLERATE);
 						if (FbxImporter->ImportOptions->bResample)
 						{
 							if(FbxImporter->ImportOptions->ResampleRate > 0)

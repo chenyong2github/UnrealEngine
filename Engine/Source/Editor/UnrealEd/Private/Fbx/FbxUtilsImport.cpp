@@ -173,7 +173,12 @@ FbxAMatrix FFbxDataConverter::ConvertMatrix(const FMatrix& UEMatrix)
 FColor FFbxDataConverter::ConvertColor(FbxDouble3 Color)
 {
 	//Fbx is in linear color space
-	FColor SRGBColor = FLinearColor(Color[0], Color[1], Color[2]).ToFColor(true);
+	FColor SRGBColor = 
+		FLinearColor(
+			static_cast<float>(Color[0]),
+			static_cast<float>(Color[1]),
+			static_cast<float>(Color[2])
+		).ToFColor(true);
 	return SRGBColor;
 }
 

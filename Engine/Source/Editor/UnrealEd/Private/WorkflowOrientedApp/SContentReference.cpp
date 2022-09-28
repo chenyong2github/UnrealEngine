@@ -99,7 +99,7 @@ void SContentReference::Construct(const FArguments& InArgs)
 			SNew(SButton)
 			.ButtonStyle( FAppStyle::Get(), "NoBorder" )
 			.OnClicked(this, &SContentReference::OnClickFindButton)
-			.ContentPadding(0)
+			.ContentPadding(0.0f)
 			.Visibility(this, &SContentReference::GetFindButtonVisibility)
 			.ToolTipText(LOCTEXT("Find", "Find in content browser"))
 			[
@@ -224,8 +224,8 @@ TSharedRef<SWidget> SContentReference::MakeAssetPickerMenu()
 	AssetPickerConfig.InitialAssetViewType = InitialAssetViewType;
 
 	return SNew(SBox)
-		.WidthOverride(AssetPickerSizeOverride.Get().X)
-		.HeightOverride(AssetPickerSizeOverride.Get().Y)
+		.WidthOverride(static_cast<float>(AssetPickerSizeOverride.Get().X))
+		.HeightOverride(static_cast<float>(AssetPickerSizeOverride.Get().Y))
 		[
 			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 		];

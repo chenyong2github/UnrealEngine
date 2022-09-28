@@ -159,10 +159,10 @@ bool UDebugSkelMeshComponent::CheckIfBoundsAreCorrrect()
 	return false;
 }
 
-float WrapInRange(float StartVal, float MinVal, float MaxVal)
+double WrapInRange(double StartVal, double MinVal, double MaxVal)
 {
-	float Size = MaxVal - MinVal;
-	float EndVal = StartVal;
+	double Size = MaxVal - MinVal;
+	double EndVal = StartVal;
 	while (EndVal < MinVal)
 	{
 		EndVal += Size;

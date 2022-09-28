@@ -121,8 +121,8 @@ public:
 		TSharedPtr<FJsonObject> JsonPackageObject = MakeShareable(new FJsonObject);
 		
 		JsonPackageObject->SetStringField(TEXT("Name"),*Name.ToString());
-		JsonPackageObject->SetNumberField(TEXT("InclusiveSize"),InclusiveSize);
-		JsonPackageObject->SetNumberField(TEXT("ExclusiveSize"),ExclusiveSize);
+		JsonPackageObject->SetNumberField(TEXT("InclusiveSize"),static_cast<double>(InclusiveSize));
+		JsonPackageObject->SetNumberField(TEXT("ExclusiveSize"),static_cast<double>(ExclusiveSize));
 
 		JsonPackageObject->SetArrayField(TEXT("DirectlyReferencing"),ToJsonHelper(DirectlyReferencing));
 		JsonPackageObject->SetArrayField(TEXT("DirectlyReferencedBy"),ToJsonHelper(DirectlyReferencedBy));

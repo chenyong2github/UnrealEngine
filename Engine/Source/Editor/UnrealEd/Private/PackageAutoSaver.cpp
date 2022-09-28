@@ -558,7 +558,7 @@ void FPackageAutoSaver::UpdateAutoSaveNotification()
 			}
 			else // defer until the user finishes using pop-up menus or the notification will dismiss them...
 			{
-				ForceMinimumTimeTillAutoSave(LoadingSavingSettings->AutoSaveWarningInSeconds);
+				ForceMinimumTimeTillAutoSave(static_cast<float>(LoadingSavingSettings->AutoSaveWarningInSeconds));
 			}
 		}
 		else

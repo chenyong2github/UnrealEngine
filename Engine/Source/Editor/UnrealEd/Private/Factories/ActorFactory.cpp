@@ -161,7 +161,7 @@ FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& In
 		*OutDeltaRotation = FQuat::Identity;
 	}
 
-	const float VectorDot = InWorldNormal | TransformedModelAxis;
+	const double VectorDot = InWorldNormal | TransformedModelAxis;
 	if (1.f - FMath::Abs(VectorDot) <= KINDA_SMALL_NUMBER)
 	{
 		if (VectorDot < 0.f)
@@ -183,7 +183,7 @@ FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& In
 		
 		// Find a local 'pitch' axis to rotate around
 		const FVector OrthoPitchAxis = FVector::CrossProduct(PitchReferenceAxis, InModelAxis);
-		const float Pitch = FMath::Acos(PitchReferenceAxis | DestNormalModelSpace) - FMath::Acos(PitchReferenceAxis | InModelAxis);//FMath::Asin(OrthoPitchAxis.Size());
+		const double Pitch = FMath::Acos(PitchReferenceAxis | DestNormalModelSpace) - FMath::Acos(PitchReferenceAxis | InModelAxis);//FMath::Asin(OrthoPitchAxis.Size());
 
 		DeltaRotation = FQuat(OrthoPitchAxis.GetSafeNormal(), Pitch);
 		DeltaRotation.Normalize();
@@ -194,7 +194,7 @@ FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& In
 		const float ParallelDotThreshold = 0.98f; // roughly 11.4 degrees (!)
 		if (!FVector::Coincident(InWorldNormal, TransformedModelAxis, ParallelDotThreshold))
 		{
-			const float Yaw = FMath::Atan2(InWorldNormal.X, InWorldNormal.Y) - FMath::Atan2(TransformedModelAxis.X, TransformedModelAxis.Y);
+			const double Yaw = FMath::Atan2(InWorldNormal.X, InWorldNormal.Y) - FMath::Atan2(TransformedModelAxis.X, TransformedModelAxis.Y);
 
 			// Rotation axis for yaw is the Z axis in world space
 			const FVector WorldYawAxis = (InActorRotation * DeltaRotation).Inverse().RotateVector(Z);
