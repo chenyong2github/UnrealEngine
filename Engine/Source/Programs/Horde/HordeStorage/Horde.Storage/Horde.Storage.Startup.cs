@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
+using System.Threading;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -352,8 +353,30 @@ namespace Horde.Storage
                 replicationStrategy = settings.KeyspaceReplicationStrategy;
                 Logger.Information("Scylla Replication strategy for replicated keyspace is set to {@ReplicationStrategy}", replicationStrategy);
             }
-            ISession replicatedSession = cluster.ConnectAndCreateDefaultKeyspaceIfNotExists(replicationStrategy);
 
+            ISession replicatedSession;
+            const int MaxRetryAttempts = 10;
+            int countOfAttempts = 0;
+            while(true)
+            {
+                try
+                {
+                    countOfAttempts += 1;
+                    replicatedSession = cluster.ConnectAndCreateDefaultKeyspaceIfNotExists(replicationStrategy);
+                    break;
+                }
+                catch (NoHostAvailableException)
+                {
+                    Logger.Warning("Failed to connect to scylla, waiting a while and will then retry. Attempt {0} of {1}", countOfAttempts, MaxRetryAttempts);
+                    // wait for a few seconds before attempt to connect again
+                    Thread.Sleep(5000);
+                    if (countOfAttempts >= MaxRetryAttempts)
+                    {
+                        Logger.Error("Failed to connect to Scylla after {0} attempts, giving up.", countOfAttempts);
+                        throw;
+                    }
+                }
+            }
             replicatedSession.Execute(new SimpleStatement("CREATE TYPE IF NOT EXISTS blob_identifier (hash blob)"));
             replicatedSession.UserDefinedTypes.Define(UdtMap.For<ScyllaBlobIdentifier>("blob_identifier", DefaultKeyspaceName));
 
