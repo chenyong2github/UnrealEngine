@@ -78,21 +78,7 @@ static double GLastGCTime = 0;
 /** Helpful constant for determining how many token slots we need to store a pointer **/
 static const uint32 GNumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V514
 
-FThreadSafeBool GIsGarbageCollecting(false);
-class FIsGarbageCollectingScope
-{
-	bool bOldValue = false;
-public:
-	FIsGarbageCollectingScope()
-		: bOldValue(GIsGarbageCollecting)
-	{
-		GIsGarbageCollecting = true;
-	}
-	~FIsGarbageCollectingScope()
-	{
-		GIsGarbageCollecting = bOldValue;
-	}
-};
+bool GIsGarbageCollecting = false;
 
 int32 FGCReferenceTokenStream::MaxStackSize = 1;
 
@@ -1760,6 +1746,7 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 		// Lock before settting GCStartTime as it could be slow to lock if async loading is in progress
 		// but we still want to perform some GC work otherwise we'd be keeping objects in memory for a long time
 		FLegacyConditionalIncrementalGCLock ScopedGCLock;
+		TGuardValue<bool> GuardIsGarbageCollecting(GIsGarbageCollecting, true);
 
 		// Keep track of start time to enforce time limit unless bForceFullPurge is true;
 		GCStartTime = FPlatformTime::Seconds();
@@ -1838,7 +1825,7 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, double TimeLimit)
 
 	// Set 'I'm garbage collecting' flag - might be checked inside UObject::Destroy etc.
 	FGCLegacyHashTableScopeLock GCLegacyHashTableLock;
-	FIsGarbageCollectingScope IsGarbageCollectingScope;
+	TGuardValue<bool> GuardIsGarbageCollecting(GIsGarbageCollecting, true);
 
 	if( !GObjFinishDestroyHasBeenRoutedToAllObjects && !bTimeLimitReached )
 	{
@@ -2301,7 +2288,7 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Set 'I'm garbage collecting' flag - might be checked inside various functions.
 		// This has to be unlocked before we call post GC callbacks
 		FGCLegacyHashTableScopeLock GCLegacyHashTableLock;
-		FIsGarbageCollectingScope IsGarbageCollectingScope;
+		TGuardValue<bool> GuardIsGarbageCollecting(GIsGarbageCollecting, true);
 
 		UE_LOG(LogGarbage, Log, TEXT("Collecting garbage%s"), IsAsyncLoading() ? TEXT(" while async loading") : TEXT(""));
 

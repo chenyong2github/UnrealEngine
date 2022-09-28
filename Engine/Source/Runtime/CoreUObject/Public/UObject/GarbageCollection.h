@@ -701,7 +701,7 @@ public:
 };
 
 /** True if Garbage Collection is running. Use IsGarbageCollecting() functio n instead of using this variable directly */
-extern COREUOBJECT_API FThreadSafeBool GIsGarbageCollecting;
+extern COREUOBJECT_API bool GIsGarbageCollecting;
 
 /**
  * Gets the last time that the GC was run.
