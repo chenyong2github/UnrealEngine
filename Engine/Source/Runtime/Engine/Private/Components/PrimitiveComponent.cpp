@@ -1709,6 +1709,15 @@ void UPrimitiveComponent::SetTranslucentSortPriority(int32 NewTranslucentSortPri
 	}
 }
 
+void UPrimitiveComponent::SetAffectDistanceFieldLighting(bool NewAffectDistanceFieldLighting)
+{
+	if(NewAffectDistanceFieldLighting != bAffectDistanceFieldLighting)
+	{
+		bAffectDistanceFieldLighting = NewAffectDistanceFieldLighting;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetTranslucencySortDistanceOffset(float NewTranslucencySortDistanceOffset)
 {
 	if ( !FMath::IsNearlyEqual(NewTranslucencySortDistanceOffset, TranslucencySortDistanceOffset) )

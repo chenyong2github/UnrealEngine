@@ -1673,6 +1673,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void SetTranslucencySortDistanceOffset(float NewTranslucencySortDistanceOffset);
 
+	/** Changes the value of Affect Distance Field Lighting */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetAffectDistanceFieldLighting(bool NewAffectDistanceFieldLighting);
+
 	/** Changes the value of bReceivesDecals. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void SetReceivesDecals(bool bNewReceivesDecals);
