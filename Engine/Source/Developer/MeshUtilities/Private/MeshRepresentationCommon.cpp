@@ -93,6 +93,13 @@ void EmbreeFilterFunc(const struct RTCFilterFunctionNArguments* args)
 
 	FEmbreeIntersectionContext& IntersectionContext = *static_cast<FEmbreeIntersectionContext*>(args->context);
 	IntersectionContext.ElementIndex = Desc.ElementIndex;
+
+	const RTCHit& EmbreeHit = *(RTCHit*)args->hit;
+	if (IntersectionContext.SkipPrimId != RTC_INVALID_GEOMETRY_ID && IntersectionContext.SkipPrimId == EmbreeHit.primID)
+	{
+		// Ignore hit in order to continue tracing
+		args->valid[0] = 0;
+	}
 }
 
 void EmbreeErrorFunc(void* userPtr, RTCError code, const char* str)

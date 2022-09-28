@@ -135,6 +135,9 @@ struct FEmbreeIntersectionContext : public RTCIntersectContext
 		return ElementIndex == 1;
 	}
 
+	// Hit against this primitive will be ignored
+	int32 SkipPrimId = RTC_INVALID_GEOMETRY_ID;
+
 	// Additional Outputs.
 	int32 ElementIndex; // Material Index
 };

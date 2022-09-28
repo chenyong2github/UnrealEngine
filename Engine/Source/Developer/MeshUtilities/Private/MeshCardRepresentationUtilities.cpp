@@ -374,6 +374,7 @@ void GenerateSurfelsForDirection(
 
 				// Cell index where any geometry was last found
 				int32 LastHitCoordZ = -2;
+				int32 SkipPrimId = RTC_INVALID_GEOMETRY_ID;
 				float RayTNear = 0.0f;
 
 				while (LastHitCoordZ + 1 < ClusterBasis.VolumeSize.Z)
@@ -390,6 +391,7 @@ void GenerateSurfelsForDirection(
 
 					FEmbreeIntersectionContext EmbreeContext;
 					rtcInitIntersectContext(&EmbreeContext);
+					EmbreeContext.SkipPrimId = SkipPrimId;
 					rtcIntersect1(Context.EmbreeScene.EmbreeScene, &EmbreeContext, &EmbreeRay);
 
 					if (EmbreeRay.hit.geomID != RTC_INVALID_GEOMETRY_ID && EmbreeRay.hit.primID != RTC_INVALID_GEOMETRY_ID)
@@ -421,8 +423,10 @@ void GenerateSurfelsForDirection(
 							}
 						}
 
+						// Move ray to the next intersection
 						LastHitCoordZ = HitCoordZ;
-						RayTNear = FMath::Max(NearPlaneOffset + (LastHitCoordZ + 1) * ClusteringParams.VoxelSize, EmbreeRay.ray.tfar + 0.01f);
+						RayTNear = std::nextafter(FMath::Max(NearPlaneOffset + (LastHitCoordZ + 1) * ClusteringParams.VoxelSize, EmbreeRay.ray.tfar), std::numeric_limits<float>::infinity());
+						SkipPrimId = EmbreeRay.hit.primID;
 					}
 					else
 					{
