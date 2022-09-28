@@ -17,8 +17,13 @@ class IStreamingGenerationErrorHandler;
 UENUM(BlueprintType)
 enum class EDataLayerRuntimeState : uint8
 {
+	// Unloaded
 	Unloaded,
+	
+	// Loaded (meaning loaded but not visible)
 	Loaded,
+
+	// Activated (meaning loaded and visible)
 	Activated
 };
 
