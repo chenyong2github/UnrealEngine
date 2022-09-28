@@ -22,7 +22,6 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void AllocateDefaultPins() override;
-	virtual void ReconstructNode() override;
 	virtual void OnRenameNode(const FString& NewName);
 	// ~End UEdGraphNode interface
 };

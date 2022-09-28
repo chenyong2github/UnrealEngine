@@ -3,8 +3,8 @@
 #include "PCGEditorGraphNode.h"
 
 #include "PCGEditorGraphSchema.h"
+#include "PCGEditorModule.h"
 #include "PCGNode.h"
-#include "PCGSettings.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
@@ -63,20 +63,30 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 	}
 }
 
-void UPCGEditorGraphNode::ReconstructNode()
-{
-	Super::ReconstructNode();
-	//TODO: Implement special version for settings to avoid the enum type
-}
-
 void UPCGEditorGraphNode::OnRenameNode(const FString& NewName)
 {
-	FName TentativeName(NewName);
+	if (!GetCanRenameNode())
+	{
+		return;
+	}
 
-	if (GetCanRenameNode() && PCGNode && PCGNode->GetNodeTitle() != TentativeName)
+	if(NewName.Len() >= NAME_SIZE)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("New name for PCG node is too long."));
+		return;
+	}
+
+	if (!PCGNode)
+	{
+		return;
+	}
+
+	const FName TentativeName(*NewName);
+
+	if (PCGNode->GetNodeTitle() != TentativeName)
 	{
 		PCGNode->Modify();
-		PCGNode->NodeTitle = FName(NewName);
+		PCGNode->NodeTitle = TentativeName;
 	}
 }
 
