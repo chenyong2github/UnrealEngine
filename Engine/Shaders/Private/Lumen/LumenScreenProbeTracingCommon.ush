@@ -162,6 +162,30 @@ void GetScreenProbeTexelRay(
 #endif
 }
 
+float3 GetScreenProbeNormalForBiasing(uint2 ScreenProbeAtlasCoord, float3 RayWorldDirection, out bool bBackfaceRay)
+{
+	bBackfaceRay = false;
+	float3 SceneNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
+
+	if (GetScreenProbeIsTwoSidedFoliage(ScreenProbeAtlasCoord))
+	{
+		bBackfaceRay = dot(SceneNormal, RayWorldDirection) < 0.0f;
+
+		if (bBackfaceRay)
+		{
+			SceneNormal *= -1;
+		}
+	}
+
+	return SceneNormal;
+}
+
+float3 GetScreenProbeNormalForBiasing(uint2 ScreenProbeAtlasCoord, float3 RayWorldDirection)
+{
+	bool bBackfaceRay;
+	return GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, RayWorldDirection, bBackfaceRay);
+}
+
 void WriteTraceHit(uint2 TraceBufferCoord, float HitDistance, bool bHit, bool bFastMoving)
 {
 #if TRACE_LIGHT_SAMPLES

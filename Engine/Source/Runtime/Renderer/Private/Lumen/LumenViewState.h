@@ -38,7 +38,8 @@ public:
 	FIntRect DiffuseIndirectHistoryViewRect;
 	FVector4f DiffuseIndirectHistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> DiffuseIndirectHistoryRT;
-	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT;
+	TRefCountPtr<IPooledRenderTarget> BackfaceDiffuseIndirectHistoryRT;
+	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT; 
 	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
 	TRefCountPtr<IPooledRenderTarget> FastUpdateModeHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> NormalHistoryRT;
@@ -63,6 +64,7 @@ public:
 	void SafeRelease()
 	{
 		DiffuseIndirectHistoryRT.SafeRelease();
+		BackfaceDiffuseIndirectHistoryRT.SafeRelease();
 		RoughSpecularIndirectHistoryRT.SafeRelease();
 		NumFramesAccumulatedRT.SafeRelease();
 		FastUpdateModeHistoryRT.SafeRelease();

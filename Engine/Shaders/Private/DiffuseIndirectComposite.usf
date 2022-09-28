@@ -41,7 +41,7 @@
 	#define SIGNAL_ARRAY_SIZE 1
 
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
-	#define CONFIG_INPUT_TEXTURE_COUNT 3
+	#define CONFIG_INPUT_TEXTURE_COUNT 4
 
 	// UE-155845: Enables an energy preservation term to prevent hair from emitting light when Lumen is enabled.
 	#define HAIR_KK_ENERGY_PRESERVATION 1
@@ -129,6 +129,7 @@ RWTexture2D<float4> PassDebugOutput;
 
 float MaxRoughnessToTrace;
 float InvRoughnessFadeLength;
+uint bLumenSupportBackfaceDiffuse;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions
@@ -240,8 +241,8 @@ FStrataDeferredLighting StrataIndirectLighting(
 		const uint2 InCoord   = TileCoord * STRATA_TILE_SIZE + LocalTileCoord;
 
 		const float3 InDiffuseLighting			= DiffuseIndirect_Textures_0.Load(uint3(InCoord, 0)).rgb;
-		const float3 InRoughSpecularLighting	= DiffuseIndirect_Textures_1.Load(uint3(InCoord, 0)).rgb;
-		const float3 InSpecularLighting			= DiffuseIndirect_Textures_2.Load(uint3(InCoord, 0)).rgb;
+		const float3 InRoughSpecularLighting	= DiffuseIndirect_Textures_2.Load(uint3(InCoord, 0)).rgb;
+		const float3 InSpecularLighting			= DiffuseIndirect_Textures_3.Load(uint3(InCoord, 0)).rgb;
 	#else
 		const float3 InDiffuseLighting			= InputDiffuseLighting;
 		const float3 InRoughSpecularLighting	= InputSpecularLighting;
@@ -334,8 +335,8 @@ void MainPS(
 
 			#if DIM_APPLY_DIFFUSE_INDIRECT == 4
 				DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-				RoughSpecularIndirectLighting = DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-				SpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+				RoughSpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+				SpecularIndirectLighting = DiffuseIndirect_Textures_3.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
 			#else
 			{
 				// Sample the output of the denoiser.
@@ -473,10 +474,26 @@ void MainPS(
 			}
 			else
 			{
-				if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE 
-					|| GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN 
-					// We can't afford to gather light from both sides so just add the reflectiveness to diffuse
-					|| GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+				float3 BackfaceDiffuseIndirectLighting = 0;
+
+				if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+				{
+					float3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
+
+					if (bLumenSupportBackfaceDiffuse > 0)
+					{
+						BackfaceDiffuseIndirectLighting += SubsurfaceColor * DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+					}
+					else
+					{
+						// Adding Subsurface energy to the diffuse lobe is a poor approximation when DiffuseColor is small and SubsurfaceColor is large
+						// Reduce the error by attenuating SubsurfaceColor, even though diffuse already has the 1/PI for Lambert.
+						const float PreintegratedTwoSidedBxDF = 1.0f / PI;
+						DiffuseColor += SubsurfaceColor * PreintegratedTwoSidedBxDF;
+					}
+				}
+
+				if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
 				{
 					float3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
 					// Add subsurface energy to diffuse
@@ -489,7 +506,7 @@ void MainPS(
 					DiffuseColor += ClothFuzz * GBuffer.CustomData.a;
 				}
 
-				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * Occlusion.DiffuseOcclusion;
+				IndirectLighting.Diffuse = (DiffuseIndirectLighting * DiffuseColor + BackfaceDiffuseIndirectLighting) * Occlusion.DiffuseOcclusion;
 				IndirectLighting.Transmission = 0;
 
 				#if DIM_APPLY_DIFFUSE_INDIRECT == 4

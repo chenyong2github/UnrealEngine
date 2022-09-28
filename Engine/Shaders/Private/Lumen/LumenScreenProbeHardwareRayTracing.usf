@@ -70,15 +70,17 @@ float FarFieldMaxTraceDistance;
 float PullbackBias;
 float NormalBias;
 float AvoidSelfIntersectionTraceDistance;
+float SkipFirstTwoSidedHitDistance;
 int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 int ApplySkyLight;
 
 RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
-FRayTracedLightingResult EpsilonTrace(FRayDesc Ray, inout FRayTracedLightingContext Context)
+FRayTracedLightingResult EpsilonTrace(FRayDesc Ray, inout FRayTracedLightingContext Context, out float RemainingTraceTMin)
 {
 	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
+	RemainingTraceTMin = AvoidSelfIntersectionTraceDistance;
 
 #if ENABLE_NEAR_FIELD_TRACING
 	uint OriginalCullingMode = Context.CullingMode;
@@ -98,6 +100,16 @@ FRayTracedLightingResult EpsilonTrace(FRayDesc Ray, inout FRayTracedLightingCont
 		}
 #endif // DIM_LIGHTING_MODE
 	}
+
+	// RAY_FLAG_CULL_BACK_FACING_TRIANGLES doesn't work on two sided geometry, but we still need to avoid self-intersections with the Nanite fallback mesh
+	// Skip the first two sided material we hit within a short distance
+	if (Result.bHitTwoSided && Result.TraceHitDistance < SkipFirstTwoSidedHitDistance)
+	{
+		float Epsilon = 0.01;
+		RemainingTraceTMin = Result.TraceHitDistance + Epsilon;
+		Result.bIsHit = false;
+	}
+
 	Context.CullingMode = OriginalCullingMode;
 #endif // ENABLE_NEAR_FIELD_TRACING
 
@@ -146,7 +158,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3 WorldNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 
 		float2 ProbeUV;
 		float ConeHalfAngle;
@@ -159,8 +170,10 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 #if ENABLE_FAR_FIELD_TRACING
 		Ray.TMin = max(Ray.TMin, FarFieldBias);
 #endif
+		bool bBackfaceRay;
+		float3 ProbeWorldNormalForBiasing = GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, Ray.Direction, bBackfaceRay);
+		Ray.Origin += NormalBias * ProbeWorldNormalForBiasing;
 
-		ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
 		FRayCone RayCone = (FRayCone)0;
 		RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
@@ -181,10 +194,12 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 		// Initialize by testing against a small epsilon
-		FRayTracedLightingResult Result = EpsilonTrace(Ray, Context);
+		float RemainingTraceTMin;
+		FRayTracedLightingResult Result = EpsilonTrace(Ray, Context, RemainingTraceTMin);
+
 		if (!Result.bIsHit)
 		{
-			Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
+			Ray.TMin = max(Ray.TMin, RemainingTraceTMin);
 			Ray.TMax = Ray.TMin;
 			// Cull TMax by the bounding sphere of the near-field
 			if (length(Ray.Origin - PrimaryView.TranslatedWorldCameraOrigin) < MaxTraceDistance)

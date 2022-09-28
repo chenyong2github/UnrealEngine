@@ -203,6 +203,7 @@ struct FRayTracedLightingResult
 	bool bIsHit;
 	bool bIsCompleted; // Was ray tracing completed or stopped due to reaching MaxTraversalIterations
 	bool bIsFarField;
+	bool bHitTwoSided;
 	float TraceHitDistance;
 
 	bool bIsRadianceCompleted; // Is radiance computation completed or do we need a fallback shading pass
@@ -220,6 +221,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult()
 	Result.bIsHit = false;
 	Result.bIsCompleted = true;
 	Result.bIsFarField = false;
+	Result.bHitTwoSided = false;
 	Result.TraceHitDistance = 0;
 	Result.bIsRadianceCompleted = true;
 	Result.Radiance = 0;
@@ -243,6 +245,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult(
 	Result.bIsHit = MinimalRayResult.bHit;
 	Result.bIsCompleted = MinimalRayResult.bCompleted;
 	Result.bIsFarField = Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD;
+	Result.bHitTwoSided = MinimalRayResult.bTwoSided;
 
 	if (MinimalRayResult.bHit)
 	{

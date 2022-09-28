@@ -147,7 +147,8 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		SHADER_PARAMETER(int32, bVisualizeDiffuseIndirect)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionCompositeParameters, LumenReflectionCompositeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenBentNormalParameters)
-		
+		SHADER_PARAMETER(uint32, bLumenSupportBackfaceDiffuse)
+
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, DiffuseIndirect)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DiffuseIndirectSampler)
 		
@@ -794,18 +795,13 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 	extern int32 GLumenDiffuseIndirectAsyncCompute;
 	extern int32 GLumenVisualizeIndirectDiffuse;
 	extern int32 GLumenScreenProbeTemporalFilter;
-	extern int32 GLumenScreenProbeUseHistoryNeighborhoodClamp;
 	extern int32 GLumenReflectionsAsyncCompute;
 	extern FLumenGatherCvarState GLumenGatherCvars;
-
-	// TODO: Lots of passes but all seem to be compute. May be able to use async compute
-	bool bLumenUseDenoiserComposite = GLumenScreenProbeTemporalFilter && GLumenScreenProbeUseHistoryNeighborhoodClamp;
 
 	if (!GSupportsEfficientAsyncCompute
 		|| !GLumenDiffuseIndirectAsyncCompute
 		|| GLumenVisualizeIndirectDiffuse
 		|| ViewFamily.EngineShowFlags.VisualizeLightCulling
-		|| bLumenUseDenoiserComposite
 		// Not much point to run Lumen async since most of the savings comes from overlapping with ShadowDepths
 		|| LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags)
 		// TODO: Inline raytracing may also benefit from async compute
@@ -844,7 +840,6 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 				View,
 				&View.PrevViewInfo,
 				bHasLumenLights,
-				bLumenUseDenoiserComposite,
 				ViewOutputs.MeshSDFGridParameters,
 				ViewOutputs.RadianceCacheParameters,
 				ViewOutputs.ScreenBentNormalParameters,
@@ -955,7 +950,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		IScreenSpaceDenoiser::FDiffuseIndirectHarmonic DenoiserSphericalHarmonicInputs;
 		FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
 		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
-		bool bLumenUseDenoiserComposite = ViewPipelineState.bUseLumenProbeHierarchy;
 
 		if (ViewPipelineState.bUseLumenProbeHierarchy)
 		{
@@ -998,7 +992,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 					View,
 					&View.PrevViewInfo,
 					bHasLumenLights,
-					bLumenUseDenoiserComposite,
 					MeshSDFGridParameters,
 					RadianceCacheParameters,
 					ScreenBentNormalParameters,
@@ -1015,7 +1008,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 				if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
 				{
-					OutTextures.Textures[2] = RenderLumenReflections(
+					OutTextures.Textures[3] = RenderLumenReflections(
 						GraphBuilder,
 						View,
 						SceneTextures,
@@ -1030,8 +1023,9 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				}
 				else
 				{
-					OutTextures.Textures[1] = SystemTextures.Black;
+					// Remove Lumen rough specular when ReflectionsMethod != EReflectionsMethod::Lumen, so that we won't get double specular when other reflection methods are used
 					OutTextures.Textures[2] = SystemTextures.Black;
+					OutTextures.Textures[3] = SystemTextures.Black;
 				}
 			}
 
@@ -1210,6 +1204,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 			PassParameters->LumenReflectionCompositeParameters = LumenReflectionCompositeParameters;
 			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
+			PassParameters->bLumenSupportBackfaceDiffuse = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && DenoiserOutputs.Textures[1] != SystemTextures.Black;
 
 			PassParameters->bVisualizeDiffuseIndirect = bIsVisualizePass;
 
@@ -1257,7 +1252,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			if (DenoiserOutputs.Textures[0])
 			{
-				if (bLumenUseDenoiserComposite)
+				if (ViewPipelineState.bUseLumenProbeHierarchy)
 				{
 					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(2);
 					DiffuseIndirectSampling = TEXT("ProbeHierarchy");

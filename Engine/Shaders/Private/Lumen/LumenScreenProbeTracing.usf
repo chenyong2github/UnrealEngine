@@ -104,6 +104,17 @@ void ScreenProbeTraceScreenTexturesCS(
 				TraceDistance,
 				ConeHalfAngle);
 
+			// Skip screen traces for backfacing rays for two-sided foliage, as they immediately self-intersect and cause a feedback loop
+			if (GetScreenProbeIsTwoSidedFoliage(ScreenProbeAtlasCoord))
+			{
+				bool bBackfaceRay = dot(GetScreenProbeNormal(ScreenProbeAtlasCoord), RayWorldDirection) < 0.0f;
+
+				if (bBackfaceRay)
+				{
+					return;
+				}
+			}
+
 			//@todo - this should be applied with the hit UV, not the origin, but still works for self-shadowing
 			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
 
@@ -473,7 +484,6 @@ void TraceMeshSDFs(
 		uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-		float3 SceneNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 
 		bool bHit = false;
 		bool bMoving = false;
@@ -492,11 +502,10 @@ void TraceMeshSDFs(
 				TraceDistance,
 				ConeHalfAngle);
 
-			float3 SamplePosition = WorldPosition + SurfaceBias * RayWorldDirection;
-			SamplePosition += SurfaceBias * SceneNormal;
-
 			float3 TranslatedSamplePosition = TranslatedWorldPosition + SurfaceBias * RayWorldDirection;
-			TranslatedSamplePosition += SurfaceBias * SceneNormal;
+			TranslatedSamplePosition += SurfaceBias * GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, RayWorldDirection);
+
+			float3 SamplePosition = TranslatedSamplePosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(SamplePosition, TranslatedSamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
@@ -608,7 +617,6 @@ void TraceVoxels(
 	{
 		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
-		float3 SceneNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 
 		bool bHit = false;
 
@@ -629,11 +637,10 @@ void TraceVoxels(
 				TraceDistance,
 				ConeHalfAngle);
 
-			float3 SamplePosition = WorldPosition + SurfaceBias * RayWorldDirection;
-			SamplePosition += SurfaceBias * SceneNormal;
-
 			float3 TranslatedSamplePosition = TranslatedWorldPosition + SurfaceBias * RayWorldDirection;
-			TranslatedSamplePosition += SurfaceBias * SceneNormal;
+			TranslatedSamplePosition += SurfaceBias * GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, RayWorldDirection);
+
+			float3 SamplePosition = TranslatedSamplePosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 			FRadianceCacheCoverage Coverage;
 			Coverage.bValid = false;
@@ -761,7 +768,7 @@ void ScreenProbeSetupVisualizeTraces(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 QueryProbeScreenPosition = View.CursorPosition.x >= 0 ? View.CursorPosition : ScreenProbeViewSize / 2 * ScreenProbeDownsampleFactor;
+	uint2 QueryProbeScreenPosition = View.CursorPosition.x >= 0 ? View.CursorPosition * View.ViewResolutionFraction : ScreenProbeViewSize / 2 * ScreenProbeDownsampleFactor;
 	uint2 ScreenTileCoord = clamp(GetScreenTileCoord(QueryProbeScreenPosition), (uint2)0, ScreenProbeViewSize - 1);
 
 	uint2 ScreenProbeAtlasCoord = ScreenTileCoord;
