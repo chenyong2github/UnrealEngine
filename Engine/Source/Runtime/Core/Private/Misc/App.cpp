@@ -341,6 +341,14 @@ void FApp::PrintStartupLogMessages()
 	UE_LOG(LogInit, Log, TEXT("Compiled (32-bit): %s %s"), BuildSettings::GetBuildDate(), BuildSettings::GetBuildTime());
 #endif
 
+#if PLATFORM_CPU_ARM_FAMILY
+	UE_LOG(LogInit, Log, TEXT("Architecture: arm64"));
+#elif PLATFORM_CPU_X86_FAMILY
+	UE_LOG(LogInit, Log, TEXT("Architecture: x64"));
+#else
+#error No architecture defined!
+#endif // x64/arm
+
 	// Print compiler version info
 #if defined(__clang__)
 	UE_LOG(LogInit, Log, TEXT("Compiled with Clang: %s"), ANSI_TO_TCHAR(__clang_version__));
