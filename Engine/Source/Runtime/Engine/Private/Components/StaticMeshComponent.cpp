@@ -1538,7 +1538,7 @@ void UStaticMeshComponent::InitResources()
 
 void UStaticMeshComponent::PrecachePSOs()
 {
-	if (StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr || !FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled() || StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr)
 	{
 		return;
 	}

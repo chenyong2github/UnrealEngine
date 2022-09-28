@@ -4481,7 +4481,7 @@ void UInstancedStaticMeshComponent::PostLoad()
 
 void UInstancedStaticMeshComponent::PrecachePSOs()
 {	
-	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr || !FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled() || GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
 	{
 		return;
 	}

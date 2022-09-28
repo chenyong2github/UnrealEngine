@@ -553,10 +553,10 @@ void USkinnedMeshComponent::PostLoad()
 
 void USkinnedMeshComponent::PrecachePSOs()
 {
-	if (GetSkinnedAsset() == nullptr ||
-		GetSkinnedAsset()->GetResourceForRendering() == nullptr ||
-		!FApp::CanEverRender() || 
-		!PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!FApp::CanEverRender() ||
+		!PipelineStateCache::IsPSOPrecachingEnabled() ||
+		GetSkinnedAsset() == nullptr ||
+		GetSkinnedAsset()->GetResourceForRendering() == nullptr)
 	{
 		return;
 	}
