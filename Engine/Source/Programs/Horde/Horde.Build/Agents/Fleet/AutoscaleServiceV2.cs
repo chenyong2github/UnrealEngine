@@ -186,9 +186,11 @@ namespace Horde.Build.Agents.Fleet
 			int desiredAgentCount = poolSizeData.DesiredAgentCount.Value;
 			int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
-			_logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status}", pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount, poolSizeData.StatusMessage);
-
 			IFleetManager fleetManager = _fleetManagerFactory(poolSizeData.Pool);
+
+			_logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status} FleetManager={FleetManager}",
+				pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount, poolSizeData.StatusMessage, fleetManager.GetType().Name);
+			
 			try
 			{
 				using IScope scope = GlobalTracer.Instance.BuildSpan("ScalingPool").StartActive();
@@ -306,7 +308,7 @@ namespace Horde.Build.Agents.Fleet
 				case FleetManagerType.Aws:
 					return new AwsFleetManager(_ec2, _agentCollection, DeserializeSettings<AwsFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsFleetManager>());
 				case FleetManagerType.AwsReuse:
-					return new AwsReuseFleetManager(_ec2, _agentCollection, _loggerFactory.CreateLogger<AwsReuseFleetManager>());
+					return new AwsReuseFleetManager(_ec2, _agentCollection, DeserializeSettings<AwsReuseFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsReuseFleetManager>());
 				case FleetManagerType.AwsAsg:
 					return new AwsAsgFleetManager(_awsAutoScaling, DeserializeSettings<AwsAsgSettings>(config), _loggerFactory.CreateLogger<AwsAsgFleetManager>());	
 				default:
