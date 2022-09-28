@@ -45,5 +45,6 @@ private:
 	friend struct FRigVMAddIfNodeAction;
 	friend class UControlRigIfNodeSpawner;
 	friend class FRigVMParserAST;
+	friend struct FRigVMRemoveNodeAction;
 };
 

@@ -51,5 +51,6 @@ private:
 	friend class UControlRigSelectNodeSpawner;
 	friend class FRigVMParserAST;
 	friend class FRigVMSelectExprAST;
+	friend struct FRigVMRemoveNodeAction;
 };
 

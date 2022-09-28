@@ -743,10 +743,16 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	else if (URigVMIfNode* IfNode = Cast<URigVMIfNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddIfNodeAction(IfNode), InController);
+		URigVMPin* TrueNamePin = IfNode->FindPin(URigVMIfNode::TrueName);
+		URigVMPin* FalseNamePin = IfNode->FindPin(URigVMIfNode::FalseName);
+		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(TrueNamePin, TrueNamePin->GetDefaultValue()), InController);
+		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(FalseNamePin, FalseNamePin->GetDefaultValue()), InController);
 	}
 	else if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddSelectNodeAction(SelectNode), InController);
+		URigVMPin* ValuesNamePin = SelectNode->FindPin(URigVMSelectNode::ValueName);
+		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(ValuesNamePin, ValuesNamePin->GetDefaultValue()), InController);		
 	}
 	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InNode))
 	{
