@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EngineStats.h"
 #include "Components/PrimitiveComponent.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "AI/Navigation/NavigationDataInterface.h"
 #include "UObject/Package.h"
@@ -7015,12 +7016,14 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 	{
 		if (UPrimitiveComponent* ImpactComponent = Impact.GetComponent())
 		{
+			FVector ForcePoint = Impact.ImpactPoint;
+			float BodyMass = 0.0f;
+
+			bool bCanBePushed = true;
 			FBodyInstance* BI = ImpactComponent->GetBodyInstance(Impact.BoneName);
 			if(BI != nullptr && BI->IsInstanceSimulatingPhysics())
 			{
-				FVector ForcePoint = Impact.ImpactPoint;
-
-				const float BodyMass = FMath::Max(BI->GetBodyMass(), 1.0f);
+				BodyMass = FMath::Max(BI->GetBodyMass(), 1.0f);
 
 				if(bPushForceUsingZOffset)
 				{
@@ -7034,7 +7037,29 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 						ForcePoint.Z = Center.Z + Extents.Z * PushForcePointZOffsetFactor;
 					}
 				}
+			}
+			else if (UGeometryCollectionComponent* GCComp = Cast<UGeometryCollectionComponent>(ImpactComponent))
+			{
+				FBox Bounds;
+				GCComp->GetMassAndExtents(Impact.Item, BodyMass, Bounds);
+				if (bPushForceUsingZOffset)
+				{
+					FVector Center, Extents;
+					Bounds.GetCenterAndExtents(Center, Extents);
 
+					if (!Extents.IsNearlyZero())
+					{
+						ForcePoint.Z = Center.Z + Extents.Z * PushForcePointZOffsetFactor;
+					}
+				}
+			}
+			else
+			{
+				// no body instance, not a GC, not supported scenario
+				bCanBePushed = false;
+			}
+			if (bCanBePushed)
+			{
 				FVector Force = Impact.ImpactNormal * -1.0f;
 
 				float PushForceModificator = 1.0f;
@@ -7045,7 +7070,7 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 				float Dot = 0.0f;
 
 				if (bScalePushForceToVelocity && !ComponentVelocity.IsNearlyZero())
-				{			
+				{
 					Dot = ComponentVelocity | VirtualVelocity;
 
 					if (Dot > 0.0f && Dot < 1.0f)
