@@ -82,9 +82,9 @@ enum class GraphTensorDataType : uint8_t {
 struct GraphTensorInfo {
     static constexpr int cMaxDim = 8;
 
-    const char*         name;
-    int32_t             shape[cMaxDim];
-    int                 shapeLen;
+    const char*     name;
+    int             shape[cMaxDim];
+    int             shapeLen;
 
     GraphTensorDataType dataType;
 };

@@ -5,7 +5,12 @@
 #include "NNXRuntimeFormat.h"
 #include "NNXModelBuilder.h"
 
-#ifdef PLATFORM_WIN64
+#ifdef PLATFORM_NNX_MICROSOFT
+// Prevent some of false-positives when doing static analysis
+__pragma(warning(disable: 6385))
+#endif
+
+#if PLATFORM_WINDOWS
 #define ORT_STRING_CAST TCHAR_TO_WCHAR
 #else
 #define ORT_STRING_CAST TCHAR_TO_ANSI
@@ -130,21 +135,14 @@ public:
 		Str.Appendf("   %-50s ", Tensor.name);
 		Str.Append(" [ ");
 
-		if (Tensor.shapeLen == 0)
+		for (int c = 0; c < Tensor.shapeLen; ++c) 
 		{
-			Str.Appendf("%d", (int) Tensor.shape[0]);
-		}
-		else 
-		{
-			for (int c = 0; c < Tensor.shapeLen; ++c) 
-			{
-				if (Tensor.shape[c] == 0)
-					Str.Append("N");
-				else
-					Str.Appendf("%d", (int) Tensor.shape[c]);
+			if (Tensor.shape[c] == 0)
+				Str.Append("N");
+			else
+				Str.Appendf("%d", Tensor.shape[c]);
 
-				Str.Appendf("%c", c < Tensor.shapeLen - 1 ? ',' : ' ');
-			}
+			Str.Appendf("%c", c < Tensor.shapeLen - 1 ? ',' : ' ');
 		}
 		
 		Str.Append("]");
@@ -172,7 +170,7 @@ public:
 		{
 			if (Graph->GetTensorData(TensorInit, Storage.GetData(), DataSize, 0) == 0) 
 			{
-				int64 NElems = 10;
+				int NElems = 10;
 
 				if (Tensor.shapeLen == 1) 
 				{
@@ -183,7 +181,7 @@ public:
 				} 
 				else 
 				{
-                    const int64_t dim = Tensor.shape[Tensor.shapeLen - 1];
+                    const int dim = Tensor.shape[Tensor.shapeLen - 1];
 
 					if (dim < NElems)
 					{
@@ -191,7 +189,7 @@ public:
 					}
 				}
 
-				for (int64_t ec = 0; ec < NElems; ++ec) 
+				for (int ec = 0; ec < NElems; ++ec) 
 				{
 					if (Tensor.dataType == Ort::GraphTensorDataType::kFloat)
 					{
