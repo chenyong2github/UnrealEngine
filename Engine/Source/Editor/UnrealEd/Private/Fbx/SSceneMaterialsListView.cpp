@@ -341,13 +341,15 @@ TSharedPtr<SWidget> SFbxSceneMaterialsListView::OnOpenContextMenu()
 			Config.bAllowNullSelection = false;
 			Config.bFocusSearchBoxWhenOpened = true;
 			Config.bAllowDragging = false;
-			//Thumbnail are not working since we are in a modal dialog
-			Config.bCanShowRealTimeThumbnails = true;
-			// Don't show stuff in Engine
-			Config.Filter.PackagePaths.Add("/Game");
 			Config.Filter.bRecursivePaths = true;
+			Config.bForceShowEngineContent = false;
+			Config.bForceShowPluginContent = false;
+
+			//We have to limit the height in case there is a lot of item, the computed height can overpass the 16 bit integer maximum.
 			TSharedRef<SWidget> Widget =
 				SNew(SBox)
+				.WidthOverride(300)
+				.HeightOverride(300)
 				[
 					ContentBrowserModule.Get().CreateAssetPicker(Config)
 				];

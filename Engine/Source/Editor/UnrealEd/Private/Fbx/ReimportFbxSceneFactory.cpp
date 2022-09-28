@@ -958,8 +958,13 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 	{
 		return nullptr;
 	}
-	//Close all editor that edit this blueprint
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(BluePrint);
+	if (GEditor)
+	{
+		//Close all editor that edit this blueprint
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(BluePrint);
+		//Make sure all editor selection are cleared
+		GEditor->ResetAllSelectionSets();
+	}
 	//Set the import status for the next reimport
 	for (TSharedPtr<FFbxNodeInfo> NodeInfo : SceneInfoPtr->HierarchyInfo)
 	{
