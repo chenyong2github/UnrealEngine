@@ -35,7 +35,7 @@ public:
 	virtual uint32 GetHeight() const override { return RenderTargetSize.Y; }
 	virtual ESlateShaderResource::Type GetType() const override { return ESlateShaderResource::PostProcess; }
 
-
+	EPixelFormat GetPixelFormat() const { return PixelFormat; }
 private:
 	/** Resizes targets to the new size */
 	void ResizeTargets(const FIntPoint& NewSize, EPixelFormat RequestedPixelFormat);
