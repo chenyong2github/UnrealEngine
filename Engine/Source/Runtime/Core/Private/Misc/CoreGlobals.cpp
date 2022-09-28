@@ -198,7 +198,7 @@ bool					GIsServer						= false;					/* Whether engine was launched as a server,
 bool					GIsCriticalError				= false;					/* An appError() has occured */
 bool					GIsGuarded						= false;					/* Whether execution is happening within main()/WinMain()'s try/catch handler */
 TSAN_ATOMIC(bool)		GIsRunning(false);											/* Whether execution is happening within MainLoop() */
-bool					GIsDuplicatingClassForReinstancing = false;					/* Whether we are currently using SDO on a UClass or CDO for live reinstancing */
+FIsDuplicatingClassForReinstancing	GIsDuplicatingClassForReinstancing;					        /* Whether we are currently using SDO on a UClass or CDO for live reinstancing */
 /** This specifies whether the engine was launched as a build machine process								*/
 bool					GIsBuildMachine					= false;
 /** This determines if we should output any log text.  If Yes then no log text should be emitted.			*/
@@ -724,6 +724,19 @@ DEFINE_LOG_CATEGORY(LogVirtualization);
 #ifdef PLATFORM_GLOBAL_LOG_CATEGORY_ALT
 	DEFINE_LOG_CATEGORY_HELPER(PLATFORM_GLOBAL_LOG_CATEGORY_ALT);
 #endif
+
+thread_local bool PRIVATE_GIsDuplicatingClassForReinstancing = false;
+
+FIsDuplicatingClassForReinstancing& FIsDuplicatingClassForReinstancing::operator= (bool bOther)
+{
+	PRIVATE_GIsDuplicatingClassForReinstancing = bOther;
+	return *this;
+}
+
+FIsDuplicatingClassForReinstancing::operator bool() const
+{
+	return PRIVATE_GIsDuplicatingClassForReinstancing;
+}
 
 #undef LOCTEXT_NAMESPACE
 

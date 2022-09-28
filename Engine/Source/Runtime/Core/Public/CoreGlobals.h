@@ -300,12 +300,19 @@ FORCEINLINE bool IsAllowCommandletAudio()
 #endif
 }
 
+class CORE_API FIsDuplicatingClassForReinstancing
+{
+public:
+	FIsDuplicatingClassForReinstancing& operator= (bool bOther);
+	operator bool() const;
+};
+
 extern CORE_API bool GEdSelectionLock;
 extern CORE_API bool GIsClient;
 extern CORE_API bool GIsServer;
 extern CORE_API bool GIsCriticalError;
 extern CORE_API TSAN_ATOMIC(bool) GIsRunning;
-extern CORE_API bool GIsDuplicatingClassForReinstancing;
+extern CORE_API FIsDuplicatingClassForReinstancing GIsDuplicatingClassForReinstancing;
 
 /**
 * These are set when the engine first starts up.
