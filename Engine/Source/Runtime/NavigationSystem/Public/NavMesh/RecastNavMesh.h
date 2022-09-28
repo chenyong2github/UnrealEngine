@@ -766,7 +766,7 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	uint32 bSortNavigationAreasByCost:1;
 
 	/* In a world partitioned map, is this navmesh using world partitioning */
-	UPROPERTY(EditAnywhere, Category=Generation, config)
+	UPROPERTY(EditAnywhere, Category=Generation, config, meta = (EditCondition = "bAllowWorldPartitionedNavMesh", HideEditConditionToggle, DisplayName = "IsWorldPartitionedNavMesh"))
 	uint32 bIsWorldPartitioned : 1;
 	
 	/** controls whether voxel filtering will be applied (via FRecastTileGenerator::ApplyVoxelFilter). 
@@ -825,6 +825,13 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category = TimeSlicing, config, AdvancedDisplay)
 	double TimeSliceLongDurationDebug = 0.002;
 
+protected:
+#if WITH_EDITORONLY_DATA
+	/** World partitioned navmesh are only allowed in partitioned worlds. */
+	UPROPERTY() 
+	uint32 bAllowWorldPartitionedNavMesh : 1;
+#endif // WITH_EDITORONLY_DATA
+	
 private:
 	/** Cache rasterized voxels instead of just collision vertices/indices in navigation octree */
 	UPROPERTY(config)

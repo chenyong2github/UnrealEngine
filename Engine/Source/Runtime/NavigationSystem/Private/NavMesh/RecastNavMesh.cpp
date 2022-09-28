@@ -485,6 +485,9 @@ ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
 	, bUseVirtualFilters(true)
 	, bUseVirtualGeometryFilteringAndDirtying(false)
 	, bAllowNavLinkAsPathEnd(false)
+#if WITH_EDITORONLY_DATA
+	, bAllowWorldPartitionedNavMesh(false)
+#endif // WITH_EDITORONLY_DATA
 	, TileSetUpdateInterval(1.0f)
 	, NavMeshVersion(NAVMESHVER_LATEST)	
 	, RecastNavMeshImpl(NULL)
@@ -618,7 +621,12 @@ void ARecastNavMesh::PostLoad()
 
 	UE_CLOG(TileSizeUU < CellSize, LogNavigation, Error, TEXT("%s: TileSizeUU (%f) being less than CellSize (%f) is an invalid case and will cause navmesh generation issues.")
 		, *GetName(), TileSizeUU, CellSize);
-
+	
+	if (!UWorld::IsPartitionedWorld(GetWorld()))
+	{
+		bIsWorldPartitioned = false;
+	}
+	
 	RecreateDefaultFilter();
 	UpdatePolyRefBitsPreview();
 }
@@ -725,6 +733,10 @@ void ARecastNavMesh::PostInitProperties()
 			AgentMaxStepHeight = DefOb->AgentMaxStepHeight;
 		}
 	}
+	
+#if WITH_EDITORONLY_DATA
+	bAllowWorldPartitionedNavMesh = UWorld::IsPartitionedWorld(GetWorld());
+#endif // WITH_EDITORONLY_DATA
 
 	UpdatePolyRefBitsPreview();
 }
