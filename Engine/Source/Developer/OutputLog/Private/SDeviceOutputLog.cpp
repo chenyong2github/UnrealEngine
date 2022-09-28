@@ -30,7 +30,6 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
 		.Style(FOutputLogStyle::Get(), "Log.TextBox")
-		.TextStyle(FOutputLogStyle::Get(), "Log.Normal")
 		.ForegroundColor(FLinearColor::Gray)
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)

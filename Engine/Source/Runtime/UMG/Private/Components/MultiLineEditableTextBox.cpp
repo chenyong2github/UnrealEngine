@@ -2,6 +2,8 @@
 
 #include "Components/MultiLineEditableTextBox.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -15,11 +17,9 @@
 // UMultiLineEditableTextBox
 
 static FEditableTextBoxStyle* DefaultMultiLineEditableTextBoxStyle = nullptr;
-static FTextBlockStyle* DefaultMultiLineEditableTextBoxTextStyle = nullptr;
 
 #if WITH_EDITOR
 static FEditableTextBoxStyle* EditorMultiLineEditableTextBoxStyle = nullptr;
-static FTextBlockStyle* EditorMultiLineEditableTextBoxTextStyle = nullptr;
 #endif 
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -34,16 +34,16 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 		DefaultMultiLineEditableTextBoxStyle->UnlinkColors();
 	}
 
-	if (DefaultMultiLineEditableTextBoxTextStyle == nullptr)
-	{
-		DefaultMultiLineEditableTextBoxTextStyle = new FTextBlockStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
-
-		// Unlink UMG default colors.
-		DefaultMultiLineEditableTextBoxTextStyle->UnlinkColors();
-	}
-	
 	WidgetStyle = *DefaultMultiLineEditableTextBoxStyle;
-	TextStyle = *DefaultMultiLineEditableTextBoxTextStyle;
+#if WITH_EDITOR
+	TextStyle_DEPRECATED = DefaultMultiLineEditableTextBoxStyle->TextStyle;
+#endif
+
+	if (!IsRunningDedicatedServer())
+	{
+		static ConstructorHelpers::FObjectFinder<UFont> defaultFontObj(*UWidget::GetDefaultFontName());
+		WidgetStyle.SetFont(FSlateFontInfo(defaultFontObj.Object, 24, FName("Regular")));
+	}
 
 #if WITH_EDITOR 
 	if (EditorMultiLineEditableTextBoxStyle == nullptr)
@@ -53,19 +53,11 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 		// Unlink UMG Editor colors from the editor settings colors.
 		EditorMultiLineEditableTextBoxStyle->UnlinkColors();
 	}
-
-	if (EditorMultiLineEditableTextBoxTextStyle == nullptr)
-	{
-		EditorMultiLineEditableTextBoxTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorMultiLineEditableTextBoxTextStyle->UnlinkColors();
-	}
 	
 	if (IsEditorWidget())
 	{
 		WidgetStyle = *EditorMultiLineEditableTextBoxStyle;
-		TextStyle = *EditorMultiLineEditableTextBoxTextStyle;
+		TextStyle_DEPRECATED = DefaultMultiLineEditableTextBoxStyle->TextStyle;
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
@@ -76,6 +68,28 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	AutoWrapText = true;
+}
+
+#if WITH_EDITOR
+void UMultiLineEditableTextBox::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
+	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TextStyle_DEPRECATED.SetFont(WidgetStyle.Font_DEPRECATED);
+		WidgetStyle.SetTextStyle(TextStyle_DEPRECATED);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+#endif
+
+void UMultiLineEditableTextBox::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 }
 
 void UMultiLineEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -89,7 +103,6 @@ TSharedRef<SWidget> UMultiLineEditableTextBox::RebuildWidget()
 {
 	MyEditableTextBlock = SNew(SMultiLineEditableTextBox)
 		.Style(&WidgetStyle)
-		.TextStyle(&TextStyle)
 		.AllowContextMenu(AllowContextMenu)
 		.IsReadOnly(bIsReadOnly)
 //		.MinDesiredWidth(MinimumDesiredWidth)
@@ -206,11 +219,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UMultiLineEditableTextBox::SetTextStyle(const FTextBlockStyle& InTextStyle)
 {
-	TextStyle = InTextStyle;
+	WidgetStyle.SetTextStyle(InTextStyle);
 
 	if (MyEditableTextBlock.IsValid())
 	{
-		MyEditableTextBlock->SetTextStyle(&TextStyle);
+		MyEditableTextBlock->SetTextStyle(&InTextStyle);
 	}
 }
 

@@ -130,6 +130,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Add WithSerializer type trait and implementation for FRawAnimSequenceTrack
 		RawAnimSequenceTrackSerializer,
 
+		// Removed font from FEditableTextBoxStyle, and added FTextBlockStyle instead.
+		RemoveDuplicatedStyleInfo,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

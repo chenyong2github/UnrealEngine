@@ -63,6 +63,7 @@ FMovieRenderPipelineStyle::FMovieRenderPipelineStyle()
 		.SetColorAndOpacity(AlmostWhite);
 
 	FEditableTextBoxStyle EditableTextStyle = FEditableTextBoxStyle()
+		.SetTextStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 9))
 		.SetBackgroundImageNormal(FSlateNoResource())
 		.SetBackgroundImageHovered(FSlateNoResource())

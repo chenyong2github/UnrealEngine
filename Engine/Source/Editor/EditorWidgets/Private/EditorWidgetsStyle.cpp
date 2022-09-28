@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorWidgetsStyle.h"
 
@@ -36,11 +36,15 @@ void FEditorWidgetsStyle::Initialize()
 	const FTextBlockStyle NormalText = FTextBlockStyle()
 		.SetColorAndOpacity(NormalEditableTextBoxStyle.ForegroundColor)
 		.SetHighlightColor(NormalEditableTextBoxStyle.FocusedForegroundColor)
-		.SetFont(NormalEditableTextBoxStyle.Font)
-		.SetFontSize(NormalEditableTextBoxStyle.Font.Size);
+		.SetFont(NormalEditableTextBoxStyle.TextStyle.Font)
+		.SetFontSize(NormalEditableTextBoxStyle.TextStyle.Font.Size);
+
+	const FEditableTextBoxStyle TextBoxStyle = FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetTextStyle(NormalText);
+
 
 	// Text editor
 	{
+		StyleSet->Set("NormalEditableTextBox", TextBoxStyle);
 		StyleSet->Set("TextEditor.NormalText", NormalText);
 
 		StyleSet->Set("SyntaxHighlight.Template.Normal", NormalText);

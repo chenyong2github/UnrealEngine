@@ -292,6 +292,7 @@ public:
 
 	/** See attribute Font */
 	void SetFont(const TAttribute< FSlateFontInfo >& InNewFont);
+	FSlateFontInfo GetFont() const;
 
 	/** See TextShapingMethod attribute */
 	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);

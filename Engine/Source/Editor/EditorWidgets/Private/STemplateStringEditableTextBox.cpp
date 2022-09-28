@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STemplateStringEditableTextBox.h"
 
@@ -16,7 +16,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void STemplateStringEditableTextBox::Construct(const FArguments& InArgs)
 {
 	SMultiLineEditableTextBox::Construct(SMultiLineEditableTextBox::FArguments()
-		.TextStyle(&FEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextEditor.NormalText"))
+		.Style(&FEditorWidgetsStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
 		.Text(InArgs._Text)
 		.Marshaller(FTemplateStringSyntaxHighlighterMarshaller::Create(FTemplateStringSyntaxHighlighterMarshaller::FSyntaxTextStyle()))
 		.AllowMultiLine(false)

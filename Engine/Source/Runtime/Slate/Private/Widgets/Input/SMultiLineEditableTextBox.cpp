@@ -33,12 +33,7 @@ namespace
 void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 {
 	check (InArgs._Style);
-	Style = InArgs._Style;
-
-	BorderImageNormal = &InArgs._Style->BackgroundImageNormal;
-	BorderImageHovered = &InArgs._Style->BackgroundImageHovered;
-	BorderImageFocused = &InArgs._Style->BackgroundImageFocused;
-	BorderImageReadOnly = &InArgs._Style->BackgroundImageReadOnly;
+	SetStyle(InArgs._Style);
 
 	PaddingOverride = InArgs._Padding;
 	HScrollBarPaddingOverride = InArgs._HScrollBarPadding;
@@ -97,7 +92,7 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 					.Text( InArgs._Text )
 					.HintText( InArgs._HintText )
 					.SearchText( InArgs._SearchText )
-					.TextStyle( InArgs._TextStyle )
+					.TextStyle( &InArgs._Style->TextStyle )
 					.Marshaller( InArgs._Marshaller )
 					.Font( this, &SMultiLineEditableTextBox::DetermineFont )
 					.IsReadOnly( InArgs._IsReadOnly )
@@ -205,11 +200,47 @@ void SMultiLineEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
 	BorderImageHovered = &Style->BackgroundImageHovered;
 	BorderImageFocused = &Style->BackgroundImageFocused;
 	BorderImageReadOnly = &Style->BackgroundImageReadOnly;
+
+	SetTextStyle(&Style->TextStyle);
 }
 
 void SMultiLineEditableTextBox::SetTextStyle(const FTextBlockStyle* InTextStyle)
 {
-	EditableText->SetTextStyle(InTextStyle);
+	// The Construct() function will call this before EditableText exists,
+	// so we need a guard here to ignore that function call.
+	if (EditableText.IsValid())
+	{
+		EditableText->SetTextStyle(InTextStyle);
+	}
+}
+
+FMargin SMultiLineEditableTextBox::DeterminePadding() const
+{
+	check(Style);
+	return PaddingOverride.IsSet() ? PaddingOverride.Get() : Style->Padding;
+}
+
+FMargin SMultiLineEditableTextBox::DetermineHScrollBarPadding() const
+{
+	check(Style);
+	return HScrollBarPaddingOverride.IsSet() ? HScrollBarPaddingOverride.Get() : Style->HScrollBarPadding;
+}
+
+FMargin SMultiLineEditableTextBox::DetermineVScrollBarPadding() const
+{
+	check(Style);
+	return VScrollBarPaddingOverride.IsSet() ? VScrollBarPaddingOverride.Get() : Style->VScrollBarPadding;
+}
+
+FSlateFontInfo SMultiLineEditableTextBox::DetermineFont() const
+{
+	return FontOverride.IsSet() ? FontOverride.Get() : Style->TextStyle.Font;
+}
+
+FSlateColor SMultiLineEditableTextBox::DetermineBackgroundColor() const
+{
+	check(Style);  
+	return BackgroundColorOverride.IsSet() ? BackgroundColorOverride.Get() : Style->BackgroundColor;
 }
 
 FSlateColor SMultiLineEditableTextBox::DetermineForegroundColor() const

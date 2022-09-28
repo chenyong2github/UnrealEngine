@@ -86,7 +86,9 @@ TSharedRef< FSlateStyleSet > FCrashReportClientStyle::Create()
 		.SetHoveredThumbImage(BOX_BRUSH("Common/Scrollbar_Thumb", FMargin(4.f / 16.f)));
 
 	// SEditableTextBox defaults...
+	const FTextBlockStyle& NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 	const FEditableTextBoxStyle NormalEditableTextBoxStyle = FEditableTextBoxStyle()
+		.SetTextStyle(NormalText)
 		.SetBackgroundImageNormal(*GenericWhiteBox)
 		.SetBackgroundImageHovered(*GenericWhiteBox)
 		.SetBackgroundImageFocused(*GenericWhiteBox)

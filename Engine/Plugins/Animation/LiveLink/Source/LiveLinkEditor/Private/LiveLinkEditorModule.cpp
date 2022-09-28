@@ -135,6 +135,7 @@ public:
 		StyleSet->Set("ComboButton", ComboButton);
 
 		FEditableTextBoxStyle EditableTextStyle = FEditableTextBoxStyle()
+			.SetTextStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 			.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 9))
 			.SetBackgroundImageNormal(FSlateNoResource())
 			.SetBackgroundImageHovered(FSlateNoResource())

@@ -175,6 +175,12 @@ void SMultiLineEditableText::SetFont(const TAttribute< FSlateFontInfo >& InNewFo
 	EditableTextLayout->SetTextStyle(TextStyle);
 }
 
+FSlateFontInfo SMultiLineEditableText::GetFont() const
+{
+	FTextBlockStyle TextStyle = EditableTextLayout->GetTextStyle();
+	return TextStyle.Font;
+}
+
 void SMultiLineEditableText::SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod)
 {
 	EditableTextLayout->SetTextShapingMethod(InTextShapingMethod);

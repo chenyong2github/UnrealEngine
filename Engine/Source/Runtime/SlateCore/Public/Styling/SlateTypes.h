@@ -930,9 +930,14 @@ struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FEditableTextBoxStyle();
+	FEditableTextBoxStyle(const FEditableTextBoxStyle&) = default;
 
-	virtual ~FEditableTextBoxStyle();
+	FEditableTextBoxStyle& operator=(const FEditableTextBoxStyle&) = default;
+
+	virtual ~FEditableTextBoxStyle() = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
@@ -966,11 +971,19 @@ struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
 	FMargin Padding;
 	FEditableTextBoxStyle& SetPadding( const FMargin& InPadding ){ Padding = InPadding; return *this; }
 
+#if WITH_EDITORONLY_DATA
 	/** Font family and size to be used when displaying this text. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
-	FSlateFontInfo Font;
-	FEditableTextBoxStyle& SetFont(const FSlateFontInfo& InFont) { Font = InFont; return *this; }
-	FEditableTextBoxStyle& SetFont(const FName& InFontName, uint16 InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
+	UE_DEPRECATED(5.2, "Font has been deprecated as it was duplicated information already available elsewhere. Please use TextStyle.Font instead.")
+	UPROPERTY(Category = Appearance)
+	FSlateFontInfo Font_DEPRECATED;
+#endif
+	FEditableTextBoxStyle& SetFont(const FSlateFontInfo& InFont) { TextStyle.Font = InFont; return *this; }
+	FEditableTextBoxStyle& SetFont(const FName& InFontName, uint16 InSize) { return SetFont(FSlateFontInfo(InFontName, InSize)); }
+
+	/** The style of the text block, which dictates the font, color, and shadow options. Style overrides all other properties! */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FTextBlockStyle TextStyle;
+	FEditableTextBoxStyle& SetTextStyle(const FTextBlockStyle& InTextStyle) { TextStyle = InTextStyle; return *this; }
 
 	/** The foreground color of text. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)

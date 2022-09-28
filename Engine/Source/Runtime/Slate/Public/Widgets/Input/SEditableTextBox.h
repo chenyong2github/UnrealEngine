@@ -192,6 +192,13 @@ public:
 	void SetStyle(const FEditableTextBoxStyle* InStyle);
 
 	/**
+	 * Sets the text block style currently used
+	 *
+	 * @param  InTextStyle  The new text string
+	 */
+	void SetTextBlockStyle(const FTextBlockStyle* InTextStyle);
+
+	/**
 	 * Sets the text string currently being edited 
 	 *
 	 * @param  InNewText  The new text string
@@ -448,10 +455,9 @@ protected:
 
 private:
 
-	FMargin FORCEINLINE DeterminePadding() const { check(Style);  return PaddingOverride.IsSet() ? PaddingOverride.Get() : Style->Padding; }
-	FSlateFontInfo FORCEINLINE DetermineFont() const { check(Style);  return FontOverride.IsSet() ? FontOverride.Get() : Style->Font;  }
-	FSlateColor FORCEINLINE DetermineBackgroundColor() const { check(Style);  return BackgroundColorOverride.IsSet() ? BackgroundColorOverride.Get() : Style->BackgroundColor; }
-	
+	FMargin DeterminePadding() const;
+	FSlateFontInfo DetermineFont() const;
+	FSlateColor DetermineBackgroundColor() const;
 	FSlateColor DetermineForegroundColor() const;
 
 	/** Styling: border image to draw when not hovered or focused */

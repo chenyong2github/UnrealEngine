@@ -171,6 +171,7 @@ void FDataprepEditorStyle::Initialize()
 			StyleSet->Set( "Graph.ActionNode.Title", GraphActionNodeTitle );
 
 			FEditableTextBoxStyle GraphActionNodeTitleEditableText = FEditableTextBoxStyle()
+			.SetTextStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 			.SetFont(GraphActionNodeTitle.Font);
 			StyleSet->Set( "Graph.ActionNode.NodeTitleEditableText", GraphActionNodeTitleEditableText );
 

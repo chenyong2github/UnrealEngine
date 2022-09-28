@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Styling/SlateTypes.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Brushes/SlateNoResource.h"
 #include "Styling/StyleDefaults.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/InvalidateWidgetReason.h"
 #include "Widgets/SWidget.h"
 
@@ -251,15 +253,15 @@ FEditableTextBoxStyle::FEditableTextBoxStyle()
 	, BackgroundImageFocused()
 	, BackgroundImageReadOnly()
 	, Padding(FMargin(4.0f, 2.0f))
-	, Font(FStyleDefaults::GetFontInfo(9))
+	, TextStyle(FTextBlockStyle().SetFont(FStyleDefaults::GetFontInfo(9))
+				.SetColorAndOpacity(FSlateColor::UseForeground())
+				.SetSelectedBackgroundColor(FStyleColors::Highlight)
+				.SetHighlightColor(FStyleColors::Black)
+				.SetHighlightShape(FSlateColorBrush(FStyleColors::AccentGreen)))
 	, ForegroundColor(FSlateColor::UseForeground())
 	, BackgroundColor(FLinearColor::White)
 	, ReadOnlyForegroundColor(FSlateColor::UseForeground())
 	, FocusedForegroundColor(FSlateColor::UseForeground())
-{
-}
-
-FEditableTextBoxStyle::~FEditableTextBoxStyle()
 {
 }
 
@@ -390,7 +392,7 @@ FSearchBoxStyle& FSearchBoxStyle::SetTextBoxStyle( const FEditableTextBoxStyle& 
 	TextBoxStyle = InTextBoxStyle;
 	if (!ActiveFontInfo.HasValidFont())
 	{
-		ActiveFontInfo = TextBoxStyle.Font;
+		ActiveFontInfo = TextBoxStyle.TextStyle.Font;
 	}
 	return *this;
 }

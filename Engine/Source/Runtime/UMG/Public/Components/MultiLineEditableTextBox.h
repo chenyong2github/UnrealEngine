@@ -48,9 +48,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=(DisplayName="Style"))
 	FEditableTextBoxStyle WidgetStyle;
 
+#if WITH_EDITORONLY_DATA
 	/** The text style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetTextStyle, Category="Style", meta=(DisplayName="Text Style"))
-	FTextBlockStyle TextStyle;
+	UE_DEPRECATED(5.2, "TextStyle has been deprecated as it was mainly duplicated information already available inside WidgetStyle. Please use the WidgetStyle.TextStyle instead.")
+	UPROPERTY(Category="Style", meta=(DisplayName="Text Style"))
+	FTextBlockStyle TextStyle_DEPRECATED;
+#endif
 
 	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UE_DEPRECATED(5.1, "Direct access to IsReadOnly is deprecated. Please use the getter or setter.")
@@ -118,7 +121,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "SetIsReadOnly (Multi-Line Text Box)"))
 	void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
 
-	UFUNCTION(BlueprintSetter)
+	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetTextStyle (Multi-Line Text Box)"))
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetForegroundColor (Multi-Line Text Box)"))
@@ -143,7 +146,10 @@ public:
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
+	virtual void PostLoad() override;
 #endif
+
+	virtual void Serialize(FArchive& Ar) override;
 
 protected:
 	//~ Begin UWidget Interface

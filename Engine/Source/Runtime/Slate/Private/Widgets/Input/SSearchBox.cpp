@@ -20,7 +20,7 @@ void SSearchBox::Construct( const FArguments& InArgs )
 	DelayChangeNotificationsWhileTyping = InArgs._DelayChangeNotificationsWhileTyping;
 	DelayChangeNotificationsWhileTypingSeconds = InArgs._DelayChangeNotificationsWhileTypingSeconds;
 
-	InactiveFont = InArgs._Style->TextBoxStyle.Font;
+	InactiveFont = InArgs._Style->TextBoxStyle.TextStyle.Font;
 	ActiveFont = InArgs._Style->ActiveFontInfo;
 
 	SEditableTextBox::Construct( SEditableTextBox::FArguments()

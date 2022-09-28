@@ -2,6 +2,8 @@
 
 #include "Components/EditableTextBox.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -71,6 +73,28 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	bCanChildrenBeAccessible = false;
 #endif
 }
+
+#if WITH_EDITORONLY_DATA
+void UEditableTextBox::PostLoad()
+{
+	Super::PostLoad();
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
+	{
+		FTextBlockStyle& TextStyle = WidgetStyle.TextStyle;
+		TextStyle.SetFont(WidgetStyle.Font_DEPRECATED);
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UEditableTextBox::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	Super::Serialize(Ar);
+}
+#endif
 
 void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)
 {

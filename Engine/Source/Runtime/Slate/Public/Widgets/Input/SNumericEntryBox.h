@@ -226,7 +226,7 @@ public:
 		{
 			SAssignNew(SpinBox, SSpinBox<NumericType>)
 				.Style(InArgs._SpinBoxStyle)
-				.Font(InArgs._Font.IsSet() ? InArgs._Font : InArgs._EditableTextBoxStyle->Font)
+				.Font(InArgs._Font.IsSet() ? InArgs._Font : InArgs._EditableTextBoxStyle->TextStyle.Font)
 				.Value(this, &SNumericEntryBox<NumericType>::OnGetValueForSpinBox)
 				.Delta(InArgs._Delta)
 				.ShiftMouseMovePixelPerDelta(InArgs._ShiftMouseMovePixelPerDelta)
@@ -255,7 +255,7 @@ public:
 		SAssignNew(EditableText, SEditableText)
 			.Text(this, &SNumericEntryBox<NumericType>::OnGetValueForTextBox)
 			.Visibility(bAllowSpin ? EVisibility::Collapsed : EVisibility::Visible)
-			.Font(InArgs._Font.IsSet() ? InArgs._Font : InArgs._EditableTextBoxStyle->Font)
+			.Font(InArgs._Font.IsSet() ? InArgs._Font : InArgs._EditableTextBoxStyle->TextStyle.Font)
 			.SelectAllTextWhenFocused(true)
 			.ClearKeyboardFocusOnCommit(false)
 			.OnTextChanged(this, &SNumericEntryBox<NumericType>::OnTextChanged)

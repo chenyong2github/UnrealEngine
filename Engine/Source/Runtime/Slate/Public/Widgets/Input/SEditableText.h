@@ -236,14 +236,25 @@ public:
 	 *
 	 * @param  InNewFont	The new font to use
 	 */
-	void SetFont( const TAttribute< FSlateFontInfo >& InNewFont );
+	void SetFont(const TAttribute< FSlateFontInfo >& InNewFont);
+
+	/** Gets the font used to draw the text. */
+	FSlateFontInfo GetFont() const;
 
 	/**
 	 * Sets the text style used to draw the text
 	 *
 	 * @param  NewTextStyle	The new text style to use
 	 */
-	void SetTextStyle( const FEditableTextStyle& InNewTextStyle );
+	void SetEditableTextStyle( const FEditableTextStyle& InNewTextStyle );
+
+	/** @See TextStyle */
+	/**
+	 * Sets the text block style used to draw the text
+	 *
+	 * @param  InTextStyle	The new text block style to use
+	 */
+	void SetTextBlockStyle(const FTextBlockStyle* InTextStyle);
 
 	/**
 	 * Sets the minimum width that a text block should be.

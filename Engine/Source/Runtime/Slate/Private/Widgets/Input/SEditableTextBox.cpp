@@ -125,8 +125,19 @@ void SEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
 	BorderImageHovered = &Style->BackgroundImageHovered;
 	BorderImageFocused = &Style->BackgroundImageFocused;
 	BorderImageReadOnly = &Style->BackgroundImageReadOnly;
+
+	SetTextBlockStyle(&Style->TextStyle);
 }
 
+void SEditableTextBox::SetTextBlockStyle(const FTextBlockStyle* InTextStyle)
+{
+	// The Construct() function will call this before EditableText exists,
+	// so we need a guard here to ignore that function call.
+	if (EditableText.IsValid())
+	{
+		EditableText->SetTextBlockStyle(InTextStyle);
+	}
+}
 
 void SEditableTextBox::SetText( const TAttribute< FText >& InNewText )
 {
@@ -300,6 +311,24 @@ FReply SEditableTextBox::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent&
 	}
 
 	return FReply::Unhandled();
+}
+
+FMargin SEditableTextBox::DeterminePadding() const
+{
+	check(Style);
+	return PaddingOverride.IsSet() ? PaddingOverride.Get() : Style->Padding;
+}
+
+FSlateFontInfo SEditableTextBox::DetermineFont() const
+{
+	check(Style);
+	return FontOverride.IsSet() ? FontOverride.Get() : Style->TextStyle.Font;
+}
+
+FSlateColor SEditableTextBox::DetermineBackgroundColor() const
+{
+	check(Style);
+	return BackgroundColorOverride.IsSet() ? BackgroundColorOverride.Get() : Style->BackgroundColor;
 }
 
 FSlateColor SEditableTextBox::DetermineForegroundColor() const

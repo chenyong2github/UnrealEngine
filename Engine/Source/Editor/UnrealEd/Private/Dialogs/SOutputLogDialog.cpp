@@ -91,7 +91,6 @@ void SOutputLogDialog::Construct( const FArguments& InArgs )
 						[
 							SNew(SMultiLineEditableTextBox)
 								.Style(FAppStyle::Get(), "Log.TextBox")
-								.TextStyle(FAppStyle::Get(), "Log.Normal")
 								.ForegroundColor(FLinearColor::Gray)
 								.Text(FText::TrimTrailing(Log))
 								.IsReadOnly(true)

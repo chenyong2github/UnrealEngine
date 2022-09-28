@@ -60,6 +60,7 @@ void FStateTreeEditorStyle::Initialize()
 		StyleSet->Set("StateTree.State.Title", StateTitle);
 
 		FEditableTextBoxStyle StateTitleEditableText = FEditableTextBoxStyle()
+			.SetTextStyle(NormalText)
 			.SetFont(TTF_CORE_FONT("Fonts/Roboto-Bold", 10))
 			.SetBackgroundImageNormal(BOX_BRUSH("Common/TextBox", FMargin(4.0f / 16.0f)))
 			.SetBackgroundImageHovered(BOX_BRUSH("Common/TextBox_Hovered", FMargin(4.0f / 16.0f)))
@@ -144,7 +145,7 @@ void FStateTreeEditorStyle::Initialize()
 
 	const FEditableTextBoxStyle& NormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
 	FEditableTextBoxStyle NameEditStyle(NormalEditableTextBox);
-	NameEditStyle.Font.Size = 10;
+	NameEditStyle.TextStyle.Font.Size = 10;
 	StyleSet->Set("StateTree.Node.Name", NameEditStyle);
 	
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());

@@ -58,6 +58,7 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 		Set("TextEditor.Border", new BOX_BRUSH("Images/TextEditorBorder", FMargin(4.0f/16.0f), FLinearColor(0.02f,0.02f,0.02f,1)));
 
 		const FEditableTextBoxStyle EditableTextBoxStyle = FEditableTextBoxStyle()
+			.SetTextStyle(NormalText)
 			.SetBackgroundImageNormal( FSlateNoResource() )
 			.SetBackgroundImageHovered( FSlateNoResource() )
 			.SetBackgroundImageFocused( FSlateNoResource() )

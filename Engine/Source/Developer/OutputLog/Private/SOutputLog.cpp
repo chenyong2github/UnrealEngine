@@ -1080,7 +1080,6 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
 		.Style(FOutputLogStyle::Get(), "Log.TextBox")
-		.TextStyle(FOutputLogStyle::Get(), "Log.Normal")
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
 		.AlwaysShowScrollbars(true)

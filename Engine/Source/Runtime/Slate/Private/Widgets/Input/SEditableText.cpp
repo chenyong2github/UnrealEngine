@@ -53,7 +53,7 @@ void SEditableText::Construct( const FArguments& InArgs )
 	BackgroundImageSelected = InArgs._BackgroundImageSelected;
 
 	// We use the given style when creating the text layout as it may not be safe to call the override delegates until we've finished being constructed
-	// The first call to SyncronizeTextStyle will apply the correct overrides, and that will happen before the first paint
+	// The first call to SynchronizeTextStyle will apply the correct overrides, and that will happen before the first paint
 	check(InArgs._Style);
 	FTextBlockStyle TextStyle = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
 	TextStyle.Font = InArgs._Style->Font;
@@ -99,13 +99,27 @@ void SEditableText::SetFont( const TAttribute< FSlateFontInfo >& InNewFont )
 	Invalidate(EInvalidateWidgetReason::Layout);
 }
 
-void SEditableText::SetTextStyle( const FEditableTextStyle& InNewTextStyle )
+FSlateFontInfo SEditableText::GetFont() const
+{
+	return Font.Get();
+}
+
+void SEditableText::SetEditableTextStyle( const FEditableTextStyle& InNewTextStyle )
 {
 	Font = InNewTextStyle.Font;
 	ColorAndOpacity = InNewTextStyle.ColorAndOpacity;
 	BackgroundImageSelected = &InNewTextStyle.BackgroundImageSelected;
 
 	Invalidate(EInvalidateWidgetReason::Layout);
+}
+
+void SEditableText::SetTextBlockStyle(const FTextBlockStyle* InTextStyle)
+{
+	if (InTextStyle)
+	{
+		EditableTextLayout->SetTextStyle(*InTextStyle);
+		Invalidate(EInvalidateWidgetReason::Layout); //Using Layout as changing text block size can affect the size.
+	}
 }
 
 void SEditableText::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

@@ -120,8 +120,6 @@ void UMultiLineEditableText::SynchronizeProperties()
 	MyMultiLineEditableText->SetRevertTextOnEscape(RevertTextOnEscape);
 	MyMultiLineEditableText->SetClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit);
 
-//	MyMultiLineEditableText->SetColorAndOpacity(ColorAndOpacity);
-
 	// TODO UMG Complete making all properties settable on SMultiLineEditableText
 
 	Super::SynchronizeTextLayoutProperties(*MyMultiLineEditableText);

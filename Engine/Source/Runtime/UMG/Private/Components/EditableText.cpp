@@ -34,6 +34,12 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	}
 
 	WidgetStyle = *DefaultEditableTextStyle;
+	if (!IsRunningDedicatedServer())
+	{
+		static ConstructorHelpers::FObjectFinder<UFont> defaultFontObj(*UWidget::GetDefaultFontName());
+		WidgetStyle.SetFont(FSlateFontInfo(defaultFontObj.Object, 24, FName("Regular")));
+	}
+
 
 #if WITH_EDITOR 
 	if (EditorEditableTextStyle == nullptr)
@@ -117,6 +123,7 @@ void UEditableText::SynchronizeProperties()
 	TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
 
 	MyEditableText->SetText(TextBinding);
+	MyEditableText->SetEditableTextStyle(WidgetStyle);
 	MyEditableText->SetHintText(HintTextBinding);
 	MyEditableText->SetIsReadOnly(IsReadOnly);
 	MyEditableText->SetIsPassword(IsPassword);
@@ -341,7 +348,7 @@ void UEditableText::SetFont(FSlateFontInfo InFontInfo)
 
 	if (MyEditableText.IsValid())
 	{
-		MyEditableText->SetTextStyle(WidgetStyle);
+		MyEditableText->SetEditableTextStyle(WidgetStyle);
 	}
 }
 
@@ -351,7 +358,7 @@ void UEditableText::SetFontMaterial(UMaterialInterface* InMaterial)
 
 	if (MyEditableText.IsValid())
 	{
-		MyEditableText->SetTextStyle(WidgetStyle);
+		MyEditableText->SetEditableTextStyle(WidgetStyle);
 	}
 }
 
@@ -361,7 +368,7 @@ void UEditableText::SetFontOutlineMaterial(UMaterialInterface* InMaterial)
 
 	if (MyEditableText.IsValid())
 	{
-		MyEditableText->SetTextStyle(WidgetStyle);
+		MyEditableText->SetEditableTextStyle(WidgetStyle);
 	}
 }
 
