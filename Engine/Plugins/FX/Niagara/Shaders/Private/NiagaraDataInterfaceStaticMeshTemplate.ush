@@ -64,8 +64,8 @@ int UniformTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Tri, int Secti
 void GetPreSkinnedLocalBounds_{ParameterName}(out float3 OutCenter, out float3 OutExtentsMin, out float3 OutExtentsMax, out float3 OutExtents, out float3 OutHalfExtents)
 {
 	OutCenter		= {ParameterName}_PreSkinnedLocalBoundsCenter;
-	OutExtents		= {ParameterName}_PreSkinnedLocalBoundsExtents;
-	OutHalfExtents	= OutExtents * 0.5f;
+	OutHalfExtents	= {ParameterName}_PreSkinnedLocalBoundsExtents;
+	OutExtents		= OutExtents * 2.0f;
 	OutExtentsMin	= OutCenter - OutHalfExtents;
 	OutExtentsMax	= OutCenter + OutHalfExtents;
 }

@@ -544,6 +544,20 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	#endif
 	}
 
+	void SetInputDescription(const FNiagaraVariableBase& Variable, const FText& Desc)
+	{
+#if WITH_EDITORONLY_DATA
+		InputDescriptions.FindOrAdd(Variable) = Desc;
+#endif
+	}
+
+	void SetOutputDescription(const FNiagaraVariableBase& Variable, const FText& Desc)
+	{
+#if WITH_EDITORONLY_DATA
+		OutputDescriptions.FindOrAdd(Variable) = Desc;
+#endif
+	}
+
 	void SetDescription(const FText& Desc)
 	{
 	#if WITH_EDITORONLY_DATA
