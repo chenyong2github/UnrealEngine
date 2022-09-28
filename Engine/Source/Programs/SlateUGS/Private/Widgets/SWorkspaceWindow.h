@@ -20,6 +20,8 @@ private:
 	FReply OnCancelClicked();
 
 	FReply OnBrowseClicked();
+	FString PreviousProjectPath;
+
 	FReply OnNewClicked();
 
 	bool bIsLocalFileSelected = true;

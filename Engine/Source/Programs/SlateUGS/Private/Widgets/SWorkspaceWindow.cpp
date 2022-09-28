@@ -235,30 +235,21 @@ FReply SWorkspaceWindow::OnCancelClicked()
 
 FReply SWorkspaceWindow::OnBrowseClicked()
 {
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
 	TArray<FString> OutOpenFilenames;
-	if (DesktopPlatform)
+	FDesktopPlatformModule::Get()->OpenFileDialog(
+		FSlateApplication::Get().FindBestParentWindowHandleForDialogs(AsShared()),
+		LOCTEXT("OpenDialogTitle", "Open Unreal Project").ToString(),
+		PreviousProjectPath,
+		TEXT(""),
+		TEXT("Unreal Project Files (*.uproject)|*.uproject"),
+		EFileDialogFlags::None,
+		OutOpenFilenames
+	);
+
+	if (!OutOpenFilenames.IsEmpty())
 	{
-		DesktopPlatform->OpenFileDialog(
-			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(AsShared()),
-			LOCTEXT("OpenDialogTitle", "Open Unreal Project").ToString(),
-			TEXT(""), // Todo: maybe give a default path (such as previously selected path)
-			TEXT(""),
-			TEXT("Unreal Project Files (*.uproject)|*.uproject"),
-			EFileDialogFlags::None,
-			OutOpenFilenames
-		);
-
-		if (!OutOpenFilenames.IsEmpty())
-		{
-			FString Path = OutOpenFilenames[0];
-			if (FPaths::IsRelative(Path))
-			{
-				Path = FPaths::ConvertRelativePathToFull(Path);
-			}
-
-			LocalFileText->SetText(FText::FromString(Path));
-		}
+		PreviousProjectPath = OutOpenFilenames[0];
+		LocalFileText->SetText(FText::FromString(FPaths::ConvertRelativePathToFull(PreviousProjectPath)));
 	}
 
 	return FReply::Handled();
