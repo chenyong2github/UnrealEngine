@@ -1958,17 +1958,20 @@ bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescr
 
 bool FPluginManager::PromptToDownloadPlugin(const FString& PluginName, const FString& MarketplaceURL)
 {
-	FText Caption = FText::Format(LOCTEXT("DownloadPluginCaption", "Missing {0} Plugin"), FText::FromString(PluginName));
-	FText Message = FText::Format(LOCTEXT("DownloadPluginMessage", "This project requires the {0} plugin.\n\nWould you like to download it from the Unreal Engine Marketplace?"), FText::FromString(PluginName));
-	if(FMessageDialog::Open(EAppMsgType::YesNo, Message, &Caption) == EAppReturnType::Yes)
+	if(MarketplaceURL.StartsWith("https://"))
 	{
-		FString Error;
-		FPlatformProcess::LaunchURL(*MarketplaceURL, nullptr, &Error);
-		if (Error.Len() == 0)
+		FText Caption = FText::Format(LOCTEXT("DownloadPluginCaption", "Missing {0} Plugin"), FText::FromString(PluginName));
+		FText Message = FText::Format(LOCTEXT("DownloadPluginMessage", "This project requires the {0} plugin.\n\nWould you like to download it from the Unreal Engine Marketplace?"), FText::FromString(PluginName));
+		if(FMessageDialog::Open(EAppMsgType::YesNo, Message, &Caption) == EAppReturnType::Yes)
 		{
-			return true;
+			FString Error;
+			FPlatformProcess::LaunchURL(*MarketplaceURL, nullptr, &Error);
+			if (Error.Len() == 0)
+			{
+				return true;
+			}
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Error));
 		}
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Error));
 	}
 	return false;
 }
