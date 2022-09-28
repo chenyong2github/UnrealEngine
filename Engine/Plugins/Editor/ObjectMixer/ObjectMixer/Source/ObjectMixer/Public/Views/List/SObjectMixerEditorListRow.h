@@ -36,6 +36,10 @@ public:
 	void HandleDragLeave(const FDragDropEvent& DragDropEvent);
 	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FObjectMixerEditorListRowPtr TargetItem);
 	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FObjectMixerEditorListRowPtr TargetItem);
+
+	FObjectMixerEditorListRowPtr GetHybridChildOrRowItemIfNull() const;
+
+	bool GetIsItemOrHybridChildSelected() const;
 	
 private:
 
@@ -48,9 +52,9 @@ private:
 	const FSlateBrush* GetVisibilityBrush() const;
 	const FSlateBrush* GetSoloBrush() const;
 
-	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem);
+	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> RowPtr);
 
-	void OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty) const;
+	void OnPropertyChanged(const FName PropertyName) const;
 
 	void OnClickBlueprintLink(UBlueprint* AsBlueprint, UObject* Object = nullptr);
 	FText GetHighlightText() const;

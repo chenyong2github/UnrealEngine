@@ -7,7 +7,7 @@
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 #include "ObjectMixerEditorLog.h"
-#include "ObjectMixerEditorProjectSettings.h"
+#include "ObjectMixerEditorSettings.h"
 #include "ObjectMixerEditorStyle.h"
 #include "Views/List/SObjectMixerEditorListRow.h"
 
@@ -90,7 +90,7 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 				{
 					if (SelectionType != ESelectInfo::Direct) // Don't call if selected from code
 					{
-						const bool bSyncSelectionEnabled = GetDefault<UObjectMixerEditorProjectSettings>()->bSyncSelection;
+						const bool bSyncSelectionEnabled = GetDefault<UObjectMixerEditorSettings>()->bSyncSelection;
 						const bool bIsAltDown = FSlateApplication::Get().GetModifierKeys().IsAltDown();
 						const bool bShouldSyncSelection = bSyncSelectionEnabled ? !bIsAltDown : bIsAltDown;
 						
@@ -211,7 +211,7 @@ int32 SObjectMixerEditorList::GetSelectedTreeViewItemCount() const
 
 void SObjectMixerEditorList::SyncEditorSelectionToListSelection()
 {
-	if (GetDefault<UObjectMixerEditorProjectSettings>()->bSyncSelection && !bShouldPauseSyncSelection)
+	if (GetDefault<UObjectMixerEditorSettings>()->bSyncSelection && !bShouldPauseSyncSelection)
 	{
 		bIsEditorToListSelectionSyncRequested = false;
 		const USelection* SelectedActors = GEditor->GetSelectedActors();
@@ -415,6 +415,12 @@ void SObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefresh
 	const TFunction<void(const TArray<FObjectMixerEditorListRowPtr>&)> RecursiveRowIterator =
 		[&MatchAnyOfFilters, &MatchAllOfFilters, &RecursiveRowIterator](const TArray<FObjectMixerEditorListRowPtr>& InObjects)
 	{
+		bool bExpandByDefault = true;
+		if (const UObjectMixerEditorSettings* Settings = GetDefault<UObjectMixerEditorSettings>())
+		{
+			bExpandByDefault = Settings->bExpandTreeViewItemsByDefault;
+		}
+			
 		for (const FObjectMixerEditorListRowPtr& Row : InObjects)
 		{
 			if (Row.IsValid())
@@ -433,6 +439,8 @@ void SObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefresh
 				{
 					RecursiveRowIterator(Row->GetChildRows());
 				}
+				
+				Row->SetIsTreeViewItemExpanded(bExpandByDefault);
 			}
 		}
 	};
@@ -952,7 +960,7 @@ void SObjectMixerEditorList::RestoreTreeState(const bool bFlushCache)
 	};
 	
 	bool bExpandByDefault = true;
-	if (const UObjectMixerEditorProjectSettings* const Settings = GetDefault<UObjectMixerEditorProjectSettings>())
+	if (const UObjectMixerEditorSettings* Settings = GetDefault<UObjectMixerEditorSettings>())
 	{
 		bExpandByDefault = Settings->bExpandTreeViewItemsByDefault;
 	}
@@ -1309,7 +1317,7 @@ void SObjectMixerEditorList::OnGetRowChildren(FObjectMixerEditorListRowPtr Row, 
 	{
 		OutChildren = Row->GetChildRows();
 		
-		if (const int32 HybridIndex = Row->GetHybridRowIndex(); HybridIndex != INDEX_NONE)
+		if (const int32 HybridIndex = Row->GetOrFindHybridRowIndex(); HybridIndex != INDEX_NONE)
 		{
 			OutChildren.RemoveAt(HybridIndex);
 		}

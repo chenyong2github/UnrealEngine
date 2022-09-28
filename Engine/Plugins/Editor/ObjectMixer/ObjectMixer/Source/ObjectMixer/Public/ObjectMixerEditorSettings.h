@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "ObjectMixerEditorProjectSettings.generated.h"
+#include "ObjectMixerEditorSettings.generated.h"
 
 UCLASS(config = ObjectMixer)
-class OBJECTMIXEREDITOR_API UObjectMixerEditorProjectSettings : public UObject
+class OBJECTMIXEREDITOR_API UObjectMixerEditorSettings : public UObject
 {
 	GENERATED_BODY()
 public:
 	
-	UObjectMixerEditorProjectSettings(const FObjectInitializer& ObjectInitializer)
+	UObjectMixerEditorSettings(const FObjectInitializer& ObjectInitializer)
 	{}
 	
 	/**

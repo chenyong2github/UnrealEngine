@@ -7,6 +7,7 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Layout/Visibility.h"
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
+#include "PropertyHandle.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
@@ -102,8 +103,10 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
 	void SetRowType(EObjectMixerEditorListRowType InNewRowType);
 
-	/** If this is a hybrid row, return the index of the child used to hybrid with. */
-	[[nodiscard]] int32 GetHybridRowIndex() const;
+	/** If this is a hybrid row, return the index of the child row used to hybrid with. */
+	[[nodiscard]] int32 GetOrFindHybridRowIndex();
+	/** If this is a hybrid row, return the child row used to hybrid with. */
+	[[nodiscard]] FObjectMixerEditorListRowPtr GetHybridChild();
 
 	[[nodiscard]] int32 GetSortOrder() const;
 	void SetSortOrder(const int32 InNewOrder);
@@ -179,6 +182,8 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	void SetRowSoloState(const bool bNewSolo);
 
 	void ClearSoloRows() const;
+	
+	TMap<FName, TWeakPtr<IPropertyHandle>> PropertyNamesToHandles;
 
 private:
 
@@ -205,4 +210,6 @@ private:
 
 	// Used to expand all children on shift+click.
 	bool bShouldExpandAllChildren = false;
+
+	int32 CachedHybridRowIndex = INDEX_NONE;
 };

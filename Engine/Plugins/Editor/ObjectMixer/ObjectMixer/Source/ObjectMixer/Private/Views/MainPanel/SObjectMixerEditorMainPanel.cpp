@@ -4,7 +4,7 @@
 
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
-#include "ObjectMixerEditorProjectSettings.h"
+#include "ObjectMixerEditorSettings.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 #include "Views/Widgets/SCollectionSelectionButton.h"
@@ -109,7 +109,7 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 		.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
 		.IsChecked_Lambda([]()
 		{
-			if (const UObjectMixerEditorProjectSettings* Settings = GetDefault<UObjectMixerEditorProjectSettings>())
+			if (const UObjectMixerEditorSettings* Settings = GetDefault<UObjectMixerEditorSettings>())
 			{
 				return Settings->bSyncSelection ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			}
@@ -118,7 +118,7 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 		})
 		.OnCheckStateChanged_Lambda([](ECheckBoxState InNewState)
 		{
-			if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+			if (UObjectMixerEditorSettings* Settings = GetMutableDefault<UObjectMixerEditorSettings>())
 			{
 				Settings->bSyncSelection = InNewState == ECheckBoxState::Checked ? true : false;
 			}

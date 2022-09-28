@@ -36,7 +36,7 @@ void SObjectMixerEditorListRow::Construct(
 	check(InRow.IsValid());
 
 	Item = InRow;
-	HybridRowIndex = Item.Pin()->GetHybridRowIndex();
+	HybridRowIndex = Item.Pin()->GetOrFindHybridRowIndex();
 
 	SMultiColumnTableRow<FObjectMixerEditorListRowPtr>::Construct(
 		FSuperRowType::FArguments()
@@ -65,11 +65,9 @@ void SObjectMixerEditorListRow::Construct(
 TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
 	check(Item.IsValid());
+	const FObjectMixerEditorListRowPtr RowPtr = GetHybridChildOrRowItemIfNull();
 
-	const FObjectMixerEditorListRowPtr PinnedItem =
-		HybridRowIndex != INDEX_NONE ? Item.Pin()->GetChildRows()[HybridRowIndex] : Item.Pin();
-
-	if (const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, PinnedItem))
+	if (const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, RowPtr))
 	{
 		if (InColumnName == SObjectMixerEditorList::ItemNameColumnName)
 		{			
@@ -245,6 +243,34 @@ FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDro
 	return FReply::Handled();
 }
 
+FObjectMixerEditorListRowPtr SObjectMixerEditorListRow::GetHybridChildOrRowItemIfNull() const
+{
+	if (TSharedPtr<FObjectMixerEditorListRow> PinnedItem = Item.Pin())
+	{
+		if (FObjectMixerEditorListRowPtr HybridChild = HybridRowIndex != INDEX_NONE ? PinnedItem->GetChildRows()[HybridRowIndex] : nullptr)
+		{
+			return HybridChild;
+		}
+			
+		return PinnedItem;
+	}
+
+	return nullptr;
+}
+
+bool SObjectMixerEditorListRow::GetIsItemOrHybridChildSelected() const
+{
+	if (Item.IsValid())
+	{
+		const bool bIsItemSelected = Item.Pin()->GetIsSelected();
+		const bool bHasHybridChild = HybridRowIndex != INDEX_NONE && Item.Pin()->GetChildRows()[HybridRowIndex].IsValid();
+		const bool bIsChildSelected = bHasHybridChild && Item.Pin()->GetChildRows()[HybridRowIndex]->GetIsSelected();
+		return bIsChildSelected  || bIsItemSelected;
+	}
+
+	return false;
+}
+
 bool SObjectMixerEditorListRow::IsVisible() const
 {
 	if (const TSharedPtr<FObjectMixerEditorListRow> PinnedItem = Item.Pin())
@@ -317,11 +343,11 @@ const FSlateBrush* SObjectMixerEditorListRow::GetSoloBrush() const
 }
 
 TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
-	const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem)
+	const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> RowPtr)
 {
-	check(PinnedItem.IsValid());
+	check(RowPtr.IsValid());
 	
-	if (PinnedItem->GetRowType() == FObjectMixerEditorListRow::None)
+	if (RowPtr->GetRowType() == FObjectMixerEditorListRow::None)
 	{
 		return SNullWidget::NullWidget;
 	}
@@ -336,17 +362,17 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 		.AutoWidth()
 		[
 			SNew(SImage)
-			.Image_Lambda([PinnedItem]()
+			.Image_Lambda([RowPtr]()
 			{
-				return PinnedItem->GetObjectIconBrush();
+				return RowPtr->GetObjectIconBrush();
 			})
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 
 		bool bNeedsStandardTextBlock = true;
-		const FText DisplayName = PinnedItem->GetDisplayName(bIsHybridRow);
+		const FText DisplayName = RowPtr->GetDisplayName(bIsHybridRow);
 		
-		if (TObjectPtr<UObject> Object = PinnedItem->GetObject())
+		if (TObjectPtr<UObject> Object = RowPtr->GetObject())
 		{
 			if (UClass* ActorClass = Object->GetClass())
 			{
@@ -373,9 +399,9 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 		{
 			FText TooltipText = DisplayName;
 
-			if (const UObjectMixerObjectFilter* Filter = PinnedItem->GetObjectFilter())
+			if (const UObjectMixerObjectFilter* Filter = RowPtr->GetObjectFilter())
 			{
-				if (const TObjectPtr<UObject> Object = PinnedItem->GetObject())
+				if (const TObjectPtr<UObject> Object = RowPtr->GetObject())
 				{
 					TooltipText = Filter->GetRowTooltipText(Object, bIsHybridRow);
 				}
@@ -405,7 +431,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 
 	if (InColumnName.IsEqual(SObjectMixerEditorList::EditorVisibilityColumnName))
 	{
-		if (!bIsHybridRow && PinnedItem->GetObject() && !PinnedItem->GetObject()->IsA(AActor::StaticClass()))
+		if (!bIsHybridRow && RowPtr->GetObject() && !RowPtr->GetObject()->IsA(AActor::StaticClass()))
 		{
 			return nullptr;
 		}
@@ -420,16 +446,16 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 					.ColorAndOpacity(this, &SObjectMixerEditorListRow::GetVisibilityIconForegroundColor)
 					.Image_Raw(this, &SObjectMixerEditorListRow::GetVisibilityBrush)
 					.OnMouseButtonDown_Lambda(
-						[PinnedItem] (const FGeometry& MyGeometry, const FPointerEvent& Event)
+						[RowPtr] (const FGeometry& MyGeometry, const FPointerEvent& Event)
 						{
-							check (PinnedItem);
+							check (RowPtr);
 
 							FScopedTransaction Transaction( LOCTEXT("VisibilityChanged", "Object Mixer - Visibility Changed") );
 
-							const bool bIsVisible = PinnedItem->GetObjectVisibility();
+							const bool bIsVisible = RowPtr->GetObjectVisibility();
 							
-							if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = PinnedItem->GetListViewPtr().Pin();
-								PinnedItem->GetIsSelected() && PinnedListView->GetSelectedTreeViewItemCount() > 0)
+							if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = RowPtr->GetListViewPtr().Pin();
+								RowPtr->GetIsSelected() && PinnedListView->GetSelectedTreeViewItemCount() > 0)
 							{
 								PinnedListView->SetSelectedTreeViewItemActorsEditorVisible(!bIsVisible);
 
@@ -437,7 +463,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 							}
 
 							// Set Visibility Recursively
-							PinnedItem->SetObjectVisibility(!bIsVisible, true);
+							RowPtr->SetObjectVisibility(!bIsVisible, true);
 
 							return FReply::Handled();
 						}
@@ -448,7 +474,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 
 	if (InColumnName.IsEqual(SObjectMixerEditorList::EditorVisibilitySoloColumnName))
 	{
-		if (!bIsHybridRow && PinnedItem->GetObject() && !PinnedItem->GetObject()->IsA(AActor::StaticClass()))
+		if (!bIsHybridRow && RowPtr->GetObject() && !RowPtr->GetObject()->IsA(AActor::StaticClass()))
 		{
 			return nullptr;
 		}
@@ -496,7 +522,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 			;
 	}
 	
-	if (UObject* ObjectRef = PinnedItem->GetObject())
+	if (UObject* ObjectRef = RowPtr->GetObject())
 	{
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		{
@@ -513,20 +539,17 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 				{
 					if (const FProperty* Property = Handle->GetProperty())
 					{
+						const FName PropertyName = Property->GetFName();
+						RowPtr->PropertyNamesToHandles.Add(PropertyName, Handle);
+						
 						// Simultaneously edit all selected rows with a similar property
 						FSimpleDelegate OnPropertyValueChanged =
 							FSimpleDelegate::CreateRaw(
 								this,
-								&SObjectMixerEditorListRow::OnPropertyChanged, Property, (void*)ObjectRef);
+								&SObjectMixerEditorListRow::OnPropertyChanged, PropertyName);
 					
 						Handle->SetOnPropertyValueChanged(OnPropertyValueChanged);
-						uint32 ChildHandleCount;
-						Handle->GetNumChildren(ChildHandleCount);
-
-						for (uint32 ChildHandleItr = 0; ChildHandleItr < ChildHandleCount; ChildHandleItr++)
-						{
-							Handle->GetChildHandle(ChildHandleItr)->SetOnPropertyValueChanged(OnPropertyValueChanged);
-						}
+						Handle->SetOnChildPropertyValueChanged(OnPropertyValueChanged);
 
 						return SNew(SBox)
 								.Visibility(EVisibility::SelfHitTestInvisible)
@@ -544,31 +567,61 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 	return nullptr;
 }
 
-void SObjectMixerEditorListRow::OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty) const
+void SObjectMixerEditorListRow::OnPropertyChanged(const FName PropertyName) const
 {
-	if (Property && ContainerWithChangedProperty)
-	{
-		if (const TSharedPtr<FObjectMixerEditorListRow> PinnedItem = Item.Pin())
-		{
-			if (PinnedItem->GetIsSelected())
-			{
-				if (const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(ContainerWithChangedProperty))
-				{
-					FScopedTransaction Transaction( LOCTEXT("PropertyChanged", "Object Mixer - Property Changed") );
-					
-					for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : PinnedItem->GetSelectedTreeViewItems())
-					{
-						UObject* SelectedRowObject = SelectedRow->GetObject();
-						const int32 SelectedRowHybridIndex = SelectedRow->GetHybridRowIndex();
+	check(Item.IsValid());
 
-						if (SelectedRowHybridIndex != -1 && SelectedRowHybridIndex < SelectedRow->GetChildCount())
-						{
-							SelectedRowObject = SelectedRow->GetChildRows()[SelectedRowHybridIndex]->GetObject();
-						}
+	struct Local
+	{
+		static void SetValueOnSelectedItems(
+			const FString& ValueAsString, const TArray<FObjectMixerEditorListRowPtr>& OtherSelectedItems,
+			const FName& PropertyName, const FObjectMixerEditorListRowPtr PinnedItem)
+		{
+			if (!ValueAsString.IsEmpty())
+			{
+				FScopedTransaction Transaction(
+					LOCTEXT("OnPropertyChangedTransaction", "Object Mixer - Bulk Edit Selected Row Properties") );
 						
-						if (SelectedRowObject)
+				for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : OtherSelectedItems)
+				{
+					const FObjectMixerEditorListRowPtr SelectedHybridRow = SelectedRow->GetHybridChild();
+					const FObjectMixerEditorListRowPtr RowToUse = SelectedHybridRow.IsValid() ? SelectedHybridRow : SelectedRow;
+
+					if (RowToUse != PinnedItem)
+					{
+						if (const TWeakPtr<IPropertyHandle>* SelectedHandlePtr = RowToUse->PropertyNamesToHandles.Find(PropertyName))
 						{
-							Property->SetValue_InContainer(SelectedRowObject, ValuePtr);
+							if (SelectedHandlePtr->IsValid())
+							{
+								if (UObject* ObjectToModify = RowToUse->GetObject())
+								{
+									ObjectToModify->Modify();
+								}
+										
+								SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString);
+							}
+						}
+					}
+				}
+			}
+		}
+	};
+	
+	if (PropertyName != NAME_None)
+	{
+		if (const FObjectMixerEditorListRowPtr PinnedItem = GetHybridChildOrRowItemIfNull())
+		{
+			if (GetIsItemOrHybridChildSelected())
+			{
+				if (const TWeakPtr<IPropertyHandle>* HandlePtr = PinnedItem->PropertyNamesToHandles.Find(PropertyName); HandlePtr->IsValid())
+				{
+					if (TArray<FObjectMixerEditorListRowPtr> OtherSelectedItems = PinnedItem->GetSelectedTreeViewItems(); OtherSelectedItems.Num())
+					{
+						FString ValueAsString;
+						if (TSharedPtr<IPropertyHandle> PinnedHandle = HandlePtr->Pin())
+						{
+							PinnedHandle->GetValueAsFormattedString(ValueAsString);
+							Local::SetValueOnSelectedItems(ValueAsString, OtherSelectedItems, PropertyName, PinnedItem);
 						}
 					}
 				}

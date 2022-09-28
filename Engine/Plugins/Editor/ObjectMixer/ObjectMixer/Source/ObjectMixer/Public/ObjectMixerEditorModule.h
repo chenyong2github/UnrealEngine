@@ -54,8 +54,8 @@ public:
 	bool RegisterItemInMenuGroup(FWorkspaceItem& InItem);
 	
 	virtual void UnregisterTabSpawner();
-	virtual void RegisterProjectSettings() const;
-	virtual void UnregisterProjectSettings() const;
+	virtual void RegisterSettings() const;
+	virtual void UnregisterSettings() const;
 
 	virtual TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 

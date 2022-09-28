@@ -22,7 +22,7 @@ public:
 	virtual FName GetModuleName() override;
 	virtual void SetupMenuItemVariables() override;
 	virtual FName GetTabSpawnerId() override;
-	virtual void RegisterProjectSettings() const override;
-	virtual void UnregisterProjectSettings() const override;
+	virtual void RegisterSettings() const override;
+	virtual void UnregisterSettings() const override;
 	//~ End FObjectMixerEditorModule overrides
 };

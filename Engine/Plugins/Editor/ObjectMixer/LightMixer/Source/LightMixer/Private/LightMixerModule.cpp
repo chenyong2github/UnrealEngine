@@ -3,7 +3,7 @@
 #include "LightMixerModule.h"
 
 #include "LightMixerObjectFilter.h"
-#include "LightMixerProjectSettings.h"
+#include "LightMixerEditorSettings.h"
 #include "LightMixerStyle.h"
 
 #include "ISettingsModule.h"
@@ -36,7 +36,7 @@ FLightMixerModule& FLightMixerModule::Get()
 void FLightMixerModule::OpenProjectSettings()
 {
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings")
-		.ShowViewer("Project", "Editor", "Light Mixer");
+		.ShowViewer("Editor", "Plugins", "Light Mixer");
 }
 
 void FLightMixerModule::Initialize()
@@ -66,24 +66,24 @@ FName FLightMixerModule::GetTabSpawnerId()
 	return "LightMixerToolkit";
 }
 
-void FLightMixerModule::RegisterProjectSettings() const
+void FLightMixerModule::RegisterSettings() const
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
 		// User Project Settings
 		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule->RegisterSettings(
-			"Project", "Editor", "Light Mixer",
+			"Editor", "Plugins", "Light Mixer",
 			LOCTEXT("LightMixerSettingsDisplayName", "Light Mixer"),
 			LOCTEXT("LightMixerSettingsDescription", "Configure Light Mixer user settings"),
-			GetMutableDefault<ULightMixerProjectSettings>());
+			GetMutableDefault<ULightMixerEditorSettings>());
 	}
 }
 
-void FLightMixerModule::UnregisterProjectSettings() const
+void FLightMixerModule::UnregisterSettings() const
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
-		SettingsModule->UnregisterSettings("Project", "Editor", "Light Mixer");
+		SettingsModule->UnregisterSettings("Editor", "Plugins", "Light Mixer");
 	}
 }
 

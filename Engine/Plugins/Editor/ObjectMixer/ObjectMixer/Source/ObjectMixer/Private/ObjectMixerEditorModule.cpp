@@ -3,7 +3,7 @@
 #include "ObjectMixerEditorModule.h"
 
 #include "ObjectMixerEditorLog.h"
-#include "ObjectMixerEditorProjectSettings.h"
+#include "ObjectMixerEditorSettings.h"
 #include "ObjectMixerEditorStyle.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
@@ -51,7 +51,7 @@ void FObjectMixerEditorModule::Initialize()
 	SetupMenuItemVariables();
 	
 	RegisterTabSpawner();
-	RegisterProjectSettings();
+	RegisterSettings();
 }
 
 void FObjectMixerEditorModule::Teardown()
@@ -97,7 +97,7 @@ void FObjectMixerEditorModule::Teardown()
 	UToolMenus::UnregisterOwner(this);
 	
 	UnregisterTabSpawner();
-	UnregisterProjectSettings();
+	UnregisterSettings();
 }
 
 FObjectMixerEditorModule& FObjectMixerEditorModule::Get()
@@ -108,7 +108,7 @@ FObjectMixerEditorModule& FObjectMixerEditorModule::Get()
 void FObjectMixerEditorModule::OpenProjectSettings()
 {
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings")
-		.ShowViewer("Project", "Editor", "Object Mixer");
+		.ShowViewer("Editor", "Plugins", "Object Mixer");
 }
 
 FName FObjectMixerEditorModule::GetModuleName()
@@ -226,24 +226,24 @@ void FObjectMixerEditorModule::UnregisterTabSpawner()
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(GetTabSpawnerId());
 }
 
-void FObjectMixerEditorModule::RegisterProjectSettings() const
+void FObjectMixerEditorModule::RegisterSettings() const
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
 		// User Project Settings
 		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule->RegisterSettings(
-			"Project", "Editor", "Object Mixer",
+			"Editor", "Plugins", "Object Mixer",
 			LOCTEXT("ObjectMixerSettingsDisplayName", "Object Mixer"),
 			LOCTEXT("ObjectMixerSettingsDescription", "Configure Object Mixer user settings"),
-			GetMutableDefault<UObjectMixerEditorProjectSettings>());	
+			GetMutableDefault<UObjectMixerEditorSettings>());	
 	}
 }
 
-void FObjectMixerEditorModule::UnregisterProjectSettings() const
+void FObjectMixerEditorModule::UnregisterSettings() const
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "Object Mixer");
+		SettingsModule->UnregisterSettings("Editor", "Plugins", "Object Mixer");
 	}
 }
 

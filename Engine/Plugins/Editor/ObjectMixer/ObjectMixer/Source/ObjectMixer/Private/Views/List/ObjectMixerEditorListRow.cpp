@@ -97,18 +97,23 @@ void FObjectMixerEditorListRow::SetRowType(EObjectMixerEditorListRowType InNewRo
 	RowType = InNewRowType;
 }
 
-int32 FObjectMixerEditorListRow::GetHybridRowIndex() const
+int32 FObjectMixerEditorListRow::GetOrFindHybridRowIndex()
 {
+	if (CachedHybridRowIndex != INDEX_NONE)
+	{
+		return CachedHybridRowIndex;
+	}
+		
 	if (GetRowType() == FObjectMixerEditorListRow::ContainerObject)
 	{
 		if (const UObject* ThisObject = GetObject())
 		{
 			TArray<int32> HybridCandidates;
-		
+	
 			for (int32 ChildItr = 0; ChildItr < GetChildCount(); ChildItr++)
 			{
 				const FObjectMixerEditorListRowPtr& ChildRow = GetChildRows()[ChildItr];
-			
+		
 				if (ChildRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject)
 				{
 					if (const UObject* ChildObject = ChildRow->GetObject(); ChildObject->GetOuter() == ThisObject)
@@ -124,15 +129,22 @@ int32 FObjectMixerEditorListRow::GetHybridRowIndex() const
 					}
 				}
 			}
-			
+		
 			if (HybridCandidates.Num() == 1)
 			{
-				return HybridCandidates[0];
+				CachedHybridRowIndex = HybridCandidates[0];
+				return CachedHybridRowIndex;
 			}
 		}
 	}
 	
 	return INDEX_NONE;
+}
+
+FObjectMixerEditorListRowPtr FObjectMixerEditorListRow::GetHybridChild()
+{
+	const int32 HybridIndex = GetOrFindHybridRowIndex();
+	return HybridIndex != INDEX_NONE ? GetChildRows()[HybridIndex] : nullptr;
 }
 
 int32 FObjectMixerEditorListRow::GetSortOrder() const
