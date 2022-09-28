@@ -23,15 +23,14 @@
 #include "UObject/UObjectThreadContext.h"
 
 class FBulkData;
-class FIoChunkId;
 class FObjectPostSaveContext;
 class FOutputDevice;
 class FPackagePath;
 class UObject;
 class UPackage;
-namespace UE::DerivedData { struct FCacheKey; }
-namespace UE::DerivedData { struct FValueId; }
+namespace UE { class FDerivedData; }
 namespace UE { class FPackageTrailerBuilder; }
+namespace UE::DerivedData::Private { class FCookedData; }
 struct FLazyObjectPtr;
 struct FUObjectSerializeContext;
 
@@ -237,29 +236,12 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
-
 	/**
-	 * Adds the derived data to the package.
+	 * Adds the derived data to the package. This is only supported when saving a cooked package.
 	 *
-	 * This is only supported when saving a cooked package.
-	 *
-	 * @return An ID that can be used to load the derived data from the cooked package.
+	 * @return A cooked reference that can be used to load the derived data from the cooked package.
 	 */
-	FIoChunkId AddDerivedData(const FCompressedBuffer& Data);
-
-	/**
-	 * Adds the derived data value referenced by the cache key and ID.
-	 *
-	 * This is only supported when saving a cooked package.
-	 * The key and a null ID must reference a value that was saved using ICache::PutValue.
-	 * The key and a non-null ID must reference a value in a record that was saved using ICache::Put.
-	 *
-	 * @param Key       Reference to a record or value in the cache.
-	 * @param ValueId   Reference to a value within a record, otherwise FValueId::Null.
-	 * @return An ID that can be used to load the derived data from the cooked package.
-	 */
-	FIoChunkId AddDerivedData(const UE::DerivedData::FCacheKey& Key, const UE::DerivedData::FValueId& ValueId);
-
+	UE::DerivedData::Private::FCookedData AddDerivedData(const UE::FDerivedData& Data);
 #endif // WITH_EDITORONLY_DATA
 
 protected:

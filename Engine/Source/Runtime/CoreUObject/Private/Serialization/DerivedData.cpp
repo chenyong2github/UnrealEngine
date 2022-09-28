@@ -27,6 +27,48 @@
 
 namespace UE::DerivedData::Private { class FIoResponseDispatcher; }
 
+namespace UE::DerivedData::Private
+{
+
+static FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FCookedData& CookedData)
+{
+	Builder << TEXTVIEW("Chunk: ID ");
+	String::BytesToHexLower(MakeArrayView(CookedData.ChunkId), Builder);
+	if (CookedData.ChunkOffset)
+	{
+		Builder << TEXTVIEW(" / Offset ") << CookedData.ChunkOffset;
+	}
+	if (CookedData.ChunkSize != MAX_uint64)
+	{
+		Builder << TEXTVIEW(" / Size ") << CookedData.ChunkSize;
+	}
+	return Builder;
+}
+
+bool FCookedData::ReferenceEquals(const FCookedData& Other) const
+{
+	return ChunkOffset == Other.ChunkOffset && ChunkSize == Other.ChunkSize && MakeArrayView(ChunkId) == Other.ChunkId;
+}
+
+uint32 FCookedData::ReferenceHash() const
+{
+	FXxHash64Builder Builder;
+	Builder.Update(&ChunkOffset, sizeof(ChunkOffset));
+	Builder.Update(&ChunkSize, sizeof(ChunkSize));
+	Builder.Update(MakeMemoryView(ChunkId));
+	return uint32(Builder.Finalize().Hash);
+}
+
+void FCookedData::Serialize(FArchive& Ar)
+{
+	Ar << ChunkOffset;
+	Ar << ChunkSize;
+	Ar.Serialize(ChunkId, sizeof(ChunkId));
+	static_assert(sizeof(ChunkId) == sizeof(FIoChunkId));
+}
+
+} // UE::DerivedData::Private
+
 #if WITH_EDITORONLY_DATA
 namespace UE::DerivedData::Private
 {
@@ -82,8 +124,6 @@ public:
 
 	bool ReferenceEquals(const FEditorData& Other) const;
 	uint32 ReferenceHash() const;
-
-	void Serialize(FArchive& Ar, UObject* Owner) const;
 
 	template <typename VisitorType>
 	inline void Visit(VisitorType&& Visitor) const
@@ -187,49 +227,6 @@ uint32 FEditorData::ReferenceHash() const
 	return Visitor.Hash;
 }
 
-void FEditorData::Serialize(FArchive& Ar, UObject* Owner) const
-{
-	checkf(Ar.IsSaving() && Ar.IsCooking(),
-		TEXT("FEditorData for FDerivedData only supports saving to cooked packages. %s"), *WriteToString<256>(*this));
-
-	struct FVisitor
-	{
-		inline explicit FVisitor(FArchive& Ar)
-			: Linker(Cast<FLinkerSave>(Ar.GetLinker()))
-		{
-		}
-
-		inline void operator()(const FCompositeBufferWithHash& BufferWithHash)
-		{
-			ChunkId = Linker->AddDerivedData(FValue::Compress(BufferWithHash.Buffer).GetData());
-		}
-
-		inline void operator()(const FCompressedBuffer& Buffer)
-		{
-			ChunkId = Linker->AddDerivedData(Buffer);
-		}
-
-		inline void operator()(const FCacheKeyWithId& CacheKeyWithId)
-		{
-			ChunkId = Linker->AddDerivedData(CacheKeyWithId.Key, CacheKeyWithId.Id);
-		}
-
-		FLinkerSave* Linker;
-		uint64 ChunkOffset = 0;
-		uint64 ChunkSize = 0;
-		FIoChunkId ChunkId;
-	};
-
-	static_assert(sizeof(FIoChunkId) == 12);
-	FVisitor Visitor(Ar);
-	checkf(Visitor.Linker, TEXT("Serializing FDerivedData requires a linker. %s"), *WriteToString<256>(*this));
-	Visit(Visitor);
-
-	Ar << Visitor.ChunkOffset;
-	Ar << Visitor.ChunkSize;
-	Ar.Serialize(&Visitor.ChunkId, sizeof(Visitor.ChunkId));
-}
-
 } // UE::DerivedData::Private
 #endif // WITH_EDITORONLY_DATA
 
@@ -246,22 +243,12 @@ FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FDerivedData& 
 	}
 #endif
 
-	if (Data)
+	if (Data.CookedData)
 	{
-		Builder << TEXTVIEW("Chunk: ID ");
-		String::BytesToHexLower(MakeArrayView(Data.ChunkId), Builder);
-		if (Data.ChunkOffset)
-		{
-			Builder << TEXTVIEW(" / Offset ") << Data.ChunkOffset;
-		}
-		if (Data.ChunkSize != MAX_uint64)
-		{
-			Builder << TEXTVIEW(" / Size ") << Data.ChunkSize;
-		}
-		return Builder;
+		return Builder << Data.CookedData;
 	}
 
-	return Builder << TEXT("Null");
+	return Builder << TEXTVIEW("Null");
 }
 
 bool FDerivedData::ReferenceEquals(const FDerivedData& Other) const
@@ -272,13 +259,7 @@ bool FDerivedData::ReferenceEquals(const FDerivedData& Other) const
 		return EditorData->ReferenceEquals(*Other.EditorData);
 	}
 #endif
-
-	if (ChunkOffset == Other.ChunkOffset && ChunkSize == Other.ChunkSize && MakeArrayView(ChunkId) == Other.ChunkId)
-	{
-		return true;
-	}
-
-	return false;
+	return CookedData.ReferenceEquals(Other.CookedData);
 }
 
 uint32 FDerivedData::ReferenceHash() const
@@ -289,16 +270,13 @@ uint32 FDerivedData::ReferenceHash() const
 		return EditorData->ReferenceHash();
 	}
 #endif
-
-	FXxHash64Builder Builder;
-	Builder.Update(&ChunkOffset, sizeof(ChunkOffset));
-	Builder.Update(&ChunkSize, sizeof(ChunkSize));
-	Builder.Update(MakeMemoryView(ChunkId));
-	return uint32(Builder.Finalize().Hash);
+	return CookedData.ReferenceHash();
 }
 
 void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 {
+	using namespace DerivedData::Private;
+
 	if (!Ar.IsPersistent() || Ar.IsObjectReferenceCollector() || Ar.ShouldSkipBulkData())
 	{
 		return;
@@ -307,15 +285,20 @@ void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 #if WITH_EDITORONLY_DATA
 	if (EditorData)
 	{
-		EditorData->Serialize(Ar, Owner);
+		checkf(Ar.IsSaving() && Ar.IsCooking(),
+			TEXT("FEditorData for FDerivedData only supports saving to cooked packages. %s"), *WriteToString<256>(*this));
+
+		FLinkerSave* Linker = Cast<FLinkerSave>(Ar.GetLinker());
+		checkf(Linker, TEXT("Serializing FDerivedData requires a linker. %s"), *WriteToString<256>(*this));
+
+		FCookedData CookedEditorData = Linker->AddDerivedData(*this);
+		CookedEditorData.Serialize(Ar);
 		Ar << Flags;
 		return;
 	}
 #endif
 
-	Ar << ChunkOffset;
-	Ar << ChunkSize;
-	Ar.Serialize(ChunkId, sizeof(ChunkId));
+	CookedData.Serialize(Ar);
 	Ar << Flags;
 }
 
@@ -443,13 +426,16 @@ enum class EIoRequestType : uint8
 #endif
 };
 
-struct FIoChunkState
+struct FIoCookedState
 {
 	FIoRequest Request;
-	uint64 ChunkOffset = 0;
-	uint64 ChunkSize = 0;
-	FIoChunkId ChunkId;
+	FCookedData CookedData;
 	std::atomic<bool> bCanceled = false;
+
+	inline explicit FIoCookedState(const FCookedData& InCookedData)
+		: CookedData(InCookedData)
+	{
+	}
 };
 
 struct FIoEditorState
@@ -470,7 +456,7 @@ struct FIoEditorState
 
 struct FIoRequestState
 {
-	TVariant<TYPE_OF_NULLPTR, FIoChunkState, FIoEditorState> State;
+	TVariant<TYPE_OF_NULLPTR, FIoCookedState, FIoEditorState> State;
 	FDerivedDataIoOptions Options;
 	FSharedBuffer Data;
 	uint64 Size = 0;
@@ -534,9 +520,9 @@ public:
 private:
 	FIoResponseDispatcher() = default;
 
-	void DispatchChunk(FIoResponse& Response, FIoRequestState& Request, FIoChunkState& Chunk);
+	void DispatchCooked(FIoResponse& Response, FIoRequestState& Request, FIoCookedState& State);
 
-	static FIoReadOptions MakeIoReadOptions(const FIoChunkState& State, const FDerivedDataIoOptions& Options);
+	static FIoReadOptions MakeIoReadOptions(const FIoCookedState& State, const FDerivedDataIoOptions& Options);
 	static void OnIoRequestComplete(FIoResponse& Response, FIoRequestState& Request, TIoStatusOr<FIoBuffer> Buffer);
 
 #if WITH_EDITORONLY_DATA
@@ -579,17 +565,12 @@ FDerivedDataIoRequest FIoResponse::Queue(
 	if (Data.EditorData)
 	{
 		RequestState.State.Emplace<FIoEditorState>(*Data.EditorData);
-		return Handle;
 	}
+	else
 #endif
-
-	if (Data)
+	if (Data.CookedData)
 	{
-		RequestState.State.Emplace<FIoChunkState>();
-		FIoChunkState& ChunkState = RequestState.State.Get<FIoChunkState>();
-		ChunkState.ChunkOffset = Data.ChunkOffset;
-		ChunkState.ChunkSize = Data.ChunkSize;
-		ChunkState.ChunkId.Set(MakeMemoryView(Data.ChunkId));
+		RequestState.State.Emplace<FIoCookedState>(Data.CookedData);
 	}
 
 	return Handle;
@@ -637,9 +618,9 @@ void FIoResponse::SetPriority(FDerivedDataIoPriority Priority)
 	const int32 IoDispatcherPriority = ConvertToIoDispatcherPriority(Priority);
 	for (FIoRequestState& Request : Requests)
 	{
-		if (FIoChunkState* ChunkState = Request.State.TryGet<FIoChunkState>())
+		if (FIoCookedState* CookedState = Request.State.TryGet<FIoCookedState>())
 		{
-			ChunkState->Request.UpdatePriority(IoDispatcherPriority);
+			CookedState->Request.UpdatePriority(IoDispatcherPriority);
 		}
 	}
 }
@@ -658,12 +639,12 @@ bool FIoResponse::Cancel()
 
 	for (FIoRequestState& Request : Requests)
 	{
-		if (FIoChunkState* ChunkState = Request.State.TryGet<FIoChunkState>())
+		if (FIoCookedState* CookedState = Request.State.TryGet<FIoCookedState>())
 		{
 			// Request cancellation only once because every call wakes the dispatcher.
-			if (!ChunkState->bCanceled.exchange(true, std::memory_order_relaxed))
+			if (!CookedState->bCanceled.exchange(true, std::memory_order_relaxed))
 			{
-				ChunkState->Request.Cancel();
+				CookedState->Request.Cancel();
 			}
 		}
 	}
@@ -719,9 +700,9 @@ void FIoResponseDispatcher::Dispatch(FIoResponse& Response, FDerivedDataIoPriori
 	for (FIoRequestState& Request : Response.Requests)
 	{
 		++RequestIndex;
-		if (FIoChunkState* ChunkState = Request.State.TryGet<FIoChunkState>())
+		if (FIoCookedState* CookedState = Request.State.TryGet<FIoCookedState>())
 		{
-			Dispatcher.DispatchChunk(Response, Request, *ChunkState);
+			Dispatcher.DispatchCooked(Response, Request, *CookedState);
 		}
 	#if WITH_EDITORONLY_DATA
 		else if (FIoEditorState* EditorState = Request.State.TryGet<FIoEditorState>())
@@ -767,14 +748,16 @@ void FIoResponseDispatcher::Dispatch(FIoResponse& Response, FDerivedDataIoPriori
 #endif
 }
 
-void FIoResponseDispatcher::DispatchChunk(FIoResponse& Response, FIoRequestState& Request, FIoChunkState& Chunk)
+void FIoResponseDispatcher::DispatchCooked(FIoResponse& Response, FIoRequestState& Request, FIoCookedState& State)
 {
+	FIoChunkId ChunkId;
+	ChunkId.Set(MakeMemoryView(State.CookedData.ChunkId));
 	if (Request.Type == EIoRequestType::Read)
 	{
 		Response.BeginRequest();
-		Chunk.Request = Batch.ReadWithCallback(
-			Chunk.ChunkId,
-			MakeIoReadOptions(Chunk, Request.Options),
+		State.Request = Batch.ReadWithCallback(
+			ChunkId,
+			MakeIoReadOptions(State, Request.Options),
 			ConvertToIoDispatcherPriority(Priority),
 			[Response = &Response, &Request](TIoStatusOr<FIoBuffer> Buffer)
 			{
@@ -783,7 +766,7 @@ void FIoResponseDispatcher::DispatchChunk(FIoResponse& Response, FIoRequestState
 	}
 	else
 	{
-		TIoStatusOr<uint64> Size = FIoDispatcher::Get().GetSizeForChunk(Chunk.ChunkId);
+		TIoStatusOr<uint64> Size = FIoDispatcher::Get().GetSizeForChunk(ChunkId);
 		if (Size.IsOk())
 		{
 			const uint64 TotalSize = Size.ValueOrDie();
@@ -800,24 +783,25 @@ void FIoResponseDispatcher::DispatchChunk(FIoResponse& Response, FIoRequestState
 }
 
 FIoReadOptions FIoResponseDispatcher::MakeIoReadOptions(
-	const FIoChunkState& State,
+	const FIoCookedState& State,
 	const FDerivedDataIoOptions& Options)
 {
+	const FCookedData& CookedData = State.CookedData;
 	const uint64 LocalOffset = Options.GetOffset();
-	const uint64 TotalOffset = State.ChunkOffset + LocalOffset;
+	const uint64 TotalOffset = CookedData.ChunkOffset + LocalOffset;
 
 	FIoReadOptions ReadOptions;
 	ReadOptions.SetTargetVa(Options.GetTarget());
 
 	if (Options.GetSize() == MAX_uint64)
 	{
-		if (State.ChunkSize == MAX_uint64)
+		if (CookedData.ChunkSize == MAX_uint64)
 		{
 			ReadOptions.SetRange(TotalOffset, MAX_uint64);
 		}
 		else
 		{
-			ReadOptions.SetRange(TotalOffset, LocalOffset <= State.ChunkSize ? State.ChunkSize - LocalOffset : 0);
+			ReadOptions.SetRange(TotalOffset, LocalOffset <= CookedData.ChunkSize ? CookedData.ChunkSize - LocalOffset : 0);
 		}
 	}
 	else
@@ -833,7 +817,7 @@ void FIoResponseDispatcher::OnIoRequestComplete(
 	FIoRequestState& Request,
 	TIoStatusOr<FIoBuffer> StatusOrBuffer)
 {
-	FIoChunkState& Chunk = Request.State.Get<FIoChunkState>();
+	FIoCookedState& State = Request.State.Get<FIoCookedState>();
 
 	if (StatusOrBuffer.IsOk())
 	{
@@ -860,7 +844,7 @@ void FIoResponseDispatcher::OnIoRequestComplete(
 		Request.SetStatus(bCanceled ? EDerivedDataIoStatus::Canceled : EDerivedDataIoStatus::Error);
 	}
 
-	Chunk.Request.Release();
+	State.Request.Release();
 	Response.EndRequest();
 }
 

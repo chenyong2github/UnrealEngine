@@ -22,6 +22,7 @@ namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
 namespace UE::DerivedData { template <typename CharType> class TSharedString; }
 namespace UE::DerivedData { using FSharedString = TSharedString<TCHAR>; }
+namespace UE::DerivedData::Private { class FCookedData; }
 namespace UE::DerivedData::Private { class FEditorData; }
 namespace UE::DerivedData::Private { class FIoResponse; }
 
@@ -41,6 +42,28 @@ enum class EDerivedDataFlags : uint32
 };
 
 ENUM_CLASS_FLAGS(EDerivedDataFlags);
+
+class DerivedData::Private::FCookedData
+{
+public:
+	inline explicit operator bool() const
+	{
+		// Check the last byte of ChunkId, which is type of the FIoChunkId, where 0 is EIoChunkType::Invalid.
+		return ChunkId[11] != 0;
+	}
+
+	bool ReferenceEquals(const FCookedData& Other) const;
+	uint32 ReferenceHash() const;
+
+	void Serialize(FArchive& Ar);
+
+	/** The offset of this data within its chunk. */
+	uint64 ChunkOffset = 0;
+	/** The size of this data within its chunk. */
+	uint64 ChunkSize = 0;
+	/** The FIoChunkId. */
+	uint8 ChunkId[12]{};
+};
 
 /**
  * Derived Data Reference
@@ -110,14 +133,7 @@ private:
 #endif // WITH_EDITORONLY_DATA
 
 private:
-	// Chunk members can only be non-zero when loading from a cooked package.
-
-	/** The offset of this data within its chunk. */
-	uint64 ChunkOffset = 0;
-	/** The size of this data within its chunk. */
-	uint64 ChunkSize = 0;
-	/** The FIoChunkId. */
-	uint8 ChunkId[12]{};
+	DerivedData::Private::FCookedData CookedData;
 
 	/** The flags that modify how this derived data is saved and how it may be loaded. */
 	EDerivedDataFlags Flags = EDerivedDataFlags::None;
@@ -130,10 +146,9 @@ inline const FDerivedData FDerivedData::Null;
 inline bool FDerivedData::IsNull() const
 {
 #if WITH_EDITORONLY_DATA
-	return !EditorData && ChunkId[11] == 0;
+	return !EditorData && !CookedData;
 #else
-	// Check the last byte of ChunkId, which is type of the FIoChunkId, where 0 is EIoChunkType::Invalid.
-	return ChunkId[11] == 0;
+	return !CookedData;
 #endif
 }
 
