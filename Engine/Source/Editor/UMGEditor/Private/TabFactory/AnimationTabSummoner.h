@@ -7,6 +7,8 @@
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "WidgetBlueprintEditor.h"
 
+class SDockTab;
+
 struct FAnimationTabSummoner : public FWorkflowTabFactory
 {
 public:
@@ -17,7 +19,8 @@ public:
 	FAnimationTabSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor, bool bInIsDrawerTab = false);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
-	
+	virtual TSharedRef<SDockTab> SpawnTab(const FWorkflowTabSpawnInfo& Info) const override;
+
 protected:
 	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
 	bool bIsDrawerTab;

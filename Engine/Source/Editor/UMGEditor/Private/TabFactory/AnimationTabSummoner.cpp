@@ -8,6 +8,7 @@
 #include "Animation/WidgetAnimation.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditorUtils.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBorder.h"
@@ -835,7 +836,17 @@ TSharedRef<SWidget> FAnimationTabSummoner::CreateTabBody(const FWorkflowTabSpawn
 	TSharedPtr<FWidgetBlueprintEditor> BlueprintEditorPinned = BlueprintEditor.Pin();
 
 	return SNew( SUMGAnimationList, BlueprintEditorPinned, bIsDrawerTab);
-	
+}
+
+TSharedRef<SDockTab> FAnimationTabSummoner::SpawnTab(const FWorkflowTabSpawnInfo& Info) const
+{
+	TSharedRef<SDockTab> NewTab = FWorkflowTabFactory::SpawnTab(Info);
+	if (TSharedPtr<FWidgetBlueprintEditor> BlueprintEditorPinned = BlueprintEditor.Pin())
+	{
+		NewTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateSP(BlueprintEditorPinned.ToSharedRef(), &FWidgetBlueprintEditor::OnWidgetAnimTabSequencerClosed));
+		BlueprintEditorPinned->OnWidgetAnimTabSequencerOpened();
+	}
+	return NewTab;
 }
 
 #undef LOCTEXT_NAMESPACE 
