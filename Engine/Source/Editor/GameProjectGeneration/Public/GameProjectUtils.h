@@ -42,7 +42,6 @@ struct FProjectInformation
 	bool bCopyStarterContent = false;
 	bool bIsBlankTemplate = false;
 	bool bIsEnterpriseProject = false;
-	bool bForceExtendedLuminanceRange; // See "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"
 
 	// These are all optional, because there is an additional state introduced by hiding the setting in the template.
 	// In this case, the template author has chosen not to give the user a choice,

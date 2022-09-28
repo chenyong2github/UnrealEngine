@@ -247,16 +247,14 @@ bool IsAutoExposureDebugMode(const FViewInfo& View)
 
 float CalculateFixedAutoExposure(const FViewInfo& View)
 {
-	const bool bExtendedLuminanceRange = IsExtendLuminanceRangeEnabled();
-	const float LuminanceMax = bExtendedLuminanceRange ? LuminanceMaxFromLensAttenuation() : 1.0f;
+	const float LuminanceMax = LuminanceMaxFromLensAttenuation();
 	return EV100ToLuminance(LuminanceMax, View.Family->ExposureSettings.FixedEV100);
 }
 
 // on mobile, we are never using the Physical Camera, which is why we need the bForceDisablePhysicalCamera
 float CalculateManualAutoExposure(const FViewInfo& View, bool bForceDisablePhysicalCamera)
 {
-	const bool bExtendedLuminanceRange = IsExtendLuminanceRangeEnabled();
-	const float LuminanceMax = bExtendedLuminanceRange ? LuminanceMaxFromLensAttenuation() : 1.0f;
+	const float LuminanceMax = LuminanceMaxFromLensAttenuation();
 
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
@@ -277,7 +275,7 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 
 	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
 
-	const float LuminanceMax = bExtendedLuminanceRange ? LuminanceMaxFromLensAttenuation() : 1.0f;
+	const float LuminanceMax = LuminanceMaxFromLensAttenuation();
 
 	const float PercentToScale = 0.01f;
 

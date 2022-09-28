@@ -187,8 +187,8 @@ static TAutoConsoleVariable<int32> CVarDefaultAutoExposureExtendDefaultLuminance
 	TEXT("Whether the default values for AutoExposure should support an extended range of scene luminance.\n")
 	TEXT("This also change the PostProcessSettings.Exposure.MinBrightness, MaxBrightness, HistogramLogMin and HisogramLogMax\n")
 	TEXT("to be expressed in EV100 values instead of in Luminance and Log2 Luminance.\n")
-	TEXT(" 0: Legacy range (default)\n")
-	TEXT(" 1: Extended range"));
+	TEXT(" 0: Legacy range (UE4 default)\n")
+	TEXT(" 1: Extended range (UE5 default)"));
 
 static TAutoConsoleVariable<int32> CVarDefaultMotionBlur(
 	TEXT("r.DefaultFeature.MotionBlur"),

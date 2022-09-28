@@ -1633,7 +1633,6 @@ FProjectInformation SProjectDialog::CreateProjectInfo() const
 	ProjectInfo.TemplateCategory = ActiveCategory;
 	ProjectInfo.bIsEnterpriseProject = SelectedTemplate->bIsEnterprise;
 	ProjectInfo.bIsBlankTemplate = SelectedTemplate->bIsBlankTemplate;
-	ProjectInfo.bForceExtendedLuminanceRange = SelectedTemplate->bIsBlankTemplate;
 
 	if (bShouldGenerateCode)
 	{
