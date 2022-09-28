@@ -70,12 +70,12 @@ UBodySetup::~UBodySetup() = default;
 
 
 #if ENABLE_COOK_STATS
-namespace PhysXBodySetupCookStats
+namespace BodySetupCookStats
 {
 	static FCookStats::FDDCResourceUsageStats UsageStats;
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
-		UsageStats.LogStats(AddStat, TEXT("PhysX.Usage"), TEXT("BodySetup"));
+		UsageStats.LogStats(AddStat, TEXT("BodySetup.Usage"), TEXT(""));
 	});
 }
 #endif
@@ -1310,7 +1310,7 @@ void GetDDCBuiltData(FByteBulkData* OutResult, DDCBuilderType& InBuilder, UBodyS
 
 	if(InBuilder.CanBuild())
 	{
-		COOK_STAT(FCookStats::FScopedStatsCounter Timer = PhysXBodySetupCookStats::UsageStats.TimeSyncWork());
+		COOK_STAT(FCookStats::FScopedStatsCounter Timer = BodySetupCookStats::UsageStats.TimeSyncWork());
 
 		// Debugging switch, force builder to always run
 		bool bSkipDDC = false;

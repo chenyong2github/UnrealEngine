@@ -39,7 +39,7 @@ namespace Chaos
 template<typename T, int d>
 class FChaosDerivedDataReader;
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("PhysX Cooking"), STAT_PhysXCooking, STATGROUP_Physics, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BodySetup Cooking"), STAT_PhysXCooking, STATGROUP_Physics, );
 
 
 /** UV information for BodySetup, only created if UPhysicsSettings::bSupportUVFromHitResults */
