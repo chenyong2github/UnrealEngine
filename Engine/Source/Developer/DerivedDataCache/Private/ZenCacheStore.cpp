@@ -903,7 +903,15 @@ private:
 
 	IHttpReceiver* OnComplete(IHttpResponse& Response) final
 	{
-		FMemoryReaderView Ar(MakeMemoryView(BodyArray));
+		FMemoryView MemoryView = MakeMemoryView(BodyArray);
+		{
+			FMemoryReaderView Ar(MemoryView);
+			if (Zen::Http::TryLoadCbPackage(Package, Ar))
+			{
+				return Next;
+			}
+		}
+		FMemoryReaderView Ar(MemoryView);
 		Package.TryLoad(Ar);
 		return Next;
 	}

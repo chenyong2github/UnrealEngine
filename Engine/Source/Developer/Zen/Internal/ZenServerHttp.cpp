@@ -182,6 +182,13 @@ namespace UE::Zen {
 
 		if (ResponseBuffer.Num())
 		{
+			{
+				FLargeMemoryReader Ar(ResponseBuffer.GetData(), ResponseBuffer.Num());
+				if (Http::TryLoadCbPackage(OutResponse, Ar))
+				{
+					return Result::Success;
+				}
+			}
 			FLargeMemoryReader Ar(ResponseBuffer.GetData(), ResponseBuffer.Num());
 			if (!OutResponse.TryLoad(Ar))
 			{
