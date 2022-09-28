@@ -16,8 +16,8 @@ public:
 	virtual ~FDisplayClusterOperatorViewModel() = default;
 
 	//~ IDisplayClusterOperatorViewModel interface
-	virtual bool HasRootActor() const override { return RootActor.IsValid(); }
-	virtual ADisplayClusterRootActor* GetRootActor() const override { return RootActor.IsValid() ? RootActor.Get() : nullptr; }
+	virtual bool HasRootActor(bool bEvenIfPendingKill = false) const override { return RootActor.IsValid(bEvenIfPendingKill); }
+	virtual ADisplayClusterRootActor* GetRootActor(bool bEvenIfPendingKill = false) const override;
 	virtual void SetRootActor(ADisplayClusterRootActor* InRootActor) override;
 	virtual FOnActiveRootActorChanged& OnActiveRootActorChanged() override { return RootActorChanged; }
 

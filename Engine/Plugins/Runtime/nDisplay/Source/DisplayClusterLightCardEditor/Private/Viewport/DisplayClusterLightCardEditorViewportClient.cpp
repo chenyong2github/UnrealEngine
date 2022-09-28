@@ -1353,7 +1353,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor"), STAT_UpdatePreviewActor, STATGROUP_NDisplayLightCardEditor);
 	
-	if ((!bForce && RootActor == RootActorLevelInstance.Get()) ||
+	if ((!bForce && RootActor == RootActorLevelInstance.GetEvenIfUnreachable()) ||
 		(ProxyTypesRefreshing.Contains(ProxyType) || ProxyTypesRefreshing.Contains(EDisplayClusterLightCardEditorProxyType::All)))
 	{
 		return;

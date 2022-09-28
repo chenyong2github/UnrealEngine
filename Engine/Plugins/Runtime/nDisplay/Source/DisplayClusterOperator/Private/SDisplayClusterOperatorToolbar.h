@@ -61,6 +61,9 @@ private:
 	/** When the map changes */
 	void HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType);
 
+	/** Raised when an editor object is going to be cleased, usually used when a sublevel is about to be removed */
+	void OnPrepareToCleanseEditorObject(UObject* Object);
+
 private:
 	/** A reference the the operator panel's view model, which stores the operator panel state */
 	TSharedPtr<IDisplayClusterOperatorViewModel> ViewModel;

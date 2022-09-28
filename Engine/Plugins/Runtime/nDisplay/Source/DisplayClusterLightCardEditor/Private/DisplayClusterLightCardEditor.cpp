@@ -832,7 +832,7 @@ void FDisplayClusterLightCardEditor::SetIconScale(float NewValue)
 
 void FDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
-	if (NewRootActor == ActiveRootActor.Get())
+	if (NewRootActor == ActiveRootActor.GetEvenIfUnreachable())
 	{
 		return;
 	}

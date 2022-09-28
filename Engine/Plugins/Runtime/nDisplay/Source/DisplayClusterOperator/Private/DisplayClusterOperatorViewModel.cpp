@@ -8,6 +8,16 @@
 
 #define LOCTEXT_NAMESPACE "DisplayClusterOperatorViewModel"
 
+ADisplayClusterRootActor* FDisplayClusterOperatorViewModel::GetRootActor(bool bEvenIfPendingKill) const
+{
+	if (bEvenIfPendingKill)
+	{
+		return RootActor.IsValid(bEvenIfPendingKill) ? RootActor.GetEvenIfUnreachable() : nullptr;
+	}
+
+	return RootActor.IsValid() ? RootActor.Get() : nullptr;
+}
+
 void FDisplayClusterOperatorViewModel::SetRootActor(ADisplayClusterRootActor* InRootActor)
 {
 	RootActor = InRootActor;

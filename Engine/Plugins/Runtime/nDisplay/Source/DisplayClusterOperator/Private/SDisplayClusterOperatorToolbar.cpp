@@ -9,6 +9,7 @@
 #include "Styling/AppStyle.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
+#include "EditorSupportDelegates.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Layout/SBorder.h"
@@ -29,6 +30,8 @@ SDisplayClusterOperatorToolbar::~SDisplayClusterOperatorToolbar()
 		LevelEditor.OnMapChanged().Remove(MapChangedHandle);
 	}
 	
+	FEditorSupportDelegates::PrepareToCleanseEditorObject.RemoveAll(this);
+
 	if (ADisplayClusterRootActor* ActiveRootActor = ViewModel->GetRootActor())
 	{
 		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
@@ -109,6 +112,8 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 
 	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	MapChangedHandle = LevelEditor.OnMapChanged().AddRaw(this, &SDisplayClusterOperatorToolbar::HandleMapChanged);
+
+	FEditorSupportDelegates::PrepareToCleanseEditorObject.AddSP(this, &SDisplayClusterOperatorToolbar::OnPrepareToCleanseEditorObject);
 }
 
 TSharedPtr<FString> SDisplayClusterOperatorToolbar::FillRootActorList(const FString& InitiallySelectedRootActor)
@@ -251,6 +256,20 @@ void SDisplayClusterOperatorToolbar::HandleMapChanged(UWorld* InWorld, EMapChang
 		(!ViewModel->HasRootActor() || ViewModel->GetRootActor()->GetWorld() == InWorld))
 	{
 		ClearSelectedRootActor();
+	}
+}
+
+void SDisplayClusterOperatorToolbar::OnPrepareToCleanseEditorObject(UObject* Object)
+{
+	if (ULevel* Level = Cast<ULevel>(Object))
+	{
+		const bool bEvenIfPendingKill = true;
+		if (Level->Actors.Contains(ViewModel->GetRootActor(bEvenIfPendingKill)))
+		{
+			// A level that contains the current root actor is being purged, so clear the root actor to ensure
+			// no UI elements continue to reference the root actor
+			ClearSelectedRootActor();
+		}
 	}
 }
 

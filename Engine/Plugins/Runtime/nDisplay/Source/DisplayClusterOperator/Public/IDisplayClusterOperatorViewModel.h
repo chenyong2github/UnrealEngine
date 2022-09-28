@@ -15,10 +15,10 @@ class DISPLAYCLUSTEROPERATOR_API IDisplayClusterOperatorViewModel
 {
 public:
 	/** Gets whether the view model has been populated with a valid root actor */
-	virtual bool HasRootActor() const = 0;
+	virtual bool HasRootActor(bool bEvenIfPendingKill = false) const = 0;
 
 	/** Gets the root actor that is actively being edited by the operator panel */
-	virtual ADisplayClusterRootActor* GetRootActor() const = 0;
+	virtual ADisplayClusterRootActor* GetRootActor(bool bEvenIfPendingKill = false) const = 0;
 
 	/** Sets the root actor that is actively being edited by the operator panel */
 	virtual void SetRootActor(ADisplayClusterRootActor* InRootActor) = 0;
