@@ -557,7 +557,7 @@ namespace Horde.Build.Issues
 				}
 				else
 				{
-					issueLogger.LogInformation("Issue was acknowledged by {UserId}", oldIssue.OwnerId);
+					issueLogger.LogInformation("Issue was acknowledged by {UserId}", newIssue.OwnerId);
 				}
 			}
 			if (newIssue.FixChange != oldIssue.FixChange)
