@@ -15,6 +15,7 @@ using System.IO;
 using System.Security.Cryptography;
 using EpicGames.Core;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace EpicGames.Horde.Tests
 {
@@ -26,7 +27,7 @@ namespace EpicGames.Horde.Tests
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
-			InMemoryBlobStore blobStore = new InMemoryBlobStore(cache);
+			InMemoryBlobStore blobStore = new InMemoryBlobStore(cache, NullLogger.Instance);
 			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1024 * 1024 });
 
 			Assert.AreEqual(1, blobStore.Blobs.Count);
@@ -38,7 +39,7 @@ namespace EpicGames.Horde.Tests
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
-			InMemoryBlobStore blobStore = new InMemoryBlobStore(cache);
+			InMemoryBlobStore blobStore = new InMemoryBlobStore(cache, NullLogger.Instance);
 			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1 });
 
 			Assert.AreEqual(5, blobStore.Blobs.Count);
@@ -131,7 +132,7 @@ namespace EpicGames.Horde.Tests
 		public async Task DirectoryNodesAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			InMemoryBlobStore store = new InMemoryBlobStore(cache);
+			InMemoryBlobStore store = new InMemoryBlobStore(cache, NullLogger.Instance);
 
 			// Generate a tree
 			{
@@ -167,7 +168,7 @@ namespace EpicGames.Horde.Tests
 		public async Task FileNodesAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			InMemoryBlobStore store = new InMemoryBlobStore(cache);
+			InMemoryBlobStore store = new InMemoryBlobStore(cache, NullLogger.Instance);
 
 			// Generate a tree
 			{
@@ -212,7 +213,7 @@ namespace EpicGames.Horde.Tests
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
-			InMemoryBlobStore store = new InMemoryBlobStore(cache);
+			InMemoryBlobStore store = new InMemoryBlobStore(cache, NullLogger.Instance);
 			TreeWriter writer = new TreeWriter(store, new TreeOptions());
 
 			byte[] chunk = RandomNumberGenerator.GetBytes(256);
@@ -288,7 +289,7 @@ namespace EpicGames.Horde.Tests
 		public async Task LargeFileTestAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			InMemoryBlobStore store = new InMemoryBlobStore(cache);
+			InMemoryBlobStore store = new InMemoryBlobStore(cache, NullLogger.Instance);
 
 			const int length = 1024;
 			const int copies = 4096;

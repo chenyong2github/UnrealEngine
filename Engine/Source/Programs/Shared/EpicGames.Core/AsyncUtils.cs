@@ -33,6 +33,21 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Returns a task that will be abandoned if a cancellation token is activated. This differs from the normal cancellation pattern in that the task will run to completion, but waiting for it can be cancelled.
+		/// </summary>
+		/// <param name="task">Task to wait for</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Wrapped task</returns>
+		public static async Task<T> AbandonOnCancel<T>(this Task<T> task, CancellationToken cancellationToken)
+		{
+			if (cancellationToken.CanBeCanceled)
+			{
+				await await Task.WhenAny(task, Task.Delay(-1, cancellationToken)); // Double await to ensure cancellation exception is rethrown if returned
+			}
+			return await task;
+		}
+
+		/// <summary>
 		/// Attempts to get the result of a task, if it has finished
 		/// </summary>
 		/// <typeparam name="T"></typeparam>

@@ -23,7 +23,7 @@ namespace Horde.Agent.Commands.Bundles
 			readonly ILogger _logger;
 
 			public FileBlobStore(DirectoryReference rootDir, IMemoryCache cache, ILogger logger)
-				: base(cache)
+				: base(cache, logger)
 			{
 				_rootDir = rootDir;
 				_logger = logger;
@@ -40,7 +40,7 @@ namespace Horde.Agent.Commands.Bundles
 			{
 				FileReference file = GetBlobFile(id);
 				_logger.LogInformation("Reading {File}", file);
-				return Task.FromResult<Stream>(FileReference.Open(file, FileMode.Open, FileAccess.Read));
+				return Task.FromResult<Stream>(FileReference.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read));
 			}
 
 			public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -24,9 +25,12 @@ namespace Horde.Agent.Commands.Bundles
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			IStorageClient store = CreateStorageClient(cache, logger);
 
+			Stopwatch timer = Stopwatch.StartNew();
+
 			DirectoryNode node = await store.ReadNodeAsync<DirectoryNode>(RefName);
 			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
+			logger.LogInformation("Elapsed: {Time}s", timer.Elapsed.Seconds);
 			return 0;
 		}
 	}

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Storage.Backends
 {
@@ -36,8 +37,8 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public InMemoryBlobStore(IMemoryCache cache) 
-			: base(cache)
+		public InMemoryBlobStore(IMemoryCache cache, ILogger logger) 
+			: base(cache, logger)
 		{
 		}
 

@@ -11,6 +11,7 @@ using EpicGames.Horde.Storage;
 using System.Buffers;
 using EpicGames.Horde.Storage.Backends;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Horde.Build.Tests
 {
@@ -23,7 +24,7 @@ namespace Horde.Build.Tests
 		IStorageClient CreateBlobStore()
 		{
 			_cache ??= new MemoryCache(new MemoryCacheOptions());
-			_store ??= new InMemoryBlobStore(_cache);
+			_store ??= new InMemoryBlobStore(_cache, NullLogger.Instance);
 			return _store;
 		}
 

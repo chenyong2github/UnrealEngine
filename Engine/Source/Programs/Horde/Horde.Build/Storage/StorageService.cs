@@ -53,8 +53,8 @@ namespace Horde.Build.Storage
 			readonly IStorageBackend _backend;
 			readonly IRefCollection _refs;
 
-			public StorageClient(NamespaceConfig config, IStorageBackend backend, IRefCollection refs, IMemoryCache cache)
-				: base(cache)
+			public StorageClient(NamespaceConfig config, IStorageBackend backend, IRefCollection refs, IMemoryCache cache, ILogger logger)
+				: base(cache, logger)
 			{
 				Config = config;
 				_backend = backend;
@@ -153,6 +153,7 @@ namespace Horde.Build.Storage
 		readonly IRefCollection _refCollection;
 		readonly IMemoryCache _cache;
 		readonly IServiceProvider _serviceProvider;
+		readonly ILogger _logger;
 
 		State? _lastState;
 		string? _lastConfigRevision;
@@ -164,14 +165,15 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StorageService(GlobalsService globalsService, AclService aclService, IRefCollection refCollection, IMemoryCache cache, IServiceProvider serviceProvider)
+		public StorageService(GlobalsService globalsService, AclService aclService, IRefCollection refCollection, IMemoryCache cache, IServiceProvider serviceProvider, ILogger<StorageService> logger)
 		{
 			_globalsService = globalsService;
 			_aclService = aclService;
 			_refCollection = refCollection;
 			_cache = cache;
 			_serviceProvider = serviceProvider;
-			_cachedState = new AsyncCachedValue<State>(() => GetNextState(), TimeSpan.FromMinutes(1.0)); 
+			_cachedState = new AsyncCachedValue<State>(() => GetNextState(), TimeSpan.FromMinutes(1.0));
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
@@ -262,7 +264,7 @@ namespace Horde.Build.Storage
 						IStorageBackend backend = CreateStorageBackend(backendConfig);
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
-						StorageClient client = new StorageClient(namespaceConfig, backend, _refCollection, _cache);
+						StorageClient client = new StorageClient(namespaceConfig, backend, _refCollection, _cache, _logger);
 						nextState.Namespaces.Add(namespaceConfig.Id, new NamespaceInfo(namespaceConfig, client));
 #pragma warning restore CA2000 // Dispose objects before losing scope
 					}
