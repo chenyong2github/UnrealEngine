@@ -2679,6 +2679,7 @@ public:
 #if WITH_EDITOR
 	void GenerateFunctionList(TArray<FName>& OutArray) const 
 	{ 
+		FReadScopeLock ScopeLock(FuncMapLock);
 		FuncMap.GenerateKeyArray(OutArray); 
 	}
 #endif // WITH_EDITOR
@@ -2696,6 +2697,9 @@ private:
 
 	/** Map of all functions by name contained in this class */
 	TMap<FName, UFunction*> FuncMap;
+
+	/** Scope lock to avoid the FuncMap being read and written to simultaneously on multiple threads. */
+	mutable FRWLock FuncMapLock;
 
 	/** A cache of all functions by name that exist in a parent (superclass or interface) context */
 	mutable TMap<FName, UFunction*> SuperFuncMap;
@@ -2789,6 +2793,7 @@ public:
 	/** Add a function to the function map */
 	void AddFunctionToFunctionMap(UFunction* Function, FName FuncName)
 	{
+		FWriteScopeLock ScopeLock(FuncMapLock);
 		FuncMap.Add(FuncName, Function);
 	}
 
@@ -2797,6 +2802,7 @@ public:
 	/** Remove a function from the function map */
 	void RemoveFunctionFromFunctionMap(UFunction* Function)
 	{
+		FWriteScopeLock ScopeLock(FuncMapLock);
 		FuncMap.Remove(Function->GetFName());
 	}
 

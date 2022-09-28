@@ -33,8 +33,6 @@ void FExposedValueHandler::Initialize(UClass* InClass, const FPropertyAccessLibr
 		if (Function == nullptr)
 #endif
 		{
-			// we cant call FindFunction on anything but the game thread as it accesses a shared map in the object's class
-			check(IsInGameThread());
 			Function = InClass->FindFunctionByName(BoundFunction);
 			check(Function);
 		}
