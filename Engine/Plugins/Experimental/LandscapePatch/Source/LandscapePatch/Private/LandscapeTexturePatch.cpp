@@ -1108,7 +1108,7 @@ void ULandscapeWeightPatchTextureInfo::SetSourceMode(ELandscapeTexturePatchSourc
 	Modify();
 
 	FVector2D Resolution(1, 1);
-	if (OwningPatch)
+	if (OwningPatch.IsValid())
 	{
 		Resolution = OwningPatch->GetResolution();
 	}

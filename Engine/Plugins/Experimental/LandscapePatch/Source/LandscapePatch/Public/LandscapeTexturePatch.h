@@ -196,7 +196,7 @@ protected:
 
 	// Needed mainly so that we can get at the resolution...
 	UPROPERTY()
-	TObjectPtr<ULandscapeTexturePatch> OwningPatch = nullptr;
+	TWeakObjectPtr<ULandscapeTexturePatch> OwningPatch = nullptr;
 
 	// TODO: Like the similar flag for the height patch, this might not work once local merge works
 	// with landscape brushes...
