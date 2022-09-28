@@ -85,8 +85,14 @@ void SDisplayClusterLightCardOutliner::GetSelectedActors(TArray<AActor*>& OutSel
 
 void SDisplayClusterLightCardOutliner::SelectActors(const TArray<AActor*>& ActorsToSelect)
 {
+	if (bIsOutlinerChangingSelection)
+	{
+		// Selection change initiated from outliner
+		return;
+	}
+	
 	TArray<FSceneOutlinerTreeItemPtr> SelectedTreeItems;
-	CachedSelectedActors.Reset();
+	CachedOutlinerItems.Reset();
 	
 	for (const TSharedPtr<FStageActorTreeItem>& TreeItem : StageActorTreeItems)
 	{
@@ -95,28 +101,116 @@ void SDisplayClusterLightCardOutliner::SelectActors(const TArray<AActor*>& Actor
 			if (FSceneOutlinerTreeItemPtr OutlinerItem = SceneOutliner->GetTreeItem(TreeItem->Actor.Get()))
 			{
 				SelectedTreeItems.Add(OutlinerItem);
-				CachedSelectedActors.Add(TreeItem->Actor);
 			}
 		}
 	}
-	
+
+	CachedOutlinerItems = SelectedTreeItems;
 	SceneOutliner->SetItemSelection(SelectedTreeItems, true);
 }
 
 void SDisplayClusterLightCardOutliner::RestoreCachedSelection()
 {
 	TArray<AActor*> ActorsToSelect;
-	for (const TWeakObjectPtr<AActor>& CachedActor : CachedSelectedActors)
+	TArray<TSharedPtr<ISceneOutlinerTreeItem>> AdditionalTreeItemsToSelect;
+	
+	for (TSharedPtr<ISceneOutlinerTreeItem> CachedItem : CachedOutlinerItems)
 	{
-		if (CachedActor.IsValid())
+		if (CachedItem.IsValid())
 		{
-			ActorsToSelect.Add(CachedActor.Get());
+			if (const FActorTreeItem* ActorItem = CachedItem->CastTo<FActorTreeItem>())
+			{
+				if (ActorItem->Actor.IsValid())
+				{
+					ActorsToSelect.Add(ActorItem->Actor.Get());
+				}
+			}
+			else
+			{
+				AdditionalTreeItemsToSelect.Add(CachedItem);
+			}
 		}
 	}
 
 	if (LightCardEditorPtr.IsValid())
 	{
 		LightCardEditorPtr.Pin()->SelectActors(MoveTemp(ActorsToSelect));
+	}
+
+	if (AdditionalTreeItemsToSelect.Num() > 0)
+	{
+		SceneOutliner->AddToSelection(AdditionalTreeItemsToSelect);
+	}
+}
+
+bool SDisplayClusterLightCardOutliner::CanDeleteSelectedFolder() const
+{
+	if (SceneOutliner.IsValid())
+	{
+		const FDisplayClusterLightCardOutlinerMode* Mode = static_cast<const FDisplayClusterLightCardOutlinerMode*>(SceneOutliner->GetMode());
+		return Mode->CanDelete();
+	}
+	
+	return false;
+}
+
+bool SDisplayClusterLightCardOutliner::CanCutSelectedFolder() const
+{
+	if (SceneOutliner.IsValid())
+	{
+		const FDisplayClusterLightCardOutlinerMode* Mode = static_cast<const FDisplayClusterLightCardOutlinerMode*>(SceneOutliner->GetMode());
+		return Mode->CanCut();
+	}
+
+	return false;
+}
+
+bool SDisplayClusterLightCardOutliner::CanCopySelectedFolder() const
+{
+	if (SceneOutliner.IsValid())
+	{
+		const FDisplayClusterLightCardOutlinerMode* Mode = static_cast<const FDisplayClusterLightCardOutlinerMode*>(SceneOutliner->GetMode());
+		return Mode->CanCopy();
+	}
+
+	return false;
+}
+
+bool SDisplayClusterLightCardOutliner::CanPasteSelectedFolder() const
+{
+	if (SceneOutliner.IsValid())
+	{
+		const FDisplayClusterLightCardOutlinerMode* Mode = static_cast<const FDisplayClusterLightCardOutlinerMode*>(SceneOutliner->GetMode());
+		return Mode->CanPaste();
+	}
+
+	return false;
+}
+
+bool SDisplayClusterLightCardOutliner::CanRenameSelectedItem() const
+{
+	if (SceneOutliner.IsValid())
+	{
+		TArray<FSceneOutlinerTreeItemPtr> SelectedOutlinerItems = SceneOutliner->GetSelectedItems();
+		const FDisplayClusterLightCardOutlinerMode* Mode = static_cast<const FDisplayClusterLightCardOutlinerMode*>(SceneOutliner->GetMode());
+		if (SelectedOutlinerItems.Num() == 1 && SelectedOutlinerItems[0].IsValid())
+		{
+			return Mode->CanRenameItem(*SelectedOutlinerItems[0].Get());
+		}
+	}
+
+	return false;
+}
+
+void SDisplayClusterLightCardOutliner::RenameSelectedItem()
+{
+	if (SceneOutliner.IsValid())
+	{
+		TArray<FSceneOutlinerTreeItemPtr> SelectedItems = SceneOutliner->GetSelectedItems();
+		if (SelectedItems.Num() == 1)
+		{
+			SelectedItems[0]->RenameRequestEvent.ExecuteIfBound();
+		}
 	}
 }
 
@@ -255,13 +349,18 @@ void SDisplayClusterLightCardOutliner::OnOutlinerSelectionChanged(FSceneOutliner
 {
 	MostRecentSelectedItem = TreeItem;
 
-	TArray<AActor*> SelectedLightCards;
-	GetSelectedActors(SelectedLightCards);
-
 	if (LightCardEditorPtr.IsValid())
 	{
+		TArray<AActor*> SelectedLightCards;
+    	GetSelectedActors(SelectedLightCards);
+	
+		bIsOutlinerChangingSelection = true;
 		LightCardEditorPtr.Pin()->SelectActors(SelectedLightCards);
 		LightCardEditorPtr.Pin()->SelectActorProxies(SelectedLightCards);
+		
+		CachedOutlinerItems = SceneOutliner->GetSelectedItems();
+		
+		bIsOutlinerChangingSelection = false;
 	}
 }
 
@@ -341,8 +440,6 @@ void SDisplayClusterLightCardOutliner::RegisterContextMenu(FName& InName, FToolM
 				}
 			}
 			
-			const bool bAddFullEditMenu = Actor && Actor->Implements<UDisplayClusterStageActor>();
-			
 			if (ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(Actor))
 			{
 				FToolMenuSection& Section = InMenu->AddSection("LightCardDefaultSection", LOCTEXT("LightCardSectionName", "Light Cards"));
@@ -361,19 +458,12 @@ void SDisplayClusterLightCardOutliner::RegisterContextMenu(FName& InName, FToolM
 			{
 				FToolMenuSection& Section = InMenu->AddSection("LightCardEditSection", LOCTEXT("LightCardEditSectionName", "Edit"));
 
-				if (bAddFullEditMenu)
-				{
-					Section.AddMenuEntry(FGenericCommands::Get().Cut);
-					Section.AddMenuEntry(FGenericCommands::Get().Copy);
-				}
-
+				Section.AddMenuEntry(FGenericCommands::Get().Cut);
+				Section.AddMenuEntry(FGenericCommands::Get().Copy);
 				Section.AddMenuEntry(FGenericCommands::Get().Paste);
-
-				if (bAddFullEditMenu)
-				{
-					Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
-					Section.AddMenuEntry(FGenericCommands::Get().Delete);
-				}
+				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+				Section.AddMenuEntry(FGenericCommands::Get().Delete);
+				Section.AddMenuEntry(FGenericCommands::Get().Rename);
 			}
 		}));
 	}

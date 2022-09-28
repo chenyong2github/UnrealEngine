@@ -783,8 +783,7 @@ void SDisplayClusterLightCardEditorViewport::PasteLightCardsHere()
 {
 	if (LightCardEditorPtr.IsValid())
 	{
-		const bool bOffsetActorPosition = false;
-		LightCardEditorPtr.Pin()->PasteActors(bOffsetActorPosition);
+		LightCardEditorPtr.Pin()->PasteActors();
 
 		if (ViewportClient.IsValid())
 		{

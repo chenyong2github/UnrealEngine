@@ -32,7 +32,9 @@
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "Selection.h"
+#include "UnrealEdGlobals.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Editor/UnrealEdEngine.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
@@ -497,18 +499,42 @@ bool FDisplayClusterLightCardEditor::CanAddLightCard() const
 
 void FDisplayClusterLightCardEditor::CutSelectedActors()
 {
-	CopySelectedActors();
-
-	RemoveActors(SelectedActors, /*bDeleteActors*/ true);
+	CopySelectedActors(/* bShouldCut */ true);
 }
 
 bool FDisplayClusterLightCardEditor::CanCutSelectedActors()
 {
+	if (LightCardOutliner.IsValid() && LightCardOutliner->CanCutSelectedFolder())
+	{
+		// If only a folder is selected -- this isn't handled outside of the outliner
+		return true;
+	}
+	
 	return CanCopySelectedActors() && CanRemoveSelectedActors();
 }
 
-void FDisplayClusterLightCardEditor::CopySelectedActors()
+void FDisplayClusterLightCardEditor::CopySelectedActors(bool bShouldCut)
 {
+	const FText TransactionText = bShouldCut ? LOCTEXT("CutItemsTransactionMessage", "Cut Selected Items") : LOCTEXT("CopyItemsTransactionMessage", "Copy Selected Items");
+	FScopedTransaction Transaction(TransactionText);
+
+	if (DoOutlinerFoldersNeedEditorDelegates())
+	{
+		// We still must fire the delegates in case folders are selected
+		if (bShouldCut)
+		{
+			FEditorDelegates::OnEditCutActorsBegin.Broadcast();
+			FEditorDelegates::OnEditCutActorsEnd.Broadcast();
+		}
+		else
+		{
+			FEditorDelegates::OnEditCopyActorsBegin.Broadcast();
+			FEditorDelegates::OnEditCopyActorsEnd.Broadcast();
+		}
+		
+		return;
+	}
+	
 	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 
 	const bool bNoteSelectionChange = false;
@@ -521,25 +547,60 @@ void FDisplayClusterLightCardEditor::CopySelectedActors()
 		const bool bInSelected = true;
 		const bool bNotify = false;
 		const bool bSelectEvenIfHidden = true;
-		GEditor->SelectActor(LightCard.Get(), true, bNotify, bSelectEvenIfHidden);
+		GEditor->SelectActor(LightCard.Get(), bInSelected, bNotify, bSelectEvenIfHidden);
 	}
 
-	const bool bShouldCut = false;
 	const bool bIsMove = false;
 	const bool bWarnAboutReferences = false;
+
+	if (bShouldCut)
+	{
+		FEditorDelegates::OnEditCutActorsBegin.Broadcast();
+	}
+	else
+	{
+		FEditorDelegates::OnEditCopyActorsBegin.Broadcast();
+	}
+	
 	GEditor->CopySelectedActorsToClipboard(EditorWorld, bShouldCut, bIsMove, bWarnAboutReferences);
+
+	if (bShouldCut)
+	{
+		FEditorDelegates::OnEditCutActorsEnd.Broadcast();
+	}
+	else
+	{
+		FEditorDelegates::OnEditCopyActorsEnd.Broadcast();
+	}
 }
 
 bool FDisplayClusterLightCardEditor::CanCopySelectedActors() const
 {
+	if (LightCardOutliner.IsValid() && LightCardOutliner->CanCopySelectedFolder())
+	{
+		// True if only a folder is selected -- this isn't handled outside of the outliner
+		return true;
+	}
+	
 	return SelectedActors.Num() > 0;
 }
 
-void FDisplayClusterLightCardEditor::PasteActors(bool bOffsetActorPosition)
+void FDisplayClusterLightCardEditor::PasteActors()
 {
-	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	GEditor->PasteSelectedActorsFromClipboard(EditorWorld, LOCTEXT("PasteActorsTransactionMessage", "Paste Actors"), EPasteTo::PT_OriginalLocation);
+	if (DoOutlinerFoldersNeedEditorDelegates() && LightCardOutliner->CanPasteSelectedFolder())
+	{
+		// We still must fire the delegates in case folders are selected
+		FEditorDelegates::OnEditPasteActorsBegin.Broadcast();
+		FEditorDelegates::OnEditPasteActorsEnd.Broadcast();
+		return;
+	}
 
+	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+	
+	FEditorDelegates::OnEditPasteActorsBegin.Broadcast();
+	GEditor->PasteSelectedActorsFromClipboard(EditorWorld, LOCTEXT("PasteItemsTransactionMessage", "Paste Items"), EPasteTo::PT_OriginalLocation);
+	FEditorDelegates::OnEditPasteActorsEnd.Broadcast();
+	
 	TArray<AActor*> PastedActors;
 	TArray<ADisplayClusterLightCardActor*> PastedLightCards;
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
@@ -551,16 +612,7 @@ void FDisplayClusterLightCardEditor::PasteActors(bool bOffsetActorPosition)
 				continue;
 			}
 
-			IDisplayClusterStageActor* StageActor = CastChecked<IDisplayClusterStageActor>(Actor);
 			PastedActors.Add(Actor);
-			if (bOffsetActorPosition)
-			{
-				// If the light card should be offset from its pasted location, offset its longitude and latitude by a number of
-				// degrees equal to an arc length of 10 units (arc length = angle in radians * radius)
-				const float AngleOffset = FMath::RadiansToDegrees(10.0f / FMath::Max(StageActor->GetDistanceFromCenter(), 1.0f));
-				StageActor->SetLatitude(StageActor->GetLatitude() - AngleOffset);
-				StageActor->SetLongitude(StageActor->GetLongitude() + AngleOffset);
-			}
 			
 			if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
 			{
@@ -575,21 +627,83 @@ void FDisplayClusterLightCardEditor::PasteActors(bool bOffsetActorPosition)
 
 bool FDisplayClusterLightCardEditor::CanPasteActors() const
 {
+	if (LightCardOutliner.IsValid() && LightCardOutliner->CanPasteSelectedFolder())
+	{
+		// If only a folder is copied -- this isn't handled outside of the outliner
+		return true;
+	}
+	
 	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 	return GEditor->CanPasteSelectedActorsFromClipboard(EditorWorld);
 }
 
 void FDisplayClusterLightCardEditor::DuplicateSelectedActors()
 {
-	CopySelectedActors();
+	FScopedTransaction Transaction(LOCTEXT("DuplicateItemsTransactionMessage", "Duplicate Selected Items"));
 
-	const bool bOffsetActorPosition = true;
-	PasteActors(bOffsetActorPosition);
+	if (DoOutlinerFoldersNeedEditorDelegates())
+	{
+		// We still must fire the delegates in case folders are selected
+		FEditorDelegates::OnDuplicateActorsBegin.Broadcast();
+		FEditorDelegates::OnDuplicateActorsEnd.Broadcast();
+		return;
+	}
+	
+	FEditorDelegates::OnDuplicateActorsBegin.Broadcast();
+
+	const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+
+	TArray<AActor*> NewActors;
+	TArray<ADisplayClusterLightCardActor*> DuplicatedLightCards;
+	GUnrealEd->DuplicateActors(GetSelectedActorsAs<AActor>(), NewActors, EditorWorld->GetCurrentLevel(), FVector());
+
+	for (AActor* Actor : NewActors)
+	{
+		if (!Actor->Implements<UDisplayClusterStageActor>())
+		{
+			continue;
+		}
+		
+		IDisplayClusterStageActor* StageActor = CastChecked<IDisplayClusterStageActor>(Actor);
+		// If the light card should be offset from its pasted location, offset its longitude and latitude by a number of
+		// degrees equal to an arc length of 10 units (arc length = angle in radians * radius)
+		const float AngleOffset = FMath::RadiansToDegrees(10.0f / FMath::Max(StageActor->GetDistanceFromCenter(), 1.0f));
+		StageActor->SetLatitude(StageActor->GetLatitude() - AngleOffset);
+		StageActor->SetLongitude(StageActor->GetLongitude() + AngleOffset);
+
+		if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
+		{
+			DuplicatedLightCards.Add(LightCard);
+		}
+	}
+	
+	FEditorDelegates::OnDuplicateActorsEnd.Broadcast();
+	
+	AddLightCardsToActor(DuplicatedLightCards);
+	SelectActors(NewActors);
 }
 
 bool FDisplayClusterLightCardEditor::CanDuplicateSelectedActors() const
 {
 	return CanCopySelectedActors();
+}
+
+void FDisplayClusterLightCardEditor::RenameSelectedItem()
+{
+	if (LightCardOutliner.IsValid())
+	{
+		return LightCardOutliner->RenameSelectedItem();
+	}
+}
+
+bool FDisplayClusterLightCardEditor::CanRenameSelectedItem() const
+{
+	if (LightCardOutliner.IsValid())
+	{
+		return LightCardOutliner->CanRenameSelectedItem();
+	}
+
+	return false;
 }
 
 void FDisplayClusterLightCardEditor::RemoveSelectedActors(bool bDeleteLightCardActor)
@@ -600,7 +714,20 @@ void FDisplayClusterLightCardEditor::RemoveSelectedActors(bool bDeleteLightCardA
 void FDisplayClusterLightCardEditor::RemoveActors(
 	const TArray<TWeakObjectPtr<AActor>>& InActorsToRemove, bool bDeleteActors)
 {
-	FScopedTransaction Transaction(LOCTEXT("RemoveActorTransactionMessage", "Remove Light Card(s)"));
+	if (DoOutlinerFoldersNeedEditorDelegates())
+	{
+		// We still must fire the delegates in case folders are selected
+		FEditorDelegates::OnDeleteActorsBegin.Broadcast();
+		FEditorDelegates::OnDeleteActorsEnd.Broadcast();
+		return;
+	}
+	
+	if (InActorsToRemove.Num() == 0)
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("RemoveItemsTransactionMessage", "Remove Item(s)"));
 
 	USelection* EdSelectionManager = GEditor->GetSelectedActors();
 	UWorld* WorldToUse = nullptr;
@@ -648,7 +775,9 @@ void FDisplayClusterLightCardEditor::RemoveActors(
 
 		if (WorldToUse)
 		{
+			FEditorDelegates::OnDeleteActorsBegin.Broadcast();
 			GEditor->edactDeleteSelected(WorldToUse);
+			FEditorDelegates::OnDeleteActorsEnd.Broadcast();
 		}
 	}
 
@@ -657,6 +786,12 @@ void FDisplayClusterLightCardEditor::RemoveActors(
 
 bool FDisplayClusterLightCardEditor::CanRemoveSelectedActors() const
 {
+	if (LightCardOutliner.IsValid() && LightCardOutliner->CanDeleteSelectedFolder())
+	{
+		// If only a folder is selected -- this isn't handled outside of the outliner
+		return true;
+	}
+	
 	for (const TWeakObjectPtr<AActor>& Actor : SelectedActors)
 	{
 		if (Actor.IsValid())
@@ -1241,12 +1376,12 @@ void FDisplayClusterLightCardEditor::BindCommands()
 
 	CommandList->MapAction(
 		FGenericCommands::Get().Copy,
-		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CopySelectedActors),
+		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CopySelectedActors, false),
 		FCanExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CanCopySelectedActors));
 
 	CommandList->MapAction(
 		FGenericCommands::Get().Paste,
-		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::PasteActors, false),
+		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::PasteActors),
 		FCanExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CanPasteActors));
 
 	CommandList->MapAction(
@@ -1254,6 +1389,11 @@ void FDisplayClusterLightCardEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::DuplicateSelectedActors),
 		FCanExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CanDuplicateSelectedActors));
 
+	CommandList->MapAction(
+		FGenericCommands::Get().Rename,
+		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::RenameSelectedItem),
+		FCanExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::CanRenameSelectedItem));
+	
 	CommandList->MapAction(
 		FGenericCommands::Get().Delete,
 		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::RemoveSelectedActors, true),
@@ -1542,6 +1682,11 @@ void FDisplayClusterLightCardEditor::CleanupRecentlyPlacedItems()
 
 	Settings->PostEditChange();
 	Settings->SaveConfig();
+}
+
+bool FDisplayClusterLightCardEditor::DoOutlinerFoldersNeedEditorDelegates() const
+{
+	return LightCardOutliner.IsValid() && SelectedActors.Num() == 0;
 }
 
 #undef LOCTEXT_NAMESPACE

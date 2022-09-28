@@ -124,13 +124,13 @@ public:
 	bool CanCutSelectedActors();
 
 	/** Copies any selected actors to the clipboard */
-	void CopySelectedActors();
+	void CopySelectedActors(bool bShouldCut = false);
 
 	/** Determines if there are selected actors that can be copied */
 	bool CanCopySelectedActors() const;
 
 	/** Pastes any actors in the clipboard to the current root actor */
-	void PasteActors(bool bOffsetActorPosition);
+	void PasteActors();
 
 	/** Determines if there are any actors that can be pasted from the clipboard */
 	bool CanPasteActors() const;
@@ -141,6 +141,12 @@ public:
 	/** Determines if there are selected actors that can be duplicated */
 	bool CanDuplicateSelectedActors() const;
 
+	/** Rename the selected item. Requires the outliner */
+	void RenameSelectedItem();
+
+	/** If the selected item can be renamed */
+	bool CanRenameSelectedItem() const;
+	
 	/**
 	 * Remove the light card from the actor
 	 *@param bDeleteLightCardActor Delete the actor from the level
@@ -288,6 +294,14 @@ private:
 
 	/** Make sure no invalid entries are present */
 	void CleanupRecentlyPlacedItems();
+
+	/**
+	 * Checks if it is possible only one or more folders - and no actors - are selected in the outliner
+	 * They require editor delegates fired when executing some generic commands
+	 *
+	 * @return true if the outliner is valid and no actor is selected
+	 */
+	bool DoOutlinerFoldersNeedEditorDelegates() const;
 	
 private:
 	/** The light card outliner widget */

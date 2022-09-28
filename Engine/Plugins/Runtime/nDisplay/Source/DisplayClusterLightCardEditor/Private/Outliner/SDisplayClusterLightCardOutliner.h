@@ -53,6 +53,19 @@ public:
 	/** Restores the last valid cached selection to the outliner */
 	void RestoreCachedSelection();
 
+	// Outliner is responsible for renames on all items, all other edit options are for folders only
+	// Otherwise the light card editor is responsible for actor edits.
+	
+	bool CanDeleteSelectedFolder() const;
+	bool CanCutSelectedFolder() const;
+	bool CanCopySelectedFolder() const;
+	bool CanPasteSelectedFolder() const;
+
+	/** If either a folder or actor should be renamed */
+	bool CanRenameSelectedItem() const;
+	/** Rename the selected folder or actor */
+	void RenameSelectedItem();
+	
 private:
 	/** Creates a world outliner based on the root actor world */
 	void CreateWorldOutliner();
@@ -87,8 +100,8 @@ private:
 	/** All actors currently tracked by the scene outliner */
 	TMap<TObjectPtr<AActor>, TSharedPtr<FStageActorTreeItem>> TrackedActors;
 
-	/** Cached actors currently selected. Used for synchronizing with the outliner mode */
-	TArray<TWeakObjectPtr<AActor>> CachedSelectedActors;
+	/** Cached items currently selected. Used for synchronizing with the outliner mode */
+	TArray<FSceneOutlinerTreeItemPtr> CachedOutlinerItems;
 	
 	/** A flattened list of all the light card actors being displayed in the tree view */
 	TArray<TSharedPtr<FStageActorTreeItem>> StageActorTreeItems;
@@ -110,4 +123,7 @@ private:
 
 	/** Mapped commands for this list */
 	TSharedPtr<FUICommandList> CommandList;
+
+	/** If the outliner is responsible for changing the actor selection */
+	bool bIsOutlinerChangingSelection = false;
 };

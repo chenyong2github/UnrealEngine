@@ -18,6 +18,8 @@ public:
 	FDisplayClusterLightCardOutlinerMode(SSceneOutliner* InSceneOutliner, TWeakPtr<SDisplayClusterLightCardOutliner> InLightCardOutliner,
 		TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
 
+	virtual ~FDisplayClusterLightCardOutlinerMode() override;
+	
 	virtual void SynchronizeSelection() override;
 	virtual bool IsInteractive() const override { return true; }
 	virtual FCreateSceneOutlinerMode CreateFolderPickerMode(const FFolder::FRootObject& InRootObject = FFolder::GetInvalidRootObject()) const override;
@@ -47,6 +49,36 @@ public:
 	virtual FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload) const override;
 	virtual void OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload, const FSceneOutlinerDragValidationInfo& ValidationInfo) const override;
 
+	/** Called by engine when edit cut actors begins */
+	void OnEditCutActorsBegin();
+
+	/** Called by engine when edit cut actors ends */
+	void OnEditCutActorsEnd();
+
+	/** Called by engine when edit copy actors begins */
+	void OnEditCopyActorsBegin();
+
+	/** Called by engine when edit copy actors ends */
+	void OnEditCopyActorsEnd();
+
+	/** Called by engine when edit paste actors begins */
+	void OnEditPasteActorsBegin();
+
+	/** Called by engine when edit paste actors ends */
+	void OnEditPasteActorsEnd();
+
+	/** Called by engine when edit duplicate actors begins */
+	void OnDuplicateActorsBegin();
+
+	/** Called by engine when edit duplicate actors ends */
+	void OnDuplicateActorsEnd();
+
+	/** Called by engine when edit delete actors begins */
+	void OnDeleteActorsBegin();
+
+	/** Called by engine when edit delete actors ends */
+	void OnDeleteActorsEnd();
+	
 private:
 	static void RegisterContextMenu();
 	bool CanPasteFoldersOnlyFromClipboard() const;

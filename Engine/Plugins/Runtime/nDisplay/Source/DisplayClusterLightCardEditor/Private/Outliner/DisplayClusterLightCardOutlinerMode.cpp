@@ -110,6 +110,30 @@ FDisplayClusterLightCardOutlinerMode::FDisplayClusterLightCardOutlinerMode(SScen
 	/* bHideComponents */ true, /* bHideLevelInstanceHierarchy */ true, /* bHideUnloadedActors */ true, /* bHideEmptyFolders */ true)),
 	LightCardOutliner(InLightCardOutliner)
 {
+	FEditorDelegates::OnEditCutActorsBegin.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnEditCutActorsBegin);
+	FEditorDelegates::OnEditCutActorsEnd.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnEditCutActorsEnd);
+	FEditorDelegates::OnEditCopyActorsBegin.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnEditCopyActorsBegin);
+	FEditorDelegates::OnEditCopyActorsEnd.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnEditCopyActorsEnd);
+	FEditorDelegates::OnEditPasteActorsBegin.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnEditPasteActorsBegin);
+	FEditorDelegates::OnEditPasteActorsEnd.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnEditPasteActorsEnd);
+	FEditorDelegates::OnDuplicateActorsBegin.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnDuplicateActorsBegin);
+	FEditorDelegates::OnDuplicateActorsEnd.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnDuplicateActorsEnd);
+	FEditorDelegates::OnDeleteActorsBegin.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnDeleteActorsBegin);
+	FEditorDelegates::OnDeleteActorsEnd.AddRaw(this, &FDisplayClusterLightCardOutlinerMode::OnDeleteActorsEnd);
+}
+
+FDisplayClusterLightCardOutlinerMode::~FDisplayClusterLightCardOutlinerMode()
+{
+	FEditorDelegates::OnEditCutActorsBegin.RemoveAll(this);
+	FEditorDelegates::OnEditCutActorsEnd.RemoveAll(this);
+	FEditorDelegates::OnEditCopyActorsBegin.RemoveAll(this);
+	FEditorDelegates::OnEditCopyActorsEnd.RemoveAll(this);
+	FEditorDelegates::OnEditPasteActorsBegin.RemoveAll(this);
+	FEditorDelegates::OnEditPasteActorsEnd.RemoveAll(this);
+	FEditorDelegates::OnDuplicateActorsBegin.RemoveAll(this);
+	FEditorDelegates::OnDuplicateActorsEnd.RemoveAll(this);
+	FEditorDelegates::OnDeleteActorsBegin.RemoveAll(this);
+	FEditorDelegates::OnDeleteActorsEnd.RemoveAll(this);
 }
 
 void FDisplayClusterLightCardOutlinerMode::SynchronizeSelection()
@@ -300,8 +324,11 @@ FReply FDisplayClusterLightCardOutlinerMode::OnKeyDown(const FKeyEvent& InKeyEve
 
 bool FDisplayClusterLightCardOutlinerMode::CanDelete() const
 {
-	// Handled by command in light card editor or in OnKeyDown for folders
-	return false;
+	// Also handled in OnKeyDown for folders
+	
+	const FSceneOutlinerItemSelection ItemSelection = SceneOutliner->GetSelection();
+	const uint32 NumberOfFolders = ItemSelection.Num<FFolderTreeItem>();
+	return (NumberOfFolders > 0 && NumberOfFolders == ItemSelection.Num());
 }
 
 bool FDisplayClusterLightCardOutlinerMode::CanRename() const
@@ -313,26 +340,26 @@ bool FDisplayClusterLightCardOutlinerMode::CanRename() const
 
 bool FDisplayClusterLightCardOutlinerMode::CanRenameItem(const ISceneOutlinerTreeItem& Item) const
 {
-	// Can only rename actor and folder items when in actor browsing mode
 	return (Item.IsValid() && (Item.IsA<FActorTreeItem>() || Item.IsA<FFolderTreeItem>()));
 }
 
 bool FDisplayClusterLightCardOutlinerMode::CanCut() const
 {
-	// Handled by command in light card editor
-	return false;
+	const FSceneOutlinerItemSelection ItemSelection = SceneOutliner->GetSelection();
+	const uint32 NumberOfFolders = ItemSelection.Num<FFolderTreeItem>();
+	return (NumberOfFolders > 0 && NumberOfFolders == ItemSelection.Num());
 }
 
 bool FDisplayClusterLightCardOutlinerMode::CanCopy() const
 {
-	// Handled by command in light card editor
-	return false;
+	const FSceneOutlinerItemSelection ItemSelection = SceneOutliner->GetSelection();
+	const uint32 NumberOfFolders = ItemSelection.Num<FFolderTreeItem>();
+	return (NumberOfFolders > 0 && NumberOfFolders == ItemSelection.Num());
 }
 
 bool FDisplayClusterLightCardOutlinerMode::CanPaste() const
 {
-	// Handled by command in light card editor
-	return false;
+	return CanPasteFoldersOnlyFromClipboard();
 }
 
 FFolder FDisplayClusterLightCardOutlinerMode::CreateNewFolder()
@@ -1003,6 +1030,62 @@ void FDisplayClusterLightCardOutlinerMode::OnDrop(ISceneOutlinerTreeItem& DropTa
 			}
 		}
 	}
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnEditCutActorsBegin()
+{
+	SceneOutliner->CopyFoldersBegin();
+	SceneOutliner->DeleteFoldersBegin();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnEditCutActorsEnd()
+{
+	SceneOutliner->CopyFoldersEnd();
+	SceneOutliner->DeleteFoldersEnd();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnEditCopyActorsBegin()
+{
+	SceneOutliner->CopyFoldersBegin();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnEditCopyActorsEnd()
+{
+	SceneOutliner->CopyFoldersEnd();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnEditPasteActorsBegin()
+{
+	const TArray<FName> FolderPaths = SceneOutliner->GetClipboardPasteFolders();
+	SceneOutliner->PasteFoldersBegin(FolderPaths);
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnEditPasteActorsEnd()
+{
+	SceneOutliner->PasteFoldersEnd();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnDuplicateActorsBegin()
+{
+	FFolder::FRootObject CommonRootObject;
+	TArray<FName> SelectedFolderPaths;
+	FFolder::GetFolderPathsAndCommonRootObject(SceneOutliner->GetSelection().GetData<FFolder>(FFolderPathSelector()), SelectedFolderPaths, CommonRootObject);
+	SceneOutliner->PasteFoldersBegin(SelectedFolderPaths);
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnDuplicateActorsEnd()
+{
+	SceneOutliner->PasteFoldersEnd();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnDeleteActorsBegin()
+{
+	SceneOutliner->DeleteFoldersBegin();
+}
+
+void FDisplayClusterLightCardOutlinerMode::OnDeleteActorsEnd()
+{
+	SceneOutliner->DeleteFoldersEnd();
 }
 
 void FDisplayClusterLightCardOutlinerMode::RegisterContextMenu()
