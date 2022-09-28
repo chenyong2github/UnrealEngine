@@ -124,6 +124,10 @@ UAnimInstance::UAnimInstance(const FObjectInitializer& ObjectInitializer)
 	bPropagateNotifiesToLinkedInstances = false;
 	bUseMainInstanceMontageEvaluationData = false;
 
+#if DO_CHECK
+	bInitializing = false;
+#endif
+
 #if WITH_EDITOR
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -251,9 +255,16 @@ void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 
 	GetProxyOnGameThread<FAnimInstanceProxy>().Initialize(this);
 
-	NativeInitializeAnimation();
-	BlueprintInitializeAnimation();
-
+#if DO_CHECK
+	{
+		// Allow us to validate callbacks within user code
+		FGuardValue_Bitfield(bInitializing, true);
+		
+		NativeInitializeAnimation();
+		BlueprintInitializeAnimation();
+	}
+#endif
+	
 	GetProxyOnGameThread<FAnimInstanceProxy>().InitializeRootNode(bInDeferRootNodeInitialization);
 
 	// we can bind rules & events now the graph has been initialized
@@ -2883,6 +2894,13 @@ void UAnimInstance::LinkAnimGraphByTag(FName InTag, TSubclassOf<UAnimInstance> I
 
 void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass* InClass, FAnimNode_LinkedAnimLayer*)> InClassSelectorFunction, bool bInDeferSubGraphInitialization)
 {
+#if DO_CHECK
+	if(bInitializing)
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Performing linked layer operations in initialization may produce unexpected results, please use the BlueprintLinkedAnimationLayersInitialized event to perform linked layer operations."));
+	}
+#endif
+	
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
 		UClass* NewClass = InClass.Get();

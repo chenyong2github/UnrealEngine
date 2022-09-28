@@ -438,6 +438,9 @@ private:
 	uint8 bQueueMontageEvents : 1;
 
 #if DO_CHECK
+	/** Guard flag used for checking whether we are in user callbacks for initialization */
+	uint8 bInitializing : 1;
+
 	/** Used to guard against recursive calls to UpdateAnimation */
 	bool bPostUpdatingAnimation;
 
