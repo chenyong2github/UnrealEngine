@@ -28,7 +28,7 @@
 
 FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorController& InController)
 {
-	check(IKRig);
+	check(InIKRig);
 	IKRig = InIKRig;
 	UIKRigController* IKRigController = UIKRigController::GetIKRigController(InIKRig);
 	ReInitIKDelegateHandle = IKRigController->OnIKRigNeedsInitialized().AddSP(&InController, &FIKRetargetEditorController::HandleIKRigNeedsInitialized);
