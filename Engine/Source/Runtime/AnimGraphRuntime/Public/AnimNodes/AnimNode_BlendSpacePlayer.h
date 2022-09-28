@@ -52,6 +52,9 @@ public:
 	// @return the current sample coordinates after going through the filtering
 	FVector GetFilteredPosition() const { return BlendFilter.GetFilterLastOutput(); }
 
+	// Forces the Position to the specified value
+	void SnapToPosition(const FVector& NewPosition);
+
 public:
 
 	// Get the blendspace asset to play

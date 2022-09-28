@@ -148,6 +148,9 @@ public:
 	// Wraps the internal state by steps of Range so that it is as close as possible to Input
 	void WrapToValue(float Input, float Range);
 
+	// Sets internal state to the specified value
+	void SetToValue(float Input);
+
 	// Filter is considered valid if the WindowDuration is > 0
 	bool IsValid() const { return WindowDuration > 0.f; }
 

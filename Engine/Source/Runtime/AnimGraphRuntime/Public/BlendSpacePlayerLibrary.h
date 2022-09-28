@@ -83,6 +83,10 @@ public:
 	/** Get the current value of whether the current play time should reset when BlendSpace changes of the blend space player. */
 	UFUNCTION(BlueprintPure, Category = "Blend Space Player", meta = (BlueprintThreadSafe))
 	static bool ShouldResetPlayTimeWhenBlendSpaceChanges(const FBlendSpacePlayerReference& BlendSpacePlayer); 
+
+	/** Forces the Position to the specified value */
+	UFUNCTION(BlueprintCallable, Category = "Blend Space Player", meta = (BlueprintThreadSafe))
+	static void SnapToPosition(const FBlendSpacePlayerReference& BlendSpacePlayer, FVector NewPosition);
 };
 
 

@@ -178,6 +178,15 @@ void FFIRFilterTimeBased::WrapToValue(float Input, float Range)
 	}
 }
 
+void FFIRFilterTimeBased::SetToValue(float Value)
+{
+	LastOutput = Value;
+
+	if (FilterData.Num() > 0)
+	{
+		FilterData[0].Input = Value;
+	}
+}
 
 float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime)
 {

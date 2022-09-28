@@ -184,3 +184,15 @@ bool UBlendSpacePlayerLibrary::ShouldResetPlayTimeWhenBlendSpaceChanges(
 		});
 	return bResetPlayTimeWhenBlendSpaceChanges;
 }
+
+void UBlendSpacePlayerLibrary::SnapToPosition(
+	const FBlendSpacePlayerReference& BlendSpacePlayer,
+	FVector NewPosition)
+{
+	BlendSpacePlayer.CallAnimNodeFunction<FAnimNode_BlendSpacePlayer>(
+		TEXT("SnapToPosition"),
+		[&NewPosition](FAnimNode_BlendSpacePlayer& InBlendSpacePlayer)
+		{
+			InBlendSpacePlayer.SnapToPosition(NewPosition);
+		});
+}

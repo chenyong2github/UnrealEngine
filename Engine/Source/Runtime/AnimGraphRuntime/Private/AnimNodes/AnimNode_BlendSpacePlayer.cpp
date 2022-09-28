@@ -157,6 +157,15 @@ float FAnimNode_BlendSpacePlayerBase::GetTimeFromEnd(float CurrentTime) const
 	return GetBlendSpace() != nullptr ? PlayLength - CurrentTime : 0.0f;
 }
 
+void FAnimNode_BlendSpacePlayerBase::SnapToPosition(const FVector& NewPosition)
+{
+	const int32 NumAxis = FMath::Min(BlendFilter.FilterPerAxis.Num(), 3);
+	for (int32 Idx = 0; Idx < NumAxis; Idx++)
+	{
+		BlendFilter.FilterPerAxis[Idx].SetToValue(NewPosition[Idx]);
+	}
+}
+
 UAnimationAsset* FAnimNode_BlendSpacePlayerBase::GetAnimAsset() const
 {
 	return GetBlendSpace();

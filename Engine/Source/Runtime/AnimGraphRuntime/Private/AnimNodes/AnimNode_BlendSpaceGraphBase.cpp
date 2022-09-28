@@ -115,3 +115,12 @@ void FAnimNode_BlendSpaceGraphBase::SetPreviewPosition(FVector InVector)
 	PreviewPosition = InVector;
 }
 #endif
+
+void FAnimNode_BlendSpaceGraphBase::SnapToPosition(const FVector& NewPosition)
+{
+	const int32 NumAxis = FMath::Min(BlendFilter.FilterPerAxis.Num(), 3);
+	for (int32 Idx = 0; Idx < NumAxis; Idx++)
+	{
+		BlendFilter.FilterPerAxis[Idx].SetToValue(NewPosition[Idx]);
+	}
+}

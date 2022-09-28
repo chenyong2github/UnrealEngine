@@ -32,6 +32,9 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraphBase : public FAnimNode_Bas
 	void SetPreviewPosition(FVector InVector);
 #endif
 
+	// Forces the Position to the specified value
+	void SnapToPosition(const FVector& NewPosition);
+
 protected:
 	// The X coordinate to sample in the blendspace
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Coordinates, meta = (PinShownByDefault, AllowPrivateAccess))
