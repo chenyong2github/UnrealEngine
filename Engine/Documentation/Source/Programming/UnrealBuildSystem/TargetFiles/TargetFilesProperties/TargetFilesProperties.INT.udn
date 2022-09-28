@@ -264,6 +264,10 @@ $ bAllowLTCG (Boolean): Whether to allow the use of link time code generation (L
 
 $ bPreferThinLTO (Boolean): When Link Time Code Generation (LTCG) is enabled, whether to prefer using the lighter weight version on supported platforms.
 
+$ ThinLTOCacheDirectory (String): Directory where to put the ThinLTO cache on supported platforms.
+
+$ ThinLTOCachePruningArguments (String): Arguments that will be applied to prune the ThinLTO cache on supported platforms. Arguments will only be applied if ThinLTOCacheDirectory is set.
+
 $ bPGOProfile (Boolean): Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
 
 $ bPGOOptimize (Boolean): Whether to optimize this build with Profile Guided Optimization (PGO).
