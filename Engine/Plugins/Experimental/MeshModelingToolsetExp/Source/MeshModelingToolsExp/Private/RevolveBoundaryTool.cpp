@@ -13,6 +13,7 @@
 #include "GroupTopology.h"
 #include "ToolBuilderUtil.h"
 #include "Selection/ToolSelectionUtil.h"
+#include "ModelingToolTargetUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
 
@@ -101,6 +102,16 @@ void URevolveBoundaryTool::Setup()
 	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
 	AddToolPropertySource(MaterialProperties);
 	MaterialProperties->RestoreProperties(this);
+
+
+	FTransform LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	// Assume an axis that is > 1000 meters away is typically not desired, and can be snapped closer
+	// This works around bad behavior if the tool is started at LWC
+	constexpr double AxisVeryFarThreshold = 100 * 1000;
+	if (FVector::DistSquared(Settings->AxisOrigin, LocalToWorld.GetTranslation()) > AxisVeryFarThreshold * AxisVeryFarThreshold)
+	{
+		Settings->AxisOrigin = LocalToWorld.GetTranslation();
+	}
 
 	UpdateRevolutionAxis();
 
