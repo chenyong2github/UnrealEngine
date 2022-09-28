@@ -63,6 +63,7 @@
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
+#include "Containers/VersePath.h"
 
 DEFINE_LOG_CATEGORY(LogObj);
 
@@ -1962,7 +1963,6 @@ static void GetAssetRegistryTagsFromSearchableProperties(const UObject* Object, 
 const FName FPrimaryAssetId::PrimaryAssetTypeTag(TEXT("PrimaryAssetType"));
 const FName FPrimaryAssetId::PrimaryAssetNameTag(TEXT("PrimaryAssetName"));
 
-
 void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	using namespace UE::Object::Private;
@@ -1974,6 +1974,13 @@ void UObject::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		OutTags.Add(FAssetRegistryTag(FPrimaryAssetId::PrimaryAssetTypeTag, PrimaryAssetId.PrimaryAssetType.ToString(), UObject::FAssetRegistryTag::TT_Alphabetical));
 		OutTags.Add(FAssetRegistryTag(FPrimaryAssetId::PrimaryAssetNameTag, PrimaryAssetId.PrimaryAssetName.ToString(), UObject::FAssetRegistryTag::TT_Alphabetical));
 	}
+
+#if UE_USE_VERSE_PATHS
+	if (UE::Core::FVersePath VersePath = this->GetVersePath())
+	{
+		OutTags.Emplace(UObject::AssetVersePathTagName(), MoveTemp(VersePath).ToString(), UObject::FAssetRegistryTag::TT_Alphabetical);
+	}
+#endif
 
 	GetAssetRegistryTagsFromSearchableProperties(this, OutTags);
 
@@ -2056,6 +2063,14 @@ const FName& UObject::SourceFileTagName()
 	static const FName SourceFilePathName("AssetImportData");
 	return SourceFilePathName;
 }
+
+#if UE_USE_VERSE_PATHS
+const FName& UObject::AssetVersePathTagName()
+{
+	static const FName AssetVersePathTag = TEXT("AssetVersePath");
+	return AssetVersePathTag;
+}
+#endif
 
 #if WITH_EDITOR
 

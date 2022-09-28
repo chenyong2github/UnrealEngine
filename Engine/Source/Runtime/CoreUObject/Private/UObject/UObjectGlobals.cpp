@@ -67,6 +67,12 @@
 #include "UObject/AnyPackagePrivate.h"
 #include "UObject/UObjectGlobalsInternal.h"
 #include "Serialization/AsyncPackageLoader.h"
+#include "Containers/VersePath.h"
+
+#if UE_USE_VERSE_PATHS
+#include "Interfaces/IPluginManager.h"
+#endif
+
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -498,6 +504,34 @@ UObject* StaticFindObjectSafe(UClass* Class, FTopLevelAssetPath ObjectPath, bool
 		return nullptr;
 	}
 }
+
+#if UE_USE_VERSE_PATHS
+FORCENOINLINE UObject* StaticFindObject(UClass* Class, const UE::Core::FVersePath& VersePath)
+{
+	IPluginManager& PluginManager = IPluginManager::Get();
+
+	FName   PackageName;
+	FString LeafPath;
+	if (!PluginManager.TrySplitVersePath(VersePath, PackageName, LeafPath))
+	{
+		return nullptr;
+	}
+
+	// Make sure there's a trailing leafname - assume that's the root level object
+	int32 LastSlashIndex;
+	if (!LeafPath.FindLastChar(TEXT('/'), LastSlashIndex))
+	{
+		return nullptr;
+	}
+
+	LeafPath[LastSlashIndex] = TEXT('.');
+
+	FString ObjectPath = FString::Printf(TEXT("/%s%s"), *PackageName.ToString(), *LeafPath);
+
+	UObject* Result = StaticFindObject(Class, nullptr, *ObjectPath);
+	return Result;
+}
+#endif
 
 //
 // Find an object; can't fail.

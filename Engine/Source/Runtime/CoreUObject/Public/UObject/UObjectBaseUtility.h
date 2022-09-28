@@ -8,6 +8,7 @@
 
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
+#include "Containers/VersePathFwd.h"
 #include "CoreMinimal.h"
 #include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
@@ -592,6 +593,15 @@ public:
 	 * @return the package the object is in.
 	 */
 	UPackage* GetPackage() const;
+
+#if UE_USE_VERSE_PATHS
+	/**
+	 * Gets the versepath of the UObject.
+	 *
+	 * @return The VersePath of the object
+	 */
+	UE::Core::FVersePath GetVersePath() const;
+#endif
 
 	/** 
 	 * Legacy function, has the same behavior as GetPackage

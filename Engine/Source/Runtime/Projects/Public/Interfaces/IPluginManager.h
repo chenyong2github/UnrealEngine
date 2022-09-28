@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PluginDescriptor.h"
+#include "Containers/VersePathFwd.h"
 
 struct FProjectDescriptor;
 class FJsonObject;
@@ -413,6 +414,13 @@ public:
 	* Does a reverse lookup to try to figure out what the UObject package name is for a plugin
 	*/
 	virtual FName PackageNameFromModuleName(FName ModuleName) = 0;
+
+#if UE_USE_VERSE_PATHS
+	/**
+	* Does a reverse lookup to try to figure out what the package name is from a VersePath
+	*/
+	virtual bool TrySplitVersePath(const UE::Core::FVersePath& VersePath, FName& OutPackageName, FString& OutLeafPath) = 0;
+#endif // #if UE_USE_VERSE_PATHS
 
 	/**
 	 * Determines if a content-only project requires a temporary target due to having a plugin enabled

@@ -15,6 +15,12 @@
 #include "ProfilingDebugging/MallocProfiler.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Containers/VersePath.h"
+
+#if UE_USE_VERSE_PATHS
+#include "Misc/PathViews.h"
+#include "Interfaces/IPluginManager.h"
+#endif
 
 /***********************/
 /******** Names ********/
@@ -200,6 +206,85 @@ UPackage* UObjectBaseUtility::GetPackage() const
 		Top = Top->GetOuter();
 	}
 }
+
+#if UE_USE_VERSE_PATHS
+
+UE::Core::FVersePath UObjectBaseUtility::GetVersePath() const
+{
+	UObject* ThisOuter = GetOuter();
+	const UObjectBaseUtility* Outermost = nullptr;
+	const UObjectBaseUtility* Src       = nullptr;
+	if (!ThisOuter)
+	{
+		Outermost = this;
+		Src       = this;
+	}
+	else
+	{
+		UObject* OuterOuter = ThisOuter->GetOuter();
+		if (!OuterOuter)
+		{
+			Outermost = ThisOuter;
+			Src       = this;
+		}
+	}
+
+	// We only handle vpaths at the level of the package and top level objects right now
+	if (!Outermost)
+	{
+		return {};
+	}
+
+	FString PackageName = Outermost->GetPathName();
+	const FStringView MountPointName = FPathViews::GetMountPointNameFromPath(PackageName);
+	check(PackageName.StartsWith(TEXT("/") + FString(MountPointName)));
+
+	IPluginManager& PluginManager = IPluginManager::Get();
+
+	// If the object isn't mounted under a plugin, it doesn't have a vpath
+	TSharedPtr<IPlugin> Plugin = PluginManager.FindPlugin(MountPointName);
+	if (!Plugin)
+	{
+		return {};
+	}
+
+	// If the plugin doesn't have a root vpath, it's not a UEFN plugin
+	FString PluginVersePath = Plugin->GetVersePath();
+	if (PluginVersePath.IsEmpty())
+	{
+		return {};
+	}
+
+	FString VerseModule = FPaths::Combine(PluginVersePath, PackageName.RightChop(MountPointName.Len() + 1));
+
+	// If this is not the package, append the name of the object
+	if (this != Outermost)
+	{
+		VerseModule = FPaths::Combine(MoveTemp(VerseModule), Src->GetName());
+	}
+
+	// Hack to reject names containing "$" - currently used for non-user facing vobject names in Verse, e.g. $SolarisSignatureFunctionOuter
+	if (VerseModule.Contains("$"))
+	{
+		return {};
+	}
+
+	UE::Core::FVersePath Result;
+	if (!ensureAlwaysMsgf(UE::Core::FVersePath::TryMake(Result, /*want to move this, but then it won't be available for the ensure message - MoveTemp*/(VerseModule)), TEXT("Unable to make FVersePath from string: %s"), *VerseModule))
+	{
+		return {};
+	}
+
+	if (VerseModule.StartsWith(TEXT("/localhost/")) && !UE::IsSavingPackage(nullptr) && !IsGarbageCollectingAndLockingUObjectHashTables())
+	{
+		UObject* Found = StaticFindObject(this->GetClass(), Result);
+		check(this == Found);
+	}
+
+	return Result;
+}
+
+#endif
 
 /**
  * Legacy function, has the same behavior as GetPackage

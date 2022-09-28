@@ -25,6 +25,7 @@
 #include "Async/ParallelFor.h"
 #include "Misc/ScopeRWLock.h"
 #include "Algo/Accumulate.h"
+#include "Containers/VersePath.h"
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 #include "TargetReceipt.h"
 #endif
@@ -433,7 +434,7 @@ void FPluginManager::RefreshPluginsList()
 	for (FDiscoveredPluginMap::TIterator Iter(AllPlugins); Iter; ++Iter)
 	{
 		const TSharedRef<FPlugin>& Plugin = DiscoveredPluginMapUtils::ResolvePluginFromMapVal(Iter.Value());
-		if (Plugin->bEnabled)
+		if(Plugin->bEnabled)
 		{
 			// Forget all the other discovered versions (which we assume aren't enabled)
 			DiscoveredPluginMapUtils::DiscardAllSupressedVersions(Iter.Value());
@@ -459,7 +460,7 @@ void FPluginManager::RefreshPluginsList()
 		{
 			const uint32 PluginNameHash = GetTypeHash(Plugin->GetName());
 			PluginsToConfigure.AddByHash(PluginNameHash, Plugin->GetName());
-		}
+	}
 
 #if WITH_EDITOR
 		AddToModuleNameToPluginMap(Plugin);
@@ -493,9 +494,9 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 			FString NormalizedPluginPath = Plugin->FileName;
 			FPaths::NormalizeFilename(NormalizedPluginPath);
 			if (NormalizedPluginPath.Equals(NormalizedFilename))
-			{
-				return true;
-			}
+	{
+		return true;
+	}
 		}
 	}
 
@@ -549,7 +550,7 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 #if WITH_EDITOR
 			if (Priority == DiscoveredPluginMapUtils::EInsertionType::AsOfferedPlugin)
 			{
-				AddToModuleNameToPluginMap(*NewPlugin);
+			AddToModuleNameToPluginMap(*NewPlugin);
 			}
 #endif //if WITH_EDITOR
 		}
@@ -607,7 +608,7 @@ bool FPluginManager::RemoveFromPluginsList(const FString& PluginFilename, FText*
 	// Is this the plugin that would have been mapped?
 	if (DiscoveredPluginMapUtils::IsOfferedPlugin(AllPlugins, *MaybePlugin))
 	{
-		RemoveFromModuleNameToPluginMap(FoundPlugin);
+	RemoveFromModuleNameToPluginMap(FoundPlugin);
 	}
 #endif //if WITH_EDITOR
 
@@ -1339,9 +1340,9 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					// Copy the plugin references, since we may modify the project if any plugins are missing
 					TArray<FPluginReferenceDescriptor> PluginReferences(ProjectDescriptor->Plugins);
 					if (!ProcessPluginConfigurations(PluginReferences))
-					{
-						return false;
-					}
+							{
+								return false;
+							}
 				}
 			}
 
@@ -2492,8 +2493,8 @@ bool FPluginManager::TryMountExplicitlyLoadedPluginVersion(TSharedRef<FPlugin>* 
 
 				bSuccess = true;
 			}
-		}
 	}
+}
 
 	return bSuccess;
 }
@@ -2631,6 +2632,34 @@ FName FPluginManager::PackageNameFromModuleName(FName ModuleName)
 	}
 	return Result;
 }
+
+#if UE_USE_VERSE_PATHS
+bool FPluginManager::TrySplitVersePath(const UE::Core::FVersePath& VersePath, FName& OutPackageName, FString& OutLeafPath)
+{
+	// Can't do anything with an empty vpath
+	if (!VersePath.IsValid())
+	{
+		return false;
+	}
+
+	FStringView VersePathView = VersePath.AsStringView();
+
+	for (const TPair<FString, TSharedRef<FPlugin>>& NamePluginPair : AllPlugins)
+	{
+		const FPluginDescriptor& PluginDescriptor = NamePluginPair.Value->Descriptor;
+		if (!PluginDescriptor.VersePath.IsEmpty() && VersePathView.StartsWith(PluginDescriptor.VersePath + TEXT('/')))
+		{
+			VersePathView.RightChopInline(PluginDescriptor.VersePath.Len());
+
+			OutPackageName = *NamePluginPair.Value->Name;
+			OutLeafPath = VersePathView;
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif // #if UE_USE_VERSE_PATHS
 
 #if WITH_EDITOR
 void FPluginManager::AddToModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin)

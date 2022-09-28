@@ -13,6 +13,7 @@
 #include "UObject/ObjectCompileContext.h"
 #include "ProfilingDebugging/ResourceSize.h"
 #include "UObject/PrimaryAssetId.h"
+#include "Containers/VersePathFwd.h"
 
 struct FAssetData;
 class FConfigCacheIni;
@@ -859,6 +860,11 @@ public:
 
 	/** Get the common tag name used for all asset source file import paths */
 	static const FName& SourceFileTagName();
+
+#if UE_USE_VERSE_PATHS
+	/** Get the common tag name used for all asset verse paths */
+	static const FName& AssetVersePathTagName();
+#endif
 
 #if WITH_EDITOR
 
