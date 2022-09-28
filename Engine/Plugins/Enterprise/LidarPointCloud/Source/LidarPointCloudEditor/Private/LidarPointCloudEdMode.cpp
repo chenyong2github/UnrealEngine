@@ -6,6 +6,7 @@
 #include "EditorModeManager.h"
 #include "InteractiveToolManager.h"
 #include "LevelEditorViewport.h"
+#include "LidarPointCloud.h"
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudEditorCommands.h"
 #include "LidarPointCloudEditorTools.h"
@@ -52,7 +53,7 @@ void ULidarEditorMode::Enter()
 
 bool ULidarEditorMode::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
 {
-	return InActor && InActor->IsA(ALidarPointCloudActor::StaticClass());
+	return InActor && (InActor->IsA(ALidarPointCloudActor::StaticClass()) || InActor->IsA(ALidarClippingVolume::StaticClass()));
 }
 
 void ULidarEditorMode::CreateToolkit()
