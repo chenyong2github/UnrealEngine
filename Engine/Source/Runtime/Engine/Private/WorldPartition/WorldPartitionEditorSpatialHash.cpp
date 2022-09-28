@@ -115,14 +115,15 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 {
 	check(InActorHandle.IsValid());
 
-	const FBox ActorBounds = InActorHandle->GetIsSpatiallyLoaded() ? InActorHandle->GetBounds() : FBox(ForceInit);
+	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded() && GetOuterUWorldPartition()->IsLoadingInEditorEnabled();
+	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
 
 #if DO_CHECK
 	check(!HashedActors.Contains(InActorHandle->GetGuid()));
 	HashedActors.Add(InActorHandle->GetGuid(), ActorBounds);
 #endif
 
-	if (!InActorHandle->GetIsSpatiallyLoaded())
+	if (!bConsiderActorSpatiallyLoaded)
 	{
 		AlwaysLoadedCell->Actors.Add(InActorHandle);
 	}
@@ -225,14 +226,15 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 {
 	check(InActorHandle.IsValid());
 
-	const FBox ActorBounds = InActorHandle->GetIsSpatiallyLoaded() ? InActorHandle->GetBounds() : FBox(ForceInit);
+	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded() && GetOuterUWorldPartition()->IsLoadingInEditorEnabled();
+	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
 
 #if DO_CHECK
-	FBox OldActorBounds = HashedActors.FindAndRemoveChecked(InActorHandle->GetGuid());
+	const FBox OldActorBounds = HashedActors.FindAndRemoveChecked(InActorHandle->GetGuid());
 	check(ActorBounds == OldActorBounds);
 #endif
 
-	if (!InActorHandle->GetIsSpatiallyLoaded())
+	if (!bConsiderActorSpatiallyLoaded)
 	{
 		AlwaysLoadedCell->Actors.Remove(InActorHandle);
 	}

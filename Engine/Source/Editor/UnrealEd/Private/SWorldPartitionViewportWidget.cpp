@@ -74,7 +74,7 @@ EVisibility SWorldPartitionViewportWidget::GetVisibility(UWorld* InWorld)
 		UWorldPartition* WorldPartition = InWorld->GetWorldPartition();
 		if (WorldPartition->IsStreamingEnabled())
 		{
-			if (!WorldPartition->HasLoadedUserCreatedRegions())
+			if (!WorldPartition->HasLoadedUserCreatedRegions() && WorldPartition->IsLoadingInEditorEnabled())
 			{
 				Message = LOCTEXT("NoRegionsLoadedText","No Regions Loaded");
 				Tooltip = LOCTEXT("NoRegionsLoadedToolTip", "To load a region, drag select an area in the World Partition map and choose 'Load Region From Selection' from the context menu.");

@@ -596,6 +596,7 @@ namespace LevelInstanceMenuUtils
 		FWorldPartitionConverter::FParameters Parameters;
 		Parameters.bConvertSubLevels = false;
 		Parameters.bEnableStreaming = false;
+		Parameters.bCanBeUsedByLevelInstance = true;
 		Parameters.bUseActorFolders = true;
 
 		if (FWorldPartitionConverter::Convert(WorldAsset, Parameters))

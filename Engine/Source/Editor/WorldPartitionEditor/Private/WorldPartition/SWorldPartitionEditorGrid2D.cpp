@@ -714,19 +714,26 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 
 			const FEditorCommands& Commands = FEditorCommands::Get();
 
-			MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionSelection", "Selection"));
-				MenuBuilder.AddMenuEntry(Commands.CreateRegionFromSelection);
-				MenuBuilder.AddMenuSeparator();
-				MenuBuilder.AddMenuEntry(Commands.LoadSelectedRegions);
-				MenuBuilder.AddMenuEntry(Commands.UnloadSelectedRegions);
-				MenuBuilder.AddMenuSeparator();
-				MenuBuilder.AddMenuEntry(Commands.ConvertSelectedRegionsToActors);
-			MenuBuilder.EndSection();
+			if (WorldPartition->IsLoadingInEditorEnabled())
+			{
+				MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionSelection", "Selection"));
+					MenuBuilder.AddMenuEntry(Commands.CreateRegionFromSelection);
+					MenuBuilder.AddMenuSeparator();
+					MenuBuilder.AddMenuEntry(Commands.LoadSelectedRegions);
+					MenuBuilder.AddMenuEntry(Commands.UnloadSelectedRegions);
+					MenuBuilder.AddMenuSeparator();
+					MenuBuilder.AddMenuEntry(Commands.ConvertSelectedRegionsToActors);
+				MenuBuilder.EndSection();
+			}
 
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionMisc", "Misc"));
 				MenuBuilder.AddMenuEntry(Commands.MoveCameraHere);
 				MenuBuilder.AddMenuEntry(Commands.PlayFromHere);
-				MenuBuilder.AddMenuEntry(Commands.LoadFromHere);
+				
+				if (WorldPartition->IsLoadingInEditorEnabled())
+				{
+					MenuBuilder.AddMenuEntry(Commands.LoadFromHere);
+				}
 			MenuBuilder.EndSection();			
 
 			FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
@@ -803,7 +810,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonDoubleClick(const FGeometry& In
 		{
 			MoveCameraHere();
 
-			if (InMouseEvent.IsControlDown())
+			if (InMouseEvent.IsControlDown() && WorldPartition->IsLoadingInEditorEnabled())
 			{
 				LoadFromHere();
 			}

@@ -50,17 +50,25 @@ bool FWorldPartitionConverter::Convert()
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	if (!WorldPartition)
 	{
+		if (Parameters.bCanBeUsedByLevelInstance && Parameters.bEnableStreaming)
+		{
+			return false;
+		}
+
 		World->PersistentLevel->ConvertAllActorsToPackaging(true);
 		World->PersistentLevel->bUseExternalActors = true;
+		
 		WorldPartition = UWorldPartition::CreateOrRepairWorldPartition(WorldSettings, Parameters.EditorHashClass, Parameters.RuntimeHashClass);
 		if (!WorldPartition)
 		{
 			return false;
 		}
+
 		FLevelActorFoldersHelper::SetUseActorFolders(World->PersistentLevel, Parameters.bUseActorFolders);
 		WorldPartition->bEnableStreaming = Parameters.bEnableStreaming;
 		WorldPartition->bStreamingWasEnabled = Parameters.bEnableStreaming;
-		WorldPartition->SetCanBeUsedByLevelInstance(!Parameters.bEnableStreaming);
+		WorldPartition->bEnableLoadingInEditor = Parameters.bEnableStreaming;
+		WorldPartition->SetCanBeUsedByLevelInstance(Parameters.bCanBeUsedByLevelInstance);
 		bCreatedWorldPartition = true;
 	}
 
