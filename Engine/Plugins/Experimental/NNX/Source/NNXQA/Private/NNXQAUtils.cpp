@@ -68,12 +68,11 @@ namespace Test
 		check(TensorsDesc.Num() == OutBindings.Num());
 	}
 
-
-	FString ShapeToString(TArrayView<const uint32> Shape)
+	template<typename T> FString ShapeToString(TArrayView<const T> Shape)
 	{
 		FString TestSuffix(TEXT("["));
 		bool bIsFirstDim = true;
-		for (uint32 size : Shape)
+		for (T size : Shape)
 		{
 			if (!bIsFirstDim) TestSuffix += TEXT(",");
 			TestSuffix += FString::Printf(TEXT("%d"), size);
@@ -82,20 +81,8 @@ namespace Test
 		TestSuffix += TEXT("]");
 		return TestSuffix;
 	}
-
-	FString ShapeToString(TArrayView<const int32> Shape)
-	{
-		FString TestSuffix(TEXT("["));
-		bool bIsFirstDim = true;
-		for (uint32 size : Shape)
-		{
-			if (!bIsFirstDim) TestSuffix += TEXT(",");
-			TestSuffix += FString::Printf(TEXT("%d"), size);
-			bIsFirstDim = false;
-		}
-		TestSuffix += TEXT("]");
-		return TestSuffix;
-	}
+	template FString ShapeToString<int32>(TArrayView<const int32> Shape);
+	template FString ShapeToString<uint32>(TArrayView<const uint32> Shape);
 
 	FString FMLTensorDescToString(const FMLTensorDesc& desc)
 	{
@@ -376,15 +363,15 @@ namespace Test
 		return ReturnValue;
 	}
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FString& Name, TArrayView<uint8> ONNXModelData, const FTests::FTestSetup* AutomationTestSetup, const FString& RuntimeFilter)
+	bool CompareONNXModelInferenceAcrossRuntimes(TArrayView<uint8> ONNXModelData, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
-		if (AutomationTestSetup != nullptr && AutomationTestSetup->AutomationExcludedPlatform.Contains(CurrentPlatform))
+		if (TestSetup.AutomationExcludedPlatform.Contains(CurrentPlatform))
 		{
-			UE_LOG(LogNNX, Display, TEXT("Skipping test of '%s' for platform %s (by config)"), *Name, *CurrentPlatform);
+			UE_LOG(LogNNX, Display, TEXT("Skipping test of '%s' for platform %s (by config)"), *TestSetup.TargetName, *CurrentPlatform);
 			return true;
 		}
-		UE_LOG(LogNNX, Display, TEXT("Starting tests of '%s'"), *Name);
+		UE_LOG(LogNNX, Display, TEXT("Starting tests of '%s'"), *TestSetup.TargetName);
 
 		// Reference runtime
 		NNX::IRuntime* RefRuntime = NNX::GetRuntime(TEXT("NNXRuntimeORTCpu"));
@@ -425,9 +412,8 @@ namespace Test
 
 			FString TestResult;
 
-			if (AutomationTestSetup != nullptr && (
-				AutomationTestSetup->AutomationExcludedRuntime.Contains(RuntimeName) ||
-				AutomationTestSetup->AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName))))
+			if (TestSetup.AutomationExcludedRuntime.Contains(RuntimeName) ||
+				TestSetup.AutomationExcludedPlatformRuntimeCombination.Contains(TPair<FString, FString>(CurrentPlatform, RuntimeName)))
 			{
 				TestResult = TEXT("skipped (by config)");
 			}
@@ -436,8 +422,8 @@ namespace Test
 				TArray<TArray<char>> OutputMemBuffers;
 				TArray<NNX::FMLTensorDesc> OutputTensorDescs;
 				bool bTestSuceeded = true;
-				float AbsoluteErrorEpsilon = (AutomationTestSetup != nullptr) ? AutomationTestSetup->GetAbsoluteErrorEpsilonForRuntime(RuntimeName) : 1e-5f;
-				float RelativeErrorPercent = (AutomationTestSetup != nullptr) ? AutomationTestSetup->GetRelativeErrorPercentForRuntime(RuntimeName) : 1e-3f;
+				float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
+				float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);
 
 				RunTestInference(ONNXModelData, Runtime, OutputTensorDescs, OutputMemBuffers);
 				if (OutputTensorDescs.Num() == RefOutputTensorDescs.Num())
@@ -471,12 +457,6 @@ namespace Test
 		check(nullptr == TestSetups.FindByPredicate([TestName](const FTestSetup& Other) { return Other.TestName == TestName; }));
 		TestSetups.Emplace(Category, ModelOrOperatorName, TestSuffix);
 		return TestSetups.Last(0);
-	}
-
-	FTests::FTestSetup& FTests::AddTest(const FString& ModelOrOperatorName, const FString& TestSuffix)
-	{
-		//TODO cleanup: always use the 3 parameter path.
-		return AddTest(TEXT(""), ModelOrOperatorName, TestSuffix);
 	}
 
 } // namespace Test

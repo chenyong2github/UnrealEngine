@@ -25,14 +25,6 @@ namespace Test
 				IsModelTest(false)
 			{}
 			
-			FTestSetup(const FString& ModelOrOperatorName, const FString& TestSuffix) :
-				TestName(ModelOrOperatorName+TestSuffix),
-				TargetName(ModelOrOperatorName),
-				AbsoluteErrorEpsilon(DefaultAbsoluteErrorEpsilon),
-				RelativeErrorPercent(DefaultRelativeErrorPercent),
-				IsModelTest(false)
-			{}
-
 			const FString TestName;
 			const FString TargetName;
 			float AbsoluteErrorEpsilon;
@@ -62,17 +54,15 @@ namespace Test
 
 
 		FTestSetup& AddTest(const FString& Category, const FString& ModelOrOperatorName, const FString& TestSuffix);
-		FTestSetup& AddTest(const FString& ModelOrOperatorName, const FString& TestSuffix);
 
 		TArray<FTestSetup> TestSetups;
 	};
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FString& Name, TArrayView<uint8> ModelData, const FTests::FTestSetup* AutomationTestSetup, const FString& RuntimeFilter = TEXT(""));
+	bool CompareONNXModelInferenceAcrossRuntimes(TArrayView<uint8> ModelData, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter = TEXT(""));
 
 	FString FMLTensorDescToString(const FMLTensorDesc& TensorDesc);
 	FString TensorToString(const FMLTensorDesc& TensorDesc, const TArray<char>& TensorData);
-	FString ShapeToString(TArrayView<const uint32> Shape);
-	FString ShapeToString(TArrayView<const int32> Shape);
+	template<typename T> FString ShapeToString(TArrayView<const T> Shape);
 
 } // namespace Test
 } // namespace NNX

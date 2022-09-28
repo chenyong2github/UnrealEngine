@@ -54,7 +54,7 @@ namespace Test
 				return false;
 			}
 
-			const FString NNXBaseTestPath(TEXT("System.Engine.MachineLearning.NNX.Parametric"));
+			const FString NNXBaseTestPath(TEXT("System.Engine.MachineLearning.NNX"));
 			AddTestFromCategory(NNXBaseTestPath + TEXT(".Model."), ModelTestCategories, InputOutputSets);
 			AddTestFromCategory(NNXBaseTestPath + TEXT(".Operator."), OperatorTestCategories, InputOutputSets);
 
@@ -175,21 +175,21 @@ namespace Test
 			for (const Json::FTestConfigTensor& Input : Dataset.Inputs)
 			{
 				if (!bIsFirstShape) TestSuffix += TEXT("_");
-				TestSuffix += ShapeToString(Input.Shape);
+				TestSuffix += ShapeToString<int32>(Input.Shape);
 				bIsFirstShape = false;
 			}
 			TestSuffix += TEXT("=>");
 			//If output is not defined it is the first input shape.
 			if (Dataset.Outputs.Num() == 0)
 			{
-				TestSuffix += ShapeToString(Dataset.Inputs[0].Shape);
+				TestSuffix += ShapeToString<int32>(Dataset.Inputs[0].Shape);
 			}
 			else
 			{
 				for (const Json::FTestConfigTensor& Output : Dataset.Outputs)
 				{
 					TestSuffix += TEXT("_");
-					TestSuffix += ShapeToString(Output.Shape);
+					TestSuffix += ShapeToString<int32>(Output.Shape);
 				}
 			}
 			return TestSuffix;
@@ -310,7 +310,7 @@ namespace Test
 			}
 		}
 
-		return CompareONNXModelInferenceAcrossRuntimes(TestSetup.TestName, ModelData, &TestSetup, RuntimeFilter);
+		return CompareONNXModelInferenceAcrossRuntimes(ModelData, TestSetup, RuntimeFilter);
 	}
 
 	static FString AutomationRuntimeFilter;
