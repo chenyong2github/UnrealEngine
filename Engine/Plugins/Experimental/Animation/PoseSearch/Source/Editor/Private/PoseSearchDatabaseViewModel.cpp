@@ -121,6 +121,7 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::BuildSearchIndex()
 	{
+		PoseSearchDatabase->NotifyAssetChange();
 		PoseSearchDatabase->BeginCacheDerivedData();
 	}
 
@@ -321,7 +322,6 @@ namespace UE::PoseSearch
 	void FDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence)
 	{
 		FPoseSearchDatabaseSequence& NewDbSequence = PoseSearchDatabase->Sequences.AddDefaulted_GetRef();
-
 		NewDbSequence.Sequence = AnimSequence;
 	}
 

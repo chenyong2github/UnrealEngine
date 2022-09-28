@@ -289,8 +289,16 @@ static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelecta
 					NonSelectableIdxBuffer[NonSelectableIdxUsedSize++] = HistoricalPoseIndex.PoseIndex;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-					const FPoseSearchCost PoseCost = Database->ComparePoses(SearchContext, HistoricalPoseIndex.PoseIndex, EPoseComparisonFlags::None, QueryValues);
-					SearchContext.BestCandidates.Add(PoseCost, HistoricalPoseIndex.PoseIndex, Database, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory);
+					check(HistoricalPoseIndex.PoseIndex >= 0);
+					const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
+					check(SearchIndex);
+					
+					// if we're editing the database and removing assets it's possible that the PoseIndicesHistory contains invalid pose indexes
+					if (HistoricalPoseIndex.PoseIndex < SearchIndex->NumPoses)
+					{
+						const FPoseSearchCost PoseCost = Database->ComparePoses(SearchContext, HistoricalPoseIndex.PoseIndex, EPoseComparisonFlags::None, QueryValues);
+						SearchContext.BestCandidates.Add(PoseCost, HistoricalPoseIndex.PoseIndex, Database, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory);
+					}
 #endif
 				}
 				else
@@ -1032,28 +1040,41 @@ bool UPoseSearchDatabase::GetSkipSearchIfPossible() const
 
 bool UPoseSearchDatabase::IsValidForIndexing() const
 {
-	bool bValid = Schema && Schema->IsValid() && !Sequences.IsEmpty();
+	bool bValid = Schema && Schema->IsValid() && (!Sequences.IsEmpty() || !BlendSpaces.IsEmpty());
 
 	if (bValid)
 	{
-		bool bSequencesValid = true;
 		for (const FPoseSearchDatabaseSequence& DbSequence : Sequences)
 		{
 			if (!DbSequence.Sequence)
 			{
-				bSequencesValid = false;
+				bValid = false;
 				break;
 			}
 
-			USkeleton* SeqSkeleton = DbSequence.Sequence->GetSkeleton();
+			const USkeleton* SeqSkeleton = DbSequence.Sequence->GetSkeleton();
 			if (!SeqSkeleton || !SeqSkeleton->IsCompatible(Schema->Skeleton))
 			{
-				bSequencesValid = false;
+				bValid = false;
 				break;
 			}
 		}
 
-		bValid = bSequencesValid;
+		for (const FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
+		{
+			if (!DbBlendSpace.BlendSpace)
+			{
+				bValid = false;
+				break;
+			}
+
+			const USkeleton* SeqSkeleton = DbBlendSpace.BlendSpace->GetSkeleton();
+			if (!SeqSkeleton || !SeqSkeleton->IsCompatible(Schema->Skeleton))
+			{
+				bValid = false;
+				break;
+			}
+		}
 	}
 
 	return bValid;

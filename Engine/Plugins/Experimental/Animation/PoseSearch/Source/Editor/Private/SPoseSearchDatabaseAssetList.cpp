@@ -585,7 +585,7 @@ namespace UE::PoseSearch
 		}
 
 		TArray<uint32> BlendspaceIndexArray;
-		SequenceIndexArray.SetNumUninitialized(Database->BlendSpaces.Num());
+		BlendspaceIndexArray.SetNumUninitialized(Database->BlendSpaces.Num());
 		for (int32 BlendspaceIdx = 0; BlendspaceIdx < Database->BlendSpaces.Num(); ++BlendspaceIdx)
 		{
 			BlendspaceIndexArray[BlendspaceIdx] = BlendspaceIdx;
