@@ -14,7 +14,7 @@ bool FStateTreeDebugTextTask::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-EStateTreeRunStatus FStateTreeDebugTextTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeDebugTextTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	if (!bEnabled)
 	{
@@ -45,7 +45,7 @@ EStateTreeRunStatus FStateTreeDebugTextTask::EnterState(FStateTreeExecutionConte
 	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreeDebugTextTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FStateTreeDebugTextTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	if (!bEnabled)
 	{

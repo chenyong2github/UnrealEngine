@@ -20,22 +20,22 @@ UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitialize
 	bHasTick = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveTick"), *this, *StaticClass());
 }
 
-EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
 {
 	if (bHasEnterState)
 	{
 		FScopedCurrentContext(*this, Context);
-		return ReceiveEnterState(ChangeType, Transition);
+		return ReceiveEnterState(Transition);
 	}
 	return EStateTreeRunStatus::Running;
 }
 
-void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
 {
 	if (bHasExitState)
 	{
 		FScopedCurrentContext(*this, Context);
-		ReceiveExitState(ChangeType, Transition);
+		ReceiveExitState(Transition);
 	}
 }
 
@@ -62,18 +62,37 @@ EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext
 //  FStateTreeBlueprintTaskWrapper
 //----------------------------------------------------------------------//
 
-EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	return Instance->EnterState(Context, ChangeType, Transition);
+
+	// @todo: remove this and copy bShouldStateChangeOnReselect from the instance instead.
+	// This is not currently possible todo. Maybe we should have some kind of pre-compile validation pass where this could be done.
+	const bool bShouldCallStateChange = Transition.ChangeType == EStateTreeStateChangeType::Changed
+			|| (Transition.ChangeType == EStateTreeStateChangeType::Sustained && Instance->bShouldStateChangeOnReselect);
+	
+	if (bShouldCallStateChange)
+	{
+		return Instance->EnterState(Context, Transition);
+	}
+	return EStateTreeRunStatus::Running;
 }
 
-void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	Instance->ExitState(Context, ChangeType, Transition);
+
+	// @todo: remove this and copy bShouldStateChangeOnReselect from the instance instead.
+	// This is not currently possible todo. Maybe we should have some kind of pre-compile validation pass where this could be done.
+	const bool bShouldCallStateChange = Transition.ChangeType == EStateTreeStateChangeType::Changed
+		|| (Transition.ChangeType == EStateTreeStateChangeType::Sustained && Instance->bShouldStateChangeOnReselect);
+	
+	if (bShouldCallStateChange)
+	{
+		Instance->ExitState(Context, Transition);
+	}
 }
 
 void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const

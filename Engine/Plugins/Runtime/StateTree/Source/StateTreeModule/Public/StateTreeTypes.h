@@ -443,6 +443,10 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 	/** The current state being executed. On enter/exit callbacks this is the state of the task or evaluator. */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	FStateTreeStateHandle CurrentState = FStateTreeStateHandle::Invalid;
+
+	/** If the change type is Sustained, then the CurrentState was reselected, or if Changed then the state was just activated. */
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
+	EStateTreeStateChangeType ChangeType = EStateTreeStateChangeType::Changed; 
 };
 
 

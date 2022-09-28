@@ -17,6 +17,12 @@
 // FMassClaimSmartObjectTask
 //----------------------------------------------------------------------//
 
+FMassClaimSmartObjectTask::FMassClaimSmartObjectTask()
+{
+	// This task should not react to Enter/ExitState when the state is reselected.
+	bShouldStateChangeOnReselect = false;
+}
+
 bool FMassClaimSmartObjectTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(SmartObjectUserHandle);
@@ -26,13 +32,8 @@ bool FMassClaimSmartObjectTask::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	if (ChangeType != EStateTreeStateChangeType::Changed)
-	{
-		return EStateTreeRunStatus::Running;
-	}
-
 	// Retrieve fragments and subsystems
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
@@ -69,13 +70,8 @@ EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionCon
 	return EStateTreeRunStatus::Running;
 }
 
-void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	if (ChangeType != EStateTreeStateChangeType::Changed)
-	{
-		return;
-	}
-
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 	const FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
 

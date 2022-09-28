@@ -8,6 +8,12 @@
 #include "MassStateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
 
+FMassCrowdClaimWaitSlotTask::FMassCrowdClaimWaitSlotTask()
+{
+	// This task should not react to Enter/ExitState when the state is reselected.
+	bShouldStateChangeOnReselect = false;
+}
+
 bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(LocationHandle);
@@ -21,13 +27,8 @@ bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	if (ChangeType != EStateTreeStateChangeType::Changed)
-	{
-		return EStateTreeRunStatus::Running;
-	}
-
 	FMassZoneGraphTargetLocation& WaitSlotLocation = Context.GetInstanceData(WaitSlotLocationHandle);
 	int32& WaitingSlotIndex = Context.GetInstanceData(WaitingSlotIndexHandle);
 	FZoneGraphLaneHandle& AcquiredLane = Context.GetInstanceData(AcquiredLaneHandle);
@@ -64,13 +65,8 @@ EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionC
 	return EStateTreeRunStatus::Running;
 }
 
-void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	if (ChangeType != EStateTreeStateChangeType::Changed)
-	{
-		return;
-	}
-
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassEntityHandle Entity = MassContext.GetEntity();
 

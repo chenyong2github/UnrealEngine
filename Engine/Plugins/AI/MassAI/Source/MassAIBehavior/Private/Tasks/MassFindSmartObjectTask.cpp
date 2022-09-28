@@ -11,6 +11,14 @@
 #include "SmartObjectZoneAnnotations.h"
 #include "StateTreeLinker.h"
 
+FMassFindSmartObjectTask::FMassFindSmartObjectTask()
+{
+	// Do not clear the request on sustained transitions.
+	// A child state (move) task can succeed on the same tick as the request is made (very likely in event based ticking).
+	// That will cause transitions which would kill out request immediately.
+	bShouldStateChangeOnReselect = false;
+}
+
 bool FMassFindSmartObjectTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(SmartObjectSubsystemHandle);
@@ -28,16 +36,8 @@ bool FMassFindSmartObjectTask::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-void FMassFindSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FMassFindSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	// Do not clear the request on sustained transitions.
-	// A child state (move) task can succeed on the same tick as the request is made (very likely in event based ticking).
-	// That will cause transitions which would kill out request immediately.
-	if (ChangeType == EStateTreeStateChangeType::Sustained)
-	{
-		return;
-	}
-	
 	// Stop any request that are still in flight.
 	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
 	

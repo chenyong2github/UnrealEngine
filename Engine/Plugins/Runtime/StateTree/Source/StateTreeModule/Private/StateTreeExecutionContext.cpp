@@ -625,10 +625,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 		const bool bIsEnteringState = !bWasActive || bOnTargetBranch;
 
 		CurrentTransition.CurrentState = CurrentHandle;
-		
-		const EStateTreeStateChangeType ChangeType = bWasActive ? EStateTreeStateChangeType::Sustained : EStateTreeStateChangeType::Changed;
+		CurrentTransition.ChangeType = bWasActive ? EStateTreeStateChangeType::Sustained : EStateTreeStateChangeType::Changed;
 
-		STATETREE_CLOG(bIsEnteringState, Log, TEXT("%*sEnter state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.NextActiveStates, Index), *UEnum::GetValueAsString(ChangeType));
+		STATETREE_CLOG(bIsEnteringState, Log, TEXT("%*sEnter state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.NextActiveStates, Index), *UEnum::GetValueAsString(CurrentTransition.ChangeType));
 		
 		// Activate tasks on current state.
 		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (State.TasksBegin + State.TasksNum); TaskIndex++)
@@ -642,12 +641,15 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 			}
 
-			if (bIsEnteringState)
+			const bool bShouldCallStateChange = CurrentTransition.ChangeType == EStateTreeStateChangeType::Changed
+												|| (CurrentTransition.ChangeType == EStateTreeStateChangeType::Sustained && Task.bShouldStateChangeOnReselect);
+
+			if (bIsEnteringState && bShouldCallStateChange)
 			{
 				STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_EnterState);
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_EnterState);
-				const EStateTreeRunStatus Status = Task.EnterState(*this, ChangeType, CurrentTransition);
+				const EStateTreeRunStatus Status = Task.EnterState(*this, CurrentTransition);
 				
 				if (Status == EStateTreeRunStatus::Failed)
 				{
@@ -744,11 +746,11 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 	{
 		const FStateTreeStateHandle CurrentHandle = ExitedStates[Index];
 		const FCompactStateTreeState& State = StateTree.States[CurrentHandle.Index];
-		const EStateTreeStateChangeType ChangeType = ExitedStateChangeType[Index];
-
-		STATETREE_LOG(Log, TEXT("%*sExit state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.CurrentActiveStates, ExitedStateActiveIndex[Index]), *UEnum::GetValueAsString(ChangeType));
-
+		
 		CurrentTransition.CurrentState = CurrentHandle;
+		CurrentTransition.ChangeType = ExitedStateChangeType[Index];
+
+		STATETREE_LOG(Log, TEXT("%*sExit state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.CurrentActiveStates, ExitedStateActiveIndex[Index]), *UEnum::GetValueAsString(CurrentTransition.ChangeType));
 
 		// Tasks
 		for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
@@ -760,11 +762,17 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 			{
 				const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<FStateTreeTaskBase>();
 
-				STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				const bool bShouldCallStateChange = CurrentTransition.ChangeType == EStateTreeStateChangeType::Changed
+							|| (CurrentTransition.ChangeType == EStateTreeStateChangeType::Sustained && Task.bShouldStateChangeOnReselect);
+
+				if (bShouldCallStateChange)
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_ExitState);
-					CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_ExitState);
-					Task.ExitState(*this, ChangeType, CurrentTransition);
+					STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+					{
+						QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_ExitState);
+						CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_ExitState);
+						Task.ExitState(*this, CurrentTransition);
+					}
 				}
 			}
 		}

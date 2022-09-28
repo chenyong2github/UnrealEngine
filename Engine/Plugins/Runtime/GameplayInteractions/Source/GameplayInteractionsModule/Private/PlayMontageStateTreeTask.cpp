@@ -12,7 +12,7 @@ struct FDataRegistryLookup;
 struct FDataRegistryId;
 struct FMassEntityHandle;
 
-EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	if (Montage == nullptr)
 	{

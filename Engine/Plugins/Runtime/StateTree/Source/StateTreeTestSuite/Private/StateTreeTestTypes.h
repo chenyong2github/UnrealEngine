@@ -461,7 +461,7 @@ struct FTestTask_ReserveSmartObject : public FStateTreeTaskBase
 		// empty
 	}
 	
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("EnterState"));
@@ -504,7 +504,7 @@ struct FTestTask_ReserveSmartObject : public FStateTreeTaskBase
 		return EStateTreeRunStatus::Running;
 	}
 
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("ExitState"));
@@ -595,7 +595,7 @@ struct FTestTask_MoveTo : public FStateTreeTaskBase
 		return true;
 	}
 
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("EnterState"));
@@ -612,7 +612,7 @@ struct FTestTask_MoveTo : public FStateTreeTaskBase
 	}
 
 
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("ExitState"));
@@ -687,21 +687,21 @@ struct FTestTask_Stand : public FStateTreeTaskBase
 		return true;
 	}
 	
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("EnterState"));
 
 		int32& CurrentTick = Context.GetInstanceData(CurrentTickHandle);
 		
-		if (ChangeType == EStateTreeStateChangeType::Changed)
+		if (Transition.ChangeType == EStateTreeStateChangeType::Changed)
 		{
 			CurrentTick = 0;
 		}
 		return EnterStateResult;
 	}
 
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("ExitState"));
@@ -771,7 +771,7 @@ struct FTestTask_UseSmartObject : public FStateTreeTaskBase
 		return true;
 	}
 
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("EnterState"));
@@ -792,7 +792,7 @@ struct FTestTask_UseSmartObject : public FStateTreeTaskBase
 		return EnterStateResult;
 	}
 
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
 		TestContext.Log(Name, TEXT("ExitState"));

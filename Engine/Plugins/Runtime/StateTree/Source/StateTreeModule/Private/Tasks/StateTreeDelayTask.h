@@ -40,6 +40,6 @@ struct STATETREEMODULE_API FStateTreeDelayTask : public FStateTreeTaskCommonBase
 
 	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
 
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 };

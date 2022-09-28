@@ -17,6 +17,12 @@
 // FMassUseSmartObjectTask
 //----------------------------------------------------------------------//
 
+FMassUseSmartObjectTask::FMassUseSmartObjectTask()
+{
+	// This task should not react to Enter/ExitState when the state is reselected.
+	bShouldStateChangeOnReselect = false;
+}
+
 bool FMassUseSmartObjectTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(SmartObjectSubsystemHandle);
@@ -30,13 +36,8 @@ bool FMassUseSmartObjectTask::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
-EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	if (ChangeType != EStateTreeStateChangeType::Changed)
-	{
-		return EStateTreeRunStatus::Running;
-	}
-
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 	
 	if (SOUser.InteractionHandle.IsValid())
@@ -70,26 +71,23 @@ EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionConte
 	return bSuccess ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
 }
 
-void FMassUseSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FMassUseSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	if (ChangeType == EStateTreeStateChangeType::Changed)
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+
+	if (SOUser.InteractionHandle.IsValid())
 	{
-		FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+		MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Exiting state with a valid InteractionHandle: stop using the smart object."));
 
-		if (SOUser.InteractionHandle.IsValid())
-		{
-			MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Exiting state with a valid InteractionHandle: stop using the smart object."));
-
-			const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-			USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
-			UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
-			const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntityManager(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem, SignalSubsystem);
-			MassSmartObjectHandler.StopUsingSmartObject(MassContext.GetEntity(), SOUser, EMassSmartObjectInteractionStatus::Aborted);
-		}
-		else
-		{
-			MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Exiting state with an invalid ClaimHandle: nothing to do."));
-		}
+		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
+		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+		UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
+		const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntityManager(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem, SignalSubsystem);
+		MassSmartObjectHandler.StopUsingSmartObject(MassContext.GetEntity(), SOUser, EMassSmartObjectInteractionStatus::Aborted);
+	}
+	else
+	{
+		MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Exiting state with an invalid ClaimHandle: nothing to do."));
 	}
 }
 

@@ -26,8 +26,8 @@ struct STATETREEMODULE_API FStateTreeDebugTextTask : public FStateTreeTaskCommon
 	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
 
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
-	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
 	TStateTreeExternalDataHandle<AActor, EStateTreeExternalDataRequirement::Optional> ReferenceActorHandle;
 	

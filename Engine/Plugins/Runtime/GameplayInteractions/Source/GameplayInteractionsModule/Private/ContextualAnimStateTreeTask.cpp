@@ -17,7 +17,7 @@
 /**
  * FContextualAnimStateTreeTask
  */
-EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	if (!bEnabled)
 	{
@@ -98,7 +98,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::Tick(FStateTreeExecutionContex
 	return Status;
 }
 
-void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
+void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	if (!bEnabled)
 	{
