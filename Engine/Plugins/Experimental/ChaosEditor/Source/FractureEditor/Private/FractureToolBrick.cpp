@@ -388,6 +388,7 @@ public:
 
 	TArray<int> Selection;
 	FPlanarCells Cells;
+	FVector CellsOrigin;
 	float PointSpacing;
 	float Grout = 0;
 	int Seed;
@@ -401,7 +402,7 @@ public:
 			return;
 		}
 
-		ResultGeometryIndex = CutMultipleWithPlanarCells(Cells, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform, true, true, Progress);
+		ResultGeometryIndex = CutMultipleWithPlanarCells(Cells, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform, true, true, Progress, CellsOrigin);
 
 		SetResult(MoveTemp(CollectionCopy));
 	}
@@ -433,9 +434,13 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 		const FVector HalfBrick(BrickHalfDimensions - HalfGrout);
 		const FBox BrickBox(-HalfBrick, HalfBrick);
 
+		FTransform ContextTransform = FractureContext.GetTransform();
+		FVector Origin = ContextTransform.GetTranslation();
+
 		for (const FTransform& Trans : BrickTransforms)
 		{
-			BricksToCut.Add(BrickBox.TransformBy(Trans));
+			FTransform ToApply = Trans * FTransform(-Origin);
+			BricksToCut.Add(BrickBox.TransformBy(ToApply));
 		}
 
 		TUniquePtr<FCellsFractureOp> BrickOp = MakeUnique<FCellsFractureOp>(*(FractureContext.GetGeometryCollection()));
@@ -452,6 +457,7 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 		}
 		BrickOp->Seed = FractureContext.GetSeed();
 		BrickOp->Transform = FractureContext.GetTransform();
+		BrickOp->CellsOrigin = Origin;
 
 		int Result = RunCancellableGeometryCollectionOp<FCellsFractureOp>(*(FractureContext.GetGeometryCollection()),
 			MoveTemp(BrickOp), LOCTEXT("ComputingBrickFractureMessage", "Computing Brick Fracture"));

@@ -380,6 +380,13 @@ public:
 		FProgressCancel::FProgressScope VoronoiDiagramProgress =
 			FProgressCancel::CreateScopeTo(Progress, .01, LOCTEXT("ComputingVoronoiDiagramMessage", "Computing Voronoi Diagram"));
 
+		FVector Origin = Transform.GetTranslation();
+		for (FVector& Site : Sites)
+		{
+			Site -= Origin;
+		}
+		Bounds.Min -= Origin;
+		Bounds.Max -= Origin;
 		FVoronoiDiagram Voronoi(Sites, Bounds, .1f);
 
 		FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
@@ -396,7 +403,7 @@ public:
 		FProgressCancel::FProgressScope FractureMeshProgress =
 			FProgressCancel::CreateScopeTo(Progress, 1, LOCTEXT("FractureMeshMessage", "Fracturing Mesh"));
 
-		ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform, true, true, Progress);
+		ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform, true, true, Progress, Origin);
 		
 		SetResult(MoveTemp(CollectionCopy));
 	}

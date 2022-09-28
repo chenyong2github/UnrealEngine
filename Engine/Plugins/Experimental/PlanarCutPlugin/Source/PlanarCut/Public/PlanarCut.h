@@ -153,6 +153,7 @@ struct PLANARCUT_API FPlanarCells
  * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param Progress						Optionally tracks progress and supports early-cancel
+ * @param CellsOrigin					Optionally provide a local origin of the cutting Cells
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutWithPlanarCells(
@@ -165,7 +166,8 @@ int32 PLANARCUT_API CutWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	bool bSetDefaultInternalMaterialsFromCollection = true,
-	FProgressCancel* Progress = nullptr
+	FProgressCancel* Progress = nullptr,
+	FVector CellsOrigin = FVector::ZeroVector
 );
 
 /**
@@ -180,6 +182,7 @@ int32 PLANARCUT_API CutWithPlanarCells(
  * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param Progress						Optionally tracks progress and supports early-cancel
+ * @param CellsOrigin					Optionally provide a local origin of the cutting Cells
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutMultipleWithPlanarCells(
@@ -192,7 +195,8 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	bool bSetDefaultInternalMaterialsFromCollection = true,
-	FProgressCancel* Progress = nullptr
+	FProgressCancel* Progress = nullptr,
+	FVector CellsOrigin = FVector::ZeroVector
 );
 
 /**

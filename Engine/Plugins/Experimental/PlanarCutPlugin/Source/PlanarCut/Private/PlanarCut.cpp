@@ -51,6 +51,16 @@ using namespace UE::PlanarCut;
 
 #define LOCTEXT_NAMESPACE "PlanarCut"
 
+namespace PlanarCut_Locals
+{
+	FVector SeparateTranslation(const FTransform& Transform, FTransform& OutCenteredTransform)
+	{
+		FVector Translation = Transform.GetTranslation();
+		OutCenteredTransform = FTransform(Transform.GetRotation(), FVector::ZeroVector, Transform.GetScale3D());
+		return Translation;
+	}
+}
+
 // logic from FMeshUtility::GenerateGeometryCollectionFromBlastChunk, sets material IDs based on construction pattern that external materials have even IDs and are matched to internal materials at InternalID = ExternalID+1
 int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx) const
 {
@@ -720,12 +730,12 @@ int32 CutWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
 	bool bSetDefaultInternalMaterialsFromCollection,
-	FProgressCancel* Progress
-
+	FProgressCancel* Progress,
+	FVector CellsOrigin
 )
 {
 	TArray<int32> TransformIndices { TransformIdx };
-	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, RandomSeed, TransformCollection, bIncludeOutsideCellInOutput, bSetDefaultInternalMaterialsFromCollection, Progress);
+	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, RandomSeed, TransformCollection, bIncludeOutsideCellInOutput, bSetDefaultInternalMaterialsFromCollection, Progress, CellsOrigin);
 }
 
 
@@ -757,9 +767,20 @@ int32 CutMultipleWithMultiplePlanes(
 		InternalSurfaceMaterials.SetUVScaleFromCollection(CollectionMesh);
 	}
 
+	// Compute cuts in a local space where the collection has been translated to the origin, for more consistent noise + better LWC accuracy
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
+	FTransform CollectionToWorldCentered;
+	FVector Origin = PlanarCut_Locals::SeparateTranslation(CollectionToWorld, CollectionToWorldCentered);
 
-	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
+	// Move planes to the same local space
+	TArray<FPlane> CenteredPlanes;
+	CenteredPlanes.Reserve(Planes.Num());
+	for (const FPlane& Plane : Planes)
+	{
+		CenteredPlanes.Add(Plane.TranslateBy(-Origin));
+	}
+
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorldCentered);
 
 	PrepareScope.Done();
 	if (Progress && Progress->Cancelled())
@@ -769,7 +790,7 @@ int32 CutMultipleWithMultiplePlanes(
 	FProgressCancel::FProgressScope CutScope = FProgressCancel::CreateScopeTo(Progress, .99, LOCTEXT("CutWithMultiplePlanesBody", "Cutting with planes"));
 
 	int32 NewGeomStartIdx = -1;
-	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(Planes, Grout, CollisionSampleSpacing, RandomSeed, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection, Progress);
+	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(CenteredPlanes, Grout, CollisionSampleSpacing, RandomSeed, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection, Progress);
 
 	CutScope.Done();
 	if (Progress && Progress->Cancelled())
@@ -796,7 +817,8 @@ int32 CutMultipleWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
 	bool bSetDefaultInternalMaterialsFromCollection,
-	FProgressCancel* Progress
+	FProgressCancel* Progress,
+	FVector CellsOrigin
 )
 {
 	FProgressCancel::FProgressScope CreateMeshCollectionScope = FProgressCancel::CreateScopeTo(Progress, .1);
@@ -806,8 +828,10 @@ int32 CutMultipleWithPlanarCells(
 	}
 
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
+	// Put Collection in the same local space as the Cells
+	FTransform CollectionToWorldCentered = CollectionToWorld * FTransform(-CellsOrigin);
 
-	FDynamicMeshCollection MeshCollection(&Source, TransformIndices, CollectionToWorld);
+	FDynamicMeshCollection MeshCollection(&Source, TransformIndices, CollectionToWorldCentered);
 	CreateMeshCollectionScope.Done();
 
 	if (Progress && Progress->Cancelled())
@@ -1006,15 +1030,20 @@ int32 CutWithMesh(
 	ensureMsgf(!InternalSurfaceMaterials.NoiseSettings.IsSet(), TEXT("Noise settings not yet supported for mesh-based fracture"));
 
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
+	FTransform CollectionToWorldCentered;
+	FVector Origin = PlanarCut_Locals::SeparateTranslation(CollectionToWorld, CollectionToWorldCentered);
+
+	FTransform CuttingMeshTransformCentered = CuttingMeshTransform;
+	CuttingMeshTransformCentered.SetTranslation(CuttingMeshTransform.GetTranslation() - Origin);
 
 	if (Progress && Progress->Cancelled())
 	{
 		return -1;
 	}
 
-	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorldCentered);
 	int32 NumUVLayers = Collection.NumUVLayers();
-	FCellMeshes CellMeshes(NumUVLayers, DynamicCuttingMesh, InternalSurfaceMaterials, CuttingMeshTransform);
+	FCellMeshes CellMeshes(NumUVLayers, DynamicCuttingMesh, InternalSurfaceMaterials, CuttingMeshTransformCentered);
 
 	TArray<TPair<int32, int32>> CellConnectivity;
 	CellConnectivity.Add(TPair<int32, int32>(0, -1)); // there's only one 'inside' cell (0), so all cut surfaces are connecting the 'inside' cell (0) to the 'outside' cell (-1)
