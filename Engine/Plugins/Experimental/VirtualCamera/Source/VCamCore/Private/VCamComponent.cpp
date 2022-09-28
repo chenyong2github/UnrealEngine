@@ -1541,7 +1541,10 @@ void UVCamComponent::SessionShutdown(TSharedRef<IConcertClientSession> /*InSessi
 		Session->UnregisterCustomEventHandler<FMultiUserVCamCameraComponentEvent>(this);
 		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
-			Provider->RestoreOutput();
+			if (IsValid(Provider))
+			{
+				Provider->RestoreOutput();
+			}
 		}
 	}
 
