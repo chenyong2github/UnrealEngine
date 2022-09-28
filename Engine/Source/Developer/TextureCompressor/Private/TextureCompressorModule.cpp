@@ -2951,7 +2951,7 @@ static bool ApplyCompositeTexture(FImage& DestRoughness, const FImage& SourceNor
 	Image Compression.
 ------------------------------------------------------------------------------*/
 
-void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount, bool bInImageHasAlphaChannel) const
+void FTextureBuildSettings::GetEncodedTextureDescriptionWithPixelFormat(FEncodedTextureDescription* OutTextureDescription, EPixelFormat InEncodedPixelFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount) const
 {
 	FEncodedTextureDescription& TextureDescription = *OutTextureDescription;
 	TextureDescription = FEncodedTextureDescription();
@@ -2959,7 +2959,7 @@ void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescript
 	TextureDescription.bTextureArray = bTextureArray;
 	TextureDescription.bVolumeTexture = bVolume;
 	TextureDescription.NumMips = InMipCount;
-	TextureDescription.PixelFormat = InTextureFormat->GetEncodedPixelFormat(*this, bInImageHasAlphaChannel);
+	TextureDescription.PixelFormat = InEncodedPixelFormat;
 
 	TextureDescription.TopMipSizeX = InEncodedMip0SizeX;
 	TextureDescription.TopMipSizeY = InEncodedMip0SizeY;
@@ -2979,6 +2979,12 @@ void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescript
 	{
 		TextureDescription.ArraySlices = 1;
 	}
+}
+
+void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount, bool bInImageHasAlphaChannel) const
+{
+	EPixelFormat EncodedPixelFormat = InTextureFormat->GetEncodedPixelFormat(*this, bInImageHasAlphaChannel);
+	GetEncodedTextureDescriptionWithPixelFormat(OutTextureDescription, EncodedPixelFormat, InEncodedMip0SizeX, InEncodedMip0SizeY, InEncodedMip0NumSlices, InMipCount);
 }
 
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content

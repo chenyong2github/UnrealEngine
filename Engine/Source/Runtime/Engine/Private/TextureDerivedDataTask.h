@@ -161,12 +161,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	bool bSucceeded = false;
 	/** true if the derived data was pulled from DDC */
 	bool bLoadedFromDDC = false;
-
-	/** Check for existence of the streaming mips in the cache, and optionally prefetch or load them. */
-	bool TryCacheStreamingMips(int32 FirstMipToLoad, int32 FirstMipToPrefetch);
-
-	/** Build the texture. This function is safe to call from any thread. */
-	void BuildTexture(TArray<FTextureBuildSettings>& InBuildSettingsPerLayer, bool bReplaceExistingDDC = false);
 public:
 
 	/** Initialization constructor. */

@@ -3140,7 +3140,7 @@ static TAutoConsoleVariable<float> CVarSkeletalMeshLODRadiusScale(
 
 static TAutoConsoleVariable<int32> CVarSharedLinearTextureEncoding(
 	TEXT("r.SharedLinearTextureEncoding"),
-	1,
+	0,
 	TEXT("If set to 1, textures for platforms that tile will reuse a host linear texture instead of reencoding."),
 	ECVF_RenderThreadSafe);
 

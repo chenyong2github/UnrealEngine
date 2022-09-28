@@ -113,7 +113,7 @@ protected:
 	{
 		return ObjView.FindView("BaseTextureFormatConfig").AsObjectView();
 	}
-
+public:
 	FTextureBuildSettings GetBaseTextureBuildSettings(const FTextureBuildSettings& BuildSettings) const
 	{
 		FTextureBuildSettings BaseSettings = BuildSettings;
@@ -121,6 +121,7 @@ protected:
 		BaseSettings.FormatConfigOverride = GetBaseFormatConfigOverride(BuildSettings.FormatConfigOverride);
 		return BaseSettings;
 	}
+protected:
 
 	/**
 	 * The final version is a combination of parent and child formats, 8 bits for each

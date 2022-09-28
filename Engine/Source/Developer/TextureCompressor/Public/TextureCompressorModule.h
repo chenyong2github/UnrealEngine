@@ -12,6 +12,7 @@ struct FEncodedTextureDescription;
 class ITextureFormat;
 class ITextureTiler;
 struct FTextureEngineParameters;
+enum EPixelFormat : uint8;
 
 /**
  * Compressed image data.
@@ -318,10 +319,9 @@ struct FTextureBuildSettings
 	/*
 	* Convert the build settings to an actual texture description containing enough information to describe the texture
 	* to hardware APIs.
-	* 
-	* At the moment, this only generates valid results _after_ some setup code in FTextureCompressorModule::BuildTexture()
 	*/
 	TEXTURECOMPRESSOR_API void GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount, bool bInImageHasAlphaChannel) const;
+	TEXTURECOMPRESSOR_API void GetEncodedTextureDescriptionWithPixelFormat(FEncodedTextureDescription* OutTextureDescription, EPixelFormat InEncodedPixelFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount) const;
 };
 
 /**

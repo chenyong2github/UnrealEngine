@@ -625,7 +625,7 @@ static void FinalizeBuildSettingsForLayer(
 					OutBuildResultMetadata->bSupportsEncodeSpeed = bSupportsEncodeSpeed;
 				}
 			
-				if (IsUsingNewDerivedData()) // shared linear encoding only hooked up to ddc2 atm.
+				
 				{
 					static auto CVarSharedLinearTextureEncoding = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SharedLinearTextureEncoding"));
 					if (CVarSharedLinearTextureEncoding->GetValueOnAnyThread())
@@ -636,10 +636,10 @@ static void FinalizeBuildSettingsForLayer(
 						if (ChildTextureFormat && ChildTextureFormat->GetBaseFormatObject(OutSettings.TextureFormatName)->SupportsTiling() == false)
 						{
 							OutSettings.Tiler = ChildTextureFormat->GetTiler();
-							if (OutSettings.Tiler)
+							if (OutSettings.Tiler && IsUsingNewDerivedData())
 							{
-								// Since the tiler will do the encoding, skip the child texture format entirely and just look for the
-								// base texture and then run the tiler after.
+								// New derived data wants to treat everything as the base format and then have a separate tiling function
+								// afterwards.
 								OutSettings.TextureFormatName = ChildTextureFormat->GetBaseFormatName(OutSettings.TextureFormatName);
 							}
 						}
