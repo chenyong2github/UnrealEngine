@@ -76,7 +76,7 @@ void FTableImportTool::StartImportProcess()
 			LOCTEXT("ImportTableTitle", "Import Table").ToString(),
 			DefaultPath,
 			DefaultFile,
-			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|All Files (*.*)|*.*"),
+			TEXT("Comma-Separated Values (*.csv)|*.csv|Tab-Separated Values (*.tsv)|*.tsv"),
 			EFileDialogFlags::None,
 			Filenames
 		);

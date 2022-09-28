@@ -193,7 +193,7 @@ bool FTableImportTask::ParseData(TArray<FString>& Lines)
 					break;
 				}
 
-				NewRow.SetValue(ValueIndex, FCString::Atoi(Value));
+				NewRow.SetValue(ValueIndex, FCString::Atoi64(Value));
 			}
 		}
 
