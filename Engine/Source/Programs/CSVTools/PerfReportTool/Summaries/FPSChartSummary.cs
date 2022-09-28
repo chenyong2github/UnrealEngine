@@ -266,13 +266,13 @@ namespace PerfSummaries
 				{
 					float targetTimeInMS = 1000.0f / fps;
 					float redThreshold = 25.0f;
-					for (int i = 1; i <= 4; i++)
+					float[] targetTimeMultipliers = new float[] { 0.75f, 1.00f, 1.25f, 1.50f };
+					foreach(float targetTimeMultiplier in targetTimeMultipliers)
 					{
-						float targetTimeMultiplier = 1.0f + (0.25f * i);
 						float percentageOver = 100.0f * gamethreadtimeStat.GetRatioOfFramesOverBudget(targetTimeInMS * targetTimeMultiplier);
 						ColourThresholdList colorThresholdList = new ColourThresholdList(redThreshold, redThreshold * 0.66, redThreshold * 0.33, 0.0);
 
-						rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "GT>" + targetTimeMultiplier + "x %", (double)percentageOver, colorThresholdList);
+						rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "GameThread >" + targetTimeMultiplier + "x %", (double)percentageOver, colorThresholdList);
 					}
 				}
 			}

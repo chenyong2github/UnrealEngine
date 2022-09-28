@@ -79,13 +79,13 @@ namespace PerfSummaries
 			bool HasBudgetOverrideStat = false;
 			if (BudgetOverrideStatName != null)
 			{
-				htmlFile.WriteLine("  <td><b><=" + BudgetOverrideStatBudget.ToString("0") + "ms</b></td>");
+				htmlFile.WriteLine("  <td><b><=" + BudgetOverrideStatBudget.ToString() + "ms</b></td>");
 				HasBudgetOverrideStat = true;
 			}
 
 			foreach (float thresh in thresholds)
 			{
-				htmlFile.WriteLine("  <td><b>>" + thresh.ToString("0") + "ms</b></td>");
+				htmlFile.WriteLine("  <td><b>>" + thresh.ToString() + "ms</b></td>");
 			}
 			htmlFile.WriteLine("  </tr>");
 
