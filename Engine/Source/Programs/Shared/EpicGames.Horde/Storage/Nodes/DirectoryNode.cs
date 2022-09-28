@@ -569,10 +569,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="directoryInfo"></param>
 		/// <param name="options">Options for chunking file content</param>
 		/// <param name="writer">Writer for new node data</param>
-		/// <param name="logger"></param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, ILogger logger, CancellationToken cancellationToken)
+		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
 		{
 			const int MaxWriters = 32;
 			const long MinSizePerWriter = 1024 * 1024;
@@ -603,7 +602,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				}
 
 				int minIdxCopy = minIdx;
-				tasks.Add(Task.Run(() => CopyFilesAsync(files, minIdxCopy, maxIdx, fileEntries, options, writer, logger, cancellationToken), cancellationToken));
+				tasks.Add(Task.Run(() => CopyFilesAsync(files, minIdxCopy, maxIdx, fileEntries, options, writer, cancellationToken), cancellationToken));
 
 				targetSize += chunkSize;
 				minIdx = maxIdx;
@@ -631,7 +630,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, ILogger logger, CancellationToken cancellationToken)
+		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, CancellationToken cancellationToken)
 		{
 			TreeWriter writer = new TreeWriter(baseWriter);
 			for(int idx = minIdx; idx < maxIdx; idx++)
@@ -664,14 +663,12 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				FileInfo fileInfo = new FileInfo(Path.Combine(directoryInfo.FullName, fileEntry.Name.ToString()));
 				FileNode fileNode = await fileEntry.ExpandAsync(cancellationToken);
-//				logger.LogInformation("Writing {File}", fileInfo.FullName);
 				tasks.Add(Task.Run(() => fileNode.CopyToFileAsync(fileInfo, cancellationToken), cancellationToken));
 			}
 			foreach (DirectoryEntry directoryEntry in Directories)
 			{
 				DirectoryInfo subDirectoryInfo = directoryInfo.CreateSubdirectory(directoryEntry.Name.ToString());
 				DirectoryNode subDirectoryNode = await directoryEntry.ExpandAsync(cancellationToken);
-//				logger.LogInformation("Writing {Dir}", subDirectoryInfo.FullName);
 				tasks.Add(Task.Run(() => subDirectoryNode.CopyToDirectoryAsync(subDirectoryInfo, logger, cancellationToken), cancellationToken));
 			}
 

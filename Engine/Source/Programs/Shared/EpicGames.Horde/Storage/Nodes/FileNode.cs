@@ -555,7 +555,9 @@ namespace EpicGames.Horde.Storage.Nodes
 				// Try to write to the last node
 				if (_children.Count > 0)
 				{
-					FileNode? lastNode = _children[^1].Target;
+					TreeNodeRef<FileNode> lastNodeRef = _children[^1];
+
+					FileNode? lastNode = lastNodeRef.Target;
 					if (lastNode != null)
 					{
 						// Update the length to match the new node
@@ -566,6 +568,9 @@ namespace EpicGames.Horde.Storage.Nodes
 						// If the last node is complete, write it to the buffer
 						if (lastNode.IsReadOnly())
 						{
+							// Write the last node to allow it to be flushed
+							await writer.WriteAsync(lastNodeRef, cancellationToken);
+
 							// Update the hash
 							AppendChildHash(lastNode.RollingHash);
 

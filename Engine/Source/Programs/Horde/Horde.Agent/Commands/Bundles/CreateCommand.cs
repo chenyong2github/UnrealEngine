@@ -134,7 +134,7 @@ namespace Horde.Agent.Commands.Bundles
 			Stopwatch timer = Stopwatch.StartNew();
 
 			ChunkingOptions options = new ChunkingOptions();
-			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, logger, CancellationToken.None);
+			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, CancellationToken.None);
 
 			await writer.WriteRefAsync(RefName, node);
 

@@ -155,9 +155,12 @@ namespace EpicGames.Horde.Storage
 			// If the target node hasn't been modified, use the existing state.
 			if (!nodeRef.IsDirty())
 			{
-				Debug.Assert(nodeRef.Locator.IsValid());
-				_hashToNode.TryAdd(nodeRef.Hash, nodeRef.Locator);
-				nodeRef.Target = null;
+				// Make sure the locator is valid. The node may be queued for writing but not flushed to disk yet.
+				if (nodeRef.Locator.IsValid())
+				{
+					_hashToNode.TryAdd(nodeRef.Hash, nodeRef.Locator);
+					nodeRef.Target = null;
+				}
 				return nodeRef.Hash;
 			}
 
@@ -210,6 +213,9 @@ namespace EpicGames.Horde.Storage
 					await FlushAsync(cancellationToken);
 				}
 			}
+
+			// Mark the node as queued for writing
+			nodeRef.MarkAsPendingWrite(hash);
 			return hash;
 		}
 

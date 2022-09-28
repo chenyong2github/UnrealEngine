@@ -129,6 +129,17 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Updates the hash and revision number for the ref.
+		/// </summary>
+		/// <param name="hash">Hash of the node</param>
+		/// <returns></returns>
+		public void MarkAsPendingWrite(IoHash hash)
+		{
+			Hash = hash;
+			_revision = Target!.Revision;
+		}
+
+		/// <summary>
 		/// Serialize the node to the given writer
 		/// </summary>
 		/// <param name="writer"></param>
