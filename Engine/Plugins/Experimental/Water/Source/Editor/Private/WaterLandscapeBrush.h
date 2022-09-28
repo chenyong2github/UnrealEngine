@@ -25,6 +25,8 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginDestroy() override;
+	virtual void PostRegisterAllComponents() override;
+	virtual void UnregisterAllComponents(bool bForReregister) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	UFUNCTION(BlueprintCallable, Category = "Water", meta = (DeterminesOutputType = "WaterBodyClass", DynamicOutputParam = "OutWaterBodies"))
