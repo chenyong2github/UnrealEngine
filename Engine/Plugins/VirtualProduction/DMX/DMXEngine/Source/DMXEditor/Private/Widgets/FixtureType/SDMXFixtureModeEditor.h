@@ -45,9 +45,6 @@ private:
 	/** Sets the Mode that is being edited */
 	void SetMode(UDMXEntityFixtureType* InFixtureType, int32 InModeIndex);
 
-	/** Called when the properties of the fixture type changed */
-	void OnFixtureTypePropertiesChanged(const UDMXEntityFixtureType* FixtureType);
-
 	/** Returns true if the properties are visible */
 	bool IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
 

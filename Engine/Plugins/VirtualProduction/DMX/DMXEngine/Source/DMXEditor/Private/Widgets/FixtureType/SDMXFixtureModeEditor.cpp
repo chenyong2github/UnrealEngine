@@ -22,7 +22,6 @@ void SDMXFixtureModeEditor::Construct(const FArguments& InArgs, const TSharedRef
 	WeakDMXEditor = InDMXEditor;
 	FixtureTypeSharedData = InDMXEditor->GetFixtureTypeSharedData();
 
-	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixtureModeEditor::OnFixtureTypePropertiesChanged);
 	FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
 	FixtureTypeSharedData->OnModesSelected.AddSP(this, &SDMXFixtureModeEditor::Refresh);
 
@@ -232,14 +231,6 @@ void SDMXFixtureModeEditor::SetMode(UDMXEntityFixtureType* InFixtureType, int32 
 				.Text(LOCTEXT("CannotCreateDetailViewForModeWarning", "Cannot create Detail View for Mode. Fixture Type or Mode no longer exist."))
 			]
 		);
-	}
-}
-
-void SDMXFixtureModeEditor::OnFixtureTypePropertiesChanged(const UDMXEntityFixtureType* FixtureType)
-{
-	if (!Transaction.IsValid() && FixtureType == WeakFixtureType.Get())
-	{
-		Refresh();
 	}
 }
 
