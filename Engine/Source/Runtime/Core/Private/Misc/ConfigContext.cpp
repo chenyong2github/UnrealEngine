@@ -79,7 +79,7 @@ void FConfigContext::CachePaths()
 		if (FPaths::IsUnderDirectory(ProjectRootDir, EngineRootDir))
 		{
 			FString RelativeDir = ProjectRootDir;
-			FPaths::MakePathRelativeTo(RelativeDir, *EngineRootDir);
+			FPaths::MakePathRelativeTo(RelativeDir, *(EngineRootDir + TEXT("/")));
 			ProjectNotForLicenseesDir = FPaths::Combine(EngineRootDir, TEXT("Restricted/NotForLicensees"), RelativeDir);
 			ProjectNoRedistDir = FPaths::Combine(EngineRootDir, TEXT("Restricted/NoRedist"), RelativeDir);
 		}
