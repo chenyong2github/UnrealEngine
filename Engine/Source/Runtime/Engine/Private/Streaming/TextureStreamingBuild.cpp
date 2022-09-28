@@ -165,7 +165,12 @@ bool GetTextureIsStreamable(const UTexture& Texture)
 bool GetTextureIsStreamableOnPlatform(const UTexture& Texture, const ITargetPlatform& TargetPlatform)
 {
 	const bool bPlatformSupportsTextureStreaming = TargetPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-	
+	if ( ! bPlatformSupportsTextureStreaming )
+	{
+		// IsCandidateForTextureStreamingOnPlatformDuringCook also checks this
+		return false;
+	}
+
 	bool bStreamable = false;
 	if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
@@ -180,7 +185,7 @@ bool GetTextureIsStreamableOnPlatform(const UTexture& Texture, const ITargetPlat
 		bStreamable = true;
 	}
 
-	bStreamable &= Texture.IsCandidateForTextureStreaming(&TargetPlatform);
+	bStreamable &= Texture.IsCandidateForTextureStreamingOnPlatformDuringCook(&TargetPlatform);
 	return bStreamable;
 }
 

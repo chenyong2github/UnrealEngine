@@ -994,7 +994,7 @@ public:
 #endif
 
 	/** Return the number of mips that are not streamable. */
-	int32 GetNumNonStreamingMips() const;
+	int32 GetNumNonStreamingMips(bool bIsStreamingPossible) const;
 	/** Return the number of mips that streamable but not optional. */
 	int32 GetNumNonOptionalMips() const;
 	/** Return true if at least one mip can be loaded either from DDC or disk. */
@@ -1787,9 +1787,14 @@ public:
 	/** Sets the minimum number of mips that must be resident in memory (cannot be streamed). */
 	static void SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount);
 
+	/** Do the Texture properties make it a possible candidate for streaming.  Can be called by editor or runtime.
+	If true, does not mean it will actually be streamed, but if false will definitely not be streamed. */
+	bool IsPossibleToStream() const;
+
 #if WITH_EDITOR
-	/** Called by ULevel::MarkNoStreamableTexturesPrimitiveComponents when cooking level. */
-	bool IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPlatform) const;
+	/** Called by ULevel::MarkNoStreamableTexturesPrimitiveComponents when cooking level.
+	Checks bCookedIsStreamable.  Return false for VT. */
+	bool IsCandidateForTextureStreamingOnPlatformDuringCook(const ITargetPlatform* InTargetPlatform) const;
 
 	/** Get the largest allowed dimension of non-VT texture
 	* this is not for the current RHI (which may have a lower limit), this is for a Texture in general

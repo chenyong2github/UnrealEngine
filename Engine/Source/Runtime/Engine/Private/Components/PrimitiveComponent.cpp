@@ -1416,7 +1416,7 @@ void UPrimitiveComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		bool bHasStreamableTextures = false;
 		for (const UTexture* Texture : Textures)
 		{
-			if (Texture && Texture->IsCandidateForTextureStreaming(ObjectSaveContext.GetTargetPlatform()))
+			if (Texture && Texture->IsCandidateForTextureStreamingOnPlatformDuringCook(ObjectSaveContext.GetTargetPlatform()))
 			{
 				bHasStreamableTextures = true;
 				break;

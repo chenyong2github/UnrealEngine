@@ -1484,9 +1484,9 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			}
 			else
 			{
-				const bool bDisableStreaming = (Texture.NeverStream || Texture.LODGroup == TEXTUREGROUP_UI);
+				const bool bDisableStreaming = ! Texture.IsPossibleToStream();
 				const int32 FirstMipToLoad = FirstResidentMipIndex;
-				const int32 FirstNonStreamingMipIndex = DerivedData->Mips.Num() - DerivedData->GetNumNonStreamingMips();
+				const int32 FirstNonStreamingMipIndex = DerivedData->Mips.Num() - DerivedData->GetNumNonStreamingMips(!bDisableStreaming);
 				const int32 FirstMipToPrefetch = IsInGameThread() ? FirstMipToLoad : bDisableStreaming ? 0 : FirstNonStreamingMipIndex;
 				bSucceeded = TryCacheStreamingMips(FirstMipToLoad, FirstMipToPrefetch);
 				if (!bSucceeded)

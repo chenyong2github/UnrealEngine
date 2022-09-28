@@ -1245,7 +1245,7 @@ void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSo
 			// Note that because we are cooking, UStreamableRenderAsset::bIsStreamable is not reliable here.
 			for (const UTexture* UnfilteredTexture : UnfilteredUsedTextures)
 			{
-				if (UnfilteredTexture && !UnfilteredTexture->NeverStream && UnfilteredTexture->LODGroup != TEXTUREGROUP_UI && UnfilteredTexture->MipGenSettings != TMGS_NoMipmaps)
+				if (UnfilteredTexture && UnfilteredTexture->IsPossibleToStream() )
 				{
 					UsedTextures.Add(UnfilteredTexture);
 				}

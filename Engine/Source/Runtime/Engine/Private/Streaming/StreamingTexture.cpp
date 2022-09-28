@@ -218,6 +218,9 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 		}
 		NoRefLODBias = LocalNoRefBias;
 
+		check( ResourceState.MaxNumLODs >= ResourceState.NumNonOptionalLODs );
+		check( ResourceState.NumNonOptionalLODs >= ResourceState.NumNonStreamingLODs );
+
 		// If the optional mips are not available, or if we shouldn't load them now, clamp the possible mips requested. 
 		// (when the non-optional mips are not yet loaded, loading optional mips generates cross files requests).
 		// This is not bullet proof though since the texture/mesh could have a pending stream-out request.
@@ -230,6 +233,8 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 			MaxAllowedMips = FMath::Clamp<int32>(ResourceState.MaxNumLODs - LODBias, ResourceState.NumNonStreamingLODs, ResourceState.MaxNumLODs);
 		}
 	
+		check( MaxAllowedMips >= ResourceState.NumNonStreamingLODs );
+
 		check(LODGroup < NumLODGroups);
 		if (NumStreamedMips[LODGroup] > 0)
 		{

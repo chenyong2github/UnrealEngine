@@ -2065,7 +2065,7 @@ bool FTexturePlatformData::TryLoadMipsWithSizes(int32 FirstMipToLoad, void** Out
 	return true;
 }
 
-int32 FTexturePlatformData::GetNumNonStreamingMips() const
+int32 FTexturePlatformData::GetNumNonStreamingMips(bool bIsStreamingPossible) const
 {
 	if (CanUseCookedDataPath())
 	{
@@ -2090,10 +2090,15 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 		}
 		else
 		{
+			if ( ! bIsStreamingPossible )
+			{
+				check( NumNonStreamingMips == Mips.Num() );
+			}
+
 			return NumNonStreamingMips;
 		}
 	}
-	else if (Mips.Num() <= 1)
+	else if (Mips.Num() <= 1 || !bIsStreamingPossible)
 	{
 		return Mips.Num();
 	}
@@ -2101,6 +2106,7 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 	{
 		int32 MipCount = Mips.Num();
 		int32 NumNonStreamingMips = 1;
+		// MipCount >= 2 and bIsStreamingPossible
 
 		// Take in to account the min resident limit.
 		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, (int32)GetNumMipsInTail());
@@ -2113,17 +2119,15 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 			// ensure the top non-streamed mip size is >= BlockSize (and a multiple of block size!)
 			// @todo Oodle : only do for BCN, not for ASTC
 			
+			// note: this is not right for non pow 2; NeverStream should set !bIsStreamingPossible in that case
 			if ( FMath::IsPowerOfTwo(Mips[0].SizeX) && FMath::IsPowerOfTwo(Mips[0].SizeY) )
 			{
-				// note: this is not right for non pow 2 (in that case you should check all streaming mips are aligned to blocksize)
 				NumNonStreamingMips = FMath::Max<int32>(NumNonStreamingMips, MipCount - FPlatformMath::FloorLog2(Mips[0].SizeX / BlockSizeX));
 				NumNonStreamingMips = FMath::Max<int32>(NumNonStreamingMips, MipCount - FPlatformMath::FloorLog2(Mips[0].SizeY / BlockSizeY));
 			}
 			else
 			{
-				// non-pow2 should be NeverStream
-				// but they call into here anyway
-				// and actually CAN stream via cinematic lod bias (in Editor, but not in cooked/game)
+				// should have !bIsStreamingPossible, so we should not hit this branch, but it's not reliable
 				NumNonStreamingMips = MipCount;
 			}
 		}
@@ -2490,7 +2494,7 @@ static void SerializePlatformData(
 			if (bStreamable)
 #endif
 			{
-				int32 NumNonStreamingMips = PlatformData->GetNumNonStreamingMips();
+				int32 NumNonStreamingMips = PlatformData->GetNumNonStreamingMips(true);
 				// NumMips has been reduced by FirstMipToSerialize (LODBias)
 				NumNonStreamingMips = FMath::Min(NumNonStreamingMips,NumMips);
 				// NumNonStreamingMips is not serialized

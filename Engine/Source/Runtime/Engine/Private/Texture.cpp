@@ -366,6 +366,10 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 }
 
 // we're in WITH_EDITOR but not sure that's right, maybe move out?
+// Beware: while ValidateSettingsAfterImportOrEdit should have been called on all Textures,
+//	 it is not called on load at runtime
+//   and it is not always called from dynamically generated textures
+//	so you must not rely on the rules it sets up being true!
 void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials)
 {
 	bool bRequiresNotifyMaterialsDummy = false;
@@ -380,101 +384,105 @@ void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials
 
 	if (Source.IsValid()) // we can have an empty source if the last source in a texture2d array is removed via the editor.
 	{
-	if ( MipGenSettings == TMGS_LeaveExistingMips && PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
-	{
-		// power of 2 pads not allowed with LeaveExistingMips
-		UE_LOG(LogTexture, Display, TEXT("Power of 2 padding cannot be used with LeaveExistingMips, disabled. (%s)"), *GetName());
-
-		PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
-	}
-
-	// IsPowerOfTwo only checks XY :
-	bool bIsPowerOfTwo = Source.IsPowerOfTwo();
-	if ( ! FMath::IsPowerOfTwo(Source.GetVolumeSizeZ()) )
-	{
-		bIsPowerOfTwo = false;
-	}
-	if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
-	{
-		bIsPowerOfTwo = true;
-	}
-
-	if ( ! bIsPowerOfTwo )
-	{
-		// streaming only supports power of 2 mips
-		// due to failure to compensate for the GPU row pitch
-		// it only works for mips that naturally have the required 256 pitch
-		// so mip levels >= 256 and power of 2 only
-		// (this used to be in Texture2D.cpp)
-		// this could be fixed and then streaming nonpow2 could be allowed
-		// see WarnRequiresTightPackedMip
-		NeverStream = true;	
-	}
-	
-	int32 MaxDimension = FMath::Max( Source.GetSizeX() , Source.GetSizeY() );
-	bool bLargeTextureMustBeVT = MaxDimension > GetMaximumDimensionOfNonVT();
-
-	if ( bLargeTextureMustBeVT && ! VirtualTextureStreaming && MaxTextureSize == 0 )
-	{
-		static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
-		check( CVarVirtualTexturesEnabled != nullptr );
-
-		if ( CVarVirtualTexturesEnabled->GetValueOnAnyThread() )
+		if ( MipGenSettings == TMGS_LeaveExistingMips && PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
 		{
-			if ( GetTextureClass() == ETextureClass::TwoD )
+			// power of 2 pads not allowed with LeaveExistingMips
+			UE_LOG(LogTexture, Display, TEXT("Power of 2 padding cannot be used with LeaveExistingMips, disabled. (%s)"), *GetName());
+
+			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
+		}
+
+		// IsPowerOfTwo only checks XY :
+		bool bIsPowerOfTwo = Source.IsPowerOfTwo();
+		if ( ! FMath::IsPowerOfTwo(Source.GetVolumeSizeZ()) )
+		{
+			bIsPowerOfTwo = false;
+		}
+		if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
+		{
+			bIsPowerOfTwo = true;
+		}
+
+		// Downscale can violate IsPow2, but it only acts when NoMipMaps, so it's moot
+
+		if ( ! bIsPowerOfTwo )
+		{
+			// streaming only supports power of 2 mips
+			// due to failure to compensate for the GPU row pitch
+			// it only works for mips that naturally have the required 256 pitch
+			// so mip levels >= 256 and power of 2 only
+			// (this used to be in Texture2D.cpp)
+			// see WarnRequiresTightPackedMip
+			// there are other issues with streaming non-pow2
+			//  all streamable levels must be valid textures, so block-of-4 alignment for BCN
+			//  is easiest to guarantee if the source is pow2
+			NeverStream = true;	
+		}
+	
+		int32 MaxDimension = FMath::Max( Source.GetSizeX() , Source.GetSizeY() );
+		bool bLargeTextureMustBeVT = MaxDimension > GetMaximumDimensionOfNonVT();
+
+		if ( bLargeTextureMustBeVT && ! VirtualTextureStreaming && MaxTextureSize == 0 )
+		{
+			static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+			check( CVarVirtualTexturesEnabled != nullptr );
+
+			if ( CVarVirtualTexturesEnabled->GetValueOnAnyThread() )
 			{
+				if ( GetTextureClass() == ETextureClass::TwoD )
+				{
 				UE_LOG(LogTexture, Display, TEXT("Large Texture %s Dimension=%d changed to VT; to disable VT set MaxTextureSize first"), *GetName(),MaxDimension);
-				VirtualTextureStreaming = true;
-				bRequiresNotifyMaterials = true;
+					VirtualTextureStreaming = true;
+					bRequiresNotifyMaterials = true;
+				}
+				else
+				{
+					UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d needs to be VT but is not 2d, changing MaxTextureSize"), *GetName(),MaxDimension);
+				
+					// GetMaximumDimension is the max size for this texture type on the current RHI
+					MaxTextureSize = GetMaximumDimension();
+				}
 			}
 			else
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d needs to be VT but is not 2d, changing MaxTextureSize"), *GetName(),MaxDimension);
-				
+				UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d must be VT but VirtualTextures are disabled, changing MaxTextureSize"), *GetName(),MaxDimension);
+
 				// GetMaximumDimension is the max size for this texture type on the current RHI
 				MaxTextureSize = GetMaximumDimension();
 			}
 		}
-		else
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d must be VT but VirtualTextures are disabled, changing MaxTextureSize"), *GetName(),MaxDimension);
-
-			// GetMaximumDimension is the max size for this texture type on the current RHI
-			MaxTextureSize = GetMaximumDimension();
-		}
-	}
 	
-	if (VirtualTextureStreaming)
-	{
-		if (!bIsPowerOfTwo)
+		if (VirtualTextureStreaming)
 		{
-			if ( bLargeTextureMustBeVT )
+			if (!bIsPowerOfTwo)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Large VT \"%s\", must be padded to power-of-2 for VT support (%dx%d)"), *GetName(), Source.GetSizeX(),Source.GetSizeY());
-				// VT nonpow2 will fail to build
-				// force it into a state that will succeed? or just let it fail?
-				// you can either pad to pow2 or set MaxTextureSize and turn off VT
+				if ( bLargeTextureMustBeVT )
+				{
+					UE_LOG(LogTexture, Warning, TEXT("Large VT \"%s\", must be padded to power-of-2 for VT support (%dx%d)"), *GetName(), Source.GetSizeX(),Source.GetSizeY());
+					// VT nonpow2 will fail to build
+					// force it into a state that will succeed? or just let it fail?
+					// you can either pad to pow2 or set MaxTextureSize and turn off VT
 				PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
+				}
+				else
+				{
+					UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
+					VirtualTextureStreaming = false;
+					bRequiresNotifyMaterials = true;
+				}
 			}
-			else
+		}
+
+		// Make sure settings are correct for LUT textures.
+		if(LODGroup == TEXTUREGROUP_ColorLookupTable)
+		{
+			if ( MipGenSettings != TMGS_NoMipmaps || SRGB != false )
 			{
-				UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
-				VirtualTextureStreaming = false;
+				MipGenSettings = TMGS_NoMipmaps;
+				SRGB = false;
 				bRequiresNotifyMaterials = true;
 			}
 		}
-	}
-
-	// Make sure settings are correct for LUT textures.
-	if(LODGroup == TEXTUREGROUP_ColorLookupTable)
-	{
-		if ( MipGenSettings != TMGS_NoMipmaps || SRGB != false )
-		{
-			MipGenSettings = TMGS_NoMipmaps;
-			SRGB = false;
-			bRequiresNotifyMaterials = true;
-		}
-	}
 	} // end if valid source
 #endif // #if WITH_EDITORONLY_DATA
 
@@ -1318,19 +1326,63 @@ const TArray<UAssetUserData*>* UTexture::GetAssetUserDataArray() const
 	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
+
+bool UTexture::IsPossibleToStream() const
+{
+	if ( NeverStream || LODGroup == TEXTUREGROUP_UI )
+	{
+		return false;
+	}
+
+	#if WITH_EDITORONLY_DATA
+	if ( MipGenSettings == TMGS_NoMipmaps )
+	{
+		return false;
+	}
+
+	// VirtualTextureStreaming can be true here and we will still stream if VT is disabled
+	
+	if ( Source.IsValid() )
+	{
+		// should have set NeverStream for nonpow2
+		// note: this is not the case for all old textures
+		// ValidateSettingsAfterImportOrEdit makes sure this is true
+		//check( Source.IsPowerOfTwo() || PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
+		
+		// duplicate the checks done for NeverStream :
+
+		// IsPowerOfTwo only checks XY :
+		bool bIsPowerOfTwo = Source.IsPowerOfTwo();
+		if ( ! FMath::IsPowerOfTwo(Source.GetVolumeSizeZ()) )
+		{
+			bIsPowerOfTwo = false;
+		}
+		if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
+		{
+			bIsPowerOfTwo = true;
+		}
+		if ( ! bIsPowerOfTwo )
+		{
+			// NeverStream should have been set
+			return false;
+		}
+	}
+	#endif
+
+	return true;
+}
+
 #if WITH_EDITOR
 // Based on target platform, returns wether texture is candidate to be streamed.
 // This method is used to decide if PrimitiveComponent's bHasNoStreamableTextures flag can be set to true.
 // See ULevel::MarkNoStreamableTexturesPrimitiveComponents for details.
-bool UTexture::IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPlatform) const
+bool UTexture::IsCandidateForTextureStreamingOnPlatformDuringCook(const ITargetPlatform* InTargetPlatform) const
 {
 	const bool bIsVirtualTextureStreaming = InTargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming) ? VirtualTextureStreaming : false;
 	const bool bIsCandidateForTextureStreaming = InTargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming) && !bIsVirtualTextureStreaming;
 
 	if (bIsCandidateForTextureStreaming &&
-		!NeverStream &&
-		LODGroup != TEXTUREGROUP_UI &&
-		MipGenSettings != TMGS_NoMipmaps)
+		IsPossibleToStream())
 	{
 		// If bCookedIsStreamable flag was previously computed, use it.
 		// This is computed _after_ the derived data is cached. It's only Reset() and used in the SerializeCookedPlatformData
@@ -1364,23 +1416,24 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 			return FMath::Min<int32>(PlatformData->Mips.Num() - ExpectedAssetLODBias, MaxRuntimeMipCount);
 		}
 	}();
+	
+	bool bTextureIsStreamable = IsPossibleToStream();
 
 	const int32 NumOfNonOptionalMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonOptionalMips());
-	const int32 NumOfNonStreamingMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonStreamingMips());
+	const int32 NumOfNonStreamingMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonStreamingMips(bTextureIsStreamable));
 	// Optional mips must be streaming mips :
 	check( NumOfNonOptionalMips >= NumOfNonStreamingMips );
+
+	if ( NumOfNonStreamingMips == NumMips )
+	{
+		bTextureIsStreamable = false;
+	}
 
 	const int32 AssetMipIdxForResourceFirstMip = FMath::Max<int32>(0, PlatformData->Mips.Num() - NumMips);
 
 	bool bMakeStreamable = false;
 	int32 NumRequestedMips = 0;
 	
-	// same conditions as IsCandidateForTextureStreaming which TextureDerivedData will use :
-	bool bTextureIsStreamable =
-	  (!NeverStream && 
-		NumOfNonStreamingMips < NumMips && 
-		LODGroup != TEXTUREGROUP_UI ); 
-
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	if ( bTextureIsStreamable )
 	{
@@ -3135,9 +3188,9 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			else
 			{
 				// @todo Oodle : this is not the best possible selection of output format from SourceFormat
-				// R16F and R32F is available but not used here even if their TC_ would have chosen them!
-				TextureFormatName = NameRGBA16F;
-			}
+			// R16F and R32F is available but not used here even if their TC_ would have chosen them!
+			TextureFormatName = NameRGBA16F;
+		}
 		}
 		else if (SourceFormat == TSF_G16)
 		{
