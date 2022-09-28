@@ -7,6 +7,7 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+#include "AnimationModifier.h"
 
 class FApplicationMode;
 class UAnimSequence;
