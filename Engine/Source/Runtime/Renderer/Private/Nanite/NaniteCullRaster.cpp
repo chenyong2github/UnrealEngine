@@ -107,7 +107,7 @@ FAutoConsoleVariableRef CVarNaniteImposterMaxPixels(
 	TEXT("")
 );
 
-float GNaniteMinPixelsPerEdgeHW = 18.0f;
+float GNaniteMinPixelsPerEdgeHW = 32.0f;
 FAutoConsoleVariableRef CVarNaniteMinPixelsPerEdgeHW(
 	TEXT("r.Nanite.MinPixelsPerEdgeHW"),
 	GNaniteMinPixelsPerEdgeHW,
