@@ -1210,6 +1210,7 @@ void FNiagaraSystemToolkit::SaveAsset_Execute()
 	}
 	SystemViewModel->NotifyPreSave();
 	FAssetEditorToolkit::SaveAsset_Execute();
+	SystemViewModel->NotifyPostSave();
 }
 
 void FNiagaraSystemToolkit::SaveAssetAs_Execute()
@@ -1221,6 +1222,7 @@ void FNiagaraSystemToolkit::SaveAssetAs_Execute()
 	}
 	SystemViewModel->NotifyPreSave();
 	FAssetEditorToolkit::SaveAssetAs_Execute();
+	SystemViewModel->NotifyPostSave();
 }
 
 bool FNiagaraSystemToolkit::OnRequestClose()

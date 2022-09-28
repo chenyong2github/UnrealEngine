@@ -84,6 +84,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, NiagaraSequence(nullptr)
 	, bSettingSequencerTimeDirectly(false)
 	, bForceAutoCompileOnce(false)
+	, bSupportCompileForEdit(true)
 	, bUpdatingEmittersFromSequencerDataChange(false)
 	, bUpdatingSequencerFromEmitterDataChange(false)
 	, bUpdatingSystemSelectionFromSequencer(false)
@@ -103,7 +104,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions)
 {
 	System = &InSystem;
-	System->bCompileForEdit = true;
+	System->bCompileForEdit = bSupportCompileForEdit;
 
 	RegisteredHandle = RegisterViewModelWithMap(System, this);
 
@@ -830,11 +831,29 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 
 void FNiagaraSystemViewModel::NotifyPreSave()
 {
-	if (GetSystem().HasOutstandingCompilationRequests(true))
+	if (System->HasOutstandingCompilationRequests(true))
 	{
-		UE_LOG(LogNiagaraEditor, Log, TEXT("System %s has pending compile jobs. Waiting for that code to complete before Saving.."), *GetSystem().GetName());
+		UE_LOG(LogNiagaraEditor, Log, TEXT("System %s has pending compile jobs. Waiting for that code to complete before Saving.."), *System->GetName());
+		System->WaitForCompilationComplete(true);
+	}
 
-		GetSystem().WaitForCompilationComplete(true);
+	if (bSupportCompileForEdit)
+	{
+		check(System->bCompileForEdit);
+		System->bCompileForEdit = false;
+		System->RequestCompile(false);
+		System->WaitForCompilationComplete(true);
+	}
+}
+
+void FNiagaraSystemViewModel::NotifyPostSave()
+{
+	if (bSupportCompileForEdit)
+	{
+		check(!System->bCompileForEdit);
+		System->bCompileForEdit = true;
+		System->RequestCompile(false);
+		System->WaitForCompilationComplete(true);
 	}
 }
 

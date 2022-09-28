@@ -343,6 +343,7 @@ public:
 	NIAGARAEDITOR_API bool GetIsEmitterPinned(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel);
 
 	NIAGARAEDITOR_API void NotifyPreSave();
+	NIAGARAEDITOR_API void NotifyPostSave();
 
 	NIAGARAEDITOR_API void NotifyPreClose();
 
@@ -619,6 +620,9 @@ private:
 
 	/** Whether or not the system represented by this view model can be simulated. */
 	bool bCanSimulate;
+
+	/** Whether we should use the CompileForEdit mode for the assigned system. */
+	bool bSupportCompileForEdit;
 
 	/** The current editing mode for this view model. */
 	ENiagaraSystemViewModelEditMode EditMode;
