@@ -387,7 +387,7 @@ protected:
 		// create UV overlays 
 		MeshOut.Attributes()->SetNumUVLayers(FMath::Max(1, NumUVLayers));
 		// reserve space in any new UV layers.
-		for (int32 i = 1; i < NumUVLayers; ++i)
+		for (int32 i = 1; i < NumUVLayers; ++i)		//-V654 //-V621 (The static analyzer complains if it knows NumUVLayers is 0 for a given SrcMeshType)
 		{
 			MeshOut.Attributes()->GetUVLayer(i)->InitializeTriangles(MeshOut.MaxTriangleID());
 		}
@@ -411,7 +411,7 @@ protected:
 
 
 		// populate UV overlays
-		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
+		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)	//-V654 //-V621 (The static analyzer complains if it knows NumUVLayers is 0 for a given SrcMeshType)
 		{
 			auto UVFuture = Async(EAsyncExecution::ThreadPool, [&, UVLayerIndex]()
 				{
@@ -510,7 +510,7 @@ protected:
 
 		//populate WeightMap attribute
 		MeshOut.Attributes()->SetNumWeightLayers(NumWeightMaps);
-		for (int WeightMapIndex = 0; WeightMapIndex < NumWeightMaps; WeightMapIndex++)
+		for (int WeightMapIndex = 0; WeightMapIndex < NumWeightMaps; WeightMapIndex++)	//-V654 //-V621 (The static analyzer complains if it knows NumWeightMaps is 0 for a given SrcMeshType)
 		{
 			auto WeightMapFuture = Async(EAsyncExecution::ThreadPool, [this, &MeshIn, &MeshOut, WeightMapIndex]()
 			{
