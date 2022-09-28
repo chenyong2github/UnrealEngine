@@ -78,7 +78,7 @@ public:
             poolingDesc.EndPadding = m_kernel.endPadding;
 
             DML_OPERATOR_DESC opDesc = {};
-            opDesc.Type = ApiTraits::OperatorDescTraits<std::remove_reference<decltype(poolingDesc)>::type>::Type;
+            opDesc.Type = ApiTraits::OperatorDescTraits<std::remove_reference_t<decltype(poolingDesc)>>::Type;
             opDesc.Desc = &poolingDesc;
             SetDmlOperatorDesc(opDesc, kernelInfo);
         };
