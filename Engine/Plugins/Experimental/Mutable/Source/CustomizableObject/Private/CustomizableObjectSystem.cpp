@@ -2377,6 +2377,11 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.bBuildParameterDecorations = InCustomizableObjectInstance->bBuildParameterDecorations;
 	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->ReloadParametersFromObject(InCustomizableObjectInstance, false);
 
+	// TODO: Remove once MTBL-973 is done
+#if WITH_EDITOR
+	Op.bBuildParameterDecorations = true;
+#endif
+
 	InCustomizableObjectInstance->GetCustomizableObject()->ApplyStateForcedValuesToParameters(InCustomizableObjectInstance->GetState(), Op.Parameters.get());
 
 	if (!Op.Parameters)
