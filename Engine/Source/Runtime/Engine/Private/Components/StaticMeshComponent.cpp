@@ -2124,8 +2124,12 @@ void UStaticMeshComponent::PostLoad()
 	// Initialize the resources for the freshly loaded component.
 	InitResources();
 
-	// Precache PSOs for the used materials
-	PrecachePSOs();
+	// If currently compiling, those will be called once the static mesh compilation has finished
+	if (GetStaticMesh() && !GetStaticMesh()->IsCompiling())
+	{
+		// Precache PSOs for the used materials
+		PrecachePSOs();
+	}
 }
 
 bool UStaticMeshComponent::IsPostLoadThreadSafe() const
@@ -2988,6 +2992,8 @@ void UStaticMeshComponent::PostStaticMeshCompilation()
 	CachePaintedDataIfNecessary();
 
 	FixupOverrideColorsIfNecessary(true);
+
+	PrecachePSOs();
 
 	UpdateCollisionFromStaticMesh();
 
