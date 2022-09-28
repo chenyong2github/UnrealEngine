@@ -2,8 +2,6 @@
 
 #include "NiagaraSettings.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSettings)
-
 UNiagaraSettings::UNiagaraSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 	, NDISkelMesh_GpuMaxInfluences(ENDISkelMesh_GpuMaxInfluences::Unlimited)
