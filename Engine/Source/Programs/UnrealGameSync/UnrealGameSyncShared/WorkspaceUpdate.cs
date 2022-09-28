@@ -913,14 +913,32 @@ namespace UnrealGameSync
 							branchOrStreamName = PerforceUtils.GetClientOrDepotDirectoryName(files[0].DepotFile);
 						}
 
-						// Find the last code change before this changelist. For consistency in versioning between local builds and precompiled binaries, we need to use the last submitted code changelist as our version number.
-						string[] codeFilter = new string[] { ".cs", ".h", ".cpp", ".usf", ".ush", ".uproject", ".uplugin" }.SelectMany(x => syncPaths.Select(y => String.Format("{0}{1}@<={2}", y, x, Context.ChangeNumber))).ToArray();
+                        PerforceResponseList<ChangesRecord>? codeChanges = null;
 
-						PerforceResponseList<ChangesRecord> codeChanges = await perforce.TryGetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, codeFilter, cancellationToken);
-						if (!codeChanges.Succeeded)
-						{
-							return (WorkspaceUpdateResult.FailedToSync, $"Couldn't determine last code changelist before CL {Context.ChangeNumber}.");
-						}
+                        // First, check the most recent changes (this is a much cheaper query because of revcx optimization in the Perforce server.)
+                        int optimisticRangeStart = Context.ChangeNumber - 1000;
+                        if (optimisticRangeStart >= 1)
+                        {
+                            string[] codeFilter = PerforceUtils.CodeExtensions.SelectMany(x => syncPaths.Select(y => $"{y}{x}@{optimisticRangeStart},{Context.ChangeNumber}")).ToArray();
+							codeChanges = await perforce.TryGetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, codeFilter, cancellationToken);
+
+							if (!codeChanges.Succeeded)
+                            {
+                                return (WorkspaceUpdateResult.FailedToSync, $"Couldn't determine last code changelist before CL {Context.ChangeNumber}.");
+                            }
+                        }
+
+                        // If no change found in recent changes, do the full and expensive check.
+                        if (codeChanges == null || codeChanges.Count == 0)
+                        {
+                            string[] codeFilter = PerforceUtils.CodeExtensions.SelectMany(x => syncPaths.Select(y => $"{y}{x}@<={Context.ChangeNumber}")).ToArray();
+                            codeChanges = await perforce.TryGetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, codeFilter, cancellationToken);
+
+							if (!codeChanges.Succeeded)
+                            {
+                                return (WorkspaceUpdateResult.FailedToSync, $"Couldn't determine last code changelist before CL {Context.ChangeNumber}.");
+                            }
+                        }
 						if (codeChanges.Count == 0)
 						{
 							return (WorkspaceUpdateResult.FailedToSync, $"Could not find any code changes before CL {Context.ChangeNumber}.");

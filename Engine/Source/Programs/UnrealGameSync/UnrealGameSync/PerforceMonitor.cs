@@ -223,7 +223,7 @@ namespace UnrealGameSync
 					}
 				}
 
-				// Wait for another request, or scan for new builds after a timeout
+                // Wait for another request, or scan for new builds after a timeout
 				Task delayTask = Task.Delay(TimeSpan.FromMinutes(IsActive ? 2 : 10), cancellationToken);
 				await Task.WhenAny(nextRefreshTask, delayTask);
 			}
@@ -284,7 +284,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				newChanges = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, -1, ChangeStatus.Submitted, depotPaths.Select(x => $"{x}@>{newestChangeNumber}").ToArray(), cancellationToken);
+				newChanges = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, null, newestChangeNumber + 1, -1, ChangeStatus.Submitted, null, depotPaths, cancellationToken);
 			}
 
 			// Remove anything we already have
