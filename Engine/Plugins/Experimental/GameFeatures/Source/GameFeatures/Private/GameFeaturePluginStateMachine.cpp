@@ -230,6 +230,7 @@ namespace UE::GameFeatures
 	XOPTION(Bundles,					TEXT("Bundles"))					\
 	XOPTION(Version,					TEXT("V"))							\
 	XOPTION(Flags,						TEXT("Flags"))						\
+	XOPTION(ReleaseFlags,				TEXT("ReleaseFlags"))						\
 	XOPTION(UninstallBeforeTerminate,	TEXT("UninstallBeforeTerminate"))	\
 	XOPTION(UserPauseDownload,			TEXT("Paused"))
 
@@ -821,13 +822,15 @@ struct FBaseDataReleaseGameFeaturePluginState : public FGameFeaturePluginState
 			}
 		}
 	}
+	/** Determine what kind of release request flags we submit */
+	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const
+	{
+		return StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().ReleaseInstallBundleFlags;
+	}
 
 	/** Determines what state you transition to in the event of a success or failure to release content */
 	virtual EGameFeaturePluginState GetSuccessTransitionState() const = 0;
 	virtual EGameFeaturePluginState GetFailureTransitionState() const = 0;
-
-	/** Determine what kind of release request flags we submit */
-	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const = 0;
 };
 
 struct FGameFeaturePluginState_Uninstalling : public FBaseDataReleaseGameFeaturePluginState
@@ -849,7 +852,8 @@ struct FGameFeaturePluginState_Uninstalling : public FBaseDataReleaseGameFeature
 	//Must be overridden to determine what kind of release request we submit
 	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const override
 	{
-		return EInstallBundleReleaseRequestFlags::RemoveFilesIfPossible;
+		const EInstallBundleReleaseRequestFlags BaseFlags = FBaseDataReleaseGameFeaturePluginState::GetReleaseRequestFlags();
+		return (BaseFlags | EInstallBundleReleaseRequestFlags::RemoveFilesIfPossible);
 	}
 
 	virtual bool TryUpdateURLData(const FString& NewPluginURL) override
@@ -893,12 +897,6 @@ struct FGameFeaturePluginState_Releasing : public FBaseDataReleaseGameFeaturePlu
 	virtual EGameFeaturePluginState GetFailureTransitionState() const override
 	{
 		return EGameFeaturePluginState::ErrorManagingData;
-	}
-
-	//Must be overridden to determine what kind of release request we submit
-	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const override
-	{
-		return EInstallBundleReleaseRequestFlags::None;
 	}
 };
 
@@ -2650,6 +2648,11 @@ FString FInstallBundlePluginProtocolMetaData::ToString() const
 		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%d"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::Flags), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, static_cast<uint32>(InstallBundleFlags)));
 	}
 
+	if (ReleaseInstallBundleFlags != FDefaultValues::Default_ReleaseInstallBundleFlags)
+	{
+		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%d"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::ReleaseFlags), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, static_cast<uint32>(ReleaseInstallBundleFlags)));
+	}
+
 	//Encode bUninstallBeforeTerminate if not the default
 	if (bUninstallBeforeTerminate != FDefaultValues::Default_bUninstallBeforeTerminate)
 	{
@@ -2662,7 +2665,7 @@ FString FInstallBundlePluginProtocolMetaData::ToString() const
 		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::UserPauseDownload), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bUserPauseDownload)));
 	}
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 5, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 6, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 
 	return ReturnedString;
 }
@@ -2750,6 +2753,22 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 						break;
 					}
 
+					case EGameFeatureInstallBundleProtocolOptions::ReleaseFlags:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid ReleaseFlags Option!"), *URLString);
+						}
+						//Expect to parse uint32 flag version of this as a 2nd parameter
+						else
+						{
+							Metadata.ReleaseInstallBundleFlags= static_cast<EInstallBundleReleaseRequestFlags>(FCString::Strtoi(*OptionStrings[1], nullptr, 10));
+						}
+
+						break;
+					}
+
 					case EGameFeatureInstallBundleProtocolOptions::UninstallBeforeTerminate:
 					{
 						if (OptionStrings.Num() != 2)
@@ -2799,7 +2818,7 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 		UE_LOG(LogGameFeatures, Error, TEXT("Error parsing InstallBundle protocol options URL %s . No Bundle List Found!"), *URLString);
 	}
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 5, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 6, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 
 	return bParseSuccess;
 }

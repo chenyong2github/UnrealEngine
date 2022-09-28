@@ -3291,8 +3291,17 @@ TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> FDefaultInstallBu
 
 	LOG_INSTALL_BUNDLE_MAN_OVERRIDE(LogVerbosityOverride, Display, TEXT("RequestReleaseContent"));
 
-	TSet<FName> BundlesToRelease = GatherBundlesForRequest(ReleaseNames, RetInfo.InfoFlags);
 	TSet<FName> BundlesToKeep = GatherBundlesForRequest(KeepNames, RetInfo.InfoFlags);
+	
+	TSet<FName> BundlesToRelease;
+	if (EnumHasAnyFlags(Flags, EInstallBundleReleaseRequestFlags::ExplicitRemoveList))
+	{
+		BundlesToRelease.Append(ReleaseNames);
+	}
+	else
+	{
+		BundlesToRelease = GatherBundlesForRequest(ReleaseNames, RetInfo.InfoFlags);
+	}
 
 	// Don't release shared dependencies
 	for (const FName& BundleName : BundlesToKeep)

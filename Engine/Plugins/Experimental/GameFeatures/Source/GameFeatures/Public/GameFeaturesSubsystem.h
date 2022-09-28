@@ -21,6 +21,7 @@ class FJsonObject;
 struct FWorldContext;
 struct FGameFeaturePluginStateRange;
 enum class EInstallBundleRequestFlags : uint32;
+enum class EInstallBundleReleaseRequestFlags : uint32;
 
 /** Holds static global information about how our PluginURLs are structured */
 namespace UE::GameFeatures
@@ -269,6 +270,9 @@ struct GAMEFEATURES_API FInstallBundlePluginProtocolMetaData
 	/** EInstallBundleRequestFlags utilized during the download/install by InstallBundleManager */
 	EInstallBundleRequestFlags InstallBundleFlags;
 
+	/** EInstallBundleReleaseRequestFlags utilized during our release and uninstall states */
+	EInstallBundleReleaseRequestFlags ReleaseInstallBundleFlags;
+
 	/** If we want to set the Downloading state to pause because of user interaction */
 	bool bUserPauseDownload;
 
@@ -290,6 +294,7 @@ private:
 		static const bool Default_bUninstallBeforeTerminate;
 		static const bool Default_bUserPauseDownload;
 		static const EInstallBundleRequestFlags Default_InstallBundleFlags;
+		static const EInstallBundleReleaseRequestFlags Default_ReleaseInstallBundleFlags;
 	};
 };
 
