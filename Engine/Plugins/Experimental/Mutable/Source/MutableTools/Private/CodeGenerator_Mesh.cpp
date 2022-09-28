@@ -196,8 +196,8 @@ namespace mu
             mutable_snprintf
                 (
                     buf, 256,
-                    "Source mesh has %d vertices not assigned to any layout block.",
-                    outside
+                    "Source mesh has %d vertices not assigned to any layout block in LOD %d",
+					outside, m_currentParents.back().m_lod
                 );
 			int blockCount = pLayout->GetBlockCount();
         
@@ -1024,9 +1024,16 @@ namespace mu
 		BOTTOM_UP_STATE temp = m_currentBottomUpState;
 		if (!m_activeTags.empty())
 		{
+			// Clearing layout stack to avoid unwanted information
+			vector< vector<Ptr<const Layout>> > m_overrideLayoutsStackCopy = m_overrideLayoutsStack;
+			m_overrideLayoutsStack.clear();
+
 			bool bModifiersForBeforeOperations = true;
 			result.meshOp = ApplyMeshModifiers(op, m_activeTags.back(),
 				bModifiersForBeforeOperations, node.m_errorContext);
+
+			// Retrieving stack information
+			m_overrideLayoutsStack = m_overrideLayoutsStackCopy;
 		}
 		m_currentBottomUpState = temp;
 

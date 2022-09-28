@@ -360,7 +360,7 @@ namespace mu
 				{
 					for (size_t j = 0; j < blocks.size(); ++j)
 					{
-						if (i != j && blocks[i].Contains(blocks[j].min))
+						if (i != j && blocks[i].IntersectsExclusive(blocks[j]))
 						{
 							blocks[i].Bound(blocks[j]);
 							blocks.erase(blocks.begin() + j);
