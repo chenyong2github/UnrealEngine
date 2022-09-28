@@ -2064,6 +2064,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 					if (ControlRigEditMode)
 					{
 						ControlRigEditMode->AddControlRigObject(TrackControlRig, GetSequencer());
+						ControlRigEditMode->RequestToRecreateControlShapeActors(TrackControlRig);
 						break;
 					}
 					else
@@ -2074,6 +2075,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 							if (ControlRigEditMode)
 							{
 								ControlRigEditMode->AddControlRigObject(TrackControlRig, GetSequencer());
+								ControlRigEditMode->RequestToRecreateControlShapeActors(TrackControlRig);
 							}
 						}
 					}
