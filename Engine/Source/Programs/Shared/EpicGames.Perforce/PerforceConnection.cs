@@ -3233,6 +3233,92 @@ namespace EpicGames.Perforce
 
 		#endregion
 
+		#region p4 sizes
+
+		/// <summary>
+		/// Execute the 'sizes' command
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static async Task<List<SizesRecord>> SizesAsync(this IPerforceConnection connection, SizesOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
+		{
+			return (await TrySizesAsync(connection, options, -1, fileSpecs, cancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'sizes' command
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static Task<PerforceResponseList<SizesRecord>> TrySizesAsync(this IPerforceConnection connection, SizesOptions options, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
+		{
+			return TrySizesAsync(connection, options, -1, fileSpecs, cancellationToken);
+		}
+
+		/// <summary>
+		/// Execute the 'sizes' command
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxLines">Maximum number of results to return. Ignored if less than or equal to zero.</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static async Task<List<SizesRecord>> SizesAsync(this IPerforceConnection connection, SizesOptions options, int maxLines, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
+		{
+			return (await TrySizesAsync(connection, options, maxLines, fileSpecs, cancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'sizes' command
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxLines">Maximum number of results to return. Ignored if less than or equal to zero.</param>
+		/// <param name="fileSpecs">List of file specifications to query</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static async Task<PerforceResponseList<SizesRecord>> TrySizesAsync(this IPerforceConnection connection, SizesOptions options, int maxLines, FileSpecList fileSpecs, CancellationToken cancellationToken = default)
+		{
+			List<string> arguments = new List<string>();
+			if ((options & SizesOptions.AllRevisions) != 0)
+			{
+				arguments.Add("-a");
+			}
+			if ((options & SizesOptions.LimitToArchiveDepots) != 0)
+			{
+				arguments.Add("-A");
+			}
+			if ((options & SizesOptions.CalculateSum) != 0)
+			{
+				arguments.Add("-s");
+			}
+			if ((options & SizesOptions.DisplayForShelvedFilesOnly) != 0)
+			{
+				arguments.Add("-S");
+			}
+            if ((options & SizesOptions.ExcludeLazyCopies) != 0)
+            {
+                arguments.Add("-z");
+            }
+            if (maxLines > 0)
+			{
+				arguments.Add($"-m{maxLines}");
+			}
+
+			PerforceResponseList<SizesRecord> records = await BatchedCommandAsync<SizesRecord>(connection, "sizes", arguments, fileSpecs.List, cancellationToken);
+			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return records;
+		}
+
+		#endregion
+
 		#region p4 stream
 
 		/// <summary>
