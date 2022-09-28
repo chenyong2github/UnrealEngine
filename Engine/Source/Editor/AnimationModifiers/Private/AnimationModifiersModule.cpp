@@ -33,10 +33,6 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
-#include "AssetToolsModule.h"
-#include "ContentBrowserMenuContexts.h"
-#include "ToolMenuDelegates.h"
-#include "ToolMenus.h"
 
 class UFactory;
 
@@ -54,16 +50,11 @@ void FAnimationModifiersModule::StartupModule()
 	Extender = FWorkflowApplicationModeExtender::CreateRaw(this, &FAnimationModifiersModule::ExtendApplicationMode);
 	FWorkflowCentricApplication::GetModeExtenderList().Add(Extender);
 
-	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FAnimationModifiersModule::RegisterMenus));
-
 	// Register delegates during PostEngineInit as this module is part of preload phase and GEditor is not valid yet
 	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
 	{
 		if (GEditor)
 		{
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();			
-			AssetTools.RegisterAssetTypeActions(MakeShareable(&AssetAction));
-			
 			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FAnimationModifiersModule::OnAssetPostImport);
 			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddRaw(this, &FAnimationModifiersModule::OnAssetPostReimport);
 		}
@@ -80,118 +71,6 @@ TSharedRef<FApplicationMode> FAnimationModifiersModule::ExtendApplicationMode(co
 	}
 	
 	return InMode;
-}
-
-void FAnimationModifiersModule::RegisterMenus()
-{	
-	UToolMenus* ToolMenus = UToolMenus::Get();
-	UToolMenu* Menu = ToolMenus->ExtendMenu("ContentBrowser.AssetContextMenu.AnimSequence");
-	if (!Menu)
-	{
-		return;
-	}
-
-	FToolMenuOwnerScoped OwnerScoped(this);
-	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-
-	Section.AddDynamicEntry("AnimModifierActions",
-		FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
-		{
-			const UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-			if (!Context)
-			{
-				return;
-			}
-
-			TArray<TWeakObjectPtr<UAnimSequence>> Sequences;
-			Algo::TransformIf(Context->SelectedObjects, Sequences, [](const TWeakObjectPtr<UObject>& Object)
-			{
-				return Cast<UAnimSequence>(Object.Get());
-			},
-			[](const TWeakObjectPtr<UObject>& Object)
-			{
-				return TWeakObjectPtr<UAnimSequence>(Cast<UAnimSequence>(Object.Get()));
-			});
-			
-			const FNewMenuDelegate MenuDelegate = FNewMenuDelegate::CreateLambda([Sequences, this](FMenuBuilder& MenuBuilder)
-			{
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("AnimSequence_AddAnimationModifier", "Add Modifiers"),
-					LOCTEXT("AnimSequence_AddAnimationModifierTooltip", "Add new animation modifier(s)."),
-				   FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier"),
-					FUIAction(FExecuteAction::CreateLambda([Sequences, this]()
-					{
-						TArray<UAnimSequence*> AnimSequences;
-
-						Algo::TransformIf(Sequences, AnimSequences, 
-						[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
-						{
-							return WeakAnimSequence.Get() && WeakAnimSequence->IsA<UAnimSequence>();
-						},
-						[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
-						{
-							return WeakAnimSequence.Get();
-						});
-
-						ShowAddAnimationModifierWindow(AnimSequences);
-					}))
-				);
-			
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("AnimSequence_ApplyAnimationModifier", "Apply Modifiers"),
-					LOCTEXT("AnimSequence_ApplyAnimationModifierTooltip", "Applies all contained animation modifier(s)."),
-					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier"),
-					FUIAction(FExecuteAction::CreateLambda([Sequences, this]()
-					{
-						TArray<UAnimSequence*> AnimSequences;
-						Algo::TransformIf(Sequences, AnimSequences, 
-						[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
-						{
-							return WeakAnimSequence.Get() && WeakAnimSequence->IsA<UAnimSequence>();
-						},
-						[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
-						{
-							return WeakAnimSequence.Get();
-						});
-						
-						ApplyAnimationModifiers(AnimSequences);
-					}))
-				);
-
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("AnimSequence_ApplyOutOfDataAnimationModifier", "Apply out-of-date Modifiers"),
-					LOCTEXT("AnimSequence_ApplyOutOfDataAnimationModifierTooltip", "Applies all contained animation modifier(s), if they are out of date."),
-					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier"),
-					FUIAction(FExecuteAction::CreateLambda([Sequences, this]()
-					{
-					TArray<UAnimSequence*> AnimSequences;
-					Algo::TransformIf(Sequences, AnimSequences, 
-					[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
-					{
-						return WeakAnimSequence.Get() && WeakAnimSequence->IsA<UAnimSequence>();
-					},
-					[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
-					{
-						return WeakAnimSequence.Get();
-					});
-
-					ApplyAnimationModifiers(AnimSequences, false);
-					}))
-				);
-			});
-
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			if (AssetTools.IsAssetClassSupported(UAnimationModifier::StaticClass()))
-			{
-				InSection.AddSubMenu("AnimSequence_AnimationModifiers", LOCTEXT("AnimSequence_AnimationModifiers", "Animation Modifier(s)"),
-				LOCTEXT("AnimSequence_AnimationModifiersTooltip", "Animation Modifier actions"),
-					FNewToolMenuChoice(MenuDelegate),
-					false,
-					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimationModifier")
-				);
-			}
-		})
-	);
 }
 
 void FAnimationModifiersModule::OnAssetPostImport(UFactory* ImportFactory, UObject* ImportedObject)
@@ -257,15 +136,6 @@ void FAnimationModifiersModule::ShutdownModule()
 			Mode->RemoveTabFactory(FAnimationModifiersTabSummoner::AnimationModifiersName);
 		}
 	}
-		
-	FAssetToolsModule* AssetToolsModulePtr = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-	if (AssetToolsModulePtr)
-	{		
-		AssetToolsModulePtr->Get().UnregisterAssetTypeActions(MakeShareable(&AssetAction));
-	}
-
-	UToolMenus::UnRegisterStartupCallback(this);
-	UToolMenus::UnregisterOwner(this);
 
 	RegisteredApplicationModes.Empty();
 

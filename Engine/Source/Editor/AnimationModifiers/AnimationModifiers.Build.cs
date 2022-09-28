@@ -15,7 +15,8 @@ public class AnimationModifiers : ModuleRules
                 "InputCore",
                 "Slate",
                 "SlateCore",
-                "EditorFramework",
+                
+				"EditorFramework",
                 "UnrealEd",
                 "MainFrame",
                 "PropertyEditor",
@@ -24,9 +25,7 @@ public class AnimationModifiers : ModuleRules
                 "ClassViewer",
                 "AssetRegistry",
                 "AnimationBlueprintLibrary",
-                "DeveloperSettings",
-                "ContentBrowser",
-                "ToolMenus"
+                "DeveloperSettings"
             }
 		);
     }
