@@ -180,6 +180,14 @@ static TAutoConsoleVariable<float> CVarPruneEmittersOnCookByDetailMode(
 	TEXT("This will only work if scalability settings affecting detail mode can not be changed at runtime (depends on platform).\n"),
 	ECVF_ReadOnly);
 
+float GFXLWCTileRecache = 2;
+FAutoConsoleVariableRef CVarFXLWCTileRecache(
+	TEXT("fx.LWCTileRecache"),
+	GFXLWCTileRecache,
+	TEXT("When we cross this number of LWC tiles from where we started the FX we need to recache the LWC tile to avoid artifacts.\n")
+	TEXT("When this occurs the system may need to reset, cull particles too far away, or do some additional processing to handle it.\n")
+	TEXT("Setting this value to 0 will remove this behavior but could introduce rendering & simulation artifacts.\n"),
+	ECVF_Default);
 
 int32 OldDetailModeToBitmask(int32 OldMode)
 {
@@ -3447,6 +3455,19 @@ UFXSystemComponent::UFXSystemComponent(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 {}
 
+bool UFXSystemComponent::RequiresLWCTileRecache(const FVector3f CurrentTile, const FVector CurrentLocation)
+{
+	bool bNeedsRecache = false;
+	const float TileRecache = GFXLWCTileRecache;
+	if (TileRecache > 0.0f)
+	{
+		const FVector3f ActorTile = FLargeWorldRenderScalar::GetTileFor(CurrentLocation);
+		const float MaxMovement = (CurrentTile - ActorTile).GetAbs().GetMax();
+		bNeedsRecache = MaxMovement >= TileRecache;
+	}
+	return bNeedsRecache;
+}
+
 FOnSystemPreActivationChange UParticleSystemComponent::OnSystemPreActivationChange;
 
 UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& ObjectInitializer)
@@ -5272,6 +5293,15 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 		return;
 	} 
 	
+	// Has the actor position changed to the point where we need to reset the LWC tile
+	if (RequiresLWCTileRecache(LWCTile, GetComponentLocation()))
+	{
+		//-OPT: We may be able to narrow down when a reset is required, like having a GPU emitter, having world space emitters, etc.
+		//      Cascade generally operates at double precision so it may only be GPU emitters that require a reset.
+		UE_LOG(LogParticles, Warning, TEXT("PSC(%s - %s) required LWC tile recache and was reset."), *GetFullNameSafe(this), *GetFullNameSafe(Template));
+		bRequiresReset = true;
+	}
+
 	if (bRequiresReset)
 	{
 		ForceReset();

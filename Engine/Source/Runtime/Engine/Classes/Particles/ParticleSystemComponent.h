@@ -405,7 +405,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
 	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState) {};
 
-
 	/**
 	 * Set AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule to the specified parameters. Does not change bAutoManageAttachment; that must be set separately.
 	 * @param  Parent			Component to attach to.
@@ -443,6 +442,9 @@ public:
 
 	/** Forces component to deactivate immediately. */
 	virtual void DeactivateImmediate() {}
+
+	/** Returns true if we have crossed LWC tiles to the point that we may introduce artifacts. */
+	static bool RequiresLWCTileRecache(const FVector3f CurrentTile, const FVector CurrentLocation);
 
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 	mutable FParticlePerfStats* ParticlePerfStats = nullptr;

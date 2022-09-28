@@ -22,7 +22,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Templates/AlignmentTemplates.h"
 
-
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Deactivate [GT]"), STAT_NiagaraSystemDeactivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Complete [GT]"), STAT_NiagaraSystemComplete, STATGROUP_Niagara);
@@ -2377,6 +2376,21 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	{
 		Reset(EResetMode::ReInit);
 		return;
+	}
+
+	// Has the actor position changed to the point where we need to reset the LWC tile
+	if (GetSystem()->SupportsLargeWorldCoordinates())
+	{
+		if (USceneComponent* SceneComponent = AttachComponent.Get())
+		{
+			if (UFXSystemComponent::RequiresLWCTileRecache(LWCTile, SceneComponent->GetComponentLocation()))
+			{
+				//-OPT: For safety we reset everything, but if everything is local space we may not need to, or we could rebase.
+				UE_LOG(LogNiagara, Warning, TEXT("NiagaraComponent(%s - %s) required LWC tile recache and was reset."), *GetFullNameSafe(SceneComponent), *GetFullNameSafe(Asset.Get()));
+				Reset(EResetMode::ResetAll);
+				return;
+			}
+		}
 	}
 
 	CachedDeltaSeconds = DeltaSeconds;
