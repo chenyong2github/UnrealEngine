@@ -44,35 +44,9 @@ namespace Horde.Build.Storage
 	}
 
 	/// <summary>
-	/// Types of storage backend to use
-	/// </summary>
-	public enum BackendType
-	{
-		/// <summary>
-		/// Local filesystem
-		/// </summary>
-		FileSystem,
-
-		/// <summary>
-		/// AWS S3
-		/// </summary>
-		Aws,
-
-		/// <summary>
-		/// In-memory only (for testing)
-		/// </summary>
-		Transient,
-
-		/// <summary>
-		/// Relay to another server (useful for testing against prod)
-		/// </summary>
-		Relay,
-	};
-
-	/// <summary>
 	/// Common settings object for different providers
 	/// </summary>
-	public class BackendConfig : IFileSystemStorageOptions, IAwsStorageOptions, IRelayStorageOptions
+	public class BackendConfig : IStorageBackendOptions
 	{
 		/// <summary>
 		/// The storage backend ID
@@ -86,7 +60,7 @@ namespace Horde.Build.Storage
 		public BackendId Base { get; set; }
 
 		/// <inheritdoc/>
-		public BackendType? Type { get; set; }
+		public StorageBackendType? Type { get; set; }
 
 		/// <inheritdoc/>
 		public string? BaseDir { get; set; }

@@ -62,7 +62,7 @@ namespace Horde.Build.Storage.Services
 		{
 			string path = GetFullBlobPath(namespaceId, hash);
 
-			Stream? stream = await _storageBackend.ReadAsync(path, cancellationToken);
+			Stream? stream = await _storageBackend.TryReadAsync(path, cancellationToken);
 			if(stream == null)
 			{
 				throw new BlobNotFoundException(namespaceId, hash);

@@ -268,10 +268,8 @@ namespace Horde.Build
 					return new FileSystemStorageBackend(options);
 				case StorageBackendType.Aws:
 					return new AwsStorageBackend(sp.GetRequiredService<IConfiguration>(), options, sp.GetRequiredService<ILogger<AwsStorageBackend>>());
-				case StorageBackendType.Transient:
-					return new TransientStorageBackend();
-				case StorageBackendType.Relay:
-					return new RelayStorageBackend(options);
+				case StorageBackendType.Memory:
+					return new MemoryStorageBackend();
 				default:
 					throw new NotImplementedException();
 			}

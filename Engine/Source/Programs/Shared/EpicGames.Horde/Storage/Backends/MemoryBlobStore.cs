@@ -16,7 +16,7 @@ namespace EpicGames.Horde.Storage.Backends
 	/// <summary>
 	/// Implementation of <see cref="IStorageClient"/> which stores data in memory. Not intended for production use.
 	/// </summary>
-	public class InMemoryBlobStore : StorageClientBase
+	public class MemoryBlobStore : StorageClientBase
 	{
 		/// <summary>
 		/// Map of blob id to blob data
@@ -37,7 +37,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public InMemoryBlobStore(IMemoryCache cache, ILogger logger) 
+		public MemoryBlobStore(IMemoryCache cache, ILogger logger) 
 			: base(cache, logger)
 		{
 		}
@@ -48,6 +48,13 @@ namespace EpicGames.Horde.Storage.Backends
 		public override Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			Stream stream = new ReadOnlySequenceStream(_blobs[locator].AsSequence());
+			return Task.FromResult(stream);
+		}
+
+		/// <inheritdoc/>
+		public override Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
+		{
+			Stream stream = new ReadOnlySequenceStream(_blobs[locator].AsSequence().Slice(offset));
 			return Task.FromResult(stream);
 		}
 

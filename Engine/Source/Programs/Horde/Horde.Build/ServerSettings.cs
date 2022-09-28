@@ -30,18 +30,13 @@ namespace Horde.Build
 		/// <summary>
 		/// In-memory only (for testing)
 		/// </summary>
-		Transient,
-
-		/// <summary>
-		/// Relay to another server (useful for testing against prod)
-		/// </summary>
-		Relay,
+		Memory,
 	};
 
 	/// <summary>
 	/// Common settings for different storage backends
 	/// </summary>
-	public interface IStorageBackendOptions : IFileSystemStorageOptions, IAwsStorageOptions, IRelayStorageOptions
+	public interface IStorageBackendOptions : IFileSystemStorageOptions, IAwsStorageOptions
 	{
 		/// <summary>
 		/// The type of storage backend to use
@@ -77,12 +72,6 @@ namespace Horde.Build
 
 		/// <inheritdoc/>
 		public string? AwsRegion { get; set; }
-
-		/// <inheritdoc/>
-		public string? RelayServer { get; set; }
-
-		/// <inheritdoc/>
-		public string? RelayToken { get; set; }
 	}
 
 	/// <summary>

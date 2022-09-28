@@ -19,12 +19,12 @@ namespace Horde.Build.Tests
 	public class BlobStoreTests : TestSetup
 	{
 		IMemoryCache? _cache;
-		InMemoryBlobStore? _store;
+		MemoryBlobStore? _store;
 
 		IStorageClient CreateBlobStore()
 		{
 			_cache ??= new MemoryCache(new MemoryCacheOptions());
-			_store ??= new InMemoryBlobStore(_cache, NullLogger.Instance);
+			_store ??= new MemoryBlobStore(_cache, NullLogger.Instance);
 			return _store;
 		}
 

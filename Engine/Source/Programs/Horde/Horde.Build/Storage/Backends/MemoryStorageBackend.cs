@@ -10,7 +10,7 @@ namespace Horde.Build.Storage.Backends
 	/// <summary>
 	/// In-memory implementation of ILogFileStorage
 	/// </summary>
-	public class TransientStorageBackend : IStorageBackend
+	public class MemoryStorageBackend : IStorageBackend
 	{
 		/// <summary>
 		/// Data storage
@@ -18,7 +18,7 @@ namespace Horde.Build.Storage.Backends
 		readonly ConcurrentDictionary<string, byte[]> _pathToData = new ConcurrentDictionary<string, byte[]>();
 
 		/// <inheritdoc/>
-		public Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
+		public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken)
 		{
 			byte[]? data;
 			if (_pathToData.TryGetValue(path, out data))
@@ -29,6 +29,17 @@ namespace Horde.Build.Storage.Backends
 			{
 				return Task.FromResult<Stream?>(null);
 			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<Stream?> TryReadAsync(string path, int offset, int length, CancellationToken cancellationToken)
+		{
+			Stream? stream = await TryReadAsync(path, cancellationToken);
+			if (stream != null)
+			{
+				stream.Seek(offset, SeekOrigin.Begin);
+			}
+			return stream;
 		}
 
 		/// <inheritdoc/>

@@ -43,7 +43,7 @@ namespace Horde.Build.Tests
             ILogger<LogFileService> logger = _loggerFactory.CreateLogger<LogFileService>();
 
 			ILogBuilder logBuilder = new RedisLogBuilder(GetRedisServiceSingleton().ConnectionPool, NullLogger.Instance);
-			_logStorage = new PersistentLogStorage(new TransientStorageBackend().ForType<PersistentLogStorage>(), NullLogger<PersistentLogStorage>.Instance);
+			_logStorage = new PersistentLogStorage(new MemoryStorageBackend().ForType<PersistentLogStorage>(), NullLogger<PersistentLogStorage>.Instance);
 			_clock = new FakeClock();
 			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, logger);
         }

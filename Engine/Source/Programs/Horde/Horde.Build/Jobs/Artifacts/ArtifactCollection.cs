@@ -199,7 +199,7 @@ namespace Horde.Build.Jobs.Artifacts
 		/// <returns>The chunk data</returns>
 		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(IArtifact artifact)
 		{
-			System.IO.Stream? stream = await _storageBackend.ReadAsync(GetPath(artifact.JobId, artifact.StepId, artifact.Name));
+			System.IO.Stream? stream = await _storageBackend.TryReadAsync(GetPath(artifact.JobId, artifact.StepId, artifact.Name));
 			if (stream == null)
 			{
 				throw new Exception($"Unable to get artifact {artifact.Id}");

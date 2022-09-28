@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
@@ -41,6 +40,13 @@ namespace Horde.Agent.Commands.Bundles
 				FileReference file = GetBlobFile(id);
 				_logger.LogInformation("Reading {File}", file);
 				return Task.FromResult<Stream>(FileReference.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read));
+			}
+
+			public override async Task<Stream> ReadBlobRangeAsync(BlobLocator id, int offset, int length, CancellationToken cancellationToken = default)
+			{
+				Stream stream = await ReadBlobAsync(id, cancellationToken);
+				stream.Seek(offset, SeekOrigin.Begin);
+				return stream;
 			}
 
 			public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)

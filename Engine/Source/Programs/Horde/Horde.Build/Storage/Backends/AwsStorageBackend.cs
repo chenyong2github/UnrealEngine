@@ -257,7 +257,18 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
+		public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken)
+		{
+			return TryReadAsync(path, null, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public Task<Stream?> TryReadAsync(string path, int offset, int length, CancellationToken cancellationToken)
+		{
+			return TryReadAsync(path, new ByteRange(offset, offset + length), cancellationToken);
+		}
+
+		async Task<Stream?> TryReadAsync(string path, ByteRange? byteRange, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.ReadAsync").StartActive();
 			scope.Span.SetTag("Path", path);
@@ -273,6 +284,7 @@ namespace Horde.Build.Storage.Backends
 				GetObjectRequest newGetRequest = new GetObjectRequest();
 				newGetRequest.BucketName = _options.AwsBucketName;
 				newGetRequest.Key = fullPath;
+				newGetRequest.ByteRange = byteRange;
 
 				response = await _client.GetObjectAsync(newGetRequest, cancellationToken);
 

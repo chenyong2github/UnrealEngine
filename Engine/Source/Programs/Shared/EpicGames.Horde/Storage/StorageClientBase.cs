@@ -9,7 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -20,85 +19,6 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public abstract class StorageClientBase : IStorageClient
 	{
-		/// <summary>
-		/// Wraps a stream and returns a portion of it
-		/// </summary>
-		class RangedReadStream : Stream, IDisposable
-		{
-			readonly Stream _inner;
-			readonly int _length;
-
-			int _position;
-
-			public RangedReadStream(Stream inner, int length)
-			{
-				_inner = inner;
-				_length = length;
-			}
-
-			/// <inheritdoc/>
-			public override bool CanRead => true;
-
-			/// <inheritdoc/>
-			public override bool CanSeek => false;
-
-			/// <inheritdoc/>
-			public override bool CanWrite => false;
-
-			/// <inheritdoc/>
-			public override long Length => throw new NotSupportedException();
-
-			/// <inheritdoc/>
-			public override long Position { get => _position; set => throw new NotSupportedException(); }
-
-			/// <inheritdoc/>
-			protected override void Dispose(bool disposing)
-			{
-				base.Dispose(disposing);
-
-				if (disposing)
-				{
-					_inner.Dispose();
-				}
-			}
-
-			/// <inheritdoc/>
-			public override void Flush() => _inner.Flush();
-
-			/// <inheritdoc/>
-			public override int Read(Span<byte> buffer)
-			{
-				buffer = buffer.Slice(0, Math.Min(buffer.Length, _length - _position));
-				int read = _inner.Read(buffer);
-				_position += read;
-				return read;
-			}
-
-			/// <inheritdoc/>
-			public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
-
-			/// <inheritdoc/>
-			public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-			{
-				buffer = buffer.Slice(0, Math.Min(buffer.Length, _length - _position));
-				int read = await _inner.ReadAsync(buffer, cancellationToken);
-				_position += read;
-				return read;
-			}
-
-			/// <inheritdoc/>
-			public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
-
-			/// <inheritdoc/>
-			public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-
-			/// <inheritdoc/>
-			public override void SetLength(long value) => throw new NotSupportedException();
-
-			/// <inheritdoc/>
-			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-		}
-
 		/// <summary>
 		/// Describes a bundle export
 		/// </summary>
@@ -222,14 +142,16 @@ namespace EpicGames.Horde.Storage
 		public abstract Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public virtual async Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
-		{
-			_logger.LogInformation("Reading {Locator} [{Offset},{Length}]", locator, offset, length);
-			Stream stream = await ReadBlobAsync(locator, cancellationToken);
-			stream.Seek(offset, SeekOrigin.Begin);
-			return new RangedReadStream(stream, Math.Min((int)(stream.Length - offset), length));
-		}
+		public abstract Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default);
 
+		/// <summary>
+		/// Utility method to read a blob into a buffer
+		/// </summary>
+		/// <param name="locator">Blob location</param>
+		/// <param name="offset">Offset within the blob</param>
+		/// <param name="memory">Buffer to read into</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The data that was read</returns>
 		async Task<Memory<byte>> ReadBlobRangeAsync(BlobLocator locator, int offset, Memory<byte> memory, CancellationToken cancellationToken = default)
 		{
 			using (Stream stream = await ReadBlobRangeAsync(locator, offset, memory.Length, cancellationToken))

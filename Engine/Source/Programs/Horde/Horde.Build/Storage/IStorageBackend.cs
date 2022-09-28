@@ -14,12 +14,22 @@ namespace Horde.Build.Storage
 	public interface IStorageBackend
 	{
 		/// <summary>
-		/// Opens a read stream for the given path.
+		/// Attempts to open a read stream for the given path.
 		/// </summary>
 		/// <param name="path">Relative path within the bucket</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken = default);
+		Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Attempts to open a read stream for the given path.
+		/// </summary>
+		/// <param name="path">Relative path within the bucket</param>
+		/// <param name="offset">Offset to start reading from</param>
+		/// <param name="length">Length of data to read</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		Task<Stream?> TryReadAsync(string path, int offset, int length, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a stream to the given path. If the stream throws an exception during read, the write will be aborted.
@@ -74,7 +84,10 @@ namespace Horde.Build.Storage
 			public StorageBackend(IStorageBackend inner) => _inner = inner;
 
 			/// <inheritdoc/>
-			public Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken) => _inner.ReadAsync(path, cancellationToken);
+			public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken) => _inner.TryReadAsync(path, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<Stream?> TryReadAsync(string path, int offset, int length, CancellationToken cancellationToken) => _inner.TryReadAsync(path, offset, length, cancellationToken);
 
 			/// <inheritdoc/>
 			public Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken) => _inner.WriteAsync(path, stream, cancellationToken);
@@ -106,7 +119,7 @@ namespace Horde.Build.Storage
 		/// <returns></returns>
 		public static async Task<ReadOnlyMemory<byte>?> ReadBytesAsync(this IStorageBackend storageBackend, string path, CancellationToken cancellationToken = default)
 		{
-			using (Stream? inputStream = await storageBackend.ReadAsync(path, cancellationToken))
+			using (Stream? inputStream = await storageBackend.TryReadAsync(path, cancellationToken))
 			{
 				if (inputStream == null)
 				{

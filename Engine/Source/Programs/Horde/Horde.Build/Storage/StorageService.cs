@@ -73,11 +73,26 @@ namespace Horde.Build.Storage
 
 			#region Blobs
 
+			/// <inheritdoc/>
 			public override async Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 			{
 				string path = GetBlobPath(locator.BlobId);
 
-				Stream? stream = await _backend.ReadAsync(path, cancellationToken);
+				Stream? stream = await _backend.TryReadAsync(path, cancellationToken);
+				if (stream == null)
+				{
+					throw new StorageException($"Unable to read data from {path}");
+				}
+
+				return stream;
+			}
+
+			/// <inheritdoc/>
+			public override async Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
+			{
+				string path = GetBlobPath(locator.BlobId);
+
+				Stream? stream = await _backend.TryReadAsync(path, offset, length, cancellationToken);
 				if (stream == null)
 				{
 					throw new StorageException($"Unable to read data from {path}");
@@ -290,16 +305,14 @@ namespace Horde.Build.Storage
 		/// <returns>New storage backend instance</returns>
 		IStorageBackend CreateStorageBackend(BackendConfig config)
 		{
-			switch (config.Type ?? BackendType.FileSystem)
+			switch (config.Type ?? StorageBackendType.FileSystem)
 			{
-				case BackendType.FileSystem:
+				case StorageBackendType.FileSystem:
 					return new FileSystemStorageBackend(config);
-				case BackendType.Aws:
+				case StorageBackendType.Aws:
 					return new AwsStorageBackend(_serviceProvider.GetRequiredService<IConfiguration>(), config, _serviceProvider.GetRequiredService<ILogger<AwsStorageBackend>>());
-				case BackendType.Transient:
-					return new TransientStorageBackend();
-				case BackendType.Relay:
-					return new RelayStorageBackend(config);
+				case StorageBackendType.Memory:
+					return new MemoryStorageBackend();
 				default:
 					throw new NotImplementedException();
 			}
