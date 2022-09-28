@@ -465,3 +465,40 @@ bool FMorphTargetVertexInfoBuffers::IsPlatformShaderSupported(EShaderPlatform Sh
 {
 	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
 }
+
+template <bool bRenderThread>
+FBufferRHIRef FMorphTargetVertexInfoBuffers::CreateMorphRHIBuffer_Internal()
+{
+	uint32 SizeInBytes = MorphData.Num() * sizeof(uint32);
+
+	if(SizeInBytes > 0)
+	{
+		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ByteAddressBuffer | BUF_ShaderResource;
+
+		// Create the index buffer.
+		FRHIResourceCreateInfo CreateInfo(TEXT("MorphData"), &MorphData);
+		if (bRenderThread)
+		{
+			FBufferRHIRef BufferRHIRef;
+			BufferRHIRef = RHICreateStructuredBuffer(sizeof(uint32), SizeInBytes, BufferFlags, ERHIAccess::SRVMask, CreateInfo);
+
+			return BufferRHIRef;
+		}
+		else
+		{
+			FRHIAsyncCommandList CommandList;
+			return CommandList->CreateBuffer(SizeInBytes, BufferFlags, sizeof(uint32), ERHIAccess::SRVMask, CreateInfo);
+		}
+	}
+	return nullptr;
+}
+
+FBufferRHIRef FMorphTargetVertexInfoBuffers::CreateMorphRHIBuffer_RenderThread()
+{
+	return CreateMorphRHIBuffer_Internal<true>();
+}
+
+FBufferRHIRef FMorphTargetVertexInfoBuffers::CreateMorphRHIBuffer_Async()
+{
+	return CreateMorphRHIBuffer_Internal<false>();
+}

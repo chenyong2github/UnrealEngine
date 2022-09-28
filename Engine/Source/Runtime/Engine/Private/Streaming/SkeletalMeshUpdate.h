@@ -80,6 +80,7 @@ protected:
 		FBufferRHIRef ClothVertexBuffer;
 		FBufferRHIRef IndexBuffer;
 		TArray<TPair<FName, FSkinWeightRHIInfo>> AltSkinWeightVertexBuffers;
+		FBufferRHIRef MorphBuffer;
 
 		void CreateFromCPUData_RenderThread(FSkeletalMeshLODRenderData& LODResource);
 		void CreateFromCPUData_Async(FSkeletalMeshLODRenderData& LODResource);
