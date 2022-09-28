@@ -232,7 +232,7 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL, FString const
 			if (!bIsStruct)
 			{
 				// Add uniforms.
-				OutHLSL += FString::Printf(TEXT("%s %s_%s);\n"), 
+				OutHLSL += FString::Printf(TEXT("%s %s_%s;\n"), 
 					*TypeName, 
 					*InDataInterfaceName, 
 					*Attribute.HlslId);
