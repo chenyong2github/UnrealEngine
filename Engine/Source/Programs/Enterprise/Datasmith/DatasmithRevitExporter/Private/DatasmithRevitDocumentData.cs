@@ -1316,7 +1316,12 @@ namespace DatasmithRevitExporter
 				{
 					BoundingBoxXYZ BBox = CurrentView3d.GetSectionBox();
 
+
+#if REVIT_API_2023
 					if (BBox.IsSet && BBox.Enabled)
+#else
+					if (BBox.Enabled)
+#endif
 					{
 						SectionBox = new OrientatedBoundingBox(BBox.Transform, BBox.Min, BBox.Max, true);
 						if (SectionBox.bIsValidData)
