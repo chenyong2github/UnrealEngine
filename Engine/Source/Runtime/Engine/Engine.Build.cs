@@ -143,8 +143,7 @@ public class Engine : ModuleRules
 				"TraceLog",
 				"ColorManagement",
 				"Icmp",
-				"XmlParser",
-				"GeometryCollectionEngine"
+				"XmlParser"
 			}
 		);
 

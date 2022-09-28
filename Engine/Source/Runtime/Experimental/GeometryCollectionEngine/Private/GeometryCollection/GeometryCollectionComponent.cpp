@@ -773,15 +773,6 @@ void UGeometryCollectionComponent::AddForce(FVector Force, FName BoneName, bool 
 	DispatchFieldCommand(Command);
 }
 
-
-void UGeometryCollectionComponent::AddForceAtLocation(FVector Force, FVector WorldLocation, FName BoneName)
-{
-	if (PhysicsProxy)
-	{
-		PhysicsProxy->ApplyForceAt_External(Force, WorldLocation);
-	}
-}
-
 void UGeometryCollectionComponent::AddImpulse(FVector Impulse, FName BoneName, bool bVelChange)
 {
 	const FVector Direction = Impulse.GetSafeNormal(); 
@@ -790,15 +781,6 @@ void UGeometryCollectionComponent::AddImpulse(FVector Impulse, FName BoneName, b
 	
 	const FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(FieldType, new FUniformVector(Magnitude, Direction));
 	DispatchFieldCommand(Command);
-}
-
-void UGeometryCollectionComponent::AddImpulseAtLocation(FVector Impulse, FVector WorldLocation, FName BoneName)
-{
-	if (PhysicsProxy)
-	{
-		PhysicsProxy->ApplyImpulseAt_External(Impulse, WorldLocation);
-	}
-	
 }
 
 TUniquePtr<FFieldNodeBase> MakeRadialField(const FVector& Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff)
@@ -4145,61 +4127,6 @@ int32 UGeometryCollectionComponent::GetInitialLevel(int32 ItemIndex)
 		}
 	}
 	return Level;
-}
-
-void UGeometryCollectionComponent::GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents)
-{
-	using FGeometryCollectionPtr = const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
-
-	OutMass = 0.0f;
-	OutExtents = FBox(EForceInit::ForceInitToZero);
-
-	int32 Level = INDEX_NONE;
-	if (RestCollection && RestCollection->GetGeometryCollection())
-	{
-		const FGeometryCollection& Collection = *RestCollection->GetGeometryCollection();
-		if (const TManagedArray<float>* CollectionMass = Collection.FindAttribute<float>(TEXT("Mass"), FTransformCollection::TransformGroup))
-		{
-			const TManagedArray<FBox>* TransformBoundingBoxes = Collection.FindAttribute<FBox>(TEXT("BoundingBox"), FTransformCollection::TransformGroup);
-			const TManagedArray<FBox>* GeoBoundingBoxes = Collection.FindAttribute<FBox>(TEXT("BoundingBox"), FGeometryCollection::GeometryGroup);
-
-			int32 TransformIndex = INDEX_NONE;
-			FGeometryCollectionItemIndex GCItemIndex = FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex);
-
-			if (GCItemIndex.IsInternalCluster())
-			{
-				const TArray<int32>* Children = PhysicsProxy->FindInternalClusterChildrenTransformIndices_External(GCItemIndex);
-				if (Children)
-				{
-					for (const int32 ChildTramsformIndex : *Children)
-					{
-						OutMass += (*CollectionMass)[ChildTramsformIndex];
-						if (TransformBoundingBoxes)
-						{
-							OutExtents += (*TransformBoundingBoxes)[ChildTramsformIndex];
-						}
-						else if (GeoBoundingBoxes)
-						{
-							OutExtents += (*GeoBoundingBoxes)[Collection.TransformToGeometryIndex[ChildTramsformIndex]];
-						}
-					}
-				}
-			}
-			else
-			{
-				TransformIndex = GCItemIndex.GetTransformIndex();
-				OutMass = (*CollectionMass)[TransformIndex];
-				if (TransformBoundingBoxes)
-				{
-					OutExtents = (*TransformBoundingBoxes)[TransformIndex];
-				}
-				else
-				{
-					OutExtents = (*GeoBoundingBoxes)[Collection.TransformToGeometryIndex[TransformIndex]];
-				}
-			}
-		}
-	}
 }
 
 bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, UE::Math::TSphere<double>& SphereOut) const

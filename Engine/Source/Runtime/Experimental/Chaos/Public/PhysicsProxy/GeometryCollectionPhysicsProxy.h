@@ -372,8 +372,6 @@ public:
 
 	void DisableParticles_External(TArray<int32>&& TransformGroupIndices);
 
-	void ApplyForceAt_External(FVector Force, FVector WorldLocation);
-	void ApplyImpulseAt_External(FVector Force, FVector WorldLocation);
 	void BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices);
 	void BreakActiveClusters_External();
 	void RemoveAllAnchors_External();
