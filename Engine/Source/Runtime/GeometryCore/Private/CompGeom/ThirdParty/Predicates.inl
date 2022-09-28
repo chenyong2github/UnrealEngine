@@ -125,6 +125,9 @@
 /* To try this out, write "#define INEXACT volatile" below.  Normally,       */
 /*   however, INEXACT should be defined to be nothing.  ("#define INEXACT".) */
 
+// TODO: With the compile settings set to fp:precise for the predicates code, or #pragma float_control(precise, on, push),
+// we should be able to switch this back to the non-volatile version and get faster performance especially for the difficult cases.
+// But please validate this result before switching it.
 //#define INEXACT                          /* Nothing */
 #define INEXACT volatile
 

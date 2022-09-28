@@ -35,6 +35,9 @@ double GEOMETRYCORE_API Facing2D(double* PA, double* PB, double* Direction);
 double GEOMETRYCORE_API InCircleInexact(double* PA, double* PB, double* PC, double* PD);
 double GEOMETRYCORE_API InCircle(double* PA, double* PB, double* PC, double* PD);
 
+// Note: The float versions of these functions can be marginally faster in some cases,
+// but also are often orders of magnitude slower, and can fail to underflow at much larger values.
+// Consider calling the double versions even for float inputs.
 float GEOMETRYCORE_API Orient2DInexact(float* PA, float* PB, float* PC);
 float GEOMETRYCORE_API Orient2D(float* PA, float* PB, float* PC);
 
@@ -98,11 +101,21 @@ RealType Orient2(const TVector2<RealType>& A, const TVector2<RealType>& B, const
 template<typename RealType>
 RealType Orient3(const TVector<RealType>& A, const TVector<RealType>& B, const TVector<RealType>& C, const TVector<RealType>& D)
 {
-	RealType PA[3]{ A.X, A.Y, A.Z };
-	RealType PB[3]{ B.X, B.Y, B.Z };
-	RealType PC[3]{ C.X, C.Y, C.Z };
-	RealType PD[3]{ D.X, D.Y, D.Z };
-	return Orient3D(PA, PB, PC, PD);
+	// Note: Though we support computing exact predicates in float precision directly, in practice
+	// it is generally faster and more reliable to compute in double precision
+	double PA[3]{ (double)A.X, (double)A.Y, (double)A.Z };
+	double PB[3]{ (double)B.X, (double)B.Y, (double)B.Z };
+	double PC[3]{ (double)C.X, (double)C.Y, (double)C.Z };
+	double PD[3]{ (double)D.X, (double)D.Y, (double)D.Z };
+	if constexpr (TIsSame<RealType, double>::Value)
+	{
+		return Orient3D(PA, PB, PC, PD);
+	}
+	else
+	{
+		// make sure the sign is not lost in casting
+		return (RealType)FMath::Sign(Orient3D(PA, PB, PC, PD));
+	}
 }
 
 /**
@@ -125,11 +138,21 @@ RealType Facing2(const TVector2<RealType>& A, const TVector2<RealType>& B, const
 template<typename RealType>
 RealType Facing3(const TVector<RealType>& A, const TVector<RealType>& B, const TVector<RealType>& C, const TVector<RealType>& Direction)
 {
-	RealType PA[3]{ A.X, A.Y, A.Z };
-	RealType PB[3]{ B.X, B.Y, B.Z };
-	RealType PC[3]{ C.X, C.Y, C.Z };
-	RealType Dir[3]{ Direction.X, Direction.Y, Direction.Z };
-	return Facing3D(PA, PB, PC, Dir);
+	// Note: Though we support computing exact predicates in float precision directly, in practice
+	// it is generally faster and more reliable to compute in double precision
+	double PA[3]{ (double)A.X, (double)A.Y, (double)A.Z };
+	double PB[3]{ (double)B.X, (double)B.Y, (double)B.Z };
+	double PC[3]{ (double)C.X, (double)C.Y, (double)C.Z };
+	double Dir[3]{ (double)Direction.X, (double)Direction.Y, (double)Direction.Z };
+	if constexpr (TIsSame<RealType, double>::Value)
+	{
+		return Facing3D(PA, PB, PC, Dir);
+	}
+	else
+	{
+		// make sure the sign is not lost in casting
+		return (RealType)FMath::Sign(Facing3D(PA, PB, PC, Dir));
+	}
 }
 
 /**
@@ -142,11 +165,21 @@ RealType Facing3(const TVector<RealType>& A, const TVector<RealType>& B, const T
 template<typename RealType>
 RealType InCircle2(const TVector2<RealType>& A, const TVector2<RealType>& B, const TVector2<RealType>& C, const TVector2<RealType>& D)
 {
-	RealType PA[2]{ A.X, A.Y };
-	RealType PB[2]{ B.X, B.Y };
-	RealType PC[2]{ C.X, C.Y };
-	RealType PD[2]{ D.X, D.Y };
-	return InCircle(PA, PB, PC, PD);
+	// Note: Though we support computing exact predicates in float precision directly, in practice
+	// it is generally faster and more reliable to compute in double precision
+	double PA[2]{ (double)A.X, (double)A.Y };
+	double PB[2]{ (double)B.X, (double)B.Y };
+	double PC[2]{ (double)C.X, (double)C.Y };
+	double PD[2]{ (double)D.X, (double)D.Y };
+	if constexpr (TIsSame<RealType, double>::Value)
+	{
+		return InCircle(PA, PB, PC, PD);
+	}
+	else
+	{
+		// make sure the sign is not lost in casting
+		return (RealType)FMath::Sign(InCircle(PA, PB, PC, PD));
+	}
 }
 
 

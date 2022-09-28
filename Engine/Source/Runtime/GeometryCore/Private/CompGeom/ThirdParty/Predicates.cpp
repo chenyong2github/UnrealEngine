@@ -128,6 +128,7 @@ using namespace std;
 #pragma warning(push)
 #pragma warning(disable : 4242)
 #pragma warning(disable : 4244)
+#pragma float_control(precise, on, push)
 #endif
 
 
@@ -166,4 +167,5 @@ namespace ShewchukExactPredicates
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
+#pragma float_control(pop)
 #endif
