@@ -501,6 +501,15 @@ bool URigVMPin::RequiresWatch(const bool bCheckExposedPinChain) const
 	return bRequiresWatch;
 }
 
+bool URigVMPin::IsEnum() const
+{
+	if (IsArray())
+	{
+		return false;
+	}
+	return GetEnum() != nullptr;
+}
+
 bool URigVMPin::IsStruct() const
 {
 	if (IsArray())

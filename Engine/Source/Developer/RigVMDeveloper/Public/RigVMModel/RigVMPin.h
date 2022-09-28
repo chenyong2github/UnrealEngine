@@ -186,6 +186,10 @@ public:
 	// Returns true if the pin should be watched
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool RequiresWatch(const bool bCheckExposedPinChain = false) const;
+	
+	// Returns true if the data type of the Pin is a enum
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsEnum() const;
 
 	// Returns true if the data type of the Pin is a struct
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
