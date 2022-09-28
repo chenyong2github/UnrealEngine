@@ -35,6 +35,7 @@ class SListView;
 class SWidget;
 class UMediaTexture;
 class UWorld;
+class FJsonObject;
 
 template<typename OptionType>
 class SComboBox;
@@ -44,6 +45,77 @@ namespace CameraLensDistortionAlgoCheckerboard
 	class SCalibrationRowGenerator;
 }
 
+/** Holds camera information that can be used to add the samples */
+USTRUCT()
+struct FLensDistortionCheckerboardCameraData
+{
+	GENERATED_BODY()
+
+	// True if the rest of the contents are valid.
+	UPROPERTY()
+	bool bIsValid = false;
+
+	// Input focus from lens file evaluation data
+	UPROPERTY()
+	float InputFocus = 0.0f;
+
+	// Input zoom from lens file evaluation data
+	UPROPERTY()
+	float InputZoom = 0.0f;
+};
+
+/** Holds information of the calibration row */
+USTRUCT()
+struct FLensDistortionCheckerboardRowData
+{
+	GENERATED_BODY()
+
+	// Thumbnail to display in list
+	TSharedPtr<SSimulcamViewport> Thumbnail;
+
+	// Captured image containing checkerboard
+	FImageView ImageView;
+
+	// Index to display in list
+	UPROPERTY()
+	int32 Index = -1;
+
+	// Checkerboard corners in 2d image pixel coordinates.
+	UPROPERTY()
+	TArray<FVector2D> Points2d;
+
+	// Checkerboard corners in 3d local space.
+	UPROPERTY()
+	TArray<FVector> Points3d;
+
+	// Which calibrator was used
+	UPROPERTY()
+	FString CalibratorName;
+
+	// Number of corner rows in pattern
+	UPROPERTY()
+	int32 NumCornerRows = 0;
+
+	// Number of corner columns in pattern
+	UPROPERTY()
+	int32 NumCornerCols = 0;
+
+	// Side dimension in cm
+	UPROPERTY()
+	float SquareSideInCm = 0;
+
+	// Width of image
+	UPROPERTY()
+	int32 ImageWidth = 0;
+
+	// Height of image
+	UPROPERTY()
+	int32 ImageHeight = 0;
+
+	// Holds information of the camera data for this sample
+	UPROPERTY()
+	FLensDistortionCheckerboardCameraData CameraData;
+};
 
 /** 
  * Implements a lens distortion calibration algorithm. It requires a checkerboard pattern
@@ -62,6 +134,7 @@ public:
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual FName FriendlyName() const override { return TEXT("Lens Distortion Checkerboard"); };
+	virtual FName ShortName() const override { return TEXT("Checkerboard"); };
 	virtual UMaterialInterface* GetOverlayMaterial() const override;
 	virtual bool IsOverlayEnabled() const override { return bShouldShowOverlay; };
 	virtual void OnDistortionSavedToLens() override;
@@ -75,6 +148,10 @@ public:
 		double& OutError,
 		FText& OutErrorMessage
 	) override;
+	virtual bool HasCalibrationData() const override;
+	virtual void PreImportCalibrationData() override;
+	virtual int32 ImportCalibrationRow(const TSharedRef<FJsonObject>& CalibrationRowObject, const FImage& RowImage) override;
+	virtual void PostImportCalibrationData() override;
 	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End CameraLensDistortionAlgo
 
@@ -83,54 +160,9 @@ private:
 	// SCalibrationRowGenerator will need access to the row structures below.
 	friend class CameraLensDistortionAlgoCheckerboard::SCalibrationRowGenerator;
 
-	/** Holds camera information that can be used to add the samples */
-	struct FCameraDataCache
-	{
-		// True if the rest of the contents are valid.
-		bool bIsValid = false;
-
-		// The data used to evaluate the lens data in the camera for this sample
-		FLensFileEvalData LensFileEvalData;
-	};
-
-	/** Holds information of the calibration row */
-	struct FCalibrationRowData
-	{
-		// Thumbnail to display in list
-		TSharedPtr<SSimulcamViewport> Thumbnail;
-
-		// Index to display in list
-		int32 Index = -1;
-
-		// Checkerboard corners in 2d image pixel coordinates.
-		TArray<FVector2D> Points2d;
-
-		// Checkerboard corners in 3d local space.
-		TArray<FVector> Points3d;
-
-		// Which calibrator was used
-		FString CalibratorName;
-
-		// Number of corner rows in pattern
-		int32 NumCornerRows = 0;
-
-		// Number of corner columns in pattern
-		int32 NumCornerCols = 0;
-
-		// Side dimension in cm
-		float SquareSideInCm = 0;
-
-		// Width of image
-		int32 ImageWidth = 0;
-
-		// Height of image
-		int32 ImageHeight = 0;
-
-		// Holds information of the camera data for this sample
-		FCameraDataCache CameraData;
-	};
-
 private:
+	/** Version of the current calibration dataset */
+	static const int DATASET_VERSION;
 
 	/** The lens distortion tool controller */
 	TWeakObjectPtr<ULensDistortionTool> Tool;
@@ -139,13 +171,13 @@ private:
 	TWeakObjectPtr<ACameraCalibrationCheckerboard> Calibrator;
 
 	/** Rows source for the CalibrationListView */
-	TArray<TSharedPtr<FCalibrationRowData>> CalibrationRows;
+	TArray<TSharedPtr<FLensDistortionCheckerboardRowData>> CalibrationRows;
 
 	/** Displays the list of calibration points that will be used to calculate the lens distortion */
-	TSharedPtr<SListView<TSharedPtr<FCalibrationRowData>>> CalibrationListView;
+	TSharedPtr<SListView<TSharedPtr<FLensDistortionCheckerboardRowData>>> CalibrationListView;
 
 	/** Caches the last camera data.  Will hold last value before the media is paused */
-	FCameraDataCache LastCameraData;
+	FLensDistortionCheckerboardCameraData LastCameraData;
 
 	/** True if the coverage overlay should be shown */
 	bool bShouldShowOverlay = false;
@@ -193,7 +225,7 @@ private:
 	void ClearCalibrationRows();
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
-	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+	bool ValidateNewRow(TSharedPtr<FLensDistortionCheckerboardRowData>& Row, FText& OutErrorMessage) const;
 
 	/** Add a new calibration row from media texture and camera data */
 	bool AddCalibrationRow(FText& OutErrorMessage);
@@ -203,4 +235,10 @@ private:
 
 	/** Update the coverage texture to reflect the current set of calibration rows */
 	void RefreshCoverage();
+
+	/** Export global session data to a .json file */
+	void ExportSessionData();
+
+	/** Export the row data to a json file */
+	void ExportRow(TSharedPtr<FLensDistortionCheckerboardRowData> Row);
 };

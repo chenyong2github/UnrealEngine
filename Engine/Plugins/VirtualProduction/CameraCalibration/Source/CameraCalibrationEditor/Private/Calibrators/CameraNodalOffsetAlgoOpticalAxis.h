@@ -31,6 +31,7 @@ public:
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual bool GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage) override;
 	virtual FName FriendlyName() const override { return TEXT("Nodal Offset Optical Axis"); };
+	virtual FName ShortName() const override { return TEXT("OpticalAxis"); };
 	virtual UMaterialInterface* GetOverlayMaterial() const override;
 	virtual bool IsOverlayEnabled() const override;
 	virtual TSharedRef<SWidget> BuildHelpWidget() override;

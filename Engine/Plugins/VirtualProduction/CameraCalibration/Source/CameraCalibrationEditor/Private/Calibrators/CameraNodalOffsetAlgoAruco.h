@@ -23,6 +23,7 @@ public:
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual FName FriendlyName() const override { return TEXT("Nodal Offset Aruco Markers"); };
+	virtual FName ShortName() const override { return TEXT("Aruco"); };
 	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End CalibPointsNodalOffsetAlgo
 

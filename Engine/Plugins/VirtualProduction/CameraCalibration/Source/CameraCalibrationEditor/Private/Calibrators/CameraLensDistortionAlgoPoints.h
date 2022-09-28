@@ -11,9 +11,84 @@
 template <typename ItemType>
 class SListView;
 
+class FJsonObject;
+
 namespace CameraLensDistortionAlgoPoints
 {
 	class SCalibrationRowGenerator;
+};
+
+/** Holds information of the identified calibrator 2d point for a given sample of a 2d-3d correlation */
+USTRUCT()
+struct FLensDistortionPointsCalibratorPointData
+{
+	GENERATED_BODY()
+
+	// True if the rest of the contents are valid.
+	UPROPERTY()
+	bool bIsValid = false;
+
+	// The name of the 3d calibrator point, as defined in the mesh
+	UPROPERTY()
+	FString Name;
+
+	// 3D location of the calibrator point
+	UPROPERTY()
+	FVector Point3d = FVector::ZeroVector;
+
+	// 2D location of the calibrator point
+	UPROPERTY()
+	FVector2D Point2d = FVector2D::ZeroVector;
+};
+
+/** Holds information of the camera pose for a given sample of a 2d-3d correlation */
+USTRUCT()
+struct FLensDistortionPointsCameraData
+{
+	GENERATED_BODY()
+
+	// True if the rest of the contents are valid.
+	UPROPERTY()
+	bool bIsValid = false;
+
+	// The unique id of the camera object. Used to detect camera selection changes during a calibration session.
+	UPROPERTY()
+	uint32 UniqueId = INDEX_NONE;
+
+	// The unique id of the calibrator object. Used to detect calibrator selection changes during a calibration session.
+	UPROPERTY()
+	uint32 CalibratorUniqueId = INDEX_NONE;
+
+	// Input focus from lens file evaluation data
+	UPROPERTY()
+	float InputFocus = 0.0f;
+
+	// Input zoom from lens file evaluation data
+	UPROPERTY()
+	float InputZoom = 0.0f;
+};
+
+/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
+USTRUCT()
+struct FLensDistortionPointsRowData
+{
+	GENERATED_BODY()
+	
+	// Index to display in list
+	UPROPERTY()
+	int32 Index = INDEX_NONE;
+
+	// The 3D-2D point correspondences for each of the calibrator points in the chosen calibrator for a single pose
+	UPROPERTY()
+	FLensDistortionPointsCalibratorPointData CalibratorPointData;
+
+	// Holds information of the camera data for this sample
+	UPROPERTY()
+	FLensDistortionPointsCameraData CameraData;
+
+	// Index of the calibration pattern this row is associated with
+	UPROPERTY()
+	uint32 PatternIndex = INDEX_NONE;
 };
 
 /**
@@ -40,6 +115,8 @@ public:
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual FName FriendlyName() const override { return TEXT("Lens Distortion Points Method"); };
+	virtual FName ShortName() const override { return TEXT("Points"); };
+	virtual void OnDistortionSavedToLens() override;
 
 	virtual bool GetLensDistortion(
 		float& OutFocus,
@@ -51,7 +128,11 @@ public:
 		double& OutError,
 		FText& OutErrorMessage) override;
 
-	virtual void OnDistortionSavedToLens() override;
+	virtual bool HasCalibrationData() const override;
+	virtual void PreImportCalibrationData() override;
+	virtual void ImportSessionData(const TSharedRef<FJsonObject>& SessionDataObject) override;
+	virtual int32 ImportCalibrationRow(const TSharedRef<FJsonObject>& CalibrationRowObject, const FImage& RowImage) override;
+	virtual void PostImportCalibrationData() override;
 	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End UCameraLensDistortionAlgo
 
@@ -71,52 +152,9 @@ protected:
 		FString Name;
 	};
 
-	/** Holds information of the identified calibrator 2d point for a given sample of a 2d-3d correlation */
-	struct FCalibratorPointCache
-	{
-		// True if the rest of the contents are valid.
-		bool bIsValid;
-
-		// The name of the 3d calibrator point, as defined in the mesh
-		FString Name;
-
-		// 3D location of the calibrator point
-		FVector Point3d;
-
-		// 2D location of the calibrator point
-		FVector2D Point2d;
-	};
-
-	/** Holds information of the camera pose for a given sample of a 2d-3d correlation */
-	struct FCameraDataCache
-	{
-		// True if the rest of the contents are valid.
-		bool bIsValid;
-
-		// The unique id of the camera object. Used to detect camera selection changes during a calibration session.
-		uint32 UniqueId;
-
-		// The unique id of the calibrator object. Used to detect calibrator selection changes during a calibration session.
-		uint32 CalibratorUniqueId;
-
-		// The data used to evaluate the lens data in the camera for this sample
-		FLensFileEvalData LensFileEvalData;
-	};
-
-	/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
-	struct FCalibrationRowData
-	{
-		// The 3D-2D point correspondences for each of the calibrator points in the chosen calibrator for a single pose
-		FCalibratorPointCache CalibratorPointData;
-
-		// Holds information of the camera data for this sample
-		FCameraDataCache CameraData;
-
-		// Index of the calibration pattern this row is associated with
-		uint32 PatternIndex;
-	};
-
 protected:
+	/** Version of the current calibration dataset */
+	static const int DATASET_VERSION;
 
 	/** The lens distortion tool */
 	TWeakObjectPtr<ULensDistortionTool> LensDistortionTool;
@@ -131,16 +169,16 @@ protected:
 	TSharedPtr<FCalibratorPointData> CurrentCalibratorPoint;
 
 	/** Rows source for the CalibrationListView */
-	TArray<TSharedPtr<FCalibrationRowData>> CalibrationRows;
+	TArray<TSharedPtr<FLensDistortionPointsRowData>> CalibrationRows;
 
 	/** Displays the list of calibration points that will be used to calculate the lens distortion */
-	TSharedPtr<SListView<TSharedPtr<FCalibrationRowData>>> CalibrationListView;
+	TSharedPtr<SListView<TSharedPtr<FLensDistortionPointsRowData>>> CalibrationListView;
 
 	/** Caches the last calibrator point 3d location.  Will hold last value before the lens distortion tool is paused */
-	TArray<FCalibratorPointCache> LastCalibratorPoints;
+	TArray<FLensDistortionPointsCalibratorPointData> LastCalibratorPoints;
 
 	/** Caches the last camera data.  Will hold last value before the lens distortion tool is paused */
-	FCameraDataCache LastCameraData;
+	FLensDistortionPointsCameraData LastCameraData;
 
 	/** Instructs the inline allocation policy how many elements to allocate in a single allocation */
 	static constexpr uint32 NumInlineAllocations = 32;
@@ -170,10 +208,10 @@ protected:
 	 *
 	 * @return True if successful.
 	 */
-	bool GetCalibratorPointCacheFromName(const FString& Name, FCalibratorPointCache& CalibratorPointCache) const;
+	bool GetCalibratorPointCacheFromName(const FString& Name, FLensDistortionPointsCalibratorPointData& CalibratorPointCache) const;
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
-	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+	bool ValidateNewRow(TSharedPtr<FLensDistortionPointsRowData>& Row, FText& OutErrorMessage) const;
 
 	/** Clears the list of calibration sample rows */
 	void ClearCalibrationRows();
@@ -182,7 +220,13 @@ protected:
 	void DeleteSelectedCalibrationRows();
 
 	/** Updates the selection in the list of calibration rows so that patterns are always grouped together */
-	void OnCalibrationRowSelectionChanged(TSharedPtr<FCalibrationRowData> SelectedRow, ESelectInfo::Type SelectInfo);
+	void OnCalibrationRowSelectionChanged(TSharedPtr<FLensDistortionPointsRowData> SelectedRow, ESelectInfo::Type SelectInfo);
+
+	/** Export global session data to a .json file */
+	void ExportSessionData();
+
+	/** Export the row data to a .json file */
+	void ExportRow(TSharedPtr<FLensDistortionPointsRowData> Row);
 
 	/** Builds the UI of the calibration device picker */
 	TSharedRef<SWidget> BuildCalibrationDevicePickerWidget();

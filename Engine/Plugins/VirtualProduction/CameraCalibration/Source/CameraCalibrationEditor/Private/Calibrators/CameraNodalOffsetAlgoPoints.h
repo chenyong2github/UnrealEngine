@@ -13,6 +13,7 @@ class FCameraCalibrationStepsController;
 template <typename ItemType>
 class SListView;
 
+class FJsonObject;
 class UCalibrationPointComponent;
 
 template<typename OptionType>
@@ -22,6 +23,119 @@ class SComboBox;
 namespace CameraNodalOffsetAlgoPoints
 {
 	class SCalibrationRowGenerator;
+};
+
+/** Holds information of the identified calibrator 2d point for a given sample of a 2d-3d correlation */
+USTRUCT()
+struct FNodalOffsetPointsCalibratorPointData
+{
+	GENERATED_BODY()
+
+	// True if the rest of the contents are valid.
+	UPROPERTY()
+	bool bIsValid = false;
+
+	// The name of the 3d calibrator point, as defined in the mesh
+	UPROPERTY()
+	FString Name;
+
+	// The world space 3d location of the point
+	UPROPERTY()
+	FVector Location = FVector::ZeroVector;
+};
+
+/** Holds information of the camera pose for a given sample of a 2d-3d correlation */
+USTRUCT()
+struct FNodalOffsetPointsCameraData
+{
+	GENERATED_BODY()
+
+	// True if the rest of the contents are valid.
+	UPROPERTY()
+	bool bIsValid = false;
+
+	// The unique id of the camera object. Used to detect camera selection changes during a calibration session.
+	UPROPERTY()
+	uint32 UniqueId = INDEX_NONE;
+
+	// The camera pose
+	UPROPERTY()
+	FTransform Pose = FTransform::Identity;
+
+	// True if the cached camera pose included a nodal offset
+	UPROPERTY()
+	bool bWasNodalOffsetApplied = false;
+
+	// True if distortion was evaluated (using this LensFile) 
+	UPROPERTY()
+	bool bWasDistortionEvaluated = false;
+
+	// Input focus from lens file evaluation data
+	UPROPERTY()
+	float InputFocus = 0.0f;
+
+	// Input zoom from lens file evaluation data
+	UPROPERTY()
+	float InputZoom = 0.0f;
+
+	// The parent pose (expected to be the tracker origin)
+	UPROPERTY()
+	FTransform ParentPose = FTransform::Identity;
+
+	// The parent unique id
+	UPROPERTY()
+	uint32 ParentUniqueId = INDEX_NONE;
+
+	// Calibrator Pose
+	UPROPERTY()
+	FTransform CalibratorPose = FTransform::Identity;
+
+	// Calibrator ParentPose
+	UPROPERTY()
+	FTransform CalibratorParentPose = FTransform::Identity;
+
+	// Calibrator ComponentPose
+	UPROPERTY()
+	TMap<uint32, FTransform> CalibratorComponentPoses;
+
+	// Calibrator unique id
+	UPROPERTY()
+	uint32 CalibratorUniqueId = INDEX_NONE;
+
+	// Calibrator parent unique id
+	UPROPERTY()
+	uint32 CalibratorParentUniqueId = INDEX_NONE;
+};
+
+/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
+USTRUCT()
+struct FNodalOffsetPointsRowData
+{
+	GENERATED_BODY()
+
+	// Index of this calibration row
+	UPROPERTY()
+	int32 Index = INDEX_NONE;
+
+	// Normalized 0~1 2d location of the identified calibrator point in the media plate.
+	UPROPERTY()
+	FVector2D Point2D = FVector2D::ZeroVector;
+
+	// Location of Point2D after it has been undistorted
+	UPROPERTY()
+	FVector2D UndistortedPoint2D = FVector2D::ZeroVector;
+
+	// True if this row has had its Point2D undistorted
+	UPROPERTY()
+	bool bUndistortedIsValid = false;
+
+	// Holds information of the calibrator point data for this sample.
+	UPROPERTY()
+	FNodalOffsetPointsCalibratorPointData CalibratorPointData;
+
+	// Holds information of the camera data for this sample
+	UPROPERTY()
+	FNodalOffsetPointsCameraData CameraData;
 };
 
 /** 
@@ -49,7 +163,12 @@ public:
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual bool GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage) override;
 	virtual FName FriendlyName() const override { return TEXT("Nodal Offset Points Method"); };
+	virtual FName ShortName() const override { return TEXT("Points"); };
 	virtual void OnSavedNodalOffset() override;
+	virtual bool HasCalibrationData() const override;
+	virtual void PreImportCalibrationData() override;
+	virtual int32 ImportCalibrationRow(const TSharedRef<FJsonObject>& CalibrationRowObject, const FImage& RowImage) override;
+	virtual void PostImportCalibrationData() override;
 	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End CalibPointsNodalOffsetAlgo
 
@@ -69,82 +188,9 @@ protected:
 		FString Name;
 	};
 
-	/** Holds information of the identified calibrator 2d point for a given sample of a 2d-3d correlation */
-	struct FCalibratorPointCache
-	{
-		// True if the rest of the contents are valid.
-		bool bIsValid;
-
-		// The name of the 3d calibrator point, as defined in the mesh
-		FString Name;
-
-		// The world space 3d location of the point
-		FVector Location;
-	};
-
-	/** Holds information of the camera pose for a given sample of a 2d-3d correlation */
-	struct FCameraDataCache
-	{
-		// True if the rest of the contents are valid.
-		bool bIsValid;
-
-		// The unique id of the camera object. Used to detect camera selection changes during a calibration session.
-		uint32 UniqueId;
-
-		// The camera pose
-		FTransform Pose;
-
-		// True if the cached camera pose included a nodal offset
-		bool bWasNodalOffsetApplied;
-
-		// True if distortion was evaluated (using this LensFile) 
-		bool bWasDistortionEvaluated;
-
-		// The data used to evaluate the lens data in the camera for this sample
-		FLensFileEvalData LensFileEvalData;
-
-		// The parent pose (expected to be the tracker origin)
-		FTransform ParentPose;
-
-		// The parent unique id
-		uint32 ParentUniqueId;
-
-		// Calibrator Pose
-		FTransform CalibratorPose;
-
-		// Calibrator ParentPose
-		FTransform CalibratorParentPose;
-
-		// Calibrator ComponentPose
-		TMap<uint32, FTransform> CalibratorComponentPoses;
-
-		// Calibrator unique id
-		uint32 CalibratorUniqueId;
-
-		// Calibrator parent unique id
-		uint32 CalibratorParentUniqueId;
-	};
-
-	/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
-	struct FCalibrationRowData
-	{
-		// Normalized 0~1 2d location of the identified calibrator point in the media plate.
-		FVector2D Point2D;
-
-		// Location of Point2D after it has been undistorted
-		FVector2D UndistortedPoint2D;
-
-		// True if this row has had its Point2D undistorted
-		bool bUndistortedIsValid = false;
-
-		// Holds information of the calibrator point data for this sample.
-		FCalibratorPointCache CalibratorPointData;
-
-		// Holds information of the camera data for this sample
-		FCameraDataCache CameraData;
-	};
-
 protected:
+	/** Version of the current calibration dataset */
+	static const int DATASET_VERSION;
 
 	/** The nodal offset tool controller */
 	TWeakObjectPtr<UNodalOffsetTool> NodalOffsetTool;
@@ -162,16 +208,16 @@ protected:
 	TSharedPtr<SComboBox<TSharedPtr<FCalibratorPointData>>> CalibratorPointsComboBox;
 
 	/** Rows source for the CalibrationListView */
-	TArray<TSharedPtr<FCalibrationRowData>> CalibrationRows;
+	TArray<TSharedPtr<FNodalOffsetPointsRowData>> CalibrationRows;
 
 	/** Displays the list of calibration points that will be used to calculate the nodal offset */
-	TSharedPtr<SListView<TSharedPtr<FCalibrationRowData>>> CalibrationListView;
+	TSharedPtr<SListView<TSharedPtr<FNodalOffsetPointsRowData>>> CalibrationListView;
 
 	/** Caches the last calibrator point 3d location.  Will hold last value before the nodal offset tool is paused */
-	TArray<FCalibratorPointCache> LastCalibratorPoints;
+	TArray<FNodalOffsetPointsCalibratorPointData> LastCalibratorPoints;
 
 	/** Caches the last camera data.  Will hold last value before the nodal offset tool is paused */
-	FCameraDataCache LastCameraData;
+	FNodalOffsetPointsCameraData LastCameraData;
 
 	/** Instructs the inline allocation policy how many elements to allocate in a single allocation */
 	static constexpr uint32 NumInlineAllocations = 32;
@@ -221,7 +267,7 @@ protected:
 	 * 
 	 * @return True if successful.
 	 */
-	bool CalibratorPointCacheFromName(const FString& Name, FCalibratorPointCache& CalibratorPointCache) const;
+	bool CalibratorPointCacheFromName(const FString& Name, FNodalOffsetPointsCalibratorPointData& CalibratorPointCache) const;
 
 	/** Returns the world 3d location of the currently selected calibrator */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
@@ -239,7 +285,7 @@ protected:
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
-	virtual bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+	virtual bool ValidateNewRow(TSharedPtr<FNodalOffsetPointsRowData>& Row, FText& OutErrorMessage) const;
 
 	/** Applies the nodal offset to the calibrator */
 	bool ApplyNodalOffsetToCalibrator();
@@ -254,7 +300,7 @@ protected:
 	bool ApplyNodalOffsetToCalibratorComponents();
 
 	/** Does basic checks on the data before performing the actual calibration */
-	bool BasicCalibrationChecksPass(const TArray<TSharedPtr<FCalibrationRowData>>& Rows, FText& OutErrorMessage) const;
+	bool BasicCalibrationChecksPass(const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows, FText& OutErrorMessage) const;
 
 	/** 
 	 * Gets the step controller and the lens file. 
@@ -277,7 +323,7 @@ protected:
 	 */
 	bool CalculatedOptimalCameraComponentPose(
 		FTransform& OutDesiredCameraTransform, 
-		const TArray<TSharedPtr<FCalibrationRowData>>& Rows, 
+		const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows, 
 		FText& OutErrorMessage) const;
 
 	/**
@@ -297,7 +343,7 @@ protected:
 		float& OutFocus, 
 		float& OutZoom, 
 		float& OutError, 
-		const TArray<TSharedPtr<FCalibrationRowData>>& Rows, 
+		const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows, 
 		FText& OutErrorMessage) const;
 
 	/**
@@ -307,8 +353,8 @@ protected:
 	 * @param Rows Ungrouped calibration samples.
 	 */
 	void GroupRowsByCameraPose(
-		TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>>& OutSamePoseRowGroups, 
-		const TArray<TSharedPtr<FCalibrationRowData>>& Rows) const;
+		TArray<TSharedPtr<TArray<TSharedPtr<FNodalOffsetPointsRowData>>>>& OutSamePoseRowGroups, 
+		const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows) const;
 
 	/** 
 	 * Detects if the calibrator moved significantly in the given sample points 
@@ -317,7 +363,7 @@ protected:
 	 * 
 	 * @return True if the calibrator moved significantly across all the samples.
 	 */
-	bool CalibratorMovedAcrossGroups(const TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>>& OutSamePoseRowGroups) const;
+	bool CalibratorMovedAcrossGroups(const TArray<TSharedPtr<TArray<TSharedPtr<FNodalOffsetPointsRowData>>>>& OutSamePoseRowGroups) const;
 
 	/**
 	 * Detects if the calibrator moved significantly in the given sample points
@@ -326,7 +372,7 @@ protected:
 	 *
 	 * @return True if the calibrator moved significantly across all the samples.
 	 */
-	bool CalibratorMovedInAnyRow(const TArray<TSharedPtr<FCalibrationRowData>>& Rows) const;
+	bool CalibratorMovedInAnyRow(const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows) const;
 
 	/**
 	 * Calculates the optimal camera parent transform that minimizes the reprojection of the sample points.
@@ -338,7 +384,7 @@ protected:
 	 * @return True if successful
 	 */
 	bool CalcTrackingOriginPoseForSingleCamPose(
-		const TArray<TSharedPtr<FCalibrationRowData>>& Rows,
+		const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows,
 		FTransform& OutTransform,
 		FText& OutErrorMessage);
 
@@ -352,13 +398,19 @@ protected:
 	 * @return True if successful
 	 */
 	bool CalcCalibratorPoseForSingleCamPose(
-		const TArray<TSharedPtr<FCalibrationRowData>>& Rows,
+		const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& Rows,
 		FTransform& OutTransform,
 		FText& OutErrorMessage);
 
 	/* Refine the input nodal offset by running a minimization algorithm designed to minimize the sum of the reprojection errors for the camera views in the set of input pose groups*/
-	double MinimizeReprojectionError(FTransform& InOutNodalOffset, const TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>>& SamePoseRowGroups) const;
+	double MinimizeReprojectionError(FTransform& InOutNodalOffset, const TArray<TSharedPtr<TArray<TSharedPtr<FNodalOffsetPointsRowData>>>>& SamePoseRowGroups) const;
 
 	/* Compute the reprojection error for the rows in the input PoseGroup using the input NodalOffset */
-	double ComputeReprojectionError(const FTransform& NodalOffset, const TArray<TSharedPtr<FCalibrationRowData>>& PoseGroup) const;
+	double ComputeReprojectionError(const FTransform& NodalOffset, const TArray<TSharedPtr<FNodalOffsetPointsRowData>>& PoseGroup) const;
+
+	/** Export global session data to a .json file */
+	void ExportSessionData();
+
+	/** Export the row data to a json file */
+	void ExportRow(TSharedPtr<FNodalOffsetPointsRowData> Row);
 };

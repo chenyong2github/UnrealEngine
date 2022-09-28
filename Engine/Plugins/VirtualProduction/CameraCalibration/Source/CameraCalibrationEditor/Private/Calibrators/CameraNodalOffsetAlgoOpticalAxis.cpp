@@ -208,11 +208,11 @@ bool UCameraNodalOffsetAlgoOpticalAxis::GetNodalOffset(FNodalPointOffset& OutNod
  	}
 
 	// Validate that all rows have approximately the same camera pose
-	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
+	const TSharedPtr<FNodalOffsetPointsRowData>& FirstRow = CalibrationRows[0];
 	const FTransform CameraPose = FirstRow->CameraData.Pose;
 	CachedInverseCameraPose = CameraPose.Inverse();
 
-	for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+	for (const TSharedPtr<FNodalOffsetPointsRowData>& Row : CalibrationRows)
 	{
 		if (!FCameraCalibrationUtils::IsNearlyEqual(CameraPose, Row->CameraData.Pose))
 		{
@@ -222,15 +222,18 @@ bool UCameraNodalOffsetAlgoOpticalAxis::GetNodalOffset(FNodalPointOffset& OutNod
 	}
 
 	// Cache the evaluated focus and zoom so that modifications to the nodal offset table will update the same point
-	OutFocus = CachedFocus = FirstRow->CameraData.LensFileEvalData.Input.Focus;
-	OutZoom = CachedZoom = FirstRow->CameraData.LensFileEvalData.Input.Zoom;
+	CachedFocus = FirstRow->CameraData.InputFocus;
+	CachedZoom = FirstRow->CameraData.InputZoom;
+
+	OutFocus = CachedFocus;
+	OutZoom = CachedZoom;
 
 #if WITH_OPENCV
 	// Gather the 3D points from each of the calibration rows
 	std::vector<cv::Point3f> Points3d;
 	Points3d.reserve(CalibrationRows.Num());
 
-	for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+	for (const TSharedPtr<FNodalOffsetPointsRowData>& Row : CalibrationRows)
 	{
 		Points3d.push_back(cv::Point3f(
 			Row->CalibratorPointData.Location.X,

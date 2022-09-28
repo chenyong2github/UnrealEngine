@@ -6,8 +6,11 @@
 #include "AssetEditor/LensDistortionTool.h"
 #include "CalibrationPointComponent.h"
 #include "Camera/CameraActor.h"
+#include "CameraCalibrationEditorLog.h"
+#include "Dom/JsonObject.h"
 #include "Editor.h"
 #include "Input/Events.h"
+#include "JsonObjectConverter.h"
 #include "Math/Vector.h"
 #include "Misc/MessageDialog.h"
 #include "Models/SphericalLensModel.h"
@@ -30,17 +33,25 @@
 
 #define LOCTEXT_NAMESPACE "CameraLensDistortionAlgoPoints"
 
+const int UCameraLensDistortionAlgoPoints::DATASET_VERSION = 1;
+
+// String constants for import/export
+namespace UE::CameraCalibration::Private::LensDistortionPointsExportFields
+{
+	static const FString Version(TEXT("Version"));
+	static const FString CurrentFocalLength(TEXT("CurrentFocalLength"));
+}
+
 namespace CameraLensDistortionAlgoPoints
 {
-	class SCalibrationRowGenerator : public SMultiColumnTableRow<TSharedPtr<UCameraLensDistortionAlgoPoints::FCalibrationRowData>>
+	class SCalibrationRowGenerator : public SMultiColumnTableRow<TSharedPtr<FLensDistortionPointsRowData>>
 	{
-		using FCalibrationRowData = UCameraLensDistortionAlgoPoints::FCalibrationRowData;
 
 	public:
 		SLATE_BEGIN_ARGS(SCalibrationRowGenerator) {}
 
 		/** The list item for this row */
-		SLATE_ARGUMENT(TSharedPtr<FCalibrationRowData>, CalibrationRowData)
+		SLATE_ARGUMENT(TSharedPtr<FLensDistortionPointsRowData>, CalibrationRowData)
 
 		SLATE_END_ARGS()
 
@@ -48,7 +59,7 @@ namespace CameraLensDistortionAlgoPoints
 		{
 			CalibrationRowData = Args._CalibrationRowData;
 
-			SMultiColumnTableRow<TSharedPtr<FCalibrationRowData>>::Construct(
+			SMultiColumnTableRow<TSharedPtr<FLensDistortionPointsRowData>>::Construct(
 				FSuperRowType::FArguments()
 				.Padding(1.0f),
 				OwnerTableView
@@ -95,7 +106,7 @@ namespace CameraLensDistortionAlgoPoints
 
 
 	private:
-		TSharedPtr<FCalibrationRowData> CalibrationRowData;
+		TSharedPtr<FLensDistortionPointsRowData> CalibrationRowData;
 	};
 };
 
@@ -141,7 +152,7 @@ void UCameraLensDistortionAlgoPoints::Tick(float DeltaTime)
 					continue;
 				}
 
-				FCalibratorPointCache PointCache;
+				FLensDistortionPointsCalibratorPointData PointCache;
 
 				if (!GetCalibratorPointCacheFromName(CalibratorPoint->Name, PointCache))
 				{
@@ -173,7 +184,8 @@ void UCameraLensDistortionAlgoPoints::Tick(float DeltaTime)
 				break;
 			}
 
-			LastCameraData.LensFileEvalData = *LensFileEvalData;
+			LastCameraData.InputFocus = LensFileEvalData->Input.Focus;
+			LastCameraData.InputZoom = LensFileEvalData->Input.Zoom;
 
 			if (!Calibrator.IsValid())
 			{
@@ -209,7 +221,7 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 	}
 
 	// Get currently selected calibrator point
-	FCalibratorPointCache LastCalibratorPoint;
+	FLensDistortionPointsCalibratorPointData LastCalibratorPoint;
 	LastCalibratorPoint.bIsValid = false;
 	{
 		if (!CurrentCalibratorPoint.IsValid())
@@ -218,7 +230,7 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 		}
 
 		// Find its values in the cache
-		for (const FCalibratorPointCache& PointCache : LastCalibratorPoints)
+		for (const FLensDistortionPointsCalibratorPointData& PointCache : LastCalibratorPoints)
 		{
 			if (PointCache.bIsValid && (PointCache.Name == CurrentCalibratorPoint->Name))
 			{
@@ -240,7 +252,16 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 		return true;
 	}
 
-	TSharedPtr<FCalibrationRowData> Row = MakeShared<FCalibrationRowData>();
+	// Export the latest session data
+	ExportSessionData();
+
+	// Create the row that we're going to add
+	TSharedPtr<FLensDistortionPointsRowData> Row = MakeShared<FLensDistortionPointsRowData>();
+
+	// Get the next row index for the current calibration session to assign to this new row
+	const uint32 RowIndex = LensDistortionTool->AdvanceSessionRowIndex();
+
+	Row->Index = RowIndex;
 	Row->CameraData = LastCameraData;
 	Row->CalibratorPointData = LastCalibratorPoint;
 	Row->PatternIndex = CurrentPatternIndex;
@@ -259,6 +280,9 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 
 	// Add this data point
 	CalibrationRows.Add(Row);
+
+	// Export the data for this row to a .json file on disk
+	ExportRow(Row);
 
 	// Notify the ListView of the new data
 	if (CalibrationListView.IsValid())
@@ -366,7 +390,7 @@ bool UCameraLensDistortionAlgoPoints::GetLensDistortion(
 
 		while (RowIndex < CalibrationRows.Num() && CalibrationRows[RowIndex]->PatternIndex == NextPatternIndex)
 		{
-			const TSharedPtr<FCalibrationRowData>& Row = CalibrationRows[RowIndex];
+			const TSharedPtr<FLensDistortionPointsRowData>& Row = CalibrationRows[RowIndex];
 
 			Points3d.push_back(cv::Point3f(
 				Row->CalibratorPointData.Point3d.X,
@@ -409,13 +433,6 @@ bool UCameraLensDistortionAlgoPoints::GetLensDistortion(
 	}
 
 	// Because the calibration pattern is not coplanar, OpenCV requires an initial intrinsics guess
-	if (FMath::IsNearlyEqual(CurrentFocalLengthMM, 0.0f) || CurrentFocalLengthMM < 0.0f)
-	{
-		OutErrorMessage = LOCTEXT("InvalidFocalLengthMsg", "The current focal length (in mm) must be set to a "
-			"valid value in order to seed the calibration algorithm with a best guess as to the camera intrinsics (Fx/Fy)");
-		return false;
-	}
-
 	if (FMath::IsNearlyEqual(CurrentFocalLengthMM, 0.0f) || CurrentFocalLengthMM < 0.0f)
 	{
 		OutErrorMessage = LOCTEXT("InvalidFocalLengthMsg", "The current focal length (in mm) must be set to a "
@@ -467,11 +484,11 @@ bool UCameraLensDistortionAlgoPoints::GetLensDistortion(
 	check(DistortionCoefficients.total() == 5);
 	check((CameraMatrix.rows == 3) && (CameraMatrix.cols == 3));
 
-	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
+	const TSharedPtr<FLensDistortionPointsRowData>& FirstRow = CalibrationRows[0];
 
 	// FZ inputs to LUT
-	OutFocus = FirstRow->CameraData.LensFileEvalData.Input.Focus;
-	OutZoom = FirstRow->CameraData.LensFileEvalData.Input.Zoom;
+	OutFocus = FirstRow->CameraData.InputFocus;
+	OutZoom = FirstRow->CameraData.InputZoom;
 
 	// FocalLengthInfo
 	OutFocalLengthInfo.FxFy = FVector2D(
@@ -608,7 +625,7 @@ bool UCameraLensDistortionAlgoPoints::AdvanceCalibratorPoint()
 	return false;
 }
 
-bool UCameraLensDistortionAlgoPoints::GetCalibratorPointCacheFromName(const FString& Name, FCalibratorPointCache& CalibratorPointCache) const
+bool UCameraLensDistortionAlgoPoints::GetCalibratorPointCacheFromName(const FString& Name, FLensDistortionPointsCalibratorPointData& CalibratorPointCache) const
 {
 	CalibratorPointCache.bIsValid = false;
 
@@ -633,7 +650,7 @@ bool UCameraLensDistortionAlgoPoints::GetCalibratorPointCacheFromName(const FStr
 	return false;
 }
 
-bool UCameraLensDistortionAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const
+bool UCameraLensDistortionAlgoPoints::ValidateNewRow(TSharedPtr<FLensDistortionPointsRowData>& Row, FText& OutErrorMessage) const
 {
 	const FCameraCalibrationStepsController* StepsController = LensDistortionTool->GetCameraCalibrationStepsController();
 
@@ -657,7 +674,7 @@ bool UCameraLensDistortionAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowD
 	}
 
 	// Same camera as before
-	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
+	const TSharedPtr<FLensDistortionPointsRowData>& FirstRow = CalibrationRows[0];
 
 	if (FirstRow->CameraData.UniqueId != Row->CameraData.UniqueId)
 	{
@@ -701,15 +718,21 @@ void UCameraLensDistortionAlgoPoints::ClearCalibrationRows()
 	{
 		CurrentCalibratorPoint = nullptr;
 	}
+
+	// End the current calibration session (a new one will begin the next time a new row is added)
+	if (ULensDistortionTool* Tool = LensDistortionTool.Get())
+	{
+		Tool->EndCalibrationSession();
+	}
 }
 
 void UCameraLensDistortionAlgoPoints::DeleteSelectedCalibrationRows()
 {
-	const TArray<TSharedPtr<FCalibrationRowData>> SelectedItems = CalibrationListView->GetSelectedItems();
+	const TArray<TSharedPtr<FLensDistortionPointsRowData>> SelectedItems = CalibrationListView->GetSelectedItems();
 
 	TSet<uint32> PatternsToDelete;
 
-	for (const TSharedPtr<FCalibrationRowData>& Row : SelectedItems)
+	for (const TSharedPtr<FLensDistortionPointsRowData>& Row : SelectedItems)
 	{
 		PatternsToDelete.Add(Row->PatternIndex);
 	}
@@ -726,21 +749,27 @@ void UCameraLensDistortionAlgoPoints::DeleteSelectedCalibrationRows()
 		}
 	}
 
-	for (const TSharedPtr<FCalibrationRowData>& SelectedItem : SelectedItems)
+	for (const TSharedPtr<FLensDistortionPointsRowData>& SelectedItem : SelectedItems)
 	{
 		CalibrationRows.Remove(SelectedItem);
+
+		// Delete the previously exported .json file for the row that is being deleted
+		if (ULensDistortionTool* Tool = LensDistortionTool.Get())
+		{
+			Tool->DeleteExportedRow(SelectedItem->Index);
+		}
 	}
 
 	CalibrationListView->RequestListRefresh();
 }
 
-void UCameraLensDistortionAlgoPoints::OnCalibrationRowSelectionChanged(TSharedPtr<FCalibrationRowData> SelectedRow, ESelectInfo::Type SelectInfo)
+void UCameraLensDistortionAlgoPoints::OnCalibrationRowSelectionChanged(TSharedPtr<FLensDistortionPointsRowData> SelectedRow, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Type::Direct)
 	{
 		TSet<uint32> PatternsToSelect;
 
-		for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+		for (const TSharedPtr<FLensDistortionPointsRowData>& Row : CalibrationRows)
 		{
 			if (CalibrationListView->IsItemSelected(Row))
 			{
@@ -748,10 +777,10 @@ void UCameraLensDistortionAlgoPoints::OnCalibrationRowSelectionChanged(TSharedPt
 			}
 		}
 
-		TArray<TSharedPtr<FCalibrationRowData>> ItemsToSelect;
+		TArray<TSharedPtr<FLensDistortionPointsRowData>> ItemsToSelect;
 
 		// Select all of the rows that have a matching pattern index (so that whole patterns are selected as groups)
-		for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+		for (const TSharedPtr<FLensDistortionPointsRowData>& Row : CalibrationRows)
 		{
 			if (PatternsToSelect.Contains(Row->PatternIndex))
 			{
@@ -820,20 +849,25 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoPoints::BuildCurrentFocalLengthWidg
 				InValue = 1.0f;
 			}
 			CurrentFocalLengthMM = InValue;
+		})
+		.OnValueCommitted_Lambda([&](float InValue, ETextCommit::Type CommitType)
+		{
+			// Re-export the session data to update the new focal length value
+			ExportSessionData();
 		});
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoPoints::BuildCalibrationPointsTable()
 {
-	CalibrationListView = SNew(SListView<TSharedPtr<FCalibrationRowData>>)
+	CalibrationListView = SNew(SListView<TSharedPtr<FLensDistortionPointsRowData>>)
 		.ItemHeight(24)
 		.ListItemsSource(&CalibrationRows)
-		.OnGenerateRow_Lambda([&](TSharedPtr<FCalibrationRowData> InItem, const TSharedRef<STableViewBase>& OwnerTable) -> TSharedRef<ITableRow>
+		.OnGenerateRow_Lambda([&](TSharedPtr<FLensDistortionPointsRowData> InItem, const TSharedRef<STableViewBase>& OwnerTable) -> TSharedRef<ITableRow>
 		{
 			return SNew(CameraLensDistortionAlgoPoints::SCalibrationRowGenerator, OwnerTable).CalibrationRowData(InItem);
 		})
 		.SelectionMode(ESelectionMode::Multi)
-		.OnSelectionChanged_Lambda([&](TSharedPtr<FCalibrationRowData> SelectedRow, ESelectInfo::Type SelectInfo)
+		.OnSelectionChanged_Lambda([&](TSharedPtr<FLensDistortionPointsRowData> SelectedRow, ESelectInfo::Type SelectInfo)
 		{
 			OnCalibrationRowSelectionChanged(SelectedRow, SelectInfo);
 		})
@@ -906,6 +940,94 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoPoints::BuildCalibrationActionButto
 			})
 		]
 	;
+}
+
+void UCameraLensDistortionAlgoPoints::ExportSessionData()
+{
+	using namespace UE::CameraCalibration::Private;
+	if (ULensDistortionTool* Tool = LensDistortionTool.Get())
+	{
+		// Add all data to a json object that is needed to run this algorithm that is NOT part of a specific row
+		TSharedPtr<FJsonObject> JsonSessionData = MakeShared<FJsonObject>();
+
+		JsonSessionData->SetNumberField(LensDistortionPointsExportFields::CurrentFocalLength, CurrentFocalLengthMM);
+		JsonSessionData->SetNumberField(LensDistortionPointsExportFields::Version, DATASET_VERSION);
+
+		// Export the session data to a .json file
+		Tool->ExportSessionData(JsonSessionData.ToSharedRef());
+	}
+}
+
+void UCameraLensDistortionAlgoPoints::ExportRow(TSharedPtr<FLensDistortionPointsRowData> Row)
+{
+	if (ULensDistortionTool* Tool = LensDistortionTool.Get())
+	{
+		if (const TSharedPtr<FJsonObject>& RowObject = FJsonObjectConverter::UStructToJsonObject<FLensDistortionPointsRowData>(Row.ToSharedRef().Get()))
+		{
+			// Export the row data to a .json file
+			LensDistortionTool->ExportCalibrationRow(Row->Index, RowObject.ToSharedRef());
+		}
+	}
+}
+
+bool UCameraLensDistortionAlgoPoints::HasCalibrationData() const
+{
+	return (CalibrationRows.Num() > 0);
+}
+
+void UCameraLensDistortionAlgoPoints::PreImportCalibrationData()
+{
+	// Clear the current set of rows before importing new ones
+	CalibrationRows.Empty();
+}
+
+void UCameraLensDistortionAlgoPoints::ImportSessionData(const TSharedRef<FJsonObject>& SessionDataObject)
+{
+	using namespace UE::CameraCalibration::Private;
+	SessionDataObject->TryGetNumberField(LensDistortionPointsExportFields::CurrentFocalLength, CurrentFocalLengthMM);
+}
+
+int32 UCameraLensDistortionAlgoPoints::ImportCalibrationRow(const TSharedRef<FJsonObject>& CalibrationRowObject, const FImage& RowImage)
+{
+	// Create a new row to populate with data from the Json object
+	TSharedPtr<FLensDistortionPointsRowData> NewRow = MakeShared<FLensDistortionPointsRowData>();
+
+	// We enforce strict mode to ensure that every field in the UStruct of row data is present in the imported json.
+	// If any fields are missing, it is likely the row will be invalid, which will lead to errors in the calibration.
+	constexpr int64 CheckFlags = 0;
+	constexpr int64 SkipFlags = 0;
+	constexpr bool bStrictMode = true;
+	if (FJsonObjectConverter::JsonObjectToUStruct<FLensDistortionPointsRowData>(CalibrationRowObject, NewRow.Get(), CheckFlags, SkipFlags, bStrictMode))
+	{
+		CalibrationRows.Add(NewRow);
+	}
+	else
+	{
+		UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("LensDistortionPoints algo failed to import calibration row because at least one field could not be deserialized from the json file."));
+	}
+
+	return NewRow->Index;
+}
+
+void UCameraLensDistortionAlgoPoints::PostImportCalibrationData()
+{
+	// Find the maximum pattern index among the imported rows and set the current index to be greater than that
+	uint32 MaxPatternIndex = 0;
+	for (const TSharedPtr<FLensDistortionPointsRowData>& Row : CalibrationRows)
+	{
+		MaxPatternIndex = FMath::Max(MaxPatternIndex, Row->PatternIndex);
+	}
+
+	CurrentPatternIndex = MaxPatternIndex + 1;
+
+	// Sort imported calibration rows by row index
+	CalibrationRows.Sort([](const TSharedPtr<FLensDistortionPointsRowData>& LHS, const TSharedPtr<FLensDistortionPointsRowData>& RHS) { return LHS->Index < RHS->Index; });
+
+	// Notify the ListView of the new data
+	if (CalibrationListView.IsValid())
+	{
+		CalibrationListView->RequestListRefresh();
+	}
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoPoints::BuildHelpWidget()

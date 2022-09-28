@@ -73,6 +73,9 @@ public:
 	/** Get the default MaterialInterface used by the input Model Handler class to apply the post-process lens distortion effect */
 	UMaterialInterface* GetDefaultDistortionMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
 
+	/** Returns true if the calibration dataset import and export featuers are enabled, false otherwise */
+	bool IsCalibrationDatasetImportExportEnabled() const { return bEnableCalibrationDatasetImportExport; }
+
 #if WITH_EDITOR
 protected:
 	FOnDisplacementMapResolutionChanged DisplacementMapResolutionChangedDelegate;
@@ -115,6 +118,10 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = "Overlays")
 	TMap<FName, TSoftObjectPtr<UMaterialInterface>> CalibrationOverlayMaterialOverrides;
 #endif
+
+	/** Setting to toggle the calibration dataset import and export features */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	bool bEnableCalibrationDatasetImportExport = true;
 
 private:
 	/** Delegate handle to run after the engine is initialized */

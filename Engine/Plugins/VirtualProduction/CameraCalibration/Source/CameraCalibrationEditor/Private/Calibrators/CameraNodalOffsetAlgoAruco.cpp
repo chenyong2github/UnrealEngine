@@ -264,23 +264,29 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 
 		check(MarkerCorners[MarkerIdx].size() == 4); // Successful detection should always return the 4 corners of each marker.
 
-		// Iterate over the 4 corners of this marker and try to find the corresponding calibration point
+		// Export the latest session data
+		ExportSessionData();
+
+		 // Iterate over the 4 corners of this marker and try to find the corresponding calibration point
 		for (int32 CornerIdx = 0; CornerIdx < 4; ++CornerIdx)
 		{
 			// Build calibrator point name based on the detected marker
 			const FString MarkerName = FString::Printf(TEXT("%s-%d-%s"), *DictionaryInfo.Name, MarkerIds[MarkerIdx], *CornerNames[CornerIdx]); //-V557
 
-			FCalibratorPointCache PointCache;
+			FNodalOffsetPointsCalibratorPointData PointCache;
 
 			if (!CalibratorPointCacheFromName(MarkerName, PointCache))
 			{
 				continue;
 			}
 
-			// Create and populate the new calibration row that we're going to add, corresponding to this marker corner
+			// Create the row that we're going to add
+			TSharedPtr<FNodalOffsetPointsRowData> Row = MakeShared<FNodalOffsetPointsRowData>();
 
-			TSharedPtr<FCalibrationRowData> Row = MakeShared<FCalibrationRowData>();
+			// Get the next row index for the current calibration session to assign to this new row
+			const uint32 RowIndex = NodalOffsetTool->AdvanceSessionRowIndex();
 
+			Row->Index = RowIndex;
 			Row->Point2D.X = float(MarkerCorners[MarkerIdx][CornerIdx].x) / Size.X;
 			Row->Point2D.Y = float(MarkerCorners[MarkerIdx][CornerIdx].y) / Size.Y;
 
@@ -302,6 +308,9 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 			}
 
 			CalibrationRows.Add(Row);
+
+			// Export the data for this row to a .json file on disk
+			ExportRow(Row);
 		}
 	}
 

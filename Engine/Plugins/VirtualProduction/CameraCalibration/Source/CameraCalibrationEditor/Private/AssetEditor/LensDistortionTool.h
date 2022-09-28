@@ -6,6 +6,7 @@
 
 #include "Engine/World.h"
 #include "CameraCalibrationStep.h"
+#include "ImageCore.h"
 
 #include "LensDistortionTool.generated.h"
 
@@ -13,7 +14,21 @@ struct FGeometry;
 struct FLensFileEvalData;
 struct FPointerEvent;
 
+class FJsonObject;
 class UCameraLensDistortionAlgo;
+
+/** Data associated with a lens distortion calibration session */
+struct FLensDistortionSessionInfo
+{
+	/** The date/time when the current calibration session started */
+	FDateTime StartTime;
+
+	/** The index of the next row in the current calibration session */
+	int32 RowIndex = -1;
+
+	/** True if a calibration session is currently in progress */
+	bool bIsActive = false;
+};
 
 /**
  * ULensDistortionTool is the controller for the lens distortion panel.
@@ -41,8 +56,6 @@ public:
 	virtual bool IsOverlayEnabled() const override;
 	//~ End UCameraCalibrationStep interface
 
-public:
-
 	/** Selects the algorithm by name */
 	void SetAlgo(const FName& AlgoName);
 
@@ -52,10 +65,40 @@ public:
 	/** Returns available algorithm names */
 	TArray<FName> GetAlgos() const;
 
-public:
-
 	/** Called by the UI when the user wants to save the calibration data that the current algorithm is providing */
 	void OnSaveCurrentCalibrationData();
+
+	/** Initiate a new calibration session (if one is not already active) */
+	void StartCalibrationSession();
+
+	/** End the current calibration session */
+	void EndCalibrationSession();
+
+	/** Increments the session index and returns its new value */
+	uint32 AdvanceSessionRowIndex();
+
+	/** Intended to be called by one of the algo objects. Exports the data needed by the algo for the current session to a .json file on disk. */
+	void ExportSessionData(const TSharedRef<FJsonObject>& SessionDataObject);
+
+	/** Intended to be called by one of the algo objects. Exports the data associated with a single calibration row to a .json file on disk. */
+	void ExportCalibrationRow(int32 RowIndex, const TSharedRef<FJsonObject>& RowObject, const FImageView& RowImage = FImageView());
+
+	/** Intended to be called by one of the algo objects. Deletes the .json file with the input row index that was previously exported for this session. */
+	void DeleteExportedRow(const int32& RowIndex) const;
+
+	/** Import a saved calibration data set from disk */
+	void ImportCalibrationDataset();
+
+private:
+	/** Get the directory for the current session */
+	FString GetSessionSaveDir() const;
+
+	/** Get the filename of a row with the input index */
+	FString GetRowFilename(int32 RowIndex) const;
+
+public:
+	/** Stores info about the current calibration session of this tool */
+	FLensDistortionSessionInfo SessionInfo;
 
 private:
 

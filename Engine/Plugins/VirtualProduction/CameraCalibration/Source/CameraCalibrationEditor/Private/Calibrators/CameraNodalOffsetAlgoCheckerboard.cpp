@@ -197,6 +197,9 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 		std::reverse(Points2d.begin(), Points2d.end());
 	}
 
+	// Export the latest session data
+	ExportSessionData();
+
 	// Create and populate the new calibration rows that we're going to add
 	for (int32 RowIdx = 0; RowIdx < Checkerboard->NumCornerRows; ++RowIdx)
 	{
@@ -204,8 +207,12 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 		{
 			const int32 PointIdx = RowIdx * Checkerboard->NumCornerCols + ColIdx;
 
-			TSharedPtr<FCalibrationRowData> Row = MakeShared<FCalibrationRowData>();
+			TSharedPtr<FNodalOffsetPointsRowData> Row = MakeShared<FNodalOffsetPointsRowData>();
 
+			// Get the next row index for the current calibration session to assign to this new row
+			const uint32 RowIndex = NodalOffsetTool->AdvanceSessionRowIndex();
+
+			Row->Index = RowIndex;
 			Row->Point2D.X = float(Points2d[PointIdx].x) / Size.X;
 			Row->Point2D.Y = float(Points2d[PointIdx].y) / Size.Y;
 
@@ -230,6 +237,9 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 			}
 
 			CalibrationRows.Add(Row);
+
+			// Export the data for this row to a .json file on disk
+			ExportRow(Row);
 		}
 	}
 
