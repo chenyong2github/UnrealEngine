@@ -4,6 +4,8 @@
 #include "AssetTypeCategories.h"
 #include "PlatformMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlatformMediaSourceFactoryNew)
+
 
 /* UPlatformMediaSourceFactoryNew structors
  *****************************************************************************/
@@ -36,3 +38,4 @@ bool UPlatformMediaSourceFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

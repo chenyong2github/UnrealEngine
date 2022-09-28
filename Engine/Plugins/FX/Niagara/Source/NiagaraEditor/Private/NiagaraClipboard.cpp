@@ -14,6 +14,8 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "Engine/UserDefinedEnum.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraClipboard)
+
 struct FNiagaraClipboardContentTextObjectFactory : public FCustomizableTextObjectFactory
 {
 public:
@@ -402,3 +404,4 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 	}
 	return nullptr;
 }
+

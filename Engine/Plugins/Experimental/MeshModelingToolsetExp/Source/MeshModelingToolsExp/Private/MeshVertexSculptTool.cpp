@@ -35,6 +35,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/MaterialProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVertexSculptTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshVertexSculptTool"
@@ -1481,3 +1483,4 @@ void FVertexSculptNonSymmetricChange::Revert(UObject* Object)
 }
 
 #undef LOCTEXT_NAMESPACE
+

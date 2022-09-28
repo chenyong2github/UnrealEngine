@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_BurstLatent)
+
 
 const float DefaultBurstLatentLifetime = 5.0f;
 
@@ -66,3 +68,4 @@ EDataValidationResult AGameplayCueNotify_BurstLatent::IsDataValid(TArray<FText>&
 	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }
 #endif // #if WITH_EDITOR
+

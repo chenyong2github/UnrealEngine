@@ -20,6 +20,8 @@
 #include "ShaderParameterUtils.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceLandscape)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceLandscape"
 
 //////////////////////////////////////////////////////////////////////////
@@ -1564,3 +1566,4 @@ ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemIns
 }
 
 #undef LOCTEXT_NAMESPACE
+

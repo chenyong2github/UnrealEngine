@@ -3,6 +3,8 @@
 #include "AudioMeterStyle.h"
 #include "Styling/StyleDefaults.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMeterStyle)
+
 FAudioMeterStyle::FAudioMeterStyle()
 	: MeterSize(FVector2D(250.0f, 25.0f))
 	, MeterPadding(FVector2D(10.0f, 5.0f))
@@ -33,4 +35,5 @@ const FAudioMeterStyle& FAudioMeterStyle::GetDefault()
 	static FAudioMeterStyle Default;
 	return Default;
 }
+
 

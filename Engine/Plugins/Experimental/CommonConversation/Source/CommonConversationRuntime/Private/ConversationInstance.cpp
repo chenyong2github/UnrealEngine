@@ -11,6 +11,8 @@
 
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationInstance)
+
 //@TODO: CONVERSATION: Assert or otherwise guard all the Server* functions to only execute on the authority
 
 //////////////////////////////////////////////////////////////////////

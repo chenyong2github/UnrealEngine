@@ -12,6 +12,8 @@
 #include "Misc/SecureHash.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEntry)
+
 class UNiagaraStackItemGroup;
 const FName UNiagaraStackEntry::FExecutionCategoryNames::System = TEXT("System");
 const FName UNiagaraStackEntry::FExecutionCategoryNames::Emitter = TEXT("Emitter");
@@ -1094,3 +1096,4 @@ void UNiagaraStackSpacer::Initialize(FRequiredEntryData InRequiredEntryData, flo
 	SpacerHeight = InSpacerHeight;
 	ShouldShowInStack = InShouldShowInStack;
 }
+

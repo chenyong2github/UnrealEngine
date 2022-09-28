@@ -7,6 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DynamicHierarchy)
+
 bool FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(
 	const FRigUnitContext& InContext,
 	const FControlRigExecuteContext& InExecuteContext,
@@ -903,3 +905,4 @@ FRigUnit_HierarchyAddAnimationChannelRotator_Execute()
 		}
 	}
 }
+

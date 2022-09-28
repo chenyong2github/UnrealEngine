@@ -7,6 +7,8 @@
 #include "BaseGizmos/TransformProxy.h"
 #include "UnrealWidgetFwd.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultAssetEditorGizmoFactory)
+
 bool UDefaultAssetEditorGizmoFactory::CanBuildGizmoForSelection(FEditorModeTools* ModeTools) const
 {
 	return true;
@@ -72,3 +74,4 @@ void UDefaultAssetEditorGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, b
 	}
 
 }
+

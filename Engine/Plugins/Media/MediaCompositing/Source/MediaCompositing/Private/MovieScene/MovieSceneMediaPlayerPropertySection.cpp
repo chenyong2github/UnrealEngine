@@ -3,6 +3,8 @@
 #include "MovieSceneMediaPlayerPropertySection.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMediaPlayerPropertySection)
+
 UMovieSceneMediaPlayerPropertySection::UMovieSceneMediaPlayerPropertySection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -14,3 +16,4 @@ UMovieSceneMediaPlayerPropertySection::UMovieSceneMediaPlayerPropertySection(con
 
 	SetPreRollFrames( (0.5 * TickResolution).RoundToFrame().Value );
 }
+

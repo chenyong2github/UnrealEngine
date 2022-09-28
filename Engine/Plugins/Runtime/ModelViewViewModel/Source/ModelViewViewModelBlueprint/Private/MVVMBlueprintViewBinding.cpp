@@ -5,6 +5,8 @@
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "WidgetBlueprintExtension.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintViewBinding)
+
 FName FMVVMBlueprintViewBinding::GetFName(const UMVVMBlueprintView* View) const
 {
 	TStringBuilder<256> BindingName;
@@ -107,3 +109,4 @@ FString FMVVMBlueprintViewBinding::GetDisplayNameString(const UMVVMBlueprintView
 	
 	return BindingName.ToString();
 }
+

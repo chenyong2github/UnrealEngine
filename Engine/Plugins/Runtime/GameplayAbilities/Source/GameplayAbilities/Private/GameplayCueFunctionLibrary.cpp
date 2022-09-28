@@ -5,6 +5,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueFunctionLibrary)
+
 
 //////////////////////////////////////////////////////////////////////////
 // UGameplayCueFunctionLibrary
@@ -91,3 +93,4 @@ void UGameplayCueFunctionLibrary::RemoveGameplayCueOnActor(AActor* Target, const
 		UGameplayCueManager::RemoveGameplayCue_NonReplicated(Target, GameplayCueTag, Parameters);
 	}
 }
+

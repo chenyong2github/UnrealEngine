@@ -13,6 +13,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeOutput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackModuleItemOutputCollection)
+
 UNiagaraStackModuleItemOutputCollection::UNiagaraStackModuleItemOutputCollection()
 	: FunctionCallNode(nullptr)
 {
@@ -105,3 +107,4 @@ void UNiagaraStackModuleItemOutputCollection::GetCurrentChangeIds(FGuid& OutOwni
 	OutOwningGraphChangeId = FunctionCallNode->GetNiagaraGraph()->GetChangeID();
 	OutFunctionGraphChangeId = FunctionCallNode->GetCalledGraph() != nullptr ? FunctionCallNode->GetCalledGraph()->GetChangeID() : FGuid();
 }
+

@@ -5,6 +5,8 @@
 #include "AudioAnalytics.h"
 #include "SoundControlBusMix.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundControlBusMixFactory)
+
 
 USoundControlBusMixFactory::USoundControlBusMixFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -20,3 +22,4 @@ UObject* USoundControlBusMixFactory::FactoryCreateNew(UClass* Class, UObject* In
 	Audio::Analytics::RecordEvent_Usage(TEXT("AudioModulation.ControlBusMixCreated"));
 	return NewObject<USoundControlBusMix>(InParent, Name, Flags);
 }
+

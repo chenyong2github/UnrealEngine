@@ -14,6 +14,8 @@
 #include "TargetInterfaces/MaterialProvider.h"
 #include "ToolSetupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorToolMeshInput)
+
 using namespace UE::Geometry;
 
 namespace UVEditorToolMeshInputLocals

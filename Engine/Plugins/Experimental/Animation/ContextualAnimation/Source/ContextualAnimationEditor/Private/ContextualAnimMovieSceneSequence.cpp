@@ -5,6 +5,8 @@
 #include "ContextualAnimMovieSceneTrack.h"
 #include "ContextualAnimViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneSequence)
+
 UContextualAnimMovieSceneSequence::UContextualAnimMovieSceneSequence(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

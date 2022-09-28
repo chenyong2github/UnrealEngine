@@ -13,6 +13,8 @@
 #include "ToolActivities/PolyEditActivityContext.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyEditPlanarProjectionUVActivity)
+
 #define LOCTEXT_NAMESPACE "UPolyEditPlanarProjectionUVActivity"
 
 using namespace UE::Geometry;
@@ -296,3 +298,4 @@ bool UPolyEditPlanarProjectionUVActivity::OnUpdateHover(const FInputDeviceRay& D
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitAttributeChange)
+
 UAbilityTask_WaitAttributeChange::UAbilityTask_WaitAttributeChange(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -123,3 +125,4 @@ void UAbilityTask_WaitAttributeChange::OnDestroy(bool AbilityEnded)
 
 	Super::OnDestroy(AbilityEnded);
 }
+

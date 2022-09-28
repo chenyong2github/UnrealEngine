@@ -4,6 +4,8 @@
 #include "Algo/Transform.h"
 #include "SourceFilterTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataSourceFilterSet)
+
 void UDataSourceFilterSet::SetFilterMode(EFilterSetMode InMode)
 {
 	TRACE_FILTER_OPERATION(this, ESourceActorFilterOperation::SetFilterMode, (uint64)InMode);
@@ -140,4 +142,5 @@ void UDataSourceFilterSet::SetEnabled(bool bState)
 		ChildFilter->SetEnabled(bState);
 	}
 }
+
 

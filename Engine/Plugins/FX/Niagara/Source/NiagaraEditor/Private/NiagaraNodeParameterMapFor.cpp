@@ -15,6 +15,8 @@
 
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapFor)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapFor" 
 
 UNiagaraNodeParameterMapFor::UNiagaraNodeParameterMapFor() : UNiagaraNodeParameterMapSet()
@@ -145,3 +147,4 @@ void UNiagaraNodeParameterMapForIndex::Compile(class FHlslNiagaraTranslator* Tra
 }
 
 #undef LOCTEXT_NAMESPACE
+

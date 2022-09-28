@@ -11,6 +11,8 @@
 #include "Engine/World.h"
 #include "MassCommandBuffer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassProcessingPhaseManager)
+
 #define LOCTEXT_NAMESPACE "Mass"
 
 DECLARE_CYCLE_STAT(TEXT("Mass Phase Done"), STAT_MassPhaseDone, STATGROUP_TaskGraphTasks);

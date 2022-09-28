@@ -6,6 +6,8 @@
 #include "StateTreeLinker.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeNodeBlueprintBase)
+
 UWorld* UStateTreeNodeBlueprintBase::GetWorld() const
 {
 	// The items are duplicated as the StateTreeExecution context as outer, so this should be essentially the same as GetWorld() on StateTree context.
@@ -40,3 +42,4 @@ void UStateTreeNodeBlueprintBase::SendEvent(const FStateTreeEvent& Event)
 	}
 	CurrentContext->SendEvent(Event);
 }
+

@@ -11,6 +11,8 @@
 #include "MovieSceneCommonHelpers.h"
 #include "PropertyHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigControlsProxy)
+
 #if WITH_EDITOR
 
 #include "DetailLayoutBuilder.h"
@@ -934,4 +936,5 @@ bool UControlRigDetailPanelControlProxies::IsSelected(UControlRig* InControlRig,
 	}
 	return false;
 }
+
 

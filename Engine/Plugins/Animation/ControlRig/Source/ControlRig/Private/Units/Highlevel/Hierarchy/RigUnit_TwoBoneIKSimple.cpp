@@ -5,6 +5,8 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "TwoBoneIK.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_TwoBoneIKSimple)
+
 FRigUnit_TwoBoneIKSimple_Execute()
 {
 	FRigUnit_TwoBoneIKSimplePerItem::StaticExecute(

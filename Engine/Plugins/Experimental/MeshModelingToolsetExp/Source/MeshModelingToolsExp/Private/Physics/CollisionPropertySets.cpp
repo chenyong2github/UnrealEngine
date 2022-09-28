@@ -5,6 +5,8 @@
 
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionPropertySets)
+
 void UE::PhysicsTools::InitializePhysicsToolObjectPropertySet(const FPhysicsDataCollection* PhysicsData, UPhysicsObjectToolPropertySet* PropSet)
 {
 	check(PhysicsData);

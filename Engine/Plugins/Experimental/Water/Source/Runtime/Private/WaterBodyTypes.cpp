@@ -8,6 +8,8 @@
 #include "Landscape/Classes/LandscapeInfo.h"
 #include "Landscape/Classes/LandscapeProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyTypes)
+
 float FWaterBodyQueryResult::LazilyComputeSplineKey(const UWaterBodyComponent& InWaterBodyComponent, const FVector& InWorldLocation)
 {
 	// only compute if not done (or set) before : 
@@ -556,3 +558,4 @@ FWaterSplineMetadataPhysics& FWaterSplineMetadataPhysics::operator=(const UWater
 	}
 	return *this;
 }
+

@@ -9,6 +9,8 @@
 #include "Rigs/RigHierarchyController.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AdditiveControlRig)
+
 #define LOCTEXT_NAMESPACE "AdditiveControlRig"
 
 UAdditiveControlRig::UAdditiveControlRig(const FObjectInitializer& ObjectInitializer)
@@ -155,5 +157,6 @@ void UAdditiveControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh
 }
 
 #undef LOCTEXT_NAMESPACE
+
 
 

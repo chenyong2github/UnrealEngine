@@ -2,6 +2,8 @@
 
 #include "Abilities/Tasks/AbilityTask_StartAbilityState.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_StartAbilityState)
+
 UAbilityTask_StartAbilityState::UAbilityTask_StartAbilityState(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -86,3 +88,4 @@ FString UAbilityTask_StartAbilityState::GetDebugString() const
 {
 	return FString::Printf(TEXT("%s (AbilityState)"), *InstanceName.ToString());
 }
+

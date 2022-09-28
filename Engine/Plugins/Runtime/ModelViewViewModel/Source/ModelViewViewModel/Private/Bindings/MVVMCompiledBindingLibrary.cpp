@@ -7,6 +7,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "UObject/PropertyAccessUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMCompiledBindingLibrary)
+
 /**
  *
  */
@@ -458,3 +460,4 @@ TValueOrError<UE::FieldNotification::FFieldId, void> FMVVMCompiledBindingLibrary
 	check(LoadedFieldIds.IsValidIndex(InFieldId.FieldIdIndex));
 	return MakeValue(LoadedFieldIds[InFieldId.FieldIdIndex]);
 }
+

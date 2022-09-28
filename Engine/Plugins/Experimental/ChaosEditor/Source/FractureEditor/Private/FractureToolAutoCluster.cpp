@@ -12,6 +12,8 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Math/NumericLimits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolAutoCluster)
+
 #define LOCTEXT_NAMESPACE "FractureAutoCluster"
 
 
@@ -479,4 +481,5 @@ int32 FVoronoiPartitioner::FindClosestPartitionCenter(const FVector& Location) c
 }
 	
 #undef LOCTEXT_NAMESPACE
+
 

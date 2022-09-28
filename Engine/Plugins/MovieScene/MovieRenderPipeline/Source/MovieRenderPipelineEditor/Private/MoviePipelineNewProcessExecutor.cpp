@@ -18,6 +18,8 @@
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "MoviePipelineGameMode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineNewProcessExecutor)
+
 #define LOCTEXT_NAMESPACE "MoviePipelineNewProcessExecutor"
 
 void UMoviePipelineNewProcessExecutor::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
@@ -246,3 +248,4 @@ void UMoviePipelineNewProcessExecutor::CancelAllJobs_Implementation()
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineNewProcessExecutor"
+

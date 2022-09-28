@@ -6,6 +6,8 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "Util/RevolveUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RevolveProperties)
+
 using namespace UE::Geometry;
 
 void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& MaterialProperties,
@@ -110,3 +112,4 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 		break;
 	}
 }
+

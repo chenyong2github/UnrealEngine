@@ -16,6 +16,8 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackSimulationStageGroup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackSummaryViewInputCollection)
+
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackSummaryViewObject"
 

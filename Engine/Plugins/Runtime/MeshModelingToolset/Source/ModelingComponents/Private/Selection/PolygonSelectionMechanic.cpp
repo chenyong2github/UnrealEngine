@@ -4,6 +4,8 @@
 #include "Selection/GroupTopologySelector.h"
 #include "Selection/PersistentMeshSelection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolygonSelectionMechanic)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPolygonSelectionMechanic"

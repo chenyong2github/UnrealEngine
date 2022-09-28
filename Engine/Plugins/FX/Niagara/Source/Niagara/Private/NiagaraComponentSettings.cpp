@@ -2,6 +2,8 @@
 
 #include "NiagaraComponentSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraComponentSettings)
+
 int32 UNiagaraComponentSettings::bAllowSuppressActivation = 0;
 int32 UNiagaraComponentSettings::bAllowForceAutoPooling = 0;
 int32 UNiagaraComponentSettings::bUseSuppressEmitterList = 0;
@@ -46,3 +48,4 @@ static FAutoConsoleVariableRef CVarNiagaraUseGpuDataInterfaceDenyList(
 UNiagaraComponentSettings::UNiagaraComponentSettings(FObjectInitializer const& ObjectInitializer)
 {
 }
+

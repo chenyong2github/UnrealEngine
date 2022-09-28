@@ -4,6 +4,8 @@
 #include "WaterSplineMetadata.h"
 #include "WaterBodyActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSplineComponent)
+
 UWaterSplineComponent::UWaterSplineComponent(const FObjectInitializer& ObjectInitializer)
 	: USplineComponent(ObjectInitializer)
 {
@@ -243,3 +245,4 @@ bool UWaterSplineComponent::SynchronizeWaterProperties()
 }
 
 #endif
+

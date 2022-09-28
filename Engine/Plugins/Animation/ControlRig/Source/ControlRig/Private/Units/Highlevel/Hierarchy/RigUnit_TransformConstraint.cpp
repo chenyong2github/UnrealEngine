@@ -5,6 +5,8 @@
 #include "HelperUtil.h"
 #include "AnimationCoreLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_TransformConstraint)
+
 FRigUnit_TransformConstraint_Execute()
 {
 	FRigUnit_TransformConstraintPerItem::StaticExecute(

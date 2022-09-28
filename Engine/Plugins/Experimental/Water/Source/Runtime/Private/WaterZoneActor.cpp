@@ -15,6 +15,8 @@
 #include "RenderCaptureInterface.h"
 #include "WaterViewExtension.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterZoneActor)
+
 #if	WITH_EDITOR
 #include "Algo/Transform.h"
 #include "LevelEditor.h"
@@ -463,3 +465,4 @@ float AWaterZone::GetNonTessellatedLODSectionSize() const
 	check(WaterMesh)
 	return WaterMesh->GetTileSize() * NonTessellatedLODSectionScale;
 }
+

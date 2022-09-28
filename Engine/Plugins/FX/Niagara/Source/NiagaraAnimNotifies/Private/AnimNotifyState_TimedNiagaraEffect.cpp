@@ -9,6 +9,8 @@
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_TimedNiagaraEffect)
+
 UAnimNotifyState_TimedNiagaraEffect::UAnimNotifyState_TimedNiagaraEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

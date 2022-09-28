@@ -23,6 +23,8 @@
 #include "UObject/UObjectAnnotation.h"
 #include "Rigs/RigHierarchy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigParameterTemplate)
+
 //#include "Particles/ParticleSystemComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("ControlRig Parameter Track Evaluate"), MovieSceneEval_ControlRigTemplateParameter_Evaluate, STATGROUP_MovieSceneEval);
@@ -2234,3 +2236,4 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 
 	}
 }
+

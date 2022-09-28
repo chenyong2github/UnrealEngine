@@ -3,6 +3,8 @@
 #include "Units/Debug/RigUnit_DebugBezier.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DebugBezier)
+
 FRigUnit_DebugBezier_Execute()
 {
 	FRigUnit_DebugBezierItemSpace::StaticExecute(

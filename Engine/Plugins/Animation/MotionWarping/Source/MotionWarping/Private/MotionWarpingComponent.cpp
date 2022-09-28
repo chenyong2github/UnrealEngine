@@ -13,6 +13,8 @@
 #include "AnimNotifyState_MotionWarping.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionWarpingComponent)
+
 DEFINE_LOG_CATEGORY(LogMotionWarping);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

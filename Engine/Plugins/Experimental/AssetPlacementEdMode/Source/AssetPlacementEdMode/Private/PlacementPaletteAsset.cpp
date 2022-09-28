@@ -2,6 +2,8 @@
 
 #include "PlacementPaletteAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementPaletteAsset)
+
 UPlacementPaletteAssetFactory::UPlacementPaletteAssetFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -29,3 +31,4 @@ FText UPlacementPaletteAssetFactory::GetToolTip() const
 {
 	return NSLOCTEXT("AssetPlacementEdMode", "PlacementPaletteToolTip", "Placement palettes can be used in the placement mode to quickly place many different asset types in a level with preconfigured settings.");
 }
+

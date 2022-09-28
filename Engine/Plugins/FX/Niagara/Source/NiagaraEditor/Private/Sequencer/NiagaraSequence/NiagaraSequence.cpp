@@ -3,6 +3,8 @@
 #include "NiagaraSequence.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSequence)
+
 UNiagaraSequence::UNiagaraSequence(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, MovieScene(nullptr)
@@ -46,3 +48,4 @@ UObject* UNiagaraSequence::GetParentObject(UObject* Object) const
 void UNiagaraSequence::UnbindPossessableObjects(const FGuid& ObjectId)
 {
 }
+

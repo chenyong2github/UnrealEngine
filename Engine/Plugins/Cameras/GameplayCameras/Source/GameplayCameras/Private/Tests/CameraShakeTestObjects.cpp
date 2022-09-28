@@ -2,6 +2,8 @@
 
 #include "CameraShakeTestObjects.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraShakeTestObjects)
+
 UConstantCameraShakePattern::UConstantCameraShakePattern(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -12,4 +14,5 @@ void UConstantCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdat
 	OutResult.Location = LocationOffset;
 	OutResult.Rotation = RotationOffset;
 }
+
 

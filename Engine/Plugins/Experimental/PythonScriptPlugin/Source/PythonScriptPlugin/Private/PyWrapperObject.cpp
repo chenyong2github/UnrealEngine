@@ -20,6 +20,8 @@
 #include "Templates/Casts.h"
 #include "BlueprintActionDatabase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PyWrapperObject)
+
 #if WITH_PYTHON
 
 void InitializePyWrapperObject(PyGenUtil::FNativePythonModule& ModuleInfo)
@@ -2083,3 +2085,4 @@ DEFINE_FUNCTION(UPythonGeneratedClass::CallPythonFunction)
 }
 
 #endif	// WITH_PYTHON
+

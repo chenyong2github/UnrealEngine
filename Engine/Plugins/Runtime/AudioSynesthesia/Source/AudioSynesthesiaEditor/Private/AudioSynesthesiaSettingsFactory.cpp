@@ -9,6 +9,8 @@
 #include "Modules/ModuleManager.h"
 #include "AudioSynesthesiaClassFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSynesthesiaSettingsFactory)
+
 UAudioSynesthesiaSettingsFactory::UAudioSynesthesiaSettingsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -62,3 +64,4 @@ UObject* UAudioSynesthesiaSettingsFactory::FactoryCreateNew(UClass* InClass, UOb
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -15,6 +15,8 @@
 #include "Misc/UObjectToken.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbookComponent)
+
 DECLARE_CYCLE_STAT(TEXT("Tick Flipbook"), STAT_TickFlipbook, STATGROUP_Paper2D);
 
 #define LOCTEXT_NAMESPACE "Paper2D"
@@ -710,3 +712,4 @@ void UPaperFlipbookComponent::CheckForErrors()
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -10,6 +10,8 @@
 #include "AssetReferencingDomains.h"
 #include "AssetReferencingPolicySettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetValidator_AssetReferenceRestrictions)
+
 #define LOCTEXT_NAMESPACE "AssetReferencingPolicy"
 
 UAssetValidator_AssetReferenceRestrictions::UAssetValidator_AssetReferenceRestrictions()

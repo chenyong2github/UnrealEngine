@@ -4,6 +4,8 @@
 #include "SocialManager.h"
 #include "Misc/CommandLine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialSettings)
+
 #if !UE_BUILD_SHIPPING
 int32 MaxPartySizeOverride = INDEX_NONE;
 FAutoConsoleVariableRef CVarMaxPartySize(
@@ -105,3 +107,4 @@ const FSocialPlatformDescription* USocialSettings::GetSocialPlatformDescriptionF
 		return Candidate.OnlineSubsystem == OnlineSubsystemName;
 	});
 }
+

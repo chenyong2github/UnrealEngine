@@ -17,6 +17,8 @@
 #include "GraphEditorActions.h"
 #include "Framework/Commands/GenericCommands.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraOverviewNode)
+
 #define LOCTEXT_NAMESPACE "NiagaraOverviewNodeStackItem"
 
 bool UNiagaraOverviewNode::bColorsAreInitialized = false;
@@ -330,3 +332,4 @@ UNiagaraSystem* UNiagaraOverviewNode::GetOwningSystem()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "ExtractSprites/PaperExtractSpritesSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperExtractSpritesSettings)
+
 UPaperExtractSpritesSettings::UPaperExtractSpritesSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -14,3 +16,4 @@ UPaperExtractSpriteGridSettings::UPaperExtractSpriteGridSettings(const FObjectIn
 	: Super(ObjectInitializer)
 {
 }
+

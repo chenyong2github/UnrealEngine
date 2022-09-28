@@ -2,6 +2,8 @@
 
 #include "SubTransformProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubTransformProxy)
+
 USubTransformProxy::USubTransformProxy()
 {
 	RelativeTransform = FTransform::Identity;
@@ -60,4 +62,5 @@ void USubTransformProxy::OnParentRelativeTransformChanged(UTransformProxy* Paren
 {
 	RelativeTransform = SharedTransform.GetRelativeTransform(ParentTransform);
 }
+
 

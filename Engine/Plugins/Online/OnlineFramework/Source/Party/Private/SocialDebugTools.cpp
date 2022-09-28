@@ -13,6 +13,8 @@
 #include "Party/PartyMember.h"
 #include "SocialManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialDebugTools)
+
 USocialDebugTools::USocialDebugTools()
 	: bAutoAcceptFriendInvites(true)
 	, bAutoAcceptPartyInvites(true)
@@ -757,4 +759,5 @@ void USocialDebugTools::HandlePartyJoinRequestReceived(const FUniqueNetId& Local
 		}
 	}
 }
+
 

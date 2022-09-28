@@ -21,6 +21,8 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureTool)
+
 
 DEFINE_LOG_CATEGORY(LogFractureTool);
 
@@ -416,3 +418,4 @@ FVector FVisualizationMappings::GetExplodedVector(int32 MappingIdx, const UGeome
 	}
 	return FVector::ZeroVector;
 }
+

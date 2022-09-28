@@ -5,6 +5,8 @@
 #include "CurveEditor.h"
 #include "Filters/CurveEditorBakeFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEditorFFTFilter)
+
 UCurveEditorFFTFilter::UCurveEditorFFTFilter()
 {
 	CutoffFrequency = 0.8f;
@@ -170,3 +172,4 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 	BakeFilter->BakeIntervalInSeconds = OriginalIntervalRate;
 	BakeFilter->bUseFrameBake = bOriginalUseFrameBake;
 }
+

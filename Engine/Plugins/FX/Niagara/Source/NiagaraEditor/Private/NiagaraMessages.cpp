@@ -9,6 +9,8 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeEmitter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraMessages)
+
 #define LOCTEXT_NAMESPACE "NiagaraMessages"
 
 const FName FNiagaraMessageTopics::CompilerTopicName = "Compiler";
@@ -478,3 +480,4 @@ void FNiagaraMessageTextWithLinks::GenerateLinks(TArray<FText>& OutLinkDisplayNa
 }
 
 #undef LOCTEXT_NAMESPACE //NiagaraMessages
+

@@ -5,6 +5,8 @@
 #include "HelperUtil.h"
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_GetJointTransform)
+
 FRigUnit_GetJointTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -41,3 +43,4 @@ FRigVMStructUpgradeInfo FRigUnit_GetJointTransform::GetUpgradeInfo() const
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

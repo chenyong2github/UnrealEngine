@@ -4,6 +4,8 @@
 #include "AssetTypeCategories.h"
 #include "StreamMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StreamMediaSourceFactoryNew)
+
 
 /* UStreamMediaSourceFactoryNew structors
  *****************************************************************************/
@@ -36,3 +38,4 @@ bool UStreamMediaSourceFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

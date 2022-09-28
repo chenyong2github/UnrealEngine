@@ -9,6 +9,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlinePartyInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PartyMember)
+
 //////////////////////////////////////////////////////////////////////////
 // PartyMemberRepData
 //////////////////////////////////////////////////////////////////////////
@@ -315,3 +317,4 @@ void UPartyMember::HandleMemberAttributeChanged(const FUniqueNetId& ChangedUserI
 		OnDisplayNameChanged().Broadcast();
 	}
 }
+

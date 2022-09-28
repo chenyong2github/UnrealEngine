@@ -9,6 +9,8 @@
 #include "NiagaraComponent.h"
 #include "Misc/StringFormatter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorCommon)
+
 #define LOCTEXT_NAMESPACE "NiagaraEditor"
 
 DEFINE_LOG_CATEGORY(LogNiagaraEditor);
@@ -1853,3 +1855,4 @@ INiagaraScriptGraphFocusInfo::~INiagaraScriptGraphFocusInfo()
 }
 
 #undef LOCTEXT_NAMESPACE
+

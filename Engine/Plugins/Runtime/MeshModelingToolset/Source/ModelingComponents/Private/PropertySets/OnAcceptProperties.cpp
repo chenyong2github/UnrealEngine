@@ -6,6 +6,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "InteractiveToolManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnAcceptProperties)
+
 #define LOCTEXT_NAMESPACE "UOnAcceptHandleSourcesProperties"
 
 
@@ -76,3 +78,4 @@ void UOnAcceptHandleSourcesPropertiesBase::ApplyMethod(const TArray<AActor*>& Ac
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -10,6 +10,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeStaticMeshActorFactory)
+
 UClass* UInterchangeStaticMeshActorFactory::GetFactoryClass() const
 {
 	return AStaticMeshActor::StaticClass();

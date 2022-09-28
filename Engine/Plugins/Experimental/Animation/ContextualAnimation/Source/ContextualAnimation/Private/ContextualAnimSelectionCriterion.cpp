@@ -7,6 +7,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "SceneManagement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSelectionCriterion)
+
 UContextualAnimSelectionCriterion::UContextualAnimSelectionCriterion(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

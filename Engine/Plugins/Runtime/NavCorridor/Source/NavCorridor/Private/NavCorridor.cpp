@@ -5,6 +5,8 @@
 #include "Algo/Sort.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavCorridor)
+
 //-------------------------------------------------------
 // Private helper functions for the nav corridor.
 //-------------------------------------------------------
@@ -1644,3 +1646,4 @@ bool FNavCorridor::HitTest(const FVector SegmentStart, const FVector SegmentEnd,
 
 	return bHit;
 }
+

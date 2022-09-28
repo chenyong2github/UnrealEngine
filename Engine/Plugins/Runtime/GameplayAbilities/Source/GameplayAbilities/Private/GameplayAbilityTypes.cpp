@@ -12,6 +12,8 @@
 #include "GameplayPrediction.h"
 #include "Misc/NetworkVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTypes)
+
 //----------------------------------------------------------------------
 
 void FGameplayAbilityActorInfo::InitFromActor(AActor *InOwnerActor, AActor *InAvatarActor, UAbilitySystemComponent* InAbilitySystemComponent)
@@ -478,3 +480,4 @@ void FGameplayAbilityRepAnimMontage::SetRepAnimPositionMethod(ERepAnimPositionMe
 	case ERepAnimPositionMethod::CurrentSectionId: bRepPosition = false; break;
 	}
 }
+

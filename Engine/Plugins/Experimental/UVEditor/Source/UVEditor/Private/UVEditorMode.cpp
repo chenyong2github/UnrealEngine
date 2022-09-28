@@ -50,6 +50,8 @@
 #include "Utilities/MeshUDIMClassifier.h"
 #include "UVEditorLogging.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorMode)
+
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
 using namespace UE::Geometry;
@@ -1459,3 +1461,4 @@ void UUVEditorMode::SetDisplayedUVChannels(const TArray<int32>& LayerPerAsset, b
 }
 
 #undef LOCTEXT_NAMESPACE
+

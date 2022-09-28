@@ -4,6 +4,8 @@
 #include "OnlineBeacon.h"
 #include "OnlineSubsystemTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PartyBeaconState)
+
 DEFINE_LOG_CATEGORY(LogPartyBeacon);
 
 namespace ETeamAssignmentMethod
@@ -1184,3 +1186,4 @@ void UPartyBeaconState::SanityCheckReservations(const bool bIgnoreEmptyReservati
 	}
 #endif // !UE_BUILD_SHIPPING
 }
+

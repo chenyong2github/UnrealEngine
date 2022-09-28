@@ -7,6 +7,8 @@
 #include "MovieScene.h"
 #include "TemplateSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceFactoryNew)
+
 #define LOCTEXT_NAMESPACE "TemplateSequenceFactory"
 
 UTemplateSequenceFactoryNew::UTemplateSequenceFactoryNew(const FObjectInitializer& ObjectInitializer)
@@ -48,3 +50,4 @@ bool UTemplateSequenceFactoryNew::ShouldShowInNewMenu() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

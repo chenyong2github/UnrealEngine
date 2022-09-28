@@ -16,6 +16,8 @@
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigVariableNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -200,3 +202,4 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 }
 
 #undef LOCTEXT_NAMESPACE
+

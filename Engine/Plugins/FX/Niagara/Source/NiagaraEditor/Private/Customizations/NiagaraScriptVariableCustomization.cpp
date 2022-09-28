@@ -21,6 +21,8 @@
 #include "NiagaraScriptVariable.h"
 #include "SNiagaraParameterEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptVariableCustomization)
+
 #define LOCTEXT_NAMESPACE "NiagaraScriptVariableVariableDetails"
 
 const FName FNiagaraScriptVariableDetails::DefaultValueCategoryName = TEXT("Default Value");
@@ -745,3 +747,4 @@ void FNiagaraScriptVariableHierarchyDetails::CustomizeDetails(IDetailLayoutBuild
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetBoneTranslation)
+
 FRigUnit_SetBoneTranslation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -90,3 +92,4 @@ FRigVMStructUpgradeInfo FRigUnit_SetBoneTranslation::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("Translation"), TEXT("Value"));
 	return Info;
 }
+

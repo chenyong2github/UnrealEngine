@@ -4,6 +4,8 @@
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FilterPresets)
+
 #define LOCTEXT_NAMESPACE "FilterPreset"
 
 void USharedFilterPresetContainer::GetSharedUserPresets(TArray<TSharedPtr<IFilterPreset>>& OutPresets)
@@ -266,3 +268,4 @@ bool FFilterPreset::IsLocal() const
 }
 
 #undef LOCTEXT_NAMESPACE // "FilterPreset"
+

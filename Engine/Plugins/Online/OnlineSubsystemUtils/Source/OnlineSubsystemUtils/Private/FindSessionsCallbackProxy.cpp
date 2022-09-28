@@ -7,6 +7,8 @@
 #include "OnlineSubsystemBPCallHelper.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FindSessionsCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UFindSessionsCallbackProxy
 
@@ -112,3 +114,4 @@ int32 UFindSessionsCallbackProxy::GetMaxPlayers(const FBlueprintSessionResult& R
 {
 	return Result.OnlineResult.Session.SessionSettings.NumPublicConnections;
 }
+

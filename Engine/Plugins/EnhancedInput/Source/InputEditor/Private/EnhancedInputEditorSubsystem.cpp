@@ -15,6 +15,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "EnhancedInputLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputEditorSubsystem)
+
 #define LOCTEXT_NAMESPACE "EnhancedInputEditorSubsystem"
 
 DEFINE_LOG_CATEGORY(LogEditorInput);
@@ -276,3 +278,4 @@ void UEnhancedInputEditorSubsystem::RemoveDefaultMappingContexts()
 }
 
 #undef LOCTEXT_NAMESPACE
+

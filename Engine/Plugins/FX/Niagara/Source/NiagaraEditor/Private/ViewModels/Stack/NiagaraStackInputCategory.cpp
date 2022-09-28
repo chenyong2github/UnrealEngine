@@ -5,6 +5,8 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraClipboard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackInputCategory)
+
 void UNiagaraStackInputCategory::Initialize(
 	FRequiredEntryData InRequiredEntryData,
 	FString InputCategoryStackEditorDataKey,
@@ -177,4 +179,5 @@ bool UNiagaraStackInputCategory::FilterForIsInlineEditConditionToggle(const UNia
 	const UNiagaraStackFunctionInput* StackFunctionInputChild = Cast<UNiagaraStackFunctionInput>(&Child);
 	return StackFunctionInputChild == nullptr || StackFunctionInputChild->GetIsInlineEditConditionToggle() == false;
 }
+
 

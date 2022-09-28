@@ -5,6 +5,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayTagQuery)
+
 void UAbilityTask_WaitGameplayTagQuery::Activate()
 {
 	Super::Activate();
@@ -131,3 +133,4 @@ UAbilityTask_WaitGameplayTagQuery* UAbilityTask_WaitGameplayTagQuery::WaitGamepl
 
 	return MyObj;
 }
+

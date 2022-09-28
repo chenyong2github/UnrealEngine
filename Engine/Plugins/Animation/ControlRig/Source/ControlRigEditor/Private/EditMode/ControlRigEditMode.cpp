@@ -64,6 +64,8 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "TransformConstraint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigEditMode)
+
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
 	if (EditMode)
@@ -4539,3 +4541,4 @@ bool FControlRigEditMode::GetOnlySelectRigControls()const
 
 
 #undef LOCTEXT_NAMESPACE
+

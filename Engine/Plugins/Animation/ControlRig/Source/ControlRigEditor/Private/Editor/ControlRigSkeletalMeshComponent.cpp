@@ -6,6 +6,8 @@
 #include "ControlRig.h"
 #include "AnimPreviewInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSkeletalMeshComponent)
+
 UControlRigSkeletalMeshComponent::UControlRigSkeletalMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DebugDrawSkeleton(false)
@@ -251,3 +253,4 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModified_AnyThread(ERigHierarc
 		
     }, TStatId(), NULL, ENamedThreads::GameThread);
 }
+

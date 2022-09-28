@@ -4,6 +4,8 @@
 
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBlueprintVirtualSubject)
+
 void ULiveLinkBlueprintVirtualSubject::Initialize(FLiveLinkSubjectKey InSubjectKey, TSubclassOf<ULiveLinkRole> InRole, ILiveLinkClient* InLiveLinkClient)
 {
 	Super::Initialize(InSubjectKey, Role, LiveLinkClient);

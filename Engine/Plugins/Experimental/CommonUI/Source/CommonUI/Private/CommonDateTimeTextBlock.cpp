@@ -7,6 +7,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Application/SlateApplication.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonDateTimeTextBlock)
+
 DECLARE_CYCLE_STAT(TEXT("CommonDateTimeTextBlock UpdateUnderlyingText"), STAT_CommonDateTimeTextBlock_UpdateUnderlyingText, STATGROUP_UI);
 
 

@@ -8,6 +8,8 @@
 #include "Sequencer/ControlRigLayerInstance.h"
 #include "Sequencer/ControlRigLayerInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigLayerInstance)
+
 /////////////////////////////////////////////////////
 // UControlRigLayerInstance
 /////////////////////////////////////////////////////
@@ -132,4 +134,5 @@ UAnimInstance* UControlRigLayerInstance::GetSourceAnimInstance()
 {	
 	return GetProxyOnGameThread<FControlRigLayerInstanceProxy>().GetSourceAnimInstance();
 }
+
 

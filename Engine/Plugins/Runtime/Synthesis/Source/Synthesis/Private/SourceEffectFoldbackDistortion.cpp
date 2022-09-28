@@ -2,6 +2,8 @@
 
 #include "SourceEffects/SourceEffectFoldbackDistortion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectFoldbackDistortion)
+
 void FSourceEffectFoldbackDistortion::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;

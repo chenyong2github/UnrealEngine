@@ -8,6 +8,8 @@
 #include "LandscapePatchLogging.h"
 #include "LandscapePatchManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapePatchComponent)
+
 #define LOCTEXT_NAMESPACE "LandscapePatch"
 
 namespace LandscapePatchComponentLocals
@@ -468,3 +470,4 @@ FTransform ULandscapePatchComponent::GetLandscapeHeightmapCoordsToWorld() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

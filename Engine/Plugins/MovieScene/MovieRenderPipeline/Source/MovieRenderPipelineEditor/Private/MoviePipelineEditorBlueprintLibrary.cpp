@@ -21,6 +21,8 @@
 #include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipelineOutputSetting.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineEditorBlueprintLibrary)
+
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
 bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipelineMasterConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelineMasterConfig*& OutAsset, FText& OutErrorReason)

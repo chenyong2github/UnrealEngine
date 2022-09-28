@@ -23,6 +23,8 @@
 #include "UObject/UObjectBaseUtility.h"
 #include "ObjectTools.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderMicrophoneAudioSource)
+
 UTakeRecorderMicrophoneAudioSourceSettings::UTakeRecorderMicrophoneAudioSourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, AudioTrackName(NSLOCTEXT("UTakeRecorderMicrophoneAudioSource", "DefaultAudioTrackName", "Recorded Audio"))
@@ -276,3 +278,4 @@ bool UTakeRecorderMicrophoneAudioSource::CanAddSource(UTakeRecorderSources* InSo
 	}
 	return true;
 }
+

@@ -4,6 +4,8 @@
 #include "GameplayBehavior.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorConfig)
+
 
 UGameplayBehavior* UGameplayBehaviorConfig::GetBehavior(UWorld& World) const
 {
@@ -18,3 +20,4 @@ UGameplayBehavior* UGameplayBehaviorConfig::GetBehavior(UWorld& World) const
 		? NewObject<UGameplayBehavior>(&World, BehaviorClass)
 		: BehaviorCDO;
 }
+

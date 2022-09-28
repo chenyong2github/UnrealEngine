@@ -7,6 +7,8 @@
 #include "UObject/Object.h"
 #include "Sound/SoundWave.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotoSynthSourceFactory)
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 UClass* FAssetTypeActions_MotoSynthPreset::GetSupportedClass() const

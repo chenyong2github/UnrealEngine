@@ -11,6 +11,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderPlayerSource)
+
 
 UTakeRecorderPlayerSource::UTakeRecorderPlayerSource(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

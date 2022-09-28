@@ -21,6 +21,8 @@
 #include "SceneManagement.h"
 #include "MotionWarpingComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimUtilities)
+
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
 	OutPose.SetBoneContainer(&BoneContainer);

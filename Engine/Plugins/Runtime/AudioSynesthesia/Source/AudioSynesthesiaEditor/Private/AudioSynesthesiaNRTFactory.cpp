@@ -9,6 +9,8 @@
 #include "Modules/ModuleManager.h"
 #include "AudioSynesthesiaClassFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSynesthesiaNRTFactory)
+
 #define LOCTEXT_NAMESPACE "AudioSynesthesiaEditor"
 
 UAudioSynesthesiaNRTFactory::UAudioSynesthesiaNRTFactory(const FObjectInitializer& ObjectInitializer)
@@ -63,3 +65,4 @@ UObject* UAudioSynesthesiaNRTFactory::FactoryCreateNew(UClass* InClass, UObject*
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -8,6 +8,8 @@
 #include "Tracks/MovieSceneSpawnTrack.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSpawnTrackRecorder)
+
 DEFINE_LOG_CATEGORY(SpawnSerialization);
 
 
@@ -190,4 +192,5 @@ bool UMovieSceneSpawnTrackRecorder::LoadRecordedFile(const FString& FileName, UM
 
 	return false;
 }
+
 

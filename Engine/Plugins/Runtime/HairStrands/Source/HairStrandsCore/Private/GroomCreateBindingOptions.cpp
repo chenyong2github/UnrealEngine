@@ -2,6 +2,8 @@
 
 #include "GroomCreateBindingOptions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomCreateBindingOptions)
+
 UGroomCreateBindingOptions::UGroomCreateBindingOptions(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -13,3 +15,4 @@ UGroomCreateBindingOptions::UGroomCreateBindingOptions(const FObjectInitializer&
 	NumInterpolationPoints = 100;
 	MatchingSection = 0;
 }
+

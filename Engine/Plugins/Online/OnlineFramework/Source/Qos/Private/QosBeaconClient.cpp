@@ -4,6 +4,8 @@
 #include "QosBeaconHost.h"
 #include "OnlineSubsystemUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(QosBeaconClient)
+
 AQosBeaconClient::AQosBeaconClient(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	ConnectionStartTime(0.0),
@@ -78,4 +80,5 @@ void AQosBeaconClient::ClientQosResponse_Implementation(EQosResponseType Respons
 	int32 ResponseTime = FMath::TruncToInt((EndTime - QosStartTime) * 1000.0);
 	QosRequestComplete.ExecuteIfBound(EQosResponseType::Success, ResponseTime);
 }
+
 

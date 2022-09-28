@@ -16,6 +16,8 @@
 #include "NiagaraEmitterEditorData.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackRoot)
+
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
 UNiagaraStackRoot::UNiagaraStackRoot()
@@ -286,3 +288,4 @@ void UNiagaraStackRoot::OnSummaryViewStateChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
+

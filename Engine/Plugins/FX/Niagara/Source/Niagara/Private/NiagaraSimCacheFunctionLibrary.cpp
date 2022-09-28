@@ -3,6 +3,8 @@
 #include "NiagaraSimCacheFunctionLibrary.h"
 #include "NiagaraComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSimCacheFunctionLibrary)
+
 void UAsyncNiagaraCaptureSimCache::Activate()
 {
 	Super::Activate();
@@ -170,3 +172,4 @@ UNiagaraSimCache* UNiagaraSimCacheFunctionLibrary::CreateNiagaraSimCache(UObject
 
 	return nullptr;
 }
+

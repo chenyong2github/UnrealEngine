@@ -9,6 +9,9 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Rigs/RigHierarchyController.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigParameterTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneParameterControlRigTrack"
 
 
@@ -614,3 +617,4 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 
 
 #undef LOCTEXT_NAMESPACE
+

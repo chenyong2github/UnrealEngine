@@ -6,6 +6,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOEditorSettings)
+
 const FOpenColorIODisplayConfiguration* UOpenColorIOLevelViewportSettings::GetViewportSettings(FName ViewportIdentifier) const
 {
 	const FPerViewportDisplaySettingPair* Pair = ViewportsSettings.FindByPredicate([ViewportIdentifier](const FPerViewportDisplaySettingPair& Other)
@@ -62,3 +64,4 @@ void UOpenColorIOLevelViewportSettings::SetViewportSettings(FName ViewportIdenti
 		ViewportsSettings.Emplace(MoveTemp(NewEntry));
 	}
 }
+

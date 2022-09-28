@@ -4,6 +4,8 @@
 #include "EnvironmentQuery/EnvQueryTest.h"
 #include "EnvironmentQueryGraphNode_Option.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryGraphNode_Test)
+
 UEnvironmentQueryGraphNode_Test::UEnvironmentQueryGraphNode_Test(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bIsSubNode = true;
@@ -50,3 +52,4 @@ void UEnvironmentQueryGraphNode_Test::SetDisplayedWeight(float Pct, bool bNamed)
 	TestWeightPct = Pct;
 	bHasNamedWeight = bNamed;
 }
+

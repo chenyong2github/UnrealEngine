@@ -6,6 +6,8 @@
 #include "DSP/SampleRateConverter.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentWaveTable)
+
 USynthSamplePlayer::USynthSamplePlayer(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)
 	, SoundWave(nullptr)
@@ -193,3 +195,4 @@ int32 USynthSamplePlayer::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	}
 	return NumSamples;
 }
+

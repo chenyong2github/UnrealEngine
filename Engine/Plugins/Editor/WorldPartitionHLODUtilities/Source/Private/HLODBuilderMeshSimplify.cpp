@@ -19,6 +19,8 @@
 #include "Engine/HLODProxy.h"
 #include "Serialization/ArchiveCrc32.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilderMeshSimplify)
+
 
 UHLODBuilderMeshSimplify::UHLODBuilderMeshSimplify(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -101,3 +103,4 @@ TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext
 	
 	return Components;
 }
+

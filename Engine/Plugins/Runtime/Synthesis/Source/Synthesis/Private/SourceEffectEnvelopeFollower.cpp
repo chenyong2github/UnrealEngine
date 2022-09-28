@@ -2,6 +2,8 @@
 
 #include "SourceEffects/SourceEffectEnvelopeFollower.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectEnvelopeFollower)
+
 class FSourceEffectEnvFollowerNotifier : public FTickableGameObject, public IEnvelopeFollowerNotifier
 {
 public:
@@ -288,3 +290,4 @@ void USourceEffectEnvelopeFollowerPreset::UnregisterEnvelopeFollowerListener(UEn
 
 	SourceEffectEnvFollowerNotifier->UnregisterEnvelopeFollowerListener(this->GetUniqueID(), EnvelopeFollowerListener);
 }
+

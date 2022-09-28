@@ -5,6 +5,8 @@
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackItemFooter)
+
 void UNiagaraStackItemFooter::Initialize(
 	FRequiredEntryData InRequiredEntryData,
 	FString InOwnerStackItemEditorDataKey)
@@ -61,3 +63,4 @@ void UNiagaraStackItemFooter::ToggleShowAdvanced()
 {
 	ToggleShowAdvancedDelegate.ExecuteIfBound();
 }
+

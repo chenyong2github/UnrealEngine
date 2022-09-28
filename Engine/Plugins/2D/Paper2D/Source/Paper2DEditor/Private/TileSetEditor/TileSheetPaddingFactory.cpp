@@ -9,6 +9,8 @@
 #include "PaperSpriteAtlas.h"
 #include "Atlasing/PaperAtlasTextureHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TileSheetPaddingFactory)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 /////////////////////////////////////////////////////
@@ -111,3 +113,4 @@ UObject* UTileSheetPaddingFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 }
 
 #undef LOCTEXT_NAMESPACE
+

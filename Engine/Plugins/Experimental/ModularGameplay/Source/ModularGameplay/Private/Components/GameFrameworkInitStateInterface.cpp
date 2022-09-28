@@ -7,6 +7,8 @@
 #include "EngineUtils.h"
 #include "ModularGameplayLogs.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFrameworkInitStateInterface)
+
 
 AActor* IGameFrameworkInitStateInterface::GetOwningActor() const
 {
@@ -254,3 +256,4 @@ bool IGameFrameworkInitStateInterface::UnregisterInitStateDelegate(FActorInitSta
 
 	return false;
 }
+

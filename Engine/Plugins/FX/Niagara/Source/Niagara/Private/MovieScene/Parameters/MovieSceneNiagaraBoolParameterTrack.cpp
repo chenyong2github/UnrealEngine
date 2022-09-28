@@ -7,6 +7,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraBoolParameterTrack)
+
 bool UMovieSceneNiagaraBoolParameterTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UMovieSceneBoolSection::StaticClass();

@@ -36,6 +36,8 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeStaticMeshFactory)
+
 #if WITH_EDITORONLY_DATA
 #include "EditorFramework/AssetImportData.h"
 #endif //WITH_EDITORONLY_DATA
@@ -1480,3 +1482,4 @@ bool UInterchangeStaticMeshFactory::SetSourceFilename(const UObject* Object, con
 
 	return false;
 }
+

@@ -10,6 +10,8 @@
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVolumeTexture)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceVolumeTexture"
 
 const TCHAR* UNiagaraDataInterfaceVolumeTexture::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceVolumeTextureTemplate.ush");
@@ -329,3 +331,4 @@ void UNiagaraDataInterfaceVolumeTexture::SetTexture(UTexture* InTexture)
 }
 
 #undef LOCTEXT_NAMESPACE
+

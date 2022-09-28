@@ -3,6 +3,8 @@
 #include "GroomFactory.h"
 #include "GroomAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomFactory)
+
 UGroomFactory::UGroomFactory()
 {
 	SupportedClass = UGroomAsset::StaticClass();
@@ -28,3 +30,4 @@ UObject* UGroomFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FNa
 
 	return Groom;
 }
+

@@ -10,6 +10,8 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackModuleItemOutput)
+
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
@@ -106,3 +108,4 @@ FText UNiagaraStackModuleItemOutput::GetOutputParameterHandleText() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

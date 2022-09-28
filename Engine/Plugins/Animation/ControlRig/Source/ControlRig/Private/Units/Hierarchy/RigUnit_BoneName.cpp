@@ -3,6 +3,8 @@
 #include "RigUnit_BoneName.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_BoneName)
+
 FRigUnit_Item_Execute()
 {
 }
@@ -48,3 +50,4 @@ FRigVMStructUpgradeInfo FRigUnit_ControlName::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("Control"), TEXT("Item.Name"));
 	return Info;
 }
+

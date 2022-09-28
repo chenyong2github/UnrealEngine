@@ -5,6 +5,8 @@
 #include "Logging/LogMacros.h"
 #include "Containers/Ticker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PythonScriptCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogPythonScriptCommandlet, Log, All);
 
 int32 UPythonScriptCommandlet::Main(const FString& Params)
@@ -57,3 +59,4 @@ int32 UPythonScriptCommandlet::Main(const FString& Params)
 	UE_LOG(LogPythonScriptCommandlet, Display, TEXT("Python script executed successfully"));
 	return 0;
 }
+

@@ -30,6 +30,8 @@
 #include "LevelSequenceActor.h"
 #include "Tools/BakingHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSnapper)
+
 #define LOCTEXT_NAMESPACE "ControlRigSnapper"
 
 
@@ -490,5 +492,6 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 
 
 #undef LOCTEXT_NAMESPACE
+
 
 

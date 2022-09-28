@@ -21,6 +21,8 @@
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialUser)
+
 #define LOCTEXT_NAMESPACE "SocialUser"
 
 //////////////////////////////////////////////////////////////////////////

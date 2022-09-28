@@ -8,6 +8,8 @@
 #include "AudioMixerDevice.h"
 #include "AudioModulation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationEnvelopeFollower)
+
 
 namespace AudioModulation
 {
@@ -230,3 +232,4 @@ AudioModulation::FGeneratorPtr USoundModulationGeneratorEnvelopeFollower::Create
 
 	return FGeneratorPtr(new FEnvelopeFollowerGenerator(Params));
 }
+

@@ -17,6 +17,8 @@
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetUtils/Texture2DUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBakeFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshBakeFunctions"
@@ -953,3 +955,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBakeFunctions::BakeVertex(
 
 
 #undef LOCTEXT_NAMESPACE
+

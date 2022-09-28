@@ -29,6 +29,8 @@
 
 #include "Misc/ScopedSlowTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolConvert)
+
 #define LOCTEXT_NAMESPACE "FractureToolConvert"
 
 
@@ -367,3 +369,4 @@ int32 UFractureToolConvert::ExecuteFracture(const FFractureToolContext& Fracture
 }
 
 #undef LOCTEXT_NAMESPACE
+

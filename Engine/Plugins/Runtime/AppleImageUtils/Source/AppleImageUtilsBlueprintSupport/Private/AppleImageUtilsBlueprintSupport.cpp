@@ -5,6 +5,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AppleImageUtilsBlueprintSupport)
+
 
 class FAppleImageUtilsBlueprintSupport :
 	public IModuleInterface
@@ -48,3 +50,4 @@ UK2Node_ConvertToPNG::UK2Node_ConvertToPNG(const FObjectInitializer& ObjectIniti
 	ProxyFactoryClass = UAppleImageUtilsBaseAsyncTaskBlueprintProxy::StaticClass();
 	ProxyClass = UAppleImageUtilsBaseAsyncTaskBlueprintProxy::StaticClass();
 }
+

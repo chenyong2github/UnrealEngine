@@ -4,6 +4,8 @@
 #include "RetargetEditor/IKRetargetAnimInstanceProxy.h"
 #include "RetargetEditor/IKRetargeterController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetAnimInstance)
+
 
 void FAnimNode_PreviewRetargetPose::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
@@ -156,3 +158,4 @@ FAnimInstanceProxy* UIKRetargetAnimInstance::CreateAnimInstanceProxy()
 	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
 	return new FIKRetargetAnimInstanceProxy(this, &PreviewPoseNode, &RetargetNode);
 }
+

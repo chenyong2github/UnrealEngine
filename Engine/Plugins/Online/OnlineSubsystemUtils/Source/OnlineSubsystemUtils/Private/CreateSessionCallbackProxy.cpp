@@ -8,6 +8,8 @@
 #include "OnlineSubsystemBPCallHelper.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CreateSessionCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UCreateSessionCallbackProxy
 
@@ -116,3 +118,4 @@ void UCreateSessionCallbackProxy::OnStartCompleted(FName SessionName, bool bWasS
 		OnFailure.Broadcast();
 	}
 }
+

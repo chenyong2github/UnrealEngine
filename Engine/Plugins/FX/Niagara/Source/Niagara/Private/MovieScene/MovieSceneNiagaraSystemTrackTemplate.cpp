@@ -9,6 +9,8 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraSystemTrackTemplate)
+
 struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 {
 	FPreAnimatedNiagaraComponentToken(

@@ -9,6 +9,8 @@
 #include "NiagaraParameterDefinitionsBase.h"
 #include "NiagaraScriptSourceBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameterDefinitionsSubscriber)
+
 
 #if WITH_EDITORONLY_DATA
 
@@ -299,3 +301,4 @@ void INiagaraParameterDefinitionsSubscriber::MarkParameterDefinitionSubscription
 	}
 }
 #endif
+

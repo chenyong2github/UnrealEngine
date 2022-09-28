@@ -11,6 +11,8 @@
 #include "RigEditor/IKRigController.h"
 #include "Widgets/SWindow.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigDefinitionFactory)
+
 #define LOCTEXT_NAMESPACE "IKRigDefinitionFactory"
 
 
@@ -112,3 +114,4 @@ FString UIKRigDefinitionFactory::GetDefaultNewAssetName() const
 	return FString(TEXT("NewIKRig"));
 }
 #undef LOCTEXT_NAMESPACE
+

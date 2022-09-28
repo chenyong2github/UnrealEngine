@@ -4,6 +4,8 @@
 #include "AssetTypeCategories.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGizmoLibraryFactory)
+
 #define LOCTEXT_NAMESPACE "ControlRigGizmoLibraryFactory"
 
 UControlRigShapeLibraryFactory::UControlRigShapeLibraryFactory()
@@ -36,3 +38,4 @@ uint32 UControlRigShapeLibraryFactory::GetMenuCategories() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

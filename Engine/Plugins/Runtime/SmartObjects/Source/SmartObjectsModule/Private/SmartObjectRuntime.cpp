@@ -5,6 +5,8 @@
 #include "SmartObjectSubsystem.h"
 #include "MassEntityManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectRuntime)
+
 const FSmartObjectClaimHandle FSmartObjectClaimHandle::InvalidHandle = {};
 
 //----------------------------------------------------------------------//
@@ -65,3 +67,4 @@ bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHan
 
 	return bReleased;
 }
+

@@ -3,6 +3,8 @@
 #include "RigUnit_SequenceExecution.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SequenceExecution)
+
 FRigUnit_SequenceExecution_Execute()
 {
 	A = B = C = D = ExecuteContext;
@@ -25,3 +27,4 @@ FRigUnit_SequenceAggregate_Execute()
 {
 	A = B = ExecuteContext;
 }
+

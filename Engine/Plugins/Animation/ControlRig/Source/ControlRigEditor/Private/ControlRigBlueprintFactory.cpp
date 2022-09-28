@@ -25,6 +25,8 @@
 #include "Graph/ControlRigGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprintFactory)
+
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintFactory"
 
 /** Dialog to configure creation properties */
@@ -332,3 +334,4 @@ void UControlRigBlueprintFactory::CreateRigGraphIfRequired(UControlRigBlueprint*
 }
 
 #undef LOCTEXT_NAMESPACE
+

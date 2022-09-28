@@ -6,6 +6,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Components/SizeBoxSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonVisualAttachment)
+
 UCommonVisualAttachment::UCommonVisualAttachment(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

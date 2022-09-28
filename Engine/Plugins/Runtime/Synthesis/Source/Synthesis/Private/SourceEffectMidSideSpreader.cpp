@@ -3,6 +3,8 @@
 #include "SourceEffects/SourceEffectMidSideSpreader.h"
 #include "DSP/Dsp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectMidSideSpreader)
+
 FSourceEffectMidSideSpreader::FSourceEffectMidSideSpreader()
 	: MidScale(1.0f)
 	, SideScale(1.0f)

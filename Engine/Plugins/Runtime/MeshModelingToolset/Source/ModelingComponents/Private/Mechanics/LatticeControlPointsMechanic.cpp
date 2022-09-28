@@ -14,6 +14,8 @@
 #include "ToolSetupUtil.h"
 #include "Transforms/MultiTransformer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LatticeControlPointsMechanic)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "ULatticeControlPointsMechanic"
@@ -823,3 +825,4 @@ FString FLatticeControlPointsMechanicMovementChange::ToString() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

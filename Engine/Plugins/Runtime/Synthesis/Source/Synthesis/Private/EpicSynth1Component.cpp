@@ -2,6 +2,8 @@
 
 #include "SynthComponents/EpicSynth1Component.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EpicSynth1Component)
+
 void UModularSynthComponent::NoteOn(const float Note, const int32 Velocity, const float Duration)
 {
 	SynthCommand([this, Note, Velocity, Duration]()
@@ -627,3 +629,4 @@ void UModularSynthLibrary::AddModularSynthPresetToBankAsset(UModularSynthPresetB
 		InBank->MarkPackageDirty();
 	}
 }
+

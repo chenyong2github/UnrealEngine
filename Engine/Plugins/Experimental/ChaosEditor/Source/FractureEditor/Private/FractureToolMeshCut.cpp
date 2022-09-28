@@ -16,6 +16,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "FractureToolBackgroundTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolMeshCut)
+
 using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FractureMesh"

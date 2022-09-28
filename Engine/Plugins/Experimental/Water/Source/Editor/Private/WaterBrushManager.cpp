@@ -33,6 +33,8 @@
 #include "Misc/MapErrors.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBrushManager)
+
 #define LOCTEXT_NAMESPACE "WaterBrushManager"
 
 AWaterBrushManager::AWaterBrushManager(const FObjectInitializer& ObjectInitializer)
@@ -1451,3 +1453,4 @@ void AWaterBrushManager::CheckForErrors()
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

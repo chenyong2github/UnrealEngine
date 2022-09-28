@@ -13,6 +13,8 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "NormalFlowRemesher.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RemeshMeshOp)
+
 using namespace UE::Geometry;
 
 TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMesh3* TargetMesh)

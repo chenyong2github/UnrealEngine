@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceCameraShakeTestUtil)
+
 FMinimalViewInfo USequenceCameraShakeTestUtil::GetCameraCachePOV(APlayerController* PlayerController)
 {
 	return PlayerController->PlayerCameraManager->GetCameraCacheView();
@@ -28,3 +30,4 @@ bool USequenceCameraShakeTestUtil::GetPostProcessBlendCache(APlayerController* P
 	}
 	return false;
 }
+

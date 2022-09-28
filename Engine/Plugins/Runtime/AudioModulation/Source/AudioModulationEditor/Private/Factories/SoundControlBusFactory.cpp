@@ -5,6 +5,8 @@
 #include "AudioAnalytics.h"
 #include "SoundControlBus.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundControlBusFactory)
+
 
 USoundControlBusFactory::USoundControlBusFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

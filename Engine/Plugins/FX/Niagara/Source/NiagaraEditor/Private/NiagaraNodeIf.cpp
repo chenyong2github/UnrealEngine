@@ -4,6 +4,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraHlslTranslator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeIf)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeIf"
 
 const FString UNiagaraNodeIf::InputTruePinSuffix(" if True");
@@ -343,3 +345,4 @@ FText UNiagaraNodeIf::GetNodeTitle(ENodeTitleType::Type TitleType) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

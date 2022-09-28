@@ -10,6 +10,8 @@
 #include "GameFramework/WorldSettings.h"
 #include "EnhancedInputDeveloperSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedPlayerInput)
+
 namespace UE
 {
 	namespace Input
@@ -705,4 +707,5 @@ void UEnhancedPlayerInput::InitializeMappingActionModifiers(const FEnhancedActio
 		EventData.Value = ApplyModifiers(Mapping.Modifiers, EventData.Value, 0.f);	// Uses EventData.Value to provide the correct EInputActionValueType
 	}
 }
+
 

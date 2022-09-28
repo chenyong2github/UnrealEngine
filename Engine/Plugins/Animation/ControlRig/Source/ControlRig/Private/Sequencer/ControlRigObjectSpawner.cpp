@@ -7,6 +7,8 @@
 #include "UObject/Package.h"
 #include "ControlRigObjectBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigObjectSpawner)
+
 TSharedRef<IMovieSceneObjectSpawner> FControlRigObjectSpawner::CreateObjectSpawner()
 {
 	return MakeShareable(new FControlRigObjectSpawner);
@@ -58,3 +60,4 @@ void FControlRigObjectSpawner::DestroySpawnedObject(UObject& Object)
 		ObjectHolderPtr->Objects.Remove(&Object);
 	}
 }
+

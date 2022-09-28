@@ -5,6 +5,8 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "EnvironmentQuery/EnvQuery.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryFactory)
+
 UEnvironmentQueryFactory::UEnvironmentQueryFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -24,3 +26,4 @@ bool UEnvironmentQueryFactory::CanCreateNew() const
 	// Always true if this plugin has been loaded
 	return true;
 }
+

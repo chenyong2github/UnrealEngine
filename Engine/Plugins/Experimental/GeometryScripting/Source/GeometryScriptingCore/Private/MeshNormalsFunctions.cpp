@@ -10,6 +10,8 @@
 #include "Polygroups/PolygroupSet.h"
 #include "UDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshNormalsFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshNormalsFunctions"
@@ -356,3 +358,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::GetMeshPerVertexNorma
 
 
 #undef LOCTEXT_NAMESPACE
+

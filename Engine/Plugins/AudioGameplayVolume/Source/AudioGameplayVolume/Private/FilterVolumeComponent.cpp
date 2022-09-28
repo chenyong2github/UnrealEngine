@@ -4,6 +4,8 @@
 #include "ActiveSound.h"
 #include "AudioGameplayFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FilterVolumeComponent)
+
 constexpr TCHAR FProxyMutator_Filter::MutatorFilterName[];
 
 FProxyMutator_Filter::FProxyMutator_Filter()
@@ -64,3 +66,4 @@ void UFilterVolumeComponent::CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutat
 	FilterMutator->InteriorLPF = InteriorLPF;
 	FilterMutator->InteriorLPFTime = InteriorLPFTime;
 }
+

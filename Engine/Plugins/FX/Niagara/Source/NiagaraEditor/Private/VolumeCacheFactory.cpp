@@ -5,6 +5,8 @@
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "VolumeCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeCacheFactory)
+
 #define LOCTEXT_NAMESPACE "VolumeCacheFactory"
 
 #if WITH_EDITOR
@@ -35,3 +37,4 @@ UObject* UVolumeCacheFactory::FactoryCreateNew(UClass* Class,UObject* InParent,F
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

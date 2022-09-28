@@ -5,6 +5,8 @@
 #include "GameFramework/Actor.h"
 #include "Engine/NetConnection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionReplicationProxy)
+
 // -------------------------------------------------------------------------------------------------------------------------------
 //	FReplicationProxy
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -108,3 +110,4 @@ FScopedBandwidthLimitBypass::~FScopedBandwidthLimitBypass()
 		CachedNetConnection->QueuedBits = RestoreBits - CachedNetConnection->SendBuffer.GetNumBits();
 	}
 }
+

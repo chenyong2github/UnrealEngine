@@ -11,6 +11,8 @@
 #include "Modules/ModuleManager.h"
 #include "Internationalization/Regex.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CreateAndroidPreviewDataFromADBCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCreateAndroidPreviewDataFromADB, Log, All);
 
 // Config rules entries. (used to refine hw, chipset and GPU names based on known info of the hardware)
@@ -142,3 +144,4 @@ int32 UCreateAndroidPreviewDataFromADBCommandlet::Main(const FString& RawCommand
 	} while (true);
 	return 0;
 }
+

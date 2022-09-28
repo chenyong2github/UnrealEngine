@@ -5,6 +5,7 @@
 #include "WaveTableImporter.h"
 #include "WaveTableSampler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaveTableTransform)
 
 void FWaveTableTransform::Apply(float& InOutValue, bool bInBipolar) const
 {

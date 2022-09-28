@@ -27,6 +27,8 @@
 #include "ToolMenu.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphSchema)
+
 #define LOCTEXT_NAMESPACE "ConversationEditor"
 
 TSharedPtr<FGraphNodeClassHelper> ConversationClassCache;
@@ -400,3 +402,4 @@ void UConversationGraphSchema::ForceVisualizationCacheClear() const
 //////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

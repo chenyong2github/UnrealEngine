@@ -36,6 +36,8 @@
 
 #include "SlateOptMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilitiesBlueprintFactory)
+
 #define LOCTEXT_NAMESPACE "UGameplayAbilitiesBlueprintFactory"
 
 
@@ -336,3 +338,4 @@ UObject* UGameplayAbilitiesBlueprintFactory::FactoryCreateNew(UClass* Class, UOb
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -13,6 +13,8 @@
 #include "StateTreeDelegates.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeFactory)
+
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
 /////////////////////////////////////////////////////
@@ -144,3 +146,4 @@ UObject* UStateTreeFactory::FactoryCreateNew(UClass* Class, UObject* InParent, F
 }
 
 #undef LOCTEXT_NAMESPACE
+

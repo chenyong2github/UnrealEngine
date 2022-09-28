@@ -4,6 +4,8 @@
 #include "PyWrapperTypeRegistry.h"
 #include "PyGenUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PythonOnlineDocsCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogPythonOnlineDocsCommandlet, Log, All);
 
 UPythonOnlineDocsCommandlet::UPythonOnlineDocsCommandlet()
@@ -58,3 +60,4 @@ int32 UPythonOnlineDocsCommandlet::Main(const FString& Params)
 
 	return 0;
 }
+

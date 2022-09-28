@@ -3,6 +3,8 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayTag.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayTag)
+
 // ----------------------------------------------------------------
 
 UAbilityTask_WaitGameplayTagAdded::UAbilityTask_WaitGameplayTagAdded(const FObjectInitializer& ObjectInitializer)
@@ -108,3 +110,4 @@ void UAbilityTask_WaitGameplayTagRemoved::GameplayTagCallback(const FGameplayTag
 }
 
 // ----------------------------------------------------------------
+

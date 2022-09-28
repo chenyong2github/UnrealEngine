@@ -10,6 +10,8 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceArrayFunctionLibrary)
+
 template<typename TArrayType, typename TDataInterace>
 void SetNiagaraVariantArray(UNiagaraComponent* NiagaraComponent, FName OverrideName, TDataInterace* ExistingDataInterface)
 {

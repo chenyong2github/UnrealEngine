@@ -8,6 +8,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/UserDefinedStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AnimAttribute)
+
 FName FRigDispatch_AnimAttributeBase::NameArgName = TEXT("Name");
 FName FRigDispatch_AnimAttributeBase::BoneNameArgName = TEXT("BoneName");
 FName FRigDispatch_AnimAttributeBase::CachedBoneNameArgName = TEXT("CachedBoneName");
@@ -537,4 +539,5 @@ FRigVMFunctionPtr FRigDispatch_SetAnimAttribute::GetDispatchFunctionImpl(const F
 
 	return nullptr;
 }
+
 

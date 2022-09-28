@@ -6,6 +6,8 @@
 #include "HAL/IConsoleManager.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineCommandLineEncoderSettings)
+
 
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
@@ -95,3 +97,4 @@ static void PrintAvailableCodecs()
 
 FAutoConsoleCommand GDumpCLIEncoderCodecs(TEXT("MovieRenderPipeline.DumpCLIEncoderCodecs"), TEXT("Dumps the available codecs for use with the Movie Pipeline Command Line Encoder settings dialog."), FConsoleCommandDelegate::CreateStatic(PrintAvailableCodecs));
 #endif
+

@@ -7,6 +7,8 @@
 #include "Distance/DistLine3Ray3.h"
 #include "ToolDataVisualizer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlaneDistanceFromHitMechanic)
+
 using namespace UE::Geometry;
 
 

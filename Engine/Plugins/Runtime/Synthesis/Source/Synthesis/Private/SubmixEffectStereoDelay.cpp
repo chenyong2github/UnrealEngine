@@ -4,6 +4,8 @@
 #include "Sound/SoundEffectPreset.h"
 #include "SourceEffects/SourceEffectStereoDelay.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectStereoDelay)
+
 
 FSubmixEffectStereoDelay::FSubmixEffectStereoDelay()
 {
@@ -89,5 +91,6 @@ void USubmixEffectStereoDelayPreset::SetSettings(const FSubmixEffectStereoDelayS
 {
 	UpdateSettings(InSettings);
 }
+
 
 

@@ -12,6 +12,8 @@
 #include "Logging/TokenizedMessage.h"
 #include "DataValidationModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorValidatorBase)
+
 #define LOCTEXT_NAMESPACE "AssetValidation"
 
 UEditorValidatorBase::UEditorValidatorBase()
@@ -106,3 +108,4 @@ const TArray<FText>& UEditorValidatorBase::GetAllWarnings() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

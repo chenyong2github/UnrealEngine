@@ -6,6 +6,8 @@
 #include "HeightfieldMinMaxTextureNotify.h"
 #include "RenderUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HeightfieldMinMaxTexture)
+
 UHeightfieldMinMaxTexture::UHeightfieldMinMaxTexture(const FObjectInitializer& ObjectInitializer)
 	: UObject(ObjectInitializer)
 	, MaxCPULevels(5)
@@ -287,3 +289,4 @@ void UHeightfieldMinMaxTexture::RebuildCPUTextureData()
 }
 
 #endif
+

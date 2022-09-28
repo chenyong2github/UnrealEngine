@@ -3,6 +3,8 @@
 #include "PythonScriptPluginSettings.h"
 #include "PythonScriptPlugin.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PythonScriptPluginSettings)
+
 #define LOCTEXT_NAMESPACE "PythonScriptPlugin"
 
 UPythonScriptPluginSettings::UPythonScriptPluginSettings()
@@ -82,4 +84,5 @@ FText UPythonScriptPluginUserSettings::GetSectionText() const
 #endif	// WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+
 

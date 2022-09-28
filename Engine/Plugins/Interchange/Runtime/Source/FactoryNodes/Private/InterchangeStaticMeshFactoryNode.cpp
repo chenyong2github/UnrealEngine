@@ -4,6 +4,8 @@
 
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeStaticMeshFactoryNode)
+
 #if WITH_EDITOR
 
 #define IMPLEMENT_STATICMESH_BUILD_VALUE_TO_ASSET(AttributeName, AttributeType, PropertyName)	\

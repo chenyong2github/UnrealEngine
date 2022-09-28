@@ -3,6 +3,8 @@
 #include "AppleImageUtilsBlueprintProxy.h"
 #include "IAppleImageUtilsPlugin.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AppleImageUtilsBlueprintProxy)
+
 UAppleImageUtilsBaseAsyncTaskBlueprintProxy::UAppleImageUtilsBaseAsyncTaskBlueprintProxy(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bShouldTick(true)
@@ -76,3 +78,4 @@ UAppleImageUtilsBaseAsyncTaskBlueprintProxy* UAppleImageUtilsBaseAsyncTaskBluepr
 
 	return Proxy;
 }
+

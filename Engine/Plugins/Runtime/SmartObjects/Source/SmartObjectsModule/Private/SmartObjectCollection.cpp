@@ -9,6 +9,8 @@
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectCollection)
+
 //----------------------------------------------------------------------//
 // FSmartObjectCollectionEntry 
 //----------------------------------------------------------------------//
@@ -353,3 +355,4 @@ void ASmartObjectCollection::ResetCollection(const int32 ExpectedNumElements)
 	Definitions.Reset();
 }
 #endif // WITH_EDITOR
+

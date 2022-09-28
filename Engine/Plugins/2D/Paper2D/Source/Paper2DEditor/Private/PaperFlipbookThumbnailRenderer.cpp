@@ -7,6 +7,8 @@
 #include "EngineGlobals.h"
 #include "PaperFlipbook.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbookThumbnailRenderer)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperFlipbookThumbnailRenderer
 
@@ -46,3 +48,4 @@ void UPaperFlipbookThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, ui
 		}
 	}
 }
+

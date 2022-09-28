@@ -2,6 +2,8 @@
 
 #include "Components/GameFrameworkComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFrameworkComponent)
+
 UGameFrameworkComponent::UGameFrameworkComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

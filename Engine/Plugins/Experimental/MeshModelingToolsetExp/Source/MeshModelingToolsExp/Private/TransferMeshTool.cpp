@@ -12,6 +12,8 @@
 #include "ModelingToolTargetUtil.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TransferMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UTransferMeshTool"
@@ -188,3 +190,4 @@ void UTransferMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 
 
 #undef LOCTEXT_NAMESPACE
+

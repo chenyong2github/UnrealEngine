@@ -9,6 +9,8 @@
 #include "WaterBodyOceanComponent.h"
 #include "WaterBodyCustomComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterRuntimeSettings)
+
 
 #if WITH_EDITOR
 UWaterRuntimeSettings::FOnUpdateSettings UWaterRuntimeSettings::OnSettingsChange;
@@ -69,3 +71,4 @@ void UWaterRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEvent&
 	OnSettingsChange.Broadcast(this, PropertyChangedEvent.ChangeType);
 }
 #endif // WITH_EDITOR
+

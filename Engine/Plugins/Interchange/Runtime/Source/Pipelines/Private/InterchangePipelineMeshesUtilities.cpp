@@ -10,6 +10,8 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePipelineMeshesUtilities)
+
 
 static bool IsSceneNodeASocket(const UInterchangeSceneNode* SceneNode)
 {

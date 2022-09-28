@@ -7,6 +7,8 @@
 #include "MovieScene.h"
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBindingExtensions)
+
 bool UMovieSceneBindingExtensions::IsValid(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
@@ -304,3 +306,4 @@ void UMovieSceneBindingExtensions::MoveBindingContents(const FMovieSceneBindingP
 		}
 	}
 }
+

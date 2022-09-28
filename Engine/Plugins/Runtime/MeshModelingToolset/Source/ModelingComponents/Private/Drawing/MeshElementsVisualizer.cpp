@@ -6,6 +6,8 @@
 #include "Drawing/MeshWireframeComponent.h"
 #include "ToolSetupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshElementsVisualizer)
+
 using namespace UE::Geometry;
 
 

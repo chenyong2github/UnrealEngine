@@ -30,6 +30,8 @@
 #include "LandscapeModule.h"
 #include "LandscapeEditorServices.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterLandscapeBrush)
+
 #define LOCTEXT_NAMESPACE "WaterLandscapeBrush"
 
 AWaterLandscapeBrush::AWaterLandscapeBrush(const FObjectInitializer& ObjectInitializer)
@@ -607,3 +609,4 @@ bool AWaterLandscapeBrush::CanEditChange(const FProperty* InProperty) const
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

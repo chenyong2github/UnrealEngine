@@ -25,6 +25,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RemeshMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URemeshMeshTool"
@@ -275,3 +277,4 @@ bool URemeshMeshTool::CanAccept() const
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "PaperFlipbookFactory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbookFactory)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 /////////////////////////////////////////////////////
@@ -26,3 +28,4 @@ UObject* UPaperFlipbookFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 }
 
 #undef LOCTEXT_NAMESPACE
+

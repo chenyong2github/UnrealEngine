@@ -3,6 +3,8 @@
 #include "Units/Animation/RigUnit_AnimEasing.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AnimEasing)
+
 FRigUnit_AnimEasingType_Execute()
 {
 }
@@ -19,4 +21,5 @@ FRigUnit_AnimEasing_Execute()
 	Result = FControlRigMathLibrary::EaseFloat(Result, Type);
 	Result = FMath::Lerp<float>(TargetMinimum, TargetMaximum, Result);
 }
+
 

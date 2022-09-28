@@ -6,6 +6,8 @@
 #include "NiagaraSystem.h"
 #include "Camera/PlayerCameraManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraLensEffectBase)
+
 
 ANiagaraLensEffectBase::ANiagaraLensEffectBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
@@ -121,3 +123,4 @@ bool ANiagaraLensEffectBase::IsLooping() const
 
 	return false;
 }
+

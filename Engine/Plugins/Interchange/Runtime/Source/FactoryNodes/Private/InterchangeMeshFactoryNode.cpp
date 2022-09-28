@@ -4,6 +4,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMeshFactoryNode)
+
 //The static mesh source model which contain the build settings are editor only
 #if WITH_EDITOR
 

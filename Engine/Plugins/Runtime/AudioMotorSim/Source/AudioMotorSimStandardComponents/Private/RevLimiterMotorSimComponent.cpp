@@ -2,6 +2,8 @@
 
 #include "RevLimiterMotorSimComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RevLimiterMotorSimComponent)
+
 void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	if (Input.bDriving && Input.bGrounded && Input.SideSpeed < SideSpeedThreshold)
@@ -52,3 +54,4 @@ void URevLimiterMotorSimComponent::Reset()
 	TimeRemaining = 0.f;
 	TimeInAir = 0.f;
 }
+

@@ -7,6 +7,8 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameterStore)
+
 DECLARE_CYCLE_STAT(TEXT("Parameter store bind"), STAT_NiagaraParameterStoreBind, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Parameter store rebind"), STAT_NiagaraParameterStoreRebind, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Parameter store tick"), STAT_NiagaraParameterStoreTick, STATGROUP_Niagara);
@@ -1376,3 +1378,4 @@ void FNiagaraParameterStore::RemoveAllOnChangedHandlers(const void* InUserObject
 }
 #endif
 //////////////////////////////////////////////////////////////////////////
+

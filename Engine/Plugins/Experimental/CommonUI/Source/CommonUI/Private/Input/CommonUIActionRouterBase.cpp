@@ -25,6 +25,8 @@
 #include "Slate/SGameLayerManager.h"
 #include "Framework/Commands/InputBindingManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIActionRouterBase)
+
 bool bAlwaysShowCursor = false;
 static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	TEXT("CommonUI.AlwaysShowCursor"),
@@ -1582,3 +1584,4 @@ bool UCommonUIActionRouterBase::FActionDomainSortedRootList::Contains(FActivatab
 {
 	return RootList.Contains(RootNode);
 }
+

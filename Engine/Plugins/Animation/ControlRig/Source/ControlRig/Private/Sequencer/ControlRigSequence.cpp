@@ -6,6 +6,8 @@
 #include "ControlRig.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequence)
+
 #define LOCTEXT_NAMESPACE "ControlRigSequence"
 
 static TAutoConsoleVariable<int32> CVarControlRigDefaultEvaluationType(
@@ -84,3 +86,4 @@ bool UControlRigSequence::CanAnimateObject(UObject& InObject) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

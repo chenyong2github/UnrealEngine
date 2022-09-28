@@ -10,6 +10,8 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletonFactory)
+
 UClass* UInterchangeSkeletonFactory::GetFactoryClass() const
 {
 	return USkeleton::StaticClass();
@@ -150,3 +152,4 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 	return SkeletonObject;
 #endif
 }
+

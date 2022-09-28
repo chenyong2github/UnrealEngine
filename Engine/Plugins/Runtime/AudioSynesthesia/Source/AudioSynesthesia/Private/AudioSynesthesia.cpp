@@ -2,6 +2,8 @@
 
 #include "AudioSynesthesia.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSynesthesia)
+
 
 #if WITH_EDITOR
 const TArray<FText>& UAudioSynesthesiaSettings::GetAssetActionSubmenus() const

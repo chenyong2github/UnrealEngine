@@ -6,6 +6,8 @@
 #include "DSP/FloatArrayMath.h"
 #include "SynthesisModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectConvolutionReverb)
+
 FSubmixEffectConvolutionReverbSettings::FSubmixEffectConvolutionReverbSettings()
 	: NormalizationVolumeDb(-24.f)
 	, WetVolumeDb(0.f)
@@ -481,3 +483,4 @@ void USubmixEffectConvolutionReverbPreset::PostLoad()
 
 	SetImpulseResponseSettings(ImpulseResponse);
 }
+

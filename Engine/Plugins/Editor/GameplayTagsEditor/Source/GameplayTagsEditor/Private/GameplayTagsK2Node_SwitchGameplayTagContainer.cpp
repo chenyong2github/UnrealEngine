@@ -7,6 +7,8 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintGameplayTagLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsK2Node_SwitchGameplayTagContainer)
+
 UGameplayTagsK2Node_SwitchGameplayTagContainer::UGameplayTagsK2Node_SwitchGameplayTagContainer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -206,3 +208,4 @@ void UGameplayTagsK2Node_SwitchGameplayTagContainer::RemovePin(UEdGraphPin* Targ
 		PinNames.RemoveAt(Index);
 	}
 }
+

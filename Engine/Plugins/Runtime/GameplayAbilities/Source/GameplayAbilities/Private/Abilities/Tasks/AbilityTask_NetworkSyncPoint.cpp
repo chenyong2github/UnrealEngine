@@ -3,6 +3,8 @@
 #include "Abilities/Tasks/AbilityTask_NetworkSyncPoint.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_NetworkSyncPoint)
+
 UAbilityTask_NetworkSyncPoint::UAbilityTask_NetworkSyncPoint(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -82,3 +84,4 @@ void UAbilityTask_NetworkSyncPoint::SyncFinished()
 		EndTask();
 	}
 }
+

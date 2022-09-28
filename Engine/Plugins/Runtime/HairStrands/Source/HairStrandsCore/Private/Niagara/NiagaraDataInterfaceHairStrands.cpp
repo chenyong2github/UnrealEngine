@@ -21,6 +21,8 @@
 #include "GroomComponent.h"
 #include "GroomAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceHairStrands)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceHairStrands"
 
 //------------------------------------------------------------------------------------------------------------
@@ -3624,3 +3626,4 @@ void FNDIHairStrandsProxy::PostSimulate(const FNDIGpuComputePostSimulateContext&
 }
 
 #undef LOCTEXT_NAMESPACE
+

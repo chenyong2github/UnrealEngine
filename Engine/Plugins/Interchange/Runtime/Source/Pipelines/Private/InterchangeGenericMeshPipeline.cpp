@@ -15,7 +15,10 @@
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGenericMeshPipeline)
+
 void UInterchangeGenericMeshPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
+
 {
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
 

@@ -11,6 +11,8 @@
 #include "NiagaraStats.h"
 #include "VectorVM.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraAsyncCompile)
+
 #define LOCTEXT_NAMESPACE "NiagaraAsyncCompile"
 
 #if WITH_EDITOR
@@ -434,3 +436,4 @@ void FNiagaraAsyncCompileTask::PutToDDC()
 #endif
 
 #undef LOCTEXT_NAMESPACE // NiagaraAsyncCompile
+

@@ -4,6 +4,8 @@
 #include "AnimationSharingSetup.h"
 #include "AssetTypeCategories.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationSharingSetupFactory)
+
 UAnimationSharingSetupFactory::UAnimationSharingSetupFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -20,3 +22,4 @@ uint32 UAnimationSharingSetupFactory::GetMenuCategories() const
 {
 	return EAssetTypeCategories::Animation;
 }
+

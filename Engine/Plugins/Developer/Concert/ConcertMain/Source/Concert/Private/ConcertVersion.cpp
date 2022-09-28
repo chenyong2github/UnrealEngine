@@ -7,6 +7,8 @@
 #include "Modules/BuildVersion.h"
 #include "Serialization/CustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertVersion)
+
 LLM_DEFINE_TAG(Concert_ConcertVersion);
 #define LOCTEXT_NAMESPACE "ConcertVersion"
 
@@ -207,3 +209,4 @@ FText FConcertSessionVersionInfo::AsText() const
 		);
 }
 #undef LOCTEXT_NAMESPACE
+

@@ -9,6 +9,8 @@
 #include "Styling/SlateIconFinder.h"
 #include "ClassIconFinder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderLevelSequenceSource)
+
 UTakeRecorderLevelSequenceSource::UTakeRecorderLevelSequenceSource(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -150,5 +152,6 @@ FText UTakeRecorderLevelSequenceSource::GetDescriptionTextImpl() const
 
 	return FText::Format(FText::FromString("{0} Playing, {1} Queued"), NumPlaying, NumQueued);
 }
+
 
 

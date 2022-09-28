@@ -3,6 +3,8 @@
 #include "NiagaraDataInterfaceArray.h"
 #include "NiagaraShaderParametersBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceArray)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceArray"
 
 UNiagaraDataInterfaceArray::UNiagaraDataInterfaceArray(FObjectInitializer const& ObjectInitializer)
@@ -91,3 +93,4 @@ void UNiagaraDataInterfaceArray::SetShaderParameters(const FNiagaraDataInterface
 }
 
 #undef LOCTEXT_NAMESPACE
+

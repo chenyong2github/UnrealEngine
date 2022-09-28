@@ -10,6 +10,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Net/RepLayout.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EndTurnCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UTurnBasedMatchEndTurnCallbackProxy
 
@@ -88,3 +90,4 @@ void UEndTurnCallbackProxy::UploadMatchDataDelegate(FString InMatchID, bool Succ
 		OnFailure.Broadcast();
 	}
 }
+

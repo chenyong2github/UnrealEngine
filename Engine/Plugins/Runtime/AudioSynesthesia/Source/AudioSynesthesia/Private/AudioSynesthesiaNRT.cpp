@@ -2,6 +2,8 @@
 
 #include "AudioSynesthesiaNRT.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSynesthesiaNRT)
+
 
 const TArray<FText>& UAudioSynesthesiaNRTSettings::GetAssetActionSubmenus() const
 {
@@ -36,3 +38,4 @@ FColor UAudioSynesthesiaNRT::GetTypeColor() const
 	return FColor(200.0f, 150.0f, 200.0f);
 }
 #endif
+

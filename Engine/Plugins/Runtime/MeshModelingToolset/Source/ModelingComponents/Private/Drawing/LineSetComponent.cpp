@@ -12,6 +12,8 @@
 #include "PrimitiveViewRelevance.h"
 #include "StaticMeshResources.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LineSetComponent)
+
 struct FLineMeshBatchData
 {
 	FLineMeshBatchData()
@@ -401,3 +403,4 @@ void ULineSetComponent::AddLines(
 		MarkRenderStateDirty();
 	}
 }
+

@@ -2,6 +2,8 @@
 
 #include "ThrottleStateMotorSimComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ThrottleStateMotorSimComponent)
+
 void UThrottleStateMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	const bool bCarIdling = Input.Throttle == 0.f;

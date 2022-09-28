@@ -10,6 +10,8 @@
 #include "Selection/PolygonSelectionMechanic.h"
 #include "ToolActivities/PolyEditActivityContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyEditBevelEdgeActivity)
+
 #define LOCTEXT_NAMESPACE "UPolyEditBevelEdgeActivity"
 
 using namespace UE::Geometry;
@@ -303,3 +305,4 @@ void UPolyEditBevelEdgeActivity::Tick(float DeltaTime)
 
 
 #undef LOCTEXT_NAMESPACE
+

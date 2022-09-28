@@ -4,6 +4,8 @@
 
 #include "AnimGraphNode_Base.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_RigLogic)
+
 #define LOCTEXT_NAMESPACE "AnimGraphNode_RigLogic_DeveloperModule"
 
 UAnimGraphNode_RigLogic::UAnimGraphNode_RigLogic(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -26,3 +28,4 @@ FText UAnimGraphNode_RigLogic::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 }
 
 #undef LOCTEXT_NAMESPACE
+

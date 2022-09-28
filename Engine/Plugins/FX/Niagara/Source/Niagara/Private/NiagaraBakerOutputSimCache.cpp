@@ -3,6 +3,8 @@
 #include "NiagaraBakerOutputSimCache.h"
 #include "NiagaraBakerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerOutputSimCache)
+
 bool UNiagaraBakerOutputSimCache::Equals(const UNiagaraBakerOutput& OtherBase) const
 {
 	const UNiagaraBakerOutputSimCache& Other = *CastChecked<UNiagaraBakerOutputSimCache>(&OtherBase);
@@ -24,3 +26,4 @@ void UNiagaraBakerOutputSimCache::PostEditChangeProperty(struct FPropertyChanged
 
 }
 #endif
+

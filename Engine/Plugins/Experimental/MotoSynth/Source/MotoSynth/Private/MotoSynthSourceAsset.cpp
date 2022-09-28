@@ -4,6 +4,8 @@
 #include "MotoSynthModule.h"
 #include "MotoSynthDataManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotoSynthSourceAsset)
+
 #if WITH_EDITOR
 #include "DSP/Filter.h"
 #include "DSP/DynamicsProcessor.h"
@@ -683,3 +685,4 @@ float UMotoSynthSource::GetRuntimeMemoryUsageMB() const
 	// SourceData isn't loaded so no memory usage
 	return 0.0f;
 }
+

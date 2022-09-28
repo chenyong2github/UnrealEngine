@@ -10,6 +10,8 @@
 #include "ShapeApproximation/MeshSimpleShapeApproximation.h"
 #include "UDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContainmentFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshContainmentFunctions"

@@ -10,6 +10,8 @@
 #include "Engine/World.h"
 #include "ConversationTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationTaskNode)
+
 #if WITH_EDITOR
 FName UConversationTaskNode::GetNodeIconName() const
 {

@@ -2,6 +2,8 @@
 
 #include "MassSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassSettings)
+
 
 //----------------------------------------------------------------------//
 //  UMassModuleSettings
@@ -41,3 +43,4 @@ void UMassSettings::RegisterModuleSettings(UMassModuleSettings& SettingsCDO)
 	TObjectPtr<UMassModuleSettings>& FoundModuleEntry = ModuleSettings.FindOrAdd(EntryName, &SettingsCDO);
 	FoundModuleEntry = &SettingsCDO;
 }
+

@@ -12,6 +12,8 @@
 #include "ICommonUIModule.h"
 #include "Input/CommonUIInputTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonTabListWidgetBase)
+
 UCommonTabListWidgetBase::UCommonTabListWidgetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bAutoListenForInput(false)
@@ -489,3 +491,4 @@ void UCommonTabListWidgetBase::RebuildTabList()
 	TabButtonGroup->SetSelectionRequired(true);
 	OnTabListRebuilt.Broadcast();
 }
+

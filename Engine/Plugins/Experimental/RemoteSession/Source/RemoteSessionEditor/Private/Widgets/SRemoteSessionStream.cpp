@@ -40,6 +40,8 @@
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "RemoteSessionEditorStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SRemoteSessionStream)
+
 #define LOCTEXT_NAMESPACE "RemoteSessionStream"
 
 namespace RemoteSessionStream
@@ -636,3 +638,4 @@ void SRemoteSessionStream::CanDeleteAssets(const TArray<UObject*>& InAssetsToDel
 }
 
 #undef LOCTEXT_NAMESPACE
+

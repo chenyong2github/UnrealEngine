@@ -5,6 +5,8 @@
 #include "MotionWarpingComponent.h"
 #include "RootMotionModifier_SkewWarp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_MotionWarping)
+
 #if WITH_EDITOR
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"

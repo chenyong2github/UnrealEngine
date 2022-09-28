@@ -12,6 +12,8 @@
 #include "GeometryCacheStreamingManager.h"
 #include "GeometryCacheModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheComponent)
+
 #define LOCTEXT_NAMESPACE "GeometryCacheComponent"
 
 DECLARE_CYCLE_STAT(TEXT("Component Tick"), STAT_GeometryCacheComponent_TickComponent, STATGROUP_GeometryCache);
@@ -564,3 +566,4 @@ void UGeometryCacheComponent::PostEditUndo()
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

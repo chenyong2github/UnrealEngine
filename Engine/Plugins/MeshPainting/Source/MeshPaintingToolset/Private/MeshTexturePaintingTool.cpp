@@ -22,6 +22,8 @@
 #include "TextureCompiler.h"
 #include "RHI.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshTexturePaintingTool)
+
 #define LOCTEXT_NAMESPACE "MeshTextureBrush"
 
 /*
@@ -1328,3 +1330,4 @@ bool UMeshTexturePaintingTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintCompo
 }
 
 #undef LOCTEXT_NAMESPACE
+

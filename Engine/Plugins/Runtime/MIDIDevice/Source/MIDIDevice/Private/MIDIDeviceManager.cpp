@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/ScriptInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MIDIDeviceManager)
+
 #define LOCTEXT_NAMESPACE "MIDIDeviceManager"
 
 
@@ -366,3 +368,4 @@ UMIDIDeviceOutputController* UMIDIDeviceManager::CreateMIDIDeviceOutputControlle
 }
 
 #undef LOCTEXT_NAMESPACE
+

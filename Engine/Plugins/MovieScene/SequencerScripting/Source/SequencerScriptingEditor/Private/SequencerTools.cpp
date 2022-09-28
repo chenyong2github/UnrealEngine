@@ -36,6 +36,8 @@
 
 #include "Compilation/MovieSceneCompiledDataManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequencerTools)
+
 #define LOCTEXT_NAMESPACE "SequencerTools"
 
 bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSettings, FOnRenderMovieStopped OnFinishedCallback)

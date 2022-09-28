@@ -1,6 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Solvers/LimbSolver.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LimbSolver)
 
 void FLimbSolver::Reset()
 {

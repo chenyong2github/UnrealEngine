@@ -31,6 +31,8 @@
 
 #include "NiagaraSimCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraOutlinerCustomization)
+
 
 #if WITH_NIAGARA_DEBUGGER
 
@@ -1539,3 +1541,4 @@ void FNiagaraOutlinerEmitterInstanceDetailsCustomization::CustomizeChildren(TSha
 #undef LOCTEXT_NAMESPACE
 
 #endif // WITH_NIAGARA_DEBUGGER
+

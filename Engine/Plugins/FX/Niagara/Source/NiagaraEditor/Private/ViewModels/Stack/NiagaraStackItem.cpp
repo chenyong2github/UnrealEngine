@@ -11,6 +11,8 @@
 
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackItem)
+
 void UNiagaraStackItem::Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey)
 {
 	Super::Initialize(InRequiredEntryData, InStackEditorDataKey);
@@ -216,4 +218,5 @@ FText UNiagaraStackItemTextContent::GetDisplayName() const
 {
 	return DisplayText;
 }
+
 

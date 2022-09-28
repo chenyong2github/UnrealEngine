@@ -5,6 +5,8 @@
 #include "Algo/Transform.h"
 #include "Stats/Stats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationSharingInstances)
+
 UAnimSharingStateInstance::UAnimSharingStateInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), AnimationToPlay(nullptr), PermutationTimeOffset(0.f), PlayRate(1.f), StateIndex(INDEX_NONE), ComponentIndex(INDEX_NONE), Instance(nullptr)
 {
@@ -45,3 +47,4 @@ UAnimSharingAdditiveInstance::UAnimSharingAdditiveInstance(const FObjectInitiali
 	: Super(ObjectInitializer)
 {
 }
+

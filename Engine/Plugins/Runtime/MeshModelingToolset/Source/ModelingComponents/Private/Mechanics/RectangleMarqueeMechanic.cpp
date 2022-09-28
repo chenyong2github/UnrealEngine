@@ -8,6 +8,9 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #include "Intersection/IntersectionQueries2.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RectangleMarqueeMechanic)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URectangleMarqueeMechanic"
@@ -318,3 +321,4 @@ void URectangleMarqueeMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI*
 }
 
 #undef LOCTEXT_NAMESPACE
+

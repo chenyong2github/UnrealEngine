@@ -9,6 +9,8 @@
 #include "Engine/NetConnection.h"
 #include "OnlineSubsystemNames.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineEngineInterfaceImpl)
+
 UOnlineEngineInterfaceImpl::UOnlineEngineInterfaceImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, VoiceSubsystemNameOverride(NAME_None)
@@ -681,3 +683,4 @@ void UOnlineEngineInterfaceImpl::OnPIELoginComplete(int32 LocalUserNum, bool bWa
 }
 
 #endif
+

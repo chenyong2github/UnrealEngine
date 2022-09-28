@@ -7,6 +7,8 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetControlOffset)
+
 FRigUnit_SetControlOffset_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

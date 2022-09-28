@@ -14,6 +14,8 @@
 #include "FractureToolContext.h"
 #include "FractureToolBackgroundTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolBrick)
+
 using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FractureBrick"
@@ -460,3 +462,4 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 }
 
 #undef LOCTEXT_NAMESPACE
+

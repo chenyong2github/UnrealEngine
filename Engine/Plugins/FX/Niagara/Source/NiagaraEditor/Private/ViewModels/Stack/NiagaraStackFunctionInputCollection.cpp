@@ -20,6 +20,8 @@
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "NiagaraEmitterEditorData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackFunctionInputCollection)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
 
 FText UNiagaraStackFunctionInputCollectionBase::UncategorizedName = LOCTEXT("Uncategorized", "Uncategorized");
@@ -890,3 +892,4 @@ UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollectionBase::Get
 }
 
 #undef LOCTEXT_NAMESPACE
+

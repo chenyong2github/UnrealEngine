@@ -3,6 +3,8 @@
 #include "InterchangeImportTestStepBase.h"
 #include "InterchangeImportTestData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestStepBase)
+
 
 bool UInterchangeImportTestStepBase::PerformTests(FInterchangeImportTestData& Data, FAutomationTestExecutionInfo& ExecutionInfo)
 {
@@ -32,3 +34,4 @@ bool UInterchangeImportTestStepBase::PerformTests(FInterchangeImportTestData& Da
 
 	return bSuccess;
 }
+

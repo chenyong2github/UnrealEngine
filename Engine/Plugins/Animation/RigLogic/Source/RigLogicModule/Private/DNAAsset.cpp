@@ -23,6 +23,8 @@
 
 #include "riglogic/RigLogic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DNAAsset)
+
 DEFINE_LOG_CATEGORY(LogDNAAsset);
 
 static constexpr uint32 AVG_EMPTY_SIZE = 4 * 1024;
@@ -251,3 +253,4 @@ void UDNAAsset::Serialize(FArchive& Ar)
 		}
 	}
 }
+

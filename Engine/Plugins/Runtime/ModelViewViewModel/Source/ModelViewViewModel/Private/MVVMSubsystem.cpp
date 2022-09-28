@@ -8,6 +8,8 @@
 #include "MVVMViewModelBase.h"
 #include "Types/MVVMViewModelCollection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMSubsystem)
+
 
 void UMVVMSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -374,3 +376,4 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 
 	return MakeValue(true);
 }
+

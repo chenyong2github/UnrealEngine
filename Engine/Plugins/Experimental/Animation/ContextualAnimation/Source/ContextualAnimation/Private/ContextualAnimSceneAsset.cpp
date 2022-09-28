@@ -10,6 +10,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "Containers/ArrayView.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSceneAsset)
+
 static FCompactPoseBoneIndex GetCompactPoseBoneIndexFromPose(const FCSPose<FCompactPose>& Pose, const FName& BoneName)
 {
 	const FBoneContainer& BoneContainer = Pose.GetPose().GetBoneContainer();
@@ -824,3 +826,4 @@ void UContextualAnimSceneAsset::BP_GetStartAndEndTimeForWarpSection(int32 Sectio
 		AnimTrack->GetStartAndEndTimeForWarpSection(WarpSectionName, OutStartTime, OutEndTime);
 	}
 }
+

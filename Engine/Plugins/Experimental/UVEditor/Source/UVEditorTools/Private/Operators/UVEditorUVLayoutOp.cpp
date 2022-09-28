@@ -9,6 +9,8 @@
 #include "Utilities/MeshUDIMClassifier.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorUVLayoutOp)
+
 using namespace UE::Geometry;
 
 void FUVEditorUVLayoutOp::SetTransform(const FTransformSRT3d& Transform)

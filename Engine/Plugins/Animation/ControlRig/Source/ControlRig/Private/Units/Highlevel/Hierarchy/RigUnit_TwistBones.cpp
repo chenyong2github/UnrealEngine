@@ -3,6 +3,8 @@
 #include "Units/Highlevel/Hierarchy/RigUnit_TwistBones.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_TwistBones)
+
 FRigUnit_TwistBones_Execute()
 {
 	if (Context.State == EControlRigState::Init)
@@ -149,3 +151,4 @@ FRigVMStructUpgradeInfo FRigUnit_TwistBonesPerItem::GetUpgradeInfo() const
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

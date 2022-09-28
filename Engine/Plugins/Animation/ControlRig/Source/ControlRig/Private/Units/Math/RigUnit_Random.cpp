@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Random)
+
 float FRigUnit_Random_Helper(int32& Seed)
 {
 	Seed = (Seed * 196314165) + 907633515;

@@ -4,6 +4,8 @@
 #include "FileMediaOutput.h"
 #include "AssetTypeCategories.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FileMediaOutputFactory)
+
 
 /* UFileMediaOutputFactory structors
  *****************************************************************************/
@@ -36,3 +38,4 @@ bool UFileMediaOutputFactory::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

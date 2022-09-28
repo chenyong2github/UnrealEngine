@@ -29,6 +29,8 @@
 #include "Modes/PlacementModeSubsystem.h"
 #include "AssetPlacementEdModeModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetPlacementEdMode)
+
 #define LOCTEXT_NAMESPACE "AssetPlacementEdMode"
 
 constexpr TCHAR UAssetPlacementEdMode::AssetPlacementEdModeID[];
@@ -244,3 +246,4 @@ void UAssetPlacementEdMode::OnSMIsntancedElementsEnabledChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigSpaceChannel)
+
 bool FMovieSceneControlRigSpaceChannel::Evaluate(FFrameTime InTime, FMovieSceneControlRigSpaceBaseKey& OutValue) const
 {
 	FMovieSceneControlRigSpaceBaseKey DefaultValue; //this will be in parent space
@@ -224,4 +226,5 @@ TSharedPtr<FStructOnScope> GetKeyStruct(TMovieSceneChannelHandle<FMovieSceneCont
 	return TSharedPtr<FStructOnScope>();
 }
 */
+
 

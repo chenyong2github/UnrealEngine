@@ -6,6 +6,8 @@
 #include "Abilities/GameplayAbility.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetActor_Radius)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	AGameplayAbilityTargetActor_Radius
@@ -73,3 +75,4 @@ TArray<TWeakObjectPtr<AActor> >	AGameplayAbilityTargetActor_Radius::PerformOverl
 
 	return HitActors;
 }
+

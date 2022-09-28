@@ -12,6 +12,8 @@
 #include "StaticMeshAttributes.h"
 #include "ToolSetupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeComponentToolTarget)
+
 using namespace UE::Geometry;
 
 TAutoConsoleVariable<int32> CVarModelingMaxVolumeTriangleCount(

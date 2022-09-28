@@ -2,6 +2,8 @@
 
 #include "MoviePipelineDebugSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineDebugSettings)
+
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
 #include "IRenderCaptureProvider.h"
 #endif

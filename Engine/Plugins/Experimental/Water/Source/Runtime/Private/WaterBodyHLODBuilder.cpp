@@ -2,6 +2,8 @@
 
 #include "WaterBodyHLODBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyHLODBuilder)
+
 #if WITH_EDITOR
 
 #include "WaterBodyComponent.h"
@@ -131,3 +133,4 @@ TArray<UActorComponent*> UWaterBodyHLODBuilder::Build(const FHLODBuildContext& I
 }
 
 #endif // #if WITH_EDITOR
+

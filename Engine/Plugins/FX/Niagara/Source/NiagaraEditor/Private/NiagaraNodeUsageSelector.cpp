@@ -5,6 +5,8 @@
 #include "NiagaraHlslTranslator.h"
 #include "Widgets/Layout/SSeparator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeUsageSelector)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeUsageSelector"
 
 UNiagaraNodeUsageSelector::UNiagaraNodeUsageSelector(const FObjectInitializer& ObjectInitializer)
@@ -584,3 +586,4 @@ FText UNiagaraNodeUsageSelector::GetNodeTitle(ENodeTitleType::Type TitleType) co
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "MovieScene/Parameters/MovieSceneNiagaraParameterTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraParameterTrack)
+
 const FNiagaraVariable& UMovieSceneNiagaraParameterTrack::GetParameter() const
 {
 	return Parameter;

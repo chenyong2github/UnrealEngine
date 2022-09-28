@@ -12,6 +12,8 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBlueprintFactory)
+
 #define LOCTEXT_NAMESPACE "ViewModelBlueprintFactory"
 
 /*------------------------------------------------------------------------------
@@ -117,3 +119,4 @@ UObject* UMVVMViewModelBlueprintFactory::FactoryCreateNew(UClass* Class, UObject
 }
 
 #undef LOCTEXT_NAMESPACE
+

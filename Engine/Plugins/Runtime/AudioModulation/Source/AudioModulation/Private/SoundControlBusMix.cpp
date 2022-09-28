@@ -10,6 +10,8 @@
 #include "Engine/World.h"
 #include "SoundControlBus.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundControlBusMix)
+
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -183,3 +185,4 @@ void USoundControlBusMix::SoloMix()
 }
 
 #undef LOCTEXT_NAMESPACE // AudioModulation
+

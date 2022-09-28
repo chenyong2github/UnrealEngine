@@ -19,6 +19,8 @@
 #include "MessageLogModule.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelinePIEExecutor)
+
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
 
@@ -368,3 +370,4 @@ void UMoviePipelinePIEExecutor::OnIndividualJobFinishedImpl(FMoviePipelineOutput
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelinePIEExecutor"
+

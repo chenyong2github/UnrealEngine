@@ -14,6 +14,8 @@
 #include "NiagaraSystemStaticBuffers.h"
 #include "NiagaraTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCurveBase)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCurveBase"
 
 float GNiagaraLUTOptimizeThreshold = UNiagaraDataInterfaceCurveBase::DefaultOptimizeThreshold;

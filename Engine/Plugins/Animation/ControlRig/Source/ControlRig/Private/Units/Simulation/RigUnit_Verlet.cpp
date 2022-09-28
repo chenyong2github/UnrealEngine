@@ -3,6 +3,8 @@
 #include "Units/Simulation/RigUnit_Verlet.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Verlet)
+
 FRigUnit_VerletIntegrateVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -33,3 +35,4 @@ FRigUnit_VerletIntegrateVector_Execute()
 		Velocity = Point.LinearVelocity;
 	}
 }
+

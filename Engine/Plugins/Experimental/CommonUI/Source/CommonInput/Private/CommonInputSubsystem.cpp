@@ -18,6 +18,8 @@
 #include "Engine/Engine.h"
 #include "Stats/Stats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputSubsystem)
+
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
@@ -762,3 +764,4 @@ bool UCommonInputSubsystem::IsMobileGamepadKey(const FKey& InKey)
 
 	return PhysicalMobileKeys.Contains(InKey);
 }
+

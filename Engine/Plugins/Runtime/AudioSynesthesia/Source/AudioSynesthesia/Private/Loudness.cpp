@@ -5,6 +5,8 @@
 #include "InterpolateSorted.h"
 #include "AudioSynesthesiaLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Loudness)
+
 TUniquePtr<Audio::IAnalyzerSettings> ULoudnessSettings::GetSettings(const int32 InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::FLoudnessSettings> Settings = MakeUnique<Audio::FLoudnessSettings>();

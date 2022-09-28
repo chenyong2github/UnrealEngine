@@ -20,6 +20,7 @@
 #include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
 #endif // UE_WITH_IRIS
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AttributeSet)
 
 #if ENABLE_VISUAL_LOG
 namespace
@@ -772,3 +773,4 @@ bool FAttributeSetInitterDiscreteLevels::IsSupportedProperty(FProperty* Property
 {
 	return (Property && (CastField<FNumericProperty>(Property) || FGameplayAttribute::IsGameplayAttributeDataProperty(Property)));
 }
+

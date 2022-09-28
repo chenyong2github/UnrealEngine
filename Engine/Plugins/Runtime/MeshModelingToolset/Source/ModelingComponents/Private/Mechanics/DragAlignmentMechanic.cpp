@@ -12,6 +12,8 @@
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DragAlignmentMechanic)
+
 using namespace UE::Geometry;
 
 void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
@@ -372,3 +374,4 @@ void UDragAlignmentMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
 		bPreviewEndpointsValid = false;
 	}
 }
+

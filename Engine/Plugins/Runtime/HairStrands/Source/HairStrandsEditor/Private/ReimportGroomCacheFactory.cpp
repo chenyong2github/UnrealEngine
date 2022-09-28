@@ -5,6 +5,8 @@
 #include "GroomCache.h"
 #include "ReimportHairStrandsFactory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReimportGroomCacheFactory)
+
 UReimportGroomCacheFactory::UReimportGroomCacheFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -67,3 +69,4 @@ EReimportResult::Type UReimportGroomCacheFactory::Reimport(UObject* Obj)
 	UReimportHairStrandsFactory* ReimportFactory = UReimportHairStrandsFactory::StaticClass()->GetDefaultObject<UReimportHairStrandsFactory>();
 	return ReimportFactory->Reimport(Obj);
 }
+

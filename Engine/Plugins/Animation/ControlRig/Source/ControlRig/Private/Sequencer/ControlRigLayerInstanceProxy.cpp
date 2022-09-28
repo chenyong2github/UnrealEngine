@@ -5,6 +5,8 @@
 #include "Sequencer/ControlRigLayerInstance.h"
 #include "AnimSequencerInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigLayerInstanceProxy)
+
 void FControlRigLayerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
 	ConstructNodes();
@@ -410,4 +412,5 @@ void FAnimNode_ControlRigInputPose::Unlink()
 	InputAnimInstance = nullptr;
 	InputPose.SetLinkNode(nullptr);
 }
+
 

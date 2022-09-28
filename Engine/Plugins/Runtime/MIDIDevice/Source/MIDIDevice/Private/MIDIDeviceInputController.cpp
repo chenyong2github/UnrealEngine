@@ -6,6 +6,8 @@
 #include "MIDIDeviceLog.h"
 #include "portmidi.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MIDIDeviceInputController)
+
 UMIDIDeviceInputController::~UMIDIDeviceInputController()
 {
 	// Clean everything up before we're garbage collected
@@ -201,3 +203,4 @@ void UMIDIDeviceInputController::ProcessIncomingMIDIEvents()
 		}
 	}
 }
+

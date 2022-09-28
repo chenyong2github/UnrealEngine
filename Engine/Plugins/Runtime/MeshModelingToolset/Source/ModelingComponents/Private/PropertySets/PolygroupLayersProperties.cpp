@@ -5,6 +5,8 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Polygroups/PolygroupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolygroupLayersProperties)
+
 using namespace UE::Geometry;
 
 void UPolygroupLayersProperties::InitializeGroupLayers(const FDynamicMesh3* Mesh)

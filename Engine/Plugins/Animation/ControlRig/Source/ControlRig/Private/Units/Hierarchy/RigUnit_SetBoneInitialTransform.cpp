@@ -5,6 +5,8 @@
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetBoneInitialTransform)
+
 FRigUnit_SetBoneInitialTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -58,3 +60,4 @@ FRigVMStructUpgradeInfo FRigUnit_SetBoneInitialTransform::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("Transform"), TEXT("Value"));
 	return Info;
 }
+

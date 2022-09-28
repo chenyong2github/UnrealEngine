@@ -21,6 +21,8 @@
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BaseMeshProcessingTool)
+
 #define LOCTEXT_NAMESPACE "UBaseMeshProcessingTool"
 
 using namespace UE::Geometry;
@@ -405,3 +407,4 @@ TSharedPtr<FIndexedWeightMap1f>& UBaseMeshProcessingTool::GetActiveWeightMap()
 
 
 #undef LOCTEXT_NAMESPACE
+

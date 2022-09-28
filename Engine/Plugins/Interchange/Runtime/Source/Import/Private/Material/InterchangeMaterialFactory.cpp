@@ -26,6 +26,8 @@
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMaterialFactory)
+
 
 #if WITH_EDITORONLY_DATA
 #include "EditorFramework/AssetImportData.h"
@@ -1278,3 +1280,4 @@ void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* Mater
 #endif // #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

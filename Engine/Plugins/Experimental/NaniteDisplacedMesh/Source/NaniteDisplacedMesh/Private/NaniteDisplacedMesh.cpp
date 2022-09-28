@@ -6,6 +6,9 @@
 #include "Engine/StaticMesh.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NaniteDisplacedMesh)
+
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
@@ -840,3 +843,4 @@ FNaniteData& UNaniteDisplacedMesh::CacheDerivedData(const ITargetPlatform* Targe
 }
 
 #endif // WITH_EDITOR
+

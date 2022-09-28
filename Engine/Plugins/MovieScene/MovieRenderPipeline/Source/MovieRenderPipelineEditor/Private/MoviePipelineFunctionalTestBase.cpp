@@ -20,6 +20,8 @@
 #include "AutomationBlueprintFunctionLibrary.h"
 #include "AutomationWorkerMessages.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineFunctionalTestBase)
+
 AMoviePipelineFunctionalTestBase::AMoviePipelineFunctionalTestBase()
 {
 	
@@ -271,3 +273,4 @@ void AMoviePipelineFunctionalTestBase::CompareRenderOutputToGroundTruth(FMoviePi
 
 	FinishTest(EFunctionalTestResult::Succeeded, TEXT(""));
 }
+

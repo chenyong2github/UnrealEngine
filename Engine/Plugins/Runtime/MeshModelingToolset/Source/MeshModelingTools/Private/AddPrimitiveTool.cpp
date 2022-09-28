@@ -31,6 +31,8 @@
 #include "UObject/PropertyIterator.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AddPrimitiveTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UAddPrimitiveTool"
@@ -814,3 +816,4 @@ void UAddStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 
 
 #undef LOCTEXT_NAMESPACE
+

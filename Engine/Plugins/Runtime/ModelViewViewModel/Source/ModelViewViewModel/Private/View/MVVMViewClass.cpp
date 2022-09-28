@@ -13,6 +13,8 @@
 #include "MVVMViewModelBase.h"
 #include "MVVMSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewClass)
+
 
 #define LOCTEXT_NAMESPACE "MVVMViewClass"
 
@@ -182,3 +184,4 @@ void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
 }
 
 #undef LOCTEXT_NAMESPACE
+

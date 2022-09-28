@@ -10,6 +10,8 @@
 #endif
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameterCollection)
+
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraParameterCollectionInstance::UNiagaraParameterCollectionInstance(const FObjectInitializer& ObjectInitializer)
@@ -613,3 +615,4 @@ void UNiagaraParameterCollection::PostLoad()
 #endif
 	}
 }
+

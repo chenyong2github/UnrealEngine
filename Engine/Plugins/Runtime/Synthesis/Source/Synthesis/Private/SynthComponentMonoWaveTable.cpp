@@ -4,6 +4,8 @@
 #include "SynthComponents/SynthComponentMonoWaveTable.h"
 #include "DSP/FloatArrayMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentMonoWaveTable)
+
 UMonoWaveTableSynthPreset::UMonoWaveTableSynthPreset() : PresetName(TEXT("Default"))
 , LockKeyframesToGrid(16)
 , WaveTableResolution(512)
@@ -1069,3 +1071,4 @@ int32 USynthComponentMonoWaveTable::GetNumTableEntries()
 
 	return CachedPreset->WaveTable.Num();
 }
+

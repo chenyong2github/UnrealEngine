@@ -249,6 +249,9 @@ FNiagaraEmitterScalabilityOverride::FNiagaraEmitterScalabilityOverride()
 //////////////////////////////////////////////////////////////////////////
 
 #include "NiagaraScalabilityManager.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEffectType)
+
 void UNiagaraSignificanceHandlerDistance::CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices)
 {
 	const int32 ComponentCount = Components.Num();

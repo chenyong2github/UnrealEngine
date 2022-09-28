@@ -21,6 +21,8 @@
 #include "StaticMeshLODResourcesToDynamicMesh.h"
 #include "AssetUtils/StaticMeshMaterialUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshAssetFunctions)
+
 
 #if WITH_EDITOR
 #include "Editor.h"

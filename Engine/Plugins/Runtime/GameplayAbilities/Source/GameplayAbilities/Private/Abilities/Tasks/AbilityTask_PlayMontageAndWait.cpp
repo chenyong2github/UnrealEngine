@@ -5,6 +5,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_PlayMontageAndWait)
+
 UAbilityTask_PlayMontageAndWait::UAbilityTask_PlayMontageAndWait(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -242,3 +244,4 @@ FString UAbilityTask_PlayMontageAndWait::GetDebugString() const
 
 	return FString::Printf(TEXT("PlayMontageAndWait. MontageToPlay: %s  (Currently Playing): %s"), *GetNameSafe(MontageToPlay), *GetNameSafe(PlayingMontage));
 }
+

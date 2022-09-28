@@ -18,6 +18,8 @@
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RevolveBoundaryTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URevolveBoundaryTool"
@@ -382,3 +384,4 @@ void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 }
 
 #undef LOCTEXT_NAMESPACE
+

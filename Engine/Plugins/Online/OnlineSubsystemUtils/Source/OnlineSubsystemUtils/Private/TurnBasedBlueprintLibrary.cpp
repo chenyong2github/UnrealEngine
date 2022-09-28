@@ -7,6 +7,8 @@
 #include "OnlineSubsystemBPCallHelper.h"
 #include "Interfaces/OnlineTurnBasedInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TurnBasedBlueprintLibrary)
+
 UTurnBasedBlueprintLibrary::UTurnBasedBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -118,3 +120,4 @@ void UTurnBasedBlueprintLibrary::GetPlayerDisplayName(UObject* WorldContextObjec
 		}
 	}
 }
+

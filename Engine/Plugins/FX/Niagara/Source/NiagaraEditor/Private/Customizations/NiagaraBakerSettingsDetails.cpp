@@ -12,6 +12,8 @@
 #include "ScopedTransaction.h"
 #include "SGraphActionMenu.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerSettingsDetails)
+
 #define LOCTEXT_NAMESPACE "NiagaraBakerSettingsDetails"
 
 void FNiagaraBakerTextureSourceDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -147,3 +149,4 @@ void FNiagaraBakerTextureSourceDetails::OnActionSelected(const TArray<TSharedPtr
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeDataSetBase)
+
 #define LOCTEXT_NAMESPACE "UNiagaraNodeDataSetBase"
 
 const FName UNiagaraNodeDataSetBase::ConditionVarName(TEXT("__Condition"));
@@ -321,6 +323,7 @@ bool UNiagaraNodeDataSetBase::SynchronizeWithStruct()
 
 
 #undef LOCTEXT_NAMESPACE
+
 
 
 

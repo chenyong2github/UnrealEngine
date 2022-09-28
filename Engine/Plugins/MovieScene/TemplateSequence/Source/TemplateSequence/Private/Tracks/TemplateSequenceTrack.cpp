@@ -8,6 +8,8 @@
 #include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceTrack)
+
 #define LOCTEXT_NAMESPACE "TemplateSequenceTrack"
 
 UTemplateSequenceTrack::UTemplateSequenceTrack(const FObjectInitializer& ObjectInitializer)
@@ -55,3 +57,4 @@ FText UTemplateSequenceTrack::GetDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

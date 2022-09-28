@@ -2,6 +2,8 @@
 
 #include "PaperSpriteAtlas.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteAtlas)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperSpriteAtlas
 
@@ -44,3 +46,4 @@ void UPaperSpriteAtlas::PostInitProperties()
 }
 
 #endif
+

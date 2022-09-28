@@ -10,6 +10,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeExecutionContext)
+
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 
@@ -1618,3 +1620,4 @@ TArray<FName> FStateTreeExecutionContext::GetActiveStateNames() const
 
 #undef STATETREE_LOG
 #undef STATETREE_CLOG
+

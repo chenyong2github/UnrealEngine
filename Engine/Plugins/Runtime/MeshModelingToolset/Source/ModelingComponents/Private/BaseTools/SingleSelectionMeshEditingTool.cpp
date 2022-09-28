@@ -11,6 +11,8 @@
 #include "ToolTargetManager.h"
 #include "Selection/StoredMeshSelectionUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SingleSelectionMeshEditingTool)
+
 /*
  * ToolBuilder
  */
@@ -75,6 +77,7 @@ UWorld* USingleSelectionMeshEditingTool::GetTargetWorld()
 {
 	return TargetWorld.Get();
 }
+
 
 
 

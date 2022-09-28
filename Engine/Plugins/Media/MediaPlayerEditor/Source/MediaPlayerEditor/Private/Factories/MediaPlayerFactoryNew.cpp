@@ -26,6 +26,8 @@
 
 #include "Factories/MediaTextureFactoryNew.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlayerFactoryNew)
+
 
 #define LOCTEXT_NAMESPACE "UMediaPlayerFactoryNew"
 
@@ -224,3 +226,4 @@ bool UMediaPlayerFactoryNew::ShouldShowInNewMenu() const
 
 
 #undef LOCTEXT_NAMESPACE
+

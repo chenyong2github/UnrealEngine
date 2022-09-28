@@ -3,6 +3,8 @@
 #include "K2Node_LeaderboardFlush.h"
 #include "LeaderboardFlushCallbackProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_LeaderboardFlush)
+
 #define LOCTEXT_NAMESPACE "K2Node"
 
 UK2Node_LeaderboardFlush::UK2Node_LeaderboardFlush(const FObjectInitializer& ObjectInitializer)
@@ -30,3 +32,4 @@ FText UK2Node_LeaderboardFlush::GetMenuCategory() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

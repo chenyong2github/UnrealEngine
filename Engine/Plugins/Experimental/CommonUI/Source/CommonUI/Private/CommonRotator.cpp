@@ -3,6 +3,8 @@
 #include "CommonRotator.h"
 #include "CommonUIPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonRotator)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -145,3 +147,4 @@ void UCommonRotator::ShiftTextRightInternal(bool bFromNavigation)
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

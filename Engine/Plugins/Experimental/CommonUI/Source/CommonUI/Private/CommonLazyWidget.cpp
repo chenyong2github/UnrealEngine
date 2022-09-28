@@ -5,6 +5,8 @@
 #include "CommonUISettings.h"
 #include "../Public/CommonActivatableWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonLazyWidget)
+
 UCommonLazyWidget::UCommonLazyWidget(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {

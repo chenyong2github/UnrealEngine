@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "VelocitySyncMotorSimComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VelocitySyncMotorSimComponent)
+
 void UVelocitySyncMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	if(Input.bClutchEngaged || !Input.bDriving || !Input.bGrounded)

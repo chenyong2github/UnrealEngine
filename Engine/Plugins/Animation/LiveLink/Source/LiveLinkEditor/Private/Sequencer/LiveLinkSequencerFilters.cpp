@@ -5,6 +5,8 @@
 #include "LiveLinkComponent.h"
 #include "Styling/SlateIconFinder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSequencerFilters)
+
 #define LOCTEXT_NAMESPACE "LiveLinkSequencerTrackFilters"
 
 //////////////////////////////////////////////////////////////////////////
@@ -36,3 +38,4 @@ void ULiveLinkSequencerTrackFilter::AddTrackFilterExtensions(TArray< TSharedRef<
 }
 
 #undef LOCTEXT_NAMESPACE
+

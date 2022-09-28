@@ -5,6 +5,8 @@
 #include "ContextObjectStore.h"
 #include "Selection/UVToolSelectionAPI.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVToolAction)
+
 #define LOCTEXT_NAMESPACE "UUVToolAction"
 
 using namespace UE::Geometry;

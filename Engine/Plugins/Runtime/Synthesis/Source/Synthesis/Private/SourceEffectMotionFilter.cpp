@@ -5,6 +5,8 @@
 #include "AudioMixer.h"
 #include "DSP/FloatArrayMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectMotionFilter)
+
 FSourceEffectMotionFilter::FSourceEffectMotionFilter()
 	: Topology(ESourceEffectMotionFilterTopology::ParallelMode)
 	, FilterMixAmount(0.0f)

@@ -17,6 +17,8 @@
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVelocityGrid)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceVelocityGrid"
 DEFINE_LOG_CATEGORY_STATIC(LogVelocityGrid, Log, All);
 
@@ -748,3 +750,4 @@ FIntVector FNDIVelocityGridProxy::GetElementCount(FNiagaraSystemInstanceID Syste
 }
 
 #undef LOCTEXT_NAMESPACE
+

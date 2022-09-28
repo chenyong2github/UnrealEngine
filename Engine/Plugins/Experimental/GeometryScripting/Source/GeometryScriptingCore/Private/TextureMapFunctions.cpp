@@ -6,6 +6,8 @@
 #include "AssetUtils/Texture2DUtil.h"
 #include "Spatial/SampledScalarField2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureMapFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_TextureMapFunctions"

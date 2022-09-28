@@ -42,6 +42,8 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackModuleItem)
+
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
 
 TArray<ENiagaraScriptUsage> UsagePriority = { // Ordered such as the highest priority has the largest index
@@ -1714,3 +1716,4 @@ bool UNiagaraStackModuleItem::OpenSourceAsset() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

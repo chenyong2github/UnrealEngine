@@ -5,6 +5,8 @@
 #include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceFactoryNew)
+
 #define LOCTEXT_NAMESPACE "MovieSceneFactory"
 
 
@@ -45,3 +47,4 @@ bool ULevelSequenceFactoryNew::ShouldShowInNewMenu() const
 
 
 #undef LOCTEXT_NAMESPACE
+

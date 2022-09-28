@@ -13,6 +13,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionPhysicsComponent)
+
 NP_MODEL_REGISTER(FGenericPhysicsModelDef);
 
 UNetworkPredictionPhysicsComponent::UNetworkPredictionPhysicsComponent()

@@ -16,6 +16,8 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_EvaluateLiveLinkCustom)
+
 
 #define LOCTEXT_NAMESPACE "K2Node_EvaluateLiveLinkCustom"
 
@@ -105,3 +107,4 @@ void UK2Node_EvaluateLiveLinkFrameAtSceneTime::AddPins(FKismetCompilerContext& C
 }
 
 #undef LOCTEXT_NAMESPACE
+

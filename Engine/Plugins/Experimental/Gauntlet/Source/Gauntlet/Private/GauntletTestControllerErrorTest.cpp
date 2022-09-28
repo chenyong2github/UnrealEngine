@@ -4,6 +4,8 @@
 #include "Engine/Engine.h"
 #include "Misc/CommandLine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GauntletTestControllerErrorTest)
+
 
 void UGauntletTestControllerErrorTest::OnInit()
 {
@@ -49,4 +51,5 @@ void UGauntletTestControllerErrorTest::OnTick(float TimeDelta)
 		}
 	}
 }
+
 

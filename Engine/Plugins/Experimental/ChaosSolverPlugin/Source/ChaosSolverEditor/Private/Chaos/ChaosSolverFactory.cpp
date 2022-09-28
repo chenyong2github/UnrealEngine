@@ -6,6 +6,8 @@
 #include "Editor/EditorEngine.h"
 #include "Engine/Selection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosSolverFactory)
+
 #define LOCTEXT_NAMESPACE "ChaosSolver"
 
 /////////////////////////////////////////////////////
@@ -32,6 +34,7 @@ UObject* UChaosSolverFactory::FactoryCreateNew(UClass* Class, UObject* InParent,
 }
 
 #undef LOCTEXT_NAMESPACE
+
 
 
 

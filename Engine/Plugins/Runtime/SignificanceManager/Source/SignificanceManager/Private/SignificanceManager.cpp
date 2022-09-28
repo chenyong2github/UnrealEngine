@@ -6,6 +6,9 @@
 #include "GameFramework/HUD.h"
 #include "Engine/Engine.h"
 #include "Async/ParallelFor.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SignificanceManager)
+
 #if ALLOW_CONSOLE
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
@@ -519,3 +522,4 @@ void USignificanceManager::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDe
 		}
 	}
 }
+

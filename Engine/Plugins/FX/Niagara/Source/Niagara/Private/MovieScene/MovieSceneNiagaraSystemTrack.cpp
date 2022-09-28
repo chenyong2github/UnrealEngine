@@ -11,6 +11,8 @@
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraSystemTrack)
+
 
 bool UMovieSceneNiagaraSystemTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
@@ -49,3 +51,4 @@ bool UMovieSceneNiagaraSystemTrack::PopulateEvaluationTree(TMovieSceneEvaluation
 
 	return true;
 }
+

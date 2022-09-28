@@ -18,6 +18,8 @@
 
 #include "Engine/LevelStreaming.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderLevelVisibilitySource)
+
 UTakeRecorderLevelVisibilitySourceSettings::UTakeRecorderLevelVisibilitySourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, LevelVisibilityTrackName(NSLOCTEXT("UTakeRecorderLevelVisibilitySource", "DefaultLevelVisibilityTrackName", "Recorded Level Visibility"))
@@ -160,3 +162,4 @@ bool UTakeRecorderLevelVisibilitySource::CanAddSource(UTakeRecorderSources* InSo
 	}
 	return true;
 }
+

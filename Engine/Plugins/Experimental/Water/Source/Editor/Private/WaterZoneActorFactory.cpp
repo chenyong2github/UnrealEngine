@@ -5,6 +5,8 @@
 #include "WaterMeshComponent.h"
 #include "WaterEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterZoneActorFactory)
+
 #define LOCTEXT_NAMESPACE "WaterZoneActorFactory"
 
 UWaterZoneActorFactory::UWaterZoneActorFactory(const FObjectInitializer& ObjectInitializer)

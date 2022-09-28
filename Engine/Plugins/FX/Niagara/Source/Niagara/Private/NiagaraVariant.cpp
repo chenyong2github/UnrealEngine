@@ -3,6 +3,8 @@
 #include "NiagaraVariant.h"
 #include "NiagaraDataInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraVariant)
+
 FNiagaraVariant::FNiagaraVariant()
 {
 	CurrentMode = ENiagaraVariantMode::None;
@@ -131,3 +133,4 @@ bool FNiagaraVariant::operator!=(const FNiagaraVariant& Other) const
 {
 	return !(operator==(Other));
 }
+

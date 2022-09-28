@@ -15,6 +15,8 @@
 #include "Modules/ModuleManager.h"
 #include "NiagaraSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDumpBytecodeCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogNiagaraDumpBytecodeCommandlet, Log, All);
 
 UNiagaraDumpByteCodeCommandlet::UNiagaraDumpByteCodeCommandlet(const FObjectInitializer& ObjectInitializer)

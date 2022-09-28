@@ -3,6 +3,8 @@
 #include "MovieSceneGroomCacheTemplate.h"
 #include "GroomComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGroomCacheTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Groom Cache Evaluate"), MovieSceneEval_GroomCache_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Groom Cache Token Execute"), MovieSceneEval_GroomCache_TokenExecute, STATGROUP_MovieSceneEval);
 
@@ -151,3 +153,4 @@ float FMovieSceneGroomCacheSectionTemplateParameters::MapTimeToAnimation(float C
 
 	return AnimPosition;
 }
+

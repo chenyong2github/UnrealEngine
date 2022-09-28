@@ -3,6 +3,8 @@
 #include "InterchangeShaderGraphNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeShaderGraphNode)
+
 const TCHAR* UInterchangeShaderPortsAPI::InputPrefix = TEXT("Inputs");
 const TCHAR* UInterchangeShaderPortsAPI::InputSeparator = TEXT(":");
 
@@ -230,3 +232,4 @@ bool UInterchangeFunctionCallShaderNode::SetCustomMaterialFunction(const FString
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MaterialFunction, FString);
 }
+

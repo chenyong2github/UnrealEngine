@@ -21,6 +21,8 @@
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeSelect)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeSelect"
 
 UNiagaraNodeSelect::UNiagaraNodeSelect()
@@ -742,3 +744,4 @@ EVisibility UNiagaraNodeSelect::ShowRemoveIntegerButton() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

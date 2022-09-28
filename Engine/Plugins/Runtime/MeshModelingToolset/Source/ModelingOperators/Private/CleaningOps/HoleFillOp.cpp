@@ -9,6 +9,8 @@
 #include "CompGeom/PolygonTriangulation.h"
 #include "Selections/MeshConnectedComponents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HoleFillOp)
+
 using namespace UE::Geometry;
 
 namespace 
@@ -427,4 +429,5 @@ void FHoleFillOp::CalculateResult(FProgressCancel* Progress)
 	}
 	
 }
+
 

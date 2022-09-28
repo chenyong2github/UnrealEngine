@@ -8,6 +8,8 @@
 #include "MovieSceneGeometryCacheTemplate.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGeometryCacheSection)
+
 #define LOCTEXT_NAMESPACE "MovieSceneGeometryCacheSection"
 
 namespace
@@ -236,3 +238,4 @@ float FMovieSceneGeometryCacheParams::GetSequenceLength() const
 }
 
 #undef LOCTEXT_NAMESPACE 
+

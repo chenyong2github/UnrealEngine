@@ -5,6 +5,8 @@
 #include "InterpolateSorted.h"
 #include "AudioSynesthesiaLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LoudnessNRT)
+
 namespace
 {
 	float InterpolateLoudness(TArrayView<const Audio::FLoudnessDatum> InLoudnessArray, const float InTimestamp)
@@ -191,4 +193,5 @@ FName ULoudnessNRT::GetAnalyzerNRTFactoryName() const
 	static const FName FactoryName(TEXT("LoudnessNRTFactory"));
 	return FactoryName;
 }
+
 

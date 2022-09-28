@@ -4,6 +4,8 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanelSlot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthKnob)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 USynthKnob::USynthKnob(const FObjectInitializer& ObjectInitializer)
@@ -127,4 +129,5 @@ const FText USynthKnob::GetPaletteCategory()
 #endif
 
 #undef LOCTEXT_NAMESPACE
+
 

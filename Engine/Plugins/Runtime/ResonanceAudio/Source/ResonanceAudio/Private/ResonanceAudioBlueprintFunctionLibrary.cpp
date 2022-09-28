@@ -7,6 +7,8 @@
 #include "ResonanceAudioModule.h"
 #include "ResonanceAudioReverb.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioBlueprintFunctionLibrary)
+
 // Convenience function to obtain the Reverb Plugin pointer currently used by the given AudioDevice.
 static ResonanceAudio::FResonanceAudioReverb* GetReverbPluginFromAudioDevice(FAudioDevice* InDevice)
 {
@@ -53,3 +55,4 @@ UResonanceAudioReverbPluginPreset* UResonanceAudioBlueprintFunctionLibrary::GetG
 	}
 	return GlobalPreset;
 }
+

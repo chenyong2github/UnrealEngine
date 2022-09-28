@@ -18,6 +18,8 @@
 #include "Logging/LogMacros.h"
 #include "Misc/ScopedSlowTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReimportHairStrandsFactory)
+
 #define LOCTEXT_NAMESPACE "ReimportHairStrandsFactory"
 
 DEFINE_LOG_CATEGORY_STATIC(LogReimportHairStrandsFactory, Log, All);
@@ -423,3 +425,4 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 }
 
 #undef LOCTEXT_NAMESPACE
+

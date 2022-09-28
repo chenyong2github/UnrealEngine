@@ -17,6 +17,8 @@
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionChangelistValidator)
+
 #define LOCTEXT_NAMESPACE "WorldPartitionChangelistValidation"
 
 bool UWorldPartitionChangelistValidator::CanValidateAsset_Implementation(UObject* InAsset) const
@@ -377,3 +379,4 @@ void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const 
 }
 
 #undef LOCTEXT_NAMESPACE
+

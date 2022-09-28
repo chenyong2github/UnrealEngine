@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "Abilities/GameplayAbilityWorldReticle_ActorVisualization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetActor_ActorPlacement)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	AGameplayAbilityTargetActor_ActorPlacement
@@ -47,3 +49,4 @@ void AGameplayAbilityTargetActor_ActorPlacement::StartTargeting(UGameplayAbility
 
 //Might want to override this function to allow for a radius check against the ground, possibly including a height check. Or might want to do it in ground trace.
 //FHitResult AGameplayAbilityTargetActor_ActorPlacement::PerformTrace(AActor* InSourceActor) const
+

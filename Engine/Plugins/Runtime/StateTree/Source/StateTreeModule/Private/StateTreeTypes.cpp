@@ -2,6 +2,8 @@
 
 #include "StateTreeTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTypes)
+
 DEFINE_LOG_CATEGORY(LogStateTree);
 
 const FStateTreeStateHandle FStateTreeStateHandle::Invalid = FStateTreeStateHandle();

@@ -4,6 +4,8 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "Animation/AnimAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_LiveLinkPose)
+
 #define LOCTEXT_NAMESPACE "LiveLinkAnimNode"
 
 FText UAnimGraphNode_LiveLinkPose::GetNodeTitle(ENodeTitleType::Type TitleType) const

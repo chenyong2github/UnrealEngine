@@ -4,6 +4,8 @@
 
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayEffectRemoved)
+
 
 UAbilityTask_WaitGameplayEffectRemoved::UAbilityTask_WaitGameplayEffectRemoved(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -75,5 +77,6 @@ void UAbilityTask_WaitGameplayEffectRemoved::OnGameplayEffectRemoved(const FGame
 	}
 	EndTask();
 }
+
 
 

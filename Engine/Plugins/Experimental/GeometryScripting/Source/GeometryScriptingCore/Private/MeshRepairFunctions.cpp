@@ -20,6 +20,8 @@
 
 #include "CleaningOps/HoleFillOp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshRepairFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshRepairFunctions"
@@ -385,3 +387,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::RepairMeshDegenerateGe
 
 
 #undef LOCTEXT_NAMESPACE
+

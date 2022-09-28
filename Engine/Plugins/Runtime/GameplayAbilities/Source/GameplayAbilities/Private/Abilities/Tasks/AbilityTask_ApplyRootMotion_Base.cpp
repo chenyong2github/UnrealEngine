@@ -7,6 +7,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Character.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_ApplyRootMotion_Base)
+
 FOnTargetActorSwapped UAbilityTask_ApplyRootMotion_Base::OnTargetActorSwapped;
 
 UAbilityTask_ApplyRootMotion_Base::UAbilityTask_ApplyRootMotion_Base(const FObjectInitializer& ObjectInitializer)
@@ -51,4 +53,5 @@ bool UAbilityTask_ApplyRootMotion_Base::HasTimedOut() const
 
 	return RMS->Status.HasFlag(ERootMotionSourceStatusFlags::Finished);
 }
+
 

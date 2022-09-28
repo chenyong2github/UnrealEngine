@@ -9,6 +9,8 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonUIInputTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUserWidget)
+
 UCommonUserWidget::UCommonUserWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {	
@@ -177,4 +179,5 @@ void UCommonUserWidget::NativeDestruct()
 
 	Super::NativeDestruct();
 }
+
 

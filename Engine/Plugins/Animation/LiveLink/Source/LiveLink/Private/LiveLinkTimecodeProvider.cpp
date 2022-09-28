@@ -8,6 +8,8 @@
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTimecodeProvider)
+
 
 ULiveLinkTimecodeProvider::ULiveLinkTimecodeProvider()
 	: Evaluation(ELiveLinkTimecodeProviderEvaluationType::Lerp)
@@ -292,3 +294,4 @@ void ULiveLinkTimecodeProvider::OnLiveLinkFrameDataReceived_AnyThread(const FLiv
 		}
 	}
 }
+

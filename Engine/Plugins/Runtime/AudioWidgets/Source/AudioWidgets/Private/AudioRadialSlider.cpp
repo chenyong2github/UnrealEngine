@@ -4,6 +4,8 @@
 #include "AudioWidgets.h"
 #include "SAudioRadialSlider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioRadialSlider)
+
 #define LOCTEXT_NAMESPACE "AUDIO_UMG"
 
 static FAudioRadialSliderStyle* DefaultAudioRadialSliderStyle = nullptr;

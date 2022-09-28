@@ -4,6 +4,8 @@
 #include "ConversationInstance.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationSideEffectNode)
+
 void UConversationSideEffectNode::CauseSideEffect(const FConversationContext& Context) const
 {
 	TGuardValue<decltype(EvalWorldContextObj)> Swapper(EvalWorldContextObj, Context.GetWorld());

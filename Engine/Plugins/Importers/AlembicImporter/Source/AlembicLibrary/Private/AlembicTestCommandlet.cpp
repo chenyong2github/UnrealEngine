@@ -7,6 +7,8 @@
 #include "AbcFile.h"
 #include "AbcImportUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AlembicTestCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogAlembicCommandlet, Log, All);
 
 /**
@@ -45,3 +47,4 @@ int32 UAlembicTestCommandlet::Main(const FString& Params)
 
 	return bSuccess ? 0 : 1;
 }
+

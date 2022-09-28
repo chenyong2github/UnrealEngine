@@ -4,6 +4,8 @@
 #include "AbilitySystemComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitInputRelease)
+
 UAbilityTask_WaitInputRelease::UAbilityTask_WaitInputRelease(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

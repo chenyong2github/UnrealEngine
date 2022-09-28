@@ -7,6 +7,8 @@
 #include "BlackboardKeyType_GameplayTag.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorsBlueprintFunctionLibrary)
+
 bool UGameplayBehaviorsBlueprintFunctionLibrary::StopGameplayBehavior(TSubclassOf<UGameplayBehavior> GameplayBehaviorClass, AActor* Avatar)
 {
 	if (Avatar == nullptr || !GameplayBehaviorClass)
@@ -49,3 +51,4 @@ void UGameplayBehaviorsBlueprintFunctionLibrary::SetValueAsGameplayTagForBlackbo
 		BlackboardComp->SetValue<UBlackboardKeyType_GameplayTag>(KeyID, GameplayTagValue);
 	}
 }
+

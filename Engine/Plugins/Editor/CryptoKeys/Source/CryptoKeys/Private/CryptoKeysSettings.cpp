@@ -6,6 +6,8 @@
 #include "Misc/ConfigContext.h"
 #include "Misc/Base64.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CryptoKeysSettings)
+
 UCryptoKeysSettings::UCryptoKeysSettings()
 {
 	// Migrate any settings from the old ini files if they exist

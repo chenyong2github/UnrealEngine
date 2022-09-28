@@ -6,6 +6,8 @@
 #include "HelperUtil.h"
 #include "Animation/Skeleton.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigCurveContainer)
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigCurveContainer
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,3 +27,4 @@ FRigCurve& FRigCurveContainer::Add(const FName& InNewName, float InValue)
 	const int32 Index = Curves.Add(NewCurve);
 	return Curves[Index];
 }
+

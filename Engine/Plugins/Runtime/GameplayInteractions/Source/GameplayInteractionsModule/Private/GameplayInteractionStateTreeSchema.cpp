@@ -10,6 +10,8 @@
 #include "Components/ActorComponent.h"
 #include "Subsystems/WorldSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionStateTreeSchema)
+
 UGameplayInteractionStateTreeSchema::UGameplayInteractionStateTreeSchema()
 	: ContextActorClass(AActor::StaticClass())
 	, SmartObjectActorClass(AActor::StaticClass())

@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MonoWaveTablePresetBank)
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 

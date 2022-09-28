@@ -9,6 +9,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Misc/ScopeExit.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AITask_UseGameplayInteraction)
+
 UAITask_UseGameplayInteraction::UAITask_UseGameplayInteraction(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -134,3 +136,4 @@ void UAITask_UseGameplayInteraction::OnSlotInvalidated(const FSmartObjectClaimHa
 	AbortContext.Reason = EGameplayInteractionAbortReason::InternalAbort;
 	EndTask();
 }
+

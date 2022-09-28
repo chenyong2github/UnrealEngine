@@ -12,6 +12,8 @@
 #include "Tools/UAssetEditor.h"
 #include "Widgets/Docking/SDockTab.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectAssetToolkit)
+
 #define LOCTEXT_NAMESPACE "SmartObjectAssetToolkit"
 
 const FName FSmartObjectAssetToolkit::PreviewSettingsTabID(TEXT("SmartObjectAssetToolkit_Preview"));

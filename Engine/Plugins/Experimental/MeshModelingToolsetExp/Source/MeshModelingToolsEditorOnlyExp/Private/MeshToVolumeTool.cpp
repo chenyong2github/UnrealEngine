@@ -17,6 +17,8 @@
 #include "Model.h"
 #include "BSPOps.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshToVolumeTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshToVolumeTool"
@@ -245,3 +247,4 @@ void UMeshToVolumeTool::RecalculateVolume()
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -9,6 +9,8 @@
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSpline)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSpline"
 
 struct FNiagaraSplineDIFunctionVersion
@@ -1462,3 +1464,4 @@ void UNiagaraDataInterfaceSpline::GetLocalToWorldInverseTransposed(FVectorVMExte
 }
 
 #undef LOCTEXT_NAMESPACE
+

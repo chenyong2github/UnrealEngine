@@ -16,6 +16,8 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGraph)
+
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ControlRigBlueprintUtils.h"
@@ -1154,3 +1156,4 @@ FControlRigPublicFunctionData UControlRigGraph::GetPublicFunctionData() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

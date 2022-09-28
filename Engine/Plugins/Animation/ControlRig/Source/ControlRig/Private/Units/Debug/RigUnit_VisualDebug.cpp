@@ -3,6 +3,8 @@
 #include "Units/Debug/RigUnit_VisualDebug.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_VisualDebug)
+
 FRigUnit_VisualDebugVector_Execute()
 {
 	FRigUnit_VisualDebugVectorItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Mode, Color, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);

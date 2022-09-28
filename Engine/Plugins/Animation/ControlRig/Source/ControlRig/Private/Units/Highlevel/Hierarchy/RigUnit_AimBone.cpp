@@ -5,6 +5,8 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "AnimationCoreLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AimBone)
+
 FRigUnit_AimBoneMath_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

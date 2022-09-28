@@ -129,6 +129,8 @@
 #include "ModelingSelectionInteraction.h"
 #include "DynamicMeshActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingToolsEditorMode)
+
 #define LOCTEXT_NAMESPACE "UModelingToolsEditorMode"
 
 
@@ -1390,3 +1392,4 @@ void UModelingToolsEditorMode::ConfigureRealTimeViewportsOverride(bool bEnable)
 
 
 #undef LOCTEXT_NAMESPACE
+

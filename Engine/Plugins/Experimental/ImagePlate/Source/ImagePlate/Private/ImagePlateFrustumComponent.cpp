@@ -11,6 +11,8 @@
 #include "SceneManagement.h"
 #include "ImagePlateComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImagePlateFrustumComponent)
+
 
 /** Represents a draw frustum to the scene manager. */
 class FImagePlateFrustumSceneProxy final : public FPrimitiveSceneProxy

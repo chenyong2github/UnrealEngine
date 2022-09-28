@@ -9,6 +9,8 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackSystemPropertiesItem)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackSystemItemGroup"
 
 void UNiagaraStackSystemPropertiesItem::Initialize(FRequiredEntryData InRequiredEntryData)
@@ -146,3 +148,4 @@ void UNiagaraStackSystemPropertiesItem::SystemPropertiesChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
+

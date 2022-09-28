@@ -2,6 +2,8 @@
 
 #include "GroomSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomSettings)
+
 
 FArchive& operator<<(FArchive& Ar, FGroomBuildSettings& Settings)
 {
@@ -15,3 +17,4 @@ FArchive& operator<<(FArchive& Ar, FGroomBuildSettings& Settings)
 
 	return Ar;
 }
+

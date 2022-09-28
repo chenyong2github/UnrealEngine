@@ -5,6 +5,8 @@
 #include "StateTreeExecutionContext.h"
 #include "BlueprintNodeHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeConditionBlueprintBase)
+
 //----------------------------------------------------------------------//
 //  UStateTreeConditionBlueprintBase
 //----------------------------------------------------------------------//
@@ -35,4 +37,5 @@ bool FStateTreeBlueprintConditionWrapper::TestCondition(FStateTreeExecutionConte
 	check(Condition);
 	return Condition->TestCondition(Context);
 }
+
 

@@ -3,6 +3,8 @@
 #include "RigUnit_MultiFABRIK.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MultiFABRIK)
+
 // multi effector utility functions
 namespace MultiFABRIK
 {

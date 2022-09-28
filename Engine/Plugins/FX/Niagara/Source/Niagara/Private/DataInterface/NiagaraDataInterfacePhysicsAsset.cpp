@@ -14,6 +14,8 @@
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfacePhysicsAsset)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePhysicsAsset"
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicsAsset, Log, All);
 

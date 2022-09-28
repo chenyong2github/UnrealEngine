@@ -28,6 +28,8 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/LocalPlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraWorldManager)
+
 #if WITH_EDITORONLY_DATA
 #include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
@@ -1878,3 +1880,4 @@ void FNiagaraCachedViewInfo::Init(const FWorldCachedViewInfo& WorldViewInfo)
 		FrutumPlanes[5] = FPlane(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 }
+

@@ -3,6 +3,8 @@
 #include "WaterWaves.h"
 #include "GerstnerWaterWaves.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterWaves)
+
 #if WITH_EDITOR
 void UWaterWavesBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

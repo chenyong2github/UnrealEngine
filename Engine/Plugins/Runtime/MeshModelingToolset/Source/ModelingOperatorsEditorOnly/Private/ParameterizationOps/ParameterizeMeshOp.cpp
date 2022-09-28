@@ -13,6 +13,8 @@
 #include "DynamicSubmesh3.h"
 #include "XAtlasWrapper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ParameterizeMeshOp)
+
 // The ProxyLOD plugin is currently only available on Windows.
 #if WITH_PROXYLOD
 #include "ProxyLODParameterization.h"

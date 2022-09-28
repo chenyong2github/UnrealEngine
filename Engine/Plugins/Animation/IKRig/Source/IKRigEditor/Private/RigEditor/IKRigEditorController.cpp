@@ -17,6 +17,8 @@
 #include "RigEditor/SIKRigOutputLog.h"
 #include "Solvers/IKRig_PBIKSolver.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigEditorController)
+
 #if WITH_EDITOR
 
 #include "HAL/PlatformApplicationMisc.h"
@@ -1028,3 +1030,4 @@ TObjectPtr<UIKRigBoneDetails> FIKRigEditorController::CreateBoneDetails(const TS
 }
 
 #undef LOCTEXT_NAMESPACE
+

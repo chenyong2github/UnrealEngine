@@ -11,6 +11,8 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMergingLibrary)
+
 IMPLEMENT_MODULE(IModuleInterface, SkeletalMerging);
 
 DEFINE_LOG_CATEGORY(LogSkeletalMeshMerge);
@@ -489,3 +491,4 @@ USkeletalMesh* USkeletalMergingLibrary::MergeMeshes(const FSkeletalMeshMergePara
 
 	return BaseMesh;
 }
+

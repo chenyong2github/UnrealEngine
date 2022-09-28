@@ -6,6 +6,8 @@
 #include "FBIKUtil.h"
 #include "FBIKConstraintLib.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_FullbodyIK)
+
 #define MAX_DEPTH 10000
 /////////////////////////////////////////////////////
 
@@ -600,3 +602,4 @@ FRigVMStructUpgradeInfo FRigUnit_FullbodyIK::GetUpgradeInfo() const
 {
 	return FRigUnit_HighlevelBaseMutable::GetUpgradeInfo();
 }
+

@@ -4,6 +4,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAsync)
+
 void UAbilityAsync::Cancel()
 {
 	EndAction();
@@ -44,3 +46,4 @@ void UAbilityAsync::SetAbilityActor(AActor* InActor)
 {
 	AbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(InActor);
 }
+

@@ -2,6 +2,8 @@
 
 #include "ControlRigBlueprintEditorLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprintEditorLibrary)
+
 void UControlRigBlueprintEditorLibrary::CastToControlRigBlueprint(
 	UObject* Object,
 	ECastToControlRigBlueprintCases& Branches,
@@ -112,3 +114,4 @@ URigHierarchyController* UControlRigBlueprintEditorLibrary::GetHierarchyControll
 	}
 	return InRigBlueprint->GetHierarchyController();
 }
+

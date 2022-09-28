@@ -7,6 +7,9 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitterInstance.h"
 #include "Modules/ModuleManager.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraRibbonRendererProperties)
+
 #if WITH_EDITOR
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
@@ -597,3 +600,4 @@ void UNiagaraRibbonRendererProperties::RemoveVariable(const FNiagaraVariableBase
 
 #endif // WITH_EDITORONLY_DATA
 #undef LOCTEXT_NAMESPACE
+

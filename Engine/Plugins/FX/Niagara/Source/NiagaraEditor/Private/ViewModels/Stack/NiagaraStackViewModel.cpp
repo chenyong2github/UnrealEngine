@@ -17,6 +17,8 @@
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackViewModel)
+
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 const double UNiagaraStackViewModel::MaxSearchTime = .02f; // search at 50 fps
 
@@ -901,3 +903,4 @@ void UNiagaraStackViewModel::OnCycleThroughIssues(TSharedPtr<UNiagaraStackViewMo
 }
 
 #undef LOCTEXT_NAMESPACE
+

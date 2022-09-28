@@ -2,6 +2,8 @@
 
 #include "MaterialExpressionSpriteTextureSampler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionSpriteTextureSampler)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 //////////////////////////////////////////////////////////////////////////
@@ -80,3 +82,4 @@ void UMaterialExpressionSpriteTextureSampler::PostEditChangeProperty(FPropertyCh
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "Types/MVVMBindingMode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBindingMode)
+
 
 namespace UE::MVVM
 {
@@ -22,3 +24,4 @@ namespace UE::MVVM
 	}
 
 } //namespace
+

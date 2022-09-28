@@ -8,6 +8,8 @@
 #include "ShaderParameterUtils.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGeometryCollection)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGeometryCollection"
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollection, Log, All);
 

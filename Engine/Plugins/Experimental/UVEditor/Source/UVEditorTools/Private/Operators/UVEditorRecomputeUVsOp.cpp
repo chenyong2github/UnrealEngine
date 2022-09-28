@@ -15,6 +15,8 @@
 
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorRecomputeUVsOp)
+
 using namespace UE::Geometry;
 
 
@@ -594,3 +596,4 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorRecomputeUVsOpFactory::MakeNewOperator
 
 
 #undef LOCTEXT_NAMESPACE
+

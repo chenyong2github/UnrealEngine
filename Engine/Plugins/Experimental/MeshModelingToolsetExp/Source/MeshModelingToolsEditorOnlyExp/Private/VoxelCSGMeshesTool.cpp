@@ -18,6 +18,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoxelCSGMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UVoxelCSGMeshesTool"
@@ -210,3 +212,4 @@ void UVoxelCSGMeshesTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 }
 
 #undef LOCTEXT_NAMESPACE
+

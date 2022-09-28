@@ -4,6 +4,8 @@
 #include "NiagaraClipboard.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraConvertInPlaceEmitterAndSystemState)
+
 bool UNiagaraConvertInPlaceEmitterAndSystemState::Convert(UNiagaraScript* InOldScript, UNiagaraClipboardContent* InOldClipboardContent, UNiagaraScript* InNewScript, UNiagaraStackFunctionInputCollection* InInputCollection, UNiagaraClipboardContent* InNewClipboardContent, UNiagaraNodeFunctionCall* InCallingNode, FText& OutMessage)
 {
 	UE_LOG(LogNiagaraEditor, Log, TEXT("%s to %s"), *InOldScript->GetPathName(), *InNewScript->GetPathName());

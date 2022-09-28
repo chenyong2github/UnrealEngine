@@ -12,6 +12,8 @@
 #include "Roles/LiveLinkLightTypes.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkLightController)
+
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
 #endif
@@ -101,4 +103,5 @@ void ULiveLinkLightController::PostLoad()
 	}
 #endif //WITH_EDITOR
 }
+
 

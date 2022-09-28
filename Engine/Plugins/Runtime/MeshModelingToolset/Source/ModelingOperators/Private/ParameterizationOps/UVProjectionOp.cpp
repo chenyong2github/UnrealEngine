@@ -6,6 +6,8 @@
 #include "DynamicMeshEditor.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVProjectionOp)
+
 using namespace UE::Geometry;
 
 
@@ -172,3 +174,4 @@ void FUVProjectionOp::CalculateResult_Cylinder(FProgressCancel* Progress)
 
 	ApplyUVTransforms(UVEditor, EditResult.NewUVElements, UVOrigin, UVRotationAngleDeg, UVScale, UVTranslate);
 }
+

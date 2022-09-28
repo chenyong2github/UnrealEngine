@@ -3,6 +3,8 @@
 #include "InterchangeSceneNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSceneNode)
+
 //Interchange namespace
 namespace UE
 {
@@ -373,3 +375,4 @@ bool UInterchangeSceneNode::RemoveSlotMaterialDependencyUid(const FString& SlotN
 {
 	return SlotMaterialDependencies.RemoveKey(SlotName);
 }
+

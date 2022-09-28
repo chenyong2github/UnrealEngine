@@ -5,6 +5,8 @@
 #include "GameplayEffect.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityGraphSchema)
+
 UGameplayAbilityGraphSchema::UGameplayAbilityGraphSchema(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -19,3 +21,4 @@ UK2Node_VariableSet* UGameplayAbilityGraphSchema::SpawnVariableSetNode(const FVe
 {
 	return Super::SpawnVariableSetNode(GraphPosition, ParentGraph, VariableName, Source);
 }
+

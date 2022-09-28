@@ -7,6 +7,8 @@
 #include "StateTreeTaskBase.h"
 #include "Algo/LevenshteinDistance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeEditorData)
+
 void UStateTreeEditorData::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -465,4 +467,5 @@ void UStateTreeEditorData::VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(co
 		});
 	}
 }
+
 

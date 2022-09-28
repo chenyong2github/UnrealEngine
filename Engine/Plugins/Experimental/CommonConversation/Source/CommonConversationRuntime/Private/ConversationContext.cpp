@@ -7,6 +7,8 @@
 #include "ConversationParticipantComponent.h"
 #include "ConversationRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationContext)
+
 #define LOCTEXT_NAMESPACE "ConversationGraph"
 
 FConversationContext FConversationContext::CreateServerContext(UConversationInstance* InActiveConversation, const UConversationTaskNode* InTaskBeingConsidered)
@@ -264,3 +266,4 @@ UConversationParticipantComponent* UConversationContextHelpers::FindConversation
 }
 
 #undef LOCTEXT_NAMESPACE
+

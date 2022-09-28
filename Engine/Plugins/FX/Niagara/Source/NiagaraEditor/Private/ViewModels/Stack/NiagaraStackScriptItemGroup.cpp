@@ -32,6 +32,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackScriptItemGroup)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackScriptItemGroup"
 
 class FScriptGroupAddAction : public INiagaraStackItemGroupAddAction
@@ -1458,3 +1460,4 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 }
 
 #undef LOCTEXT_NAMESPACE
+

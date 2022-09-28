@@ -9,6 +9,8 @@
 #include "SoundModulationGeneratorProxy.h"
 #include "Templates/Function.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationGenerator)
+
 
 namespace AudioModulation
 {
@@ -77,3 +79,4 @@ void USoundModulationGenerator::BeginDestroy()
 
 	Super::BeginDestroy();
 }
+

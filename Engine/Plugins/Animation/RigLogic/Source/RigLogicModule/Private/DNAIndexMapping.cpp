@@ -9,6 +9,8 @@
 #include "Animation/SmartName.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DNAIndexMapping)
+
 
 static uint32 HashDNA(const IDefinitionReader* Reader)
 {
@@ -189,3 +191,4 @@ TSharedPtr<FDNAIndexMapping> UDNAIndexMapping::GetCachedMapping(const IBehaviorR
 	}
 	return Cached;
 }
+

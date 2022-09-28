@@ -14,6 +14,8 @@
 #include "Stats/Stats.h"
 #include "NiagaraEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeEmitter)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeEmitter"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Module - NiagaraNodeEmitter_Compile"), STAT_NiagaraEditor_Module_NiagaraNodeEmitter_Compile, STATGROUP_NiagaraEditor);
@@ -497,3 +499,4 @@ void UNiagaraNodeEmitter::GatherExternalDependencyData(ENiagaraScriptUsage InMas
 
 #undef NIAGARA_SCOPE_CYCLE_COUNTER
 #undef LOCTEXT_NAMESPACE // NiagaraNodeEmitter
+

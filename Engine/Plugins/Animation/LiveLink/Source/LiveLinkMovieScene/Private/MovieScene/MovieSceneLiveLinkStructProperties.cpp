@@ -6,6 +6,8 @@
 #include "MovieScene/MovieSceneLiveLinkPropertyHandler.h"
 #include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkStructProperties)
+
 
 namespace LiveLinkPropertiesUtils
 {
@@ -77,3 +79,4 @@ namespace LiveLinkPropertiesUtils
 	}
 
 }
+

@@ -11,6 +11,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Input/UIActionRouterTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActionWidget)
+
 UCommonActionWidget::UCommonActionWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -11,6 +11,8 @@
 #include "DataRegistrySubsystem.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScalableFloat)
+
 #if WITH_EDITOR
 #include "EditorReimportHandler.h"
 #endif
@@ -482,3 +484,4 @@ FAutoConsoleCommand FindCoefficientScalableFloatsCommand(
 );
 
 #endif
+

@@ -8,6 +8,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "PartyBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PartyBeaconHost)
+
 APartyBeaconHost::APartyBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	State(NULL),
@@ -1238,3 +1240,4 @@ void APartyBeaconHost::DumpReservations() const
 	}
 	UE_LOG(LogPartyBeacon, Display, TEXT(""));
 }
+

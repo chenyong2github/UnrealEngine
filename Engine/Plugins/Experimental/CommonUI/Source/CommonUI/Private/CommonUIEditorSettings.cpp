@@ -12,6 +12,8 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIEditorSettings)
+
 UCommonUIEditorSettings::UCommonUIEditorSettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 	, bDefaultDataLoaded(false)

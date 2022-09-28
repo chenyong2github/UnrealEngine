@@ -5,6 +5,8 @@
 #include "IAudioModulation.h"
 #include "SoundModulationParameter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioModulationSettings)
+
 #if WITH_EDITOR
 void UAudioModulationSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {

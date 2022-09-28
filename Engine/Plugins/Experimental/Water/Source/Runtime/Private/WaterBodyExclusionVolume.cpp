@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "WaterBodyComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyExclusionVolume)
+
 #if WITH_EDITOR
 #include "Components/BillboardComponent.h"
 #include "WaterIconHelper.h"
@@ -167,3 +169,4 @@ FName AWaterBodyExclusionVolume::GetCustomIconName() const
 }
 
 #endif // WITH_EDITOR
+

@@ -5,6 +5,8 @@
 #include "EdGraph/EdGraphPin.h"
 #include "SGraphNodeKnot.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_Knot)
+
 #define LOCTEXT_NAMESPACE "ConversationGraph"
 
 static const char* PC_Wildcard = "wildcard";
@@ -96,3 +98,4 @@ TSharedPtr<SGraphNode> UConversationGraphNode_Knot::CreateVisualWidget()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

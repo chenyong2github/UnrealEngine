@@ -4,6 +4,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemTestAttributeSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemTestPawn)
+
 FName  AAbilitySystemTestPawn::AbilitySystemComponentName(TEXT("AbilitySystemComponent0"));
 
 AAbilitySystemTestPawn::AAbilitySystemTestPawn(const FObjectInitializer& ObjectInitializer)
@@ -34,4 +36,5 @@ UAbilitySystemComponent* AAbilitySystemTestPawn::GetAbilitySystemComponent() con
 {
 	return FindComponentByClass<UAbilitySystemComponent>();
 }
+
 

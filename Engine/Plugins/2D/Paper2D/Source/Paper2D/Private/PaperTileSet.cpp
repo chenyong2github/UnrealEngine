@@ -3,6 +3,8 @@
 #include "PaperTileSet.h"
 #include "PaperCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileSet)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperTileSet
 
@@ -265,3 +267,4 @@ FName UPaperTileSet::GetTileUserData(int32 TileIndex) const
 		return NAME_None;
 	}
 }
+

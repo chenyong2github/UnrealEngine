@@ -3,6 +3,8 @@
 #include "AnimNotifyState_IKWindow.h"
 #include "Animation/AnimMontage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_IKWindow)
+
 UAnimNotifyState_IKWindow::UAnimNotifyState_IKWindow(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

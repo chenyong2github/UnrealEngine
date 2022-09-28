@@ -9,6 +9,8 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolClustering)
+
 #define LOCTEXT_NAMESPACE "FractureToolClusteringOps"
 
 FText UFractureToolFlattenAll::GetDisplayText() const
@@ -323,3 +325,4 @@ void UFractureToolClusterMerge::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 }
 
 #undef LOCTEXT_NAMESPACE
+

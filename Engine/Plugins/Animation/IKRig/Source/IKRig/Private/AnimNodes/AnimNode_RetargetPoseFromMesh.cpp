@@ -3,6 +3,8 @@
 #include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
 #include "Animation/AnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RetargetPoseFromMesh)
+
 
 void FAnimNode_RetargetPoseFromMesh::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
@@ -343,3 +345,4 @@ TObjectPtr<USkeletalMeshComponent> FAnimNode_RetargetPoseFromMesh::GetComponentT
 	
 	return SourceMeshComponent.Get();
 }
+

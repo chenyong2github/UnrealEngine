@@ -14,6 +14,8 @@
 #include "Nodes/InterchangeSourceNode.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMaterialXTranslator)
+
 #define LOCTEXT_NAMESPACE "InterchangeMaterialXTranslator"
 
 static bool GInterchangeEnableMaterialXImport = true;

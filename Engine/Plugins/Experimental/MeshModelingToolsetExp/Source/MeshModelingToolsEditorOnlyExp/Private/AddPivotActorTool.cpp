@@ -14,6 +14,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AddPivotActorTool)
+
 #define LOCTEXT_NAMESPACE "UAddPivotActorTool"
 
 using namespace UE::Geometry;
@@ -298,3 +300,4 @@ void UAddPivotActorTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 #undef LOCTEXT_NAMESPACE
+

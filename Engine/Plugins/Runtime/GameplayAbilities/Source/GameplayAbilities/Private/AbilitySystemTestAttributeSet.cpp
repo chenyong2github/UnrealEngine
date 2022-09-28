@@ -7,6 +7,8 @@
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemTestAttributeSet)
+
 
 UAbilitySystemTestAttributeSet::UAbilitySystemTestAttributeSet(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -137,3 +139,4 @@ void UAbilitySystemTestAttributeSet::GetLifetimeReplicatedProps(TArray< FLifetim
 	DOREPLIFETIME( UAbilitySystemTestAttributeSet, Strength);
 	*/
 }
+

@@ -26,6 +26,8 @@
 #include "Slate/SceneViewport.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaCapture)
+
 #if WITH_EDITOR
 #include "AnalyticsEventAttribute.h"
 #include "Editor.h"
@@ -2135,3 +2137,4 @@ namespace MediaCaptureDetails
 }
 
 #undef LOCTEXT_NAMESPACE
+

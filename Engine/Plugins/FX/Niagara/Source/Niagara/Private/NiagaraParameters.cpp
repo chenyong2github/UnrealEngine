@@ -3,6 +3,8 @@
 #include "NiagaraParameters.h"
 #include "NiagaraEmitter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameters)
+
 //////////////////////////////////////////////////////////////////////////
 
 #if WITH_EDITORONLY_DATA
@@ -81,3 +83,4 @@ const FNiagaraVariable* FNiagaraParameters::FindParameter(FNiagaraVariable InPar
 #endif // WITH_EDITORONLY_DATA
 
 //////////////////////////////////////////////////////////////////////////
+

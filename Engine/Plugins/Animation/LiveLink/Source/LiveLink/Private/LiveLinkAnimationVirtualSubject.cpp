@@ -6,6 +6,8 @@
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAnimationVirtualSubject)
+
 
 namespace LiveLinkAnimationVirtualSubjectUtils
 {
@@ -196,3 +198,4 @@ void ULiveLinkAnimationVirtualSubject::PostEditChangeProperty(struct FPropertyCh
 	bInvalidate = true;
 }
 #endif //WITH_EDITOR
+

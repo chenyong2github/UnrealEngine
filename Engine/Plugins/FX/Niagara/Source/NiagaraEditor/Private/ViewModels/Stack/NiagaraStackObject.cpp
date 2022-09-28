@@ -16,6 +16,8 @@
 #include "NiagaraPlatformSet.h"
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackObject)
+
 UNiagaraStackObject::UNiagaraStackObject()
 {
 }
@@ -322,3 +324,4 @@ void UNiagaraStackObject::OnMessageManagerRefresh(const TArray<TSharedRef<const 
 		RefreshChildren();
 	}
 }
+

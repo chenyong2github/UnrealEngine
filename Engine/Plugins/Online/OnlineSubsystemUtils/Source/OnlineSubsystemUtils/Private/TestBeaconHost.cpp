@@ -3,6 +3,8 @@
 #include "TestBeaconHost.h"
 #include "TestBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TestBeaconHost)
+
 ATestBeaconHost::ATestBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
@@ -39,3 +41,4 @@ AOnlineBeaconClient* ATestBeaconHost::SpawnBeaconActor(UNetConnection* ClientCon
 	return NULL;
 #endif
 }
+

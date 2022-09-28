@@ -22,6 +22,8 @@
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigParameterSection)
+
 #if WITH_EDITOR
 #include "AnimPose.h"
 #endif
@@ -3264,4 +3266,5 @@ FIntegerParameterNameAndCurve::FIntegerParameterNameAndCurve(FName InParameterNa
 }
 
 #undef LOCTEXT_NAMESPACE 
+
 

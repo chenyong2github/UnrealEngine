@@ -2,6 +2,8 @@
 
 #include "WaveOscillatorCameraShakePattern.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaveOscillatorCameraShakePattern)
+
 float FWaveOscillator::Initialize(float& OutInitialOffset) const
 {
 	OutInitialOffset = (InitialOffsetType == EInitialWaveOscillatorOffsetType::Random)
@@ -78,4 +80,5 @@ void UWaveOscillatorCameraShakePattern::UpdateOscillators(float DeltaTime, FCame
 
 	OutResult.FOV = FOV.Update(DeltaTime, 1.f, 1.f, CurrentFOVOffset);
 }
+
 

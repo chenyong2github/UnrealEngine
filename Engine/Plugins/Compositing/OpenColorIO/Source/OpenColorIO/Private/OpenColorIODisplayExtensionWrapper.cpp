@@ -9,6 +9,8 @@
 #include "Editor.h"
 #endif // WITH_EDITOR
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIODisplayExtensionWrapper)
+
 void UOpenColorIODisplayExtensionWrapper::CreateDisplayExtensionIfNotExists()
 {
 	if (!DisplayExtension.IsValid())

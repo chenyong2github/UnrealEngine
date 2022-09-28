@@ -5,6 +5,8 @@
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_ProjectTransformToNewParent)
+
 FRigUnit_ProjectTransformToNewParent_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -20,3 +22,4 @@ FRigUnit_ProjectTransformToNewParent_Execute()
 	FRigUnit_MathTransformMakeRelative::StaticExecute(RigVMExecuteContext, ChildTransform, OldParentTransform, RelativeTransform, Context);
 	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, RelativeTransform, NewParentTransform, Transform, Context);
 }
+

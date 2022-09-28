@@ -7,6 +7,8 @@
 #include "Engine/World.h"
 #include "MassCommandBuffer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassProcessor)
+
 DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Mass_GroupCompletedTask, STATGROUP_TaskGraphTasks);
 
 #if WITH_MASSENTITY_DEBUG
@@ -515,3 +517,4 @@ UMassCompositeProcessor* UMassCompositeProcessor::FindOrAddGroupProcessor(FName 
 
 	return GroupProcessor;
 }
+

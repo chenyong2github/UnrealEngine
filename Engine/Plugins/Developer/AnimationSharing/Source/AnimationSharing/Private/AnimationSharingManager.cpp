@@ -20,6 +20,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/DefaultValueHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationSharingManager)
+
 #if WITH_EDITOR
 #include "PlatformInfo.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -2189,3 +2191,4 @@ void UAnimSharingInstance::RemoveAdditiveInstance(int32 InstanceIndex)
 
 	AdditiveInstances.RemoveAtSwap(InstanceIndex, 1, false);
 }
+

@@ -9,6 +9,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/CoreRedirects.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureData)
+
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
 //@TODO: GameFeaturePluginEnginePush: Editing actions/etc... for auto-activated plugins is a poor user experience;
@@ -207,3 +209,4 @@ void UGameFeatureData::ReloadConfigs(FConfigFile& PluginConfig) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -11,6 +11,8 @@
 #include "PaperTileLayer.h"
 #include "Paper2DPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileMap)
+
 #if WITH_EDITOR
 #include "PaperTileMapComponent.h"
 #include "UObject/UObjectHash.h"
@@ -731,3 +733,4 @@ bool UPaperTileMap::UsesTileSet(UPaperTileSet* TileSet) const
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

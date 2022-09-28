@@ -10,6 +10,8 @@
 #include "Containers/ArrayView.h"
 #include "Internationalization/Text.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PyWrapperEnum)
+
 #if WITH_PYTHON
 
 typedef TArrayView<FPyWrapperEnum* const> FPyWrapperEnumArrayView;
@@ -949,3 +951,4 @@ UPythonGeneratedEnum* UPythonGeneratedEnum::GenerateEnum(PyTypeObject* InPyType)
 }
 
 #endif	// WITH_PYTHON
+

@@ -7,6 +7,8 @@
 #include "AudioModulationSystem.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationLFO)
+
 
 namespace AudioModulation
 {
@@ -176,3 +178,4 @@ AudioModulation::FGeneratorPtr USoundModulationGeneratorLFO::CreateInstance() co
 
 	return FGeneratorPtr(new FLFOGenerator(Params));
 }
+

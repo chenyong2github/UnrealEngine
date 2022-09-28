@@ -21,6 +21,8 @@
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SToolTip.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraActions)
+
 #define LOCTEXT_NAMESPACE "NiagaraActions"
 
 /************************************************************************/
@@ -657,3 +659,4 @@ EVisibility FNiagaraParameterDragOperation::IsTextVisible() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

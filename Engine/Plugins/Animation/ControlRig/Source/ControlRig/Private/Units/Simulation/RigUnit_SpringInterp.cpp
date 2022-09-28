@@ -3,6 +3,8 @@
 #include "Units/Simulation/RigUnit_SpringInterp.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SpringInterp)
+
 namespace RigUnitSpringInterpConstants
 {
 	static const float FixedTimeStep = 1.0f / 60.0f;
@@ -158,4 +160,5 @@ FRigUnit_SpringInterpQuaternionV2_Execute()
 		AngularVelocity = SpringState.AngularVelocity;
 	}
 }
+
 

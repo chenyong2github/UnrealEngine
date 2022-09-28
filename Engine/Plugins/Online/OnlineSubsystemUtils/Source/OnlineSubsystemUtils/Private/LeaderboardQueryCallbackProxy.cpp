@@ -7,6 +7,8 @@
 #include "OnlineSubsystem.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LeaderboardQueryCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // ULeaderboardQueryCallbackProxy
 
@@ -160,3 +162,4 @@ ULeaderboardQueryCallbackProxy* ULeaderboardQueryCallbackProxy::CreateProxyObjec
 	Proxy->TriggerQuery(PlayerController, StatName, EOnlineKeyValuePairDataType::Int32);
 	return Proxy;
 }
+

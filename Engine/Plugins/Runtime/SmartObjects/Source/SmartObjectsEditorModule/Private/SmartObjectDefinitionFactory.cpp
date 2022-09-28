@@ -3,6 +3,8 @@
 #include "SmartObjectDefinitionFactory.h"
 #include "SmartObjectDefinition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectDefinitionFactory)
+
 USmartObjectDefinitionFactory::USmartObjectDefinitionFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -15,3 +17,4 @@ UObject* USmartObjectDefinitionFactory::FactoryCreateNew(UClass* Class, UObject*
 {
 	return NewObject<USmartObjectDefinition>(InParent, Class, Name, Flags);
 }
+

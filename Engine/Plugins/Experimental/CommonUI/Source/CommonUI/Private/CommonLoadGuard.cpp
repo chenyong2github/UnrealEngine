@@ -15,6 +15,8 @@
 #include "CommonUISettings.h"
 #include "CommonUIEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonLoadGuard)
+
 //////////////////////////////////////////////////////////////////////////
 // SLoadGuard
 //////////////////////////////////////////////////////////////////////////
@@ -436,3 +438,4 @@ void UCommonLoadGuard::HandleLoadingStateChanged(bool bIsLoading)
 {
 	OnLoadingStateChanged().Broadcast(bIsLoading);
 }
+

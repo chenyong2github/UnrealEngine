@@ -11,6 +11,8 @@
 #include "Operations/ExtrudeMesh.h"
 #include "UDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVoxelFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshVoxelFunctions"
@@ -207,5 +209,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVoxelFunctions::ApplyMeshMorphology(
 
 
 #undef LOCTEXT_NAMESPACE
+
 
 

@@ -6,6 +6,8 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptExecutionParameterStore)
+
 FNiagaraScriptExecutionParameterStore::FNiagaraScriptExecutionParameterStore()
 	: FNiagaraParameterStore()
 	, ParameterSize(0)

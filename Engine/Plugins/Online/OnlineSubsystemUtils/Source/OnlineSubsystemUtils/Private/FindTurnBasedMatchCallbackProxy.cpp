@@ -10,6 +10,8 @@
 #include "OnlineSubsystem.h"
 #include "Interfaces/TurnBasedMatchInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FindTurnBasedMatchCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UFindTurnBasedMatchCallbackProxy
 
@@ -110,3 +112,4 @@ void FFindTurnBasedMatchCallbackProxyMatchmakerDelegate::OnMatchFound(FTurnBased
 		FindTurnBasedMatchCallbackProxy->OnSuccess.Broadcast(Match->GetMatchID());
 	}
 }
+

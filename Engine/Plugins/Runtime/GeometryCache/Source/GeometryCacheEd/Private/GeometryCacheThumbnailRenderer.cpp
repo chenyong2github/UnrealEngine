@@ -7,6 +7,8 @@
 #include "GeometryCacheThumbnailScene.h"
 #include "GeometryCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheThumbnailRenderer)
+
 UGeometryCacheThumbnailRenderer::UGeometryCacheThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -54,3 +56,4 @@ bool UGeometryCacheThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) 
 {
 	return false;
 }
+

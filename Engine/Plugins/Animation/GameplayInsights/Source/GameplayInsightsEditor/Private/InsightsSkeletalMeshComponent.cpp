@@ -3,6 +3,8 @@
 #include "InsightsSkeletalMeshComponent.h"
 #include "IAnimationProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InsightsSkeletalMeshComponent)
+
 void UInsightsSkeletalMeshComponent::SetPoseFromProvider(const IAnimationProvider& InProvider, const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& SkeletalMeshInfo)
 {
 	// Grab transform and bone transforms from provider

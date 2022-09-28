@@ -3,6 +3,8 @@
 #include "GameFeatureAction_AddCheats.h"
 #include "GameFramework/CheatManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddCheats)
+
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
 //////////////////////////////////////////////////////////////////////
@@ -120,3 +122,4 @@ void UGameFeatureAction_AddCheats::SpawnCheatManagerExtension(UCheatManager* Che
 //////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -16,6 +16,8 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "Framework/Application/SlateUser.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonGameViewportClient)
+
 #define LOCTEXT_NAMESPACE ""
 
 static const FName NAME_Typing = FName(TEXT("Typing"));
@@ -229,3 +231,4 @@ bool UCommonGameViewportClient::IsKeyPriorityAboveUI(const FInputKeyEventArgs& E
 }
 
 #undef LOCTEXT_NAMESPACE
+

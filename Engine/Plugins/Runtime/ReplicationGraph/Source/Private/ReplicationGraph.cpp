@@ -62,6 +62,8 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "Engine/ServerStatReplicator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReplicationGraph)
+
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
 #endif
@@ -6098,3 +6100,4 @@ FAutoConsoleCommandWithWorldAndArgs ChangeActorDiscoveryBudget(TEXT("Net.RepGrap
 }));
 
 #endif // WITH_SERVER_CODE
+

@@ -5,6 +5,8 @@
 #include "NiagaraTypes.h"
 #include "IMovieScenePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraFloatParameterSectionTemplate)
+
 FMovieSceneNiagaraFloatParameterSectionTemplate::FMovieSceneNiagaraFloatParameterSectionTemplate()
 {
 }

@@ -15,6 +15,8 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePCXTranslator)
+
 static bool GInterchangeEnablePCXImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnablePCXImport(
 	TEXT("Interchange.FeatureFlags.Import.PCX"),
@@ -248,3 +250,4 @@ TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePa
 
 	return PayloadData;
 }
+

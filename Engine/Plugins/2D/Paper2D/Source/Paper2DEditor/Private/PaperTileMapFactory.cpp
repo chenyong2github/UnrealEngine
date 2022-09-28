@@ -4,6 +4,8 @@
 #include "PaperTileMap.h"
 #include "PaperImporterSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileMapFactory)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 /////////////////////////////////////////////////////
@@ -27,3 +29,4 @@ UObject* UPaperTileMapFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 }
 
 #undef LOCTEXT_NAMESPACE
+

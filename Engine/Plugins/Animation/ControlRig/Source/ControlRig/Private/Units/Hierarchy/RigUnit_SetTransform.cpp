@@ -7,6 +7,8 @@
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Hierarchy/RigUnit_SetControlOffset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetTransform)
+
 FString FRigUnit_SetTransform::GetUnitLabel() const
 {
 	FString Initial = bInitial ? TEXT(" Initial") : FString();

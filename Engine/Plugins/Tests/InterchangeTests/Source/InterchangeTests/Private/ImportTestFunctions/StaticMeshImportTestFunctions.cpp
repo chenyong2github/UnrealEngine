@@ -8,6 +8,8 @@
 #include "StaticMeshAttributes.h"
 #include "ObjectTools.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshImportTestFunctions)
+
 namespace UE::Interchange::Tests::Private
 {
 	void ReportPropertyDeltaAsErrors(FInterchangeTestFunctionResult& Result, TPropertyValueIterator<const FProperty>& PropertyValueIteratorA, TPropertyValueIterator<const FProperty>& PropertyValueIteratorB)

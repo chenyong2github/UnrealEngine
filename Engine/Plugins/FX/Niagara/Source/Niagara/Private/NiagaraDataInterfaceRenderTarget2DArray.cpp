@@ -17,6 +17,8 @@
 #include "NiagaraGpuComputeDebugInterface.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRenderTarget2DArray)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2DArray"
 
 namespace NDIRenderTarget2DArrayLocal
@@ -729,3 +731,4 @@ FIntVector FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy::GetElementCount(F
 }
 
 #undef LOCTEXT_NAMESPACE
+

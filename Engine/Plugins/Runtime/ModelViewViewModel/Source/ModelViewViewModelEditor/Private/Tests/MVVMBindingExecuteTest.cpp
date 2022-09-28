@@ -5,6 +5,8 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBindingExecuteTest)
+
 
 namespace UE::MVVM::Private
 {

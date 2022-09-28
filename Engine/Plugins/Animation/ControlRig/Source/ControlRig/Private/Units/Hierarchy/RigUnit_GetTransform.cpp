@@ -3,6 +3,8 @@
 #include "RigUnit_GetTransform.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_GetTransform)
+
 FString FRigUnit_GetTransform::GetUnitLabel() const
 {
 	FString Initial = bInitial ? TEXT(" Initial") : FString();
@@ -114,3 +116,4 @@ FRigUnit_GetTransformItemArray_Execute()
 
 	}
 }
+

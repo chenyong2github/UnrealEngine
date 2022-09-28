@@ -4,6 +4,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayEffectBlockedImmunity)
+
 UAbilityTask_WaitGameplayEffectBlockedImmunity::UAbilityTask_WaitGameplayEffectBlockedImmunity(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -107,3 +109,4 @@ void UAbilityTask_WaitGameplayEffectBlockedImmunity::RemoveDelegate()
 		}
 	}
 }
+

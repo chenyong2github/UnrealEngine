@@ -5,6 +5,8 @@
 #include "MediaCapture.h"
 #include "MediaIOCoreModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaOutput)
+
 const FIntPoint UMediaOutput::RequestCaptureSourceSize = FIntPoint::ZeroValue;
 
 /* UMediaOutput
@@ -63,3 +65,4 @@ void UMediaOutput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	OnOutputModifiedDelegate.Broadcast(this);
 }
 #endif
+

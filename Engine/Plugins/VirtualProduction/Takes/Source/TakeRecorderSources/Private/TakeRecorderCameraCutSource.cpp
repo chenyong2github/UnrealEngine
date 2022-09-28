@@ -18,6 +18,8 @@
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderCameraCutSource)
+
 #define LOCTEXT_NAMESPACE "UTakeRecorderCameraCutSource"
 
 UTakeRecorderCameraCutSource::UTakeRecorderCameraCutSource(const FObjectInitializer& ObjInit)

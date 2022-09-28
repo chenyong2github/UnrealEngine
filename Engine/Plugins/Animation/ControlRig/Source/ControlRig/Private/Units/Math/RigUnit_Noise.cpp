@@ -3,6 +3,8 @@
 #include "Units/Math/RigUnit_Noise.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Noise)
+
 FRigUnit_NoiseFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -67,3 +69,4 @@ FRigUnit_NoiseVector2_Execute()
 	Result.Z = FMath::Lerp<double>(Minimum, Maximum, NoiseZ);
 	Time = Time + Speed * Context.DeltaTime;
 }
+

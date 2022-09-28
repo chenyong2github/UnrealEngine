@@ -8,6 +8,8 @@
 #include "UDynamicMesh.h"
 #include "Polygroups/PolygroupSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshMaterialFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshMaterialFunctions"

@@ -10,6 +10,8 @@
 #include "MovieSceneGeometryCacheTemplate.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGeometryCacheTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneGeometryCacheTrack"
 
 
@@ -135,3 +137,4 @@ FText UMovieSceneGeometryCacheTrack::GetDefaultDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

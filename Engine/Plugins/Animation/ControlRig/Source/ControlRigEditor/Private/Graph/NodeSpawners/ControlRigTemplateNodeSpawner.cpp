@@ -17,6 +17,8 @@
 #include "ScopedTransaction.h"
 #include "ControlRig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigTemplateNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -215,3 +217,4 @@ UControlRigGraphNode* UControlRigTemplateNodeSpawner::SpawnNode(UEdGraph* Parent
 }
 
 #undef LOCTEXT_NAMESPACE
+

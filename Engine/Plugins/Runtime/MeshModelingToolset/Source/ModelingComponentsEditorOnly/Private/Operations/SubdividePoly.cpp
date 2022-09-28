@@ -4,6 +4,8 @@
 #include "GroupTopology.h"
 #include "DynamicMesh/MeshNormals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubdividePoly)
+
 // OpenSubdiv currently only available on Windows. On other platforms we will make this a no-op
 #if PLATFORM_WINDOWS
 #define HAVE_OPENSUBDIV 1
@@ -1029,4 +1031,5 @@ FSubdividePoly::ETopologyCheckResult FSubdividePoly::ValidateTopology()
 
 	return ETopologyCheckResult::Ok;
 }
+
 

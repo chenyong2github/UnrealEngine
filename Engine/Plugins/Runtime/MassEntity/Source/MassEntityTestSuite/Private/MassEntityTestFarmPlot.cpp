@@ -7,6 +7,8 @@
 #include "MassEntityUtils.h"
 #include "MassExecutor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassEntityTestFarmPlot)
+
 //@TODO: Can add a ReadyToHarvest tag Fragment on when things are ready to harvest, to stop them ticking and signal that we need to create an icon
 
 //////////////////////////////////////////////////////////////////////////
@@ -309,3 +311,4 @@ void AMassEntityTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 		NextSecondTimer += 1.0f;
 	}
 }
+

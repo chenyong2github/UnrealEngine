@@ -6,6 +6,8 @@
 #include "FractureEditorCommands.h"
 #include "FractureToolContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolUniform)
+
 #define LOCTEXT_NAMESPACE "FractureUniform"
 
 
@@ -66,3 +68,4 @@ void UFractureToolUniform::GenerateVoronoiSites(const FFractureToolContext& Cont
 
 
 #undef LOCTEXT_NAMESPACE
+

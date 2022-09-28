@@ -8,6 +8,8 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemBPCallHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConnectionCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UConnectionCallbackProxy
 
@@ -86,3 +88,4 @@ void UConnectionCallbackProxy::OnLoginCompleted(int32 LocalUserNum, bool bWasSuc
 		OnFailure.Broadcast(0);
 	}
 }
+

@@ -6,6 +6,8 @@
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolProperties)
+
 
 #define LOCTEXT_NAMESPACE "FractureProperties"
 
@@ -198,3 +200,4 @@ void UFractureRemoveOnBreakSettings::DeleteRemoveOnBreakData()
 }
 
 #undef LOCTEXT_NAMESPACE
+

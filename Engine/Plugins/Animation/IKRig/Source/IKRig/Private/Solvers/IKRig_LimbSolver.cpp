@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Solvers/IKRig_LimbSolver.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_LimbSolver)
 
 #define LOCTEXT_NAMESPACE "IKRig_LimbSolver"
 
@@ -244,3 +246,4 @@ void UIKRig_LimbSolver::GatherChildren(const int32 BoneIndex, const FIKRigSkelet
 }
 
 #undef LOCTEXT_NAMESPACE
+

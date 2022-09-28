@@ -18,6 +18,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBlueprintVirtualSubjectFactory)
+
 
 #define LOCTEXT_NAMESPACE "LiveLinkBlueprintVirtualSubjectFactory"
 

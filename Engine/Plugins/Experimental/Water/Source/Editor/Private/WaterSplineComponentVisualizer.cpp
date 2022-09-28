@@ -19,6 +19,8 @@
 #include "WorldCollision.h"
 #include "WaterEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSplineComponentVisualizer)
+
 IMPLEMENT_HIT_PROXY(HWaterSplineVisProxy, HComponentVisProxy);
 IMPLEMENT_HIT_PROXY(HWaterSplineKeyProxy, HWaterSplineVisProxy);
 IMPLEMENT_HIT_PROXY(HWaterSplineWaterVelocityProxy, HWaterSplineKeyProxy);
@@ -685,3 +687,4 @@ void FWaterSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& 
 }
 
 #undef LOCTEXT_NAMESPACE
+

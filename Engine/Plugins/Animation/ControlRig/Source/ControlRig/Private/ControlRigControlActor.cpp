@@ -5,6 +5,8 @@
 #include "IControlRigObjectBinding.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigControlActor)
+
 #define LOCTEXT_NAMESPACE "ControlRigControlActor"
 
 AControlRigControlActor::AControlRigControlActor(const FObjectInitializer& ObjectInitializer)
@@ -279,3 +281,4 @@ void AControlRigControlActor::Refresh()
 
 
 #undef LOCTEXT_NAMESPACE
+

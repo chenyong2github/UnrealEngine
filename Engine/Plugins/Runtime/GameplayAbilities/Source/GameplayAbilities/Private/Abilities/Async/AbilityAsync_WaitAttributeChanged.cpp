@@ -4,6 +4,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAsync_WaitAttributeChanged)
+
 UAbilityAsync_WaitAttributeChanged* UAbilityAsync_WaitAttributeChanged::WaitForAttributeChanged(AActor* TargetActor, FGameplayAttribute Attribute, bool OnlyTriggerOnce)
 {
 	UAbilityAsync_WaitAttributeChanged* MyObj = NewObject<UAbilityAsync_WaitAttributeChanged>();
@@ -52,3 +54,4 @@ void UAbilityAsync_WaitAttributeChanged::EndAction()
 	}
 	Super::EndAction();
 }
+

@@ -6,6 +6,8 @@
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraVectorParameterTrack)
+
 bool UMovieSceneNiagaraVectorParameterTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UMovieSceneFloatVectorSection::StaticClass();
@@ -73,3 +75,4 @@ void UMovieSceneNiagaraVectorParameterTrack::SetChannelsUsed(int32 InChannelsUse
 {
 	ChannelsUsed = InChannelsUsed;
 }
+

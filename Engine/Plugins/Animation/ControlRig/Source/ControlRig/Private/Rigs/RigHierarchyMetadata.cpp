@@ -5,6 +5,8 @@
 #include "Rigs/RigHierarchy.h"
 #include "ControlRigObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigHierarchyMetadata)
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBaseMetadata
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,4 +154,5 @@ const FRigElementKey& FRigBaseMetadata::GetKey() const
 	static const FRigElementKey EmptyKey;
 	return EmptyKey;
 }
+
 

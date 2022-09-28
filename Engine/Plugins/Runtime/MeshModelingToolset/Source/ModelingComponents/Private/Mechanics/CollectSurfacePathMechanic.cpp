@@ -8,6 +8,8 @@
 #include "Util/ColorConstants.h"
 #include "DynamicMesh/MeshNormals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CollectSurfacePathMechanic)
+
 using namespace UE::Geometry;
 
 UCollectSurfacePathMechanic::UCollectSurfacePathMechanic()
@@ -323,3 +325,4 @@ bool UCollectSurfacePathMechanic::CheckGeometricClosure(const FFrame3d& Point, b
 
 	return false;
 }
+

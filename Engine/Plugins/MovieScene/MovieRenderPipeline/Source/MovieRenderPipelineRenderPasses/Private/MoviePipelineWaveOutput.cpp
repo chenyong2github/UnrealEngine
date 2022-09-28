@@ -15,6 +15,8 @@
 #include "AudioThread.h"
 #include "MoviePipelineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineWaveOutput)
+
 static TAutoConsoleVariable<float> CVarWaveOutputDelay(
 	TEXT("MovieRenderPipeline.WaveOutput.WriteDelay"),
 	0.5f,
@@ -228,3 +230,4 @@ void UMoviePipelineWaveOutput::BuildNewProcessCommandLineArgsImpl(TArray<FString
 	// Always add this even if we're not disabled so that audio is muted, it'll never line up during preview anyways.
 	InOutCommandLineArgs.Add("-deterministicaudio");
 }
+

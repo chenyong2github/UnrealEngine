@@ -5,6 +5,8 @@
 #include "Animation/AnimSequenceBase.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneNotifySection)
+
 UContextualAnimMovieSceneNotifyTrack* UContextualAnimMovieSceneNotifySection::GetOwnerTrack() const
 {
 	return GetTypedOuter<UContextualAnimMovieSceneNotifyTrack>();

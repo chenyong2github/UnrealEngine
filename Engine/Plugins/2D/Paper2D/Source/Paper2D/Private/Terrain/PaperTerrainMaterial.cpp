@@ -2,6 +2,8 @@
 
 #include "PaperTerrainMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTerrainMaterial)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 //////////////////////////////////////////////////////////////////////////
@@ -30,3 +32,4 @@ void UPaperTerrainMaterial::PostEditChangeProperty(FPropertyChangedEvent& Proper
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

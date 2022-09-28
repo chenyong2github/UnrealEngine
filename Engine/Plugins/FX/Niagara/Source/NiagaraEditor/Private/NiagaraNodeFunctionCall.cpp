@@ -30,6 +30,8 @@
 #include "NiagaraSettings.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeFunctionCall)
+
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -1561,3 +1563,4 @@ bool UNiagaraNodeFunctionCall::FindAutoBoundInput(UNiagaraNodeInput* InputNode, 
 }
 
 #undef LOCTEXT_NAMESPACE
+

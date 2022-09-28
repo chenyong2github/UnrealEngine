@@ -25,6 +25,8 @@
 #include "ToolSetupUtil.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorMeshSelectionMechanic)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVEditorMeshSelectionMechanic"
@@ -1664,4 +1666,5 @@ void UUVEditorMeshSelectionMechanic::OnEndHover()
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

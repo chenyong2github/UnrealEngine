@@ -2,6 +2,8 @@
 
 #include "InterchangeMaterialFactoryNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMaterialFactoryNode)
+
 #if WITH_ENGINE
 
 #include "Materials/Material.h"

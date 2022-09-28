@@ -19,6 +19,8 @@
 #include "IntMargin.h"
 #include "PaperTileSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTiledImporterFactory)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 #define TILED_IMPORT_ERROR(FormatString, ...) \
 	if (!bSilent) { UE_LOG(LogPaperTiledImporter, Warning, FormatString, __VA_ARGS__); }
@@ -1302,3 +1304,4 @@ bool UPaperTiledImporterFactory::ConvertTileSets(FTileMapFromTiled& GlobalInfo, 
 
 #undef TILED_IMPORT_ERROR
 #undef LOCTEXT_NAMESPACE
+

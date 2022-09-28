@@ -13,6 +13,8 @@
 #include "InputTriggers.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputLibrary)
+
 void UEnhancedInputLibrary::ForEachSubsystem(TFunctionRef<void(IEnhancedInputSubsystemInterface*)> SubsystemPredicate)
 {
 	// TODO: World subsystem for enhanced input, so that you bind to actions without an owning player controller
@@ -93,3 +95,4 @@ FString UEnhancedInputLibrary::Conv_InputActionValueToString(FInputActionValue A
 {
 	return ActionValue.ToString();
 }
+

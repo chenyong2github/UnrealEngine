@@ -3,6 +3,8 @@
 #include "NiagaraBakerOutputVolumeTexture.h"
 #include "NiagaraBakerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerOutputVolumeTexture)
+
 bool UNiagaraBakerOutputVolumeTexture::Equals(const UNiagaraBakerOutput& OtherBase) const
 {
 	const UNiagaraBakerOutputVolumeTexture& Other = *CastChecked<UNiagaraBakerOutputVolumeTexture>(&OtherBase);
@@ -30,3 +32,4 @@ void UNiagaraBakerOutputVolumeTexture::PostEditChangeProperty(struct FPropertyCh
 
 }
 #endif
+

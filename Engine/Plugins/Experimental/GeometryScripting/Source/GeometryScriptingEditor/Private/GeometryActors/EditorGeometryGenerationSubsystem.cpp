@@ -4,6 +4,8 @@
 #include "GeometryActors/GeneratedDynamicMeshActor.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorGeometryGenerationSubsystem)
+
 
 void UEditorGeometryGenerationManager::Tick(float DeltaTime)
 {
@@ -107,5 +109,6 @@ void UEditorGeometryGenerationSubsystem::UnregisterGeneratedMeshActor(AGenerated
 		Subsystem->GenerationManager->UnregisterGeneratedMeshActor(Actor);
 	}
 }
+
 
 

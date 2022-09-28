@@ -9,6 +9,8 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceMeshRendererInfo)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceMeshRendererInfo"
 
 namespace NDIMeshRendererInfoInternal

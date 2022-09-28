@@ -3,6 +3,8 @@
 #include "K2Node_EnhancedInputActionEvent.h"
 #include "EnhancedInputActionDelegateBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_EnhancedInputActionEvent)
+
 UK2Node_EnhancedInputActionEvent::UK2Node_EnhancedInputActionEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -26,3 +28,4 @@ void UK2Node_EnhancedInputActionEvent::RegisterDynamicBinding(UDynamicBlueprintB
 
 	InputActionBindingObject->InputActionDelegateBindings.Add(Binding);
 }
+

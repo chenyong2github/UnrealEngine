@@ -3,6 +3,8 @@
 #include "RigEditor/IKRigAnimInstance.h"
 #include "RigEditor/IKRigAnimInstanceProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigAnimInstance)
+
 UIKRigAnimInstance::UIKRigAnimInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -29,3 +31,4 @@ FAnimInstanceProxy* UIKRigAnimInstance::CreateAnimInstanceProxy()
 {
 	return new FIKRigAnimInstanceProxy(this, &IKRigNode);
 }
+

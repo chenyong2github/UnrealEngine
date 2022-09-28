@@ -38,6 +38,8 @@
 #include "ControlRigSpaceChannelEditors.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequencerEditorLibrary)
+
 #define LOCTEXT_NAMESPACE "ControlrigSequencerEditorLibrary"
 
 TArray<UControlRig*> UControlRigSequencerEditorLibrary::GetVisibleControlRigs()
@@ -2503,3 +2505,4 @@ void UControlRigSequencerEditorLibrary::HideAllControls(UMovieSceneSection* InSe
 }
 
 #undef LOCTEXT_NAMESPACE
+

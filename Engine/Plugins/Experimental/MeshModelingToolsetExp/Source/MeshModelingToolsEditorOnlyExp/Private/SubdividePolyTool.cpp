@@ -16,6 +16,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubdividePolyTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USubdividePolyTool"
@@ -431,3 +433,4 @@ void USubdividePolyTool::OnTick(float DeltaTime)
 
 
 #undef LOCTEXT_NAMESPACE
+

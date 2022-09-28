@@ -25,6 +25,8 @@
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrailTool)
+
 #define LOCTEXT_NAMESPACE "SequencerAnimTools"
 
 UInteractiveTool* UMotionTrailToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -465,3 +467,4 @@ bool UMotionTrailTool::SomeKeysAreSelected() const
 
 
 #undef LOCTEXT_NAMESPACE
+

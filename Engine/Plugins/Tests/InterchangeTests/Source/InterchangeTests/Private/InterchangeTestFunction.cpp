@@ -4,6 +4,8 @@
 #include "ImportTestFunctions/ImportTestFunctionsBase.h"
 #include "UObject/StructOnScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeTestFunction)
+
 
 TSharedPtr<FStructOnScope> FInterchangeTestFunction::ImportParameters()
 {
@@ -277,3 +279,4 @@ FInterchangeTestFunctionResult FInterchangeTestFunction::Invoke(const TArray<UOb
 	FInterchangeTestFunctionResult Result = FPlatformMemory::ReadUnaligned<FInterchangeTestFunctionResult>(ParamData->GetStructMemory() + CheckFunction->ReturnValueOffset);
 	return Result;
 }
+

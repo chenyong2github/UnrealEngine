@@ -8,6 +8,8 @@
 #include "MovieSceneMediaPlayerPropertyTemplate.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMediaPlayerPropertyTrack)
+
 
 UMovieSceneMediaPlayerPropertyTrack::UMovieSceneMediaPlayerPropertyTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,3 +39,4 @@ FMovieSceneEvalTemplatePtr UMovieSceneMediaPlayerPropertyTrack::CreateTemplateFo
 {
 	return FMovieSceneMediaPlayerPropertySectionTemplate(CastChecked<const UMovieSceneMediaPlayerPropertySection>(&InSection), this);
 }
+

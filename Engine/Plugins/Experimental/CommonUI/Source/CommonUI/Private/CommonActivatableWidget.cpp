@@ -8,6 +8,8 @@
 #include "ICommonInputModule.h"
 #include "Slate/SObjectWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActivatableWidget)
+
 UCommonActivatableWidget::FActivatableWidgetRebuildEvent UCommonActivatableWidget::OnRebuilding;
 
 void UCommonActivatableWidget::NativeConstruct()
@@ -301,3 +303,4 @@ void UCommonActivatableWidget::Reset()
 	BP_OnWidgetActivated.Clear();
 	BP_OnWidgetDeactivated.Clear();
 }
+

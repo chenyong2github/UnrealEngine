@@ -6,6 +6,8 @@
 #include "AudioMixerBus.h"
 #include "DSP/MultithreadedPatching.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectRingModulation)
+
 void FSourceEffectRingModulation::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;
@@ -67,3 +69,4 @@ void USourceEffectRingModulationPreset::SetSettings(const FSourceEffectRingModul
 {
 	UpdateSettings(InSettings);
 }
+

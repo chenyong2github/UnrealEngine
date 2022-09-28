@@ -3,6 +3,8 @@
 #include "AnimNode_ControlRig_ExternalSource.h"
 #include "ControlRig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ControlRig_ExternalSource)
+
 FAnimNode_ControlRig_ExternalSource::FAnimNode_ControlRig_ExternalSource()
 {
 }
@@ -26,4 +28,5 @@ TSubclassOf<UControlRig> FAnimNode_ControlRig_ExternalSource::GetControlRigClass
 	}
 	return nullptr;
 }
+
 

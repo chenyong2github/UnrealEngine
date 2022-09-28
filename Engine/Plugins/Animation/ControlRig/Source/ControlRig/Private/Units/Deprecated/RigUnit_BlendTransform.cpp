@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "AnimationRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_BlendTransform)
+
 FRigUnit_BlendTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -55,3 +57,4 @@ FRigVMStructUpgradeInfo FRigUnit_BlendTransform::GetUpgradeInfo() const
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

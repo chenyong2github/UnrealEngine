@@ -9,6 +9,8 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistrySource_DataTable)
+
 void UDataRegistrySource_DataTable::SetSourceTable(const TSoftObjectPtr<UDataTable>& InSourceTable, const FDataRegistrySource_DataTableRules& InTableRules)
 {
 	if (ensure(IsTransientSource() || GIsEditor))
@@ -399,4 +401,5 @@ bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& As
 
 	return false;
 }
+
 

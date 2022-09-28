@@ -20,6 +20,8 @@
 #include "ObjectTools.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneAnimationTrackRecorder)
+
 #define LOCTEXT_NAMESPACE "MovieSceneAnimationTrackRecorder"
 
 DEFINE_LOG_CATEGORY(AnimationSerialization);

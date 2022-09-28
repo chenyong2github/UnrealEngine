@@ -8,6 +8,8 @@
 #include "Materials/Material.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionPhysicalMaterialOutput)
+
 #define LOCTEXT_NAMESPACE "RenderTrace"
 
 UMaterialExpressionPhysicalMaterialOutput::UMaterialExpressionPhysicalMaterialOutput(const FObjectInitializer& ObjectInitializer)
@@ -147,3 +149,4 @@ int32 UMaterialExpressionPhysicalMaterialOutput::GetNumOutputs() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

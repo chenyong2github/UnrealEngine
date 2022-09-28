@@ -15,6 +15,8 @@
 
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditUVIslandsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UEditUVIslandsTool"
@@ -562,3 +564,4 @@ void UEditUVIslandsTool::OnDynamicMeshComponentChanged()
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -35,6 +35,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlaneCutTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPlaneCutTool"
@@ -523,3 +525,4 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 
 
 #undef LOCTEXT_NAMESPACE
+

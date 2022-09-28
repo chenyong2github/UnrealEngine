@@ -17,6 +17,8 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineQueue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineWidgetRenderSetting)
+
 void UMoviePipelineWidgetRenderer::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];

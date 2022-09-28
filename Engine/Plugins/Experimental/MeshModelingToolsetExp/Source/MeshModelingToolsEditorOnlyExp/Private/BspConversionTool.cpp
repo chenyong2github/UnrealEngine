@@ -26,6 +26,8 @@
 #include "Misc/MessageDialog.h"
 #include "Logging/TokenizedMessage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BspConversionTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBspConversionTool"
@@ -870,3 +872,4 @@ void UBspConversionTool::OnPropertyModified(UObject* PropertySet, FProperty* Pro
 }
 
 #undef LOCTEXT_NAMESPACE
+

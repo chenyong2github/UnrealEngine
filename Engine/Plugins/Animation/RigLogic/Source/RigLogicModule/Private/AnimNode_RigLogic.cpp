@@ -12,6 +12,8 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Animation/MorphTarget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RigLogic)
+
 LLM_DEFINE_TAG(Animation_RigLogic);
 DEFINE_LOG_CATEGORY(LogRigLogicAnimNode);
 
@@ -233,3 +235,4 @@ void FAnimNode_RigLogic::UpdateAnimMapCurves(const FDNAIndexMapping* DNAIndexMap
 		}
 	}
 }
+

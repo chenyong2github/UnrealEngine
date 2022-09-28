@@ -2,6 +2,8 @@
 
 #include "TileMapEditing/TileMapEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TileMapEditorSettings)
+
 //////////////////////////////////////////////////////////////////////////
 // UTileMapEditorSettings
 
@@ -17,3 +19,4 @@ UTileMapEditorSettings::UTileMapEditorSettings()
 	, DefaultLayerGridColor(255, 255, 0)
 {
 }
+

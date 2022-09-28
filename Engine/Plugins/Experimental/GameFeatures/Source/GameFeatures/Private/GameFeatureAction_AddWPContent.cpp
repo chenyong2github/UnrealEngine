@@ -7,6 +7,8 @@
 #include "GameFeatureData.h"
 #include "GameFeaturesSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddWPContent)
+
 UGameFeatureAction_AddWPContent::UGameFeatureAction_AddWPContent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

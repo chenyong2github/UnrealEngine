@@ -21,6 +21,8 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraConstants.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapGet)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapGet"
 
 UNiagaraNodeParameterMapGet::UNiagaraNodeParameterMapGet() : UNiagaraNodeParameterMapBase()
@@ -672,3 +674,4 @@ void UNiagaraNodeParameterMapGet::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 }
 
 #undef LOCTEXT_NAMESPACE
+

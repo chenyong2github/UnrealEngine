@@ -7,6 +7,8 @@
 #include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandmassBPEditorExtension)
+
 ULandmassBlueprintFunctionLibrary::ULandmassBlueprintFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -16,6 +16,8 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "Engine/LocalPlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUISubsystemBase)
+
 
 UCommonUISubsystemBase* UCommonUISubsystemBase::Get(const UWidget& Widget)
 {
@@ -141,3 +143,4 @@ bool UCommonUISubsystemBase::IsInputAllowed(const ULocalPlayer* LocalPlayer) con
 
 	return true;
 }
+

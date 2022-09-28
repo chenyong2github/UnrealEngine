@@ -9,6 +9,8 @@
 #include "GameplayCueManager.h"
 #include "GameplayCueNotifyTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_Actor)
+
 
 namespace FAbilitySystemTweaks
 {
@@ -404,3 +406,4 @@ void AGameplayCueNotify_Actor::ReuseAfterRecycle()
 {
 	SetActorHiddenInGame(false);
 }
+

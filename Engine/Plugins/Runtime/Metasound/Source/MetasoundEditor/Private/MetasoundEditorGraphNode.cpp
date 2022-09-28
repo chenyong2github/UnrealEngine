@@ -30,6 +30,8 @@
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorGraphNode)
+
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 namespace Metasound
@@ -1220,3 +1222,4 @@ void UMetasoundEditorGraphVariableNode::SetNodeID(FGuid InNodeID)
 	NodeID = InNodeID;
 }
 #undef LOCTEXT_NAMESPACE
+

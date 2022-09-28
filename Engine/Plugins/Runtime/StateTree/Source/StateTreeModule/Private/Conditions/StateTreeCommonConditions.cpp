@@ -6,6 +6,8 @@
 #include "StateTreePropertyBindings.h"
 #include "StateTreeLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeCommonConditions)
+
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
 namespace UE::StateTree::Conditions
@@ -199,3 +201,4 @@ bool FStateTreeRandomCondition::TestCondition(FStateTreeExecutionContext& Contex
 
 
 #undef LOCTEXT_NAMESPACE
+

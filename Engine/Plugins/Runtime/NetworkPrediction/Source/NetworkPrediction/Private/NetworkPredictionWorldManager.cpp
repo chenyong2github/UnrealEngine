@@ -13,6 +13,8 @@
 #include "RewindData.h"
 #include "NetworkPredictionReplicatedManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionWorldManager)
+
 // Do extra checks to make sure Physics and GameThread (PrimitiveComponent) are in sync at verious points in the rollback process
 #define NP_ENSURE_PHYSICS_GT_SYNC !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -619,3 +621,4 @@ ENetworkPredictionTickingPolicy UNetworkPredictionWorldManager::PreferredDefault
 {
 	return Settings.PreferredTickingPolicy;
 }
+

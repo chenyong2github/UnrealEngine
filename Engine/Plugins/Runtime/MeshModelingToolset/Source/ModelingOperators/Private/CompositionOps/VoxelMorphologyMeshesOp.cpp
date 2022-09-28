@@ -12,6 +12,8 @@
 #include "Implicit/Morphology.h"
 #include "Implicit/Solidify.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoxelMorphologyMeshesOp)
+
 using namespace UE::Geometry;
 
 void FVoxelMorphologyMeshesOp::SetTransform(const FTransformSRT3d& Transform) 

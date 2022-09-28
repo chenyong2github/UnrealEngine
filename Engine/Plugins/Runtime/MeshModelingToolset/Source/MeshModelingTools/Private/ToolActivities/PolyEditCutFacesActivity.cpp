@@ -17,6 +17,8 @@
 #include "ToolActivities/PolyEditActivityUtil.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyEditCutFacesActivity)
+
 #define LOCTEXT_NAMESPACE "UPolyEditInsetOutsetActivity"
 
 using namespace UE::Geometry;
@@ -270,3 +272,4 @@ void FPolyEditCutFacesActivityFirstPointChange::Revert(UObject* Object)
 }
 
 #undef LOCTEXT_NAMESPACE
+

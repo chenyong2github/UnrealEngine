@@ -5,6 +5,8 @@
 #include "SAudioSlider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioSlider)
+
 #define LOCTEXT_NAMESPACE "AUDIO_UMG"
 
 static FAudioSliderStyle* DefaultAudioSliderStyle = nullptr;

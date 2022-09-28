@@ -7,6 +7,8 @@
 #include "LobbyBeaconPlayerState.h"
 #include "LobbyBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyBeaconState)
+
 void FLobbyPlayerStateActorInfo::PreReplicatedRemove(const FLobbyPlayerStateInfoArray& InArraySerializer)
 {
 	check(InArraySerializer.ParentState);
@@ -390,3 +392,4 @@ bool ALobbyBeaconState::RequireFullLobbyToStart() const
 {
 	return false;
 }
+

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "VoipListenerSynthComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoipListenerSynthComponent)
+
 static float NumSecondsUntilIdling = 0.4f;
 
 #if DEBUG_BUFFERING

@@ -7,6 +7,8 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Misc/QualifiedFrameTime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGroomCacheSection)
+
 FMovieSceneGroomCacheParams::FMovieSceneGroomCacheParams()
 {
 	GroomCache = nullptr;
@@ -158,3 +160,4 @@ float FMovieSceneGroomCacheParams::GetSequenceLength() const
 {
 	return GroomCache != nullptr ? GroomCache->GetDuration() : 0.f;
 }
+

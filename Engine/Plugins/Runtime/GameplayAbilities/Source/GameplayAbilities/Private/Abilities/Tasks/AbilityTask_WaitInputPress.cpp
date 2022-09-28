@@ -4,6 +4,8 @@
 #include "AbilitySystemComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitInputPress)
+
 UAbilityTask_WaitInputPress::UAbilityTask_WaitInputPress(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

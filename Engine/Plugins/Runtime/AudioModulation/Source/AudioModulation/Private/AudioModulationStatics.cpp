@@ -16,6 +16,8 @@
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioModulationStatics)
+
 #define LOCTEXT_NAMESPACE "AudioModulationStatics"
 
 
@@ -412,3 +414,4 @@ void UAudioModulationStatics::UpdateModulator(const UObject* WorldContextObject,
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

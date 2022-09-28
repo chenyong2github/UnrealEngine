@@ -6,6 +6,8 @@
 #include "ConversationSettings.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationLibrary)
+
 #define LOCTEXT_NAMESPACE "ConversationLibrary"
 
 //////////////////////////////////////////////////////////////////////////
@@ -54,3 +56,4 @@ UConversationInstance* UConversationLibrary::StartConversation(FGameplayTag Conv
 }
 
 #undef LOCTEXT_NAMESPACE
+

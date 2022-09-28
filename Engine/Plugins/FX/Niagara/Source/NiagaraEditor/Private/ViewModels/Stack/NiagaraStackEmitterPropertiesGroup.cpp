@@ -17,6 +17,8 @@
 #include "NiagaraSimulationStageBase.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEmitterPropertiesGroup)
+
 #define LOCTEXT_NAMESPACE "StackEmitterProperties"
 
 class FNiagaraStackEmitterPropertiesGroupAddUtilities : public FNiagaraStackItemGroupAddUtilities

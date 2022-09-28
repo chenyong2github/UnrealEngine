@@ -4,6 +4,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SphericalPoseReader)
+
 FRigUnit_SphericalPoseReader_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -273,3 +275,4 @@ float FRigUnit_SphericalPoseReader::RemapRange(
 	check(FMath::Abs(AEnd - AStart) > 0.0f);
 	return BStart + (T - AStart) * (BEnd - BStart) / (AEnd - AStart);
 }
+

@@ -9,6 +9,8 @@
 #include "GameplayTaskTransition.h"
 #include "GameplayActuationStateProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayActuationComponent)
+
 UGameplayActuationComponent::UGameplayActuationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -208,3 +210,4 @@ void UGameplayActuationComponent::GrabDebugSnapshot(FVisualLogEntry* Snapshot) c
 	Snapshot->Status.Add(StatusCategory);
 }
 #endif
+

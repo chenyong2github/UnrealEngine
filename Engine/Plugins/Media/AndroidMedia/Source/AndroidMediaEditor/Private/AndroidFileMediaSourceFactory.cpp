@@ -3,6 +3,8 @@
 #include "AndroidFileMediaSourceFactory.h"
 #include "FileMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidFileMediaSourceFactory)
+
 
 /* UAndroidFileMediaSourceFactory structors
  *****************************************************************************/
@@ -36,3 +38,4 @@ UObject* UAndroidFileMediaSourceFactory::FactoryCreateFile(UClass* InClass, UObj
 
 	return MediaSource;
 }
+

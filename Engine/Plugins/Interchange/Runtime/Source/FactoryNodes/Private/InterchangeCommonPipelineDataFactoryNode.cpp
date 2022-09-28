@@ -5,6 +5,8 @@
 #include "InterchangeSceneNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeCommonPipelineDataFactoryNode)
+
 namespace UE::Interchange::CommonPipelineData
 {
 	FString GetCommonPipelineDataUniqueID()
@@ -44,3 +46,4 @@ bool UInterchangeCommonPipelineDataFactoryNode::SetCustomGlobalOffsetTransform(c
 	//Reset all scene node container cache
 	UInterchangeSceneNode::ResetAllGlobalTransformCaches(NodeContainer);
 }
+

@@ -1,8 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluators/SelectionGuardEvaluator.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SelectionGuardEvaluator)
 
 
 bool FSelectionGuardEvaluator::Link(FStateTreeLinker& Linker)

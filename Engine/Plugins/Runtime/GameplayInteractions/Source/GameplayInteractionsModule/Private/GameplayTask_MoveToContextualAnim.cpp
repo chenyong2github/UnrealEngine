@@ -8,6 +8,8 @@
 #include "ContextualAnimSceneInstance.h"
 #include "GameplayTask_PlayContextualAnim.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_MoveToContextualAnim)
+
 UGameplayTask_MoveToContextualAnim* UGameplayTask_MoveToContextualAnim::EnterContextualAnim(
 		AActor* Interactor
 		, const FName InteractorRole
@@ -152,3 +154,4 @@ void UGameplayTask_MoveToContextualAnim::TriggerEndOfPathTransition(const double
 		}
 	}
 }
+

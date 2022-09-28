@@ -35,6 +35,8 @@
 #include "Engine/LocalPlayer.h"
 #include "MoviePipelinePanoramicBlender.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelinePanoramicPass)
+
 UMoviePipelinePanoramicPass::UMoviePipelinePanoramicPass() 
 	: UMoviePipelineImagePassBase()
 	, NumHorizontalSteps(8)
@@ -551,4 +553,5 @@ void UMoviePipelinePanoramicPass::ScheduleReadbackAndAccumulation(const FMoviePi
 		});
 
 }
+
 

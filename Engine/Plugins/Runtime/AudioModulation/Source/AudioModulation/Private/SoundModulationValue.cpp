@@ -3,6 +3,8 @@
 
 #include "SoundModulationProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationValue)
+
 
 FSoundModulationMixValue::FSoundModulationMixValue(float InValue, float InAttackTime, float InReleaseTime)
 	: TargetValue(InValue)
@@ -146,3 +148,4 @@ void FSoundModulationMixValue::UpdateDelta()
 
 	LastTarget = TargetValue;
 }
+

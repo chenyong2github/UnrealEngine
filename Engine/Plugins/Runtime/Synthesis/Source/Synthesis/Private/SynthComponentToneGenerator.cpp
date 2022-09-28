@@ -4,6 +4,8 @@
 #include "SynthComponents/SynthComponentToneGenerator.h"
 #include "AudioDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentToneGenerator)
+
 #define TEST_INT16_ATTENUATION 1
 
 // Disabling this experimental feature for this synth component 

@@ -23,6 +23,8 @@
 #include "AssetToolsModule.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraValidationRules)
+
 #define LOCTEXT_NAMESPACE "NiagaraValidationRules"
 
 namespace NiagaraValidation
@@ -600,3 +602,4 @@ void UNiagaraValidationRule_SimulationStageBudget::CheckValidity(const FNiagaraV
 }
 
 #undef LOCTEXT_NAMESPACE
+

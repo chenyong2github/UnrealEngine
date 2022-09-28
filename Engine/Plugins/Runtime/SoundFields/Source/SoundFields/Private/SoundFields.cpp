@@ -8,6 +8,8 @@
 #include "SoundFieldRendering.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundFields)
+
 static int32 VirtualIntermediateChannelsCvar = 1;
 FAutoConsoleVariableRef CVarVirtualIntermediateChannels(
 	TEXT("au.Ambisonics.VirtualIntermediateChannels"),
@@ -297,3 +299,4 @@ TUniquePtr<ISoundfieldEncodingSettingsProxy> UAmbisonicsEncodingSettings::GetPro
 	Proxy->Order = FMath::Clamp(AmbisonicsOrder, 1, 5);
 	return TUniquePtr<ISoundfieldEncodingSettingsProxy>(Proxy);
 }
+

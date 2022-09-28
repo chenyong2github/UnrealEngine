@@ -21,6 +21,8 @@
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SGeometryCollectionOutliner)
+
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
 static FText GetTextFromInitialDynamicState(int32 InitialDynamicState)

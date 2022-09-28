@@ -5,6 +5,8 @@
 #include "AudioGameplayFlags.h"
 #include "AudioGameplayVolumeListener.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixOverrideVolumeComponent)
+
 constexpr TCHAR FProxyMutator_SubmixOverride::MutatorSubmixOverrideName[];
 
 FProxyMutator_SubmixOverride::FProxyMutator_SubmixOverride()
@@ -89,3 +91,4 @@ void USubmixOverrideVolumeComponent::CopyAudioDataToMutator(TSharedPtr<FProxyVol
 	TSharedPtr<FProxyMutator_SubmixOverride> SubmixMutator = StaticCastSharedPtr<FProxyMutator_SubmixOverride>(Mutator);
 	SubmixMutator->SubmixOverrideSettings = SubmixOverrideSettings;
 }
+

@@ -17,6 +17,8 @@
 #include "Editor.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemDebugHUD)
+
 namespace
 {
 	static float DebugDrawMaxDistance = 2048.f;
@@ -640,3 +642,4 @@ FAutoConsoleCommandWithWorldAndArgs AbilitySystemToggleDebugBlockedTagsCommand(
 );
 
 #endif // !UE_BUILD_SHIPPING
+

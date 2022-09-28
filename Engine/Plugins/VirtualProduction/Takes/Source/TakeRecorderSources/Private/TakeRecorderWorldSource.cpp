@@ -17,6 +17,8 @@
 #include "ILevelSequenceEditorToolkit.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderWorldSource)
+
 UTakeRecorderWorldSourceSettings::UTakeRecorderWorldSourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, bRecordWorldSettings(true)

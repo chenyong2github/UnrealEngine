@@ -7,6 +7,8 @@
 #include "AbilitySystemGlobals.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitAttributeChangeRatioThreshold)
+
 UAbilityTask_WaitAttributeChangeRatioThreshold::UAbilityTask_WaitAttributeChangeRatioThreshold(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -140,3 +142,4 @@ void UAbilityTask_WaitAttributeChangeRatioThreshold::OnDestroy(bool AbilityEnded
 
 	Super::OnDestroy(AbilityEnded);
 }
+

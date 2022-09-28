@@ -9,6 +9,8 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UDIMUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVToolContextObjects)
+
 using namespace UE::Geometry;
 
 namespace UVToolContextObjectLocals

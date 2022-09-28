@@ -10,6 +10,8 @@
 #include "Retargeter/IKRetargeter.h"
 #include "RigEditor/IKRigController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargeterController)
+
 #define LOCTEXT_NAMESPACE "IKRetargeterController"
 
 
@@ -622,3 +624,4 @@ void UIKRetargeterController::SortChainMapping() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

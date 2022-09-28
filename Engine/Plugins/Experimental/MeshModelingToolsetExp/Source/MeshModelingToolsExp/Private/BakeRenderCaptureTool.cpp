@@ -23,6 +23,8 @@
 #include "Algo/NoneOf.h"
 #include "Misc/ScopedSlowTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeRenderCaptureTool)
+
 
 using namespace UE::Geometry;
 
@@ -1508,3 +1510,4 @@ void UBakeRenderCaptureTool::GatherAnalytics(FBakeAnalytics::FMeshSettings& Data
 }
 
 #undef LOCTEXT_NAMESPACE
+

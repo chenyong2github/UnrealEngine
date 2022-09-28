@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "EmptySourceFilter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceFilterCollection)
+
 template<typename T>
 T* USourceFilterCollection::CreateNewFilter(UClass* Class /*= T::StaticClass()*/)
 {

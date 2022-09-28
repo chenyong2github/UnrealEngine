@@ -14,6 +14,8 @@
 #include "ConversationNode.h"
 #include "ConversationEditorColors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode)
+
 #define LOCTEXT_NAMESPACE "ConversationGraph"
 
 UConversationGraphNode::UConversationGraphNode(const FObjectInitializer& ObjectInitializer)
@@ -191,3 +193,4 @@ TSharedPtr<SGraphNode> UConversationGraphNode::CreateVisualWidget()
 }
 
 #undef LOCTEXT_NAMESPACE
+

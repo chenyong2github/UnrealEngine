@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "Kismet/KismetSystemLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Print)
+
 TArray<FRigVMTemplateArgument> FRigDispatch_Print::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
@@ -108,3 +110,4 @@ void FRigDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVM
 	}
 #endif
 }
+

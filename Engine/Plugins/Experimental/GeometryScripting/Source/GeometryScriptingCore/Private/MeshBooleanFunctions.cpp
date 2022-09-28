@@ -15,6 +15,8 @@
 #include "Operations/MinimalHoleFiller.h"
 #include "ConstrainedDelaunay2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBooleanFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshBooleanFunctions"

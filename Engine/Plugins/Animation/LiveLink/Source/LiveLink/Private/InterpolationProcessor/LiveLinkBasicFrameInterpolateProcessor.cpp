@@ -6,6 +6,8 @@
 #include "Roles/LiveLinkBasicRole.h"
 #include "Roles/LiveLinkBasicTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBasicFrameInterpolateProcessor)
+
 
 /**
  * ULiveLinkFrameInterpolationProcessor
@@ -396,3 +398,4 @@ bool ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkBasicFrameInterpolation
 	OutInterpolationInfo.bUnderflowDetected = true;
 	return true;
 }
+

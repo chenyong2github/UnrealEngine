@@ -11,6 +11,8 @@
 #include "Misc/Paths.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImgMediaSource)
+
 
 /* UImgMediaSource structors
  *****************************************************************************/
@@ -276,3 +278,4 @@ bool UImgMediaSource::IsPathUnderBasePath(const FString& InPath, const FString& 
 		FPaths::MakePathRelativeTo(OutRelativePath, *InBasePath) 
 		&& !OutRelativePath.StartsWith(TEXT(".."));
 }
+

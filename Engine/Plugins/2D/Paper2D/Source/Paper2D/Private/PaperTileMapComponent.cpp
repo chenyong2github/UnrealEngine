@@ -11,6 +11,8 @@
 #include "PaperTileMap.h"
 #include "PaperTileSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileMapComponent)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 DECLARE_CYCLE_STAT(TEXT("Rebuild Tile Map"), STAT_PaperRender_TileMapRebuild, STATGROUP_Paper2D);
@@ -762,3 +764,4 @@ void UPaperTileMapComponent::RebuildCollision()
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

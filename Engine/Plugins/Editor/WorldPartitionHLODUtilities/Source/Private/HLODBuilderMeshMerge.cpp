@@ -18,6 +18,8 @@
 #include "Engine/HLODProxy.h"
 #include "Serialization/ArchiveCrc32.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilderMeshMerge)
+
 
 UHLODBuilderMeshMerge::UHLODBuilderMeshMerge(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -96,3 +98,4 @@ TArray<UActorComponent*> UHLODBuilderMeshMerge::Build(const FHLODBuildContext& I
 
 	return { Component };
 }
+

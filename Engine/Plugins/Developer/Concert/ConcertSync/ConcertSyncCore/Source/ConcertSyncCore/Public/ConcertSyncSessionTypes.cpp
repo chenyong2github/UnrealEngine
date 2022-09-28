@@ -5,6 +5,8 @@
 
 #include "Misc/PackageName.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertSyncSessionTypes)
+
 #define LOCTEXT_NAMESPACE "ConcertSyncActivitySummary"
 
 namespace ActivitySummaryUtil
@@ -831,3 +833,4 @@ FText FConcertSyncPackageActivitySummary::CreateDisplayTextForUser(const FText I
 }
 
 #undef LOCTEXT_NAMESPACE
+

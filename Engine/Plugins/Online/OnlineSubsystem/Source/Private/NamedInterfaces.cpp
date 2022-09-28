@@ -4,6 +4,8 @@
 #include "UObject/Package.h"
 #include "OnlineSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NamedInterfaces)
+
 UNamedInterfaces::UNamedInterfaces(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
@@ -86,3 +88,4 @@ void UNamedInterfaces::SetNamedInterface(FName InterfaceName, UObject* NewInterf
 		NamedInterfaces[InterfaceIdx].InterfaceObject = NewInterface;
 	}
 }
+

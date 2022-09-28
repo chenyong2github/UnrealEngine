@@ -8,6 +8,8 @@
 #include "WeightMapTypes.h"
 #include "DeformationOps/MeshOffsetOps.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OffsetMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UOffsetMeshTool"
@@ -131,3 +133,4 @@ TUniquePtr<FDynamicMeshOperator> UOffsetMeshTool::MakeNewOperator()
 
 
 #undef LOCTEXT_NAMESPACE
+

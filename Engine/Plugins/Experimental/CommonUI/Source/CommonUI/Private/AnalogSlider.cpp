@@ -4,6 +4,8 @@
 #include "CommonUITypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnalogSlider)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -68,3 +70,4 @@ void UAnalogSlider::HandleInputMethodChanged(ECommonInputType CurrentInputType)
 }
 
 #undef LOCTEXT_NAMESPACE
+

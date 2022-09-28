@@ -10,6 +10,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "MovieSceneMediaPlayerSectionRecorder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlayerRecording)
+
 static const FName SequencerActorTag(TEXT("SequencerActor"));
 static const FName MovieSceneSectionRecorderFactoryName("MovieSceneSectionRecorderFactory");
 
@@ -113,3 +115,4 @@ void UMediaPlayerRecording::SetMediaPlayerToRecord(UMediaPlayer* InMediaPlayer)
 {
 	MediaPlayerToRecord = InMediaPlayer;
 }
+

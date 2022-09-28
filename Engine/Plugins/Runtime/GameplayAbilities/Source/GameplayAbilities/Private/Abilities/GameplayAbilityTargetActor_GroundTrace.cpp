@@ -4,6 +4,8 @@
 #include "GameFramework/Pawn.h"
 #include "DrawDebugHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetActor_GroundTrace)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	AGameplayAbilityTargetActor_GroundTrace
@@ -201,3 +203,4 @@ bool AGameplayAbilityTargetActor_GroundTrace::IsConfirmTargetingAllowed()
 {
 	return bLastTraceWasGood;
 }
+

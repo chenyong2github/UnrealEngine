@@ -40,6 +40,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceEditorSubsystem)
+
 DEFINE_LOG_CATEGORY(LogLevelSequenceEditor);
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditor"
@@ -1540,3 +1542,4 @@ void ULevelSequenceEditorSubsystem::RebindComponent(const TArray<FMovieSceneBind
 }
 
 #undef LOCTEXT_NAMESPACE
+

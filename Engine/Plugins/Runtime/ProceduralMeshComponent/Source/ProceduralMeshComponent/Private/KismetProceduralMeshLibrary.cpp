@@ -12,6 +12,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(KismetProceduralMeshLibrary)
+
 DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_ProcMesh_CalcTangents, STATGROUP_ProceduralMesh);
 
 #define LOCTEXT_NAMESPACE "KismetProcMeshLibrary"
@@ -1233,3 +1235,4 @@ void UKismetProceduralMeshLibrary::SliceProceduralMesh(UProceduralMeshComponent*
 }
 
 #undef LOCTEXT_NAMESPACE
+

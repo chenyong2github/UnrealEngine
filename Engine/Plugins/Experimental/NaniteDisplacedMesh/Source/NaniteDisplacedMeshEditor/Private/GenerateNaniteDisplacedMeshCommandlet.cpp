@@ -18,6 +18,8 @@
 #include "HAL/FileManager.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenerateNaniteDisplacedMeshCommandlet)
+
 bool UGenerateNaniteDisplacedMeshCommandlet::IsRunning()
 {
 	static UClass* ThisCommandlet = StaticClass();
@@ -301,3 +303,4 @@ namespace UE::GenerateNaniteDisplacedMesh::Private
 		FConsoleCommandWithArgsDelegate::CreateStatic(&RunCommandlet)
 		);
 }
+

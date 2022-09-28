@@ -9,6 +9,8 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_ApplyRootMotionJumpForce)
+
 UAbilityTask_ApplyRootMotionJumpForce::UAbilityTask_ApplyRootMotionJumpForce(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -215,3 +217,4 @@ void UAbilityTask_ApplyRootMotionJumpForce::OnDestroy(bool AbilityIsEnding)
 
 	Super::OnDestroy(AbilityIsEnding);
 }
+

@@ -23,6 +23,8 @@
 #include "Misc/Paths.h"
 #include "Engine/Texture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGenericTexturePipeline)
+
 #if WITH_EDITOR
 #include "NormalMapIdentification.h"
 #include "TextureCompiler.h"
@@ -366,4 +368,5 @@ void UInterchangeGenericTexturePipeline::PostImportTextureAssetImport(UObject* C
 	}
 #endif //WITH_EDITOR
 }
+
 

@@ -4,6 +4,8 @@
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheActor)
+
 AGeometryCacheActor::AGeometryCacheActor(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -29,3 +31,4 @@ bool AGeometryCacheActor::GetReferencedContentObjects(TArray<UObject*>& Objects)
 	return true;
 }
 #endif
+

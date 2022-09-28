@@ -4,6 +4,8 @@
 #include "PyReferenceCollector.h"
 #include "PyGIL.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PyWrapperBase)
+
 #if WITH_PYTHON
 
 /** Python type for FPyWrapperBaseMetaDataObject */
@@ -154,3 +156,4 @@ UPythonResourceOwner::UPythonResourceOwner(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 }
+

@@ -2,6 +2,8 @@
 
 #include "Drawing/ControlRigDrawContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigDrawContainer)
+
 int32 FControlRigDrawContainer::GetIndex(const FName& InName) const
 {
 	for (int32 Index = 0; Index < Instructions.Num(); ++Index)
@@ -18,3 +20,4 @@ void FControlRigDrawContainer::Reset()
 {
 	Instructions.Reset();
 }
+

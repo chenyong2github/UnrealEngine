@@ -7,6 +7,8 @@
 #include "MediaTexture.h"
 #include "MediaTextureTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImgMediaPlaybackComponent)
+
 UImgMediaPlaybackComponent::UImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -88,3 +90,4 @@ void UImgMediaPlaybackComponent::UnregisterWithMipMapInfo()
 		}
 	}
 }
+

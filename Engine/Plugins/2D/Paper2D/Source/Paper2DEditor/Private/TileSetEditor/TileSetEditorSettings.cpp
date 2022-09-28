@@ -2,6 +2,8 @@
 
 #include "TileSetEditor/TileSetEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TileSetEditorSettings)
+
 //////////////////////////////////////////////////////////////////////////
 // UTileSetEditorSettings
 
@@ -13,3 +15,4 @@ UTileSetEditorSettings::UTileSetEditorSettings()
 	, bFillWithTransparentBlack(true)
 {
 }
+

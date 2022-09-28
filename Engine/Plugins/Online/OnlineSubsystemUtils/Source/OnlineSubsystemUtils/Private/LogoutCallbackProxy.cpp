@@ -9,6 +9,8 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystemBPCallHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LogoutCallbackProxy)
+
 ULogoutCallbackProxy::ULogoutCallbackProxy(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, WorldContextObject(nullptr)
@@ -95,3 +97,4 @@ void ULogoutCallbackProxy::OnLogoutCompleted(int LocalPlayerNum, bool bWasSucces
 		OnFailure.Broadcast(PlayerControllerWeakPtr.Get());
 	}
 }
+

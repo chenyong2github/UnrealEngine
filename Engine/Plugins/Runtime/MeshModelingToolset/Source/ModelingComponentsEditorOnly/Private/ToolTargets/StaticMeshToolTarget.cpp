@@ -12,6 +12,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "StaticMeshAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshToolTarget)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "StaticMeshToolTarget"
@@ -360,3 +362,4 @@ void UStaticMeshToolTargetFactory::SetActiveEditingLOD(EMeshLODIdentifier NewEdi
 }
 
 #undef LOCTEXT_NAMESPACE
+

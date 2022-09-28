@@ -11,6 +11,8 @@
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolConvex)
+
 #define LOCTEXT_NAMESPACE "FractureToolConvex"
 
 
@@ -336,3 +338,4 @@ void UFractureToolConvex::Setup()
 }
 
 #undef LOCTEXT_NAMESPACE
+

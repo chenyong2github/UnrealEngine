@@ -10,6 +10,8 @@
 #include "Modules/ModuleManager.h"
 #include "NiagaraGPUSortInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraMeshRendererProperties)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "AssetThumbnail.h"

@@ -4,6 +4,8 @@
 #include "PaperTileSet.h"
 #include "TileSetEditor/TileSetEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileSetFactory)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 /////////////////////////////////////////////////////
@@ -29,3 +31,4 @@ UObject* UPaperTileSetFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 }
 
 #undef LOCTEXT_NAMESPACE
+

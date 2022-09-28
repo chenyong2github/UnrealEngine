@@ -17,6 +17,8 @@
 
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSculptToolBase)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshSculptToolBase"
@@ -1453,4 +1455,5 @@ void UMeshSculptToolBase::RegisterActions(FInteractiveToolActionSet& ActionSet)
 
 
 #undef LOCTEXT_NAMESPACE
+
 

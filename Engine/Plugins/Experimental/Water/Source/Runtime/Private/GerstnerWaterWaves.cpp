@@ -6,6 +6,8 @@
 #include "Engine/Engine.h"
 #include "Core/Public/Misc/LargeWorldRenderPosition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GerstnerWaterWaves)
+
 // ----------------------------------------------------------------------------------
 
 void FGerstnerWave::Recompute()
@@ -259,4 +261,5 @@ void UGerstnerWaterWaveGeneratorSpectrum::GenerateGerstnerWaves_Implementation(T
 {
 	// [todo] kevin.ortegren: implement	
 }
+
 

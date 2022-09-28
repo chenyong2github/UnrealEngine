@@ -20,6 +20,8 @@
 #include "UObject/StructOnScope.h"
 #include "Algo/Transform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEditorTransformTool)
+
 #define LOCTEXT_NAMESPACE "CurveEditorToolCommands"
 
 namespace CurveEditorTransformTool
@@ -1374,3 +1376,4 @@ double FCurveEditorTransformTool::ModifyWeightByInterpType(double Value) const
 	return Result;
 }
 #undef LOCTEXT_NAMESPACE // "CurveEditorToolCommands"
+

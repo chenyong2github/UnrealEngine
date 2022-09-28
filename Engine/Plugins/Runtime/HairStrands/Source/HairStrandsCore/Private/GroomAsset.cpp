@@ -33,6 +33,9 @@
 #include "GroomBindingAsset.h"
 #include "GroomDeformerBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomAsset)
+
+
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
@@ -3758,3 +3761,4 @@ void UGroomAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 #undef LOCTEXT_NAMESPACE
+

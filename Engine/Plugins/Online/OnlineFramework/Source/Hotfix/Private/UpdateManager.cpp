@@ -19,6 +19,8 @@
 
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UpdateManager)
+
 #define UPDATE_CHECK_SECONDS 30.0
 
 static TAutoConsoleVariable<int32> CVarDebugUpdateManager(

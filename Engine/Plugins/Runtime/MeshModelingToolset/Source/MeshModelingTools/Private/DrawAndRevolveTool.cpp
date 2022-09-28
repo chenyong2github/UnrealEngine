@@ -16,6 +16,8 @@
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DrawAndRevolveTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDrawAndRevolveTool"
@@ -354,3 +356,4 @@ void UDrawAndRevolveTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -20,6 +20,8 @@
 #include "Nodes/InterchangeSourceNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGenericAnimationPipeline)
+
 namespace UE::Interchange::Private
 {
 	/**

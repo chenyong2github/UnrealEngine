@@ -6,6 +6,8 @@
 #include "OnlineBeaconHost.h"
 #include "OnlineBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBeaconHostObject)
+
 AOnlineBeaconHostObject::AOnlineBeaconHostObject(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	BeaconTypeName(TEXT("UNDEFINED"))
@@ -106,3 +108,4 @@ EBeaconState::Type AOnlineBeaconHostObject::GetBeaconState() const
 
 	return EBeaconState::DenyRequests;
 }
+

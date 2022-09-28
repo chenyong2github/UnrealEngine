@@ -4,6 +4,8 @@
 #include "Misc/Paths.h"
 #include "ImgMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImgMediaSourceFactory)
+
 
 /* UExrFileMediaSourceFactory structors
  *****************************************************************************/
@@ -33,3 +35,4 @@ UObject* UImgMediaSourceFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 
 	return MediaSource;
 }
+

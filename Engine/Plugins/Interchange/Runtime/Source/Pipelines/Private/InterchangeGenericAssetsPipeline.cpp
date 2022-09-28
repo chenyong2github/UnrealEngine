@@ -30,6 +30,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/MetaData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGenericAssetsPipeline)
+
 UInterchangeGenericAssetsPipeline::UInterchangeGenericAssetsPipeline()
 {
 	MaterialPipeline = CreateDefaultSubobject<UInterchangeGenericMaterialPipeline>("MaterialPipeline");
@@ -522,3 +524,4 @@ void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()
 	}
 
 }
+

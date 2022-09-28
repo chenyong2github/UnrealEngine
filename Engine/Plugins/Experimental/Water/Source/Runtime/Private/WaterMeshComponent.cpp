@@ -18,6 +18,8 @@
 #include "Math/NumericLimits.h"
 #include "Algo/Transform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterMeshComponent)
+
 /** Scalability CVars*/
 static TAutoConsoleVariable<int32> CVarWaterMeshLODCountBias(
 	TEXT("r.Water.WaterMesh.LODCountBias"), 0,
@@ -643,3 +645,4 @@ void UWaterMeshComponent::PostEditComponentMove(bool bFinished)
 	}
 }
 #endif
+

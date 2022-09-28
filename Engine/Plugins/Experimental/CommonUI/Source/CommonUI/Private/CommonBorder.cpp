@@ -10,6 +10,8 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SViewport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBorder)
+
 UCommonBorderStyle::UCommonBorderStyle()
 {
 }
@@ -179,3 +181,4 @@ const UCommonBorderStyle* UCommonBorder::GetStyleCDO() const
 	}
 	return nullptr;
 }
+

@@ -30,6 +30,8 @@
 // default proxy for this component
 #include "OctreeDynamicMeshSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OctreeDynamicMeshComponent)
+
 using namespace UE::Geometry;
 
 

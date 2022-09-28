@@ -12,6 +12,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBoundaryToolBase)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshBoundaryToolBase"
@@ -70,3 +72,4 @@ void UMeshBoundaryToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 #undef LOCTEXT_NAMESPACE
+

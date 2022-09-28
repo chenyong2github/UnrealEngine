@@ -4,6 +4,8 @@
 #include "Styling/SlateIconFinder.h"
 #include "MovieSceneSequenceID.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderSource)
+
 UTakeRecorderSource::UTakeRecorderSource(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	,bEnabled(true)

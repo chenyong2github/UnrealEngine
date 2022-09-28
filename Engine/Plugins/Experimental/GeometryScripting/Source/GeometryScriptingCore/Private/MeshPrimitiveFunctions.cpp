@@ -22,6 +22,8 @@
 #include "Arrangement2d.h"
 #include "CompGeom/Delaunay2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshPrimitiveFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshPrimitiveFunctions"

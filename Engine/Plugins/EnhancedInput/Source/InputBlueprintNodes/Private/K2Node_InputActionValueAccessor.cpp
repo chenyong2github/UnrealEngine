@@ -4,6 +4,8 @@
 #include "EnhancedInputActionDelegateBinding.h"
 #include "EnhancedInputLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_InputActionValueAccessor)
+
 
 UK2Node_InputActionValueAccessor::UK2Node_InputActionValueAccessor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -48,4 +50,5 @@ void UK2Node_InputActionValueAccessor::RegisterDynamicBinding(UDynamicBlueprintB
 //
 //	return NodeSignature;
 //}
+
 

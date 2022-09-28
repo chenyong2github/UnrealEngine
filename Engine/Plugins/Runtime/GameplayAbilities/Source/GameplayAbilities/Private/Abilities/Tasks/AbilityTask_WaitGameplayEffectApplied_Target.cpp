@@ -4,6 +4,8 @@
 
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayEffectApplied_Target)
+
 
 UAbilityTask_WaitGameplayEffectApplied_Target::UAbilityTask_WaitGameplayEffectApplied_Target(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -59,3 +61,4 @@ void UAbilityTask_WaitGameplayEffectApplied_Target::RemoveDelegate()
 		GetASC()->OnGameplayEffectAppliedDelegateToTarget.Remove(OnPeriodicGameplayEffectExecuteCallbackDelegateHandle);
 	}
 }
+

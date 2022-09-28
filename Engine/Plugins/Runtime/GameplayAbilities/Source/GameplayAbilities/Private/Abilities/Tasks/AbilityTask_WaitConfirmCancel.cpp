@@ -4,6 +4,8 @@
 
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitConfirmCancel)
+
 
 UAbilityTask_WaitConfirmCancel::UAbilityTask_WaitConfirmCancel(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -114,3 +116,4 @@ void UAbilityTask_WaitConfirmCancel::OnDestroy(bool AbilityEnding)
 
 	Super::OnDestroy(AbilityEnding);
 }
+

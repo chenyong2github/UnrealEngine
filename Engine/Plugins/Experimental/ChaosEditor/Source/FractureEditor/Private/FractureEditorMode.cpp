@@ -35,6 +35,8 @@
 #include "UnrealEdGlobals.h"
 #include "EditorModeManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureEditorMode)
+
 #define LOCTEXT_NAMESPACE "FFractureEditorModeToolkit"
 
 const FEditorModeID UFractureEditorMode::EM_FractureEditorModeId = TEXT("EM_FractureEditorMode");
@@ -658,5 +660,6 @@ FConvexVolume UFractureEditorMode::GetVolumeFromBox(const FBox &InBox)
 }
 
 #undef LOCTEXT_NAMESPACE
+
 
 

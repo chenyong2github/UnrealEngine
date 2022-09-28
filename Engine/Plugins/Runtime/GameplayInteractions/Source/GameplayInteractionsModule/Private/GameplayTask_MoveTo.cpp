@@ -13,6 +13,8 @@
 #include "GameplayTaskTransition.h"
 #include "Navigation/PathFollowingComponent.h" // LogPathHelper
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_MoveTo)
+
 UGameplayTask_MoveTo::UGameplayTask_MoveTo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -713,3 +715,4 @@ void UGameplayTask_MoveTo::TickTask(float DeltaTime)
 	}
 #endif // ENABLE_VISUAL_LOG
 }
+

@@ -2,6 +2,8 @@
 
 #include "GroomAssetInterpolation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomAssetInterpolation)
+
 FHairDecimationSettings::FHairDecimationSettings()
 {
 	CurveDecimation = 1;

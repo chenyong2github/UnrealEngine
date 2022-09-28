@@ -3,6 +3,8 @@
 #include "Units/Math/RigUnit_MathBool.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathBool)
+
 FRigUnit_MathBoolConstTrue_Execute()
 {
 	Value = true;

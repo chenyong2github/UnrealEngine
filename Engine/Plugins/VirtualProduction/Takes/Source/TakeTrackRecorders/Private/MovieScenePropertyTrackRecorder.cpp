@@ -4,6 +4,8 @@
 #include "UObject/UnrealType.h"
 #include "MovieSceneCommonHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertyTrackRecorder)
+
 bool FMovieScenePropertyTrackRecorderFactory::CanRecordProperty(UObject* InObjectToRecord, FProperty* InPropertyToRecord) const
 {
 	if (InPropertyToRecord->IsA<FBoolProperty>())
@@ -191,3 +193,4 @@ bool UMovieScenePropertyTrackRecorder::LoadRecordedFile(const FString& InFileNam
 	}
 	return false;
 }
+

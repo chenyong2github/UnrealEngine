@@ -30,6 +30,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RemoveOccludedTrianglesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URemoveOccludedTrianglesTool"
@@ -526,3 +528,4 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 
 
 #undef LOCTEXT_NAMESPACE
+

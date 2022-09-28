@@ -22,6 +22,8 @@
 
 #include "CompositionOps/VoxelBlendMeshesOp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoxelBlendMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UVoxelBlendMeshesTool"
@@ -93,3 +95,4 @@ FText UVoxelBlendMeshesTool::GetActionName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

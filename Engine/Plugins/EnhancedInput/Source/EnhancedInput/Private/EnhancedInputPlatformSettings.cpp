@@ -3,6 +3,8 @@
 #include "EnhancedInputPlatformSettings.h"
 #include "InputMappingContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputPlatformSettings)
+
 #define LOCTEXT_NAMESPACE "EnhancedInputPlatformSettings"
 
 //////////////////////////////////////////////////////////////////////////

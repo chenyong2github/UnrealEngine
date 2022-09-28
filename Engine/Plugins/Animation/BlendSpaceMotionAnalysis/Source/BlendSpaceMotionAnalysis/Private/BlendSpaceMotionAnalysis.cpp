@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 #include "Logging/LogMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlendSpaceMotionAnalysis)
+
 IMPLEMENT_MODULE(FBlendSpaceMotionAnalysis, BlendSpaceMotionAnalysis)
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlendSpaceMotionAnalysis, Log, All);

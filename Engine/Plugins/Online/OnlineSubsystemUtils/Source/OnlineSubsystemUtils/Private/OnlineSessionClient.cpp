@@ -10,6 +10,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineSessionClient)
+
 UOnlineSessionClient::UOnlineSessionClient(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -331,3 +333,4 @@ void UOnlineSessionClient::SetInviteFlags(UWorld* World, const FJoinabilitySetti
 		}
 	}
 }
+

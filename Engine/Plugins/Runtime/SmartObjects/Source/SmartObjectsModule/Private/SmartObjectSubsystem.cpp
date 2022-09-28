@@ -12,6 +12,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystem)
+
 #if UE_ENABLE_DEBUG_DRAWING
 #include "SmartObjectSubsystemRenderingActor.h"
 #endif

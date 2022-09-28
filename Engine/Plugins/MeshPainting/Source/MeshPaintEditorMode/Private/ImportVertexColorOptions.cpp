@@ -12,6 +12,8 @@
 
 #include "MeshPaintHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImportVertexColorOptions)
+
 #define LOCTEXT_NAMESPACE "VertexColorImportOptions"
 
 void SImportVertexColorOptionsWindow::Construct(const FArguments& InArgs)
@@ -105,4 +107,5 @@ void SImportVertexColorOptionsWindow::Construct(const FArguments& InArgs)
 }
 
 #undef LOCTEXT_NAMESPACE // "VertexColorImportOptions"
+
 

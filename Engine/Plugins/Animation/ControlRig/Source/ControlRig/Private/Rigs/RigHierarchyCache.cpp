@@ -3,6 +3,8 @@
 #include "Rigs/RigHierarchyCache.h"
 #include "Rigs/RigHierarchy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigHierarchyCache)
+
 bool FCachedRigElement::UpdateCache(const URigHierarchy* InHierarchy)
 {
 	if(InHierarchy)
@@ -64,3 +66,4 @@ bool FCachedRigElement::IsIdentical(const FRigElementKey& InKey, const URigHiera
 {
 	return InKey == Key && InHierarchy->GetTopologyVersion() == ContainerVersion;
 }
+

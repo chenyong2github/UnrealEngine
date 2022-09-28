@@ -4,6 +4,8 @@
 #include "Animation/AnimInstance.h"
 #include "Kismet2/CompilerResultsLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_RetargetPoseFromMesh)
+
 #define LOCTEXT_NAMESPACE "AnimGraphNode_IKRig"
 const FName UAnimGraphNode_RetargetPoseFromMesh::AnimModeName(TEXT("IKRig.IKRigEditor.IKRigEditMode"));
 
@@ -149,3 +151,4 @@ void UAnimGraphNode_RetargetPoseFromMesh::PreloadRequiredAssets()
 }
 
 #undef LOCTEXT_NAMESPACE
+

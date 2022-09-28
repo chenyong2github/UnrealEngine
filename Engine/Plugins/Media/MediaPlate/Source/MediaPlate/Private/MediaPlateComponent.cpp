@@ -18,6 +18,8 @@
 #include "MediaTexture.h"
 #include "MediaTextureTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlateComponent)
+
 #define LOCTEXT_NAMESPACE "MediaPlate"
 
 
@@ -789,3 +791,4 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

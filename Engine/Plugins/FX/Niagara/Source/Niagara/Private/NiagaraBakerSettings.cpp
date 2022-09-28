@@ -8,6 +8,8 @@
 #include "Engine/Texture2D.h"
 #include "Misc/PathViews.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerSettings)
+
 UNiagaraBakerSettings::UNiagaraBakerSettings(const FObjectInitializer& Init)
 	: Super(Init)
 {
@@ -225,3 +227,4 @@ void UNiagaraBakerSettings::PostEditChangeProperty(struct FPropertyChangedEvent&
 	}
 }
 #endif
+

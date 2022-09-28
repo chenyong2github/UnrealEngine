@@ -33,6 +33,8 @@
 #include "MetasoundUObjectRegistry.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundSource)
+
 #if WITH_EDITORONLY_DATA
 #include "EdGraph/EdGraph.h"
 #endif // WITH_EDITORONLY_DATA
@@ -989,3 +991,4 @@ const TArray<Metasound::FVertexName>& UMetaSoundSource::GetOutputAudioChannelOrd
 	}
 }
 #undef LOCTEXT_NAMESPACE // MetaSound
+

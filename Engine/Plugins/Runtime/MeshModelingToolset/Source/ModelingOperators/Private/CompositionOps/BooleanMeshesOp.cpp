@@ -7,6 +7,8 @@
 #include "Operations/MinimalHoleFiller.h"
 #include "CompGeom/PolygonTriangulation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BooleanMeshesOp)
+
 using namespace UE::Geometry;
 
 void FBooleanMeshesOp::SetTransform(const FTransformSRT3d& Transform) 

@@ -11,6 +11,8 @@
 #include "Engine/World.h"
 #include "SoundControlBusProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundControlBus)
+
 
 USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -145,3 +147,4 @@ const Audio::FModulationParameter& USoundControlBus::GetOutputParameter() const
 	const FString Breadcrumb = FString::Format(TEXT("{0} '{1}'"), { *GetClass()->GetName(), *GetName() });
 	return AudioModulation::GetOrRegisterParameter(Parameter, Breadcrumb);
 }
+

@@ -10,6 +10,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ControlRig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigThumbnailRenderer)
+
 UControlRigThumbnailRenderer::UControlRigThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

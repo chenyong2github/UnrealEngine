@@ -11,6 +11,8 @@
 #include "Types/ReflectionMetadata.h"
 #include "StyleSheet/CommonStyleSheet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonTextBlock)
+
 void STextScroller::Construct(const FArguments& InArgs)
 {
 	ScrollStyle = InArgs._ScrollStyle;
@@ -745,3 +747,4 @@ void UCommonTextBlock::ApplyFontSizeMultiplier() const
 		MyTextBlock->SetFont(FontInfo);
 	}
 }
+

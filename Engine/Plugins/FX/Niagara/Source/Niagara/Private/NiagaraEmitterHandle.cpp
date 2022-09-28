@@ -7,6 +7,8 @@
 #include "NiagaraCommon.h"
 #include "NiagaraCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEmitterHandle)
+
 const FNiagaraEmitterHandle FNiagaraEmitterHandle::InvalidHandle;
 
 FNiagaraEmitterHandle::FNiagaraEmitterHandle() 

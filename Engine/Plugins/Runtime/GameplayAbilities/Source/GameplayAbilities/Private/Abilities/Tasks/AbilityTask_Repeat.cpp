@@ -4,6 +4,8 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_Repeat)
+
 UAbilityTask_Repeat::UAbilityTask_Repeat(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -74,3 +76,4 @@ FString UAbilityTask_Repeat::GetDebugString() const
 {
 	return FString::Printf(TEXT("RepeatAction. TimeBetweenActions: %.2f. ActionCounter: %d"), TimeBetweenActions, ActionCounter);
 }
+

@@ -4,6 +4,8 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetActor_SingleLineTrace)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	AGameplayAbilityTargetActor_SingleLineTrace
@@ -57,3 +59,4 @@ FHitResult AGameplayAbilityTargetActor_SingleLineTrace::PerformTrace(AActor* InS
 #endif // ENABLE_DRAW_DEBUG
 	return ReturnHitResult;
 }
+

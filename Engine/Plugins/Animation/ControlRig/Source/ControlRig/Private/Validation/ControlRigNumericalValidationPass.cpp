@@ -2,6 +2,8 @@
 
 #include "ControlRigNumericalValidationPass.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigNumericalValidationPass)
+
 ////////////////////////////////////////////////////////////////////////////////
 // UControlRigNumericalValidationPass
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,3 +167,4 @@ void UControlRigNumericalValidationPass::OnEvent(UControlRig* InControlRig, cons
 		InContext->Report(EMessageSeverity::Info, TEXT("Numerical validation only works when running 'Backwards and Forwards'"));
 	}
 }
+

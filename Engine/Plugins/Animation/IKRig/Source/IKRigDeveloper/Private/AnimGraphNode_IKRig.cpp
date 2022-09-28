@@ -13,6 +13,8 @@
 
 #include "BoneSelectionWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_IKRig)
+
 /////////////////////////////////////////////////////
 // UAnimGraphNode_IKRig 
 
@@ -875,3 +877,4 @@ void UAnimGraphNode_IKRig::SetupGoal(const UIKRigEffectorGoal* InAssetGoal, FIKR
 }
 
 #undef LOCTEXT_NAMESPACE
+

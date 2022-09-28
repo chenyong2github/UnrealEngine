@@ -9,6 +9,8 @@
 #include "MediaPlateEditorModule.h"
 #include "MediaPlaylist.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFactoryMediaPlate)
+
 #define LOCTEXT_NAMESPACE "ActorFactoryMediaPlate"
 
 UActorFactoryMediaPlate::UActorFactoryMediaPlate(const FObjectInitializer& ObjectInitializer)
@@ -103,3 +105,4 @@ void UActorFactoryMediaPlate::SetUpActor(UObject* Asset, AActor* Actor)
 }
 
 #undef LOCTEXT_NAMESPACE
+

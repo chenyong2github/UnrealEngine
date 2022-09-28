@@ -17,6 +17,8 @@
 #include "UVEditorToolAnalyticsUtils.h"
 #include "EngineAnalytics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorLayerEditTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVChannelEditTool"

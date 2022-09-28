@@ -10,6 +10,8 @@
 #include "GameplayTagAssetInterface.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_GameplayTagQuery)
+
 UBTDecorator_GameplayTagQuery::UBTDecorator_GameplayTagQuery(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Gameplay Tag Query";
@@ -145,3 +147,4 @@ void UBTDecorator_GameplayTagQuery::InitializeFromAsset(UBehaviorTree& Asset)
 		ActorForGameplayTagQuery.ResolveSelectedKey(*BBAsset);
 	}
 }
+

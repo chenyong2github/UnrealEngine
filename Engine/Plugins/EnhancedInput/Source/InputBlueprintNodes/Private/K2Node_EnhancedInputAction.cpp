@@ -23,6 +23,8 @@
 #include "KismetCompiler.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_EnhancedInputAction)
+
 #define LOCTEXT_NAMESPACE "K2Node_EnhancedInputAction"
 
 static const FName InputActionPinName = TEXT("InputAction");
@@ -473,3 +475,4 @@ TSharedPtr<FEdGraphSchemaAction> UK2Node_EnhancedInputAction::GetEventNodeAction
 }
 
 #undef LOCTEXT_NAMESPACE
+

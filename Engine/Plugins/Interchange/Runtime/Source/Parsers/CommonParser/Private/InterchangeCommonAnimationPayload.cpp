@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeCommonAnimationPayload)
+
 #if WITH_ENGINE
 #include "Curves/RichCurve.h"
 #endif //WITH_ENGINE

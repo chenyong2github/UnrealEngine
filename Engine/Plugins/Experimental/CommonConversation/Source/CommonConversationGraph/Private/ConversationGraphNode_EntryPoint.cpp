@@ -5,6 +5,8 @@
 #include "ConversationGraphTypes.h"
 #include "ConversationGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_EntryPoint)
+
 UConversationGraphNode_EntryPoint::UConversationGraphNode_EntryPoint(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 }
@@ -18,3 +20,4 @@ FName UConversationGraphNode_EntryPoint::GetNameIcon() const
 {
 	return FName("BTEditor.Graph.BTNode.Root.Icon");
 }
+

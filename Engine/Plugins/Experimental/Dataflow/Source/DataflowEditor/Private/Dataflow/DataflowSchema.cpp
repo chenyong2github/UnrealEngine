@@ -16,6 +16,8 @@
 #include "GraphEditorActions.h"
 #include "Dataflow/DataflowSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowSchema)
+
 #define LOCTEXT_NAMESPACE "DataflowNode"
 
 UDataflowSchema::UDataflowSchema()
@@ -221,3 +223,4 @@ void FDataflowConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputP
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -6,6 +6,8 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomEditorMode)
+
 #define LOCTEXT_NAMESPACE "GroomEditor"
 
 const FEditorModeID UGroomEditorMode::EM_GroomEditorModeId = TEXT("EM_GroomEditorMode");

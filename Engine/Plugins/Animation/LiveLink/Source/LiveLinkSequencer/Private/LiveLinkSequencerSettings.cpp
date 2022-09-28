@@ -2,6 +2,8 @@
 
 #include "LiveLinkSequencerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSequencerSettings)
+
 FName ULiveLinkSequencerSettings::GetCategoryName() const
 {
 	return TEXT("Plugins");
@@ -19,3 +21,4 @@ FName ULiveLinkSequencerSettings::GetSectionName() const
 }
 
 #endif
+

@@ -5,6 +5,8 @@
 #include "Units/RigUnitContext.h"
 #include "RigUnit_Collection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Hierarchy)
+
 FRigUnit_HierarchyGetParent_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -598,3 +600,4 @@ FRigUnit_PoseLoop_Execute()
 		CurveValue = 0.f;
 	}
 }
+

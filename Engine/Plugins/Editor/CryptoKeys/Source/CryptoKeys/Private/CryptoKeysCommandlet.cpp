@@ -5,6 +5,8 @@
 #include "CryptoKeysHelpers.h"
 #include "CryptoKeysOpenSSL.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CryptoKeysCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogCryptoKeysCommandlet, Log, All);
 
 UCryptoKeysCommandlet::UCryptoKeysCommandlet(const FObjectInitializer& ObjectInitializer)
@@ -64,3 +66,4 @@ int32 UCryptoKeysCommandlet::Main(const FString& InParams)
 
 	return 0;
 }
+

@@ -13,6 +13,8 @@
 #include "HAL/PlatformTime.h"
 #include "MoviePipelineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineVideoOutputBase)
+
 UMoviePipelineVideoOutputBase::UMoviePipelineVideoOutputBase()
 	: bHasError(false)
 {

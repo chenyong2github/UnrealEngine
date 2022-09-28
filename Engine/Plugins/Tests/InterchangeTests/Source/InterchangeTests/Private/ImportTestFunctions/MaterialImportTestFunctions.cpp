@@ -6,6 +6,8 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialImportTestFunctions)
+
 namespace UE::Interchange::Tests::Private
 {
 	TArray<UMaterialInterface*> FilterByMaterialInterfaceSubclass(const TArray<UMaterialInterface*>& MaterialInterfaces, const TSubclassOf<UMaterialInterface>& MaterialInterfaceSubclass)
@@ -58,3 +60,4 @@ FInterchangeTestFunctionResult UMaterialImportTestFunctions::CheckImportedMateri
 
 	return Result;
 }
+

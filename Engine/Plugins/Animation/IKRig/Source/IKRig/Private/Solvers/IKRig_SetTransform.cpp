@@ -4,6 +4,8 @@
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_SetTransform)
+
 #define LOCTEXT_NAMESPACE "UIKRig_SetTransform"
 
 UIKRig_SetTransform::UIKRig_SetTransform()
@@ -131,3 +133,4 @@ bool UIKRig_SetTransform::IsBoneAffectedBySolver(const FName& BoneName, const FI
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetBoneRotation)
+
 FRigUnit_SetBoneRotation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

@@ -15,6 +15,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeInput)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeInput"
 
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - UNiagaraNodeInput - SortNodes"), STAT_NiagaraEditor_UNiagaraNodeInput_SortNodes, STATGROUP_NiagaraEditor);
@@ -512,3 +514,4 @@ void UNiagaraNodeInput::ValidateDataInterface()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -14,6 +14,8 @@
 #include "NiagaraScriptVariable.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapBase)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapBase"
 
 const FName UNiagaraNodeParameterMapBase::ParameterPinSubCategory("ParameterPin");

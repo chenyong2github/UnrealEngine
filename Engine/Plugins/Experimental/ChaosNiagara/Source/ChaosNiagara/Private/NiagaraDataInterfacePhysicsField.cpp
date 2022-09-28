@@ -11,6 +11,8 @@
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "ChaosStats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfacePhysicsField)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePhysicsField"
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicsField, Log, All);
 

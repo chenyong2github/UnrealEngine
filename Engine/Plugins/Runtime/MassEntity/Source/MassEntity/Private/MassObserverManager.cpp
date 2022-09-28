@@ -7,6 +7,8 @@
 #include "MassProcessingTypes.h"
 #include "MassObserverRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassObserverManager)
+
 namespace UE::Mass::ObserverManager::Private
 {
 // a helper function to reduce code duplication in FMassObserverManager::Initialize
@@ -264,3 +266,4 @@ void FMassObserverManager::AddObserverInstance(const UScriptStruct& FragmentOrTa
 		ObserverProcessor.Initialize(*Owner);
 	}
 }
+

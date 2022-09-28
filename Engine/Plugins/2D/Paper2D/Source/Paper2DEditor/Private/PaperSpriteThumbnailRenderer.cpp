@@ -8,6 +8,8 @@
 #include "CanvasTypes.h"
 #include "PaperSprite.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteThumbnailRenderer)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperSpriteThumbnailRenderer
 
@@ -128,3 +130,4 @@ void UPaperSpriteThumbnailRenderer::DrawFrame(class UPaperSprite* Sprite, int32 
 		DrawGrid(X, Y, Width, Height, Canvas);
 	}
 }
+

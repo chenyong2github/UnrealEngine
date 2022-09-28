@@ -6,6 +6,8 @@
 #include "NiagaraSettings.h"
 #include "NiagaraEffectType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEffectTypeFactoryNew)
+
 #define LOCTEXT_NAMESPACE "NiagaraEffectTypeFactory"
 
 UNiagaraEffectTypeFactoryNew::UNiagaraEffectTypeFactoryNew(const FObjectInitializer& ObjectInitializer)

@@ -2,6 +2,8 @@
 
 #include "MeshOpPreviewHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshOpPreviewHelpers)
+
 using namespace UE::Geometry;
 
 void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld)
@@ -217,3 +219,4 @@ bool UMeshOpPreviewWithBackgroundCompute::IsUsingWorkingMaterial()
 		&& LastComputeStatus == EBackgroundComputeTaskStatus::InProgress
 		&& BackgroundCompute->GetElapsedComputeTime() > SecondsBeforeWorkingMaterial;
 }
+

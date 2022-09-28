@@ -17,6 +17,8 @@
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCollisionQuery)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
 
 namespace NDICollisionQueryLocal
@@ -681,3 +683,4 @@ bool UNiagaraDataInterfaceCollisionQuery::PerInstanceTickPostSimulate(void* PerI
 }
 
 #undef LOCTEXT_NAMESPACE
+

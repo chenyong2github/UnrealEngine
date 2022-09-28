@@ -5,6 +5,8 @@
 #include "AssetTypeCategories.h"
 #include "ImgMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImgMediaSourceFactoryNew)
+
 
 /* UImgMediaSourceFactoryNew structors
  *****************************************************************************/
@@ -37,3 +39,4 @@ bool UImgMediaSourceFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

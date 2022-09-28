@@ -3,6 +3,8 @@
 #include "Units/Debug/RigUnit_DebugPrimitives.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DebugPrimitives)
+
 FRigUnit_DebugRectangle_Execute()
 {
 	FRigUnit_DebugRectangleItemSpace::StaticExecute(

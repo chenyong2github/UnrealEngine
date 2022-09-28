@@ -3,6 +3,8 @@
 #include "MotorSimOutputMotoSynth.h"
 #include "AudioMotorSimTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotorSimOutputMotoSynth)
+
 void UMotorSimOutputMotoSynth::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	float MinRpm, MaxRpm;
@@ -24,3 +26,4 @@ void UMotorSimOutputMotoSynth::StopOutput()
 {
 	Stop();
 }
+

@@ -1006,6 +1006,8 @@ void USequencerPivotTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 
 #include "HitProxies.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequencerAnimEditPivotTool)
+
 
 void USequencerPivotTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
@@ -1292,3 +1294,4 @@ void USequencerPivotTool::UpdatePivotOverlayLocation(const FVector2D InLocation,
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -17,6 +17,8 @@
 #include "Engine/Selection.h"
 #include "Kismet/GameplayStatics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BrowserBinding)
+
 /**
 * Drag drop action
 **/
@@ -692,3 +694,4 @@ void UBrowserBinding::ExportDataToMSPlugin(FString Data)
 {
 	FTCPServer::ImportQueue.Enqueue(Data);
 }
+

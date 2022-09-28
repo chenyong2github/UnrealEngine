@@ -19,6 +19,8 @@
 #include "EditorModeManager.h"
 #include "ContextObjectStore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementLassoSelectTool)
+
 constexpr TCHAR UPlacementModeLassoSelectTool::ToolName[];
 
 namespace PlacementModeLassoToolInternal
@@ -68,3 +70,4 @@ void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 		}
 	}
 }
+

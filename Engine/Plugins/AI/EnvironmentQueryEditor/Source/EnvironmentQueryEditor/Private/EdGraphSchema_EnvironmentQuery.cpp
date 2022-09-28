@@ -14,6 +14,8 @@
 #include "IEnvironmentQueryEditor.h"
 #include "Toolkits/ToolkitManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphSchema_EnvironmentQuery)
+
 #define LOCTEXT_NAMESPACE "EnvironmentQueryEditor"
 
 //////////////////////////////////////////////////////////////////////////
@@ -132,3 +134,4 @@ const FPinConnectionResponse UEdGraphSchema_EnvironmentQuery::CanMergeNodes(cons
 }
 
 #undef LOCTEXT_NAMESPACE
+

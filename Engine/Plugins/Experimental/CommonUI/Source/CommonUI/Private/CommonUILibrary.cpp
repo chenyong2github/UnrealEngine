@@ -4,6 +4,8 @@
 #include "Components/PanelWidget.h"
 #include "Blueprint/WidgetTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUILibrary)
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -47,3 +49,4 @@ UWidget* UCommonUILibrary::FindParentWidgetOfType(UWidget* StartingWidget, TSubc
 }
 
 #undef LOCTEXT_NAMESPACE
+

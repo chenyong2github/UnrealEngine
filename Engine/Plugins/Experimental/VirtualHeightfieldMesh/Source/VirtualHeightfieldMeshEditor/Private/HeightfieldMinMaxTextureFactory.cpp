@@ -5,6 +5,8 @@
 #include "AssetTypeCategories.h"
 #include "HeightfieldMinMaxTexture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HeightfieldMinMaxTextureFactory)
+
 UHeightfieldMinMaxTextureFactory::UHeightfieldMinMaxTextureFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -19,3 +21,4 @@ UObject* UHeightfieldMinMaxTextureFactory::FactoryCreateNew(UClass* Class, UObje
 {
 	return NewObject<UHeightfieldMinMaxTexture>(InParent, Class, Name, Flags);
 }
+

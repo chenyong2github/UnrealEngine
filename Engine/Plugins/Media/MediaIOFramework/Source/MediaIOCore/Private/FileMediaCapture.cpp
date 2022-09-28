@@ -10,6 +10,8 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FileMediaCapture)
+
 #if WITH_EDITOR
 #include "AnalyticsEventAttribute.h"
 #include "EngineAnalytics.h"
@@ -168,3 +170,4 @@ void UFileMediaCapture::CacheMediaOutputValues()
 		DynamicCB.ExecuteIfBound(bSuccess);
 	};
 }
+

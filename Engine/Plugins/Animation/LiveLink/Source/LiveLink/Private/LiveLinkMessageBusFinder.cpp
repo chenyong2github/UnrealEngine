@@ -10,6 +10,8 @@
 #include "LiveLinkMessageBusSourceFactory.h"
 #include "MessageEndpointBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkMessageBusFinder)
+
 
 namespace LiveLinkMessageBusHelper
 {
@@ -121,5 +123,6 @@ ULiveLinkMessageBusFinder* ULiveLinkMessageBusFinder::ConstructMessageBusFinder(
 {
 	return NewObject<ULiveLinkMessageBusFinder>();
 }
+
 
 

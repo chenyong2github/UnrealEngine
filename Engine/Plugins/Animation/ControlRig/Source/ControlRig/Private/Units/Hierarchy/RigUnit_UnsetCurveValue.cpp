@@ -3,6 +3,8 @@
 #include "RigUnit_UnsetCurveValue.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_UnsetCurveValue)
+
 FRigUnit_UnsetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -49,3 +51,4 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_UnsetCurveValue)
 	return true;
 }
 #endif
+

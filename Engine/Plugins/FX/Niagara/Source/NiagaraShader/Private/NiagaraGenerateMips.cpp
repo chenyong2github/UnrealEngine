@@ -5,6 +5,8 @@
 #include "RenderGraphUtils.h"
 #include "RHIStaticStates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraGenerateMips)
+
 class FNiagaraGenerateMipsCS : public FGlobalShader
 {
 public:
@@ -84,3 +86,4 @@ void NiagaraGenerateMips::GenerateMips(FRDGBuilder& GraphBuilder, FRDGTextureRef
 		);
 	}
 }
+

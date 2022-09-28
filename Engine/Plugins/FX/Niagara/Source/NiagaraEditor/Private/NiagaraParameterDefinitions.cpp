@@ -7,6 +7,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptVariable.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameterDefinitions)
+
 #define LOCTEXT_NAMESPACE "NiagaraParameterDefinitions"
 
 UNiagaraParameterDefinitions::UNiagaraParameterDefinitions(const FObjectInitializer& ObjectInitializer)
@@ -280,3 +282,4 @@ void UNiagaraParameterDefinitions::NotifyParameterDefinitionsChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
+

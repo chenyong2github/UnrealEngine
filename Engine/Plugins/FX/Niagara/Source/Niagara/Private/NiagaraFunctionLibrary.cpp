@@ -26,6 +26,8 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraFunctionLibrary)
+
 #define LOCTEXT_NAMESPACE "NiagaraFunctionLibrary"
 
 //DECLARE_CYCLE_STAT(TEXT("FastDot4"), STAT_NiagaraFastDot4, STATGROUP_Niagara);

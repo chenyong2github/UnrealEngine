@@ -11,6 +11,8 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CSGMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UCSGMeshesTool"
@@ -419,3 +421,4 @@ void UCSGMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 
 
 #undef LOCTEXT_NAMESPACE
+

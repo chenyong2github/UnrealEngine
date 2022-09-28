@@ -10,6 +10,7 @@
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "EnvQueryItemType_SmartObject.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_FindAndUseGameplayBehaviorSmartObject)
 
 UBTTask_FindAndUseGameplayBehaviorSmartObject::UBTTask_FindAndUseGameplayBehaviorSmartObject()
 {

@@ -3,6 +3,8 @@
 #include "ImportTestFunctions/TextureImportTestFunctions.h"
 #include "Engine/Texture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureImportTestFunctions)
+
 
 UClass* UTextureImportTestFunctions::GetAssociatedAssetType() const
 {

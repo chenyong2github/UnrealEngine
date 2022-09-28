@@ -15,6 +15,8 @@
 #include "Logging/MessageLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeNodeClassCache)
+
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
 FStateTreeNodeClassData::FStateTreeNodeClassData(UStruct* InStruct) :
@@ -276,3 +278,4 @@ void FStateTreeNodeClassCache::CacheClasses()
 }
 
 #undef LOCTEXT_NAMESPACE
+

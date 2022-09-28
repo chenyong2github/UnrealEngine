@@ -8,6 +8,8 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_MoveToLocation)
+
 UAbilityTask_MoveToLocation::UAbilityTask_MoveToLocation(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -146,3 +148,4 @@ void UAbilityTask_MoveToLocation::OnDestroy(bool AbilityIsEnding)
 
 	Super::OnDestroy(AbilityIsEnding);
 }
+

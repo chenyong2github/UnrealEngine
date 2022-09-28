@@ -12,6 +12,8 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineMasterConfig)
+
 #define LOCTEXT_NAMESPACE "MoviePipelineMasterConfig"
 
 
@@ -289,3 +291,4 @@ TArray<UMoviePipelineOutputBase*> UMoviePipelineMasterConfig::GetOutputContainer
 }
 
 #undef LOCTEXT_NAMESPACE // "MovieRenderPipelineConfig"
+

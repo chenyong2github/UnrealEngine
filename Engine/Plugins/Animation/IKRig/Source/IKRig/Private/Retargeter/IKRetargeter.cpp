@@ -5,6 +5,8 @@
 #include "IKRigObjectVersion.h"
 #include "Retargeter/IKRetargetProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargeter)
+
 #if WITH_EDITOR
 const FName UIKRetargeter::GetSourceIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset); };
 const FName UIKRetargeter::GetTargetIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetIKRigAsset); };

@@ -7,6 +7,8 @@
 
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementModeSubsystem)
+
 void UPlacementModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Collection.InitializeDependency<UPlacementSubsystem>();
@@ -46,3 +48,4 @@ void UPlacementModeSubsystem::LoadSettings()
 
 	GEditor->GetEditorSubsystem<UPlacementSubsystem>()->OnPlacementFactoriesRegistered().RemoveAll(this);
 }
+

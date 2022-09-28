@@ -4,6 +4,8 @@
 #include "PaperFlipbookComponent.h"
 #include "PaperFlipbook.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbookActor)
+
 //////////////////////////////////////////////////////////////////////////
 // APaperFlipbookActor
 
@@ -27,3 +29,4 @@ bool APaperFlipbookActor::GetReferencedContentObjects(TArray<UObject*>& Objects)
 	return true;
 }
 #endif
+

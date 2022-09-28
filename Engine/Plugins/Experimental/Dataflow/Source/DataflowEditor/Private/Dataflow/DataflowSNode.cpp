@@ -10,6 +10,8 @@
 #include "SourceCodeNavigation.h"
 #include "Widgets/Layout/SBorder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowSNode)
+
 #define LOCTEXT_NAMESPACE "SDataflowEdNode"
 //
 // SDataflowEdNode
@@ -115,3 +117,4 @@ UEdGraphNode* FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::PerformActi
 //}
 
 #undef LOCTEXT_NAMESPACE
+

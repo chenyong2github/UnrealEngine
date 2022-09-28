@@ -6,6 +6,8 @@
 #include "InterpolateSorted.h"
 #include "DSP/ConstantQ.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstantQNRT)
+
 
 namespace
 {
@@ -279,4 +281,5 @@ FName UConstantQNRT::GetAnalyzerNRTFactoryName() const
 	static const FName FactoryName(TEXT("ConstantQNRTFactory"));
 	return FactoryName;
 }
+
 

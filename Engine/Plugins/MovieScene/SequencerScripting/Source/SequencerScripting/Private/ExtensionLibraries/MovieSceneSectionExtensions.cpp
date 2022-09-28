@@ -19,6 +19,8 @@
 #include "KeysAndChannels/MovieSceneScriptingObjectPath.h"
 #include "Sections/MovieSceneSubSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSectionExtensions)
+
 
 FSequencerScriptingRange UMovieSceneSectionExtensions::GetRange(UMovieSceneSection* Section)
 {
@@ -670,3 +672,4 @@ int32 UMovieSceneSectionExtensions::GetParentSequenceFrame(UMovieSceneSubSection
 	LocalFrameTime = ConvertFrameTime(LocalFrameTime, ParentTickResolution, ParentDisplayRate);
 	return LocalFrameTime.GetFrame().Value;
 }
+

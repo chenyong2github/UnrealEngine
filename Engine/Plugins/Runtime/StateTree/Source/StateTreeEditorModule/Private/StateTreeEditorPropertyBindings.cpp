@@ -4,6 +4,8 @@
 #include "PropertyPathHelpers.h"
 #include "StateTreePropertyBindingCompiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeEditorPropertyBindings)
+
 
 UStateTreeEditorPropertyBindingsOwner::UStateTreeEditorPropertyBindingsOwner(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -141,4 +143,5 @@ const FProperty* FStateTreeBindingLookup::GetPropertyPathLeafProperty(const FSta
 
 	return Result;
 }
+
 

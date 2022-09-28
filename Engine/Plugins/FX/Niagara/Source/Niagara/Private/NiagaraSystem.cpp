@@ -35,6 +35,8 @@
 #include "ShaderCompiler.h"
 #include "PipelineStateCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystem)
+
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
 #if WITH_EDITOR
@@ -3832,3 +3834,4 @@ void UNiagaraSystem::SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings)
 #endif
 
 #undef LOCTEXT_NAMESPACE // NiagaraSystem
+

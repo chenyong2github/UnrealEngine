@@ -16,6 +16,8 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_EvaluateLiveLinkFrame)
+
 #define LOCTEXT_NAMESPACE "K2Node_EvaluateLiveLinkFrame"
 
 
@@ -419,3 +421,4 @@ bool UK2Node_EvaluateLiveLinkFrame::IsRoleValidForEvaluation(TSubclassOf<ULiveLi
 }
 
 #undef LOCTEXT_NAMESPACE
+

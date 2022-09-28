@@ -2,6 +2,8 @@
 
 #include "LiveLinkVirtualSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkVirtualSource)
+
 
 #define LOCTEXT_NAMESPACE "LiveLinkVirtualSubjectSource"
 
@@ -51,4 +53,5 @@ FText FLiveLinkVirtualSubjectSource::GetSourceStatus() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

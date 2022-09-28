@@ -8,6 +8,8 @@
 #include "Party/PartyMember.h"
 #include "SocialManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialPartyChatRoom)
+
 #define LOCTEXT_NAMESPACE "SocialChatRoom"
 
 void USocialPartyChatRoom::Initialize(USocialUser* InSocialUser, const FChatRoomId& InChannelId, ESocialChannelType InSourceChannelType)

@@ -13,6 +13,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialToolkit)
+
 #if WITH_EDITOR
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStartRandomizeUserPresence, uint8 /*NumRandomUser*/, float /*TickerTimer*/);
 static FOnStartRandomizeUserPresence Debug_OnStartRandomizeUserPresenceEvent;

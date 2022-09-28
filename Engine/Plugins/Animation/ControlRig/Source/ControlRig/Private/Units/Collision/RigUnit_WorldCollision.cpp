@@ -5,6 +5,8 @@
 #include "Units/RigUnitContext.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_WorldCollision)
+
 FRigUnit_SphereTraceWorld_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -148,3 +150,4 @@ FRigUnit_SphereTraceByObjectTypes_Execute()
 		HitNormal = Context.ToWorldSpaceTransform.InverseTransformVector(HitResult.ImpactNormal);
 	}
 }
+

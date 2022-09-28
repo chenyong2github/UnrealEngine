@@ -5,6 +5,8 @@
 #include "User/SocialUser.h"
 #include "Chat/SocialChatManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialChatRoom)
+
 #define LOCTEXT_NAMESPACE "SocialChatRoom"
 
 void USocialChatRoom::Initialize(USocialUser* InSocialUser, const FChatRoomId& InChannelId, ESocialChannelType InSourceChannelType)

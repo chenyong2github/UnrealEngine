@@ -5,6 +5,8 @@
 #include "EditorScriptingUtils.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorFilterLibrary)
+
 #define LOCTEXT_NAMESPACE "EditorFilterLibrary"
 
 /**
@@ -147,3 +149,4 @@ TArray<AActor*> UEditorFilterLibrary::BySelection(const TArray<AActor*>& TargetA
 }
 
 #undef LOCTEXT_NAMESPACE
+

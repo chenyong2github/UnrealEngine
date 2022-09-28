@@ -4,6 +4,8 @@
 #include "AssetTypeCategories.h"
 #include "FileMediaSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FileMediaSourceFactoryNew)
+
 
 /* UFileMediaSourceFactoryNew structors
  *****************************************************************************/
@@ -36,3 +38,4 @@ bool UFileMediaSourceFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

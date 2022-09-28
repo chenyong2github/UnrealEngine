@@ -2,6 +2,8 @@
 
 #include "RpmCurveMotorSimComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RpmCurveMotorSimComponent)
+
 void URpmCurveMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	if(Gears.Num() == 0)
@@ -56,3 +58,4 @@ int32 URpmCurveMotorSimComponent::GetDesiredGearForSpeed(const float Speed) cons
 
 	return 0;
 }
+

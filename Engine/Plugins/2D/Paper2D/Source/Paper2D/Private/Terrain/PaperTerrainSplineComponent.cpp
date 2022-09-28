@@ -2,6 +2,8 @@
 
 #include "PaperTerrainSplineComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTerrainSplineComponent)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperTerrainSplineComponent
 
@@ -17,3 +19,4 @@ void UPaperTerrainSplineComponent::PostEditChangeProperty(FPropertyChangedEvent&
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+

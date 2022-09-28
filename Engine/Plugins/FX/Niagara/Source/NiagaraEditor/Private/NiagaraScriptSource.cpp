@@ -21,6 +21,8 @@
 #include "Logging/LogMacros.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptSource)
+
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptSource - Compile"), STAT_NiagaraEditor_ScriptSource_Compile, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptSource - InitializeNewRapidIterationParameters"), STAT_NiagaraEditor_ScriptSource_InitializeNewRapidIterationParameters, STATGROUP_NiagaraEditor);
 
@@ -734,3 +736,4 @@ void UNiagaraScriptSource::ReplaceScriptReferences(UNiagaraScript* OldScript, UN
 	}
 	NodeGraph->ReplaceScriptReferences(OldScript, NewScript);
 }
+

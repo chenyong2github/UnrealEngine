@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineConsoleVariableSetting)
+
 namespace UE
 {
 	namespace MoviePipeline
@@ -97,3 +99,4 @@ void UMoviePipelineConsoleVariableSetting::ApplyCVarSettings(const bool bOverrid
 		}
 	}
 }
+

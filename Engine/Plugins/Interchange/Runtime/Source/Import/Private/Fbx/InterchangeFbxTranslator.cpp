@@ -23,6 +23,8 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeFbxTranslator)
+
 static bool GInterchangeEnableFBXImport = false;
 static FAutoConsoleVariableRef CCvarInterchangeEnableFBXImport(
 	TEXT("Interchange.FeatureFlags.Import.FBX"),
@@ -657,3 +659,4 @@ FString UInterchangeFbxTranslator::CreateFetchAnimationBakeTransformPayloadFbxCo
 	UE::Interchange::FJsonFetchAnimationBakeTransformPayloadCmd PayloadCommand(TEXT("FBX"), FbxPayloadKey, BakeFrequency, RangeStartTime, RangeEndTime);
 	return PayloadCommand.ToJson();
 }
+

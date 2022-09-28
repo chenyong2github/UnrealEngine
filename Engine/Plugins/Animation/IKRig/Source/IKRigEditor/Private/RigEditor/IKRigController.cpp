@@ -9,6 +9,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigController)
+
 #define LOCTEXT_NAMESPACE "IKRigController"
 
 UIKRigController* UIKRigController::GetIKRigController(UIKRigDefinition* InIKRigDefinition)
@@ -1149,3 +1151,4 @@ void UIKRigController::BroadcastGoalsChange() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

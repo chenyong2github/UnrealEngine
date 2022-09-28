@@ -3,6 +3,8 @@
 #include "Dataflow/DataflowStaticMeshNodes.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowStaticMeshNodes)
+
 namespace Dataflow
 {
 	void RegisterStaticMeshNodes()

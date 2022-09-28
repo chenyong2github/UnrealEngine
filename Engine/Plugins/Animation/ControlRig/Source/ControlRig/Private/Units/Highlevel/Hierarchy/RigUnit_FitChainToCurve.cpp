@@ -3,6 +3,8 @@
 #include "Units/Highlevel/Hierarchy/RigUnit_FitChainToCurve.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_FitChainToCurve)
+
 FRigUnit_FitChainToCurve_Execute()
 {
 	if (Context.State == EControlRigState::Init)
@@ -473,3 +475,4 @@ FRigVMStructUpgradeInfo FRigUnit_FitChainToCurveItemArray::GetUpgradeInfo() cons
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

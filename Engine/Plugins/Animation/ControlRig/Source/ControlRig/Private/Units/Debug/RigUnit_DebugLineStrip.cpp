@@ -3,6 +3,8 @@
 #include "Units/Debug/RigUnit_DebugLineStrip.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DebugLineStrip)
+
 FRigUnit_DebugLineStrip_Execute()
 {
 	FRigUnit_DebugLineStripItemSpace::StaticExecute(
@@ -61,3 +63,4 @@ FRigUnit_DebugLineStripItemSpace_Execute()
 		Context.DrawInterface->DrawLineStrip(WorldOffset, TArrayView<const FVector>(Points.GetData(), Points.Num()), Color, Thickness);
 	}
 }
+

@@ -2,6 +2,8 @@
 
 #include "CompositeCameraShakePattern.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CompositeCameraShakePattern)
+
 void UCompositeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
 {
 	// We will manage our duration ourselves.
@@ -217,4 +219,5 @@ void UCompositeCameraShakePattern::TeardownShakePatternImpl()
 
 	ChildStates.Reset();
 }
+
 

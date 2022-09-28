@@ -6,6 +6,8 @@
 #include "Features/IModularFeatures.h"
 #include "Math/NumericLimits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTimeSynchronizationSource)
+
 ULiveLinkTimeSynchronizationSource::ULiveLinkTimeSynchronizationSource()
 {
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))

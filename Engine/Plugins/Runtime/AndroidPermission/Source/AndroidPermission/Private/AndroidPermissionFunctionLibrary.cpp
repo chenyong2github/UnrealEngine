@@ -4,6 +4,8 @@
 #include "AndroidPermission.h"
 #include "AndroidPermissionCallbackProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidPermissionFunctionLibrary)
+
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 
@@ -59,3 +61,4 @@ UAndroidPermissionCallbackProxy* UAndroidPermissionFunctionLibrary::AcquirePermi
 	return UAndroidPermissionCallbackProxy::GetInstance();
 #endif
 }
+

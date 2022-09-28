@@ -12,6 +12,8 @@
 #include "Textures/SlateIcon.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_MakeCurveExpressionMap)
+
 #define LOCTEXT_NAMESPACE "MakeCurveExpressionMap"
 
 // ---------------------------------------------------------------------------------------------
@@ -241,3 +243,4 @@ FText UK2Node_MakeCurveExpressionMap::GetMenuCategory() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

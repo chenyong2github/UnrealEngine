@@ -6,6 +6,8 @@
 #include "Engine/LocalPlayer.h"
 #include "OnlineSubsystemUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Chatroom)
+
 inline FString GetLocalUserNickName(UWorld* World, const FUniqueNetId& LocalUserId)
 {
 	check(World);
@@ -292,4 +294,5 @@ FTimerManager& UChatroom::GetTimerManager() const
 	check(World);
 	return World->GetTimerManager();
 }
+
 

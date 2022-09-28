@@ -5,6 +5,8 @@
 #include "SmartObjectSettings.h"
 #include "SmartObjectTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectDefinition)
+
 namespace UE::SmartObject
 {
 	const FVector DefaultSlotSize(40, 40, 90);
@@ -137,4 +139,5 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 
 	return BehaviorDefinition != nullptr ? *BehaviorDefinition : nullptr;
 }
+
 

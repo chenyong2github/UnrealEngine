@@ -6,6 +6,8 @@
 #include "IntMargin.h"
 #include "PaperTileSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileSetThumbnailRenderer)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperTileSetThumbnailRenderer
 
@@ -105,3 +107,4 @@ void UPaperTileSetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 		//@TODO: Looks very ugly: DrawShadowedStringZ(Canvas, X, Y + Height * 0.8f, 1.0f, TEXT("Tile\nSet"), GEngine->GetSmallFont(), FLinearColor::White);
 	}
 }
+

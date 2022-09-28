@@ -5,6 +5,8 @@
 
 #include "FractureToolContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolClusterCutter)
+
 #define LOCTEXT_NAMESPACE "FractureClustered"
 
 

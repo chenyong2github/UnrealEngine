@@ -13,6 +13,8 @@
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteComponent)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 //////////////////////////////////////////////////////////////////////////
@@ -394,3 +396,4 @@ void UPaperSpriteComponent::SetTransientTextureOverride(const UTexture* TextureT
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

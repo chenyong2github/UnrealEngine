@@ -2,6 +2,8 @@
 
 #include "WaterFalloffSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterFalloffSettings)
+
 FWaterFalloffSettings::FWaterFalloffSettings()
 	: FalloffMode(EWaterBrushFalloffMode::Angle)
 	, FalloffAngle(45.0f)
@@ -10,3 +12,4 @@ FWaterFalloffSettings::FWaterFalloffSettings()
 	, ZOffset(0)
 {
 }
+

@@ -12,6 +12,8 @@
 #include "WaterSplineComponent.h"
 #include "WaterWaves.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyActorFactory)
+
 #define LOCTEXT_NAMESPACE "WaterBodyActorFactory"
 
 // --------------------------------------------------

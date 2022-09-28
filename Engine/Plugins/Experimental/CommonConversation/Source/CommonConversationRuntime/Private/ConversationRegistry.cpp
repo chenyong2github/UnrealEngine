@@ -13,6 +13,8 @@
 #include "Engine/StreamableManager.h"
 #include "GameFeaturesSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationRegistry)
+
 //======================================================================================
 
 TSharedPtr<FConversationsHandle> FConversationsHandle::Create(const UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags)

@@ -13,6 +13,8 @@
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpotLightGizmo)
+
 #define LOCTEXT_NAMESPACE "USpotLightGizmo"
 
 // USpotLightGizmoBuilder

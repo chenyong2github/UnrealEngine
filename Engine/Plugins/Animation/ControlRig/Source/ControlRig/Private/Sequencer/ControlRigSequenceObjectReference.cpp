@@ -3,6 +3,8 @@
 #include "Sequencer/ControlRigSequenceObjectReference.h"
 #include "ControlRig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequenceObjectReference)
+
 FControlRigSequenceObjectReference FControlRigSequenceObjectReference::Create(UControlRig* InControlRig)
 {
 	check(InControlRig);
@@ -41,3 +43,4 @@ void FControlRigSequenceObjectReferenceMap::CreateBinding(const FGuid& ObjectId,
 
 	References[ExistingIndex].Array.AddUnique(ObjectReference);
 }
+

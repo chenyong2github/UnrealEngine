@@ -5,6 +5,8 @@
 #include "QosBeaconClient.h"
 #include "OnlineSubsystemUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(QosBeaconHost)
+
 AQosBeaconHost::AQosBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	SessionName(NAME_None),
@@ -63,3 +65,4 @@ void AQosBeaconHost::DumpState() const
 	UE_LOG(LogBeacon, Display, TEXT("Session that beacon is for: %s"), *SessionName.ToString());
 	UE_LOG(LogBeacon, Display, TEXT("Number of Qos requests: %d"), NumQosRequests);
 }
+

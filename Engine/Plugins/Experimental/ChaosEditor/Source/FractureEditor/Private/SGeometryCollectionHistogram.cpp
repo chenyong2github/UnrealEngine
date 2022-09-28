@@ -13,6 +13,8 @@
 #include "FractureEditorMode.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SGeometryCollectionHistogram)
+
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
 
@@ -408,3 +410,4 @@ TSharedRef<ITableRow> SGeometryCollectionHistogram::MakeHistogramRowWidget(FGeom
 
 
 #undef LOCTEXT_NAMESPACE
+

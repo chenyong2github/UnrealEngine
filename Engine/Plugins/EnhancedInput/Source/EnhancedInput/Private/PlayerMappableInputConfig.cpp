@@ -3,6 +3,8 @@
 #include "PlayerMappableInputConfig.h"
 #include "InputMappingContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMappableInputConfig)
+
 #define LOCTEXT_NAMESPACE "PlayerMappableInputConfig"
 
 UPlayerMappableInputConfig::UPlayerMappableInputConfig(const FObjectInitializer& ObjectInitializer)
@@ -128,3 +130,4 @@ TArray<FEnhancedActionKeyMapping> UPlayerMappableInputConfig::GetKeysBoundToActi
 }
 
 #undef LOCTEXT_NAMESPACE
+

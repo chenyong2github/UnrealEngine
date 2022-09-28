@@ -6,6 +6,8 @@
 #include "Interfaces/IAudioGameplayVolumeInteraction.h"
 #include "AudioDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeComponent)
+
 UAudioGameplayVolumeComponent::UAudioGameplayVolumeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -136,3 +138,4 @@ UAudioGameplayVolumeComponentBase::UAudioGameplayVolumeComponentBase(const FObje
 {
 	bAutoActivate = true;
 }
+

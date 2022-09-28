@@ -5,6 +5,8 @@
 #include "Input/UIActionRouterTypes.h"
 #include "CommonActionWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionButton)
+
 #define LOCTEXT_NAMESPACE "CommonBoundActionButton"
 
 void UCommonBoundActionButton::SetRepresentedAction(FUIActionBindingHandle InBindingHandle)

@@ -8,6 +8,8 @@
 #include "OnlineStats.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LeaderboardBlueprintLibrary)
+
 //////////////////////////////////////////////////////////////////////////
 // ULeaderboardBlueprintLibrary
 
@@ -71,3 +73,4 @@ bool ULeaderboardBlueprintLibrary::WriteLeaderboardInteger(APlayerController* Pl
 
 	return WriteLeaderboardObject(PlayerController, WriteObject);
 }
+

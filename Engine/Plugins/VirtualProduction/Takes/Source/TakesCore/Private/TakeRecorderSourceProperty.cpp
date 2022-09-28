@@ -3,6 +3,8 @@
 #include "TakeRecorderSourceProperty.h"
 #include "Algo/Accumulate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderSourceProperty)
+
 void UActorRecorderPropertyMap::PostEditUndo()
 {
 	Super::PostEditUndo();
@@ -53,3 +55,4 @@ void UActorRecorderPropertyMap::ChildChanged()
 		Parent->ChildChanged();
 	}
 }
+

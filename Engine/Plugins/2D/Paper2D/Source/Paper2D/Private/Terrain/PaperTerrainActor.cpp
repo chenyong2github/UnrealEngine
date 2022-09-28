@@ -5,6 +5,8 @@
 #include "PaperTerrainSplineComponent.h"
 #include "PaperTerrainMaterial.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTerrainActor)
+
 //////////////////////////////////////////////////////////////////////////
 // APaperTerrainActor
 
@@ -33,3 +35,4 @@ bool APaperTerrainActor::GetReferencedContentObjects(TArray<UObject*>& Objects) 
 	return true;
 }
 #endif
+

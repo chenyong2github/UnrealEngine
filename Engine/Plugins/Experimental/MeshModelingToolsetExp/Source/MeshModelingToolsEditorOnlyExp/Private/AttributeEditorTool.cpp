@@ -23,6 +23,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AttributeEditorTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UAttributeEditorTool"
@@ -863,3 +865,4 @@ FString FAttributeEditor_AttributeListsChange::ToString() const
 
 
 #undef LOCTEXT_NAMESPACE
+

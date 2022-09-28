@@ -4,6 +4,8 @@
 #include "EditorModeManager.h"
 #include "EditMode/ControlRigEditMode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigEditModeSettings)
+
 void UControlRigEditModeSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
@@ -33,4 +35,5 @@ void UControlRigEditModeSettings::PostEditUndo()
 	Tools.SetWidgetScale(GizmoScale);
 }
 #endif
+
 

@@ -9,6 +9,8 @@
 
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSubSection)
+
 
 UMovieSceneLiveLinkSubSection::UMovieSceneLiveLinkSubSection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -55,3 +57,4 @@ void UMovieSceneLiveLinkSubSection::PostLoad()
 {
 	Super::PostLoad();
 }
+

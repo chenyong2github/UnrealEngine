@@ -8,6 +8,8 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/LevelScriptActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionSettings)
+
 #if WITH_EDITOR
 void UNetworkPredictionSettingsObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

@@ -3,6 +3,8 @@
 #include "IKRigDataTypes.h"
 #include "IKRigDefinition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigDataTypes)
+
 void FIKRigGoalContainer::SetIKGoal(const FIKRigGoal& InGoal)
 {
 	FIKRigGoal* Goal = FindGoalWriteable(InGoal.Name);
@@ -61,3 +63,4 @@ FIKRigGoal* FIKRigGoalContainer::FindGoalWriteable(const FName& GoalName) const
 {
 	return const_cast<FIKRigGoal*>(FindGoalByName(GoalName));
 }
+

@@ -10,6 +10,8 @@
 #include "NiagaraCrashReporterHandler.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraComponentPool)
+
 static float GNiagaraSystemPoolKillUnusedTime = 180.0f;
 static FAutoConsoleVariableRef NiagaraSystemPoolKillUnusedTime(
 	TEXT("FX.NiagaraComponentPool.KillUnusedTime"),
@@ -605,3 +607,4 @@ void UNiagaraComponentPool::Dump()
 
 #endif
 }
+

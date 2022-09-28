@@ -12,6 +12,8 @@
 #include "AssetEditorModeManager.h"
 #include "UVEditorMode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditor)
+
 void UUVEditor::Initialize(const TArray<TObjectPtr<UObject>>& InObjects)
 {
 	// Make sure we have valid targets.
@@ -43,3 +45,4 @@ TSharedPtr<FBaseAssetToolkit> UUVEditor::CreateToolkit()
 
 	return Toolkit;
 }
+

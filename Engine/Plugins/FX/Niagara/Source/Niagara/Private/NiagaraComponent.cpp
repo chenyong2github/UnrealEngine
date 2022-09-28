@@ -21,6 +21,8 @@
 #include "Engine/StaticMesh.h"
 #include "NiagaraCullProxyComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraComponent)
+
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Activate (GT)"), STAT_NiagaraComponentActivate, STATGROUP_Niagara);
@@ -3755,3 +3757,4 @@ void UNiagaraComponent::CancelAutoAttachment(bool bDetachFromParent)
 		}
 	}
 }
+

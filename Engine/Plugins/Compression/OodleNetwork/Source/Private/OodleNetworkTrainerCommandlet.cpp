@@ -10,6 +10,8 @@
 #include "Misc/App.h"
 #include "UObject/CoreNet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OodleNetworkTrainerCommandlet)
+
 
 #define LOCTEXT_NAMESPACE "Oodle"
 
@@ -1256,4 +1258,5 @@ void FOodleNetworkDictionaryGenerator::Cleanup()
 #endif // !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 
 #undef LOCTEXT_NAMESPACE
+
 

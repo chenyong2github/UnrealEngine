@@ -18,6 +18,8 @@
 #include "Dialogs/Dialogs.h"
 #include "SKismetInspector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigDrawingDetails)
+
 #define LOCTEXT_NAMESPACE "ControlRigDrawingDetails"
 
 void FControlRigDrawContainerDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -336,3 +338,4 @@ void FControlRigDrawContainerDetails::ImportCurvesFromFBX(const FString& InFileP
 
 
 #undef LOCTEXT_NAMESPACE
+

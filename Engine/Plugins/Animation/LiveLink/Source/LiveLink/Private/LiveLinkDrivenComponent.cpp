@@ -7,6 +7,8 @@
 
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkDrivenComponent)
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDEPRECATED_LiveLinkDrivenComponent::UDEPRECATED_LiveLinkDrivenComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -18,6 +18,8 @@
 #include "ToolActivities/PolyEditActivityUtil.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyEditInsetOutsetActivity)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPolyEditInsetOutsetActivity"
@@ -267,3 +269,4 @@ bool UPolyEditInsetOutsetActivity::OnUpdateHover(const FInputDeviceRay& DevicePo
 }
 
 #undef LOCTEXT_NAMESPACE
+

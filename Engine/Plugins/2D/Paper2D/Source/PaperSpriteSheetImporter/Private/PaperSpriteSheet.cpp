@@ -3,6 +3,8 @@
 #include "PaperSpriteSheet.h"
 #include "EditorFramework/AssetImportData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteSheet)
+
 UPaperSpriteSheet::UPaperSpriteSheet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -40,3 +42,4 @@ void UPaperSpriteSheet::Serialize(FArchive& Ar)
 	}
 }
 #endif
+

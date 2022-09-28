@@ -3,6 +3,8 @@
 #include "GeometryScript/ListUtilityFunctions.h"
 #include "VectorTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ListUtilityFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_ListUtilityFunctions"

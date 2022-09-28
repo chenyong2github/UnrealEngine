@@ -3,6 +3,8 @@
 #include "GameplayPrediction.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayPrediction)
+
 /** The key to understanding this function is that when a key is received by the server, we note which connection gave it to us. We only serialize the key back to that client.  */
 bool FPredictionKey::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
@@ -379,3 +381,4 @@ FString FReplicatedPredictionKeyMap::GetDebugString() const
 
 	return HighKey.ToString();
 }
+

@@ -5,6 +5,8 @@
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkBasicRole.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkSettings)
+
 FLiveLinkRoleProjectSetting::FLiveLinkRoleProjectSetting()
 	: SettingClass(ULiveLinkSubjectSettings::StaticClass())
 {}
@@ -57,3 +59,4 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif //WITH_EDITOR
 }
+

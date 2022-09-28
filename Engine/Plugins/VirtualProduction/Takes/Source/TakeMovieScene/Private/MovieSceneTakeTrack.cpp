@@ -3,6 +3,8 @@
 #include "MovieSceneTakeTrack.h"
 #include "MovieSceneTakeSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTakeTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneTakeTrack"
 
 
@@ -69,5 +71,6 @@ FText UMovieSceneTakeTrack::GetDefaultDisplayName() const
 #endif
 
 #undef LOCTEXT_NAMESPACE
+
 
 

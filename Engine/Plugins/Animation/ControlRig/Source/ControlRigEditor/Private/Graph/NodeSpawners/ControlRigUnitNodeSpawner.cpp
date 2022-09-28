@@ -23,6 +23,8 @@
 #include "Units/Execution/RigUnit_InteractionExecution.h"
 #include "Units/Execution/RigUnit_UserDefinedEvent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigUnitNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "SGraphActionMenu.h"
@@ -431,3 +433,4 @@ void UControlRigUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, UCon
 }
 
 #undef LOCTEXT_NAMESPACE
+

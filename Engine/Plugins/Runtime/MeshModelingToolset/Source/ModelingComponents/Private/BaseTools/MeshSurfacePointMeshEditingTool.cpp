@@ -10,6 +10,8 @@
 #include "TargetInterfaces/MaterialProvider.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSurfacePointMeshEditingTool)
+
 
 /*
  * ToolBuilder
@@ -30,5 +32,6 @@ UMeshSurfacePointTool* UMeshSurfacePointMeshEditingToolBuilder::CreateNewTool(co
 {
 	return NewObject<UMeshSurfacePointTool>(SceneState.ToolManager);
 }
+
 
 

@@ -8,6 +8,8 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceTexture)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceTexture"
 
 const TCHAR* UNiagaraDataInterfaceTexture::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceTextureTemplate.ush");
@@ -463,3 +465,4 @@ void UNiagaraDataInterfaceTexture::SetTexture(UTexture* InTexture)
 }
 
 #undef LOCTEXT_NAMESPACE
+

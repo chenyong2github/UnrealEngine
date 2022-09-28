@@ -11,6 +11,8 @@
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFactoryGeometryCollection)
+
 #define LOCTEXT_NAMESPACE "ActorFactoryGeometryCollection"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionFactories, Log, All);

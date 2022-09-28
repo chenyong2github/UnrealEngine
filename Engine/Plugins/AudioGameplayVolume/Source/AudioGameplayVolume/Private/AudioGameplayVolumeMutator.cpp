@@ -4,6 +4,8 @@
 #include "AudioGameplayVolumeListener.h"
 #include "AudioGameplayVolumeSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeMutator)
+
 FAudioProxyActiveSoundParams::FAudioProxyActiveSoundParams(const FAudioGameplayActiveSoundInfo& SoundInfo, const FAudioGameplayVolumeListener& InListener)
 	: SourceInteriorVolume(SoundInfo.SourceInteriorVolume)
 	, SourceInteriorLPF(SoundInfo.SourceInteriorLPF)
@@ -186,3 +188,4 @@ void UAudioGameplayVolumeMutator::CopyAudioDataToMutatorBase(TSharedPtr<FProxyVo
 
 	CopyAudioDataToMutator(Mutator);
 }
+

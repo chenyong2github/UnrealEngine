@@ -6,6 +6,8 @@
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFactoryGeometryCache)
+
 UActorFactoryGeometryCache::UActorFactoryGeometryCache(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -57,3 +59,4 @@ void UActorFactoryGeometryCache::PostCreateBlueprint(UObject* Asset, AActor* CDO
 		GeometryCacheComponent->GeometryCache = GeometryCache;
 	}
 }
+

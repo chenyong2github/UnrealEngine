@@ -15,6 +15,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameplayTagsEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryIdCustomization)
+
 #define LOCTEXT_NAMESPACE "DataRegistryEditor"
 
 FText FDataRegistryIdEditWrapper::GetPreviewDescription() const
@@ -369,3 +371,4 @@ FText FDataRegistryIdCustomization::OnGetNameValueText() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

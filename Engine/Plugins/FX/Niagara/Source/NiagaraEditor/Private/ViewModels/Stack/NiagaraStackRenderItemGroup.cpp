@@ -16,6 +16,8 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackRenderItemGroup)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackRenderItemGroup"
 
 class FRenderItemGroupAddAction : public INiagaraStackItemGroupAddAction
@@ -222,4 +224,5 @@ void UNiagaraStackRenderItemGroup::FinalizeInternal()
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

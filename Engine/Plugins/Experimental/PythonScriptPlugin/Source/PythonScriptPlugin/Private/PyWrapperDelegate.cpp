@@ -13,6 +13,8 @@
 #include "UObject/StructOnScope.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PyWrapperDelegate)
+
 const FName UPythonCallableForDelegate::GeneratedFuncName = "CallPython";
 
 DEFINE_FUNCTION(UPythonCallableForDelegate::CallPythonNative)
@@ -1262,3 +1264,4 @@ void FPyWrapperMulticastDelegateMetaData::AddReferencedObjects(FPyWrapperBase* I
 }
 
 #endif	// WITH_PYTHON
+

@@ -14,6 +14,8 @@
 #include "UVEditorToolAnalyticsUtils.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorLayoutTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVEditorLayoutTool"
@@ -247,3 +249,4 @@ void UUVEditorLayoutTool::RecordAnalytics()
 }
 
 #undef LOCTEXT_NAMESPACE
+

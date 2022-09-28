@@ -8,6 +8,8 @@
 #include "DataRegistrySubsystem.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_DataRegistrySource)
+
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
 void UGameFeatureAction_DataRegistrySource::OnGameFeatureRegistering()
@@ -256,3 +258,4 @@ EDataValidationResult UGameFeatureAction_DataRegistrySource::IsDataValid(TArray<
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeInstanceData.h"
 #include "UObject/UnrealType.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeInstanceData)
 
 //----------------------------------------------------------------//
 //  FStateTreeInstanceData
@@ -180,3 +182,4 @@ void FStateTreeInstanceData::Reset()
 	InstanceStructs.Reset();
 	InstanceObjects.Reset();
 }
+

@@ -15,6 +15,8 @@
 #include "ShaderParameterUtils.h"
 #include "Misc/LargeWorldRenderPosition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceExport)
+
 namespace NDIExportLocal
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
@@ -550,3 +552,4 @@ bool UNiagaraDataInterfaceExport::CopyToInternal(UNiagaraDataInterface* Destinat
 	OtherTyped->GPUAllocationPerParticleSize = GPUAllocationPerParticleSize;
 	return true;
 }
+

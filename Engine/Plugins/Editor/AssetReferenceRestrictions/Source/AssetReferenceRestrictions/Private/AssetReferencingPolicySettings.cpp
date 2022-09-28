@@ -5,6 +5,8 @@
 #include "AssetReferencingPolicySubsystem.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetReferencingPolicySettings)
+
 const FString UAssetReferencingPolicySettings::EngineDomainName(TEXT("EngineContent"));
 const FString UAssetReferencingPolicySettings::ScriptDomainName(TEXT("Script"));
 const FString UAssetReferencingPolicySettings::GameDomainName(TEXT("ProjectContent"));
@@ -65,4 +67,5 @@ TArray<FString> UAssetReferencingPolicySettings::GetListOfDomains(bool bAllowPlu
 
 	return Result;
 }
+
 

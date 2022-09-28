@@ -10,6 +10,8 @@
 #include "Sound/SoundNodeModulator.h"
 #include "Sound/SoundNodeWavePlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueDistanceCrossfade)
+
 #if WITH_EDITOR
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -131,3 +133,4 @@ void FSoundCueDistanceCrossfadeDetailCustomization::Register(FPropertyEditorModu
 }
 #undef LOCTEXT_NAMESPACE
 #endif // WITH_EDITOR
+

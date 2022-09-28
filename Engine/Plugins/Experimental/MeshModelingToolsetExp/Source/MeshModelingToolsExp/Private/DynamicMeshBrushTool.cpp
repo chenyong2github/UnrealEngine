@@ -6,6 +6,8 @@
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicMeshBrushTool)
+
 using namespace UE::Geometry;
 
 // localization namespace
@@ -87,3 +89,4 @@ bool UDynamicMeshBrushTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 
 
 #undef LOCTEXT_NAMESPACE
+

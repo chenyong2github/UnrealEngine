@@ -2,6 +2,8 @@
 
 #include "HLODBuilderInstancing.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilderInstancing)
+
 
 UHLODBuilderInstancing::UHLODBuilderInstancing(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -12,3 +14,4 @@ TArray<UActorComponent*> UHLODBuilderInstancing::Build(const FHLODBuildContext& 
 {
 	return UHLODBuilder::BatchInstances(InSourceComponents);
 }
+

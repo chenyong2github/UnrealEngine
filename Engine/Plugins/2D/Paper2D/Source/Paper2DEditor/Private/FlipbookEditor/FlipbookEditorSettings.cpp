@@ -2,6 +2,8 @@
 
 #include "FlipbookEditor/FlipbookEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FlipbookEditorSettings)
+
 //////////////////////////////////////////////////////////////////////////
 // UFlipbookEditorSettings
 
@@ -10,3 +12,4 @@ UFlipbookEditorSettings::UFlipbookEditorSettings()
 	, bShowGridByDefault(false)
 {
 }
+

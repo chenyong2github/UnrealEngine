@@ -11,6 +11,8 @@
 
 #include "Algo/Accumulate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TriangleSetComponent)
+
 struct FTriangleSetMeshBatchData
 {
 	FTriangleSetMeshBatchData()

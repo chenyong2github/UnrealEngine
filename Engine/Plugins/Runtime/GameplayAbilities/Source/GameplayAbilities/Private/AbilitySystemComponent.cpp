@@ -17,6 +17,8 @@
 #include "TimerManager.h"
 #include "Net/Core/PushModel/PushModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemComponent)
+
 DEFINE_LOG_CATEGORY(LogAbilitySystemComponent);
 
 DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp ApplyGameplayEffectSpecToTarget"), STAT_AbilitySystemComp_ApplyGameplayEffectSpecToTarget, STATGROUP_AbilitySystem);
@@ -3059,3 +3061,4 @@ const FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetReplicatedLoos
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
+

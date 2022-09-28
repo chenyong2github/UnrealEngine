@@ -8,6 +8,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingObjectsCreationAPI)
+
 
 
 void FCreateMeshObjectParams::SetMesh(FMeshDescription&& MeshDescriptionIn)

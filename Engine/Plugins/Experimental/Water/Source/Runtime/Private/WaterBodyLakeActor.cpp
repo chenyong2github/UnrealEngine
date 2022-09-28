@@ -5,6 +5,8 @@
 #include "LakeCollisionComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyLakeActor)
+
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #endif
@@ -48,3 +50,4 @@ UDEPRECATED_LakeGenerator::UDEPRECATED_LakeGenerator(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 }
+

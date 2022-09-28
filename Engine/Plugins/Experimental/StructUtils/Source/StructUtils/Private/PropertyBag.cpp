@@ -6,6 +6,8 @@
 #include "Misc/Guid.h"
 #include "UObject/TextProperty.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyBag)
+
 struct STRUCTUTILS_API FPropertyBagCustomVersion
 {
 	enum Type
@@ -2008,3 +2010,4 @@ const FPropertyBagPropertyDesc* UPropertyBag::FindPropertyDescByName(const FName
 {
 	return PropertyDescs.FindByPredicate([&Name](const FPropertyBagPropertyDesc& Desc) { return Desc.Name == Name; });
 }
+

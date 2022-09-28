@@ -4,6 +4,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "PartyBeaconHost.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PartyBeaconClient)
+
 #if !UE_BUILD_SHIPPING
 namespace BeaconConsoleVariables
 {
@@ -630,3 +632,4 @@ FTimerHandle APartyBeaconClient::DelayResponse(FTimerDelegate& Delegate, float D
 
 	return TimerHandle;
 }
+

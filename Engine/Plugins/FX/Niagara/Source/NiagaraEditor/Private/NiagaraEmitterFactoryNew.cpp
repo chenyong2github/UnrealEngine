@@ -19,6 +19,8 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Application/SlateApplication.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEmitterFactoryNew)
+
 #define LOCTEXT_NAMESPACE "NiagaraEmitterFactory"
 
 UNiagaraEmitterFactoryNew::UNiagaraEmitterFactoryNew(const FObjectInitializer& ObjectInitializer)
@@ -225,3 +227,4 @@ void UNiagaraEmitterFactoryNew::InitializeEmitter(UNiagaraEmitter* NewEmitter, b
 }
 
 #undef LOCTEXT_NAMESPACE
+

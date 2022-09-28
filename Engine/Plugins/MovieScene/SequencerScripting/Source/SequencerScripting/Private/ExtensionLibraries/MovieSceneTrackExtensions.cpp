@@ -4,6 +4,8 @@
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTrackExtensions)
+
 void UMovieSceneTrackExtensions::SetDisplayName(UMovieSceneTrack* Track, const FText& InName)
 {
 	if (!Track)
@@ -186,5 +188,6 @@ void UMovieSceneTrackExtensions::SetSectionToKey(UMovieSceneTrack* Track, UMovie
 
 	Track->SetSectionToKey(Section); 
 }
+
 
 

@@ -11,6 +11,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneTimeHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVisibilityTrackRecorder)
+
 static const FName ActorVisibilityTrackName = TEXT("bHidden");
 static const FName ComponentVisibilityTrackName = TEXT("bHiddenInGame");
 
@@ -217,3 +219,4 @@ bool UMovieSceneVisibilityTrackRecorder::IsObjectVisible() const
 	
 	return bVisible;
 }
+

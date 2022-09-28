@@ -5,6 +5,8 @@
 #include "SocialToolkit.h"
 #include "Chat/SocialChatManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialReadOnlyChatChannel)
+
 void USocialReadOnlyChatChannel::Initialize(USocialUser* InSocialUser, const FChatRoomId& InChannelId, ESocialChannelType InSourceChannelType)
 {
 	SetChannelType(ESocialChannelType::General);

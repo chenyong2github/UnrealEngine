@@ -4,6 +4,8 @@
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandmassActor)
+
 
 ALandmassActor::ALandmassActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -66,3 +68,4 @@ void ALandmassActor::ActorSelectionChanged_Implementation(bool bSelected)
 {
 
 }
+

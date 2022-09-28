@@ -7,6 +7,8 @@
 #include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSubSectionBasicRole)
+
 #define LOCTEXT_NAMESPACE "MovieSceneLiveLinkSubSectionBasicRole"
 
 
@@ -88,3 +90,4 @@ bool UMovieSceneLiveLinkSubSectionBasicRole::IsRoleSupported(const TSubclassOf<U
 }
 
 #undef LOCTEXT_NAMESPACE // MovieSceneLiveLinkSubSectionBasicRole
+

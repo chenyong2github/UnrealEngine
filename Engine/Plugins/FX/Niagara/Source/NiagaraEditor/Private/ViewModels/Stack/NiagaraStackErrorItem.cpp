@@ -3,6 +3,8 @@
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "NiagaraStackEditorData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackErrorItem)
+
 #define LOCTEXT_NAMESPACE "NiagaraStackErrorItem"
 //UNiagaraStackErrorItem
 

@@ -3,6 +3,8 @@
 #include "GameplayAbilitySet.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilitySet)
+
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
@@ -27,3 +29,4 @@ void UGameplayAbilitySet::GiveAbilities(UAbilitySystemComponent* AbilitySystemCo
 		}
 	}
 }
+

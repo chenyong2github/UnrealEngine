@@ -11,6 +11,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperGroupedSpriteComponent)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 //////////////////////////////////////////////////////////////////////////
@@ -620,3 +622,4 @@ void UPaperGroupedSpriteComponent::SortInstancesAlongAxis(FVector WorldSpaceSort
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

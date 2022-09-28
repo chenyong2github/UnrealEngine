@@ -3,6 +3,8 @@
 #include "RigUnit_Vector.h"
 #include "Units/Math/RigUnit_MathVector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Vector)
+
 FRigUnit_Multiply_VectorVector_Execute()
 {
 	Result = FRigMathLibrary::Multiply(Argument0, Argument1);

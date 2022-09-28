@@ -5,6 +5,9 @@
 #include "VisualLogger/VisualLogger.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/CoreDelegates.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassEntitySettings)
+
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
 #include "CoreGlobals.h"
@@ -203,3 +206,4 @@ void UMassEntitySettings::PostEditChangeChainProperty(struct FPropertyChangedCha
 	}
 }
 #endif // WITH_EDITOR
+

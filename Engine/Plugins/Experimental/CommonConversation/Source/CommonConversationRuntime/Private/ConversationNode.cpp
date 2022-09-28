@@ -8,6 +8,8 @@
 #include "BlueprintNodeHelpers.h"
 #include "ConversationDatabase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationNode)
+
 #define LOCTEXT_NAMESPACE "ConversationGraph"
 
 //////////////////////////////////////////////////////////////////////

@@ -4,6 +4,8 @@
 #include "ModelingObjectsCreationAPI.h"
 #include "ModelingComponentsSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CreateMeshObjectTypeProperties)
+
 
 const FString UCreateMeshObjectTypeProperties::StaticMeshIdentifier = TEXT("Static Mesh");
 const FString UCreateMeshObjectTypeProperties::VolumeIdentifier = TEXT("Volume");
@@ -135,3 +137,4 @@ bool UCreateMeshObjectTypeProperties::ConfigureCreateMeshObjectParams(FCreateMes
 	}
 	return false;
 }
+

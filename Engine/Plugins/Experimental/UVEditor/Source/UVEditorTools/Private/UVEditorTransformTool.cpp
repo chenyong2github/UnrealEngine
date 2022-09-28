@@ -16,6 +16,8 @@
 #include "CanvasTypes.h"
 #include "Engine/Canvas.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorTransformTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVEditorTransformTool"
@@ -445,3 +447,4 @@ void UUVEditorTransformTool::RecordAnalytics()
 }
 
 #undef LOCTEXT_NAMESPACE
+

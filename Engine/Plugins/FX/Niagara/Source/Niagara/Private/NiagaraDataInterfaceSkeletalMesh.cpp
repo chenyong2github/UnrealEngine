@@ -24,6 +24,8 @@
 #include "ShaderParameterUtils.h"
 #include "ShaderCore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSkeletalMesh)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh"
 
 DECLARE_CYCLE_STAT(TEXT("PreSkin"), STAT_NiagaraSkel_PreSkin, STATGROUP_Niagara);

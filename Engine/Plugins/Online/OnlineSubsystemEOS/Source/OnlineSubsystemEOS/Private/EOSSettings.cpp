@@ -9,6 +9,8 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EOSSettings)
+
 #if WITH_EDITOR
 	#include "Misc/MessageDialog.h"
 #endif
@@ -403,3 +405,4 @@ void UEOSSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

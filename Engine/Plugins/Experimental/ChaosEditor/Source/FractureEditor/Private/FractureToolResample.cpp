@@ -9,6 +9,8 @@
 #include "FractureEditorModeToolkit.h"
 #include "FractureToolContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolResample)
+
 #define LOCTEXT_NAMESPACE "FractureResample"
 
 

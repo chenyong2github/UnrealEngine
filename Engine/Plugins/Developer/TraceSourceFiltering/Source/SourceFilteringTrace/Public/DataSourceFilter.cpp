@@ -3,6 +3,8 @@
 #include "DataSourceFilter.h"
 #include "SourceFilterTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataSourceFilter)
+
 UDataSourceFilter::UDataSourceFilter() : bIsEnabled(true)
 {
 
@@ -46,3 +48,4 @@ bool UDataSourceFilter::DoesActorPassFilter_Internal(const AActor* InActor) cons
 {
 	return true;
 }
+

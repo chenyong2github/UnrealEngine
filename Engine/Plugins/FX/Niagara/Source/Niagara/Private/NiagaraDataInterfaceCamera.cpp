@@ -13,6 +13,8 @@
 #include "GameFramework/PlayerController.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCamera)
+
 #if WITH_EDITORONLY_DATA
 #include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
@@ -561,3 +563,4 @@ bool UNiagaraDataInterfaceCamera::Equals(const UNiagaraDataInterface* Other) con
 }
 
 #undef LOCTEXT_NAMESPACE
+

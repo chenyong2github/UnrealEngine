@@ -4,6 +4,8 @@
 #include "NiagaraComponent.h"
 #include "Particles/FXBudget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScalabilityManager)
+
 static float GScalabilityUpdateTime_Low = 1.0f;
 static float GScalabilityUpdateTime_Medium = 0.5f;
 static float GScalabilityUpdateTime_High = 0.25f;
@@ -714,3 +716,4 @@ void FNiagaraScalabilityManager::CSVProfilerUpdate(FCsvProfiler* CSVProfiler)
 	CSVProfiler->RecordCustomStat(Budget, CSV_CATEGORY_INDEX(Particles), NumByBudget, ECsvCustomStatOp::Accumulate);
 }
 #endif
+

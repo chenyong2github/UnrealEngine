@@ -1,8 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Conditions/StateTreeGameplayTagConditions.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeExecutionContext.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeGameplayTagConditions)
 
 #if WITH_EDITOR
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
@@ -94,3 +96,4 @@ bool FGameplayTagQueryCondition::TestCondition(FStateTreeExecutionContext& Conte
 #if WITH_EDITOR
 #undef LOCTEXT_NAMESPACE
 #endif // WITH_EDITOR
+

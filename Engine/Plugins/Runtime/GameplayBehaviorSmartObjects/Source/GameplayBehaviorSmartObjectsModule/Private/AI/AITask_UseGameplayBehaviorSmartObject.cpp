@@ -15,6 +15,8 @@
 #include "GameplayBehaviorSmartObjectBehaviorDefinition.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AITask_UseGameplayBehaviorSmartObject)
+
 
 UAITask_UseGameplayBehaviorSmartObject::UAITask_UseGameplayBehaviorSmartObject(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -300,3 +302,4 @@ void UAITask_UseGameplayBehaviorSmartObject::OnSmartObjectBehaviorFinished(UGame
 		EndTask();
 	}
 }
+

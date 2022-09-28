@@ -5,6 +5,8 @@
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Tracks/MovieSceneObjectPropertyTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePropertyTrackExtensions)
+
 void UMovieScenePropertyTrackExtensions::SetPropertyNameAndPath(UMovieScenePropertyTrack* Track, const FName& InPropertyName, const FString& InPropertyPath)
 {
 	if (!Track)
@@ -97,5 +99,6 @@ UEnum* UMovieScenePropertyTrackExtensions::GetByteTrackEnum(UMovieSceneByteTrack
 
 	return Track->GetEnum();
 }
+
 
 

@@ -14,6 +14,8 @@
 #include "SceneManagement.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightGizmo)
+
 #define LOCTEXT_NAMESPACE "UDirectionalLightGizmo"
 
 

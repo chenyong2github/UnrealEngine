@@ -1,8 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
 #include "StateTreeExecutionContext.h"
 #include "BlueprintNodeHelpers.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeEvaluatorBlueprintBase)
 
 //----------------------------------------------------------------------//
 //  UStateTreeEvaluatorBlueprintBase
@@ -67,3 +69,4 @@ void FStateTreeBlueprintEvaluatorWrapper::Tick(FStateTreeExecutionContext& Conte
 	check(Instance);
 	Instance->Tick(Context, DeltaTime);
 }
+

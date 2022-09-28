@@ -34,6 +34,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/DynamicMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeMeshAttributeMapsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsTool"
@@ -819,3 +821,4 @@ void UBakeMeshAttributeMapsTool::GatherAnalytics(FBakeAnalytics::FMeshSettings& 
 
 
 #undef LOCTEXT_NAMESPACE
+

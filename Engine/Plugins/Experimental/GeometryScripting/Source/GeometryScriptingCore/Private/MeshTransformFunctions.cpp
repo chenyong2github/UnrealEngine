@@ -7,6 +7,8 @@
 #include "Async/ParallelFor.h"
 #include "UDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshTransformFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshTransformFunctions"
@@ -259,3 +261,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshTransformFunctions::ScaleMeshSelection(
 
 
 #undef LOCTEXT_NAMESPACE
+

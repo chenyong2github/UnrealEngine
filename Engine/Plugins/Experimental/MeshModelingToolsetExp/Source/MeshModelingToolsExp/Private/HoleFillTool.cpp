@@ -17,6 +17,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HoleFillTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UHoleFillTool"
@@ -455,3 +457,4 @@ void UHoleFillTool::GetLoopsToFill(TArray<FEdgeLoop>& OutLoops) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

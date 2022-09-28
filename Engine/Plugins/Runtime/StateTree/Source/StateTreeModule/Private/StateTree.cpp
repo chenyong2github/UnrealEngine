@@ -10,6 +10,8 @@
 #include "StateTreeDelegates.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree)
+
 const FGuid FStateTreeCustomVersion::GUID(0x28E21331, 0x501F4723, 0x8110FA64, 0xEA10DA1E);
 FCustomVersionRegistration GRegisterStateTreeCustomVersion(FStateTreeCustomVersion::GUID, FStateTreeCustomVersion::LatestVersion, TEXT("StateTreeAsset"));
 
@@ -496,3 +498,4 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 	return MemoryUsages;
 }
 #endif // WITH_EDITOR
+

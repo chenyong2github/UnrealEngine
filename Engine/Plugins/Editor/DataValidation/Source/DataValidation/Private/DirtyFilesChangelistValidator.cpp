@@ -10,6 +10,8 @@
 #include "ISourceControlProvider.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DirtyFilesChangelistValidator)
+
 #define LOCTEXT_NAMESPACE "DirtyFilesChangelistValidation"
 
 FString UDirtyFilesChangelistValidator::GetPackagePath(const UPackage* InPackage)
@@ -72,3 +74,4 @@ EDataValidationResult UDirtyFilesChangelistValidator::ValidateLoadedAsset_Implem
 }
 
 #undef LOCTEXT_NAMESPACE
+

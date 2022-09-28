@@ -20,6 +20,8 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Evaluation/MovieScenePlayback.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequence)
+
 IMPLEMENT_MODULE(FDefaultModuleImpl, TemplateSequence);
 
 DEFINE_LOG_CATEGORY(LogTemplateSequence);
@@ -291,3 +293,4 @@ void UTemplateSequence::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTa
 }
 
 #endif
+

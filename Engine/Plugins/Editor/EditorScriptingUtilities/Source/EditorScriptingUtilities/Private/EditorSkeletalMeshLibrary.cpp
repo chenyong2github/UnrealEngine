@@ -18,6 +18,8 @@
 #include "SkeletalMeshEditorSubsystem.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorSkeletalMeshLibrary)
+
 bool UDEPRECATED_EditorSkeletalMeshLibrary::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
@@ -122,3 +124,4 @@ UPhysicsAsset* UDEPRECATED_EditorSkeletalMeshLibrary::CreatePhysicsAsset(USkelet
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->CreatePhysicsAsset(SkeletalMesh) : nullptr;
 }
+

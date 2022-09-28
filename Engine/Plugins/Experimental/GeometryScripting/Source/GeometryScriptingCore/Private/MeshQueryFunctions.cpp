@@ -9,6 +9,8 @@
 #include "MeshBoundaryLoops.h"
 #include "Selections/MeshConnectedComponents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshQueryFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshQueryFunctions"
@@ -394,3 +396,4 @@ int UGeometryScriptLibrary_MeshQueryFunctions::GetNumExtendedPolygroupLayers( UD
 
 
 #undef LOCTEXT_NAMESPACE
+

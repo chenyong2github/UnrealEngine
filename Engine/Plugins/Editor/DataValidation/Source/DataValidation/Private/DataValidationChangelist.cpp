@@ -13,6 +13,8 @@
 #include "SourceControlOperations.h"
 #include "UncontrolledChangelistsModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataValidationChangelist)
+
 #define LOCTEXT_NAMESPACE "DataValidationChangelist"
 
 void GatherDependencies(const FName& InPackageName, TSet<FName>& OutDependencies)

@@ -7,6 +7,8 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BuoyancyManager)
+
 ABuoyancyManager::ABuoyancyManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -373,3 +375,4 @@ void FBuoyancyManagerAsyncCallback::OnPreSimulate_Internal()
 		Output.Outputs[ObjectIdx] = BuoyancyComponentInput.PreSimulate(World, GetDeltaTime_Internal(), GetSimTime_Internal(), Aux, Input->WaterBodyComponentToSolverData);
 	}
 }
+

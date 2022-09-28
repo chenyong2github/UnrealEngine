@@ -10,6 +10,8 @@
 #include "QosEvaluator.h"
 #include "QosModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(QosRegionManager)
+
 #define LAST_REGION_EVALUATION 3
 
 bool FDatacenterQosInstance::IsLessWhenBiasedTowardsNonSubspace(
@@ -1316,3 +1318,4 @@ FRegionQosInstance UQosRegionManager::TestCreateExampleRegionResult()
 }
 
 #endif // DEBUG_SUBCOMPARE_BY_SUBSPACE
+

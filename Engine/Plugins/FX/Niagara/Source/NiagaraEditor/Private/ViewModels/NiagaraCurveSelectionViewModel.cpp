@@ -27,6 +27,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraCurveSelectionViewModel)
+
 bool FNiagaraCurveSelectionTreeNodeDataId::operator==(const FNiagaraCurveSelectionTreeNodeDataId& Other) const
 {
 	return UniqueName == Other.UniqueName &&

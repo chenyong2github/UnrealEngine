@@ -4,6 +4,8 @@
 #include "UI/SSynth2DSlider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Synth2DSlider)
+
 #define LOCTEXT_NAMESPACE "Synthesis"
 
 
@@ -158,3 +160,4 @@ const FText USynth2DSlider::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

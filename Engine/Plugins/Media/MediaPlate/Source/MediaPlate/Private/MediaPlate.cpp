@@ -17,6 +17,8 @@
 #include "UObject/ObjectSaveContext.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlate)
+
 #define LOCTEXT_NAMESPACE "MediaPlate"
 
 FLazyName AMediaPlate::MediaPlateComponentName(TEXT("MediaPlateComponent0"));
@@ -227,3 +229,4 @@ void AMediaPlate::RemoveAssetUserData()
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

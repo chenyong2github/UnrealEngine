@@ -20,6 +20,8 @@
 #include "TextureImportUtils.h"
 #include "TgaImageSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImageWrapperTranslator)
+
 static bool GInterchangeEnablePNGImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnablePNGImport(
 	TEXT("Interchange.FeatureFlags.Import.PNG"),
@@ -249,3 +251,4 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 
 	return PayloadData;
 }
+

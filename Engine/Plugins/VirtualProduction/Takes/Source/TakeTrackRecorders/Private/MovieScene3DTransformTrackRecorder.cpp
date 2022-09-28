@@ -14,6 +14,8 @@
 #include "SequenceRecorderUtils.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DTransformTrackRecorder)
+
 
 DEFINE_LOG_CATEGORY(TransformSerialization);
 
@@ -729,3 +731,4 @@ bool UMovieScene3DTransformTrackRecorder::LoadRecordedFile(const FString& FileNa
 	}
 	return false;
 }
+

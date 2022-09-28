@@ -2,6 +2,8 @@
 #include "MSSettings.h"
 #include "Utilities/MiscUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MSSettings)
+
 
 
 UMegascansSettings::UMegascansSettings(const FObjectInitializer& ObjectInitializer)
@@ -49,4 +51,5 @@ void UMaterialPresetsSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 }
 
 #endif
+
 

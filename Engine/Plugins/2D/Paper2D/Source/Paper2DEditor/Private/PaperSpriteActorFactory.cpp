@@ -7,6 +7,8 @@
 #include "PaperSprite.h"
 #include "PaperSpriteComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteActorFactory)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperSpriteActorFactory
 
@@ -70,3 +72,4 @@ bool UPaperSpriteActorFactory::CanCreateActorFrom(const FAssetData& AssetData, F
 		return false;
 	}
 }
+

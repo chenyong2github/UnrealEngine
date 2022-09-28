@@ -12,6 +12,8 @@
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolCustomVoronoi)
+
 #define LOCTEXT_NAMESPACE "FractureCustomVoronoi"
 
 
@@ -461,3 +463,4 @@ void UFractureToolCustomVoronoi::SelectedBonesChanged()
 
 
 #undef LOCTEXT_NAMESPACE
+

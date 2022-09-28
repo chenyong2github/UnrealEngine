@@ -10,6 +10,8 @@
 #include "OnlineSubsystemBPCallHelper.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ShowLoginUICallbackProxy)
+
 UShowLoginUICallbackProxy::UShowLoginUICallbackProxy(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, WorldContextObject(nullptr)
@@ -96,3 +98,4 @@ void UShowLoginUICallbackProxy::OnShowLoginUICompleted(FUniqueNetIdPtr UniqueId,
 		OnFailure.Broadcast(MyPlayerController);
 	}
 }
+

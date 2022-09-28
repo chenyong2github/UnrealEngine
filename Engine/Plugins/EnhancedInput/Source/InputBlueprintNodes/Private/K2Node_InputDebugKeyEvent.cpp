@@ -3,6 +3,8 @@
 #include "K2Node_InputDebugKeyEvent.h"
 #include "InputDebugKeyDelegateBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_InputDebugKeyEvent)
+
 UK2Node_InputDebugKeyEvent::UK2Node_InputDebugKeyEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -26,3 +28,4 @@ void UK2Node_InputDebugKeyEvent::RegisterDynamicBinding(UDynamicBlueprintBinding
 
 	InputKeyBindingObject->InputDebugKeyDelegateBindings.Add(Binding);
 }
+

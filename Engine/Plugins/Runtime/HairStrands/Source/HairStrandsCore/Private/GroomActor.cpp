@@ -6,6 +6,8 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Internationalization/Internationalization.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomActor)
+
 #define LOCTEXT_NAMESPACE "HairStrands"
 
 AGroomActor::AGroomActor(const FObjectInitializer& ObjectInitializer)
@@ -65,6 +67,7 @@ bool AGroomActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+
 
 
 

@@ -9,6 +9,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueTranslator)
+
 DEFINE_LOG_CATEGORY_STATIC(LogGameplayCueTranslator, Display, All);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -683,3 +685,4 @@ FGameplayTag FGameplayCueTranslationManager::SearchSlowForTranslationParent(FGam
 	return FGameplayTag();
 }
 #endif
+

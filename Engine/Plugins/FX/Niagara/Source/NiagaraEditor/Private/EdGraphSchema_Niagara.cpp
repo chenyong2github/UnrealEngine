@@ -46,6 +46,8 @@
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphSchema_Niagara)
+
 #define LOCTEXT_NAMESPACE "NiagaraSchema"
 
 const FLinearColor UEdGraphSchema_Niagara::NodeTitleColor_Attribute = FLinearColor::Green;
@@ -2408,3 +2410,4 @@ void FNiagaraConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPi
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -12,6 +12,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayInteractionsTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_SuddenTurnTransition)
+
 //-----------------------------------------------------
 // FGameplayTransitionDesc_SuddenTurn
 //-----------------------------------------------------
@@ -183,3 +185,4 @@ void UGameplayTask_SuddenTurnTransition::TickTask(float DeltaTime)
 	}
 #endif // ENABLE_VISUAL_LOG
 }
+

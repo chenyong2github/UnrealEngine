@@ -7,6 +7,8 @@
 #include "CommonTextBlock.h"
 #include "Components/Widget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonStyleSheet)
+
 //////////////////////////////
 // PROTOTYPE: DO NOT USE!!!
 //////////////////////////////
@@ -127,3 +129,4 @@ const T* UCommonStyleSheet::FindStyleSheetProperty(const UCommonStyleSheet* Styl
 
 	return nullptr;
 }
+

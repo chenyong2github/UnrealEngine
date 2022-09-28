@@ -4,6 +4,8 @@
 #include "WaterBodyIslandActor.h"
 #include "WaterEditorSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyIslandActorFactory)
+
 #define LOCTEXT_NAMESPACE "WaterBodyIslandActorFactory"
 
 UWaterBodyIslandActorFactory::UWaterBodyIslandActorFactory(const FObjectInitializer& ObjectInitializer)

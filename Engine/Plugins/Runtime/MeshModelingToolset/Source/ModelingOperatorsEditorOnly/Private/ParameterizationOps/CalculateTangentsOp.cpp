@@ -3,6 +3,8 @@
 #include "ParameterizationOps/CalculateTangentsOp.h"
 #include "VectorUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CalculateTangentsOp)
+
 #define WITH_MIKKTSPACE 1
 
 #if WITH_MIKKTSPACE

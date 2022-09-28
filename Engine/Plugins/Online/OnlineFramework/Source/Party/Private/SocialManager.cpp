@@ -21,6 +21,8 @@
 #include "OnlineSubsystemSessionSettings.h"
 #include "Misc/Base64.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialManager)
+
 static TAutoConsoleVariable<bool> CVarForceDisconnectedToPartyService(
 	TEXT("SocialUI.ForceDisconnectedToPartyService"),
 	false,
@@ -1416,3 +1418,4 @@ USocialDebugTools* USocialManager::GetDebugTools() const
 {
 	return SocialDebugTools;
 }
+

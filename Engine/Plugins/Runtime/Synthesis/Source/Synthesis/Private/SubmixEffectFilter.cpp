@@ -3,6 +3,8 @@
 #include "SubmixEffects/SubmixEffectFilter.h"
 #include "AudioMixer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectFilter)
+
 
 FSubmixEffectFilter::FSubmixEffectFilter()
 	: SampleRate(0.0f)
@@ -212,3 +214,4 @@ void USubmixEffectFilterPreset::SetFilterQMod(float InQ)
 		FilterEffect.SetFilterQMod(InQ);
 	});
 }
+

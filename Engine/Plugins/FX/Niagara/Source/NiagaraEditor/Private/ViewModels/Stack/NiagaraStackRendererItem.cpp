@@ -28,6 +28,8 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackRendererItem)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackRendererItem"
 
 UNiagaraStackRendererItem::UNiagaraStackRendererItem()
@@ -501,3 +503,4 @@ void UNiagaraStackRendererItem::RendererChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "CommonUITypes.h"
 #include "UObject/UObjectHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonGenericInputActionDataTable)
+
 UCommonGenericInputActionDataTable::UCommonGenericInputActionDataTable()
 {
 	RowStruct = FCommonInputActionDataBase::StaticStruct();
@@ -28,3 +30,4 @@ void UCommonGenericInputActionDataTable::PostLoad()
 void UCommonInputActionDataProcessor::ProcessInputActions(UCommonGenericInputActionDataTable* InputActionDataTable)
 {
 }
+

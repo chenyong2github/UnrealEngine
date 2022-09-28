@@ -2,6 +2,8 @@
 
 #include "SourceEffects/SourceEffectWaveShaper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectWaveShaper)
+
 void FSourceEffectWaveShaper::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;

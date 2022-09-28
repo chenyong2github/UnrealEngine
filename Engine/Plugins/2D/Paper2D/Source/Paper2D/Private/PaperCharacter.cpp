@@ -5,6 +5,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "PaperFlipbookComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperCharacter)
+
 FName APaperCharacter::SpriteComponentName(TEXT("Sprite0"));
 
 //////////////////////////////////////////////////////////////////////////
@@ -45,3 +47,4 @@ void APaperCharacter::PostInitializeComponents()
 		}
 	}
 }
+

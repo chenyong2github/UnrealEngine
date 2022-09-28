@@ -23,6 +23,8 @@
 
 #include "FractureAutoUV.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolUV)
+
 #define LOCTEXT_NAMESPACE "FractureToolAutoUV"
 
 using namespace UE::Geometry;
@@ -630,3 +632,4 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 }
 
 #undef LOCTEXT_NAMESPACE
+

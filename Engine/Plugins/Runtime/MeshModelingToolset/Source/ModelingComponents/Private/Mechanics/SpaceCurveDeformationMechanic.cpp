@@ -16,6 +16,8 @@
 #include "ToolDataVisualizer.h"
 #include "IntBoxTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpaceCurveDeformationMechanic)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USpaceCurveDeformationMechanic"

@@ -11,6 +11,8 @@
 #include "ConversationRegistry.h"
 #include "Net/Core/PushModel/PushModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationParticipantComponent)
+
 //@TODO: CONVERSATION: Assert or otherwise guard all the Server* functions to only execute on the authority
 
 UConversationParticipantComponent::UConversationParticipantComponent()
@@ -379,3 +381,4 @@ void UConversationParticipantComponent::ServerForAllConversationsRefreshTaskChoi
 	}
 }
 #endif
+

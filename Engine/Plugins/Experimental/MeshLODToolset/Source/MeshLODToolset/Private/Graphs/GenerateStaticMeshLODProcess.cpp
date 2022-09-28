@@ -44,6 +44,8 @@
 #include "StaticMeshAttributes.h"
 #include "GeometryFlowTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenerateStaticMeshLODProcess)
+
 #define LOCTEXT_NAMESPACE "UGenerateStaticMeshLODProcess"
 
 using namespace UE::Geometry;

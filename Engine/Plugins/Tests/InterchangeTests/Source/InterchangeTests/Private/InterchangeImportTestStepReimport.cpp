@@ -5,6 +5,8 @@
 #include "InterchangeTestFunction.h"
 #include "UObject/SavePackage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestStepReimport)
+
 
 TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResultPtr> UInterchangeImportTestStepReimport::StartStep(FInterchangeImportTestData& Data)
 {
@@ -132,3 +134,4 @@ FString UInterchangeImportTestStepReimport::GetContextString() const
 {
 	return FString(TEXT("Reimporting ")) + FPaths::GetCleanFilename(SourceFileToReimport.FilePath);
 }
+

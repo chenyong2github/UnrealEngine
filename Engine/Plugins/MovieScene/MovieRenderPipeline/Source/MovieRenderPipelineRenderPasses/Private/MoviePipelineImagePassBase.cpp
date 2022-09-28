@@ -25,6 +25,8 @@
 #include "CineCameraComponent.h"
 #include "MoviePipelineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineImagePassBase)
+
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
 
@@ -1001,4 +1003,5 @@ namespace MoviePipeline
 		}
 	}
 }
+
 

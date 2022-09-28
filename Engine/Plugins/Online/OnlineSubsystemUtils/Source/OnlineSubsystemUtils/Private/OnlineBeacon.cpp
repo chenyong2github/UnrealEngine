@@ -5,6 +5,8 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBeacon)
+
 DEFINE_LOG_CATEGORY(LogBeacon);
 
 AOnlineBeacon::AOnlineBeacon(const FObjectInitializer& ObjectInitializer) :
@@ -180,3 +182,4 @@ bool AOnlineBeacon::NotifyAcceptingChannel(UChannel* Channel)
 void AOnlineBeacon::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch)
 {
 }
+

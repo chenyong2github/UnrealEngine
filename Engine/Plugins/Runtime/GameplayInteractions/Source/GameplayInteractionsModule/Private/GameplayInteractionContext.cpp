@@ -11,6 +11,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayInteractionStateTreeSchema.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionContext)
+
 bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& InDefinition)
 {
 	Definition = &InDefinition;

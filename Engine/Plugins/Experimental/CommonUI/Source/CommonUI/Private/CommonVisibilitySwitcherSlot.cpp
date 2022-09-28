@@ -5,6 +5,8 @@
 #include "Components/Widget.h"
 #include "Widgets/Layout/SBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonVisibilitySwitcherSlot)
+
 UCommonVisibilitySwitcherSlot::UCommonVisibilitySwitcherSlot(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
@@ -41,3 +43,4 @@ void UCommonVisibilitySwitcherSlot::SetSlotVisibility(ESlateVisibility Visibilit
 		Box->SetVisibility(UWidget::ConvertSerializedVisibilityToRuntime(Visibility));
 	}
 }
+

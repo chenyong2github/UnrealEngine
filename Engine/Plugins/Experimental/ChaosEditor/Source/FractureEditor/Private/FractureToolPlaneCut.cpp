@@ -11,6 +11,8 @@
 #include "FrameTypes.h"
 #include "FractureToolBackgroundTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolPlaneCut)
+
 using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FracturePlanar"

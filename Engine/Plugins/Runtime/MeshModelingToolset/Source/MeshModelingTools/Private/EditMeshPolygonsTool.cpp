@@ -51,6 +51,8 @@
 #include "TransformTypes.h"
 #include "Util/CompactMaps.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditMeshPolygonsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UEditMeshPolygonsTool"
@@ -2546,3 +2548,4 @@ FString FPolyEditActivityStartChange::ToString() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

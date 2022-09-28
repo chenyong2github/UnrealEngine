@@ -3,6 +3,8 @@
 #include "RigUnit_PrepareForExecution.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_PrepareForExecution)
+
 FName FRigUnit_PrepareForExecution::EventName = TEXT("Construction");
 
 FRigUnit_PrepareForExecution_Execute()
@@ -12,3 +14,4 @@ FRigUnit_PrepareForExecution_Execute()
 	ExecuteContext.Hierarchy = Context.Hierarchy;
 	ExecuteContext.EventName = FRigUnit_PrepareForExecution::EventName;
 }
+

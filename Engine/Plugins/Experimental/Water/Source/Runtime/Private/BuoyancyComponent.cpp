@@ -12,6 +12,8 @@
 #include "PBDRigidsSolver.h"
 #include "WaterSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BuoyancyComponent)
+
 TAutoConsoleVariable<int32> CVarWaterDebugBuoyancy(
 	TEXT("r.Water.DebugBuoyancy"),
 	0,
@@ -945,3 +947,4 @@ TUniquePtr<FBuoyancyComponentAsyncAux> UBuoyancyComponent::CreateAsyncAux() cons
 	Aux->BuoyancyData = BuoyancyData;
 	return Aux;
 }
+

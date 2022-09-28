@@ -12,6 +12,8 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeCineCameraActorFactory)
+
 UClass* UInterchangeCineCameraActorFactory::GetFactoryClass() const
 {
 	return ACineCameraActor::StaticClass();
@@ -33,4 +35,5 @@ UObject* UInterchangeCineCameraActorFactory::CreateSceneObject(const UInterchang
 
 	return SpawnedActor;
 }
+
 

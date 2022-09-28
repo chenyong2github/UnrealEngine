@@ -3,6 +3,8 @@
 #include "RigEditor/IKRigAnimInstanceProxy.h"
 #include "RigEditor/IKRigAnimInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigAnimInstanceProxy)
+
 
 FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRig* InIKRigNode)
 	: FAnimPreviewInstanceProxy(InAnimInstance),
@@ -51,4 +53,5 @@ void FIKRigAnimInstanceProxy::SetIKRigAsset(UIKRigDefinition* InIKRigAsset)
 {
 	IKRigNode->RigDefinitionAsset = InIKRigAsset;
 }
+
 

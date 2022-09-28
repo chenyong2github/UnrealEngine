@@ -4,6 +4,8 @@
 #include "PaperSpriteAtlas.h"
 #include "PaperRuntimeSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteAtlasFactory)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperSpriteAtlasFactory
 
@@ -26,3 +28,4 @@ bool UPaperSpriteAtlasFactory::CanCreateNew() const
 {
 	return GetDefault<UPaperRuntimeSettings>()->bEnableSpriteAtlasGroups;
 }
+

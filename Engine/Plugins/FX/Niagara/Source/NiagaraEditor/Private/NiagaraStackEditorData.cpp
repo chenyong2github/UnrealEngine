@@ -2,6 +2,8 @@
 
 #include "NiagaraStackEditorData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEditorData)
+
 bool UNiagaraStackEditorData::GetStackEntryIsRenamePending(const FString& StackEntryKey) const
 {
 	const bool* bIsRenamePendingPtr = StackEntryKeyToRenamePendingMap.Find(StackEntryKey);
@@ -190,3 +192,4 @@ const TArray<FString>& UNiagaraStackEditorData::GetDismissedStackIssueIds()
 {
 	return DismissedStackIssueIds;
 }
+

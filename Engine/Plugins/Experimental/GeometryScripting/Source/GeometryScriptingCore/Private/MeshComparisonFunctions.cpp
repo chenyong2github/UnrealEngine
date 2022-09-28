@@ -9,6 +9,8 @@
 #include "UDynamicMesh.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshComparisonFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshComparisonFunctions"

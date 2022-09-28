@@ -17,6 +17,8 @@
 #include "SequenceRecorderUtils.h"
 #include "TakeRecorderSource/TakeRecorderLiveLinkSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkTrackRecorder)
+
 static TAutoConsoleVariable<int32> CVarSequencerAlwaysUseRecordLiveLinkTimecode(
 	TEXT("Sequencer.AlwaysRecordLiveLinkTimecode"),
 	0, TEXT("This CVAR is no longer used please set the Always Use Timmecode value individually on the Live Link Source."),
@@ -346,3 +348,4 @@ bool UMovieSceneLiveLinkTrackRecorder::LoadRecordedFile(const FString& FileName,
 	UE_LOG(LogLiveLinkSequencer, Warning, TEXT("Loading recorded file for live link tracks is not supported."));
 	return false;
 }
+

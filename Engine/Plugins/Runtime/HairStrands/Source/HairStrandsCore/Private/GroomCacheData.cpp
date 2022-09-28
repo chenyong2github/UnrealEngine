@@ -3,6 +3,8 @@
 #include "GroomCacheData.h"
 #include "GroomAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomCacheData)
+
 FGroomAnimationInfo::FGroomAnimationInfo()
 	: NumFrames(0)
 	, SecondsPerFrame(0.0f)
@@ -110,3 +112,4 @@ void FGroomCacheAnimationData::Serialize(FArchive& Ar)
 		GroupsData[Index].Serialize(Ar, Version, Attributes);
 	}
 }
+

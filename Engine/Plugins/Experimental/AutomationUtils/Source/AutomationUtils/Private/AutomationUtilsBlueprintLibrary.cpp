@@ -25,6 +25,8 @@
 #include "Stats/Stats.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationUtilsBlueprintLibrary)
+
 //Private Helper Class Definitions
 class FAutomationUtilsGameplayViewExtension : public FSceneViewExtensionBase
 {
@@ -382,6 +384,7 @@ void UAutomationUtilsBlueprintLibrary::TakeGameplayAutomationScreenshot(const FS
 	//Actually Take Screenshot
 	FScreenshotRequest::RequestScreenshot(ScreenshotName, false, true);
 }
+
 
 
 

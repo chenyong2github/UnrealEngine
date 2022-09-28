@@ -12,6 +12,8 @@
 #include "Sound/SoundBase.h"
 #include "Components/AudioComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAudioPlayer)
+
 DECLARE_CYCLE_STAT(TEXT("Audio DI update persistent sound"), STAT_NiagaraAudioDIUpdateSound, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Audio DI create persistent sound"), STAT_NiagaraAudioDICreateSound, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Audio DI stop persistent sound"), STAT_NiagaraAudioDIStopSound, STATGROUP_Niagara);
@@ -910,3 +912,4 @@ bool UNiagaraDataInterfaceAudioPlayer::CopyToInternal(UNiagaraDataInterface* Des
 #endif
 	return true;
 }
+

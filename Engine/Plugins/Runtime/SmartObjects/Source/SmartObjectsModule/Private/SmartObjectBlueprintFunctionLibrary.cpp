@@ -6,6 +6,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BTFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectBlueprintFunctionLibrary)
+
 //----------------------------------------------------------------------//
 // USmartObjectBlueprintFunctionLibrary 
 //----------------------------------------------------------------------//

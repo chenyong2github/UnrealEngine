@@ -2,6 +2,8 @@
 
 #include "GameplayCueNotify_Looping.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_Looping)
+
 
 //////////////////////////////////////////////////////////////////////////
 // AGameplayCueNotify_Looping
@@ -151,3 +153,4 @@ EDataValidationResult AGameplayCueNotify_Looping::IsDataValid(TArray<FText>& Val
 	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }
 #endif // #if WITH_EDITOR
+

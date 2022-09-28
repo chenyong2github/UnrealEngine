@@ -9,6 +9,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "TimerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehavior_BehaviorTree)
+
 //----------------------------------------------------------------------//
 // UGameplayBehavior_BehaviorTree
 //----------------------------------------------------------------------//
@@ -122,3 +124,4 @@ bool UGameplayBehavior_BehaviorTree::NeedsInstance(const UGameplayBehaviorConfig
 	const UGameplayBehaviorConfig_BehaviorTree* BTConfig = Cast<const UGameplayBehaviorConfig_BehaviorTree>(Config);
 	return BTConfig && BTConfig->ShouldStorePreviousBT();
 }
+

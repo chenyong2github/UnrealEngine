@@ -19,6 +19,8 @@
 #include "ToolTargetManager.h"
 #include "Algo/Unique.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVSelectTool)
+
 #define LOCTEXT_NAMESPACE "UUVSelectTool"
 
 using namespace UE::Geometry;
@@ -738,3 +740,4 @@ void UUVSelectTool::SelectAll()
 }
 
 #undef LOCTEXT_NAMESPACE
+

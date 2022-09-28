@@ -5,6 +5,8 @@
 #include "PaperSpriteComponent.h"
 #include "PaperSprite.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteActor)
+
 //////////////////////////////////////////////////////////////////////////
 // APaperSpriteActor
 
@@ -30,3 +32,4 @@ bool APaperSpriteActor::GetReferencedContentObjects(TArray<UObject*>& Objects) c
 	return true;
 }
 #endif
+

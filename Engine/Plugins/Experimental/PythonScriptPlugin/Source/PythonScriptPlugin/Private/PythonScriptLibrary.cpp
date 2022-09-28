@@ -9,6 +9,8 @@
 #include "PyWrapperTypeRegistry.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PythonScriptLibrary)
+
 bool UPythonScriptLibrary::IsPythonAvailable()
 {
 	return IPythonScriptPlugin::Get()->IsPythonAvailable();
@@ -167,3 +169,4 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 	*(bool*)RESULT_PARAM = false;
 #endif	// WITH_PYTHON
 }
+

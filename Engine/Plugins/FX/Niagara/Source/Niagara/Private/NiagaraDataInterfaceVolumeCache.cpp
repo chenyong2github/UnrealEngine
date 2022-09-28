@@ -13,6 +13,9 @@
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraShaderParametersBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVolumeCache)
+
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceVolumeCache"
 
 const TCHAR* UNiagaraDataInterfaceVolumeCache::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceVolumeCache.ush");
@@ -471,3 +474,4 @@ void UNiagaraDataInterfaceVolumeCache::SetShaderParameters(const FNiagaraDataInt
 }
 
 #undef LOCTEXT_NAMESPACE
+

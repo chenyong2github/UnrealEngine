@@ -44,6 +44,8 @@
 #include "SourceControlHelpers.h"
 #include "HAL/FileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputEditorModule)
+
 #define LOCTEXT_NAMESPACE "InputEditor"
 
 DEFINE_LOG_CATEGORY(LogEnhancedInputEditor);

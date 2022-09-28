@@ -3,6 +3,8 @@
 #include "GroomCache.h"
 #include "GroomAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomCache)
+
 void UGroomCache::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -281,3 +283,4 @@ void FGroomCacheProcessor::TransferChunks(UGroomCache* GroomCache)
 {
 	GroomCache->Chunks = MoveTemp(Chunks);
 }
+

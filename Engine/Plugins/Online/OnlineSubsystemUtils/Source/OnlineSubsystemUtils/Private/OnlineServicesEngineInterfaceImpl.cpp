@@ -12,6 +12,8 @@
 #include "Online/OnlineServices.h"
 #include "Online/OnlineServicesRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineServicesEngineInterfaceImpl)
+
 UOnlineServicesEngineInterfaceImpl::UOnlineServicesEngineInterfaceImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -482,3 +484,4 @@ void UOnlineServicesEngineInterfaceImpl::LoginPIEInstance(FName OnlineIdentifier
 }
 
 #endif
+

@@ -12,6 +12,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayInteractionsTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_MoveToStandTransition)
+
 //-----------------------------------------------------
 // FGameplayTransitionDesc_MoveToStand
 //-----------------------------------------------------
@@ -175,3 +177,4 @@ void UGameplayTask_MoveToStandTransition::TickTask(float DeltaTime)
 	}
 #endif // ENABLE_VISUAL_LOG
 }
+

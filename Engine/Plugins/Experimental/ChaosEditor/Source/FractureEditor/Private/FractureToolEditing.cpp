@@ -12,6 +12,8 @@
 
 #include "PlanarCut.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolEditing)
+
 #define LOCTEXT_NAMESPACE "FractureToolEditing"
 
 
@@ -525,4 +527,5 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

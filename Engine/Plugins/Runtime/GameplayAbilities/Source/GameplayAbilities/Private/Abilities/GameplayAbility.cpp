@@ -18,6 +18,8 @@
 #include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
 #endif // UE_WITH_IRIS
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbility)
+
 namespace FAbilitySystemTweaks
 {
 	int ClearAbilityTimers = 1;

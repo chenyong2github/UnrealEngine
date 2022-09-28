@@ -6,6 +6,8 @@
 #include "Engine/Engine.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_VisualizeTargeting)
+
 UAbilityTask_VisualizeTargeting::UAbilityTask_VisualizeTargeting(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -171,3 +173,4 @@ void UAbilityTask_VisualizeTargeting::OnTimeElapsed()
 	}
 	EndTask();
 }
+

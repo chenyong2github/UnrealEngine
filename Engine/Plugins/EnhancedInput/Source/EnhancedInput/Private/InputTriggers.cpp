@@ -6,6 +6,8 @@
 #include "EnhancedPlayerInput.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputTriggers)
+
 #define LOCTEXT_NAMESPACE "EnhancedInputTriggers"
 
 // Abstract trigger bases

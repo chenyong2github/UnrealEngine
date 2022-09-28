@@ -4,6 +4,8 @@
 #include "PaperSprite.h"
 #include "Brushes/SlateNoResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteBlueprintLibrary)
+
 //////////////////////////////////////////////////////////////////////////
 
 FSlateBrush UPaperSpriteBlueprintLibrary::MakeBrushFromSprite(UPaperSprite* Sprite, int32 Width, int32 Height)

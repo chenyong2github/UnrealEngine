@@ -5,6 +5,8 @@
 #include "ControlRig.h"
 #include "HelperUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigSpaceHierarchy)
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigSpaceHierarchy
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,3 +27,4 @@ FRigSpace& FRigSpaceHierarchy::Add(const FName& InNewName, ERigSpaceType InSpace
 	const int32 Index = Spaces.Add(NewSpace);
 	return Spaces[Index];
 }
+

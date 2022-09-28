@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Conditions/StateTreeObjectConditions.h"
 #include "StateTreeExecutionContext.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeObjectConditions)
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

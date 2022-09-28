@@ -11,6 +11,8 @@
 #include "StateTreeCompiler.h"
 #include "StateTreeDelegates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeCompileAllCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogStateTreeCompile, Log, Log);
 
 UStateTreeCompileAllCommandlet::UStateTreeCompileAllCommandlet(const FObjectInitializer& ObjectInitializer)
@@ -140,3 +142,4 @@ bool UStateTreeCompileAllCommandlet::CompileAndSaveStateTree(UStateTree& StateTr
 
 	return true;
 }
+

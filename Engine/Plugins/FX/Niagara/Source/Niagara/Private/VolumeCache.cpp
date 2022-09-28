@@ -6,6 +6,8 @@
 
 #include "VolumeCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeCache)
+
 // @todo: we need builds for OpenVDB for platforms other than windows
 #if PLATFORM_WINDOWS
 #include "NiagaraOpenVDB.h"

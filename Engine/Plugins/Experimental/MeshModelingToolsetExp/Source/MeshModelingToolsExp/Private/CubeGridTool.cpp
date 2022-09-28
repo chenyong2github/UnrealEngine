@@ -37,6 +37,8 @@
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CubeGridTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UCubeGridTool"
@@ -2595,3 +2597,4 @@ bool UCubeGridTool::ExecuteNestedAcceptCommand()
 }
 
 #undef LOCTEXT_NAMESPACE
+

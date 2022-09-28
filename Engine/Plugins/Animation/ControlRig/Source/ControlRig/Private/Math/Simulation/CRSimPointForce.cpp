@@ -2,6 +2,8 @@
 
 #include "Math/Simulation/CRSimPointForce.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimPointForce)
+
 FVector FCRSimPointForce::Calculate(const FCRSimPoint& InPoint, float InDeltaTime) const
 {
 	FVector Force = FVector::ZeroVector;
@@ -26,3 +28,4 @@ FVector FCRSimPointForce::Calculate(const FCRSimPoint& InPoint, float InDeltaTim
 	}
 	return Force;
 }
+

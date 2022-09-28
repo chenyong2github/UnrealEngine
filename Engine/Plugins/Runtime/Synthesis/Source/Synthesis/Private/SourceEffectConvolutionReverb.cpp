@@ -6,6 +6,8 @@
 #include "DSP/FloatArrayMath.h"
 #include "SynthesisModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectConvolutionReverb)
+
 FSourceEffectConvolutionReverbSettings::FSourceEffectConvolutionReverbSettings()
 	: NormalizationVolumeDb(-24.f)
 	, WetVolumeDb(0.f)
@@ -394,3 +396,4 @@ void USourceEffectConvolutionReverbPreset::PostLoad()
 
 	SetImpulseResponseSettings(ImpulseResponse);
 }
+

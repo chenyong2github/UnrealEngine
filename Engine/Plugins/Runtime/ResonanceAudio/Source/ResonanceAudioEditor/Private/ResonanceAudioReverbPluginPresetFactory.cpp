@@ -9,6 +9,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioReverbPluginPresetFactory)
+
 FText FAssetTypeActions_ResonanceAudioReverbPluginPreset::GetName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ResonanceAudioReverbPluginPreset", "Resonance Audio Reverb Settings");
@@ -59,3 +61,4 @@ uint32 UResonanceAudioReverbPluginPresetFactory::GetMenuCategories() const
 {
 	return EAssetTypeCategories::Sounds;
 }
+

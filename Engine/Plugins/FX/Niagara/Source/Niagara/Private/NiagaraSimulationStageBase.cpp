@@ -5,6 +5,8 @@
 #include "NiagaraSystem.h"
 #include "NiagaraScriptSourceBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSimulationStageBase)
+
 const FName UNiagaraSimulationStageBase::ParticleSpawnUpdateName("ParticleSpawnUpdate");
 
 namespace NiagaraSimulationStageLocal
@@ -320,3 +322,4 @@ FName UNiagaraSimulationStageGeneric::GetStackContextReplacementName() const
 	return NAME_None;
 }
 #endif
+

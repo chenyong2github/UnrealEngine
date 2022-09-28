@@ -16,6 +16,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkComponentController)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/ComponentEditorUtils.h"

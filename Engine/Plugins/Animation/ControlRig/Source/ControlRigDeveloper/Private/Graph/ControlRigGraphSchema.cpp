@@ -33,6 +33,8 @@
 #include "Units/Execution/RigUnit_InverseExecution.h"
 #include "Units/Execution/RigUnit_InteractionExecution.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGraphSchema)
+
 #if WITH_EDITOR
 #include "Editor/SControlRigFunctionLocalizationWidget.h"
 #include "Misc/MessageDialog.h"
@@ -2169,3 +2171,4 @@ bool UControlRigGraphSchema::IsControlRigDefaultEvent(const FName& InEventName)
 }
 
 #undef LOCTEXT_NAMESPACE
+

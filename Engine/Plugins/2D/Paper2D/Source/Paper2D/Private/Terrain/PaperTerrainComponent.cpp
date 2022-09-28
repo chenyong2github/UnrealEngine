@@ -16,6 +16,8 @@
 #include "PaperTerrainMaterial.h"
 #include "Paper2DPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTerrainComponent)
+
 #define PAPER_USE_MATERIAL_SLOPES 1
 #define PAPER_TERRAIN_DRAW_DEBUG 0
 
@@ -1055,3 +1057,4 @@ void UPaperTerrainComponent::SetTerrainColor(FLinearColor NewColor)
 		RecreateRenderState_Concurrent();
 	}
 }
+

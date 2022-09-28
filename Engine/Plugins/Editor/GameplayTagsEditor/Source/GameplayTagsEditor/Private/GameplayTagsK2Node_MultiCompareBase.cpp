@@ -4,6 +4,8 @@
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsK2Node_MultiCompareBase)
+
 UGameplayTagsK2Node_MultiCompareBase::UGameplayTagsK2Node_MultiCompareBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -75,3 +77,4 @@ void UGameplayTagsK2Node_MultiCompareBase::RemovePin()
 		NumberOfPins--;
 	}	
 }
+

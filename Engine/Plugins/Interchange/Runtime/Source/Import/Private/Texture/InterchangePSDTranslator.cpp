@@ -15,6 +15,8 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePSDTranslator)
+
 static bool GInterchangeEnablePSDImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnablePSDImport(
 	TEXT("Interchange.FeatureFlags.Import.PSD"),
@@ -485,3 +487,4 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	return PayloadData;
 }
+

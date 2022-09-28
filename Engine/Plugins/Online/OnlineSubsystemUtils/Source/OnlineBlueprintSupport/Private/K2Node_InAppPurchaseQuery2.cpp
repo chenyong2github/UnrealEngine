@@ -3,6 +3,8 @@
 #include "K2Node_InAppPurchaseQuery2.h"
 #include "InAppPurchaseQueryCallbackProxy2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_InAppPurchaseQuery2)
+
 #define LOCTEXT_NAMESPACE "K2Node"
 
 UK2Node_InAppPurchaseQuery2::UK2Node_InAppPurchaseQuery2(const FObjectInitializer& ObjectInitializer)
@@ -15,3 +17,4 @@ UK2Node_InAppPurchaseQuery2::UK2Node_InAppPurchaseQuery2(const FObjectInitialize
 }
 
 #undef LOCTEXT_NAMESPACE
+

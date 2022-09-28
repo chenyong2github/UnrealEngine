@@ -8,6 +8,8 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeOutputTag)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeOutputTag"
 
 UNiagaraNodeOutputTag::UNiagaraNodeOutputTag(const FObjectInitializer& ObjectInitializer)
@@ -246,4 +248,5 @@ FText UNiagaraNodeOutputTag::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 
 #undef LOCTEXT_NAMESPACE
+
 

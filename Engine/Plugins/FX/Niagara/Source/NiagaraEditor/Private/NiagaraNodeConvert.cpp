@@ -10,6 +10,8 @@
 
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeConvert)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeConvert"
 
 struct FNiagaraConvertEntry

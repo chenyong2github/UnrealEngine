@@ -46,6 +46,8 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorGraphSchema)
+
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 static int32 EnableAllVersionsMetaSoundNodeClassCreationCVar = 0;
@@ -2163,3 +2165,4 @@ void UMetasoundEditorGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVec
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

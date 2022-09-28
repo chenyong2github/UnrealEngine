@@ -6,6 +6,8 @@
 #include "EnhancedInputEditorSubsystem.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputEditorSettings)
+
 namespace UE::EnhancedInput::Private
 {
 	namespace ConsoleVariables
@@ -41,3 +43,4 @@ UEnhancedInputEditorSettings::UEnhancedInputEditorSettings()
 	, bAutomaticallyStartConsumingInput(false)
 {
 }
+

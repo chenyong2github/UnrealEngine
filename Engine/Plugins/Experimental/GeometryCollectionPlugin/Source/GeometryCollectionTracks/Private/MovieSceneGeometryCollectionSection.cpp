@@ -8,6 +8,8 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGeometryCollectionSection)
+
 #define LOCTEXT_NAMESPACE "MovieSceneGeometryCollectionSection"
 
 namespace
@@ -178,3 +180,4 @@ void UMovieSceneGeometryCollectionSection::PostEditChangeProperty(FPropertyChang
 #endif
 
 #undef LOCTEXT_NAMESPACE 
+

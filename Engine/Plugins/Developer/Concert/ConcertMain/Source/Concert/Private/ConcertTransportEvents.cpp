@@ -2,6 +2,8 @@
 
 #include "ConcertTransportEvents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertTransportEvents)
+
 namespace ConcertTransportEvents
 {
 	FConcertTransportLoggingEnabledChanged& OnConcertTransportLoggingEnabledChangedEvent()
@@ -22,3 +24,4 @@ namespace ConcertTransportEvents
 		return Instance;
 	}
 }
+

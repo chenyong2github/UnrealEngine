@@ -13,6 +13,8 @@
 #include "ICommonUIModule.h"
 #include "CommonUISettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIVisibilitySubsystem)
+
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_INPUT_MOUSEANDKEYBOARD, "Input.MouseAndKeyboard");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_INPUT_GAMEPAD, "Input.Gamepad");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_INPUT_TOUCH, "Input.Touch");
@@ -143,3 +145,4 @@ void UCommonUIVisibilitySubsystem::OnInputMethodChanged(ECommonInputType Current
 {
 	RefreshVisibilityTags();
 }
+

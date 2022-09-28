@@ -6,6 +6,8 @@
 #include "NiagaraSettings.h"
 #include "NiagaraParameterDefinitions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraParameterDefinitionsFactory)
+
 UNiagaraParameterDefinitionsFactory::UNiagaraParameterDefinitionsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -22,3 +24,4 @@ UObject* UNiagaraParameterDefinitionsFactory::FactoryCreateNew(UClass* Class, UO
 
 	return NewLibrary;
 }
+

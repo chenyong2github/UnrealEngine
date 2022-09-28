@@ -20,6 +20,8 @@
 #include "NiagaraSettings.h"
 #include "ObjectTools.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemFactoryNew)
+
 #define LOCTEXT_NAMESPACE "NiagaraSystemFactory"
 
 UNiagaraSystemFactoryNew::UNiagaraSystemFactoryNew(const FObjectInitializer& ObjectInitializer)
@@ -212,3 +214,4 @@ void UNiagaraSystemFactoryNew::InitializeSystem(UNiagaraSystem* System, bool bCr
 }
 
 #undef LOCTEXT_NAMESPACE
+

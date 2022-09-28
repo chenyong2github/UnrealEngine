@@ -16,6 +16,8 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraComponentRendererProperties)
+
 static float GNiagaraComponentRenderComponentCountWarning = 50;
 static FAutoConsoleVariableRef CVarNiagaraComponentRenderComponentCountWarning(
 	TEXT("fx.Niagara.ComponentRenderComponentCountWarning"),

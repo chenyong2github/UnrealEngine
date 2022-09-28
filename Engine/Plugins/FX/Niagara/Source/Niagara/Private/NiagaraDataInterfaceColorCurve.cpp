@@ -6,6 +6,8 @@
 #include "Curves/CurveFloat.h"
 #include "NiagaraTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceColorCurve)
+
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/ITargetPlatform.h"
 #endif
@@ -327,3 +329,4 @@ void UNiagaraDataInterfaceColorCurve::SampleCurve(FVectorVMExternalFunctionConte
 		*SamplePtrA.GetDestAndAdvance() = C.A;
 	}
 }
+

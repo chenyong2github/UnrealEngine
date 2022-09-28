@@ -6,6 +6,8 @@
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputModifiers)
+
 #define LOCTEXT_NAMESPACE "EnhancedInputModifiers"
 
 /*

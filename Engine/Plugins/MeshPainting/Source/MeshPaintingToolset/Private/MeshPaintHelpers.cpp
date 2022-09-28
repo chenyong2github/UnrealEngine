@@ -27,6 +27,8 @@
 #include "BaseTools/BaseBrushTool.h"
 #include "Algo/Copy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshPaintHelpers)
+
 extern void PropagateVertexPaintToSkeletalMesh(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
 UMeshPaintingSubsystem::UMeshPaintingSubsystem()
@@ -1585,3 +1587,4 @@ int32 UMeshPaintingSubsystem::GetMaxUVIndexToPaint() const
 
 	return 0;
 }
+

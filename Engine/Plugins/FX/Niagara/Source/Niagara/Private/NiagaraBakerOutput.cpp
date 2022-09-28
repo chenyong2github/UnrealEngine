@@ -3,6 +3,8 @@
 #include "NiagaraBakerOutput.h"
 #include "NiagaraSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerOutput)
+
 #if WITH_EDITOR
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Factories/Factory.h"
@@ -128,3 +130,4 @@ void UNiagaraBakerOutput::PostInitProperties()
 
 	OutputName = MakeOutputName();
 }
+

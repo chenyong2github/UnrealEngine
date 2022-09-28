@@ -8,6 +8,8 @@
 #include "Operations/RepairOrientation.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditNormalsOp)
+
 using namespace UE::Geometry;
 
 void FEditNormalsOp::SetTransform(const FTransformSRT3d& Transform) 

@@ -2,6 +2,8 @@
 
 #include "ConversationRequirementNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationRequirementNode)
+
 EConversationRequirementResult MergeRequirements(EConversationRequirementResult CurrentResult, EConversationRequirementResult MergeResult)
 {
 	if ((int64)MergeResult > (int64)CurrentResult)
@@ -16,3 +18,4 @@ EConversationRequirementResult UConversationRequirementNode::IsRequirementSatisf
 {
 	return EConversationRequirementResult::FailedAndHidden;
 }
+

@@ -8,6 +8,8 @@
 #include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceSection)
+
 #define LOCTEXT_NAMESPACE "UTemplateSequenceSection"
 
 UTemplateSequenceSection::UTemplateSequenceSection(const FObjectInitializer& ObjInitializer)
@@ -164,3 +166,4 @@ void UTemplateSequenceSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 }
 
 #undef LOCTEXT_NAMESPACE
+

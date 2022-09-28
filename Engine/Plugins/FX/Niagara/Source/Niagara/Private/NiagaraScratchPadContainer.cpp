@@ -3,6 +3,8 @@
 
 #include "NiagaraScratchPadContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScratchPadContainer)
+
 void UNiagaraScratchPadContainer::PostLoad()
 {
 	CheckConsistency();
@@ -81,4 +83,5 @@ UNiagaraScript* UNiagaraScratchPadContainer::FindScriptAtIndex(int32 Index) cons
 #endif
 	return nullptr;
 }
+
 

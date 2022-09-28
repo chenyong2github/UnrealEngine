@@ -4,6 +4,8 @@
 #include "EdGraphSchema_EnvironmentQuery.h"
 #include "EnvironmentQueryGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryGraphNode)
+
 UEnvironmentQueryGraphNode::UEnvironmentQueryGraphNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 }
@@ -27,3 +29,4 @@ bool UEnvironmentQueryGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSch
 {
 	return DesiredSchema->GetClass()->IsChildOf(UEdGraphSchema_EnvironmentQuery::StaticClass());
 }
+

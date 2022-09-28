@@ -37,6 +37,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicMeshSculptTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDynamicMeshSculptTool"
@@ -2695,3 +2697,4 @@ void UDynamicMeshSculptTool::DiscardAttributes()
 }
 
 #undef LOCTEXT_NAMESPACE
+

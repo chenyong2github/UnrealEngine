@@ -7,6 +7,8 @@
 #include "Animation/AnimMontage.h"
 #include "GameplayCueManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_GameplayCue)
+
 
 typedef void (*GameplayCueFunc)(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters);
 
@@ -193,3 +195,4 @@ bool UAnimNotify_GameplayCueState::CanBePlaced(UAnimSequenceBase* Animation) con
 	return (Animation && Animation->IsA(UAnimMontage::StaticClass()));
 }
 #endif // #if WITH_EDITOR
+

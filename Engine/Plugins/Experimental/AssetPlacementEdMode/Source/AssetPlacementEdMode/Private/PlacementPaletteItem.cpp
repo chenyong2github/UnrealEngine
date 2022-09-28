@@ -5,6 +5,8 @@
 #include "Factories/AssetFactoryInterface.h"
 #include "Subsystems/PlacementSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementPaletteItem)
+
 void UPlacementPaletteClient::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -19,3 +21,4 @@ void UPlacementPaletteClient::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 }
+

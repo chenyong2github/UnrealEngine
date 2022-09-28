@@ -3,7 +3,10 @@
 
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeTextureWriter)
+
 bool UInterchangeTextureWriter::Export(UInterchangeBaseNodeContainer* BaseNodeContainer) const
 {
 	return false;
 }
+

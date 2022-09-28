@@ -13,6 +13,8 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetFactory)
+
 #define LOCTEXT_NAMESPACE "IKRetargeterFactory"
 
 
@@ -119,3 +121,4 @@ FString UIKRetargetFactory::GetDefaultNewAssetName() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

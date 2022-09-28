@@ -6,6 +6,8 @@
 #include "Curves/CurveFloat.h"
 #include "NiagaraTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVectorCurve)
+
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/ITargetPlatform.h"
 #endif
@@ -233,3 +235,4 @@ void UNiagaraDataInterfaceVectorCurve::SampleCurve(FVectorVMExternalFunctionCont
 		*OutSampleZ.GetDestAndAdvance() = V.Z;
 	}
 }
+

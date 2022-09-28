@@ -5,6 +5,8 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Analytics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnalyticsBlueprintLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogAnalyticsBPLib, Display, All);
 
 /**
@@ -419,3 +421,4 @@ void UAnalyticsBlueprintLibrary::RecordProgress(const FString& ProgressType, con
 		UE_LOG(LogAnalyticsBPLib, Warning, TEXT("RecordProgress: Failed to get the default analytics provider. Double check your [Analytics] configuration in your INI"));
 	}
 }
+

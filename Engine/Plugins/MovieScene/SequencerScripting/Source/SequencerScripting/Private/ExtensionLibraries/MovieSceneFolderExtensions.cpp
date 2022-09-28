@@ -5,6 +5,8 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFolderExtensions)
+
 FName UMovieSceneFolderExtensions::GetFolderName(UMovieSceneFolder* Folder)
 {
 	if (!Folder)
@@ -207,3 +209,4 @@ bool UMovieSceneFolderExtensions::RemoveChildObjectBinding(UMovieSceneFolder* Fo
 
 	return false;
 }
+

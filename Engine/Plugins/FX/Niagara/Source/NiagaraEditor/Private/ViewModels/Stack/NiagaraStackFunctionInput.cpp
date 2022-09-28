@@ -53,6 +53,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackFunctionInput)
+
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
 static FText TooManyConversionScripts = LOCTEXT("TooManyConversionScripts", "There is more than one dynamic input script available auto-convert the dragged parameter. Please fix this by disabling conversion for all but one of them:\n{0}");
@@ -3152,3 +3154,4 @@ bool UNiagaraStackFunctionInput::OpenSourceAsset() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

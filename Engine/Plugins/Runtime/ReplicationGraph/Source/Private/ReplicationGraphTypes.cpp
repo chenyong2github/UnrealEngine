@@ -22,6 +22,8 @@
 #include "Templates/UnrealTemplate.h"
 #include "Misc/CoreDelegates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReplicationGraphTypes)
+
 DEFINE_LOG_CATEGORY( LogReplicationGraph );
 
 DECLARE_LLM_MEMORY_STAT(TEXT("NetRepGraph"), STAT_NetRepGraphLLM, STATGROUP_LLMFULL);

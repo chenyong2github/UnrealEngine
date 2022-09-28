@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_GetSpaceTransform)
+
 FRigUnit_GetSpaceTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -58,3 +60,4 @@ FRigVMStructUpgradeInfo FRigUnit_GetSpaceTransform::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("SpaceType"), TEXT("Space"));
 	return Info;
 }
+

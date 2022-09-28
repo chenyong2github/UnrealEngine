@@ -6,6 +6,8 @@
 #include "Editor/ControlRigEditor.h"
 #include "Framework/Application/SlateApplication.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigContextMenuContext)
+
 FString FControlRigRigHierarchyToGraphDragAndDropContext::GetSectionTitle() const
 {
 	TArray<FString> ElementNameStrings;
@@ -86,3 +88,4 @@ FControlRigEditor* UControlRigContextMenuContext::GetControlRigEditor() const
 	}
 	return nullptr;
 }
+

@@ -14,6 +14,8 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraEditorUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackSystemSettingsGroup)
+
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreGroup"
 
@@ -250,3 +252,4 @@ void UNiagaraStackParameterStoreItem::ParameterStoreChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
+

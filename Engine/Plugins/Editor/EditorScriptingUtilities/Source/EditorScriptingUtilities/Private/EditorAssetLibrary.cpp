@@ -19,6 +19,8 @@
 #include "Subsystems/EditorAssetSubsystem.h"
 #include "UObject/MetaData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorAssetLibrary)
+
 #define LOCTEXT_NAMESPACE "Editoribrary"
 
 namespace InternalEditorLevelLibrary
@@ -562,4 +564,5 @@ void UEditorAssetLibrary::SyncBrowserToObjects(const TArray<FString>& AssetPaths
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

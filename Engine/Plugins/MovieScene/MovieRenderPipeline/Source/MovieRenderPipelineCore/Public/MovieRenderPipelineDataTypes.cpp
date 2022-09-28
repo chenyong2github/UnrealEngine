@@ -5,6 +5,8 @@
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MoviePipeline.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieRenderPipelineDataTypes)
+
 FFrameNumber FMoviePipelineCameraCutInfo::GetOutputFrameCountEstimate() const
 {
 	// TotalRange is stored in Tick Resolution, so we convert 1 frame of Frame Rate to the number of ticks.
@@ -160,3 +162,4 @@ void MoviePipeline::FTileWeight1D::CalculateArrayWeight(TArray<float>& WeightDat
 		WeightData[Index] = 0.0f;
 	}
 }
+

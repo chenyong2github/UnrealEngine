@@ -4,6 +4,8 @@
 #include "MIDIDeviceLog.h"
 #include "portmidi.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MIDIDeviceOutputController)
+
 UMIDIDeviceOutputController::~UMIDIDeviceOutputController()
 {
 	// Clean everything up before we're garbage collected
@@ -121,3 +123,4 @@ void UMIDIDeviceOutputController::SendMIDIChannelAftertouch(int32 Channel, float
 {
 	SendMIDIEvent(EMIDIEventType::ChannelAfterTouch, Channel, Amount, 0);
 }
+

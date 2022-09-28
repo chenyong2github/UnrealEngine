@@ -15,6 +15,8 @@
 #include "Algo/Accumulate.h"
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PointSetComponent)
+
 
 
 struct FPointSetMeshBatchData
@@ -377,4 +379,5 @@ FBoxSphereBounds UPointSetComponent::CalcBounds(const FTransform& LocalToWorld) 
 	}
 	return Bounds.TransformBy(LocalToWorld);
 }
+
 

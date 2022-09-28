@@ -19,6 +19,8 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraParameterDefinitions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDumpModuleInfoCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogNiagaraDumpModuleInfoCommandlet, Log, All);
 
 UNiagaraDumpModuleInfoCommandlet::UNiagaraDumpModuleInfoCommandlet(const FObjectInitializer& ObjectInitializer)

@@ -19,6 +19,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaSequenceRecorderExtender)
+
 #define LOCTEXT_NAMESPACE "MediaSequenceRecorder"
 
 UMediaSequenceRecorderSettings::UMediaSequenceRecorderSettings(const FObjectInitializer& ObjectInitializer)
@@ -375,3 +377,4 @@ bool FMediaSequenceRecorderExtender::OnRecordingMediaPlayerListAllowDrop(TShared
 }
 
 #undef LOCTEXT_NAMESPACE
+

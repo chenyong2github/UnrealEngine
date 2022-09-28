@@ -5,6 +5,8 @@
 #include "MoviePipeline.h"
 #include "MoviePipelineInProcessExecutor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineQueueEngineSubsystem)
+
 UMoviePipelineExecutorBase* UMoviePipelineQueueEngineSubsystem::RenderQueueWithExecutor(TSubclassOf<UMoviePipelineExecutorBase> InExecutorType)
 {
 	if (!ensureMsgf(InExecutorType.Get(), TEXT("RenderQueueWithExecutor cannot be called with a null class type!")))
@@ -113,4 +115,5 @@ void UMoviePipelineQueueEngineSubsystem::SetConfiguration(TSubclassOf<UMovieRend
 	CachedProgressWidgetClass = InProgressWidgetClass;
 	bCachedRenderPlayerViewport = bRenderPlayerViewport;
 }
+
 

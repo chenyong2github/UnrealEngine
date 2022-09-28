@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectBaseUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneAnimationTrackRecorderSettings)
+
 void UMovieSceneAnimationTrackRecorderEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -15,3 +17,4 @@ void UMovieSceneAnimationTrackRecorderEditorSettings::PostEditChangeProperty(FPr
 		SaveConfig();
 	}
 }
+

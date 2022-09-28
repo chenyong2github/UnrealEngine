@@ -6,6 +6,8 @@
 #include "MoviePipelineBlueprintLibrary.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineQueue)
+
 UMoviePipelineExecutorJob* UMoviePipelineQueue::AllocateNewJob(TSubclassOf<UMoviePipelineExecutorJob> InJobType)
 {
 	if (!ensureAlwaysMsgf(InJobType, TEXT("Failed to specify a Job Type. Use the default in project setting or UMoviePipelineExecutorJob.")))
@@ -253,3 +255,4 @@ void UMoviePipelineExecutorShot::SetShotOverridePresetOrigin(UMoviePipelineShotC
 		ShotOverridePresetOrigin.Reset();
 	}
 }
+

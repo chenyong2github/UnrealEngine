@@ -16,6 +16,8 @@
 #include "CanvasItem.h"
 #include "MeshPaintingToolsetTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TexturePaintToolset)
+
 void UTexturePaintToolset::CopyTextureToRenderTargetTexture(UTexture* SourceTexture, UTextureRenderTarget2D* RenderTargetTexture, ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(SourceTexture != nullptr);
@@ -501,4 +503,5 @@ void UTexturePaintToolset::RetrieveTexturesForComponent(const UMeshComponent* Co
 			});
 	}
 }
+
 

@@ -3,6 +3,8 @@
 #include "Units/Drawing/RigUnit_DrawContainer.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DrawContainer)
+
 FRigUnit_DrawContainerGetInstruction_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -128,3 +130,4 @@ FRigVMStructUpgradeInfo FRigUnit_DrawContainerSetTransform::GetUpgradeInfo() con
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

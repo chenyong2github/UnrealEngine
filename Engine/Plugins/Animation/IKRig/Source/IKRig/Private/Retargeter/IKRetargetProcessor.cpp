@@ -12,6 +12,8 @@
 #include "Solvers/PointsToRotation.h"
 #include "UObject/UnrealTypePrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetProcessor)
+
 #define LOCTEXT_NAMESPACE "IKRetargetProcessor"
 
 // This is the default end of branch index value, meaning we haven't cached it yet
@@ -2272,3 +2274,4 @@ void UIKRetargetProcessor::ApplyNewRetargetPose(
 }
 
 #undef LOCTEXT_NAMESPACE
+

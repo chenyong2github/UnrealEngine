@@ -12,6 +12,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshAttributePaintTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshAttributePaintTool"
@@ -759,3 +761,4 @@ void UMeshAttributePaintTool::ExternalUpdateValues(int32 AttribIndex, const TArr
 
 
 #undef LOCTEXT_NAMESPACE
+

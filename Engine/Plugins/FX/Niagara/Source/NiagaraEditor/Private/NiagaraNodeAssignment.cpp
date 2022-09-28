@@ -20,6 +20,8 @@
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "NiagaraCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeAssignment)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeAssigment"
 
 void UNiagaraNodeAssignment::AllocateDefaultPins()
@@ -648,3 +650,4 @@ bool UNiagaraNodeAssignment::RenameAssignmentTarget(FName OldName, FName NewName
 }
 
 #undef LOCTEXT_NAMESPACE
+

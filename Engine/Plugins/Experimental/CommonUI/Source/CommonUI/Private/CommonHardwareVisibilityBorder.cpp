@@ -10,6 +10,8 @@
 #include "CommonUISettings.h"
 #include "ICommonUIModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonHardwareVisibilityBorder)
+
 UCommonHardwareVisibilityBorder::UCommonHardwareVisibilityBorder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, VisibleType(ESlateVisibility::SelfHitTestInvisible)
@@ -70,3 +72,4 @@ void UCommonHardwareVisibilityBorder::HandleInputMethodChanged(UCommonUIVisibili
 {
 	UpdateVisibility(VisSystem);
 }
+

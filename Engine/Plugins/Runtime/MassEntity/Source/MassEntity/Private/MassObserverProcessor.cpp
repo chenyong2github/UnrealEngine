@@ -3,6 +3,8 @@
 #include "MassObserverProcessor.h"
 #include "MassObserverRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassObserverProcessor)
+
 //----------------------------------------------------------------------//
 // UMassObserverProcessor
 //----------------------------------------------------------------------//
@@ -40,4 +42,5 @@ void UMassObserverProcessor::Register()
 	check(ObservedType);
 	UMassObserverRegistry::GetMutable().RegisterObserver(*ObservedType, Operation, GetClass());
 }
+
 

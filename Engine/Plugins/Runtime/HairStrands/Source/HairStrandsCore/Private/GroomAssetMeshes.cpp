@@ -4,6 +4,8 @@
 #include "Engine/StaticMesh.h"
 #include "MeshDescription.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomAssetMeshes)
+
 FHairGroupsMeshesSourceDescription::FHairGroupsMeshesSourceDescription()
 {
 	 ImportedMesh = nullptr;

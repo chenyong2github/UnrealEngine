@@ -9,6 +9,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Algo/ForEach.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_IKRig)
+
 FAnimNode_IKRig::FAnimNode_IKRig()
 	: AlphaInputType(EAnimAlphaInputType::Float)
 	, bAlphaBoolEnabled(true)

@@ -11,6 +11,8 @@
 
 #include "CoreGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataValidationManager)
+
 #define LOCTEXT_NAMESPACE "DataValidationManager"
 
 UDEPRECATED_DataValidationManager* GDataValidationManager = nullptr;
@@ -265,3 +267,4 @@ void UDEPRECATED_DataValidationManager::ValidateAllSavedPackages()
 }
 
 #undef LOCTEXT_NAMESPACE
+

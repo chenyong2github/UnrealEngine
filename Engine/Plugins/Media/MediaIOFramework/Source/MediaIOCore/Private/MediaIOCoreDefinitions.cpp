@@ -6,6 +6,8 @@
 #include "MediaIOCoreCommonDisplayMode.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaIOCoreDefinitions)
+
 #define LOCTEXT_NAMESPACE "MediaIOCoreDefinitions"
 
 /**
@@ -337,3 +339,4 @@ FText FMediaIOVideoTimecodeConfiguration::ToText(bool bAutoDetected) const
 
 
 #undef LOCTEXT_NAMESPACE
+

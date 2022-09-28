@@ -15,6 +15,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackFilteredObject)
+
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFilteredObject"
 

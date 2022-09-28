@@ -11,6 +11,8 @@
 #include "UDIMUtilities.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorBackgroundPreview)
+
 using namespace UE::Geometry;
 
 void UUVEditorBackgroundPreview::OnCreated()
@@ -227,3 +229,4 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 		BackgroundComponent->AddTriangle(Upper);
 	}
 }
+

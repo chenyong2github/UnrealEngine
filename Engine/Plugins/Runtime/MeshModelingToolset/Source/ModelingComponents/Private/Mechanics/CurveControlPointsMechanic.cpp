@@ -16,6 +16,8 @@
 #include "ToolSetupUtil.h"
 #include "Transforms/MultiTransformer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveControlPointsMechanic)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UCurveControlPointsMechanic"
@@ -1404,3 +1406,4 @@ void UCurveControlPointsMechanic::FOrderedPoints::ReInitialize(const TArray<FVec
 }
 
 #undef LOCTEXT_NAMESPACE
+

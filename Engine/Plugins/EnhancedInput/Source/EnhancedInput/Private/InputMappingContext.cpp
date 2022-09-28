@@ -5,6 +5,8 @@
 #include "EnhancedInputLibrary.h"
 #include "EnhancedInputModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputMappingContext)
+
 #define LOCTEXT_NAMESPACE "InputMappingContext"
 
 #if WITH_EDITOR

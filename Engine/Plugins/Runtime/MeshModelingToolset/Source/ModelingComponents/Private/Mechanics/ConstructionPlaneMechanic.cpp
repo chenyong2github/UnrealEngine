@@ -9,6 +9,8 @@
 #include "ToolSceneQueriesUtil.h"
 #include "SceneQueries/SceneSnappingManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConstructionPlaneMechanic)
+
 using namespace UE::Geometry;
 
 void UConstructionPlaneMechanic::Setup(UInteractiveTool* ParentToolIn)
@@ -132,3 +134,4 @@ void UConstructionPlaneMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(CameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 }
+

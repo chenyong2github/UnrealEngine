@@ -10,6 +10,8 @@
 #include "Stats/Stats.h"
 #include "TimerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActivatableWidgetContainer)
+
 UCommonActivatableWidget* ActivatableWidgetFromSlate(const TSharedPtr<SWidget>& SlateWidget)
 {
 	//@todo DanH: FActivatableWidgetMetaData

@@ -12,6 +12,8 @@
 #include "Backends/CborStructSerializerBackend.h"
 #include "Backends/CborStructDeserializerBackend.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertMessageData)
+
 LLM_DEFINE_TAG(Concert_ConcertClientInfo);
 
 void FConcertInstanceInfo::Initialize()
@@ -345,3 +347,4 @@ bool FConcertSessionSerializedPayload::IsTypeChildOf(const UScriptStruct* InPayl
 	const UStruct* PayloadType = FindObject<UStruct>(nullptr, *PayloadTypeName.ToString());
 	return PayloadType && InPayloadType->IsChildOf(PayloadType);
 }
+

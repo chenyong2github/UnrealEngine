@@ -4,6 +4,8 @@
 #include "Units/Execution/RigUnit_Item.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Collection)
+
 #if WITH_EDITOR
 #include "Units/RigUnitTest.h"
 #endif

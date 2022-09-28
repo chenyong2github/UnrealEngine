@@ -5,6 +5,8 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraThumbnailRenderer)
+
 bool UNiagaraThumbnailRendererBase::CanVisualizeAsset(UObject* Object)
 {
 	return GetThumbnailTextureFromObject(Object) != nullptr;

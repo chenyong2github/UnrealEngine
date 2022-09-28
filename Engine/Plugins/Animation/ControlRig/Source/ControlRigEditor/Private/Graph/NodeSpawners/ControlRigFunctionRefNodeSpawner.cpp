@@ -19,6 +19,8 @@
 #include "ControlRig.h"
 #include "Settings/ControlRigSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigFunctionRefNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "SGraphActionMenu.h"
@@ -393,3 +395,4 @@ bool UControlRigFunctionRefNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActi
 }
 
 #undef LOCTEXT_NAMESPACE
+

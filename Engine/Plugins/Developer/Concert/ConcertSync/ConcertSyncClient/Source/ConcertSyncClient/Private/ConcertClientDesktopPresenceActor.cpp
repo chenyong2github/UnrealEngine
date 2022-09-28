@@ -16,6 +16,8 @@
 #include "ConcertAssetContainer.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertClientDesktopPresenceActor)
+
 
 AConcertClientDesktopPresenceActor::AConcertClientDesktopPresenceActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

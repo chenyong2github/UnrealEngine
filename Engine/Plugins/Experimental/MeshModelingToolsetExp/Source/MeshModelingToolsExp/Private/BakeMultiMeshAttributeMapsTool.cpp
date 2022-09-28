@@ -28,6 +28,8 @@
 // required to pass UStaticMesh asset so we can save at same location
 #include "Engine/Classes/Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeMultiMeshAttributeMapsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMultiMeshAttributeMapsTool"
@@ -827,3 +829,4 @@ void UBakeMultiMeshAttributeMapsTool::GatherAnalytics(FBakeAnalytics::FMeshSetti
 
 
 #undef LOCTEXT_NAMESPACE
+

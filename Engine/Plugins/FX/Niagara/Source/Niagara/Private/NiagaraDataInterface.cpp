@@ -11,6 +11,8 @@
 #include "NiagaraComponent.h"
 #include "ShaderCompilerCore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterface)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterface"
 
 UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectInitializer)
@@ -362,3 +364,4 @@ bool FNiagaraDataInterfaceSetShaderParametersContext::IsIterationStage() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

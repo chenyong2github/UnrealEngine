@@ -5,6 +5,8 @@
 #include "DefaultManagerInstanceTracker.h"
 #include "GameplayBehaviorConfig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorSubsystem)
+
 
 bool UGameplayBehaviorSubsystem::StopBehavior(AActor& Avatar, const TSubclassOf<UGameplayBehavior> BehaviorToStop)
 {
@@ -72,3 +74,4 @@ UGameplayBehaviorSubsystem* UGameplayBehaviorSubsystem::GetCurrent(const UWorld*
 {
 	return UWorld::GetSubsystem<UGameplayBehaviorSubsystem>(World);
 }
+

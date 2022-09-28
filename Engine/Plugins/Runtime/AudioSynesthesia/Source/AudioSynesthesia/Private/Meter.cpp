@@ -7,6 +7,8 @@
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/Dsp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Meter)
+
 TUniquePtr<Audio::IAnalyzerSettings> UMeterSettings::GetSettings(const int32 InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::FMeterSettings> Settings = MakeUnique<Audio::FMeterSettings>();

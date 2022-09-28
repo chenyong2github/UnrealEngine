@@ -7,6 +7,8 @@
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundFrontendLiteral)
+
 FString LexToString(Metasound::FLiteral::FNone InValue)
 {
 	return FString(TEXT(""));
@@ -840,4 +842,5 @@ namespace Metasound
 		}
 	}
 }
+
 

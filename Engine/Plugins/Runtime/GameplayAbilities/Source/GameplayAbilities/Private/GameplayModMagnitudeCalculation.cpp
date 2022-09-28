@@ -2,6 +2,8 @@
 
 #include "GameplayModMagnitudeCalculation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayModMagnitudeCalculation)
+
 UGameplayModMagnitudeCalculation::UGameplayModMagnitudeCalculation(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bAllowNonNetAuthorityDependencyRegistration(false)
@@ -121,3 +123,4 @@ const FGameplayTagContainer& UGameplayModMagnitudeCalculation::GetTargetSpecTags
 {
 	return EffectSpec.CapturedTargetTags.GetSpecTags();
 }
+

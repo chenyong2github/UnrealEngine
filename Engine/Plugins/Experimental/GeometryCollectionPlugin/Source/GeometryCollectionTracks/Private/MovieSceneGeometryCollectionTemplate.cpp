@@ -7,6 +7,8 @@
 #include "IMovieScenePlayer.h"
 #include "UObject/ObjectKey.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGeometryCollectionTemplate)
+
 
 DECLARE_CYCLE_STAT(TEXT("Geometry Collection Evaluate"), MovieSceneEval_GeometryCollection_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Geometry Collection Token Execute"), MovieSceneEval_GeometryCollection_TokenExecute, STATGROUP_MovieSceneEval);
@@ -142,3 +144,4 @@ float FMovieSceneGeometryCollectionSectionTemplateParameters::MapTimeToAnimation
 
 	return AnimPosition;
 }
+

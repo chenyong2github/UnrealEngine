@@ -7,6 +7,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "MassDebugger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassProcessingTypes)
+
 DEFINE_LOG_CATEGORY(LogMass);
 
 //----------------------------------------------------------------------//
@@ -223,3 +225,4 @@ uint32 GetTypeHash(const FMassRuntimePipeline& Instance)
 	}
 	return Hash;
 }
+

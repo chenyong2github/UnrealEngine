@@ -10,6 +10,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneNotifyTrack)
+
 FContextualAnimViewModel& UContextualAnimMovieSceneNotifyTrack::GetViewModel() const
 {
 	return GetTypedOuter<UMovieScene>()->GetTypedOuter<UContextualAnimMovieSceneSequence>()->GetViewModel();

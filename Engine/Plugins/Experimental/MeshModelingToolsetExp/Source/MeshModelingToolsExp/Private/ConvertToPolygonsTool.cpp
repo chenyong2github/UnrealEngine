@@ -21,6 +21,8 @@
 
 #include "Polygroups/PolygroupsGenerator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConvertToPolygonsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UConvertToPolygonsTool"
@@ -483,3 +485,4 @@ void UConvertToPolygonsTool::UpdateVisualization()
 
 
 #undef LOCTEXT_NAMESPACE
+

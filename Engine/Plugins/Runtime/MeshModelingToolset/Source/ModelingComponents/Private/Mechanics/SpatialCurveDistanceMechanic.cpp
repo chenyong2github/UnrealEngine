@@ -6,6 +6,8 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "Distance/DistRay3Segment3.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpatialCurveDistanceMechanic)
+
 using namespace UE::Geometry;
 
 void USpatialCurveDistanceMechanic::Setup(UInteractiveTool* ParentToolIn)

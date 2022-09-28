@@ -8,6 +8,8 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PythonAutomationTest)
+
 #define LOCTEXT_NAMESPACE "PyAutomationTest"
 
 DEFINE_LOG_CATEGORY_STATIC(PyAutomationTest, Log, Log)
@@ -185,3 +187,4 @@ bool FPythonAutomationTest::RunTest(const FString& Parameters)
 }
 
 #undef LOCTEXT_NAMESPACE
+

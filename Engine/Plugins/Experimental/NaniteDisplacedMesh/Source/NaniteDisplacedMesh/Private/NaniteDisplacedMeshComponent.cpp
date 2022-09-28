@@ -4,6 +4,8 @@
 #include "Engine/StaticMesh.h"
 #include "ComponentRecreateRenderStateContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NaniteDisplacedMeshComponent)
+
 int32 GRenderNaniteDisplacedMesh = 1;
 FAutoConsoleVariableRef CVarRenderNaniteDisplacedMesh(
 	TEXT("r.Nanite.DisplacedMesh"),
@@ -137,3 +139,4 @@ void UNaniteDisplacedMeshComponent::BindCallback()
 }
 
 #endif
+

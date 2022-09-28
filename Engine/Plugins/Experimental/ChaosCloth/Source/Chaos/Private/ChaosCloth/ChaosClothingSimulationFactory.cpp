@@ -6,6 +6,8 @@
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothingSimulationInteractor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosClothingSimulationFactory)
+
 IClothingSimulation* UChaosClothingSimulationFactory::CreateSimulation()
 {
 	IClothingSimulation* Simulation = new Chaos::FClothingSimulation();
@@ -46,3 +48,4 @@ const UEnum* UChaosClothingSimulationFactory::GetWeightMapTargetEnum() const
 {
 	return StaticEnum<EChaosWeightMapTarget>();
 }
+

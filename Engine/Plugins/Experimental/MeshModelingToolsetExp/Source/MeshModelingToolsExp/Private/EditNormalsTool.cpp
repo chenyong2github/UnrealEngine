@@ -20,6 +20,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditNormalsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UEditNormalsTool"
@@ -336,3 +338,4 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 
 
 #undef LOCTEXT_NAMESPACE
+

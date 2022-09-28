@@ -6,6 +6,8 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "OpenColorIORendering.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOBlueprintLibrary)
+
 
 UOpenColorIOBlueprintLibrary::UOpenColorIOBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -16,3 +18,4 @@ bool UOpenColorIOBlueprintLibrary::ApplyColorSpaceTransform(const UObject* World
 {
 	return FOpenColorIORendering::ApplyColorTransform(WorldContextObject->GetWorld(), ConversionSettings, InputTexture, OutputRenderTarget);
 }
+

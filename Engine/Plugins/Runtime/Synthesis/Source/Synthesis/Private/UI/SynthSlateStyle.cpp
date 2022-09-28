@@ -8,6 +8,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthSlateStyle)
+
 
 
 TSharedPtr< FSlateStyleSet > FSynthSlateStyleSet::StyleInstance = NULL;
@@ -137,3 +139,4 @@ const FSynthSlateStyle& FSynthSlateStyle::GetDefault()
 }
 
 const FName FSynthSlateStyle::TypeName( TEXT("FSynthUIStyle") );
+

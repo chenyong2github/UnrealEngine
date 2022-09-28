@@ -16,6 +16,8 @@
 #include "ModelingToolTargetUtil.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditMeshMaterialsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UEditMeshMaterialsTool"
@@ -420,3 +422,4 @@ FString FEditMeshMaterials_MaterialSetChange::ToString() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

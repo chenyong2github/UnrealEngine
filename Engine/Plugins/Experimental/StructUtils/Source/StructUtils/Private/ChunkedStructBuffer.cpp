@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChunkedStructBuffer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChunkedStructBuffer)
+
 void FChunkedStructBuffer::Reset()
 {
 	ForEach([](FStructView View)

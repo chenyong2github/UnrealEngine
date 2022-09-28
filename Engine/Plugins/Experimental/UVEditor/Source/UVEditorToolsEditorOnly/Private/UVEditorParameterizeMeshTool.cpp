@@ -13,6 +13,8 @@
 #include "EngineAnalytics.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorParameterizeMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UParameterizeMeshTool"
@@ -353,3 +355,4 @@ void UUVEditorParameterizeMeshTool::RecordAnalytics()
 
 
 #undef LOCTEXT_NAMESPACE
+

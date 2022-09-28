@@ -16,6 +16,8 @@
 #include "Editor.h"
 #include "Widgets/Layout/SScrollBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorDialogLibrary)
+
 #define LOCTEXT_NAMESPACE "EditorDialogLibrary"
 
 TEnumAsByte<EAppReturnType::Type> UEditorDialogLibrary::ShowMessage(const FText& Title, const FText& Message, TEnumAsByte<EAppMsgType::Type> MessageType, TEnumAsByte<EAppReturnType::Type> DefaultValue)

@@ -30,6 +30,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSpaceDeformerTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "MeshSpaceDeformerTool"
@@ -527,4 +529,5 @@ void UMeshSpaceDeformerTool::ApplyModifierGizmoValue(double Value)
 
 
 #undef LOCTEXT_NAMESPACE
+
 

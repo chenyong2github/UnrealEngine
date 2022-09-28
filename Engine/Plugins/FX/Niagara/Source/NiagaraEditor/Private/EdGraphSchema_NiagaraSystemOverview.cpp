@@ -3,6 +3,8 @@
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraphNode_Comment.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphSchema_NiagaraSystemOverview)
+
 #define LOCTEXT_NAMESPACE "NiagaraSchema"
 
 int32 UEdGraphSchema_NiagaraSystemOverview::CurrentCacheRefreshID = 0;
@@ -33,3 +35,4 @@ void UEdGraphSchema_NiagaraSystemOverview::ForceVisualizationCacheClear() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

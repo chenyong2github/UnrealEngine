@@ -8,6 +8,8 @@
 #include "EOSSharedTypes.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetDriverEOSBase)
+
 bool UNetDriverEOSBase::IsAvailable() const
 {
 	// Use passthrough sockets if we are a dedicated server
@@ -232,4 +234,5 @@ UWorld* UNetDriverEOSBase::FindWorld() const
 
 	return MyWorld;
 }
+
 

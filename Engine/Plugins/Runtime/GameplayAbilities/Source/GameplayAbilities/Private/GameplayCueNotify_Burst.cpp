@@ -2,6 +2,8 @@
 
 #include "GameplayCueNotify_Burst.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_Burst)
+
 
 //////////////////////////////////////////////////////////////////////////
 // UGameplayCueNotify_Burst
@@ -38,3 +40,4 @@ EDataValidationResult UGameplayCueNotify_Burst::IsDataValid(TArray<FText>& Valid
 	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }
 #endif // #if WITH_EDITOR
+

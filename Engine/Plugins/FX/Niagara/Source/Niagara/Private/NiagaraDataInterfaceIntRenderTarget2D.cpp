@@ -21,6 +21,8 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceIntRenderTarget2D)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceIntRenderTarget"
 
 namespace NDIIntRenderTarget2DLocal
@@ -851,3 +853,4 @@ void UNiagaraDataInterfaceIntRenderTarget2D::VMSetSize(FVectorVMExternalFunction
 }
 
 #undef LOCTEXT_NAMESPACE
+

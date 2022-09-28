@@ -21,6 +21,8 @@
 #include "Serialization/Archive.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeDDSTranslator)
+
 static bool GInterchangeEnableDDSImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnableDDSImport(
 	TEXT("Interchange.FeatureFlags.Import.DDS"),
@@ -473,5 +475,6 @@ TOptional<UE::Interchange::FImportSlicedImage> UInterchangeDDSTranslator::GetSli
 
 	return PayloadData;
 }
+
 
 

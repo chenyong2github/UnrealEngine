@@ -12,6 +12,8 @@
 #include "Sound/SoundCue.h"
 #include "UObject/Class.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueTemplateFactory)
+
 #define LOCTEXT_NAMESPACE "SoundCueTemplatesEditor"
 
 USoundCueTemplateCopyFactory::USoundCueTemplateCopyFactory(const FObjectInitializer& ObjectInitializer)
@@ -128,3 +130,4 @@ USoundCueTemplateClassTemplate::USoundCueTemplateClassTemplate(const FObjectInit
 	SetGeneratedBaseClass(USoundCueTemplate::StaticClass());
 }
 #undef LOCTEXT_NAMESPACE // "SoundCueTemplatesEditor"
+

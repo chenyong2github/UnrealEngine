@@ -19,6 +19,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "SequencerSectionPainter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraEmitterTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneNiagaraEmitterTrack"
 
 class FNiagaraInvalidSequencerSection : public ISequencerSection
@@ -342,4 +344,5 @@ void UMovieSceneNiagaraEmitterTrack::RestoreDefaultTrackColor(bool bScalabilityM
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

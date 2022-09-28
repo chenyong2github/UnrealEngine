@@ -2,6 +2,8 @@
 
 #include "SearchUserSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SearchUserSettings)
+
 USearchUserSettings::USearchUserSettings()
 {
 	DefaultOptions.ParallelDownloads = 100;

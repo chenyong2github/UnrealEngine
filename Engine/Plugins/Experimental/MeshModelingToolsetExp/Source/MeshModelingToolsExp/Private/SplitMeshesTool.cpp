@@ -16,6 +16,8 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SplitMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USplitMeshesTool"
@@ -243,3 +245,4 @@ void USplitMeshesTool::UpdateSplitMeshes()
 
 
 #undef LOCTEXT_NAMESPACE
+

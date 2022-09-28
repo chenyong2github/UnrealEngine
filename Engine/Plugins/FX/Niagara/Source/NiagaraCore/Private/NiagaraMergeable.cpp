@@ -3,6 +3,8 @@
 #include "NiagaraMergeable.h"
 #include "UObject/PropertyPortFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraMergeable)
+
 UNiagaraMergeable::UNiagaraMergeable()
 #if WITH_EDITORONLY_DATA
 	: MergeId(FGuid::NewGuid())

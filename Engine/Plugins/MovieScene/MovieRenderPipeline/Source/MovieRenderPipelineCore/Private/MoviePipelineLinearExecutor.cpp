@@ -5,6 +5,8 @@
 #include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipeline.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineLinearExecutor)
+
 #define LOCTEXT_NAMESPACE "MoviePipelineLinearExecutorBase"
 
 void UMoviePipelineLinearExecutorBase::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
@@ -139,3 +141,4 @@ void UMoviePipelineLinearExecutorBase::CancelAllJobs_Implementation()
 
 
 #undef LOCTEXT_NAMESPACE // "MoviePipelineLinearExecutorBase"
+

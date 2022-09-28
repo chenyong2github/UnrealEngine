@@ -10,6 +10,8 @@
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMBranchNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBranchNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -117,3 +119,4 @@ bool UControlRigBranchNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFil
 	return false;
 }
 #undef LOCTEXT_NAMESPACE
+

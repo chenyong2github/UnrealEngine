@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "DrawDebugHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeDebugTextTask)
+
 bool FStateTreeDebugTextTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(ReferenceActorHandle);
@@ -72,3 +74,4 @@ void FStateTreeDebugTextTask::ExitState(FStateTreeExecutionContext& Context, con
 	// Drawing an empty text will remove the HUD DebugText entries associated to the target actor
 	DrawDebugString(World, Offset, "",	ReferenceActor);
 }
+

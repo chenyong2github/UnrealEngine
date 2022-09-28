@@ -21,6 +21,8 @@
 #include "Runtime/Engine/Public/EngineGlobals.h"
 #include "Math/UnrealMathUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionNodes)
+
 namespace Dataflow
 {
 	static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);

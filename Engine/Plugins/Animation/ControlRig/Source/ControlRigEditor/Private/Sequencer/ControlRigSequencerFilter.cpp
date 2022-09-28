@@ -8,6 +8,8 @@
 #include "Framework/Commands/Commands.h"
 #include "ISequencer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequencerFilter)
+
 #define LOCTEXT_NAMESPACE "ControlRigSequencerTrackFilters"
 
 //////////////////////////////////////////////////////////////////////////
@@ -251,3 +253,4 @@ void UControlRigTrackFilter::AddTrackFilterExtensions(TArray< TSharedRef<class F
 }
 
 #undef LOCTEXT_NAMESPACE
+

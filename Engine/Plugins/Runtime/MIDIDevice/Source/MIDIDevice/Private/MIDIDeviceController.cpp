@@ -4,6 +4,8 @@
 #include "MIDIDeviceLog.h"
 #include "portmidi.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MIDIDeviceController)
+
 
 #define LOCTEXT_NAMESPACE "MIDIDeviceController"
 
@@ -152,3 +154,4 @@ void UMIDIDeviceController::ProcessIncomingMIDIEvents()
 }
 
 #undef LOCTEXT_NAMESPACE
+

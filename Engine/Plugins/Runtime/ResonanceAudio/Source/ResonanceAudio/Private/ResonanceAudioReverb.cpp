@@ -9,6 +9,8 @@
 #include "ResonanceAudioSettings.h"
 #include "Sound/SoundSubmix.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioReverb)
+
 static int32 IgnoreUserResonanceSubmixCVar = 0;
 FAutoConsoleVariableRef CVarIgnoreUserResonanceSubmix(
 	TEXT("au.IgnoreUserResonanceSubmix"),
@@ -469,3 +471,4 @@ void UResonanceAudioReverbPluginPreset::SetReverbBrightness(float InReverbBright
 	Settings.ReverbBrightness = InReverbBrightness;
 	UpdateSettings(Settings);
 }
+

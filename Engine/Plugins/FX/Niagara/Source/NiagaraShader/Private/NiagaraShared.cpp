@@ -27,6 +27,8 @@
 #endif
 #include "ShaderParameterMetadataBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraShared)
+
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParamRef);
 IMPLEMENT_TYPE_LAYOUT(FNiagaraShaderMapContent);
 IMPLEMENT_TYPE_LAYOUT(FNiagaraShaderMapId);
@@ -816,3 +818,4 @@ bool FNiagaraCVarUtilities::GetShouldEmitMessagesForFailIfNotSet()
 }
 
 #endif
+

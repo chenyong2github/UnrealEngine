@@ -7,6 +7,8 @@
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InAppPurchaseQueryCallbackProxy2)
+
 //////////////////////////////////////////////////////////////////////////
 // UInAppPurchaseQueryCallbackProxy
 
@@ -165,3 +167,4 @@ UInAppPurchaseQueryCallbackProxy2* UInAppPurchaseQueryCallbackProxy2::CreateProx
 	Proxy->TriggerQuery(PlayerController, ProductIdentifiers);
 	return Proxy;
 }
+

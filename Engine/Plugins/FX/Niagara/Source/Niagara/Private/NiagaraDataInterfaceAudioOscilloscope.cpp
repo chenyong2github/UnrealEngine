@@ -15,6 +15,8 @@
 #include "Engine/Engine.h"
 #include "NiagaraComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAudioOscilloscope)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGridAudioOscilloscope"
 
 
@@ -556,3 +558,4 @@ int32 FNiagaraDataInterfaceProxyOscilloscope::DownsampleAudioToBuffer()
 }
 
 #undef LOCTEXT_NAMESPACE
+

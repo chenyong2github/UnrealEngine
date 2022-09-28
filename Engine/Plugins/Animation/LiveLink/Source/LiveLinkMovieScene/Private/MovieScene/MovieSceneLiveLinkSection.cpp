@@ -17,6 +17,8 @@
 #include "Roles/LiveLinkAnimationTypes.h" //When loading old data
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSection)
+
 namespace LiveLinkSectionUtils
 {
 	void SetupDefaultValues(UMovieSceneLiveLinkSubSection* SubSection)

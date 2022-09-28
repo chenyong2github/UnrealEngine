@@ -3,6 +3,8 @@
 #include "ConversationGraphNode_SideEffect.h"
 #include "ConversationEditorColors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_SideEffect)
+
 UConversationGraphNode_SideEffect::UConversationGraphNode_SideEffect(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -18,3 +20,4 @@ FLinearColor UConversationGraphNode_SideEffect::GetNodeBodyTintColor() const
 {
 	return ConversationEditorColors::NodeBody::SideEffectColor;
 }
+

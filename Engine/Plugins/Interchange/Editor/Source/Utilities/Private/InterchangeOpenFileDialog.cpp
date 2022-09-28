@@ -12,6 +12,8 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeOpenFileDialog)
+
 namespace UE::Interchange::Utilities::Private
 {
 	FString GetOpenFileDialogExtensions(const TArray<FString>& TranslatorFormats)
@@ -62,3 +64,4 @@ bool UInterchangeFilePickerGeneric::FilePickerForTranslatorType(const EInterchan
 	FString Extensions = UE::Interchange::Utilities::Private::GetOpenFileDialogExtensions(UInterchangeManager::GetInterchangeManager().GetSupportedFormats(TranslatorType));
 	return UE::Interchange::Utilities::Private::FilePickerDialog(Extensions, Parameters, OutFilenames);
 }
+

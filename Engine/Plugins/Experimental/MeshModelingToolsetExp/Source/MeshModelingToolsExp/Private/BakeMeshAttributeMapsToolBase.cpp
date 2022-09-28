@@ -24,6 +24,9 @@
 #include "EngineAnalytics.h"
 
 #include "Sampling/MeshCurvatureMapEvaluator.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeMeshAttributeMapsToolBase)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsToolBase"
@@ -749,3 +752,4 @@ void UBakeMeshAttributeMapsToolBase::RecordAnalytics(const FBakeAnalytics& Data,
 
 
 #undef LOCTEXT_NAMESPACE
+

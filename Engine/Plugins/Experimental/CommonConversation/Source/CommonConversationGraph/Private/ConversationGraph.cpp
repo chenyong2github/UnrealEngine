@@ -7,6 +7,8 @@
 #include "AIGraphNode.h"
 #include "ConversationCompiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraph)
+
 //////////////////////////////////////////////////////////////////////
 // UConversationGraph
 
@@ -42,3 +44,4 @@ void UConversationGraph::UpdateAsset(int32 UpdateFlags)
 	UConversationDatabase* ConversationAsset = CastChecked<UConversationDatabase>(GetOuter());
 	FConversationCompiler::RebuildBank(ConversationAsset);
 }
+

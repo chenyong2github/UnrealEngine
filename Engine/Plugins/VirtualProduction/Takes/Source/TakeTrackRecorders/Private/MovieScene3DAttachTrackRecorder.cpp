@@ -8,6 +8,8 @@
 #include "MovieScene.h"
 #include "LevelSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DAttachTrackRecorder)
+
 bool FMovieScene3DAttachTrackRecorderFactory::CanRecordObject(UObject* InObjectToRecord) const
 {
 	return InObjectToRecord->IsA<AActor>();
@@ -101,3 +103,4 @@ void UMovieScene3DAttachTrackRecorder::FinalizeTrackImpl()
 		}
 	}
 }
+

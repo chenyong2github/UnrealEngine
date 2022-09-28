@@ -9,6 +9,9 @@
 #include "NiagaraConstants.h"
 #include "NiagaraComputeExecutionContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGrid3DCollectionReader)
+
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid3DCollectionReader"
 
 UNiagaraDataInterfaceGrid3DCollectionReader::UNiagaraDataInterfaceGrid3DCollectionReader(FObjectInitializer const& ObjectInitializer)
@@ -197,3 +200,4 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::PerInstanceTickPostSimulate(vo
 }
 
 #undef LOCTEXT_NAMESPACE
+

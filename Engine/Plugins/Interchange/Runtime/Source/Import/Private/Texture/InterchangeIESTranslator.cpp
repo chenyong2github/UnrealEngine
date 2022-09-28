@@ -11,6 +11,8 @@
 #include "Misc/Paths.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeIESTranslator)
+
 #define LOCTEXT_NAMESPACE "InterchangeIESTranslator"
 
 static bool GInterchangeEnableIESImport = true;

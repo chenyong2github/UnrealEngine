@@ -3,6 +3,8 @@
 #include "Types/MVVMViewModelCollection.h"
 #include "MVVMViewModelBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelCollection)
+
 
 UMVVMViewModelBase* FMVVMViewModelCollection::FindViewModelInstance(FMVVMViewModelContext Context) const
 {
@@ -60,3 +62,4 @@ void FMVVMViewModelCollection::Reset()
 	ViewModelInstances.Reset();
 	OnCollectionChangedDelegate.Broadcast();
 }
+

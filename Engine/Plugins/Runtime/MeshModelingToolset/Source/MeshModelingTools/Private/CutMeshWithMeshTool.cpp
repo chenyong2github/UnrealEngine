@@ -19,6 +19,8 @@
 #include "TargetInterfaces/AssetBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CutMeshWithMeshTool)
+
 using namespace UE::Geometry;
 
 namespace
@@ -396,3 +398,4 @@ void UCutMeshWithMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 
 
 #undef LOCTEXT_NAMESPACE
+

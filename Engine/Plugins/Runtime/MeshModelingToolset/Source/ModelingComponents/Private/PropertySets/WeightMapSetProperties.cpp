@@ -3,6 +3,8 @@
 #include "PropertySets/WeightMapSetProperties.h"
 #include "WeightMapUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WeightMapSetProperties)
+
 
 void UWeightMapSetProperties::InitializeWeightMaps(const TArray<FName>& WeightMapNames)
 {

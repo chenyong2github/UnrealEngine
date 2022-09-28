@@ -13,6 +13,8 @@
 #include "Net/DataChannel.h"
 #include "OnlineBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBeaconHost)
+
 const FText Error_UnableToParsePacket = NSLOCTEXT("NetworkErrors", "UnableToParsePacket", "Unable to parse expected packet structure: {0}.");
 const FText Error_ControlFlow = NSLOCTEXT("NetworkErrors", "ControlFlowError", "Control flow error: {0}.");
 const FText Error_Authentication = NSLOCTEXT("NetworkErrors", "AuthenticationFailure", "Failed to verify user authentication.");
@@ -727,3 +729,4 @@ AOnlineBeaconHost::FOnBeaconConnected& AOnlineBeaconHost::OnBeaconConnected(cons
 
 	return *BeaconDelegate; 
 }
+

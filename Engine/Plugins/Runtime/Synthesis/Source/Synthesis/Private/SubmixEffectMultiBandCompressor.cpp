@@ -7,6 +7,8 @@
 #include "AudioMixerSubmix.h"
 #include "DSP/FloatArrayMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectMultiBandCompressor)
+
 FSubmixEffectMultibandCompressor::FSubmixEffectMultibandCompressor()
 {
 	ScratchBuffer.AddUninitialized(FSubmixEffectMultibandCompressor::MaxBlockNumSamples);
@@ -612,3 +614,4 @@ void USubmixEffectMultibandCompressorPreset::SetSettings(const FSubmixEffectMult
 		Instance.UpdateKeyFromSettings(InSettings);
 	});
 }
+

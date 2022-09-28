@@ -6,6 +6,8 @@
 #include "StateTreePropertyBindings.h"
 #include "StateTreeCompiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindingCompiler)
+
 bool FStateTreePropertyBindingCompiler::Init(FStateTreePropertyBindings& InPropertyBindings, FStateTreeCompilerLog& InLog)
 {
 	Log = &InLog;
@@ -688,3 +690,4 @@ void FStateTreePropertyBindingCompiler::StoreSourceStructs()
 		}
 	}
 }
+

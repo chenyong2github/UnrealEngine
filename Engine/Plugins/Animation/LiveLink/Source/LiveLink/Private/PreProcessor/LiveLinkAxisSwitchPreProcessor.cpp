@@ -7,6 +7,8 @@
 #include "Roles/LiveLinkTransformTypes.h"
 #include "UObject/ReleaseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAxisSwitchPreProcessor)
+
 namespace LiveLinkAxisSwitchPreProcessor
 {
 	float LiveLinkAxisToVectorMember(ELiveLinkAxis InAxis, const FVector& Origin)
@@ -241,3 +243,4 @@ void ULiveLinkTransformAxisSwitchPreProcessor::Serialize(FArchive& Ar)
 	}
 #endif
 }
+

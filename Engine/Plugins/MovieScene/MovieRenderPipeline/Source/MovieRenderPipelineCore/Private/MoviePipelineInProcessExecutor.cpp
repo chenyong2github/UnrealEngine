@@ -12,6 +12,8 @@
 #include "Engine/GameEngine.h"
 #include "MoviePipelineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineInProcessExecutor)
+
 #define LOCTEXT_NAMESPACE "MoviePipelineInProcessExecutor"
 
 void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJob)
@@ -301,3 +303,4 @@ void UMoviePipelineInProcessExecutor::CancelCurrentJob_Implementation()
 	}
 }
 #undef LOCTEXT_NAMESPACE // "MoviePipelineInProcessExecutor"
+

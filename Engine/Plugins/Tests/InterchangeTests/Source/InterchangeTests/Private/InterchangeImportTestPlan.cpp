@@ -6,6 +6,8 @@
 #include "Misc/FileHelper.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestPlan)
+
 #define LOCTEXT_NAMESPACE "InterchangeImportTestPlan"
 
 
@@ -86,3 +88,4 @@ void UInterchangeImportTestPlan::RunThisTest()
 }
 
 #undef LOCTEXT_NAMESPACE
+

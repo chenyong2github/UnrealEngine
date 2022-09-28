@@ -7,6 +7,8 @@
 #include "PaperTerrainComponent.h"
 #include "PaperRuntimeSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TerrainSplineActorFactory)
+
 //////////////////////////////////////////////////////////////////////////
 // UTerrainSplineActorFactory
 
@@ -56,3 +58,4 @@ bool UTerrainSplineActorFactory::CanCreateActorFrom(const FAssetData& AssetData,
 		return false;
 	}
 }
+

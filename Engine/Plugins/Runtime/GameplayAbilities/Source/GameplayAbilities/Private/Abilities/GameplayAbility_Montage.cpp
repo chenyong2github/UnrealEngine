@@ -4,6 +4,8 @@
 #include "Animation/AnimInstance.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbility_Montage)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	UGameplayAbility_Montage
@@ -84,3 +86,4 @@ void UGameplayAbility_Montage::GetGameplayEffectsWhileAnimating(TArray<const UGa
 		}
 	}
 }
+

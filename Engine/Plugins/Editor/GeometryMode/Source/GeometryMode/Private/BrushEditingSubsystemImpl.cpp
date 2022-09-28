@@ -13,6 +13,8 @@
 #include "GeometryModeModule.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BrushEditingSubsystemImpl)
+
 DEFINE_LOG_CATEGORY(LogBrushEditing);
 
 
@@ -414,3 +416,4 @@ bool UBrushEditingSubsystemImpl::HandleActorDelete()
 
 	return bHandled;
 }
+

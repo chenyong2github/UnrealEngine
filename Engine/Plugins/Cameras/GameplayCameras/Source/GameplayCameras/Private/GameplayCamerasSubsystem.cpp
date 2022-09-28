@@ -4,6 +4,8 @@
 #include "CameraAnimationCameraModifier.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCamerasSubsystem)
+
 #define LOCTEXT_NAMESPACE "GameplayCamerasSubsystem"
 
 UGameplayCamerasSubsystem* UGameplayCamerasSubsystem::GetGameplayCamerasSubsystem(const UWorld* InWorld)
@@ -64,4 +66,5 @@ void UGameplayCamerasSubsystem::StopAllCameraAnimations(APlayerController* Playe
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

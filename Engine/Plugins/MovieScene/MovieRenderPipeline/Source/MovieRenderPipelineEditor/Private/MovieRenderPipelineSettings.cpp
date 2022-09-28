@@ -8,6 +8,8 @@
 #include "MoviePipelineDeferredPasses.h"
 #include "MoviePipelineQueue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieRenderPipelineSettings)
+
 UMovieRenderPipelineProjectSettings::UMovieRenderPipelineProjectSettings()
 {
 	PresetSaveDir.Path = TEXT("/Game/Cinematics/MoviePipeline/Presets/");

@@ -21,6 +21,8 @@
 #include "IPropertyAccessBlueprintBinding.h"
 #include "Animation/AnimBlueprint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_PropertyAccess)
+
 #define LOCTEXT_NAMESPACE "K2Node_PropertyAccess"
 
 void UK2Node_PropertyAccess::CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext)
@@ -437,3 +439,4 @@ const FProperty* UK2Node_PropertyAccess::GetResolvedProperty() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

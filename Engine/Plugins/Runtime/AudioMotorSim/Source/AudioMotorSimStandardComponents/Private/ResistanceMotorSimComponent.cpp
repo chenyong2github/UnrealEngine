@@ -2,6 +2,8 @@
 
 #include "ResistanceMotorSimComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResistanceMotorSimComponent)
+
 void UResistanceMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	if(Input.bClutchEngaged || !Input.bDriving || !Input.bGrounded)

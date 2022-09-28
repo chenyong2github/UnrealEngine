@@ -11,6 +11,8 @@
 #include "Utils.h"
 #include "Stats/Stats2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoEdMode)
+
 #define LOCTEXT_NAMESPACE "FGizmoEdMode"
 
 UGizmoEdMode::UGizmoEdMode()
@@ -103,3 +105,4 @@ void UGizmoEdMode::ModeTick(float DeltaTime)
 }
 
 #undef LOCTEXT_NAMESPACE
+

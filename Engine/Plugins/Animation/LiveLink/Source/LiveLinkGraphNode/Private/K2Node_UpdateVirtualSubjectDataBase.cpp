@@ -12,6 +12,8 @@
 #include "VirtualSubjects/LiveLinkBlueprintVirtualSubject.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_UpdateVirtualSubjectDataBase)
+
 #define LOCTEXT_NAMESPACE "K2Node_UpdateVirtualSubjectDataBase"
 
 const FName UK2Node_UpdateVirtualSubjectDataBase::LiveLinkStructPinName = "Struct";

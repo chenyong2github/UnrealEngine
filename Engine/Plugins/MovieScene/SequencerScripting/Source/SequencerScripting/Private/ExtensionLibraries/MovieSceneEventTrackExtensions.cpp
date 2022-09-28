@@ -5,6 +5,8 @@
 #include "Sections/MovieSceneEventRepeaterSection.h"
 #include "Sections/MovieSceneEventTriggerSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneEventTrackExtensions)
+
 UMovieSceneEventRepeaterSection* UMovieSceneEventTrackExtensions::AddEventRepeaterSection(UMovieSceneEventTrack* Track)
 {
 	if (!Track)
@@ -44,3 +46,4 @@ UMovieSceneEventTriggerSection* UMovieSceneEventTrackExtensions::AddEventTrigger
 
 	return NewSection;
 }
+

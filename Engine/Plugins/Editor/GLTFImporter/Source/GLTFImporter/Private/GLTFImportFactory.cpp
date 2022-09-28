@@ -25,6 +25,8 @@
 #include "PackageTools.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFImportFactory)
+
 DEFINE_LOG_CATEGORY(LogGLTF);
 
 #define LOCTEXT_NAMESPACE "GLTFFactory"
@@ -221,3 +223,4 @@ void UGLTFImportFactory::UpdateMeshes() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

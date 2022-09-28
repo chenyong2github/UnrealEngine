@@ -8,6 +8,8 @@
 #include "Properties/UVLayoutProperties.h"
 #include "Selections/MeshConnectedComponents.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVLayoutOp)
+
 using namespace UE::Geometry;
 
 void FUVLayoutOp::SetTransform(const FTransformSRT3d& Transform) 

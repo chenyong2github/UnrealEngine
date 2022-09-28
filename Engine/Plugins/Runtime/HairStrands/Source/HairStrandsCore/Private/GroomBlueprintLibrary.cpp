@@ -5,6 +5,8 @@
 #include "HairStrandsCore.h"
 #include "GroomBindingAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomBlueprintLibrary)
+
 UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAssetWithPath(
 	const FString& InDesiredPackagePath,
 	UGroomAsset* InGroomAsset,
@@ -106,3 +108,4 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGeometryCacheGroomBindingAs
 	return nullptr;
 #endif
 }
+

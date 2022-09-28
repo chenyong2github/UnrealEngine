@@ -6,6 +6,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/AssetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistrySource)
+
 const UDataRegistry* UDataRegistrySource::GetRegistry() const
 {
 	return CastChecked<UDataRegistry>(GetOuter());
@@ -396,3 +398,4 @@ void UMetaDataRegistrySource::SortRegisteredAssets()
 		return A.Value > B.Value;
 	});
 }
+

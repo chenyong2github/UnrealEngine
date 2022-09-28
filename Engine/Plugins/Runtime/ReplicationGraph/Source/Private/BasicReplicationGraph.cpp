@@ -9,6 +9,8 @@
 #include "Engine/NetConnection.h"
 #include "Engine/ChildConnection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BasicReplicationGraph)
+
 UBasicReplicationGraph::UBasicReplicationGraph()
 {
 
@@ -193,3 +195,4 @@ bool FConnectionAlwaysRelevantNodePair::operator==(UNetConnection* InConnection)
 
 	return InConnection == NetConnection;
 }
+

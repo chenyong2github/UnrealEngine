@@ -8,6 +8,8 @@
 #include "WidgetBlueprintCompiler.h"
 #include "View/MVVMViewClass.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMWidgetBlueprintExtension_View)
+
 
 void UMVVMWidgetBlueprintExtension_View::CreateBlueprintViewInstance()
 {
@@ -136,3 +138,4 @@ void UMVVMWidgetBlueprintExtension_View::HandleFinishCompilingClass(UWidgetBluep
 		CurrentCompilerContext->CleanTemporaries(Class);
 	}
 }
+

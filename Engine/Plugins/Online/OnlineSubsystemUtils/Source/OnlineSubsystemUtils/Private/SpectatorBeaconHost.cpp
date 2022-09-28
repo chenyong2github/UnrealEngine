@@ -8,6 +8,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "SpectatorBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpectatorBeaconHost)
+
 ASpectatorBeaconHost::ASpectatorBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	State(NULL),
@@ -570,3 +572,4 @@ void ASpectatorBeaconHost::DumpReservations() const
 	}
 	UE_LOG(LogSpectatorBeacon, Display, TEXT(""));
 }
+

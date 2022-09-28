@@ -5,6 +5,8 @@
 #include "ContextualAnimMovieSceneSequence.h"
 #include "ContextualAnimViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneTrack)
+
 UContextualAnimMovieSceneTrack::UContextualAnimMovieSceneTrack()
 {
 #if WITH_EDITORONLY_DATA

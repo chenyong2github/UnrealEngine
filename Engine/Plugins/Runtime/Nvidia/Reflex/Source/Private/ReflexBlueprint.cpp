@@ -5,6 +5,8 @@
 #include "ReflexLatencyMarkers.h"
 #include "ReflexMaxTickRateHandler.h"	
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReflexBlueprint)
+
 UReflexBlueprintLibrary::UReflexBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -127,3 +129,4 @@ float UReflexBlueprintLibrary::GetRenderLatencyInMs()
 
 	return 0.f;
 }
+

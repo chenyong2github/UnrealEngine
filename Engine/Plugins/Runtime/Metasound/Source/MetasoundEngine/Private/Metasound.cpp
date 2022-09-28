@@ -24,6 +24,8 @@
 #include "MetasoundUObjectRegistry.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Metasound)
+
 #if WITH_EDITORONLY_DATA
 #include "EdGraph/EdGraph.h"
 #endif // WITH_EDITORONLY_DATA
@@ -148,3 +150,4 @@ const TSet<FSoftObjectPath>& UMetaSoundPatch::GetReferencedAssetClassCache() con
 	return ReferenceAssetClassCache;
 }
 #undef LOCTEXT_NAMESPACE // MetaSound
+

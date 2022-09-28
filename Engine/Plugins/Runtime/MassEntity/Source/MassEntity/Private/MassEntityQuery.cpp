@@ -10,6 +10,9 @@
 #include "Containers/UnrealString.h"
 #include "MassProcessor.h"
 #include "MassProcessorDependencySolver.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassEntityQuery)
+
 #if WITH_MASSENTITY_DEBUG
 #include "MassRequirementAccessDetector.h"
 #endif // WITH_MASSENTITY_DEBUG
@@ -272,3 +275,4 @@ void FMassEntityQuery::ExportRequirements(FMassExecutionRequirements& OutRequire
 	FMassSubsystemRequirements::ExportRequirements(OutRequirements);
 	FMassFragmentRequirements::ExportRequirements(OutRequirements);
 }
+

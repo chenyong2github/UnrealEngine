@@ -4,6 +4,8 @@
 #include "WaterBodyActor.h"
 #include "WaterSplineComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSplineMetadata)
+
 
 UWaterSplineMetadata::UWaterSplineMetadata(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -292,4 +294,5 @@ bool UWaterSplineMetadata::PropagateDefaultValue(int32 PointIndex, const FWaterS
 
 	return bAnythingChanged;
 }
+
 

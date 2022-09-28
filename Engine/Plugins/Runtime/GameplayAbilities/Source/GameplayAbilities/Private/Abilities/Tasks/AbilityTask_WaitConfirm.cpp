@@ -2,6 +2,8 @@
 
 #include "Abilities/Tasks/AbilityTask_WaitConfirm.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitConfirm)
+
 UAbilityTask_WaitConfirm::UAbilityTask_WaitConfirm(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -53,3 +55,4 @@ void UAbilityTask_WaitConfirm::OnDestroy(bool AbilityEnded)
 
 	Super::OnDestroy(AbilityEnded);
 }
+

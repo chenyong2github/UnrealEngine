@@ -15,6 +15,8 @@
 #include "MovieSceneCommonHelpers.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationSequenceSubsystem)
+
 #define LOCTEXT_NAMESPACE "CameraAnimationSequenceSubsystem"
 
 namespace UE
@@ -248,4 +250,5 @@ TSharedPtr<FMovieSceneEntitySystemRunner> UCameraAnimationSequenceSubsystem::Get
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

@@ -16,6 +16,8 @@
 #include "Components/SplineMeshComponent.h"
 #include "Components/SplineComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertClientVRPresenceActor)
+
 #define LOCTEXT_NAMESPACE "ConcertClientVRPresenceActor"
 
 //////////////////////////////////////////////////////////////////////////
@@ -441,4 +443,5 @@ void AConcertClientVRPresenceActor::ShowRightLaser()
 
 
 #undef LOCTEXT_NAMESPACE
+
 

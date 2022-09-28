@@ -2,6 +2,8 @@
 
 #include "Components/ControllerComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerComponent)
+
 UControllerComponent::UControllerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -9,6 +9,8 @@
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ControlRig)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif

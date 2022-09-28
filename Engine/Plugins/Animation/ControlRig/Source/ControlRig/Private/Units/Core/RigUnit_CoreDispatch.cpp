@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "EulerTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_CoreDispatch)
+
 TArray<FRigVMTemplateArgument> FRigDispatch_CoreEquals::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
@@ -109,3 +111,4 @@ void FRigDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext, F
 	Result = PropertyA->Identical(A, B);
 	Result = AdaptResult(Result, InContext);
 }
+

@@ -27,6 +27,8 @@
 #include "ImageCore.h"
 #include "ImageCoreUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintMaterialTextureNodesBPLibrary)
+
 #define LOCTEXT_NAMESPACE "BlueprintMaterialTextureLibrary"
 
 UBlueprintMaterialTextureNodesBPLibrary::UBlueprintMaterialTextureNodesBPLibrary(const FObjectInitializer& ObjectInitializer)
@@ -417,3 +419,4 @@ bool UBlueprintMaterialTextureNodesBPLibrary::SetMICDitheredLODTransition_Editor
 }
 
 #undef LOCTEXT_NAMESPACE
+

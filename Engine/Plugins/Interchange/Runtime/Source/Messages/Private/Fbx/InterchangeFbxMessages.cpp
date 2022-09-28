@@ -2,6 +2,8 @@
 
 #include "Fbx/InterchangeFbxMessages.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeFbxMessages)
+
 
 #define LOCTEXT_NAMESPACE "InterchangeFbxMessages"
 
@@ -58,3 +60,4 @@ FText UInterchangeResultTextureWarning_TextureFileDoNotExist::GetText() const
 
 
 #undef LOCTEXT_NAMESPACE
+

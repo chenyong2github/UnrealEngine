@@ -21,6 +21,8 @@
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserClassDataSource)
+
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 
 void UContentBrowserClassDataSource::Initialize(const bool InAutoRegister)
@@ -685,3 +687,4 @@ void UContentBrowserClassDataSource::ClassHierarchyUpdated()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -23,6 +23,8 @@
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraConstants.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackParameterStoreEntry)
+
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreEntry"
 UNiagaraStackParameterStoreEntry::UNiagaraStackParameterStoreEntry()
@@ -565,3 +567,4 @@ bool UNiagaraStackParameterStoreEntry::IsUniqueName(FString NewName)
 }
 
 #undef LOCTEXT_NAMESPACE
+

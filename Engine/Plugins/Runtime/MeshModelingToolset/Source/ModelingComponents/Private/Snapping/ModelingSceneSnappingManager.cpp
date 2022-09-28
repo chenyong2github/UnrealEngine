@@ -19,6 +19,8 @@
 #include "Components/DynamicMeshComponent.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingSceneSnappingManager)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USceneSnappingManager"

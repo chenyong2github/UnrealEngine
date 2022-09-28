@@ -18,6 +18,8 @@
 #include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderLiveLinkSource)
+
 UTakeRecorderLiveLinkSource::UTakeRecorderLiveLinkSource(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, bReduceKeys(false)
@@ -129,3 +131,4 @@ FString UTakeRecorderLiveLinkSource::GetSubsceneAssetName(ULevelSequence* InSequ
 
 	return TEXT("LiveLink");
 }
+

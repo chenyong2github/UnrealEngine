@@ -9,6 +9,8 @@
 #include "WaterEditorSettings.h"
 #include "WaterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JumpFloodComponent2D)
+
 UJumpFloodComponent2D::UJumpFloodComponent2D(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
 	, BlurPasses(1)
@@ -258,3 +260,4 @@ UTextureRenderTarget2D* UJumpFloodComponent2D::PingPongTarget(int32 Offset) cons
 		return RTA;
 	}
 }
+

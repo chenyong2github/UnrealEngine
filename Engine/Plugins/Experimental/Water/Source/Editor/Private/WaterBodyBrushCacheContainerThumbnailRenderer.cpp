@@ -4,6 +4,8 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "WaterBrushCacheContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyBrushCacheContainerThumbnailRenderer)
+
 UWaterBodyBrushCacheContainerThumbnailRenderer::UWaterBodyBrushCacheContainerThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

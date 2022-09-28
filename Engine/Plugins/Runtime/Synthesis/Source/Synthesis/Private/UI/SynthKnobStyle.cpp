@@ -9,6 +9,8 @@
 #include "UI/SynthSlateStyle.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthKnobStyle)
+
 struct FSynthKnobResources
 {
 	FSynthKnobResources()
@@ -127,3 +129,4 @@ const FSynthKnobStyle& FSynthKnobStyle::GetDefault()
 }
 
 const FName FSynthKnobStyle::TypeName( TEXT("SynthKnobStyle") );
+

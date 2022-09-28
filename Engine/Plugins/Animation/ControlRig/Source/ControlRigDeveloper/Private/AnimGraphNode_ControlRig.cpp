@@ -15,6 +15,8 @@
 #include "ControlRigBlueprint.h"
 #include "Misc/DefaultValueHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_ControlRig)
+
 #define LOCTEXT_NAMESPACE "AnimGraphNode_ControlRig"
 
 UAnimGraphNode_ControlRig::UAnimGraphNode_ControlRig(const FObjectInitializer& ObjectInitializer)
@@ -893,3 +895,4 @@ void UAnimGraphNode_ControlRig::CustomizePinData(UEdGraphPin* Pin, FName SourceP
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

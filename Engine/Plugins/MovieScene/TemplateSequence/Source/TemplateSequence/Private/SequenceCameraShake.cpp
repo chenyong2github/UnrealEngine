@@ -19,6 +19,8 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "MovieSceneTracksComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceCameraShake)
+
 #if !IS_MONOLITHIC
 	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
 #endif
@@ -172,4 +174,5 @@ void USequenceCameraShakePattern::UpdateCamera(FFrameTime NewPosition, const FMi
 	OutResult.PostProcessSettings = CameraStandIn->PostProcessSettings;
 	OutResult.PostProcessBlendWeight = CameraStandIn->PostProcessBlendWeight;
 }
+
 

@@ -4,6 +4,8 @@
 #include "AbilitySystemComponent.h"
 #include "Misc/TimeGuard.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagResponseTable)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	UGameplayTagReponseTable
@@ -185,3 +187,4 @@ void UGameplayTagReponseTable::AddOrUpdate(UAbilitySystemComponent* ASC, const T
 		}
 	}
 }
+

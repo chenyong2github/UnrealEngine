@@ -3,6 +3,8 @@
 #include "SourceEffects/SourceEffectStereoDelay.h"
 #include "Templates/Casts.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectStereoDelay)
+
 void FSourceEffectStereoDelay::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;

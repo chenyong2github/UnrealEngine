@@ -20,6 +20,8 @@
 #include "Engine/HLODProxy.h"
 #include "Serialization/ArchiveCrc32.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilderMeshApproximate)
+
 
 UHLODBuilderMeshApproximate::UHLODBuilderMeshApproximate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -172,3 +174,4 @@ TArray<UActorComponent*> UHLODBuilderMeshApproximate::Build(const FHLODBuildCont
 
 	return Components;
 }
+

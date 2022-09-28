@@ -5,6 +5,8 @@
 #include "MovieScene.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneParticleTrackRecorder)
+
 bool FMovieSceneParticleTrackRecorderFactory::CanRecordObject(UObject* InObjectToRecord) const
 {
 	return InObjectToRecord->IsA<UParticleSystemComponent>();
@@ -100,3 +102,4 @@ void UMovieSceneParticleTrackRecorder::OnTriggered(UParticleSystemComponent* Com
 		bWasTriggered = bActivating;
 	}
 }
+

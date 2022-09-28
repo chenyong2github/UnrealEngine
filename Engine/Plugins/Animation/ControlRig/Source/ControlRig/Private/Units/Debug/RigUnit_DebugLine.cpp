@@ -3,6 +3,8 @@
 #include "Units/Debug/RigUnit_DebugLine.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DebugLine)
+
 FRigUnit_DebugLine_Execute()
 {
 	FRigUnit_DebugLineItemSpace::StaticExecute(

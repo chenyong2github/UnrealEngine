@@ -3,6 +3,8 @@
 #include "TakeRecorderSettings.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderSettings)
+
 UTakeRecorderUserSettings::UTakeRecorderUserSettings()
 {
 	Settings.bMaximizeViewport  = false;

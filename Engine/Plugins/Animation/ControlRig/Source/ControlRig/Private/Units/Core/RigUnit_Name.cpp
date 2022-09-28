@@ -3,6 +3,8 @@
 #include "Units/Core/RigUnit_Name.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Name)
+
 FRigUnit_NameConcat_Execute()
 {
 	check(Context.NameCache);

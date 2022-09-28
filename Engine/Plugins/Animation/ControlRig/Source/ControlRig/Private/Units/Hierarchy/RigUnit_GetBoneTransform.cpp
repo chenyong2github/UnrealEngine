@@ -5,6 +5,8 @@
 #include "Units/RigUnitContext.h"
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_GetBoneTransform)
+
 FRigUnit_GetBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

@@ -5,6 +5,8 @@
 #include "AssetTypeCategories.h"
 #include "OpenColorIOConfiguration.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOConfigurationFactoryNew)
+
 
 /* UOpenColorIOConfigAssetFactoryNew structors
  *****************************************************************************/
@@ -37,3 +39,4 @@ bool UOpenColorIOConfigurationFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

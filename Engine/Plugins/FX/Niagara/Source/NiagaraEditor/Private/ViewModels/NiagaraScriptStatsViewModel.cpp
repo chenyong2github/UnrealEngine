@@ -25,6 +25,8 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptStatsViewModel)
+
 #define LOCTEXT_NAMESPACE "NiagaraScriptStatsViewModel"
 
 namespace NiagaraScriptStatsLocal
@@ -838,3 +840,4 @@ void FNiagaraScriptStatsViewModel::OnForceRecompile()
 }
 
 #undef LOCTEXT_NAMESPACE
+

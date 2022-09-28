@@ -1,9 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluators/CooldownGuardEvaluator.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
 #include "Engine/World.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CooldownGuardEvaluator)
 
 
 bool FCooldownGuardEvaluator::Link(FStateTreeLinker& Linker)
@@ -61,3 +63,4 @@ void FCooldownGuardEvaluator::Evaluate(FStateTreeExecutionContext& Context, cons
 		bActive = CurrentTime < EndTime;
 	}
 }
+

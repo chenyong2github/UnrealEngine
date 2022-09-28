@@ -40,6 +40,8 @@
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Operations/MeshPlaneCut.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyComponent)
+
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
@@ -2232,4 +2234,5 @@ void UWaterBodyComponent::SetHLODMaterial(UMaterialInterface* InMaterial)
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+
 

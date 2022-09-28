@@ -4,6 +4,8 @@
 #include "SharedStruct.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStruct)
+
 namespace UE::StructUtils::Private
 {
 #if WITH_EDITORONLY_DATA
@@ -369,3 +371,4 @@ void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Col
 		Collector.AddReferencedObjects(Struct, GetMutableMemory());
 	}
 }
+

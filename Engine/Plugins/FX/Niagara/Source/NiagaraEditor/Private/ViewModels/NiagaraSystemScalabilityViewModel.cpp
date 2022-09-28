@@ -11,6 +11,8 @@
 #include "Modules/ModuleManager.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemScalabilityViewModel)
+
 #define LOCTEXT_NAMESPACE "NiagaraSystemScalabilityViewModel"
 
 UNiagaraSystemScalabilityViewModel::UNiagaraSystemScalabilityViewModel()
@@ -99,3 +101,4 @@ bool UNiagaraSystemScalabilityViewModel::IsPlatformActive(const FNiagaraPlatform
 // }
 
 #undef LOCTEXT_NAMESPACE // NiagaraSystemScalabilityViewModel
+

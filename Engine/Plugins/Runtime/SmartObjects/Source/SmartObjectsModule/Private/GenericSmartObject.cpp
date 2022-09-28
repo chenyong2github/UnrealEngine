@@ -9,6 +9,8 @@
 #include "SmartObjectRenderingComponent.h"
 #include "SmartObjectComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenericSmartObject)
+
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
 #endif // WITH_EDITOR
@@ -85,3 +87,4 @@ void AGenericSmartObject::PostEditChangeProperty(FPropertyChangedEvent& Property
 	}
 }
 #endif // WITH_EDITOR
+

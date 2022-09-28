@@ -6,6 +6,8 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineExecutor)
+
 bool UMoviePipelineExecutorBase::ConnectSocket(const FString& InHostName, const int32 InPort)
 {
 	if (IsSocketConnected())

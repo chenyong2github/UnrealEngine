@@ -4,6 +4,8 @@
 #include "InterchangeImportTestPlan.h"
 #include "AssetTypeCategories.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestPlanFactory)
+
 #define LOCTEXT_NAMESPACE "InterchangeImportTestPlanFactory"
 
 
@@ -36,3 +38,4 @@ FText UInterchangeImportTestPlanFactory::GetDisplayName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

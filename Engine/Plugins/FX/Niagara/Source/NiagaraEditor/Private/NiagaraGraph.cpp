@@ -38,6 +38,8 @@
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraGraph)
+
 
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - PostLoad"), STAT_NiagaraEditor_Graph_PostLoad, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes"), STAT_NiagaraEditor_Graph_FindInputNodes, STATGROUP_NiagaraEditor);
@@ -3879,3 +3881,4 @@ void UNiagaraGraph::SetIsStaticSwitch(const FNiagaraVariable& Variable, bool InV
 
 #undef NIAGARA_SCOPE_CYCLE_COUNTER
 #undef LOCTEXT_NAMESPACE
+

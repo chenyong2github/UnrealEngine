@@ -7,6 +7,8 @@
 #include "AudioModulationLogging.h"
 #include "IAudioModulation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationParameter)
+
 
 TUniquePtr<Audio::IProxyData> USoundModulationParameter::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
 {

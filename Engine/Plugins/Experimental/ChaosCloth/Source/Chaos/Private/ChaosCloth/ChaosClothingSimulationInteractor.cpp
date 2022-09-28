@@ -4,6 +4,8 @@
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosClothingSimulationInteractor)
+
 namespace ChaosClothingInteractor
 {
 	static const float InvStiffnessLogBase = 1.f / FMath::Loge(1.e3f);  // Log base for updating old linear stiffnesses to the new stiffness exponentiation
@@ -255,3 +257,4 @@ UClothingInteractor* UChaosClothingSimulationInteractor::CreateClothingInteracto
 {
 	return NewObject<UChaosClothingInteractor>(this);
 }
+

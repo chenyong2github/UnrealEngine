@@ -6,6 +6,8 @@
 #include "TemplateSequenceSpawnRegister.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequencePlayer)
+
 UTemplateSequencePlayer::UTemplateSequencePlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -59,3 +61,4 @@ UObject* UTemplateSequencePlayer::GetPlaybackContext() const
 {
 	return World.Get();
 }
+

@@ -7,6 +7,8 @@
 #include "Misc/App.h"
 #include "Roles/LiveLinkAnimationRole.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkComponent)
+
 // Sets default values for this component's properties
 ULiveLinkComponent::ULiveLinkComponent()
 	: bIsDirty(false)
@@ -174,3 +176,4 @@ void ULiveLinkComponent::GetSubjectDataAtSceneTime(const FName SubjectName, cons
 		}
 	}
 }
+

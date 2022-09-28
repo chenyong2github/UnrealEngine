@@ -12,6 +12,8 @@
 #include "SystemSettings.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraPlatformSet)
+
 #if WITH_EDITOR
 #include "PlatformInfo.h"
 #endif
@@ -1607,3 +1609,4 @@ FNiagaraPlatformSetRedirect::FNiagaraPlatformSetRedirect()
 {}
 
 #undef LOCTEXT_NAMESPACE
+

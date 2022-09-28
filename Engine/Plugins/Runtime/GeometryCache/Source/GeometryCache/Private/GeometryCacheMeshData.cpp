@@ -4,6 +4,8 @@
 #include "GeometryCacheModule.h"
 #include "Hash/CityHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheMeshData)
+
 DECLARE_CYCLE_STAT(TEXT("Deserialize Vertices"), STAT_DeserializeVertices, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Deserialize Indices"), STAT_DeserializeIndices, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Deserialize Metadata"), STAT_DeserializeMetadata, STATGROUP_GeometryCache);
@@ -157,3 +159,4 @@ uint64 FGeometryCacheMeshData::GetHash() const
 
 	return Hash;
 }
+

@@ -12,6 +12,8 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "TemplateSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationSequencePlayer)
+
 namespace UE
 {
 namespace MovieScene
@@ -437,4 +439,5 @@ void UCameraAnimationSequencePlayer::EndScrubbing()
 	ensure(Status == EMovieScenePlayerStatus::Scrubbing);
 	Status = EMovieScenePlayerStatus::Playing;
 }
+
 

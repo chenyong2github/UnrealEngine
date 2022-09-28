@@ -5,6 +5,8 @@
 #include "MovieSceneTakeSettings.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneTakeSection)
+
 #define LOCTEXT_NAMESPACE "MovieSceneTakeSection"
 
 #if WITH_EDITOR

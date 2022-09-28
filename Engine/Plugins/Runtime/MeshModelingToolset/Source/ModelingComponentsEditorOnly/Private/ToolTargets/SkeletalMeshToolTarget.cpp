@@ -9,6 +9,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "SkeletalMeshAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshToolTarget)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshToolTarget"
@@ -291,3 +293,4 @@ UToolTarget* USkeletalMeshToolTargetFactory::BuildTarget(UObject* SourceObject, 
 }
 
 #undef LOCTEXT_NAMESPACE
+

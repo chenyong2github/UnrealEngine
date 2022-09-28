@@ -3,6 +3,8 @@
 #include "Abilities/Tasks/AbilityTask_WaitVelocityChange.h"
 #include "GameFramework/MovementComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitVelocityChange)
+
 UAbilityTask_WaitVelocityChange::UAbilityTask_WaitVelocityChange(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -48,3 +50,4 @@ void UAbilityTask_WaitVelocityChange::Activate()
 	CachedMovementComponent = ActorInfo->MovementComponent.Get();
 	SetWaitingOnAvatar();
 }
+

@@ -13,6 +13,8 @@
 #include "GameplayActuationComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_StandAt)
+
 UGameplayTask_StandAt::UGameplayTask_StandAt(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

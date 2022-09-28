@@ -9,6 +9,8 @@
 #include "MVVMViewModelBase.h"
 #include "MVVMSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMView)
+
 
 #define LOCTEXT_NAMESPACE "MVVMView"
 
@@ -458,3 +460,4 @@ TScriptInterface<INotifyFieldValueChanged> UMVVMView::FindSource(const FMVVMView
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "AssetTypeCategories.h"
 #include "MediaPlaylist.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaPlaylistFactoryNew)
+
 
 /* UMediaPlaylist structors
  *****************************************************************************/
@@ -36,3 +38,4 @@ bool UMediaPlaylistFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

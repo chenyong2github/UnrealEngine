@@ -25,6 +25,8 @@
 #include "ContextObjectStore.h"
 #include "PlacementPaletteItem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementPlaceSingleTool)
+
 #if !UE_IS_COOKED_EDITOR
 #include "AssetPlacementEdModeModule.h"
 #endif
@@ -435,3 +437,4 @@ void UPlacementModePlaceSingleTool::SetupRightClickMouseBehavior()
 	RightMouseBehavior->Initialize();
 	AddInputBehavior(RightMouseBehavior);
 }
+

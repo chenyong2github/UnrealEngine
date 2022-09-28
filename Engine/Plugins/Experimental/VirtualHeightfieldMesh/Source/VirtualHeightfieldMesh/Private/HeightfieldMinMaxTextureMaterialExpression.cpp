@@ -8,6 +8,8 @@
 #include "MaterialCompiler.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HeightfieldMinMaxTextureMaterialExpression)
+
 #define LOCTEXT_NAMESPACE "VirtualHeightfieldMeshModule"
 
 UMaterialExpressionHeightfieldMinMaxTexture::UMaterialExpressionHeightfieldMinMaxTexture(const FObjectInitializer& ObjectInitializer)
@@ -87,3 +89,4 @@ UObject* UMaterialExpressionHeightfieldMinMaxTexture::GetReferencedTexture() con
 }
 
 #undef LOCTEXT_NAMESPACE
+

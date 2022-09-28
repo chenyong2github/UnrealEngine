@@ -8,6 +8,8 @@
 
 #include "Sampling/MeshCurvatureMapEvaluator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeMeshAttributeTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeTool"
@@ -359,4 +361,5 @@ void UBakeMeshAttributeTool::UpdateUVLayerNames(FString& UVLayer, TArray<FString
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

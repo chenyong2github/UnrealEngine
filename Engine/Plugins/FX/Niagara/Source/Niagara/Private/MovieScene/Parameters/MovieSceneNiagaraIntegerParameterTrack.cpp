@@ -6,6 +6,8 @@
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraIntegerParameterTrack)
+
 bool UMovieSceneNiagaraIntegerParameterTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UMovieSceneIntegerSection::StaticClass();

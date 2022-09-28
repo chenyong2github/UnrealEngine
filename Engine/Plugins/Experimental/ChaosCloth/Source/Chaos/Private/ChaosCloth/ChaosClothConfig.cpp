@@ -9,6 +9,8 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosClothConfig)
+
 // Legacy parameters not yet migrated to Chaos parameters:
 //  VerticalConstraintConfig.CompressionLimit
 //  VerticalConstraintConfig.StretchLimit
@@ -274,3 +276,4 @@ void UChaosClothSharedSimConfig::PostEditChangeChainProperty(FPropertyChangedCha
 	}
 }
 #endif  // #if WITH_EDITOR
+

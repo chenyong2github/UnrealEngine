@@ -19,6 +19,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineCommandLineEncoder)
 
 // Forward Declare
 namespace UE
@@ -513,3 +514,4 @@ void UMoviePipelineCommandLineEncoder::ValidateStateImpl()
 		ValidationState = EMoviePipelineValidationState::Warnings;
 	}
 }
+

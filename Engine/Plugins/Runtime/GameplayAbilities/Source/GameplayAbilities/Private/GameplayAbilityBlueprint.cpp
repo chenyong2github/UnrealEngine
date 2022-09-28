@@ -2,6 +2,8 @@
 
 #include "GameplayAbilityBlueprint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityBlueprint)
+
 //////////////////////////////////////////////////////////////////////////
 // UGameplayAbilityBlueprint
 
@@ -30,3 +32,4 @@ UGameplayAbilityBlueprint* UGameplayAbilityBlueprint::FindRootGameplayAbilityBlu
 }
 
 #endif
+

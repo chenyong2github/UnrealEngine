@@ -13,6 +13,8 @@
 #include "MetasoundLog.h"
 #include "MetasoundVertex.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundFrontendDocument)
+
 namespace Metasound
 {
 	const FGuid FrontendInvalidID = FGuid();
@@ -695,3 +697,4 @@ const TCHAR* LexToString(EMetasoundFrontendVertexAccessType InVertexAccess)
 			return TEXT("Unset");
 	}
 }
+

@@ -6,6 +6,8 @@
 #include "Editor.h"
 #include "AssetReferencingDomains.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetReferencingPolicySubsystem)
+
 #define LOCTEXT_NAMESPACE "AssetReferencingPolicy"
 
 bool UAssetReferencingPolicySubsystem::ShouldCreateSubsystem(UObject* Outer) const

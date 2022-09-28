@@ -17,6 +17,8 @@
 #include "ConversionUtils/VolumeToDynamicMesh.h"
 #include "Physics/ComponentCollisionUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SceneUtilityFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_SceneUtilityFunctions"

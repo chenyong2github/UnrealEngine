@@ -14,6 +14,8 @@
 #include "RenderGraph.h"
 #include "RHIStaticStates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTexturePatch)
+
 namespace LandscapeTexturePatchLocals
 {
 #if WITH_EDITOR
@@ -1387,3 +1389,4 @@ void ULandscapeTexturePatch::ClearWeightPatchBlendModeOverride(const FName& InWe
 		}
 	}
 }
+

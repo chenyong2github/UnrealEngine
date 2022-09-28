@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "Units/Core/RigUnit_CoreDispatch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathDouble)
+
 FRigUnit_MathDoubleConstPi_Execute()
 {
 	Value = PI;
@@ -319,3 +321,4 @@ FRigUnit_MathDoubleExponential_Execute()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Exp(Value);
 }
+

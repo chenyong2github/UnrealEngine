@@ -7,6 +7,8 @@
 #include "LandscapePatchManager.h"
 #include "RenderGraph.h" // RDG_EVENT_NAME
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeCircleHeightPatch)
+
 #define LOCTEXT_NAMESPACE "LandscapeCircleHeightPatch"
 
 void ULandscapeCircleHeightPatch::OnComponentCreated()

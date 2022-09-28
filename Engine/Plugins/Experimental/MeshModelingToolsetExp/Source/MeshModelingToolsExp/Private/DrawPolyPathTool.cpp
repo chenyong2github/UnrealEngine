@@ -22,6 +22,8 @@
 #include "MeshBoundaryLoops.h"
 #include "ToolDataVisualizer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DrawPolyPathTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDrawPolyPathTool"
@@ -1171,3 +1173,4 @@ FString FDrawPolyPathStateChange::ToString() const
 
 
 #undef LOCTEXT_NAMESPACE
+

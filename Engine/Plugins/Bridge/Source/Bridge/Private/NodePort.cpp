@@ -2,6 +2,8 @@
 #include "NodePort.h"
 #include "UI/BridgeUIManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NodePort)
+
 
 UNodePort::UNodePort(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -23,3 +25,4 @@ bool UNodePort::IsNodeRunning()
 {
 	return true;
 }
+

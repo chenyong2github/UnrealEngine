@@ -4,6 +4,8 @@
 #include "SceneManagement.h"
 #include "ToolSetupUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVLayoutPreview)
+
 using namespace UE::Geometry;
 
 UUVLayoutPreview::~UUVLayoutPreview()

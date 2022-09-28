@@ -4,6 +4,8 @@
 #include "Units/Debug/RigUnit_VisualDebug.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DebugPoint)
+
 FRigUnit_DebugPoint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -99,3 +101,4 @@ FRigVMStructUpgradeInfo FRigUnit_DebugPointMutable::GetUpgradeInfo() const
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

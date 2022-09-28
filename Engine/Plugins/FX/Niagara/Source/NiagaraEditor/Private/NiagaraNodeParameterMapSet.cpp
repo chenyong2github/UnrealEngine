@@ -18,6 +18,8 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapSet)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeParameterMapSet"
 
 UNiagaraNodeParameterMapSet::UNiagaraNodeParameterMapSet() : UNiagaraNodeParameterMapBase()
@@ -353,3 +355,4 @@ void UNiagaraNodeParameterMapSet::PostLoad()
 }
 
 #undef LOCTEXT_NAMESPACE
+

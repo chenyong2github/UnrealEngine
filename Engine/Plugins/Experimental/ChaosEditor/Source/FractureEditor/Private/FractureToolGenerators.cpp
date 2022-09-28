@@ -49,6 +49,8 @@
 #include "PackageTools.h"
 #include "SPrimaryButton.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolGenerators)
+
 #define LOCTEXT_NAMESPACE "FractureToolGenerators"
 
 
@@ -903,3 +905,4 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 
 
 #undef LOCTEXT_NAMESPACE
+

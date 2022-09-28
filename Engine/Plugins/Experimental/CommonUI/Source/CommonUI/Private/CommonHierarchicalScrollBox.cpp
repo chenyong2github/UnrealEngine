@@ -4,6 +4,8 @@
 #include "Components/ScrollBoxSlot.h"
 #include "SCommonHierarchicalScrollBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonHierarchicalScrollBox)
+
 /////////////////////////////////////////////////////
 // UCommonHierarchicalScrollBox
 

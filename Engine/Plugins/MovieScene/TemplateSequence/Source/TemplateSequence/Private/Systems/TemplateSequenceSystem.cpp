@@ -23,6 +23,8 @@
 #include "TemplateSequence.h"
 #include "TemplateSequenceComponentTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceSystem)
+
 UTemplateSequenceSystem::UTemplateSequenceSystem(const FObjectInitializer& ObjInit)
 	: UMovieSceneEntitySystem(ObjInit)
 {
@@ -556,4 +558,5 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 			.Dispatch_PerAllocation<FScaleFloatProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
 	}
 }
+
 

@@ -7,6 +7,8 @@
 #include "PaperCustomVersion.h"
 #include "PaperFlipbookComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbook)
+
 #if WITH_EDITORONLY_DATA
 #include "UObject/UObjectHash.h"
 #include "ComponentReregisterContext.h"
@@ -242,3 +244,4 @@ bool UPaperFlipbook::ContainsSprite(UPaperSprite* SpriteAsset) const
 
 	return false;
 }
+

@@ -11,6 +11,8 @@
 #include "UDynamicMesh.h"
 #include "Math/UnrealMathUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSubdivideFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshSubdivideFunctions"
@@ -205,3 +207,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplySelectiveTesse
 }
 
 #undef LOCTEXT_NAMESPACE
+

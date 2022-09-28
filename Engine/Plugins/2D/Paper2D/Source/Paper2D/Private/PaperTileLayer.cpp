@@ -6,6 +6,8 @@
 #include "PaperTileMap.h"
 #include "PaperTileSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileLayer)
+
 //////////////////////////////////////////////////////////////////////////
 // FPaperTileLayerToBodySetupBuilder
 
@@ -339,3 +341,4 @@ int32 UPaperTileLayer::GetNumOccupiedCells() const
 
 	return NumOccupiedCells;
 }
+

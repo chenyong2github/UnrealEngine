@@ -2,6 +2,8 @@
 
 #include "Math/Simulation/CRSimPoint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimPoint)
+
 FCRSimPoint FCRSimPoint::IntegrateVerlet(const FVector& InForce, float InBlend, float InDeltaTime) const
 {
 	FCRSimPoint Point = *this;
@@ -24,3 +26,4 @@ FCRSimPoint FCRSimPoint::IntegrateSemiExplicitEuler(const FVector& InForce, floa
 	}
 	return Point;
 }
+

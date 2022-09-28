@@ -7,6 +7,8 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshImportTestFunctions)
+
 
 UClass* USkeletalMeshImportTestFunctions::GetAssociatedAssetType() const
 {
@@ -364,4 +366,5 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckSkinnedVer
 
 	return Result;
 }
+
 

@@ -25,6 +25,8 @@
 #include "Input/CommonUIInputTypes.h"
 #include "Sound/SoundBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonButtonBase)
+
 //////////////////////////////////////////////////////////////////////////
 // UCommonButtonStyle
 //////////////////////////////////////////////////////////////////////////
@@ -1536,3 +1538,4 @@ bool UCommonButtonBase::GetIsFocusable() const
 {
 	return bIsFocusable;
 }
+

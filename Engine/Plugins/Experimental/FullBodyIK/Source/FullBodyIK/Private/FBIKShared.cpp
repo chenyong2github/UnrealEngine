@@ -4,6 +4,8 @@
 #include "Rigs/RigHierarchyContainer.h"
 #include "FBIKUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FBIKShared)
+
 void FJacobianSolver_FullbodyIK::InitializeSolver(TArray<FFBIKLinkData>& InOutLinkData, TMap<int32, FFBIKEffectorTarget>& InOutEffectors) const
 {
 	// since we're using constraints, we don't want to create new motion base all the time
@@ -48,3 +50,4 @@ void FJacobianSolver_FullbodyIK::PreSolve(TArray<FFBIKLinkData>& InOutLinkData, 
 		}
 	}
 }
+

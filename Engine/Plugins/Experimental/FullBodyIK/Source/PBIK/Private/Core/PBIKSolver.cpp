@@ -6,6 +6,8 @@
 #include "Core/PBIKDebug.h"
 #include "PBIK.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PBIKSolver)
+
 namespace PBIK
 {
 	FEffector::FEffector(FBone* InBone)
@@ -780,3 +782,4 @@ void FPBIKSolver::SetEffectorGoal(
 	check(Index >= 0 && Index < Effectors.Num());
 	Effectors[Index].SetGoal(InPosition, InRotation, InSettings);
 }
+

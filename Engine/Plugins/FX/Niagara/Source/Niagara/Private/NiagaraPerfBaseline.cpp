@@ -13,6 +13,8 @@
 #include "CanvasTypes.h"
 #include "HAL/FileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraPerfBaseline)
+
 #define LOCTEXT_NAMESPACE "NiagaraPerformanceBaselines"
 
 #if NIAGARA_PERF_BASELINES
@@ -1323,3 +1325,4 @@ void UNiagaraBaselineController_Basic::OnOwnerTick_Implementation(float DeltaTim
 
 
 #undef LOCTEXT_NAMESPACE
+

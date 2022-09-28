@@ -7,6 +7,8 @@
 #include "Misc/AssertionMacros.h"
 #include "VirtualSubjects/LiveLinkBlueprintVirtualSubject.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_UpdateVirtualSubjectDataTyped)
+
 #define LOCTEXT_NAMESPACE "K2Node_UpdateVirtualSubjectDataTyped"
 
 

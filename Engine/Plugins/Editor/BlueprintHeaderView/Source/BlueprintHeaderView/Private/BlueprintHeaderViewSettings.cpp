@@ -4,6 +4,8 @@
 #include "BlueprintHeaderView.h"
 #include "Styling/StyleColors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintHeaderViewSettings)
+
 FHeaderViewSyntaxColors::FHeaderViewSyntaxColors()
 	: Comment(FStyleColors::AccentGreen.GetSpecifiedColor())
 	, Error(FStyleColors::Error.GetSpecifiedColor())
@@ -57,3 +59,4 @@ void UBlueprintHeaderViewSettings::PostEditChangeProperty(FPropertyChangedEvent&
 		FBlueprintHeaderViewModule::HeaderViewTableRowStyle.ActiveHoveredBrush.TintColor = SelectionColor;
 	}
 }
+

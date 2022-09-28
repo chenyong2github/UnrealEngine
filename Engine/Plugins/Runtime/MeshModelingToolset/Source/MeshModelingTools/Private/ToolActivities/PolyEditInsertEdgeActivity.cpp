@@ -12,6 +12,8 @@
 #include "Selection/PolygonSelectionMechanic.h"
 #include "ToolActivities/PolyEditActivityContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyEditInsertEdgeActivity)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPolyEditInsertEdgeActivity"

@@ -26,6 +26,8 @@
 
 #include "EngineAnalytics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeMeshAttributeVertexTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeVertexTool"
@@ -953,3 +955,4 @@ void UBakeMeshAttributeVertexTool::RecordAnalytics(const FBakeAnalytics& Data, c
 
 
 #undef LOCTEXT_NAMESPACE
+

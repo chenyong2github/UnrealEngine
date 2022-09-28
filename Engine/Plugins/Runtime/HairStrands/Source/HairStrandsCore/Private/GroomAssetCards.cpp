@@ -5,6 +5,8 @@
 #include "MeshDescription.h"
 #include "GroomAsset.h" // for EHairAtlasTextureType
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomAssetCards)
+
 FHairCardsClusterSettings::FHairCardsClusterSettings()
 {
 	ClusterDecimation = 0.1f;
@@ -204,4 +206,5 @@ UStaticMesh* FHairGroupsCardsSourceDescription::GetMesh() const
 #endif
 	return nullptr;
 }
+
 

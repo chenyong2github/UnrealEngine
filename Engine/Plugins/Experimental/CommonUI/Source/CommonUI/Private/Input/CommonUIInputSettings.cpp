@@ -3,6 +3,8 @@
 #include "Input/CommonUIInputSettings.h"
 #include "GameFramework/PlayerInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIInputSettings)
+
 const UCommonUIInputSettings& UCommonUIInputSettings::Get()
 {
 	return *GetDefault<UCommonUIInputSettings>();
@@ -23,3 +25,4 @@ const FUIInputAction* UCommonUIInputSettings::FindAction(FUIActionTag ActionTag)
 	//@todo DanH: We'll likely want a TMap for these
 	return InputActions.FindByPredicate([ActionTag](const FUIInputAction& Action) { return Action.ActionTag == ActionTag; });
 }
+

@@ -3,6 +3,8 @@
 #include "RigUnit_CCDIK.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_CCDIK)
+
 FRigUnit_CCDIK_Execute()
 {
 	if (Context.State == EControlRigState::Init)
@@ -197,3 +199,4 @@ FRigUnit_CCDIKItemArray_Execute()
 		}
 	}
 }
+

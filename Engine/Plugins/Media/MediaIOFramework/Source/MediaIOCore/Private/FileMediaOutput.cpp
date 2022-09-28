@@ -6,6 +6,8 @@
 #include "Misc/Paths.h"
 #include "UnrealEngine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FileMediaOutput)
+
 
 
 UFileMediaOutput::UFileMediaOutput()
@@ -111,3 +113,4 @@ UMediaCapture* UFileMediaOutput::CreateMediaCaptureImpl()
 	}
 	return Result;
 }
+

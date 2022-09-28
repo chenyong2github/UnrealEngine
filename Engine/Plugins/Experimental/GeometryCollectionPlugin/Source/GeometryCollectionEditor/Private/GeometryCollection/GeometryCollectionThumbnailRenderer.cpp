@@ -7,6 +7,8 @@
 #include "GeometryCollection/GeometryCollectionThumbnailScene.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionThumbnailRenderer)
+
 UGeometryCollectionThumbnailRenderer::UGeometryCollectionThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -49,3 +51,4 @@ void UGeometryCollectionThumbnailRenderer::BeginDestroy()
 
 	Super::BeginDestroy();
 }
+

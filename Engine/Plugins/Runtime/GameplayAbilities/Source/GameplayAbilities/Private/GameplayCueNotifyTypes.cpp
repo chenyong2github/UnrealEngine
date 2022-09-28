@@ -18,6 +18,8 @@
 #include "GameFramework/Character.h"
 #include "Sound/SoundWaveProcedural.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotifyTypes)
+
 
 DEFINE_LOG_CATEGORY(LogGameplayCueNotify);
 
@@ -1099,3 +1101,4 @@ void FGameplayCueNotify_LoopingEffects::ValidateAssociatedAssets(UObject* Contai
 
 
 #undef LOCTEXT_NAMESPACE
+

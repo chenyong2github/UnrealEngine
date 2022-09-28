@@ -34,6 +34,8 @@
 #include "Rigs/RigControlHierarchy.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprint)
+
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
 #include "Kismet2/KismetDebugUtilities.h"
@@ -5278,4 +5280,5 @@ bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNo
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

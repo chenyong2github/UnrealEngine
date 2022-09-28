@@ -15,6 +15,8 @@
 #include "DSP/FFTAlgorithm.h"
 #include "DSP/FloatArrayMath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAudioSpectrum)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGridAudioSpectrum"
 
 FNiagaraDataInterfaceProxySpectrum::FNiagaraDataInterfaceProxySpectrum(float InMinimumFrequency, float InMaximumFrequency, int32 InNumBands, float InNoiseFloorDb, int32 InNumSamplesToBuffer)
@@ -863,3 +865,4 @@ const FString UNiagaraDataInterfaceAudioSpectrum::ResolutionName(TEXT("_Resoluti
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -17,6 +17,8 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeJPGTranslator)
+
 static bool GInterchangeEnableJPGImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnableJPGImport(
 	TEXT("Interchange.FeatureFlags.Import.JPG"),
@@ -192,3 +194,4 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 
 	return PayloadData;
 }
+

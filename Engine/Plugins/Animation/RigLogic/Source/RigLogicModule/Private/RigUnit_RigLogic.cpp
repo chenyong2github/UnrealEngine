@@ -11,6 +11,8 @@
 #include "Math/TransformNonVectorized.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_RigLogic)
+
 DEFINE_LOG_CATEGORY(LogRigLogicUnit);
 
 const uint8 FRigUnit_RigLogic_Data::MAX_ATTRS_PER_JOINT = 9;
@@ -393,3 +395,4 @@ FRigUnit_RigLogic_Execute()
 		}
 	}
 }
+

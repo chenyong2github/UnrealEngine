@@ -25,6 +25,8 @@
 #include "Framework/Text/IRichTextMarkupWriter.h"
 #include "Framework/Text/RichTextMarkupProcessing.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonRichTextBlock)
+
 namespace SupportedMarkupKeys
 {
 	const FString Id = TEXT("id");
@@ -679,3 +681,4 @@ void UCommonRichTextBlock::ApplyTextBlockScale() const
 		MyRichTextBlock->SetTextBlockScale(MobileTextBlockScale);
 	}
 }
+

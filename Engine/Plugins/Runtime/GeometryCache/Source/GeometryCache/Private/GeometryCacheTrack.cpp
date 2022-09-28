@@ -4,6 +4,8 @@
 #include "GeometryCacheHelpers.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheTrack)
+
 const FGeometryCacheTrackSampleInfo FGeometryCacheTrackSampleInfo::EmptySampleInfo;
 const FVisibilitySample FVisibilitySample::VisibleSample(true);
 const FVisibilitySample FVisibilitySample::InvisibleSample(false);
@@ -154,3 +156,4 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrack::GetSampleInfo(float Ti
 {
 	return FGeometryCacheTrackSampleInfo::EmptySampleInfo;
 }
+

@@ -7,6 +7,8 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipeline.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineOutputSetting)
+
 UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	: OutputResolution(FIntPoint(1920, 1080))
 	, bUseCustomFrameRate(false)
@@ -102,3 +104,4 @@ void UMoviePipelineOutputSetting::SetupForPipelineImpl(UMoviePipeline* InPipelin
 		InPipeline->SetFlushDiskWritesPerShot(InPipeline->IsFlushDiskWritesPerShot() || bFlushDiskWritesPerShot);
 	}
 }
+

@@ -7,6 +7,8 @@
 #include "PropertyHandle.h"
 #include "IDetailPropertyRow.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackPropertyRow)
+
 void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData, TSharedRef<IDetailTreeNode> InDetailTreeNode, bool bInIsTopLevelProperty, FString InOwnerStackItemEditorDataKey, FString InOwnerStackEditorDataKey, UNiagaraNode* InOwningNiagaraNode)
 {
 	TSharedPtr<IPropertyHandle> PropertyHandle = InDetailTreeNode->CreatePropertyHandle();
@@ -211,3 +213,4 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackPropertyRow::Dr
 	}
 	return CanDropResponse;
 }
+

@@ -12,6 +12,8 @@
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicMeshComponentToolTarget)
+
 
 #define LOCTEXT_NAMESPACE "UDynamicMeshComponentToolTarget"
 

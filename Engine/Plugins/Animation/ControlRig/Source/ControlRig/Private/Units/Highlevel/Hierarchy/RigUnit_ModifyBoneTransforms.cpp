@@ -3,6 +3,8 @@
 #include "RigUnit_ModifyBoneTransforms.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_ModifyBoneTransforms)
+
 FRigUnit_ModifyBoneTransforms_Execute()
 {
 	TArray<FRigUnit_ModifyTransforms_PerItem> ItemsToModify;

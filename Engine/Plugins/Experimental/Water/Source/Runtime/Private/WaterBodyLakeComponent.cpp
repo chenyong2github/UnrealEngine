@@ -14,6 +14,8 @@
 #include "Operations/InsetMeshRegion.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyLakeComponent)
+
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #endif
@@ -244,3 +246,4 @@ FVector UWaterBodyLakeComponent::GetWaterSpriteLocation() const
 }
 
 #endif // WITH_EDITOR
+

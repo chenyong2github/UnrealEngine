@@ -5,6 +5,8 @@
 #include "Engine/Texture2D.h"
 #include "HeightfieldMinMaxTexture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HeightfieldMinMaxTextureThumbnailRenderer)
+
 UHeightfieldMinMaxTextureThumbnailRenderer::UHeightfieldMinMaxTextureThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -26,3 +28,4 @@ void UHeightfieldMinMaxTextureThumbnailRenderer::Draw(UObject* Object, int32 X, 
 		UTextureThumbnailRenderer::Draw(Texture, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
 	}
 }
+

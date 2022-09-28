@@ -19,6 +19,8 @@
 #include "ContextObjects/UVToolContextObjects.h"
 #include "EngineAnalytics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorSeamTool)
+
 #define LOCTEXT_NAMESPACE "UUVEditorSeamTool"
 
 using namespace UE::Geometry;
@@ -1219,3 +1221,4 @@ void UUVEditorSeamTool::RecordAnalytics()
 }
 
 #undef LOCTEXT_NAMESPACE
+

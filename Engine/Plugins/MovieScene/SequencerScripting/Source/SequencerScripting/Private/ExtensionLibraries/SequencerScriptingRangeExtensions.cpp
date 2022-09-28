@@ -7,6 +7,8 @@
 #include "MovieScene.h"
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SequencerScriptingRangeExtensions)
+
 bool USequencerScriptingRangeExtensions::HasStart(const FSequencerScriptingRange& Range)
 {
 	return Range.bHasStart;

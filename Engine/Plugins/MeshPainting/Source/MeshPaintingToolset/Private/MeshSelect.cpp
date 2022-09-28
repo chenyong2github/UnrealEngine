@@ -12,6 +12,8 @@
 #include "EngineUtils.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSelect)
+
 
 #define LOCTEXT_NAMESPACE "MeshSelection"
 bool UVertexAdapterClickToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const

@@ -5,6 +5,8 @@
 #include "LevelSequence.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakesCoreBlueprintLibrary)
+
 namespace
 {
 	static UTakesCoreBlueprintLibrary::FOnTakeRecorderSlateChanged TakeRecorderSlateChanged;
@@ -70,5 +72,6 @@ void UTakesCoreBlueprintLibrary::OnTakeRecorderTakeNumberChanged(int32 InTakeNum
 {
 	TakeRecorderTakeNumberChanged.ExecuteIfBound(InTakeNumber);
 }
+
 
 

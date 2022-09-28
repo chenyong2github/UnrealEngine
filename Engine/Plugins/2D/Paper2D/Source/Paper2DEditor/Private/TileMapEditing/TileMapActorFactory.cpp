@@ -8,6 +8,8 @@
 #include "PaperTileMapComponent.h"
 #include "PaperTileSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TileMapActorFactory)
+
 //////////////////////////////////////////////////////////////////////////
 // UTileMapActorFactory
 
@@ -86,3 +88,4 @@ bool UTileMapActorFactory::CanCreateActorFrom(const FAssetData& AssetData, FText
 		return true;
 	}
 }
+

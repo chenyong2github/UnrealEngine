@@ -10,6 +10,8 @@
 #include "Selection/UVToolSelectionAPI.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVSplitAction)
+
 
 #define LOCTEXT_NAMESPACE "UUVSplitAction"
 

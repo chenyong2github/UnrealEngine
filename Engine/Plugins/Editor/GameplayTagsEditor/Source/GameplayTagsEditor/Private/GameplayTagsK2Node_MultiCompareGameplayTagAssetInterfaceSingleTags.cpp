@@ -10,6 +10,8 @@
 #include "BlueprintGameplayTagLibrary.h"
 #include "KismetCompiler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsK2Node_MultiCompareGameplayTagAssetInterfaceSingleTags)
+
 UGameplayTagsK2Node_MultiCompareGameplayTagAssetInterfaceSingleTags::UGameplayTagsK2Node_MultiCompareGameplayTagAssetInterfaceSingleTags(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -105,3 +107,4 @@ void UGameplayTagsK2Node_MultiCompareGameplayTagAssetInterfaceSingleTags::AddPin
 	CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, FGameplayTag::StaticStruct(), InPin, InPinParams);
 	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, OutPin);
 }
+

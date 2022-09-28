@@ -3,6 +3,8 @@
 #include "StateTreeReference.h"
 #include "StateTree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeReference)
+
 void FStateTreeReference::SyncParametersToMatchStateTree(FInstancedPropertyBag& ParametersToSync) const
 {
 	if (StateTree == nullptr)
@@ -30,3 +32,4 @@ void FStateTreeReference::ConditionallySyncParameters() const
 		UE_LOG(LogStateTree, Warning, TEXT("Parameters for '%s' stored in StateTreeReference were auto-fixed to be usable at runtime."), *GetNameSafe(StateTree));	
 	}
 }
+

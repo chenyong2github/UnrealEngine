@@ -15,6 +15,8 @@
 
 #include "Model.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeToMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UVolumeToMeshTool"
@@ -227,3 +229,4 @@ void UVolumeToMeshTool::RecalculateMesh()
 
 
 #undef LOCTEXT_NAMESPACE
+

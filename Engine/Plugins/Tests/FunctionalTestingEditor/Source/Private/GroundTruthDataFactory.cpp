@@ -4,6 +4,8 @@
 #include "GroundTruthData.h"
 #include "AssetTypeCategories.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroundTruthDataFactory)
+
 #define LOCTEXT_NAMESPACE "UGroundTruthDataFactory"
 
 UGroundTruthDataFactory::UGroundTruthDataFactory(const FObjectInitializer& ObjectInitializer)
@@ -32,3 +34,4 @@ FText UGroundTruthDataFactory::GetDisplayName() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

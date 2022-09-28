@@ -7,6 +7,8 @@
 #include "ConversationContext.h"
 #include "ConversationTaskNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationTypes)
+
 //////////////////////////////////////////////////////////////////////
 
 struct FConversationChoiceDataDeleter
@@ -226,3 +228,4 @@ bool FConversationParticipants::Contains(AActor* PotentialParticipant) const
 
 	return false;
 }
+

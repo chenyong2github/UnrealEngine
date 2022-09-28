@@ -8,6 +8,8 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshUVChannelProperties)
+
 
 void UMeshUVChannelProperties::Initialize(int32 NumUVChannels, bool bInitializeSelection)
 {

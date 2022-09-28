@@ -10,6 +10,8 @@
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureRenderTarget2DArray.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterface2DArrayTexture)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterface2DArrayTexture"
 
 const TCHAR* UNiagaraDataInterface2DArrayTexture::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceTexture2DArrayTemplate.ush");
@@ -299,3 +301,4 @@ void UNiagaraDataInterface2DArrayTexture::SetTexture(UTexture* InTexture)
 }
 
 #undef LOCTEXT_NAMESPACE
+

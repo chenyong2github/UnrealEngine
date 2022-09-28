@@ -29,6 +29,8 @@
 #include "AssetUtils/CreateTexture2DUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CreateNewAssetUtilityFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_CreateNewAssetUtilityFunctions"

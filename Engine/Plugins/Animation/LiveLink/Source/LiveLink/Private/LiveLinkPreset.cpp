@@ -12,6 +12,8 @@
 #include "LiveLinkLog.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkPreset)
+
 
 namespace
 {
@@ -361,3 +363,4 @@ void ULiveLinkPreset::ClearApplyToClientTimer()
 		FCoreDelegates::OnEndFrame.Remove(ApplyToClientEndFrameHandle);
 	}
 }
+

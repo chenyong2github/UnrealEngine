@@ -7,6 +7,8 @@
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderPanel)
+
 bool UTakeRecorderPanel::IsPanelOpen() const
 {
 	return WeakTabContent.Pin().IsValid();
@@ -185,4 +187,5 @@ bool UTakeRecorderPanel::CanStartRecording(FText& OutErrorText) const
 
 	return false;
 }
+
 

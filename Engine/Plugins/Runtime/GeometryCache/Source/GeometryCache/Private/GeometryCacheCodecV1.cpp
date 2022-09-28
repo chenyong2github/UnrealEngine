@@ -11,6 +11,8 @@
 #include "ICodecEncoder.h"
 #include "ICodecDecoder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheCodecV1)
+
 
 UGeometryCacheCodecV1::UGeometryCacheCodecV1(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/) : UGeometryCacheCodecBase(ObjectInitializer)
 {
@@ -164,3 +166,4 @@ bool FGeometryCacheCodecRenderStateV1::DecodeSingleFrame(FGeometryCacheCodecDeco
 	IGeometryCacheStreamingManager::Get().UnmapChunk(Args.Track.GetTrack(), Args.FrameIdentifier);
 	return true;
 }
+

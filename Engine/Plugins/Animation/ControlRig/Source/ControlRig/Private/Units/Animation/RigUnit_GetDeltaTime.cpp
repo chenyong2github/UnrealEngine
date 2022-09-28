@@ -3,6 +3,8 @@
 #include "Units/Animation/RigUnit_GetDeltaTime.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_GetDeltaTime)
+
 FRigUnit_GetDeltaTime_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

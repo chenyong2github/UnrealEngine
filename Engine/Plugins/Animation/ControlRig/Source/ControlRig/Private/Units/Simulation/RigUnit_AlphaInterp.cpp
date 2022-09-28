@@ -3,6 +3,8 @@
 #include "Units/Simulation/RigUnit_AlphaInterp.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AlphaInterp)
+
 FRigUnit_AlphaInterp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

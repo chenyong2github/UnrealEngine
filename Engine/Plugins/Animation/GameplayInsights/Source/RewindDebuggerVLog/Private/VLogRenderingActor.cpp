@@ -2,6 +2,8 @@
 
 #include "VLogRenderingActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VLogRenderingActor)
+
 AVLogRenderingActor::AVLogRenderingActor(const FObjectInitializer& ObjectInitializer)
 {
 }
@@ -25,3 +27,4 @@ void AVLogRenderingActor::IterateDebugShapes(TFunction<void(const AVisualLoggerR
 {
 	Callback(DebugShapes);
 }
+

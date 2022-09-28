@@ -5,6 +5,8 @@
 #include "GroomActor.h"
 #include "GroomComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomActorFactory)
+
 #define LOCTEXT_NAMESPACE "GroomActorFactory"
 
 UGroomActorFactory::UGroomActorFactory(const FObjectInitializer& ObjectInitializer)

@@ -9,6 +9,8 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraActor)
+
 ANiagaraActor::ANiagaraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -114,3 +116,4 @@ void ANiagaraActor::ResetInLevel()
 	}
 }
 #endif // WITH_EDITOR
+

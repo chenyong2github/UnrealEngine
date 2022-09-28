@@ -10,6 +10,8 @@
 #include "ToolTargets/SkeletalMeshToolTarget.h"
 #include "SkeletalMeshAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshComponentToolTarget)
+
 using namespace UE::Geometry;
 
 namespace USkeletalMeshComponentToolTargetLocals
@@ -229,3 +231,4 @@ UToolTarget* USkeletalMeshComponentToolTargetFactory::BuildTarget(UObject* Sourc
 
 	return Target;
 }
+

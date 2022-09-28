@@ -14,6 +14,8 @@
 #include "Chaos/Particles.h"
 #include "Chaos/Convex.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OceanCollisionComponent)
+
 UOceanCollisionComponent::UOceanCollisionComponent(const FObjectInitializer& ObjectInitializer)
 	: UPrimitiveComponent(ObjectInitializer)
 {

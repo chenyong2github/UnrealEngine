@@ -26,6 +26,8 @@
 #include "DNAAssetImportUI.h"
 #include "DNAImporter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DNAAssetImportFactory)
+
 DEFINE_LOG_CATEGORY(LogDNAImportFactory);
 #define LOCTEXT_NAMESPACE "DNAAssetImportFactory"
 
@@ -186,3 +188,4 @@ void UDNAAssetImportUI::ResetToDefault()
 // END of DNA Asset Import UI Implementation.
 
 #undef LOCTEXT_NAMESPACE
+

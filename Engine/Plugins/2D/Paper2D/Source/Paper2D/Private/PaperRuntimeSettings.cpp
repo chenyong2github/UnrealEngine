@@ -2,6 +2,8 @@
 
 #include "PaperRuntimeSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperRuntimeSettings)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperRuntimeSettings
 
@@ -12,3 +14,4 @@ UPaperRuntimeSettings::UPaperRuntimeSettings(const FObjectInitializer& ObjectIni
 	, bResizeSpriteDataToMatchTextures(true)
 {
 }
+

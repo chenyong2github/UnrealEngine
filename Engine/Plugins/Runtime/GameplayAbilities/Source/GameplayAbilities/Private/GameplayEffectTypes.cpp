@@ -10,6 +10,8 @@
 #include "AbilitySystemComponent.h"
 #include "Engine/PackageMapClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectTypes)
+
 
 #define LOCTEXT_NAMESPACE "GameplayEffectTypes"
 
@@ -1265,3 +1267,4 @@ void FMinimalReplicationTagCountMap::UpdateOwnerTagMap()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -14,6 +14,8 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkPreviewController)
+
 const FName EditorCamera(TEXT("EditorActiveCamera"));
 
 class FLiveLinkCameraController : public FEditorCameraController
@@ -115,3 +117,4 @@ void ULiveLinkPreviewController::Serialize(FArchive& Ar)
 	}
 #endif //WITH_EDITORONLY_DATA
 }
+

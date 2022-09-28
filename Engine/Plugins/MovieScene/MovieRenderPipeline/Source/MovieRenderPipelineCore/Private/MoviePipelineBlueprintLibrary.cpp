@@ -40,6 +40,8 @@
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineBlueprintLibrary)
+
 PRAGMA_DISABLE_OPTIMIZATION
 
 EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)

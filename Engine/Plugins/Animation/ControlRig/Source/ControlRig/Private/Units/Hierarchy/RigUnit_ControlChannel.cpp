@@ -3,6 +3,8 @@
 #include "RigUnit_ControlChannel.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_ControlChannel)
+
 bool FRigUnit_GetAnimationChannelBase::UpdateCache(const URigHierarchy* InHierarchy, const FName& Control, const FName& Channel, FRigElementKey& Key, int32& Hash)
 {
 	if(!Key.IsValid())

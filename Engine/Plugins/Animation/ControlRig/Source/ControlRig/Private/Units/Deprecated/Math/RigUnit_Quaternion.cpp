@@ -3,6 +3,8 @@
 #include "RigUnit_Quaternion.h"
 #include "Units/Math/RigUnit_MathQuaternion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Quaternion)
+
 FRigUnit_MultiplyQuaternion_Execute()
 {
 	Result = Argument0*Argument1;
@@ -97,3 +99,4 @@ FRigVMStructUpgradeInfo FRigUnit_QuaternionToAngle::GetUpgradeInfo() const
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

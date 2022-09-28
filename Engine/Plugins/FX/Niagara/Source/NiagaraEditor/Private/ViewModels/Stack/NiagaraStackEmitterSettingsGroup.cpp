@@ -20,6 +20,8 @@
 #include "Styling/AppStyle.h"
 #include "IDetailTreeNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEmitterSettingsGroup)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackEmitterItemGroup"
 
 void UNiagaraStackEmitterPropertiesItem::Initialize(FRequiredEntryData InRequiredEntryData)
@@ -464,3 +466,4 @@ void UNiagaraStackSummaryViewCollapseButton::RefreshChildrenInternal(const TArra
 
 
 #undef LOCTEXT_NAMESPACE
+

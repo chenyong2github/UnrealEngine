@@ -37,6 +37,8 @@
 #include "MoviePipelineUtils.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineDeferredPasses)
+
 FString UMoviePipelineDeferredPassBase::StencilLayerMaterialAsset = TEXT("/MovieRenderPipeline/Materials/MoviePipeline_StencilCutout.MoviePipeline_StencilCutout");
 FString UMoviePipelineDeferredPassBase::DefaultDepthAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth");
 FString UMoviePipelineDeferredPassBase::DefaultMotionVectorsAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors");

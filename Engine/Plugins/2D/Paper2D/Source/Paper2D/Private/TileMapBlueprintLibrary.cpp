@@ -3,6 +3,8 @@
 #include "TileMapBlueprintLibrary.h"
 #include "PaperTileSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TileMapBlueprintLibrary)
+
 //////////////////////////////////////////////////////////////////////////
 
 FName UTileMapBlueprintLibrary::GetTileUserData(FPaperTileInfo Tile)
@@ -41,3 +43,4 @@ FPaperTileInfo UTileMapBlueprintLibrary::MakeTile(int32 TileIndex, UPaperTileSet
 	Result.SetFlagValue(EPaperTileFlags::FlipDiagonal, bFlipD);
 	return Result;
 }
+

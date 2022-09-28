@@ -3,6 +3,8 @@
 #include "Rigs/RigHierarchyDefines.h"
 #include "Rigs/RigHierarchy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigHierarchyDefines)
+
 #if WITH_EDITOR
 #include "RigVMPythonUtils.h"
 #endif
@@ -398,3 +400,4 @@ FArchive& operator<<(FArchive& Ar, FRigControlValue& Value)
 
 	return Ar;
 }
+

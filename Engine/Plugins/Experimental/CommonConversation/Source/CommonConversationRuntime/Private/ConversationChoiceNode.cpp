@@ -2,6 +2,8 @@
 
 #include "ConversationChoiceNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationChoiceNode)
+
 bool UConversationChoiceNode::GenerateChoice(const FConversationContext& Context, FClientConversationOptionEntry& ChoiceEntry) const
 {
 	FillChoice(Context, ChoiceEntry);
@@ -18,3 +20,4 @@ void UConversationChoiceNode::NotifyChoicePickedByUser(const FConversationContex
 {
 
 }
+

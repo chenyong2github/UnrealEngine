@@ -7,6 +7,8 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/StringView.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetTagsSubsystem)
+
 #if WITH_EDITOR
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
@@ -512,3 +514,4 @@ TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAssetPtr(const UObjec
 	//  2) The FAssetData for the asset registry implementation *must* come from the asset registry (as the tags are added at cook-time, and missing if FAssetData is generated from a UObject* at runtime)
 	return K2_GetCollectionsContainingAsset(FSoftObjectPath(AssetPtr));
 }
+

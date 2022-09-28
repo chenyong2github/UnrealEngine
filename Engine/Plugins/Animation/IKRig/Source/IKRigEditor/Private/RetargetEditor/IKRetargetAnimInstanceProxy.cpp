@@ -5,6 +5,8 @@
 #include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetAnimInstanceProxy)
+
 FIKRetargetAnimInstanceProxy::FIKRetargetAnimInstanceProxy(
 	UAnimInstance* InAnimInstance,
 	FAnimNode_PreviewRetargetPose* InPreviewPoseNode,
@@ -115,4 +117,5 @@ void FIKRetargetAnimInstanceProxy::SetRetargetPoseBlend(const float& InRetargetP
 {
 	PreviewPoseNode->RetargetPoseBlend = InRetargetPoseBlend;
 }
+
 

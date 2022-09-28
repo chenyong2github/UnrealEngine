@@ -14,6 +14,8 @@
 #include "WaterUtils.h"
 #include "Algo/Transform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LakeCollisionComponent)
+
 
 // ----------------------------------------------------------------------------------
 
@@ -458,3 +460,4 @@ bool ULakeCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometry
 
 	return true;
 }
+

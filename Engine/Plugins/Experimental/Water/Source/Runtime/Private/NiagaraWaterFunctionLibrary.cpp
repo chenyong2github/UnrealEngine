@@ -6,6 +6,8 @@
 #include "NiagaraDataInterfaceWater.h"
 #include "WaterModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraWaterFunctionLibrary)
+
 void UNiagaraWaterFunctionLibrary::SetWaterBodyComponent(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UWaterBodyComponent* WaterBodyComponent)
 {
 	if (!NiagaraSystem)

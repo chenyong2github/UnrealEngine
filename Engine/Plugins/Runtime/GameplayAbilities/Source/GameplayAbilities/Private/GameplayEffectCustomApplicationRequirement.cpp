@@ -2,6 +2,8 @@
 
 #include "GameplayEffectCustomApplicationRequirement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectCustomApplicationRequirement)
+
 UGameplayEffectCustomApplicationRequirement::UGameplayEffectCustomApplicationRequirement(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -12,3 +14,4 @@ bool UGameplayEffectCustomApplicationRequirement::CanApplyGameplayEffect_Impleme
 {
 	return true;
 }
+

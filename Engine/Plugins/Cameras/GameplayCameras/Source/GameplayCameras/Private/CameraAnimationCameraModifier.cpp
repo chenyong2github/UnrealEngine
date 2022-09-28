@@ -16,6 +16,8 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationCameraModifier)
+
 DECLARE_CYCLE_STAT(TEXT("Camera Animation Eval"), CameraAnimationEval_Total, STATGROUP_CameraAnimation);
 
 FCameraAnimationHandle FCameraAnimationHandle::Invalid(MAX_int16, 0);
@@ -467,3 +469,4 @@ ECameraAnimationPlaySpace UGameplayCamerasFunctionLibrary::Conv_CameraAnimationP
 	default: checkf(false, TEXT("Unsupported ECameraShakePlaySpace value")); return (ECameraAnimationPlaySpace)CameraShakePlaySpace;
 	}
 }
+

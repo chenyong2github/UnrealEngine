@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SubmixEffects/SubmixEffectTapDelay.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectTapDelay)
+
 DEFINE_LOG_CATEGORY(LogTapDelay);
 
 namespace TapDelayUtils

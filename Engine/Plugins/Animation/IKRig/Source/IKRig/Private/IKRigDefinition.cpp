@@ -5,6 +5,8 @@
 #include "IKRigObjectVersion.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigDefinition)
+
 #if WITH_EDITOR
 #include "HAL/PlatformApplicationMisc.h"
 #endif
@@ -296,3 +298,4 @@ USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

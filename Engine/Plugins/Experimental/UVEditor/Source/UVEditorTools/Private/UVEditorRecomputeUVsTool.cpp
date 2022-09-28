@@ -14,6 +14,8 @@
 #include "Operators/UVEditorRecomputeUVsOp.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorRecomputeUVsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVEditorRecomputeUVsTool"
@@ -342,3 +344,4 @@ void UUVEditorRecomputeUVsTool::RecordAnalytics()
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -3,6 +3,8 @@
 #include "BoostMotorSimComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BoostMotorSimComponent)
+
 void UBoostMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	if(bModifyPitch)

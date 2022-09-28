@@ -2,6 +2,8 @@
 
 #include "ReferenceViewer/ReferenceViewerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReferenceViewerSettings)
+
 bool UReferenceViewerSettings::IsSearchDepthLimited() const
 {
 	return bLimitSearchDepth;
@@ -249,3 +251,4 @@ void UReferenceViewerSettings::SetUserFilters(TArray<FilterState>& InFilters)
 	UserFilters = InFilters;
 	SaveConfig();
 }
+

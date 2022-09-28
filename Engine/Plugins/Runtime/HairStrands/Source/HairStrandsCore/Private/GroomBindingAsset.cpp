@@ -10,6 +10,8 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomBindingAsset)
+
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -817,3 +819,4 @@ void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSi
 		}
 	}
 }
+

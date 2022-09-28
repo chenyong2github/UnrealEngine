@@ -16,6 +16,8 @@
 
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOConfiguration)
+
 #define LOCTEXT_NAMESPACE "OCIOConfiguration"
 
 
@@ -573,3 +575,4 @@ void UOpenColorIOConfiguration::OnToastCallback(bool bInReloadColorspaces)
 }
 
 #undef LOCTEXT_NAMESPACE
+

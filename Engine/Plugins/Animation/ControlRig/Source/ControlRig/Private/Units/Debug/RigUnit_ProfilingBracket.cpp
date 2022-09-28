@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "KismetAnimationLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_ProfilingBracket)
+
 FRigUnit_StartProfilingTimer_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

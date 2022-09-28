@@ -3,6 +3,8 @@
 #include "Sequencer/MovieSceneGameplayCueTrack.h"
 #include "Sequencer/MovieSceneGameplayCueSections.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneGameplayCueTrack)
+
 
 FMovieSceneGameplayCueEvent UMovieSceneGameplayCueTrack::OnHandleCueEvent;
 
@@ -65,3 +67,4 @@ FText UMovieSceneGameplayCueTrack::GetDefaultDisplayName() const
 }
 
 #endif
+

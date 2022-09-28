@@ -24,6 +24,8 @@
 #include "Containers/Ticker.h"
 #include "UObject/ReferenceChainSearch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeaturePluginStateMachine)
+
 #if WITH_EDITOR
 #include "PluginUtils.h"
 #endif //if WITH_EDITOR
@@ -2886,3 +2888,4 @@ bool FGameFeaturePluginStateMachineProperties::ValidateURLUpdate(const FGameFeat
 
 	return bIsValidUpdate;
 }
+

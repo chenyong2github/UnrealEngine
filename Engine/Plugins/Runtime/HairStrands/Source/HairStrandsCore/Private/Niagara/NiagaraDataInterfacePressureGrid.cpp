@@ -16,6 +16,8 @@
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfacePressureGrid)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePressureGrid"
 DEFINE_LOG_CATEGORY_STATIC(LogPressureGrid, Log, All);
 

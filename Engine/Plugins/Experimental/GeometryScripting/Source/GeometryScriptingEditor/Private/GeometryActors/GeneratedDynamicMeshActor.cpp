@@ -8,6 +8,8 @@
 
 #include "Misc/ScopedSlowTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeneratedDynamicMeshActor)
+
 #define LOCTEXT_NAMESPACE "AGeneratedDynamicMeshActor"
 
 AGeneratedDynamicMeshActor::AGeneratedDynamicMeshActor(const FObjectInitializer& ObjectInitializer)

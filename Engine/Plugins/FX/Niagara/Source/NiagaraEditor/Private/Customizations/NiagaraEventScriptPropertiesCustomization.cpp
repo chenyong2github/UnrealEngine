@@ -17,6 +17,8 @@
 #include "Editor.h"
 #include "IDetailChildrenBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEventScriptPropertiesCustomization)
+
 #define LOCTEXT_NAMESPACE "FNiagaraEventScriptPropertiesCustomization"
 
 TSharedRef<IPropertyTypeCustomization> FNiagaraEventScriptPropertiesCustomization::MakeInstance(TWeakObjectPtr<UNiagaraSystem> InSystem, FVersionedNiagaraEmitterWeakPtr InEmitter)
@@ -491,3 +493,4 @@ FText FNiagaraEventScriptPropertiesCustomization::GetProviderText(const FName& I
 }
 
 #undef LOCTEXT_NAMESPACE
+

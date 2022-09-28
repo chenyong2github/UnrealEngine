@@ -6,6 +6,8 @@
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehaviorSmartObjectsBlueprintFunctionLibrary)
+
 bool UGameplayBehaviorSmartObjectsBlueprintFunctionLibrary::UseGameplayBehaviorSmartObject(AActor* Avatar, AActor* SmartObject)
 {
 	if (Avatar == nullptr || SmartObject == nullptr)

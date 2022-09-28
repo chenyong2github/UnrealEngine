@@ -19,6 +19,8 @@
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAsyncGpuTrace)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceAsyncGpuTrace"
 
 namespace NDIAsyncGpuTraceLocal
@@ -547,3 +549,4 @@ void UNiagaraDataInterfaceAsyncGpuTrace::PostEditChangeProperty(struct FProperty
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

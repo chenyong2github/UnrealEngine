@@ -7,6 +7,8 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/Core/RigUnit_CoreDispatch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathQuaternion)
+
 FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -260,3 +262,4 @@ FRigUnit_MathQuaternionMirrorTransform_Execute()
 	FRigUnit_MathTransformMirrorTransform::StaticExecute(RigVMExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform, Context);
 	Result = Transform.GetRotation();
 }
+

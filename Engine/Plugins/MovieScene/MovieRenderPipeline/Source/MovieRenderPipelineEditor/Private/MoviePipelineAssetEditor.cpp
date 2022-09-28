@@ -3,6 +3,8 @@
 #include "MoviePipelineAssetEditor.h"
 #include "MoviePipelineConfigAssetEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineAssetEditor)
+
 TSharedPtr<FBaseAssetToolkit> UMoviePipelineAssetEditor::CreateToolkit()
 {
 	return MakeShared<FMoviePipelineConfigAssetEditor>(this);

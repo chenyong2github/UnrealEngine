@@ -30,6 +30,8 @@
 #include "ControlRigComponent.h"
 #include "Constraints/ControlRigTransformableHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRig)
+
 #define LOCTEXT_NAMESPACE "ControlRig"
 
 DEFINE_LOG_CATEGORY(LogControlRig);
@@ -3554,3 +3556,4 @@ UControlRig::FTransientControlScope::~FTransientControlScope()
 #endif
  
 #undef LOCTEXT_NAMESPACE
+

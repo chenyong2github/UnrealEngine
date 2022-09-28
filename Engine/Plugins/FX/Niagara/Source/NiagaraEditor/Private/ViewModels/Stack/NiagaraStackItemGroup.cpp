@@ -11,6 +11,8 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackItemGroup)
+
 void UNiagaraStackItemGroup::Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayName, FText InToolTip, INiagaraStackItemGroupAddUtilities* InAddUtilities)
 {
 	Super::Initialize(InRequiredEntryData, InDisplayName.ToString());
@@ -150,3 +152,4 @@ bool UNiagaraStackItemGroupFooter::GetCanExpand() const
 {
 	return false;
 }
+

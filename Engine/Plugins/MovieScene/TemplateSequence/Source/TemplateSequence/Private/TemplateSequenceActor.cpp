@@ -8,6 +8,8 @@
 #include "Misc/UObjectToken.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequenceActor)
+
 ATemplateSequenceActor::ATemplateSequenceActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -203,3 +205,4 @@ bool ATemplateSequenceActor::GetReferencedContentObjects(TArray<UObject*>& Objec
 }
 
 #endif // WITH_EDITOR
+

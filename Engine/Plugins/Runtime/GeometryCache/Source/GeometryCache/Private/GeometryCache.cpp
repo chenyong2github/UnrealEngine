@@ -15,6 +15,8 @@
 #include "Logging/LogCategory.h"
 #include "Logging/LogVerbosity.h" 
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCache)
+
 DEFINE_LOG_CATEGORY(LogGeometryCache);
 
 #define LOCTEXT_NAMESPACE "GeometryCache"
@@ -230,3 +232,4 @@ FString UGeometryCache::GetHash() const
 }
 
 #undef LOCTEXT_NAMESPACE // "GeometryCache"
+

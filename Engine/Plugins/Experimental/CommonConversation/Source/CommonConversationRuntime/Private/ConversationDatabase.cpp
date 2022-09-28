@@ -10,6 +10,8 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetRegistryState.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationDatabase)
+
 #define LOCTEXT_NAMESPACE "ConversationDatabase"
 
 UConversationDatabase::UConversationDatabase(const FObjectInitializer& ObjectInitializer)

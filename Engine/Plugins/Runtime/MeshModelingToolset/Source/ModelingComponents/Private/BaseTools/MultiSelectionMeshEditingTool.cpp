@@ -11,6 +11,8 @@
 #include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MultiSelectionMeshEditingTool)
+
 /*
  * ToolBuilder
  */
@@ -105,6 +107,7 @@ bool UMultiSelectionMeshEditingTool::GetMapToSharedSourceData(TArray<int32>& Map
 	}
 	return bSharesSources;
 }
+
 
 
 

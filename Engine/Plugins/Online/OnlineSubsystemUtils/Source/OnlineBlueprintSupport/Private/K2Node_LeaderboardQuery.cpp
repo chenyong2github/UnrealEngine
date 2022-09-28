@@ -3,6 +3,8 @@
 #include "K2Node_LeaderboardQuery.h"
 #include "LeaderboardQueryCallbackProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_LeaderboardQuery)
+
 #define LOCTEXT_NAMESPACE "K2Node"
 
 UK2Node_LeaderboardQuery::UK2Node_LeaderboardQuery(const FObjectInitializer& ObjectInitializer)
@@ -15,3 +17,4 @@ UK2Node_LeaderboardQuery::UK2Node_LeaderboardQuery(const FObjectInitializer& Obj
 }
 
 #undef LOCTEXT_NAMESPACE
+

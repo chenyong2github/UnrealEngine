@@ -19,6 +19,8 @@
 #include "Paper2DModule.h"
 #include "Paper2DPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSprite)
+
 #if WITH_EDITOR
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -2297,3 +2299,4 @@ FVector2D FSpriteGeometryCollisionBuilderBase::ConvertTextureSpaceToPivotSpaceNo
 {
 	return Input;
 }
+

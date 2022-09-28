@@ -3,6 +3,8 @@
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 #include "MVVMViewModelBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBlueprintGeneratedClass)
+
 UMVVMViewModelBlueprintGeneratedClass::UMVVMViewModelBlueprintGeneratedClass()
 	: FieldNotifyStartBitNumber(INDEX_NONE)
 {}
@@ -50,3 +52,4 @@ void UMVVMViewModelBlueprintGeneratedClass::ForEachField(TFunctionRef<bool(::UE:
 		}
 	}
 }
+

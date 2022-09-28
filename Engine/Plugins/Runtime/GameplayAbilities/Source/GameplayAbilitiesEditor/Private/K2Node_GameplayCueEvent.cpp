@@ -11,6 +11,8 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_GameplayCueEvent)
+
 #define LOCTEXT_NAMESPACE "K2Node_GameplayCueEvent"
 
 static FName GAMEPLAYABILITIES_BlueprintCustomHandler = TEXT("BlueprintCustomHandler");
@@ -99,3 +101,4 @@ void UK2Node_GameplayCueEvent::GetMenuActions(FBlueprintActionDatabaseRegistrar&
 }
 
 #undef LOCTEXT_NAMESPACE
+

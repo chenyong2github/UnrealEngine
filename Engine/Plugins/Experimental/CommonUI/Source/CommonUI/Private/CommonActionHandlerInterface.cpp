@@ -2,6 +2,8 @@
 
 #include "CommonActionHandlerInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActionHandlerInterface)
+
 EInputActionState FCommonInputActionHandlerData::GetState(ECommonInputType InputType, const FName& GamepadName) const
 {
 	const FCommonInputActionDataBase* InputActionData = CommonUI::GetInputActionData(InputActionRow);
@@ -21,3 +23,4 @@ UCommonActionHandlerInterface::UCommonActionHandlerInterface(const FObjectInitia
 {
 
 }
+

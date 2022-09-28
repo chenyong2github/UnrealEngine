@@ -3,6 +3,8 @@
 #include "InterchangeTexture2DNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeTexture2DNode)
+
 FString UInterchangeTexture2DNode::MakeNodeUid(const FStringView NodeName)
 {
 	return UInterchangeTextureNode::MakeNodeUid(NodeName);

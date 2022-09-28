@@ -4,6 +4,8 @@
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeDelayTask)
+
 EStateTreeRunStatus FStateTreeDelayTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
@@ -33,3 +35,4 @@ EStateTreeRunStatus FStateTreeDelayTask::Tick(FStateTreeExecutionContext& Contex
 	
 	return EStateTreeRunStatus::Running;
 }
+

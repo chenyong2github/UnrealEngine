@@ -10,6 +10,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Field.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeState)
+
 //////////////////////////////////////////////////////////////////////////
 // FStateTreeStateLink
 
@@ -222,3 +224,4 @@ UStateTreeState* UStateTreeState::GetNextSiblingState() const
 	}
 	return nullptr;
 }
+

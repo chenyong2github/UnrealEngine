@@ -11,6 +11,8 @@
 
 #include "MeshDescriptionToDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BaseVoxelTool)
+
 
 #define LOCTEXT_NAMESPACE "UBaseVoxelTool"
 
@@ -64,3 +66,4 @@ void UBaseVoxelTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 
 
 #undef LOCTEXT_NAMESPACE
+

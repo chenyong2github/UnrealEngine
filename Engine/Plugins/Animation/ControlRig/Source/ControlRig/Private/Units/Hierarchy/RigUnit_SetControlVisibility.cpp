@@ -3,6 +3,8 @@
 #include "RigUnit_SetControlVisibility.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetControlVisibility)
+
 FRigUnit_GetControlVisibility_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -101,3 +103,4 @@ FRigUnit_SetControlVisibility_Execute()
 		}
 	}
 }
+

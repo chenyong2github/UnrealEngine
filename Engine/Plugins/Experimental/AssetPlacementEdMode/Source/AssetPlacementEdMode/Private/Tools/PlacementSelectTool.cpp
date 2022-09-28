@@ -5,6 +5,8 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementSelectTool)
+
 constexpr TCHAR UPlacementModeSelectTool::ToolName[];
 
 bool UPlacementModeSelectToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
@@ -27,3 +29,4 @@ FInputRayHit UPlacementModeSelectTool::CanBeginClickDragSequence(const FInputDev
 {
 	return FInputRayHit();	// always fall-through to the EdMode or viewport handling for clicks.
 }
+

@@ -19,6 +19,8 @@
 #include "UDynamicMesh.h"
 #include "GeometryScript/MeshSelectionFunctions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshModelingFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshModelingFunctions"
@@ -1014,3 +1016,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshPolygroupBe
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -8,6 +8,8 @@
 #include "Selection/UVToolSelectionHighlightMechanic.h"
 #include "UVEditorMechanicAdapterTool.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVToolSelectionAPI)
+
 #define LOCTEXT_NAMESPACE "UUVIslandConformalUnwrapAction"
 
 using namespace UE::Geometry;

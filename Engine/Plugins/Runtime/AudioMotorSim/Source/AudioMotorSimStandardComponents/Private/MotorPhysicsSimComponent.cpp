@@ -2,6 +2,8 @@
 
 #include "MotorPhysicsSimComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotorPhysicsSimComponent)
+
 void UMotorPhysicsSimComponent::Update(FAudioMotorSimInputContext& Input, FAudioMotorSimRuntimeContext& RuntimeInfo)
 {
 	if(ensure(Weight > 0.f && EngineGearRatio > 0.f) == false)

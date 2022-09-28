@@ -11,6 +11,8 @@
 #include "AutomationWorkerMessages.h"
 #include "JsonObjectConverter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenshotComparisonCommandlet)
+
 
 DEFINE_LOG_CATEGORY(LogScreenshotComparison);
 

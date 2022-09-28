@@ -4,6 +4,8 @@
 
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletalMeshFactoryNode)
+
 #if WITH_EDITOR
 
 #define IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(AttributeName, AttributeType, PropertyName)	\
@@ -244,3 +246,4 @@ bool UInterchangeSkeletalMeshFactoryNode::SetNodeClassFromClassAttribute()
 	}
 	return bIsNodeClassInitialized;
 }
+

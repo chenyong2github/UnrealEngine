@@ -4,6 +4,8 @@
 
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitCancel)
+
 
 UAbilityTask_WaitCancel::UAbilityTask_WaitCancel(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -75,3 +77,4 @@ void UAbilityTask_WaitCancel::OnDestroy(bool AbilityEnding)
 
 	Super::OnDestroy(AbilityEnding);
 }
+

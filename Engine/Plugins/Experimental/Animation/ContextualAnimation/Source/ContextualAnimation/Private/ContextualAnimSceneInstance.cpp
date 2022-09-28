@@ -11,6 +11,8 @@
 #include "ContextualAnimSceneActorComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSceneInstance)
+
 // UContextualAnimSceneInstance
 //================================================================================================================
 
@@ -397,3 +399,4 @@ void UContextualAnimSceneInstance::SetIgnoreCollisionWithOtherActors(AActor* Act
 		}
 	}
 }
+

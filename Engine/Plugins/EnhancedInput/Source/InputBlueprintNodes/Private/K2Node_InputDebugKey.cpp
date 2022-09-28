@@ -17,6 +17,8 @@
 #include "GameFramework/InputSettings.h"
 #include "Editor.h"								// for FEditorDelegates::OnEnableGestureRecognizerChanged
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_InputDebugKey)
+
 #define LOCTEXT_NAMESPACE "UK2Node_InputDebugKey"
 
 static const FName ActionPinName = TEXT("ActionValue");
@@ -438,3 +440,4 @@ TSharedPtr<FEdGraphSchemaAction> UK2Node_InputDebugKey::GetEventNodeAction(const
 }
 
 #undef LOCTEXT_NAMESPACE
+

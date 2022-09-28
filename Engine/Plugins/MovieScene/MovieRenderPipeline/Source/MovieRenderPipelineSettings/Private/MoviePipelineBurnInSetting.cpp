@@ -16,6 +16,8 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineQueue.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineBurnInSetting)
+
 FString UMoviePipelineBurnInSetting::DefaultBurnInWidgetAsset = TEXT("/MovieRenderPipeline/Blueprints/DefaultBurnIn.DefaultBurnIn_C");
 
 void UMoviePipelineBurnInSetting::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)

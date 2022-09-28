@@ -6,6 +6,8 @@
 
 #include "Kismet2/CompilerResultsLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBlueprint)
+
 
 TSharedPtr<FKismetCompilerContext> UMVVMViewModelBlueprint::GetCompilerForViewModelBlueprint(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
 {
@@ -47,3 +49,4 @@ bool UMVVMViewModelBlueprint::SupportsAnimLayers() const
 {
 	return false;
 }
+

@@ -17,6 +17,8 @@
 #include "Misc/Guid.h"
 #include "UObject/TextProperty.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNode)
+
 #define LOCTEXT_NAMESPACE "NiagaraNode"
 
 UNiagaraNode::UNiagaraNode(const FObjectInitializer& ObjectInitializer)

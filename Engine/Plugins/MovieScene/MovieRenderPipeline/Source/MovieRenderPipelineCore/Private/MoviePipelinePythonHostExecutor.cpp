@@ -7,6 +7,8 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Engine/Engine.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelinePythonHostExecutor)
+
 void UMoviePipelinePythonHostExecutor::Execute_Implementation(UMoviePipelineQueue* InPipelineQueue)
 {
 	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())

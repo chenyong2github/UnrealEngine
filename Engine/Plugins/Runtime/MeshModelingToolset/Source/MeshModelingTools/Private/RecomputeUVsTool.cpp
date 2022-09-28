@@ -9,6 +9,8 @@
 #include "ModelingToolTargetUtil.h"
 #include "ParameterizationOps/RecomputeUVsOp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RecomputeUVsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "URecomputeUVsTool"
@@ -246,3 +248,4 @@ void URecomputeUVsTool::OnPreviewMeshUpdated()
 
 
 #undef LOCTEXT_NAMESPACE
+

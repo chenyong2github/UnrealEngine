@@ -21,6 +21,8 @@
 #include "CurveEditorSnapMetrics.h"
 #include "SCurveEditorView.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEditorRetimeTool)
+
 #define LOCTEXT_NAMESPACE "CurveEditorToolCommands"
 namespace CurveEditorRetimeTool
 {
@@ -642,3 +644,4 @@ void FCurveEditorRetimeTool::StopDragIfPossible()
 }
 
 #undef LOCTEXT_NAMESPACE // "CurveEditorToolCommands"
+

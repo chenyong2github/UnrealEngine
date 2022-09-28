@@ -38,6 +38,8 @@
 #include "Widgets/NiagaraScratchScriptEditor.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemEditorDocumentsViewModel)
+
 #define LOCTEXT_NAMESPACE "NiagaraScratchPadViewModel"
 
 void UNiagaraSystemEditorDocumentsViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)

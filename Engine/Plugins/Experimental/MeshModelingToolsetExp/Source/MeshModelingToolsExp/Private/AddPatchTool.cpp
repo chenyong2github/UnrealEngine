@@ -19,6 +19,8 @@
 
 #include "DynamicMeshEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AddPatchTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UAddPatchTool"
@@ -329,3 +331,4 @@ void UAddPatchTool::GeneratePlane(FDynamicMesh3* OutMesh)
 
 
 #undef LOCTEXT_NAMESPACE
+

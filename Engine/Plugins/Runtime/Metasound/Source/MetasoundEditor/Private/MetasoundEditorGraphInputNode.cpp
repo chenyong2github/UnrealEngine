@@ -23,6 +23,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorGraphInputNode)
+
 UMetasoundEditorGraphMember* UMetasoundEditorGraphInputNode::GetMember() const
 {
 	return Input;
@@ -117,3 +119,4 @@ void UMetasoundEditorGraphInputNode::SetNodeID(FGuid InNodeID)
 		Input->NodeID = InNodeID;
 	}
 }
+

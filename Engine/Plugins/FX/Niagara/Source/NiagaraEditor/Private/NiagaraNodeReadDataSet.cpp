@@ -7,6 +7,8 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeReadDataSet)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeDataSetRead"
 
 UNiagaraNodeReadDataSet::UNiagaraNodeReadDataSet(const FObjectInitializer& ObjectInitializer)
@@ -145,6 +147,7 @@ void UNiagaraNodeReadDataSet::BuildParameterMapHistory(FNiagaraParameterMapHisto
 }
 
 #undef LOCTEXT_NAMESPACE
+
 
 
 

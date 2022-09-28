@@ -10,6 +10,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraParameterDefinitions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptVariable)
+
 UNiagaraScriptVariable::UNiagaraScriptVariable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DefaultMode(ENiagaraDefaultMode::Value)

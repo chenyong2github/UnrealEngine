@@ -3,6 +3,8 @@
 #include "NiagaraSimCacheFactoryNew.h"
 #include "NiagaraSimCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSimCacheFactoryNew)
+
 UNiagaraSimCacheFactoryNew::UNiagaraSimCacheFactoryNew(const FObjectInitializer& ObjectInitializer)
 {
 	SupportedClass = UNiagaraSimCache::StaticClass();
@@ -19,3 +21,4 @@ UObject* UNiagaraSimCacheFactoryNew::FactoryCreateNew(UClass* InClass, UObject* 
 {
 	return NewObject<UNiagaraSimCache>(InParent, InClass, InName, Flags);
 }
+

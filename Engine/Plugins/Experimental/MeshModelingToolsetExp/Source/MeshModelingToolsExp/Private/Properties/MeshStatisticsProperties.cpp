@@ -8,6 +8,8 @@
 
 #include "Components/DynamicMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshStatisticsProperties)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshStatisticsProperites"
@@ -42,3 +44,4 @@ void UMeshStatisticsProperties::Update(const FDynamicMesh3& MeshIn)
 
 
 #undef LOCTEXT_NAMESPACE
+

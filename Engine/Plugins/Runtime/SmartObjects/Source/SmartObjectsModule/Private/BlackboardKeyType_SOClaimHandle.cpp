@@ -4,6 +4,8 @@
 
 #include "BehaviorTree/BlackboardComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_SOClaimHandle)
+
 const UBlackboardKeyType_SOClaimHandle::FDataType UBlackboardKeyType_SOClaimHandle::InvalidValue;
 
 UBlackboardKeyType_SOClaimHandle::UBlackboardKeyType_SOClaimHandle(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -51,3 +53,4 @@ bool UBlackboardKeyType_SOClaimHandle::TestBasicOperation(const UBlackboardCompo
 	const FSmartObjectClaimHandle ClaimHandle = GetValue(this, MemoryBlock);
 	return (Op == EBasicKeyOperation::Set) ? ClaimHandle.IsValid() : !ClaimHandle.IsValid();
 }
+

@@ -7,6 +7,8 @@
 #include "Polygroups/PolygroupsGenerator.h"
 #include "UDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshPolygroupFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshPolygroupFunctions"

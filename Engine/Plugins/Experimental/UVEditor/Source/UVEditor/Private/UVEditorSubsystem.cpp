@@ -9,6 +9,8 @@
 #include "UVEditor.h"
 #include "UVEditorMode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorSubsystem)
+
 using namespace UE::Geometry;
 
 void UUVEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -100,4 +102,5 @@ void UUVEditorSubsystem::NotifyThatUVEditorClosed(TArray<TObjectPtr<UObject>> Ob
 		OpenedEditorInstances.Remove(Object);
 	}
 }
+
 

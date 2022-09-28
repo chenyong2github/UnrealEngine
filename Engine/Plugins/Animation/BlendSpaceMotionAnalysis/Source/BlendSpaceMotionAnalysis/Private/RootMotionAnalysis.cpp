@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "Logging/LogMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RootMotionAnalysis)
+
 DEFINE_LOG_CATEGORY_STATIC(LogRootMotionAnalysis, Log, All);
 
 #define LOCTEXT_NAMESPACE "RootMotionAnalysis"

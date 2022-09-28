@@ -5,6 +5,8 @@
 #include "Rigs/RigHierarchyController.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetControlDrivenList)
+
 FRigUnit_GetControlDrivenList_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -72,3 +74,4 @@ FRigUnit_SetControlDrivenList_Execute()
 		}
 	}
 }
+

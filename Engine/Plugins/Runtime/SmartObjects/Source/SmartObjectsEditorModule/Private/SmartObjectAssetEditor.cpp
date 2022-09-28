@@ -4,6 +4,8 @@
 
 #include "SmartObjectAssetToolkit.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectAssetEditor)
+
 void USmartObjectAssetEditor::GetObjectsToEdit(TArray<UObject*>& OutObjectsToEdit)
 {
 	OutObjectsToEdit.Add(ObjectToEdit);
@@ -18,3 +20,4 @@ TSharedPtr<FBaseAssetToolkit> USmartObjectAssetEditor::CreateToolkit()
 {
 	return MakeShared<FSmartObjectAssetToolkit>(this);
 }
+

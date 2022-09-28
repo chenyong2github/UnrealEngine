@@ -7,6 +7,8 @@
 #include "ModelingToolTargetUtil.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorModeChannelProperties)
+
 void UUVEditorUVChannelProperties::Initialize(
 	TArray<TObjectPtr<UToolTarget>>& TargetObjects, 
 	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3>> AppliedCanonicalMeshes,

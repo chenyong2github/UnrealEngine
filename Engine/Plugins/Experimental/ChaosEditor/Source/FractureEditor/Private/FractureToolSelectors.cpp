@@ -9,6 +9,8 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "FractureSelectionTools.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolSelectors)
+
 
 #define LOCTEXT_NAMESPACE "FractureToolSelectionOps"
 

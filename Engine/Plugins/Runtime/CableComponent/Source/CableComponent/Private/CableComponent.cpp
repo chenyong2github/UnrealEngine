@@ -18,6 +18,8 @@
 #include "DynamicMeshBuilder.h"
 #include "StaticMeshResources.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CableComponent)
+
 DECLARE_CYCLE_STAT(TEXT("Cable Sim"), STAT_Cable_SimTime, STATGROUP_CableComponent);
 DECLARE_CYCLE_STAT(TEXT("Cable Solve"), STAT_Cable_SolveTime, STATGROUP_CableComponent);
 DECLARE_CYCLE_STAT(TEXT("Cable Collision"), STAT_Cable_CollisionTime, STATGROUP_CableComponent);
@@ -830,3 +832,4 @@ bool UCableComponent::DoesSocketExist(FName InSocketName) const
 {
 	return (InSocketName == CableEndSocketName) || (InSocketName == CableStartSocketName);
 }
+

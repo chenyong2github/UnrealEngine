@@ -19,6 +19,8 @@
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BaseCreateFromSelectedTool)
+
 #define LOCTEXT_NAMESPACE "UBaseCreateFromSelectedTool"
 
 using namespace UE::Geometry;
@@ -347,3 +349,4 @@ bool UBaseCreateFromSelectedTool::CanAccept() const
 
 
 #undef LOCTEXT_NAMESPACE
+

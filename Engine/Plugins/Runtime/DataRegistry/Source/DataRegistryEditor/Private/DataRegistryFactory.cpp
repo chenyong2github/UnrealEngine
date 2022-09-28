@@ -8,6 +8,8 @@
 #include "Modules/ModuleManager.h"
 #include "Kismet2/SClassPickerDialog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryFactory)
+
 #define LOCTEXT_NAMESPACE "DataRegistryEditor"
 
 UDataRegistryFactory::UDataRegistryFactory(const FObjectInitializer& ObjectInitializer)

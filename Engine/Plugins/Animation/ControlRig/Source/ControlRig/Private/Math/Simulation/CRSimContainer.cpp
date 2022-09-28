@@ -2,6 +2,8 @@
 
 #include "Math/Simulation/CRSimContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimContainer)
+
 void FCRSimContainer::Reset()
 {
 	AccumulatedTime = TimeLeftForStep = 0.f;
@@ -47,3 +49,4 @@ void FCRSimContainer::StepSemiExplicitEuler(float InDeltaTime)
 		IntegrateSemiExplicitEuler();
 	}
 }
+

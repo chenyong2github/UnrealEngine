@@ -6,6 +6,8 @@
 #include "SocialToolkit.h"
 #include "Chat/SocialChatManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialPrivateMessageChannel)
+
 void USocialPrivateMessageChannel::Initialize(USocialUser* InSocialUser, const FChatRoomId& InChannelId, ESocialChannelType InSourceChannelType)
 {
 	check(InSocialUser);
@@ -47,3 +49,4 @@ void USocialPrivateMessageChannel::SetTargetUser(USocialUser& InTargetUser)
 {
 	TargetUser = &InTargetUser;
 }
+

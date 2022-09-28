@@ -16,6 +16,8 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVToolSelectionHighlightMechanic)
+
 #define LOCTEXT_NAMESPACE "UUVToolSelectionHighlightMechanic"
 
 using namespace UE::Geometry;

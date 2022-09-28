@@ -15,6 +15,8 @@
 #include "SocialPartyChatRoom.h"
 #include "ChatSlashCommands.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialChatManager)
+
 USocialChatRoom* USocialChatManager::GetChatRoom(const FChatRoomId& ChannelId) const
 {
 	if (TObjectPtr<USocialChatRoom>const* FoundChannel = ChatRoomsById.Find(ChannelId))

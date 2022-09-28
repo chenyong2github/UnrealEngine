@@ -36,6 +36,7 @@
 #include "Async/ParallelFor.h"
 #include "PrimitiveSceneInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomComponent)
 LLM_DECLARE_TAG(Groom);
 
 static int32 GHairEnableAdaptiveSubsteps = 0;  
@@ -4217,3 +4218,4 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

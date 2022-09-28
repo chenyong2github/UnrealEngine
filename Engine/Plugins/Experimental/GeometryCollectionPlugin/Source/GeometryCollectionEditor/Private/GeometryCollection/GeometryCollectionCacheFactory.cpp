@@ -11,6 +11,8 @@
 #include "Styling/AppStyle.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionCacheFactory)
+
 #define LOCTEXT_NAMESPACE "GeomCollectionCacheFactory"
 
 UGeometryCollectionCacheFactory::UGeometryCollectionCacheFactory()
@@ -84,3 +86,4 @@ void UGeometryCollectionCacheFactory::OnConfigSelection(const FAssetData& InSele
 }
 
 #undef LOCTEXT_NAMESPACE
+

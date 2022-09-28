@@ -3,6 +3,8 @@
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraSystemInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraUserRedirectionParameterStore)
+
 FNiagaraUserRedirectionParameterStore::FNiagaraUserRedirectionParameterStore() : FNiagaraParameterStore()
 {
 
@@ -185,3 +187,4 @@ bool FNiagaraUserRedirectionParameterStore::SerializeFromMismatchedTag(const FPr
 
 	return false;
 }
+

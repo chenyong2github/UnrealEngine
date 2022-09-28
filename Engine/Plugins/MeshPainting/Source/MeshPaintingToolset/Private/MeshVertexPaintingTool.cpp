@@ -14,6 +14,8 @@
 #include "MeshPaintHelpers.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVertexPaintingTool)
+
 
 #define LOCTEXT_NAMESPACE "MeshVertexBrush"
 
@@ -768,3 +770,4 @@ void UMeshWeightPaintingTool::SetAdditionalPaintParameters(FMeshPaintParameters&
 }
 
 #undef LOCTEXT_NAMESPACE
+

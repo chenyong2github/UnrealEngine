@@ -6,6 +6,8 @@
 #include "NiagaraSimCache.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraOutliner)
+
 
 UNiagaraOutliner::UNiagaraOutliner(const FObjectInitializer& Initializer)
 {
@@ -102,3 +104,4 @@ const FNiagaraOutlinerEmitterInstanceData* UNiagaraOutliner::FindEmitterData(con
 	}
 	return nullptr;
 }
+

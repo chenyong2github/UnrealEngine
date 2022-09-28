@@ -29,6 +29,8 @@
 #include "Settings/LevelEditorMiscSettings.h"
 #include "LevelEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshPaintMode)
+
 
 #define LOCTEXT_NAMESPACE "MeshPaintMode"
 
@@ -967,4 +969,5 @@ void UMeshPaintMode::OnResetViewMode()
 
 
 #undef LOCTEXT_NAMESPACE
+
 

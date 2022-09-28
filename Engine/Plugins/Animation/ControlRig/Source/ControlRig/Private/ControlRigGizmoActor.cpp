@@ -8,6 +8,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/CollisionProfile.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGizmoActor)
+
 AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ControlRigIndex(INDEX_NONE)
@@ -288,3 +290,4 @@ FTransform AControlRigShapeActor::GetGlobalTransform() const
 }
 
 // FControlRigShapeHelper END
+

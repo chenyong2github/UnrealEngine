@@ -14,6 +14,8 @@
 #include "NiagaraScriptVariable.h"
 #include "EdGraph/EdGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemEditorData)
+
 static constexpr float SystemOverviewNodePadding = 250.0f;
 
 const FName UNiagaraSystemEditorFolder::GetFolderName() const

@@ -16,6 +16,8 @@
 #include "Engine/AssetManager.h"
 #include "Settings/EditorProjectSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraph_ReferenceViewer)
+
 FReferenceNodeInfo::FReferenceNodeInfo(const FAssetIdentifier& InAssetId, bool InbReferencers)
 	: AssetId(InAssetId)
 	, bReferencers(InbReferencers)
@@ -820,3 +822,4 @@ bool UEdGraph_ReferenceViewer::ShouldFilterByCollection() const
 {
 	return Settings->GetEnableCollectionFilter() && CurrentCollectionFilter != NAME_None;
 }
+

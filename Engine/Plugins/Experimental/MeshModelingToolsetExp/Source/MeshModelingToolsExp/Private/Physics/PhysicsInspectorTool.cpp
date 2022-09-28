@@ -19,6 +19,8 @@
 #include "TargetInterfaces/PhysicsDataSource.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsInspectorTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPhysicsInspectorTool"

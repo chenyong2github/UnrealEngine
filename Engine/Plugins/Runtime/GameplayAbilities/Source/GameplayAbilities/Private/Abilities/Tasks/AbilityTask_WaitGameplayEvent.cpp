@@ -4,6 +4,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayEvent)
+
 // ----------------------------------------------------------------
 
 UAbilityTask_WaitGameplayEvent::UAbilityTask_WaitGameplayEvent(const FObjectInitializer& ObjectInitializer)
@@ -97,3 +99,4 @@ void UAbilityTask_WaitGameplayEvent::OnDestroy(bool AbilityEnding)
 
 	Super::OnDestroy(AbilityEnding);
 }
+

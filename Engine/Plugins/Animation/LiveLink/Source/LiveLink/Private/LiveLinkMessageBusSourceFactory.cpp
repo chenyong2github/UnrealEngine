@@ -10,6 +10,8 @@
 #include "Features/IModularFeatures.h"
 #include "Misc/MessageDialog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkMessageBusSourceFactory)
+
 #define LOCTEXT_NAMESPACE "LiveLinkMessageBusSourceFactory"
 
 FText ULiveLinkMessageBusSourceFactory::GetSourceDisplayName() const

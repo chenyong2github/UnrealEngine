@@ -3,6 +3,8 @@
 #include "Math/Simulation/CRSimLinearSpring.h"
 #include "Math/Simulation/CRSimUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimLinearSpring)
+
 void FCRSimLinearSpring::CalculateForPoints(const FCRSimPoint& InPointA, const FCRSimPoint& InPointB, FVector& ForceA, FVector& ForceB) const
 {
 	ForceA = ForceB = FVector::ZeroVector;
@@ -25,3 +27,4 @@ void FCRSimLinearSpring::CalculateForPoints(const FCRSimPoint& InPointA, const F
 	ForceA = Displacement * Coefficient * WeightA;
 	ForceB = -Displacement * Coefficient * WeightB;
 }
+

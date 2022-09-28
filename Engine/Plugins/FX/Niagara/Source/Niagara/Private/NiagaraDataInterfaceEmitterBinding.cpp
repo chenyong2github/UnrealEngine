@@ -4,6 +4,8 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceEmitterBinding)
+
 FNiagaraEmitterInstance* FNiagaraDataInterfaceEmitterBinding::Resolve(FNiagaraSystemInstance* SystemInstance, UNiagaraDataInterface* DataInterface)
 {
 	if (BindingMode == ENiagaraDataInterfaceEmitterBindingMode::Self)
@@ -131,3 +133,4 @@ UNiagaraEmitter* FNiagaraDataInterfaceEmitterBinding::Resolve(UNiagaraSystem* Ni
 	}
 	return nullptr;
 }
+

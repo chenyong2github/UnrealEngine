@@ -21,6 +21,8 @@
 #include "DataValidationModule.h"
 #include "Engine/Level.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorValidatorSubsystem)
+
 #define LOCTEXT_NAMESPACE "EditorValidationSubsystem"
 
 DEFINE_LOG_CATEGORY(LogContentValidation);
@@ -477,3 +479,4 @@ void UEditorValidatorSubsystem::ValidateChangelistPreSubmit(FSourceControlChange
 }
 
 #undef LOCTEXT_NAMESPACE
+

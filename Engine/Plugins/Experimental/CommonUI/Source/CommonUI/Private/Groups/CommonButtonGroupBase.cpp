@@ -2,6 +2,9 @@
 
 #include "Groups/CommonButtonGroupBase.h"
 #include "CommonUIPrivate.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonButtonGroupBase)
+
 #include <functional>
 
 UCommonButtonGroupBase::UCommonButtonGroupBase()
@@ -371,3 +374,4 @@ UCommonButtonBase* UCommonButtonGroupBase::GetSelectedButtonBase() const
 {
 	return GetButtonBaseAtIndex(SelectedButtonIndex);
 }
+

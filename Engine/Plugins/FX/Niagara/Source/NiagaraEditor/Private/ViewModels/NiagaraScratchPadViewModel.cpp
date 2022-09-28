@@ -32,6 +32,8 @@
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/PlatformApplicationMisc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScratchPadViewModel)
+
 #define LOCTEXT_NAMESPACE "NiagaraScratchPadViewModel"
 
 void UNiagaraScratchPadViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)

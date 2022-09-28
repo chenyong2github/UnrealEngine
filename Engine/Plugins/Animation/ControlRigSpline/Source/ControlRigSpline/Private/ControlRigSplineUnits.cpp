@@ -7,6 +7,8 @@
 
 #include "tinysplinecxx.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSplineUnits)
+
 FRigUnit_ControlRigSplineFromPoints_Execute()
 {
 	switch (Context.State)
@@ -946,4 +948,5 @@ FRigUnit_ParameterAtPercentage_Execute()
 		}
 	}
 }
+
 

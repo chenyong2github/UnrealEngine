@@ -1,6 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStructArray.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructArray)
 
 // From InstancedStruct.cpp to support localization.
 namespace UE::StructUtils::Private
@@ -553,3 +555,4 @@ void FInstancedStructArray::GetPreloadDependencies(TArray<UObject*>& OutDeps) co
 		}
 	}
 }
+

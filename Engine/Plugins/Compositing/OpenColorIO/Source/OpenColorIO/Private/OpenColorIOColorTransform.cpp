@@ -11,6 +11,8 @@
 #include "OpenColorIOSettings.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOColorTransform)
+
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -945,3 +947,4 @@ void UOpenColorIOColorTransform::ReleaseResources()
 	}
 #endif
 }
+

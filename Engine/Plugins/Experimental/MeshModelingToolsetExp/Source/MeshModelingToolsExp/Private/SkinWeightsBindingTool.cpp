@@ -19,6 +19,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightsBindingTool)
+
 
 // #pragma optimize( "", off )
 
@@ -1074,3 +1076,4 @@ void USkinWeightsBindingTool::UpdateVisualization(bool bInForce)
 #undef LOCTEXT_NAMESPACE
 
 // #pragma optimize( "", on )
+

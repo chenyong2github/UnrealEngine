@@ -2,6 +2,8 @@
 #include "NiagaraDataInterfacePlatformSet.h"
 #include "NiagaraTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfacePlatformSet)
+
 UNiagaraDataInterfacePlatformSet::UNiagaraDataInterfacePlatformSet(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

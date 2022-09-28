@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "SmartObjectSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectComponent)
+
 #if WITH_EDITOR
 #include "Engine/World.h"
 #endif
@@ -277,3 +279,4 @@ void FSmartObjectComponentInstanceData::ApplyToComponent(UActorComponent* Compon
 
 	Super::ApplyToComponent(Component, CacheApplyPhase);
 }
+

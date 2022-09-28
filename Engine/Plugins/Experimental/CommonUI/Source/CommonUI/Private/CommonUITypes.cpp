@@ -6,6 +6,8 @@
 #include "CommonInputSettings.h"
 #include "HAL/PlatformInput.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUITypes)
+
 FScrollBoxStyle CommonUI::EmptyScrollBoxStyle = FScrollBoxStyle();
 
 FCommonInputTypeInfo::FCommonInputTypeInfo()

@@ -10,6 +10,8 @@
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheTrackStreamable)
+
 DECLARE_CYCLE_STAT(TEXT("Decode Mesh Frame"), STAT_UpdateMeshData, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Encode Mesh Frame"), STAT_AddMeshSample, STATGROUP_GeometryCache);
 
@@ -662,4 +664,5 @@ FArchive& operator<<(FArchive& Ar, FVisibilitySample& Sample)
 
 	return Ar;
 }
+
 

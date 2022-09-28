@@ -24,6 +24,8 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "UVMapSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeOBJTranslator)
+
 static bool GInterchangeEnableOBJImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnableOBJImport(
 	TEXT("Interchange.FeatureFlags.Import.OBJ"),

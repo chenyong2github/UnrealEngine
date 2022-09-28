@@ -6,6 +6,8 @@
 #include "MotoSynthSourceAsset.h"
 #include "MotoSynthModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotoSynthPreset)
+
 void UMotoSynthPreset::BeginDestroy()
 {
 	Super::BeginDestroy();
@@ -257,4 +259,5 @@ void FMotoSynthEnginePreviewer::Reset()
 	bEngineInitialized = false;
 }
 #endif // WITH_EDITOR
+
 

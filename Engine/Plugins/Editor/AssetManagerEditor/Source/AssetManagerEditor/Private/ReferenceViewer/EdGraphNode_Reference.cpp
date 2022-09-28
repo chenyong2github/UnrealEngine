@@ -10,6 +10,8 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraphNode_Reference)
+
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 
 //////////////////////////////////////////////////////////////////////////
@@ -326,3 +328,4 @@ bool UEdGraphNode_Reference::GetIsFiltered() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

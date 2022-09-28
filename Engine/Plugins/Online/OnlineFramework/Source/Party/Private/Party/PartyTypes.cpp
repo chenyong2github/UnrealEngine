@@ -5,6 +5,8 @@
 #include "Party/PartyMember.h"
 #include "OnlineSubsystemUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PartyTypes)
+
 //////////////////////////////////////////////////////////////////////////
 // FPartyPlatformSessionInfo
 //////////////////////////////////////////////////////////////////////////
@@ -136,3 +138,4 @@ void FOnlinePartyRepDataBase::LogPropertyChanged(const TCHAR* OwningStructTypeNa
 		bFromReplication ? TEXT("remotely") : TEXT("locally"),
 		OwningParty ? *OwningParty->ToDebugString() : TEXT("unknown"));
 }
+

@@ -2,6 +2,8 @@
 
 #include "PerlinNoiseCameraShakePattern.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PerlinNoiseCameraShakePattern)
+
 float FPerlinNoiseShaker::Update(float DeltaTime, float AmplitudeMultiplier, float FrequencyMultiplier, float& InOutCurrentOffset) const
 {
 	const float TotalAmplitude = Amplitude * AmplitudeMultiplier;
@@ -65,4 +67,5 @@ void UPerlinNoiseCameraShakePattern::UpdatePerlinNoise(float DeltaTime, FCameraS
 
 	OutResult.FOV = FOV.Update(DeltaTime, 1.f, 1.f, CurrentFOVOffset);
 }
+
 

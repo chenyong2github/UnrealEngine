@@ -12,6 +12,8 @@
 #include "Materials/MaterialInterface.h"
 #include "Styling/SlateIconFinder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraRendererProperties)
+
 #define LOCTEXT_NAMESPACE "UNiagaraRendererProperties"
 
 void FNiagaraRendererLayout::Initialize(int32 NumVariables)
@@ -608,3 +610,4 @@ bool UNiagaraRendererProperties::IsSortHighPrecision(ENiagaraRendererSortPrecisi
 }
 
 #undef LOCTEXT_NAMESPACE
+

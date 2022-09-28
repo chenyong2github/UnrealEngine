@@ -10,6 +10,8 @@
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFactoryChaosSolver)
+
 #define LOCTEXT_NAMESPACE "ActorFactoryChaosSolver"
 
 DEFINE_LOG_CATEGORY_STATIC(AFFS_Log, Log, All);
@@ -53,3 +55,4 @@ void UActorFactoryChaosSolver::PostCreateBlueprint(UObject* Asset, AActor* CDO)
 }
 
 #undef LOCTEXT_NAMESPACE
+

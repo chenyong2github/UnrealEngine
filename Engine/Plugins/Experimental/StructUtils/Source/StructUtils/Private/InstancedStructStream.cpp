@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStructStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructStream)
+
 void FInstancedStructStream::Reset()
 {
 	ForEach([](FStructView View)

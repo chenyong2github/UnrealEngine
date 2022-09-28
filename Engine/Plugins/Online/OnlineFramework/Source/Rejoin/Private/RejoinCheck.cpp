@@ -6,6 +6,8 @@
 #include "Engine/LocalPlayer.h"
 #include "TimerManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RejoinCheck)
+
 #define REJOIN_CHECK_TIMER 30.0f
 
 static TAutoConsoleVariable<int32> CVarDebugRejoin(
@@ -380,5 +382,6 @@ UWorld* URejoinCheck::GetWorld() const
 
 	return nullptr;
 }
+
 
 

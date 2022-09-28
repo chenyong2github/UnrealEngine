@@ -2,6 +2,8 @@
 
 #include "CommonInputActionDomain.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputActionDomain)
+
 DEFINE_LOG_CATEGORY(LogUIActionDomain);
 
 bool UCommonInputActionDomain::ShouldBreakInnerEventFlow(bool bInputEventHandled) const
@@ -45,3 +47,4 @@ bool UCommonInputActionDomain::ShouldBreakEventFlow(bool bDomainHadActiveRoots, 
 
 	return false;
 }
+

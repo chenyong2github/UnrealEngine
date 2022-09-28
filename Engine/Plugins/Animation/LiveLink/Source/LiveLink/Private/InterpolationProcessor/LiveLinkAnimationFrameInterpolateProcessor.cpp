@@ -6,6 +6,8 @@
 #include "Roles/LiveLinkAnimationBlueprintStructs.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAnimationFrameInterpolateProcessor)
+
 namespace LiveLinkAnimationBlendingUtil
 {
 	void BlendItem(const FTransform& A, const FTransform& B, FTransform& Output, float BlendWeight)
@@ -140,3 +142,4 @@ ULiveLinkFrameInterpolationProcessor::FWorkerSharedPtr ULiveLinkAnimationFrameIn
 
 	return Instance;
 }
+

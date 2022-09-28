@@ -6,6 +6,8 @@
 #include "ShaderParameterUtils.h"
 #include "Math/IntVector.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCurlNoise)
+
 static const FName SampleNoiseFieldName(TEXT("SampleNoiseField"));
 
 // ----------------------------------------------------- start noise helpers -----------------------------------------------------
@@ -481,3 +483,4 @@ void UNiagaraDataInterfaceCurlNoise::PushToRenderThreadImpl()
 		RT_Proxy->OffsetFromSeed = RT_Offset;
 	});
 }
+

@@ -2,6 +2,8 @@
 
 #include "NiagaraScriptHighlight.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptHighlight)
+
 #if WITH_EDITORONLY_DATA
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonWriter.h"

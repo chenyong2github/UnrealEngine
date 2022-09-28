@@ -21,6 +21,9 @@
 
 THIRD_PARTY_INCLUDES_START
 #include "OpenEXR/ImfChannelList.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineEXROutput)
+
 THIRD_PARTY_INCLUDES_END
 
 #if WITH_UNREALEXR
@@ -549,3 +552,4 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 
 	}
 }
+

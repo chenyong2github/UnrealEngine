@@ -5,6 +5,8 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveToolManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementFillTool)
+
 constexpr TCHAR UPlacementModeFillTool::ToolName[];
 
 bool UPlacementModeFillToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
@@ -16,3 +18,4 @@ UInteractiveTool* UPlacementModeFillToolBuilder::BuildTool(const FToolBuilderSta
 {
 	return NewObject<UPlacementModeFillTool>(SceneState.ToolManager, UPlacementModeFillTool::ToolName);
 }
+

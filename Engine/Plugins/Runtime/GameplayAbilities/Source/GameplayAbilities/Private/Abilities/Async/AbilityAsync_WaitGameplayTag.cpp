@@ -4,6 +4,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAsync_WaitGameplayTag)
+
 void UAbilityAsync_WaitGameplayTag::Activate()
 {
 	Super::Activate();
@@ -95,3 +97,4 @@ void UAbilityAsync_WaitGameplayTagRemoved::BroadcastDelegate()
 {
 	Removed.Broadcast();
 }
+

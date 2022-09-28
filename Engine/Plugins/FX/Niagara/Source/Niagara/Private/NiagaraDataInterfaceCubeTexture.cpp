@@ -10,6 +10,8 @@
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTargetCube.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCubeTexture)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceCubeTexture"
 
 const TCHAR* UNiagaraDataInterfaceCubeTexture::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCubeTextureTemplate.ush");
@@ -319,3 +321,4 @@ void UNiagaraDataInterfaceCubeTexture::SetTexture(UTexture* InTexture)
 }
 
 #undef LOCTEXT_NAMESPACE
+

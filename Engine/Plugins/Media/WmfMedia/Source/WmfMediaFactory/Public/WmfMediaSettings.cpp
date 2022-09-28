@@ -2,6 +2,8 @@
 
 #include "WmfMediaSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WmfMediaSettings)
+
 UWmfMediaSettings::UWmfMediaSettings()
 	: AllowNonStandardCodecs(false)
 	, LowLatency(false)
@@ -14,3 +16,4 @@ void UWmfMediaSettings::EnableHardwareAcceleratedCodecRegistered()
 {
 	bAreHardwareAcceleratedCodecRegistered = true;
 }
+

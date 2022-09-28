@@ -2,6 +2,8 @@
 
 #include "StructUtilsFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StructUtilsFunctionLibrary)
+
 #define LOCTEXT_NAMESPACE "UStructUtilsFunctionLibrary"
 
 

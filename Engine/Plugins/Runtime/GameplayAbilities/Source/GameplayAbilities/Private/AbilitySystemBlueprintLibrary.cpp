@@ -9,6 +9,8 @@
 #include "GameplayEffectUIData.h"
 #include "GameplayAbilitySpec.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemBlueprintLibrary)
+
 UAbilitySystemBlueprintLibrary::UAbilitySystemBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {

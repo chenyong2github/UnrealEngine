@@ -8,6 +8,8 @@
 //@TODO: Just for log category
 #include "GameFeaturesSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddComponents)
+
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
 //////////////////////////////////////////////////////////////////////
@@ -146,3 +148,4 @@ void UGameFeatureAction_AddComponents::HandleGameInstanceStart(UGameInstance* Ga
 //////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

@@ -12,6 +12,8 @@
 #include "Sound/SoundNodeWavePlayer.h"
 #include "SoundCueTemplatesModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueContainer)
+
 #if WITH_EDITORONLY_DATA
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -265,3 +267,4 @@ void FSoundCueContainerDetailCustomization::Unregister(FPropertyEditorModule& Pr
 }
 #endif // WITH_EDITORONLY_DATA
 #undef LOCTEXT_NAMESPACE
+

@@ -8,6 +8,8 @@
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayBehavior)
+
 
 DEFINE_LOG_CATEGORY(LogGameplayBehavior);
 
@@ -261,4 +263,5 @@ int32 UGameplayBehavior::K2_GetNextActorIndexInSequence(int32 CurrentIndex) cons
 
 	return INDEX_NONE;
 }
+
 

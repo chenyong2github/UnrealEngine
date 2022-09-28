@@ -2,6 +2,8 @@
 
 #include "Settings/ControlRigSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSettings)
+
 #if WITH_EDITOR
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/RigVMNode.h"
@@ -34,3 +36,4 @@ UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& O
 	MaxStackSize = 16;
 #endif
 }
+

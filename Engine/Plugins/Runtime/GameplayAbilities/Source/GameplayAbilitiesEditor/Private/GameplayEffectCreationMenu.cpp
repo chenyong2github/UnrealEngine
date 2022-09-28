@@ -14,6 +14,8 @@
 #include "AssetToolsModule.h"
 #include "IContentBrowserSingleton.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectCreationMenu)
+
 // Static
 TFunction< FString(FString BaseName, FString Path) > UGameplayEffectCreationMenu::GetDefaultAssetNameFunc;
 
@@ -165,3 +167,4 @@ void UGameplayEffectCreationMenu::AddMenuExtensions() const
 		return Extender;
 	}));
 }
+

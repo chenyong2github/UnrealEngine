@@ -23,6 +23,8 @@
 #include "Misc/CoreDelegates.h"
 #include "AbilitySystemReplicationProxyInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueManager)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Engine/Engine.h"
@@ -1711,3 +1713,4 @@ FAutoConsoleCommandWithWorld PrintGameplayCueTranslatorCmd(
 #if WITH_EDITOR
 #undef LOCTEXT_NAMESPACE
 #endif
+

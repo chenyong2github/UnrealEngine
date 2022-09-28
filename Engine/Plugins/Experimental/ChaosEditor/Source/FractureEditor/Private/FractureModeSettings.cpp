@@ -5,6 +5,8 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionConvexPropertiesInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureModeSettings)
+
 void UFractureModeSettings::ApplyDefaultConvexSettings(FGeometryCollection& GeometryCollection) const
 {
 	FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties Properties = GeometryCollection.GetConvexProperties();

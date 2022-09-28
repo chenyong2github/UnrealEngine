@@ -12,6 +12,8 @@
 #include "Roles/LiveLinkTransformTypes.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTransformController)
+
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
 #include "Kismet2/ComponentEditorUtils.h"
@@ -155,3 +157,4 @@ void ULiveLinkTransformController::PostLoad()
 }
 
 #undef LOCTEXT_NAMESPACE
+

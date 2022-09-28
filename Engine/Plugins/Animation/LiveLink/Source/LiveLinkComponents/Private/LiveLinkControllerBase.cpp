@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkControllerBase)
+
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
 #endif // WITH_EDITOR

@@ -3,6 +3,8 @@
 #include "InterchangeAnimSequenceFactoryNode.h"
 #include "Animation/AnimSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeAnimSequenceFactoryNode)
+
 namespace UE::Interchange::Animation
 {
 	FFrameRate ConvertSampleRatetoFrameRate(double SampleRate)
@@ -450,3 +452,4 @@ bool FInterchangeAnimSequenceTest::RunTest(const FString& Parameters)
 
 #endif //WITH_DEV_AUTOMATION_TESTS
 #endif //WITH_EDITOR
+

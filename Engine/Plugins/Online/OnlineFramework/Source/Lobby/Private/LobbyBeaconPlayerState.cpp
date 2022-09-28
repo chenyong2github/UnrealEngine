@@ -4,6 +4,8 @@
 #include "Net/UnrealNetwork.h"
 #include "LobbyBeaconClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyBeaconPlayerState)
+
 ALobbyBeaconPlayerState::ALobbyBeaconPlayerState(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	bInLobby(false),
@@ -65,3 +67,4 @@ void ALobbyBeaconPlayerState::OnRep_InLobby()
 		PlayerStateChangedEvent.Broadcast(UniqueId);
 	}
 }
+

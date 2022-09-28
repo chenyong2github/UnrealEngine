@@ -7,6 +7,8 @@
 #include "WaterSplineComponent.h"
 #include "WaterModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceWater)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceWater"
 
 
@@ -263,3 +265,4 @@ void UNiagaraDataInterfaceWater::GetWaveParamLookupTableOffset(FVectorVMExternal
 }
 
 #undef LOCTEXT_NAMESPACE
+

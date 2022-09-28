@@ -24,6 +24,8 @@
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakeTransformTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeTransformTool"
@@ -263,3 +265,4 @@ void UBakeTransformTool::UpdateAssets()
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -5,6 +5,8 @@
 #include "ControlRigObjectVersion.h"
 #include "ControlRig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprintGeneratedClass)
+
 UControlRigBlueprintGeneratedClass::UControlRigBlueprintGeneratedClass(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -67,3 +69,4 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 		}
 	}
 }
+

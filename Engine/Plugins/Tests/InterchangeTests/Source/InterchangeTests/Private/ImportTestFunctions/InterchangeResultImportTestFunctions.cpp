@@ -3,6 +3,8 @@
 #include "ImportTestFunctions/InterchangeResultImportTestFunctions.h"
 #include "InterchangeResultsContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeResultImportTestFunctions)
+
 
 UClass* UInterchangeResultImportTestFunctions::GetAssociatedAssetType() const
 {
@@ -34,3 +36,4 @@ FInterchangeTestFunctionResult UInterchangeResultImportTestFunctions::CheckIfErr
 
 	return Result;
 }
+

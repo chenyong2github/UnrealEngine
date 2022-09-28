@@ -23,6 +23,8 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEmitter)
+
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(FVersionedNiagaraEmitterData, EventHandlerScriptProps);
 
@@ -3264,4 +3266,5 @@ void UNiagaraEmitter::UpdateScalability()
 {
 	ResolveScalabilitySettings();
 }
+
 

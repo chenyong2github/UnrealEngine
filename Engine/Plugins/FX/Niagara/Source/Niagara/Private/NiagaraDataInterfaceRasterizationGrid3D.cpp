@@ -8,6 +8,8 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParticleID.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRasterizationGrid3D)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRasterizationGrid3D"
 
 namespace NDIRasterizationGrid3DLocal
@@ -1136,3 +1138,4 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::CopyToInternal(UNiagaraDataInterf
 }
 
 #undef LOCTEXT_NAMESPACE
+

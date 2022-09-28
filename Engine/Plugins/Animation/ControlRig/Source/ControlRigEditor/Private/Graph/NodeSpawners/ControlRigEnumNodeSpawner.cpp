@@ -12,6 +12,8 @@
 
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigEnumNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -129,3 +131,4 @@ UEdGraphNode* UControlRigEnumNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 }
 
 #undef LOCTEXT_NAMESPACE
+

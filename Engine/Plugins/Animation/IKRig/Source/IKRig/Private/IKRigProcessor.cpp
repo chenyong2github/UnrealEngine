@@ -6,6 +6,8 @@
 
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigProcessor)
+
 #define LOCTEXT_NAMESPACE "IKRigProcessor"
 
 UIKRigProcessor::UIKRigProcessor()
@@ -473,3 +475,4 @@ void UIKRigProcessor::ResolveFinalGoalTransforms(const FTransform& WorldToCompon
 }
 
 #undef LOCTEXT_NAMESPACE
+

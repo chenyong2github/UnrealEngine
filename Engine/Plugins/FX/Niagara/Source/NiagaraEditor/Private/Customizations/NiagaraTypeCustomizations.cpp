@@ -39,6 +39,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "IDetailGroup.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraTypeCustomizations)
+
 #define LOCTEXT_NAMESPACE "FNiagaraVariableAttributeBindingCustomization"
 #define ALLOW_LIBRARY_TO_LIBRARY_DEFAULT_BINDING 0
 
@@ -2176,3 +2178,4 @@ void FNiagaraRendererMaterialTextureParameterCustomization::GetMaterialBindingNa
 }
 
 #undef LOCTEXT_NAMESPACE
+

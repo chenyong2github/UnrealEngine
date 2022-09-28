@@ -11,6 +11,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSessionClient.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyBeaconClient)
+
 ALobbyBeaconClient::ALobbyBeaconClient(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
 	LobbyState(nullptr),
@@ -374,4 +376,5 @@ void ALobbyBeaconClient::ServerCheat_Implementation(const FString& Msg)
 	
 #endif
 }
+
 

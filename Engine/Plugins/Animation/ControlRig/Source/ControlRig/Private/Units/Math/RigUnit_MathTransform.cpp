@@ -7,6 +7,8 @@
 #include "AnimationCoreLibrary.h"
 #include "Rigs/RigHierarchyDefines.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathTransform)
+
 FRigUnit_MathTransformFromEulerTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -205,3 +207,4 @@ FRigUnit_MathTransformMirrorTransform_Execute()
 	Local = MirrorSettings.MirrorTransform(Local);
 	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, Local, CentralTransform, Result, Context);
 }
+

@@ -3,6 +3,8 @@
 #include "ExtensionLibraries/MovieSceneVectorTrackExtensions.h"
 #include "Tracks/MovieSceneVectorTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneVectorTrackExtensions)
+
 void UMovieSceneFloatVectorTrackExtensions::SetNumChannelsUsed(UMovieSceneFloatVectorTrack* Track, int32 InNumChannelsUsed)
 {
 	if (!Track)
@@ -52,4 +54,5 @@ int32 UMovieSceneDoubleVectorTrackExtensions::GetNumChannelsUsed(UMovieSceneDoub
 
 	return Track->GetNumChannelsUsed();
 }
+
 

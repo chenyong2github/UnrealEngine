@@ -4,6 +4,8 @@
 #include "MovieScene.h"
 #include "Misc/FrameRate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMediaSection)
+
 #define LOCTEXT_NAMESPACE "MovieSceneMediaSection"
 
 namespace
@@ -86,3 +88,4 @@ void UMovieSceneMediaSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRat
 }
 
 #undef LOCTEXT_NAMESPACE
+

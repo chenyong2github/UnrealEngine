@@ -5,6 +5,8 @@
 #include "EngineAnalytics.h"
 #include "MediaTexture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaTextureFactoryNew)
+
 
 /* UMediaTextureFactoryNew structors
  *****************************************************************************/
@@ -56,3 +58,4 @@ bool UMediaTextureFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

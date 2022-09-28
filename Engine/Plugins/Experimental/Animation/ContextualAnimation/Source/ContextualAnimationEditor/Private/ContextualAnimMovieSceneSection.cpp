@@ -6,6 +6,8 @@
 #include "ContextualAnimViewModel.h"
 #include "ContextualAnimSceneAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimMovieSceneSection)
+
 UContextualAnimMovieSceneTrack& UContextualAnimMovieSceneSection::GetOwnerTrack() const
 {
 	UContextualAnimMovieSceneTrack* OwnerTrackPtr = GetTypedOuter<UContextualAnimMovieSceneTrack>();

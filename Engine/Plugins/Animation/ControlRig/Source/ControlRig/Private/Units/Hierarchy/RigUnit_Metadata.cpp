@@ -5,6 +5,8 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Metadata)
+
 #if WITH_EDITOR
 #include "RigVMModel/RigVMPin.h"
 #endif

@@ -16,6 +16,8 @@
 #include "Styling/SlateIconFinder.h"
 #include "Math/UnitConversion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderNearbySpawnedActorSource)
+
 #define LOCTEXT_NAMESPACE "UTakeRecorderNearbySpawnedActorSource"
 
 UTakeRecorderNearbySpawnedActorSource::UTakeRecorderNearbySpawnedActorSource(const FObjectInitializer& ObjInit)

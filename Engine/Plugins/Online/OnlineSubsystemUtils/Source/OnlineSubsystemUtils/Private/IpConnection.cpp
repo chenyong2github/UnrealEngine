@@ -22,6 +22,8 @@ Notes:
 #include "Misc/ScopeExit.h"
 #include "NetAddressResolution.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IpConnection)
+
 
 /*-----------------------------------------------------------------------------
 	Declarations.
@@ -648,3 +650,4 @@ FString UIpConnection::LowLevelDescribe()
 		LexToString(GetConnectionState())
 	);
 }
+

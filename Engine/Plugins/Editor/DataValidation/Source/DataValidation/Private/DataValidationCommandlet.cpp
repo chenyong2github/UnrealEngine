@@ -8,6 +8,8 @@
 #include "Editor.h"
 #include "EditorValidatorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataValidationCommandlet)
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogDataValidation, Warning, All);
 
@@ -77,3 +79,4 @@ bool UDataValidationCommandlet::ValidateData(const FString& FullCommandLine)
 
 	return true;
 }
+

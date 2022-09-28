@@ -57,6 +57,8 @@
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipeline)
+
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
 static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
@@ -1780,3 +1782,4 @@ bool UMoviePipeline::GetSidecarCameraViewPoints(UMoviePipelineExecutorShot* InSh
 }
 
 #undef LOCTEXT_NAMESPACE // "MoviePipeline"
+

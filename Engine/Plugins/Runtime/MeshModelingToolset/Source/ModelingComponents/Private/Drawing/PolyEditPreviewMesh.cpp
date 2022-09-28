@@ -9,6 +9,8 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMeshEditor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyEditPreviewMesh)
+
 using namespace UE::Geometry;
 
 void UPolyEditPreviewMesh::InitializeExtrudeType(

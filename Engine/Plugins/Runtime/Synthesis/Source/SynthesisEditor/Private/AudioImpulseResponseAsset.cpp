@@ -10,6 +10,8 @@
 #include "SampleBuffer.h"
 #include "SubmixEffects/SubmixEffectConvolutionReverb.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioImpulseResponseAsset)
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 UClass* FAssetTypeActions_AudioImpulseResponse::GetSupportedClass() const
@@ -135,3 +137,4 @@ UObject* UAudioImpulseResponseFactory::FactoryCreateNew(UClass* Class, UObject* 
 }
 
 #undef LOCTEXT_NAMESPACE
+

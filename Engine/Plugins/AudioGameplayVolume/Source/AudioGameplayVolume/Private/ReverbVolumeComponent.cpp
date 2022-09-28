@@ -5,6 +5,8 @@
 #include "AudioGameplayFlags.h"
 #include "AudioGameplayVolumeListener.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReverbVolumeComponent)
+
 constexpr TCHAR FProxyMutator_Reverb::MutatorReverbName[];
 
 FProxyMutator_Reverb::FProxyMutator_Reverb()
@@ -79,3 +81,4 @@ void UReverbVolumeComponent::CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutat
 	TSharedPtr<FProxyMutator_Reverb> ReverbMutator = StaticCastSharedPtr<FProxyMutator_Reverb>(Mutator);
 	ReverbMutator->ReverbSettings = ReverbSettings;
 }
+

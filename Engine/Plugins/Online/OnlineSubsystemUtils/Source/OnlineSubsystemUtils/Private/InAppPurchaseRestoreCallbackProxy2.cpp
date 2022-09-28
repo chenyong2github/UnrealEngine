@@ -7,6 +7,8 @@
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InAppPurchaseRestoreCallbackProxy2)
+
 //////////////////////////////////////////////////////////////////////////
 // UInAppPurchaseRestoreCallbackProxy
 

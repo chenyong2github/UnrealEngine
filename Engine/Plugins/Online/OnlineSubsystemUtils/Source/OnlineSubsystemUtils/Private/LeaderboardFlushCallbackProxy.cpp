@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerState.h"
 #include "OnlineSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LeaderboardFlushCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // ULeaderboardFlushCallbackProxy
 
@@ -104,3 +106,4 @@ ULeaderboardFlushCallbackProxy* ULeaderboardFlushCallbackProxy::CreateProxyObjec
 	Proxy->TriggerFlush(PlayerController, SessionName);
 	return Proxy;
 }
+

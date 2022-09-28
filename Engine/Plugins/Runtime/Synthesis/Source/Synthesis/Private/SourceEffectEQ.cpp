@@ -4,6 +4,8 @@
 #include "Audio.h"
 #include "AudioDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectEQ)
+
 FSourceEffectEQ::FSourceEffectEQ()
 	: SampleRate(0)
 	, NumChannels(0)

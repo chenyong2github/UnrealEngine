@@ -14,6 +14,8 @@
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_ExecutePythonScript)
+
 #define LOCTEXT_NAMESPACE "K2Node_ExecutePythonScript"
 
 namespace ExecutePythonScriptUtil
@@ -333,3 +335,4 @@ void UK2Node_ExecutePythonScript::GetMenuActions(FBlueprintActionDatabaseRegistr
 }
 
 #undef LOCTEXT_NAMESPACE
+

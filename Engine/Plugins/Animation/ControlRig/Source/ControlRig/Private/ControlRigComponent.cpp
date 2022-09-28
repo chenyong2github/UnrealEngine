@@ -9,6 +9,8 @@
 #include "AnimCustomInstanceHelper.h"
 #include "ControlRigObjectBinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigComponent)
+
 // CVar to disable control rig execution within a component
 static TAutoConsoleVariable<int32> CVarControlRigDisableExecutionComponent(TEXT("ControlRig.DisableExecutionInComponent"), 0, TEXT("if nonzero we disable the execution of Control Rigs inside a ControlRigComponent."));
 
@@ -2031,3 +2033,4 @@ uint32 FControlRigSceneProxy::GetAllocatedSize(void) const
 {
 	return FPrimitiveSceneProxy::GetAllocatedSize();
 }
+

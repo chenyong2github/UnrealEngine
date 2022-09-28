@@ -8,6 +8,8 @@
 #include "Components/CapsuleComponent.h"
 #include "MotionWarpingComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RootMotionModifier_SkewWarp)
+
 URootMotionModifier_SkewWarp::URootMotionModifier_SkewWarp(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

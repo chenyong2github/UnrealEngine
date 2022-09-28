@@ -21,6 +21,8 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshTangentsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshTangentsTool"
@@ -361,3 +363,4 @@ void UMeshTangentsTool::ComputeMikkTDeviations(const TSet<int32>* DegenerateTris
 
 
 #undef LOCTEXT_NAMESPACE
+

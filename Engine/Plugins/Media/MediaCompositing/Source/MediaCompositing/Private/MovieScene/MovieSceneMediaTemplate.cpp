@@ -17,6 +17,8 @@
 #include "MovieSceneMediaSection.h"
 #include "MovieSceneMediaTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMediaTemplate)
+
 
 #define MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION 0
 
@@ -438,3 +440,4 @@ void FMovieSceneMediaSectionTemplate::TearDown(FPersistentEvaluationData& Persis
 		Params.MediaTexture->SetMediaPlayer(nullptr);
 	}
 }
+

@@ -2,6 +2,8 @@
 
 #include "NiagaraDataInterfaceAudio.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceAudio)
+
 FNiagaraSubmixListener::FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer, Audio::FDeviceId InDeviceId, USoundSubmix* InSoundSubmix)
 	: NumChannelsInSubmix(0)
 	, SubmixSampleRate(0)
@@ -336,4 +338,5 @@ bool UNiagaraDataInterfaceAudioSubmix::CopyToInternal(UNiagaraDataInterface* Des
 	
 	return true;
 }
+
 

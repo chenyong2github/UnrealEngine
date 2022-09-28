@@ -2,6 +2,8 @@
 
 #include "Math/Simulation/CRSimSoftCollision.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimSoftCollision)
+
 float FCRSimSoftCollision::CalculateFalloff(const FCRSimSoftCollision& InCollision, const FVector& InPosition, float InSize, FVector& OutDirection)
 {
 	const FTransform& Transform = InCollision.Transform;
@@ -92,4 +94,5 @@ FVector FCRSimSoftCollision::CalculateForPoint(const FCRSimPoint& InPoint, float
 	}
 	return Force;
 }
+
 

@@ -2,6 +2,8 @@
 
 #include "Math/Simulation/CRSimPointContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimPointContainer)
+
 void FCRSimPointContainer::Reset()
 {
 	FCRSimContainer::Reset();
@@ -131,3 +133,4 @@ void FCRSimPointContainer::ApplyConstraints()
 		Constraint.Apply(PointA, PointB);
 	}
 }
+

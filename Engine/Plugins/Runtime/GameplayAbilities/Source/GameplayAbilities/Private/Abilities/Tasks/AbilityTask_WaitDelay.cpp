@@ -5,6 +5,8 @@
 #include "AbilitySystemGlobals.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitDelay)
+
 UAbilityTask_WaitDelay::UAbilityTask_WaitDelay(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -12,6 +12,8 @@
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_ApplyRootMotionMoveToActorForce)
+
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 int32 DebugMoveToActorForce = 0;
@@ -390,4 +392,5 @@ UAbilityTask_ApplyRootMotionMoveToActorForce* UAbilityTask_ApplyRootMotionMoveTo
 
 	return nullptr;
 }
+
 

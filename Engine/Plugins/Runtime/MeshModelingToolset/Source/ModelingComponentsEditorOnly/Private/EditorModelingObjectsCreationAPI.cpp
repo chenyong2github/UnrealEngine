@@ -30,6 +30,8 @@
 #include "ActorFactories/ActorFactory.h"
 #include "AssetSelection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorModelingObjectsCreationAPI)
+
 using namespace UE::Geometry;
 
 

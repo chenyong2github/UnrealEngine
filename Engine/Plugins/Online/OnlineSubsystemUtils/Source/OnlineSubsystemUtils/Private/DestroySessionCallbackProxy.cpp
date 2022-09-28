@@ -7,6 +7,8 @@
 #include "OnlineSubsystemBPCallHelper.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DestroySessionCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UDestroySessionCallbackProxy
 
@@ -73,3 +75,4 @@ void UDestroySessionCallbackProxy::OnCompleted(FName SessionName, bool bWasSucce
 		OnFailure.Broadcast();
 	}
 }
+

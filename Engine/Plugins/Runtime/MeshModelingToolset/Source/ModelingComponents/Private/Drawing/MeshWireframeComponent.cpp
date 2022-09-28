@@ -14,6 +14,8 @@
 #include "IndexTypes.h"
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshWireframeComponent)
+
 using UE::Geometry::FIndex4i;
 
 struct FWireframeLinesMeshBatchData
@@ -388,4 +390,5 @@ FBoxSphereBounds UMeshWireframeComponent::CalcBounds(const FTransform& LocalToWo
 {
 	return LocalBounds.TransformBy(LocalToWorld);
 }
+
 

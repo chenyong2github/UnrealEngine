@@ -6,6 +6,8 @@
 #include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraMetaDataCustomNodeBuilder)
+
 FNiagaraMetaDataCustomNodeBuilder::FNiagaraMetaDataCustomNodeBuilder()
 	: ScriptGraph(nullptr)
 {

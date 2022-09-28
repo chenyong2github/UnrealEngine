@@ -11,6 +11,8 @@
 
 #include "Framework/Application/SlateApplication.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonCustomNavigation)
+
 class SCustomNavBorder : public SBorder
 {
 public:
@@ -99,3 +101,4 @@ const FText UCommonCustomNavigation::GetPaletteCategory()
 	return CommonWidgetPaletteCategories::Default;
 }
 #endif // WITH_EDITOR
+

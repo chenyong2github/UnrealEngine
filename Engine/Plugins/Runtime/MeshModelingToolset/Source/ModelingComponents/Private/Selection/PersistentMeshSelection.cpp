@@ -7,6 +7,8 @@
 #include "Selection/StoredMeshSelectionUtil.h"
 #include "MeshRegionBoundaryLoops.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PersistentMeshSelection)
+
 using namespace UE::Geometry;
 
 

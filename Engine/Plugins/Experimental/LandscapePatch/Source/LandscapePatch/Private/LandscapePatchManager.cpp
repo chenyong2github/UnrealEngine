@@ -12,6 +12,8 @@
 #include "LandscapeModule.h"
 #include "LandscapeEditorServices.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapePatchManager)
+
 #define LOCTEXT_NAMESPACE "LandscapePatchManager"
 
 // TODO: Not sure if using this kind of constructor is a proper thing to do vs some other hook...

@@ -7,6 +7,8 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkAnimationRoleToTransform)
+
 
 /**
  * ULiveLinkAnimationRoleToTransform::FLiveLinkAnimationRoleToTransformWorker
@@ -97,3 +99,4 @@ void ULiveLinkAnimationRoleToTransform::PostEditChangeChainProperty(struct FProp
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 }
 #endif //WITH_EDITOR
+

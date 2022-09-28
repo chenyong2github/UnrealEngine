@@ -48,6 +48,8 @@
 #include "NiagaraSimulationStageBase.h"
 #include "Async/Async.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScript)
+
 #if ENABLE_COOK_STATS
 namespace NiagaraScriptCookStats
 {
@@ -3933,3 +3935,4 @@ bool UNiagaraScript::HasValidParameterBindings() const
 
 	return true;
 }
+

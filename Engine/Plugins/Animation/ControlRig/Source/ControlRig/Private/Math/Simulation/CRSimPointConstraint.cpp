@@ -3,6 +3,8 @@
 #include "Math/Simulation/CRSimPointConstraint.h"
 #include "Math/Simulation/CRSimUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimPointConstraint)
+
 void FCRSimPointConstraint::Apply(FCRSimPoint& OutPointA, FCRSimPoint& OutPointB) const
 {
 	switch (Type)
@@ -60,3 +62,4 @@ void FCRSimPointConstraint::Apply(FCRSimPoint& OutPointA, FCRSimPoint& OutPointB
 		}
 	}
 }
+

@@ -7,6 +7,8 @@
 #include "SoundModulationParameter.h"
 #include "Kismet2/SClassPickerDialog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationParameterFactory)
+
 
 class FAssetClassParentFilter : public IClassViewerFilter
 {

@@ -6,6 +6,8 @@
 #include "Abilities/GameplayAbility.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetActor_Trace)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	AGameplayAbilityTargetActor_Trace
@@ -210,3 +212,4 @@ FGameplayAbilityTargetDataHandle AGameplayAbilityTargetActor_Trace::MakeTargetDa
 	/** Note: This will be cleaned up by the FGameplayAbilityTargetDataHandle (via an internal TSharedPtr) */
 	return StartLocation.MakeTargetDataHandleFromHitResult(OwningAbility, HitResult);
 }
+

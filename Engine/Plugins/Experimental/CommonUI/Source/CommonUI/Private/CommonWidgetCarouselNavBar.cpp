@@ -7,6 +7,8 @@
 #include "Groups/CommonButtonGroupBase.h"
 #include "Widgets/SBoxPanel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonWidgetCarouselNavBar)
+
 UCommonWidgetCarouselNavBar::UCommonWidgetCarouselNavBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ButtonPadding(0)

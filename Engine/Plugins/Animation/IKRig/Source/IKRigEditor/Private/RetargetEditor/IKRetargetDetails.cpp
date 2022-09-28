@@ -18,6 +18,8 @@
 #include "SSearchableComboBox.h"
 #include "UObject/UnrealTypePrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetDetails)
+
 #if WITH_EDITOR
 #include "HAL/PlatformApplicationMisc.h"
 #endif
@@ -1216,3 +1218,4 @@ void FRetargetGlobalSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 }
 
 #undef LOCTEXT_NAMESPACE
+

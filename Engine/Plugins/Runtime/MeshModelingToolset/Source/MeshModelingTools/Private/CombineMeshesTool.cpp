@@ -20,6 +20,8 @@
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CombineMeshesTool)
+
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
 #endif
@@ -505,3 +507,4 @@ void UCombineMeshesTool::BuildCombinedMaterialSet(TArray<UMaterialInterface*>& N
 
 
 #undef LOCTEXT_NAMESPACE
+

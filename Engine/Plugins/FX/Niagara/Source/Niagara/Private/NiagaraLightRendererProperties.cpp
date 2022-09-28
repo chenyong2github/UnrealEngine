@@ -5,6 +5,9 @@
 #include "NiagaraConstants.h"
 #include "NiagaraRendererLights.h"
 #include "Modules/ModuleManager.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraLightRendererProperties)
+
 #if WITH_EDITOR
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"

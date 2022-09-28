@@ -4,6 +4,8 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEvents)
+
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Death Events"), STAT_NiagaraNumDeathEvents, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Spawn Events"), STAT_NiagaraNumSpawnEvents, STATGROUP_Niagara);
@@ -18,3 +20,4 @@ void UNiagaraEventReceiverEmitterAction_SpawnParticles::PerformAction(FNiagaraEm
 // 	}
 }
 //////////////////////////////////////////////////////////////////////////
+

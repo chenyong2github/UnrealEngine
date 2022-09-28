@@ -2,6 +2,8 @@
 
 #include "InterchangeMeshNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMeshNode)
+
 //Interchange namespace
 namespace UE
 {
@@ -532,3 +534,4 @@ bool UInterchangeMeshNode::RemoveSlotMaterialDependencyUid(const FString& SlotNa
 {
 	return SlotMaterialDependencies.RemoveKey(SlotName);
 }
+

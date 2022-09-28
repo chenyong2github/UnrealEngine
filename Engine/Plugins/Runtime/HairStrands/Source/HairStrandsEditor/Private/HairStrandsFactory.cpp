@@ -21,6 +21,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HairStrandsFactory)
+
 #define LOCTEXT_NAMESPACE "HairStrandsFactory"
 
 UHairStrandsFactory::UHairStrandsFactory(const FObjectInitializer& ObjectInitializer)
@@ -280,3 +282,4 @@ TSharedPtr<IGroomTranslator> UHairStrandsFactory::GetTranslator(const FString& F
 }
 
 #undef LOCTEXT_NAMESPACE
+

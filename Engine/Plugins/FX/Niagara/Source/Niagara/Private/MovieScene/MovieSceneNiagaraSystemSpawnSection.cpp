@@ -2,6 +2,8 @@
 
 #include "MovieScene/MovieSceneNiagaraSystemSpawnSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraSystemSpawnSection)
+
 UMovieSceneNiagaraSystemSpawnSection::UMovieSceneNiagaraSystemSpawnSection()
 {
 	EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;

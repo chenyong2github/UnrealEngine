@@ -8,6 +8,8 @@
 #include "MovieSceneToolsProjectSettings.h"
 #include "Misc/TemplateSequenceEditorUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationSequenceFactoryNew)
+
 UCameraAnimationSequenceFactoryNew::UCameraAnimationSequenceFactoryNew(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -25,3 +27,4 @@ bool UCameraAnimationSequenceFactoryNew::ShouldShowInNewMenu() const
 {
 	return true;
 }
+

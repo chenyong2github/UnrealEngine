@@ -2,6 +2,8 @@
 
 #include "SourceEffects/SourceEffectPhaser.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectPhaser)
+
 void FSourceEffectPhaser::Init(const FSoundEffectSourceInitData& InitData)
 {
 	bIsActive = true;

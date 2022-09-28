@@ -6,6 +6,8 @@
 #include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorSettings)
+
 // These GUIDs are now statically defined so that they can be serialized out in settings for the parameter panel category expansion.
 const FGuid FNiagaraEditorGuids::SystemNamespaceMetaDataGuid = FGuid(TEXT("7B4AFB34D0DF46189A05349E361CE735"));
 const FGuid FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid = FGuid(TEXT("1BA31433B3314F6BB258AECFBB466AC7"));
@@ -645,3 +647,4 @@ UNiagaraEditorSettings::FOnNiagaraEditorSettingsChanged& UNiagaraEditorSettings:
 }
 
 #undef LOCTEXT_NAMESPACE
+

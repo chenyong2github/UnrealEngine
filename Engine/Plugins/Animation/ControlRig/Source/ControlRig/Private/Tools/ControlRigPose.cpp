@@ -2,6 +2,9 @@
 #include "Tools/ControlRigPose.h"
 #include "Tools/ControlRigPoseProjectSettings.h"
 #include "IControlRigObjectBinding.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigPose)
+
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif
@@ -430,4 +433,5 @@ bool UControlRigPoseAsset::DoesMirrorMatch(UControlRig* ControlRig, const FName&
 
 
 #undef LOCTEXT_NAMESPACE
+
 

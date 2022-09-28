@@ -17,6 +17,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MergeMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMergeMeshesTool"
@@ -227,3 +229,4 @@ void UMergeMeshesTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 
 
 #undef LOCTEXT_NAMESPACE
+

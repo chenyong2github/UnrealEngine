@@ -12,6 +12,8 @@
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGBuffer)
+
 //////////////////////////////////////////////////////////////////////////
 
 namespace NiagaraDataInterfaceGBufferLocal
@@ -252,3 +254,4 @@ bool UNiagaraDataInterfaceGBuffer::UpgradeFunctionCall(FNiagaraFunctionSignature
 	return bWasChanged;
 }
 #endif
+

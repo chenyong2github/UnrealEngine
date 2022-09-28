@@ -2,6 +2,8 @@
 
 #include "AudioMotorModelComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMotorModelComponent)
+
 void UAudioMotorModelComponent::Update(FAudioMotorSimInputContext Input)
 {
 	for(FMotorSimEntry& Entry : SimComponents)

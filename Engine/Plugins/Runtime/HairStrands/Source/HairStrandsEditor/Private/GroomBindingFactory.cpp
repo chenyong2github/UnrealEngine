@@ -3,6 +3,8 @@
 #include "GroomBindingFactory.h"
 #include "GroomBindingAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GroomBindingFactory)
+
 UGroomBindingFactory::UGroomBindingFactory()
 {
 	SupportedClass = UGroomBindingAsset::StaticClass();

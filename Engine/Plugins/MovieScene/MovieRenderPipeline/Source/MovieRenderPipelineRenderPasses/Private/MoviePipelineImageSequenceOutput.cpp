@@ -23,6 +23,8 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineImageSequenceOutput)
+
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 struct FAsyncImageQuantization
 {
@@ -284,4 +286,5 @@ void UMoviePipelineImageSequenceOutputBase::GetFormatArguments(FMoviePipelineFor
 	// InOutFormatArgs.Arguments.Add(TEXT("ext"), TEXT("jpg/png/exr")); Hidden since we just always post-pend with an extension.
 	InOutFormatArgs.FilenameArguments.Add(TEXT("render_pass"), TEXT("RenderPassName"));
 }
+
 

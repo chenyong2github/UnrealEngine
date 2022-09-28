@@ -12,6 +12,8 @@
 #include "GameplayTagsManager.h"
 #include "SGameplayTagWidget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagSearchFilter)
+
 
 #define LOCTEXT_NAMESPACE "GameplayTagSearchFilter"
 
@@ -239,3 +241,4 @@ void UGameplayTagSearchFilter::AddFrontEndFilterExtensions(TSharedPtr<FFrontendF
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "EffectConvolutionReverb.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EffectConvolutionReverb)
+
 UAudioImpulseResponse::UAudioImpulseResponse()
 	: NumChannels(0)
 	, SampleRate(0)

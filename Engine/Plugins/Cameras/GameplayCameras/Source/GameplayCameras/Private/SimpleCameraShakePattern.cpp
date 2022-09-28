@@ -2,6 +2,8 @@
 
 #include "SimpleCameraShakePattern.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SimpleCameraShakePattern)
+
 void USimpleCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
 {
 	if (Duration > 0.f)
@@ -16,4 +18,5 @@ void USimpleCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInf
 	OutInfo.BlendIn = BlendInTime;
 	OutInfo.BlendOut = BlendOutTime;
 }
+
 

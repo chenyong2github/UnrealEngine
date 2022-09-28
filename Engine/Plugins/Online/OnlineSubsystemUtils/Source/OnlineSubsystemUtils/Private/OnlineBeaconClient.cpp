@@ -15,6 +15,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "Containers/StringFwd.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineBeaconClient)
+
 #define BEACON_RPC_TIMEOUT 15.0f
 
 /** For backwards compatibility with newer engine encryption API */
@@ -544,3 +546,4 @@ void AOnlineBeaconClient::FinalizeEncryptedConnection(const FEncryptionKeyRespon
 		OnFailure();
 	}
 }
+

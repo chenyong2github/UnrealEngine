@@ -2,6 +2,8 @@
 
 #include "NiagaraScriptBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptBase)
+
 UNiagaraScriptBase::UNiagaraScriptBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -16,3 +18,4 @@ FSimulationStageMetaData::FSimulationStageMetaData()
 	, GpuDispatchNumThreads(0, 0, 0)
 {
 }
+

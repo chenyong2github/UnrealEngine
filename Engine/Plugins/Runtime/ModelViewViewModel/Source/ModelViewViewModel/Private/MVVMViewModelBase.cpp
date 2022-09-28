@@ -5,6 +5,8 @@
 #include "Bindings/MVVMBindingHelper.h"
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBase)
+
 #define LOCTEXT_NAMESPACE "MVVMViewModelBase"
 
 FDelegateHandle UMVVMViewModelBase::AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FFieldValueChangedDelegate InNewDelegate)
@@ -208,3 +210,4 @@ DEFINE_FUNCTION(UMVVMViewModelBase::execK2_SetPropertyValue)
 }
 
 #undef LOCTEXT_NAMESPACE
+

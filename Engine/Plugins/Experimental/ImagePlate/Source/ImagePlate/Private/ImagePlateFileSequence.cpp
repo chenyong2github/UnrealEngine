@@ -19,6 +19,8 @@
 #include "Textures/SlateTextureData.h"
 #include "ImageUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImagePlateFileSequence)
+
 DEFINE_LOG_CATEGORY_STATIC(LogImagePlateFileSequence, Log, Warning);
 
 UImagePlateFileSequence::UImagePlateFileSequence(const FObjectInitializer& Init)
@@ -751,3 +753,4 @@ int32 FImagePlateAsyncCache::Length() const
 {
 	return Impl->GetNumFrames();
 }
+

@@ -4,6 +4,8 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityAsync_WaitGameplayEvent)
+
 UAbilityAsync_WaitGameplayEvent* UAbilityAsync_WaitGameplayEvent::WaitGameplayEventToActor(AActor* TargetActor, FGameplayTag EventTag, bool OnlyTriggerOnce, bool OnlyMatchExact)
 {
 	UAbilityAsync_WaitGameplayEvent* MyObj = NewObject<UAbilityAsync_WaitGameplayEvent>();
@@ -77,3 +79,4 @@ void UAbilityAsync_WaitGameplayEvent::EndAction()
 	}
 	Super::EndAction();
 }
+

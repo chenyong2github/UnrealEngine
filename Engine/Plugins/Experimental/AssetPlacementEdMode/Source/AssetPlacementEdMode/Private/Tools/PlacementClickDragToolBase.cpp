@@ -6,6 +6,8 @@
 #include "InteractiveToolManager.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementClickDragToolBase)
+
 void UPlacementClickDragToolBase::Setup()
 {
 	Super::Setup();
@@ -26,3 +28,4 @@ void UPlacementClickDragToolBase::SetupBrushStampIndicator()
 	BrushProperties->BrushSize = .5f;
 	BrushProperties->BrushFalloffAmount = 1.f;
 }
+

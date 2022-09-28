@@ -39,6 +39,8 @@
 #include "LevelEditorSubsystem.h"
 #include "Subsystems/UnrealEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorLevelLibrary)
+
 #define LOCTEXT_NAMESPACE "EditorLevelLibrary"
 
 
@@ -478,3 +480,4 @@ bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshAct
 }
 
 #undef LOCTEXT_NAMESPACE
+

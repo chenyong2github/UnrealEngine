@@ -12,6 +12,8 @@
 #include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SNiagaraDebuggerSpawn)
+
 #if WITH_NIAGARA_DEBUGGER
 #define LOCTEXT_NAMESPACE "SNiagaraDebuggerSpawn"
 
@@ -241,3 +243,4 @@ TStatId SNiagaraDebuggerSpawn::GetStatId() const
 
 #undef LOCTEXT_NAMESPACE
 #endif //WITH_NIAGARA_DEBUGGER
+

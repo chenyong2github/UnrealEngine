@@ -8,6 +8,8 @@
 #include "AnimCustomInstanceHelper.h"
 #include "Sequencer/ControlRigLayerInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigPoseThumbnailRenderer)
+
 
 /*
 ***************************************************************
@@ -232,4 +234,5 @@ void UControlRigPoseThumbnailRenderer::BeginDestroy()
 
 	Super::BeginDestroy();
 }
+
 

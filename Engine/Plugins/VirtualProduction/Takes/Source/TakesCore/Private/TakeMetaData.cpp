@@ -9,6 +9,8 @@
 #include "Editor.h"
 #include "MovieSceneToolsProjectSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeMetaData)
+
 const FName UTakeMetaData::AssetRegistryTag_Slate       = "TakeMetaData_Slate";
 const FName UTakeMetaData::AssetRegistryTag_TakeNumber  = "TakeMetaData_TakeNumber";
 const FName UTakeMetaData::AssetRegistryTag_Timestamp = "TakeMetaData_Timestamp";
@@ -314,4 +316,5 @@ void UTakeMetaData::ExtendAssetRegistryTagMetaData(TMap<FName, FAssetRegistryTag
 		.SetTooltip(    NSLOCTEXT("TakeMetaData", "LevelPath_Tip",   "Map used for this take"))
 	);
 }
+
 

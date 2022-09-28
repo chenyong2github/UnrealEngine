@@ -16,6 +16,8 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraConstants.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeWithDynamicPins)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeWithDynamicPins"
 
 const FName UNiagaraNodeWithDynamicPins::AddPinSubCategory("DynamicAddPin");
@@ -491,3 +493,4 @@ void UNiagaraNodeWithDynamicPins::MoveDynamicPinFromMenu(UEdGraphPin* Pin, int32
 }
 
 #undef LOCTEXT_NAMESPACE
+

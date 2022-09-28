@@ -1483,5 +1483,8 @@ float UDisplaceMeshTool::WeightMapQuery(const FVector3d& Position, const FIndexe
 
 #include "Tests/DisplaceMeshTool_Tests.inl"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DisplaceMeshTool)
+
 
 #undef LOCTEXT_NAMESPACE
+

@@ -21,6 +21,8 @@
 
 #include "Sections/MovieSceneSubSection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceEditorBlueprintLibrary)
+
 namespace
 {
 	static TWeakPtr<ISequencer> CurrentSequencer;
@@ -633,4 +635,5 @@ void ULevelSequenceEditorBlueprintLibrary::SetLockCameraCutToViewport(bool bLock
 		Sequencer->ForceEvaluate();
 	}
 }
+
 

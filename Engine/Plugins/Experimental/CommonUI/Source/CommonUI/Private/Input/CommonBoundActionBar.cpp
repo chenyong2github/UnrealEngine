@@ -8,6 +8,8 @@
 #include "Editor/WidgetCompilerLog.h"
 #include "Input/UIActionRouterTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionBar)
+
 #define LOCTEXT_NAMESPACE "CommonUI"
 
 bool bActionBarIgnoreOptOut = false;

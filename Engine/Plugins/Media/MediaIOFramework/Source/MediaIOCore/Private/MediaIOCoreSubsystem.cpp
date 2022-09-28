@@ -2,6 +2,8 @@
 
 #include "MediaIOCoreSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MediaIOCoreSubsystem)
+
 TSharedPtr<FMediaIOAudioOutput> UMediaIOCoreSubsystem::CreateAudioOutput(const FCreateAudioOutputArgs& Args)
 {
 	if (!MediaIOCapture)
@@ -11,3 +13,4 @@ TSharedPtr<FMediaIOAudioOutput> UMediaIOCoreSubsystem::CreateAudioOutput(const F
 
 	return MediaIOCapture->CreateAudioOutput(Args.NumOutputChannels, Args.TargetFrameRate, Args.MaxSampleLatency, Args.OutputSampleRate);
 }
+

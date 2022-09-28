@@ -38,6 +38,8 @@
 
 #include "Mechanics/DragAlignmentMechanic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DrawPolygonTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDrawPolygonTool"
@@ -1407,3 +1409,4 @@ FString FDrawPolygonStateChange::ToString() const
 
 
 #undef LOCTEXT_NAMESPACE
+

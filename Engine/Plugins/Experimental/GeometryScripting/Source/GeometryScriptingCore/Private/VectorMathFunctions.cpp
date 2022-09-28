@@ -3,6 +3,8 @@
 #include "GeometryScript/VectorMathFunctions.h"
 #include "VectorTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VectorMathFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_VectorMathFunctions"
@@ -338,3 +340,4 @@ void UGeometryScriptLibrary_VectorMathFunctions::ConstantScalarMultiplyInPlace(d
 
 
 #undef LOCTEXT_NAMESPACE
+

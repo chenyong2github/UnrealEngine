@@ -11,6 +11,8 @@
 #include "SpotLightGizmo.h"
 #include "LightGizmosModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpotLightGizmoFactory)
+
 bool USpotLightGizmoFactory::CanBuildGizmoForSelection(FEditorModeTools* ModeTools) const
 {
 	/** Since there can only be one factory active at a time in the current iteration
@@ -124,5 +126,6 @@ void USpotLightGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, bool bRotG
 		}
 	}
 }
+
 
 

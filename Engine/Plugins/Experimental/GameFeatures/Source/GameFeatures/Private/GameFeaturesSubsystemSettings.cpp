@@ -3,6 +3,8 @@
 #include "GameFeaturesSubsystemSettings.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeaturesSubsystemSettings)
+
 const FName UGameFeaturesSubsystemSettings::LoadStateClient(TEXT("Client"));
 const FName UGameFeaturesSubsystemSettings::LoadStateServer(TEXT("Server"));
 
@@ -46,3 +48,4 @@ bool UGameFeaturesSubsystemSettings::IsValidGameFeaturePlugin(const FString& Plu
 
 	return false;
 }
+

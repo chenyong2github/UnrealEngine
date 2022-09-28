@@ -5,6 +5,8 @@
 #include "AESGCMFaultHandler.h"
 #include "Net/Core/Connection/NetConnectionFaultRecoveryBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AESGCMFaultHandler)
+
 
 /**
  * EAESGCMNetResult
@@ -100,3 +102,4 @@ UE::Net::EHandleNetResult FAESGCMFaultHandler::HandleNetResult(UE::Net::FNetResu
 		
 	return ReturnVal;
 }
+

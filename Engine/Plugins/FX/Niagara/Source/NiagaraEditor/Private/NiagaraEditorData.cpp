@@ -8,6 +8,8 @@
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScriptVariable.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorData)
+
 
 void UNiagaraEditorParametersAdapter::PostLoad()
 {
@@ -178,3 +180,4 @@ bool UNiagaraEditorParametersAdapter::SynchronizeParameterDefinitionsScriptVaria
 	}
 	return false;
 }
+

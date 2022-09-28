@@ -4,6 +4,8 @@
 #include "LevelSequenceEditorModule.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineQueueSubsystem)
+
 UMoviePipelineExecutorBase* UMoviePipelineQueueSubsystem::RenderQueueWithExecutor(TSubclassOf<UMoviePipelineExecutorBase> InExecutorType)
 {
 	if(!ensureMsgf(!IsRendering(), TEXT("RenderQueueWithExecutor cannot be called while already rendering!")))
@@ -59,4 +61,5 @@ void UMoviePipelineQueueSubsystem::OnExecutorFinished(UMoviePipelineExecutorBase
 
 	ActiveExecutor = nullptr;
 }
+
 

@@ -2,6 +2,8 @@
 
 #include "GeometryCacheTrackFlipbookAnimation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheTrackFlipbookAnimation)
+
 
 GEOMETRYCACHE_API UDEPRECATED_GeometryCacheTrack_FlipbookAnimation::UDEPRECATED_GeometryCacheTrack_FlipbookAnimation(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/) : UGeometryCacheTrack(ObjectInitializer)
 {
@@ -80,3 +82,4 @@ void UDEPRECATED_GeometryCacheTrack_FlipbookAnimation::BeginDestroy()
 	MeshSamples.Empty();
 	MeshSampleTimes.Empty();
 }
+

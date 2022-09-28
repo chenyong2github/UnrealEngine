@@ -6,6 +6,8 @@
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_PropagateTransform)
+
 FRigUnit_PropagateTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -71,3 +73,4 @@ FRigVMStructUpgradeInfo FRigUnit_PropagateTransform::GetUpgradeInfo() const
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
 }
+

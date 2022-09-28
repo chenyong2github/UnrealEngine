@@ -10,6 +10,8 @@
 #include "SmoothingOps/IterativeSmoothingOp.h"
 #include "SmoothingOps/CotanSmoothingOp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmoothMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USmoothMeshTool"
@@ -135,3 +137,4 @@ TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 
 
 #undef LOCTEXT_NAMESPACE
+

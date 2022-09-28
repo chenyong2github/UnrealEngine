@@ -25,6 +25,8 @@
 #include "Engine/StaticMesh.h"
 #include "WaterViewExtension.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSubsystem)
+
 // ----------------------------------------------------------------------------------
 
 #define LOCTEXT_NAMESPACE "WaterSubsystem"

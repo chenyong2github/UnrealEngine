@@ -20,6 +20,8 @@
 #include "Internationalization/Internationalization.h"
 #include "ScopedTransaction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackSimulationStageGroup)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackSimulationStageGroup"
 
 void UNiagaraStackSimulationStagePropertiesItem::Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraSimulationStageBase* InSimulationStage)
@@ -444,3 +446,4 @@ void UNiagaraStackSimulationStageGroup::SetOnModifiedSimulationStages(FOnModifie
 }
 
 #undef LOCTEXT_NAMESPACE
+

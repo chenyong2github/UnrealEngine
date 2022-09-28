@@ -13,6 +13,8 @@
 
 #include "Instances/InstancedPlacementClientInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementPlaceTool)
+
 constexpr TCHAR UPlacementModePlacementTool::ToolName[];
 
 UPlacementBrushToolBase* UPlacementModePlacementToolBuilder::FactoryToolInstance(UObject* Outer) const
@@ -146,3 +148,4 @@ void UPlacementModePlacementTool::GetRandomVectorInBrush(FVector& OutStart, FVec
 	OutStart = BrushLocation + BrushRadius * (Point + Rw);
 	OutEnd = BrushLocation + BrushRadius * (Point - Rw);
 }
+

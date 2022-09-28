@@ -12,6 +12,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraSystemEditorData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemSelectionViewModel)
+
 FGuid StackEntryToEmitterGuid(UNiagaraStackEntry* StackEntry)
 {
 	if (StackEntry->GetEmitterViewModel().IsValid())

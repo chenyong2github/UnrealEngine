@@ -7,6 +7,8 @@
 #include "InputTriggers.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputAction)
+
 #define LOCTEXT_NAMESPACE "EnhancedInputAction"
 
 FInputActionInstance::FInputActionInstance(const UInputAction* InSourceAction)

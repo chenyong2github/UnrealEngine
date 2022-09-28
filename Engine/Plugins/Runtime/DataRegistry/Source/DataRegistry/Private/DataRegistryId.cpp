@@ -4,6 +4,8 @@
 #include "DataRegistryTypes.h"
 #include "Misc/StringBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryId)
+
 #define LOCTEXT_NAMESPACE "DataRegistry"
 
 const FName FDataRegistryType::ItemStructMetaData = FName(TEXT("ItemStruct"));
@@ -142,4 +144,5 @@ FText FDataRegistryId::ToText() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

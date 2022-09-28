@@ -10,6 +10,8 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UpgradeNiagaraScriptResults)
+
 namespace NiagaraScriptResults
 {
 	template<typename T>
@@ -413,5 +415,6 @@ const TArray<FVersionedNiagaraEmitterData*>& UUpgradeNiagaraEmitterContext::GetU
 {
 	return UpgradeVersionData;
 }
+
 
 

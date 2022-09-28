@@ -17,6 +17,8 @@
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigRerouteNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -150,3 +152,4 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 }
 
 #undef LOCTEXT_NAMESPACE
+

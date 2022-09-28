@@ -3,6 +3,8 @@
 #include "PyTest.h"
 #include "PyUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PyTest)
+
 FPyTestStruct::FPyTestStruct()
 {
 	Bool = false;
@@ -312,4 +314,5 @@ int UPyTestTypeHint::CheckTupleReturnType(UPARAM(ref) FString& InOutString)
 	InOutString = TEXT("Foo");
 	return 0;
 }
+
 

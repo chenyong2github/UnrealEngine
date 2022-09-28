@@ -11,6 +11,8 @@
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ShapeSprayTool)
+
 using namespace UE::Geometry;
 
 // localization namespace
@@ -250,3 +252,4 @@ void UShapeSprayTool::EmitResult()
 
 
 #undef LOCTEXT_NAMESPACE
+

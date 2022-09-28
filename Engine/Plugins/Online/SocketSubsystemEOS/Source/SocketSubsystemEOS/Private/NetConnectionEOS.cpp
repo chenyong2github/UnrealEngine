@@ -5,6 +5,8 @@
 #include "InternetAddrEOS.h"
 #include "SocketEOS.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetConnectionEOS)
+
 UNetConnectionEOS::UNetConnectionEOS(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bIsPassthrough(false)
@@ -70,3 +72,4 @@ void UNetConnectionEOS::DestroyEOSConnection()
 		}
 	}
 }
+

@@ -8,6 +8,8 @@
 #include "Misc/StringBuilder.h"
 #include "UObject/Class.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraTypes)
+
 static FName NAME_NiagaraPosition(TEXT("NiagaraPosition"));
 
 void FNiagaraVariableBase::SetNamespacedName(const FString& InNamespace, FName InVariableName)
@@ -596,3 +598,4 @@ bool FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct
 }
 
 /////////////////////////////////////////////////////////////////////////////
+

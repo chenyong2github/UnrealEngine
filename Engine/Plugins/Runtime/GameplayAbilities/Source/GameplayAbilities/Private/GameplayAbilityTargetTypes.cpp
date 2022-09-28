@@ -7,6 +7,8 @@
 #include "AbilitySystemGlobals.h"
 #include "Components/MeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetTypes)
+
 TArray<FActiveGameplayEffectHandle> FGameplayAbilityTargetData::ApplyGameplayEffect(const UGameplayEffect* GameplayEffect, const FGameplayEffectContextHandle& InEffectContext, float Level, FPredictionKey PredictionKey)
 {
 	// Make a temp spec and call the spec function. This ends up cloning the spec per target
@@ -327,3 +329,4 @@ bool FGameplayAbilityTargetData_SingleTargetHit::NetSerialize(FArchive& Ar, clas
 
 	return true;
 }
+

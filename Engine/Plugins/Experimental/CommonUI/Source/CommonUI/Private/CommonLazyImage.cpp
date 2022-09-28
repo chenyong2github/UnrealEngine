@@ -9,6 +9,8 @@
 #include "Engine/Texture2DDynamic.h"
 #include "Widgets/Images/SImage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonLazyImage)
+
 UCommonLazyImage::UCommonLazyImage(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {

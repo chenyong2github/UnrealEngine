@@ -4,6 +4,8 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SlideChain)
+
 FRigUnit_SlideChain_Execute()
 {
 	if (Context.State == EControlRigState::Init)
@@ -173,3 +175,4 @@ FRigUnit_SlideChainItemArray_Execute()
 		Hierarchy->SetGlobalTransform(CachedItems[Index], BlendedTransforms[Index], bPropagateToChildren);
 	}
 }
+

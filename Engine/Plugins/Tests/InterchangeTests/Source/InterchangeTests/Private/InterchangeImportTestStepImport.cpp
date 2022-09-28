@@ -8,6 +8,8 @@
 #include "PackageTools.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeImportTestStepImport)
+
 
 TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResultPtr> UInterchangeImportTestStepImport::StartStep(FInterchangeImportTestData& Data)
 {
@@ -126,3 +128,4 @@ FString UInterchangeImportTestStepImport::GetContextString() const
 {
 	return FString(TEXT("Importing ")) + FPaths::GetCleanFilename(SourceFile.FilePath);
 }
+

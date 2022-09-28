@@ -4,6 +4,8 @@
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRW)
+
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRW"
 
@@ -966,3 +968,4 @@ bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destinat
 }
 
 #undef LOCTEXT_NAMESPACE
+

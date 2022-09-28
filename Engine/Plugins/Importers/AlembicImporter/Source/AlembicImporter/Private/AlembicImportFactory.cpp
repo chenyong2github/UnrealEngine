@@ -26,6 +26,8 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "ImportUtils/StaticMeshImportUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AlembicImportFactory)
+
 #define LOCTEXT_NAMESPACE "AlembicImportFactory"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAlembic, Log, All);
@@ -994,3 +996,4 @@ int32 UAlembicImportFactory::GetPriority() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

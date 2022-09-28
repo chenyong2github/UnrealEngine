@@ -19,6 +19,8 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraStats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRenderTarget2D)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
 
 namespace NDIRenderTarget2DLocal
@@ -796,3 +798,4 @@ FIntVector FNiagaraDataInterfaceProxyRenderTarget2DProxy::GetElementCount(FNiaga
 }
 
 #undef LOCTEXT_NAMESPACE
+

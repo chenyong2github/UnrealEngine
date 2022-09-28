@@ -7,6 +7,8 @@
 
 #include "LiveLinkMovieScenePrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSubSectionProperties)
+
 #define LOCTEXT_NAMESPACE "MovieSceneLiveLinkSubSectionProperties"
 
 
@@ -325,3 +327,4 @@ bool UMovieSceneLiveLinkSubSectionProperties::IsRoleSupported(const TSubclassOf<
 }
 
 #undef LOCTEXT_NAMESPACE // MovieSceneLiveLinkSubSectionProperties
+

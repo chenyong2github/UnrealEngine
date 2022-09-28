@@ -5,6 +5,8 @@
 #include "HelperUtil.h"
 #include "UObject/PropertyPortFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigHierarchyContainer)
+
 ////////////////////////////////////////////////////////////////////////////////
 // FRigHierarchyContainer
 ////////////////////////////////////////////////////////////////////////////////
@@ -217,3 +219,4 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FRigHierarch
 
 	return PastedKeys;
 }
+

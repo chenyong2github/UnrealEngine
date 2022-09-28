@@ -21,6 +21,8 @@
 #include "ScopedTransaction.h"
 #include "IDetailTreeNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEventScriptItemGroup)
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackEventScriptItemGroup"
 
 void UNiagaraStackEventWrapper::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -366,3 +368,4 @@ void UNiagaraStackEventScriptItemGroup::SetOnModifiedEventHandlers(FOnModifiedEv
 }
 
 #undef LOCTEXT_NAMESPACE
+

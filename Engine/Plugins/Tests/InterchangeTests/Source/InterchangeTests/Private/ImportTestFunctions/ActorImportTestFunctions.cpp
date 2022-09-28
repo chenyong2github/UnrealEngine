@@ -3,6 +3,8 @@
 #include "ImportTestFunctions/ActorImportTestFunctions.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorImportTestFunctions)
+
 
 UClass* UActorImportTestFunctions::GetAssociatedAssetType() const
 {
@@ -19,3 +21,4 @@ FInterchangeTestFunctionResult UActorImportTestFunctions::CheckImportedActorCoun
 
 	return Result;
 }
+

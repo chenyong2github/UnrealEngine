@@ -2,6 +2,8 @@
 
 #include "InterchangeStaticMeshLodDataNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeStaticMeshLodDataNode)
+
 namespace UE
 {
 	namespace Interchange
@@ -234,3 +236,4 @@ bool UInterchangeStaticMeshLodDataNode::IsEditorOnlyDataDefined()
 	return false;
 #endif
 }
+

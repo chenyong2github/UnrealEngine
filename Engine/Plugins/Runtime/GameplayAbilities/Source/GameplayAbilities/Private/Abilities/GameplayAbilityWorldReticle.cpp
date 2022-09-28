@@ -3,6 +3,8 @@
 #include "Abilities/GameplayAbilityWorldReticle.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityWorldReticle)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	AGameplayAbilityWorldReticle
@@ -93,3 +95,4 @@ void AGameplayAbilityWorldReticle::FaceTowardSource(bool bFaceIn2D)
 		}
 	}
 }
+

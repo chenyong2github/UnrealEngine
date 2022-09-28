@@ -8,6 +8,8 @@
 #include "ToolSceneQueriesUtil.h"
 #include "TransformTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PolyLassoMarqueeMechanic)
+
 using namespace UE::Geometry;
 
 
@@ -307,3 +309,4 @@ void UPolyLassoMarqueeMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI*
 }
 
 #undef LOCTEXT_NAMESPACE
+

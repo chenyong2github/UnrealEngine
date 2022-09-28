@@ -5,6 +5,8 @@
 #include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequenceFactory)
+
 #define LOCTEXT_NAMESPACE "MovieSceneFactory"
 
 UControlRigSequenceFactory::UControlRigSequenceFactory(const FObjectInitializer& ObjectInitializer)
@@ -35,3 +37,4 @@ bool UControlRigSequenceFactory::ShouldShowInNewMenu() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

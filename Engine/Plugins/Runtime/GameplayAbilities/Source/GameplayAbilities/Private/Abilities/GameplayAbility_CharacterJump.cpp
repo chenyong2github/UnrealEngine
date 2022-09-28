@@ -3,6 +3,8 @@
 #include "Abilities/GameplayAbility_CharacterJump.h"
 #include "GameFramework/Character.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbility_CharacterJump)
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 //	UGameplayAbility_CharacterJump
@@ -69,3 +71,4 @@ void UGameplayAbility_CharacterJump::CancelAbility(const FGameplayAbilitySpecHan
 	ACharacter * Character = CastChecked<ACharacter>(ActorInfo->AvatarActor.Get());
 	Character->StopJumping();
 }
+

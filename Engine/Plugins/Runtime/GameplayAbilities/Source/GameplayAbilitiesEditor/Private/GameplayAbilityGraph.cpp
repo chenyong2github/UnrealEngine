@@ -2,6 +2,8 @@
 
 #include "GameplayAbilityGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityGraph)
+
 #define LOCTEXT_NAMESPACE "GameplayAbilityGraph"
 
 /////////////////////////////////////////////////////
@@ -13,3 +15,4 @@ UGameplayAbilityGraph::UGameplayAbilityGraph(const FObjectInitializer& ObjectIni
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -22,6 +22,8 @@
 
 #include "CompositionOps/VoxelMorphologyMeshesOp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoxelMorphologyMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UVoxelMorphologyMeshesTool"
@@ -87,3 +89,4 @@ FText UVoxelMorphologyMeshesTool::GetActionName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

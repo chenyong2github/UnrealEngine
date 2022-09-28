@@ -34,6 +34,8 @@
 
 #include "Gltf/InterchangeGltfPrivate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGltfTranslator)
+
 #define LOCTEXT_NAMESPACE "InterchangeGltfTranslator"
 
 static bool GInterchangeEnableGLTFImport = true;

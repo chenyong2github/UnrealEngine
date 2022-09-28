@@ -2,6 +2,8 @@
 
 #include "MassObserverRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassObserverRegistry)
+
 //----------------------------------------------------------------------//
 // UMassObserverRegistry
 //----------------------------------------------------------------------//
@@ -25,4 +27,5 @@ void UMassObserverRegistry::RegisterObserver(const UScriptStruct& ObservedType, 
 		(*TagObservers[(uint8)Operation]).FindOrAdd(&ObservedType).ClassCollection.AddUnique(ObserverClass);
 	}
 }
+
 

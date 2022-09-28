@@ -9,6 +9,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimManager)
+
 DECLARE_CYCLE_STAT(TEXT("ContextualAnim FindClosestSceneActorComp"), STAT_ContextualAnim_FindClosestSceneActorComp, STATGROUP_Anim);
 
 UContextualAnimManager::UContextualAnimManager(const FObjectInitializer& ObjectInitializer)

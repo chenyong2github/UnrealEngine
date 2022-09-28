@@ -11,6 +11,9 @@
 #include "NiagaraConstants.h"
 #include "NiagaraComputeExecutionContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGrid2DCollectionReader)
+
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid2DCollectionReader"
 
 UNiagaraDataInterfaceGrid2DCollectionReader::UNiagaraDataInterfaceGrid2DCollectionReader(FObjectInitializer const& ObjectInitializer)
@@ -199,3 +202,4 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::PerInstanceTickPostSimulate(vo
 }
 
 #undef LOCTEXT_NAMESPACE
+

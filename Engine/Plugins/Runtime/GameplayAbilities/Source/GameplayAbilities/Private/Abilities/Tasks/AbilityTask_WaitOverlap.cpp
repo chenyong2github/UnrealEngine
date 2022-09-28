@@ -3,6 +3,8 @@
 #include "Abilities/Tasks/AbilityTask_WaitOverlap.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitOverlap)
+
 UAbilityTask_WaitOverlap::UAbilityTask_WaitOverlap(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -79,3 +81,4 @@ UPrimitiveComponent* UAbilityTask_WaitOverlap::GetComponent()
 
 	return PrimComponent;
 }
+

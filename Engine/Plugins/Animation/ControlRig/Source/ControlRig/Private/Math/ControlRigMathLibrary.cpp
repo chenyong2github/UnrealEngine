@@ -4,6 +4,8 @@
 #include "AHEasing/easing.h"
 #include "TwoBoneIK.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigMathLibrary)
+
 float FControlRigMathLibrary::AngleBetween(const FVector& A, const FVector& B)
 {
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -467,3 +469,4 @@ FVector& FControlRigMathLibrary::ChooseBetterEulerAngleForAxisFilter(const FVect
 
 	return Diff1 < Diff2 ? A : B;
 }
+

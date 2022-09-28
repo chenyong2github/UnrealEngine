@@ -34,6 +34,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserAssetDataSource)
+
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
 void UContentBrowserAssetDataSource::Initialize(const bool InAutoRegister)
@@ -2258,3 +2260,4 @@ bool UContentBrowserAssetDataSource::PathPassesCompiledDataFilter(const FContent
 }
 
 #undef LOCTEXT_NAMESPACE
+

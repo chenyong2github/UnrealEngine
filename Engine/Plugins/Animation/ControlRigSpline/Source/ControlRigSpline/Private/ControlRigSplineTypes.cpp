@@ -2,6 +2,8 @@
 
 #include "ControlRigSplineTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSplineTypes)
+
 #if !(USE_TINYSPLINE)
 
 ControlRigBaseSpline::ControlRigBaseSpline(const TArrayView<const FVector>& InControlPoints, const uint16 InDegree)
@@ -475,3 +477,4 @@ FVector FControlRigSpline::TangentAtParam(const float InParam) const
 	int32 IndexPrev = ClampedU * (SplineData->SamplesArray.Num()-2);
 	return SplineData->SamplesArray[IndexPrev+1] - SplineData->SamplesArray[IndexPrev];
 }
+

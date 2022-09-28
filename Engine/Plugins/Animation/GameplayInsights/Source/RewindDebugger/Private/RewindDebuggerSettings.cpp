@@ -3,6 +3,8 @@
 #include "RewindDebuggerSettings.h"
 #include "Misc/CoreDelegates.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RewindDebuggerSettings)
+
 URewindDebuggerSettings::URewindDebuggerSettings() : CameraMode(ERewindDebuggerCameraMode::Replay), /*bShouldAutoDetach(false),*/ bShouldAutoRecordOnPIE(false)
 {
 	FCoreDelegates::OnPreExit.AddLambda([]()
@@ -37,3 +39,4 @@ URewindDebuggerSettings& URewindDebuggerSettings::Get()
 	
 	return *MutableCDO;
 }
+

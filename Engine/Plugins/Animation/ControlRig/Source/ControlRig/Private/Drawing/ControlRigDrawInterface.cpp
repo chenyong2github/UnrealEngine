@@ -5,6 +5,8 @@
 #include "DynamicMeshBuilder.h"
 #include "SceneManagement.h" 
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigDrawInterface)
+
 TAutoConsoleVariable<int32> CVarEnableControlRigDrawInterfaceInShipping(TEXT("ControlRig.EnableDrawInterfaceInShipping"), 0, TEXT("Set to 1 to enable control rig draw interface in shipping"));
 
 void FControlRigDrawInterface::DrawPoint(const FTransform& WorldOffset, const FVector& Position, float Size, const FLinearColor& Color)
@@ -613,3 +615,4 @@ bool FControlRigDrawInterface::IsEnabled() const
 
 	return bIsEnabled; 
 }
+

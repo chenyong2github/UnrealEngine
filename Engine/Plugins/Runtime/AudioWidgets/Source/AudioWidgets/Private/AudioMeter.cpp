@@ -4,6 +4,8 @@
 #include "SAudioMeter.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMeter)
+
 
 #define LOCTEXT_NAMESPACE "AUDIO_UMG"
 

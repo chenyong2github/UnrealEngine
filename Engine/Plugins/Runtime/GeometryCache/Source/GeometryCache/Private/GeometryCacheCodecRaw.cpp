@@ -7,6 +7,8 @@
 #include "GeometryCacheTrackStreamable.h"
 #include "GeometryCacheModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheCodecRaw)
+
 UGeometryCacheCodecRaw::UGeometryCacheCodecRaw(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/) : UGeometryCacheCodecBase(ObjectInitializer)
 {
 	//Nop

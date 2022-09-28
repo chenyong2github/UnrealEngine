@@ -10,6 +10,8 @@
 #include "Internationalization/Culture.h"
 #include "Internationalization/PackageLocalizationUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorValidator_Localization)
+
 #define LOCTEXT_NAMESPACE "AssetValidation"
 
 UEditorValidator_Localization::UEditorValidator_Localization()
@@ -158,3 +160,4 @@ const TArray<FString>* UEditorValidator_Localization::FindOrCacheCulturesForLoca
 }
 
 #undef LOCTEXT_NAMESPACE
+

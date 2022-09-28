@@ -3,6 +3,8 @@
 #include "SocialTypes.h"
 #include "OnlineSubsystemUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialTypes)
+
 //////////////////////////////////////////////////////////////////////////
 // FUserPlatform
 //////////////////////////////////////////////////////////////////////////
@@ -133,3 +135,4 @@ double FSocialActionTimeTracker::FSocialActionStep::GetDurationMs() const
 	double TotalSeconds = (EndTime != 0.0 ? EndTime : FPlatformTime::Seconds()) - StartTime;
 	return TotalSeconds * 1000.0;
 }
+

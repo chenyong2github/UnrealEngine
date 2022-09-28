@@ -13,6 +13,8 @@
 
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraEmitterSection)
+
 #define LOCTEXT_NAMESPACE "MovieSceneNiagaraEmitterTimedSection"
 
 FName TimelineModeKey("TimelineMode");

@@ -5,6 +5,8 @@
 #include "Components/BoxComponent.h"
 #include "VirtualHeightfieldMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VirtualHeightfieldMeshActor)
+
 AVirtualHeightfieldMesh::AVirtualHeightfieldMesh(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -24,3 +26,4 @@ AVirtualHeightfieldMesh::AVirtualHeightfieldMesh(const FObjectInitializer& Objec
 	Box->SetupAttachment(VirtualHeightfieldMeshComponent);
 #endif
 }
+

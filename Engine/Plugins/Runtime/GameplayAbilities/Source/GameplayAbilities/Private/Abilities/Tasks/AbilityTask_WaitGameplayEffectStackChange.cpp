@@ -4,6 +4,8 @@
 
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitGameplayEffectStackChange)
+
 
 UAbilityTask_WaitGameplayEffectStackChange::UAbilityTask_WaitGameplayEffectStackChange(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -65,3 +67,4 @@ void UAbilityTask_WaitGameplayEffectStackChange::OnGameplayEffectStackChange(FAc
 		OnChange.Broadcast(InHandle, NewCount, OldCount);
 	}
 }
+

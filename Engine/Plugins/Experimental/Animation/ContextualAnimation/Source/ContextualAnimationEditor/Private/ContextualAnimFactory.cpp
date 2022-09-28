@@ -3,6 +3,8 @@
 #include "ContextualAnimFactory.h"
 #include "ContextualAnimSceneAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimFactory)
+
 #define LOCTEXT_NAMESPACE "ContextualAnimFactory"
 
 UContextualAnimFactory::UContextualAnimFactory(const FObjectInitializer& ObjectInitializer)
@@ -24,3 +26,4 @@ UObject* UContextualAnimFactory::FactoryCreateNew(UClass* Class, UObject* InPare
 }
 
 #undef LOCTEXT_NAMESPACE
+

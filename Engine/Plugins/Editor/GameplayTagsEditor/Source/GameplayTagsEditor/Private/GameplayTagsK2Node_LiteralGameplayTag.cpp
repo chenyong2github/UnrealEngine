@@ -11,6 +11,8 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintGameplayTagLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagsK2Node_LiteralGameplayTag)
+
 #define LOCTEXT_NAMESPACE "GameplayTagsK2Node_LiteralGameplayTag"
 
 UGameplayTagsK2Node_LiteralGameplayTag::UGameplayTagsK2Node_LiteralGameplayTag(const FObjectInitializer& ObjectInitializer)
@@ -78,3 +80,4 @@ void UGameplayTagsK2Node_LiteralGameplayTag::ConvertDeprecatedNode(UEdGraph* Gra
 }
 
 #undef LOCTEXT_NAMESPACE
+

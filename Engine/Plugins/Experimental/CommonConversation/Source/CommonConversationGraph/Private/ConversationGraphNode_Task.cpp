@@ -6,6 +6,8 @@
 #include "SGraphEditorActionMenuAI.h"
 #include "ToolMenu.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_Task)
+
 #define LOCTEXT_NAMESPACE "ConversationGraph"
 
 UConversationGraphNode_Task::UConversationGraphNode_Task(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)

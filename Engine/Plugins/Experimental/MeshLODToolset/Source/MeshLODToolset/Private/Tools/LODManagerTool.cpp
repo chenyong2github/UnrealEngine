@@ -26,6 +26,8 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LODManagerTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "ULODManagerTool"
@@ -677,3 +679,4 @@ void ULODManagerTool::RemoveUnreferencedMaterials()
 }
 
 #undef LOCTEXT_NAMESPACE
+

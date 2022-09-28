@@ -3,6 +3,8 @@
 #include "NiagaraCompileHash.h"
 #include "Misc/SecureHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraCompileHash)
+
 bool FNiagaraCompileHash::operator==(const FSHAHash& Other) const
 {
 	if (DataHash.Num() != HashSize)
@@ -56,3 +58,4 @@ FArchive& operator<<(FArchive& Ar, FNiagaraCompileHash& Id)
 {
 	return Ar << Id.DataHash;
 }
+

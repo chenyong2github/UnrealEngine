@@ -3,6 +3,8 @@
 #include "ImagePlateFileSequenceFactory.h"
 #include "ImagePlateFileSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImagePlateFileSequenceFactory)
+
 #define LOCTEXT_NAMESPACE "ImagePlateFileSequenceFactory"
 
 UImagePlateFileSequenceFactory::UImagePlateFileSequenceFactory(const FObjectInitializer& ObjectInitializer)
@@ -23,3 +25,4 @@ UObject* UImagePlateFileSequenceFactory::FactoryCreateNew(UClass* Class,UObject*
 }
 
 #undef LOCTEXT_NAMESPACE
+

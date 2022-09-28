@@ -15,6 +15,8 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeneratedNaniteDisplacedMeshEditorSubsystem)
+
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::RegisterClassHandler(const TSubclassOf<AActor>& ActorClass, FActorClassHandler&& ActorClassHandler)
 {
 	ActorClassHandlers.Add(ActorClass.Get(), MoveTemp(ActorClassHandler));
@@ -731,3 +733,4 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDispla
 		}
 	}
 }
+

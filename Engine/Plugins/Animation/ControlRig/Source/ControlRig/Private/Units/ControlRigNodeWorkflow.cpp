@@ -3,6 +3,8 @@
 #include "Units/ControlRigNodeWorkflow.h"
 #include "RigVMCore/RigVMStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigNodeWorkflow)
+
 #if WITH_EDITOR
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/RigVMController.h"

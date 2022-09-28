@@ -89,6 +89,8 @@
 #include "Curves/RichCurve.h"
 #include "Engine/UserDefinedEnum.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackGraphUtilitiesAdapterLibrary)
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UFXConverterUtilitiesLibrary																			  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2211,3 +2213,4 @@ FNiagaraEventScriptProperties FNiagaraEventHandlerAddAction::GetEventScriptPrope
 	EventScriptProperties.MinSpawnNumber = MinSpawnNumber;
 	return EventScriptProperties;
 }
+

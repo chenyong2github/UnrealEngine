@@ -44,6 +44,8 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeGenericMaterialPipeline)
+
 #define LOCTEXT_NAMESPACE "InterchangeGenericMaterialPipeline"
 
 FString LexToString(UInterchangeGenericMaterialPipeline::EMaterialInputType Value)

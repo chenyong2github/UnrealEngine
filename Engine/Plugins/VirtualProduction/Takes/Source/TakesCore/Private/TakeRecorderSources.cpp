@@ -20,6 +20,8 @@
 #include "Misc/App.h"
 #include "Editor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderSources)
+
 DEFINE_LOG_CATEGORY(SubSequenceSerialization);
 
 TArray<TPair<FQualifiedFrameTime, FQualifiedFrameTime> > UTakeRecorderSources::RecordedTimes;
@@ -701,3 +703,4 @@ void UTakeRecorderSources::RemoveRedundantTracks()
 		UE_LOG(LogTakesCore, Log, TEXT("Removed %d unused object bindings in (%s)"), BindingsToRemove.Num(), *LevelSequence->GetName());
 	}
 }
+

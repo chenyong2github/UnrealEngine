@@ -25,6 +25,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LatticeDeformerTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "ULatticeDeformerTool"
@@ -552,3 +554,4 @@ FString FLatticeDeformerToolConstrainedPointsChange::ToString() const
 
 
 #undef LOCTEXT_NAMESPACE
+

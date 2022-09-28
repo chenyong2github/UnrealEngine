@@ -24,6 +24,8 @@
 #include "WaterVersion.h"
 #include "Misc/MapErrors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyActor)
+
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"

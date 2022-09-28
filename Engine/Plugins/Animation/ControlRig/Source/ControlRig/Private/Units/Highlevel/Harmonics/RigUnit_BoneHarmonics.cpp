@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "AnimationCoreLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_BoneHarmonics)
+
 FRigUnit_BoneHarmonics_Execute()
 {
 	TArray<FRigUnit_Harmonics_TargetItem> Targets;
@@ -128,3 +130,4 @@ FRigUnit_ItemHarmonics_Execute()
 
 	WaveTime += WaveSpeed * Context.DeltaTime;
 }
+

@@ -29,6 +29,8 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceStaticMesh)
+
 #if WITH_EDITOR
 #include "Subsystems/ImportSubsystem.h"
 #include "Editor.h"
@@ -5094,3 +5096,4 @@ FStaticMeshUvMappingHandle FNDI_StaticMesh_GeneratedData::GetCachedUvMapping(TWe
 }
 
 #undef LOCTEXT_NAMESPACE
+

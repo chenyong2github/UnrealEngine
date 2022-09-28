@@ -3,6 +3,8 @@
 #include "RigUnit_IsInteracting.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_IsInteracting)
+
 FRigUnit_IsInteracting_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -13,3 +15,4 @@ FRigUnit_IsInteracting_Execute()
 	bIsScaling = ( Context.InteractionType & (uint8)EControlRigInteractionType::Scale) != 0;
 	Items = Context.ElementsBeingInteracted;
 }
+

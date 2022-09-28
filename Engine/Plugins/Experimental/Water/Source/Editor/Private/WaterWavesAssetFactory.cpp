@@ -4,6 +4,8 @@
 #include "AssetTypeCategories.h"
 #include "WaterWaves.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterWavesAssetFactory)
+
 #define LOCTEXT_NAMESPACE "WaterWavesAssetFactory"
 
 UWaterWavesAssetFactory::UWaterWavesAssetFactory()

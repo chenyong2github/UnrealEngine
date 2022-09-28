@@ -5,6 +5,8 @@
 #include "EngineUtils.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorLayerUtilities)
+
 IMPLEMENT_MODULE(FDefaultModuleImpl, ActorLayerUtilities)
 
 TArray<AActor*> ULayersBlueprintLibrary::GetActors(UObject* WorldContextObject, const FActorLayer& ActorLayer)
@@ -45,3 +47,4 @@ void ULayersBlueprintLibrary::RemoveActorFromLayer(AActor* InActor, const FActor
 		InActor->Layers.Remove(Layer.Name);
 	}
 }
+

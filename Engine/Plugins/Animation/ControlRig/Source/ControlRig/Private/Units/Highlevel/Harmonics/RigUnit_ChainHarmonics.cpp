@@ -4,6 +4,8 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_ChainHarmonics)
+
 FRigUnit_ChainHarmonics_Execute()
 {
 	FRigUnit_ChainHarmonicsPerItem::StaticExecute(

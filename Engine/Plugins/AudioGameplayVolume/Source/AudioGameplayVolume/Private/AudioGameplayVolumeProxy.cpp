@@ -10,6 +10,8 @@
 #include "Components/BrushComponent.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeProxy)
+
 UAudioGameplayVolumeProxy::UAudioGameplayVolumeProxy(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -202,3 +204,4 @@ void UAGVConditionProxy::InitFromComponent(const UAudioGameplayVolumeComponent* 
 		}
 	}
 }
+

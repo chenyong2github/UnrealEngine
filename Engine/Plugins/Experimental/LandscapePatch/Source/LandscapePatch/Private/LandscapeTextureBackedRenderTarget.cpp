@@ -9,6 +9,8 @@
 #include "TextureCompiler.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTextureBackedRenderTarget)
+
 namespace LandscapeTextureBackedRenderTargetLocals
 {
 #if WITH_EDITOR

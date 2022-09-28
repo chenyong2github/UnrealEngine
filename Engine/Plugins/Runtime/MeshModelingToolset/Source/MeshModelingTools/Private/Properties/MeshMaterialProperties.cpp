@@ -6,6 +6,8 @@
 
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshMaterialProperties)
+
 #define LOCTEXT_NAMESPACE "UMeshMaterialProperites"
 
 UNewMeshMaterialProperties::UNewMeshMaterialProperties()
@@ -71,3 +73,4 @@ void UExistingMeshMaterialProperties::UpdateUVChannels(int32 UVChannelIndex, con
 }
 
 #undef LOCTEXT_NAMESPACE
+

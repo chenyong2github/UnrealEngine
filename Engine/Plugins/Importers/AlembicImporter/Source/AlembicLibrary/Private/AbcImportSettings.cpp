@@ -6,6 +6,8 @@
 #include "UObject/Package.h"
 #include "UObject/ReleaseObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbcImportSettings)
+
 UAbcImportSettings::UAbcImportSettings(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {

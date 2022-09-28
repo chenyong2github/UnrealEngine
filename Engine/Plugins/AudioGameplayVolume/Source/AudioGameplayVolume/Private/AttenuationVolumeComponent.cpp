@@ -4,6 +4,8 @@
 #include "ActiveSound.h"
 #include "AudioGameplayFlags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AttenuationVolumeComponent)
+
 constexpr TCHAR FProxyMutator_Attenuation::MutatorAttenuationName[];
 
 FProxyMutator_Attenuation::FProxyMutator_Attenuation()
@@ -64,3 +66,4 @@ void UAttenuationVolumeComponent::CopyAudioDataToMutator(TSharedPtr<FProxyVolume
 	AttenuationMutator->InteriorVolume = InteriorVolume;
 	AttenuationMutator->InteriorTime = InteriorTime;
 }
+

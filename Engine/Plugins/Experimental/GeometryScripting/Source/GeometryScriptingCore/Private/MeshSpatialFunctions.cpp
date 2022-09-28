@@ -9,6 +9,8 @@
 #include "MeshQueries.h"
 #include "Spatial/FastWinding.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSpatialFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshSpatial"
@@ -274,3 +276,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSpatial::IsPointInsideMesh(
 
 
 #undef LOCTEXT_NAMESPACE
+

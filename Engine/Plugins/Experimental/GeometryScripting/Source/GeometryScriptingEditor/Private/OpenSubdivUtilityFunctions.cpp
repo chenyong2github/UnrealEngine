@@ -8,6 +8,8 @@
 #include "GroupTopology.h"
 #include "UDynamicMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OpenSubdivUtilityFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_OpenSubdivUtilityFunctions"

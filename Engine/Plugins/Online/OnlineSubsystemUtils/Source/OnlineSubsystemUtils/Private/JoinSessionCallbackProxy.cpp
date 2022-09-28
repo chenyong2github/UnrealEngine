@@ -7,6 +7,8 @@
 #include "OnlineSubsystemBPCallHelper.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(JoinSessionCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UJoinSessionCallbackProxy
 
@@ -80,3 +82,4 @@ void UJoinSessionCallbackProxy::OnCompleted(FName SessionName, EOnJoinSessionCom
 
 	OnFailure.Broadcast();
 }
+

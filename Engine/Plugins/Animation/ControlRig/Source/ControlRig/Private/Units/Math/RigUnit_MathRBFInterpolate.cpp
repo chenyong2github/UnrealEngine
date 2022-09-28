@@ -7,6 +7,8 @@
 #include "Containers/HashTable.h"
 #include "Misc/MemStack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathRBFInterpolate)
+
 // Helper function for additive blending of quaternions.
 static FQuat AddQuatWithWeight(const FQuat& Q, const FQuat& V, float Weight)
 {
@@ -503,3 +505,4 @@ FRigUnit_MathRBFInterpolateVectorXform_Execute()
 
 	Output = FTransform(Rotation, Translation, Scale);
 }
+

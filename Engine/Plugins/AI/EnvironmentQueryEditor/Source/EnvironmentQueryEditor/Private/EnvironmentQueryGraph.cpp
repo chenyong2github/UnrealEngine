@@ -14,6 +14,8 @@
 #include "EnvironmentQueryGraphNode_Root.h"
 #include "EnvironmentQueryGraphNode_Test.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryGraph)
+
 //////////////////////////////////////////////////////////////////////////
 // EnvironmentQueryGraph
 
@@ -599,3 +601,4 @@ void UEnvironmentQueryGraph::StoreProfilerStats(const FEQSDebugger::FStatsInfo& 
 }
 
 #endif // USE_EQS_DEBUGGER
+

@@ -5,6 +5,8 @@
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_PBIKSolver)
+
 #define LOCTEXT_NAMESPACE "UIKRigPBIKSolver"
 
 void UIKRigPBIKSolver::Initialize(const FIKRigSkeleton& InSkeleton)
@@ -388,3 +390,4 @@ int32 UIKRigPBIKSolver::GetIndexOfGoal(const FName& OldName) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

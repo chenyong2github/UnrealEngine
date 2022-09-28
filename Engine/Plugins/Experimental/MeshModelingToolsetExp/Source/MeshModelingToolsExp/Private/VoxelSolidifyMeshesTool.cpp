@@ -22,6 +22,8 @@
 
 #include "CompositionOps/VoxelSolidifyMeshesOp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VoxelSolidifyMeshesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UVoxelSolidifyMeshesTool"
@@ -92,3 +94,4 @@ FText UVoxelSolidifyMeshesTool::GetActionName() const
 
 
 #undef LOCTEXT_NAMESPACE
+

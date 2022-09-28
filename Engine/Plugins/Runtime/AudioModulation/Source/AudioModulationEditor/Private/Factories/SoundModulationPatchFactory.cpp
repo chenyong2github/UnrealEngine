@@ -4,6 +4,8 @@
 #include "AudioAnalytics.h"
 #include "SoundModulationPatch.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationPatchFactory)
+
 
 USoundModulationPatchFactory::USoundModulationPatchFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -19,3 +21,4 @@ UObject* USoundModulationPatchFactory::FactoryCreateNew(UClass* Class, UObject* 
 	Audio::Analytics::RecordEvent_Usage(TEXT("AudioModulation.ParameterPatchCreated"));
 	return NewObject<USoundModulationPatch>(InParent, Name, Flags);
 }
+

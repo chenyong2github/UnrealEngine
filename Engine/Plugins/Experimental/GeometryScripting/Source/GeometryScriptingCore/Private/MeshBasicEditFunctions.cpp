@@ -9,6 +9,8 @@
 #include "DynamicMeshEditor.h"
 #include "TransformSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBasicEditFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshBasicEditFunctions"
@@ -673,3 +675,4 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendBuffersToMesh
 
 
 #undef LOCTEXT_NAMESPACE
+

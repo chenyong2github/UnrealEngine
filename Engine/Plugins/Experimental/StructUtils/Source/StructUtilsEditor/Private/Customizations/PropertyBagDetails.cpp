@@ -20,6 +20,8 @@
 #include "PropertyBag.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyBagDetails)
+
 #define LOCTEXT_NAMESPACE "StructUtilsEditor"
 
 ////////////////////////////////////
@@ -797,3 +799,4 @@ bool UPropertyBagSchema::SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaA
 
 
 #undef LOCTEXT_NAMESPACE
+

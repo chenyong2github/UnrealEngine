@@ -6,6 +6,8 @@
 #include "EditorFramework/AssetImportData.h"
 #include "PaperSpriteSheet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteSheetReimportFactory)
+
 #define LOCTEXT_NAMESPACE "PaperJsonImporter"
 
 //////////////////////////////////////////////////////////////////////////
@@ -107,3 +109,4 @@ int32 UPaperSpriteSheetReimportFactory::GetPriority() const
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

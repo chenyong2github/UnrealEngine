@@ -8,6 +8,8 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_ApplyRootMotionRadialForce)
+
 UAbilityTask_ApplyRootMotionRadialForce::UAbilityTask_ApplyRootMotionRadialForce(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -159,3 +161,4 @@ void UAbilityTask_ApplyRootMotionRadialForce::OnDestroy(bool AbilityIsEnding)
 
 	Super::OnDestroy(AbilityIsEnding);
 }
+

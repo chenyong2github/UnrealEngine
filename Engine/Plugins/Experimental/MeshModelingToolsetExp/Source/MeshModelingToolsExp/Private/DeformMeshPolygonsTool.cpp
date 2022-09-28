@@ -12,6 +12,8 @@
 #include "ModelingToolTargetUtil.h"
 #include "Curves/RichCurve.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeformMeshPolygonsTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDeformMeshPolygonsTool"
@@ -1676,3 +1678,4 @@ void UDeformMeshPolygonsTool::EndChange()
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -22,6 +22,8 @@
 #include "K2Node_AssignmentStatement.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_GetInputActionValue)
+
 #define LOCTEXT_NAMESPACE "K2Node_GetInputActionValue"
 
 
@@ -268,3 +270,4 @@ FBlueprintNodeSignature UK2Node_GetInputActionValue::GetSignature() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

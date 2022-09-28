@@ -19,6 +19,8 @@
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SimplifyMeshTool)
+
 
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
@@ -261,3 +263,4 @@ void USimplifyMeshTool::UpdateVisualization()
 
 
 #undef LOCTEXT_NAMESPACE
+

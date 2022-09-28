@@ -8,6 +8,8 @@
 #include "GameplayTask_PlayContextualAnim.h"
 #include "VisualLogger/VisualLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimStateTreeTask)
+
 
 #define ST_ANIM_TASK_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Verbosity, TEXT("[%s] ") Format, *StaticStruct()->GetName(), ##__VA_ARGS__)
 #define ST_ANIM_TASK_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), Context.GetOwner(), LogStateTree, Verbosity, TEXT("[%s] ") Format, *StaticStruct()->GetName(), ##__VA_ARGS__)
@@ -128,3 +130,4 @@ void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context
 		}
 	}
 }
+

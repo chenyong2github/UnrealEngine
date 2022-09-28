@@ -56,6 +56,8 @@
 static_assert(WITH_EDITOR, "Tool being compiled without editor");
 #include "Misc/ScopedSlowTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GenerateStaticMeshLODAssetTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGenerateStaticMeshLODAssetTool"
@@ -722,3 +724,4 @@ void UGenerateStaticMeshLODAssetTool::OnPresetSelectionChanged()
 
 
 #undef LOCTEXT_NAMESPACE
+

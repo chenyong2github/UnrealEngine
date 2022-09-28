@@ -7,6 +7,8 @@
 #include "Engine/World.h"
 #include "Icmp.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(QosEvaluator)
+
 UQosEvaluator::UQosEvaluator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ParentWorld(nullptr)
@@ -374,3 +376,4 @@ bool UQosEvaluator::PingRegionServers(const FQosParams& InParams, const FOnQosSe
 
 	return true;
 }
+

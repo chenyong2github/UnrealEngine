@@ -3,6 +3,8 @@
 #include "CommonGenericInputActionDataTableFactory.h"
 #include "Input/CommonGenericInputActionDataTable.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonGenericInputActionDataTableFactory)
+
 UCommonGenericInputActionDataTableFactory::UCommonGenericInputActionDataTableFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -16,3 +18,4 @@ UObject* UCommonGenericInputActionDataTableFactory::FactoryCreateNew(UClass* Cla
 	check(Class && Class->IsChildOf(UCommonGenericInputActionDataTable::StaticClass()));
 	return NewObject<UCommonGenericInputActionDataTable>(Parent, Class, Name, Flags);
 }
+

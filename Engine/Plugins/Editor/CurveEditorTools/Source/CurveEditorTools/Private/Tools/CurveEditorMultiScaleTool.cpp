@@ -23,6 +23,8 @@
 #include "SCurveEditorPanel.h"
 #include "Algo/MaxElement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CurveEditorMultiScaleTool)
+
 #define LOCTEXT_NAMESPACE "CurveEditorToolCommands"
 
 namespace CurveEditorMultiScaleTool
@@ -682,3 +684,4 @@ FVector2D FCurveEditorMultiScaleTool::GetPivot(FCurveModel* InCurve, const TArra
 }
 
 #undef LOCTEXT_NAMESPACE
+

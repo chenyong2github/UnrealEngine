@@ -6,6 +6,8 @@
 #include "NiagaraComponent.h"
 #include "Styling/AppStyle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSequencerFilters)
+
 #define LOCTEXT_NAMESPACE "NiagaraSequencerTrackFilters"
 
 //////////////////////////////////////////////////////////////////////////
@@ -53,3 +55,4 @@ void UNiagaraSequencerTrackFilter::AddTrackFilterExtensions(TArray< TSharedRef<c
 }
 
 #undef LOCTEXT_NAMESPACE
+

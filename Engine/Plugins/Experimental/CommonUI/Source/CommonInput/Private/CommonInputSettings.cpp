@@ -10,6 +10,8 @@
 #include "CommonInputBaseTypes.h"
 #include "Engine/PlatformSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputSettings)
+
 UCommonInputSettings::UCommonInputSettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 	, bInputDataLoaded(false)
@@ -186,3 +188,4 @@ void UCommonInputSettings::PostInitProperties()
 	}
 #endif
 }
+

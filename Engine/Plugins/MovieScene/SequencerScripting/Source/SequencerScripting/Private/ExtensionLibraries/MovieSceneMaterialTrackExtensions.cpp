@@ -3,6 +3,8 @@
 #include "ExtensionLibraries/MovieSceneMaterialTrackExtensions.h"
 #include "Tracks/MovieSceneMaterialTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMaterialTrackExtensions)
+
 void UMovieSceneMaterialTrackExtensions::SetMaterialIndex(UMovieSceneComponentMaterialTrack* Track, const int32 MaterialIndex)
 {
 	if (!Track)
@@ -25,5 +27,6 @@ int32 UMovieSceneMaterialTrackExtensions::GetMaterialIndex(UMovieSceneComponentM
 
 	return Track->GetMaterialIndex();
 }
+
 
 

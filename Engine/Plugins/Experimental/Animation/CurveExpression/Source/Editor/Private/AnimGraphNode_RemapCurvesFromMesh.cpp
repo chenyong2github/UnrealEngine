@@ -4,6 +4,8 @@
 
 #include "Animation/AnimAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_RemapCurvesFromMesh)
+
 #define LOCTEXT_NAMESPACE "AnimGraphNode_RemapCurvesFromMesh"
 
 
@@ -56,3 +58,4 @@ FAnimNode_RemapCurvesFromMesh* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedNo
 }
 
 #undef LOCTEXT_NAMESPACE
+

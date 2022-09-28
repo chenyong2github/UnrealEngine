@@ -10,6 +10,8 @@
 #include "Async/ParallelFor.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorUVTransformOp)
+
 using namespace UE::Geometry;
 
 namespace TransformOpLocals
@@ -984,3 +986,4 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		return nullptr;
 	}
 }
+

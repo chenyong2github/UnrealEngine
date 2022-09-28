@@ -5,6 +5,8 @@
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraConstants.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeReroute)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeReroute"
 
 UNiagaraNodeReroute::UNiagaraNodeReroute(const FObjectInitializer& ObjectInitializer)
@@ -264,3 +266,4 @@ void UNiagaraNodeReroute::PropagatePinTypeFromDirection(bool bFromInput)
 }
 
 #undef LOCTEXT_NAMESPACE
+

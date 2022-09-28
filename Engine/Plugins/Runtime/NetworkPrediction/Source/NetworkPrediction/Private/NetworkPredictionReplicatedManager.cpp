@@ -4,6 +4,8 @@
 #include "Net/UnrealNetwork.h"
 #include "NetworkPredictionWorldManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NetworkPredictionReplicatedManager)
+
 
 ANetworkPredictionReplicatedManager::FOnAuthoritySpawn ANetworkPredictionReplicatedManager::OnAuthoritySpawnDelegate;
 TWeakObjectPtr<ANetworkPredictionReplicatedManager> ANetworkPredictionReplicatedManager::AuthorityInstance;

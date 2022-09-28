@@ -12,6 +12,8 @@
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigArrayNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -226,3 +228,4 @@ bool UControlRigArrayNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilt
 }
 
 #undef LOCTEXT_NAMESPACE
+

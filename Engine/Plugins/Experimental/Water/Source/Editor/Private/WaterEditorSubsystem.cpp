@@ -20,6 +20,8 @@
 #include "WaterModule.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterEditorSubsystem)
+
 #define LOCTEXT_NAMESPACE "WaterEditorSubsystem"
 
 UWaterEditorSubsystem::UWaterEditorSubsystem()
@@ -91,3 +93,4 @@ UTexture2D* UWaterEditorSubsystem::GetWaterActorSprite(UClass* InClass) const
 }
 
 #undef LOCTEXT_NAMESPACE
+

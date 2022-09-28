@@ -9,6 +9,8 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangePhysicsAssetFactory)
+
 UClass* UInterchangePhysicsAssetFactory::GetFactoryClass() const
 {
 	return UPhysicsAsset::StaticClass();
@@ -133,3 +135,4 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& 
 	return PhysicsAssetObject;
 #endif
 }
+

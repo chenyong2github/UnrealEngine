@@ -4,6 +4,8 @@
 #include "StructView.h"
 #include "StructUtilsTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SharedStruct)
+
 ///////////////////////////////////////////////////////////////// FConstSharedStruct /////////////////////////////////////////////////////////////////
 
 bool FConstSharedStruct::Identical(const FConstSharedStruct* Other, uint32 PortFlags) const

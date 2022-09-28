@@ -15,6 +15,8 @@
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSectionTemplate)
+
 static TAutoConsoleVariable<int32> CVarSequencerAlwaysSendInterpolatedLiveLink(
 	TEXT("Sequencer.AlwaysSendInterpolatedLiveLink"),
 	0,
@@ -489,4 +491,5 @@ void FMovieSceneLiveLinkSectionTemplate::GetFirstTimeArray(TArrayView<const FFra
 		}
 	}
 }
+
 

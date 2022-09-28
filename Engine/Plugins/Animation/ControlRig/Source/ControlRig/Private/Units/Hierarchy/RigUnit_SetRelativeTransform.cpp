@@ -7,6 +7,8 @@
 #include "Units/Hierarchy/RigUnit_GetRelativeTransform.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetRelativeTransform)
+
 FRigUnit_SetRelativeTransformForItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -64,3 +66,4 @@ FRigUnit_SetRelativeRotationForItem_Execute()
 	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, LocalTransform, ParentTransform, GlobalTransform, Context);
 	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, ExecuteContext, Context);
 }
+

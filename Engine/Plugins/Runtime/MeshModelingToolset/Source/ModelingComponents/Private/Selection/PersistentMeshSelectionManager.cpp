@@ -8,6 +8,8 @@
 #include "ContextObjectStore.h"
 #include "Drawing/PreviewGeometryActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PersistentMeshSelectionManager)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDEPRECATED_PersistentMeshSelectionManager"

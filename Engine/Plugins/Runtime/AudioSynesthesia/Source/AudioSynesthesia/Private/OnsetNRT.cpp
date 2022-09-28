@@ -4,6 +4,8 @@
 #include "OnsetNRTFactory.h"
 #include "AudioSynesthesiaLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnsetNRT)
+
 namespace
 {
 	// Looks up onsets that fall between two timestamps and adds there info to the output arrays. 
@@ -224,4 +226,5 @@ FName UOnsetNRT::GetAnalyzerNRTFactoryName() const
 	static const FName FactoryName(TEXT("OnsetNRTFactory"));
 	return FactoryName;
 }
+
 

@@ -3,6 +3,8 @@
 #include "RigUnit_Float.h"
 #include "Units/Math/RigUnit_MathFloat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Float)
+
 FRigUnit_Multiply_FloatFloat_Execute()
 {
 	Result = FRigMathLibrary::Multiply(Argument0, Argument1);

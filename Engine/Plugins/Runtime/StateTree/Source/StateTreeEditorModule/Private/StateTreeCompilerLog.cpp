@@ -6,6 +6,8 @@
 #include "Logging/LogCategory.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeCompilerLog)
+
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
 void FStateTreeCompilerLog::AppendToLog(IMessageLogListing* LogListing) const
@@ -70,3 +72,4 @@ void FStateTreeCompilerLog::DumpToLog(const FLogCategoryBase& Category) const
 
 
 #undef LOCTEXT_NAMESPACE
+

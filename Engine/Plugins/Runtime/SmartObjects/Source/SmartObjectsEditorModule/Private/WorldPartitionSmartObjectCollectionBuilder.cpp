@@ -9,6 +9,8 @@
 #include "SmartObjectSubsystem.h"
 #include "UObject/SavePackage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSmartObjectCollectionBuilder)
+
 UWorldPartitionSmartObjectCollectionBuilder::UWorldPartitionSmartObjectCollectionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), MainCollection(nullptr)
 {
@@ -162,3 +164,4 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 
 	return true;
 }
+

@@ -23,6 +23,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "UObject/UObjectAnnotation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineObjectIdPass)
+
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
 namespace UE
 {
@@ -664,3 +666,4 @@ namespace MoviePipeline
 
 	}
 }
+

@@ -19,6 +19,8 @@
 #include "AssetTypeCategories.h"
 #include "AssetTypeActions_Base.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserFileDataSource)
+
 #define LOCTEXT_NAMESPACE "ContentBrowserFileDataSource"
 
 DEFINE_LOG_CATEGORY_STATIC(LogContentBrowserFileDataSource, Warning, Warning);
@@ -2089,3 +2091,4 @@ FContentBrowserItemData UContentBrowserFileDataSource::OnFinalizeDuplicateFile(c
 }
 
 #undef LOCTEXT_NAMESPACE
+

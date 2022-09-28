@@ -2,6 +2,8 @@
 
 #include "FalloffSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FalloffSettings)
+
 FLandmassFalloffSettings::FLandmassFalloffSettings()
 	: FalloffMode(EBrushFalloffMode::Angle)
 	, FalloffAngle(45.0f)
@@ -11,3 +13,4 @@ FLandmassFalloffSettings::FLandmassFalloffSettings()
 {
 
 }
+

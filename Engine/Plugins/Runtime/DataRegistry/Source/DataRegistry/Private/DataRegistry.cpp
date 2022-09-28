@@ -12,6 +12,8 @@
 #include "Misc/App.h"
 #include "GameplayTagsManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistry)
+
 #define LOCTEXT_NAMESPACE "DataRegistryEditor"
 
 UDataRegistry::UDataRegistry()
@@ -1198,3 +1200,4 @@ class FTimerManager* UDataRegistry::GetTimerManager()
 }
 
 #undef LOCTEXT_NAMESPACE
+

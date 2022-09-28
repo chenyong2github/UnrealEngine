@@ -2,6 +2,8 @@
 
 #include "InterchangeSkeletalMeshLodDataNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletalMeshLodDataNode)
+
 //Interchange namespace
 namespace UE::Interchange
 {
@@ -106,3 +108,4 @@ bool UInterchangeSkeletalMeshLodDataNode::IsEditorOnlyDataDefined()
 	return false;
 #endif
 }
+

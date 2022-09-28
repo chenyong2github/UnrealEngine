@@ -20,6 +20,8 @@
 #include "Editor.h"
 #include "NiagaraNodeFunctionCall.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeStaticSwitch)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
 namespace NiagaraStaticSwitchCVars
@@ -997,3 +999,4 @@ FLinearColor UNiagaraNodeStaticSwitch::GetNodeTitleColor() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

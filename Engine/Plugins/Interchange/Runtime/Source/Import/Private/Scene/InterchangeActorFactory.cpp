@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeActorFactory)
+
 UClass* UInterchangeActorFactory::GetFactoryClass() const
 {
 	return AActor::StaticClass();

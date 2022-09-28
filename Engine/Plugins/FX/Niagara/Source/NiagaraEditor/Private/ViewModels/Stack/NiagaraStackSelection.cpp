@@ -5,6 +5,8 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystemEditorData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackSelection)
+
 void UNiagaraStackSelection::Initialize(FRequiredEntryData InRequiredEntryData)
 {
 	Super::Initialize(InRequiredEntryData, TEXT("Selection"));

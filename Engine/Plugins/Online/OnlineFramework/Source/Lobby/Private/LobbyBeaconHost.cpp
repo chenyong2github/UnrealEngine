@@ -12,6 +12,8 @@
 #include "LobbyBeaconPlayerState.h"
 #include "OnlineSubsystemUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LobbyBeaconHost)
+
 DEFINE_LOG_CATEGORY(LogLobbyBeacon);
 
 
@@ -346,4 +348,5 @@ void ALobbyBeaconHost::DumpState() const
 		LobbyState->DumpState();
 	}
 }
+
 

@@ -14,6 +14,8 @@
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "Templates/SharedPointer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkSubSectionAnimation)
+
 #define LOCTEXT_NAMESPACE "MovieSceneLiveLinkSubSectionAnimation"
 
 
@@ -117,3 +119,4 @@ bool UMovieSceneLiveLinkSubSectionAnimation::IsRoleSupported(const TSubclassOf<U
 }
 
 #undef LOCTEXT_NAMESPACE // MovieSceneLiveLinkAnimationSection
+

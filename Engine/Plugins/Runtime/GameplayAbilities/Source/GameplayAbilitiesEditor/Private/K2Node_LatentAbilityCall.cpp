@@ -9,6 +9,8 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "Kismet2/CompilerResultsLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_LatentAbilityCall)
+
 static FName FK2Node_LatentAbilityCallHelper_RequiresConnection(TEXT("RequiresConnection"));
 
 /////////////////////////////////////////////////////
@@ -110,3 +112,4 @@ void UK2Node_LatentAbilityCall::ValidateNodeDuringCompilation(class FCompilerRes
 }
 
 #undef LOCTEXT_NAMESPACE
+

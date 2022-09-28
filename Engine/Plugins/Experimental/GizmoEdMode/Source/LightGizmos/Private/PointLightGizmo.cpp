@@ -3,6 +3,8 @@
 #include "PointLightGizmo.h"
 #include "Components/PointLightComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PointLightGizmo)
+
 #define LOCTEXT_NAMESPACE "UScalableSphereGizmo"
 
 UInteractiveGizmo* UPointLightGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const

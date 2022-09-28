@@ -4,6 +4,8 @@
 #include "ConversationEditorColors.h"
 #include "ConversationChoiceNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationGraphNode_Choice)
+
 #define LOCTEXT_NAMESPACE "ConversationGraph"
 
 UConversationGraphNode_Choice::UConversationGraphNode_Choice(const FObjectInitializer& ObjectInitializer)

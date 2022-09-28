@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitTargetData)
+
 UAbilityTask_WaitTargetData::UAbilityTask_WaitTargetData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -382,3 +384,4 @@ bool UAbilityTask_WaitTargetData::ShouldReplicateDataToServer() const
 
 
 // --------------------------------------------------------------------------------------
+

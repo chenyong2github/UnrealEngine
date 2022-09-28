@@ -3,6 +3,8 @@
 #include "RigUnit_Transform.h"
 #include "Units/Math/RigUnit_MathTransform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Transform)
+
 FRigUnit_MultiplyTransform_Execute()
 {
 	Result = Argument0*Argument1;
@@ -37,3 +39,4 @@ FRigVMStructUpgradeInfo FRigUnit_GetRelativeTransform::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("Result"), TEXT("Local"));
 	return Info;
 }
+

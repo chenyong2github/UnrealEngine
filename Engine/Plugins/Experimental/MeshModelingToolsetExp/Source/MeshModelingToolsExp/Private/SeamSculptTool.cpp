@@ -26,6 +26,8 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SeamSculptTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionTool"

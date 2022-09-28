@@ -9,6 +9,8 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SOverlay.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonAnimatedSwitcher)
+
 UCommonAnimatedSwitcher::UCommonAnimatedSwitcher(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, TransitionType(ECommonSwitcherTransition::FadeOnly)
@@ -191,3 +193,4 @@ bool UCommonAnimatedSwitcher::IsTransitionPlaying() const
 		return false;
 	}
 }
+

@@ -21,6 +21,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorGraphMemberDefaults)
+
 namespace Metasound
 {
 	namespace Editor
@@ -389,3 +391,4 @@ void UMetasoundEditorGraphMemberDefaultObjectArray::UpdatePreviewInstance(const 
 	Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphMemberDefaultObjectRef& InValue) { return InValue.Object; });
 	// TODO. We need proxy object here safely.
 }
+

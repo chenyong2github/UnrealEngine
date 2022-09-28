@@ -52,6 +52,8 @@
 #include "LevelEditor.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorder)
+
 #define LOCTEXT_NAMESPACE "TakeRecorder"
 
 DEFINE_LOG_CATEGORY(ManifestSerialization);
@@ -1313,3 +1315,4 @@ void UTakeRecorder::HandlePIE(bool bIsSimulating)
 }
 
 #undef LOCTEXT_NAMESPACE
+

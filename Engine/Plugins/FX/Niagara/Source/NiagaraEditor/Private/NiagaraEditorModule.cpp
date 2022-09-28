@@ -152,6 +152,8 @@
 #include "NiagaraGraphDataCache.h"
 #include "Misc/ScopedSlowTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorModule)
+
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
 #define LOCTEXT_NAMESPACE "NiagaraEditorModule"
@@ -1940,3 +1942,4 @@ void FNiagaraEditorModule::PreloadSelectablePluginAssetsByClass(UClass* InClass)
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

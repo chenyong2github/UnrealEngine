@@ -6,6 +6,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetImportTestFunctions)
+
 UClass* UAssetImportTestFunctions::GetAssociatedAssetType() const
 {
 	return UObject::StaticClass();
@@ -63,4 +65,5 @@ FInterchangeTestFunctionResult UAssetImportTestFunctions::CheckMetadataValue(con
 	}
 	return Result;
 }
+
 

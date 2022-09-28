@@ -8,6 +8,8 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParticleID.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceNeighborGrid3D)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceNeighborGrid3D"
 
 static const FString MaxNeighborsPerCellName(TEXT("_MaxNeighborsPerCellValue"));
@@ -685,3 +687,4 @@ bool UNiagaraDataInterfaceNeighborGrid3D::CopyToInternal(UNiagaraDataInterface* 
 }
 
 #undef LOCTEXT_NAMESPACE
+

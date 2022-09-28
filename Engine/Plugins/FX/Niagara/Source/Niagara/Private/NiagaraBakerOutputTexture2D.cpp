@@ -3,6 +3,8 @@
 #include "NiagaraBakerOutputTexture2D.h"
 #include "NiagaraBakerSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerOutputTexture2D)
+
 #define LOCTEXT_NAMESPACE "NiagaraBakerOutputTexture2D"
 
 bool UNiagaraBakerOutputTexture2D::Equals(const UNiagaraBakerOutput& OtherBase) const
@@ -93,3 +95,4 @@ void UNiagaraBakerOutputTexture2D::PostEditChangeProperty(struct FPropertyChange
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

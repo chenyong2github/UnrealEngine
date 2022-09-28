@@ -3,6 +3,8 @@
 #include "RigUnit_FABRIK.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_FABRIK)
+
 FRigUnit_FABRIK_Execute()
 {
 	if (Context.State == EControlRigState::Init)
@@ -204,3 +206,4 @@ FRigUnit_FABRIKItemArray_Execute()
 		}
 	}
 }
+

@@ -5,6 +5,8 @@
 #include "Roles/LiveLinkBasicRole.h"
 #include "Misc/AutomationTest.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkTest)
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLiveLinkInterpolationTest, "System.Engine.Animation.LiveLink.Interpolation", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
@@ -144,3 +146,4 @@ bool FLiveLinkInterpolationTest::RunTest(const FString& Parameters)
 
 
 #endif //WITH_DEV_AUTOMATION_TESTS
+

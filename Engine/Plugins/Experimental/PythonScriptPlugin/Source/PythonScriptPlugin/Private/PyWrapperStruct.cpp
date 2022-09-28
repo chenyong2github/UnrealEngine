@@ -12,6 +12,8 @@
 #include "Templates/Casts.h"
 #include "Engine/UserDefinedStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PyWrapperStruct)
+
 #if WITH_PYTHON
 
 void InitializePyWrapperStruct(PyGenUtil::FNativePythonModule& ModuleInfo)
@@ -1736,3 +1738,4 @@ UPythonGeneratedStruct* UPythonGeneratedStruct::GenerateStruct(PyTypeObject* InP
 }
 
 #endif	// WITH_PYTHON
+

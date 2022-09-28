@@ -17,6 +17,8 @@
 #include "GameplayCueManager.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffect)
+
 #if ENABLE_VISUAL_LOG
 //#include "VisualLogger/VisualLogger.h"
 #endif // ENABLE_VISUAL_LOG
@@ -5270,4 +5272,5 @@ FScopedActiveGameplayEffectLock::~FScopedActiveGameplayEffectLock()
 {
 	Container.DecrementLock();
 }
+
 

@@ -9,6 +9,8 @@
 #include "Math/UnitConversion.h"
 #include "CommonCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonNumericTextBlock)
+
 UCommonNumericTextBlock::UCommonNumericTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, CurrentNumericValue(0.0f)

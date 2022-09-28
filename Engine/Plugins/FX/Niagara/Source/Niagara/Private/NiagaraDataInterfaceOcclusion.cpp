@@ -10,6 +10,8 @@
 #include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceOcclusion)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceOcclusion"
 
 const TCHAR* UNiagaraDataInterfaceOcclusion::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceOcclusion.ush");
@@ -158,3 +160,4 @@ void UNiagaraDataInterfaceOcclusion::SetShaderParameters(const FNiagaraDataInter
 }
 
 #undef LOCTEXT_NAMESPACE
+

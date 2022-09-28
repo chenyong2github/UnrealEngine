@@ -3,6 +3,8 @@
 #include "Types/MVVMViewModelContext.h"
 #include "MVVMViewModelBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelContext)
+
 bool FMVVMViewModelContext::IsValid() const
 {
 	return !ContextName.IsNone() && ContextClass.Get() != nullptr;
@@ -29,3 +31,4 @@ bool FMVVMViewModelContext::IsCompatibleWith(const UMVVMViewModelBase* Other) co
 {
 	return  ContextClass.Get() && Other && Other->GetClass()->IsChildOf(ContextClass.Get());
 }
+

@@ -5,6 +5,8 @@
 #include "Dataflow/DataflowObject.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowAssetFactory)
+
 
 
 UDataflowAssetFactory::UDataflowAssetFactory()
@@ -37,3 +39,4 @@ bool UDataflowAssetFactory::ConfigureProperties()
 {
 	return true;
 }
+

@@ -11,6 +11,8 @@
 
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceParticleRead)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceParticleRead"
 
 struct FNiagaraParticleReadDIFunctionVersion
@@ -2578,3 +2580,4 @@ bool UNiagaraDataInterfaceParticleRead::ReadsEmitterParticleData(const FString& 
 }
 
 #undef LOCTEXT_NAMESPACE
+

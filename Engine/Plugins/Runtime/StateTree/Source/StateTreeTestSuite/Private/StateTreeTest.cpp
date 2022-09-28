@@ -12,6 +12,8 @@
 #include "Engine/World.h"
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTest)
+
 #define LOCTEXT_NAMESPACE "AITestSuite_StateTreeTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
@@ -569,3 +571,4 @@ IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_SharedInstanceData, "System.StateTree.S
 PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
+

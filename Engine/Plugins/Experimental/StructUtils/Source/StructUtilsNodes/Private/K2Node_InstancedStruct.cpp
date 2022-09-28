@@ -1,10 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_InstancedStruct.h"
 #include "EdGraphSchema_K2.h"
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "StructUtilsFunctionLibrary.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_InstancedStruct)
 
 #define LOCTEXT_NAMESPACE "InstancedStruct"
 
@@ -59,3 +61,4 @@ bool UK2Node_InstancedStruct::IsConnectionDisallowed(const UEdGraphPin* MyPin, c
 }
 
 #undef LOCTEXT_NAMESPACE
+

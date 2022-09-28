@@ -16,6 +16,8 @@
 #include "ConcertLogGlobal.h"
 #include "HAL/IConsoleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConcertClientPresenceActor)
+
 #define LOCTEXT_NAMESPACE "ConcertClientPresenceActor"
 
 static TAutoConsoleVariable<int32> CVarEnablePresenceInGame(TEXT("Concert.EnablePresenceInGame"), 0, TEXT("Enable Concert Presence in Game"));
@@ -156,4 +158,5 @@ void AConcertClientPresenceActor::InitPresence(const UConcertAssetContainer& InA
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

@@ -7,6 +7,8 @@
 #include "Containers/UnrealString.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AvfFileMediaSourceFactory)
+
 
 /* UAvfFileMediaSourceFactory structors
  *****************************************************************************/
@@ -53,3 +55,4 @@ UObject* UAvfFileMediaSourceFactory::FactoryCreateFile(UClass* InClass, UObject*
 
 	return MediaSource;
 }
+

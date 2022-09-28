@@ -9,6 +9,8 @@
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "Properties/ParameterizeMeshProperties.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ParameterizeMeshTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UParameterizeMeshTool"
@@ -269,3 +271,4 @@ void UParameterizeMeshTool::OnPreviewMeshUpdated()
 
 
 #undef LOCTEXT_NAMESPACE
+

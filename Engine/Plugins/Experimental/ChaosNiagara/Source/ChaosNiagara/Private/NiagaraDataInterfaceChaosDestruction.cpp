@@ -18,6 +18,8 @@
 #include <memory>
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceChaosDestruction)
+
 #define LOCTEXT_NAMESPACE "ChaosNiagaraDestructionDataInterface"
 //#pragma optimize("", off)
 
@@ -3626,3 +3628,4 @@ void FNiagaraDataInterfaceProxyChaosDestruction::PostSimulate(const FNDIGpuCompu
 }
 
 #undef LOCTEXT_NAMESPACE
+

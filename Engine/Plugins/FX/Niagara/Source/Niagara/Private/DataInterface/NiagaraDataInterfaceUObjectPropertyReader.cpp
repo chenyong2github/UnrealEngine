@@ -9,6 +9,8 @@
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceUObjectPropertyReader)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceUObjectPropertyReader"
 
 //////////////////////////////////////////////////////////////////////////
@@ -948,3 +950,4 @@ void UNiagaraDataInterfaceUObjectPropertyReader::VMGetComponentInvTransform(FVec
 
 #undef NDI_PROPERTY_TYPES
 #undef LOCTEXT_NAMESPACE
+

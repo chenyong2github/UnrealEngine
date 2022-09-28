@@ -13,6 +13,8 @@
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationEditorCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputTestFramework)
+
 FMockedEnhancedInputSubsystem::FMockedEnhancedInputSubsystem(const UControllablePlayer& PlayerData)
 : PlayerInput(PlayerData.PlayerInput)
 {

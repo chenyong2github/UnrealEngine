@@ -3,6 +3,8 @@
 #include "RigUnit_UserDefinedEvent.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_UserDefinedEvent)
+
 FString FRigUnit_UserDefinedEvent::GetUnitLabel() const
 {
 	if(EventName.IsNone())
@@ -28,3 +30,4 @@ FRigUnit_UserDefinedEvent_Execute()
 		UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Unable to run event - EventName is None."));
 	}
 }
+

@@ -12,6 +12,8 @@
 #include "FractureEditorModeToolkit.h"
 #include "FractureToolContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolSlice)
+
 #define LOCTEXT_NAMESPACE "FractureSlice"
 
 

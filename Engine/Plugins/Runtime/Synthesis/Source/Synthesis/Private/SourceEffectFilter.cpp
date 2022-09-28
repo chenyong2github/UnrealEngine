@@ -5,6 +5,8 @@
 #include "DSP/Dsp.h"
 #include "AudioMixerDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectFilter)
+
 PRAGMA_DISABLE_OPTIMIZATION
 
 FSourceEffectFilter::FSourceEffectFilter()
@@ -213,3 +215,4 @@ void USourceEffectFilterPreset::SetSettings(const FSourceEffectFilterSettings& I
 }
 
 PRAGMA_ENABLE_OPTIMIZATION
+

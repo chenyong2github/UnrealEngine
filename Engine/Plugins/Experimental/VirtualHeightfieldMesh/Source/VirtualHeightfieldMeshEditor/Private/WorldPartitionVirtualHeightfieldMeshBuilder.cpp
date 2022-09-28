@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "VirtualHeightfieldMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionVirtualHeightfieldMeshBuilder)
+
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionVirtualHeightfieldMeshBuilder, All, All);
 
 UWorldPartitionVirtualHeightfieldMeshBuilder::UWorldPartitionVirtualHeightfieldMeshBuilder(const FObjectInitializer& ObjectInitializer)
@@ -67,3 +69,4 @@ bool UWorldPartitionVirtualHeightfieldMeshBuilder::RunInternal(UWorld* World, co
 
 	return true;
 }
+

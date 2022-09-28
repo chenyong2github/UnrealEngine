@@ -14,6 +14,8 @@
 #include "PlayerMappableInputConfig.h"
 #include "EnhancedInputPlatformSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputSubsystemInterface)
+
 /* Shared input subsystem functionality.
  * See EnhancedInputSubsystemInterfaceDebug.cpp for debug specific functionality.
  */

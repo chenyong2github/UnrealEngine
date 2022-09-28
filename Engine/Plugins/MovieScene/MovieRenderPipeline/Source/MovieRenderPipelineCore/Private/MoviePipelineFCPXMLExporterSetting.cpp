@@ -19,6 +19,8 @@
 // For logs
 #include "MovieRenderPipelineCoreModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineFCPXMLExporterSetting)
+
 void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 {
 	bHasFinishedExporting = true;

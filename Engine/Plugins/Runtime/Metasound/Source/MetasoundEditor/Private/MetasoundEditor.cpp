@@ -65,6 +65,8 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWindow.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditor)
+
 struct FGraphActionNode;
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
@@ -3490,3 +3492,4 @@ namespace Metasound
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

@@ -2,6 +2,8 @@
 
 #include "MovieScene/MovieSceneNiagaraTrack.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneNiagaraTrack)
+
 void UMovieSceneNiagaraTrack::AddSection(UMovieSceneSection& Section)
 {
 	Sections.Add(&Section);
@@ -36,3 +38,4 @@ void UMovieSceneNiagaraTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	Sections.RemoveAt(SectionIndex);
 }
+

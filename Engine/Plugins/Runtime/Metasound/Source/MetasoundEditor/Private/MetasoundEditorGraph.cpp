@@ -18,6 +18,8 @@
 #include "ScopedTransaction.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorGraph)
+
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
 
@@ -1983,3 +1985,4 @@ bool UMetasoundEditorGraph::RemoveFrontendVariable(UMetasoundEditorGraphVariable
 }
 
 #undef LOCTEXT_NAMESPACE
+

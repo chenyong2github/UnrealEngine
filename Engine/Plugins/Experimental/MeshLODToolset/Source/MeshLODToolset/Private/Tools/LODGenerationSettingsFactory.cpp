@@ -4,6 +4,8 @@
 #include "Tools/LODGenerationSettingsAsset.h"
 #include "AssetTypeCategories.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LODGenerationSettingsFactory)
+
 #define LOCTEXT_NAMESPACE "UStaticMeshLODGenerationSettingsFactory"
 
 UStaticMeshLODGenerationSettingsFactory::UStaticMeshLODGenerationSettingsFactory(const FObjectInitializer& ObjectInitializer)

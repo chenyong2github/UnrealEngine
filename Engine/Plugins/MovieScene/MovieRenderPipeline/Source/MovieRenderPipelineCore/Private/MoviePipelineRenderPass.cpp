@@ -3,6 +3,8 @@
 #include "MoviePipelineRenderPass.h"
 #include "Engine/RendererSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineRenderPass)
+
 void UMoviePipelineRenderPass::ValidateStateImpl()
 {
 	Super::ValidateStateImpl();

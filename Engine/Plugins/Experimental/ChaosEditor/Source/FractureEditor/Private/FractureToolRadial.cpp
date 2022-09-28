@@ -4,6 +4,8 @@
 
 #include "FractureToolContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolRadial)
+
 
 #define LOCTEXT_NAMESPACE "FractureRadial"
 
@@ -104,3 +106,4 @@ void UFractureToolRadial::SelectedBonesChanged()
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -7,6 +7,8 @@
 #include "NiagaraGraph.h"
 #include "Misc/FileHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeCustomHlsl)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeCustomHlsl"
 
 UNiagaraNodeCustomHlsl::UNiagaraNodeCustomHlsl(const FObjectInitializer& ObjectInitializer)
@@ -613,4 +615,5 @@ void UNiagaraNodeCustomHlsl::RebuildSignatureFromPins()
 }
 
 #undef LOCTEXT_NAMESPACE
+
 

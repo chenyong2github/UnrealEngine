@@ -15,6 +15,8 @@
 #include "Editor.h"
 #include "WaterBodyActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSplineMetadataDetails)
+
 #define LOCTEXT_NAMESPACE "FWaterSplineMetadataDetails"
 
 UWaterSplineMetadataDetailsFactory::UWaterSplineMetadataDetailsFactory(const FObjectInitializer& ObjInitializer)

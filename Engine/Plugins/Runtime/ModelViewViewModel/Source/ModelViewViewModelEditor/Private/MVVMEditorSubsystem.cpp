@@ -23,6 +23,8 @@
 #include "Types/MVVMBindingSource.h"
 #include "WidgetBlueprint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMEditorSubsystem)
+
 #define LOCTEXT_NAMESPACE "MVVMEditorSubsystem"
 
 namespace UE::MVVM::Private
@@ -1134,3 +1136,4 @@ TArray<FMVVMAvailableBinding> UMVVMEditorSubsystem::GetChildViewModels(TSubclass
 }
 
 #undef LOCTEXT_NAMESPACE
+

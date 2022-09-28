@@ -14,6 +14,8 @@
 
 #include "MeshDescription.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightsPaintTool)
+
 
 #define LOCTEXT_NAMESPACE "USkinWeightsPaintTool"
 
@@ -729,3 +731,4 @@ USkeleton* USkinWeightsPaintToolProperties::GetSkeleton(bool& bInvalidSkeletonIs
 
 
 #undef LOCTEXT_NAMESPACE
+

@@ -19,6 +19,8 @@
 #include "Engine/Engine.h"
 #include "InstallBundleTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeaturesSubsystem)
+
 DEFINE_LOG_CATEGORY(LogGameFeatures);
 
 const uint32 FInstallBundlePluginProtocolMetaData::FDefaultValues::CurrentVersionNum = 1;
@@ -1744,3 +1746,4 @@ EGameFeaturePluginState UGameFeaturesSubsystem::ConvertInitialFeatureStateToTarg
 	}
 	return InitialState;
 }
+

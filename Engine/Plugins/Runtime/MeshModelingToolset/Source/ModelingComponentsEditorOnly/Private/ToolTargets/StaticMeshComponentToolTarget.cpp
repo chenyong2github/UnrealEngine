@@ -12,6 +12,8 @@
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "StaticMeshAttributes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshComponentToolTarget)
+
 using namespace UE::Geometry;
 
 void UStaticMeshComponentToolTarget::SetEditingLOD(EMeshLODIdentifier RequestedEditingLOD)

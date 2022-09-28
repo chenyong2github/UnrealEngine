@@ -19,6 +19,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "Widgets/Input/SSearchBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SIKRigRetargetChainList)
+
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
 static const FName ColumnId_ChainNameLabel( "Chain Name" );
@@ -763,3 +765,4 @@ void SIKRigRetargetChainList::MirrorSelectedChains() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

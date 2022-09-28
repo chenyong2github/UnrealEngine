@@ -8,6 +8,8 @@
 #include "Algo/Find.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequenceExtensions)
+
 TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FilterTracks(TArrayView<UMovieSceneTrack* const> InTracks, UClass* DesiredClass, bool bExactMatch)
 {
 	TArray<UMovieSceneTrack*> Tracks;
@@ -1227,3 +1229,4 @@ bool UMovieSceneSequenceExtensions::IsReadOnly(UMovieSceneSequence* Sequence)
 
 	return false;
 }
+

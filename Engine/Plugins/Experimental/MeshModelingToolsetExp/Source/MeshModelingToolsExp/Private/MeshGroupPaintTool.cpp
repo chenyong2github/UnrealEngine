@@ -32,6 +32,8 @@
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshGroupPaintTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshGroupPaintTool"
@@ -1655,3 +1657,4 @@ void UMeshGroupPaintTool::ApplyAction(EMeshGroupPaintToolActions ActionType)
 
 
 #undef LOCTEXT_NAMESPACE
+

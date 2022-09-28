@@ -3,6 +3,8 @@
 #include "PaperGroupedSpriteActor.h"
 #include "PaperGroupedSpriteComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperGroupedSpriteActor)
+
 #define LOCTEXT_NAMESPACE "Paper2D"
 
 //////////////////////////////////////////////////////////////////////////
@@ -30,3 +32,4 @@ bool APaperGroupedSpriteActor::GetReferencedContentObjects(TArray<UObject*>& Obj
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
+

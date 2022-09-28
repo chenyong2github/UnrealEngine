@@ -13,6 +13,8 @@
 #include "ContextualAnimSceneAsset.h"
 #include "GameFramework/Character.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimTypes)
+
 DEFINE_LOG_CATEGORY(LogContextualAnim);
 
 const FContextualAnimSceneBinding FContextualAnimSceneBinding::InvalidBinding;

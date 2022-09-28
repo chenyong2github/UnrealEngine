@@ -22,6 +22,8 @@
 #include "Nodes/InterchangeSourceNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeAnimSequenceFactory)
+
 #if WITH_EDITORONLY_DATA
 
 #include "EditorFramework/AssetImportData.h"
@@ -1049,3 +1051,4 @@ bool UInterchangeAnimSequenceFactory::IsBoneTrackAnimationValid(const UInterchan
 	}
 	return bResult;
 }
+

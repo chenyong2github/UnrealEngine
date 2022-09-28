@@ -15,6 +15,8 @@
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_PlayNiagaraEffect)
+
 /////////////////////////////////////////////////////
 // UAnimNotify_PlayNiagaraEffect
 
@@ -134,3 +136,4 @@ UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::GetSpawnedEffect()
 {
 	return SpawnedEffect;
 }
+

@@ -10,6 +10,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "CommonInputBaseTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputBaseTypes)
+
 const FName FCommonInputDefaults::PlatformPC(TEXT("PC"));
 const FName FCommonInputDefaults::GamepadGeneric(TEXT("Generic"));
 
@@ -478,3 +480,4 @@ void FCommonInputBase::GetCurrentPlatformDefaults(ECommonInputType& OutDefaultIn
 	OutDefaultInputType = UCommonInputPlatformSettings::Get()->GetDefaultInputType();
 	OutDefaultGamepadName = UCommonInputPlatformSettings::Get()->GetDefaultGamepadName();
 }
+

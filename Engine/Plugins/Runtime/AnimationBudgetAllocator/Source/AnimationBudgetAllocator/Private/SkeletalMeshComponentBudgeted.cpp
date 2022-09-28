@@ -8,6 +8,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "GameFramework/Controller.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshComponentBudgeted)
+
 CSV_DECLARE_CATEGORY_EXTERN(AnimationBudget);
 
 FOnCalculateSignificance USkeletalMeshComponentBudgeted::OnCalculateSignificanceDelegate;

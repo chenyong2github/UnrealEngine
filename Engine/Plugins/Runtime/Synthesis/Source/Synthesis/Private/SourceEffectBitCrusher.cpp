@@ -5,6 +5,8 @@
 #include "Algo/Transform.h"
 #include "IAudioModulation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectBitCrusher)
+
 
 void FSourceEffectBitCrusher::Init(const FSoundEffectSourceInitData& InitData)
 {

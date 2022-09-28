@@ -3,6 +3,8 @@
 #include "SoundCueTemplate.h"
 #include "ObjectEditorUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueTemplate)
+
 namespace SoundCueTemplateConsoleVariables
 {
 	float NodeWidthOffset = 500.f;
@@ -88,3 +90,4 @@ float USoundCueTemplate::GetInitialHeightOffset()
 }
 
 #endif // WITH_EDITOR
+

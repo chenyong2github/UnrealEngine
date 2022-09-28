@@ -7,6 +7,8 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "UObject/UnrealType.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintView)
+
 
 FMVVMBlueprintViewModelContext* UMVVMBlueprintView::FindViewModel(FGuid ViewModelId)
 {
@@ -217,3 +219,4 @@ void UMVVMBlueprintView::WidgetRenamed(FName OldObjectName, FName NewObjectName)
 	}
 }
 #endif
+

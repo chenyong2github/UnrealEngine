@@ -10,6 +10,8 @@
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundFactory)
+
 
 namespace Metasound
 {
@@ -100,3 +102,4 @@ UObject* UMetaSoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InP
 
 	return NewSource;
 }
+

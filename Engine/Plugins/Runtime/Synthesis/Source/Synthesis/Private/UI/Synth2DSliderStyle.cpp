@@ -7,6 +7,8 @@
 #include "UI/SynthSlateStyle.h"
 #include "HAL/FileManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Synth2DSliderStyle)
+
 FSynth2DSliderStyle::FSynth2DSliderStyle()
 	: BarThickness(2.0f)
 {
@@ -36,3 +38,4 @@ const FSynth2DSliderStyle& FSynth2DSliderStyle::GetDefault()
 }
 
 const FName FSynth2DSliderStyle::TypeName(TEXT("Synth2DSliderStyle"));
+

@@ -24,6 +24,8 @@
 // requires ModelingComponents
 #include "Physics/PhysicsDataCollection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionFunctions)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif

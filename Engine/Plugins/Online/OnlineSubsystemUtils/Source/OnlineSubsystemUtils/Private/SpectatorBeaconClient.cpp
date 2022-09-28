@@ -4,6 +4,8 @@
 #include "OnlineSubsystemUtils.h"
 #include "SpectatorBeaconHost.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SpectatorBeaconClient)
+
 #if !UE_BUILD_SHIPPING
 namespace SpectatorBeaconConsoleVariables
 {
@@ -467,3 +469,4 @@ FTimerHandle ASpectatorBeaconClient::DelayResponse(FTimerDelegate& Delegate, flo
 
 	return TimerHandle;
 }
+

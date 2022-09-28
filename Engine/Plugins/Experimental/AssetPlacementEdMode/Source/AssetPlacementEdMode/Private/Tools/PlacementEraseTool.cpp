@@ -19,6 +19,8 @@
 #include "EditorModeManager.h"
 #include "ContextObjectStore.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlacementEraseTool)
+
 constexpr TCHAR UPlacementModeEraseTool::ToolName[];
 
 UPlacementBrushToolBase* UPlacementModeEraseToolBuilder::FactoryToolInstance(UObject* Outer) const
@@ -72,3 +74,4 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 		ElementCommonActions->DeleteNormalizedElements(NormalizedElementsToDelete, AssetEditorContext->GetEditingWorld(), SelectionSet, FTypedElementDeletionOptions());
 	}
 }
+

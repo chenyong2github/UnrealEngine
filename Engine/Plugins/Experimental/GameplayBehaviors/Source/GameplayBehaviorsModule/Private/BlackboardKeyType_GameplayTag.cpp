@@ -2,6 +2,8 @@
 
 #include "BlackboardKeyType_GameplayTag.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BlackboardKeyType_GameplayTag)
+
 const UBlackboardKeyType_GameplayTag::FDataType UBlackboardKeyType_GameplayTag::InvalidValue = FGameplayTagContainer::EmptyContainer;
 
 UBlackboardKeyType_GameplayTag::UBlackboardKeyType_GameplayTag(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)

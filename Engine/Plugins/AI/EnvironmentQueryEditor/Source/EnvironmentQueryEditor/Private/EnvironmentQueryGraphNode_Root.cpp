@@ -2,6 +2,8 @@
 
 #include "EnvironmentQueryGraphNode_Root.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryGraphNode_Root)
+
 UEnvironmentQueryGraphNode_Root::UEnvironmentQueryGraphNode_Root(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	bIsReadOnly = true;
@@ -45,3 +47,4 @@ void UEnvironmentQueryGraphNode_Root::LogDebugError(const FString& Message)
 		bHasDebugError = true;
 	}
 }
+

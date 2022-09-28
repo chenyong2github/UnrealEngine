@@ -8,6 +8,8 @@
 #include "ControlRig.h"
 #include "Algo/Sort.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DetailsViewWrapperObject)
+
 #if WITH_EDITOR
 #include "PropertyEditorModule.h"
 #endif
@@ -688,3 +690,4 @@ void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 		Property->ImportText_InContainer(*DefaultValue, this, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);
 	}
 }
+

@@ -33,6 +33,8 @@
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGraphNode)
+
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
 #endif //WITH_EDITOR
@@ -1234,3 +1236,4 @@ void UControlRigGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, URigVMPin* Mode
 }
 
 #undef LOCTEXT_NAMESPACE
+

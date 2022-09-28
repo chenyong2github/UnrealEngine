@@ -3,6 +3,8 @@
 #include "AudioGameplayComponent.h"
 #include "AudioGameplayLogs.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayComponent)
+
 UAudioGameplayComponent::UAudioGameplayComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -54,3 +56,4 @@ void UAudioGameplayComponent::Disable()
 {
 	UE_LOG(AudioGameplayLog, Verbose, TEXT("AudioGameplayComponent Disabled (%s)."), *GetFullName());
 }
+

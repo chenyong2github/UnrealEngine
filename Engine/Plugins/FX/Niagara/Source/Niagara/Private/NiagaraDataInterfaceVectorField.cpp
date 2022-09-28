@@ -9,6 +9,9 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraComponent.h"
 #include "NiagaraShaderParametersBuilder.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVectorField)
+
 #if INTEL_ISPC
 #include "NiagaraDataInterfaceVectorField.ispc.generated.h"
 #endif
@@ -835,3 +838,4 @@ void UNiagaraDataInterfaceVectorField::PushToRenderThreadImpl()
 }
 
 #undef LOCTEXT_NAMESPACE
+

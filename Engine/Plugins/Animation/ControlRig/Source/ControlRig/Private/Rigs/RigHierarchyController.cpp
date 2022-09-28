@@ -13,6 +13,8 @@
 
 #include "ControlRig.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigHierarchyController)
+
 ////////////////////////////////////////////////////////////////////////////////
 // URigHierarchyController
 ////////////////////////////////////////////////////////////////////////////////
@@ -2847,3 +2849,4 @@ void URigHierarchyController::ReportAndNotifyError(const FString& InMessage) con
 	}
 #endif
 }
+

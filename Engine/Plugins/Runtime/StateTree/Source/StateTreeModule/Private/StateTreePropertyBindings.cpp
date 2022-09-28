@@ -2,6 +2,8 @@
 #include "StateTreePropertyBindings.h"
 #include "StateTreeTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindings)
+
 //----------------------------------------------------------------//
 //  FStateTreePropertyBindings
 //----------------------------------------------------------------//
@@ -781,3 +783,4 @@ bool FStateTreeEditorPropertyPath::operator==(const FStateTreeEditorPropertyPath
 
 	return true;
 }
+

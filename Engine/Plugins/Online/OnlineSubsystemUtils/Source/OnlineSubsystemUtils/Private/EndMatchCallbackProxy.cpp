@@ -8,6 +8,8 @@
 #include "OnlineSubsystem.h"
 #include "Interfaces/TurnBasedMatchInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EndMatchCallbackProxy)
+
 //////////////////////////////////////////////////////////////////////////
 // UEndMatchCallbackProxy
 
@@ -73,3 +75,4 @@ void UEndMatchCallbackProxy::EndMatchDelegate(FString InMatchID, bool Succeeded)
 		OnFailure.Broadcast();
 	}
 }
+

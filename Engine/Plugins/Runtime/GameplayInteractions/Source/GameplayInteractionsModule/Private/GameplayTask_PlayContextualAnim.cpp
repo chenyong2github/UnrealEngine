@@ -12,6 +12,8 @@
 #include "GameplayActuationComponent.h"
 #include "GameplayTasksComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTask_PlayContextualAnim)
+
 
 //-----------------------------------------------------
 // FGameplayActuationState_ContextualAnim
@@ -521,3 +523,4 @@ void UGameplayTask_PlayContextualAnim::TickTask(float DeltaTime)
 	}
 }
 #endif
+

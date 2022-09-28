@@ -5,6 +5,8 @@
 #include "CommonActivatableWidget.h"
 #include "CommonUIUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActivatableWidgetSwitcher)
+
 void UCommonActivatableWidgetSwitcher::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
@@ -105,3 +107,4 @@ UCommonActivatableWidget* UCommonActivatableWidgetSwitcher::GetOwningActivatable
 {
 	return WeakOwningActivatableWidget.IsSet() ? WeakOwningActivatableWidget.GetValue().Get() : nullptr;
 }
+

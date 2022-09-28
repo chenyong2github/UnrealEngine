@@ -6,6 +6,8 @@
 #include "Net/Core/Connection/NetConnectionFaultRecoveryBase.h"
 #include "Engine/NetConnection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OodleNetworkFaultHandler)
+
 
 /**
  * EOodleNetResult
@@ -99,3 +101,4 @@ UE::Net::EHandleNetResult FOodleNetworkFaultHandler::HandleNetResult(UE::Net::FN
 		
 	return ReturnVal;
 }
+

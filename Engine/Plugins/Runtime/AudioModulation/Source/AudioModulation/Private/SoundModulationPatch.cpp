@@ -10,6 +10,8 @@
 #include "SoundModulationParameter.h"
 #include "SoundModulationPatchProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationPatch)
+
 
 #define LOCTEXT_NAMESPACE "SoundModulationPatch"
 
@@ -80,3 +82,4 @@ const USoundControlBus& FSoundControlModulationInput::GetBusChecked() const
 	return *Bus;
 }
 #undef LOCTEXT_NAMESPACE // SoundModulationPatch
+

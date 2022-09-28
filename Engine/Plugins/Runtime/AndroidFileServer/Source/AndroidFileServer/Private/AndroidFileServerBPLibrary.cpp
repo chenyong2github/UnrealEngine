@@ -3,6 +3,8 @@
 #include "AndroidFileServerBPLibrary.h"
 #include "AndroidFileServer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidFileServerBPLibrary)
+
 #if PLATFORM_ANDROID
 
 #include "Android/AndroidJNI.h"
@@ -60,4 +62,5 @@ TEnumAsByte<EAFSActiveType::Type> UAndroidFileServerBPLibrary::IsFileServerRunni
 #endif
 	return result;
 }
+
 

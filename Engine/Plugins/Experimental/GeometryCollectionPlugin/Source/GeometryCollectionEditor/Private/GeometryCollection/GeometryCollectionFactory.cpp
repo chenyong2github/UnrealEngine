@@ -16,6 +16,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionFactory)
+
 #define LOCTEXT_NAMESPACE "GeometryCollection"
 
 /////////////////////////////////////////////////////
@@ -193,6 +195,7 @@ UObject* UGeometryCollectionFactory::FactoryCreateNew(UClass* Class, UObject* In
 }
 
 #undef LOCTEXT_NAMESPACE
+
 
 
 

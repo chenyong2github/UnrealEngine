@@ -15,6 +15,8 @@
 
 #include "AssetToolsModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetPlacementSettings)
+
 bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
@@ -212,3 +214,4 @@ UPlacementPaletteAsset* UAssetPlacementSettings::GetMutableActivePalette()
 	}
 	return UserPalette;
 }
+

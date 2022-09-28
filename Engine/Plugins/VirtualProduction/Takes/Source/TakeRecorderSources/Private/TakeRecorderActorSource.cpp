@@ -42,6 +42,8 @@
 #include "MovieSceneTakeSection.h"
 #include "MovieSceneTakeSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderActorSource)
+
 DEFINE_LOG_CATEGORY(ActorSerialization);
 
 #define LOCTEXT_NAMESPACE "UTakeRecorderActorSource"
@@ -1839,3 +1841,4 @@ UActorRecorderPropertyMap* UTakeRecorderActorSource::GetParentPropertyMapForComp
 }
 
 #undef LOCTEXT_NAMESPACE // "UTakeRecorderActorSource"
+

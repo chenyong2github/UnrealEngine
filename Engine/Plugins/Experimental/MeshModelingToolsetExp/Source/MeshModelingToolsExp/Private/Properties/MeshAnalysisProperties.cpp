@@ -10,6 +10,8 @@
 #include "Internationalization/Text.h"
 #include "Math/BasicMathExpressionEvaluator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshAnalysisProperties)
+
 #define LOCTEXT_NAMESPACE "UMeshAnalysisProperites"
 
 using namespace UE::Geometry;
@@ -71,3 +73,4 @@ void UMeshAnalysisProperties::Update(const FDynamicMesh3& MeshIn, const FTransfo
 
 
 #undef LOCTEXT_NAMESPACE
+

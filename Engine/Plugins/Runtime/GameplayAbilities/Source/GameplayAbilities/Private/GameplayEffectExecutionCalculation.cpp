@@ -3,6 +3,8 @@
 #include "GameplayEffectExecutionCalculation.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectExecutionCalculation)
+
 FGameplayEffectCustomExecutionParameters::FGameplayEffectCustomExecutionParameters()
 	: OwningSpec(nullptr)
 	, TargetAbilitySystemComponent(nullptr)
@@ -405,3 +407,4 @@ bool UGameplayEffectExecutionCalculation::DoesRequirePassedInTags() const
 void UGameplayEffectExecutionCalculation::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, OUT FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 {
 }
+

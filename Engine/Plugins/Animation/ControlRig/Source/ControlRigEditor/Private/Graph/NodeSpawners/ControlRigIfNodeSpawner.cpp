@@ -12,6 +12,8 @@
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMIfNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigIfNodeSpawner)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -152,3 +154,4 @@ bool UControlRigIfNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter 
 }
 
 #undef LOCTEXT_NAMESPACE
+

@@ -4,6 +4,8 @@
 #include "UObject/Package.h"
 #include "AudioDevice.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynthComponentGranulator)
+
 UGranularSynth::UGranularSynth(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)
 	, bIsLoaded(false)

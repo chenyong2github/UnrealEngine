@@ -5,6 +5,8 @@
 #include "CommonWidgetPaletteCategories.h"
 #include "Containers/Ticker.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CommonWidgetCarousel)
+
 UCommonWidgetCarousel::UCommonWidgetCarousel(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

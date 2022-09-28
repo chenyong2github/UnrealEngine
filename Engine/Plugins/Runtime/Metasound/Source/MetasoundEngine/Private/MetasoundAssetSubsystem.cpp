@@ -17,6 +17,8 @@
 #include "MetasoundUObjectRegistry.h"
 #include "UObject/NoExportTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundAssetSubsystem)
+
 
 namespace Metasound
 {
@@ -521,3 +523,4 @@ void UMetaSoundAssetSubsystem::UnregisterAssetClassesInDirectories(const TArray<
 		}
 	});
 }
+

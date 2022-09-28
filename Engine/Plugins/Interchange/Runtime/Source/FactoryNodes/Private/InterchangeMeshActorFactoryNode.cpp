@@ -2,6 +2,8 @@
 
 #include "InterchangeMeshActorFactoryNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMeshActorFactoryNode)
+
 #if WITH_ENGINE
 	#include "GameFramework/Actor.h"
 #endif
@@ -30,3 +32,4 @@ bool UInterchangeMeshActorFactoryNode::RemoveSlotMaterialDependencyUid(const FSt
 {
 	return SlotMaterialDependencies.RemoveKey(SlotName);
 }
+

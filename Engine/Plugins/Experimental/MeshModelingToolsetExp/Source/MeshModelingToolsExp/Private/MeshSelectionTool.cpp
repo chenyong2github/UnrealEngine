@@ -25,6 +25,8 @@
 
 #include "Algo/MaxElement.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSelectionTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionTool"
@@ -1690,3 +1692,4 @@ void UMeshSelectionTool::SmoothSelectionBoundary()
 
 
 #undef LOCTEXT_NAMESPACE
+

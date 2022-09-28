@@ -2,6 +2,8 @@
 
 #include "FractureSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureSettings)
+
 #if WITH_EDITOR
 
 UFractureSettings::UFractureSettings(const FObjectInitializer& ObjInit)
@@ -12,5 +14,6 @@ UFractureSettings::UFractureSettings(const FObjectInitializer& ObjInit)
 {}
 
 #endif
+
 
 

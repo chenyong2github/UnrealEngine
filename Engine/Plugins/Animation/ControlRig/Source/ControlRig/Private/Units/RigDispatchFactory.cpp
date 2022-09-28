@@ -2,6 +2,8 @@
 
 #include "Units/RigDispatchFactory.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigDispatchFactory)
+
 #if WITH_EDITOR
 
 FString FRigDispatchFactory::GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const

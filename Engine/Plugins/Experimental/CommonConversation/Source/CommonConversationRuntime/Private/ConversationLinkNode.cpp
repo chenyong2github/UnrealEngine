@@ -4,6 +4,8 @@
 #include "ConversationRegistry.h"
 #include "ConversationInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ConversationLinkNode)
+
 #define LOCTEXT_NAMESPACE "ConversationLinkNode"
 
 UConversationLinkNode::UConversationLinkNode()

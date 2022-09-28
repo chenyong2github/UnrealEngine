@@ -3,6 +3,8 @@
 #include "SmartObjectHashGrid.h"
 #include "DebugRenderSceneProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectHashGrid)
+
 FInstancedStruct USmartObjectHashGrid::Add(const FSmartObjectHandle Handle, const FBox& Bounds)
 {
 	FSmartObjectHashGridEntryData GridEntryData;
@@ -33,3 +35,4 @@ void USmartObjectHashGrid::Draw(FDebugRenderSceneProxy* DebugProxy)
 	}
 }
 #endif //UE_ENABLE_DEBUG_DRAWING
+

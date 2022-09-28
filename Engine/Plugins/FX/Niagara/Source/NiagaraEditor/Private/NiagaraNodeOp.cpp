@@ -7,6 +7,8 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraCustomVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeOp)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeOp"
 
 UNiagaraNodeOp::UNiagaraNodeOp(const FObjectInitializer& ObjectInitializer)
@@ -685,3 +687,4 @@ void UNiagaraNodeOp::HandleStaticOutputPinUpgrade()
 	}
 }
 #undef LOCTEXT_NAMESPACE
+

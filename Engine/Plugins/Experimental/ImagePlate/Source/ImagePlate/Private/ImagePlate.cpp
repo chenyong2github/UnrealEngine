@@ -3,6 +3,8 @@
 #include "ImagePlate.h"
 #include "ImagePlateComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImagePlate)
+
 AImagePlate::AImagePlate(const FObjectInitializer& Init)
 	: Super(Init)
 {

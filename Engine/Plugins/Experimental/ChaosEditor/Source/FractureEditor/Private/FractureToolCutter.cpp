@@ -20,6 +20,8 @@
 
 #include "FractureToolBackgroundTask.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolCutter)
+
 using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FractureToolCutter"
@@ -444,3 +446,4 @@ FBox UFractureToolVoronoiCutterBase::GetVoronoiBounds(const FFractureToolContext
 }
 
 #undef LOCTEXT_NAMESPACE
+

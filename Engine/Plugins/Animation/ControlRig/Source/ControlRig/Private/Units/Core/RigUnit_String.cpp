@@ -3,6 +3,8 @@
 #include "Units/Core/RigUnit_String.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_String)
+
 FRigUnit_StringConcat_Execute()
 {
 	Result = A + B;
@@ -421,3 +423,4 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 		}
 	}
 }
+

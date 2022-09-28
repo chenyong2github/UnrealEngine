@@ -5,6 +5,8 @@
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/StyleColors.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioWidgetsSlateTypes)
+
 // Audio Text Box Style 
 FAudioTextBoxStyle::FAudioTextBoxStyle()
 	: BackgroundImage(FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FVector2D(56.0f, 28.0f)))
@@ -69,3 +71,4 @@ const FAudioRadialSliderStyle& FAudioRadialSliderStyle::GetDefault()
 	static FAudioRadialSliderStyle Default;
 	return Default;
 }
+

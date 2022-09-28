@@ -10,6 +10,8 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Curves/CurveFloat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterEditorSettings)
+
 FWaterBrushActorDefaults::FWaterBrushActorDefaults()
 {
 	// Default values for water bodies : 
@@ -223,3 +225,4 @@ UMaterialInterface* UWaterEditorSettings::GetDefaultRenderRiverSplineDepthsMater
 {
 	return DefaultRenderRiverSplineDepthsMaterial.LoadSynchronous();
 }
+

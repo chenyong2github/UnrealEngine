@@ -3,6 +3,8 @@
 #include "Changes/DynamicMeshChangeTarget.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicMeshChangeTarget)
+
 using namespace UE::Geometry;
 
 void UDynamicMeshReplacementChangeTarget::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)

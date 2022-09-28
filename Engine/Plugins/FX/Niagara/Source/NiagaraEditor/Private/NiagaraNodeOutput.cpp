@@ -16,6 +16,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraSimulationStageBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeOutput)
+
 #define LOCTEXT_NAMESPACE "NiagaraNodeOutput"
 
 UNiagaraNodeOutput::UNiagaraNodeOutput(const FObjectInitializer& ObjectInitializer)
@@ -350,3 +352,4 @@ void UNiagaraNodeOutput::PostLoad()
 }
 
 #undef LOCTEXT_NAMESPACE
+

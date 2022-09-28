@@ -5,6 +5,8 @@
 #include "MoviePipelineShotConfig.h"
 #include "AssetTypeCategories.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineConfigFactory)
+
 UMoviePipelineMasterConfigFactory::UMoviePipelineMasterConfigFactory()
 {
 	bCreateNew = true;

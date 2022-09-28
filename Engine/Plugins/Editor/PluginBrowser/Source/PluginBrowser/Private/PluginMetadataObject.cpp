@@ -16,6 +16,8 @@
 #include "Features/IPluginsEditorFeature.h"
 #include "PluginBrowserModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PluginMetadataObject)
+
 void FPluginReferenceMetadata::PopulateFromDescriptor(const FPluginReferenceDescriptor& InDescriptor)
 {
 	Name = InDescriptor.Name;
@@ -214,3 +216,4 @@ void FPluginMetadataCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 		}
 	}
 }
+

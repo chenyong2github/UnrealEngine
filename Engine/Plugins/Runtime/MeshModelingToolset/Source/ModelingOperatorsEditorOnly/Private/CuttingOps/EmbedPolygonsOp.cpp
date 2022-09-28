@@ -15,6 +15,8 @@
 #include "Operations/MeshBoolean.h"
 #include "ConstrainedDelaunay2.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EmbedPolygonsOp)
+
 using namespace UE::Geometry;
 
 void CollapseDegenerateEdgesOnVertexPath(FDynamicMesh3& Mesh, TArray<int>& VertexIDsIO, TArray<int>& PathVertCorrespondIO)

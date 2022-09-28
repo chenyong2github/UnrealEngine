@@ -4,6 +4,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemStats.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask)
+
 static void DebugRecordAbilityTaskCreated(const UAbilityTask* NewTask);
 static void DebugRecordAbilityTaskDestroyed(const UAbilityTask* NewTask);
 static void DebugPrintAbilityTasksByClass();
@@ -385,3 +387,4 @@ void DebugPrintAbilityTasksByClass()
 		ABILITY_LOG(Display, TEXT("Recording of UAbilityTask counts is disabled! Enable 'AbilitySystem.AbilityTask.Debug.RecordingEnabled' (1 for non-shipping builds, 2 for all builds) to turn on recording."))
 	}
 }
+

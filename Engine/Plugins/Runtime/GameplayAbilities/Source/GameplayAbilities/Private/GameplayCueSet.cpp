@@ -9,6 +9,8 @@
 #include "GameplayCueManager.h"
 #include "NativeGameplayTags.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueSet)
+
 UE_DEFINE_GAMEPLAY_TAG_STATIC(StaticTag_GameplayCue, TEXT("GameplayCue"));
 
 namespace GameplayCueDebug
@@ -407,3 +409,4 @@ FGameplayTag UGameplayCueSet::BaseGameplayCueTag()
 	// Note we should not cache this off as a static variable, since for new projects the GameplayCue tag will not be found until one is created.
 	return StaticTag_GameplayCue.GetTag();
 }
+

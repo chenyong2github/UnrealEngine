@@ -7,6 +7,8 @@
 #include "NavigationData.h"
 #include "GeomUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NavCorridorTestingComponent)
+
 UNavCorridorTestingComponent::UNavCorridorTestingComponent(const FObjectInitializer& ObjectInitialize)
 	: Super(ObjectInitialize)
 {
@@ -301,3 +303,4 @@ void ANavCorridorTestingActor::PostEditMove(bool bFinished)
 	}
 }
 #endif
+

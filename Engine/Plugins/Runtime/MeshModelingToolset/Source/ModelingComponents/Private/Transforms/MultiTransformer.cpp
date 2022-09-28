@@ -3,6 +3,8 @@
 #include "Transforms/MultiTransformer.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MultiTransformer)
+
 using namespace UE::Geometry;
 
 
@@ -257,3 +259,4 @@ void UMultiTransformer::UpdateShowGizmoState(bool bNewVisibility)
 		TransformGizmo->SetVisibility(bShouldBeVisible);
 	}
 }
+

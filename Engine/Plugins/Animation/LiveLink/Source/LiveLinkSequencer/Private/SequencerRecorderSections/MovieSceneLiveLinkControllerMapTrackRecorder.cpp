@@ -7,6 +7,8 @@
 #include "LiveLinkSequencerSettings.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneLiveLinkControllerMapTrackRecorder)
+
 bool FMovieSceneLiveLinkControllerMapTrackRecorderFactory::CanRecordProperty(UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const
 {
 	// This track recorder can record the ControllerMap property of the LiveLink Component Controller
@@ -108,3 +110,4 @@ void UMovieSceneLiveLinkControllerMapTrackRecorder::FinalizeTrackImpl()
 		ControllerRecorder->FinalizeTrack();
 	}
 }
+

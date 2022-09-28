@@ -7,6 +7,8 @@
 
 #include "UObject/ConstructorHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioDirectivityVisualizer)
+
 AResonanceAudioDirectivityVisualizer::AResonanceAudioDirectivityVisualizer()
 	: Material(nullptr)
 	, Settings(nullptr)
@@ -59,4 +61,5 @@ void AResonanceAudioDirectivityVisualizer::DrawPattern()
 	Mesh->SetMaterial(0, Material);
 #endif // SUPPORTS_PROCEDURAL_MESH
 }
+
 

@@ -4,6 +4,8 @@
 #include "MoviePipelineSetting.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineConfigBase)
+
 #define LOCTEXT_NAMESPACE "MoviePipelineConfigBase"
 
 void UMoviePipelineConfigBase::RemoveSetting(UMoviePipelineSetting* InSetting)

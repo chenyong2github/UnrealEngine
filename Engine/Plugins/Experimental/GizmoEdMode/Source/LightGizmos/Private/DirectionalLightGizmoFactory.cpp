@@ -12,6 +12,8 @@
 #include "LightGizmosModule.h"
 #include "SubTransformProxy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightGizmoFactory)
+
 bool UDirectionalLightGizmoFactory::CanBuildGizmoForSelection(FEditorModeTools* ModeTools) const
 {
 	/** Since there can only be one factory active at a time in the current iteration
@@ -113,3 +115,4 @@ void UDirectionalLightGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, boo
 		}
 	}
 }
+

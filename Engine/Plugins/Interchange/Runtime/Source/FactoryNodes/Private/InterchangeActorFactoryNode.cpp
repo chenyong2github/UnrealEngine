@@ -2,6 +2,8 @@
 
 #include "InterchangeActorFactoryNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeActorFactoryNode)
+
 #if WITH_ENGINE
 	#include "GameFramework/Actor.h"
 #endif

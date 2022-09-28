@@ -3,6 +3,8 @@
 #include "MassEntityTypes.h"
 #include "StructUtilsTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassEntityTypes)
+
 DEFINE_TYPEBITSET(FMassFragmentBitSet);
 DEFINE_TYPEBITSET(FMassTagBitSet);
 DEFINE_TYPEBITSET(FMassChunkFragmentBitSet);
@@ -27,3 +29,4 @@ uint32 FMassArchetypeSharedFragmentValues::CalculateHash() const
 
 	return Hash;
 }
+

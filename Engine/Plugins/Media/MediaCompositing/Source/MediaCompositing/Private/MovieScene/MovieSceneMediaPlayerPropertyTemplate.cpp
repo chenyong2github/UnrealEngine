@@ -10,6 +10,8 @@
 #include "MovieSceneMediaPlayerPropertyTrack.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMediaPlayerPropertyTemplate)
+
 
 struct FMediaPlayerPreAnimatedState : IMovieScenePreAnimatedToken
 {

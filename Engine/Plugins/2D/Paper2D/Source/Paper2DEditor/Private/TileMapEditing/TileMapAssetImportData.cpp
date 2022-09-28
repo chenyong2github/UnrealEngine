@@ -3,6 +3,8 @@
 #include "TileMapAssetImportData.h"
 #include "PaperTileMap.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TileMapAssetImportData)
+
 //////////////////////////////////////////////////////////////////////////
 // UTileMapAssetImportData
 
@@ -31,3 +33,4 @@ UTileMapAssetImportData* UTileMapAssetImportData::GetImportDataForTileMap(UPaper
 
 	return ImportData;
 }
+

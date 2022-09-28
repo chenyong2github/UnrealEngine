@@ -12,6 +12,8 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptSourceBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSpriteRendererProperties)
+
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 #include "Widgets/Images/SImage.h"
@@ -713,3 +715,4 @@ uint32 UNiagaraSpriteRendererProperties::GetNumIndicesPerInstance() const
 }
 
 #undef LOCTEXT_NAMESPACE
+

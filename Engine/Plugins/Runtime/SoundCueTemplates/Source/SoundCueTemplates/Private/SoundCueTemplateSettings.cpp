@@ -7,6 +7,8 @@
 #include "SoundCueContainer.h"
 #include "SoundCueTemplatesModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCueTemplateSettings)
+
 #if WITH_EDITOR
 
 #include "Framework/Notifications/NotificationManager.h"
@@ -174,3 +176,4 @@ bool USoundCueTemplateSettings::RebuildQualityLevels()
 }
 #endif // WITH_EDITOR
 #undef LOCTEXT_NAMESPACE
+

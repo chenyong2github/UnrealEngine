@@ -9,6 +9,8 @@
 #include "ContextObjects/UVToolContextObjects.h"
 #include "UVEditorUXSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVSeamSewAction)
+
 
 #define LOCTEXT_NAMESPACE "UUVSeamSewAction"
 

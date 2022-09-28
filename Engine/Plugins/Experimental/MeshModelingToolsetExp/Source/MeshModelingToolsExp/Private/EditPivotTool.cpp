@@ -27,6 +27,8 @@
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditPivotTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UEditPivotTool"
@@ -553,3 +555,4 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 
 
 #undef LOCTEXT_NAMESPACE
+

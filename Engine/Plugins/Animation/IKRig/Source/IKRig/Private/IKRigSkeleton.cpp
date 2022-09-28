@@ -5,6 +5,8 @@
 #include "IKRigDefinition.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigSkeleton)
+
 // This is the default end of branch index value, meaning we haven't cached it yet
 #define FIKRIGSKELETON_INVALID_EO_BRANCH_INDEX -2
 

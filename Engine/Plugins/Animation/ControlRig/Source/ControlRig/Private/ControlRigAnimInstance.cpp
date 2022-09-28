@@ -4,6 +4,8 @@
 
 #include "Animation/AnimNodeBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigAnimInstance)
+
 ////////////////////////////////////////////////////////////////////////////////////////
 void FControlRigAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
@@ -73,4 +75,5 @@ FAnimInstanceProxy* UControlRigAnimInstance::CreateAnimInstanceProxy()
 {
 	return new FControlRigAnimInstanceProxy(this);
 }
+
 

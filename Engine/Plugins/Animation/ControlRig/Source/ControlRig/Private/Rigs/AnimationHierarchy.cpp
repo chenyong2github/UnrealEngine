@@ -2,6 +2,8 @@
 
 #include "Rigs/AnimationHierarchy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationHierarchy)
+
 FTransformConstraint* FConstraintNodeData::FindConstraint(const FName& TargetNode)
 {
 	for (int32 ConstraintIdx = 0; ConstraintIdx < Constraints.Num(); ++ConstraintIdx)
@@ -39,3 +41,4 @@ void FConstraintNodeData::DeleteConstraint(const FName& TargetNode)
 		}
 	}
 }
+

@@ -10,6 +10,8 @@
 #include "AssetToolsModule.h"
 #include "PaperSpriteSheet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteSheetImportFactory)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperSpriteSheetImportFactory
 
@@ -84,3 +86,4 @@ UObject* UPaperSpriteSheetImportFactory::FactoryCreateText(UClass* InClass, UObj
 
 	return Result;
 }
+

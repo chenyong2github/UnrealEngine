@@ -5,6 +5,8 @@
 #include "ILiveLinkClient.h"
 #include "Misc/App.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LiveLinkBlueprintLibrary)
+
 bool ULiveLinkBlueprintLibrary::GetPropertyValue(UPARAM(ref) FLiveLinkBasicBlueprintData& BasicData, FName PropertyName, float& Value)
 {
 	return BasicData.StaticData.FindPropertyValue(BasicData.FrameData, PropertyName, Value);

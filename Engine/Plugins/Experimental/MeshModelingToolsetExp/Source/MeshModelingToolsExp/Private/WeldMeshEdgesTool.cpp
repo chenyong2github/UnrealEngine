@@ -12,6 +12,8 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Operations/MeshResolveTJunctions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WeldMeshEdgesTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UWeldMeshEdgesTool"
@@ -275,3 +277,4 @@ void UWeldMeshEdgesTool::UpdateOpParameters(FWeldMeshEdgesOp& Op) const
 
 
 #undef LOCTEXT_NAMESPACE
+

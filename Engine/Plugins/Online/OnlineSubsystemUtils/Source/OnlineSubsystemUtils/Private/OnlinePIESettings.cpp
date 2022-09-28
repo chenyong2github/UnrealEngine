@@ -5,6 +5,8 @@
 #include "OnlineSubsystem.h"
 #include "Misc/AES.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OnlinePIESettings)
+
 const int32 ONLINEPIE_XOR_KEY = 0xdeadbeef;
 void FPIELoginSettingsInternal::Encrypt()
 {
@@ -162,3 +164,4 @@ void UOnlinePIESettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 }
 
 #endif // WITH_EDITOR
+

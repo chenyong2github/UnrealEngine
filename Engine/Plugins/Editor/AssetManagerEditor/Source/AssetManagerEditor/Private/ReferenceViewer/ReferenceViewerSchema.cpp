@@ -13,6 +13,8 @@
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "ConnectionDrawingPolicy.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReferenceViewerSchema)
+
 namespace UE
 {
 namespace DependencyPinCategory
@@ -273,3 +275,4 @@ void UReferenceViewerSchema::GetMakeCollectionWithReferencersOrDependenciesSubMe
 			);
 	}
 }
+

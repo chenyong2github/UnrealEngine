@@ -11,6 +11,8 @@
 #include "SGraphEditorActionMenuAI.h"
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_Composite.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnvironmentQueryGraphNode_Option)
+
 #define LOCTEXT_NAMESPACE "EnvironmentQueryEditor"
 
 UEnvironmentQueryGraphNode_Option::UEnvironmentQueryGraphNode_Option(const FObjectInitializer& ObjectInitializer)
@@ -170,3 +172,4 @@ void UEnvironmentQueryGraphNode_Option::UpdateNodeData()
 
 
 #undef LOCTEXT_NAMESPACE
+

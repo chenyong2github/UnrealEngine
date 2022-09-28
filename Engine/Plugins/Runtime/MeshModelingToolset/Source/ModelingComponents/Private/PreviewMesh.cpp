@@ -8,6 +8,8 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "SceneInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PreviewMesh)
+
 using namespace UE::Geometry;
 
 APreviewMeshActor::APreviewMeshActor()
@@ -692,3 +694,4 @@ void UPreviewMesh::NotifyWorldPathTracedOutputInvalidated()
 		}
 	}
 }
+

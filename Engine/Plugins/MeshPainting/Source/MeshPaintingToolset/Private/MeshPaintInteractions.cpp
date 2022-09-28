@@ -13,6 +13,9 @@
 #include "Editor.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshPaintInteractions)
+
 #if WITH_EDITOR
 #include "HitProxies.h"
 #endif

@@ -6,6 +6,8 @@
 #include "Interfaces/OnlineChatInterface.h"
 #include "Chat/SocialChatManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SocialChatChannel)
+
 #define LOCTEXT_NAMESPACE "SocialChatRoomChannel"
 
 void USocialChatChannel::InjectLocalMessage(const TSharedRef<FSocialLocalChatMessage>& LocalMessage)
@@ -134,5 +136,6 @@ void USocialChatChannel::AddMirroredMessage(FSocialChatMessageRef NewMessage)
 }
 
 #undef LOCTEXT_NAMESPACE
+
 
 

@@ -8,6 +8,8 @@
 #include "ModularGameplayLogs.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameFrameworkComponentManager)
+
 #if !UE_BUILD_SHIPPING
 #include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
@@ -1197,3 +1199,4 @@ int32 UGameFrameworkComponentManager::GetIndexForRegisteredDelegate(TArray<FActo
 
 	return INDEX_NONE;
 }
+

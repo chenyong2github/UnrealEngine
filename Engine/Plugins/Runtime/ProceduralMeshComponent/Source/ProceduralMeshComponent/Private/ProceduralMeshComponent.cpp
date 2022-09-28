@@ -21,6 +21,8 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ProceduralMeshComponent)
+
 DECLARE_CYCLE_STAT(TEXT("Create ProcMesh Proxy"), STAT_ProcMesh_CreateSceneProxy, STATGROUP_ProceduralMesh);
 DECLARE_CYCLE_STAT(TEXT("Create Mesh Section"), STAT_ProcMesh_CreateMeshSection, STATGROUP_ProceduralMesh);
 DECLARE_CYCLE_STAT(TEXT("UpdateSection GT"), STAT_ProcMesh_UpdateSectionGT, STATGROUP_ProceduralMesh);
@@ -1164,3 +1166,4 @@ UMaterialInterface* UProceduralMeshComponent::GetMaterialFromCollisionFaceIndex(
 
 	return Result;
 }
+

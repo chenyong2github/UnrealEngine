@@ -22,6 +22,8 @@
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystemAuditCommandlet)
+
 DEFINE_LOG_CATEGORY_STATIC(LogNiagaraSystemAuditCommandlet, Log, All);
 
 UNiagaraSystemAuditCommandlet::UNiagaraSystemAuditCommandlet(const FObjectInitializer& ObjectInitializer)
@@ -537,3 +539,4 @@ TArray<class UNiagaraDataInterface*> UNiagaraSystemAuditCommandlet::GetDataInter
 	}
 	return DataInterfaces;
 }
+

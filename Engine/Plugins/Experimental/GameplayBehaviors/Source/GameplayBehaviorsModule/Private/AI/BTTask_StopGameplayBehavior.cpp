@@ -5,6 +5,8 @@
 #include "GameplayBehaviorSubsystem.h"
 #include "AIController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BTTask_StopGameplayBehavior)
+
 //----------------------------------------------------------------------//
 //  UBTTask_StopGameplayBehavior
 //----------------------------------------------------------------------//
@@ -46,4 +48,5 @@ FString UBTTask_StopGameplayBehavior::GetStaticDescription() const
 
 	return Result;
 }
+
 

@@ -5,6 +5,8 @@
 #include "GameplayCueManager.h"
 #include "AbilitySystemGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_HitImpact)
+
 UGameplayCueNotify_HitImpact::UGameplayCueNotify_HitImpact(const FObjectInitializer& PCIP)
 : Super(PCIP)
 {
@@ -51,3 +53,4 @@ void UGameplayCueNotify_HitImpact::HandleGameplayCue(AActor* Self, EGameplayCueE
 		}
 	}
 }
+

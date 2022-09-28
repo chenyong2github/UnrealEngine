@@ -2,6 +2,8 @@
 
 #include "ImgMediaSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ImgMediaSettings)
+
 
 /* UImgMediaSettings structors
  *****************************************************************************/
@@ -50,3 +52,4 @@ void UImgMediaSettings::ValidateSettings()
 		GlobalCacheSizeGB = CacheSizeGB;
 	}
 }
+

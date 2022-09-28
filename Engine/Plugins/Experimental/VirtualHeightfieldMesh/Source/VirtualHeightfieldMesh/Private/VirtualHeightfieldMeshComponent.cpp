@@ -10,6 +10,8 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VirtualHeightfieldMeshComponent)
+
 UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -180,3 +182,4 @@ void UVirtualHeightfieldMeshComponent::InitializeMinMaxTexture(uint32 InSizeX, u
 }
 
 #endif
+

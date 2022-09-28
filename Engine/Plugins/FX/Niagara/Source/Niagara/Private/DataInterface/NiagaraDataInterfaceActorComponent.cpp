@@ -12,6 +12,8 @@
 #include "ShaderParameterUtils.h"
 #include "Misc/LargeWorldRenderPosition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceActorComponent)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceActorComponent"
 
 struct FNiagaraActorDIFunctionVersion
@@ -403,3 +405,4 @@ void UNiagaraDataInterfaceActorComponent::VMGetTransform(FVectorVMExternalFuncti
 }
 
 #undef LOCTEXT_NAMESPACE
+

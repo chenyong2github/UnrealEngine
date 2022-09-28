@@ -5,6 +5,8 @@
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EQSTestingPawn.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFactoryEnvironmentQuery)
+
 #define LOCTEXT_NAMESPACE "ActorFactoryEnvironmentQuery"
 
 UActorFactoryEnvironmentQuery::UActorFactoryEnvironmentQuery()

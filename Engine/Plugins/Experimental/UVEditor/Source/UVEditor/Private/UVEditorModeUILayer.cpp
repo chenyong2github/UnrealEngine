@@ -7,6 +7,8 @@
 #include "UVEditorToolkit.h"
 #include "UVEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorModeUILayer)
+
 void UUVEditorUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	FUVEditorModule& UVEditorModule = FModuleManager::GetModuleChecked<FUVEditorModule>("UVEditor");
@@ -58,3 +60,4 @@ void FUVEditorModeUILayer::SetModeMenuCategory(TSharedPtr<FWorkspaceItem> MenuCa
 {
 	UVEditorMenuCategory = MenuCategoryIn;
 }
+

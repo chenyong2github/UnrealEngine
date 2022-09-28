@@ -21,6 +21,8 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SWrapBox.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SCameraShakePreviewer)
+
 #define LOCTEXT_NAMESPACE "CameraShakePreviewer"
 
 namespace UE
@@ -819,3 +821,4 @@ void SCameraShakePreviewer::OnModifyView(FEditorViewportViewModifierParams& Para
 }
 
 #undef LOCTEXT_NAMESPACE
+

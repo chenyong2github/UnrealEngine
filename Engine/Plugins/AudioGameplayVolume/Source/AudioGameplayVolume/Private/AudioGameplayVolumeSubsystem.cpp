@@ -8,6 +8,8 @@
 #include "AudioDevice.h"
 #include "Misc/CoreMisc.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeSubsystem)
+
 namespace AudioGameplayVolumeConsoleVariables
 {
 	int32 bEnabled = 1;
@@ -559,3 +561,4 @@ void UAudioGameplayVolumeSubsystem::UpdateFromListeners()
 		});
 	}
 }
+

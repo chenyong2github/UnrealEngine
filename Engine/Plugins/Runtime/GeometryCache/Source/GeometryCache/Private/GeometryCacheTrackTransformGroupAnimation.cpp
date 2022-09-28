@@ -2,6 +2,8 @@
 
 #include "GeometryCacheTrackTransformGroupAnimation.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCacheTrackTransformGroupAnimation)
+
 
 GEOMETRYCACHE_API UDEPRECATED_GeometryCacheTrack_TransformGroupAnimation::UDEPRECATED_GeometryCacheTrack_TransformGroupAnimation(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/) : UGeometryCacheTrack(ObjectInitializer)
 {
@@ -32,3 +34,4 @@ void UDEPRECATED_GeometryCacheTrack_TransformGroupAnimation::SetMesh(const FGeom
 	MeshData = NewMeshData;
 	NumMaterials = NewMeshData.BatchesInfo.Num();
 }
+

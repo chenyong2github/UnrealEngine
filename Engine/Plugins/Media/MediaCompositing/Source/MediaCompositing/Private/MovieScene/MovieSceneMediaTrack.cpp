@@ -10,6 +10,8 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneMediaTrack)
+
 
 #define LOCTEXT_NAMESPACE "MovieSceneMediaTrack"
 
@@ -109,3 +111,4 @@ FMovieSceneEvalTemplatePtr UMovieSceneMediaTrack::CreateTemplateForSection(const
 }
 
 #undef LOCTEXT_NAMESPACE
+

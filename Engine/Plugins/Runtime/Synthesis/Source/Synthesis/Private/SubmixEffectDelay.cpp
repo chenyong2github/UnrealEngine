@@ -3,6 +3,8 @@
 #include "SubmixEffects/SubmixEffectDelay.h"
 #include "Sound/SoundEffectPreset.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SubmixEffectDelay)
+
 const float FSubmixEffectDelay::MinLengthDelaySec = 0.4f;
 
 FSubmixEffectDelay::FSubmixEffectDelay()
@@ -179,3 +181,4 @@ void USubmixEffectDelayPreset::SetDefaultSettings(const FSubmixEffectDelaySettin
 
 	MarkPackageDirty();
 }
+

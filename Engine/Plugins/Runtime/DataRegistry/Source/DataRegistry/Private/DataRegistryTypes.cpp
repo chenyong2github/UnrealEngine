@@ -7,6 +7,8 @@
 #include "DataRegistrySubsystem.h"
 #include "Misc/StringBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataRegistryTypes)
+
 #define LOCTEXT_NAMESPACE "DataRegistry"
 
 DEFINE_LOG_CATEGORY(LogDataRegistry);
@@ -301,4 +303,5 @@ void UDataRegistrySettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+
 

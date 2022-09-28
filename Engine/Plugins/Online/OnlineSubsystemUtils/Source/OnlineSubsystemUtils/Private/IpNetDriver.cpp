@@ -30,6 +30,8 @@ Notes:
 #include <limits>
 #include "NetAddressResolution.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IpNetDriver)
+
 
 /*-----------------------------------------------------------------------------
 	Declarations.
@@ -1941,3 +1943,4 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 
 	return 0;
 }
+

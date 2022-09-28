@@ -10,6 +10,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioSpatializationSourceSettingsFactory)
+
 FText FAssetTypeActions_ResonanceAudioSpatializationSourceSettings::GetName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ResonanceAudioSpatializationSourceSettings", "Resonance Audio Spatialization Settings");
@@ -60,3 +62,4 @@ uint32 UResonanceAudioSpatializationSourceSettingsFactory::GetMenuCategories() c
 {
 	return EAssetTypeCategories::Sounds;
 }
+

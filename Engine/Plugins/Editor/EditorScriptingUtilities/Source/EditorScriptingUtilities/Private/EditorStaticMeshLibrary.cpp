@@ -39,6 +39,8 @@
 #include "ConvexDecompTool.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EditorStaticMeshLibrary)
+
 #define LOCTEXT_NAMESPACE "EditorStaticMeshLibrary"
 
 /**
@@ -383,3 +385,4 @@ int32 UDEPRECATED_EditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(U
 }
 
 #undef LOCTEXT_NAMESPACE
+

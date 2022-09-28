@@ -4,6 +4,8 @@
 #include "EnhancedInputComponent.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputDebugKeyDelegateBinding)
+
 void UInputDebugKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 #if DEV_ONLY_KEY_BINDINGS_AVAILABLE
@@ -19,3 +21,4 @@ void UInputDebugKeyDelegateBinding::BindToInputComponent(UInputComponent* InputC
 	}
 #endif
 }
+

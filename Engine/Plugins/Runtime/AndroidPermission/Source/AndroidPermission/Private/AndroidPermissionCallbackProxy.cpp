@@ -3,6 +3,8 @@
 #include "AndroidPermissionCallbackProxy.h"
 #include "AndroidPermission.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidPermissionCallbackProxy)
+
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #endif
@@ -43,3 +45,4 @@ JNI_METHOD void Java_com_google_vr_sdk_samples_permission_PermissionHelper_onAcq
 	pProxy->OnPermissionsGrantedDynamicDelegate.Broadcast(arrPermissions, arrGranted);
 }
 #endif
+

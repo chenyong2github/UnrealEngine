@@ -20,6 +20,8 @@
 #include "Operations/MeshConvexHull.h"
 #include "MinVolumeBox3.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UVProjectionTool)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVProjectionTool"
@@ -597,3 +599,4 @@ void UUVProjectionTool::ApplyAction_Reset()
 
 
 #undef LOCTEXT_NAMESPACE
+

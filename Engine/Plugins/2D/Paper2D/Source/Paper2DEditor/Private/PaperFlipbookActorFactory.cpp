@@ -6,6 +6,8 @@
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PaperFlipbookActorFactory)
+
 //////////////////////////////////////////////////////////////////////////
 // UPaperFlipbookActorFactory
 
@@ -58,3 +60,4 @@ bool UPaperFlipbookActorFactory::CanCreateActorFrom(const FAssetData& AssetData,
 		return false;
 	}
 }
+

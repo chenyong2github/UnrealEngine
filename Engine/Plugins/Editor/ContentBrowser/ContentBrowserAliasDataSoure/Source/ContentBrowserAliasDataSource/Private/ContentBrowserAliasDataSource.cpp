@@ -14,6 +14,8 @@
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserAliasDataSource)
+
 DEFINE_LOG_CATEGORY(LogContentBrowserAliasDataSource);
 
 FName UContentBrowserAliasDataSource::AliasTagName = "ContentBrowserAliases";
@@ -805,3 +807,4 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return FContentBrowserItemData();
 }
+
