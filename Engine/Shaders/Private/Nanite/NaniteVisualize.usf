@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "../ShaderPrint.ush"
 #include "../SceneData.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../ColorMap.ush"
@@ -462,6 +463,27 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.MaterialMode		= IsMaterialFastPath(Cluster) ? 0u : 1u;
 		FeedbackResults.HierarchyOffset		= InstanceData.NaniteHierarchyOffset;
 		FeedbackResults.RuntimeResourceID	= InstanceData.NaniteRuntimeResourceID;
+
+		const float4 ClusterBoundsColor  = ColorLightGreen;
+		const float4 InstanceBoundsColor = ColorOrange;
+
+		const float4x4 LocalToWorld = LWCHackToFloat(InstanceData.LocalToWorld);
+
+		AddOBBWS(
+			Cluster.BoxBoundsCenter - Cluster.BoxBoundsExtent,
+			Cluster.BoxBoundsCenter + Cluster.BoxBoundsExtent,
+			ClusterBoundsColor,
+			LocalToWorld
+		);
+
+		AddOBBWS(
+			InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent,
+			InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent,
+			InstanceBoundsColor,
+			LocalToWorld
+		);
+
+		AddReferentialWS(LocalToWorld, 50.f);
 	}
 	else
 	{

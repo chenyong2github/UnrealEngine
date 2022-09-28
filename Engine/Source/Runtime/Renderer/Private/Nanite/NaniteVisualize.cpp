@@ -12,6 +12,7 @@
 #include "Rendering/NaniteStreamingManager.h"
 #include "DebugViewModeHelpers.h"
 #include "NaniteSceneProxy.h"
+#include "ShaderPrint.h"
 
 // Specifies if visualization only shows Nanite information that passes full scene depth test
 // -1: Use default composition specified the each mode
@@ -138,6 +139,7 @@ class FNanitePickingCS : public FNaniteGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNanitePickingFeedback>, FeedbackBuffer)
 		SHADER_PARAMETER(FIntVector4, VisualizeConfig)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -264,6 +266,9 @@ static FRDGBufferRef PerformPicking(
 	const FViewInfo& View
 )
 {
+	// Force shader print on
+	ShaderPrint::SetEnabled(true);
+
 	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
@@ -273,7 +278,7 @@ static FRDGBufferRef PerformPicking(
 
 	{
 		FNanitePickingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNanitePickingCS::FParameters>();
-
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->VisualizeConfig = GetVisualizeConfig(NANITE_VISUALIZE_PICKING, /* bCompositeScene = */ false, GNaniteVisualizeEdgeDetect != 0);
