@@ -911,10 +911,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
 	}
-	else if (Family && Family->GetTemporalUpscalerInterface() != nullptr)
-	{
-		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
-	}
 
 	if (Family)
 	{
@@ -1009,11 +1005,7 @@ void FSceneView::SetupAntiAliasingMethod()
 			}
 		}
 
-		// Overides the anti aliasing method to temporal AA when using a custom temporal upscaler.
-		if (Family->GetTemporalUpscalerInterface() != nullptr)
-		{
-			AntiAliasingMethod = AAM_TemporalAA;
-		}
+		checkf(Family->GetTemporalUpscalerInterface() == nullptr, TEXT("ITemporalUpscaler should be set up in FSceneViewExtensionBase::BeginRenderViewFamily()"));
 	}
 
 	// TemporalAA requires view state for history.
@@ -2946,6 +2938,12 @@ FSceneViewFamily::~FSceneViewFamily()
 	if (ScreenPercentageInterface)
 	{
 		delete ScreenPercentageInterface;
+	}
+
+	if (TemporalUpscalerInterface)
+	{
+		// ITemporalUpscaler* is only defined in renderer's private header because no backward compatibility is provided between major version.
+		delete reinterpret_cast<ISceneViewFamilyExtention*>(TemporalUpscalerInterface);
 	}
 
 	if (PrimarySpatialUpscalerInterface)

@@ -1111,6 +1111,12 @@ public:
 	{
 		return ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction;
 	}
+
+	virtual ITemporalUpscaler* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const override
+	{
+		return nullptr;
+	}
+
 };
 
 // static

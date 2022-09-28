@@ -1544,7 +1544,6 @@ struct FDisplayInternalsData
 
 //////////////////////////////////////////////////////////////////////////
 
-
 /**
  * Generic plugin extension that have a lifetime of the FSceneViewFamily
  */
@@ -1558,6 +1557,16 @@ protected:
 	virtual ~ISceneViewFamilyExtention() {};
 
 	friend class FSceneViewFamily;
+};
+
+/**
+ * Generic plugin extension that have a lifetime of the FSceneViewFamily that can contain arbitrary data to passdown from game thread to render thread.
+ */
+class ENGINE_API ISceneViewFamilyExtentionData : public ISceneViewFamilyExtention
+{
+public:
+	/** Returns a const TCHAR* to uniquely identify what implementation ISceneViewFamilyExtentionData is. */
+	virtual const TCHAR* GetSubclassIdentifier() const = 0;
 };
 
 
@@ -1937,8 +1946,33 @@ public:
 		check(SecondarySpatialUpscalerInterface == nullptr);
 	}
 
+	template<typename TExtensionData> TExtensionData* GetExtentionData()
+	{
+		static_assert(TIsDerivedFrom<TExtensionData, ISceneViewFamilyExtentionData>::Value, "TExtensionData is not derived from ISceneViewFamilyExtentionData.");
 
-	FORCEINLINE void SetTemporalUpscalerInterface(const ITemporalUpscaler* InTemporalUpscalerInterface)
+		for (TSharedRef<class ISceneViewFamilyExtentionData, ESPMode::ThreadSafe>& ViewExtensionData : ViewExtentionDatas)
+		{
+			if (ViewExtensionData->GetSubclassIdentifier() == TExtensionData::GSubclassIdentifier)
+			{
+				return static_cast<TExtensionData*>(&ViewExtensionData.Get());
+			}
+		}
+		return nullptr;
+	}
+
+	template<typename TExtensionData> TExtensionData* GetOrCreateExtentionData()
+	{
+		TExtensionData* ViewExtensionData = GetExtentionData<TExtensionData>();
+		if (!ViewExtensionData)
+		{
+			ViewExtentionDatas.Push(MakeShared<TExtensionData>());
+			ViewExtensionData = static_cast<TExtensionData*>(&ViewExtentionDatas.Last().Get());
+			check(ViewExtensionData->GetSubclassIdentifier() == TExtensionData::GSubclassIdentifier);
+		}
+		return ViewExtensionData;
+	}
+
+	FORCEINLINE void SetTemporalUpscalerInterface(ITemporalUpscaler* InTemporalUpscalerInterface)
 	{
 		check(InTemporalUpscalerInterface);
 		checkf(TemporalUpscalerInterface == nullptr, TEXT("View family already had a temporal upscaler assigned."));
@@ -1978,9 +2012,13 @@ private:
 	/** Interface to handle screen percentage of the views of the family. */
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
 
-	const ITemporalUpscaler* TemporalUpscalerInterface;
+	/** Renderer private interfaces, automatically have same lifetime as FSceneViewFamily. */
+	ITemporalUpscaler* TemporalUpscalerInterface;
 	ISpatialUpscaler* PrimarySpatialUpscalerInterface;
 	ISpatialUpscaler* SecondarySpatialUpscalerInterface;
+
+	/** Arrays of standalone data that have safe lifetime as FSceneViewFamily. */
+	TArray<TSharedRef<class ISceneViewFamilyExtentionData, ESPMode::ThreadSafe> > ViewExtentionDatas;
 
 	/** whether the translucency are allowed to render after DOF, if not they will be rendered in standard translucency. */
 	bool bAllowTranslucencyAfterDOF;

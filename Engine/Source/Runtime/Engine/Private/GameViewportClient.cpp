@@ -66,7 +66,6 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "CustomStaticScreenPercentage.h"
 #include "ObjectTrace.h"
 #include "DynamicResolutionState.h"
 
@@ -1428,11 +1427,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			#endif
 		}
 		#endif
-
-		if (GCustomStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit && ViewFamily.Scene->GetShadingPath() == EShadingPath::Deferred && ViewFamily.bRealtimeUpdate)
-		{
-			GCustomStaticScreenPercentage->SetupMainGameViewFamily(ViewFamily);
-		}
 
 		bFinalScreenPercentageShowFlag = ViewFamily.EngineShowFlags.ScreenPercentage;
 	}

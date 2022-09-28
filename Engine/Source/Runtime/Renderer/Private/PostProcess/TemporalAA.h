@@ -173,7 +173,7 @@ extern RENDERER_API FTAAOutputs AddTemporalAAPass(
 	FTemporalAAHistory* OutputHistory);
 
 /** Interface for the main temporal upscaling algorithm. */
-class RENDERER_API ITemporalUpscaler
+class RENDERER_API ITemporalUpscaler : public ISceneViewFamilyExtention
 {
 public:
 
@@ -213,6 +213,8 @@ public:
 
 	virtual float GetMinUpsampleResolutionFraction() const = 0;
 	virtual float GetMaxUpsampleResolutionFraction() const = 0;
+
+	virtual ITemporalUpscaler* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const = 0;
 
 	static const ITemporalUpscaler* GetDefaultTemporalUpscaler();
 

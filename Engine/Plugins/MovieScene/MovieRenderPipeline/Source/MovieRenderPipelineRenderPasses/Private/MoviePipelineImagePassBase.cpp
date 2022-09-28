@@ -285,7 +285,7 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 		}
 	}
 
-	OutViewFamily->ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(GetWorld()->Scene));
+	OutViewFamily->ViewExtensions.Append(GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(GetWorld()->Scene)));
 
 	AddViewExtensions(*OutViewFamily, InOutSampleState);
 
@@ -584,8 +584,8 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 			// ToDo: Does orthographic support tiling in the same way or do I need to modify the values before creating the ortho view.
 		}
 	}
-	// BaseProjMatrix may be perspective or orthographic.
-	ViewInitOptions.ProjectionMatrix = BaseProjMatrix;
+		// BaseProjMatrix may be perspective or orthographic.
+		ViewInitOptions.ProjectionMatrix = BaseProjMatrix;
 
 	ViewInitOptions.SceneViewStateInterface = GetSceneViewStateInterface(OptPayload);
 	ViewInitOptions.FOV = ViewFOV;
@@ -712,7 +712,7 @@ void UMoviePipelineImagePassBase::ModifyProjectionMatrixForTiling(const FMoviePi
 	}
 	else
 	{
-		InOutProjectionMatrix.M[2][0] += OffsetX / PadRatioX;
+	InOutProjectionMatrix.M[2][0] += OffsetX / PadRatioX;
 		InOutProjectionMatrix.M[2][1] += OffsetY / PadRatioY;
 	}
 }

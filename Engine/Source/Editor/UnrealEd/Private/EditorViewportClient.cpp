@@ -63,10 +63,7 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/TraceScreenshot.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
-#include "CustomEditorStaticScreenPercentage.h"
 #include "IImageWrapperModule.h"
-
-ICustomEditorStaticScreenPercentage* GCustomEditorStaticScreenPercentage = nullptr;
 
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
@@ -3999,12 +3996,6 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		if (!bStereoRendering && SupportsLowDPIPreview() && IsLowDPIPreview() && ViewFamily.SupportsScreenPercentage())
 		{
 			ViewFamily.SecondaryViewFraction = GetDPIDerivedResolutionFraction();
-		}
-
-		// Setup custom upscaler and screen percentage.
-		if (GCustomEditorStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit && ViewFamily.Scene && ViewFamily.Scene->GetShadingPath() == EShadingPath::Deferred && ViewFamily.bRealtimeUpdate)
-		{
-			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, this);
 		}
 	}
 

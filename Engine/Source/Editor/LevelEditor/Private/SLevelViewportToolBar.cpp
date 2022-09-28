@@ -44,8 +44,6 @@
 #include "SEditorViewportViewMenuContext.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenu.h"
-#include "CustomStaticScreenPercentage.h"
-#include "CustomEditorStaticScreenPercentage.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "SLevelViewport.h"
 
@@ -718,28 +716,7 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 				Section.AddEntry(FToolMenuEntry::InitWidget("FarViewPlane", GenerateFarViewPlaneMenu(), LOCTEXT("FarViewPlane", "Far View Plane")));
 			}
 
-
-			// for the TemporalUpscaler plugin to inject its UI
-
-			bool bAddDefaultScreenPercentageSlider = true;
-
-			if (GCustomEditorStaticScreenPercentage)
-			{
-				ICustomEditorStaticScreenPercentage::FViewportMenuEntryArguments Arguments
-				{
-					&Section,
-					this,
-					Viewport.Pin()
-				};
-
-				bAddDefaultScreenPercentageSlider = !GCustomEditorStaticScreenPercentage->GenerateEditorViewportOptionsMenuEntry(Arguments);
-			}
-
-
-			if (bAddDefaultScreenPercentageSlider)
-			{
-				Section.AddEntry(FToolMenuEntry::InitWidget("ScreenPercentage", GenerateScreenPercentageMenu(), LOCTEXT("ScreenPercentage", "Screen Percentage")));
-			}
+			Section.AddEntry(FToolMenuEntry::InitWidget("ScreenPercentage", GenerateScreenPercentageMenu(), LOCTEXT("ScreenPercentage", "Screen Percentage")));
 		}
 
 		{

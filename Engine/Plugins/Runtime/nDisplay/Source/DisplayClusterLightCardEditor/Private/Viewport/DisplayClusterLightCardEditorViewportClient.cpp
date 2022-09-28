@@ -27,7 +27,6 @@
 #include "Components/PostProcessComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/PrimitiveComponent.h"
-#include "CustomEditorStaticScreenPercentage.h"
 #include "Debug/DebugDrawService.h"
 #include "EngineUtils.h"
 #include "EditorModes.h"
