@@ -94,10 +94,6 @@
 		{
 			"Name": "CommonUI",
 			"Enabled": true
-		},
-		{
-			"Name": "PixelStreamingVCam",
-			"Enabled": true
 		}
 	]
 }
