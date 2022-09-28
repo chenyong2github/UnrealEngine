@@ -185,6 +185,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Source")
 	bool OnlyUseMoveable = true;
 
+	/** If enabled, complex collisions will be searched for. */
+	UPROPERTY(EditAnywhere, Category = "Source")
+	bool UseComplexCollisions = false;
+
 	/** If enabled the global search can be executed dependeing on GlobalSearchForced and GlobalSearchFallback_Unscripted */
 	UPROPERTY(EditAnywhere, Category = "Source", meta = (DisplayName = "Global Search Allowed"))
 	bool GlobalSearchAllowed = true;
