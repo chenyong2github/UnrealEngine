@@ -78,7 +78,7 @@ namespace UE::Anim::FootPlacement
 			FVectorSpringState PlantOffsetTranslationSpringState;
 			FQuaternionSpringState PlantOffsetRotationSpringState;
 
-			FVectorSpringState GroundTranslationSpringState;
+			FFloatSpringState GroundHeightSpringState;
 			FQuaternionSpringState GroundRotationSpringState;
 		} Interpolation;
 	};
