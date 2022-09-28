@@ -2571,7 +2571,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			}
 			else
 			{
-				UE_LOG(LogMeshMerging, Error, TEXT("GenerateUniqueUVsForStaticMesh: Failed to pack UVs for static mesh"));
+				UE_LOG(LogMeshMerging, Warning, TEXT("GenerateUniqueUVsForStaticMesh: Failed to pack UVs for static mesh"));
 			}
 		}
 
