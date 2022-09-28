@@ -55,6 +55,9 @@ private:
 	/** Delegate callback when the drawer is closed to save the drawer state */
 	void SaveDrawerState(const TSharedPtr<SWidget>& DrawerContent);
 
+	/** Delegate callback that is raised when the active root actor of the operator panel has changed */
+	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
+
 private:
 	/** A weak pointer to the active color grading drawer that is open */
 	TWeakPtr<SDisplayClusterColorGradingDrawer> ColorGradingDrawer;

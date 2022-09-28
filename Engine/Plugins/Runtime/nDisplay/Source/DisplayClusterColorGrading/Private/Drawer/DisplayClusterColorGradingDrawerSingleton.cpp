@@ -38,10 +38,17 @@ FDisplayClusterColorGradingDrawerSingleton::FDisplayClusterColorGradingDrawerSin
 	IDisplayClusterOperator::Get().OnRegisterLayoutExtensions().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::ExtendOperatorTabLayout);
 	IDisplayClusterOperator::Get().OnRegisterStatusBarExtensions().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::ExtendOperatorStatusBar);
 	IDisplayClusterOperator::Get().OnAppendOperatorPanelCommands().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::AppendOperatorPanelCommands);
+
+	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnActiveRootActorChanged().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::OnActiveRootActorChanged);
 }
 
 FDisplayClusterColorGradingDrawerSingleton::~FDisplayClusterColorGradingDrawerSingleton()
 {
+	IDisplayClusterOperator::Get().OnRegisterLayoutExtensions().RemoveAll(this);
+	IDisplayClusterOperator::Get().OnRegisterStatusBarExtensions().RemoveAll(this);
+	IDisplayClusterOperator::Get().OnAppendOperatorPanelCommands().RemoveAll(this);
+	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnActiveRootActorChanged().RemoveAll(this);
+
 	if (FSlateApplication::IsInitialized())
 	{
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ColorGradingDrawerTab);
@@ -169,6 +176,12 @@ void FDisplayClusterColorGradingDrawerSingleton::SaveDrawerState(const TSharedPt
 	{
 		PreviousDrawerState.Reset();
 	}
+}
+
+void FDisplayClusterColorGradingDrawerSingleton::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
+{
+	// Clear the previous drawer state when the active root actor is changed, since it is most likely invalid
+	PreviousDrawerState.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

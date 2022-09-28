@@ -374,6 +374,10 @@ void SDisplayClusterColorGradingDrawer::Refresh(bool bPreserveDrawerState)
 	{
 		SetDrawerState(DrawerState);
 	}
+	else
+	{
+		SetDrawerStateToDefault();
+	}
 }
 
 void SDisplayClusterColorGradingDrawer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -470,8 +474,6 @@ FDisplayClusterColorGradingDrawerState SDisplayClusterColorGradingDrawer::GetDra
 
 void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColorGradingDrawerState& InDrawerState)
 {
-	CurrentDrawerMode = InDrawerState.DrawerMode;
-
 	TArray<FDisplayClusterColorGradingListItemRef> LevelItemsToSelect;
 	TArray<FDisplayClusterColorGradingListItemRef> RootActorItemsToSelect;
 	for (const TWeakObjectPtr<UObject>& SelectedObject : InDrawerState.SelectedObjects)
@@ -520,6 +522,8 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 
 	ColorGradingDataModel->SetSelectedColorGradingGroup(InDrawerState.SelectedColorGradingGroup);
 	ColorGradingDataModel->SetSelectedColorGradingElement(InDrawerState.SelectedColorGradingElement);
+
+	CurrentDrawerMode = InDrawerState.DrawerMode;
 
 	if (ColorWheelPanel.IsValid())
 	{
@@ -905,7 +909,7 @@ void SDisplayClusterColorGradingDrawer::OnBlueprintCompiled(UBlueprint* Blueprin
 
 void SDisplayClusterColorGradingDrawer::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
-	const bool bPreserveDrawerState = true;
+	const bool bPreserveDrawerState = false;
 	Refresh(bPreserveDrawerState);
 }
 
