@@ -48,6 +48,7 @@ protected:
 
 private:
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
 	FGuid GridGuid;
 #endif
 };
