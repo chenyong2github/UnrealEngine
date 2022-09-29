@@ -67,6 +67,7 @@ bool FWorldPartitionConverter::Convert()
 		FLevelActorFoldersHelper::SetUseActorFolders(World->PersistentLevel, Parameters.bUseActorFolders);
 		WorldPartition->bEnableStreaming = Parameters.bEnableStreaming;
 		WorldPartition->bStreamingWasEnabled = Parameters.bEnableStreaming;
+		WorldPartition->bEnableLoadingInEditor = Parameters.bEnableStreaming;
 		WorldPartition->SetCanBeUsedByLevelInstance(Parameters.bCanBeUsedByLevelInstance);
 		bCreatedWorldPartition = true;
 	}

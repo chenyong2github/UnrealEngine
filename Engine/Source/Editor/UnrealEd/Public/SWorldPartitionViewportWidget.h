@@ -4,8 +4,6 @@
 
 #include "Widgets/SCompoundWidget.h"
 
-class IWorldPartitionEditorModule;
-
 class UNREALED_API SWorldPartitionViewportWidget : public SCompoundWidget
 {
 public:
@@ -23,5 +21,4 @@ private:
 	FText Message;
 	FText Tooltip;
 	FName InvokeTab;
-	IWorldPartitionEditorModule* WorldPartitionEditorModule;
 };

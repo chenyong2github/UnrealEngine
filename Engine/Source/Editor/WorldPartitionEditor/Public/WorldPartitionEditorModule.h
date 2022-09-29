@@ -48,18 +48,6 @@ public:
 	virtual int32 GetMinimapLowQualityWorldUnitsPerPixelThreshold() const override;
 
 	/**
-	 * Returns if loading in the editor is disabled or not.
-	 */
-	virtual bool GetDisableLoadingInEditor() const override;
-	virtual void SetDisableLoadingInEditor(bool bInDisableLoadingInEditor) override;
-
-	/**
-	 * Returns if pie is disabled or not..
-	 */
-	virtual bool GetDisablePIE() const override;
-	virtual void SetDisablePIE(bool bInDisablePIE) override;
-
-	/**
 	 * Convert the specified map to a world partition map.
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;
