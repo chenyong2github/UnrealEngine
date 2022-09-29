@@ -12,6 +12,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/WorldPartitionEditorSettings.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
@@ -321,6 +322,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						SNew(SCheckBox)
 						.IsChecked(bFollowPlayerInPIE ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 						.IsEnabled(true)
+						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE ? EVisibility::Hidden : EVisibility::Visible; })
 						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { bFollowPlayerInPIE = !bFollowPlayerInPIE; }))
 					]
 					+SHorizontalBox::Slot()
@@ -330,6 +332,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.AutoWrapText(true)
 						.IsEnabled(true)
+						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE ? EVisibility::Hidden : EVisibility::Visible; })
 						.Text(LOCTEXT("FollowPlayerInPIE", "Follow Player in PIE"))
 					]
 					+SHorizontalBox::Slot()
@@ -338,6 +341,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						SNew(SCheckBox)
 						.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 						.IsEnabled(true)
+						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
 						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetBugItGoLoadRegion(State == ECheckBoxState::Checked); }))
 					]
 					+SHorizontalBox::Slot()
@@ -347,6 +351,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.AutoWrapText(true)
 						.IsEnabled(true)
+						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
 						.Text(LOCTEXT("BugItGoLoadRegion", "BugItGo Load Region"))
 					]
 					+SHorizontalBox::Slot()
@@ -381,6 +386,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("FocusLoadedRegions", "Focus Loaded Regions"))
 						.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusLoadedRegions)
 						.IsEnabled_Lambda([this]() { return IsInteractive() && WorldPartition && WorldPartition->HasLoadedUserCreatedRegions(); })
+						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
 					]
 				]
 			]
@@ -714,7 +720,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 
 			const FEditorCommands& Commands = FEditorCommands::Get();
 
-			if (WorldPartition->IsLoadingInEditorEnabled())
+			if (!GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor)
 			{
 				MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionSelection", "Selection"));
 					MenuBuilder.AddMenuEntry(Commands.CreateRegionFromSelection);
@@ -728,9 +734,13 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionMisc", "Misc"));
 				MenuBuilder.AddMenuEntry(Commands.MoveCameraHere);
-				MenuBuilder.AddMenuEntry(Commands.PlayFromHere);
+
+				if (!GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE)
+				{
+					MenuBuilder.AddMenuEntry(Commands.PlayFromHere);
+				}
 				
-				if (WorldPartition->IsLoadingInEditorEnabled())
+				if (!GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor)
 				{
 					MenuBuilder.AddMenuEntry(Commands.LoadFromHere);
 				}
@@ -804,13 +814,16 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonDoubleClick(const FGeometry& In
 	{
 		if (InMouseEvent.IsShiftDown())
 		{
-			PlayFromHere();
+			if (!GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE)
+			{
+				PlayFromHere();
+			}
 		}
 		else
 		{
 			MoveCameraHere();
 
-			if (InMouseEvent.IsControlDown() && WorldPartition->IsLoadingInEditorEnabled())
+			if (InMouseEvent.IsControlDown() && !GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor)
 			{
 				LoadFromHere();
 			}

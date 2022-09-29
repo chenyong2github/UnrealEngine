@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionEditorHash.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
@@ -10,7 +11,14 @@
 
 UWorldPartitionEditorHash::UWorldPartitionEditorHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-{}
+{
+#if WITH_EDITOR
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		WorldPartitionEditorModule = &FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	}
+#endif
+}
 
 #if WITH_EDITOR
 UWorldPartitionEditorHash::FForEachIntersectingActorParams::FForEachIntersectingActorParams()
