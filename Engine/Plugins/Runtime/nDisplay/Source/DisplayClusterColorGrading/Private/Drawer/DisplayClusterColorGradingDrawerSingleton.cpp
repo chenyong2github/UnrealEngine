@@ -40,6 +40,7 @@ FDisplayClusterColorGradingDrawerSingleton::FDisplayClusterColorGradingDrawerSin
 	IDisplayClusterOperator::Get().OnAppendOperatorPanelCommands().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::AppendOperatorPanelCommands);
 
 	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnActiveRootActorChanged().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::OnActiveRootActorChanged);
+	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnDetailObjectsChanged().AddRaw(this, &FDisplayClusterColorGradingDrawerSingleton::OnDetailObjectsChanged);
 }
 
 FDisplayClusterColorGradingDrawerSingleton::~FDisplayClusterColorGradingDrawerSingleton()
@@ -48,6 +49,7 @@ FDisplayClusterColorGradingDrawerSingleton::~FDisplayClusterColorGradingDrawerSi
 	IDisplayClusterOperator::Get().OnRegisterStatusBarExtensions().RemoveAll(this);
 	IDisplayClusterOperator::Get().OnAppendOperatorPanelCommands().RemoveAll(this);
 	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnActiveRootActorChanged().RemoveAll(this);
+	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnDetailObjectsChanged().RemoveAll(this);
 
 	if (FSlateApplication::IsInitialized())
 	{
@@ -181,6 +183,12 @@ void FDisplayClusterColorGradingDrawerSingleton::SaveDrawerState(const TSharedPt
 void FDisplayClusterColorGradingDrawerSingleton::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
 	// Clear the previous drawer state when the active root actor is changed, since it is most likely invalid
+	PreviousDrawerState.Reset();
+}
+
+void FDisplayClusterColorGradingDrawerSingleton::OnDetailObjectsChanged(const TArray<UObject*>& NewObjects)
+{
+	// Clear the previous drawer state when the selected detail objects have changed
 	PreviousDrawerState.Reset();
 }
 

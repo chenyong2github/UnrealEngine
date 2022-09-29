@@ -146,6 +146,9 @@ private:
 	/** Raised when the user has changed the active root actor selected in the nDisplay operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
 	
+	/** Raised when the obejcts being displayed in the operator's details panel have changed */
+	void OnDetailObjectsChanged(const TArray<UObject*>& Objects);
+
 	/** Raised when the color grading data model has been generated */
 	void OnColorGradingDataModelGenerated();
 
@@ -182,6 +185,9 @@ private:
 
 	/** Indicates that the drawer should refresh itself on the next tick */
 	bool bRefreshOnNextTick = false;
+
+	/** Indicates if the color grading data model should update when a list item selection has changed */
+	bool bUpdateDataModelOnSelectionChanged = true;
 
 	/** Delegate handle for the OnActiveRootActorChanged delegate */
 	FDelegateHandle ActiveRootActorChangedHandle;

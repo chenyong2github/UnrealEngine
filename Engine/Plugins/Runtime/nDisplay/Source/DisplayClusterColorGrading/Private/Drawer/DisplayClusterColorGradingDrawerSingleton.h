@@ -58,6 +58,9 @@ private:
 	/** Delegate callback that is raised when the active root actor of the operator panel has changed */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
 
+	/** Delegate callback that is raised when the list of objects displayed in the operator panel's details panel has changed */
+	void OnDetailObjectsChanged(const TArray<UObject*>& NewObjects);
+
 private:
 	/** A weak pointer to the active color grading drawer that is open */
 	TWeakPtr<SDisplayClusterColorGradingDrawer> ColorGradingDrawer;

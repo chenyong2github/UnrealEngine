@@ -37,6 +37,9 @@ struct FDisplayClusterColorGradingListItem
 		, Component(InComponent)
 		, IsItemEnabled(false)
 	{ }
+
+	/** Less than operator overload that compares list items alphabetically by their display names */
+	bool operator<(const FDisplayClusterColorGradingListItem& Other) const;
 };
 
 typedef TSharedPtr<FDisplayClusterColorGradingListItem> FDisplayClusterColorGradingListItemRef;

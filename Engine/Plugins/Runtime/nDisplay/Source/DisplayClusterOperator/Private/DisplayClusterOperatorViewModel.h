@@ -20,7 +20,10 @@ public:
 	virtual ADisplayClusterRootActor* GetRootActor(bool bEvenIfPendingKill = false) const override;
 	virtual void SetRootActor(ADisplayClusterRootActor* InRootActor) override;
 	virtual FOnActiveRootActorChanged& OnActiveRootActorChanged() override { return RootActorChanged; }
-
+	virtual const TArray<TWeakObjectPtr<UObject>> GetDetailObjects() override { return DetailObjects; }
+	virtual void ShowDetailsForObject(UObject* Object) override;
+	virtual void ShowDetailsForObjects(const TArray<UObject*>& Objects) override;
+	virtual FOnDetailObjectsChanged& OnDetailObjectsChanged() override { return DetailObjectsChanged; }
 	virtual TSharedPtr<FTabManager> GetTabManager() const override { return TabManager; }
 
 	virtual TSharedPtr<FWorkspaceItem> GetWorkspaceMenuGroup() const override { return WorkspaceItem; }
@@ -31,8 +34,10 @@ public:
 
 private:
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActor;
+	TArray<TWeakObjectPtr<UObject>> DetailObjects;
 	TSharedPtr<FTabManager> TabManager;
 	TSharedPtr<FWorkspaceItem> WorkspaceItem;
 
 	FOnActiveRootActorChanged RootActorChanged;
+	FOnDetailObjectsChanged DetailObjectsChanged;
 };

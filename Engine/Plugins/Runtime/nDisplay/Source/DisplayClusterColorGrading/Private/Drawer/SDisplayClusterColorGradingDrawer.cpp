@@ -18,6 +18,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "ColorCorrectRegion.h"
+#include "ColorCorrectWindow.h"
 #include "Engine/PostProcessVolume.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
@@ -27,6 +28,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -38,6 +40,7 @@ SDisplayClusterColorGradingDrawer::~SDisplayClusterColorGradingDrawer()
 {
 	OperatorViewModel = IDisplayClusterOperator::Get().GetOperatorViewModel();
 	OperatorViewModel->OnActiveRootActorChanged().RemoveAll(this);
+	OperatorViewModel->OnDetailObjectsChanged().RemoveAll(this);
 
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	GEngine->OnLevelActorAdded().RemoveAll(this);
@@ -80,6 +83,7 @@ void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool
 	bIsInDrawer = bInIsInDrawer;
 	OperatorViewModel = IDisplayClusterOperator::Get().GetOperatorViewModel();
 	OperatorViewModel->OnActiveRootActorChanged().AddSP(this, &SDisplayClusterColorGradingDrawer::OnActiveRootActorChanged);
+	OperatorViewModel->OnDetailObjectsChanged().AddSP(this, &SDisplayClusterColorGradingDrawer::OnDetailObjectsChanged);
 
 	FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &SDisplayClusterColorGradingDrawer::OnObjectsReplaced);
 	GEngine->OnLevelActorAdded().AddSP(this, &SDisplayClusterColorGradingDrawer::OnLevelActorAdded);
@@ -177,55 +181,59 @@ void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool
 						.Padding(FMargin(0.0f))
 						.BorderImage(FAppStyle::GetBrush("Brushes.Recessed"))
 						[
-							SNew(SVerticalBox)
-
-							+SVerticalBox::Slot()
-							.AutoHeight()
+							SNew(SScrollBox)
+							+ SScrollBox::Slot()
 							[
-								SNew(SExpandableArea)
-								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-								.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-								.HeaderPadding(FMargin(4.0f, 2.0f))
-								.InitiallyCollapsed(false)
-								.AllowAnimatedTransition(false)
-								.Visibility_Lambda([this]() { return LevelColorGradingItems.Num() ? EVisibility::Visible : EVisibility::Collapsed; })
-								.HeaderContent()
-								[
-									SNew(STextBlock)
-									.Text(this, &SDisplayClusterColorGradingDrawer::GetCurrentLevelName)
-									.TextStyle(FAppStyle::Get(), "ButtonText")
-									.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
-								]
-								.BodyContent()
-								[
-									SAssignNew(LevelActorsList, SDisplayClusterColorGradingObjectList)
-									.ColorGradingItemsSource(&LevelColorGradingItems)
-									.OnSelectionChanged(this, &SDisplayClusterColorGradingDrawer::OnListSelectionChanged)
-								]
-							]
+								SNew(SVerticalBox)
 
-							+SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								SNew(SExpandableArea)
-								.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
-								.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-								.HeaderPadding(FMargin(4.0f, 2.0f))
-								.InitiallyCollapsed(false)
-								.AllowAnimatedTransition(false)
-								.Visibility_Lambda([this]() { return RootActorColorGradingItems.Num() ? EVisibility::Visible : EVisibility::Collapsed; })
-								.HeaderContent()
+								+SVerticalBox::Slot()
+								.AutoHeight()
 								[
-									SNew(STextBlock)
-									.Text(this, &SDisplayClusterColorGradingDrawer::GetCurrentRootActorName)
-									.TextStyle(FAppStyle::Get(), "ButtonText")
-									.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+									SNew(SExpandableArea)
+									.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+									.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+									.HeaderPadding(FMargin(4.0f, 2.0f))
+									.InitiallyCollapsed(false)
+									.AllowAnimatedTransition(false)
+									.Visibility_Lambda([this]() { return LevelColorGradingItems.Num() ? EVisibility::Visible : EVisibility::Collapsed; })
+									.HeaderContent()
+									[
+										SNew(STextBlock)
+										.Text(this, &SDisplayClusterColorGradingDrawer::GetCurrentLevelName)
+										.TextStyle(FAppStyle::Get(), "ButtonText")
+										.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+									]
+									.BodyContent()
+									[
+										SAssignNew(LevelActorsList, SDisplayClusterColorGradingObjectList)
+										.ColorGradingItemsSource(&LevelColorGradingItems)
+										.OnSelectionChanged(this, &SDisplayClusterColorGradingDrawer::OnListSelectionChanged)
+									]
 								]
-								.BodyContent()
+
+								+SVerticalBox::Slot()
+								.AutoHeight()
 								[
-									SAssignNew(RootActorList, SDisplayClusterColorGradingObjectList)
-									.ColorGradingItemsSource(&RootActorColorGradingItems)
-									.OnSelectionChanged(this, &SDisplayClusterColorGradingDrawer::OnListSelectionChanged)
+									SNew(SExpandableArea)
+									.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+									.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+									.HeaderPadding(FMargin(4.0f, 2.0f))
+									.InitiallyCollapsed(false)
+									.AllowAnimatedTransition(false)
+									.Visibility_Lambda([this]() { return RootActorColorGradingItems.Num() ? EVisibility::Visible : EVisibility::Collapsed; })
+									.HeaderContent()
+									[
+										SNew(STextBlock)
+										.Text(this, &SDisplayClusterColorGradingDrawer::GetCurrentRootActorName)
+										.TextStyle(FAppStyle::Get(), "ButtonText")
+										.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+									]
+									.BodyContent()
+									[
+										SAssignNew(RootActorList, SDisplayClusterColorGradingObjectList)
+										.ColorGradingItemsSource(&RootActorColorGradingItems)
+										.OnSelectionChanged(this, &SDisplayClusterColorGradingDrawer::OnListSelectionChanged)
+									]
 								]
 							]
 						]
@@ -538,10 +546,38 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 
 void SDisplayClusterColorGradingDrawer::SetDrawerStateToDefault()
 {
-	// The nDisplay stage actor is always the first item in the root actor color grading items list, so set that as the currently selected item
 	if (RootActorList.IsValid() && RootActorColorGradingItems.Num() > 0)
 	{
-		RootActorList->SetSelectedItems({ RootActorColorGradingItems[0] });
+		auto FindCCW = [](const TWeakObjectPtr<UObject>& Object)
+		{
+			return Object.IsValid() && Object->IsA<AColorCorrectionWindow>();
+		};
+
+		const bool bIsCCWSelected = OperatorViewModel->GetDetailObjects().ContainsByPredicate(FindCCW);
+
+		// If there is a CCW in the currently selected detail objects, automatically select the last (most recently selected) one
+		if (bIsCCWSelected)
+		{
+			int32 CCWIndex = OperatorViewModel->GetDetailObjects().FindLastByPredicate(FindCCW);
+			if (CCWIndex > INDEX_NONE)
+			{
+				AColorCorrectionWindow* CCW = Cast<AColorCorrectionWindow>(OperatorViewModel->GetDetailObjects()[CCWIndex]);
+				FDisplayClusterColorGradingListItemRef* ListItemPtr = RootActorColorGradingItems.FindByPredicate([CCW](const FDisplayClusterColorGradingListItemRef& ListItem)
+				{
+					return ListItem.IsValid() && ListItem->Actor.Get() == CCW;
+				});
+
+				if (ListItemPtr)
+				{
+					RootActorList->SetSelectedItems({ *ListItemPtr });
+				}
+			}
+		}
+		else
+		{
+			// The nDisplay stage actor is always the first item in the root actor color grading items list, so set that as the currently selected item
+			RootActorList->SetSelectedItems({ RootActorColorGradingItems[0] });
+		}
 	}
 }
 
@@ -652,28 +688,62 @@ void SDisplayClusterColorGradingDrawer::FillLevelColorGradingList()
 	{
 		if (UWorld* World = RootActor->GetWorld())
 		{
-			for (TActorIterator<APostProcessVolume> PPVIter(World); PPVIter; ++PPVIter)
+			// Sorter that sorts the list items alphabetically by their display name
+			auto AlphabeticalSort = [](const FDisplayClusterColorGradingListItemRef& A, const FDisplayClusterColorGradingListItemRef& B)
 			{
-				APostProcessVolume* PostProcessVolume = *PPVIter;
-				BindBlueprintCompiledDelegate(PostProcessVolume->GetClass());
+				if (A.IsValid() && B.IsValid())
+				{
+					return *A < *B;
+				}
+				else
+				{
+					return false;
+				}
+			};
 
-				FDisplayClusterColorGradingListItemRef PPVListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(PostProcessVolume);
-				PPVListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(PostProcessVolume, PostProcessVolume->bEnabled);
-				PPVListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(PostProcessVolume, PostProcessVolume->bEnabled);
+			// Add all post process volumes that are in the same world as the stage actor
+			{
+				TArray<FDisplayClusterColorGradingListItemRef> SortedPPVs;
+				for (TActorIterator<APostProcessVolume> PPVIter(World); PPVIter; ++PPVIter)
+				{
+					APostProcessVolume* PostProcessVolume = *PPVIter;
+					BindBlueprintCompiledDelegate(PostProcessVolume->GetClass());
 
-				LevelColorGradingItems.Add(PPVListItemRef);
+					FDisplayClusterColorGradingListItemRef PPVListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(PostProcessVolume);
+					PPVListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(PostProcessVolume, PostProcessVolume->bEnabled);
+					PPVListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(PostProcessVolume, PostProcessVolume->bEnabled);
+
+					SortedPPVs.Add(PPVListItemRef);
+				}
+
+				SortedPPVs.Sort(AlphabeticalSort);
+				LevelColorGradingItems.Append(SortedPPVs);
 			}
 
-			for (TActorIterator<AColorCorrectRegion> CCRIter(World); CCRIter; ++CCRIter)
+			// Add all color correction regions that are in the same world as the stage actor
 			{
-				AColorCorrectRegion* ColorCorrectRegion = *CCRIter;
-				BindBlueprintCompiledDelegate(ColorCorrectRegion->GetClass());
+				TArray<FDisplayClusterColorGradingListItemRef> SortedCCRs;
+				for (TActorIterator<AColorCorrectRegion> CCRIter(World); CCRIter; ++CCRIter)
+				{
+					AColorCorrectRegion* ColorCorrectRegion = *CCRIter;
 
-				FDisplayClusterColorGradingListItemRef CCRListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(ColorCorrectRegion);
-				CCRListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(ColorCorrectRegion, ColorCorrectRegion->Enabled);
-				CCRListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(ColorCorrectRegion, ColorCorrectRegion->Enabled);
+					// Skip color correct windows, since those are stage managed actors and will be handled in a separate way
+					if (ColorCorrectRegion->IsA<AColorCorrectionWindow>())
+					{
+						continue;
+					}
 
-				LevelColorGradingItems.Add(CCRListItemRef);
+					BindBlueprintCompiledDelegate(ColorCorrectRegion->GetClass());
+
+					FDisplayClusterColorGradingListItemRef CCRListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(ColorCorrectRegion);
+					CCRListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(ColorCorrectRegion, ColorCorrectRegion->Enabled);
+					CCRListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(ColorCorrectRegion, ColorCorrectRegion->Enabled);
+
+					SortedCCRs.Add(CCRListItemRef);
+				}
+
+				SortedCCRs.Sort(AlphabeticalSort);
+				LevelColorGradingItems.Append(SortedCCRs);
 			}
 		}
 	}
@@ -711,16 +781,61 @@ void SDisplayClusterColorGradingDrawer::FillRootActorColorGradingList()
 
 		RootActorColorGradingItems.Add(RootActorListItemRef);
 
-		RootActor->ForEachComponent<UDisplayClusterICVFXCameraComponent>(false, [this, RootActor](UDisplayClusterICVFXCameraComponent* ICVFXCameraComponent)
+		auto AlphabeticalSort = [](const FDisplayClusterColorGradingListItemRef& A, const FDisplayClusterColorGradingListItemRef& B)
 		{
-			BindBlueprintCompiledDelegate(ICVFXCameraComponent->GetClass());
+			if (A.IsValid() && B.IsValid())
+			{
+				return *A < *B;
+			}
+			else
+			{
+				return false;
+			}
+		};
 
-			FDisplayClusterColorGradingListItemRef ICVFXCameraListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(RootActor, ICVFXCameraComponent);
-			ICVFXCameraListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(ICVFXCameraComponent, ICVFXCameraComponent->CameraSettings.EnableInnerFrustumColorGrading);
-			ICVFXCameraListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(ICVFXCameraComponent, ICVFXCameraComponent->CameraSettings.EnableInnerFrustumColorGrading);
+		// Add any ICVFX camera component the root actor has to the color grading list
+		{
+			TArray<FDisplayClusterColorGradingListItemRef> SortedICVFXCameras;
+			RootActor->ForEachComponent<UDisplayClusterICVFXCameraComponent>(false, [this, RootActor, &SortedICVFXCameras](UDisplayClusterICVFXCameraComponent* ICVFXCameraComponent)
+			{
+				BindBlueprintCompiledDelegate(ICVFXCameraComponent->GetClass());
 
-			RootActorColorGradingItems.Add(ICVFXCameraListItemRef);
-		});
+				FDisplayClusterColorGradingListItemRef ICVFXCameraListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(RootActor, ICVFXCameraComponent);
+				ICVFXCameraListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(ICVFXCameraComponent, ICVFXCameraComponent->CameraSettings.EnableInnerFrustumColorGrading);
+				ICVFXCameraListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(ICVFXCameraComponent, ICVFXCameraComponent->CameraSettings.EnableInnerFrustumColorGrading);
+
+				SortedICVFXCameras.Add(ICVFXCameraListItemRef);
+			});
+
+			SortedICVFXCameras.Sort(AlphabeticalSort);
+			RootActorColorGradingItems.Append(SortedICVFXCameras);
+		}
+
+		// Add any color correction window that is currently selected in the operator's details panel to the list
+		{
+			const TArray<TWeakObjectPtr<UObject>>& DetailObjects = OperatorViewModel->GetDetailObjects();
+
+			TArray<FDisplayClusterColorGradingListItemRef> SortedCCWs;
+			for (const TWeakObjectPtr<UObject>& Object : DetailObjects)
+			{
+				if (Object.IsValid())
+				{
+					if (AColorCorrectionWindow* CCW = Cast<AColorCorrectionWindow>(Object.Get()))
+					{
+						BindBlueprintCompiledDelegate(CCW->GetClass());
+
+						FDisplayClusterColorGradingListItemRef ICVFXCameraListItemRef = MakeShared<FDisplayClusterColorGradingListItem>(CCW);
+						ICVFXCameraListItemRef->IsItemEnabled = CREATE_IS_ENABLED_LAMBDA(CCW, CCW->Enabled);
+						ICVFXCameraListItemRef->OnItemEnabledChanged = CREATE_ON_ENABLED_CHANGED_LAMBDA(CCW, CCW->Enabled);
+
+						SortedCCWs.Add(ICVFXCameraListItemRef);
+					}
+				}
+			}
+
+			SortedCCWs.Sort(AlphabeticalSort);
+			RootActorColorGradingItems.Append(SortedCCWs);
+		}
 	}
 
 	if (RootActorList.IsValid())
@@ -913,6 +1028,16 @@ void SDisplayClusterColorGradingDrawer::OnActiveRootActorChanged(ADisplayCluster
 	Refresh(bPreserveDrawerState);
 }
 
+void SDisplayClusterColorGradingDrawer::OnDetailObjectsChanged(const TArray<UObject*>& Objects)
+{
+	if (RootActorList.IsValid())
+	{
+		FillRootActorColorGradingList();
+
+		SetDrawerStateToDefault();
+	}
+}
+
 void SDisplayClusterColorGradingDrawer::OnColorGradingDataModelGenerated()
 {
 	FillColorGradingGroupToolBar();
@@ -937,37 +1062,44 @@ void SDisplayClusterColorGradingDrawer::OnListSelectionChanged(TSharedRef<SDispl
 	{
 		if (RootActorList->GetSelectedItems().Num())
 		{
+			bUpdateDataModelOnSelectionChanged = false;
 			RootActorList->SetSelectedItems(TArray<FDisplayClusterColorGradingListItemRef>());
+			bUpdateDataModelOnSelectionChanged = true;
 		}
 	}
 	else if (RootActorList == SourceList && SelectedObjects.Num())
 	{
 		if (LevelActorsList->GetSelectedItems().Num())
 		{
+			bUpdateDataModelOnSelectionChanged = false;
 			LevelActorsList->SetSelectedItems(TArray<FDisplayClusterColorGradingListItemRef>());
+			bUpdateDataModelOnSelectionChanged = true;
 		}
 	}
 
-	TArray<UObject*> ObjectsToColorGrade;
-	for (const FDisplayClusterColorGradingListItemRef& SelectedObject : SelectedObjects)
+	if (bUpdateDataModelOnSelectionChanged)
 	{
-		if (SelectedObject->Component.IsValid())
+		TArray<UObject*> ObjectsToColorGrade;
+		for (const FDisplayClusterColorGradingListItemRef& SelectedObject : SelectedObjects)
 		{
-			ObjectsToColorGrade.Add(SelectedObject->Component.Get());
+			if (SelectedObject->Component.IsValid())
+			{
+				ObjectsToColorGrade.Add(SelectedObject->Component.Get());
+			}
+			else if (SelectedObject->Actor.IsValid())
+			{
+				ObjectsToColorGrade.Add(SelectedObject->Actor.Get());
+			}
 		}
-		else if (SelectedObject->Actor.IsValid())
+
+		ColorGradingDataModel->SetObjects(ObjectsToColorGrade);
+
+		// If the current drawer mode is the details view but the newly selected objects don't have any details sections to display,
+		// switch to the color grading drawer mode
+		if (CurrentDrawerMode == EDisplayClusterColorGradingDrawerMode::DetailsView && ColorGradingDataModel->DetailsSections.Num() == 0)
 		{
-			ObjectsToColorGrade.Add(SelectedObject->Actor.Get());
+			CurrentDrawerMode = EDisplayClusterColorGradingDrawerMode::ColorGrading;
 		}
-	}
-
-	ColorGradingDataModel->SetObjects(ObjectsToColorGrade);
-
-	// If the current drawer mode is the details view but the newly selected objects don't have any details sections to display,
-	// switch to the color grading drawer mode
-	if (CurrentDrawerMode == EDisplayClusterColorGradingDrawerMode::DetailsView && ColorGradingDataModel->DetailsSections.Num() == 0)
-	{
-		CurrentDrawerMode = EDisplayClusterColorGradingDrawerMode::ColorGrading;
 	}
 }
 

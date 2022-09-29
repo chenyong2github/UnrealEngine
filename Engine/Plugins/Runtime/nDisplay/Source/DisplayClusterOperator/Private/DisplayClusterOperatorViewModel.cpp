@@ -24,6 +24,18 @@ void FDisplayClusterOperatorViewModel::SetRootActor(ADisplayClusterRootActor* In
 	RootActorChanged.Broadcast(RootActor.Get());
 }
 
+void FDisplayClusterOperatorViewModel::ShowDetailsForObject(UObject* Object)
+{
+	ShowDetailsForObjects({ Object });
+}
+
+void FDisplayClusterOperatorViewModel::ShowDetailsForObjects(const TArray<UObject*>& Objects)
+{
+	DetailObjects.Empty();
+	DetailObjects.Append(Objects);
+	DetailObjectsChanged.Broadcast(Objects);
+}
+
 TSharedRef<FTabManager> FDisplayClusterOperatorViewModel::CreateTabManager(const TSharedRef<SDockTab>& MajorTabOwner)
 {
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);

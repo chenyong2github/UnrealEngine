@@ -26,7 +26,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterLayoutExtensions, FLayoutExtender&);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterStatusBarExtensions, FDisplayClusterOperatorStatusBarExtender&);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAppendOperatorPanelCommands, TSharedRef<FUICommandList>)
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDetailObjectsChanged, const TArray<UObject*>&);
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<IDisplayClusterOperatorApp>, FOnGetAppInstance, TSharedRef<IDisplayClusterOperatorViewModel>);
 	
 public:
@@ -71,9 +70,6 @@ public:
 	/** Gets the event handler that is raised when the operator panel binds commands to its command list */
 	virtual FOnAppendOperatorPanelCommands& OnAppendOperatorPanelCommands() = 0;
 
-	/** Gets the event handler that is raised when the objects being displayed in the operator's details panel are changed */
-	virtual FOnDetailObjectsChanged& OnDetailObjectsChanged() = 0;
-
 	/** Gets the extension ID for the main window region that can be used to add tabs to the operator panel */
 	virtual FName GetPrimaryOperatorExtensionId() = 0;
 
@@ -91,12 +87,6 @@ public:
 	
 	/** Gets a list of all nDisplay root actor instances that are on the currently loaded level */
 	virtual void GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances) = 0;
-
-	/** Displays the properties of the specified object in the operator's details panel */
-	virtual void ShowDetailsForObject(UObject* Object) = 0;
-
-	/** Displays the properties of the specified object in the operator's details panel */
-	virtual void ShowDetailsForObjects(const TArray<UObject*>& Objects) = 0;
 
 	/** Toggles the state of a drawer with the specified ID, closing the drawer if it is open, and opening the drawer if it is closed */
 	virtual void ToggleDrawer(const FName DrawerId) = 0;

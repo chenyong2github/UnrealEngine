@@ -2,12 +2,16 @@
 
 #include "DisplayClusterColorGradingGenerator_PostProcessVolume.h"
 
+#include "ClassIconFinder.h"
 #include "Engine/PostProcessVolume.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "PropertyHandle.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterColorGrading"
 
@@ -18,6 +22,22 @@ TSharedRef<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGr
 
 void FDisplayClusterColorGradingGenerator_PostProcessVolume::GenerateDataModel(IPropertyRowGenerator& PropertyRowGenerator, FDisplayClusterColorGradingDataModel& OutColorGradingDataModel)
 {
+	TArray<TWeakObjectPtr<APostProcessVolume>> SelectedPPVs;
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator.GetSelectedObjects();
+	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid() && SelectedObject->IsA<APostProcessVolume>())
+		{
+			TWeakObjectPtr<APostProcessVolume> SelectedRootActor = CastChecked<APostProcessVolume>(SelectedObject.Get());
+			SelectedPPVs.Add(SelectedRootActor);
+		}
+	}
+
+	if (!SelectedPPVs.Num())
+	{
+		return;
+	}
+
 	const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = PropertyRowGenerator.GetRootTreeNodes();
 
 	const TSharedRef<IDetailTreeNode>* ColorGradingNodePtr = RootNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
@@ -47,6 +67,32 @@ void FDisplayClusterColorGradingGenerator_PostProcessVolume::GenerateDataModel(I
 
 			AddPropertiesToDetailsView(PropertyGroupNode, ColorGradingGroup);
 		}
+
+		ColorGradingGroup.GroupHeaderWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(0, 1, 6, 1))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.WidthOverride(16)
+				.HeightOverride(16)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FClassIconFinder::FindIconForActor(SelectedPPVs[0]))
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(SelectedPPVs[0]->GetActorLabel()))
+				.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+			];
 
 		OutColorGradingDataModel.ColorGradingGroups.Add(ColorGradingGroup);
 	}

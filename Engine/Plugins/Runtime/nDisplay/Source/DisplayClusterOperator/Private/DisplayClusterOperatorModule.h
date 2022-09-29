@@ -34,7 +34,6 @@ public:
 	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() override { return RegisterLayoutExtensions; }
 	virtual FOnRegisterStatusBarExtensions& OnRegisterStatusBarExtensions() override { return RegisterStatusBarExtensions; }
 	virtual FOnAppendOperatorPanelCommands& OnAppendOperatorPanelCommands() override { return AppendOperatorPanelCommands; }
-	virtual FOnDetailObjectsChanged& OnDetailObjectsChanged() override { return DetailObjectsChanged; }
 
 	virtual FName GetPrimaryOperatorExtensionId() override;
 	virtual FName GetAuxilliaryOperatorExtensionId() override;
@@ -42,8 +41,6 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorToolBarExtensibilityManager() override { return OperatorToolBarExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorMenuExtensibilityManager() override { return OperatorMenuExtensibilityManager; }
 	virtual void GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances) override;
-	virtual void ShowDetailsForObject(UObject* Object) override;
-	virtual void ShowDetailsForObjects(const TArray<UObject*>& Objects) override;
 	virtual void ToggleDrawer(const FName DrawerId) override;
 	virtual void ForceDismissDrawers() override;
 	//~ End IDisplayClusterOperator interface
@@ -65,7 +62,6 @@ private:
 	FOnRegisterLayoutExtensions RegisterLayoutExtensions;
 	FOnRegisterStatusBarExtensions RegisterStatusBarExtensions;
 	FOnAppendOperatorPanelCommands AppendOperatorPanelCommands;
-	FOnDetailObjectsChanged DetailObjectsChanged;
 
 	TWeakPtr<SDisplayClusterOperatorPanel> ActiveOperatorPanel;
 	TSharedPtr<FDisplayClusterOperatorViewModel> OperatorViewModel;

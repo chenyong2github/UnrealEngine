@@ -36,15 +36,41 @@ TArray<TWeakObjectPtr<UObject>> FDisplayClusterColorGradingDataModel::GetObjects
 
 void FDisplayClusterColorGradingDataModel::SetObjects(const TArray<UObject*>& InObjects)
 {
-	Reset();
-
+	// Only update the data model if the objects being set are new
+	bool bUpdateDataModel = false;
 	if (PropertyRowGenerator.IsValid())
 	{
-		PropertyRowGenerator->SetObjects(InObjects);
+		const TArray<TWeakObjectPtr<UObject>>& CurrentObjects = PropertyRowGenerator->GetSelectedObjects();
+
+		if (CurrentObjects.Num() != InObjects.Num())
+		{
+			bUpdateDataModel = true;
+		}
+		else
+		{
+			for (UObject* NewObject : InObjects)
+			{
+				if (!CurrentObjects.Contains(NewObject))
+				{
+					bUpdateDataModel = true;
+					break;
+				}
+			}
+		}
 	}
 
-	SelectedColorGradingGroupIndex = ColorGradingGroups.Num() ? 0 : INDEX_NONE;
-	SelectedColorGradingElementIndex = 0;
+	if (bUpdateDataModel)
+	{
+		Reset();
+
+		if (PropertyRowGenerator.IsValid())
+		{
+			PropertyRowGenerator->SetObjects(InObjects);
+		}
+
+		SelectedColorGradingGroupIndex = ColorGradingGroups.Num() ? 0 : INDEX_NONE;
+		SelectedColorGradingElementIndex = 0;
+	}
 }
 
 bool FDisplayClusterColorGradingDataModel::HasObjectOfType(const UClass* InClass) const

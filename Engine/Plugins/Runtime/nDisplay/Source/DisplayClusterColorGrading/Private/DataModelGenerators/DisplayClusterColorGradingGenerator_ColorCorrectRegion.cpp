@@ -2,12 +2,16 @@
 
 #include "DisplayClusterColorGradingGenerator_ColorCorrectRegion.h"
 
+#include "ClassIconFinder.h"
 #include "ColorCorrectRegion.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "PropertyHandle.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterColorGrading"
 
@@ -18,6 +22,22 @@ TSharedRef<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGr
 
 void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::GenerateDataModel(IPropertyRowGenerator& PropertyRowGenerator, FDisplayClusterColorGradingDataModel& OutColorGradingDataModel)
 {
+	TArray<TWeakObjectPtr<AColorCorrectRegion>> SelectedCCRs;
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator.GetSelectedObjects();
+	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid() && SelectedObject->IsA<AColorCorrectRegion>())
+		{
+			TWeakObjectPtr<AColorCorrectRegion> SelectedRootActor = CastChecked<AColorCorrectRegion>(SelectedObject.Get());
+			SelectedCCRs.Add(SelectedRootActor);
+		}
+	}
+
+	if (!SelectedCCRs.Num())
+	{
+		return;
+	}
+
 	const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = PropertyRowGenerator.GetRootTreeNodes();
 
 	const TSharedRef<IDetailTreeNode>* ColorCorrectionNodePtr = RootNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
@@ -63,6 +83,32 @@ void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::GenerateDataModel(
 				}
 			}
 		}
+
+		ColorGradingGroup.GroupHeaderWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(0, 1, 6, 1))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.WidthOverride(16)
+				.HeightOverride(16)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FClassIconFinder::FindIconForActor(SelectedCCRs[0]))
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(SelectedCCRs[0]->GetActorLabel()))
+				.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+			];
 
 		OutColorGradingDataModel.ColorGradingGroups.Add(ColorGradingGroup);
 	}

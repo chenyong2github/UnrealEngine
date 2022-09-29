@@ -164,7 +164,7 @@ void FDisplayClusterLightCardEditor::SelectActors(const TArray<AActor*>& ActorsT
 		SelectedActors.Empty();
 	}
 	
-	IDisplayClusterOperator::Get().ShowDetailsForObjects(*reinterpret_cast<const TArray<UObject*>*>(&ActorsToSelect));
+	IDisplayClusterOperator::Get().GetOperatorViewModel()->ShowDetailsForObjects(*reinterpret_cast<const TArray<UObject*>*>(&ActorsToSelect));
 }
 
 void FDisplayClusterLightCardEditor::SelectActorProxies(const TArray<AActor*>& ActorsToSelect)

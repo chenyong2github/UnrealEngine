@@ -32,7 +32,7 @@ SDisplayClusterOperatorPanel::~SDisplayClusterOperatorPanel()
 {
 	FDisplayClusterOperatorModule& OperatorModule = FModuleManager::GetModuleChecked<FDisplayClusterOperatorModule>(IDisplayClusterOperator::ModuleName);
 	OperatorModule.OnAppUnregistered().RemoveAll(this);
-	OperatorModule.OnDetailObjectsChanged().Remove(DetailObjectsChangedHandle);
+	OperatorModule.GetOperatorViewModel()->OnDetailObjectsChanged().Remove(DetailObjectsChangedHandle);
 }
 
 void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedPtr<SWindow>& WindowOwner)
@@ -146,7 +146,7 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 	IDisplayClusterOperator::Get().OnRegisterLayoutExtensions().Broadcast(*LayoutExtender);
 	Layout->ProcessExtensions(*LayoutExtender);
 
-	DetailObjectsChangedHandle = IDisplayClusterOperator::Get().OnDetailObjectsChanged().AddSP(this, &SDisplayClusterOperatorPanel::DisplayObjectsInDetailsPanel);
+	DetailObjectsChangedHandle = IDisplayClusterOperator::Get().GetOperatorViewModel()->OnDetailObjectsChanged().AddSP(this, &SDisplayClusterOperatorPanel::DisplayObjectsInDetailsPanel);
 	
 	ChildSlot
 	[

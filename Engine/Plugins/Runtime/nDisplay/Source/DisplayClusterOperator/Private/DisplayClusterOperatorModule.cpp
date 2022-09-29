@@ -85,18 +85,6 @@ void FDisplayClusterOperatorModule::GetRootActorLevelInstances(TArray<ADisplayCl
 	}
 }
 
-void FDisplayClusterOperatorModule::ShowDetailsForObject(UObject* Object)
-{
-	TArray<UObject*> Objects;
-	Objects.Add(Object);
-	ShowDetailsForObjects(Objects);
-}
-
-void FDisplayClusterOperatorModule::ShowDetailsForObjects(const TArray<UObject*>& Objects)
-{
-	DetailObjectsChanged.Broadcast(Objects);
-}
-
 void FDisplayClusterOperatorModule::ToggleDrawer(const FName DrawerId)
 {
 	if (ActiveOperatorPanel.IsValid())

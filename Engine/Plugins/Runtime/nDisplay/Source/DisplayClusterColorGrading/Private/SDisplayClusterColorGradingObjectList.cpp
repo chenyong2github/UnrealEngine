@@ -13,6 +13,32 @@
 
 #define LOCTEXT_NAMESPACE "DisplayClusterColorGrading"
 
+bool FDisplayClusterColorGradingListItem::operator<(const FDisplayClusterColorGradingListItem& Other) const
+{
+	FString ThisName = TEXT("");
+	FString OtherName = TEXT("");
+
+	if (Component.IsValid())
+	{
+		ThisName = Component->GetName();
+	}
+	else if (Actor.IsValid())
+	{
+		ThisName = Actor->GetActorLabel();
+	}
+
+	if (Other.Component.IsValid())
+	{
+		OtherName = Other.Component->GetName();
+	}
+	else if (Other.Actor.IsValid())
+	{
+		OtherName = Other.Actor->GetActorLabel();
+	}
+
+	return ThisName < OtherName;
+}
+
 namespace DisplayClusterColorGradingObjectListColumnNames
 {
 	const static FName ItemEnabled(TEXT("ItemEnabled"));
