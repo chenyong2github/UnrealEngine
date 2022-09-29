@@ -224,6 +224,13 @@ bool UK2Node_BaseMCDelegate::HasExternalDependencies(TArray<class UStruct*>* Opt
 	}
 
 	UFunction* Signature = GetDelegateSignature(true);
+
+	checkf(!Signature || Signature->IsValidLowLevel(), TEXT("Invalid Signature: BP - %s Delegate Ref - %s %s" ),
+		*SourceBlueprint->GetName(),
+		*DelegateReference.GetMemberScopeName(),
+		*DelegateReference.GetMemberName().ToString()
+	);
+	
 	UClass* SignatureSourceClass = Signature ? Signature->GetOwnerClass() : nullptr;
 	const bool bSignatureResult = (SignatureSourceClass != NULL) && (SignatureSourceClass->ClassGeneratedBy != SourceBlueprint);
 	if (bSignatureResult && OptionalOutput)
