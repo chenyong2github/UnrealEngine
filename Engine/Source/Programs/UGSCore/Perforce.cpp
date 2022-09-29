@@ -507,12 +507,11 @@ bool FPerforceConnection::FindClients(TArray<FPerforceClientRecord>& Clients, FE
 	return RunCommand(TEXT("clients"), Clients, ECommandOptions::NoClient, AbortEvent, Log);
 }
 
-bool FPerforceConnection::FindClients(const FString& ForUserName, TArray<FString>& ClientNames, FEvent* AbortEvent, FOutputDevice& Log) const
+bool FPerforceConnection::FindClients(TArray<FPerforceClientRecord>& Clients, const FString& ForUserName, FEvent* AbortEvent, FOutputDevice& Log) const
 {
 	TArray<FString> Lines;
-	if(!RunCommand(FString::Printf(TEXT("clients -u%s"), *ForUserName), Lines, ECommandOptions::None, AbortEvent, Log))
+	if(!RunCommand(FString::Printf(TEXT("clients -u%s"), *ForUserName), Clients, ECommandOptions::NoClient, AbortEvent, Log))
 	{
-		ClientNames.Empty();
 		return false;
 	}
 
@@ -522,10 +521,6 @@ bool FPerforceConnection::FindClients(const FString& ForUserName, TArray<FString
 		if(Tokens.Num() < 5 || Tokens[0] != TEXT("Client") || Tokens[3] != TEXT("root"))
 		{
 			Log.Logf(TEXT("Couldn't parse client from line '%s'"), *Line);
-		}
-		else
-		{
-			ClientNames.Add(Tokens[1]);
 		}
 	}
 	return true;

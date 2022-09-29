@@ -69,7 +69,7 @@ TSharedRef<FModalTaskResult> FDetectProjectSettingsTask::RunInternal(FEvent* Abo
 	// Find all the clients on this machine
 	Log->Logf(TEXT("Enumerating clients on local machine..."));
 	TArray<FPerforceClientRecord> Clients;
-	if(!Perforce->FindClients(Clients, AbortEvent, Log.Get()))
+	if(!Perforce->FindClients(Clients, PerforceInfo->UserName, AbortEvent, Log.Get()))
 	{
 		return FModalTaskResult::Failure(LOCTEXT("NoClientsForHost", "Couldn't find any clients for this host."));
 	}
