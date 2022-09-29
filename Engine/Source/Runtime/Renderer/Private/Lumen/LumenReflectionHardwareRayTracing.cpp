@@ -97,6 +97,15 @@ namespace Lumen
 	}
 } // namespace Lumen
 
+bool LumenReflections::UseFarFieldForReflections(const FSceneViewFamily& ViewFamily)
+{
+#if RHI_RAYTRACING
+	return Lumen::UseFarField(ViewFamily) && CVarLumenReflectionsHardwareRayTracingRetraceFarField.GetValueOnRenderThread();
+#else
+	return false;
+#endif
+}
+
 #if RHI_RAYTRACING
 
 bool IsHardwareRayTracingReflectionsIndirectDispatch()
@@ -221,11 +230,6 @@ class FLumenReflectionHardwareRayTracingIndirectArgsCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingIndirectArgsCS, "/Engine/Private/Lumen/LumenReflectionHardwareRayTracing.usf", "FLumenReflectionHardwareRayTracingIndirectArgsCS", SF_Compute);
-
-bool LumenReflections::UseFarFieldForReflections(const FSceneViewFamily& ViewFamily)
-{
-	return Lumen::UseFarField(ViewFamily) && CVarLumenReflectionsHardwareRayTracingRetraceFarField.GetValueOnRenderThread();
-}
 
 bool LumenReflections::IsHitLightingForceEnabled(const FViewInfo& View)
 {
