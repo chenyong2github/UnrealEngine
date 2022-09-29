@@ -79,32 +79,6 @@ public:
 	FBufferRHIRef MorphDataBuffer;
 	FShaderResourceViewRHIRef MorphDataSRV;
 
-	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FBufferRHIRef CreateMorphRHIBuffer_RenderThread();
-	FBufferRHIRef CreateMorphRHIBuffer_Async();
-
-	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(
-		FRHIBuffer* IntermediatMorphTargetBuffer,
-		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		check(MorphDataBuffer);
-		if (MorphDataBuffer && IntermediatMorphTargetBuffer)
-		{
-			Batcher.QueueUpdateRequest(MorphDataBuffer, IntermediatMorphTargetBuffer);
-			Batcher.QueueUpdateRequest(MorphDataSRV, MorphDataBuffer);
-		}
-	}
-
-	template<uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		check(MorphDataBuffer);
-		Batcher.QueueUpdateRequest(MorphDataBuffer, nullptr);
-		Batcher.QueueUpdateRequest(MorphDataSRV, nullptr, 0, 0);
-	}
-
 protected:
 	void ResetCPUData()
 	{
@@ -124,10 +98,7 @@ protected:
 	void Serialize(FArchive& Ar);
 
 	// Transient data. Gets deleted as soon as the GPU resource has been initialized (unless excplicitly disabled by bEmptyMorphCPUDataOnInitRHI).
-	TResourceArray<uint32> MorphData;
-
-	
-
+	TArray<uint32> MorphData;
 
 	//x,y,y separate for position and shared w for tangent
 	TArray<FVector4f> MaximumValuePerMorph;
@@ -146,9 +117,6 @@ protected:
 
 	friend class FSkeletalMeshLODRenderData;
 	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers);
-private:
-	template <bool bRenderThread>
-	FBufferRHIRef CreateMorphRHIBuffer_Internal();
 };
 
 ENGINE_API FArchive& operator<<(FArchive& Ar, FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers);

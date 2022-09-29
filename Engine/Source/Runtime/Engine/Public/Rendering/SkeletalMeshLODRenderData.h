@@ -177,6 +177,8 @@ public:
 	*/
 	void InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<class UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner);
 
+	void InitMorphResources();
+
 	/**
 	* Releases the LOD's render resources.
 	*/
