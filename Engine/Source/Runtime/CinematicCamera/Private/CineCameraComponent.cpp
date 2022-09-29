@@ -591,6 +591,36 @@ FText UCineCameraComponent::GetFilmbackText() const
 }
 #endif
 
+void UCineCameraComponent::SetFilmback(const FCameraFilmbackSettings& NewFilmback)
+{
+	Filmback = NewFilmback;
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetLensSettings(const FCameraLensSettings& NewLensSettings)
+{
+	LensSettings = NewLensSettings;
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetFocusSettings(const FCameraFocusSettings& NewFocusSettings)
+{
+	FocusSettings = NewFocusSettings;
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetCropSettings(const FPlateCropSettings& NewCropSettings)
+{
+	CropSettings = NewCropSettings;
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetCurrentAperture(const float NewCurrentAperture)
+{
+	CurrentAperture = NewCurrentAperture;
+	RecalcDerivedData();
+}
+
 #if WITH_EDITORONLY_DATA
 void UCineCameraComponent::UpdateDebugFocusPlane()
 {
