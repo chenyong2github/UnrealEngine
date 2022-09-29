@@ -1594,7 +1594,11 @@ public:
 	void TickClothing(float DeltaTime, FTickFunction& ThisTickFunction);
 
 	/** Store cloth simulation data into OutClothSimData */
+	UE_DEPRECATED(5.2, "Use GetUpdateClothSimulationData_AnyThread instead.")
 	void GetUpdateClothSimulationData(TMap<int32, FClothSimulData>& OutClothSimData, USkeletalMeshComponent* OverrideLocalRootComponent = nullptr);
+
+	/** Store cloth simulation data into OutClothSimulData. Override USkinnedMeshComponent. */
+	virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight) override;
 
 	/** Remove clothing actors from their simulation */
 	void RemoveAllClothingActors();

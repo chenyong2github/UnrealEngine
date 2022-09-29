@@ -2544,7 +2544,12 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	LocalToWorld = InMeshComponent ? InMeshComponent->GetComponentTransform().ToMatrixWithScale() : FMatrix::Identity;
 
 	// Update the clothing simulation mesh positions and normals
-	UpdateClothSimulationData(InMeshComponent);
+	InMeshComponent->GetUpdateClothSimulationData_AnyThread(ClothingSimData, ClothObjectLocalToWorld, ClothBlendWeight);
+
+	if (!IsSkeletalMeshClothBlendEnabled())
+	{
+		ClothBlendWeight = 0.f;
+	}
 
 	bIsSkinCacheAllowed = InMeshComponent ? InMeshComponent->IsSkinCacheAllowed(InLODIndex) : false;
 	bHasMeshDeformer = InMeshComponent ? InMeshComponent->HasMeshDeformer() : false;

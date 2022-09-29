@@ -17,6 +17,7 @@
 #include "LODSyncInterface.h"
 #include "BoneContainer.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
+#include "ClothingSystemRuntimeTypes.h"
 #include "SkinnedMeshComponent.generated.h"
 
 enum class ESkinCacheUsage : uint8;
@@ -813,6 +814,9 @@ public:
 
 	/** Gets the skeletal mesh resource used for rendering the component. */
 	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
+
+	/** Override this function to pass on cloth simulation data (or any deformable using the cloth pipeline) to the skeletal renderer. */
+	virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight);
 
 	/** 
 	 * Override the Physics Asset of the mesh. It uses SkeletalMesh.PhysicsAsset, but if you'd like to override use this function

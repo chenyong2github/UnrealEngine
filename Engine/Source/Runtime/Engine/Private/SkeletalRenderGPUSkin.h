@@ -134,6 +134,7 @@ public:
 	}
 
 	/** Update Simulated Positions & Normals from APEX Clothing actor */
+	UE_DEPRECATED(5.2, "Use USkinnedMeshComponent::GetUpdateClothSimulationData_AnyThread() instead.")
 	bool UpdateClothSimulationData(USkinnedMeshComponent* InMeshComponent);
 
 	// Whether this LOD is allowed to use the skin cache feature

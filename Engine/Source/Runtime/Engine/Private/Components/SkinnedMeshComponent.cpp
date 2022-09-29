@@ -2079,6 +2079,12 @@ FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() cons
 	}
 }
 
+void USkinnedMeshComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight)
+{
+	OutClothSimulData.Reset();
+	OutClothBlendWeight = 0.f;
+}
+
 bool USkinnedMeshComponent::AllocateTransformData()
 {
 	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/TransformData"));

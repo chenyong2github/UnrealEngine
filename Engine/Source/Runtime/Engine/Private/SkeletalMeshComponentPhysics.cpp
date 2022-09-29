@@ -3844,6 +3844,33 @@ void USkeletalMeshComponent::GetUpdateClothSimulationData(TMap<int32, FClothSimu
 	}
 }
 
+void USkeletalMeshComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight)
+{
+	OutLocalToWorld = GetComponentToWorld().ToMatrixWithScale();
+
+	const USkeletalMeshComponent* const LeaderPoseSkeletalMeshComponent = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get());
+	if (LeaderPoseSkeletalMeshComponent && bBindClothToLeaderComponent)
+	{
+		OutClothBlendWeight = ClothBlendWeight;
+		OutClothSimulData = LeaderPoseSkeletalMeshComponent->GetCurrentClothingData_AnyThread();
+	}
+	else if (!bDisableClothSimulation && !bBindClothToLeaderComponent)
+	{
+		OutClothBlendWeight = ClothBlendWeight;
+		OutClothSimulData = GetCurrentClothingData_AnyThread();
+	}
+	else
+	{
+		OutClothSimulData.Reset();
+	}
+
+	// Blend cloth out whenever the simulation data is invalid
+	if (!OutClothSimulData.Num())
+	{
+		OutClothBlendWeight = 0.0f;
+	}
+}
+
 void USkeletalMeshComponent::DebugDrawClothing(FPrimitiveDrawInterface* PDI)
 {
 #if WITH_EDITOR && ENABLE_DRAW_DEBUG
