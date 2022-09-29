@@ -250,6 +250,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize IsActorRuntimeOnly in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeActorIsRuntimeOnly,
 
+		// Add Nanite Material Override option to materials and material instances.
+		NaniteMaterialOverride,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

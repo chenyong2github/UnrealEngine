@@ -1729,27 +1729,6 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 					}
 				}
 			}
-
-			// Check Nanite override materials
-			if (Component->NaniteOverrideMaterials.Num() != FoliageType_ISM->NaniteOverrideMaterials.Num())
-			{
-				Component->NaniteOverrideMaterials = FoliageType_ISM->NaniteOverrideMaterials;
-				bNeedsMarkRenderStateDirty = true;
-				bNeedsInvalidateLightingCache = true;
-			}
-			else
-			{
-				for (int32 Index = 0; Index < FoliageType_ISM->NaniteOverrideMaterials.Num(); Index++)
-				{
-					if (Component->NaniteOverrideMaterials[Index] != FoliageType_ISM->NaniteOverrideMaterials[Index])
-					{
-						Component->NaniteOverrideMaterials = FoliageType_ISM->NaniteOverrideMaterials;
-						bNeedsMarkRenderStateDirty = true;
-						bNeedsInvalidateLightingCache = true;
-						break;
-					}
-				}
-			}
 		}
 
 		Component->BodyInstance.CopyBodyInstancePropertiesFrom(&FoliageType->BodyInstance);

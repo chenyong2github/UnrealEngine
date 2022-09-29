@@ -1279,6 +1279,12 @@ public:
 	UFUNCTION(BlueprintPure, Category="Rendering|Material")
 	virtual class UMaterialInterface* GetMaterial(int32 ElementIndex) const;
 
+	/** Returns the material to show in the editor details panel as being used. */
+	virtual class UMaterialInterface* GetEditorMaterial(int32 ElementIndex) const 
+	{ 
+		return GetMaterial(ElementIndex);
+	}
+
 	/**
 	 * Changes the material applied to an element of the mesh.
 	 * @param ElementIndex - The element to access the material of.

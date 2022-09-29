@@ -97,7 +97,7 @@ public:
 
 					if( PrimitiveComp )
 					{
-						Material = PrimitiveComp->GetMaterial(CurMaterialIndex);
+						Material = PrimitiveComp->GetEditorMaterial(CurMaterialIndex);
 					}
 					else if( DecalComponent )
 					{

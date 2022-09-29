@@ -27,10 +27,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, Meta=(ToolTip="Material overrides."))
 	TArray<TObjectPtr<class UMaterialInterface>> OverrideMaterials;
 
-	/** Per-Component Nanite specific material overrides.  These must NOT be set directly or a race condition can occur between GC and the rendering thread. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Rendering, Meta = (ToolTip = "Nanite Material overrides."))
-	TArray<TObjectPtr<class UMaterialInterface>> NaniteOverrideMaterials;
-	
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	virtual TArray<class UMaterialInterface*> GetMaterials() const;
 
@@ -43,7 +39,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const;
 
-	/** Determines if NaniteOverrideMaterials array is used instead of OverrideMaterials */
+	/** Determines if we use the nanite overrides from any materials */
 	virtual bool UseNaniteOverrideMaterials() const { return false; }
 
 	/** Returns override materials count */

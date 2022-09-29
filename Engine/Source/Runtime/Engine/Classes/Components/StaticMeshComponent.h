@@ -446,7 +446,7 @@ public:
 	 */
 	virtual bool HasValidNaniteData() const;
 
-	/** Determines if NaniteOverrideMaterials array is used instead of OverrideMaterials */
+	/** Determines if we use the nanite overrides from any materials */
 	virtual bool UseNaniteOverrideMaterials() const override;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|LOD")
@@ -601,6 +601,7 @@ public:
 	virtual void GetLightAndShadowMapMemoryUsage( int32& LightMapMemoryUsage, int32& ShadowMapMemoryUsage ) const override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	virtual UMaterialInterface* GetEditorMaterial(int32 MaterialIndex) const override;
 	virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
 	virtual UMaterialInterface* GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const override;
 	virtual TArray<FName> GetMaterialSlotNames() const override;

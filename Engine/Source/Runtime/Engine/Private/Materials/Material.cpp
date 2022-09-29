@@ -2084,6 +2084,11 @@ void UMaterial::SetRenderTracePhysicalMaterialOutputs(TArrayView<TObjectPtr<clas
 	RenderTracePhysicalMaterialOutputs = PhysicalMaterials;
 }
 
+UMaterialInterface* UMaterial::GetNaniteOverride()
+{
+	return NaniteOverrideMaterial.GetOverrideMaterial();
+}
+
 /** Helper functions for text output of properties... */
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
@@ -3504,6 +3509,8 @@ void UMaterial::PostLoad()
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedMaterialResources.Empty();
 
+	NaniteOverrideMaterial.PostLoad();
+
 #if WITH_EDITORONLY_DATA
 	const FPackageFileVersion UEVer = GetLinkerUEVersion();
 	const int32 RenderObjVer = GetLinkerCustomVersion(FRenderingObjectVersion::GUID);
@@ -4003,6 +4010,8 @@ void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPl
 			}
 		}
 	}
+
+	NaniteOverrideMaterial.LoadOverrideForPlatform(TargetPlatform);
 }
 
 bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
@@ -4065,6 +4074,8 @@ void UMaterial::ClearAllCachedCookedPlatformData()
 		FMaterial::DeferredDeleteArray(CachedMaterialResourcesForPlatform);
 	}
 	CachedMaterialResourcesForCooking.Empty();
+
+	NaniteOverrideMaterial.ClearOverride();
 }
 #endif // WITH_EDITOR
 
@@ -4364,6 +4375,11 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableExecWire))
 	{
 		CreateExecutionFlowExpressions();
+	}
+
+	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
+	{
+		NaniteOverrideMaterial.PostEditChange();
 	}
 
 	TranslucencyDirectionalLightingIntensity = FMath::Clamp(TranslucencyDirectionalLightingIntensity, .1f, 10.0f);

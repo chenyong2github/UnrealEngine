@@ -466,6 +466,9 @@ UMaterialEditorInstanceConstant::UMaterialEditorInstanceConstant(const FObjectIn
 {
 	bIsFunctionPreviewMaterial = false;
 	bShowOnlyOverrides = false;
+
+	// Default to override with nothing on MIC (don't inherit parent setting).
+	bNaniteOverride = true;
 }
 
 void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -495,7 +498,6 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 				// Fully update static parameters before recreating render state for all components
 				SetSourceInstance(SourceInstance);
 			}
-		
 		}
 		else if (!bIsFunctionPreviewMaterial)
 		{
@@ -785,6 +787,8 @@ void UMaterialEditorInstanceConstant::CopyToSourceInstance(const bool bForceStat
 
 		// Copy phys material back to source instance
 		SourceInstance->PhysMaterial = PhysMaterial;
+		SourceInstance->NaniteOverrideMaterial.bEnableOverride = bNaniteOverride;
+		SourceInstance->NaniteOverrideMaterial.OverrideMaterialRef = NaniteOverrideMaterial;
 
 		// Copy the Lightmass settings...
 		SourceInstance->SetOverrideCastShadowAsMasked(LightmassSettings.CastShadowAsMasked.bOverride);
@@ -848,6 +852,8 @@ void UMaterialEditorInstanceConstant::SetSourceInstance(UMaterialInstanceConstan
 	SourceInstance = MaterialInterface;
 	Parent = SourceInstance->Parent;
 	PhysMaterial = SourceInstance->PhysMaterial;
+	bNaniteOverride = SourceInstance->NaniteOverrideMaterial.bEnableOverride;
+	NaniteOverrideMaterial = SourceInstance->NaniteOverrideMaterial.OverrideMaterialRef;
 
 	CopyBasePropertiesFromParent();
 
@@ -965,6 +971,8 @@ void UMaterialEditorInstanceConstant::PostEditUndo()
 	}
 	else if (SourceInstance)
 	{
+		SourceInstance->PostEditUndo();
+
 		FMaterialUpdateContext Context;
 
 		UpdateSourceInstanceParent();

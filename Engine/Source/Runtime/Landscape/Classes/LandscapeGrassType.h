@@ -34,9 +34,6 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (ToolTip = "Material Overrides."))
 	TArray<TObjectPtr<class UMaterialInterface>> OverrideMaterials;
 
-	UPROPERTY(EditAnywhere, Category=Grass, meta = (ToolTip = "Nanite Material Overrides."))
-	TArray<TObjectPtr<class UMaterialInterface>> NaniteOverrideMaterials;
-
 	/* Instances per 10 square meters. */
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000, ClampMax = 1000))
 	FPerPlatformFloat GrassDensity;

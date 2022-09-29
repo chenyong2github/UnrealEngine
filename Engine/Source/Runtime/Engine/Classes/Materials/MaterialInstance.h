@@ -494,6 +494,10 @@ class UMaterialInstance : public UMaterialInterface
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, AssetRegistrySearchable)
 	TObjectPtr<class UMaterialInterface> Parent;
 
+	/** An override material which will be used instead of this one when rendering with nanite. */
+	UPROPERTY(EditAnywhere, Category = MaterialInstance)
+	FMaterialOverrideNanite NaniteOverrideMaterial;
+
 	/**
 	 * Delegate for custom static parameters getter.
 	 *
@@ -711,6 +715,7 @@ public:
 	virtual ENGINE_API UPhysicalMaterial* GetPhysicalMaterial() const override;
 	virtual ENGINE_API UPhysicalMaterialMask* GetPhysicalMaterialMask() const override;
 	virtual ENGINE_API UPhysicalMaterial* GetPhysicalMaterialFromMap(int32 Index) const override;
+	virtual ENGINE_API UMaterialInterface* GetNaniteOverride() override;
 	virtual ENGINE_API bool UpdateLightmassTextureTracking() override;
 	virtual ENGINE_API bool GetCastShadowAsMasked() const override;
 	virtual ENGINE_API float GetEmissiveBoost() const override;
@@ -770,6 +775,7 @@ public:
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
 	virtual ENGINE_API void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual ENGINE_API void PostEditUndo() override;
 
 	/**
 	 * Sets new static parameter overrides on the instance and recompiles the static permutation resources if needed (can be forced with bForceRecompile).

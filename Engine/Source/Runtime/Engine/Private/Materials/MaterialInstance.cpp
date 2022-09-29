@@ -53,6 +53,7 @@
 #include "ShaderCompilerCore.h"
 #include "ShaderCompiler.h"
 #include "MaterialCachedData.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialInstance)
 
@@ -1744,6 +1745,29 @@ UPhysicalMaterial* UMaterialInstance::GetPhysicalMaterialFromMap(int32 Index) co
 	return PhysicalMaterialMap[Index];
 }
 
+UMaterialInterface* UMaterialInstance::GetNaniteOverride()
+{
+	if (GetReentrantFlag())
+	{
+		return nullptr;
+	}
+
+	FMICReentranceGuard	Guard(const_cast<UMaterialInstance*>(this));
+	
+	if (NaniteOverrideMaterial.bEnableOverride)
+	{
+		return NaniteOverrideMaterial.GetOverrideMaterial();
+	}
+	else if (Parent)
+	{
+		return Parent->GetNaniteOverride();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 
 void UMaterialInstance::SetStaticSwitchParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, bool Value)
@@ -2490,6 +2514,8 @@ void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *
 			CacheResourceShadersForCooking(TargetShaderPlatform, *CachedMaterialResourcesForPlatform, EMaterialShaderPrecompileMode::Background, TargetPlatform);
 		}
 	}
+
+	NaniteOverrideMaterial.LoadOverrideForPlatform(TargetPlatform);
 }
 
 bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
@@ -2529,6 +2555,8 @@ void UMaterialInstance::ClearAllCachedCookedPlatformData()
 	}
 
 	CachedMaterialResourcesForCooking.Empty();
+
+	NaniteOverrideMaterial.ClearOverride();
 }
 
 #endif
@@ -2798,6 +2826,8 @@ void UMaterialInstance::PostLoad()
 	}
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedMaterialResources.Empty();
+
+	NaniteOverrideMaterial.PostLoad();
 
 	AssertDefaultMaterialsPostLoaded();
 
@@ -3646,6 +3676,14 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		UpdateLightmassTextureTracking();
 	}
 
+	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterial, NaniteOverrideMaterial))
+	{
+		NaniteOverrideMaterial.PostEditChange();
+
+		// Update primitives that might depend on the nanite override material.
+		FGlobalComponentRecreateRenderStateContext RecreateComponentsRenderState;
+	}
+
 	PropagateDataToMaterialProxy();
 
 	InitResources();
@@ -3673,6 +3711,13 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			});
 		}
 	}
+}
+
+void UMaterialInstance::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	NaniteOverrideMaterial.PostEditChange();
 }
 
 #endif // WITH_EDITOR
@@ -4225,7 +4270,9 @@ bool UMaterialInstance::Equivalent(const UMaterialInstance* CompareTo) const
 	if (Parent != CompareTo->Parent || 
 		PhysMaterial != CompareTo->PhysMaterial ||
 		bOverrideSubsurfaceProfile != CompareTo->bOverrideSubsurfaceProfile ||
-		BasePropertyOverrides != CompareTo->BasePropertyOverrides
+		BasePropertyOverrides != CompareTo->BasePropertyOverrides ||
+		NaniteOverrideMaterial.bEnableOverride != CompareTo->NaniteOverrideMaterial.bEnableOverride ||
+		NaniteOverrideMaterial.OverrideMaterialRef != CompareTo->NaniteOverrideMaterial.OverrideMaterialRef
 		)
 	{
 		return false;

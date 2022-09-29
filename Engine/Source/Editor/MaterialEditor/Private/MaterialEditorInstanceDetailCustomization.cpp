@@ -260,6 +260,9 @@ void FMaterialInstanceParameterDetails::CustomizeDetails(IDetailLayoutBuilder& D
 			
 			// Append the base property overrides to the Material Property Override Group
 			CreateBasePropertyOverrideWidgets(DetailLayout, MaterialPropertyOverrideGroup);
+
+			// Append the nanite material override.
+			MaterialPropertyOverrideGroup.AddPropertyRow(DetailLayout.GetProperty("NaniteOverrideMaterial"));
 		}
 	}
 

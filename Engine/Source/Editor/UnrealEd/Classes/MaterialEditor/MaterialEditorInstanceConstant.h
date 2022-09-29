@@ -274,6 +274,14 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 	UPROPERTY(EditAnywhere, Category=MaterialEditorInstanceConstant)
 	uint32 bUseOldStyleMICEditorGroups:1;
 
+	/** When set we will use the override from NaniteOverrideMaterial. Otherwise we inherit any override on the parent. */
+	UPROPERTY(EditAnywhere, Category = MaterialEditorInstanceConstant, meta = (InlineEditConditionToggle))
+	uint32 bNaniteOverride : 1;
+
+	/** An override material which will be used instead of this one when rendering with nanite. */
+	UPROPERTY(EditAnywhere, Category = MaterialEditorInstanceConstant, meta = (editcondition = "bNaniteOverride"))
+	TSoftObjectPtr<UMaterialInterface> NaniteOverrideMaterial;
+
 	//~ Begin UObject Interface.
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
