@@ -152,9 +152,8 @@ namespace Chaos
 		{
 			for (const FPBDIslandConstraint& Constraint : Constraints)
 			{
-				// @todo(chaos): unchecked test/shipping version of As() - we know the type here
-				const FIndexedConstraintHandle* IndexedConstraintHandle = Constraint.GetConstraint()->As<FIndexedConstraintHandle>();
-				check(IndexedConstraintHandle != nullptr);
+				// We will only ever be given constraints from our container (asserts in non-shipping)
+				const FIndexedConstraintHandle* IndexedConstraintHandle = Constraint.GetConstraint()->AsUnsafe<FIndexedConstraintHandle>();
 
 				int32 ConstraintIndex = IndexedConstraintHandle->GetConstraintIndex();
 

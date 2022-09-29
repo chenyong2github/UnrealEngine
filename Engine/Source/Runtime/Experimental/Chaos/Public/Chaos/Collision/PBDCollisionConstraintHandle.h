@@ -86,9 +86,6 @@ namespace Chaos
 		// Declared final so that TPBDConstraintGraphRuleImpl::AddToGraph() does not need to hit vtable
 		virtual FParticlePair GetConstrainedParticles() const override final;
 
-		FSolverBody* GetSolverBody0();
-		FSolverBody* GetSolverBody1();
-
 		const FPBDCollisionConstraints* ConcreteContainer() const;
 		FPBDCollisionConstraints* ConcreteContainer();
 

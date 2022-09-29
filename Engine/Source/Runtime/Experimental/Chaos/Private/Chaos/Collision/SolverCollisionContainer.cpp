@@ -423,8 +423,7 @@ namespace Chaos
 	{
 		for (FPBDIslandConstraint& IslandConstraint : IslandConstraints)
 		{
-			// @todo(chaos): unsafe version of As
-			FPBDCollisionConstraint& Constraint = IslandConstraint.GetConstraint()->As<FPBDCollisionConstraintHandle>()->GetContact();
+			FPBDCollisionConstraint& Constraint = IslandConstraint.GetConstraint()->AsUnsafe<FPBDCollisionConstraintHandle>()->GetContact();
 
 			AddConstraint(Constraint);
 		}

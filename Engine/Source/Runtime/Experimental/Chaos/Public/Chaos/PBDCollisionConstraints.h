@@ -348,14 +348,4 @@ inline FParticlePair FPBDCollisionConstraintHandle::GetConstrainedParticles() co
 	return { GetContact().GetParticle0(), GetContact().GetParticle1() };
 }
 
-inline FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody0()
-{
-	return GetContact().GetSolverBody0();
-}
-
-inline FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody1()
-{
-	return GetContact().GetSolverBody1();
-}
-
 }

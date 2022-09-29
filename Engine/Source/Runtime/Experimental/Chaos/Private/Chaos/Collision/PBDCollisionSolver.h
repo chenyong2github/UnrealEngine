@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Logging/LogMacros.h"
-
 #include "Chaos/Core.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBody.h"
@@ -883,7 +880,6 @@ namespace Chaos
 			OutContactDeltaNormal = -MaxPushOut;
 		}
 	}
-
 
 	FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactPositionErrorTangential(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FSolverReal& OutContactDeltaTangentU, FSolverReal& OutContactDeltaTangentV) const
 	{

@@ -374,6 +374,8 @@ namespace Chaos
 
 		void SetModifierApplied() { Flags.bModifierApplied = true; }
 
+		const FPBDCollisionConstraintMaterial& GetCollisionMaterial() const { return Material; }
+
 		void SetInvMassScale0(const FReal InInvMassScale) { Material.InvMassScale0 = FRealSingle(InInvMassScale); }
 		FReal GetInvMassScale0() const { return Material.InvMassScale0; }
 
@@ -557,12 +559,10 @@ namespace Chaos
 		// The GJK warm-start data. This is updated directly in the narrow phase
 		FGJKSimplexData& GetGJKWarmStartData() { return GJKWarmStartData; }
 
-		FSolverBody* GetSolverBody0() { return SolverBodies[0]; }
 		const FSolverBody* GetSolverBody0() const { return SolverBodies[0]; }
-		FSolverBody* GetSolverBody1() { return SolverBodies[1]; }
 		const FSolverBody* GetSolverBody1() const { return SolverBodies[1]; }
 
-		void SetSolverBodies(FSolverBody* InSolverBody0, FSolverBody* InSolverBody1)
+		void SetSolverBodies(const FSolverBody* InSolverBody0, const FSolverBody* InSolverBody1)
 		{
 			SolverBodies[0] = InSolverBody0;
 			SolverBodies[1] = InSolverBody1;
@@ -785,7 +785,7 @@ namespace Chaos
 				uint32 bIsProbeUnmodified : 1;  // Is this constraint a probe pre-contact-modification
 				uint32 bIsProbe : 1;            // Is this constraint currently a probe
 				uint32 bCCDEnabled : 1;			// Is CCD enabled for the current tick
-				uint32 bModifierApplied;		// Was a constraint modifier applied this tick
+				uint32 bModifierApplied : 1;	// Was a constraint modifier applied this tick
 			};
 			uint32 Bits;
 		} Flags;
@@ -795,8 +795,8 @@ namespace Chaos
 		FVec3f LastShapeWorldPositionDelta;
 		FRotation3f LastShapeWorldRotationDelta;
 
-		// These are only needed here while we still have the legacy solvers (not QuasiPBD)
-		FSolverBody* SolverBodies[2];
+		// @todo(chaos): These are only needed here to support incremental collision detection. We should pass them to the functions instead
+		const FSolverBody* SolverBodies[2];
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;

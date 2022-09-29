@@ -388,12 +388,10 @@ namespace Chaos
 			IslandManager.VisitConstraintsInAwakeIslands(GetContainerId(),
 				[this](FConstraintHandle* ConstraintHandle)
 				{
-					if (FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->As<FPBDCollisionConstraintHandle>())
+					FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->AsUnsafe<FPBDCollisionConstraintHandle>();
+					if (!CollisionHandle->IsEnabled() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
 					{
-						if (!CollisionHandle->IsEnabled() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
-						{
-							TempCollisions.Add(CollisionHandle);
-						}
+						TempCollisions.Add(CollisionHandle);
 					}
 				});
 

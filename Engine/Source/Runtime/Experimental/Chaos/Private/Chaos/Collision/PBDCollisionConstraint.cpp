@@ -644,8 +644,7 @@ namespace Chaos
 		ClosestManifoldPointIndex = INDEX_NONE;
 
 		// How many manifold points we expect. E.g., for Box-box this will be 4 or 1 depending on whether
-		// we have a face or edge contact. We don't reuse the manifold if we lose points after culling
-		// here and potentially adding the new narrow phase result (See TryAddManifoldContact).
+		// we have a face or edge contact. We don't reuse the manifold if we lose points after culling here
 		ExpectedNumManifoldPoints = ManifoldPoints.Num();
 		Flags.bWasManifoldRestored = false;
 

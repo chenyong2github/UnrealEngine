@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc.All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Templates/UnrealTemplate.h"
-
 #include "Chaos/Core.h"
-#include "Chaos/Vector.h"
-
 
 namespace Chaos
 {

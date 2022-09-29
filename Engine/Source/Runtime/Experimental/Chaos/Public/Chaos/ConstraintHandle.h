@@ -163,6 +163,10 @@ namespace Chaos
 		template<typename T>  T* As();
 		template<typename T>  const T* As() const;
 
+		// For use when you absolutely know the type (asserted in non-shipping)
+		template<typename T>  T* AsUnsafe() { check(As<T>() != nullptr); return static_cast<T*>(this); }
+		template<typename T>  const T* AsUnsafe() const { check(As<T>() != nullptr); return static_cast<const T*>(this); }
+
 		const FConstraintHandleTypeID& GetType() const;
 
 		static const FConstraintHandleTypeID& StaticType()
