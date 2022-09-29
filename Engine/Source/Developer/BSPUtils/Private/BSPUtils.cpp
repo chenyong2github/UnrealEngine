@@ -1627,12 +1627,12 @@ int DistributePoint
 				// Create cutting plane perpendicular to both this side and the polygon's normal.
 				FVector Side            = FVector(Model->Points[VertPool[i].pVertex] - Model->Points[VertPool[j].pVertex]);
 				FVector SidePlaneNormal = Side ^ (FVector)Model->Nodes[iNode].Plane;
-				float   SizeSquared     = SidePlaneNormal.SizeSquared();
+				const float SizeSquared = static_cast<float>(SidePlaneNormal.SizeSquared());
 
 				if( SizeSquared>FMath::Square(0.001) )
 				{
 					// Points aren't coincedent.
-					Dist = ((FVector(Model->Points[pVertex] - Model->Points[VertPool[i].pVertex])) | SidePlaneNormal)/FMath::Sqrt(SizeSquared);
+					Dist = static_cast<float>((FVector(Model->Points[pVertex] - Model->Points[VertPool[i].pVertex]) | SidePlaneNormal) / FMath::Sqrt(SizeSquared));
 					if( Dist >= THRESH_OPTGEOM_COSIDAL )
 					{
 						// Point is outside polygon, can't possibly fall on a side.
@@ -1763,7 +1763,7 @@ void MergeNearPoints( UModel *Model, float Dist )
 			if( A->pVertex != B->pVertex )
 				Pool[k++] = Pool[j];
 		}
-		Node.NumVertices = k>=3 ? k : 0;
+		Node.NumVertices = static_cast<uint8>(k>=3 ? k : 0);
 		if( k < 3 )
 			Collapsed++;
 	}
@@ -2098,7 +2098,7 @@ void FBSPUtils::polySplitOverlappingEdges( TArray<FPoly>* InPolyList, TArray<FPo
 
 						FVector Dir = SrcEdge.Vertex[1] - SrcEdge.Vertex[0];
 						Dir.Normalize();
-						float Dist = FVector::Dist( SrcEdge.Vertex[1], SrcEdge.Vertex[0] );
+						const float Dist = static_cast<float>(FVector::Dist(SrcEdge.Vertex[1], SrcEdge.Vertex[0]));
 						FVector Origin = SrcEdge.Vertex[0] + (Dir * (Dist / 2.0f));
 						float Radius = Dist / 2.0f;
 
