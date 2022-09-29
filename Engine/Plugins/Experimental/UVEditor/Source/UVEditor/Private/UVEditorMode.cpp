@@ -1257,7 +1257,7 @@ void UUVEditorMode::UpdatePreviewMaterialBasedOnBackground()
 		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {			
 			TObjectPtr<UMaterialInstanceDynamic> BackgroundMaterialOverride = UMaterialInstanceDynamic::Create(BackgroundVisualization->BackgroundMaterial->Parent, this);
 			BackgroundMaterialOverride->CopyInterpParameters(BackgroundVisualization->BackgroundMaterial);
-			BackgroundMaterialOverride->SetScalarParameterValue(TEXT("UVChannel"), GetDisplayedChannel(AssetID));
+			BackgroundMaterialOverride->SetScalarParameterValue(TEXT("UVChannel"), static_cast<float>(GetDisplayedChannel(AssetID)));
 
 			ToolInputObjects[AssetID]->AppliedPreview->OverrideMaterial = BackgroundMaterialOverride;
 		}

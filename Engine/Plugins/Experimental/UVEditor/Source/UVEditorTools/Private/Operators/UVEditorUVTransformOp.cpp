@@ -126,22 +126,22 @@ FVector2f FUVEditorUVTransformBaseOp::GetAlignmentPointFromBoundingBoxAndDirecti
 		AlignmentPoint = FVector2f(0,0);
 		break;
 	case EUVEditorAlignDirectionBackend::Top:
-		AlignmentPoint = FVector2f(BoundingBox.Center().X, BoundingBox.Max.Y);
+		AlignmentPoint = FVector2f(static_cast<float>(BoundingBox.Center().X), static_cast<float>(BoundingBox.Max.Y));
 		break;
 	case EUVEditorAlignDirectionBackend::Bottom:
-		AlignmentPoint = FVector2f(BoundingBox.Center().X, BoundingBox.Min.Y);
+		AlignmentPoint = FVector2f(static_cast<float>(BoundingBox.Center().X), static_cast<float>(BoundingBox.Min.Y));
 		break;
 	case EUVEditorAlignDirectionBackend::Left:
-		AlignmentPoint = FVector2f(BoundingBox.Min.X, BoundingBox.Center().Y);
+		AlignmentPoint = FVector2f(static_cast<float>(BoundingBox.Min.X), static_cast<float>(BoundingBox.Center().Y));
 		break;
 	case EUVEditorAlignDirectionBackend::Right:
-		AlignmentPoint = FVector2f(BoundingBox.Max.X, BoundingBox.Center().Y);
+		AlignmentPoint = FVector2f(static_cast<float>(BoundingBox.Max.X), static_cast<float>(BoundingBox.Center().Y));
 		break;
 	case EUVEditorAlignDirectionBackend::CenterVertically:
-		AlignmentPoint = FVector2f(BoundingBox.Center().X, BoundingBox.Center().Y);
+		AlignmentPoint = FVector2f(static_cast<float>(BoundingBox.Center().X), static_cast<float>(BoundingBox.Center().Y));
 		break;
 	case EUVEditorAlignDirectionBackend::CenterHorizontally:
-		AlignmentPoint = FVector2f(BoundingBox.Center().X, BoundingBox.Center().Y);
+		AlignmentPoint = FVector2f(static_cast<float>(BoundingBox.Center().X), static_cast<float>(BoundingBox.Center().Y));
 		break;
 	default:
 		ensure(false);
@@ -294,8 +294,8 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		FVector2f ScalePivot = GetPivotFromMode(Vid, PivotMode);
 		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV - ScalePivot);
-		UV[0] *= Scale[0];
-		UV[1] *= Scale[1];
+		UV[0] *= static_cast<float>(Scale[0]);
+		UV[1] *= static_cast<float>(Scale[1]);
 		UV = (UV + ScalePivot);
 		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
@@ -308,8 +308,8 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		// where positive values are clockwise and negative values are counterclockwise.
 		double RotationInRadians = -RotationIn / 180.0 * UE_PI;
 		UV = (UV - Pivot);
-		UV_Rotated[0] = UV[0] * FMath::Cos(RotationInRadians) - UV[1] * FMath::Sin(RotationInRadians);
-		UV_Rotated[1] = UV[0] * FMath::Sin(RotationInRadians) + UV[1] * FMath::Cos(RotationInRadians);
+		UV_Rotated[0] = UV[0] * static_cast<float>(FMath::Cos(RotationInRadians)) - UV[1] * static_cast<float>(FMath::Sin(RotationInRadians));
+		UV_Rotated[1] = UV[0] * static_cast<float>(FMath::Sin(RotationInRadians)) + UV[1] * static_cast<float>(FMath::Cos(RotationInRadians));
 		UV = (UV_Rotated + Pivot);
 		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
@@ -582,9 +582,9 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 		float TotalDistance = 0.0f;
 		for (int32 Cid = 0; Cid < NumComponents; ++Cid)
 		{
-			TotalDistance += bVertical ? PerComponentBoundingBoxes[Cid].Height() : PerComponentBoundingBoxes[Cid].Width();
+			TotalDistance += static_cast<float>( bVertical ? PerComponentBoundingBoxes[Cid].Height() : PerComponentBoundingBoxes[Cid].Width());
 		}
-		float BoundingBoxDistance = bVertical ? OverallBoundingBox.Height() : OverallBoundingBox.Width();
+		float BoundingBoxDistance = static_cast<float>( bVertical ? OverallBoundingBox.Height() : OverallBoundingBox.Width());
 		if (bEnableManualDistances)
 		{
 			BoundingBoxDistance = ManualExtent;
@@ -623,7 +623,7 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 			}
 			if (bEqualizeSpacing)
 			{
-				float ComponentSpace = bVertical ? PerComponentBoundingBoxes[Cid].Height() : PerComponentBoundingBoxes[Cid].Width();
+				float ComponentSpace = static_cast<float>( bVertical ? PerComponentBoundingBoxes[Cid].Height() : PerComponentBoundingBoxes[Cid].Width());
 				NextPosition += SpreadDirection * (ComponentSpace + GapSpace);
 			}
 			else

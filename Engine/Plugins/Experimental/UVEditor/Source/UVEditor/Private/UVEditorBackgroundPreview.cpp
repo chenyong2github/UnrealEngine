@@ -195,8 +195,8 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 			FVector2f Block;
 			int32 UCoord, VCoord;
 			UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(Settings->UDIMBlocks[BlockIndex], UCoord, VCoord);
-			Block.X = UCoord;
-			Block.Y = VCoord;
+			Block.X = static_cast<float>(UCoord);
+			Block.Y = static_cast<float>(VCoord);
 			UDimBlocksToRender.Push(Block);
 		}
 	}

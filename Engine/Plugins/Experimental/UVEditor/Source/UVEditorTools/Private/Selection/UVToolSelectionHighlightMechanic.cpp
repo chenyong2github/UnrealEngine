@@ -24,6 +24,15 @@ using namespace UE::Geometry;
 
 namespace UVToolSelectionHighlightMechanicLocals
 {
+	FVector2f ToFVector2f(const FVector& VectorIn)
+    {
+         return FVector2f( static_cast<float>(VectorIn.X), static_cast<float>(VectorIn.Y) );
+    }
+
+	FVector3f ToFVector3f(const FVector3d& VectorIn)
+    {
+         return FVector3f( static_cast<float>(VectorIn.X), static_cast<float>(VectorIn.Y), static_cast<float>(VectorIn.Z));
+    }
 }
 
 void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* LivePreviewWorld)
@@ -46,7 +55,7 @@ void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* 
 	UnwrapTriangleSet = NewObject<UBasic2DTriangleSetComponent>(UnwrapGeometryActor);
 	// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
 	// where multiple translucent layers are drawn on top of each other but still need depth sorting.
-	UnwrapTriangleSet->TranslucencySortPriority = FUVEditorUXSettings::SelectionTriangleDepthBias;
+	UnwrapTriangleSet->TranslucencySortPriority = static_cast<int32>(FUVEditorUXSettings::SelectionTriangleDepthBias);
 	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
 		FUVEditorUXSettings::SelectionTriangleFillColor,
 		FUVEditorUXSettings::SelectionTriangleDepthBias,
@@ -174,6 +183,8 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 	const TArray<FUVToolSelection>& Selections, const FTransform& StartTransform, 
 	bool bUsePreviews)
 {
+    using namespace UVToolSelectionHighlightMechanicLocals;
+
 	if (!ensure(UnwrapGeometryActor))
 	{
 		return;
@@ -220,15 +231,12 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 				{
 					Points[i] = StartTransform.InverseTransformPosition(Points[i]);
 				}
-				UnwrapTriangleSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
-											  FVector2f(Points[1].X, Points[1].Y),
-											  FVector2f(Points[2].X, Points[2].Y));
+				UnwrapTriangleSetPtr->AddElement(ToFVector2f(Points[0]),ToFVector2f(Points[1]),ToFVector2f(Points[2]));
 					
 				for (int i = 0; i < 3; ++i)
 				{
 					int NextIndex = (i + 1) % 3;
-					UnwrapLineSetPtr->AddElement(FVector2f(Points[i].X, Points[i].Y),
-						                      FVector2f(Points[NextIndex].X, Points[NextIndex].Y));
+					UnwrapLineSetPtr->AddElement(ToFVector2f(Points[i]),ToFVector2f(Points[NextIndex]));
 				}
 			}
 			UnwrapTriangleSetPtr->MarkRenderStateDirty();
@@ -264,8 +272,7 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 				Mesh.GetEdgeV(Eid, Points[0], Points[1]);
 				Points[0] = StartTransform.InverseTransformPosition(Points[0]);
 				Points[1] = StartTransform.InverseTransformPosition(Points[1]);
-				UnwrapLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
-					                      FVector2f(Points[1].X, Points[1].Y));
+				UnwrapLineSetPtr->AddElement(ToFVector2f(Points[0]),ToFVector2f(Points[1]));
 
 				if (bPairedEdgeHighlightsEnabled)
 				{
@@ -286,8 +293,7 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 					Mesh.GetEdgeV(Eid, Points[0], Points[1]);
 					Points[0] = StartTransform.InverseTransformPosition(Points[0]);
 					Points[1] = StartTransform.InverseTransformPosition(Points[1]);
-					SewEdgePairingLeftLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
-					                                      FVector2f(Points[1].X, Points[1].Y));
+					SewEdgePairingLeftLineSetPtr->AddElement(ToFVector2f(Points[0]),ToFVector2f(Points[1]));
 
 					// The paired edge may need to go into a separate line set if it is not selected so that it does
 					// not get affected by transformations of the selected highlights in SetUnwrapHighlightTransform
@@ -297,14 +303,13 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 					{
 						Points[0] = StartTransform.InverseTransformPosition(Points[0]);
 						Points[1] = StartTransform.InverseTransformPosition(Points[1]);
-						SewEdgePairingRightLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
-							                                      FVector2f(Points[1].X, Points[1].Y));
+						SewEdgePairingRightLineSetPtr->AddElement(ToFVector2f(Points[0]),ToFVector2f(Points[1]));
 					}
 					else
 					{
 						StaticPairedEdgeVidsPerMesh.Last().Value.Add(TPair<int32, int32>(Vids2.A, Vids2.B));
-						SewEdgeUnselectedPairingLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
- 							                                           FVector2f(Points[1].X, Points[1].Y));						
+						SewEdgeUnselectedPairingLineSetPtr->AddElement(ToFVector2f(Points[0]),
+ 							                                           ToFVector2f(Points[1]));
 					}
 				}//end if visualizing paired edges
 			}//end for each edge
@@ -328,7 +333,7 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 				}
 
 				const FVector3d Position = StartTransform.InverseTransformPosition(Mesh.GetVertex(Vid));
-				UnwrapPointSetPtr->AddElement(FVector2f(Position.X, Position.Y));
+				UnwrapPointSetPtr->AddElement(ToFVector2f(Position));
 			}
 			UnwrapPointSetPtr->MarkRenderStateDirty();
 		}
@@ -338,6 +343,8 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 void UUVToolSelectionHighlightMechanic::SetUnwrapHighlightTransform(const FTransform& Transform, 
 	bool bRebuildStaticPairedEdges, bool bUsePreviews)
 {
+    using namespace UVToolSelectionHighlightMechanicLocals;
+
 	if (ensure(UnwrapGeometryActor))
 	{
 		UnwrapGeometryActor->SetActorTransform(Transform);
@@ -375,8 +382,7 @@ void UUVToolSelectionHighlightMechanic::SetUnwrapHighlightTransform(const FTrans
 				}
 				FVector3d VertA = Mesh.GetVertex(VidPair.Key);
 				FVector3d VertB = Mesh.GetVertex(VidPair.Value);
-				SewEdgeUnselectedPairingLineSetPtr->AddElement(FVector2f(VertA.X, VertA.Y),
-                                         					FVector2f(VertB.X, VertB.Y));
+				SewEdgeUnselectedPairingLineSetPtr->AddElement(ToFVector2f(VertA),ToFVector2f(VertB));
 			}
 			SewEdgeUnselectedPairingLineSetPtr->MarkRenderStateDirty();
 		}
@@ -395,6 +401,7 @@ FTransform UUVToolSelectionHighlightMechanic::GetUnwrapHighlightTransform()
 void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelection(
 	const TArray<FUVToolSelection>& UnwrapSelections, bool bUsePreviews)
 {
+    using namespace UVToolSelectionHighlightMechanicLocals;
 	if (!ensure(LivePreviewGeometryActor))
 	{
 		return;
@@ -428,9 +435,7 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 			AppliedMesh.GetEdgeV(AppliedEid, Points[0], Points[1]);
 			Points[0] = MeshTransform.TransformPosition(Points[0]);
 			Points[1] = MeshTransform.TransformPosition(Points[1]);
-			LivePreviewLineSetPtr->AddElement(
-				FVector3f(Points[0].X, Points[0].Y, Points[0].Z),
-				FVector3f(Points[1].X, Points[1].Y, Points[1].Z));
+			LivePreviewLineSetPtr->AddElement(ToFVector3f(Points[0]),ToFVector3f(Points[1]));
 		};
 
 		if (Selection.Type == FUVToolSelection::EType::Triangle)
@@ -502,6 +507,7 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 
 void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVToolSelection>& AppliedSelections, bool bUsePreviews)
 {
+    using namespace UVToolSelectionHighlightMechanicLocals;
 	if (!ensure(LivePreviewGeometryActor))
 	{
 		return;
@@ -530,9 +536,7 @@ void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVT
 			AppliedMesh.GetEdgeV(AppliedEid, Points[0], Points[1]);
 			Points[0] = MeshTransform.TransformPosition(Points[0]);
 			Points[1] = MeshTransform.TransformPosition(Points[1]);
-			LivePreviewLineSetPtr->AddElement(
-				FVector3f(Points[0].X, Points[0].Y, Points[0].Z),
-				FVector3f(Points[1].X, Points[1].Y, Points[1].Z));
+			LivePreviewLineSetPtr->AddElement(ToFVector3f(Points[0]),ToFVector3f(Points[1]));
 		};
 
 		if (Selection.Type == FUVToolSelection::EType::Triangle)

@@ -88,7 +88,7 @@ void FUVEditorRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions(TSharedRef
 		(IslandMode == EUVEditorRecomputeUVsPropertiesIslandMode::PolyGroups ||
 		 UnwrapType == EUVEditorRecomputeUVsPropertiesUnwrapType::IslandMerging))
 	{
-		uint8 EnumValue = ImportTypeEnum->GetValueByName("EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToExistingBounds");
+		uint8 EnumValue = static_cast<uint8>(ImportTypeEnum->GetValueByName("EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToExistingBounds"));
 		LayoutTypeEnumRestriction->AddDisabledValue("NormalizeToExistingBounds");
 
 		uint8 Value = 0;

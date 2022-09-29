@@ -85,8 +85,7 @@ FUVEditorParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh,
 
 		for (const FVector3d& Vertex : Mesh.VerticesItr())
 		{
-			FVector3f Pos(Vertex.X, Vertex.Y, Vertex.Z);
-			Positions.Add(Pos);
+			Positions.Add(static_cast<FVector3f>(Vertex));
 		}
 	}
 

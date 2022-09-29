@@ -50,9 +50,9 @@ namespace FUVEditor2DViewportClientLocals {
 		float RightPadding = 0.0;
 	};
 
-	FText ConvertToExponentialNotation(float InValue, float MinExponent = 0.0)
+	FText ConvertToExponentialNotation(double InValue, double MinExponent = 0.0)
 	{
-		float Exponent = FMath::LogX(10, InValue < 0 ? -InValue : InValue);
+		double Exponent = FMath::LogX(10, InValue < 0 ? -InValue : InValue);
 		Exponent = FMath::Floor(Exponent);
 		if (FMath::IsFinite(Exponent) && FMath::Abs(Exponent) > MinExponent)
 		{
@@ -132,7 +132,7 @@ namespace FUVEditor2DViewportClientLocals {
 
 	void ConvertPixelToUV(const FVector2D& PixelIn, double RelDepthIn, FVector2D& UVOut, const FSceneView& View)
 	{
-		FVector4 ScreenPoint = View.PixelToScreen(PixelIn.X, PixelIn.Y, RelDepthIn);
+		FVector4 ScreenPoint = View.PixelToScreen(static_cast<float>(PixelIn.X), static_cast<float>(PixelIn.Y), static_cast<float>(RelDepthIn));
 		FVector4 WorldPointHomogenous = View.ViewMatrices.GetInvViewProjectionMatrix().TransformFVector4(ScreenPoint);
 		FVector WorldPoint(WorldPointHomogenous.X / WorldPointHomogenous.W,
 			               WorldPointHomogenous.Y / WorldPointHomogenous.W,
@@ -251,12 +251,12 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 void FUVEditor2DViewportClient::DrawGrid(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	// Basic scaling amount
-	const float UVScale = UUVEditorMode::GetUVMeshScalingFactor();
+	const double UVScale = UUVEditorMode::GetUVMeshScalingFactor();
 	
 	// Determine important geometry of the viewport for creating grid lines
 	FVector WorldCenterPoint( 0,0,0 );
 	FVector4 WorldToScreenCenter = View->WorldToScreen(WorldCenterPoint);	
-	float ZoomFactor = WorldToScreenCenter.W;
+	double ZoomFactor = WorldToScreenCenter.W;
 	FVector4 MaxScreen(1 * ZoomFactor, 1 * ZoomFactor, 0, 1);
 	FVector4 MinScreen(-1 * ZoomFactor, -1 * ZoomFactor, 0, 1);
 	FVector WorldBoundsMax = View->ScreenToWorld(MaxScreen);
@@ -284,7 +284,7 @@ void FUVEditor2DViewportClient::DrawGrid(const FSceneView* View, FPrimitiveDrawI
 			PDI, Transform);
 	}
 
-	float AxisExtent = UVScale;
+	double AxisExtent = UVScale;
 
 	// Draw colored axis lines
 	PDI->DrawLine(FVector(0, 0, 0), FVector(AxisExtent, 0, 0), FUVEditorUXSettings::XAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
@@ -460,23 +460,23 @@ void FUVEditor2DViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& Vi
 
 void FUVEditor2DViewportClient::DrawGridRulers(FViewport& InViewport, FSceneView& View, UCanvas& Canvas)
 {
-	const float UVScale = FUVEditorUXSettings::UVMeshScalingFactor;
+	const double UVScale = FUVEditorUXSettings::UVMeshScalingFactor;
 	const int32 Level = FUVEditorUXSettings::RulerSubdivisionLevel;
 	const int32 Subdivisions = FUVEditorUXSettings::GridSubdivisionsPerLevel; // Number of subdivisions per level
 
 	// Determine important geometry of the viewport for creating grid lines
 	FVector WorldCenterPoint(0, 0, 0);
 	FVector4 WorldToScreenCenter = View.WorldToScreen(WorldCenterPoint);
-	float ZoomFactor = WorldToScreenCenter.W;
-	float GridZoomFactor = ZoomFactor / UVScale;
+	double ZoomFactor = WorldToScreenCenter.W;
+	double GridZoomFactor = ZoomFactor / UVScale;
 
-	float LogZoom = FMath::LogX(Subdivisions, GridZoomFactor);
-	float LogZoomDirection = FMath::Sign(LogZoom);
+	double LogZoom = FMath::LogX(Subdivisions, GridZoomFactor);
+	double LogZoomDirection = FMath::Sign(LogZoom);
 	LogZoom = FMath::Abs(LogZoom);
-	LogZoom = FMathf::Floor(LogZoom);
+	LogZoom = FMath::Floor(LogZoom);
 	LogZoom = LogZoomDirection * LogZoom;
 
-	double GridScale = FMathf::Pow(Subdivisions, LogZoom - Level);
+	double GridScale = FMathd::Pow(Subdivisions, LogZoom - static_cast<double>(Level));
 
 	FVector2D PixelMinBounds(0, Canvas.SizeY);
 	FVector2D PixelMaxBounds(Canvas.SizeX, 0);

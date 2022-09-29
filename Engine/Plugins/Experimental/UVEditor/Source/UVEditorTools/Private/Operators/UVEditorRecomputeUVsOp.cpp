@@ -581,7 +581,7 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorRecomputeUVsOpFactory::MakeNewOperator
 		break;
 	case EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToBounds:
 		RecomputeUVsOp->bNormalizeAreas = true;
-		RecomputeUVsOp->AreaScaling = Settings->NormalizeScale / OriginalMesh->GetBounds().MaxDim();
+		RecomputeUVsOp->AreaScaling = Settings->NormalizeScale / static_cast<float>(OriginalMesh->GetBounds().MaxDim());
 		break;
 	case EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToWorld:
 		RecomputeUVsOp->bNormalizeAreas = true;

@@ -13,7 +13,7 @@ FInputRayHit FEditor2DScrollBehaviorTarget::CanBeginClickDragSequence(const FInp
 	// Verify that ray is facing the proper direction
 	if (PressPos.WorldRay.Direction.Z * PressPos.WorldRay.Origin.Z < 0)
 	{
-		return FInputRayHit(-PressPos.WorldRay.Origin.Z / PressPos.WorldRay.Direction.Z);
+		return FInputRayHit(static_cast<float>(-PressPos.WorldRay.Origin.Z / PressPos.WorldRay.Direction.Z));
 	}
 	return FInputRayHit();
 }
@@ -87,8 +87,8 @@ void FEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollUp(const FInputDev
 
 	FVector NewLocation = OriginalLocation + (ZoomInProportion * TToPlane * CurrentPos.WorldRay.Direction);
 
-	ViewportClient->OverrideFarClipPlane(NewLocation.Z - CameraFarPlaneWorldZ);
-	ViewportClient->OverrideNearClipPlane(NewLocation.Z * (1.0-CameraNearPlaneProportionZ));
+	ViewportClient->OverrideFarClipPlane(static_cast<float>(NewLocation.Z - CameraFarPlaneWorldZ));
+	ViewportClient->OverrideNearClipPlane(static_cast<float>(NewLocation.Z * (1.0-CameraNearPlaneProportionZ)));
 
 	// Don't zoom in so far that the XY plane lies in front of our near clipping plane, or else everything
 	// will suddenly disappear.
@@ -104,8 +104,8 @@ void FEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollDown(const FInputD
 	double TToPlane = -OriginalLocation.Z / CurrentPos.WorldRay.Direction.Z;
 	FVector NewLocation = OriginalLocation - (ZoomOutProportion * TToPlane * CurrentPos.WorldRay.Direction);
 
-	ViewportClient->OverrideFarClipPlane(NewLocation.Z - CameraFarPlaneWorldZ);
-	ViewportClient->OverrideNearClipPlane(NewLocation.Z * (1.0 - CameraNearPlaneProportionZ));
+	ViewportClient->OverrideFarClipPlane(static_cast<float>(NewLocation.Z - CameraFarPlaneWorldZ));
+	ViewportClient->OverrideNearClipPlane(static_cast<float>(NewLocation.Z * (1.0 - CameraNearPlaneProportionZ)));
 
 	if (NewLocation.Z < ZoomOutLimit)
 	{

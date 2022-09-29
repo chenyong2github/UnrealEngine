@@ -106,7 +106,7 @@ FLinearColor FUVEditorUXSettings::GetTriangleColorByTargetIndex(int32 TargetInde
 	double GoldenAngle = 137.50776405;
 
 	FLinearColor BaseColorHSV = FLinearColor::FromSRGBColor(UnwrapTriangleFillColor).LinearRGBToHSV();
-	BaseColorHSV.R = FMath::Fmod(BaseColorHSV.R + (GoldenAngle / 2.0 * TargetIndex), 360);;
+	BaseColorHSV.R = static_cast<float>(FMath::Fmod(BaseColorHSV.R + (GoldenAngle / 2.0 * TargetIndex), 360));
 
 	return BaseColorHSV.HSVToLinearRGB();
 }
@@ -143,7 +143,7 @@ FVector3d FUVEditorUXSettings::UVToVertPosition(const FVector2f& UV)
 
 FVector2f FUVEditorUXSettings::VertPositionToUV(const FVector3d& VertPosition)
 {
-	return FVector2f(VertPosition.Y / UVMeshScalingFactor, 1 - (VertPosition.X / UVMeshScalingFactor));
+	return FVector2f(static_cast<float>(VertPosition.Y) / UVMeshScalingFactor, 1.0f - (static_cast<float>(VertPosition.X) / UVMeshScalingFactor));
 };
 
 float FUVEditorUXSettings::LocationSnapValue(int32 LocationSnapMenuIndex)
