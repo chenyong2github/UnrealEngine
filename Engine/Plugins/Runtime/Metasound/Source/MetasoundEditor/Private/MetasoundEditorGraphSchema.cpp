@@ -1975,8 +1975,12 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 			continue;
 		}
 
-		if (FrontendClass.Metadata.GetType() != EMetasoundFrontendClassType::External
-			&& FrontendClass.Metadata.GetType() != EMetasoundFrontendClassType::Template)
+		if (FrontendClass.Metadata.GetType() == EMetasoundFrontendClassType::Template)
+		{
+			continue;
+		}
+
+		if (FrontendClass.Metadata.GetType() != EMetasoundFrontendClassType::External)
 		{
 			continue;
 		}
