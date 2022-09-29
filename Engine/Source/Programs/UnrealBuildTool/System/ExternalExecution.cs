@@ -433,18 +433,13 @@ namespace UnrealBuildTool
 		/// <param name="Headers">Receives the list of headers that was found</param>
 		static void FindHeaders(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludeFolders, List<FileItem> Headers)
 		{
-			foreach (FileItem File in BaseDirectory.EnumerateFiles())
+			if (BaseDirectory.TryGetFile(".ubtignore", out FileItem? OutIgnoreFile))
 			{
-				if (File.Name == ".ubtignore")
-				{
-					return;
-				}
-
-				if (File.HasExtension(".h"))
-				{
-					Headers.Add(File);
-				}
+				return;
 			}
+
+			// Check for all the headers in this folder
+			Headers.AddRange(BaseDirectory.EnumerateFiles().Where((fi) => fi.HasExtension(".h")));
 
 			foreach (DirectoryItem SubDirectory in BaseDirectory.EnumerateDirectories())
 			{

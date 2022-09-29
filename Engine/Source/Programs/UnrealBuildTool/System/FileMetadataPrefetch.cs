@@ -160,27 +160,11 @@ namespace UnrealBuildTool
 		{
 			foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
 			{
-				bool bIsUPlugin = false;
-				bool bIsIgnore = false;
-				foreach (FileItem FileItem in SubDirectory.EnumerateFiles())
-				{
-					if (FileItem.HasExtension(".uplugin"))
-					{
-						bIsUPlugin = true;
-						break;
-					}
-					if (FileItem.Name == ".ubtignore")
-					{
-						bIsIgnore = true;
-						break;
-					}
-				}
-
-				if (bIsUPlugin)
+				if (SubDirectory.EnumerateFiles().Any((fi) => fi.HasExtension(".uplugin")))
 				{
 					Enqueue(() => ScanDirectoryTree(DirectoryItem.Combine(SubDirectory, "Source")));
 				}
-				else if (!bIsIgnore)
+				else if (!SubDirectory.TryGetFile(".ubtignore", out FileItem? OutFile))
 				{
 					Enqueue(() => ScanPluginFolder(SubDirectory));
 				}
@@ -193,12 +177,9 @@ namespace UnrealBuildTool
 		/// <param name="Directory">Root of the directory tree</param>
 		static void ScanDirectoryTree(DirectoryItem Directory)
 		{
-			foreach (FileItem FileItem in Directory.EnumerateFiles())
+			if (Directory.TryGetFile(".ubtignore", out FileItem? OutFile))
 			{
-				if (FileItem.Name == ".ubtignore")
-				{
-					return;
-				}
+				return;
 			}
 
 			foreach (DirectoryItem SubDirectory in Directory.EnumerateDirectories())
