@@ -136,8 +136,10 @@ void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<UO
 		SubLevelSelectionMapByPath.FindOrAdd(OuterLevel->GetWorld()) = OuterLevel;
 		
 		Name = EditorObject->GetName();
+
+		const bool bShouldSetSubObjectContext = !BindingContext.HasValidSubObjectPath() && !EditorObject->IsA<AActor>();
 		
-		if (BindingContext.OwnerActorName.IsNone() || !GetDefault<URemoteControlSettings>()->bUseRebindingContext) 
+		if (BindingContext.OwnerActorName.IsNone() || bShouldSetSubObjectContext || !GetDefault<URemoteControlSettings>()->bUseRebindingContext)
 		{
 			InitializeBindingContext(InObject.Get());
 		}
@@ -215,7 +217,7 @@ UObject* URemoteControlLevelDependantBinding::Resolve() const
 
 		LevelWithLastSuccessfulResolve = Object->GetTypedOuter<ULevel>();
 
-		if (BindingContext.OwnerActorName.IsNone())
+		if (BindingContext.OwnerActorName.IsNone() || (!Object->IsA<AActor>() && !BindingContext.HasValidSubObjectPath()))
 		{
 			InitializeBindingContext(Object);
 		}
@@ -346,23 +348,21 @@ void URemoteControlLevelDependantBinding::InitializeBindingContext(UObject* InOb
 			BindingContext.OwnerActorClass = InObject->GetClass();
 			BindingContext.OwnerActorName = InObject->GetFName();
 		}
-		else if (InObject->IsA<UActorComponent>())
-		{
-			AActor* Owner = InObject->GetTypedOuter<AActor>();
-			check(Owner);
-			BindingContext.ComponentName = InObject->GetFName();
-			BindingContext.OwnerActorClass = Owner->GetClass();
-			BindingContext.OwnerActorName = Owner->GetFName();
-		}
 		else
 		{
 			AActor* Owner = InObject->GetTypedOuter<AActor>();
 			check(Owner);
 			BindingContext.ComponentName = InObject->GetFName();
+			BindingContext.SubObjectPath = InObject->GetPathName(Owner);
 			BindingContext.OwnerActorClass = Owner->GetClass();
 			BindingContext.OwnerActorName = Owner->GetFName();
 		}
 	}
+}
+
+TSoftObjectPtr<UObject> URemoteControlLevelDependantBinding::GetLastBoundObject() const
+{
+	return BoundObjectMapByPath.FindRef(LevelWithLastSuccessfulResolve.ToSoftObjectPath());
 }
 
 UClass* URemoteControlLevelDependantBinding::GetSupportedOwnerClass() const

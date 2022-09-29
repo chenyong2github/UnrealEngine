@@ -1030,6 +1030,70 @@ void URemoteControlPreset::PostLoadProperties()
 	}
 }
 
+void URemoteControlPreset::HandleDisplayClusterConfigChange(UObject* DisplayClusterConfigData)
+{
+#if WITH_EDITOR
+	AActor* OwnerActor = DisplayClusterConfigData->GetTypedOuter<AActor>();
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([OwnerActor, PresetPtr = TWeakObjectPtr<URemoteControlPreset>{ this }]()
+	{
+		TSet<URemoteControlBinding*> ModifiedBindings;
+
+		if (URemoteControlPreset* Preset = PresetPtr.Get())
+		{
+			for (URemoteControlBinding* Binding : Preset->Bindings)
+			{
+				UObject* NewObject = nullptr;
+				UObject* ResolvedBinding = Binding->Resolve();
+
+				static const FName NDisplayConfigurationData = "DisplayClusterConfigurationData";
+				if (ResolvedBinding && ResolvedBinding->GetClass()->GetFName() == NDisplayConfigurationData)
+				{
+					AActor* BindingOwnerActor = ResolvedBinding->GetTypedOuter<AActor>();
+					if (OwnerActor == BindingOwnerActor)
+					{
+						// Replace binding
+						static const FName ConfigDataName = "CurrentConfigData";
+						FProperty* ConfigDataProperty = BindingOwnerActor->GetClass()->FindPropertyByName(ConfigDataName);
+
+						if (void* NewConfigData = ConfigDataProperty->ContainerPtrToValuePtr<void>(BindingOwnerActor))
+						{
+							if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(ConfigDataProperty))
+							{
+								NewObject = ObjectProperty->GetObjectPropertyValue(NewConfigData);
+							}
+						}
+					}
+				}
+
+				if (NewObject)
+				{
+					ModifiedBindings.Add(Binding);
+					PresetPtr->Modify();
+					Binding->Modify();
+					Binding->SetBoundObject(NewObject);
+				}
+
+				for (const TSharedPtr<FRemoteControlField>& Entity : PresetPtr->Registry->GetExposedEntities<FRemoteControlField>())
+				{
+					for (TWeakObjectPtr<URemoteControlBinding> WeakBinding : Entity->Bindings)
+					{
+						if (!WeakBinding.IsValid())
+						{
+							continue;
+						}
+
+						if (ModifiedBindings.Contains(WeakBinding.Get()))
+						{
+							PresetPtr->PerFrameUpdatedEntities.Add(Entity->GetId());
+						}
+					}
+				}
+			}
+		}
+	}));
+#endif
+}
+
 UWorld* URemoteControlPreset::GetWorld(const URemoteControlPreset* Preset, bool bAllowPIE)
 {
 	if (Preset && Preset->IsEmbeddedPreset())
@@ -1433,6 +1497,15 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 {
 	// Objects modified should have run through the preobjectmodified. If interesting, they will be cached
 	TRACE_CPUPROFILER_EVENT_SCOPE(URemoteControlPreset::OnObjectPropertyChanged);
+
+	if (Object && Object->GetClass()->GetName() == TEXT("DisplayClusterConfigurationData"))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(URemoteControlPreset::OnObjectPropertyChanged::HandleDisplayClusterConfigChange);
+		// If a display cluster is modified, it will get invalidated so we need to update bindings to the new one.
+		// Since it does not show up in the ObjectReplaced callback, we have to do it on property change.
+		HandleDisplayClusterConfigChange(Object);
+		return;
+	}
  
 	if (Event.Property == nullptr)
 	{
@@ -1695,7 +1768,7 @@ void URemoteControlPreset::RegisterDelegates()
 
 	FEditorDelegates::PostPIEStarted.AddUObject(this, &URemoteControlPreset::OnPieEvent);
 	FEditorDelegates::EndPIE.AddUObject(this, &URemoteControlPreset::OnPieEvent);
-	
+
 	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &URemoteControlPreset::OnReplaceObjects);
 
 	FEditorDelegates::MapChange.AddUObject(this, &URemoteControlPreset::OnMapChange);
@@ -1722,12 +1795,12 @@ void URemoteControlPreset::UnregisterDelegates()
 			Blueprint->OnCompiled().RemoveAll(this);
 		}
 	}
-	
+
 	FEditorDelegates::MapChange.RemoveAll(this);
 
 
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
-	
+
 	FEditorDelegates::EndPIE.RemoveAll(this);
 	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 
@@ -1748,7 +1821,7 @@ void URemoteControlPreset::OnActorDeleted(AActor* Actor)
 	UWorld* World = Actor->GetWorld();
 
 	TSet<URemoteControlBinding*> ModifiedBindings;
-	
+
 	if (World && !World->IsPreviewWorld())
 	{
 		for (auto It = Bindings.CreateIterator(); It; ++It)
@@ -1765,14 +1838,14 @@ void URemoteControlPreset::OnActorDeleted(AActor* Actor)
 
 void URemoteControlPreset::OnPieEvent(bool)
 {
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([PresetPtr = TWeakObjectPtr<URemoteControlPreset>{this}]()
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([PresetPtr = TWeakObjectPtr<URemoteControlPreset>{ this }]()
 	{
 		if (PresetPtr.IsValid() && PresetPtr->Registry)
 		{
 			for (TSharedPtr<FRemoteControlEntity> Entity : PresetPtr->Registry->GetExposedEntities<FRemoteControlEntity>())
 			{
 				PresetPtr->PerFrameUpdatedEntities.Add(Entity->GetId());
-			}	
+			}
 		}
 	}));
 }
@@ -1780,14 +1853,19 @@ void URemoteControlPreset::OnPieEvent(bool)
 void URemoteControlPreset::OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap)
 {
 	TSet<URemoteControlBinding*> ModifiedBindings;
-	
+
 	for (URemoteControlBinding* Binding : Bindings)
 	{
 		UObject* NewObject = nullptr;
+		UObject* ResolvedBinding = Binding->Resolve();
 
-		if (UObject* Replacement = ReplacementObjectMap.FindRef(Binding->Resolve()))
+
+		if (!NewObject)
 		{
-			NewObject = Replacement;
+			if (UObject* Replacement = ReplacementObjectMap.FindRef(ResolvedBinding))
+			{
+				NewObject = Replacement;
+			}
 		}
 
 		if (NewObject)

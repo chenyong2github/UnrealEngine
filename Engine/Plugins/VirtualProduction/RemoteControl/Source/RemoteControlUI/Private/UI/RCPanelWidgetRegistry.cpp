@@ -134,6 +134,7 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetObjectTreeNode(UObject* I
 		Generator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
 		Generator->SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes::CreateLambda(MoveTemp(ValidationLambda)));
 		Generator->SetObjects({InObject});
+		Generator->OnRowsRefreshed().AddRaw(this, &FRCPanelWidgetRegistry::OnRowsRefreshed, Generator);
 		ObjectToRowGenerator.Add(WeakObject, Generator);
 	}
 	
@@ -249,4 +250,19 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::FindNDisplayTreeNode(UObject
 	}
 
 	return WidgetRegistryUtils::FindNode(Generator->GetRootTreeNodes(), InField, InFindMethod);
+}
+
+void FRCPanelWidgetRegistry::OnRowsRefreshed(TSharedPtr<IPropertyRowGenerator> Generator)
+{
+	if (Generator)
+	{
+		const TArray<TWeakObjectPtr<UObject>> WeakSelectedObjects = Generator->GetSelectedObjects();
+		TArray<UObject*> SelectedObjects;
+		SelectedObjects.Reserve(WeakSelectedObjects.Num());
+		for (const TWeakObjectPtr<UObject>& WeakObject : WeakSelectedObjects)
+		{
+			SelectedObjects.Add(WeakObject.Get());
+		}
+		OnObjectRefreshedDelegate.Broadcast(SelectedObjects);
+	}
 }

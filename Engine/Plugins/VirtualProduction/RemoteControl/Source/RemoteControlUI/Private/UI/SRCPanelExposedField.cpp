@@ -98,6 +98,14 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 	}
 }
 
+SRCPanelExposedField::~SRCPanelExposedField()
+{
+	if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
+	{
+		Registry->OnObjectRefreshed().RemoveAll(this);
+	}
+}
+
 void SRCPanelExposedField::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const
 {
 	OutChildren.Append(ChildWidgets);
@@ -327,6 +335,9 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 		{
 			if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 			{
+				Registry->OnObjectRefreshed().RemoveAll(this);
+				Registry->OnObjectRefreshed().AddSP(this, &SRCPanelExposedField::OnObjectsRefreshed);
+
 				if (TSharedPtr<IDetailTreeNode> Node = Registry->GetObjectTreeNode(Objects[0], Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
 				{
 					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
@@ -360,7 +371,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 						{
 							TSharedPtr<SRCPanelExposedField> FieldPtr = WeakFieldPtr.Pin();
 							TSharedPtr<IPropertyHandle> PropertyHandle = Node->CreatePropertyHandle();
-							if (FieldPtr && PropertyHandle)
+							if (FieldPtr && PropertyHandle && PropertyHandle->IsValidHandle())
 							{
 								void* DataPtr;
 								PropertyHandle->GetValueData(DataPtr);
@@ -559,6 +570,24 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 	}
 
 	return FReply::Handled();
+}
+
+void SRCPanelExposedField::OnObjectsRefreshed(const TArray<UObject*>& RefreshedObjects)
+{
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+	{
+		TSet<UObject*> BoundObjectsSet;
+		BoundObjectsSet.Append(Field->GetBoundObjects());
+
+		TSet<UObject*> RefreshedObjectsSet;
+		RefreshedObjectsSet.Append(RefreshedObjects);
+
+		const TSet<UObject*> CommonObjects = BoundObjectsSet.Intersect(RefreshedObjectsSet);
+		if (CommonObjects.Num())
+		{
+			Refresh();
+		}
+	}
 }
 
 void SRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode, FRCColumnSizeData InColumnSizeData)

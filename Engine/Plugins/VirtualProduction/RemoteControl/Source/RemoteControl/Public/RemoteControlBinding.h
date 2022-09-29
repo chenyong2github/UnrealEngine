@@ -100,6 +100,12 @@ struct FRemoteControlInitialBindingContext
 	FName ComponentName;
 
 	/**
+	 * Path to the subobject if any.
+	 */
+	UPROPERTY()
+	FString SubObjectPath;
+
+	/**
 	 * The class of the actor that's targeted by this binding or the class of the actor that owns the component that is targeted.
 	 */
 	UPROPERTY()
@@ -124,12 +130,23 @@ struct FRemoteControlInitialBindingContext
 		return LHS.SupportedClass == RHS.SupportedClass
 			&& LHS.ComponentName == RHS.ComponentName
 			&& LHS.OwnerActorClass == RHS.OwnerActorClass
-			&& LHS.OwnerActorName == RHS.OwnerActorName;
+			&& LHS.OwnerActorName == RHS.OwnerActorName
+			&& LHS.SubObjectPath == RHS.SubObjectPath;
 	}
 
 	friend bool operator!=(const FRemoteControlInitialBindingContext& LHS, const FRemoteControlInitialBindingContext& RHS)
 	{
 		return !(LHS == RHS);
+	}
+
+	bool HasValidComponentName() const
+	{
+		return !ComponentName.IsNone();
+	}
+
+	bool HasValidSubObjectPath() const
+	{
+		return !SubObjectPath.IsEmpty();
 	}
 };
 
@@ -179,6 +196,8 @@ private:
 	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
 
 	void InitializeBindingContext(UObject* InObject) const;
+
+	TSoftObjectPtr<UObject> GetLastBoundObject() const;
 
 private:
 #if WITH_EDITORONLY_DATA

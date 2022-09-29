@@ -16,6 +16,8 @@ enum class ERCFindNodeMethod
 	Path  // Find a node by providing a property path.
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsRefreshed, const TArray<UObject*>&);
+
 /** Local special case handlers to generate widgets to be displayed */
 using FRCTreeNodeFinderIsException = TFunction< bool(UObject* /*InObject*/, const FString& /*InField*/, ERCFindNodeMethod /*InFindMethod*/) >;
 using FRCTreeNodeFinderFunction = TFunction< TSharedPtr<IDetailTreeNode>(UObject* /*InObject*/, const FString& /*InField*/, ERCFindNodeMethod /*InFindMethod*/) >;
@@ -62,11 +64,20 @@ public:
 	 */
 	void Clear();
 
+	/**
+	 * Get the on object refresh delegate.
+	 */
+	FOnObjectsRefreshed& OnObjectRefreshed() 
+	{
+		return OnObjectRefreshedDelegate; 
+	}
+
 private:
 
 	/** Special handlers for ndisplay root actor and its details customizations */
 	bool IsNDisplayObject(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
 	TSharedPtr<IDetailTreeNode> FindNDisplayTreeNode(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
+	void OnRowsRefreshed(TSharedPtr<IPropertyRowGenerator> Generator);
 
 private:
 	/** Map of objects to row generator, used to have one row generator per object. */
@@ -77,4 +88,6 @@ private:
 	TMap<TPair<TWeakObjectPtr<UObject>, FString>, TWeakPtr<IDetailTreeNode>> TreeNodeCache;
 	/** List of tree node finder handlers for certain type */
 	TArray<FRCTreeNodeFinderHandler> SpecialTreeNodeHandlers;
+	/** Called when a generator gets refreshed. (ie. forcefully refreshed by a customization) */
+	FOnObjectsRefreshed OnObjectRefreshedDelegate;
 };

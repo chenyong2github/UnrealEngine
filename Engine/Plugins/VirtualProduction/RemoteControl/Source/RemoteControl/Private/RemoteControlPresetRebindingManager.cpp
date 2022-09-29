@@ -253,7 +253,6 @@ void FRemoteControlPresetRebindingManager::Rebind_Legacy(URemoteControlPreset* P
 	}
 }
 
-
 void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* Preset)
 {
 	check(Preset);
@@ -341,16 +340,16 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		return nullptr;
 	};
 
-	auto TryRebindPair = [&BoundObjects](URemoteControlBinding* InBindingToRebind, AActor* InActor, UObject* InActorComponent)
+	auto TryRebindPair = [&](URemoteControlBinding* InBindingToRebind, AActor* InActor, UObject* InSubObject)
 	{
-		TPair<AActor*, UObject*> Pair = TPair<AActor*, UObject*> { InActor, InActorComponent };
+		TPair<AActor*, UObject*> Pair = TPair<AActor*, UObject*> { InActor, InSubObject };
 		if (!BoundObjects.Contains(Pair))
 		{
 			BoundObjects.Add(Pair);
 			InBindingToRebind->Modify();
-			if (InActorComponent)
+			if (InSubObject)
 			{
-				InBindingToRebind->SetBoundObject(InActorComponent);
+				InBindingToRebind->SetBoundObject(InSubObject);
 			}
 			else
 			{
@@ -361,18 +360,23 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		return false;
 	};
 
-	auto GetComponentBasedOnName = [](URemoteControlLevelDependantBinding* InBinding, UObject* InObject) -> UObject*
+	auto GetSubObjectBasedOnName = [](URemoteControlLevelDependantBinding* InBinding, UObject* InOwnerObject) -> UObject*
 	{
-		FName InitialComponentName = InBinding->BindingContext.ComponentName;
-		UObject* TargetComponent = FindObject<UObject>(InObject, *InitialComponentName.ToString());
-		if (TargetComponent && TargetComponent->GetClass()->IsChildOf(InBinding->BindingContext.SupportedClass.LoadSynchronous()))
+		FString SubObjectPath = InBinding->BindingContext.ComponentName.ToString();
+		if (InBinding->BindingContext.HasValidSubObjectPath())
 		{
-			return TargetComponent;
+			SubObjectPath = InBinding->BindingContext.SubObjectPath;
+		}
+
+		UObject* TargetSubObject = FindObject<UObject>(InOwnerObject, *SubObjectPath);
+		if (TargetSubObject && TargetSubObject->GetClass()->IsChildOf(InBinding->BindingContext.SupportedClass.LoadSynchronous()))
+		{
+			return TargetSubObject;
 		}
 		return nullptr;
 	};
 
-	auto RebindComponentBasedOnClass = [TryRebindPair](URemoteControlLevelDependantBinding* InBinding, AActor* InActorMatch)
+	auto RebindComponentBasedOnClass = [&](URemoteControlLevelDependantBinding* InBinding, AActor* InActorMatch)
 	{
 		if (UClass* SupportedClass = InBinding->BindingContext.SupportedClass.LoadSynchronous())
 		{
@@ -393,7 +397,7 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		return false;
 	};
 
-	auto RebindUsingActorName = [FindByName, &BoundObjects, TryRebindPair](URemoteControlLevelDependantBinding* BindingToRebind, const TArray<AActor*>& ObjectsWithSupportedClass)
+	auto RebindUsingActorName = [&](URemoteControlLevelDependantBinding* BindingToRebind, const TArray<AActor*>& ObjectsWithSupportedClass)
 	{
 		if (UObject* Match = FindByName(ObjectsWithSupportedClass, BindingToRebind->BindingContext.OwnerActorName))
 		{
@@ -402,7 +406,7 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		return false;
 	};
 
-	auto RebindUsingClass = [FindByName, &BoundObjects, TryRebindPair](URemoteControlLevelDependantBinding* BindingToRebind, const TArray<AActor*>& ObjectsWithSupportedClass)
+	auto RebindUsingClass = [&](URemoteControlLevelDependantBinding* BindingToRebind, const TArray<AActor*>& ObjectsWithSupportedClass)
 	{
 		for (UObject* PotentialMatch : ObjectsWithSupportedClass)
 		{
@@ -414,11 +418,11 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		return false;
 	};
 
-	auto TryRebindComponent = [GetComponentBasedOnName, TryRebindPair, RebindComponentBasedOnClass](URemoteControlLevelDependantBinding* BindingToRebind, UObject* PotentialMatch)
+	auto TryRebindSubObject = [&](URemoteControlLevelDependantBinding* BindingToRebind, UObject* PotentialMatch)
 	{
-		if (UObject* TargetComponent = GetComponentBasedOnName(BindingToRebind, PotentialMatch))
+		if (UObject* TargetSubObject = GetSubObjectBasedOnName(BindingToRebind, PotentialMatch))
 		{
-			return TryRebindPair(BindingToRebind, TargetComponent->GetTypedOuter<AActor>(), TargetComponent);
+			return TryRebindPair(BindingToRebind, TargetSubObject->GetTypedOuter<AActor>(), TargetSubObject);
 		}
 		else
 		{
@@ -426,51 +430,114 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		}
 	};
 
-	// Core of the rebinding algo
-	for (URemoteControlLevelDependantBinding* InvalidBinding : InvalidBindings)
+	auto FindSubObjectToRebind = [&](URemoteControlLevelDependantBinding* InvalidBinding, const TArray<AActor*>& ObjectsWithSupportedClass)
 	{
-		if (UClass* OwnerClass = InvalidBinding->BindingContext.OwnerActorClass.LoadSynchronous())
+		if (UObject* Match = FindByName(ObjectsWithSupportedClass, InvalidBinding->BindingContext.OwnerActorName))
 		{
-			const bool bRebindingComponent = !InvalidBinding->BindingContext.ComponentName.IsNone();
-			TArray<AActor*> ObjectsWithSupportedClass;
-			constexpr bool bAllowPIE = false;
-			if (!RCPresetRebindingManager::GetActorsOfClass(Preset->GetWorld(bAllowPIE), OwnerClass, ObjectsWithSupportedClass))
+			// Found an owner object with matching name. Try to find a component under it with a matching name.
+			return TryRebindSubObject(InvalidBinding, Match);
+		}
+		else
+		{
+			// Could not find an actor with the same name as the initial binding, rely only on class instead.
+			for (UObject* Object : ObjectsWithSupportedClass)
 			{
-				continue;
+				if (TryRebindSubObject(InvalidBinding, Object))
+				{
+					return true;
+				}
 			}
 
-			if (bRebindingComponent)
+			return false;
+		}
+	};
+
+	auto GetPotentialActors = [&](URemoteControlLevelDependantBinding* InvalidBinding, TArray<AActor*>& OutObjectsWithSupportedClass)-> bool
+	{
+		UClass* OwnerClass = InvalidBinding->BindingContext.OwnerActorClass.LoadSynchronous();
+		constexpr bool bAllowPIE = false;
+		return RCPresetRebindingManager::GetActorsOfClass(Preset->GetWorld(bAllowPIE), OwnerClass, OutObjectsWithSupportedClass);
+	};
+
+	auto Rebind = [&](URemoteControlLevelDependantBinding* InvalidBinding)
+	{
+		const FRemoteControlInitialBindingContext& BindingContext = InvalidBinding->BindingContext;
+		TArray<AActor*> ObjectsWithSupportedClass;
+		
+		if (GetPotentialActors(InvalidBinding, ObjectsWithSupportedClass))
+		{
+			if (BindingContext.HasValidSubObjectPath() || BindingContext.HasValidComponentName())
 			{
-				if (UObject* Match = FindByName(ObjectsWithSupportedClass, InvalidBinding->BindingContext.OwnerActorName))
-				{
-					// Found an owner object with matching name. Try to find a component under it with a matching name.
-					TryRebindComponent(InvalidBinding, Match);
-				}
-				else
-				{
-					// Could not find an actor with the same name as the initial binding, rely only on class instead.
-					for (UObject* Object : ObjectsWithSupportedClass)
-					{
-						if (TryRebindComponent(InvalidBinding, Object))
-						{
-							break;
-						}
-					}
-				}
+				return FindSubObjectToRebind(InvalidBinding, ObjectsWithSupportedClass);
 			}
 			else
 			{
 				if (!RebindUsingActorName(InvalidBinding, ObjectsWithSupportedClass))
 				{
-					RebindUsingClass(InvalidBinding, ObjectsWithSupportedClass);
+					return RebindUsingClass(InvalidBinding, ObjectsWithSupportedClass);
+				}
+				else
+				{
+					return true;
 				}
 			}
+		}
+		return false;
+	};
+
+	auto TryNDisplayRebind = [&](URemoteControlLevelDependantBinding* InvalidBinding)
+	{
+		// Used when the preset does not contain the full component path, we try to find an ndisplay viewport on a new object.
+		if (UBlueprintGeneratedClass* BPClass = Cast <UBlueprintGeneratedClass>(InvalidBinding->BindingContext.OwnerActorClass.Get()))
+		{
+			if (BPClass->GetSuperStruct() && BPClass->GetSuperStruct()->GetName() == TEXT("DisplayClusterRootActor"))
+			{
+				TArray<AActor*> ObjectsWithSupportedClass;
+				if (!GetPotentialActors(InvalidBinding, ObjectsWithSupportedClass))
+				{
+					return;
+				}
+
+				// We manually get the path from the last bound object since it was not saved.
+				// We are looking for a path like DisplayClusterConfigurationData_0.DisplayClusterConfigurationCluster_0.Node_1.VP_1
+				// We will then combine this with display cluster root actors in the scene to attempt finding a matching object.
+				FString LastObjectPath = InvalidBinding->GetLastBoundObject().ToSoftObjectPath().ToString();
+				if (LastObjectPath.IsEmpty())
+				{
+					return;
+				}
+
+				const int32 ConfigDataIndex = LastObjectPath.Find(TEXT("DisplayClusterConfigurationData"));
+
+				if (ConfigDataIndex == INDEX_NONE)
+				{
+					return;
+				}
+
+				FString SubObjectSubPath = LastObjectPath.RightChop(ConfigDataIndex);
+
+				for (AActor* Actor : ObjectsWithSupportedClass)
+				{
+					FTopLevelAssetPath AssetPath = FTopLevelAssetPath(Actor->GetPathName() + SubObjectSubPath);
+					if (UObject* SubObject = FindObject<UObject>(Actor, *SubObjectSubPath))
+					{
+						TryRebindPair(InvalidBinding, Actor, SubObject);
+					}
+				}
+			}
+		}
+	};
+
+	for (URemoteControlLevelDependantBinding* InvalidBinding : InvalidBindings)
+	{
+		if (!Rebind(InvalidBinding))
+		{
+			TryNDisplayRebind(InvalidBinding);
 		}
 	}
 
 	Preset->RemoveUnusedBindings();
 }
-
 
 TArray<FGuid> FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, URemoteControlBinding* InitialBinding, AActor* NewActor)
 {

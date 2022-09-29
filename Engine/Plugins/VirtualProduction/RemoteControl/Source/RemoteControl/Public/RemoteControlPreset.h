@@ -766,6 +766,9 @@ private:
 
 	/** Call post load function for exposed properties. */
 	void PostLoadProperties();
+
+	/** Handle a change on a ndisplay config data, used to replace bindings. */
+	void HandleDisplayClusterConfigChange(UObject* DisplayClusterConfigData);
 	
 private:
 	/** Preset unique ID */
