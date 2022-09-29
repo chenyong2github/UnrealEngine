@@ -43,6 +43,8 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+DEFINE_LOG_CATEGORY_STATIC(LogAssetViewTools, Warning, Warning);
+
 #define MAX_CLASS_NAME_LENGTH 32 // Enforce a reasonable class name length so the path is not too long for FPlatformMisc::GetMaxPathLength()
 
 
@@ -550,6 +552,16 @@ bool AssetViewUtils::RenameFolder(const FString& DestPath, const FString& Source
 	TArray<UObject*> ObjectsInFolder;
 	const bool bLoadAllExternalObjects = true;
 	GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder, bLoadAllExternalObjects);
+
+	FResultMessage Result;
+	Result.bSucceeded = true;
+	FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(ObjectsInFolder, EDestructiveAssetActions::AssetRename, Result);
+	if (!Result.WasSuccesful())
+	{
+		UE_LOG(LogAssetViewTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
+		return false;
+	}
+
 	MoveAssets(ObjectsInFolder, DestPath, SourcePath);
 
 	// Now check to see if the original folder is empty, if so we can delete it
@@ -647,6 +659,21 @@ bool AssetViewUtils::MoveFolders(const TArray<FString>& InSourcePathNames, const
 	// Load all assets in the source paths
 	if (!PrepareFoldersForDragDrop(SourcePathNames, SourcePathToLoadedAssets))
 	{
+		return false;
+	}
+
+	TArray<UObject*> AssetsToMove;
+	for (auto PathIt = SourcePathToLoadedAssets.CreateConstIterator(); PathIt; ++PathIt)
+	{
+		AssetsToMove.Append(PathIt.Value());
+	}
+
+	FResultMessage Result;
+	Result.bSucceeded = true;
+	FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(AssetsToMove, EDestructiveAssetActions::AssetMove, Result);
+	if (!Result.WasSuccesful())
+	{
+		UE_LOG(LogAssetViewTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
 		return false;
 	}
 	

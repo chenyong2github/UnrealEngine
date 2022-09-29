@@ -2,7 +2,7 @@
 
 /**
  *	This will hold all of our enums and types and such that we need to
- *	use in multiple files where the enum can'y be mapped to a specific file.
+ *	use in multiple files where the enum can't be mapped to a specific file.
  */
 
 #pragma once
@@ -127,6 +127,29 @@ enum ELevelViewportType
 	LVT_MAX,
 
 	LVT_None = 255,
+};
+
+UENUM()
+enum EDestructiveAssetActions
+{
+	AssetDelete = 0,
+	AssetRename = 1 << 0,
+	AssetMove = 1 << 1,
+	AssetPrivatize = 1 << 2
+};
+
+/** Simple Return struct for supplying success or failure with an optional error message */
+USTRUCT()
+struct FResultMessage
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	bool WasSuccesful() { return bSucceeded; }
+	FString GetErrorMessage() { return ErrorMessage; }
+	void SetErrorMessage(FString& InErrorMessage) { InErrorMessage = ErrorMessage; }
+	bool bSucceeded = false;
+private:
+	FString ErrorMessage;
 };
 
 

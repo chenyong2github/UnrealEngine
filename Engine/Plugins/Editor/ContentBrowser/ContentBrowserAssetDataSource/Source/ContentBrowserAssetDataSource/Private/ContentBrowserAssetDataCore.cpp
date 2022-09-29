@@ -854,6 +854,15 @@ bool RenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFi
 	// We need to potentially load the asset in order to rename it
 	if (UObject* Asset = InAssetPayload.LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 	{
+		FResultMessage Result;
+		Result.bSucceeded = true;
+		FEditorDelegates::OnPreDestructiveAssetAction.Broadcast({Asset}, EDestructiveAssetActions::AssetRename, Result);
+		if (!Result.WasSuccesful())
+		{
+			UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("%s"), *Result.GetErrorMessage());
+			return false;
+		}
+
 		const FString PackagePath = FPackageName::GetLongPackagePath(Asset->GetOutermost()->GetName());
 
 		TArray<FAssetRenameData> AssetsAndNames;
@@ -1014,6 +1023,15 @@ bool MoveAssetFileItems(TArrayView<const TSharedRef<const FContentBrowserAssetFi
 		{
 			AssetsToMove.Add(Asset);
 		}
+	}
+
+	FResultMessage Result;
+	Result.bSucceeded = true;
+	FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(AssetsToMove, EDestructiveAssetActions::AssetMove, Result);
+	if (!Result.WasSuccesful())
+	{
+		UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("%s"), *Result.GetErrorMessage());
+		return false;
 	}
 
 	if (AssetsToMove.Num() > 0)

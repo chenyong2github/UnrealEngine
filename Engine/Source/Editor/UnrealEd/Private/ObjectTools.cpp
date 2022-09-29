@@ -2680,6 +2680,16 @@ namespace ObjectTools
 			return 0;
 		}
 
+		FResultMessage Result;
+		Result.bSucceeded = true;
+		FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(ObjectsToDelete, EDestructiveAssetActions::AssetDelete, Result);
+
+		if (!Result.WasSuccesful())
+		{
+			UE_LOG(LogObjectTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
+			return 0;
+		}
+
 		// Load the asset registry module
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -2771,6 +2781,16 @@ namespace ObjectTools
 
 		if (!HandleFullyLoadingPackages(ObjectsToPrivatize, NSLOCTEXT("UnrealEd", "Privatize", "Privatize")))
 		{
+			return 0;
+		}
+
+		FResultMessage Result;
+		Result.bSucceeded = true;
+		FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(ObjectsToPrivatize, EDestructiveAssetActions::AssetPrivatize, Result);
+
+		if (!Result.WasSuccesful())
+		{
+			UE_LOG(LogObjectTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
 			return 0;
 		}
 

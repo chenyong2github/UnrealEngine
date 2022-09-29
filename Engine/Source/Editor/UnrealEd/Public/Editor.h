@@ -86,6 +86,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnStandaloneLocalPlayEvent, const uint32);
 	/** delegate type for beginning or finishing configuration of the properties of a new asset */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewAssetCreation, UFactory*);
+	/** delegate for when assets are about to undergo a destructive action caused by the Editor UI (Delete, Rename, Move, Privatize, etc.) */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreDestructiveAssetAction, const TArray<UObject*>&, EDestructiveAssetActions, FResultMessage&);
 	/** delegate type fired when new assets are being (re-)imported. Params: UFactory* InFactory, UClass* InClass, UObject* InParent, const FName& Name, const TCHAR* Type */
 	DECLARE_MULTICAST_DELEGATE_FiveParams(FOnAssetPreImport, UFactory*, UClass*, UObject*, const FName&, const TCHAR*);
 	/** delegate type fired when new assets have been (re-)imported. Note: InCreatedObject can be NULL if import failed. Params: UFactory* InFactory, UObject* InCreatedObject */
@@ -241,6 +243,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnFinishPickingBlueprintClass OnFinishPickingBlueprintClass;
 	/** Called when beginning configuration of a new asset */
 	static FOnNewAssetCreation OnConfigureNewAssetProperties;
+	/** Called when an asset is about to undergo a destructive action caused by the Editor UI (Delete, Move, Rename, Privatize, etc.) */
+	static FOnPreDestructiveAssetAction OnPreDestructiveAssetAction;
 	/** Called when finishing configuration of a new asset */
 	static FOnNewAssetCreation OnNewAssetCreated;
 	/** Called when new assets are being (re-)imported. */
