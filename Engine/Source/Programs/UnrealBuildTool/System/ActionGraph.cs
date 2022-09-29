@@ -40,7 +40,8 @@ namespace UnrealBuildTool
 		/// Links the actions together and sets up their dependencies
 		/// </summary>
 		/// <param name="Actions">List of actions in the graph</param>
-		public static void Link(List<LinkedAction> Actions)
+		/// <param name="Logger">Logger for output</param>
+		public static void Link(List<LinkedAction> Actions, ILogger Logger)
 		{
 			// Build a map from item to its producing action
 			Dictionary<FileItem, LinkedAction> ItemToProducingAction = new Dictionary<FileItem, LinkedAction>();
@@ -53,7 +54,7 @@ namespace UnrealBuildTool
 			}
 
 			// Check for cycles
-			DetectActionGraphCycles(Actions, ItemToProducingAction);
+			DetectActionGraphCycles(Actions, ItemToProducingAction, Logger);
 
 			// Use this map to add all the prerequisite actions
 			foreach (LinkedAction Action in Actions)
@@ -437,7 +438,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Checks for cycles in the action graph.
 		/// </summary>
-		static void DetectActionGraphCycles(List<LinkedAction> Actions, Dictionary<FileItem, LinkedAction> ItemToProducingAction)
+		static void DetectActionGraphCycles(List<LinkedAction> Actions, Dictionary<FileItem, LinkedAction> ItemToProducingAction, ILogger Logger)
 		{
 			// Starting with actions that only depend on non-produced items, iteratively expand a set of actions that are only dependent on
 			// non-cyclical actions.
@@ -506,11 +507,11 @@ namespace UnrealBuildTool
 				}
 
 				// Describe the cyclical actions.
-				string CycleDescription = "";
 				foreach (LinkedAction Action in Actions)
 				{
 					if (!ActionIsNonCyclical.ContainsKey(Action))
 					{
+						string CycleDescription = "";
 						CycleDescription += $"Action #{ActionToIndex[Action].ToString()}: {Action.CommandPath}\n";
 						CycleDescription += $"\twith arguments: {Action.CommandArguments}\n";
 						foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
@@ -554,11 +555,11 @@ namespace UnrealBuildTool
 							CycleDescription += "\t\tNone?? Coding error!\n";
 						}
 
-						CycleDescription += "\n\n";
+						Logger.LogInformation(CycleDescription);
 					}
 				}
 
-				throw new BuildException($"Action graph contains cycle!\n\n{CycleDescription}");
+				throw new BuildException($"Action graph contains cycle!");
 			}
 		}
 

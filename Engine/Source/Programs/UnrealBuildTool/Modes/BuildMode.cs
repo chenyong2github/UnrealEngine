@@ -346,7 +346,7 @@ namespace UnrealBuildTool
 				}
 
 				// Link all the actions together
-				ActionGraph.Link(MergedActions);
+				ActionGraph.Link(MergedActions, Logger);
 
 				// Get all the actions that are prerequisites for these targets. This forms the list of actions that we want executed.
 				List<LinkedAction> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(MergedActions, MergedOutputItems);
@@ -502,7 +502,7 @@ namespace UnrealBuildTool
 
 				// Link the action graph again to sort it
 				List<LinkedAction> MergedActionsToExecute = ActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
-				ActionGraph.Link(MergedActionsToExecute);
+				ActionGraph.Link(MergedActionsToExecute, Logger);
 
 				// Allow hot reload to override the actions
 				int HotReloadTargetIdx = -1;
@@ -533,7 +533,7 @@ namespace UnrealBuildTool
 					Dictionary<LinkedAction, bool> LiveActionToOutdatedFlag = new Dictionary<LinkedAction, bool>(MergedActionsToExecute.Count);
 					ActionGraph.GatherAllOutdatedActions(MergedActionsToExecute, History, LiveActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 					List<LinkedAction> LiveCodingActionsToExecute = LiveActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
-					ActionGraph.Link(LiveCodingActionsToExecute);
+					ActionGraph.Link(LiveCodingActionsToExecute, Logger);
 					MergedActionsToExecute = LiveCodingActionsToExecute;
 				}
 

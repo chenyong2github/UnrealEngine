@@ -54,7 +54,7 @@ namespace UnrealBuildTool
 			// Link the action graph
 			using (GlobalTracer.Instance.BuildSpan("ActionGraph.Link()").StartActive())
 			{
-				ActionGraph.Link(Actions);
+				ActionGraph.Link(Actions, Logger);
 			}
 
 			// Execute the actions
