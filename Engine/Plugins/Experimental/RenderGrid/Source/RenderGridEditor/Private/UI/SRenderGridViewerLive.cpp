@@ -179,9 +179,6 @@ ULevelSequencePlayer* UE::RenderGrid::Private::SRenderGridEditorViewport::GetSeq
 		{
 			if (IsValid(PlayerActor))
 			{
-				Player->Initialize(LevelSequence, World->PersistentLevel, PlaybackSettings, CameraSettings);
-				Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
-
 				LevelSequencePlayerWorld = World;
 				LevelSequencePlayerActor = PlayerActor;
 				LevelSequencePlayer = Player;

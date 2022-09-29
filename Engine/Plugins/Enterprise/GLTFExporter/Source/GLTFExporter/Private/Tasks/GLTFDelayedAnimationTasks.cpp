@@ -149,9 +149,6 @@ void FGLTFDelayedLevelSequenceTask::Process()
 	UWorld* World = Level->GetWorld();
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, FMovieSceneSequencePlaybackSettings(), LevelSequenceActor);
 
-	Player->Initialize(Sequence, LevelSequenceActor->GetLevel(), FMovieSceneSequencePlaybackSettings(), FLevelSequenceCameraSettings());
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
-
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate(); // TODO: add option to switch between DisplayRate and TickResolution?
 	TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();

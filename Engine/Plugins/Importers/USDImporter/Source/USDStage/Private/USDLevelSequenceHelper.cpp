@@ -283,10 +283,6 @@ namespace UsdLevelSequenceHelperImpl
 				goto cleanup;
 			}
 
-			FLevelSequenceCameraSettings CameraSettings;
-			LevelPlayer->Initialize( LevelSequence, World->PersistentLevel, Settings, CameraSettings );
-			LevelPlayer->State.AssignSequence( MovieSceneSequenceID::Root, *LevelSequence, *Player );
-
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
 			FFrameTime StartTime = FFrameRate::TransformTime(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate());
 			LevelPlayer->SetPlaybackPosition( FMovieSceneSequencePlaybackParams( StartTime, EUpdatePositionMethod::Play ) );
@@ -3043,11 +3039,6 @@ void FUsdLevelSequenceHelperImpl::HandleControlRigSectionChange( UMovieSceneCont
 			ALevelSequenceActor* OutActor = nullptr;
 			FMovieSceneSequencePlaybackSettings Settings;
 			Player = LevelPlayer = ULevelSequencePlayer::CreateLevelSequencePlayer( World, LevelSequence, Settings, OutActor);
-
-			FLevelSequenceCameraSettings CameraSettings;
-			LevelPlayer->Initialize( LevelSequence, World->PersistentLevel, Settings, CameraSettings );
-
-			LevelPlayer->State.AssignSequence( MovieSceneSequenceID::Root, *LevelSequence, *Player );
 		}
 
 		if ( !Player )
