@@ -31,7 +31,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTraces(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits = 0;
+int32 GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits(
 	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.SkipFoliageHits"),
 	GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits,
