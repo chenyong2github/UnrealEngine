@@ -391,6 +391,12 @@ namespace UE::PixelStreaming
 
     void FPixelStreamingInputHandler::HandleOnMouseUp(FMemoryReader Ar)
     {
+		// Ensure we have wrapped the slate application at this point
+		if(!bIsMouseActive)
+		{
+			HandleOnMouseEnter(Ar);
+		}
+
         TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
 
         EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
@@ -403,10 +409,20 @@ namespace UE::PixelStreaming
 
     void FPixelStreamingInputHandler::HandleOnMouseDown(FMemoryReader Ar)
     {
+		// Ensure we have wrapped the slate application at this point
+		if(!bIsMouseActive)
+		{
+			HandleOnMouseEnter(Ar);
+		}
+
         TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
         //                                                                           convert range from 0,65536 -> 0,1
         FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
         EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
+
+		// Set cursor pos on mouse down - we may not have moved if this is the very first click
+		FSlateApplication::Get().OnCursorSet();
+		PixelStreamerApplicationWrapper->Cursor->SetPosition(ScreenLocation.X, ScreenLocation.Y);
 
 		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%.4f, %.4f)"), Button, ScreenLocation.X, ScreenLocation.Y);
 		// Force window focus
