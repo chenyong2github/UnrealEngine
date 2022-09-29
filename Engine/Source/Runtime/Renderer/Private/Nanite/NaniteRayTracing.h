@@ -42,7 +42,7 @@ namespace Nanite
 		void ProcessUpdateRequests(FRDGBuilder& GraphBuilder, FShaderResourceViewRHIRef GPUScenePrimitiveBufferSRV);
 
 		// Commit pending BLAS builds. This allocates a transient scratch buffer internally.
-		void ProcessBuildRequests(FRDGBuilder& GraphBuilder);
+		bool ProcessBuildRequests(FRDGBuilder& GraphBuilder);
 
 		FRDGBufferSRV* GetAuxiliaryDataSRV(FRDGBuilder& GraphBuilder) const
 		{

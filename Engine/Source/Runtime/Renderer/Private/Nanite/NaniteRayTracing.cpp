@@ -513,7 +513,7 @@ namespace Nanite
 		}
 	}
 
-	void FRayTracingManager::ProcessBuildRequests(FRDGBuilder& GraphBuilder)
+	bool FRayTracingManager::ProcessBuildRequests(FRDGBuilder& GraphBuilder)
 	{
 		TArray<FRayTracingGeometryBuildParams> BuildParams;
 		uint32 BLASScratchSize = 0;
@@ -539,6 +539,8 @@ namespace Nanite
 
 		PendingBuilds.Empty();
 
+		bool bAnyBlasRebuilt = false;
+
 		if (BuildParams.Num() > 0)
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RebuildNaniteBLAS);
@@ -563,12 +565,16 @@ namespace Nanite
 				ScratchBufferRange.Offset = 0;
 				RHICmdList.BuildAccelerationStructures(BuildParams, ScratchBufferRange);
 			});
+
+			bAnyBlasRebuilt = true;
 		}
 
 		if (ReadbackBuffersNumPending == 0 && PendingBuilds.IsEmpty())
 		{
 			bUpdating = false;
 		}
+
+		return bAnyBlasRebuilt;
 	}
 
 	FRHIRayTracingGeometry* FRayTracingManager::GetRayTracingGeometry(FPrimitiveSceneInfo* SceneInfo) const

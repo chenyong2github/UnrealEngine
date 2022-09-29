@@ -1754,8 +1754,18 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	ReferenceView.RayTracingSceneInitTask = {};
 
-	Nanite::GRayTracingManager.ProcessUpdateRequests(GraphBuilder, Scene->GPUScene.PrimitiveBuffer->GetSRV());
-	Nanite::GRayTracingManager.ProcessBuildRequests(GraphBuilder);
+	{
+		Nanite::GRayTracingManager.ProcessUpdateRequests(GraphBuilder, Scene->GPUScene.PrimitiveBuffer->GetSRV());
+		const bool bAnyBlasRebuilt = Nanite::GRayTracingManager.ProcessBuildRequests(GraphBuilder);
+		if (bAnyBlasRebuilt)
+		{
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				View.ViewState->PathTracingInvalidate();
+			}
+		}
+	}
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
