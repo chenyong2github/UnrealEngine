@@ -46,6 +46,10 @@ public:
 
 	
 protected:
+	// UObject overrides
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	
+protected:
 	UPROPERTY()
 	TWeakObjectPtr<UOptimusResourceDescription> ResourceDesc;
 

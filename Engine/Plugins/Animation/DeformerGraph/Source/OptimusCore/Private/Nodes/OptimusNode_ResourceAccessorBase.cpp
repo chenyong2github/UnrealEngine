@@ -3,11 +3,44 @@
 #include "OptimusNode_ResourceAccessorBase.h"
 
 #include "OptimusCoreModule.h"
+#include "OptimusDeformer.h"
 #include "OptimusResourceDescription.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 #define LOCTEXT_NAMESPACE "OptimusResourceAccessorBase"
 
+
+void UOptimusNode_ResourceAccessorBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if (!ResourceDesc.IsValid())
+	{
+		return;
+	}
+	
+	if (!GetOwningGraph())
+	{
+		return;
+	}
+	
+	const UOptimusDeformer* OldDescOwner = ResourceDesc->GetOwningDeformer();
+	const UOptimusDeformer* NewDescOwner = Cast<UOptimusDeformer>(GetOwningGraph()->GetCollectionRoot());
+
+	if (!NewDescOwner)
+	{
+		return;
+	}
+	
+	// No action needed if we are copying/pasting within the same deformer asset 
+	if (OldDescOwner == NewDescOwner)
+	{
+		return;
+	}
+
+	// Refresh the ResourceDesc so that we don't hold a reference to a ResourceDesc in another deformer asset
+	ResourceDesc = NewDescOwner->ResolveResource(ResourceDesc->GetFName());
+}
 
 void UOptimusNode_ResourceAccessorBase::SetResourceDescription(UOptimusResourceDescription* InResourceDesc)
 {

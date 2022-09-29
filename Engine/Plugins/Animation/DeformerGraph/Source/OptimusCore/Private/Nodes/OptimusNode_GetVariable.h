@@ -29,6 +29,8 @@ public:
 		return CategoryName::Variables;
 	}
 
+	TOptional<FText> ValidateForCompile() const override;
+	
 	// IOptimusValueProvider overrides 
 	FString GetValueName() const override;
 	FOptimusDataTypeRef GetValueType() const override;
@@ -37,6 +39,9 @@ public:
 protected:
 	void ConstructNode() override;
 
+	// UObject overrides
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	
 private:
 	UPROPERTY()
 	TWeakObjectPtr<UOptimusVariableDescription> VariableDesc;

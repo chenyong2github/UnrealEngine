@@ -5,11 +5,13 @@
 #include "IOptimusPathResolver.h"
 #include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Nodes/OptimusNode_CustomComputeKernel.h"
+#include "Nodes/OptimusNode_ConstantValue.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodeLink.h"
 #include "OptimusNodePin.h"
+
 
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -364,16 +366,22 @@ bool FOptimusNodeGraphAction_DuplicateNode::Do(
 		return ConfigureNodeFunc(InNode);
 	};
 
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+
 	UClass* NodeClass = Optimus::FindObjectInPackageOrGlobal<UClass>(NodeClassPath);
 	if (!NodeClass)
 	{
 		return false;
 	}
-	
-	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
-	if (!Graph)
+
+	if (UOptimusNode_ConstantValueGeneratorClass* GeneratorClass = Cast<UOptimusNode_ConstantValueGeneratorClass>(NodeClass))
 	{
-		return false;
+		// Make sure a node class from the current package is used for constant nodes
+		NodeClass = UOptimusNode_ConstantValueGeneratorClass::GetClassForType(Graph->GetPackage(),GeneratorClass->DataType);
 	}
 
 	UOptimusNode* Node = Graph->CreateNodeDirect(NodeClass, NodeName, BootstrapNodeFunc);

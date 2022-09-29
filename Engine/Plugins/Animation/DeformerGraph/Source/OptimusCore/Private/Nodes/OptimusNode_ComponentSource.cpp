@@ -5,7 +5,40 @@
 #include "OptimusNodePin.h"
 
 #include "OptimusDataTypeRegistry.h"
+#include "OptimusDeformer.h"
 
+
+void UOptimusNode_ComponentSource::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if (!Binding)
+	{
+		return;
+	}
+	
+	if (!GetOwningGraph())
+	{
+		return;
+	}
+	
+	const UOptimusDeformer* OldBindingOwner = Binding->GetOwningDeformer();
+	const UOptimusDeformer* NewBindingOwner = Cast<UOptimusDeformer>(GetOwningGraph()->GetCollectionRoot());
+
+	if (!NewBindingOwner)
+	{
+		return;
+	}
+	
+	// No action needed if we are copying/pasting within the same deformer asset 
+	if (OldBindingOwner == NewBindingOwner)
+	{
+		return;
+	}
+
+	// Refresh the binding so that we don't hold a reference to a binding in another deformer asset
+	Binding = NewBindingOwner->ResolveComponentBinding(Binding->GetFName());
+}
 
 void UOptimusNode_ComponentSource::SetComponentSourceBinding(
 	UOptimusComponentSourceBinding* InBinding

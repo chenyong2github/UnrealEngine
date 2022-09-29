@@ -104,6 +104,16 @@ void UOptimusNode_AnimAttributeDataInterface::OnDataTypeChanged(FName InTypeName
 	Interface->OnDataTypeChanged(InTypeName);
 }
 
+void UOptimusNode_AnimAttributeDataInterface::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	// Recreate the value containers in case the node was pasted from a different asset
+	// Otherwise the value container can still reference the value container generator class in the asset it was copied from
+	RecreateValueContainers();
+}
+
+
 void UOptimusNode_AnimAttributeDataInterface::UpdatePinTypes()
 {
 	UOptimusAnimAttributeDataInterface* Interface = Cast<UOptimusAnimAttributeDataInterface>(DataInterfaceData);

@@ -25,6 +25,10 @@ public:
 	void RecreateValueContainers();
 
 	virtual void OnDataTypeChanged(FName InTypeName) override;
+
+protected:
+	// UObject overrides
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	
 private:
 	void UpdatePinTypes();

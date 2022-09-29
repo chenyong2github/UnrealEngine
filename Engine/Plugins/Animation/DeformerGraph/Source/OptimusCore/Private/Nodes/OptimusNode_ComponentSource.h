@@ -40,6 +40,9 @@ protected:
 	 *  for backcomp.
 	 */
 	UOptimusNodePin* GetComponentPin() const;
+
+	// UObject overrides
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	
 private:
 	UPROPERTY()

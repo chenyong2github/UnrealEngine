@@ -1658,7 +1658,12 @@ IOptimusNodeGraphCollectionOwner* UOptimusNodeGraph::GetCollectionOwner() const
 
 IOptimusNodeGraphCollectionOwner* UOptimusNodeGraph::GetCollectionRoot() const
 {
-	return GetCollectionOwner()->GetCollectionRoot();
+	if (GetCollectionOwner())
+	{
+		return GetCollectionOwner()->GetCollectionRoot();
+	}
+	
+	return nullptr;
 }
 
 
