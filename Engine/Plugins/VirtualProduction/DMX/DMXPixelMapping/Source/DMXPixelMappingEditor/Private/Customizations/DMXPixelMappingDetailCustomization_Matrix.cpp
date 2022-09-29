@@ -12,6 +12,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Modules/ModuleManager.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Widgets/SDMXPixelMappingAttributeNamesComboBox.h"
 
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
@@ -24,6 +25,68 @@
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Matrix"
+
+bool FDMXPixelMappingDetailCustomization_Matrix::FDMXCellAttributeGroup::HasMultipleAttributeValues() const
+{
+	TArray<const void*> RawData;
+	Handle->AccessRawData(RawData);
+
+	TSet<FName> AttributeNames;
+	for (const void* RawPtr : RawData)
+	{
+		if (RawPtr)
+		{
+			// The types we use with this customization must have a cast constructor to FName
+			AttributeNames.Add(reinterpret_cast<const FDMXAttributeName*>(RawPtr)->Name);
+		}
+	}
+
+	return AttributeNames.Num() > 1;
+}
+
+FName FDMXPixelMappingDetailCustomization_Matrix::FDMXCellAttributeGroup::GetAttributeValue() const
+{
+	if (!ensureMsgf(!HasMultipleAttributeValues(), TEXT("Cannot get attribute value from handle when handle has mutliple values")))
+	{
+		return NAME_None;
+	}
+
+	TArray<const void*> RawData;
+	Handle->AccessRawData(RawData);
+
+	for (const void* RawPtr : RawData)
+	{
+		if (RawPtr)
+		{
+			// The types we use with this customization must have a cast constructor to FName
+			return reinterpret_cast<const FDMXAttributeName*>(RawPtr)->Name;
+		}
+	}
+
+	return NAME_None;
+}
+
+void FDMXPixelMappingDetailCustomization_Matrix::FDMXCellAttributeGroup::SetAttributeValue(const FName& NewValue)
+{
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Handle->GetProperty());
+
+	TArray<void*> RawData;
+	Handle->AccessRawData(RawData);
+
+	for (void* SingleRawData : RawData)
+	{
+		FDMXAttributeName* PreviousValue = reinterpret_cast<FDMXAttributeName*>(SingleRawData);
+		FDMXAttributeName NewAttributeName;
+		NewAttributeName.SetFromName(NewValue);
+
+		// Export new value to text format that can be imported later
+		FString TextValue;
+		StructProperty->Struct->ExportText(TextValue, &NewAttributeName, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+
+		// Set values on edited property handle from exported text
+		ensure(Handle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
+	}
+}
 
 void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
@@ -92,18 +155,6 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow)
 		];
 
-	// Update RGB attributes
-	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : RGBAttributes)
-	{
-		DetailLayout->HideProperty(Attribute->ExposeHandle);
-		DetailLayout->HideProperty(Attribute->InvertHandle);
-
-		OutputSettingsCategory
-			.AddProperty(Attribute->Handle)
-			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributeRowVisibilty, Attribute.Get())));
-	}
-
-
 	// Generate all Monochrome Expose and Invert rows
 	OutputSettingsCategory.AddCustomRow(FText::GetEmpty())
 		.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeAttributesVisibility))
@@ -118,18 +169,8 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow)
 		];
 
-	// Update Monochrome attributes
-	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : MonochromeAttributes)
-	{
-		DetailLayout->HideProperty(Attribute->ExposeHandle);
-		DetailLayout->HideProperty(Attribute->InvertHandle);
-
-		OutputSettingsCategory
-			.AddProperty(Attribute->Handle)
-			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeRowVisibilty, Attribute.Get())));
-	}
-	
 	CreateModulatorDetails(InDetailLayout);
+	CreateAttributeDetails(InDetailLayout);
 }
 
 bool FDMXPixelMappingDetailCustomization_Matrix::CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const
@@ -333,6 +374,135 @@ void FDMXPixelMappingDetailCustomization_Matrix::CreateModulatorDetails(IDetailL
 				}
 			}
 		}
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_Matrix::CreateAttributeDetails(IDetailLayoutBuilder& InDetailLayout)
+{
+	TArray<TWeakObjectPtr<UObject>> Objects;
+	DetailLayout->GetObjectsBeingCustomized(Objects);
+
+	TArray<UDMXPixelMappingMatrixComponent*> StrongMatrixComponents;
+	for (TWeakObjectPtr<UObject> SelectedObject : Objects)
+	{
+		UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(SelectedObject);
+		if (MatrixComponent)
+		{
+			StrongMatrixComponents.Add(MatrixComponent);
+		}
+	}
+
+	// Gather attribute names present in Patches of all selected components
+	TArray<FName> FixtureMatrixAttributes;
+	for (UDMXPixelMappingMatrixComponent* MatrixComponent : StrongMatrixComponents)
+	{
+		const UDMXEntityFixturePatch* FixturePatch = MatrixComponent->FixturePatchRef.GetFixturePatch();
+		if (!FixturePatch)
+		{
+			continue;
+		}
+
+		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+		if (!ModePtr)
+		{
+			continue;
+		}
+
+		const TArray<FDMXFixtureCellAttribute> CellAttributes = ModePtr->FixtureMatrixConfig.CellAttributes;
+		for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
+		{
+			FixtureMatrixAttributes.AddUnique(CellAttribute.Attribute.Name);
+		}
+	}
+
+	for (UDMXPixelMappingMatrixComponent* MatrixComponent : StrongMatrixComponents)
+	{
+		FixtureMatrixAttributes.RemoveAll([MatrixComponent](const FName& AttributeName)
+			{
+				const UDMXEntityFixturePatch* FixturePatch = MatrixComponent->FixturePatchRef.GetFixturePatch();
+				if (!FixturePatch)
+				{
+					return true;
+				}
+
+				const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+				if (!ModePtr)
+				{
+					return true;
+				}
+
+				const TArray<FDMXFixtureCellAttribute> AttributeNamesOfPatch = ModePtr->FixtureMatrixConfig.CellAttributes;
+				return !AttributeNamesOfPatch.ContainsByPredicate([AttributeName](const FDMXFixtureCellAttribute& AttributeNameOfPatch)
+					{
+						return AttributeNameOfPatch.Attribute == AttributeName;
+					});
+			});
+	}
+
+	// Lambda to add a single attribute property row
+	auto CreateAttributePropertyRowLambda = [&InDetailLayout, &FixtureMatrixAttributes](const TSharedRef<FDMXCellAttributeGroup>& Attribute, const TAttribute<EVisibility>& VisibilityAttribute)
+		{
+			InDetailLayout.HideProperty(Attribute->ExposeHandle);
+			InDetailLayout.HideProperty(Attribute->InvertHandle);
+			InDetailLayout.HideProperty(Attribute->Handle);
+
+			const TSharedRef<SDMXPixelMappingAttributeNamesComboBox> AttributeNameComboBox =
+				SNew(SDMXPixelMappingAttributeNamesComboBox, FixtureMatrixAttributes)
+				.OnSelectionChanged_Lambda([Attribute](const FName& NewValue)
+					{
+						Attribute->SetAttributeValue(NewValue);
+					});
+
+			if (Attribute->HasMultipleAttributeValues())
+			{
+				AttributeNameComboBox->SetHasMultipleValues();
+			}
+			else
+			{
+				FName InitialSelection = Attribute->GetAttributeValue();
+
+				// Set a valid attribute, or name none if none is available
+				if (!FixtureMatrixAttributes.Contains(InitialSelection))
+				{
+					if (FixtureMatrixAttributes.IsEmpty())
+					{
+						Attribute->SetAttributeValue(NAME_None);
+					}
+					else
+					{
+						Attribute->SetAttributeValue(FixtureMatrixAttributes[0]);
+						InitialSelection = FixtureMatrixAttributes[0];
+					}
+				}
+				AttributeNameComboBox->SetSelection(InitialSelection);
+			}
+
+			InDetailLayout.EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important)
+				.AddCustomRow(FText::GetEmpty())
+				.Visibility(VisibilityAttribute)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(Attribute->Handle->GetPropertyDisplayName())
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				]
+				.ValueContent()
+				[
+					AttributeNameComboBox
+				];
+		};
+
+	// Create a row for each attribute
+	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : RGBAttributes)
+	{
+		const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributesVisibility);
+		CreateAttributePropertyRowLambda(Attribute.ToSharedRef(), VisibilityAttribute);
+	}
+
+	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : MonochromeAttributes)
+	{
+		const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeAttributesVisibility);
+		CreateAttributePropertyRowLambda(Attribute.ToSharedRef(), VisibilityAttribute);
 	}
 }
 

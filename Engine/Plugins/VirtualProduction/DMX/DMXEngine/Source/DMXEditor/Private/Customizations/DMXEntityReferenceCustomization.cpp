@@ -132,7 +132,9 @@ FText FDMXEntityReferenceCustomization::GetPickerPropertyLabel() const
 
 bool FDMXEntityReferenceCustomization::GetPickerEnabled() const
 {
-	return GetEntityType() != nullptr;
+	return  
+		StructHandle->IsEditable() && 
+		GetEntityType() != nullptr;
 }
 
 TWeakObjectPtr<UDMXEntity> FDMXEntityReferenceCustomization::GetCurrentEntity() const

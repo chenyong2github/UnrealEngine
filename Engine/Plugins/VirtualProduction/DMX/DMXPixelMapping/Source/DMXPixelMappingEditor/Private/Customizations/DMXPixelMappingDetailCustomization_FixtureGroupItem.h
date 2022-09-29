@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DMXAttribute.h"
 #include "IDetailCustomization.h"
+#include "PropertyHandle.h"
 #include "Misc/Attribute.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IPropertyTypeCustomization.h"
@@ -31,8 +33,16 @@ private:
 		TSharedPtr<IPropertyHandle> ExposeHandle;
 		TSharedPtr<IPropertyHandle> InvertHandle;
 		TAttribute<EVisibility> Visibility;
-	};
 
+		/** Returns true if the Attribute Handle has multiple values */
+		bool HasMultipleAttributeValues() const;
+
+		/** Gets the value of the Attribute Handle. Should not be called if HasMultipleAttributeValues returns true */
+		FName GetAttributeValue() const;
+
+		/** Sets the value of the Attribute Handle */
+		void SetAttributeValue(const FName& NewValue);
+	};
 
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance(const TWeakPtr<FDMXPixelMappingToolkit> InToolkitWeakPtr)
@@ -50,7 +60,6 @@ public:
 	//~ IPropertyTypeCustomization interface end
 
 private:
-
 	EVisibility GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const;
 
 	EVisibility GetRGBAttributesVisibility() const;
@@ -66,6 +75,9 @@ private:
 
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
+
+	/** Creates the Details for the Attributes */
+	void CreateAttributeDetails(IDetailLayoutBuilder& InDetailLayout);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();

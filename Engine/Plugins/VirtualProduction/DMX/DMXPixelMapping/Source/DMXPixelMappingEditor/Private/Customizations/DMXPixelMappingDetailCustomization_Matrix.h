@@ -31,6 +31,15 @@ private:
 		TSharedPtr<IPropertyHandle> ExposeHandle;
 		TSharedPtr<IPropertyHandle> InvertHandle;
 		TAttribute<EVisibility> Visibility;
+
+		/** Returns true if the Attribute Handle has multiple values */
+		bool HasMultipleAttributeValues() const;
+
+		/** Gets the value of the Attribute Handle. Should not be called if HasMultipleAttributeValues returns true */
+		FName GetAttributeValue() const;
+
+		/** Sets the value of the Attribute Handle */
+		void SetAttributeValue(const FName& NewValue);
 	};
 
 public:
@@ -64,6 +73,9 @@ private:
 
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
+
+	/** Creates the Details for the Attributes */
+	void CreateAttributeDetails(IDetailLayoutBuilder& InDetailLayout);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();
