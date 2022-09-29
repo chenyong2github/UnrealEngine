@@ -486,6 +486,16 @@ int UNiagaraSimCache::GetEmitterIndex(FName EmitterName) const
 	return INDEX_NONE;
 }
 
+UNiagaraSystem* UNiagaraSimCache::GetSystem(bool bLoadSynchronous)
+{
+	UNiagaraSystem* NiagaraSystem = SoftNiagaraSystem.Get();
+	if (NiagaraSystem == nullptr && bLoadSynchronous)
+	{
+		NiagaraSystem = SoftNiagaraSystem.LoadSynchronous();
+	}
+	return NiagaraSystem;
+}
+
 TArray<FName> UNiagaraSimCache::GetEmitterNames() const
 {
 	TArray<FName> EmitterNames;

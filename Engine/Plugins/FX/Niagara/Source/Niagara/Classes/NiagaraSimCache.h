@@ -305,6 +305,9 @@ public:
 	/** Get the emitter index from a name */
 	int GetEmitterIndex(FName EmitterName) const;
 
+	/** Get the system this cache is based on */
+	UNiagaraSystem* GetSystem (bool bLoadSynchronous = false);
+	
 	/** Get the emitter name at the provided index. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
 	FName GetEmitterName(int32 EmitterIndex) const { return CacheLayout.EmitterLayouts.IsValidIndex(EmitterIndex) ? CacheLayout.EmitterLayouts[EmitterIndex].LayoutName : NAME_None; }

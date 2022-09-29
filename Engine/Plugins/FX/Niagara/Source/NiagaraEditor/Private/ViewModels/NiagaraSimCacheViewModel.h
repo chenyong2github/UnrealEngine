@@ -7,6 +7,7 @@
 
 struct FNiagaraSystemSimCacheCaptureReply;
 struct FNiagaraSimCacheDataBuffersLayout;
+class UNiagaraComponent;
 
 class NIAGARAEDITOR_API FNiagaraSimCacheViewModel : public TSharedFromThis<FNiagaraSimCacheViewModel>
 {
@@ -30,6 +31,8 @@ public:
 	void Initialize(TWeakObjectPtr<UNiagaraSimCache> SimCache);
 
 	void UpdateSimCache(const FNiagaraSystemSimCacheCaptureReply& Reply);
+
+	void SetupPreviewComponentAndInstance();
 
 	TConstArrayView<FComponentInfo> GetComponentInfos() const { return ComponentInfos; }
 
@@ -59,14 +62,27 @@ public:
 
 	void UpdateCachedFrame();
 
-private:
-	void BuildComponentInfos(const FName Name, const UScriptStruct* Struct);
+	UNiagaraComponent* GetPreviewComponent() { return PreviewComponent; }
 
 private:
+	void BuildComponentInfos(const FName Name, const UScriptStruct* Struct);
+	
+	// The sim cache being viewed
 	TWeakObjectPtr<UNiagaraSimCache>	WeakSimCache;
-	int32								FrameIndex = 0;
-	int32								EmitterIndex = INDEX_NONE;
-	int32								NumInstances = 0;
+
+	// Component for preview scene
+	UNiagaraComponent* PreviewComponent = nullptr;
+
+	// Which frame of the cached sim is being viewed
+	int32 FrameIndex = 0;
+	
+	// Which Emitter of the cached sim is being viewed
+	int32 EmitterIndex = INDEX_NONE;
+
+	// Number of particles in the given frame
+	int32 NumInstances = 0;
+
+	// Info about the variables in the cache
 	TArray<FComponentInfo>				ComponentInfos;
 	TArray<float>						FloatComponents;
 	TArray<FFloat16>					HalfComponents;

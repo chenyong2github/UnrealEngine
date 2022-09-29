@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SNiagaraSimCacheView.h"
+#include "SNiagaraSimCacheViewport.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
@@ -16,7 +17,7 @@ class FNiagaraSimCacheToolkit : public FAssetEditorToolkit
 public:
 	FNiagaraSimCacheToolkit();
 	~FNiagaraSimCacheToolkit();
-
+	
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
 
@@ -37,6 +38,8 @@ protected:
 
 private:
 	TSharedRef<SDockTab> SpawnTab_SimCacheSpreadsheet(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab>  SpawnTab_SimCacheViewport(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
 
 	// The sim cache being viewed.
 	TWeakObjectPtr <UNiagaraSimCache> SimCache;
@@ -47,5 +50,10 @@ private:
 	// Spreadsheet widget
 	TSharedPtr<SNiagaraSimCacheView> SimCacheSpreadsheetView;
 
+	// Viewport Widget
+	TSharedPtr<SNiagaraSimCacheViewport> Viewport;
+
 	static const FName NiagaraSimCacheSpreadsheetTabId;
+	static const FName NiagaraSimCacheViewportTabId;
+	static const FName NiagaraSimCachePreviewSettingsTabId;
 };
