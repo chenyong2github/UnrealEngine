@@ -5,7 +5,6 @@
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 
 class UMaterialInstanceConstant;
-class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UTexture;
 
@@ -22,11 +21,6 @@ public:
 	bool Get(const UMaterialInterface* Material, ParameterType& OutValue, bool NonDefaultOnly = false) const
 	{
 		return FGLTFProxyMaterialUtilities::GetParameterValue(Material, ParameterInfo, OutValue, NonDefaultOnly);
-	}
-
-	void Set(UMaterialInstanceDynamic* Material, const ParameterType& Value, bool NonDefaultOnly = false) const
-	{
-		FGLTFProxyMaterialUtilities::SetParameterValue(Material, ParameterInfo, Value, NonDefaultOnly);
 	}
 
 #if WITH_EDITOR
