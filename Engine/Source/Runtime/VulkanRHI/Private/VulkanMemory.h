@@ -797,7 +797,7 @@ namespace VulkanRHI
 		void DumpMemory(bool bFullDump = true);
 
 
-		void AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size, const void* Contents);
+		void AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size);
 		void FreeUniformBuffer(FVulkanAllocation& InAllocation);
 
 		void HandleOOM(bool bCanResume = false, VkResult Result = VK_SUCCESS, uint64 AllocationSize = 0, uint32 MemoryTypeIndex = 0);

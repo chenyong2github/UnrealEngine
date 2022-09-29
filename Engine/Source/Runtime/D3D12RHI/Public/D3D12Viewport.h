@@ -199,7 +199,6 @@ private:
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	bool bHDRMetaDataSet;
 	DXGI_COLOR_SPACE_TYPE ColorSpace;
 #endif
 #endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
@@ -268,13 +267,6 @@ private:
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	/** Ensure the correct color space is set on the swap chain */
 	void EnsureColorSpace(EDisplayColorGamut DisplayGamut, EDisplayOutputFormat OutputDevice);
-
-	/** 
-	 * Set HDR meta data. 
-	 * Note: Meta data should only be provided for TVs, not monitors. 
-	 * This is because the TV is doing the work to display the colors correctly.
-	 */
-	void SetHDRTVMode(bool bEnableHDR, EDisplayColorGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL);
 #endif
 };
 
