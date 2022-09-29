@@ -420,7 +420,7 @@ void UCameraAnimationSequencePlayer::Stop()
 
 	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 	{
-		if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish))
+		if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle()))
 		{
 			// @todo: we should really only call flush _once_ for all camera anim sequences
 			Runner->Flush();

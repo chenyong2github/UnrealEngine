@@ -185,12 +185,25 @@ void FMovieSceneEntitySystemRunner::QueueUpdate(const FMovieSceneContext& Contex
 	UpdateQueue.Add(FUpdateParamsAndContext{ OnFlushedDelegate, Context, { Instance, Flags } });
 }
 
-bool FMovieSceneEntitySystemRunner::QueueFinalUpdate(FInstanceHandle InInstanceHandle, UE::MovieScene::ERunnerUpdateFlags Flags)
+bool FMovieSceneEntitySystemRunner::QueueFinalUpdate(FInstanceHandle InInstanceHandle)
+{
+	return QueueFinalUpdateImpl(InInstanceHandle, FSimpleDelegate(), false);
+}
+
+bool FMovieSceneEntitySystemRunner::QueueFinalUpdate(FInstanceHandle InInstanceHandle, FSimpleDelegate&& InOnLastFlushDelegate)
+{
+	return QueueFinalUpdateImpl(InInstanceHandle, MoveTemp(InOnLastFlushDelegate), false);
+}
+
+bool FMovieSceneEntitySystemRunner::QueueFinalUpdateAndDestroy(FInstanceHandle InInstanceHandle)
+{
+	return QueueFinalUpdateImpl(InInstanceHandle, FSimpleDelegate(), true);
+}
+
+
+bool FMovieSceneEntitySystemRunner::QueueFinalUpdateImpl(FInstanceHandle InInstanceHandle, FSimpleDelegate&& InOnLastFlushDelegate, bool bDestroyInstance)
 {
 	using namespace UE::MovieScene;
-
-	// It is not well defined to call this function with no flags - that would signify the function should not have been called at all
-	check(Flags != ERunnerUpdateFlags::None);
 
 	UMovieSceneEntitySystemLinker* Linker = GetLinker();
 	if (!Linker)
@@ -206,47 +219,47 @@ bool FMovieSceneEntitySystemRunner::QueueFinalUpdate(FInstanceHandle InInstanceH
 
 	FSequenceInstance& Instance = InstanceRegistry->MutateInstance(InInstanceHandle);
 
-	if (EnumHasAnyFlags(Flags, UE::MovieScene::ERunnerUpdateFlags::Flush))
-	{
-		bRequireFullFlush = true;
-	}
-
-	ERunnerFlushState UnsafeDestroyMask = ERunnerFlushState::Everything & ~(ERunnerFlushState::PostEvaluation | ERunnerFlushState::End);
-
-	// If this instance has not current updates and we're not in the middle of an update loop
-	// we can finish and destroy this instance right away. The effects of the instance being torn down
-	// (ie entities being unlinked) will be seen once the runner is flushed
+	// If the following conditions are met, we can destroy this instance right away:
+	// 
+	// 1. the instance has no entities left to unlink
+	// 2. we're not in the middle of an update loop 
+	// 3. the instance has no current updates
+	//
+	const bool bHasAnyEntities = !Instance.Ledger.IsEmpty();
+	const ERunnerFlushState UnsafeDestroyMask = ERunnerFlushState::Everything & ~(ERunnerFlushState::PostEvaluation | ERunnerFlushState::End);
 	const bool bSafeToDestroyNow = !EnumHasAnyFlags(FlushState, UnsafeDestroyMask);
-	if (bSafeToDestroyNow && !HasQueuedUpdates(InInstanceHandle))
+	if (!bHasAnyEntities && bSafeToDestroyNow && !HasQueuedUpdates(InInstanceHandle))
 	{
-		if (EnumHasAnyFlags(Flags, ERunnerUpdateFlags::Finish))
-		{
-			Instance.Finish(Linker);
-		}
+		Instance.Finish(Linker);
 		Instance.PostEvaluation(Linker);
 
+		InOnLastFlushDelegate.ExecuteIfBound();
+
 		// PostEvaluation could have prompted a bunch of other logic that may have destroyed our instance handle so we have to check it for validity again
-		if (EnumHasAnyFlags(Flags, ERunnerUpdateFlags::Destroy) && InstanceRegistry->IsHandleValid(InInstanceHandle))
+		if (bDestroyInstance && InstanceRegistry->IsHandleValid(InInstanceHandle))
 		{
 			InstanceRegistry->DestroyInstance(InInstanceHandle);
 		}
 
 		return false;
 	}
-	else
-	{
-		FUpdateParamsAndContext Update;
-		Update.Params.InstanceHandle = InInstanceHandle;
-		Update.Params.UpdateFlags = Flags;
-		UpdateQueue.Add(Update);
 
-		return true;
-	}
+	// We queue up one last update that unlinks all of this instance's entities and lets systems tear down
+	// anything that has notable side-effects.
+	// It's possible that the instance already had an update request queued. We leave it in so it gets honored,
+	// and this second update request will be fulfilled in a second flush pass.
+	FUpdateParamsAndContext LastUpdate;
+	LastUpdate.Params.InstanceHandle = InInstanceHandle;
+	LastUpdate.Params.UpdateFlags = (bDestroyInstance ? (ERunnerUpdateFlags::Finish | ERunnerUpdateFlags::Destroy) : ERunnerUpdateFlags::Finish);
+	LastUpdate.OnFlushed = InOnLastFlushDelegate;
+	UpdateQueue.Add(LastUpdate);
+
+	return true;
 }
 
 void FMovieSceneEntitySystemRunner::AbandonAndDestroyInstance(FInstanceHandle Instance)
 {
-	if (QueueFinalUpdate(Instance, UE::MovieScene::ERunnerUpdateFlags::Finish | UE::MovieScene::ERunnerUpdateFlags::Destroy))
+	if (QueueFinalUpdateAndDestroy(Instance))
 	{
 		Flush();
 	}
@@ -535,9 +548,9 @@ bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSce
 			{
 				continue;
 			}
-			// Already have an update for this 
 			else if (UpdatedSequenceInstances.IsValidIndex(InstanceID) && UpdatedSequenceInstances[InstanceID] == true)
 			{
+				// We already have an update for this instance, so we queue it up again for the next flush
 				UpdateQueue.Add(Request);
 				continue;
 			}

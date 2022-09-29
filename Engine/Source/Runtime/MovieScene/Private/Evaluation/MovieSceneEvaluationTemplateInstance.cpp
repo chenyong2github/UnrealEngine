@@ -385,7 +385,7 @@ void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieSce
 
 		if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = WeakRunner.Pin())
 		{
-			Runner->QueueFinalUpdate(RootInstanceHandle, ERunnerUpdateFlags::Finish);
+			Runner->QueueFinalUpdate(RootInstanceHandle);
 			Runner->Flush();
 		}
 

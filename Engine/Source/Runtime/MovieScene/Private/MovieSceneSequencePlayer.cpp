@@ -442,14 +442,11 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 			this->RunLatentActions();
 		};
 
-		// Add the post eval callback that will be invoked when QueueFinalUpdate has been flushed
-		PostEvaluationCallbacks.Add(FOnEvaluationCallback::CreateWeakLambda(this, OnFlushed));
-
 		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
 		if (Runner)
 		{
 			// Finish but do not destroy
-			if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish))
+			if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), FSimpleDelegate::CreateWeakLambda(this, OnFlushed)))
 			{
 				Runner->Flush();
 			}
@@ -466,7 +463,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		if (Runner)
 		{
 			// Finish but do not destroy
-			if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish))
+			if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle()))
 			{
 				Runner->Flush();
 			}

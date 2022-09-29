@@ -587,7 +587,7 @@ FSequencer::~FSequencer()
 {
 	if (Runner->IsAttachedToLinker())
 	{
-		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle());
 		Runner->Flush();
 	}
 
@@ -630,7 +630,7 @@ void FSequencer::Close()
 
 	if (Runner->IsAttachedToLinker())
 	{
-		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle());
 		Runner->Flush();
 	}
 
@@ -977,7 +977,7 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 
 	if (Runner->IsAttachedToLinker())
 	{
-		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle());
 		Runner->Flush();
 	}
 

@@ -410,7 +410,7 @@ void UUMGSequencePlayer::HandleLatentStop()
 {
 	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 	{
-		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle());
 
 		// Even if our request to Finish the instance was queued, we can wait until the next flush for those effects to be seen
 		// This will most likely happen immediately anyway since the runner will keep looping until its queue is empty,

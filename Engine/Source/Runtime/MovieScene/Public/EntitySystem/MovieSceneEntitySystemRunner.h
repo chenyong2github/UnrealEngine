@@ -94,10 +94,12 @@ public:
 	void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance, FSimpleDelegate&& InOnFlushedDelegate, UE::MovieScene::ERunnerUpdateFlags UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::None);
 
 	/**
-	 * Queue a final update for the specified instance, optionally finishing and destroying it
+	 * Queue a final update for the specified instance, optionally destroying it after finishing it
 	 * @return true if the update requires a flush, or false if it was finished and/or destroyed immediately without requiring a flush
 	 */
-	bool QueueFinalUpdate(FInstanceHandle Instance, UE::MovieScene::ERunnerUpdateFlags Flags);
+	bool QueueFinalUpdate(FInstanceHandle Instance);
+	bool QueueFinalUpdate(FInstanceHandle Instance, FSimpleDelegate&& InOnLastFlushDelegate);
+	bool QueueFinalUpdateAndDestroy(FInstanceHandle Instance);
 
 	/**
 	 * Abandon the specified instance handle and destroy it immediately. May flush this runner if necessary
@@ -163,6 +165,11 @@ private:
 	void OnLinkerAbandon(UMovieSceneEntitySystemLinker* Linker);
 
 private:
+
+	/**
+	 * Queue the final update of a given instance, optionally destroying it after is finishes
+	 */
+	bool QueueFinalUpdateImpl(FInstanceHandle Instance, FSimpleDelegate&& InOnLastFlushDelegate, bool bDestroyInstance);
 
 	/**
 	 * Flush the next item in our update loop based off the contents of FlushState
