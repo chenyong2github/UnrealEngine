@@ -1704,8 +1704,35 @@ bool ULandscapeComponent::GetRenderPhysicalMaterials(TArray<UPhysicalMaterial*>&
 	return bReturnValue;
 }
 
+
+bool ULandscapeComponent::CanUpdatePhysicalMaterial()
+{
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->FeatureLevel : GMaxRHIFeatureLevel;
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		// physical material update is not supported on ES3_1 level hardware
+		return false;
+	}
+
+	return true;
+}
+
+
 void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 {
+	if (!CanUpdatePhysicalMaterial())
+	{
+		// Cancel any existing tasks we have.
+		if (PhysicalMaterialTask.IsValid())
+		{
+			PhysicalMaterialTask.Release();
+			// Resetting the hash ensures we will re-start the task once we CAN update physical materials.
+			PhysicalMaterialHash = 0;
+		}
+		return;
+	}
+
+	// Check if we need to launch a new task to update the physical material.
 	uint32 Hash = CalculatePhysicalMaterialTaskHash();
 	if (PhysicalMaterialHash != Hash)
 	{
@@ -1725,6 +1752,7 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 		PhysicalMaterialHash = Hash;
 	}
 
+	// If we have a current task, update it
 	if (PhysicalMaterialTask.IsValid())
 	{
 		if (PhysicalMaterialTask.IsComplete())

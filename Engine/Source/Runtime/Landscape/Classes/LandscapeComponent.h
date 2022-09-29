@@ -983,6 +983,8 @@ public:
 	 */
 	LANDSCAPE_API void UpdateCollisionLayerData();
 
+	/** Returns true if we can currently update physical materials. */
+	bool CanUpdatePhysicalMaterial();
 	/** Update physical material render tasks. */
 	void UpdatePhysicalMaterialTasks();
 	/** Update collision component physical materials from render task results. */

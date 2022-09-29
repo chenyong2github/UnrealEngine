@@ -297,9 +297,10 @@ namespace
 	/** Completion state for a physical material render task. */
 	enum class ECompletionState : uint64
 	{
-		None = 0,		// Draw not submitted
-		Pending = 1,	// Draw submitted, waiting for GPU
-		Complete = 2	// Result copied back from GPU
+		None = 0,					// Task initialized
+		WaitForRenderResources = 1,	// Waiting for shaders to compile
+		Pending = 2,				// Draw submitted, waiting for GPU
+		Complete = 3				// Result copied back from GPU
 	};
 
 	/** Data for a physical material render task. */
@@ -367,7 +368,7 @@ namespace
 	/** Initialize the physical material render task read back resources. */
 		//todo: Consider pooling these and throttling to the pool size?
 		if (!InTask.Readback.IsValid())
-	{
+		{
 			InTask.Readback = MakeUnique<FRHIGPUTextureReadback>(TEXT("LandscapePhysicalMaterialReadback"));
 		}
 
@@ -388,12 +389,20 @@ namespace
 	}
 
 	/** Update the physical material render task on the render thread. */
-	void UpdateTask_RenderThread(FRHICommandListImmediate& RHICmdList, FLandscapePhysicalMaterialRenderTaskImpl& Task, const FLandscapeComponentSceneProxy* InSceneProxy, bool bFlush)
+	void UpdateTask_RenderThread(FRHICommandListImmediate& RHICmdList, FLandscapePhysicalMaterialRenderTaskImpl& Task, const FLandscapeComponentSceneProxy* InSceneProxy, bool bFlush, uint32 FrameCount)
 	{
-		if (Task.CompletionState == ECompletionState::None && InSceneProxy)
+		if (Task.CompletionState <= ECompletionState::WaitForRenderResources && InSceneProxy)
 		{
 			// Make sure everything is ready to render, if not (e.g. shader not yet compiled), wait until it is:
-			if (InitTaskRenderResources(Task, InSceneProxy))
+			if (!InitTaskRenderResources(Task, InSceneProxy))
+			{
+			    // resources not available (and may not be for many frames)
+				// reset the init frame, to delay garbage collection
+				Task.InitFrameId = FrameCount;
+				FPlatformMisc::MemoryBarrier();
+				Task.CompletionState = ECompletionState::WaitForRenderResources;
+			}
+			else
 			{
 				// Render the pending item.
 				FMeshInfoArray MeshInfos;
@@ -440,6 +449,7 @@ class FLandscapePhysicalMaterialRenderTaskPool : public FRenderResource
 public:
 	/** Pool uses chunked array to avoid task data being moved by a realloc. */
 	TChunkedArray< FLandscapePhysicalMaterialRenderTaskImpl > Pool;
+
 	/** Frame count used to validate and garbage collect. */
 	uint32 FrameCount = 0;
 
@@ -448,6 +458,7 @@ public:
 	{
 		check(InTask.PoolHandle == -1);
 
+		// search the pool to find an existing free entry
 		int32 Index = 0;
 		auto ItEnd = Pool.end();
 		for (auto It = Pool.begin(); It != ItEnd; ++It, ++Index)
@@ -458,6 +469,7 @@ public:
 			}
 		}
 
+		// if none found, create a new entry in the pool
 		if (Index == Pool.Num())
 		{
 			Pool.Add();
@@ -495,6 +507,8 @@ public:
 		{
 			// Garbage collect a maximum of one item per call to reduce overhead if pool has grown large.
 			FLandscapePhysicalMaterialRenderTaskImpl* Task = &Pool[FrameCount % PoolSize];
+
+			// Only garbage collect tasks that are at least 100 frames old (allows resources to be re-used for some time)
 			if (Task->InitFrameId + 100 < FrameCount)
 			{
 				if (Task->LandscapeComponent != nullptr)
@@ -581,21 +595,24 @@ void FLandscapePhysicalMaterialRenderTask::UpdateInternal(bool bInFlush)
 	check(IsInGameThread());
 	if (IsValid() && !IsComplete())
 	{
+		uint32 FrameCount = GTaskPool.FrameCount;
+
 		FLandscapePhysicalMaterialRenderTaskImpl* Task = &GTaskPool.Pool[PoolHandle];
 		check(Task->LandscapeComponent != nullptr);
+
 		// If the material gets recompiled, for example, the component's scene proxy could be changed before the RT update runs, so we need to make sure we're getting the scene proxy on the game thread :
 		const FLandscapeComponentSceneProxy* SceneProxy = static_cast<const FLandscapeComponentSceneProxy*>(Task->LandscapeComponent->SceneProxy);
 		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialFlush)(
-			[Task, SceneProxy, bInFlush](FRHICommandListImmediate& RHICmdList)
+			[Task, SceneProxy, bInFlush, FrameCount](FRHICommandListImmediate& RHICmdList)
 			{
-			UpdateTask_RenderThread(RHICmdList, *Task, SceneProxy, bInFlush);
+				UpdateTask_RenderThread(RHICmdList, *Task, SceneProxy, bInFlush, FrameCount);
 			});
 
 		if (bInFlush)
 		{
-		FlushRenderingCommands();
+			FlushRenderingCommands();
+		}
 	}
-}
 }
 
 TArray<uint8> const& FLandscapePhysicalMaterialRenderTask::GetResultIds() const
