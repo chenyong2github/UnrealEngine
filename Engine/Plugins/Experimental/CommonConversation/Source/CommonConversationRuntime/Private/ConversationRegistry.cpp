@@ -355,7 +355,7 @@ TArray<FPrimaryAssetId> UConversationRegistry::GetPrimaryAssetIdsForEntryPoint(F
 
 	UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("For EntryPoint [%s], Found [%s]"),
 		*EntryPoint.ToString(),
-		*FString::JoinBy(AssetsWithTheEntryPoint, TEXT(", "), [](const FPrimaryAssetId& PrimaryAssetId) { return *PrimaryAssetId.ToString(); })
+		*FString::JoinBy(AssetsWithTheEntryPoint, TEXT(", "), [](const FPrimaryAssetId& PrimaryAssetId) { return PrimaryAssetId.ToString(); })
 	);
 
 	return AssetsWithTheEntryPoint;
