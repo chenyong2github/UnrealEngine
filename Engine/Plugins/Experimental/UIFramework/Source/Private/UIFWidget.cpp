@@ -169,6 +169,7 @@ void UUIFrameworkWidget::LocalDestroyUMGWidget()
 	if (LocalUMGWidget)
 	{
 		LocalUMGWidget->RemoveFromParent();
+		LocalUMGWidget->ReleaseSlateResources(true);
 	}
 	LocalUMGWidget = nullptr;
 	OwnerPlayerComponent = nullptr;

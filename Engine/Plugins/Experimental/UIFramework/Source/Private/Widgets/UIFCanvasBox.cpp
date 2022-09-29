@@ -156,12 +156,10 @@ void UUIFrameworkCanvasBox::LocalAddChild(FUIFrameworkWidgetId ChildId)
 			UWidget* ChildUMGWidget = ChildWidget->LocalGetUMGWidget();
 			if (ensure(ChildUMGWidget))
 			{
-				UPanelSlot* PanelSlot = CastChecked<UCanvasPanel>(LocalGetUMGWidget())->AddChild(ChildUMGWidget);
-				checkf(PanelSlot, TEXT("CanvasPanel should be able to receive slot"));
+				UCanvasPanelSlot* CanvasSlot = CastChecked<UCanvasPanel>(LocalGetUMGWidget())->AddChildToCanvas(ChildUMGWidget);
+				checkf(CanvasSlot, TEXT("CanvasPanel should be able to receive slot"));
 
 				CanvasEntry->LocalAquireWidget();
-
-				UCanvasPanelSlot* CanvasSlot = CastChecked<UCanvasPanelSlot>(PanelSlot);
 				{
 					FAnchorData AnchorData;
 					AnchorData.Anchors = CanvasEntry->Anchors;
