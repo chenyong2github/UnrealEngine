@@ -336,7 +336,7 @@ class SaveModal extends React.Component<SaveModalProps, SaveModalState> {
   async componentDidMount() {
 
     try {
-      const editor = '/Script/LevelSnapshots.Default__LevelSnapshotsEditorDataManagementSettings';
+      const editor = '/Script/LevelSnapshotsEditor.Default__LevelSnapshotsEditorSettings';
 
       const { RootLevelSnapshotSaveDir } = await _api.proxy.property.get(editor, 'RootLevelSnapshotSaveDir');
       let path: string = RootLevelSnapshotSaveDir?.Path ?? '/Game/LevelSnapshots';
