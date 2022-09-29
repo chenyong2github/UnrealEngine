@@ -36,6 +36,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "AudioCompressionSettings.h"
 #include "Sound/AudioSettings.h"
+#include "Templates/SharedPointer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCue)
 
@@ -709,6 +710,44 @@ bool USoundCue::HasCookedAmplitudeEnvelopeData() const
 		}
 	}
 	return false;
+}
+
+TSharedPtr<Audio::IParameterTransmitter> USoundCue::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
+{
+	class FSoundCueParameterTransmitter : public Audio::FParameterTransmitterBase
+	{
+	public:
+		FSoundCueParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams)
+			: Audio::FParameterTransmitterBase(MoveTemp(InParams.DefaultParams))
+		{
+		}
+
+		virtual ~FSoundCueParameterTransmitter() = default;
+
+		TArray<UObject*> GetReferencedObjects() const override
+		{
+			TArray<UObject*> Objects;
+			for (const FAudioParameter& Param : AudioParameters)
+			{
+				if (Param.ObjectParam)
+				{
+					Objects.Add(Param.ObjectParam);
+				}
+
+				for (UObject* Object : Param.ArrayObjectParam)
+				{
+					if (Object)
+					{
+						Objects.Add(Object);
+					}
+				}
+			}
+
+			return Objects;
+		}
+	};
+
+	return MakeShared<FSoundCueParameterTransmitter>(MoveTemp(InParams));
 }
 
 #if WITH_EDITOR

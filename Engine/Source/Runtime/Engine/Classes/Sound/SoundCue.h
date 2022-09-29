@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAudioParameterTransmitter.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Sound/SoundAttenuation.h"
@@ -179,6 +180,7 @@ public:
 	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;
 	virtual bool HasCookedFFTData() const override;
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;
+	virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	//~ End USoundBase Interface.
 
 	/** Construct and initialize a node within this Cue */
@@ -248,7 +250,6 @@ public:
 			}
 		}
 	}
-
 
 	/** Find the path through the sound cue to a node identified by its hash */
 	bool FindPathToNode(const UPTRINT NodeHashToFind, TArray<USoundNode*>& OutPath) const;

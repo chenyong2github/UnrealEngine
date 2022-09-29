@@ -33,7 +33,7 @@ struct FAttenuationListenerData;
  */
 struct FAttenuationFocusData
 {
-	/** Azimuth of the active sound relative to the listener. Used by sound focus. */
+	/** Azimuth of the active sound relative to the listener. Used by sound  focus. */
 	float Azimuth = 0.0f;
 
 	/** Absolute azimuth of the active sound relative to the listener. Used for 3d audio calculations. */
@@ -376,71 +376,7 @@ private:
 
 	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
-	class FParameterTransmitter
-	{
-	public:
-		FParameterTransmitter() = default;
-		FParameterTransmitter(FParameterTransmitter&&) = default;
-		FParameterTransmitter& operator=(FParameterTransmitter&&) = default;
-
-		FParameterTransmitter(TUniquePtr<Audio::IParameterTransmitter>&& InTransmitterImpl)
-		:	TransmitterImpl(MoveTemp(InTransmitterImpl))
-		{
-		}
-
-		FParameterTransmitter(const FParameterTransmitter& InOther)
-		{
-			if (InOther.IsValid())
-			{
-				TransmitterImpl = InOther->Clone();
-			}
-		}
-
-		FParameterTransmitter& operator=(const FParameterTransmitter& InOther)
-		{
-			TransmitterImpl.Reset();
-			if (InOther.IsValid())
-			{
-				TransmitterImpl = InOther->Clone();
-			}
-			return *this;
-		}
-
-		FParameterTransmitter& operator=(TUniquePtr<Audio::IParameterTransmitter>&& InTransmitterImpl)
-		{
-			TransmitterImpl = MoveTemp(InTransmitterImpl);
-			return *this;
-		}
-
-		bool IsValid() const
-		{
-			return TransmitterImpl.IsValid();
-		}
-
-		Audio::IParameterTransmitter* Get()
-		{
-			return TransmitterImpl.Get();
-		}
-		const Audio::IParameterTransmitter* Get() const
-		{
-			return TransmitterImpl.Get();
-		}
-
-		Audio::IParameterTransmitter* operator->()
-		{
-			return TransmitterImpl.Get();
-		}
-
-		const Audio::IParameterTransmitter* operator->() const
-		{
-			return TransmitterImpl.Get();
-		}
-
-	private:
-		TUniquePtr<Audio::IParameterTransmitter> TransmitterImpl;
-	};
-
-	FParameterTransmitter InstanceTransmitter;
+	TSharedPtr<Audio::IParameterTransmitter> InstanceTransmitter;
 
 public:
 	Audio::IParameterTransmitter* GetTransmitter()
@@ -451,6 +387,11 @@ public:
 	const Audio::IParameterTransmitter* GetTransmitter() const
 	{
 		return InstanceTransmitter.Get();
+	}
+
+	void ClearTransmitter()
+	{
+		return InstanceTransmitter.Reset();
 	}
 
 	enum class EFadeOut : uint8
@@ -464,9 +405,6 @@ public:
 		// The concurrency system is requesting a fade due to voice stealing
 		Concurrency
 	};
-
-	/** The default initial parameters use when starting a new active sound. */
-	TArray<FAudioParameter> DefaultParameters;
 
 	/** Whether or not the sound has checked if it was occluded already. Used to initialize a sound as occluded and bypassing occlusion interpolation. */
 	uint8 bHasCheckedOcclusion:1;

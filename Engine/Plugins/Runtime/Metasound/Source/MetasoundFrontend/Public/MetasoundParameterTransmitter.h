@@ -19,6 +19,7 @@ namespace Metasound
 	namespace Frontend
 	{
 		METASOUNDFRONTEND_API FLiteral ConvertParameterToLiteral(FAudioParameter&& InValue);
+		METASOUNDFRONTEND_API FLiteral ConvertParameterToLiteral(const FAudioParameter& InValue);
 		METASOUNDFRONTEND_API FName ConvertParameterToDataType(EAudioParameterType InParameterType);
 	}
 
@@ -28,7 +29,7 @@ namespace Metasound
 	 * be safely ushered across thread boundaries in scenarios where the instance
 	 * transmitter and metasound instance live on different threads. 
 	 */
-	class METASOUNDFRONTEND_API FMetaSoundParameterTransmitter : public Audio::IParameterTransmitter
+	class METASOUNDFRONTEND_API FMetaSoundParameterTransmitter : public Audio::FParameterTransmitterBase
 	{
 		FMetaSoundParameterTransmitter(const FMetaSoundParameterTransmitter&) = delete;
 		FMetaSoundParameterTransmitter& operator=(const FMetaSoundParameterTransmitter&) = delete;
@@ -66,10 +67,14 @@ namespace Metasound
 			/** Name of MetaSound used to log parameter related errors. */
 			FName DebugMetaSoundName;
 
-			FInitParams(const FOperatorSettings& InSettings, uint64 InInstanceID, const TArray<FSendInfo>& InInfos=TArray<FSendInfo>())
+			/** Default Audio Parameters set when transmitter is initialized */
+			TArray<FAudioParameter> DefaultParams;
+
+			FInitParams(const FOperatorSettings& InSettings, uint64 InInstanceID, TArray<FAudioParameter>&& InDefaultParams, const TArray<FSendInfo>& InInfos=TArray<FSendInfo>())
 			: OperatorSettings(InSettings)
 			, InstanceID(InInstanceID)
 			, Infos(InInfos)
+			, DefaultParams(MoveTemp(InDefaultParams))
 			{
 			}
 		};
@@ -80,13 +85,10 @@ namespace Metasound
 		/** Creates a unique send address using the given InstanceID. */
 		static FSendAddress CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexName& InVertexName, const FName& InTypeName);
 
-		FMetaSoundParameterTransmitter(const FMetaSoundParameterTransmitter::FInitParams& InInitParams);
+		FMetaSoundParameterTransmitter(FMetaSoundParameterTransmitter::FInitParams&& InInitParams);
 		virtual ~FMetaSoundParameterTransmitter() = default;
 
 		bool Reset() override;
-
-		/** Returns ID of the MetaSound instance associated with this transmitter. */
-		uint64 GetInstanceID() const override;
 
 		/** Sets parameters using array of AudioParameter structs
 		 *
@@ -102,10 +104,6 @@ namespace Metasound
 		 * @return true on success, false on failure. 
 		 */
 		bool SetParameterWithLiteral(FName InParameterName, const FLiteral& InValue);
-
-		/** Duplicate this transmitter interface. The transmitters association with
-		 * the MetaSound instance will be maintained. */
-		TUniquePtr<Audio::IParameterTransmitter> Clone() const override;
 
 	private:
 		// Find FSendInfo by parameter name. 

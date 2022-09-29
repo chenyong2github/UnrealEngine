@@ -3478,12 +3478,12 @@ void FAudioDevice::SetListenerAttenuationOverride(int32 ListenerIndex, const FVe
 			Listener.bUseAttenuationOverride = true;
 			Listener.AttenuationOverride = AttenuationPosition;
 
-		if (!bPrevAttenuationOverride)
-		{
+			if (!bPrevAttenuationOverride)
+			{
 				UpdateVirtualLoops(true);
 			}
 		}
-		}
+	}
 }
 
 void FAudioDevice::ClearListenerAttenuationOverride(int32 ListenerIndex)
@@ -5097,6 +5097,23 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 	}
 #endif // !UE_BUILD_SHIPPING
 
+	auto InitSoundParams = [this, &Sound](FActiveSound& OutActiveSound, TArray<FAudioParameter>&& DefaultParams)
+	{
+		// Retriggering a virtualized ActiveSound which already have a transmitter
+		// should not be given a new transmitter.
+		if (!OutActiveSound.InstanceTransmitter.IsValid())
+		{
+			Audio::FParameterTransmitterInitParams TransmitterInitParams
+			{
+				OutActiveSound.GetAudioComponentID(),
+				GetSampleRate(),
+				MoveTemp(DefaultParams)
+			};
+
+			OutActiveSound.InstanceTransmitter = Sound->CreateParameterTransmitter(MoveTemp(TransmitterInitParams));
+		}
+	};
+
 	// Determine if sound is loop and eligible for virtualize prior to creating "live" active sound in next Concurrency check step
 	if (!InVirtualLoopToRetrigger)
 	{
@@ -5105,6 +5122,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 		if (FAudioVirtualLoop::Virtualize(InNewActiveSound, *this, bDoRangeCheck, VirtualLoop))
 		{
 			UE_LOG(LogAudio, Verbose, TEXT("New ActiveSound %s Virtualizing: Failed to pass initial audible range check"), *Sound->GetName());
+			InitSoundParams(VirtualLoop.GetActiveSound(), MoveTemp(InDefaultParams));
 			AddVirtualLoop(VirtualLoop);
 			return;
 		}
@@ -5130,6 +5148,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 			if (FAudioVirtualLoop::Virtualize(InNewActiveSound, *this, bDoRangeCheck, VirtualLoop))
 			{
 				UE_LOG(LogAudioConcurrency, Verbose, TEXT("New ActiveSound %s Virtualizing: Failed to pass concurrency"), *Sound->GetName());
+				InitSoundParams(VirtualLoop.GetActiveSound(), MoveTemp(InDefaultParams));
 				AddVirtualLoop(VirtualLoop);
 			}
 			else
@@ -5195,24 +5214,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 		VirtualActiveSound.ClearAudioComponent();
 	}
 
-	// Retriggering a virtualized ActiveSound which already have a transmitter
-	// should not be given a new transmitter.
-	if (!ActiveSound->InstanceTransmitter.IsValid())
-	{
-		Audio::FParameterTransmitterInitParams TransmitterInitParams
-		{
-			ActiveSound->GetAudioComponentID(),
-			GetSampleRate(),
-			InDefaultParams
-		};
-
-		ActiveSound->InstanceTransmitter = Sound->CreateParameterTransmitter(MoveTemp(TransmitterInitParams));
-	}
-
-	// Set the default parameter used during creation of the active sound.
-	ActiveSound->DefaultParameters = MoveTemp(InDefaultParams);
-
-
+	InitSoundParams(*ActiveSound, MoveTemp(InDefaultParams));
 	ActiveSounds.Add(ActiveSound);
 
 	if (ActiveSound->GetAudioComponentID() > 0)
@@ -5997,6 +5999,7 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 
 	return false;
 }
+
 int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners)
 {
 	check(IsInAudioThread());
@@ -6073,12 +6076,8 @@ void FAudioDevice::UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSo
 				{
 					if (ActiveSound->GetInstanceID() == InActiveSound.GetInstanceID())
 					{
-						// Reset the transmitter prior to unlinking to avoid associated
-						// state potentially kept in plugins to not become stale.
-						if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
-						{
-							Transmitter->Reset();
-						}
+						// Clears the transmitter ensuring additional parameter requests are ignored.
+						ActiveSound->ClearTransmitter();
 						ActiveSoundsInComponent->RemoveAtSwap(i, 1, false);
 						break;
 					}

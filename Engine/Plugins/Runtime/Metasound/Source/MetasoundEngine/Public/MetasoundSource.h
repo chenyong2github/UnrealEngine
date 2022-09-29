@@ -168,7 +168,7 @@ public:
 		return this;
 	}
 
-	virtual void InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName) override;
+	virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName) override;
 	virtual void InitResources() override;
 
 	virtual bool IsPlayable() const override;
@@ -176,7 +176,7 @@ public:
 	virtual float GetDuration() const override;
 	virtual bool ImplementsParameterInterface(Audio::FParameterInterfacePtr InInterface) const override;
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams, TArray<FAudioParameter>&& InDefaultParameters) override;
-	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
+	virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;
 	virtual bool IsLooping() const override;
 	virtual bool IsOneShot() const override;

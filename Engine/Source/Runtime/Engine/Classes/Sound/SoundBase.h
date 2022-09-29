@@ -300,7 +300,7 @@ public:
 	//~ End IInterface_AssetUserData Interface
 
 	/** Called from the Game Thread prior to attempting to pass parameters to the ParameterTransmitter. */
-	virtual void InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName);
+	virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName);
 
 	/** Called from the Game Thread prior to attempting to initialize a sound instance. */
 	virtual void InitResources() { }
@@ -315,7 +315,7 @@ public:
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams, TArray<FAudioParameter>&& InDefaultParameters) { return CreateSoundGenerator(InParams); }
 
 	/** Creates a parameter transmitter for communicating with active sound instances. */
-	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const;
+	virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const;
 
 	/** Returns whether parameter is valid input for the given sound */
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const;

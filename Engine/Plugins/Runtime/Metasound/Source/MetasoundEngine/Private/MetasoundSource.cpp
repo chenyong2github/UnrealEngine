@@ -373,7 +373,7 @@ void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNod
 }
 #endif // WITH_EDITORONLY_DATA
 
-void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName)
+void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName)
 {
 	using namespace Metasound::SourcePrivate;
 
@@ -529,9 +529,9 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 	};
 
 
-	for (int32 i = InParametersToInit.Num() - 1; i >= 0; --i)
+	for (int32 i = ParametersToInit.Num() - 1; i >= 0; --i)
 	{
-		FAudioParameter& Parameter = InParametersToInit[i];
+		FAudioParameter& Parameter = ParametersToInit[i];
 		
 #if !NO_LOGGING
 		// For logging in case of failure
@@ -553,13 +553,13 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 				}
 #endif // !NO_LOGGING
 				constexpr bool bAllowShrinking = false;
-				InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
+				ParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
 			}
 		}
 		else
 		{
 			constexpr bool bAllowShrinking = false;
-			InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
+			ParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
 
 #if !NO_LOGGING
 			if (::Metasound::MetaSoundParameterEnableWarningOnIgnoredParameterCVar)
@@ -908,22 +908,19 @@ bool UMetaSoundSource::IsOneShot() const
 	return IsInterfaceDeclared(SourceOneShotInterface::GetVersion());
 }
 
-TUniquePtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
+TSharedPtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
 {
 	METASOUND_LLM_SCOPE;
 
-	Metasound::FMetaSoundParameterTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID);
+	Metasound::FMetaSoundParameterTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID, MoveTemp(InParams.DefaultParams));
+	InitParams.DebugMetaSoundName = GetFName();
 
 	for (const FSendInfoAndVertexName& InfoAndName : FMetasoundAssetBase::GetSendInfos(InParams.InstanceID))
 	{
 		InitParams.Infos.Add(InfoAndName.SendInfo);
 	}
 
-	InitParams.DebugMetaSoundName = GetFName();
-
-	TUniquePtr<Audio::IParameterTransmitter> NewTransmitter = MakeUnique<Metasound::FMetaSoundParameterTransmitter>(InitParams);
-
-	return NewTransmitter;
+	return MakeShared<Metasound::FMetaSoundParameterTransmitter>(MoveTemp(InitParams));
 }
 
 Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const

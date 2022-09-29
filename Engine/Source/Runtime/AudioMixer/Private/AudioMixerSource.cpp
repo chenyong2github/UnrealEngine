@@ -1061,11 +1061,15 @@ namespace Audio
 		uint64 InstanceID = 0;
 		bool bActiveSoundIsPreviewSound = false;
 		TArray<FAudioParameter> DefaultParameters;
-		if (WaveInstance->ActiveSound)
+		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+		if (ActiveSound)
 		{
-			InstanceID = WaveInstance->ActiveSound->GetAudioComponentID();
-			bActiveSoundIsPreviewSound = WaveInstance->ActiveSound->bIsPreviewSound;
-			DefaultParameters = MoveTemp(WaveInstance->ActiveSound->DefaultParameters);
+			InstanceID = ActiveSound->GetAudioComponentID();
+			bActiveSoundIsPreviewSound = ActiveSound->bIsPreviewSound;
+			if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
+			{
+				DefaultParameters = Transmitter->GetParameters();
+			}
 		}
 
 		FMixerSourceBufferInitArgs BufferInitArgs;
@@ -1088,9 +1092,9 @@ namespace Audio
 			// Guarantee that this wave instance does not try to replay by disabling looping.
 			WaveInstance->LoopingMode = LOOP_Never;
 
-			if (ensure(WaveInstance->ActiveSound))
+			if (ensure(ActiveSound))
 			{
-				WaveInstance->ActiveSound->bShouldRemainActiveIfDropped = false;
+				ActiveSound->bShouldRemainActiveIfDropped = false;
 			}
 		}
 		

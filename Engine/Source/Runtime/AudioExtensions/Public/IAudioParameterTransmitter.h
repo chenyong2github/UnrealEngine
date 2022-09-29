@@ -26,16 +26,17 @@ namespace Audio
 		TArray<FAudioParameter> DefaultParams;
 	};
 
-	// Parameter getter & reference collector for legacy parameter system.
+	// Reference collector functionality for legacy parameter system
 	// (i.e. backwards compatibility with the SoundCue system). None of this
-	// should be used by future systems (i.e. MetaSounds) as object references
-	// from parameters should NOT be cached on threads other than the GameThread.
+	// should be used by future assets supporting parameters (ex. MetaSounds)
+	// as object pointers within parameters should NOT be cached on threads
+	// other than the GameThread, utilizing a proxy methodology like MetaSounds
+	// that copies UObject data when and where necessary.
 	class AUDIOEXTENSIONS_API ILegacyParameterTransmitter
 	{
 		public:
 			virtual ~ILegacyParameterTransmitter() = default;
 
-			virtual bool GetParameter(FName InName, FAudioParameter& OutParam) const;
 			virtual TArray<UObject*> GetReferencedObjects() const;
 	};
 
@@ -52,13 +53,32 @@ namespace Audio
 
 			virtual bool Reset() = 0;
 
-			// Return the instance ID
-			virtual uint64 GetInstanceID() const = 0;
+			// Return the cached parameter with the given name if it exists
+			// @return False if param not found, true if found.
+			virtual bool GetParameter(FName InName, FAudioParameter& OutParam) const = 0;
+
+			// Return reference to the cached parameter array.
+			virtual const TArray<FAudioParameter>& GetParameters() const = 0;
 
 			// Parameter Setters
 			virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) = 0;
+	};
 
-			// Create a copy of the instance transmitter.
-			virtual TUniquePtr<Audio::IParameterTransmitter> Clone() const = 0;
+	/** Base implementation for the parameter transmitter, which caches parameters
+	  * and provides implementer to add additional logic to route parameter data accordingly.
+	  */
+	class AUDIOEXTENSIONS_API FParameterTransmitterBase : public IParameterTransmitter
+	{
+	public:
+		FParameterTransmitterBase(TArray<FAudioParameter>&& InDefaultParams);
+		virtual ~FParameterTransmitterBase() = default;
+
+		virtual bool GetParameter(FName InName, FAudioParameter& OutParam) const override;
+		virtual const TArray<FAudioParameter>& GetParameters() const override;
+		virtual bool Reset() override;
+		virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
+
+	protected:
+		TArray<FAudioParameter> AudioParameters;
 	};
 } // namespace Audio
