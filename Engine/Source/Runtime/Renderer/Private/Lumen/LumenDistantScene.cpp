@@ -151,7 +151,7 @@ namespace Lumen
 
 	float GetFarFieldDitheredStartDistanceFactor()
 	{
-		return CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread();
+		return FMath::Clamp(CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread(), 0.0f, 1.0f);
 	}
 
 	FVector GetFarFieldReferencePos()

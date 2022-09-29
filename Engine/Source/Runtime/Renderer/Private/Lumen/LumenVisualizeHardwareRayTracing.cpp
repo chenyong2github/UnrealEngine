@@ -119,9 +119,9 @@ namespace Lumen
 
 namespace LumenVisualize
 {
-	bool UseFarField()
+	bool UseFarField(const FSceneViewFamily& ViewFamily)
 	{
-		return CVarLumenVisualizeHardwareRayTracingRetraceFarField.GetValueOnRenderThread() != 0;
+		return Lumen::UseFarField(ViewFamily) && CVarLumenVisualizeHardwareRayTracingRetraceFarField.GetValueOnRenderThread() != 0;
 	}
 
 	bool IsHitLightingForceEnabled(const FViewInfo& View)
@@ -467,7 +467,7 @@ IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingCS, "/Engine/Private/Lu
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualize(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family)
-		&& (LumenVisualize::UseHitLighting(View) || LumenVisualize::UseFarField() || LumenReflections::UseHitLightingForReflections(View)))
+		&& (LumenVisualize::UseHitLighting(View) || LumenVisualize::UseFarField(*View.Family) || LumenReflections::UseHitLightingForReflections(View)))
 	{
 		for (int TraceMode = static_cast<int>(ETraceMode::HitLightingRetrace); TraceMode < static_cast<int>(ETraceMode::MAX); ++TraceMode)
 		{
@@ -507,7 +507,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	bool bVisualizeModeWithHitLighting)
 #if RHI_RAYTRACING
 {
-	bool bTraceFarField = LumenVisualize::UseFarField();
+	bool bTraceFarField = LumenVisualize::UseFarField(*View.Family);
 	bool bRetraceForHitLighting = LumenVisualize::UseHitLighting(View) && bVisualizeModeWithHitLighting;
 	bool bForceHitLighting = LumenVisualize::IsHitLightingForceEnabled(View);
 	bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
@@ -623,7 +623,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
-			PassParameters->FarFieldDitheredStartDistanceFactor = Lumen::GetFarFieldDitheredStartDistanceFactor();
+			PassParameters->FarFieldDitheredStartDistanceFactor = bTraceFarField ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0f;
 			PassParameters->ApplySkylightStage = bTraceFarField ? 0 : 1;
 
 			// Output
