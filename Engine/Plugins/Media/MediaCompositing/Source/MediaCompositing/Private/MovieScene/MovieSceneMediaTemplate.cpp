@@ -40,15 +40,28 @@ struct FMediaSectionPreRollExecutionToken
 
 		FMovieSceneMediaData& SectionData = PersistentData.GetSectionData<FMovieSceneMediaData>();
 		UMediaPlayer* MediaPlayer = SectionData.GetMediaPlayer();
+		UObject* PlayerProxy = SectionData.GetPlayerProxy();
 
 		if (MediaPlayer == nullptr || MediaSource == nullptr)
 		{
 			return;
 		}
 
+		// Do we have a player proxy?
+		IMediaPlayerProxyInterface* PlayerProxyInterface = nullptr;
+		if (PlayerProxy != nullptr)
+		{
+			PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
+				(PlayerProxy);
+		}
+
 		// open the media source if necessary
 		if (MediaPlayer->GetUrl().IsEmpty())
 		{
+			if (PlayerProxyInterface != nullptr)
+			{
+				MediaSource->SetCacheSettings(PlayerProxyInterface->GetCacheSettings());
+			}
 			SectionData.SeekOnOpen(StartTime);
 			MediaPlayer->OpenSource(MediaSource);
 		}
@@ -101,6 +114,10 @@ struct FMediaSectionExecutionToken
 		// open the media source if necessary
 		if (MediaPlayer->GetUrl().IsEmpty())
 		{
+			if (PlayerProxyInterface != nullptr)
+			{
+				MediaSource->SetCacheSettings(PlayerProxyInterface->GetCacheSettings());
+			}
 			SectionData.SeekOnOpen(CurrentTime);
 			// Setup an initial blocking range - MediaFramework will block (even through the opening process) in its next tick...
 			MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));

@@ -226,6 +226,7 @@ public:
 	virtual float GetProxyRate() const override;
 	virtual bool SetProxyRate(float Rate) override;
 	virtual bool IsExternalControlAllowed() override;
+	virtual const FMediaSourceCacheSettings& GetCacheSettings() const override;
 
 private:
 	/**

@@ -6,6 +6,8 @@
 
 #include "MediaPlayerProxyInterface.generated.h"
 
+struct FMediaSourceCacheSettings;
+
 /**
  * The proxy object provides a higher level of insight/control than just the media player.
  * For example, the object owning the player may control the player in some
@@ -43,4 +45,10 @@ public:
 	 * @return				True if you can control the player.
 	 */
 	virtual bool IsExternalControlAllowed() = 0;
+
+	/**
+	 * Gets the cache settings for the player.
+	 */
+	virtual const FMediaSourceCacheSettings& GetCacheSettings() const = 0;
+	
 };

@@ -478,6 +478,11 @@ bool UMediaPlateComponent::IsExternalControlAllowed()
 	return IsVisible();
 }
 
+const FMediaSourceCacheSettings& UMediaPlateComponent::GetCacheSettings() const
+{
+	return CacheSettings;
+}
+
 void UMediaPlateComponent::RestartPlayer()
 {
 	if (MediaPlayer != nullptr)
