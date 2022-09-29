@@ -240,6 +240,26 @@ int32 FWorldPartitionEditorModule::GetMinimapLowQualityWorldUnitsPerPixelThresho
 	return GetDefault<UWorldPartitionEditorSettings>()->MinimapLowQualityWorldUnitsPerPixelThreshold;
 }
 
+bool FWorldPartitionEditorModule::GetDisableLoadingInEditor() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor;
+}
+
+void FWorldPartitionEditorModule::SetDisableLoadingInEditor(bool bInDisableLoadingInEditor)
+{
+	GetMutableDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor = bInDisableLoadingInEditor;
+}
+
+bool FWorldPartitionEditorModule::GetDisablePIE() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE;
+}
+
+void FWorldPartitionEditorModule::SetDisablePIE(bool bInDisablePIE)
+{
+	GetMutableDefault<UWorldPartitionEditorSettings>()->bDisablePIE = bInDisablePIE;
+}
+
 void FWorldPartitionEditorModule::OnConvertMap()
 {
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
@@ -676,6 +696,8 @@ UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()
 	CommandletClass = UWorldPartitionConvertCommandlet::StaticClass();
 	InstancedFoliageGridSize = 25600;
 	MinimapLowQualityWorldUnitsPerPixelThreshold = 12800;
+	bDisableLoadingInEditor = false;
+	bDisablePIE = false;
 }
 
 FString UWorldPartitionConvertOptions::ToCommandletArgs() const

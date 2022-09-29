@@ -202,7 +202,6 @@ public:
 	void OnUserCreatedRegionUnloaded() { check(HasLoadedUserCreatedRegions()); NumUserCreatedLoadedRegions--; }
 
 	bool IsEnablingStreamingJustified() const { return bEnablingStreamingJustified; }
-	bool IsLoadingInEditorEnabled() const { return bEnableLoadingInEditor; }
 #endif
 
 public:
@@ -262,10 +261,6 @@ private:
 	/** Whether Level Instance can reference this partition. */
 	UPROPERTY(EditAnywhere, Category = "WorldPartitionSetup", AdvancedDisplay, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "!bEnableStreaming"))
 	bool bCanBeUsedByLevelInstance;
-
-	/** When disabled, editor will always load the whole world. */
-	UPROPERTY()
-	bool bEnableLoadingInEditor;
 #endif
 
 public:

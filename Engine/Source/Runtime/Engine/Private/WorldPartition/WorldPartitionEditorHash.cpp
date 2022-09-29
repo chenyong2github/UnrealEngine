@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionEditorHash.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorHash)
 
 UWorldPartitionEditorHash::UWorldPartitionEditorHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-{}
+{
+#if WITH_EDITOR
+	WorldPartitionEditorModule = &FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+#endif
+}
 
 #if WITH_EDITOR
 UWorldPartitionEditorHash::FForEachIntersectingActorParams::FForEachIntersectingActorParams()

@@ -5,7 +5,7 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorSpatialHash)
 
@@ -115,7 +115,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 {
 	check(InActorHandle.IsValid());
 
-	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded() && GetOuterUWorldPartition()->IsLoadingInEditorEnabled();
+	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded() && !WorldPartitionEditorModule->GetDisableLoadingInEditor();
 	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
 
 #if DO_CHECK
@@ -226,7 +226,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 {
 	check(InActorHandle.IsValid());
 
-	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded() && GetOuterUWorldPartition()->IsLoadingInEditorEnabled();
+	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded()  && !WorldPartitionEditorModule->GetDisableLoadingInEditor();
 	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
 
 #if DO_CHECK
