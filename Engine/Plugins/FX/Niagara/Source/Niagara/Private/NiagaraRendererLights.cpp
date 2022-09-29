@@ -126,7 +126,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			const float Brightness = Properties->bAlphaScalesBrightness ? Color.A : 1.0f;
 
 			LightData.LightEntry.Radius = LightRadius;
-			LightData.LightEntry.Color = FVector(Color) * Brightness + Properties->ColorAdd;
+			LightData.LightEntry.Color = FVector3f(Color) * Brightness + Properties->ColorAdd;
 			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, DefaultExponent);
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);

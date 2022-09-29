@@ -40,7 +40,7 @@ namespace Nanite
 class FSimpleLightEntry
 {
 public:
-	FVector Color;
+	FVector3f Color;
 	float Radius;
 	float Exponent;
 	float VolumetricScatteringIntensity;

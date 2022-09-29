@@ -66,7 +66,7 @@ public:
 
 	/** A static color shift applied to each rendered light */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
-	FVector ColorAdd;
+	FVector3f ColorAdd;
 
 	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
