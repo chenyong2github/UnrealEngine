@@ -241,14 +241,16 @@ namespace Horde.Build.Users
 		public async Task<IUser?> FindUserByLoginAsync(string login)
 		{
 			string loginUpper = login.ToUpperInvariant();
-			return await _users.Find(x => x.LoginUpper == loginUpper).FirstOrDefaultAsync();
+			FilterDefinition<UserDocument> filter = Builders<UserDocument>.Filter.Eq(x => x.LoginUpper, loginUpper) & Builders<UserDocument>.Filter.Ne(x => x.Hidden, true);
+			return await _users.Find(filter).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>
 		public async Task<IUser?> FindUserByEmailAsync(string email)
 		{
 			string emailUpper = email.ToUpperInvariant();
-			return await _users.Find(x => x.EmailUpper == emailUpper).FirstOrDefaultAsync();
+			FilterDefinition<UserDocument> filter = Builders<UserDocument>.Filter.Eq(x => x.EmailUpper, emailUpper) & Builders<UserDocument>.Filter.Ne(x => x.Hidden, true);
+			return await _users.Find(filter).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>

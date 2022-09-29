@@ -859,6 +859,8 @@ namespace Horde.Build.Notifications.Sinks
 				// Permalink to the summary text so we link inside the thread rather than just to the original message
 				string? permalink = await _slackClient.GetPermalinkAsync(summaryId);
 				await UpdateMessageStateAsync(state.Id, state.MessageId, permalink);
+
+				_issueService.Collection.GetLogger(issue.Id).LogInformation("Created Slack thread: {SlackLink}", permalink);
 			}
 
 			// Post a message containing the controls and status
@@ -2417,7 +2419,7 @@ namespace Horde.Build.Notifications.Sinks
 			}
 			else if (String.Equals(verb, "accept", StringComparison.Ordinal))
 			{
-				await _issueService.UpdateIssueAsync(issueId, ownerId: userId, acknowledged: true);
+				await _issueService.UpdateIssueAsync(issueId, ownerId: userId, nominatedById: userId, acknowledged: true);
 			}
 			else if (String.Equals(verb, "decline", StringComparison.Ordinal))
 			{
@@ -2483,7 +2485,7 @@ namespace Horde.Build.Notifications.Sinks
 					}
 				}
 
-				await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: user.Id);
+				await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: user.Id, nominatedById: user.Id);
 			}
 			else if (String.Equals(verb, "decline", StringComparison.Ordinal))
 			{
