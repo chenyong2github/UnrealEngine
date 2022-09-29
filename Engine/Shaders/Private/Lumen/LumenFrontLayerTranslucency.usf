@@ -113,5 +113,9 @@ void MainPS(
 #endif // TEMPLATE_USES_STRATA
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 
+#if OUTPUT_PIXEL_DEPTH_OFFSET
+	ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
+#endif
+
 	OutTarget0 = float4(EncodeNormal(WorldNormal), 1.0f);
 }
