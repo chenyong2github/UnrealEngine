@@ -612,3 +612,8 @@ void ULevelSequenceBurnInOptions::PostEditChangeProperty( FPropertyChangedEvent&
 
 #endif // WITH_EDITOR
 
+AReplicatedLevelSequenceActor::AReplicatedLevelSequenceActor(const FObjectInitializer& Init)
+	: Super(Init)
+{
+	bAlwaysRelevant = true;
+}

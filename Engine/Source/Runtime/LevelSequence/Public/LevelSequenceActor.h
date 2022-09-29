@@ -331,3 +331,17 @@ struct LEVELSEQUENCE_API FBoundActorProxy
 
 #endif
 };
+
+/**
+ * A level sequence actor that is set to always be relevant for networking purposes
+ */
+UCLASS()
+class LEVELSEQUENCE_API AReplicatedLevelSequenceActor
+	: public ALevelSequenceActor
+{
+	GENERATED_BODY()
+
+public:
+	/** Create and initialize a new instance. */
+	AReplicatedLevelSequenceActor(const FObjectInitializer& Init);
+};
