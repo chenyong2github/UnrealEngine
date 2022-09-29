@@ -56,6 +56,14 @@ struct FActorDesc
 	/** Actor's editor-only property. */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
 	bool bActorIsEditorOnly;
+
+	/** Actor's package name. */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
+	FName ActorPackage;
+
+	/** Actor's path name. */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
+	FName ActorPath;
 };
 
 UCLASS(MinimalAPI)

@@ -37,7 +37,9 @@ FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTrans
 	Bounds = InActorDesc.GetBounds().TransformBy(InTransform);
 	RuntimeGrid = InActorDesc.GetRuntimeGrid();
 	bIsSpatiallyLoaded = InActorDesc.GetIsSpatiallyLoaded();
-	bActorIsEditorOnly = InActorDesc.GetActorIsEditorOnly();	
+	bActorIsEditorOnly = InActorDesc.GetActorIsEditorOnly();
+	ActorPackage = InActorDesc.GetActorPackage();
+	ActorPath = InActorDesc.GetActorPath();
 }
 
 TMap<UWorldPartition*, TUniquePtr<FLoaderAdapterActorList>> UWorldPartitionBlueprintLibrary::LoaderAdapterActorListMap;
@@ -60,9 +62,7 @@ UWorldPartition* UWorldPartitionBlueprintLibrary::GetWorldPartition()
 
 void UWorldPartitionBlueprintLibrary::OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition)
 {
-	verify(LoaderAdapterActorListMap.Remove(InWorldPartition));
-
-	if (LoaderAdapterActorListMap.IsEmpty())
+	if (LoaderAdapterActorListMap.Remove(InWorldPartition) && LoaderAdapterActorListMap.IsEmpty())
 	{
 		InWorldPartition->GetWorld()->OnWorldPartitionUninitialized().Remove(OnWorldPartitionUninitializedHandle);
 	}
