@@ -469,7 +469,7 @@ namespace
 		}
 
 		TShaderRef<FColorCorrectGenericPS> PixelShader;
-		if (AColorCorrectWindow* CCWindow = Cast<AColorCorrectWindow>(Region))
+		if (AColorCorrectionWindow* CCWindow = Cast<AColorCorrectionWindow>(Region))
 		{
 			PixelShader = GetWindowShader(GlobalShaderMap, CCWindow->WindowType, TemperatureType, bIsAdvanced, MergedStencilRenderTarget.IsValid());
 		}

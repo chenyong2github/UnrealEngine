@@ -101,7 +101,7 @@ void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 		// We wouldn't have to do a check here except in case of nDisplay we need to populate this list during OnLevelsChanged 
 		// because nDisplay can release Actors while those are marked as BeginningPlay. Therefore we want to avoid 
 		// adding regions twice.
-		bool bIsDistanceBased = Cast<AColorCorrectWindow>(InActor) != nullptr;
+		bool bIsDistanceBased = Cast<AColorCorrectionWindow>(InActor) != nullptr;
 		TArray<AColorCorrectRegion*>* RegionsToAddTo = bIsDistanceBased ? &RegionsDistanceBased : &RegionsPriorityBased;
 		if (!RegionsToAddTo->Contains(AsRegion))
 		{
@@ -237,7 +237,7 @@ void UColorCorrectRegionsSubsystem::RefreshRegions()
 		AColorCorrectRegion* AsRegion = *It;
 		if (IsRegionValid(AsRegion, GetWorld()))
 		{
-			if (!Cast<AColorCorrectWindow>(AsRegion))
+			if (!Cast<AColorCorrectionWindow>(AsRegion))
 			{
 				RegionsPriorityBased.Add(AsRegion);
 			}

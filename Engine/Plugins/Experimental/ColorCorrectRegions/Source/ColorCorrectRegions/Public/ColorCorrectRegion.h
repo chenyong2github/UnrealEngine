@@ -57,7 +57,7 @@ public:
  * or during BeginPlay/EndPlay to register itself. 
  * More information in ColorCorrectRegionsSubsytem.h
  */
-UCLASS(Blueprintable, Abstract)
+UCLASS(Blueprintable, NotPlaceable, Abstract)
 class COLORCORRECTREGIONS_API AColorCorrectRegion : public AActor
 {
 	GENERATED_UCLASS_BODY()
@@ -227,4 +227,30 @@ private:
 	// This is for optimization purposes that would let us check assigned actors component's stencil ids ever few once in a while.
 	float TimeWaited = 0;
 
+};
+
+/** 
+ * NotPlaceable prohibits this actor from appearing in Place Actors menu by default. We add that manually with an icon attached.
+*/
+/**
+ * A placeable Color Correction Regions actor that replaces previous implementation (blueprint). 
+ * Color Correction Regions allow users to adjust color of anything that is within it (or outside, if Invert option is selected). 
+ */
+UCLASS(Blueprintable, NotPlaceable, meta = (DisplayName = "ColorCorrectionRegion"))
+class COLORCORRECTREGIONS_API AColorCorrectionRegion : public AColorCorrectRegion
+{
+	GENERATED_UCLASS_BODY()
+public:
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> MeshComponents;
+
+public:
+	/** Swaps meshes for different CCR. */
+	void SetMeshVisibilityForRegionType();
+
+#if WITH_EDITOR
+	/** Called when any of the properties are changed. */
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+#endif
 };

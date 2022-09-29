@@ -12,7 +12,7 @@
 
 ENUM_RANGE_BY_COUNT(EColorCorrectWindowType, EColorCorrectWindowType::MAX)
 
-AColorCorrectWindow::AColorCorrectWindow(const FObjectInitializer& ObjectInitializer)
+AColorCorrectionWindow::AColorCorrectionWindow(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, WindowType(EColorCorrectWindowType::Square)
 {
@@ -50,12 +50,12 @@ AColorCorrectWindow::AColorCorrectWindow(const FObjectInitializer& ObjectInitial
 }
 
 #if WITH_EDITOR
-void AColorCorrectWindow::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void AColorCorrectionWindow::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectWindow, WindowType))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectionWindow, WindowType))
 	{
 		SetMeshVisibilityForWindowType();
 	}
@@ -82,7 +82,7 @@ void AColorCorrectWindow::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	}
 }
 
-void AColorCorrectWindow::PostEditMove(bool bFinished)
+void AColorCorrectionWindow::PostEditMove(bool bFinished)
 {
 	Super::PostEditMove(bFinished);
 
@@ -94,7 +94,7 @@ void AColorCorrectWindow::PostEditMove(bool bFinished)
 
 
 #if WITH_METADATA
-void AColorCorrectWindow::CreateIcon()
+void AColorCorrectionWindow::CreateIcon()
 {
 	// Create billboard component
 	if (GIsEditor && !IsRunningCommandlet())
@@ -137,7 +137,7 @@ void AColorCorrectWindow::CreateIcon()
 }
 #endif 
 
-void AColorCorrectWindow::SetMeshVisibilityForWindowType()
+void AColorCorrectionWindow::SetMeshVisibilityForWindowType()
 {
 	for (EColorCorrectWindowType CCWType : TEnumRange<EColorCorrectWindowType>())
 	{
@@ -160,114 +160,121 @@ void AColorCorrectWindow::SetMeshVisibilityForWindowType()
 		UpdateStageActorTransform();\
 	}\
 
-void AColorCorrectWindow::SetLongitude(double InValue)
+void AColorCorrectionWindow::SetLongitude(double InValue)
 {
 	PositionalParams.Longitude = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetLongitude() const
+double AColorCorrectionWindow::GetLongitude() const
 {
 	return PositionalParams.Longitude;
 }
 
-void AColorCorrectWindow::SetLatitude(double InValue)
+void AColorCorrectionWindow::SetLatitude(double InValue)
 {
 	PositionalParams.Latitude = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetLatitude() const
+double AColorCorrectionWindow::GetLatitude() const
 {
 	return PositionalParams.Latitude;
 }
 
-void AColorCorrectWindow::SetDistanceFromCenter(double InValue)
+void AColorCorrectionWindow::SetDistanceFromCenter(double InValue)
 {
 	PositionalParams.DistanceFromCenter = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetDistanceFromCenter() const
+double AColorCorrectionWindow::GetDistanceFromCenter() const
 {
 	return PositionalParams.DistanceFromCenter;
 }
 
-void AColorCorrectWindow::SetSpin(double InValue)
+void AColorCorrectionWindow::SetSpin(double InValue)
 {
 	PositionalParams.Spin = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetSpin() const
+double AColorCorrectionWindow::GetSpin() const
 {
 	return PositionalParams.Spin;
 }
 
-void AColorCorrectWindow::SetPitch(double InValue)
+void AColorCorrectionWindow::SetPitch(double InValue)
 {
 	PositionalParams.Pitch = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetPitch() const
+double AColorCorrectionWindow::GetPitch() const
 {
 	return PositionalParams.Pitch;
 }
 
-void AColorCorrectWindow::SetYaw(double InValue)
+void AColorCorrectionWindow::SetYaw(double InValue)
 {
 	PositionalParams.Yaw = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetYaw() const
+double AColorCorrectionWindow::GetYaw() const
 {
 	return PositionalParams.Yaw;
 }
 
-void AColorCorrectWindow::SetRadialOffset(double InValue)
+void AColorCorrectionWindow::SetRadialOffset(double InValue)
 {
 	PositionalParams.RadialOffset = InValue;
 	NOTIFY_PARAM_SETTER()
 }
 
-double AColorCorrectWindow::GetRadialOffset() const
+double AColorCorrectionWindow::GetRadialOffset() const
 {
 	return PositionalParams.RadialOffset;
 }
 
-void AColorCorrectWindow::SetScale(const FVector2D& InScale)
+void AColorCorrectionWindow::SetScale(const FVector2D& InScale)
 {
 	PositionalParams.Scale = InScale;
 	NOTIFY_PARAM_SETTER()
 }
 
-FVector2D AColorCorrectWindow::GetScale() const
+FVector2D AColorCorrectionWindow::GetScale() const
 {
 	return PositionalParams.Scale;
 }
 
-void AColorCorrectWindow::SetOrigin(const FTransform& InOrigin)
+void AColorCorrectionWindow::SetOrigin(const FTransform& InOrigin)
 {
 	Origin = InOrigin;
 	NOTIFY_PARAM_SETTER()
 }
 
-FTransform AColorCorrectWindow::GetOrigin() const
+FTransform AColorCorrectionWindow::GetOrigin() const
 {
 	return Origin;
 }
 
-void AColorCorrectWindow::SetPositionalParams(const FDisplayClusterPositionalParams& InParams)
+void AColorCorrectionWindow::SetPositionalParams(const FDisplayClusterPositionalParams& InParams)
 {
 	PositionalParams = InParams;
 	NOTIFY_PARAM_SETTER()
 }
 
-FDisplayClusterPositionalParams AColorCorrectWindow::GetPositionalParams() const
+FDisplayClusterPositionalParams AColorCorrectionWindow::GetPositionalParams() const
 {
 	return PositionalParams;
+}
+
+
+ADEPRECATED_ColorCorrectWindow::ADEPRECATED_ColorCorrectWindow(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+
 }
 
 #undef NOTIFY_PARAM_SETTER

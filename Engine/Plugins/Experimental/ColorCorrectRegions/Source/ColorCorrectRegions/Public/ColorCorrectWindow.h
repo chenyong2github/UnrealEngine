@@ -26,10 +26,11 @@ enum class EColorCorrectWindowType : uint8
 };
 
 /**
- * 
+ * A Color Correction Window that functions the same way as Color Correction Regions except it modifies anything that is behind it.
+ * Color Correction Windows do not have Priority property and instead are sorted based on the distance from the camera.
  */
-UCLASS(Blueprintable, notplaceable)
-class COLORCORRECTREGIONS_API AColorCorrectWindow : public AColorCorrectRegion, public IDisplayClusterStageActor
+UCLASS(Blueprintable, notplaceable, meta = (DisplayName = "ColorCorrectionWindow"))
+class COLORCORRECTREGIONS_API AColorCorrectionWindow : public AColorCorrectRegion, public IDisplayClusterStageActor
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -118,4 +119,10 @@ protected:
 
 	/** Update the transform when a positional setter is called */
 	bool bNotifyOnParamSetter = true;
+};
+
+UCLASS(Deprecated, Blueprintable, notplaceable, meta = (DeprecationMessage = "This is a deprecated version of Color Correct Window. Please re-create Color Correct Window to remove this warning."))
+class COLORCORRECTREGIONS_API ADEPRECATED_ColorCorrectWindow : public AColorCorrectionWindow
+{
+	GENERATED_UCLASS_BODY()
 };

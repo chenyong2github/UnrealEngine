@@ -14,7 +14,7 @@ void FColorCorrectWindowDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 {
 	for (const TWeakObjectPtr<UObject>& SelectedObject : DetailBuilder.GetSelectedObjects())
 	{
-		if (AColorCorrectWindow* CCW = Cast<AColorCorrectWindow>(SelectedObject.Get()))
+		if (AColorCorrectionWindow* CCW = Cast<AColorCorrectionWindow>(SelectedObject.Get()))
 		{
 			TSharedRef<IPropertyHandle> PriorityProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority));
 			DetailBuilder.HideProperty(PriorityProperty);

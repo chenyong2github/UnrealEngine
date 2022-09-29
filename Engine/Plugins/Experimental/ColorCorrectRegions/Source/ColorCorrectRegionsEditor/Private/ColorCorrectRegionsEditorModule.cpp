@@ -27,27 +27,26 @@ void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName
 	if (CategoryName == VolumeName || CategoryName == AllClasses)
 	{
 		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
-		UBlueprint* CCRBlueprint = Cast<UBlueprint>(FSoftObjectPath(TEXT("/ColorCorrectRegions/Blueprints/ColorCorrectRegion.ColorCorrectRegion")).TryLoad());
 		
 		FPlaceableItem* CCRPlaceableItem = new FPlaceableItem(
-			*UActorFactoryBlueprint::StaticClass(),
-			FAssetData(CCRBlueprint, true),
+			*AColorCorrectionRegion::StaticClass(),
+			FAssetData(AColorCorrectionRegion::StaticClass(), true),
 			FName("CCR.PlaceActorThumbnail"),
 			FName("CCR.PlaceActorIcon"),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(),
-			NSLOCTEXT("PlacementMode", "Color Correct Region", "Color Correct Region")
+			NSLOCTEXT("PlacementMode", "Color Correction Region", "Color Correction Region")
 		);
 
 
 		FPlaceableItem* CCWPlaceableItem = new FPlaceableItem(
-			*AColorCorrectWindow::StaticClass(),
-			FAssetData(AColorCorrectWindow::StaticClass()),
+			*AColorCorrectionWindow::StaticClass(),
+			FAssetData(AColorCorrectionWindow::StaticClass()),
 			FName("CCW.PlaceActorThumbnail"),
 			FName("CCR.PlaceActorIcon"),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(), 
-			NSLOCTEXT("PlacementMode", "Color Correct Window", "Color Correct Window"));
+			NSLOCTEXT("PlacementMode", "Color Correction Window", "Color Correction Window"));
 
 		PlacementModeModule.RegisterPlaceableItem(CategoryName, MakeShareable(CCWPlaceableItem));
 		PlacementModeModule.RegisterPlaceableItem(CategoryName, MakeShareable(CCRPlaceableItem));

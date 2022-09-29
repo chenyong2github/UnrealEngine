@@ -8,8 +8,12 @@
 #include "CoreMinimal.h"
 #include "Engine/GameEngine.h"
 #include "Engine/Classes/Components/MeshComponent.h"
+#include "Materials/Material.h"
+#include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Texture2D.h"
+
+ENUM_RANGE_BY_COUNT(EColorCorrectRegionsType, EColorCorrectRegionsType::MAX)
 
 
 AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitializer) 
@@ -36,7 +40,7 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	RootComponent->SetMobility(EComponentMobility::Movable);
 
 #if WITH_METADATA
-	if (!Cast<AColorCorrectWindow>(this))
+	if (!Cast<AColorCorrectionWindow>(this))
 	{
 		CreateIcon();
 	}
@@ -278,3 +282,60 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 }
 #endif //WITH_EDITOR
 
+
+AColorCorrectionRegion::AColorCorrectionRegion(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/ColorCorrectRegions/Materials/M_ColorCorrectRegionTransparentPreview.M_ColorCorrectRegionTransparentPreview"), NULL, LOAD_None, NULL);
+	const TArray<UStaticMesh*> StaticMeshes =
+	{
+		Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, TEXT("/Engine/BasicShapes/Sphere"))),
+		Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, TEXT("/Engine/BasicShapes/Cube"))),
+		Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, TEXT("/Engine/BasicShapes/Cylinder"))),
+		Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, TEXT("/Engine/BasicShapes/Cone")))
+	};
+
+	for (EColorCorrectRegionsType CCRType : TEnumRange<EColorCorrectRegionsType>())
+	{
+		UStaticMeshComponent* MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(*UEnum::GetValueAsString(CCRType));
+		MeshComponents.Add(MeshComponent);
+		MeshComponent->SetupAttachment(RootComponent);
+		MeshComponent->SetStaticMesh(StaticMeshes[static_cast<uint8>(CCRType)]);
+		MeshComponent->SetMaterial(0, Material);
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		MeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+	}
+
+	SetMeshVisibilityForRegionType();
+
+}
+
+void AColorCorrectionRegion::SetMeshVisibilityForRegionType()
+{
+	for (EColorCorrectRegionsType CCRType : TEnumRange<EColorCorrectRegionsType>())
+	{
+		uint8 TypeIndex = static_cast<uint8>(CCRType);
+
+		if (CCRType == Type)
+		{
+			MeshComponents[TypeIndex]->SetVisibility(true, true);
+		}
+		else
+		{
+			MeshComponents[TypeIndex]->SetVisibility(false, true);
+		}
+	}
+}
+
+#if WITH_EDITOR
+void AColorCorrectionRegion::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectionRegion, Type))
+	{
+		SetMeshVisibilityForRegionType();
+	}
+}
+#endif
