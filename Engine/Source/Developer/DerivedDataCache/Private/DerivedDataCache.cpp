@@ -14,10 +14,12 @@
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
+#include "DerivedDataPrivate.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreMisc.h"
@@ -331,6 +333,7 @@ public:
 		: Owner(InOwner)
 		, TaskBody(MoveTemp(InTaskBody))
 	{
+		LLM_IF_ENABLED(MemTag = FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 		Owner.Begin(this);
 		DoneEvent.Reset();
 		GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
@@ -339,6 +342,7 @@ public:
 private:
 	inline void Execute()
 	{
+		LLM_SCOPE(MemTag);
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
 		Owner.End(this, [this]
 		{
@@ -404,6 +408,7 @@ private:
 	IRequestOwner& Owner;
 	TUniqueFunction<void ()> TaskBody;
 	FLazyEvent DoneEvent{EEventMode::ManualReset};
+	LLM(const UE::LLMPrivate::FTagData* MemTag = nullptr);
 };
 
 void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&& TaskBody)
@@ -518,7 +523,7 @@ class FDerivedDataCache final
 			if (bGetResult)
 			{
 				
-				if(GVerifyDDC && DataDeriver && DataDeriver->IsDeterministic())
+				if (GVerifyDDC && DataDeriver && DataDeriver->IsDeterministic())
 				{
 					TArray<uint8> CmpData;
 					DataDeriver->Build(CmpData);
@@ -542,13 +547,12 @@ class FDerivedDataCache final
 						}
 					}
 
-					if(!bMatchesInSize || bDifferentMemory)
+					if (!bMatchesInSize || bDifferentMemory)
 					{
 						FString ErrMsg = FString::Printf(TEXT("There is a mismatch between the DDC data and the generated data for plugin (%s) for asset (%s). BytesInDDC:%d, BytesGenerated:%d, bDifferentMemory:%d, offset:%d"), DataDeriver->GetPluginName(), *DataDeriver->GetDebugContextString(), NumInDDC, NumGenerated, bDifferentMemory, DifferentOffset);
 						ensureMsgf(false, TEXT("%s"), *ErrMsg);
 						UE_LOG(LogDerivedDataCache, Error, TEXT("%s"), *ErrMsg );
 					}
-					
 				}
 
 				check(Data.Num());
@@ -1142,6 +1146,7 @@ private:
 
 ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache)
 {
+	LLM_SCOPE_BYTAG(DerivedDataCache);
 	FDerivedDataCache* Cache = new FDerivedDataCache;
 	if (OutLegacyCache)
 	{

@@ -7,6 +7,7 @@
 #include "DerivedDataRequestTypes.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
 #include "Tasks/Task.h"
@@ -298,13 +299,19 @@ void IRequestOwner::LaunchTask(const TCHAR* DebugName, TUniqueFunction<void ()>&
 		void Cancel() final { Task.Wait(); }
 		void Wait() final { Task.Wait(); }
 		FTask Task;
+		LLM(const UE::LLMPrivate::FTagData* MemTag = nullptr);
 	};
 
 	Tasks::FTaskEvent TaskEvent(TEXT("LaunchTaskRequest"));
 	FTaskRequest* Request = new FTaskRequest;
+	LLM_IF_ENABLED(Request->MemTag = FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 	Request->Task = Launch(
 		DebugName,
-		[this, Request, TaskBody = MoveTemp(TaskBody)] { End(Request, TaskBody); },
+		[this, Request, TaskBody = MoveTemp(TaskBody)]
+		{
+			LLM_SCOPE(Request->MemTag);
+			End(Request, TaskBody);
+		},
 		TaskEvent,
 		GetPriority() <= EPriority::Normal ? ETaskPriority::BackgroundNormal : ETaskPriority::BackgroundHigh);
 	Begin(Request);

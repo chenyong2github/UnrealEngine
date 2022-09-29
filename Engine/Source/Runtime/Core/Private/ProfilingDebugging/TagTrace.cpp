@@ -6,6 +6,7 @@
 #include "CoreTypes.h"
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemTrackerPrivate.h"
 #include "Trace/Trace.inl"
 #include "UObject/NameTypes.h"
 
@@ -65,9 +66,10 @@ FMemScope::FMemScope(const FName& InName, bool bShouldActivate /*= true*/)
 ////////////////////////////////////////////////////////////////////////////////
 FMemScope::FMemScope(const UE::LLMPrivate::FTagData* TagData, bool bShouldActivate /*= true*/)
 {
-	// TagData is opaque so we cant really use the input, additionally we 
-	// cannot count on LLM being active. Instead we have inserted an explicit 
-	// Trace scope directly following the LLM scope. 
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(MemAllocChannel) & bShouldActivate && TagData)
+	{
+		ActivateScope(MemoryTrace_AnnounceFNameTag(TagData->GetName()));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

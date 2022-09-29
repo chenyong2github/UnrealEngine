@@ -15,6 +15,7 @@
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataPrivate.h"
 #include "DerivedDataSharedString.h"
 #include "Misc/Guid.h"
 
@@ -128,6 +129,7 @@ private:
 
 IBuild* CreateBuild(ICache& Cache)
 {
+	LLM_SCOPE_BYTAG(DerivedDataBuild);
 	return new FBuild(Cache);
 }
 

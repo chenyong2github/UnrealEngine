@@ -21,6 +21,7 @@
 #include "Dom/JsonObject.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformProcess.h"
 #include "Http/HttpClient.h"
 #include "IO/IoHash.h"
@@ -568,6 +569,7 @@ public:
 		, BaseReceiver(InOperation, this)
 		, OperationComplete(MoveTemp(InOperationComplete))
 	{
+		LLM_IF_ENABLED(MemTag = FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 	}
 
 private:
@@ -581,6 +583,7 @@ private:
 
 	IHttpReceiver* OnCreate(IHttpResponse& LocalResponse) final
 	{
+		LLM_SCOPE(MemTag);
 		Monitor = LocalResponse.GetMonitor();
 		Owner->Begin(this);
 		return &BaseReceiver;
@@ -588,6 +591,7 @@ private:
 
 	IHttpReceiver* OnComplete(IHttpResponse& LocalResponse) final
 	{
+		LLM_SCOPE(MemTag);
 		Owner->End(this, [Self = this]
 		{
 			FHttpOperation* Operation = Self->BaseReceiver.GetOperation();
@@ -614,6 +618,7 @@ private:
 	FHttpOperationReceiver BaseReceiver;
 	TUniqueFunction<void ()> OperationComplete;
 	TRefCountPtr<IHttpResponseMonitor> Monitor;
+	LLM(const UE::LLMPrivate::FTagData* MemTag = nullptr);
 };
 
 void FHttpCacheStore::FHttpOperation::Send()

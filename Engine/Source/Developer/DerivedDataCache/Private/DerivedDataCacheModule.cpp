@@ -7,6 +7,7 @@
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCachePrivate.h"
+#include "DerivedDataPrivate.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
@@ -99,6 +100,10 @@ static FDerivedDataCacheModule* GetModule()
 
 namespace UE::DerivedData
 {
+
+LLM_DEFINE_TAG(DerivedData);
+LLM_DEFINE_TAG(DerivedDataBuild, "Build", "DerivedData");
+LLM_DEFINE_TAG(DerivedDataCache, "Cache", "DerivedData");
 
 ICache& GetCache()
 {
