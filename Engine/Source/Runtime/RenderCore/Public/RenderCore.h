@@ -267,21 +267,6 @@ struct FInputLatencyTimer
 	float	UpdateFrequency;
 };
 
-namespace ERenderThreadIdleTypes
-{
-	enum Type
-	{
-		WaitingForAllOtherSleep, 
-		WaitingForGPUQuery, 
-		WaitingForGPUPresent, 
-		Num
-	};
-}
-
-/** Accumulates how many cycles the renderthread has been idle. It's defined in RenderingThread.cpp. */
-extern RENDERCORE_API uint32 GRenderThreadIdle[ERenderThreadIdleTypes::Num];
-/** Accumulates how times renderthread was idle. It's defined in RenderingThread.cpp. */
-extern RENDERCORE_API uint32 GRenderThreadNumIdle[ERenderThreadIdleTypes::Num];
 /** Global input latency timer. Defined in UnrealClient.cpp */
 extern RENDERCORE_API FInputLatencyTimer GInputLatencyTimer;
 /** How many cycles the renderthread used (excluding idle time). It's set once per frame in FViewport::Draw. */

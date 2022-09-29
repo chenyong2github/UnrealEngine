@@ -33,9 +33,6 @@ public:
 	/** Destructor */
 	~FMetalDynamicRHI();
 	
-	/** Setup for necessary internal resources */
-	void SetupRecursiveResources();
-
 	// FDynamicRHI interface.
 	virtual void Init();
 	virtual void Shutdown() {}
@@ -120,9 +117,11 @@ public:
 	virtual void* METALRHI_API RHIGetNativeComputeQueue() final override;
 	virtual void* METALRHI_API RHIGetNativeInstance() final override;
 	virtual class IRHICommandContext* METALRHI_API RHIGetDefaultContext() final override;
-	virtual IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
-	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
-	
+
+	virtual IRHIComputeContext* RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask) final override;
+	virtual IRHIPlatformCommandList* RHIFinalizeContext(IRHIComputeContext* Context) final override;
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists) final override;
+
 	virtual FTexture2DRHIRef AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus) final override;
 	virtual ETextureReallocationStatus FinalizeAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted) final override;
 	virtual ETextureReallocationStatus CancelAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted) final override;
@@ -173,6 +172,5 @@ public:
 private:
 	FTextureMemoryStats MemoryStats;
 	FMetalRHIImmediateCommandContext ImmediateContext;
-	FMetalRHICommandContext* AsyncComputeContext;
 	TMap<uint32, FVertexDeclarationRHIRef> VertexDeclarationCache;
 };

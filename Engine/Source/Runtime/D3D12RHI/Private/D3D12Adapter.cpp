@@ -31,25 +31,6 @@ static TAutoConsoleVariable<int32> CVarResidencyManagement(
 );
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-int32 GEnableGapRecorder = 0;
-bool GGapRecorderActiveOnBeginFrame = false;
-static FAutoConsoleVariableRef CVarEnableGapRecorder(
-	TEXT("D3D12.EnableGapRecorder"),
-	GEnableGapRecorder,
-	TEXT("Controls whether D3D12 gap recorder (cpu bubbles) is active (default = on)."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GGapRecorderUseBlockingCall = 0;
-static FAutoConsoleVariableRef CVarGapRecorderUseBlockingCall(
-	TEXT("D3D12.GapRecorderUseBlockingCall"),
-	GGapRecorderUseBlockingCall,
-	TEXT("Controls whether D3D12 gap recorder (cpu bubbles) uses a blocking call or not."),
-	ECVF_RenderThreadSafe
-);
-#endif
-
 #if TRACK_RESOURCE_ALLOCATIONS
 int32 GTrackedReleasedAllocationFrameRetention = 100;
 static FAutoConsoleVariableRef CTrackedReleasedAllocationFrameRetention(
@@ -258,22 +239,10 @@ HRESULT FD3D12AdapterDesc::EnumAdapters(IDXGIFactory2* DxgiFactory2, IDXGIFactor
 #endif
 
 FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
-	: OwningRHI(nullptr)
-	, bDepthBoundsTestSupported(false)
-	, bHeapNotZeroedSupported(false)
-	, VRSTileSize(0)
-	, bDebugDevice(false)
-	, GPUCrashDebuggingModes(ED3D12GPUCrashDebuggingModes::None)	
-	, bDeviceRemoved(false)
-	, Desc(DescIn)
+	: Desc(DescIn)
 	, RootSignatureManager(this)
 	, PipelineStateCache(this)
-	, FenceCorePool(this)
-	, DeferredDeletionQueue(this)
-	, DefaultContextRedirector(this, ED3D12CommandQueueType::Direct, true)
-	, DefaultAsyncComputeContextRedirector(this, ED3D12CommandQueueType::Async, true)
-	, FrameCounter(0)
-	, DebugFlags(0)
+	, DefaultContextRedirector(this, ED3D12QueueType::Direct, true)
 #if USE_STATIC_ROOT_SIGNATURE
 	, StaticGraphicsRootSignature(this)
 	, StaticComputeRootSignature(this)
@@ -309,22 +278,6 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	{
 		Desc.NumDeviceNodes = FMath::Min3<uint32>(Desc.NumDeviceNodes, MaxGPUCount, (uint32)MAX_NUM_GPUS);
 	}
-}
-
-FD3D12Adapter::~FD3D12Adapter()
-{
-#if D3D12_SUPPORTS_DXGI_DEBUG
-	FPlatformProcess::FreeDllHandle(DxgiDebugDllHandle);
-#endif
-
-#if PLATFORM_WINDOWS
-	FPlatformProcess::FreeDllHandle(DxgiDllHandle);
-#endif
-}
-
-void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
-{
-	OwningRHI = RHI;
 }
 
 /** Callback function called when the GPU crashes, when Aftermath is enabled */
@@ -467,7 +420,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 	bool bDeviceCreated = false;
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
-	if (IsRHIDeviceAMD() && OwningRHI->GetAmdAgsContext())
+	if (IsRHIDeviceAMD() && FD3D12DynamicRHI::GetD3DRHI()->GetAmdAgsContext())
 	{
 		auto* CVarShaderDevelopmentMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderDevelopmentMode"));
 		auto* CVarDisableEngineAndAppRegistration = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableEngineAndAppRegistration"));
@@ -506,7 +459,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		AGSDX12ReturnedParams DeviceCreationReturnedParams;
 		FMemory::Memzero(&DeviceCreationReturnedParams, sizeof(DeviceCreationReturnedParams));
 		AGSReturnCode DeviceCreation = agsDriverExtensionsDX12_CreateDevice(
-			OwningRHI->GetAmdAgsContext(),
+			FD3D12DynamicRHI::GetD3DRHI()->GetAmdAgsContext(),
 			&AmdDeviceCreationParams,
 			&AmdExtensionParams,
 			&DeviceCreationReturnedParams
@@ -519,7 +472,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				static_assert(sizeof(AGSDX12ReturnedParams::ExtensionsSupported) == sizeof(uint32));
 				uint32 AMDSupportedExtensionFlags;
 				FMemory::Memcpy(&AMDSupportedExtensionFlags, &DeviceCreationReturnedParams.extensionsSupported, sizeof(uint32));
-				OwningRHI->SetAmdSupportedExtensionFlags(AMDSupportedExtensionFlags);
+				FD3D12DynamicRHI::GetD3DRHI()->SetAmdSupportedExtensionFlags(AMDSupportedExtensionFlags);
 			}
 			bDeviceCreated = true;
 		}
@@ -818,32 +771,6 @@ void FD3D12Adapter::InitializeDevices()
 
 	// Wait for the rendering thread to go idle.
 	FlushRenderingCommands();
-
-	// If the device we were using has been removed, release it and the resources we created for it.
-	if (bDeviceRemoved)
-	{
-		check(RootDevice);
-
-		HRESULT hRes = RootDevice->GetDeviceRemovedReason();
-
-		const TCHAR* Reason = TEXT("?");
-		switch (hRes)
-		{
-		case DXGI_ERROR_DEVICE_HUNG:			Reason = TEXT("HUNG"); break;
-		case DXGI_ERROR_DEVICE_REMOVED:			Reason = TEXT("REMOVED"); break;
-		case DXGI_ERROR_DEVICE_RESET:			Reason = TEXT("RESET"); break;
-		case DXGI_ERROR_DRIVER_INTERNAL_ERROR:	Reason = TEXT("INTERNAL_ERROR"); break;
-		case DXGI_ERROR_INVALID_CALL:			Reason = TEXT("INVALID_CALL"); break;
-		}
-
-		bDeviceRemoved = false;
-
-		Cleanup();
-
-		// We currently don't support removed devices because FTexture2DResource can't recreate its RHI resources from scratch.
-		// We would also need to recreate the viewport swap chains from scratch.
-		UE_LOG(LogD3D12RHI, Fatal, TEXT("The Direct3D 12 device that was being used has been removed (Error: %d '%s').  Please restart the game."), hRes, Reason);
-	}
 
 	// Use a debug device if specified on the command line.
 	bool bWithD3DDebug = D3D12RHI_ShouldCreateWithD3DDebug();
@@ -1151,11 +1078,18 @@ void FD3D12Adapter::InitializeDevices()
 		}
 		RootSignatureVersion = D3D12RootSignatureCaps.HighestVersion;
 
-		FrameFence = new FD3D12ManualFence(this, FRHIGPUMask::All(), L"Adapter Frame Fence");
-		FrameFence->CreateFence();
+		{
+			D3D12_FEATURE_DATA_D3D12_OPTIONS3 D3D12Caps3 = {};
+			if (FAILED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS3, &D3D12Caps3, sizeof(D3D12Caps3))))
+			{
+				D3D12Caps3.CopyQueueTimestampQueriesSupported = false;
+			}
 
-		StagingFence = new FD3D12Fence(this, FRHIGPUMask::All(), L"Staging Fence");
-		StagingFence->CreateFence();
+			// @todo - fix copy-queue timestamps. 
+			// ResolveQueryData() can only be called on graphics/compute command lists, since it internally dispatches a compute shader to do the resolve work, but the submission thread is calling this on a copy command list.
+			// This leads to D3DDebug errors claiming SetComputeRootSignature was called on a copy command list.
+			bCopyQueueTimestampQueriesSupported = false;//!!D3D12Caps3.CopyQueueTimestampQueriesSupported;
+		}
 
 #if TRACK_RESOURCE_ALLOCATIONS
 		// Set flag if we want to track all allocations - comes with some overhead and only possible when Tier 2 is available
@@ -1173,23 +1107,20 @@ void FD3D12Adapter::InitializeDevices()
 		// used by the parallel command lists might only support a subset of GPUs in the
 		// system.
 		DefaultContextRedirector.SetPhysicalGPUMask(FRHIGPUMask::All());
-		DefaultAsyncComputeContextRedirector.SetPhysicalGPUMask(FRHIGPUMask::All());
 
 		// Create all of the FD3D12Devices.
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
 			Devices[GPUIndex] = new FD3D12Device(FRHIGPUMask::FromIndex(GPUIndex), this);
-			Devices[GPUIndex]->Initialize();
+			Devices[GPUIndex]->SetupAfterDeviceCreation();
 
 			// The redirectors allow to broadcast to any GPU set
 			DefaultContextRedirector.SetPhysicalContext(&Devices[GPUIndex]->GetDefaultCommandContext());
-			if (GEnableAsyncCompute)
-			{
-				DefaultAsyncComputeContextRedirector.SetPhysicalContext(&Devices[GPUIndex]->GetDefaultAsyncComputeContext());
-			}
 		}
-		const FString Name(L"Upload Buffer Allocator");
 
+		FrameFence = MakeUnique<FD3D12ManualFence>(this);
+
+		const FString Name(L"Upload Buffer Allocator");
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
 			// Safe to init as we have a device;
@@ -1361,19 +1292,13 @@ void FD3D12Adapter::SetupGPUCrashDebuggingModesCommon()
 
 }
 
-
-void FD3D12Adapter::Cleanup()
+void FD3D12Adapter::CleanupResources()
 {
-	// Reset the RHI initialized flag.
-	GIsRHIInitialized = false;
-
 	for (auto& Viewport : Viewports)
 	{
 		Viewport->IssueFrameEvent();
 		Viewport->WaitForFrameEventCompletion();
 	}
-
-	BlockUntilIdle();
 
 #if D3D12_RHI_RAYTRACING
 	for (uint32 GPUIndex : FRHIGPUMask::All())
@@ -1381,39 +1306,16 @@ void FD3D12Adapter::Cleanup()
 		Devices[GPUIndex]->CleanupRayTracing();
 	}
 #endif // D3D12_RHI_RAYTRACING
+}
 
-#if WITH_MGPU
-	// Manually destroy the effects as we can't do it in their destructor.
-	for (auto& Effect : TemporalEffectMap)
-	{
-		Effect.Value.Destroy();
-	}
-#endif
-
-	// Ask all initialized FRenderResources to release their RHI resources.
-	FRenderResource::ReleaseRHIForAllResources();
-
-	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FRHIResource::FlushPendingDeletes(RHICmdList);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	}
-
+FD3D12Adapter::~FD3D12Adapter()
+{
 	// Release allocation data of all thread local transient uniform buffer allocators
 	for (FTransientUniformBufferAllocator* Allocator : TransientUniformBufferAllocators)
 	{
 		Allocator->Cleanup();
 	}
 	TransientUniformBufferAllocators.Empty();
-
-	// Cleanup resources
-	DeferredDeletionQueue.ReleaseResources(true, true);
-
-	// First clean up everything before deleting as there are shared resource location between devices.
-	for (uint32 GPUIndex : FRHIGPUMask::All())
-	{
-		Devices[GPUIndex]->Cleanup();
-	}	
 
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
@@ -1431,17 +1333,7 @@ void FD3D12Adapter::Cleanup()
 		UploadHeapAllocator[GPUIndex] = nullptr;
 	}
 
-	if (FrameFence)
-	{
-		FrameFence->Destroy();
-		FrameFence.SafeRelease();
-	}
-
-	if (StagingFence)
-	{
-		StagingFence->Destroy();
-		StagingFence.SafeRelease();
-	}
+	FrameFence = {};
 
 	TransientMemoryCache.Reset();
 
@@ -1453,8 +1345,6 @@ void FD3D12Adapter::Cleanup()
 	DispatchIndirectGraphicsCommandSignature.SafeRelease();
 	DispatchIndirectComputeCommandSignature.SafeRelease();
 	DispatchRaysIndirectCommandSignature.SafeRelease();
-
-	FenceCorePool.Destroy();
 
 #if D3D12_SUPPORTS_DXGI_DEBUG
 	// trace all leak D3D resource
@@ -1469,14 +1359,32 @@ void FD3D12Adapter::Cleanup()
 		CheckD3DStoredMessages();
 #endif
 	}
-#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#endif
 
 #if PLATFORM_WINDOWS
 	if (ExceptionHandlerHandle != INVALID_HANDLE_VALUE)
 	{
 		RemoveVectoredExceptionHandler(ExceptionHandlerHandle);
 	}
-#endif //  PLATFORM_WINDOWS
+
+	if (D3D12RHI_ShouldCreateWithD3DDebug())
+	{
+		TRefCountPtr<ID3D12DebugDevice> Debug;
+		if (SUCCEEDED(GetD3DDevice()->QueryInterface(IID_PPV_ARGS(Debug.GetInitReference()))))
+		{
+			D3D12_RLDO_FLAGS rldoFlags = D3D12_RLDO_DETAIL;
+			Debug->ReportLiveDeviceObjects(rldoFlags);
+		}
+	}
+#endif
+
+#if D3D12_SUPPORTS_DXGI_DEBUG
+	FPlatformProcess::FreeDllHandle(DxgiDebugDllHandle);
+#endif
+
+#if PLATFORM_WINDOWS
+	FPlatformProcess::FreeDllHandle(DxgiDllHandle);
+#endif
 }
 
 void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
@@ -1528,72 +1436,6 @@ HRESULT FD3D12Adapter::EnumAdapters(IDXGIAdapter** TempAdapter) const
 #endif
 }
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-void FD3D12Adapter::SubmitGapRecorderTimestamps()
-{
-	FD3D12Device* Device = GetDevice(0);
-	if (GEnableGapRecorder && GGapRecorderActiveOnBeginFrame)
-	{
-		FrameCounter++;
-		uint64 TotalSubmitWaitGPUCycles = 0;
-
-		int32 CurrentSlotIdx = Device->GetCmdListExecTimeQueryHeap()->GetNextFreeIdx();
-		SubmissionGapRecorder.SetEndFrameSlotIdx(CurrentSlotIdx);
-
-		TArray<FD3D12CommandListManager::FResolvedCmdListExecTime> TimingPairs;
-		Device->GetCommandListManager().GetCommandListTimingResults(TimingPairs, !!GGapRecorderUseBlockingCall);
-
-		const int32 NumTimingPairs = TimingPairs.Num();
-		StartOfSubmissionTimestamps.Empty(NumTimingPairs);
-		EndOfSubmissionTimestamps.Empty(NumTimingPairs);
-
-		// Convert Timing Pairs to flat arrays would be good to refactor data structures to make this unnecessary
-		for (int32 i = 0; i < NumTimingPairs; i++)
-		{
-			StartOfSubmissionTimestamps.Add(TimingPairs[i].StartTimestamp);
-			EndOfSubmissionTimestamps.Add(TimingPairs[i].EndTimestamp);
-		}
-
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame TimingPairs %d StartOfSubmissionTimestamp %d EndOfSubmissionTimestamp %d"), NumTimingPairs, StartOfSubmissionTimestamps.Num(), EndOfSubmissionTimestamps.Num());
-
-		// Process the timestamp submission gaps for the previous frame
-		if (NumTimingPairs > 0)
-		{
-			TotalSubmitWaitGPUCycles = SubmissionGapRecorder.SubmitSubmissionTimestampsForFrame(FrameCounter, StartOfSubmissionTimestamps, EndOfSubmissionTimestamps);
-		}
-
-		double TotalSubmitWaitTimeSeconds = TotalSubmitWaitGPUCycles / (float)FGPUTiming::GetTimingFrequency();
-		uint32 TotalSubmitWaitCycles = FPlatformMath::TruncToInt(TotalSubmitWaitTimeSeconds / FPlatformTime::GetSecondsPerCycle());
-
-		UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("EndFrame TimingFrequency %lu TotalSubmitWaitTimeSeconds %f TotalSubmitWaitGPUCycles %lu TotalSubmitWaitCycles %u SecondsPerCycle %f"),
-			FGPUTiming::GetTimingFrequency(),
-			TotalSubmitWaitTimeSeconds,
-			TotalSubmitWaitGPUCycles,
-			TotalSubmitWaitCycles,
-			FPlatformTime::GetSecondsPerCycle());
-
-		if (GGPUFrameTime > 0)
-		{
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("EndFrame Adjusting GGPUFrameTime by TotalSubmitWaitCycles %u"), TotalSubmitWaitCycles);
-			GGPUFrameTime -= TotalSubmitWaitCycles;
-		}
-
-		StartOfSubmissionTimestamps.Reset();
-		EndOfSubmissionTimestamps.Reset();
-
-		GGapRecorderActiveOnBeginFrame = false;
-	}
-	else
-	{
-		if (GGapRecorderActiveOnBeginFrame)
-		{
-			GGapRecorderActiveOnBeginFrame = false;
-			Device->GetCommandListManager().SetShouldTrackCmdListTime(false);
-		}
-	}
-}
-#endif
-
 void FD3D12Adapter::EndFrame()
 {
 	for (uint32 GPUIndex : FRHIGPUMask::All())
@@ -1601,23 +1443,18 @@ void FD3D12Adapter::EndFrame()
 		uint64 FrameLag = 20;
 		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations(FrameLag);
 	}
-	GetDeferredDeletionQueue().ReleaseResources(false, false);
 
 	if (TransientMemoryCache)
 	{
 		TransientMemoryCache->GarbageCollect();
 	}
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-	SubmitGapRecorderTimestamps();
-#endif
-
 #if TRACK_RESOURCE_ALLOCATIONS
 	FScopeLock Lock(&TrackedAllocationDataCS); 
 
 	// remove tracked released resources older than n amount of frames
 	int32 ReleaseCount = 0;
-	uint64 CurrentFrameID = GetFrameFence().GetCurrentFence();
+	uint64 CurrentFrameID = GetFrameFence().GetNextFenceToSignal();
 	for (; ReleaseCount < ReleasedAllocationData.Num(); ++ReleaseCount)
 	{
 		if (ReleasedAllocationData[ReleaseCount].ReleasedFrameID + GTrackedReleasedAllocationFrameRetention > CurrentFrameID)
@@ -1633,18 +1470,18 @@ void FD3D12Adapter::EndFrame()
 }
 
 #if WITH_MGPU
-FD3D12TemporalEffect* FD3D12Adapter::GetTemporalEffect(const FName& EffectName)
+FD3D12Adapter::FTemporalEffect& FD3D12Adapter::GetTemporalEffect(const FName& EffectName)
 {
-	FD3D12TemporalEffect* Effect = TemporalEffectMap.Find(EffectName);
+	FTemporalEffect* Effect = TemporalEffectMap.Find(EffectName);
 
 	if (Effect == nullptr)
 	{
-		Effect = &TemporalEffectMap.Emplace(EffectName, FD3D12TemporalEffect(this, EffectName));
-		Effect->Init();
+		Effect = &TemporalEffectMap.Emplace(EffectName, FTemporalEffect());
+		Effect->AddDefaulted(FRHIGPUMask::All().GetNumActive());
 	}
 
 	check(Effect);
-	return Effect;
+	return *Effect;
 }
 #endif // WITH_MGPU
 
@@ -1674,7 +1511,7 @@ void FD3D12Adapter::ReleaseTransientUniformBufferAllocator(FTransientUniformBuff
 void FD3D12Adapter::UpdateMemoryInfo()
 {
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	const uint64 UpdateFrame = FrameFence != nullptr ? FrameFence->GetCurrentFence() : 0;
+	const uint64 UpdateFrame = FrameFence != nullptr ? FrameFence->GetNextFenceToSignal() : 0;
 
 	// Avoid spurious query calls if we have already captured this frame.
 	if (MemoryInfo.UpdateFrameNumber == UpdateFrame)
@@ -1769,7 +1606,7 @@ void FD3D12Adapter::ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAlloc
 		ReleasedData.AllocationSize = InAllocation->GetSize();
 		ReleasedData.ResourceName = InAllocation->GetResource()->GetName();
 		ReleasedData.ResourceDesc = InAllocation->GetResource()->GetDesc();
-		ReleasedData.ReleasedFrameID = GetFrameFence().GetCurrentFence();
+		ReleasedData.ReleasedFrameID = GetFrameFence().GetNextFenceToSignal();
 		ReleasedData.bDefragFree = bDefragFree;
 		ReleasedData.bBackBuffer = InAllocation->GetResource()->IsBackBuffer();
 		ReleasedData.bTransient = InAllocation->IsTransient();
@@ -1804,7 +1641,7 @@ void FD3D12Adapter::ReleaseTrackedHeap(FD3D12Heap* InHeap)
 		ReleasedData.GPUVirtualAddress	= GPUVirtualAddress;
 		ReleasedData.AllocationSize		= InHeap->GetHeapDesc().SizeInBytes;
 		ReleasedData.ResourceName		= InHeap->GetName();
-		ReleasedData.ReleasedFrameID	= GetFrameFence().GetCurrentFence();
+		ReleasedData.ReleasedFrameID	= GetFrameFence().GetNextFenceToSignal();
 		ReleasedData.bHeap				= true;
 		ReleasedAllocationData.Add(ReleasedData);
 	}
@@ -1942,7 +1779,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 			BufferAllocations.Add(AllocationData);
 			TotalAllocatedBufferSize += AllocationData.AllocationSize;			
 #if ENABLE_RESIDENCY_MANAGEMENT
-			TotalResidentBufferSize += (AllocationData.ResourceAllocation->GetResidencyHandle()->ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT) ? AllocationData.AllocationSize : 0;
+			TotalResidentBufferSize += (AllocationData.ResourceAllocation->GetResidencyHandle().ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT) ? AllocationData.AllocationSize : 0;
 #else
 			TotalResidentBufferSize += AllocationData.AllocationSize;
 #endif 
@@ -1952,7 +1789,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 			TextureAllocations.Add(AllocationData);
 			TotalAllocatedTextureSize += AllocationData.AllocationSize;
 #if ENABLE_RESIDENCY_MANAGEMENT
-			TotalResidentTextureSize += (AllocationData.ResourceAllocation->GetResidencyHandle()->ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT) ? AllocationData.AllocationSize : 0;
+			TotalResidentTextureSize += (AllocationData.ResourceAllocation->GetResidencyHandle().ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT) ? AllocationData.AllocationSize : 0;
 #else
 			TotalResidentTextureSize += AllocationData.AllocationSize;
 #endif 
@@ -1970,7 +1807,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 
 		bool bResident = true;
 #if ENABLE_RESIDENCY_MANAGEMENT
-		bResident = AllocationData.ResourceAllocation->GetResidencyHandle()->ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT;
+		bResident = AllocationData.ResourceAllocation->GetResidencyHandle().ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT;
 #endif 
 		if (!bResident && bResidentOnly)
 		{
@@ -2017,7 +1854,7 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 
 		bool bResident = true;
 #if ENABLE_RESIDENCY_MANAGEMENT
-		bResident = AllocationData.ResourceAllocation->GetResidencyHandle()->ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT;
+		bResident = AllocationData.ResourceAllocation->GetResidencyHandle().ResidencyStatus == D3DX12Residency::ManagedObject::RESIDENCY_STATUS::RESIDENT;
 #endif 
 		if (!bResident && bResidentOnly)
 		{

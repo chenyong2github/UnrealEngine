@@ -20,7 +20,7 @@ public:
 
 	// Starts an update batch and returns the current shared buffer generation ID which is used for validation.
 	int64 BeginUpdate();
-	void DispatchUpdates(FRHIComputeCommandList& ParentCmdList, FRHIBuffer* ScratchBuffer);
+	void DispatchUpdates(FRHICommandListImmediate& ParentCmdList, FRHIBuffer* ScratchBuffer);
 	void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
 	uint32 ComputeScratchBufferSize();

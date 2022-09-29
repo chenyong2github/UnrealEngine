@@ -724,7 +724,7 @@ protected:
 		// Transient resources might not have an actual resource yet
 		if (Resource)
 		{
-			ResidencyHandle = Resource->GetResidencyHandle();
+			ResidencyHandle = &Resource->GetResidencyHandle();
 			ViewSubresourceSubset = CViewSubresourceSubset(Desc,
 				Resource->GetMipLevels(),
 				Resource->GetArraySize(),
@@ -779,7 +779,7 @@ public:
 	inline D3D12_CPU_DESCRIPTOR_HANDLE		GetOfflineCpuHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetOfflineCpuHandle(); }
 	inline uint32							GetDescriptorHeapIndex()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetIndex(); }
 	inline FD3D12Resource*					GetResource()				const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Resource; }
-	inline FD3D12ResidencyHandle*			GetResidencyHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResidencyHandle; }
+	inline FD3D12ResidencyHandle&			GetResidencyHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); check(ResidencyHandle); return *ResidencyHandle; }
 	inline const CViewSubresourceSubset&	GetViewSubresourceSubset()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ViewSubresourceSubset; }
 
 	void SetParentDevice(FD3D12Device* InParent)

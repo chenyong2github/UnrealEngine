@@ -412,12 +412,12 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::RenderVIOSO_RenderThread(F
 				RenderInput.rtvHandlePtr = RTVHandle.ptr;
 
 				//experimental: add resource barrier
-				D3D12RHI->RHIAddPendingBarrier(RenderTargetTexture, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+				D3D12RHI->RHITransitionResource(RHICmdList, RenderTargetTexture, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 				if (Warper.Render(&RenderInput, VWB_STATEMASK_DEFAULT_D3D12))
 				{
 					//experimental: add resource barrier
-					D3D12RHI->RHIAddPendingBarrier(RenderTargetTexture, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+					D3D12RHI->RHITransitionResource(RHICmdList, RenderTargetTexture, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 					return true;
 				}
 				break;

@@ -2,6 +2,7 @@
 
 #include "RHIBreadcrumbs.h"
 #include "RHI.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 #if RHI_WANT_BREADCRUMB_EVENTS
 
@@ -88,5 +89,69 @@ void FRHIBreadcrumbStack::DebugLog() const
 		UE_LOG(LogRHI, Log, TEXT("[%p]\t%s\n"), this, Breadcrumb->Name);
 	}
 }
+
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+void FRHIBreadcrumbStack::WriteRenderBreadcrumbs(FCrashContextExtendedWriter& Writer, const FRHIBreadcrumb** BreadcrumbStack, uint32 BreadcrumbStackIndex, const TCHAR* ThreadName)
+{
+	enum
+	{
+		MAX_BREADCRUMBS = 64,
+		MAX_BREADCRUMB_STRING = 4096,
+		MAX_BREADCRUMB_NAME_STRING = 128,
+	};
+	static int BreadcrumbId = 0;
+
+	TCHAR StaticBreadcrumbStackString[MAX_BREADCRUMB_STRING];
+	size_t BreadcrumbStackStringSize = 0;
+
+	auto WriteBreadcrumbLine = [&](const TCHAR* InFormat, ...)
+	{
+		if (BreadcrumbStackStringSize < MAX_BREADCRUMB_STRING)
+		{
+			int32 WrittenLength = 0;
+			GET_VARARGS_RESULT(
+				&StaticBreadcrumbStackString[BreadcrumbStackStringSize],
+				MAX_BREADCRUMB_STRING - BreadcrumbStackStringSize,
+				MAX_BREADCRUMB_STRING - BreadcrumbStackStringSize - 1,
+				InFormat, InFormat, WrittenLength);
+
+			BreadcrumbStackStringSize += WrittenLength;
+		}
+	};
+
+	WriteBreadcrumbLine(TEXT("Breadcrumbs '%s'\n"), ThreadName);
+
+	const uint32 NumBreadcrumbStacks = BreadcrumbStackIndex + 1;
+
+	for (uint32 BreadcrumbIndex = 0; BreadcrumbIndex < NumBreadcrumbStacks; BreadcrumbIndex++)
+	{
+		if (const FRHIBreadcrumb* CurrentBreadcrumb = BreadcrumbStack[BreadcrumbStackIndex - BreadcrumbIndex])
+		{
+			const TCHAR* BreadcrumbNames[MAX_BREADCRUMBS];
+
+			const FRHIBreadcrumb* Breadcrumb = CurrentBreadcrumb;
+			int32 NameIndex = 0;
+			while (Breadcrumb && NameIndex < MAX_BREADCRUMBS)
+			{
+				BreadcrumbNames[NameIndex++] = Breadcrumb->Name;
+				Breadcrumb = Breadcrumb->Parent;
+			}
+
+			WriteBreadcrumbLine(TEXT("Context %d/%d\n"), BreadcrumbIndex + 1, NumBreadcrumbStacks);
+
+			uint32 StackPos = 0;
+			for (int32 i = NameIndex - 1; i >= 0; --i)
+			{
+				WriteBreadcrumbLine(TEXT("\t%02d %s\n"), StackPos++, BreadcrumbNames[i]);
+			}
+		}
+	}
+
+	TCHAR StaticBreadcrumbName[MAX_BREADCRUMB_NAME_STRING];
+	FCString::Snprintf(StaticBreadcrumbName, MAX_BREADCRUMB_NAME_STRING, TEXT("Breadcrumbs_%s_%d"), ThreadName, BreadcrumbId++);
+	Writer.AddString(StaticBreadcrumbName, StaticBreadcrumbStackString);
+	UE_LOG(LogRHI, Error, StaticBreadcrumbStackString);
+}
+#endif
 
 #endif

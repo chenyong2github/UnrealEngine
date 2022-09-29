@@ -10,12 +10,14 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/WindowsPlatformCrashContext.h"
 #include <delayimp.h>
+
 #if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
-#include "amd_ags.h"
-#define AMD_API_ENABLE 1
+	#include "amd_ags.h"
+	#define AMD_API_ENABLE 1
 #else
-#define AMD_API_ENABLE 0
+	#define AMD_API_ENABLE 0
 #endif
+
 #if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
 	#define NV_API_ENABLE 1
 	#include "nvapi.h"
@@ -28,9 +30,10 @@
 	#define INTC_IGDEXT_D3D12 1
 
 	THIRD_PARTY_INCLUDES_START
-	#include "igdext.h"
+		#include "igdext.h"
 	THIRD_PARTY_INCLUDES_END
 #endif
+
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HardwareInfo.h"
@@ -52,44 +55,30 @@ extern bool D3D12RHI_ShouldForceCompatibility();
 
 FD3D12DynamicRHI* GD3D12RHI = nullptr;
 
-bool GUseInternalTransitions = true;
-static FAutoConsoleVariableRef CVarUseInternalTransitions(
-	TEXT("r.D3D12.UseInternalTransitions"),
-	GUseInternalTransitions,
-	TEXT("Use the D3D12 RHI internal transitions to drive all resource transitions"),
-	ECVF_ReadOnly
-);
-
-#if UE_BUILD_SHIPPING || UE_BUILD_TEST
-bool GValidateInternalTransitions = false;
-#else
-bool GValidateInternalTransitions = true;
-#endif
-static FAutoConsoleVariableRef CVarValidateInternalTransitions(
-	TEXT("r.D3D12.ValidateInternalTransitions"),
-	GValidateInternalTransitions,
-	TEXT("Use the D3D12 RHI internal transitions to validate the engine pushed RHI transitions")
-);
-
 #if NV_AFTERMATH
-bool GDX12NVAfterMathModuleLoaded = false;
-// Disabled by default since introduces stalls between render and driver threads
-int32 GDX12NVAfterMathEnabled = 0;
-static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
-	TEXT("r.DX12NVAfterMathEnabled"),
-	GDX12NVAfterMathEnabled,
-	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
-	ECVF_ReadOnly
-);
-int32 GDX12NVAfterMathTrackResources = 0;
-static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
-	TEXT("r.DX12NVAfterMathTrackResources"),
-	GDX12NVAfterMathTrackResources,
-	TEXT("Enable NV Aftermath resource tracing in D3D12"),
-	ECVF_ReadOnly
-);
-int32 GDX12NVAfterMathMarkers = 0;
-#endif
+
+	bool GDX12NVAfterMathModuleLoaded = false;
+
+	// Disabled by default since introduces stalls between render and driver threads
+	int32 GDX12NVAfterMathEnabled = 0;
+	static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
+		TEXT("r.DX12NVAfterMathEnabled"),
+		GDX12NVAfterMathEnabled,
+		TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
+		ECVF_ReadOnly
+	);
+
+	int32 GDX12NVAfterMathTrackResources = 0;
+	static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
+		TEXT("r.DX12NVAfterMathTrackResources"),
+		GDX12NVAfterMathTrackResources,
+		TEXT("Enable NV Aftermath resource tracing in D3D12"),
+		ECVF_ReadOnly
+	);
+
+	int32 GDX12NVAfterMathMarkers = 0;
+
+#endif // NV_AFTERMATH
 
 int32 GMinimumWindowsBuildVersionForRayTracing = 0;
 static FAutoConsoleVariableRef CVarMinBuildVersionForRayTracing(
@@ -837,17 +826,6 @@ void FD3D12DynamicRHIModule::FindAdapter()
 		}
 	}
 
-#if PLATFORM_DESKTOP
-	// Problem is fixed in Windows 1903+
-	if (!FWindowsPlatformMisc::VerifyWindowsVersion(10, 0, 18362))
-	{
-		UE_LOG(LogD3D12RHI, Log, TEXT("Forcing D3D12.AsyncDeferredDeletion=0 as a workaround for a deadlock on older versions of Windows."));
-
-		extern int32 GD3D12AsyncDeferredDeletion;
-		GD3D12AsyncDeferredDeletion = 0;
-	}
-#endif // PLATFORM_DESKTOP
-
 	TSharedPtr<FD3D12Adapter> NewAdapter;
 	if (bFavorDiscreteAdapter)
 	{
@@ -1155,17 +1133,6 @@ void FD3D12DynamicRHI::Init()
 			WinPixGpuCapturerHandle = PIXLoadLatestWinPixGpuCapturerLibrary();
 		}
 	}
-#endif
-
-	for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
-	{
-		Adapter->Initialize(this);
-	}
-
-#if UE_BUILD_DEBUG	
-	SubmissionLockStalls = 0;
-	DrawCount = 0;
-	PresentCount = 0;
 #endif
 
 	check(!GIsRHIInitialized);
@@ -1524,9 +1491,9 @@ void FD3D12DynamicRHI::Init()
 
 	GRHISupportsUAVFormatAliasing = (GetAdapter().GetResourceHeapTier() > D3D12_RESOURCE_HEAP_TIER_1 && IsRHIDeviceNVIDIA());
 
-	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
-	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+	InitializeSubmissionPipe();
+
+	GRHICommandList.GetImmediateCommandList().InitializeImmediateContexts();
 
 	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
@@ -1574,27 +1541,6 @@ int32 FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit()
 	return INT32_MAX;
 }
 
-void FD3D12Device::Initialize()
-{
-	check(IsInGameThread());
-
-#if ENABLE_RESIDENCY_MANAGEMENT
-	IDXGIAdapter3* DxgiAdapter3 = nullptr;
-	VERIFYD3D12RESULT(GetParentAdapter()->GetAdapter()->QueryInterface(IID_PPV_ARGS(&DxgiAdapter3)));
-	const uint32 ResidencyMangerGPUIndex = GVirtualMGPU ? 0 : GetGPUIndex(); // GPU node index is used by residency manager to query budget
-	D3DX12Residency::InitializeResidencyManager(ResidencyManager, GetDevice(), ResidencyMangerGPUIndex, DxgiAdapter3, RESIDENCY_PIPELINE_DEPTH);
-#endif // ENABLE_RESIDENCY_MANAGEMENT
-
-	SetupAfterDeviceCreation();
-
-}
-
-void FD3D12Device::InitPlatformSpecific()
-{
-	CommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_DIRECT, ED3D12CommandQueueType::Direct);
-	CopyCommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_COPY, ED3D12CommandQueueType::Copy);
-	AsyncCommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_COMPUTE, ED3D12CommandQueueType::Async);
-}
 
 void FD3D12Device::CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_CPU_DESCRIPTOR_HANDLE Descriptor)
 {
@@ -1832,3 +1778,62 @@ void FWindowsD3D12Adapter::CreateCommandSignatures()
 	FD3D12Adapter::CreateCommandSignatures();
 }
 
+TUniquePtr<FD3D12DiagnosticBuffer> FD3D12Device::CreateDiagnosticBuffer(const D3D12_RESOURCE_DESC& Desc, const TCHAR* Name)
+{
+	TRefCountPtr<ID3D12Device3> D3D12Device3;
+	HRESULT hr = GetDevice()->QueryInterface(IID_PPV_ARGS(D3D12Device3.GetInitReference()));
+	if (SUCCEEDED(hr))
+	{
+		void* BreadCrumbResourceAddress = VirtualAlloc(nullptr, Desc.Width, MEM_COMMIT, PAGE_READWRITE);
+		if (BreadCrumbResourceAddress)
+		{
+			ID3D12Heap* D3D12Heap = nullptr;
+			hr = D3D12Device3->OpenExistingHeapFromAddress(BreadCrumbResourceAddress, IID_PPV_ARGS(&D3D12Heap));
+			if (SUCCEEDED(hr))
+			{
+				TRefCountPtr<FD3D12Heap> BreadCrumbHeap = new FD3D12Heap(this, GetVisibilityMask());
+				BreadCrumbHeap->SetHeap(D3D12Heap, TEXT("DiagnosticBuffer"));
+
+				TRefCountPtr<FD3D12Resource> BreadCrumbResource;
+				hr = GetParentAdapter()->CreatePlacedResource(Desc, BreadCrumbHeap.GetReference(), 0, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, BreadCrumbResource.GetInitReference(), Name, false);
+				if (SUCCEEDED(hr))
+				{
+					UE_LOG(LogD3D12RHI, Log, TEXT("[GPUBreadCrumb] Successfully setup breadcrumb resource for %s"), Name);
+
+					return MakeUnique<FD3D12DiagnosticBuffer>(MoveTemp(BreadCrumbHeap), MoveTemp(BreadCrumbResource), BreadCrumbResourceAddress, BreadCrumbResource->GetGPUVirtualAddress());
+				}
+				else
+				{
+					BreadCrumbHeap.SafeRelease();
+					VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+					UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to CreatePlacedResource, error: %x"), hr);
+				}
+			}
+			else
+			{
+				VirtualFree(BreadCrumbResourceAddress, 0, MEM_RELEASE);
+				UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to OpenExistingHeapFromAddress, error: %x"), hr);
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] Failed to VirtualAlloc resource memory"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogD3D12RHI, Warning, TEXT("[GPUBreadCrumb] ID3D12Device3 not available (only available on Windows 10 1709+), error: %x"), hr);
+	}
+
+	return nullptr;
+}
+
+FD3D12DiagnosticBuffer::~FD3D12DiagnosticBuffer()
+{
+	Resource.SafeRelease();
+	Heap.SafeRelease();
+
+	VirtualFree(CpuAddress, 0, MEM_RELEASE);
+	CpuAddress = nullptr;
+	GpuAddress = 0;
+}

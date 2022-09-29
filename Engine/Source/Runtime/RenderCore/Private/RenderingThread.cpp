@@ -287,10 +287,6 @@ void TickRenderingTickables()
 	LastTickTime = CurTime;
 }
 
-/** Accumulates how many cycles the renderthread has been idle. It's defined in RenderingThread.cpp. */
-uint32 GRenderThreadIdle[ERenderThreadIdleTypes::Num] = {0};
-/** Accumulates how times renderthread was idle. It's defined in RenderingThread.cpp. */
-uint32 GRenderThreadNumIdle[ERenderThreadIdleTypes::Num] = {0};
 /** How many cycles the renderthread used (excluding idle time). It's set once per frame in FViewport::Draw. */
 uint32 GRenderThreadTime = 0;
 /** How many cycles the rhithread used (excluding idle time). */
@@ -381,7 +377,33 @@ void RenderingThreadMain( FEvent* TaskGraphBoundSyncEvent )
 	FCoreDelegates::PostRenderingThreadCreated.Broadcast();
 	check(GIsThreadedRendering);
 	{
-		FTaskTagScope Scope(ETaskTag::ERenderingThread);
+		FTaskTagScope TaskTagScope(ETaskTag::ERenderingThread);
+
+		struct FScopedRHIThreadOwnership
+		{
+			/** Tracks if we have acquired ownership */
+			bool bAcquiredThreadOwnership = false;
+
+			FScopedRHIThreadOwnership()
+			{
+				// Acquire rendering context ownership on the current thread, unless using an RHI thread, which will be the real owner
+				if (!IsRunningRHIInSeparateThread())
+				{
+					bAcquiredThreadOwnership = true;
+					RHIAcquireThreadOwnership();
+				}
+			}
+
+			~FScopedRHIThreadOwnership()
+			{
+				// Release rendering context ownership on the current thread if we had acquired it
+				if (bAcquiredThreadOwnership)
+				{
+					RHIReleaseThreadOwnership();
+				}
+			}
+		} ThreadOwnershipScope;
+
 		FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(RenderThread);
 	}
 	FPlatformMisc::MemoryBarrier();
@@ -440,10 +462,6 @@ void AdvanceRenderingThreadStatsGT( bool bDiscardCallstack, int64 StatsFrame, in
 /** The rendering thread runnable object. */
 class FRenderingThread : public FRunnable
 {
-private:
-	/** Tracks if we have acquired ownership */
-	bool bAcquiredThreadOwnership;
-
 public:
 	/** 
 	 * Sync event to make sure that render thread is bound to the task graph before main thread queues work against it.
@@ -452,7 +470,6 @@ public:
 
 	FRenderingThread()
 	{
-		bAcquiredThreadOwnership = false;
 		TaskGraphBoundSyncEvent	= FPlatformProcess::GetSynchEventFromPool(true);
 		RHIFlushResources();
 	}
@@ -470,34 +487,11 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GRenderThreadId = FPlatformTLS::GetCurrentThreadId();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FTaskTagScope::SetTagNone();
-		FTaskTagScope Scope(ETaskTag::ERenderingThread);
-
-		// Acquire rendering context ownership on the current thread, unless using an RHI thread, which will be the real owner
-		if (!IsRunningRHIInSeparateThread())
-		{
-			bAcquiredThreadOwnership = true;
-			RHIAcquireThreadOwnership();
-		}
-
 		return true; 
 	}
 
 	virtual void Exit(void) override
 	{
-		// Don't bother with cleanup if we crashed. This prevents an assert in FTaskTagScope caused by the fact that the stack isn't unwound when the
-		// render thread crashes, so the ERenderingThread bit added to ActiveNamedThreads by RenderingThreadMain remains set, and this FTaskTagScope
-		// // thinks we're trying to tag the thread twice.
-		if (GIsRenderingThreadHealthy)
-		{
-			FTaskTagScope Scope(ETaskTag::ERenderingThread);
-			// Release rendering context ownership on the current thread if we had acquired it
-			if (bAcquiredThreadOwnership)
-			{
-				bAcquiredThreadOwnership = false;
-				RHIReleaseThreadOwnership();
-			}
-		}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GRenderThreadId = 0;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -986,8 +980,11 @@ void StartRenderCommandFenceBundler()
 	STAT_FNullGraphTask_FenceRenderCommandBundled,
 		STATGROUP_TaskGraphTasks);
 
-	BundledCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(
+	FGraphEventRef Task = TGraphTask<FNullGraphTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(
 		GET_STATID(STAT_FNullGraphTask_FenceRenderCommandBundled), ENamedThreads::GetRenderThread());
+	// this reference can live long, store completion handle instead of a reference to the task to reduce peak mem usage 
+	BundledCompletionEvent = Task->CreateCompletionHandle();
+	
 
 	StartBatchedRelease();
 }

@@ -31,10 +31,6 @@
 	#define UE_ASSERT_ON_HANG 0
 #endif
 
-#ifndef NEEDS_DEBUG_INFO_ON_PRESENT_HANG
-#define NEEDS_DEBUG_INFO_ON_PRESENT_HANG 0
-#endif
-
 // Enabling AttempStuckThreadResuscitation will add a check for early hung thread detection and pass the ThreadId through the OnStuck
 // delegate, allowing the platform to boost it's priority or other action to get the thread scheduled again.
 // Core.System StuckDuration can be changed to alter the time that the OnStuck delegate is triggered. Currently defaults to 1.0 second
@@ -181,22 +177,7 @@ void FORCENOINLINE FThreadHeartBeat::OnPresentHang(double HangDuration)
 #if PLATFORM_SWITCH
 	FPlatformCrashContext::UpdateDynamicData();
 #endif
-#if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
-	extern void GetRenderThreadSublistDispatchTaskDebugInfo(bool&, bool&, bool&, bool&, int32&);
 
-	bool bTmpIsNull;
-	bool bTmpIsComplete;
-	bool bTmpClearedOnGT;
-	bool bTmpClearedOnRT;
-	int32 TmpNumIncompletePrereqs;
-	GetRenderThreadSublistDispatchTaskDebugInfo(bTmpIsNull, bTmpIsComplete, bTmpClearedOnGT, bTmpClearedOnRT, TmpNumIncompletePrereqs);
-
-	volatile bool bIsNull = bTmpIsNull;
-	volatile bool bIsComplete = bTmpIsComplete;
-	volatile bool bClearedOnGT = bTmpClearedOnGT;
-	volatile bool bClearedOnRT = bTmpClearedOnRT;
-	volatile int32 NumIncompletePrereqs = TmpNumIncompletePrereqs;
-#endif
 	// We want to avoid all memory allocations if a hang is detected.
 	// Force a crash in a way that will generate a crash report.
 

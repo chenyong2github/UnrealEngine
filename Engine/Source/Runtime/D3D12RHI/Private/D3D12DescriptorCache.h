@@ -102,18 +102,16 @@ struct FD3D12SamplerArrayDesc
 uint32 GetTypeHash(const FD3D12SamplerArrayDesc& Key);
 typedef FD3D12ConservativeMap<FD3D12SamplerArrayDesc, D3D12_GPU_DESCRIPTOR_HANDLE> FD3D12SamplerMap;
 
-
-template< uint32 CPUTableSize>
-struct FD3D12UniqueDescriptorTable
+struct FD3D12UniqueSamplerTable
 {
-	FD3D12UniqueDescriptorTable() = default;
-	FD3D12UniqueDescriptorTable(FD3D12SamplerArrayDesc KeyIn, D3D12_CPU_DESCRIPTOR_HANDLE* Table)
+	FD3D12UniqueSamplerTable() = default;
+	FD3D12UniqueSamplerTable(FD3D12SamplerArrayDesc KeyIn, D3D12_CPU_DESCRIPTOR_HANDLE* Table)
 	{
 		FMemory::Memcpy(&Key, &KeyIn, sizeof(Key));//Memcpy to avoid alignement issues
 		FMemory::Memcpy(CPUTable, Table, Key.Count * sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
 	}
 
-	FORCEINLINE uint32 GetTypeHash(const FD3D12UniqueDescriptorTable& Table)
+	FORCEINLINE uint32 GetTypeHash(const FD3D12UniqueSamplerTable& Table)
 	{
 		return FD3D12PipelineStateCache::HashData((void*)Table.Key.SamplerID, Table.Key.Count * sizeof(Table.Key.SamplerID[0]));
 	}
@@ -125,11 +123,10 @@ struct FD3D12UniqueDescriptorTable
 	D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle{};
 };
 
-template<typename FD3D12UniqueDescriptorTable, bool bInAllowDuplicateKeys = false>
-struct FD3D12UniqueDescriptorTableKeyFuncs : BaseKeyFuncs<FD3D12UniqueDescriptorTable, FD3D12UniqueDescriptorTable, bInAllowDuplicateKeys>
+struct FD3D12UniqueSamplerTableKeyFuncs : BaseKeyFuncs<FD3D12UniqueSamplerTable, FD3D12UniqueSamplerTable, /*bInAllowDuplicateKeys = */ false>
 {
-	typedef typename TCallTraits<FD3D12UniqueDescriptorTable>::ParamType KeyInitType;
-	typedef typename TCallTraits<FD3D12UniqueDescriptorTable>::ParamType ElementInitType;
+	typedef typename TCallTraits<FD3D12UniqueSamplerTable>::ParamType KeyInitType;
+	typedef typename TCallTraits<FD3D12UniqueSamplerTable>::ParamType ElementInitType;
 
 	/**
 	* @return The key used to index the given element.
@@ -154,9 +151,7 @@ struct FD3D12UniqueDescriptorTableKeyFuncs : BaseKeyFuncs<FD3D12UniqueDescriptor
 	}
 };
 
-typedef FD3D12UniqueDescriptorTable<MAX_SAMPLERS> FD3D12UniqueSamplerTable;
-
-typedef TSet<FD3D12UniqueSamplerTable, FD3D12UniqueDescriptorTableKeyFuncs<FD3D12UniqueSamplerTable>> FD3D12SamplerSet;
+typedef TSet<FD3D12UniqueSamplerTable, FD3D12UniqueSamplerTableKeyFuncs> FD3D12SamplerSet;
 
 /** Manages a D3D heap which is GPU visible - base class which can be used by the FD3D12DescriptorCache */
 class FD3D12OnlineHeap : public FD3D12DeviceChild
@@ -183,7 +178,8 @@ public:
 	// Function which can/should be implemented by the derived classes
 	virtual bool RollOver() = 0;
 	virtual void HeapLoopedAround() { }
-	virtual void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle) { }
+	virtual void OpenCommandList () { }
+	virtual void CloseCommandList() { }
 	virtual uint32 GetTotalSize() { return Heap->GetNumDescriptors(); }
 
 	static const uint32 HeapExhaustedValue = uint32(-1);
@@ -207,37 +203,30 @@ class FD3D12GlobalOnlineSamplerHeap : public FD3D12OnlineHeap
 {
 public:
 	FD3D12GlobalOnlineSamplerHeap(FD3D12Device* Device);
-	~FD3D12GlobalOnlineSamplerHeap();
 
 	void Init(uint32 TotalSize);
-
-	void ToggleDescriptorTablesDirtyFlag(bool Value) { bUniqueDescriptorTablesAreDirty = Value; }
-	bool DescriptorTablesDirty() { return bUniqueDescriptorTablesAreDirty; }
-	FD3D12SamplerSet& GetUniqueDescriptorTables() { return UniqueDescriptorTables; }
-	FCriticalSection& GetCriticalSection() { return CriticalSection; }
 
 	// Override FD3D12OnlineHeap functions
 	virtual bool RollOver() final override;
 
+	void ConsolidateUniqueSamplerTables(TArrayView<FD3D12UniqueSamplerTable> UniqueTables);
+
+	TSharedPtr<FD3D12SamplerSet> GetUniqueDescriptorTables();
+
 private:
-	FD3D12SamplerSet UniqueDescriptorTables;
-	FCriticalSection CriticalSection;
-	bool bUniqueDescriptorTablesAreDirty = false;
+	TSharedPtr<FD3D12SamplerSet> UniqueDescriptorTables;
+	FRWLock Mutex;
 };
 
 /** Online heap which can be used by a FD3D12DescriptorCache to manage a block allocated from a GlobalHeap */
 class FD3D12SubAllocatedOnlineHeap : public FD3D12OnlineHeap
 {
 public:
-	FD3D12SubAllocatedOnlineHeap(FD3D12DescriptorCache* InDescriptorCache);
-	~FD3D12SubAllocatedOnlineHeap();
-
-	// Setup the online heap data
-	void Init(FD3D12Device* InParent);
+	FD3D12SubAllocatedOnlineHeap(FD3D12DescriptorCache& DescriptorCache, FD3D12ContextCommon& Context);
 
 	// Override FD3D12OnlineHeap functions
 	virtual bool RollOver() final override;
-	virtual void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle) final override;
+	virtual void OpenCommandList() final override;
 	virtual uint32 GetTotalSize() final override
 	{
 		return CurrentBlock ? CurrentBlock->Size : 0;
@@ -249,8 +238,8 @@ private:
 
 	FD3D12OnlineDescriptorBlock* CurrentBlock = nullptr;
 
-	FD3D12DescriptorCache* DescriptorCache = nullptr;
-	FD3D12CommandListHandle CurrentCommandList;
+	FD3D12DescriptorCache& DescriptorCache;
+	FD3D12ContextCommon& Context;
 };
 
 
@@ -260,21 +249,20 @@ private:
 class FD3D12LocalOnlineHeap : public FD3D12OnlineHeap
 {
 public:
-	FD3D12LocalOnlineHeap(FD3D12DescriptorCache* InDescriptorCache);
-	~FD3D12LocalOnlineHeap();
+	FD3D12LocalOnlineHeap(FD3D12DescriptorCache& DescriptorCache, FD3D12CommandContext& Context);
 
 	// Allocate the actual overflow heap
-	void Init(FD3D12Device* InParent, uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType);
+	void Init(uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType);
 
 	// Override FD3D12OnlineHeap functions
 	virtual bool RollOver() final override;
 	virtual void HeapLoopedAround() final override;
-	virtual void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle) final override;
+	virtual void CloseCommandList() final override;
 
 private:
 	struct SyncPointEntry
 	{
-		FD3D12CLSyncPoint SyncPoint;
+		FD3D12SyncPointRef SyncPoint;
 		uint32 LastSlotInUse;
 
 		SyncPointEntry() : LastSlotInUse(0)
@@ -296,7 +284,7 @@ private:
 	struct PoolEntry
 	{
 		TRefCountPtr<FD3D12DescriptorHeap> Heap;
-		FD3D12CLSyncPoint SyncPoint;
+		FD3D12SyncPointRef SyncPoint;
 
 		PoolEntry() 
 		{}
@@ -314,15 +302,15 @@ private:
 	PoolEntry Entry;
 	TQueue<PoolEntry> ReclaimPool;
 
-	FD3D12DescriptorCache* DescriptorCache;
-	FD3D12CommandListHandle CurrentCommandList;
+	FD3D12DescriptorCache& DescriptorCache;
+	FD3D12CommandContext& Context;
 };
 
 class FD3D12DescriptorCache : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
 public:
 	FD3D12DescriptorCache() = delete;
-	FD3D12DescriptorCache(FRHIGPUMask Node);
+	FD3D12DescriptorCache(FD3D12CommandContext& Context, FRHIGPUMask Node);
 
 	~FD3D12DescriptorCache();
 
@@ -341,7 +329,8 @@ public:
 	// Notify the descriptor cache every time you start recording a command list.
 	// This sets descriptor heaps on the command list and indicates the current fence value which allows
 	// us to avoid querying DX12 for that value thousands of times per frame, which can be costly.
-	void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
+	void OpenCommandList();
+	void CloseCommandList();
 
 	// ------------------------------------------------------
 	// end Descriptor Slot Reservation stuff
@@ -369,13 +358,10 @@ public:
 
 	bool HeapRolledOver(ERHIDescriptorHeapType InHeapType);
 	void HeapLoopedAround(ERHIDescriptorHeapType InHeapType);
-	void Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors);
+	void Init(uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors);
 	void Clear();
-	void BeginFrame();
-	void EndFrame();
-	void GatherUniqueSamplerTables();
 
-	bool SwitchToContextLocalViewHeap(const FD3D12CommandListHandle& CommandListHandle);
+	bool SwitchToContextLocalViewHeap();
 	bool SwitchToContextLocalSamplerHeap();
 	bool SwitchToGlobalSamplerHeap();
 
@@ -384,10 +370,12 @@ public:
 	void OverrideLastSetHeaps(ID3D12DescriptorHeap* ViewHeap, ID3D12DescriptorHeap* SamplerHeap);
 	void RestoreAfterExternalHeapsSet();
 
-	TArray<FD3D12UniqueSamplerTable>& GetUniqueTables() { return UniqueTables; }
+	inline bool UsingGlobalSamplerHeap() const { return CurrentSamplerHeap != &LocalSamplerHeap; }
+	FD3D12SamplerSet& GetLocalSamplerSet() { return *LocalSamplerSet.Get(); }
 
-	inline bool UsingGlobalSamplerHeap() const { return bUsingGlobalSamplerHeap; }
-	FD3D12SamplerSet& GetLocalSamplerSet() { return LocalSamplerSet; }
+	// Sets the current descriptor tables on the command list and marks any descriptor tables as dirty if necessary.
+	// Returns true if one of the heaps actually changed, false otherwise.
+	bool SetDescriptorHeaps();
 
 	// null views
 	FD3D12ViewDescriptorHandle* NullSRV = nullptr;
@@ -400,13 +388,9 @@ public:
 	TRefCountPtr<FD3D12SamplerState> DefaultSampler;
 
 protected:
-	FD3D12CommandContext* CmdContext = nullptr;
+	FD3D12CommandContext& Context;
 
 private:
-	// Sets the current descriptor tables on the command list and marks any descriptor tables as dirty if necessary.
-	// Returns true if one of the heaps actually changed, false otherwise.
-	bool SetDescriptorHeaps();
-
 	// The previous view and sampler heaps set on the current command list.
 	ID3D12DescriptorHeap* LastSetViewHeap = nullptr;
 	ID3D12DescriptorHeap* LastSetSamplerHeap = nullptr;
@@ -425,8 +409,7 @@ private:
 
 	TArray<FD3D12UniqueSamplerTable> UniqueTables;
 
-	FD3D12SamplerSet LocalSamplerSet;
-	bool bUsingGlobalSamplerHeap = false;
+	TSharedPtr<FD3D12SamplerSet> LocalSamplerSet;
 	bool bHeapsOverridden = false;
 
 	uint32 NumLocalViewDescriptors = 0;

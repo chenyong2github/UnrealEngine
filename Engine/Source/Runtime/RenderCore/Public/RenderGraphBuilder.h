@@ -449,8 +449,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 private:
 	static const char* const kDefaultUnaccountedCSVStat;
 
-	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
-
 	const FRDGEventName BuilderName;
 
 	template <typename ParameterStructType, typename ExecuteLambdaType>
@@ -692,26 +690,24 @@ private:
 
 	TArray<FUploadedBuffer, FRDGArrayAllocator> UploadedBuffers;
 
-	struct FParallelPassSet
+	struct FParallelPassSet : public FRHICommandListImmediate::FQueuedCommandList
 	{
 		FParallelPassSet() = default;
 
 		TArray<FRDGPass*, FRDGArrayAllocator> Passes;
-		FGraphEventRef Event;
-		FRHICommandList* RHICmdList{};
 		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateBegin{});
 		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateEnd{});
 		int8 bInitialized = 0;
-		ERHIPipeline DispatchAfterExecutePipelines = ERHIPipeline::None;
+		bool bDispatchAfterExecute = false;
 	};
 
 	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;
 
 	/** Array of all active parallel execute tasks. */
-	FGraphEventArray ParallelExecuteEvents;
+	TArray<UE::Tasks::FTask, FRDGArrayAllocator> ParallelExecuteEvents;
 
 	/** Array of all task events requested by the user. */
-	FGraphEventArray ParallelSetupEvents;
+	TArray<UE::Tasks::FTask, FRDGArrayAllocator> ParallelSetupEvents;
 
 	/** Tracks the final access used on resources in order to call SetTrackedAccess. */
 	TArray<FRHITrackedAccessInfo, FRDGArrayAllocator> EpilogueResourceAccesses;
@@ -726,6 +722,9 @@ private:
 	/** Current scope's async compute budget. This is passed on to every pass created. */
 	EAsyncComputeBudget AsyncComputeBudgetScope = EAsyncComputeBudget::EAll_4;
 	EAsyncComputeBudget AsyncComputeBudgetState = EAsyncComputeBudget(~0u);
+
+	/** Command list handle created by the parallel buffer upload task. */
+	FRHICommandList* RHICmdListBufferUploads = nullptr;
 
 	IF_RDG_CPU_SCOPES(FRDGCPUScopeStacks CPUScopeStacks);
 	FRDGGPUScopeStacksByPipeline GPUScopeStacks;
@@ -804,10 +803,10 @@ private:
 	void InitRHI(FRDGTextureUAV* UAV);
 
 	void SetupParallelExecute();
-	void DispatchParallelExecute(IRHICommandContext* RHICmdContext);
+	void DispatchParallelExecute();
 
 	void PrepareBufferUploads();
-	FGraphEventRef SubmitBufferUploads();
+	UE::Tasks::FTask SubmitBufferUploads();
 	void BeginFlushResourcesRHI();
 	void EndFlushResourcesRHI();
 

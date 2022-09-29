@@ -179,7 +179,7 @@ private:
 
 	TRefCountPtr<FD3D12Buffer> PostBuildInfoBuffer;
 	FStagingBufferRHIRef PostBuildInfoStagingBuffer;
-	uint64 PostBuildInfoBufferReadbackFence;
+	FD3D12SyncPointRef PostBuildInfoBufferReadbackSyncPoint;
 };
 
 #endif // D3D12_RHI_RAYTRACING

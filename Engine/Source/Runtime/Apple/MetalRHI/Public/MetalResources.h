@@ -14,9 +14,6 @@ THIRD_PARTY_INCLUDES_START
 #include "mtlpp.hpp"
 THIRD_PARTY_INCLUDES_END
 
-/** Parallel execution is available on Mac but not iOS for the moment - it needs to be tested because it isn't cost-free */
-#define METAL_SUPPORTS_PARALLEL_RHI_EXECUTE 1
-
 class FMetalContext;
 @class FMetalShaderPipeline;
 

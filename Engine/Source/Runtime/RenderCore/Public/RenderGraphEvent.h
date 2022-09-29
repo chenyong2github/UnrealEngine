@@ -508,11 +508,16 @@ public:
 	
 	FRDGEventScopeOpArray CompilePassEpilogue();
 
-	inline void EndExecute(FRHIComputeCommandList& RHICmdList)
+	inline void EndExecute(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 	{
 		if (IsEnabled())
 		{
-			FRDGEventScopeOpArray(ScopeStack.EndCompile()).Execute(RHICmdList);
+			FRDGEventScopeOpArray Array = ScopeStack.EndCompile();
+			if (Array.Ops.Num())
+			{
+				FRHICommandListScopedPipeline Scope(RHICmdList, Pipeline);
+				Array.Execute(RHICmdList);
+			}
 		}
 	}
 
@@ -658,10 +663,12 @@ public:
 
 	FRDGGPUStatScopeOpArray CompilePassEpilogue();
 
-	inline void EndExecute(FRHIComputeCommandList& RHICmdList)
+	inline void EndExecute(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 	{
-		if (IsEnabled() && RHICmdList.IsGraphics())
+		// These ops are only relevant to the graphics pipe
+		if (IsEnabled() && Pipeline == ERHIPipeline::Graphics)
 		{
+			FRHICommandListScopedPipeline Scope(RHICmdList, Pipeline);
 			FRDGGPUStatScopeOpArray(ScopeStack.EndCompile(), RHICmdList.GetGPUMask()).Execute(RHICmdList);
 		}
 	}
@@ -761,11 +768,11 @@ struct FRDGGPUScopeStacks
 		return MoveTemp(Result);
 	}
 
-	inline void EndExecute(FRHIComputeCommandList& RHICmdList)
+	inline void EndExecute(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 	{
 		Timing.EndExecute(RHICmdList);
-		IF_RDG_GPU_DEBUG_SCOPES(Event.EndExecute(RHICmdList));
-		IF_RDG_GPU_DEBUG_SCOPES(Stat.EndExecute(RHICmdList));
+		IF_RDG_GPU_DEBUG_SCOPES(Event.EndExecute(RHICmdList, Pipeline));
+		IF_RDG_GPU_DEBUG_SCOPES(Stat.EndExecute(RHICmdList, Pipeline));
 	}
 
 	inline FRDGGPUScopes GetCurrentScopes() const

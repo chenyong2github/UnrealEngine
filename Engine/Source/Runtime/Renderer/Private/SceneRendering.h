@@ -530,15 +530,8 @@ public:
 	int32 Width;
 	int32 NumAlloc;
 	int32 MinDrawsPerCommandList;
-	// see r.RHICmdBalanceParallelLists
-	bool bBalanceCommands;
-	// see r.RHICmdSpewParallelListBalance
-	bool bSpewBalance;
-public:
-	TArray<FRHICommandList*,SceneRenderingAllocator> CommandLists;
-	TArray<FGraphEventRef,SceneRenderingAllocator> Events;
-	// number of draws in this commandlist if known, -1 if not known. Overestimates are better than nothing.
-	TArray<int32,SceneRenderingAllocator> NumDrawsIfKnown;
+private:
+	TArray<FRHICommandListImmediate::FQueuedCommandList, SceneRenderingAllocator> QueuedCommandLists;
 protected:
 	//this must be called by deriving classes virtual destructor because it calls the virtual SetStateOnCommandList.
 	//C++ will not do dynamic dispatch of virtual calls from destructors so we can't call it in the base class.
@@ -550,7 +543,7 @@ public:
 
 	int32 NumParallelCommandLists() const
 	{
-		return CommandLists.Num();
+		return QueuedCommandLists.Num();
 	}
 
 	FRHICommandList* NewParallelCommandList();
@@ -563,10 +556,6 @@ public:
 	void AddParallelCommandList(FRHICommandList* CmdList, FGraphEventRef& CompletionEvent, int32 InNumDrawsIfKnown = -1);	
 
 	virtual void SetStateOnCommandList(FRHICommandList& CmdList) {}
-
-	static void WaitForTasks();
-private:
-	void WaitForTasksInternal();
 };
 
 class FRDGParallelCommandListSet final : public FParallelCommandListSet
@@ -1402,16 +1391,10 @@ public:
 	 */
 	uint32 bHasSingleLayerWaterMaterial : 1;
 	/**
-	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied post DOF. 
-	 * If true, that means we need to run the post-dof separate modulation render pass.
+	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied post DOF. If true,
+	 * that means we need to run the separate modulation render pass.
 	 */
 	uint32 bHasTranslucencySeparateModulation : 1;
-
-	/**
-	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied before DOF. 
-	 * If true, that means we need to run the before-dof separate modulation render pass.
-	 */
-	uint32 bHasStandardTranslucencyModulation : 1;
 
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;

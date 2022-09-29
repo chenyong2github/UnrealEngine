@@ -60,7 +60,6 @@ public:
 	bool IsStreamable() const									{ return EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::Streamable); }
 	FD3D12ShaderResourceView* GetShaderResourceView() const		{ return ShaderResourceView; }
 	const FTextureRHIRef& GetAliasingSourceTexture() const		{ return AliasingSourceTexture; }
-	FD3D12CLSyncPoint GetReadBackSyncPoint() const				{ return ReadBackSyncPoint; }
 	bool HasRenderTargetViews() const							{ return (RenderTargetViews.Num() > 0); }
 	void GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const;
 	FD3D12RenderTargetView* GetRenderTargetView(int32 MipIndex, int32 ArraySliceIndex) const;
@@ -71,7 +70,6 @@ public:
 		
 	// Setters
 	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; }
-	void SetReadBackListHandle(FD3D12CommandListHandle listToWaitFor) { ReadBackSyncPoint = listToWaitFor; }
 
 	// Setup functionality
 	void InitializeTextureData(class FRHICommandListImmediate* RHICmdList, const FRHITextureCreateDesc& CreateDesc, D3D12_RESOURCE_STATES DestinationState);
@@ -137,9 +135,6 @@ protected:
 
 	// Source texture when aliased
 	FTextureRHIRef AliasingSourceTexture;
-
-	// Syncpoint stored when texture is used for readback
-	FD3D12CLSyncPoint ReadBackSyncPoint;
 };
 
 inline FD3D12RenderTargetView* FD3D12Texture::GetRenderTargetView(int32 MipIndex, int32 ArraySliceIndex) const

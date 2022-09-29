@@ -289,13 +289,13 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetGPUSlotHandle(ReservedSlot);
 
 				Device->CopyDescriptorsSimple(1, DestSlot, CPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-				FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, FD3D12DynamicRHI::ETransitionMode::Validate);
-				Context.numClears++;
 
-				Context.CommandListHandle.FlushResourceBarriers();
-				Context.CommandListHandle->ClearUnorderedAccessViewUint(GPUHandle, CPUHandle, Resource, *reinterpret_cast<const UINT(*)[4]>(ClearValues), 0, nullptr);
-				Context.CommandListHandle.UpdateResidency(UnorderedAccessView->GetResource());
-				Context.ConditionalFlushCommandList();
+				Context.TransitionResource(UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+				Context.FlushResourceBarriers();
+				Context.GraphicsCommandList()->ClearUnorderedAccessViewUint(GPUHandle, CPUHandle, Resource, *reinterpret_cast<const UINT(*)[4]>(ClearValues), 0, nullptr);
+				Context.UpdateResidency(UnorderedAccessView->GetResource());
+				Context.ConditionalSplitCommandList();
 
 				if (Context.IsDefaultContext())
 				{
@@ -338,13 +338,13 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 
 void FD3D12CommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
-	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this, GetGPUMask());
+	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this);
 	ClearUAV(RHICmdList, RetrieveObject<FD3D12UnorderedAccessView>(UnorderedAccessViewRHI), &Values, true);
 }
 
 void FD3D12CommandContext::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
 {
-	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this, GetGPUMask());
+	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this);
 	ClearUAV(RHICmdList, RetrieveObject<FD3D12UnorderedAccessView>(UnorderedAccessViewRHI), &Values, false);
 }
 

@@ -37,26 +37,12 @@
 // enough to ensure that the GPU is rarely blocked by residency work
 #define RESIDENCY_PIPELINE_DEPTH	6
 
-// This is the primary define that controls if the logic for the SubmissionGapRecorder is enabled or not in D3D12
-#ifndef PLATFORM_ALLOW_D3D12_SUBMISSION_GAP_RECORDER
-#define PLATFORM_ALLOW_D3D12_SUBMISSION_GAP_RECORDER 1
-#endif
-
-#if PLATFORM_ALLOW_D3D12_SUBMISSION_GAP_RECORDER
-#define D3D12_SUBMISSION_GAP_RECORDER !(UE_BUILD_SHIPPING || WITH_EDITOR)
-#define D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO  !(UE_BUILD_SHIPPING || UE_BUILD_TEST || WITH_EDITOR)
-#else
-#define D3D12_SUBMISSION_GAP_RECORDER 0
-#define D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO  0
-#endif
-
 #if !defined(WITH_PIX_EVENT_RUNTIME)
 	#define WITH_PIX_EVENT_RUNTIME 0
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#define ENABLE_RESIDENCY_MANAGEMENT				1
-	#define ASYNC_DEFERRED_DELETION					1
 	#define PIPELINE_STATE_FILE_LOCATION			FPaths::ProjectSavedDir()
 	#define USE_PIX									WITH_PIX_EVENT_RUNTIME
 	#define D3D12RHI_SUPPORTS_WIN_PIX				USE_PIX
@@ -92,63 +78,3 @@ static_assert((8 * sizeof(SamplerSlotMask)) >= MAX_SAMPLERS, "SamplerSlotMask is
 
 typedef uint16 UAVSlotMask;
 static_assert((8 * sizeof(UAVSlotMask)) >= MAX_UAVS, "UAVSlotMask isn't large enough to cover all UAVs. Please increase the size.");
-
-/* If the submission gap recorder code is enabled define the SubmissionGapRecorder class */
-#if D3D12_SUBMISSION_GAP_RECORDER
-/** Class for tracking timestamps for recording bubbles between command list submissions */
-class FD3D12SubmissionGapRecorder
-{
-	struct FGapSpan
-	{
-		uint64 BeginCycles;
-		uint64 DurationCycles;
-	};
-	struct FFrame
-	{
-		FFrame() { bIsValid = false; bSafeToReadOnRenderThread = false;  FrameNumber = -1; }
-
-		TArray<FGapSpan> GapSpans;
-		uint32 FrameNumber;
-		uint64 TotalWaitCycles;
-		uint64 StartCycles;
-		uint64 EndCycles;
-		bool bIsValid;
-		bool bSafeToReadOnRenderThread;
-	};
-public:
-	FD3D12SubmissionGapRecorder();
-
-	// Submits the gap timestamps for a frame. Typically called from the RHI thread in EndFrame. Returns the total number of cycles spent waiting
-	uint64 SubmitSubmissionTimestampsForFrame(uint32 FrameCounter, TArray<uint64>& PrevFrameBeginSubmissionTimestamps, TArray<uint64>& PrevFrameEndSubmissionTimestamps);
-
-	// Adjusts a timestamp by subtracting any preceding submission gaps
-	uint64 AdjustTimestampForSubmissionGaps(uint32 FrameSubmitted, uint64 Timestamp);
-
-	// Called when we advance the frame from the render thread (in EndDrawingViewport)
-	void OnRenderThreadAdvanceFrame();
-
-	int32 GetStartFrameSlotIdx() const		{ return StartFrameSlotIdx; }
-	void  SetStartFrameSlotIdx(int32 val)	{ StartFrameSlotIdx = val; }
-
-	int32 GetEndFrameSlotIdx() const		{ return EndFrameSlotIdx; }
-	void  SetEndFrameSlotIdx(int32 val)		{ EndFrameSlotIdx = val; }
-
-	int32 GetPresentSlotIdx() const			{ return PresentSlotIdx; }
-	void SetPresentSlotIdx(int32 val)		{ PresentSlotIdx = val; }
-
-private:
-
-	TArray<FD3D12SubmissionGapRecorder::FFrame> FrameRingbuffer;
-
-	FCriticalSection GapSpanMutex;
-	uint32 WriteIndex;
-	uint32 WriteIndexRT;
-	uint32 ReadIndex;
-	uint64 CurrentGapSpanReadIndex;
-	uint64 CurrentElapsedWaitCycles;
-	uint64 LastTimestampAdjusted;
-	int32  StartFrameSlotIdx;
-	int32  EndFrameSlotIdx;
-	int32  PresentSlotIdx;
-};
-#endif

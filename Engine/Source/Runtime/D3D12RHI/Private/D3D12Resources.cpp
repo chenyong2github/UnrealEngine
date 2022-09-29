@@ -16,293 +16,6 @@ D3D12Resources.cpp: D3D RHI utility implementation.
 	THIRD_PARTY_INCLUDES_END
 #endif
 
-int32 GD3D12AsyncDeferredDeletion = ASYNC_DEFERRED_DELETION;
-
-static FAutoConsoleVariableRef CVarAsyncDeferredDeletion(
-	TEXT("D3D12.AsyncDeferredDeletion"),
-	GD3D12AsyncDeferredDeletion,
-	TEXT("Controls whether D3D12 resources will be released on a separate thread (default = ")
-#if ASYNC_DEFERRED_DELETION
-	TEXT("on")
-#else
-	TEXT("off")
-#endif
-	TEXT(")."),
-	ECVF_ReadOnly
-);
-
-enum class ED3D12DeferredDeleteObjectType
-{
-	RHIObject,
-	D3DObject,
-	BindlessDescriptor,
-};
-
-// We can't store the complex FRHIDescriptorHandle type in the union. We also need to store the device index.
-struct FD3D12SimpleBindlessDescriptor
-{
-	uint32 Index;
-	uint16 Type;
-	uint16 DeviceIndex;
-};
-
-struct FD3D12DeferredDeleteObject
-{
-	union
-	{
-		FD3D12Resource*                RHIObject;
-		ID3D12Object*                  D3DObject;
-		FD3D12SimpleBindlessDescriptor BindlessDescriptor;
-	};
-	ED3D12DeferredDeleteObjectType Type;
-};
-
-struct FD3D12FencedDeleteObject : FD3D12DeferredDeleteObject
-{
-	using FFencePair = TPair<FD3D12Fence*, uint64>;
-	using FFenceList = TArray<FFencePair, TInlineAllocator<1>>;
-
-	FFenceList FenceList;
-};
-
-static bool IsFencedObjectComplete(const FD3D12FencedDeleteObject& FencedObject)
-{
-	for (const auto& FencePair : FencedObject.FenceList)
-	{
-		if (!FencePair.Key->IsFenceComplete(FencePair.Value))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// FD3D12AsyncDeletionWorker
-
-class FD3D12AsyncDeletionWorker : public FD3D12AdapterChild, public FNonAbandonableTask
-{
-public:
-	FD3D12AsyncDeletionWorker(FD3D12Adapter* Adapter, FThreadsafeQueue<FD3D12FencedDeleteObject>& DeletionQueue)
-		: FD3D12AdapterChild(Adapter)
-	{
-		DeletionQueue.BatchDequeue(ObjectsToDelete, &IsFencedObjectComplete, 4096);
-	}
-
-	void DoWork()
-	{
-		for (const FD3D12DeferredDeleteObject& ObjectToDelete : ObjectsToDelete)
-		{
-			switch (ObjectToDelete.Type)
-			{
-			case ED3D12DeferredDeleteObjectType::RHIObject:
-				// This should be a final release.
-				check(ObjectToDelete.RHIObject->GetRefCount() == 1);
-				ObjectToDelete.RHIObject->Release();
-				break;
-			case ED3D12DeferredDeleteObjectType::D3DObject:
-				ObjectToDelete.D3DObject->Release();
-				break;
-			case ED3D12DeferredDeleteObjectType::BindlessDescriptor:
-				{
-					const FRHIDescriptorHandle BindlessDescriptor(static_cast<ERHIDescriptorHeapType>(ObjectToDelete.BindlessDescriptor.Type), ObjectToDelete.BindlessDescriptor.Index);
-					GetParentAdapter()->GetDevice(ObjectToDelete.BindlessDescriptor.DeviceIndex)->GetBindlessDescriptorManager().ImmediateFree(BindlessDescriptor);
-				}
-				break;
-			default:
-				checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
-				break;
-			}
-		}
-	}
-
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FD3D12AsyncDeletionWorker, STATGROUP_ThreadPoolAsyncTasks);
-	}
-
-private:
-	TArray<FD3D12DeferredDeleteObject> ObjectsToDelete;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FD3D12DeferredDeletionQueue::FD3D12DeferredDeletionQueue(FD3D12Adapter* InParent)
-	: FD3D12AdapterChild(InParent)
-{
-}
-
-FD3D12DeferredDeletionQueue::~FD3D12DeferredDeletionQueue()
-{
-	FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
-	while (DeleteTasks.Peek(DeleteTask))
-	{
-		DeleteTasks.Dequeue(DeleteTask);
-		DeleteTask->EnsureCompletion(true);
-		delete(DeleteTask);
-	}
-}
-
-void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FRHIGPUMask GpuMask)
-{
-	check(pResource->ShouldDeferDelete());
-
-	// Useful message for identifying when resources are released on the rendering thread.
-	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, Fence->GetCurrentFence());
-
-	FD3D12Adapter* Adapter = GetParentAdapter();
-
-	FD3D12FencedDeleteObject FencedObject;
-	for (uint32 GPUIndex : GpuMask)
-	{
-		FD3D12Fence* Fence = &Adapter->GetDevice(GPUIndex)->GetCommandListManager().GetFence();
-		FencedObject.FenceList.Emplace(Fence, Fence->GetCurrentFence());
-	}
-
-	FencedObject.RHIObject = pResource;
-	FencedObject.Type = ED3D12DeferredDeleteObjectType::RHIObject;
-	DeferredReleaseQueue.Enqueue(FencedObject);
-}
-
-void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence)
-{
-	// Useful message for identifying when resources are released on the rendering thread.
-	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, Fence->GetCurrentFence());
-
-	FD3D12FencedDeleteObject FencedObject;
-	FencedObject.D3DObject = pResource;
-	FencedObject.FenceList.Emplace(Fence, Fence->GetCurrentFence());
-	FencedObject.Type = ED3D12DeferredDeleteObjectType::D3DObject;
-	DeferredReleaseQueue.Enqueue(FencedObject);
-}
-
-void FD3D12DeferredDeletionQueue::EnqueueBindlessDescriptor(FRHIDescriptorHandle InDescriptor, FD3D12Fence* InFence, uint32 InDeviceIndex)
-{
-	FD3D12FencedDeleteObject FencedObject;
-	FencedObject.BindlessDescriptor.Index = InDescriptor.GetIndex();
-	FencedObject.BindlessDescriptor.Type = static_cast<uint32>(InDescriptor.GetType());
-	FencedObject.BindlessDescriptor.DeviceIndex = InDeviceIndex;
-	FencedObject.FenceList.Emplace(InFence, InFence->GetCurrentFence());
-	FencedObject.Type = ED3D12DeferredDeleteObjectType::BindlessDescriptor;
-	DeferredReleaseQueue.Enqueue(FencedObject);
-}
-
-bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool bIsShutDown)
-{
-	FScopeLock ScopeLock(&DeleteTaskCS);
-
-	FD3D12Adapter* Adapter = GetParentAdapter();
-
-	if (GD3D12AsyncDeferredDeletion)
-	{
-		if (bDeleteImmediately)
-		{
-			// Wait for all deferred delete tasks to finish
-			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
-			while (DeleteTasks.Peek(DeleteTask))
-			{
-				DeleteTasks.Dequeue(DeleteTask);
-				DeleteTask->EnsureCompletion(true);
-				delete(DeleteTask);
-			}
-
-			// current deferred release queue will be freed via non async deferred deletion code path below
-		}
-		else
-		{
-			// Clean up all previously finished delete tasks
-			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
-			while (DeleteTasks.Peek(DeleteTask) && DeleteTask->IsDone())
-			{
-				DeleteTasks.Dequeue(DeleteTask);
-				delete(DeleteTask);
-			}
-
-			// Create new delete task, which will only collect resources in the constructor for which the fence is complete, not the whole list!
-			DeleteTask = new FAsyncTask<FD3D12AsyncDeletionWorker>(Adapter, DeferredReleaseQueue);
-
-			DeleteTask->StartBackgroundTask();
-			DeleteTasks.Enqueue(DeleteTask);
-
-			// Deferred release queue is not empty yet
-			return false;
-		}
-	}
-
-	FD3D12FencedDeleteObject FenceObject;
-
-	if (bIsShutDown)
-	{
-		// FORT-236194 - Output what we are releasing on exit to catch a crash on Release()
-		UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: %u items to release"), DeferredReleaseQueue.GetSize());
-
-		while (DeferredReleaseQueue.Dequeue(FenceObject))
-		{
-			switch (FenceObject.Type)
-			{
-			case ED3D12DeferredDeleteObjectType::RHIObject:
-				{
-					const D3D12_RESOURCE_DESC& Desc = FenceObject.RHIObject->GetDesc();
-					const FString Name = FenceObject.RHIObject->GetName().ToString();
-					UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: \"%s\", %llu x %u x %u, Mips: %u, Format: 0x%X, Flags: 0x%X"), *Name, Desc.Width, Desc.Height, Desc.DepthOrArraySize, Desc.MipLevels, Desc.Format, Desc.Flags);
-
-					if (uint32 RefCount = FenceObject.RHIObject->Release())
-					{
-						UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
-					}
-				}
-				break;
-			case ED3D12DeferredDeleteObjectType::D3DObject:
-				{
-					UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: 0x%llX"), FenceObject.D3DObject);
-
-					if (uint32 RefCount = FenceObject.D3DObject->Release())
-					{
-						UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
-					}
-				}
-				break;
-			case ED3D12DeferredDeleteObjectType::BindlessDescriptor:
-				{
-					const FRHIDescriptorHandle BindlessDescriptor(static_cast<ERHIDescriptorHeapType>(FenceObject.BindlessDescriptor.Type), FenceObject.BindlessDescriptor.Index);
-					GetParentAdapter()->GetDevice(FenceObject.BindlessDescriptor.DeviceIndex)->GetBindlessDescriptorManager().ImmediateFree(BindlessDescriptor);
-				}
-				break;
-			default:
-				checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
-				break;
-			}
-		}
-	}
-	else
-	{
-		while (DeferredReleaseQueue.Dequeue(FenceObject, &IsFencedObjectComplete))
-		{
-
-			switch (FenceObject.Type)
-			{
-			case ED3D12DeferredDeleteObjectType::RHIObject:
-				FenceObject.RHIObject->Release();
-				break;
-			case ED3D12DeferredDeleteObjectType::D3DObject:
-				FenceObject.D3DObject->Release();
-				break;
-			case ED3D12DeferredDeleteObjectType::BindlessDescriptor:
-				{
-					const FRHIDescriptorHandle BindlessDescriptor(static_cast<ERHIDescriptorHeapType>(FenceObject.BindlessDescriptor.Type), FenceObject.BindlessDescriptor.Index);
-					GetParentAdapter()->GetDevice(FenceObject.BindlessDescriptor.DeviceIndex)->GetBindlessDescriptorManager().ImmediateFree(BindlessDescriptor);
-				}
-				break;
-			default:
-				checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
-				break;
-			}
-		}
-	}
-
-	return DeferredReleaseQueue.IsEmpty();
-}
-
 /////////////////////////////////////////////////////////////////////
 //	ID3D12ResourceAllocator
 /////////////////////////////////////////////////////////////////////
@@ -430,36 +143,14 @@ void FD3D12Resource::StartTrackingForResidency()
 	const D3D12_RESOURCE_DESC ResourceDesc = Resource->GetDesc();
 	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &ResourceDesc);
 
-	D3DX12Residency::Initialize(ResidencyHandle, Resource.GetReference(), Info.SizeInBytes);
+	D3DX12Residency::Initialize(ResidencyHandle, Resource.GetReference(), Info.SizeInBytes, this);
 	D3DX12Residency::BeginTrackingObject(GetParentDevice()->GetResidencyManager(), ResidencyHandle);
-#endif
-}
-
-void FD3D12Resource::UpdateResidency(FD3D12CommandListHandle& CommandList)
-{
-#if ENABLE_RESIDENCY_MANAGEMENT
-	if (IsPlacedResource())
-	{
-		Heap->UpdateResidency(CommandList);
-	}
-	else if (D3DX12Residency::IsInitialized(ResidencyHandle))
-	{
-		check(Heap == nullptr);
-		D3DX12Residency::Insert(CommandList.GetResidencySet(), ResidencyHandle);
-	}
 #endif
 }
 
 void FD3D12Resource::DeferDelete()
 {
-	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-
-	// Upload heaps such as texture lock data can be referenced by multiple GPUs so we
-	// must wait for all of them to finish before releasing.
-
-	const FRHIGPUMask GpuMask = (HeapType == D3D12_HEAP_TYPE_UPLOAD) ? FRHIGPUMask::All() : GetParentDevice()->GetGPUMask();
-
-	Adapter->GetDeferredDeletionQueue().EnqueueResource(this, GpuMask);
+	FD3D12DynamicRHI::GetD3DRHI()->DeferredDelete(this);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -526,20 +217,10 @@ void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bIn
 	}
 }
 
-void FD3D12Heap::UpdateResidency(FD3D12CommandListHandle& CommandList)
-{
-#if ENABLE_RESIDENCY_MANAGEMENT
-	if (D3DX12Residency::IsInitialized(ResidencyHandle))
-	{
-		D3DX12Residency::Insert(CommandList.GetResidencySet(), ResidencyHandle);
-	}
-#endif
-}
-
 void FD3D12Heap::BeginTrackingResidency(uint64 Size)
 {
 #if ENABLE_RESIDENCY_MANAGEMENT
-	D3DX12Residency::Initialize(ResidencyHandle, Heap.GetReference(), Size);
+	D3DX12Residency::Initialize(ResidencyHandle, Heap.GetReference(), Size, this);
 	D3DX12Residency::BeginTrackingObject(GetParentDevice()->GetResidencyManager(), ResidencyHandle);
 #endif
 }
@@ -1116,7 +797,7 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 	GPUVirtualAddress = Value->GetGPUVirtualAddress();
 
 	UnderlyingResource = Value;
-	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
+	ResidencyHandle = &UnderlyingResource->GetResidencyHandle();
 }
 
 
@@ -1172,20 +853,10 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 		D3D12_RESOURCE_STATES CreateState;
 		ED3D12ResourceStateMode ResourceStateMode;
 		if (CurrentResource->RequiresResourceStateTracking())
-		{			
-			CResourceState& ResourceState = CurrentResource->GetResourceState();
-			if (ResourceState.AreAllSubresourcesSame())
-			{
-				// All resource states the same so we can just create the resource at that state and know everything is fine
-				CreateState = ResourceState.GetSubresourceState(0);
-			}
-			else
-			{
-				// Force in the readable state when there are different states (or use just state of subresource 0?)
-				// ideally restore all subresources in correct state? needed for when not using GUseInternalTransitions anymore because then it needs to match the set state from the engine
-				check(GUseInternalTransitions);
-				CreateState = CurrentResource->GetReadableState();
-			}
+		{
+			// The newly created placed resource will be copied into by the defragger. Create it in the COPY_DEST to avoid an additional transition.
+			// Standard resource state tracking will handle transitioning the resource out of this state as required.
+			CreateState = D3D12_RESOURCE_STATE_COPY_DEST;
 			ResourceStateMode = ED3D12ResourceStateMode::MultiState;
 		}
 		else
@@ -1206,7 +877,7 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 	}
 
 	GPUVirtualAddress = UnderlyingResource->GetGPUVirtualAddress() + OffsetFromBaseOfResource;
-	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
+	ResidencyHandle = &UnderlyingResource->GetResidencyHandle();
 
 	// Refresh aliases
 	for (FRHIPoolAllocationData* OtherAlias = AllocationData.GetFirstAlias(); OtherAlias; OtherAlias = OtherAlias->GetNext())
@@ -1238,139 +909,104 @@ void FD3D12ResourceLocation::UnlockPoolData()
 //	FD3D12 Resource Barrier Batcher
 /////////////////////////////////////////////////////////////////////
 
-// Workaround for FORT-357614. Flickering can be seen unless RTV-to-SRV barriers are separated
-static int32 GD3D12SeparateRTV2SRVTransitions = 0;
-static FAutoConsoleVariableRef CVarD3D12SeparateRTV2SRVTransitions(
-	TEXT("d3d12.SeparateRTV2SRVTranstions"),
-	GD3D12SeparateRTV2SRVTransitions,
-	TEXT("Whether to submit RTV-to-SRV transition barriers through a separate API call"));
-
-static void RecordResourceBarriersToCommandList(
-	ID3D12GraphicsCommandList* pCommandList,
-	const D3D12_RESOURCE_BARRIER* Barriers,
-	int32 NumBarriers,
-	int32 BarrierBatchMax)
+// Add a UAV barrier to the batch. Ignoring the actual resource for now.
+void FD3D12ResourceBarrierBatcher::AddUAV()
 {
-	if (NumBarriers > BarrierBatchMax)
-	{
-		while (NumBarriers > 0)
-		{
-			int32 DispatchNum = FMath::Min(NumBarriers, BarrierBatchMax);
-			pCommandList->ResourceBarrier(DispatchNum, Barriers);
-			Barriers += BarrierBatchMax;
-			NumBarriers -= BarrierBatchMax;
-		}
-	}
-	else
-	{
-		pCommandList->ResourceBarrier(NumBarriers, Barriers);
-	}
+	FD3D12ResourceBarrier& Barrier = Barriers.Emplace_GetRef();
+	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	Barrier.UAV.pResource = nullptr;	// Ignore the resource ptr for now. HW doesn't do anything with it.
 }
 
-
-void ResourceBarriersSeparateRTV2SRV(
-	ID3D12GraphicsCommandList* pCommandList,
-	const TArray<D3D12_RESOURCE_BARRIER>& Barriers,
-	int32 BarrierBatchMax)
+// Add a transition resource barrier to the batch. Returns the number of barriers added, which may be negative if an existing barrier was cancelled.
+int32 FD3D12ResourceBarrierBatcher::AddTransition(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 {
-	if (!GD3D12SeparateRTV2SRVTransitions)
-	{
-#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
-		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> BackBufferBarriers;
-		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<8>> OtherBarriers;
+	check(Before != After);
 
-		for (int32 Index = 0; Index < Barriers.Num(); ++Index)
-		{
-			const D3D12_RESOURCE_BARRIER& Barrier = Barriers[Index];
-			if (Barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
-				&& Barrier.Transition.StateBefore == D3D12_RESOURCE_STATE_PRESENT // can also be displayed as D3D12_RESOURCE_STATE_COMMON in pix
-				&& Barrier.Transition.StateAfter == D3D12_RESOURCE_STATE_RENDER_TARGET)
-			{
-				BackBufferBarriers.Add(Barrier);
-			}
-			else
-			{
-				OtherBarriers.Add(Barrier);
-			}
-		}
-
-		if (BackBufferBarriers.Num() > 0)
-		{
-			RecordResourceBarriersToCommandList(pCommandList, BackBufferBarriers.GetData(), BackBufferBarriers.Num(), BarrierBatchMax);
-		}
-
-		if (OtherBarriers.Num() > 0)
-		{
-			RecordResourceBarriersToCommandList(pCommandList, OtherBarriers.GetData(), OtherBarriers.Num(), BarrierBatchMax);
-		}
-#else
-		RecordResourceBarriersToCommandList(pCommandList, Barriers.GetData(), Barriers.Num(), BarrierBatchMax);
-#endif
-	}
-	else
-	{
-		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> RTV2SRVBarriers;
-#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
-		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> BackBufferBarriers;
-#endif
-		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<8>> OtherBarriers;
-
-		for (int32 Index = 0; Index < Barriers.Num(); ++Index)
-		{
-			const D3D12_RESOURCE_BARRIER& Barrier = Barriers[Index];
-
-			if (Barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
-				&& Barrier.Transition.StateBefore == D3D12_RESOURCE_STATE_RENDER_TARGET
-				&& Barrier.Transition.StateAfter == (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE))
-			{
-				RTV2SRVBarriers.Add(Barrier);
-			}
-#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
-			else if (Barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
-				&& Barrier.Transition.StateBefore == D3D12_RESOURCE_STATE_PRESENT // can also be displayed as D3D12_RESOURCE_STATE_COMMON in pix
-				&& Barrier.Transition.StateAfter == D3D12_RESOURCE_STATE_RENDER_TARGET)
-			{
-				BackBufferBarriers.Add(Barrier);
-			}
-#endif
-			else
-			{
-				OtherBarriers.Add(Barrier);
-			}
-		}
-
-		if (RTV2SRVBarriers.Num() > 0)
-		{
-			RecordResourceBarriersToCommandList(pCommandList, RTV2SRVBarriers.GetData(), RTV2SRVBarriers.Num(), BarrierBatchMax);
-		}
-
-#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
-		if (BackBufferBarriers.Num() > 0)
-		{
-			RecordResourceBarriersToCommandList(pCommandList, BackBufferBarriers.GetData(), BackBufferBarriers.Num(), BarrierBatchMax);
-		}
-#endif
-		if (OtherBarriers.Num() > 0)
-		{
-			RecordResourceBarriersToCommandList(pCommandList, OtherBarriers.GetData(), OtherBarriers.Num(), BarrierBatchMax);
-		}
-	}
-}
-
-
-void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax)
-{
 	if (Barriers.Num())
 	{
-		check(pCommandList);
-		ResourceBarriersSeparateRTV2SRV(pCommandList, Barriers, BarrierBatchMax);
+		// Check if we are simply reverting the last transition. In that case, we can just remove both transitions.
+		// This happens fairly frequently due to resource pooling since different RHI buffers can point to the same underlying D3D buffer.
+		// Instead of ping-ponging that underlying resource between COPY_DEST and GENERIC_READ, several copies can happen without a ResourceBarrier() in between.
+		// Doing this check also eliminates a D3D debug layer warning about multiple transitions of the same subresource.
+		const FD3D12ResourceBarrier& Last = Barriers.Last();
+
+		if (Last.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
+			&& pResource->GetResource() == Last.Transition.pResource
+			&& Subresource == Last.Transition.Subresource
+			&& Before      == Last.Transition.StateAfter
+			&& After       == Last.Transition.StateBefore
+			)
+		{
+			Barriers.RemoveAt(Barriers.Num() - 1);
+			return -1;
+		}
 	}
 
-	Reset();
+	check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
+
+	FD3D12ResourceBarrier& Barrier = Barriers.Emplace_GetRef(CD3DX12_RESOURCE_BARRIER::Transition(pResource->GetResource(), Before, After, Subresource));
+	if (pResource->IsBackBuffer() && EnumHasAnyFlags(After, BackBufferBarrierWriteTransitionTargets))
+	{
+		Barrier.Flags |= BarrierFlag_CountAsIdleTime;
+	}
+
+	return 1;
+}
+
+void FD3D12ResourceBarrierBatcher::AddAliasingBarrier(ID3D12Resource* InResourceBefore, ID3D12Resource* InResourceAfter)
+{
+	FD3D12ResourceBarrier& Barrier = Barriers.Emplace_GetRef();
+	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	Barrier.Aliasing.pResourceBefore = InResourceBefore;
+	Barrier.Aliasing.pResourceAfter = InResourceAfter;
+}
+
+void FD3D12ResourceBarrierBatcher::FlushIntoCommandList(FD3D12CommandList& CommandList, FD3D12QueryAllocator& TimestampAllocator)
+{
+	int32 const BarrierBatchMax = FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit();
+
+	auto InsertTimestamp = [&](ED3D12QueryType Type)
+	{
+		auto Timestamp = TimestampAllocator.Allocate(Type, nullptr);
+		CommandList.State.TimestampQueries.Emplace_GetRef(Timestamp);
+		CommandList.WriteTimestamp(Timestamp);
+		CommandList.State.NumCommands++;
+	};
+
+	for (int32 BatchStart = 0, BatchEnd = 0; BatchStart < Barriers.Num(); BatchStart = BatchEnd)
+	{
+		// Gather a range of barriers that all have the same idle flag
+		bool const bIdle = Barriers[BatchEnd].HasIdleFlag();
+
+		while (BatchEnd < Barriers.Num() 
+			&& bIdle == Barriers[BatchEnd].HasIdleFlag() 
+			&& (BatchEnd - BatchStart) < BarrierBatchMax)
+		{
+			// Clear the idle flag since its not a valid D3D bit.
+			Barriers[BatchEnd++].ClearIdleFlag();
+		}
+
+		// Insert an idle begin/end timestamp around the barrier batch if required.
+		if (bIdle)
+		{
+			InsertTimestamp(ED3D12QueryType::IdleBegin);
+		}
+
+		CommandList.Interfaces.GraphicsCommandList->ResourceBarrier(BatchEnd - BatchStart, &Barriers[BatchStart]);
+		CommandList.State.NumCommands++;
+
+		if (bIdle)
+		{
+			InsertTimestamp(ED3D12QueryType::IdleEnd);
+		}
+	}
+
+	Barriers.Reset();
 }
 
 uint32 FD3D12Buffer::GetParentGPUIndex() const
 {
 	return Parent->GetGPUIndex();
 }
-

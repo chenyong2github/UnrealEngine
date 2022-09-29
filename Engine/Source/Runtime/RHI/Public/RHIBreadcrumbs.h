@@ -98,6 +98,10 @@ public:
 
 	void DebugLog() const;
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+	static void WriteRenderBreadcrumbs(struct FCrashContextExtendedWriter& Writer, const FRHIBreadcrumb** BreadcrumbStack, uint32 BreadcrumbStackIndex, const TCHAR* ThreadName);
+#endif
+
 private:
 	FRHIBreadcrumb* BreadcrumbStackTop{};
 	FRHIBreadcrumb* FirstUnsubmittedBreadcrumb{};

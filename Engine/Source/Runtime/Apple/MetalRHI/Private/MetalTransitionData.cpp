@@ -49,11 +49,6 @@ FMetalTransitionData::FMetalTransitionData(ERHIPipeline                         
 		// Write it into the transition data.
 		Fence = MetalFence;
 		Fence->AddRef();
-
-		if (GSupportsEfficientAsyncCompute)
-		{
-			static_cast<FMetalRHICommandContext*>(RHIGetDefaultContext())->RHISubmitCommandsHint();
-		}
 	}
 #endif // UE_METAL_TRANSITION_DATA_USES_EXPLICIT_FENCING
 }

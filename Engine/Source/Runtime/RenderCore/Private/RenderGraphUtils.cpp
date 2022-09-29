@@ -1056,12 +1056,12 @@ FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
 		{
 			if (IsRunningRHIInSeparateThread())
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FScopedCommandListWaitForTasks_WaitAsync);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGWaitForTasksScope_WaitAsync);
 				RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 			}
 			else
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FScopedCommandListWaitForTasks_Flush);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGWaitForTasksScope_Flush);
 				CSV_SCOPED_TIMING_STAT(RHITFlushes, FRDGWaitForTasksDtor);
 				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			}

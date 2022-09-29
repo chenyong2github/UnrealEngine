@@ -33,7 +33,6 @@ FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewab
 	, bLastOwner(1)
 	, bQueuedForUpload(0)
 	, FirstBarrier(EFirstBarrier::Split)
-	, bUAVAccessed(0)
 	, ReferenceCount(IsImmediateMode() ? 1 : 0)
 {
 	if (bSkipTracking)

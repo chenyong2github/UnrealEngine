@@ -42,21 +42,17 @@ TAutoConsoleVariable<int32> CVarD3D12ZeroBufferSizeInMB(
 
 FD3D12DynamicRHI* FD3D12DynamicRHI::SingleD3DRHI = nullptr;
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-extern int32 GGapRecorderUseBlockingCall;
-#endif
-
 FD3D12WorkaroundFlags GD3D12WorkaroundFlags;
 
 using namespace D3D12RHI;
 
-FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn, bool bInPixEventEnabled) :
-	ChosenAdapters(ChosenAdaptersIn),
-	bPixEventEnabled(bInPixEventEnabled),
-	AmdAgsContext(nullptr),
-	AmdSupportedExtensionFlags(0),
-	FlipEvent(INVALID_HANDLE_VALUE),
-	bAllowVendorDevice(!FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
+FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn, bool bInPixEventEnabled)
+	: ChosenAdapters(ChosenAdaptersIn)
+	, bPixEventEnabled(bInPixEventEnabled)
+	, AmdAgsContext(nullptr)
+	, AmdSupportedExtensionFlags(0)
+	, FlipEvent(INVALID_HANDLE_VALUE)
+	, bAllowVendorDevice(!FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
 {
 	// The FD3D12DynamicRHI must be a singleton
 	check(SingleD3DRHI == nullptr);
@@ -189,9 +185,6 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	GPixelFormats[PF_R9G9B9EXP5	    ].PlatformFormat = DXGI_FORMAT_R9G9B9E5_SHAREDEXP;
 
-	GPixelFormats[PF_P010			].PlatformFormat = DXGI_FORMAT_P010;
-	GPixelFormats[PF_P010			].Supported = true;
-
 	// MS - Not doing any feature level checks. D3D12 currently supports these limits.
 	// However this may need to be revisited if new feature levels are introduced with different HW requirement
 	GSupportsSeparateRenderTargetBlendState = true;
@@ -250,6 +243,11 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GRHISupportsPipelineFileCache = PLATFORM_WINDOWS;
 
 	GRHISupportsMapWriteNoOverwrite = true;
+
+	GRHISupportsDynamicResolution = true;
+	GRHISupportsFrameCyclesBubblesRemoval = true;
+	GRHISupportsGPUTimestampBubblesRemoval = true;
+	GRHISupportsRHIOnTaskThread = true;
 }
 
 FD3D12DynamicRHI::~FD3D12DynamicRHI()
@@ -263,6 +261,9 @@ void FD3D12DynamicRHI::Shutdown()
 {
 	check(IsInGameThread() && IsInRenderingThread());  // require that the render thread has been shut down
 
+	// Reset the RHI initialized flag.
+	GIsRHIInitialized = false;
+
 #if PLATFORM_WINDOWS
 	if (AmdAgsContext)
 	{
@@ -272,35 +273,38 @@ void FD3D12DynamicRHI::Shutdown()
 	}
 #endif
 
-	RHIShutdownFlipTracking();
+	// Ask all initialized FRenderResources to release their RHI resources.
+	FRenderResource::ReleaseRHIForAllResources();
 
-	// Cleanup All of the Adapters
 	for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
 	{
-		// Take a reference on the ID3D12Device so that we can delete the FD3D12Device
-		// and have it's children correctly release ID3D12* objects via RAII
-		TRefCountPtr<ID3D12Device> Direct3DDevice = Adapter->GetD3DDevice();
-
-		Adapter->Cleanup();
-
-#if PLATFORM_WINDOWS
-		const bool bWithD3DDebug = D3D12RHI_ShouldCreateWithD3DDebug();
-		if (bWithD3DDebug)
-		{
-			TRefCountPtr<ID3D12DebugDevice> Debug;
-
-			if (SUCCEEDED(Direct3DDevice->QueryInterface(IID_PPV_ARGS(Debug.GetInitReference()))))
-			{
-				D3D12_RLDO_FLAGS rldoFlags = D3D12_RLDO_DETAIL;
-
-				Debug->ReportLiveDeviceObjects(rldoFlags);
-			}
-		}
-#endif
-		// The lifetime of the adapter is managed by the FD3D12DynamicRHIModule
+		Adapter->CleanupResources();
+		Adapter->BlockUntilIdle();
 	}
 
+	// Flush all pending deletes before destroying the device or any command contexts.
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+		int32 DeletedCount;
+		do
+		{
+			DeletedCount = FRHIResource::FlushPendingDeletes(RHICmdList);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		} while (DeletedCount);
+
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+	}
+
+	RHIShutdownFlipTracking();
+	ShutdownSubmissionPipe();
+
+	check(ObjectsToDelete.Num() == 0);
+
+	// Delete adapters, devices, queues, command contexts etc
 	ChosenAdapters.Empty();
+
+	check(ObjectsToDelete.Num() == 0);
 
 	// Release the buffer of zeroes.
 	FMemory::Free(ZeroBuffer);
@@ -316,10 +320,9 @@ void FD3D12DynamicRHI::Shutdown()
 #endif
 }
 
-FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, ED3D12CommandQueueType InQueueType, bool InIsDefaultContext)
+FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, ED3D12QueueType InQueueType, bool InIsDefaultContext)
 {
-	FD3D12CommandContext* NewContext = new FD3D12CommandContext(InParent, InQueueType, InIsDefaultContext);
-	return NewContext;
+	return new FD3D12CommandContext(InParent, InQueueType, InIsDefaultContext);
 }
 
 void FD3D12DynamicRHI::CreateCommandQueue(FD3D12Device* Device, const D3D12_COMMAND_QUEUE_DESC& Desc, TRefCountPtr<ID3D12CommandQueue>& OutCommandQueue)
@@ -348,25 +351,9 @@ IRHICommandContext* FD3D12DynamicRHI::RHIGetDefaultContext()
 
 IRHIComputeContext* FD3D12DynamicRHI::RHIGetDefaultAsyncComputeContext()
 {
-	FD3D12Adapter& Adapter = GetAdapter();
-
-	IRHIComputeContext* DefaultAsyncComputeContext = nullptr;
-	if (GNumExplicitGPUsForRendering > 1)
-	{
-		DefaultAsyncComputeContext = GEnableAsyncCompute ?
-			static_cast<IRHIComputeContext*>(&Adapter.GetDefaultAsyncComputeContextRedirector()) :
-			static_cast<IRHIComputeContext*>(&Adapter.GetDefaultContextRedirector());
-	}
-	else // Single GPU path.
-	{
-		FD3D12Device* Device = Adapter.GetDevice(0);
-		DefaultAsyncComputeContext = GEnableAsyncCompute ?
-			static_cast<IRHIComputeContext*>(&Device->GetDefaultAsyncComputeContext()) :
-			static_cast<IRHIComputeContext*>(&Device->GetDefaultCommandContext());
-	}
-
-	check(DefaultAsyncComputeContext);
-	return DefaultAsyncComputeContext;
+	// This should never be called. There is no "default" async compute context anymore.
+	checkNoEntry(); 
+	return nullptr;
 }
 
 void FD3D12DynamicRHI::UpdateBuffer(FD3D12ResourceLocation* Dest, uint32 DestOffset, FD3D12ResourceLocation* Source, uint32 SourceOffset, uint32 NumBytes)
@@ -380,21 +367,19 @@ void FD3D12DynamicRHI::UpdateBuffer(FD3D12ResourceLocation* Dest, uint32 DestOff
 	FD3D12Device* Device = DestResource->GetParentDevice();
 
 	FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
-	FD3D12CommandListHandle& hCommandList = DefaultContext.CommandListHandle;
 	
 	// Clear the resource if still bound to make sure the SRVs are rebound again on next operation (and get correct resource transitions enqueued)
 	DefaultContext.ConditionalClearShaderResource(Dest);
 
-	FScopedResourceBarrier ScopeResourceBarrierDest(hCommandList, DestResource, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+	FScopedResourceBarrier ScopeResourceBarrierDest(DefaultContext, DestResource, D3D12_RESOURCE_STATE_COPY_DEST, 0);
 	// Don't need to transition upload heaps
 
-	DefaultContext.numCopies++;
-	hCommandList.FlushResourceBarriers();
-	hCommandList->CopyBufferRegion(DestResource->GetResource(), DestFullOffset, SourceResource->GetResource(), SourceFullOffset, NumBytes);
-	hCommandList.UpdateResidency(DestResource);
-	hCommandList.UpdateResidency(SourceResource);
+	DefaultContext.FlushResourceBarriers();
+	DefaultContext.GraphicsCommandList()->CopyBufferRegion(DestResource->GetResource(), DestFullOffset, SourceResource->GetResource(), SourceFullOffset, NumBytes);
+	DefaultContext.UpdateResidency(DestResource);
+	DefaultContext.UpdateResidency(SourceResource);
 	
-	DefaultContext.ConditionalFlushCommandList();
+	DefaultContext.ConditionalSplitCommandList();
 
 	DEBUG_RHI_EXECUTE_COMMAND_LIST(this);
 }
@@ -402,6 +387,107 @@ void FD3D12DynamicRHI::UpdateBuffer(FD3D12ResourceLocation* Dest, uint32 DestOff
 void FD3D12DynamicRHI::RHIFlushResources()
 {
 	// Nothing to do (yet!)
+}
+
+void FD3D12DynamicRHI::EnqueueEndOfPipeTask(TUniqueFunction<void()> TaskFunc, TUniqueFunction<void(FD3D12Payload&)> ModifyPayloadCallback)
+{
+	FGraphEventArray Prereqs;
+	Prereqs.Reserve(GD3D12MaxNumQueues + 1);
+	if (EopTask)
+	{
+		Prereqs.Add(EopTask);
+	}
+
+	TArray<FD3D12Payload*, TInlineAllocator<GD3D12MaxNumQueues>> Payloads;
+	ForEachQueue([&](FD3D12Queue& Queue)
+	{
+		FD3D12Payload* Payload = new FD3D12Payload(Queue.Device, Queue.QueueType);
+
+		FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
+		Payload->SyncPointsToSignal.Emplace(SyncPoint);
+		Payload->bResolveQueries = true;
+		Prereqs.Add(SyncPoint->GetGraphEvent());
+
+		if (ModifyPayloadCallback)
+			ModifyPayloadCallback(*Payload);
+
+		Payloads.Add(Payload);
+	});
+
+	SubmitPayloads(Payloads);
+
+	EopTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		MoveTemp(TaskFunc),
+		QUICK_USE_CYCLE_STAT(FExecuteRHIThreadTask, STATGROUP_TaskGraphTasks),
+		&Prereqs
+	);
+}
+
+void FD3D12DynamicRHI::FlushTiming(bool bCreateNew)
+{
+	auto Lambda = [this, OldTiming = MoveTemp(CurrentTiming)]()
+	{
+		if (OldTiming)
+		{
+			ProcessTimestamps(*OldTiming.Get());
+		}
+	};
+
+	if (bCreateNew)
+	{
+		CurrentTiming = MakeUnique<TIndirectArray<FD3D12Timing>>();
+		CurrentTiming->Reserve(GD3D12MaxNumQueues);
+	}
+
+	EnqueueEndOfPipeTask(MoveTemp(Lambda), [&](FD3D12Payload& Payload)
+	{
+		if (bCreateNew)
+		{
+			FD3D12Timing* NewTiming = new FD3D12Timing(Payload.Queue);
+			Payload.Timing = NewTiming;
+			CurrentTiming->Add(NewTiming);
+		}
+		else
+		{
+			Payload.Timing = nullptr;
+		}
+	});
+}
+
+void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
+{
+	TArray<FD3D12DeferredDeleteObject> Local;
+	{
+		FScopeLock Lock(&ObjectsToDeleteCS);
+		Local = MoveTemp(ObjectsToDelete);
+	}
+
+	if (Local.Num())
+	{
+		EnqueueEndOfPipeTask([Array = MoveTemp(Local)]()
+		{
+			for (FD3D12DeferredDeleteObject const& ObjectToDelete : Array)
+			{
+				switch (ObjectToDelete.Type)
+				{
+				case FD3D12DeferredDeleteObject::EType::RHIObject:
+					// This should be a final release.
+					check(ObjectToDelete.RHIObject->GetRefCount() == 1);
+					ObjectToDelete.RHIObject->Release();
+					break;
+				case FD3D12DeferredDeleteObject::EType::D3DObject:
+					ObjectToDelete.D3DObject->Release();
+					break;
+				case FD3D12DeferredDeleteObject::EType::BindlessDescriptor:
+					ObjectToDelete.BindlessDescriptor.Device->GetBindlessDescriptorManager().ImmediateFree(ObjectToDelete.BindlessDescriptor.Handle);
+					break;
+				default:
+					checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
+					break;
+				}
+			}
+		});
+	}
 }
 
 void FD3D12DynamicRHI::RHIAcquireThreadOwnership()
@@ -437,7 +523,7 @@ bool FD3D12DynamicRHI::RHIIsPixEnabled() const
 ID3D12CommandQueue* FD3D12DynamicRHI::RHIGetCommandQueue() const
 {
 	// Multi-GPU support : any code using this function needs validation.
-	return GetAdapter().GetDevice(0)->GetCommandListManager().GetD3DCommandQueue();
+	return GetAdapter().GetDevice(0)->GetQueue(ED3D12QueueType::Direct).D3DCommandQueue;
 }
 
 ID3D12Device* FD3D12DynamicRHI::RHIGetDevice(uint32 InIndex) const
@@ -452,8 +538,7 @@ uint32 FD3D12DynamicRHI::RHIGetDeviceNodeMask(uint32 InIndex) const
 
 ID3D12GraphicsCommandList* FD3D12DynamicRHI::RHIGetGraphicsCommandList(uint32 InDeviceIndex) const
 {
-	FD3D12Device* Device = GetRHIDevice(InDeviceIndex);
-	return Device->GetCommandContext().CommandListHandle.GraphicsCommandList();
+	return GetRHIDevice(InDeviceIndex)->GetDefaultCommandContext().GraphicsCommandList().Get();
 }
 
 DXGI_FORMAT FD3D12DynamicRHI::RHIGetSwapChainFormat(EPixelFormat InFormat) const
@@ -508,38 +593,16 @@ void FD3D12DynamicRHI::RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12
 {
 	FD3D12Device* Device = GetRHIDevice(InDeviceIndex);
 
-	check(InCommandList == Device->GetCommandContext().CommandListHandle.GraphicsCommandList());
+	check(InCommandList == Device->GetDefaultCommandContext().GraphicsCommandList().GetNoRefCount());
 
-	Device->GetCommandContext().StateCache.ForceSetComputeRootSignature();
-	Device->GetCommandContext().StateCache.GetDescriptorCache()->SetCurrentCommandList(Device->GetCommandContext().CommandListHandle);
+	Device->GetDefaultCommandContext().StateCache.ForceSetComputeRootSignature();
+	Device->GetDefaultCommandContext().StateCache.GetDescriptorCache()->SetDescriptorHeaps();
 }
 
-void FD3D12DynamicRHI::RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitives)
-{
-	FD3D12Device* Device = GetRHIDevice(InDeviceIndex);
-	if (Device->GetCommandContext().IsDefaultContext())
-	{
-		Device->RegisterGPUWork(NumPrimitives);
-	}
-}
-
-void FD3D12DynamicRHI::RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource)
+void FD3D12DynamicRHI::RHITransitionResource(FRHICommandList& RHICmdList, FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource)
 {
 	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
-	FD3D12CommandListHandle& CommandList = D3D12Texture->GetParentDevice()->GetDefaultCommandContext().CommandListHandle;
-
-	CommandList.AddPendingResourceBarrier(D3D12Texture->GetResource(), InState, InSubResource);
-}
-
-void FD3D12DynamicRHI::RHIExecuteOnCopyCommandQueue(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun)
-{
-	ID3D12CommandQueue* CommandQueue = GetAdapter().GetDevice(0)->GetD3DCommandQueue(ED3D12CommandQueueType::Copy);
-	checkSlow(CommandQueue);
-
-	{
-		FScopeLock Lock(&CopyQueueCS);
-		CodeToRun(CommandQueue);
-	}
+	FD3D12CommandContext::Get(RHICmdList).TransitionResource(D3D12Texture->GetResource(), D3D12_RESOURCE_STATE_TBD, InState, InSubResource);
 }
 
 bool ID3D12DynamicRHI::IsD3DDebugEnabled()
@@ -685,321 +748,15 @@ bool FD3D12DynamicRHI::CheckGpuHeartbeat() const
 	return bResult;
 }
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-FD3D12SubmissionGapRecorder::FD3D12SubmissionGapRecorder()
-	: WriteIndex(0)
-	, WriteIndexRT(0)
-	, ReadIndex(0)
-	, CurrentGapSpanReadIndex(0)
-	, CurrentElapsedWaitCycles(0)
-	, LastTimestampAdjusted(0xFFFFFFFF)
-	, StartFrameSlotIdx(0)
-	, EndFrameSlotIdx(0)
+void FD3D12DynamicRHI::HandleGpuTimeout(FD3D12Payload* Payload, double SecondsSinceSubmission)
 {
-	// Add 8 frames to the ring buffer. This gives a reasonable amount of history
-	// for buffered queries when we want to read the results back later
-	for (int i = 0; i < 8; i++)
-	{
-		FrameRingbuffer.Add(FD3D12SubmissionGapRecorder::FFrame());
-	}
+	UE_LOG(LogD3D12RHI, Warning, TEXT("GPU timeout: A payload (0x%p) on the [0x%p, %s] queue has not completed after %f seconds.")
+		, Payload
+		, &Payload->Queue
+		, GetD3DCommandQueueTypeName(Payload->Queue.QueueType)
+		, SecondsSinceSubmission
+	);
 }
-
-uint64 FD3D12SubmissionGapRecorder::SubmitSubmissionTimestampsForFrame(uint32 FrameCounter, 
-	TArray<uint64>& PrevFrameBeginSubmissionTimestamps, 
-	TArray<uint64>& PrevFrameEndSubmissionTimestamps)
-{
-	// NB: The frame number for the previous frame is actually FrameCounter-2, because we've already incremented FrameCounter at this point
-	uint32 Offset = 2;
-
-	if (!GGapRecorderUseBlockingCall)
-	{
-		// If we are not using a blocking call results will be one frame further prior
-		Offset = 3;
-	}
-
-	uint32 FrameNumber = FrameCounter - Offset;
-
-	UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Storing Frame %u as Frame Number %d RingBufferFrames %d ReadIndex %u WriteIndex %u"), FrameCounter,FrameNumber, FrameRingbuffer.Num(), ReadIndex, WriteIndex);
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-	ensureMsgf(PrevFrameBeginSubmissionTimestamps.Num() == PrevFrameEndSubmissionTimestamps.Num(), TEXT("Start/End Submission timestamps don't match. %i, %i"), PrevFrameBeginSubmissionTimestamps.Num(), PrevFrameEndSubmissionTimestamps.Num());
-#endif
-
-	FD3D12SubmissionGapRecorder::FFrame& Frame = FrameRingbuffer[WriteIndex];
-
-	UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("Ring Buffer Frames"));
-	for (int i = 0; i < FrameRingbuffer.Num(); i++)
-	{
-		UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("Frame %u"), FrameRingbuffer[i].FrameNumber);
-	}
-
-	// It seems GapSpans can be modified on both the render thread and RHI thread, so we need a critical section
-	FScopeLock ScopeLock(&GapSpanMutex);
-
-	Frame.GapSpans.Empty();
-	Frame.FrameNumber = FrameNumber;
-
-	uint64 TotalWaitCycles = 0;
-	bool bValid = true;
-
-	// Do some rudimentary checks. Note: the first 2 frames are always invalid, because we don't have any data yet
-	if (PrevFrameBeginSubmissionTimestamps.Num() != PrevFrameEndSubmissionTimestamps.Num() || FrameCounter < 2)
-	{
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame not storing frame FrameCounter %u PFBT %d PFET %d"), FrameCounter, PrevFrameBeginSubmissionTimestamps.Num(), PrevFrameEndSubmissionTimestamps.Num());
-#endif
-		bValid = false;
-	}
-	else
-	{
-		static TConsoleVariableData<int32>* VSyncIntervalCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("rhi.syncinterval"));
-
-		if (VSyncIntervalCVar && VSyncIntervalCVar->GetValueOnRenderThread() > 0)
-		{
-			int32 offset = PrevFrameBeginSubmissionTimestamps.Num() - (EndFrameSlotIdx - (PresentSlotIdx + 2));
-			if (PrevFrameBeginSubmissionTimestamps.IsValidIndex(offset))
-			{
-				PrevFrameBeginSubmissionTimestamps.RemoveAt(offset);
-			}
-			if (PrevFrameEndSubmissionTimestamps.IsValidIndex(offset))
-			{
-				PrevFrameEndSubmissionTimestamps.RemoveAt(offset);
-			}
-
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Present Slot Idx %d End Frame Slot Idx %d Array Len %d Offset %d"), PresentSlotIdx, EndFrameSlotIdx, PrevFrameBeginSubmissionTimestamps.Num(), offset);
-#endif
-		}
-
-		if (PrevFrameBeginSubmissionTimestamps.Num() > 0)
-		{
-			// Store the timestamp values
-			for (int i = 0; i < PrevFrameBeginSubmissionTimestamps.Num() - 1; i++)
-			{
-				FGapSpan GapSpan;
-
-				uint64 BeginTimestampPtr = PrevFrameEndSubmissionTimestamps[i];
-				uint64 EndTimestampPtr = PrevFrameBeginSubmissionTimestamps[i + 1];
-
-				GapSpan.BeginCycles = BeginTimestampPtr;
-				uint64 EndCycles = EndTimestampPtr;
-
-				// Check begin/end is contiguous
-				if (EndCycles < GapSpan.BeginCycles)
-				{
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-					UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame EndCycles occurs before BeginCycles not valid"));
-#endif
-					bValid = false;
-					break;
-				}
-				GapSpan.DurationCycles = EndCycles - GapSpan.BeginCycles;
-
-				UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("GapSpan Begin %lu End %lu Duration %lu"), GapSpan.BeginCycles, EndCycles, GapSpan.DurationCycles);
-
-				// Check gap spans are contiguous (TODO: we might want to modify this to support async compute submissions which overlap)
-				if (i > 0)
-				{
-					const FGapSpan& PrevGap = Frame.GapSpans[i - 1];
-					uint64 PrevGapEndCycles = PrevGap.BeginCycles + PrevGap.DurationCycles;
-					if (GapSpan.BeginCycles < PrevGapEndCycles)
-					{
-						UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Gap Span Begin Cycle is later than Prev Gap Cycle End not valid"));
-						bValid = false;
-						break;
-					}
-				}
-
-				TotalWaitCycles += GapSpan.DurationCycles;
-
-				Frame.GapSpans.Add(GapSpan);
-			}
-
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-			float Timing = (float)FGPUTiming::GetTimingFrequency();
-
-			uint64 CurrSpan = 0;
-			uint64 TotalDuration = 0;
-
-			for (int i = 0; i < PrevFrameBeginSubmissionTimestamps.Num(); i++)
-			{
-				CurrSpan = PrevFrameEndSubmissionTimestamps[i] - PrevFrameBeginSubmissionTimestamps[i];
-
-				double CurrSpanSeconds = (CurrSpan / Timing);
-				double CurrSpanOutputTime = FMath::TruncToInt(CurrSpanSeconds / FPlatformTime::GetSecondsPerCycle());
-
-				UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration for span Begin %lu End %lu Duration %lu Seconds %f"),
-					PrevFrameBeginSubmissionTimestamps[i],
-					PrevFrameEndSubmissionTimestamps[i],
-					CurrSpan,
-					(CurrSpanSeconds * 1000.0f));
-				TotalDuration += CurrSpan;
-			}
-
-			int32 len = PrevFrameEndSubmissionTimestamps.Num() - 1;
-			uint64 tbegin = PrevFrameBeginSubmissionTimestamps[0];
-			uint64 tend = PrevFrameEndSubmissionTimestamps[len];
-			uint64 duration = tend - tbegin;
-			double seconds = (duration / Timing);
-			double TotalDurationSeconds = (TotalDuration / Timing);
-
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration for all Timestamps for Frame %u Cycles %lu Timing %f Milliseconds %f"),
-				FrameNumber,
-				TotalDuration,
-				Timing,
-				TotalDurationSeconds);
-
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("Total GPU Duration from StartTimestamp %lu to EndTimestamp %lu Duration %lu MilliSeconds %f Timing %f"),
-				tbegin,
-				tend,
-				duration,
-				seconds,
-				Timing);
-
-			CSV_CUSTOM_STAT_GLOBAL(GPUTimestamps, float(TotalDurationSeconds * 1000.0f), ECsvCustomStatOp::Set);
-#endif
-		}
-		else
-		{
-			bValid = false;
-		}
-	}
-
-	UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Frame %u FN %u TotalWaitCycles %lu"), FrameCounter, FrameNumber, TotalWaitCycles);
-
-	if (!bValid)
-	{
-		// If the frame isn't valid, just clear it
-#if D3D12_SUBMISSION_GAP_RECORDER_DEBUG_INFO
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("SubmitSubmissionTimestampsForFrame Frame %u FN %u is not valid clearing"), FrameCounter, FrameNumber);
-#endif
-		Frame.GapSpans.Empty();
-		TotalWaitCycles = 0;
-	}
-
-	Frame.TotalWaitCycles = TotalWaitCycles;
-	WriteIndex = (WriteIndex + 1) % FrameRingbuffer.Num();
-
-	// Keep track of the begin/end span for the frame (mostly for debugging at this point)
-	Frame.EndCycles = 0;
-	Frame.StartCycles = 0;
-	if (Frame.GapSpans.Num() > 0)
-	{
-		Frame.StartCycles = Frame.GapSpans[0].BeginCycles;
-
-		const FGapSpan& LastSpan = Frame.GapSpans.Last();
-		Frame.EndCycles = LastSpan.BeginCycles + LastSpan.DurationCycles;
-	}
-	Frame.bIsValid = bValid;
-	return TotalWaitCycles;
-}
-
-uint64 FD3D12SubmissionGapRecorder::AdjustTimestampForSubmissionGaps(uint32 FrameSubmitted, uint64 Timestamp)
-{
-	// Note: this function looks heavy, but in most cases it should be efficient, as it takes advantage of wait times computed on previous calls.
-	// Large numbers of timestamps requested out of order may be slower
-
-	// It seems GapSpans can be modified on both the render thread and RHI thread, so we need a critical section
-	FScopeLock ScopeLock(&GapSpanMutex);
-
-	// Get the current frame (in most cases we'll just skip over this)
-	if (FrameRingbuffer[ReadIndex].FrameNumber != FrameSubmitted)
-	{
-		// This isn't the right frame, so try to find it
-		bool bFound = false;
-		for (int i = 0; i < FrameRingbuffer.Num() - 1; i++)
-		{
-			ReadIndex = (ReadIndex + 1) % FrameRingbuffer.Num();
-			if (FrameRingbuffer[ReadIndex].FrameNumber == FrameSubmitted)
-			{
-				LastTimestampAdjusted = (uint64)-1;
-				bFound = true;
-				break;
-			}
-		}
-
-		if (!bFound)
-		{
-			// The frame wasn't found, so don't adjust the timestamp
-			UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("AdjustTimestampForSubmissionGaps Frame %u not found in ringbuffer"), FrameSubmitted);
-			return Timestamp;
-		}
-	}
-
-	FFrame& CurrentFrame = FrameRingbuffer[ReadIndex];
-	bool bValid = CurrentFrame.bIsValid;
-
-	// In the non blocking case the data is always read from the prior frame so this is not required
-	if (GGapRecorderUseBlockingCall)
-	{
-		bValid = bValid && CurrentFrame.bSafeToReadOnRenderThread;
-	}
-
-	if (!bValid)
-	{
-		// If the frame isn't valid, don't adjust the timestamp
-		UE_LOG(LogD3D12GapRecorder, VeryVerbose, TEXT("AdjustTimestampForSubmissionGaps Frame %u not valid SafeToRead %d"),FrameSubmitted, CurrentFrame.bSafeToReadOnRenderThread);
-		return Timestamp;
-	}
-
-	// If the timestamps are read back out-of-order (or this is the first frame), we need to start from the beginning
-	if (Timestamp < LastTimestampAdjusted)
-	{
-		CurrentGapSpanReadIndex = 0;
-		CurrentElapsedWaitCycles = 0;
-	}
-	LastTimestampAdjusted = Timestamp;
-
-	int32 GapSpans = 0;
-
-	// Find all gaps before this timestamp and add up the time (this continues where we left off last time if possible)
-	for (; CurrentGapSpanReadIndex < CurrentFrame.GapSpans.Num(); CurrentGapSpanReadIndex++)
-	{
-		const FGapSpan& GapSpan = CurrentFrame.GapSpans[CurrentGapSpanReadIndex];
-		if (GapSpan.BeginCycles >= Timestamp)
-		{
-			// The next gap begins before this timestamp happened, so we're done
-			break;
-		}
-		GapSpans++;
-		CurrentElapsedWaitCycles += GapSpan.DurationCycles;
-	}
-
-	UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("AdjustTimestampForSubmissionGaps Frame %u Found %lu Gap Spans Before Timestamp %lu Total %d CurrentElapsedWaitCycles %lu"), FrameSubmitted, GapSpans, Timestamp, CurrentFrame.GapSpans.Num(), CurrentElapsedWaitCycles);
-
-	if (Timestamp < CurrentElapsedWaitCycles)
-	{
-		// Something went wrong. Likely a result of 32-bit uint overflow. Don't adjust
-		UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("AdjustTimestampForSubmissionGaps Timestamp was less than elapsed wait cycles not adjusting"), FrameSubmitted);
-		return Timestamp;
-	}
-	return Timestamp - CurrentElapsedWaitCycles;
-}
-
-void FD3D12SubmissionGapRecorder::OnRenderThreadAdvanceFrame()
-{
-	check(IsInRenderingThread());
-	for (int i = 0; i < FrameRingbuffer.Num(); i++)
-	{
-		FrameRingbuffer[i].bSafeToReadOnRenderThread = true;
-	}
-
-	WriteIndexRT = (WriteIndexRT + 1) % FrameRingbuffer.Num();
-
-#if DO_CHECK
-	// Check the write indices don't drift. Shouldn't be possible, but just in case... 
-	{
-		int Diff = FMath::Abs((int)WriteIndexRT - (int)WriteIndex);
-		//ensure(Diff <= 1 || Diff == FrameRingbuffer.Num() - 1);
-	}
-#endif
-
-	// If we have an RHIThread, the frame at WriteIndex is about to be written, so mark it as not safe to read. 
-	if (IsRunningRHIInSeparateThread())
-	{
-		FrameRingbuffer[WriteIndexRT].bSafeToReadOnRenderThread = false;
-	}
-}
-#endif
 
 const TCHAR* LexToString(DXGI_FORMAT Format)
 {

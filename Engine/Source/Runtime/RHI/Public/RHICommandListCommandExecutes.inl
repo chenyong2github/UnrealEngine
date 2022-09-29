@@ -21,7 +21,6 @@ struct FComputedUniformBuffer;
 struct FMemory;
 struct FRHICommandBeginDrawingViewport;
 struct FRHICommandBeginFrame;
-struct FRHICommandBeginOcclusionQueryBatch;
 struct FRHICommandBeginRenderQuery;
 struct FRHICommandBeginScene;
 struct FRHICommandBuildLocalBoundShaderState;
@@ -90,7 +89,18 @@ void FRHICommandEndUpdateMultiFrameUAV::Execute(FRHICommandListBase& CmdList)
 void FRHICommandSetGPUMask::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetGPUMask);
-	INTERNAL_DECORATOR_COMPUTE(RHISetGPUMask)(GPUMask);
+
+	// Update the RHICmdList copy of the current mask
+	CmdList.PersistentState.CurrentGPUMask = GPUMask;
+
+	// Apply the new mask to all contexts owned by this command list.
+	for (IRHIComputeContext* Context : CmdList.Contexts)
+	{
+		if (Context)
+		{
+			Context->RHISetGPUMask(GPUMask);
+		}
+	}
 }
 void FRHICommandWaitForTemporalEffect::Execute(FRHICommandListBase& CmdList)
 {
@@ -737,6 +747,7 @@ void FRHICommandEndScene::Execute(FRHICommandListBase& CmdList)
 void FRHICommandBeginFrame::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginFrame);
+	RHIPrivateBeginFrame();
 	INTERNAL_DECORATOR(RHIBeginFrame)();
 }
 
@@ -774,7 +785,7 @@ void FRHICommandPopEvent::Execute(FRHICommandListBase& CmdList)
 void FRHICommandSetBreadcrumbStackTop::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(RHISetBreadcrumbStackTop);
-	INTERNAL_DECORATOR_COMPUTE(RHISetBreadcrumbStackTop)(Breadcrumb);
+	CmdList.Breadcrumbs.SetStackTop(Breadcrumb);
 }
 #endif
 

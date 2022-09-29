@@ -891,8 +891,8 @@ inline bool RHIIsTypedUAVStoreSupported(EPixelFormat InFormat)
 */
 extern RHI_API SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format);
 
-/** Called once per frame only from within an RHI. */
-extern RHI_API void RHIPrivateBeginFrame();
+/** Called once per frame only from RHIBeginFrame's command execution. */
+void RHIPrivateBeginFrame();
 
 
 RHI_API FName LegacyShaderPlatformToShaderFormat(EShaderPlatform Platform);

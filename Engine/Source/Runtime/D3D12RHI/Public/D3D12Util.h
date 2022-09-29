@@ -55,7 +55,7 @@ namespace D3D12RHI
 	const TCHAR* GetD3D12TextureFormatString(DXGI_FORMAT TextureFormat);
 
 	/** Checks if given GPU virtual address corresponds to any known resource allocations and logs results */
-	void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress);
+	void LogPageFaultData(FD3D12Adapter* InAdapter, FD3D12Device* InDevice, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress);
 	
 } // namespace D3D12RHI
 
@@ -246,9 +246,7 @@ private:
 
 void LogExecuteCommandLists(uint32 NumCommandLists, ID3D12CommandList *const *ppCommandLists);
 FString ConvertToResourceStateString(uint32 ResourceState);
-void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER *pBarriers, ID3D12CommandList *const pCommandList);
-
-void StallRHIThreadAndForceFlush(FD3D12Device* InDevice);
+void LogResourceBarriers(TConstArrayView<D3D12_RESOURCE_BARRIER> Barriers, ID3D12CommandList *const pCommandList);
 
 // Custom resource states
 // To Be Determined (TBD) means we need to fill out a resource barrier before the command list is executed.
@@ -284,8 +282,18 @@ public:
 	void SetResourceState(D3D12_RESOURCE_STATES State);
 	void SetSubresourceState(uint32 SubresourceIndex, D3D12_RESOURCE_STATES State);
 
-	D3D12_RESOURCE_STATES GetUAVHiddenResourceState() const { return UAVHiddenResourceState; }
-	void SetUAVHiddenResourceState(D3D12_RESOURCE_STATES InUAVHiddenResourceState) { UAVHiddenResourceState = InUAVHiddenResourceState; }
+	D3D12_RESOURCE_STATES GetUAVHiddenResourceState() const
+	{
+		return UAVHiddenResourceState;	
+	}
+
+	void SetUAVHiddenResourceState(D3D12_RESOURCE_STATES InUAVHiddenResourceState)
+	{
+		// The hidden state can never include UAV
+		check(InUAVHiddenResourceState == D3D12_RESOURCE_STATE_TBD || !EnumHasAnyFlags(InUAVHiddenResourceState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+
+		UAVHiddenResourceState = InUAVHiddenResourceState;
+	}
 
 private:
 	// Only used if m_AllSubresourcesSame is 1.
@@ -451,39 +459,6 @@ inline D3D12_RESOURCE_STATES DetermineInitialResourceState(D3D12_HEAP_TYPE HeapT
 		return D3D12_RESOURCE_STATE_COPY_DEST;
 	}
 }
-
-class FD3D12Fence;
-class FD3D12SyncPoint
-{
-public:
-	explicit FD3D12SyncPoint()
-		: Fence(nullptr)
-		, Value(0)
-	{
-	}
-
-	explicit FD3D12SyncPoint(FD3D12Fence* InFence, uint64 InValue)
-		: Fence(InFence)
-		, Value(InValue)
-	{
-	}
-
-	bool IsValid() const;
-	bool IsComplete() const;
-	void WaitForCompletion() const;
-	void GPUWait(ED3D12CommandQueueType InCommandQueueType) const;
-
-	void Merge(const FD3D12SyncPoint& InOther)
-	{
-		check(Fence == nullptr || Fence == InOther.Fence);
-		Fence = InOther.Fence;
-		Value = FMath::Max(Value, InOther.Value);
-	}
-
-private:
-	FD3D12Fence* Fence;
-	uint64 Value;
-};
 
 static bool IsBlockCompressFormat(DXGI_FORMAT Format)
 {

@@ -402,7 +402,7 @@ public:
 	// FVulkanEvictable interface.
 	bool CanMove() const override { return false; }
 	bool CanEvict() const override { return false; }
-	void Evict(FVulkanDevice& Device) override; ///evict to system memory
+	void Evict(FVulkanDevice& Device, FVulkanCommandListContext& Context) override; ///evict to system memory
 	void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation) override; //move to a full new allocation
 	FVulkanTexture* GetEvictableTexture() override { return this; }
 	
@@ -876,17 +876,11 @@ protected:
 	friend class FVulkanCommandListContext;
 };
 
-class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, public VulkanRHI::FDeviceChild
+class FVulkanResourceMultiBuffer : public FRHIBuffer, public VulkanRHI::FDeviceChild
 {
 public:
 	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListBase* InRHICmdList = nullptr, const FRHITransientHeapAllocation* InTransientHeapAllocation = nullptr);
 	virtual ~FVulkanResourceMultiBuffer();
-
-	// FVulkanEvictable interface.
-	bool CanMove() const override { return false; }
-	bool CanEvict() const override { return false; }
-	void Evict(FVulkanDevice& Device) override; ///evict to system memory
-	void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation) override; //move to a full new allocation
 
 	inline const VulkanRHI::FVulkanAllocation& GetCurrentAllocation() const
 	{
@@ -952,10 +946,16 @@ public:
 	}
 
 	void* Lock(FRHICommandListBase& RHICmdList, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
-	void Unlock(FRHICommandListBase& RHICmdList);
-
 	void* Lock(FVulkanCommandListContext& Context, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
-	void Unlock(FVulkanCommandListContext& Context);
+
+	inline void Unlock(FRHICommandListBase& RHICmdList)
+	{
+		Unlock(&RHICmdList, nullptr);
+	}
+	inline void Unlock(FVulkanCommandListContext& Context)
+	{
+		Unlock(nullptr, &Context);
+	}
 
 	void Swap(FVulkanResourceMultiBuffer& Other);
 
@@ -979,6 +979,9 @@ public:
 	}
 
 protected:
+	void Unlock(FRHICommandListBase* RHICmdList, FVulkanCommandListContext* Context);
+
+
 	VkBufferUsageFlags BufferUsageFlags;
 	uint8 NumBuffers;
 	uint8 DynamicBufferIndex;

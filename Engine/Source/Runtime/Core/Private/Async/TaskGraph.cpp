@@ -1925,7 +1925,7 @@ public:
 			if (GConfig == nullptr)
 			{
 				// postpone starting reserve workers until GConfig is initialized, to know if reserve workers are disabled
-				FCoreDelegates::TSConfigReadyForUse().AddRaw(this, &FTaskGraphCompatibilityImplementation::StartReserveWorkers);
+				FCoreDelegates::ConfigReadyForUse.AddRaw(this, &FTaskGraphCompatibilityImplementation::StartReserveWorkers);
 			}
 			else
 			{
@@ -1962,7 +1962,7 @@ public:
 
 	~FTaskGraphCompatibilityImplementation() override
 	{
-		FCoreDelegates::TSConfigReadyForUse().RemoveAll(this);
+		FCoreDelegates::ConfigReadyForUse.RemoveAll(this);
 
 		for (auto& Callback : ShutdownCallbacks)
 		{
@@ -2481,7 +2481,6 @@ bool FTaskGraphInterface::IsMultithread()
 #if TASKGRAPH_NEW_FRONTEND
 
 FGraphEventImplAllocator GraphEventImplAllocator;
-FGraphTaskAllocator SmallTaskAllocator;
 
 #else
 
@@ -2494,17 +2493,21 @@ void FBaseGraphTask::LogPossiblyInvalidSubsequentsTask(const TCHAR* TaskName)
 }
 #endif
 
-static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE> TheGraphEventAllocator;
+static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE>& GetGraphEventAllocator()
+{
+	static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE> Allocator;
+	return Allocator;
+}
 
 FGraphEventRef FGraphEvent::CreateGraphEvent()
 {
-	FGraphEvent* Instance = new(TheGraphEventAllocator.Allocate()) FGraphEvent{};
+	FGraphEvent* Instance = new(GetGraphEventAllocator().Allocate()) FGraphEvent{};
 	return Instance;
 }
 
 void FGraphEvent::Recycle(FGraphEvent* ToRecycle)
 {
-	TheGraphEventAllocator.Free(ToRecycle);
+	GetGraphEventAllocator().Free(ToRecycle);
 }
 
 void FGraphEvent::DispatchSubsequents(ENamedThreads::Type CurrentThreadIfKnown)

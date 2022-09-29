@@ -24,39 +24,32 @@ static FAutoConsoleVariableRef CVarD3DUseAllowTearing(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
-FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandle, uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat) :
-	FD3D12AdapterChild(InParent),
-	LastFlipTime(0),
-	LastFrameComplete(0),
-	LastCompleteTime(0),
-	SyncCounter(0),
-	bSyncedLastFrame(false),
-	WindowHandle(InWindowHandle),
-	MaximumFrameLatency(3),
-	SizeX(InSizeX),
-	SizeY(InSizeY),
-	bIsFullscreen(bInIsFullscreen),
-	bFullscreenLost(false),
-	PixelFormat(InPreferredPixelFormat),
-	bIsValid(true),
-	ColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709),
-	NumBackBuffers(WindowsDefaultNumBackBuffers),
-	DummyBackBuffer_RenderThread(nullptr),
-	CurrentBackBufferIndex_RHIThread(0),
-	BackBuffer_RHIThread(nullptr),
-	BackBuffer_RenderThread(nullptr),
-	BackBufferUAV_RenderThread(nullptr),
+FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandle, uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat)
+	: FD3D12AdapterChild(InParent)
+	, WindowHandle(InWindowHandle)
+	, SizeX(InSizeX)
+	, SizeY(InSizeY)
+	, bIsFullscreen(bInIsFullscreen)
+	, bFullscreenLost(false)
+	, PixelFormat(InPreferredPixelFormat)
+	, bIsValid(true)
+	, bHDRMetaDataSet(false)
+	, ColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709)
+	, NumBackBuffers(WindowsDefaultNumBackBuffers)
+	, DummyBackBuffer_RenderThread(nullptr)
+	, CurrentBackBufferIndex_RHIThread(0)
+	, BackBuffer_RHIThread(nullptr)
+	, BackBuffer_RenderThread(nullptr)
+	, BackBufferUAV_RenderThread(nullptr)
 #if WITH_MGPU
-	BackbufferMultiGPUBinding(0),
+	, BackbufferMultiGPUBinding(0)
 #endif //WITH_MGPU
-	ExpectedBackBufferIndex_RenderThread(0),
-	SDRDummyBackBuffer_RenderThread(nullptr),
-	SDRBackBuffer_RHIThread(nullptr),
-	SDRPixelFormat(PF_B8G8R8A8),
-	DisplayColorGamut(EDisplayColorGamut::sRGB_D65),
-	DisplayOutputFormat(EDisplayOutputFormat::SDR_sRGB),
-	Fence(InParent, FRHIGPUMask::All(), L"Viewport Fence"),
-	LastSignaledValue(0)
+	, ExpectedBackBufferIndex_RenderThread(0)
+	, SDRDummyBackBuffer_RenderThread(nullptr)
+	, SDRBackBuffer_RHIThread(nullptr)
+	, SDRPixelFormat(PF_B8G8R8A8)
+	, DisplayColorGamut(EDisplayColorGamut::sRGB_D65)
+	, DisplayOutputFormat(EDisplayOutputFormat::SDR_sRGB)
 #if WITH_MGPU
 	, FramePacerRunnable(nullptr)
 #endif //WITH_MGPU
@@ -82,8 +75,6 @@ void FD3D12Viewport::Init()
 		}
 	}
 
-	Fence.CreateFence();
-
 	CalculateSwapChainDepth(WindowsDefaultNumBackBuffers);
 
 	UINT SwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
@@ -96,7 +87,7 @@ void FD3D12Viewport::Init()
 	const DXGI_MODE_DESC BufferDesc = SetupDXGI_MODE_DESC();
 
 	// The command queue used here is irrelevant in regard to multi - GPU as it gets overriden in the Resize
-	ID3D12CommandQueue* CommandQueue = Adapter->GetDevice(0)->GetD3DCommandQueue();
+	ID3D12CommandQueue* CommandQueue = Adapter->GetDevice(0)->GetQueue(ED3D12QueueType::Direct).D3DCommandQueue;
 
 	// Create the swapchain.
 #if PLATFORM_HOLOLENS
@@ -135,7 +126,7 @@ void FD3D12Viewport::Init()
 	bNeedSwapChain = !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 	if (bNeedSwapChain)
 	{
-		if (Adapter->GetOwningRHI()->IsQuadBufferStereoEnabled())
+		if (FD3D12DynamicRHI::GetD3DRHI()->IsQuadBufferStereoEnabled())
 		{
 			if (Factory2->IsWindowedStereoEnabled())
 			{
@@ -162,7 +153,7 @@ void FD3D12Viewport::Init()
 			else
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("FD3D12Viewport::FD3D12Viewport was not able to create stereo SwapChain; Please enable stereo in driver settings."));
-				Adapter->GetOwningRHI()->DisableQuadBufferStereo();
+				FD3D12DynamicRHI::GetD3DRHI()->DisableQuadBufferStereo();
 			}
 		}
 
@@ -329,7 +320,7 @@ void FD3D12Viewport::ResizeInternal()
 			const uint32 GPUIndex = BackBufferGPUIndices[i];
 			FD3D12Device* Device = Adapter->GetDevice(GPUIndex);
 
-			CommandQueues.Add(Device->GetD3DCommandQueue());
+			CommandQueues.Add(Device->GetQueue(ED3D12QueueType::Direct).D3DCommandQueue);
 			NodeMasks.Add(Device->GetGPUMask().GetNative());
 		}
 
@@ -406,6 +397,20 @@ void FD3D12Viewport::EnableHDR()
 {
 	if ( GRHISupportsHDROutput && IsHDREnabled() )
 	{
+		const float DisplayMaxOutputNits = HDRGetDisplayMaximumLuminance();
+		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
+		const float DisplayMaxCLL = 0.0f;			// Max content light level in lumens (0.0 == unknown)
+		const float DisplayFALL = 0.0f;				// Frame average light level (0.0 == unknown)
+
+		// Ideally we can avoid setting TV meta data and instead the engine can do tone mapping based on the
+		// actual current display properties (display mapping).
+		SetHDRTVMode(true,
+			DisplayColorGamut,
+			DisplayMaxOutputNits,
+			DisplayMinOutputNits,
+			DisplayMaxCLL,
+			DisplayFALL);
+
 		// Ensure we have the correct color space set.
 		EnsureColorSpace(DisplayColorGamut, DisplayOutputFormat);
 	}
@@ -415,8 +420,28 @@ void FD3D12Viewport::ShutdownHDR()
 {
 	if (GRHISupportsHDROutput)
 	{
+		// Default SDR display data
+		const EDisplayColorGamut DisplayGamut = EDisplayColorGamut::sRGB_D65;
+		const EDisplayOutputFormat OutputDevice = EDisplayOutputFormat::SDR_sRGB;
+
+		// Note: These values aren't actually used.
+		const float DisplayMaxOutputNits = 100.0f;	// Max output of the display
+		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
+		const float DisplayMaxCLL = 100.0f;			// Max content light level in lumens
+		const float DisplayFALL = 20.0f;			// Frame average light level
+
+		// Ideally we can avoid setting TV meta data and instead the engine can do tone mapping based on the
+		// actual current display properties (display mapping).
+		SetHDRTVMode(
+			false,
+			DisplayGamut,
+			DisplayMaxOutputNits,
+			DisplayMinOutputNits,
+			DisplayMaxCLL,
+			DisplayFALL);
+
 		// Ensure we have the correct color space set.
-		EnsureColorSpace(EDisplayColorGamut::sRGB_D65, EDisplayOutputFormat::SDR_sRGB);
+		EnsureColorSpace(DisplayGamut, OutputDevice);
 	}
 }
 
@@ -527,6 +552,59 @@ void FD3D12Viewport::EnsureColorSpace(EDisplayColorGamut DisplayGamut, EDisplayO
 	}
 }
 
+void FD3D12Viewport::SetHDRTVMode(bool bEnableHDR, EDisplayColorGamut DisplayGamut, float MaxOutputNits, float MinOutputNits, float MaxCLL, float MaxFALL)
+{
+	ensure(SwapChain4.GetReference());
+
+	static const DisplayChromacities DisplayChromacityList[] =
+	{
+		{ 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // EDisplayColorGamut::sRGB_D65
+		{ 0.68000f, 0.32000f, 0.26500f, 0.69000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // EDisplayColorGamut::DCIP3_D65
+		{ 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // EDisplayColorGamut::Rec2020_D65
+		{ 0.73470f, 0.26530f, 0.00000f, 1.00000f, 0.00010f,-0.07700f, 0.32168f, 0.33767f }, // EDisplayColorGamut::ACES_D60
+		{ 0.71300f, 0.29300f, 0.16500f, 0.83000f, 0.12800f, 0.04400f, 0.32168f, 0.33767f }, // EDisplayColorGamut::ACEScg_D60
+	};
+
+	if (bEnableHDR)
+	{
+		const DisplayChromacities& Chroma = DisplayChromacityList[(int32)DisplayGamut];
+
+		// Set HDR meta data
+		DXGI_HDR_METADATA_HDR10 HDR10MetaData = {};
+		HDR10MetaData.RedPrimary[0] = static_cast<uint16>(Chroma.RedX * 50000.0f);
+		HDR10MetaData.RedPrimary[1] = static_cast<uint16>(Chroma.RedY * 50000.0f);
+		HDR10MetaData.GreenPrimary[0] = static_cast<uint16>(Chroma.GreenX * 50000.0f);
+		HDR10MetaData.GreenPrimary[1] = static_cast<uint16>(Chroma.GreenY * 50000.0f);
+		HDR10MetaData.BluePrimary[0] = static_cast<uint16>(Chroma.BlueX * 50000.0f);
+		HDR10MetaData.BluePrimary[1] = static_cast<uint16>(Chroma.BlueY * 50000.0f);
+		HDR10MetaData.WhitePoint[0] = static_cast<uint16>(Chroma.WpX * 50000.0f);
+		HDR10MetaData.WhitePoint[1] = static_cast<uint16>(Chroma.WpY * 50000.0f);
+		HDR10MetaData.MaxMasteringLuminance = static_cast<uint32>(MaxOutputNits * 10000.0f);
+		HDR10MetaData.MinMasteringLuminance = static_cast<uint32>(MinOutputNits * 10000.0f);
+		HDR10MetaData.MaxContentLightLevel = static_cast<uint16>(MaxCLL);
+		HDR10MetaData.MaxFrameAverageLightLevel = static_cast<uint16>(MaxFALL);
+
+		VERIFYD3D12RESULT(SwapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(HDR10MetaData), &HDR10MetaData));
+		UE_LOG(LogD3D12RHI, Log, TEXT("Setting HDR meta data on swap chain (%#016llx) using DisplayGamut %u:"), SwapChain4.GetReference(), static_cast<uint32>(DisplayGamut));
+		UE_LOG(LogD3D12RHI, Log, TEXT("\t\tMaxMasteringLuminance = %.4f nits"), HDR10MetaData.MaxMasteringLuminance * .0001f);
+		UE_LOG(LogD3D12RHI, Log, TEXT("\t\tMinMasteringLuminance = %.4f nits"), HDR10MetaData.MinMasteringLuminance * .0001f);
+		UE_LOG(LogD3D12RHI, Log, TEXT("\t\tMaxContentLightLevel = %u nits"), HDR10MetaData.MaxContentLightLevel);
+		UE_LOG(LogD3D12RHI, Log, TEXT("\t\tMaxFrameAverageLightLevel %u = nits"), HDR10MetaData.MaxFrameAverageLightLevel);
+		bHDRMetaDataSet = true;
+	}
+	else
+	{
+		if (bHDRMetaDataSet)
+		{
+			// Clear meta data.
+			VERIFYD3D12RESULT(SwapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
+			UE_LOG(LogD3D12RHI, Log, TEXT("Clearing HDR meta data on swap chain (%#016llx)."), SwapChain4.GetReference());
+			bHDRMetaDataSet = false;
+		}
+	}
+}
+
+
 void FD3D12Viewport::OnResumeRendering()
 {}
 
@@ -544,8 +622,7 @@ FD3D12Texture* FD3D12Viewport::GetBackBuffer_RenderThread() const
 
 bool FD3D12Viewport::IsPresentAllowed()
 {
-	FD3D12DynamicRHI& RHI = *ParentAdapter->GetOwningRHI();
-	return !RHI.RHIIsRenderingSuspended();
+	return !FD3D12DynamicRHI::GetD3DRHI()->RHIIsRenderingSuspended();
 }
 
 void FD3D12DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)

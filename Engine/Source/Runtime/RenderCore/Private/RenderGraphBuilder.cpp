@@ -371,11 +371,7 @@ void FRDGBuilder::EndFlushResourcesRHI()
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(STAT_RDG_FlushResourcesRHI);
 	SCOPED_NAMED_EVENT(EndFlushResourcesRHI, FColor::Emerald);
-	RHICmdList.WaitForDispatch();
-	RHICmdList.WaitForRHIThreadTasks();
-	RHICmdList.WaitForTasks(true /* bKnownToBeComplete */);
-	PipelineStateCache::FlushResources();
-	FRHIResource::FlushPendingDeletes(RHICmdList);
+	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 }
 
 void FRDGBuilder::TickPoolElements()
@@ -532,7 +528,6 @@ bool FRDGBuilder::IsTransientInternal(FRDGViewableResource* Resource, bool bFast
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, ERDGBuilderFlags InFlags)
 	: RHICmdList(InRHICmdList)
 	, Blackboard(Allocator)
-	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
 	, CompilePipe(TEXT("RDG_CompilePipe"))
 #if RDG_CPU_SCOPES
@@ -1629,7 +1624,7 @@ void FRDGBuilder::Execute()
 	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
 	const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
-	FGraphEventRef SubmitBufferUploadsTask;
+	UE::Tasks::FTask SubmitBufferUploadsTask;
 	UE::Tasks::FTask CompilePassBarriersTask;
 	UE::Tasks::FTask CreateUniformBuffersTask;
 	UE::Tasks::FTask SetupParallelExecuteTask;
@@ -1788,7 +1783,8 @@ void FRDGBuilder::Execute()
 	{
 		if (!ParallelSetupEvents.IsEmpty())
 		{
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents, RenderThread);
+			UE::Tasks::Wait(ParallelSetupEvents);
+			ParallelSetupEvents.Empty();
 		}
 
 		// Process RHI thread flush before helping with barrier compilation on the render thread.
@@ -1797,9 +1793,12 @@ void FRDGBuilder::Execute()
 
 	CreateUniformBuffersTask.Wait();
 
-	if (SubmitBufferUploadsTask)
+	if (SubmitBufferUploadsTask.IsValid())
 	{
-		SubmitBufferUploadsTask->Wait(RenderThread);
+		SubmitBufferUploadsTask.Wait();
+		check(RHICmdListBufferUploads);
+		RHICmdList.QueueAsyncCommandListSubmit(RHICmdListBufferUploads);
+		RHICmdListBufferUploads = nullptr;
 	}
 
 	UE::Tasks::FTask ParallelExecuteTask;
@@ -1807,7 +1806,7 @@ void FRDGBuilder::Execute()
 	if (bParallelExecuteEnabled)
 	{
 		SetupParallelExecuteTask.Wait();
-		ParallelExecuteTask = CompilePipe.Launch(TEXT("DispatchParallelExecute"), [this, &RHICmdContext = RHICmdList.GetContext()] { DispatchParallelExecute(&RHICmdContext); }, LowLevelTasks::ETaskPriority::High);
+		ParallelExecuteTask = CompilePipe.Launch(TEXT("DispatchParallelExecute"), [this] { DispatchParallelExecute(); }, LowLevelTasks::ETaskPriority::High);
 	}
 
 	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
@@ -1847,22 +1846,14 @@ void FRDGBuilder::Execute()
 						// Busy wait until our pass set is ready. This will be set by the dispatch task.
 						while (!FPlatformAtomics::AtomicRead(&ParallelPassSet.bInitialized)) {};
 
-						check(ParallelPassSet.Event != nullptr && ParallelPassSet.RHICmdList != nullptr);
-						RHICmdList.QueueRenderThreadCommandListSubmit(ParallelPassSet.Event, ParallelPassSet.RHICmdList);
+						check(ParallelPassSet.CmdList != nullptr);
+						RHICmdList.QueueAsyncCommandListSubmit(MakeArrayView<FRHICommandListImmediate::FQueuedCommandList>(&ParallelPassSet, 1));
 
 						IF_RHI_WANT_BREADCRUMB_EVENTS(RHICmdList.ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateEnd));
 
-						if (ParallelPassSet.DispatchAfterExecutePipelines != ERHIPipeline::None)
+						if (ParallelPassSet.bDispatchAfterExecute)
 						{
-							if (RHICmdListAsyncCompute.HasCommands())
-							{
-								FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
-							}
-
-							if (EnumHasAnyFlags(ParallelPassSet.DispatchAfterExecutePipelines, ERHIPipeline::Graphics))
-							{
-								RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-							}
+							RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 						}
 					}
 
@@ -1874,11 +1865,7 @@ void FRDGBuilder::Execute()
 				CompilePassOps(Pass);
 			}
 
-			FRHIComputeCommandList& RHICmdListPass = Pass->Pipeline == ERHIPipeline::AsyncCompute
-				? static_cast<FRHIComputeCommandList&>(RHICmdListAsyncCompute)
-				: RHICmdList;
-
-			ExecutePass(Pass, RHICmdListPass);
+			ExecutePass(Pass, RHICmdList);
 		}
 	}
 	else
@@ -1917,7 +1904,8 @@ void FRDGBuilder::Execute()
 	// This also needs to be done before extraction of external resources to be consistent with non-parallel rendering.
 	if (!ParallelExecuteEvents.IsEmpty())
 	{
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelExecuteEvents, RenderThread);
+		UE::Tasks::Wait(ParallelExecuteEvents);
+		ParallelExecuteEvents.Empty();
 	}
 
 	for (const FExtractedTexture& ExtractedTexture : ExtractedTextures)
@@ -1934,8 +1922,8 @@ void FRDGBuilder::Execute()
 
 	IF_RDG_ENABLE_TRACE(Trace.OutputGraphEnd(*this));
 
-	GPUScopeStacks.Graphics.EndExecute(RHICmdList);
-	GPUScopeStacks.AsyncCompute.EndExecute(RHICmdListAsyncCompute);
+	GPUScopeStacks.Graphics.EndExecute(RHICmdList, ERHIPipeline::Graphics);
+	GPUScopeStacks.AsyncCompute.EndExecute(RHICmdList, ERHIPipeline::AsyncCompute);
 	IF_RDG_CPU_SCOPES(CPUScopeStacks.EndExecute());
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecuteEnd());
@@ -1950,12 +1938,6 @@ void FRDGBuilder::Execute()
 
 	RasterPassCount = 0;
 	AsyncComputePassCount = 0;
-
-	// Flush any outstanding async compute commands at the end to get things moving down the pipe.
-	if (RHICmdListAsyncCompute.HasCommands())
-	{
-		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2332,8 +2314,11 @@ void FRDGBuilder::SetupAuxiliaryPasses(FRDGPass* Pass)
 		CreateUniformBuffers();
 		CollectPassBarriers(Pass);
 		CreatePassBarriers([] {});
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents);
-		ParallelSetupEvents.Reset();
+		if (!ParallelSetupEvents.IsEmpty())
+		{
+			UE::Tasks::Wait(ParallelSetupEvents);
+			ParallelSetupEvents.Reset();
+		}
 		ExecutePass(Pass, RHICmdList);
 	}
 
@@ -2425,7 +2410,7 @@ void FRDGBuilder::PrepareBufferUploads()
 	}
 }
 
-FGraphEventRef FRDGBuilder::SubmitBufferUploads()
+UE::Tasks::FTask FRDGBuilder::SubmitBufferUploads()
 {
 	const auto SubmitUploadsLambda = [this](FRHICommandList& RHICmdListUpload)
 	{
@@ -2441,24 +2426,9 @@ FGraphEventRef FRDGBuilder::SubmitBufferUploads()
 
 			if (UploadedBuffer.Data && UploadedBuffer.DataSize)
 			{
-#if PLATFORM_NEEDS_GPU_UAV_RESOURCE_INIT_WORKAROUND
-				if (UploadedBuffer.Buffer->bUAVAccessed)
-				{
-					FRHIResourceCreateInfo CreateInfo(UploadedBuffer.Buffer->Name);
-					FBufferRHIRef TempBuffer = RHICmdListUpload.CreateBuffer(UploadedBuffer.DataSize, BUF_VertexBuffer | BUF_Static | BUF_ShaderResource, 0, ERHIAccess::CopySrc | ERHIAccess::SRVMask, CreateInfo);
-					void* DestPtr = RHICmdListUpload.LockBuffer(TempBuffer, 0, UploadedBuffer.DataSize, RLM_WriteOnly);
-					FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
-					RHICmdListUpload.UnlockBuffer(TempBuffer);
-					RHICmdListUpload.Transition(FRHITransitionInfo(UploadedBuffer.Buffer->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopyDest));
-					RHICmdListUpload.CopyBufferRegion(UploadedBuffer.Buffer->GetRHI(), 0, TempBuffer, 0, UploadedBuffer.DataSize);
-				}
-				else
-#endif
-				{
-					void* DestPtr = RHICmdListUpload.LockBuffer(UploadedBuffer.Buffer->GetRHIUnchecked(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
-					FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
-					RHICmdListUpload.UnlockBuffer(UploadedBuffer.Buffer->GetRHIUnchecked());
-				}
+				void* DestPtr = RHICmdListUpload.LockBuffer(UploadedBuffer.Buffer->GetRHIUnchecked(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
+				FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
+				RHICmdListUpload.UnlockBuffer(UploadedBuffer.Buffer->GetRHIUnchecked());
 
 				if (UploadedBuffer.bUseFreeCallbacks)
 				{
@@ -2470,31 +2440,24 @@ FGraphEventRef FRDGBuilder::SubmitBufferUploads()
 		UploadedBuffers.Reset();
 	};
 
-	FGraphEventRef Event;
-
 	if (bParallelSetupEnabled)
 	{
 		SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::SubmitBufferUploads", FColor::Magenta);
 
-		FRHICommandList* RHICmdListUpload = new FRHICommandList(FRHIGPUMask::All());
-
-		Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[SubmitUploadsLambda, RHICmdListUpload](ENamedThreads::Type, const FGraphEventRef&)
+		return UE::Tasks::Launch(TEXT("FRDGBuilder::SubmitBufferUploads"), [this, SubmitUploadsLambda]
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-			SubmitUploadsLambda(*RHICmdListUpload);
-			RHICmdListUpload->FinishRecording();
+			RHICmdListBufferUploads = new FRHICommandList(FRHIGPUMask::All());
+			SubmitUploadsLambda(*RHICmdListBufferUploads);
+			RHICmdListBufferUploads->FinishRecording();
 
-		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
-
-		RHICmdList.QueueRenderThreadCommandListSubmit(Event, RHICmdListUpload);
+		}, LowLevelTasks::ETaskPriority::High);
 	}
 	else
 	{
 		SubmitUploadsLambda(RHICmdList);
+		return {};
 	}
-
-	return Event;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2506,7 +2469,7 @@ void FRDGBuilder::SetupParallelExecute()
 
 	TArray<FRDGPass*, TInlineAllocator<64, FRDGArrayAllocator>> ParallelPassCandidates;
 	int32 MergedRenderPassCandidates = 0;
-	ERHIPipeline DispatchAfterExecutePipelines = ERHIPipeline::None;
+	bool bDispatchAfterExecute = false;
 
 	const auto FlushParallelPassCandidates = [&]()
 	{
@@ -2569,12 +2532,12 @@ void FRDGBuilder::SetupParallelExecute()
 
 			FParallelPassSet& ParallelPassSet = ParallelPassSets.Emplace_GetRef();
 			ParallelPassSet.Passes.Append(ParallelPassCandidates.GetData() + PassBeginIndex, ParallelPassCandidateCount);
-			ParallelPassSet.DispatchAfterExecutePipelines = DispatchAfterExecutePipelines;
+			ParallelPassSet.bDispatchAfterExecute = bDispatchAfterExecute;
 		}
 
 		ParallelPassCandidates.Reset();
 		MergedRenderPassCandidates = 0;
-		DispatchAfterExecutePipelines = ERHIPipeline::None;
+		bDispatchAfterExecute = false;
 	};
 
 	ParallelPassSets.Reserve(32);
@@ -2591,16 +2554,6 @@ void FRDGBuilder::SetupParallelExecute()
 
 		CompilePassOps(Pass);
 
-		if (Pass->Pipeline == ERHIPipeline::AsyncCompute)
-		{
-			if (Pass->bAsyncComputeEnd)
-			{
-				FlushParallelPassCandidates();
-			}
-
-			continue;
-		}
-
 		if (!Pass->bParallelExecuteAllowed)
 		{
 			FlushParallelPassCandidates();
@@ -2608,7 +2561,7 @@ void FRDGBuilder::SetupParallelExecute()
 		}
 
 		ParallelPassCandidates.Emplace(Pass);
-		DispatchAfterExecutePipelines |= Pass->bDispatchAfterExecute ? Pass->Pipeline : ERHIPipeline::None;
+		bDispatchAfterExecute |= Pass->bDispatchAfterExecute;
 
 		// Don't count merged render passes for the maximum pass threshold. This avoids the case where
 		// a large merged render pass span could end up forcing it back onto the render thread, since
@@ -2659,42 +2612,36 @@ void FRDGBuilder::SetupParallelExecute()
 #endif
 }
 
-void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
+void FRDGBuilder::DispatchParallelExecute()
 {
 	SCOPED_NAMED_EVENT(DispatchParallelExecute, FColor::Emerald);
-	ParallelExecuteEvents.Reserve(ParallelExecuteEvents.Num() + ParallelPassSets.Num());
+
+	check(ParallelExecuteEvents.IsEmpty());
+	ParallelExecuteEvents.Reserve(ParallelPassSets.Num());
 
 	for (FParallelPassSet& ParallelPassSet : ParallelPassSets)
 	{
-		ParallelPassSet.RHICmdList = new FRHICommandList(FRHIGPUMask::All());
-		ParallelPassSet.RHICmdList->SetContext(RHICmdContext);
-
-		IF_RHI_WANT_BREADCRUMB_EVENTS(ParallelPassSet.RHICmdList->ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateBegin));
-
-		// Avoid referencing the parallel pass struct directly in the task, as the set can resize.
-		TArrayView<FRDGPass*> ParallelPasses = ParallelPassSet.Passes;
-
-		ParallelPassSet.Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[this, ParallelPasses, &RHICmdListPass = *ParallelPassSet.RHICmdList](ENamedThreads::Type, const FGraphEventRef& MyCompletionGraphEvent)
+		ParallelExecuteEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::ParallelExecute"), [this, &ParallelPassSet]
 		{
 			SCOPED_NAMED_EVENT(ParallelExecute, FColor::Emerald);
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 
-			for (FRDGPass* Pass : ParallelPasses)
+			FRHICommandList* RHICmdListPass = new FRHICommandList(FRHIGPUMask::All());
+			ParallelPassSet.CmdList = RHICmdListPass;
+
+			// Mark this set as initialized so that it can be submitted.
+			FPlatformAtomics::AtomicStore(&ParallelPassSet.bInitialized, 1);
+
+			IF_RHI_WANT_BREADCRUMB_EVENTS(RHICmdListPass->ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateBegin));
+
+			for (FRDGPass* Pass : ParallelPassSet.Passes)
 			{
-				ExecutePass(Pass, RHICmdListPass);
+				ExecutePass(Pass, *RHICmdListPass);
 			}
 
-			RHICmdListPass.HandleRTThreadTaskCompletion(MyCompletionGraphEvent);
-			RHICmdListPass.FinishRecording();
+			RHICmdListPass->FinishRecording();
 
-		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
-
-		// Mark this set as initialized so that it can be submitted.
-		FPlatformAtomics::AtomicStore(&ParallelPassSet.bInitialized, 1);
-
-		// Enqueue the event to be synced at the end of RDG execution.
-		ParallelExecuteEvents.Emplace(ParallelPassSet.Event);
+		}, LowLevelTasks::ETaskPriority::High));
 	}
 }
 
@@ -2841,56 +2788,55 @@ void FRDGBuilder::ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FR
 
 void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdListPass)
 {
+	{
+		FRHICommandListScopedPipeline Scope(RHICmdListPass, Pass->Pipeline);
+
 #if 0 // Disabled by default to reduce memory usage in Insights.
-	SCOPED_NAMED_EVENT_TCHAR(Pass->GetName(), FColor::Magenta);
+		SCOPED_NAMED_EVENT_TCHAR(Pass->GetName(), FColor::Magenta);
 #endif
 
-	// Note that we must do this before doing anything with RHICmdList for the pass.
-	// For example, if this pass only executes on GPU 1 we want to avoid adding a
-	// 0-duration event for this pass on GPU 0's time line.
-	SCOPED_GPU_MASK(RHICmdListPass, Pass->GPUMask);
+		// Note that we must do this before doing anything with RHICmdList for the pass.
+		// For example, if this pass only executes on GPU 1 we want to avoid adding a
+		// 0-duration event for this pass on GPU 0's time line.
+		SCOPED_GPU_MASK(RHICmdListPass, Pass->GPUMask);
 
 #if RDG_CPU_SCOPES
-	if (!Pass->bParallelExecute)
-	{
-		Pass->CPUScopeOps.Execute();
-	}
+		if (!Pass->bParallelExecute)
+		{
+			Pass->CPUScopeOps.Execute();
+		}
 #endif
 
-	IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_PASS_EXECUTE, BuilderName.GetTCHAR(), Pass->GetName()));
+		IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_PASS_EXECUTE, BuilderName.GetTCHAR(), Pass->GetName()));
 
 #if WITH_MGPU
-	if (Pass->bWaitForTemporalEffect)
-	{
-		static_cast<FRHICommandList&>(RHICmdListPass).WaitForTemporalEffect(NameForTemporalEffect);
+		if (Pass->bWaitForTemporalEffect)
+		{
+			static_cast<FRHICommandList&>(RHICmdListPass).WaitForTemporalEffect(NameForTemporalEffect);
+		}
+#endif
+
+		Pass->GPUScopeOpsPrologue.Execute(RHICmdListPass);
+
+		ExecutePassPrologue(RHICmdListPass, Pass);
+
+#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
+		BeginPassDump(Pass);
+#endif
+
+		Pass->Execute(RHICmdListPass);
+
+#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
+		EndPassDump(Pass);
+#endif
+
+		ExecutePassEpilogue(RHICmdListPass, Pass);
+
+		Pass->GPUScopeOpsEpilogue.Execute(RHICmdListPass);
 	}
-#endif
-
-	Pass->GPUScopeOpsPrologue.Execute(RHICmdListPass);
-
-	ExecutePassPrologue(RHICmdListPass, Pass);
-
-#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
-	BeginPassDump(Pass);
-#endif
-
-	Pass->Execute(RHICmdListPass);
-
-#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
-	EndPassDump(Pass);
-#endif
-
-	ExecutePassEpilogue(RHICmdListPass, Pass);
-	
-	Pass->GPUScopeOpsEpilogue.Execute(RHICmdListPass);
 
 	if (!Pass->bParallelExecute && Pass->bDispatchAfterExecute)
 	{
-		if (RHICmdListAsyncCompute.HasCommands())
-		{
-			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
-		}
-
 		if (Pass->Pipeline == ERHIPipeline::Graphics)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);

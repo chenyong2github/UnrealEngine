@@ -123,9 +123,7 @@ IRHICommandContext* FValidationRHI::RHIGetDefaultContext()
 
 	if (LowLevelContext == HighLevelContext)
 	{
-		FValidationContext* ValidationContext = new FValidationContext();
-		OwnedContexts.Add(ValidationContext);
-
+		FValidationContext* ValidationContext = new FValidationContext(FValidationContext::EType::Default);
 		ValidationContext->LinkToContext(LowLevelContext);
 		HighLevelContext = ValidationContext;
 	}
@@ -140,14 +138,103 @@ IRHIComputeContext* FValidationRHI::RHIGetDefaultAsyncComputeContext()
 
 	if (LowLevelContext == HighLevelContext)
 	{
-		FValidationComputeContext* ValidationContext = new FValidationComputeContext();
-		OwnedContexts.Add(ValidationContext);
-
+		FValidationComputeContext* ValidationContext = new FValidationComputeContext(FValidationComputeContext::EType::Default);
 		ValidationContext->LinkToContext(LowLevelContext);
 		HighLevelContext = ValidationContext;
 	}
 
 	return HighLevelContext;
+}
+
+struct FValidationCommandList : public IRHIPlatformCommandList
+{
+	ERHIPipeline Pipeline;
+	IRHIPlatformCommandList* InnerCommandList;
+	RHIValidation::FOperationsList CompletedOpList;
+};
+
+IRHIComputeContext* FValidationRHI::RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask)
+{
+	IRHIComputeContext* InnerContext = RHI->RHIGetCommandContext(Pipeline, GPUMask);
+	check(InnerContext);
+
+	switch (Pipeline)
+	{
+	case ERHIPipeline::Graphics:
+	{
+		FValidationContext* OuterContext = new FValidationContext(FValidationContext::EType::Parallel);
+		OuterContext->LinkToContext(static_cast<IRHICommandContext*>(InnerContext));
+		return OuterContext;
+	}
+
+	case ERHIPipeline::AsyncCompute:
+	{
+		FValidationComputeContext* OuterContext = new FValidationComputeContext(FValidationComputeContext::EType::Parallel);
+		OuterContext->LinkToContext(InnerContext);
+		return OuterContext;
+	}
+
+	default:
+		checkNoEntry();
+		return nullptr;
+	}
+}
+
+IRHIPlatformCommandList* FValidationRHI::RHIFinalizeContext(IRHIComputeContext* OuterContext)
+{
+	IRHIComputeContext& InnerContext = OuterContext->GetLowestLevelContext();
+
+	FValidationCommandList* OuterCommandList = new FValidationCommandList();
+
+	OuterCommandList->InnerCommandList = RHI->RHIFinalizeContext(&InnerContext);
+	OuterCommandList->CompletedOpList = InnerContext.Tracker->Finalize();
+	OuterCommandList->Pipeline = OuterContext->GetPipeline();
+
+	switch (OuterCommandList->Pipeline)
+	{
+	case ERHIPipeline::Graphics:
+		if (static_cast<FValidationContext*>(OuterContext)->Type == FValidationContext::EType::Parallel)
+			delete OuterContext;
+		break;
+
+	case ERHIPipeline::AsyncCompute:
+		if (static_cast<FValidationComputeContext*>(OuterContext)->Type == FValidationComputeContext::EType::Parallel)
+			delete OuterContext;
+		break;
+
+	default:
+		checkNoEntry();
+		break;
+	}
+
+	return OuterCommandList;
+}
+
+void FValidationRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> OuterCommandLists)
+{
+	FMemMark Mark(FMemStack::Get());
+	TArray<IRHIPlatformCommandList*, TMemStackAllocator<>> InnerCommandLists;
+	InnerCommandLists.Reserve(OuterCommandLists.Num());
+
+	for (IRHIPlatformCommandList* CmdList : OuterCommandLists)
+	{
+		FValidationCommandList* OuterCommandList = static_cast<FValidationCommandList*>(CmdList);
+
+		// Replay or queue any barrier operations to validate resource barrier usage.
+		RHIValidation::FTracker::ReplayOpQueue(OuterCommandList->Pipeline, MoveTemp(OuterCommandList->CompletedOpList));
+
+		if (OuterCommandList->InnerCommandList)
+		{
+			InnerCommandLists.Add(MoveTemp(OuterCommandList->InnerCommandList));
+		}
+
+		delete OuterCommandList;
+	}
+
+	if (InnerCommandLists.Num())
+	{
+		RHI->RHISubmitCommandLists(InnerCommandLists);
+	}
 }
 
 void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& PSOInitializer)
@@ -497,8 +584,8 @@ void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 	}
 }
 
-FValidationComputeContext::FValidationComputeContext()
-	: RHIContext(nullptr)
+FValidationComputeContext::FValidationComputeContext(EType InType)
+	: Type(InType)
 {
 	State.Reset();
 	Tracker = &State.TrackerInstance;
@@ -513,8 +600,7 @@ void FValidationComputeContext::FState::Reset()
 }
 
 FValidationContext::FValidationContext(EType InType)
-	: RHIContext(nullptr)
-	, Type(InType)
+	: Type(InType)
 {
 	State.Reset();
 	Tracker = &State.TrackerInstance;
@@ -1694,8 +1780,6 @@ namespace RHIValidation
 		return Backtrace;
 	}
 }
-
-TLockFreePointerListUnordered<FValidationContext, PLATFORM_CACHE_LINE_SIZE> FValidationRHICommandContextContainer::ParallelCommandContexts;
 
 
 //-----------------------------------------------------------------------------

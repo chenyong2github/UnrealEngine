@@ -114,7 +114,6 @@ inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc, 
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(Desc));
 	FRDGTextureUAVRef UAV = Views.Allocate<FRDGTextureUAV>(Allocator, Desc.Texture->Name, Desc, InFlags);
-	Desc.Texture->bUAVAccessed = true;
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(UAV));
 	return UAV;
 }
@@ -123,7 +122,6 @@ inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc, ER
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(Desc));
 	FRDGBufferUAVRef UAV = Views.Allocate<FRDGBufferUAV>(Allocator, Desc.Buffer->Name, Desc, InFlags);
-	Desc.Buffer->bUAVAccessed = true;
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(UAV));
 	return UAV;
 }
@@ -367,13 +365,11 @@ void FRDGBuilder::AddSetupTask(TaskLambda&& Task)
 {
 	if (bParallelExecuteEnabled)
 	{
-		ParallelSetupEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Task = MoveTemp(Task)](ENamedThreads::Type, const FGraphEventRef&)
+		ParallelSetupEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::AddSetupTask"), [Task = MoveTemp(Task)]
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			Task();
-
-		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
+		}));
 	}
 	else
 	{
@@ -388,15 +384,16 @@ void FRDGBuilder::AddCommandListSetupTask(TaskLambda&& Task)
 	{
 		FRHICommandList* RHICmdListTask = new FRHICommandList(FRHIGPUMask::All());
 
-		ParallelSetupEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Task = MoveTemp(Task), RHICmdListTask](ENamedThreads::Type, const FGraphEventRef&)
+		ParallelSetupEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::AddCommandListSetupTask"), [Task = MoveTemp(Task), RHICmdListTask]
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			Task(*RHICmdListTask);
 
-		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
+			RHICmdListTask->FinishRecording();
 
-		RHICmdList.QueueRenderThreadCommandListSubmit(ParallelSetupEvents.Last(), RHICmdListTask);
+		}));
+
+		RHICmdList.QueueAsyncCommandListSubmit(RHICmdListTask);
 	}
 	else
 	{

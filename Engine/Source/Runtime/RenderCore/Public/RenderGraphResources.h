@@ -371,9 +371,6 @@ protected:
 	/** If true, this resource should skip the prologue split barrier and perform transition right away. */
 	EFirstBarrier FirstBarrier : 2;
 
-	/** If true, the resource is access through at least one UAV. */
-	uint8 bUAVAccessed : 1;
-
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 

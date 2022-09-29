@@ -595,10 +595,7 @@ public:
 		}
 
 		RHICmdList.EndRenderPass();
-
-		// Make sure completion of this thread is extended for RT dependent tasks such as PSO creation is done
-		// before kicking the next task
-		RHICmdList.HandleRTThreadTaskCompletion(MyCompletionGraphEvent);
+		RHICmdList.FinishRecording();
 	}
 };
 

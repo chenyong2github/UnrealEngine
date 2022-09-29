@@ -152,7 +152,6 @@ static void VerifyMetalCompiler()
 
 FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 : ImmediateContext(nullptr, FMetalDeviceContext::CreateDeviceContext())
-, AsyncComputeContext(nullptr)
 {
 	check(Singleton == nullptr);
 	Singleton = this;
@@ -504,17 +503,11 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		GRHISupportsRHIThread = true;
-#if METAL_SUPPORTS_PARALLEL_RHI_EXECUTE
-		GRHISupportsParallelRHIExecute = GRHISupportsRHIThread && ((!IsRHIDeviceIntel() && !IsRHIDeviceNVIDIA()) || FParse::Param(FCommandLine::Get(),TEXT("metalparallel")));
-#endif
-		GSupportsEfficientAsyncCompute = GRHISupportsParallelRHIExecute && (IsRHIDeviceAMD() || /*TODO: IsRHIDeviceApple()*/ (GRHIVendorId == 0x106B) || PLATFORM_IOS || FParse::Param(FCommandLine::Get(),TEXT("metalasynccompute"))); // Only AMD and Apple currently support async. compute and it requires parallel execution to be useful.
 		GSupportsParallelOcclusionQueries = GRHISupportsRHIThread;
 	}
 	else
 	{
 		GRHISupportsRHIThread = FParse::Param(FCommandLine::Get(),TEXT("rhithread")) || (CVarUseIOSRHIThread.GetValueOnAnyThread() > 0);
-		GRHISupportsParallelRHIExecute = false;
-		GSupportsEfficientAsyncCompute = false;
 		GSupportsParallelOcclusionQueries = false;
 	}
 
@@ -723,8 +716,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMetalBufferFormats[PF_R8_SINT				] = { mtlpp::PixelFormat::R8Sint, (uint8)EMetalBufferFormat::R8Sint };
 	GMetalBufferFormats[PF_R64_UINT				] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_R9G9B9EXP5			] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GMetalBufferFormats[PF_P010					] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	static_assert(PF_MAX == 87, "Please setup GMetalBufferFormats properly for the new pixel format");
+	static_assert(PF_MAX == 86, "Please setup GMetalBufferFormats properly for the new pixel format");
 
 	// Initialize the platform pixel format map.
 	GPixelFormats[PF_Unknown			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
@@ -1039,7 +1031,6 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (ImmediateContext.Profiler)
 		ImmediateContext.Profiler->BeginFrame();
 #endif
-	AsyncComputeContext = GSupportsEfficientAsyncCompute ? new FMetalRHIComputeContext(ImmediateContext.Profiler, new FMetalContext(ImmediateContext.Context->GetDevice(), ImmediateContext.Context->GetCommandQueue(), true)) : nullptr;
 
 #if ENABLE_METAL_GPUPROFILE
 		if (ImmediateContext.Profiler)
@@ -1078,9 +1069,7 @@ uint64 FMetalDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat F
 
 void FMetalDynamicRHI::Init()
 {
-	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
-	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+	GRHICommandList.GetImmediateCommandList().InitializeImmediateContexts();
 
 	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
@@ -1089,7 +1078,6 @@ void FMetalDynamicRHI::Init()
 void FMetalRHIImmediateCommandContext::RHIBeginFrame()
 {
 	@autoreleasepool {
-        RHIPrivateBeginFrame();
 #if ENABLE_METAL_GPUPROFILE
 	Profiler->BeginFrame();
 #endif
@@ -1268,7 +1256,6 @@ void FMetalDynamicRHI::RHIFlushResources()
 
 void FMetalDynamicRHI::RHIAcquireThreadOwnership()
 {
-	SetupRecursiveResources();
 }
 
 void FMetalDynamicRHI::RHIReleaseThreadOwnership()
@@ -1316,4 +1303,47 @@ uint16 FMetalDynamicRHI::RHIGetPlatformTextureMaxSampleCount()
 #endif
 	}
 	return PlatformMaxSampleCount;
+}
+
+void FMetalDynamicRHI::RHIBlockUntilGPUIdle()
+{
+	@autoreleasepool {
+	ImmediateContext.Context->SubmitCommandBufferAndWait();
+	}
+}
+
+uint32 FMetalDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
+{
+	check(GPUIndex == 0);
+	return GGPUFrameTime;
+}
+
+void FMetalDynamicRHI::RHIExecuteCommandList(FRHICommandList* RHICmdList)
+{
+	NOT_SUPPORTED("RHIExecuteCommandList");
+}
+
+IRHICommandContext* FMetalDynamicRHI::RHIGetDefaultContext()
+{
+	return &ImmediateContext;
+}
+
+IRHIComputeContext* FMetalDynamicRHI::RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("FMetalDynamicRHI::RHIGetCommandContext should never be called. Metal RHI does not implement parallel command list execution."));
+	return nullptr;
+}
+
+IRHIPlatformCommandList* FMetalDynamicRHI::RHIFinalizeContext(IRHIComputeContext* Context)
+{
+	// "Context" will always be the default context, since we don't implement parallel execution.
+	// Metal uses an immediate context, there's nothing to do here. Executed commands will have already reached the driver.
+
+	// Returning nullptr indicates that we don't want RHISubmitCommandLists to be called.
+	return nullptr;
+}
+
+void FMetalDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("FMetalDynamicRHI::RHISubmitCommandLists should never be called. Metal RHI does not implement parallel command list execution."));
 }

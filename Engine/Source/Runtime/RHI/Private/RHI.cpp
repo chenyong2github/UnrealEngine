@@ -1163,15 +1163,6 @@ int32 FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 
 	check(IsInRenderingThread());
 
-#if ENABLE_RHI_VALIDATION
-	if (GDynamicRHI)
-	{
-		// Submit all remaining work to the GPU. This also ensures that validation RHI barrier tracking
-		// operations have been flushed before we delete any resources they could be referring to.
-		RHICmdList.SubmitCommandsHint();
-	}
-#endif
-
 	TArray<FRHIResource*> DeletedResources;
 	TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = PendingDeletes.exchange(new TClosableMpscQueue<FRHIResource*>());
 	PendingDeletesPtr->Close([&DeletedResources](FRHIResource* Resource)

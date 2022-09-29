@@ -18,7 +18,7 @@
 // but make code path shared when it becomes available
 #define FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED D3D12_HEAP_FLAG_NONE
 
-#include "../Public/D3D12Util.h"
+#include "D3D12Util.h"
 
 // Windows desktop version is used.
 #include "Windows/WindowsD3D12DiskCache.h"

@@ -5303,53 +5303,33 @@ static void DumpHelp(UWorld* InWorld)
 	UE_LOG(LogEngine, Display, TEXT("To browse console variables open this: '%s'"), *FilePath);
 	UE_LOG(LogEngine, Display, TEXT(" "));
 
-	const bool bSuccess = ConsoleCommandLibrary_DumpLibraryHTML(InWorld, *GEngine, FilePath);
+	ConsoleCommandLibrary_DumpLibraryHTML(InWorld, *GEngine, FilePath);
 
 	// Notification in editor
 #if WITH_EDITOR
-	if (bSuccess && FPaths::FileExists(FilePath))
 	{
-		const FText Message = NSLOCTEXT("UnrealEd", "ConsoleHelpExported", "Console help file saved at:");
+		const FText Message = NSLOCTEXT("UnrealEd", "ConsoleHelpExported", "ConsoleHelp.html was saved as");
 		FNotificationInfo Info(Message);
 		Info.bFireAndForget = true;
 		Info.ExpireDuration = 5.0f;
 		Info.bUseSuccessFailIcons = false;
 		Info.bUseLargeFont = false;
 
-		const FString HyperLinkPath = FPaths::ConvertRelativePathToFull(FilePath);
-		Info.SubText = FText::FromString(HyperLinkPath);
-		Info.Hyperlink = FSimpleDelegate::CreateStatic([](FString SourceFilePath)
+		const FString HyperLinkText = FPaths::ConvertRelativePathToFull(FilePath);
+		Info.Hyperlink = FSimpleDelegate::CreateStatic([](FString SourceFilePath) 
 		{
 			// open folder, you can choose the browser yourself
 			FPlatformProcess::ExploreFolder(*(FPaths::GetPath(SourceFilePath)));
-		}, HyperLinkPath);
-		Info.HyperlinkText = NSLOCTEXT("UnrealEd", "ConsoleHelpFolderLink", "Open file location...");
-		Info.WidthOverride = FOptionalSize();
+		}, HyperLinkText);
+		Info.HyperlinkText = FText::FromString(HyperLinkText);
 
 		FSlateNotificationManager::Get().AddNotification(Info);
 
 		// Always try to open the help file on Windows (including in -game, etc...)
 #if PLATFORM_WINDOWS
-		const FString LaunchableURL = FString(TEXT("file://")) + HyperLinkPath;
+		const FString LaunchableURL = FString(TEXT("file://")) + HyperLinkText;
 		FPlatformProcess::LaunchURL(*LaunchableURL, nullptr, nullptr);
 #endif
-	}
-	else
-	{
-		const FText Message = NSLOCTEXT("UnrealEd", "ConsoleHelpExportFailed", "Console help file generation failed.");
-		FNotificationInfo Info(Message);
-
-		const FString DocTemplateFile = FPaths::Combine(FPaths::EngineDir(), "Documentation/Extras/ConsoleHelpTemplate.html");
-		if (!FPaths::FileExists(DocTemplateFile))
-		{
-				Info.SubText = NSLOCTEXT("UnrealEd", "ConsoleHelpExportFailedTip", "The template HTML file could not be found in the Engine/Documentation/Extras folder.\n\nIf you use a version control system or Unreal Game Sync (UGS), check that this folder is not excluded by your sync settings.");
-		}
-		Info.bFireAndForget = true;
-		Info.ExpireDuration = 10.0f;
-		Info.bUseSuccessFailIcons = false;
-		Info.bUseLargeFont = false;
-
-		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 #endif// WITH_EDITOR
 }
@@ -5640,21 +5620,12 @@ bool UEngine::HandleToggleAsyncComputeCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		GEnableAsyncCompute = !bWasAsyncCompute;
 
-		if (GEnableAsyncCompute)
-		{
-			FRHICommandListExecutor::GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
-		}
-		else
-		{
-			FRHICommandListExecutor::GetImmediateAsyncComputeCommandList().SetContext(RHIGetDefaultContext());
-		}		
-
 		if (bWasThreadedRendering)
 		{
 			StartRenderingThread();
 		}
 		Ar.Logf(TEXT("AsyncCompute is now %s."), GEnableAsyncCompute ? TEXT("active") : TEXT("inactive"));
-	}	
+	}
 	return true;
 }
 

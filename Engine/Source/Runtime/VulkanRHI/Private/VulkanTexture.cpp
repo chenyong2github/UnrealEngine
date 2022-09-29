@@ -1031,7 +1031,6 @@ static void DoAsyncReallocateTexture2D(FVulkanCommandListContext& Context, FVulk
 
 struct FRHICommandVulkanAsyncReallocateTexture2D final : public FRHICommand<FRHICommandVulkanAsyncReallocateTexture2D>
 {
-	FVulkanCommandListContext& Context;
 	FVulkanTexture* OldTexture;
 	FVulkanTexture* NewTexture;
 	int32 NewMipCount;
@@ -1039,9 +1038,8 @@ struct FRHICommandVulkanAsyncReallocateTexture2D final : public FRHICommand<FRHI
 	int32 NewSizeY;
 	FThreadSafeCounter* RequestStatus;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandVulkanAsyncReallocateTexture2D(FVulkanCommandListContext& InContext, FVulkanTexture* InOldTexture, FVulkanTexture* InNewTexture, int32 InNewMipCount, int32 InNewSizeX, int32 InNewSizeY, FThreadSafeCounter* InRequestStatus)
-		: Context(InContext)
-		, OldTexture(InOldTexture)
+	FORCEINLINE_DEBUGGABLE FRHICommandVulkanAsyncReallocateTexture2D(FVulkanTexture* InOldTexture, FVulkanTexture* InNewTexture, int32 InNewMipCount, int32 InNewSizeX, int32 InNewSizeY, FThreadSafeCounter* InRequestStatus)
+		: OldTexture(InOldTexture)
 		, NewTexture(InNewTexture)
 		, NewMipCount(InNewMipCount)
 		, NewSizeX(InNewSizeX)
@@ -1052,8 +1050,9 @@ struct FRHICommandVulkanAsyncReallocateTexture2D final : public FRHICommand<FRHI
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
-		ensure(&((FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext()) == &Context);
-		DoAsyncReallocateTexture2D(Context, OldTexture, NewTexture, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
+		FVulkanCommandListContext& VulkanContext = (FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext();
+		check(VulkanContext.IsImmediate());
+		DoAsyncReallocateTexture2D(VulkanContext, OldTexture, NewTexture, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
 	}
 };
 
@@ -1077,8 +1076,7 @@ FTexture2DRHIRef FVulkanDynamicRHI::AsyncReallocateTexture2D_RenderThread(FRHICo
 		.DetermineInititialState();
 
 	FVulkanTexture* NewTexture = new FVulkanTexture(*Device, Desc, nullptr);
-	FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext();
-	ALLOC_COMMAND_CL(RHICmdList, FRHICommandVulkanAsyncReallocateTexture2D)(Context, OldTexture, NewTexture, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
+	ALLOC_COMMAND_CL(RHICmdList, FRHICommandVulkanAsyncReallocateTexture2D)(OldTexture, NewTexture, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
 
 	return NewTexture;
 }
@@ -2045,7 +2043,7 @@ void FVulkanTexture::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Co
 	InvalidateViews(InDevice);
 }
 
-void FVulkanTexture::Evict(FVulkanDevice& InDevice)
+void FVulkanTexture::Evict(FVulkanDevice& InDevice, FVulkanCommandListContext& Context)
 {
 	check(AliasedTexture == nullptr); //can't evict textures we don't own
 	uint64 Size = GetMemorySize();
@@ -2068,9 +2066,6 @@ void FVulkanTexture::Evict(FVulkanDevice& InDevice)
 		//none of this is supported for eviction
 		checkf(!bRenderTarget, TEXT("RenderTargets do not support evict."));
 		checkf(!bUAV, TEXT("UAV do not support evict."));
-
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext();
 
 		MemProps = InDevice.GetDeviceMemoryManager().GetEvictedMemoryProperties();
 

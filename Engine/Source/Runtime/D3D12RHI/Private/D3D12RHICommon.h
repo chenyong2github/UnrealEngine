@@ -20,16 +20,6 @@ DECLARE_STATS_GROUP(TEXT("D3D12RHI: Descriptor Heap (GPU Visible)"), STATGROUP_D
 class FD3D12Adapter;
 class FD3D12Device;
 
-// Defines a unique command queue type within a FD3D12Device (owner by the command list managers).
-enum class ED3D12CommandQueueType
-{
-	Direct = 0,
-	Copy,
-	Async,
-
-	Count,
-};
-
 class FD3D12AdapterChild
 {
 protected:

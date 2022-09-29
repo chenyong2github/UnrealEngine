@@ -12,6 +12,7 @@
 #include "D3D12Residency.h"
 #include "D3D12Util.h"
 #include "D3D12State.h"
+#include "D3D12DirectCommandListManager.h"
 #include "RHIPoolAllocator.h"
 
 constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATES(
@@ -23,15 +24,13 @@ constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_
 
 // Forward Decls
 class FD3D12Resource;
-class FD3D12StateCacheBase;
+class FD3D12StateCache;
 class FD3D12CommandListManager;
 class FD3D12CommandContext;
-class FD3D12CommandListHandle;
 class FD3D12SegListAllocator;
 class FD3D12PoolAllocator;
 struct FD3D12GraphicsPipelineState;
 struct FD3D12ResourceDesc;
-typedef FD3D12StateCacheBase FD3D12StateCache;
 
 #if D3D12_RHI_RAYTRACING
 class FD3D12RayTracingGeometry;
@@ -58,49 +57,18 @@ enum class ED3D12ResourceStateMode
 class FD3D12PendingResourceBarrier
 {
 public:
+	FD3D12Resource*       Resource;
+	D3D12_RESOURCE_STATES State;
+	uint32                SubResource;
 
-	FD3D12Resource*              Resource;
-	D3D12_RESOURCE_STATES        State;
-	uint32                       SubResource;
+	FD3D12PendingResourceBarrier(FD3D12Resource* Resource, D3D12_RESOURCE_STATES State, uint32 SubResource)
+		: Resource(Resource)
+		, State(State)
+		, SubResource(SubResource)
+	{}
 };
 
-class FD3D12RefCount
-{
-public:
-	FD3D12RefCount()
-	{
-	}
-	virtual ~FD3D12RefCount()
-	{
-		check(NumRefs.GetValue() == 0);
-	}
-	uint32 AddRef() const
-	{
-		int32 NewValue = NumRefs.Increment();
-		check(NewValue > 0);
-		return uint32(NewValue);
-	}
-	uint32 Release() const
-	{
-		int32 NewValue = NumRefs.Decrement();
-		if (NewValue == 0)
-		{
-			delete this;
-		}
-		check(NewValue >= 0);
-		return uint32(NewValue);
-	}
-	uint32 GetRefCount() const
-	{
-		int32 CurrentValue = NumRefs.GetValue();
-		check(CurrentValue >= 0);
-		return uint32(CurrentValue);
-	}
-private:
-	mutable FThreadSafeCounter NumRefs;
-};
-
-class FD3D12Heap : public FD3D12RefCount, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
+class FD3D12Heap : public FThreadSafeRefCountedObject, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 public:
 	FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes);
@@ -109,12 +77,11 @@ public:
 	inline ID3D12Heap* GetHeap() const { return Heap.GetReference(); }
 	void SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bTrack = true, bool bForceGetGPUAddress = false);
 
-	void UpdateResidency(FD3D12CommandListHandle& CommandList);
 	void BeginTrackingResidency(uint64 Size);
 	
 	inline FName GetName() const { return HeapName; }
 	inline D3D12_HEAP_DESC GetHeapDesc() const { return HeapDesc; }
-	inline FD3D12ResidencyHandle* GetResidencyHandle() { return &ResidencyHandle; }
+	inline FD3D12ResidencyHandle& GetResidencyHandle() { return ResidencyHandle; }
 	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
 
 private:
@@ -154,7 +121,7 @@ struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC
 	inline bool NeedsUAVAliasWorkarounds() const { return UAVAliasPixelFormat != PF_Unknown; }
 };
 
-class FD3D12Resource : public FD3D12RefCount, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
+class FD3D12Resource : public FThreadSafeRefCountedObject, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 private:
 	TRefCountPtr<ID3D12Resource> Resource;
@@ -267,7 +234,7 @@ public:
 	uint16 GetArraySize() const { return (Desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D) ? 1 : Desc.DepthOrArraySize; }
 	uint8 GetPlaneCount() const { return PlaneCount; }
 	uint16 GetSubresourceCount() const { return SubresourceCount; }
-	CResourceState& GetResourceState()
+	CResourceState& GetResourceState_OnResource()
 	{
 		check(bRequiresResourceStateTracking);
 		// This state is used as the resource's "global" state between command lists. It's only needed for resources that
@@ -316,11 +283,9 @@ public:
 
 	void StartTrackingForResidency();
 
-	void UpdateResidency(FD3D12CommandListHandle& CommandList);
-
-	inline FD3D12ResidencyHandle* GetResidencyHandle() 
+	FD3D12ResidencyHandle& GetResidencyHandle()
 	{
-		return (IsPlacedResource()) ? Heap->GetResidencyHandle() : &ResidencyHandle; 
+		return IsPlacedResource() ? Heap->GetResidencyHandle() : ResidencyHandle;
 	}
 
 	struct FD3D12ResourceTypeHelper
@@ -596,7 +561,7 @@ public:
 	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
 	inline uint64 GetOffsetFromBaseOfResource() const { return OffsetFromBaseOfResource; }
 	inline uint64 GetSize() const { return Size; }
-	inline FD3D12ResidencyHandle* GetResidencyHandle() { return ResidencyHandle; }
+	inline FD3D12ResidencyHandle& GetResidencyHandle() { check(ResidencyHandle); return *ResidencyHandle; }
 	inline FD3D12BuddyAllocatorPrivateData& GetBuddyAllocatorPrivateData() { return AllocatorData.BuddyAllocatorPrivateData; }
 	inline FD3D12BlockAllocatorPrivateData& GetBlockAllocatorPrivateData() { return AllocatorData.BlockAllocatorPrivateData; }
 	inline FD3D12SegListAllocatorPrivateData& GetSegListAllocatorPrivateData() { return AllocatorData.SegListAllocatorPrivateData; }
@@ -729,30 +694,6 @@ struct ID3D12ResourceAllocator
 	// Actual pure virtual resource allocation function
 	virtual void AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation) = 0;
-};
-
-struct FD3D12FencedDeleteObject;
-class FD3D12AsyncDeletionWorker;
-
-class FD3D12DeferredDeletionQueue : public FD3D12AdapterChild
-{
-public:
-	FD3D12DeferredDeletionQueue(FD3D12Adapter* InParent);
-	~FD3D12DeferredDeletionQueue();
-
-	void EnqueueResource(FD3D12Resource* pResource, FRHIGPUMask GpuMask);
-	void EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence);
-	void EnqueueBindlessDescriptor(FRHIDescriptorHandle InDescriptor, FD3D12Fence* InFence, uint32 InDeviceIndex);
-
-	bool ReleaseResources(bool bDeleteImmediately, bool bIsShutDown);
-
-	inline const uint32 QueueSize() const { return DeferredReleaseQueue.GetSize(); }
-
-private:
-	FThreadsafeQueue<FD3D12FencedDeleteObject> DeferredReleaseQueue;
-
-	FCriticalSection DeleteTaskCS;
-	TQueue<FAsyncTask<FD3D12AsyncDeletionWorker>*> DeleteTasks;
 };
 
 struct FD3D12LockedResource : public FD3D12DeviceChild
@@ -919,7 +860,7 @@ public:
 	virtual uint32 GetParentGPUIndex() const override;
 
 	void UploadResourceData(FRHICommandListBase& InRHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState);
-	FD3D12SyncPoint UploadResourceDataViaCopyQueue(FResourceArrayInterface* InResourceArray);
+	FD3D12SyncPointRef UploadResourceDataViaCopyQueue(FResourceArrayInterface* InResourceArray);
 
 	// FRHIResource overrides
 #if RHI_ENABLE_RESOURCE_INFO
@@ -960,87 +901,36 @@ public:
 	FD3D12LockedResource LockedData;
 };
 
-class FD3D12ShaderResourceView;
-
-template<typename InAllocatorType>
-inline void AddTransitionBarrier(TArray<D3D12_RESOURCE_BARRIER, InAllocatorType>& BarrierList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
+class FD3D12ResourceBarrierBatcher
 {
-	BarrierList.Add(CD3DX12_RESOURCE_BARRIER::Transition(pResource->GetResource(), Before, After, Subresource));
-}
+	// Use the top bit of the flags enum to mark transitions as "idle" time (used to remove the swapchain wait time for back buffers).
+	static constexpr D3D12_RESOURCE_BARRIER_FLAGS BarrierFlag_CountAsIdleTime = D3D12_RESOURCE_BARRIER_FLAGS(1ull << ((sizeof(D3D12_RESOURCE_BARRIER_FLAGS) * 8) - 1));
 
-class FD3D12ResourceBarrierBatcher : public FNoncopyable
-{
-public:
-	explicit FD3D12ResourceBarrierBatcher()
-	{};
-
-	// Add a UAV barrier to the batch. Ignoring the actual resource for now.
-	void AddUAV()
+	struct FD3D12ResourceBarrier : public D3D12_RESOURCE_BARRIER
 	{
-		Barriers.AddUninitialized();
-		D3D12_RESOURCE_BARRIER& Barrier = Barriers.Last();
-		Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-		Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		Barrier.UAV.pResource = nullptr;	// Ignore the resource ptr for now. HW doesn't do anything with it.
-	}
+		FD3D12ResourceBarrier() = default;
+		FD3D12ResourceBarrier(D3D12_RESOURCE_BARRIER&& Barrier) : D3D12_RESOURCE_BARRIER(MoveTemp(Barrier)) {}
+
+		bool HasIdleFlag() const { return !!(Flags & BarrierFlag_CountAsIdleTime); }
+		void ClearIdleFlag() { Flags &= ~BarrierFlag_CountAsIdleTime; }
+	};
+	static_assert(sizeof(FD3D12ResourceBarrier) == sizeof(D3D12_RESOURCE_BARRIER), "FD3D12ResourceBarrier is a wrapper to add helper functions. Do not add members.");
+
+public:
+	// Add a UAV barrier to the batch. Ignoring the actual resource for now.
+	void AddUAV();
 
 	// Add a transition resource barrier to the batch. Returns the number of barriers added, which may be negative if an existing barrier was cancelled.
-	int32 AddTransition(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
-	{
-		check(Before != After);
+	int32 AddTransition(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource);
 
-		if (Barriers.Num())
-		{
-			// Check if we are simply reverting the last transition. In that case, we can just remove both transitions.
-			// This happens fairly frequently due to resource pooling since different RHI buffers can point to the same underlying D3D buffer.
-			// Instead of ping-ponging that underlying resource between COPY_DEST and GENERIC_READ, several copies can happen without a ResourceBarrier() in between.
-			// Doing this check also eliminates a D3D debug layer warning about multiple transitions of the same subresource.
-			const D3D12_RESOURCE_BARRIER& Last = Barriers.Last();
-			if (pResource->GetResource() == Last.Transition.pResource &&
-				Subresource == Last.Transition.Subresource &&
-				Before == Last.Transition.StateAfter &&
-				After  == Last.Transition.StateBefore &&
-				Last.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
-			{
-				Barriers.RemoveAt(Barriers.Num() - 1);
-				return -1;
-			}
-		}
+	void AddAliasingBarrier(ID3D12Resource* InResourceBefore, ID3D12Resource* InResourceAfter);
 
-		check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
-		AddTransitionBarrier(Barriers, pResource, Before, After, Subresource);
+	void FlushIntoCommandList(FD3D12CommandList& CommandList, class FD3D12QueryAllocator& TimestampAllocator);
 
-		return 1;
-	}
-
-	void AddAliasingBarrier(ID3D12Resource* InResourceBefore, ID3D12Resource* InResourceAfter)
-	{
-		Barriers.AddUninitialized();
-		D3D12_RESOURCE_BARRIER& Barrier = Barriers.Last();
-		Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
-		Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		Barrier.Aliasing.pResourceBefore = InResourceBefore;
-		Barrier.Aliasing.pResourceAfter = InResourceAfter;
-	}
-
-	// Flush the batch to the specified command list then reset.
-	void Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax);
-
-	// Clears the batch.
-	void Reset()
-	{
-		// Reset the arrays without shrinking (Does not destruct items, does not de-allocate memory).
-		Barriers.SetNumUnsafeInternal(0);
-		check(Barriers.Num() == 0);
-	}
-
-	const TArray<D3D12_RESOURCE_BARRIER>& GetBarriers() const
-	{
-		return Barriers;
-	}
+	int32 Num() const { return Barriers.Num(); }
 
 private:
-	TArray<D3D12_RESOURCE_BARRIER> Barriers;
+	TArray<FD3D12ResourceBarrier> Barriers;
 };
 
 class FD3D12StagingBuffer final : public FRHIStagingBuffer
@@ -1070,24 +960,18 @@ private:
 	uint32 ShadowBufferSize;
 };
 
-class FD3D12GPUFence : public FRHIGPUFence
+class FD3D12GPUFence final : public FRHIGPUFence
 {
 public:
-	FD3D12GPUFence(FName InName, FD3D12Fence* InFence)
-		: FRHIGPUFence(InName)
-		, Fence(InFence)
-		, Value(MAX_uint64)
-	{}
+	FD3D12GPUFence(FName InName);
 
-	void WriteInternal(ED3D12CommandQueueType QueueType);
-	virtual void Clear() final override;
-	virtual bool Poll() const final override;
-	virtual bool Poll(FRHIGPUMask GPUMask) const final override;
+	virtual void Clear() override;
+	virtual bool Poll() const override;
+	virtual bool Poll(FRHIGPUMask GPUMask) const override;
 
-protected:
+	void WaitCPU();
 
-	TRefCountPtr<FD3D12Fence> Fence;
-	uint64 Value;
+	TArray<FD3D12SyncPointRef, TInlineAllocator<MAX_NUM_GPUS>> SyncPoints;
 };
 
 template<class T>
@@ -1123,11 +1007,6 @@ template<>
 struct TD3D12ResourceTraits<FRHIBlendState>
 {
 	typedef FD3D12BlendState TConcreteType;
-};
-template<>
-struct TD3D12ResourceTraits<FRHIComputeFence>
-{
-	typedef FD3D12Fence TConcreteType;
 };
 template<>
 struct TD3D12ResourceTraits<FRHIGraphicsPipelineState>

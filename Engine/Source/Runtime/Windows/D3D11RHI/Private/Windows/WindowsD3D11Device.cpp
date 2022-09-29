@@ -2225,9 +2225,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GRHINeedsExtraDeletionLatency = false;
 		GRHISupportsEfficientUploadOnResourceCreation = true;
 
-		// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
-		GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
-		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+		GRHICommandList.GetImmediateCommandList().InitializeImmediateContexts();
 
 		// Now that the driver extensions have been initialized, turn on UAV overlap for the first time.
 		EnableUAVOverlap();

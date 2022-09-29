@@ -295,6 +295,13 @@ public:
 		return new FGenericRHIGPUFence(Name);
 	}
 
+	//
+	// Called by the thread recording an RHI command list (via RHICmdList.WriteGPUFence()).
+	// Allows the platform RHI to perform operations on the GPU fence at the top-of-pipe.
+	// Default implementation just enqueues an RHI command to call IRHIComputeContext::WriteGPUFence().
+	//
+	virtual void RHIWriteGPUFence_TopOfPipe(FRHICommandListBase& RHICmdList, FRHIGPUFence* FenceRHI);
+
 	virtual void RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo)
 	{
 	}
@@ -802,6 +809,12 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FRenderQueryRHIRef RHICreateRenderQuery(ERenderQueryType QueryType) = 0;
 
+	virtual void RHIBeginOcclusionQueryBatch_TopOfPipe(FRHICommandListBase& RHICmdList, uint32 NumQueriesInBatch) {}
+	virtual void RHIEndOcclusionQueryBatch_TopOfPipe  (FRHICommandListBase& RHICmdList) {}
+
+	virtual void RHIBeginRenderQuery_TopOfPipe(FRHICommandListBase& RHICmdList, FRHIRenderQuery* RenderQuery);
+	virtual void RHIEndRenderQuery_TopOfPipe  (FRHICommandListBase& RHICmdList, FRHIRenderQuery* RenderQuery);
+
 	// CAUTION: Even though this is marked as threadsafe, it is only valid to call from the render thread. It is need not be threadsafe on platforms that do not support or aren't using an RHIThread
 	// FlushType: Thread safe, but varies by RHI
 	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait, uint32 GPUIndex = INDEX_NONE) = 0;
@@ -1051,15 +1064,32 @@ public:
 		return ComputeContext;
 	}
 
-	// FlushType: Thread safe
-	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) = 0;
+	//
+	// Retrieves a new command context to begin the recording of a new platform command list.
+	// The returned context is specific to the given pipeline. It can later be converted to an IRHIPlatformCommandList
+	// by calling RHIFinalizeContext(), and then submitted to the GPU by calling RHISubmitCommandLists().
+	//
+	// Called by parallel worker threads, and the render thread. Platform implementations must be thread safe.
+	//
+	virtual IRHIComputeContext* RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask) = 0;
 
-#if WITH_MGPU
-	/** Returns a context for sending commands to the given GPU mask. Default implementation is only valid when not using multi-gpu. */
-	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask) { ensure(GPUMask == FRHIGPUMask::GPU0()); return RHIGetCommandContextContainer(Index, Num); }
-#else
-	FORCEINLINE IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask) { return RHIGetCommandContextContainer(Index, Num); }
-#endif
+	//
+	// Finalizes (i.e. closes) the specified command context, returning the completed platform command list object.
+	// The returned command list can later be submitted to the GPU by calling RHISubmitCommandLists().
+	//
+	// The context may be destroyed or recycled, so should not be used again. Call RHIGetCommandContext() to get a new context.
+	//
+	// Called by parallel worker threads, and the RHI thread. Platform implementations must be thread safe.
+	//
+	virtual IRHIPlatformCommandList* RHIFinalizeContext(IRHIComputeContext* Context) = 0;
+
+	//
+	// Submits a batch of previously recorded/finalized command lists to the GPU. 
+	// Command lists are well-ordered in the array view. Platform implementations must submit in this order for correct rendering.
+	//
+	// Called by the RHI thread. 
+	//
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists) = 0;
 
 	UE_DEPRECATED(5.1, "CreateBuffer_RenderThread is deprecated. Use RHICreateBuffer instead.")
 	virtual FBufferRHIRef CreateBuffer_RenderThread(class FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo);
@@ -1608,11 +1638,6 @@ FORCEINLINE class IRHICommandContext* RHIGetDefaultContext()
 FORCEINLINE class IRHIComputeContext* RHIGetDefaultAsyncComputeContext()
 {
 	return GDynamicRHI->RHIGetDefaultAsyncComputeContext();
-}
-
-FORCEINLINE class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask)
-{
-	return GDynamicRHI->RHIGetCommandContextContainer(Index, Num, GPUMask);
 }
 
 RHI_API FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries = UINT32_MAX);

@@ -46,24 +46,21 @@ static FResolveRect GetDefaultRect(const FResolveRect& Rect,uint32 DefaultWidth,
 
 template<typename TPixelShader>
 void FD3D11DynamicRHI::ResolveTextureUsingShader(
-	FRHICommandList_RecursiveHazardous& RHICmdList,
-	FD3D11Texture* SourceTexture,
-	FD3D11Texture* DestTexture,
-	ID3D11RenderTargetView* DestTextureRTV,
-	ID3D11DepthStencilView* DestTextureDSV,
-	const D3D11_TEXTURE2D_DESC& ResolveTargetDesc,
-	const FResolveRect& SourceRect,
-	const FResolveRect& DestRect,
-	FD3D11DeviceContext* Direct3DDeviceContext, 
-	typename TPixelShader::FParameter PixelShaderParameter
+	FD3D11DynamicRHI* const This,
+	FD3D11Texture* const SourceTexture,
+	FD3D11Texture* const DestTexture,
+	ID3D11RenderTargetView* const DestTextureRTV,
+	ID3D11DepthStencilView* const DestTextureDSV,
+	D3D11_TEXTURE2D_DESC const& ResolveTargetDesc,
+	FResolveRect const& SourceRect,
+	FResolveRect const& DestRect,
+	typename TPixelShader::FParameter const PixelShaderParameter
 	)
 {
 	// Save the current viewport so that it can be restored
 	D3D11_VIEWPORT SavedViewport;
 	uint32 NumSavedViewports = 1;
-	StateCache.GetViewports(&NumSavedViewports,&SavedViewport);
-
-	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
+	This->StateCache.GetViewports(&NumSavedViewports, &SavedViewport);
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 
@@ -74,7 +71,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	// Make sure the destination is not bound as a shader resource.
 	if (DestTexture)
 	{
-		ConditionalClearShaderResource(DestTexture, false);
+		This->ConditionalClearShaderResource(DestTexture, false);
 	}
 
 	// Determine if the entire destination surface is being resolved to.
@@ -86,93 +83,108 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 		&&	DestRect.X2 == ResolveTargetDesc.Width
 		&&	DestRect.Y2 == ResolveTargetDesc.Height;
 	
+	const bool bDepthStencil = ResolveTargetDesc.BindFlags & D3D11_BIND_DEPTH_STENCIL;
+
 	//we may change rendertargets and depth state behind the RHI's back here.
 	//save off this original state to restore it.
-	FExclusiveDepthStencil OriginalDSVAccessType = CurrentDSVAccessType;
-	TRefCountPtr<FD3D11Texture> OriginalDepthTexture = CurrentDepthTexture;
+	FExclusiveDepthStencil OriginalDSVAccessType     = This->CurrentDSVAccessType;
+	TRefCountPtr<FD3D11Texture> OriginalDepthTexture = This->CurrentDepthTexture;
 
-	if(ResolveTargetDesc.BindFlags & D3D11_BIND_DEPTH_STENCIL)
 	{
-		// Clear the destination texture.
-		if(bClearDestTexture)
+		TRHICommandList_RecursiveHazardous<FD3D11DynamicRHI> RHICmdList(This);
+		if (bDepthStencil)
 		{
-			GPUProfilingData.RegisterGPUWork(0);
+			RHICmdList.RunOnContext([bClearDestTexture, DestTextureDSV](auto& Context)
+			{
+				// Clear the destination texture.
+				if (bClearDestTexture)
+				{
+					Context.GPUProfilingData.RegisterGPUWork(0);
 
-			Direct3DDeviceContext->ClearDepthStencilView(DestTextureDSV,D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,0,0);
+					Context.Direct3DDeviceIMContext->ClearDepthStencilView(DestTextureDSV,D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,0,0);
+				}
+
+				//hack this to  pass validation in SetDepthStencil state since we are directly changing targets with a call to OMSetRenderTargets later.
+				Context.CurrentDSVAccessType = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+			});
+
+			check(DestTexture);
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
+			GraphicsPSOInit.DepthStencilTargetFormat = DestTexture->GetFormat();
+
+			RHICmdList.BeginRenderPass(FRHIRenderPassInfo(DestTexture, EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil), TEXT(""));
+		}
+		else
+		{
+			RHICmdList.RunOnContext([bClearDestTexture, DestTextureRTV](auto& Context)
+			{
+				// Clear the destination texture.
+				if (bClearDestTexture)
+				{
+					Context.GPUProfilingData.RegisterGPUWork(0);
+
+					FLinearColor ClearColor(0,0,0,0);
+					Context.Direct3DDeviceIMContext->ClearRenderTargetView(DestTextureRTV,(float*)&ClearColor);
+				}
+			});
+
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+			RHICmdList.BeginRenderPass(FRHIRenderPassInfo(DestTexture, ERenderTargetActions::Load_Store), TEXT(""));
 		}
 
-		//hack this to  pass validation in SetDepthStencil state since we are directly changing targets with a call to OMSetRenderTargets later.
-		CurrentDSVAccessType = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
-		check(DestTexture);
-		GraphicsPSOInit.DepthStencilTargetFormat = DestTexture->GetFormat();
+		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)ResolveTargetDesc.Width, (float)ResolveTargetDesc.Height, 1.0f);
 
-		RHICmdList.BeginRenderPass(FRHIRenderPassInfo(DestTexture, EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil), TEXT(""));
-	}
-	else
-	{
-		// Clear the destination texture.
-		if(bClearDestTexture)
+		// Set the vertex and pixel shader
+		auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
+		TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
+
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
+
+		RHICmdList.RunOnContext([DestTexture](auto& Context)
 		{
-			GPUProfilingData.RegisterGPUWork(0);
+			Context.CurrentDepthTexture = DestTexture;
+		});
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+		RHICmdList.SetBlendFactor(FLinearColor::White);
 
-			FLinearColor ClearColor(0,0,0,0);
-			Direct3DDeviceContext->ClearRenderTargetView(DestTextureRTV,(float*)&ClearColor);
+		ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
+		ResolvePixelShader->SetParameters(RHICmdList, PixelShaderParameter);
+
+		// Set the source texture.
+		const uint32 TextureIndex = ResolvePixelShader->UnresolvedSurface.GetBaseIndex();
+
+		if (SourceTexture)
+		{
+			RHICmdList.RunOnContext([SourceTexture, TextureIndex](auto& Context)
+			{
+				Context.SetShaderResourceView<SF_Pixel>(SourceTexture, SourceTexture->GetShaderResourceView(), TextureIndex);
+			});
 		}
 
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		RHICmdList.DrawPrimitive(0, 2, 1);
 
-		RHICmdList.BeginRenderPass(FRHIRenderPassInfo(DestTexture, ERenderTargetActions::Load_Store), TEXT(""));
+		RHICmdList.EndRenderPass();
 	}
-
-	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)ResolveTargetDesc.Width, (float)ResolveTargetDesc.Height, 1.0f);
-
-	// Set the vertex and pixel shader
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
-	TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
-
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
-
-	CurrentDepthTexture = DestTexture;
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-	RHICmdList.SetBlendFactor(FLinearColor::White);
-
-	ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);
-	ResolvePixelShader->SetParameters(RHICmdList, PixelShaderParameter);
-	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
-
-	// Set the source texture.
-	const uint32 TextureIndex = ResolvePixelShader->UnresolvedSurface.GetBaseIndex();
 
 	if (SourceTexture)
 	{
-		SetShaderResourceView<SF_Pixel>(SourceTexture, SourceTexture->GetShaderResourceView(), TextureIndex);
-	}
-
-	RHICmdList.DrawPrimitive(0, 2, 1);
-
-	RHICmdList.EndRenderPass();
-
-	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
-
-	if (SourceTexture)
-	{
-		ConditionalClearShaderResource(SourceTexture, false);
+		This->ConditionalClearShaderResource(SourceTexture, false);
 	}
 
 	// Reset saved render targets
-	CommitRenderTargetsAndUAVs();
+	This->CommitRenderTargetsAndUAVs();
 
 	// Reset saved viewport
-	RHISetMultipleViewports(1,(FViewportBounds*)&SavedViewport);
+	This->RHISetMultipleViewports(1, (FViewportBounds*)&SavedViewport);
 
 	//reset DSVAccess.
-	CurrentDSVAccessType = OriginalDSVAccessType;
-	CurrentDepthTexture = OriginalDepthTexture;
+	This->CurrentDSVAccessType = OriginalDSVAccessType;
+	This->CurrentDepthTexture = OriginalDepthTexture;
 }
 
 /**
@@ -188,8 +200,6 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 		// no need to do anything (silently ignored)
 		return;
 	}
-
-	FRHICommandList_RecursiveHazardous RHICmdList(this);
 
 	FD3D11Texture* SourceTexture2D   = GetD3D11TextureFromRHITexture(SourceTextureRHI->GetTexture2D());
 	FD3D11Texture* DestTexture2D     = GetD3D11TextureFromRHITexture(DestTextureRHI->GetTexture2D());
@@ -215,7 +225,7 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 				DestTexture2D->GetD3D11Texture2D()->GetDesc(&ResolveTargetDesc);
 
 				ResolveTextureUsingShader<FResolveDepthPS>(
-					RHICmdList,
+					this,
 					SourceTexture2D,
 					DestTexture2D,
 					DestTexture2D->GetRenderTargetView(0, -1),
@@ -223,7 +233,6 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 					ResolveTargetDesc,
 					GetDefaultRect(ResolveParams.Rect,DestTexture2D->GetSizeX(),DestTexture2D->GetSizeY()),
 					GetDefaultRect(ResolveParams.Rect,DestTexture2D->GetSizeX(),DestTexture2D->GetSizeY()),
-					Direct3DDeviceIMContext,
 					FDummyResolveParameter()
 					);
 			}
@@ -659,8 +668,7 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect InRec
 	}
 	else
 	{
-		FRHICommandList_RecursiveHazardous RHICmdList(this);
-		ReadSurfaceDataMSAARaw(RHICmdList, TextureRHI, InRect, OutDataRaw, InFlags);
+		ReadSurfaceDataMSAARaw(TextureRHI, InRect, OutDataRaw, InFlags);
 	}
 
 	const uint32 SizeX = InRect.Width() * TextureDesc.SampleDesc.Count;
@@ -676,7 +684,7 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect InRec
 	ConvertDXGIToFColor(TextureDesc.Format, SizeX, SizeY, OutDataRaw.GetData(), SrcPitch, OutData.GetData(), InFlags);
 }
 
-void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FRHITexture* TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI,FIntRect InRect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
@@ -762,7 +770,7 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	{
 		// Resolve the sample to the non-MSAA render target.
 		ResolveTextureUsingShader<FResolveSingleSamplePS>(
-			RHICmdList,
+			this,
 			Texture,
 			NULL,
 			NonMSAARTV,
@@ -770,7 +778,6 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 			NonMSAADesc,
 			FResolveRect(InRect.Min.X, InRect.Min.Y, InRect.Max.X, InRect.Max.Y),
 			FResolveRect(0,0,SizeX,SizeY),
-			Direct3DDeviceIMContext,
 			SampleIndex
 			);
 
@@ -980,8 +987,7 @@ void FD3D11DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 	}
 	else
 	{
-		FRHICommandList_RecursiveHazardous RHICmdList(this);
-		ReadSurfaceDataMSAARaw(RHICmdList, TextureRHI, InRect, OutDataRaw, InFlags);
+		ReadSurfaceDataMSAARaw(TextureRHI, InRect, OutDataRaw, InFlags);
 	}
 
 	const uint32 SizeX = InRect.Width() * TextureDesc.SampleDesc.Count;
@@ -1158,13 +1164,11 @@ void FD3D11DynamicRHI::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
 
 	if (SourceDesc.Format == PF_DepthStencil)
 	{
-		FRHICommandList_RecursiveHazardous RHICmdList(this);
-
 		D3D11_TEXTURE2D_DESC ResolveTargetDesc;
 		DestTexture->GetD3D11Texture2D()->GetDesc(&ResolveTargetDesc);
 
 		ResolveTextureUsingShader<FResolveDepthPS>(
-			RHICmdList,
+			this,
 			SourceTexture,
 			DestTexture,
 			DestTexture->GetRenderTargetView(0, -1),
@@ -1172,7 +1176,6 @@ void FD3D11DynamicRHI::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
 			ResolveTargetDesc,
 			GetDefaultRect(Info.ResolveRect, SourceDesc.Extent.X, SourceDesc.Extent.Y),
 			GetDefaultRect(Info.ResolveRect, DestDesc.Extent.X, DestDesc.Extent.Y),
-			Direct3DDeviceIMContext,
 			FDummyResolveParameter()
 		);
 	}

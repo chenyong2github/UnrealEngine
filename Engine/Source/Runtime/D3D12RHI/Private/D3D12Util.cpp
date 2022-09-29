@@ -117,19 +117,6 @@ static FString GetD3D12ErrorString(HRESULT ErrorCode, ID3D12Device* Device)
 	return ErrorCodeText;
 }
 
-/** Build string name of command queue type */
-static const TCHAR* GetD3DCommandQueueTypeName(ED3D12CommandQueueType QueueType)
-{
-	switch (QueueType)
-	{
-	case ED3D12CommandQueueType::Direct:	 return TEXT("3D");
-	case ED3D12CommandQueueType::Async:		 return TEXT("Compute");
-	case ED3D12CommandQueueType::Copy:		 return TEXT("Copy");
-	}
-
-	return nullptr;
-}
-
 #undef D3DERR
 
 namespace D3D12RHI
@@ -206,10 +193,10 @@ static FString GetD3D12TextureFlagString(uint32 TextureFlags)
 	return TextureFormatText;
 }
 
-/** Log the GPU progress of the given CommandListManager to the Error log if breadcrumb data is available */
-static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12CommandListManager& CommandListManager)
+/** Log the GPU progress of the given queue to the Error log if breadcrumb data is available */
+static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Queue& Queue)
 {
-	uint32* BreadCrumbData = (uint32*)CommandListManager.GetBreadCrumbBufferData();
+	uint32* BreadCrumbData = (uint32*)Queue.GetBreadCrumbBufferData();
 	if (BreadCrumbData == nullptr)
 	{
 		return false;
@@ -219,8 +206,8 @@ static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Comm
 	bool bBeginEvent = BreadCrumbData[1] > 0;
 	check(EventCount >= 0 && EventCount < (MAX_GPU_BREADCRUMB_DEPTH - 2));
 
-	FString GpuProgress = FString::Printf(TEXT("[GPUBreadCrumb]\t%s Queue %d - %s"), GetD3DCommandQueueTypeName(CommandListManager.GetQueueType()), 
-		CommandListManager.GetGPUIndex(), EventCount == 0 ? TEXT("No Data") : (bBeginEvent ? TEXT("Begin: ") : TEXT("End: ")));
+	FString GpuProgress = FString::Printf(TEXT("[GPUBreadCrumb]\t%s Queue %d - %s"), GetD3DCommandQueueTypeName(Queue.QueueType),
+		Queue.Device->GetGPUIndex(), EventCount == 0 ? TEXT("No Data") : (bBeginEvent ? TEXT("Begin: ") : TEXT("End: ")));
 	for (uint32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
 	{
 		if (EventIndex > 0)
@@ -243,7 +230,7 @@ static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Comm
 
 	UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *GpuProgress);
 
-	const FD3D12DiagnosticBufferData* DiagnosticData = CommandListManager.GetDiagnosticBufferData();
+	const FD3D12DiagnosticBufferData* DiagnosticData = Queue.GetDiagnosticBufferData();
 	if (DiagnosticData && DiagnosticData->Counter)
 	{
 		UE_LOG(LogD3D12RHI, Error, TEXT("[GPUBreadCrumb]\t\tShader assertion failed! ID: 0x%08X (%d)"), DiagnosticData->MessageID, DiagnosticData->MessageID);
@@ -296,9 +283,10 @@ static void LogBreadcrumbData(ID3D12Device* Device)
 	FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
 	{
-		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCommandListManager());
-		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetAsyncCommandListManager());
-		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCopyCommandListManager());
+		for (uint32 QueueTypeIndex = 0; QueueTypeIndex < (uint32)ED3D12QueueType::Count; ++QueueTypeIndex)
+		{
+			bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetQueue((ED3D12QueueType)QueueTypeIndex));
+		}
 	});
 
 	if (!bValidData)
@@ -583,7 +571,7 @@ static FString MakeResourceDescDebugString(const D3D12_RESOURCE_DESC& Desc)
 	return ResourceDescString;
 }
 
-void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress)
+void LogPageFaultData(FD3D12Adapter* InAdapter, FD3D12Device* InDevice, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress)
 {
 	if (InPageFaultAddress == 0)
 	{
@@ -592,8 +580,11 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 
 	FD3D12ManualFence& FrameFence = InAdapter->GetFrameFence();
 
-	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: PageFault at VA GPUAddress \"0x%llX\""), (long long)InPageFaultAddress);
-	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Last completed frame ID: %d (cached: %d) - Current frame ID: %d"), FrameFence.PeekLastCompletedFence(), FrameFence.GetLastCompletedFenceFast(), FrameFence.GetCurrentFence());
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: PageFault at VA GPUAddress \"0x%llX\" (GPU %d)"), (long long)InPageFaultAddress, InDevice->GetGPUIndex());
+	uint64 CachedFenceValue = FrameFence.GetCompletedFenceValue(false);
+	uint64 ActualFenceValue = FrameFence.GetCompletedFenceValue(true);
+	uint64 NextFenceValue = FrameFence.GetNextFenceToSignal();
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Last completed frame ID: %d (cached: %d) - Current frame ID: %d"), ActualFenceValue, CachedFenceValue, NextFenceValue);
 	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Logging all resource enabled: %s"), InAdapter->IsTrackingAllAllocations() ? TEXT("Yes") : TEXT("No"));
 
 	// Try and find all current allocations near that range
@@ -782,7 +773,7 @@ namespace D3D12RHI
 					}
 
 					FD3D12Adapter* Adapter = IterationDevice->GetParentAdapter();
-					LogPageFaultData(Adapter, PageFaultAddress);
+					LogPageFaultData(Adapter, IterationDevice, PageFaultAddress);
 					LogMemoryInfo(Adapter);
 				}
 			});
@@ -1244,7 +1235,12 @@ FString ConvertToResourceStateString(uint32 ResourceState)
 {
 	if (ResourceState == 0)
 	{
-		return FString(TEXT("D3D12_RESOURCE_STATE_COMMON"));
+		return TEXT("D3D12_RESOURCE_STATE_COMMON");
+	}
+
+	if (ResourceState == D3D12_RESOURCE_STATE_TBD)
+	{
+		return TEXT("D3D12_RESOURCE_STATE_TBD");
 	}
 
 	const TCHAR* ResourceStateNames[] =
@@ -1284,7 +1280,7 @@ FString ConvertToResourceStateString(uint32 ResourceState)
 	return ResourceStateString;
 }
 
-void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER* pBarriers, ID3D12CommandList* const pCommandList)
+void LogResourceBarriers(TConstArrayView<D3D12_RESOURCE_BARRIER> Barriers, ID3D12CommandList* const pCommandList)
 {
 	// Configure what resource barriers are logged.
 	const bool bLogAll = false;
@@ -1298,9 +1294,9 @@ void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER* pBarriers, 
 	ShouldLogMask |= bLogTransitionRenderTarget ? D3D12_RESOURCE_STATE_RENDER_TARGET : 0;
 	ShouldLogMask |= bLogTransitionUAV ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : 0;
 
-	for (uint32 i = 0; i < NumBarriers; i++)
+	for (int32 i = 0; i < Barriers.Num(); i++)
 	{
-		D3D12_RESOURCE_BARRIER &currentBarrier = pBarriers[i];
+		const D3D12_RESOURCE_BARRIER& currentBarrier = Barriers[i];
 
 		switch (currentBarrier.Type)
 		{
@@ -1322,7 +1318,7 @@ void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER* pBarriers, 
 
 			if (bShouldLog)
 			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("*** BARRIER (CmdList: %016llX) %u/%u: %016llX (Sub: %u), %s -> %s"), pCommandList, i + 1, NumBarriers,
+				UE_LOG(LogD3D12RHI, Log, TEXT("*** BARRIER (CmdList: %016llX) %u/%u: %016llX (Sub: %u), %s -> %s"), pCommandList, i + 1, Barriers.Num(),
 					currentBarrier.Transition.pResource,
 					currentBarrier.Transition.Subresource,
 					*StateBefore,
@@ -1332,17 +1328,17 @@ void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER* pBarriers, 
 		}
 
 		case D3D12_RESOURCE_BARRIER_TYPE_UAV:
-			UE_LOG(LogD3D12RHI, Log, TEXT("*** BARRIER (CmdList: %016llX) %u/%u: UAV Barrier"), pCommandList, i + 1, NumBarriers);
+			UE_LOG(LogD3D12RHI, Log, TEXT("*** BARRIER (CmdList: %016llX) %u/%u: UAV Barrier"), pCommandList, i + 1, Barriers.Num());
 			break;
 
 		case D3D12_RESOURCE_BARRIER_TYPE_ALIASING:
-			UE_LOG(LogD3D12RHI, Log, TEXT("*** BARRIER (CmdList: %016llX) %u/%u: Aliasing Barrier, %016llX -> %016llX"), pCommandList, i + 1, NumBarriers, currentBarrier.Aliasing.pResourceBefore, currentBarrier.Aliasing.pResourceAfter);
+			UE_LOG(LogD3D12RHI, Log, TEXT("*** BARRIER (CmdList: %016llX) %u/%u: Aliasing Barrier, %016llX -> %016llX"), pCommandList, i + 1, Barriers.Num(), currentBarrier.Aliasing.pResourceBefore, currentBarrier.Aliasing.pResourceAfter);
 			break;
 
 		default:
 			check(false);
 			break;
-		}		
+		}
 	}
 }
 
@@ -1426,17 +1422,6 @@ D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsy
 
 	// unreachable code
 	return D3D12_RESOURCE_STATE_COMMON;
-}
-
-void StallRHIThreadAndForceFlush(FD3D12Device* InDevice)
-{
-	// We need to flush, but the RHI thread may be using the default command list...so stall it first.
-	check(IsInRenderingThread());
-	FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
-	InDevice->GetDefaultCommandContext().FlushCommands();	// Don't wait yet, since we're stalling the RHI thread.
-
-	// We have to make sure all command lists have actually flush and executed here
-	InDevice->GetCommandListManager().WaitOnExecuteTask();
 }
 
 //==================================================================================================================================
@@ -1592,29 +1577,6 @@ void CResourceState::SetSubresourceState(uint32 SubresourceIndex, D3D12_RESOURCE
 	}
 }
 
-bool FD3D12SyncPoint::IsValid() const
-{
-	return Fence != nullptr;
-}
-
-bool FD3D12SyncPoint::IsComplete() const
-{
-	check(IsValid());
-	return Fence->IsFenceComplete(Value);
-}
-
-void FD3D12SyncPoint::WaitForCompletion() const
-{
-	check(IsValid());
-	Fence->WaitForFence(Value);
-}
-
-void FD3D12SyncPoint::GPUWait(ED3D12CommandQueueType InCommandQueueType) const
-{
-	check(IsValid());
-	Fence->GpuWait(InCommandQueueType, Value);
-}
-
 // Forward declarations are required for the template functions
 template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);
 template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_UNORDERED_ACCESS_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);
@@ -1700,6 +1662,7 @@ DEFINE_STAT(STAT_D3D12CustomPresentTime);
 
 DEFINE_STAT(STAT_D3D12NumCommandAllocators);
 DEFINE_STAT(STAT_D3D12NumCommandLists);
+DEFINE_STAT(STAT_D3D12NumQueryHeaps);
 DEFINE_STAT(STAT_D3D12NumPSOs);
 
 DEFINE_STAT(STAT_D3D12TexturesAllocated);

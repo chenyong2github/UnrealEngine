@@ -12,13 +12,25 @@
 #if ENABLE_RHI_VALIDATION
 class FValidationRHI;
 
-class FValidationComputeContext : public IRHIComputeContext
+class FValidationComputeContext final : public IRHIComputeContext
 {
 public:
-	FValidationComputeContext();
+	enum EType
+	{
+		Default,
+		Parallel
+	} const Type;
+
+	FValidationComputeContext(EType Type);
 
 	virtual ~FValidationComputeContext()
 	{
+	}
+
+	virtual IRHIComputeContext& GetLowestLevelContext() override final
+	{
+		checkSlow(RHIContext);
+		return *RHIContext;
 	}
 
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) override final
@@ -233,7 +245,7 @@ public:
 		PlatformContext->Tracker = &State.TrackerInstance;
 	}
 
-	IRHIComputeContext* RHIContext;
+	IRHIComputeContext* RHIContext = nullptr;
 
 protected:
 	struct FState
@@ -245,28 +257,23 @@ protected:
 		bool bComputePSOSet{};
 
 		void Reset();
-	};
-	FState State;
+	} State;
 
 	friend class FValidationRHI;
 };
 
-class FValidationContext : public IRHICommandContext
+class FValidationContext final : public IRHICommandContext
 {
 public:
 	enum EType
 	{
 		Default,
 		Parallel
-	};
+	} const Type;
 
 	FValidationContext(EType InType);
 
-	FValidationContext()
-		: FValidationContext(EType::Default)
-	{}
-
-	virtual IRHICommandContext& GetLowestLevelContext() override final
+	virtual IRHIComputeContext& GetLowestLevelContext() override final
 	{
 		checkSlow(RHIContext);
 		return *RHIContext;
@@ -1099,7 +1106,7 @@ public:
 		// nothing to validate right now
 	}
 
-	IRHICommandContext* RHIContext;
+	IRHICommandContext* RHIContext = nullptr;
 
 	inline void LinkToContext(IRHICommandContext* PlatformContext)
 	{
@@ -1132,12 +1139,8 @@ protected:
 		bool bInsideBeginRenderPass{};
 
 		void Reset();
-	};
-	FState State;
+	} State;
 
-	EType Type = EType::Default;
-
-	friend class FValidationRHICommandContextContainer;
 	friend class FValidationRHI;
 
 private:
@@ -1158,73 +1161,6 @@ private:
 			checkf(DSV.ExclusiveDepthStencil.IsUsingStencil(), TEXT("Graphics PSO is using stencil but it's not enabled on the RenderPass."));
 			checkf(DSMode.IsStencilRead() || DSV.ExclusiveDepthStencil.IsStencilWrite(), TEXT("Graphics PSO is writing to stencil but RenderPass stencil is ReadOnly."));
 		}
-	}
-};
-
-class FValidationRHICommandContextContainer final : public IRHICommandContextContainer
-{
-	static TLockFreePointerListUnordered<FValidationContext, PLATFORM_CACHE_LINE_SIZE> ParallelCommandContexts;
-
-	TArray<RHIValidation::FOperationsList> CompletedOpLists;
-
-	IRHICommandContextContainer* InnerContainer;
-	FValidationContext* CurrentContext;
-
-public:
-	FValidationRHICommandContextContainer(IRHICommandContextContainer* InInnerContainer)
-		: InnerContainer(InInnerContainer)
-		, CurrentContext(nullptr)
-	{}
-
-	virtual IRHICommandContext* GetContext() final override
-	{
-		check(CurrentContext == nullptr);
-		CurrentContext = ParallelCommandContexts.Pop();
-
-		if (!CurrentContext)
-		{
-			CurrentContext = new FValidationContext(FValidationContext::EType::Parallel);
-		}
-
-		CurrentContext->State.Reset();
-		CurrentContext->LinkToContext(InnerContainer->GetContext());
-
-		return CurrentContext;
-	}
-
-	virtual void FinishContext() final override
-	{
-		check(CurrentContext);
-
-		InnerContainer->FinishContext();
-		CompletedOpLists.Emplace(CurrentContext->Tracker->Finalize());
-
-		ParallelCommandContexts.Push(CurrentContext);
-		CurrentContext = nullptr;
-	}
-
-	virtual void SubmitAndFreeContextContainer(int32 Index, int32 Num) final override
-	{
-		using namespace RHIValidation;
-		check(CurrentContext == nullptr);
-
-		if (Index == 0)
-		{
-			// The RHIs are expected to close the main command list before calling the parallel command lists. For the validator,
-			// this means replaying the operations now, before executing the commands from the parallel lists.
-			FValidationContext* DefaultContext = (FValidationContext*)RHIGetDefaultContext();
-			FTracker::ReplayOpQueue(ERHIPipeline::Graphics, DefaultContext->Tracker->Finalize());
-		}
-
-		InnerContainer->SubmitAndFreeContextContainer(Index, Num);
-
-		for (FOperationsList& OpList : CompletedOpLists)
-		{
-			// Replay or queue any barrier operations to validate resource barrier usage.
-			FTracker::ReplayOpQueue(ERHIPipeline::Graphics, MoveTemp(OpList));
-		}
-
-		delete this;
 	}
 };
 

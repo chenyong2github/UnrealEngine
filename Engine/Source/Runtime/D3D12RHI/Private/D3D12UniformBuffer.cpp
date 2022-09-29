@@ -331,7 +331,3 @@ FD3D12UniformBuffer::~FD3D12UniformBuffer()
 	delete View;
 #endif
 }
-
-void FD3D12Device::ReleasePooledUniformBuffers()
-{
-}

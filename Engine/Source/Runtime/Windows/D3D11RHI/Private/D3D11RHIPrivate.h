@@ -545,7 +545,9 @@ public:
 	virtual void* RHIGetNativeInstance() final override;
 	virtual void* RHIGetNativeCommandBuffer() final override;
 	virtual class IRHICommandContext* RHIGetDefaultContext() final override;
-	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
+	virtual IRHIComputeContext* RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask) final override;
+	virtual IRHIPlatformCommandList* RHIFinalizeContext(IRHIComputeContext* Context) final override;
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists) final override;
 
 	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override;
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) final override;
@@ -1002,17 +1004,16 @@ protected:
 	void ReleaseCachedQueries();
 
 	template<typename TPixelShader>
-	void ResolveTextureUsingShader(
-		FRHICommandList_RecursiveHazardous& RHICmdList,
-		FD3D11Texture* SourceTexture,
-		FD3D11Texture* DestTexture,
-		ID3D11RenderTargetView* DestSurfaceRTV,
-		ID3D11DepthStencilView* DestSurfaceDSV,
-		const D3D11_TEXTURE2D_DESC& ResolveTargetDesc,
-		const FResolveRect& SourceRect,
-		const FResolveRect& DestRect,
-			FD3D11DeviceContext* Direct3DDeviceContext, 
-			typename TPixelShader::FParameter PixelShaderParameter
+	static void ResolveTextureUsingShader(
+		FD3D11DynamicRHI* const This,
+		FD3D11Texture* const SourceTexture,
+		FD3D11Texture* const DestTexture,
+		ID3D11RenderTargetView* const DestTextureRTV,
+		ID3D11DepthStencilView* const DestTextureDSV,
+		D3D11_TEXTURE2D_DESC const& ResolveTargetDesc,
+		FResolveRect const& SourceRect,
+		FResolveRect const& DestRect,
+		typename TPixelShader::FParameter const PixelShaderParameter
 		);
 
 	/**
@@ -1027,7 +1028,7 @@ protected:
 
 	void ReadSurfaceDataNoMSAARaw(FRHITexture* TextureRHI,FIntRect Rect,TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags);
 
-	void ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FRHITexture* TextureRHI, FIntRect Rect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags);
+	void ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI, FIntRect Rect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags);
 
 #if NV_AFTERMATH
 	void StartNVAftermath();

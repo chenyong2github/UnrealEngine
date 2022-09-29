@@ -15,6 +15,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("CustomPresent time"), STAT_D3D12CustomPresentTim
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num command allocators (3D, Compute, Copy)"), STAT_D3D12NumCommandAllocators, STATGROUP_D3D12RHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num command lists (3D, Compute, Copy)"), STAT_D3D12NumCommandLists, STATGROUP_D3D12RHI, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Query Heaps"), STAT_D3D12NumQueryHeaps, STATGROUP_D3D12RHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num pipeline state objects (PSOs)"), STAT_D3D12NumPSOs, STATGROUP_D3D12RHI, );
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Textures Allocated"), STAT_D3D12TexturesAllocated, STATGROUP_D3D12RHI, );
@@ -152,31 +153,13 @@ struct FD3D12GlobalStats
 };
 
 // This class has multiple inheritance but really FGPUTiming is a static class
-class FD3D12BufferedGPUTiming : public FRenderResource, public FGPUTiming, public FD3D12DeviceChild
+class FD3D12BufferedGPUTiming : public FGPUTiming, public FD3D12DeviceChild
 {
 public:
-	/**
-	* Constructor.
-	*
-	* @param InD3DRHI			RHI interface
-	* @param InBufferSize		Number of buffered measurements
-	*/
-	FD3D12BufferedGPUTiming(class FD3D12Device* InParent, int32 BufferSize);
+	FD3D12BufferedGPUTiming(class FD3D12Device* InParent);
 
-	FD3D12BufferedGPUTiming()
-	{
-	}
-
-	/**
-	* Start a GPU timing measurement.
-	*/
-	void	StartTiming();
-
-	/**
-	* End a GPU timing measurement.
-	* The timing for this particular measurement will be resolved at a later time by the GPU.
-	*/
-	void	EndTiming();
+	void StartTiming();
+	void EndTiming();
 
 	/**
 	* Retrieves the most recently resolved timing measurement.
@@ -184,41 +167,7 @@ public:
 	*
 	* @return	Value of the most recently resolved timing, or 0 if no measurements have been resolved by the GPU yet.
 	*/
-	uint64	GetTiming(bool bGetCurrentResultsAndBlock = false);
-
-	/**
-	* Initializes all D3D resources.
-	*/
-	virtual void InitDynamicRHI() override;
-
-	/**
-	* Releases all D3D resources.
-	*/
-	virtual void ReleaseDynamicRHI() override;
-
-	struct QueryHeap : public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<QueryHeap>
-	{
-		QueryHeap(FD3D12Device* Parent) : FD3D12DeviceChild(Parent) {};
-
-		void AddRef()
-		{
-			if (Heap)
-			{
-				Heap->AddRef();
-			}
-		}
-
-		void Release()
-		{
-			if (Heap)
-			{
-				Heap->Release();
-			}
-		}
-
-		TRefCountPtr<ID3D12QueryHeap> Heap;
-		FD3D12ResidencyHandle ResidencyHandle;
-	};
+	uint64 GetTiming();
 
 	static void CalibrateTimers(FD3D12Adapter* ParentAdapter);
 
@@ -228,64 +177,29 @@ private:
 	*/
 	static void PlatformStaticInitialize(void* UserData);
 
-	/**
-	* Get the StartTimestampQueryHeapIndex.
-	*/
-	FORCEINLINE int32 GetStartTimestampIndex(int32 Timestamp) const
+	struct
 	{
-		// Multiply by 2 because each timestamp has a start/end pair.
-		return Timestamp * 2;
-	}
+		uint64 Result = 0;
+		FD3D12SyncPointRef SyncPoint;
+	} Begin, End;
 
-	/**
-	* Get the EndTimestampQueryHeapIndex.
-	*/
-	FORCEINLINE int32 GetEndTimestampIndex(int32 Timestamp) const
-	{
-		return GetStartTimestampIndex(Timestamp) + 1;
-	}
-
-	/** Number of timestamps created in 'StartTimestamps' and 'EndTimestamps'. */
-	int32						BufferSize;
-	/** Current timing being measured on the CPU. */
-	int32						CurrentTimestamp;
-	/** Number of measurements in the buffers (0 - BufferSize). */
-	int32						NumIssuedTimestamps;
-
-	/** Timestamps */
-	QueryHeap* TimestampQueryHeap;
-
-	TArray<FD3D12CLSyncPoint>		TimestampListHandles;
-	TRefCountPtr<FD3D12Resource>	TimestampQueryHeapBuffer;
 	/** Whether we are currently timing the GPU: between StartTiming() and EndTiming(). */
-	bool						bIsTiming;
+	bool bIsTiming = false;
 	/** Whether stable power state is currently enabled */
-	bool                        bStablePowerState;
-};
-
-template<>
-struct TD3D12ResourceTraits<FD3D12BufferedGPUTiming::QueryHeap>
-{
-	typedef FD3D12BufferedGPUTiming::QueryHeap TConcreteType;
+	bool bStablePowerState = false;
 };
 
 /** A single perf event node, which tracks information about a appBeginDrawEvent/appEndDrawEvent range. */
 class FD3D12EventNode : public FGPUProfilerEventNode, public FD3D12DeviceChild
 {
 public:
-	FD3D12EventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent, class FD3D12Device* InParentDevice) :
-		FGPUProfilerEventNode(InName, InParent),
-		FD3D12DeviceChild(InParentDevice),
-		Timing(InParentDevice, 1)
-	{
-		// Initialize Buffered timestamp queries 
-		Timing.InitDynamicRHI();
-	}
+	FD3D12EventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent, class FD3D12Device* InParentDevice)
+		: FGPUProfilerEventNode(InName, InParent)
+		, FD3D12DeviceChild(InParentDevice)
+		, Timing(InParentDevice)
+	{}
 
-	virtual ~FD3D12EventNode()
-	{
-		Timing.ReleaseDynamicRHI();
-	}
+	virtual ~FD3D12EventNode() = default;
 
 	/**
 	* Returns the time in ms that the GPU spent in this draw event.
@@ -311,18 +225,13 @@ class FD3D12EventNodeFrame : public FGPUProfilerEventNodeFrame, public FD3D12Dev
 {
 public:
 
-	FD3D12EventNodeFrame(class FD3D12Device* InParent) :
-		FGPUProfilerEventNodeFrame(),
-		FD3D12DeviceChild(InParent),
-		RootEventTiming(InParent, 1)
-	{
-		RootEventTiming.InitDynamicRHI();
-	}
+	FD3D12EventNodeFrame(class FD3D12Device* InParent)
+		: FGPUProfilerEventNodeFrame()
+		, FD3D12DeviceChild(InParent)
+		, RootEventTiming(InParent)
+	{}
 
-	~FD3D12EventNodeFrame()
-	{
-		RootEventTiming.ReleaseDynamicRHI();
-	}
+	virtual ~FD3D12EventNodeFrame() = default;
 
 	/** Start this frame of per tracking */
 	virtual void StartFrame() override;
@@ -332,8 +241,6 @@ public:
 
 	/** Calculates root timing base frequency (if needed by this RHI) */
 	virtual float GetRootTimingResults() override;
-
-	virtual void LogDisjointQuery() override;
 
 	/** Timer tracking inclusive time spent in the root nodes. */
 	FD3D12BufferedGPUTiming RootEventTiming;
@@ -352,23 +259,7 @@ namespace D3D12RHI
 
 		FD3DGPUProfiler(FD3D12Device* Parent)
 			: FD3D12DeviceChild(Parent)
-			, FrameTiming(Parent, 8)
 		{}
-
-		//FD3DGPUProfiler(class FD3D12Device* InParent) :
-		//	FGPUProfiler(),
-		//    FrameTiming(InParent, 4),
-		//    FD3D12DeviceChild(InParent)
-		//{
-		//	// Initialize Buffered timestamp queries 
-		//	FrameTiming.InitResource();
-		//}
-
-		void Init()
-		{
-			// Initialize Buffered timestamp queries 
-			FrameTiming.InitResource();
-		}
 
 		virtual FGPUProfilerEventNode* CreateEventNode(const TCHAR* InName, FGPUProfilerEventNode* InParent) override
 		{
@@ -376,8 +267,8 @@ namespace D3D12RHI
 			return EventNode;
 		}
 
-		void BeginFrame(class FD3D12DynamicRHI* InRHI);
-		void EndFrame(class FD3D12DynamicRHI* InRHI);
+		void BeginFrame();
+		void EndFrame();
 
 		bool CheckGpuHeartbeat() const;
 		
@@ -386,14 +277,6 @@ namespace D3D12RHI
 
 		uint32 GetOrAddEventStringHash(const TCHAR* Name);
 		const FString* FindEventString(uint32 CRC);
-
-		/**
-		 * Calculate the amount of GPU idle time between two timestamps
-		 * @param StartTime - start timestamp
-		 * @param EndTime - end timestamp
-		 * @return number of idle GPU clock ticks between or 0 if command list execution time isn't tracked
-		 */
-		uint64 CalculateIdleTime(uint64 StartTime, uint64 EndTime);
 
 #if NV_AFTERMATH
 		void RegisterCommandList(ID3D12GraphicsCommandList* CommandList, GFSDK_Aftermath_ContextHandle ContextHandle);
@@ -404,35 +287,9 @@ namespace D3D12RHI
 		FCriticalSection AftermathLock;
 #endif
 
-		/** Used to measure GPU time per frame. */
-		FD3D12BufferedGPUTiming FrameTiming;
-
-		static uint32 GetGPUFrameCycles(uint32 GPUIndex)
-		{
-			return GGPUFrameCycles[GPUIndex];
-		}
-
 	private:
-		/** Flush existing command lists and start command list execution time tracking */
-		void DoPreProfileGPUWork();
-
-		/** Flush existing command lists and obtain timing results of all tracked command lists */
-		void DoPostProfileGPUWork();
-
-		typedef typename FD3D12CommandListManager::FResolvedCmdListExecTime FResolvedCmdListExecTime;
-
-		/** Timestamps marking the beginning of tracked command lists */
-		TArray<uint64> CmdListStartTimestamps;
-		/** Timestamps marking the end of tracked command lists */
-		TArray<uint64> CmdListEndTimestamps;
-		/** Accumulated idle GPU ticks before each corresponding command list */
-		TArray<uint64> IdleTimeCDF;
-
 		/** Map containing all the currently hashed event strings */
 		FRWLock	CacheEventStringsRWLock;
 		TMap<uint32, FString> CachedEventStrings;
-
-		/** The GPU time taken to render the last frame. Same metric as FPlatformTime::Cycles(). */
-		static TStaticArray<uint32, MAX_NUM_GPUS> GGPUFrameCycles;
 	};
 }

@@ -628,9 +628,19 @@ public:
 	{ 
 		return this; 
 	}
-	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override
-	{ 
-		return nullptr; 
+
+	virtual IRHIComputeContext* RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask) final override
+	{
+		return nullptr;
+	}
+
+	virtual IRHIPlatformCommandList* RHIFinalizeContext(IRHIComputeContext* Context) final override
+	{
+		return nullptr;
+	}
+
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists) final override
+	{
 	}
 
 private:

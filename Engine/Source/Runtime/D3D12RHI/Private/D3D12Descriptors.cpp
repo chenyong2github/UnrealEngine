@@ -141,8 +141,7 @@ void FD3D12BindlessDescriptorManager::DeferredFreeFromDestructor(FRHIDescriptorH
 {
 	if (InHandle.IsValid())
 	{
-		FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
-		GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueBindlessDescriptor(InHandle, &Fence, GetParentDevice()->GetGPUIndex());
+		FD3D12DynamicRHI::GetD3DRHI()->DeferredDelete(InHandle, GetParentDevice());
 	}
 }
 
@@ -264,7 +263,7 @@ void FD3D12OnlineDescriptorManager::UpdateFreeBlocks()
 	{
 		// Check if GPU is ready consuming the block data
 		FD3D12OnlineDescriptorBlock* ReleasedBlock = ReleasedBlocks[BlockIndex];
-		if (ReleasedBlock->SyncPoint.IsComplete())
+		if (ReleasedBlock->SyncPoint->IsComplete())
 		{
 			// Update stats
 			DEC_DWORD_STAT_BY(STAT_GlobalViewHeapUsedDescriptors, ReleasedBlock->SizeUsed);
@@ -303,34 +302,10 @@ static uint32 GetOfflineDescriptorHeapDefaultSize(ERHIDescriptorHeapType InHeapT
 	}
 }
 
-struct FD3D12OfflineHeapFreeRange
-{
-	size_t Start;
-	size_t End;
-};
-
-struct FD3D12OfflineHeapEntry
-{
-	FD3D12OfflineHeapEntry(FD3D12DescriptorHeap* InHeap, const D3D12_CPU_DESCRIPTOR_HANDLE& InHeapBase, size_t InSize)
-		: Heap(InHeap)
-	{
-		FreeList.AddTail({ InHeapBase.ptr, InHeapBase.ptr + InSize });
-	}
-
-	TRefCountPtr<FD3D12DescriptorHeap> Heap;
-	TDoubleLinkedList<FD3D12OfflineHeapFreeRange> FreeList;
-};
-
-FD3D12OfflineDescriptorManager::FD3D12OfflineDescriptorManager(FD3D12Device* InDevice)
+FD3D12OfflineDescriptorManager::FD3D12OfflineDescriptorManager(FD3D12Device* InDevice, ERHIDescriptorHeapType InHeapType)
 	: FD3D12DeviceChild(InDevice)
+	, HeapType(InHeapType)
 {
-}
-
-FD3D12OfflineDescriptorManager::~FD3D12OfflineDescriptorManager() = default;
-
-void FD3D12OfflineDescriptorManager::Init(ERHIDescriptorHeapType InHeapType)
-{
-	HeapType = InHeapType;
 	DescriptorSize = GetParentDevice()->GetDevice()->GetDescriptorHandleIncrementSize(Translate(InHeapType));
 	NumDescriptorsPerHeap = GetOfflineDescriptorHeapDefaultSize(InHeapType);
 }

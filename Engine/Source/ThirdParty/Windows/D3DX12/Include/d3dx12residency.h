@@ -31,7 +31,7 @@ namespace D3DX12Residency
 #define RESIDENCY_MAX(x,y) ((x) > (y) ? (x) : (y))
 
 // This size can be tuned to your app in order to save space
-#define MAX_NUM_CONCURRENT_CMD_LISTS 128
+#define MAX_NUM_CONCURRENT_CMD_LISTS 512
 
 	namespace Internal
 	{

@@ -590,106 +590,9 @@ void FMetalRHICommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexB
 	}
 }
 
-void FMetalDynamicRHI::SetupRecursiveResources()
-{
-    /*
-	@autoreleasepool {
-	static bool bSetupResources = false;
-	if (GRHISupportsRHIThread && !bSetupResources)
-	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		extern int32 GCreateShadersOnLoad;
-		TGuardValue<int32> Guard(GCreateShadersOnLoad, 1);
-		auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-		TShaderMapRef<TOneColorVS<true> > DefaultVertexShader(ShaderMap);
-		TShaderMapRef<TOneColorVS<true, true> > LayeredVertexShader(ShaderMap);
-		FVector4VertexDeclaration.InitRHI();
-		
-		for (uint32 Instanced = 0; Instanced < 2; Instanced++)
-		{
-			FShader* VertexShader = !Instanced ? (FShader*)*DefaultVertexShader : (FShader*)*LayeredVertexShader;
-			
-			for (int32 NumBuffers = 1; NumBuffers <= MaxSimultaneousRenderTargets; NumBuffers++)
-			{
-				FOneColorPS* PixelShader = NULL;
-				
-				// Set the shader to write to the appropriate number of render targets
-				// On AMD PC hardware, outputting to a color index in the shader without a matching render target set has a significant performance hit
-				if (NumBuffers <= 1)
-				{
-					TShaderMapRef<TOneColorPixelShaderMRT<1> > MRTPixelShader(ShaderMap);
-					PixelShader = *MRTPixelShader;
-				}
-				else if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5 ))
-				{
-					if (NumBuffers == 2)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<2> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-					else if (NumBuffers== 3)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<3> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-					else if (NumBuffers == 4)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<4> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-					else if (NumBuffers == 5)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<5> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-					else if (NumBuffers == 6)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<6> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-					else if (NumBuffers == 7)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<7> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-					else if (NumBuffers == 8)
-					{
-						TShaderMapRef<TOneColorPixelShaderMRT<8> > MRTPixelShader(ShaderMap);
-						PixelShader = *MRTPixelShader;
-					}
-				}
-				
-				// SetGlobalBoundShaderState(RHICmdList, GMaxRHIFeatureLevel, GClearMRTBoundShaderState[NumBuffers - 1][Instanced], FVector4VertexDeclaration.VertexDeclarationRHI, VertexShader, PixelShader);
-			}
-		}
-		
-		bSetupResources = true;
-	}
-	}
-    */
-}
-
 void FMetalRHICommandContext::RHIClearMRT(bool bClearColor,int32 NumClearColors,const FLinearColor* ClearColorArray,bool bClearDepth,float Depth,bool bClearStencil,uint32 Stencil)
 {
 	NOT_SUPPORTED("RHIClearMRT");
-}
-
-void FMetalDynamicRHI::RHIBlockUntilGPUIdle()
-{
-	@autoreleasepool {
-	ImmediateContext.Context->SubmitCommandBufferAndWait();
-	}
-}
-
-uint32 FMetalDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
-{
-	check(GPUIndex == 0);
-	return GGPUFrameTime;
-}
-
-void FMetalDynamicRHI::RHIExecuteCommandList(FRHICommandList* RHICmdList)
-{
-	NOT_SUPPORTED("RHIExecuteCommandList");
 }
 
 void FMetalRHICommandContext::RHISetDepthBounds(float MinDepth, float MaxDepth)
@@ -707,21 +610,6 @@ void FMetalRHICommandContext::RHISubmitCommandsHint()
 void FMetalRHICommandContext::RHIDiscardRenderTargets(bool Depth, bool Stencil, uint32 ColorBitMask)
 {
 	Context->GetCurrentState().DiscardRenderTargets(Depth, Stencil, ColorBitMask);
-}
-
-IRHICommandContext* FMetalDynamicRHI::RHIGetDefaultContext()
-{
-	return &ImmediateContext;
-}
-
-IRHIComputeContext* FMetalDynamicRHI::RHIGetDefaultAsyncComputeContext()
-{
-	@autoreleasepool {
-	IRHIComputeContext* ComputeContext = GSupportsEfficientAsyncCompute && AsyncComputeContext ? AsyncComputeContext : RHIGetDefaultContext();
-	// On platforms that support non-async compute we set this to the normal context.  It won't be async, but the high level
-	// code can be agnostic if it wants to be.
-	return ComputeContext;
-	}
 }
 
 #if PLATFORM_USES_FIXED_RHI_CLASS

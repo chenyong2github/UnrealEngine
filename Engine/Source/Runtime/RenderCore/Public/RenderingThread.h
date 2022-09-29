@@ -364,15 +364,13 @@ public:
 
 	~FRHIAsyncCommandList()
 	{
+		RHICmdListStack.FinishRecording();
 		if (RHICmdListStack.HasCommands())
 		{
-			FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All(), FRHICommandList::ERecordingThread::Any);
-			RHICmdList->ExchangeCmdList(RHICmdListStack);
-
 			ENQUEUE_RENDER_COMMAND(AsyncCommandListScope)(
-				[RHICmdList](FRHICommandListImmediate& RHICmdListImmediate)
+				[RHICmdList = new FRHICommandList(MoveTemp(RHICmdListStack))](FRHICommandListImmediate& RHICmdListImmediate)
 			{
-				RHICmdListImmediate.QueueCommandListSubmit(RHICmdList);
+				RHICmdListImmediate.QueueAsyncCommandListSubmit(RHICmdList);
 			});
 		}
 	}

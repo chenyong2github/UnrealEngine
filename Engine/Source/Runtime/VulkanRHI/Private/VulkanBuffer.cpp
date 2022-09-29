@@ -196,7 +196,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 
 				for (uint32 Index = 0; Index < NumBuffers; ++Index)
 				{
-					if (!InDevice->GetMemoryManager().AllocateBufferPooled(Buffers[Index], this, InSize, BufferAlignment, BufferUsageFlags, BufferMemFlags, EVulkanAllocationMetaMultiBuffer, __FILE__, __LINE__))
+					if (!InDevice->GetMemoryManager().AllocateBufferPooled(Buffers[Index], nullptr, InSize, BufferAlignment, BufferUsageFlags, BufferMemFlags, EVulkanAllocationMetaMultiBuffer, __FILE__, __LINE__))
 					{
 						InDevice->GetMemoryManager().HandleOOM();
 					}
@@ -263,7 +263,6 @@ void* FVulkanResourceMultiBuffer::Lock(FVulkanCommandListContext& Context, EReso
 	const bool bDynamic = EnumHasAnyFlags(GetUsage(), BUF_Dynamic);
 	const bool bVolatile = EnumHasAnyFlags(GetUsage(), BUF_Volatile);
 	const bool bStatic = EnumHasAnyFlags(GetUsage(), BUF_Static) || !(bVolatile || bDynamic);
-	const bool bCPUReadable = EnumHasAnyFlags(GetUsage(), BUF_KeepCPUAccessible);
 	const bool bUAV = EnumHasAnyFlags(GetUsage(), BUF_UnorderedAccess);
 	const bool bSR = EnumHasAnyFlags(GetUsage(), BUF_ShaderResource);
 
@@ -444,33 +443,17 @@ struct FRHICommandMultiBufferUnlock final : public FRHICommand<FRHICommandMultiB
 	}
 };
 
-void FVulkanResourceMultiBuffer::Unlock(FRHICommandListBase& RHICmdList)
+void FVulkanResourceMultiBuffer::Unlock(FRHICommandListBase* RHICmdList, FVulkanCommandListContext* Context)
 {
-	if (EnumHasAnyFlags(GetUsage(), BUF_Volatile) || LockStatus == ELockStatus::PersistentMapping)
-	{
-		return;
-	}
+	check(RHICmdList || Context);
 
-	if (RHICmdList.IsTopOfPipe())
-	{
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandMultiBufferUnlock)(Device, GetPendingBufferLock(this), this, DynamicBufferIndex);
-	}
-	else
-	{
-		Unlock(FVulkanCommandListContext::GetVulkanContext(RHICmdList.GetContext()));
-	}
-}
-
-void FVulkanResourceMultiBuffer::Unlock(FVulkanCommandListContext& Context)
-{
 	const bool bDynamic = EnumHasAnyFlags(GetUsage(), BUF_Dynamic);
 	const bool bVolatile = EnumHasAnyFlags(GetUsage(), BUF_Volatile);
 	const bool bStatic = EnumHasAnyFlags(GetUsage(), BUF_Static) || !(bVolatile || bDynamic);
-	const bool bCPUReadable = EnumHasAnyFlags(GetUsage(), BUF_KeepCPUAccessible);
 	const bool bSR = EnumHasAnyFlags(GetUsage(), BUF_ShaderResource);
 
 	check(LockStatus != ELockStatus::Unlocked);
-	
+
 	if (bVolatile || LockStatus == ELockStatus::PersistentMapping)
 	{
 		// Nothing to do here...
@@ -478,19 +461,31 @@ void FVulkanResourceMultiBuffer::Unlock(FVulkanCommandListContext& Context)
 	else
 	{
 		check(bStatic || bDynamic || bSR);
-		
+
 		VulkanRHI::FPendingBufferLock PendingLock = GetPendingBufferLock(this);
 
 		PendingLock.StagingBuffer->FlushMappedMemory();
 
-		if (PendingLock.LockMode == RLM_WriteOnly)
-		{
-			FVulkanResourceMultiBuffer::InternalUnlock(Context, PendingLock, this, DynamicBufferIndex);
-		}
-		else if(PendingLock.LockMode == RLM_ReadOnly)
+		if (PendingLock.LockMode == RLM_ReadOnly)
 		{
 			// Just remove the staging buffer here.
 			Device->GetStagingManager().ReleaseBuffer(0, PendingLock.StagingBuffer);
+		}
+		else if (PendingLock.LockMode == RLM_WriteOnly)
+		{
+			if (Context || (RHICmdList && RHICmdList->IsBottomOfPipe()))
+			{
+				if (!Context)
+				{
+					Context = &FVulkanCommandListContext::GetVulkanContext(RHICmdList->GetContext());
+				}
+
+				FVulkanResourceMultiBuffer::InternalUnlock(*Context, PendingLock, this, DynamicBufferIndex);
+			}
+			else
+			{
+				ALLOC_COMMAND_CL(*RHICmdList, FRHICommandMultiBufferUnlock)(Device, PendingLock, this, DynamicBufferIndex);
+			}
 		}
 	}
 
@@ -561,13 +556,14 @@ void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuff
 	}
 }
 
-void FVulkanResourceMultiBuffer::Evict(FVulkanDevice& InDevice)
+void FVulkanDynamicRHI::RHIUnlockBuffer(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI)
 {
-	checkNoEntry();//Not Implemented, should never be called
-}
-void FVulkanResourceMultiBuffer::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation)
-{
-	checkNoEntry();//Not Implemented, should never be called
-}
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockBuffer_RenderThread);
 
-
+	// We might need to queue a copy, make sure we have an active pipeline
+	if (RHICmdList.IsTopOfPipe() && (RHICmdList.GetPipeline() == ERHIPipeline::None))
+	{
+		RHICmdList.SwitchPipeline(ERHIPipeline::Graphics);
+	}
+	FDynamicRHI::RHIUnlockBuffer(RHICmdList, BufferRHI);
+}

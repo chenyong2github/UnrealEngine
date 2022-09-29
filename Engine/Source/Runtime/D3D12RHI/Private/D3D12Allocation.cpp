@@ -178,7 +178,7 @@ static FAutoConsoleVariableRef CVarD3D12FastAllocatorMinPagesToRetain(
 static int32 GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB = 1;
 static FAutoConsoleVariableRef CVarD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB(
 	TEXT("d3d12.UploadAllocator.PendingDeleteSizeForceFlushInGB"),
-	GD3D12FastAllocatorMinPagesToRetain,
+	GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB,
 	TEXT("If given threshold of GBs in the pending delete is queue is reached, then a force GPU flush is triggered to reduce memory load (1 by default, 0 to disable)"),
 	ECVF_Default);
 
@@ -478,11 +478,11 @@ void FD3D12BuddyAllocator::Deallocate(FD3D12ResourceLocation& ResourceLocation)
 	FScopeLock Lock(&CS);
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
-	DeferredDeletionQueue.AddUninitialized();
-	RetiredBlock& Block = DeferredDeletionQueue.Last();
-	Block.FrameFence = FrameFence.GetCurrentFence();
+	RetiredBlock& Block = DeferredDeletionQueue.Emplace_GetRef();
+	Block.FrameFence = FrameFence.GetNextFenceToSignal();
+
 	FD3D12BuddyAllocatorPrivateData& PrivateData = ResourceLocation.GetBuddyAllocatorPrivateData();
 	Block.Data.Order = PrivateData.Order;
 	Block.Data.Offset = PrivateData.Offset;
@@ -537,14 +537,14 @@ void FD3D12BuddyAllocator::CleanUpAllocations()
 	FScopeLock Lock(&CS);
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
 	uint32 PopCount = 0;
 	for (int32 i = 0; i < DeferredDeletionQueue.Num(); i++)
 	{
 		RetiredBlock& Block = DeferredDeletionQueue[i];
 
-		if (FrameFence.IsFenceComplete(Block.FrameFence))
+		if (FrameFence.IsFenceComplete(Block.FrameFence, /* bUpdateCachedFenceValue */ false))
 		{
 			DeallocateInternal(Block);
 			DECREASE_ALLOC_COUNTER(NumBlocksInDeferredDeletionQueue, 1);
@@ -747,8 +747,9 @@ void FD3D12MultiBuddyAllocator::CleanUpAllocations(uint64 InFrameLag)
 
 	// Trim empty allocators if not used in last n frames
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
-	const uint64 CompletedFence = FrameFence.UpdateLastCompletedFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
+
+	const uint64 CompletedFence = FrameFence.GetCompletedFenceValue(/* bUpdateCachedFenceValue */ true);
 
 	for (int32 i = (Allocators.Num() - 1); i >= 0; i--)
 	{
@@ -912,10 +913,10 @@ void FD3D12BucketAllocator::Deallocate(FD3D12ResourceLocation& ResourceLocation)
 	FScopeLock Lock(&CS);
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
 	FD3D12BlockAllocatorPrivateData& Block = ResourceLocation.GetBlockAllocatorPrivateData();
-	Block.FrameFence = FrameFence.GetCurrentFence();
+	Block.FrameFence = FrameFence.GetNextFenceToSignal();
 
 	ExpiredBlocks.Enqueue(Block);
 }
@@ -934,7 +935,7 @@ void FD3D12BucketAllocator::CleanUpAllocations(uint64 InFrameLag)
 	FScopeLock Lock(&CS);
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
 #if SUB_ALLOCATED_DEFAULT_ALLOCATIONS
 	const static uint32 MinCleanupBucket = FMath::Max<uint32>(0, BucketFromSize(MIN_HEAP_SIZE, BucketShift) - 4);
@@ -949,7 +950,7 @@ void FD3D12BucketAllocator::CleanUpAllocations(uint64 InFrameLag)
 		FD3D12BlockAllocatorPrivateData BlockInQueue = {};
 		const uint32 RetentionCount = BlockRetentionFrameCount;
 
-		const auto& Functor = [&FrameFence, RetentionCount](const FD3D12BlockAllocatorPrivateData& Block) { return FrameFence.IsFenceComplete(Block.FrameFence + RetentionCount); };
+		const auto& Functor = [&FrameFence, RetentionCount](const FD3D12BlockAllocatorPrivateData& Block) { return FrameFence.IsFenceComplete(Block.FrameFence + RetentionCount, /* bUpdateCachedFenceValue */ false); };
 		while (AvailableBlocks[bucket].Dequeue(BlockInQueue, Functor))
 		{
 			SAFE_RELEASE(BlockInQueue.ResourceHeap);
@@ -958,7 +959,7 @@ void FD3D12BucketAllocator::CleanUpAllocations(uint64 InFrameLag)
 
 	FD3D12BlockAllocatorPrivateData BlockInQueue = {};
 
-	const auto& Functor = [&FrameFence](const FD3D12BlockAllocatorPrivateData& Block) { return FrameFence.IsFenceComplete(Block.FrameFence); };
+	const auto& Functor = [&FrameFence](const FD3D12BlockAllocatorPrivateData& Block) { return FrameFence.IsFenceComplete(Block.FrameFence, /* bUpdateCachedFenceValue */ false); };
 	while (ExpiredBlocks.Dequeue(BlockInQueue, Functor))
 	{
 		// Add the bucket to the available list
@@ -1038,7 +1039,8 @@ void* FD3D12UploadHeapAllocator::AllocUploadResource(uint32 InSize, uint32 InAli
 	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12UploadHeapAllocator::AllocUploadResource);
 
 	// Clean up the release queue of resources which are currently not used by the GPU anymore
-	FD3D12Adapter* Adapter = GetParentAdapter();
+	// @todo d3d12 rhi - begin: do we need to do any of this still?
+	/*FD3D12Adapter* Adapter = GetParentAdapter();
 	bool bFlushDeferredDeletionQueue = Adapter->GetDeferredDeletionQueue().QueueSize() > 128;
 	bool bFlushPendingDeleteRequests = GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB > 0 && BigBlockAllocator.GetPendingDeleteRequestSize() > (GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB * 1024 * 1024 * 1024);
 	if ((bFlushDeferredDeletionQueue || bFlushPendingDeleteRequests) && IsInRenderingThread())
@@ -1065,7 +1067,8 @@ void* FD3D12UploadHeapAllocator::AllocUploadResource(uint32 InSize, uint32 InAli
 		
 		SmallBlockAllocator.CleanUpAllocations(0); // 0 - no FrameLag, delete all unsued pages
 		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
-	}
+	}*/
+	// @todo d3d12 rhi - end
 
 	check(InSize > 0);
 	ResourceLocation.Clear();
@@ -2092,7 +2095,7 @@ FD3D12FastAllocatorPage* FD3D12FastAllocatorPagePool::RequestFastAllocatorPage()
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 	FD3D12ManualFence& Fence = Adapter->GetFrameFence();
 
-	const uint64 CompletedFence = Fence.UpdateLastCompletedFence();
+	const uint64 CompletedFence = Fence.GetCompletedFenceValue(/* bUpdateCachedFenceValue */ true);
 
 	for (int32 Index = 0; Index < Pool.Num(); Index++)
 	{
@@ -2125,7 +2128,7 @@ void FD3D12FastAllocatorPage::UpdateFence()
 	// Max() is required as fast allocator may be used from Render or RHI thread,
 	// which have different fence values. See FD3D12ManualFence::GetCurrentFence() implementation.
 	FD3D12Adapter* Adapter = FastAllocBuffer->GetParentDevice()->GetParentAdapter();
-	FrameFence = FMath::Max(FrameFence, Adapter->GetFrameFence().GetCurrentFence());
+	FrameFence = FMath::Max(FrameFence, Adapter->GetFrameFence().GetNextFenceToSignal());
 }
 
 void FD3D12FastAllocatorPagePool::ReturnFastAllocatorPage(FD3D12FastAllocatorPage* Page)
@@ -2145,7 +2148,7 @@ void FD3D12FastAllocatorPagePool::CleanupPages(uint64 FrameLag)
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
 	FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
-	const uint64 CompletedFence = FrameFence.UpdateLastCompletedFence();
+	const uint64 CompletedFence = FrameFence.GetCompletedFenceValue(/* bUpdateCachedFenceValue */ true);
 
 	// Pages get returned to end of list, so we'll look for pages to delete, starting from the LRU
 	for (int32 Index = 0; Index < Pool.Num(); Index++)
@@ -2276,7 +2279,7 @@ void FD3D12SegListAllocator::Deallocate(
 {
 	FD3D12Device* Device = this->GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-	uint64 CurFenceValue = Adapter->GetFrameFence().GetCurrentFence();
+	uint64 CurFenceValue = Adapter->GetFrameFence().GetNextFenceToSignal();
 	{
 		FScopeLock Lock(&DeferredDeletionCS);
 
@@ -2325,13 +2328,13 @@ void FD3D12SegListAllocator::CleanUpAllocations()
 		int32 NumToRemove = 0;
 		FD3D12Device* Device = this->GetParentDevice();
 		FD3D12Adapter* Adapter = Device->GetParentAdapter();
-		FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+		FD3D12ManualFence& FrameFence = Adapter->GetFrameFence();
 
 		FScopeLock Lock(&DeferredDeletionCS);
 
 		for (int32 Idx = 0; Idx < DeferredDeletionQueue.Num(); ++Idx)
 		{
-			if (FrameFence.IsFenceComplete(FenceValues[Idx]))
+			if (FrameFence.IsFenceComplete(FenceValues[Idx], /* bUpdateCachedFenceValue */ false))
 			{
 				++NumToRemove;
 				PendingDeletes.Add(MoveTemp(DeferredDeletionQueue[Idx]));

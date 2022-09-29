@@ -72,10 +72,6 @@ void InitNullRHI()
 	GDynamicRHI = DynamicRHIModule->CreateRHI();
 	GDynamicRHI->Init();
 
-	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
-	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
-
 	GUsingNullRHI = true;
 	GRHISupportsTextureStreaming = false;
 
@@ -328,14 +324,12 @@ void RHIInit(bool bHasEditorToken)
 
 				// Validation of contexts.
 				GRHICommandList.GetImmediateCommandList().GetContext();
-				GRHICommandList.GetImmediateAsyncComputeCommandList().GetComputeContext();
 				check(GIsRHIInitialized);
 
 				// Set default GPU mask to all GPUs. This is necessary to ensure that any commands
 				// that create and initialize resources are executed on all GPUs. Scene rendering
 				// will restrict itself to a subset of GPUs as needed.
 				GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
-				GRHICommandList.GetImmediateAsyncComputeCommandList().SetGPUMask(FRHIGPUMask::All());
 
 				FString FeatureLevelString;
 				GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelString);
@@ -412,8 +406,7 @@ void RHIExit()
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
 
-	void CleanupRHICommandListGraphEvents();
-	CleanupRHICommandListGraphEvents();
+	FRHICommandListImmediate::CleanupGraphEvents();
 }
 
 

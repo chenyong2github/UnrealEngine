@@ -92,7 +92,7 @@ class FVulkanEvictable
 public:
 	virtual bool CanMove() const { return false; }
 	virtual bool CanEvict() const { return false; }
-	virtual void Evict(FVulkanDevice& Device) { checkNoEntry(); }
+	virtual void Evict(FVulkanDevice& Device, FVulkanCommandListContext& Context) { checkNoEntry(); }
 	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& Allocation) { checkNoEntry(); }
 	virtual FVulkanTexture* GetEvictableTexture() { return nullptr; }
 };
@@ -631,7 +631,7 @@ namespace VulkanRHI
 		void DumpFullHeap();
 		int32 DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap, uint32 Count);
 		bool CanDefrag();
-		uint64 EvictToHost(FVulkanDevice& Device);
+		uint64 EvictToHost(FVulkanDevice& Device, FVulkanCommandListContext& Context);
 		void SetFreePending(FVulkanAllocation& Allocation);
 		void FreeInternalData(int32 Index);
 		int32 AllocateInternalData();
@@ -714,7 +714,7 @@ namespace VulkanRHI
 			return MemoryTypeIndex;
 		}
 
-		uint64 EvictOne(FVulkanDevice& Device);
+		uint64 EvictOne(FVulkanDevice& Device, FVulkanCommandListContext& Context);
 		void DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 Count);
 		void DumpMemory(FResourceHeapStats& Stats);
 
@@ -797,7 +797,7 @@ namespace VulkanRHI
 		void DumpMemory(bool bFullDump = true);
 
 
-		void AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size);
+		void AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size, const void* Contents);
 		void FreeUniformBuffer(FVulkanAllocation& InAllocation);
 
 		void HandleOOM(bool bCanResume = false, VkResult Result = VK_SUCCESS, uint64 AllocationSize = 0, uint32 MemoryTypeIndex = 0);

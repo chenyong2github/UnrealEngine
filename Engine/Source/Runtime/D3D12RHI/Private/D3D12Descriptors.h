@@ -3,11 +3,10 @@
 #pragma once
 
 #include "D3D12CommandList.h"
+#include "D3D12DirectCommandListManager.h"
 #include "RHIDescriptorAllocator.h"
 
-struct FD3D12OfflineHeapEntry;
-
-struct FD3D12DescriptorHeap : public FD3D12DeviceChild, public FD3D12RefCount
+struct FD3D12DescriptorHeap : public FD3D12DeviceChild, public FThreadSafeRefCountedObject
 {
 public:
 	FD3D12DescriptorHeap() = delete;
@@ -122,7 +121,7 @@ struct FD3D12OnlineDescriptorBlock
 	uint32 BaseSlot;
 	uint32 Size;
 	uint32 SizeUsed = 0;
-	FD3D12CLSyncPoint SyncPoint;
+	FD3D12SyncPointRef SyncPoint;
 };
 
 /** Primary online heap from which sub blocks can be allocated and freed. Used when allocating blocks of descriptors for tables. */
@@ -157,17 +156,33 @@ private:
 	FCriticalSection CriticalSection;
 };
 
+struct FD3D12OfflineHeapFreeRange
+{
+	size_t Start;
+	size_t End;
+};
+
+struct FD3D12OfflineHeapEntry
+{
+	FD3D12OfflineHeapEntry(FD3D12DescriptorHeap* InHeap, const D3D12_CPU_DESCRIPTOR_HANDLE& InHeapBase, size_t InSize)
+		: Heap(InHeap)
+	{
+		FreeList.AddTail({ InHeapBase.ptr, InHeapBase.ptr + InSize });
+	}
+
+	TRefCountPtr<FD3D12DescriptorHeap> Heap;
+	TDoubleLinkedList<FD3D12OfflineHeapFreeRange> FreeList;
+};
+
 /** Manages and allows allocations of CPU descriptors only. Creates small heaps on demand to satisfy allocations. */
 class FD3D12OfflineDescriptorManager : public FD3D12DeviceChild
 {
 public:
 	FD3D12OfflineDescriptorManager() = delete;
-	FD3D12OfflineDescriptorManager(FD3D12Device* InDevice);
-	~FD3D12OfflineDescriptorManager();
+	FD3D12OfflineDescriptorManager(FD3D12Device* InDevice, ERHIDescriptorHeapType InHeapType);
+	~FD3D12OfflineDescriptorManager() = default;
 
 	inline ERHIDescriptorHeapType GetHeapType() const { return HeapType; }
-
-	void Init(ERHIDescriptorHeapType InHeapType);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE AllocateHeapSlot(uint32& outIndex);
 	void FreeHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE Offset, uint32 index);

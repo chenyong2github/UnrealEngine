@@ -269,22 +269,6 @@ static TAutoConsoleVariable<int32> CVarEnableMultiGPUForkAndJoin(
 	FParallelCommandListSet
 -----------------------------------------------------------------------------*/
 
-
-static TAutoConsoleVariable<int32> CVarRHICmdSpewParallelListBalance(
-	TEXT("r.RHICmdSpewParallelListBalance"),
-	0,
-	TEXT("For debugging, spews the size of the parallel command lists. This stalls and otherwise wrecks performance.\n")
-	TEXT(" 0: off (default)\n")
-	TEXT(" 1: enabled (default)"));
-
-static TAutoConsoleVariable<int32> CVarRHICmdBalanceParallelLists(
-	TEXT("r.RHICmdBalanceParallelLists"),
-	2,
-	TEXT("Allows to enable a preprocess of the drawlists to try to balance the load equally among the command lists.\n")
-	TEXT(" 0: off \n")
-	TEXT(" 1: enabled")
-	TEXT(" 2: experiemental, uses previous frame results (does not do anything in split screen etc)"));
-
 static TAutoConsoleVariable<int32> CVarRHICmdMinCmdlistForParallelSubmit(
 	TEXT("r.RHICmdMinCmdlistForParallelSubmit"),
 	1,
@@ -293,7 +277,7 @@ static TAutoConsoleVariable<int32> CVarRHICmdMinCmdlistForParallelSubmit(
 static TAutoConsoleVariable<int32> CVarRHICmdMinDrawsPerParallelCmdList(
 	TEXT("r.RHICmdMinDrawsPerParallelCmdList"),
 	64,
-	TEXT("The minimum number of draws per cmdlist. If the total number of draws is less than this, then no parallel work will be done at all. This can't always be honored or done correctly. More effective with RHICmdBalanceParallelLists."));
+	TEXT("The minimum number of draws per cmdlist. If the total number of draws is less than this, then no parallel work will be done at all. This can't always be honored or done correctly."));
 
 static TAutoConsoleVariable<int32> CVarWideCustomResolve(
 	TEXT("r.WideCustomResolve"),
@@ -676,12 +660,7 @@ FParallelCommandListSet::FParallelCommandListSet(const FRDGPass* InPass, TStatId
 {
 	Width = CVarRHICmdWidth.GetValueOnRenderThread();
 	MinDrawsPerCommandList = CVarRHICmdMinDrawsPerParallelCmdList.GetValueOnRenderThread();
-	bSpewBalance = !!CVarRHICmdSpewParallelListBalance.GetValueOnRenderThread();
-	int32 IntBalance = CVarRHICmdBalanceParallelLists.GetValueOnRenderThread();
-	bBalanceCommands = !!IntBalance;
-	CommandLists.Reserve(Width * 8);
-	Events.Reserve(Width * 8);
-	NumDrawsIfKnown.Reserve(Width * 8);
+	QueuedCommandLists.Reserve(Width * 8);
 	check(!GOutstandingParallelCommandListSet);
 	GOutstandingParallelCommandListSet = this;
 }
@@ -695,8 +674,7 @@ FRHICommandList* FParallelCommandListSet::AllocCommandList()
 void FParallelCommandListSet::Dispatch(bool bHighPriority)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FParallelCommandListSet_Dispatch);
-	check(CommandLists.Num() == Events.Num());
-	check(CommandLists.Num() == NumAlloc);
+	check(QueuedCommandLists.Num() == NumAlloc);
 
 	// We should not be submitting work off a parent command list if it's still in the middle of a renderpass.
 	// This is a bit weird since we will (likely) end up opening one in the parallel translate case but until we have
@@ -704,63 +682,49 @@ void FParallelCommandListSet::Dispatch(bool bHighPriority)
 	check(ParentCmdList.IsOutsideRenderPass());
 
 	ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();
-	if (bSpewBalance)
-	{
-		// finish them all
-		for (auto& Event : Events)
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(Event, RenderThread_Local);
-		}
-		// spew sizes
-		int32 Index = 0;
-		for (auto CmdList : CommandLists)
-		{
-			UE_LOG(LogTemp, Display, TEXT("CmdList %2d/%2d  : %8dKB"), Index, CommandLists.Num(), (CmdList->GetUsedMemory() + 1023) / 1024);
-			Index++;
-		}
-	}
-	bool bActuallyDoParallelTranslate = GRHISupportsParallelRHIExecute && CommandLists.Num() >= CVarRHICmdMinCmdlistForParallelSubmit.GetValueOnRenderThread();
+
+	bool bActuallyDoParallelTranslate = GRHISupportsParallelRHIExecute && QueuedCommandLists.Num() >= CVarRHICmdMinCmdlistForParallelSubmit.GetValueOnRenderThread();
 	if (bActuallyDoParallelTranslate)
 	{
 		int32 Total = 0;
 		bool bIndeterminate = false;
-		for (int32 Count : NumDrawsIfKnown)
+		for (auto const& CmdList : QueuedCommandLists)
 		{
-			if (Count < 0)
+			if (!CmdList.NumDraws.IsSet())
 			{
 				bIndeterminate = true;
 				break; // can't determine how many are in this one; assume we should run parallel translate
 			}
-			Total += Count;
+			Total += CmdList.NumDraws.GetValue();
 		}
 		if (!bIndeterminate && Total < MinDrawsPerCommandList)
 		{
-			UE_CLOG(bSpewBalance, LogTemp, Display, TEXT("Disabling parallel translate because the number of draws is known to be small."));
 			bActuallyDoParallelTranslate = false;
 		}
 	}
 
 	if (bActuallyDoParallelTranslate)
 	{
-		UE_CLOG(bSpewBalance, LogTemp, Display, TEXT("%d cmdlists for parallel translate"), CommandLists.Num());
 		check(GRHISupportsParallelRHIExecute);
-		NumAlloc -= CommandLists.Num();
-		ParentCmdList.QueueParallelAsyncCommandListSubmit(&Events[0], bHighPriority, &CommandLists[0], &NumDrawsIfKnown[0], CommandLists.Num(), (MinDrawsPerCommandList * 4) / 3, bSpewBalance);
+
+		auto Priority = bHighPriority
+			? FRHICommandListImmediate::ETranslatePriority::High
+			: FRHICommandListImmediate::ETranslatePriority::Normal;
+
+		NumAlloc -= QueuedCommandLists.Num();
+		ParentCmdList.QueueAsyncCommandListSubmit(QueuedCommandLists, Priority, (MinDrawsPerCommandList * 4) / 3);
+
 		// #todo-renderpasses PS4 breaks if this isn't here. Why?
 		SetStateOnCommandList(ParentCmdList);
 		ParentCmdList.EndRenderPass();
 	}
 	else
 	{
-		UE_CLOG(bSpewBalance, LogTemp, Display, TEXT("%d cmdlists (no parallel translate desired)"), CommandLists.Num());
-		for (int32 Index = 0; Index < CommandLists.Num(); Index++)
-		{
-			ParentCmdList.QueueAsyncCommandListSubmit(Events[Index], CommandLists[Index]);
-			NumAlloc--;
-		}
+		NumAlloc -= QueuedCommandLists.Num();
+		ParentCmdList.QueueAsyncCommandListSubmit(QueuedCommandLists);
 	}
-	CommandLists.Reset();
-	Events.Reset();
+	QueuedCommandLists.Reset();
+
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FParallelCommandListSet_Dispatch_ServiceLocalQueue);
 	FTaskGraphInterface::Get().ProcessThreadUntilIdle(RenderThread_Local);
 }
@@ -770,14 +734,17 @@ FParallelCommandListSet::~FParallelCommandListSet()
 	check(GOutstandingParallelCommandListSet == this);
 	GOutstandingParallelCommandListSet = nullptr;
 
-	checkf(CommandLists.Num() == 0, TEXT("Derived class of FParallelCommandListSet did not call Dispatch in virtual destructor"));
+	checkf(QueuedCommandLists.Num() == 0, TEXT("Derived class of FParallelCommandListSet did not call Dispatch in virtual destructor"));
 	checkf(NumAlloc == 0, TEXT("Derived class of FParallelCommandListSet did not call Dispatch in virtual destructor"));
 }
 
 FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 {
 	FRHICommandList* Result = AllocCommandList();
-	Result->ExecuteStat = ExecuteStat;
+	
+	// Command lists used with FParallelCommandListSet are graphics pipe by default.
+	Result->SwitchPipeline(ERHIPipeline::Graphics);
+	Result->SetExecuteStat(ExecuteStat);
 
 #if RDG_GPU_DEBUG_SCOPES
 	if (Pass->GetGPUScopes().Stat != nullptr && (**Pass->GetGPUScopes().Stat->DrawCallCounter) != -1)
@@ -801,40 +768,9 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 	return Result;
 }
 
-void FParallelCommandListSet::AddParallelCommandList(FRHICommandList* CmdList, FGraphEventRef& CompletionEvent, int32 InNumDrawsIfKnown)
+void FParallelCommandListSet::AddParallelCommandList(FRHICommandList* CmdList, FGraphEventRef& /*unused CompletionEvent*/, int32 InNumDrawsIfKnown)
 {
-	check(CommandLists.Num() == Events.Num());
-	CommandLists.Add(CmdList);
-	Events.Add(CompletionEvent);
-	NumDrawsIfKnown.Add(InNumDrawsIfKnown);
-}
-
-void FParallelCommandListSet::WaitForTasks()
-{
-	if (GOutstandingParallelCommandListSet)
-	{
-		GOutstandingParallelCommandListSet->WaitForTasksInternal();
-	}
-}
-
-void FParallelCommandListSet::WaitForTasksInternal()
-{
-	check(IsInRenderingThread());
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FParallelCommandListSet_WaitForTasks);
-	FGraphEventArray WaitOutstandingTasks;
-	for (int32 Index = 0; Index < Events.Num(); Index++)
-	{
-		if (!Events[Index]->IsComplete())
-		{
-			WaitOutstandingTasks.Add(Events[Index]);
-		}
-	}
-	if (WaitOutstandingTasks.Num())
-	{
-		ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();
-		check(!FTaskGraphInterface::Get().IsThreadProcessingTasks(RenderThread_Local));
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(WaitOutstandingTasks, RenderThread_Local);
-	}
+	QueuedCommandLists.Emplace(CmdList, InNumDrawsIfKnown >= 0 ? TOptional<uint32>(InNumDrawsIfKnown) : TOptional<uint32>());
 }
 
 bool IsHMDHiddenAreaMaskActive()
@@ -4065,9 +4001,7 @@ inline ESceneRenderCleanUpMode GetSceneRenderCleanUpMode()
 		return ESceneRenderCleanUpMode::Immediate;
 	}
 
-	static const IConsoleVariable* AsyncDispatch = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
-
-	if (!AsyncDispatch->GetInt() || !IsRunningRHIInSeparateThread())
+	if (!IsRunningRHIInSeparateThread())
 	{
 		return ESceneRenderCleanUpMode::Immediate;
 	}
@@ -4077,14 +4011,6 @@ inline ESceneRenderCleanUpMode GetSceneRenderCleanUpMode()
 
 static void FinishCleanUp(FRHICommandListImmediate& RHICmdList)
 {
-	static const IConsoleVariable* AsyncDispatch = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
-
-	if (AsyncDispatch->GetInt() == 0)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer_Dispatch);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForDispatchToRHIThread); // we want to make sure this all gets to the rhi thread this frame and doesn't hang around
-	}
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(FinishCleanUp);
 
 	// Can release only after all mesh pass tasks are finished.

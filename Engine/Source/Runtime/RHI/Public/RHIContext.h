@@ -122,9 +122,12 @@ typedef FUniformBufferStaticBindings FUniformBufferGlobalBindings;
 
 struct FTransferResourceFenceData
 {
-	uint64	LastSignal = 0;
-	int32	DeviceGPUIndex = INDEX_NONE;
-	int32	FenceGPUIndex = INDEX_NONE;
+	TStaticArray<void*, MAX_NUM_GPUS> SyncPoints;
+	FRHIGPUMask Mask;
+
+	FTransferResourceFenceData()
+		: SyncPoints(InPlace, nullptr)
+	{}
 };
 
 FORCEINLINE FTransferResourceFenceData* RHICreateTransferResourceFenceData()
@@ -193,12 +196,37 @@ struct FTransferResourceParams
 	FTransferResourceFenceData* PreTransferFence = nullptr;
 };
 
+//
+// Opaque type representing a finalized platform GPU command list, which can be submitted to the GPU via RHISubmitCommandLists().
+// This type is intended only for use by RHI command list management. Platform RHIs provide the implementation.
+//
+class IRHIPlatformCommandList
+{
+	// Prevent copying
+	IRHIPlatformCommandList(IRHIPlatformCommandList const&) = delete;
+	IRHIPlatformCommandList& operator = (IRHIPlatformCommandList const&) = delete;
+
+protected:
+	// Allow moving
+	IRHIPlatformCommandList(IRHIPlatformCommandList&&) = default;
+	IRHIPlatformCommandList& operator = (IRHIPlatformCommandList&&) = default;
+
+	// This type is only usable by derived types (platform RHI implementations)
+	IRHIPlatformCommandList() = default;
+	~IRHIPlatformCommandList() = default;
+};
+
 /** Context that is capable of doing Compute work.  Can be async or compute on the gfx pipe. */
 class IRHIComputeContext
 {
 public:
 	virtual ~IRHIComputeContext()
 	{
+	}
+
+	virtual ERHIPipeline GetPipeline() const
+	{
+		return ERHIPipeline::AsyncCompute;
 	}
 
 	UE_DEPRECATED(5.1, "ComputePipelineStates should be used instead of direct ComputeShaders.")
@@ -405,28 +433,6 @@ public:
 		checkNoEntry();
 	}
 
-#if RHI_WANT_BREADCRUMB_EVENTS
-	inline void RHISetBreadcrumbStackTop(const FRHIBreadcrumb* InBreadcrumbStackTop)
-	{
-		if (ensure(BreadcrumbStackIndex >= 0))
-		{
-			BreadcrumbStackTop[BreadcrumbStackIndex] = InBreadcrumbStackTop;
-		}
-	}
-	
-	const FRHIBreadcrumb* GetBreadcrumbStackTop() const
-	{
-		return BreadcrumbStackIndex >= 0 ? BreadcrumbStackTop[BreadcrumbStackIndex] : nullptr;
-	}
-
-	enum { MaxBreadcrumbStacks = 4 };
-
-	// Top of the breadcrumb stack on the RHI thread.
-	const FRHIBreadcrumb* BreadcrumbStackTop[MaxBreadcrumbStacks]{};
-	// Index into the breadcrumbs, incremented for each command list submit and decremented when complete.
-	int32 BreadcrumbStackIndex{ 0 };
-#endif
-
 #if ENABLE_RHI_VALIDATION
 
 	RHIValidation::FTracker* Tracker = nullptr;
@@ -528,6 +534,11 @@ class IRHICommandContext : public IRHIComputeContext
 public:
 	virtual ~IRHICommandContext()
 	{
+	}
+
+	virtual ERHIPipeline GetPipeline() const override
+	{
+		return ERHIPipeline::Graphics;
 	}
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) = 0;

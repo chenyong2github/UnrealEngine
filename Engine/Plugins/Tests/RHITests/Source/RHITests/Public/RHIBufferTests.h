@@ -21,19 +21,7 @@ class FRHIBufferTests
 		int32 NumTestsPerTask = FMath::Max(NumTests / NumTasks, 1);
 		int32 NumTestsLaunched = 0;
 
-		struct FTaskData
-		{
-			FTaskData() = default;
-			FTaskData(FRHICommandList* InRHICmdList, const FGraphEventRef& InEvent)
-				: RHICmdList(InRHICmdList)
-				, Event(InEvent)
-			{}
-
-			FRHICommandList* RHICmdList = nullptr;
-			FGraphEventRef Event;
-		};
-
-		TArray<FTaskData> TaskDatas;
+		TArray<FRHICommandListImmediate::FQueuedCommandList> CommandLists;
 
 		while (NumTestsLaunched < NumTests)
 		{
@@ -42,7 +30,7 @@ class FRHIBufferTests
 			const int32 NumTestsInTask = FMath::Min(NumTestsPerTask, NumTests - NumTestsLaunched);
 
 #if 1
-			FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			FFunctionGraphTask::CreateAndDispatchWhenReady(
 				[TestLambda, RHICmdListUpload, NumTestsLaunched, NumTestsInTask](ENamedThreads::Type, const FGraphEventRef&)
 			{
 				FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
@@ -52,9 +40,11 @@ class FRHIBufferTests
 					TestLambda(*RHICmdListUpload, Index + NumTestsLaunched, NumTestsLaunched);
 				}
 
+				RHICmdListUpload->FinishRecording();
+
 			}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
 
-			TaskDatas.Emplace(RHICmdListUpload, MoveTemp(Event));
+			CommandLists.Emplace(RHICmdListUpload);
 #else
 			for (int32 Index = 0; Index < NumTestsInTask; ++Index)
 			{
@@ -66,12 +56,8 @@ class FRHIBufferTests
 			NumTestsLaunched += NumTestsInTask;
 		}
 
-		for (FTaskData TaskData : TaskDatas)
-		{
-			RHICmdList.QueueAsyncCommandListSubmit(TaskData.Event, TaskData.RHICmdList);
-		}
-
-		RHICmdList.WaitForTasks();
+		RHICmdList.QueueAsyncCommandListSubmit(CommandLists);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 	}
 
 	template <typename BufferType, typename ValueType, uint32 NumTestBytes>

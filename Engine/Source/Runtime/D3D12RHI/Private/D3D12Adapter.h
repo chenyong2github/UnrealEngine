@@ -1,41 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-D3D12Adapter.h: D3D12 Adapter Interfaces
+	D3D12Adapter.h: D3D12 Adapter Interfaces
 
-The D3D12 RHI is layed out in the following stucture. 
+	The D3D12 RHI is layed out in the following stucture. 
 
-	[Engine]--
-			|
-			|-[RHI]--
-					|
-					|-[Adapter]-- (LDA)
-					|			|
-					|			|- [Device]
-					|			|
-					|			|- [Device]
-					|
-					|-[Adapter]--
-								|
-								|- [Device]--
-											|
-											|-[CommandContext]
-											|
-											|-[CommandContext]---
-																|
-																|-[StateCache]
+		[Engine]--
+				|
+				|-[RHI]--
+						|
+						|-[Adapter]-- (LDA)
+						|			|
+						|			|- [Device]
+						|			|
+						|			|- [Device]
+						|
+						|-[Adapter]--
+									|
+									|- [Device]--
+												|
+												|-[Queue]
+												|
+												|-[Queue]
 
-Under this scheme an FD3D12Device represents 1 node belonging to 1 physical adapter.
+	Under this scheme an FD3D12Device represents 1 node belonging to 1 physical adapter.
 
-This structure allows a single RHI to control several different hardware setups. Some example arrangements:
-	- Single-GPU systems (the common case)
-	- Multi-GPU systems i.e. LDA (Crossfire/SLI)
-	- Asymmetric Multi-GPU systems i.e. Discrete/Integrated GPU cooperation
+	This structure allows a single RHI to control several different hardware setups. Some example arrangements:
+		- Single-GPU systems (the common case)
+		- Multi-GPU systems i.e. LDA (Crossfire/SLI)
+		- Asymmetric Multi-GPU systems i.e. Discrete/Integrated GPU cooperation
 =============================================================================*/
 
 #pragma once
-
-class FD3D12DynamicRHI;
 
 struct FD3D12DeviceBasicInfo
 {
@@ -136,7 +132,8 @@ public:
 	FD3D12Adapter(FD3D12AdapterDesc& DescIn);
 	virtual ~FD3D12Adapter();
 
-	void Initialize(FD3D12DynamicRHI* RHI);
+	void CleanupResources();
+
 	void InitializeDevices();
 	void InitializeRayTracing();
 
@@ -187,37 +184,39 @@ public:
 	FORCEINLINE bool AreBindlessSamplersAllowed() const { return bBindlessSamplersAllowed; }
 #endif
 
-	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
-	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
+
 	FORCEINLINE const ED3D12GPUCrashDebuggingModes GetGPUCrashDebuggingModes() const { return GPUCrashDebuggingModes; }
-	FORCEINLINE FD3D12DynamicRHI* GetOwningRHI() { return OwningRHI; }
-	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER GetResourceHeapTier() const { return Desc.ResourceHeapTier; }
-	FORCEINLINE const D3D12_RESOURCE_BINDING_TIER GetResourceBindingTier() const { return Desc.ResourceBindingTier; }
-	FORCEINLINE const D3D_ROOT_SIGNATURE_VERSION GetRootSignatureVersion() const { return RootSignatureVersion; }
+	FORCEINLINE const D3D12_RESOURCE_HEAP_TIER     GetResourceHeapTier      () const { return Desc.ResourceHeapTier; }
+	FORCEINLINE const D3D12_RESOURCE_BINDING_TIER  GetResourceBindingTier   () const { return Desc.ResourceBindingTier; }
+	FORCEINLINE const D3D_ROOT_SIGNATURE_VERSION   GetRootSignatureVersion  () const { return RootSignatureVersion; }
+
 	FORCEINLINE const bool IsDepthBoundsTestSupported() const { return bDepthBoundsTestSupported; }
-	FORCEINLINE const bool IsHeapNotZeroedSupported() const { return bHeapNotZeroedSupported; }
+	FORCEINLINE const bool IsHeapNotZeroedSupported  () const { return bHeapNotZeroedSupported; }
+
+	FORCEINLINE const bool AreCopyQueueTimestampQueriesSupported() const { return bCopyQueueTimestampQueriesSupported; }
+
 	FORCEINLINE const DXGI_ADAPTER_DESC& GetD3DAdapterDesc() const { return Desc.Desc; }
 	FORCEINLINE IDXGIAdapter* GetAdapter() { return DxgiAdapter; }
+
 	FORCEINLINE const FD3D12AdapterDesc& GetDesc() const { return Desc; }
+
 	FORCEINLINE TArray<FD3D12Viewport*>& GetViewports() { return Viewports; }
 	FORCEINLINE FD3D12Viewport* GetDrawingViewport() { return DrawingViewport; }
 	FORCEINLINE void SetDrawingViewport(FD3D12Viewport* InViewport) { DrawingViewport = InViewport; }
 
 	FORCEINLINE int32 GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType InHeapType) { return InHeapType == ERHIDescriptorHeapType::Sampler ? MaxSamplerDescriptors : MaxNonSamplerDescriptors; }
 
-	FORCEINLINE ID3D12CommandSignature* GetDrawIndirectCommandSignature() { return DrawIndirectCommandSignature; }
-	FORCEINLINE ID3D12CommandSignature* GetDrawIndexedIndirectCommandSignature() { return DrawIndexedIndirectCommandSignature; }
+	FORCEINLINE ID3D12CommandSignature* GetDrawIndirectCommandSignature            () { return DrawIndirectCommandSignature; }
+	FORCEINLINE ID3D12CommandSignature* GetDrawIndexedIndirectCommandSignature     () { return DrawIndexedIndirectCommandSignature; }
 	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectGraphicsCommandSignature() { return DispatchIndirectGraphicsCommandSignature; }
-	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectComputeCommandSignature() { return DispatchIndirectComputeCommandSignature; }
+	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectComputeCommandSignature () { return DispatchIndirectComputeCommandSignature; }
 #if PLATFORM_SUPPORTS_MESH_SHADERS
 	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectMeshCommandSignature() { return DispatchIndirectMeshCommandSignature; }
 #endif
 	FORCEINLINE ID3D12CommandSignature* GetDispatchRaysIndirectCommandSignature() { return DispatchRaysIndirectCommandSignature; }
 
 	FORCEINLINE FD3D12PipelineStateCache& GetPSOCache() { return PipelineStateCache; }
-
-	FORCEINLINE FD3D12FenceCorePool& GetFenceCorePool() { return FenceCorePool; }
 
 #if USE_STATIC_ROOT_SIGNATURE
 	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature()
@@ -248,16 +247,17 @@ public:
 		return &RootSignatureManager;
 	}
 
-	FORCEINLINE FD3D12DeferredDeletionQueue& GetDeferredDeletionQueue() { return DeferredDeletionQueue; }
-
 	FORCEINLINE FD3D12ManualFence& GetFrameFence()  { check(FrameFence); return *FrameFence; }
-
-	FORCEINLINE FD3D12Fence* GetStagingFence()  { return StagingFence.GetReference(); }
 
 	FORCEINLINE FD3D12Device* GetDevice(uint32 GPUIndex) const
 	{
 		check(GPUIndex < GNumExplicitGPUsForRendering);
 		return Devices[GPUIndex];
+	}
+
+	TConstArrayView<FD3D12Device*> GetDevices() const
+	{
+		return MakeArrayView(Devices.GetData(), GNumExplicitGPUsForRendering);
 	}
 
 	FORCEINLINE uint32 GetVRSTileSize() const { return VRSTileSize; }
@@ -272,8 +272,6 @@ public:
 	}
 
 	FORCEINLINE uint32 GetDebugFlags() const { return DebugFlags; }
-
-	void Cleanup();
 
 	void EndFrame();
 
@@ -388,11 +386,11 @@ public:
 	}
 
 	inline FD3D12CommandContextRedirector& GetDefaultContextRedirector() { return DefaultContextRedirector; }
-	inline FD3D12CommandContextRedirector& GetDefaultAsyncComputeContextRedirector() { return DefaultAsyncComputeContextRedirector; }
 
 	FD3D12TransientHeapCache& GetOrCreateTransientHeapCache();
 
-	FD3D12TemporalEffect* GetTemporalEffect(const FName& EffectName);
+	typedef TArray<FD3D12SyncPointRef, TInlineAllocator<MAX_NUM_GPUS>> FTemporalEffect;
+	FTemporalEffect& GetTemporalEffect(const FName& EffectName);
 
 	FD3D12FastConstantAllocator& GetTransientUniformBufferAllocator();
 	void ReleaseTransientUniformBufferAllocator(FTransientUniformBufferAllocator* InAllocator);
@@ -433,12 +431,6 @@ public:
 	};
 	void FindReleasedAllocationData(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FReleasedAllocationData>& OutAllocationData);
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-	FD3D12SubmissionGapRecorder SubmissionGapRecorder;
-
-	void SubmitGapRecorderTimestamps();
-#endif
-
 	void SetResidencyPriority(ID3D12Pageable* Pageable, D3D12_RESIDENCY_PRIORITY HeapPriority, uint32 GPUIndex);
 
 protected:
@@ -461,8 +453,6 @@ protected:
 	virtual void CreateCommandSignatures();
 
 	void SetupGPUCrashDebuggingModesCommon();
-
-	FD3D12DynamicRHI* OwningRHI;
 
 	// LDA setups have one ID3D12Device
 	TRefCountPtr<ID3D12Device> RootDevice;
@@ -522,22 +512,20 @@ protected:
 #endif
 
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
-	bool bDepthBoundsTestSupported;
-	bool bHeapNotZeroedSupported;
+	bool bDepthBoundsTestSupported = false;
+	bool bCopyQueueTimestampQueriesSupported = false;
+	bool bHeapNotZeroedSupported = false;
 
-	int32 MaxNonSamplerDescriptors{};
-	int32 MaxSamplerDescriptors{};
+	int32 MaxNonSamplerDescriptors = 0;
+	int32 MaxSamplerDescriptors = 0;
 
-	uint32 VRSTileSize;
+	uint32 VRSTileSize = 0;
 
 	/** Running with debug device */
-	bool bDebugDevice;
+	bool bDebugDevice = false;
 
 	/** GPU Crash debugging modes */
-	ED3D12GPUCrashDebuggingModes GPUCrashDebuggingModes;
-
-	/** True if the device being used has been removed. */
-	bool bDeviceRemoved;
+	ED3D12GPUCrashDebuggingModes GPUCrashDebuggingModes = ED3D12GPUCrashDebuggingModes::None;
 
 	FD3D12AdapterDesc Desc;
 
@@ -561,8 +549,6 @@ protected:
 #endif
 	TRefCountPtr<ID3D12CommandSignature> DispatchRaysIndirectCommandSignature;
 
-	FD3D12FenceCorePool FenceCorePool;
-
 	FD3D12UploadHeapAllocator*	UploadHeapAllocator[MAX_NUM_GPUS];
 
 	/** A list of all viewport RHIs that have been created. */
@@ -571,18 +557,12 @@ protected:
 	/** The viewport which is currently being drawn. */
 	TRefCountPtr<FD3D12Viewport> DrawingViewport;
 
-	/** A Fence whos value increases every frame*/
-	TRefCountPtr<FD3D12ManualFence> FrameFence;
-
-	/** A Fence used to synchronize FD3D12GPUFence and FD3D12StagingBuffer */
-	TRefCountPtr<FD3D12Fence> StagingFence;
-
-	FD3D12DeferredDeletionQueue DeferredDeletionQueue;
+	/** A Fence whose value increases every frame*/
+	TUniquePtr<FD3D12ManualFence> FrameFence;
 
 	FD3D12CommandContextRedirector DefaultContextRedirector;
-	FD3D12CommandContextRedirector DefaultAsyncComputeContextRedirector;
 
-	uint32 FrameCounter;
+	uint32 FrameCounter = 0;
 
 	bool bTrackAllAllocation = false;
 
@@ -605,13 +585,8 @@ protected:
 
 	FD3D12MemoryInfo MemoryInfo;
 
-#if D3D12_SUBMISSION_GAP_RECORDER
-	TArray<uint64> StartOfSubmissionTimestamps;
-	TArray<uint64> EndOfSubmissionTimestamps;
-#endif
-
 #if WITH_MGPU
-	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;
+	TMap<FName, FTemporalEffect> TemporalEffectMap;
 #endif
 
 	TArray<FTransientUniformBufferAllocator*> TransientUniformBufferAllocators;
@@ -620,9 +595,9 @@ protected:
 	TUniquePtr<IRHITransientMemoryCache> TransientMemoryCache;
 
 	// Each of these devices represents a physical GPU 'Node'
-	FD3D12Device* Devices[MAX_NUM_GPUS];
+	TStaticArray<FD3D12Device*, MAX_NUM_GPUS> Devices;
 
-	uint32 DebugFlags;
+	uint32 DebugFlags = 0;
 
 #if USE_STATIC_ROOT_SIGNATURE
 	FD3D12RootSignature StaticGraphicsRootSignature;

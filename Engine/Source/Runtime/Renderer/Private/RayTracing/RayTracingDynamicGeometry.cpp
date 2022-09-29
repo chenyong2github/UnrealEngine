@@ -369,7 +369,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	}
 }
 
-void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& ParentCmdList, FRHIBuffer* ScratchBuffer)
+void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmediate& ParentCmdList, FRHIBuffer* ScratchBuffer)
 {
 #if WANTS_DRAW_MESH_EVENTS
 #define SCOPED_DRAW_OR_COMPUTE_EVENT(ParentCmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(&ParentCmdList, FColor(0), TEXT(#Name));
@@ -455,12 +455,8 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				}
 			}
 
-			TArray<FRHICommandList*> CommandLists;
-			TArray<int32> CmdListNumDraws;
-			TArray<FGraphEventRef> CmdListPrerequisites;
-
-			auto AllocateCommandList = [&ParentCmdList, &CommandLists, &CmdListNumDraws, &CmdListPrerequisites]
-			(uint32 ExpectedNumDraws, TStatId StatId)->FRHIComputeCommandList&
+			TArray<FRHICommandListImmediate::FQueuedCommandList, TInlineAllocator<1>> QueuedCommandLists;
+			auto AllocateCommandList = [&ParentCmdList, &QueuedCommandLists](uint32 ExpectedNumDraws, TStatId StatId) -> FRHIComputeCommandList&
 			{
 			#if USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
 				if (ParentCmdList.Bypass())
@@ -469,11 +465,13 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				}
 				else
 				{
-					FRHIComputeCommandList& Result = *CommandLists.Add_GetRef(new FRHICommandList(ParentCmdList.GetGPUMask()));
-					Result.ExecuteStat = StatId;
-					CmdListNumDraws.Add(ExpectedNumDraws);
-					CmdListPrerequisites.AddDefaulted();
-					return Result;
+					FRHIComputeCommandList* RHICmdList = new FRHIComputeCommandList(ParentCmdList.GetGPUMask());
+					RHICmdList->SwitchPipeline(ERHIPipeline::Graphics);
+					RHICmdList->SetExecuteStat(StatId);
+
+					QueuedCommandLists.Emplace(RHICmdList, ExpectedNumDraws);
+
+					return *RHICmdList;
 				}
 			#else // USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
 				return ParentCmdList;
@@ -521,20 +519,17 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				// Make sure buffers are readable again and disable UAV overlap.
 				RHICmdList.EndUAVOverlap(OverlapUAVs);
 				RHICmdList.Transition(TransitionsAfter);
+
+				if (&RHICmdList != &ParentCmdList)
+				{
+					RHICmdList.FinishRecording();
+				}
 			}
 
 			// Need to kick parallel translate command lists?
-			if (CommandLists.Num() > 0)
+			if (QueuedCommandLists.Num() > 0)
 			{
-				ParentCmdList.QueueParallelAsyncCommandListSubmit(
-					CmdListPrerequisites.GetData(), // AnyThreadCompletionEvents
-					false,  // bIsPrepass
-					CommandLists.GetData(), //CmdLists
-					CmdListNumDraws.GetData(), // NumDrawsIfKnown
-					CommandLists.Num(), // Num
-					0, // MinDrawsPerTranslate
-					false // bSpewMerge
-				);
+				ParentCmdList.QueueAsyncCommandListSubmit(QueuedCommandLists, FRHICommandListImmediate::ETranslatePriority::Normal);
 			}
 
 			if (BuildParams.Num() > 0)

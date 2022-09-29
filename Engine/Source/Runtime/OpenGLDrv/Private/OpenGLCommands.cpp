@@ -2893,9 +2893,24 @@ IRHICommandContext* FOpenGLDynamicRHI::RHIGetDefaultContext()
 	return this;
 }
 
-IRHICommandContextContainer* FOpenGLDynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)
+IRHIComputeContext* FOpenGLDynamicRHI::RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask)
 {
+	UE_LOG(LogRHI, Fatal, TEXT("FOpenGLDynamicRHI::RHIGetCommandContext should never be called. OpenGL RHI does not implement parallel command list execution."));
 	return nullptr;
+}
+
+IRHIPlatformCommandList* FOpenGLDynamicRHI::RHIFinalizeContext(IRHIComputeContext* Context)
+{
+	// "Context" will always be the default context, since we don't implement parallel execution.
+	// OpenGL uses an immediate context, so there's nothing to do here. Executed commands will have already reached the driver.
+
+	// Returning nullptr indicates that we don't want RHISubmitCommandLists to be called.
+	return nullptr;
+}
+
+void FOpenGLDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("FOpenGLDynamicRHI::RHISubmitCommandLists should never be called. OpenGL RHI does not implement parallel command list execution."));
 }
 
 void FOpenGLDynamicRHI::RHIInvalidateCachedState()

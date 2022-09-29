@@ -44,11 +44,7 @@ struct ID3D12DynamicRHI : public FDynamicRHI
 	virtual D3D12_CPU_DESCRIPTOR_HANDLE RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex = 0, int32 InArraySliceIndex = 0) const = 0;
 
 	virtual void                  RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12GraphicsCommandList* InCommandList) = 0;
-
-	virtual void                  RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitives) = 0;
-	virtual void                  RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource) = 0;
-
-	virtual void                  RHIExecuteOnCopyCommandQueue(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun) = 0;
+	virtual void                  RHITransitionResource(FRHICommandList& RHICmdList, FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource) = 0;
 
 	static D3D12RHI_API bool      IsD3DDebugEnabled();
 };

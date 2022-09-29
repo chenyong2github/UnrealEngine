@@ -267,7 +267,7 @@ public:
 	FVulkanCommandListContextImmediate(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevice, FVulkanQueue* InQueue);
 };
 
-
+#if 0 // @todo: RHI command list refactor - todo
 struct FVulkanCommandContextContainer : public IRHICommandContextContainer, public VulkanRHI::FDeviceChild
 {
 	FVulkanCommandListContext* CmdContext;
@@ -285,6 +285,7 @@ struct FVulkanCommandContextContainer : public IRHICommandContextContainer, publ
 private:
 	friend class FVulkanDevice;
 };
+#endif
 
 inline FVulkanCommandListContextImmediate& FVulkanDevice::GetImmediateContext()
 {

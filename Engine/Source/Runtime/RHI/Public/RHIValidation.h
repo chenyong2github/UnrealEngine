@@ -221,6 +221,11 @@ public:
 		return RHI->RHICreateGPUFence(Name);
 	}
 
+	virtual void RHIWriteGPUFence_TopOfPipe(FRHICommandListBase& RHICmdList, FRHIGPUFence* FenceRHI) override final
+	{
+		RHI->RHIWriteGPUFence_TopOfPipe(RHICmdList, FenceRHI);
+	}
+
 	virtual void RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo);
 
 	virtual void RHIReleaseTransition(FRHITransition* Transition)
@@ -943,6 +948,26 @@ public:
 		return RHI->RHIGetRenderQueryResult(RenderQuery, OutResult, bWait, GPUIndex);
 	}
 
+	virtual void RHIBeginOcclusionQueryBatch_TopOfPipe(FRHICommandListBase& RHICmdList, uint32 NumQueriesInBatch) override final
+	{
+		RHI->RHIBeginOcclusionQueryBatch_TopOfPipe(RHICmdList, NumQueriesInBatch);
+	}
+
+	virtual void RHIEndOcclusionQueryBatch_TopOfPipe(FRHICommandListBase& RHICmdList) override final
+	{
+		RHI->RHIEndOcclusionQueryBatch_TopOfPipe(RHICmdList);
+	}
+
+	virtual void RHIBeginRenderQuery_TopOfPipe(FRHICommandListBase& RHICmdList, FRHIRenderQuery* RenderQuery) override final
+	{
+		RHI->RHIBeginRenderQuery_TopOfPipe(RHICmdList, RenderQuery);
+	}
+
+	virtual void RHIEndRenderQuery_TopOfPipe(FRHICommandListBase& RHICmdList, FRHIRenderQuery* RenderQuery) override final
+	{
+		RHI->RHIEndRenderQuery_TopOfPipe(RHICmdList, RenderQuery);
+	}
+
 	// FlushType: Thread safe
 	virtual uint32 RHIGetViewportNextPresentGPUIndex(FRHIViewport* Viewport) override final
 	{
@@ -1251,26 +1276,11 @@ public:
 		return RHI->RHIGetNativeCommandBuffer();
 	}
 
-	// FlushType: Thread safe
 	virtual IRHICommandContext* RHIGetDefaultContext() override final;
-
-	// FlushType: Thread safe
 	virtual IRHIComputeContext* RHIGetDefaultAsyncComputeContext() override final;
-
-	// FlushType: Thread safe
-	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) override final
-	{
-		class IRHICommandContextContainer* InnerContainer = RHI->RHIGetCommandContextContainer(Index, Num);
-		return new FValidationRHICommandContextContainer(InnerContainer);
-	}
-
-#if WITH_MGPU
-	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask) override final
-	{
-		class IRHICommandContextContainer* InnerContainer = RHI->RHIGetCommandContextContainer(Index, Num, GPUMask);
-		return new FValidationRHICommandContextContainer(InnerContainer);
-	}
-#endif // WITH_MGPU
+	virtual IRHIComputeContext* RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask) override final;
+	virtual IRHIPlatformCommandList* RHIFinalizeContext(IRHIComputeContext* OuterContext) override final;
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> OuterCommandLists) override final;
 
 	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format) override final
 	{
@@ -1627,7 +1637,6 @@ public:
 	static void ReportValidationFailure(const TCHAR* InMessage);
 
 	FDynamicRHI*				RHI;
-	TIndirectArray<IRHIComputeContext> OwnedContexts;
 	TMap<FRHIDepthStencilState*, FDepthStencilStateInitializerRHI> DepthStencilStates;
 
 	uint64						RenderThreadFrameID;

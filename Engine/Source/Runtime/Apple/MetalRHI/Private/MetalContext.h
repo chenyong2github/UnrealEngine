@@ -28,7 +28,6 @@ class FMetalRHIBuffer;
 
 class FMetalContext
 {
-	friend class FMetalCommandContextContainer;
 public:
 	FMetalContext(mtlpp::Device InDevice, FMetalCommandQueue& Queue, bool const bIsImmediate);
 	virtual ~FMetalContext();

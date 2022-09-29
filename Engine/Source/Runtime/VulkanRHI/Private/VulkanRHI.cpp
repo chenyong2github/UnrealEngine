@@ -845,7 +845,6 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;
 		GRHISupportsSeparateDepthStencilCopyAccess = false;
-		GRHISupportsBindless =	RHISupportsBindless(GMaxRHIShaderPlatform) && Device->SupportsBindless();
 
 		GRHIMaxDispatchThreadGroupsPerDimension.X = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[0], 0x7fffffff);
 		GRHIMaxDispatchThreadGroupsPerDimension.Y = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[1], 0x7fffffff);
@@ -963,9 +962,7 @@ void FVulkanDynamicRHI::InitInstance()
 
 #endif
 
-		// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
-		GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
-		GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+		GRHICommandList.GetImmediateCommandList().InitializeImmediateContexts();
 
 		FRenderResource::InitPreRHIResources();
 		GIsRHIInitialized = true;
@@ -975,7 +972,6 @@ void FVulkanDynamicRHI::InitInstance()
 void FVulkanCommandListContext::RHIBeginFrame()
 {
 	check(IsImmediate());
-	RHIPrivateBeginFrame();
 
 	extern uint32 GVulkanRHIDeletionFrameNumber;
 	++GVulkanRHIDeletionFrameNumber;
@@ -1447,16 +1443,6 @@ uint64 FVulkanDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat 
 {
 	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
 	return Limits.minTexelBufferOffsetAlignment;
-}
-
-IRHICommandContextContainer* FVulkanDynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)
-{
-	if (GRHIThreadCvar.GetValueOnAnyThread() > 1)
-	{
-		return new FVulkanCommandContextContainer(Device);
-	}
-
-	return nullptr;
 }
 
 void FVulkanDynamicRHI::RHISubmitCommandsAndFlushGPU()

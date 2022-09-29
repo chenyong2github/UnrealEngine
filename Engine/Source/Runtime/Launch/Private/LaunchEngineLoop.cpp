@@ -4159,10 +4159,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 	// Required during serialization of AnimSequence which could happen from async loading thread.
 	// See UAnimSequence::UpdateFrameRate().
 	FModuleManager::Get().LoadModule(TEXT("TimeManagement"));
-
-	// Required during construction of UAnimBlueprint which could happen from async loading thread.
-	// See UAnimBlueprint::UAnimBlueprint().
-	FModuleManager::Get().LoadModule(TEXT("AnimGraph"));
 #endif
 
 	FModuleManager::Get().LoadModule(TEXT("PacketHandler"));
@@ -4681,9 +4677,9 @@ void FEngineLoop::Exit()
 		GBackgroundPriorityThreadPool->Destroy();
 	}
 
-	FTaskGraphInterface::Shutdown();
-
 	RHIExit();
+
+	FTaskGraphInterface::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
 

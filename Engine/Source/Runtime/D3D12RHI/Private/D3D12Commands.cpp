@@ -122,10 +122,9 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 	CommitComputeResourceTables();
 	StateCache.ApplyState<ED3D12PipelineType::Compute>();
 
-	numDispatches++;
-	CommandListHandle->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+	GraphicsCommandList()->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 	
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -146,17 +145,17 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 
 	StateCache.ApplyState<ED3D12PipelineType::Compute>();
 
-	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
-	// arg transition and flush here.
-	D3D12_RESOURCE_STATES IndirectState = GUseInternalTransitions ? D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, IndirectState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
-	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect arg transition and flush here.
+	D3D12_RESOURCE_STATES IndirectState = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+	TransitionResource(Location.GetResource(), D3D12_RESOURCE_STATE_TBD, IndirectState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	ID3D12CommandSignature* CommandSignature = IsAsyncComputeContext() ? Adapter->GetDispatchIndirectComputeCommandSignature() : Adapter->GetDispatchIndirectGraphicsCommandSignature();
+	ID3D12CommandSignature* CommandSignature = IsAsyncComputeContext()
+		? Adapter->GetDispatchIndirectComputeCommandSignature()
+		: Adapter->GetDispatchIndirectGraphicsCommandSignature();
 	
-	numDispatches++;
-	CommandListHandle->ExecuteIndirect(
+	GraphicsCommandList()->ExecuteIndirect(
 		CommandSignature,
 		1,
 		Location.GetResource()->GetResource(),
@@ -164,9 +163,9 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 		NULL,
 		0
 		);
-	CommandListHandle.UpdateResidency(Location.GetResource());
+	UpdateResidency(Location.GetResource());
 	
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -293,13 +292,9 @@ struct FD3D12DiscardResource
 #endif // #if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
 };
 
-using FD3D12DiscardResourceArray = TArray<FD3D12DiscardResource>;
-
-static void HandleResourceDiscardTransitions(
-	FD3D12CommandContext& Context,
+void FD3D12CommandContext::HandleResourceDiscardTransitions(
 	const FD3D12TransitionData* TransitionData,
-	D3D12_RESOURCE_STATES SkipFastClearEliminateState,
-	FD3D12DiscardResourceArray& ResourcesToDiscard)
+	TArray<FD3D12DiscardResource>& ResourcesToDiscard)
 {
 	for (const FRHITransitionInfo& Info : TransitionData->TransitionInfos)
 	{
@@ -308,7 +303,7 @@ static void HandleResourceDiscardTransitions(
 			continue;
 		}
 
-		ProcessResource(Context, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource, FD3D12Texture* Texture = nullptr)
+		ProcessResource(*this, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource, FD3D12Texture* Texture = nullptr)
 		{
 			if (!Resource->RequiresResourceStateTracking())
 			{
@@ -320,7 +315,7 @@ static void HandleResourceDiscardTransitions(
 			D3D12_RESOURCE_STATES InitialState = GetInitialResourceState(Resource->GetDesc());
 			if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
 			{
-				FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, InitialState, InitialState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+				TransitionResource(Resource, InitialState, InitialState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 				const FD3D12RenderTargetView* RTV = nullptr;
 #if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
@@ -335,7 +330,7 @@ static void HandleResourceDiscardTransitions(
 			{
 				EnumerateSubresources(Resource, Info, Texture, [&](uint32 Subresource, const FD3D12RenderTargetView* RTV)
 				{
-					FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, InitialState, InitialState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply);
+					TransitionResource(Resource, InitialState, InitialState, Subresource);
 					ResourcesToDiscard.Emplace(Resource, Info.Flags, Subresource, Texture, RTV);
 				});
 			}
@@ -343,13 +338,11 @@ static void HandleResourceDiscardTransitions(
 	}
 }
 
-static void HandleDiscardResources(
-	FD3D12CommandContext& Context,
-	D3D12_RESOURCE_STATES SkipFastClearEliminateState,
+void FD3D12CommandContext::HandleDiscardResources(
 	TArrayView<const FRHITransition*> Transitions,
 	bool bIsBeginTransition)
 {
-	FD3D12DiscardResourceArray ResourcesToDiscard;
+	TArray<FD3D12DiscardResource> ResourcesToDiscard;
 
 	for (const FRHITransition* Transition : Transitions)
 	{
@@ -357,7 +350,7 @@ static void HandleDiscardResources(
 
 		if (ProcessTransitionDuringBegin(Data) == bIsBeginTransition)
 		{
-			HandleResourceDiscardTransitions(Context, Data, SkipFastClearEliminateState, ResourcesToDiscard);
+			HandleResourceDiscardTransitions(Data, ResourcesToDiscard);
 		}
 	}
 
@@ -368,7 +361,7 @@ static void HandleDiscardResources(
 
 	if (!ResourcesToDiscard.IsEmpty())
 	{
-		Context.CommandListHandle.FlushResourceBarriers();
+		FlushResourceBarriers();
 	}
 
 	for (const FD3D12DiscardResource& DiscardResource : ResourcesToDiscard)
@@ -384,15 +377,15 @@ static void HandleDiscardResources(
 			if (DiscardResource.Texture && DiscardResource.RTV)
 			{
 				FLinearColor ClearColor = DiscardResource.Texture->GetClearColor();
-				Context.CommandListHandle->ClearRenderTargetView(DiscardResource.RTV->GetView(), reinterpret_cast<float*>(&ClearColor), 0, nullptr);
-				Context.CommandListHandle.UpdateResidency(DiscardResource.RTV->GetResource());
+				GraphicsCommandList()->ClearRenderTargetView(DiscardResource.RTV->GetView(), reinterpret_cast<float*>(&ClearColor), 0, nullptr);
+				UpdateResidency(DiscardResource.RTV->GetResource());
 			}
 			else
 #endif // #if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
 			{
 				if (DiscardResource.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
 				{
-					Context.CommandListHandle->DiscardResource(DiscardResource.Resource->GetResource(), nullptr);
+					GraphicsCommandList()->DiscardResource(DiscardResource.Resource->GetResource(), nullptr);
 				}
 				else
 				{
@@ -402,14 +395,14 @@ static void HandleDiscardResources(
 					Region.FirstSubresource = DiscardResource.Subresource;
 					Region.NumSubresources = 1;
 
-					Context.CommandListHandle->DiscardResource(DiscardResource.Resource->GetResource(), &Region);
+					GraphicsCommandList()->DiscardResource(DiscardResource.Resource->GetResource(), &Region);
 				}
 			}
 		}
 	}
 }
 
-static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12TransitionData* TransitionData)
+void FD3D12CommandContext::HandleTransientAliasing(const FD3D12TransitionData* TransitionData)
 {
 	for (const FRHITransientAliasingInfo& Info : TransitionData->AliasingInfos)
 	{
@@ -418,14 +411,14 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 		{
 		case FRHITransientAliasingInfo::EType::Buffer:
 		{
-			FD3D12Buffer* Buffer = Context.RetrieveObject<FD3D12Buffer>(Info.Buffer);
+			FD3D12Buffer* Buffer = RetrieveObject<FD3D12Buffer>(Info.Buffer);
 			check(Buffer);
 			BaseShaderResource = Buffer;
 			break;
 		}
 		case FRHITransientAliasingInfo::EType::Texture:
 		{
-			FD3D12Texture* Texture = Context.RetrieveTexture(Info.Texture);
+			FD3D12Texture* Texture = RetrieveTexture(Info.Texture);
 			check(Texture);
 			BaseShaderResource = Texture;
 			break;
@@ -442,7 +435,7 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 
 			if (GD3D12TransientAllocatorFullAliasingBarrier != 0)
 			{
-				Context.CommandListHandle.AddAliasingBarrier(nullptr, Resource->GetResource());
+				AddAliasingBarrier(nullptr, Resource->GetResource());
 			}
 			else
 			{
@@ -453,15 +446,15 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 					switch (Overlap.Type)
 					{
 					case FRHITransientAliasingOverlap::EType::Texture:
-						ResourceBefore = Context.RetrieveTexture(Overlap.Texture)->GetResource();
+						ResourceBefore = RetrieveTexture(Overlap.Texture)->GetResource();
 						break;
 					case FRHITransientAliasingOverlap::EType::Buffer:
-						ResourceBefore = Context.RetrieveObject<FD3D12Buffer>(Overlap.Buffer)->GetResource();
+						ResourceBefore = RetrieveObject<FD3D12Buffer>(Overlap.Buffer)->GetResource();
 						break;
 					}
 
 					check(ResourceBefore);
-					Context.CommandListHandle.AddAliasingBarrier(ResourceBefore->GetResource(), Resource->GetResource());
+					AddAliasingBarrier(ResourceBefore->GetResource(), Resource->GetResource());
 				}
 			}
 		}
@@ -469,20 +462,17 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::DiscardTransient);
 
-			if (GUseInternalTransitions)
-			{
-				// Restore the resource back to the initial state when done
-				D3D12_RESOURCE_STATES FinalState = GetInitialResourceState(Resource->GetDesc());
-				FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, FinalState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-			}
-
+			// Restore the resource back to the initial state when done
+			D3D12_RESOURCE_STATES FinalState = GetInitialResourceState(Resource->GetDesc());
+			TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, FinalState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			
 			// Remove from caches
-			Context.ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
+			ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
 		}
 	}
 }
 
-static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D12TransitionData* TransitionData, D3D12_RESOURCE_STATES SkipFastClearEliminateState, bool& bUAVBarrier)
+void FD3D12CommandContext::HandleResourceTransitions(const FD3D12TransitionData* TransitionData, bool& bUAVBarrier)
 {
 	const bool bDstAllPipelines = EnumHasAllFlags(TransitionData->DstPipelines, ERHIPipeline::All);
 
@@ -496,77 +486,14 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 			bUAVBarrier |= bUAVAccessAfter;
 		}
 
-		// Use the engine defined transitions?
-		if (GUseInternalTransitions)
-		{
-			// Only need to check for UAV barriers here, all other transitions are handled inside the RHI
-			// Can't rely on before state to either be unknown or UAV because there could be a UAV->SRV transition already done (and ignored here)
-			// and the transition SRV->UAV needs a UAV barrier then to work correctly otherwise there is no synchronization at all
-			bUAVBarrier |= bUAVAccessAfter;
-		}
-		else
-		{
-			// Sometimes we could still have barriers without resources, invalid but can still happen
-			if (!Info.Resource)
-			{
-				// Add a UAV barrier in case of no resource and after state is UAV - user probably requested a force UAV barrier here				
-				bUAVBarrier |= bUAVAccessAfter;
-			}
-			else
-			{
-				ProcessResource(Context, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource, FD3D12Texture* UnusedTexture = nullptr)
-				{
-					if (!Resource->RequiresResourceStateTracking())
-					{
-						return;
-					}
-
-					ERHIAccess AccessBefore = Info.AccessBefore;
-
-					if (AccessBefore == ERHIAccess::Unknown)
-					{
-						if (FRHIViewableResource* ViewableResource = GetViewableResource(Info))
-						{
-							AccessBefore = Context.GetTrackedAccess(ViewableResource);
-						}
-					}
-
-					const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
-
-					D3D12_RESOURCE_STATES StateBefore =      AccessBefore == ERHIAccess::Discard ? GetInitialResourceState(Resource->GetDesc()) : GetD3D12ResourceState(     AccessBefore, bIsAsyncCompute);
-					D3D12_RESOURCE_STATES StateAfter  = Info.AccessAfter  == ERHIAccess::Discard ? GetInitialResourceState(Resource->GetDesc()) : GetD3D12ResourceState(Info.AccessAfter,  bIsAsyncCompute);
-					
-					// Add the compression flags if needed
-					if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
-					{
-						StateAfter |= SkipFastClearEliminateState;
-					}
-
-					// enqueue the correct transitions
-					if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
-					{
-						if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, StateBefore, StateAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
-						{
-							bUAVBarrier = true;
-						}
-					}
-					else
-					{
-						EnumerateSubresources(Resource, Info, nullptr, [&](uint32 Subresource, const FD3D12RenderTargetView* UnusedRTV = nullptr)
-						{
-							if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, StateBefore, StateAfter, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
-							{
-								bUAVBarrier = true;
-							}
-						});
-					}
-				});
-			}
-		}
+		// Only need to check for UAV barriers here, all other transitions are handled inside the RHI
+		// Can't rely on before state to either be unknown or UAV because there could be a UAV->SRV transition already done (and ignored here)
+		// and the transition SRV->UAV needs a UAV barrier then to work correctly otherwise there is no synchronization at all
+		bUAVBarrier |= bUAVAccessAfter;
 	}
 }
 
-void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions)
+void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
 {
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
@@ -578,11 +505,11 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 
 		if (ProcessTransitionDuringBegin(Data))
 		{
-			HandleTransientAliasing(*this, Data);
+			HandleTransientAliasing(Data);
 		}
 	}
 
-	HandleDiscardResources(*this, SkipFastClearEliminateState, Transitions, true /** bIsBeginTransitions */);
+	HandleDiscardResources(Transitions, true /** bIsBeginTransitions */);
 
 	bool bUAVBarrier = false;
 
@@ -593,7 +520,7 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 		// Handle transition during BeginTransitions?
 		if (ProcessTransitionDuringBegin(Data))
 		{
-			HandleResourceTransitions(*this, Data, SkipFastClearEliminateState, bUAVBarrier);
+			HandleResourceTransitions(Data, bUAVBarrier);
 		}
 	}
 
@@ -601,21 +528,70 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 	{
 		StateCache.FlushComputeShaderCache(true);
 	}
-}
 
-void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
-{
-	// Can't correctly handle RHITransitions from multiple threads at the samae time right now - only internal transitions work correctly then
-	// (will be fixed if unknown before state is not allowed anymore)
-	check(bIsDefaultContext || GUseInternalTransitions);
+	// Signal fences
+	bool bClosed = false;
+	const ERHIPipeline SourcePipeline = GetPipeline();
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const auto* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+		if (Data->bCrossPipeline)
+		{
+			const TRHIPipelineArray<FD3D12SyncPointRef>& DeviceSyncPoints = Data->SyncPoints[GetGPUIndex()];
 
-	RHIBeginTransitionsWithoutFencing(Transitions);
-	SignalTransitionFences(Transitions);
+			if (DeviceSyncPoints[SourcePipeline])
+			{
+				if (!bClosed)
+				{
+					CloseCommandList(false);
+					bClosed = true;
+				}
+
+				SignalSyncPoint(DeviceSyncPoints[SourcePipeline]);
+			}
+		}
+	}
+
+	if (bClosed)
+	{
+		OpenCommandList();
+	}
 }
 
 void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
 {
-	WaitForTransitionFences(Transitions);
+	// Wait for fences
+	{
+		bool bClosed = false;
+		const ERHIPipeline DstPipeline = GetPipeline();
+		for (const FRHITransition* Transition : Transitions)
+		{
+			const auto* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+			if (Data->bCrossPipeline)
+			{
+				const TRHIPipelineArray<FD3D12SyncPointRef>& DeviceSyncPoints = Data->SyncPoints[GetGPUIndex()];
+
+				EnumerateRHIPipelines(Data->SrcPipelines, [&](ERHIPipeline SrcPipeline)
+				{
+					if (SrcPipeline != DstPipeline && DeviceSyncPoints[SrcPipeline])
+					{
+						if (!bClosed)
+						{
+							CloseCommandList(false);
+							bClosed = true;
+						}
+
+						WaitSyncPoint(DeviceSyncPoints[SrcPipeline]);
+					}
+				});
+			}
+		}
+
+		if (bClosed)
+		{
+			OpenCommandList();
+		}
+	}
 
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
@@ -627,11 +603,11 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 
 		if (!ProcessTransitionDuringBegin(Data))
 		{
-			HandleTransientAliasing(*this, Data);
+			HandleTransientAliasing(Data);
 		}
 	}
 
-	HandleDiscardResources(*this, SkipFastClearEliminateState, Transitions, false /** bIsBeginTransitions */);
+	HandleDiscardResources(Transitions, false /** bIsBeginTransitions */);
 
 	bool bUAVBarrier = false;
 
@@ -642,7 +618,7 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 		// Handle transition during EndTransitions?
 		if (!ProcessTransitionDuringBegin(Data))
 		{
-			HandleResourceTransitions(*this, Data, SkipFastClearEliminateState, bUAVBarrier);
+			HandleResourceTransitions(Data, bUAVBarrier);
 		}
 	}
 
@@ -654,11 +630,11 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 
 void FD3D12CommandContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 {
-	FMemory::Memzero(GlobalUniformBuffers.GetData(), GlobalUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));
+	FMemory::Memzero(StaticUniformBuffers.GetData(), StaticUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));
 
 	for (int32 Index = 0; Index < InUniformBuffers.GetUniformBufferCount(); ++Index)
 	{
-		GlobalUniformBuffers[InUniformBuffers.GetSlot(Index)] = InUniformBuffers.GetUniformBuffer(Index);
+		StaticUniformBuffers[InUniformBuffers.GetSlot(Index)] = InUniformBuffers.GetUniformBuffer(Index);
 	}
 }
 
@@ -699,29 +675,17 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, F
 
 		if (pSourceResource->RequiresResourceStateTracking())
 		{
-			FD3D12DynamicRHI::TransitionResource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
+			TransitionResource(pSourceResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
 		}
+		
+		FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
-		CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+		GraphicsCommandList()->CopyBufferRegion(pDestResource->GetResource(), DestOffset, pSourceResource->GetResource(), Offset + SourceOffset, NumBytes);
+		UpdateResidency(pDestResource);
+		UpdateResidency(pSourceResource);
 
-		numCopies++;
-
-		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestOffset, pSourceResource->GetResource(), Offset + SourceOffset, NumBytes);
-		CommandListHandle.UpdateResidency(pDestResource);
-		CommandListHandle.UpdateResidency(pSourceResource);
-
-		ConditionalFlushCommandList();
+		ConditionalSplitCommandList();
 	}
-}
-
-void FD3D12CommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
-{
-	check(FenceRHI)
-
-	// @todo-mattc we don't want to flush here. That should be the caller's responsibility.
-	RHISubmitCommandsHint();
-	FD3D12GPUFence* Fence = FD3D12DynamicRHI::ResourceCast(FenceRHI);
-	Fence->WriteInternal(ED3D12CommandQueueType::Direct);
 }
 
 void FD3D12CommandContext::RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
@@ -1191,25 +1155,6 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIComputeShader* ComputeShade
 	CSConstantBuffer.UpdateConstant((const uint8*)NewValue, Offset, NumBytes);
 }
 
-void FD3D12CommandContext::ValidateExclusiveDepthStencilAccess(FExclusiveDepthStencil RequestedAccess) const
-{
-	const bool bSrcDepthWrite = RequestedAccess.IsDepthWrite();
-	const bool bSrcStencilWrite = RequestedAccess.IsStencilWrite();
-
-	if (bSrcDepthWrite || bSrcStencilWrite)
-	{
-		// New Rule: You have to call SetRenderTarget[s]() before
-		ensure(CurrentDepthTexture);
-
-		const bool bDstDepthWrite = CurrentDSVAccessType.IsDepthWrite();
-		const bool bDstStencilWrite = CurrentDSVAccessType.IsStencilWrite();
-
-		// requested access is not possible, fix SetRenderTarget EExclusiveDepthStencil or request a different one
-		check(!bSrcDepthWrite || bDstDepthWrite);
-		check(!bSrcStencilWrite || bDstStencilWrite);
-	}
-}
-
 void FD3D12CommandContext::RHISetStencilRef(uint32 StencilRef)
 {
 	StateCache.SetStencilRef(StencilRef);
@@ -1218,12 +1163,6 @@ void FD3D12CommandContext::RHISetStencilRef(uint32 StencilRef)
 void FD3D12CommandContext::RHISetBlendFactor(const FLinearColor& BlendFactor)
 {
 	StateCache.SetBlendFactor((const float*)&BlendFactor);
-}
-
-void FD3D12CommandContext::CommitRenderTargetsAndUAVs()
-{
-	StateCache.SetRenderTargets(NumSimultaneousRenderTargets, CurrentRenderTargets, CurrentDepthStencilTarget);
-	StateCache.ClearUAVs<SF_Pixel>();
 }
 
 struct FRTVDesc
@@ -1293,26 +1232,15 @@ void FD3D12CommandContext::SetRenderTargets(
 
 	check(NewNumSimultaneousRenderTargets <= MaxSimultaneousRenderTargets);
 
-	bool bTargetChanged = false;
-
 	// Set the appropriate depth stencil view depending on whether depth writes are enabled or not
-	FD3D12DepthStencilView* DepthStencilView = NULL;
+	FD3D12DepthStencilView* DepthStencilView = nullptr;
 	if (NewDepthStencilTarget)
 	{
 		check(NewDepthStencilTargetRHI);	// Calm down static analysis
-		CurrentDSVAccessType = NewDepthStencilTargetRHI->GetDepthStencilAccess();
-		DepthStencilView = NewDepthStencilTarget->GetDepthStencilView(CurrentDSVAccessType);
+		DepthStencilView = NewDepthStencilTarget->GetDepthStencilView(NewDepthStencilTargetRHI->GetDepthStencilAccess());
 
 		// Unbind any shader views of the depth stencil target that are bound.
 		ConditionalClearShaderResource(&NewDepthStencilTarget->ResourceLocation);
-	}
-
-	// Check if the depth stencil target is different from the old state.
-	if (CurrentDepthStencilTarget != DepthStencilView)
-	{
-		CurrentDepthTexture = NewDepthStencilTarget;
-		CurrentDepthStencilTarget = DepthStencilView;
-		bTargetChanged = true;
 	}
 
 	// Gather the render target views for the new render targets.
@@ -1334,25 +1262,10 @@ void FD3D12CommandContext::SetRenderTargets(
 		}
 
 		NewRenderTargetViews[RenderTargetIndex] = RenderTargetView;
-
-		// Check if the render target is different from the old state.
-		if (CurrentRenderTargets[RenderTargetIndex] != RenderTargetView)
-		{
-			CurrentRenderTargets[RenderTargetIndex] = RenderTargetView;
-			bTargetChanged = true;
-		}
-	}
-	if (NumSimultaneousRenderTargets != NewNumSimultaneousRenderTargets)
-	{
-		NumSimultaneousRenderTargets = NewNumSimultaneousRenderTargets;
-		bTargetChanged = true;
 	}
 
-	// Only make the D3D call to change render targets if something actually changed.
-	if (bTargetChanged)
-	{
-		CommitRenderTargetsAndUAVs();
-	}
+	StateCache.SetRenderTargets(NewNumSimultaneousRenderTargets, NewRenderTargetViews, DepthStencilView);
+	StateCache.ClearUAVs<SF_Pixel>();
 
 	// Set the viewport to the full size of render target 0.
 	if (NewRenderTargetViews[0])
@@ -1406,47 +1319,6 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 	FD3D12BoundRenderTargets BoundRenderTargets(RenderTargetViews, NumSimultaneousRTs, DSView);
 	FD3D12DepthStencilView* DepthStencilView = BoundRenderTargets.GetDepthStencilView();
 
-	// perform the correct barrier transitions to RTV
-	{
-		for (int32 TargetIndex = 0; TargetIndex < BoundRenderTargets.GetNumActiveTargets(); TargetIndex++)
-		{
-			FD3D12RenderTargetView* RTView = BoundRenderTargets.GetRenderTargetView(TargetIndex);
-			if (RTView != nullptr)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, RTView, D3D12_RESOURCE_STATE_RENDER_TARGET, FD3D12DynamicRHI::ETransitionMode::Validate);
-			}
-		}
-	}
-
-	// perform the optimal barrier transition for depth stencil as well
-	if (DepthStencilView)
-	{
-		// Find out the desired state for both the depth & the stencil
-		FExclusiveDepthStencil DepthStencilAccess = RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess();
-		D3D12_RESOURCE_STATES DepthState = DepthStencilAccess.IsDepthWrite() ? D3D12_RESOURCE_STATE_DEPTH_WRITE : (DepthStencilAccess.IsDepthRead() ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_COMMON);
-		D3D12_RESOURCE_STATES StencilState = DepthStencilAccess.IsStencilWrite() ? D3D12_RESOURCE_STATE_DEPTH_WRITE : (DepthStencilAccess.IsStencilRead() ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_COMMON);
-
-		// Same target state for both depth & stencil, then it can be done with single barrier
-		if (DepthState == StencilState)
-		{
-			if (DepthState != D3D12_RESOURCE_STATE_COMMON)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView, DepthState, FD3D12DynamicRHI::ETransitionMode::Validate);
-			}
-		}
-		else
-		{
-			if (DepthState != D3D12_RESOURCE_STATE_COMMON)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView->GetResource(), D3D12_RESOURCE_STATE_TBD, DepthState, DepthStencilView->GetDepthOnlyViewSubresourceSubset(), FD3D12DynamicRHI::ETransitionMode::Validate);
-			}
-			if (StencilState != D3D12_RESOURCE_STATE_COMMON)
-			{
-				FD3D12DynamicRHI::TransitionResource(CommandListHandle, DepthStencilView->GetResource(), D3D12_RESOURCE_STATE_TBD, StencilState, DepthStencilView->GetStencilOnlyViewSubresourceSubset(), FD3D12DynamicRHI::ETransitionMode::Validate);
-			}
-		}
-	}
-
 	if (RenderTargetsInfo.bClearColor || RenderTargetsInfo.bClearStencil || RenderTargetsInfo.bClearDepth)
 	{
 		FLinearColor ClearColors[MaxSimultaneousRenderTargets];
@@ -1490,14 +1362,11 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 			{
 				FD3D12Resource* Resource = RetrieveTexture(RenderTargetsInfo.ShadingRateTexture)->GetResource();
 
-				FD3D12DynamicRHI::TransitionResource(
-					CommandListHandle,
+				TransitionResource(
 					Resource,
 					D3D12_RESOURCE_STATE_TBD,
 					D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE,
-					D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-					FD3D12DynamicRHI::ETransitionMode::Validate);
-
+					D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 				StateCache.SetShadingRateImage(Resource, RenderTargetsInfo.ShadingRateTextureCombiner);
 			}
@@ -1515,56 +1384,9 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 #endif
 }
 
-// Occlusion/Timer queries.
-void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
-{
-	FD3D12RenderQuery* Query = RetrieveObject<FD3D12RenderQuery>(QueryRHI);
-	check(IsDefaultContext());
-	check(Query->Type == RQT_Occlusion);
-
-	GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->BeginQuery(*this, Query);
-
-	bIsDoingQuery = true;
-}
-
-void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
-{
-	FD3D12RenderQuery* Query = RetrieveObject<FD3D12RenderQuery>(QueryRHI);
-	check(IsDefaultContext());
-
-	FD3D12QueryHeap* QueryHeap = nullptr;
-
-	switch (Query->Type)
-	{
-	case RQT_Occlusion:
-		QueryHeap = GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType);
-		break;
-
-	case RQT_AbsoluteTime:
-		QueryHeap = GetParentDevice()->GetTimestampQueryHeap(CommandQueueType);
-		break;
-
-	default:
-		ensure(false);
-	}
-
-	QueryHeap->EndQuery(*this, Query);
-	// Multi-GPU support : by setting a timestamp, we can filter only the relevant GPUs when getting the query results.
-	Query->Timestamp = GFrameNumberRenderThread;
-
-	// Query data isn't ready until it has been resolved.
-	ensure(Query->bResultIsCached == false && Query->bResolved == false);
-
-	if (Query->Type == RQT_Occlusion)
-	{
-		check(bIsDoingQuery);
-		bIsDoingQuery = false;
-	}
-}
-
 void FD3D12CommandContext::RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
 {
-	FGPUTimingCalibrationTimestamp Timestamp = GetParentDevice()->GetCommandListManager().GetCalibrationTimestamp();
+	FGPUTimingCalibrationTimestamp Timestamp = GetParentDevice()->GetCalibrationTimestamp(QueueType);
 	CalibrationQuery->CPUMicroseconds[GetGPUIndex()] = Timestamp.CPUMicroseconds;
 	CalibrationQuery->GPUMicroseconds[GetGPUIndex()] = Timestamp.GPUMicroseconds;
 }
@@ -2004,24 +1826,19 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	uint32 VertexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
+	uint32 VertexCount = StateCache.GetVertexCount(NumPrimitives);
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
-	numDraws++;
-	numPrimitives += NumPrimitives * NumInstances;
-	numVertices += VertexCount * NumInstances;
+
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
 	}
 
 	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
-	CommandListHandle->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
+	GraphicsCommandList()->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -2029,7 +1846,6 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 {
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
-	numDraws++;
 	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
@@ -2045,25 +1861,22 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
-	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+	TransitionResource(Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
-	CommandListHandle->ExecuteIndirect(
+	GraphicsCommandList()->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndirectCommandSignature(),
 		1,
 		Location.GetResource()->GetResource(),
 		Location.GetOffsetFromBaseOfResource() + ArgumentOffset,
 		NULL,
 		0
-		);
+	);
 
-	CommandListHandle.UpdateResidency(Location.GetResource());
+	UpdateResidency(Location.GetResource());
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -2075,7 +1888,6 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 	FD3D12Buffer* ArgumentsBuffer = RetrieveObject<FD3D12Buffer>(ArgumentsBufferRHI);
 
-	numDraws++;
 	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
@@ -2096,25 +1908,22 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
-	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+	TransitionResource(Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
-	CommandListHandle->ExecuteIndirect(
+	GraphicsCommandList()->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndexedIndirectCommandSignature(),
 		1,
 		Location.GetResource()->GetResource(),
 		Location.GetOffsetFromBaseOfResource() + DrawArgumentsIndex * ArgumentsBufferStride,
 		NULL,
 		0
-		);
+	);
 
-	CommandListHandle.UpdateResidency(Location.GetResource());
+	UpdateResidency(Location.GetResource());
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -2125,9 +1934,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	RHI_DRAW_CALL_STATS_MGPU(GetGPUIndex(), StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
 
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
-	numDraws++;
-	numPrimitives += NumPrimitives * NumInstances;
-	numVertices += NumVertices * NumInstances;
+
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, NumVertices * NumInstances);
@@ -2136,7 +1943,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	uint32 IndexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
+	uint32 IndexCount = StateCache.GetVertexCount(NumPrimitives);
 
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 
@@ -2150,13 +1957,10 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
 	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
-	CommandListHandle->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
+	GraphicsCommandList()->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -2166,7 +1970,6 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
-	numDraws++;
 	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
@@ -2186,32 +1989,28 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
-	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+	TransitionResource(Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
-	CommandListHandle->ExecuteIndirect(
+	GraphicsCommandList()->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndexedIndirectCommandSignature(),
 		1,
 		Location.GetResource()->GetResource(),
 		Location.GetOffsetFromBaseOfResource() + ArgumentOffset,
 		NULL,
 		0
-		);
+	);
 
-	CommandListHandle.UpdateResidency(Location.GetResource());
+	UpdateResidency(Location.GetResource());
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
 #if PLATFORM_SUPPORTS_MESH_SHADERS
 void FD3D12CommandContext::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
-	numDraws++;
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));
@@ -2222,13 +2021,10 @@ void FD3D12CommandContext::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint3
 
 	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
-	CommandListHandle.GraphicsCommandList6()->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+	GraphicsCommandList6()->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
@@ -2236,7 +2032,6 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 {
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
-	numDraws++;
 	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
@@ -2252,10 +2047,10 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
-	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
-	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+	TransitionResource(Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
-	CommandListHandle->ExecuteIndirect(
+	GraphicsCommandList()->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDispatchIndirectMeshCommandSignature(),
 		1,
 		Location.GetResource()->GetResource(),
@@ -2264,23 +2059,15 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 		0
 	);
 
-	CommandListHandle.UpdateResidency(Location.GetResource());
+	UpdateResidency(Location.GetResource());
 
-	ConditionalFlushCommandList();
+	ConditionalSplitCommandList();
 
-#if UE_BUILD_DEBUG	
-	OwningRHI.DrawCount++;
-#endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 #endif // PLATFORM_SUPPORTS_MESH_SHADERS
 
 // Raster operations.
-void FD3D12CommandContext::RHIClearMRT(bool* bClearColorArray, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil)
-{
-	RHIClearMRTImpl(bClearColorArray, NumClearColors, ClearColorArray, bClearDepth, Depth, bClearStencil, Stencil);
-}
-
 void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12ClearMRT);
@@ -2367,7 +2154,7 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 
 	if (ClearRTV || ClearDSV)
 	{
-		CommandListHandle.FlushResourceBarriers();
+		FlushResourceBarriers();
 
 		if (ClearRTV)
 		{
@@ -2377,21 +2164,19 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 
 				if (RTView != nullptr && bClearColorArray[TargetIndex])
 				{
-					numClears++;
-					CommandListHandle->ClearRenderTargetView(RTView->GetOfflineCpuHandle(), (float*)&ClearColorArray[TargetIndex], ClearRectCount, pClearRects);
-					CommandListHandle.UpdateResidency(RTView->GetResource());
+					GraphicsCommandList()->ClearRenderTargetView(RTView->GetOfflineCpuHandle(), (float*)&ClearColorArray[TargetIndex], ClearRectCount, pClearRects);
+					UpdateResidency(RTView->GetResource());
 				}
 			}
 		}
 
 		if (ClearDSV)
 		{
-			numClears++;
-			CommandListHandle->ClearDepthStencilView(DepthStencilView->GetOfflineCpuHandle(), (D3D12_CLEAR_FLAGS)ClearFlags, Depth, Stencil, ClearRectCount, pClearRects);
-			CommandListHandle.UpdateResidency(DepthStencilView->GetResource());
+			GraphicsCommandList()->ClearDepthStencilView(DepthStencilView->GetOfflineCpuHandle(), (D3D12_CLEAR_FLAGS)ClearFlags, Depth, Stencil, ClearRectCount, pClearRects);
+			UpdateResidency(DepthStencilView->GetResource());
 		}
 
-		ConditionalFlushCommandList();
+		ConditionalSplitCommandList();
 	}
 
 	if (IsDefaultContext())
@@ -2405,6 +2190,8 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 // Blocks the CPU until the GPU catches up and goes idle.
 void FD3D12DynamicRHI::RHIBlockUntilGPUIdle()
 {
+	RHISubmitCommandsAndFlushGPU();
+
 	const int32 NumAdapters = ChosenAdapters.Num();
 	for (int32 Index = 0; Index < NumAdapters; ++Index)
 	{
@@ -2443,10 +2230,10 @@ void FD3D12CommandContext::RHISetDepthBounds(float MinDepth, float MaxDepth)
 void FD3D12CommandContext::SetDepthBounds(float MinDepth, float MaxDepth)
 {
 #if PLATFORM_WINDOWS
-	if (GSupportsDepthBoundsTest && CommandListHandle.GraphicsCommandList1())
+	if (GSupportsDepthBoundsTest && GraphicsCommandList1())
 	{
 		// This should only be called if Depth Bounds Test is supported.
-		CommandListHandle.GraphicsCommandList1()->OMSetDepthBounds(MinDepth, MaxDepth);
+		GraphicsCommandList1()->OMSetDepthBounds(MinDepth, MaxDepth);
 	}
 #endif
 }
@@ -2461,14 +2248,14 @@ void FD3D12CommandContext::RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRa
 void FD3D12CommandContext::SetShadingRate(EVRSShadingRate ShadingRate, const TStaticArray<EVRSRateCombiner, ED3D12VRSCombinerStages::Num>& Combiners)
 {
  #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
- 	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled && CommandListHandle.GraphicsCommandList5() != nullptr)
+ 	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled && GraphicsCommandList5())
  	{
 		for (int32 CombinerIndex = 0; CombinerIndex < Combiners.Num(); ++CombinerIndex)
 		{
 			VRSCombiners[CombinerIndex] = ConvertShadingRateCombiner(Combiners[CombinerIndex]);
 		}
  		VRSShadingRate = static_cast<D3D12_SHADING_RATE>(ShadingRate);
- 		CommandListHandle.GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
+ 		GraphicsCommandList5()->RSSetShadingRate(VRSShadingRate, VRSCombiners);
  	}
 	else
 	{
@@ -2484,15 +2271,15 @@ void FD3D12CommandContext::SetShadingRate(EVRSShadingRate ShadingRate, const TSt
 void FD3D12CommandContext::SetShadingRateImage(FD3D12Resource* RateImageTexture)
 {
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-	if (GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled && CommandListHandle.GraphicsCommandList5() != nullptr)
+	if (GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled && GraphicsCommandList5())
 	{
 		if (RateImageTexture)
 		{
-			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(RateImageTexture->GetResource());
+			GraphicsCommandList5()->RSSetShadingRateImage(RateImageTexture->GetResource());
 		}
 		else
 		{
-			CommandListHandle.GraphicsCommandList5()->RSSetShadingRateImage(nullptr);
+			GraphicsCommandList5()->RSSetShadingRateImage(nullptr);
 		}
 	}
  #endif
@@ -2500,53 +2287,14 @@ void FD3D12CommandContext::SetShadingRateImage(FD3D12Resource* RateImageTexture)
 
 void FD3D12CommandContext::RHISubmitCommandsHint()
 {
-	// Resolve any timestamp queries so far (if any).
-	GetParentDevice()->GetTimestampQueryHeap(CommandQueueType)->EndQueryBatchAndResolveQueryData(*this);
-
-	// Submit the work we have so far, and start a new command list.
-	FlushCommands();
-
-	// Clear the state on requested command hint flush and not in scene or viewport rendering
-	if (!IsDrawingSceneOrViewport())
-	{
-		ClearState(EClearStateFlags::None);
-	}
+	// Nothing to do
 }
 
-#define USE_COPY_QUEUE_FOR_RESOURCE_SYNC 1
-/*
-* When using AFR certain inter-frame dependecies need to be synchronized across all GPUs.
-* For example a rendering technique that relies on results from the previous frame (which occured on the other GPU).
-*/
-
-void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
-{
 #if WITH_MGPU
-	check(IsDefaultContext());
-
-	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
-	{
-		return;
-	}
-
-	FD3D12Adapter* Adapter = GetParentAdapter();
-	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
-
-	const uint32 GPUIndex = GetGPUIndex();
-	if (Effect->ShouldWaitForPrevious(GPUIndex))
-	{
-		// Execute the current command list so we can have a point to insert a wait
-		FlushCommands();
-
-		Effect->WaitForPrevious(GPUIndex, CommandQueueType);
-	}
-#endif // WITH_MGPU
-}
 
 template <typename TD3D12Resource, typename TCopyFunction>
-void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<TD3D12Resource*> InResources, const TCopyFunction& InCopyFunction)
+void FD3D12CommandContext::BroadcastTemporalEffect(const FName& InEffectName, const TArrayView<TD3D12Resource*> InResources, const TCopyFunction& InCopyFunction)
 {
-#if WITH_MGPU
 	check(IsDefaultContext());
 
 	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
@@ -2554,128 +2302,132 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 		return;
 	}
 
-	const uint32 GPUIndex = GetGPUIndex();
-	const uint32 NextSiblingGPUIndex = AFRUtils::GetNextSiblingGPUIndex(GPUIndex);
-
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-	FD3D12TemporalEffect* Effect = Adapter->GetTemporalEffect(InEffectName);
-
-#if USE_COPY_QUEUE_FOR_RESOURCE_SYNC
+	const uint32 SiblingGPUIndex = AFRUtils::GetNextSiblingGPUIndex(GetGPUIndex());
 
 	for (TD3D12Resource* SrcResource : InResources)
 	{
 		// Resources must be in the COMMON state before using on the copy queue.
-		TD3D12Resource* DstResource = SrcResource->GetLinkedObject(NextSiblingGPUIndex);
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcResource->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstResource->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+		TD3D12Resource* DstResource = SrcResource->GetLinkedObject(SiblingGPUIndex);
+		TransitionResource(SrcResource->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		TransitionResource(DstResource->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 	}
-	CommandListHandle.FlushResourceBarriers();
+	FlushResourceBarriers();
 
-	// Finish rendering on the current queue.
-	FlushCommands();
+	// Insert a sync point on the current context.
+	// This will be used to fence the copy from starting until all prior work on this queue is complete.
+	// @todo mgpu - RHIBroadcastTemporalEffect does not take async compute into consideration.
+	FD3D12SyncPointRef WaitForGraphics_SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUOnly);
 
-	// Tell the copy queue to wait for the current queue to finish rendering before starting the copy.
-	Effect->SignalSyncComplete(GPUIndex, CommandQueueType);
-	Effect->WaitForPrevious(GPUIndex, ED3D12CommandQueueType::Copy);
+	CloseCommandList(false);
+	SignalSyncPoint(WaitForGraphics_SyncPoint);
+	OpenCommandList();
 
-	FD3D12CommandAllocatorManager& CopyCommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
-	FD3D12CommandAllocator* CopyCommandAllocator = CopyCommandAllocatorManager.ObtainCommandAllocator();
-	FD3D12CommandListManager& CopyCommandListManager = Device->GetCopyCommandListManager();
-	FD3D12CommandListHandle hCopyCommandList = CopyCommandListManager.ObtainCommandList(*CopyCommandAllocator);
-	hCopyCommandList.SetCurrentOwningContext(this);
-
-	for (TD3D12Resource* SrcResource : InResources)
+	// Start the copy work
+	FD3D12SyncPointRef& CopySyncPoint = Device->GetParentAdapter()->GetTemporalEffect(InEffectName)[SiblingGPUIndex];
 	{
-		// NB: We do not increment numCopies here because the main context isn't doing any work.
-		TD3D12Resource* DstResource = SrcResource->GetLinkedObject(NextSiblingGPUIndex);
-		InCopyFunction(hCopyCommandList, DstResource, SrcResource);
+		// Tell the copy queue to wait for the current queue to finish rendering before starting the copy.
+		FD3D12CopyScope CopyScope(Device, ED3D12SyncPointType::GPUOnly, WaitForGraphics_SyncPoint);
+
+		for (TD3D12Resource* SrcResource : InResources)
+		{
+			TD3D12Resource* DstResource = SrcResource->GetLinkedObject(SiblingGPUIndex);
+			InCopyFunction(CopyScope.Context, DstResource, SrcResource);
+		}
+
+		// Put the sync point in the Effect object to await later
+		checkf(CopySyncPoint == nullptr, TEXT("A previously issued sync point was not awaited by the sibling GPU."));
+		CopySyncPoint = CopyScope.GetSyncPoint();
 	}
-	hCopyCommandList.Close();
-
-	bool bWaitForCompletion = false;
-
-	GetID3D12DynamicRHI()->RHIExecuteOnCopyCommandQueue([bWaitForCompletion, &CopyCommandListManager, &hCopyCommandList](ID3D12CommandQueue* D3DCommandQueue) -> void
-	{
-		CopyCommandListManager.ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
-	});
-
-	CopyCommandAllocatorManager.ReleaseCommandAllocator(CopyCommandAllocator);
-
-	// Signal again once the copy queue copy is complete.
-	Effect->SignalSyncComplete(GPUIndex, ED3D12CommandQueueType::Copy);
-
-#else
-
-	for (TD3D12Resource* SrcResource : InResources)
-	{
-		TD3D12Resource* DstResource = SrcResource->GetLinkedObject(NextSiblingGPUIndex);;
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcResource->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstResource->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-	}
-	CommandListHandle.FlushResourceBarriers();
-
-	for (TD3D12Resource* SrcResource : InResources)
-	{
-		numCopies++;
-		TD3D12Resource* DstResource = SrcResource->GetLinkedObject(NextSiblingGPUIndex);;
-		InCopyFunction(CommandListHandle, DstResource, SrcResource);
-	}
-
-	FlushCommands();
-
-	for (TD3D12Resource* SrcResource : InResources)
-	{
-		TD3D12Resource* DstResource = SrcResource->GetLinkedObject(NextSiblingGPUIndex);;
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, SrcResource->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-		FD3D12DynamicRHI::TransitionResource(CommandListHandle, DstResource->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-	}
-	CommandListHandle.FlushResourceBarriers();
-
-	Effect->SignalSyncComplete(GPUIndex, CommandQueueType);
-
-#endif // USE_COPY_QUEUE_FOR_RESOURCE_SYNC
-#endif // WITH_MGPU
 }
+
+/*
+* When using AFR certain inter-frame dependecies need to be synchronized across all GPUs.
+* For example a rendering technique that relies on results from the previous frame (which occured on the other GPU).
+*/
 void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures)
 {
-#if WITH_MGPU
 	FMemMark Mark(FMemStack::Get());
+
 	TArray<FD3D12Texture*, TMemStackAllocator<>> Resources;
 	Resources.Reserve(InTextures.Num());
+
 	for (FRHITexture* Texture : InTextures)
 	{
 		Resources.Emplace(RetrieveTexture(Texture));
 	}
-	auto CopyFunction = [](FD3D12CommandListHandle& CommandList, FD3D12Texture* Dst, FD3D12Texture* Src)
-	{
-		CommandList->CopyResource(Dst->GetResource()->GetResource(), Src->GetResource()->GetResource());
-	};
-	RHIBroadcastTemporalEffect(InEffectName, MakeArrayView(Resources), CopyFunction);
-#endif // WITH_MGPU
+
+	BroadcastTemporalEffect(InEffectName, MakeArrayView(Resources),
+		[](FD3D12ContextCommon& Context, FD3D12Texture* Dst, FD3D12Texture* Src)
+		{
+			FD3D12Resource* DstResource = Dst->GetResource();
+			FD3D12Resource* SrcResource = Src->GetResource();
+
+			Context.UpdateResidency(DstResource);
+			Context.UpdateResidency(SrcResource);
+
+			Context.CopyCommandList()->CopyResource(
+				DstResource->GetResource(),
+				SrcResource->GetResource()
+			);
+		});
 }
 
 void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIBuffer*> InBuffers)
 {
-#if WITH_MGPU
 	FMemMark Mark(FMemStack::Get());
+
 	TArray<FD3D12Buffer*, TMemStackAllocator<>> Resources;
 	Resources.Reserve(InBuffers.Num());
+
 	for (auto* Buffer : InBuffers)
 	{
 		Resources.Emplace(RetrieveObject<FD3D12Buffer>(Buffer));
 	}
-	auto CopyFunction = [](FD3D12CommandListHandle& CommandList, FD3D12Buffer* Dst, FD3D12Buffer* Src)
-	{
-		CommandList->CopyBufferRegion(
-			Dst->GetResource()->GetResource(),
-			Dst->ResourceLocation.GetOffsetFromBaseOfResource(),
-			Src->GetResource()->GetResource(),
-			Src->ResourceLocation.GetOffsetFromBaseOfResource(),
-			Src->ResourceLocation.GetSize()
-		);
-	};
-	RHIBroadcastTemporalEffect(InEffectName, MakeArrayView(Resources), CopyFunction);
-#endif // WITH_MGPU
+
+	BroadcastTemporalEffect(InEffectName, MakeArrayView(Resources),
+		[](FD3D12ContextCommon& Context, FD3D12Buffer* Dst, FD3D12Buffer* Src)
+		{
+			FD3D12Resource* DstResource = Dst->GetResource();
+			FD3D12Resource* SrcResource = Src->GetResource();
+
+			Context.UpdateResidency(DstResource);
+			Context.UpdateResidency(SrcResource);
+
+			Context.CopyCommandList()->CopyBufferRegion(
+				DstResource->GetResource(),
+				Dst->ResourceLocation.GetOffsetFromBaseOfResource(),
+				SrcResource->GetResource(),
+				Src->ResourceLocation.GetOffsetFromBaseOfResource(),
+				Src->ResourceLocation.GetSize()
+			);
+		});
 }
 
+void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
+{
+	check(IsDefaultContext());
+
+	if (GNumAlternateFrameRenderingGroups == 1 || !AFRSyncTemporalResources)
+	{
+		return;
+	}
+
+	FD3D12SyncPointRef& SyncPoint = GetParentAdapter()->GetTemporalEffect(InEffectName)[GetGPUIndex()];
+
+	if (SyncPoint)
+	{
+		CloseCommandList(false);
+		WaitSyncPoint(SyncPoint);
+		OpenCommandList();
+
+		SyncPoint = nullptr;
+	}
+}
+
+#else
+
+void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHITexture*> InTextures) { }
+void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName, const TArrayView<FRHIBuffer* > InBuffers ) { }
+void FD3D12CommandContext::RHIWaitForTemporalEffect  (const FName& InEffectName) { }
+
+#endif // WITH_MGPU

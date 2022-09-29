@@ -1239,7 +1239,7 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D11DynamicRHI* RESTRICT D3D
 
 				// Textures bound here only have their "common" plane accessible. Stencil etc is ignored.
 				// (i.e. only access the color plane of a color texture, or depth plane of a depth texture)
-				D3D11RHI->Tracker->Assert(TextureRHI->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1), Access);
+				D3D11RHI->Tracker->Assert(TextureD3D11->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1), Access);
 			}
 #endif
 
@@ -1876,16 +1876,31 @@ void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float M
 
 void FD3D11DynamicRHI::RHISubmitCommandsHint()
 {
-
 }
+
 IRHICommandContext* FD3D11DynamicRHI::RHIGetDefaultContext()
 {
 	return this;
 }
 
-IRHICommandContextContainer* FD3D11DynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)
+IRHIComputeContext* FD3D11DynamicRHI::RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask)
 {
+	UE_LOG(LogRHI, Fatal, TEXT("FD3D11DynamicRHI::RHIGetCommandContext should never be called. D3D11 RHI does not implement parallel command list execution."));
 	return nullptr;
+}
+
+IRHIPlatformCommandList* FD3D11DynamicRHI::RHIFinalizeContext(IRHIComputeContext* Context)
+{
+	// "Context" will always be the default context, since we don't implement parallel execution.
+	// D3D11 uses an immediate context, there's nothing to do here. Executed commands will have already reached the driver.
+
+	// Returning nullptr indicates that we don't want RHISubmitCommandLists to be called.
+	return nullptr;
+}
+
+void FD3D11DynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("FD3D11DynamicRHI::RHISubmitCommandLists should never be called. D3D11 RHI does not implement parallel command list execution."));
 }
 
 void FD3D11DynamicRHI::EnableUAVOverlap()

@@ -156,12 +156,9 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			FD3D12Device* Device = CurrentTexture.GetParentDevice();
 			FD3D12Resource* Resource = CurrentTexture.GetResource();
 
-			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
-			hCommandList.GetCurrentOwningContext()->numInitialResourceCopies += NumSubresources;
+			FD3D12CommandContext& Context = Device->GetDefaultCommandContext();
 
 			// resource should be in copy dest already, because it's created like that, so no transition required here
-			
-			ID3D12GraphicsCommandList* CmdList = hCommandList.GraphicsCommandList();
 
 			D3D12_TEXTURE_COPY_LOCATION Dst;
 			Dst.pResource = Resource->GetResource();
@@ -171,31 +168,18 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			{
 				Dst.SubresourceIndex = Subresource;
 				Src.PlacedFootprint = Footprints[Subresource];
-				CmdList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
-			}			
+				Context.GraphicsCommandList()->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
+			}
 
 			// Update the resource state after the copy has been done (will take care of updating the residency as well)
-			hCommandList.AddTransitionBarrier(Resource, D3D12_RESOURCE_STATE_COPY_DEST, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-			if (Resource->RequiresResourceStateTracking())
-			{
-				// Update the tracked resource state of this resource in the command list
-				CResourceState& ResourceState = hCommandList.GetResourceState(Resource);
-				ResourceState.SetResourceState(DestinationState);
-				Resource->GetResourceState().SetResourceState(DestinationState);
-
-				// Add dummy pending barrier, because the end state needs to be updated after execture command list with tracked state in the command list
-				hCommandList.AddPendingResourceBarrier(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			}
-			else
-			{
-				check(Resource->GetDefaultResourceState() == DestinationState);
-			}
-
-			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
+			Context.AddTransitionBarrier(Resource, D3D12_RESOURCE_STATE_COPY_DEST, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			Context.ConditionalSplitCommandList();
 
 			// Texture is now written and ready, so unlock the block (locked after creation and can be defragmented if needed)
 			CurrentTexture.ResourceLocation.UnlockPoolData();
+
+			// If the resource is untracked, the destination state must match the default state of the resource.
+			check(Resource->RequiresResourceStateTracking() || (Resource->GetDefaultResourceState() == DestinationState));
 		}
 
 		if (!bAllocateOnStack)
@@ -250,11 +234,11 @@ struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHIC
 
 			FD3D12Device* Device = OldTexture->GetParentDevice();
 
-			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+			FD3D12CommandContext& Context = Device->GetDefaultCommandContext();
 
-			FScopeResourceBarrier ScopeResourceBarrierDest(hCommandList, NewTexture->GetResource(), NewTexture->GetResource()->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			FScopeResourceBarrier ScopeResourceBarrierSource(hCommandList, OldTexture->GetResource(), OldTexture->GetResource()->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			hCommandList.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+			FScopedResourceBarrier ScopeResourceBarrierDst(Context, NewTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST  , D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			FScopedResourceBarrier ScopeResourceBarrierSrc(Context, OldTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			Context.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 			for (uint32 MipIndex = 0; MipIndex < NumSharedMips; ++MipIndex)
 			{
@@ -267,19 +251,18 @@ struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHIC
 				CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(NewTexture->GetResource()->GetResource(), destSubresource);
 				CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(OldTexture->GetResource()->GetResource(), srcSubresource);
 
-				Device->GetDefaultCommandContext().numCopies++;
-				hCommandList->CopyTextureRegion(
+				Context.GraphicsCommandList()->CopyTextureRegion(
 					&DestCopyLocation,
 					0, 0, 0,
 					&SourceCopyLocation,
 					nullptr);
 
-				hCommandList.UpdateResidency(NewTexture->GetResource());
-				hCommandList.UpdateResidency(OldTexture->GetResource());
+				Context.UpdateResidency(NewTexture->GetResource());
+				Context.UpdateResidency(OldTexture->GetResource());
 
-				Device->GetDefaultCommandContext().ConditionalFlushCommandList();
+				Context.ConditionalSplitCommandList();
 
-				DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
+				DEBUG_EXECUTE_COMMAND_CONTEXT(Context);
 			}
 		}
 
@@ -487,13 +470,6 @@ void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture& Texture)
 
 bool FD3D12Texture::CanBe4KAligned(const FD3D12ResourceDesc& Desc, EPixelFormat UEFormat)
 {
-	// Exclude video related formats
-	if (UEFormat == PF_NV12 ||
-		UEFormat == PF_P010)
-	{
-		return false;
-	}
-
 	// 4KB alignment is only available for read only textures
 	if (!EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
 		!Desc.NeedsUAVAliasWorkarounds() && // UAV aliased resources are secretly writable.
@@ -1108,58 +1084,51 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 			FD3D12Device* Device = CurrentTexture.GetParentDevice();
 			FD3D12Resource* Resource = CurrentTexture.GetResource();
 
-			FD3D12CommandAllocatorManager& CommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
-			FD3D12CommandAllocator* CurrentCommandAllocator = CommandAllocatorManager.ObtainCommandAllocator();
-			FD3D12CommandListHandle hCopyCommandList = Device->GetCopyCommandListManager().ObtainCommandList(*CurrentCommandAllocator);
-			hCopyCommandList.SetCurrentOwningContext(&Device->GetDefaultCommandContext());
-
-			// NB: Do not increment numCopies because that will count as work on the direct
-			// queue, not the copy queue, possibly causing it to flush prematurely. We are
-			// explicitly submitting the copy command list so there's no need to increment any
-			// work counters.
-
-			if (bSplitAllocation)
+			FD3D12SyncPointRef SyncPoint;
 			{
-				UpdateSubresources(
-					(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
-					Resource->GetResource(),
-					TempResourceLocation.GetResource()->GetResource(),
-					TempResourceLocation.GetOffsetFromBaseOfResource(),
-					0, 1,
-					SubResourceData);
+				FD3D12CopyScope CopyScope(Device, ED3D12SyncPointType::GPUAndCPU);
+				SyncPoint = CopyScope.GetSyncPoint();
 
-				UpdateSubresources(
-					(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
-					Resource->GetResource(),
-					TempResourceLocationLowMips.GetResource()->GetResource(),
-					TempResourceLocationLowMips.GetOffsetFromBaseOfResource(),
-					1, NumMips - 1,
-					SubResourceData + 1);
+				// NB: Do not increment NumCopies because that will count as work on the direct
+				// queue, not the copy queue, possibly causing it to flush prematurely. We are
+				// explicitly submitting the copy command list so there's no need to increment any
+				// work counters.
+
+				if (bSplitAllocation)
+				{
+					UpdateSubresources(
+						CopyScope.Context.CopyCommandList().Get(),
+						Resource->GetResource(),
+						TempResourceLocation.GetResource()->GetResource(),
+						TempResourceLocation.GetOffsetFromBaseOfResource(),
+						0, 1,
+						SubResourceData);
+
+					UpdateSubresources(
+						CopyScope.Context.CopyCommandList().Get(),
+						Resource->GetResource(),
+						TempResourceLocationLowMips.GetResource()->GetResource(),
+						TempResourceLocationLowMips.GetOffsetFromBaseOfResource(),
+						1, NumMips - 1,
+						SubResourceData + 1);
+				}
+				else
+				{
+					UpdateSubresources(
+						CopyScope.Context.CopyCommandList().Get(),
+						Resource->GetResource(),
+						TempResourceLocation.GetResource()->GetResource(),
+						TempResourceLocation.GetOffsetFromBaseOfResource(),
+						0, NumMips,
+						SubResourceData);
+				}
+
+				CopyScope.Context.UpdateResidency(Resource);
 			}
-			else
-			{
-				UpdateSubresources(
-					(ID3D12GraphicsCommandList*)hCopyCommandList.CommandList(),
-					Resource->GetResource(),
-					TempResourceLocation.GetResource()->GetResource(),
-					TempResourceLocation.GetOffsetFromBaseOfResource(),
-					0, NumMips,
-					SubResourceData);
-			}
 
-			hCopyCommandList.UpdateResidency(Resource);
-
-			// Wait for the copy context to finish before continuing as this function is only expected to return once all the texture streaming has finished.
-			hCopyCommandList.Close();
-
-			bool bWaitForCompletion = true;
-
-			RHIExecuteOnCopyCommandQueue([Device, bWaitForCompletion, &hCopyCommandList](ID3D12CommandQueue* D3DCommandQueue) -> void
-			{
-				Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
-			});
-
-			CommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
+			// The FD3D12CopyScope above immediately submits work to the copy queue when the scope ends.
+			// Block this CPU thread until the copy queue work has completed on the GPU.
+			SyncPoint->Wait();
 
 			// Blocking update is done
 			CurrentTexture.ResourceLocation.UnlockPoolData();
@@ -1207,14 +1176,12 @@ void FD3D12DynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2DRHI, FRHITe
 		DestTexture2D = static_cast<FD3D12Texture*>(It.GetFirst());
 		SrcTexture2D = static_cast<FD3D12Texture*>(It.GetSecond());
 
-		FD3D12Device* Device = DestTexture2D->GetParentDevice();
-
-		FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+		FD3D12CommandContext& Context = DestTexture2D->GetParentDevice()->GetDefaultCommandContext();
 
 		{
-			FScopeResourceBarrier ScopeResourceBarrierDest(hCommandList, DestTexture2D->GetResource(), DestTexture2D->GetResource()->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			FScopeResourceBarrier ScopeResourceBarrierSrc(hCommandList, SrcTexture2D->GetResource(), SrcTexture2D->GetResource()->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			hCommandList.FlushResourceBarriers();
+			FScopedResourceBarrier ScopeResourceBarrierDst(Context, DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST  , D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			FScopedResourceBarrier ScopeResourceBarrierSrc(Context, SrcTexture2D->GetResource() , D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+			Context.FlushResourceBarriers();
 
 			for (uint32 MipIndex = 0; MipIndex < NumSharedMips; ++MipIndex)
 			{
@@ -1225,21 +1192,20 @@ void FD3D12DynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2DRHI, FRHITe
 				CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(DestTexture2D->GetResource()->GetResource(), destSubresource);
 				CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SrcTexture2D->GetResource()->GetResource(), srcSubresource);
 
-				Device->GetDefaultCommandContext().numCopies++;
-				hCommandList->CopyTextureRegion(
+				Context.GraphicsCommandList()->CopyTextureRegion(
 					&DestCopyLocation,
 					0, 0, 0,
 					&SourceCopyLocation,
 					nullptr);
 
-				hCommandList.UpdateResidency(DestTexture2D->GetResource());
-				hCommandList.UpdateResidency(SrcTexture2D->GetResource());
+				Context.UpdateResidency(DestTexture2D->GetResource());
+				Context.UpdateResidency(SrcTexture2D->GetResource());
 			}
 		}
 
-		Device->GetDefaultCommandContext().ConditionalFlushCommandList();
+		Context.ConditionalSplitCommandList();
 
-		DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
+		DEBUG_EXECUTE_COMMAND_CONTEXT(Context);
 	}
 }
 
@@ -1459,8 +1425,7 @@ void FD3D12Texture::CreateViews()
 		bCreateShaderResource = false;
 	}
 
-	if (Desc.Format == PF_NV12 ||
-		Desc.Format == PF_P010)
+	if (Desc.Format == PF_NV12)
 	{
 		bCreateRTV = false;
 		bCreateShaderResource = false;
@@ -1718,7 +1683,7 @@ void* FD3D12Texture::Lock(class FRHICommandListImmediate* RHICmdList, uint32 Mip
 	const uint32 XBytesAligned = Align(NumBlocksX * BlockBytes, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const uint32 MipBytesAligned = XBytesAligned * NumBlocksY;
 
-	FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+	FD3D12CommandContext& Context = Device->GetDefaultCommandContext();
 
 #if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	void* RawTextureMemory = (void*)ResourceLocation.GetGPUVirtualAddress();
@@ -1726,7 +1691,7 @@ void* FD3D12Texture::Lock(class FRHICommandListImmediate* RHICmdList, uint32 Mip
 
 	void* Data = nullptr;
 
-	if (GetParentDevice()->GetOwningRHI()->HandleSpecialLock(Data, MipIndex, ArrayIndex, this, LockMode, DestStride))
+	if (FD3D12DynamicRHI::GetD3DRHI()->HandleSpecialLock(Data, MipIndex, ArrayIndex, this, LockMode, DestStride))
 	{
 		// nothing left to do...
 		check(Data != nullptr);
@@ -1789,17 +1754,16 @@ void* FD3D12Texture::Lock(class FRHICommandListImmediate* RHICmdList, uint32 Mip
 
 		const auto& pfnCopyTextureRegion = [&]()
 		{
-			FScopeResourceBarrier ScopeResourceBarrierSource(hCommandList, GetResource(), GetResource()->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
+			FScopedResourceBarrier ScopeResourceBarrierSource(Context, GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
 
-			Device->GetDefaultCommandContext().numCopies++;
-			hCommandList.FlushResourceBarriers();
-			hCommandList->CopyTextureRegion(
+			Context.FlushResourceBarriers();
+			Context.GraphicsCommandList()->CopyTextureRegion(
 				&DestCopyLocation,
 				0, 0, 0,
 				&SourceCopyLocation,
 				nullptr);
 
-			hCommandList.UpdateResidency(GetResource());
+			Context.UpdateResidency(GetResource());
 		};
 
 		if (RHICmdList != nullptr)
@@ -1817,7 +1781,7 @@ void* FD3D12Texture::Lock(class FRHICommandListImmediate* RHICmdList, uint32 Mip
 		}
 
 		// We need to execute the command list so we can read the data from the map below
-		Device->GetDefaultCommandContext().FlushCommands(true);
+		Context.FlushCommands(ED3D12FlushFlags::WaitForCompletion);
 
 		LockedResource->LockedPitch = XBytesAligned;
 		DestStride = XBytesAligned;
@@ -1837,24 +1801,22 @@ void FD3D12Texture::UpdateTexture(uint32 MipIndex, uint32 DestX, uint32 DestY, u
 {
 	LLM_SCOPE_BYNAME(TEXT("D3D12CopyTextureRegion"));
 	FD3D12CommandContext& DefaultContext = GetParentDevice()->GetDefaultCommandContext();
-	FD3D12CommandListHandle& hCommandList = DefaultContext.CommandListHandle;
 
-	FScopedResourceBarrier ScopeResourceBarrierDest(hCommandList, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, MipIndex, FD3D12DynamicRHI::ETransitionMode::Apply);
+	FScopedResourceBarrier ScopeResourceBarrierDest(DefaultContext, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, MipIndex);
 	// Don't need to transition upload heaps
 
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(GetResource()->GetResource(), MipIndex);
 
-	DefaultContext.numCopies++;
-	hCommandList.FlushResourceBarriers();
-	hCommandList->CopyTextureRegion(
+	DefaultContext.FlushResourceBarriers();
+	DefaultContext.GraphicsCommandList()->CopyTextureRegion(
 		&DestCopyLocation,
 		DestX, DestY, DestZ,
 		&SourceCopyLocation,
 		nullptr);
 
-	hCommandList.UpdateResidency(GetResource());
+	DefaultContext.UpdateResidency(GetResource());
 	
-	DefaultContext.ConditionalFlushCommandList();
+	DefaultContext.ConditionalSplitCommandList();
 
 	DEBUG_EXECUTE_COMMAND_CONTEXT(DefaultContext);
 }
@@ -1862,23 +1824,22 @@ void FD3D12Texture::UpdateTexture(uint32 MipIndex, uint32 DestX, uint32 DestY, u
 void FD3D12Texture::CopyTextureRegion(uint32 DestX, uint32 DestY, uint32 DestZ, FD3D12Texture* SourceTexture, const D3D12_BOX& SourceBox)
 {
 	FD3D12CommandContext& DefaultContext = GetParentDevice()->GetDefaultCommandContext();
-	FD3D12CommandListHandle& CommandListHandle = DefaultContext.CommandListHandle;
 
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(GetResource()->GetResource(), 0);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SourceTexture->GetResource()->GetResource(), 0);
 
-	FScopedResourceBarrier ConditionalScopeResourceBarrierDest(CommandListHandle, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, DestCopyLocation.SubresourceIndex, FD3D12DynamicRHI::ETransitionMode::Apply);
-	FScopedResourceBarrier ConditionalScopeResourceBarrierSource(CommandListHandle, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex, FD3D12DynamicRHI::ETransitionMode::Apply);
+	FScopedResourceBarrier ConditionalScopeResourceBarrierDst(DefaultContext, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, DestCopyLocation.SubresourceIndex);
+	FScopedResourceBarrier ConditionalScopeResourceBarrierSrc(DefaultContext, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
 
-	CommandListHandle.FlushResourceBarriers();
-	CommandListHandle->CopyTextureRegion(
+	DefaultContext.FlushResourceBarriers();
+	DefaultContext.GraphicsCommandList()->CopyTextureRegion(
 		&DestCopyLocation,
 		DestX, DestY, DestZ,
 		&SourceCopyLocation,
 		&SourceBox);
 
-	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
-	CommandListHandle.UpdateResidency(GetResource());
+	DefaultContext.UpdateResidency(SourceTexture->GetResource());
+	DefaultContext.UpdateResidency(GetResource());
 }
 
 void FD3D12Texture::InitializeTextureData(FRHICommandListImmediate* RHICmdList, const FRHITextureCreateDesc& CreateDesc, D3D12_RESOURCE_STATES DestinationState)
@@ -1982,7 +1943,7 @@ void FD3D12Texture::UnlockInternal(class FRHICommandListImmediate* RHICmdList, F
 
 	check(LockedResource);
 
-	if (GetParentDevice()->GetOwningRHI()->HandleSpecialUnlock(RHICmdList, MipIndex, this))
+	if (FD3D12DynamicRHI::GetD3DRHI()->HandleSpecialUnlock(RHICmdList, MipIndex, this))
 	{
 		// nothing left to do...
 	}
@@ -2008,8 +1969,6 @@ void FD3D12Texture::UnlockInternal(class FRHICommandListImmediate* RHICmdList, F
 			PlacedTexture2D.Footprint = BufferPitchDesc;
 
 			CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadLocation.GetResource()->GetResource(), PlacedTexture2D);
-
-			FD3D12CommandListHandle& hCommandList = GetParentDevice()->GetDefaultCommandContext().CommandListHandle;
 
 			// If we are on the render thread, queue up the copy on the RHIThread so it happens at the correct time.
 			if (ShouldDeferCmdListOperation(RHICmdList))
@@ -2305,19 +2264,13 @@ public:
 		for (FD3D12Texture& TextureLink : *NativeTexture)
 		{
 			FD3D12Device* Device = TextureLink.GetParentDevice();
-			FD3D12CommandListHandle& NativeCmdList = Device->GetDefaultCommandContext().CommandListHandle;
+			FD3D12CommandContext& Context = Device->GetDefaultCommandContext();
 
 			CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TextureLink.GetResource()->GetResource(), MipIdx);
 
-			FScopedResourceBarrier ScopeResourceBarrierDest(
-				NativeCmdList,
-				TextureLink.GetResource(),
-				D3D12_RESOURCE_STATE_COPY_DEST,
-				DestCopyLocation.SubresourceIndex,
-				FD3D12DynamicRHI::ETransitionMode::Apply);
+			FScopedResourceBarrier ScopeResourceBarrierDest(Context, TextureLink.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, DestCopyLocation.SubresourceIndex);
 
-			NativeCmdList.FlushResourceBarriers();
-			Device->GetDefaultCommandContext().numCopies += UpdateInfos.Num();
+			Context.FlushResourceBarriers();
 
 			for (int32 Idx = 0; Idx < UpdateInfos.Num(); ++Idx)
 			{
@@ -2327,10 +2280,10 @@ public:
 #if USE_PIX
 				if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
 				{
-					PIXBeginEvent(NativeCmdList.GraphicsCommandList(), PIX_COLOR(255, 255, 255), TEXT("EndMultiUpdateTexture3D"));
+					PIXBeginEvent(Context.GraphicsCommandList().Get(), PIX_COLOR(255, 255, 255), TEXT("EndMultiUpdateTexture3D"));
 				}
 #endif
-				NativeCmdList->CopyTextureRegion(
+				Context.GraphicsCommandList()->CopyTextureRegion(
 					&DestCopyLocation,
 					UpdateInfo.DstStartX,
 					UpdateInfo.DstStartY,
@@ -2338,17 +2291,17 @@ public:
 					&SourceCopyLocation,
 					nullptr);
 
-				NativeCmdList.UpdateResidency(TextureLink.GetResource());
-				DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
+				Context.UpdateResidency(TextureLink.GetResource());
+				DEBUG_EXECUTE_COMMAND_CONTEXT(Context);
 #if USE_PIX
 				if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
 				{
-					PIXEndEvent(NativeCmdList.GraphicsCommandList());
+					PIXEndEvent(Context.GraphicsCommandList().Get());
 				}
 #endif
 			}
 
-			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
+			Context.ConditionalSplitCommandList();
 		}
 	}
 
@@ -2545,26 +2498,21 @@ public:
 		for (FD3D12Texture& TextureLink : *NativeTexture)
 		{
 			FD3D12Device* Device = TextureLink.GetParentDevice();
-			FD3D12CommandListHandle& NativeCmdList = Device->GetDefaultCommandContext().CommandListHandle;
+			FD3D12CommandContext& Context = Device->GetDefaultCommandContext();
+
 #if USE_PIX
 			if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
 			{
-				PIXBeginEvent(NativeCmdList.GraphicsCommandList(), PIX_COLOR(255, 255, 255), TEXT("EndUpdateTexture3D"));
+				PIXBeginEvent(Context.GraphicsCommandList().Get(), PIX_COLOR(255, 255, 255), TEXT("EndUpdateTexture3D"));
 			}
 #endif
 			CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TextureLink.GetResource()->GetResource(), MipIdx);
 			CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadBuffer->GetResource(), PlacedSubresourceFootprint);
 
-			FScopedResourceBarrier ScopeResourceBarrierDest(
-				NativeCmdList,
-				TextureLink.GetResource(),
-				D3D12_RESOURCE_STATE_COPY_DEST,
-				DestCopyLocation.SubresourceIndex,
-				FD3D12DynamicRHI::ETransitionMode::Apply);
+			FScopedResourceBarrier ScopeResourceBarrierDest(Context, TextureLink.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, DestCopyLocation.SubresourceIndex);
 
-			Device->GetDefaultCommandContext().numCopies++;
-			NativeCmdList.FlushResourceBarriers();
-			NativeCmdList->CopyTextureRegion(
+			Context.FlushResourceBarriers();
+			Context.GraphicsCommandList()->CopyTextureRegion(
 				&DestCopyLocation,
 				DstStartX,
 				DstStartY,
@@ -2572,14 +2520,14 @@ public:
 				&SourceCopyLocation,
 				nullptr);
 
-			NativeCmdList.UpdateResidency(TextureLink.GetResource());
+			Context.UpdateResidency(TextureLink.GetResource());
 
-			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
-			DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
+			Context.ConditionalSplitCommandList();
+			DEBUG_EXECUTE_COMMAND_CONTEXT(Context);
 #if USE_PIX
 			if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
 			{
-				PIXEndEvent(NativeCmdList.GraphicsCommandList());
+				PIXEndEvent(Context.GraphicsCommandList().Get());
 			}
 #endif
 		}
@@ -2917,11 +2865,10 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 	FD3D12Texture* SourceTexture = RetrieveTexture(SourceTextureRHI);
 	FD3D12Texture* DestTexture = RetrieveTexture(DestTextureRHI);
 
-	FScopedResourceBarrier ConditionalScopeResourceBarrierSource(CommandListHandle, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
-	FScopedResourceBarrier ConditionalScopeResourceBarrierDest(CommandListHandle, DestTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+	FScopedResourceBarrier ConditionalScopeResourceBarrierSrc(*this, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FScopedResourceBarrier ConditionalScopeResourceBarrierDst(*this, DestTexture->GetResource()  , D3D12_RESOURCE_STATE_COPY_DEST  , D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
-	numCopies++;
-	CommandListHandle.FlushResourceBarriers();
+	FlushResourceBarriers();
 
 	const bool bReadback = EnumHasAnyFlags(DestTextureRHI->GetFlags(), TexCreate_CPUReadback);
 
@@ -2998,7 +2945,7 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 					GetReadBackHeapDescImpl(Dst.PlacedFootprint, GetParentDevice()->GetDevice(), DstDesc, Dst.SubresourceIndex);
 				}
 
-				CommandListHandle->CopyTextureRegion(
+				GraphicsCommandList()->CopyTextureRegion(
 					&Dst,
 					DestX, DestY, DestZ,
 					&Src,
@@ -3010,16 +2957,13 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 	else
 	{
 		// Copy whole texture
-		CommandListHandle->CopyResource(DestTexture->GetResource()->GetResource(), SourceTexture->GetResource()->GetResource());
+		GraphicsCommandList()->CopyResource(DestTexture->GetResource()->GetResource(), SourceTexture->GetResource()->GetResource());
 	}
 
-	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
-	CommandListHandle.UpdateResidency(DestTexture->GetResource());
+	UpdateResidency(SourceTexture->GetResource());
+	UpdateResidency(DestTexture->GetResource());
 	
-	ConditionalFlushCommandList();
-
-	// Save the command list handle. This lets us check when this command list is complete. Note: This must be saved before we execute the command list
-	DestTexture->SetReadBackListHandle(CommandListHandle);
+	ConditionalSplitCommandList();
 }
 
 

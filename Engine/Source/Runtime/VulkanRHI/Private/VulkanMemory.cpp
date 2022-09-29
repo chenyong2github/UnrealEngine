@@ -1704,7 +1704,7 @@ namespace VulkanRHI
 		ReleasePage(InPage);
 	}
 
-	uint64 FVulkanResourceHeap::EvictOne(FVulkanDevice& Device)
+	uint64 FVulkanResourceHeap::EvictOne(FVulkanDevice& Device, FVulkanCommandListContext& Context)
 	{
 		FScopeLock ScopeLock(&PagesLock);
 		for(int32 Index = MAX_BUCKETS - 2; Index >= 0; Index--)
@@ -1715,7 +1715,7 @@ namespace VulkanRHI
 				FVulkanSubresourceAllocator* Allocator = Pages[Index2];
 				if (!Allocator->bIsEvicting && Allocator->GetSubresourceAllocatorFlags() & VulkanAllocationFlagsCanEvict)
 				{
-					return Allocator->EvictToHost(Device);
+					return Allocator->EvictToHost(Device, Context);
 				}
 			}
 		}
@@ -2363,7 +2363,7 @@ namespace VulkanRHI
 		if(BestEvictHeap && ((GVulkanEvictOnePage || UpdateEvictThreshold(true)) && PrimaryHeapIndex >= 0))
 		{
 			GVulkanEvictOnePage = 0;
-			PendingEvictBytes += BestEvictHeap->EvictOne(*Device);		
+			PendingEvictBytes += BestEvictHeap->EvictOne(*Device, Context);
 		}
 
 #if !PLATFORM_ANDROID
@@ -3569,12 +3569,18 @@ namespace VulkanRHI
 		}
 	}
 
-	void FMemoryManager::AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size)
+	void FMemoryManager::AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size, const void* Contents)
 	{
 		if(!AllocateBufferPooled(OutAllocation, nullptr, Size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, EVulkanAllocationMetaUniformBuffer, __FILE__, __LINE__))
 		{
 			HandleOOM(false);
 			checkNoEntry();
+		}
+
+		if (Contents)
+		{
+			FMemory::Memcpy(OutAllocation.GetMappedPointer(Device), Contents, Size);
+			OutAllocation.FlushMappedMemory(Device);
 		}
 	}
 	void FMemoryManager::FreeUniformBuffer(FVulkanAllocation& InAllocation)
@@ -4112,7 +4118,7 @@ namespace VulkanRHI
 		return DefragCount;
 	}
 
-	uint64 FVulkanSubresourceAllocator::EvictToHost(FVulkanDevice& Device)
+	uint64 FVulkanSubresourceAllocator::EvictToHost(FVulkanDevice& Device, FVulkanCommandListContext& Context)
 	{
 		FScopeLock ScopeLock(&SubresourceAllocatorCS);
 		bIsEvicting = true;
@@ -4125,7 +4131,7 @@ namespace VulkanRHI
 				case EVulkanAllocationMetaImageOther:
 				{
 					FVulkanEvictable* Texture= Alloc.AllocationOwner;
-					Texture->Evict(Device);
+					Texture->Evict(Device, Context);
 				}
 				break;
 				default:

@@ -32,7 +32,6 @@ extern void UniformBufferBeginFrame();
 
 void FD3D11DynamicRHI::RHIBeginFrame()
 {
-	RHIPrivateBeginFrame();
 	UniformBufferBeginFrame();
 	GPUProfilingData.BeginFrame(this);
 
