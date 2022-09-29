@@ -33,7 +33,7 @@ namespace LandscapeDataAccess
 
 	FORCEINLINE uint16 GetTexHeight(float Height)
 	{
-		return FMath::RoundToInt(FMath::Clamp<float>(Height * LANDSCAPE_INV_ZSCALE + MidValue, 0.f, MaxValue));		
+		return static_cast<uint16>(FMath::RoundToInt(FMath::Clamp<float>(Height * LANDSCAPE_INV_ZSCALE + MidValue, 0.f, MaxValue)));		
 	}
 
 	FORCEINLINE FColor PackHeight(uint16 Height)

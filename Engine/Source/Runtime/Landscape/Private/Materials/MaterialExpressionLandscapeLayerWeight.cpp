@@ -63,7 +63,9 @@ bool UMaterialExpressionLandscapeLayerWeight::IsResultMaterialAttributes(int32 O
 
 int32 UMaterialExpressionLandscapeLayerWeight::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	const int32 BaseCode = Base.Expression ? Base.Compile(Compiler) : Compiler->Constant3(ConstBase.X, ConstBase.Y, ConstBase.Z);
+	const int32 BaseCode = Base.Expression
+		                       ? Base.Compile(Compiler)
+		                       : Compiler->Constant3(static_cast<float>(ConstBase.X), static_cast<float>(ConstBase.Y), static_cast<float>(ConstBase.Z));
 	const int32 WeightCode = Compiler->StaticTerrainLayerWeight(ParameterName, Compiler->Constant(PreviewWeight));
 
 	int32 ReturnCode = INDEX_NONE;

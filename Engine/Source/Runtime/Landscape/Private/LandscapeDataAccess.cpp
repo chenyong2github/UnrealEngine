@@ -16,8 +16,8 @@ LANDSCAPE_API FLandscapeComponentDataInterface::FLandscapeComponentDataInterface
 	// Offset and stride for this component's data in heightmap texture
 	UTexture2D* HeightMapTexture = Component->GetHeightmap(bWorkOnEditingLayer);
 	HeightmapStride = HeightMapTexture->Source.GetSizeX() >> MipLevel;
-	HeightmapComponentOffsetX = FMath::RoundToInt((float)(HeightMapTexture->Source.GetSizeX() >> MipLevel) * Component->HeightmapScaleBias.Z);
-	HeightmapComponentOffsetY = FMath::RoundToInt((float)(HeightMapTexture->Source.GetSizeY() >> MipLevel) * Component->HeightmapScaleBias.W);
+	HeightmapComponentOffsetX = FMath::RoundToInt32((HeightMapTexture->Source.GetSizeX() >> MipLevel) * Component->HeightmapScaleBias.Z);
+	HeightmapComponentOffsetY = FMath::RoundToInt32((HeightMapTexture->Source.GetSizeY() >> MipLevel) * Component->HeightmapScaleBias.W);
 	HeightmapSubsectionOffset = (Component->SubsectionSizeQuads + 1) >> MipLevel;
 
 	ComponentSizeVerts = (Component->ComponentSizeQuads + 1) >> MipLevel;

@@ -180,8 +180,8 @@ namespace
 		int32 LODHeightmapSizeY = LandscapeComponent->GetHeightmap()->Source.GetSizeY() >> LODValue;
 		float Ratio = (float)(LODHeightmapSizeX) / (HeightmapStride);
 
-		int32 CurrentHeightmapOffsetX = FMath::RoundToInt((float)(LODHeightmapSizeX) * LandscapeComponent->HeightmapScaleBias.Z);
-		int32 CurrentHeightmapOffsetY = FMath::RoundToInt((float)(LODHeightmapSizeY) * LandscapeComponent->HeightmapScaleBias.W);
+		int32 CurrentHeightmapOffsetX = FMath::RoundToInt32(LODHeightmapSizeX * LandscapeComponent->HeightmapScaleBias.Z);
+		int32 CurrentHeightmapOffsetY = FMath::RoundToInt32(LODHeightmapSizeY * LandscapeComponent->HeightmapScaleBias.W);
 
 		float XX = FMath::Clamp<float>((X - HeightmapOffsetX) * Ratio, 0.f, ComponentSize - 1.f) + CurrentHeightmapOffsetX;
 		int32 XI = (int32)XX;
@@ -200,12 +200,18 @@ namespace
 		FColor H3 = HeightMipData[XI + FMath::Min(YI + 1, LODHeightmapSizeY - 1) * LODHeightmapSizeX];
 		FColor H4 = HeightMipData[FMath::Min(XI + 1, LODHeightmapSizeX - 1) + FMath::Min(YI + 1, LODHeightmapSizeY - 1) * LODHeightmapSizeX];
 
-		uint16 Height = FMath::RoundToInt(FMath::Lerp(FMath::Lerp<float>(((H1.R << 8) + H1.G), ((H2.R << 8) + H2.G), XF),
-			FMath::Lerp<float>(((H3.R << 8) + H3.G), ((H4.R << 8) + H4.G), XF), YF));
-		uint8 B = FMath::RoundToInt(FMath::Lerp(FMath::Lerp<float>((H1.B), (H2.B), XF),
-			FMath::Lerp<float>((H3.B), (H4.B), XF), YF));
-		uint8 A = FMath::RoundToInt(FMath::Lerp<float>(FMath::Lerp((H1.A), (H2.A), XF),
-			FMath::Lerp<float>((H3.A), (H4.A), XF), YF));
+		const uint16 Height = static_cast<uint16>(FMath::RoundToInt(FMath::Lerp(
+			FMath::Lerp<float>(static_cast<float>((H1.R << 8) + H1.G), (H2.R << 8) + H2.G, XF),
+			FMath::Lerp<float>(static_cast<float>((H3.R << 8) + H3.G), (H4.R << 8) + H4.G, XF),
+			YF)));
+		const uint8 B = static_cast<uint8>(FMath::RoundToInt(FMath::Lerp(
+			FMath::Lerp<float>(H1.B, H2.B, XF),
+			FMath::Lerp<float>(H3.B, H4.B, XF),
+			YF)));
+		const uint8 A = static_cast<uint8>(FMath::RoundToInt(FMath::Lerp<float>(
+			FMath::Lerp<float>(H1.A, H2.A, XF),
+			FMath::Lerp<float>(H3.A, H4.A, XF),
+			YF)));
 
 		OutHeight = FColor((Height >> 8), Height & 255, B, A);
 
@@ -216,10 +222,14 @@ namespace
 			FColor X3 = XYOffsetMipData[XI + FMath::Min(YI + 1, LODHeightmapSizeY - 1) * LODHeightmapSizeX];
 			FColor X4 = XYOffsetMipData[FMath::Min(XI + 1, LODHeightmapSizeX - 1) + FMath::Min(YI + 1, LODHeightmapSizeY - 1) * LODHeightmapSizeX];
 
-			uint16 XComp = FMath::RoundToInt(FMath::Lerp(FMath::Lerp<float>(((X1.R << 8) + X1.G), ((X2.R << 8) + X2.G), XF),
-				FMath::Lerp<float>(((X3.R << 8) + X3.G), ((X4.R << 8) + X4.G), XF), YF));
-			uint16 YComp = FMath::RoundToInt(FMath::Lerp(FMath::Lerp<float>(((X1.B << 8) + X1.A), ((X2.B << 8) + X2.A), XF),
-				FMath::Lerp<float>(((X3.B << 8) + X3.A), ((X4.B << 8) + X4.A), XF), YF));
+			const uint16 XComp = static_cast<uint16>(FMath::RoundToInt(FMath::Lerp(
+				FMath::Lerp<float>(static_cast<float>((X1.R << 8) + X1.G), (X2.R << 8) + X2.G, XF),
+				FMath::Lerp<float>(static_cast<float>((X3.R << 8) + X3.G), (X4.R << 8) + X4.G, XF),
+				YF)));
+			const uint16 YComp = static_cast<uint16>(FMath::RoundToInt(FMath::Lerp(
+				FMath::Lerp<float>(static_cast<float>((X1.B << 8) + X1.A), (X2.B << 8) + X2.A, XF),
+				FMath::Lerp<float>(static_cast<float>((X3.B << 8) + X3.A), (X4.B << 8) + X4.A, XF),
+				YF)));
 
 			OutXYOffset = FColor((XComp >> 8), XComp & 255, YComp >> 8, YComp & 255);
 		}
@@ -320,22 +330,22 @@ namespace
 						FVector2D XY(float(X - DataInterface.HeightmapComponentOffsetX) / (ComponentSize - 1), float(Y - DataInterface.HeightmapComponentOffsetY) / (ComponentSize - 1));
 						XY = XY - 0.5f;
 
-						float RealLOD = GeometryLOD;
+						float RealLOD;
 
 						if (XY.X < 0.f)
 						{
 							if (XY.Y < 0.f)
 							{
 								RealLOD = FMath::Lerp(
-									FMath::Lerp<float>(NeighborLODs[0], NeighborLODs[1], XY.X + 1.f),
-									FMath::Lerp<float>(NeighborLODs[3], GeometryLOD, XY.X + 1.f),
+									FMath::Lerp<float>(static_cast<float>(NeighborLODs[0]), NeighborLODs[1], XY.X + 1.f),
+									FMath::Lerp<float>(static_cast<float>(NeighborLODs[3]), GeometryLOD, XY.X + 1.f),
 									XY.Y + 1.f); // 0
 							}
 							else
 							{
 								RealLOD = FMath::Lerp(
-									FMath::Lerp<float>(NeighborLODs[3], GeometryLOD, XY.X + 1.f),
-									FMath::Lerp<float>(NeighborLODs[5], NeighborLODs[6], XY.X + 1.f),
+									FMath::Lerp<float>(static_cast<float>(NeighborLODs[3]), GeometryLOD, XY.X + 1.f),
+									FMath::Lerp<float>(static_cast<float>(NeighborLODs[5]), NeighborLODs[6], XY.X + 1.f),
 									XY.Y); // 2
 							}
 						}
@@ -344,15 +354,15 @@ namespace
 							if (XY.Y < 0.f)
 							{
 								RealLOD = FMath::Lerp(
-									FMath::Lerp<float>(NeighborLODs[1], NeighborLODs[2], XY.X),
-									FMath::Lerp<float>(GeometryLOD, NeighborLODs[4], XY.X),
+									FMath::Lerp<float>(static_cast<float>(NeighborLODs[1]), NeighborLODs[2], XY.X),
+									FMath::Lerp<float>(static_cast<float>(GeometryLOD), NeighborLODs[4], XY.X),
 									XY.Y + 1.f); // 1
 							}
 							else
 							{
 								RealLOD = FMath::Lerp(
-									FMath::Lerp<float>(GeometryLOD, NeighborLODs[4], XY.X),
-									FMath::Lerp<float>(NeighborLODs[6], NeighborLODs[7], XY.X),
+									FMath::Lerp<float>(static_cast<float>(GeometryLOD), NeighborLODs[4], XY.X),
+									FMath::Lerp<float>(static_cast<float>(NeighborLODs[6]), NeighborLODs[7], XY.X),
 									XY.Y); // 3
 							}
 						}
@@ -374,23 +384,23 @@ namespace
 								FMath::Min(MaxLOD, LODValue + 1), HeightmapStride, Height[1], XYOffset[1]);
 
 							// Need interpolation
-							uint16 Height0 = (Height[0].R << 8) + Height[0].G;
-							uint16 Height1 = (Height[1].R << 8) + Height[1].G;
-							uint16 LerpHeight = FMath::RoundToInt(FMath::Lerp<float>(Height0, Height1, MorphAlpha));
+							const uint16 Height0 = (Height[0].R << 8) + Height[0].G;
+							const uint16 Height1 = (Height[1].R << 8) + Height[1].G;
+							const uint16 LerpHeight = static_cast<uint16>(FMath::RoundToInt(FMath::Lerp<float>(Height0, Height1, MorphAlpha)));
 
 							CompHeightData[X + Y * HeightmapStride] =
 								FColor((LerpHeight >> 8), LerpHeight & 255,
-								FMath::RoundToInt(FMath::Lerp<float>(Height[0].B, Height[1].B, MorphAlpha)),
-								FMath::RoundToInt(FMath::Lerp<float>(Height[0].A, Height[1].A, MorphAlpha)));
+								static_cast<uint8>(FMath::RoundToInt(FMath::Lerp<float>(Height[0].B, Height[1].B, MorphAlpha))),
+								static_cast<uint8>(FMath::RoundToInt(FMath::Lerp<float>(Height[0].A, Height[1].A, MorphAlpha))));
 							if (LandscapeComponent->XYOffsetmapTexture)
 							{
 								uint16 XComp0 = (XYOffset[0].R << 8) + XYOffset[0].G;
 								uint16 XComp1 = (XYOffset[1].R << 8) + XYOffset[1].G;
-								uint16 LerpXComp = FMath::RoundToInt(FMath::Lerp<float>(XComp0, XComp1, MorphAlpha));
+								uint16 LerpXComp = static_cast<uint16>(FMath::RoundToInt(FMath::Lerp<float>(XComp0, XComp1, MorphAlpha)));
 
 								uint16 YComp0 = (XYOffset[0].B << 8) + XYOffset[0].A;
 								uint16 YComp1 = (XYOffset[1].B << 8) + XYOffset[1].A;
-								uint16 LerpYComp = FMath::RoundToInt(FMath::Lerp<float>(YComp0, YComp1, MorphAlpha));
+								uint16 LerpYComp = static_cast<uint16>(FMath::RoundToInt(FMath::Lerp<float>(YComp0, YComp1, MorphAlpha)));
 
 								CompXYOffsetData[X + Y * HeightmapStride] =
 									FColor(LerpXComp >> 8, LerpXComp & 255, LerpYComp >> 8, LerpYComp & 255);

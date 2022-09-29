@@ -114,10 +114,10 @@ namespace
 		if (LightMapRes <= 0) return 0.f;
 
 		// Assuming DXT_1 compression at the moment...
-		int32 PixelPaddingX = GPixelFormats[PF_DXT1].BlockSizeX; // "/2" ?
-		int32 PixelPaddingY = GPixelFormats[PF_DXT1].BlockSizeY;
-		int32 PatchExpandCountX = (LightMapRes >= 1.f) ? (PixelPaddingX) / LightMapRes : (PixelPaddingX);
-		int32 PatchExpandCountY = (LightMapRes >= 1.f) ? (PixelPaddingY) / LightMapRes : (PixelPaddingY);
+		const int32 PixelPaddingX = GPixelFormats[PF_DXT1].BlockSizeX; // "/2" ?
+		const int32 PixelPaddingY = GPixelFormats[PF_DXT1].BlockSizeY;
+		const int32 PatchExpandCountX = static_cast<int32>(LightMapRes >= 1.f ? PixelPaddingX / LightMapRes : PixelPaddingX);
+		const int32 PatchExpandCountY = static_cast<int32>(LightMapRes >= 1.f ? PixelPaddingY / LightMapRes : PixelPaddingY);
 
 		X = FMath::Max<int32>(1, PatchExpandCountX >> LightingLOD);
 		Y = FMath::Max<int32>(1, PatchExpandCountY >> LightingLOD);
@@ -143,8 +143,8 @@ namespace
 			}
 		}
 
-		int32 DestSize = (float)DesiredSize / CurrentSize * (ComponentSize*LightMapRes);
-		float LightMapRatio = (float)DestSize / (ComponentSize*LightMapRes) * CurrentSize / DesiredSize;
+		const float DestSize = FMath::Floor(static_cast<float>(DesiredSize) / CurrentSize * (ComponentSize*LightMapRes));
+		const float LightMapRatio = DestSize / (ComponentSize*LightMapRes) * CurrentSize / DesiredSize;
 		return LightMapRatio;
 	}
 }

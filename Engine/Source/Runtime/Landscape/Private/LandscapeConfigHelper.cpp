@@ -66,7 +66,7 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(UActor
 
 	auto LandscapeProxyCreated = [InCellCoord, Landscape](APartitionActor* PartitionActor)
 	{
-		const FIntPoint CellLocation(InCellCoord.X * Landscape->GridSize, InCellCoord.Y * Landscape->GridSize);
+		const FIntPoint CellLocation(static_cast<int32>(InCellCoord.X) * Landscape->GridSize, static_cast<int32>(InCellCoord.Y) * Landscape->GridSize);
 
 		ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(PartitionActor);
 		// copy shared properties to this new proxy
@@ -138,7 +138,7 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 				TMap<int32, UMaterialInterface*>& LODMaterials = ComponentLODMaterials.FindOrAdd(LandscapeComponent);
 				for (int32 LODIndex = 0; LODIndex <= 8; ++LODIndex)
 				{
-					LODMaterials.Add(LODIndex, LandscapeComponent->GetLandscapeMaterial(LODIndex));
+					LODMaterials.Add(LODIndex, LandscapeComponent->GetLandscapeMaterial(static_cast<int8>(LODIndex)));
 				}
 
 				ComponentsToMove.Add(LandscapeComponent);
@@ -195,7 +195,7 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 
 				TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterialsForComponent;
 				TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterialsForProxy = LandscapeProxy->GetPerLODOverrideMaterials();
-				for (int32 LODIndex = 0; LODIndex <= 8; ++LODIndex)
+				for (int8 LODIndex = 0; LODIndex <= 8; ++LODIndex)
 				{
 					UMaterialInterface* PreviousLODMaterial = PreviousLandscapeLODMaterials.FindChecked(LODIndex);
 					// If Proxy doesn't differ from Landscape override material there first

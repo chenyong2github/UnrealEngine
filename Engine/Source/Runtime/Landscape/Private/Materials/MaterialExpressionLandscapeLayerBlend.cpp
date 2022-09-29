@@ -212,7 +212,11 @@ int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* C
 		if (WeightCodes[LayerIdx] != INDEX_NONE)
 		{
 			// Layer input
-			int32 LayerCode = Layer.LayerInput.Expression ? Layer.LayerInput.Compile(Compiler) : Compiler->Constant3(Layer.ConstLayerInput.X, Layer.ConstLayerInput.Y, Layer.ConstLayerInput.Z);
+			const int32 LayerCode = Layer.LayerInput.Expression
+				                        ? Layer.LayerInput.Compile(Compiler)
+				                        : Compiler->Constant3(static_cast<float>(Layer.ConstLayerInput.X),
+															  static_cast<float>(Layer.ConstLayerInput.Y),
+				                                              static_cast<float>(Layer.ConstLayerInput.Z));
 
 			if (bNeedsRenormalize)
 			{
@@ -236,7 +240,11 @@ int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* C
 			const int32 WeightCode = Compiler->StaticTerrainLayerWeight(Layer.LayerName, DefaultWeightCode);
 			if (WeightCode != INDEX_NONE)
 			{
-				const int32 LayerCode = Layer.LayerInput.Expression ? Layer.LayerInput.Compile(Compiler) : Compiler->Constant3(Layer.ConstLayerInput.X, Layer.ConstLayerInput.Y, Layer.ConstLayerInput.Z);
+				const int32 LayerCode = Layer.LayerInput.Expression
+					                        ? Layer.LayerInput.Compile(Compiler)
+					                        : Compiler->Constant3(static_cast<float>(Layer.ConstLayerInput.X),
+					                                              static_cast<float>(Layer.ConstLayerInput.Y),
+					                                              static_cast<float>(Layer.ConstLayerInput.Z));
 				// Blend in the layer using the alpha value
 				OutputCode = Compiler->Lerp(OutputCode, LayerCode, WeightCode);
 			}

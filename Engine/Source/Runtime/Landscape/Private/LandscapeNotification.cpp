@@ -73,8 +73,12 @@ void FLandscapeNotificationManager::Tick()
 		LocalActiveNotification->SetNotificationText();
 
 		// There might be multiple notifications for this type:
-		int32 NumIdenticalNotifications = Algo::CountIf(ValidNotifications, [NotificationType = LocalActiveNotification->GetNotificationType()](const TWeakPtr<FLandscapeNotification>& Notification)
-		{ return (Notification.Pin().Get()->GetNotificationType() == NotificationType); });
+		const size_t NumIdenticalNotifications = Algo::CountIf(ValidNotifications,
+		                                                       [NotificationType = LocalActiveNotification->GetNotificationType()](
+		                                                       const TWeakPtr<FLandscapeNotification>& Notification)
+		                                                       {
+			                                                       return (Notification.Pin().Get()->GetNotificationType() == NotificationType);
+		                                                       });
 
 		FText Text = FText::Format(LOCTEXT("NotificationFooter", "{0}\n[{1}]"),
 			LocalActiveNotification->NotificationText,
