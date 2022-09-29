@@ -747,6 +747,9 @@ namespace Metasound
 				MetaSoundClassNames.Add(UMetaSoundPatch::StaticClass()->GetClassPathName());
 				MetaSoundClassNames.Add(UMetaSoundSource::StaticClass()->GetClassPathName());
 
+				// Required to query MetaSound assets (that have been redirected to MetaSoundPatch assets) created before UE Release 5.1
+				MetaSoundClassNames.Add(FTopLevelAssetPath(TEXT("/Script/MetasoundEngine.MetaSound")));
+
 				FAssetTypeActions_MetaSoundPatch::RegisterMenuActions();
 				FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
 
