@@ -429,8 +429,15 @@ public:
 	*/
 	CHAOS_API void RegisterParticle(FGeometryParticleHandle* Particle)
 	{
-		// Add to the graph if necessary
-		ConstraintGraph.AddParticle(Particle);
+		// Add to the graph if necessary. Only enabled dynamic particles are added at this stage. Kinematics
+		// and statics are ignored until referenced by a constraint.
+		if (FPBDRigidParticleHandle* Rigid = Particle->CastToRigidParticle())
+		{
+			if (Rigid->IsDynamic() && !Rigid->Disabled())
+			{
+				ConstraintGraph.AddParticle(Particle);
+			}
+		}
 
 		// Flag as dirty to update the spatial query acceleration structures
 		DirtyParticle(*Particle);

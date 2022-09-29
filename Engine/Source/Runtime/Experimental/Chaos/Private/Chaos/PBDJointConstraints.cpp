@@ -455,6 +455,10 @@ namespace Chaos
 		ConstraintSettings.AddDefaulted();
 		SetConstraintSettings(ConstraintIndex, InConstraintSettings);
 
+		// If our particle(s) are disabled, so is the constraint for now. It will get enabled if both particles get enabled.
+		const bool bStartDisabled = FConstGenericParticleHandle(InConstrainedParticles[0])->Disabled() || FConstGenericParticleHandle(InConstrainedParticles[1])->Disabled();
+		ConstraintStates[ConstraintIndex].bDisabled = bStartDisabled;
+
 		return Handles.Last();
 	}
 

@@ -1390,8 +1390,8 @@ namespace ChaosTest {
 		// Re-enable the block of particles
 		for (int32 Idx = 10; Idx < 20; ++Idx)
 		{
-			Graph.AddParticle(Dynamics[Idx]);
 			SOAs.EnableParticle(Dynamics[Idx]);
+			Graph.AddParticle(Dynamics[Idx]);
 		}
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
 		

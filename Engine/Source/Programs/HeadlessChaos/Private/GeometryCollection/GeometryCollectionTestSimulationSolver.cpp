@@ -115,7 +115,7 @@ using namespace ChaosTest;
 			EXPECT_EQ(Parent[2],-1);
 
 			// Set the one cluster to disabled
-			Collection->PhysObject->GetSolverClusterHandles()[0]->SetDisabled(true);
+			UnitTest.Solver->GetEvolution()->DisableParticle(Collection->PhysObject->GetSolverClusterHandles()[0]);
 
 			Transform = &Collection->DynamicCollection->Transform;
 			StartingRigidDistance = ((*Transform)[1].GetTranslation() - (*Transform)[0].GetTranslation()).Size();

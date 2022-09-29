@@ -335,6 +335,10 @@ void FPBDIslandManager::GraphEdgeRemoved(const FConstraintHandleHolder& Constrai
 
 int32 FPBDIslandManager::AddParticle(FGeometryParticleHandle* ParticleHandle, const FGeometryParticleHandle* ParentParticleHandle)
 {
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+	ensure(!FConstGenericParticleHandle(ParticleHandle)->Disabled());
+#endif
+
 	int32 IslandIndex = INDEX_NONE;
 
 	// If we have a parent, assign the child to the same island in the same sleep state
@@ -915,6 +919,17 @@ bool FPBDIslandManager::DebugCheckParticlesInGraph(const TParticleView<FPBDRigid
 	// Make sure that all particles that should be in the graph actually are.
 	// We used to loop over all particles every trick and re-add them, but now we only add/remove when necessary.
 	bool bSuccess = true;
+
+	// All particles in the graph should be enabled
+	for (const FGraphNode& Node : IslandGraph->GraphNodes)
+	{
+		FPBDRigidParticleHandle* Rigid = Node.NodeItem->CastToRigidParticle();
+		if (Rigid != nullptr)
+		{
+			bSuccess = bSuccess && !Rigid->Disabled();
+		}
+		ensure(bSuccess);
+	}
 
 	// All dynamic particles should be in the graph
 	for (const auto& ParticleHandle : Particles)
