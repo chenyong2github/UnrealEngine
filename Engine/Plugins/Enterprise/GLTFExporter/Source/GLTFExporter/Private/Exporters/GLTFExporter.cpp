@@ -75,8 +75,19 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& FilePath, const
 {
 	if (Object == nullptr)
 	{
-		OutMessages.Errors.Add(TEXT("No object to export"));
-		return false;
+		Object = GEngine->GetCurrentPlayWorld();
+#if WITH_EDITOR
+		if (Object == nullptr)
+		{
+			Object = GEditor->GetEditorWorldContext().World();
+		}
+#endif
+
+		if (Object == nullptr)
+		{
+			OutMessages.Errors.Add(TEXT("No object to export"));
+			return false;
+		}
 	}
 
 	UGLTFExporter* Exporter = Cast<UGLTFExporter>(FindExporter(Object, TEXT("gltf")));
