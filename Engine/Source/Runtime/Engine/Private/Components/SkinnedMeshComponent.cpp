@@ -2082,6 +2082,7 @@ FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() cons
 void USkinnedMeshComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight)
 {
 	OutClothSimulData.Reset();
+	OutLocalToWorld = FMatrix::Identity;
 	OutClothBlendWeight = 0.f;
 }
 
