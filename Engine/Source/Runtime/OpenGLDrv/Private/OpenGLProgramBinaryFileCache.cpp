@@ -17,8 +17,12 @@
 #include "SceneUtils.h"
 #include "PsoLruCache.h"
 
-static const uint32 GBinaryProgramFileVersion = 4;
+#if PLATFORM_ANDROID
+#include "Android/AndroidPlatformMisc.h"
+#endif
 
+static const uint32 GBinaryProgramFileVersion = 4;
+ 
 TAutoConsoleVariable<int32> FOpenGLProgramBinaryCache::CVarPBCEnable(
 	TEXT("r.ProgramBinaryCache.Enable"),
 #if PLATFORM_ANDROID
@@ -86,6 +90,15 @@ FOpenGLProgramBinaryCache::FOpenGLProgramBinaryCache(const FString& InCachePath)
 	FString HashString;
 	HashString.Append(GLVersion);
 	HashString.Append(GLRenderer);
+
+#if PLATFORM_ANDROID
+	// FORT-512259:
+	// Apparently we can't rely on GL_VERSION alone to assume binary compatibility.
+	// Some devices report binary compatibility errors after minor OS updates even though the GL driver version has not changed.
+	const FString BuildNumber = FAndroidMisc::GetDeviceBuildNumber();
+	HashString.Append(BuildNumber);
+#endif
+
 	FSHAHash VersionHash;
 	FSHA1::HashBuffer(TCHAR_TO_ANSI(*HashString), HashString.Len(), VersionHash.Hash);
 
