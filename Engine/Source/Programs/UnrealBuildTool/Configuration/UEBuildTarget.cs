@@ -1999,6 +1999,19 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Cache inline gen cpp data
+			using (GlobalTracer.Instance.BuildSpan("CacheInlineGenCppData").StartActive())
+			{
+				Makefile.DirectoryToSourceFiles.AsParallel()
+					.ForAll((kvp) =>
+					{
+						foreach (TargetMakefileSourceFileInfo SourceFileInfo in kvp.Value)
+						{
+							SourceFileInfo.InlineGenCppHash = TargetMakefileSourceFileInfo.CalculateInlineGenCppHash(MetadataCache.GetListOfInlinedGeneratedCppFiles(SourceFileInfo.SourceFileItem!));
+						}
+					});
+			}
+
 			// Prepare all the runtime dependencies, copying them from their source folders if necessary
 			List<RuntimeDependency> RuntimeDependencies = new List<RuntimeDependency>();
 			Dictionary<FileReference, FileReference> RuntimeDependencyTargetFileToSourceFile = new Dictionary<FileReference, FileReference>();
