@@ -940,6 +940,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		}
 
 		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+		IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
 
 		Result = MakeValue();
 		bPluginDownloaded = false;
@@ -1581,7 +1582,6 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 	virtual void EndState() override
 	{
 		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
-		IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
 		FCoreDelegates::OnPakFileMounted2.RemoveAll(this);
 	}
 };
