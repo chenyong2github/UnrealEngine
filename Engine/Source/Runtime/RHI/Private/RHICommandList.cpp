@@ -685,8 +685,7 @@ void FRHICommandListImmediate::ExecuteAndReset()
 			    [RHICmdList = MoveTemp(static_cast<FRHICommandListBase&>(*this))]() mutable
 			    {
 				    // RHI thread tasks main entry point
-    
-				    FTaskTagScope Scope(ETaskTag::ERhiThread);
+					check(IsInRHIThread());
 				    SCOPE_CYCLE_COUNTER(STAT_RHIThreadExecute);
 				    if (IsRunningRHIInTaskThread())
 				    {

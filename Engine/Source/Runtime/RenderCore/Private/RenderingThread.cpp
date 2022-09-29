@@ -308,6 +308,14 @@ public:
 		check(IsInGameThread());
 	}
 
+	virtual bool Init(void) override
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		GRHIThreadId = FPlatformTLS::GetCurrentThreadId();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return true;
+	}
+
 	virtual uint32 Run() override
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
@@ -320,9 +328,9 @@ public:
 		{
 			FTaskTagScope Scope(ETaskTag::ERhiThread);
 			FPlatformProcess::SetupRHIThread();
+			FTaskGraphInterface::Get().AttachToThread(ENamedThreads::RHIThread);
+			FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(ENamedThreads::RHIThread);
 		}
-		FTaskGraphInterface::Get().AttachToThread(ENamedThreads::RHIThread);
-		FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(ENamedThreads::RHIThread);
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
 		return 0;
 	}
@@ -508,11 +516,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ReportCrash(ExceptionInfo);
 	}
 #endif
+	
+	void SetupRenderThread()
+	{
+		FTaskTagScope Scope(ETaskTag::ERenderingThread);
+		FPlatformProcess::SetupRenderThread();
+	}
+
 
 	virtual uint32 Run(void) override
 	{
 		FMemory::SetupTLSCachesOnCurrentThread();
-		FPlatformProcess::SetupRenderThread();
+		SetupRenderThread();
 
 #if PLATFORM_WINDOWS
 		bool bNoExceptionHandler = FParse::Param(FCommandLine::Get(), TEXT("noexceptionhandler"));
@@ -717,9 +732,7 @@ public:
 	**/
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		// note that this task is the first task run on the thread, before GRHIThread_InternalUseOnly is assigned, so we can't check IsInRHIThread()
-
-		FTaskTagScope Scope(ETaskTag::ERhiThread);
+		check(IsInRHIThread());
 		if (bAcquireOwnership)
 		{
 			GDynamicRHI->RHIAcquireThreadOwnership();
@@ -762,7 +775,6 @@ void StartRenderingThread()
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GRHIThread_InternalUseOnly = FRHIThread::Get().Thread;
-		GRHIThreadId = GRHIThread_InternalUseOnly->GetThreadID();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GIsRunningRHIInDedicatedThread_InternalUseOnly = true;
 		GIsRunningRHIInSeparateThread_InternalUseOnly = true;
