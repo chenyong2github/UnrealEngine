@@ -302,7 +302,7 @@ namespace UnrealBuildTool
 					if (!Partition.DependencyFileToInfo.TryGetValue(InputFile, out Info) || InputFile.LastWriteTimeUtc.Ticks > Info.LastWriteTimeUtc)
 					{
 						Info = ReadDependencyInfo(InputFile);
-						Partition.DependencyFileToInfo.TryAdd(InputFile, Info);
+						Partition.DependencyFileToInfo.AddOrUpdate(InputFile, Info, (k, v) => Info);
 						Partition.bModified = true;
 					}
 
