@@ -62,7 +62,7 @@ namespace Metasound
 		}
 
 	private:
-		TUniquePtr<IOperator> BuildGraphOperator(TArray<FAudioParameter>& InParameters, FBuildResults& OutBuildResults) const;
+		TUniquePtr<IOperator> BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const;
 		TUniquePtr<Frontend::FGraphAnalyzer> BuildGraphAnalyzer(TMap<FGuid, FDataReferenceCollection>&& InInternalDataReferences) const;
 		void LogBuildErrors(const FBuildResults& InBuildResults) const;
 		TArray<FAudioBufferReadRef> FindOutputAudioBuffers(const FVertexInterfaceData& InVertexData) const;
