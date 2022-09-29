@@ -8,7 +8,6 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Animation/AnimRootMotionProvider.h"
-#include "DynamicPlayRate/DynamicPlayRateLibrary.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
 #include "Trace/PoseSearchTraceLogger.h"
 
@@ -100,24 +99,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		BlendStackNode.BlendTo(	SearchIndexAsset->Type, AnimationAssetBase.GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
 								AnimationAssetBase.IsLooping(), SearchIndexAsset->bMirrored, Database->Schema->MirrorDataTable.Get(),
 								Settings.MaxActiveBlends, Settings.BlendTime, Settings.BlendProfile, Settings.BlendOption, SearchIndexAsset->BlendParameters);
-	}
-
-	if (!BlendStackNode.AnimPlayers.IsEmpty() && BlendStackNode.AnimPlayers[0].GetAssetType() == ESearchIndexAssetType::Sequence)
-	{
-		// @todo: integrate this functionality with the BlendStackNode
-		
-		// Optionally applying dynamic play rate adjustment to chosen sequences based on predictive motion analysis
-		const float PlayRate = DynamicPlayRateAdjustment(
-			Context,
-			Trajectory,
-			DynamicPlayRateSettings,
-			BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().GetSequence(),
-			GetAccumulatedTime(),
-			BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().GetPlayRate(),
-			BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().GetLoopAnimation()
-		);
-
-		BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().SetPlayRate(PlayRate);
 	}
 
 	Source.Update(Context);

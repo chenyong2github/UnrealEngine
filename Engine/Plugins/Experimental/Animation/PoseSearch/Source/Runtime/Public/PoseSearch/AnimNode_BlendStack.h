@@ -33,9 +33,6 @@ struct FPoseSearchAnimPlayer
 	FString GetAnimName() const;
 	FAnimNode_Mirror_Standalone& GetMirrorNode() { return MirrorNode; }
 
-	// @todo: used only for DynamicPlayRateAdjustment. Remove once the functionality is integrated with the BlendStackNode
-	FAnimNode_SequencePlayer_Standalone GetSequencePlayerNode() { return SequencePlayerNode; }
-	
 protected:
 	void RestorePoseContext(FPoseContext& PoseContext) const;
 	void UpdateSourceLinkNode();

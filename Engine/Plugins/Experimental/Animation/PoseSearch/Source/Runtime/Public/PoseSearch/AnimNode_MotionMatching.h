@@ -4,7 +4,6 @@
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/MotionTrajectoryTypes.h"
-#include "DynamicPlayRate/DynamicPlayRateLibrary.h"
 #include "PoseSearch/AnimNode_BlendStack.h"
 #include "PoseSearch/PoseSearch.h"
 #include "PoseSearch/PoseSearchLibrary.h"
@@ -30,10 +29,6 @@ public:
 	// Motion trajectory samples for pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	FTrajectorySampleRange Trajectory;
-
-	// Settings for dynamic play rate adjustment on sequences chosen by motion matching
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
-	FDynamicPlayRateSettings DynamicPlayRateSettings;
 
 	// Settings for the core motion matching algorithm evaluation
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))

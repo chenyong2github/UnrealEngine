@@ -22,7 +22,6 @@ public class PoseSearch : ModuleRules
 				"AnimationCore",
 				"TraceLog",
 				"AnimGraphRuntime",
-				"DynamicPlayRate",
 				"GameplayTags",
 				"MotionTrajectory"
 			}
