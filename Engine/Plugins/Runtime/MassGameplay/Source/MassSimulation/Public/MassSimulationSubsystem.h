@@ -30,6 +30,9 @@ public:
 
 	bool IsSimulationStarted() const { return bSimulationStarted; }
 
+	/** @return whether hosted EntityManager is currently, actively being used for processing purposes. Equivalent to calling FMassEntityManager.IsProcessing() */
+	bool IsDuringMassProcessing() const;
+
 protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void PostInitialize() override;

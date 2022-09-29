@@ -66,6 +66,11 @@ FMassProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPh
 	return PhaseManager.GetOnPhaseEnd(Phase);
 }
 
+bool UMassSimulationSubsystem::IsDuringMassProcessing() const 
+{
+	return EntityManager.IsValid() && EntityManager->IsProcessing();
+}
+
 void UMassSimulationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);

@@ -321,7 +321,14 @@ public:
 	FMassExecutionContext CreateExecutionContext(const float DeltaSeconds);
 
 	FScopedProcessing NewProcessingScope() { return FScopedProcessing(ProcessingScopeCount); }
+
+	/** 
+	 * Indicates whether there are processors out there performing operations on this instance of MassEntityManager. 
+	 * Used to ensure that mutating operations (like entity destruction) are not performed while processors are running, 
+	 * which rely on the assumption that the data layout doesn't change during calculations. 
+	 */
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }
+
 	FMassCommandBuffer& Defer() const { return *DeferredCommandBuffer.Get(); }
 	/** 
 	 * @param InCommandBuffer if not set then the default command buffer will be flushed. If set and there's already 

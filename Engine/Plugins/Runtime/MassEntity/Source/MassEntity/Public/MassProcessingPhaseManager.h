@@ -69,8 +69,6 @@ protected:
 	void ConfigureForSingleThreadMode() { bRunInParallelMode = false; }
 
 public:
-	bool IsDuringMassProcessing() const { return bIsDuringMassProcessing; }
-
 	void Initialize(FMassProcessingPhaseManager& InPhaseManager, const EMassProcessingPhase InPhase, const ETickingGroup InTickGroup, UMassCompositeProcessor& InPhaseProcessor);
 
 protected:
@@ -149,14 +147,6 @@ public:
 	void Start(const TSharedPtr<FMassEntityManager>& InEntityManager);
 	void Stop();
 	bool IsRunning() const { return EntityManager.IsValid(); }
-
-	/** 
-	 *  returns true when called while any of the ProcessingPhases is actively executing its processors. Used to 
-	 *  determine whether it's safe to do entity-related operations like adding fragments.
-	 *  Note that the function will return false while the OnPhaseStart or OnPhaseEnd are being broadcast,
-	 *  the value returned will be `true` only when the entity subsystem is actively engaged 
-	 */
-	bool IsDuringMassProcessing() const { return CurrentPhase != EMassProcessingPhase::MAX && ProcessingPhases[int(CurrentPhase)].IsDuringMassProcessing(); }
 
 	FString GetName() const;
 

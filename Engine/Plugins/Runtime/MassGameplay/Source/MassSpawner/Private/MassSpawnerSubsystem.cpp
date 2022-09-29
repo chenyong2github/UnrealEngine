@@ -114,7 +114,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 
 	check(EntityManager);
 	check(SimulationSystem);
-	checkf(!SimulationSystem->GetPhaseManager().IsDuringMassProcessing()
+	checkf(!SimulationSystem->IsDuringMassProcessing()
 		, TEXT("%s called while MassEntity processing in progress. This is unsupported and dangerous!"), ANSI_TO_TCHAR(__FUNCTION__));
 
 	UWorld* World = GetWorld();

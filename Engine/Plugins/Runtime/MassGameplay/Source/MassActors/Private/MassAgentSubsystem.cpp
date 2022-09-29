@@ -182,8 +182,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 				const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
 
 			    // remove fragments that have been added for the puppet agent
-			    if (SimulationSystem->GetPhaseManager().IsDuringMassProcessing()
-					|| EntityManager->IsProcessing())
+			    if (EntityManager->IsProcessing())
 			    {
 				    // need to request via command buffer since we can't move entities while processing is happening
 					FMassArchetypeCompositionDescriptor Composition = AgentComp.GetPuppetSpecificAddition();
@@ -223,8 +222,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 			AgentComp.ClearEntityHandle();
 
 			// Destroy the entity
-			if (SimulationSystem->GetPhaseManager().IsDuringMassProcessing()
-				|| EntityManager->IsProcessing())
+			if (EntityManager->IsProcessing())
 			{
 				// need to request via command buffer since we can't move entities while processing is happening
 				EntityManager->Defer().DestroyEntity(Entity);
@@ -303,7 +301,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 	check(EntityManager);
 	check(SpawnerSystem);
 	check(SimulationSystem);
-	check(SimulationSystem->GetPhaseManager().IsDuringMassProcessing() == false);
+	check(SimulationSystem->IsDuringMassProcessing() == false);
 
 	for (TTuple<FMassEntityTemplateID, FMassAgentInitializationQueue>& Data : PendingAgentEntities)
 	{
