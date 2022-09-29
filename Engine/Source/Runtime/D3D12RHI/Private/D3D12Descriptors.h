@@ -180,7 +180,7 @@ class FD3D12OfflineDescriptorManager : public FD3D12DeviceChild
 public:
 	FD3D12OfflineDescriptorManager() = delete;
 	FD3D12OfflineDescriptorManager(FD3D12Device* InDevice, ERHIDescriptorHeapType InHeapType);
-	~FD3D12OfflineDescriptorManager() = default;
+	~FD3D12OfflineDescriptorManager();
 
 	inline ERHIDescriptorHeapType GetHeapType() const { return HeapType; }
 

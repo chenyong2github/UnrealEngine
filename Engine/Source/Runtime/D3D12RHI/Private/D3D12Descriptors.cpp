@@ -310,6 +310,8 @@ FD3D12OfflineDescriptorManager::FD3D12OfflineDescriptorManager(FD3D12Device* InD
 	NumDescriptorsPerHeap = GetOfflineDescriptorHeapDefaultSize(InHeapType);
 }
 
+FD3D12OfflineDescriptorManager::~FD3D12OfflineDescriptorManager() = default;
+
 void FD3D12OfflineDescriptorManager::AllocateHeap()
 {
 	checkf(NumDescriptorsPerHeap != 0, TEXT("Init() needs to be called before allocating heaps."));
