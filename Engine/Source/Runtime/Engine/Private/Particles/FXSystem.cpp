@@ -222,11 +222,17 @@ FFXSystem::FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InSh
 	: ParticleSimulationResources(NULL)
 	, FeatureLevel(InFeatureLevel)
 	, ShaderPlatform(InShaderPlatform)
-	, GPUSortManager(InGPUSortManager)
+	, GPUSortManager(nullptr)
 #if WITH_EDITOR
 	, bSuspended(false)
 #endif // #if WITH_EDITOR
 {
+	// FXSystem GPU sorting is disabled for mobile, see FParticleSortKeyGenCS
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		GPUSortManager = InGPUSortManager;
+	}
+	
 	InitGPUSimulation();
 
 	// Register the callback in the GPUSortManager. 
