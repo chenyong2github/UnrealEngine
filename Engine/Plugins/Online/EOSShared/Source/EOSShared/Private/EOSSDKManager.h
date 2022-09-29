@@ -67,7 +67,6 @@ protected:
 	virtual EOS_EResult EOSInitialize(EOS_InitializeOptions& Options);
 	virtual IEOSPlatformHandlePtr CreatePlatform(const FEOSSDKPlatformConfig& PlatformConfig, EOS_Platform_Options& PlatformOptions);
 
-private:
 	friend struct FEOSPlatformHandle;
 
 	void OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionName);
