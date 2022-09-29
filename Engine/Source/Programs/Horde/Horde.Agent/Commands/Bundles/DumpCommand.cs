@@ -22,8 +22,8 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			IStorageClient store = CreateStorageClient(cache, logger);
+			using IStorageClientOwner storeOwner = CreateStorageClient(logger);
+			IStorageClient store = storeOwner.Store;
 
 			if (BlobId == null)
 			{

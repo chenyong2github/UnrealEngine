@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.EC2.Model;
@@ -11,13 +14,14 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 
 namespace Horde.Build.Storage
 {
 	/// <summary>
 	/// Response from uploading a bundle
 	/// </summary>
-	public class WriteBundleResponse
+	public class WriteBlobResponse
 	{
 		/// <summary>
 		/// Locator for the uploaded bundle
@@ -92,8 +96,8 @@ namespace Horde.Build.Storage
 		/// <param name="file">Data to be uploaded</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		[HttpPost]
-		[Route("/api/v1/storage/{namespaceId}/bundles")]
-		public async Task<ActionResult<WriteBundleResponse>> WriteBundleAsync(NamespaceId namespaceId, IFormFile file, CancellationToken cancellationToken)
+		[Route("/api/v1/storage/{namespaceId}/blobs")]
+		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(NamespaceId namespaceId, IFormFile file, CancellationToken cancellationToken)
 		{
 			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.WriteBlobs, null, cancellationToken))
 			{
@@ -104,7 +108,7 @@ namespace Horde.Build.Storage
 			using (Stream stream = file.OpenReadStream())
 			{
 				BlobLocator locator = await client.WriteBlobAsync(stream, cancellationToken: cancellationToken);
-				return new WriteBundleResponse { Locator = locator };
+				return new WriteBlobResponse { Locator = locator };
 			}
 		}
 
@@ -113,10 +117,12 @@ namespace Horde.Build.Storage
 		/// </summary>
 		/// <param name="namespaceId">Namespace to fetch from</param>
 		/// <param name="locator">Bundle to retrieve</param>
+		/// <param name="offset">Offset of the data.</param>
+		/// <param name="length">Length of the data to return.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		[HttpGet]
-		[Route("/api/v1/storage/{namespaceId}/bundles/{locator}")]
-		public async Task<ActionResult> ReadBundleAsync(NamespaceId namespaceId, BlobLocator locator, CancellationToken cancellationToken)
+		[Route("/api/v1/storage/{namespaceId}/blobs/{*locator}")]
+		public async Task<ActionResult> ReadBlobAsync(NamespaceId namespaceId, BlobLocator locator, [FromQuery] int? offset = null, [FromQuery] int? length = null, CancellationToken cancellationToken = default)
 		{
 			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.ReadBlobs, null, cancellationToken))
 			{
@@ -124,9 +130,22 @@ namespace Horde.Build.Storage
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			Stream stream = await client.ReadBlobAsync(locator, cancellationToken);
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
+			// TODO: would be better to use the range header here, but seems to require a lot of plumbing to convert unseekable AWS streams into a format that works with range processing.
+			Stream stream;
+			if (offset == null && length == null)
+			{
+				stream = await client.ReadBlobAsync(locator, cancellationToken);
+			}
+			else if (offset != null && length != null)
+			{
+				stream = await client.ReadBlobRangeAsync(locator, offset.Value, length.Value, cancellationToken);
+			}
+			else
+			{
+				return BadRequest("Offset and length must both be specified as query parameters for ranged reads");
+			}
 			return File(stream, "application/octet-stream");
 #pragma warning restore CA2000 // Dispose objects before losing scope
 		}
@@ -139,7 +158,7 @@ namespace Horde.Build.Storage
 		/// <param name="request">Request for the ref to write</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		[HttpPut]
-		[Route("/api/v1/storage/{namespaceId}/refs/{refName}")]
+		[Route("/api/v1/storage/{namespaceId}/refs/{*refName}")]
 		public async Task<ActionResult> WriteRefAsync(NamespaceId namespaceId, RefName refName, [FromBody] WriteRefRequest request, CancellationToken cancellationToken)
 		{
 			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.WriteRefs, null, cancellationToken))
@@ -161,7 +180,7 @@ namespace Horde.Build.Storage
 		/// <param name="refName"></param>
 		/// <param name="cancellationToken"></param>
 		[HttpGet]
-		[Route("/api/v1/storage/{namespaceId}/refs/{refName}")]
+		[Route("/api/v1/storage/{namespaceId}/refs/{*refName}")]
 		public async Task<ActionResult<ReadRefResponse>> ReadRefAsync(NamespaceId namespaceId, RefName refName, CancellationToken cancellationToken)
 		{
 			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.ReadRefs, null, cancellationToken))

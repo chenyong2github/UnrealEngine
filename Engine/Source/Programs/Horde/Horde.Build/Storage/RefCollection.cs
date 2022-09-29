@@ -37,6 +37,7 @@ namespace Horde.Build.Storage
 
 		class RefDocument
 		{
+			[BsonIgnoreIfDefault]
 			public ObjectId Id { get; set; }
 
 			[BsonElement("ns")]
