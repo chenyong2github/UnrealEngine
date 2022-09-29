@@ -7,14 +7,14 @@
 
 UCLASS()
 class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInstance
-    : public UMLDeformerModelInstance
+    : public UMLDeformerMorphModelInstance
 {
     GENERATED_BODY()
-public:
 
-    // UMLDeformerModelInstance overrides
-    virtual void RunNeuralNetwork(float ModelWeight) override;
-    virtual bool SetupNeuralNetworkForFrame() override;
+public:
+	// UMLDeformerModelInstance overrides
+    virtual void Execute(float ModelWeight) override;
+    virtual bool SetupInputs() override;
 
 protected:
     virtual int64 SetBoneTransforms(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex) override;
@@ -23,5 +23,5 @@ protected:
 private:
     void RunNearestNeighborModel(float ModelWeight);
     int32 FindNearestNeighbor(const FNeuralTensor& PCACoeffTensor, int32 PartId);
-    void UpdateWeight(TArray<float>& MorphWeights, const int32 Index, const float W);
+    void UpdateWeight(TArray<float>& MorphWeights, int32 Index, float W);
 };

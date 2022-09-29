@@ -76,19 +76,18 @@ void AddCopyToCPUPass(FRDGBuilder& GraphBuilder, TRDGBuffer RDGBuffer, T* Ptr, i
         });
 }
 
-bool UNearestNeighborModelInstance::SetupNeuralNetworkForFrame()
+bool UNearestNeighborModelInstance::SetupInputs()
 {
-    bool bSuccess = UMLDeformerModelInstance::SetupNeuralNetworkForFrame();
+    const bool bSuccess = Super::SetupInputs();
 
     // Clip network inputs based on training set min and max
     UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
     if (NeuralNetwork)
     {
-    	UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model.Get());
+    	UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model.Get());
     	float* InputDataPointer = static_cast<float*>(NeuralNetwork->GetInputDataPointerMutableForContext(NeuralNetworkInferenceHandle));
     	const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensorForContext(NeuralNetworkInferenceHandle).Num();
     	NearestNeighborModel->ClipInputs(InputDataPointer, NumNeuralNetInputs);
-
     	return bSuccess;
     }
     else
@@ -97,9 +96,9 @@ bool UNearestNeighborModelInstance::SetupNeuralNetworkForFrame()
     }
 }
 
-void UNearestNeighborModelInstance::RunNeuralNetwork(float ModelWeight)
+void UNearestNeighborModelInstance::Execute(float ModelWeight)
 {
-	Super::RunNeuralNetwork(ModelWeight);
+	Super::Execute(ModelWeight);
 	RunNearestNeighborModel(ModelWeight);
 }
 
@@ -110,23 +109,19 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 	{
 		return;
 	}
-
-	const int32 ExternalMorphSetID = NearestNeighborModel->GetExternalMorphSetID();
-	// If this check fails please set this member to some value larger than 0 in your model's constructor.
-	checkf(ExternalMorphSetID != -1, TEXT("Please set the ExternalMorphSetID member value to a unique value for your model type."));
-
+	
 	// Grab the weight data for this morph set.
 	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
 	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
-	FExternalMorphSetWeights* WeightData = SkeletalMeshComponent->GetExternalMorphWeights(LOD).MorphSets.Find(ExternalMorphSetID);
+	FExternalMorphSetWeights* WeightData = FindWeightData(LOD);
 	if (WeightData == nullptr)
 	{
 		return;
 	}
 
-	if (ModelWeight > 0.0f)
+	const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
+	if (NeuralNetwork)
 	{
-		const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
 		const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
 		const int32 NumNetworkWeights = OutputTensor.Num();
 		const int32 NumMorphTargets = WeightData->Weights.Num();;
@@ -145,15 +140,15 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 			for (int32 PartId = 0; PartId < NearestNeighborModel->GetNumParts(); PartId++)
 			{
 				const int32 NearestNeighborId = FindNearestNeighbor(OutputTensor, PartId);
-#if WITH_EDITORONLY_DATA
+	#if WITH_EDITORONLY_DATA
 				NearestNeighborModel->SetNearestNeighborId(PartId, NearestNeighborId);
-#endif
+	#endif
 
 				const int32 NumNeighbors = NearestNeighborModel->GetNumNeighbors(PartId);
 				for (int32 NeighborId = 0; NeighborId < NumNeighbors; NeighborId++)
 				{
-					 const float W = NeighborId == NearestNeighborId ? ModelWeight : 0;
-					 UpdateWeight(WeightData->Weights, NeighborOffset + NeighborId, W);
+					const float W = NeighborId == NearestNeighborId ? ModelWeight : 0;
+					UpdateWeight(WeightData->Weights, NeighborOffset + NeighborId, W);
 				}
 				NeighborOffset += NumNeighbors;
 			}
@@ -161,18 +156,14 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 	}
 	else
 	{
-		for (float& Weight : WeightData->Weights)
-		{
-			Weight = 0.0f;
-		}
+		WeightData->ZeroWeights();
 	}
 }
 
-void UNearestNeighborModelInstance::UpdateWeight(TArray<float>& MorphWeights, const int32 Index, const float W)
+void UNearestNeighborModelInstance::UpdateWeight(TArray<float>& MorphWeights, int32 Index, float W)
 {
 	UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 	const float DecayFactor = NearestNeighborModel->GetDecayFactor();
-
 	const float PreviousW = NearestNeighborModel->PreviousWeights[Index];
 	const float NewW = (1 - DecayFactor) * W + DecayFactor * PreviousW;
 	MorphWeights[Index] = NewW;

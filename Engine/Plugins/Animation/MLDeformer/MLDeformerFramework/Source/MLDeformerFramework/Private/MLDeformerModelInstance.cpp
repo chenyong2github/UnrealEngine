@@ -298,11 +298,16 @@ bool UMLDeformerModelInstance::IsValidForDataProvider() const
 	return (Model->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr) && (GetNeuralNetworkInferenceHandle() != -1);
 }
 
-void UMLDeformerModelInstance::RunNeuralNetwork(float ModelWeight)
+void UMLDeformerModelInstance::Execute(float ModelWeight)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::RunNeuralNetwork)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::Execute)
 
 	UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
+	if (NeuralNetwork == nullptr)
+	{
+		return;
+	}
+
 	if (Model->IsNeuralNetworkOnGPU())
 	{
 		// NOTE: Inputs still come from the CPU.
@@ -326,9 +331,9 @@ void UMLDeformerModelInstance::RunNeuralNetwork(float ModelWeight)
 	}
 }
 
-bool UMLDeformerModelInstance::SetupNeuralNetworkForFrame()
+bool UMLDeformerModelInstance::SetupInputs()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::SetupNeuralNetworkForFrame)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::SetupInputs)
 
 	// Some safety checks.
 	if (Model == nullptr ||
@@ -378,15 +383,18 @@ void UMLDeformerModelInstance::Tick(float DeltaTime, float ModelWeight)
 	// This could for example happen when you add an ML Deformer component, but your SkeletalMesh isn't setup yet, but later becomes valid.
 	if (Model && !HasPostInitialized())
 	{
-		Model->PostMLDeformerComponentInit(this);
+		PostMLDeformerComponentInit();
 	}
 
-	// Setup the neural network, by feeding it's inputs and doing some compatibility checks.
-	if (!SetupNeuralNetworkForFrame())
+	if (ModelWeight > 0.0001f && SetupInputs())
 	{
-		return;
+		// Execute the model instance.
+		// For models using neural networks this will perform the inference, 
+		// calculate the network outputs and possibly use them, depending on how the model works.
+		Execute(ModelWeight);
 	}
-
-	// Perform the inference, calculate the network outputs and possibly use them, depending on how the model works.
-	RunNeuralNetwork(ModelWeight);
+	else
+	{
+		HandleZeroModelWeight();
+	}
 }

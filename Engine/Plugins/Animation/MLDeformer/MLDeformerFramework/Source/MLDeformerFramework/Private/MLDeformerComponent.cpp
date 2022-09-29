@@ -25,8 +25,8 @@ void UMLDeformerComponent::Init()
 		if (ModelInstance)
 		{
 			ModelInstance->Release();
+			ModelInstance = nullptr;
 		}
-		ModelInstance = nullptr;
 		return;
 	}
 
@@ -37,11 +37,12 @@ void UMLDeformerComponent::Init()
 		if (ModelInstance)
 		{
 			ModelInstance->Release();
+			ModelInstance = nullptr;
 		}
 		ModelInstance = Model->CreateModelInstance(this);
 		ModelInstance->SetModel(Model);
 		ModelInstance->Init(SkelMeshComponent);
-		Model->PostMLDeformerComponentInit(ModelInstance);
+		ModelInstance->PostMLDeformerComponentInit();
 	}
 	else
 	{
@@ -149,16 +150,19 @@ USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDefor
 			// Get a list of all skeletal mesh components on the actor.
 			TArray<USkeletalMeshComponent*> Components;
 			AActor* Actor = Cast<AActor>(GetOuter());
-			Actor->GetComponents<USkeletalMeshComponent>(Components);
-		
-			// Find a component that uses a mesh with the same vertex count.
-			for (USkeletalMeshComponent* Component : Components)
+			if (Actor)
 			{
-				const USkeletalMesh* ComponentSkeletalMesh = Component->GetSkeletalMeshAsset();
-				if (ComponentSkeletalMesh == ModelSkeletalMesh)
+				Actor->GetComponents<USkeletalMeshComponent>(Components);
+		
+				// Find a component that uses a mesh with the same vertex count.
+				for (USkeletalMeshComponent* Component : Components)
 				{
-					ResultingComponent = Component;
-					break;
+					const USkeletalMesh* ComponentSkeletalMesh = Component->GetSkeletalMeshAsset();
+					if (ComponentSkeletalMesh == ModelSkeletalMesh)
+					{
+						ResultingComponent = Component;
+						break;
+					}
 				}
 			}
 		}
@@ -168,7 +172,10 @@ USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDefor
 	{
 		// Fall back to the first skeletal mesh component.
 		const AActor* Actor = Cast<AActor>(GetOuter());
-		ResultingComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
+		if (Actor)
+		{
+			ResultingComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
+		}
 	}
 
 	return ResultingComponent;
@@ -190,7 +197,11 @@ void UMLDeformerComponent::Activate(bool bReset)
 void UMLDeformerComponent::Deactivate()
 {
 	RemoveNeuralNetworkModifyDelegate();
-	ModelInstance = nullptr;
+	if (ModelInstance)
+	{
+		ModelInstance->Release();
+		ModelInstance = nullptr;
+	}
 	Super::Deactivate();
 }
 

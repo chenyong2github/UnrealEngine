@@ -6,6 +6,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
 #include "MLDeformerEditorActor.h"
 #include "Misc/FrameTime.h"
 #include "MLDeformerVizSettings.h"
@@ -69,20 +70,38 @@ namespace UE::MLDeformer
 			// Restore flags of the current asset, before we change to the new.
 			if (Asset)
 			{
+				UPackage* Package = Asset->GetPackage();
 				if (bEditorOnly)
 				{
-					Asset->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+					Package->SetPackageFlags(PKG_EditorOnly);
+					Package->SetDirtyFlag(bWasDirty);
 				}
 				else
 				{
-					Asset->GetPackage()->ClearPackageFlags(PKG_EditorOnly);
+					Package->ClearPackageFlags(PKG_EditorOnly);
+					Package->SetDirtyFlag(bWasDirty);
 					UE_LOG(LogMLDeformer, Display, TEXT("Unmarked '%s' as editor only asset. Asset can be included in packaging again."), *Asset->GetName());
 				}
 			}
 
-			// Update to the new asset.
+			// Update to the new asset, and mark it as editor only if it isn't yet.
 			Asset = InAsset;
-			bEditorOnly = !Asset.IsNull() ? static_cast<bool>(Asset->GetPackage()->GetPackageFlags() & PKG_EditorOnly) : false;
+			if (!Asset.IsNull())
+			{
+				UPackage* Package = Asset->GetPackage();
+				bEditorOnly = static_cast<bool>(Package->GetPackageFlags() & PKG_EditorOnly);
+				bWasDirty = Package->IsDirty();
+				if (!bEditorOnly)
+				{
+					UE_LOG(LogMLDeformer, Display, TEXT("Marking '%s' as editor only asset. Asset will be excluded from packaging. This requires you to save the asset."), *Asset->GetName());
+					Package->SetPackageFlags(PKG_EditorOnly);
+					Package->SetDirtyFlag(true);
+				}
+			}
+			else
+			{
+				bEditorOnly = false;
+			}
 		}
 
 	private:
@@ -91,6 +110,9 @@ namespace UE::MLDeformer
 
 		/** Was this asset previously marked as editor only already? */
 		bool bEditorOnly = false;
+
+		/** Was the previous asset dirty? */
+		bool bWasDirty = false;
 	};
 
 	/**

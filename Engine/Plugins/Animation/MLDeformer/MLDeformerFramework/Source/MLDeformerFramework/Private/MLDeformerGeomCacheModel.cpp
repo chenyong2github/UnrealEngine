@@ -3,6 +3,7 @@
 #include "MLDeformerGeomCacheVizSettings.h"
 #include "MLDeformerGeomCacheHelpers.h"
 #include "MLDeformerComponent.h"
+#include "MLDeformerAsset.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "GeometryCache.h"
@@ -22,6 +23,37 @@ void UMLDeformerGeomCacheModel::Serialize(FArchive& Archive)
 }
 
 #if WITH_EDITOR
+void UMLDeformerGeomCacheModel::LogPackagingWarnings()
+{
+	const UGeometryCache* GeomCache = GetGeometryCache();
+	if (GeomCache && !GeomCache->GetPackage()->HasAnyPackageFlags(PKG_EditorOnly))
+	{
+		UE_LOG(
+			LogMLDeformer,
+			Warning, 
+			TEXT("Training geometry cache '%s' is not marked as editor only and will be included during packaging. Reopen the '%s' MLD asset and save this geom cache asset to fix this."),
+			*GeomCache->GetName(),
+			*GetDeformerAsset()->GetName());
+	}
+
+	UMLDeformerGeomCacheVizSettings* Viz = GetGeomCacheVizSettings();
+	if (Viz)
+	{
+		const UGeometryCache* TestGeomCache = Viz->GetTestGroundTruth();
+		if (TestGeomCache && !TestGeomCache->GetPackage()->HasAnyPackageFlags(PKG_EditorOnly))
+		{
+			UE_LOG(
+				LogMLDeformer,
+				Warning, 
+				TEXT("Test geometry cache '%s' is not marked as editor only and will be included during packaging. Reopen the '%s' MLD asset and save this geom cache asset to fix this."),
+				*TestGeomCache->GetName(),
+				*GetDeformerAsset()->GetName());
+		}
+	}
+
+	Super::LogPackagingWarnings();
+}
+
 void UMLDeformerGeomCacheModel::UpdateNumTargetMeshVertices()
 {
 	SetNumTargetMeshVerts(UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GetGeometryCache()));
@@ -30,22 +62,6 @@ void UMLDeformerGeomCacheModel::UpdateNumTargetMeshVertices()
 UMLDeformerGeomCacheVizSettings* UMLDeformerGeomCacheModel::GetGeomCacheVizSettings() const
 {
 	return Cast<UMLDeformerGeomCacheVizSettings>(GetVizSettings());
-}
-
-void UMLDeformerGeomCacheModel::SetAssetEditorOnlyFlags()
-{
-	// Set the flags for the base class, which filters out the training anim sequence.
-	UMLDeformerModel::SetAssetEditorOnlyFlags();
-
-	// The training geometry cache.
-	MarkObjectAsEditorOnly(GetGeometryCache());
-
-	// The testing geometry cache (ground truth of the test anim sequence).
-	const UMLDeformerGeomCacheVizSettings* GeomCacheVizSettings = GetGeomCacheVizSettings();
-	if (GeomCacheVizSettings)
-	{
-		MarkObjectAsEditorOnly(GeomCacheVizSettings->GetTestGroundTruth());
-	}
 }
 #endif // WITH_EDITOR
 

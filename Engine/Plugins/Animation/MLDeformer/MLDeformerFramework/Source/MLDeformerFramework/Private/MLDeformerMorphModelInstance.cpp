@@ -5,41 +5,130 @@
 #include "NeuralNetwork.h"
 #include "Components/SkeletalMeshComponent.h"
 
-void UMLDeformerMorphModelInstance::Release()
+TAtomic<int32> UMLDeformerMorphModelInstance::NextFreeMorphSetID(0);
+
+void UMLDeformerMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 {
-	Super::Release();
+	Super::Init(SkelMeshComponent);
 
-	if (SkeletalMeshComponent == nullptr)
-	{
-		return;
-	}
-
-	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
-	if (MorphModel == nullptr)
-	{
-		return;
-	}
-
-	const int32 LOD = 0;
-	SkeletalMeshComponent->RemoveExternalMorphSet(LOD, MorphModel->GetExternalMorphSetID());
-	SkeletalMeshComponent->RefreshExternalMorphTargetWeights();
+	// Generate a unique ID for our morph target set.
+	ExternalMorphSetID = NextFreeMorphSetID++;
 }
 
-// Run the neural network, which calculates its outputs, which are the weights of our morph targets.
-void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
+void UMLDeformerMorphModelInstance::Release()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::RunNeuralNetwork)
+	// Try to unregister the morph target and morph target set.
+	if (!SkeletalMeshComponent.IsNull())
+	{
+		const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
+		if (MorphModel)
+		{
+			const int32 LOD = 0;
+			SkeletalMeshComponent->RemoveExternalMorphSet(LOD, ExternalMorphSetID);
+			SkeletalMeshComponent->RefreshExternalMorphTargetWeights();
+		}
+	}
 
-	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
-	if (MorphModel == nullptr)
+	Super::Release();
+}
+
+void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()
+{
+	if (HasPostInitialized())
 	{
 		return;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerMorphModelInstance::PostMLDeformerComponentInit)
+
+	Super::PostMLDeformerComponentInit();
+
+	// Register the external morph targets buffer to the skinned mesh component.
+	USkeletalMeshComponent* SkelMeshComponent = GetSkeletalMeshComponent();
+	if (SkelMeshComponent && SkelMeshComponent->GetSkeletalMeshAsset())
+	{	
+		// Get the morph model and its morph target set.
+		UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
+		check(MorphModel);
+		TSharedPtr<FExternalMorphSet> MorphTargetSet = MorphModel->GetMorphTargetSet();
+
+		// Register the morph set. This overwrites the existing one for this model, if it already exists.
+		// Only add to LOD 0 for now.
+		const int32 LOD = 0;
+		SkelMeshComponent->AddExternalMorphSet(LOD, ExternalMorphSetID, MorphTargetSet);
+
+		// When we're in editor mode, keep the CPU data around, so we can re-initialize when needed.
+#if WITH_EDITOR
+		MorphTargetSet->MorphBuffers.SetEmptyMorphCPUDataOnInitRHI(false);
+#else
+		MorphTargetSet->MorphBuffers.SetEmptyMorphCPUDataOnInitRHI(true);
+#endif
+
+		// Release the render resources, but only in an editor build.
+		// The non-editor build shouldn't do this, as then it can't initialize again. The non-editor build assumes
+		// that the data doesn't change and we don't need to re-init.
+		// In the editor build we have to re-initialize the render resources as the morph targets can change after (re)training, so
+		// that is why we release them here, and intialize them again after.
+		FMorphTargetVertexInfoBuffers& MorphBuffers = MorphTargetSet->MorphBuffers;
+#if WITH_EDITOR
+		BeginReleaseResource(&MorphBuffers);
+#endif
+
+		// Reinitialize the GPU compressed buffers.
+		if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0)
+		{
+			// In a non-editor build this will clear the CPU data.
+			// That also means it can't re-init the resources later on again.
+			BeginInitResource(&MorphBuffers);
+		}
+
+		// Update the weight information in the Skeletal Mesh.
+		SkelMeshComponent->RefreshExternalMorphTargetWeights();
+
+		SetHasPostInitialized(true);
+	}
+}
+
+FExternalMorphSetWeights* UMLDeformerMorphModelInstance::FindWeightData(int32 LOD) const
+{
+	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
+	if (MorphModel == nullptr || SkeletalMeshComponent.IsNull())
+	{
+		return nullptr;
+	}
+
+	// If we haven't got an external morph set registered yet, let's just return a nullptr.
+	if (!SkeletalMeshComponent->HasExternalMorphSet(LOD, ExternalMorphSetID))
+	{
+		return nullptr;
 	}
 
 	// Grab the weight data for this morph set.
 	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
+	return SkeletalMeshComponent->GetExternalMorphWeights(LOD).MorphSets.Find(ExternalMorphSetID);
+}
+
+void UMLDeformerMorphModelInstance::HandleZeroModelWeight()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::HandleZeroModelWeight)
+
 	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
-	FExternalMorphSetWeights* WeightData = MorphModel->FindExternalMorphWeights(LOD, SkeletalMeshComponent);
+	FExternalMorphSetWeights* WeightData = FindWeightData(LOD);
+	if (WeightData)
+	{
+		WeightData->ZeroWeights();
+	}
+}
+
+// Run the neural network, which calculates its outputs, which are the weights of our morph targets.
+void UMLDeformerMorphModelInstance::Execute(float ModelWeight)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::Execute)
+
+	// Grab the weight data for this morph set.
+	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
+	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
+	FExternalMorphSetWeights* WeightData = FindWeightData(LOD);
 	if (WeightData == nullptr)
 	{
 		return;
@@ -48,11 +137,11 @@ void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
 	// If our model is active, we want to run the neural network and update the morph weights
 	// with the values that the neural net calculated for us.
 	const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
-	if (ModelWeight > 0.0f && NeuralNetwork != nullptr)
+	if (NeuralNetwork)
 	{
 		// Perform the neural network inference, which updates the output tensor.
 		// This takes most CPU time inside this method.
-		UMLDeformerModelInstance::RunNeuralNetwork(ModelWeight);
+		UMLDeformerModelInstance::Execute(ModelWeight);
 
 		// Get the output tensor, read the values and use them as morph target weights inside the skeletal mesh component.
 		const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);

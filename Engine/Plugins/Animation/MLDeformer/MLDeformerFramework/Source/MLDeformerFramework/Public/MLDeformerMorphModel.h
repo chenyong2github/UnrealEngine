@@ -23,7 +23,6 @@ public:
 	virtual FString GetDisplayName() const override			{ return "Morph Base Model"; }
 	virtual bool IsNeuralNetworkOnGPU() const override		{ return false; }	// CPU based neural network.
 	virtual void Serialize(FArchive& Archive) override;
-	virtual void PostMLDeformerComponentInit(UMLDeformerModelInstance* ModelInstance) override;
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	// ~END UMLDeformerModel overrides.
 
@@ -74,25 +73,6 @@ public:
 	const TArray<FVector3f>& GetMorphTargetDeltas() const	{ return MorphTargetDeltas; }
 
 	/**
-	 * Get the external morph target set ID for this model.
-	 * This basically identifies the set of morph targets that belong to this model.
-	 * Different models on the same skeletal mesh gives each model its own unique ID.
-	 * You can use this ID to find the weight values for a specific model instance, inside the USkinnedMeshComponent class.
-	 * @return The unique ID of the morph target set for this model.
-	 * @see USkinnedMeshComponent::GetExternalMorphWeights.
-	 * @see FindExternalMorphWeights.
-	 */
-	int32 GetExternalMorphSetID() const						{ return ExternalMorphSetID; }
-
-	/**
-	 * Get the weights for the external morph target set that belongs to this model.
-	 * @param LOD The LOD level to get the weights for.
-	 * @param SkinnedMeshComponent The skinned mesh component that we have to search in.
-	 * @return A pointer to the weight data, or nullptr in case we cannot find the weight data.
-	 */
-	FExternalMorphSetWeights* FindExternalMorphWeights(int32 LOD, USkinnedMeshComponent* SkinnedMeshComponent) const;
-
-	/**
 	 * Get the morph target set.
 	 */
 	TSharedPtr<FExternalMorphSet> GetMorphTargetSet() const { return MorphTargetSet; }
@@ -106,9 +86,6 @@ public:
 	int32 GetMorphTargetDeltaStartIndex(int32 MorphTargetIndex) const;
 
 private:
-	/** The next free morph target set ID. This is used to generate unique ID's for each morph model. */
-	static TAtomic<int32> NextFreeMorphSetID;
-
 	/** The compressed morph target data, ready for the GPU. */
 	TSharedPtr<FExternalMorphSet> MorphTargetSet;
 
@@ -117,12 +94,6 @@ private:
 	 * So the size of this buffer is: (NumVertsPerMorphTarget * 3 * NumMorphTargets).
 	 */
 	TArray<FVector3f> MorphTargetDeltas;
-
-	/** 
-	 * The external morph set data type ID, specific to this model.
-	 * This will get automatically set. Each model instance will get its own unique ID, using the NextFreeMorphSetID atomic that will be increased.
-	 */
-	int32 ExternalMorphSetID = -1;
 
 #if WITH_EDITORONLY_DATA
 	/**

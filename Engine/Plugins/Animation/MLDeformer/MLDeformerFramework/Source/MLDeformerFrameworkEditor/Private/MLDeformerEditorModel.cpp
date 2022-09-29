@@ -69,6 +69,8 @@ namespace UE::MLDeformer
 		WorkingRange = TRange<double>(0.0, 100.0);
 		PlaybackRange = TRange<double>(0.0, 100.0);
 
+		Model->LogPackagingWarnings();
+
 		AnimSequenceFlags.SetAsset(Model->GetAnimSequence());
 
 		PostEditPropertyDelegateHandle = Model->OnPostEditChangeProperty().AddRaw(this, &FMLDeformerEditorModel::OnPostEditChangeProperty);
@@ -1577,7 +1579,6 @@ namespace UE::MLDeformer
 	{
 		OnInputAssetsChanged();
 		OnPostInputAssetChanged();
-		Model->SetAssetEditorOnlyFlags();
 		GetEditor()->GetModelDetailsView()->ForceRefresh();
 		if (bRefreshVizSettings)
 		{

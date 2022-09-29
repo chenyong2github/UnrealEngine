@@ -68,6 +68,8 @@ void UMLDeformerModel::Serialize(FArchive& Archive)
 		{
 			if (Archive.IsCooking())
 			{
+				LogPackagingWarnings();
+
 				AnimSequence = nullptr;
 				VizSettings = nullptr;
 			}
@@ -78,15 +80,6 @@ void UMLDeformerModel::Serialize(FArchive& Archive)
 	#endif
 
 	Super::Serialize(Archive);
-
-	#if WITH_EDITOR
-		// Reinitialize the vertex map after loading its contents.
-		// Because our skeletal mesh asset could have changed vertex counts.
-		if (Archive.IsLoading())
-		{
-			InitVertexMap();
-		}
-	#endif
 }
 
 UMLDeformerAsset* UMLDeformerModel::GetDeformerAsset() const
@@ -99,6 +92,10 @@ void UMLDeformerModel::PostLoad()
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModel::PostLoad)
 
 	Super::PostLoad();
+
+	#if WITH_EDITOR
+		InitVertexMap();
+	#endif
 
 	InitGPUData();
 
@@ -131,10 +128,6 @@ void UMLDeformerModel::PostLoad()
 			Network->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
 		}
 	}
-
-#if WITH_EDITOR
-	SetAssetEditorOnlyFlags();
-#endif
 }
 
 void UMLDeformerModel::SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
@@ -213,24 +206,18 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 		return SkeletalMesh ? SkeletalMesh->GetNumImportedVertices() : 0;
 	}
 
-	void UMLDeformerModel::MarkObjectAsEditorOnly(UObject* InObject, bool bLogMessage)
+	void UMLDeformerModel::LogPackagingWarnings()
 	{
-		if (InObject == nullptr)
+		const UAnimSequence* AnimSeq = GetAnimSequence();
+		if (AnimSeq && !AnimSeq->GetPackage()->HasAnyPackageFlags(PKG_EditorOnly))
 		{
-			return;
+			UE_LOG(
+				LogMLDeformer,
+				Warning, 
+				TEXT("Training animation sequence '%s' is not marked as editor only and will be included during packaging. Reopen the '%s' MLD asset and save this anim sequence asset to fix this."),
+				*AnimSeq->GetName(),
+				*GetDeformerAsset()->GetName());
 		}
-
-		InObject->GetPackage()->SetPackageFlags(PKG_EditorOnly);
-
-		if (bLogMessage)
-		{
-			UE_LOG(LogMLDeformer, Display, TEXT("Marking '%s' as editor only asset. Asset will be excluded from packaging."), *InObject->GetName());
-		}
-	}
-
-	void UMLDeformerModel::SetAssetEditorOnlyFlags()
-	{
-		MarkObjectAsEditorOnly(GetAnimSequence());
 	}
 #endif	// #if WITH_EDITOR
 
