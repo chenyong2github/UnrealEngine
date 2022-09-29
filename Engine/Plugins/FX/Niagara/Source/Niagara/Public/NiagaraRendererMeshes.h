@@ -195,9 +195,11 @@ private:
 
 	FVector2f DistanceCullRange;
 	FVector2f DistanceCullRangeSquared;
-	int32 RendererVisTagOffset;
-	int32 RendererVisibility;
-	int32 MeshIndexOffset;
+	int32 ParticleRendererVisTagOffset = INDEX_NONE;
+	int32 ParticleMeshIndexOffset = INDEX_NONE;
+	int32 RendererVisibility = 0;
+	int32 EmitterRendererVisTagOffset = INDEX_NONE;
+	int32 EmitterMeshIndexOffset = INDEX_NONE;
 	uint32 MaterialParamValidMask;
 	uint32 MaxSectionCount;
 
