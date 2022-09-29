@@ -737,10 +737,11 @@ void FExrImgMediaReaderGpu::TransferFromStagingBuffer()
 			for (FStructuredBufferPoolItem* MemoryPoolItem : AllValues)
 			{
 				// Check if fence has signaled. Or otherwise if we are waiting for signal to come through.
-				if (MemoryPoolItem->RenderFence->Poll() || !MemoryPoolItem->bWillBeSignaled)
+				if (!MemoryPoolItem->bWillBeSignaled || MemoryPoolItem->RenderFence->Poll())
 				{
 					// If buffer was in use but the fence signaled we need to reset bWillBeSignaled flag.
 					MemoryPoolItem->bWillBeSignaled = false;
+					MemoryPoolItem->RenderFence->Clear();
 
 					StagingMemoryPool.Remove(Key, MemoryPoolItem);
 					MemoryPool.Add(Key, MemoryPoolItem);
