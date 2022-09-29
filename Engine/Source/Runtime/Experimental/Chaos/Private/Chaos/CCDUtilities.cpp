@@ -539,7 +539,7 @@ namespace Chaos
 			// After applying impulse, constraint TOI need be updated to reflect the new velocities. 
 			// Usually the new velocities are separating, and therefore TOI should be infinity.
 			// See resweep below which (optionally) updates TOI for all other contacts as a result of handling this one
-			CCDConstraint->SweptConstraint->SetCCDTimeOfImpact(TNumericLimits<FReal>::Max());
+			CCDConstraint->SweptConstraint->ResetCCDTimeOfImpact();
 
 			bool bMovedParticle0 = false;
 			bool bMovedParticle1 = false;

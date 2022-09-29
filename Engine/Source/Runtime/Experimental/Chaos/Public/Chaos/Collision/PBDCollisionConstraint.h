@@ -234,6 +234,8 @@ namespace Chaos
 
 		static const int32 MaxManifoldPoints = 4;
 
+		static constexpr FRealSingle MaxTOI = std::numeric_limits<FRealSingle>::max();
+
 		/**
 		 * @brief Create a contact constraint
 		 * Initializes a constraint stored inline in an object. Only intended to be called once right after construction.
@@ -604,7 +606,12 @@ namespace Chaos
 		/**
 		 * @brief Set the CCD TOI from the collision detection sweep
 		*/
-		void SetCCDTimeOfImpact(const FReal TOI) { CCDTimeOfImpact = FRealSingle(TOI); }
+		void SetCCDTimeOfImpact(const FReal TOI) { check(TOI <= FReal(MaxTOI)); CCDTimeOfImpact = FRealSingle(TOI); }
+
+		/**
+		 * Initialize the CCD TOI to the highest possible value
+		 */
+		void ResetCCDTimeOfImpact() { CCDTimeOfImpact = MaxTOI; }
 
 		/**
 		 * \brief Store the results of CCD contact resolution, if active

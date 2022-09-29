@@ -1249,7 +1249,7 @@ namespace Chaos
 		void UpdateGenericConvexConvexConstraintSwept(TGeometryParticleHandle<FReal, 3>* Particle0, const FImplicitObject& Implicit0, const FRigidTransform3& StartWorldTransform0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject& Implicit1, const FRigidTransform3& StartWorldTransform1, const FVec3& Dir, const FReal Length, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateGenericConvexConvexConstraintSwept, ConstraintsDetailedStats);
-			FReal TOI = TNumericLimits<FReal>::Max();
+			FReal TOI = FPBDCollisionConstraint::MaxTOI;
 			const FRigidTransform3& EndWorldTransform0 = Constraint.GetShapeWorldTransform0();
 			const FRigidTransform3& EndWorldTransform1 = Constraint.GetShapeWorldTransform1();
 			UpdateContactPointNoCull(Constraint, GenericConvexConvexContactPointSwept(Implicit0, StartWorldTransform0, EndWorldTransform0, Implicit1, StartWorldTransform1, EndWorldTransform1, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt);
@@ -1661,7 +1661,7 @@ namespace Chaos
 			const FVec3 DeltaX1 = Constraint.GetShapeWorldTransform1().GetTranslation() - WorldTransform1.GetLocation();
 			bool bUseCCD = ShouldUseCCD(Particle0, DeltaX0, Particle1, DeltaX1, DirCCD, LengthCCD);
 
-			Constraint.SetCCDTimeOfImpact(TNumericLimits<FReal>::Max());
+			Constraint.ResetCCDTimeOfImpact();
 
 			if (bUseCCD)
 			{
