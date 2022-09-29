@@ -269,6 +269,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		}
 	}
 
+	// Filter out any NaN-s and negative numbers to prevent any errors propagating into the subsequent pipeline.
+	ResultColor.rgb = -min(-ResultColor.rgb, float3(0, 0, 0));
+
 	ColorOutput[PixelPos] = ResultColor;
 
 	float4 RayParams = (float4)0;
