@@ -7,7 +7,6 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
-#include "FileHelpers.h"
 #include "GameProjectUtils.h"
 #include "Interfaces/IProjectManager.h"
 #include "Interfaces/IPluginManager.h"
@@ -898,21 +897,6 @@ bool FPluginUtils::UnloadPluginsAssets(const TConstArrayView<TSharedRef<IPlugin>
 	if (PluginContentMountPoints.IsEmpty())
 	{
 		return true;
-	}
-
-	// Close the current map if it's in one of the plugins
-	if (UWorld* CurrentWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr)
-	{
-		const FNameBuilder CurrentWorldPath(CurrentWorld->GetPackage()->GetFName());
-		const FStringView CurrentWorldMountPoint = FPathViews::GetMountPointNameFromPath(CurrentWorldPath);
-		if (PluginNames.ContainsByHash(GetTypeHash(CurrentWorldMountPoint), CurrentWorldMountPoint))
-		{
-			UWorld* BlankWorld = UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/ false);
-			if (ensure(BlankWorld))
-			{
-				BlankWorld->GetOutermost()->ClearDirtyFlag();
-			}
-		}
 	}
 
 	// Synchronous scan plugins to make sure we find all their assets.

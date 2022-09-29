@@ -48,7 +48,6 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/GameEngine.h"
 #include "Engine/LevelStreaming.h"
-#include "Engine/MapBuildDataRegistry.h"
 #include "Engine/Selection.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Logging/MessageLog.h"
@@ -383,35 +382,28 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		{
 			if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
 			{
-				// Is the currently loaded world being unloaded? If so, we just reset the current world.
-				// We also need to skip the build data package as that will also be destroyed by the call to CreateNewMapForEditing.
-				if (PackagesToUnload.Contains(EditorWorld->GetOutermost()))
+				// Is the current world being unloaded?
+				if (PackagesToUnload.Contains(EditorWorld->GetPackage()))
 				{
-					// Remove the world package from the unload list
-					PackagesToUnload.Remove(EditorWorld->GetOutermost());
-
-					// Remove the level build data package from the unload list as creating a new map will unload build data for the current world
-					for (int32 LevelIndex = 0; LevelIndex < EditorWorld->GetNumLevels(); ++LevelIndex)
+					TArray<TWeakObjectPtr<UPackage>> WeakPackages;
+					WeakPackages.Reserve(PackagesToUnload.Num());
+					for (UPackage* Package : PackagesToUnload)
 					{
-						ULevel* Level = EditorWorld->GetLevel(LevelIndex);
-						if (Level->MapBuildData)
-						{
-							PackagesToUnload.Remove(Level->MapBuildData->GetOutermost());
-						}
-					}
-
-					// Remove any streaming levels from the unload list as creating a new map will unload streaming levels for the current world
-					for (ULevelStreaming* EditorStreamingLevel : EditorWorld->GetStreamingLevels())
-					{
-						if (EditorStreamingLevel->IsLevelLoaded())
-						{
-							UPackage* EditorStreamingLevelPackage = EditorStreamingLevel->GetLoadedLevel()->GetOutermost();
-							PackagesToUnload.Remove(EditorStreamingLevelPackage);
-						}
+						WeakPackages.Add(Package);
 					}
 
 					// Unload the current world
 					GEditor->CreateNewMapForEditing();
+
+					// Remove stale entries in PackagesToUnload (unloaded world, level build data, streaming levels, external actors, etc)
+					PackagesToUnload.Reset();
+					for (const TWeakObjectPtr<UPackage>& WeakPackage : WeakPackages)
+					{
+						if (UPackage* Package = WeakPackage.Get())
+						{
+							PackagesToUnload.Add(Package);
+						}
+					}
 				}
 			}
 		}
