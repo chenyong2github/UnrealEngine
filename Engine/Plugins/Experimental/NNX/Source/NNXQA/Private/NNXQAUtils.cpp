@@ -399,7 +399,7 @@ namespace Test
 				continue;
 			}
 
-			if (!RuntimeFilter.IsEmpty() && RuntimeName != RuntimeFilter)
+			if (!RuntimeFilter.IsEmpty() && !RuntimeFilter.Contains(RuntimeName))
 			{
 				continue;
 			}

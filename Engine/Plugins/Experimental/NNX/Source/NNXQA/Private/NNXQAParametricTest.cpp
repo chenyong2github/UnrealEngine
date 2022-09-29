@@ -320,22 +320,20 @@ namespace Test
 	}
 
 	static FAutoConsoleCommand SetAutomationRuntimeFilterCommand(
-		TEXT("nnx.test.parametric.setautomationfilter"), TEXT("Set the RuntimeFilter witch automation will use, no parameter to run on all runtime (this is the default)."),
+		TEXT("nnx.test.setautomationfilter"), TEXT("Set the RuntimeFilter witch automation will use, no parameter to run on all runtime (this is the default)."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(
 			[](const TArray< FString >& Args)
 			{
-				if (Args.Num() > 0)
+				AutomationRuntimeFilter.Empty();
+				for (auto&& Arg : Args)
 				{
-					SetAutomationRuntimeFilter(Args[0]);
-				}
-				else
-				{
-					SetAutomationRuntimeFilter(TEXT(""));
+					AutomationRuntimeFilter += Arg;
+					AutomationRuntimeFilter += TEXT(" ");
 				}
 			}
 		)
 	);
-	
+
 	bool RunParametricTests(const FString& NameSubstring, const FString& Tag, const FString& InRuntimeFilter)
 	{
 		bool bAllTestSucceed = true;
@@ -362,7 +360,7 @@ namespace Test
 
 		if (NumTest == 0)
 		{
-			UE_LOG(LogNNX, Display, TEXT("No test selected to run (on %d parametric tests registered)."), ParametricTests.TestSetups.Num());
+			UE_LOG(LogNNX, Display, TEXT("No test selected to run (on %d tests registered)."), ParametricTests.TestSetups.Num());
 			return true;
 		}
 		else if (NumTestFailed == 0)
@@ -393,14 +391,54 @@ namespace Test
 	}
 
 	static FAutoConsoleCommand RunTestCommand(
-		TEXT("nnx.test.parametric.run"), TEXT("Run all parametric tests. Use -name to filter by name (substring). Use -tag to filter by tag. Use -runtime to only run for the provided runtime."),
+		TEXT("nnx.test.run"), TEXT("Run all tests. Use -name to filter by name (substring). Use -tag to filter by tag. Use -runtime to only run for the provided runtime, default is to use filter set from setruntimefilter command."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(
 			[](const TArray< FString >& Args)
 			{
 				FString Name = FindArg(TEXT("-name"), Args);
 				FString Tag = FindArg(TEXT("-tag"), Args);
 				FString Runtime = FindArg(TEXT("-runtime"), Args);
-				RunParametricTests(Name, Tag, Runtime);
+				double StartTime = FPlatformTime::Seconds();
+				bool bTestSucceeded = RunParametricTests(Name, Tag, Runtime);
+				double EndTime = FPlatformTime::Seconds();
+				double TimeForTest = static_cast<float>(EndTime - StartTime);
+				if (bTestSucceeded)
+				{
+					UE_LOG(LogNNX, Display, TEXT("Tests succeeded in %0.1f seconds."), TimeForTest);
+				}
+				else
+				{
+					UE_LOG(LogNNX, Warning, TEXT("Tests FAILED in %0.1f seconds."), TimeForTest);
+				}
+			}
+		)
+	);
+
+	static FAutoConsoleCommand RunSmokeTestCommand(
+		TEXT("nnx.test.smokerun"), TEXT("Run all smoke tests. Use -name to additionaly filter by name. Use -runtime to only run for the provided runtime, default is to run on all runtime but NNXRuntimeCPU (too slow at the moment, see comment in code)."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(
+			[](const TArray< FString >& Args)
+			{
+				FString Name = FindArg(TEXT("-name"), Args);
+				FString Runtime = FindArg(TEXT("-runtime"), Args);
+				if (Runtime.IsEmpty())
+				{
+					//NNXRuntimeCPU tests are currently slow due to a synchronization delay on thread creation/destruction of the ORT session.
+					//We want very fast smoke test, thus by default we do NOT run for NNXRuntimeCPU for smoke tests.
+					Runtime = TEXT("NNXRuntimeORTDml NNXRuntimeORTCuda NNXRuntimeHlsl NNXRuntimeDml");
+				}
+				double StartTime = FPlatformTime::Seconds();
+				bool bTestSucceeded = RunParametricTests(Name, TEXT("smoketest"), Runtime);
+				double EndTime = FPlatformTime::Seconds();
+				double TimeForTest = static_cast<float>(EndTime - StartTime);
+				if (bTestSucceeded)
+				{
+					UE_LOG(LogNNX, Display, TEXT("Smoke tests succeeded in %0.1f seconds."), TimeForTest);
+				}
+				else
+				{
+					UE_LOG(LogNNX, Warning, TEXT("Smoke tests FAILED in %0.1f seconds."), TimeForTest);
+				}
 			}
 		)
 	);
@@ -468,7 +506,7 @@ namespace Test
 #endif //WITH_DEV_AUTOMATION_TESTS
 
 	static FAutoConsoleCommand TestReloadCommand(
-		TEXT("nnx.test.parametric.reload"), TEXT("Reload NNX parametric tests definition from Json."),
+		TEXT("nnx.test.reload"), TEXT("Reload NNX tests definition from Json."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(
 			[](const TArray< FString >& Args)
 			{

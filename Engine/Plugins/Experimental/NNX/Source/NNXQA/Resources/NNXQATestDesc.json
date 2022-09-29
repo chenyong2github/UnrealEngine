@@ -52,7 +52,6 @@
 				},
 				{
 					"target": "VertexDeltaModel",
-					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error": 1e-4, "relative_error": 10.0,
 							"comment": "TODO check, relative error is very high."
@@ -70,7 +69,7 @@
 			"category": "Elementwise.Unary",
 			"targets": [
 				{	"target": "Abs", "additional_datasets": [ "Elementwise.Slow.OneInput" ]},
-				{	"target": "Acos", "runtimes": [
+				{	"target": "Acos", "tags": [ "SmokeTest" ], "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
@@ -94,8 +93,8 @@
 				{	"target": "Atanh" },
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
 				{	"target": "Cast",     "skip": true, "comment": "TODO need attributes" },
-				{	"target": "Ceil" },
-				{	"target": "Clip", "additional_datasets": [ "Elementwise.ClipTestWithExtraInput" ], "runtimes": [
+				{	"target": "Ceil", "tags": [ "SmokeTest" ]},
+				{	"target": "Clip", "tags": [ "SmokeTest" ], "additional_datasets": [ "Elementwise.ClipTestWithExtraInput" ], "runtimes": [
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need scalar tensor support"},
 						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need scalar tensor support"}						
 					]},
@@ -106,7 +105,7 @@
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
 					]},
-				{	"target": "Erf", "runtimes": [
+				{	"target": "Erf", "tags": [ "SmokeTest" ], "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeHlsl",   "absolute_error":  5e-4, "relative_error": 0.05, "comment": "NNXRuntimeHLSL Erf implementation is less precise than the DML one"}
@@ -128,15 +127,15 @@
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
 						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need bool tensor support"}						
 					]},
-				{	"target": "Reciprocal" },
-				{	"target": "Relu" },
-				{	"target": "Round" },
+				{	"target": "Reciprocal", "tags": [ "SmokeTest" ] },
+				{	"target": "Relu", "tags": [ "SmokeTest" ] },
+				{	"target": "Round", "tags": [ "SmokeTest" ] },
 				{	"target": "Selu", "comment": "TODO test with not-default attribute", "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
 					]},
-				{	"target": "Sigmoid" },
+				{	"target": "Sigmoid", "tags": [ "SmokeTest" ] },
 				{	"target": "Sign" },
 				{	"target": "Sin", "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
@@ -144,9 +143,9 @@
 						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
 					]},
 				{	"target": "Sinh" },
-				{	"target": "Softplus" },
-				{	"target": "Softsign" },
-				{	"target": "Sqrt" },
+				{	"target": "Softplus", "tags": [ "SmokeTest" ] },
+				{	"target": "Softsign", "tags": [ "SmokeTest" ] },
+				{	"target": "Sqrt", "tags": [ "SmokeTest" ] },
 				{	"target": "Tan", "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
@@ -164,16 +163,16 @@
 			"runtimes": [ { "name": "NNXRuntimeDml", "skip": true} ],
 			"targets": [
 				{	"target": "Add", "additional_datasets": [ "Elementwise.Slow.TwoInputs" ]},
-				{	"target": "And", "input_type": "boolean", "output_type": "boolean", "runtimes": [
+				{	"target": "And", "tags": [ "SmokeTest" ], "input_type": "boolean", "output_type": "boolean", "runtimes": [
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
 						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need bool tensor support"}						
 					]},
-				{	"target": "Div"},
+				{	"target": "Div", "tags": [ "SmokeTest" ]},
 				{	"target": "Equal", "output_type": "boolean", "runtimes": [
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
 						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need bool tensor support"}						
 					]},
-				{	"target": "Greater", "output_type": "boolean", "runtimes": [
+				{	"target": "Greater", "tags": [ "SmokeTest" ], "output_type": "boolean", "runtimes": [
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
 						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need bool tensor support"}						
 					]},
@@ -195,7 +194,7 @@
 						{ "name": "NNXRuntimeDml", "skip": true, "comment": "RDG need bool tensor support"},
 						{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "RDG need bool tensor support"}						
 					]},
-				{	"target": "PRelu", "removed_datasets": [ 
+				{	"target": "PRelu", "tags": [ "SmokeTest" ], "removed_datasets": [ 
 						"Elementwise.Binary.BidirectionalBroadcast", 
 						"Elementwise.Binary.LHSToRHSBroadcast" ], 
 					"comment": "Prelu does not support bidirectional broadcast. It only support slope(RHS) to input0(LHS)"},
@@ -213,9 +212,9 @@
 			"runtimes": [ { "name": "NNXRuntimeDml", "skip": true} ],
 			"targets": [
 				{	"target": "Max", "additional_datasets": [ "Elementwise.Slow.TwoInputs" ]},
-				{	"target": "Mean"},
+				{	"target": "Mean", "tags": [ "SmokeTest" ]},
 				{	"target": "Min"},
-				{	"target": "Sum"}
+				{	"target": "Sum", "tags": [ "SmokeTest" ]}
 			]
 		}
 	],
