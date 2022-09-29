@@ -154,7 +154,7 @@ bool UIKRigController::DoesBoneHaveSettings(const FName& BoneName) const
 	return false;
 }
 
-void UIKRigController::AddRetargetChain(const FBoneChain& BoneChain) const
+FName UIKRigController::AddRetargetChain(const FBoneChain& BoneChain) const
 {
 	FBoneChain ChainToAdd = BoneChain;
 	ChainToAdd.ChainName = GetUniqueRetargetChainName(BoneChain.ChainName);
@@ -162,10 +162,12 @@ void UIKRigController::AddRetargetChain(const FBoneChain& BoneChain) const
 	FScopedTransaction Transaction(LOCTEXT("AddRetargetChain_Label", "Add Retarget Chain"));
 	Asset->Modify();
 	
-	Asset->RetargetDefinition.BoneChains.Emplace(ChainToAdd);
+	const int32 NewChainIndex = Asset->RetargetDefinition.BoneChains.Emplace(ChainToAdd);
 	
 	RetargetChainAdded.Broadcast(Asset);
 	BroadcastNeedsReinitialized();
+
+	return Asset->RetargetDefinition.BoneChains[NewChainIndex].ChainName;
 }
 
 bool UIKRigController::RemoveRetargetChain(const FName& ChainName) const

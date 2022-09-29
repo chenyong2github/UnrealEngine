@@ -16,6 +16,7 @@
 #include "SPositiveActionButton.h"
 #include "SSearchableComboBox.h"
 #include "BoneSelectionWidget.h"
+#include "Animation/MirrorDataTable.h"
 #include "Engine/SkeletalMesh.h"
 #include "Widgets/Input/SSearchBox.h"
 
@@ -743,7 +744,7 @@ void SIKRigRetargetChainList::MirrorSelectedChains() const
 		}
 
 		FBoneChain MirroredChain = *Chain;
-		MirroredChain.ChainName = FName(MirroredChain.ChainName.ToString() + "_Mirrored");
+		MirroredChain.ChainName = UMirrorDataTable::GetSettingsMirrorName(MirroredChain.ChainName);
 		MirroredChain.StartBone = IKRigSkeleton.BoneNames[MirroredIndices[0]];
 		MirroredChain.EndBone = IKRigSkeleton.BoneNames[MirroredIndices.Last()];
 		const UIKRigEffectorGoal* GoalOnMirroredBone = AssetController->GetGoalForBone(MirroredChain.EndBone.BoneName);
@@ -752,14 +753,26 @@ void SIKRigRetargetChainList::MirrorSelectedChains() const
 			MirroredChain.IKGoalName = GoalOnMirroredBone->GoalName;
 		}
 
-		Controller.PromptToAddNewRetargetChain(MirroredChain);
+		const FName NewChainName = Controller.PromptToAddNewRetargetChain(MirroredChain);
 
-		// old bone DOES have a goal, but the mirrored end bone does NOT have a goal,
-		// so lets ask the user if they want to add one...
-		const UIKRigEffectorGoal* GoalOnOldBone = AssetController->GetGoalForBone(Chain->EndBone.BoneName);
-		if (GoalOnOldBone && !GoalOnMirroredBone)
+		if (const FBoneChain* NewChain = AssetController->GetRetargetChainByName(NewChainName))
 		{
-			Controller.PromptToAddGoalToNewlyMirroredChain(*Chain, MirroredChain);
+			// old bone has a goal, and the new bone also has a goal, connect the new goal to the same solver(s)
+			const UIKRigEffectorGoal* GoalOnOldChain = AssetController->GetGoalForBone(Chain->EndBone.BoneName);
+			const UIKRigEffectorGoal* GoalOnNewChain = AssetController->GetGoal(NewChain->IKGoalName);
+			// connect to the same solvers
+			const TArray<UIKRigSolver*>& AllSolvers =  AssetController->GetSolverArray();
+			for (int32 SolverIndex=0; SolverIndex<AllSolvers.Num(); ++SolverIndex)
+			{
+				if (AssetController->IsGoalConnectedToSolver(GoalOnOldChain->GoalName, SolverIndex))
+				{
+					AssetController->ConnectGoalToSolver(*GoalOnNewChain, SolverIndex);
+				}
+				else
+				{
+					AssetController->DisconnectGoalFromSolver(GoalOnNewChain->GoalName, SolverIndex);
+				}
+			}
 		}
 	}
 }

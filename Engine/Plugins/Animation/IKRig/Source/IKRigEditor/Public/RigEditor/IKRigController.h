@@ -148,8 +148,8 @@ public:
 	/** Retargeting Options and Retarget Bone Chains
 	 * 
 	 */
-	/** Add a Chain with the given Name and Start/End bones. Returns true if a new Chain was created. */
-	void AddRetargetChain(const FBoneChain& BoneChain) const;
+	/** Add a Chain with the given Name and Start/End bones. Returns newly created chain name. */
+	FName AddRetargetChain(const FBoneChain& BoneChain) const;
 	/** Remove a Chain with the given name. Returns true if a Chain was removed. */
 	bool RemoveRetargetChain(const FName& ChainName) const;
 	/** Renamed the given Chain. Returns the new name (same as old if unsuccessful). */

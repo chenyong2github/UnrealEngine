@@ -193,13 +193,11 @@ public:
 	/** right after importing a skeleton, we ask user what solver they want to use */
 	bool PromptToAddDefaultSolver() const;
 	/** show user the new retarget chain they are about to create (provides option to edit name) */
-	void PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const;
+	FName PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const;
 	/** prompt user if they want to add a goal to a newly created chain */
 	UIKRigEffectorGoal* PromptToAddGoalToNewChain(const FBoneChain& BoneChain) const;
-	/** prompt user if they want to add a goal to a newly mirrored chain */
-	void PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const;
 	/** right after creating a goal, we ask user if they want it assigned to a retarget chain */
-	void PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const;
+	void PromptToAssignGoalToChain(UIKRigEffectorGoal* NewGoal) const;
 
 	/** play preview animation on running anim instance in editor (before IK) */
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);

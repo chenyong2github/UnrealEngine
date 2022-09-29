@@ -433,7 +433,7 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 		}
 
 		// ask user if they want to assign this goal to a chain (if there is one on this bone)
-		PromptToAddGoalToChain(NewGoal);
+		PromptToAssignGoalToChain(NewGoal);
 
 		LastCreatedGoalName = GoalName;
 	}
@@ -839,7 +839,7 @@ void FIKRigEditorController::SetDetailsView(const TSharedPtr<IDetailsView>& InDe
 	ShowEmptyDetails();
 }
 
-void FIKRigEditorController::PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const
+void FIKRigEditorController::PromptToAssignGoalToChain(UIKRigEffectorGoal* NewGoal) const
 {
 	const TArray<FBoneChain>& AllRetargetChains = AssetController->GetRetargetChains();
 	FName ChainToAddGoalTo = NAME_None;
@@ -857,15 +857,15 @@ void FIKRigEditorController::PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal)
 	}
 
 	TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
-		.Title(FText(LOCTEXT("AddGoalToNewChainTitle", "Add Goal to Retarget Chain")))
+		.Title(FText(LOCTEXT("AssignGoalToNewChainTitle", "Assign Existing Goal to Retarget Chain")))
 		.Content()
 		[
 			SNew(STextBlock)
-			.Text(FText::Format(LOCTEXT("AddNewGoalToChainLabel", "Add new goal, {0} to retarget chain, {1}?"), FText::FromName(NewGoal->GoalName), FText::FromName(ChainToAddGoalTo)))
+			.Text(FText::Format(LOCTEXT("AssignGoalToChainLabel", "Assign goal, {0} to retarget chain, {1}?"), FText::FromName(NewGoal->GoalName), FText::FromName(ChainToAddGoalTo)))
 		]
 		.Buttons({
-			SCustomDialog::FButton(LOCTEXT("AddGoal", "Add Goal")),
-			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
+			SCustomDialog::FButton(LOCTEXT("AssignGoal", "Assign Goal")),
+			SCustomDialog::FButton(LOCTEXT("SkipGoal", "Skip Goal"))
 	});
 
 	if (AddGoalToChainDialog->ShowModal() != 0)
@@ -876,25 +876,26 @@ void FIKRigEditorController::PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal)
 	AssetController->SetRetargetChainGoal(ChainToAddGoalTo, NewGoal->GoalName);
 }
 
-void FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const
+FName FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const
 {
 	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FIKRigRetargetChainSettings::StaticStruct(), (uint8*)&BoneChain));
 	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
 	KismetInspector->ShowSingleStruct(StructToDisplay);
 
+	FName NewChainName = NAME_None;
 	SGenericDialogWidget::FArguments DialogArguments;
-	DialogArguments.OnOkPressed_Lambda([&BoneChain, this] ()
+	DialogArguments.OnOkPressed_Lambda([&BoneChain, &NewChainName, this] ()
 	{
 		// prompt to add a goal to the chain (skipped if already has a goal)
 		UIKRigEffectorGoal* NewGoal = PromptToAddGoalToNewChain(BoneChain);
 
 		// add the retarget chain
-		AssetController->AddRetargetChain(BoneChain);
+		NewChainName = AssetController->AddRetargetChain(BoneChain);
 
 		// ask user if they want to assign this goal to a chain (if there is one on this bone)
 		if (NewGoal)
 		{
-			PromptToAddGoalToChain(NewGoal);
+			PromptToAssignGoalToChain(NewGoal);
 		}
 		
 		RefreshAllViews();
@@ -905,6 +906,8 @@ void FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneC
 		KismetInspector,
 		DialogArguments,
 		true);
+
+	return NewChainName;
 }
 
 UIKRigEffectorGoal* FIKRigEditorController::PromptToAddGoalToNewChain(const FBoneChain& BoneChain) const
@@ -924,12 +927,12 @@ UIKRigEffectorGoal* FIKRigEditorController::PromptToAddGoalToNewChain(const FBon
 			SNew(STextBlock)
 			.Text(FText::Format(
 				LOCTEXT("AddGoalToNewChainLabel", "Add goal to end bone, {0} of new chain, {1}?"),
-				FText::FromName(BoneChain.IKGoalName), 
-				FText::FromName(BoneChain.EndBone.BoneName)))
+				FText::FromName(BoneChain.EndBone.BoneName), 
+				FText::FromName(BoneChain.ChainName)))
 		]
 		.Buttons({
 			SCustomDialog::FButton(LOCTEXT("AddGoal", "Add Goal")),
-			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
+			SCustomDialog::FButton(LOCTEXT("NoGoal", "No Goal"))
 	});
 
 	if (AddGoalToChainDialog->ShowModal() != 0)
@@ -943,42 +946,6 @@ UIKRigEffectorGoal* FIKRigEditorController::PromptToAddGoalToNewChain(const FBon
 	// add the goal
 	const FName NewGoalName = FName(FText::Format(LOCTEXT("GoalOnNewChainName", "{0}_Goal"), FText::FromName(BoneChain.ChainName)).ToString());
 	return AssetController->AddNewGoal(NewGoalName, BoneChain.EndBone.BoneName);
-}
-
-void FIKRigEditorController::PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const
-{
-	const TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
-		.Title(FText(LOCTEXT("AddGoalToMirroredChainTitleLabel", "Mirror Goal")))
-		.Content()
-		[
-			SNew(STextBlock)
-			.Text(FText::Format(LOCTEXT("AddGoalToMirroredChainLabel", "Mirror goal, {0} on chain, {1}?"), FText::FromName(OldChain.IKGoalName), FText::FromName(OldChain.IKGoalName)))
-		]
-		.Buttons({
-			SCustomDialog::FButton(LOCTEXT("AddGoal", "Add Goal")),
-			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
-	});
-
-	if (AddGoalToChainDialog->ShowModal() != 0)
-	{
-		return; // cancel button pressed, or window closed
-	}
-
-	const UIKRigEffectorGoal* OldGoal = AssetController->GetGoal(OldChain.IKGoalName);
-	const FName NewGoalName = FName(OldChain.IKGoalName.ToString() + "_Mirrored");
-	// add a default solver if there isn't one already
-	PromptToAddDefaultSolver();
-	UIKRigEffectorGoal* NewGoal = AssetController->AddNewGoal(NewGoalName, MirroredChain.EndBone.BoneName);
-
-	// connect to the same solvers
-	const TArray<UIKRigSolver*>& AllSolvers =  AssetController->GetSolverArray();
-	for (int32 SolverIndex=0; SolverIndex<AllSolvers.Num(); ++SolverIndex)
-	{
-		if (AssetController->IsGoalConnectedToSolver(OldGoal->GoalName, SolverIndex))
-		{
-			AssetController->ConnectGoalToSolver(*NewGoal, SolverIndex);
-		}
-	}
 }
 
 void FIKRigEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
