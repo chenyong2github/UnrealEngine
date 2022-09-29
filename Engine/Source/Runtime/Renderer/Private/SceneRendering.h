@@ -1391,10 +1391,16 @@ public:
 	 */
 	uint32 bHasSingleLayerWaterMaterial : 1;
 	/**
-	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied post DOF. If true,
-	 * that means we need to run the separate modulation render pass.
+	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied post DOF. 
+	 * If true, that means we need to run the post-dof separate modulation render pass.
 	 */
 	uint32 bHasTranslucencySeparateModulation : 1;
+
+	/**
+	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied before DOF. 
+	 * If true, that means we need to run the before-dof separate modulation render pass.
+	 */
+	uint32 bHasStandardTranslucencyModulation : 1;
 
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;

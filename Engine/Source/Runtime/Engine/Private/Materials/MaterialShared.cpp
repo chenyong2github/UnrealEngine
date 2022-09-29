@@ -1098,6 +1098,17 @@ bool FMaterial::MaterialUsesAnisotropy_RenderThread() const
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->UsesAnisotropy() : false;
 }
 
+uint8 FMaterial::MaterialGetStrataMaterialType_GameThread() const
+{
+	return GameThreadShaderMap ? GameThreadShaderMap->GetStrataMaterialType() : false;
+}
+
+uint8 FMaterial::MaterialGetStrataMaterialType_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetStrataMaterialType() : false;
+}
+
 void FMaterial::SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 {
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
