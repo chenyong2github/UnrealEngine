@@ -90,8 +90,14 @@ public:
 	// Adds the Input Mapping Context from a modifier, if it exists, to the input system 
 	void AddInputMappingContext(const UVCamModifier* Modifier);
 
-	// Adds and explicitly provided Input Mapping Context to the input system
+	// Removes the Input Mapping Context from a modifier, if it exists, from the input system
+	void RemoveInputMappingContext(const UVCamModifier* Modifier);
+
+	// Adds an explicitly provided Input Mapping Context to the input system
 	void AddInputMappingContext(UInputMappingContext* Context, int32 Priority);
+
+	// Removes an explicitly provided Input Mapping Context to the input system
+	void RemoveInputMappingContext(UInputMappingContext* Context);
 
 	// Attempts to apply key mapping settings from an input profile defined in VCam Input Settings
 	// Returns whether the profile was found and able to be applied
@@ -301,12 +307,19 @@ public:
 
 	/* Registers the given object with the VCamComponent's Input Component
 	 * This allows dynamic input bindings such as input events in blueprints to work correctly
+	 * Note: Ensure you call UnregisterObjectForInput when you are finished with the object
+	 * otherwise input events will still fire until GC actually destroys the object
 	 *
 	 * @param Object The object to register
 	 */
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void RegisterObjectForInput(UObject* Object);
 
+	/* Unregisters the given object with the VCamComponent's Input Component
+	 *
+	 * @param Object The object to unregister
+	 */
+	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void UnregisterObjectForInput(UObject* Object) const;
 
 	/**
@@ -339,7 +352,7 @@ private:
 
 	// Use the Saved Modifier Stack from PreEditChange to find the modified entry and then ensure the modified entry's name is unique
 	// If a new modifier has been created then its name will be defaulted to BaseName
-	void EnforceModifierStackNameUniqueness(const FString BaseName = "NewModifier");
+	void ValidateModifierStack(const FString BaseName = "NewModifier");
 	bool DoesNameExistInSavedStack(const FName InName) const;
 	void FindModifiedStackEntry(int32& ModifiedStackIndex, bool& bIsNewEntry) const;
 

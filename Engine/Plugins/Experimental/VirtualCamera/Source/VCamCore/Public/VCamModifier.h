@@ -33,10 +33,12 @@ class VCAMCORE_API UVCamModifier : public UObject
 
 public:
 	virtual void Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent = nullptr);
+	
+	virtual void Deinitialize();
 
 	virtual void Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime) {};
 
-	virtual void PostLoad();
+	virtual void PostLoad() override;
 
 	bool DoesRequireInitialization() const { return bRequiresInitialization; };
 
@@ -87,10 +89,14 @@ class VCAMCORE_API UVCamBlueprintModifier : public UVCamModifier
 
 public:
 	virtual void Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent=nullptr) override;
+	virtual void Deinitialize() override;
 	virtual void Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime) override;
 	
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
 	void OnInitialize(UVCamModifierContext* Context);
+
+	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
+	void OnDeinitialize();
 
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
 	void OnApply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime);

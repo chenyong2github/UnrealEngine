@@ -19,6 +19,19 @@ void UVCamBlueprintModifier::Initialize(UVCamModifierContext* Context, UInputCom
 	UVCamModifier::Initialize(Context, InputComponent);
 }
 
+void UVCamBlueprintModifier::Deinitialize()
+{
+	// Forward the Initialize call to the Blueprint Event only if we have a valid world
+	if (GetWorld())
+	{
+		FEditorScriptExecutionGuard ScriptGuard;
+
+		OnDeinitialize();
+	}
+	
+	Super::Deinitialize();
+}
+
 void UVCamBlueprintModifier::Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime)
 {
 	// Forward the Apply call to the Blueprint Event
@@ -38,6 +51,17 @@ void UVCamModifier::Initialize(UVCamModifierContext* Context, UInputComponent* I
 	}
 
 	bRequiresInitialization = false;
+}
+
+void UVCamModifier::Deinitialize()
+{
+	UVCamComponent* VCamComponent = GetOwningVCamComponent();
+	if (IsValid(VCamComponent))
+	{
+		VCamComponent->UnregisterObjectForInput(this);
+	}
+
+	bRequiresInitialization = true;
 }
 
 void UVCamModifier::PostLoad()
@@ -65,6 +89,11 @@ void UVCamModifier::SetEnabled(bool bNewEnabled)
 	if (FModifierStackEntry* StackEntry = GetCorrespondingStackEntry())
 	{
 		StackEntry->bEnabled = bNewEnabled;
+	}
+
+	if (!bNewEnabled)
+	{
+		Deinitialize();
 	}
 }
 

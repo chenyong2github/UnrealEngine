@@ -30,7 +30,7 @@ class VCAMCORE_API UVCamWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	virtual void BeginDestroy() override;
+	virtual void NativeDestruct() override;
 	
 	/*
 	 * The VCam Connections associated with this Widget

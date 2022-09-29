@@ -2,9 +2,9 @@
 
 #include "UI/VCamWidget.h"
 
-void UVCamWidget::BeginDestroy()
+void UVCamWidget::NativeDestruct()
 {
-	Super::BeginDestroy();
+	Super::NativeDestruct();
 	
 	if (VCamComponent)
 	{

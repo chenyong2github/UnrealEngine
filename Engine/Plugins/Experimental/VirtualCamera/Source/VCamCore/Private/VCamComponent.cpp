@@ -280,6 +280,7 @@ void UVCamComponent::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
 	{
 		static FName NAME_OutputProviders = GET_MEMBER_NAME_CHECKED(UVCamComponent, OutputProviders);
 		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
+		static FName NAME_GeneratedModifier = GET_MEMBER_NAME_CHECKED(FModifierStackEntry, GeneratedModifier);
 		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
 
 		const FName MemberPropertyName = MemberProperty->GetFName();
@@ -335,7 +336,7 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		}
 		else if (PropertyName == NAME_ModifierStack)
 		{
-			EnforceModifierStackNameUniqueness();
+			ValidateModifierStack();
 		}
 		else if (PropertyName == NAME_TargetViewport)
 		{
@@ -443,6 +444,18 @@ void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 	}
 }
 
+void UVCamComponent::RemoveInputMappingContext(const UVCamModifier* Modifier)
+{
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		const UInputMappingContext* IMC = Modifier->InputMappingContext;
+		if (IsValid(IMC))
+		{
+			EnhancedInputSubsystemInterface->RemoveMappingContext(IMC);
+		}
+	}
+}
+
 void UVCamComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
 {
 	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
@@ -450,6 +463,17 @@ void UVCamComponent::AddInputMappingContext(UInputMappingContext* Context, int32
 		if (IsValid(Context))
 		{
 			EnhancedInputSubsystemInterface->AddMappingContext(Context, Priority);
+		}
+	}
+}
+
+void UVCamComponent::RemoveInputMappingContext(UInputMappingContext* Context)
+{
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		if (IsValid(Context))
+		{
+			EnhancedInputSubsystemInterface->RemoveMappingContext(Context);
 		}
 	}
 }
@@ -599,21 +623,27 @@ void UVCamComponent::Update()
 
 		for (FModifierStackEntry& ModifierStackEntry : ModifierStack)
 		{
-			if (!ModifierStackEntry.bEnabled)
+			if (UVCamModifier* Modifier = ModifierStackEntry.GeneratedModifier; IsValid(Modifier))
 			{
-				continue;
-			}
-
-			if (UVCamModifier* Modifier = ModifierStackEntry.GeneratedModifier)
-			{
-				// Initialize the Modifier if required
-				if (Modifier->DoesRequireInitialization())
+				if (ModifierStackEntry.bEnabled)
 				{
-					Modifier->Initialize(ModifierContext, InputComponent);
-					AddInputMappingContext(Modifier);
-				}
+					// Initialize the Modifier if required
+					if (Modifier->DoesRequireInitialization())
+					{
+						Modifier->Initialize(ModifierContext, InputComponent);
+						AddInputMappingContext(Modifier);
+					}
 
-				Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
+					Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
+				}
+				else
+				{
+					// If the modifier is initialized but not enabled then we deinitialize it
+					if (!Modifier->DoesRequireInitialization())
+					{
+						Modifier->Deinitialize();
+					}
+				}
 			}
 		}
 
@@ -640,15 +670,25 @@ void UVCamComponent::Update()
 
 void UVCamComponent::SetEnabled(bool bNewEnabled)
 {
-	// Disable all outputs if we're no longer enabled
+	// Disable all outputs and modifiers if we're no longer enabled
 	// NOTE this must be done BEFORE setting the actual bEnabled variable because OutputProviderBase now checks the component enabled state
 	if (!bNewEnabled)
 	{
 		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
-			if (Provider)
+			if (IsValid(Provider))
 			{
 				Provider->Deinitialize();
+			}
+		}
+
+		// There's no need to call Initialize if we are being enabled as they'll get automatically intialized
+		// the next time that the stack is evaluated
+		for (FModifierStackEntry& ModifierEntry : ModifierStack)
+		{
+			if (IsValid(ModifierEntry.GeneratedModifier))
+			{
+				ModifierEntry.GeneratedModifier->Deinitialize();
 			}
 		}
 	}
@@ -661,7 +701,7 @@ void UVCamComponent::SetEnabled(bool bNewEnabled)
 	{
 		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
-			if (Provider)
+			if (IsValid(Provider))
 			{
 				Provider->Initialize();
 			}
@@ -1008,6 +1048,7 @@ void UVCamComponent::RegisterObjectForInput(UObject* Object)
 {
 	if (IsValid(InputComponent) && IsValid(Object))
 	{
+		InputComponent->ClearBindingsForObject(Object);
 		UInputDelegateBinding::BindInputDelegates(Object->GetClass(), InputComponent, Object);
 	}
 }
@@ -1177,7 +1218,7 @@ void UVCamComponent::DestroyOutputProvider(UVCamOutputProviderBase* Provider)
 {
 	if (Provider)
 	{
-		Provider->Deinitialize();
+		// Begin Destroy will deinitialize if needed
 		Provider->ConditionalBeginDestroy();
 		Provider = nullptr;
 	}
@@ -1203,7 +1244,7 @@ void UVCamComponent::ResetAllOutputProviders()
 	}
 }
 
-void UVCamComponent::EnforceModifierStackNameUniqueness(const FString BaseName /*= "NewModifier"*/)
+void UVCamComponent::ValidateModifierStack(const FString BaseName /*= "NewModifier"*/)
 {
 	int32 ModifiedStackIndex;
 	bool bIsNewEntry;
@@ -1262,6 +1303,15 @@ void UVCamComponent::EnforceModifierStackNameUniqueness(const FString BaseName /
 				*NewModifierName.ToString(),
 				*SavedModifierStack[ModifiedStackIndex].Name.ToString());
 		}
+
+		// Check if the generated modifier was changed and if so ensure we deinitialize the old modifier
+		UVCamModifier* OldModifier = SavedModifierStack[ModifiedStackIndex].GeneratedModifier;
+		const UVCamModifier* NewModifier = ModifierStack[ModifiedStackIndex].GeneratedModifier;
+		if (OldModifier != NewModifier && IsValid(OldModifier))
+		{
+			OldModifier->Deinitialize();
+		}
+			
 	}	
 }
 
