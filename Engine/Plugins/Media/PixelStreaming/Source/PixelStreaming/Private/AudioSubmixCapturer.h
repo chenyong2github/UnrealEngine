@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AudioDevice.h"
+#include "ISubmixBufferListener.h"
 
 namespace webrtc
 {

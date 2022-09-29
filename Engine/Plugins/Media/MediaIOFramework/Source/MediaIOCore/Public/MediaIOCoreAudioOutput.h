@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "AudioDevice.h"
 #include "DSP/BufferVectorOperations.h"
+#include "ISubmixBufferListener.h"
 #include "Math/NumericLimits.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "AudioDevice.h"
+#endif
 
 namespace UE::MediaIoCoreModule::Private
 {

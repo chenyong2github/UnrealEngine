@@ -10,8 +10,12 @@
 #include "Async/AsyncWork.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Curves/CurveFloat.h"
-#include "AudioDevice.h"
+#include "ISubmixBufferListener.h"
 #include "MotoSynthPreset.generated.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "AudioDevice.h"
+#endif
 
 class UMotoSynthSource;
 class FMotoSynthEngine;

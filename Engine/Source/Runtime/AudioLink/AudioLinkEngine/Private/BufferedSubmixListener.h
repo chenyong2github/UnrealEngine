@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BufferedListenerBase.h"
+#include "ISubmixBufferListener.h"
 
 /** Concrete Submix Buffer Listener  
 */

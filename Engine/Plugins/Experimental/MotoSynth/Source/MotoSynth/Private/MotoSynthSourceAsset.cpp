@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotoSynthSourceAsset.h"
+
 #include "MotoSynthModule.h"
 #include "MotoSynthDataManager.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MotoSynthSourceAsset)
-
 #if WITH_EDITOR
+#include "AudioDeviceManager.h"
+#include "AudioDevice.h"
 #include "DSP/Filter.h"
 #include "DSP/DynamicsProcessor.h"
 #include "DSP/Dsp.h"
 #include "DSP/FloatArrayMath.h"
 #include "DSP/SampleRateConverter.h"
 #endif
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotoSynthSourceAsset)
 
 ///////////////////////////////////////////////////////////
 // RPM estimation implementation

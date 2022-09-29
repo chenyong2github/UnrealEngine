@@ -11,12 +11,16 @@
 #include "DSP/BufferVectorOperations.h"
 #include "Curves/CurveFloat.h"
 #include "Containers/SortedMap.h"
-#include "AudioDevice.h"
 #include "DSP/Osc.h"
 #include "DSP/Filter.h"
 #include "DSP/DelayStereo.h"
+#include "ISubmixBufferListener.h"
 #include "MotoSynthPreset.h"
 #include "MotoSynthSourceAsset.generated.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "AudioDevice.h"
+#endif
 
 class UMotoSynthSource;
 
