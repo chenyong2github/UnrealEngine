@@ -77,10 +77,8 @@ void UMultiLineEditableTextBox::PostLoad()
 
 	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
 	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TextStyle_DEPRECATED.SetFont(WidgetStyle.Font_DEPRECATED);
 		WidgetStyle.SetTextStyle(TextStyle_DEPRECATED);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 #endif
