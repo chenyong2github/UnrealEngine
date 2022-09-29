@@ -28,6 +28,8 @@
 
 #define LOCTEXT_NAMESPACE "DisplayClusterColorGrading"
 
+#define CATEGORY_OVERRIDE_NAME(Category) TEXT(Category "_Override")
+
 FDisplayClusterColorGradingDataModel::FColorGradingGroup FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings::CreateColorGradingGroup(const TSharedPtr<IPropertyHandle>& GroupPropertyHandle)
 {
 	FDisplayClusterColorGradingDataModel::FColorGradingGroup ColorGradingGroup;
@@ -49,6 +51,15 @@ FDisplayClusterColorGradingDataModel::FColorGradingGroup FDisplayClusterColorGra
 	AddDetailsViewPropertyToGroup(GroupPropertyHandle, ColorGradingGroup, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingMiscSettings, BlueCorrection), TEXT("Misc"));
 	AddDetailsViewPropertyToGroup(GroupPropertyHandle, ColorGradingGroup, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingMiscSettings, ExpandGamut), TEXT("Misc"));
 	AddDetailsViewPropertyToGroup(GroupPropertyHandle, ColorGradingGroup, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingMiscSettings, SceneColorTint), TEXT("Misc"));
+
+	// Ensure the details view categories are always displayed in a specific order
+	ColorGradingGroup.DetailsViewCategorySortOrder =
+	{
+		{ CATEGORY_OVERRIDE_NAME("Exposure"), 0},
+		{ CATEGORY_OVERRIDE_NAME("Color Grading"), 1},
+		{ CATEGORY_OVERRIDE_NAME("White Balance"), 2},
+		{ CATEGORY_OVERRIDE_NAME("Misc"), 3}
+	};
 
 	return ColorGradingGroup;
 }
@@ -270,6 +281,14 @@ void FDisplayClusterColorGradingGenerator_RootActor::GenerateDataModel(IProperty
 
 				FDisplayClusterColorGradingDataModel::FColorGradingGroup PerViewportGroup = CreateColorGradingGroup(PerViewportElementHandle);
 				PerViewportGroup.EditConditionPropertyHandle = PerViewportElementHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerViewportColorGrading, bIsEnabled));
+
+				// Add per-viewport group specific properties and force the category of these properties to be at the top
+				AddDetailsViewPropertyToGroup(PerViewportElementHandle, 
+					PerViewportGroup, 
+					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerViewportColorGrading, bIsEntireClusterEnabled),
+					TEXT("Per-Viewport Settings"));
+
+				PerViewportGroup.DetailsViewCategorySortOrder.Add(CATEGORY_OVERRIDE_NAME("Per-Viewport Settings"), -1);
 
 				TSharedPtr<IPropertyHandle> NamePropertyHandle = PerViewportElementHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerViewportColorGrading, Name));
 				if (NamePropertyHandle.IsValid() && NamePropertyHandle->IsValidHandle())
@@ -727,6 +746,19 @@ void FDisplayClusterColorGradingGenerator_ICVFXCamera::GenerateDataModel(IProper
 
 				FDisplayClusterColorGradingDataModel::FColorGradingGroup PerNodeGroup = CreateColorGradingGroup(PerNodeElementHandle);
 				PerNodeGroup.EditConditionPropertyHandle = PerNodeElementHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerNodeColorGrading, bIsEnabled));
+
+				// Add per-node group specific properties and force the category of these properties to be at the top
+				AddDetailsViewPropertyToGroup(PerNodeElementHandle,
+					PerNodeGroup,
+					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerNodeColorGrading, bEntireClusterColorGrading),
+					TEXT("Per-Node Settings"));
+
+				AddDetailsViewPropertyToGroup(PerNodeElementHandle,
+					PerNodeGroup,
+					GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerNodeColorGrading, bAllNodesColorGrading),
+					TEXT("Per-Node Settings"));
+
+				PerNodeGroup.DetailsViewCategorySortOrder.Add(CATEGORY_OVERRIDE_NAME("Per-Node Settings"), -1);
 
 				TSharedPtr<IPropertyHandle> NamePropertyHandle = PerNodeElementHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PerNodeColorGrading, Name));
 				if (NamePropertyHandle.IsValid() && NamePropertyHandle->IsValidHandle())

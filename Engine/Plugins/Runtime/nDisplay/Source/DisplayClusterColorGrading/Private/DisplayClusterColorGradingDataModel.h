@@ -84,6 +84,9 @@ public:
 
 		/** A list of properties to display in the details view of the color grading panel */
 		TArray<TSharedPtr<IPropertyHandle>> DetailsViewPropertyHandles;
+
+		/** Optional sort order for the categories displayed in the details view */
+		TMap<FName, int32> DetailsViewCategorySortOrder;
 	};
 
 	/** Stores data used to generate a details subsection, which is a selectable element in a details section that modifies which properties are displayed in the section */

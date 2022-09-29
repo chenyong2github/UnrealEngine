@@ -418,8 +418,9 @@ void SDisplayClusterColorGradingColorWheelPanel::ClearColorGradingElementsToolBa
 class FColorGradingDetailsCustomization : public IDetailCustomization
 {
 public:
-	FColorGradingDetailsCustomization(TArray<TSharedPtr<IPropertyHandle>> InPropertyHandles)
-		: PropertyHandles(InPropertyHandles)
+	FColorGradingDetailsCustomization(const FDisplayClusterColorGradingDataModel::FColorGradingGroup& ColorGradingGroup)
+		: PropertyHandles(ColorGradingGroup.DetailsViewPropertyHandles)
+		, CategorySortOrder(ColorGradingGroup.DetailsViewCategorySortOrder)
 	{ }
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
@@ -435,6 +436,7 @@ public:
 		// TransformCommon is a custom category that doesn't get returned by GetCategoryNames that also needs to be hidden
 		DetailBuilder.HideCategory(TEXT("TransformCommon"));
 
+		TSet<FName> FinalCategories;
 		for (const TSharedPtr<IPropertyHandle>& PropertyHandle : PropertyHandles)
 		{
 			FName CategoryOverride = PropertyHandle->GetDefaultCategoryName();
@@ -447,11 +449,25 @@ public:
 
 			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(CategoryOverride, CategoryOverrideText);
 			CategoryBuilder.AddProperty(PropertyHandle);
+
+			FinalCategories.Add(CategoryOverride);
 		}
+
+		DetailBuilder.SortCategories([this, FinalCategories = MoveTemp(FinalCategories)](const TMap<FName, IDetailCategoryBuilder*>& CategoryMap)
+		{
+			for (const FName& Category : FinalCategories)
+			{
+				if (CategorySortOrder.Contains(Category))
+				{
+					CategoryMap[Category]->SetSortOrder(CategorySortOrder[Category]);
+				}
+			}
+		});
 	}
 
 private:
 	TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
+	TMap<FName, int32> CategorySortOrder;
 };
 
 void SDisplayClusterColorGradingColorWheelPanel::FillDetailsView(const FDisplayClusterColorGradingDataModel::FColorGradingGroup& ColorGradingGroup)
@@ -473,10 +489,11 @@ void SDisplayClusterColorGradingColorWheelPanel::FillDetailsView(const FDisplayC
 		{
 			DetailsView->RegisterInstancedCustomPropertyLayout(OuterObjects[0]->GetClass(), FOnGetDetailCustomizationInstance::CreateLambda([&ColorGradingGroup]()
 			{
-				return MakeShareable(new FColorGradingDetailsCustomization(ColorGradingGroup.DetailsViewPropertyHandles));
+				return MakeShareable(new FColorGradingDetailsCustomization(ColorGradingGroup));
 			}));
 
-			DetailsView->SetObjects(OuterObjects);
+			const bool bForceRefresh = true;
+			DetailsView->SetObjects(OuterObjects, bForceRefresh);
 		}
 	}
 }
