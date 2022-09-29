@@ -36,7 +36,7 @@ struct PCG_API FPCGContext
 
 	FPCGDataCollection InputData;
 	FPCGDataCollection OutputData;
-	UPCGComponent* SourceComponent = nullptr;
+	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
 	int32 NumAvailableTasks = 0;
 
 	// TODO: add RNG source

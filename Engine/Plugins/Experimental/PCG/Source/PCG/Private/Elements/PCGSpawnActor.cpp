@@ -108,7 +108,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		const bool bHasAuthority = !Context->SourceComponent || (Context->SourceComponent->GetOwner() && Context->SourceComponent->GetOwner()->HasAuthority());
+		const bool bHasAuthority = !Context->SourceComponent.IsValid() || (Context->SourceComponent->GetOwner() && Context->SourceComponent->GetOwner()->HasAuthority());
 		const bool bSpawnedActorsRequireAuthority = Settings->TemplateActorClass->GetDefaultObject<AActor>()->GetIsReplicated();
 
 		// First, create target instance transforms
@@ -159,7 +159,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 					FPCGISMCBuilderParameters Params;
 					Params.Mesh = Mesh;
 
-					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
+					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
 					UEngine::CopyPropertiesForUnrelatedObjects(FirstSMC, ISMC);
 				}
 				else
@@ -186,7 +186,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 					TArray<FName> NewActorTags = GetNewActorTags(Context, TargetActor, Settings->bInheritActorTags, Settings->TagsToAddOnActors);
 
 					// Create managed resource for actor tracking
-					UPCGManagedActors* ManagedActors = NewObject<UPCGManagedActors>(Context->SourceComponent);
+					UPCGManagedActors* ManagedActors = NewObject<UPCGManagedActors>(Context->SourceComponent.Get());
 
 					for (const FPCGPoint& Point : Points)
 					{
@@ -255,7 +255,7 @@ TArray<FName> FPCGSpawnActorElement::GetNewActorTags(FPCGContext* Context, AActo
 		// and find the original actor tags
 		if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(TargetActor))
 		{
-			if (UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(Context->SourceComponent))
+			if (UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(Context->SourceComponent.Get()))
 			{
 				check(OriginalComponent->GetOwner());
 				NewActorTags = OriginalComponent->GetOwner()->Tags;

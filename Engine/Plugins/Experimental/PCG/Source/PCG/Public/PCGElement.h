@@ -34,7 +34,7 @@ class PCG_API IPCGElement
 {
 public:
 	virtual ~IPCGElement() = default;
-	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) = 0;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) = 0;
 
 	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const { return false; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
@@ -77,5 +77,5 @@ private:
 class PCG_API FSimplePCGElement : public IPCGElement
 {
 public:
-	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
 };

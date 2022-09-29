@@ -139,7 +139,7 @@ TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetSubgraph() const
 	return Settings ? Settings->Subgraph : nullptr;
 }
 
-FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
+FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {
 	FPCGSubgraphContext* Context = new FPCGSubgraphContext();
 	Context->InputData = InputData;
@@ -164,13 +164,13 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 			check(Settings);
 			UPCGGraph* Subgraph = Settings->Subgraph;
 
-			UPCGSubsystem* Subsystem = Context->SourceComponent->GetSubsystem();
+			UPCGSubsystem* Subsystem = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetSubsystem() : nullptr;
 
 			if (Subsystem && Subgraph)
 			{
 				// Dispatch graph to execute with the given information we have
 				// using this node's task id as additional inputs
-				FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent, MakeShared<FPCGInputForwardingElement>(Context->InputData), {});
+				FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), MakeShared<FPCGInputForwardingElement>(Context->InputData), {});
 
 				Context->SubgraphTaskId = SubgraphTaskId;
 				Context->bScheduledSubgraph = true;
@@ -181,7 +181,7 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 					// Wake up the current task
 					Context->bIsPaused = false;
 					return true;
-					}, { Context->SubgraphTaskId });
+					}, Context->SourceComponent.Get(), { Context->SubgraphTaskId });
 
 				return false;
 			}

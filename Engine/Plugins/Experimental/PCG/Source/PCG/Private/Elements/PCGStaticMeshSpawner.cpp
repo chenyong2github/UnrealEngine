@@ -145,7 +145,7 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 
 	Params.NumCustomDataFloats = PackedCustomData.NumCustomDataFloats;
 
-	UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
+	UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
 
 	const int32 PreExistingInstanceCount = ISMC->GetInstanceCount();
 	const int32 NewInstanceCount = InstanceList.Instances.Num();

@@ -115,7 +115,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 	return ScheduledId;
 }
 
-FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies)
+FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies)
 {
 	// Build task & element to hold the operation to perform
 	FPCGGraphTask Task;
@@ -123,6 +123,8 @@ FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, con
 	{
 		Task.Inputs.Emplace(TaskDependency, nullptr, nullptr);
 	}
+
+	Task.SourceComponent = InSourceComponent;
 	Task.Element = MakeShared<FPCGGenericElement>(InOperation);
 
 	ScheduleLock.Lock();
@@ -323,7 +325,7 @@ void FPCGGraphExecutor::Execute()
 				// there is an execution mode that would prevent us from doing so.
 				const UPCGSettings* TaskSettings = PCGContextHelpers::GetInputSettings<UPCGSettings>(Task.Node, TaskInput);
 				FPCGDataCollection CachedOutput;
-				const bool bResultAlreadyInCache = Task.Element->IsCacheable(TaskSettings) && GraphCache.GetFromCache(Task.Element.Get(), TaskInput, TaskSettings, Task.SourceComponent, CachedOutput);
+				const bool bResultAlreadyInCache = Task.Element->IsCacheable(TaskSettings) && GraphCache.GetFromCache(Task.Element.Get(), TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
 #if WITH_EDITOR
 				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache || TaskSettings->ExecutionMode == EPCGSettingsExecutionMode::Debug || TaskSettings->ExecutionMode == EPCGSettingsExecutionMode::Isolated;
 #else
@@ -334,7 +336,7 @@ void FPCGGraphExecutor::Execute()
 				{
 #if WITH_EDITOR
 					// doing this now since we're about to modify ReadyTasks potentially reallocating while Task is a reference. 
-					UPCGComponent* SourceComponent = Task.SourceComponent;
+					UPCGComponent* SourceComponent = Task.SourceComponent.Get();
 					if (SourceComponent && SourceComponent->IsInspecting())
 					{
 						SourceComponent->StoreInspectionData(Task.Node, CachedOutput);
@@ -438,7 +440,7 @@ void FPCGGraphExecutor::Execute()
 				const UPCGSettings* ActiveTaskSettings = ActiveTask.Context->GetInputSettings<UPCGSettings>();
 				if (ActiveTaskSettings && ActiveTask.Element->IsCacheable(ActiveTaskSettings))
 				{
-					GraphCache.StoreInCache(ActiveTask.Element.Get(), ActiveTask.Context->InputData, ActiveTaskSettings, ActiveTask.Context->SourceComponent, ActiveTask.Context->OutputData);
+					GraphCache.StoreInCache(ActiveTask.Element.Get(), ActiveTask.Context->InputData, ActiveTaskSettings, ActiveTask.Context->SourceComponent.Get(), ActiveTask.Context->OutputData);
 				}
 			}
 
@@ -450,7 +452,7 @@ void FPCGGraphExecutor::Execute()
 			// Additional note: this needs to be executed before the StoreResults since debugging might cancel further tasks
 			ActiveTask.Element->DebugDisplay(ActiveTask.Context.Get());
 
-			UPCGComponent* SourceComponent = ActiveTask.Context->SourceComponent;
+			UPCGComponent* SourceComponent = ActiveTask.Context->SourceComponent.Get();
 			if (SourceComponent && SourceComponent->IsInspecting())
 			{
 				SourceComponent->StoreInspectionData(ActiveTask.Context->Node, ActiveTask.Context->OutputData);
@@ -696,14 +698,14 @@ FPCGTaskId FPCGGraphExecutor::ScheduleDebugWithTaskCallback(UPCGComponent* InCom
 			}
 
 			return true;
-		}, {CompiledTask.NodeId});
+		}, InComponent, {CompiledTask.NodeId});
 
 		// Add these tasks to the final dependencies
 		FinalDependencies.Add(CaptureTaskId);
 	}
 
 	// Finally, add a task to wait on the graph itself plus the capture tasks
-	return ScheduleGeneric([] { return true; }, FinalDependencies);
+	return ScheduleGeneric([] { return true; }, InComponent, FinalDependencies);
 }
 
 void FPCGGraphExecutor::AddToDirtyActors(AActor* Actor)
@@ -791,12 +793,20 @@ FTextFormat FPCGGraphExecutor::GetNotificationTextFormat()
 
 bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 {
+	check(Context);
 	// First: any input can be passed through to the output trivially
 	Context->OutputData = Context->InputData;
 
 	// Second: fetch the inputs provided by the component
-	UPCGComponent* Component = Context->SourceComponent;
-	check(Component);
+	UPCGComponent* Component = Context->SourceComponent.Get();
+	
+	// Early out if the component has been deleted/is invalid
+	if (!Component)
+	{
+		// If the component should exist but it doesn't (which is all the time here, previously we checked for it), then this should be cancelled
+		Context->OutputData.bCancelExecution = true;
+		return true;
+	}
 
 	check(Context->Node);
 

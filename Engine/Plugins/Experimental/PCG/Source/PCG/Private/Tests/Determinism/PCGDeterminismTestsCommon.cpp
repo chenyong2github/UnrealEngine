@@ -94,7 +94,7 @@ namespace PCGDeterminismTests
 
 		FPCGGraphExecutor Executor = FPCGGraphExecutor(PCGComponentCopy);
 
-		auto ScheduleAndWaitForExecution = [&Executor](FPCGTaskId FinalTaskID)
+		auto ScheduleAndWaitForExecution = [&Executor, PCGComponentCopy](FPCGTaskId FinalTaskID)
 		{
 			// TODO: Consider randomizing/iterating through possible input orders
 			volatile bool bTasksComplete = false;
@@ -107,7 +107,7 @@ namespace PCGDeterminismTests
 			{
 				bTasksComplete = true;
 				return true;
-			}, {FinalTaskID});
+			}, PCGComponentCopy, {FinalTaskID});
 
 			// Run first iteration
 			while (!bTasksComplete)

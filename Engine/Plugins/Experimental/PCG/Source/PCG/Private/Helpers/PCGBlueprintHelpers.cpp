@@ -39,35 +39,35 @@ FRandomStream UPCGBlueprintHelpers::GetRandomStream(const FPCGPoint& InPoint, co
 
 UPCGData* UPCGBlueprintHelpers::GetActorData(FPCGContext& Context)
 {
-	return Context.SourceComponent ? Context.SourceComponent->GetActorPCGData() : nullptr;
+	return Context.SourceComponent.IsValid() ? Context.SourceComponent->GetActorPCGData() : nullptr;
 }
 
 UPCGData* UPCGBlueprintHelpers::GetInputData(FPCGContext& Context)
 {
-	return Context.SourceComponent ? Context.SourceComponent->GetInputPCGData() : nullptr;
+	return Context.SourceComponent.IsValid() ? Context.SourceComponent->GetInputPCGData() : nullptr;
 }
 
 TArray<UPCGData*> UPCGBlueprintHelpers::GetExclusionData(FPCGContext& Context)
 {
-	return Context.SourceComponent ? Context.SourceComponent->GetPCGExclusionData() : TArray<UPCGData*>();
+	return Context.SourceComponent.IsValid() ? Context.SourceComponent->GetPCGExclusionData() : TArray<UPCGData*>();
 }
 
 UPCGComponent* UPCGBlueprintHelpers::GetComponent(FPCGContext& Context)
 {
-	return Context.SourceComponent;
+	return Context.SourceComponent.Get();
 }
 
 UPCGComponent* UPCGBlueprintHelpers::GetOriginalComponent(FPCGContext& Context)
 {
-	if (Context.SourceComponent &&
+	if (Context.SourceComponent.IsValid() &&
 		Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner()) &&
-		Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner())->GetOriginalComponent(Context.SourceComponent))
+		Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner())->GetOriginalComponent(Context.SourceComponent.Get()))
 	{
-		return Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner())->GetOriginalComponent(Context.SourceComponent);
+		return Cast<APCGPartitionActor>(Context.SourceComponent->GetOwner())->GetOriginalComponent(Context.SourceComponent.Get());
 	}
 	else
 	{
-		return Context.SourceComponent;
+		return Context.SourceComponent.Get();
 	}
 }
 

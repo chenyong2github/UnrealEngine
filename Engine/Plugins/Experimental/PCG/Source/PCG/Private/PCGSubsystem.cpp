@@ -243,7 +243,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 			}
 
 			return true;
-			}, AllTasks);
+			}, PCGComponent, AllTasks);
 	}
 	else
 	{
@@ -326,7 +326,7 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 	}
 	else
 	{
-		PostCleanupTaskId = GraphExecutor->ScheduleGeneric(PostCleanupTask, AllTasks);
+		PostCleanupTaskId = GraphExecutor->ScheduleGeneric(PostCleanupTask, PCGComponent, AllTasks);
 	}
 
 	return PostCleanupTaskId;
@@ -366,10 +366,10 @@ TStatId UPCGSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UPCGSubsystem, STATGROUP_Tickables);
 }
 
-FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies)
+FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* Component, const TArray<FPCGTaskId>& TaskDependencies)
 {
 	check(GraphExecutor);
-	return GraphExecutor->ScheduleGeneric(InOperation, TaskDependencies);
+	return GraphExecutor->ScheduleGeneric(InOperation, Component, TaskDependencies);
 }
 
 TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
@@ -1000,7 +1000,7 @@ namespace PCGSubsystem
 						return true;
 					};
 
-					FPCGTaskId LoadTaskId = GraphExecutor->ScheduleGeneric(LoadActorsTask, {});
+					FPCGTaskId LoadTaskId = GraphExecutor->ScheduleGeneric(LoadActorsTask, nullptr, {});
 					SetPreviousTaskIfValid(LoadTaskId);
 				}
 
@@ -1016,7 +1016,7 @@ namespace PCGSubsystem
 						return true;
 					};
 
-					FPCGTaskId SaveTaskId = GraphExecutor->ScheduleGeneric(SaveActorTask, PreviousTasks);
+					FPCGTaskId SaveTaskId = GraphExecutor->ScheduleGeneric(SaveActorTask, nullptr, PreviousTasks);
 					SetPreviousTaskIfValid(SaveTaskId);
 				}
 
@@ -1027,7 +1027,7 @@ namespace PCGSubsystem
 				};
 
 				// Schedule after the save (if valid), then the execute so we can queue this after the load.
-				FPCGTaskId UnloadTaskId = GraphExecutor->ScheduleGeneric(UnloadActorsTask, PreviousTasks);
+				FPCGTaskId UnloadTaskId = GraphExecutor->ScheduleGeneric(UnloadActorsTask, nullptr, PreviousTasks);
 				SetPreviousTaskIfValid(UnloadTaskId);
 
 				// Finally, mark "last" valid task in the cell tasks.
@@ -1044,7 +1044,7 @@ namespace PCGSubsystem
 		// Finally, create a dummy generic task to wait on all cells
 		if (!CellTasks.IsEmpty())
 		{
-			return GraphExecutor->ScheduleGeneric([]() { return true; }, CellTasks);
+			return GraphExecutor->ScheduleGeneric([]() { return true; }, nullptr, CellTasks);
 		}
 		else
 		{
@@ -1126,9 +1126,9 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 		switch (InOperation)
 		{
 		case EOperation::Unpartition:
-			return GraphExecutor->ScheduleGeneric(UnpartitionTask, TaskDependencies);
+			return GraphExecutor->ScheduleGeneric(UnpartitionTask, ComponentPtr.Get(), TaskDependencies);
 		case EOperation::Partition:
-			return GraphExecutor->ScheduleGeneric(PartitionTask, TaskDependencies);
+			return GraphExecutor->ScheduleGeneric(PartitionTask, ComponentPtr.Get(), TaskDependencies);
 		case EOperation::Generate:
 		default:
 			return ScheduleGraph();
@@ -1159,7 +1159,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 			return true;
 		};
 
-		return GraphExecutor->ScheduleGeneric(PostProcessGraph, { ProcessAllCellsTaskId });
+		return GraphExecutor->ScheduleGeneric(PostProcessGraph, Component, { ProcessAllCellsTaskId });
 	}
 	else
 	{
@@ -1210,7 +1210,7 @@ FPCGTaskId UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InB
 			return true;
 		};
 
-		return GraphExecutor->ScheduleGeneric(PostCleanupGraph, { ProcessAllCellsTaskId });
+		return GraphExecutor->ScheduleGeneric(PostCleanupGraph, Component, { ProcessAllCellsTaskId });
 	}
 	else
 	{
@@ -1247,7 +1247,7 @@ void UPCGSubsystem::CleanupPartitionActors(const FBox& InBounds)
 			return true;
 		};
 
-		return GraphExecutor->ScheduleGeneric(CleanupTask, TaskDependencies);
+		return GraphExecutor->ScheduleGeneric(CleanupTask, nullptr, TaskDependencies);
 	};
 
 	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
@@ -1270,7 +1270,7 @@ void UPCGSubsystem::ClearPCGLink(UPCGComponent* InComponent, const FBox& InBound
 			return true;
 		};
 
-		return GraphExecutor->ScheduleGeneric(MoveTask, TaskDependencies);
+		return GraphExecutor->ScheduleGeneric(MoveTask, ComponentPtr.Get(), TaskDependencies);
 	};
 
 	FPCGTaskId TaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
@@ -1311,7 +1311,7 @@ void UPCGSubsystem::ClearPCGLink(UPCGComponent* InComponent, const FBox& InBound
 			return true;
 		};
 
-		GraphExecutor->ScheduleGeneric(CleanupTask, { TaskId });
+		GraphExecutor->ScheduleGeneric(CleanupTask, InComponent, { TaskId });
 	}
 	else
 	{

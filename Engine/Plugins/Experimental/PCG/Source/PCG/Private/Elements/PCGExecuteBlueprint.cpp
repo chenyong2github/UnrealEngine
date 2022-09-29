@@ -615,7 +615,7 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 	});
 }
 
-FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
+FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Initialize);
 	FPCGBlueprintExecutionContext* Context = new FPCGBlueprintExecutionContext();
@@ -628,7 +628,10 @@ FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& I
 	{
 		Context->BlueprintElementInstance = CastChecked<UPCGBlueprintElement>(StaticDuplicateObject(Settings->BlueprintElementInstance, GetTransientPackage(), FName()));
 #if !WITH_EDITOR
-		Context->BlueprintElementInstance->SetInstanceWorld(SourceComponent ? SourceComponent->GetOwner()->GetWorld() : nullptr);
+		if (SourceComponent.IsValid() && SourceComponent->GetOwner())
+		{
+			Context->BlueprintElementInstance->SetInstanceWorld(SourceComponent->GetOwner()->GetWorld());
+		}
 #endif
 	}
 	else

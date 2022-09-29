@@ -72,7 +72,7 @@ namespace PCGPropertyToParamDataHelpers
 
 		AActor* FoundActor = nullptr;
 
-		if (!InContext.SourceComponent)
+		if (!InContext.SourceComponent.IsValid())
 		{
 			return FoundActor;
 		}

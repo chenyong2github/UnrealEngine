@@ -609,7 +609,7 @@ FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray
 		return true;
 	};
 
-	return GetSubsystem()->ScheduleGeneric(CleanupTask, *AllDependencies);
+	return GetSubsystem()->ScheduleGeneric(CleanupTask, this, *AllDependencies);
 }
 
 void UPCGComponent::CleanupUnusedManagedResources()
@@ -1648,7 +1648,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 			// TODO: cache/share the original component's actor pcg data
 			if (const UPCGSpatialData* OriginalComponentSpatialData = Cast<const UPCGSpatialData>(OriginalComponent->GetActorPCGData()))
 			{
-				UPCGVolumeData* Data = NewObject<UPCGVolumeData>(this);
+				UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
 				Data->Initialize(PartitionActor->GetFixedBounds(), PartitionActor);
 
 				return Data->IntersectWith(OriginalComponentSpatialData);
@@ -1660,14 +1660,14 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 	}
 	else if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
 	{
-		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>(this);
+		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>();
 		Data->Initialize(Landscape, GetGridBounds(Actor), /*bHeightOnly=*/false, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
 
 		return Data;
 	}
 	else if (AVolume* Volume = Cast<AVolume>(Actor))
 	{
-		UPCGVolumeData* Data = NewObject<UPCGVolumeData>(this);
+		UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
 		Data->Initialize(Volume);
 
 		return Data;
@@ -1693,12 +1693,12 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 		UPCGUnionData* Union = nullptr;
 		if (LandscapeSplines.Num() + Splines.Num() + Shapes.Num() + OtherPrimitives.Num() > 1)
 		{
-			Union = NewObject<UPCGUnionData>(this);
+			Union = NewObject<UPCGUnionData>();
 		}
 
 		for (ULandscapeSplinesComponent* SplineComponent : LandscapeSplines)
 		{
-			UPCGLandscapeSplineData* SplineData = NewObject<UPCGLandscapeSplineData>(this);
+			UPCGLandscapeSplineData* SplineData = NewObject<UPCGLandscapeSplineData>();
 			SplineData->Initialize(SplineComponent);
 
 			if (Union)
@@ -1713,7 +1713,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 
 		for (USplineComponent* SplineComponent : Splines)
 		{
-			UPCGSplineData* SplineData = NewObject<UPCGSplineData>(this);
+			UPCGSplineData* SplineData = NewObject<UPCGSplineData>();
 			SplineData->Initialize(SplineComponent);
 
 			if (Union)
@@ -1728,7 +1728,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 
 		for (UShapeComponent* ShapeComponent : Shapes)
 		{
-			UPCGPrimitiveData* ShapeData = NewObject<UPCGPrimitiveData>(this);
+			UPCGPrimitiveData* ShapeData = NewObject<UPCGPrimitiveData>();
 			ShapeData->Initialize(ShapeComponent);
 			
 			if (Union)
@@ -1743,7 +1743,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 
 		for (UPrimitiveComponent* PrimitiveComponent : OtherPrimitives)
 		{
-			UPCGPrimitiveData* PrimitiveData = NewObject<UPCGPrimitiveData>(this);
+			UPCGPrimitiveData* PrimitiveData = NewObject<UPCGPrimitiveData>();
 			PrimitiveData->Initialize(PrimitiveComponent);
 
 			if (Union)
@@ -1763,7 +1763,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 	}
 
 	// Finally, if it's not a special actor and there are not parsed components, then return a single point at the actor position
-	UPCGPointData* Data = NewObject<UPCGPointData>(this);
+	UPCGPointData* Data = NewObject<UPCGPointData>();
 	Data->InitializeFromActor(Actor);
 	return Data;
 }
@@ -1842,7 +1842,7 @@ UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
 	}
 
 	// TODO: we're creating separate landscape data instances here so we can do some tweaks on it (such as storing the right target actor) but this probably should change
-	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>(this);
+	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>();
 	LandscapeData->Initialize(Landscape, GetGridBounds(Landscape), bHeightOnly, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
 	// Need to override target actor for this one, not the landscape
 	LandscapeData->TargetActor = Actor;
@@ -2261,7 +2261,7 @@ void FPCGComponentInstanceData::DelayedRefresh(UPCGComponent* PCGComponent)
 					}
 
 					return true;
-				}, {});
+				}, PCGComponent, {});
 		}
 	}
 }

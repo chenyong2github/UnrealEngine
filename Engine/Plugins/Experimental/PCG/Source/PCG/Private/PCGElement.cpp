@@ -15,7 +15,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 	check(Context && Context->NumAvailableTasks > 0);
 
 	// Early out to stop execution
-	if (Context->InputData.bCancelExecution || (Context->SourceComponent && !IsValid(Context->SourceComponent)))
+	if (Context->InputData.bCancelExecution || (!Context->SourceComponent.IsExplicitlyNull() && !Context->SourceComponent.IsValid()))
 	{
 		Context->OutputData.bCancelExecution = true;
 
@@ -217,7 +217,7 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 	}
 }
 
-FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
+FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {
 	FPCGContext* Context = new FPCGContext();
 	Context->InputData = InputData;

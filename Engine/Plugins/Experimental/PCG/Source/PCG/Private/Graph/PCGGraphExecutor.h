@@ -39,7 +39,7 @@ struct FPCGGraphTask
 	TArray<FPCGGraphTaskInput> Inputs;
 	//TArray<DataId> Outputs;
 	const UPCGNode* Node = nullptr;
-	UPCGComponent* SourceComponent = nullptr;
+	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
 	FPCGElementPtr Element; // Added to have tasks that aren't node-bound
 	FPCGTaskId NodeId = InvalidPCGTaskId;
 };
@@ -73,7 +73,7 @@ public:
 	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
 
 	/** General job scheduling, used to control loading/unloading */
-	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies);
+	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies);
 
 	/** Gets data in the output results. Returns false if data is not ready. */
 	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
