@@ -105,9 +105,16 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
     	else if (ExistingAsset.IsValid())
     	{
     		UE_LOG(LogLevelSnapshots, Error, TEXT("Asset %s already exists and is not a snapshot. Aborting."))
-    		return nullptr;
+			bProceedWithSave = false;
     	}
     }
+
+	FText ErrorReason;
+	if (!FPackageName::IsValidLongPackageName(PackageName, true, &ErrorReason))
+	{
+		UE_LOG(LogLevelSnapshots, Error, TEXT("Invalid package name. Error: %s"), *ErrorReason.ToString());
+		bProceedWithSave = false;
+	}
 
     if (bProceedWithSave)
     {
