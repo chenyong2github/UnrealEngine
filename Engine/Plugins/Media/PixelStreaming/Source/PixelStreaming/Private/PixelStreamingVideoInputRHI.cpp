@@ -3,9 +3,9 @@
 #include "PixelStreamingVideoInputRHI.h"
 #include "PixelStreamingPrivate.h"
 #include "Settings.h"
-
 #include "PixelCaptureBufferFormat.h"
 #include "PixelCaptureCapturerRHI.h"
+#include "PixelCaptureCapturerRHIRDG.h"
 #include "PixelCaptureCapturerRHIToI420CPU.h"
 #include "PixelCaptureCapturerRHIToI420Compute.h"
 
@@ -15,7 +15,17 @@ TSharedPtr<FPixelCaptureCapturer> FPixelStreamingVideoInputRHI::CreateCapturer(i
 	{
 		case PixelCaptureBufferFormat::FORMAT_RHI:
 		{
-			return FPixelCaptureCapturerRHI::Create(FinalScale);
+			// "Safe Texture Copy" polls a fence to ensure a GPU copy is complete
+			// the RDG pathway does not poll a fence so is more unsafe but offers 
+			// a significant performance increase
+			if (UE::PixelStreaming::Settings::IsUsingSafeTextureCopy())
+			{
+				return FPixelCaptureCapturerRHI::Create(FinalScale);
+			}
+			else
+			{
+				return FPixelCaptureCapturerRHIRDG::Create(FinalScale);
+			}
 		}
 		case PixelCaptureBufferFormat::FORMAT_I420:
 		{

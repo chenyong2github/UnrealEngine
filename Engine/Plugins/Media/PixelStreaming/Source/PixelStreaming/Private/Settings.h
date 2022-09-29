@@ -74,7 +74,6 @@ namespace UE::PixelStreaming::Settings
 	};
 
 	// Begin utility functions etc.
-	bool DecoupleFrameRate();
 	bool IsCodecVPX();
 	void SetCodec(EPixelStreamingCodec Codec);
 	EPixelStreamingCodec GetSelectedCodec();
@@ -82,8 +81,6 @@ namespace UE::PixelStreaming::Settings
 	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar();
 	webrtc::DegradationPreference GetDegradationPreference();
 	AVEncoder::FVideoEncoder::H264Profile GetH264Profile();
-	const TArray<FName>& GetActiveTextureSourceTypes();
-	void SetActiveTextureSourceTypes(TArray<FName> InActiveTextureSourceTypes);
 	EInputControllerMode GetInputControllerMode();
 	FString GetDefaultStreamerID();
 	FString GetDefaultSignallingURL();
@@ -112,6 +109,16 @@ namespace UE::PixelStreaming::Settings
 	inline bool IsPixelStreamingHideCursor()
 	{
 		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
+	}
+
+	inline bool IsUsingSafeTextureCopy()
+	{
+		return FParse::Param(FCommandLine::Get(), TEXT("PixelCaptureUseFence"));
+	}
+
+	inline bool CoupleFrameRate()
+	{
+		return !FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingDecoupleFrameRate"));
 	}
 
 	inline bool GetSignallingServerUrl(FString& OutSignallingServerURL)

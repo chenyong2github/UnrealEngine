@@ -13,7 +13,7 @@ namespace UE::PixelStreaming
 	}
 
 	FVideoSourceGroup::FVideoSourceGroup()
-		: bCoupleFramerate(!Settings::DecoupleFrameRate())
+		: bCoupleFramerate(Settings::CoupleFrameRate() || !Settings::IsUsingSafeTextureCopy())
 		, FramesPerSecond(Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread())
 	{
 	}

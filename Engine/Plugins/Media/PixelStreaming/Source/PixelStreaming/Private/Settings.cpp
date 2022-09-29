@@ -238,22 +238,8 @@ namespace UE::PixelStreaming::Settings
 		ECVF_Default);
 
 	TArray<FKey> FilteredKeys;
-	TArray<FName> ActiveTextureSourceTypes;
-	bool bDecoupleFrameRate = true;
 	FString DefaultStreamerID = TEXT("DefaultStreamer");
 	FString DefaultSignallingURL = TEXT("ws://127.0.0.1:8888");
-
-	void OnActiveTextureSourcesChanged(IConsoleVariable* Var)
-	{
-		FString CommaList = Var->GetString();
-		TArray<FString> StringArray;
-		CommaList.ParseIntoArray(StringArray, TEXT(","), true);
-		ActiveTextureSourceTypes.Empty();
-		for (auto&& TextureSourceTypeStr : StringArray)
-		{
-			ActiveTextureSourceTypes.Add(FName(TextureSourceTypeStr));
-		}
-	}
 
 	void OnFilteredKeysChanged(IConsoleVariable* Var)
 	{
@@ -386,17 +372,6 @@ namespace UE::PixelStreaming::Settings
 			return AVEncoder::FVideoEncoder::H264Profile::BASELINE;
 		return Iter->second;
 	}
-
-	const TArray<FName>& GetActiveTextureSourceTypes()
-	{
-		return ActiveTextureSourceTypes;
-	}
-
-	void SetActiveTextureSourceTypes(TArray<FName> InActiveTextureSourceTypes)
-	{
-		ActiveTextureSourceTypes = InActiveTextureSourceTypes;
-	}
-
 	// End utility functions etc.
 
 	FSimulcastParameters SimulcastParameters;
@@ -478,11 +453,6 @@ namespace UE::PixelStreaming::Settings
 		}
 	}
 
-	bool DecoupleFrameRate()
-	{
-		return bDecoupleFrameRate;
-	}
-
 	bool IsCodecVPX()
 	{
 		EPixelStreamingCodec SelectedCodec = GetSelectedCodec();
@@ -561,16 +531,12 @@ namespace UE::PixelStreaming::Settings
 		UE_LOG(LogPixelStreaming, Log, TEXT("Initialising Pixel Streaming settings."));
 
 		FString StringOptions;
-		bDecoupleFrameRate = !FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingDisableDecoupleFrameRate"), StringOptions, false);
 
 		FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), DefaultStreamerID, false);
 
 		CVarPixelStreamingOnScreenStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnHudStatsToggled));
 		CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnFilteredKeysChanged));
-		CVarPixelStreamingVideoTracks.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnActiveTextureSourcesChanged));
 		CVarPixelStreamingWebRTCFps.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnWebRTCFpsChanged));
-		OnActiveTextureSourcesChanged(CVarPixelStreamingVideoTracks.AsVariable());
-
 		CVarPixelStreamingEncoderKeyframeInterval.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnKeyframeIntervalChanged));
 
 		// Values parse from commands line
