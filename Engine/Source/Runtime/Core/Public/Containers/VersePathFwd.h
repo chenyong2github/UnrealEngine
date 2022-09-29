@@ -14,7 +14,9 @@
 
 class FArchive;
 
-namespace UE::Core
+namespace UE
+{
+namespace Core
 {
 	class FVersePath;
 
@@ -25,5 +27,5 @@ namespace UE::Core
 
 	uint32 GetTypeHash(const FVersePath& VersePath);
 }
-
+}
 #endif // #if UE_USE_VERSE_PATHS
