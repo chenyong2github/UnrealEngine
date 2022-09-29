@@ -335,20 +335,10 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 		FDisplayClusterMeshProjectionRenderSettings RenderSettings;
 		RenderSettings.RenderType = EDisplayClusterMeshProjectionOutput::Color;
 		RenderSettings.EngineShowFlags = EngineShowFlags;
-		RenderSettings.ProjectionType = ProjectionMode;
-		RenderSettings.PrimitiveFilter.ShouldRenderPrimitiveDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateSP(this, &FDisplayClusterLightCardEditorViewportClient::ShouldRenderPrimitive);
-		RenderSettings.PrimitiveFilter.ShouldApplyProjectionDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateSP(this, &FDisplayClusterLightCardEditorViewportClient::ShouldApplyProjectionToPrimitive);
 
-		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
-		{
-			RenderSettings.ProjectionTypeSettings.UVProjectionIndex = 1;
-			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
-			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
-
-			// Compute the UV plane offset to allow panning. Need to convert to view space, since the UV projection assumes all coordinates are in view space
-			const FMatrix WorldToViewTransform = FMatrix(FVector::ZAxisVector, FVector::XAxisVector, FVector::YAxisVector, FVector::ZeroVector);
-			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneOffset = -WorldToViewTransform.TransformVector(GetViewTransform().GetLocation());
-		}
+		ProjectionHelper->ConfigureRenderProjectionSettings(RenderSettings, GetViewTransform().GetLocation());
+		RenderSettings.PrimitiveFilter.ShouldRenderPrimitiveDelegate = ProjectionHelper->CreateDefaultShouldRenderPrimitiveFilter();
+		RenderSettings.PrimitiveFilter.ShouldApplyProjectionDelegate = ProjectionHelper->CreateDefaultShouldApplyProjectionToPrimitiveFilter();
 
 		GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
 
@@ -2228,63 +2218,24 @@ void FDisplayClusterLightCardEditorViewportClient::MoveActorsToPixel(const FIntP
 
 void FDisplayClusterLightCardEditorViewportClient::MoveSelectedUVActors(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
-	if (LastSelectedActor.IsValid() && LastSelectedActor->IsUVActor())
-	{
-		const FVector2D DeltaUV = GetUVActorTranslationDelta(InViewport, LastSelectedActor, CurrentAxis);
-		for (const FDisplayClusterWeakStageActorPtr& Actor : SelectedActors)
-		{
-			if (!Actor.IsValid() || !Actor->IsUVActor())
-			{
-				continue;
-			}
-
-			Actor->SetUVCoordinates(Actor->GetUVCoordinates() + DeltaUV);
-
-			PropagateActorTransform(Actor);
-		}
-	}
-}
-
-FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVActorTranslationDelta(FViewport* InViewport, const FDisplayClusterWeakStageActorPtr& InActor, EAxisList::Type CurrentAxis)
-{
-	FIntPoint MousePos;
-	InViewport->GetMousePos(MousePos);
-
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InViewport,
 		GetScene(),
 		EngineShowFlags)
 		.SetRealtimeUpdate(IsRealtime()));
+
 	FSceneView* View = CalcSceneView(&ViewFamily);
 
-	FVector Origin;
-	FVector Direction;
-	ProjectionHelper->PixelToWorld(*View, MousePos, Origin, Direction);
+	FIntPoint MousePos;
+	InViewport->GetMousePos(MousePos);
 
-	const float UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
-	const float UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+	ProjectionHelper->DragUVActors(SelectedActors, MousePos, *View, DragWidgetOffset, CurrentAxis, LastSelectedActor);
 
-	const FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
-	const FPlane UVProjectionPlane(ViewOrigin + FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
-	const FVector PlaneIntersection = FMath::RayPlaneIntersection(Origin, Direction, UVProjectionPlane);
-
-	const FVector DesiredLocation = PlaneIntersection - DragWidgetOffset;
-	const FVector2D DesiredUVLocation = FVector2D(DesiredLocation.Y / UVProjectionPlaneSize + 0.5f, 0.5f - DesiredLocation.Z / UVProjectionPlaneSize);
-
-	const FVector2D UVDelta = DesiredUVLocation - InActor->GetUVCoordinates();
-
-	FVector2D UVAxis = FVector2D::ZeroVector;
-	if (CurrentAxis & EAxisList::Type::X)
+	// Update the level instances
+	for (const FDisplayClusterWeakStageActorPtr& Actor : SelectedActors)
 	{
-		UVAxis += FVector2D(1.0, 0.0);
+		PropagateActorTransform(Actor);
 	}
-
-	if (CurrentAxis & EAxisList::Type::Y)
-	{
-		UVAxis += FVector2D(0.0, 1.0);
-	}
-
-	return UVDelta * UVAxis;
 }
 
 void FDisplayClusterLightCardEditorViewportClient::ScaleSelectedActors(FViewport* InViewport, EAxisList::Type CurrentAxis)
@@ -2747,35 +2698,6 @@ void FDisplayClusterLightCardEditorViewportClient::ExitDrawingLightCardMode()
 		InputMode = EInputMode::Idle;
 		DrawnMousePositions.Empty();
 	}
-}
-
-bool FDisplayClusterLightCardEditorViewportClient::ShouldRenderPrimitive(const UPrimitiveComponent* PrimitiveComponent)
-{
-	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
-	if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
-	{
-		// Only render the UV light cards when in UV projection mode, and only render non-UV light cards in any other projection mode
-		return bIsUVProjection ? LightCard->bIsUVLightCard : !LightCard->bIsUVLightCard;
-	}
-	else
-	{
-		return true;
-	}
-}
-
-bool FDisplayClusterLightCardEditorViewportClient::ShouldApplyProjectionToPrimitive(const UPrimitiveComponent* PrimitiveComponent)
-{
-	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
-	if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
-	{
-		// When in UV projection mode, don't render the UV light cards using the UV projection, render them linearly
-		if (bIsUVProjection && LightCard->bIsUVLightCard)
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 FDisplayClusterLightCardEditorViewportClient::FSpriteProxy FDisplayClusterLightCardEditorViewportClient::FSpriteProxy::

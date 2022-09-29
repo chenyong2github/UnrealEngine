@@ -518,24 +518,50 @@ void FDisplayClusterLightCardEditorHelper::DragActors(
 	const FSceneView& SceneView, ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis,
 	FDisplayClusterWeakStageActorPtr PrimaryActor)
 {
-	if (Actors.IsEmpty())
+	if (Actors.IsEmpty() || !UpdateNormalMaps() || !UpdateRootActor())
 	{
 		return;
 	}
 
-	const ADisplayClusterRootActor* RootActor = UpdateRootActor();
-	if (!RootActor)
-	{
-		return;
-	}
-
-	if (!UpdateNormalMaps())
-	{
-		return;
-	}
-	
-	// Maps are already ready, so we can move immediately
 	InternalDragActors(Actors, PixelPos, SceneView, CoordinateSystem, DragWidgetOffset, DragAxis, PrimaryActor);
+}
+
+void FDisplayClusterLightCardEditorHelper::DragUVActors(
+	const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView,
+	const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor)
+{
+	if (Actors.IsEmpty() || !UpdateNormalMaps() || !UpdateRootActor())
+	{
+		return;
+	}
+
+	if (!PrimaryActor.IsValid())
+	{
+		PrimaryActor = Actors.Last();
+	}
+
+	if (!PrimaryActor.IsValid() || !PrimaryActor->IsUVActor())
+	{
+		return;
+	}
+
+	const FVector2D DeltaUV = GetUVActorTranslationDelta(PixelPos, SceneView, PrimaryActor, DragAxis, DragWidgetOffset);
+	for (const FDisplayClusterWeakStageActorPtr& Actor : Actors)
+	{
+		if (!Actor.IsValid() || !Actor->IsUVActor())
+		{
+			continue;
+		}
+
+		Actor->SetUVCoordinates(Actor->GetUVCoordinates() + DeltaUV);
+
+#if WITH_EDITOR
+		if (!Actor->IsProxy())
+		{
+			PostEditChangePropertiesForMovedActor(Actor);
+		}
+#endif
+	}
 }
 
 void FDisplayClusterLightCardEditorHelper::VerifyAndFixActorOrigin(const FDisplayClusterWeakStageActorPtr& Actor)
@@ -701,11 +727,16 @@ void FDisplayClusterLightCardEditorHelper::PixelToWorld(const FSceneView& View, 
 
 bool FDisplayClusterLightCardEditorHelper::WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos) const
 {
+	return WorldToPixel(View, WorldPos, OutPixelPos, ProjectionMode);
+}
+
+bool FDisplayClusterLightCardEditorHelper::WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos, EDisplayClusterMeshProjectionType OverrideProjectionMode) const
+{
 	const FMatrix& ViewMatrix = View.ViewMatrices.GetViewMatrix();
 	const FMatrix& ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
 
 	const FVector ViewPos = ViewMatrix.TransformPosition(WorldPos);
-	const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
+	const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, OverrideProjectionMode);
 	const FVector4 ScreenPos = ProjMatrix.TransformFVector4(FVector4(ProjectedViewPos, 1));
 
 	return View.ScreenToPixel(ScreenPos, OutPixelPos);
@@ -842,6 +873,21 @@ void FDisplayClusterLightCardEditorHelper::GetSceneViewInitOptions(
 	OutViewInitOptions.FOV = InFOV;
 }
 
+void FDisplayClusterLightCardEditorHelper::ConfigureRenderProjectionSettings(FDisplayClusterMeshProjectionRenderSettings& OutRenderSettings, const FVector ViewLocation) const
+{
+	OutRenderSettings.ProjectionType = ProjectionMode;
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+	{
+		OutRenderSettings.ProjectionTypeSettings.UVProjectionIndex = 1;
+		OutRenderSettings.ProjectionTypeSettings.UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+		OutRenderSettings.ProjectionTypeSettings.UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+		// Compute the UV plane offset to allow panning. Need to convert to view space, since the UV projection assumes all coordinates are in view space
+		const FMatrix WorldToViewTransform = FMatrix(FVector::ZAxisVector, FVector::XAxisVector, FVector::YAxisVector, FVector::ZeroVector);
+		OutRenderSettings.ProjectionTypeSettings.UVProjectionPlaneOffset = -WorldToViewTransform.TransformVector(ViewLocation);
+	}
+}
+
 FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLightCardEditorHelper::GetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor)
 {
 	const FVector ActorLocation = Actor->GetStageActorTransform(true).GetTranslation();
@@ -857,6 +903,43 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 	}
 
 	return ActorSphericalCoords;
+}
+
+FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter FDisplayClusterLightCardEditorHelper::CreateDefaultShouldRenderPrimitiveFilter() const
+{
+	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
+
+	// Create a lambda function so that it's safe to access even if this helper is destroyed
+	return FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([bIsUVProjection](const UPrimitiveComponent* PrimitiveComponent)
+		{
+			if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
+			{
+				// Only render the UV light cards when in UV projection mode, and only render non-UV light cards in any other projection mode
+				return bIsUVProjection ? LightCard->bIsUVLightCard : !LightCard->bIsUVLightCard;
+			}
+
+			return true;
+		});
+}
+
+FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter FDisplayClusterLightCardEditorHelper::CreateDefaultShouldApplyProjectionToPrimitiveFilter() const
+{
+	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
+
+	// Create a lambda function so that it's safe to access even if this helper is destroyed
+	return FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([bIsUVProjection](const UPrimitiveComponent* PrimitiveComponent)
+		{
+			if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
+			{
+				// When in UV projection mode, don't render the UV light cards using the UV projection, render them linearly
+				if (bIsUVProjection && LightCard->bIsUVLightCard)
+				{
+					return false;
+				}
+			}
+
+			return true;
+		});
 }
 
 ADisplayClusterRootActor* FDisplayClusterLightCardEditorHelper::UpdateRootActor()
@@ -1059,6 +1142,43 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 	}
 
 	return DeltaCoords;
+}
+
+FVector2D FDisplayClusterLightCardEditorHelper::GetUVActorTranslationDelta(
+	const FIntPoint& PixelPos,
+	const FSceneView& View,
+	const FDisplayClusterWeakStageActorPtr& Actor,
+	EAxisList::Type DragAxis,
+	const FVector& DragWidgetOffset)
+{
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(View, PixelPos, Origin, Direction);
+
+	const float UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+	const float UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+	const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
+	const FPlane UVProjectionPlane(ViewOrigin + FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
+	const FVector PlaneIntersection = FMath::RayPlaneIntersection(Origin, Direction, UVProjectionPlane);
+	
+	const FVector DesiredLocation = PlaneIntersection - DragWidgetOffset;
+	const FVector2D DesiredUVLocation = FVector2D(DesiredLocation.Y / UVProjectionPlaneSize + 0.5f, 0.5f - DesiredLocation.Z / UVProjectionPlaneSize);
+
+	const FVector2D UVDelta = DesiredUVLocation - Actor->GetUVCoordinates();
+
+	FVector2D UVAxis = FVector2D::ZeroVector;
+	if (DragAxis & EAxisList::Type::X)
+	{
+		UVAxis += FVector2D(1.0, 0.0);
+	}
+
+	if (DragAxis & EAxisList::Type::Y)
+	{
+		UVAxis += FVector2D(0.0, 1.0);
+	}
+
+	return UVDelta * UVAxis;
 }
 
 void FDisplayClusterLightCardEditorHelper::InternalMoveActorTo(

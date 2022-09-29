@@ -21,7 +21,8 @@ enum class ERCWebSocketNDisplayPreviewRenderProjectionType : uint8
 {
 	Perspective,
 	Azimuthal,
-	Orthographic
+	Orthographic,
+	UV
 };
 
 /** Preview renderer settings exposed to WebSocket clients. */

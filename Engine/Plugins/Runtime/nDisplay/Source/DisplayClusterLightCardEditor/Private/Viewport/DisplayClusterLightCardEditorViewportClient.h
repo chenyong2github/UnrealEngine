@@ -196,9 +196,6 @@ private:
 	/** Moves the currently selected UV actors */
 	void MoveSelectedUVActors(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
-	/** Determines the appropriate delta in UV coordinates needed to move the specified actor to the mouse's location */
-	FVector2D GetUVActorTranslationDelta(FViewport* InViewport, const FDisplayClusterWeakStageActorPtr& InActor, EAxisList::Type CurrentAxis);
-
 	/** Scales the currently selected actors */
 	void ScaleSelectedActors(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
@@ -246,12 +243,6 @@ private:
 
 	/** Calculates the final distance from the origin of an actor, given its flush distance and a desired offset */
 	double CalculateFinalActorDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
-
-	/** Callback passed into the mesh projection renderer to filter which primitives are drawn */
-	bool ShouldRenderPrimitive(const UPrimitiveComponent* PrimitiveComponent);
-
-	/** Callback passed into the mesh projection renderer to filter which primitives drawn with the current projection and which are drawn linearly */
-	bool ShouldApplyProjectionToPrimitive(const UPrimitiveComponent* PrimitiveComponent);
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;

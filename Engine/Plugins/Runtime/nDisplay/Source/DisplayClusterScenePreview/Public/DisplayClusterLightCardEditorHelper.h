@@ -206,6 +206,19 @@ public:
 	DISPLAYCLUSTERSCENEPREVIEW_API void DragActors(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView,
 		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor = nullptr);
 	
+	/**
+	 * Moves specified UV actors to a coordinate in viewport space as if dragged by a translate widget.
+	 *
+	 * @param Actors The actors that we are moving
+	 * @param PixelPos The screen pixel position of the widget
+	 * @param SceneView The scene view used to convert from pixel position to 3D position
+	 * @param DragWidgetOffset The offset between the actual cursor position and the position of the widget when the drag action started
+	 * @param DragAxis The axis along which the widget is being dragged
+	 * @param PrimaryActor The actor used to calculate the translation/rotation delta. If not provided, the last entry in Actors will be used.
+	 */
+	DISPLAYCLUSTERSCENEPREVIEW_API void DragUVActors(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView,
+		const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor = nullptr);
+
 	/** Ensures that the actor root component is at the same location as the projection/view origin */
 	DISPLAYCLUSTERSCENEPREVIEW_API void VerifyAndFixActorOrigin(const FDisplayClusterWeakStageActorPtr& Actor);
 
@@ -238,8 +251,11 @@ public:
 	/** Converts a pixel coordinate into a point and direction vector in world space */
 	DISPLAYCLUSTERSCENEPREVIEW_API void PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection) const;
 
-	/** Converts a world coordinate into a point in screen space, and returns true if the world position is on the screen */
+	/** Converts a world coordinate into a point in screen space, and returns true if the world position is on the screen. */
 	DISPLAYCLUSTERSCENEPREVIEW_API bool WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos) const;
+
+	/** Converts a world coordinate into a point in screen space using a specific projection mode, and returns true if the world position is on the screen. */
+	DISPLAYCLUSTERSCENEPREVIEW_API bool WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos, EDisplayClusterMeshProjectionType OverrideProjectionMode) const;
 
 	/**
 	 * Sets up FSceneViewInitOptions' basic settings in a consistent way for preview renders.
@@ -256,8 +272,27 @@ public:
 		const FMatrix* InRotationMatrix = nullptr,
 		float InDPIScale = 1.f);
 
+	/**
+	 * Sets up projection-related settings of a preview render in a consistent way. 
+	 * This includes the ProjectionType and its related ProjectionTypeSettings.
+	 * If provided, the UV projection's panning settings will updated to reflect the ViewLocation passed in.
+	 */
+	DISPLAYCLUSTERSCENEPREVIEW_API void ConfigureRenderProjectionSettings(FDisplayClusterMeshProjectionRenderSettings& OutRenderSettings, FVector ViewLocation = FVector::ZeroVector) const;
+
 	/** Gets the spherical coordinates of the specified actor. */
 	DISPLAYCLUSTERSCENEPREVIEW_API FSphericalCoordinates GetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor);
+
+	/**
+	 * Creates the default ShouldRenderPrimitive filter that most FDisplayClusterMeshProjectionRenderSettings will use.
+	 * Filters actors so that only UV lightcards are shown in UV mode, and only non-UV light cards are shown otherwise.
+	 */
+	DISPLAYCLUSTERSCENEPREVIEW_API FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter CreateDefaultShouldRenderPrimitiveFilter() const;
+
+	/**
+	 * Creates the default ShouldApplyProjectionToPrimitive filter that most FDisplayClusterMeshProjectionRenderSettings will use.
+	 * Filters actors so that in UV projection mode, UV light cards are rendered linearly.
+	 */
+	DISPLAYCLUSTERSCENEPREVIEW_API FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter CreateDefaultShouldApplyProjectionToPrimitiveFilter() const;
 
 private:
 	/**
@@ -282,6 +317,10 @@ private:
 	/** Determines the appropriate delta in spherical coordinates needed to move the specified actor to the given position within the view. */
 	FSphericalCoordinates GetActorTranslationDelta(const FIntPoint& PixelPos, const FSceneView& View, const FDisplayClusterWeakStageActorPtr& Actor,
 		ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
+
+	/** Determines the appropriate delta in UV coordinates needed to move the specified UV actor to the given position within the view. */
+	FVector2D GetUVActorTranslationDelta(const FIntPoint& PixelPos, const FSceneView& View, const FDisplayClusterWeakStageActorPtr& Actor,
+		EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
 
 	/** Moves specified actor to desired coordinates immediately using the current normal maps. Requires valid normal maps. */
 	void InternalMoveActorTo(const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& Position, bool bIsFinalChange) const;

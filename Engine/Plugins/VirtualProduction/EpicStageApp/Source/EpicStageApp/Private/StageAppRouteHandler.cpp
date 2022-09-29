@@ -63,6 +63,11 @@ namespace StageAppRouteHandlerUtils
 			bOutIsOrthographic = true;
 			break;
 
+		case ERCWebSocketNDisplayPreviewRenderProjectionType::UV:
+			OutProjectionType = EDisplayClusterMeshProjectionType::UV;
+			bOutIsOrthographic = true;
+			break;
+
 		default:
 			checkf(false, TEXT("Unknown projection type %d"), InProjectionType);
 		}
@@ -133,12 +138,17 @@ bool FStageAppRouteHandler::FPerRendererData::GetSceneViewInitOptions(FSceneView
 		return false;
 	}
 
+	// In UV mode, lock the location and rotation
+	const bool bIsUVMode = GetLightCardHelper().GetProjectionMode() == EDisplayClusterMeshProjectionType::UV;
+	const FVector Location = bIsUVMode ? FVector::ZeroVector : ViewOriginComponent->GetComponentLocation();
+	const FRotator Rotation = bIsUVMode ? FVector::ForwardVector.Rotation() : FRotator(RootActor->GetActorRotation().Quaternion() * PreviewSettings.Rotation.Quaternion());
+
 	GetLightCardHelper().GetSceneViewInitOptions(
 		ViewInitOptions,
 		PreviewSettings.FOV,
 		PreviewSettings.Resolution,
-		ViewOriginComponent->GetComponentLocation(),
-		FRotator(RootActor->GetActorRotation().Quaternion() * PreviewSettings.Rotation.Quaternion())
+		Location,
+		Rotation
 	);
 
 	return true;
@@ -417,12 +427,17 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 
 	RenderSettings.RenderType = StageAppRouteHandlerUtils::GetInternalPreviewRenderType(PreviewSettings.RenderType);
 	RenderSettings.EngineShowFlags.SetSelectionOutline(false);
-
+	
 	EDisplayClusterMeshProjectionType ProjectionType;
 	bool bIsOrthographic;
 
 	StageAppRouteHandlerUtils::GetProjectionSettingsFromWebSocketType(PreviewSettings.ProjectionType, ProjectionType, bIsOrthographic);
 	EngineShowFlagOrthographicOverride(!bIsOrthographic, RenderSettings.EngineShowFlags);
+
+	const FDisplayClusterLightCardEditorHelper& Helper = PerRendererData->GetLightCardHelper();
+	Helper.ConfigureRenderProjectionSettings(RenderSettings);
+	RenderSettings.PrimitiveFilter.ShouldRenderPrimitiveDelegate = Helper.CreateDefaultShouldRenderPrimitiveFilter();
+	RenderSettings.PrimitiveFilter.ShouldApplyProjectionDelegate = Helper.CreateDefaultShouldApplyProjectionToPrimitiveFilter();
 
 	FSceneViewInitOptions ViewInitOptions = RenderSettings.ViewInitOptions;
 	const FGuid ClientId = WebSocketMessage.ClientId;
@@ -434,7 +449,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 
 	// Render the image
 	IDisplayClusterScenePreview::Get().RenderQueued(Body.RendererId, RenderSettings, Resolution, FRenderResultDelegate::CreateLambda(
-		[this, ViewInitOptions, ClientId, RendererId, Resolution, JpegQuality, bIncludeActorPositions](FRenderTarget* RenderTarget)
+		[this, ViewInitOptions, ClientId, RendererId, ProjectionType, Resolution, JpegQuality, bIncludeActorPositions](FRenderTarget* RenderTarget)
 		{
 			FPerRendererData* PerRendererData = GetClientPerRendererData(ClientId, RendererId);
 			if (PerRendererData)
@@ -499,6 +514,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 					if (IDisplayClusterScenePreview::Get().GetActorsInRendererScene(RendererId, false, Actors))
 					{
 						const FSceneView View(ViewInitOptions);
+						const bool bIsInUVMode = ProjectionType == EDisplayClusterMeshProjectionType::UV;
 
 						for (const AActor* Actor : Actors)
 						{
@@ -510,9 +526,9 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 							FVector WorldPosition;
 							if (const ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
 							{
-								if (LightCard->bIsUVLightCard)
+								// Only send UV lightcards in UV mode, and only send non-UV lightcards in non-UV modes
+								if (LightCard->bIsUVLightCard != bIsInUVMode)
 								{
-									// TODO: add support for UV light cards and projection mode
 									continue;
 								}
 
@@ -529,7 +545,8 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 							PerRendererData->GetLightCardHelper().WorldToPixel(
 								View,
 								WorldPosition,
-								ActorInfo.Position
+								ActorInfo.Position,
+								ProjectionType // Pass this since the helper's projection mode made have changed since we kicked off the render
 							);
 
 							// Normalize to the size of the texture
@@ -745,17 +762,32 @@ void FStageAppRouteHandler::DragLightCards(FPerRendererData& PerRendererData, FV
 		{
 			return FDisplayClusterWeakStageActorPtr(WeakPtr.Get());
 		});
-	
+
 	FDisplayClusterLightCardEditorHelper& LightCardHelper = PerRendererData.GetLightCardHelper();
-	LightCardHelper.DragActors(
-		MoveTemp(StageActors),
-		PixelPos,
-		View,
-		FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical,
-		DragWidgetOffset,
-		EAxisList::Type::XYZ,
-		PerRendererData.PrimaryLightCard.Get()
-	);
+
+	if (LightCardHelper.GetProjectionMode() == EDisplayClusterMeshProjectionType::UV)
+	{
+		LightCardHelper.DragUVActors(
+			MoveTemp(StageActors),
+			PixelPos,
+			View,
+			DragWidgetOffset,
+			EAxisList::Type::XYZ,
+			PerRendererData.PrimaryLightCard.Get()
+		);
+	}
+	else
+	{
+		LightCardHelper.DragActors(
+			MoveTemp(StageActors),
+			PixelPos,
+			View,
+			FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical,
+			DragWidgetOffset,
+			EAxisList::Type::XYZ,
+			PerRendererData.PrimaryLightCard.Get()
+		);
+	}
 }
 
 bool FStageAppRouteHandler::TimeOutDrags(float DeltaTime)
