@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DetailLayoutBuilder.h"
+#include "Widgets/Input/SComboBox.h"
 
 class UIKRetargeterController;
 class FIKRetargetEditorController;
@@ -31,4 +32,5 @@ private:
 	
 	TWeakPtr<FIKRetargetEditorController> EditorController;
 	TArray<TSharedPtr<FName>> PoseNames;
+	TSharedPtr<SComboBox<TSharedPtr<FName>>> PoseListComboBox;
 };
