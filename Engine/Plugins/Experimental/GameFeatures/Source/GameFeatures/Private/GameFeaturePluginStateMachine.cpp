@@ -470,6 +470,12 @@ struct FGameFeaturePluginState_Terminal : public FDestinationGameFeaturePluginSt
 
 	bool bEnteredTerminalState = false;
 
+	virtual bool TryUpdateURLData(const FString& NewPluginURL) override
+	{
+		//Should never update our URL during Terminal
+		return false;
+	}
+
 	virtual void BeginState() override
 	{
 		checkf(!bEnteredTerminalState, TEXT("Plugin entered terminal state more than once! %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());

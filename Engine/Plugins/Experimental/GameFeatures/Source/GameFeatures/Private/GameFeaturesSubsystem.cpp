@@ -859,7 +859,15 @@ bool UGameFeaturesSubsystem::ShouldUpdatePluginURLData(const FString& NewPluginU
 		return false;
 	}
 
+	//Should always be valid at this point
 	check(StateMachine);
+	
+	//Make sure our StateMachine isn't in terminal, don't want to update Terminal plugins
+	if (TerminalGameFeaturePluginStateMachines.Contains(StateMachine) || (StateMachine->GetCurrentState() == EGameFeaturePluginState::Terminal))
+	{
+		return false;
+	}
+
 	if (StateMachine->GetPluginURL().Equals(NewPluginURL, ESearchCase::IgnoreCase))
 	{
 		return false;
