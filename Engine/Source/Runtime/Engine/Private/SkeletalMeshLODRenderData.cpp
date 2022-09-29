@@ -384,7 +384,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 		{
 			uint32	TotalInfluenceWeight = 0;
 			int32	MaxInfluenceIndex = 0;
-			for (; Vertex.InfluenceWeights[MaxInfluenceIndex] && MaxInfluenceIndex < MAX_TOTAL_INFLUENCES; MaxInfluenceIndex++)
+			for (; MaxInfluenceIndex < MAX_TOTAL_INFLUENCES && Vertex.InfluenceWeights[MaxInfluenceIndex]; MaxInfluenceIndex++)
 			{
 				InfluenceWeights[MaxInfluenceIndex] = static_cast<uint8>(Vertex.InfluenceWeights[MaxInfluenceIndex] >> 8);
 				if (InfluenceWeights[MaxInfluenceIndex] == 0)
