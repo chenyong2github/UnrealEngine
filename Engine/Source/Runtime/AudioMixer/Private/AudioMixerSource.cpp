@@ -1703,6 +1703,8 @@ namespace Audio
 		}
  		
 		MixerSourceVoice->SetEnablement(WaveInstance->bEnableBusSends, WaveInstance->bEnableBaseSubmix, WaveInstance->bEnableSubmixSends);
+
+		MixerSourceVoice->SetSourceBufferListener(WaveInstance->SourceBufferListener, WaveInstance->bShouldSourceBufferListenerZeroBuffer);
 	}
 
 	void FMixerSource::UpdateSourceBusSends()

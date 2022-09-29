@@ -59,6 +59,9 @@ namespace Audio
 		// Sets the source voice's HPF filter modulation base frequency.
 		void SetModHPFFrequency(const float InFrequency);
 
+		// Set the source voice's SourceBufferListener and associated boolean.
+		void SetSourceBufferListener(FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer);
+
 		// Sets the source voice's channel map (2d or 3d).
 		void SetChannelMap(const uint32 NumInputChannels, const Audio::FAlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
 
