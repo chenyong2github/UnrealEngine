@@ -75,12 +75,14 @@ void FD3D12CommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 
 FGPUFenceRHIRef FD3D12DynamicRHI::RHICreateGPUFence(const FName& Name)
 {
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateGPUFence"));
 	return new FD3D12GPUFence(Name);
 }
 
 FStagingBufferRHIRef FD3D12DynamicRHI::RHICreateStagingBuffer()
 {
 	// Don't know the device yet - will be decided at copy time (lazy creation)
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateStagingBuffer"));
 	return new FD3D12StagingBuffer(nullptr);
 }
 

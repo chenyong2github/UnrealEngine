@@ -369,6 +369,7 @@ void FModuleManager::RefreshModuleFilenameFromManifest(const FName InModuleName)
 
 IModuleInterface* FModuleManager::LoadModule(const FName InModuleName, ELoadModuleFlags InLoadModuleFlags)
 {
+	LLM_SCOPE_BYNAME(TEXT("Modules"));
 	// We allow an already loaded module to be returned in other threads to simplify
 	// parallel processing scenarios but they must have been loaded from the main thread beforehand.
 	if(!IsInGameThread())

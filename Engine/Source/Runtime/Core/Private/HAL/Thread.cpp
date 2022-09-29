@@ -62,7 +62,7 @@ private:
 	{
 		// the thread can be started before `RunnableThread` member is initialized
 		//check(RunnableThread.IsValid());
-
+		LLM_SCOPE(ELLMTag::TaskGraphTasksMisc);
 		ThreadFunction();
 
 		return 0;

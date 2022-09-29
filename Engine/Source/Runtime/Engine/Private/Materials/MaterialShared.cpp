@@ -5158,6 +5158,7 @@ void FMaterialAttributeDefinitionMap::InitializeAttributeMap()
 	check(!bIsInitialized);
 	bIsInitialized = true;
 	const bool bHideAttribute = true;
+	LLM_SCOPE(ELLMTag::Materials);
 
 	// All types plus default/missing attribute
 	AttributeMap.Empty(MP_MAX + 1);

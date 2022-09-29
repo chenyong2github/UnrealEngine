@@ -69,6 +69,7 @@ class FD3D12SyncPoint final : public FThreadSafeRefCountedObject
 public:
 	static FD3D12SyncPointRef Create(ED3D12SyncPointType Type)
 	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateSyncPoint"));
 		return new FD3D12SyncPoint(Type);
 	}
 

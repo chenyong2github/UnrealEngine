@@ -4171,7 +4171,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 bool FEngineLoop::LoadStartupModules()
 {
 	FScopedSlowTask SlowTask(3);
-
+	LLM_SCOPE_BYNAME(TEXT("Modules"));
 	SlowTask.EnterProgressFrame(1);
 	// Load any modules that want to be loaded before default modules are loaded up.
 	if (!IProjectManager::Get().LoadModulesForProject(ELoadingPhase::PreDefault) || !IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PreDefault))

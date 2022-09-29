@@ -225,7 +225,7 @@ FD3D12DynamicRHI::FProcessResult FD3D12DynamicRHI::ProcessSubmissionQueue()
 {
 	SCOPED_NAMED_EVENT_TEXT("SubmissionQueue_Process", FColor::Turquoise);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12Submit);
-
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/ProcessSubmissionQueue"));
 	FProcessResult Result;
 
 	//
@@ -605,7 +605,7 @@ FD3D12CommandList* FD3D12DynamicRHI::GenerateBarrierCommandListAndUpdateState(FD
 uint64 FD3D12Queue::ExecutePayload()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteCommandList);
-
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/ExecuteCommandLists"));
 	check(PayloadToSubmit && this == &PayloadToSubmit->Queue);
 	PayloadToSubmit->PreExecute();
 
@@ -773,6 +773,7 @@ void FD3D12DynamicRHI::ProcessInterruptQueueUntil(FGraphEvent* GraphEvent)
 FD3D12DynamicRHI::FProcessResult FD3D12DynamicRHI::ProcessInterruptQueue()
 {
 	SCOPED_NAMED_EVENT_TEXT("InterruptQueue_Process", FColor::Yellow);
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/ProcessInterruptQueue"));
 
 	FProcessResult Result;
 	ForEachQueue([&](FD3D12Queue& CurrentQueue)

@@ -213,6 +213,7 @@ void INiagaraModule::StartupModule()
 #if VECTORVM_SUPPORTS_EXPERIMENTAL
 	InitVectorVM();
 #endif
+	LLM_SCOPE(ELLMTag::Niagara);
 	FNiagaraTypeDefinition::Init();
 	FNiagaraRenderViewDataManager::Init();
 

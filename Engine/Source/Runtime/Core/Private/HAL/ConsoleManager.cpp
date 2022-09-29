@@ -1431,21 +1431,25 @@ public:
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariable<bool>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariable<int32>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, float DefaultValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariable<float>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return RegisterConsoleVariable(Name, FString(DefaultValue), Help, Flags);
 }
 
@@ -1453,66 +1457,79 @@ IConsoleVariable* FConsoleManager::RegisterConsoleVariable(const TCHAR* Name, co
 {
 	// not supported
 	check((Flags & (uint32)ECVF_RenderThreadSafe) == 0);
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariable<FString>(DefaultValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariableRef<bool>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariableRef<int32>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariableRef<float>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, FString& RefValue, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleVariableStringRef(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommand(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommandExec(Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommandWithArgs(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommandWithWorld(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldAndArgsDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommandWithWorldAndArgs(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsAndOutputDeviceDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommanWithArgsAndOutputDevice(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldArgsAndOutputDeviceDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommandWithWorldArgsAndOutputDevice(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithOutputDeviceDelegate& Command, uint32 Flags)
 {
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	return AddConsoleObject(Name, new FConsoleCommandWithOutputDevice(Command, Help, (EConsoleVariableFlags)Flags))->AsCommand();
 }
 
@@ -1943,6 +1960,7 @@ IConsoleObject* FConsoleManager::AddConsoleObject(const TCHAR* Name, IConsoleObj
 	check(Name);
 	check(*Name != 0);
 	check(Obj);
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 
 	FScopeLock ScopeLock( &ConsoleObjectsSynchronizationObject ); // we will lock on the entire add process
 	IConsoleObject* ExistingObj = ConsoleObjects.FindRef(Name);
@@ -2174,6 +2192,7 @@ IConsoleManager* IConsoleManager::Singleton;
 void IConsoleManager::SetupSingleton()
 {
 	check(!Singleton);
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	if (!Singleton)
 	{
 		Singleton = new FConsoleManager; // we will leak this
@@ -2449,7 +2468,7 @@ void FConsoleManager::Test()
 void CreateConsoleVariables()
 {
 #if !NO_CVARS
-
+	LLM_SCOPE_BYNAME(TEXT("EngineMisc/ConsoleCommands"));
 	// this registeres to a reference, so we cannot use TAutoConsoleVariable
 	IConsoleManager::Get().RegisterConsoleVariableRef(TEXT("r.DumpingMovie"),
 		GIsDumpingMovie,

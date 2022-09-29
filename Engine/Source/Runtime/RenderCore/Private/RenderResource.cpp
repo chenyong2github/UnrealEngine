@@ -327,6 +327,7 @@ FRenderResource::~FRenderResource()
 
 void BeginInitResource(FRenderResource* Resource)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
 	ENQUEUE_RENDER_COMMAND(InitCommand)(
 		[Resource](FRHICommandListImmediate& RHICmdList)
 		{

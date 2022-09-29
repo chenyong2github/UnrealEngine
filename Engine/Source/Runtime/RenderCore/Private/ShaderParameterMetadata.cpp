@@ -769,7 +769,7 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 		GetLayoutHashStructMap().Emplace(LayoutInitializer.GetHash(), this);
 	}
 
-	Layout = new FRHIUniformBufferLayout(LayoutInitializer);
+	Layout = RHICreateUniformBufferLayout(LayoutInitializer);
 }
 
 void FShaderParametersMetadata::GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const

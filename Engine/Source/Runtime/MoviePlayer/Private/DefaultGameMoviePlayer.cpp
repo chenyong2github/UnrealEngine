@@ -165,6 +165,7 @@ void FDefaultGameMoviePlayer::Initialize(FSlateRenderer& InSlateRenderer, TShare
 		return;
 	}
 
+	LLM_SCOPE_BYNAME(TEXT("SlateMoviePlayer"));
 	UE_LOG(LogMoviePlayer, Log, TEXT("Initializing movie player"));
 
 	FDefaultGameMoviePlayer* InMoviePlayer = this;
