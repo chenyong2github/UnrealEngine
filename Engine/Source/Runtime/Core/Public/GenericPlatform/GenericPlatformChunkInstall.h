@@ -19,7 +19,7 @@
 
 class IPlatformChunkInstall;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogChunkInstaller, Log, All);
+CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogChunkInstaller, Log, All);
 
 namespace EChunkLocation
 {
