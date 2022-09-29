@@ -17,10 +17,8 @@ namespace GLTF
 
 				if (Obj.Name.IsEmpty())
 				{
-					Obj.Name = Prefix;
+					Obj.Name = Prefix + FString::FromInt(Index);
 				}
-
-				Obj.Name = FString::FromInt(Index) + TEXT("_") + Obj.Name;
 			}
 		}
 	}
@@ -84,10 +82,10 @@ namespace GLTF
 				{
 					bool bIsJoint = Node.Type == FNode::EType::Joint;
 					Node.Name     = (bIsJoint ? JointPrefix : NodePrefix);
-				}
 
-				// Make sure node names are unique
-				Node.Name = FString::FromInt(NodeIndex) + TEXT("_") + Node.Name;
+					// Make sure node names are unique, in case Name is not empty it is presumed to be unique / handled by the processing pipelines.
+					Node.Name = Node.Name + FString::FromInt(NodeIndex);
+				}
 			}
 		}
 
@@ -111,13 +109,12 @@ namespace GLTF
 				}
 				else
 				{
-					Tex.Name = TexPrefix;
+					// GLTF texture name has decorative purpose, not guaranteed to be unique
+					// only its index is unique. Same with glTF image or its source file's basename
+					// So always include texture index into texture's name to increase probability that names are unique
+					Tex.Name = TexPrefix + FString::FromInt(TextureIndex);
 				}
 
-				// GLTF texture name has decorative purpose, not guaranteed to be unique
-				// only its index is unique. Same with glTF image or its source file's basename
-				// So always include texture index into texture's name to increase probability that names are unique
-				Tex.Name = FString::FromInt(TextureIndex) + TEXT("_") + Tex.Name;
 			}
 		}
 
@@ -135,11 +132,9 @@ namespace GLTF
 					}
 					else
 					{
-						Camera.Name = CameraPrefix;
+						Camera.Name = CameraPrefix + FString::FromInt(CameraIndex);
 					}
 				}
-
-				Camera.Name = FString::FromInt(CameraIndex) + TEXT("_") + Camera.Name;
 			}
 		}
 
@@ -157,11 +152,9 @@ namespace GLTF
 					}
 					else
 					{
-						Light.Name = LightPrefix;
+						Light.Name = LightPrefix + FString::FromInt(LightIndex);
 					}
 				}
-
-				Light.Name = FString::FromInt(LightIndex) + TEXT("_") + Light.Name;
 			}
 		}
 
@@ -171,11 +164,11 @@ namespace GLTF
 		// "0_MyFile_material" or "3_myfile_mesh".
 		// We want to do images after textures as the textures may want to reuse source image names, but we don't
 		// want to use those if we generated them ourselves.
-		GLTF::GenerateNames(Prefix + TEXT("_material"), Materials);
-		GLTF::GenerateNames(Prefix + TEXT("_skin"), Skins);
-		GLTF::GenerateNames(Prefix + TEXT("_animation"), Animations);
-		GLTF::GenerateNames(Prefix + TEXT("_image"), Images);
-		GLTF::GenerateNames(Prefix + TEXT("_mesh"), Meshes);
+		GLTF::GenerateNames(Prefix + TEXT("_material_"), Materials);
+		GLTF::GenerateNames(Prefix + TEXT("_skin_"), Skins);
+		GLTF::GenerateNames(Prefix + TEXT("_animation_"), Animations);
+		GLTF::GenerateNames(Prefix + TEXT("_image_"), Images);
+		GLTF::GenerateNames(Prefix + TEXT("_mesh_"), Meshes);
 	}
 
 	void FAsset::GetRootNodes(TArray<int32>& NodeIndices)

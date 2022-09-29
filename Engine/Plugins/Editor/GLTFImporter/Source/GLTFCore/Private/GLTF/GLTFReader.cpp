@@ -877,9 +877,6 @@ namespace GLTF
 		SetupObjects(TextureCount, TEXT("textures"), [this](const FJsonObject& Object) { SetupTexture(Object); });
 		SetupObjects(MaterialCount, TEXT("materials"), [this](const FJsonObject& Object) { SetupMaterial(Object); });
 
-		SetupObjects(MaterialCount, TEXT("materials"), [this](const FJsonObject& Object) { SetupMaterial(Object); });
-
-
 		/**
 		 * Returns true if all required extensions are supported.
 		 * According to gltf specification checking only the top-level extensionsRequired property in order to decide

@@ -879,9 +879,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 TextureIndex = 0;
 		for ( const GLTF::FTexture& GltfTexture : GltfAsset.Textures )
 		{
-			const FString TextureName = GltfTexture.Name;
-
-			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create( &NodeContainer, TextureName );
+			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create( &NodeContainer, GltfTexture.Name);
 			TextureNode->SetCustomFilter(ConvertFilter(GltfTexture.Sampler.MinFilter));
 			TextureNode->SetPayLoadKey( LexToString( TextureIndex++ ) );
 
@@ -895,7 +893,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 MaterialIndex = 0;
 		for ( const GLTF::FMaterial& GltfMaterial : GltfAsset.Materials )
 		{
-			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create( &NodeContainer, TEXT("Material_") + GltfMaterial.Name );
+			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create( &NodeContainer, GltfMaterial.Name );
 
 			HandleGltfMaterial( NodeContainer, GltfMaterial, *ShaderGraphNode );
 			++MaterialIndex;
@@ -1017,7 +1015,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			FString SceneName = GltfScene.Name;
 			if (SceneName.IsEmpty())
 			{
-				SceneName = LexToString(SceneIndex++) + TEXT("_scene_") + FileName;
+				SceneName = FileName + TEXT("_scene_") + LexToString(SceneIndex++);
 			}
 
 			FString SceneNodeUid = TEXT("\\Scene\\") + SceneName;
@@ -1235,9 +1233,7 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 				{
 					TrackNode = NewObject< UInterchangeSkeletalAnimationTrackNode >(&NodeContainer);
 					FString TrackNodeUid = "\\SkeletalAnimation\\" + LexToString(AnimatedNode->RootJointIndex) + "_" + LexToString(AnimationIndex);
-					// AnimationIndex is already part of the GltfAnimation.Name (due to GenerateNames)
-					FString DisplayString = GltfAnimation.Name + "_" + LexToString(AnimatedNode->RootJointIndex);
-					TrackNode->InitializeNode(TrackNodeUid, DisplayString, EInterchangeNodeContainerType::TranslatedAsset);
+					TrackNode->InitializeNode(TrackNodeUid, GltfAnimation.Name, EInterchangeNodeContainerType::TranslatedAsset);
 					const GLTF::FNode& RootJointNode = GltfAsset.Nodes[AnimatedNode->RootJointIndex];
 					const FString* SkeletonNodeUid = NodeUidMap.Find(&RootJointNode);
 					TrackNode->SetCustomSkeletonNodeUid(*SkeletonNodeUid);
@@ -1552,7 +1548,7 @@ void UInterchangeGltfTranslator::HandleGltfVariants(UInterchangeBaseNodeContaine
 								}
 
 								const GLTF::FMaterial& GltfMaterial = Materials[VariantMapping.MaterialIndex];
-								const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(TEXT("Material_") + GltfMaterial.Name);
+								const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.Name);
 
 								VariantSetNode->AddCustomDependencyUid(MaterialUid);
 
@@ -1633,7 +1629,7 @@ bool UInterchangeGltfTranslator::GetVariantSetPayloadData(UE::Interchange::FVari
 						}
 
 						const GLTF::FMaterial& GltfMaterial = Materials[VariantMapping.MaterialIndex];
-						const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(TEXT("Material_") + GltfMaterial.Name);
+						const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.Name);
 
 						for (int32 VariantIndex : VariantMapping.VariantIndices)
 						{
@@ -1758,7 +1754,11 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 		{
 			//Duplicate MeshNode for each group:
 			int32 RootJointIndex = RootJointToSkinnedMeshNodes.Key;
-			UInterchangeMeshNode* SkeletalMeshNode = HandleGltfMesh(NodeContainer, GltfAsset.Meshes[MeshIndex], MeshIndex, UnusedMeshIndices, TEXT("_") + LexToString(RootJointIndex));
+
+			//Skeletal Mesh's naming policy: (Mesh.Name)_(RootJointNode.Name) naming policy:
+			FString SkeletalName = GltfAsset.Meshes[MeshIndex].Name + TEXT("_") + GltfAsset.Nodes[RootJointIndex].Name;
+
+			UInterchangeMeshNode* SkeletalMeshNode = HandleGltfMesh(NodeContainer, GltfAsset.Meshes[MeshIndex], MeshIndex, UnusedMeshIndices, SkeletalName);
 
 			SkeletalMeshNode->SetSkinnedMesh(true);
 
@@ -1809,19 +1809,19 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBaseNodeContainer& NodeContainer, 
 	const GLTF::FMesh& GltfMesh, int MeshIndex, 
 	TSet<int>& UnusedMeshIndices, 
-	FString AdditionalUniqueIdentifier/*If set it creates the mesh even if it was already creawted (for Skeletals)*/) const
+	const FString& SkeletalName/*If set it creates the mesh even if it was already created (for Skeletals)*/) const
 {
-	if (!UnusedMeshIndices.Contains(MeshIndex) && AdditionalUniqueIdentifier.Len() == 0)
+	if (!UnusedMeshIndices.Contains(MeshIndex) && SkeletalName.Len() == 0)
 	{
 		return nullptr;
 	}
-
+	FString MeshName = SkeletalName.Len() ? SkeletalName : GltfMesh.Name;
 	UnusedMeshIndices.Remove(MeshIndex);
 
 	UInterchangeMeshNode* MeshNode = NewObject< UInterchangeMeshNode >(&NodeContainer);
-	FString MeshNodeUid = TEXT("\\Mesh\\") + GltfMesh.Name + AdditionalUniqueIdentifier;
+	FString MeshNodeUid = TEXT("\\Mesh\\") + MeshName;
 
-	MeshNode->InitializeNode(MeshNodeUid, GltfMesh.Name + AdditionalUniqueIdentifier, EInterchangeNodeContainerType::TranslatedAsset);
+	MeshNode->InitializeNode(MeshNodeUid, MeshName, EInterchangeNodeContainerType::TranslatedAsset);
 	MeshNode->SetPayLoadKey(LexToString(MeshIndex));
 
 	NodeContainer.AddNode(MeshNode);
@@ -1834,7 +1834,7 @@ UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBas
 		if (GltfAsset.Materials.IsValidIndex(Primitive.MaterialIndex))
 		{
 			const FString MaterialName = GltfAsset.Materials[Primitive.MaterialIndex].Name;
-			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(TEXT("Material_") + MaterialName);
+			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(MaterialName);
 			MeshNode->SetSlotMaterialDependencyUid(MaterialName, ShaderGraphNodeUid);
 		}
 	}
