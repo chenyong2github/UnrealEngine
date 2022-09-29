@@ -7,7 +7,11 @@
 
 //------------------------------------------------------- CONFIGS
 
-#if DIM_APPLY_DIFFUSE_INDIRECT == 1 // Denoised lighting buffer (SSGI)
+#define DIM_APPLY_DIFFUSE_INDIRECT_SSGI					1
+#define DIM_APPLY_DIFFUSE_INDIRECT_RTGI					2
+#define DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER	3
+
+#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SSGI
 	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_SSGI
 	#define COMPILE_SIGNAL_COLOR 1
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -16,16 +20,7 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
 	#define CONFIG_INPUT_TEXTURE_COUNT 2
 
-#elif DIM_APPLY_DIFFUSE_INDIRECT == 2 // Probe hierarchy output
-	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY
-	#define COMPILE_SIGNAL_COLOR_ARRAY 2
-	#define MAX_SIGNAL_BATCH_SIZE 2
-	#define SIGNAL_ARRAY_SIZE 2
-
-	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_PROBE_HIERARCHY_HISTORY
-	#define CONFIG_INPUT_TEXTURE_COUNT 3
-
-#elif DIM_APPLY_DIFFUSE_INDIRECT == 3 // RTGI
+#elif DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_RTGI
 	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
 	#define COMPILE_SIGNAL_COLOR 1
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -34,7 +29,7 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY
 	#define CONFIG_INPUT_TEXTURE_COUNT 2
 
-#elif DIM_APPLY_DIFFUSE_INDIRECT == 4 // Screen Probe Gather output
+#elif DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_SSGI
 	#define COMPILE_SIGNAL_COLOR_ARRAY 3
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -53,7 +48,7 @@
 #define COMPILE_MOMENT1_ACCUMULATOR 1
 #define COMPILE_BOX_KERNEL 1
 
-#if STRATA_ENABLED && (DIM_APPLY_DIFFUSE_INDIRECT == 1 || DIM_APPLY_DIFFUSE_INDIRECT == 4)
+#if STRATA_ENABLED && (DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SSGI || DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER)
   #if STRATA_TILETYPE == 0
 	#define STRATA_FASTPATH 1
   #elif STRATA_TILETYPE == 1
@@ -146,9 +141,7 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 	Out.SpecularOcclusion = 1;
 	Out.DiffuseOcclusion = 1;
 
-#if DIM_APPLY_DIFFUSE_INDIRECT == 2     // Probe hierarchy output
-	Out.DiffuseOcclusion = 1;
-#elif DIM_APPLY_DIFFUSE_INDIRECT == 4	// Lumen Screen Probe Gather
+#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 
   #if DIM_SCREEN_BENT_NORMAL
 	const float3 BentNormal = ScreenBentNormal[InPixelPos].xyz * 2 - 1;
@@ -236,7 +229,7 @@ FStrataDeferredLighting StrataIndirectLighting(
 	{
 		// * Lumen integration output indirect lighting per BSDF
 		// * SSGI  integration output a single indirect lighting value for all BSDF
-	#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+	#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 		const uint2 TileCoord = GetTilePositionFlatten(Tile0, Tile0Coord, BSDFIndex);
 		const uint2 InCoord   = TileCoord * STRATA_TILE_SIZE + LocalTileCoord;
 
@@ -333,7 +326,7 @@ void MainPS(
 			float3 RoughSpecularIndirectLighting = 0;
 			float3 SpecularIndirectLighting = 0;
 
-			#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+			#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 				DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
 				RoughSpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
 				SpecularIndirectLighting = DiffuseIndirect_Textures_3.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
@@ -409,14 +402,9 @@ void MainPS(
 					Sample = UncompressedAccumulators.Array[0].Moment1;
 				#endif
 				
-				#if DIM_APPLY_DIFFUSE_INDIRECT == 1 || DIM_APPLY_DIFFUSE_INDIRECT == 3
+				#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SSGI || DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_RTGI
 				{
 					DiffuseIndirectLighting = Sample.SceneColor.rgb;
-				}
-				#elif DIM_APPLY_DIFFUSE_INDIRECT == 2
-				{
-					DiffuseIndirectLighting = UncompressedAccumulators.Array[0].Moment1.ColorArray[0];
-					SpecularIndirectLighting = UncompressedAccumulators.Array[0].Moment1.ColorArray[1];
 				}
 				#else
 					#error Unimplemented
@@ -455,7 +443,7 @@ void MainPS(
 			float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
 			float3 SpecularColor = GBuffer.SpecularColor;
 
-			#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+			#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 				RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
 			#endif
 
@@ -509,7 +497,7 @@ void MainPS(
 				IndirectLighting.Diffuse = (DiffuseIndirectLighting * DiffuseColor + BackfaceDiffuseIndirectLighting) * Occlusion.DiffuseOcclusion;
 				IndirectLighting.Transmission = 0;
 
-				#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+				#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 					RoughSpecularIndirectLighting *= Occlusion.SpecularOcclusion;
 					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
 				#else

@@ -55,11 +55,6 @@ static TAutoConsoleVariable<int32> CVarDiffuseIndirectHalfRes(
 	TEXT("TODO(Guillaume)"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStandaloneSSGIAllowLumenProbeHierarchy(
-	TEXT("r.SSGI.AllowStandaloneLumenProbeHierarchy"), 0,
-	TEXT("TODO(Guillaume)"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarDiffuseIndirectRayPerPixel(
 	TEXT("r.DiffuseIndirect.RayPerPixel"), 6, // TODO(Guillaume): Matches old Lumen hard code sampling pattern.
 	TEXT("TODO(Guillaume)"),
@@ -68,11 +63,6 @@ static TAutoConsoleVariable<int32> CVarDiffuseIndirectRayPerPixel(
 static TAutoConsoleVariable<int32> CVarDiffuseIndirectDenoiser(
 	TEXT("r.DiffuseIndirect.Denoiser"), 1,
 	TEXT("Denoising options (default = 1)"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarLumenProbeHierarchy(
-	TEXT("r.Lumen.ProbeHierarchy"), 0,
-	TEXT("Whether to use probe based denoiser for all indirect lighting."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarDenoiseSSR(
@@ -104,7 +94,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FDiffuseIndirectCompositePS)
 	SHADER_USE_PARAMETER_STRUCT(FDiffuseIndirectCompositePS, FGlobalShader)
 
-	class FApplyDiffuseIndirectDim : SHADER_PERMUTATION_INT("DIM_APPLY_DIFFUSE_INDIRECT", 5);
+	class FApplyDiffuseIndirectDim : SHADER_PERMUTATION_INT("DIM_APPLY_DIFFUSE_INDIRECT", 4);
 	class FUpscaleDiffuseIndirectDim : SHADER_PERMUTATION_BOOL("DIM_UPSCALE_DIFFUSE_INDIRECT");
 	class FScreenBentNormal : SHADER_PERMUTATION_BOOL("DIM_SCREEN_BENT_NORMAL");
 	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 3);
@@ -127,7 +117,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		}
 
 		// Only support Bent Normal for ScreenProbeGather
-		if (PermutationVector.Get<FApplyDiffuseIndirectDim>() != 4 && PermutationVector.Get<FScreenBentNormal>())
+		if (PermutationVector.Get<FApplyDiffuseIndirectDim>() != 3 && PermutationVector.Get<FScreenBentNormal>())
 		{
 			return false;
 		}
@@ -135,7 +125,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		// Build Strata tile permutation only for Lumen
 		if (PermutationVector.Get<FStrataTileType>() != EStrataTileType::EComplex)
 		{
-			return Strata::IsStrataEnabled() && PermutationVector.Get<FApplyDiffuseIndirectDim>() == 4;
+			return Strata::IsStrataEnabled() && PermutationVector.Get<FApplyDiffuseIndirectDim>() == 3;
 		}
 
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
@@ -394,12 +384,10 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		EAmbientOcclusionMethod AmbientOcclusionMethod = EAmbientOcclusionMethod::Disabled;
 		EReflectionsMethod ReflectionsMethod = EReflectionsMethod::Disabled;
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser = IScreenSpaceDenoiser::EMode::Disabled;
-		bool bUseLumenProbeHierarchy = false;
 
 		if (ShouldRenderLumenDiffuseGI(Scene, View))
 		{
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::Lumen;
-			bUseLumenProbeHierarchy = CVarLumenProbeHierarchy.GetValueOnRenderThread() != 0;
 		}
 		else if (ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View))
 		{
@@ -419,15 +407,8 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		
 		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 		{
-			if (CVarLumenProbeHierarchy.GetValueOnRenderThread() && CVarStandaloneSSGIAllowLumenProbeHierarchy.GetValueOnRenderThread())
-			{
-				bUseLumenProbeHierarchy = true;
-			}
-			else
-			{
-				AmbientOcclusionMethod = EAmbientOcclusionMethod::SSGI;
-				DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
-			}
+			AmbientOcclusionMethod = EAmbientOcclusionMethod::SSGI;
+			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 		}
 		else if (DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen)
 		{
@@ -458,7 +439,6 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectMethod, DiffuseIndirectMethod);
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectDenoiser, DiffuseIndirectDenoiser);
-		ViewPipelineState.Set(&FPerViewPipelineState::bUseLumenProbeHierarchy, bUseLumenProbeHierarchy);
 		ViewPipelineState.Set(&FPerViewPipelineState::AmbientOcclusionMethod, AmbientOcclusionMethod);
 		ViewPipelineState.Set(&FPerViewPipelineState::ReflectionsMethod, ReflectionsMethod);
 
@@ -712,14 +692,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 		int32(CVarDiffuseIndirectRayPerPixel.GetValueOnRenderThread()),
 		1, HybridIndirectLighting::kMaxRayPerPixel);
 
-	if (ViewPipelineState.bUseLumenProbeHierarchy)
-	{
-		RayCountPerPixel = FMath::Clamp(CVarProbeSamplePerPixel.GetValueOnRenderThread(), 4, 32);
-
-		// The all point of the probe hiararchy denoiser is to keep full res detail, so do not allow downscaling.
-		DownscaleFactor = 1;
-	}
-	else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+	if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 	{
 		// Standalone SSGI have the number of ray baked in the shader permutation.
 		RayCountPerPixel = ScreenSpaceRayTracing::GetSSGIRayCountPerTracingPixel();
@@ -830,7 +803,7 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 		FAsyncLumenIndirectLightingOutputs::FViewOutputs& ViewOutputs = Outputs.ViewOutputs[ViewIndex];
 
-		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && !ViewPipelineState.bUseLumenProbeHierarchy)
+		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 		{
 			ViewOutputs.IndirectLightingTextures = RenderLumenFinalGather(
 				GraphBuilder,
@@ -906,7 +879,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	auto ShouldSkipView = [bCompositeRegularLumenOnly, &AsyncLumenIndirectLightingOutputs](const FPerViewPipelineState& ViewPipelineState)
 	{
 		const bool bOnlyCompositeStepLeft = AsyncLumenIndirectLightingOutputs.StepsLeft == ELumenIndirectLightingSteps::Composite;
-		const bool bRegularLumenView = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && ! ViewPipelineState.bUseLumenProbeHierarchy;
+		const bool bRegularLumenView = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
 		return bCompositeRegularLumenOnly != (bOnlyCompositeStepLeft && bRegularLumenView);
 	};
@@ -939,7 +912,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 
 		ScreenSpaceRayTracing::FPrevSceneColorMip PrevSceneColorMip;
-		if ((ViewPipelineState.bUseLumenProbeHierarchy || ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI
 			&& View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
 		{
 			PrevSceneColorMip = ScreenSpaceRayTracing::ReducePrevSceneColorMip(GraphBuilder, SceneTextureParameters, View);
@@ -951,17 +924,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
 		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
 
-		if (ViewPipelineState.bUseLumenProbeHierarchy)
-		{
-			check(ViewPipelineState.DiffuseIndirectDenoiser == IScreenSpaceDenoiser::EMode::Disabled);
-			DenoiserOutputs = RenderLumenProbeHierarchy(
-				GraphBuilder,
-				SceneTextures,
-				LumenFrameTemporaries,
-				CommonDiffuseParameters, PrevSceneColorMip,
-				View, &View.PrevViewInfo);
-		}
-		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "SSGI %dx%d", CommonDiffuseParameters.TracingViewportSize.X, CommonDiffuseParameters.TracingViewportSize.Y);
 			DenoiserInputs = ScreenSpaceRayTracing::CastStandaloneDiffuseIndirectRays(
@@ -981,6 +944,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 			const ELumenIndirectLightingSteps StepsLeft = AsyncLumenIndirectLightingOutputs.StepsLeft;
 			const bool bDoComposite = StepsLeft == ELumenIndirectLightingSteps::All || StepsLeft == ELumenIndirectLightingSteps::Composite;
+			bool bLumenUseDenoiserComposite = false;
 
 			if (EnumHasAnyFlags(StepsLeft, ELumenIndirectLightingSteps::ScreenProbeGather))
 			{
@@ -1252,19 +1216,14 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			if (DenoiserOutputs.Textures[0])
 			{
-				if (ViewPipelineState.bUseLumenProbeHierarchy)
+				if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::RTGI)
 				{
 					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(2);
-					DiffuseIndirectSampling = TEXT("ProbeHierarchy");
-				}
-				else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::RTGI)
-				{
-					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(3);
 					DiffuseIndirectSampling = TEXT("RTGI");
 				}
 				else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 				{
-					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(4);
+					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(3);
 					PermutationVector.Set<FDiffuseIndirectCompositePS::FScreenBentNormal>(ScreenBentNormalParameters.UseScreenBentNormal != 0);
 					if (Strata::IsStrataEnabled() && TileType != EStrataTileType::ECount)
 					{
@@ -1383,7 +1342,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 
 		// Apply the ambient cubemaps
-		if (IsAmbientCubemapPassRequired(View) && !bIsVisualizePass && !ViewPipelineState.bUseLumenProbeHierarchy)
+		if (IsAmbientCubemapPassRequired(View) && !bIsVisualizePass)
 		{
 			auto ApplyAmbientCubemapComposite = [&](EStrataTileType TileType)
 			{			

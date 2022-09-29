@@ -16,7 +16,6 @@
 #include "DepthRendering.h"
 #include "TranslucentRendering.h"
 #include "ScreenSpaceDenoise.h"
-#include "Lumen/LumenProbeHierarchy.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "Lumen/LumenTracingUtils.h"
 #include "RayTracing/RayTracingLighting.h"
@@ -413,9 +412,6 @@ private:
 		EDiffuseIndirectMethod DiffuseIndirectMethod;
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser;
 
-		// Whether all indirect lighting should denoise using prove hierarchy denoiser.
-		bool bUseLumenProbeHierarchy;
-
 		// Method to use for ambient occlusion.
 		EAmbientOcclusionMethod AmbientOcclusionMethod;
 
@@ -587,16 +583,6 @@ private:
 		const FViewInfo& View,
 		HybridIndirectLighting::FCommonParameters& OutCommonDiffuseParameters);
 
-	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
-	FSSDSignalTextures RenderLumenProbeHierarchy(
-		FRDGBuilder& GraphBuilder,
-		const FSceneTextures& SceneTextures,
-		const FLumenSceneFrameTemporaries& FrameTemporaries,
-		const HybridIndirectLighting::FCommonParameters& CommonParameters,
-		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
-		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos);
-
 	/** Dispatch async Lumen work if possible. */
 	void DispatchAsyncLumenIndirectLightingWork(
 		FRDGBuilder& GraphBuilder,
@@ -701,21 +687,6 @@ private:
 		const FViewInfo& View,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters,
 		ERDGPassFlags ComputePassFlags);
-
-	void RenderLumenProbe(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FLumenSceneFrameTemporaries& FrameTemporaries,
-		const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
-		const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
-		const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters);
-
-	void RenderLumenProbeOcclusion(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FLumenSceneFrameTemporaries& FrameTemporaries,
-		const HybridIndirectLighting::FCommonParameters& CommonParameters,
-		const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters);
 
 	FRDGTextureRef RenderLumenReflections(
 		FRDGBuilder& GraphBuilder,

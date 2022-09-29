@@ -5,7 +5,6 @@
 #include "RenderGraph.h"
 #include "ScreenSpaceDenoise.h"
 #include "IndirectLightRendering.h"
-#include "Lumen/LumenProbeHierarchy.h"
 
 class FViewInfo;
 class FSceneTextureParameters;
@@ -109,21 +108,6 @@ IScreenSpaceDenoiser::FDiffuseIndirectInputs CastStandaloneDiffuseIndirectRays(
 	const HybridIndirectLighting::FCommonParameters& CommonParameters,
 	const FPrevSceneColorMip& PrevSceneColor,
 	const FViewInfo& View);
-
-void TraceProbe(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const FSceneTextureParameters& SceneTextures,
-	const FPrevSceneColorMip& PrevSceneColor,
-	const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
-	const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters);
-
-void TraceIndirectProbeOcclusion(
-	FRDGBuilder& GraphBuilder,
-	const HybridIndirectLighting::FCommonParameters& CommonParameters,
-	const FPrevSceneColorMip& PrevSceneColor,
-	const FViewInfo& View,
-	const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters);
 
 void SetupCommonScreenSpaceRayParameters(
 	FRDGBuilder& GraphBuilder,

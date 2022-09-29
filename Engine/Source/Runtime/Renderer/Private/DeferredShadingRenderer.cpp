@@ -2044,7 +2044,6 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 			ViewPipelineState.Set(&FPerViewPipelineState::bFurthestHZB,
 				FamilyPipelineState[&FFamilyPipelineState::bHZBOcclusion] ||
 				FamilyPipelineState[&FFamilyPipelineState::bNanite] ||
-				ViewPipelineState[&FPerViewPipelineState::bUseLumenProbeHierarchy] ||
 				ViewPipelineState[&FPerViewPipelineState::AmbientOcclusionMethod] == EAmbientOcclusionMethod::SSAO ||
 				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::SSR ||
 				bHasSSGI || bUseLumen);

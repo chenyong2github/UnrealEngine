@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenMeshSDFCulling.usf
-=============================================================================*/
-
 #include "../Common.ush"
 #include "../DistanceFieldLightingShared.ush"
 #include "../HybridIndirectLighting.ush"
 #include "LumenCardCommon.ush"
-#include "ProbeHierarchy/LumenProbeTracing.ush"
 #include "../MeshDistanceFieldCommon.ush"
 
 uint ObjectBoundingGeometryIndexCount;
@@ -540,84 +535,6 @@ void MeshSDFObjectCullPS(
 			{
 				RWCulledObjectsToCompactArray[CulledObjectToCompactIndex * CULLED_OBJECT_TO_COMPACT_STRIDE + 0] = PackObjectData(ObjectData);
 				RWCulledObjectsToCompactArray[CulledObjectToCompactIndex * CULLED_OBJECT_TO_COMPACT_STRIDE + 1] = GridIndex;
-			}
-		}
-	}
-}
-
-uint ProbeHierarchyLevelIndex;
-Texture2D<uint> ProbeListPerEmitTile;
-
-void MeshSDFObjectCullForProbesPS(
-	FObjectCullVertexOutput Input, 
-	in float4 SVPos : SV_POSITION)
-{
-	uint2 PixelCoord = SVPos.xy;
-	uint2 ProbeTileCoord = PixelCoord;
-
-	FObjectData ObjectData = UnpackObjectData(Input.ObjectIndex);
-	FDFObjectData DFObjectData = LoadDFObjectData(ObjectData.Index);
-
-	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
-	float3 WorldObjectExtent = mul(DFObjectData.VolumePositionExtent, abs((float3x3) DFObjectData.VolumeToWorld.M));
-
-	for (uint ProbeIndexInTile = 0; ProbeIndexInTile < PROBE_HIERARCHY_MAX_EMIT_PER_TILE; ++ProbeIndexInTile)
-	{
-		uint2 ProbeStorageCoord = EmitTileCoordToProbeStorageCoord(ProbeTileCoord, ProbeIndexInTile);
-
-		uint ProbeIndex = ProbeListPerEmitTile[ProbeStorageCoord];
-
-		if (ProbeIndex != PROBE_INVALID_INDEX)
-		{
-			FProbeInfo ProbeInfo = ReadProbeInfo(ProbeIndex);
-
-			float ProbeTMin;
-			float ProbeTMax;
-			GetProbeTracingRange(ProbeInfo, ProbeHierarchyLevelIndex, ProbeTMin, ProbeTMax);
-
-			ProbeTMax = min(MaxMeshSDFInfluenceRadius, ProbeTMax);
-
-			float3 ProbeWorldPosition = ProbeInfo.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-
-			float DistanceToViewSq = LengthSq(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldPosition);
-
-			if (DistanceToViewSq < Pow2(CardTraceEndDistanceFromCamera)
-				&& ProbeTMin < ProbeTMax)
-			{
-				bool bProbeIntersectsObject = true;
-
-				// Check bounds
-				if (bProbeIntersectsObject)
-				{
-					float DistanceFromObjectToProbeCenterSq = ComputeSquaredDistanceFromBoxToPoint(WorldObjectPosition, WorldObjectExtent, ProbeWorldPosition);
-
-					if (DistanceFromObjectToProbeCenterSq > Pow2(ProbeTMax))
-					{
-						bProbeIntersectsObject = false;
-					}
-				}
-
-				// Check distance to SDF
-				if (bProbeIntersectsObject)
-				{
-					float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectData.Index, LWCPromote(ProbeWorldPosition), MaxMeshSDFInfluenceRadius); // LWC_TODO
-					bProbeIntersectsObject = DistanceToSurface < MaxMeshSDFInfluenceRadius;
-				}
-
-				if (bProbeIntersectsObject)
-				{
-					InterlockedAdd(RWNumGridCulledMeshSDFObjects[ProbeIndex], 1);
-
-					// Write out object index with a corresponding grid index
-					uint CulledObjectToCompactIndex;
-					InterlockedAdd(RWNumCulledObjectsToCompact[0], 1, CulledObjectToCompactIndex);
-
-					if (CulledObjectToCompactIndex < MaxNumberOfCulledObjects)
-					{
-						RWCulledObjectsToCompactArray[CulledObjectToCompactIndex * CULLED_OBJECT_TO_COMPACT_STRIDE + 0] = PackObjectData(CreateObjectData(ObjectData.Index, CULL_MESH_TYPE_SDF));
-						RWCulledObjectsToCompactArray[CulledObjectToCompactIndex * CULLED_OBJECT_TO_COMPACT_STRIDE + 1] = ProbeIndex;
-					}
-				}
 			}
 		}
 	}

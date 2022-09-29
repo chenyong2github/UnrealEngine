@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenTracingUtils.h
-=============================================================================*/
-
 #pragma once
 
 #include "RHIDefinitions.h"
 #include "DistanceFieldLightingShared.h"
 #include "LumenSceneData.h"
 #include "IndirectLightRendering.h"
-#include "LumenProbeHierarchy.h"
 
 class FLumenCardUpdateContext;
 
@@ -193,17 +188,6 @@ extern void CullMeshObjectsToViewGrid(
 	FRDGBuilder& GraphBuilder,
 	FLumenMeshSDFGridParameters& OutGridParameters,
 	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
-
-extern void CullMeshSDFObjectsToProbes(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo& View,
-	const FLumenSceneFrameTemporaries& FrameTemporaries,
-	float MaxMeshSDFInfluenceRadius,
-	float CardTraceEndDistanceFromCamera,
-	const LumenProbeHierarchy::FHierarchyParameters& ProbeHierarchyParameters,
-	const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters,
-	FLumenMeshSDFGridParameters& OutGridParameters);
 
 extern void CullForCardTracing(
 	FRDGBuilder& GraphBuilder,
