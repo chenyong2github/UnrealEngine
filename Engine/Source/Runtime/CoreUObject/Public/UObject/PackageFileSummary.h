@@ -76,9 +76,9 @@ public:
 	int32		TotalHeaderSize;
 
 	/**
-	* The Generic Browser folder name that this package lives in
+	* The package name the file was last saved with.
 	*/
-	FString	FolderName;
+	FString	PackageName;
 
 	/**
 	* Number of names used in this package
@@ -89,6 +89,17 @@ public:
 	* Location into the file on disk for the name data
 	*/
 	int32 	NameOffset;
+
+	/**
+	* Number of soft object paths references contained in this package
+	* @note: the soft object path lists slightly duplicate information found in the SoftPackageReferences list
+	*/
+	int32		SoftObjectPathsCount;
+
+	/**
+	* Location into the file on disk for the soft object paths reference list
+	*/
+	int32		SoftObjectPathsOffset;
 
 	/**
 	* Localization ID of this package

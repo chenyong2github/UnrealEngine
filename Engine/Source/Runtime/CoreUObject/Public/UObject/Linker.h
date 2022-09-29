@@ -440,6 +440,9 @@ public:
 	/** Names used by objects contained within this package */
 	TArray<FNameEntryId>	NameMap;
 
+	/** List of SoftObjectPath contained in this package,  */
+	TArray<FSoftObjectPath> SoftObjectPathList;
+
 	/** Gatherable text data contained within this package */
 	TArray<FGatherableTextData> GatherableTextDataMap;
 

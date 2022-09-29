@@ -20,6 +20,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageTrailer.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectThreadContext.h"
 
 class FBulkData;
@@ -65,8 +66,14 @@ public:
 	/** List of Searchable Names, by object containing them. This gets turned into package indices later */
 	TMap<const UObject *, TArray<FName> > SearchableNamesObjectMap;
 
-	/** Index array - location of the name in the NameMap array for each FName is stored in the NameIndices array using the FName's Index */
+	/* Map from FName to the index of the name in the name array written into the package header. */
 	TMap<FNameEntryId, int32> NameIndices;
+
+	/* Map from FSoftObjectPath to the index of the path in the soft object path array written into the package header. */
+	TMap<FSoftObjectPath, int32> SoftObjectPathIndices;
+
+	/** Flag that indicate if we are currently serializing the package header. Used to disable mapping while serializing the header itself. */
+	bool bIsWritingHeader = false;
 
 	/** Save context associated with this linker */
 	TRefCountPtr<FUObjectSerializeContext> SaveContext;
@@ -157,8 +164,11 @@ public:
 	/** Constructor for custom savers. The linker assumes ownership of the custom saver. */
 	FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned = false);
 
-	/** Returns the appropriate name index for the source name, or 0 if not found in NameIndices */
+	/** Returns the appropriate name index for the source name, or INDEX_NONE if not found in NameIndices */
 	int32 MapName( FNameEntryId Name) const;
+
+	/** Returns the appropriate soft object path index for the source soft object path, or INDEX_NONE if not found. */
+	int32 MapSoftObjectPath(const FSoftObjectPath& SoftObjectPath) const;
 
 	/** Returns the appropriate package index for the source object, or default value if not found in ObjectIndicesMap */
 	FPackageIndex MapObject(const UObject* Object) const;
@@ -167,6 +177,7 @@ public:
 	using FArchiveUObject::operator<<; // For visibility of the overloads we don't override
 	FArchive& operator<<( FName& InName );
 	FArchive& operator<<( UObject*& Obj );
+	FArchive& operator<<(FSoftObjectPath& SoftObjectPath);
 	FArchive& operator<<( FLazyObjectPtr& LazyObjectPtr );
 	virtual void SetSerializeContext(FUObjectSerializeContext* InLoadContext) override;
 	FUObjectSerializeContext* GetSerializeContext() override;

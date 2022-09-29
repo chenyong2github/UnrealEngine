@@ -531,6 +531,8 @@ FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 {
 	// We need to harvest NAME_None even if the path isn't valid
 	Value.SerializePath(*this);
+	// Add the soft object path to the list, we need to map invalid soft object path too
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetSoftObjectPathList().Add(Value);
 	if (Value.IsValid())
 	{
 		FSoftObjectPathThreadContext& ThreadContext = FSoftObjectPathThreadContext::Get();
@@ -539,7 +541,6 @@ FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 		ESoftObjectPathSerializeType SerializeType = ESoftObjectPathSerializeType::AlwaysSerialize;
 
 		ThreadContext.GetSerializationOptions(ReferencingPackageName, ReferencingPropertyName, CollectType, SerializeType, this);
-
 		if (CollectType != ESoftObjectPathCollectType::NeverCollect && CollectType != ESoftObjectPathCollectType::NonPackage)
 		{
 			// Don't track if this is a never collect path

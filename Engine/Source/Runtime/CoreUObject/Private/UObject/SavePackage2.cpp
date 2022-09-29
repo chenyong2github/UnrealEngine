@@ -1048,6 +1048,28 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		}
 	}
 
+	// Build SoftObjectPathList
+	{
+		SCOPED_SAVETIMER(UPackage_Save_BuildSoftObjectPathList);
+		Linker->Summary.SoftObjectPathsOffset = 0;
+		Linker->Summary.SoftObjectPathsCount = 0;
+
+		// Do not serialize a soft object path list when cooking.
+		// iostore for example does not keep that list as part of its header information
+		if (!SaveContext.IsCooking())
+		{
+			Linker->SoftObjectPathList = SaveContext.GetSoftObjectPathList().Array();
+		}
+
+		if (!SaveContext.IsTextFormat())
+		{
+			for (int32 Index = 0; Index < Linker->SoftObjectPathList.Num(); ++Index)
+			{
+				Linker->SoftObjectPathIndices.Add(Linker->SoftObjectPathList[Index], Index);
+			}
+		}
+	}
+
 	// Build GatherableText
 	{
 		Linker->Summary.GatherableTextDataOffset = 0;
@@ -1170,7 +1192,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		}
 	}
 
-	// Build Searchable Name Map
+	// Build SoftPackageReference & Searchable Name Map
 	{
 		Linker->SoftPackageReferenceList = SaveContext.GetSoftPackageReferenceList().Array();
 
@@ -1587,6 +1609,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 #if WITH_EDITOR
 	FArchiveStackTraceIgnoreScope IgnoreDiffScope(SaveContext.IsIgnoringHeaderDiff());
 #endif
+	TGuardValue<bool> Guard(Linker->bIsWritingHeader, true);
 
 	// Write Dummy Summary
 	{
@@ -1602,6 +1625,20 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 		for (const FNameEntryId NameEntryId : Linker->NameMap)
 		{
 			FName::GetEntry(NameEntryId)->Write(*Linker);
+		}
+	}
+
+	// Write Soft Object Paths
+	{
+		SCOPED_SAVETIMER(UPackage_Save_SaveSoftObjectPaths);
+		// Save soft object paths references
+		Linker->Summary.SoftObjectPathsOffset = (int32)Linker->Tell();
+		Linker->Summary.SoftObjectPathsCount = Linker->SoftObjectPathList.Num();
+		// Do not map soft object path during the table serialization itself
+		FStructuredArchive::FStream SoftObjectPathListStream = StructuredArchiveRoot.EnterStream(TEXT("SoftObjectPathList"));
+		for (FSoftObjectPath& Path : Linker->SoftObjectPathList)
+		{
+			SoftObjectPathListStream.EnterElement() << Path;
 		}
 	}
 

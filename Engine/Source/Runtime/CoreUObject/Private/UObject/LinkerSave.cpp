@@ -72,7 +72,7 @@ FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForc
 		if (Package)
 		{
 #if WITH_EDITORONLY_DATA
-			Summary.FolderName = Package->GetFolderName().ToString();
+			Summary.PackageName = Package->GetName();
 #endif
 			Summary.ChunkIDs = Package->GetChunkIDs();
 		}
@@ -126,7 +126,7 @@ FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteS
 		if (Package)
 		{
 #if WITH_EDITORONLY_DATA
-			Summary.FolderName = Package->GetFolderName().ToString();
+			Summary.PackageName = Package->GetName();
 #endif
 			Summary.ChunkIDs = Package->GetChunkIDs();
 		}
@@ -175,7 +175,7 @@ FLinkerSave::FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSa
 		if (Package)
 		{
 #if WITH_EDITORONLY_DATA
-			Summary.FolderName = Package->GetFolderName().ToString();
+			Summary.PackageName = Package->GetName();
 #endif
 			Summary.ChunkIDs = Package->GetChunkIDs();
 		}
@@ -224,6 +224,19 @@ int32 FLinkerSave::MapName(FNameEntryId Id) const
 
 	return INDEX_NONE;
 }
+
+int32 FLinkerSave::MapSoftObjectPath(const FSoftObjectPath& SoftObjectPath) const
+{
+	const int32* IndexPtr = SoftObjectPathIndices.Find(SoftObjectPath);
+
+	if (IndexPtr)
+	{
+		return *IndexPtr;
+	}
+
+	return INDEX_NONE;
+}
+
 
 FPackageIndex FLinkerSave::MapObject( const UObject* Object ) const
 {
@@ -380,6 +393,37 @@ FArchive& FLinkerSave::operator<<( UObject*& Obj )
 		Save = MapObject(Obj);
 	}
 	return *this << Save;
+}
+
+FArchive& FLinkerSave::operator<<(FSoftObjectPath& SoftObjectPath)
+{
+	// Map soft object path to indices if we aren't currently serializing the list itself
+	// and we actually built one, cooking might want to serialize soft object path directly for example
+	if (!bIsWritingHeader && SoftObjectPathList.Num() > 0)
+	{
+		int32 Save = MapSoftObjectPath(SoftObjectPath);
+		bool bPathMapped = Save != INDEX_NONE;
+		if (!bPathMapped)
+		{
+			// Set an error on the archive and record the error on the log output if one is set.
+			SetCriticalError();
+			FString ErrorMessage = FString::Printf(TEXT("SoftObjectPath \"%s\" is not mapped when saving %s (object: %s, property: %s). This can mean that this object serialize function is not deterministic between reference harvesting and serialization."),
+				*SoftObjectPath.ToString(),
+				*GetArchiveName(),
+				*GetSerializeContext()->SerializedObject->GetFullName(),
+				*GetFullNameSafe(GetSerializedProperty()));
+			ensureMsgf(false, TEXT("%s"), *ErrorMessage);
+			if (LogOutput)
+			{
+				LogOutput->Logf(ELogVerbosity::Error, TEXT("%s"), *ErrorMessage);
+			}
+		}
+		return *this << Save;
+	}
+	else
+	{
+		return FArchiveUObject::operator<<(SoftObjectPath);
+	}
 }
 
 FArchive& FLinkerSave::operator<<(FLazyObjectPtr& LazyObjectPtr)

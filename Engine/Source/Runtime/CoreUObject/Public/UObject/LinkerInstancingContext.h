@@ -110,12 +110,25 @@ public:
 	}
 
 private:
+	/** Used internally by the linker to try to fix references on relocated packages. */
+	FName RelocatePackage(const FName& PackageName) const
+	{
+		if (const FName* RemappedName = RelocatedPackageMapping.Find(PackageName))
+		{
+			return *RemappedName;
+		}
+		return PackageName;
+	}
+
 	friend class FLinkerLoad;
 
 	/** Map of original package name to their instance counterpart. */
 	TMap<FName, FName> PackageMapping;
 	/** Map of original top level asset path to their instance counterpart. */
 	TMap<FTopLevelAssetPath, FTopLevelAssetPath> PathMapping;
+	/** Map of original package name to their potential relocated counterpart. */
+	TMap<FName, FName> RelocatedPackageMapping;
+
 	/** Tags can be used to determine some loading behavior. */
 	TSet<FName> Tags;
 	/** Remap soft object paths */

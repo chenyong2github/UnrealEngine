@@ -384,6 +384,8 @@ private:
 
 	// Variables used during async linker creation.
 
+	/** Current index into soft object path list, used by async linker creation for spreading out serializing soft object path entries.	*/
+	int32						SoftObjectPathListIndex;
 	/** Current index into gatherable text data map, used by async linker creation for spreading out serializing text entries.	*/
 	int32						GatherableTextDataMapIndex;
 	/** Current index into import map, used by async linker creation for spreading out serializing importmap entries.			*/
@@ -406,8 +408,10 @@ private:
 	bool					bHasSerializedPreloadDependencies:1;
 	/** Whether we already fixed up import map.																				*/
 	bool					bHasFixedUpImportMap:1;
-	/** Whether we already fixed up import map.																				*/
+	/** Whether we already populated the instancing context.																*/
 	bool					bHasPopulatedInstancingContext:1;
+	/** Whether we already populated the relocation context.																*/
+	bool					bHasPopulatedRelocationContext:1;
 	/** Used for ActiveClassRedirects functionality */
 	bool					bFixupExportMapDone:1;
 	/** Whether we already matched up existing exports.																		*/
@@ -955,25 +959,11 @@ private:
 	}
 
 	virtual FArchive& operator<<(FObjectPtr& ObjectPtr) override;
+	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
 
-	FORCEINLINE virtual FArchive& operator<<(FSoftObjectPtr& Value) override
-	{
-		FArchive& Ar = *this;
-		FSoftObjectPath ID;
-		ID.Serialize(Ar);
-		FixupSoftObjectPathForInstancedPackage(ID);
-		Value = ID;
-		return Ar;
-	}
-
-	FORCEINLINE virtual FArchive& operator<<(FSoftObjectPath& Value) override
-	{
-		FArchive& Ar = FArchiveUObject::operator<<(Value);
-		FixupSoftObjectPathForInstancedPackage(Value);
-		return Ar;
-	}
-
+	void BadSoftObjectPathError(int32 SoftObjIndex);
 	void BadNameIndexError(int32 NameIndex);
+
 	FORCEINLINE virtual FArchive& operator<<(FName& Name) override
 	{
 		FArchive& Ar = *this;
@@ -1099,6 +1089,11 @@ private:
 	ELinkerStatus SerializeNameMap();
 
 	/**
+	 * Serializes the soft object map.
+	 */
+	ELinkerStatus SerializeSoftObjectPathList();
+
+	/**
 	 * Serializes the import map.
 	 */
 	ELinkerStatus SerializeImportMap();
@@ -1112,6 +1107,11 @@ private:
 	 * Generate remapping for the instancing context if this is an instanced package.
 	 */
 	ELinkerStatus PopulateInstancingContext();
+
+	/**
+	 * Generate remapping for the relocation context if this is a relocated package.
+	 */
+	ELinkerStatus PopulateRelocationContext();
 
 	/**
 	 * Serializes the export map.

@@ -21,6 +21,7 @@
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/SavePackage/SavePackageUtilities.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
 
@@ -202,6 +203,16 @@ struct FHarvestedRealm
 		return NamesReferencedFromPackageHeader;
 	}
 
+	const TSet<FSoftObjectPath>& GetSoftObjectPathList() const
+	{
+		return SoftObjectPathList;
+	}
+
+	TSet<FSoftObjectPath>& GetSoftObjectPathList() 
+	{
+		return SoftObjectPathList;
+	}
+
 	const TMap<UObject*, TSet<UObject*>>& GetObjectDependencies() const
 	{
 		return ExportObjectDependencies;
@@ -339,6 +350,8 @@ private:
 	TSet<FNameEntryId> NamesReferencedFromExportData;
 	// Set of names referenced from the package header (import and export table object names etc)
 	TSet<FNameEntryId> NamesReferencedFromPackageHeader;
+	// Set of SoftObjectPath harvested in this realm
+	TSet<FSoftObjectPath> SoftObjectPathList;
 	// List of soft package reference found
 	TSet<FName> SoftPackageReferenceList;
 	// Map of objects to their list of searchable names
@@ -801,6 +814,11 @@ public:
 	const TSet<FNameEntryId>& GetNamesReferencedFromPackageHeader() const
 	{
 		return GetHarvestedRealm().GetNamesReferencedFromPackageHeader();
+	}
+
+	const TSet<FSoftObjectPath>& GetSoftObjectPathList() const
+	{
+		return GetHarvestedRealm().GetSoftObjectPathList();
 	}
 
 	const TMap<UObject*, TSet<UObject*>>& GetObjectDependencies() const

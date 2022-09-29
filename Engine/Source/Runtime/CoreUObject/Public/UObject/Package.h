@@ -234,7 +234,8 @@ private:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	/** Indicates which folder to display this package under in the Generic Browser's list of packages. If not specified, package is added to the root level.	*/
+	/** Indicates which folder to display this package under in the Generic Browser's list of packages. If not specified, package is added to the root level. deprecated	*/
+	UE_DEPRECATED(5.1, "Unused property to be removed. Use something like FPackageName::GetLongPackagePath if requiring something similar.")
 	FName FolderName;
 
 	/** Persistent GUID of package if it was loaded from disk. Persistent across saves. */
@@ -459,6 +460,7 @@ public:
 	* Get the package's folder name
 	* @return		Folder name
 	*/
+	UE_DEPRECATED(5.1, "Unused property to be removed. Use something like FPackageName::GetLongPackagePath if requiring something similar.")
 	FName GetFolderName() const
 	{
 		return FolderName;
@@ -467,6 +469,7 @@ public:
 	/**
 	* Set the package's folder name
 	*/
+	UE_DEPRECATED(5.1, "Unused property to be removed. Use something like FPackageName::GetLongPackagePath if requiring something similar.")
 	void SetFolderName (FName name)
 	{
 		FolderName = name;
