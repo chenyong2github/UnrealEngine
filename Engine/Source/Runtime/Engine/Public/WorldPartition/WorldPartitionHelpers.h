@@ -45,6 +45,9 @@ public:
 		/* The classes used to filter actors loading. */
 		TArray<TSubclassOf<AActor>> ActorClasses;
 
+		/* If not empty, iteration will be done only on those actors. */
+		TArray<FGuid> ActorGuids;
+
 		/* Custom filter function used to filter actors loading. */
 		TUniqueFunction<bool(const FWorldPartitionActorDesc*)> FilterActorDesc;
 

@@ -133,9 +133,8 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 		DoCollectGarbage();
 	};
 
-	for (FActorDescContainerCollection::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+	auto ForEachActorWithLoadingImpl = [&](const FWorldPartitionActorDesc* ActorDesc)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 		if (Algo::AnyOf(Params.ActorClasses, [ActorDesc](UClass* ActorClass) { return IsActorDescClassCompatibleWith(ActorDesc, ActorClass); }))
 		{
 			if (!Params.FilterActorDesc || Params.FilterActorDesc(ActorDesc))
@@ -145,12 +144,42 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 				FWorldPartitionReference ActorReference(WorldPartition, ActorDesc->GetGuid());
 				if (!Func(ActorReference.Get()))
 				{
-					break;
+					return false;
 				}
 
 				if (!Params.bKeepReferences && (Params.bGCPerActor || FWorldPartitionHelpers::HasExceededMaxMemory()))
 				{
 					CallGarbageCollect();
+				}
+			}
+		}
+
+		return true;
+	};
+
+	if (Params.ActorGuids.IsEmpty())
+	{
+		for (FActorDescContainerCollection::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+		{
+			if (const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator)
+			{
+				if (!ForEachActorWithLoadingImpl(ActorDesc))
+				{
+					break;
+				}
+			}
+			
+		}
+	}
+	else
+	{
+		for (const FGuid& ActorGuid : Params.ActorGuids)
+		{
+			if (const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
+			{
+				if (!ForEachActorWithLoadingImpl(ActorDesc))
+				{
+					break;
 				}
 			}
 		}
