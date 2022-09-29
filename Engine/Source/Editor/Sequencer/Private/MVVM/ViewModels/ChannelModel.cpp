@@ -754,7 +754,7 @@ void FChannelGroupOutlinerModel::Delete()
 	{
 		if (TViewModelPtr<FSectionModel> Section = Channel->FindAncestorOfType<FSectionModel>())
 		{
-			Section->GetSectionInterface()->RequestDeleteCategory(PathFromTrack);
+			Section->GetSectionInterface()->RequestDeleteKeyArea(PathFromTrack);
 		}
 	}
 }
