@@ -619,7 +619,7 @@ public:
 	
 	float		CellSize;
 	FVector2D	SpatialBias;
-	float		ConnectionMaxZ = WORLD_MAX; // Connection locations have to be <= to this to pull from the grid
+	double		ConnectionMaxZ; // Connection locations have to be <= to this to pull from the grid
 
 	/** When the GridBounds is set we limit the creation of cells to be exclusively inside the passed region.
 	    Viewers who gather nodes outside this region will be clamped to the closest cell inside the box.
