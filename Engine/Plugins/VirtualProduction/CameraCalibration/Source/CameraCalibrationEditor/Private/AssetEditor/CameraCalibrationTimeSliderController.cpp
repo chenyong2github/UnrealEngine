@@ -7,7 +7,6 @@
 #include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "LensFile.h"
-#include "LiveLinkCameraController.h"
 
 /** Utility struct for converting between scrub range space and local/absolute screen space */
 struct FCameraCalibrationTimeSliderController::FScrubRangeToScreen
@@ -215,18 +214,16 @@ void FCameraCalibrationTimeSliderController::Tick(float DeltaTime)
 		return;
 	}
 
-	ULiveLinkCameraController* CameraController = CalibrationStepsController->FindLiveLinkCameraController();
-	if (!CameraController)
+	const ELensDataCategory SelectedCategoryValue = SelectedCategory.GetValue();
+	const FLensFileEvaluationInputs EvalInputs = CalibrationStepsController->GetLensFileEvaluationInputs();
+	if (!EvalInputs.bIsValid)
 	{
 		return;
 	}
 
-	const ELensDataCategory SelectedCategoryValue = SelectedCategory.GetValue();
-	const FLensFileEvalData& LensFileEvalData = CameraController->GetLensFileEvalDataRef();
-
 	if (SelectedCategoryValue == ELensDataCategory::Focus)
 	{
-		const float RawFocus = LensFileEvalData.Input.Focus;
+		const float RawFocus = EvalInputs.Focus;
 		CommitPositionChange(RawFocus, TEXT("Focus"));
 	}
 	else if (SelectedCategoryValue == ELensDataCategory::Zoom ||
@@ -238,8 +235,8 @@ void FCameraCalibrationTimeSliderController::Tick(float DeltaTime)
 		if (SelectedFocus.IsSet())
 		{
 			
-			const float RawFocus = LensFileEvalData.Input.Focus;
-			const float RawZoom = LensFileEvalData.Input.Zoom;
+			const float RawFocus = EvalInputs.Focus;
+			const float RawZoom = EvalInputs.Zoom;
 			if (LensFileWeakPtr->GetDataTable(SelectedCategoryValue)->IsFocusBetweenNeighbor(SelectedFocus.GetValue(), RawFocus))
 			{
 				CommitPositionChange(RawZoom, TEXT("Zoom"));
@@ -248,7 +245,7 @@ void FCameraCalibrationTimeSliderController::Tick(float DeltaTime)
 	}
 	else if (SelectedCategory == ELensDataCategory::Iris)
 	{
-		const float RawIris = LensFileEvalData.Input.Iris;
+		const float RawIris = EvalInputs.Iris;
 		CommitPositionChange(RawIris, TEXT("Iris"));
 	}
 }

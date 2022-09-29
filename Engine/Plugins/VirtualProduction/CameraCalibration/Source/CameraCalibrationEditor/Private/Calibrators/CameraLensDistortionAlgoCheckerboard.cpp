@@ -156,17 +156,15 @@ void UCameraLensDistortionAlgoCheckerboard::Tick(float DeltaTime)
 		{
 			LastCameraData.bIsValid = false;
 
-			const FLensFileEvalData* LensFileEvalData = StepsController->GetLensFileEvalData();
+			const FLensFileEvaluationInputs LensFileEvalInputs = StepsController->GetLensFileEvaluationInputs();
 
 			// We require lens evaluation data.
-			if (!LensFileEvalData)
+			if (LensFileEvalInputs.bIsValid)
 			{
-				break;
+				LastCameraData.InputFocus = LensFileEvalInputs.Focus;
+				LastCameraData.InputZoom = LensFileEvalInputs.Zoom;
+				LastCameraData.bIsValid = true;
 			}
-
-			LastCameraData.InputFocus = LensFileEvalData->Input.Focus;
-			LastCameraData.InputZoom = LensFileEvalData->Input.Zoom;
-			LastCameraData.bIsValid = true;
 
 		} while (0);
 	}
@@ -230,7 +228,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 
 	if (!LastCameraData.bIsValid)
 	{
-		OutErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Please ensure that the camera has a camera live link controller and that it is receiving FIZ data");
+		OutErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Check the Lens Component to make sure it has valid evaluation inputs.");
 		return false;
 	}
 
@@ -447,8 +445,6 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FLensDisto
 		return false;
 	}
 	
-	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
-
 	// Valid image dimensions
 	if ((Row->ImageHeight < 1) || (Row->ImageWidth < 1))
 	{

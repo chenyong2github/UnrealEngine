@@ -230,7 +230,7 @@ public:
 	/**
 	 * Time slider enable flag
 	 */
-	UPROPERTY(config, EditAnywhere, Category = "Settings", Meta = (ToolTip = "Enable or Disable Time input driven by Live Link."))
+	UPROPERTY(config, EditAnywhere, Category = "Settings", Meta = (ToolTip = "Enable or Disable Time input driven by evaluation inputs."))
 	bool bEnableTimeSlider = true;
 
 	/** 

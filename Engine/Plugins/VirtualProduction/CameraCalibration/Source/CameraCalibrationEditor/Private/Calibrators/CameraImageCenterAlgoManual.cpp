@@ -61,15 +61,15 @@ void UCameraImageCenterAlgoManual::Activate()
 
 	RenderTargetSize = FIntPoint(RenderTarget->SizeX, RenderTarget->SizeY);
 
-	const FLensFileEvalData* EvalData = StepsController->GetLensFileEvalData();
-	if (!EvalData)
+	const FLensFileEvaluationInputs EvalInputs = StepsController->GetLensFileEvaluationInputs();
+	if (!EvalInputs.bIsValid)
 	{
 		return;
 	}
 
 	// Cache the original image center point for the current focus and zoom
-	CurrentEvalFocus = EvalData->Input.Focus;
-	CurrentEvalZoom = EvalData->Input.Zoom;
+	CurrentEvalFocus = EvalInputs.Focus;
+	CurrentEvalZoom = EvalInputs.Zoom;
 	LensFile->EvaluateImageCenterParameters(CurrentEvalFocus, CurrentEvalZoom, OriginalImageCenter);
 	AdjustedImageCenter = OriginalImageCenter;
 
@@ -94,17 +94,18 @@ void UCameraImageCenterAlgoManual::Tick(float DeltaTime)
 
 	if (LensFile.IsValid())
 	{
-		if (const FLensFileEvalData* EvalData = StepsController->GetLensFileEvalData())
+		const FLensFileEvaluationInputs EvalInputs = StepsController->GetLensFileEvaluationInputs();
+		if (EvalInputs.bIsValid)
 		{
 			// Check if the focus or zoom has changed since the last tick
 			const float InputTolerance = GetDefault<UCameraCalibrationSettings>()->GetCalibrationInputTolerance();
-			if (!FMath::IsNearlyEqual(CurrentEvalFocus, EvalData->Input.Focus, InputTolerance) || !FMath::IsNearlyEqual(CurrentEvalZoom, EvalData->Input.Zoom, InputTolerance))
+			if (!FMath::IsNearlyEqual(CurrentEvalFocus, EvalInputs.Focus, InputTolerance) || !FMath::IsNearlyEqual(CurrentEvalZoom, EvalInputs.Zoom, InputTolerance))
 			{
 				// Prompt the user to save any unsaved changes before caching a new original image center based on the new focus/zoom
 				ApplyOrRevertAdjustedImageCenter();
 
-				CurrentEvalFocus = EvalData->Input.Focus;
-				CurrentEvalZoom = EvalData->Input.Zoom;
+				CurrentEvalFocus = EvalInputs.Focus;
+				CurrentEvalZoom = EvalInputs.Zoom;
 				LensFile->EvaluateImageCenterParameters(CurrentEvalFocus, CurrentEvalZoom, OriginalImageCenter);
 				AdjustedImageCenter = OriginalImageCenter;
 			}

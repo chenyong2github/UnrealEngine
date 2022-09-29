@@ -593,10 +593,10 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 		{
 			LastCameraData.bIsValid = false;
 
-			const FLensFileEvalData* LensFileEvalData = StepsController->GetLensFileEvalData();
+			const FLensFileEvaluationInputs EvalInputs = StepsController->GetLensFileEvaluationInputs();
 
 			// We require lens evaluation data
-			if (!LensFileEvalData)
+			if (!EvalInputs.bIsValid)
 			{
 				break;
 			}
@@ -617,8 +617,8 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 
 			LastCameraData.Pose = CameraComponent->GetComponentToWorld();
 			LastCameraData.UniqueId = Camera->GetUniqueID();
-			LastCameraData.InputFocus = LensFileEvalData->Input.Focus;
-			LastCameraData.InputZoom = LensFileEvalData->Input.Zoom;
+			LastCameraData.InputFocus = EvalInputs.Focus;
+			LastCameraData.InputZoom = EvalInputs.Zoom;
 
 			const ULensComponent* LensComponent = StepsController->FindLensComponent();
 			if (LensComponent)
@@ -701,6 +701,13 @@ bool UCameraNodalOffsetAlgoPoints::OnViewportClicked(const FGeometry& MyGeometry
 		return true;
 	}
 
+	if (!LastCameraData.bIsValid)
+	{
+		FText ErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Check the Lens Component to make sure it has valid evaluation inputs.");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
+		return true;
+	}
+
 	// Get currently selected calibrator point
 	FNodalOffsetPointsCalibratorPointData LastCalibratorPoint;
 	LastCalibratorPoint.bIsValid = false;
@@ -724,7 +731,7 @@ bool UCameraNodalOffsetAlgoPoints::OnViewportClicked(const FGeometry& MyGeometry
 	}
 
 	// Check that we have a valid calibrator 3dpoint or camera data
-	if (!LastCalibratorPoint.bIsValid || !LastCameraData.bIsValid)
+	if (!LastCalibratorPoint.bIsValid)
 	{
 		return true;
 	}
@@ -924,8 +931,6 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FNodalOffsetPointsR
 		OutErrorMessage = LOCTEXT("CameraParentChangedDuringTheTest", "Camera parent changed during the test");
 		return false;
 	}
-
-	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
 
 	// bApplyNodalOffset did not change.
 	//

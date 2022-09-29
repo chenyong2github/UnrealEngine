@@ -177,15 +177,14 @@ void UCameraLensDistortionAlgoPoints::Tick(float DeltaTime)
 
 			LastCameraData.UniqueId = Camera->GetUniqueID();
 
-			const FLensFileEvalData* LensFileEvalData = StepsController->GetLensFileEvalData();
-
-			if (!LensFileEvalData)
+			const FLensFileEvaluationInputs EvalInputs = StepsController->GetLensFileEvaluationInputs();
+			if (!EvalInputs.bIsValid)
 			{
 				break;
 			}
 
-			LastCameraData.InputFocus = LensFileEvalData->Input.Focus;
-			LastCameraData.InputZoom = LensFileEvalData->Input.Zoom;
+			LastCameraData.InputFocus = EvalInputs.Focus;
+			LastCameraData.InputZoom = EvalInputs.Zoom;
 
 			if (!Calibrator.IsValid())
 			{
@@ -220,6 +219,13 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 		return true;
 	}
 
+	if (!LastCameraData.bIsValid)
+	{
+		FText ErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Check the Lens Component to make sure it has valid evaluation inputs.");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
+		return true;
+	}
+
 	// Get currently selected calibrator point
 	FLensDistortionPointsCalibratorPointData LastCalibratorPoint;
 	LastCalibratorPoint.bIsValid = false;
@@ -241,7 +247,7 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
 	}
 
 	// Check that we have a valid calibrator 3dpoint or camera data
-	if (!LastCalibratorPoint.bIsValid || !LastCameraData.bIsValid)
+	if (!LastCalibratorPoint.bIsValid)
 	{
 		return true;
 	}
@@ -688,8 +694,6 @@ bool UCameraLensDistortionAlgoPoints::ValidateNewRow(TSharedPtr<FLensDistortionP
 		OutErrorMessage = LOCTEXT("CalibratorChangedDuringTheTest", "Calibrator changed during the test");
 		return false;
 	}
-
-	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
 
 	//@todo Focus and zoom did not change much (i.e. inputs to distortion and nodal offset). 
 	//      Threshold for physical units should differ from normalized encoders.

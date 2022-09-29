@@ -698,7 +698,7 @@ void SLensDataAddPointDialog::SetTrackingData(float Value, int32 Index)
 
 void SLensDataAddPointDialog::RefreshEvaluationData()
 {
-	//Get FIZ coming from LiveLink. If normalized values are available, take them. Otherwise, look for precalibrated values or default to 0.0f
+	//Get FIZ coming from the lens component. If normalized values are available, take them. Otherwise, look for precalibrated values or default to 0.0f
 	const FCachedFIZData& CachedData = CachedFIZ.Get();
 	const float Focus = CachedData.RawFocus.IsSet() ? CachedData.RawFocus.GetValue() : CachedData.EvaluatedFocus.IsSet() ? CachedData.EvaluatedFocus.GetValue() : 0.0f;
 	const float Iris = CachedData.RawIris.IsSet() ? CachedData.RawIris.GetValue() : CachedData.EvaluatedIris.IsSet() ? CachedData.EvaluatedIris.GetValue() : 0.0f;

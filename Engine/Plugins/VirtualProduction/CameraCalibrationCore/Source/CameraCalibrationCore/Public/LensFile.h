@@ -325,6 +325,28 @@ public:
 	TObjectPtr<ULensFile> LensFile = nullptr;
 };
 
+USTRUCT(BlueprintType)
+struct FLensFileEvaluationInputs
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
+	float Focus = 0.0f;
+
+	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
+	float Iris = 0.0f;
+
+	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
+	float Zoom = 0.0f;
+
+	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
+	FCameraFilmbackSettings Filmback;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Lens File")
+	bool bIsValid = false;
+};
+
 /** Structure that caches the inputs (and other useful bits) used when evaluating the Lens File */
 struct FLensFileEvalData
 {

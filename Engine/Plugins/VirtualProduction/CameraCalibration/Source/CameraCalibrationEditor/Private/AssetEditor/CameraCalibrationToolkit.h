@@ -90,7 +90,7 @@ private:
 	/** Camera calibration tools */
 	TSharedPtr<SWidget> CalibrationStepsTab;
 
-	/** Data displaying evaluated data based on LiveLink inputs */
+	/** Data displaying evaluated data based on evaluation inputs */
 	TSharedPtr<SLensEvaluation> LensEvaluationWidget;
 
 	/** Calibration Steps Controller */

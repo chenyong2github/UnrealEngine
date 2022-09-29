@@ -250,7 +250,7 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 	LensFile->Modify();
 	LensFile->AddNodalOffsetPoint(Focus, Zoom, NodalOffset);
 
-	// Force bApplyNodalOffset in the LiveLinkCameraController so that we can see the effect right away
+	// Force the lens component to apply nodal offset so that we can see the effect right away
 	TInlineComponentArray<ULensComponent*> LensComponents;
 	CameraCalibrationStepsController.Pin()->GetCamera()->GetComponents(LensComponents);
 

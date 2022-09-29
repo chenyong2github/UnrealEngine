@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Containers/Ticker.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
+#include "LensFile.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Containers/Ticker.h"
 
 
 class ACameraActor;
@@ -21,10 +22,8 @@ class UCompositingElementMaterialPass;
 class ULensComponent;
 class ULensDistortionModelHandlerBase;
 class ULensFile;
-class ULiveLinkCameraController;
 
 struct FGeometry;
-struct FLensFileEvalData;
 struct FPointerEvent;
 
 /** Enumeration of overlay passes used to indicate which overlay pass to interact with */
@@ -90,7 +89,7 @@ public:
 	void Pause();
 
 	/** Returns the latest data used when evaluating the lens */
-	const FLensFileEvalData* GetLensFileEvalData() const;
+	FLensFileEvaluationInputs GetLensFileEvaluationInputs() const;
 
 	/** Returns the LensFile that this tool is using */
 	ULensFile* GetLensFile() const;
@@ -101,9 +100,6 @@ public:
 	/** Returns the distortion handler used to distort the CG being displayed in the simulcam viewport */
 	const ULensDistortionModelHandlerBase* GetDistortionHandler() const;
 
-	/** Finds the LiveLinkCameraController used in the given CameraActor that is also using the given LensFile */
-	ULiveLinkCameraController* FindLiveLinkCameraController() const;
-
 	/** Sets the media source url to be played. Returns true if the url is a valid media source */
 	bool SetMediaSourceUrl(const FString& InMediaSourceUrl);
 
@@ -112,9 +108,6 @@ public:
 
 	/** Gets the current media source url being played. Empty if None */
 	FString GetMediaSourceUrl() const;
-
-	/** Gets the lens eval data for this frame that was cached in Tick */
-	const FLensFileEvalData* GetLensFileEvalData();
 
 	/** Returns the calibration steps */
 	const TConstArrayView<TStrongObjectPtr<UCameraCalibrationStep>> GetCalibrationSteps() const;
@@ -195,8 +188,8 @@ public:
 
 private:
 
-	/** Finds the LiveLinkCameraController used in the given CameraActor that is also using the given LensFile */
-	ULiveLinkCameraController* FindLiveLinkCameraControllerWithLens(const ACameraActor* CameraActor, const ULensFile* InLensFile) const;
+	/** Returns the first lens component with a matching LensFile found on the input camera, or nullptr if none exists */
+	ULensComponent* FindLensComponentOnCamera(ACameraActor* CineCamera) const;
 
 	/** Returns a namespaced version of the given name. Useful to generate names unique to this lens file */
 	FString NamespacedName(const FString&& Name) const;
@@ -296,8 +289,8 @@ private:
 	/** The delegate for the core ticker callback */
 	FTSTicker::FDelegateHandle TickerHandle;
 
-	/** Pointer to the LensFileEvalData used in the current frame. Only valid during the current frame. */
-	const FLensFileEvalData* LensFileEvalData;
+	/** Evaluation Data supplied by the Lens Component for the current frame. Only valid during the current frame. */
+	FLensFileEvaluationInputs LensFileEvaluationInputs;
 
 	/** Setting to control whether the media playback buttons are visible */
 	bool bShowMediaPlaybackButtons = true;

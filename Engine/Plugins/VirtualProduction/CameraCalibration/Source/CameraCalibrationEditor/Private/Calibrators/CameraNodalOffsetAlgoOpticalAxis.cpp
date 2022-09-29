@@ -96,10 +96,11 @@ void UCameraNodalOffsetAlgoOpticalAxis::Tick(float DeltaTime)
 	// Inform the user if the focus or zoom has changed since the last tick
 	if (OpticalAxis.IsSet() && !bFocusZoomWarningIssued)
 	{
-		if (const FLensFileEvalData* EvalData = StepsController->GetLensFileEvalData())
+		const FLensFileEvaluationInputs EvalInputs = StepsController->GetLensFileEvaluationInputs();
+		if (EvalInputs.bIsValid)
 		{
 			const float InputTolerance = GetDefault<UCameraCalibrationSettings>()->GetCalibrationInputTolerance();
-			if (!FMath::IsNearlyEqual(CachedFocus, EvalData->Input.Focus, InputTolerance) || !FMath::IsNearlyEqual(CachedZoom, EvalData->Input.Zoom, InputTolerance))
+			if (!FMath::IsNearlyEqual(CachedFocus, EvalInputs.Focus, InputTolerance) || !FMath::IsNearlyEqual(CachedZoom, EvalInputs.Zoom, InputTolerance))
 			{
 				FFormatOrderedArguments Arguments;
 				Arguments.Add(FText::FromString(FString::Printf(TEXT("%.2f"), CachedFocus)));

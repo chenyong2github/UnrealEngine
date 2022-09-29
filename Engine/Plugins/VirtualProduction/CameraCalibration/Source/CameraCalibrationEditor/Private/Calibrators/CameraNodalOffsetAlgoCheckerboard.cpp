@@ -120,6 +120,12 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 		return false;
 	}
 
+	if (!LastCameraData.bIsValid)
+	{
+		OutErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Check the Lens Component to make sure it has valid evaluation inputs.");
+		return false;
+	}
+
 	TArray<FColor> Pixels;
 	FIntPoint Size;
 	ETextureRenderTargetFormat PixelFormat;

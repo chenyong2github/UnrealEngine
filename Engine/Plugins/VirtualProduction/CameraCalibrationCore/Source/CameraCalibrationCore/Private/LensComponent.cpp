@@ -780,8 +780,10 @@ void ULensComponent::UpdateLiveLinkFIZ(const ULiveLinkComponentController* const
 
 	if (StaticData->bIsFocusDistanceSupported && StaticData->bIsFocalLengthSupported)
 	{
-		LiveLinkFIZ.Input.Focus = FrameData->FocusDistance;
-		LiveLinkFIZ.Input.Zoom = FrameData->FocalLength;
+		LiveLinkFocus = FrameData->FocusDistance;
+		LiveLinkZoom = FrameData->FocalLength;
+
+		LiveLinkIris = FrameData->Aperture;
 
 		bWasLiveLinkFIZUpdated = true;
 	}
@@ -796,14 +798,16 @@ void ULensComponent::UpdateLensFileEvaluationInputs(UCineCameraComponent* CineCa
 	{
 		if (bWasLiveLinkFIZUpdated)
 		{
-			EvalInputs.Focus = LiveLinkFIZ.Input.Focus;
-			EvalInputs.Zoom = LiveLinkFIZ.Input.Zoom;
+			EvalInputs.Focus = LiveLinkFocus;
+			EvalInputs.Iris = LiveLinkIris;
+			EvalInputs.Zoom = LiveLinkZoom;
 			EvalInputs.bIsValid = true;
 		}
 	}
 	else if (EvaluationMode == EFIZEvaluationMode::UseCameraSettings)
 	{
 		EvalInputs.Focus = CineCameraComponent->CurrentFocusDistance;
+		EvalInputs.Iris = CineCameraComponent->CurrentAperture;
 		// The camera's focal length might have been altered by applying an overscan FOV. However, the LensFile needs to be evaluated with the non-overscanned value
 		EvalInputs.Zoom = OriginalFocalLength;
 		EvalInputs.bIsValid = true;

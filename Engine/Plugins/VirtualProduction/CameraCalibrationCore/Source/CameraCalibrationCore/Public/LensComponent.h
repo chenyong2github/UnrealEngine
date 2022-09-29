@@ -50,28 +50,6 @@ enum class EDistortionSource : uint8
 	Manual,
 };
 
-USTRUCT(BlueprintType)
-struct FLensFileEvaluationInputs
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
-	float Focus = 0.0f;
-
-	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
-	float Iris = 0.0f;
-
-	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
-	float Zoom = 0.0f;
-
-	UPROPERTY(Interp, VisibleAnywhere, BlueprintReadOnly, Category = "Lens File")
-	FCameraFilmbackSettings Filmback;
-
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Lens File")
-	bool bIsValid = false;
-};
-
 /** Component for applying a post-process lens distortion effect to a CineCameraComponent on the same actor */
 UCLASS(HideCategories=(Tags, Activation, Cooking, AssetUserData, Collision), meta=(BlueprintSpawnableComponent))
 class CAMERACALIBRATIONCORE_API ULensComponent : public UActorComponent
@@ -378,7 +356,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
 	/** Latest LiveLink FIZ data, used to evaluate the LensFile */
-	FLensFileEvalData LiveLinkFIZ;
+	float LiveLinkFocus = 0.0f;
+	float LiveLinkIris = 0.0f;
+	float LiveLinkZoom = 0.0f;
 
 	/** Whether LiveLink FIZ was received this tick */
 	bool bWasLiveLinkFIZUpdated = false;

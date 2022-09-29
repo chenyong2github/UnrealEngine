@@ -115,6 +115,12 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 		return false;
 	}
 
+	if (!LastCameraData.bIsValid)
+	{
+		OutErrorMessage = LOCTEXT("InvalidLastCameraData", "Could not find a cached set of camera data (e.g. FIZ). Check the Lens Component to make sure it has valid evaluation inputs.");
+		return false;
+	}
+
 	// Detect Aruco dictionary used by looking at the calibration point names
 
 	struct FArucoDictionaryInfo

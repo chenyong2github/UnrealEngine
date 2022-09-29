@@ -6,8 +6,6 @@
 
 #include "ImageCenterTool.generated.h"
 
-struct FLensFileEvalData;
-
 class UCameraImageCenterAlgo;
 
 /**

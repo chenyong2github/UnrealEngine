@@ -11,7 +11,6 @@
 #include "NodalOffsetTool.generated.h"
 
 struct FGeometry;
-struct FLensFileEvalData;
 struct FPointerEvent;
 
 class FJsonObject;

@@ -11,7 +11,6 @@
 #include "LensDistortionTool.generated.h"
 
 struct FGeometry;
-struct FLensFileEvalData;
 struct FPointerEvent;
 
 class FJsonObject;

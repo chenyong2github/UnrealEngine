@@ -5,9 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "Camera/CameraActor.h"
-#include "LiveLinkRole.h"
 #include "SLensFilePanel.h"
-#include "SLiveLinkSubjectRepresentationPicker.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
@@ -16,7 +14,7 @@ class ULensFile;
 class FCameraCalibrationStepsController;
 
 /**
- * Widget using LiveLink subject input to evaluate lens file and show resulting data
+ * Widget using lens file evaluation inputs to evaluate lens file and show resulting data
  */
 class SLensEvaluation : public SCompoundWidget
 {
@@ -32,13 +30,13 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~ End SCompoundWidget interface
 
-	/** Returns last evaluated FIZ data from LiveLink */
-	FCachedFIZData GetLastEvaluatedData() const { return CachedLiveLinkData; }
+	/** Returns last raw and evaluated FIZ data */
+	FCachedFIZData GetLastEvaluatedData() const { return CachedFIZData; }
 
 private:
 
-	/** Evaluates LiveLink subjects */
-	void CacheLiveLinkData();
+	/** Caches latest evaluation inputs and evaluates LensFile for FIZ */
+	void CacheLensFileEvaluationInputs();
 
 	/** Evaluates LensFile using tracking data */
 	void CacheLensFileData();
@@ -49,19 +47,19 @@ private:
 	/** Get the text color for the tracked camera text */
 	FSlateColor GetTrackedCameraLabelColor() const;
 
-	/** Get the name of the livelink camera controller driving the selected camera */
-	FText GetLiveLinkCameraControllerLabel() const;
+	/** Get the name of the lens component driving the selected camera */
+	FText GetLensComponentLabel() const;
 
-	/** Get the text color for the livelink camera controller text */
-	FSlateColor GetLiveLinkCameraControllerLabelColor() const;
+	/** Get the text color for the lens component text */
+	FSlateColor GetLensComponentLabelColor() const;
 
-	/** Make LiveLink subject selection widget */
+	/** Make widget to display selected camera and lens component */
 	TSharedRef<SWidget> MakeTrackingWidget();
 
-	/** Make FIZ widget evaluated from LiveLink subject */
+	/** Make Raw FIZ widget */
 	TSharedRef<SWidget> MakeRawInputFIZWidget() const;
 
-	/** Make FIZ widget evaluated from LiveLink subject */
+	/** Make Evaluated FIZ widget */
 	TSharedRef<SWidget> MakeEvaluatedFIZWidget() const;
 
 	/** Make widget showing distortion data evaluated from LensFile */
@@ -78,20 +76,17 @@ private:
 	/** LensFile being edited */
 	TStrongObjectPtr<ULensFile> LensFile;
 
-	/** Whether the tracked camera has a LiveLink Camera Controller */
-	bool bCameraControllerExists = false;
-
 	/** Flags used to know what data is valid or not and adjust UI */
 	bool bCouldEvaluateDistortion = false;
 	bool bCouldEvaluateFocalLength = false;
 	bool bCouldEvaluateImageCenter = false;
 	bool bCouldEvaluateNodalOffset = false;
 
-	/** Calibration steps controller, which provides a selected target camera and livelink camera controller */
+	/** Calibration steps controller */
 	TWeakPtr<FCameraCalibrationStepsController> WeakStepsController;
 
-	//~ Cached data taken from LiveLink subject and LensFile
-	FCachedFIZData CachedLiveLinkData;
+	//~ Cached LensFile evaluated data
+	FCachedFIZData CachedFIZData;
 	FDistortionInfo CachedDistortionInfo;
 	FFocalLengthInfo CachedFocalLengthInfo;
 	FImageCenterInfo CachedImageCenter;

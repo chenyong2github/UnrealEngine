@@ -30,8 +30,6 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "LensComponent.h"
 #include "LensFile.h"
-#include "LiveLinkCameraController.h"
-#include "LiveLinkComponentController.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MediaPlayer.h"
@@ -70,36 +68,6 @@ namespace CameraCalibrationStepsController
 		{
 			return CompElementManager.Get();
 		}
-		return nullptr;
-	}
-
-	/** Retrieves the latest lens evaluation data from the LiveLink controller in the given camera for the given lens file */
-	const FLensFileEvalData* LensFileEvalDataFromCamera(const ACameraActor* InCamera, const ULensFile* InLensFile)
-	{
-		if (!InCamera || !InLensFile)
-		{
-			return nullptr;
-		}
-
-		TArray<ULiveLinkComponentController*> LLComponentControllers;
-		InCamera->GetComponents(LLComponentControllers);
-
-		for (const ULiveLinkComponentController* LLComponentController : LLComponentControllers)
-		{
-			for (const TPair<TSubclassOf<ULiveLinkRole>, TObjectPtr<ULiveLinkControllerBase>> Pair : LLComponentController->ControllerMap)
-			{
-				if (ULiveLinkCameraController* CameraController = Cast<ULiveLinkCameraController>(Pair.Value))
-				{
-					const FLensFileEvalData* OutLensFileEvalData = &CameraController->GetLensFileEvalDataRef();
-
-					if (OutLensFileEvalData->LensFile == InLensFile)
-					{
-						return OutLensFileEvalData;
-					}
-				}
-			}
-		}
-
 		return nullptr;
 	}
 }
@@ -207,7 +175,11 @@ TSharedPtr<SWidget> FCameraCalibrationStepsController::BuildUI()
 bool FCameraCalibrationStepsController::OnTick(float DeltaTime)
 {
 	// Update the lens file eval data
-	LensFileEvalData = CameraCalibrationStepsController::LensFileEvalDataFromCamera(Camera.Get(), LensFile.Get());
+	LensFileEvaluationInputs.bIsValid = false;
+	if (const ULensComponent* const LensComponent = FindLensComponent())
+	{
+		LensFileEvaluationInputs = LensComponent->GetLensFileEvaluationInputs();
+	}
 
 	for (TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationSteps)
 	{
@@ -1053,66 +1025,30 @@ bool FCameraCalibrationStepsController::AreMediaPlaybackControlsVisible() const
 	return bShowMediaPlaybackButtons;
 }
 
-ULiveLinkCameraController* FCameraCalibrationStepsController::FindLiveLinkCameraController() const
-{
-	return FindLiveLinkCameraControllerWithLens(Camera.Get(), LensFile.Get());
-}
-
-ULiveLinkCameraController* FCameraCalibrationStepsController::FindLiveLinkCameraControllerWithLens(const ACameraActor* InCamera, const ULensFile* InLensFile) const
-{
-	if (!InCamera || !InLensFile)
-	{
-		return nullptr;
-	}
-
-	FAssetData LensFileAssetData(InLensFile);
-
-	TArray<ULiveLinkComponentController*> LiveLinkComponents;
-	InCamera->GetComponents(LiveLinkComponents);
-
-	for (const ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents)
-	{
-		for (auto It = LiveLinkComponent->ControllerMap.CreateConstIterator(); It; ++It)
-		{
-			ULiveLinkCameraController* CameraController = Cast<ULiveLinkCameraController>(It->Value);
-
-			if (!CameraController)
-			{
-				continue;
-			}
-
-			const ULensFile* CameraLensFile = CameraController->LensFilePicker.GetLensFile();
-
-			if (!CameraLensFile)
-			{
-				continue;
-			}
-
-			if (FAssetData(CameraLensFile, true).PackageName == LensFileAssetData.PackageName)
-			{
-				return CameraController;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 ACameraActor* FCameraCalibrationStepsController::FindFirstCameraWithCurrentLens() const
 {
 	// We iterate over all cameras in the scene and try to find one that is using the current LensFile
-
-	for (TActorIterator<ACameraActor> CameraItr(GetWorld()); CameraItr; ++CameraItr)
+	ACineCameraActor* FirstCamera = nullptr;
+	for (TActorIterator<ACineCameraActor> CameraItr(GetWorld()); CameraItr; ++CameraItr)
 	{
-		ACameraActor* CameraActor = *CameraItr;
+		ACineCameraActor* CameraActor = *CameraItr;
 
-		if (FindLiveLinkCameraControllerWithLens(CameraActor, LensFile.Get()))
+		if (ULensComponent* FoundLensComponent = FindLensComponentOnCamera(CameraActor))
 		{
-			return CameraActor;
+			if (FirstCamera == nullptr)
+			{
+				FirstCamera = CameraActor;
+			}
+			else
+			{
+				FText ErrorMessage = LOCTEXT("MoreThanOneCameraFoundError", "There are multiple cameras in the scene using this LensFile. When the asset editor opens, be sure to select the correct camera if not already selected.");
+				FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
+				break;
+			}
 		}
 	}
 
-	return nullptr;
+	return FirstCamera;
 }
 
 void FCameraCalibrationStepsController::TogglePlay()
@@ -1164,9 +1100,9 @@ bool FCameraCalibrationStepsController::IsPaused() const
 	return true;
 }
 
-const FLensFileEvalData* FCameraCalibrationStepsController::GetLensFileEvalData() const
+FLensFileEvaluationInputs FCameraCalibrationStepsController::GetLensFileEvaluationInputs() const
 {
-	return LensFileEvalData;
+	return LensFileEvaluationInputs;
 }
 
 ULensFile* FCameraCalibrationStepsController::GetLensFile() const
@@ -1179,16 +1115,13 @@ ULensFile* FCameraCalibrationStepsController::GetLensFile() const
 	return nullptr;
 }
 
-ULensComponent* FCameraCalibrationStepsController::FindLensComponent() const
+ULensComponent* FCameraCalibrationStepsController::FindLensComponentOnCamera(ACameraActor* CineCamera) const
 {
-	ACineCameraActor* CineCamera = Cast<ACineCameraActor>(GetCamera());
 	const ULensFile* OpenLensFile = GetLensFile();
 	if (CineCamera && OpenLensFile)
 	{
 		TInlineComponentArray<ULensComponent*> LensComponents;
 		CineCamera->GetComponents(LensComponents);
-
-		const FText TitleError = LOCTEXT("CameraCalibrationEditorError", "Lens File Error");
 
 		for (ULensComponent* LensComponent : LensComponents)
 		{
@@ -1200,6 +1133,11 @@ ULensComponent* FCameraCalibrationStepsController::FindLensComponent() const
 	}
 
 	return nullptr;
+}
+
+ULensComponent* FCameraCalibrationStepsController::FindLensComponent() const
+{
+	return FindLensComponentOnCamera(GetCamera());
 }
 
 const ULensDistortionModelHandlerBase* FCameraCalibrationStepsController::GetDistortionHandler() const
@@ -1278,11 +1216,6 @@ void FCameraCalibrationStepsController::FindMediaSourceUrls(TArray<TSharedPtr<FS
 			OutMediaSourceUrls.Add(MakeShared<FString>(MediaSource->GetUrl()));
 		}
 	}
-}
-
-const FLensFileEvalData* FCameraCalibrationStepsController::GetLensFileEvalData()
-{
-	return LensFileEvalData;
 }
 
 const TConstArrayView<TStrongObjectPtr<UCameraCalibrationStep>> FCameraCalibrationStepsController::GetCalibrationSteps() const

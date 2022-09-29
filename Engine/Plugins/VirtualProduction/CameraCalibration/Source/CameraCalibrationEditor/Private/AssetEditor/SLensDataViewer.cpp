@@ -12,7 +12,6 @@
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
-#include "LiveLinkCameraController.h"
 #include "RichCurveEditorModel.h"
 #include "SLensDataAddPointDialog.h"
 #include "SLensDataCategoryListItem.h"
