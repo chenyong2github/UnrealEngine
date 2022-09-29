@@ -4,8 +4,10 @@
 
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
+#include "ObjectMixerEditorSerializedData.h"
 #include "ObjectMixerEditorSettings.h"
 #include "Views/List/ObjectMixerEditorList.h"
+#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 #include "Views/Widgets/SCollectionSelectionButton.h"
 #include "Views/Widgets/SObjectMixerPlacementAssetMenuEntry.h"
@@ -17,8 +19,6 @@
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "SPositiveActionButton.h"
 #include "Styling/StyleColors.h"
-#include "Views/List/ObjectMixerEditorListFilters/IObjectMixerEditorListFilter.h"
-#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -64,7 +64,10 @@ void SObjectMixerEditorMainPanel::Construct(
 		]
 	];
 
-	InMainPanel->GetOnObjectMixerCollectionMapChanged().AddRaw(this, &SObjectMixerEditorMainPanel::RebuildCollectionSelector);
+	if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
+	{
+		SerializedData->OnObjectMixerCollectionMapChanged.AddRaw(this, &SObjectMixerEditorMainPanel::RebuildCollectionSelector);
+	}
 
 	ShowFilters.Add(MakeShared<FObjectMixerEditorListFilter_Collection>());
 }
@@ -540,7 +543,7 @@ void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 
 	CollectionSelectorBox->AddSlot()
 	[
-		CreateSection("All")
+		CreateSection(UObjectMixerEditorSerializedData::AllCollectionName)
 	];
 
 	for (const FName& Key : AllCollections)
@@ -554,11 +557,44 @@ void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 	CollectionSelectorBox->SetVisibility(EVisibility::Visible);
 }
 
-void SObjectMixerEditorMainPanel::RequestRemoveCollection(const FName& CollectionName)
+bool SObjectMixerEditorMainPanel::RequestRemoveCollection(const FName& CollectionName)
 {
-	MainPanelModel.Pin()->RemoveCollection(CollectionName);
+	if (MainPanelModel.Pin()->RequestRemoveCollection(CollectionName))
+	{
+		CurrentCollectionSelection.Remove(CollectionName);
 
-	CurrentCollectionSelection.Remove(CollectionName);
+		return true;
+	}
+
+	return false;
+}
+
+bool SObjectMixerEditorMainPanel::RequestDuplicateCollection(const FName& CollectionToDuplicateName, FName& DesiredDuplicateName) const
+{
+	return MainPanelModel.Pin()->RequestDuplicateCollection(CollectionToDuplicateName, DesiredDuplicateName);
+}
+
+bool SObjectMixerEditorMainPanel::RequestRenameCollection(
+	const FName& CollectionNameToRename,
+	const FName& NewCollectionName)
+{
+	if (MainPanelModel.Pin()->RequestRenameCollection(CollectionNameToRename, NewCollectionName))
+	{
+		if (CurrentCollectionSelection.Contains(CollectionNameToRename))
+		{
+			CurrentCollectionSelection.Remove(CollectionNameToRename);
+			CurrentCollectionSelection.Add(NewCollectionName);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool SObjectMixerEditorMainPanel::DoesCollectionExist(const FName& CollectionName) const
+{
+	return MainPanelModel.Pin()->DoesCollectionExist(CollectionName);
 }
 
 void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(ECheckBoxState State, FName CollectionName)
@@ -584,7 +620,7 @@ void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(ECheckBoxState
 			{
 				CurrentCollectionSelection.Reset();
 
-				if (CollectionName != "All")
+				if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None)
 				{
 					CurrentCollectionSelection.Add(CollectionName);
 				}
@@ -597,7 +633,7 @@ void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(ECheckBoxState
 				CurrentCollectionSelection.Reset();
 			}
 
-			if (CollectionName != "All")
+			if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None)
 			{
 				CurrentCollectionSelection.Add(CollectionName);
 			}
@@ -609,7 +645,7 @@ void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(ECheckBoxState
 
 ECheckBoxState SObjectMixerEditorMainPanel::IsCollectionChecked(FName Section) const
 {
-	if (CurrentCollectionSelection.IsEmpty() && Section == "All")
+	if (CurrentCollectionSelection.IsEmpty() && Section == UObjectMixerEditorSerializedData::AllCollectionName)
 	{
 		return ECheckBoxState::Checked;
 	}
@@ -619,11 +655,7 @@ ECheckBoxState SObjectMixerEditorMainPanel::IsCollectionChecked(FName Section) c
 
 SObjectMixerEditorMainPanel::~SObjectMixerEditorMainPanel()
 {
-	if (MainPanelModel.IsValid())
-	{
-		MainPanelModel.Pin()->GetOnObjectMixerCollectionMapChanged().RemoveAll(this);
-		MainPanelModel.Reset();
-	}
+	MainPanelModel.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

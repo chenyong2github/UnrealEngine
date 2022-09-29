@@ -33,7 +33,6 @@ public:
 private:
 
 	static void OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType, const FObjectMixerEditorListMenuContextData ContextData);
-	static void OnTextChanged(const FText& InText, const FObjectMixerEditorListMenuContextData ContextData);
 	
 	static void OnClickCollectionMenuEntry(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);
 	static void AddObjectsToCollection(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);

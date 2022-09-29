@@ -3,15 +3,16 @@
 #pragma once
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
-#include "Views/List/ObjectMixerEditorListFilters/IObjectMixerEditorListFilter.h"
 
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SWidget.h"
 
+class UObjectMixerEditorSerializedData;
+struct FObjectMixerEditorListRow;
+class IObjectMixerEditorListFilter;
+class UObjectMixerObjectFilter;
 class FObjectMixerEditorList;
 class SObjectMixerEditorMainPanel;
-
-DECLARE_MULTICAST_DELEGATE(FOnObjectMixerCollectionMapChanged)
 
 class OBJECTMIXEREDITOR_API FObjectMixerEditorMainPanel : public TSharedFromThis<FObjectMixerEditorMainPanel>
 {
@@ -160,19 +161,19 @@ public:
 	// User Collections
 
 	/**
-	 * Add set of objects to a collection in the map, or create a new collection if one does not exist,
+	 * Get a pointer to the UObjectMixerEditorSerializedData object along with the name of the filter represented by this MainPanel instance.
 	 */
-	void AddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
-	void RemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
-	void RemoveCollection(const FName& CollectionName) const;
-	void ReorderCollection(const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName) const;
+	UObjectMixerEditorSerializedData* GetSerializedDataOutputtingFilterName(FName& OutFilterName) const;
+	bool RequestAddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
+	bool RequestRemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
+	bool RequestRemoveCollection(const FName& CollectionName) const;
+	bool RequestDuplicateCollection(const FName& CollectionToDuplicateName, FName& DesiredDuplicateName) const;
+	bool RequestReorderCollection(const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName) const;
+	bool RequestRenameCollection(const FName& CollectionNameToRename, const FName& NewCollectionName) const;
+	bool DoesCollectionExist(const FName& CollectionName) const;
 	bool IsObjectInCollection(const FName& CollectionName, const FSoftObjectPath& InObject) const;
 	TSet<FName> GetCollectionsForObject(const FSoftObjectPath& InObject) const;
 	TArray<FName> GetAllCollectionNames() const;
-	FOnObjectMixerCollectionMapChanged& GetOnObjectMixerCollectionMapChanged()
-	{
-		return OnObjectMixerCollectionMapChanged;
-	}
 
 	/**
 	 * Returns the collections selected by the user. If the set is empty, consider "All" collections to be selected.
@@ -200,6 +201,4 @@ private:
 	TSet<TWeakPtr<FObjectMixerEditorListRow>> SoloRows = {};
 
 	FName ModuleName = NAME_None;
-
-	FOnObjectMixerCollectionMapChanged OnObjectMixerCollectionMapChanged;
 };

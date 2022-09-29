@@ -4,6 +4,9 @@
 
 #include "ObjectMixerEditorSerializedData.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnObjectMixerCollectionChanged)
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectMixerCollectionRenamed, FName, FName)
+
 USTRUCT()
 struct FObjectMixerCollectionObjectData
 {
@@ -110,13 +113,19 @@ public:
 
 	FObjectMixerSerializationDataPerFilter* FindSerializationDataByFilterClassName(const FName& FilterClassName);
 
-	void AddObjectsToCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd);
+	bool AddObjectsToCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd);
 
-	void RemoveObjectsFromCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove);
+	bool RemoveObjectsFromCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove);
 
-	void RemoveCollection(const FName& FilterClassName, const FName& CollectionName);
+	bool RemoveCollection(const FName& FilterClassName, const FName& CollectionName);
+	
+	bool DuplicateCollection(const FName& FilterClassName, const FName& CollectionToDuplicateName, FName& DesiredDuplicateName);
 
-	void ReorderCollection(const FName& FilterClassName, const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName);
+	bool ReorderCollection(const FName& FilterClassName, const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName);
+
+	bool RenameCollection(const FName& FilterClassName, const FName CollectionNameToRename, const FName NewCollectionName);
+
+	bool DoesCollectionExist(const FName& FilterClassName, const FName& CollectionName);
 
 	bool IsObjectInCollection(const FName& FilterClassName, const FName& CollectionName, const FSoftObjectPath& InObject);
 
@@ -129,4 +138,9 @@ public:
 	bool IsColumnDataSerialized(const FName& FilterClassName, const FName& ColumnName);
 	
 	bool ShouldShowColumn(const FName& FilterClassName, const FName& ColumnName);
+
+	static FName AllCollectionName;
+
+	FOnObjectMixerCollectionChanged OnObjectMixerCollectionMapChanged;
+	FOnObjectMixerCollectionRenamed OnObjectMixerCollectionRenamed;
 };

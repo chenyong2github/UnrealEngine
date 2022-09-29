@@ -2,6 +2,8 @@
 
 #include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
+#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
+
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -16,7 +18,6 @@
 #include "ToolMenuDelegates.h"
 #include "ToolMenuEntry.h"
 #include "ToolMenuSection.h"
-#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
@@ -142,7 +143,6 @@ void UObjectMixerEditorListMenuContext::RegisterObjectMixerContextMenu()
 												SNew(SEditableTextBox)
 												.HintText(LOCTEXT("NewCollectionEditableHintText", "Enter a new collection name..."))
 												.OnTextCommitted_Static(&UObjectMixerEditorListMenuContext::OnTextCommitted, ContextData)
-												.OnTextChanged_Static(&UObjectMixerEditorListMenuContext::OnTextChanged, ContextData)
 											]
 									;
 								}
@@ -193,17 +193,7 @@ void UObjectMixerEditorListMenuContext::OnTextCommitted(const FText& InText, ETe
 {
 	if (InCommitType == ETextCommit::OnEnter)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%hs: %s"), __FUNCTION__, *InText.ToString());
-
 		AddObjectsToCollection(*InText.ToString(), ContextData);
-	}
-}
-
-void UObjectMixerEditorListMenuContext::OnTextChanged(const FText& InText, const FObjectMixerEditorListMenuContextData ContextData)
-{
-	if (const FString AsString = InText.ToString(); AsString.Len() > 12)
-	{
-		//ContextData.EditableText->SetText(FText::FromString(AsString.LeftChop(1)));
 	}
 }
 
@@ -233,7 +223,7 @@ void UObjectMixerEditorListMenuContext::AddObjectsToCollection(const FName Key, 
 			}
 		}
 		
-		MainPanel->AddObjectsToCollection(Key, ObjectPaths);
+		MainPanel->RequestAddObjectsToCollection(Key, ObjectPaths);
 	}
 }
 
@@ -251,7 +241,7 @@ void UObjectMixerEditorListMenuContext::RemoveObjectsFromCollection(const FName 
 			}
 		}
 		
-		MainPanel->RemoveObjectsFromCollection(Key, ObjectPaths);
+		MainPanel->RequestRemoveObjectsFromCollection(Key, ObjectPaths);
 	}
 }
 

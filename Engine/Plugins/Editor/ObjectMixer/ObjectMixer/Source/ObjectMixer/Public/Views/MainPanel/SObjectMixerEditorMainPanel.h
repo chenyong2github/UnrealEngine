@@ -3,8 +3,6 @@
 #pragma once
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
-#include "Views/List/ObjectMixerEditorListFilters/IObjectMixerEditorListFilter.h"
-
 #include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -52,7 +50,10 @@ public:
 	
 	void RebuildCollectionSelector();
 
-	void RequestRemoveCollection(const FName& CollectionName);
+	bool RequestRemoveCollection(const FName& CollectionName);
+	bool RequestDuplicateCollection(const FName& CollectionToDuplicateName, FName& DesiredDuplicateName) const;
+	bool RequestRenameCollection(const FName& CollectionNameToRename, const FName& NewCollectionName);
+	bool DoesCollectionExist(const FName& CollectionName) const;
 	
 	void OnCollectionCheckedStateChanged(ECheckBoxState State, FName CollectionName);
 	ECheckBoxState IsCollectionChecked(FName Section) const;

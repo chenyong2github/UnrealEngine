@@ -110,66 +110,101 @@ const TArray<TSharedRef<IObjectMixerEditorListFilter>>& FObjectMixerEditorMainPa
 	return MainPanelWidget->GetShowFilters();	
 }
 
-void FObjectMixerEditorMainPanel::AddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const
+UObjectMixerEditorSerializedData* FObjectMixerEditorMainPanel::GetSerializedDataOutputtingFilterName(FName& OutFilterName) const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			SerializedData->AddObjectsToCollection(Filter->GetFName(), CollectionName, ObjectsToAdd);
-
-			OnObjectMixerCollectionMapChanged.Broadcast();
-		}
+		OutFilterName = Filter->GetFName();
+		return GetMutableDefault<UObjectMixerEditorSerializedData>();
 	}
+
+	return nullptr;
 }
 
-void FObjectMixerEditorMainPanel::RemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const
+bool FObjectMixerEditorMainPanel::RequestAddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const
 {
-	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			SerializedData->RemoveObjectsFromCollection(Filter->GetFName(), CollectionName, ObjectsToRemove);
-
-			OnObjectMixerCollectionMapChanged.Broadcast();
-		}
+		return SerializedData->AddObjectsToCollection(FilterName, CollectionName, ObjectsToAdd);
 	}
+
+	return false;
 }
 
-void FObjectMixerEditorMainPanel::RemoveCollection(const FName& CollectionName) const
+bool FObjectMixerEditorMainPanel::RequestRemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const
 {
-	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			SerializedData->RemoveCollection(Filter->GetFName(), CollectionName);
-
-			OnObjectMixerCollectionMapChanged.Broadcast();
-		}
+		return SerializedData->RemoveObjectsFromCollection(FilterName, CollectionName, ObjectsToRemove);
 	}
+
+	return false;
 }
 
-void FObjectMixerEditorMainPanel::ReorderCollection(const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName) const
+bool FObjectMixerEditorMainPanel::RequestRemoveCollection(const FName& CollectionName) const
 {
-	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			SerializedData->ReorderCollection(Filter->GetFName(), CollectionToMoveName, CollectionInsertBeforeName);
-
-			OnObjectMixerCollectionMapChanged.Broadcast();
-		}
+		return SerializedData->RemoveCollection(FilterName, CollectionName);
 	}
+
+	return false;
+}
+
+bool FObjectMixerEditorMainPanel::RequestDuplicateCollection(const FName& CollectionToDuplicateName, FName& DesiredDuplicateName) const
+{
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
+	{
+		return SerializedData->DuplicateCollection(FilterName, CollectionToDuplicateName, DesiredDuplicateName);
+	}
+
+	return false;
+}
+
+bool FObjectMixerEditorMainPanel::RequestReorderCollection(const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName) const
+{
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
+	{
+		return SerializedData->ReorderCollection(FilterName, CollectionToMoveName, CollectionInsertBeforeName);
+	}
+
+	return false;
+}
+
+bool FObjectMixerEditorMainPanel::RequestRenameCollection(const FName& CollectionNameToRename,
+	const FName& NewCollectionName) const
+{
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
+	{
+		return SerializedData->RenameCollection(FilterName, CollectionNameToRename, NewCollectionName);
+	}
+
+	return false;
+}
+
+bool FObjectMixerEditorMainPanel::DoesCollectionExist(const FName& CollectionName) const
+{
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
+	{
+		return SerializedData->DoesCollectionExist(FilterName, CollectionName);
+	}
+
+	return false;
 }
 
 bool FObjectMixerEditorMainPanel::IsObjectInCollection(const FName& CollectionName, const FSoftObjectPath& InObject) const
 {
-	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			return SerializedData->IsObjectInCollection(Filter->GetFName(), CollectionName, InObject);
-		}
+		return SerializedData->IsObjectInCollection(FilterName, CollectionName, InObject);
 	}
 
 	return false;
@@ -177,12 +212,10 @@ bool FObjectMixerEditorMainPanel::IsObjectInCollection(const FName& CollectionNa
 
 TSet<FName> FObjectMixerEditorMainPanel::GetCollectionsForObject(const FSoftObjectPath& InObject) const
 {
-	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			return SerializedData->GetCollectionsForObject(Filter->GetFName(), InObject);
-		}
+		return SerializedData->GetCollectionsForObject(FilterName, InObject);
 	}
 
 	return {};
@@ -190,12 +223,10 @@ TSet<FName> FObjectMixerEditorMainPanel::GetCollectionsForObject(const FSoftObje
 
 TArray<FName> FObjectMixerEditorMainPanel::GetAllCollectionNames() const
 {
-	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	FName FilterName;
+	if (UObjectMixerEditorSerializedData* SerializedData = GetSerializedDataOutputtingFilterName(FilterName))
 	{
-		if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
-		{
-			return SerializedData->GetAllCollectionNames(Filter->GetFName());
-		}
+		return SerializedData->GetAllCollectionNames(FilterName);
 	}
 
 	return {};
