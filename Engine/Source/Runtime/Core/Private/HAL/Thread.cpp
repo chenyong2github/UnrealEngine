@@ -5,6 +5,7 @@
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UniquePtr.h"
