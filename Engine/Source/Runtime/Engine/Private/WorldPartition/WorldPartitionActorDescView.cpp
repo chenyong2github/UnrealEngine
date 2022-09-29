@@ -58,6 +58,11 @@ bool FWorldPartitionActorDescView::GetActorIsEditorOnly() const
 	return ActorDesc->GetActorIsEditorOnly();
 }
 
+bool FWorldPartitionActorDescView::GetActorIsRuntimeOnly() const
+{
+	return ActorDesc->GetActorIsRuntimeOnly();
+}
+
 bool FWorldPartitionActorDescView::GetIsSpatiallyLoaded() const
 {
 	return bIsForcedNonSpatiallyLoaded ? false : ActorDesc->GetIsSpatiallyLoaded();

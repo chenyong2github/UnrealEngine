@@ -2025,6 +2025,7 @@ public:
 	virtual bool CanBeInCluster() const override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual bool IsEditorOnly() const override;
+	virtual bool IsRuntimeOnly() const { return false; }
 	virtual bool IsAsset() const override;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function

@@ -247,6 +247,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize ContentBundleGuid in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeContentBundleGuid,
 
+		// Serialize IsActorRuntimeOnly in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeActorIsRuntimeOnly,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

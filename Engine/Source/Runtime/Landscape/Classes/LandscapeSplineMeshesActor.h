@@ -29,6 +29,7 @@ public:
 	//~ Begin AActor Interface
 	virtual void CheckForErrors() override;
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	virtual bool IsRuntimeOnly() const override { return true; }
 	//~ End AActor Interface
 
 	//~ Begin APartitionActor Interface

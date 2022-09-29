@@ -90,6 +90,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline bool GetIsSpatiallyLoaded() const { return bIsForcedNonSpatiallyLoaded ? false : bIsSpatiallyLoaded; }
 	inline bool GetIsSpatiallyLoadedRaw() const { return bIsSpatiallyLoaded; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
+	inline bool GetActorIsRuntimeOnly() const { return bActorIsRuntimeOnly; }
 
 	UE_DEPRECATED(5.1, "GetLevelBoundsRelevant is deprecated.")
 	inline bool GetLevelBoundsRelevant() const { return false; }
@@ -201,10 +202,8 @@ public:
 	AActor* Load() const;
 	virtual void Unload();
 
-	UE_DEPRECATED(5.1, "ShouldBeLoadedByEditorCells is deprecated, ShouldBeLoadedByEditor should be used instead.")
-	bool ShouldBeLoadedByEditorCells() const { return ShouldBeLoadedByEditor(); }
-
-	virtual bool ShouldBeLoadedByEditor() const { return true; }
+	UE_DEPRECATED(5.1, "ShouldBeLoadedByEditorCells is deprecated, GetActorIsRuntimeOnly should be used instead.")
+	bool ShouldBeLoadedByEditorCells() const { return !GetActorIsRuntimeOnly(); }
 
 	virtual void Init(const AActor* InActor);
 	virtual void Init(const FWorldPartitionActorDescInitData& DescData);
@@ -249,6 +248,7 @@ protected:
 	FName							RuntimeGrid;
 	bool							bIsSpatiallyLoaded;
 	bool							bActorIsEditorOnly;
+	bool							bActorIsRuntimeOnly;
 	bool							bActorIsHLODRelevant;
 	bool							bIsUsingDataLayerAsset; // Used to know if DataLayers array represents DataLayers Asset paths or the FNames of the deprecated version of Data Layers
 	FName							HLODLayer;

@@ -31,7 +31,6 @@ protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
-	virtual bool ShouldBeLoadedByEditor() const override { return false; }
 	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const override { return !bIsForcedNonSpatiallyLoaded; }
 	//~ End FWorldPartitionActorDesc Interface.
 

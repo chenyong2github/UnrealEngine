@@ -63,6 +63,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	RuntimeGrid = InActor->GetRuntimeGrid();
 	bIsSpatiallyLoaded = InActor->GetIsSpatiallyLoaded();
 	bActorIsEditorOnly = InActor->IsEditorOnly();
+	bActorIsRuntimeOnly = InActor->IsRuntimeOnly();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
 	HLODLayer = InActor->GetHLODLayer() ? FName(InActor->GetHLODLayer()->GetPathName()) : FName();
 	
@@ -184,6 +185,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		BoundsExtent.Equals(Other->BoundsExtent, 0.1f) &&
 		RuntimeGrid == Other->RuntimeGrid &&
 		bActorIsEditorOnly == Other->bActorIsEditorOnly &&
+		bActorIsRuntimeOnly == Other->bActorIsRuntimeOnly &&
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant &&
 		bIsUsingDataLayerAsset == Other->bIsUsingDataLayerAsset &&
 		HLODLayer == Other->HLODLayer &&
@@ -253,7 +255,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 	if (Mode >= EToStringMode::Compact)
 	{
 		Result.Appendf(
-			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s HLODRelevant:%s"),
+			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s RuntimeOnly:%s HLODRelevant:%s"),
 			*BaseClass.ToString(), 
 			*NativeClass.ToString(), 
 			*GetActorName().ToString(),
@@ -262,6 +264,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 			*GetBounds().ToString(),
 			*RuntimeGrid.ToString(),
 			GetBoolStr(bActorIsEditorOnly),
+			GetBoolStr(bActorIsRuntimeOnly),
 			GetBoolStr(bActorIsHLODRelevant)
 		);
 
@@ -378,6 +381,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 		
 	Ar << RuntimeGrid << bActorIsEditorOnly;
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeActorIsRuntimeOnly)
+	{
+		Ar << bActorIsRuntimeOnly;
+	}
+	else
+	{
+		bActorIsRuntimeOnly = false;
+	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescRemoveBoundsRelevantSerialization)
 	{
