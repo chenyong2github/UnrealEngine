@@ -755,7 +755,19 @@ void UMovieSceneSequencePlayer::InitializeForTick(UObject* Context)
 	}
 }
 
+
+void UMovieSceneSequencePlayer::SetPlaybackSettings(const FMovieSceneSequencePlaybackSettings& InSettings)
+{
+	PlaybackSettings = InSettings;
+}
+
 void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings)
+{
+	PlaybackSettings = InSettings;
+	Initialize(InSequence);
+}
+
+void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 {
 	check(InSequence);
 	check(!bIsEvaluating);
@@ -771,7 +783,6 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 	}
 
 	Sequence = InSequence;
-	PlaybackSettings = InSettings;
 
 	FFrameTime StartTimeWithOffset = StartTime;
 

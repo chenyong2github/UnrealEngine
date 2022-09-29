@@ -129,9 +129,6 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(U
 
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(InWorld, InSequence, Settings, OutActor);
 
-	Player->Initialize(InSequence, InWorld->PersistentLevel, Settings, CameraSettings);
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *InSequence, *Player);
-
 	// Evaluation needs to occur in order to obtain spawnables
 	FFrameRate Resolution = InSequence->GetMovieScene()->GetTickResolution();
 	TRange<FFrameNumber> SpecifiedRange = InRange.ToNative(Resolution);
@@ -159,9 +156,6 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 	FLevelSequenceCameraSettings CameraSettings;
 
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(InWorld, InSequence, Settings, OutActor);
-
-	Player->Initialize(InSequence, InWorld->PersistentLevel, Settings, CameraSettings);
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *InSequence, *Player);
 
 	FFrameRate Resolution = InSequence->GetMovieScene()->GetTickResolution();
 	TRange<FFrameNumber> SpecifiedRange = InRange.ToNative(Resolution);
@@ -278,7 +272,6 @@ bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(const FSequencerExpo
 	FMovieSceneSequencePlaybackSettings Settings;
 	FLevelSequenceCameraSettings CameraSettings;
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(InParams.World, InParams.RootSequence, Settings, OutActor);
-	Player->Initialize(InParams.RootSequence, InParams.World->PersistentLevel, Settings, CameraSettings);
 
 	bool bSuccess = ExportFBXInternal(InParams, Player);
 	InParams.World->DestroyActor(OutActor);
@@ -327,8 +320,6 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 	FMovieSceneSequenceTransform RootToLocalTransform;
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
-	Player->Initialize(Sequence, World->PersistentLevel, Settings, CameraSettings);
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	bool bResult = false;
 	
@@ -646,7 +637,6 @@ bool ImportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 	}
 
 	const bool bMatchByNameOnly = ImportFBXSettings->bMatchByNameOnly;
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 	
@@ -677,7 +667,6 @@ bool USequencerToolsFunctionLibrary::ImportLevelSequenceFBX(UWorld* World, ULeve
 	FMovieSceneSequencePlaybackSettings Settings;
 	FLevelSequenceCameraSettings CameraSettings;
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
-	Player->Initialize(Sequence, World->GetLevel(0), Settings, CameraSettings);
 
 	bool bSuccess = ImportFBXInternal(World, Sequence, InBindings, ImportFBXSettings, ImportFilename, Player);
 	World->DestroyActor(OutActor);
@@ -707,8 +696,6 @@ bool USequencerToolsFunctionLibrary::ImportFBXToControlRig(UWorld* World, ULevel
 			FMovieSceneSequencePlaybackSettings Settings;
 			FLevelSequenceCameraSettings CameraSettings;
 			ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
-			Player->Initialize(Sequence, World->GetLevel(0), Settings, CameraSettings);
-			Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 			const TArray<UMovieSceneTrack*>& Tracks = Binding.GetTracks();
 			TArray<FName> SelectedControls;

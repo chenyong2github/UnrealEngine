@@ -92,9 +92,6 @@ static TArray<UObject*> GetBoundObjects(UWorld* World, ULevelSequence* LevelSequ
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, *OutActor);
 	*OutPlayer = Player;
 
-	Player->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
-
 	// Evaluation needs to occur in order to obtain spawnables
 	Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue().Value, EUpdatePositionMethod::Play));
 
@@ -642,8 +639,6 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 	else
 	{
 		Player = LevelPlayer = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, OutActor);
-		LevelPlayer->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
-		LevelPlayer->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
 	}
 	if (Player == nullptr)
 	{
@@ -929,8 +924,6 @@ static bool GetControlRigValues(UWorld* World, ULevelSequence* LevelSequence, UC
 		FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 		FMovieSceneSequenceTransform RootToLocalTransform;
 		ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, OutActor);
-		Player->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
-		Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
 		return LocalGetControlRigControlValues(Player, LevelSequence, Template, RootToLocalTransform,
 			ControlRig, ControlName,TimeUnit, Frames, OutValues);
 
@@ -2120,8 +2113,6 @@ bool UControlRigSequencerEditorLibrary::ImportFBXToControlRigTrack(UWorld* World
 	FMovieSceneSequencePlaybackSettings Settings;
 	FLevelSequenceCameraSettings CameraSettings;
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
-	Player->Initialize(Sequence, World->GetLevel(0), Settings, CameraSettings);
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(InTrack);
 	if (ChannelMapping)

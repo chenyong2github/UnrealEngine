@@ -92,6 +92,7 @@ void ALevelSequenceActor::PostInitProperties()
 	// Have to initialize this here as any properties set on default subobjects inside the constructor
 	// Get stomped by the CDO's properties when the constructor exits.
 	SequencePlayer->SetPlaybackClient(this);
+	SequencePlayer->SetPlaybackSettings(PlaybackSettings);
 }
 
 void ALevelSequenceActor::RewindForReplay()
@@ -211,6 +212,8 @@ void ALevelSequenceActor::PostLoad()
 		bAutoPlay_DEPRECATED = false;
 	}
 
+	SequencePlayer->SetPlaybackSettings(PlaybackSettings);
+
 #if WITH_EDITORONLY_DATA
 	if (LevelSequence_DEPRECATED.IsValid())
 	{
@@ -257,7 +260,7 @@ void ALevelSequenceActor::SetSequence(ULevelSequence* InSequence)
 		// cbb: should ideally null out the template and player when no sequence is assigned, but that's currently not possible
 		if (InSequence)
 		{
-			SequencePlayer->Initialize(InSequence, GetLevel(), PlaybackSettings, CameraSettings);
+			SequencePlayer->Initialize(InSequence, GetLevel(), CameraSettings);
 		}
 	}
 }
@@ -269,7 +272,7 @@ void ALevelSequenceActor::InitializePlayer()
 		// Level sequence is already loaded. Initialize the player if it's not already initialized with this sequence
 		if (LevelSequenceAsset != SequencePlayer->GetSequence())
 		{
-			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings, CameraSettings);
+			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), CameraSettings);
 		}
 	}
 }

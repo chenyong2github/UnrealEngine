@@ -250,7 +250,7 @@ struct FMovieSceneSequencePlayToParams
 
 template<> struct TStructOpsTypeTraits<FMovieSceneSequencePlaybackSettings> : public TStructOpsTypeTraitsBase2<FMovieSceneSequencePlaybackSettings>
 {
-	enum { WithCopy = true, WithStructuredSerializeFromMismatchedTag = true };
+	enum { WithStructuredSerializeFromMismatchedTag = true };
 };
 
 /**
@@ -509,6 +509,12 @@ public:
 
 	/** Ensure that this player's tick manager is set up correctly for the specified context */
 	void InitializeForTick(UObject* Context);
+
+	/** Assign this player's playback settings */
+	void SetPlaybackSettings(const FMovieSceneSequencePlaybackSettings& InSettings);
+
+	/** Initialize this player using its existing playback settings */
+	void Initialize(UMovieSceneSequence* InSequence);
 
 	/** Initialize this player with a sequence and some settings */
 	void Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings);

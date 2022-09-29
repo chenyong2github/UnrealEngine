@@ -170,8 +170,6 @@ bool FControlRigSnapper::GetControlRigControlTransforms(UWorld* World,ULevelSequ
 		FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 		FMovieSceneSequenceTransform RootToLocalTransform;
 		ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, OutActor);
-		Player->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
-		Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
 		TOptional<FFrameNumber> OptFrame;
 		bool Success = LocalGetControlRigControlTransforms(Player, OptFrame, LevelSequence, Template, RootToLocalTransform,
 			ControlRig, ControlName, Frames, ParentTransforms, OutTransforms);
