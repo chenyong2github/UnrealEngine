@@ -267,8 +267,8 @@ public:
 	void* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
-	TArray<FBulkData*> BulkDataLoaders;
-	TArray<UE::Serialization::FEditorBulkData*> EditorBulkDataLoaders;
+	TSet<FBulkData*> BulkDataLoaders;
+	TSet<UE::Serialization::FEditorBulkData*> EditorBulkDataLoaders;
 #endif // WITH_EDITOR
 
 	/** Hash table for exports.																								*/
