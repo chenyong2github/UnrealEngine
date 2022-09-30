@@ -1096,15 +1096,13 @@ void UWorldPartition::Serialize(FArchive& Ar)
 	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
 	{
 		Ar << StreamingPolicy;
+
 #if WITH_EDITORONLY_DATA
 		Ar << GeneratedStreamingPackageNames;
 #endif
 
 #if WITH_EDITOR
-		if (Ar.IsLoading())
-		{
-			bIsPIE = true;
-		}
+		Ar << bIsPIE;
 #endif
 	}
 	else if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionSerializeStreamingPolicyOnCook)
