@@ -7,6 +7,7 @@
 #include "ConsoleVariablesEditorCommandInfo.h"
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorModule.h"
+#include "MultiUser/ConsoleVariableSync.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/SConsoleVariablesEditorMainPanel.h"
 
@@ -62,13 +63,23 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToCurrentPreset(
 {
 	if (const TObjectPtr<UConsoleVariablesAsset> Asset = GetEditingAsset())
 	{
+		const FString TrimmedCommand = InConsoleCommand.TrimStartAndEnd();
+		FConsoleVariablesEditorAssetSaveData ExistingData;
+		const bool bHadCommandInAsset = Asset->FindSavedDataByCommandString(TrimmedCommand, ExistingData, ESearchCase::IgnoreCase);
+
 		Asset->AddOrSetConsoleObjectSavedData(
 			{
-				InConsoleCommand.TrimStartAndEnd(),
+				TrimmedCommand,
 				InValue,
 				ECheckBoxState::Checked
 			}
 		);
+		if (!bHadCommandInAsset)
+		{
+			GetConsoleVariablesModule().SendMultiUserConsoleVariableChange(
+				ERemoteCVarChangeType::Add,
+				TrimmedCommand, InValue);
+		}
 
 		if (GetEditorList().Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
 		{
@@ -309,11 +320,11 @@ void FConsoleVariablesEditorMainPanel::OnConnectionChanged(EConcertConnectionSta
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::OnRemoteCvarChange(const FString InName, const FString InValue)
+void FConsoleVariablesEditorMainPanel::OnRemoteCvarChange(ERemoteCVarChangeType InChangeType, FString InName, FString InValue)
 {
 	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
-	ConsoleVariablesEditorModule.OnRemoteCvarChanged(InName, InValue);
+	ConsoleVariablesEditorModule.OnRemoteCvarChanged(InChangeType, MoveTemp(InName), MoveTemp(InValue));
 }
 
 void FConsoleVariablesEditorMainPanel::OnRemoteListItemCheckStateChange(const FString InName, ECheckBoxState InCheckedState)

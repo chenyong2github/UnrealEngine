@@ -5,6 +5,7 @@
 #include "ConsoleVariablesEditorList.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorStyle.h"
+#include "MultiUser/ConsoleVariableSync.h"
 #include "SConsoleVariablesEditorListValueInput.h"
 #include "Views/Widgets/SConsoleVariablesEditorTooltipWidget.h"
 
@@ -441,18 +442,10 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 			if (PinnedItem->IsRowChecked())
 			{
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(PinnedItem->GetCachedValue());
-
-				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-					PinnedItem->GetCommandInfo().Pin()->Command, PinnedItem->GetCachedValue());
 			}
 			else
 			{
 				PinnedItem->ResetToStartupValueAndSource();
-
-				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-					PinnedItem->GetCommandInfo().Pin()->Command,
-					PinnedItem->GetCommandInfo().Pin()->StartupValueAsString
-				);
 			}
 		}
 

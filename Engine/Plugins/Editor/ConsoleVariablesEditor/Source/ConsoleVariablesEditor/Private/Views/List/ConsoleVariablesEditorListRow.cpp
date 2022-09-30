@@ -7,6 +7,7 @@
 
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
+#include "MultiUser/ConsoleVariableSync.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/List/SConsoleVariablesEditorList.h"
 
@@ -318,7 +319,7 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
 	const FString& CommandName = GetCommandInfo().Pin()->Command;
-
+	const FString& StartupValue = GetCommandInfo().Pin()->StartupValueAsString;
 	const TObjectPtr<UConsoleVariablesAsset> EditableAsset = ConsoleVariablesEditorModule.GetPresetAsset();
 	check(EditableAsset);
 
@@ -338,6 +339,8 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 		else
 		{
 			EditableAsset->RemoveConsoleVariable(CommandName);
+
+			ConsoleVariablesEditorModule.SendMultiUserConsoleVariableChange(ERemoteCVarChangeType::Remove, CommandName, StartupValue);
 		}
 	}
 	else
@@ -346,6 +349,7 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 
 		EditableAsset->RemoveConsoleVariable(CommandName);
 
+		ConsoleVariablesEditorModule.SendMultiUserConsoleVariableChange(ERemoteCVarChangeType::Remove, CommandName, StartupValue);
 		ListViewPtr.Pin()->RebuildListWithListMode(ListViewPtr.Pin()->GetListModelPtr().Pin()->GetListMode());
 	}
 

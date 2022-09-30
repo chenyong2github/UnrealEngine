@@ -7,6 +7,7 @@
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorProjectSettings.h"
 #include "ConsoleVariablesEditorStyle.h"
+#include "MultiUser/ConsoleVariableSync.h"
 #include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
@@ -258,7 +259,7 @@ bool FConsoleVariablesEditorModule::PopulateGlobalSearchAssetWithVariablesMatchi
 	return EditingGlobalSearchAsset->GetSavedCommandsCount() > 0;
 }
 
-void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString)
+void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(ERemoteCVarChangeType InChangeType, const FString& InVariableName, const FString& InValueAsString)
 {
 	if (GEditor && GEditor->IsPlaySessionInProgress() && !bHaveWarnedAboutPIE)
 	{
@@ -268,10 +269,10 @@ void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FSt
 	}
 
 	bHaveWarnedAboutPIE = false;
-	MainPanel->GetMultiUserManager().SendConsoleVariableChange(InVariableName, InValueAsString);
+	MainPanel->GetMultiUserManager().SendConsoleVariableChange(InChangeType, InVariableName, InValueAsString);
 }
 
-void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, const FString InValue)
+void FConsoleVariablesEditorModule::OnRemoteCvarChanged(ERemoteCVarChangeType InChangeType, const FString InName, const FString InValue)
 {
 	if (GEditor && GEditor->IsPlaySessionInProgress() && !bHaveWarnedAboutPIE)
 	{
@@ -283,35 +284,31 @@ void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, co
 	bHaveWarnedAboutPIE = false;
 	UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
 
-	CommandsRecentlyReceivedFromMultiUser.Add(InName, InValue);
-
 	if (GetDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
 	{
-		bool bShouldExecute = true;
-		
-		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
-			FindCommandInfoByName(InName); CommandInfo.IsValid())
+		FScopeMultiUserReceiveCVar CVarChange(*InName, CommandsReceivedFromMultiUser);
+
+		GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
+					  *FString::Printf(TEXT("%s %s"), *InName, *InValue));
+
+		if (InChangeType == ERemoteCVarChangeType::Remove)
 		{
-			bShouldExecute = CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(InValue);
+			EditingPresetAsset->RemoveConsoleVariable(InName);
+		}
+		else
+		{
+			EditingPresetAsset->AddOrSetConsoleObjectSavedData(
+			{
+				InName,
+				InValue,
+				ECheckBoxState::Checked
+			}
+			);
 		}
 
-		if (bShouldExecute)
+		if (MainPanel->GetEditorListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
 		{
-			GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
-				*FString::Printf(TEXT("%s %s"), *InName, *InValue));
-			
-			EditingPresetAsset->AddOrSetConsoleObjectSavedData(
-				{
-					InName,
-					InValue,
-					ECheckBoxState::Checked
-				}
-			);
-
-			if (MainPanel->GetEditorListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
-			{
-				MainPanel->RebuildList();
-			}
+			MainPanel->RebuildList();
 		}
 	}
 }
@@ -354,6 +351,11 @@ void FConsoleVariablesEditorModule::RegisterProjectSettings() const
 
 void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* ChangedVariable)
 {
+	if (IsEngineExitRequested())
+	{
+		return;
+	}
+
 	check(EditingPresetAsset);
 
 	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
@@ -361,13 +363,13 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 	{
 		const TSharedPtr<FConsoleVariablesEditorCommandInfo>& PinnedCommand = CommandInfo.Pin();
 		const FString& Key = PinnedCommand->Command;
-		
+
 		FConsoleVariablesEditorAssetSaveData FoundData;
 		bool bIsVariableCurrentlyTracked = EditingPresetAsset->FindSavedDataByCommandString(Key, FoundData, ESearchCase::IgnoreCase);
 
 		const UConsoleVariablesEditorProjectSettings* Settings = GetDefault<UConsoleVariablesEditorProjectSettings>();
 		check(Settings);
-		
+
 		if (!bIsVariableCurrentlyTracked)
 		{
 			// If not yet tracked and we want to track variable changes from outside the dialogue,
@@ -393,30 +395,24 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 			}
 		}
 
+		if (MainPanel.IsValid())
+		{
+			MainPanel->RefreshList();
+		}
+
 		// If the variable is already tracked or was just added to tracking, run the following code
 		if (bIsVariableCurrentlyTracked)
 		{
-			if (MainPanel.IsValid())
-			{
-				MainPanel->RefreshList();
-			}
-			
 			/**
 			 * Here we check the map of recently received variables from other nodes
 			 * If the command is in the map and the value is similar, we won't send the value to other nodes
 			 * because we can assume that this value came from another node.
 			 * This prevents a feedback loop.
 			 */
-			if (const FString* MatchedValue = CommandsRecentlyReceivedFromMultiUser.Find(Key))
+			if (!CommandsReceivedFromMultiUser.Find(Key))
 			{
-				if (MatchedValue->Equals(ChangedVariable->GetString()))
-				{
-					CommandsRecentlyReceivedFromMultiUser.Remove(Key);
-					return;
-				}
+				SendMultiUserConsoleVariableChange(ERemoteCVarChangeType::Update, Key, ChangedVariable->GetString());
 			}
-				
-			SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
 		}
 	}
 }

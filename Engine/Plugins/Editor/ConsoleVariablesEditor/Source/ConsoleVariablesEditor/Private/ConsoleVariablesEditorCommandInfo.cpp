@@ -26,7 +26,7 @@ void FConsoleVariablesEditorCommandInfo::ExecuteCommand(
 	}
 	if (bShouldTransactInConcert)
 	{
-		FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(Command, NewValueAsString);
+		FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(ERemoteCVarChangeType::Update, Command, NewValueAsString);
 	}
 }
 

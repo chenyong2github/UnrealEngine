@@ -87,10 +87,27 @@ struct FConcertCVarSyncChangeEvent
 	bool bSyncCVarChanges = true;
 };
 
+UENUM()
+enum class EConsoleVariableChangeType : uint8
+{
+	/** The console variable was modified */
+	Modify = 0,
+
+	/** A console variable was added to the CVE asset */
+	Add,
+
+	/** A console variable was removed to the CVE asset */
+	Remove
+};
+
 USTRUCT()
 struct FConcertSetConsoleVariableEvent
 {
 	GENERATED_BODY()
+
+	/** */
+	UPROPERTY()
+	EConsoleVariableChangeType ChangeType = EConsoleVariableChangeType::Modify;
 
 	/** Console variable name to apply value change. */
 	UPROPERTY()

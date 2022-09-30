@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ConsoleVariablesEditorModule.h"
+#include "MultiUser/ConsoleVariableSync.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Widgets/SWidget.h"
 
@@ -85,7 +86,7 @@ private:
 	TSharedPtr<FConsoleVariablesEditorList> EditorList;
 
 	static void OnConnectionChanged(EConcertConnectionStatus Status);
-	static void OnRemoteCvarChange(const FString InName, const FString InValue);
+	static void OnRemoteCvarChange(ERemoteCVarChangeType InChangeType, FString InName, FString InValue);
 	static void OnRemoteListItemCheckStateChange(const FString InName, ECheckBoxState InCheckedState);
 	
 	void SendListItemCheckStateChange(const FString& InName, ECheckBoxState InCheckedState);

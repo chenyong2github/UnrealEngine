@@ -10,7 +10,14 @@
 
 #include "ConcertMessages.h"
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRemoteCVarChange, FString, FString);
+enum class ERemoteCVarChangeType : uint8
+{
+	Update = 0,
+	Add,
+	Remove
+};
+
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnRemoteCVarChange, ERemoteCVarChangeType, FString, FString);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRemoteListItemCheckStateChange, FString, ECheckBoxState);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMultiUserConnectionChange, EConcertConnectionStatus);
 
@@ -40,8 +47,8 @@ struct FManager
 	FOnMultiUserConnectionChange& OnConnectionChange();
 
 	/** Sends the named console variable with value to all connected Multi-user clients */
-	void SendConsoleVariableChange(FString InName, FString InValue);
-	
+	void SendConsoleVariableChange(ERemoteCVarChangeType InChangeType, FString InName, FString InValue);
+
 	/** Sends the named console variable with value to all connected Multi-user clients */
 	void SendListItemCheckStateChange(FString InName, ECheckBoxState InCheckedState);
 

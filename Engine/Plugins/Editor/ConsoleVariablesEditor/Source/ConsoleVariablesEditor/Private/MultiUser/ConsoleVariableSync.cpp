@@ -306,16 +306,37 @@ struct FManagerImpl
 		}
 	}
 
+	static EConsoleVariableChangeType ConvertChangeType(ERemoteCVarChangeType InType)
+	{
+		switch (InType)
+		{
+		case ERemoteCVarChangeType::Add: return EConsoleVariableChangeType::Add;
+		case ERemoteCVarChangeType::Remove: return EConsoleVariableChangeType::Remove;
+		default:
+			return EConsoleVariableChangeType::Modify;
+		}
+	}
+
+	static ERemoteCVarChangeType ConvertChangeType(EConsoleVariableChangeType InType)
+	{
+		switch (InType)
+		{
+		case EConsoleVariableChangeType::Add: return ERemoteCVarChangeType::Add;
+		case EConsoleVariableChangeType::Remove: return ERemoteCVarChangeType::Remove;
+		default:
+			return ERemoteCVarChangeType::Update;
+		}
+	}
 	void HandleCVarSet(const FConcertSessionContext& Context, const FConcertSetConsoleVariableEvent& InEvent)
 	{
 		if (CanReceiveConsoleVariable())
 		{
-			RemoteCVarChanged.Broadcast(InEvent.Variable, InEvent.Value);
+			RemoteCVarChanged.Broadcast(ConvertChangeType(InEvent.ChangeType), InEvent.Variable, InEvent.Value);
 		}
 	}
 
-	/** 
-	 * Register a new multi-user session. 
+	/**
+	 * Register a new multi-user session.
 	 */
 	void Register(TSharedRef<IConcertClientSession> InSession)
 	{
@@ -393,7 +414,7 @@ struct FManagerImpl
 	 * Sends the given console variable name with the specified value to all connected endpoints.  It is up to the
 	 * endpoint to implement the change locally based on configured synchronization state.
 	 */
-	void SendConsoleVariableChange(FString InName, FString InValue)
+	void SendConsoleVariableChange(ERemoteCVarChangeType InChangeType, FString InName, FString InValue)
 	{
 		TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
 		if (!bIsEnabled || !Session.IsValid())
@@ -401,7 +422,7 @@ struct FManagerImpl
 			return;
 		}
 
-		FConcertSetConsoleVariableEvent OutEvent{MoveTemp(InName), MoveTemp(InValue)};
+		FConcertSetConsoleVariableEvent OutEvent{ConvertChangeType(InChangeType), MoveTemp(InName), MoveTemp(InValue)};
 		Session->SendCustomEvent(OutEvent, Session->GetSessionClientEndpointIds(),
 								 EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 	}
@@ -473,9 +494,9 @@ FOnMultiUserConnectionChange& FManager::OnConnectionChange()
 	return Implementation->ConnectionChanged;
 }
 
-void FManager::SendConsoleVariableChange(FString InName, FString InValue)
+void FManager::SendConsoleVariableChange(ERemoteCVarChangeType InChangeType, FString InName, FString InValue)
 {
-	Implementation->SendConsoleVariableChange(MoveTemp(InName), MoveTemp(InValue));
+	Implementation->SendConsoleVariableChange(InChangeType, MoveTemp(InName), MoveTemp(InValue));
 }
 
 void FManager::SendListItemCheckStateChange(FString InName, ECheckBoxState InCheckedState)

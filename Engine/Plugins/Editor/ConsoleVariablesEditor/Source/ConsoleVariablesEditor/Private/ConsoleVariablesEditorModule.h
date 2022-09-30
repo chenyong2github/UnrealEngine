@@ -84,13 +84,50 @@ public:
 	/** Fills Global Search Asset's Saved Commands with variables matching the specified query. Returns false if no matches were found. */
 	bool PopulateGlobalSearchAssetWithVariablesMatchingTokens(const TArray<FString>& InTokens);
 
-	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString);
-	void OnRemoteCvarChanged(const FString InName, const FString InValue);
+	void SendMultiUserConsoleVariableChange(ERemoteCVarChangeType InChangeType, const FString& InVariableName, const FString& InValueAsString);
+	void OnRemoteCvarChanged(ERemoteCVarChangeType InChangeType, FString InName, FString InValue);
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector )  override;
 	virtual FString GetReferencerName() const override;
 
 private:
+	/** Scoped based struct to track inbound cvars set by Multi-user. */
+	struct FScopeMultiUserReceiveCVar
+	{
+		FScopeMultiUserReceiveCVar() = delete;
+		FScopeMultiUserReceiveCVar(const FScopeMultiUserReceiveCVar&) = delete;
+		FScopeMultiUserReceiveCVar& operator=(const FScopeMultiUserReceiveCVar&) = delete;
+
+		FScopeMultiUserReceiveCVar(FString InCommand, TMap<FString, int32>& InTable)
+			: TrackedCommand(MoveTemp(InCommand)),
+			  InboundCommandTable(InTable)
+		{
+			if (int32* Value = InboundCommandTable.Find(TrackedCommand))
+			{
+				*Value = *Value + 1;
+			}
+			else
+			{
+				int32& NewValue = InboundCommandTable.Add(TrackedCommand);
+				NewValue = 0;
+			}
+		}
+
+		~FScopeMultiUserReceiveCVar()
+		{
+			if (int32* Value = InboundCommandTable.Find(TrackedCommand))
+			{
+				*Value = *Value - 1;
+				if (*Value == 0)
+				{
+					InboundCommandTable.Remove(TrackedCommand);
+				}
+			}
+		}
+
+		FString TrackedCommand;
+		TMap<FString, int32>& InboundCommandTable;
+	};
 
 	void OnFEngineLoopInitComplete();
 
@@ -107,7 +144,7 @@ private:
 	TSharedRef<SDockTab> SpawnMainPanelTab(const FSpawnTabArgs& Args);
 
 	static void OpenConsoleVariablesEditor();
-	
+
 	static const FName ConsoleVariablesToolkitPanelTabId;
 
 	/** Lives for as long as the module is loaded. */
@@ -122,12 +159,11 @@ private:
 	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleObjectsMainReference;
 
 	/**
-	 * A list of CommandName/ValueAsString pairs of commands received from MU.
-	 * When this node receives a command and value from another node, it will be added to this list.
-	 * This list will be checked against detected local cvar changes and,
-	 * if the command and value match an item in this map, the change will not be propagated to other nodes.
+	 * A map of commands invoked by Multi-user.  Each command has a corresponding reference count.
+	 * When this node receives a command from another node, it will be added to this list.  This is prevent
+	 * a remote cvar change creating a ping/pong cvar updates effect between nodes.
 	 */
-	TMap<FString, FString> CommandsRecentlyReceivedFromMultiUser;
+	TMap<FString, int32> CommandsReceivedFromMultiUser;
 
 	/* Have we warned the user about PIE and Console Variable Editor */
 	bool bHaveWarnedAboutPIE = false;
