@@ -316,7 +316,7 @@ void FAnimNode_FootPlacement::FindPelvisOffsetRangeForLimb(
 		const FVector ToFKFoot = (FKFootProjected - PlantTargetLocationCS);
 		const FVector ToFKFootDir = ToFKFoot.GetSafeNormal();
 		const float ToFKDistance = ToFKFoot.Size();
-		PlantTargetLocationCS = PlantTargetLocationCS + ToFKFootDir * FMath::Min(ToFKDistance, Bones.FootLength);
+		PlantTargetLocationCS = PlantTargetLocationCS + ToFKFootDir * FMath::Min(ToFKDistance, Bones.FootLength) * PelvisSettings.HeelLiftRatio;
 
 		// Calculate new correction offset and direction
 		TargetFootToHip = HipProjected - PlantTargetLocationCS;
@@ -704,7 +704,7 @@ bool FAnimNode_FootPlacement::WantsToPlant(
 	}
 #endif
 
-	if (PlantSettings.LockType == EFootPlacementLockType::Unlocked)
+	if ((PlantSettings.LockType == EFootPlacementLockType::Unlocked) || FMath::IsNearlyZero(LegInputPose.LockAlpha))
 	{
 		return false;
 	}
@@ -1076,8 +1076,6 @@ void FAnimNode_FootPlacement::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 		// TODO: All of these can be calculated on initialize, but in case there's value in changing these dynamically,
 		// will keep this for now. If needed, change to lazy update.
-		PlantRuntimeSettings.MaxExtensionRatioSqrd = PlantSettings.MaxExtensionRatio * PlantSettings.MaxExtensionRatio;
-		PlantRuntimeSettings.MinExtensionRatioSqrd = PlantSettings.MinExtensionRatio * PlantSettings.MinExtensionRatio;
 		PlantRuntimeSettings.UnplantRadiusSqrd = PlantSettings.UnplantRadius * PlantSettings.UnplantRadius;
 		PlantRuntimeSettings.ReplantRadiusSqrd =
 			PlantRuntimeSettings.UnplantRadiusSqrd *
@@ -1243,6 +1241,7 @@ void FAnimNode_FootPlacement::InitializeBoneReferences(const FBoneContainer& Req
 		const FTransform BallTransformLS = RequiredBones.GetRefPoseTransform(LegData.Bones.BallIndex);
 		LegData.Bones.FootLength = BallTransformLS.GetLocation().Size();
 
+#if ENABLE_ANIM_DEBUG
 		// TODO: This wont work for animations authored for different slopes or stairs. Figure this out later
 		const FVector RefPoseGroundNormalCS = FVector::UpVector;
 		const FTransform BallRefTransformCS = FAnimationRuntime::GetComponentSpaceRefPose(
@@ -1258,15 +1257,13 @@ void FAnimNode_FootPlacement::InitializeBoneReferences(const FBoneContainer& Req
 		const FVector FootAlignmentDeltaCS = -FKFootTransformCS.GetLocation();
 		const FVector FootAlignmentOffsetCS = (FootAlignmentDeltaCS | RefPoseGroundNormalCS) * RefPoseGroundNormalCS;
 		LegData.InputPose.FootToGround = FTransform(FKFootTransformCS.GetRotation().UnrotateVector(FootAlignmentOffsetCS));
+#endif 
 
 		const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
 		check(Skeleton);
-		SmartName::UID_Type NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, LegDef.SpeedCurveName);
-		if (NameUID != SmartName::MaxUID)
-		{
-			// Grab UIDs of filtered curves to avoid lookup later
-			LegData.SpeedCurveUID = NameUID;
-		}
+		// Grab UIDs of filtered curves to avoid lookup later
+		LegData.SpeedCurveUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, LegDef.SpeedCurveName);
+		LegData.DisableLockCurveUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, LegDef.DisableLockCurveName);
 	}
 
 	PelvisBone.Initialize(RequiredBones);
@@ -1288,7 +1285,6 @@ void FAnimNode_FootPlacement::GatherPelvisDataFromInputs(const UE::Anim::FootPla
 	// TODO: All of these can be calculated on initialize, but in case there's value in changing these dynamically,
 	// will keep this for now. If needed, change to lazy update.
 	PelvisData.MaxOffsetSqrd = PelvisSettings.MaxOffset * PelvisSettings.MaxOffset;
-	PelvisData.MaxOffsetHorizontalSqrd = PelvisSettings.MaxOffsetHorizontal * PelvisSettings.MaxOffsetHorizontal;
 }
 
 void FAnimNode_FootPlacement::GatherLegDataFromInputs(
@@ -1355,6 +1351,9 @@ void FAnimNode_FootPlacement::GatherLegDataFromInputs(
 		LegData.InputPose.Speed =
 			Context.CSPContext.Curve.Get(LegData.SpeedCurveUID, bValidSpeedCurve, DefaultSpeedCurveValue);
 	}
+
+	// Grab the lock curve's alpha. If the curve isn't set, then LockAlpha is full weight.
+	LegData.InputPose.LockAlpha = 1.0f - Context.CSPContext.Curve.Get(LegData.DisableLockCurveUID);
 
 	LegData.InputPose.DistanceToPlant = CalcTargetPlantPlaneDistance(Context, LegData.InputPose);
 	const float FKAlignmentAlpha = GetAlignmentAlpha(Context, LegData.InputPose);
@@ -1578,7 +1577,14 @@ void FAnimNode_FootPlacement::ProcessFootAlignment(
 #endif
 	}
 
-	LegData.UnalignedFootTransformWS = FootUnalignedTransformCS * Context.OwningComponentToWorld;
+	FTransform BlendedUnalignedTransformCS;
+	{
+		// Blend the component-space input pose, with the unaligned foot-locked transform.
+		// Allow ground alignment to continue with this blended result.
+		// When the lock alpha reaches 0, we will automatically unlock the foot.
+		BlendedUnalignedTransformCS.Blend(InputPose.FootTransformCS, FootUnalignedTransformCS, InputPose.LockAlpha);
+		LegData.UnalignedFootTransformWS = BlendedUnalignedTransformCS * Context.OwningComponentToWorld;
+	}
 
 	const FTransform ComponentToWorldInv = Context.OwningComponentToWorld.Inverse();
 
@@ -1638,8 +1644,8 @@ FTransform FAnimNode_FootPlacement::SolvePelvis(const UE::Anim::FootPlacement::F
 		}
 
 		// Remove the vertical component
-		PelvisOffsetDelta = OffsetAverage - Context.ApproachDirCS.Dot(OffsetAverage) * Context.ApproachDirCS;
-		RebalancedPelvisTransform.SetLocation(RebalancedPelvisTransform.GetLocation() + OffsetAverage * PelvisSettings.HorizontalRebalancingWeight);
+		PelvisOffsetDelta = (OffsetAverage - Context.ApproachDirCS.Dot(OffsetAverage) * Context.ApproachDirCS) * PelvisSettings.HorizontalRebalancingWeight;
+		RebalancedPelvisTransform.SetLocation(RebalancedPelvisTransform.GetLocation() + PelvisOffsetDelta);
 	}
 
 	// Taken from http://runevision.com/thesis/rune_skovbo_johansen_thesis.pdf
