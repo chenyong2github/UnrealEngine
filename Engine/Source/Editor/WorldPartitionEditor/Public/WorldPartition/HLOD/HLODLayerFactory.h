@@ -13,7 +13,7 @@ class UClass;
 class UObject;
 
 UCLASS(MinimalAPI, hidecategories = Object)
-class UHLODLayerFactory : public UFactory
+class WORLDPARTITIONEDITOR_API UHLODLayerFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
