@@ -110,10 +110,6 @@ FSessionEOSGS::FSessionEOSGS(const TSharedPtr<FSessionDetailsHandleEOSGS>& InSes
 				{
 					SessionSettings.SchemaName = FSchemaId(CustomSettingData.Value.GetString());
 				}
-				else if (Key == EOSGS_SESSION_ID_OVERRIDE_ATTRIBUTE_KEY.ToString())
-				{
-					SessionInfo.SessionIdOverride = CustomSettingData.Value.GetString();
-				}
 				else // The rest are parsed as a Custom Session Setting
 				{
 					FCustomSessionSetting CustomSessionSetting;
@@ -580,7 +576,6 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 	SetMaxPlayers(SessionModificationHandle, Params.SessionSettings.NumMaxConnections);
 
 	AddAttribute(SessionModificationHandle, EOSGS_SCHEMA_NAME_ATTRIBUTE_KEY, { FSchemaVariant(Params.SessionSettings.SchemaName.ToString()), ESchemaAttributeVisibility::Public });
-	AddAttribute(SessionModificationHandle, EOSGS_SESSION_ID_OVERRIDE_ATTRIBUTE_KEY, { FSchemaVariant(Params.SessionIdOverride), ESchemaAttributeVisibility::Public });
 
 	EOS_ProductUserId OwnerPUID = GetProductUserId(Params.LocalAccountId);
 	AddAttribute(SessionModificationHandle, EOSGS_OWNER_ACCOUNT_ID_ATTRIBUTE_KEY, { FSchemaVariant(LexToString(OwnerPUID)), ESchemaAttributeVisibility::Public });
