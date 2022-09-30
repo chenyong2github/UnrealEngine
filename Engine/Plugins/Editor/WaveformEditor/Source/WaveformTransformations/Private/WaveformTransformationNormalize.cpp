@@ -103,6 +103,7 @@ FWaveTransformationNormalize::FWaveTransformationNormalize(float InTarget, float
 		}
 	case ENormalizationMode::RMS:
 		PeakDecibelValue = GetRMSPeak(InputAudio, InOutWaveInfo.SampleRate, InOutWaveInfo.NumChannels);
+		PeakDecibelValue = Audio::ConvertToDecibels(PeakDecibelValue);
 		break;
 	case ENormalizationMode::DWeightedLoudness:
 		PeakDecibelValue = GetLoudnessPeak(InputAudio,  InOutWaveInfo.SampleRate, InOutWaveInfo.NumChannels);
