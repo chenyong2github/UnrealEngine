@@ -21,7 +21,7 @@ struct SYNTHESIS_API FSourceEffectEQBand
 	float Bandwidth;
 
 	// The gain in decibels to apply to the eq band
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (ClampMin = "-90.0", ClampMax = "20.0", UIMin = "-90.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Gain (dB)", ClampMin = "-90.0", ClampMax = "20.0", UIMin = "-90.0", UIMax = "20.0"))
 	float GainDb;
 
 	// Whether or not the band is enabled. Allows changing bands on the fly.

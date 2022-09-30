@@ -34,15 +34,15 @@ struct SYNTHESIS_API FDynamicsBandSettings
 	float Ratio = 1.5f;
 
 	// The knee bandwidth of the compressor to use in dB
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (ClampMin = "0.0", ClampMax = "20.0", UIMin = "0.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (DisplayName = "Knee (dB)", ClampMin = "0.0", ClampMax = "20.0", UIMin = "0.0", UIMax = "20.0"))
 	float KneeBandwidthDb = 10.f;
 
 	// The input gain of the dynamics processor in dB
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gain, meta = (ClampMin = "-12.0", ClampMax = "20.0", UIMin = "-12.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gain, meta = (DisplayName = "Input Gain (dB)", ClampMin = "-12.0", ClampMax = "20.0", UIMin = "-12.0", UIMax = "20.0"))
 	float InputGainDb = 0.f;
 
 	// The output gain of the dynamics processor in dB
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gain, meta = (ClampMin = "-12.0", ClampMax = "20.0", UIMin = "-12.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gain, meta = (DisplayName = "Output Gain (dB)", ClampMin = "-12.0", ClampMax = "20.0", UIMin = "-12.0", UIMax = "20.0"))
 	float OutputGainDb = 0.f;
 };
 

@@ -74,14 +74,13 @@ class AUDIOSYNESTHESIA_API UConstantQNRTSettings : public UAudioSynesthesiaNRTSe
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
 		float StartingFrequency;
 
-        /** Total number of resulting constant Q bands. */
+		/** Total number of resulting constant Q bands. */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "1", ClampMax = "96"))
 		int32 NumBands;
 
 		/** Number of bands within an octave. */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "1", ClampMax = "24"))
-		float NumBandsPerOctave;                        
-
+		float NumBandsPerOctave;
 		/** Number of seconds between cqt measurements */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "1.0"))
 		float AnalysisPeriod;
@@ -96,7 +95,7 @@ class AUDIOSYNESTHESIA_API UConstantQNRTSettings : public UAudioSynesthesiaNRTSe
 
 		/** Type of window to be applied to input audio */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
-        EFFTWindowType WindowType;
+		EFFTWindowType WindowType;
 
 		/** Type of spectrum to use. */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
@@ -104,14 +103,14 @@ class AUDIOSYNESTHESIA_API UConstantQNRTSettings : public UAudioSynesthesiaNRTSe
 		
 		/** Stretching factor to control overlap of adjacent bands. */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "2.0"))
-		float BandWidthStretch;                         
+		float BandWidthStretch;
 		
 		/** Normalization scheme used to generate band windows. */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=AudioAnalyzer)
 		EConstantQNormalizationEnum CQTNormalization;
 
 		/** Noise floor to use when normalizing CQT */
-		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = AudioAnalyzer, meta = (ClampMin = "-120.0", ClampMax="0.0"))
+		UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = AudioAnalyzer, meta = (DisplayName = "Noise Floor (dB)", ClampMin = "-120.0", ClampMax = "0.0"))
 		float NoiseFloorDb;
 
 		/** Convert UConstantQNRTSettings to FConstantQNRTSettings */

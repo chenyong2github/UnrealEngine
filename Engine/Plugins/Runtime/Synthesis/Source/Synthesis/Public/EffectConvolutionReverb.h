@@ -50,7 +50,7 @@ public:
 	int32 SampleRate;
 
 	/* Used to account for energy added by convolution with "loud" Impulse Responses. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixEffectPreset, meta = (ClamMin = "-60.0", ClampMax = "15.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixEffectPreset, meta = (DisplayName = "Normalization Volume (dB)", ClampMin = "-60.0", ClampMax = "15.0"))
 	float NormalizationVolumeDb;
 
 	/* If true, impulse response channels are interpreted as true stereo which allows channel crosstalk. If false, impulse response channels are interpreted as independent channel impulses. */

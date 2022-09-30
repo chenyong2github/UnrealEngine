@@ -149,7 +149,7 @@ struct SYNTHESIS_API FModularSynthPreset : public FTableRowBase
 	ESynthLFOPatchType LFO2PatchType;
 
 	// The overall gain to use for the synthesizer in dB [-90.0, 20.0]
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset", meta = (ClampMin = "-90.0", ClampMax = "20.0", UIMin = "-90.0", UIMax = "20.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset", meta = (DisplayName = "Gain (dB)", ClampMin = "-90.0", ClampMax = "20.0", UIMin = "-90.0", UIMax = "20.0"))
 	float GainDb;
 
 	// The amplitude envelope attack time (in ms) [0.0, 10000]
@@ -524,7 +524,7 @@ public:
 	void SetLFOPatch(int32 LFOIndex, ESynthLFOPatchType LFOPatchType);
 
 	// Sets the synth gain in decibels.
-	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
+	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio", meta = (DisplayName = "Set Gain (dB)"))
 	void SetGainDb(float GainDb);
 
 	// Sets the envelope attack time in msec.

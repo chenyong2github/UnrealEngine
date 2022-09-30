@@ -39,7 +39,7 @@ enum class ESourceEffectMotionFilterModDestination : uint8
 	FilterAResonance,
 
 	// Filter output dB range between 10.0f and -96.0f. Final Filter output is clamped to +6 dB, use positive values with caution.
-	FilterAOutputVolumeDB,
+	FilterAOutputVolumeDB UMETA(DisplayName = "Filter A Output Volume (dB)"),
 
 	// Filter input frequencies range between 20.0f and 15000.0f.
 	FilterBCutoffFrequency,
@@ -48,7 +48,7 @@ enum class ESourceEffectMotionFilterModDestination : uint8
 	FilterBResonance,
 
 	// Filter output dB range between 10.0f and -96.0f. Final Filter output is clamped to +6 dB, use positive values with caution.
-	FilterBOutputVolumeDB,
+	FilterBOutputVolumeDB UMETA(DisplayName = "Filter B Output Volume (dB)"),
 
 	// Filter Mix values range from -1.0f (Filter A) and 1.0f (Filter B).
 	FilterMix,
