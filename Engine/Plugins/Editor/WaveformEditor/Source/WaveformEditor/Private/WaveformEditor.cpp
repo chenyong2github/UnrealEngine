@@ -104,6 +104,21 @@ void FWaveformEditor::AddDefaultTransformations()
 				SoundWave->Transformations.Add(nullptr);
 			}
 		}
+
+		FWaveTransformUObjectConfiguration ChainMetadata = FWaveTransformUObjectConfiguration();
+
+		ChainMetadata.NumChannels = SoundWave->NumChannels;
+		ChainMetadata.SampleRate = SoundWave->GetSampleRateForCurrentPlatform();
+		ChainMetadata.StartTime = 0.f;
+		ChainMetadata.EndTime = SoundWave->Duration;
+
+		for (TObjectPtr<UWaveformTransformationBase>& Transform : SoundWave->Transformations)
+		{
+			if (Transform)
+			{
+				Transform->UpdateConfiguration(ChainMetadata);
+			}
+		}
 	}
 }
 

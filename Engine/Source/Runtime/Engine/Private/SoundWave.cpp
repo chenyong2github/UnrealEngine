@@ -2478,14 +2478,33 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	SoundWaveDataPtr->bIsStreaming = IsStreaming(nullptr);
 	SoundWaveDataPtr->bShouldUseStreamCaching = ShouldUseStreamCaching();
 
-	// Prevent constant re-compression of SoundWave while properties are being changed interactively
-	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 	{
-		// Regenerate on save any compressed sound formats or if analysis needs to be re-done
-		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
-		{
-			const FName& Name = PropertyThatChanged->GetFName();
+		const FName& Name = PropertyThatChanged->GetFName();
 
+		//Keep transformations UObjects configurations up to date
+		if (Name == TransformationsFName)
+		{
+			FWaveTransformUObjectConfiguration ChainConfiguration = FWaveTransformUObjectConfiguration();
+
+			ChainConfiguration.NumChannels = NumChannels;
+			ChainConfiguration.SampleRate = GetSampleRateForCurrentPlatform();
+			ChainConfiguration.StartTime = 0.f;
+			ChainConfiguration.EndTime = Duration;
+
+			for (TObjectPtr<UWaveformTransformationBase>& Transformation : Transformations)
+			{
+				if (Transformation)
+				{
+					Transformation->UpdateConfiguration(ChainConfiguration);
+				}
+			}
+		}
+	
+		// Prevent constant re-compression of SoundWave while properties are being changed interactively
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+		{
+			// Regenerate on save any compressed sound formats or if analysis needs to be re-done
 			if (Name == LoadingBehaviorFName)
 			{
 				// Update and cache new loading behavior if it has changed. This

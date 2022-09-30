@@ -49,6 +49,15 @@ namespace Audio
 	using FTransformationPtr = TUniquePtr<Audio::IWaveTransformation>;
 }
 
+// Information about the the wave file we are transforming for Transformation UObjects
+struct FWaveTransformUObjectConfiguration
+{
+	int32 NumChannels = 0;
+	float SampleRate = 0;
+	float StartTime = 0.f; 
+	float EndTime = -1.f; 
+};
+
 // Base class to hold editor configurable properties for an arbitrary transformation of audio waveform data
 UCLASS(Abstract, EditInlineNew)
 class AUDIOEXTENSIONS_API UWaveformTransformationBase : public UObject
@@ -57,6 +66,7 @@ class AUDIOEXTENSIONS_API UWaveformTransformationBase : public UObject
 
 public:
 	virtual Audio::FTransformationPtr CreateTransformation() const { return nullptr; }
+	virtual void UpdateConfiguration(FWaveTransformUObjectConfiguration& InOutConfiguration) {};
 };
 
 // Object that holds an ordered list of transformations to perform on a sound wave

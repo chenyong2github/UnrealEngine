@@ -135,56 +135,18 @@ Audio::FTransformationPtr UWaveformTransformationTrimFade::CreateTransformation(
 	return MakeUnique<FWaveTransformationTrimFade>(StartTime, EndTime, StartFadeTime, StartFadeCurve, EndFadeTime, EndFadeCurve);
 }
 
-void UWaveformTransformationTrimFade::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UWaveformTransformationTrimFade::UpdateConfiguration(FWaveTransformUObjectConfiguration& InOutConfiguration)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
-	if (PropertyChangedEvent.GetPropertyName() == WaveformTransformationTrimFadeNames::StartTimeName 
-		|| PropertyChangedEvent.GetPropertyName() == WaveformTransformationTrimFadeNames::EndTimeName)
-	{
-		if (AvailableWaveformDuration < 0.f)
-		{
-			UpdateAvailableWaveformDuration();
-		}
+	UpdateDurationProperties(InOutConfiguration.EndTime - InOutConfiguration.StartTime);
 
-		StartTime = FMath::Clamp(StartTime, 0.f, AvailableWaveformDuration - UE_KINDA_SMALL_NUMBER);
-		EndTime = FMath::Clamp(EndTime, StartTime + UE_KINDA_SMALL_NUMBER, AvailableWaveformDuration);
-	}
+	InOutConfiguration.StartTime = StartTime;
+	InOutConfiguration.EndTime = EndTime;
 }
 
-void UWaveformTransformationTrimFade::PostInitProperties()
+void UWaveformTransformationTrimFade::UpdateDurationProperties(const float InAvailableDuration)
 {
-	Super::PostInitProperties();
-	
-	if (EndTime < 0.f)
-	{
-		UpdateAvailableWaveformDuration();
-		EndTime = AvailableWaveformDuration;
-	}
-}
-
-void UWaveformTransformationTrimFade::UpdateAvailableWaveformDuration()
-{
-	const USoundWave* ParentSoundWave = this->GetTypedOuter<USoundWave>();
-
-	if (!ParentSoundWave)
-	{
-		return;
-	}
-
-	AvailableWaveformDuration = ParentSoundWave->Duration;
-	
-	for (TObjectPtr<UWaveformTransformationBase> Transformation : ParentSoundWave->Transformations)
-	{
-		if (Transformation && Transformation->IsA(UWaveformTransformationTrimFade::StaticClass()))
-		{
-			if (Transformation == this)
-			{
-				return;
-			}
-
-			TObjectPtr<UWaveformTransformationTrimFade> TrimFadeTransformPtr = Cast<UWaveformTransformationTrimFade>(Transformation);
-			AvailableWaveformDuration = TrimFadeTransformPtr->EndTime - TrimFadeTransformPtr->StartTime;
-		}
-	}
+	check(InAvailableDuration > 0)
+	AvailableWaveformDuration = InAvailableDuration;
+	StartTime = FMath::Clamp(StartTime, 0.f, AvailableWaveformDuration - UE_KINDA_SMALL_NUMBER);
+	EndTime = EndTime < 0 ? EndTime = AvailableWaveformDuration : FMath::Clamp(EndTime, StartTime + UE_KINDA_SMALL_NUMBER, AvailableWaveformDuration);
 }

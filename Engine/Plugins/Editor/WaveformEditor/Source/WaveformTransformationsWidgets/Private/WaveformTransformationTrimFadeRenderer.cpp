@@ -197,7 +197,7 @@ void FWaveformTransformationTrimFadeRenderer::Tick(const FGeometry& AllottedGeom
 	const double FirstFrame = FMath::Clamp((TrimFadeTransform->StartTime * TransformationWaveInfo.SampleRate) , 0.f, NumFrames);
 	const double EndFrame = FMath::Clamp((TrimFadeTransform->EndTime * TransformationWaveInfo.SampleRate), FirstFrame, NumFrames);
 
-	PixelsPerFrame = AllottedGeometry.GetLocalSize().X / NumFrames;
+	PixelsPerFrame = FMath::Max(AllottedGeometry.GetLocalSize().X / NumFrames, 0.0);
 
 	StartTimeHandleX = FirstFrame * PixelsPerFrame;
 	EndTimeHandleX = EndFrame * PixelsPerFrame;

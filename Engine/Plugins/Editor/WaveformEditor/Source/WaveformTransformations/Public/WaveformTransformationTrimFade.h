@@ -52,15 +52,11 @@ public:
 
 	virtual Audio::FTransformationPtr CreateTransformation() const override;
 
-	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	void PostInitProperties() override;
-
+	void UpdateConfiguration(FWaveTransformUObjectConfiguration& InOutConfiguration) override;
 	
-
-private: 
-	void UpdateAvailableWaveformDuration();
-	float AvailableWaveformDuration = - 1.f;
-
+private:	
+	void UpdateDurationProperties(const float InAvailableDuration);
+	float AvailableWaveformDuration = -1.f;
 };
 
 // class UBaseClass;
