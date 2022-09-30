@@ -56,12 +56,12 @@ private:
 	void HandleModelStatesMoved(const TSet<UStateTreeState*>& AffectedParents, const TSet<UStateTreeState*>& MovedStates);
 	void HandleModelStateAdded(UStateTreeState* ParentState, UStateTreeState* NewState);
 	void HandleModelStatesChanged(const TSet<UStateTreeState*>& AffectedStates, const FPropertyChangedEvent& PropertyChangedEvent);
-	void HandleModelSelectionChanged(const TArray<UStateTreeState*>& SelectedStates);
+	void HandleModelSelectionChanged(const TArray<TWeakObjectPtr<UStateTreeState>>& SelectedStates);
 
 	// Treeview handlers
-	TSharedRef<ITableRow> HandleGenerateRow(UStateTreeState* InState, const TSharedRef<STableViewBase>& InOwnerTableView);
-	void HandleGetChildren(UStateTreeState* InParent, TArray<UStateTreeState*>& OutChildren);
-	void HandleTreeSelectionChanged(UStateTreeState* InSelectedItem, ESelectInfo::Type SelectionType);
+	TSharedRef<ITableRow> HandleGenerateRow(TWeakObjectPtr<UStateTreeState> InState, const TSharedRef<STableViewBase>& InOwnerTableView);
+	void HandleGetChildren(TWeakObjectPtr<UStateTreeState> InParent, TArray<TWeakObjectPtr<UStateTreeState>>& OutChildren);
+	void HandleTreeSelectionChanged(TWeakObjectPtr<UStateTreeState> InSelectedItem, ESelectInfo::Type SelectionType);
 	TSharedPtr<SWidget> HandleContextMenuOpening();
 
 	// Action handlers
@@ -73,9 +73,10 @@ private:
 
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 
-	TSharedPtr<STreeView<UStateTreeState*>> TreeView;
+	TSharedPtr<STreeView<TWeakObjectPtr<UStateTreeState>>> TreeView;
 	TSharedPtr<SScrollBar> ExternalScrollbar;
 	TSharedPtr<SScrollBox> ViewBox;
+	TArray<TWeakObjectPtr<UStateTreeState>> Subtrees;
 
 	UStateTreeState* RequestedRenameState;
 	bool bItemsDirty;

@@ -62,7 +62,7 @@ protected:
 private:
 
 	void HandleMessageTokenClicked(const TSharedRef<IMessageToken>& InMessageToken);
-	void HandleModelSelectionChanged(const TArray<UStateTreeState*>& SelectedStates);
+	void HandleModelSelectionChanged(const TArray<TWeakObjectPtr<UStateTreeState>>& SelectedStates);
 
 	/** Spawns the tab with the update graph inside */
 	TSharedRef<SDockTab> SpawnTab_StateTreeView(const FSpawnTabArgs& Args);

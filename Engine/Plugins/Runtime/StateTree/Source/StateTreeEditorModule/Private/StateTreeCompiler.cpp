@@ -501,7 +501,7 @@ bool FStateTreeCompiler::CreateStateTransitions()
 			const UStateTreeState* LinkedParentState = nullptr;
 			for (const UStateTreeState* State = SourceState; State != nullptr; State = State->Parent)
 			{
-				if (State->ID == SourceState->LinkedState.ID)
+				if (State->ID == SourceState->LinkedSubtree.ID)
 				{
 					LinkedParentState = State;
 					break;
@@ -511,36 +511,36 @@ bool FStateTreeCompiler::CreateStateTransitions()
 			if (LinkedParentState != nullptr)
 			{
 				Log.Reportf(EMessageSeverity::Error,
-					TEXT("State is linked to it's parent state '%s', which will create infinite loop."),
+					TEXT("State is linked to it's parent subtree '%s', which will create infinite loop."),
 					*LinkedParentState->Name.ToString());
 				return false;
 			}
 
 			// The linked state must be a subtree.
-			const UStateTreeState* TargetState = GetState(SourceState->LinkedState.ID);
+			const UStateTreeState* TargetState = GetState(SourceState->LinkedSubtree.ID);
 			if (TargetState == nullptr)
 			{
 				Log.Reportf(EMessageSeverity::Error,
-					TEXT("Failed to resolve linked state '%s'."),
-					*SourceState->LinkedState.Name.ToString());
+					TEXT("Failed to resolve linked subtree '%s'."),
+					*SourceState->LinkedSubtree.Name.ToString());
 				return false;
 			}
 			
 			if (TargetState->Type != EStateTreeStateType::Subtree)
 			{
 				Log.Reportf(EMessageSeverity::Error,
-					TEXT("State '%s' is linked to state '%s', which is not a subtree."),
+					TEXT("State '%s' is linked to subtree '%s', which is not a subtree."),
 					*SourceState->Name.ToString(), *TargetState->Name.ToString());
 				return false;
 			}
 			
-			CompactState.LinkedState = GetStateHandle(SourceState->LinkedState.ID);
+			CompactState.LinkedState = GetStateHandle(SourceState->LinkedSubtree.ID);
 			
 			if (!CompactState.LinkedState.IsValid())
 			{
 				Log.Reportf(EMessageSeverity::Error,
-					TEXT("Failed to resolve linked state '%s'."),
-					*SourceState->LinkedState.Name.ToString());
+					TEXT("Failed to resolve linked subtree '%s'."),
+					*SourceState->LinkedSubtree.Name.ToString());
 				return false;
 			}
 		}

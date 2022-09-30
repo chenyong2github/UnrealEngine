@@ -79,7 +79,7 @@ namespace UE::StateTree::Editor
 
 
 FStateTreeViewModel::FStateTreeViewModel()
-	: TreeData(nullptr)
+	: TreeDataWeak(nullptr)
 {
 }
 
@@ -92,7 +92,7 @@ FStateTreeViewModel::~FStateTreeViewModel()
 
 void FStateTreeViewModel::Init(UStateTreeEditorData* InTreeData)
 {
-	TreeData = InTreeData;
+	TreeDataWeak = InTreeData;
 
 	GEditor->RegisterForUndo(this);
 
@@ -101,6 +101,7 @@ void FStateTreeViewModel::Init(UStateTreeEditorData* InTreeData)
 
 void FStateTreeViewModel::HandleIdentifierChanged(const UStateTree& StateTree) const
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	const UStateTree* OuterStateTree = TreeData ? Cast<UStateTree>(TreeData->GetOuter()) : nullptr;
 	if (OuterStateTree == &StateTree)
 	{
@@ -120,12 +121,26 @@ void FStateTreeViewModel::NotifyStatesChangedExternally(const TSet<UStateTreeSta
 
 TArray<UStateTreeState*>* FStateTreeViewModel::GetSubTrees() const
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	return TreeData != nullptr ? &ToRawPtrTArrayUnsafe(TreeData->SubTrees) : nullptr;
 }
 
 int32 FStateTreeViewModel::GetSubTreeCount() const
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	return TreeData != nullptr ? TreeData->SubTrees.Num() : 0;
+}
+
+void FStateTreeViewModel::GetSubTrees(TArray<TWeakObjectPtr<UStateTreeState>>& OutSubtrees) const
+{
+	OutSubtrees.Reset();
+	if (UStateTreeEditorData* TreeData = TreeDataWeak.Get())
+	{
+		for (UStateTreeState* Subtree : TreeData->SubTrees)
+		{
+			OutSubtrees.Add(Subtree);
+		}
+	}
 }
 
 void FStateTreeViewModel::PostUndo(bool bSuccess)
@@ -143,7 +158,7 @@ void FStateTreeViewModel::ClearSelection()
 {
 	SelectedStates.Reset();
 
-	const TArray<UStateTreeState*> SelectedStatesArr;
+	const TArray<TWeakObjectPtr<UStateTreeState>> SelectedStatesArr;
 	OnSelectionChanged.Broadcast(SelectedStatesArr);
 }
 
@@ -153,18 +168,18 @@ void FStateTreeViewModel::SetSelection(UStateTreeState* Selected)
 
 	SelectedStates.Add(Selected);
 
-	TArray<UStateTreeState*> SelectedStatesArr;
+	TArray<TWeakObjectPtr<UStateTreeState>> SelectedStatesArr;
 	SelectedStatesArr.Add(Selected);
 	OnSelectionChanged.Broadcast(SelectedStatesArr);
 }
 
-void FStateTreeViewModel::SetSelection(const TArray<UStateTreeState*>& InSelectedStates)
+void FStateTreeViewModel::SetSelection(const TArray<TWeakObjectPtr<UStateTreeState>>& InSelectedStates)
 {
 	SelectedStates.Reset();
 
-	for (UStateTreeState* State : InSelectedStates)
+	for (const TWeakObjectPtr<UStateTreeState>& State : InSelectedStates)
 	{
-		if (State)
+		if (State.Get())
 		{
 			SelectedStates.Add(State);
 		}
@@ -176,12 +191,13 @@ void FStateTreeViewModel::SetSelection(const TArray<UStateTreeState*>& InSelecte
 
 bool FStateTreeViewModel::IsSelected(const UStateTreeState* State) const
 {
-	return SelectedStates.Contains(State);
+	const TWeakObjectPtr<UStateTreeState> WeakState = const_cast<UStateTreeState*>(State);
+	return SelectedStates.Contains(WeakState);
 }
 
 bool FStateTreeViewModel::IsChildOfSelection(const UStateTreeState* State) const
 {
-	for (const FWeakObjectPtr& WeakSelectedState : SelectedStates)
+	for (const TWeakObjectPtr<UStateTreeState>& WeakSelectedState : SelectedStates)
 	{
 		if (const UStateTreeState* SelectedState = Cast<UStateTreeState>(WeakSelectedState.Get()))
 		{
@@ -202,11 +218,23 @@ bool FStateTreeViewModel::IsChildOfSelection(const UStateTreeState* State) const
 void FStateTreeViewModel::GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates)
 {
 	OutSelectedStates.Reset();
-	for (FWeakObjectPtr& WeakState : SelectedStates)
+	for (TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
 	{
-		if (UStateTreeState* State = Cast<UStateTreeState>(WeakState.Get()))
+		if (UStateTreeState* State = WeakState.Get())
 		{
 			OutSelectedStates.Add(State);
+		}
+	}
+}
+
+void FStateTreeViewModel::GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates)
+{
+	OutSelectedStates.Reset();
+	for (TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
+	{
+		if (WeakState.Get())
+		{
+			OutSelectedStates.Add(WeakState);
 		}
 	}
 }
@@ -216,20 +244,19 @@ bool FStateTreeViewModel::HasSelection() const
 	return SelectedStates.Num() > 0;
 }
 
-void FStateTreeViewModel::GetPersistentExpandedStates(TSet<UStateTreeState*>& OutExpandedStates)
+void FStateTreeViewModel::GetPersistentExpandedStates(TSet<TWeakObjectPtr<UStateTreeState>>& OutExpandedStates)
 {
 	OutExpandedStates.Reset();
-	if (TreeData == nullptr)
+	if (UStateTreeEditorData* TreeData = TreeDataWeak.Get())
 	{
-		return;
-	}
-	for (UStateTreeState* SubTree : TreeData->SubTrees)
-	{
-		GetExpandedStatesRecursive(SubTree, OutExpandedStates);
+		for (UStateTreeState* SubTree : TreeData->SubTrees)
+		{
+			GetExpandedStatesRecursive(SubTree, OutExpandedStates);
+		}
 	}
 }
 
-void FStateTreeViewModel::GetExpandedStatesRecursive(UStateTreeState* State, TSet<UStateTreeState*>& OutExpandedStates)
+void FStateTreeViewModel::GetExpandedStatesRecursive(UStateTreeState* State, TSet<TWeakObjectPtr<UStateTreeState>>& OutExpandedStates)
 {
 	if (State->bExpanded)
 	{
@@ -241,8 +268,10 @@ void FStateTreeViewModel::GetExpandedStatesRecursive(UStateTreeState* State, TSe
 	}
 }
 
-void FStateTreeViewModel::SetPersistentExpandedStates(TSet<UStateTreeState*>& InExpandedStates)
+
+void FStateTreeViewModel::SetPersistentExpandedStates(TSet<TWeakObjectPtr<UStateTreeState>>& InExpandedStates)
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	if (TreeData == nullptr)
 	{
 		return;
@@ -250,9 +279,9 @@ void FStateTreeViewModel::SetPersistentExpandedStates(TSet<UStateTreeState*>& In
 
 	TreeData->Modify();
 
-	for (UStateTreeState* State : InExpandedStates)
+	for (TWeakObjectPtr<UStateTreeState>& WeakState : InExpandedStates)
 	{
-		if (State != nullptr)
+		if (UStateTreeState* State = WeakState.Get())
 		{
 			State->bExpanded = true;
 		}
@@ -262,6 +291,7 @@ void FStateTreeViewModel::SetPersistentExpandedStates(TSet<UStateTreeState*>& In
 
 void FStateTreeViewModel::AddState(UStateTreeState* AfterState)
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	if (TreeData == nullptr)
 	{
 		return;
@@ -272,7 +302,27 @@ void FStateTreeViewModel::AddState(UStateTreeState* AfterState)
 	UStateTreeState* NewState = NewObject<UStateTreeState>(TreeData, FName(), RF_Transactional);
 	UStateTreeState* ParentState = nullptr;
 
-	if (AfterState != nullptr)
+	if (AfterState == nullptr)
+	{
+		// If no subtrees, add a subtree, or add to the root state.
+		if (TreeData->SubTrees.IsEmpty())
+		{
+			TreeData->Modify();
+			TreeData->SubTrees.Add(NewState);
+		}
+		else
+		{
+			UStateTreeState* RootState = TreeData->SubTrees[0];
+			if (ensureMsgf(RootState, TEXT("%s: Root state is empty."), *GetNameSafe(TreeData->GetOuter())))
+			{
+				RootState->Modify();
+				RootState->Children.Add(NewState);
+				NewState->Parent = RootState;
+				ParentState = RootState;
+			}
+		}
+	}
+	else
 	{
 		ParentState = AfterState->Parent;
 		if (ParentState != nullptr)
@@ -307,6 +357,7 @@ void FStateTreeViewModel::AddState(UStateTreeState* AfterState)
 
 void FStateTreeViewModel::AddChildState(UStateTreeState* ParentState)
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	if (TreeData == nullptr || ParentState == nullptr)
 	{
 		return;
@@ -345,6 +396,7 @@ void FStateTreeViewModel::RenameState(UStateTreeState* State, FName NewName)
 
 void FStateTreeViewModel::RemoveSelectedStates()
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	if (TreeData == nullptr)
 	{
 		return;
@@ -414,6 +466,7 @@ void FStateTreeViewModel::MoveSelectedStatesInto(UStateTreeState* TargetState)
 
 void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const FStateTreeViewModelInsert RelativeLocation)
 {
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	if (TreeData == nullptr || TargetState == nullptr)
 	{
 		return;
@@ -535,7 +588,13 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const
 
 		OnStatesMoved.Broadcast(AffectedParents, AffectedStates);
 
-		SetSelection(States);
+		TArray<TWeakObjectPtr<UStateTreeState>> WeakStates;
+		for (UStateTreeState* State : States)
+		{
+			WeakStates.Add(State);
+		}
+
+		SetSelection(WeakStates);
 	}
 }
 

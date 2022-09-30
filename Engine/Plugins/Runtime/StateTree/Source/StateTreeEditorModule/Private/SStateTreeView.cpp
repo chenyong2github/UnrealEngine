@@ -8,7 +8,6 @@
 #include "ScopedTransaction.h"
 
 #include "Templates/SharedPointer.h"
-
 #include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
 #include "StateTreeEditorStyle.h"
@@ -22,7 +21,9 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "SPositiveActionButton.h"
 #include "SStateTreeViewRow.h"
+#include "StateTree.h"
 
 #include "StateTreeViewModel.h"
 #include "StateTreeState.h"
@@ -70,10 +71,12 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 		.Orientation(Orient_Vertical)
 		.Thickness(FVector2D(12.0f, 12.0f));
 
-	TreeView = SNew(STreeView<UStateTreeState*>)
+	StateTreeViewModel->GetSubTrees(Subtrees);
+
+	TreeView = SNew(STreeView<TWeakObjectPtr<UStateTreeState>>)
 		.OnGenerateRow(this, &SStateTreeView::HandleGenerateRow)
 		.OnGetChildren(this, &SStateTreeView::HandleGetChildren)
-		.TreeItemsSource(StateTreeViewModel->GetSubTrees())
+		.TreeItemsSource(&Subtrees)
 		.ItemHeight(32)
 		.OnSelectionChanged(this, &SStateTreeView::HandleTreeSelectionChanged)
 		.OnContextMenuOpening(this, &SStateTreeView::HandleContextMenuOpening)
@@ -100,31 +103,11 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 				.Padding(4.0f, 2.0f)
 				.AutoWidth()
 				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+					SNew(SPositiveActionButton)
 					.ToolTipText(LOCTEXT("AddStateToolTip", "Add New State"))
+					.Icon(FAppStyle::Get().GetBrush("Icons.Plus")) 
+					.Text(LOCTEXT("AddState", "Add State"))
 					.OnClicked(this, &SStateTreeView::HandleAddStateButton)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FEditorFontGlyphs::File)
-							.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
-							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-						]
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("AddState", "Add State"))
-							.TextStyle(FAppStyle::Get(), "FlatButton.DefaultTextStyle")
-						]
-					]
 				]
 			]
 		]
@@ -170,7 +153,7 @@ void SStateTreeView::SavePersistentExpandedStates()
 		return;
 	}
 
-	TSet<UStateTreeState*> ExpandedStates;
+	TSet<TWeakObjectPtr<UStateTreeState>> ExpandedStates;
 	TreeView->GetExpandedItems(ExpandedStates);
 	StateTreeViewModel->SetPersistentExpandedStates(ExpandedStates);
 }
@@ -199,7 +182,7 @@ void SStateTreeView::UpdateTree(bool bExpandPersistent)
 		return;
 	}
 
-	TSet<UStateTreeState*> ExpandedStates;
+	TSet<TWeakObjectPtr<UStateTreeState>> ExpandedStates;
 	if (bExpandPersistent)
 	{
 		// Get expanded state from the tree data.
@@ -212,14 +195,15 @@ void SStateTreeView::UpdateTree(bool bExpandPersistent)
 	}
 
 	// Remember selection
-	TArray<UStateTreeState*> SelectedStates;
+	TArray<TWeakObjectPtr<UStateTreeState>> SelectedStates;
 	StateTreeViewModel->GetSelectedStates(SelectedStates);
 
 	// Regenerate items
-	TreeView->SetTreeItemsSource(StateTreeViewModel->GetSubTrees());
+	StateTreeViewModel->GetSubTrees(Subtrees);
+	TreeView->SetTreeItemsSource(&Subtrees);
 
 	// Restore expanded state
-	for (UStateTreeState* State : ExpandedStates)
+	for (const TWeakObjectPtr<UStateTreeState>& State : ExpandedStates)
 	{
 		TreeView->SetItemExpansion(State, true);
 	}
@@ -272,7 +256,7 @@ void SStateTreeView::HandleModelStatesChanged(const TSet<UStateTreeState*>& Affe
 	}
 }
 
-void SStateTreeView::HandleModelSelectionChanged(const TArray<UStateTreeState*>& SelectedStates)
+void SStateTreeView::HandleModelSelectionChanged(const TArray<TWeakObjectPtr<UStateTreeState>>& SelectedStates)
 {
 	if (bUpdatingSelection)
 	{
@@ -288,20 +272,20 @@ void SStateTreeView::HandleModelSelectionChanged(const TArray<UStateTreeState*>&
 }
 
 
-TSharedRef<ITableRow> SStateTreeView::HandleGenerateRow(UStateTreeState* InState, const TSharedRef<STableViewBase>& InOwnerTableView)
+TSharedRef<ITableRow> SStateTreeView::HandleGenerateRow(TWeakObjectPtr<UStateTreeState> InState, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	return SNew(SStateTreeViewRow, InOwnerTableView, InState, ViewBox, StateTreeViewModel.ToSharedRef());
 }
 
-void SStateTreeView::HandleGetChildren(UStateTreeState* InParent, TArray<UStateTreeState*>& OutChildren)
+void SStateTreeView::HandleGetChildren(TWeakObjectPtr<UStateTreeState> InParent, TArray<TWeakObjectPtr<UStateTreeState>>& OutChildren)
 {
-	if (InParent)
+	if (const UStateTreeState* Parent = InParent.Get())
 	{
-		OutChildren.Append(InParent->Children);
+		OutChildren.Append(Parent->Children);
 	}
 }
 
-void SStateTreeView::HandleTreeSelectionChanged(UStateTreeState* InSelectedItem, ESelectInfo::Type SelectionType)
+void SStateTreeView::HandleTreeSelectionChanged(TWeakObjectPtr<UStateTreeState> InSelectedItem, ESelectInfo::Type SelectionType)
 {
 	if (!StateTreeViewModel)
 	{
@@ -314,7 +298,7 @@ void SStateTreeView::HandleTreeSelectionChanged(UStateTreeState* InSelectedItem,
 		return;
 	}
 
-	TArray<UStateTreeState*> SelectedItems = TreeView->GetSelectedItems();
+	TArray<TWeakObjectPtr<UStateTreeState>> SelectedItems = TreeView->GetSelectedItems();
 
 	bUpdatingSelection = true;
 	StateTreeViewModel->SetSelection(SelectedItems);
@@ -391,21 +375,10 @@ FReply SStateTreeView::HandleAddStateButton()
 			StateTreeViewModel->AddState(FirstSelectedState);
 		}
 	}
-	else if (StateTreeViewModel->GetSubTreeCount() == 0)
-	{
-		// If no root state, create new.
-		StateTreeViewModel->AddState(nullptr);
-	}
 	else
 	{
-		// If no state has been selected, add to root
-		TArray<UStateTreeState*>* SubTrees = StateTreeViewModel->GetSubTrees();
-		UStateTreeState* RootState = (SubTrees != nullptr && SubTrees->Num() > 0) ? SubTrees->GetData()[0] : nullptr;
-		if (RootState != nullptr)
-		{
-			StateTreeViewModel->AddChildState(RootState);
-			TreeView->SetItemExpansion(RootState, true);
-		}
+		// Add root state at the lowest level.
+		StateTreeViewModel->AddState(nullptr);
 	}
 
 	return FReply::Handled();

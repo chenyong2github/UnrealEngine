@@ -31,7 +31,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStateAdded, UStateTreeState* /*ParentState*/, UStateTreeState* /*NewState*/);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnStatesRemoved, const TSet<UStateTreeState*>& /*AffectedParents*/);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStatesMoved, const TSet<UStateTreeState*>& /*AffectedParents*/, const TSet<UStateTreeState*>& /*MovedStates*/);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, const TArray<UStateTreeState*>& /*SelectedStates*/);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, const TArray<TWeakObjectPtr<UStateTreeState>>& /*SelectedStates*/);
 
 	FStateTreeViewModel();
 	virtual ~FStateTreeViewModel() override;
@@ -45,19 +45,21 @@ public:
 	// Selection handling.
 	void ClearSelection();
 	void SetSelection(UStateTreeState* Selected);
-	void SetSelection(const TArray<UStateTreeState*>& InSelection);
+	void SetSelection(const TArray<TWeakObjectPtr<UStateTreeState>>& InSelection);
 	bool IsSelected(const UStateTreeState* State) const;
 	bool IsChildOfSelection(const UStateTreeState* State) const;
 	void GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates);
+	void GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates);
 	bool HasSelection() const;
 
 	// Returns array of subtrees to edit.
 	TArray<UStateTreeState*>* GetSubTrees() const;
 	int32 GetSubTreeCount() const;
+	void GetSubTrees(TArray<TWeakObjectPtr<UStateTreeState>>& OutSubtrees) const;
 
 	// Gets and sets StateTree view expansion state store in the asset.
-	void GetPersistentExpandedStates(TSet<UStateTreeState*>& OutExpandedStates);
-	void SetPersistentExpandedStates(TSet<UStateTreeState*>& InExpandedStates);
+	void SetPersistentExpandedStates(TSet<TWeakObjectPtr<UStateTreeState>>& InExpandedStates);
+	void GetPersistentExpandedStates(TSet<TWeakObjectPtr<UStateTreeState>>& OutExpandedStates);
 
 	// State manipulation commands
 	void AddState(UStateTreeState* AfterState);
@@ -91,13 +93,13 @@ public:
 	FOnSelectionChanged& GetOnSelectionChanged() { return OnSelectionChanged; }
 
 protected:
-	void GetExpandedStatesRecursive(UStateTreeState* State, TSet<UStateTreeState*>& ExpandedStates);
+	void GetExpandedStatesRecursive(UStateTreeState* State, TSet<TWeakObjectPtr<UStateTreeState>>& ExpandedStates);
 	void MoveSelectedStates(UStateTreeState* TargetState, const FStateTreeViewModelInsert RelativeLocation);
 
 	void HandleIdentifierChanged(const UStateTree& StateTree) const;
 
-	UStateTreeEditorData* TreeData;	// TODO: is this safe? should we used TWeakObjectPtr here instead?
-	TSet<FWeakObjectPtr> SelectedStates;
+	TWeakObjectPtr<UStateTreeEditorData> TreeDataWeak;
+	TSet<TWeakObjectPtr<UStateTreeState>> SelectedStates;
 	FOnAssetChanged OnAssetChanged;
 	FOnStatesChanged OnStatesChanged;
 	FOnStateAdded OnStateAdded;

@@ -116,7 +116,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;;
-	void UpdateParametersFromLinkedState();
+	void UpdateParametersFromLinkedSubtree();
 #endif
 
 	UStateTreeState* GetNextSiblingState() const;
@@ -195,7 +195,7 @@ public:
 	EStateTreeStateType Type = EStateTreeStateType::State;
 
 	UPROPERTY(EditDefaultsOnly, Category = "State", Meta=(DirectStatesOnly, SubtreesOnly))
-	FStateTreeStateLink LinkedState;
+	FStateTreeStateLink LinkedSubtree;
 
 	UPROPERTY(EditDefaultsOnly, Category = "State")
 	FStateTreeStateParameters Parameters;

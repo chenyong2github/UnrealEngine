@@ -383,14 +383,17 @@ void FStateTreeEditor::HandleModelAssetChanged()
 	UpdateAsset();
 }
 
-void FStateTreeEditor::HandleModelSelectionChanged(const TArray<UStateTreeState*>& SelectedStates)
+void FStateTreeEditor::HandleModelSelectionChanged(const TArray<TWeakObjectPtr<UStateTreeState>>& SelectedStates)
 {
 	if (SelectionDetailsView)
 	{
 		TArray<UObject*> Selected;
-		for (UStateTreeState* State : SelectedStates)
+		for (const TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
 		{
-			Selected.Add(State);
+			if (UStateTreeState* State = WeakState.Get())
+			{
+				Selected.Add(State);
+			}
 		}
 		SelectionDetailsView->SetObjects(Selected);
 	}
@@ -457,9 +460,9 @@ void FStateTreeEditor::OnStateParametersChanged(const UStateTree& InStateTree, c
 		{
 			TreeData->VisitHierarchy([&ChangedStateID](UStateTreeState& State, UStateTreeState* /*ParentState*/)
 			{
-				if (State.Type == EStateTreeStateType::Linked && State.LinkedState.ID == ChangedStateID)
+				if (State.Type == EStateTreeStateType::Linked && State.LinkedSubtree.ID == ChangedStateID)
 				{
-					State.UpdateParametersFromLinkedState();
+					State.UpdateParametersFromLinkedSubtree();
 				}
 				return EStateTreeVisitor::Continue;
 			});
@@ -554,7 +557,7 @@ namespace UE::StateTree::Editor::Internal
 		{
 			if (State.Type == EStateTreeStateType::Linked)
 			{
-				FixChangedStateLinkName(State.LinkedState, IDToName);
+				FixChangedStateLinkName(State.LinkedSubtree, IDToName);
 			}
 					
 			for (FStateTreeTransition& Transition : State.Transitions)
@@ -598,7 +601,7 @@ namespace UE::StateTree::Editor::Internal
 		// Clear evaluators if not allowed.
 		if (Schema->AllowEvaluators() == false && TreeData->Evaluators.Num() > 0)
 		{
-			UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Evaluators due to current schema restrictions."), *GetNameSafe(&StateTree));
+			UE_LOG(LogStateTreeEditor, Warning, TEXT("%s: Resetting Evaluators due to current schema restrictions."), *GetNameSafe(&StateTree));
 			TreeData->Evaluators.Reset();
 		}
 
@@ -608,7 +611,7 @@ namespace UE::StateTree::Editor::Internal
 			// Clear enter conditions if not allowed.
 			if (Schema->AllowEnterConditions() == false && State.EnterConditions.Num() > 0)
 			{
-				UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Enter Conditions in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+				UE_LOG(LogStateTreeEditor, Warning, TEXT("%s: Resetting Enter Conditions in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
 				State.EnterConditions.Reset();
 			}
 
@@ -618,7 +621,7 @@ namespace UE::StateTree::Editor::Internal
 				if (State.Tasks.Num() > 0)
 				{
 					State.Tasks.Reset();
-					UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Tasks in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+					UE_LOG(LogStateTreeEditor, Warning, TEXT("%s: Resetting Tasks in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
 				}
 				
 				// Task name is the same as state name.
@@ -632,7 +635,7 @@ namespace UE::StateTree::Editor::Internal
 				if (State.SingleTask.Node.IsValid())
 				{
 					State.SingleTask.Reset();
-					UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Single Task in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+					UE_LOG(LogStateTreeEditor, Warning, TEXT("%s: Resetting Single Task in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
 				}
 			}
 			
@@ -665,7 +668,7 @@ namespace UE::StateTree::Editor::Internal
 		{
 			if (State.Type == EStateTreeStateType::Linked)
 			{
-				State.UpdateParametersFromLinkedState();
+				State.UpdateParametersFromLinkedSubtree();
 			}
 			return EStateTreeVisitor::Continue;
 		});

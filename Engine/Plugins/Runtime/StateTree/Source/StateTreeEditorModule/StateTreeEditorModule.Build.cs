@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
 				"PropertyAccessEditor",
 				"StructUtils",
 				"StructUtilsEditor",
-				"GameplayTags"
+				"GameplayTags",
 			}
 			);
 
@@ -43,6 +43,7 @@ namespace UnrealBuildTool.Rules
 				"PropertyPath",
 				"PropertyEditor",
 				"ToolMenus",
+				"ToolWidgets",
 			}
 			);
 		}

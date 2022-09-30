@@ -29,12 +29,12 @@
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
-void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, UStateTreeState* InState, const TSharedPtr<SScrollBox>& ViewBox, TSharedRef<FStateTreeViewModel> InStateTreeViewModel)
+void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TWeakObjectPtr<UStateTreeState> InState, const TSharedPtr<SScrollBox>& ViewBox, TSharedRef<FStateTreeViewModel> InStateTreeViewModel)
 {
 	StateTreeViewModel = InStateTreeViewModel;
 	WeakState = InState;
 
-	STableRow<UStateTreeState*>::ConstructInternal(STableRow::FArguments()
+	STableRow<TWeakObjectPtr<UStateTreeState>>::ConstructInternal(STableRow::FArguments()
         .Padding(5.0f)
         .OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
         .OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
@@ -503,7 +503,7 @@ FText SStateTreeViewRow::GetLinkedStateDesc() const
 
 	if (State->Type == EStateTreeStateType::Linked)
 	{
-		return FText::FromName(State->LinkedState.Name);
+		return FText::FromName(State->LinkedSubtree.Name);
 	}
 	
 	return FText::GetEmpty();
@@ -823,13 +823,13 @@ FReply SStateTreeViewRow::HandleDragDetected(const FGeometry&, const FPointerEve
 	return FReply::Handled().BeginDragDrop(FActionTreeViewDragDrop::New(WeakState.Get()));
 }
 
-TOptional<EItemDropZone> SStateTreeViewRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState) const
+TOptional<EItemDropZone> SStateTreeViewRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TWeakObjectPtr<UStateTreeState> TargetState) const
 {
 	const TSharedPtr<FActionTreeViewDragDrop> DragDropOperation = DragDropEvent.GetOperationAs<FActionTreeViewDragDrop>();
 	if (DragDropOperation.IsValid())
 	{
 		// Cannot drop on selection or child of selection.
-		if (StateTreeViewModel && StateTreeViewModel->IsChildOfSelection(TargetState))
+		if (StateTreeViewModel && StateTreeViewModel->IsChildOfSelection(TargetState.Get()))
 		{
 			return TOptional<EItemDropZone>();
 		}
@@ -840,7 +840,7 @@ TOptional<EItemDropZone> SStateTreeViewRow::HandleCanAcceptDrop(const FDragDropE
 	return TOptional<EItemDropZone>();
 }
 
-FReply SStateTreeViewRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState) const
+FReply SStateTreeViewRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TWeakObjectPtr<UStateTreeState> TargetState) const
 {
 	const TSharedPtr<FActionTreeViewDragDrop> DragDropOperation = DragDropEvent.GetOperationAs<FActionTreeViewDragDrop>();
 	if (DragDropOperation.IsValid())
@@ -849,15 +849,15 @@ FReply SStateTreeViewRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, 
 		{
 			if (DropZone == EItemDropZone::AboveItem)
 			{
-				StateTreeViewModel->MoveSelectedStatesBefore(TargetState);
+				StateTreeViewModel->MoveSelectedStatesBefore(TargetState.Get());
 			}
 			else if (DropZone == EItemDropZone::BelowItem)
 			{
-				StateTreeViewModel->MoveSelectedStatesAfter(TargetState);
+				StateTreeViewModel->MoveSelectedStatesAfter(TargetState.Get());
 			}
 			else
 			{
-				StateTreeViewModel->MoveSelectedStatesInto(TargetState);
+				StateTreeViewModel->MoveSelectedStatesInto(TargetState.Get());
 			}
 
 			return FReply::Handled();

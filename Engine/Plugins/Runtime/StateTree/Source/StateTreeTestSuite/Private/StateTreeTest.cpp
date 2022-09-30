@@ -291,7 +291,7 @@ struct FStateTreeTest_SubTree : FAITestBase
 		UStateTreeState& State3A = State3.AddChildState(FName(TEXT("State3A")));
 		UStateTreeState& State3B = State3.AddChildState(FName(TEXT("State3B")));
 
-		State1.LinkedState.Set(&State3);
+		State1.LinkedSubtree.Set(&State3);
 
 		auto& Task2 = State2.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
 

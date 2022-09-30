@@ -90,14 +90,14 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			// If transitioning from linked state, reset the linked state.
 			if (Type != EStateTreeStateType::Linked)
 			{
-				LinkedState = FStateTreeStateLink();
+				LinkedSubtree = FStateTreeStateLink();
 			}
 
 			if (Type == EStateTreeStateType::Linked)
 			{
 				// Linked parameter layout is fixed, and copied from the linked target state.
 				Parameters.bFixedLayout = true;
-				UpdateParametersFromLinkedState();
+				UpdateParametersFromLinkedSubtree();
 			}
 			else if (Type == EStateTreeStateType::Subtree)
 			{
@@ -111,12 +111,12 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 		}
 
 		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
-			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, LinkedState))
+			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, LinkedSubtree))
 		{
 			// When switching to new state, update the parameters.
 			if (Type == EStateTreeStateType::Linked)
 			{
-				UpdateParametersFromLinkedState();
+				UpdateParametersFromLinkedSubtree();
 			}
 		}
 
@@ -191,11 +191,11 @@ void UStateTreeState::PostLoad()
 #endif
 }
 
-void UStateTreeState::UpdateParametersFromLinkedState()
+void UStateTreeState::UpdateParametersFromLinkedSubtree()
 {
 	if (const UStateTreeEditorData* TreeData = GetTypedOuter<UStateTreeEditorData>())
 	{
-		if (const UStateTreeState* LinkTargetState = TreeData->GetStateByID(LinkedState.ID))
+		if (const UStateTreeState* LinkTargetState = TreeData->GetStateByID(LinkedSubtree.ID))
 		{
 			Parameters.Parameters.MigrateToNewBagInstance(LinkTargetState->Parameters.Parameters);
 		}
