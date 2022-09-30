@@ -224,7 +224,9 @@ void UUVSelectTool::Setup()
 		{
 			if (bUpdateGizmoOnCanonicalChange) // Used to avoid reacting to broadcasts that we ourselves caused via gizmo movement
 			{
-				UpdateGizmo();
+				// We update the gizmo with 'true' here to have the selection api recompute the
+				// centroid because it may not yet be notified that the mesh has changed.
+				UpdateGizmo(true);
 				SelectionAPI->RebuildUnwrapHighlight(TransformGizmo->GetGizmoTransform());
 			}
 		});
@@ -339,11 +341,11 @@ void UUVSelectTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 {
 }
 
-void UUVSelectTool::UpdateGizmo()
+void UUVSelectTool::UpdateGizmo(bool bForceRecomputeSelectionCenters)
 {
 	if (SelectionAPI->HaveSelections())
 	{
-		TransformGizmo->ReinitializeGizmoTransform(FTransform(SelectionAPI->GetUnwrapSelectionBoundingBoxCenter()));
+		TransformGizmo->ReinitializeGizmoTransform(FTransform(SelectionAPI->GetUnwrapSelectionBoundingBoxCenter(bForceRecomputeSelectionCenters)));
 	}
 
 	TransformGizmo->SetVisibility(

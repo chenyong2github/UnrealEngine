@@ -77,10 +77,14 @@ void UUVToolSelectionAPI::SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshIn
 			{
 				FUVToolSelection* TargetSelection = CurrentSelections.FindByPredicate(
 					[Target](const FUVToolSelection& CandidateSelection) { return CandidateSelection.Target == Target; });
-				if (TargetSelection && TargetSelection->Type == FUVToolSelection::EType::Edge)
+				if (TargetSelection)
 				{
-					TargetSelection->RestoreFromStableEdgeIdentifiers(*Target->UnwrapCanonical);
-				}
+					bCachedUnwrapSelectionBoundingBoxCenterValid = false;
+					if (TargetSelection->Type == FUVToolSelection::EType::Edge)
+					{
+						TargetSelection->RestoreFromStableEdgeIdentifiers(*Target->UnwrapCanonical);
+					}
+				}				
 			});
 	}
 }

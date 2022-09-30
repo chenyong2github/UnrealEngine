@@ -97,6 +97,10 @@ public:
 	 * Gets the bounding box center of the current selection. The center point is cached and
 	 * invalidated on the next SetSelection call, but can be forced to be
 	 * recalculated.
+	 * 
+	 * Note: you should call with bForceRecalculate = true whenever calling this from OnCanonicalModified,
+	 * because it is not guaranteed that the selection api will detect the mesh change (and therefore
+	 * invalidate the cached value) before your call site, due to the order of OnCanonicalModified broadcasts
 	 */
 	FVector3d GetUnwrapSelectionBoundingBoxCenter(bool bForceRecalculate = false);
 

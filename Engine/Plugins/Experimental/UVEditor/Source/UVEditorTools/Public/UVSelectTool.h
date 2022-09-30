@@ -84,7 +84,7 @@ protected:
 	virtual void GizmoTransformEnded(UTransformProxy* Proxy);
 
 	virtual void ApplyGizmoTransform();
-	virtual void UpdateGizmo();
+	virtual void UpdateGizmo(bool bForceRecomputeSelectionCenters = false);
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
