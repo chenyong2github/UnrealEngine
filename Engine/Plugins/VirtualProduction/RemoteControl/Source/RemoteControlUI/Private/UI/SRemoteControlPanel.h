@@ -181,9 +181,6 @@ private:
 	/** Unexpose a field from the preset. */
 	void Unexpose(const FRCExposesPropertyArgs& InArgs);
 
-	/** Handle the using toggling the edit mode check box. */
-	void OnEditModeCheckboxToggle(ECheckBoxState State);
-
 	/** Handler called when a blueprint is reinstanced. */
 	void OnBlueprintReinstanced();
 
@@ -206,7 +203,10 @@ private:
 	TSharedRef<SWidget> CreateCPUThrottleWarning() const;
 
 	/** Create expose button, allowing to expose blueprints and actor functions. */
-	TSharedRef<SWidget> CreateExposeButton();
+	TSharedRef<SWidget> CreateExposeFunctionsButton();
+	
+	/** Create expose button, allowing to expose actors. */
+	TSharedRef<SWidget> CreateExposeActorsButton();
 
 	/** Create expose by class menu content */
 	TSharedRef<SWidget> CreateExposeByClassWidget();
@@ -361,8 +361,10 @@ private:
 	TSharedPtr<SRCPanelFunctionPicker> SubsystemFunctionPicker;
 	/** Holds the exposed entity list view. */
 	TSharedPtr<SRCPanelExposedEntitiesList> EntityList;
-	/** Holds the combo button that allows exposing functions and actors. */
-	TSharedPtr<SComboButton> ExposeComboButton;
+	/** Holds the combo button that allows exposing functions. */
+	TSharedPtr<SComboButton> ExposeFunctionsComboButton;
+	/** Holds the combo button that allows exposing actors. */
+	TSharedPtr<SComboButton> ExposeActorsComboButton;
 	/** Caches all the classes of actors in the current level. */
 	TSet<TWeakObjectPtr<const UClass>> CachedClassesInLevel;
 	/** Holds the class picker used to expose all actors of class. */

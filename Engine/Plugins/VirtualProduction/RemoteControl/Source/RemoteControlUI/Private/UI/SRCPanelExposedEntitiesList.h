@@ -62,7 +62,8 @@ public:
 	{}
 		SLATE_ATTRIBUTE(bool, LiveMode)
 		SLATE_ATTRIBUTE(bool, ProtocolsMode)
-		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, ExposeComboButton)
+		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, ExposeFunctionsComboButton)
+		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, ExposeActorsComboButton)
 		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
 	SLATE_END_ARGS()
 

@@ -400,7 +400,8 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	// Expose Button
 	ExposeDockPanel->AddHeaderToolbarItem(EToolbar::Left, PlaceholderBox.ToSharedRef());
 	ExposeDockPanel->AddHeaderToolbarItem(EToolbar::Right, ModeSwitcher.ToSharedRef());
-	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Right, InArgs._ExposeComboButton.Get().ToSharedRef());
+	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Left, InArgs._ExposeActorsComboButton.Get().ToSharedRef());
+	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Left, InArgs._ExposeFunctionsComboButton.Get().ToSharedRef());
 	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteAllEntitiesButton.ToSharedRef());
 
 	ExposePanel->AddPanel(ExposeDockPanel.ToSharedRef(), 0.75f);
