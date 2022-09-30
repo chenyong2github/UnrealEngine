@@ -1259,7 +1259,7 @@ void UEditorEngine::PreExit()
 		// Cleanup worlds that were initialized through UEditorEngine::InitializeNewlyCreatedInactiveWorld before final GC Purge
 		for (TObjectIterator<UWorld> It; It; ++It)
 		{
-			if (UWorld* World = *It; World && World->WorldType == EWorldType::Inactive && World->IsInitializedAndNeedsCleanup())
+			if (UWorld* World = *It; World && World->WorldType == EWorldType::Inactive && World->IsInitialized())
 			{
 				// GWorld shouldn't be an Inactive World
 				check(World != GWorld);

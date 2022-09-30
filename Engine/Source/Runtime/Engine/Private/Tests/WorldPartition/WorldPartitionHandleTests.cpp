@@ -243,7 +243,7 @@ namespace WorldPartitionTests
 			UPackage* Package = FindPackage(NULL, *ActorDescContainer->GetContainerPackage().ToString());
 			check(Package);
 			UWorld* World = UWorld::FindWorldInPackage(Package);
-			check(World->IsInitializedAndNeedsCleanup());
+			check(World->IsInitialized());
 			World->CleanupWorld();
 			
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);

@@ -394,12 +394,13 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 , bAllowDeferredPhysicsStateCreation(false)
 , FeatureLevel(GMaxRHIFeatureLevel)
 , bIsBuilt(false)
+, bIsWorldInitialized(false)
 #if WITH_EDITOR
 , bDebugFrameStepExecutedThisFrame(false)
 , bToggledBetweenPIEandSIEThisFrame(false)
 #endif
 , bShouldTick(true)
-, bInitializedAndNeedsCleanup(false)
+, bHasEverBeenInitialized(false)
 , ActiveLevelCollectionIndex(INDEX_NONE)
 , AudioDeviceHandle()
 #if WITH_EDITOR
@@ -1021,7 +1022,7 @@ void UWorld::BeginDestroy()
 #if WITH_EDITOR
 	// Make sure we catch worlds that where initialized through UEditorEngine::OnAssetLoaded/OnAssetCreated
 	// (This can happen if World was loaded, then its RF_Standalone flag was removed and a GC happened) 
-	if (WorldType == EWorldType::Inactive && IsInitializedAndNeedsCleanup())
+	if (WorldType == EWorldType::Inactive && IsInitialized())
 	{
 		CleanupWorld();
 	}
@@ -1082,14 +1083,14 @@ void UWorld::ReleasePhysicsScene()
 
 void UWorld::FinishDestroy()
 {
-	if (bInitializedAndNeedsCleanup)
+	if (bIsWorldInitialized)
 	{
 		UE_LOG(LogWorld, Warning, TEXT("UWorld::FinishDestroy called after InitWorld without calling CleanupWorld first."));
 	}
 
 	// Avoid cleanup if the world hasn't been initialized, e.g., the default object or a world object that got loaded
 	// due to level streaming.
-	if (bIsWorldInitialized)
+	if (bHasEverBeenInitialized)
 	{
 		FWorldDelegates::OnPreWorldFinishDestroy.Broadcast(this);
 
@@ -1950,7 +1951,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	// We're initialized now.
 	bIsWorldInitialized = true;
-	bInitializedAndNeedsCleanup = true;
+	bHasEverBeenInitialized = true;
 
 	// Call the general post initialization delegates
 	FWorldDelegates::OnPostWorldInitialization.Broadcast(this, IVS);
@@ -5019,7 +5020,7 @@ bool UWorld::IsNavigationRebuilt() const
 void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
 {
     CleanupWorldGlobalTag++;
-	if (!bInitializedAndNeedsCleanup)
+	if (!bIsWorldInitialized)
 	{
 		// Only issue the warning for the TopLevelWorld. It is currently valid to call CleanupWorld on the UWorld of
 		// streaming sublevels, and they never call InitWorld. (this is done by PrivateDestroyLevel when removing a
@@ -5029,7 +5030,7 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	}
 	const bool bWorldChanged = NewWorld != this;
 	CleanupWorldInternal(bSessionEnded, bCleanupResources, bWorldChanged);
-	bInitializedAndNeedsCleanup = false;
+	bIsWorldInitialized = false;
 }
 
 void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)

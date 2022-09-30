@@ -2565,7 +2565,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					// All other worlds need to be reloaded from disk, as a world is only initialized correctly as part of the level loading process.
 					auto IsWorldValidForReuse = [](UWorld* WorldToConsider)
 					{
-						return !WorldToConsider->bIsWorldInitialized;
+						return !WorldToConsider->HasEverBeenInitialized();
 					};
 
 					// If we are loading the same world again (reloading) then we must not specify that we want to keep this world in memory.
@@ -2770,11 +2770,11 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				FeatureLevelIndex = FMath::Clamp(FeatureLevelIndex, 0, (int32)ERHIFeatureLevel::Num);
 				ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FeatureLevelIndex;
 
-				if (World->bIsWorldInitialized)
+				if (World->HasEverBeenInitialized())
 				{
 					// We do not handle reinitializing. If the World was initialized during Load, we require that it is still fully initialized
 					// This should have been guaranteed by UWorld::KeepInitializedDuringLoadTag
-					check(World->IsInitializedAndNeedsCleanup());
+					check(World->IsInitialized());
 					World->ChangeFeatureLevel(FeatureLevel);
 				}
 				else

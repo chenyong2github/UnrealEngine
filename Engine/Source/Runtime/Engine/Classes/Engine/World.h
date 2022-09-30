@@ -1272,7 +1272,7 @@ public:
 	 */
 	uint8 bPostTickComponentUpdate:1;
 
-	/** Whether world object has been initialized via Init()																	*/
+	/** Whether world object has been initialized via Init and has not yet had CleanupWorld called								*/
 	uint8 bIsWorldInitialized:1;
 
 	/** Is level streaming currently frozen?																					*/
@@ -1388,8 +1388,8 @@ private:
 	/** Is there at least one material parameter collection instance waiting for a deferred update?								*/
 	uint8 bMaterialParameterCollectionInstanceNeedsDeferredUpdate : 1;
 
-	/** Whether world object has been initialized via Init and has not yet had CleanupWorld called								*/
-	uint8 bInitializedAndNeedsCleanup : 1;
+	/** Whether InitWorld was ever called on this world since its creation. Not cleared to false during CleanupWorld			*/
+	uint8 bHasEverBeenInitialized: 1;
 
 	/** Whether the world is currently in a BlockTillLevelStreamingCompleted() call */
 	uint32 IsInBlockTillLevelStreamingCompleted;
@@ -3129,12 +3129,13 @@ public:
 	 * operations that need to call InitWorld during the Load of the World's package should break that rule and not call CleanupWorld.
 	 */
 	static const FName KeepInitializedDuringLoadTag;
-	/**
-	 * Returns whether InitWorld has been called without yet calling CleanupWorld.
-	 * Note this is different from bIsWorldInitialized flag, which is set to true InitWorld and never set back to false.
-	 */
-	bool IsInitializedAndNeedsCleanup() const { return bInitializedAndNeedsCleanup; }
+	UE_DEPRECATED(5.2, "Call IsInitialized instead.")
+	bool IsInitializedAndNeedsCleanup() const { return bIsWorldInitialized; }
+	/** Returns whether InitWorld has ever been called since this World was created.  */
+	bool HasEverBeenInitialized() const { return bHasEverBeenInitialized; }
 #endif
+	/** Returns whether InitWorld has been called without yet calling CleanupWorld.  */
+	bool IsInitialized() const { return bIsWorldInitialized; }
 
 	/**
 	 * Initializes a newly created world.
