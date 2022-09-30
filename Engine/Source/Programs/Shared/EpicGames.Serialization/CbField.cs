@@ -263,10 +263,10 @@ namespace EpicGames.Serialization
 	sealed class CbBinaryAttachmentTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => new CbBinaryAttachment(IoHash.Parse((string)value));
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value) => new CbBinaryAttachment(IoHash.Parse((string)value));
 	}
 
 	/// <summary>
@@ -342,10 +342,10 @@ namespace EpicGames.Serialization
 	sealed class CbObjectAttachmentTypeConverter : TypeConverter
 	{
 		/// <inheritdoc/>
-		public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => sourceType == typeof(string);
+		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) => sourceType == typeof(string);
 
 		/// <inheritdoc/>
-		public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => new CbObjectAttachment(IoHash.Parse((string)value));
+		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value) => new CbObjectAttachment(IoHash.Parse((string)value));
 	}
 
 	/// <summary>

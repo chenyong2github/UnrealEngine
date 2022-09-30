@@ -17,7 +17,7 @@ namespace EpicGames.Serialization.Converters
 
 		public override T Read(CbField field)
 		{
-			return (T)_typeConverter.ConvertFromInvariantString(field.AsString());
+			return (T)_typeConverter.ConvertFromInvariantString(field.AsString())!;
 		}
 
 		public override void WriteNamed(CbWriter writer, Utf8String name, T value)
@@ -27,7 +27,7 @@ namespace EpicGames.Serialization.Converters
 
 		public override void Write(CbWriter writer, T value)
 		{ 
-			writer.WriteStringValue(_typeConverter.ConvertToInvariantString(value));
+			writer.WriteStringValue(_typeConverter.ConvertToInvariantString(value)!);
 		}
 	}
 
