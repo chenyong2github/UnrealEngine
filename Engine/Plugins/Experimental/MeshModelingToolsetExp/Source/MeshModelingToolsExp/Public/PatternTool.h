@@ -267,7 +267,7 @@ class MESHMODELINGTOOLSEXP_API UPatternTool_RotationSettings : public UInteracti
 	GENERATED_BODY()
 public:
 	/** If true, Rotation is linearly interpolated between StartRotation and Rotation values */
-	UPROPERTY(EditAnywhere, Category = Rotation)
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (InlineEditConditionToggle))
 	bool bInterpolate = false;
 
 	/** If true, Rotation at each Pattern Element is offset by a uniformly chosen random value in the range of [-RotationJitterRange, RotationJitterRange] */
@@ -275,12 +275,12 @@ public:
 	bool bJitter = false;
 
 	/** Rotation at first Pattern Element */
-	UPROPERTY(EditAnywhere, Category = Rotation, meta = (EditCondition = "bInterpolate", EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Rotation)
 	FRotator StartRotation = FRotator::ZeroRotator;
 
 	/** Rotation applied to all Pattern Elements, or at Last Pattern Element for Interpolated rotations */
-	UPROPERTY(EditAnywhere, Category = Rotation)
-	FRotator Rotation = FRotator::ZeroRotator;
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (EditCondition = "bInterpolate"))
+	FRotator EndRotation = FRotator::ZeroRotator;
 
 	/** Upper bound of the range which is sampled to randomly rotate each Pattern Element if Jitter is true */
 	UPROPERTY(EditAnywhere, Category = Rotation, meta = (ClampMin = 0, EditCondition = "bJitter", EditConditionHides, HideEditConditionToggle))
@@ -297,7 +297,7 @@ class MESHMODELINGTOOLSEXP_API UPatternTool_TranslationSettings : public UIntera
 	GENERATED_BODY()
 public:
 	/** If true, Translation is linearly interpolated between StartTranslation and Translation values */
-	UPROPERTY(EditAnywhere, Category = Translation)
+	UPROPERTY(EditAnywhere, Category = Translation, meta = (InlineEditConditionToggle))
 	bool bInterpolate = false;
 
 	/** If true, Translation at each Pattern Element is offset by a uniformly chosen random value in the range of [-TranslationJitterRange, TranslationJitterRange] */
@@ -305,12 +305,12 @@ public:
 	bool bJitter = false;
 
 	/** Translation at first Pattern Element */
-	UPROPERTY(EditAnywhere, Category = Translation, meta = (EditCondition = "bInterpolate", EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Translation)
 	FVector StartTranslation = FVector::ZeroVector;
 
 	/** Translation applied to all Pattern Elements, or at Last Pattern Element for Interpolated translations */
-	UPROPERTY(EditAnywhere, Category = Translation)
-	FVector Translation = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = Translation, meta = (EditCondition = "bInterpolate"))
+	FVector EndTranslation = FVector::ZeroVector;
 
 	/** Upper bound of the range which is sampled to randomly translate each Pattern Element if Jitter is true */
 	UPROPERTY(EditAnywhere, Category = Translation, meta = (ClampMin = 0, EditCondition = "bJitter", EditConditionHides, HideEditConditionToggle))
@@ -329,9 +329,9 @@ public:
 	/** If true, Scaling is limited to Uniform Scaling */
 	UPROPERTY(EditAnywhere, Category = Scale)
 	bool bUniform = true;
-
+	
 	/** If true, Scale is linearly interpolated between StartScale and Scale values */
-	UPROPERTY(EditAnywhere, Category = Scale)
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (InlineEditConditionToggle))
 	bool bInterpolate = false;
 
 	/** If true, Scale at each Pattern Element is offset by a uniformly chosen random value in the range of [-ScaleJitterRange, ScaleJitterRange] */
@@ -339,24 +339,16 @@ public:
 	bool bJitter = false;
 	
 	/** Uniform Scale at first Pattern Element */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (EditCondition = "bInterpolate && bUniform", EditConditionHides, HideEditConditionToggle))
-	float StartScale = 1;
-
+	UPROPERTY(EditAnywhere, Category = Scale)
+	FVector StartScale = FVector::OneVector;
+	
 	/** Uniform Scale applied to all Pattern Elements, or at Last Pattern Element for Interpolated scales */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (EditCondition = "bUniform", EditConditionHides, HideEditConditionToggle))
-	float Scale = 1;
-
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (EditCondition = "bInterpolate"))
+	FVector EndScale = FVector::OneVector;
+	
 	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true */
 	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0, EditCondition = "bJitter && bUniform", EditConditionHides, HideEditConditionToggle))
 	float ScaleJitterRange = 0.0f;
-
-	/** Non-Uniform Scale at first Pattern Element */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (DisplayName = "Start Scale", EditCondition = "bInterpolate && bUniform == false", EditConditionHides, HideEditConditionToggle))
-	FVector StartScaleNonUniform = FVector(1,1,1);
-
-	/** Non-Uniform Scale applied to all Pattern Elements, or at Last Pattern Element for Interpolated scales */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (DisplayName = "Scale", EditCondition = "bUniform == false", EditConditionHides, HideEditConditionToggle))
-	FVector ScaleNonUniform = FVector(1,1,1);
 
 	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true (Non-Uniform) */
 	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0, DisplayName = "Scale Jitter Range", EditCondition = "bJitter && bUniform == false", EditConditionHides, HideEditConditionToggle))
@@ -439,8 +431,12 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UPatternTool_ScaleSettings> ScaleSettings;
-
 	
+	FVector StartScaleDirection;
+	FVector EndScaleDirection;
+	
+	int32 StartScaleWatcherIdx;
+	int32 EndScaleWatcherIdx;
 
 	UPROPERTY()
 	TObjectPtr<UPatternTool_OutputSettings> OutputSettings;
