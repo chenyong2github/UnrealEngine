@@ -104,6 +104,16 @@ void AMediaPlate::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+UMaterialInterface* AMediaPlate::GetCurrentMaterial() const
+{
+	if (StaticMeshComponent != nullptr)
+	{
+		return StaticMeshComponent->GetMaterial(0);
+	}
+
+	return nullptr;
+}
+
 #if WITH_EDITOR
 
 void AMediaPlate::UseDefaultMaterial()
@@ -184,16 +194,6 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 			LastMaterial = Result;
 		}
 	}
-}
-
-UMaterialInterface* AMediaPlate::GetCurrentMaterial() const
-{
-	if (StaticMeshComponent != nullptr)
-	{
-		return StaticMeshComponent->GetMaterial(0);
-	}
-
-	return nullptr;
 }
 
 void AMediaPlate::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
