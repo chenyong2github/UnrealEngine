@@ -1847,9 +1847,20 @@ void FGroomBuilder::BuildData(
 			else
 			{
 				OutSim.Reset();
-				if(InSettings.DeformationSettings.bEnableDeformation)
+				if(InSettings.RiggingSettings.bEnableRigging)
 				{
-					FHairStrandsDecimation::Decimate(OutRen, InSettings.DeformationSettings.NumCurves, InSettings.DeformationSettings.NumPoints, OutSim);
+					if (InHairDescriptionGroup.Info.NumGuides > 0)
+					{
+						// We pick the new guides among the imported ones
+						FHairStrandsDatas TempSim = InHairDescriptionGroup.Guides;
+						HairStrandsBuilder::BuildInternalData(TempSim, true);
+						FHairStrandsDecimation::Decimate(TempSim, InSettings.RiggingSettings.NumCurves, InSettings.RiggingSettings.NumPoints, OutSim);
+					}
+					else
+					{
+						// Otherwise let s pick the guides among the rendered strands
+						FHairStrandsDecimation::Decimate(OutRen, InSettings.RiggingSettings.NumCurves, InSettings.RiggingSettings.NumPoints, OutSim);
+					}
 				}
 				else
 				{

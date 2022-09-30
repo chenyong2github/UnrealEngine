@@ -1317,7 +1317,7 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumCurves)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumPoints)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, bEnableDeformation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, bEnableRigging)
 
 		// Add dependency on simulation and per LOD-simulation/global-interoplation to strip-out interoplation data if there are not needed
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation)
@@ -1367,14 +1367,6 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	if (bStrandsInterpolationChanged)
 	{
 		CacheDerivedDatas();
-
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bOverrideGuides)
-		 || PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumCurves)
-		 || PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumPoints)
-		 || PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, bEnableDeformation))
-		{
-			DeformedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(this);  
-		}
 	}
 	
 	const bool bCardsArrayChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards);
@@ -1777,7 +1769,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("DAF54482721C4B60885A27B2720FDC6E")
+#define GROOM_DERIVED_DATA_VERSION TEXT("FC0D84AFC0F444A9A988C651BEED113A")
 
 #if WITH_EDITORONLY_DATA
 
@@ -3236,7 +3228,7 @@ bool UGroomAsset::IsVisible(int32 GroupIndex, int32 LODIndex) const
 
 bool UGroomAsset::IsDeformationEnable(int32 GroupIndex) const
 {
-	return HairGroupsInterpolation.IsValidIndex(GroupIndex) && HairGroupsInterpolation[GroupIndex].DeformationSettings.bEnableDeformation && HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides;
+	return HairGroupsInterpolation.IsValidIndex(GroupIndex) && HairGroupsInterpolation[GroupIndex].RiggingSettings.bEnableRigging && HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides;
 }
 
 bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const 

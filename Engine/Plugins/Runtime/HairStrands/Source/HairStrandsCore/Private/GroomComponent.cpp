@@ -58,6 +58,9 @@ static FAutoConsoleVariableRef CVarHairStrands_Streaming_Prediction(TEXT("r.Hair
 static int32 GHairStrands_BoundsMode = 0;
 static FAutoConsoleVariableRef CVarHairStrands_BoundsMode(TEXT("r.HairStrands.BoundMode"), GHairStrands_BoundsMode, TEXT("Define how hair bound are computed at runtime when attached to a skel. mesh.\n 0: Use skel.mesh extented with grooms bounds.\n 1: Use skel.mesh bounds.\n 2: Use skel.mesh extented with grooms bounds (conservative)"));
 
+static int32 GHairStrands_UseAttachedSimulationComponents = 0;
+static FAutoConsoleVariableRef CVarHairStrands_UseAttachedSimulationComponents(TEXT("r.HairStrands.UseAttachedSimulationComponents"), GHairStrands_UseAttachedSimulationComponents, TEXT("Boolean to check if we are using already attached niagara components for simulation (WIP)"));
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 #define USE_HAIR_TRIANGLE_STRIP 0
@@ -1449,6 +1452,18 @@ void UGroomComponent::UpdateHairSimulation()
 	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
 
 	NiagaraComponents.SetNumZeroed(NumComponents);
+	if( GHairStrands_UseAttachedSimulationComponents == 1)
+	{
+		int32 CompIndex = 0;
+		// Fill the niagara components with the already attached children if any
+		for(const TObjectPtr<USceneComponent>& GroomChild : GetAttachChildren())
+		{
+			if(GroomChild->IsA<UNiagaraComponent>() && (CompIndex < NumComponents) && !NiagaraComponents[CompIndex])
+			{
+				NiagaraComponents[CompIndex++] = StaticCast<UNiagaraComponent*>(GroomChild);
+			}
+		}
+	}
 	const int32 LODInit = (LODForcedIndex != -1.f) ? LODForcedIndex : (LODPredictedIndex != -1.f) ? LODPredictedIndex : 0;
 	for (int32 CompIndex = 0; CompIndex < NumComponents; ++CompIndex)
 	{
@@ -2446,9 +2461,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	}
 
 	// Grab deformed mesh if it exists 
-	if(GroomAsset && GroomAsset->DeformedSkeletalMesh)
+	if(GroomAsset && GroomAsset->RiggedSkeletalMesh)
 	{
-		const USkeleton* TargetSkeleton = GroomAsset->DeformedSkeletalMesh->GetSkeleton();
+		const USkeleton* TargetSkeleton = GroomAsset->RiggedSkeletalMesh->GetSkeleton();
 		
 		DeformedMeshComponent = nullptr;
 		// Try to find the first component by walking the attachment hierarchy
@@ -2562,7 +2577,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->GeometryType = EHairGeometryType::NoneGeometry;
 		HairGroupInstance->BindingType = EHairBindingType::NoneBinding;
 
-		HairGroupInstance->Debug.SkinningCurrentLocalToWorld	= RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
+		HairGroupInstance->Debug.SkinningCurrentLocalToWorld	= RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform::Identity;
 		HairGroupInstance->Debug.SkinningPreviousLocalToWorld	= HairGroupInstance->Debug.SkinningCurrentLocalToWorld;
 		HairGroupInstance->Debug.RigidCurrentLocalToWorld		= GetComponentTransform();
 		HairGroupInstance->Debug.RigidPreviousLocalToWorld		= HairGroupInstance->Debug.RigidCurrentLocalToWorld;

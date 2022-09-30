@@ -358,7 +358,7 @@ static USkeletalMesh* BuildSkeletalMesh(UGroomAsset* GroomAsset)
 	
 	// Create package for the skeletal mesh
 	UPackage* PackageSkeletalMesh = CreatePackage(*PackageNameSkeletalMesh);
-	USkeletalMesh* SkeletalMesh = GroomAsset->DeformedSkeletalMesh ? GroomAsset->DeformedSkeletalMesh.Get() :
+	USkeletalMesh* SkeletalMesh = GroomAsset->RiggedSkeletalMesh ? GroomAsset->RiggedSkeletalMesh.Get() :
 		NewObject<USkeletalMesh>(PackageSkeletalMesh, *NameSkeletalMesh, RF_Public | RF_Standalone | RF_Transactional);
 
 	// Reset the skeletal mesh

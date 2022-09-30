@@ -22,7 +22,8 @@ FHairInterpolationSettings::FHairInterpolationSettings()
 
 FHairDeformationSettings::FHairDeformationSettings()
 {
-	bEnableDeformation = false;
+	bCanEditRigging = false;
+	bEnableRigging = false;
 	NumCurves = 10;
 	NumPoints = 4;
 }
@@ -99,9 +100,10 @@ bool FHairGroupsInterpolation::operator==(const FHairGroupsInterpolation& A) con
 bool FHairDeformationSettings::operator==(const FHairDeformationSettings& A) const
 {
 	return
-		bEnableDeformation == A.bEnableDeformation &&
+		bEnableRigging == A.bEnableRigging &&
 		NumCurves == A.NumCurves &&
-		NumPoints == A.NumPoints;
+		NumPoints == A.NumPoints &&
+		bCanEditRigging == A.bCanEditRigging;
 }
 
 void FHairGroupsInterpolation::BuildDDCKey(FArchive& Ar)
@@ -114,9 +116,10 @@ void FHairGroupsInterpolation::BuildDDCKey(FArchive& Ar)
 	Ar << InterpolationSettings.InterpolationDistance;
 	Ar << InterpolationSettings.bRandomizeGuide;
 	Ar << InterpolationSettings.bUseUniqueGuide;
-	Ar << DeformationSettings.NumCurves;
-	Ar << DeformationSettings.NumPoints;
-	Ar << DeformationSettings.bEnableDeformation;
+	Ar << RiggingSettings.NumCurves;
+	Ar << RiggingSettings.NumPoints;
+	Ar << RiggingSettings.bEnableRigging;
+	Ar << RiggingSettings.bCanEditRigging;
 }
 
 void FHairGroupsLOD::BuildDDCKey(FArchive& Ar)

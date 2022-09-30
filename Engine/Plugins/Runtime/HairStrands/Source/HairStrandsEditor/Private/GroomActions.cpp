@@ -9,6 +9,7 @@
 #include "GeometryCache.h"
 #include "GroomAssetImportData.h"
 #include "GroomBuilder.h"
+#include "GroomDeformerBuilder.h"
 #include "GroomImportOptions.h"
 #include "GroomImportOptionsWindow.h"
 #include "GroomCustomAssetEditorToolkit.h"
@@ -195,6 +196,7 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 						OutGroup.bHasRoughnessAttributes = false;
 						OutGroup.bHasPrecomputedWeights = false;
 						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
+						OutGroup.InterpolationSettings.RiggingSettings.bCanEditRigging = true;
 					}
 				}
 				TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayRebuildOptions(CurrentOptions, GroupsPreview, Filename);
@@ -205,14 +207,22 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 				}
 
 				// Apply new interpolation settings to the groom, prior to rebuilding the groom
+				bool bEnableRigging = false;
 				for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 				{
 					GroomAsset->HairGroupsInterpolation[GroupIndex] = GroupsPreview->Groups[GroupIndex].InterpolationSettings;
+					GroomAsset->HairGroupsInterpolation[GroupIndex].RiggingSettings.bCanEditRigging = false;
+					bEnableRigging |= GroomAsset->HairGroupsInterpolation[GroupIndex].RiggingSettings.bEnableRigging &&
+						GroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides;
 				}
 
 				bool bSucceeded = GroomAsset->CacheDerivedDatas();
 				if (bSucceeded)
 				{
+					if(bEnableRigging)
+					{
+						GroomAsset->RiggedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(GroomAsset.Get());
+					}
 					// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
 					CurrentOptions->Rename(nullptr, GroomAssetImportData);
 					for (const FGroomHairGroupPreview& GroupPreview : GroupsPreview->Groups)

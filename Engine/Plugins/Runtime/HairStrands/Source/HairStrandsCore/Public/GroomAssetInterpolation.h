@@ -153,17 +153,20 @@ struct HAIRSTRANDSCORE_API FHairDeformationSettings
 	GENERATED_USTRUCT_BODY()
 
 	FHairDeformationSettings();
+	
+	UPROPERTY(VisibleAnywhere, Category = "SkeletonGeneration")
+	bool bCanEditRigging;
 
 	/** Enable the generation of a skeletal mesh that will drive the guides deformation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InterpolationSettings", meta = (ToolTip = "Enable the generation of a skeletal mesh that will drive the guides deformation. The total number of bones per group is for now 256 (NumCurves * NumPoints)"))
-	bool bEnableDeformation;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkeletonGeneration", meta = (ToolTip = "Enable the generation of a skeletal mesh that will drive the guides deformation. The total number of bones per group is for now 256 (NumCurves * NumPoints)", EditCondition = "bCanEditRigging"))
+	bool bEnableRigging;
 
 	/** Number of curves to generate in the skel mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InterpolationSettings", meta = (ToolTip = "Number of guides that will be generated on the groom and the skeletal mesh", EditCondition = "bEnableDeformation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkeletonGeneration", meta = (ToolTip = "Number of guides that will be generated on the groom and the skeletal mesh", EditCondition = "bCanEditRigging"))
 	int32 NumCurves;
 
 	/** Number of points per curve */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InterpolationSettings", meta = (ToolTip = "Number of points/bones per generated guide", EditCondition = "bEnableDeformation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkeletonGeneration", meta = (ToolTip = "Number of points/bones per generated guide", EditCondition = "bCanEditRigging"))
 	int32 NumPoints;
 
 	bool operator==(const FHairDeformationSettings& A) const;
@@ -182,8 +185,8 @@ struct HAIRSTRANDSCORE_API FHairGroupsInterpolation
 	UPROPERTY(EditAnywhere, Category = "InterpolationSettings", meta = (ToolTip = "Interpolation settings"))
 	FHairInterpolationSettings InterpolationSettings;
 
-	UPROPERTY(EditAnywhere, Category = "DeformationSettings", meta = (ToolTip = "Deformation settings"))
-	FHairDeformationSettings DeformationSettings;
+	UPROPERTY(EditAnywhere, Category = "SkeletonGeneration", meta = (DisplayName = "Skeleton Generation", ToolTip = "Skeleton Generation"))
+	FHairDeformationSettings RiggingSettings;
 
 	bool operator==(const FHairGroupsInterpolation& A) const;
 

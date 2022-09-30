@@ -460,7 +460,7 @@ public:
 
 	/** Deformed skeletal mesh that will drive the groom deformation/simulation. For creating this skeletal mesh, enable EnableDeformation within the interpolation settings*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HairInterpolation")
-	TObjectPtr<USkeletalMesh> DeformedSkeletalMesh;
+	TObjectPtr<USkeletalMesh> RiggedSkeletalMesh;
 
 	/** Deformed skeletal mesh mapping from groups to sections */
 	UPROPERTY()
