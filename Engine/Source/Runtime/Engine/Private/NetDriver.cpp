@@ -6225,7 +6225,10 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 {
 	check(IsServer() || MaySendProperties());
 
-	return UE::Net::Private::FNetPropertyConditionManager::Get().FindOrCreatePropertyTracker(Obj);
+	const FObjectKey ObjectKey = Obj;
+	checkf(ObjectKey.ResolveObjectPtr() != nullptr, TEXT("Unresolveable object %s received in FindOrCreateRepChangedPropertyTracker"), *GetNameSafe(Obj));
+
+	return UE::Net::Private::FNetPropertyConditionManager::Get().FindOrCreatePropertyTracker(ObjectKey);
 }
 
 TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindRepChangedPropertyTracker(UObject* Obj)
