@@ -17,7 +17,6 @@
 #include "OnlineUserCloudInterfaceIOS.h"
 #include "OnlineSharedCloudInterfaceIOS.h"
 
-@class FStoreKitHelperV2;
 @class FAppStoreUtils;
 @class GKPlayer;
 @class GKLocalPlayer;
@@ -104,9 +103,6 @@ public:
 
 private:
 	
-	void InitStoreKitHelper();
-	void CleanupStoreKitHelper();
-	
 	void InitAppStoreHelper();
 	void CleanupAppStoreHelper();
 
@@ -115,9 +111,6 @@ private:
 
 	/** Online async task thread */
 	class FRunnableThread* OnlineAsyncTaskThread;
-	
-	/** Store kit helper for interfacing with app store */
-	FStoreKitHelperV2* StoreHelper;
 	
 	/** App store util helper */
 	FAppStoreUtils* AppStoreHelper;

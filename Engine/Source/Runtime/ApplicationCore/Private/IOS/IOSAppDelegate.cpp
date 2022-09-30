@@ -20,7 +20,7 @@
 #include "IOS/IOSAsyncTask.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IOS/IOSPlatformCrashContext.h"
-#include "IOS/IOSPaymentTransactionObserver.h"
+#include "IOS/ProxyPaymentTransactionObserver.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/FeedbackContext.h"
@@ -1087,7 +1087,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(OnVoiceOverStatusChanged) name:UIAccessibilityVoiceOverStatusDidChangeNotification object:nil];
 #endif
 
-	[[SKPaymentQueue defaultQueue] addTransactionObserver:[FPaymentTransactionObserver sharedInstance]];
+	[[SKPaymentQueue defaultQueue] addTransactionObserver:[FProxyPaymentTransactionObserver sharedInstance]];
     
 	return YES;
 }
@@ -1477,6 +1477,8 @@ extern double GCStartTime;
 	 */
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
     
+    [[SKPaymentQueue defaultQueue] removeTransactionObserver:[FProxyPaymentTransactionObserver sharedInstance]];
+
     // note that we are shutting down
     // TODO: fix the reason why we are hanging when asked to shutdown
 /*    RequestEngineExit(TEXT("IOS applicationWillTerminate"));

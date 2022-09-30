@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Interfaces/OnlineStoreInterfaceV2.h"
+#include "RetainedObjCInstance.h"
 
 enum class EPurchaseTransactionState : uint8;
-struct FStoreKitTransactionData;
-@class FStoreKitHelperV2;
+@class FStoreKitStoreProxy;
 @class SKProductsResponse;
 @class SKProduct;
 
@@ -20,7 +20,7 @@ class FOnlineStoreIOS :
 public:
 
 	// IOnlineStoreV2
-
+    
 	virtual void QueryCategories(const FUniqueNetId& UserId, const FOnQueryOnlineStoreCategoriesComplete& Delegate) override;
 	virtual void GetCategories(TArray<FOnlineStoreCategory>& OutCategories) const override;
 	virtual void QueryOffersByFilter(const FUniqueNetId& UserId, const FOnlineStoreFilter& Filter, const FOnQueryOnlineStoreOffersComplete& Delegate) override;
@@ -38,69 +38,39 @@ public:
 	FOnlineStoreIOS(class FOnlineSubsystemIOS* InSubsystem);
 
 	/**
-	 * Constructor
-	 */
-	FOnlineStoreIOS();
-
-	/**
 	 * Destructor
 	 */
 	virtual ~FOnlineStoreIOS();
 	
-	/** Initialize the FStoreKitHelper for interaction with the app store */
-	void InitStoreKit(FStoreKitHelperV2* InStoreKit);
-	
 	/**
 	 * Get the production information for a given offer id
-	 * Must have previously been retrieved vi QueryOffers*
+	 * Must have previously been retrieved by QueryOffers*
 	 *
 	 * @return the SKProduct previously queried for product information
 	 */
 	SKProduct* GetSKProductByOfferId(const FUniqueOfferId& OfferId);
+
+    /**
+     * Method used internally by FOnlineSubsystemIOS to notify that QueryOffers request finished. Not meant to be called by user code
+     */
+    void OnProductsRequestResponse(SKProductsResponse* Response, const FOnQueryOnlineStoreOffersComplete& CompletionDelegate);
 
 private:
 	
 	/**
 	 * Representation of a single product offer
 	 */
-	struct FOnlineStoreOfferIOS
+    struct FOnlineStoreOfferIOS
 	{
 		FOnlineStoreOfferIOS()
-		: Product(nil)
-		, Offer(nullptr)
+		: FOnlineStoreOfferIOS(nil, nullptr)
 		{
 		}
 		
-		FOnlineStoreOfferIOS(SKProduct* InProduct, const FOnlineStoreOffer& InOffer)
+		FOnlineStoreOfferIOS(SKProduct* InProduct, TSharedPtr<FOnlineStoreOffer>&& InOffer)
 		{
 			Product = InProduct;
-			[Product retain];
-			
-			Offer = MakeShareable(new FOnlineStoreOffer(InOffer));
-		}
-		
-		FOnlineStoreOfferIOS(const FOnlineStoreOfferIOS& Other)
-		{
-			Product = Other.Product;
-			[Product retain];
-			Offer = Other.Offer;
-		}
-		
-		FOnlineStoreOfferIOS& operator=(const FOnlineStoreOfferIOS& Other)
-		{
-			// Free
-			[Product release];
-
-			// Copy
-			Product = Other.Product;
-			[Product retain];
-			Offer = Other.Offer;
-			return *this;
-		}
-		
-		~FOnlineStoreOfferIOS()
-		{
-			[Product release];
+			Offer = MoveTemp(InOffer);
 		}
 		
 		/** @return true if the store offer is valid/proper */
@@ -110,7 +80,7 @@ private:
 		}
 		
 		/** Reference to the app store product information */
-		SKProduct* Product;
+		TRetainedObjCInstance<SKProduct*> Product;
 		/** Product information about this offer */
 		TSharedPtr<FOnlineStoreOffer> Offer;
 	};
@@ -120,17 +90,6 @@ private:
     bool OffersNotAllowedInLocale(const FString& Locale);
     
 private:
-
-	/** delegate fired when a product request completes */
-	void OnProductPurchaseRequestResponse(SKProductsResponse* Response, const FOnQueryOnlineStoreOffersComplete& CompletionDelegate);
-	/** delegate fired when a single purchase transaction has completed (may be a part of multiple requests at once) */
-	void OnTransactionCompleteResponse(EPurchaseTransactionState Result, const FStoreKitTransactionData& TransactionData);
-	/** delegate fired when a single transaction is restored (may be a part of many restored purchases) */
-	void OnTransactionRestored(const FStoreKitTransactionData& TransactionData);
-	/** delegate fired when all transactions have been restored */
-	void OnRestoreTransactionsComplete(EPurchaseTransactionState Result);
-	
-private:
 	
 	/** Mapping from offer id to product information */
 	typedef TMap<FUniqueOfferId, FOnlineStoreOfferIOS> FOnlineOfferDescriptionMap;
@@ -139,7 +98,7 @@ private:
 	FOnlineOfferDescriptionMap CachedOffers;
 
 	/** Store kit helper for interfacing with app store */
-	FStoreKitHelperV2* StoreHelper;
+    TRetainedObjCInstance<FStoreKitStoreProxy*> StoreKitProxy;
 
 	/** Is a query already in flight */
 	bool bIsQueryInFlight;

@@ -3,64 +3,13 @@
 #pragma once
 
 #include "Interfaces/OnlinePurchaseInterface.h"
-#include "OnlineSubsystemIOSTypes.h"
+#include "RetainedObjCInstance.h"
 
-struct FStoreKitTransactionData;
-@class SKProductsResponse;
-@class FStoreKitHelperV2;
-
-/**
- * Info used to cache and track orders in progress.
- */
-class FOnlinePurchasePendingTransactionIOS
-{
-public:
-	FOnlinePurchasePendingTransactionIOS(
-		const FPurchaseCheckoutRequest& InCheckoutRequest,
-		const FUniqueNetId& InUserId,
-		const EPurchaseTransactionState InPendingTransactionState = EPurchaseTransactionState::NotStarted,
-		const FOnPurchaseCheckoutComplete& InCheckoutCompleteDelegate = FOnPurchaseCheckoutComplete()
-		)
-		: CheckoutRequest(InCheckoutRequest)
-		, UserId(StaticCastSharedRef<const FUniqueNetIdIOS>(InUserId.AsShared()))
-		, CheckoutCompleteDelegate(InCheckoutCompleteDelegate)
-	{
-		PendingPurchaseInfo.TransactionState = InPendingTransactionState;
-		
-		// Setup purchase state for all pending offers
-		OfferPurchaseStates.AddZeroed(CheckoutRequest.PurchaseOffers.Num());
-	}
-	
-	/**
-	 * Generate a final receipt for all purchases made in this single transaction
-	 */
-	TSharedRef<FPurchaseReceipt> GenerateReceipt();
-	
-	/** Generate one off receipts for transactions initiated outside the current run of the application */
-	static TSharedRef<FPurchaseReceipt> GenerateReceipt(EPurchaseTransactionState Result, const FStoreKitTransactionData& Transaction);
-	
-	/** Mark this pending purchase as started */
-	void StartProcessing();
-	/** Add a single completed transaction (one of possibly many) to this transaction */
-	bool AddCompletedOffer(EPurchaseTransactionState Result, const FStoreKitTransactionData& Transaction);
-	/** @return true if all offers to purchase have completed transactions */
-	bool AreAllOffersComplete() const;
-	/** @return result of all purchases, if any fail it will return failed, if any cancel it will return canceled */
-	EPurchaseTransactionState GetFinalTransactionState() const;
-	
-public:
-	
-	/** Checkout info for the pending order */
-	const FPurchaseCheckoutRequest CheckoutRequest;
-	/** Mirror array of purchase state for the various offers to purchase */
-	TArray<EPurchaseTransactionState> OfferPurchaseStates;
-	/** User for the pending order */
-	const FUniqueNetIdIOSRef UserId;
-	/** Delegate to call on completion */
-	const FOnPurchaseCheckoutComplete CheckoutCompleteDelegate;
-	/** Tracks the current state of the order */
-	FPurchaseReceipt PendingPurchaseInfo;
-};
+enum class EPurchaseTransactionState : uint8;
+struct FOnlinePurchaseTransactionIOS;
+struct FOnlinePurchaseInProgressTransactionIOS;
+@class SKPaymentTransaction;
+@class FStoreKitPurchaseProxy;
 
 /**
  * Implementation for online purchase via IOS services
@@ -93,61 +42,72 @@ public:
 	FOnlinePurchaseIOS(class FOnlineSubsystemIOS* InSubsystem);
 
 	/**
-	 * Constructor
-	 */
-	FOnlinePurchaseIOS();
-
-	/**
 	 * Destructor
 	 */
 	virtual ~FOnlinePurchaseIOS();
 	
-	/** Initialize the FStoreKitHelper for interaction with the app store */
-	void InitStoreKit(FStoreKitHelperV2* InStoreKit);
-	
-private:
-	
-	/** delegate fired when a product request completes */
-	void OnProductPurchaseRequestResponse(SKProductsResponse* Response, const FOnQueryOnlineStoreOffersComplete& CompletionDelegate);
-	/** delegate fired when a single purchase transaction has completed (may be a part of multiple requests at once) */
-	void OnTransactionCompleteResponse(EPurchaseTransactionState Result, const FStoreKitTransactionData& TransactionData);
-	/** delegate fired when a single transaction is restored (may be a part of many restored purchases) */
-	void OnTransactionRestored(const FStoreKitTransactionData& TransactionData);
-	/** delegate fired when all transactions have been restored */
-	void OnRestoreTransactionsComplete(EPurchaseTransactionState Result);
-	
-	void OnTransactionInProgress(const FStoreKitTransactionData& TransactionData);
-	void OnTransactionDeferred(const FStoreKitTransactionData& TransactionData);
-	
-private:
-	
-	/** Mapping from user id to pending transaction */
-	typedef TMap<FString, TSharedRef<FOnlinePurchasePendingTransactionIOS> > FOnlinePurchasePendingTransactionMap;
+	/**
+	 * Log App Receipt content
+	 */
+	void DumpAppReceipt();
 
-	/** Mapping from user id to complete transactions */
-	typedef TMap<FString, TArray< TSharedRef<FPurchaseReceipt> > > FOnlinePurchaseCompleteTransactionsMap;
-	
-	/** Array of transactions completion indirectly (previous run, etc) */
-	typedef TArray< TSharedRef<FPurchaseReceipt> > FOnlineCompletedTransactions;
-	
+    /**
+     * Method used internally by FStoreKitPurchaseProxy to notify that a transaction was completed. Not meant to be called by user code
+     */
+	void OnTransactionComplete(EPurchaseTransactionState Result, const FOnlinePurchaseTransactionIOS& TransactionData);
+
+    /**
+     * Method used internally by FStoreKitPurchaseProxy to notify that transactions were restored. Not meant to be called by user code
+     */
+    void OnRestoreTransactionsComplete(EPurchaseTransactionState Result);
+private:
+    /**
+     * Add Transaction data to cache avoiding duplicates and return proper receipt
+     */
+    TSharedRef<FPurchaseReceipt> TryStoreTransactionAndGetReceipt(const TSharedRef<FPurchaseReceipt>& Receipt, const FOnlinePurchaseTransactionIOS& Transaction);
+
+    /**
+     * Generate a receipt for a failed purchase
+     */
+    static TSharedRef<FPurchaseReceipt> GenerateFailReceipt(const FPurchaseCheckoutRequest& CheckoutRequest);
+    
+    /**
+     * Generate a receipt for a successful purchase which was received offline
+     */
+    static TSharedRef<FPurchaseReceipt> GenerateOfflineReceipt(EPurchaseTransactionState Result, const FOnlinePurchaseTransactionIOS& Transaction);
+
+    /**
+     * Generate a final receipt for the purchase currently in progress
+     */
+    static TSharedRef<FPurchaseReceipt> GenerateReceipt(EPurchaseTransactionState Result, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnlinePurchaseTransactionIOS& Transaction);
 private:
 	
-	/** Store kit helper for interfacing with app store (owned by main OnlineSubsystem) */
-	FStoreKitHelperV2* StoreHelper;
+	/** Proxy helper to communicate from/to StoreKit*/
+    TRetainedObjCInstance<FStoreKitPurchaseProxy*> StoreKitProxy;
 	
 	/** Are transactions current being restored */
 	bool bRestoringTransactions;
-	/** Transient delegate to fire when query receipts has completed, when restoring transactions */
+
+	/** Transient delegate to fire when restoring transactions (QueryReceipts with bRestoreReceipts=true)*/
 	FOnQueryReceiptsComplete QueryReceiptsComplete;
 	
-	/** Keeps track of pending user transactions */
-	FOnlinePurchasePendingTransactionMap PendingTransactions;
+	/** Keeps track of in progress user transaction */
+    TSharedPtr<const FOnlinePurchaseInProgressTransactionIOS> InProgressTransaction;
 	
+	/** Entry data for a known completed transaction (restored or purchased) */
+    struct FKnownTransaction
+    {
+        explicit FKnownTransaction(TSharedRef<FPurchaseReceipt> InReceipt, SKPaymentTransaction* InTransaction)
+        : Receipt(InReceipt)
+        , PaymentTransaction(InTransaction)
+        {
+        }
+
+        TSharedRef<FPurchaseReceipt> Receipt;
+        TRetainedObjCInstance<SKPaymentTransaction*> PaymentTransaction;
+    };
 	/** Cache of completed transactions */
-	FOnlinePurchaseCompleteTransactionsMap CompletedTransactions;
-	
-	/** Cache of purchases completed outside the running instance */
-	FOnlineCompletedTransactions OfflineTransactions;
+    TArray< FKnownTransaction > Transactions;
 	
 	/** Reference to the parent subsystem */
 	FOnlineSubsystemIOS* Subsystem;

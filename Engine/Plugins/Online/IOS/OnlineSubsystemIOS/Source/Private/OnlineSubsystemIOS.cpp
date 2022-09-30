@@ -2,17 +2,14 @@
 
 #include "OnlineSubsystemIOS.h"
 #include "IOS/IOSAppDelegate.h"
-#import "OnlineStoreKitHelper.h"
 #import "OnlineAppStoreUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Stats/Stats.h"
 
 FOnlineSubsystemIOS::FOnlineSubsystemIOS(FName InInstanceName)
 	: FOnlineSubsystemImpl(IOS_SUBSYSTEM, InInstanceName)
-	, StoreHelper(nil)
 	, AppStoreHelper(nil)
 {
-	StoreHelper = nil;
 }
 
 IOnlineSessionPtr FOnlineSubsystemIOS::GetSessionInterface() const
@@ -171,7 +168,6 @@ bool FOnlineSubsystemIOS::Init()
 		{
 			StoreV2Interface = MakeShareable(new FOnlineStoreIOS(this));
 			PurchaseInterface = MakeShareable(new FOnlinePurchaseIOS(this));
-			InitStoreKitHelper();
 		}
 
 		if (UserCloudInterface && IsCloudKitEnabled())
@@ -191,27 +187,9 @@ bool FOnlineSubsystemIOS::Init()
 	return bSuccessfullyStartedUp;
 }
 
-void FOnlineSubsystemIOS::InitStoreKitHelper()
-{
-	StoreHelper = [[FStoreKitHelperV2 alloc] init];
-	[StoreHelper retain];
-	
-	// Give each interface a chance to bind to the store kit helper
-	StoreV2Interface->InitStoreKit(StoreHelper);
-	PurchaseInterface->InitStoreKit(StoreHelper);
-
-}
-
-void FOnlineSubsystemIOS::CleanupStoreKitHelper()
-{
-	[StoreHelper release];
-	StoreHelper = nil;
-}
-
 void FOnlineSubsystemIOS::InitAppStoreHelper()
 {
 	AppStoreHelper = [[FAppStoreUtils alloc] init];
-	[AppStoreHelper retain];
 }
 
 void FOnlineSubsystemIOS::CleanupAppStoreHelper()
@@ -276,7 +254,6 @@ bool FOnlineSubsystemIOS::Shutdown()
 #undef DESTRUCT_INTERFACE
 	
 	// Cleanup after the interfaces are free
-	CleanupStoreKitHelper();
 	CleanupAppStoreHelper();
 	
 	return bSuccessfullyShutdown;
@@ -311,7 +288,7 @@ bool FOnlineSubsystemIOS::HandlePurchaseExecCommands(UWorld* InWorld, const TCHA
 
 	if (FParse::Command(&Cmd, TEXT("DUMPAPPRECEIPT")))
 	{
-		[StoreHelper dumpAppReceipt];
+        PurchaseInterface->DumpAppReceipt();
 	}
 
 	return bWasHandled;

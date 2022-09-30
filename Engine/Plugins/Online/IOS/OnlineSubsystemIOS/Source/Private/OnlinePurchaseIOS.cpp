@@ -4,72 +4,376 @@
 #include "OnlineError.h"
 #include "OnlineSubsystemIOS.h"
 #include "Stats/Stats.h"
-#import "OnlineStoreKitHelper.h"
+#include "IOS/ProxyPaymentTransactionObserver.h"
 
-/** Take successful transactions and route them through deferred pipeline */
-#define TEST_DEFERRED_TRANSACTIONS 0
-#define TEST_DEFERRED_DELAY 25.0f
-#if TEST_DEFERRED_TRANSACTIONS
-#include "Containers/Ticker.h"
-#endif // TEST_DEFERRED_TRANSACTIONS
-
-namespace OSSConsoleVariables
-{
-	// CVars
-	TAutoConsoleVariable<int32> CVarSimluateAskToBuy(
-															 TEXT("OSS.AskToBuy"),
-															 0,
-															 TEXT("Simulate ask to buy in iOS\n")
-															 TEXT("1 enable, 0 disable"),
-															 ECVF_Default);
-}
+#import <StoreKit/SKError.h>
+#import <StoreKit/SKReceiptRefreshRequest.h>
+#import <StoreKit/SKPaymentTransaction.h>
+#import <StoreKit/SKPayment.h>
+#import <StoreKit/SKPaymentQueue.h>
 
 #define LOCTEXT_NAMESPACE "OnlineSubsystemIOS"
-#define IOSUSER TEXT("IOSUser")
+
+namespace OnlinePurchaseIOSPrivate
+{
+    TAutoConsoleVariable<int32> CVarSimluateAskToBuy(TEXT("OSS.AskToBuy"),
+                                                     0,
+                                                     TEXT("Simulate ask to buy in iOS\n")
+                                                     TEXT("1 enable, 0 disable"),
+                                                     ECVF_Default);
+
+    /**
+     * Convert an Apple SKPaymentTransaction receipt into a string
+     *
+     * @return hex encoded string with opaque data representing a completed transaction
+     */
+    FString ConvertReceiptToString()
+    {
+        FString ReceiptData;
+        
+        NSURL* nsReceiptUrl = [[NSBundle mainBundle] appStoreReceiptURL];
+        NSData* nsReceiptData = [NSData dataWithContentsOfURL : nsReceiptUrl];
+        if (nsReceiptData)
+        {
+            NSString* nsEncodedReceiptData = [nsReceiptData base64EncodedStringWithOptions : NSDataBase64EncodingEndLineWithLineFeed];
+            ReceiptData = nsEncodedReceiptData;
+            UE_LOG_ONLINE_STOREV2(VeryVerbose, TEXT("ConvertReceiptToString %s"), *ReceiptData);
+        }
+        else
+        {
+            UE_LOG_ONLINE_STOREV2(Log, TEXT("ConvertReceiptToString: No receipt data found for transaction"));
+        }
+        return ReceiptData;
+    }
+}
+
+/**
+ * Intermediate type to communicate SKPaymentTransaction information from Objective-C to
+ * to C++ implementation
+ */
+struct FOnlinePurchaseTransactionIOS
+{
+    explicit FOnlinePurchaseTransactionIOS(SKPaymentTransaction* Transaction);
+    
+    /** @return a string that prints useful debug information about this transaction */
+    FString ToDebugString() const
+    {
+        return FString::Printf(TEXT("OfferId: %s TransactionId: %s ReceiptData: %s Error:%s"),
+                        *OfferId,
+                        *TransactionIdentifier,
+                        *ReceiptData,
+                        *ErrorStr);
+    }
+    
+    /** @return offer id for this transaction */
+    const FString& GetOfferId() const { return OfferId; }
+    /** @return receipt data for this transaction */
+    const FString& GetReceiptData() const { return ReceiptData; }
+    /** @return error string for this transaction, if applicable */
+    const FString& GetErrorStr() const { return ErrorStr; }
+    /** @return quantity of items requested of the same type */
+    int GetQuantity() const { return Quantity; }
+    /** @return transaction identifier for this purchase */
+    const FString& GetTransactionIdentifier() const { return TransactionIdentifier; }
+    /** @return the SKPaymentTransaction object so we can finish the transaction */
+    SKPaymentTransaction* GetPaymentTransaction() const { return static_cast<SKPaymentTransaction*>(PaymentTransaction); }
+private:
+    
+    /** iTunesConnect offer id */
+    FString OfferId;
+    /** Opaque store receipt data */
+    FString ReceiptData;
+    /** Error on the transaction, if applicable */
+    FString ErrorStr;
+    /** Unique transaction identifier */
+    FString TransactionIdentifier;
+    /** Quantity of items requested*/
+    int Quantity;
+    /** Platform transaction object*/
+    TRetainedObjCInstance<SKPaymentTransaction*> PaymentTransaction;
+};
+
+FOnlinePurchaseTransactionIOS::FOnlinePurchaseTransactionIOS(SKPaymentTransaction* Transaction)
+    : ReceiptData(OnlinePurchaseIOSPrivate::ConvertReceiptToString())
+    , TransactionIdentifier(Transaction.transactionIdentifier)
+    , Quantity(0)
+    , PaymentTransaction(Transaction)
+{
+    if(Transaction.error)
+    {
+        FString ErrorRaw([Transaction.error localizedDescription]);
+        if (!ErrorRaw.IsEmpty())
+        {
+            int32 ErrorCode([Transaction.error code]);
+            FString ErrorDomain([Transaction.error domain]);
+            ErrorStr = FString::Printf(TEXT("%s [%s:%d]"), *ErrorRaw, *ErrorDomain, ErrorCode);
+        }
+    }
+    
+    OfferId = Transaction.payment.productIdentifier;
+    Quantity = Transaction.payment.quantity;
+}
+
+/**
+ * Info used to cache and track order in progress.
+ */
+struct FOnlinePurchaseInProgressTransactionIOS
+{
+    FOnlinePurchaseInProgressTransactionIOS(const FPurchaseCheckoutRequest& InCheckoutRequest, const FOnPurchaseCheckoutComplete InCheckoutCompleteDelegate)
+        : CheckoutRequest(InCheckoutRequest)
+        , CheckoutCompleteDelegate(InCheckoutCompleteDelegate)
+    {
+    }
+    
+    bool HasRequestForProduct(const FString& ProductId) const
+    {
+        const TArray<FPurchaseCheckoutRequest::FPurchaseOfferEntry>& Offers = CheckoutRequest.PurchaseOffers;
+        return (Offers.Num() > 0 ? Offers[0].OfferId == ProductId : false);
+    }
+    
+    /** Checkout info for the order */
+    FPurchaseCheckoutRequest CheckoutRequest;
+    /** Delegate to call on completion */
+    FOnPurchaseCheckoutComplete CheckoutCompleteDelegate;
+};
+
+/**
+ * Proxy class that notifies updates from SKPaymentQueue to FOnlinePurchaseIOS on the game 
+ * thread and invokes SKPaymentQueue methods on main thread
+ */
+@interface FStoreKitPurchaseProxy : NSObject<SKPaymentTransactionObserver>
+{
+    FOnlinePurchaseIOS* _PurchaseReceiver;
+};
+@end
+
+@implementation FStoreKitPurchaseProxy
+
+////////////////////////////////////////////////////////////////////
+/// SKPaymentTransactionObserver implementation
+-(void)paymentQueue: (SKPaymentQueue*)Queue updatedTransactions: (NSArray*)Transactions
+{
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransactions"));
+    for(SKPaymentTransaction* Transaction in Transactions)
+    {
+        [self UpdatedTransaction : Transaction];
+    }
+}
+
+-(void)paymentQueue: (SKPaymentQueue*)Queue removedTransactions: (NSArray*)Transactions
+{
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::removedTransaction"));
+}
+
+-(void)paymentQueue: (SKPaymentQueue*)Queue restoreCompletedTransactionsFailedWithError: (NSError*)Error
+{
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::restoreCompletedTransactionsFailedWithError"));
+
+    EPurchaseTransactionState CompletionState = [FStoreKitPurchaseProxy TranslateError:Error];
+    
+    // Notifications from SKPaymentQueue are received on main thread. Use a task to notify from game thread
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+    {
+        if(_PurchaseReceiver)
+        {
+            _PurchaseReceiver->OnRestoreTransactionsComplete(CompletionState);
+        }
+        return true;
+    }];
+}
+
+-(void)paymentQueueRestoreCompletedTransactionsFinished: (SKPaymentQueue*)Queue
+{
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::paymentQueueRestoreCompletedTransactionsFinished"));
+
+    // Notifications from SKPaymentQueue are received on main thread. Use a task to notify from game thread
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+    {
+        if(_PurchaseReceiver)
+        {
+            _PurchaseReceiver->OnRestoreTransactionsComplete(EPurchaseTransactionState::Restored);
+        }
+        return true;
+    }];
+}
+
+////////////////////////////////////////////////////////////////////
+/// FStoreKitPurchaseProxy methods
+
+- (id)initWithReceiver: (FOnlinePurchaseIOS*)PurchaseReceiver
+{
+    _PurchaseReceiver = PurchaseReceiver;
+    [FProxyPaymentTransactionObserver sharedInstance].ossObserver = self;
+
+    // Notifications from SKPaymentQueue are received on main thread. Use dispatch_async on main queue to serialize operations
+    dispatch_async(dispatch_get_main_queue(), ^
+    {
+        SKPaymentQueue* queue = [SKPaymentQueue defaultQueue];
+        [self paymentQueue: queue updatedTransactions: [queue transactions]];
+    });
+    return self;
+}
+
+-(void)Shutdown
+{
+    _PurchaseReceiver = nullptr;
+    [FProxyPaymentTransactionObserver sharedInstance].ossObserver = nil;
+}
+
+- (bool)CanMakePayments
+{
+    return [SKPaymentQueue canMakePayments] != FALSE;
+}
+
++(EPurchaseTransactionState)TranslateError: (NSError*)Error
+{
+    EPurchaseTransactionState TranslatedError = EPurchaseTransactionState::Failed;
+    switch (Error.code)
+    {
+        case SKErrorPaymentCancelled:
+            TranslatedError = EPurchaseTransactionState::Canceled;
+            break;
+        case SKErrorClientInvalid:
+        case SKErrorStoreProductNotAvailable:
+        case SKErrorPaymentInvalid:
+            TranslatedError = EPurchaseTransactionState::Invalid;
+            break;
+        case SKErrorPaymentNotAllowed:
+            TranslatedError = EPurchaseTransactionState::NotAllowed;
+            break;
+    }
+    return TranslatedError;
+}
+
+-(void)UpdatedTransaction : (SKPaymentTransaction*)Transaction
+{
+    TOptional<EPurchaseTransactionState> TranslatedState;
+    SKPaymentTransaction* ActualTransaction = Transaction;
+    SKPaymentTransaction* FinishTransaction = nil;
+    
+    switch ([Transaction transactionState])
+    {
+    case SKPaymentTransactionStatePurchased:
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransaction SKPaymentTransactionStatePurchased"));
+
+        if (FParse::Param(FCommandLine::Get(), TEXT("disableiosredeem")))
+        {
+            UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::completedTransaction (disabled)"));
+        }
+        else
+        {
+            TranslatedState = EPurchaseTransactionState::Purchased;
+        }
+        break;
+    case SKPaymentTransactionStateFailed:
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransaction SKPaymentTransactionStateFailed"));
+        TranslatedState = [FStoreKitPurchaseProxy TranslateError:ActualTransaction.error];
+        FinishTransaction = ActualTransaction;
+        break;
+    case SKPaymentTransactionStateRestored:
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransaction SKPaymentTransactionStateRestored"));
+        TranslatedState = EPurchaseTransactionState::Restored;
+        FinishTransaction = ActualTransaction;
+        ActualTransaction = ActualTransaction.originalTransaction;
+        break;
+    case SKPaymentTransactionStatePurchasing:
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransaction SKPaymentTransactionStatePurchasing"));
+        break;
+    case SKPaymentTransactionStateDeferred:
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransaction SKPaymentTransactionStateDeferred"));
+        TranslatedState = EPurchaseTransactionState::Deferred;
+        FinishTransaction = ActualTransaction;
+        break;
+    default:
+        UE_LOG_ONLINE_STOREV2(Warning, TEXT("FStoreKitPurchaseProxy::updatedTransaction unhandled state: %d"), [Transaction transactionState]);
+        break;
+    }
+
+    if(TranslatedState)
+    {
+        FOnlinePurchaseTransactionIOS TransactionData(ActualTransaction);
+        // Notifications from SKPaymentQueue are received on main thread. Use a task to notify from game thread
+        [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+        {
+            if(_PurchaseReceiver)
+            {
+                _PurchaseReceiver->OnTransactionComplete(*TranslatedState, TransactionData);
+            }
+            return true;
+        }];
+    }
+    
+    if(FinishTransaction)
+    {
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::updatedTransaction transaction finished"));
+        [[SKPaymentQueue defaultQueue] finishTransaction:FinishTransaction];
+    }
+}
+
+-(void)RestorePurchases
+{
+    // Notifications from SKPaymentQueue are received on main thread. Use dispatch_async on main queue to serialize operations
+    dispatch_async(dispatch_get_main_queue(), ^
+    {
+        [[SKPaymentQueue defaultQueue] restoreCompletedTransactions];
+    });
+}
+
+-(void)MakePurchase: (SKProduct*)Product withQuantity: (int)Quantity simulateAskToBuy: (bool) bAskToBuy
+{
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::makePurchase by SKProduct"));
+
+    // Notifications from SKPaymentQueue are received on main thread. Use dispatch_async on main queue to serialize operations
+    dispatch_async(dispatch_get_main_queue(), ^
+    {
+        SKMutablePayment* Payment = [SKMutablePayment paymentWithProduct:Product];
+        Payment.quantity = Quantity;
+        // simulatesAskToBuyInSandbox is only effective while Sandbox testing
+        Payment.simulatesAskToBuyInSandbox = bAskToBuy;
+
+        [[SKPaymentQueue defaultQueue] addPayment:Payment];
+    });
+}
+
+-(void)FinalizeTransaction: (SKPaymentTransaction*)Transaction
+{
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitPurchaseProxy::finalizeTransaction"));
+
+    // Notifications from SKPaymentQueue are received on main thread. Use dispatch_async on main queue to serialize operations
+    dispatch_async(dispatch_get_main_queue(), ^
+    {
+        [[SKPaymentQueue defaultQueue] finishTransaction:Transaction];
+    });
+}
+
+@end
 
 FOnlinePurchaseIOS::FOnlinePurchaseIOS(FOnlineSubsystemIOS* InSubsystem)
-	: StoreHelper(nullptr)
-	, bRestoringTransactions(false)
+	: bRestoringTransactions(false)
 	, Subsystem(InSubsystem)
 {
 	UE_LOG_ONLINE_PURCHASE(Log, TEXT( "FOnlinePurchaseIOS::FOnlinePurchaseIOS" ));
+    StoreKitProxy = [[[FStoreKitPurchaseProxy alloc] initWithReceiver:this] autorelease];
 }
 
-FOnlinePurchaseIOS::FOnlinePurchaseIOS()
-{
-	UE_LOG_ONLINE_PURCHASE(Log, TEXT( "FOnlinePurchaseIOS::FOnlinePurchaseIOS" ));
-}
+////////////////////////////////////////////////////////////////////
+/// FOnlinePurchaseIOS methods
 
 FOnlinePurchaseIOS::~FOnlinePurchaseIOS()
 {
+    [StoreKitProxy Shutdown];
 }
 
-void FOnlinePurchaseIOS::InitStoreKit(FStoreKitHelperV2* InStoreKit)
+void FOnlinePurchaseIOS::DumpAppReceipt()
 {
-	StoreHelper = InStoreKit;
-
-	FOnProductsRequestResponseDelegate OnProductsRequestResponseDelegate = FOnProductsRequestResponseDelegate::CreateThreadSafeSP(this, &FOnlinePurchaseIOS::OnProductPurchaseRequestResponse);
-	[StoreHelper AddOnProductRequestResponse: OnProductsRequestResponseDelegate];
-	
-	FOnTransactionCompleteIOSDelegate OnTransactionCompleteResponseDelegate = FOnTransactionCompleteIOSDelegate::CreateThreadSafeSP(this, &FOnlinePurchaseIOS::OnTransactionCompleteResponse);
-	[StoreHelper AddOnTransactionComplete: OnTransactionCompleteResponseDelegate];
-	
-	FOnTransactionRestoredIOSDelegate OnTransactionRestoredDelegate = FOnTransactionRestoredIOSDelegate::CreateThreadSafeSP(this, &FOnlinePurchaseIOS::OnTransactionRestored);
-	[StoreHelper AddOnTransactionRestored: OnTransactionRestoredDelegate];
-	
-	FOnRestoreTransactionsCompleteIOSDelegate OnRestoreTransactionsCompleteDelegate = FOnRestoreTransactionsCompleteIOSDelegate::CreateThreadSafeSP(this, &FOnlinePurchaseIOS::OnRestoreTransactionsComplete);
-	[StoreHelper AddOnRestoreTransactionsComplete: OnRestoreTransactionsCompleteDelegate];
-	
-	FOnTransactionProgressDelegate OnTransactionPurchasingDelegate = FOnTransactionProgressDelegate::CreateThreadSafeSP(this, &FOnlinePurchaseIOS::OnTransactionInProgress);
-	[StoreHelper AddOnPurchaseInProgress: OnTransactionPurchasingDelegate];
-	
-	FOnTransactionProgressDelegate OnTransactionDeferredDelegate = FOnTransactionProgressDelegate::CreateThreadSafeSP(this, &FOnlinePurchaseIOS::OnTransactionDeferred);
-	[StoreHelper AddOnTransactionDeferred: OnTransactionDeferredDelegate];
+    FString receiptData = OnlinePurchaseIOSPrivate::ConvertReceiptToString();
+    UE_LOG_ONLINE_STOREV2(Verbose, TEXT("FOnlinePurchaseIOS::DumpAppReceipt"));
+    UE_LOG_ONLINE_STOREV2(Verbose, TEXT("%s"), *receiptData);
 }
 
-bool FOnlinePurchaseIOS::IsAllowedToPurchase(const FUniqueNetId& UserId)
+bool FOnlinePurchaseIOS::IsAllowedToPurchase(const FUniqueNetId& /*UserId*/)
 {
-	bool bCanMakePurchases = [SKPaymentQueue canMakePayments];
+	bool bCanMakePurchases = [StoreKitProxy CanMakePayments];
 	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::IsAllowedToPurchase %s"), *LexToString(bCanMakePurchases));
 	return bCanMakePurchases;
 }
@@ -79,73 +383,63 @@ void FOnlinePurchaseIOS::Checkout(const FUniqueNetId& UserId, const FPurchaseChe
 	bool bStarted = false;
 	FText ErrorMessage;
 
-	TSharedRef<FOnlinePurchasePendingTransactionIOS> RequestedTransaction = MakeShareable(new FOnlinePurchasePendingTransactionIOS(CheckoutRequest, UserId, EPurchaseTransactionState::NotStarted, Delegate));
-
-	if (IsAllowedToPurchase(UserId))
+    if (IsAllowedToPurchase(UserId))
 	{
-		const FString UserIdStr = IOSUSER;
-		const TSharedRef<FOnlinePurchasePendingTransactionIOS>* UserPendingTransaction = PendingTransactions.Find(UserIdStr);
-		if (UserPendingTransaction == nullptr)
+		if (InProgressTransaction == nullptr)
 		{
 			FOnlineStoreIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreIOS>(Subsystem->GetStoreV2Interface());
 			if (StoreInterface.IsValid())
 			{
-				TSharedRef<FOnlinePurchasePendingTransactionIOS> PendingTransaction = PendingTransactions.Add(UserIdStr, RequestedTransaction);
-				PendingTransaction->StartProcessing();
-				
-				// autoreleased NSMutableArray to hold products
-				int32 NumOffers = CheckoutRequest.PurchaseOffers.Num();
-
-				NSMutableArray<SKProduct*>* ProductSet = [NSMutableArray arrayWithCapacity: NumOffers];
-				for (int32 OfferIdx = 0; OfferIdx < NumOffers; OfferIdx++)
-				{
-					const FPurchaseCheckoutRequest::FPurchaseOfferEntry& Offer = CheckoutRequest.PurchaseOffers[OfferIdx];
-
-					SKProduct* Product = StoreInterface->GetSKProductByOfferId(Offer.OfferId);
-					if (Product)
-					{
-						[ProductSet addObject:Product];
-					}
-				}
-				
-				bool bAskToBuy = false;
+                int32 NumOffers = CheckoutRequest.PurchaseOffers.Num();
+                
+                SKProduct* Product = nil;
+                if(NumOffers > 0)
+                {
+                    const FPurchaseCheckoutRequest::FPurchaseOfferEntry& Offer = CheckoutRequest.PurchaseOffers[0];
+                    if (NumOffers > 1)
+                    {
+                        UE_LOG_ONLINE_PURCHASE(Warning, TEXT("StoreKit does not support multiple different products in one transaction. Only %s will be requested"), *Offer.OfferId);
+                    }
+                    Product = StoreInterface->GetSKProductByOfferId(Offer.OfferId);
+                
+                    if (Product)
+                    {
+                        bool bAskToBuy = false;
 #if !UE_BUILD_SHIPPING
-				bAskToBuy = OSSConsoleVariables::CVarSimluateAskToBuy.GetValueOnGameThread() == 1;
+                        bAskToBuy = OnlinePurchaseIOSPrivate::CVarSimluateAskToBuy.GetValueOnGameThread() == 1;
 #endif
-				
-				if ([ProductSet count] > 0)
-				{
-					dispatch_async(dispatch_get_main_queue(), ^
-					{
-					    // Purchase the product through the StoreKit framework
-						[StoreHelper makePurchase:ProductSet SimulateAskToBuy:bAskToBuy];
-					});
-					bStarted = true;
-				}
-				else
-				{
-					ErrorMessage = NSLOCTEXT("IOSPurchase", "ErrorNoOffersSpecified", "Failed to checkout, no offers given.");
-					RequestedTransaction->PendingPurchaseInfo.TransactionState = EPurchaseTransactionState::Failed;
-				}
+                        
+                        [StoreKitProxy MakePurchase:Product withQuantity:Offer.Quantity simulateAskToBuy:bAskToBuy];
+                        InProgressTransaction = MakeShared<const FOnlinePurchaseInProgressTransactionIOS>(CheckoutRequest, Delegate);
+                        bStarted = true;
+                    }
+                }
+                if(!bStarted)
+                {
+                    ErrorMessage = NSLOCTEXT("IOSPurchase", "ErrorNoOffersSpecified", "Failed to checkout, no valid offers given.");
+                }
 			}
-		}
+            else
+            {
+                ErrorMessage = NSLOCTEXT("IOSPurchase", "ErrorPurchaseNotAllowed", "Failed to checkout, invalid FOnlineStoreIOS instance.");
+            }		
+        }
 		else
 		{
 			ErrorMessage = NSLOCTEXT("IOSPurchase", "ErrorTransactionInProgress", "Failed to checkout, user has in progress transaction.");
-			RequestedTransaction->PendingPurchaseInfo.TransactionState = EPurchaseTransactionState::Failed;
 		}
 	}
 	else
 	{
 		ErrorMessage = NSLOCTEXT("IOSPurchase", "ErrorPurchaseNotAllowed", "Failed to checkout, user not allowed to purchase.");
-		RequestedTransaction->PendingPurchaseInfo.TransactionState = EPurchaseTransactionState::Failed;
 	}
 
 	if (!bStarted)
 	{
-		TSharedRef<FPurchaseReceipt> FailReceipt = RequestedTransaction->GenerateReceipt();
+		TSharedRef<FPurchaseReceipt> FailReceipt = GenerateFailReceipt(CheckoutRequest);
 		
-		Subsystem->ExecuteNextTick([ErrorMessage, FailReceipt, Delegate]()
+        // Notify failure on next tick
+		Subsystem->ExecuteNextTick([ErrorMessage, FailReceipt = FailReceipt, Delegate]()
 		{
 			FOnlineError Error(ErrorMessage);
 			Delegate.ExecuteIfBound(Error, FailReceipt);
@@ -163,18 +457,24 @@ void FOnlinePurchaseIOS::FinalizePurchase(const FUniqueNetId& UserId, const FStr
 {
 	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::FinalizePurchase %s %s"), *UserId.ToString(), *ReceiptId);
 
-	const FString ReceiptIdCopy(ReceiptId);
-	dispatch_async(dispatch_get_main_queue(), ^
-	{
-		// Purchase the product through the StoreKit framework
-		[StoreHelper finalizeTransaction:ReceiptIdCopy];
-	});
+    int IndexToRemove = Transactions.IndexOfByPredicate([&ReceiptId](const FKnownTransaction& Entry) { return Entry.Receipt->TransactionId == ReceiptId; });
+    if(IndexToRemove != INDEX_NONE)
+    {
+        const FKnownTransaction& Transaction = Transactions[IndexToRemove];
+        
+        // Restored transactions are already marked finalized when received but kept as known transactions so user code can process them
+        if(Transaction.Receipt->TransactionState != EPurchaseTransactionState::Restored)
+        {
+            [StoreKitProxy FinalizeTransaction:Transaction.PaymentTransaction];
+        }
+        Transactions.RemoveAt(IndexToRemove);
+    }
 }
 
 void FOnlinePurchaseIOS::RedeemCode(const FUniqueNetId& UserId, const FRedeemCodeRequest& RedeemCodeRequest, const FOnPurchaseRedeemCodeComplete& Delegate)
 {
 	FOnlineError Result;
-	Delegate.ExecuteIfBound(Result, MakeShareable(new FPurchaseReceipt()));
+	Delegate.ExecuteIfBound(Result, MakeShared<FPurchaseReceipt>());
 }
 
 void FOnlinePurchaseIOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreReceipts, const FOnQueryReceiptsComplete& Delegate)
@@ -185,21 +485,10 @@ void FOnlinePurchaseIOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestore
 	{
 		if (!bRestoringTransactions)
 		{
-			// Restore purchases, adding them to the offline receipts array for later redemption
-			if (StoreHelper)
-			{
-				QueryReceiptsComplete = Delegate;
-				bTriggerDelegate = false;
-				bRestoringTransactions = true;
-				dispatch_async(dispatch_get_main_queue(), ^
-				{
-					[StoreHelper restorePurchases];
-				});
-			}
-			else
-			{
-				bSuccess = false;
-			}
+            QueryReceiptsComplete = Delegate;
+            bTriggerDelegate = false;
+            bRestoringTransactions = true;
+            [StoreKitProxy RestorePurchases];
 		}
 		else
 		{
@@ -222,101 +511,72 @@ void FOnlinePurchaseIOS::GetReceipts(const FUniqueNetId& UserId, TArray<FPurchas
 {
 	OutReceipts.Empty();
 
-	// Add the cached list of user purchases
-    const FString UserIdStr = IOSUSER;
-	const TArray<TSharedRef<FPurchaseReceipt>>* UserCompletedTransactions = CompletedTransactions.Find(UserIdStr);
-	if (UserCompletedTransactions != nullptr)
+	for (const FKnownTransaction& Transaction: Transactions)
 	{
-		for (int32 Idx = 0; Idx < UserCompletedTransactions->Num(); Idx++)
-		{
-			OutReceipts.Add(*(*UserCompletedTransactions)[Idx]);
-		}
-	}
-	
-	// Add purchases completed while "offline"
-	for (int32 Idx = 0; Idx < OfflineTransactions.Num(); Idx++)
-	{
-		OutReceipts.Add(*OfflineTransactions[Idx]);
+		OutReceipts.Add(*Transaction.Receipt);
 	}
 }
 
-void FOnlinePurchaseIOS::OnProductPurchaseRequestResponse(SKProductsResponse* Response, const FOnQueryOnlineStoreOffersComplete& CompletionDelegate)
-{
-	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::OnProductPurchaseRequestResponse"));
-}
-
-void FOnlinePurchaseIOS::OnTransactionCompleteResponse(EPurchaseTransactionState Result, const FStoreKitTransactionData& TransactionData)
+void FOnlinePurchaseIOS::OnTransactionComplete(EPurchaseTransactionState Result, const FOnlinePurchaseTransactionIOS& TransactionData)
 {
 	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::OnTransactionCompleteResponse Result=%s TransactionData=[%s]"), LexToString(Result), *TransactionData.ToDebugString());
 	
-	FString UserIdStr = IOSUSER;
-	const TSharedRef<FOnlinePurchasePendingTransactionIOS>* UserPendingTransactionPtr = PendingTransactions.Find(UserIdStr);
-	if (UserPendingTransactionPtr != nullptr)
+    bool bIsInProgressTransaction = InProgressTransaction != nullptr && InProgressTransaction->HasRequestForProduct(TransactionData.GetOfferId());
+    bool bIsResoredTransaction = (Result == EPurchaseTransactionState::Restored);
+    
+	if (bIsInProgressTransaction && !bIsResoredTransaction)
 	{
-#if TEST_DEFERRED_TRANSACTIONS
-		if (Result == EPurchaseTransactionState::Restored || Result == EPurchaseTransactionState::Purchased)
-		{
-			// Route a successful purchase to the deferred code
-			OnTransactionDeferred(TransactionData);
-			return;
-		}
-#endif // TEST_DEFERRED_TRANSACTIONS
+        FOnlineError FinalResult;
+        const FString& ErrorStr = TransactionData.GetErrorStr();
 
-		const TSharedRef<FOnlinePurchasePendingTransactionIOS> UserPendingTransaction = *UserPendingTransactionPtr;
-		
-		UserPendingTransaction->AddCompletedOffer(Result, TransactionData);
-		if (UserPendingTransaction->AreAllOffersComplete())
-		{
-			FOnlineError FinalResult;
-			EPurchaseTransactionState FinalState = UserPendingTransaction->GetFinalTransactionState();
-			
-			UserPendingTransaction->PendingPurchaseInfo.TransactionState = FinalState;
-			// UserPendingTransaction->PendingPurchaseInfo.TransactionId; purposefully blank
-			
-			const FString& ErrorStr = TransactionData.GetErrorStr();
-			switch (FinalState)
-			{
-				case EPurchaseTransactionState::Failed:
-					FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.failure"));
-					FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("IOSTransactionFailed", "TransactionFailed");
-					break;
-				case EPurchaseTransactionState::Canceled:
-					FinalResult.SetFromErrorCode(TEXT("com.epicgames.catalog_helper.user_cancelled"));
-					FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("IOSTransactionCancel", "TransactionCanceled");
-					break;
-				case EPurchaseTransactionState::Purchased:
-					FinalResult.bSucceeded = true;
-					break;
-				default:
-					UE_LOG_ONLINE_PURCHASE(Warning, TEXT("Unexpected state after purchase %d"), (int)FinalState);
-					FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.unexpected_state"));
-					FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("UnexpectedState", "Unexpected purchase result");
-					UserPendingTransaction->PendingPurchaseInfo.TransactionState = EPurchaseTransactionState::Failed;
-					break;
-			}
-			
-			TSharedRef<FPurchaseReceipt> FinalReceipt = UserPendingTransaction->GenerateReceipt();
-			
-			TArray< TSharedRef<FPurchaseReceipt> >& UserCompletedTransactions = CompletedTransactions.FindOrAdd(UserIdStr);
-			
-			PendingTransactions.Remove(UserIdStr);
-			UserCompletedTransactions.Add(FinalReceipt);
-			
-			UserPendingTransaction->CheckoutCompleteDelegate.ExecuteIfBound(FinalResult, FinalReceipt);
-		}
+        switch (Result)
+        {
+            case EPurchaseTransactionState::Failed:
+                FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.failure"));
+                FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("IOSTransactionFailed", "TransactionFailed");
+                break;
+            case EPurchaseTransactionState::Canceled:
+                FinalResult.SetFromErrorCode(TEXT("com.epicgames.catalog_helper.user_cancelled"));
+                FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("IOSTransactionCancel", "TransactionCanceled");
+                break;
+            case EPurchaseTransactionState::Purchased:
+                FinalResult.bSucceeded = true;
+                break;
+            case EPurchaseTransactionState::Deferred:
+                FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.deferred"));
+                FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("IOSTransactionDeferred", "Transaction awaiting approval.");
+                break;
+            default:
+                UE_LOG_ONLINE_PURCHASE(Warning, TEXT("Unexpected state after purchase %d"), (int)Result);
+                FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.unexpected_state"));
+                FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("UnexpectedState", "Unexpected purchase result");
+                break;
+        }
+        
+        TSharedRef<FPurchaseReceipt> Receipt = GenerateReceipt(Result, InProgressTransaction->CheckoutRequest, TransactionData);
+        
+        if(FinalResult.bSucceeded)
+        {
+            Receipt = TryStoreTransactionAndGetReceipt(Receipt, TransactionData);
+        }
+        InProgressTransaction->CheckoutCompleteDelegate.ExecuteIfBound(FinalResult, Receipt);
+        InProgressTransaction.Reset();
 	}
 	else
 	{
-		// Transactions that come in during login or other non explicit purchase moments are added to a receipts list for later redemption
-		UE_LOG_ONLINE_PURCHASE(Log, TEXT("Pending transaction completed offline"));
+		// Transactions other than the in progress one are stored for later redemption. Those can be received at login or when restoring transactions
+        // We have no interest on other failure states because they won't store a redeemable receipt
 		if (Result == EPurchaseTransactionState::Restored || Result == EPurchaseTransactionState::Purchased)
 		{
-			TSharedRef<FPurchaseReceipt> OfflineReceipt = FOnlinePurchasePendingTransactionIOS::GenerateReceipt(Result, TransactionData);
-			OfflineTransactions.Add(OfflineReceipt);
-
-			// Queue this user to be updated about this next-tick on the game-thread, if they're not mid-purchase
-			TWeakPtr<FOnlinePurchaseIOS, ESPMode::ThreadSafe> WeakThis(AsShared());
-			Subsystem->ExecuteNextTick([WeakThis]()
+            TSharedRef<FPurchaseReceipt> Receipt = GenerateOfflineReceipt(Result, TransactionData);
+            TryStoreTransactionAndGetReceipt(Receipt, TransactionData);
+        }
+        
+        if(Result == EPurchaseTransactionState::Purchased)
+        {
+		    UE_LOG_ONLINE_PURCHASE(Log, TEXT("Deferred transaction finished or unfinished transaction was received"));
+            TWeakPtr<FOnlinePurchaseIOS> WeakThis = AsShared();
+            Subsystem->ExecuteNextTick([WeakThis]()
 			{
 				FOnlinePurchaseIOSPtr StrongThis = WeakThis.Pin();
 				if (StrongThis.IsValid())
@@ -326,34 +586,37 @@ void FOnlinePurchaseIOS::OnTransactionCompleteResponse(EPurchaseTransactionState
 				}
 			});
 		}
+        else if(Result == EPurchaseTransactionState::Restored)
+        {
+            UE_LOG_ONLINE_PURCHASE(Log, TEXT("Restored transaction"));
+        }
 	}
 }
 
-void FOnlinePurchaseIOS::OnTransactionRestored(const FStoreKitTransactionData& TransactionData)
+TSharedRef<FPurchaseReceipt> FOnlinePurchaseIOS::TryStoreTransactionAndGetReceipt(const TSharedRef<FPurchaseReceipt>& Receipt, const FOnlinePurchaseTransactionIOS& Transaction)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionRestored TransactionData=[%s]"), *TransactionData.ToDebugString());
-
-	// Single item restored amongst a group of items
-	TSharedRef<FPurchaseReceipt> OfflineReceipt = FOnlinePurchasePendingTransactionIOS::GenerateReceipt(EPurchaseTransactionState::Restored, TransactionData);
-	
-#if 0
-	bool bFound = false;
-	for (TSharedRef<FPurchaseReceipt>& OtherReceipt : OfflineTransactions)
-	{
-		// If redundant, replace the entry
-		if (OtherReceipt->TransactionId == OfflineReceipt->TransactionId)
-		{
-			*OtherReceipt = *OfflineReceipt;
-			bFound = true;
-			break;
-		}
-	}
-	
-	if (!bFound)
-#endif
-	{
-		OfflineTransactions.Add(OfflineReceipt);
-	}
+    FKnownTransaction* CachedTransaction = Transactions.FindByPredicate([&Transaction](const FKnownTransaction& KnownTransaction) {
+        return KnownTransaction.Receipt->TransactionId == Transaction.GetTransactionIdentifier();
+    });
+    if(CachedTransaction)
+    {
+        // In case the transaction already exists as Purchased don't make it Restored
+        if(CachedTransaction->Receipt->TransactionState == EPurchaseTransactionState::Purchased &&
+           Receipt->TransactionState == EPurchaseTransactionState::Restored)
+        {
+            return CachedTransaction->Receipt;
+        }
+        else
+        {
+            CachedTransaction->Receipt = Receipt;
+            return Receipt;
+        }
+    }
+    else
+    {
+        Transactions.Emplace(Receipt, Transaction.GetPaymentTransaction());
+        return Receipt;
+    }
 }
 
 void FOnlinePurchaseIOS::OnRestoreTransactionsComplete(EPurchaseTransactionState Result)
@@ -362,61 +625,12 @@ void FOnlinePurchaseIOS::OnRestoreTransactionsComplete(EPurchaseTransactionState
 	
 	// Full restore is complete
 	bRestoringTransactions = false;
-	bool bSuccess = (Result == EPurchaseTransactionState::Restored) || (Result == EPurchaseTransactionState::Purchased);
+	bool bSuccess = (Result == EPurchaseTransactionState::Restored);
 	Subsystem->ExecuteNextTick([this, bSuccess]() {
 		FOnlineError FinalResult(bSuccess);
 		QueryReceiptsComplete.ExecuteIfBound(FinalResult);
 		QueryReceiptsComplete.Unbind();
 	});
-}
-
-void FOnlinePurchaseIOS::OnTransactionInProgress(const FStoreKitTransactionData& TransactionData)
-{
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionInProgress TransactionData=[%s]"), *TransactionData.ToDebugString());
-}
-
-void FOnlinePurchaseIOS::OnTransactionDeferred(const FStoreKitTransactionData& TransactionData)
-{
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionDeferred TransactionData=[%s]"), *TransactionData.ToDebugString());
-	
-	FString UserIdStr = IOSUSER;
-	const TSharedRef<FOnlinePurchasePendingTransactionIOS>* UserPendingTransactionPtr = PendingTransactions.Find(UserIdStr);
-	if (UserPendingTransactionPtr != nullptr)
-	{
-		const TSharedRef<FOnlinePurchasePendingTransactionIOS> UserPendingTransaction = *UserPendingTransactionPtr;
-		
-		const FString& ErrorStr = TransactionData.GetErrorStr();
-		
-		FOnlineError FinalResult;
-		FinalResult.SetFromErrorCode(TEXT("com.epicgames.purchase.deferred"));
-		FinalResult.ErrorMessage = !ErrorStr.IsEmpty() ? FText::FromString(ErrorStr) : LOCTEXT("IOSTransactionDeferred", "Transaction awaiting approval.");
-		
-		TSharedRef<FPurchaseReceipt> DeferredReceipt = FOnlinePurchasePendingTransactionIOS::GenerateReceipt(EPurchaseTransactionState::Deferred, TransactionData);
-		
-		// Clear out the deferred transaction, it should get picked up in "offline" receipts
-		PendingTransactions.Remove(UserIdStr);
-		UserPendingTransaction->CheckoutCompleteDelegate.ExecuteIfBound(FinalResult, DeferredReceipt);
-
-#if TEST_DEFERRED_TRANSACTIONS
-		// Existing transactions emulating deferment will trigger as success shortly
-		TWeakPtr<FOnlinePurchaseIOS, ESPMode::ThreadSafe> WeakThis(AsShared());
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis, TransactionData](float) -> bool
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlinePurchaseIOS_TestDeferredTransactions);
-			FOnlinePurchaseIOSPtr StrongThis = WeakThis.Pin();
-			if (StrongThis.IsValid())
-			{
-				// Emulate redemption in a fixed time period
-				StrongThis->OnTransactionCompleteResponse(EPurchaseTransactionState::Purchased, TransactionData);
-			}
-			return false;
-		}), TEST_DEFERRED_DELAY);
-#endif // TEST_DEFERRED_TRANSACTIONS
-	}
-	else
-	{
-		UE_LOG_ONLINE_PURCHASE(Log, TEXT("Offline deferred transaction"));
-	}
 }
 
 void FOnlinePurchaseIOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, FString& InReceiptValidationInfo, const FOnFinalizeReceiptValidationInfoComplete& Delegate)
@@ -425,45 +639,33 @@ void FOnlinePurchaseIOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserI
 	Delegate.ExecuteIfBound(DefaultSuccess, InReceiptValidationInfo);
 }
 
-TSharedRef<FPurchaseReceipt> FOnlinePurchasePendingTransactionIOS::GenerateReceipt()
+TSharedRef<FPurchaseReceipt> FOnlinePurchaseIOS::GenerateFailReceipt(const FPurchaseCheckoutRequest& CheckoutRequest)
 {
-	TSharedRef<FPurchaseReceipt> Receipt = MakeShareable(new FPurchaseReceipt());
-	
-	Receipt->TransactionState = PendingPurchaseInfo.TransactionState;
-	Receipt->TransactionId = PendingPurchaseInfo.TransactionId;
-	
-	if(PendingPurchaseInfo.TransactionState == EPurchaseTransactionState::Purchased ||
-	   PendingPurchaseInfo.TransactionState == EPurchaseTransactionState::Restored)
-	{
-		Receipt->ReceiptOffers = PendingPurchaseInfo.ReceiptOffers;
-	}
-	else
-	{
-		// Add the requested offers to the receipt in the event of an incomplete purchase.
-		for(const auto& RequestedOffer : CheckoutRequest.PurchaseOffers)
-		{
-			Receipt->AddReceiptOffer(RequestedOffer.OfferNamespace, RequestedOffer.OfferId, RequestedOffer.Quantity);
-		}
-	}
-	
-	return Receipt;
+    TSharedRef<FPurchaseReceipt> Receipt = MakeShared<FPurchaseReceipt>();
+    
+    Receipt->TransactionState = EPurchaseTransactionState::Failed;
+    
+    // Add the requested offers to the receipt in the event of an incomplete purchase.
+    for(const auto& RequestedOffer : CheckoutRequest.PurchaseOffers)
+    {
+        Receipt->AddReceiptOffer(RequestedOffer.OfferNamespace, RequestedOffer.OfferId, RequestedOffer.Quantity);
+    }
+    return Receipt;
 }
 
-TSharedRef<FPurchaseReceipt> FOnlinePurchasePendingTransactionIOS::GenerateReceipt(EPurchaseTransactionState Result, const FStoreKitTransactionData& Transaction)
+TSharedRef<FPurchaseReceipt> FOnlinePurchaseIOS::GenerateOfflineReceipt(EPurchaseTransactionState Result, const FOnlinePurchaseTransactionIOS& Transaction)
 {
-	TSharedRef<FPurchaseReceipt> Receipt = MakeShareable(new FPurchaseReceipt());
-	
+    TSharedRef<FPurchaseReceipt> Receipt = MakeShared<FPurchaseReceipt>();
+
 	Receipt->TransactionState = Result;
 	Receipt->TransactionId = Transaction.GetTransactionIdentifier();
 	
 	if (Result == EPurchaseTransactionState::Purchased ||
 	    Result == EPurchaseTransactionState::Restored)
 	{
-		FPurchaseReceipt::FReceiptOfferEntry ReceiptEntry(TEXT(""), Transaction.GetOfferId(), 1);
+		FPurchaseReceipt::FReceiptOfferEntry ReceiptEntry(TEXT(""), Transaction.GetOfferId(), Transaction.GetQuantity());
 		
-		int32 Idx = ReceiptEntry.LineItems.AddZeroed();
-		
-		FPurchaseReceipt::FLineItemInfo& LineItem = ReceiptEntry.LineItems[Idx];
+		FPurchaseReceipt::FLineItemInfo& LineItem = ReceiptEntry.LineItems.Emplace_GetRef();
 		
 		LineItem.ItemName = Transaction.GetOfferId();
 		LineItem.UniqueId = Transaction.GetTransactionIdentifier();
@@ -475,83 +677,22 @@ TSharedRef<FPurchaseReceipt> FOnlinePurchasePendingTransactionIOS::GenerateRecei
 	return Receipt;
 }
 
-void FOnlinePurchasePendingTransactionIOS::StartProcessing()
+TSharedRef<FPurchaseReceipt> FOnlinePurchaseIOS::GenerateReceipt(EPurchaseTransactionState Result, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnlinePurchaseTransactionIOS& Transaction)
 {
-	PendingPurchaseInfo.TransactionState = EPurchaseTransactionState::Processing;
-	for (int32 OfferIdx = 0; OfferIdx < CheckoutRequest.PurchaseOffers.Num(); ++OfferIdx)
-	{
-		OfferPurchaseStates[OfferIdx] = EPurchaseTransactionState::Processing;
-	}
-}
+    TSharedRef<FPurchaseReceipt> Receipt = GenerateOfflineReceipt(Result, Transaction);
 
-bool FOnlinePurchasePendingTransactionIOS::AddCompletedOffer(EPurchaseTransactionState Result, const FStoreKitTransactionData& Transaction)
-{
-	for (int32 OfferIdx = 0; OfferIdx < CheckoutRequest.PurchaseOffers.Num(); ++OfferIdx)
+	if(Result != EPurchaseTransactionState::Purchased &&
+       Result != EPurchaseTransactionState::Restored)
 	{
-		const FPurchaseCheckoutRequest::FPurchaseOfferEntry& Offer = CheckoutRequest.PurchaseOffers[OfferIdx];
-		if (Transaction.GetOfferId() == Offer.OfferId)
-		{
-			OfferPurchaseStates[OfferIdx] = Result;
-			FPurchaseReceipt::FReceiptOfferEntry Receipt(TEXT(""), Transaction.GetOfferId(), 1);
-
-			int32 Idx = Receipt.LineItems.AddZeroed();
-			
-			FPurchaseReceipt::FLineItemInfo& LineItem = Receipt.LineItems[Idx];
-			
-			LineItem.ItemName = Transaction.GetOfferId();
-			LineItem.UniqueId = Transaction.GetTransactionIdentifier();
-			LineItem.ValidationInfo = Transaction.GetReceiptData();
-			
-			PendingPurchaseInfo.AddReceiptOffer(Receipt);
-			return true;
-		}
+        // Add the requested offers to the receipt in the event of an incomplete purchase.
+        for(const auto& RequestedOffer : CheckoutRequest.PurchaseOffers)
+        {
+            Receipt->AddReceiptOffer(RequestedOffer.OfferNamespace, RequestedOffer.OfferId, RequestedOffer.Quantity);
+        }
 	}
 	
-	return false;
-}
-
-bool FOnlinePurchasePendingTransactionIOS::AreAllOffersComplete() const
-{
-	for (const EPurchaseTransactionState State : OfferPurchaseStates)
-	{
-		if (State == EPurchaseTransactionState::NotStarted ||
-			State == EPurchaseTransactionState::Processing)
-		{
-			return false;
-		}
-	}
-	
-	return true;
-}
-
-EPurchaseTransactionState FOnlinePurchasePendingTransactionIOS::GetFinalTransactionState() const
-{
-	bool bAnyFailures = false;
-	bool bAnyCancels = false;
-	for (const EPurchaseTransactionState State : OfferPurchaseStates)
-	{
-		if (State == EPurchaseTransactionState::NotStarted ||
-			State == EPurchaseTransactionState::Processing ||
-			State == EPurchaseTransactionState::Failed)
-		{
-			bAnyFailures = true;
-		}
-		else if (State == EPurchaseTransactionState::Canceled)
-		{
-			bAnyCancels = true;
-		}
-	}
-	
-	if (bAnyFailures)
-	{
-		return EPurchaseTransactionState::Failed;
-	}
-	else if (bAnyCancels)
-	{
-		return EPurchaseTransactionState::Canceled;
-	}
-	
-	return EPurchaseTransactionState::Purchased;
+	return Receipt;
 }
 
 #undef LOCTEXT_NAMESPACE
+
