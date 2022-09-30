@@ -74,7 +74,7 @@ public:
 
 		AdditionalConsoleCommands = { "DisableAllScreenMessages" };
 
-		AdditionalConsoleVariables = { "p.Chaos.Solver.Deterministic=1", "r.Shadow.Virtual.Cache=0" };
+		AdditionalConsoleVariables = { "p.Chaos.Solver.Deterministic=1" };
 
 		Logging = { {"LogDisplayClusterRenderSync", EDisplayClusterLaunchLogVerbosity::Log } };
 	}
