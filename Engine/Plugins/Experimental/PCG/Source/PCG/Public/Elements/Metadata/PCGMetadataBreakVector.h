@@ -5,12 +5,12 @@
 #include "PCGElement.h"
 #include "PCGSettings.h"
 
+#include "Elements/Metadata/PCGMetadataOpElementBase.h"
+
 #include "PCGMetadataBreakVector.generated.h"
 
 namespace PCGMetadataBreakVectorConstants
 {
-	const FName ParamsLabel = TEXT("Params");
-	const FName SourceLabel = TEXT("Source");
 	const FName XLabel = TEXT("X");
 	const FName YLabel = TEXT("Y");
 	const FName ZLabel = TEXT("Z");
@@ -18,7 +18,7 @@ namespace PCGMetadataBreakVectorConstants
 }
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGMetadataBreakVectorSettings : public UPCGSettings
+class PCG_API UPCGMetadataBreakVectorSettings : public UPCGMetadataSettingsBase
 {
 	GENERATED_BODY()
 
@@ -26,11 +26,16 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MetadataBreakVectorNode")); }
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 
-	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+	virtual FName GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const override;
+
+	virtual FName GetOutputPinLabel(uint32 Index) const override;
+	virtual uint32 GetOutputPinNum() const override;
+
+	virtual bool IsSupportedInputType(uint16 TypeId, uint32 InputIndex, bool& bHasSpecialRequirement) const override;
+	virtual uint16 GetOutputType(uint16 InputTypeId) const override;
+	virtual FName GetOutputAttributeName(FName BaseName, uint32 Index) const override;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
@@ -38,22 +43,11 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FName SourceAttributeName = NAME_None;
-
-	// These exist to facilitate unit testing of the MetadataBreakVector element in isolation, when it otherwise would not have any pin connections to generate output
-	bool bForceConnectX = false;
-	bool bForceConnectY = false;
-	bool bForceConnectZ = false;
-	bool bForceConnectW = false;
+	FName InputAttributeName = NAME_None;
 };
 
-class FPCGMetadataBreakVectorElement : public FSimplePCGElement
+class FPCGMetadataBreakVectorElement : public FPCGMetadataElementBase
 {
-public:
-	// MetadataBreakVector relies on StaticDuplicateObject, so we cannot run outside of the main thread
-	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
-
 protected:
-	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+	virtual bool DoOperation(FOperationData& OperationData) const override;
 };

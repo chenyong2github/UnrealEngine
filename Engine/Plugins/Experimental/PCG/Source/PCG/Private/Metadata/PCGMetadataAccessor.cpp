@@ -139,6 +139,16 @@ void UPCGMetadataAccessorHelpers::SetVector4AttributeByMetadataKey(int64& Key, U
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
+FVector2D UPCGMetadataAccessorHelpers::GetVector2AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<FVector2D>(Key, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetVector2AttributeByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FVector2D& Value)
+{
+	SetAttribute(Key, Metadata, AttributeName, Value);
+}
+
 FRotator UPCGMetadataAccessorHelpers::GetRotatorAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FRotator>(Key, Metadata, AttributeName);
@@ -290,6 +300,16 @@ FVector4 UPCGMetadataAccessorHelpers::GetVector4Attribute(const FPCGPoint& Point
 }
 
 void UPCGMetadataAccessorHelpers::SetVector4Attribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FVector4& Value)
+{
+	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
+}
+
+FVector2D UPCGMetadataAccessorHelpers::GetVector2Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<FVector2D>(Point.MetadataEntry, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetVector2Attribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FVector2D& Value)
 {
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }

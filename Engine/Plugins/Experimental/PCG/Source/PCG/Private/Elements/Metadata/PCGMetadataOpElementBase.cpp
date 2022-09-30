@@ -33,7 +33,15 @@ TArray<FPCGPinProperties> UPCGMetadataSettingsBase::InputPinProperties() const
 TArray<FPCGPinProperties> UPCGMetadataSettingsBase::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+	
+	for (uint32 i = 0; i < GetOutputPinNum(); ++i)
+	{
+		const FName PinLabel = GetOutputPinLabel(i);
+		if (PinLabel != NAME_None)
+		{
+			PinProperties.Emplace(PinLabel, EPCGDataType::Any);
+		}
+	}
 
 	return PinProperties;
 }
@@ -50,11 +58,30 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	const UPCGMetadataSettingsBase* Settings = Context->GetInputSettings<UPCGMetadataSettingsBase>();
 	check(Settings);
 
+	const uint32 NumberOfInputs = Settings->GetInputPinNum();
+	const uint32 NumberOfOutputs = Settings->GetOutputPinNum();
+
+	check(NumberOfInputs > 0);
+	check(NumberOfOutputs <= UPCGMetadataSettingsBase::MaxNumberOfOutputs);
+
 	const TArray<FPCGTaggedData>& Inputs = Context->InputData.TaggedData;
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Nothing to do if we have no output
-	if (!Context->Node || !Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel))
+	TStaticArray<bool, UPCGMetadataSettingsBase::MaxNumberOfOutputs> ConnectedOutputs;
+	bool AnyOutputConnected = false;
+
+	for (uint32 i = 0; i < NumberOfOutputs; ++i)
+	{
+		ConnectedOutputs[i] = Context->Node && Context->Node->IsOutputPinConnected(Settings->GetOutputPinLabel(i));
+
+#if WITH_EDITOR
+		ConnectedOutputs[i] |= Settings->ForceOutputConnections[i];
+#endif // WITH_EDITOR
+
+		AnyOutputConnected |= ConnectedOutputs[i];
+	}
+
+	if (!AnyOutputConnected)
 	{
 		return true;
 	}
@@ -64,13 +91,11 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	FName OutputAttributeName = PCG_GET_OVERRIDEN_VALUE(Settings, OutputAttributeName, Params);
 
-	const uint32 NumberOfInputs = Settings->GetInputPinNum();
-
 	// Gathering all the inputs metadata
 	TArray<const UPCGMetadata*> SourceMetadata;
-	TArray<const UPCGData*> Data;
+	TArray<FPCGTaggedData> InputTaggedData;
 	SourceMetadata.SetNum(NumberOfInputs);
-	Data.SetNum(NumberOfInputs);
+	InputTaggedData.SetNum(NumberOfInputs);
 
 	for (uint32 i = 0; i < NumberOfInputs; ++i)
 	{
@@ -83,14 +108,14 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 		// By construction, there can only be one of then(hence the 0 index)
 		check(InputData.Num() == 1);
-		Data[i] = InputData[0].Data;
+		InputTaggedData[i] = MoveTemp(InputData[0]);
 
 		// Only gather Spacial and Params input. 
-		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Data[i]))
+		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(InputTaggedData[i].Data))
 		{
 			SourceMetadata[i] = SpatialInput->Metadata;
 		}
-		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(Data[i]))
+		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(InputTaggedData[i].Data))
 		{
 			SourceMetadata[i] = ParamsInput->Metadata;
 		}
@@ -150,7 +175,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		// Finally check that we have the right number of inputs, depending on the source
-		if (const UPCGPointData* PointData = Cast<UPCGPointData>(Data[i]))
+		if (const UPCGPointData* PointData = Cast<UPCGPointData>(InputTaggedData[i].Data))
 		{
 			NumberOfElements[i] = PointData->GetPoints().Num();
 
@@ -175,7 +200,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 				// Broadcast only if we have a single element and we are in broadcast mode, or inferred mode and we are param data.
 				bool bShouldBroadcast = i != 0 && 
 					NumberOfElements[i] == 1 && 
-					(Settings->Mode == EPCGMetadataSettingsBaseMode::Broadcast || (Settings->Mode == EPCGMetadataSettingsBaseMode::Inferred && Data[i]->IsA<UPCGParamData>()));
+					(Settings->Mode == EPCGMetadataSettingsBaseMode::Broadcast || (Settings->Mode == EPCGMetadataSettingsBaseMode::Inferred && InputTaggedData[i].Data->IsA<UPCGParamData>()));
 
 				if (i == 0 || NumberOfElements[i] == NumberOfElements[0] || bShouldBroadcast)
 				{
@@ -192,35 +217,59 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	// At this point, we verified everything, so we can go forward with the computation, depending on the most complex type
 	// So first forward outputs and create the attribute
-	OperationData.OutputAttribute = nullptr;
-	auto CreateAttribute = [&SourceAttributes = OperationData.SourceAttributes, &Inputs, &Outputs, &SourceMetadata, OutputAttributeName, &OutputAttribute = OperationData.OutputAttribute](auto DummyOutValue) -> void
+	OperationData.OutputAttributes.SetNum(Settings->GetOutputPinNum());
+
+	auto CreateAttributes = [&](auto DummyOutValue) -> bool
 	{
 		using AttributeType = decltype(DummyOutValue);
 
-		AttributeType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(SourceAttributes[0], PCGDefaultValueKey);
+		AttributeType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGDefaultValueKey);
 
-		FPCGTaggedData& OutputData = Outputs.Add_GetRef(Inputs[0]);
-		OutputData.Pin = PCGPinConstants::DefaultOutputLabel;
+		for (uint32 i = 0; i < NumberOfOutputs; ++i)
+		{
+			if (!ConnectedOutputs[i])
+			{
+				OperationData.OutputAttributes[i] = nullptr;
+				continue;
+			}
 
-		UPCGMetadata* OutMetadata = nullptr;
+			FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[0]);
+			OutputData.Pin = Settings->GetOutputPinLabel(i);
 
-		PCGMetadataElementCommon::DuplicateTaggedData(Inputs[0], OutputData, OutMetadata);
-		OutputAttribute = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputAttributeName, DefaultValue);
-		PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], SourceAttributes[0], OutputAttribute);
+			FName OutputAttributeFinalName = Settings->GetOutputAttributeName(OutputAttributeName, i);
+
+			UPCGMetadata* OutMetadata = nullptr;
+
+			PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
+			OperationData.OutputAttributes[i] = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputAttributeFinalName, DefaultValue);
+			PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], OperationData.SourceAttributes[0], OperationData.OutputAttributes[i]);
+
+			// If something went wrong stop here.
+			if (OperationData.OutputAttributes[i] == nullptr)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	};
 
 	OperationData.OutputType = Settings->GetOutputType(OperationData.MostComplexInputType);
 
-	PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, CreateAttribute);
-
-	if (OperationData.OutputAttribute == nullptr)
+	if (!PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, CreateAttributes))
 	{
-		PCGE_LOG(Error, "Error while creating output attribute");
+		PCGE_LOG(Error, "Error while creating output attributes");
 		Outputs.Empty();
 		return true;
 	}
 
 	OperationData.Settings = Settings;
 
-	return DoOperation(OperationData);
+	if (!DoOperation(OperationData))
+	{
+		PCGE_LOG(Error, "Error while performing the metadata operation, check logs for more information");
+		Outputs.Empty();
+	}
+
+	return true;
 }
