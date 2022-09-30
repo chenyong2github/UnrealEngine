@@ -17,7 +17,7 @@ using IAchievementsPtr = TSharedPtr<class IAchievements>;
 using IAuthPtr = TSharedPtr<class IAuth>;
 using ICommercePtr = TSharedPtr<class ICommerce>;
 using IUserInfoPtr = TSharedPtr<class IUserInfo>;
-using IFriendsPtr = TSharedPtr<class IFriends>;
+using ISocialPtr = TSharedPtr<class ISocial>;
 using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
 using ILeaderboardsPtr = TSharedPtr<class ILeaderboards>;
@@ -80,10 +80,12 @@ public:
 	 */
 	virtual IUserInfoPtr GetUserInfoInterface() = 0;
 
+
 	/**
-	 *
+	 * Get the social interface, used to interact with friends lists, blocked user lists, and any other social relationships
+	 * @return social interface implementation, may be null if not implemented for this service
 	 */
-	virtual IFriendsPtr GetFriendsInterface() = 0;
+	virtual ISocialPtr GetSocialInterface() = 0;
 
 	/**
 	 *

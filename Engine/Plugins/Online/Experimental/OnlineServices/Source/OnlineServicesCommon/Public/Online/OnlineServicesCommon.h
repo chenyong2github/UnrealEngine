@@ -39,7 +39,7 @@ public:
 	virtual IAuthPtr GetAuthInterface() override;
 	virtual IUserInfoPtr GetUserInfoInterface() override;
 	virtual ICommercePtr GetCommerceInterface() override;
-	virtual IFriendsPtr GetFriendsInterface() override;
+	virtual ISocialPtr GetSocialInterface() override;
 	virtual IPresencePtr GetPresenceInterface() override;
 	virtual IExternalUIPtr GetExternalUIInterface() override;
 	virtual ILeaderboardsPtr GetLeaderboardsInterface() override;

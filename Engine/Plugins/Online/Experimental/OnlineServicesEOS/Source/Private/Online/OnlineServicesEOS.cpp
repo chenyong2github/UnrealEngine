@@ -4,7 +4,7 @@
 
 #include "Online/AuthEOS.h"
 #include "Online/ExternalUIEOS.h"
-#include "Online/FriendsEOS.h"
+#include "Online/SocialEOS.h"
 #include "Online/PresenceEOS.h"
 #include "Online/UserInfoEOS.h"
 #include "Online/CommerceEOS.h"
@@ -20,7 +20,7 @@ void FOnlineServicesEOS::RegisterComponents()
 {
 	Components.Register<FAuthEOS>(*this);
 	Components.Register<FExternalUIEOS>(*this);
-	Components.Register<FFriendsEOS>(*this);
+	Components.Register<FSocialEOS>(*this);
 	Components.Register<FPresenceEOS>(*this);
 	Components.Register<FUserInfoEOS>(*this);
 	Components.Register<FCommerceEOS>(*this);

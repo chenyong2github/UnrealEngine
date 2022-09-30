@@ -3,34 +3,39 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Online/FriendsCommon.h"
+#include "Online/SocialCommon.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
 #include "eos_friends_types.h"
+#include "eos_ui_types.h"
 
 namespace UE::Online {
 
 class FOnlineServicesEOS;
 	
-class FFriendsEOS : public FFriendsCommon
+class FSocialEOS : public FSocialCommon
 {
 public:
-	FFriendsEOS(FOnlineServicesEOS& InServices);
+	FSocialEOS(FOnlineServicesEOS& InServices);
 
 	virtual void Initialize() override;
 	virtual void PreShutdown() override;
 
 	virtual TOnlineAsyncOpHandle<FQueryFriends> QueryFriends(FQueryFriends::Params&& Params) override;
 	virtual TOnlineResult<FGetFriends> GetFriends(FGetFriends::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAddFriend> AddFriend(FAddFriend::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FSendFriendInvite> SendFriendInvite(FSendFriendInvite::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAcceptFriendInvite> AcceptFriendInvite(FAcceptFriendInvite::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FRejectFriendInvite> RejectFriendInvite(FRejectFriendInvite::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FBlockUser> BlockUser(FBlockUser::Params&& Params) override;
 
 protected:
 	void OnEOSFriendsUpdate(FAccountId LocalAccountId, FAccountId FriendAccountId, EOS_EFriendsStatus PreviousStatus, EOS_EFriendsStatus CurrentStatus);
-protected:
+
 	TMap<FAccountId, TMap<FAccountId, TSharedRef<FFriend>>> FriendsLists;
 	EOS_HFriends FriendsHandle = nullptr;
+	EOS_HUI UIHandle = nullptr;
 
 	EOS_NotificationId NotifyFriendsUpdateNotificationId = 0;
 };

@@ -3,7 +3,6 @@
 #include "Online/OnlineServicesCommon.h"
 
 #include "Online/AuthCommon.h"
-#include "Online/FriendsCommon.h"
 
 DEFINE_LOG_CATEGORY(LogOnlineServices);
 
@@ -61,9 +60,9 @@ IUserInfoPtr FOnlineServicesCommon::GetUserInfoInterface()
 	return IUserInfoPtr(AsShared(), Get<IUserInfo>());
 }
 
-IFriendsPtr FOnlineServicesCommon::GetFriendsInterface()
+ISocialPtr FOnlineServicesCommon::GetSocialInterface()
 {
-	return IFriendsPtr(AsShared(), Get<IFriends>());
+	return ISocialPtr(AsShared(), Get<ISocial>());
 }
 
 IPresencePtr FOnlineServicesCommon::GetPresenceInterface()
