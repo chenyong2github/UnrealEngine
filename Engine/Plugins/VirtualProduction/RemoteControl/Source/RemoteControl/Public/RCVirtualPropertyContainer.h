@@ -32,10 +32,11 @@ public:
 	 * @param InPropertyClass				Class of the Virtual Property 
 	 * @param InValueType					Property Type
 	 * @param InValueTypeObject				Property Type object if exists
+	 * @param MetaData                      Property Metadata used by Slate widgets (eg: Delta, LinearDeltaSensitivity, etc)
 	 *
 	 * @return Virtual Property Object
 	 */
-	virtual URCVirtualPropertyInContainer* AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr);
+	virtual URCVirtualPropertyInContainer* AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr, TArray<FPropertyBagPropertyDescMetaData> MetaData = TArray<FPropertyBagPropertyDescMetaData>());
 
 	/**
 	 * Duplicates a property from given FProperty.

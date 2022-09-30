@@ -10,29 +10,6 @@
 
 #define LOCTEXT_NAMESPACE "RCController"
 
-void URCController::Init()
-{
-#if WITH_EDITORONLY_DATA
-	// Setup metadata
-	// Note: In the future this can be set directly by the user from UI
-	if (IsVectorType())
-	{
-		if (FProperty* Property = GetProperty())
-		{
-			// Provides users with a vector scrubbing experience that approximates the SceneComponent's Location Vector widget
-			Property->SetMetaData(TEXT("SliderExponent"), FString::Printf(TEXT("%f"), SliderExponent));
-		}
-	}
-#endif
-}
-
-void URCController::PostLoad()
-{
-	Super::PostLoad();
-
-	Init();
-}
-
 #if WITH_EDITOR
 void URCController::PostEditUndo()
 {

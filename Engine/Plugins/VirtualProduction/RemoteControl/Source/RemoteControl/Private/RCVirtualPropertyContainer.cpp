@@ -19,16 +19,20 @@ void URCVirtualPropertyContainerBase::AddVirtualProperty(URCVirtualPropertyBase*
 	{
 		// Add property to Set
 		VirtualProperties.Add(InVirtualProperty);
-
-		// Initialize
-		InVirtualProperty->Init();
 	}
 }
 
-URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
+URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject, TArray<FPropertyBagPropertyDescMetaData> MetaData/* = TArray<FPropertyBagPropertyDescMetaData>()*/)
 {
 	const FName PropertyName = GenerateUniquePropertyName(InPropertyName, InValueType, InValueTypeObject, this);
-	Bag.AddProperty(PropertyName, InValueType, InValueTypeObject);
+
+	FPropertyBagPropertyDesc PropertyBagDesc = FPropertyBagPropertyDesc(PropertyName, InValueType, InValueTypeObject);
+
+#if WITH_EDITORONLY_DATA
+	PropertyBagDesc.MetaData = MetaData;
+#endif
+
+	Bag.AddProperties({ PropertyBagDesc });
 
 	// Ensure that the property has been successfully added to the Bag
 	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(PropertyName);
@@ -147,6 +151,11 @@ URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualProperty(cons
 {
 	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
 	{
+		if (!ensure(VirtualProperty))
+		{
+			continue;
+		}
+
 		if (VirtualProperty->PropertyName == InPropertyName)
 		{
 			return VirtualProperty;
