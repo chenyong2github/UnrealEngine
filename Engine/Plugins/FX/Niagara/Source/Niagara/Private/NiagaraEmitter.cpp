@@ -2269,6 +2269,8 @@ struct FNiagaraEmitterVersionDataAccessor final : FNiagaraVersionDataAccessor
 
 	virtual FNiagaraAssetVersion& GetObjectVersion() override { return EmitterData->Version; }
 	virtual FText& GetVersionChangeDescription() override { return EmitterData->VersionChangeDescription; }
+	virtual FText& GetDeprecationMessage() override { return EmitterData->DeprecationMessage; }
+	virtual bool& IsDeprecated() override { return EmitterData->bDeprecated; }
 	virtual ENiagaraPythonUpdateScriptReference& GetUpdateScriptExecutionType() override { return EmitterData->UpdateScriptExecution; }
 	virtual FString& GetPythonUpdateScript() override { return EmitterData->PythonUpdateScript; }
 	virtual FFilePath& GetScriptAsset() override { return EmitterData->ScriptAsset; }

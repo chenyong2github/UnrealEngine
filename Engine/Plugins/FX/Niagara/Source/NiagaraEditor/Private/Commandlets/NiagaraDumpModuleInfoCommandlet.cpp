@@ -250,8 +250,12 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraScripts()
 			{
 				UNiagaraGraph* FunctionGraph = ScriptSrc->NodeGraph;
 				FText VersionDesc;
+				bool bDeprecated = false;
 				if (VersionDataAccessor)
+				{
 					VersionDesc = VersionDataAccessor->GetVersionChangeDescription();
+					bDeprecated = VersionDataAccessor->IsDeprecated();
+				}
 
 				if (FunctionGraph)
 				{
@@ -281,6 +285,7 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraScripts()
 					OutputStream->Log(TEXT("<Info>"));
 					OutputStream->Logf(TEXT("\t<VersionNumber>%d . %d</VersionNumber>"), Version.MajorVersion, Version.MinorVersion);
 					OutputStream->Logf(TEXT("\t<VersionDesc>%s</VersionDesc>"), *VersionDesc.ToString());
+					OutputStream->Logf(TEXT("\t<Deprecated>%s</Deprecated>"), bDeprecated ? TEXT("true") : TEXT("false"));
 					OutputStream->Logf(TEXT("\t<Path>%s</Path>"), *GetPathNameSafe(FunctionGraph));
 
 					for (UNiagaraScriptVariable*& ScriptVar : ScriptVars)

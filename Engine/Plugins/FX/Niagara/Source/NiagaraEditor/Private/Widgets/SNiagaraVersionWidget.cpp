@@ -217,6 +217,8 @@ void SNiagaraVersionWidget::NotifyPostChange(const FPropertyChangedEvent& Proper
 	check(ObjectData);
 	
 	ObjectData->GetVersionChangeDescription() = VersionMetadata->ChangeDescription;
+	ObjectData->IsDeprecated() = VersionMetadata->bDeprecated;
+	ObjectData->GetDeprecationMessage() = VersionMetadata->DeprecationMessage;
 	ObjectData->GetUpdateScriptExecutionType() = VersionMetadata->UpdateScriptExecution;
 	ObjectData->GetScriptAsset() = VersionMetadata->ScriptAsset;
 	ObjectData->GetPythonUpdateScript() = VersionMetadata->PythonUpdateScript;
@@ -437,6 +439,8 @@ void SNiagaraVersionWidget::VersionInListSelected(FNiagaraAssetVersion InSelecte
 	
 	VersionMetadata->VersionGuid = InSelectedVersion.VersionGuid;
 	VersionMetadata->ChangeDescription = ObjectData->GetVersionChangeDescription();
+	VersionMetadata->bDeprecated = ObjectData->IsDeprecated();
+	VersionMetadata->DeprecationMessage = ObjectData->GetDeprecationMessage();
 	VersionMetadata->bIsExposedVersion = InSelectedVersion == VersionedObject->GetExposedVersion();
 	VersionMetadata->bIsVisibleInVersionSelector = InSelectedVersion.bIsVisibleInVersionSelector;
 

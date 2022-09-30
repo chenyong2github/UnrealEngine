@@ -568,6 +568,8 @@ struct FNiagaraScriptVersionDataAccessor final : FNiagaraVersionDataAccessor
 
 	virtual FNiagaraAssetVersion& GetObjectVersion() override { return ScriptData->Version; }
 	virtual FText& GetVersionChangeDescription() override { return ScriptData->VersionChangeDescription; }
+	virtual bool& IsDeprecated() override { return ScriptData->bDeprecated; }
+	virtual FText& GetDeprecationMessage() override { return ScriptData->DeprecationMessage; }
 	virtual ENiagaraPythonUpdateScriptReference& GetUpdateScriptExecutionType() override { return ScriptData->UpdateScriptExecution; }
 	virtual FString& GetPythonUpdateScript() override { return ScriptData->PythonUpdateScript; }
 	virtual FFilePath& GetScriptAsset() override { return ScriptData->ScriptAsset; }

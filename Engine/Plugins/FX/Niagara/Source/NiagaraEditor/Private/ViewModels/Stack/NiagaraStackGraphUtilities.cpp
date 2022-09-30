@@ -518,19 +518,22 @@ void FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(UNiagaraNodeFu
 	if (InputFunctionCallNode->FunctionScript && InputFunctionCallNode->FunctionScript->IsVersioningEnabled() && VersionUpgradeFix.IsBound())
 	{
 		FNiagaraAssetVersion ExposedVersion = InputFunctionCallNode->FunctionScript->GetExposedVersion();
-		FNiagaraAssetVersion ReferencedVersion = InputFunctionCallNode->FunctionScript->GetScriptData(InputFunctionCallNode->SelectedScriptVersion)->Version;
+		FVersionedNiagaraScriptData* ScriptData = InputFunctionCallNode->FunctionScript->GetScriptData(InputFunctionCallNode->SelectedScriptVersion);
+		FNiagaraAssetVersion ReferencedVersion = ScriptData->Version;
 		if (ReferencedVersion.MajorVersion < ExposedVersion.MajorVersion)
 		{
 			TArray<UNiagaraStackEntry::FStackIssueFix> Fixes;
 			Fixes.Add(UNiagaraStackEntry::FStackIssueFix(LOCTEXT("UpgradeVersionFix", "Upgrade to newest version."), VersionUpgradeFix));
 			//TODO MV: add "fix all" and "copy and fix" actions
-						
+			
 			FText ChangelistDescriptions = GetChangelistText(InputFunctionCallNode->FunctionScript, ReferencedVersion, ExposedVersion);
-			FText LongDescription = FText::Format(LOCTEXT("DeprecatedVersionFormat", "This script has a newer version available.\nYou can upgrade now, but major version upgrades can sometimes come with breaking changes! So check that everything is still working as expected afterwards.{0}"),
+			FText DeprecationDescription = ScriptData->bDeprecated && !ScriptData->DeprecationMessage.IsEmpty() ? FText::Format(LOCTEXT("DeprecatedScriptVersionMessage", "\n\nDeprecation message:\n{0}"), ScriptData->DeprecationMessage) : FText();
+			FText LongDescription = FText::Format(LOCTEXT("DeprecatedVersionFormat", "This script has a newer version available.\nYou can upgrade now, but major version upgrades can sometimes come with breaking changes! So check that everything is still working as expected afterwards.{0}{1}"),
+				DeprecationDescription,
 				ChangelistDescriptions.IsEmpty() ? FText() : FText::Format(LOCTEXT("DeprecatedVersionFormatChanges", "\n\nVersion change description:\n{0}"), ChangelistDescriptions));
 			UNiagaraStackEntry::FStackIssue UpgradeVersion(
-                EStackIssueSeverity::Warning,
-                FText::Format(LOCTEXT("DeprecatedScriptVersionSummaryFormat", "Deprecated script version: {0}.{1} -> {2}.{3}"),
+                ScriptData->bDeprecated ? EStackIssueSeverity::Warning : EStackIssueSeverity::Info,
+                FText::Format(LOCTEXT("DeprecatedScriptVersionSummaryFormat", "Upgrade script version: {0}.{1} -> {2}.{3}"),
                 	FText::AsNumber(ReferencedVersion.MajorVersion), FText::AsNumber(ReferencedVersion.MinorVersion), FText::AsNumber(ExposedVersion.MajorVersion), FText::AsNumber(ExposedVersion.MinorVersion)),
                 LongDescription,
                 StackEditorDataKey,
@@ -621,11 +624,13 @@ void FNiagaraStackGraphUtilities::CheckForDeprecatedEmitterVersion(TSharedPtr<FN
 			Fixes.Add(UNiagaraStackEntry::FStackIssueFix(LOCTEXT("UpgradeNewestParentFix", "Upgrade to newest parent version."), VersionUpgradeFix));
 			
 			FText ChangelistDescriptions = GetChangelistText(Emitter, ReferencedVersion, ExposedVersion);
-			FText LongDescription = FText::Format(LOCTEXT("EmitterDeprecatedVersionFormat", "This emitter has a newer parent version available.\nYou can upgrade now, but major version upgrades can sometimes come with breaking changes! So check that everything is still working as expected afterwards.{0}"),
+			FText DeprecationDescription = EmitterData->bDeprecated && !EmitterData->DeprecationMessage.IsEmpty() ? FText::Format(LOCTEXT("DeprecatedEmitterVersionMessage", "\n\nDeprecation message:\n{0}"), EmitterData->DeprecationMessage) : FText();
+			FText LongDescription = FText::Format(LOCTEXT("EmitterDeprecatedVersionFormat", "This emitter has a newer parent version available.\nYou can upgrade now, but major version upgrades can sometimes come with breaking changes! So check that everything is still working as expected afterwards.{0}{1}"),
+				DeprecationDescription,
 				ChangelistDescriptions.IsEmpty() ? FText() : FText::Format(LOCTEXT("DeprecatedVersionFormatChanges", "\n\nVersion change description:\n{0}"), ChangelistDescriptions));
 			UNiagaraStackEntry::FStackIssue UpgradeVersion(
-                EStackIssueSeverity::Warning,
-                FText::Format(LOCTEXT("DeprecatedVersionSummaryFormat", "Deprecated emitter version: {0}.{1} -> {2}.{3}"),
+                EmitterData->bDeprecated ? EStackIssueSeverity::Warning : EStackIssueSeverity::Info,
+                FText::Format(LOCTEXT("DeprecatedVersionSummaryFormat", "Upgrade emitter version: {0}.{1} -> {2}.{3}"),
                 	FText::AsNumber(ReferencedVersion.MajorVersion), FText::AsNumber(ReferencedVersion.MinorVersion), FText::AsNumber(ExposedVersion.MajorVersion), FText::AsNumber(ExposedVersion.MinorVersion)),
                 LongDescription,
                 StackEditorDataKey,

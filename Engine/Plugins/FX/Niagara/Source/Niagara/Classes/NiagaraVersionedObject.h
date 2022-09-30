@@ -11,6 +11,8 @@ struct NIAGARA_API FNiagaraVersionDataAccessor
 
 	virtual FNiagaraAssetVersion& GetObjectVersion();
 	virtual FText& GetVersionChangeDescription();
+	virtual bool& IsDeprecated();
+	virtual FText& GetDeprecationMessage();
 	virtual ENiagaraPythonUpdateScriptReference& GetUpdateScriptExecutionType();
 	virtual FString& GetPythonUpdateScript();
 	virtual FFilePath& GetScriptAsset();

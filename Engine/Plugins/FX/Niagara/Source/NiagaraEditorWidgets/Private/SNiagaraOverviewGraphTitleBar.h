@@ -35,8 +35,14 @@ private:
 	FText GetEmitterSubheaderText() const;
 	EVisibility GetEmitterSubheaderVisibility() const;
 	FLinearColor GetEmitterSubheaderColor() const;
+
+	FText GetSystemSubheaderText() const;
+	EVisibility GetSystemSubheaderVisibility() const;
+	FLinearColor GetSystemSubheaderColor() const;
+	
 	
 	int32 GetEmitterAffectedAssets() const;
+	bool IsUsingDeprecatedEmitter() const;
 	void ResetAssetCount(const FAssetData& InAssetData);
 	void AddAssetListeners();
 	void ClearListeners();

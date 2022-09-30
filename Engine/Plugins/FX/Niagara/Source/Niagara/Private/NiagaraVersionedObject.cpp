@@ -12,15 +12,17 @@ namespace NiagaraVersionedObject
 	{
 		virtual FNiagaraAssetVersion& GetObjectVersion() override { return Version; }
 		virtual FText& GetVersionChangeDescription() override { return Desc; }
-		virtual ENiagaraPythonUpdateScriptReference& GetUpdateScriptExecutionType() override {return Type;}
-		virtual FString& GetPythonUpdateScript() override {return Script;}
-		virtual FFilePath& GetScriptAsset() override {return Path;};
+		virtual ENiagaraPythonUpdateScriptReference& GetUpdateScriptExecutionType() override {return Type; }
+		virtual FString& GetPythonUpdateScript() override {return Script; }
+		virtual FFilePath& GetScriptAsset() override {return Path; }
+		virtual bool& IsDeprecated() override { return bDeprecated; }
 
 		FNiagaraAssetVersion Version;
 		FText Desc;
 		ENiagaraPythonUpdateScriptReference Type = ENiagaraPythonUpdateScriptReference::None;
 		FString Script;
 		FFilePath Path;
+		bool bDeprecated;
 	};
 
 	static DummyObject Dummy;
@@ -33,6 +35,18 @@ FNiagaraAssetVersion& FNiagaraVersionDataAccessor::GetObjectVersion()
 }
 
 FText& FNiagaraVersionDataAccessor::GetVersionChangeDescription()
+{
+	ensure(false);
+	return NiagaraVersionedObject::Dummy.GetVersionChangeDescription();
+}
+
+bool& FNiagaraVersionDataAccessor::IsDeprecated()
+{
+	ensure(false);
+	return NiagaraVersionedObject::Dummy.IsDeprecated();
+}
+
+FText& FNiagaraVersionDataAccessor::GetDeprecationMessage()
 {
 	ensure(false);
 	return NiagaraVersionedObject::Dummy.GetVersionChangeDescription();

@@ -65,6 +65,7 @@ void SNiagaraOverviewGraphTitleBar::RebuildWidget()
 		]
 	];
 
+	// warning note for affected assets
 	if (SystemViewModel.IsValid() && SystemViewModel.Pin()->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset)
 	{
 		ContainerWidget->AddSlot()
@@ -79,6 +80,27 @@ void SNiagaraOverviewGraphTitleBar::RebuildWidget()
 			[
 				SNew(STextBlock)
 				.Text(this, &SNiagaraOverviewGraphTitleBar::GetEmitterSubheaderText)
+				.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+				.Justification(ETextJustify::Center)
+			]
+		];
+	}
+
+	// usage of deprecated assets note
+	if (SystemViewModel.IsValid() && SystemViewModel.Pin()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		ContainerWidget->AddSlot()
+		.HAlign(HAlign_Fill)
+		.AutoHeight()
+		[
+			SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
+			.ColorAndOpacity(this, &SNiagaraOverviewGraphTitleBar::GetSystemSubheaderColor)
+			.Visibility(this, &SNiagaraOverviewGraphTitleBar::GetSystemSubheaderVisibility)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(STextBlock)
+				.Text(this, &SNiagaraOverviewGraphTitleBar::GetSystemSubheaderText)
 				.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
 				.Justification(ETextJustify::Center)
 			]
@@ -124,6 +146,38 @@ EVisibility SNiagaraOverviewGraphTitleBar::GetEmitterSubheaderVisibility() const
 FLinearColor SNiagaraOverviewGraphTitleBar::GetEmitterSubheaderColor() const
 {
 	return GetEmitterAffectedAssets() >= 5 ? FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.AffectedAssetsWarningColor") : FLinearColor::White;
+}
+
+FText SNiagaraOverviewGraphTitleBar::GetSystemSubheaderText() const
+{
+	TArray<FText> DeprecatedEmitterNames;
+	if (SystemViewModel.IsValid())
+	{
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterModel : SystemViewModel.Pin()->GetEmitterHandleViewModels())
+		{
+			if (FVersionedNiagaraEmitterData* EmitterData = EmitterModel->GetEmitterHandle()->GetEmitterData())
+			{
+				if (FVersionedNiagaraEmitterData* ParentData = EmitterData->GetParent().GetEmitterData())
+				{
+					if (ParentData->bDeprecated)
+					{
+						DeprecatedEmitterNames.Add(FText::FromName(EmitterModel->GetName()));
+					}
+				}
+			}
+		}
+	}
+	return FText::Format(LOCTEXT("SystemSubheaderText", "The following emitters are marked as deprecated: {0}"), FText::Join(FText::FromString(", "), DeprecatedEmitterNames));
+}
+
+EVisibility SNiagaraOverviewGraphTitleBar::GetSystemSubheaderVisibility() const
+{
+	return IsUsingDeprecatedEmitter() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FLinearColor SNiagaraOverviewGraphTitleBar::GetSystemSubheaderColor() const
+{
+	return IsUsingDeprecatedEmitter() ? FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.AffectedAssetsWarningColor") : FLinearColor::White;
 }
 
 void SNiagaraOverviewGraphTitleBar::ResetAssetCount(const FAssetData&)
@@ -190,6 +244,27 @@ int32 SNiagaraOverviewGraphTitleBar::GetEmitterAffectedAssets() const
 		});
 	}
 	return EmitterAffectedAssets.Get(0);
+}
+
+bool SNiagaraOverviewGraphTitleBar::IsUsingDeprecatedEmitter() const
+{
+	if (SystemViewModel.IsValid())
+	{
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterModel : SystemViewModel.Pin()->GetEmitterHandleViewModels())
+		{
+			if (FVersionedNiagaraEmitterData* EmitterData = EmitterModel->GetEmitterHandle()->GetEmitterData())
+			{
+				if (FVersionedNiagaraEmitterData* ParentData = EmitterData->GetParent().GetEmitterData())
+				{
+					if (ParentData->bDeprecated)
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

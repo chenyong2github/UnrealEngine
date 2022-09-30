@@ -259,6 +259,14 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY()
 	FFilePath ScriptAsset;
 
+	/* If this emitter is no longer meant to be used, this option should be set.*/
+	UPROPERTY()
+	bool bDeprecated = false;
+
+	/* Message to display when the script is deprecated. */
+	UPROPERTY()
+	FText DeprecationMessage;
+
 	/** Toggles whether or not the particles within this emitter are relative to the emitter origin or in global space. */ 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emitter")
 	bool bLocalSpace = false;

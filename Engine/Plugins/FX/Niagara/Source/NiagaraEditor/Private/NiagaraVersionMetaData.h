@@ -29,6 +29,14 @@ public:
 	UPROPERTY(EditAnywhere, Category="Version Details", meta=(EditCondition="!bIsExposedVersion"))
 	bool bIsVisibleInVersionSelector = true;
 
+	/* True if this asset version is deprecated and should no longer be used.*/
+	UPROPERTY(EditAnywhere, Category="Version Details")
+	bool bDeprecated = false;
+
+	/* Message to display when the asset is used in an emitter. */
+	UPROPERTY(EditAnywhere, Category="Version Details", meta = (EditCondition = "bDeprecated", MultiLine = true))
+	FText DeprecationMessage;
+
 	/** Internal version guid, mainly useful for debugging version conflicts. */
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Version Details")
 	FGuid VersionGuid;

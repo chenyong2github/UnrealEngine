@@ -626,15 +626,15 @@ public:
 	TArray<FNiagaraModuleDependency> RequiredDependencies;
 	
 	/* If this script is no longer meant to be used, this option should be set.*/
-	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
-	uint32 bDeprecated : 1;
+	UPROPERTY()
+	bool bDeprecated;
 	
 	/* Message to display when the script is deprecated. */
-	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated", MultiLine = true))
+	UPROPERTY()
 	FText DeprecationMessage;
 
 	/* Which script to use if this is deprecated.*/
-	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
+	UPROPERTY(EditAnywhere, Category = Script)
 	TObjectPtr<UNiagaraScript> DeprecationRecommendation;
 
 	/* Custom logic to convert the contents of an existing script assignment to this script.*/
