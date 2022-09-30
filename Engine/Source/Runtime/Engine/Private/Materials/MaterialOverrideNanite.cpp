@@ -39,11 +39,6 @@ void FMaterialOverrideNanite::RefreshOverrideMaterial(bool& bOutUpdated)
 
 bool FMaterialOverrideNanite::Serialize(FArchive& Ar)
 {
-	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::NaniteMaterialOverride)
-	{
-		return true;
-	}
-
 	{
 		// Use non-collecting serialization scope for override material.
 		// This prevents the cook from automatically seeing it, so that we can avoid cooking it on non-nanite platforms.
