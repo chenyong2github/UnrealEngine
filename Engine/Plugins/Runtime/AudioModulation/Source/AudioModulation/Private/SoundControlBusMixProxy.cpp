@@ -60,7 +60,7 @@ namespace AudioModulation
 			}
 			else
 			{
-				UE_LOG(LogAudioModulation, Warning,
+				UE_LOG(LogAudioModulation, VeryVerbose,
 					TEXT("USoundControlBusMix '%s' has stage with no bus specified. "
 						"Mix instance initialized with stage ignored."),
 					*InBusMix.GetFullName());

@@ -13,7 +13,6 @@
 
 // Forward Declarations
 class SSearchableComboBox;
-struct FSoundModulationSettings;
 
 
 class FSoundControlModulationPatchLayoutCustomization : public IPropertyTypeCustomization
