@@ -458,11 +458,30 @@ void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& Rende
 			TSet<ADisplayClusterLightCardActor*> LightCards;
 			UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActor, LightCards);
 
+			TSet<AActor*> Actors;
+			Actors.Reserve(LightCards.Num());
 			for (ADisplayClusterLightCardActor* LightCard : LightCards)
 			{
-				RendererConfig.Renderer->AddActor(LightCard);
-				RendererConfig.AddedActors.Add(LightCard);
-				RendererConfig.AutoLightcards.Add(LightCard);
+				Actors.Add(LightCard);
+			}
+
+			// Also check for any non-lightcard actors in the world that are valid to control from ICVFX editors
+			if (UWorld* World = RootActor->GetWorld())
+			{
+				for (const TWeakObjectPtr<AActor> WeakActor : TActorRange<AActor>(World))
+				{
+					if (WeakActor.IsValid() && WeakActor->Implements<UDisplayClusterStageActor>())
+					{
+						Actors.Add(WeakActor.Get());
+					}
+				}
+			}
+
+			for (AActor* Actor : Actors)
+			{
+				RendererConfig.Renderer->AddActor(Actor);
+				RendererConfig.AddedActors.Add(Actor);
+				RendererConfig.AutoActors.Add(Actor);
 			}
 		}
 	}
@@ -595,7 +614,7 @@ void FDisplayClusterScenePreviewModule::OnLevelActorDeleted(AActor* Actor)
 	for (TPair<int32, FRendererConfig>& ConfigPair : RendererConfigs)
 	{
 		FRendererConfig& Config = ConfigPair.Value;
-		if (Config.AutoLightcards.Contains(Actor))
+		if (Config.AutoActors.Contains(Actor))
 		{
 			Config.bIsSceneDirty = true;
 		}

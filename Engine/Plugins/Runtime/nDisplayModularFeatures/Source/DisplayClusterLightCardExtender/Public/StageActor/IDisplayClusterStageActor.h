@@ -19,6 +19,13 @@ class DISPLAYCLUSTERLIGHTCARDEXTENDER_API IDisplayClusterStageActor
 	GENERATED_BODY()
 
 public:
+	/** A pair made up of a container pointer and a property within that container */
+	typedef TPair<void*, FProperty*> FPropertyPair;
+
+	/** Array type used to return positional properties for a stage actor */
+	typedef TArray<FPropertyPair, TInlineAllocator<16>> FPositionalPropertyArray;
+
+public:
 	/** The rotation used to orient the plane mesh used for the light card so that its normal points radially inwards */
 	static const FRotator PlaneMeshRotation;
 
@@ -51,6 +58,9 @@ public:
 
 	/** Return property names defined for this stage actor for use in property notifies */
 	virtual const TSet<FName>& GetPositionalPropertyNames() const;
+
+	/** Get an array of positional properties defined for this stage actor for use in property notifies. */
+	virtual void GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const = 0;
 
 	/** Return the bounding box for the stage actor. The default implementation returns the components bounding box */
 	virtual FBox GetBoxBounds(bool bLocalSpace = false) const;

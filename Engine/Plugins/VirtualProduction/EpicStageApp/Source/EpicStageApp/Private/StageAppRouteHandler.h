@@ -23,11 +23,11 @@ private:
 	{
 		FPerRendererData(int RendererId);
 
-		/** The list of light cards currently being dragged by this client. Empty if a drag is not in progress. */
-		TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> DraggedLightCards;
+		/** The list of actors currently being dragged by this client. Empty if a drag is not in progress. */
+		TArray<FDisplayClusterWeakStageActorPtr> DraggedActors;
 
-		/** The light card to use as the origin point for the drag operation. */
-		TWeakObjectPtr<ADisplayClusterLightCardActor> PrimaryLightCard;
+		/** The actor to use as the origin point for the drag operation. */
+		FDisplayClusterWeakStageActorPtr PrimaryActor;
 
 		/** The last position sent by a client during a drag operation. */
 		FVector2D LastDragPosition;
@@ -118,14 +118,14 @@ private:
 	/** Handles rendering a preview. */
 	void HandleWebSocketNDisplayPreviewRender(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
-	/** Handles beginning a light card drag operation. */
-	void HandleWebSocketNDisplayPreviewLightCardDragBegin(const FRemoteControlWebSocketMessage& WebSocketMessage);
+	/** Handles beginning an actor drag operation. */
+	void HandleWebSocketNDisplayPreviewActorDragBegin(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
-	/** Handles moving light cards with a drag operation. */
-	void HandleWebSocketNDisplayPreviewLightCardDragMove(const FRemoteControlWebSocketMessage& WebSocketMessage);
+	/** Handles moving actors with a drag operation. */
+	void HandleWebSocketNDisplayPreviewActorDragMove(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
-	/** Handles ending a light card drag operation. */
-	void HandleWebSocketNDisplayPreviewLightCardDragEnd(const FRemoteControlWebSocketMessage& WebSocketMessage);
+	/** Handles ending an actor drag operation. */
+	void HandleWebSocketNDisplayPreviewActorDragEnd(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	/** Called when a client disconnects from the WebSocket server. */
 	void HandleClientDisconnected(FGuid ClientId);
@@ -143,14 +143,14 @@ private:
 	/** Get the nDisplay preview rendering data for the given client and renderer ID, or null if it's an invalid client/renderer ID. */
 	FPerRendererData* GetClientPerRendererData(const FGuid& ClientId, int32 RendererId);
 
-	/** Drag light cards to the specified position. */
-	void DragLightCards(FPerRendererData& PreviewData, FVector2D DragPosition);
+	/** Drag actors to the specified position. */
+	void DragActors(FPerRendererData& PreviewData, FVector2D DragPosition);
 
-	/** Check if any light card drag operations have timed out, and if so, end them. */
+	/** Check if any actor drag operations have timed out, and if so, end them. */
 	bool TimeOutDrags(float DeltaTime);
 
-	/** End a client's light card drag operation. */
-	void EndLightCardDrag(FPerRendererData& PreviewData, const FGuid& ClientId, int32 RendererId, bool bEndedByClient);
+	/** End a client's actor drag operation. */
+	void EndActorDrag(FPerRendererData& PreviewData, const FGuid& ClientId, int32 RendererId, bool bEndedByClient);
 
 private:
 	/** The module for the WebSocket server for which this is handling routes. */

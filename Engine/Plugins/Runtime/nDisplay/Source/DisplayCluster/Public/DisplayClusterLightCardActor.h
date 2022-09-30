@@ -147,6 +147,8 @@ public:
 
 	virtual void SetUVCoordinates(const FVector2D& InUVCoordinates) override;
 	virtual FVector2D GetUVCoordinates() const override;
+
+	virtual void GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const override;
 	// ~End IDisplayClusterStageActor interface
 	
 public:

@@ -236,21 +236,21 @@ void FStageAppRouteHandler::RegisterRoutes(IWebRemoteControlModule& WebRemoteCon
 	));
 
 	RegisterRoute(MakeUnique<FRemoteControlWebsocketRoute>(
-		TEXT("Start dragging lightcards relative to a projected preview"),
-		TEXT("ndisplay.preview.lightcard.drag.begin"),
-		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin)
+		TEXT("Start dragging actors relative to a projected preview"),
+		TEXT("ndisplay.preview.actor.drag.begin"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragBegin)
 	));
 
 	RegisterRoute(MakeUnique<FRemoteControlWebsocketRoute>(
-		TEXT("Move the light cards that are currently being dragged"),
-		TEXT("ndisplay.preview.lightcard.drag.move"),
-		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragMove)
+		TEXT("Move the actors that are currently being dragged"),
+		TEXT("ndisplay.preview.actor.drag.move"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragMove)
 	));
 
 	RegisterRoute(MakeUnique<FRemoteControlWebsocketRoute>(
-		TEXT("Finish dragging the light cards that are currently being dragged"),
-		TEXT("ndisplay.preview.lightcard.drag.end"),
-		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragEnd)
+		TEXT("Finish dragging the actors that are currently being dragged"),
+		TEXT("ndisplay.preview.actor.drag.end"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragEnd)
 	));
 }
 
@@ -524,15 +524,15 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 							}
 
 							FVector WorldPosition;
-							if (const ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
+							if (const IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(Actor))
 							{
-								// Only send UV lightcards in UV mode, and only send non-UV lightcards in non-UV modes
-								if (LightCard->bIsUVLightCard != bIsInUVMode)
+								// Only send UV actors in UV mode, and only send non-UV actors in non-UV modes
+								if (StageActor->IsUVActor() != bIsInUVMode)
 								{
 									continue;
 								}
 
-								WorldPosition = LightCard->GetStageActorTransform().GetTranslation();
+								WorldPosition = StageActor->GetStageActorTransform().GetTranslation();
 							}
 							else
 							{
@@ -566,9 +566,9 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 	));
 }
 
-void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin(const FRemoteControlWebSocketMessage& WebSocketMessage)
+void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragBegin(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
-	FRCWebSocketNDisplayPreviewLightCardDragBeginBody Body;
+	FRCWebSocketNDisplayPreviewActorDragBeginBody Body;
 	if (!WebRemoteControlUtils::DeserializeMessage(WebSocketMessage.RequestPayload, Body))
 	{
 		return;
@@ -580,7 +580,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin(con
 		return;
 	}
 
-	if (!PerRendererData->DraggedLightCards.IsEmpty())
+	if (!PerRendererData->DraggedActors.IsEmpty())
 	{
 		// A drag is already in progress
 		return;
@@ -590,7 +590,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin(con
 	PerRendererData->TransactionId.Invalidate();
 	if (GEditor && GEditor->Trans)
 	{
-		if (GEditor->BeginTransaction(LOCTEXT("DragLightcardsTransaction", "Drag Light Cards with Stage App")) != INDEX_NONE)
+		if (GEditor->BeginTransaction(LOCTEXT("DragActorsTransaction", "Drag Actors with Stage App")) != INDEX_NONE)
 		{
 			const FTransaction* Transaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - 1);
 			if (ensure(Transaction))
@@ -604,17 +604,29 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin(con
 	PerRendererData->UpdateDragSequenceNumber(Body.SequenceNumber);
 	PerRendererData->bHasDragMovedRecently = true;
 
-	for (const FString& LightCardPath : Body.LightCards)
+	for (const FString& ActorPath : Body.Actors)
 	{
-		if (ADisplayClusterLightCardActor* Actor = FindObject<ADisplayClusterLightCardActor>(nullptr, *LightCardPath))
+		if (AActor* Actor = FindObject<AActor>(nullptr, *ActorPath))
 		{
-			PerRendererData->DraggedLightCards.Emplace(Actor);
+			if (!Actor || !Actor->Implements<UDisplayClusterStageActor>())
+			{
+				continue;
+			}
+
+			PerRendererData->DraggedActors.Emplace(FDisplayClusterWeakStageActorPtr(Actor));
 		}
 	}
-
-	if (!Body.PrimaryLightCard.IsEmpty())
+	
+	if (!Body.PrimaryActor.IsEmpty())
 	{
-		PerRendererData->PrimaryLightCard = FindObject<ADisplayClusterLightCardActor>(nullptr, *Body.PrimaryLightCard);
+		AActor* PrimaryActor = FindObject<AActor>(nullptr, *Body.PrimaryActor);
+
+		if (!PrimaryActor || !PrimaryActor->Implements<UDisplayClusterStageActor>())
+		{
+			return;
+		}
+
+		PerRendererData->PrimaryActor = FDisplayClusterWeakStageActorPtr(PrimaryActor);
 	}
 
 	if (!DragTimeoutTickerHandle.IsValid())
@@ -641,18 +653,18 @@ void FStageAppRouteHandler::OnTransactionStateChanged(const FTransactionContext&
 			FPerRendererData& PerRendererData = PerRendererDataPair.Value;
 			if (PerRendererData.TransactionId == InTransactionContext.TransactionId)
 			{
-				// Invalidate the transaction ID first so we don't try to end it a second time in EndLightCardDrag
+				// Invalidate the transaction ID first so we don't try to end it a second time in EndActorDrag
 				PerRendererData.TransactionId.Invalidate();
-				EndLightCardDrag(PerRendererData, ClientPair.Key, PerRendererDataPair.Key, false);
+				EndActorDrag(PerRendererData, ClientPair.Key, PerRendererDataPair.Key, false);
 			}
 		}
 	}
 }
 #endif
 
-void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragMove(const FRemoteControlWebSocketMessage& WebSocketMessage)
+void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragMove(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
-	FRCWebSocketNDisplayPreviewLightCardDragMoveBody Body;
+	FRCWebSocketNDisplayPreviewActorDragMoveBody Body;
 	if (!WebRemoteControlUtils::DeserializeMessage(WebSocketMessage.RequestPayload, Body))
 	{
 		return;
@@ -667,12 +679,12 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragMove(cons
 	PerRendererData->UpdateDragSequenceNumber(Body.SequenceNumber);
 	PerRendererData->bHasDragMovedRecently = true;
 
-	DragLightCards(*PerRendererData, Body.DragPosition);
+	DragActors(*PerRendererData, Body.DragPosition);
 }
 
-void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragEnd(const FRemoteControlWebSocketMessage& WebSocketMessage)
+void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragEnd(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
-	FRCWebSocketNDisplayPreviewLightCardDragEndBody Body;
+	FRCWebSocketNDisplayPreviewActorDragEndBody Body;
 	if (!WebRemoteControlUtils::DeserializeMessage(WebSocketMessage.RequestPayload, Body))
 	{
 		return;
@@ -685,17 +697,17 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragEnd(const
 	}
 
 	PerRendererData->UpdateDragSequenceNumber(Body.SequenceNumber);
-	DragLightCards(*PerRendererData, Body.DragPosition);
-	EndLightCardDrag(*PerRendererData, WebSocketMessage.ClientId, Body.RendererId, true);
+	DragActors(*PerRendererData, Body.DragPosition);
+	EndActorDrag(*PerRendererData, WebSocketMessage.ClientId, Body.RendererId, true);
 }
 
 void FStageAppRouteHandler::HandleClientDisconnected(FGuid ClientId)
 {
 	// Destroy the client's renderers
-	if (const TClientIdToPerRendererDataMap* PerRendererDataMap = PerRendererDataMapsByClientId.Find(ClientId))
+	if (TClientIdToPerRendererDataMap* PerRendererDataMap = PerRendererDataMapsByClientId.Find(ClientId))
 	{
 		IDisplayClusterScenePreview& PreviewModule = IDisplayClusterScenePreview::Get();
-		for (const TClientIdToPerRendererDataMap::ElementType& PerRendererDataPair : *PerRendererDataMap)
+		for (TClientIdToPerRendererDataMap::ElementType& PerRendererDataPair : *PerRendererDataMap)
 		{
 			PreviewModule.DestroyRenderer(PerRendererDataPair.Key);
 		}
@@ -726,7 +738,7 @@ FStageAppRouteHandler::FPerRendererData* FStageAppRouteHandler::GetClientPerRend
 	return PerRendererDataMap->Find(RendererId);
 }
 
-void FStageAppRouteHandler::DragLightCards(FPerRendererData& PerRendererData, FVector2D DragPosition)
+void FStageAppRouteHandler::DragActors(FPerRendererData& PerRendererData, FVector2D DragPosition)
 {
 	// Set up the scene view relative to which we're dragging
 	FSceneViewInitOptions ViewInitOptions;
@@ -749,43 +761,29 @@ void FStageAppRouteHandler::DragLightCards(FPerRendererData& PerRendererData, FV
 	);
 	const FVector DragWidgetOffset = FVector::ZeroVector;
 
-	// Light card editor supports any type of actor implementing IDisplayClusterStageActor which is managed by
-	// a custom weak ptr. Convert the LightCard actors to the actor weak ptr array.
-	TArray<FDisplayClusterWeakStageActorPtr> StageActors;
-	StageActors.Reserve(PerRendererData.DraggedLightCards.Num());
-	Algo::TransformIf(PerRendererData.DraggedLightCards, StageActors,
-		[](const TWeakObjectPtr<ADisplayClusterLightCardActor>& WeakPtr)
-		{
-			return WeakPtr.IsValid();
-		},
-		[](const TWeakObjectPtr<ADisplayClusterLightCardActor>& WeakPtr)
-		{
-			return FDisplayClusterWeakStageActorPtr(WeakPtr.Get());
-		});
-
 	FDisplayClusterLightCardEditorHelper& LightCardHelper = PerRendererData.GetLightCardHelper();
 
 	if (LightCardHelper.GetProjectionMode() == EDisplayClusterMeshProjectionType::UV)
 	{
 		LightCardHelper.DragUVActors(
-			MoveTemp(StageActors),
+			PerRendererData.DraggedActors,
 			PixelPos,
 			View,
 			DragWidgetOffset,
 			EAxisList::Type::XYZ,
-			PerRendererData.PrimaryLightCard.Get()
+			PerRendererData.PrimaryActor
 		);
 	}
 	else
 	{
 		LightCardHelper.DragActors(
-			MoveTemp(StageActors),
+			PerRendererData.DraggedActors,
 			PixelPos,
 			View,
 			FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical,
 			DragWidgetOffset,
 			EAxisList::Type::XYZ,
-			PerRendererData.PrimaryLightCard.Get()
+			PerRendererData.PrimaryActor
 		);
 	}
 }
@@ -798,14 +796,14 @@ bool FStageAppRouteHandler::TimeOutDrags(float DeltaTime)
 		for (TClientIdToPerRendererDataMap::ElementType& PerRendererDataPair : ClientPair.Value)
 		{
 			FPerRendererData& PerRendererData = PerRendererDataPair.Value;
-			if (PerRendererData.DraggedLightCards.IsEmpty())
+			if (PerRendererData.DraggedActors.IsEmpty())
 			{
 				continue;
 			}
 			
 			if (!PerRendererData.bHasDragMovedRecently)
 			{
-				EndLightCardDrag(PerRendererData, ClientPair.Key, PerRendererDataPair.Key, false);
+				EndActorDrag(PerRendererData, ClientPair.Key, PerRendererDataPair.Key, false);
 				continue;
 			}
 
@@ -823,9 +821,9 @@ bool FStageAppRouteHandler::TimeOutDrags(float DeltaTime)
 	return true;
 }
 
-void FStageAppRouteHandler::EndLightCardDrag(FPerRendererData& PerRendererData, const FGuid& ClientId, int32 RendererId, bool bEndedByClient)
+void FStageAppRouteHandler::EndActorDrag(FPerRendererData& PerRendererData, const FGuid& ClientId, int32 RendererId, bool bEndedByClient)
 {
-	PerRendererData.DraggedLightCards.Empty();
+	PerRendererData.DraggedActors.Empty();
 	PerRendererData.bHasDragMovedRecently = false;
 
 #if WITH_EDITOR
@@ -839,7 +837,7 @@ void FStageAppRouteHandler::EndLightCardDrag(FPerRendererData& PerRendererData, 
 	if (!bEndedByClient)
 	{
 		// Notify the client that its drag in progress was cancelled
-		FRCLightCardDragCancelled Event;
+		FRCActorDragCancelled Event;
 		Event.RendererId = RendererId;
 
 		TArray<uint8> Payload;

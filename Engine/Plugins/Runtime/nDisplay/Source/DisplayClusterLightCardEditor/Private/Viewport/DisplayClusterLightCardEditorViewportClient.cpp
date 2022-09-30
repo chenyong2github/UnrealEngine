@@ -2104,18 +2104,37 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const
 	{
 		AActor* LevelInstance = FoundProxy->LevelInstance.AsActorChecked();
 		LevelInstance->Modify();
+
+		IDisplayClusterStageActor* LevelInstanceStageActor = Cast<IDisplayClusterStageActor>(LevelInstance);
+		if (!ensure(LevelInstanceStageActor))
+		{
+			return;
+		}
+
+		IDisplayClusterStageActor::FPositionalPropertyArray ProxyPropertyPairs;
+		ActorProxy->GetPositionalProperties(ProxyPropertyPairs);
+
+		IDisplayClusterStageActor::FPositionalPropertyArray LevelInstancePropertyPairs;
+		LevelInstanceStageActor->GetPositionalProperties(LevelInstancePropertyPairs);
+
+		if (!ensure(ProxyPropertyPairs.Num() == LevelInstancePropertyPairs.Num()))
+		{
+			return;
+		}
 		
 		// Set the level instance property value to our proxy property value.
-		auto TryChangeProperty = [&](FName InPropertyName, TArray<const FProperty*>& InOutChangedProperties) -> void
+		auto TryChangeProperty = [&](
+			const IDisplayClusterStageActor::FPropertyPair& ProxyPropertyPair,
+			const IDisplayClusterStageActor::FPropertyPair& LevelInstancePropertyPair,
+			TArray<const FProperty*>& InOutChangedProperties
+		) -> void
 		{
-			if (const FProperty* Property = FindFProperty<FProperty>(LevelInstance->GetClass(), InPropertyName))
+			// Only change if values are different.
+			const FProperty* Property = ProxyPropertyPair.Value;
+			if (!Property->Identical_InContainer(ProxyPropertyPair.Key, LevelInstancePropertyPair.Key))
 			{
-				// Only change if values are different.
-				if (!Property->Identical_InContainer(ActorProxy.AsActorChecked(), LevelInstance))
-				{
-					Property->CopyCompleteValue_InContainer(LevelInstance, ActorProxy.AsActorChecked());
-					InOutChangedProperties.Add(Property);
-				}
+				Property->CopyCompleteValue_InContainer(LevelInstancePropertyPair.Key, ProxyPropertyPair.Key);
+				InOutChangedProperties.Add(Property);
 			}
 		};
 		
@@ -2130,13 +2149,12 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const
 
 		LevelInstance->SetActorTransform(ActorProxy.AsActorChecked()->GetTransform() * RALevelTransformNoScale);
 
-		const TSet<FName>& PropertyNames = ActorProxy->GetPositionalPropertyNames();
-
 		TArray<const FProperty*> ChangedProperties;
-		ChangedProperties.Reserve(PropertyNames.Num());
-		for (const FName& PropertyName : PropertyNames)
+		ChangedProperties.Reserve(ProxyPropertyPairs.Num());
+
+		for (int32 PropertyIndex = 0; PropertyIndex < ProxyPropertyPairs.Num(); ++PropertyIndex)
 		{
-			TryChangeProperty(PropertyName, ChangedProperties);
+			TryChangeProperty(ProxyPropertyPairs[PropertyIndex], LevelInstancePropertyPairs[PropertyIndex], ChangedProperties);
 		}
 		
 		// Snapshot the changed properties so multi-user can update while dragging.

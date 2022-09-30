@@ -89,13 +89,13 @@ struct FRCPreviewRenderCompletedEvent
 	TArray<FRCPreviewRenderCompletedEventActorPosition> ActorPositions;
 
 	/**
-	 * The last sequence number that the client sent during a light card drag operation on this renderer.
+	 * The last sequence number that the client sent during a stage actor drag operation on this renderer.
 	 */
 	UPROPERTY()
 	int64 SequenceNumber = -1;
 
 	/**
-	 * If true, real-time preview rendering is disabled in the engine, which may prevent nDisplay previews and light card positions from updating correctly.
+	 * If true, real-time preview rendering is disabled in the engine, which may prevent nDisplay previews and stage actor positions from updating correctly.
 	 */
 	UPROPERTY()
 	bool IsRealTimeDisabled = false;
@@ -105,12 +105,12 @@ struct FRCPreviewRenderCompletedEvent
  * Event sent to a client when a drag operation is cancelled by the engine.
  */
 USTRUCT()
-struct FRCLightCardDragCancelled
+struct FRCActorDragCancelled
 {
 	GENERATED_BODY()
 
-	FRCLightCardDragCancelled()
-	: Type(TEXT("LightCardDragCancelled"))
+	FRCActorDragCancelled()
+	: Type(TEXT("ActorDragCancelled"))
 	{
 	}
 

@@ -631,6 +631,22 @@ FVector2D ADisplayClusterLightCardActor::GetUVCoordinates() const
 	return UVCoordinates;
 }
 
+void ADisplayClusterLightCardActor::GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const
+{
+	void* Container = (void*)(this);
+
+	const TSet<FName>& PropertyNames = GetPositionalPropertyNames();
+	OutPropertyPairs.Reserve(PropertyNames.Num());
+
+	for (const FName& PropertyName : PropertyNames)
+	{
+		if (FProperty* Property = FindFProperty<FProperty>(GetClass(), PropertyName))
+		{
+			OutPropertyPairs.Emplace(Container, Property);
+		}
+	}
+}
+
 void ADisplayClusterLightCardActor::CreateComponentsForExtenders()
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();

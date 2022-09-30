@@ -208,14 +208,14 @@ struct FRCWebSocketNDisplayPreviewRenderBody : public FRCRequest
 };
 
 /**
- * Holds a request made via websocket to start dragging one or more light cards.
+ * Holds a request made via websocket to start dragging one or more actors.
  */
 USTRUCT()
-struct FRCWebSocketNDisplayPreviewLightCardDragBeginBody : public FRCRequest
+struct FRCWebSocketNDisplayPreviewActorDragBeginBody : public FRCRequest
 {
 	GENERATED_BODY()
 
-	FRCWebSocketNDisplayPreviewLightCardDragBeginBody()
+	FRCWebSocketNDisplayPreviewActorDragBeginBody()
 	{
 		AddStructParameter(ParametersFieldLabel());
 	}
@@ -232,16 +232,16 @@ struct FRCWebSocketNDisplayPreviewLightCardDragBeginBody : public FRCRequest
 	int32 RendererId = -1;
 
 	/**
-	 * Paths of the light cards that will be included in this drag action.
+	 * Paths of the actors that will be included in this drag action.
 	 */
 	UPROPERTY()
-	TArray<FString> LightCards;
+	TArray<FString> Actors;
 
 	/**
-	 * The light card to use as the origin point for the drag.
+	 * The actor to use as the origin point for the drag.
 	 */
 	UPROPERTY()
-	FString PrimaryLightCard;
+	FString PrimaryActor;
 
 	/**
 	 * The sequence number of this change. The highest sequence number received from this client will be
@@ -253,14 +253,14 @@ struct FRCWebSocketNDisplayPreviewLightCardDragBeginBody : public FRCRequest
 
 
 /**
- * Holds a request made via websocket to move the light cards that are currently being dragged for a preview renderer.
+ * Holds a request made via websocket to move the actors that are currently being dragged for a preview renderer.
  */
 USTRUCT()
-struct FRCWebSocketNDisplayPreviewLightCardDragMoveBody : public FRCRequest
+struct FRCWebSocketNDisplayPreviewActorDragMoveBody : public FRCRequest
 {
 	GENERATED_BODY()
 
-	FRCWebSocketNDisplayPreviewLightCardDragMoveBody()
+	FRCWebSocketNDisplayPreviewActorDragMoveBody()
 	{
 		AddStructParameter(ParametersFieldLabel());
 	}
@@ -291,14 +291,14 @@ struct FRCWebSocketNDisplayPreviewLightCardDragMoveBody : public FRCRequest
 };
 
 /**
- * Holds a request made via websocket to stop dragging light cards for a preview renderer.
+ * Holds a request made via websocket to stop dragging actors for a preview renderer.
  */
 USTRUCT()
-struct FRCWebSocketNDisplayPreviewLightCardDragEndBody : public FRCRequest
+struct FRCWebSocketNDisplayPreviewActorDragEndBody : public FRCRequest
 {
 	GENERATED_BODY()
 
-	FRCWebSocketNDisplayPreviewLightCardDragEndBody()
+	FRCWebSocketNDisplayPreviewActorDragEndBody()
 	{
 		AddStructParameter(ParametersFieldLabel());
 	}

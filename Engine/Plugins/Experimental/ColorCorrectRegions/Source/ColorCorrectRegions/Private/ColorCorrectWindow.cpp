@@ -270,11 +270,31 @@ FDisplayClusterPositionalParams AColorCorrectionWindow::GetPositionalParams() co
 	return PositionalParams;
 }
 
-
 ADEPRECATED_ColorCorrectWindow::ADEPRECATED_ColorCorrectWindow(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 
+}
+
+void AColorCorrectionWindow::GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const
+{
+	void* Container = (void*)(&PositionalParams);
+
+	const TSet<FName>& PropertyNames = GetPositionalPropertyNames();
+	OutPropertyPairs.Reserve(PropertyNames.Num());
+
+	for (const FName& PropertyName : PropertyNames)
+	{
+		if (FProperty* Property = FindFProperty<FProperty>(FDisplayClusterPositionalParams::StaticStruct(), PropertyName))
+		{
+			OutPropertyPairs.Emplace(Container, Property);
+		}
+	}
+
+	if (FStructProperty* ParamsProperty = FindFProperty<FStructProperty>(GetClass(), GET_MEMBER_NAME_CHECKED(AColorCorrectionWindow, PositionalParams)))
+	{
+		OutPropertyPairs.Emplace((void*)this, ParamsProperty);
+	}
 }
 
 #undef NOTIFY_PARAM_SETTER

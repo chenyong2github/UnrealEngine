@@ -1703,31 +1703,29 @@ void FDisplayClusterLightCardEditorHelper::PostEditChangePropertiesForMovedActor
 
 	Actor.AsActorChecked()->Modify();
 
-	auto ModifyLightCardProperty = [&](const FName& PropertyName) -> FProperty*
+	auto ModifyLightCardProperty = [&](const IDisplayClusterStageActor::FPropertyPair& PropertyPair) -> void
 	{
-		if (FProperty* Property = FindFProperty<FProperty>(Actor.AsActorChecked()->GetClass(), PropertyName))
-		{
-			// Broadcast the event directly instead of PostEditChangeProperty on the object itself, which would attempt to create unnecessary snapshots for each call
-			FPropertyChangedEvent PropertyChangedEvent(Property, EPropertyChangeType::Interactive);
-			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor.AsActorChecked(), PropertyChangedEvent);
-
-			return Property;
-		}
-		return nullptr;
+		// Broadcast the event directly instead of PostEditChangeProperty on the object itself, which would attempt to create unnecessary snapshots for each call
+		FPropertyChangedEvent PropertyChangedEvent(PropertyPair.Value, EPropertyChangeType::Interactive);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor.AsActorChecked(), PropertyChangedEvent);
 	};
 
-	const TSet<FName>& PropertyNames = Actor->GetPositionalPropertyNames();
+	IDisplayClusterStageActor::FPositionalPropertyArray PropertyPairs;
+	Actor->GetPositionalProperties(PropertyPairs);
 	
 	TArray<const FProperty*> ChangedProperties;
-	ChangedProperties.Reserve(PropertyNames.Num());
-	for (const FName& PropertyName : PropertyNames)
+	ChangedProperties.Reserve(PropertyPairs.Num());
+
+	for (const IDisplayClusterStageActor::FPropertyPair& PropertyPair : PropertyPairs)
 	{
-		if (const FProperty* Property = ModifyLightCardProperty(PropertyName))
-		{
-			ChangedProperties.Add(Property);
-		}
+		ModifyLightCardProperty(PropertyPair);
+
+		ChangedProperties.Add(PropertyPair.Value);
 	}
 
 	SnapshotTransactionBuffer(Actor.AsActorChecked(), MakeArrayView(ChangedProperties.GetData(), ChangedProperties.Num()));
+
+	// Force the actor to update its position in a way that the multi-user server will see
+	Actor.AsActorChecked()->PostEditMove(false);
 }
 #endif

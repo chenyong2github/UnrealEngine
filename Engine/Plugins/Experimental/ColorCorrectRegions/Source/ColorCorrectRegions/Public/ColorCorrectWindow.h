@@ -108,6 +108,8 @@ public:
 	virtual void SetPositionalParams(const FDisplayClusterPositionalParams& InParams) override;
 	UFUNCTION(BlueprintCallable, Category = Orientation)
 	virtual FDisplayClusterPositionalParams GetPositionalParams() const override;
+
+	virtual void GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const override;
 	// ~End IDisplayClusterStageActor interface
 	
 protected:

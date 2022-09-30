@@ -59,8 +59,8 @@ private:
 		/** All actors that have been added to the renderer (except for the root actor). */
 		TArray<TWeakObjectPtr<AActor>> AddedActors;
 
-		/** Lightcards that have been automatically added to the scene. */
-		TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> AutoLightcards;
+		/** Actors that have been automatically added to the scene. */
+		TArray<TWeakObjectPtr<AActor>> AutoActors;
 
 		/** If true, automatically update the renderer with lightcards belonging to the root actor. */
 		bool bAutoUpdateLightcards = false;
