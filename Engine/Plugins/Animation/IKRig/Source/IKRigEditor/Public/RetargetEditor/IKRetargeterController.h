@@ -42,7 +42,10 @@ public:
 	UIKRigDefinition* GetIKRigWriteable(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	/** Set the SOURCE or TARGET preview mesh based on the mesh in the corresponding IK Rig asset */
 	void OnIKRigChanged(const ERetargetSourceOrTarget& SourceOrTarget) const;
-
+	/** Get if we've already asked to fix the root height for the given skeletal mesh */
+	bool GetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh) const;
+	/** Set if we've asked to fix the root height for the given skeletal mesh */
+	void SetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh, bool InAsked) const;
 	/** Get name of the Root bone used for retargeting. */
 	FName GetRetargetRootBone(const ERetargetSourceOrTarget& SourceOrTarget) const;
 

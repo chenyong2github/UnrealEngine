@@ -86,7 +86,26 @@ void UIKRetargeterController::OnIKRigChanged(const ERetargetSourceOrTarget& Sour
 		{
 			Asset->TargetPreviewMesh = IKRig->PreviewSkeletalMesh;
 		}
-		
+
+		// re-ask to fix root height for this mesh
+		SetAskedToFixRootHeightForMesh(IKRig->PreviewSkeletalMesh.Get(), false);
+	}
+}
+
+bool UIKRetargeterController::GetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh) const
+{
+	return GetAsset()->MeshesAskedToFixRootHeightFor.Contains(Mesh);
+}
+
+void UIKRetargeterController::SetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh, bool InAsked) const
+{
+	if (InAsked)
+	{
+		GetAsset()->MeshesAskedToFixRootHeightFor.Add(Mesh);
+	}
+	else
+	{
+		GetAsset()->MeshesAskedToFixRootHeightFor.Remove(Mesh);
 	}
 }
 

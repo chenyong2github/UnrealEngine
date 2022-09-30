@@ -10,6 +10,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/PoseAsset.h"
+#include "Dialog/SCustomDialog.h"
 #include "Preferences/PersonaOptions.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
@@ -141,6 +142,10 @@ void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter
 {
 	// clear the output log
 	ClearOutputLog();
+
+	// check for "zero height" retarget roots, and prompt user to fix
+	FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Source);
+	FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Target);
 	
 	// force reinit the retarget processor (also inits the target IK Rig processor)
 	if (UIKRetargetProcessor* Processor = GetRetargetProcessor())
@@ -1251,6 +1256,82 @@ void FIKRetargetEditorController::RenderSkeleton(FPrimitiveDrawInterface* PDI, E
 		HitProxies,
 		DrawConfig
 	);
+}
+
+void FIKRetargetEditorController::FixZeroHeightRetargetRoot(ERetargetSourceOrTarget SourceOrTarget) const
+{
+	// is there a mesh to check?
+	USkeletalMesh* SkeletalMesh = GetSkeletalMesh(SourceOrTarget);
+	if (!SkeletalMesh)
+	{
+		return;
+	}
+
+	// have we already nagged the user about fixing this mesh?
+	if (AssetController->GetAskedToFixRootHeightForMesh(SkeletalMesh))
+	{
+		return;
+	}
+
+	const FName CurrentRetargetPoseName = AssetController->GetCurrentRetargetPoseName(SourceOrTarget);
+	FIKRetargetPose& CurrentRetargetPose = AssetController->GetCurrentRetargetPose(SourceOrTarget);
+	const FName RetargetRootBoneName = AssetController->GetRetargetRootBone(SourceOrTarget);
+	if (RetargetRootBoneName == NAME_None)
+	{
+		return;
+	}
+
+	FRetargetSkeleton DummySkeleton;
+	DummySkeleton.Initialize(
+		SkeletalMesh,
+		TArray<FBoneChain>(),
+		CurrentRetargetPoseName,
+		&CurrentRetargetPose,
+		RetargetRootBoneName);
+
+	const int32 RootBoneIndex = DummySkeleton.FindBoneIndexByName(RetargetRootBoneName);
+	if (RootBoneIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	const FTransform& RootTransform = DummySkeleton.RetargetGlobalPose[RootBoneIndex];
+	if (RootTransform.GetLocation().Z < 1.0f)
+	{
+		if (PromptToFixRootHeight(SourceOrTarget))
+		{
+			// move it up based on the height of the mesh
+			const float FixedHeight = FMath::Abs(SkeletalMesh->GetBounds().GetBoxExtrema(-1).Z);
+			// update the current retarget pose
+			CurrentRetargetPose.SetRootTranslationDelta(FVector(0.f, 0.f,FixedHeight));
+		}
+	}
+
+	AssetController->SetAskedToFixRootHeightForMesh(SkeletalMesh, true);
+}
+
+bool FIKRetargetEditorController::PromptToFixRootHeight(ERetargetSourceOrTarget SourceOrTarget) const
+{
+	const FText SourceOrTargetText = SourceOrTarget == ERetargetSourceOrTarget::Source ? FText::FromString("Source") : FText::FromString("Target");
+
+	TSharedRef<SCustomDialog> Dialog = SNew(SCustomDialog)
+		.Title(FText(LOCTEXT("FixRootHeightTitle", "Add Height to Retarget Root Pose")))
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(FText::Format(LOCTEXT("FixRootHeightLabel", "The {0} skeleton has a retarget root bone on the ground. Apply a vertical offset to root bone in the current retarget pose?"), SourceOrTargetText))
+		]
+		.Buttons({
+			SCustomDialog::FButton(LOCTEXT("ApplyOffset", "Apply Offset")),
+			SCustomDialog::FButton(LOCTEXT("No", "No"))
+	});
+
+	if (Dialog->ShowModal() != 0)
+	{
+		return false; // cancel button pressed, or window closed
+	}
+
+	return true;
 }
 
 FText FIKRetargetEditorController::GetCurrentPoseName() const

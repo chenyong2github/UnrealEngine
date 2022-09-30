@@ -266,6 +266,9 @@ public:
 	bool CanRenamePose() const;
 	TSharedPtr<SWindow> RenamePoseWindow;
 	TSharedPtr<SEditableTextBox> NewNameEditableText;
+
+	/* detect and auto-fix retarget pose that causes root height to be on the ground */
+	void FixZeroHeightRetargetRoot(ERetargetSourceOrTarget SourceOrTarget) const;
 	
 	/** ------------------------- END RETARGET POSES -----------------------------*/
 
@@ -278,6 +281,10 @@ public:
 	void RenderSkeleton(FPrimitiveDrawInterface* PDI, ERetargetSourceOrTarget SourceOrTarget) const;
 
 private:
+
+	/** modal dialog to ask user if they want to fix root bones that are "on the ground" */
+	bool PromptToFixRootHeight(ERetargetSourceOrTarget SourceOrTarget) const;
+	bool bAskedToFixRoot = false;
 
 	/** asset properties tab */
 	TSharedPtr<IDetailsView> DetailsView;

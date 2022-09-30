@@ -371,6 +371,9 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	
 	InPersonaPreviewScene->AddComponent(EditorController->SourceSkelMeshComponent, FTransform::Identity);
 	InPersonaPreviewScene->AddComponent(EditorController->TargetSkelMeshComponent, FTransform::Identity);
+
+	EditorController->FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Source);
+	EditorController->FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Target);
 }
 
 void FIKRetargetEditor::SetupAnimInstance()

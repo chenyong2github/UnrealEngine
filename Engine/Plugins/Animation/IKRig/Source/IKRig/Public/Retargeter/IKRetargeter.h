@@ -422,6 +422,10 @@ private:
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> Controller;
+
+	/** only ask to fix the root height once, then warn thereafter (don't nag) */
+	UPROPERTY()
+	TSet<USkeletalMesh*> MeshesAskedToFixRootHeightFor;
 #endif
 	
 private:

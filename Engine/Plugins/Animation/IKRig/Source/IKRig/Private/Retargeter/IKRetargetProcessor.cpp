@@ -1204,7 +1204,7 @@ bool FRootRetargeter::InitializeSource(
 	if (InitialHeight < KINDA_SMALL_NUMBER)
 	{
 		// warn user and push it up slightly to avoid divide by zero
-		Log.LogWarning(LOCTEXT("BadRootHeight", "IK Retargeter root bone is very near the ground plane. This is probably not intentional."));
+		Log.LogError(LOCTEXT("BadRootHeight", "The source retarget root bone is very near the ground plane. This will cause the target to be moved very far. To resolve this, please create a retarget pose with the retarget root at the correct height off the ground."));
 		InitialHeight = 1.0f;
 	}
 
