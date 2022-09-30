@@ -62,11 +62,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRHICommandListImmediate& RHICmdList, E
 				TArray<FIntVector> ThreadCounts;
 				const int32 NumSubInvocations = GraphInvocation.DataProviderRenderProxies[KernelInvocation.ExecutionProviderIndex]->GetDispatchThreadCount(ThreadCounts);
 
-				const int32 ParameterBufferSize = Align(KernelInvocation.ShaderParameterMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
-
-				void* RawBuffer = GraphBuilder.Alloc(NumSubInvocations * ParameterBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
-				FMemory::Memzero(RawBuffer, NumSubInvocations * ParameterBufferSize);
-				uint8* ParameterBuffer = static_cast<uint8*>(RawBuffer);
+				TStridedView<FComputeKernelShader::FParameters> ParameterArray = GraphBuilder.AllocParameters<FComputeKernelShader::FParameters>(KernelInvocation.ShaderParameterMetadata, NumSubInvocations);
 
 				// Iterate shader parameter members to fill the dispatch data structures.
 				// We assume that the members were filled out with a single data interface per member, and that the
@@ -74,10 +70,10 @@ void FComputeGraphTaskWorker::SubmitWork(FRHICommandListImmediate& RHICmdList, E
 				TArray<FShaderParametersMetadata::FMember> const& ParamMembers = KernelInvocation.ShaderParameterMetadata->GetMembers();
 
 				FComputeDataProviderRenderProxy::FCollectedDispatchData DispatchData;
-				DispatchData.ParameterBuffer = ParameterBuffer;
+				DispatchData.ParameterBuffer = reinterpret_cast<uint8*>(&ParameterArray[0]);
 				DispatchData.PermutationId.AddZeroed(NumSubInvocations);
 
-				FComputeDataProviderRenderProxy::FDispatchSetup DispatchSetup{ NumSubInvocations, 0, ParameterBufferSize, 0, GraphRenderProxy->ShaderPermutationVectors[KernelIndex]};
+				FComputeDataProviderRenderProxy::FDispatchSetup DispatchSetup{ NumSubInvocations, 0, ParameterArray.GetStride(), 0, GraphRenderProxy->ShaderPermutationVectors[KernelIndex]};
 
 				for (int32 MemberIndex = 0; MemberIndex < ParamMembers.Num(); ++MemberIndex)
 				{
@@ -108,7 +104,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRHICommandListImmediate& RHICmdList, E
 						ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 						Shader,
 						KernelInvocation.ShaderParameterMetadata,
-						reinterpret_cast<FComputeKernelShader::FParameters*>(ParameterBuffer + ParameterBufferSize * SubInvocationIndex),
+						&ParameterArray[SubInvocationIndex],
 						GroupCount
 					);
 				}

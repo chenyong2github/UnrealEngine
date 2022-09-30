@@ -57,3 +57,18 @@ void FRDGParameterStruct::EnumerateUniformBuffers(FunctionType Function) const
 		}
 	}
 }
+
+inline void FRDGParameterStruct::ClearUniformBuffers(void* Contents, const FRHIUniformBufferLayout* Layout)
+{
+	FRDGParameterStruct Parameters(Contents, Layout);
+
+	for (uint32 Index = 0, Count = Layout->UniformBuffers.Num(); Index < Count; ++Index)
+	{
+		const FRDGParameter Parameter = Parameters.GetParameterInternal(Layout->UniformBuffers, Index);
+
+		if (FUniformBufferBinding* UniformBuffer = Parameter.GetAs<FUniformBufferBinding>())
+		{
+			*UniformBuffer = {};
+		}
+	}
+}

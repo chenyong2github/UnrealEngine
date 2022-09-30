@@ -169,6 +169,46 @@ FORCEINLINE ParameterStructType* FRDGBuilder::AllocParameters(ParameterStructTyp
 	return Struct;
 }
 
+template <typename BaseParameterStructType>
+BaseParameterStructType* FRDGBuilder::AllocParameters(const FShaderParametersMetadata* ParametersMetadata)
+{
+	return &AllocParameters<BaseParameterStructType>(ParametersMetadata, 1)[0];
+}
+
+template <typename BaseParameterStructType>
+TStridedView<BaseParameterStructType> FRDGBuilder::AllocParameters(const FShaderParametersMetadata* ParametersMetadata, uint32 NumStructs)
+{
+	// NOTE: Contents are always zero! This might differ if shader parameters have a non-zero default initializer.
+	const int32 Stride = ParametersMetadata->GetSize();
+	BaseParameterStructType* Contents = reinterpret_cast<BaseParameterStructType*>(Allocator.Alloc(Stride * NumStructs, SHADER_PARAMETER_STRUCT_ALIGNMENT));
+	FMemory::Memset(Contents, 0, Stride * NumStructs);
+	TStridedView<BaseParameterStructType> ParameterArray(Stride, Contents, NumStructs);
+
+	struct FClearUniformBuffers
+	{
+	public:
+		FClearUniformBuffers(TStridedView<BaseParameterStructType> InParameterArray, const FRHIUniformBufferLayout& InLayout)
+			: ParameterArray(InParameterArray)
+			, Layout(&InLayout)
+		{}
+
+		~FClearUniformBuffers()
+		{
+			for (BaseParameterStructType& ParameterStruct : ParameterArray)
+			{
+				FRDGParameterStruct::ClearUniformBuffers(&ParameterStruct, Layout);
+			}
+		}
+
+	private:
+		TStridedView<BaseParameterStructType> ParameterArray;
+		const FRHIUniformBufferLayout* Layout;
+	};
+
+	AllocObject<FClearUniformBuffers>(ParameterArray, ParametersMetadata->GetLayout());
+	return ParameterArray;
+}
+
 FORCEINLINE FRDGSubresourceState* FRDGBuilder::AllocSubresource(const FRDGSubresourceState& Other)
 {
 	return Allocator.AllocNoDestruct<FRDGSubresourceState>(Other);

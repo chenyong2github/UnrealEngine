@@ -295,6 +295,9 @@ public:
 	/** Returns the render pass info generated from the render target binding slots. */
 	FRHIRenderPassInfo GetRenderPassInfo() const;
 
+	/** Clears out all uniform buffer references in the parameter struct. */
+	static void ClearUniformBuffers(void* Contents, const FRHIUniformBufferLayout* Layout);
+
 private:
 	FRDGParameter GetParameterInternal(TArrayView<const FRHIUniformBufferResource> Parameters, uint32 ParameterIndex) const
 	{

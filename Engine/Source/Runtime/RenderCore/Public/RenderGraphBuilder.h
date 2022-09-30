@@ -9,6 +9,7 @@
 #include "Containers/Set.h"
 #include "Containers/SortedMap.h"
 #include "Containers/UnrealString.h"
+#include "Containers/StridedView.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "MultiGPU.h"
@@ -157,6 +158,14 @@ public:
 	/** Allocates a parameter struct with a lifetime tied to graph execution, and copies contents from an existing parameters struct. */
 	template <typename ParameterStructType>
 	ParameterStructType* AllocParameters(ParameterStructType* StructToCopy);
+
+	/** Allocates a data-driven parameter struct with a lifetime tied to graph execution. */
+	template <typename BaseParameterStructType>
+	BaseParameterStructType* AllocParameters(const FShaderParametersMetadata* ParametersMetadata);
+
+	/** Allocates an array of data-driven parameter structs with a lifetime tied to graph execution. */
+	template <typename BaseParameterStructType>
+	TStridedView<BaseParameterStructType> AllocParameters(const FShaderParametersMetadata* ParametersMetadata, uint32 NumStructs);
 
 	//////////////////////////////////////////////////////////////////////////
 
