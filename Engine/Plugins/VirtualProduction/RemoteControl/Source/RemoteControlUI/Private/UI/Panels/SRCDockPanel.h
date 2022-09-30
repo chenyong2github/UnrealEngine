@@ -91,7 +91,7 @@ public:
 	 *
 	 * @param InPanel The panel widget.
 	 */
-	virtual void AddPanel(TSharedRef<SWidget> InPanel, const float InDesiredSize);
+	virtual void AddPanel(TSharedRef<SWidget> InPanel, const float InDesiredSize, const bool bResizable = true);
 
 	/**
 	 * Gets the content of this panel

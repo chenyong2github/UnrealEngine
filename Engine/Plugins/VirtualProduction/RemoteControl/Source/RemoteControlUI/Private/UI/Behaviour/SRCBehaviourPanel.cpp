@@ -28,17 +28,16 @@
 #define LOCTEXT_NAMESPACE "SRCBehaviourPanel"
 
 TSharedPtr<SBox> SRCBehaviourPanel::NoneSelectedWidget = SNew(SBox)
-			.Padding(0.f)
+			.Padding(10.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("NoneSelected", "Select a controller to view its behaviors."))
+				.Text(LOCTEXT("NoneSelected", "Select a controller\nto view its behaviors."))
 				.TextStyle(&FAppStyle::GetWidgetStyle<FTextBlockStyle>("NormalText"))
 				.Justification(ETextJustify::Center)
+				.AutoWrapText(true)
 			];
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCBehaviourPanel::Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel)
 {
@@ -58,8 +57,6 @@ void SRCBehaviourPanel::Construct(const FArguments& InArgs, const TSharedRef<SRe
 	// Register delegates
 	InPanel->OnControllerSelectionChanged.AddSP(this, &SRCBehaviourPanel::OnControllerSelectionChanged);
 }
-
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCBehaviourPanel::Shutdown()
 {
@@ -81,6 +78,7 @@ void SRCBehaviourPanel::UpdateWrappedWidget(TSharedPtr<FRCControllerModel> InCon
 		// Behaviour Dock Panel
 		TSharedPtr<SRCMinorPanel> BehaviourDockPanel = SNew(SRCMinorPanel)
 			.HeaderLabel(LOCTEXT("BehavioursLabel", "Behavior"))
+			.EnableFooter(true)
 			[
 				SAssignNew(BehaviourPanelList, SRCBehaviourPanelList, SharedThis(this), InControllerItem, RemoteControlPanel.ToSharedRef())
 			];
@@ -133,7 +131,7 @@ void SRCBehaviourPanel::UpdateWrappedWidget(TSharedPtr<FRCControllerModel> InCon
 			];
 
 		BehaviourDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewBehaviourButton);
-		BehaviourDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedBehaviourButton);
+		BehaviourDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteSelectedBehaviourButton);
 
 		WrappedBoxWidget->SetContent(BehaviourDockPanel.ToSharedRef());
 	}

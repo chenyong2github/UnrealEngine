@@ -95,6 +95,7 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 		// Action Dock Panel
 		TSharedPtr<SRCMinorPanel> ActionDockPanel = SNew(SRCMinorPanel)
 			.HeaderLabel(LOCTEXT("ActionsLabel", "Actions"))
+			.EnableFooter(true)
 			[
 				ActionPanelList.ToSharedRef()
 			];
@@ -168,36 +169,21 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 
 		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewActionButton);
 		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, AddAllActionsButton);
-		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedActionButton);
+		ActionDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteSelectedActionButton);
 
 		// Header Dock Panel
-		TSharedPtr<SRCMinorPanel> HeaderDockPanel = SNew(SRCMinorPanel)
-			.HeaderLabel(LOCTEXT("HeaderDockLabel", ""))
+		TSharedPtr<SRCMinorPanel> BehaviourDetailsPanel = SNew(SRCMinorPanel)
+			.EnableHeader(false)
 			[
 				SAssignNew(BehaviourDetailsWidget, SRCBehaviourDetails, SharedThis(this), InBehaviourItem.ToSharedRef())
 			];
-		
-		// Toggle Behaviour Button
-		const bool bIsChecked = InBehaviourItem->IsBehaviourEnabled();
-		SAssignNew(ToggleBehaviourButton, SCheckBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Toggle Behavior")))
-			.ToolTipText(LOCTEXT("EditModeTooltip", "Enable/Disable this Behaviour.\nWhen a behaviour is disabled its Actions will not be processed when the Controller value changes"))
-			.HAlign(HAlign_Center)
-			.Style(&RCPanelStyle->ToggleButtonStyle)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.IsChecked(bIsChecked)
-			.OnCheckStateChanged(this, &SRCActionPanel::OnToggleEnableBehaviour);
-
-		RefreshIsBehaviourEnabled(bIsChecked);
-
-		HeaderDockPanel->AddHeaderToolbarItem(EToolbar::Left, ToggleBehaviourButton.ToSharedRef());
 
 		TSharedRef<SRCMajorPanel> ActionsPanel = SNew(SRCMajorPanel)
 			.EnableFooter(false)
 			.EnableHeader(false)
 			.ChildOrientation(Orient_Vertical);
 
-		ActionsPanel->AddPanel(HeaderDockPanel.ToSharedRef(), 0.5f);
+		ActionsPanel->AddPanel(BehaviourDetailsPanel.ToSharedRef(), 0.5f);
 		ActionsPanel->AddPanel(ActionDockPanel.ToSharedRef(), 0.5f);
 
 		WrappedBoxWidget->SetContent(ActionsPanel);
@@ -223,27 +209,18 @@ FReply SRCActionPanel::OnClickOverrideBlueprintButton()
 	return FReply::Handled();
 }
 
-void SRCActionPanel::OnToggleEnableBehaviour(ECheckBoxState State)
-{
-	SetIsBehaviourEnabled(State == ECheckBoxState::Checked);
-}
-
 void SRCActionPanel::SetIsBehaviourEnabled(const bool bIsEnabled)
 {
-	if (TSharedPtr<FRCBehaviourModel> BehaviourItem = GetSelectedBehaviourItem())
+	if (BehaviourDetailsWidget)
 	{
-		BehaviourItem->SetIsBehaviourEnabled(bIsEnabled);
-
-		RefreshIsBehaviourEnabled(bIsEnabled);
+		BehaviourDetailsWidget->SetIsBehaviourEnabled(bIsEnabled);
 	}
 }
 
 void SRCActionPanel::RefreshIsBehaviourEnabled(const bool bIsEnabled)
 {
-	if (ToggleBehaviourButton && BehaviourDetailsWidget && ActionPanelList)
+	if (ActionPanelList)
 	{
-		ToggleBehaviourButton->SetIsChecked(bIsEnabled);
-		BehaviourDetailsWidget->SetEnabled(bIsEnabled);
 		ActionPanelList->SetEnabled(bIsEnabled);
 	}
 }

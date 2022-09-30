@@ -40,6 +40,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 	// Controller Dock Panel
 	TSharedPtr<SRCMinorPanel> ControllerDockPanel = SNew(SRCMinorPanel)
 		.HeaderLabel(LOCTEXT("ControllersLabel", "Controller"))
+		.EnableFooter(true)
 		[
 			SAssignNew(ControllerPanelList, SRCControllerPanelList, SharedThis(this), InPanel)
 		];
@@ -93,7 +94,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 		];
 
 	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewControllerButton);
-	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedControllerButton);
+	ControllerDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteSelectedControllerButton);
 
 	ChildSlot
 		.Padding(RCPanelStyle->PanelPadding)

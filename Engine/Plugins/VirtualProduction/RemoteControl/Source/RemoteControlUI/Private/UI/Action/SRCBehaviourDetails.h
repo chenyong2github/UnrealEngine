@@ -6,6 +6,7 @@
 
 struct FRCPanelStyle;
 class SRCActionPanel;
+class STextBlock;
 class FRCBehaviourModel;
 
 /**
@@ -23,7 +24,16 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, TSharedRef<SRCActionPanel> InActionPanel, TSharedRef<FRCBehaviourModel> InBehaviourItem);
 
+	/** Set the Enabled state of our parent Behaviour */
+	void SetIsBehaviourEnabled(const bool bIsEnabled);
+
 private:
+	/** Refreshes the UI widgets enabled state depending on whether the parent behaviour is currently enabled */
+	void RefreshIsBehaviourEnabled(const bool bIsEnabled);
+
+	/** Handles click event for toggling Enable/Disable behaviour*/
+	void OnToggleEnableBehaviour(ECheckBoxState State);
+
 	/** The parent Action panel UI widget holding this Header*/
 	TWeakPtr<SRCActionPanel> ActionPanelWeakPtr;
 	
@@ -32,4 +42,10 @@ private:
 
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
+
+	/** Behaviour specific details panel*/
+	TSharedPtr<SWidget> BehaviourDetailsWidget;
+
+	/** Behaviour Title text widget*/
+	TSharedPtr<STextBlock> BehaviourTitleWidget;
 };

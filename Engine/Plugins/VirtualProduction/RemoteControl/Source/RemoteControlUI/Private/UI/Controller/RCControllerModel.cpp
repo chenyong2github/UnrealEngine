@@ -33,11 +33,10 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 	const FNodeWidgets NodeWidgets = DetailTreeNodeWeakPtr.Pin()->CreateNodeWidgets();
 
 	const TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-	
 	if (NodeWidgets.ValueWidget)
 	{
 		FieldWidget->AddSlot()
-			.Padding(FMargin(3.0f, 2.0f))
+			.Padding(FMargin(10.0f, 2.0f))
 			.HAlign(HAlign_Right)
 			.AutoWidth()
 			[
@@ -47,7 +46,7 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 	else if (NodeWidgets.WholeRowWidget)
 	{
 		FieldWidget->AddSlot()
-			.Padding(FMargin(3.0f, 2.0f))
+			.Padding(FMargin(10.0f, 2.0f))
 			.AutoWidth()
 			[
 				NodeWidgets.WholeRowWidget.ToSharedRef()
@@ -59,7 +58,10 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 
 TSharedRef<SWidget> FRCControllerModel::GetNameWidget() const
 {
-	return ControllerNameTextBox.ToSharedRef();
+	return SNew(SBox).Padding(10.f, 2.f)
+		[
+			ControllerNameTextBox.ToSharedRef()
+		];
 }
 
 URCVirtualPropertyBase* FRCControllerModel::GetVirtualProperty() const

@@ -537,7 +537,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	// Controllers with Behaviours panel
 	TSharedRef<SRCMajorPanel> ControllersAndBehavioursPanel = SNew(SRCMajorPanel)
 		.EnableHeader(false)
-		.EnableFooter(true);
+		.EnableFooter(false);
 
 	ControllerPanel = SNew(SRCControllerPanel, SharedThis(this))
 		.LiveMode_Lambda([this]() { return bIsInLiveMode; })
@@ -546,33 +546,23 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	BehaviourPanel = SNew(SRCBehaviourPanel, SharedThis(this))
 		.Visibility_Lambda([this] { return !bIsInLiveMode && bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
 
-	ControllersAndBehavioursPanel->AddPanel(ControllerPanel.ToSharedRef(), 0.5f);
-		
-	ControllersAndBehavioursPanel->AddPanel(BehaviourPanel.ToSharedRef(), 0.5f);
-
-	// TODO : Replace this with actual Favorites Panel.
-	TSharedRef<SWidget> FavoritesItem = SNew(SBox)
-		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Favorites")))
-		.HeightOverride(30.f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("FavoritesLabel", "Favorites"))
-			.TextStyle(&RCPanelStyle->PanelTextStyle)
-		];
-
-	ControllersAndBehavioursPanel->AddFooterToolItem(EToolbar::Left, FavoritesItem);
+	ControllersAndBehavioursPanel->AddPanel(ControllerPanel.ToSharedRef(), 0.8f);
+	
+	constexpr bool bResizable = false;
+	ControllersAndBehavioursPanel->AddPanel(BehaviourPanel.ToSharedRef(), 0.f, bResizable);
 
 	// Actions Panel.
 	ActionPanel = SNew(SRCActionPanel, SharedThis(this))
 		.Visibility_Lambda([this] { return !bIsInLiveMode && bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
 
-	LogicPanel->AddPanel(ControllersAndBehavioursPanel, 0.67f);
-	LogicPanel->AddPanel(ActionPanel.ToSharedRef(), 0.33f);
+	LogicPanel->AddPanel(ControllersAndBehavioursPanel, 0.6f);
+	LogicPanel->AddPanel(ActionPanel.ToSharedRef(), 0.4f);
 
 	// Make 2 Columns with Panel Drawer + Main Panel
 	TSharedRef<SSplitter> ContentPanel = SNew(SSplitter)
 		.Orientation(Orient_Horizontal)
+		.HitDetectionSplitterHandleSize(RCPanelStyle->SplitterHandleSize)
+		.PhysicalSplitterHandleSize(RCPanelStyle->SplitterHandleSize)
 	
 		// Panel Drawer
 		+SSplitter::Slot()

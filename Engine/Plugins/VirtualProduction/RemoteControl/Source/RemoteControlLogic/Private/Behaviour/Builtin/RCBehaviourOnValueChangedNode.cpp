@@ -6,7 +6,7 @@
 
 URCBehaviourOnValueChangedNode::URCBehaviourOnValueChangedNode()
 {
-	DisplayName = NSLOCTEXT("Remote Control Behaviour", "Behavior Name - On Value Changed", "On Value Changed");
+	DisplayName = NSLOCTEXT("Remote Control Behaviour", "Behavior Name - On Value Changed", "On Modify");
 	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behavior Desc - On Value Changed", "Triggers an event when the associated property is modified");
 }
 

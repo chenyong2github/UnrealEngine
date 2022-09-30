@@ -112,4 +112,9 @@ struct FRCPanelStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, Category = Appearance)
 		FCheckBoxStyle ToggleButtonStyle;
 	FRCPanelStyle& SetToggleButtonStyle(const FCheckBoxStyle& InToggleButtonStyle) { ToggleButtonStyle = InToggleButtonStyle; return *this; }
+
+	/** Splitter handle size*/
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	float SplitterHandleSize;
+	FRCPanelStyle& SetSplitterHandleSize(const float InSplitterHandleSize) { SplitterHandleSize = InSplitterHandleSize; return *this; }
 };

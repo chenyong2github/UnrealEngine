@@ -74,14 +74,17 @@ public:
 		bAddActionMenuNeedsRefresh = true;
 	}
 
+	/** Set the Enabled state of our parent Behaviour */
+	void SetIsBehaviourEnabled(const bool bIsEnabled);
+
 	/** Fetches the currently selected behaviour item*/
 	TSharedPtr<FRCBehaviourModel> GetSelectedBehaviourItem()
 	{
 		return SelectedBehaviourItemWeakPtr.Pin();
 	}
 
-	/** Set the Enabled state of our parent Behaviour */
-	void SetIsBehaviourEnabled(const bool bIsEnabled);
+	/** Refreshes the UI widgets enabled state depending on whether the parent behaviour is currently enabled */
+	void RefreshIsBehaviourEnabled(const bool bIsEnabled);
 
 protected:
 	/** Warns user before deleting a selected panel item. */
@@ -105,12 +108,6 @@ private:
 
 	/** Handles click event for Open Behaviour Blueprint button*/
 	FReply OnClickOverrideBlueprintButton();
-
-	/** Handles click event for toggling Enable/Disable behaviour*/
-	void OnToggleEnableBehaviour(ECheckBoxState State);
-
-	/** Refreshes the UI widgets enabled state depending on whether the parent behaviour is currently enabled */
-	void RefreshIsBehaviourEnabled(const bool bIsEnabled);
 
 	/**
 	 * Builds a menu containing the list of all possible Actions
@@ -150,9 +147,6 @@ private:
 
 	/** Behaviour specific details widget*/
 	TSharedPtr<SRCBehaviourDetails> BehaviourDetailsWidget;
-
-	/** Toggle Behaviour button*/
-	TSharedPtr<SCheckBox> ToggleBehaviourButton;
 
 	/** Helper widget for behavior details. */
 	static TSharedPtr<SBox> NoneSelectedWidget;

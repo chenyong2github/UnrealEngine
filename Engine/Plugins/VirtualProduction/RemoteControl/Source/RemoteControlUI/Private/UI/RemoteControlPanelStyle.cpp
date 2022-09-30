@@ -164,7 +164,6 @@ void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InSty
 	FHeaderRowStyle HeaderRowStyle = AppStyle.GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow");
 	HeaderRowStyle.BackgroundBrush = FSlateColorBrush(FStyleColors::Background);
 	HeaderRowStyle.HorizontalSeparatorBrush = FSlateColorBrush(FStyleColors::Background);
-	HeaderRowStyle.HorizontalSeparatorThickness = 2.f;
 
 	// Table Row Style
 	FTableRowStyle TableRowStyle = AppStyle.GetWidgetStyle<FTableRowStyle>("DetailsView.TreeView.TableRow");
@@ -216,6 +215,18 @@ void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InSty
 		.SetSectionHeaderTextStyle(HeaderText);
 
 	StyleSet->Set("RemoteControlPanel.MinorPanel", RCMinorPanelStyle);
+
+	FRCPanelStyle RCLogicControllersPanelStyle = RCMinorPanelStyle;
+	RCLogicControllersPanelStyle.SetHeaderRowPadding(FMargin(15.f, 2.f));
+
+	// Table Row Style
+	FTableRowStyle ControllersTableRowStyle = RCLogicControllersPanelStyle.TableRowStyle;
+	ControllersTableRowStyle.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::WindowBorder));
+	ControllersTableRowStyle.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::WindowBorder));
+
+	RCLogicControllersPanelStyle.SetTableRowStyle(ControllersTableRowStyle);
+
+	StyleSet->Set("RemoteControlPanel.LogicControllersPanel", RCLogicControllersPanelStyle);
 
 	// Behaviour Panel style
 	FRCPanelStyle RCBehaviourPanelStyle = RCMinorPanelStyle;

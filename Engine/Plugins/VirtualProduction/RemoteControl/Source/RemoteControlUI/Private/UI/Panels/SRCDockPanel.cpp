@@ -22,9 +22,14 @@ void SRCDockPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& Attribu
 {
 }
 
+static const FRCPanelStyle* GetPanelStyle()
+{
+	return &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+}
+
 void SRCDockPanel::Construct(const FArguments& InArgs)
 {
-	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+	RCPanelStyle = GetPanelStyle();
 
 	bIsFooterEnabled = false;
 	bIsHeaderEnabled = false;
@@ -53,6 +58,9 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCMajorPanel::Construct(const SRCMajorPanel::FArguments& InArgs)
 {
+	RCPanelStyle = GetPanelStyle();
+	const float SplitterHandleSize = RCPanelStyle->SplitterHandleSize;
+
 	SRCDockPanel::Construct(SRCDockPanel::FArguments()
 		[
 			SAssignNew(ContentPanel, SSplitter)
@@ -64,6 +72,8 @@ void SRCMajorPanel::Construct(const SRCMajorPanel::FArguments& InArgs)
 			[
 				SAssignNew(Children, SSplitter)
 				.Orientation(InArgs._ChildOrientation)
+				.HitDetectionSplitterHandleSize(SplitterHandleSize)
+				.PhysicalSplitterHandleSize(SplitterHandleSize)
 			]
 		]
 	);
@@ -132,12 +142,16 @@ void SRCMajorPanel::Construct(const SRCMajorPanel::FArguments& InArgs)
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SRCMajorPanel::AddPanel(TSharedRef<SWidget> InContent, const float InDesiredSize)
+void SRCMajorPanel::AddPanel(TSharedRef<SWidget> InContent, const float InDesiredSize, const bool bResizable/* = true */)
 {
+	const SSplitter::ESizeRule SizeRule = InDesiredSize == 0.f ? SSplitter::ESizeRule::SizeToContent : SSplitter::ESizeRule::FractionOfParent;
+
 	if (Children.IsValid())
 	{
 		Children->AddSlot()
+			.SizeRule(SizeRule)
 			.Value(InDesiredSize)
+			.Resizable(bResizable)
 			[
 				InContent
 			];

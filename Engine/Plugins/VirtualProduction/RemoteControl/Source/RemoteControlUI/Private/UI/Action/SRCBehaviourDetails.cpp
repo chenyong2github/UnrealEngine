@@ -23,8 +23,6 @@
 
 #define LOCTEXT_NAMESPACE "SRCBehaviourDetails"
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
 void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActionPanel> InActionPanel, TSharedRef<FRCBehaviourModel> InBehaviourItem)
 {
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
@@ -33,7 +31,7 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 	BehaviourItemWeakPtr = InBehaviourItem;
 
 	URCBehaviour* Behaviour = BehaviourItemWeakPtr.Pin()->GetBehaviour();
-	const FText BehaviourDisplayName = Behaviour->GetDisplayName().ToUpper();
+	const FText BehaviourDisplayName = Behaviour->GetDisplayName();
 	const FText BehaviourDescription = Behaviour->GetBehaviorDescription();
 
 	const FSlateFontInfo& FontBehaviorDesc = FRemoteControlPanelStyle::Get()->GetFontStyle("RemoteControlPanel.Behaviours.BehaviorDescription");
@@ -46,7 +44,9 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 		TypeDisplayName = FName::NameToDisplayString(UE::RCUIHelpers::GetFieldClassDisplayName(Behaviour->ControllerWeakPtr->GetProperty()).ToString(), false);
 	}
 
-	TSharedRef<SWidget> BehaviourDetailsWidget = InBehaviourItem->GetBehaviourDetailsWidget();
+	BehaviourDetailsWidget = InBehaviourItem->GetBehaviourDetailsWidget();
+
+	const bool bIsChecked = InBehaviourItem->IsBehaviourEnabled();
 	
 	ChildSlot
 		.Padding(RCPanelStyle->PanelPadding)
@@ -55,7 +55,7 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 
 			+ SVerticalBox::Slot()
 			.HAlign(HAlign_Fill)
-			.Padding(4.f)
+			.Padding(6.f)
 			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
@@ -67,43 +67,31 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 				.FillWidth(1.f)
 				.Padding(4.f)
 				[
-					SNew(STextBlock)
+					SAssignNew(BehaviourTitleWidget, STextBlock)
 					.ColorAndOpacity(FLinearColor::White)
 					.Text(BehaviourDisplayName)
 					.TextStyle(&RCPanelStyle->SectionHeaderTextStyle)
+					.ToolTipText(BehaviourDescription)
 				]
 
+				// Toggle Behaviour Button
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()
 				.Padding(4.f, 0.f)
 				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::Get().GetBrush("SettingsEditor.CheckoutWarningBorder"))
-					.Padding(FMargin(8.f, 4.f))
-					.BorderBackgroundColor(TypeColor)
-					[
-						SNew(STextBlock)
-						.ColorAndOpacity(FLinearColor::Black)
-						.Text(FText::FromString(TypeDisplayName))
-						.TextStyle(&RCPanelStyle->PanelTextStyle)
-					]
+					SNew(SCheckBox)
+					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Toggle Behavior")))
+					.ToolTipText(LOCTEXT("EditModeTooltip", "Enable/Disable this Behaviour.\nWhen a behaviour is disabled its Actions will not be processed when the Controller value changes"))
+					.HAlign(HAlign_Center)
+					.Style(&RCPanelStyle->ToggleButtonStyle)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.IsChecked_Lambda([this]() { return BehaviourItemWeakPtr.IsValid() && BehaviourItemWeakPtr.Pin()->IsBehaviourEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged(this, &SRCBehaviourDetails::OnToggleEnableBehaviour)
 				]
 			]
-
-			+ SVerticalBox::Slot()
-			.Padding(8.f, 4.f)
-			.VAlign(VAlign_Top)
-			.FillHeight(1.f)
-			[
-				SNew(STextBlock)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Text(BehaviourDescription)
-				.TextStyle(&RCPanelStyle->PanelTextStyle)
-				.AutoWrapText(true) // note: use of autowidth on this slot prevents wrapping from working!
-			]
 			
-			// Border (separating Header and "If Value Is" panel)
+			// Border (separating Header and Behaviour specific details panel)
 			+ SVerticalBox::Slot()
 			.Padding(2.f, 4.f)
 			.AutoHeight()
@@ -112,7 +100,7 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 				.SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
 				.Thickness(2.f)
 				.Orientation(EOrientation::Orient_Horizontal)
-				.Visibility_Lambda([BehaviourDetailsWidget]() { return BehaviourDetailsWidget != SNullWidget::NullWidget ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([this]() { return this->BehaviourDetailsWidget.IsValid() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 
 			// Behaviour Specific Details Panel
@@ -120,7 +108,7 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 			.Padding(8.f, 4.f)
 			.AutoHeight()
 			[
-				BehaviourDetailsWidget
+				BehaviourDetailsWidget.ToSharedRef()
 			]
 
 			// Spacer to fill the gap.
@@ -131,8 +119,37 @@ void SRCBehaviourDetails::Construct(const FArguments& InArgs, TSharedRef<SRCActi
 				SNew(SSpacer)
 			]
 		];
+
+	RefreshIsBehaviourEnabled(bIsChecked);
 }
 
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void SRCBehaviourDetails::OnToggleEnableBehaviour(ECheckBoxState State)
+{
+	SetIsBehaviourEnabled(State == ECheckBoxState::Checked);
+}
+
+void SRCBehaviourDetails::SetIsBehaviourEnabled(const bool bIsEnabled)
+{
+	if (TSharedPtr<FRCBehaviourModel> BehaviourItem = BehaviourItemWeakPtr.Pin())
+	{
+		BehaviourItem->SetIsBehaviourEnabled(bIsEnabled);
+
+		RefreshIsBehaviourEnabled(bIsEnabled);
+	}
+}
+
+void SRCBehaviourDetails::RefreshIsBehaviourEnabled(const bool bIsEnabled)
+{
+	if(BehaviourDetailsWidget && BehaviourTitleWidget)
+	{
+		BehaviourDetailsWidget->SetEnabled(bIsEnabled);
+		BehaviourTitleWidget->SetEnabled(bIsEnabled);
+	}
+
+	if (TSharedPtr<SRCActionPanel> ActionPanel = ActionPanelWeakPtr.Pin())
+	{
+		ActionPanel->RefreshIsBehaviourEnabled(bIsEnabled);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

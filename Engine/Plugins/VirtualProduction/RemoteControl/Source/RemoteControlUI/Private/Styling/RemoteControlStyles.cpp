@@ -9,6 +9,7 @@ FRCPanelStyle::FRCPanelStyle()
 	, PanelPadding(0.f)
 	, PanelTextStyle(FTextBlockStyle::GetDefault())
 	, SectionHeaderTextStyle(FTextBlockStyle::GetDefault())
+	, SplitterHandleSize(4.f)
 {
 }
 

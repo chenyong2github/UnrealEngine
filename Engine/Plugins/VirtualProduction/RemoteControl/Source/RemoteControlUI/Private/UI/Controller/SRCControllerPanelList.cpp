@@ -264,7 +264,7 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 	
 	ControllerPanelWeakPtr = InControllerPanel;
 	
-	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.LogicControllersPanel");
 
 	ListView = SNew(SListView<TSharedPtr<FRCControllerModel>>)
 		.ListItemsSource(&ControllerItems)
@@ -278,22 +278,22 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::TypeColor)
 			.DefaultLabel(LOCTEXT("ControllerNameColumnName", ""))
-			.FillWidth(0.03f)
+			.FixedWidth(30)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::DragHandle)
 			.DefaultLabel(FText::GetEmpty())
-			.FillWidth(0.07f)
+			.FixedWidth(30)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::Name)
 			.DefaultLabel(LOCTEXT("ControllerNameColumnName", "Name"))
-			.FillWidth(0.3f)
+			.FillWidth(0.15f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::Value)
 			.DefaultLabel(LOCTEXT("ControllerValueColumnName", "Input"))
-			.FillWidth(0.6f)
+			.FillWidth(0.75f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 		);
 
@@ -392,7 +392,7 @@ TSharedRef<ITableRow> SRCControllerPanelList::OnGenerateWidgetForList(TSharedPtr
 
 	return SNew(SControllerRowType, OwnerTable, InItem.ToSharedRef(), SharedThis(this))
 		.Style(&RCPanelStyle->TableRowStyle)
-		.Padding(FMargin(3.f));
+		.Padding(FMargin(4.5f));
 }
 
 void SRCControllerPanelList::OnTreeSelectionChanged(TSharedPtr<FRCControllerModel> InItem, ESelectInfo::Type)

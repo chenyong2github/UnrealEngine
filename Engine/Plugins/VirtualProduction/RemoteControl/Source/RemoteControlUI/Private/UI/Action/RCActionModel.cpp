@@ -80,7 +80,7 @@ FRCActionModel::FRCActionModel(URCAction* InAction, const TSharedPtr<class FRCBe
 {
 	BehaviourItemWeakPtr = InBehaviourItem;
 
-	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.LogicControllersPanel");
 }
 
 TSharedRef<SWidget> FRCActionModel::GetNameWidget() const
