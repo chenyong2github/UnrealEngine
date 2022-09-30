@@ -709,6 +709,7 @@ void FStageAppRouteHandler::HandleClientDisconnected(FGuid ClientId)
 		IDisplayClusterScenePreview& PreviewModule = IDisplayClusterScenePreview::Get();
 		for (TClientIdToPerRendererDataMap::ElementType& PerRendererDataPair : *PerRendererDataMap)
 		{
+			EndActorDrag(PerRendererDataPair.Value, ClientId, PerRendererDataPair.Key, true);
 			PreviewModule.DestroyRenderer(PerRendererDataPair.Key);
 		}
 
