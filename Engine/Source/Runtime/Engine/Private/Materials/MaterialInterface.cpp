@@ -385,60 +385,54 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 
 		MaterialRelevance.ShadingModelMask = GetShadingModels().GetShadingModelField();
 		MaterialRelevance.CustomDepthStencilUsageMask = MaterialResource->GetCustomDepthStencilUsageMask_GameThread();
+		MaterialRelevance.bDecal = bDecal;
 
-		if(bDecal)
+		// Check whether the material can be drawn in the separate translucency pass as per FMaterialResource::IsTranslucencyAfterDOFEnabled and IsMobileSeparateTranslucencyEnabled
+		EMaterialTranslucencyPass TranslucencyPass = MTP_BeforeDOF;
+		const bool bSupportsSeparateTranslucency = Material->MaterialDomain != MD_UI && Material->MaterialDomain != MD_DeferredDecal;
+		if (bIsTranslucent && bSupportsSeparateTranslucency)
 		{
-			MaterialRelevance.bDecal = bDecal;
-			// we rely on FMaterialRelevance defaults are 0
-		}
-		else
-		{
-			// Check whether the material can be drawn in the separate translucency pass as per FMaterialResource::IsTranslucencyAfterDOFEnabled and IsMobileSeparateTranslucencyEnabled
-			EMaterialTranslucencyPass TranslucencyPass = MTP_BeforeDOF;
-			const bool bSupportsSeparateTranslucency = Material->MaterialDomain != MD_UI && Material->MaterialDomain != MD_DeferredDecal;
-			if (bIsTranslucent && bSupportsSeparateTranslucency)
+			if (bIsMobile)
 			{
-				if (bIsMobile)
+				if (Material->bEnableMobileSeparateTranslucency)
 				{
-					if (Material->bEnableMobileSeparateTranslucency)
-					{
-						TranslucencyPass = MTP_AfterDOF;
-					}
+					TranslucencyPass = MTP_AfterDOF;
 				}
-				else
-				{
-					TranslucencyPass = Material->TranslucencyPass;
-				}
-			}			
+			}
+			else
+			{
+				TranslucencyPass = Material->TranslucencyPass;
+			}
+		}			
 
-			// If dual blending is supported, and we are rendering post-DOF translucency, then we also need to render a second pass to the modulation buffer.
-			// The modulation buffer can also be used for regular modulation shaders after DoF.
-			const bool bMaterialSeparateModulation = MaterialResource->IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]) || BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly;
+		// If dual blending is supported, and we are rendering post-DOF translucency, then we also need to render a second pass to the modulation buffer.
+		// The modulation buffer can also be used for regular modulation shaders after DoF.
+		const bool bMaterialSeparateModulation = MaterialResource->IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]) || BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly;
 
-			MaterialRelevance.bOpaque = !bIsTranslucent;
-			MaterialRelevance.bMasked = IsMasked();
-			MaterialRelevance.bDistortion = MaterialResource->IsDistorted();
-			MaterialRelevance.bHairStrands = IsCompatibleWithHairStrands(MaterialResource, InFeatureLevel);
-			MaterialRelevance.bTwoSided = MaterialResource->IsTwoSided();
-			MaterialRelevance.bSeparateTranslucency = bIsTranslucent && (TranslucencyPass == MTP_AfterDOF);
-			MaterialRelevance.bTranslucencyModulate = bMaterialSeparateModulation;
-			MaterialRelevance.bPostMotionBlurTranslucency = (TranslucencyPass == MTP_AfterMotionBlur);
-			MaterialRelevance.bNormalTranslucency = bIsTranslucent && (TranslucencyPass == MTP_BeforeDOF);
-			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
-			MaterialRelevance.bUsesSceneColorCopy = bIsTranslucent && MaterialResource->RequiresSceneColorCopy_GameThread();
-			MaterialRelevance.bOutputsTranslucentVelocity = Material->IsTranslucencyWritingVelocity();
-			MaterialRelevance.bUsesGlobalDistanceField = MaterialResource->UsesGlobalDistanceField_GameThread();
-			MaterialRelevance.bUsesWorldPositionOffset = MaterialResource->MaterialUsesWorldPositionOffset_GameThread();
-			MaterialRelevance.bUsesPixelDepthOffset = MaterialResource->MaterialUsesPixelDepthOffset_GameThread();
-			ETranslucencyLightingMode TranslucencyLightingMode = MaterialResource->GetTranslucencyLightingMode();
-			MaterialRelevance.bTranslucentSurfaceLighting = bIsTranslucent && (TranslucencyLightingMode == TLM_SurfacePerPixelLighting || TranslucencyLightingMode == TLM_Surface);
-			MaterialRelevance.bUsesSceneDepth = MaterialResource->MaterialUsesSceneDepthLookup_GameThread();
-			MaterialRelevance.bHasVolumeMaterialDomain = MaterialResource->IsVolumetricPrimitive();
-			MaterialRelevance.bUsesDistanceCullFade = MaterialResource->MaterialUsesDistanceCullFade_GameThread();
-			MaterialRelevance.bUsesSkyMaterial = Material->bIsSky;
-			MaterialRelevance.bUsesSingleLayerWaterMaterial = bUsesSingleLayerWaterMaterial;
-			MaterialRelevance.bUsesAnisotropy = bUsesAnisotropy;
-		}
+		MaterialRelevance.bOpaque = !bIsTranslucent;
+		MaterialRelevance.bMasked = IsMasked();
+		MaterialRelevance.bDistortion = MaterialResource->IsDistorted();
+		MaterialRelevance.bHairStrands = IsCompatibleWithHairStrands(MaterialResource, InFeatureLevel);
+		MaterialRelevance.bTwoSided = MaterialResource->IsTwoSided();
+		MaterialRelevance.bSeparateTranslucency = bIsTranslucent && (TranslucencyPass == MTP_AfterDOF);
+		MaterialRelevance.bTranslucencyModulate = bMaterialSeparateModulation;
+		MaterialRelevance.bPostMotionBlurTranslucency = (TranslucencyPass == MTP_AfterMotionBlur);
+		MaterialRelevance.bNormalTranslucency = bIsTranslucent && (TranslucencyPass == MTP_BeforeDOF);
+		MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
+		MaterialRelevance.bUsesSceneColorCopy = bIsTranslucent && MaterialResource->RequiresSceneColorCopy_GameThread();
+		MaterialRelevance.bOutputsTranslucentVelocity = Material->IsTranslucencyWritingVelocity();
+		MaterialRelevance.bUsesGlobalDistanceField = MaterialResource->UsesGlobalDistanceField_GameThread();
+		MaterialRelevance.bUsesWorldPositionOffset = MaterialResource->MaterialUsesWorldPositionOffset_GameThread();
+		MaterialRelevance.bUsesPixelDepthOffset = MaterialResource->MaterialUsesPixelDepthOffset_GameThread();
+		ETranslucencyLightingMode TranslucencyLightingMode = MaterialResource->GetTranslucencyLightingMode();
+		MaterialRelevance.bTranslucentSurfaceLighting = bIsTranslucent && (TranslucencyLightingMode == TLM_SurfacePerPixelLighting || TranslucencyLightingMode == TLM_Surface);
+		MaterialRelevance.bUsesSceneDepth = MaterialResource->MaterialUsesSceneDepthLookup_GameThread();
+		MaterialRelevance.bHasVolumeMaterialDomain = MaterialResource->IsVolumetricPrimitive();
+		MaterialRelevance.bUsesDistanceCullFade = MaterialResource->MaterialUsesDistanceCullFade_GameThread();
+		MaterialRelevance.bUsesSkyMaterial = Material->bIsSky;
+		MaterialRelevance.bUsesSingleLayerWaterMaterial = bUsesSingleLayerWaterMaterial;
+		MaterialRelevance.bUsesAnisotropy = bUsesAnisotropy;
+
 		return MaterialRelevance;
 	}
 	else
