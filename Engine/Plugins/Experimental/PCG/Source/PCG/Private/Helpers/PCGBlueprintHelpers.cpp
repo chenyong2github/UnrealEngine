@@ -91,3 +91,12 @@ FVector UPCGBlueprintHelpers::GetLocalCenter(const FPCGPoint& InPoint)
 	return InPoint.GetLocalCenter();
 }
 
+FBox UPCGBlueprintHelpers::GetActorBoundsPCG(AActor* InActor, bool bIgnorePCGCreatedComponents)
+{
+	return PCGHelpers::GetActorBounds(InActor, bIgnorePCGCreatedComponents);
+}
+
+FBox UPCGBlueprintHelpers::GetActorLocalBoundsPCG(AActor* InActor, bool bIgnorePCGCreatedComponents)
+{
+	return PCGHelpers::GetActorLocalBounds(InActor, bIgnorePCGCreatedComponents);
+}

@@ -8,13 +8,13 @@
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Math/GenericOctree.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Engine/Engine.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
@@ -22,7 +22,6 @@
 #include "ObjectTools.h"
 #endif
 
-#if WITH_EDITOR
 namespace PCGSubsystemConsole
 {
 	static FAutoConsoleCommand CommandFlushCache(
@@ -30,16 +29,35 @@ namespace PCGSubsystemConsole
 		TEXT("Clears the PCG results cache."),
 		FConsoleCommandDelegate::CreateLambda([]()
 			{
+				UWorld* World = nullptr;
+
+#if WITH_EDITOR
 				if (GEditor)
 				{
-					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					if (GEditor->PlayWorld)
 					{
-						World->GetSubsystem<UPCGSubsystem>()->FlushCache();
+						World = GEditor->PlayWorld;
 					}
+					else
+					{
+						World = GEditor->GetEditorWorldContext().World();
+					}
+				}
+				else
+#endif
+				if (GEngine)
+				{
+					World = GEngine->GetCurrentPlayWorld();
+				}
+
+				if (World && World->GetSubsystem<UPCGSubsystem>())
+				{
+					World->GetSubsystem<UPCGSubsystem>()->FlushCache();
 				}
 			}));
 }
 
+#if WITH_EDITOR
 namespace PCGSubsystem
 {
 	FPCGTaskId ForEachIntersectingCell(FPCGGraphExecutor* GraphExecutor, UWorld* World, const FBox& InBounds, bool bCreateActor, bool bLoadCell, bool bSaveActors, TFunctionRef<FPCGTaskId(APCGPartitionActor*, const FBox&, const TArray<FPCGTaskId>&)> InOperation);
@@ -1463,14 +1481,6 @@ void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement)
 	}
 }
 
-void UPCGSubsystem::FlushCache()
-{
-	if (GraphExecutor)
-	{
-		GraphExecutor->GetCache().ClearCache();
-	}
-}
-
 void UPCGSubsystem::BuildLandscapeCache()
 {
 	if (UPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
@@ -1500,3 +1510,11 @@ void UPCGSubsystem::ResetPartitionActorsMap()
 }
 
 #endif // WITH_EDITOR
+
+void UPCGSubsystem::FlushCache()
+{
+	if (GraphExecutor)
+	{
+		GraphExecutor->GetCache().ClearCache();
+	}
+}

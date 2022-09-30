@@ -29,7 +29,7 @@ public:
 	float PointScale = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)
-	EPCGDebugVisScaleMethod ScaleMethod = EPCGDebugVisScaleMethod::Relative;
+	EPCGDebugVisScaleMethod ScaleMethod = EPCGDebugVisScaleMethod::Extents;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)
 	TSoftObjectPtr<UStaticMesh> PointMesh;

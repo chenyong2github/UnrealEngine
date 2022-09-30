@@ -83,7 +83,6 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	bool bShouldPassThroughInputs = (Settings->Option != EPCGSpawnActorOption::NoMerging && Settings->GetSubgraph() != nullptr);
 	const bool bForceDisableActorParsing = (Settings->bForceDisableActorParsing);
 
 	// Pass-through exclusions & settings
@@ -202,7 +201,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 						for (UPCGComponent* PCGComponent : PCGComponents)
 						{
-							if (!bShouldPassThroughInputs)
+							if (Settings->Option == EPCGSpawnActorOption::NoMerging)
 							{
 								if (bForceDisableActorParsing)
 								{
@@ -235,8 +234,10 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 
-		// Finally, pass through the input if we're merging the PCG here
-		if (bShouldPassThroughInputs)
+		// Finally, pass through the input, in all cases: 
+		// - if it's not merged, will be the input points directly
+		// - if it's merged but there is no subgraph, will be the input points directly
+		// - if it's merged and there is a subgraph, we'd need to pass the data for it to be given to the subgraph
 		{
 			Outputs.Add(Input);
 		}

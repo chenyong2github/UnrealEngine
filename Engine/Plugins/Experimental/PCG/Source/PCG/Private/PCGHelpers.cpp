@@ -56,7 +56,7 @@ namespace PCGHelpers
 		}
 	}
 
-	FBox GetActorBounds(AActor* InActor)
+	FBox GetActorBounds(AActor* InActor, bool bIgnorePCGCreatedComponents)
 	{
 		// Specialized version of GetComponentsBoundingBox that skips over PCG generated components
 		// This is to ensure stable bounds and no timing issues (cleared ISMs, etc.)
@@ -65,21 +65,28 @@ namespace PCGHelpers
 		const bool bNonColliding = true;
 		const bool bIncludeFromChildActors = true;
 
-		InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
+		if (InActor)
+		{
+			InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 			{
 				// Note: we omit the IsRegistered check here (e.g. InPrimComp->IsRegistered() )
 				// since this can be called in a scope where the components are temporarily unregistered
 				if ((bNonColliding || InPrimComp->IsCollisionEnabled()) &&
-					!InPrimComp->ComponentTags.Contains(DefaultPCGTag))
+					(!bIgnorePCGCreatedComponents || !InPrimComp->ComponentTags.Contains(DefaultPCGTag)))
 				{
 					Box += InPrimComp->Bounds.GetBox();
 				}
 			});
+		}
+		else
+		{
+			UE_LOG(LogPCG, Error, TEXT("Actor is invalid in GetActorBounds"));
+		}
 
 		return Box;
 	}
 
-	FBox GetActorLocalBounds(AActor* InActor)
+	FBox GetActorLocalBounds(AActor* InActor, bool bIgnorePCGCreatedComponents)
 	{
 		// Specialized version of CalculateComponentsBoundingBoxInLocalScape that skips over PCG generated components
 		// This is to ensure stable bounds and no timing issues (cleared ISMs, etc.)
@@ -88,18 +95,25 @@ namespace PCGHelpers
 		const bool bNonColliding = true;
 		const bool bIncludeFromChildActors = true;
 
-		const FTransform& ActorToWorld = InActor->GetTransform();
-		const FTransform WorldToActor = ActorToWorld.Inverse();
-
-		InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
+		if (InActor)
 		{
+			const FTransform& ActorToWorld = InActor->GetTransform();
+			const FTransform WorldToActor = ActorToWorld.Inverse();
+
+			InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
+			{
 				if ((bNonColliding || InPrimComp->IsCollisionEnabled()) &&
-					!InPrimComp->ComponentTags.Contains(DefaultPCGTag))
+					(!bIgnorePCGCreatedComponents || !InPrimComp->ComponentTags.Contains(DefaultPCGTag)))
 				{
 					const FTransform ComponentToActor = InPrimComp->GetComponentTransform() * WorldToActor;
 					Box += InPrimComp->CalcBounds(ComponentToActor).GetBox();
 				}
-		});
+			});
+		}
+		else
+		{
+			UE_LOG(LogPCG, Error, TEXT("Actor is invalid in GetActorLocalBounds"));
+		}
 
 		return Box;
 	}

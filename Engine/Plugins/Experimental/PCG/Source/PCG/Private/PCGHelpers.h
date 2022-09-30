@@ -27,8 +27,8 @@ namespace PCGHelpers
 
 	FBox OverlapBounds(const FBox& InBoxA, const FBox& InBoxB);
 
-	FBox GetActorBounds(AActor* InActor);
-	FBox GetActorLocalBounds(AActor* InActor);
+	FBox GetActorBounds(AActor* InActor, bool bIgnorePCGCreatedComponents = true);
+	FBox GetActorLocalBounds(AActor* InActor, bool bIgnorePCGCreatedComponents = true);
 	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape);
 
 	ALandscape* GetLandscape(UWorld* InWorld, const FBox& InActorBounds);

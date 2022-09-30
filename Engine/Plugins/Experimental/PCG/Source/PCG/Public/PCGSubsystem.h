@@ -93,6 +93,9 @@ public:
 
 	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredComponents() const;
 
+	/** Flushes the graph cache completely, use only for debugging */
+	void FlushCache();
+
 #if WITH_EDITOR
 public:
 	/** Schedules an operation to cleanup the graph in the given bounds */
@@ -110,9 +113,6 @@ public:
 
 	/** Cleans up the graph cache on an element basis */
 	void CleanFromCache(const IPCGElement* InElement);
-
-	/** Flushes the graph cache completely, use only for debugging */
-	void FlushCache();
 
 	/** Move all resources from sub actors to a new actor */
 	void ClearPCGLink(UPCGComponent* InComponent, const FBox& InBounds, AActor* InNewActor);
