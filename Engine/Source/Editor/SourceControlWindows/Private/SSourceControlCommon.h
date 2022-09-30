@@ -205,13 +205,6 @@ struct FFileTreeItem : public IChangelistTreeItem
 
 	bool IsShelved() const { return GetTreeItemType() == IChangelistTreeItem::ShelvedFile; }
 
-private:
-	/** Returns a string representing the name of the asset represented by the given AssetData */
-	FString RetrieveAssetName(const FAssetData& InAssetData) const;
-
-	/** Returns a string representing the path of the asset represented by the given AssetData */
-	FString RetrieveAssetPath(const FAssetData& InAssetData) const;
-
 public:
 	/** Shared pointer to the source control state object itself */
 	FSourceControlStateRef FileState;
@@ -273,13 +266,14 @@ struct FOfflineFileTreeItem : public IChangelistTreeItem
 {
 	explicit FOfflineFileTreeItem(const FString& InFilename);
 
+	void RefreshAssetInformation();
 public:
 	const FString& GetFilename() const { return Filename; }
 	const FText& GetPackageName() const { return PackageName; }
 	const FText& GetDisplayName() const { return AssetName; }
 	const FText& GetDisplayPath() const { return AssetPath; }
 	const FText& GetDisplayType() const { return AssetType; }
-	const FSlateColor& GetDisplayColor() const { return AssetTypeColor; }
+	const FColor& GetDisplayColor() const { return AssetTypeColor; }
 	FText GetLastModifiedTimestamp() const { return LastModifiedTimestamp; }
 	void SetLastModifiedTimestamp(const FText& Timestamp) { LastModifiedTimestamp = Timestamp; }
 
@@ -290,7 +284,7 @@ private:
 	FText AssetName;
 	FText AssetPath;
 	FText AssetType;
-	FSlateColor AssetTypeColor;
+	FColor AssetTypeColor;
 	FText LastModifiedTimestamp;
 };
 

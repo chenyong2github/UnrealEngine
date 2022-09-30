@@ -51,6 +51,126 @@ void IChangelistTreeItem::RemoveChild(const TSharedRef<IChangelistTreeItem>& Chi
 	}
 }
 
+static FString RetrieveAssetName(const FAssetData& InAssetData)
+{
+	static const FName NAME_ActorLabel(TEXT("ActorLabel"));
+
+	if (InAssetData.FindTag(NAME_ActorLabel))
+	{
+		FString ResultAssetName = TEXT("");
+
+		InAssetData.GetTagValue(NAME_ActorLabel, ResultAssetName);
+		return ResultAssetName;
+	}
+	else if (InAssetData.AssetClassPath == UActorFolder::StaticClass()->GetClassPathName())
+	{
+		FString ActorFolderPath = UActorFolder::GetAssetRegistryInfoFromPackage(InAssetData.PackageName).GetDisplayName();
+		if (!ActorFolderPath.IsEmpty())
+		{
+			return ActorFolderPath;
+		}
+	}
+
+	return InAssetData.AssetName.ToString();
+}
+
+static FString RetrieveAssetPath(const FAssetData& InAssetData)
+{
+	int32 LastDot = -1;
+	FString Path = InAssetData.GetObjectPathString();
+
+	// Strip asset name from object path
+	if (Path.FindLastChar('.', LastDot))
+	{
+		Path.LeftInline(LastDot);
+	}
+
+	return Path;
+}
+
+static void RefreshAssetInformationInternal(const TArray<FAssetData>& Assets, const FString& InFilename, FText& OutAssetName, FText& OutAssetPath, FText& OutAssetType, FText& OutPackageName, FColor& OutAssetTypeColor)
+{
+	// Initialize display-related members
+	FString Filename = InFilename;
+	FString TempAssetName = SSourceControlCommon::GetDefaultAssetName().ToString();
+	FString TempAssetPath = Filename;
+	FString TempAssetType = SSourceControlCommon::GetDefaultAssetType().ToString();
+	FString TempPackageName = Filename;
+	FColor TempAssetColor = FColor(		// Copied from ContentBrowserCLR.cpp
+		127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
+		127 + FColor::Red.G / 2,
+		127 + FColor::Red.B / 2,
+		200); // Opacity
+
+	if (Assets.Num() > 0)
+	{
+		auto IsNotRedirector = [](const FAssetData& InAssetData) { return !InAssetData.IsRedirector(); };
+		int32 NumUserFacingAsset = Algo::CountIf(Assets, IsNotRedirector);
+
+		if (NumUserFacingAsset == 1)
+		{
+			const FAssetData& AssetData = *Algo::FindByPredicate(Assets, IsNotRedirector);
+
+			TempAssetName = RetrieveAssetName(AssetData);
+			TempAssetPath = RetrieveAssetPath(AssetData);
+			TempAssetType = AssetData.AssetClassPath.ToString();
+
+			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
+
+			if (AssetTypeActions.IsValid())
+			{
+				TempAssetColor = AssetTypeActions->GetTypeColor();
+			}
+			else
+			{
+				TempAssetColor = FColor::White;
+			}
+		}
+		else
+		{
+			TempAssetName = RetrieveAssetName(Assets[0]);
+			TempAssetPath = RetrieveAssetPath(Assets[0]);
+
+			for (int32 i = 1; i < Assets.Num(); ++i)
+			{
+				TempAssetName += TEXT(";") + RetrieveAssetName(Assets[i]);
+			}
+
+			TempAssetType = SSourceControlCommon::GetDefaultMultipleAsset().ToString();
+			TempAssetColor = FColor::White;
+		}
+
+		// Beautify the package name
+		TempPackageName = TempAssetPath + "." + TempAssetName;
+	}
+	else if (FPackageName::TryConvertFilenameToLongPackageName(Filename, TempPackageName))
+	{
+		// Fake asset name, asset path from the package name
+		TempAssetPath = TempPackageName;
+
+		int32 LastSlash = -1;
+		if (TempPackageName.FindLastChar('/', LastSlash))
+		{
+			TempAssetName = TempPackageName;
+			TempAssetName.RightChopInline(LastSlash + 1);
+		}
+	}
+	else
+	{
+		TempAssetName = FPaths::GetCleanFilename(Filename);
+		TempPackageName = Filename; // put back original package name if the try failed
+		TempAssetType = FText::Format(SSourceControlCommon::GetDefaultUnknownAssetType(), FText::FromString(FPaths::GetExtension(Filename).ToUpper())).ToString();
+	}
+
+	// Finally, assign the temp variables to the member variables
+	OutAssetName = FText::FromString(TempAssetName);
+	OutAssetPath = FText::FromString(TempAssetPath);
+	OutAssetType = FText::FromString(TempAssetType);
+	OutAssetTypeColor = TempAssetColor;
+	OutPackageName = FText::FromString(TempPackageName);
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths, bool bIsShelvedFile)
@@ -91,84 +211,8 @@ FText FFileTreeItem::GetCheckedOutByUser() const
 void FFileTreeItem::RefreshAssetInformation()
 {
 	// Initialize display-related members
-	FString Filename = FileState->GetFilename();
-	FString TempAssetName = SSourceControlCommon::GetDefaultAssetName().ToString();
-	FString TempAssetPath = Filename;
-	FString TempAssetType = SSourceControlCommon::GetDefaultAssetType().ToString();
-	FString TempPackageName = Filename;
-	FColor TempAssetColor = FColor(		// Copied from ContentBrowserCLR.cpp
-								   127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
-								   127 + FColor::Red.G / 2,
-								   127 + FColor::Red.B / 2,
-								   200); // Opacity
-
-	if (Assets.IsValid() && (Assets->Num() > 0))
-	{
-		auto IsNotRedirector = [](const FAssetData& InAssetData) { return !InAssetData.IsRedirector(); };
-		int32 NumUserFacingAsset = Algo::CountIf(*Assets, IsNotRedirector);
-
-		if (NumUserFacingAsset == 1)
-		{
-			const FAssetData& AssetData = *Algo::FindByPredicate(*Assets, IsNotRedirector);
-
-			TempAssetName = RetrieveAssetName(AssetData);
-			TempAssetPath = RetrieveAssetPath(AssetData);
-			TempAssetType = AssetData.AssetClassPath.ToString();
-
-			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
-
-			if (AssetTypeActions.IsValid())
-			{
-				TempAssetColor = AssetTypeActions->GetTypeColor();
-			}
-			else
-			{
-				TempAssetColor = FColor::White;
-			}
-		}
-		else
-		{
-			TempAssetName = RetrieveAssetName((*Assets)[0]);
-			TempAssetPath = RetrieveAssetPath((*Assets)[0]);
-
-			for (int32 i = 1; i < Assets->Num(); ++i)
-			{
-				TempAssetName += TEXT(";") + RetrieveAssetName((*Assets)[i]);
-			}
-
-			TempAssetType = SSourceControlCommon::GetDefaultMultipleAsset().ToString();
-			TempAssetColor = FColor::White;
-		}
-
-		// Beautify the package name
-		TempPackageName = TempAssetPath + "." + TempAssetName;
-	}
-	else if (FPackageName::TryConvertFilenameToLongPackageName(Filename, TempPackageName))
-	{
-		// Fake asset name, asset path from the package name
-		TempAssetPath = TempPackageName;
-
-		int32 LastSlash = -1;
-		if (TempPackageName.FindLastChar('/', LastSlash))
-		{
-			TempAssetName = TempPackageName;
-			TempAssetName.RightChopInline(LastSlash + 1);
-		}
-	}
-	else
-	{
-		TempAssetName = FPaths::GetCleanFilename(Filename);
-		TempPackageName = Filename; // put back original package name if the try failed
-		TempAssetType = FText::Format(SSourceControlCommon::GetDefaultUnknownAssetType(), FText::FromString(FPaths::GetExtension(Filename).ToUpper())).ToString();
-	}
-
-	// Finally, assign the temp variables to the member variables
-	AssetName = FText::FromString(TempAssetName);
-	AssetPath = FText::FromString(TempAssetPath);
-	AssetType = FText::FromString(TempAssetType);
-	AssetTypeColor = TempAssetColor;
-	PackageName = FText::FromString(TempPackageName);
+	static TArray<FAssetData> NoAssets;
+	RefreshAssetInformationInternal(Assets.IsValid() ? *Assets : NoAssets, FileState->GetFilename(), AssetName, AssetPath, AssetType, PackageName, AssetTypeColor);
 }
 
 FText FFileTreeItem::GetAssetName() const
@@ -195,43 +239,6 @@ FText FFileTreeItem::GetAssetName()
 	return AssetName;
 }
 
-FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
-{
-	static const FName NAME_ActorLabel(TEXT("ActorLabel"));
-
-	if (InAssetData.FindTag(NAME_ActorLabel))
-	{
-		FString ResultAssetName = TEXT("");
-		
-		InAssetData.GetTagValue(NAME_ActorLabel, ResultAssetName);
-		return ResultAssetName;
-	}
-	else if (InAssetData.AssetClassPath == UActorFolder::StaticClass()->GetClassPathName())
-	{
-		FString ActorFolderPath = UActorFolder::GetAssetRegistryInfoFromPackage(InAssetData.PackageName).GetDisplayName();
-		if (!ActorFolderPath.IsEmpty())
-		{
-			return ActorFolderPath;
-		}
-	}
-	
-	return InAssetData.AssetName.ToString();
-}
-
-FString FFileTreeItem::RetrieveAssetPath(const FAssetData& InAssetData) const
-{
-	int32 LastDot = -1;
-	FString Path = InAssetData.GetObjectPathString();
-
-	// Strip asset name from object path
-	if (Path.FindLastChar('.', LastDot))
-	{
-		Path.LeftInline(LastDot);
-	}
-
-	return Path;
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 FText FShelvedChangelistTreeItem::GetDisplayText() const
@@ -255,57 +262,12 @@ FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
 
 	USourceControlHelpers::GetAssetData(InFilename, Assets);
 
-	if (Assets.Num() > 0)
-	{
-		const FAssetData& AssetData = Assets[0];
-		AssetPath = FText::FromString(AssetData.GetObjectPathString());
+	RefreshAssetInformation();
+}
 
-		// Find name, asset type & color only if there is exactly one asset
-		if (Assets.Num() == 1)
-		{
-			static FName NAME_ActorLabel(TEXT("ActorLabel"));
-			if (AssetData.FindTag(NAME_ActorLabel))
-			{
-				AssetData.GetTagValue(NAME_ActorLabel, AssetName);
-			}
-			else
-			{
-				AssetName = FText::FromName(AssetData.AssetName);
-			}
-
-			AssetType = FText::FromString(AssetData.AssetClassPath.ToString());
-
-			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
-			if (AssetTypeActions.IsValid())
-			{
-				AssetTypeColor = AssetTypeActions->GetTypeColor();
-			}
-			else
-			{
-				AssetTypeColor = FColor::White;
-			}
-		}
-		else
-		{
-			AssetType = SSourceControlCommon::GetDefaultMultipleAsset();
-			AssetTypeColor = FColor::White;
-		}
-
-		// Beautify the package name
-		PackageName = AssetPath;
-	}
-	else if (FPackageName::TryConvertFilenameToLongPackageName(InFilename, TempString))
-	{
-		PackageName = FText::FromString(TempString);
-		// Fake asset name, asset path from the package name
-		AssetPath = PackageName;
-	}
-	else
-	{
-		AssetName = FText::FromString(FPaths::GetCleanFilename(InFilename));
-		AssetType = FText::Format(SSourceControlCommon::GetDefaultUnknownAssetType(), FText::FromString(FPaths::GetExtension(InFilename).ToUpper()));
-	}
+void FOfflineFileTreeItem::RefreshAssetInformation()
+{
+	RefreshAssetInformationInternal(Assets, Filename, AssetName, AssetPath, AssetType, PackageName, AssetTypeColor);
 }
 
 //////////////////////////////////////////////////////////////////////////
