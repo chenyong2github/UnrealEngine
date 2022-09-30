@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
 using StackExchange.Redis;
@@ -46,16 +47,14 @@ namespace Horde.Build.Tests
 			[2] = typeof(DocumentV2),
 		};
 
-		readonly MongoService _mongoService;
-		readonly RedisService _redisService;
+		MongoService _mongoService => GetMongoServiceSingleton();
+		RedisService _redisService => GetRedisServiceSingleton();
 		readonly RedisKey _baseKey = new RedisKey("versioned/");
 		readonly IMongoCollection<VersionedDocument<string, DocumentV2>> _baseCollection;
 		readonly VersionedCollection<string, DocumentV2> _collection;
 
 		public VersionedCollectionTests()
 		{
-			_mongoService = GetMongoServiceSingleton();
-			_redisService = GetRedisServiceSingleton();
 			_collection = new VersionedCollection<string, DocumentV2>(_mongoService, "versioned", _redisService, _baseKey, s_documentTypes);
 			_baseCollection = _collection.BaseCollection;
 		}

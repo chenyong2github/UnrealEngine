@@ -72,6 +72,16 @@ namespace Horde.Build.Tests.Fleet
 		readonly FleetManagerSpy _fleetManagerSpy = new();
 		readonly IDogStatsd _dogStatsD = new NoOpDogStatsd();
 
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			if (disposing)
+			{
+				_dogStatsD.Dispose();
+			}
+		}
+
 		[TestMethod]
 		public async Task OnlyEnabledAgentsAreAutoScaled()
 		{

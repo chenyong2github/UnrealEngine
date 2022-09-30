@@ -22,6 +22,16 @@ namespace Horde.Build.Tests.Compute
 			_scheduler = new RedisTaskScheduler<string, string>(redisService.ConnectionPool, new RedisKey("myBaseKey"), loggerFactory.CreateLogger<RedisTaskScheduler<string, string>>());
 		}
 
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			if (disposing)
+			{
+				_scheduler.Dispose();
+			}
+		}
+
 		[TestMethod]
 		public async Task EnqueueAndDequeueTask()
 		{
