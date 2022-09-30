@@ -596,6 +596,9 @@ void SetupViewFamilyForSceneCapture(
 	// For cube map capture, CubeMapFaceIndex takes precedence over view index, so we must have only one view for that case
 	check(CubemapFaceIndex == INDEX_NONE || Views.Num() == 1);
 
+	// Initialize frame number
+	ViewFamily.FrameNumber = ViewFamily.Scene->GetFrameNumber();
+
 	// Disable Nanite in planar reflections for now because Nanite doesn't support the global clip plane
 	if (bIsPlanarReflection)
 	{
