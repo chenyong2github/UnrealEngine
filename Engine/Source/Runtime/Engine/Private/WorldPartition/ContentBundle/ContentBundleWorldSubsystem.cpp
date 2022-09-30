@@ -44,6 +44,7 @@ void UContentBundleManager::Deinitialize()
 	{
 		ContentBundleContainer->Deinitialize();
 	}
+	ContentBundleContainers.Empty();
 
 #if WITH_EDITOR
 	PIEDuplicateHelper = nullptr;
