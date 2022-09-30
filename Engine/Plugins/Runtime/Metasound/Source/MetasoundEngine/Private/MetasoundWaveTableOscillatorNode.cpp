@@ -28,11 +28,16 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertex<FWaveTable>("WaveTable", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputWaveTable", "WaveTable") }),
-					TInputDataVertex<FTrigger>("Play", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputPlay", "Play") }),
-					TInputDataVertex<FTrigger>("Stop", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputStop", "Stop") }),
-					TInputDataVertex<FTrigger>("Sync", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputSync", "Sync") }),
-					TInputDataVertex<float>("Freq", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_Freq", "Freq") }, 440.0f),
+					TInputDataVertex<FTrigger>("Play", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputPlayDesc", "Plays the oscillator (block rate)") }),
+					TInputDataVertex<FTrigger>("Stop", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputStopDesc", "Stops the oscillator (block rate)") }),
+					TInputDataVertex<FWaveTable>("WaveTable", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_InputWaveTableDesc", "WaveTable") }),
+					TInputDataVertex<FTrigger>("Sync", FDataVertexMetadata
+					{
+						LOCTEXT("MetasoundWaveTableOscillatorNode_InputSyncDesc", "Restarts playing the WaveTable on the trigger boundary (sample rate)"),
+						LOCTEXT("MetasoundWaveTableOscillatorNode_InputSyncName", "Sync"),
+						true /* bIsAdvancedDisplay */
+					}),
+					TInputDataVertex<float>("Freq", FDataVertexMetadata { LOCTEXT("MetasoundWaveTableOscillatorNode_FreqDesc", "Frequency (number of times to sample one period of wavetable per second) [-20000Hz, 20000Hz]") }, 440.0f),
 					TInputDataVertex<FAudioBuffer>("PhaseMod", FDataVertexMetadata
 					{
 						LOCTEXT("MetasoundWaveTableOscillatorNode_PhaseModDescription", "Modulation audio source for modulating oscillation phase of provided table. A value of 0 is no phase modulation and 1 a full table length (360 degrees) of phase shift."),
