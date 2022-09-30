@@ -125,7 +125,7 @@ uint32 FCallstacksProvider::AddCallstackWithHash(uint64 InCallstackHash, const u
 	uint32 CallstackId;
 	{
 		FRWScopeLock WriteLock(EntriesLock, SLT_Write);
-		CallstackId = Callstacks.Num();
+		CallstackId = static_cast<uint32>(Callstacks.Num());
 		CallstackMap.Add(InCallstackHash, CallstackId);
 	}
 

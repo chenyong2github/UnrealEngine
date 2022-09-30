@@ -88,9 +88,9 @@ uint32 FCookProfilerProvider::FindOrAddPackage(uint64 Id)
 	}
 	else
 	{
-		PackageIdToIndexMap.Add(Id, Packages.Num());
+		PackageIdToIndexMap.Add(Id, static_cast<uint32>(Packages.Num()));
 		Packages.Emplace(Id);
-		return Packages.Num() - 1;
+		return static_cast<uint32>(Packages.Num() - 1);
 	}
 }
 

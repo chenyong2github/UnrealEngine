@@ -24,8 +24,8 @@ public:
 	virtual ~FCsvProfilerProvider();
 	virtual const IUntypedTable& GetTable(uint32 CaptureIndex) const override { return Captures[CaptureIndex]->Table; }
 	virtual void EnumerateCaptures(TFunctionRef<void(const FCaptureInfo&)> Callback) const override;
-	void StartCapture(const TCHAR* Filename, int32 FrameNumber);
-	void EndCapture(int32 FrameNumber);
+	void StartCapture(const TCHAR* Filename, uint32 FrameNumber);
+	void EndCapture(uint32 FrameNumber);
 	uint64 AddSeries(const TCHAR* Name, ECsvStatSeriesType Type);
 	void SetValue(uint64 SeriesHandle, uint32 FrameNumber, double Value);
 	void SetValue(uint64 SeriesHandle, uint32 FrameNumber, int64 Value);
@@ -45,7 +45,7 @@ private:
 
 	struct FStatSeries
 	{
-		TMap<uint64, FStatSeriesValue> Values;
+		TMap<uint32, FStatSeriesValue> Values;
 		TSet<uint32> Captures;
 		const TCHAR* Name = nullptr;
 		ECsvStatSeriesType Type;
@@ -106,7 +106,7 @@ private:
 
 		const FCapture& Capture;
 		const TMap<uint32, FEvents*>& Events;
-		uint64 CurrentRowIndex;
+		uint32 CurrentRowIndex;
 	};
 
 	class FTable

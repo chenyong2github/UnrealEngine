@@ -137,7 +137,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				};
 
 				uint64 DecodedIdAndOp = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-				uint32 StatId = DecodedIdAndOp >> 3;
+				uint32 StatId = static_cast<uint32>(DecodedIdAndOp >> 3);
 				IEditableCounter* EditableCounter = EditableCountersMap.FindRef(StatId);
 				if (!EditableCounter)
 				{

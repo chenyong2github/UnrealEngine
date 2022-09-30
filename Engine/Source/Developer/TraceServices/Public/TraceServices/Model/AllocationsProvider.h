@@ -124,7 +124,7 @@ public:
 	virtual bool IsInitialized() const = 0;
 
 	// Returns the number of points in each timeline (Min/Max Total Allocated Memory, Min/Max Live Allocations, Total Alloc Events, Total Free Events).
-	virtual uint32 GetTimelineNumPoints() const = 0;
+	virtual int32 GetTimelineNumPoints() const = 0;
 
 	// Returns the inclusive index range [StartIndex, EndIndex] for a time range [StartTime, EndTime].
 	// Index values are in range { -1, 0, .. , N-1, N }, where N = GetTimelineNumPoints().

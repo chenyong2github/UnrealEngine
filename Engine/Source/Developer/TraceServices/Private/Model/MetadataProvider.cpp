@@ -129,7 +129,7 @@ uint16 FMetadataProvider::RegisterMetadataType(const TCHAR* Name, const FMetadat
 	Lock.WriteAccessCheck();
 
 	check(RegisteredTypes.Num() <= MaxMetadataTypeId);
-	const uint16 Type = RegisteredTypes.Num();
+	const uint16 Type = static_cast<uint16>(RegisteredTypes.Num());
 	RegisteredTypes.EmplaceBack(Schema);
 	RegisteredTypesMap.Add(Name, Type);
 
@@ -152,8 +152,7 @@ FName FMetadataProvider::GetRegisteredMetadataName(uint16 Type) const
 {
 	Lock.ReadAccessCheck();
 
-	const int32 Index = (int32)Type;
-	const FName* Name = RegisteredTypesMap.FindKey(Index);
+	const FName* Name = RegisteredTypesMap.FindKey(Type);
 	return Name ? *Name : FName();
 }
 
@@ -241,7 +240,7 @@ void FMetadataProvider::PushScopedMetadata(uint32 ThreadId, uint16 Type, void* D
 	{
 		FMemory::Memcpy(StackEntry.StoreEntry.Value, Data, Size);
 	}
-	StackEntry.StoreEntry.Size = Size;
+	StackEntry.StoreEntry.Size = static_cast<uint16>(Size);
 	StackEntry.StoreEntry.Type = Type;
 	StackEntry.StoreIndex = InvalidMetadataStoreIndex;
 	StackEntry.PinnedId = InvalidMetadataId;
@@ -319,7 +318,7 @@ uint32 FMetadataProvider::PinAndGetId(uint32 ThreadId)
 		}
 		if (StackEntry.StoreIndex == InvalidMetadataStoreIndex)
 		{
-			StackEntry.StoreIndex = MetadataStore.Num();
+			StackEntry.StoreIndex = static_cast<uint32>(MetadataStore.Num());
 			MetadataStore.EmplaceBack(StackEntry.StoreEntry);
 		}
 	}
@@ -344,11 +343,11 @@ uint32 FMetadataProvider::PinAndGetId(uint32 ThreadId)
 			for (int32 StackIndex = FirstUnpinnedStackIndex; StackIndex < StackSize; ++StackIndex)
 			{
 				FMetadataStackEntry& StackEntry = CurrentStack[StackIndex];
-				StackEntry.PinnedId = Metadata.Num();
+				StackEntry.PinnedId = static_cast<uint32>(Metadata.Num());
 				FMetadataEntry& Entry = Metadata.PushBack();
 				Entry.StoreIndex = StackEntry.StoreIndex;
 				Entry.Type = StackEntry.StoreEntry.Type;
-				Entry.StackSize = StackIndex + 1;
+				Entry.StackSize = static_cast<uint16>(StackIndex + 1);
 			}
 
 			return CurrentStack.Top().PinnedId;
@@ -359,11 +358,11 @@ uint32 FMetadataProvider::PinAndGetId(uint32 ThreadId)
 	for (int32 StackIndex = StackSize - 1; StackIndex >= 0; --StackIndex)
 	{
 		FMetadataStackEntry& StackEntry = CurrentStack[StackIndex];
-		StackEntry.PinnedId = Metadata.Num();
+		StackEntry.PinnedId = static_cast<uint32>(Metadata.Num());
 		FMetadataEntry& Entry = Metadata.PushBack();
 		Entry.StoreIndex = StackEntry.StoreIndex;
 		Entry.Type = StackEntry.StoreEntry.Type;
-		Entry.StackSize = StackIndex + 1;
+		Entry.StackSize = static_cast<uint16>(StackIndex + 1);
 	}
 
 	return CurrentStack.Top().PinnedId;

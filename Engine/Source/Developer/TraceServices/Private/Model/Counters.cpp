@@ -41,7 +41,7 @@ static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& Coun
 			{
 				if (!bFirstValue && bIncludeExternalBounds)
 				{
-					Callback(LastTime, LastValue);
+					Callback(LastTime, static_cast<EnumerationType>(LastValue));
 				}
 				bFirstEnumeratedValue = false;
 			}
@@ -49,11 +49,11 @@ static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& Coun
 			{
 				if (bIncludeExternalBounds)
 				{
-					Callback(Time, CurrentValue);
+					Callback(Time, static_cast<EnumerationType>(CurrentValue));
 				}
 				break;
 			}
-			Callback(Time, CurrentValue);
+			Callback(Time, static_cast<EnumerationType>(CurrentValue));
 		}
 		LastTime = Time;
 		LastValue = CurrentValue;

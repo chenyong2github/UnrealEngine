@@ -160,7 +160,7 @@ const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Add
 		}
 
 		// Add a pending entry to our cache.
-		ResolvedSymbol = &SymbolCache.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, 0, EResolvedSymbolFilterStatus::Unknown);
+		ResolvedSymbol = &SymbolCache.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, (uint16)0, EResolvedSymbolFilterStatus::Unknown);
 		SymbolCacheLookup.Add(Address, ResolvedSymbol);
 		++SymbolsDiscovered;
 	}
@@ -177,7 +177,7 @@ template <typename SymbolResolverType>
 uint32 TModuleProvider<SymbolResolverType>::GetNumModules() const
 {
 	FReadScopeLock _(ModulesLock);
-	return Modules.Num();
+	return static_cast<uint32>(Modules.Num());
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -339,9 +339,10 @@ void TModuleProvider<SymbolResolverType>::SaveSymbolsToCache(IAnalysisCache& Cac
 
 	// Save new symbols
 	TCachedPagedArray<FSavedSymbol, 1024> SavedSymbols(TEXT("ModuleProvider.Symbols"), Cache);
-	const uint32 NumPreviouslySavedSymbols = SavedSymbols.Num();
+	const uint32 NumPreviouslySavedSymbols = static_cast<uint32>(SavedSymbols.Num());
+	const uint32 NumSymbols = static_cast<uint32>(SymbolCache.Num());
 	uint32 NumSavedSymbols = 0;
-	for (uint32 SymbolIndex = SavedSymbols.Num(); SymbolIndex < SymbolCache.Num(); ++SymbolIndex)
+	for (uint32 SymbolIndex = NumPreviouslySavedSymbols; SymbolIndex < NumSymbols; ++SymbolIndex)
 	{
 		const FResolvedSymbol& Symbol = SymbolCache[SymbolIndex];
 		if (Symbol.GetResult() != ESymbolQueryResult::OK)
@@ -349,9 +350,9 @@ void TModuleProvider<SymbolResolverType>::SaveSymbolsToCache(IAnalysisCache& Cac
 			continue;
 		}
 		const uint64* Address = SymbolReverseLookup.Find(&Symbol);
-		const uint32 ModuleOffset = Strings.Store_GetOffset(Symbol.Module);
-		const uint32 NameOffset = Strings.Store_GetOffset(Symbol.Name);
-		const uint32 FileOffset = Strings.Store_GetOffset(Symbol.File);
+		const uint32 ModuleOffset = static_cast<uint32>(Strings.Store_GetOffset(Symbol.Module));
+		const uint32 NameOffset = static_cast<uint32>(Strings.Store_GetOffset(Symbol.Name));
+		const uint32 FileOffset = static_cast<uint32>(Strings.Store_GetOffset(Symbol.File));
 		SavedSymbols.EmplaceBack(FSavedSymbol{*Address, ModuleOffset, NameOffset, FileOffset, Symbol.Line});
 		++NumSavedSymbols;
 	}
@@ -375,13 +376,13 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 			UE_LOG(LogTraceServices, Warning, TEXT("Found cached symbol (adress %llx) which referenced unknown string."), Symbol.Address);
 			continue;
 		}
-		FResolvedSymbol& Resolved = SymbolCache.EmplaceBack(ESymbolQueryResult::OK, Module, Name, File, Symbol.Line, EResolvedSymbolFilterStatus::Unknown);
+		FResolvedSymbol& Resolved = SymbolCache.EmplaceBack(ESymbolQueryResult::OK, Module, Name, File, static_cast<uint16>(Symbol.Line), EResolvedSymbolFilterStatus::Unknown);
 		SymbolCacheLookup.Add(Symbol.Address, &Resolved);
 	}
 	NumCachedSymbols = SymbolCacheLookup.Num();
 
 	// Update filter for all cached symbols.
-	ParallelFor(SymbolCache.Num(), [this](uint32 Index)
+	ParallelFor(static_cast<int32>(SymbolCache.Num()), [this](int32 Index)
 		{
 			SymbolFilter.Update(SymbolCache[Index]);
 		},

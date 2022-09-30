@@ -662,10 +662,11 @@ public:
 			});
 
 		TArray<TSharedRef<FAsyncTask<FEnumarateAsyncTask>>> WorkerTasks;
-		uint64 NumPages = FMath::Max(LastScopePageIndex - FirstScopePageIndex, 1ULL);
 
+		check(LastScopePageIndex >= FirstScopePageIndex);
+		uint32 NumPages = FMath::Max(static_cast<uint32>(LastScopePageIndex - FirstScopePageIndex), 1u);
 		uint32 NumThreads = GThreadPool->GetNumThreads();
-		uint32 NumTasks = FMath::Min((uint64)NumThreads, NumPages);
+		uint32 NumTasks = FMath::Min(NumThreads, NumPages);
 		uint32 PagesPerTask = NumPages / NumTasks;
 		uint32 RemainingPages = NumPages % NumTasks; // The remaining pages will be split between the first tasks
 

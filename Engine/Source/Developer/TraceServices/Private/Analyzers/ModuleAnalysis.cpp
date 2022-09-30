@@ -59,7 +59,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 	{
 		case RouteId_ModuleInit:
 			{
-				ModuleBaseShift = Context.EventData.GetValue("ModuleBaseShift", 16);
+				ModuleBaseShift = IntCastChecked<uint8>(Context.EventData.GetValue("ModuleBaseShift", 16));
 				FAnsiStringView SymbolFormat;
 				if (Context.EventData.GetString("SymbolFormat", SymbolFormat))
 				{

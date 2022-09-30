@@ -19,7 +19,7 @@ const TCHAR* FCsvProfilerProvider::FTableLayout::GetColumnName(uint64 ColumnInde
 	}
 	else
 	{
-		return StatSeries[ColumnIndex - 1]->Name;
+		return StatSeries[static_cast<int32>(ColumnIndex - 1)]->Name;
 	}
 }
 
@@ -31,7 +31,7 @@ ETableColumnType FCsvProfilerProvider::FTableLayout::GetColumnType(uint64 Column
 	}
 	else
 	{
-		ECsvStatSeriesType SeriesType = StatSeries[ColumnIndex - 1]->Type;
+		ECsvStatSeriesType SeriesType = StatSeries[static_cast<int32>(ColumnIndex - 1)]->Type;
 		if (SeriesType == CsvStatSeriesType_CustomStatInt)
 		{
 			return TableColumnType_Int;
@@ -55,7 +55,7 @@ void FCsvProfilerProvider::FTableReader::NextRow()
 
 void FCsvProfilerProvider::FTableReader::SetRowIndex(uint64 RowIndex)
 {
-	CurrentRowIndex = RowIndex;
+	CurrentRowIndex = IntCastChecked<uint32>(RowIndex);
 }
 
 bool FCsvProfilerProvider::FTableReader::GetValueBool(uint64 ColumnIndex) const
@@ -69,7 +69,7 @@ const FCsvProfilerProvider::FStatSeriesValue* FCsvProfilerProvider::FTableReader
 	{
 		return nullptr;
 	}
-	const FStatSeriesValue* FindIt = Capture.StatSeries[ColumnIndex - 1]->Values.Find(Capture.StartFrame + CurrentRowIndex);
+	const FStatSeriesValue* FindIt = Capture.StatSeries[static_cast<int32>(ColumnIndex - 1)]->Values.Find(Capture.StartFrame + CurrentRowIndex);
 	return FindIt;
 }
 
@@ -152,7 +152,7 @@ void FCsvProfilerProvider::EnumerateCaptures(TFunctionRef<void(const FCaptureInf
 	}
 }
 
-void FCsvProfilerProvider::StartCapture(const TCHAR* Filename, int32 FrameNumber)
+void FCsvProfilerProvider::StartCapture(const TCHAR* Filename, uint32 FrameNumber)
 {
 	Session.WriteAccessCheck();
 
@@ -163,7 +163,7 @@ void FCsvProfilerProvider::StartCapture(const TCHAR* Filename, int32 FrameNumber
 	CurrentCapture->Filename = Filename;
 }
 
-void FCsvProfilerProvider::EndCapture(int32 FrameNumber)
+void FCsvProfilerProvider::EndCapture(uint32 FrameNumber)
 {
 	Session.WriteAccessCheck();
 
@@ -192,7 +192,7 @@ uint64 FCsvProfilerProvider::AddSeries(const TCHAR* Name, ECsvStatSeriesType Typ
 
 FCsvProfilerProvider::FStatSeriesValue& FCsvProfilerProvider::GetValueRef(uint64 SeriesHandle, uint32 FrameNumber)
 {
-	FStatSeries* Series = StatSeries[SeriesHandle];
+	FStatSeries* Series = StatSeries[static_cast<int32>(SeriesHandle)];
 	if (CurrentCapture && !Series->Captures.Contains(Captures.Num()))
 	{
 		CurrentCapture->StatSeries.Add(Series);

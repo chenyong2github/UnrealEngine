@@ -70,16 +70,16 @@ void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double Interval
 	{
 		return;
 	}
-	uint64 FirstBookmarkIndex = Algo::LowerBoundBy(Bookmarks, IntervalStart, [](const TSharedRef<FBookmarkInternal>& B)
+	int32 FirstBookmarkIndex = Algo::LowerBoundBy(Bookmarks, IntervalStart, [](const TSharedRef<FBookmarkInternal>& B)
 	{
 		return B->Time;
 	});
-	uint64 BookmarkCount = Bookmarks.Num();
+	int32 BookmarkCount = Bookmarks.Num();
 	if (FirstBookmarkIndex >= BookmarkCount)
 	{
 		return;
 	}
-	uint64 LastBookmarkIndex = Algo::UpperBoundBy(Bookmarks, IntervalEnd, [](const TSharedRef<FBookmarkInternal>& B)
+	int32 LastBookmarkIndex = Algo::UpperBoundBy(Bookmarks, IntervalEnd, [](const TSharedRef<FBookmarkInternal>& B)
 	{
 		return B->Time;
 	});
@@ -88,7 +88,7 @@ void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double Interval
 		return;
 	}
 	--LastBookmarkIndex;
-	for (uint64 Index = FirstBookmarkIndex; Index <= LastBookmarkIndex; ++Index)
+	for (int32 Index = FirstBookmarkIndex; Index <= LastBookmarkIndex; ++Index)
 	{
 		const FBookmarkInternal& InternalBookmark = Bookmarks[Index].Get();
 		FBookmark Bookmark;

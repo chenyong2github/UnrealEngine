@@ -192,14 +192,20 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 			{
 				return 0;
 			}
-
-			Size = (Size < Remaining) ? Size : Remaining;
+			if (Size > Remaining)
+			{
+				Size = static_cast<uint32>(Remaining);
+			}
 			Remaining -= Size;
-			return Handle->Read((uint8*)Data, Size) ? Size : 0;
+			if (!Handle->Read((uint8*)Data, Size))
+			{
+				return 0;
+			}
+			return Size;
 		}
 
 		TUniquePtr<IFileHandle> Handle;
-		int64 Remaining;
+		uint64 Remaining;
 	};
 
 	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();

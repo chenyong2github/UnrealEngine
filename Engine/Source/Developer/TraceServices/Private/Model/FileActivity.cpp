@@ -53,9 +53,9 @@ const ITable<FFileActivity>& FFileActivityProvider::GetFileActivityTable() const
 
 uint32 FFileActivityProvider::GetFileIndex(const TCHAR* Path)
 {
-	uint32 FileIndex = Files.Num();
+	uint32 FileIndex = static_cast<uint32>(Files.Num());
 	FFileInfoInternal& FileInfo = Files.PushBack();
-	FileInfo.FileInfo.Id = Files.Num() - 1;
+	FileInfo.FileInfo.Id = FileIndex;
 	FileInfo.FileInfo.Path = Session.StoreString(Path);
 	FileInfo.ActivityTimeline = MakeShared<TimelineInternal>(Session.GetLinearAllocator());
 	return FileIndex;

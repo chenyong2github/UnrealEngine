@@ -200,23 +200,23 @@ void FMemoryProvider::EnumerateTagSamples(FMemoryTrackerId TrackerId, FMemoryTag
 	const TArray<double>& SampleTimes = Trackers[TrackerId].SampleTimes;
 	const TPagedArray<FMemoryTagSample>& SampleValues = TagSamples->Values;
 
-	int64 IndexStart = Algo::LowerBound(SampleTimes, StartTime);
-	int64 IndexEnd = Algo::UpperBound(SampleTimes, EndTime);
+	int32 IndexStart = Algo::LowerBound(SampleTimes, StartTime);
+	int32 IndexEnd = Algo::UpperBound(SampleTimes, EndTime);
 
 	if (bIncludeRangeNeighbours)
 	{
-		IndexStart = FMath::Max(IndexStart - 1, (int64)0);
-		IndexEnd = FMath::Min(IndexEnd + 1, (int64)SampleValues.Num());
+		IndexStart = FMath::Max(IndexStart - 1, 0);
+		IndexEnd = FMath::Min(IndexEnd + 1, static_cast<int32>(SampleValues.Num()));
 	}
 
-	const bool bEnumerateLastSample = (IndexEnd == (int64)SampleValues.Num());
+	const bool bEnumerateLastSample = (IndexEnd == static_cast<uint32>(SampleValues.Num()));
 	if (bEnumerateLastSample)
 	{
 		// Skip last sample from regular enumeration.
 		--IndexEnd;
 	}
 
-	for (int64 SampleIndex = IndexStart; SampleIndex < IndexEnd; ++SampleIndex)
+	for (int32 SampleIndex = IndexStart; SampleIndex < IndexEnd; ++SampleIndex)
 	{
 		const double Time = SampleTimes[SampleIndex];
 		const double Duration = SampleTimes[SampleIndex + 1] - Time;

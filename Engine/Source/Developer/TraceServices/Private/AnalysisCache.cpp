@@ -189,7 +189,7 @@ bool FAnalysisCache::FFileContents::Load()
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(ReservedSize);
 	File->Read((uint8*)Buffer.GetData(), Buffer.GetSize());
 	
-	FMemoryReaderView Ar(MakeArrayView<uint8>((uint8*)Buffer.GetData(), Buffer.GetSize()));
+	FMemoryReaderView Ar(MakeArrayView<uint8>((uint8*)Buffer.GetData(), IntCastChecked<int32>(Buffer.GetSize())));
 	
 	FCbPackage Package;
 	if (!Package.TryLoad(Ar))
@@ -206,7 +206,7 @@ bool FAnalysisCache::FFileContents::Load()
 	}
 
 	FCbArrayView IndexArray = Package.GetObject().Find(ANSITEXTVIEW("Index")).AsArrayView();
-	IndexEntries.Reserve(IndexArray.Num());
+	IndexEntries.Reserve(static_cast<int32>(IndexArray.Num()));
 	for (FCbFieldView IndexEntry : IndexArray)
 	{
 		FCbObjectView IndexEntryObj = IndexEntry.AsObjectView();
@@ -224,7 +224,7 @@ bool FAnalysisCache::FFileContents::Load()
 	}
 
 	FCbArrayView BlockArray = Package.GetObject().Find(ANSITEXTVIEW("Blocks")).AsArrayView();
-	Blocks.Reserve(BlockArray.Num());
+	Blocks.Reserve(static_cast<int32>(BlockArray.Num()));
 	
 	for (FCbFieldView BlockEntryView : BlockArray)
 	{
@@ -245,7 +245,7 @@ uint64 FAnalysisCache::FFileContents::UpdateBlock(FMemoryView Block, BlockKeyTyp
 		return 0;
 	}
 
-	const uint64 EntryIndex = Algo::BinarySearchBy(Blocks, BlockKey, [&](const FBlockEntry& InEntry){return InEntry.BlockKey;});
+	const int32 EntryIndex = Algo::BinarySearchBy(Blocks, BlockKey, [&](const FBlockEntry& InEntry) { return InEntry.BlockKey; });
 	const FIoHash CurrentHash = FIoHash::HashBuffer(Block);
 	
 	if (EntryIndex != INDEX_NONE)
@@ -298,7 +298,7 @@ uint64 FAnalysisCache::FFileContents::LoadBlock(FMutableMemoryView Block, BlockK
 		return 0;
 	}
 	
-	const uint64 EntryIndex = Algo::BinarySearchBy(Blocks, BlockKey, [&](const FBlockEntry& InEntry){return InEntry.BlockKey;});
+	const int32 EntryIndex = Algo::BinarySearchBy(Blocks, BlockKey, [&](const FBlockEntry& InEntry) { return InEntry.BlockKey; });
 	if (EntryIndex == INDEX_NONE)
 	{
 		UE_LOG(LogAnalysisCache, Error, TEXT("Trying to load unknown block 0x%x."), BlockKey);
@@ -511,7 +511,7 @@ FSharedBuffer FAnalysisCache::GetBlocks(FCacheId CacheId, uint32 BlockIndexStart
 /////////////////////////////////////////////////////////////////////
 void FAnalysisCache::ReleaseBlocks(uint8* BlockBuffer, FCacheId CacheId, uint32 BlockIndexStart, uint64 Size)
 {
-	const uint32 BlockCount = Size / IAnalysisCache::BlockSizeBytes;
+	const uint32 BlockCount = IntCastChecked<uint32>(Size / IAnalysisCache::BlockSizeBytes);
 	for (uint32 Block = 0; Block < BlockCount; ++Block)
 	{
 		const void* BlockStart = BlockBuffer + (Block * IAnalysisCache::BlockSizeBytes);

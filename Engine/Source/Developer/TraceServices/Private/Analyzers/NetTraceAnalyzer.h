@@ -97,7 +97,7 @@ private:
 		TArray<FNetProfilerContentEvent> BunchEvents[ENetProfilerConnectionMode::Count];
 
 		TArray<FBunchInfo> BunchInfos[ENetProfilerConnectionMode::Count];
-		
+
 		ENetProfilerConnectionState ConnectionState;
 	};
 
@@ -114,7 +114,7 @@ private:
 		TMap<uint64, FNetTraceActiveObjectState> ActiveObjects;
 		TMap<int32, uint32> ChannelNames;
 
-		// StatsCounters reported during the current fram
+		// StatsCounters reported during the current frame
 		TArray<FNetProfilerStats> FrameStatsCounters;
 		uint32 CurrentEngineFrameIndex = 0;
 		uint32 CurrentNetProfilerFrameIndex = 0;
@@ -138,7 +138,7 @@ private:
 	void FlushFrameStatsCounters(FNetTraceGameInstanceState& GameInstanceState);
 	uint32 GetCurrentNetProfilerFrameIndexAndFlushFrameStatsCountersIfNeeded(uint32 GameInstanceId, uint32 EngineFrameIndex);
 
-	void HandlePacketEvent(const FOnEventContext& Context, const FEventData& EventData);	
+	void HandlePacketEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandlePacketContentEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandlePacketDroppedEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandleConnectionStateUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData);

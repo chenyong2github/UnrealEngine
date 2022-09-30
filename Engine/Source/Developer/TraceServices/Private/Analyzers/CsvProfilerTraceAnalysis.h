@@ -87,7 +87,7 @@ private:
 		uint64 ProviderHandle = uint64(-1);
 		uint64 ProviderCountHandle = uint64(-1);
 		IEditableCounter* Counter = nullptr;
-		int64 CurrentFrame = -1;
+		uint32 CurrentFrame = 0;
 		FStatSeriesValue CurrentValue;
 		int64 CurrentCount = 0;
 		ECsvStatSeriesType Type = CsvStatSeriesType_CustomStatInt;

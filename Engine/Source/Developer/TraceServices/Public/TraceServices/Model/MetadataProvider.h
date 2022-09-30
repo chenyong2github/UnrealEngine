@@ -23,7 +23,7 @@ public:
 		WideStringPtr,
 		Reference,
 	};
-	
+
 	struct FField
 	{
 		FName			Name;
@@ -58,7 +58,7 @@ public:
 		void Finish()
 		{
 		}
-		
+
 	private:
 		FField* Buffer;
 		uint8 MaxFieldCount;
@@ -87,7 +87,7 @@ public:
 			void* Dest = Dst.GetData() + Field.Offset;
 			FMemory::Memcpy(Dest, Src, Size);
 		}
-		
+
 	private:
 		const FField* Buffer;
 		uint8 FieldCount;
@@ -109,18 +109,18 @@ public:
 		FString GetString(uint8* MetaData, uint8 Index) const
 		{
 			const FField& Field = Buffer[Index];
-			switch(Field.Type)
+			switch (Field.Type)
 			{
 			case EFieldType::Integer:
-				 {
-					switch(Field.Size)
+				{
+					switch (Field.Size)
 					{
 					case 1: return FString::FromInt(*GetValue<uint8>(MetaData, Index));
 					case 2: return FString::FromInt(*GetValue<uint16>(MetaData, Index));
 					case 4: return FString::FromInt(*GetValue<uint32>(MetaData, Index));
-					default: return FString::FromInt(*GetValue<uint64>(MetaData, Index));
+					default: return FString::Printf(TEXT("%llu"), *GetValue<uint64>(MetaData, Index));
 					}
-				 }
+				}
 			case EFieldType::SignedInteger:
 				{
 					switch (Field.Size)
@@ -128,7 +128,7 @@ public:
 					case 1: return FString::FromInt(*GetValue<int8>(MetaData, Index));
 					case 2: return FString::FromInt(*GetValue<int16>(MetaData, Index));
 					case 4: return FString::FromInt(*GetValue<int32>(MetaData, Index));
-					default: return FString::FromInt(*GetValue<int64>(MetaData, Index));
+					default: return FString::Printf(TEXT("%lli"), *GetValue<int64>(MetaData, Index));
 					}
 				}
 			case EFieldType::FloatingPoint:
@@ -146,7 +146,7 @@ public:
 				}
 			case EFieldType::Reference:
 				{
-					switch(Field.Size)
+					switch (Field.Size)
 					{
 					case 1: { const auto* Ref = GetValueAs<UE::Trace::FEventRef8>(MetaData, Index); return FString::Format(TEXT("Ref({0},{1})"), {Ref->RefTypeId, Ref->Id});}
 					case 2: { const auto* Ref = GetValueAs<UE::Trace::FEventRef16>(MetaData, Index); return FString::Format(TEXT("Ref({0},{1})"), {Ref->RefTypeId, Ref->Id});}
@@ -162,22 +162,22 @@ public:
 		FText GetText(uint8* MetaData, uint8 Index) const
 		{
 			const FField& Field = Buffer[Index];
-			switch(Field.Type)
+			switch (Field.Type)
 			{
 			case EFieldType::Integer:
-				 {
-					switch(Field.Size)
+				{
+					switch (Field.Size)
 					{
 					case 1: return FText::AsNumber(*GetValue<uint8>(MetaData, Index));
 					case 2: return FText::AsNumber(*GetValue<uint16>(MetaData, Index));
 					case 4: return FText::AsNumber(*GetValue<uint32>(MetaData, Index));
 					default: return FText::AsNumber(*GetValue<uint64>(MetaData, Index));
 					}
-				 }
-				 break;
+				}
+				break;
 			case EFieldType::SignedInteger:
 				{
-					switch(Field.Size)
+					switch (Field.Size)
 					{
 					case 1: return FText::AsNumber(*GetValue<int8>(MetaData, Index));
 					case 2: return FText::AsNumber(*GetValue<int16>(MetaData, Index));
@@ -207,7 +207,7 @@ public:
 					case 1: { const auto* Ref = GetValueAs<UE::Trace::FEventRef8>(MetaData, Index); return FText::Format(Fmt, Ref->RefTypeId, Ref->Id); }
 					case 2: { const auto* Ref = GetValueAs<UE::Trace::FEventRef16>(MetaData, Index); return FText::Format(Fmt, Ref->RefTypeId, Ref->Id); }
 					case 4: { const auto* Ref = GetValueAs<UE::Trace::FEventRef32>(MetaData, Index); return FText::Format(Fmt, Ref->RefTypeId, Ref->Id); }
-					default:  { const auto* Ref = GetValueAs<UE::Trace::FEventRef64>(MetaData, Index); return FText::Format(Fmt, Ref->RefTypeId, Ref->Id); }
+					default: { const auto* Ref = GetValueAs<UE::Trace::FEventRef64>(MetaData, Index); return FText::Format(Fmt, Ref->RefTypeId, Ref->Id); }
 					}
 				}
 			}
@@ -241,29 +241,31 @@ public:
 
 	FMetadataSchema(const FMetadataSchema& InSchema)
 		: Fields(InSchema.Fields)
-	{}
-
-	FBuilder Builder() 
 	{
-		return FBuilder(Fields.GetData(), Fields.Num());
+		check(Fields.Num() < 256);
+	}
+
+	FBuilder Builder()
+	{
+		return FBuilder(Fields.GetData(), static_cast<uint8>(Fields.Num()));
 	}
 
 	FWriter Writer() const
 	{
-		return FWriter(Fields.GetData(), Fields.Num());
+		return FWriter(Fields.GetData(), static_cast<uint8>(Fields.Num()));
 	}
 
 	FReader Reader() const
 	{
-		return FReader(Fields.GetData(), Fields.Num());
+		return FReader(Fields.GetData(), static_cast<uint8>(Fields.Num()));
 	}
 
 private:
 	FMetadataSchema() = delete;
-	
+
 	TArray<FField> Fields;
 };
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class IMetadataProvider : public IProvider

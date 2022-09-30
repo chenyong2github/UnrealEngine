@@ -134,7 +134,7 @@ uint16 FMetadataAnalysis::GetOrRegisterType(const FEventTypeInfo& EventInfo)
 	}
 
 	uint16 MetadataTypeId = 0;
-	FMetadataSchema Schema(EventInfo.GetFieldCount());
+	FMetadataSchema Schema(static_cast<uint8>(EventInfo.GetFieldCount()));
 	FMetadataSchema::FBuilder Builder = Schema.Builder();
 	for (uint32 FieldIdx = 0; FieldIdx < EventInfo.GetFieldCount(); ++FieldIdx)
 	{
@@ -234,25 +234,25 @@ static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData
 				case 1:
 					{
 						auto RefValue = EventData.GetReferenceValue<uint8>(FieldIdx);
-						Writer.WriteField(FieldIdx, &RefValue, sizeof(UE::Trace::FEventRef8), OutData);
+						Writer.WriteField(static_cast<uint8>(FieldIdx), &RefValue, sizeof(UE::Trace::FEventRef8), OutData);
 					}
 					break;
 				case 2:
 					{
 						auto RefValue = EventData.GetReferenceValue<uint16>(FieldIdx);
-						Writer.WriteField(FieldIdx, &RefValue, sizeof(UE::Trace::FEventRef16), OutData);
+						Writer.WriteField(static_cast<uint8>(FieldIdx), &RefValue, sizeof(UE::Trace::FEventRef16), OutData);
 					}
 					break;
 				case 4:
 					{
 						auto RefValue = EventData.GetReferenceValue<uint32>(FieldIdx);
-						Writer.WriteField(FieldIdx, &RefValue, sizeof(UE::Trace::FEventRef32), OutData);
+						Writer.WriteField(static_cast<uint8>(FieldIdx), &RefValue, sizeof(UE::Trace::FEventRef32), OutData);
 					}
 					break;
 				case 8:
 					{
 						auto RefValue = EventData.GetReferenceValue<uint64>(FieldIdx);
-						Writer.WriteField(FieldIdx, &RefValue, sizeof(UE::Trace::FEventRef64), OutData);
+						Writer.WriteField(static_cast<uint8>(FieldIdx), &RefValue, sizeof(UE::Trace::FEventRef64), OutData);
 					}
 					break;
 				default:
@@ -266,7 +266,7 @@ static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData
 				FWideStringView View;
 				EventData.GetString(FieldInfo->GetName(), View);
 				const TCHAR* Str = Session.StoreString(View);
-				Writer.WriteField(FieldIdx, Str, sizeof(TCHAR*), OutData);
+				Writer.WriteField(static_cast<uint8>(FieldIdx), Str, sizeof(TCHAR*), OutData);
 			}
 			break;
 
@@ -275,7 +275,7 @@ static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData
 				FString String;
 				EventData.GetString(FieldInfo->GetName(), String);
 				const TCHAR* Str = Session.StoreString(String);
-				Writer.WriteField(FieldIdx, Str, sizeof(TCHAR*), OutData);
+				Writer.WriteField(static_cast<uint8>(FieldIdx), Str, sizeof(TCHAR*), OutData);
 			}
 			break;
 
@@ -284,7 +284,7 @@ static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData
 				const IAnalyzer::FEventFieldHandle FieldHandle = EventInfo.GetFieldHandleUnchecked(FieldIdx);
 				const void* Value = EventData.GetValueRaw(FieldHandle);
 				const uint8 Size = FieldInfo->GetSize();
-				Writer.WriteField(FieldIdx, Value, Size, OutData);
+				Writer.WriteField(static_cast<uint8>(FieldIdx), Value, Size, OutData);
 			}
 			break;
 		}

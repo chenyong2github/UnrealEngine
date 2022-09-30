@@ -349,7 +349,7 @@ void FDbgHelpResolver::ResolveSymbol(uint64 Address, FResolvedSymbol& Target)
 		Entry->Name,
 		SymbolNameStr,
 		SymbolFileStr,
-		Line.LineNumber);
+		static_cast<uint16>(Line.LineNumber));
 	SymbolFilter.Update(Target);
 }
 

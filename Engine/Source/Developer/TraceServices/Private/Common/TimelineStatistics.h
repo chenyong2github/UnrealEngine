@@ -239,7 +239,7 @@ private:
 
 		if (ComputeMedian)
 		{
-			const int32 HalfCount = Stats.InstanceCount / 2;
+			const int32 HalfCount = static_cast<int32>(Stats.InstanceCount / 2);
 
 			// Compute median inclusive time.
 			int32 InclCount = 0;

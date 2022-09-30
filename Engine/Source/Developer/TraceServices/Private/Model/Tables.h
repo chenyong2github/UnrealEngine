@@ -215,27 +215,27 @@ public:
 
 	const TCHAR* GetColumnName(uint64 ColumnIndex) const override
 	{
-		return *Columns[ColumnIndex].Name;
+		return *Columns[(int32)ColumnIndex].Name;
 	}
 
 	ETableColumnType GetColumnType(uint64 ColumnIndex) const override
 	{
-		return Columns[ColumnIndex].Type;
+		return Columns[(int32)ColumnIndex].Type;
 	}
 
 	void SetColumnType(uint64 ColumnIndex, ETableColumnType ColumnType)
 	{
-		Columns[ColumnIndex].Type = ColumnType;
+		Columns[(int32)ColumnIndex].Type = ColumnType;
 	}
 
 	uint32 GetColumnDisplayHintFlags(uint64 ColumnIndex) const override
 	{
-		return Columns[ColumnIndex].DisplayHintFlags;
+		return Columns[(int32)ColumnIndex].DisplayHintFlags;
 	}
 
 	FColumnValueContainer GetColumnValue(const RowType& Row, uint64 ColumnIndex) const
 	{
-		return Columns[ColumnIndex].Projector(Row);
+		return Columns[(int32)ColumnIndex].Projector(Row);
 	}
 
 private:
@@ -340,7 +340,7 @@ public:
 		case TableColumnType_Float:
 			return Layout.GetColumnValue(*CurrentRow, ColumnIndex).FloatValue;
 		case TableColumnType_Double:
-			return static_cast<double>(Layout.GetColumnValue(*CurrentRow, ColumnIndex).DoubleValue);
+			return static_cast<float>(Layout.GetColumnValue(*CurrentRow, ColumnIndex).DoubleValue);
 		}
 		return 0.0;
 	}

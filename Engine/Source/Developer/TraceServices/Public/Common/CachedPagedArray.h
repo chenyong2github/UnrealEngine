@@ -72,8 +72,8 @@ namespace TraceServices
 		ItemType& operator[](uint64 Index)
 		{
 			check(Index < *ElementCount);
-			const uint32 PageIndex = Index / PageSize;
-			const uint32 IndexInPage = Index % PageSize;
+			const uint32 PageIndex = static_cast<uint32>(Index / PageSize);
+			const uint32 IndexInPage = static_cast<uint32>(Index % PageSize);
 			ItemType* Page = Pages[PageIndex];
 			if (!Page)
 			{
@@ -84,7 +84,7 @@ namespace TraceServices
 
 		uint32 NumPages() const
 		{
-			return (*ElementCount + PageSize - 1) / PageSize;
+			return static_cast<uint32>((*ElementCount + PageSize - 1) / PageSize);
 		}
 
 		uint64 Num() const

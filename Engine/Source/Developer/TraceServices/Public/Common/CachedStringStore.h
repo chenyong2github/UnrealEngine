@@ -85,8 +85,8 @@ public:
 	 */
 	const CharType* GetStringAtOffset(uint64 OffsetBytes) const
 	{
-		const int32 BlockIndex = OffsetBytes / BlockSize;
-		const uint32 OffsetInBlockBytes = OffsetBytes % BlockSize;
+		const int32 BlockIndex = static_cast<int32>(OffsetBytes / BlockSize);
+		const uint32 OffsetInBlockBytes = static_cast<uint32>(OffsetBytes % BlockSize);
 		if (BlockIndex >= Blocks.Num())
 		{
 			return nullptr;

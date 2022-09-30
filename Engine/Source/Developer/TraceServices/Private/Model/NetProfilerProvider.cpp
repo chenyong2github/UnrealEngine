@@ -190,7 +190,7 @@ FNetProfilerConnectionInternal& FNetProfilerProvider::CreateConnection(uint32 Ga
 	check(GameInstance);
 
 	// Create new connection
-	uint32 ConnectionIndex = Connections.Num();
+	uint32 ConnectionIndex = static_cast<uint32>(Connections.Num());
 	FNetProfilerConnectionInternal& Connection = Connections.PushBack();
 
 	Connection.Connection.ConnectionIndex = ConnectionIndex;
@@ -220,7 +220,7 @@ FNetProfilerObjectInstance& FNetProfilerProvider::CreateObject(uint32 GameInstan
 	check(GameInstance);
 
 	FNetProfilerObjectInstance& Object = GameInstance->Objects->PushBack();
-	Object.ObjectIndex = GameInstance->Objects->Num() - 1;
+	Object.ObjectIndex = static_cast<uint32>(GameInstance->Objects->Num()) - 1;
 	++GameInstance->ObjectsChangeCount;
 
 	return Object;
@@ -267,8 +267,8 @@ void FNetProfilerProvider::EditPacketDeliveryStatus(uint32 ConnectionIndex, ENet
 	FNetProfilerConnectionData& Data = *Connections[ConnectionIndex].Data[Mode];
 
 	// try to locate packet
-	uint32 PacketCount = Data.Packets.Num();
-	for (uint32 It=0; It < PacketCount; ++It)
+	uint32 PacketCount = static_cast<uint32>(Data.Packets.Num());
+	for (uint32 It = 0; It < PacketCount; ++It)
 	{
 		const uint32 PacketIndex = PacketCount - It - 1u;
 		if (Data.Packets[PacketIndex].SequenceNumber == SequenceNumber)
@@ -397,7 +397,7 @@ uint32 FNetProfilerProvider::GetObjectCount(uint32 GameInstanceIndex) const
 
 	const FNetProfilerGameInstanceInternal& GameInstance = GameInstances[GameInstanceIndex];
 
-	return GameInstance.Objects->Num();
+	return static_cast<uint32>(GameInstance.Objects->Num());
 }
 
 void FNetProfilerProvider::ReadObjects(uint32 GameInstanceIndex, TFunctionRef<void(const FNetProfilerObjectInstance&)> Callback) const
@@ -409,7 +409,8 @@ void FNetProfilerProvider::ReadObjects(uint32 GameInstanceIndex, TFunctionRef<vo
 	const FNetProfilerGameInstanceInternal& GameInstance = GameInstances[GameInstanceIndex];
 	const auto& Objects = *GameInstance.Objects;
 
-	for (uint32 ObjectsIt = 0, ObjectsEndIt = GameInstance.Objects->Num(); ObjectsIt < ObjectsEndIt; ++ObjectsIt)
+	const uint32 ObjectsEndIt = static_cast<uint32>(GameInstance.Objects->Num());
+	for (uint32 ObjectsIt = 0; ObjectsIt < ObjectsEndIt; ++ObjectsIt)
 	{
 		Callback(Objects[ObjectsIt]);
 	}
@@ -483,7 +484,7 @@ uint32 FNetProfilerProvider::GetPacketCount(uint32 ConnectionIndex, ENetProfiler
 
 	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
 
-	return Packets.Num();
+	return static_cast<uint32>(Packets.Num());
 }
 
 void FNetProfilerProvider::EnumeratePackets(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, TFunctionRef<void(const FNetProfilerPacket&)> Callback) const
@@ -494,7 +495,7 @@ void FNetProfilerProvider::EnumeratePackets(uint32 ConnectionIndex, ENetProfiler
 
 	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
 
-	const uint32 PacketCount = Packets.Num();
+	const uint32 PacketCount = static_cast<uint32>(Packets.Num());
 
 	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is an inclusive interval.
 	if (PacketCount == 0 || PacketIndexIntervalStart > PacketIndexIntervalEnd)
@@ -517,7 +518,7 @@ void FNetProfilerProvider::EnumeratePacketContentEventsByIndex(uint32 Connection
 
 	const auto& ContentEvents = Connections[ConnectionIndex].Data[Mode]->ContentEvents;
 
-	const uint32 EventCount = ContentEvents.Num();
+	const uint32 EventCount = static_cast<uint32>(ContentEvents.Num());
 
 	// [StartEventIndex, EndEventIndex] is an inclusive interval.
 	if (EventCount == 0 || StartEventIndex > EndEventIndex)
@@ -601,7 +602,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 	}
 
 	const auto& Packets = Connections[ConnectionIndex].Data[Mode]->Packets;
-	const uint32 PacketCount = Packets.Num();
+	const uint32 PacketCount = static_cast<uint32>(Packets.Num());
 
 	if (!ensure(PacketCount > 0))
 	{
@@ -638,7 +639,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		}
 
 		// Fill in basics.
-		const uint32 InclusiveSize = ContentEvent.EndPos - ContentEvent.StartPos;
+		const uint32 InclusiveSize = static_cast<uint32>(ContentEvent.EndPos - ContentEvent.StartPos);
 		++StatsEntry->InstanceCount;
 		StatsEntry->TotalInclusive += InclusiveSize;
 		StatsEntry->MaxInclusive = FMath::Max(InclusiveSize, StatsEntry->MaxInclusive);
@@ -646,7 +647,8 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		// Pops events from the stack. Keeps only the parent hierarchy of the current event.
 		while (Helper.StackSize > ContentEvent.Level)
 		{
-			FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+			--Helper.StackSize;
+			FStackEntry& StackEntry = Helper.Stack[static_cast<uint32>(Helper.StackSize)];
 
 			// Finalize exclusive for each poped event (all its children were already processed).
 			FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
@@ -670,7 +672,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		if (ContentEvent.Level > 0U)
 		{
 			// Update parent event with the contribution from current event.
-			FStackEntry& ParentStackEntry = Helper.Stack[ContentEvent.Level - 1U];
+			FStackEntry& ParentStackEntry = Helper.Stack[static_cast<uint32>(ContentEvent.Level) - 1];
 			ParentStackEntry.ExclusiveAccumulator += InclusiveSize;
 		}
 	};
@@ -683,7 +685,8 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		// Pops the remaining events from the stack.
 		while (Helper.StackSize > 0)
 		{
-			FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+			--Helper.StackSize;
+			FStackEntry& StackEntry = Helper.Stack[static_cast<uint32>(Helper.StackSize)];
 
 			// Finalize exclusive for each poped event (all its children were already processed).
 			FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
@@ -698,7 +701,7 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		for (uint32 PacketIt = PacketIndexIntervalStart, PacketEndIt = FMath::Min(PacketIndexIntervalEnd, PacketCount - 1u); PacketIt <= PacketEndIt; ++PacketIt)
 		{
 			const auto& ContentEvents = Connections[ConnectionIndex].Data[Mode]->ContentEvents;
-			const uint32 EventCount = ContentEvents.Num();
+			const uint32 EventCount = static_cast<uint32>(ContentEvents.Num());
 
 			const FNetProfilerPacket& Packet = Packets[PacketIt];
 			if (Packet.EventCount > 0U)
@@ -714,7 +717,8 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 				// Pops the remaining events from the stack, for each packet.
 				while (Helper.StackSize > 0)
 				{
-					FStackEntry& StackEntry = Helper.Stack[--Helper.StackSize]; // pop
+					--Helper.StackSize;
+					FStackEntry& StackEntry = Helper.Stack[static_cast<uint32>(Helper.StackSize)];
 
 					// Finalize exclusive for each poped event (all its children were already processed).
 					FNetProfilerAggregatedStats& Stats = Helper.AggregatedStats.FindChecked(StackEntry.EventTypeIndex);
@@ -757,7 +761,7 @@ ITable<FNetProfilerAggregatedStatsCounterStats>* FNetProfilerProvider::CreateSta
 	const FNetProfilerConnectionData* ConnectionData = Connections[ConnectionIndex].Data[Mode];
 	const auto& Packets = ConnectionData->Packets;
 
-	const uint32 PacketCount = Packets.Num();
+	const uint32 PacketCount = static_cast<uint32>(Packets.Num());
 
 	if (!ensure(PacketCount > 0))
 	{
@@ -790,7 +794,7 @@ ITable<FNetProfilerAggregatedStatsCounterStats>* FNetProfilerProvider::CreateSta
 	for (uint32 PacketIt = PacketIndexIntervalStart, PacketEndIt = FMath::Min(PacketIndexIntervalEnd, PacketCount - 1u); PacketIt <= PacketEndIt; ++PacketIt)
 	{
 		const FNetProfilerPacket& Packet = Packets[PacketIt];
-		const uint32 StatsCounterCount = PacketStatsCounters.Num();
+		const uint32 StatsCounterCount = static_cast<uint32>(PacketStatsCounters.Num());
 
 		// Iterate over all StatsCounters stored for the Packet
 		for (uint32 StatsCounterIt = 0; StatsCounterIt < Packet.StatsCount; ++StatsCounterIt)

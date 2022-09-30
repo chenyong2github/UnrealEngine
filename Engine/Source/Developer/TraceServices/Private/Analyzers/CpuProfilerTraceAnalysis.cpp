@@ -302,7 +302,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, FThreadS
 
 		if (DecodedCycle & 1ull)
 		{
-			uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+			uint32 SpecId = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
 			uint32 TimerId = GetTimerId(SpecId);
 
 			FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
@@ -405,7 +405,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBufferV2(const FEventTime& EventTime, FThrea
 			if (DecodedCycle & 1ull)
 			{
 				uint64 CoroutineId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-				uint32 TimerScopeDepth = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+				uint32 TimerScopeDepth = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
 
 				// Begins a "CoroTask" scoped timer.
 				{
@@ -462,7 +462,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBufferV2(const FEventTime& EventTime, FThrea
 			}
 			else
 			{
-				uint32 TimerScopeDepth = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+				uint32 TimerScopeDepth = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
 
 				if (TimerScopeDepth != 0)
 				{
@@ -510,7 +510,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBufferV2(const FEventTime& EventTime, FThrea
 		{
 			if (DecodedCycle & 1ull)
 			{
-				uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+				uint32 SpecId = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
 				uint32 TimerId = GetTimerId(SpecId);
 
 				FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();

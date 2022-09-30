@@ -105,7 +105,7 @@ uint32 FFrameProvider::GetFrameNumberForTimestamp(ETraceFrameType FrameType, dou
 	}
 	else if (Timestamp >= FrameStartTimes[FrameType].Last())
 	{
-		return FrameStartTimes[FrameType].Num();
+		return static_cast<uint32>(FrameStartTimes[FrameType].Num());
 	}
 	else
 	{

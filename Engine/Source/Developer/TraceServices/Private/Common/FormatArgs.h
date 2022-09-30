@@ -14,7 +14,7 @@ struct FFormatArgsHelper
 private:
 	struct FFormatArgSpec
 	{
-		uint64 PassthroughLength;
+		int32 PassthroughLength;
 		TCHAR FormatString[255];
 		uint8 ExpectedTypeCategory;
 		uint8 AdditionalIntegerArgumentCount;
@@ -36,8 +36,8 @@ private:
 	static bool AdvanceArgumentStream(FFormatArgsStreamContext& Context);
 	static uint64 ExtractIntegerArgument(FFormatArgsStreamContext& ArgStream);
 	static double ExtractFloatingPointArgument(FFormatArgsStreamContext& ArgStream);
-	static const TCHAR* ExtractStringArgument(FFormatArgsStreamContext& ArgStream, TCHAR* Temp, uint64 MaxTemp);
-	static int32 FormatArgument(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream);
+	static const TCHAR* ExtractStringArgument(FFormatArgsStreamContext& ArgStream, TCHAR* Temp, int32 MaxTemp);
+	static int32 FormatArgument(TCHAR* Out, int32 MaxOut, TCHAR* Temp, int32 MaxTemp, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream);
 };
 
 } // namespace TraceServices

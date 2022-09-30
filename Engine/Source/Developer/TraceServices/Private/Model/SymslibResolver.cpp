@@ -919,7 +919,7 @@ EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Entry, FStringView Sear
 
 	// unit storage
 	SYMS_U64 UnitCount = syms_group_unit_count(Group);
-	Instance->Units.SetNum(UnitCount);
+	Instance->Units.SetNum(static_cast<int32>(UnitCount));
 
 	// per-thread arena storage (at least one)
 	int32 WorkerThreadCount = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
@@ -934,7 +934,7 @@ EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Entry, FStringView Sear
 
 		std::atomic<uint32> LaneCount = 0;
 		syms_group_begin_multilane(Group, WorkerThreadCount);
-		ParallelFor(UnitCount, [Instance, Group, LaneSlot, &LaneCount, &SymbolCount](uint32 Index)
+		ParallelFor(static_cast<int32>(UnitCount), [Instance, Group, LaneSlot, &LaneCount, &SymbolCount](int32 Index)
 		{
 			SYMS_Arena* Arena;
 			uint32 LaneValue = uint32(reinterpret_cast<intptr_t>(FPlatformTLS::GetTlsValue(LaneSlot)));
@@ -1000,7 +1000,7 @@ EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Entry, FStringView Sear
 
 			syms_release_scratch(Scratch);
 
-			SymbolCount += ProcCount;
+			SymbolCount += static_cast<uint32>(ProcCount);
 		});
 		syms_group_end_multilane(Group);
 
@@ -1156,7 +1156,7 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol& Target, FS
 	SYMS_UnitID UnitID = syms_spatial_map_1d_value_from_point(&Instance->UnitMap, VirtualOffset);
 	if (UnitID)
 	{
-		FSymsUnit* Unit = &Instance->Units[UnitID - 1];
+		FSymsUnit* Unit = &Instance->Units[static_cast<uint32>(UnitID) - 1];
 
 		SYMS_U64 Value = syms_spatial_map_1d_value_from_point(&Unit->ProcMap, VirtualOffset);
 		if (Value)
@@ -1223,7 +1223,7 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol& Target, FS
 		Entry->Module->Name,
 		SymbolNamePersistent,
 		SourceFilePersistent,
-		SourceFileLine);
+		static_cast<uint16>(SourceFileLine));
 	SymbolFilter.Update(Target);
 
 	return true;

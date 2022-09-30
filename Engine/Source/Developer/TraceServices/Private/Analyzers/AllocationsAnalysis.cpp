@@ -172,7 +172,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 
 			uint64 Address = EventData.GetValue<uint64>("Address");
 
-			RootHeap = EventData.GetValue<uint8>("RootHeap", RootHeap);
+			RootHeap = EventData.GetValue<uint8>("RootHeap", static_cast<uint8>(RootHeap));
 
 			uint64 SizeUpper = EventData.GetValue<uint32>("Size");
 			const uint8 SizeLowerMask = ((1 << SizeShift) - 1);
@@ -236,7 +236,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			}
 #endif // INSIGHTS_MEM_TRACE_LEGACY_FORMAT
 
-			RootHeap = EventData.GetValue<uint8>("RootHeap", RootHeap);
+			RootHeap = EventData.GetValue<uint8>("RootHeap", static_cast<uint8>(RootHeap));
 
 			const uint32 TraceThreadId = Context.ThreadInfo.GetId();
 			const uint32 SystemThreadId = Context.ThreadInfo.GetSystemId();

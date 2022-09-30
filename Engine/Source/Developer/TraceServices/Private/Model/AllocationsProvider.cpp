@@ -1337,7 +1337,8 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 		}
 
 		INSIGHTS_SLOW_CHECK(Allocation.Address == Address);
-		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(InSize, InAlignment);
+		INSIGHTS_SLOW_CHECK(InAlignment < 256);
+		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(InSize, static_cast<uint8>(InAlignment));
 		Allocation.StartEventIndex = EventIndex[RootHeap];
 		Allocation.EndEventIndex = (uint32)-1;
 		Allocation.StartTime = Time;
@@ -1347,7 +1348,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 		Allocation.FreeCallstackId = 0; // no callstack yet
 		Allocation.MetadataId = MetadataId;
 		Allocation.Tag = Tag;
-		Allocation.RootHeap = RootHeap;
+		Allocation.RootHeap = static_cast<uint8>(RootHeap);
 		Allocation.Flags = EMemoryTraceHeapAllocationFlags::None;
 
 		UpdateHistogramByAllocSize(InSize);
@@ -1554,7 +1555,7 @@ void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint64 Address,
 		// Mark allocation as a "heap" allocation.
 		check(EnumHasAnyFlags(Flags, EMemoryTraceHeapAllocationFlags::Heap));
 		Alloc->Flags = Flags;
-		Alloc->RootHeap = RootHeap;
+		Alloc->RootHeap = static_cast<uint8>(RootHeap);
 
 		// Re-add it to the Live allocs as a heap allocation.
 		LiveAllocs[RootHeap]->AddHeap(Alloc);
@@ -1593,7 +1594,7 @@ void FAllocationsProvider::UpdateHistogramByAllocSize(uint64 Size)
 	// i : [2^(i-1) .. 2^i-1], i > 0
 	// ...
 	// 64 : [2^63 .. 2^64-1]
-	uint32 HistogramIndexPow2 = 64 - FMath::CountLeadingZeros64(Size);
+	uint32 HistogramIndexPow2 = 64 - static_cast<uint32>(FMath::CountLeadingZeros64(Size));
 	++AllocSizeHistogramPow2[HistogramIndexPow2];
 }
 
@@ -1884,7 +1885,7 @@ void FAllocationsProvider::GetTimelineIndexRange(double StartTime, double EndTim
 
 void FAllocationsProvider::EnumerateMinTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const
 {
-	const int32 NumPoints = Timeline.Num();
+	const int32 NumPoints = static_cast<int32>(Timeline.Num());
 	StartIndex = FMath::Max(StartIndex, 0);
 	EndIndex = FMath::Min(EndIndex + 1, NumPoints); // make it exclusive
 	if (StartIndex < EndIndex)
@@ -1918,7 +1919,7 @@ void FAllocationsProvider::EnumerateMinTotalAllocatedMemoryTimeline(int32 StartI
 
 void FAllocationsProvider::EnumerateMaxTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const
 {
-	const int32 NumPoints = Timeline.Num();
+	const int32 NumPoints = static_cast<int32>(Timeline.Num());
 	StartIndex = FMath::Max(StartIndex, 0);
 	EndIndex = FMath::Min(EndIndex + 1, NumPoints); // make it exclusive
 	if (StartIndex < EndIndex)
@@ -1952,7 +1953,7 @@ void FAllocationsProvider::EnumerateMaxTotalAllocatedMemoryTimeline(int32 StartI
 
 void FAllocationsProvider::EnumerateMinLiveAllocationsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const
 {
-	const int32 NumPoints = Timeline.Num();
+	const int32 NumPoints = static_cast<int32>(Timeline.Num());
 	StartIndex = FMath::Max(StartIndex, 0);
 	EndIndex = FMath::Min(EndIndex + 1, NumPoints); // make it exclusive
 	if (StartIndex < EndIndex)
@@ -1986,7 +1987,7 @@ void FAllocationsProvider::EnumerateMinLiveAllocationsTimeline(int32 StartIndex,
 
 void FAllocationsProvider::EnumerateMaxLiveAllocationsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const
 {
-	const int32 NumPoints = Timeline.Num();
+	const int32 NumPoints = static_cast<int32>(Timeline.Num());
 	StartIndex = FMath::Max(StartIndex, 0);
 	EndIndex = FMath::Min(EndIndex + 1, NumPoints); // make it exclusive
 	if (StartIndex < EndIndex)
@@ -2020,7 +2021,7 @@ void FAllocationsProvider::EnumerateMaxLiveAllocationsTimeline(int32 StartIndex,
 
 void FAllocationsProvider::EnumerateAllocEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const
 {
-	const int32 NumPoints = Timeline.Num();
+	const int32 NumPoints = static_cast<int32>(Timeline.Num());
 	StartIndex = FMath::Max(StartIndex, 0);
 	EndIndex = FMath::Min(EndIndex + 1, NumPoints); // make it exclusive
 	if (StartIndex < EndIndex)
@@ -2054,7 +2055,7 @@ void FAllocationsProvider::EnumerateAllocEventsTimeline(int32 StartIndex, int32 
 
 void FAllocationsProvider::EnumerateFreeEventsTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint32 Value)> Callback) const
 {
-	const int32 NumPoints = Timeline.Num();
+	const int32 NumPoints = static_cast<int32>(Timeline.Num());
 	StartIndex = FMath::Max(StartIndex, 0);
 	EndIndex = FMath::Min(EndIndex + 1, NumPoints); // make it exclusive
 	if (StartIndex < EndIndex)

@@ -399,7 +399,7 @@ FPackageInfo& FLoadTimeProfilerProvider::CreatePackage()
 {
 	Session.WriteAccessCheck();
 
-	uint32 PackageId = Packages.Num();
+	uint32 PackageId = static_cast<uint32>(Packages.Num());
 	FPackageInfo& Package = Packages.PushBack();
 	Package.Id = PackageId;
 	return Package;
@@ -523,7 +523,7 @@ FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 {
 	Session.WriteAccessCheck();
 
-	uint32 ExportId = Exports.Num();
+	uint32 ExportId = static_cast<uint32>(Exports.Num());
 	FPackageExportInfo& Export = Exports.PushBack();
 	Export.Id = ExportId;
 	return Export;
