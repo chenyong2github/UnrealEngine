@@ -43,6 +43,26 @@ public:
 		EMotionExtractor_MotionType MotionType,
 		EMotionExtractor_Axis Axis);
 
+	/**
+	* Returns the ranges (X/Start to Y/End) in the specified animation sequence where the animation is considered stopped.
+	*
+	* @param AnimSequence			Anim sequence to check
+	* @param StopSpeedThreshold		Root motion speed under which the animation is considered stopped.
+	* @param SampleRate				Sample rate of the animation. It's recommended to use high values if the animation has very sudden direction changes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Motion Extractor Utility")
+	static TArray<FVector2D> GetStoppedRangesFromRootMotion(const UAnimSequence* AnimSequence, float StopSpeedThreshold = 10.0f, float SampleRate = 120.0f);
+
+	/**
+	* Returns the ranges (X/Start to Y/End) in the specified animation sequence where the animation is considered moving.
+	*
+	* @param AnimSequence			Anim sequence to check
+	* @param StopSpeedThreshold		Root motion speed over which the animation is considered moving.
+	* @param SampleRate				Sample rate of the animation. It's recommended to use high values if the animation has very sudden direction changes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Motion Extractor Utility")
+	static TArray<FVector2D> GetMovingRangesFromRootMotion(const UAnimSequence* AnimSequence, float StopSpeedThreshold = 10.0f, float SampleRate = 120.0f);
+
 	/** 
 	* Helper function to extract the pose for a given bone at a given time
 	* IMPORTANT: This function expects you to add a MemMark (FMemMark Mark(FMemStack::Get());) at the correct scope if you are using it from outside world's tick

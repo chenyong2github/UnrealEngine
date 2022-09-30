@@ -38,7 +38,6 @@ void UOrientationWarpingModifier::OnApply_Implementation(UAnimSequence* Animatio
 	const float AnimLength = Animation->GetPlayLength();
 	float SampleInterval = 1.f / 120.f;
 	int32 NumSteps = AnimLength / SampleInterval;
-	float MinSpeedSq = FMath::Square(StopSpeedThreshold);
 
 	bool bIsRotating = false;
 	bool bFoundStop = false;
@@ -58,9 +57,9 @@ void UOrientationWarpingModifier::OnApply_Implementation(UAnimSequence* Animatio
 		FVector RotationAxis;
 		float RotationAngle;
 		RootMotionRotation.ToAxisAndAngle(RotationAxis, RotationAngle);
-		const float RootMotionSpeedSq = RootMotionTranslation.SizeSquared2D() / SampleInterval;
+		const float RootMotionSpeed = RootMotionTranslation.Size2D() / SampleInterval;
 
-		const bool bNewIsMoving = RootMotionSpeedSq > MinSpeedSq;
+		const bool bNewIsMoving = RootMotionSpeed > StopSpeedThreshold;
 		const bool bNewIsRotating = FMath::Abs(RotationAngle) > KINDA_SMALL_NUMBER;
 
 		// Only add keys at the beginning/end of rotations
