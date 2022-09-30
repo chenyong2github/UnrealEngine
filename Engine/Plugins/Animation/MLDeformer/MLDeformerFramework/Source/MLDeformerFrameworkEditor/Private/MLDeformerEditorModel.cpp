@@ -849,7 +849,7 @@ namespace UE::MLDeformer
 				Result = FText::Format(LOCTEXT("BaseMeshMismatch", "Number of vertices in base mesh has changed from {0} to {1} vertices since this ML Deformer Asset was saved! {2}"),
 					Model->GetInputInfo()->GetNumBaseMeshVertices(),
 					Model->GetNumBaseMeshVerts(),
-					IsTrained() ? LOCTEXT("BaseMeshMismatchNN", "Neural network needs to be retrained!") : FText());
+					IsTrained() ? LOCTEXT("BaseMeshMismatchNN", "Model needs to be retrained!") : FText());
 			}
 		}
 		return Result;
@@ -1600,6 +1600,10 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold)
 	{
 		OutMorphTargets.Reset();
+		if (Deltas.IsEmpty())
+		{
+			return;
+		}
 
 		const int32 NumBaseMeshVerts = Model->GetNumBaseMeshVerts();
 		check(Deltas.Num() % NumBaseMeshVerts == 0);

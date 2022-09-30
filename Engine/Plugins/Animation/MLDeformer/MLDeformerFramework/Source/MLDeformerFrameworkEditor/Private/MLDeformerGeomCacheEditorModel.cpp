@@ -142,19 +142,25 @@ namespace UE::MLDeformer
 		// Make sure every skeletal imported mesh has some geometry track.
 		const int32 NumGeomCacheTracks = GeomCache ? GeomCache->Tracks.Num() : 0;
 		int32 NumSkelMeshes = 0;
-		if (SkeletalMesh)
+		check(SkeletalMesh);
+		FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		if (ImportedModel)
 		{
-			FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
-			if (ImportedModel)
-			{
-				NumSkelMeshes = ImportedModel->LODModels[0].ImportedMeshInfos.Num();
-			}
+			NumSkelMeshes = ImportedModel->LODModels[0].ImportedMeshInfos.Num();
+		}
+
+		// Check if we have any mappings at all.
+		FMLDeformerGeomCacheSampler* GeomCacheSampler = GetGeomCacheSampler();
+		GeomCacheSampler->Init(this);
+		if (GeomCacheSampler->GetMeshMappings().IsEmpty())
+		{
+			return;
 		}
 
 		// Allow the special case where there is just one mesh and track.
 		if (NumGeomCacheTracks != 1 || NumSkelMeshes != 1)
 		{
-			if (!GetGeomCacheSampler()->GetFailedImportedMeshNames().IsEmpty())
+			if (!GeomCacheSampler->GetFailedImportedMeshNames().IsEmpty())
 			{
 				return;
 			}

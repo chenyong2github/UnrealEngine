@@ -45,8 +45,10 @@ namespace UE::MLDeformer
 		 */
 		FMLDeformerGetGeomCacheEvent& OnGetGeometryCache()			{ return GetGeometryCacheEvent; }
 
-		UGeometryCacheComponent* GetGeometryCacheComponent() { return GeometryCacheComponent; }
-		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeometryCacheComponent; }
+		UGeometryCacheComponent* GetGeometryCacheComponent()		{ return GeometryCacheComponent; }
+		UGeometryCacheComponent* GetGeometryCacheComponent() const	{ return GeometryCacheComponent; }
+
+		const TArray<FMLDeformerGeomCacheMeshMapping>& GetMeshMappings() const	{ return MeshMappings; }
 
 	protected:
 		/**

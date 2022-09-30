@@ -87,7 +87,7 @@ namespace UE::MLDeformer
 				.Padding(FMargin(0.0f, 4.0f))
 				[
 					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Error)
+					.MessageStyle(EMessageStyle::Warning)
 					.Message(ChangedErrorText)
 				]
 			];

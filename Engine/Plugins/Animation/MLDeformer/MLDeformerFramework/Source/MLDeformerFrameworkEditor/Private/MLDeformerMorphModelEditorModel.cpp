@@ -111,6 +111,11 @@ namespace UE::MLDeformer
 		check(MorphModel->GetMorphTargetSet().IsValid());
 		FMorphTargetVertexInfoBuffers& MorphBuffers = MorphModel->GetMorphTargetSet()->MorphBuffers;
 		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, MorphModel->GetMorphTargetErrorTolerance());
+
+		if (MorphBuffers.GetNumBatches() == 0 || MorphBuffers.GetNumMorphs() == 0)
+		{
+			MorphBuffers = FMorphTargetVertexInfoBuffers();
+		}
 	}
 
 	void FMLDeformerMorphModelEditorModel::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
