@@ -77,14 +77,20 @@ private:
 	/** Get Title for Bone Translation Retargeting Mode menu. */
 	FText GetTranslationRetargetingModeMenuTitle() const;
 
-	/** Callback from a slider widget if the text entry or slider movement is used */
+	/** Callback from a slider widget if the text entry is used */
 	void OnBlendSliderCommitted(float NewValue, ETextCommit::Type CommitType);
+
+	/** Callback from a slider widget if the slider is used */
+	void OnBlendSliderChanged(float NewValue);
+
+	/** Callback from a slider widget when the user begins sliding */
+	void OnBeginBlendSliderMovement();
+
+	/** Callback from a slider widget when the user has finished sliding */
+	void OnEndBlendSliderMovement(float NewValue);
 
 	/** Set Translation Retargeting Mode for this bone. */
 	void SetBoneTranslationRetargetingMode(EBoneTranslationRetargetingMode::Type NewRetargetingMode);
-
-	/** Set current Blend Scale for this bone */
-	void SetBoneBlendProfileScale(float NewScale, bool bRecurse);
 
 	/** Get the current Blend Scale for this bone */
 	float GetBoneBlendProfileScale() const;
@@ -114,4 +120,6 @@ private:
 	/** Reference to the retargeting combo button */
 	TSharedPtr<SComboButton> RetargetingComboButton;
 
+	/** True if the user is in a transaction when moving the blend profile slider */
+	bool bBlendSliderStartedTransaction;
 };

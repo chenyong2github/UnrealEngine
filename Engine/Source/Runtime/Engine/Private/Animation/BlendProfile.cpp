@@ -172,7 +172,6 @@ void UBlendProfile::SetSingleBoneBlendScale(int32 InBoneIdx, float InScale, bool
 
 	if(Entry)
 	{
-		Modify();
 		Entry->BlendScale = InScale;
 
 		// Remove any entry that gets set back to DefautBlendScale - so we only store entries that actually contain a scale

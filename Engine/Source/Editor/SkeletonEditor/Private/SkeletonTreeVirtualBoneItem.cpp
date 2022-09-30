@@ -11,6 +11,8 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/BlendProfile.h"
 #include "UObject/Package.h"
+#include "Editor.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FSkeletonTreeVirtualBoneItem"
 
@@ -107,7 +109,10 @@ TSharedRef< SWidget > FSkeletonTreeVirtualBoneItem::GenerateWidgetForDataColumn(
 			.MaxSliderValue(this, &FSkeletonTreeVirtualBoneItem::GetBlendProfileMaxSliderValue)
 			.Value(this, &FSkeletonTreeVirtualBoneItem::GetBoneBlendProfileScale)
 			.OnValueCommitted(this, &FSkeletonTreeVirtualBoneItem::OnBlendSliderCommitted)
-			.OnValueChanged(this, &FSkeletonTreeVirtualBoneItem::OnBlendSliderCommitted, ETextCommit::OnEnter)
+			.OnValueChanged(this, &FSkeletonTreeVirtualBoneItem::OnBlendSliderChanged)
+			.OnBeginSliderMovement(this, &FSkeletonTreeVirtualBoneItem::OnBeginBlendSliderMovement)
+			.OnEndSliderMovement(this, &FSkeletonTreeVirtualBoneItem::OnEndBlendSliderMovement)
+			.ClearKeyboardFocusOnCommit(true)
 			];
 	}
 
@@ -149,15 +154,57 @@ TOptional<float> FSkeletonTreeVirtualBoneItem::GetBlendProfileMinSliderValue() c
 	return 0.0f;
 }
 
-void FSkeletonTreeVirtualBoneItem::OnBlendSliderCommitted(float NewValue, ETextCommit::Type CommitType)
+void FSkeletonTreeVirtualBoneItem::OnBeginBlendSliderMovement()
 {
-	SetBoneBlendProfileScale(NewValue, false);
+	if (bBlendSliderStartedTransaction == false)
+	{
+		bBlendSliderStartedTransaction = true;
+		GEditor->BeginTransaction(LOCTEXT("BlendSliderTransation", "Set Blend Profile Value"));
+
+		const FName& BlendProfileName = GetSkeletonTree()->GetSelectedBlendProfile()->GetFName();
+		UBlendProfile* BlendProfile = GetEditableSkeleton()->GetBlendProfile(BlendProfileName);
+
+		if (BlendProfile)
+		{
+			BlendProfile->SetFlags(RF_Transactional);
+			BlendProfile->Modify();
+		}
+	}
 }
 
-void FSkeletonTreeVirtualBoneItem::SetBoneBlendProfileScale(float NewScale, bool bRecurse)
+void FSkeletonTreeVirtualBoneItem::OnEndBlendSliderMovement(float NewValue)
+{
+	if (bBlendSliderStartedTransaction)
+	{
+		GEditor->EndTransaction();
+		bBlendSliderStartedTransaction = false;
+	}
+}
+
+void FSkeletonTreeVirtualBoneItem::OnBlendSliderCommitted(float NewValue, ETextCommit::Type CommitType)
 {
 	FName BlendProfileName = GetSkeletonTree()->GetSelectedBlendProfile()->GetFName();
-	GetEditableSkeleton()->SetBlendProfileScale(BlendProfileName, BoneName, NewScale, bRecurse);
+	UBlendProfile* BlendProfile = GetEditableSkeleton()->GetBlendProfile(BlendProfileName);
+
+	if (BlendProfile)
+	{
+		FScopedTransaction(LOCTEXT("SetBlendProfileValue", "Set Blend Profile Value"));
+		BlendProfile->SetFlags(RF_Transactional);
+		BlendProfile->Modify();
+
+		BlendProfile->SetBoneBlendScale(BoneName, NewValue, false, true);
+	}
+}
+
+void FSkeletonTreeVirtualBoneItem::OnBlendSliderChanged(float NewValue)
+{
+	const FName& BlendProfileName = GetSkeletonTree()->GetSelectedBlendProfile()->GetFName();
+	UBlendProfile* BlendProfile = GetEditableSkeleton()->GetBlendProfile(BlendProfileName);
+
+	if (BlendProfile)
+	{
+		BlendProfile->SetBoneBlendScale(BoneName, NewValue, false, true);
+	}
 }
 
 FSlateFontInfo FSkeletonTreeVirtualBoneItem::GetBoneTextFont() const
