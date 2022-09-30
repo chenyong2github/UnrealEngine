@@ -307,11 +307,12 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const double FrameTimeInSeconds = FrameRate.AsSeconds(FrameTime);
 		const int64 FrameTicks = FrameTimeInSeconds * ETimespan::TicksPerSecond;
 
-		const double FrameDurationInSeconds = (Context.GetRange().Size<FFrameTime>()) / Context.GetFrameRate();
+		// With zero-length frames (which can occur occasionally), we use the fixed frame time, matching previous behavior.
+		const double FrameDurationInSeconds = FMath::Max(FrameRate.AsSeconds(FFrameTime(1)), (Context.GetRange().Size<FFrameTime>()) / Context.GetFrameRate());
 		const int64 FrameDurationTicks = FrameDurationInSeconds * ETimespan::TicksPerSecond;
 
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
-			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d, FrameDurationTicks"),
+			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d, FrameDurationTicks %d"),
 				Context.GetTime().GetFrame().Value,
 				Context.GetTime().GetSubFrame(),
 				FrameRate.Numerator,
