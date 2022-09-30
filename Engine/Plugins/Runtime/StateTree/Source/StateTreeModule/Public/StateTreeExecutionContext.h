@@ -137,7 +137,7 @@ public:
 	/** @return the names of all the active state. */
 	TArray<FName> GetActiveStateNames() const;
 
-	/** Sends event for the StateTree. Can only be used during StateTree tick. */
+	/** Sends event for the StateTree. */
 	void SendEvent(const FStateTreeEvent& Event);
 
 	/** Iterates over all events. Can only be used during StateTree tick. Expects a lambda which takes const FStateTreeEvent& Event, and returns EStateTreeLoopEvents. */
