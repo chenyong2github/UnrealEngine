@@ -1534,9 +1534,11 @@ void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& Property
 					{
 						// ...modify the pin on other parameter expression node with the new value.
 						UEdGraphPin* OtherPin = ExpressionParameter->GraphNode->GetPinAt(PinIndex);
-						check(OtherPin->GetName() == Pin->GetName());
-						OtherPin->Modify();
-						OtherPin->DefaultValue = NewDefaultValue;
+						if (ensure(OtherPin && Pin && OtherPin->GetName() == Pin->GetName()))
+						{
+							OtherPin->Modify();
+							OtherPin->DefaultValue = NewDefaultValue;
+						}
 					}
 				}
 
