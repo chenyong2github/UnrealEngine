@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -563,7 +564,7 @@ namespace UnrealBuildTool
 		{
 			if (VisitedActions.Add(this))
 			{
-				NumTotalDependentActions++;
+				Interlocked.Increment(ref NumTotalDependentActions);
 				foreach (LinkedAction PrerequisiteAction in PrerequisiteActions)
 				{
 					PrerequisiteAction.IncrementDependentCount(VisitedActions);

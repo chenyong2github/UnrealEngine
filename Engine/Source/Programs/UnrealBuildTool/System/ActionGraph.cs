@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using OpenTracing.Util;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace UnrealBuildTool
 {
@@ -258,7 +259,7 @@ namespace UnrealBuildTool
 			using (GlobalTracer.Instance.BuildSpan("ActionGraph.GetActionsToExecute()").StartActive())
 			{
 				// For all targets, build a set of all actions that are outdated.
-				Dictionary<LinkedAction, bool> OutdatedActionDictionary = new Dictionary<LinkedAction, bool>();
+				ConcurrentDictionary<LinkedAction, bool> OutdatedActionDictionary = new ConcurrentDictionary<LinkedAction, bool>();
 				GatherAllOutdatedActions(Actions, History, OutdatedActionDictionary, CppDependencies, bIgnoreOutdatedImportLibraries, Logger);
 
 				// Build a list of actions that are both needed for this target and outdated.
@@ -426,10 +427,10 @@ namespace UnrealBuildTool
 			}
 
 			// Increment all the dependencies
-			foreach (LinkedAction Action in Actions)
+			Actions.AsParallel().ForAll((Action) =>
 			{
 				Action.IncrementDependentCount(new HashSet<LinkedAction>());
-			}
+			});
 
 			// Sort actions by number of actions depending on them, descending. Secondary sort criteria is file size.
 			Actions.Sort(LinkedAction.Compare);
@@ -607,24 +608,20 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="RootAction">- The action being considered.</param>
 		/// <param name="OutdatedActionDictionary">-</param>
-		/// <param name="OutdatedActionLock"></param>
 		/// <param name="ActionHistory"></param>
 		/// <param name="CppDependencies"></param>
 		/// <param name="bIgnoreOutdatedImportLibraries"></param>
 		/// <param name="Logger"></param>
 		/// <returns>true if outdated</returns>
 		private static void IsIndividualActionOutdated(LinkedAction RootAction,
-			Dictionary<LinkedAction, bool> OutdatedActionDictionary, ReaderWriterLockSlim OutdatedActionLock,
+			ConcurrentDictionary<LinkedAction, bool> OutdatedActionDictionary,
 			ActionHistory ActionHistory, CppDependencyCache CppDependencies, bool bIgnoreOutdatedImportLibraries, ILogger Logger)
 		{
 			// Only compute the outdated-ness for actions that don't aren't cached in the outdated action dictionary.
 			bool bIsOutdated = false;
 			{
 				// OutdatedActionDictionary may have already been populated for RootAction as part of a previously processed target
-				OutdatedActionLock.EnterReadLock();
-				bool bPresent = OutdatedActionDictionary.ContainsKey(RootAction);
-				OutdatedActionLock.ExitReadLock();
-				if (bPresent)
+				if (OutdatedActionDictionary.ContainsKey(RootAction))
 				{
 					return;
 				}
@@ -725,9 +722,7 @@ namespace UnrealBuildTool
 			// We don't yet know that the action is up-to-date - to determine that requires traversal of the graph of prerequisites.
 			if (bIsOutdated)
 			{
-				OutdatedActionLock.EnterWriteLock();
-				OutdatedActionDictionary.Add(RootAction, bIsOutdated);
-				OutdatedActionLock.ExitWriteLock();
+				OutdatedActionDictionary.TryAdd(RootAction, bIsOutdated);
 			}
 		}
 
@@ -740,7 +735,7 @@ namespace UnrealBuildTool
 		/// <param name="bIgnoreOutdatedImportLibraries"></param>
 		/// <param name="Logger">Logger instance</param>
 		/// <returns>true if outdated</returns>
-		private static bool IsActionOutdatedDueToPrerequisites(LinkedAction RootAction,	Dictionary<LinkedAction, bool> OutdatedActionDictionary, bool bIgnoreOutdatedImportLibraries, ILogger Logger)
+		private static bool IsActionOutdatedDueToPrerequisites(LinkedAction RootAction, ConcurrentDictionary<LinkedAction, bool> OutdatedActionDictionary, bool bIgnoreOutdatedImportLibraries, ILogger Logger)
 		{
 			// Only compute the outdated-ness for actions that aren't already cached in the outdated action dictionary.
 			if (OutdatedActionDictionary.TryGetValue(RootAction, out bool bIsOutdated))
@@ -767,7 +762,7 @@ namespace UnrealBuildTool
 			}
 
 			// Cache the outdated-ness of this action.
-			OutdatedActionDictionary.Add(RootAction, bIsOutdated);
+			OutdatedActionDictionary.TryAdd(RootAction, bIsOutdated);
 
 			return bIsOutdated;
 		}
@@ -827,7 +822,7 @@ namespace UnrealBuildTool
 		/// IsActionOutdated.
 		/// </summary>
 		public static void GatherAllOutdatedActions(IReadOnlyList<LinkedAction> Actions, ActionHistory ActionHistory,
-			Dictionary<LinkedAction, bool> OutdatedActions, CppDependencyCache CppDependencies,
+			ConcurrentDictionary<LinkedAction, bool> OutdatedActions, CppDependencyCache CppDependencies,
 			bool bIgnoreOutdatedImportLibraries, ILogger Logger)
 		{
 			using (GlobalTracer.Instance.BuildSpan("Prefetching include dependencies").StartActive())
@@ -846,9 +841,8 @@ namespace UnrealBuildTool
 
 			using (GlobalTracer.Instance.BuildSpan("Cache individual outdated actions").StartActive())
 			{
-				ReaderWriterLockSlim OutdatedActionsLock = new ReaderWriterLockSlim();
 				Parallel.ForEach(Actions,
-					Action => IsIndividualActionOutdated(Action, OutdatedActions, OutdatedActionsLock, 
+					Action => IsIndividualActionOutdated(Action, OutdatedActions,
 						ActionHistory, CppDependencies, bIgnoreOutdatedImportLibraries, Logger));
 			}
 
