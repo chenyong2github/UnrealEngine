@@ -705,6 +705,15 @@ void USkinnedMeshComponent::OnUnregister()
 	MeshDeformerInstance = nullptr;
 }
 
+void USkinnedMeshComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Recreate the deformer instance to collect any changes for component bindings during startup.
+	UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
+	MeshDeformerInstance = ActiveMeshDeformer != nullptr ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+}
+
 void USkinnedMeshComponent::AddExternalMorphSet(int32 LOD, int32 ID, TSharedPtr<FExternalMorphSet> MorphSet)
 {
 	const int32 NumLODs = GetNumLODs();
