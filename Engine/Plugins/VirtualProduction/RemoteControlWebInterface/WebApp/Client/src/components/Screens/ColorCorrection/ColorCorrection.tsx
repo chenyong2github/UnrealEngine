@@ -162,7 +162,7 @@ export class ColorCorrection extends React.Component<Props, State> {
 
     switch (section) {
       case Section.ColorCorrection:
-        Class = '/ColorCorrectRegions/Blueprints/ColorCorrectRegion.ColorCorrectRegion_C';
+        Class = '/Script/ColorCorrectRegions.ColorCorrectionRegion';
         break;
 
       case Section.LightCards:
