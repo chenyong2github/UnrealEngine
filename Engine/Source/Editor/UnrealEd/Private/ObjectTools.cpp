@@ -2423,7 +2423,7 @@ namespace ObjectTools
 					{
 						FFormatNamedArguments Args;
 						Args.Add(TEXT("Filename"), FText::FromString(PackageFilename));
-						const FText Message = FText::Format(NSLOCTEXT("ObjectTools", "DeleteReadOnlyWarning", "File '{Filename}' is read-only on disk, are you sure you want to delete it?"), Args);
+						const FText Message = FText::Format(NSLOCTEXT("ObjectTools", "DeleteReadOnlyWarning", "This file is read-only on disk:\n\n{Filename}\n\nDelete it anyway?"), Args);
 
 						ReturnType = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, Message);
 						bMakeWritable = ReturnType == EAppReturnType::YesAll;
@@ -2873,7 +2873,7 @@ namespace ObjectTools
 					{
 						FFormatNamedArguments Args;
 						Args.Add(TEXT("Filename"), FText::FromString(PackageFilename));
-						const FText Message = FText::Format(NSLOCTEXT("ObjectTools", "DeleteReadOnlyWarning", "File '{Filename}' is read-only on disk, are you sure you want to delete it?"), Args);
+						const FText Message = FText::Format(NSLOCTEXT("ObjectTools", "DeleteReadOnlyWarning", "This file is read-only on disk:\n\n{Filename}\n\nDelete it anyway?"), Args);
 
 						ReturnType = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, EAppReturnType::No, Message);
 						bMakeWritable = ReturnType == EAppReturnType::YesAll;

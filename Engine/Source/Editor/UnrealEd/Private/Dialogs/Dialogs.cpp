@@ -50,6 +50,7 @@ public:
 		ParentWindow = InArgs._ParentWindow.Get();
 		ParentWindow->SetWidgetToFocusOnActivate(SharedThis(this));
 		Response = EAppReturnType::Cancel;
+		MessageType = InArgs._MessageType.Get();
 
 		FSlateFontInfo MessageFont( FAppStyle::GetFontStyle("StandardDialog.LargeFont"));
 		MyMessage = InArgs._Message;
@@ -103,7 +104,7 @@ public:
 					SNew(SHorizontalBox)
 
 					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
+					.AutoWidth()
 					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
 					[
@@ -119,6 +120,24 @@ public:
 							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					]
+
+					+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(16.f, 0.f, 0.f, 0.f))
+						[
+							SNew(SCheckBox)
+							.IsChecked(ECheckBoxState::Unchecked)
+							.OnCheckStateChanged(this, &SChoiceDialog::OnCheckboxClicked)
+							.Visibility(this, &SChoiceDialog::GetCheckboxVisibility)
+							.ToolTipText(NSLOCTEXT("SChoiceDialog", "ApplyToAllTooltip", "Make your choice of Yes or No apply to all remaining items in the current operation"))
+							[
+								SNew(STextBlock)
+								.WrapTextAt(615.0f)
+								.Text(NSLOCTEXT("SChoiceDialog", "ApplyToAllLabel", "Apply to All"))
+							]
+						]
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
@@ -159,7 +178,7 @@ public:
 
 
 
-		switch ( InArgs._MessageType.Get() )
+		switch ( MessageType )
 		{	
 		case EAppMsgType::Ok:
 			ADD_SLOT_PRIMARY(Ok)
@@ -185,14 +204,10 @@ public:
 		case EAppMsgType::YesNoYesAllNoAll:
 			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
-			ADD_SLOT(YesAll)
-			ADD_SLOT(NoAll)
 			break;
 		case EAppMsgType::YesNoYesAllNoAllCancel:
 			ADD_SLOT_PRIMARY(Yes)
 			ADD_SLOT(No)
-			ADD_SLOT(YesAll)
-			ADD_SLOT(NoAll)
 			ADD_SLOT(Cancel)
 			break;
 		case EAppMsgType::YesNoYesAll:
@@ -282,6 +297,18 @@ private:
 	FReply HandleButtonClicked( EAppReturnType::Type InResponse )
 	{
 		Response = InResponse;
+		if ((MessageType == EAppMsgType::YesNoYesAllNoAll || MessageType == EAppMsgType::YesNoYesAllNoAllCancel)
+			&& bApplyToAllChecked)
+		{
+			if (Response == EAppReturnType::Yes)
+			{
+				Response = EAppReturnType::YesAll;
+			}
+			else if (Response == EAppReturnType::No)
+			{
+				Response = EAppReturnType::NoAll;
+			}
+		}
 
 		ResultCallback.ExecuteIfBound(ParentWindow.ToSharedRef(), Response);
 
@@ -298,6 +325,22 @@ private:
 		return FReply::Handled();
 	}
 		
+	// Used as a delegate for the OnClicked property of the Apply to All checkbox
+	void OnCheckboxClicked(ECheckBoxState InNewState)
+	{
+		bApplyToAllChecked = InNewState == ECheckBoxState::Checked;
+	}
+
+	// Used as a delegate for the Visibility property of the Apply to All checkbox
+	EVisibility GetCheckboxVisibility() const
+	{
+		if (MessageType == EAppMsgType::YesNoYesAllNoAll || MessageType == EAppMsgType::YesNoYesAllNoAllCancel)
+		{
+			return EVisibility::Visible;
+		}
+		return EVisibility::Hidden;
+	}
+
 public:
 	/** Callback delegate that is triggered, when the dialog is run in non-modal mode */
 	FOnMsgDlgResult ResultCallback;
@@ -307,6 +350,8 @@ private:
 	EAppReturnType::Type Response;
 	TSharedPtr<SWindow> ParentWindow;
 	TAttribute<FText> MyMessage;
+	bool bApplyToAllChecked;
+	EAppMsgType::Type MessageType;
 };
 
 

@@ -358,7 +358,7 @@ void UFactory::DisplayOverwriteOptionsDialog(const FText& Message)
 	else if (OverwriteYesOrNoToAllState != EAppReturnType::YesAll && OverwriteYesOrNoToAllState != EAppReturnType::NoAll)
 	{
 		OverwriteYesOrNoToAllState = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAllCancel, FText::Format(
-			NSLOCTEXT("UnrealEd", "ImportedAssetAlreadyExists", "{0} Would you like to overwrite the existing settings?\n\nYes or Yes to All: Overwrite the existing settings.\nNo or No to All: Preserve the existing settings.\nCancel: Abort the operation."),
+			NSLOCTEXT("UnrealEd", "ImportedAssetAlreadyExists", "{0}\n\nWould you also like to overwrite its existing settings?"),
 			Message));
 	}
 }
