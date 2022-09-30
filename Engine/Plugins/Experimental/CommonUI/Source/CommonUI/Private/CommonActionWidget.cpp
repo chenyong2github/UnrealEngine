@@ -59,35 +59,28 @@ TSharedRef<SWidget> UCommonActionWidget::RebuildWidget()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center);
 
-	MyKeyBox->SetContent(
-		SNew(SScaleBox)
+	MyKeyBox->SetContent(	
+		SNew(SOverlay)
+		+ SOverlay::Slot()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
-		.Stretch(IconStretch)
-		.UserSpecifiedScale(UserSpecifiedScale)
 		[
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(MyIconRim, SImage)
-				.Image(&IconRimBrush)
-			]
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(MyProgressImage, SImage)
-				.Image(&ProgressMaterialBrush)
-			]
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(MyIcon, SImage)
-				.Image(&Icon)
-			]
+			SAssignNew(MyIconRim, SImage)
+			.Image(&IconRimBrush)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(MyProgressImage, SImage)
+			.Image(&ProgressMaterialBrush)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(MyIcon, SImage)
+			.Image(&Icon)
 		]);
 	
 	return MyKeyBox.ToSharedRef();
@@ -98,7 +91,6 @@ void UCommonActionWidget::ReleaseSlateResources(bool bReleaseChildren)
 	MyProgressImage.Reset();
 	MyIcon.Reset();
 	MyKeyBox.Reset();
-	MyScaleBox.Reset();
 	
 	ListenToInputMethodChanged(false);
 	Super::ReleaseSlateResources(bReleaseChildren);
