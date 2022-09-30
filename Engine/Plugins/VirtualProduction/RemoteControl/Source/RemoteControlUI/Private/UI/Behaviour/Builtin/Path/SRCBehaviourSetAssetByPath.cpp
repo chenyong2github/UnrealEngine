@@ -20,11 +20,11 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SRCBehaviourSetAssetByPath::Construct(const FArguments& InArgs, TSharedRef<FRCSetAssetByPathBehaviourModel> InBehaviourItem)
 {
 	URCSetAssetByPathBehaviour* PathBehaviour = Cast<URCSetAssetByPathBehaviour>(InBehaviourItem->GetBehaviour());
-	TSharedRef<SHorizontalBox> InternalExternalSwitchWidget = SNew(SHorizontalBox);
-	TSharedRef<SHorizontalBox> SelectedClassWidget = SNew(SHorizontalBox)
+	const TSharedRef<SHorizontalBox> SelectedClassWidget = SNew(SHorizontalBox);
+	const TSharedRef<SHorizontalBox> InternalExternalSwitchWidget = SNew(SHorizontalBox)
 		.Visibility_Lambda([PathBehaviour]()
 		{
-			return PathBehaviour->bInternal ? EVisibility::Visible : EVisibility::Collapsed;
+			return PathBehaviour->AssetClass->GetFName() == NAME_Vector ? EVisibility::Visible : EVisibility::Collapsed;
 		});
 
 	if (!PathBehaviour)
@@ -34,6 +34,30 @@ void SRCBehaviourSetAssetByPath::Construct(const FArguments& InArgs, TSharedRef<
 			SNullWidget::NullWidget
 		];
 		return;
+	}
+		
+	
+	for (UClass* SupportedClass : PathBehaviour->GetSupportedClasses())
+	{
+		SelectedClassWidget->AddSlot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(0.0f,0.0f))
+		.FillWidth(1.0f)
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.Text(FText::FromString(SupportedClass->GetName()))
+			.ButtonColorAndOpacity_Lambda([PathBehaviour, SupportedClass]()
+			{
+				FSlateColor Color = PathBehaviour->AssetClass == SupportedClass ? FAppStyle::Get().GetSlateColor("Colors.Select") : FAppStyle::Get().GetSlateColor("Colors.White");
+				return Color;
+			})
+			.OnPressed_Lambda([PathBehaviour, SupportedClass]()
+			{
+				PathBehaviour->AssetClass = SupportedClass;
+			})
+		];
 	}
 		
 	InternalExternalSwitchWidget->AddSlot()
@@ -76,40 +100,17 @@ void SRCBehaviourSetAssetByPath::Construct(const FArguments& InArgs, TSharedRef<
 		})
 	];
 	
-	for (UClass* SupportedClass : PathBehaviour->GetSupportedClasses())
-	{
-		SelectedClassWidget->AddSlot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		.Padding(FMargin(0.0f,0.0f))
-		.FillWidth(1.0f)
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.Text(FText::FromString(SupportedClass->GetName()))
-			.ButtonColorAndOpacity_Lambda([PathBehaviour, SupportedClass]()
-			{
-				FSlateColor Color = PathBehaviour->AssetClass == SupportedClass ? FAppStyle::Get().GetSlateColor("Colors.Select") : FAppStyle::Get().GetSlateColor("Colors.White");
-				return Color;
-			})
-			.OnPressed_Lambda([PathBehaviour, SupportedClass]()
-			{
-				PathBehaviour->AssetClass = SupportedClass;
-			})
-		];
-	}
-	
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		[
-			InternalExternalSwitchWidget
+			SelectedClassWidget
 		]
 		+ SVerticalBox::Slot()
 		.Padding(0.f,12.f)
 		[
-			SelectedClassWidget
+			InternalExternalSwitchWidget
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()

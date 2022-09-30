@@ -46,6 +46,24 @@ bool URCSetAssetByPathBehaviour::SetAssetByPath(const FString& AssetPath, const 
 	{
 		return false;
 	}
+	
+	URemoteControlPreset* Preset = Controller->PresetWeakPtr.Get();
+	if (!Preset)
+	{
+		return false;
+	}
+	
+	const TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(TargetEntityId).Pin();
+	if (!RemoteControlProperty)
+	{
+		return false;
+	}
+
+	FProperty* Property = RemoteControlProperty->GetProperty();
+	if (!Property)
+	{
+		return false;
+	}
 
 	if (!bInternal)
 	{
@@ -53,8 +71,19 @@ bool URCSetAssetByPathBehaviour::SetAssetByPath(const FString& AssetPath, const 
 		{
 			return FText::FromString(FString("Path Behaviour attempts to set Asset to %s") + *AssetPath + *ControllerString);
 		});
+
+#if WITH_EDITOR
+		FEditPropertyChain PropertyChain;
+		PropertyChain.AddHead(Property);
+		RemoteControlProperty->GetBoundObject()->PreEditChange(PropertyChain);
+#endif
 		if (SetExternalAsset(AssetPath + ControllerString))
 		{
+#if WITH_EDITOR
+			FPropertyChangedEvent ChangedEvent(Property, EPropertyChangeType::ValueSet);
+			RemoteControlProperty->GetBoundObject()->PostEditChangeProperty(ChangedEvent);
+#endif
+			
 			return true;
 		}
 
@@ -69,7 +98,7 @@ bool URCSetAssetByPathBehaviour::SetAssetByPath(const FString& AssetPath, const 
 
 		return false;
 	}
-	
+
 	FSoftObjectPath MainObjectRef(AssetPath + ControllerString);
 	
 	if (UObject* Object = MainObjectRef.TryLoad())
@@ -78,7 +107,23 @@ bool URCSetAssetByPathBehaviour::SetAssetByPath(const FString& AssetPath, const 
 		{
 			return FText::FromString(FString("Path Behaviour attempts to set Asset to %s") + *MainObjectRef.GetAssetPathString());
 		});
-		return SetInternalAsset(Object);
+
+#if WITH_EDITOR
+		FEditPropertyChain PropertyChain;
+		PropertyChain.AddHead(Property);
+		RemoteControlProperty->GetBoundObject()->PreEditChange(PropertyChain);
+#endif
+		if (SetInternalAsset(Object))
+		{
+#if WITH_EDITOR
+			FPropertyChangedEvent ChangedEvent(Property, EPropertyChangeType::ValueSet);
+			RemoteControlProperty->GetBoundObject()->PostEditChangeProperty(ChangedEvent);
+#endif
+
+			return true;
+		}
+
+		return false;
 	}
 	
 	if (!DefaultString.IsEmpty())
@@ -89,7 +134,21 @@ bool URCSetAssetByPathBehaviour::SetAssetByPath(const FString& AssetPath, const 
 		{
 			return FText::FromString(FString("Path Behaviour attempts to set Asset to %s") + *DefaultObjectRef.GetAssetPathString());
 		});
-		return SetInternalAsset(DefaultObjectRef.TryLoad());
+
+#if WITH_EDITOR
+		FEditPropertyChain PropertyChain;
+		PropertyChain.AddHead(Property);
+		RemoteControlProperty->GetBoundObject()->PreEditChange(PropertyChain);
+#endif
+		if (SetInternalAsset(DefaultObjectRef.TryLoad()))
+		{
+#if WITH_EDITOR
+			FPropertyChangedEvent ChangedEvent(Property, EPropertyChangeType::ValueSet);
+			RemoteControlProperty->GetBoundObject()->PostEditChangeProperty(ChangedEvent);
+#endif
+			
+			return true;
+		}
 	}
 	
 	return false;
@@ -418,3 +477,12 @@ void URCSetAssetByPathBehaviour::UpdateTargetEntity()
 	
 	TargetEntity = ExposedEntity.Pin();
 }
+
+void URCSetAssetByPathBehaviour::RefreshPathArray()
+{
+	if (PathStruct.PathArray.Num() < 1)
+	{
+		PathStruct.PathArray.Add("");
+	}
+}
+

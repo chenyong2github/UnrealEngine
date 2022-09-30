@@ -27,7 +27,11 @@ struct FRCSetAssetPath
 {
 	GENERATED_BODY()
 
-	FRCSetAssetPath() = default;
+	FRCSetAssetPath()
+	{
+		// Add Empty index 0 when creating 
+		PathArray.Add("");
+	}
 	
 	/** An Array of Strings holding the Path of an Asset, seperated in several String. Will concated back together later. */
 	UPROPERTY()
@@ -65,6 +69,9 @@ public:
 
 	/** Auxialiary Function to apply to update the Target Texture */
 	void UpdateTargetEntity();
+
+	/** Called whenever a change has occured in the Slate */
+	void RefreshPathArray();
 	
 public:
 	/** Pointer to property container */

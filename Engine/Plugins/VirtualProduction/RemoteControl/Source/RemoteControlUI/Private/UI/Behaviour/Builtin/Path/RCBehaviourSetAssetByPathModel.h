@@ -78,5 +78,5 @@ private:
 	void RefreshPathAndPreview();
 
 	/** Creates a asset path, based on the selected Asset in the content browser. */
-	void CreateAssetPathFromSelection();
+	void CreateAssetPathFromSelection() const;
 };

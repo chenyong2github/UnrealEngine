@@ -208,9 +208,13 @@ void FRCSetAssetByPathBehaviourModel::RegenerateWeakPtrInternal()
 
 void FRCSetAssetByPathBehaviourModel::RefreshPathAndPreview()
 {
-	TSharedPtr<SVerticalBox> FieldArrayWidget = SNew(SVerticalBox);
+	const TSharedPtr<SVerticalBox> FieldArrayWidget = SNew(SVerticalBox);
 
 	RegenerateWeakPtrInternal();
+	if (URCSetAssetByPathBehaviour* Behaviour = Cast<URCSetAssetByPathBehaviour>(GetBehaviour()))
+	{
+		Behaviour->RefreshPathArray();
+	}
 	
 	for (const TSharedPtr<IDetailTreeNode>& DetailTreeNodeArray : DetailTreeNodeWeakPtrArray)
 	{
@@ -379,17 +383,13 @@ FText FRCSetAssetByPathBehaviourModel::GetSelectedEntityText() const
 }
 
 
-void FRCSetAssetByPathBehaviourModel::CreateAssetPathFromSelection()
+void FRCSetAssetByPathBehaviourModel::CreateAssetPathFromSelection() const
 {
 	URCSetAssetByPathBehaviour* SetAssetByPathBehaviour = Cast<URCSetAssetByPathBehaviour>(GetBehaviour());
 	if (!SetAssetByPathBehaviour)
 	{
 		return;
 	}
-	
-	// Clear it, in case it is an already used one.
-	TArray<FString>& PathArray = SetAssetByPathBehaviour->PathStruct.PathArray;
-	PathArray.Empty();
 	
 	TArray<FAssetData> AssetData;
 	GEditor->GetContentBrowserSelections(AssetData);
@@ -398,6 +398,10 @@ void FRCSetAssetByPathBehaviourModel::CreateAssetPathFromSelection()
 		// Only works with one selected Content
 		return;
 	}
+	
+	// Clear it, in case it is an already used one.
+	TArray<FString>& PathArray = SetAssetByPathBehaviour->PathStruct.PathArray;
+	PathArray.Empty();
 
 	int32 IndexOfLast;
 	const UObject* SelectedAsset = AssetData[0].GetAsset();
