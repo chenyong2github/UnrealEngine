@@ -63,7 +63,7 @@ public:
 	UE_DEPRECATED(5.1, "No longer used, ActiveState must be constructed with the correct number of properties.")
 	void InitActiveParents(int32 ParentCount) {}
 
-	bool IsParentActive(int32 ParentIndex) const
+	bool IsParentActive(uint16 ParentIndex) const
 	{
 		return ActiveState.GetActiveState(ParentIndex);
 	}

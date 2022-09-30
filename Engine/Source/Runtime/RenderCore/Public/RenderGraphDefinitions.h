@@ -606,8 +606,8 @@ struct FRDGTextureDesc : public FRHITextureDesc
 		, uint32              ExtData = 0
 	)
 	{
-		const uint32 Depth = 1;
-		const uint32 ArraySize = 1;
+		const uint16 Depth = 1;
+		const uint16 ArraySize = 1;
 		return FRDGTextureDesc(ETextureDimension::Texture2D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -622,7 +622,7 @@ struct FRDGTextureDesc : public FRHITextureDesc
 		, uint32              ExtData = 0
 	)
 	{
-		const uint32 Depth = 1;
+		const uint16 Depth = 1;
 		return FRDGTextureDesc(ETextureDimension::Texture2DArray, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -635,12 +635,12 @@ struct FRDGTextureDesc : public FRHITextureDesc
 		, uint32              ExtData = 0
 	)
 	{
-		const uint32 ArraySize = 1;
-		const uint32 LocalNumSamples = 1;
+		const uint16 ArraySize = 1;
+		const uint8 LocalNumSamples = 1;
 
 		checkf(Size.Z <= TNumericLimits<decltype(FRDGTextureDesc::Depth)>::Max(), TEXT("Depth parameter (Size.Z) exceeds valid range"));
 
-		return FRDGTextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Size.Z, ArraySize, NumMips, LocalNumSamples, ExtData);
+		return FRDGTextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, (uint16)Size.Z, ArraySize, NumMips, LocalNumSamples, ExtData);
 	}
 
 	static FRDGTextureDesc CreateCube(
@@ -655,8 +655,8 @@ struct FRDGTextureDesc : public FRHITextureDesc
 	{
 		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
 
-		const uint32 Depth = 1;
-		const uint32 ArraySize = 1;
+		const uint16 Depth = 1;
+		const uint16 ArraySize = 1;
 		return FRDGTextureDesc(ETextureDimension::TextureCube, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -673,7 +673,7 @@ struct FRDGTextureDesc : public FRHITextureDesc
 	{
 		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
 
-		const uint32 Depth = 1;
+		const uint16 Depth = 1;
 		return FRDGTextureDesc(ETextureDimension::TextureCubeArray, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 

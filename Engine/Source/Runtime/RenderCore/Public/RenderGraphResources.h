@@ -715,7 +715,7 @@ public:
 		check(Texture->Desc.IsTextureArray());
 		check(SliceIndex >= 0 && SliceIndex < Texture->Desc.ArraySize);
 		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
-		Desc.FirstArraySlice = SliceIndex;
+		Desc.FirstArraySlice = (uint16)SliceIndex;
 		Desc.NumArraySlices = 1;
 		return Desc;
 	}

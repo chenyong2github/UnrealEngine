@@ -918,7 +918,7 @@ private:
 		}
 	}
 
-	void AllocateZeroed(uint32 InSize) 
+	void AllocateZeroed(uint16 InSize) 
 	{
 		Allocate(InSize);
 
@@ -1078,7 +1078,7 @@ public:
 #if PLATFORM_64BITS
 				// Ignoring the lower 4 bits since they are likely zero anyway.
 				// Higher bits are more significant in 64 bit builds.
-				return reinterpret_cast<UPTRINT>(Key) >> 4;
+				return static_cast<uint32>(reinterpret_cast<UPTRINT>(Key) >> 4);
 #else
 				return reinterpret_cast<UPTRINT>(Key);
 #endif
@@ -1132,7 +1132,7 @@ public:
 
 	inline void SetStencilRef(uint32 InStencilRef)
 	{
-		StencilRef = InStencilRef;
+		StencilRef = static_cast<uint8>(InStencilRef);
 		// Verify no overflow
 		checkSlow((uint32)StencilRef == InStencilRef);
 	}

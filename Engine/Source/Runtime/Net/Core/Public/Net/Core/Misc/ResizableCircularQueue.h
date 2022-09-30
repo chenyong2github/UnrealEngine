@@ -267,7 +267,9 @@ void TResizableCircularQueue<T, AllocatorT>::PopNoCheck(SIZE_T Count)
 template<typename T, typename AllocatorT>
 void TResizableCircularQueue<T, AllocatorT>::SetCapacity(SIZE_T RequiredCapacity)
 {
-	SIZE_T NewCapacity = FMath::RoundUpToPowerOfTwo(RequiredCapacity);
+	using SizeType = typename StorageT::SizeType; 
+
+ 	SIZE_T NewCapacity = FMath::RoundUpToPowerOfTwo64(RequiredCapacity);
 
 	if ((NewCapacity == Storage.Num()) || (NewCapacity < Count()))
 	{
@@ -277,7 +279,7 @@ void TResizableCircularQueue<T, AllocatorT>::SetCapacity(SIZE_T RequiredCapacity
 	if (Storage.Num() > 0)
 	{
 		StorageT NewStorage;
-		NewStorage.Empty(NewCapacity);
+		NewStorage.Empty(static_cast<SizeType>(NewCapacity));
 		
 		// copy data to new storage
 		const IndexT MaskedTail = Tail & IndexMask;
@@ -292,25 +294,25 @@ void TResizableCircularQueue<T, AllocatorT>::SetCapacity(SIZE_T RequiredCapacity
 		if ((SrcSize > 0) & (MaskedTail >= MaskedHead))
 		{
 			const SIZE_T CopyCount = (SrcCapacity - MaskedTail);
-			NewStorage.Append(SrcData + MaskedTail, CopyCount);
+			NewStorage.Append(SrcData + MaskedTail, static_cast<SizeType>(CopyCount));
 			NewStorage.Append(SrcData, MaskedHead);
 		}
 		else
 		{
-			NewStorage.Append(SrcData + MaskedTail, SrcSize);
+			NewStorage.Append(SrcData + MaskedTail, static_cast<SizeType>(SrcSize));
 		}
 
-		NewStorage.AddUninitialized(NewCapacity - SrcSize);
+		NewStorage.AddUninitialized(static_cast<SizeType>(NewCapacity - SrcSize));
 
 		this->Storage = MoveTemp(NewStorage);
-		IndexMask = NewCapacity - 1;
+		IndexMask = static_cast<IndexT>(NewCapacity - 1);
 		Tail = 0u;
-		Head = SrcSize;
+		Head = static_cast<IndexT>(SrcSize);
 	}
 	else
 	{
-		IndexMask = NewCapacity - 1;
-		Storage.AddUninitialized(NewCapacity);
+		IndexMask = static_cast<IndexT>(NewCapacity - 1);
+		Storage.AddUninitialized(static_cast<SizeType>(NewCapacity));
 	}
 }
 

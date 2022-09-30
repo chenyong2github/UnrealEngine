@@ -494,7 +494,7 @@ FNetTraceBunchScope<T>::~FNetTraceBunchScope()
 	// Only report if we have a valid collector
 	if (Collector)
 	{
-		FNetTrace::EndBunch(*Collector, FNetTrace::TraceName(Bunch.ChName), StartPos, HeaderBits, Bunch.GetNumBits(), MakeBunchInfo(Bunch));
+		FNetTrace::EndBunch(*Collector, FNetTrace::TraceName(Bunch.ChName), StartPos, HeaderBits, (uint32)Bunch.GetNumBits(), MakeBunchInfo(Bunch));	// LWC_TODO: Precision loss. FNetTrace::EndBunch et al. should take int64 BunchBits?
 	}
 }
 

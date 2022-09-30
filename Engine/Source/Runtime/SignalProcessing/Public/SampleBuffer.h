@@ -118,7 +118,7 @@ namespace Audio
 				// Convert from int to float:
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 				{
-					RawPCMData[SampleIndex] = ((float)InBufferPtr[SampleIndex]) / 32767.0f;
+					RawPCMData[SampleIndex] = (InBufferPtr[SampleIndex] / 32767.0f);
 				}
 			}
 			else
@@ -365,7 +365,7 @@ namespace Audio
 
 				for (int32 SampleIndex = 0; SampleIndex < RawPCMData.Num(); SampleIndex++)
 				{
-					RawPCMData[SampleIndex] = FMath::Clamp<float>(RawPCMData[SampleIndex], ClampMin, Ceiling);
+					RawPCMData[SampleIndex] = static_cast<SampleType>(FMath::Clamp<float>(RawPCMData[SampleIndex], ClampMin, Ceiling));
 				}
 			}
 			else if (TIsSame<SampleType, int16>::Value)
@@ -373,8 +373,8 @@ namespace Audio
 				// int16 case:
 				Ceiling = FMath::Clamp(Ceiling, 0.0f, 1.0f);
 
-				int16 ClampMax = Ceiling * 32767.0f;
-				int16 ClampMin = Ceiling * -32767.0f;
+				int16 ClampMax = static_cast<int16>(Ceiling * 32767.0f);
+				int16 ClampMin = static_cast<int16>(Ceiling * -32767.0f);
 
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 				{
@@ -388,7 +388,7 @@ namespace Audio
 
 				for (int32 SampleIndex = 0; SampleIndex < RawPCMData.Num(); SampleIndex++)
 				{
-					RawPCMData[SampleIndex] = FMath::Clamp<SampleType>(RawPCMData[SampleIndex], ClampMin, Ceiling);
+					RawPCMData[SampleIndex] = static_cast<SampleType>(FMath::Clamp<SampleType>(RawPCMData[SampleIndex], ClampMin, Ceiling));
 				}
 			}
 		}

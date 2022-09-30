@@ -212,12 +212,12 @@ struct FSpectatorScreenModeTexturePlusEyeLayout
 
 	FIntRect GetScaledEyeRect(int SizeX, int SizeY) const
 	{
-		return FIntRect(EyeRectMin.X * SizeX, EyeRectMin.Y * SizeY, EyeRectMax.X * SizeX, EyeRectMax.Y * SizeY);
+		return FIntRect(FIntRect::IntType(EyeRectMin.X * SizeX), FIntRect::IntType(EyeRectMin.Y * SizeY), FIntRect::IntType(EyeRectMax.X * SizeX), FIntRect::IntType(EyeRectMax.Y * SizeY));
 	}
 
 	FIntRect GetScaledTextureRect(int SizeX, int SizeY) const
 	{
-		return FIntRect(TextureRectMin.X * SizeX, TextureRectMin.Y * SizeY, TextureRectMax.X * SizeX, TextureRectMax.Y * SizeY);
+		return FIntRect(FIntRect::IntType(TextureRectMin.X * SizeX), FIntRect::IntType(TextureRectMin.Y * SizeY), FIntRect::IntType(TextureRectMax.X * SizeX), FIntRect::IntType(TextureRectMax.Y * SizeY));
 	}
 
 	FVector2D EyeRectMin;

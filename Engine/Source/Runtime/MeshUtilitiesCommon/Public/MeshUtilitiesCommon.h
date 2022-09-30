@@ -33,7 +33,7 @@ struct FBoneVertInfo
 /** Helper struct for building acceleration structures. */
 struct FIndexAndZ
 {
-	float Z;
+	FVector::FReal Z;
 	int32 Index;
 
 	/** Default constructor. */
@@ -41,6 +41,11 @@ struct FIndexAndZ
 
 	/** Initialization constructor. */
 	FIndexAndZ(int32 InIndex, FVector V)
+	{
+		Z = 0.30f * V.X + 0.33f * V.Y + 0.37f * V.Z;
+		Index = InIndex;
+	}
+	FIndexAndZ(int32 InIndex, FVector3f V)
 	{
 		Z = 0.30f * V.X + 0.33f * V.Y + 0.37f * V.Z;
 		Index = InIndex;
@@ -83,7 +88,7 @@ namespace TriangleUtilities
 	/*
 	 * This function compute the area of a triangle, it will return zero if the triangle is degenerated
 	 */
-	static float ComputeTriangleArea(const FVector& PointA, const FVector& PointB, const FVector& PointC)
+	static double ComputeTriangleArea(const FVector& PointA, const FVector& PointB, const FVector& PointC)
 	{
 		return FVector::CrossProduct((PointB - PointA), (PointC - PointA)).Size() / 2.0f;
 	}
@@ -91,7 +96,7 @@ namespace TriangleUtilities
 	/*
 	 * This function compute the angle of a triangle corner, it will return zero if the triangle is degenerated
 	 */
-	static float ComputeTriangleCornerAngle(const FVector& PointA, const FVector& PointB, const FVector& PointC)
+	static double ComputeTriangleCornerAngle(const FVector& PointA, const FVector& PointB, const FVector& PointC)
 	{
 		FVector E1 = (PointB - PointA);
 		FVector E2 = (PointC - PointA);
@@ -101,7 +106,6 @@ namespace TriangleUtilities
 			//Return a null ratio if the polygon is degenerate
 			return 0.0f;
 		}
-		float DotProduct = FVector::DotProduct(E1, E2);
-		return FMath::Acos(DotProduct);
+		return FMath::Acos(FVector::DotProduct(E1, E2));
 	}
 }

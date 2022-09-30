@@ -1080,7 +1080,7 @@ namespace UE
 				}
 
 				//Allocate the ByteArray
-				OutValue.AddZeroed(AttributeAllocationInfo->Size);
+				OutValue.AddZeroed(static_cast<typename ArrayType::SizeType>(AttributeAllocationInfo->Size));
 				//Copy into the buffer
 				const uint8* StorageData = AttributeStorage.GetData();
 				FMemory::Memcpy(OutValue.GetData(), &StorageData[AttributeAllocationInfo->Offset], AttributeAllocationInfo->Size);

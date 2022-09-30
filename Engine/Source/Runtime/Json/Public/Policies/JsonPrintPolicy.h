@@ -35,7 +35,7 @@ struct TJsonPrintPolicy
 
 		for (int32 CharIndex = 0; CharIndex < String.Len(); ++CharIndex, ++CharPtr)
 		{
-			WriteChar(Stream, *CharPtr);
+			WriteChar(Stream, static_cast<CharType>(*CharPtr));
 		}
 	}
 
