@@ -486,6 +486,8 @@ public:
 	 */
 	IRISCORE_API UObject* GetConnectionUserData(uint32 ConnectionId) const;
 
+	IRISCORE_API int32 GetPIEInstanceID() const { return PIEInstanceID; }
+
 public:
 	// For internal use and not exported.
 
@@ -510,6 +512,8 @@ private:
 	IRISCORE_API void ResetGameWorldState();
 	IRISCORE_API void NotifyStreamingLevelUnload(const UObject* Level);
 
+	IRISCORE_API void SetPIEInstanceID(int32 InPIEInstanceID) { PIEInstanceID = InPIEInstanceID; }
+
 private:
 
 	void PostGarbageCollection();
@@ -523,6 +527,7 @@ private:
 	TObjectPtr<UReplicationBridge> ReplicationBridge;
 
 	uint32 Id;
+	int32 PIEInstanceID;
 	uint32 bIsServer : 1;
 	uint32 bAllowObjectReplication : 1;
 	uint32 bDoCollectGarbage : 1;

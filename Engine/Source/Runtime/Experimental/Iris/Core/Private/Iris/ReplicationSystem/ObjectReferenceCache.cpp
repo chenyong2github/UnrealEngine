@@ -12,6 +12,7 @@
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/ObjectNetSerializer.h"
 #include "UObject/Package.h"
+#include "Misc/CoreMiscDefines.h"
 #include "Net/Core/Trace/NetDebugName.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Core/Public/Misc/StringBuilder.h"
@@ -219,6 +220,21 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	const UPackage* ObjectPackage = Object->GetPackage();
+	if (ObjectPackage->HasAnyPackageFlags(PKG_PlayInEditor))
+	{
+		const int32 ReplicationSystemPIEInstanceID = ReplicationSystem->GetPIEInstanceID();
+		const int32 ObjectPIEInstanceID = ObjectPackage->GetPIEInstanceID();
+
+		if (!ensureAlwaysMsgf(ReplicationSystemPIEInstanceID == ObjectPIEInstanceID, TEXT("FObjectRefereceCache::CreateObjectReferenceInternal: Object %s is not supported since its PIE InstanceID: %d differs from the one of the NetDriver's world PIE InstanceID: %d, it will replicate as an invalid reference."), *GetPathNameSafe(Object), ObjectPIEInstanceID, ReplicationSystemPIEInstanceID))
+		{
+			// Don't replicate references to objects owned by other PIE instances.
+			return false;
+		}
+	}
+#endif
 
 	// Translated from GuidCache, but kept as separate variable to avoid calling the same functions multiple times
 	const bool bIsFullNameStableForNetworking = Object->IsFullNameStableForNetworking();

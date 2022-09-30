@@ -2689,6 +2689,21 @@ bool FNetGUIDCache::SupportsObject( const UObject* Object, const TWeakObjectPtr<
 		return true;
 	}
 
+#if WITH_EDITOR
+	const UPackage* ObjectPackage = Object->GetPackage();
+	if (ObjectPackage->HasAnyPackageFlags(PKG_PlayInEditor))
+	{
+		const int32 DriverPIEInstanceID = Driver->GetWorld() ? Driver->GetWorld()->GetPackage()->GetPIEInstanceID() : INDEX_NONE;
+		const int32 ObjectPIEInstanceID = ObjectPackage->GetPIEInstanceID();
+
+		if (!ensureAlwaysMsgf(DriverPIEInstanceID == ObjectPIEInstanceID, TEXT("FNetGUIDCache::SupportsObject: Object %s is not supported since its PIE InstanceID: %d differs from the one of the NetDriver's world PIE InstanceID: %d, it will replicate as an invalid reference."), *GetPathNameSafe(Object), ObjectPIEInstanceID, DriverPIEInstanceID))
+		{
+			// Don't replicate references to objects owned by other PIE instances.
+			return false;
+		}
+	}
+#endif
+
 	if ( Object->IsFullNameStableForNetworking() )
 	{
 		// If object is fully net addressable, it's definitely supported

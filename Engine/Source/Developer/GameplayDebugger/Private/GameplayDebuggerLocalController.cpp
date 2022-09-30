@@ -769,6 +769,12 @@ void UGameplayDebuggerLocalController::OnSelectionChanged(UObject* Object)
 
 		if (SelectedActor)
 		{
+			// Since this is used from a delegate we need to filter out objects not belonging to the same pie instance/world
+			if (SelectedActor && SelectedActor->GetWorld() != GetWorld())	
+			{
+				return;
+			}
+
 			CachedReplicator->SetDebugActor(SelectedActor, false);
 			CachedReplicator->CollectCategoryData(/*bForce=*/true);
 		}
@@ -777,6 +783,12 @@ void UGameplayDebuggerLocalController::OnSelectionChanged(UObject* Object)
 
 void UGameplayDebuggerLocalController::OnSelectedObject(UObject* Object)
 {
+	// Since this is used from a delegate we need to filter out objects not belonging to the same pie instance/world
+	if (Object && Object->GetWorld() != GetWorld())	
+	{
+		return;
+	}
+
 	AController* SelectedController = Cast<AController>(Object);
 	APawn* SelectedPawn = SelectedController ? SelectedController->GetPawn() : Cast<APawn>(Object);
 	if (CachedReplicator && SelectedPawn && SelectedPawn->IsSelected())
