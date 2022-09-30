@@ -71,7 +71,13 @@ public:
 
 	/** Called when level is added or removed. */
 	void OnLevelsChanged() { RefreshRegions(); };
-	
+
+	/** Called when duplication process is started in the level. */
+	void OnDuplicateActorsBegin() { bDuplicationStarted = true; };
+
+	/** Called when duplication process is ended in the level. */
+	void OnDuplicateActorsEnd();
+
 #if WITH_EDITOR
 	/** A callback for when the level is loaded. */
 	void OnLevelActorListChanged() { RefreshRegions(); };
@@ -113,6 +119,10 @@ private:
 	TSharedPtr< class FColorCorrectRegionsSceneViewExtension, ESPMode::ThreadSafe > PostProcessSceneViewExtension;
 
 	FCriticalSection RegionAccessCriticalSection;
+
+	/** This is to handle actor duplication for Per Actor CC. */
+	bool bDuplicationStarted = false;
+	TArray<AActor*> DuplicatedActors;
 
 public:
 	friend class FColorCorrectRegionsSceneViewExtension;

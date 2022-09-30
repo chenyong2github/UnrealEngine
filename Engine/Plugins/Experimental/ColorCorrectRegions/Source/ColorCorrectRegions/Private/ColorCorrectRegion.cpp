@@ -4,6 +4,7 @@
 #include "ColorCorrectWindow.h"
 #include "Components/BillboardComponent.h"
 #include "ColorCorrectRegionsSubsystem.h"
+#include "ColorCorrectRegionsModule.h"
 #include "UObject/ConstructorHelpers.h"
 #include "CoreMinimal.h"
 #include "Engine/GameEngine.h"
@@ -144,7 +145,7 @@ void AColorCorrectRegion::TransferStencilIds()
 {
 	{
 		TArray<uint32> TempStencilIds;
-		for (TSoftObjectPtr<AActor> StencilActor : AffectedActors)
+		for (const TSoftObjectPtr<AActor>& StencilActor : AffectedActors)
 		{
 			if (!StencilActor.IsValid())
 			{
@@ -176,6 +177,26 @@ void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
 		if (ActorListChangeType == EPropertyChangeType::ArrayAdd
 			|| ActorListChangeType == EPropertyChangeType::ValueSet)
 		{
+			// In case user assigns Color Correct Region or Window, we should remove it as it is invalid operation.
+			{
+				TArray<TSoftObjectPtr<AActor>> ActorsToRemove;
+				for (const TSoftObjectPtr<AActor>& StencilActor : AffectedActors)
+				{
+					if (AColorCorrectRegion* CCRCast = Cast<AColorCorrectRegion>(StencilActor.Get()))
+					{
+						ActorsToRemove.Add(StencilActor);
+					}
+				}
+				if (ActorsToRemove.Num() > 0)
+				{
+					UE_LOG(ColorCorrectRegions, Warning, TEXT("Color Correct Region or Window assignment to Per Actor CC is not supported."));
+				}
+				for (const TSoftObjectPtr<AActor>& StencilActor : ActorsToRemove)
+				{
+					AffectedActors.Remove(StencilActor);
+					AffectedActors.FindOrAdd(TSoftObjectPtr<AActor>());
+				}
+			}
 			bEventHandled = true;
 			if (ColorCorrectRegionsSubsystem)
 			{

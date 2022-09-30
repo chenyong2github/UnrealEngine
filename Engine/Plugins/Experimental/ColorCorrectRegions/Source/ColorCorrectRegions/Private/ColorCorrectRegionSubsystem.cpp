@@ -41,6 +41,12 @@ void UColorCorrectRegionsSubsystem::Initialize(FSubsystemCollectionBase& Collect
 		GEngine->OnLevelActorDeleted().AddUObject(this, &UColorCorrectRegionsSubsystem::OnActorDeleted);
 		GEngine->OnLevelActorListChanged().AddUObject(this, &UColorCorrectRegionsSubsystem::OnLevelActorListChanged);
 		GEditor->RegisterForUndo(this);
+
+		FEditorDelegates::OnDuplicateActorsBegin.AddUObject(this, &UColorCorrectRegionsSubsystem::OnDuplicateActorsBegin);
+		FEditorDelegates::OnDuplicateActorsEnd.AddUObject(this, &UColorCorrectRegionsSubsystem::OnDuplicateActorsEnd);
+
+		FEditorDelegates::OnEditPasteActorsBegin.AddUObject(this, &UColorCorrectRegionsSubsystem::OnDuplicateActorsBegin);
+		FEditorDelegates::OnEditPasteActorsEnd.AddUObject(this, &UColorCorrectRegionsSubsystem::OnDuplicateActorsEnd);
 	}
 #endif
 	// In some cases (like nDisplay nodes) EndPlay is not guaranteed to be called when level is removed.
@@ -58,6 +64,12 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		GEngine->OnLevelActorDeleted().RemoveAll(this);
 		GEngine->OnLevelActorListChanged().RemoveAll(this);
 		GEditor->UnregisterForUndo(this);
+
+		FEditorDelegates::OnDuplicateActorsBegin.RemoveAll(this);
+		FEditorDelegates::OnDuplicateActorsEnd.RemoveAll(this);
+
+		FEditorDelegates::OnEditPasteActorsBegin.RemoveAll(this);
+		FEditorDelegates::OnEditPasteActorsEnd.RemoveAll(this);
 	}
 #endif
 	GetWorld()->OnLevelsChanged().RemoveAll(this);
@@ -113,6 +125,10 @@ void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 			}
 		}
 	}
+	else if (bDuplicationStarted)
+	{
+		DuplicatedActors.Add(InActor);
+	}
 }
 
 void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
@@ -135,6 +151,32 @@ void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 		RegionsPriorityBased.Remove(AsRegion);
 		RegionsDistanceBased.Remove(AsRegion);
 	}
+}
+
+void UColorCorrectRegionsSubsystem::OnDuplicateActorsEnd()
+{
+	bDuplicationStarted = false; 
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		GEditor->BeginTransaction(LOCTEXT("PerActorCCActorAssigned", "Per actor CC Actor Assigned"));
+	}
+#endif
+
+	for (AActor* DuplicatedActor : DuplicatedActors)
+	{
+		FColorCorrectRegionsStencilManager::CleanActor(DuplicatedActor);
+	}
+
+	DuplicatedActors.Empty();
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		this->Modify();
+		GEditor->EndTransaction();
+	}
+#endif
 }
 
 void UColorCorrectRegionsSubsystem::SortRegionsByPriority()

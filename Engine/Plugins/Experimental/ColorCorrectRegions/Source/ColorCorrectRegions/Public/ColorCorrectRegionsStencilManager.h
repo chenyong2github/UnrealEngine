@@ -15,6 +15,7 @@ public:
 		static void OnCCRRemoved(UWorld* CurrentWorld, AColorCorrectRegion* Region);
 		static void ClearInvalidActorsForSelectedRegion(AColorCorrectRegion* Region);
 		static void AssignStencilIdsToAllActorsForCCR(UWorld* CurrentWorld, AColorCorrectRegion* Region, bool bIgnoreUserNotifications, bool bSoftAssign);
+		static void CleanActor(AActor* Actor);
 
 		/** Runs over all actors assigned to the selected Region and makes sure that Stencil Ids match the ones assigned to it. */
 		static void CheckAssignedActorsValidity(AColorCorrectRegion* Region);

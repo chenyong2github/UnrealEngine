@@ -379,6 +379,11 @@ void FColorCorrectRegionsStencilManager::AssignStencilIdsToAllActorsForCCR(UWorl
 	}
 }
 
+void FColorCorrectRegionsStencilManager::CleanActor(AActor* Actor)
+{
+	ClearStencilIdFromActor(Actor);
+}
+
 void FColorCorrectRegionsStencilManager::CheckAssignedActorsValidity(AColorCorrectRegion* Region)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.StencilManager.CheckAssignedActorsValidity %s"), *Region->GetName()));
