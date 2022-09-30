@@ -28,18 +28,16 @@ namespace UE
 				check(InstanceRegistry);
 			}
 
-			void ForEachEntity(FMovieSceneFloatPerlinNoiseChannel FloatPerlinNoiseChannel, FInstanceHandle InstanceHandle, double& OutResult)
+			void ForEachEntity(const FPerlinNoiseParams& PerlinNoiseParams, FInstanceHandle InstanceHandle, double& OutResult)
 			{
 				const FMovieSceneContext& Context = InstanceRegistry->GetContext(InstanceHandle);
 				FFrameTime Time = Context.GetTime();
 				FFrameRate Rate = Context.GetFrameRate();
 
-				const float NoiseResult = FloatPerlinNoiseChannel.Evaluate(Rate.AsSeconds(Time));
+				const float NoiseResult = FMovieSceneFloatPerlinNoiseChannel::Evaluate(PerlinNoiseParams, Rate.AsSeconds(Time));
 				OutResult = (double)NoiseResult;
 			}
 		};
-
-
 	} // namespace MovieScene
 } // namespace UE
 

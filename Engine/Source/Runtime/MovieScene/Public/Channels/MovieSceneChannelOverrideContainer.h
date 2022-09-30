@@ -48,6 +48,12 @@ class MOVIESCENE_API UMovieSceneChannelOverrideContainer : public UMovieSceneSig
 
 public:
 
+	/** Initialize this container 
+	 *
+	 * @param InChannel		The channel being overriden
+	 */
+	virtual void InitializeOverride(FMovieSceneChannel* InChannel) {}
+
 	/** Returns whether this container's underlying channel can be used as an override to the given channel type */
 	virtual bool SupportsOverride(FName DefaultChannelTypeName) const { return false; }
 

@@ -18,6 +18,7 @@ public:
 
 	using ChannelType = FMovieSceneDoublePerlinNoiseChannel;
 
+	void InitializeOverride(FMovieSceneChannel* InChannel) override;
 	bool SupportsOverride(FName DefaultChannelTypeName) const override;
 	void ImportEntityImpl(
 			const UE::MovieScene::FChannelOverrideEntityImportParams& OverrideParams, 

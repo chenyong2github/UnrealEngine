@@ -773,13 +773,19 @@ FMovieSceneTracksComponentTypes* FMovieSceneTracksComponentTypes::Get()
 FPerlinNoiseParams::FPerlinNoiseParams()
 	: Frequency(4.0f)
 	, Amplitude(1.0f)
+	, Offset(0)
 {
 }
 
 FPerlinNoiseParams::FPerlinNoiseParams(float InFrequency, double InAmplitude)
 	: Frequency(InFrequency)
 	, Amplitude(InAmplitude)
+	, Offset(0)
 {
 }
 
+void FPerlinNoiseParams::RandomizeOffset(float InMaxOffset)
+{
+	Offset = FMath::FRand() * InMaxOffset;
+}
 

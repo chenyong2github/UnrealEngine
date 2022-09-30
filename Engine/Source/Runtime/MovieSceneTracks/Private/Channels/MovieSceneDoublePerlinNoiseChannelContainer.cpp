@@ -8,6 +8,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDoublePerlinNoiseChannelContainer)
 
+void UMovieSceneDoublePerlinNoiseChannelContainer::InitializeOverride(FMovieSceneChannel* InChannel)
+{
+	PerlinNoiseChannel.PerlinNoiseParams.RandomizeOffset();
+}
+
 bool UMovieSceneDoublePerlinNoiseChannelContainer::SupportsOverride(FName DefaultChannelTypeName) const
 {
 	return FMovieSceneDoubleChannel::StaticStruct()->GetFName() == DefaultChannelTypeName;

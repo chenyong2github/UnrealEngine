@@ -35,8 +35,15 @@ struct MOVIESCENETRACKS_API FPerlinNoiseParams
 	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
 	double Amplitude;
 
+	/** Starting offset, in seconds, into the noise pattern */
+	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
+	float Offset;
+
 	FPerlinNoiseParams();
 	FPerlinNoiseParams(float InFrequency, double InAmplitude);
+
+	/** Generates a new random offset between [0, InMaxOffset] and sets it */
+	void RandomizeOffset(float InMaxOffset = 100.f);
 };
 
 /** Component data for the level visibility system */

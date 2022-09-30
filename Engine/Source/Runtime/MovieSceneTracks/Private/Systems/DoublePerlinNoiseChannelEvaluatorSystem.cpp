@@ -28,17 +28,15 @@ namespace UE
 				check(InstanceRegistry);
 			}
 
-			void ForEachEntity(FMovieSceneDoublePerlinNoiseChannel DoublePerlinNoiseChannel, FInstanceHandle InstanceHandle, double& OutResult)
+			void ForEachEntity(const FPerlinNoiseParams& PerlinNoiseParams, FInstanceHandle InstanceHandle, double& OutResult)
 			{
 				const FMovieSceneContext& Context = InstanceRegistry->GetContext(InstanceHandle);
 				FFrameTime Time = Context.GetTime();
 				FFrameRate Rate = Context.GetFrameRate();
 
-				OutResult = DoublePerlinNoiseChannel.Evaluate(Rate.AsSeconds(Time));
+				OutResult = FMovieSceneDoublePerlinNoiseChannel::Evaluate(PerlinNoiseParams, Rate.AsSeconds(Time));
 			}
 		};
-
-
 	} // namespace MovieScene
 } // namespace UE
 

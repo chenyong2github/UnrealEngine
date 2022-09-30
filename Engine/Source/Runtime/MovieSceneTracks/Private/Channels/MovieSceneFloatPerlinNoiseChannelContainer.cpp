@@ -9,6 +9,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFloatPerlinNoiseChannelContainer)
 
+void UMovieSceneFloatPerlinNoiseChannelContainer::InitializeOverride(FMovieSceneChannel* InChannel)
+{
+	PerlinNoiseChannel.PerlinNoiseParams.RandomizeOffset();
+}
+
 bool UMovieSceneFloatPerlinNoiseChannelContainer::SupportsOverride(FName DefaultChannelTypeName) const
 {
 	return FMovieSceneFloatChannel::StaticStruct()->GetFName() == DefaultChannelTypeName;

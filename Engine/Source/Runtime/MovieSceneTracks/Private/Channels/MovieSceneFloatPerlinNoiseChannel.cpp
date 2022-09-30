@@ -7,20 +7,12 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneFloatPerlinNoiseChannel)
 
 FMovieSceneFloatPerlinNoiseChannel::FMovieSceneFloatPerlinNoiseChannel()
-	: PerlinNoiseParams{}
-{
-}
-
-FMovieSceneFloatPerlinNoiseChannel::FMovieSceneFloatPerlinNoiseChannel(const FPerlinNoiseParams& InFloatPerlinNoiseParams)
-	: PerlinNoiseParams{ InFloatPerlinNoiseParams }
 {
 }
 
 float FMovieSceneFloatPerlinNoiseChannel::Evaluate(double InSeconds) const
 {
-	float Result = FMath::PerlinNoise1D(InSeconds * PerlinNoiseParams.Frequency);
-	Result *= PerlinNoiseParams.Amplitude;
-	return Result;
+	return Evaluate(PerlinNoiseParams, InSeconds);
 }
 
 bool FMovieSceneFloatPerlinNoiseChannel::Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, float& OutValue) const
@@ -37,5 +29,12 @@ bool FMovieSceneFloatPerlinNoiseChannel::Evaluate(const UMovieSceneSection* InSe
 		}
 	}
 	return false;
+}
+
+float FMovieSceneFloatPerlinNoiseChannel::Evaluate(const FPerlinNoiseParams& InParams, double InSeconds)
+{
+	float Result = FMath::PerlinNoise1D((InSeconds + InParams.Offset) * InParams.Frequency);
+	Result *= InParams.Amplitude;
+	return Result;
 }
 

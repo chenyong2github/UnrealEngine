@@ -15,29 +15,38 @@ struct MOVIESCENETRACKS_API FMovieSceneFloatPerlinNoiseChannel : public FMovieSc
 	using CurveValueType = float;
 
 	FMovieSceneFloatPerlinNoiseChannel();
-	FMovieSceneFloatPerlinNoiseChannel(const FPerlinNoiseParams& InFloatPerlinNoiseParams);
 
 	/**
-	* Evaluate this channel with the frame resolution
-	*
-	* @param InSeconds  The Frame second to evaluate at
-	* @return A value to receive the PerlinNoise result
-	*/
+	 * Evaluate this channel at the given time
+	 *
+	 * @param InSeconds		The time, in seconds, to evaluate at
+	 * @return				The evaluated noise value
+	 */
 	float Evaluate(double InSeconds) const;
 
 	/**
 	 * Evaluate this channel at the given time
 	 *
-	 * @param InSection  The section that contains this channel, used to lookup the sequence's tick resolution
-	 * @param InTime     The time, in ticks, to evaluate at
-	 * @param OutValue   The evaluated noise value
-	 * @return           Whether the noise was successfully evaluated
+	 * @param InSection		The section that contains this channel, used to lookup the sequence's tick resolution
+	 * @param InTime		The time, in ticks, to evaluate at
+	 * @param OutValue		The evaluated noise value
+	 * @return				Whether the noise was successfully evaluated
 	 */
 	bool Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, float& OutValue) const;
 
 	/** The noise parameters */
 	UPROPERTY(EditAnywhere, Category="Perlin Noise")
 	FPerlinNoiseParams PerlinNoiseParams;
+
+	/**
+	 * Evaluate perlin noise
+	 *
+	 * @params InParams			Perlin noise parameters
+	 * @params InInitialOffset	The initial offset for the noise
+	 * @params InSeconds		The time at which to evaluate the noise
+	 * @return					The evaluated noise value
+	 */
+	static float Evaluate(const FPerlinNoiseParams& InParams, double InSeconds);
 };
 
 template<>

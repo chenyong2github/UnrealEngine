@@ -568,6 +568,7 @@ void FChannelGroupModel::OverrideChannels(TSubclassOf<UMovieSceneChannelOverride
 		check(OverrideRegistry);
 
 		UMovieSceneChannelOverrideContainer* OverrideChannelContainer = NewObject<UMovieSceneChannelOverrideContainer>(Section, OverrideClass);
+		OverrideChannelContainer->InitializeOverride(Channel->GetChannel());
 		OverrideRegistry->AddChannel(GetChannelName(), OverrideChannelContainer);	
 		
 		OverrideProvider->OnChannelOverridesChanged();
