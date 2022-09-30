@@ -328,7 +328,7 @@ void FGraphTrackBuilder::AddBox(double Time, double Duration, double Value)
 		FGraphSeries::FBox& LastBox = Series.Boxes.Last();
 		if (LastBox.W == 1.0f && LastBox.X == X1)
 		{
-			const float RoundedBaselineY = FMath::RoundToFloat(Series.GetBaselineY());
+			const float RoundedBaselineY = static_cast<float>(FMath::RoundToFloat(Series.GetBaselineY()));
 
 			if (LastBox.Y < RoundedBaselineY)
 			{

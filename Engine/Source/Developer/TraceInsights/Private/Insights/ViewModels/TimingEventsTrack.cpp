@@ -227,12 +227,12 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 	constexpr float HeaderWidth = 100.0f;
 	constexpr float HeaderHeight = 14.0f;
 
-	const float MouseY = Context.GetMousePosition().Y;
+	const float MouseY = static_cast<float>(Context.GetMousePosition().Y);
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
 		SetHoveredState(true);
 
-		const float MouseX = Context.GetMousePosition().X;
+		const float MouseX = static_cast<float>(Context.GetMousePosition().X);
 		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
 	else
@@ -402,7 +402,7 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 	// If mouse is not above first sub-track or below last sub-track...
 	if (DY >= 0 && DY < TrackLanesHeight)
 	{
-		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
+		const int32 Depth = FMath::RoundToInt(DY / (Layout.EventH + Layout.EventDY));
 		const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
 		const double TimeAtPosX = Viewport.SlateUnitsToTime(InPosX);
 
@@ -465,13 +465,15 @@ void FTimingEventsTrack::DrawSelectedEventInfo(const FString& InText, const FTim
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const float FontScale = DrawContext.Geometry.Scale;
 	const FVector2D Size = FontMeasureService->Measure(InText, Font, FontScale) / FontScale;
-	const float X = Viewport.GetWidth() - Size.X - 23.0f;
-	const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
+	const float W = static_cast<float>(Size.X);
+	const float H = static_cast<float>(Size.Y);
+	const float X = Viewport.GetWidth() - W - 23.0f;
+	const float Y = Viewport.GetPosY() + Viewport.GetHeight() - H - 18.0f;
 
 	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
 	const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
 
-	DrawContext.DrawBox(X - 8.0f, Y - 2.0f, Size.X + 16.0f, Size.Y + 4.0f, WhiteBrush, BackgroundColor);
+	DrawContext.DrawBox(X - 8.0f, Y - 2.0f, W + 16.0f, H + 4.0f, WhiteBrush, BackgroundColor);
 	DrawContext.LayerId++;
 
 	DrawContext.DrawText(X, Y, InText, Font, TextColor);

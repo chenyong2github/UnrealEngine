@@ -92,8 +92,8 @@ void FGraphTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 	constexpr float HeaderWidth = 100.0f;
 	constexpr float HeaderHeight = 14.0f;
 
-	const float MouseX = Context.GetMousePosition().X;
-	const float MouseY = Context.GetMousePosition().Y;
+	const float MouseX = static_cast<float>(Context.GetMousePosition().X);
+	const float MouseY = static_cast<float>(Context.GetMousePosition().Y);
 
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
@@ -149,13 +149,13 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 	// Set clipping area.
 	{
-		const FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
+		const FVector2f AbsPos = FVector2f(DrawContext.Geometry.GetAbsolutePosition());
 		const float Scale = DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
 		const float L = AbsPos.X;
 		const float R = AbsPos.X + (Viewport.GetWidth() * Scale);
 		const float T = AbsPos.Y + (GetPosY() * Scale);
 		const float B = AbsPos.Y + ((GetPosY() + GetHeight()) * Scale);
-		const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+		const FSlateClippingZone ClipZone(FSlateRect(L, T, R, B));
 		DrawContext.ElementList.PushClip(ClipZone);
 	}
 
@@ -209,13 +209,13 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 	// of the fill and the outer lines appear to get rasterized differently, the latter missing one pixel
 	// on its upper side.
 	{
-		const FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
+		const FVector2f AbsPos = FVector2f(DrawContext.Geometry.GetAbsolutePosition());
 		const float Scale = DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
 		const float L = AbsPos.X;
 		const float R = AbsPos.X + (Viewport.GetWidth() * Scale);
 		const float T = AbsPos.Y + ((GetPosY() + (GetBorderY() - 1.0f)) * Scale);
 		const float B = AbsPos.Y + ((GetPosY() + (GetHeight() - (GetBorderY() - 1.0f))) * Scale);
-		const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+		const FSlateClippingZone ClipZone(FSlateRect(L, T, R, B));
 		DrawContext.ElementList.PushClip(ClipZone);
 	}
 
@@ -249,8 +249,8 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*WhiteBrush);
 		const FSlateShaderResourceProxy* ResourceProxy = ResourceHandle.GetResourceProxy();
 
-		FVector2f AtlasOffset = ResourceProxy ? ResourceProxy->StartUV : FVector2f(0.f, 0.f);
-		FVector2f AtlasUVSize = ResourceProxy ? ResourceProxy->SizeUV : FVector2f(1.f, 1.f);
+		FVector2D AtlasOffset = ResourceProxy ? FVector2D(ResourceProxy->StartUV) : FVector2D(0.0, 0.0);
+		FVector2D AtlasUVSize = ResourceProxy ? FVector2D(ResourceProxy->SizeUV) : FVector2D(1.0, 1.0);
 
 		const FVector2D Size = DrawContext.Geometry.GetLocalSize();
 
@@ -268,10 +268,10 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 			Indices.Reserve(LinePoints.Num() * 6);
 			Verts.Reserve(LinePoints.Num() * 2);
 
-			const float TopV = 0.0f;
-			const float BottomV = GetHeight() / Size.Y;
-			const float BaselineY = static_cast<float>(Series.GetBaselineY());
-			const float BaselineV = FMath::Clamp<float>(BaselineY / Size.Y, TopV, BottomV);
+			const double TopV = 0.0;
+			const double BottomV = GetHeight() / Size.Y;
+			const double BaselineY = Series.GetBaselineY();
+			const double BaselineV = FMath::Clamp<double>(BaselineY / Size.Y, TopV, BottomV);
 
 			int32 PrevSide = 0;
 
@@ -285,20 +285,20 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 				{
 					// Compute intersection point.
 					const FVector2D& PrevLinePoint = LinePoints[PointIndex - 1];
-					const float X = PrevLinePoint.X + (LinePoint.X - PrevLinePoint.X) / ((BaselineY - LinePoint.Y) / (PrevLinePoint.Y - BaselineY) + 1.0f);
+					const double X = PrevLinePoint.X + (LinePoint.X - PrevLinePoint.X) / ((BaselineY - LinePoint.Y) / (PrevLinePoint.Y - BaselineY) + 1.0);
 
 					// Add an intersection point vertex.
-					FVector2f UV(X / Size.X, BaselineV);	// LWC_TODO: Precision loss
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + UV * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
+					FVector2D UV(X / Size.X, BaselineV);
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, FVector2f(UV * Size), FVector2f(AtlasOffset + UV * AtlasUVSize), FillColor));
 
 					// Add a value point vertex.
 					UV.X = LinePoint.X / Size.X;
 					UV.Y = TopV + LinePoint.Y / Size.Y;
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + UV * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, FVector2f(UV * Size), FVector2f(AtlasOffset + UV * AtlasUVSize), FillColor));
 
 					// Add a baseline vertex.
 					UV.Y = BaselineV;
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + FVector2f(UV.X, 0.5f) * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, FVector2f(UV * Size), FVector2f(AtlasOffset + FVector2D(UV.X, 0.5) * AtlasUVSize), FillColor));
 
 					int32 Index0 = Verts.Num() - 5;
 					int32 Index1 = Verts.Num() - 4;
@@ -317,12 +317,12 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 				else
 				{
 					// Add a value point vertex.
-					FVector2f UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);	// LWC_TODO: Precision loss
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + UV * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
+					FVector2D UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, FVector2f(UV * Size), FVector2f(AtlasOffset + UV * AtlasUVSize), FillColor));
 
 					// Add a baseline vertex.
 					UV.Y = BaselineV;
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + FVector2f(UV.X, 0.5f) * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, FVector2f(UV * Size), FVector2f(AtlasOffset + FVector2D(UV.X, 0.5) * AtlasUVSize), FillColor));
 
 					if (Verts.Num() >= 4)
 					{
@@ -396,8 +396,8 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 			for (int32 Index = 0; Index < NumPoints; ++Index)
 			{
 				const FVector2D& Pt = Series.Points[Index];
-				const float PtX = Pt.X - PointVisualSize / 2.0f - 0.5f;
-				const float PtY = LocalPosY + Pt.Y - PointVisualSize / 2.0f - 0.5f;
+				const float PtX = static_cast<float>(Pt.X) - PointVisualSize / 2.0f - 0.5f;
+				const float PtY = LocalPosY + static_cast<float>(Pt.Y) - PointVisualSize / 2.0f - 0.5f;
 				DrawContext.DrawBox(PtX, PtY, PointVisualSize + 2.0f, PointVisualSize + 2.0f, PointBrush, Series.BorderColor);
 			}
 			DrawContext.LayerId++;
@@ -407,8 +407,8 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		for (int32 Index = 0; Index < NumPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
-			const float PtX = Pt.X - PointVisualSize / 2.0f + 0.5f;
-			const float PtY = LocalPosY + Pt.Y - PointVisualSize / 2.0f + 0.5f;
+			const float PtX = static_cast<float>(Pt.X) - PointVisualSize / 2.0f + 0.5f;
+			const float PtY = LocalPosY + static_cast<float>(Pt.Y) - PointVisualSize / 2.0f - 0.5f;
 			DrawContext.DrawBox(PtX, PtY, PointVisualSize, PointVisualSize, PointBrush, Series.Color);
 		}
 		DrawContext.LayerId++;
@@ -425,8 +425,8 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 			for (int32 Index = 0; Index < NumPoints; ++Index)
 			{
 				const FVector2D& Pt = Series.Points[Index];
-				const float PtX = Pt.X - BorderPtSize / 2.0f + 0.5f;
-				const float PtY = LocalPosY + Pt.Y - BorderPtSize / 2.0f + 0.5f;
+				const float PtX = static_cast<float>(Pt.X) - BorderPtSize / 2.0f + 0.5f;
+				const float PtY = LocalPosY + static_cast<float>(Pt.Y) - BorderPtSize / 2.0f + 0.5f;
 				DrawContext.DrawBox(PtX, PtY, BorderPtSize, BorderPtSize, BorderBrush, Series.BorderColor);
 				//DrawContext.DrawRotatedBox(PtX, PtY, BorderPtSize, BorderPtSize, BorderBrush, Series.BorderColor, Angle, BorderRotationPoint);
 			}
@@ -439,8 +439,8 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		for (int32 Index = 0; Index < NumPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
-			const float PtX = Pt.X - PtSize / 2.0f + 0.5f;
-			const float PtY = LocalPosY + Pt.Y - PtSize / 2.0f + 0.5f;
+			const float PtX = static_cast<float>(Pt.X) - PtSize / 2.0f + 0.5f;
+			const float PtY = LocalPosY + static_cast<float>(Pt.Y) - PtSize / 2.0f + 0.5f;
 			DrawContext.DrawBox(PtX, PtY, PtSize, PtSize, WhiteBrush, Series.Color);
 			//DrawContext.DrawRotatedBox(PtX, PtY, PtSize, PtSize, WhiteBrush, Series.Color, Angle, RotationPoint);
 		}
@@ -461,14 +461,14 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 
 		// Draw white corner at (0, 0) using MakeLines.
 		{
-			TArray<FVector2D> HLine;
-			HLine.Add(FVector2D(0.0f, 0.0f));
-			HLine.Add(FVector2D(10.0f, 0.0f));
+			TArray<FVector2f> HLine;
+			HLine.Add(FVector2f(0.0f, 0.0f));
+			HLine.Add(FVector2f(10.0f, 0.0f));
 			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, HLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
 
-			TArray<FVector2D> VLine;
-			VLine.Add(FVector2D(0.0f, 0.0f));
-			VLine.Add(FVector2D(0.0f, 10.0f));
+			TArray<FVector2f> VLine;
+			VLine.Add(FVector2f(0.0f, 0.0f));
+			VLine.Add(FVector2f(0.0f, 10.0f));
 			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, VLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
 		}
 		DrawContext.LayerId++;
@@ -484,17 +484,17 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		for (int32 Index = 0; Index < NumDbgPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
-			const float PtX = Pt.X;
-			const float PtY = Pt.Y;
+			const float PtX = static_cast<float>(Pt.X);
+			const float PtY = static_cast<float>(Pt.Y);
 
-			TArray<FVector2D> HLine;
-			HLine.Add(FVector2D(PtX - 7.0f, PtY));
-			HLine.Add(FVector2D(PtX + 8.0f, PtY));
+			TArray<FVector2f> HLine;
+			HLine.Add(FVector2f(PtX - 7.0f, PtY));
+			HLine.Add(FVector2f(PtX + 8.0f, PtY));
 			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, HLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
 
-			TArray<FVector2D> VLine;
-			VLine.Add(FVector2D(PtX, PtY - 7.0f));
-			VLine.Add(FVector2D(PtX, PtY + 8.0f));
+			TArray<FVector2f> VLine;
+			VLine.Add(FVector2f(PtX, PtY - 7.0f));
+			VLine.Add(FVector2f(PtX, PtY + 8.0f));
 			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, VLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
 		}
 		DrawContext.LayerId++;
@@ -503,8 +503,8 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		for (int32 Index = 0; Index < NumDbgPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
-			const float PtX = Pt.X;
-			const float PtY = LocalPosY + Pt.Y;
+			const float PtX = static_cast<float>(Pt.X);
+			const float PtY = LocalPosY + static_cast<float>(Pt.Y);
 			DrawContext.DrawBox(PtX - 5.0f, PtY, 11.0f, PixelUnit, WhiteBrush, Series.Color);
 			DrawContext.DrawBox(PtX, PtY - 5.0f, PixelUnit, 11.0f, WhiteBrush, Series.Color);
 		}

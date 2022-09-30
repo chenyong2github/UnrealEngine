@@ -78,16 +78,17 @@ FText FMemAllocNode::GetTopFunctionOrSourceFile(uint8 Flags) const
 		return FText::FromString(GetCallstackNotAvailableString());
 	}
 
-	const uint32 FrameCount = Callstack->Num();
-	if (FrameCount == 0)
+	const uint32 NumCallstackFrames = Callstack->Num();
+	if (NumCallstackFrames == 0)
 	{
 		return FText::FromString(GetEmptyCallstackString());
 	}
+	check(NumCallstackFrames <= 256); // see Callstack->Frame(uint8)
 
 	const TraceServices::FStackFrame* Frame = nullptr;
-	for (uint32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
+	for (uint32 FrameIndex = 0; FrameIndex < NumCallstackFrames; ++FrameIndex)
 	{
-		Frame = Callstack->Frame(FrameIndex);
+		Frame = Callstack->Frame(static_cast<uint8>(FrameIndex));
 		check(Frame != nullptr);
 
 		if (Frame->Symbol &&

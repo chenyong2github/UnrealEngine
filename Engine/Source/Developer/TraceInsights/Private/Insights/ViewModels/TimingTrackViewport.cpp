@@ -224,7 +224,7 @@ bool FTimingTrackViewport::OnUserScrolled(TSharedPtr<SScrollBar> ScrollBar, floa
 {
 	const double S = 1.0 / (MaxValidTime - MinValidTime);
 	const double Page = EndTime - StartTime;
-	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
+	const float ThumbSizeFraction = FMath::Clamp<float>(static_cast<float>(Page * S), 0.0f, 1.0f);
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
 	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
@@ -245,7 +245,7 @@ void FTimingTrackViewport::UpdateScrollBar(TSharedPtr<SScrollBar> ScrollBar) con
 {
 	const double S = 1.0 / (MaxValidTime - MinValidTime);
 	const double Page = EndTime - StartTime;
-	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
+	const float ThumbSizeFraction = FMath::Clamp<float>(static_cast<float>(Page * S), 0.0f, 1.0f);
 	const float ScrollOffset = static_cast<float>((StartTime - MinValidTime) * S);
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
@@ -258,7 +258,7 @@ bool FTimingTrackViewport::OnUserScrolledY(TSharedPtr<SScrollBar> ScrollBar, flo
 {
 	const float S = 1.0f / ScrollHeight;
 	const float Page = Height - TopOffset - BottomOffset;
-	const float ThumbSizeFraction = FMath::Clamp<float>(Page * S, 0.0f, 1.0f);
+	const float ThumbSizeFraction = FMath::Clamp<float>(static_cast<float>(Page * S), 0.0f, 1.0f);
 	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
 	ScrollBar->SetState(OffsetFraction, ThumbSizeFraction);

@@ -99,7 +99,7 @@ static void AppendMetadataToTooltip(FTooltipDrawState& Tooltip, TArrayView<const
 			break;
 		}
 
-		FString Key(Context.AsLength(), Context.AsCString());
+		FString Key(static_cast<int32>(Context.AsLength()), Context.AsCString());
 		Key += TEXT(":");
 
 		if (!CborReader.ReadNext(Context))
@@ -135,7 +135,7 @@ static void AppendMetadataToTooltip(FTooltipDrawState& Tooltip, TArrayView<const
 
 		case ECborCode::ByteString:
 			{
-				FAnsiStringView Value(Context.AsCString(), Context.AsLength());
+				FAnsiStringView Value(Context.AsCString(), static_cast<int32>(Context.AsLength()));
 				FString ValueStr(Value);
 				Tooltip.AddNameValueTextLine(Key, ValueStr);
 				continue;
@@ -244,7 +244,7 @@ static void AppendMetadataToString(FString& Str, TArrayView<const uint8>& Metada
 
 		case ECborCode::ByteString:
 			{
-				Str.AppendChars(Context.AsCString(), Context.AsLength());
+				Str.AppendChars(Context.AsCString(), static_cast<int32>(Context.AsLength()));
 				continue;
 			}
 		}
@@ -1397,7 +1397,7 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::GetEvent(float InPosX, 
 	// If mouse is not above first sub-track or below last sub-track...
 	if (DY >= 0 && DY < TrackLanesHeight)
 	{
-		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
+		const int32 Depth = FMath::RoundToInt(DY / (Layout.EventH + Layout.EventDY));
 
 		const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
 

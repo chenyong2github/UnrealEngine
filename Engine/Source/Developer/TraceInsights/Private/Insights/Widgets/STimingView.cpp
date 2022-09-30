@@ -548,8 +548,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		OverscrollBottom = FMath::Max(0.0f, OverscrollBottom - InDeltaTime * OverscrollFadeSpeed);
 	}
 
-	const float ViewWidth = AllottedGeometry.GetLocalSize().X;
-	const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
+	const float ViewWidth = static_cast<float>(AllottedGeometry.GetLocalSize().X);
+	const float ViewHeight = static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Update viewport.
@@ -1127,8 +1127,8 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const float FontScale = AllottedGeometry.Scale;
 
-	const float ViewWidth = AllottedGeometry.GetLocalSize().X;
-	const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
+	const float ViewWidth = static_cast<float>(AllottedGeometry.GetLocalSize().X);
+	const float ViewHeight = static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 
 #if 0 // Enabling this may further increase UI performance (TODO: profile if this is really needed again).
 	// Warm up Slate vertex/index buffers to avoid initial freezes due to multiple resizes of those buffers.
@@ -1226,7 +1226,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		PreDrawTracksDurationHistory.AddValue(PreDrawTracksStopwatch.AccumulatedTime);
 	}
 
-	const FVector2D Position = AllottedGeometry.GetAbsolutePosition();
+	const FVector2f Position = FVector2f(AllottedGeometry.GetAbsolutePosition());
 	const float Scale = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale();
 
 	//////////////////////////////////////////////////
@@ -1242,12 +1242,14 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const float TopY = Viewport.GetPosY() + Viewport.GetTopOffset();
 			const float BottomY = Viewport.GetPosY() + Viewport.GetHeight() - Viewport.GetBottomOffset();
 
-			const float L = Position.X;
-			const float R = Position.X + Viewport.GetWidth() * Scale;
-			const float T = Position.Y + TopY * Scale;
-			const float B = Position.Y + BottomY * Scale;
-			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
-			DrawContext.ElementList.PushClip(ClipZone);
+			{
+				const float L = Position.X;
+				const float R = Position.X + Viewport.GetWidth() * Scale;
+				const float T = Position.Y + TopY * Scale;
+				const float B = Position.Y + BottomY * Scale;
+				const FSlateClippingZone ClipZone(FSlateRect(L, T, R, B));
+				DrawContext.ElementList.PushClip(ClipZone);
+			}
 
 			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
 			{
@@ -1277,12 +1279,14 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const float TopY = Viewport.GetPosY();
 			const float BottomY = Viewport.GetPosY() + Viewport.GetTopOffset();
 
-			const float L = Position.X;
-			const float R = Position.X + Viewport.GetWidth() * Scale;
-			const float T = Position.Y + TopY * Scale;
-			const float B = Position.Y + BottomY * Scale;
-			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
-			DrawContext.ElementList.PushClip(ClipZone);
+			{
+				const float L = Position.X;
+				const float R = Position.X + Viewport.GetWidth() * Scale;
+				const float T = Position.Y + TopY * Scale;
+				const float B = Position.Y + BottomY * Scale;
+				const FSlateClippingZone ClipZone(FSlateRect(L, T, R, B));
+				DrawContext.ElementList.PushClip(ClipZone);
+			}
 
 			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 			{
@@ -1307,12 +1311,14 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const float TopY = Viewport.GetPosY() + Viewport.GetHeight() - Viewport.GetBottomOffset();
 			const float BottomY = Viewport.GetPosY() + Viewport.GetHeight();
 
-			const float L = Position.X;
-			const float R = Position.X + Viewport.GetWidth() * Scale;
-			const float T = Position.Y + TopY * Scale;
-			const float B = Position.Y + BottomY * Scale;
-			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
-			DrawContext.ElementList.PushClip(ClipZone);
+			{
+				const float L = Position.X;
+				const float R = Position.X + Viewport.GetWidth() * Scale;
+				const float T = Position.Y + TopY * Scale;
+				const float B = Position.Y + BottomY * Scale;
+				const FSlateClippingZone ClipZone(FSlateRect(L, T, R, B));
+				DrawContext.ElementList.PushClip(ClipZone);
+			}
 
 			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 			{
@@ -1443,7 +1449,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const float R = Position.X + Viewport.GetWidth() * Scale;
 			const float T = Position.Y + TopY * Scale;
 			const float B = Position.Y + BottomY * Scale;
-			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			const FSlateClippingZone ClipZone(FSlateRect(L, T, R, B));
 			DrawContext.ElementList.PushClip(ClipZone);
 			bIsClipZoneSet = true;
 		}
@@ -1525,7 +1531,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		const FSlateFontInfo& SummaryFont = MainFont;
 
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
+		const float MaxFontCharHeight = static_cast<float>(FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale);
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 320.0f;
@@ -1917,7 +1923,7 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 
 	if (bAllowPanningOnScreenEdges)
 	{
-		const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
+		const FVector2f ScreenSpacePosition = FVector2f(MouseEvent.GetScreenSpacePosition());
 		DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(ScreenSpacePosition.X, ScreenSpacePosition.Y);
 
 		EdgeFrameCountX = 0;
@@ -2040,7 +2046,7 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		bIsDragging = false;
 		TimeRulerTrack->StopScrubbing();
 
-		SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
+		SelectionStartTime = Viewport.SlateUnitsToTime(static_cast<float>(MousePositionOnButtonDown.X));
 		SelectionEndTime = SelectionStartTime;
 		LastSelectionType = ESelectionType::None;
 		RaiseSelectionChanging();
@@ -2142,7 +2148,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			if (bIsValidForMouseClick)
 			{
 				// Select the hovered timing event (if any).
-				UpdateHoveredTimingEvent(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
+				UpdateHoveredTimingEvent(static_cast<float>(MousePositionOnButtonUp.X), static_cast<float>(MousePositionOnButtonUp.Y));
 				SelectHoveredTimingTrack();
 				SelectHoveredTimingEvent();
 
@@ -2353,7 +2359,7 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 				if ((int32)PanningMode & (int32)EPanningMode::Vertical)
 				{
-					const float ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
+					const float ScrollPosY = ViewportScrollPosYOnButtonDown + static_cast<float>(MousePositionOnButtonDown.Y - MousePosition.Y);
 					ScrollAtPosY(ScrollPosY);
 				}
 			}
@@ -2364,8 +2370,8 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			{
 				bIsDragging = true;
 
-				SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
-				SelectionEndTime = Viewport.SlateUnitsToTime(MousePosition.X);
+				SelectionStartTime = Viewport.SlateUnitsToTime(static_cast<float>(MousePositionOnButtonDown.X));
+				SelectionEndTime = Viewport.SlateUnitsToTime(static_cast<float>(MousePosition.X));
 				if (SelectionStartTime > SelectionEndTime)
 				{
 					double Temp = SelectionStartTime;
@@ -2381,7 +2387,7 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			if (HasMouseCapture())
 			{
 				bIsDragging = true;
-				double Time = Viewport.SlateUnitsToTime(MousePosition.X);
+				double Time = Viewport.SlateUnitsToTime(static_cast<float>(MousePosition.X));
 
 				// Snap to markers.
 				const bool bSnapTimeMarkers = MarkersTrack->IsVisible();
@@ -2398,7 +2404,7 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 		}
 		else
 		{
-			UpdateHoveredTimingEvent(MousePosition.X, MousePosition.Y);
+			UpdateHoveredTimingEvent(static_cast<float>(MousePosition.X), static_cast<float>(MousePosition.Y));
 		}
 
 		Reply = FReply::Handled();
@@ -2504,8 +2510,8 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	else
 	{
 		// Zoom in/out horizontally.
-		const double Delta = MouseEvent.GetWheelDelta();
-		if (Viewport.RelativeZoomWithFixedX(Delta, MousePosition.X))
+		const float Delta = MouseEvent.GetWheelDelta();
+		if (Viewport.RelativeZoomWithFixedX(Delta, static_cast<float>(MousePosition.X)))
 		{
 			UpdateHorizontalScrollBar();
 		}
@@ -4811,8 +4817,8 @@ TSharedRef<SDockTab> STimingView::SpawnQuickFindTab(const FSpawnTabArgs& Args)
 	if (OwnerWindow.IsValid() && OwnerWindow != FSlateApplication::Get().FindWidgetWindow(SharedThis(this)))
 	{
 		TSharedPtr<SWindow> TopmostAncestor = OwnerWindow->GetTopmostAncestor();
-		const FVector2D DPIProbePoint = TopmostAncestor->GetPositionInScreen() + FVector2D(10.0f, 10.0f);
-		const float LocalDPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DPIProbePoint.X, DPIProbePoint.Y);
+		const FVector2D DPIProbePoint = TopmostAncestor->GetPositionInScreen() + FVector2D(10.0, 10.0);
+		const float LocalDPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(static_cast<float>(DPIProbePoint.X), static_cast<float>(DPIProbePoint.Y));
 		OwnerWindow->Resize(FVector2D(600 * LocalDPIScaleFactor, 400 * LocalDPIScaleFactor));
 	}
 

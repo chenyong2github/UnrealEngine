@@ -327,14 +327,14 @@ void FDrawHelpers::DrawSelection(
 	{
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const float FontScale = DrawContext.Geometry.Scale;
-		const float TextWidth = FontMeasureService->Measure(Text, Font, FontScale).X / FontScale;
+		const float TextWidth = static_cast<float>(FontMeasureService->Measure(Text, Font, FontScale).X / FontScale);
 
 		const float CenterX = (SelectionX1 + SelectionX2) / 2.0f;
 
-		DrawContext.DrawBox(CenterX - TextWidth / 2 - 2.0, ArrowY - 6.0f, TextWidth + 4.0f, 13.0f, Brush, ArrowColor);
+		DrawContext.DrawBox(CenterX - TextWidth / 2.0f - 2.0f, ArrowY - 6.0f, TextWidth + 4.0f, 13.0f, Brush, ArrowColor);
 		DrawContext.LayerId++;
 
-		DrawContext.DrawText(CenterX - TextWidth / 2, ArrowY - 6.0f, Text, Font, FLinearColor::White);
+		DrawContext.DrawText(CenterX - TextWidth / 2.0f, ArrowY - 6.0f, Text, Font, FLinearColor::White);
 		DrawContext.LayerId++;
 	}
 }

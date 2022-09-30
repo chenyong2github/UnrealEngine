@@ -107,7 +107,7 @@ bool AreTableLayoutsEqual(const TraceServices::ITableLayout& TableLayoutA, const
 		return false;
 	}
 
-	int32 ColumnCount = TableLayoutA.GetColumnCount();
+	int32 ColumnCount = static_cast<int32>(TableLayoutA.GetColumnCount());
 	for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 	{
 		if (TableLayoutA.GetColumnType(ColumnIndex) != TableLayoutB.GetColumnType(ColumnIndex))
@@ -159,7 +159,7 @@ bool FUntypedTable::UpdateSourceTable(TSharedPtr<TraceServices::IUntypedTable> I
 void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout)
 {
 	ensure(GetColumnCount() == 0);
-	const int32 ColumnCount = TableLayout.GetColumnCount();
+	const int32 ColumnCount = static_cast<int32>(TableLayout.GetColumnCount());
 
 	//////////////////////////////////////////////////
 	// Hierarchy Column

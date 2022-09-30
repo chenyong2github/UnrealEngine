@@ -509,7 +509,7 @@ void SMemoryProfilerWindow::CreateTimingViewMarkers()
 	{
 		TSharedRef<Insights::FTimeMarker> TimeMarker = MakeShared<Insights::FTimeMarker>();
 
-		TimeMarkerName[0] = TEXT('A') + Index; // "A", "B", "C", etc.
+		TimeMarkerName[0] = static_cast<TCHAR>(TEXT('A') + Index); // "A", "B", "C", etc.
 		TimeMarker->SetName(TimeMarkerName);
 
 		const uint32 HueStep = 256 / MaxNumTimeMarkers;

@@ -140,7 +140,7 @@ void FMarkersTimingTrack::Update(const ITimingTrackUpdateContext& Context)
 
 void FMarkersTimingTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
-	const float MouseY = Context.GetMousePosition().Y;
+	const float MouseY = static_cast<float>(Context.GetMousePosition().Y);
 	SetHoveredState(MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight());
 
 	Header.PostUpdate(Context);
@@ -430,11 +430,7 @@ const TSharedPtr<const ITimingEvent> FMarkersTimingTrack::GetEvent(float InPosX,
 	if (DY >= 0 && DY < GetHeight())
 	{
 		const int32 NumBoxes = TimeMarkerTexts.Num();
-		int32 FoundIndex = Algo::LowerBoundBy(TimeMarkerTexts, InPosX, [](const FTimeMarkerTextInfo& Text)
-		{
-			return Text.X;
-		});
-
+		int32 FoundIndex = Algo::LowerBoundBy(TimeMarkerTexts, InPosX, [](const FTimeMarkerTextInfo& Text) { return Text.X; });
 		if (FoundIndex > 0)
 		{
 			--FoundIndex;
@@ -451,7 +447,7 @@ const TSharedPtr<const ITimingEvent> FMarkersTimingTrack::GetEvent(float InPosX,
 			Width = TimeMarkerTexts[FoundIndex + 1].X;
 		}
 
-		uint16 ScreenshotId = std::numeric_limits<uint16>::max();
+		uint32 ScreenshotId = TraceServices::FScreenshot::InvalidScreenshotId;
 
 		const FTimeMarkerTextInfo& Text = TimeMarkerTexts[FoundIndex];
 
@@ -468,15 +464,17 @@ const TSharedPtr<const ITimingEvent> FMarkersTimingTrack::GetEvent(float InPosX,
 			{
 				if (Message.Category == this->ScreenshotCategory)
 				{
+					check(Message.Line >= 0);
 					ScreenshotId = Message.Line;
 				}
 			});
 
-		if (ScreenshotId == std::numeric_limits<uint16>::max())
+		if (ScreenshotId == TraceServices::FScreenshot::InvalidScreenshotId)
 		{
 			return TimingEvent;
 		}
 
+		//TODO: make a custom FScreenshotEvent
 		TimingEvent = MakeShared<FTimingEvent>(SharedThis(this), Viewport.SlateUnitsToTime(Text.X), Viewport.SlateUnitsToTime(Text.X + Width), 0, ScreenshotId);
 	}
 

@@ -107,7 +107,7 @@ void FMemAllocGroupingBySize::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 			uint32 ThresholdIndex;
 			if (bIsPow2)
 			{
-				ThresholdIndex = 64 - FMath::CountLeadingZeros64(Size);
+				ThresholdIndex = 64u - static_cast<uint32>(FMath::CountLeadingZeros64(Size));
 			}
 			else
 			{

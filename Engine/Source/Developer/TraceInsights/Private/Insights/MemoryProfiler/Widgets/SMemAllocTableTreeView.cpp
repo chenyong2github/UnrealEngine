@@ -151,7 +151,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 						continue;
 					}
 
-					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, Alloc->GetStartEventIndex() + 1);
+					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, static_cast<int32>(Alloc->GetStartEventIndex() + 1));
 					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
 					TableTreeNodes.Add(NodePtr);
 				}
@@ -378,7 +378,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 				const uint32 AllocCount = Result->Num();
 				TotalAllocCount += AllocCount;
 
-				uint64 AllocsDestIndex = Allocs.Num();
+				int32 AllocsDestIndex = Allocs.Num();
 				Allocs.AddUninitialized(AllocCount);
 
 				for (uint32 AllocIndex = 0; AllocIndex < AllocCount; ++AllocIndex, ++AllocsDestIndex)
@@ -558,7 +558,7 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBox)
-			.MinDesiredWidth(150)
+			.MinDesiredWidth(150.0f)
 			[
 				SAssignNew(PresetComboBox, SComboBox<TSharedRef<ITableTreeViewPreset>>)
 				.ToolTipText(this, &SMemAllocTableTreeView::ViewPreset_GetSelectedToolTipText)
@@ -1489,9 +1489,10 @@ uint32 SMemAllocTableTreeView::CountSourceFiles(FMemAllocNode& MemAllocNode)
 
 	uint32 NumSourceFiles = 0;
 	const uint32 NumCallstackFrames = Alloc->Callstack->Num();
+	check(NumCallstackFrames <= 256); // see Callstack->Frame(uint8)
 	for (uint32 FrameIndex = 0; FrameIndex < NumCallstackFrames; ++FrameIndex)
 	{
-		const TraceServices::FStackFrame* Frame = Alloc->Callstack->Frame(FrameIndex);
+		const TraceServices::FStackFrame* Frame = Alloc->Callstack->Frame(static_cast<uint8>(FrameIndex));
 		if (Frame && Frame->Symbol && Frame->Symbol->File)
 		{
 			++NumSourceFiles;
@@ -1518,9 +1519,10 @@ void SMemAllocTableTreeView::BuildOpenSourceSubMenu(FMenuBuilder& MenuBuilder)
 				ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
 
 				const uint32 NumCallstackFrames = Alloc->Callstack->Num();
+				check(NumCallstackFrames <= 256); // see Callstack->Frame(uint8)
 				for (uint32 FrameIndex = 0; FrameIndex < NumCallstackFrames; ++FrameIndex)
 				{
-					const TraceServices::FStackFrame* Frame = Alloc->Callstack->Frame(FrameIndex);
+					const TraceServices::FStackFrame* Frame = Alloc->Callstack->Frame(static_cast<uint8>(FrameIndex));
 					if (Frame && Frame->Symbol && Frame->Symbol->File)
 					{
 						FText ItemLabel;

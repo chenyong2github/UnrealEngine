@@ -83,7 +83,7 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 
 	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())
 	{
-		const int32 TotalRowCount = SourceTable->GetRowCount();
+		const int32 TotalRowCount = static_cast<int32>(SourceTable->GetRowCount());
 		if (TotalRowCount != TableTreeNodes.Num())
 		{
 			TableTreeNodes.Empty(TotalRowCount);

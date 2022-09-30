@@ -87,10 +87,11 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 			else if (Callstack)
 			{
 				NumFrames = static_cast<int32>(Callstack->Num());
+				check(NumFrames <= 256); // see Callstack->Frame(uint8)
 
 				for (int32 FrameDepth = NumFrames - 1; FrameDepth >= 0; --FrameDepth)
 				{
-					const TraceServices::FStackFrame* Frame = Callstack->Frame(bIsInverted ? NumFrames - FrameDepth - 1 : FrameDepth);
+					const TraceServices::FStackFrame* Frame = Callstack->Frame(static_cast<uint8>(bIsInverted ? NumFrames - FrameDepth - 1 : FrameDepth));
 					check(Frame != nullptr);
 
 					if (bIsGroupingByFunction)

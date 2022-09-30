@@ -1872,7 +1872,7 @@ void SStatsView::RebuildTree(bool bResync)
 
 		const TraceServices::ICounterProvider& CountersProvider = TraceServices::ReadCounterProvider(*Session.Get());
 
-		const uint32 CounterCount = CountersProvider.GetCounterCount();
+		const uint32 CounterCount = static_cast<uint32>(CountersProvider.GetCounterCount());
 		if (CounterCount != PreviousNodeCount)
 		{
 			check(CounterCount > PreviousNodeCount);

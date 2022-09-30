@@ -110,15 +110,17 @@ TSharedPtr<Insights::FTimeMarker> FTimeRulerTrack::GetTimeMarkerAtPos(const FVec
 	TSharedPtr<Insights::FTimeMarker> ClosestTimeMarker = nullptr;
 
 	constexpr float TimeMarkerBoxHeight = 12.0f;
-	if (InPosition.Y >= GetPosY() && InPosition.Y < GetPosY() + TimeMarkerBoxHeight)
+	const float InPositionY = static_cast<float>(InPosition.Y);
+	if (InPositionY >= GetPosY() && InPositionY < GetPosY() + TimeMarkerBoxHeight)
 	{
+		const float InPositionX = static_cast<float>(InPosition.X);
 		float MinDX = 42.0f;
 		for (TSharedRef<Insights::FTimeMarker>& TimeMarker : TimeMarkers)
 		{
 			if (TimeMarker->IsVisible())
 			{
 				const float MarkerX = InViewport.TimeToSlateUnitsRounded(TimeMarker->GetTime());
-				const float DX = FMath::Abs(InPosition.X - MarkerX);
+				const float DX = FMath::Abs(InPositionX - MarkerX);
 				if (DX <= MinDX)
 				{
 					MinDX = DX;
@@ -159,11 +161,11 @@ void FTimeRulerTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 	//constexpr float HeaderWidth = 100.0f;
 	//constexpr float HeaderHeight = 14.0f;
 
-	const float MouseY = Context.GetMousePosition().Y;
+	const float MouseY = static_cast<float>(Context.GetMousePosition().Y);
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
 		SetHoveredState(true);
-		//const float MouseX = Context.GetMousePosition().X;
+		//const float MouseX = static_cast<float>(Context.GetMousePosition().X);
 		//SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
 	else
@@ -225,7 +227,7 @@ void FTimeRulerTrack::Draw(const ITimingTrackDrawContext& Context) const
 	{
 		const double T = Viewport.SlateUnitsToTime(X);
 		FString Text = TimeUtils::FormatTime(T, Precision);
-		const float TextWidth = FontMeasureService->Measure(Text, Font, FontScale).X / FontScale;
+		const float TextWidth = static_cast<float>(FontMeasureService->Measure(Text, Font, FontScale).X / FontScale);
 		DrawContext.DrawText(X - TextWidth / 2, TextY, Text, Font,
 			(T < Viewport.GetMinValidTime() || T >= Viewport.GetMaxValidTime()) ? FLinearColor(0.7f, 0.5f, 0.5f, 1.0f) : FLinearColor(0.8f, 0.8f, 0.8f, 1.0f));
 	}
@@ -251,7 +253,7 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 
 		// Time at current mouse position.
 		FString MousePosText;
-		const double MousePosTime = Viewport.SlateUnitsToTime(MousePosition.X);
+		const double MousePosTime = Viewport.SlateUnitsToTime(static_cast<float>(MousePosition.X));
 		CrtMousePosTime = MousePosTime;
 
 		const double DT = 100.0 / Viewport.GetScaleX();
@@ -270,7 +272,7 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const float FontScale = DrawContext.Geometry.Scale;
 
-		const float MousePosTextWidth = FMath::RoundToFloat(FontMeasureService->Measure(MousePosText, Font, FontScale).X / FontScale);
+		const float MousePosTextWidth = FMath::RoundToFloat(static_cast<float>(FontMeasureService->Measure(MousePosText, Font, FontScale).X / FontScale));
 
 		if (!FMath::IsNearlyEqual(CrtMousePosTextWidth, MousePosTextWidth))
 		{
@@ -280,7 +282,7 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 
 		const float TextY = GetPosY() + 11.0f;
 
-		float X = MousePosition.X;
+		float X = static_cast<float>(MousePosition.X);
 		float W = CrtMousePosTextWidth + 4.0f;
 		if (bIsSelecting && SelectionStartTime < SelectionEndTime)
 		{
@@ -289,32 +291,32 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 			float SelectionX2 = Viewport.TimeToSlateUnitsRounded(SelectionEndTime);
 			if (FMath::Abs(X - SelectionX1) > FMath::Abs(SelectionX2 - X))
 			{
-				X = SelectionX2 + W / 2;
+				X = SelectionX2 + W / 2.0f;
 			}
 			else
 			{
-				X = SelectionX1 - W / 2;
+				X = SelectionX1 - W / 2.0f;
 			}
 			MousePosTextForegroundColor = FLinearColor(0.01f, 0.05f, 0.2f, 1.0f);
 		}
 		else
 		{
 			// Draw horizontal line at mouse position.
-			//DrawContext.DrawBox(0.0f, MousePosition.Y, Viewport.Width, 1.0f, WhiteBrush, MousePosLineColor);
+			//DrawContext.DrawBox(0.0f, static_cast<float>(MousePosition.Y), Viewport.Width, 1.0f, WhiteBrush, MousePosLineColor);
 
 			// Draw vertical line at mouse position.
-			DrawContext.DrawBox(MousePosition.X, Viewport.GetPosY(), 1.0f, Viewport.GetHeight(), WhiteBrush, MousePosLineColor);
+			DrawContext.DrawBox(static_cast<float>(MousePosition.X), Viewport.GetPosY(), 1.0f, Viewport.GetHeight(), WhiteBrush, MousePosLineColor);
 
 			// Stroke the vertical line above current time box.
-			DrawContext.DrawBox(MousePosition.X, GetPosY(), 1.0f, TextY - GetPosY(), WhiteBrush, MousePosTextBackgroundColor);
+			DrawContext.DrawBox(static_cast<float>(MousePosition.X), GetPosY(), 1.0f, TextY - GetPosY(), WhiteBrush, MousePosTextBackgroundColor);
 		}
 
 		// Fill the current time box.
-		DrawContext.DrawBox(X - W / 2, TextY, W, 12.0f, WhiteBrush, MousePosTextBackgroundColor);
+		DrawContext.DrawBox(X - W / 2.0f, TextY, W, 12.0f, WhiteBrush, MousePosTextBackgroundColor);
 		DrawContext.LayerId++;
 
 		// Draw current time text.
-		DrawContext.DrawText(X - MousePosTextWidth / 2, TextY, MousePosText, Font, MousePosTextForegroundColor);
+		DrawContext.DrawText(X - MousePosTextWidth / 2.0f, TextY, MousePosText, Font, MousePosTextForegroundColor);
 		DrawContext.LayerId++;
 	}
 
@@ -404,7 +406,7 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const float FontScale = DrawContext.Geometry.Scale;
 
-	const float TextWidth = FMath::RoundToFloat(FontMeasureService->Measure(TimeMarkerText, Font, FontScale).X / FontScale);
+	const float TextWidth = FMath::RoundToFloat(static_cast<float>(FontMeasureService->Measure(TimeMarkerText, Font, FontScale).X / FontScale));
 
 	if (!FMath::IsNearlyEqual(TimeMarker.GetCrtTextWidth(), TextWidth))
 	{

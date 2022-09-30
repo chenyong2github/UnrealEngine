@@ -39,6 +39,7 @@ namespace TraceServices
 namespace Insights
 {
 
+class FFilterConfigurator;
 class FTable;
 class FTableColumn;
 class FTreeNodeGrouping;

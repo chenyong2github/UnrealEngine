@@ -171,8 +171,8 @@ void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	if (ThisGeometry != AllottedGeometry || bIsViewportDirty)
 	{
 		bIsViewportDirty = false;
-		const float ViewWidth = AllottedGeometry.GetLocalSize().X;
-		const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
+		const float ViewWidth = static_cast<float>(AllottedGeometry.GetLocalSize().X);
+		const float ViewHeight = static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 		Viewport.SetSize(ViewWidth, ViewHeight);
 		bIsStateDirty = true;
 	}
@@ -384,7 +384,7 @@ void SPacketView::UpdateState()
 
 										if (bEventMatchesFilter)
 										{
-											const uint32 EventSize = Event.EndPos - Event.StartPos;
+											const uint32 EventSize = static_cast<uint32>(Event.EndPos - Event.StartPos);
 											FilterMatchAggregatedEventSizeInBits += EventSize;
 											FilterMatchMaxEventSizeBits = FMath::Max(FilterMatchMaxEventSizeBits, EventSize);
 
@@ -434,7 +434,7 @@ void SPacketView::UpdateState()
 		for (int32 PacketIndex = StartIndex; PacketIndex < EndIndex; ++PacketIndex)
 		{
 			FRandomStream RandomStream((PacketIndex * PacketIndex * PacketIndex) ^ 0x2c2c57ed);
-			int64 Size = RandomStream.RandRange(0, 2000);
+			const uint32 Size = static_cast<uint32>(RandomStream.RandRange(0, 2000));
 
 			TraceServices::ENetProfilerDeliveryStatus Status = TraceServices::ENetProfilerDeliveryStatus::Unknown;
 			const float Fraction = RandomStream.GetFraction();
@@ -502,12 +502,12 @@ FNetworkPacketSampleRef SPacketView::GetSample(const int32 InPacketIndex)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(float X, float Y)
+FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(double X, double Y)
 {
 	if (!bIsStateDirty)
 	{
 		float SampleW = Viewport.GetSampleWidth();
-		int32 SampleIndex = FMath::FloorToInt(X / SampleW);
+		int32 SampleIndex = FMath::FloorToInt(static_cast<float>(X) / SampleW);
 		if (SampleIndex >= 0)
 		{
 			if (PacketSeries->NumAggregatedPackets > 0 &&
@@ -529,7 +529,9 @@ FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(float X, float Y)
 					const float BottomY = FMath::Min(ViewHeight, ViewHeight - BaselineY + ToleranceY);
 					const float TopY = FMath::Max(0.0f, ViewHeight - ValueY - ToleranceY);
 
-					if (Y >= TopY && Y < BottomY)
+					const float MY = static_cast<float>(Y);
+
+					if (MY >= TopY && MY < BottomY)
 					{
 						return FNetworkPacketSampleRef(PacketSeries, MakeShared<FNetworkPacketAggregatedSample>(Sample));
 					}
@@ -542,16 +544,16 @@ FNetworkPacketSampleRef SPacketView::GetSampleAtMousePosition(float X, float Y)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketView::SelectSampleAtMousePosition(float X, float Y, const FPointerEvent& MouseEvent)
+void SPacketView::SelectSampleAtMousePosition(double X, double Y, const FPointerEvent& MouseEvent)
 {
 	FNetworkPacketSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
 	{
-		SampleRef = GetSampleAtMousePosition(X - 1.0f, Y);
+		SampleRef = GetSampleAtMousePosition(X - 1.0, Y);
 	}
 	if (!SampleRef.IsValid())
 	{
-		SampleRef = GetSampleAtMousePosition(X + 1.0f, Y);
+		SampleRef = GetSampleAtMousePosition(X + 1.0, Y);
 	}
 
 	bool bRaiseSelectionChanged = false;
@@ -687,8 +689,8 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
 
-	const float ViewWidth = AllottedGeometry.Size.X;
-	const float ViewHeight = AllottedGeometry.Size.Y;
+	const float ViewWidth = static_cast<float>(AllottedGeometry.Size.X);
+	const float ViewHeight = static_cast<float>(AllottedGeometry.Size.Y);
 
 	int32 NumDrawSamples = 0;
 
@@ -805,7 +807,7 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont, FontScale) / FontScale;
 
 			const float DX = 2.0f;
-			const float W2 = TextSize.X / 2 + DX;
+			const float W2 = static_cast<float>(TextSize.X) / 2 + DX;
 
 			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
@@ -836,7 +838,7 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
 	if (bShouldDisplayDebugInfo)
 	{
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
+		const float MaxFontCharHeight = static_cast<float>(FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale);
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 280.0f;
@@ -985,13 +987,14 @@ void SPacketView::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 			const int64 ValueBits = static_cast<int64>(Value);
 			const FString Text = (ValueBits == 0) ? TEXT("0") : FString::Format(TEXT("{0} bits"), { FText::AsNumber(ValueBits).ToString() });
 			const FVector2D TextSize = FontMeasureService->Measure(Text, Font, FontScale) / FontScale;
+			const float TextW = static_cast<float>(TextSize.X);
 			constexpr float TextH = 14.0f;
 
 			// Draw background for value text.
-			DrawContext.DrawBox(ViewWidth - TextSize.X - 4.0f, Y - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+			DrawContext.DrawBox(ViewWidth - TextW - 4.0f, Y - TextH, TextW + 4.0f, TextH, Brush, TextBgColor);
 
 			// Draw value text.
-			DrawContext.DrawText(ViewWidth - TextSize.X - 2.0f, Y - TextH + 1.0f, Text, Font, TextColor);
+			DrawContext.DrawText(ViewWidth - TextW - 2.0f, Y - TextH + 1.0f, Text, Font, TextColor);
 		}
 		DrawContext.LayerId++;
 	}
@@ -1034,7 +1037,7 @@ void SPacketView::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 		const int32 Grid = ((Delta + Power10 - 1) / Power10) * Power10; // next value divisible with a multiple of 10
 
 		// Skip grid lines for negative indices.
-		double StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
+		int32 StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
 		while (StartIndex < 0)
 		{
 			StartIndex += Grid;
@@ -1121,7 +1124,7 @@ FReply SPacketView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsValidForMouseClick)
 			{
-				SelectSampleAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y, MouseEvent);
+				SelectSampleAtMousePosition(static_cast<float>(MousePositionOnButtonUp.X), static_cast<float>(MousePositionOnButtonUp.Y), MouseEvent);
 			}
 
 			bIsLMB_Pressed = false;
@@ -1178,7 +1181,7 @@ FReply SPacketView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 				}
 
 				FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
-				const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+				const float PosX = ViewportPosXOnButtonDown + static_cast<float>(MousePositionOnButtonDown.X - MousePosition.X);
 				ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(PosX)); // align viewport position with sample
 				UpdateHorizontalScrollBar();
 				bIsStateDirty = true;
@@ -1193,11 +1196,11 @@ FReply SPacketView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
 			if (!HoveredSample.IsValid())
 			{
-				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0, MousePosition.Y);
 			}
 			if (!HoveredSample.IsValid())
 			{
-				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0, MousePosition.Y);
 			}
 		}
 
@@ -1239,17 +1242,17 @@ FReply SPacketView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 		FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 		// Zoom in/out vertically.
-		const float Delta = MouseEvent.GetWheelDelta();
-		constexpr float ZoomStep = 0.25f; // as percent
-		float ScaleY;
+		const double Delta = MouseEvent.GetWheelDelta();
+		constexpr double ZoomStep = 0.25; // as percent
+		double ScaleY;
 
 		if (Delta > 0)
 		{
-			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f + ZoomStep, Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0 + ZoomStep, Delta);
 		}
 		else
 		{
-			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
 		}
 
 		ViewportY.SetScale(ScaleY);
@@ -1259,7 +1262,7 @@ FReply SPacketView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	{
 		// Zoom in/out horizontally.
 		const float Delta = MouseEvent.GetWheelDelta();
-		ZoomHorizontally(Delta, MousePosition.X);
+		ZoomHorizontally(Delta, static_cast<float>(MousePosition.X));
 	}
 
 	return FReply::Handled();
@@ -1361,12 +1364,12 @@ FReply SPacketView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsShiftDown())
 		{
 			FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
-			const float ScaleY = ViewportY.GetScale() * 1.25f;
+			const double ScaleY = ViewportY.GetScale() * 1.25;
 			ViewportY.SetScale(ScaleY);
 		}
 		else
 		{
-			ZoomHorizontally(1.0f, MousePosition.X);
+			ZoomHorizontally(1.0f, static_cast<float>(MousePosition.X));
 		}
 		return FReply::Handled();
 	}
@@ -1376,12 +1379,12 @@ FReply SPacketView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsShiftDown())
 		{
 			FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
-			const float ScaleY = ViewportY.GetScale() * 0.8f;
+			const double ScaleY = ViewportY.GetScale() * 0.8;
 			ViewportY.SetScale(ScaleY);
 		}
 		else
 		{
-			ZoomHorizontally(-1.0f, MousePosition.X);
+			ZoomHorizontally(-1.0f, static_cast<float>(MousePosition.X));
 		}
 		return FReply::Handled();
 	}

@@ -250,7 +250,9 @@ void FTraceInsightsModule::CreateSessionBrowser(const FCreateSessionBrowserParam
 	// Get desktop metrics. It also ensures the correct metrics will be used later in SWindow.
 	FDisplayMetrics DisplayMetrics;
 	FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
-	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
+	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(
+		static_cast<float>(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left),
+		static_cast<float>(DisplayMetrics.PrimaryDisplayWorkAreaRect.Top));
 
 	const FVector2D ClientSize(960.0f * DPIScaleFactor, 640.0f * DPIScaleFactor);
 
@@ -342,7 +344,9 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 	// Get desktop metrics. It also ensures the correct metrics will be used later in SWindow.
 	FDisplayMetrics DisplayMetrics;
 	FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
-	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
+	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(
+		static_cast<float>(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left),
+		static_cast<float>(DisplayMetrics.PrimaryDisplayWorkAreaRect.Top));
 
 	const FVector2D ClientSize(1280.f * DPIScaleFactor, 720.0f * DPIScaleFactor);
 

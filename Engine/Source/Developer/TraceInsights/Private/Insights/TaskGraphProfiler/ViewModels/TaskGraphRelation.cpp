@@ -88,32 +88,32 @@ void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrac
 
 	const FVector2D StartPoint = FVector2D(X1, Y1);
 	const FVector2D EndPoint = FVector2D(X2, Y2);
-	const float Distance = FVector2D::Distance(StartPoint, EndPoint);
+	const double Distance = FVector2D::Distance(StartPoint, EndPoint);
 
-	constexpr float LineHeightAtStart = 4.0f;
-	constexpr float LineLengthAtStart = 4.0f;
-	constexpr float LineLengthAtEnd = 12.0f;
+	constexpr double LineHeightAtStart = 4.0;
+	constexpr double LineLengthAtStart = 4.0;
+	constexpr double LineLengthAtEnd = 12.0;
 
-	const FVector2D StartDir(FMath::Max(X2 - X1, 4.0f * (LineLengthAtStart + LineLengthAtEnd)), 0.0f);
+	const FVector2D StartDir(FMath::Max(static_cast<double>(X2 - X1), 4.0 * (LineLengthAtStart + LineLengthAtEnd)), 0.0);
 
 	constexpr float OutlineThickness = 5.0f;
 	constexpr float LineThickness = 3.0f;
 
-	constexpr float ArrowDirectionLen = 10.0f;
-	constexpr float ArrowRotationAngle = 20.0f;
-	FVector2D ArrowDirection(-ArrowDirectionLen, 0.0f);
+	constexpr double ArrowDirectionLen = 10.0;
+	constexpr double ArrowRotationAngle = 20.0;
+	FVector2D ArrowDirection(-ArrowDirectionLen, 0.0);
 
 	const FLinearColor OutlineColor(0.0f, 0.0f, 0.0f, 1.0f);
 	const FLinearColor Color = FTaskGraphProfilerManager::Get()->GetColorForTaskEvent(Type);
 
 	TArray<FVector2D> LinePoints;
-	LinePoints.Add(StartPoint + FVector2D(0.0f, -LineHeightAtStart / 2.0f));
-	LinePoints.Add(StartPoint + FVector2D(0.0f, +LineHeightAtStart / 2.0f));
+	LinePoints.Add(StartPoint + FVector2D(0.0, -LineHeightAtStart / 2.0));
+	LinePoints.Add(StartPoint + FVector2D(0.0, +LineHeightAtStart / 2.0));
 	DrawContext.DrawLines(OutlineLayerId, 0.0f, 0.0f, LinePoints, ESlateDrawEffect::None, OutlineColor, /*bAntialias=*/ true, OutlineThickness);
 	DrawContext.DrawLines(LayerId, 0.0f, 0.0f, LinePoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, LineThickness);
 
-	constexpr float MinDistance = 1.5f * (LineLengthAtStart + LineLengthAtEnd);
-	constexpr float MaxDistance = 10000.0f; // arbitrary limit to avoid stack overflow in recursive FLineBuilder::Subdivide when rendering splines
+	constexpr double MinDistance = 1.5 * (LineLengthAtStart + LineLengthAtEnd);
+	constexpr double MaxDistance = 10000.0; // arbitrary limit to avoid stack overflow in recursive FLineBuilder::Subdivide when rendering splines
 	if (Distance > MinDistance && Distance < MaxDistance && !FMath::IsNearlyEqual(StartPoint.Y, EndPoint.Y))
 	{
 		FVector2D SplineStart(StartPoint.X + LineLengthAtStart, StartPoint.Y);

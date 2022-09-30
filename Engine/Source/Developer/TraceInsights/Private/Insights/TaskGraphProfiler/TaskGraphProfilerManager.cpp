@@ -509,25 +509,24 @@ void FTaskGraphProfilerManager::InitializeColorCode()
 {
 	auto ToLiniarColorNoAlpha = [](uint32 Value)
 	{
-		float R = (Value & 0xFF000000) >> 24;
-		float G = (Value & 0x00FF0000) >> 16;
-		float B = (Value & 0x0000FF00) >> 8;
-
-		return FLinearColor(R / 255, G / 255, B / 255);
+		const float R = static_cast<float>((Value & 0xFF000000) >> 24) / 255.0f;
+		const float G = static_cast<float>((Value & 0x00FF0000) >> 16) / 255.0f;
+		const float B = static_cast<float>((Value & 0x0000FF00) >>  8) / 255.0f;
+		return FLinearColor(R, G, B);
 	};
 
-	ColorCode[static_cast<uint32>(ETaskEventType::Created)] = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow
-	ColorCode[static_cast<uint32>(ETaskEventType::Launched)] = ToLiniarColorNoAlpha(0x8BC24AFF); // Green
-	ColorCode[static_cast<uint32>(ETaskEventType::Scheduled)] = ToLiniarColorNoAlpha(0x26BBFFFF); // Blue
-	ColorCode[static_cast<uint32>(ETaskEventType::Started)] = ToLiniarColorNoAlpha(0xFF0000FF); // Red
-	ColorCode[static_cast<uint32>(ETaskEventType::Finished)] = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow
-	ColorCode[static_cast<uint32>(ETaskEventType::Completed)] = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange
+	ColorCode[static_cast<uint32>(ETaskEventType::Created)]             = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow
+	ColorCode[static_cast<uint32>(ETaskEventType::Launched)]            = ToLiniarColorNoAlpha(0x8BC24AFF); // Green
+	ColorCode[static_cast<uint32>(ETaskEventType::Scheduled)]           = ToLiniarColorNoAlpha(0x26BBFFFF); // Blue
+	ColorCode[static_cast<uint32>(ETaskEventType::Started)]             = ToLiniarColorNoAlpha(0xFF0000FF); // Red
+	ColorCode[static_cast<uint32>(ETaskEventType::Finished)]            = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow
+	ColorCode[static_cast<uint32>(ETaskEventType::Completed)]           = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange
 	ColorCode[static_cast<uint32>(ETaskEventType::PrerequisiteStarted)] = ToLiniarColorNoAlpha(0xFF729CFF); // Pink
-	ColorCode[static_cast<uint32>(ETaskEventType::ParentStarted)] = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
-	ColorCode[static_cast<uint32>(ETaskEventType::NestedStarted)] = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
-	ColorCode[static_cast<uint32>(ETaskEventType::SubsequentStarted)] = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange
-	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)] = ToLiniarColorNoAlpha(0x804D39FF); // Brown
-	ColorCode[static_cast<uint32>(ETaskEventType::CriticalPath)] = ToLiniarColorNoAlpha(0xA139BFFF); // Purple
+	ColorCode[static_cast<uint32>(ETaskEventType::ParentStarted)]       = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
+	ColorCode[static_cast<uint32>(ETaskEventType::NestedStarted)]       = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
+	ColorCode[static_cast<uint32>(ETaskEventType::SubsequentStarted)]   = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange
+	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)]     = ToLiniarColorNoAlpha(0x804D39FF); // Brown
+	ColorCode[static_cast<uint32>(ETaskEventType::CriticalPath)]        = ToLiniarColorNoAlpha(0xA139BFFF); // Purple
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

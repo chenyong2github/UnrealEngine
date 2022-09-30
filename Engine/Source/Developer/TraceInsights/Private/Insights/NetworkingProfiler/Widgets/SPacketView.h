@@ -154,8 +154,8 @@ private:
 	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
 
 	FNetworkPacketSampleRef GetSample(const int32 InPacketIndex);
-	FNetworkPacketSampleRef GetSampleAtMousePosition(float X, float Y);
-	void SelectSampleAtMousePosition(float X, float Y, const FPointerEvent& MouseEvent);
+	FNetworkPacketSampleRef GetSampleAtMousePosition(double X, double Y);
+	void SelectSampleAtMousePosition(double X, double Y, const FPointerEvent& MouseEvent);
 	void OnSelectionChanged();
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);

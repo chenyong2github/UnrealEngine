@@ -143,8 +143,8 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	if (ThisGeometry != AllottedGeometry || bIsViewportDirty)
 	{
 		bIsViewportDirty = false;
-		const float ViewWidth = AllottedGeometry.GetLocalSize().X;
-		const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
+		const float ViewWidth = static_cast<float>(AllottedGeometry.GetLocalSize().X);
+		const float ViewHeight = static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 		Viewport.SetSize(ViewWidth, ViewHeight);
 		bIsStateDirty = true;
 	}
@@ -189,7 +189,7 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
 
-				int32 NumFrames = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
+				int32 NumFrames = static_cast<int32>(FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType)));
 				if (NumFrames > ViewportX.GetMaxValue())
 				{
 					ViewportX.SetMinMaxInterval(0, NumFrames);
@@ -301,14 +301,16 @@ void SFrameTrack::UpdateState()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
+FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(double X, double Y)
 {
 	if (!bIsStateDirty)
 	{
 		float SampleW = Viewport.GetSampleWidth();
-		int32 SampleIndex = FMath::FloorToInt(X / SampleW);
+		int32 SampleIndex = FMath::FloorToInt(static_cast<float>(X) / SampleW);
 		if (SampleIndex >= 0)
 		{
+			const float MY = static_cast<float>(Y);
+
 			// Search in reverse paint order.
 			for (int32 SeriesIndex = SeriesOrder.Num() - 1; SeriesIndex >= 0; --SeriesIndex)
 			{
@@ -349,7 +351,7 @@ FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 							const float BottomY = FMath::Min(ViewHeight, ViewHeight - BaselineY + ToleranceY);
 							const float TopY = FMath::Max(0.0f, ViewHeight - ValueY - ToleranceY);
 
-							if (Y >= TopY && Y < BottomY)
+							if (MY >= TopY && MY < BottomY)
 							{
 								LLM_SCOPE_BYTAG(Insights);
 								return FFrameTrackSampleRef(SeriesPtr, MakeShared<FFrameTrackSample>(Sample));
@@ -365,16 +367,16 @@ FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
+void SFrameTrack::SelectFrameAtMousePosition(double X, double Y)
 {
 	FFrameTrackSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
 	{
-		SampleRef = GetSampleAtMousePosition(X - 1.0f, Y);
+		SampleRef = GetSampleAtMousePosition(X - 1.0, Y);
 	}
 	if (!SampleRef.IsValid())
 	{
-		SampleRef = GetSampleAtMousePosition(X + 1.0f, Y);
+		SampleRef = GetSampleAtMousePosition(X + 1.0, Y);
 	}
 
 	if (SampleRef.IsValid())
@@ -419,8 +421,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
 
-	const float ViewWidth = AllottedGeometry.Size.X;
-	const float ViewHeight = AllottedGeometry.Size.Y;
+	const float ViewWidth = static_cast<float>(AllottedGeometry.Size.X);
+	const float ViewHeight = static_cast<float>(AllottedGeometry.Size.Y);
 
 	int32 NumDrawSamples = 0;
 
@@ -521,17 +523,17 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const FString Text2(StringBuilder);
 
 			const float FontScale = DrawContext.Geometry.Scale;
-			const FVector2D TextSize1 = FontMeasureService->Measure(Text1, SummaryFont, FontScale) / FontScale;
-			const FVector2D TextSize2 = FontMeasureService->Measure(Text2, SummaryFont, FontScale) / FontScale;
+			const FVector2f TextSize1(FontMeasureService->Measure(Text1, SummaryFont, FontScale) / FontScale);
+			const FVector2f TextSize2(FontMeasureService->Measure(Text2, SummaryFont, FontScale) / FontScale);
 
 			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
 			const float FrameX = ViewportX.GetOffsetForValue(HoveredSample.Sample->LargestFrameIndex);
-			const float CX0 = FMath::RoundToFloat(FrameX + Viewport.GetSampleWidth() / 2);
+			const float CX0 = FMath::RoundToFloat(FrameX + Viewport.GetSampleWidth() / 2.0f);
 
 			constexpr float DX = 3.0f;
-			const float DX1 = FMath::RoundToFloat(TextSize1.X / 2);
-			const float DX2 = FMath::RoundToFloat(TextSize2.X / 2);
+			const float DX1 = FMath::RoundToFloat(TextSize1.X / 2.0f);
+			const float DX2 = FMath::RoundToFloat(TextSize2.X / 2.0f);
 			const float TooltipDesiredSizeX = FMath::Max(DX1, DX2) + DX;
 
 			if (TooltipSizeX != TooltipDesiredSizeX)
@@ -593,7 +595,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	if (bShouldDisplayDebugInfo)
 	{
 		const float FontScale = DrawContext.Geometry.Scale;
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
+		const float MaxFontCharHeight = static_cast<float>(FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale);
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 280.0f;
@@ -798,11 +800,11 @@ void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 								  (Axis.Value <= 1.0) ? FString::Printf(TEXT("%s (%.0f fps)"), *TimeUtils::FormatTimeAuto(Axis.Value), 1.0 / Axis.Value) :
 														TimeUtils::FormatTimeAuto(Axis.Value);
 
-		const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
-		const float LabelX = bDrawVerticalAxisLabelsOnLeftSide ? 0.0f : ViewWidth - LabelTextSize.X - 4.0f;
+		const float LabelTextWidth = static_cast<float>(FontMeasureService->Measure(LabelText, Font, FontScale).X / FontScale);
+		const float LabelX = bDrawVerticalAxisLabelsOnLeftSide ? 0.0f : ViewWidth - LabelTextWidth - 4.0f;
 
 		// Draw background for value text.
-		DrawContext.DrawBox(LabelX, Axis.LabelY, LabelTextSize.X + 4.0f, TextH, Brush, TextBgColor);
+		DrawContext.DrawBox(LabelX, Axis.LabelY, LabelTextWidth + 4.0f, TextH, Brush, TextBgColor);
 
 		// Draw value text.
 		DrawContext.DrawText(LabelX + 2.0f, Axis.LabelY + 1.0f, LabelText, Font, TextColor);
@@ -847,7 +849,7 @@ void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 		const int32 Grid = ((Delta + Power10 - 1) / Power10) * Power10; // next value divisible with a multiple of 10
 
 		// Skip grid lines for negative indices.
-		double StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
+		int32 StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
 		while (StartIndex < 0)
 		{
 			StartIndex += Grid;
@@ -878,8 +880,8 @@ void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 			{
 				const float X = FMath::RoundToFloat(ViewportX.GetOffsetForValue(Index));
 				const FString LabelText = FText::AsNumber(Index).ToString();
-				const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
-				DrawContext.DrawBox(X, 10.0f, LabelTextSize.X + 4.0f, 12.0f, Brush, LabelBoxColor);
+				const float LabelTextWidth = static_cast<float>(FontMeasureService->Measure(LabelText, Font, FontScale).X / FontScale);
+				DrawContext.DrawBox(X, 10.0f, LabelTextWidth + 4.0f, 12.0f, Brush, LabelBoxColor);
 				DrawContext.DrawText(X + 2.0f, 10.0f, LabelText, Font, LabelTextColor);
 			}
 			DrawContext.LayerId++;
@@ -935,7 +937,7 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsValidForMouseClick)
 			{
-				SelectFrameAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
+				SelectFrameAtMousePosition(static_cast<float>(MousePositionOnButtonUp.X), static_cast<float>(MousePositionOnButtonUp.Y));
 			}
 
 			bIsLMB_Pressed = false;
@@ -992,7 +994,7 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 				}
 
 				FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
-				const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+				const float PosX = ViewportPosXOnButtonDown + static_cast<float>(MousePositionOnButtonDown.X - MousePosition.X);
 				ViewportX.ScrollAtValue(ViewportX.GetValueAtPos(PosX)); // align viewport position with sample (frame index)
 				UpdateHorizontalScrollBar();
 				bIsStateDirty = true;
@@ -1007,11 +1009,11 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
 			if (!HoveredSample.IsValid())
 			{
-				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X - 1.0, MousePosition.Y);
 			}
 			if (!HoveredSample.IsValid())
 			{
-				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0f, MousePosition.Y);
+				HoveredSample = GetSampleAtMousePosition(MousePosition.X + 1.0, MousePosition.Y);
 			}
 			if (HoveredSample.IsValid())
 			{
@@ -1066,17 +1068,17 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 		FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
 
 		// Zoom in/out vertically.
-		const float Delta = MouseEvent.GetWheelDelta();
-		constexpr float ZoomStep = 0.25f; // as percent
-		float ScaleY;
+		const double Delta = MouseEvent.GetWheelDelta();
+		constexpr double ZoomStep = 0.25; // as percent
+		double ScaleY;
 
 		if (Delta > 0)
 		{
-			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f + ZoomStep, Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0 + ZoomStep, Delta);
 		}
 		else
 		{
-			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
 		}
 
 		ViewportY.SetScale(ScaleY);
@@ -1086,7 +1088,7 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	{
 		// Zoom in/out horizontally.
 		const float Delta = MouseEvent.GetWheelDelta();
-		ZoomHorizontally(Delta, MousePosition.X);
+		ZoomHorizontally(Delta, static_cast<float>(MousePosition.X));
 	}
 
 	return FReply::Handled();

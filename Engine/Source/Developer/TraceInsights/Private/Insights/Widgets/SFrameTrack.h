@@ -136,8 +136,8 @@ protected:
 	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font, bool bDrawBackgroundLayer) const;
 	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
 
-	FFrameTrackSampleRef GetSampleAtMousePosition(float X, float Y);
-	void SelectFrameAtMousePosition(float X, float Y);
+	FFrameTrackSampleRef GetSampleAtMousePosition(double X, double Y);
+	void SelectFrameAtMousePosition(double X, double Y);
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 

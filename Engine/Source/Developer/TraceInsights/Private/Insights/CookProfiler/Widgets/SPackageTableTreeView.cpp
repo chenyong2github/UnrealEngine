@@ -197,7 +197,7 @@ TSharedPtr<SWidget> SPackageTableTreeView::ConstructToolbar()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBox)
-			.MinDesiredWidth(150)
+			.MinDesiredWidth(150.0f)
 			[
 				SAssignNew(PresetComboBox, SComboBox<TSharedRef<ITableTreeViewPreset>>)
 				.ToolTipText(this, &SPackageTableTreeView::ViewPreset_GetSelectedToolTipText)

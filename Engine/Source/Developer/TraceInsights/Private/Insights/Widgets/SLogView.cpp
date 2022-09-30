@@ -1366,8 +1366,8 @@ TSharedRef<SWidget> SLogView::MakeCategoryFilterMenu()
 	CreateCategoriesFilterMenuSection(MenuBuilder);
 	MenuBuilder.EndSection();
 
-	const float MaxMenuHeight = FMath::Clamp(this->GetCachedGeometry().GetLocalSize().Y - 40.0f, 100.0f, 500.0f);
-	return MenuBuilder.MakeWidget(nullptr, MaxMenuHeight);
+	const float MaxMenuHeight = FMath::Clamp(static_cast<float>(this->GetCachedGeometry().GetLocalSize().Y) - 40.0f, 100.0f, 500.0f);
+	return MenuBuilder.MakeWidget(nullptr, FMath::RoundToInt(MaxMenuHeight));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

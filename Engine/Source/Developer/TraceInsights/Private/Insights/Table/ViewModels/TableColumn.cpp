@@ -81,7 +81,7 @@ inline void TrimEndingZero(FString& Str)
 		{
 			--Data;
 		}
-		Str.LeftInline(Data - Start + 1);
+		Str.LeftInline(static_cast<int32>(Data - Start + 1));
 	}
 }
 

@@ -59,7 +59,7 @@ void FMemAllocGroupingByHeap::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 	TArray<FTableTreeNodePtr> HeapNodes;
 	HeapNodes.AddZeroed(256);
 
-	AllocProvider.EnumerateRootHeaps([&](uint8 Id, const TraceServices::IAllocationsProvider::FHeapSpec& Spec)
+	AllocProvider.EnumerateRootHeaps([&](HeapId Id, const TraceServices::IAllocationsProvider::FHeapSpec& Spec)
 	{
 		ParentGroup.AddChildAndSetGroupPtr(MakeGroupNodeHierarchy(Spec, InParentTable, HeapNodes));
 	});
@@ -83,9 +83,9 @@ void FMemAllocGroupingByHeap::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 
 		if (Alloc)
 		{
-			//todo: Calculating the real HeapId when the allocation is first added to the provider was too expensive, so deferring that operation to here could make sense.
-			//const uint8 HeapId = AllocProvider.GetParentBlock(Alloc->GetAddress());
-			const uint8 HeapId = Alloc->GetRootHeap();
+			//TODO: Calculating the real HeapId when the allocation is first added to the provider was too expensive, so deferring that operation to here could make sense.
+			//const HeapId Heap = AllocProvider.GetParentBlock(Alloc->GetAddress());
+			const uint8 HeapId = static_cast<uint8>(Alloc->GetRootHeap());
 			if (FTableTreeNodePtr GroupPtr = HeapNodes[HeapId])
 			{
 				GroupPtr->AddChildAndSetGroupPtr(NodePtr);

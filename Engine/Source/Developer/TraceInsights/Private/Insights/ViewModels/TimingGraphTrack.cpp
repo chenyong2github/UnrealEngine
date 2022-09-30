@@ -573,7 +573,7 @@ void FTimingGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 	ViewportY.SetSize(GetHeight());
 	ViewportY.SetScaleLimits(std::numeric_limits<double>::min(), std::numeric_limits<double>::max());
 	ViewportY.SetScale(SharedValueViewport.GetScaleY());
-	ViewportY.ScrollAtPos(SharedValueViewport.GetBaselineY() - GetHeight());
+	ViewportY.ScrollAtPos(static_cast<float>(SharedValueViewport.GetBaselineY()) - GetHeight());
 
 	const float ViewWidth = Context.GetViewport().GetWidth();
 	const float RoundedViewHeight = FMath::RoundToFloat(GetHeight());
@@ -617,7 +617,7 @@ void FTimingGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 			86400.0	// 1d
 		};
 		constexpr int32 NumThresholds = sizeof(Thresholds) / sizeof(double);
-		int32 Index = Algo::LowerBound(Thresholds, Delta);
+		int32 Index = static_cast<int32>(Algo::LowerBound(Thresholds, Delta));
 		if (Index > 0)
 		{
 			Index--;
@@ -654,11 +654,11 @@ void FTimingGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 			DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
 
 			const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
-			const float LabelX = X0 - LabelTextSize.X - 4.0f;
+			const float LabelX = X0 - static_cast<float>(LabelTextSize.X) - 4.0f;
 			const float LabelY = FMath::Min(Y0 + GetHeight() - TextH, FMath::Max(Y0, Y - TextH / 2));
 
 			// Draw background for value text.
-			DrawContext.DrawBox(LabelX, LabelY, LabelTextSize.X + 4.0f, TextH, Brush, TextBgColor);
+			DrawContext.DrawBox(LabelX, LabelY, static_cast<float>(LabelTextSize.X) + 4.0f, TextH, Brush, TextBgColor);
 
 			// Draw value text.
 			DrawContext.DrawText(LabelX + 2.0f, LabelY + 1.0f, LabelText, Font, TextColor);

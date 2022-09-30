@@ -53,10 +53,9 @@ bool FMemoryFilterValueConverter::Convert(const FString& Input, int64& Output, F
 				return false;
 			}
 
-			// Equals to (PrefixPos - Prefixes + 1) * 2^10
-			Output = 1LL << ((PrefixPos - Prefixes + 1) * 10);
+			const int64 Unit = 1LL << ((PrefixPos - Prefixes + 1) * 10);
 			double Value = FCString::Atod(*TrimmedInput.Left(Index));
-			Output *= Value;
+			Output = static_cast<int64>(Value * Unit);
 			break;
 		}
 		else

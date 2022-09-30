@@ -48,14 +48,15 @@ FText FMemoryAlloc::GetFullCallstack() const
 	}
 
 	TStringBuilder<1024> Tooltip;
-	const uint32 FramesNum = Callstack->Num();
-	for (uint32 Index = 0; Index < FramesNum; ++Index)
+	const uint32 NumCallstackFrames = Callstack->Num();
+	check(NumCallstackFrames <= 256); // see Callstack->Frame(uint8)
+	for (uint32 Index = 0; Index < NumCallstackFrames; ++Index)
 	{
 		if (Index != 0)
 		{
 			Tooltip << TEXT("\n");
 		}
-		const TraceServices::FStackFrame* Frame = Callstack->Frame(Index);
+		const TraceServices::FStackFrame* Frame = Callstack->Frame(static_cast<uint8>(Index));
 		check(Frame != nullptr);
 		FormatStackFrame(*Frame, Tooltip, EStackFrameFormatFlags::ModuleSymbolFileAndLine);
 	}
@@ -77,14 +78,15 @@ FText FMemoryAlloc::GetFullCallstackSourceFiles() const
 	}
 
 	TStringBuilder<1024> Tooltip;
-	const uint32 FramesNum = Callstack->Num();
-	for (uint32 Index = 0; Index < FramesNum; ++Index)
+	const uint32 NumCallstackFrames = Callstack->Num();
+	check(NumCallstackFrames <= 256); // see Callstack->Frame(uint8)
+	for (uint32 FrameIndex = 0; FrameIndex < NumCallstackFrames; ++FrameIndex)
 	{
-		if (Index != 0)
+		if (FrameIndex != 0)
 		{
 			Tooltip << TEXT("\n");
 		}
-		const TraceServices::FStackFrame* Frame = Callstack->Frame(Index);
+		const TraceServices::FStackFrame* Frame = Callstack->Frame(static_cast<uint8>(FrameIndex));
 		check(Frame != nullptr);
 		FormatStackFrame(*Frame, Tooltip, EStackFrameFormatFlags::FileAndLine);
 	}

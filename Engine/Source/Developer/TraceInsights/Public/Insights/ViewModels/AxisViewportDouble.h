@@ -47,8 +47,8 @@ public:
 	float GetSize() const { return Size; }
 	bool SetSize(const float InSize);
 
-	int32 GetMinValue() const { return MinValue; }
-	int32 GetMaxValue() const { return MaxValue; }
+	double GetMinValue() const { return MinValue; }
+	double GetMaxValue() const { return MaxValue; }
 
 	float GetMinPos() const { return MinPosition; }
 	float GetMaxPos() const { return MaxPosition; }

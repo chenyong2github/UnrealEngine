@@ -836,8 +836,8 @@ void SPacketContentView::Tick(const FGeometry& AllottedGeometry, const double In
 	if (ThisGeometry != AllottedGeometry || bIsViewportDirty)
 	{
 		bIsViewportDirty = false;
-		const float ViewWidth = AllottedGeometry.GetLocalSize().X;
-		const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
+		const float ViewWidth = static_cast<float>(AllottedGeometry.GetLocalSize().X);
+		const float ViewHeight = static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 		Viewport.SetSize(ViewWidth, ViewHeight);
 		bIsStateDirty = true;
 	}
@@ -1047,7 +1047,7 @@ void SPacketContentView::UpdateState(float FontScale)
 				//const int64 StartPos = static_cast<int64>(FMath::FloorToDouble(ViewportX.GetValueAtOffset(0.0f)));
 				//const int64 EndPos = static_cast<int64>(FMath::CeilToDouble(ViewportX.GetValueAtOffset(ViewportX.GetSize())));
 				const uint32 StartPos = 0;
-				const uint32 EndPos = PacketBitSize;
+				const uint32 EndPos = static_cast<uint32>(PacketBitSize);
 				NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
 				{
 					const TCHAR* Name = nullptr;
@@ -1088,7 +1088,7 @@ void SPacketContentView::UpdateState(float FontScale)
 
 void SPacketContentView::UpdateHoveredEvent()
 {
-	HoveredEvent = GetEventAtMousePosition(MousePosition.X, MousePosition.Y);
+	HoveredEvent = GetEventAtMousePosition(static_cast<float>(MousePosition.X), static_cast<float>(MousePosition.Y));
 	//if (!HoveredEvent.IsValid())
 	//{
 	//	HoveredEvent = GetEventAtMousePosition(MousePosition.X - 1.0f, MousePosition.Y);
@@ -1226,8 +1226,8 @@ int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
 
-	const float ViewWidth = AllottedGeometry.Size.X;
-	const float ViewHeight = AllottedGeometry.Size.Y;
+	const float ViewWidth = static_cast<float>(AllottedGeometry.Size.X);
+	const float ViewHeight = static_cast<float>(AllottedGeometry.Size.Y);
 
 	//////////////////////////////////////////////////
 	{
@@ -1288,7 +1288,7 @@ int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const float FontScale = DrawContext.Geometry.Scale;
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
+		const float MaxFontCharHeight = static_cast<float>(FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale);
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 280.0f;
@@ -1489,7 +1489,7 @@ FReply SPacketContentView::OnMouseMove(const FGeometry& MyGeometry, const FPoint
 				}
 
 				FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
-				const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+				const float PosX = ViewportPosXOnButtonDown + static_cast<float>(MousePositionOnButtonDown.X - MousePosition.X);
 				ViewportX.ScrollAtPos(PosX);
 				UpdateHorizontalScrollBar();
 				bIsStateDirty = true;
@@ -1546,7 +1546,7 @@ FReply SPacketContentView::OnMouseWheel(const FGeometry& MyGeometry, const FPoin
 	{
 		// Zoom in/out horizontally.
 		const float Delta = MouseEvent.GetWheelDelta();
-		ZoomHorizontally(Delta, MousePosition.X);
+		ZoomHorizontally(Delta, static_cast<float>(MousePosition.X));
 	}
 
 	return FReply::Handled();
@@ -1657,13 +1657,13 @@ FReply SPacketContentView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 	else if (InKeyEvent.GetKey() == EKeys::Equals ||
 			 InKeyEvent.GetKey() == EKeys::Add)
 	{
-		ZoomHorizontally(1.0f, MousePosition.X);
+		ZoomHorizontally(1.0f, static_cast<float>(MousePosition.X));
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Hyphen ||
 			 InKeyEvent.GetKey() == EKeys::Subtract)
 	{
-		ZoomHorizontally(-1.0f, MousePosition.X);
+		ZoomHorizontally(-1.0f, static_cast<float>(MousePosition.X));
 		return FReply::Handled();
 	}
 

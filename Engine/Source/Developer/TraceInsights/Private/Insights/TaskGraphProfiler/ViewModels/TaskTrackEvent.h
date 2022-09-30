@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Async/TaskTrace.h"
 
 // Insights
 #include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
@@ -28,12 +29,12 @@ public:
 
 	ETaskEventType GetTaskEventType() const { return TaskEventType; }
 
-	uint32 GetTaskId() const { return TaskId; }
-	void SetTaskId(uint32 InTaskId) { TaskId = InTaskId; }
+	TaskTrace::FId GetTaskId() const { return TaskId; }
+	void SetTaskId(TaskTrace::FId InTaskId) { TaskId = InTaskId; }
 
 private:
 	ETaskEventType TaskEventType;
-	uint32 TaskId = ~0;
+	TaskTrace::FId TaskId = TaskTrace::InvalidId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

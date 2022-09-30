@@ -200,7 +200,7 @@ void FCpuCoreTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 		const ITimingViewDrawHelper& Helper = Context.GetHelper();
 
 		FString Str = FString::Printf(TEXT("%s (Duration.: %s)"),
-			*GetThreadName(SelectedEvent.GetType()),
+			*GetThreadName(static_cast<uint32>(SelectedEvent.GetType())),
 			*TimeUtils::FormatTimeAuto(SelectedEvent.GetDuration()));
 
 		DrawSelectedEventInfo(Str, Context.GetViewport(), Context.GetDrawContext(), Helper.GetWhiteBrush(), Helper.GetEventFont());

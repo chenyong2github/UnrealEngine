@@ -284,10 +284,10 @@ void FPacketViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSa
 	{
 		// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
 		const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
-		float S = FMath::Sin(2.0 * Time);
-		S = S * S; // squared, to ensure only positive [0 - 1] values
-		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : S;
-		const FLinearColor Color(S, S, Blue, 1.0f);
+		float Hue = static_cast<float>(FMath::Sin(2.0 * Time));
+		Hue = Hue * Hue; // squared, to ensure only positive [0 - 1] values
+		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : Hue;
+		const FLinearColor Color(Hue, Hue, Blue, 1.0f);
 
 		// Draw border around the selected box.
 #if INSIGHTS_USE_LEGACY_BORDER
@@ -322,9 +322,9 @@ void FPacketViewDrawHelper::DrawSelection(int32 StartPacketIndex, int32 EndPacke
 
 	//// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
 	//const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
-	//float S = FMath::Sin(2.0 * Time);
-	//S = S * S; // squared, to ensure only positive [0 - 1] values
-	//const FLinearColor Color(S, S, S, 1.0f);
+	//float Hue = static_cast<float>(FMath::Sin(2.0 * Time));
+	//Hue = Hue * Hue; // squared, to ensure only positive [0 - 1] values
+	//const FLinearColor Color(Hue, Hue, Hue, 1.0f);
 	//
 	//// Draw border around the selected box.
 	//DrawContext.DrawBox(X1 - 1.0f, Y - 1.0f, X2 - X1 + 2.0f, H + 2.0f, SelectedEventBorderBrush, Color);

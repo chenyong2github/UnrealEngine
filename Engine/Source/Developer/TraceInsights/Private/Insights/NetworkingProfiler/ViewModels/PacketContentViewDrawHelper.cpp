@@ -44,7 +44,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfi
 	PacketEvent.ObjectInstanceIndex = Event.ObjectInstanceIndex;
 	PacketEvent.NetId = NetId;
 	PacketEvent.BitOffset = Event.StartPos;
-	PacketEvent.BitSize = Event.EndPos - Event.StartPos;
+	PacketEvent.BitSize = static_cast<uint32>(Event.EndPos - Event.StartPos);
 	PacketEvent.Level = Event.Level;
 
 	const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
@@ -237,7 +237,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfi
 			{
 				Builder.Append(TEXT(" ("));
 			}
-			const uint32 EventSize = Event.EndPos - Event.StartPos;
+			const uint32 EventSize = static_cast<uint32>(Event.EndPos - Event.StartPos);
 			if (EventSize == 1)
 			{
 				Builder.Append(TEXT("1 bit)"));
@@ -513,10 +513,10 @@ void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent&
 	{
 		// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
 		const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
-		float S = FMath::Sin(2.0 * Time);
-		S = S * S; // squared, to ensure only positive [0 - 1] values
-		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : S;
-		const FLinearColor Color(S, S, Blue, 1.0f);
+		float Hue = static_cast<float>(FMath::Sin(2.0 * Time));
+		Hue = Hue * Hue; // squared, to ensure only positive [0 - 1] values
+		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : Hue;
+		const FLinearColor Color(Hue, Hue, Blue, 1.0f);
 
 		// Draw border around the timing event box.
 #if INSIGHTS_USE_LEGACY_BORDER

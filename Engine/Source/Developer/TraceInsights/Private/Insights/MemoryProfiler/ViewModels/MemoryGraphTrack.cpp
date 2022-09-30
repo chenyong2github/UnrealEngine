@@ -678,7 +678,7 @@ void FMemoryGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 	ViewportY.SetSize(GetHeight());
 	ViewportY.SetScaleLimits(std::numeric_limits<double>::min(), std::numeric_limits<double>::max());
 	ViewportY.SetScale(Series->GetScaleY());
-	ViewportY.ScrollAtPos(Series->GetBaselineY() - GetHeight());
+	ViewportY.ScrollAtPos(static_cast<float>(Series->GetBaselineY()) - GetHeight());
 
 	const float ViewWidth = Context.GetViewport().GetWidth();
 	const float RoundedViewHeight = FMath::RoundToFloat(GetHeight());
@@ -833,8 +833,8 @@ void FMemoryGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 
 		if (MinMaxAxis == 2)
 		{
-			const float MX = Context.GetMousePosition().X;
-			const float MY = Context.GetMousePosition().Y;
+			const float MX = static_cast<float>(Context.GetMousePosition().X);
+			const float MY = static_cast<float>(Context.GetMousePosition().Y);
 
 			//constexpr float MX1 = 80.0f; // start fading out
 			constexpr float MX2 = 120.0f; // completly faded out
@@ -896,13 +896,14 @@ void FMemoryGraphTrack::DrawHorizontalAxisLabel(const TDrawHorizontalAxisLabelPa
 
 	const float FontScale = Params.DrawContext.Geometry.Scale;
 	const FVector2D TextSize = Params.FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
+	const float TextW = static_cast<float>(TextSize.X);
 	constexpr float TextH = 14.0f;
 
 	// Draw background for value text.
-	Params.DrawContext.DrawBox(Params.DrawContext.LayerId + 1, Params.X - TextSize.X - 4.0f, Params.Y, TextSize.X + 5.0f, TextH, Params.Brush, Params.TextBgColor);
+	Params.DrawContext.DrawBox(Params.DrawContext.LayerId + 1, Params.X - TextW - 4.0f, Params.Y, TextW + 5.0f, TextH, Params.Brush, Params.TextBgColor);
 
 	// Draw value text.
-	Params.DrawContext.DrawText(Params.DrawContext.LayerId + 2, Params.X - TextSize.X - 2.0f, Params.Y + 1.0f, LabelText, Font, Params.TextColor);
+	Params.DrawContext.DrawText(Params.DrawContext.LayerId + 2, Params.X - TextW - 2.0f, Params.Y + 1.0f, LabelText, Font, Params.TextColor);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

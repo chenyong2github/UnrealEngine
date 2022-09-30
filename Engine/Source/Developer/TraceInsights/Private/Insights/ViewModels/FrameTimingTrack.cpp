@@ -355,13 +355,15 @@ void FFrameTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedEvent,
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const float FontScale = DrawContext.Geometry.Scale;
 		const FVector2D Size = FontMeasureService->Measure(Str, Font, FontScale) / FontScale;
-		const float X = Viewport.GetWidth() - Size.X - 23.0f;
-		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
+		const float W = static_cast<float>(Size.X);
+		const float H = static_cast<float>(Size.Y);
+		const float X = Viewport.GetWidth() - W - 23.0f;
+		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - H - 18.0f;
 
 		const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
 		const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
 
-		DrawContext.DrawBox(X - 8.0f, Y - 2.0f, Size.X + 16.0f, Size.Y + 4.0f, WhiteBrush, BackgroundColor);
+		DrawContext.DrawBox(X - 8.0f, Y - 2.0f, W + 16.0f, H + 4.0f, WhiteBrush, BackgroundColor);
 		DrawContext.LayerId++;
 
 		DrawContext.DrawText(X, Y, Str, Font, TextColor);

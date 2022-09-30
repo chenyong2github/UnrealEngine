@@ -83,7 +83,7 @@ struct TRACEINSIGHTS_API FDrawContext
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			const float FontScale = Geometry.Scale;
-			const float TextWidth = FontMeasureService->Measure(Text, Font, FontScale).X / FontScale;
+			const float TextWidth = static_cast<float>(FontMeasureService->Measure(Text, Font, FontScale).X / FontScale);
 			if (HAlign == HAlign_Right)
 			{
 				TextX -= TextWidth;

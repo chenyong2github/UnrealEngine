@@ -253,7 +253,7 @@ void TCounterAggregationHelper<Type>::PostProcess(TAggregatedStatsEx<Type>& Stat
 
 		if (bComputeMedian)
 		{
-			const int32 HalfCount = StatsEx.Count / 2;
+			const int32 HalfCount = IntCastChecked<int32>(StatsEx.Count / 2);
 
 			// Compute median value.
 			int32 Count = 0;

@@ -47,7 +47,7 @@ void FTrackHeader::Reset()
 void FTrackHeader::UpdateSize()
 {
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const float TextWidth = FontMeasureService->Measure(ParentTrack.GetName(), Font, FontScale).X / FontScale;
+	const float TextWidth = static_cast<float>(FontMeasureService->Measure(ParentTrack.GetName(), Font, FontScale).X / FontScale);
 
 	Width = TextWidth + 4.0f;
 	if (bCanBeCollapsed)
@@ -87,8 +87,8 @@ void FTrackHeader::Update(const ITimingTrackUpdateContext& InContext)
 
 void FTrackHeader::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
-	const float MouseX = Context.GetMousePosition().X;
-	const float MouseY = Context.GetMousePosition().Y;
+	const float MouseX = static_cast<float>(Context.GetMousePosition().X);
+	const float MouseY = static_cast<float>(Context.GetMousePosition().Y);
 
 	ParentTrack.SetHeaderHoveredState(MouseX < Width && MouseY < ParentTrack.GetPosY() + Height);
 
@@ -197,7 +197,7 @@ void FTrackHeader::DrawInternal(const ITimingTrackDrawContext& Context, bool bDr
 			//TODO: use a brush/image instead
 			for (float A = 1.0f; A < ArrowSizeY; A += 1.0f)
 			{
-				DrawContext.DrawBox(ArrowX - 3.0 + ArrowSizeY - A, ArrowY + A - 1.0f, A, 1.0f, WhiteBrush, Color);
+				DrawContext.DrawBox(ArrowX - 3.0f + ArrowSizeY - A, ArrowY + A - 1.0f, A, 1.0f, WhiteBrush, Color);
 			}
 		}
 	}

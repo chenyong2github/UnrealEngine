@@ -876,7 +876,7 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 	if (DY >= 0 && DY < GetHeight() - 1.0f - 2 * Layout.TimelineDY)
 	{
 		const double EventTime = Viewport.SlateUnitsToTime(InPosX);
-		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
+		const int32 Depth = FMath::RoundToInt(DY / (Layout.EventH + Layout.EventDY));
 
 		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (!Session.IsValid())
@@ -940,7 +940,7 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 				TimingEvent->SetTaskId(Task->Id);
 			}
 		}
-		else if(bShowDetailInfoOnTaskTrack)
+		else if (bShowDetailInfoOnTaskTrack)
 		{
 			auto GetEventFromRelations = [&TasksProvider, this, EventTime, Depth, SecondsPerPixel](const TArray<TraceServices::FTaskInfo::FRelationInfo>& Relations, int32 RelationIndex, ETaskEventType EventType) -> TSharedPtr<FTaskTrackEvent>
 			{

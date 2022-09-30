@@ -924,8 +924,7 @@ void SNetworkingProfilerWindow::SetSelectedEventTypeIndex(const uint32 InEventTy
 		{
 			if (NetStatsView)
 			{
-				const uint64 NodeId = static_cast<uint64>(SelectedEventTypeIndex);
-				NetStatsView->SelectNetEventNode(NodeId);
+				NetStatsView->SelectNetEventNode(SelectedEventTypeIndex);
 			}
 		}
 	}
