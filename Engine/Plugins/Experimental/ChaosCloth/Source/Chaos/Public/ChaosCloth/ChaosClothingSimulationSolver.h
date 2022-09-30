@@ -33,6 +33,8 @@ namespace Chaos
 		const FVec3& GetLocalSpaceLocation() const { return LocalSpaceLocation; }
 		void SetLocalSpaceRotation(const FQuat& InLocalSpaceRotation) { LocalSpaceRotation = InLocalSpaceRotation; }
 		const FRotation3& GetLocalSpaceRotation() const { return LocalSpaceRotation; }
+		void SetVelocityScale(FReal InVelocityScale) { VelocityScale = InVelocityScale; }
+		FReal GetVelocityScale() const { return VelocityScale; }
 
 		// Disables all Cloths gravity override mechanism
 		void EnableClothGravityOverride(bool bInIsClothGravityOverrideEnabled) { bIsClothGravityOverrideEnabled = bInIsClothGravityOverrideEnabled; }
@@ -42,9 +44,6 @@ namespace Chaos
 
 		void SetWindVelocity(const TVec3<FRealSingle>& InWindVelocity, FRealSingle InLegacyWindAdaption = (FRealSingle)0.);
 		const TVec3<FRealSingle>& GetWindVelocity() const { return WindVelocity; }
-
-		UE_DEPRECATED(4.27, "Use SetWindProperties instead.")
-		void SetWindFluidDensity(FRealSingle /*WindFluidDensity*/) {}
 
 		void SetNumIterations(int32 InNumIterations) { NumIterations = InNumIterations; }
 		int32 GetNumIterations() const { return NumIterations; }
@@ -233,6 +232,7 @@ namespace Chaos
 		FVec3 OldLocalSpaceLocation;  // This is used to translate between world space and simulation space,
 		FVec3 LocalSpaceLocation;     // add this to simulation space coordinates to get world space coordinates, must keep FReal as underlying type for LWC
 		FRotation3 LocalSpaceRotation;
+		FReal VelocityScale;
 
 		// Time stepping
 		FSolverReal Time;

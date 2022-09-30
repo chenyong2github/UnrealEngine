@@ -63,6 +63,9 @@ public:
 	// Delta for this tick
 	float DeltaSeconds;
 
+	// Velocity scale to compensate input velocities in case the MaxPhysicsDelta kicks in
+	float VelocityScale;
+
 	// Whether and how we should teleport the simulation this tick
 	EClothingTeleportMode TeleportMode;
 

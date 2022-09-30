@@ -25,6 +25,7 @@ FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	, WindVelocity(FVector::ZeroVector)
 	, WindAdaption(0.f)
 	, DeltaSeconds(0.f)
+	, VelocityScale(1.f)
 	, TeleportMode(EClothingTeleportMode::None)
 	, MaxDistanceScale(1.f)
 	, PredictedLod(INDEX_NONE)
@@ -165,6 +166,9 @@ void FClothingSimulationContextCommon::FillTeleportMode(const USkeletalMeshCompo
 	TeleportMode = (InDeltaSeconds > InMaxPhysicsDelta * GClothMaxDeltaTimeTeleportMultiplier.GetValueOnGameThread()) ?
 		EClothingTeleportMode::Teleport :
 		InComponent->ClothTeleportMode;
+
+	VelocityScale = (TeleportMode == EClothingTeleportMode::None) ?
+		FMath::Min(InDeltaSeconds, InMaxPhysicsDelta) / InDeltaSeconds : 1.f;
 }
 
 void FClothingSimulationContextCommon::FillMaxDistanceScale(const USkeletalMeshComponent* InComponent)

@@ -118,9 +118,11 @@ namespace Chaos
 		TConstArrayView<Softs::FSolverVec3> GetAnimationNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
 		TConstArrayView<Softs::FSolverVec3> GetParticlePositions(const FClothingSimulationSolver* Solver) const;
+		// Return the solver's velocities for this cloth current LOD, not thread safe, call must be done right after the solver update.
+		TConstArrayView<Softs::FSolverVec3> GetParticleVelocities(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
 		TConstArrayView<Softs::FSolverVec3> GetParticleNormals(const FClothingSimulationSolver* Solver) const;
-		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
+		// Return the solver's inverse masses for this cloth current LOD, not thread safe, call must be done right after the solver update.
 		TConstArrayView<Softs::FSolverReal> GetParticleInvMasses(const FClothingSimulationSolver* Solver) const;
 		// Return the current gravity as applied by the solver using the various overrides, not thread safe, call must be done right after the solver update.
 		TVec3<FRealSingle> GetGravity(const FClothingSimulationSolver* Solver) const;
