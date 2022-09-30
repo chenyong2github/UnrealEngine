@@ -49,7 +49,10 @@ public:
 	 * Stops the underlying StateTree
 	 */
 	GAMEPLAYINTERACTIONSMODULE_API void Deactivate();
-
+	
+	/** Sends event for the StateTree. Will be received on the next tick by the StateTree. */
+	GAMEPLAYINTERACTIONSMODULE_API void SendEvent(const FStateTreeEvent& Event);
+	
 protected:	
 	/**
 	 * Updates all external data views from the provided interaction context.  

@@ -103,6 +103,19 @@ void FGameplayInteractionContext::Deactivate()
 	}
 }
 
+void FGameplayInteractionContext::SendEvent(const FStateTreeEvent& Event)
+{
+	if (Definition == nullptr)
+	{
+		return;
+	}
+	
+	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
+	const UStateTree* StateTree = StateTreeReference.GetStateTree();
+	FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
+	StateTreeContext.SendEvent(Event);
+}
+
 bool FGameplayInteractionContext::ValidateSchema(const FStateTreeExecutionContext& StateTreeContext) const
 {
 	// Ensure that the actor and smart object match the schema.
