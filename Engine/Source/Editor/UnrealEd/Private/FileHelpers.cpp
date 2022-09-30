@@ -4631,6 +4631,12 @@ bool FEditorFileUtils::IsMapPackageAsset(const FString& ObjectPath, FString& Map
 				MapFilePath = PackagePath;
 				return true;
 			}
+			const FString ExternalPackagePath = FString(TEXT("/Game")) / FPackagePath::GetExternalActorsFolderName();
+			if ( FPackageName::FilenameToLongPackageName(PackagePath).StartsWith(ExternalPackagePath) )
+			{
+				MapFilePath = PackagePath;
+				return true;
+			}
 		}
 	}
 
