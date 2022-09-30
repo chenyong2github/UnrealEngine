@@ -12,6 +12,22 @@
 #include "UObject/UnrealType.h"
 #include "RemoteControlBinding.generated.h"
 
+namespace UE::RemoteControlBinding
+{
+	/**
+	 * @return whether an object is a valid rebinding target.
+	 */
+	bool REMOTECONTROL_API IsValidObjectForRebinding(UObject* InObject, UWorld* PresetWorld);
+	/**
+	 * @return whether an actor is a valid rebinding target.
+	 */
+	bool REMOTECONTROL_API IsValidActorForRebinding(AActor* InActor, UWorld* PresetWorld);
+	/**
+	 * @return whether a subobject is a valid rebinding target.
+	 */
+	bool REMOTECONTROL_API IsValidSubObjectForRebinding(UObject* InComponent, UWorld* PresetWorld);
+}
+
 /**
  * Acts as a bridge between an exposed property/function and an object to act on.
  */

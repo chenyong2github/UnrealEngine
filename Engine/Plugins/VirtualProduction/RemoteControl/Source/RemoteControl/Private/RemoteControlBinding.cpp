@@ -2,6 +2,8 @@
 
 #include "RemoteControlBinding.h"
 
+#include "Components/BillboardComponent.h"
+#include "Engine/Brush.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/World.h"
@@ -20,6 +22,49 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "RemoteControlBinding"
+
+
+namespace UE::RemoteControlBinding
+{
+	bool IsValidObjectForRebinding(UObject* InObject, UWorld* PresetWorld)
+	{
+		return InObject
+			&& !InObject->IsA<UBillboardComponent>()
+			&& InObject->GetName().Find(TEXT("TRASH_")) == INDEX_NONE
+			&& InObject->GetTypedOuter<UPackage>() != GetTransientPackage()
+			&& InObject->GetWorld() == PresetWorld;
+	}
+
+	bool IsValidActorForRebinding(AActor* InActor, UWorld* PresetWorld)
+	{
+		return IsValidObjectForRebinding(InActor, PresetWorld) &&
+#if WITH_EDITOR
+			InActor->IsEditable() &&
+			InActor->IsListedInSceneOutliner() &&
+#endif
+			!InActor->IsTemplate() &&
+			InActor->GetClass() != ABrush::StaticClass() && // Workaround Brush being listed as visible in the scene outliner even though it's not.
+			!InActor->HasAnyFlags(RF_Transient);
+	}
+
+	bool IsValidSubObjectForRebinding(UObject* InComponent, UWorld* PresetWorld)
+	{
+		if (!IsValidObjectForRebinding(InComponent, PresetWorld))
+		{
+			return false;
+		}
+
+		if (AActor* OuterActor = InComponent->GetTypedOuter<AActor>())
+		{
+			if (!IsValidActorForRebinding(OuterActor, PresetWorld))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+}
 
 namespace
 {

@@ -4,6 +4,7 @@
 
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Brush.h"
 #include "Engine/Classes/Components/ActorComponent.h"
@@ -24,44 +25,6 @@ static TAutoConsoleVariable<int32> CVarRemoteControlRebindingUseLegacyAlgo(TEXT(
 
 namespace RCPresetRebindingManager
 {
-
-	bool IsValidObjectForRebinding(UObject* InObject, UWorld* PresetWorld)
-	{
-		return InObject
-			&& InObject->GetTypedOuter<UPackage>() != GetTransientPackage()
-			&& InObject->GetWorld() == PresetWorld;
-	}
-
-	bool IsValidActorForRebinding(AActor* InActor, UWorld* PresetWorld)
-	{
-		return IsValidObjectForRebinding(InActor, PresetWorld) &&
-#if WITH_EDITOR
-            InActor->IsEditable() &&
-            InActor->IsListedInSceneOutliner() &&
-#endif
-			!InActor->IsTemplate() &&
-            InActor->GetClass() != ABrush::StaticClass() && // Workaround Brush being listed as visible in the scene outliner even though it's not.
-            !InActor->HasAnyFlags(RF_Transient);
-	}
-
-	bool IsValidComponentForRebinding(UActorComponent* InComponent, UWorld* PresetWorld)
-	{
-		if (!IsValidObjectForRebinding(InComponent, PresetWorld))
-		{
-			return false;
-		}
-		
-		if (AActor* OuterActor = InComponent->GetOwner())
-		{
-			if (!IsValidActorForRebinding(OuterActor, PresetWorld))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
 	TArray<UClass*> GetRelevantClassesForObject(const TArray<UClass*>& InClasses, UObject* InObject)
 	{
 		return InClasses.FilterByPredicate([&InObject](UClass* InClass) { return InClass && InObject->IsA(InClass); });
@@ -78,8 +41,8 @@ namespace RCPresetRebindingManager
 		auto AddRelevantClassesForObject = [&ObjectMap, &RelevantClasses, PresetWorld] (UObject* Object)
 		{
 			if (!Object
-				|| (Object->IsA<AActor>() && !IsValidActorForRebinding(CastChecked<AActor>(Object), PresetWorld))
-				|| (Object->IsA<UActorComponent>() && !IsValidComponentForRebinding(CastChecked<UActorComponent>(Object), PresetWorld)))
+				|| (Object->IsA<AActor>() && !UE::RemoteControlBinding::IsValidActorForRebinding(CastChecked<AActor>(Object), PresetWorld))
+				|| (Object->IsA<UActorComponent>() && !UE::RemoteControlBinding::IsValidSubObjectForRebinding(Object, PresetWorld)))
 			{
 				return;
 			}
@@ -109,11 +72,29 @@ namespace RCPresetRebindingManager
 
 	bool GetActorsOfClass(UWorld* PresetWorld, UClass* InTargetClass, TArray<AActor*>& OutActors)
 	{
-		auto IsObjectOfClass = [InTargetClass, PresetWorld](UObject* Object)
+		auto WasGeneratedBySameBlueprintClass = [InTargetClass](UObject* Object)
+		{
+			UBlueprintGeneratedClass* IteratedClass = Cast<UBlueprintGeneratedClass>(Object->GetClass());
+			UBlueprintGeneratedClass* TargetClass = Cast<UBlueprintGeneratedClass>(InTargetClass);
+
+			// At the moment, only allow for ndisplay configs because I'm unsure of the repercussions of enabling this change for all BP generated classes.
+			static const FName NDisplayGeneratedClass = "DisplayClusterBlueprintGeneratedClass";
+			
+#if WITH_EDITOR
+			return IteratedClass && TargetClass
+				&& InTargetClass->GetClass()->GetFName() == NDisplayGeneratedClass
+				&& IteratedClass->ClassGeneratedBy && TargetClass->ClassGeneratedBy
+				&& IteratedClass->ClassGeneratedBy->GetClass() == TargetClass->ClassGeneratedBy->GetClass();
+#else
+			return false;
+#endif
+		};
+
+		auto IsObjectOfClass = [&](UObject* Object)
 		{
 			return Object
-				&& IsValidActorForRebinding(CastChecked<AActor>(Object), PresetWorld)
-				&& Object->IsA(InTargetClass);
+				&& UE::RemoteControlBinding::IsValidActorForRebinding(CastChecked<AActor>(Object), PresetWorld)
+				&& (Object->IsA(InTargetClass) || WasGeneratedBySameBlueprintClass(Object));
 		};
 
 		if (PresetWorld)

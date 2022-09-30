@@ -3,9 +3,11 @@
 #include "SRCPanelExposedEntity.h"
 
 #include "ActorTreeItem.h"
+#include "Components/BillboardComponent.h"
 #include "Commands/RemoteControlCommands.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "EngineUtils.h"
 #include "Engine/Selection.h"
 #include "Engine/Classes/Components/ActorComponent.h"
 #include "Framework/Application/SlateApplication.h"
@@ -25,6 +27,7 @@
 #include "Styling/RemoteControlStyles.h"
 #include "Styling/SlateIconFinder.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -34,6 +37,33 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
+
+namespace RebindingUtils
+{
+	TMap<AActor*, TArray<UObject*>> GetLevelSubObjectsOfClass(UClass* TargetClass , UWorld* PresetWorld)
+	{
+		TMap<AActor*, TArray<UObject*>> ObjectMap;
+
+		for (TActorIterator<AActor> It(PresetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
+		{
+			if (UE::RemoteControlBinding::IsValidActorForRebinding(*It, PresetWorld))
+			{
+				TArray<UObject*> SubObjects;
+				GetObjectsWithOuter(*It, SubObjects);
+
+				for (UObject* SubObject : SubObjects)
+				{
+					if (SubObject->IsA(TargetClass) && UE::RemoteControlBinding::IsValidSubObjectForRebinding(SubObject, PresetWorld))
+					{
+						ObjectMap.FindOrAdd(*It).Add(SubObject);
+					}
+				}
+			}
+		}
+
+		return ObjectMap;
+	}
+}
 
 TSharedPtr<FRemoteControlEntity> SRCPanelExposedEntity::GetEntity() const
 {
@@ -77,6 +107,14 @@ TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
 		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
 			{
 				CreateRebindComponentMenuContent(SubMenuBuilder);
+			}));
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("EntityRebindSubObjectSubmenuLabel", "Rebind SubObject"),
+		LOCTEXT("EntityRebindSubObjectSubmenuToolTip", "Pick a subobject to rebind this exposed entity."),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
+			{
+				CreateRebindSubObjectMenuContent(SubMenuBuilder);
 			}));
 
 	MenuBuilder.AddSubMenu(
@@ -154,6 +192,54 @@ void SRCPanelExposedEntity::CreateRebindComponentMenuContent(FMenuBuilder& SubMe
 	}
 }
 
+void SRCPanelExposedEntity::CreateRebindSubObjectMenuContent(FMenuBuilder& SubMenuBuilder)
+{
+	TInlineComponentArray<UActorComponent*> ComponentArray;
+
+	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
+	{
+		constexpr bool bAllowPie = false;
+		TMap<AActor*, TArray<UObject*>> GroupedObjects = RebindingUtils::GetLevelSubObjectsOfClass(Entity->GetSupportedBindingClass(), Preset->GetWorld(bAllowPie));
+		for (const TPair<AActor*, TArray<UObject*>>& ActorsAndSubobjects : GroupedObjects)
+		{
+			SubMenuBuilder.BeginSection(NAME_None, FText::FromString(ActorsAndSubobjects.Key->GetActorLabel()));
+			for (UObject* SubObject : ActorsAndSubobjects.Value)
+			{
+				FString EntryLabel = SubObject->GetName();
+				const FString ToolTip = SubObject->GetPathName();
+					
+				// Special case for NDisplay properties.
+				static const FName NDisplayViewportClassName = "DisplayClusterConfigurationViewport";
+				if (SubObject->GetClass()->GetFName() == NDisplayViewportClassName)
+				{
+					static const FTopLevelAssetPath DisplayClusterConfigurationPath = FTopLevelAssetPath(TEXT("/Script/DisplayClusterConfiguration"), TEXT("DisplayClusterConfigurationClusterNode"));
+					if (UClass* ClusterNodeClass = FindObject<UClass>(DisplayClusterConfigurationPath);
+						UObject * ClusterNodeOuter = SubObject->GetTypedOuter(ClusterNodeClass))
+					{
+						EntryLabel = SubObject->GetPathName(ClusterNodeOuter->GetOuter());
+					}
+				}
+
+				SubMenuBuilder.AddMenuEntry(
+					FText::FromString(EntryLabel),
+					FText::FromString(ToolTip),
+					FSlateIconFinder::FindIconForClass(SubObject->GetClass(), TEXT("SCS.Component")),
+					FUIAction(
+						FExecuteAction::CreateLambda([Entity, SubObject]
+						{
+							if (Entity)
+							{
+								Entity->BindObject(SubObject);
+							}
+						}),
+						FCanExecuteAction())
+				);
+			}
+			SubMenuBuilder.EndSection();
+		}
+	}
+}
+
 TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindAllPropertiesForActorMenuContent()
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
@@ -213,7 +299,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
 	Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateSP(this, &SRCPanelExposedEntity::IsActorSelectable));
 	constexpr bool bAllowPIE = false;
 	UWorld* PresetWorld = URemoteControlPreset::GetWorld(Preset.Get(), bAllowPIE);
-
+	
 	return SNew(SBox)
 		.MaxDesiredHeight(400.0f)
 		.WidthOverride(300.0f)
@@ -266,7 +352,7 @@ bool SRCPanelExposedEntity::IsActorSelectable(const AActor* Actor) const
 {
 	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
 	{
-		if (Entity->GetBindings().Num())
+		if (Entity->GetBindings().Num() && Entity->GetBindings()[0].IsValid())
 		{
 			// Don't show what it's already bound to.
 			if (UObject* Component = Entity->GetBindings()[0]->Resolve())
@@ -433,5 +519,6 @@ bool SRCPanelExposedEntity::ShouldUseRebindingContext() const
 
 	return false;
 }
+
 
 #undef LOCTEXT_NAMESPACE

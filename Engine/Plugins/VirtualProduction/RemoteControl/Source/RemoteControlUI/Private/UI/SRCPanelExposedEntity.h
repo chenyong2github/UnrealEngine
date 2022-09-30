@@ -10,11 +10,11 @@
 
 class AActor;
 class FMenuBuilder;
+struct FRCPanelStyle;
 struct FRemoteControlEntity;
 class SInlineEditableTextBlock;
 class SWidget;
 class URemoteControlPreset;
-struct FRCPanelStyle;
 
 /**
  * @Note if you inherit from this struct, you must call SRCPanelExposedEntity::Initialize.
@@ -67,6 +67,9 @@ private:
 
 	/** Create the content of the rebind component button. */
 	void CreateRebindComponentMenuContent(FMenuBuilder& SubMenuBuilder);
+
+	/** Create the content of the rebind subobject button. */
+	void CreateRebindSubObjectMenuContent(FMenuBuilder& SubMenuBuilder);
 
 	/** Create the content for the menu used to rebind all properties for the actor that owns this entity. */
 	TSharedRef<SWidget> CreateRebindAllPropertiesForActorMenuContent();
