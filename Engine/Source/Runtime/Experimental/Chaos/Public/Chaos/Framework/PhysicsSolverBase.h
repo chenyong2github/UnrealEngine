@@ -392,6 +392,8 @@ namespace Chaos
 
 		void EnableAsyncMode(FReal FixedDt);
 		
+		FReal GetAsyncDeltaTime() const { return AsyncDt; } 
+		
 		void DisableAsyncMode();
 		
 		virtual void ConditionalApplyRewind_Internal(){}

@@ -212,6 +212,16 @@ protected:
 	virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
 };
 
+USTRUCT()
+struct FAsyncPhysicsTimestamp
+{
+	GENERATED_BODY()
+	UPROPERTY()
+	int32 ServerFrame = INDEX_NONE;
+
+	UPROPERTY()
+	int32 LocalFrame = INDEX_NONE;
+};
 
 /**
  * PlayerControllers are used by human players to control Pawns.
@@ -2244,4 +2254,57 @@ private:
 	FInputCmdBuffer InputBuffer;
 	FClientFrameInfo ClientFrameInfo;
 	FServerFrameInfo ServerFrameInfo;
+
+	/** The estimated offset between the local async physics tick frame number and the server's
+	*	This is used to synchronize events that happen in the async physics tick */
+	int32 LocalToServerAsyncPhysicsTickOffset;
+	
+	/** The latest server step we've received an offset correction for. This allows us to ignore out of order corrections that arrive late */
+	int32 ClientLatestCorrectedOffsetServerStep = INDEX_NONE;
+
+	/** The latest physics step we've sent to the server. Due to async we need to avoid duplicate sends */
+	int32 ClientLatestAsyncPhysicsStepSent = INDEX_NONE;
+
+	/** The latest server step we've received a time dilation for. Needed for out of order updates */
+	int32 ClientLatestTimeDilationServerStep = INDEX_NONE;
+
+	/** The server tells the client to speed up or slow down in order to keep its buffer full */
+	float ServerAsyncPhysicsTimeDilationToSend = 1.f;
+
+	/** The server records the latest timestamp it has to correct. This is used to update client (which may not happen on every physics step) */
+	FAsyncPhysicsTimestamp ServerLatestTimestampToCorrect;
+
+	/** The set of timestamps the client has sent to the server. Sorted by local frame number */
+	TArray<FAsyncPhysicsTimestamp> ServerPendingTimestamps;
+
+	/** Update the tick ofsset in between the local client and the server */
+	void UpdateServerAsyncPhysicsTickOffset();
+
+	UFUNCTION(Server, Unreliable)
+	void ServerSendLatestAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
+
+	UFUNCTION(Client, Unreliable)
+	void ClientCorrectionAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
+
+	UFUNCTION(Client, Unreliable)
+	void ClientAckTimeDilation(float TimeDilation, int32 ServerStep);
+
+	/** Update the tick offset in between the local client and the server */
+	virtual void AsyncPhysicsTickActor(float DeltaTime, float SimTime) override;
+
+public:
+
+	/** Enqueues a command to run at the time specified by AsyncPhysicsTimestamp. Note that if the time specified was missed the command is triggered as soon as possible as part of the async tick.
+		These commands are all run on the game thread. If you want to run on the physics thread see FPhysicsSolverBase::RegisterSimOneShotCallback
+		If OwningObject is not null this command will only fire as long as the object is still alive. This allows a lambda to still use the owning object's data for read/write (assuming data is designed for async physics tick)
+	*/
+	void ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command);
+
+	/** Generates a timestamp for the upcoming physics step (plus any pending time). Useful for synchronizing client and server events on a specific physics step */
+	FAsyncPhysicsTimestamp GetAsyncPhysicsTimestamp(float DeltaSeconds = 0.f);
+
+	/** Returns the current estimated offset between the local async physics step and the server. This is useful for dealing with low level synchronization.
+		In general it's recommended to use GetAsyncPhysicsTimestamp which accounts for the offset automatically*/
+	int32 GetLocalToServerAsyncPhysicsTickOffset() const { return LocalToServerAsyncPhysicsTickOffset; }
+	
 };

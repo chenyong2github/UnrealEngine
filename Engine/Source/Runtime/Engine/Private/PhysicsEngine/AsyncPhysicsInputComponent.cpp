@@ -101,20 +101,28 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 
 	virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps) override
 	{
-		int32 LocalOffset = 0;
+		int32 ServerFrame = PhysicsStep;
 		if (World->GetNetMode() == NM_Client)
 		{
 			if (APlayerController* PC = World->GetFirstPlayerController())
 			{
-				APlayerController::FClientFrameInfo& ClientFrameInfo = PC->GetClientFrameInfo();
-
-				if (ClientFrameInfo.LastProcessedInputFrame != INDEX_NONE)
+				static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
+				if (EnableNetworkPhysicsCVar && EnableNetworkPhysicsCVar->GetInt() == 1)
 				{
-					LocalOffset = ClientFrameInfo.GetLocalFrameOffset();
+					const int32 LocalToServerOffset = PC->GetLocalToServerAsyncPhysicsTickOffset();
+					ServerFrame = PhysicsStep + LocalToServerOffset;
+				}
+				else
+				{
+					APlayerController::FClientFrameInfo& ClientFrameInfo = PC->GetClientFrameInfo();
+                    if (ClientFrameInfo.LastProcessedInputFrame != INDEX_NONE)
+                    {
+                    	ServerFrame = PhysicsStep - ClientFrameInfo.GetLocalFrameOffset();
+                    }
 				}
 			}
 		}
-		DispatchPhysicsTick.Broadcast(PhysicsStep, NumSteps, PhysicsStep - LocalOffset);
+		DispatchPhysicsTick.Broadcast(PhysicsStep, NumSteps, ServerFrame);
 	}
 
 	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
@@ -410,7 +418,7 @@ void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32
 	{
 		return;
 	}
-
+	
 	// It would be better if we only registered while we had a local controller,
 	// but this is simpler to implement
 

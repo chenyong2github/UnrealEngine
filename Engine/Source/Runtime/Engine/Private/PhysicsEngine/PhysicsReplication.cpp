@@ -518,7 +518,11 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 				Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
 				check(Solver);
 
-				//LocalFrameOffset = PlayerController->GetLocalToServerAsyncPhysicsTickOffset();
+				static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
+				if (EnableNetworkPhysicsCVar && EnableNetworkPhysicsCVar->GetInt() == 1)
+				{
+					LocalFrameOffset = PlayerController->GetLocalToServerAsyncPhysicsTickOffset();
+				}
 				//TODO: as we send physics updates down we need to record latest seen
 				//NumPredictedFrames = Solver->GetCurrentFrame() - ClientFrameInfo.LastProcessedInputFrame;
 			}
@@ -675,7 +679,7 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 
 				const FVector NewPos = FMath::Lerp(FVector(CurrentState.Position), TargetPos, PositionLerp);
 				const FQuat NewAng = FQuat::Slerp(CurrentState.Quaternion, TargetQuat, AngleLerp);
-
+				
 				Handle->SetX(NewPos);
 				Handle->SetR(NewAng);
 				Handle->SetV(NewLinVel);

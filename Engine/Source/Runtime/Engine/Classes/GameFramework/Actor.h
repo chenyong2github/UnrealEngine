@@ -472,10 +472,6 @@ private:
 
 	/** Set if an Actor tries to be destroyed while it is beginning play so that once BeginPlay ends we can issue the destroy call. */
 	uint8 bActorWantsDestroyDuringBeginPlay : 1;
-	
-	/** Whether to use use the async physics tick with this actor. */
-	UPROPERTY(EditAnywhere, Category=Physics)
-	uint8 bAsyncPhysicsTickEnabled : 1;
 
 	/** Enum defining if BeginPlay has started or finished */
 	enum class EActorBeginPlayState : uint8
@@ -497,7 +493,11 @@ private:
 	static uint32 BeginPlayCallDepth;
 
 protected:
-
+		
+	/** Whether to use use the async physics tick with this actor. */
+	UPROPERTY(EditAnywhere, Category=Physics)
+	uint8 bAsyncPhysicsTickEnabled : 1;
+	
 	/**
 	 * Condition for calling UpdateOverlaps() to initialize overlap state when loaded in during level streaming.
 	 * If set to 'UseConfigDefault', the default specified in ini (displayed in 'DefaultUpdateOverlapsMethodDuringLevelStreaming') will be used.

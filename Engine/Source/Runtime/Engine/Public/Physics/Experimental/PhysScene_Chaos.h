@@ -119,6 +119,9 @@ public:
 	void RegisterAsyncPhysicsTickActor(AActor* Actor);
 	void UnregisterAsyncPhysicsTickActor(AActor* Actor);
 
+	void EnqueueAsyncPhysicsCommand(int32 PhysicsStep, UObject* OwningObject, const TFunction<void()>& Command);
+
+
 	/**
 	 * Called during creation of the physics state for gamethread objects to pass off an object to the physics thread
 	 */

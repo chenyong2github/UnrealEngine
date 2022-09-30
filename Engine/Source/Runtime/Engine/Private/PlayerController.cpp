@@ -71,6 +71,7 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "PBDRigidsSolver.h"
 
 #if UE_WITH_IRIS
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
@@ -101,6 +102,23 @@ namespace PlayerControllerCVars
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
 }
+
+namespace NetworkPhysicsCvars
+{
+	int32 NumRedundantCmds = 3;
+	FAutoConsoleVariableRef CVarNumRedundantCmds(TEXT("np2.NumRedundantCmds"), NumRedundantCmds, TEXT("Number of redundant user cmds to send per frame"));
+
+#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	int32 EnableDebugRPC = 0;
+#else
+	int32 EnableDebugRPC = 1;
+#endif
+	FAutoConsoleVariableRef CVarEnableDebugRPC(TEXT("np2.EnableDebugRPC"), EnableDebugRPC, TEXT("Sends extra debug information to clients about server side input buffering"));
+
+	int32 EnableNetworkPhysicsPrediction = 0;
+	FAutoConsoleVariableRef CVarEnableNetworkPhysicsPrediction(TEXT("np2.EnableNetworkPhysicsPrediction"), EnableNetworkPhysicsPrediction, TEXT("Enables network physics prediction"));
+}
+
 
 const float RetryClientRestartThrottleTime = 0.5f;
 const float RetryServerAcknowledgeThrottleTime = 0.25f;
@@ -165,6 +183,11 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	{
 		// We want to drive rotation with ControlRotation regardless of attachment state.
 		RootComponent->SetUsingAbsoluteRotation(true);
+	}
+
+	if(NetworkPhysicsCvars::EnableNetworkPhysicsPrediction == 1)
+	{
+		bAsyncPhysicsTickEnabled = true;
 	}
 }
 
@@ -1654,35 +1677,36 @@ void APlayerController::ClientSetCameraFade_Implementation(bool bEnableFading, F
 
 /// @endcond
 
-namespace UE_NETWORK_PHYSICS
-{
-	int32 NumRedundantCmds=3;
-	FAutoConsoleVariableRef CVarNumRedundantCmds(TEXT("np2.NumRedundantCmds"), NumRedundantCmds, TEXT("Number of redundant user cmds to send per frame"));
-
-#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	int32 EnableDebugRPC=0;
-#else
-	int32 EnableDebugRPC=1;
-#endif
-	FAutoConsoleVariableRef CVarEnableDebugRPC(TEXT("np2.EnableDebugRPC"), EnableDebugRPC, TEXT("Sends extra debug information to clients about server side input buffering"));
-}
-
 void APlayerController::SendClientAdjustment()
 {
-	if (ServerFrameInfo.LastProcessedInputFrame != INDEX_NONE && ServerFrameInfo.LastProcessedInputFrame != ServerFrameInfo.LastSentLocalFrame)
+	if(!NetworkPhysicsCvars::EnableNetworkPhysicsPrediction)
 	{
-		ServerFrameInfo.LastSentLocalFrame = ServerFrameInfo.LastProcessedInputFrame;		
-		ClientRecvServerAckFrame(ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.LastLocalFrame, ServerFrameInfo.QuantizedTimeDilation);
-
-		if (UE_NETWORK_PHYSICS::EnableDebugRPC)
+		if (ServerFrameInfo.LastProcessedInputFrame != INDEX_NONE && ServerFrameInfo.LastProcessedInputFrame != ServerFrameInfo.LastSentLocalFrame)
 		{
-			ClientRecvServerAckFrameDebug(InputBuffer.HeadFrame() - ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.TargetNumBufferedCmds);
+			ServerFrameInfo.LastSentLocalFrame = ServerFrameInfo.LastProcessedInputFrame;		
+			ClientRecvServerAckFrame(ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.LastLocalFrame, ServerFrameInfo.QuantizedTimeDilation);
+
+			if (NetworkPhysicsCvars::EnableDebugRPC)
+			{
+				ClientRecvServerAckFrameDebug(InputBuffer.HeadFrame() - ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.TargetNumBufferedCmds);
+			}
 		}
 	}
-
-	if (AcknowledgedPawn != GetPawn() && !GetSpectatorPawn())
+	else
 	{
-		return;
+		if (ServerLatestTimestampToCorrect.ServerFrame == INDEX_NONE)
+		{
+			//Nothing to correct so do not update client
+			return;
+		}
+
+		ClientCorrectionAsyncPhysicsTimestamp(ServerLatestTimestampToCorrect);
+		ServerLatestTimestampToCorrect.ServerFrame = INDEX_NONE;
+
+		if (AcknowledgedPawn != GetPawn() && !GetSpectatorPawn())
+		{
+			return;
+		}
 	}
 
 	// Server sends updates.
@@ -1703,7 +1727,7 @@ void APlayerController::PushClientInput(int32 InRecvClientInputFrame, TArray<uin
 	InputBuffer.Write(InRecvClientInputFrame) = MoveTemp(Data);
 
 	// Do the RPC right here, including the redundant send. This should probably be time based and managed somewhere else like in Tick eventually
-	for (int32 Frame = FMath::Max(1, InRecvClientInputFrame-UE_NETWORK_PHYSICS::NumRedundantCmds+1); Frame <= InRecvClientInputFrame; ++Frame)
+	for (int32 Frame = FMath::Max(1, InRecvClientInputFrame-NetworkPhysicsCvars::NumRedundantCmds+1); Frame <= InRecvClientInputFrame; ++Frame)
 	{
 		ServerRecvClientInputFrame(Frame, InputBuffer.Get(Frame));
 	}
@@ -5068,6 +5092,11 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 	// Clear old axis inputs since we are done with them. 
 	RotationInput = FRotator::ZeroRotator;
 
+	if(!!NetworkPhysicsCvars::EnableNetworkPhysicsPrediction && GetLocalRole() == ROLE_AutonomousProxy && bIsClient)
+	{
+		UpdateServerAsyncPhysicsTickOffset();
+	}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (CheatManager != nullptr)
 	{
@@ -5915,6 +5944,157 @@ const UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToConsume() const
 	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToConsume() : nullptr;
 }
 
+void APlayerController::ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command)
+{
+	if(UWorld* World = GetWorld())
+	{
+		if(FPhysScene* PhysScene = World->GetPhysicsScene())
+		{
+			const int32 PhysicsStep = IsLocalController() ? AsyncPhysicsTimestamp.LocalFrame : AsyncPhysicsTimestamp.ServerFrame;
+			PhysScene->EnqueueAsyncPhysicsCommand(PhysicsStep, OwningObject, Command);
+		}
+	}
+}
+
+FAsyncPhysicsTimestamp APlayerController::GetAsyncPhysicsTimestamp(float DeltaSeconds)
+{
+	using namespace Chaos;
+
+	FAsyncPhysicsTimestamp Timestamp;
+
+	if(UWorld* World = GetWorld())
+	{
+		if (FPhysScene* PhysScene = World->GetPhysicsScene())
+		{
+			if (FPBDRigidsSolver* Solver = static_cast<FPBDRigidsSolver*>(PhysScene->GetSolver()))
+			{
+				const FReal DeltaTime = Solver->GetAsyncDeltaTime();
+				const int32 PendingSteps = (DeltaTime > 0.0) ? DeltaSeconds / DeltaTime : 0;
+
+				int32 LocalPhysicsStep;
+				if(Solver->IsGameThreadFrozen())
+				{
+					//We are calling inside the async tick, so use the current frame
+					LocalPhysicsStep = Solver->GetCurrentFrame();
+				}
+				else
+				{
+					//We are on the GT so give the upcoming async tick
+					LocalPhysicsStep = Solver->GetMarshallingManager().GetExternalTimestamp_External();
+				}
+				
+				LocalPhysicsStep += PendingSteps;	//Add any pending steps user wants to wait on
+				Timestamp.ServerFrame = LocalPhysicsStep;
+				Timestamp.LocalFrame = LocalPhysicsStep;
+
+				if (IsLocalController())
+				{
+					//If local controller we update server frame based on our estimate
+					Timestamp.ServerFrame = LocalPhysicsStep + LocalToServerAsyncPhysicsTickOffset;
+				}
+			}
+		}
+	}
+
+	return Timestamp;
+}
+
+void APlayerController::UpdateServerAsyncPhysicsTickOffset()
+{
+	FAsyncPhysicsTimestamp Timestamp = GetAsyncPhysicsTimestamp();
+	if(ClientLatestAsyncPhysicsStepSent == Timestamp.LocalFrame)
+	{
+		//If GT is running faster than physics sim the physics timestep will not have changed, so no need to send another update to server
+		//This ensures monotonic increase
+		return;
+	}
+
+	ClientLatestAsyncPhysicsStepSent = Timestamp.LocalFrame;
+	ServerSendLatestAsyncPhysicsTimestamp(Timestamp);
+}
+
+void APlayerController::ServerSendLatestAsyncPhysicsTimestamp_Implementation(FAsyncPhysicsTimestamp Timestamp)
+{
+	//This tells the server how the client thinks the async physics tick will line up.
+	//Timestamps could be out of order due to networking, so we make sure they are sorted using the client's local frame which is monotonically increasing
+	int32 Idx;
+	for(Idx = ServerPendingTimestamps.Num() - 1; Idx >= 0; --Idx)
+	{
+		ensureMsgf(ServerPendingTimestamps[Idx].LocalFrame != Timestamp.LocalFrame, TEXT("Client should never send duplicate timestamps, something is wrong"));
+		if(ServerPendingTimestamps[Idx].LocalFrame < Timestamp.LocalFrame)
+		{
+			break;
+		}
+	}
+	ServerPendingTimestamps.Insert(Timestamp, Idx + 1);
+}
+
+void APlayerController::ClientCorrectionAsyncPhysicsTimestamp_Implementation(FAsyncPhysicsTimestamp Timestamp)
+{
+	//This tells the client that a timestamp it sent out was wrong (for example we ran locally on step 5 and expected server to run on step 10, but it actually ran on step 11).
+	//The error can only be later. That is, it can never be that we expect to run on server step 10 but actually ran on sever step 9
+	//Once a timestamp has been corrected, any earlier timestamps can be ignored (these can be out of order because of networking)
+
+	ensureMsgf(Timestamp.ServerFrame != ClientLatestCorrectedOffsetServerStep, TEXT("Server only sends at most one correction per timestamp, duplicate corrections means something is wrong"));
+	if(Timestamp.ServerFrame < ClientLatestCorrectedOffsetServerStep)
+	{
+		//already corrected after this so do nothing
+		return;
+	}
+
+	const int32 NewOffset = Timestamp.ServerFrame - Timestamp.LocalFrame; //The new offset as reported by the server
+	ensureMsgf(NewOffset >= LocalToServerAsyncPhysicsTickOffset, TEXT("The offset between client and server can only ever increase"));
+	LocalToServerAsyncPhysicsTickOffset = NewOffset;
+}
+
+void APlayerController::ClientAckTimeDilation_Implementation(float TimeDilation, int32 ServerStep)
+{
+	if(ServerStep < ClientLatestTimeDilationServerStep)
+	{
+		//Stale ack so do nothing
+		return;
+	}
+
+	ensureMsgf(ClientLatestTimeDilationServerStep != ServerStep, TEXT("Server should send at most one time dilation per step, duplicate means something is wrong"));
+	ClientLatestTimeDilationServerStep = ServerStep;
+	if(UWorld* World = GetWorld())
+	{
+		World->GetPhysicsScene()->SetNetworkDeltaTimeScale(TimeDilation);
+	}
+}
+
+void APlayerController::AsyncPhysicsTickActor(float DeltaTime, float SimTime)
+{
+	Super::AsyncPhysicsTickActor(DeltaTime, SimTime);
+
+	if(NetworkPhysicsCvars::EnableNetworkPhysicsPrediction)
+	{
+		//TODO: only kick this off if server and using this feature
+		if (IsLocalController()) { return; }
+
+		if (ServerPendingTimestamps.Num() == 0)
+		{
+			//TODO: starved for input user needs to speed up
+			return;
+		}
+
+		const FAsyncPhysicsTimestamp ActualTimestamp = GetAsyncPhysicsTimestamp();
+
+		//If the pending timestamp is bigger than the server frame we simple wait, otherwise make sure they aren't too early
+		if (ServerPendingTimestamps[0].ServerFrame <= ActualTimestamp.ServerFrame)
+		{
+			if (ServerPendingTimestamps[0].ServerFrame < ActualTimestamp.ServerFrame)
+			{
+				//The earliest pending client timestamp is too early, so their offset must be bigger than they thought
+				ServerLatestTimestampToCorrect.ServerFrame = ActualTimestamp.ServerFrame;
+				ServerLatestTimestampToCorrect.LocalFrame = ServerPendingTimestamps[0].LocalFrame;	//The client's local frame stays the same there's just a mismatch on the server frame
+			}
+
+			ServerPendingTimestamps.RemoveAt(0);	//We've updated the client if needed, so can discard
+			//NOTE: we purposely don't fixup any future pending client timestamps. This is because the RPC is unreliable so it's best to send the error correction redundantly over multiple frames if needed
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
 
