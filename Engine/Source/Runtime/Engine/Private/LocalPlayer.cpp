@@ -239,29 +239,6 @@ ULocalPlayer::ULocalPlayer(const FObjectInitializer& ObjectInitializer)
 	PendingLevelPlayerControllerClass = APlayerController::StaticClass();
 }
 
-void ULocalPlayer::PostInitProperties()
-{
-	Super::PostInitProperties();
-	if ( !IsTemplate() )
-	{
-		int32 NumViews = 1;
-		if (GEngine->StereoRenderingDevice.IsValid())
-		{
-			NumViews = GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(true);
-			check(NumViews > 0);			
-		}
-
-		const UWorld* CurrentWorld = GetWorld();
-		const ERHIFeatureLevel::Type FeatureLevel = CurrentWorld ? CurrentWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
-
-		ViewStates.SetNum(NumViews);
-		for (auto& State : ViewStates)
-		{
-			State.Allocate(FeatureLevel);
-		}		
-	}
-}
-
 void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InControllerID)
 {
 	ViewportClient = InViewportClient;

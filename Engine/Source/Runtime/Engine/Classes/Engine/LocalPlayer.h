@@ -227,7 +227,6 @@ private:
 
 public:
 	// UObject interface
-	virtual void PostInitProperties() override;
 	virtual void FinishDestroy() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End of UObject interface
