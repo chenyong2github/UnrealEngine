@@ -40,6 +40,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				StringBuilder builder = borrower.StringBuilder;
 
 				builder.Append(HeaderCopyright);
+				builder.Append("// IWYU pragma: private, include \"").Append(this.HeaderFile.IncludeFilePath).Append("\"\r\n");
 				builder.Append("#include \"UObject/ObjectMacros.h\"\r\n");
 				builder.Append("#include \"UObject/ScriptMacros.h\"\r\n");
 				if (headerInfo.NeedsPushModelHeaders)

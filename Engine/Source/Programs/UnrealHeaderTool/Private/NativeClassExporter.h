@@ -381,7 +381,7 @@ private:
 	/**
 	 * After all of the dependency checking, but before actually exporting the class, set up the generated code
 	 */
-	static bool WriteHeader(FGeneratedFileInfo& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, const TSet<FString>& ForwardDeclarations);
+	static bool WriteHeader(FGeneratedCPP& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, const TSet<FString>& ForwardDeclarations);
 
 	/**
 	 * Write the body of a source file using a standard format

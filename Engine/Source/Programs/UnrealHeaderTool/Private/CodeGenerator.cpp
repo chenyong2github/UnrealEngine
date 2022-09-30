@@ -3247,10 +3247,11 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 	EnhancedUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *EnhMacroName);
 }
 
-bool FNativeClassHeaderGenerator::WriteHeader(FGeneratedFileInfo& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, const TSet<FString>& ForwardDeclarations)
+bool FNativeClassHeaderGenerator::WriteHeader(FGeneratedCPP& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, const TSet<FString>& ForwardDeclarations)
 {
 	FUHTStringBuilder GeneratedHeaderTextWithCopyright;
 	GeneratedHeaderTextWithCopyright.Log(HeaderCopyright);
+	GeneratedHeaderTextWithCopyright.Logf(TEXT("// IWYU pragma: private, include \"%s\"\r\n"), *FileInfo.SourceFile.GetIncludePath());
 	GeneratedHeaderTextWithCopyright.Log(TEXT("#include \"UObject/ObjectMacros.h\"\r\n"));
 	GeneratedHeaderTextWithCopyright.Log(TEXT("#include \"UObject/ScriptMacros.h\"\r\n"));
 
@@ -3283,7 +3284,7 @@ bool FNativeClassHeaderGenerator::WriteHeader(FGeneratedFileInfo& FileInfo, cons
 	GeneratedHeaderTextWithCopyright.Log(InBodyText);
 	GeneratedHeaderTextWithCopyright.Log(EnableDeprecationWarnings);
 
-	const bool bHasChanged = SaveHeaderIfChanged(FileInfo, MoveTemp(GeneratedHeaderTextWithCopyright));
+	const bool bHasChanged = SaveHeaderIfChanged(FileInfo.Header, MoveTemp(GeneratedHeaderTextWithCopyright));
 	return bHasChanged;
 }
 
@@ -5963,7 +5964,7 @@ void FNativeClassHeaderGenerator::WriteSourceFile(FGeneratedCPP& GeneratedCPP)
 				AdditionalHeaders.Add(FString(TEXT("Net/Core/PushModel/PushModelMacros.h")));
 			}
 
-			bool bHasChanged = WriteHeader(GeneratedCPP.Header, GeneratedHeaderText, AdditionalHeaders, GeneratedCPP.ForwardDeclarations);
+			bool bHasChanged = WriteHeader(GeneratedCPP, GeneratedHeaderText, AdditionalHeaders, GeneratedCPP.ForwardDeclarations);
 			WriteSource(Module, GeneratedCPP.Source, GeneratedCPPText, &SourceFile, GeneratedCPP.CrossModuleReferences, GeneratedCPP.ExportFlags);
 
 			SourceFile.SetGeneratedFilename(MoveTemp(GeneratedCPP.Header.GetFilename()));
