@@ -7759,7 +7759,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 			WaitingForTexturesNotification.Reset();
 			WaitingForBrushesNotification.Reset();
 			InvalidShadingModelNotification.Reset();
-			WaitingForLandscapeResourcesStartTime = -1.0;
+			WaitingForLandscapeTextureResourcesStartTime = -1.0;
 			WaitingForLandscapeBrushResourcesStartTime = -1.0;
 		}
 	};
@@ -7864,45 +7864,41 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	bResourcesReady &= PrepareLayersTextureResources(bInWaitForStreaming);
 	if (!bResourcesReady)
 	{
-		if (WaitingForLandscapeResourcesStartTime < 0.0)
+		WaitingForLandscapeTextureResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+		if (!WaitingForTexturesNotification.IsValid())
 		{
-			WaitingForLandscapeResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
-			if (!WaitingForTexturesNotification.IsValid())
-			{
-				WaitingForTexturesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeResourcesNotReady);
-				static const FText NotificationText(LOCTEXT("WaitForLanscapeResources", "Landscape editor waiting for landscape resources to be ready."));
-				WaitingForTexturesNotification->NotificationText = NotificationText;
-				WaitingForTexturesNotification->NotificationStartTime = WaitingForLandscapeResourcesStartTime + TimeBeforeDisplayingWaitingForResourcesNotification;
-			}
-			LandscapeNotificationManager->RegisterNotification(WaitingForTexturesNotification);
-			bHideNotifications = false;
+			WaitingForTexturesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeTextureResourcesNotReady);
+			static const FText NotificationText(LOCTEXT("WaitForLandscapeTextureResources", "Landscape editor waiting for landscape texture resources to be ready."));
+			WaitingForTexturesNotification->NotificationText = NotificationText;
+			WaitingForTexturesNotification->NotificationStartTime = WaitingForLandscapeTextureResourcesStartTime + TimeBeforeDisplayingWaitingForResourcesNotification;
 		}
+		LandscapeNotificationManager->RegisterNotification(WaitingForTexturesNotification);
+		bHideNotifications = false;
 	}
 	else
 	{
 		WaitingForTexturesNotification.Reset();
+		WaitingForLandscapeTextureResourcesStartTime = -1.0;
 	}
 
 	bResourcesReady &= PrepareLayersBrushResources(World->FeatureLevel, bInWaitForStreaming);
 	if (!bResourcesReady)
 	{
-		if (WaitingForLandscapeBrushResourcesStartTime < 0.0)
+		WaitingForLandscapeBrushResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+		if (!WaitingForBrushesNotification.IsValid())
 		{
-			WaitingForLandscapeBrushResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
-			if (!WaitingForBrushesNotification.IsValid())
-			{
-				WaitingForBrushesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeResourcesNotReady);
-				static const FText NotificationText(LOCTEXT("WaitForLanscapeResources", "Landscape editor waiting for landscape resources to be ready."));
-				WaitingForBrushesNotification->NotificationText = NotificationText;
-				WaitingForBrushesNotification->NotificationStartTime = WaitingForLandscapeResourcesStartTime + TimeBeforeDisplayingWaitingForResourcesNotification;
-			}
-			LandscapeNotificationManager->RegisterNotification(WaitingForBrushesNotification);
-			bHideNotifications = false;
+			WaitingForBrushesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeBrushResourcesNotReady);
+			static const FText NotificationText(LOCTEXT("WaitForLandscapeBrushResources", "Landscape editor waiting for landscape brush resources to be ready."));
+			WaitingForBrushesNotification->NotificationText = NotificationText;
+			WaitingForBrushesNotification->NotificationStartTime = WaitingForLandscapeBrushResourcesStartTime + TimeBeforeDisplayingWaitingForResourcesNotification;
 		}
+		LandscapeNotificationManager->RegisterNotification(WaitingForBrushesNotification);
+		bHideNotifications = false;
 	}
 	else
 	{
 		WaitingForBrushesNotification.Reset();
+		WaitingForLandscapeBrushResourcesStartTime = -1.0;
 	}
 
 	if (!bResourcesReady)

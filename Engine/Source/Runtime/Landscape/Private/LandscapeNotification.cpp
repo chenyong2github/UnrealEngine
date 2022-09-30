@@ -46,6 +46,14 @@ void FLandscapeNotification::SetNotificationText()
 
 // ----------------------------------------------------------------------------------
 
+FLandscapeNotificationManager::~FLandscapeNotificationManager()
+{
+	if (NotificationItem.IsValid())
+	{
+		HideNotificationItem();
+	}
+}
+
 void FLandscapeNotificationManager::Tick()
 {
 	// Cleanup notifications for stale landscapes:

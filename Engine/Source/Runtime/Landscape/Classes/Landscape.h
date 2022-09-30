@@ -541,7 +541,7 @@ private:
 	bool bSplineLayerUpdateRequested;
 
 	/** Time since waiting for landscape resources to be ready (for displaying a notification to the user) */
-	double WaitingForLandscapeResourcesStartTime = -1.0;
+	double WaitingForLandscapeTextureResourcesStartTime = -1.0;
 
 	/** Time since waiting for brush resources to be ready (for displaying a notification to the user) */
 	double WaitingForLandscapeBrushResourcesStartTime = -1.0;

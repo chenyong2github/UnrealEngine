@@ -12,9 +12,9 @@ struct FLandscapeNotification
 	/** The various types of landscape notifications, ordered by priority (a single notification is displayed at a time). */
 	enum class EType : uint8
 	{
-		LandscapeResourcesNotReady = 0,
+		ShadingModelInvalid = 0,
+		LandscapeTextureResourcesNotReady,
 		LandscapeBrushResourcesNotReady,
-		ShadingModelInvalid,
 		TextureBaking,
 		GrassRendering,
 	};
@@ -70,6 +70,8 @@ private:
 class FLandscapeNotificationManager
 {
 public:
+	~FLandscapeNotificationManager();
+	
 	void Tick();
 
 	void RegisterNotification(const TWeakPtr<FLandscapeNotification>& InNotification);
