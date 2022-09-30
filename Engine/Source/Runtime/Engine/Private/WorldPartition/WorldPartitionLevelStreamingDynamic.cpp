@@ -110,8 +110,8 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	StreamingPriority = 0;
 	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
 
-	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
-	Initialize(OuterWorld, InCell.GetPackages());
+	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
+	Initialize(CellOwner->GetOuterWorld(), InCell.GetPackages());
 }
 
 /**

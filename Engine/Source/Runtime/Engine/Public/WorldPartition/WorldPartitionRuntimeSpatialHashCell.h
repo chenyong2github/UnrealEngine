@@ -7,7 +7,7 @@
 
 class UActorContainer;
 
-UCLASS(Abstract, Within = WorldPartition)
+UCLASS(Abstract)
 class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 {
 	GENERATED_UCLASS_BODY()

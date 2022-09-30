@@ -9,6 +9,7 @@
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/WorldPartitionRuntimeCellOwner.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #if WITH_EDITOR
@@ -30,16 +31,32 @@ enum class EWorldPartitionStreamingPerformance : uint8
 };
 
 UCLASS(Abstract)
-class ENGINE_API URuntimeHashExternalStreamingObjectBase : public UObject
+class ENGINE_API URuntimeHashExternalStreamingObjectBase : public UObject, public IWorldPartitionRuntimeCellOwner
 {
 	GENERATED_BODY()
 
 public:
+	virtual void Initialize(UWorld* InOwningWorld, UWorld* InOuterWorld) 
+	{ 
+		OwningWorld = InOwningWorld;  
+		OuterWorld = InOuterWorld;
+	}
 
+	//~ Begin IWorldPartitionRuntimeCellOwner Interface
+	virtual UWorld* GetOwningWorld() const override { return OwningWorld.Get(); }
+	virtual UWorld* GetOuterWorld() const override { return OuterWorld.Get(); }
+	//~ End IWorldPartitionRuntimeCellOwner Interface
+
+private:
+	UPROPERTY();
+	TSoftObjectPtr<UWorld> OwningWorld;
+
+	UPROPERTY();
+	TSoftObjectPtr<UWorld> OuterWorld;
 };
 
 UCLASS(Abstract, Config=Engine, AutoExpandCategories=(WorldPartition), Within = WorldPartition)
-class ENGINE_API UWorldPartitionRuntimeHash : public UObject
+class ENGINE_API UWorldPartitionRuntimeHash : public UObject, public IWorldPartitionRuntimeCellOwner
 {
 	GENERATED_UCLASS_BODY()
 
@@ -88,6 +105,11 @@ public:
 	UE_DEPRECATED(5.1, "GetStreamingCells is deprecated, use ForEachStreamingCells instead.")
 	bool GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const;
 
+	//~ Begin IWorldPartitionRuntimeCellOwner Interface
+	virtual UWorld* GetOwningWorld() const override { return GetWorld(); }
+	virtual UWorld* GetOuterWorld() const override { return GetTypedOuter<UWorld>(); }
+	//~ End IWorldPartitionRuntimeCellOwner Interface
+
 	// Streaming interface
 	virtual void ForEachStreamingCells(TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const {}
 	virtual void ForEachStreamingCellsQuery(const FWorldPartitionStreamingQuerySource& QuerySource, TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const {}
@@ -96,6 +118,7 @@ public:
 	bool IsCellRelevantFor(bool bClientOnlyVisible) const;
 	EWorldPartitionStreamingPerformance GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellToActivate) const;
 
+	virtual URuntimeHashExternalStreamingObjectBase* StoreToExternalStreamingObject(UObject* Outer) { return nullptr; }
 	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 

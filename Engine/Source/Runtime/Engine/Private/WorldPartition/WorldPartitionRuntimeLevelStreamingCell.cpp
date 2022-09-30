@@ -113,9 +113,9 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 {
 	if (GetActorCount() > 0)
 	{
-		const UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-		UWorld* OwningWorld = WorldPartition->GetWorld();
+		const UWorldPartition* WorldPartition = GetCellOwner()->GetWorldPartition();
+		UWorld* OuterWorld = GetCellOwner()->GetOuterWorld();
+		UWorld* OwningWorld = GetCellOwner()->GetOwningWorld();
 		
 		const FName LevelStreamingName = FName(*FString::Printf(TEXT("WorldPartitionLevelStreaming_%s"), *GetName()));
 		
@@ -159,8 +159,8 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratorPackageForCook(T
 	{
 		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
 		const bool bLoadAsync = false;
-		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+		UWorld* OuterWorld = GetCellOwner()->GetOuterWorld();
+		UWorldPartition* WorldPartition = OuterWorld->GetWorldPartition();
 
 		// Don't do SoftObjectPath remapping for PersistentLevel actors because references can end up in different cells
 		const bool bSoftObjectRemappingEnabled = false;
@@ -209,8 +209,8 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 			return false;
 		}
 
-		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+		UWorld* OuterWorld = GetCellOwner()->GetOuterWorld();
+		UWorldPartition* WorldPartition = OuterWorld->GetWorldPartition();
 
 		// Load cell Actors
 		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
@@ -238,9 +238,7 @@ int32 UWorldPartitionRuntimeLevelStreamingCell::GetActorCount() const
 
 FString UWorldPartitionRuntimeLevelStreamingCell::GetPackageNameToCreate() const
 {
-	const UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-	UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-	return UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), OuterWorld);
+	return UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), GetCellOwner()->GetOuterWorld());
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArchive& Ar)
@@ -278,8 +276,8 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	if (LevelStreaming)
 	{
 		// Setup pre-created LevelStreaming's outer to the WorldPartition owning world
-		const UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-		UWorld* OwningWorld = WorldPartition->GetWorld();
+		const UWorldPartition* WorldPartition = GetCellOwner()->GetWorldPartition();
+		UWorld* OwningWorld = GetCellOwner()->GetOwningWorld();
 		if (LevelStreaming->GetWorld() != OwningWorld)
 		{
 			LevelStreaming->Rename(nullptr, OwningWorld);
