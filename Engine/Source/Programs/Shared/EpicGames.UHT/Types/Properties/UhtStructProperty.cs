@@ -207,6 +207,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override void ValidateMember(UhtStruct structObj, UhtValidationOptions options)
 		{
+			base.ValidateMember(structObj, options);
 			if (PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 			{
 				Session.ValidateScriptStructOkForNet(this, ScriptStruct);

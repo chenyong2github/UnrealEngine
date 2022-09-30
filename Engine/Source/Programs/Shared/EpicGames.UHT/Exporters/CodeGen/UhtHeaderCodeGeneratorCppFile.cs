@@ -1035,14 +1035,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append('\t').Append(classObj.SourceName).Append("::~").Append(classObj.SourceName).Append("() {}\r\n");
 			}
 
+			AppendFieldNotify(builder, classObj);
+
 			// Only write out adapters if the user has provided one or the other of the Serialize overloads
 			if (classObj.SerializerArchiveType != UhtSerializerArchiveType.None && classObj.SerializerArchiveType != UhtSerializerArchiveType.All)
 			{
 				AppendSerializer(builder, classObj, UhtSerializerArchiveType.Archive, "IMPLEMENT_FARCHIVE_SERIALIZER");
 				AppendSerializer(builder, classObj, UhtSerializerArchiveType.StructuredArchiveRecord, "IMPLEMENT_FSTRUCTUREDARCHIVE_SERIALIZER");
 			}
-
-			AppendFieldNotify(builder, classObj);
 
 			if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 			{
