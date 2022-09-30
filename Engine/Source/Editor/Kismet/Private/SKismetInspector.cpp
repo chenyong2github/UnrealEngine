@@ -838,7 +838,7 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
 	{
 		UObject* Object = SelectedObject.Get();
-		if (!Object->IsTemplate())
+		if (!Object || !Object->IsTemplate())
 		{
 			bIsEditingTemplate = false;
 			break;
