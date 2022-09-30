@@ -354,6 +354,7 @@ public:
 		: bUpdateHistory(false)
 		, bGetOpenedOnly(false)
 		, bUpdateModifiedState(false)
+		, bUpdateModifiedStateToLocalRevision(false)
 		, bCheckingAllFiles(false)
 		, bForceQuiet(false)
 		, bForceUpdate(false)
@@ -385,6 +386,11 @@ public:
 	void SetUpdateModifiedState( bool bInUpdateModifiedState )
 	{
 		bUpdateModifiedState = bInUpdateModifiedState;
+	}
+
+	void SetUpdateModifiedStateToLocalRevision(bool bInUpdateModifiedStateToLocalRevision)
+	{
+		bUpdateModifiedStateToLocalRevision = bInUpdateModifiedStateToLocalRevision;
 	}
 
 	void SetCheckingAllFiles( bool bInCheckingAllFiles )
@@ -433,6 +439,11 @@ public:
 		return bUpdateModifiedState;
 	}
 
+	bool ShouldUpdateModifiedStateToLocalRevision() const
+	{
+		return bUpdateModifiedStateToLocalRevision;
+	}
+
 	bool ShouldCheckAllFiles() const
 	{
 		return bCheckingAllFiles;
@@ -470,6 +481,9 @@ protected:
 
 	/** Whether to update the modified state - expensive */
 	bool bUpdateModifiedState;
+
+	/** Whether to update the modified state against local revision - only used when bUpdateModifiedState is true */
+	bool bUpdateModifiedStateToLocalRevision;
 
 	/** Hint that we are intending on checking all files in the project - some providers can optimize for this */
 	bool bCheckingAllFiles;

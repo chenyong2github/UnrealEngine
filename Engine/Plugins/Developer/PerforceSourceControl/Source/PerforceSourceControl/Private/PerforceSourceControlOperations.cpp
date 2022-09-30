@@ -1884,6 +1884,11 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 					// If the file is a directory, do a recursive diff on the contents
 					File /= TEXT("...");
 				}
+								
+				if (Operation->ShouldUpdateModifiedStateToLocalRevision())
+				{
+					File += TEXT("#have");
+				}
 
 				Parameters.Add(MoveTemp(File));
 			}
