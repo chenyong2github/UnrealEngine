@@ -148,7 +148,7 @@ class alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FUniformBufferBinding
 public:
 	FUniformBufferBinding() = default;
 
-	FORCEINLINE FUniformBufferRHIRef GetUniformBuffer() const
+	FORCEINLINE const FUniformBufferRHIRef& GetUniformBuffer() const
 	{
 		return UniformBuffer;
 	}
