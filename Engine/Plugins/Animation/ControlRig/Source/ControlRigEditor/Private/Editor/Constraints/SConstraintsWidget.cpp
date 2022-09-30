@@ -44,8 +44,8 @@ const TArray< const FSlateBrush* >& FConstraintInfo::GetBrushes()
 		FAppStyle::Get().GetBrush("EditorViewport.TranslateMode"),
 		FAppStyle::Get().GetBrush("EditorViewport.RotateMode"),
 		FAppStyle::Get().GetBrush("EditorViewport.ScaleMode"),
-		FAppStyle::Get().GetBrush("Icons.Transform"),
-		FAppStyle::Get().GetBrush("Level.VisibleHighlightIcon16x")
+		FAppStyle::Get().GetBrush("Icons.ConstraintManager.ParentHierarchy"),
+		FAppStyle::Get().GetBrush("Icons.ConstraintManager.LookAt")
 		});
 	return Brushes;
 }
