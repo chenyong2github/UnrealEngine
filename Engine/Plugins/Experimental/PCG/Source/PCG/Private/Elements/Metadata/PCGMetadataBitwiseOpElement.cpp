@@ -102,11 +102,11 @@ bool FPCGMetadataBitwiseElement::DoOperation(FOperationData& OperationData) cons
 
 	if (Settings->Operation == EPCGMedadataBitwiseOperation::BitwiseNot)
 	{
-		DoUnaryOp<int64, int64>(OperationData, [](const int64& Value) -> int64 { return PCGMetadataBitwiseSettings::UnaryOp(Value); });
+		DoUnaryOp<int64>(OperationData, [](const int64& Value) -> int64 { return PCGMetadataBitwiseSettings::UnaryOp(Value); });
 	}
 	else
 	{
-		DoBinaryOp<int64, int64, int64>(OperationData, [Operation = Settings->Operation](const int64& Value1, const int64& Value2) -> int64 { return PCGMetadataBitwiseSettings::BinaryOp(Value1, Value2, Operation); });
+		DoBinaryOp<int64, int64>(OperationData, [Operation = Settings->Operation](const int64& Value1, const int64& Value2) -> int64 { return PCGMetadataBitwiseSettings::BinaryOp(Value1, Value2, Operation); });
 	}
 
 	return true;

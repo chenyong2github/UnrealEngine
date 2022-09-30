@@ -12,48 +12,58 @@
 
 namespace PCGMetadataBreakVectorSettings
 {
-	template <typename InType = FVector>
-	inline void DoBreak(const InType& Value, TArray<double>& OutValues, uint32 NumOutputs)
+	template <typename InType>
+	inline double GetFirstIndex(const InType& Value)
 	{
-		check(NumOutputs == 4);
-
-		OutValues.Add(Value.X);
-		OutValues.Add(Value.Y);
-		OutValues.Add(Value.Z);
-		OutValues.Add(0.0);
+		return Value.X;
 	}
 
-	template <>
-	inline void DoBreak<FRotator>(const FRotator& Value, TArray<double>& OutValues, uint32 NumOutputs)
+	template<>
+	inline double GetFirstIndex<FRotator>(const FRotator& Value)
 	{
-		check(NumOutputs == 4);
-
-		OutValues.Add(Value.Roll);
-		OutValues.Add(Value.Pitch);
-		OutValues.Add(Value.Yaw);
-		OutValues.Add(0.0);
+		return Value.Roll;
 	}
 
-	template <>
-	inline void DoBreak<FVector2D>(const FVector2D& Value, TArray<double>& OutValues, uint32 NumOutputs)
+	template <typename InType>
+	inline double GetSecondIndex(const InType& Value)
 	{
-		check(NumOutputs == 4);
-
-		OutValues.Add(Value.X);
-		OutValues.Add(Value.Y);
-		OutValues.Add(0.0);
-		OutValues.Add(0.0);
+		return Value.Y;
 	}
 
-	template <>
-	inline void DoBreak<FVector4>(const FVector4& Value, TArray<double>& OutValues, uint32 NumOutputs)
+	template<>
+	inline double GetSecondIndex<FRotator>(const FRotator& Value)
 	{
-		check(NumOutputs == 4);
+		return Value.Pitch;
+	}
 
-		OutValues.Add(Value.X);
-		OutValues.Add(Value.Y);
-		OutValues.Add(Value.Z);
-		OutValues.Add(Value.W);
+	template <typename InType>
+	inline double GetThirdIndex(const InType& Value)
+	{
+		return Value.Z;
+	}
+
+	template<>
+	inline double GetThirdIndex<FRotator>(const FRotator& Value)
+	{
+		return Value.Yaw;
+	}
+
+	template<>
+	inline double GetThirdIndex<FVector2D>(const FVector2D& Value)
+	{
+		return 0.0;
+	}
+
+	template <typename InType>
+	inline double GetFourthIndex(const InType& Value)
+	{
+		return 0.0;
+	}
+
+	template<>
+	inline double GetFourthIndex<FVector4>(const FVector4& Value)
+	{
+		return Value.W;
 	}
 
 	inline constexpr bool IsValidType(uint16 TypeId)
@@ -149,7 +159,11 @@ bool FPCGMetadataBreakVectorElement::DoOperation(FOperationData& OperationData) 
 		}
 		else
 		{
-			return DoUnaryOpMultipleOutputs<AttributeType, double>(OperationData, PCGMetadataBreakVectorSettings::DoBreak<AttributeType>);
+			return DoUnaryOp<AttributeType>(OperationData, 
+				PCGMetadataBreakVectorSettings::GetFirstIndex<AttributeType>,
+				PCGMetadataBreakVectorSettings::GetSecondIndex<AttributeType>,
+				PCGMetadataBreakVectorSettings::GetThirdIndex<AttributeType>,
+				PCGMetadataBreakVectorSettings::GetFourthIndex<AttributeType>);
 		}
 	};
 

@@ -202,26 +202,26 @@ bool FPCGMetadataRotatorElement::DoOperation(FOperationData& OperationData) cons
 		{
 			if (PCGMetadataRotatorSettings::IsTransfromOp(Operation))
 			{
-				DoBinaryOp<AttributeType, FTransform, AttributeType>(OperationData, [Operation](const AttributeType& Value, const FTransform& Transform)->AttributeType {
+				DoBinaryOp<AttributeType, FTransform>(OperationData, [Operation](const AttributeType& Value, const FTransform& Transform)->AttributeType {
 					return PCGMetadataRotatorSettings::ApplyTransformOperation(Value, Transform, Operation);
 					});
 			}
 			else if (PCGMetadataRotatorSettings::IsUnaryOp(Operation))
 			{
-				DoUnaryOp<AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value)->AttributeType {
+				DoUnaryOp<AttributeType>(OperationData, [Operation](const AttributeType& Value)->AttributeType {
 					double DummyDouble = 0.0;
 					return PCGMetadataRotatorSettings::ApplyRotatorOperation(Value, AttributeType{}, DummyDouble, Operation);
 				});
 			}
 			else if (PCGMetadataRotatorSettings::IsTernaryOp(Operation))
 			{
-				DoTernaryOp<AttributeType, AttributeType, double, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2, const double& Ratio)->AttributeType {
+				DoTernaryOp<AttributeType, AttributeType, double>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2, const double& Ratio)->AttributeType {
 					return PCGMetadataRotatorSettings::ApplyRotatorOperation(Value1, Value2, Ratio, Operation);
 				});
 			}
 			else
 			{
-				DoBinaryOp<AttributeType, AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2)->AttributeType {
+				DoBinaryOp<AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2)->AttributeType {
 					double DummyDouble = 0.0;
 					return PCGMetadataRotatorSettings::ApplyRotatorOperation(Value1, Value2, DummyDouble, Operation);
 				});

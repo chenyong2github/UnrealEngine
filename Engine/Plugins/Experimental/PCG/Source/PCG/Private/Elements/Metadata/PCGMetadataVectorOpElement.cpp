@@ -356,13 +356,13 @@ bool FPCGMetadataVectorElement::DoOperation(FOperationData& OperationData) const
 		{
 			if (PCGMetadataVectorSettings::IsTransformOp(Operation))
 			{
-				DoBinaryOp<AttributeType, FTransform, AttributeType>(OperationData, [Operation](const AttributeType& Value, const FTransform& Transform) -> AttributeType { return PCGMetadataVectorSettings::ApplyTransformOperation(Value, Transform, Operation);});
+				DoBinaryOp<AttributeType, FTransform>(OperationData, [Operation](const AttributeType& Value, const FTransform& Transform) -> AttributeType { return PCGMetadataVectorSettings::ApplyTransformOperation(Value, Transform, Operation);});
 			}
 			else if (OperationData.OutputType == (uint16)EPCGMetadataTypes::Double)
 			{
 				if (PCGMetadataVectorSettings::IsUnaryOp(Operation))
 				{
-					DoUnaryOp<AttributeType, double>(OperationData, [Operation](const AttributeType& Value) -> double {
+					DoUnaryOp<AttributeType>(OperationData, [Operation](const AttributeType& Value) -> double {
 						double Res = 0.0;
 						PCGMetadataVectorSettings::ApplyVectorOperation(Value, AttributeType{}, Res, Operation);
 						return Res;
@@ -370,7 +370,7 @@ bool FPCGMetadataVectorElement::DoOperation(FOperationData& OperationData) const
 				}
 				else
 				{
-					DoBinaryOp<AttributeType, AttributeType, double>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2) -> double {
+					DoBinaryOp<AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2) -> double {
 						double Res = 0.0;
 						PCGMetadataVectorSettings::ApplyVectorOperation(Value1, Value2, Res, Operation);
 						return Res;
@@ -381,21 +381,21 @@ bool FPCGMetadataVectorElement::DoOperation(FOperationData& OperationData) const
 			{
 				if (PCGMetadataVectorSettings::IsUnaryOp(Operation))
 				{
-					DoUnaryOp<AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value) -> AttributeType {
+					DoUnaryOp<AttributeType>(OperationData, [Operation](const AttributeType& Value) -> AttributeType {
 						double DummyDouble = 0.0;
 						return PCGMetadataVectorSettings::ApplyVectorOperation(Value, AttributeType{}, DummyDouble, Operation);
 						});
 				}
 				else if (PCGMetadataVectorSettings::IsTernaryOp(Operation))
 				{
-					DoTernaryOp<AttributeType, AttributeType, double, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2, const double& DoubleValue) -> AttributeType {
+					DoTernaryOp<AttributeType, AttributeType, double>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2, const double& DoubleValue) -> AttributeType {
 						double DoubleCopy = DoubleValue;
 						return PCGMetadataVectorSettings::ApplyVectorOperation(Value1, Value2, DoubleCopy, Operation);
 						});
 				}
 				else
 				{
-					DoBinaryOp<AttributeType, AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2) -> AttributeType {
+					DoBinaryOp<AttributeType, AttributeType>(OperationData, [Operation](const AttributeType& Value1, const AttributeType& Value2) -> AttributeType {
 						double DummyDouble = 0.0;
 						return PCGMetadataVectorSettings::ApplyVectorOperation(Value1, Value2, DummyDouble, Operation);
 						});

@@ -119,11 +119,11 @@ bool FPCGMetadataTrigElement::DoOperation(FOperationData& OperationData) const
 
 	if (Settings->Operation == EPCGMedadataTrigOperation::Atan2)
 	{
-		DoBinaryOp<double, double, double>(OperationData, [](const double& Value1, const double& Value2) -> double { return PCGMetadataTrigSettings::BinaryOp(Value1, Value2); });
+		DoBinaryOp<double, double>(OperationData, [](const double& Value1, const double& Value2) -> double { return PCGMetadataTrigSettings::BinaryOp(Value1, Value2); });
 	}
 	else
 	{
-		DoUnaryOp<double, double>(OperationData, [Operation = Settings->Operation](const double& Value) -> double { return PCGMetadataTrigSettings::UnaryOp(Value, Operation); });
+		DoUnaryOp<double>(OperationData, [Operation = Settings->Operation](const double& Value) -> double { return PCGMetadataTrigSettings::UnaryOp(Value, Operation); });
 	}
 
 	return true;

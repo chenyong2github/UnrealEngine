@@ -219,33 +219,37 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	// So first forward outputs and create the attribute
 	OperationData.OutputAttributes.SetNum(Settings->GetOutputPinNum());
 
-	auto CreateAttributes = [&](auto DummyOutValue) -> bool
+	auto CreateAttribute = [&](uint32 OutputIndex, auto DummyOutValue) -> bool
 	{
 		using AttributeType = decltype(DummyOutValue);
 
 		AttributeType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGDefaultValueKey);
 
+		if (!ConnectedOutputs[OutputIndex])
+		{
+			OperationData.OutputAttributes[OutputIndex] = nullptr;
+			return true;
+		}
+
+		FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[0]);
+		OutputData.Pin = Settings->GetOutputPinLabel(OutputIndex);
+
+		FName OutputAttributeFinalName = Settings->GetOutputAttributeName(OutputAttributeName, OutputIndex);
+
+		UPCGMetadata* OutMetadata = nullptr;
+
+		PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
+		OperationData.OutputAttributes[OutputIndex] = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputAttributeFinalName, DefaultValue);
+		PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], OperationData.SourceAttributes[0], OperationData.OutputAttributes[OutputIndex]);
+
+		return OperationData.OutputAttributes[OutputIndex] != nullptr;
+	};
+
+	auto CreateAllSameAttributes = [&](auto DummyOutValue) -> bool
+	{
 		for (uint32 i = 0; i < NumberOfOutputs; ++i)
 		{
-			if (!ConnectedOutputs[i])
-			{
-				OperationData.OutputAttributes[i] = nullptr;
-				continue;
-			}
-
-			FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[0]);
-			OutputData.Pin = Settings->GetOutputPinLabel(i);
-
-			FName OutputAttributeFinalName = Settings->GetOutputAttributeName(OutputAttributeName, i);
-
-			UPCGMetadata* OutMetadata = nullptr;
-
-			PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
-			OperationData.OutputAttributes[i] = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputAttributeFinalName, DefaultValue);
-			PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], OperationData.SourceAttributes[0], OperationData.OutputAttributes[i]);
-
-			// If something went wrong stop here.
-			if (OperationData.OutputAttributes[i] == nullptr)
+			if (!CreateAttribute(i, DummyOutValue))
 			{
 				return false;
 			}
@@ -256,7 +260,27 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	OperationData.OutputType = Settings->GetOutputType(OperationData.MostComplexInputType);
 
-	if (!PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, CreateAttributes))
+	bool bCreateAttributeSucceeded = true;
+
+	if (!Settings->HasDifferentOutputTypes())
+	{
+		bCreateAttributeSucceeded = PCGMetadataAttribute::CallbackWithRightType(OperationData.OutputType, CreateAllSameAttributes);
+	}
+	else
+	{
+		TArray<uint16> OutputTypes = Settings->GetAllOutputTypes();
+		check(OutputTypes.Num() == NumberOfOutputs);
+
+		for (uint32 i = 0; i < NumberOfOutputs && bCreateAttributeSucceeded; ++i)
+		{
+			bCreateAttributeSucceeded &= PCGMetadataAttribute::CallbackWithRightType(OutputTypes[i],
+				[&](auto DummyOutValue) -> bool {
+					return CreateAttribute(i, DummyOutValue);
+				});
+		}
+	}
+
+	if (!bCreateAttributeSucceeded)
 	{
 		PCGE_LOG(Error, "Error while creating output attributes");
 		Outputs.Empty();

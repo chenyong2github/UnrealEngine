@@ -128,7 +128,7 @@ bool FPCGMetadataCompareElement::DoOperation(FOperationData& OperationData) cons
 		}
 		else
 		{
-			DoBinaryOp<AttributeType, AttributeType, bool>(OperationData, 
+			DoBinaryOp<AttributeType, AttributeType>(OperationData, 
 				[Operation, Tolerance](const AttributeType& Value1, const AttributeType& Value2) -> bool { 
 					return PCGMetadataCompareSettings::ApplyCompare(Value1, Value2, Operation, Tolerance); 
 				});
