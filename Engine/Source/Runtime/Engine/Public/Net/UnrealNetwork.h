@@ -16,7 +16,9 @@
 #include "EngineLogs.h"
 #include "UObject/UnrealType.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Net/Core/Connection/NetResult.h"
 #include "Net/Core/PropertyConditions/PropertyConditions.h"
+#include "Net/ReplayResult.h"
 
 class AActor;
 
@@ -60,7 +62,14 @@ DECLARE_DELEGATE_OneParam(FGetOverridableVersionDataForDemoHeaderReadDelegate, F
 DECLARE_DELEGATE_OneParam(FGetOverridableVersionDataForDemoHeaderWriteDelegate, FOverridableReplayVersionData& /*OveridableReplayVersionData*/);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayStartedDelegate, UWorld* /*World*/);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UE_DEPRECATED(5.2, "Deprecated in favor of FOnReplayPlaybackFailureDelegate")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayStartFailureDelegate, UWorld* /*World*/, EDemoPlayFailure::Type /*Error*/);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayPlaybackFailureDelegate, UWorld* /*World*/, const UE::Net::TNetResult<EReplayResult>& /*Error*/);
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayScrubCompleteDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayPlaybackCompleteDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayRecordingStartAttemptDelegate, UWorld* /*World*/);
@@ -89,8 +98,14 @@ struct ENGINE_API FNetworkReplayDelegates
 	/** Public delegate for external systems to be notified when a replay begins */
 	static FOnReplayStartedDelegate OnReplayStarted;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Public delegate to be notified when a replay failed to start */
+	UE_DEPRECATED(5.2, "Deprecated in favor of OnReplayPlaybackFailure")
 	static FOnReplayStartFailureDelegate OnReplayStartFailure;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/** Public delegate to be notified when replay playback failed */
+	static FOnReplayPlaybackFailureDelegate OnReplayPlaybackFailure;
 
 	/** Public delegate for external systems to be notified when scrubbing is complete. Only called for successful scrub. */
 	static FOnReplayScrubCompleteDelegate OnReplayScrubComplete;

@@ -856,8 +856,8 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 		ReplayHelper.CheckpointSaveMaxMSPerFrame = CheckpointSaveMaxMSPerFrame;
 
 		// if the helper encounters an error, stop the presses
-		ReplayHelper.OnReplayRecordError.AddUObject(this, &UDemoNetDriver::StopDemo);
-		ReplayHelper.OnReplayPlaybackError.AddUObject(this, &UDemoNetDriver::NotifyDemoPlaybackFailure);
+		ReplayHelper.OnReplayRecordError.BindUObject(this, &UDemoNetDriver::NotifyDemoRecordFailure);
+		ReplayHelper.OnReplayPlaybackError.BindUObject(this, &UDemoNetDriver::NotifyDemoPlaybackError);
 
 		return true;
 	}
@@ -879,8 +879,8 @@ void UDemoNetDriver::FinishDestroy()
 	CleanUpSplitscreenConnections(true);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 
-	ReplayHelper.OnReplayRecordError.RemoveAll(this);
-	ReplayHelper.OnReplayPlaybackError.RemoveAll(this);
+	ReplayHelper.OnReplayRecordError.Unbind();
+	ReplayHelper.OnReplayPlaybackError.Unbind();
 	
 	if (World)
 	{
@@ -917,22 +917,12 @@ void UDemoNetDriver::ResetDemoState()
 
 bool UDemoNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error)
 {
-	if (World == nullptr)
-	{
-		UE_LOG(LogDemo, Error, TEXT("World == nullptr"));
-		return false;
-	}
-
-	if (World->GetGameInstance() == nullptr)
-	{
-		UE_LOG(LogDemo, Error, TEXT("World->GetGameInstance() == nullptr"));
-		return false;
-	}
+	ReplayHelper.bRecording = false;
 
 	// handle default initialization
-	if (!InitBase(true, InNotify, ConnectURL, false, Error))
+	if (!World || !World->GetGameInstance() || !InitBase(true, InNotify, ConnectURL, false, Error))
 	{
-		World->GetGameInstance()->HandleDemoPlaybackFailure(EDemoPlayFailure::InitBase, FString(TEXT("InitBase FAILED")));
+		ReplayHelper.NotifyReplayError(EReplayResult::InitConnect);
 		return false;
 	}
 
@@ -1049,7 +1039,7 @@ bool UDemoNetDriver::InitConnectInternal(FString& Error)
 
 			if (!GEngine->MakeSureMapNameIsValid(LocalDemoURL.Map))
 			{
-				NotifyDemoPlaybackFailure(EDemoPlayFailure::LoadMap);
+				ReplayHelper.NotifyReplayError(EReplayResult::LoadMap);
 				return false;
 			}
 
@@ -1057,11 +1047,9 @@ bool UDemoNetDriver::InitConnectInternal(FString& Error)
 
 			if (WorldContext == nullptr)
 			{
-				UGameInstance* GameInstance = World->GetGameInstance();
-
 				Error = FString::Printf(TEXT("No world context"));
 				UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::InitConnect: %s"), *Error);
-				GameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::Generic, FString(TEXT("No world context")));
+				ReplayHelper.NotifyReplayError(EReplayResult::InitConnect);
 				return false;
 			}
 
@@ -1089,6 +1077,8 @@ bool UDemoNetDriver::InitConnectInternal(FString& Error)
 
 bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool bReuseAddressAndPort, FString& Error)
 {
+	ReplayHelper.bRecording = true;
+
 	if (!InitBase(false, InNotify, ListenURL, bReuseAddressAndPort, Error))
 	{
 		return false;
@@ -1271,7 +1261,7 @@ void UDemoNetDriver::PostTickFlush()
 		{
 			if (UGameInstance* GameInstance = World->GetGameInstance())
 			{
-				GameInstance->HandleDemoRecordFailure(PendingRecordFailure.GetValue());
+				GameInstance->HandleDemoRecordFailure(PendingRecordFailure.GetValue().GetResult());
 			}
 		}
 
@@ -1317,10 +1307,9 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 
 	TSharedPtr<INetworkReplayStreamer> Streamer = GetReplayStreamer();
 
-	if (Streamer->GetLastError() != ENetworkReplayError::None)
+	if (UE::Net::EHandleNetResult::Handled == Streamer->HandleLastError(ReplayHelper.ResultManager))
 	{
-		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::TickFlush: ReplayStreamer ERROR: %s"), ENetworkReplayError::ToString(Streamer->GetLastError()));
-		NotifyDemoRecordFailure(EDemoRecordFailure::Generic);
+		ReplayHelper.NotifyReplayError(EReplayResult::StreamerError);
 		return;
 	}
 
@@ -1334,7 +1323,7 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 	if (FileAr == nullptr)
 	{
 		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::TickFlush: FileAr == nullptr"));
-		NotifyDemoRecordFailure(EDemoRecordFailure::StreamingArchive);
+		ReplayHelper.NotifyReplayError(EReplayResult::MissingArchive);
 		return;
 	}
 
@@ -1398,19 +1387,17 @@ void UDemoNetDriver::TickDispatch(float DeltaSeconds)
 		return;
 	}
 
-	if (GetReplayStreamer()->GetLastError() != ENetworkReplayError::None)
+	if (UE::Net::EHandleNetResult::Handled == GetReplayStreamer()->HandleLastError(ReplayHelper.ResultManager))
 	{
-		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::TickDispatch: ReplayStreamer ERROR: %s"), ENetworkReplayError::ToString(GetReplayStreamer()->GetLastError()));
-		NotifyDemoPlaybackFailure(EDemoPlayFailure::ReplayStreamerInternal);
+		ReplayHelper.NotifyReplayError(EReplayResult::StreamerError);
 		return;
 	}
 
 	FArchive* FileAr = GetReplayStreamer()->GetStreamingArchive();
-
 	if (FileAr == nullptr)
 	{
 		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::TickDispatch: FileAr == nullptr"));
-		NotifyDemoPlaybackFailure(EDemoPlayFailure::ReplayStreamerInternal);
+		ReplayHelper.NotifyReplayError(EReplayResult::MissingArchive);
 		return;
 	}
 
@@ -2457,17 +2444,20 @@ void UDemoNetDriver::OnRefreshHeaderCompletePrivate(const FDownloadHeaderResult&
 			}
 			else
 			{
-				World->GetGameInstance()->HandleDemoPlaybackFailure(EDemoPlayFailure::Corrupt, FString::Printf(TEXT("UDemoNetDriver::OnDownloadHeaderComplete: LevelIndex %d not in range of level names of size: %d"), LevelIndex, ReplayHelper.PlaybackDemoHeader.LevelNamesAndTimes.Num()));
+				UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::OnDownloadHeaderComplete: LevelIndex %d not in range of level names of size: %d"), LevelIndex, ReplayHelper.PlaybackDemoHeader.LevelNamesAndTimes.Num());
+				ReplayHelper.NotifyReplayError(EReplayResult::Corrupt);
 			}
 		}
 		else
 		{
-			World->GetGameInstance()->HandleDemoPlaybackFailure(EDemoPlayFailure::Corrupt, FString::Printf(TEXT("UDemoNetDriver::OnDownloadHeaderComplete: ReadPlaybackDemoHeader header failed with error %s."), *Error));
+			UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::OnDownloadHeaderComplete: ReadPlaybackDemoHeader header failed with error %s."), *Error);
+			// ReadPlaybackDemoHeader will have already called NotifyPlaybackError internally on failure
 		}
 	}
 	else
 	{
-		World->GetGameInstance()->HandleDemoPlaybackFailure(EDemoPlayFailure::Corrupt, FString::Printf(TEXT("UDemoNetDriver::OnDownloadHeaderComplete: Downloading header failed.")));
+		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::OnDownloadHeaderComplete: Downloading header failed."));
+		ReplayHelper.NotifyReplayError(EReplayResult::Corrupt);
 	}
 }
 
@@ -2578,7 +2568,7 @@ bool UDemoNetDriver::ProcessPacket(const uint8* Data, int32 Count)
 	{
 		// Something we received resulted in the demo being stopped
 		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::ProcessPacket: ReceivedRawPacket closed connection"));
-		NotifyDemoPlaybackFailure(EDemoPlayFailure::Generic);
+		ReplayHelper.NotifyReplayError(EReplayResult::ConnectionClosed);
 		return false;
 	}
 
@@ -3167,15 +3157,13 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 
 	if (!bWasStartStreamingSuccessful)
 	{
-		UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::ReplayStreamingReady: Failed. %s"), Result.bRecording ? TEXT("") : EDemoPlayFailure::ToString(EDemoPlayFailure::DemoNotFound));
-
 		if (Result.bRecording)
 		{
-			NotifyDemoRecordFailure(EDemoRecordFailure::StartStreaming);
+			ReplayHelper.NotifyReplayError(EReplayResult::StreamerError);
 		}
 		else
 		{
-			NotifyDemoPlaybackFailure(EDemoPlayFailure::DemoNotFound);
+			ReplayHelper.NotifyReplayError(EReplayResult::ReplayNotFound);
 		}
 		return;
 	}
@@ -3689,7 +3677,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 				if (!ReadPacketsHelper.ReadPackets(*CheckpointArchive) && ReadPacketsHelper.IsError())
 				{
 					UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::FastForwardLevels: Failed to read packets from Checkpoint."));
-					NotifyDemoPlaybackFailure(EDemoPlayFailure::Generic);
+					ReplayHelper.NotifyReplayError(EReplayResult::Unknown);
 					return false;
 				}
 
@@ -3722,7 +3710,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 		if (ReadPacketsHelper.IsError())
 		{
 			UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::FastForwardLevels: Failed to read packets from Stream."));
-			NotifyDemoPlaybackFailure(EDemoPlayFailure::Serialization);
+			ReplayHelper.NotifyReplayError(EReplayResult::Serialization);
 			return false;
 		}
 
@@ -5294,40 +5282,59 @@ UChannel* UDemoNetDriver::InternalCreateChannelByName(const FName& ChName)
 	return NewChannel;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UDemoNetDriver::NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType)
 {
-	UE_LOG(LogDemo, Warning, TEXT("Demo playback failure: '%s'"), EDemoPlayFailure::ToString(FailureType));
+	UE_LOG(LogDemo, Warning, TEXT("NotifyDemoPlaybackFailure: %s"), EDemoPlayFailure::ToString(FailureType));
 
 	const bool bIsPlaying = IsPlaying();
 
 	// fire delegate
 	FNetworkReplayDelegates::OnReplayStartFailure.Broadcast(World, FailureType);
+	FNetworkReplayDelegates::OnReplayPlaybackFailure.Broadcast(World, EReplayResult::Unknown);
 
 	StopDemo();
 
-	if (bIsPlaying)
+	if (bIsPlaying && World)
 	{
-		if (World)
+		if (UGameInstance* GameInstance = World->GetGameInstance())
 		{
-			if (UGameInstance* GameInstance = World->GetGameInstance())
-			{
-				GameInstance->HandleDemoPlaybackFailure(FailureType, FString(EDemoPlayFailure::ToString(FailureType)));
-			}
+			GameInstance->HandleDemoPlaybackFailure(EReplayResult::Unknown);
+		}
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void UDemoNetDriver::NotifyDemoPlaybackError(const UE::Net::TNetResult<EReplayResult>& Result)
+{
+	const bool bIsPlaying = IsPlaying();
+
+	// fire delegate
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FNetworkReplayDelegates::OnReplayStartFailure.Broadcast(World, EDemoPlayFailure::Generic);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FNetworkReplayDelegates::OnReplayPlaybackFailure.Broadcast(World, Result);
+
+	StopDemo();
+
+	if (bIsPlaying && World)
+	{
+		if (UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			GameInstance->HandleDemoPlaybackFailure(Result);
 		}
 	}
 }
 
-void UDemoNetDriver::NotifyDemoRecordFailure(EDemoRecordFailure FailureType)
+void UDemoNetDriver::NotifyDemoRecordFailure(const UE::Net::TNetResult<EReplayResult>& Result)
 {
-	UE_LOG(LogDemo, Warning, TEXT("Demo record failure: '%s'"), LexToString(FailureType));
-
 	const bool bIsRecording = IsRecording();
 
 	StopDemo();
 
 	if (bIsRecording && !PendingRecordFailure.IsSet())
 	{
-		PendingRecordFailure.Emplace(FailureType);
+		PendingRecordFailure.Emplace(Result);
 	}
 }
 
@@ -5470,9 +5477,10 @@ bool UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Conte
 		GEngine->BrowseToDefaultMap(Context);
 
 		UE_LOG(LogDemo, Error, TEXT("UDemoPendingNetGame::HandlePostLoadMap: LoadMap failed: %s"), *LoadMapError);
+
 		if (Context.OwningGameInstance)
 		{
-			Context.OwningGameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::LoadMap, FString(TEXT("LoadMap failed")));
+			Context.OwningGameInstance->HandleDemoPlaybackFailure(EReplayResult::LoadMap);
 		}
 		// we already handled the error so don't need the TickPendingNetGame to handle it 
 		return true;

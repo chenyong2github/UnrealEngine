@@ -6,20 +6,35 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/PackageMapClient.h"
 #include "NetworkReplayStreaming.h"
+#include "Net/Core/Connection/NetResult.h"
+#include "Net/ReplayResult.h"
 #include "ReplayTypes.h"
 #include "Containers/ArrayView.h"
 
 class APlayerController;
 class UNetConnection;
 
+class FReplayHelper;
+
+class FReplayResultHandler final : public UE::Net::FNetResultHandler
+{
+	friend class FReplayHelper;
+
+private:
+	void InitResultHandler(FReplayHelper* InReplayHelper);
+
+	virtual UE::Net::EHandleNetResult HandleNetResult(UE::Net::FNetResult&& InResult) override;
+
+private:
+	FReplayHelper* ReplayHelper = nullptr;
+};
+
 class FReplayHelper
 {
 	friend class UDemoNetDriver;
 	friend class UDemoNetConnection;
 	friend class UReplayNetConnection;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	friend class FScopedPacketManager;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	friend class FReplayResultHandler;
 
 public:
 	FReplayHelper();
@@ -87,10 +102,10 @@ private:
 	/** Returns either CheckpointSaveMaxMSPerFrame or the value of demo.CheckpointSaveMaxMSPerFrameOverride if it's >= 0. */
 	float GetCheckpointSaveMaxMSPerFrame() const;
 
-	DECLARE_MULTICAST_DELEGATE(FOnReplayRecordError);
+	DECLARE_DELEGATE_OneParam(FOnReplayRecordError, const UE::Net::TNetResult<EReplayResult>&);
 	FOnReplayRecordError OnReplayRecordError;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayPlaybackError, EDemoPlayFailure::Type);
+	DECLARE_DELEGATE_OneParam(FOnReplayPlaybackError, const UE::Net::TNetResult<EReplayResult>&);
 	FOnReplayPlaybackError OnReplayPlaybackError;
 
 	static float GetClampedDeltaSeconds(UWorld* World, const float DeltaSeconds);
@@ -459,6 +474,8 @@ private:
 
 	bool bPendingCheckpointRequest;
 
+	UE::Net::FNetResultManager ResultManager;
+
 	static FString GetLevelPackageName(const ULevel& InLevel);
 
 	void ResetLevelStatuses();
@@ -538,6 +555,10 @@ private:
 	ECheckpointSaveState GetCheckpointSaveState() const { return CheckpointSaveContext.CheckpointSaveState; }
 
 	void ProcessCheckpointActors(UNetConnection* Connection, TArrayView<FPendingCheckPointActor> PendingActors, int32& NextIndex, FRepActorsCheckpointParams& Params);
+
+	void NotifyReplayError(UE::Net::TNetResult<EReplayResult>&& Result);
+
+	bool bRecording;
 
 	static constexpr int32 MAX_DEMO_READ_WRITE_BUFFER = 1024 * 2;
 	static constexpr int32 MAX_DEMO_STRING_SERIALIZATION_SIZE = 16 * 1024 * 1024;

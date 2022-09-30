@@ -6,6 +6,8 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/SharedPointer.h"
+#include "Net/Core/Connection/NetResult.h"
+#include "Net/ReplayResult.h"
 
 /**
  * Delegate that is called prior to starting each replay in a playlist,
@@ -113,7 +115,7 @@ private:
 	void PlayNextReplay();
 
 	/** Called if an error occurs *after* the replay was requested to start (successfully), but before the replay actually starts. */
-	void OnDemoFailedToStart(UWorld* InWorld, EDemoPlayFailure::Type FailureType);
+	void OnDemoPlaybackFailed(UWorld* InWorld, const UE::Net::TNetResult<EReplayResult>& Result);
 
 	/** Called when the DemoNetDriver hits a Hard Stop, like an error or a user requesting a stop. */
 	void OnDemoStopped(UWorld* InWorld);
@@ -129,7 +131,7 @@ private:
 	TWeakObjectPtr<class UGameInstance> GameInstance;
 	TWeakObjectPtr<class UDemoNetDriver> DemoNetDriver;
 
-	FDelegateHandle OnDemoFailedToStartHandle;
+	FDelegateHandle OnDemoPlaybackFailedHandle;
 	FDelegateHandle OnDemoPlaybackFinishedHandle;
 	FDelegateHandle OnDemoStoppedHandle;
 

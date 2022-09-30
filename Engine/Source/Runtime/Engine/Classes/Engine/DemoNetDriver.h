@@ -16,6 +16,8 @@
 #include "NetworkReplayStreaming.h"
 #include "Engine/DemoNetConnection.h"
 #include "Net/RepLayout.h"
+#include "Net/Core/Connection/NetResult.h"
+#include "Net/ReplayResult.h"
 #include "Templates/Atomic.h"
 #include "Net/UnrealNetwork.h"
 #include "ReplayHelper.h"
@@ -30,7 +32,11 @@ DECLARE_MULTICAST_DELEGATE(FOnGotoTimeMCDelegate);
 DECLARE_DELEGATE_OneParam(FOnGotoTimeDelegate, const bool /* bWasSuccessful */);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDemoStartedDelegate, UDemoNetDriver* /* DemoNetDriver */);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UE_DEPRECATED(5.2, "No longer used")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDemoFailedToStartDelegate, UDemoNetDriver* /* DemoNetDriver */, EDemoPlayFailure::Type /* FailureType*/);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 DECLARE_MULTICAST_DELEGATE(FOnDemoFinishPlaybackDelegate);
 DECLARE_MULTICAST_DELEGATE(FOnDemoFinishRecordingDelegate);
@@ -261,7 +267,7 @@ protected:
 	uint8 bIsWaitingForHeaderDownload : 1;
 	uint8 bIsWaitingForStream : 1;
 
-	TOptional<EDemoRecordFailure> PendingRecordFailure;
+	TOptional<UE::Net::TNetResult<EReplayResult>> PendingRecordFailure;
 
 private:
 	TArray<FNetworkGUID> NonQueuedGUIDsForScrubbing;
@@ -694,8 +700,13 @@ protected:
 
 	bool DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.2, "Please use NotifyDemoPlaybackError instead")
 	void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
-	void NotifyDemoRecordFailure(EDemoRecordFailure FailureType);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	void NotifyDemoPlaybackError(const UE::Net::TNetResult<EReplayResult>& Result);
+	void NotifyDemoRecordFailure(const UE::Net::TNetResult<EReplayResult>& Result);
 
 	TArray<FQueuedDemoPacket> QueuedPacketsBeforeTravel;
 

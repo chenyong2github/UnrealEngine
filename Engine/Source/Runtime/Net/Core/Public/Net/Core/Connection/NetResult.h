@@ -379,7 +379,7 @@ public:
 
 		for (FConstIterator It(*this); It; ++It)
 		{
-			const TCHAR* ResultLex = LexToString(static_cast<ResultEnum>(It->Result));
+			const TCHAR* ResultLex = ToCStr(LexToString(static_cast<ResultEnum>(It->Result)));
 
 			if (ConversionType == ENetResultString::ResultEnumOnly)
 			{
@@ -480,7 +480,7 @@ private:
 	/** Default ErrorContext based on ResultEnum */
 	static const TCHAR* DefaultErrorContext(ResultEnum InResult)
 	{
-		return (InResult == ResultEnum::Success ? TEXT("") : LexToString(InResult));
+		return (InResult == ResultEnum::Success ? TEXT("") : ToCStr(LexToString(InResult)));
 	}
 };
 

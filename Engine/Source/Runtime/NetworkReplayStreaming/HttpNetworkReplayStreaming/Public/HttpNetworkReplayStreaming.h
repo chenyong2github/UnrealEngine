@@ -6,6 +6,7 @@
 #include "NetworkReplayStreaming.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Tickable.h"
+#include "HttpNetworkReplayStreaming.generated.h"
 
 class FHttpNetworkReplayStreamer;
 
@@ -197,11 +198,30 @@ public:
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
+UENUM()
+enum class EHttpReplayResult : uint32
+{
+	Success,
+	FailedJsonParse,
+	DataUnavailable,
+	InvalidHttpResponse,
+	CompressionFailed,
+	DecompressionFailed,
+	InvalidPayload,
+	Unknown,
+};
+
+DECLARE_NETRESULT_ENUM(EHttpReplayResult);
+
+HTTPNETWORKREPLAYSTREAMING_API const TCHAR* LexToString(EHttpReplayResult Enum);
+
 /**
  * Http network replay streaming manager
  */
 class HTTPNETWORKREPLAYSTREAMING_API FHttpNetworkReplayStreamer : public INetworkReplayStreamer
 {
+	using FHttpReplayResult = UE::Net::TNetResult<EHttpReplayResult>;
+
 public:
 	FHttpNetworkReplayStreamer();
 
@@ -244,7 +264,6 @@ public:
 	virtual void		RenameReplay(const FString& ReplayName, const FString& NewName, const FRenameReplayCallback& Delegate) override;
 	virtual void		RenameReplay(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate) override;
 
-	virtual ENetworkReplayError::Type GetLastError() const override;
 	virtual FString		GetReplayID() const override { return SessionName; }
 	virtual EReplayStreamerState GetReplayStreamerState() const override { return StreamerState; }
 	virtual void		SetTimeBufferHintSeconds(const float InTimeBufferHintSeconds) override {}
@@ -274,7 +293,11 @@ public:
 	void ConditionallyDownloadNextChunk();
 	void RefreshViewer( const bool bFinal );
 	void ConditionallyRefreshViewer();
-	void SetLastError( const ENetworkReplayError::Type InLastError );
+	
+	UE_DEPRECATED(5.2, "No longer used")
+	void SetLastError(const ENetworkReplayError::Type InLastError) { SetLastError(EHttpReplayResult::Unknown); }
+	void SetLastError(FHttpReplayResult&& Result);
+
 	virtual void CancelStreamingRequests();
 	void FlushCheckpointInternal( uint32 TimeInMS );
 	virtual void AddEvent( const uint32 TimeInMS, const FString& Group, const FString& Meta, const TArray<uint8>& Data ) override;
@@ -351,8 +374,6 @@ public:
 	uint32					StreamTimeRangeEnd;
 	FString					ViewerName;
 	uint32					HighPriorityEndTime;
-
-	ENetworkReplayError::Type		StreamerLastError;
 
 	FStartStreamingCallback			StartStreamingDelegate;		// Delegate passed in to StartStreaming
 	FGotoCallback					GotoCheckpointDelegate;

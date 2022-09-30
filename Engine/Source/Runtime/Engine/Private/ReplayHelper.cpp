@@ -51,6 +51,7 @@ FReplayHelper::FReplayHelper()
 	, CheckpointSaveMaxMSPerFrame(0)
 	, NumLevelsAddedThisFrame(0)
 	, bPendingCheckpointRequest(false)
+	, bRecording(false)
 {
 }
 
@@ -78,6 +79,10 @@ TSharedPtr<INetworkReplayStreamer> FReplayHelper::Init(const FURL& URL)
 		}
 	}
 
+	TUniquePtr<FReplayResultHandler> ReplayHandler = MakeUnique<FReplayResultHandler>();
+	ReplayHandler->InitResultHandler(this);
+
+	ResultManager.AddResultHandler(MoveTemp(ReplayHandler), UE::Net::EAddResultHandlerPos::First);
 
 	FWorldDelegates::LevelRemovedFromWorld.AddRaw(this, &FReplayHelper::OnLevelRemovedFromWorld);
 	FWorldDelegates::LevelAddedToWorld.AddRaw(this, &FReplayHelper::OnLevelAddedToWorld);
@@ -118,7 +123,7 @@ void FReplayHelper::OnStartRecordingComplete(const FStartStreamingResult& Result
 	if (!bWasStartRecordingSuccessful)
 	{
 		UE_LOG(LogDemo, Warning, TEXT("FReplayRecordHelper::StartRecordingComplete: Failed"));
-		OnReplayRecordError.Broadcast();
+		NotifyReplayError(EReplayResult::StreamerError);
 		return;
 	}
 
@@ -396,7 +401,7 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 	{
 		Error = FString::Printf(TEXT("Couldn't open demo file %s for reading"), *DemoURL.Map);
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadPlaybackDemoHeader: %s"), *Error);
-		GameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::DemoNotFound, FString(EDemoPlayFailure::ToString(EDemoPlayFailure::DemoNotFound)));
+		NotifyReplayError(EReplayResult::ReplayNotFound);
 		return false;
 	}
 
@@ -406,7 +411,7 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 	{
 		Error = FString(TEXT("Demo file is corrupt"));
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadPlaybackDemoHeader: %s"), *Error);
-		GameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::Corrupt, Error);
+		NotifyReplayError(EReplayResult::Corrupt);
 		return false;
 	}
 
@@ -418,7 +423,7 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 	if (HasDeltaCheckpoints() && !ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta))
 	{
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadPlaybackDemoHeader: Replay has delta checkpoints but streamer does not support them."));
-		GameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::Generic, FString(EDemoPlayFailure::ToString(EDemoPlayFailure::Generic)));
+		NotifyReplayError(EReplayResult::UnsupportedCheckpoint);
 		return false;
 	}
 
@@ -436,7 +441,7 @@ bool FReplayHelper::ReadPlaybackDemoHeader(FString& Error)
 	if (!Error.IsEmpty())
 	{
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadPlaybackDemoHeader: (Game Specific) %s"), *Error);
-		GameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::GameSpecificHeader, Error);
+		NotifyReplayError(EReplayResult::GameSpecific);
 		return false;
 	}
 
@@ -451,10 +456,9 @@ void FReplayHelper::TickRecording(float DeltaSeconds, UNetConnection* Connection
 		return;
 	}
 
-	if (ReplayStreamer->GetLastError() != ENetworkReplayError::None)
+	if (UE::Net::EHandleNetResult::Handled == ReplayStreamer->HandleLastError(ResultManager))
 	{
-		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::TickRecording: ReplayStreamer ERROR: %s"), ENetworkReplayError::ToString(ReplayStreamer->GetLastError()));
-		OnReplayRecordError.Broadcast();
+		NotifyReplayError(EReplayResult::StreamerError);
 		return;
 	}
 
@@ -468,7 +472,7 @@ void FReplayHelper::TickRecording(float DeltaSeconds, UNetConnection* Connection
 	if (FileAr == nullptr)
 	{
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::TickRecording: FileAr == nullptr"));
-		OnReplayRecordError.Broadcast();
+		NotifyReplayError(EReplayResult::MissingArchive);
 		return;
 	}
 
@@ -1871,7 +1875,7 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 	if (Ar.IsError())
 	{
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadDemoFrame: Archive Error"));
-		OnReplayPlaybackError.Broadcast(EDemoPlayFailure::Serialization);
+		NotifyReplayError(EReplayResult::Serialization);
 		return false;
 	}
 
@@ -1880,10 +1884,9 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 		return false;
 	}
 
-	if (ReplayStreamer->GetLastError() != ENetworkReplayError::None)
+	if (UE::Net::EHandleNetResult::Handled == ReplayStreamer->HandleLastError(ResultManager))
 	{
-		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadDemoFrame: ReplayStreamer ERROR: %s"), ENetworkReplayError::ToString(ReplayStreamer->GetLastError()));
-		OnReplayPlaybackError.Broadcast(EDemoPlayFailure::ReplayStreamerInternal);
+		NotifyReplayError(EReplayResult::StreamerError);
 		return false;
 	}
 
@@ -1999,7 +2002,7 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 	if (Ar.IsError())
 	{
 		UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadDemoFrame: Failed to read demo ServerDeltaTime"));
-		OnReplayPlaybackError.Broadcast(EDemoPlayFailure::Serialization);
+		NotifyReplayError(EReplayResult::Serialization);
 		return false;
 	}
 
@@ -2062,7 +2065,7 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 			case EReadPacketState::Error:
 			{
 				UE_LOG(LogDemo, Error, TEXT("FReplayHelper::ReadDemoFrame: ReadPacket failed."));
-				OnReplayPlaybackError.Broadcast(EDemoPlayFailure::Serialization);
+				NotifyReplayError(EReplayResult::Serialization);
 				return false;
 			}
 
@@ -2291,22 +2294,6 @@ const TCHAR* LexToString(EReplayHeaderFlags Flag)
 	}
 }
 
-const TCHAR* LexToString(EDemoRecordFailure FailureType)
-{
-	switch (FailureType)
-	{
-	case EDemoRecordFailure::Generic:
-		return TEXT("Generic");
-	case EDemoRecordFailure::StreamingArchive:
-		return TEXT("StreamingArchive");
-	case EDemoRecordFailure::StartStreaming:
-		return TEXT("StartStreaming");
-	default:
-		check(false);
-		return TEXT("Unknown");
-	}
-}
-
 void FReplayHelper::RequestCheckpoint()
 {
 	bPendingCheckpointRequest = true;
@@ -2395,3 +2382,42 @@ void FReplayHelper::NotifyActorDestroyed(UNetConnection* Connection, AActor* Act
 		}
 	}
 }
+
+void FReplayHelper::NotifyReplayError(UE::Net::TNetResult<EReplayResult>&& Result)
+{
+	ResultManager.HandleNetResult(MoveTemp(Result));
+}
+
+void FReplayResultHandler::InitResultHandler(FReplayHelper* InReplayHelper)
+{
+	ReplayHelper = InReplayHelper;
+}
+
+UE::Net::EHandleNetResult FReplayResultHandler::HandleNetResult(UE::Net::FNetResult&& InResult)
+{
+	using namespace UE::Net;
+
+	UE_LOG(LogDemo, Error, TEXT("FReplayResultHandler::HandleNetResult:"));
+
+	for (FNetResult::FConstIterator It(InResult); It; ++It)
+	{
+		UE_LOG(LogDemo, Error, TEXT(" - %s"), ToCStr(It->DynamicToString()));
+	}
+
+	TNetResult<EReplayResult>* CastedResult = Cast<EReplayResult>(&InResult);
+
+	if (CastedResult && ReplayHelper)
+	{
+		if (ReplayHelper->bRecording)
+		{
+			ReplayHelper->OnReplayRecordError.ExecuteIfBound(*CastedResult);
+		}
+		else
+		{
+			ReplayHelper->OnReplayPlaybackError.ExecuteIfBound(*CastedResult);
+		}
+	}
+
+	return EHandleNetResult::Handled;
+}
+

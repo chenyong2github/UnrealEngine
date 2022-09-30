@@ -38,6 +38,7 @@ void UReplayNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState
 	InitSendBuffer();
 
 	ReplayHelper.Init(InURL);
+	ReplayHelper.bRecording = true;
 }
 
 void UReplayNetConnection::CleanUp()

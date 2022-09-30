@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
                     "Json",
 					"Analytics",
+					"NetCore",
 				}
 			);
 		}

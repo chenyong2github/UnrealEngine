@@ -4675,7 +4675,7 @@ bool UWorld::HandleDemoPlayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 
 		if (GetGameInstance() != nullptr)
 		{
-			GetGameInstance()->HandleDemoPlaybackFailure(EDemoPlayFailure::Generic, FString(ErrorString));
+			GetGameInstance()->HandleDemoPlaybackFailure(EReplayResult::Unknown);
 		}
 	}
 	else

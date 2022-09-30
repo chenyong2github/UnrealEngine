@@ -429,11 +429,16 @@ public:
 
 	void CleanupGameViewport();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Called when demo playback fails for any reason */
+	UE_DEPRECATED(5.2, "Now takes a EReplayResult instead.")
 	virtual void HandleDemoPlaybackFailure(EDemoPlayFailure::Type FailureType, const FString& ErrorString = TEXT("")) { }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	virtual void HandleDemoPlaybackFailure(const UE::Net::TNetResult<EReplayResult>& Result) { }
 
 	/** Called when demo recording fails for any reason */
-	virtual void HandleDemoRecordFailure(EDemoRecordFailure FailureType) { }
+	virtual void HandleDemoRecordFailure(const UE::Net::TNetResult<EReplayResult>& Result) { }
 
 	/** This gets called when the player scrubs in a replay to a different level */
 	virtual void OnSeamlessTravelDuringReplay() { }

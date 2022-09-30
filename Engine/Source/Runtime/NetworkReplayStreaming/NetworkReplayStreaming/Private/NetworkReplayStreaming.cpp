@@ -172,3 +172,32 @@ TArray<FAnalyticsEventAttribute> INetworkReplayStreamer::AppendCommonReplayAttri
 
 	return CommonAttributes;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+ENetworkReplayError::Type INetworkReplayStreamer::GetLastError() const
+{
+	return HasError() ? ENetworkReplayError::ServiceUnavailable : ENetworkReplayError::None;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool INetworkReplayStreamer::HasError() const
+{
+	return ExtendedError.IsValid();
+}
+
+void INetworkReplayStreamer::SetExtendedError(UE::Net::FNetResult&& Result)
+{
+	AddToChainResultPtr(ExtendedError, MoveTemp(Result));
+}
+
+UE::Net::EHandleNetResult INetworkReplayStreamer::HandleLastError(UE::Net::FNetResultManager& ResultManager)
+{
+	UE::Net::EHandleNetResult ReturnVal = UE::Net::EHandleNetResult::NotHandled;
+
+	if (ExtendedError.IsValid())
+	{
+		ReturnVal = ResultManager.HandleNetResult(MoveTemp(*ExtendedError));
+	}
+	
+	return ReturnVal;
+}

@@ -16,7 +16,10 @@
 #include "Misc/NetworkVersion.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Net/Core/Connection/NetResult.h"
+#include "Net/Core/Connection/NetResultManager.h"
 #include "Serialization/JsonSerializerMacros.h"
+#include "Templates/PimplPtr.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
@@ -98,7 +101,7 @@ struct FNetworkReplayStreamInfo
 
 namespace ENetworkReplayError
 {
-	enum Type
+	enum UE_DEPRECATED(5.2, "No longer used") Type
 	{
 		/** There are currently no issues */
 		None,
@@ -107,6 +110,7 @@ namespace ENetworkReplayError
 		ServiceUnavailable,
 	};
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	inline const TCHAR* ToString( const ENetworkReplayError::Type FailureType )
 	{
 		switch ( FailureType )
@@ -118,6 +122,7 @@ namespace ENetworkReplayError
 		}
 		return TEXT( "Unknown ENetworkReplayError error" );
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /**
@@ -617,8 +622,17 @@ public:
 	 */
 	virtual void EnumerateRecentStreams(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FEnumerateStreamsCallback& Delegate) = 0;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Returns the last error that occurred while streaming replays */
-	virtual ENetworkReplayError::Type GetLastError() const = 0;
+	UE_DEPRECATED(5.2, "Deprecated in favor of HasError and HandleLastError")
+	virtual ENetworkReplayError::Type GetLastError() const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	virtual bool HasError() const;
+
+	virtual UE::Net::EHandleNetResult HandleLastError(UE::Net::FNetResultManager& ResultManager);
+
+	virtual void SetExtendedError(UE::Net::FNetResult&& Result);
 
 	/**
 	 * Adds a join-in-progress user to the set of users associated with the currently recording replay (if any)
@@ -659,6 +673,9 @@ public:
 
 	/** Called from base streamer interface AppendCommonReplayAttributes to set common attributes */
 	static FOnReplayGetAnalyticsAttributes OnReplayGetAnalyticsAttributes;
+
+private:
+	TPimplPtr<UE::Net::FNetResult, EPimplPtrMode::DeepCopy> ExtendedError;
 };
 
 /** Replay streamer factory */

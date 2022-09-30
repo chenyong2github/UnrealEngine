@@ -9,6 +9,7 @@
 #include "Misc/NetworkGuid.h"
 #include "Misc/NetworkVersion.h"
 #include "Net/Common/Packets/PacketTraits.h"
+#include "Net/ReplayResult.h"
 #include "IPAddress.h"
 #include "Serialization/BitReader.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
@@ -42,15 +43,6 @@ enum class EWriteDemoFrameFlags : uint32
 };
 
 ENUM_CLASS_FLAGS(EWriteDemoFrameFlags);
-
-enum class EDemoRecordFailure : uint32
-{
-	Generic,
-	StreamingArchive,
-	StartStreaming,
-};
-
-ENGINE_API const TCHAR* LexToString(EDemoRecordFailure FailureType);
 
 struct FPlaybackPacket
 {

@@ -11,7 +11,10 @@ FOnProcessGameSpecificFrameData                      FNetworkReplayDelegates::On
 FGetOverridableVersionDataForDemoHeaderReadDelegate  FNetworkReplayDelegates::GetOverridableVersionDataForHeaderRead;
 FGetOverridableVersionDataForDemoHeaderWriteDelegate FNetworkReplayDelegates::GetOverridableVersionDataForHeaderWrite;
 FOnReplayStartedDelegate                             FNetworkReplayDelegates::OnReplayStarted;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnReplayStartFailureDelegate                        FNetworkReplayDelegates::OnReplayStartFailure;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+FOnReplayPlaybackFailureDelegate                     FNetworkReplayDelegates::OnReplayPlaybackFailure;
 FOnReplayScrubCompleteDelegate                       FNetworkReplayDelegates::OnReplayScrubComplete;
 FOnReplayPlaybackCompleteDelegate                    FNetworkReplayDelegates::OnReplayPlaybackComplete;
 FOnReplayRecordingStartAttemptDelegate               FNetworkReplayDelegates::OnReplayRecordingStartAttempt;
