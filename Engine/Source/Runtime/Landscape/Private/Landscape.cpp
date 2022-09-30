@@ -339,8 +339,10 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPl
 			FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
 			ProgressDialog.MakeDialog();
 
-			NaniteComponent->InitializeForLandscape(this, NaniteContentId, TargetPlatform);
+			NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 		}
+		// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
+		NaniteComponent->InitializePlatformForLandscape(this, TargetPlatform);
 
 		NaniteComponent->UpdatedSharedPropertiesFromActor();
 	}

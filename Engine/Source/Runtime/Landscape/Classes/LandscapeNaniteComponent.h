@@ -54,7 +54,8 @@ private:
 
 public:
 #if WITH_EDITOR
-	LANDSCAPE_API void InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, const ITargetPlatform* TargetPlatform);
+	LANDSCAPE_API void InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId);
+	LANDSCAPE_API void InitializePlatformForLandscape(ALandscapeProxy* Landscape, const ITargetPlatform* TargetPlatform);
 #endif
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
