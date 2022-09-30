@@ -81,7 +81,7 @@ void UE::RenderGrid::Private::FRenderGridBlueprintEditorToolbar::AddListingModeT
 		FRenderGridEditorCommands::Get().DuplicateJob,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Duplicate")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate")
 	));
 
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(

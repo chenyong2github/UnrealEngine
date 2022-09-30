@@ -79,7 +79,7 @@ namespace UE::RenderGrid::Private
 		/** A reference to the job that's currently rendering. */
 		TWeakObjectPtr<URenderGridJob> SelectedJobWeakPtr;
 
-		/** 1 if it should call RenderNewPreview() next frame, 2+ if it should subtract 1 from its value next frame, 0 and below and it won't do anything. */
+		/** Has a value of 1 if it should call RenderNewPreview() next frame, 2+ if it should subtract 1 from its value next frame, 0 and below and it won't do anything. */
 		int32 FramesUntilRenderNewPreview;
 
 	private:

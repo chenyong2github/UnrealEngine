@@ -9,6 +9,7 @@
 #include "RenderGrid/RenderGridQueue.h"
 #include "IRenderGridEditor.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
 #include "MoviePipelineExecutor.h"
 #include "MoviePipelineOutputSetting.h"
@@ -338,6 +339,42 @@ void UE::RenderGrid::Private::SRenderGridJobListTableRow::Construct(const FArgum
 		InOwnerTableView);
 }
 
+FReply UE::RenderGrid::Private::SRenderGridJobListTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.GetEffectingButton() != EKeys::RightMouseButton)
+	{
+		return SMultiColumnTableRow<URenderGridJob*>::OnMouseButtonUp(MyGeometry, MouseEvent);
+	}
+
+	FMenuBuilder MenuBuilder(true, nullptr);
+	{
+		MenuBuilder.BeginSection("RenderGridJobListRowContextMenuSection", LOCTEXT("RenderGridJobListRowContextMenuHeading", "Options"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("DuplicateRenderGridJobListRowLabel", "Duplicate"),
+				LOCTEXT("DuplicateRenderGridJobListTooltip", "Creates a copy of the job and adds it to the grid."),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate"),
+				FUIAction(FExecuteAction::CreateSP(this, &SRenderGridJobListTableRow::DuplicateJob))
+			);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("DeleteRenderGridJobListRowLabel", "Delete"),
+				LOCTEXT("DeleteRenderGridJobListTooltip", "Removes the job from the grid."),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"),
+				FUIAction(FExecuteAction::CreateSP(this, &SRenderGridJobListTableRow::DeleteJob))
+			);
+		}
+		MenuBuilder.EndSection();
+	}
+	TSharedPtr<SWidget> MenuContent = MenuBuilder.MakeWidget();
+
+	if (MenuContent.IsValid() && (MouseEvent.GetEventPath() != nullptr))
+	{
+		FWidgetPath WidgetPath = *MouseEvent.GetEventPath();
+		FSlateApplication::Get().PushMenu(WidgetPath.Widgets.Last().Widget, WidgetPath, MenuContent.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+	}
+	return FReply::Handled();
+}
+
 TOptional<EItemDropZone> UE::RenderGrid::Private::SRenderGridJobListTableRow::OnCanAcceptDrop(const FDragDropEvent& InEvent, EItemDropZone InItemDropZone, URenderGridJob* InJob)
 {
 	if (BlueprintEditorWeakPtr.IsValid() && InEvent.GetOperationAs<FRenderGridJobListTableRowDragDropOp>())
@@ -594,6 +631,32 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 			];
 	}
 	return SNullWidget::NullWidget;
+}
+
+void UE::RenderGrid::Private::SRenderGridJobListTableRow::DuplicateJob()
+{
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (URenderGrid* RenderGrid = BlueprintEditor->GetInstance(); IsValid(RenderGrid))
+		{
+			RenderGrid->DuplicateAndAddRenderGridJob(RenderGridJob);
+			BlueprintEditor->MarkAsModified();
+			BlueprintEditor->OnRenderGridChanged().Broadcast();
+		}
+	}
+}
+
+void UE::RenderGrid::Private::SRenderGridJobListTableRow::DeleteJob()
+{
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (URenderGrid* RenderGrid = BlueprintEditor->GetInstance(); IsValid(RenderGrid))
+		{
+			RenderGrid->RemoveRenderGridJob(RenderGridJob);
+			BlueprintEditor->MarkAsModified();
+			BlueprintEditor->OnRenderGridChanged().Broadcast();
+		}
+	}
 }
 
 FText UE::RenderGrid::Private::SRenderGridJobListTableRow::GetRenderStatusText() const

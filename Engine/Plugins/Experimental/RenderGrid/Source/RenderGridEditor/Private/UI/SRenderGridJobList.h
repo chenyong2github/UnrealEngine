@@ -106,9 +106,18 @@ namespace UE::RenderGrid::Private
 		SLATE_END_ARGS()
 
 		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TWeakPtr<IRenderGridEditor> InBlueprintEditor, URenderGridJob* InRenderGridJob, const TSharedPtr<SRenderGridJobList>& InJobListWidget);
+
+		//~ Begin SWidget Interface
+		virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+		//~ End SWidget Interface
+
 		TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& InEvent, EItemDropZone InItemDropZone, URenderGridJob* InJob);
 		FReply OnAcceptDrop(const FDragDropEvent& InEvent, EItemDropZone InItemDropZone, URenderGridJob* InJob);
 		virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
+
+		void DuplicateJob();
+		void DeleteJob();
+
 		FText GetRenderStatusText() const;
 
 	private:

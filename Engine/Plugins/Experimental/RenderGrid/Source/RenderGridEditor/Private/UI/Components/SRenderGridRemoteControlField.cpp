@@ -50,10 +50,23 @@ TSharedPtr<UE::RenderGrid::Private::SRenderGridRemoteControlTreeNode> UE::Render
 	return SNew(SRenderGridRemoteControlField, StaticCastSharedPtr<FRemoteControlField>(Args.Entity), Args.ColumnSizeData).Preset(Args.Preset);
 }
 
+void UE::RenderGrid::Private::SRenderGridRemoteControlField::Tick(const FGeometry&, const double, const float)
+{
+	if (FramesUntilRerender > 0)
+	{
+		FramesUntilRerender--;
+		if (FramesUntilRerender <= 0)
+		{
+			Refresh();
+		}
+	}
+}
+
 void UE::RenderGrid::Private::SRenderGridRemoteControlField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRenderGridRemoteControlColumnSizeData InColumnSizeData)
 {
 	FieldWeakPtr = MoveTemp(InField);
 	ColumnSizeData = MoveTemp(InColumnSizeData);
+	FramesUntilRerender = 0;
 
 	if (const TSharedPtr<FRemoteControlField> Field = FieldWeakPtr.Pin())
 	{
@@ -65,6 +78,16 @@ void UE::RenderGrid::Private::SRenderGridRemoteControlField::Construct(const FAr
 		if (Field->FieldType == EExposedFieldType::Property)
 		{
 			ConstructPropertyWidget();
+
+			if (Generator.IsValid())
+			{
+				Generator.Get()->OnRowsRefreshed().RemoveAll(this);
+				Generator.Get()->OnRowsRefreshed().AddLambda([this]()
+				{
+					Generator.Get()->OnRowsRefreshed().RemoveAll(this);
+					FramesUntilRerender = 2;
+				});
+			}
 		}
 	}
 }

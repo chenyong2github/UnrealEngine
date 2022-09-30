@@ -52,6 +52,7 @@ namespace UE::RenderGrid::Private
 
 		static TSharedPtr<SRenderGridRemoteControlTreeNode> MakeInstance(const FRenderGridRemoteControlGenerateWidgetArgs& Args);
 
+		virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 		void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field, FRenderGridRemoteControlColumnSizeData ColumnSizeData);
 
 		//~ SRenderGridTreeNode Interface 
@@ -76,21 +77,24 @@ namespace UE::RenderGrid::Private
 	private:
 		/** Construct a property widget. */
 		TSharedRef<SWidget> ConstructWidget();
-		
+
 		/** Create the wrapper around the field value widget. */
 		TSharedRef<SWidget> MakeFieldWidget(const TSharedRef<SWidget>& InWidget);
-		
+
 		/** Construct this field widget as a property widget. */
 		void ConstructPropertyWidget();
-		
+
 	private:
 		/** Weak pointer to the underlying RC Field. */
 		TWeakPtr<FRemoteControlField> FieldWeakPtr;
-		
+
 		/** This exposed field's child widgets (ie. An array's rows) */
 		TArray<TSharedPtr<SRenderGridRemoteControlFieldChildNode>> ChildWidgets;
-		
+
 		/** The property row generator. */
 		TSharedPtr<IPropertyRowGenerator> Generator;
+
+		/** Has a value of 1 if it should call Render() next frame, 2+ if it should subtract 1 from its value next frame, 0 and below and it won't do anything. */
+		int32 FramesUntilRerender;
 	};
 }
