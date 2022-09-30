@@ -21,6 +21,7 @@ public class GeometryCacheEd : ModuleRules
 				"AssetTools",
                 "GeometryCache",
 				"ToolMenus",
+				"NiagaraEditor"
 			}
 		);
 	}

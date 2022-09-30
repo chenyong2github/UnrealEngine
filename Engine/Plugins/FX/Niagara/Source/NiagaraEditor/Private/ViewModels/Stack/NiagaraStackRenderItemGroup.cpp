@@ -8,6 +8,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraClipboard.h"
+#include "NiagaraEditorModule.h"
 
 #include "ScopedTransaction.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -23,8 +24,8 @@
 class FRenderItemGroupAddAction : public INiagaraStackItemGroupAddAction
 {
 public:
-	FRenderItemGroupAddAction(UClass* InRendererClass)
-		: RendererClass(InRendererClass)
+	FRenderItemGroupAddAction(FNiagaraRendererCreationInfo InRendererCreationInfo)
+		: RendererCreationInfo(InRendererCreationInfo)
 	{
 	}
 
@@ -35,12 +36,12 @@ public:
 
 	virtual FText GetDisplayName() const override
 	{
-		return RendererClass->GetDisplayNameText();
+		return RendererCreationInfo.DisplayName;
 	}
 
 	virtual FText GetDescription() const override
 	{
-		return FText::FromString(RendererClass->GetDescription());
+		return RendererCreationInfo.Description;
 	}
 
 	virtual FText GetKeywords() const override
@@ -48,13 +49,10 @@ public:
 		return FText();
 	}
 
-	UClass* GetRendererClass() const
-	{
-		return RendererClass;
-	}
+	const FNiagaraRendererCreationInfo& GetRendererCreationInfo() { return RendererCreationInfo; }
 
 private:
-	UClass* RendererClass;
+	FNiagaraRendererCreationInfo RendererCreationInfo;
 };
 
 class FRenderItemGroupAddUtilities : public TNiagaraStackItemGroupAddUtilities<UNiagaraRendererProperties*>
@@ -70,11 +68,11 @@ public:
 
 	virtual void GenerateAddActions(TArray<TSharedRef<INiagaraStackItemGroupAddAction>>& OutAddActions, const FNiagaraStackItemGroupAddOptions& AddProperties) const override
 	{
-		TArray<UClass*> RendererClasses;
-		GetDerivedClasses(UNiagaraRendererProperties::StaticClass(), RendererClasses);
-		for (UClass* RendererClass : RendererClasses)
+		const TArray<FNiagaraRendererCreationInfo>& RendererCreationInfos = FNiagaraEditorModule::Get().GetRendererCreationInfos();
+
+		for (const FNiagaraRendererCreationInfo& RendererCreationInfo : RendererCreationInfos)
 		{
-			OutAddActions.Add(MakeShared<FRenderItemGroupAddAction>(RendererClass));
+			OutAddActions.Add(MakeShared<FRenderItemGroupAddAction>(RendererCreationInfo));
 		}
 	}
 
@@ -91,7 +89,9 @@ public:
 		FScopedTransaction ScopedTransaction(LOCTEXT("AddNewRendererTransaction", "Add new renderer"));
 
 		FVersionedNiagaraEmitter VersionedEmitter = EmitterViewModelPinned->GetEmitter();
-		UNiagaraRendererProperties* RendererProperties = NewObject<UNiagaraRendererProperties>(VersionedEmitter.Emitter, RenderAddAction->GetRendererClass(), NAME_None, RF_Transactional);
+		UNiagaraRendererProperties* RendererProperties = RenderAddAction->GetRendererCreationInfo().RendererFactory.Execute(VersionedEmitter.Emitter);
+		check(RendererProperties != nullptr);
+		
 		VersionedEmitter.Emitter->AddRenderer(RendererProperties, VersionedEmitter.Version);
 
 		bool bVarsAdded = false;

@@ -150,6 +150,9 @@
 #include "NiagaraDebugVis.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraGraphDataCache.h"
+#include "NiagaraLightRendererProperties.h"
+#include "NiagaraRibbonRendererProperties.h"
+#include "NiagaraSpriteRendererProperties.h"
 #include "Misc/ScopedSlowTask.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorModule)
@@ -1091,6 +1094,8 @@ void FNiagaraEditorModule::StartupModule()
 
 	RegisterSettings();
 
+	RegisterDefaultRendererFactories();
+	
 	// Register sequencer track editors
 	ISequencerModule &SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
 	CreateEmitterTrackEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FNiagaraEmitterTrackEditor::CreateTrackEditor));
@@ -1546,6 +1551,11 @@ void FNiagaraEditorModule::ClearObjectPool()
 	ObjectPool.Empty();
 }
 
+void FNiagaraEditorModule::RegisterRendererCreationInfo(FNiagaraRendererCreationInfo InRendererCreationInfo)
+{
+	RendererCreationInfo.Add(InRendererCreationInfo);
+}
+
 void FNiagaraEditorModule::RegisterParameterTrackCreatorForType(const UScriptStruct& StructType, FOnCreateMovieSceneTrackForParameter CreateTrack)
 {
 	checkf(TypeToParameterTrackCreatorMap.Contains(&StructType) == false, TEXT("Type already registered"));
@@ -1712,6 +1722,64 @@ void FNiagaraEditorModule::GetTargetSystemAndEmitterForDataInterface(UNiagaraDat
 			}
 		}
 	}
+}
+
+void FNiagaraEditorModule::RegisterDefaultRendererFactories()
+{
+	RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
+		UNiagaraMeshRendererProperties::StaticClass()->GetDisplayNameText(),
+		FText::FromString(UNiagaraMeshRendererProperties::StaticClass()->GetDescription()),
+		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
+		{
+			UNiagaraMeshRendererProperties* NewRenderer = NewObject<UNiagaraMeshRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			// we have an empty entry in the constructor. Due to CDO default value propagation being unwanted, we have to keep it in there
+			if(ensure(NewRenderer->Meshes.Num() == 1))
+			{
+				FSoftObjectPath DefaultMesh(TEXT("StaticMesh'/Niagara/DefaultAssets/S_Gnomon.S_Gnomon'"));
+				NewRenderer->Meshes[0].Mesh = Cast<UStaticMesh>(DefaultMesh.TryLoad());
+			}
+			return NewRenderer;
+		})));
+	
+	RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
+		UNiagaraSpriteRendererProperties::StaticClass()->GetDisplayNameText(),
+		FText::FromString(UNiagaraSpriteRendererProperties::StaticClass()->GetDescription()),
+		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
+		{
+			UNiagaraSpriteRendererProperties* NewRenderer = NewObject<UNiagaraSpriteRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			FSoftObjectPath DefaultMaterial(TEXT("Material'/Niagara/DefaultAssets/DefaultSpriteMaterial.DefaultSpriteMaterial'"));
+			NewRenderer->Material = Cast<UMaterialInterface>(DefaultMaterial.TryLoad());
+			return NewRenderer;
+		})));
+	
+	RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
+		UNiagaraRibbonRendererProperties::StaticClass()->GetDisplayNameText(),
+		FText::FromString(UNiagaraRibbonRendererProperties::StaticClass()->GetDescription()),
+		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
+		{
+			UNiagaraRibbonRendererProperties* NewRenderer = NewObject<UNiagaraRibbonRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			FSoftObjectPath DefaultMaterial(TEXT("Material'/Niagara/DefaultAssets/DefaultRibbonMaterial.DefaultRibbonMaterial'"));
+			NewRenderer->Material = Cast<UMaterialInterface>(DefaultMaterial.TryLoad());
+			return NewRenderer;
+		})));
+
+	RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
+		UNiagaraComponentRendererProperties::StaticClass()->GetDisplayNameText(),
+		FText::FromString(UNiagaraComponentRendererProperties::StaticClass()->GetDescription()),
+		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
+		{
+			UNiagaraComponentRendererProperties* NewRenderer = NewObject<UNiagaraComponentRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			return NewRenderer;
+		})));
+
+	RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
+		UNiagaraLightRendererProperties::StaticClass()->GetDisplayNameText(),
+		FText::FromString(UNiagaraLightRendererProperties::StaticClass()->GetDescription()),
+		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
+		{
+			UNiagaraLightRendererProperties* NewRenderer = NewObject<UNiagaraLightRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
+			return NewRenderer;
+		})));
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

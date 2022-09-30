@@ -11,6 +11,7 @@
 #include "AssetTypeCategories.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraDebuggerCommon.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraEditorModule.generated.h"
 
 class IAssetTools;
@@ -93,6 +94,29 @@ private:
 	TObjectPtr<UNiagaraParameterDefinitions> ReservingDefinitionsAsset;
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraRendererCreationInfo
+{
+	DECLARE_DELEGATE_RetVal_OneParam(UNiagaraRendererProperties*, FRendererFactory, UObject* OuterEmitter);
+
+	GENERATED_BODY()
+
+	FNiagaraRendererCreationInfo() = default;
+	FNiagaraRendererCreationInfo(FText InDisplayName, FRendererFactory InFactory) : DisplayName(InDisplayName), RendererFactory(InFactory)
+	{}
+
+	FNiagaraRendererCreationInfo(FText InDisplayName, FText InDescription, FRendererFactory InFactory) : DisplayName(InDisplayName), Description(InDescription),RendererFactory(InFactory)
+	{}
+
+	UPROPERTY()
+	FText DisplayName;
+
+	UPROPERTY()
+	FText Description;
+	
+	FRendererFactory RendererFactory;
+};
+
 FORCEINLINE uint32 GetTypeHash(const FReservedParameter& ReservedParameter) { return GetTypeHash(ReservedParameter.GetParameter().GetName()); };
 
 /** Niagara Editor module */
@@ -155,6 +179,10 @@ public:
 	NIAGARAEDITOR_API void ReleaseObjectToPool(UObject* Obj);
 	NIAGARAEDITOR_API void ClearObjectPool();
 
+	/** Registers a new renderer creation delegate with the display name it's going to use for the UI. */
+	NIAGARAEDITOR_API void RegisterRendererCreationInfo(FNiagaraRendererCreationInfo RendererCreationInfo);
+	NIAGARAEDITOR_API const TArray<FNiagaraRendererCreationInfo>& GetRendererCreationInfos() const { return RendererCreationInfo; }
+	
 	void RegisterParameterTrackCreatorForType(const UScriptStruct& StructType, FOnCreateMovieSceneTrackForParameter CreateTrack);
 	void UnregisterParameterTrackCreatorForType(const UScriptStruct& StructType);
 	bool CanCreateParameterTrackForType(const UScriptStruct& StructType);
@@ -269,6 +297,7 @@ private:
 		TArray<TWeakObjectPtr<AssetType>> CachedAssets;
 	};
 
+	void RegisterDefaultRendererFactories();
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FName& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
@@ -368,6 +397,8 @@ private:
 	TMap<FName, INiagaraStackObjectIssueGenerator*> StackIssueGenerators;
 
 	TMap<UClass*, TArray<UObject*>> ObjectPool;
+
+	TArray<FNiagaraRendererCreationInfo> RendererCreationInfo;
 
 #if NIAGARA_PERF_BASELINES
 	void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
