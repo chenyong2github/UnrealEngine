@@ -84,7 +84,7 @@ bool UNearestNeighborModelInstance::SetupInputs()
     UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
     if (NeuralNetwork)
     {
-    	UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model.Get());
+		UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model.Get());
     	float* InputDataPointer = static_cast<float*>(NeuralNetwork->GetInputDataPointerMutableForContext(NeuralNetworkInferenceHandle));
     	const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensorForContext(NeuralNetworkInferenceHandle).Num();
     	NearestNeighborModel->ClipInputs(InputDataPointer, NumNeuralNetInputs);
@@ -119,6 +119,10 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 		return;
 	}
 
+#if WITH_EDITORONLY_DATA
+	NearestNeighborIds.SetNum(NearestNeighborModel->GetNumParts());
+#endif
+
 	const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
 	if (NeuralNetwork)
 	{
@@ -141,13 +145,13 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 			{
 				const int32 NearestNeighborId = FindNearestNeighbor(OutputTensor, PartId);
 	#if WITH_EDITORONLY_DATA
-				NearestNeighborModel->SetNearestNeighborId(PartId, NearestNeighborId);
+				NearestNeighborIds[PartId] = NearestNeighborId;
 	#endif
 
 				const int32 NumNeighbors = NearestNeighborModel->GetNumNeighbors(PartId);
 				for (int32 NeighborId = 0; NeighborId < NumNeighbors; NeighborId++)
 				{
-					const float W = NeighborId == NearestNeighborId ? ModelWeight : 0;
+					const float W = NeighborId == NearestNeighborId ? ModelWeight * NearestNeighborModel->GetNearestNeighborOffsetWeight() : 0;
 					UpdateWeight(WeightData->Weights, NeighborOffset + NeighborId, W);
 				}
 				NeighborOffset += NumNeighbors;

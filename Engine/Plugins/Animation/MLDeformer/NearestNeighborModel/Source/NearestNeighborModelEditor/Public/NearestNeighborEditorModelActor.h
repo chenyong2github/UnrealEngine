@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MLDeformerGeomCacheActor.h"
-#include "NearestNeighborModel.h"
+#include "NearestNeighborModelInstance.h"
 
 class UMLDeformerComponent;
 class UGeometryCacheComponent;
@@ -26,12 +26,12 @@ namespace UE::NearestNeighborModel
 		void SetGeometryCacheComponent(UGeometryCacheComponent* Component) { GeomCacheComponent = Component; }
 		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeomCacheComponent; }
 
-		void InitNearestNeighborActor(UNearestNeighborModel* InNearestNeighborModel, const int32 InPartId);
+		void InitNearestNeighborActor(UNearestNeighborModelInstance* InModelInstance, const int32 InPartId);
 		void TickNearestNeighborActor();
 
 	protected:
 		/** The geometry cache component (can be nullptr). */
-		TObjectPtr<UNearestNeighborModel> NearestNeighborModel = nullptr;
+		UNearestNeighborModelInstance* ModelInstance = nullptr;
 		int32 PartId = INDEX_NONE;
 	};
 }	// namespace UE::NearestNeighborModel

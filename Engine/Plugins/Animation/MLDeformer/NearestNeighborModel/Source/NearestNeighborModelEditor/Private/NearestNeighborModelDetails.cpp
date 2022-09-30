@@ -69,6 +69,7 @@ namespace UE::NearestNeighborModel
 		TrainingSettingsCategoryBuilder->AddProperty(UNearestNeighborModel::GetNumEpochsPropertyName());
 		TrainingSettingsCategoryBuilder->AddProperty(UNearestNeighborModel::GetBatchSizePropertyName());
 		TrainingSettingsCategoryBuilder->AddProperty(UNearestNeighborModel::GetLearningRatePropertyName());
+		TrainingSettingsCategoryBuilder->AddProperty(UNearestNeighborModel::GetSavedNetworkSizePropertyName());
 
 		// Cloth part settings
 		ClothPartCategoryBuilder->AddProperty(UNearestNeighborModel::GetClothPartEditorDataPropertyName());
@@ -84,6 +85,7 @@ namespace UE::NearestNeighborModel
 					if (NearestNeighborModel != nullptr)
 					{
 						NearestNeighborModel->UpdateClothPartData();
+						NearestNeighborModel->InitPreviousWeights();
 						if (NearestNeighborEditorModel != nullptr)
 						{
 							NearestNeighborEditorModel->UpdateNearestNeighborActors();
@@ -96,6 +98,7 @@ namespace UE::NearestNeighborModel
 
 		// Nearest Neighbor settings
 		NearestNeighborCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, DecayFactor));
+		NearestNeighborCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, NearestNeighborOffsetWeight));
 		NearestNeighborCategoryBuilder->AddProperty(UNearestNeighborModel::GetNearestNeighborDataPropertyName());
 		ButtonText = NearestNeighborModel->IsNearestNeighborDataValid() ? LOCTEXT("Update", "Update") : LOCTEXT("Update *", "Update *");
 
@@ -110,6 +113,7 @@ namespace UE::NearestNeighborModel
 					if (NearestNeighborEditorModel != nullptr)
 					{
 						NearestNeighborEditorModel->UpdateNearestNeighborData();
+						NearestNeighborModel->InitPreviousWeights();
 						EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					}
 					return FReply::Handled();
@@ -131,6 +135,7 @@ namespace UE::NearestNeighborModel
 				})
 			];
 
+		MorphTargetCategoryBuilder->AddProperty(UNearestNeighborModel::GetMorphDataSizePropertyName());
 		MorphTargetCategoryBuilder->AddCustomRow(FText::FromString(""))
 			.WholeRowContent()
 			[
@@ -142,6 +147,9 @@ namespace UE::NearestNeighborModel
 					if (NearestNeighborEditorModel != nullptr)
 					{
 						NearestNeighborEditorModel->InitMorphTargets();
+						NearestNeighborEditorModel->RefreshMorphTargets();
+						NearestNeighborModel->UpdateNetworkSize();
+						NearestNeighborModel->UpdateMorphTargetSize();
 						EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					}
 					return FReply::Handled();

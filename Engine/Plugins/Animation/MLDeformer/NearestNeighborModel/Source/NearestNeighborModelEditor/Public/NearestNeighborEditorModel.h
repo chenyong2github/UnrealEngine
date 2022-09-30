@@ -59,6 +59,7 @@ namespace UE::NearestNeighborModel
 		void KMeansClusterPoses();
 
 		void InitMorphTargets();
+		void RefreshMorphTargets();
 		void AddFloatArrayToDeltaArray(const TArray<float>& FloatArr, const TArray<uint32>& VertexMap, TArray<FVector3f>& DeltaArr, int32 DeltaArrayOffset = -1, float ScaleFactor = 1);
 
 		int32 GetNumParts();

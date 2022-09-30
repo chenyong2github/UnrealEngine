@@ -159,6 +159,7 @@ public:
 	int32 GetNumNeighbors(int32 PartId) const { return ClothPartData[PartId].NumNeighbors; }
 
 	float GetDecayFactor() const { return DecayFactor; };
+	float GetNearestNeighborOffsetWeight() const { return NearestNeighborOffsetWeight; }
 
 	const TArray<uint32>& PartVertexMap(int32 PartId) const { return ClothPartData[PartId].VertexMap; }
 
@@ -177,6 +178,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Nearest Neighbor Model")
 	void SetVertexMean(int32 PartId, const TArray<float>& VertexMean) { ClothPartData[PartId].VertexMean = VertexMean; }
+
+	UFUNCTION(BlueprintCallable, Category = "Nearest Neighbor Model")
+	void SetNumNeighbors(int32 PartId, int32 InNumNeighbors) { ClothPartData[PartId].NumNeighbors = InNumNeighbors; }
 
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	const TArray<float>& NeighborCoeffs(int32 PartId) const { return ClothPartData[PartId].NeighborCoeffs; }
@@ -209,13 +213,12 @@ public:
 	const TObjectPtr<UGeometryCache> GetNearestNeighborCache(int32 PartId) const;
 	int32 GetNumNeighborsFromGeometryCache(int32 PartId) const;
 
-	uint32 NearestNeighborId(int32 PartId) const { return NearestNeighborIds[PartId]; }
-	void SetNearestNeighborId(int32 PartId, int32 Id) { NearestNeighborIds[PartId] = Id; }
-
 	void UpdateNetworkInputDim();
 	void UpdateNetworkOutputDim();
 	void UpdateClothPartData();
 	void UpdatePCACoeffNums();
+	void UpdateNetworkSize();
+	void UpdateMorphTargetSize();
 
 	void InvalidateClothPartData() { bClothPartDataValid = false; bNearestNeighborDataValid = false; }
 	void ValidateClothPartData() { bClothPartDataValid = true; }
@@ -257,6 +260,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	const TArray<FSkeletonCachePair>& GetNearestNeighborData() const { return NearestNeighborData; }
 	static FName GetNearestNeighborDataPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, NearestNeighborData); }
+
+	static FName GetNearestNeighborOffsetWeightPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, NearestNeighborOffsetWeight); }
+
+	static FName GetSavedNetworkSizePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, SavedNetworkSize); }
+	static FName GetMorphDataSizePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, MorphDataSize); }
 #endif
 
 
@@ -292,7 +300,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors")
 	TArray<FSkeletonCachePair> NearestNeighborData;
 
-	TArray<uint32> NearestNeighborIds;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Training Settings", meta = (ClampMin = "0.0"))
+	float SavedNetworkSize = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Morph Targets", meta = (ClampMin = "0.0"))
+	float MorphDataSize = 0.0f;
 #endif
 
 public:
@@ -313,6 +325,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", META = (ClampMin = "0", ClampMax = "1"))
 	float DecayFactor = 0.85f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", META = (ClampMin = "0", ClampMax = "1"))
+	float NearestNeighborOffsetWeight = 1.0f;
 
 	TArray<float> PreviousWeights; 
 };

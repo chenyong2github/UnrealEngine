@@ -113,6 +113,16 @@ namespace UE::NearestNeighborModel
 			}
 
 			const int32 NumPartVerts = VertexMap.Num();
+			if (GeomCacheMeshData.ImportedVertexNumbers.IsEmpty())
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Geometry cache has no stored vertex numbers"));
+				return;
+			}
+			const int32 MaxVertexNumber = FMath::Max(GeomCacheMeshData.ImportedVertexNumbers);
+			if (NumPartVerts != MaxVertexNumber + 1)
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Vertex number mismatch: part has %d vertices but geometry cache has %d vertices"), NumPartVerts, MaxVertexNumber + 1);
+			}
 
 			Mapping.SkelMeshToTrackVertexMap.AddUninitialized(NumPartVerts);
 			Mapping.ImportedVertexToRenderVertexMap.AddUninitialized(NumPartVerts);

@@ -7,6 +7,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCache.h"
 #include "Misc/FileHelper.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "UObject/UObjectGlobals.h"
 #include "NeuralNetwork.h"
@@ -55,9 +56,10 @@ void UNearestNeighborModel::PostLoad()
 	InitPreviousWeights();
 
 #if WITH_EDITORONLY_DATA
-	NearestNeighborIds.SetNumZeroed(GetNumParts());
 	UpdateNetworkInputDim();
 	UpdateNetworkOutputDim();
+	UpdateNetworkSize();
+	UpdateMorphTargetSize();
 #endif
 }
 
@@ -155,7 +157,6 @@ void UNearestNeighborModel::UpdateClothPartData()
 	}
 	UpdatePCACoeffNums();
 
-	NearestNeighborIds.SetNumZeroed(GetNumParts());
 	NearestNeighborData.SetNumZeroed(GetNumParts());
 	UpdateNetworkInputDim();
 	UpdateNetworkOutputDim();
@@ -210,6 +211,40 @@ int32 UNearestNeighborModel::GetNumNeighborsFromGeometryCache(int32 PartId) cons
 	else
 	{
 		return 0;
+	}
+}
+
+void UNearestNeighborModel::UpdateNetworkSize()
+{
+	UNeuralNetwork* Network = GetNeuralNetwork();
+	if (Network != nullptr)
+	{
+		const SIZE_T NumBytes = Network->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
+		SavedNetworkSize = (double)NumBytes / 1024 / 1024;
+	}
+	else
+	{
+		SavedNetworkSize = 0.0f;
+	}
+}
+
+class FMorphTargetBuffersInfo : public FMorphTargetVertexInfoBuffers
+{
+public:
+	uint32 GetMorphDataSize() const { return MorphData.Num() * sizeof(uint32); }
+};
+
+void UNearestNeighborModel::UpdateMorphTargetSize()
+{
+	if (GetMorphTargetSet())
+	{
+		const FMorphTargetBuffersInfo* MorphBuffersInfo = static_cast<FMorphTargetBuffersInfo*>(&GetMorphTargetSet()->MorphBuffers);
+		const double Size = MorphBuffersInfo->GetMorphDataSize();
+		MorphDataSize = Size / 1024 / 1024;
+	}
+	else
+	{
+		MorphDataSize = 0.0f;
 	}
 }
 #endif

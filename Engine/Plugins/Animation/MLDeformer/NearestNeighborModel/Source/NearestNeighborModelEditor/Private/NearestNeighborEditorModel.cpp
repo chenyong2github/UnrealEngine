@@ -2,11 +2,13 @@
 
 #include "NearestNeighborEditorModel.h"
 #include "NearestNeighborModel.h"
+#include "NearestNeighborModelInstance.h"
 #include "NearestNeighborTrainingModel.h"
 #include "NearestNeighborModelInputInfo.h"
 #include "NearestNeighborEditorModelActor.h"
 #include "NearestNeighborModelStyle.h"
 #include "NearestNeighborGeomCacheSampler.h"
+#include "MLDeformerComponent.h"
 #include "MLDeformerEditorToolkit.h"
 #include "NeuralNetwork.h"
 #include "GeometryCache.h"
@@ -119,7 +121,23 @@ namespace UE::NearestNeighborModel
 				LOCTEXT("TestNearestNeighborLabelText", "Nearest Neigbors"),
 				false);
 			FNearestNeighborEditorModelActor* NearestNeighborActor = static_cast<FNearestNeighborEditorModelActor*>(EditorActors.Last());
-			NearestNeighborActor->InitNearestNeighborActor(NearestNeighborModel, PartId);
+
+			UNearestNeighborModelInstance* ModelInstance = nullptr;
+			const FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Test_MLDeformed);
+			if (EditorActor)
+			{
+				const AActor* Actor = EditorActor->GetActor();
+				if (Actor)
+				{
+					UMLDeformerComponent* Component = Actor->FindComponentByClass<UMLDeformerComponent>();
+					if (Component)
+					{
+						ModelInstance = static_cast<UNearestNeighborModelInstance*>(Component->GetModelInstance());
+					}
+				}
+			}
+
+			NearestNeighborActor->InitNearestNeighborActor(ModelInstance, PartId);
 			NearestNeighborActor->SetMeshOffsetFactor(2.0f);
 			NearestNeighborActors[PartId] = NearestNeighborActor;
 		}
@@ -182,7 +200,7 @@ namespace UE::NearestNeighborModel
 				}
 				else
 				{
-					UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d frame mismatch: AnimSequence has %d frames and GeometryCache has %d frames"), PartId, AnimSequence->GetDataModel()->GetNumberOfFrames(), NumFrames);
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d frame mismatch: AnimSequence has %d frames and GeometryCache has %d frames"), PartId, AnimSequence->GetDataModel()->GetNumberOfKeys(), NumFrames);
 				}
 			}
 			else
@@ -378,6 +396,11 @@ namespace UE::NearestNeighborModel
 			AddFloatArrayToDeltaArray(NearestNeighborModel->ClothPartData[PartId].NeighborOffsets, VertexMap, Deltas);
 		}
 
+		if (Deltas.Num() == 0)
+		{
+			return;
+		}
+
 		const int32 LOD = 0;
 		TArray<UMorphTarget*> MorphTargets;
 		CreateEngineMorphTargets(MorphTargets, Deltas, FString("NNMorphTarget_"), LOD, NearestNeighborModel->GetMorphTargetDeltaThreshold());
@@ -385,6 +408,21 @@ namespace UE::NearestNeighborModel
 		FMorphTargetVertexInfoBuffers& MorphBuffers = NearestNeighborModel->GetMorphTargetSet()->MorphBuffers;
 		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphTargetErrorTolerance());
 		NearestNeighborModel->SetMorphTargetDeltas(Deltas);
+	}
+
+	void FNearestNeighborEditorModel::RefreshMorphTargets()
+	{
+		USkeletalMeshComponent* SkelMeshComponent = FindEditorActor(ActorID_Test_MLDeformed)->GetSkeletalMeshComponent() ;
+		if (SkelMeshComponent)
+		{
+			FMorphTargetVertexInfoBuffers& MorphBuffers = GetNearestNeighborModel()->GetMorphTargetSet()->MorphBuffers;
+			BeginReleaseResource(&MorphBuffers);
+			if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0)
+			{
+				BeginInitResource(&MorphBuffers);
+			}
+			SkelMeshComponent->RefreshExternalMorphTargetWeights();
+		}
 	}
 }	// namespace UE::NearestNeighborModel
 

@@ -12,18 +12,18 @@ namespace UE::NearestNeighborModel
 	{
 	}
 
-	void FNearestNeighborEditorModelActor::InitNearestNeighborActor(UNearestNeighborModel* InNearestNeighborModel, const int32 InPartId)
+	void FNearestNeighborEditorModelActor::InitNearestNeighborActor(UNearestNeighborModelInstance* InModelInstance, const int32 InPartId)
 	{
-		NearestNeighborModel = InNearestNeighborModel;
+		ModelInstance = InModelInstance;
 		PartId = InPartId;
 	}
 
 	void FNearestNeighborEditorModelActor::TickNearestNeighborActor()
 	{
-		if (GeomCacheComponent && GeomCacheComponent->GetGeometryCache() && NearestNeighborModel)
+		if (GeomCacheComponent && GeomCacheComponent->GetGeometryCache() && ModelInstance && PartId < ModelInstance->NeighborIdNum())
 		{
 			GeomCacheComponent->SetManualTick(true);
-			GeomCacheComponent->TickAtThisTime(GeomCacheComponent->GetTimeAtFrame(NearestNeighborModel->NearestNeighborId(PartId)), false, false, false);
+			GeomCacheComponent->TickAtThisTime(GeomCacheComponent->GetTimeAtFrame(ModelInstance->NearestNeighborId(PartId)), false, false, false);
 		}
 	}
 }	// namespace UE::NearestNeighborModel
