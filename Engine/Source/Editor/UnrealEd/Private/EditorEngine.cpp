@@ -4319,7 +4319,7 @@ void UEditorEngine::RunDeferredMarkForAddFiles(bool)
 	else if (FUncontrolledChangelistsModule::Get().IsEnabled())
 	{
 		FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();
-		UncontrolledChangelistsModule.OnMakeWritable(DeferredFilesToAddToSourceControl);
+		UncontrolledChangelistsModule.OnNewFilesAdded(DeferredFilesToAddToSourceControl);
 	}
 
 	// Clear the list when this run whether source control is active or not, since we do not want to accumulate those if the user is running without source control

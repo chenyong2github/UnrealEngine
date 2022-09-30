@@ -111,14 +111,45 @@ TArray<FUncontrolledChangelistStateRef> FUncontrolledChangelistsModule::GetChang
 	return UncontrolledChangelistStates;
 }
 
-bool FUncontrolledChangelistsModule::OnMakeWritable(const TArray<FString>& InFilenames)
+bool FUncontrolledChangelistsModule::OnMakeWritable(const FString& InFilename)
 {
 	if (!IsEnabled())
 	{
 		return false;
 	}
 
-	return AddFilesToDefaultUncontrolledChangelist(InFilenames, FUncontrolledChangelistState::ECheckFlags::NotCheckedOut);
+	AddedAssetsCache.Add(FPaths::ConvertRelativePathToFull(InFilename));
+	return true;
+}
+
+bool FUncontrolledChangelistsModule::OnNewFilesAdded(const TArray<FString>& InFilenames)
+{
+	return AddToUncontrolledChangelist(InFilenames);
+}
+
+bool FUncontrolledChangelistsModule::OnSaveWritable(const FString& InFilename)
+{
+	return AddToUncontrolledChangelist({ InFilename });
+}
+
+bool FUncontrolledChangelistsModule::AddToUncontrolledChangelist(const TArray<FString>& InFilenames)
+{
+	if (!IsEnabled())
+	{
+		return false;
+	}
+
+	TArray<FString> FullPaths;
+	FullPaths.Reserve(InFilenames.Num());
+	Algo::Transform(InFilenames, FullPaths, [](const FString& Filename) { return FPaths::ConvertRelativePathToFull(Filename); });
+
+	// Remove from reconcile cache
+	for (const FString& FullPath : FullPaths)
+	{
+		AddedAssetsCache.Remove(FullPath);
+	}
+
+	return AddFilesToDefaultUncontrolledChangelist(FullPaths, FUncontrolledChangelistState::ECheckFlags::NotCheckedOut);
 }
 
 void FUncontrolledChangelistsModule::UpdateStatus()

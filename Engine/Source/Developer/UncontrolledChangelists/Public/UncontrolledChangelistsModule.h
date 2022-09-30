@@ -43,12 +43,26 @@ public:
 	 */
 	 TArray<FUncontrolledChangelistStateRef> GetChangelistStates() const;
 
-	 /**
-	  * Called when files have been made writable. Adds the files to the Default Uncontrolled Changelist
-	  * @param	InFilenames			The files to be added.
-	  * @return True if the files have been added to the Default Uncontrolled Changelist.
-	  */
-	 bool OnMakeWritable(const TArray<FString>& InFilenames);
+	/**
+	 * Called when file has been made writable. Adds the file to the reconcile list because we don't know yet if it will change.
+	 * @param	InFilename		The file to be reconciled.
+	 * @return True if the file have been handled by the Uncontrolled module.
+	 */
+	bool OnMakeWritable(const FString& InFilename);
+	 	 
+	/**
+	 * Called when file has been saved without an available Provider. Adds the file to the Default Uncontrolled Changelist
+	 * @param	InFilename		The file to be added.
+	 * @return	True if the file have been handled by the Uncontrolled module.
+	 */
+	bool OnSaveWritable(const FString& InFilename);
+
+	/**
+	 * Called when files should have been marked for add without an available Provider. Adds the files to the Default Uncontrolled Changelist
+	 * @param	InFilenames		The files to be added.
+	 * @return	True if the files have been handled by the Uncontrolled module.
+	 */
+	bool OnNewFilesAdded(const TArray<FString>& InFilenames);
 
 	/**
 	 * Updates the status of Uncontrolled Changelists and files.
@@ -155,6 +169,11 @@ private:
 	 * 
 	 */
 	void OnAssetAddedInternal(const FAssetData& InAssetData, TSet<FString>& InAddedAssetsCache, bool bInStartupTask);
+
+	/**
+	 * Add files to Uncontrolled Changelist. Also adds them to files to reconcile.
+	 */
+	bool AddToUncontrolledChangelist(const TArray<FString>& InFilenames);
 
 	/**
 	 * Saves the state of UncontrolledChangelists to Json for persistency.

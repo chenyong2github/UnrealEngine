@@ -1918,7 +1918,7 @@ bool FEditorFileUtils::PromptToCheckoutPackagesInternal(bool bCheckDirty, const 
 						{
 							// Add to PackagesNotToPromptAnyMore only if not added to Uncontrolled Changelist.
 							// If added to Uncontrolled Changelist, we want the checkout prompt to be displayed again if the file is reverted
-							if (!UncontrolledChangelistModule.OnMakeWritable({Filename}))
+							if (!UncontrolledChangelistModule.OnMakeWritable(Filename))
 							{
 								PackagesNotToPromptAnyMore.Add(PackageToMakeWritable->GetName());
 							}
@@ -3438,6 +3438,8 @@ static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bo
 		}
 
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();
+
 		if (ISourceControlModule::Get().IsEnabled())
 		{
 			// Assume the package was correctly checked out from SCC
@@ -3456,19 +3458,13 @@ static InternalSavePackageResult InternalSavePackage(UPackage* PackageToSave, bo
 		}
 		else
 		{
-			FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();
-
 			// If we are in offline mode, automatically add the modified package to an Uncontrolled Changelist
-			if (UncontrolledChangelistsModule.IsEnabled() && (!IFileManager::Get().IsReadOnly(*FinalPackageSavePath)))
-			{
-				UncontrolledChangelistsModule.OnMakeWritable({ FinalPackageSavePath });
-				bOutPackageLocallyWritable = true;
-			}
-			else
-			{
-				// If source control is disabled then we don't care if the package is locally writable
-				bOutPackageLocallyWritable = false;
-			}
+			bOutPackageLocallyWritable = UncontrolledChangelistsModule.IsEnabled() && (!IFileManager::Get().IsReadOnly(*FinalPackageSavePath));
+		}
+
+		if (bWasSuccessful && bOutPackageLocallyWritable)
+		{
+			UncontrolledChangelistsModule.OnSaveWritable({ FinalPackageSavePath });
 		}
 
 		// Handle all failures the same way.
