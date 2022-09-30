@@ -224,6 +224,27 @@ void UMediaPlateComponent::Open()
 	UpdateTicking();
 }
 
+bool UMediaPlateComponent::Next()
+{
+	bool bIsSuccessful = false;
+
+	// Do we have a playlist?
+	if ((MediaPlaylist != nullptr) && (MediaPlaylist->Num() > 1))
+	{
+		if (PlaylistIndex < MediaPlaylist->Num() - 1)
+		{
+			// Get the next media to play.
+			UMediaSource* NextSource = MediaPlaylist->GetNext(PlaylistIndex);
+			if (NextSource != nullptr)
+			{
+				bIsSuccessful = PlayMediaSource(NextSource);
+			}
+		}
+	}
+
+	return bIsSuccessful;
+}
+
 void UMediaPlateComponent::Play()
 {
 	if (MediaPlayer != nullptr)
@@ -240,6 +261,27 @@ void UMediaPlateComponent::Pause()
 		MediaPlayer->Pause();
 	}
 	CurrentRate = 0.0f;
+}
+
+bool UMediaPlateComponent::Previous()
+{
+	bool bIsSuccessful = false;
+
+	// Do we have a playlist?
+	if ((MediaPlaylist != nullptr) && (MediaPlaylist->Num() > 1))
+	{
+		// Get the previous media to play.
+		if (PlaylistIndex > 0)
+		{
+			UMediaSource* NextSource = MediaPlaylist->GetPrevious(PlaylistIndex);
+			if (NextSource != nullptr)
+			{
+				bIsSuccessful = PlayMediaSource(NextSource);
+			}
+		}
+	}
+
+	return bIsSuccessful;
 }
 
 bool UMediaPlateComponent::Rewind()
@@ -700,19 +742,7 @@ void UMediaPlateComponent::OnMediaEnd()
 {
 	StopClockSink();
 
-	// Do we have a playlist>
-	if ((MediaPlaylist != nullptr) && (MediaPlaylist->Num() > 1))
-	{
-		// Get the next media to play.
-		UMediaSource* NextSource = MediaPlaylist->GetNext(PlaylistIndex);
-		if (NextSource != nullptr)
-		{
-			if (PlaylistIndex != 0)
-			{
-				PlayMediaSource(NextSource);
-			}
-		}
-	}
+	Next();
 }
 
 #if WITH_EDITOR

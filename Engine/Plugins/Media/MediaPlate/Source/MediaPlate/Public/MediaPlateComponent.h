@@ -59,6 +59,13 @@ public:
 	void Open();
 
 	/**
+	 * Play the next item in the playlist.
+	 *
+	 * returns	True if it played something.
+	 */
+	bool Next();
+
+	/**
 	 * Call this to start playing.
 	 * Open must be called before this.
 	 */
@@ -71,6 +78,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
 	void Pause();
+
+	/**
+	 * Play the previous item in the playlist.
+	 *
+	 * returns	True if it played something.
+	 */
+	bool Previous();
 
 	/**
 	 * Rewinds the media to the beginning.

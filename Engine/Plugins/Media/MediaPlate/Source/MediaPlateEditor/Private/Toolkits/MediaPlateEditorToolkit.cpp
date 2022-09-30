@@ -262,8 +262,11 @@ void FMediaPlateEditorToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.NextMedia,
-		FExecuteAction::CreateLambda([this]{ MediaPlate->GetMediaPlayer()->Next(); }),
-		FCanExecuteAction::CreateLambda([this]{ return (MediaPlate->GetMediaPlayer()->GetPlaylistRef().Num() > 1); })
+		FExecuteAction::CreateLambda([this]{ MediaPlate->Next(); }),
+		FCanExecuteAction::CreateLambda([this]{
+			return (MediaPlate->MediaPlaylist != nullptr) &&
+				(MediaPlate->MediaPlaylist->Num() > 1);
+		})
 	);
 
 	ToolkitCommands->MapAction(
@@ -292,8 +295,11 @@ void FMediaPlateEditorToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.PreviousMedia,
-		FExecuteAction::CreateLambda([this]{ MediaPlate->GetMediaPlayer()->Previous(); }),
-		FCanExecuteAction::CreateLambda([this]{ return (MediaPlate->GetMediaPlayer()->GetPlaylistRef().Num() > 1); })
+		FExecuteAction::CreateLambda([this]{ MediaPlate->Previous(); }),
+		FCanExecuteAction::CreateLambda([this]{
+			return (MediaPlate->MediaPlaylist != nullptr) &&
+					(MediaPlate->MediaPlaylist->Num() > 1);
+		})
 	);
 
 	ToolkitCommands->MapAction(
