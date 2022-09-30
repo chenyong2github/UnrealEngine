@@ -7,45 +7,35 @@
 #include "NiagaraFunctionLibrary.h"
 #include "TP_TopDownCharacter.h"
 #include "Engine/World.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 
 ATP_TopDownPlayerController::ATP_TopDownPlayerController()
 {
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
+	CachedDestination = FVector::ZeroVector;
+	FollowTime = 0.f;
 }
 
-void ATP_TopDownPlayerController::PlayerTick(float DeltaTime)
+void ATP_TopDownPlayerController::OnPossess(APawn* PossessedPawn)
 {
-	Super::PlayerTick(DeltaTime);
+	Super::OnPossess(PossessedPawn);
 
-	if(bInputPressed)
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
-		FollowTime += DeltaTime;
-
-		// Look for the touch location
-		FVector HitLocation = FVector::ZeroVector;
-		FHitResult Hit;
-		if(bIsTouch)
-		{
-			GetHitResultUnderFinger(ETouchIndex::Touch1, ECC_Visibility, true, Hit);
-		}
-		else
-		{
-			GetHitResultUnderCursor(ECC_Visibility, true, Hit);
-		}
-		HitLocation = Hit.Location;
-
-		// Direct the Pawn towards that location
-		APawn* const MyPawn = GetPawn();
-		if(MyPawn)
-		{
-			FVector WorldDirection = (HitLocation - MyPawn->GetActorLocation()).GetSafeNormal();
-			MyPawn->AddMovementInput(WorldDirection, 1.f, false);
-		}
+		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
-	else
+}
+
+void ATP_TopDownPlayerController::OnUnPossess()
+{
+	Super::OnUnPossess();
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
-		FollowTime = 0.f;
+		check(DefaultMappingContext);
+		Subsystem->RemoveMappingContext(DefaultMappingContext);
 	}
 }
 
@@ -54,50 +44,82 @@ void ATP_TopDownPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &ATP_TopDownPlayerController::OnSetDestinationPressed);
-	InputComponent->BindAction("SetDestination", IE_Released, this, &ATP_TopDownPlayerController::OnSetDestinationReleased);
+	// Set up action bindings
+	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent))
+	{
+		// Setup mouse input events
+		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Started, this, &ATP_TopDownPlayerController::OnInputStarted);
+		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Triggered, this, &ATP_TopDownPlayerController::OnSetDestinationTriggered);
+		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Completed, this, &ATP_TopDownPlayerController::OnSetDestinationReleased);
+		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Canceled, this, &ATP_TopDownPlayerController::OnSetDestinationReleased);
 
-	// support touch devices 
-	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ATP_TopDownPlayerController::OnTouchPressed);
-	InputComponent->BindTouch(EInputEvent::IE_Released, this, &ATP_TopDownPlayerController::OnTouchReleased);
-
+		// Setup touch input events
+		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Started, this, &ATP_TopDownPlayerController::OnInputStarted);
+		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Triggered, this, &ATP_TopDownPlayerController::OnTouchTriggered);
+		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Completed, this, &ATP_TopDownPlayerController::OnTouchReleased);
+		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Canceled, this, &ATP_TopDownPlayerController::OnTouchReleased);
+	}
 }
 
-void ATP_TopDownPlayerController::OnSetDestinationPressed()
+void ATP_TopDownPlayerController::OnInputStarted()
+{
+	StopMovement();
+}
+
+// Triggered every frame when the input is held down
+void ATP_TopDownPlayerController::OnSetDestinationTriggered()
 {
 	// We flag that the input is being pressed
-	bInputPressed = true;
-	// Just in case the character was moving because of a previous short press we stop it
-	StopMovement();
+	FollowTime += GetWorld()->GetDeltaSeconds();
+	
+	// We look for the location in the world where the player has pressed the input
+	FHitResult Hit;
+	bool bHitSuccessful = false;
+	if (bIsTouch)
+	{
+		bHitSuccessful = GetHitResultUnderFinger(ETouchIndex::Touch1, ECollisionChannel::ECC_Visibility, true, Hit);
+	}
+	else
+	{
+		bHitSuccessful = GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, true, Hit);
+	}
+
+	// If we hit a surface, cache the location
+	if (bHitSuccessful)
+	{
+		CachedDestination = Hit.Location;
+	}
+	
+	// Move towards mouse pointer or touch
+	APawn* ControlledPawn = GetPawn();
+	if (ControlledPawn != nullptr)
+	{
+		FVector WorldDirection = (CachedDestination - ControlledPawn->GetActorLocation()).GetSafeNormal();
+		ControlledPawn->AddMovementInput(WorldDirection, 1.0, false);
+	}
 }
 
 void ATP_TopDownPlayerController::OnSetDestinationReleased()
 {
-	// Player is no longer pressing the input
-	bInputPressed = false;
-
 	// If it was a short press
-	if(FollowTime <= ShortPressThreshold)
+	if (FollowTime <= ShortPressThreshold)
 	{
-		// We look for the location in the world where the player has pressed the input
-		FVector HitLocation = FVector::ZeroVector;
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, true, Hit);
-		HitLocation = Hit.Location;
-
 		// We move there and spawn some particles
-		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitLocation);
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, HitLocation, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
+		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CachedDestination);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, FXCursor, CachedDestination, FRotator::ZeroRotator, FVector(1.f, 1.f, 1.f), true, true, ENCPoolMethod::None, true);
 	}
+
+	FollowTime = 0.f;
 }
 
-void ATP_TopDownPlayerController::OnTouchPressed(const ETouchIndex::Type FingerIndex, const FVector Location)
+// Triggered every frame when the input is held down
+void ATP_TopDownPlayerController::OnTouchTriggered()
 {
 	bIsTouch = true;
-	OnSetDestinationPressed();
+	OnSetDestinationTriggered();
 }
 
-void ATP_TopDownPlayerController::OnTouchReleased(const ETouchIndex::Type FingerIndex, const FVector Location)
+void ATP_TopDownPlayerController::OnTouchReleased()
 {
 	bIsTouch = false;
 	OnSetDestinationReleased();

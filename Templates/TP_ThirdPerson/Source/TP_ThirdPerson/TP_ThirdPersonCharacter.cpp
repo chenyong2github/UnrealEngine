@@ -53,6 +53,8 @@ ATP_ThirdPersonCharacter::ATP_ThirdPersonCharacter()
 
 void ATP_ThirdPersonCharacter::PossessedBy(AController* NewController)
 {
+	Super::PossessedBy(NewController);
+
 	//Add a mapping context on Possessed
 	if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
 	{
@@ -63,14 +65,24 @@ void ATP_ThirdPersonCharacter::PossessedBy(AController* NewController)
 	}
 }
 
+void ATP_ThirdPersonCharacter::UnPossessed()
+{
+	Super::UnPossessed();
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->RemoveMappingContext(DefaultMappingContext);
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
 void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	// Set up gameplay key bindings
-	check(PlayerInputComponent);
-	
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
 		

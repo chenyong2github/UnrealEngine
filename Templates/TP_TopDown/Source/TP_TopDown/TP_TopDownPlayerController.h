@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "GameFramework/PlayerController.h"
+#include "InputActionValue.h"
 #include "TP_TopDownPlayerController.generated.h"
 
 /** Forward declaration to improve compiling times */
@@ -26,23 +27,38 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UNiagaraSystem* FXCursor;
 
+	/** MappingContext */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputMappingContext* DefaultMappingContext;
+	
+	/** Jump Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* SetDestinationClickAction;
+
+	/** Jump Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* SetDestinationTouchAction;
+
 protected:
 	/** True if the controlled character should navigate to the mouse cursor. */
 	uint32 bMoveToMouseCursor : 1;
 
 	// Begin PlayerController interface
-	virtual void PlayerTick(float DeltaTime) override;
+	virtual void OnPossess(APawn* PossessedPawn) override;
+	virtual void OnUnPossess() override;
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
 
 	/** Input handlers for SetDestination action. */
-	void OnSetDestinationPressed();
+	void OnInputStarted();
+	void OnSetDestinationTriggered();
 	void OnSetDestinationReleased();
-	void OnTouchPressed(const ETouchIndex::Type FingerIndex, const FVector Location);
-	void OnTouchReleased(const ETouchIndex::Type FingerIndex, const FVector Location);
+	void OnTouchTriggered();
+	void OnTouchReleased();
 
 private:
-	bool bInputPressed; // Input is bring pressed
+	FVector CachedDestination;
+
 	bool bIsTouch; // Is it a touch device
 	float FollowTime; // For how long it has been pressed
 };

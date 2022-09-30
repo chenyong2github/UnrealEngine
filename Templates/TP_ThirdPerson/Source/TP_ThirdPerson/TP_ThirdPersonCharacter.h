@@ -41,8 +41,8 @@ public:
 	ATP_ThirdPersonCharacter();
 
 	/** Called for adding mapping context*/
-	void PossessedBy(AController* NewController) override;
-		
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void UnPossessed() override;
 
 protected:
 
