@@ -92,7 +92,8 @@ TSharedRef<SWidget> FRCActionModel::GetNameWidget() const
 			if (const TSharedPtr<FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(Action->ExposedFieldId).Pin())
 			{
 				return SNew(SBox)
-					.Padding(FMargin(6.f))
+					.Padding(FMargin(8.f))
+					.VAlign(EVerticalAlignment::VAlign_Center)
 					[
 						SNew(STextBlock).Text(FText::FromName(RemoteControlField->GetLabel()))
 					];

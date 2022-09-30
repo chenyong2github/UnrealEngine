@@ -10,29 +10,26 @@ class URCAction;
 class URCVirtualPropertyContainerBase;
 
 USTRUCT()
-struct FRCRangeMapStep
+struct REMOTECONTROLLOGIC_API FRCRangeMapStep
 {
 	GENERATED_BODY()
 
 	FRCRangeMapStep() {}
-	FRCRangeMapStep(const double InStepValue, URCVirtualPropertySelfContainer* InPropertyValue)
-		: StepValue(InStepValue)
+	FRCRangeMapStep(URCVirtualPropertySelfContainer* InStepValueProperty, URCVirtualPropertySelfContainer* InPropertyValue)
+		: StepValueProperty(InStepValueProperty), PropertyValue(InPropertyValue)
 	{
-		if (!InPropertyValue)
-		{
-			return;
-		}
-		
-		PropertyValue = InPropertyValue;
 	}
 
 	/** The Value which we use represent the action based on a normalized step. */
 	UPROPERTY()
-	double StepValue = 0.0;
+	TObjectPtr<URCVirtualPropertySelfContainer> StepValueProperty;
 
 	/** The Property this Action holds and will be used for calculations for the lerp. */
 	UPROPERTY()
 	TObjectPtr<URCVirtualPropertySelfContainer> PropertyValue;
+
+	/** Returns the Step value from the virtual property, safely*/
+	bool GetStepValue(double& OutValue) const;
 };
 
 /**
@@ -77,6 +74,9 @@ public:
 	/** Checks whether or not one of the following fields can be added to the AddAction Menu. Makes sure they're unique. */
 	bool CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const override;
 
+	/** Returns the Step value associated with a given Action*/
+	bool GetStepValueForAction(const URCAction* InAction, double& OutValue);
+
 private:
 	/** Minimum Value which the Range has */
 	double MinValue;
@@ -91,6 +91,7 @@ private:
 	float ControllerFloatValue;
 	
 private:
+
 	/** Boolean Function to help differentiate Custom Actions */
 	bool IsSupportedActionLerpType(TObjectPtr<URCAction> InAction) const;
 

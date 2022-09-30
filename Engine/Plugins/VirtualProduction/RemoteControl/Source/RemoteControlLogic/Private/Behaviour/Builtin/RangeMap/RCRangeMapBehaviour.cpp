@@ -28,6 +28,8 @@ namespace UE::RCRangeMapBehaviour
 URCRangeMapBehaviour::URCRangeMapBehaviour()
 {
 	PropertyContainer = CreateDefaultSubobject<URCVirtualPropertyContainerBase>(FName("VirtualPropertyContainer"));
+
+	bExecuteBehavioursDuringPreChange = true;
 }
 
 void URCRangeMapBehaviour::Initialize()
@@ -43,7 +45,6 @@ void URCRangeMapBehaviour::Initialize()
 	ContainerPtr->AddProperty(UE::RCRangeMapBehaviour::MinValue, URCController::StaticClass(), EPropertyBagPropertyType::Double);
 	ContainerPtr->AddProperty(UE::RCRangeMapBehaviour::MaxValue, URCController::StaticClass(), EPropertyBagPropertyType::Double);
 	ContainerPtr->AddProperty(UE::RCRangeMapBehaviour::Threshold, URCController::StaticClass(), EPropertyBagPropertyType::Double);
-	ContainerPtr->AddProperty(UE::RCRangeMapBehaviour::Step, URCController::StaticClass(), EPropertyBagPropertyType::Double);
 
 	Super::Initialize();
 }
@@ -124,6 +125,27 @@ bool URCRangeMapBehaviour::GetNearestActionByThreshold(TTuple<URCAction*, bool>&
 	return true;
 }
 
+
+bool FRCRangeMapStep::GetStepValue(double& OutValue) const
+{
+	if (StepValueProperty)
+	{
+		return StepValueProperty->GetValueDouble(OutValue);
+	}
+
+	return false;
+}
+
+bool URCRangeMapBehaviour::GetStepValueForAction(const URCAction* InAction, double& OutValue)
+{
+	if (FRCRangeMapStep* StepData = RangeMapActionContainer.Find(InAction))
+	{
+		return StepData->GetStepValue(OutValue);
+	}
+
+	return false;
+}
+
 void URCRangeMapBehaviour::GetLerpActions(TMap<FGuid, TArray<URCAction*>>& OutNumericActionsByField)
 {
 	for (URCAction* Action : ActionContainer->GetActions())
@@ -145,10 +167,16 @@ void URCRangeMapBehaviour::GetLerpActions(TMap<FGuid, TArray<URCAction*>>& OutNu
 
 		Algo::Sort(ArrayToSort, [this](const URCAction* ActionA, const URCAction* ActionB)
 		{
-			const double A = RangeMapActionContainer.Find(ActionA)->StepValue;
-			const double B = RangeMapActionContainer.Find(ActionB)->StepValue;
+			double A, B;
+			bool bRes1 = GetStepValueForAction(ActionA, A);
+			bool bRes2 = GetStepValueForAction(ActionA, B);
 
-			return A > B;
+			if (ensure(bRes1 && bRes2))
+			{
+				return A > B;
+			}
+
+			return false;
 		});
 	}
 }
@@ -219,9 +247,17 @@ void URCRangeMapBehaviour::Execute()
 			return;
 		}
 
+		double MinRangeStepValue, MaxRangeStepValue;
+		bool bRes1 = MinRangeMapStep->GetStepValue(MinRangeStepValue);
+		bool bRes2 = MaxRangeMapStep->GetStepValue(MaxRangeStepValue);
+		if (!ensure(bRes1 && bRes2))
+		{
+			continue; // ideally this should never happen
+		}
+
 		// Denormalize and Map them based on our Min and Max Value
-		const double MappedMinStep = UKismetMathLibrary::Lerp(MinValue, MaxValue, MinRangeMapStep->StepValue);
-		const double MappedMaxStep = UKismetMathLibrary::Lerp(MinValue, MaxValue, MaxRangeMapStep->StepValue);
+		const double MappedMinStep = UKismetMathLibrary::Lerp(MinValue, MaxValue, MinRangeStepValue);
+		const double MappedMaxStep = UKismetMathLibrary::Lerp(MinValue, MaxValue, MaxRangeStepValue);
 
 		// Normalize our Controller based on the new MappedMinStep and MappedMaxStep Range.
 		double CustomNormalizedStepValue = UKismetMathLibrary::NormalizeToRange(ControllerFloatValue, MappedMinStep, MappedMaxStep);
@@ -296,7 +332,7 @@ URCAction* URCRangeMapBehaviour::DuplicateAction(URCAction* InAction, URCBehavio
 
 			if(ensureAlways(ActionValueProperty))
 			{
-				FRCRangeMapStep NewData(RangeMapStepData->StepValue, ActionValueProperty);
+				FRCRangeMapStep NewData(RangeMapStepData->StepValueProperty, ActionValueProperty);
 				InBehaviourRangeMap->RangeMapActionContainer.Add(NewAction, NewData);
 			}
 		}
@@ -307,26 +343,20 @@ URCAction* URCRangeMapBehaviour::DuplicateAction(URCAction* InAction, URCBehavio
 
 URCAction* URCRangeMapBehaviour::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
-	double InStepValue = 0.0;
-	URCVirtualPropertyBase* StepVirtualProperty = PropertyContainer->GetVirtualProperty(UE::RCRangeMapBehaviour::Step);
-	StepVirtualProperty->GetValueDouble(InStepValue);
+	// The new workflow for Rangemap involves the user creating the Step action first (with default step value) and then clicking on Edit to set the value
+	// For this reason no uniqueness test can be performed at this point
+	const TRCActionUniquenessTest PassthroughUniquenessTest = [](const TSet<TObjectPtr<URCAction>>& Actions) { return true;	};
 	
-	const TRCActionUniquenessTest ActionUniquenessTest = [this, InRemoteControlField, InStepValue](const TSet<TObjectPtr<URCAction>>& Actions)
-	{
-		return IsActionUnique(InRemoteControlField, InStepValue, Actions);
-	};
-	
-	return ActionContainer->AddAction(ActionUniquenessTest, InRemoteControlField);
+	return ActionContainer->AddAction(PassthroughUniquenessTest, InRemoteControlField);
 }
 
 void URCRangeMapBehaviour::OnActionAdded(URCAction* Action, URCVirtualPropertySelfContainer* InPropertyValue)
 {
-	double InStepValue = 0.0;
-	URCVirtualPropertyBase* StepVirtualProperty = PropertyContainer->GetVirtualProperty(UE::RCRangeMapBehaviour::Step);
-	StepVirtualProperty->GetValueDouble(InStepValue);
-	StepVirtualProperty->SetValueDouble(0.0);
+	// Virtual Property for Step Input
+	URCVirtualPropertySelfContainer* StepInputProperty = NewObject<URCVirtualPropertySelfContainer>(this);
+	StepInputProperty->AddProperty(UE::RCRangeMapBehaviour::Step, EPropertyBagPropertyType::Double);
 	
-	FRCRangeMapStep RangeMapStep = FRCRangeMapStep(InStepValue, InPropertyValue);
+	FRCRangeMapStep RangeMapStep = FRCRangeMapStep(StepInputProperty, InPropertyValue);
 
 	RangeMapActionContainer.Add(Action, MoveTemp(RangeMapStep));
 }
@@ -361,8 +391,15 @@ bool URCRangeMapBehaviour::GetRangeValuePairsForLerp(TMap<FGuid, TTuple<URCActio
 				continue;
 			}
 
+			double StepValue;
+			bool bRes = RangeMap->GetStepValue(StepValue);
+			if (!bRes)
+			{
+				continue;
+			}
+
 			// Deal with the nullptr
-			if (NormalizedControllerValue >= RangeMap->StepValue && (!MinRangeMap || NumericActionTuple.Value.Last() != Action))
+			if (NormalizedControllerValue >= StepValue && (!MinRangeMap || NumericActionTuple.Value.Last() != Action))
 			{
 				MinAction = Action;
 				MinRangeMap = RangeMap;
@@ -370,7 +407,7 @@ bool URCRangeMapBehaviour::GetRangeValuePairsForLerp(TMap<FGuid, TTuple<URCActio
 				continue;
 			}
 
-			if (NormalizedControllerValue <= RangeMap->StepValue)
+			if (NormalizedControllerValue <= StepValue)
 			{
 				MaxAction = Action;
 				MaxRangeMap = RangeMap;
@@ -397,14 +434,17 @@ TMap<double, URCAction*> URCRangeMapBehaviour::GetNonLerpActions()
 	
 	for (URCAction* Action : ActionContainer->GetActions())
 	{
-		
 		if (!IsSupportedActionLerpType(Action))
 		{
 			FRCRangeMapStep* RangeMapStep = RangeMapActionContainer.Find(Action);
 
 			if (RangeMapStep)
 			{
-				ActionMap.Add(RangeMapStep->StepValue, Action);
+				double StepValue;
+				if (RangeMapStep->GetStepValue(StepValue))
+				{
+					ActionMap.Add(StepValue, Action);
+				}
 			}
 		}
 	}
@@ -476,12 +516,14 @@ bool URCRangeMapBehaviour::IsActionUnique(const TSharedRef<const FRemoteControlF
 		if (const FRCRangeMapStep* RangeMapStep = this->RangeMapActionContainer.Find(Action))
 		{
 			// Check if the Step itself is already used
-			const double ActionStepValue = RangeMapStep->StepValue;
-
-			// Only Important bit is StepValue and FieldId
-			if (Action->ExposedFieldId == FieldId && FMath::IsNearlyEqual(ActionStepValue, InStepValue))
+			double ActionStepValue;
+			if(RangeMapStep->GetStepValue(ActionStepValue))
 			{
-				return false; // Not Unique.
+				// Only Important bit is StepValue and FieldId
+				if (Action->ExposedFieldId == FieldId && FMath::IsNearlyEqual(ActionStepValue, InStepValue))
+				{
+					return false; // Not Unique.
+				}
 			}
 		}
 	}

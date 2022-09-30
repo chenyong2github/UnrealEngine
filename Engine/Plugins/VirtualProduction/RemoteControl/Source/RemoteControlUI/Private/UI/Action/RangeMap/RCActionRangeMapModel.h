@@ -22,7 +22,7 @@ public:
 	/**
 	 * Simple Widget representing the Normalized Value or Step Value for the Range and this particular Value.
 	 */
-	virtual TSharedRef<SWidget> GetStepWidget() const;
+	virtual TSharedRef<SWidget> GetStepWidget();
 
 	/** OnGenerateRow delegate for the Actions List View*/
 	TSharedRef<ITableRow> OnGenerateWidgetForList(TSharedPtr<FRCActionRangeMapModel> InItem, const TSharedRef<STableViewBase>& OwnerTable);
@@ -32,6 +32,9 @@ public:
 
 	/** Chooses the appropriate Action model for the current class and field type*/
 	static TSharedPtr<FRCActionRangeMapModel> GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
+
+private:
+	TSharedRef<SWidget> OnGenerateStepWidget(class URCVirtualPropertySelfContainer* InComparand) const;
 };
 
 /*

@@ -11,6 +11,7 @@
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Action/SRCVirtualPropertyWidget.h"
 #include "UI/Behaviour/Builtin/RangeMap/RCBehaviourRangeMapModel.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
@@ -127,7 +128,7 @@ TSharedPtr<FRCActionRangeMapModel> FRCActionRangeMapModel::GetModelByActionType(
 	return nullptr;
 }
 
-TSharedRef<SWidget> FRCActionRangeMapModel::GetStepWidget() const
+TSharedRef<SWidget> FRCActionRangeMapModel::GetStepWidget()
 {
 	if (TSharedPtr<FRCRangeMapBehaviourModel> BehaviourItem = StaticCastSharedPtr<FRCRangeMapBehaviourModel>(BehaviourItemWeakPtr.Pin()))
 	{
@@ -135,17 +136,45 @@ TSharedRef<SWidget> FRCActionRangeMapModel::GetStepWidget() const
 		{
 			if (FRCRangeMapStep* RangeStep = Behaviour->RangeMapActionContainer.Find(GetAction()))
 			{
-				const FText StepAsText = FText::FromString(FString::SanitizeFloat(RangeStep->StepValue));
-				
-				return SNew(SBox)
-					.Padding(6.0f)
-					[
-						SNew(STextBlock).Text(StepAsText)
-					];
+				if (ensure(RangeStep->StepValueProperty))
+				{
+					return SAssignNew(EditableVirtualPropertyWidget, SRCVirtualPropertyWidget, RangeStep->StepValueProperty)
+						.OnGenerateWidget(this, &FRCActionRangeMapModel::OnGenerateStepWidget);
+				}
 			}
 		}
 	}
 	
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> FRCActionRangeMapModel::OnGenerateStepWidget(class URCVirtualPropertySelfContainer* StepValueProperty) const
+{
+	if (!ensure(StepValueProperty))
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	if (TSharedPtr<FRCRangeMapBehaviourModel> BehaviourItem = StaticCastSharedPtr<FRCRangeMapBehaviourModel>(BehaviourItemWeakPtr.Pin()))
+	{
+		if (URCRangeMapBehaviour* Behaviour = Cast<URCRangeMapBehaviour>(BehaviourItem->GetBehaviour()))
+		{
+			if (const FRCRangeMapStep* RangeStep = Behaviour->RangeMapActionContainer.Find(GetAction()))
+			{
+				double StepValue;
+				if(RangeStep->GetStepValue(StepValue))
+				{
+					const FText StepAsText = FText::FromString(FString::SanitizeFloat(StepValue));
+
+					return SNew(SBox)
+						[
+							SNew(STextBlock).Text(StepAsText)
+						];
+				}
+			}
+		}
+	}
+
 	return SNullWidget::NullWidget;
 }
 

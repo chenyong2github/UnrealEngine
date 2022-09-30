@@ -74,9 +74,7 @@ TSharedRef<SWidget> FRCRangeMapBehaviourModel::GetPropertyWidget() const
 	}
 	
 	TSharedPtr<IDetailTreeNode> DetailTreeNodeThreshold = (++DetailTreeItr)->Pin();
-	TSharedPtr<IDetailTreeNode> DetailTreeNodeStep = (++DetailTreeItr)->Pin();
 	const FNodeWidgets ThresholdWidget = DetailTreeNodeThreshold->CreateNodeWidgets();
-	const FNodeWidgets StepWidget = DetailTreeNodeStep->CreateNodeWidgets();
 	
 	FieldWidget->AddSlot()
 		.Padding(FMargin(3.0f, 2.0f))
@@ -97,34 +95,6 @@ TSharedRef<SWidget> FRCRangeMapBehaviourModel::GetPropertyWidget() const
 			.AutoWidth()
 			[
 				ThresholdWidget.ValueWidget.ToSharedRef()
-			]
-		];
-
-	FieldWidget->AddSlot()
-		.Padding(FMargin(3.0f, 6.0f))
-		.HAlign(HAlign_Right)
-		.AutoHeight()
-		[
-			SNew(SBorder)
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("StepInputValue", "Step Value for Action"))
-					.Font(FRemoteControlPanelStyle::Get()->GetFontStyle("RemoteControlPanel.Behaviours.BehaviourDescription"))
-				]
-				+SHorizontalBox::Slot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.HAlign(HAlign_Right)
-				.FillWidth(1.0f)
-				.AutoWidth()
-				[
-					StepWidget.ValueWidget.ToSharedRef()
-				]
 			]
 		];
 
@@ -161,9 +131,6 @@ URCAction* FRCRangeMapBehaviourModel::AddAction(const TSharedRef<const FRemoteCo
 
 	if (URCRangeMapBehaviour* RangeMapBehaviour = Cast<URCRangeMapBehaviour>(GetBehaviour()))
 	{
-		double StepValue;
-		RangeMapBehaviour->PropertyContainer->GetVirtualProperty(FName("Step"))->GetValueDouble(StepValue);
-
 		const FGuid FieldId = InRemoteControlField->GetId();
 		if (TSharedPtr<FRemoteControlProperty> RemoteProperty = RangeMapBehaviour->ControllerWeakPtr.Get()->PresetWeakPtr.Get()->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
 		{
