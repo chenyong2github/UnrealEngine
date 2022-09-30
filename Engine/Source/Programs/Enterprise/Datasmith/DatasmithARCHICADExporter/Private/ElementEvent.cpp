@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ElementEvent.h"
+#include "Utils/ElementTools.h"
 #include "Utils/TAssValueName.h"
 #include "Synchronizer.h"
 #include "Commander.h"
@@ -67,10 +68,22 @@ GSErrCode FElementEvent::Event(const API_NotifyElementType& ElemType)
 {
 	UE_AC_TraceF("-> FElementEvent::Event(%s)\n", TAssEnumName< API_ElementDBEventID >::GetName(ElemType.notifID));
 	GS::UniString ElemTypeName;
+#if AC_VERSION < 26
 	if (ACAPI_Goodies(APIAny_GetElemTypeNameID, (void*)(size_t)ElemType.elemHead.typeID, &ElemTypeName) != NoError)
 	{
 		ElemTypeName = GS::UniString::Printf("ElementType=%d", ElemType.elemHead.typeID);
 	}
+#else
+	const API_ElemTypeID ElemTypeID = ElemType.elemHead.type.typeID;
+	if (API_FirstElemType <= ElemTypeID && ElemTypeID <= API_LastElemType)
+	{
+		ElemTypeName = GS::UniString::Printf("ElementType=%s", FElementTools::TypeName(ElemTypeID));
+	}
+	else
+	{
+		ElemTypeName = GS::UniString::Printf("ElementType=%d", ElemTypeID);
+	}
+#endif
 
 	GS::UniString ElemUUID(APIGuidToString(ElemType.elemHead.guid));
 	switch (ElemType.notifID)

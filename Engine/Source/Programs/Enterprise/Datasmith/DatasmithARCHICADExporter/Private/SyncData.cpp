@@ -745,7 +745,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			IOProcessInfo->ElementID.InitHeader(GSGuid2APIGuid(ElementId));
 			CheckModificationStamp(IOProcessInfo->ElementID.GetHeader().modiStamp);
 
-			TypeID = IOProcessInfo->ElementID.GetHeader().typeID;
+			TypeID = IOProcessInfo->ElementID.GetTypeID();
 
 			UE_AC_STAT(IOProcessInfo->SyncContext.Stats.TotalOwnerCreated++);
 			TSharedRef< IDatasmithActorElement > NewActor =
@@ -780,7 +780,7 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			IOProcessInfo->ElementID.InitElement(this);
 			IOProcessInfo->ElementID.InitHeader();
 
-			TypeID = IOProcessInfo->ElementID.GetHeader().typeID;
+			TypeID = IOProcessInfo->ElementID.GetTypeID();
 
 			ModelerAPI::Transformation LocalToWorld =
 				IOProcessInfo->ElementID.GetElement3D().GetElemLocalToWorldTransformation();
@@ -873,7 +873,7 @@ bool FSyncData::FElement::AddTags(FSyncDatabase* IOSyncDatabase)
 		Zap(&APIElement);
 		APIElement.header.guid = GSGuid2APIGuid(ElementId);
 		GSErrCode GSErr = ACAPI_Element_Get(&APIElement, 0);
-		UE_AC_Assert(APIElement.header.typeID == TypeID);
+		UE_AC_Assert(GET_HEADER_TYPEID(APIElement.header) == TypeID);
 
 		if (GSErr == NoError)
 		{
@@ -1549,7 +1549,7 @@ FSyncData::FHotLinkInstance::FHotLinkInstance(const GS::Guid& InGuid, FSyncDatab
 
 	API_Element hotlinkElem;
 	Zap(&hotlinkElem);
-	hotlinkElem.header.typeID = API_HotlinkID;
+	GET_HEADER_TYPEID(hotlinkElem.header) = API_HotlinkID;
 	hotlinkElem.header.guid = GSGuid2APIGuid(ElementId);
 	GSErrCode err = ACAPI_Element_Get(&hotlinkElem);
 	if (err == NoError)
@@ -1588,7 +1588,7 @@ void FSyncData::FHotLinkInstance::Process(FProcessInfo* IOProcessInfo)
 
 		API_Element hotlinkElem;
 		Zap(&hotlinkElem);
-		hotlinkElem.header.typeID = API_HotlinkID;
+		GET_HEADER_TYPEID(hotlinkElem.header) = API_HotlinkID;
 		hotlinkElem.header.guid = GSGuid2APIGuid(ElementId);
 		GSErrCode err = ACAPI_Element_Get(&hotlinkElem);
 		if (err == NoError)

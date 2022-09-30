@@ -37,8 +37,10 @@ FAssValueName::SAssValueName TAssEnumName< API_NotifyEventID >::AssEnumName[] = 
 
 	ValueName(APINotify_SideviewCreated),
 	ValueName(APINotify_SideviewRebuilt),
+#if AC_VERSION < 26
 	ValueName(APINotify_PropertyDefinitionChanged),
 	ValueName(APINotify_ClassificationItemChanged),
+#endif
 	ValueName(APINotify_PropertyVisibilityChanged),
 	ValueName(APINotify_ClassificationVisibilityChanged),
 

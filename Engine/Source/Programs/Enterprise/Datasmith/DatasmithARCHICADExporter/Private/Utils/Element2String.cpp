@@ -19,7 +19,7 @@ utf8_string GetHotLinkInfo(const API_Element& InElement)
 		{
 			API_Element HotlinkElem;
 			Zap(&HotlinkElem);
-			HotlinkElem.header.typeID = API_HotlinkID;
+			GET_HEADER_TYPEID(HotlinkElem.header) = API_HotlinkID;
 			HotlinkElem.header.guid = HotlinkElemGuid;
 			GSErr = ACAPI_Element_Get(&HotlinkElem);
 			if (GSErr == NoError)
@@ -55,7 +55,7 @@ utf8_string FElement2String::GetElementAsShortString(const API_Element& InElemen
 	FElementTools::GetInfoString(InElement.header.guid, &ElementInfo);
 
 	ElementString += Utf8StringFormat("Element \"%s\", type=%s, Guid={%s}, Layer=\"%s\", Floor=%d\n",
-									  ElementInfo.ToUtf8(), FElementTools::TypeName(InElement.header.typeID),
+									  ElementInfo.ToUtf8(), FElementTools::TypeName(GET_HEADER_TYPEID(InElement.header)),
 									  APIGuidToString(InElement.header.guid).ToUtf8(),
 									  GetLayerName(InElement.header.layer).ToUtf8(), InElement.header.floorInd);
 
@@ -124,7 +124,7 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 
 	ElementString += Utf8StringFormat(
 		"\tElement \"%s\", type=%s, Guid={%s}\n\t\t\tMemoMD5={%s} Layer=\"%s\", Floor=%d\n", ElementInfo.ToUtf8(),
-		FElementTools::TypeName(InElement.header.typeID), APIGuidToString(InElement.header.guid).ToUtf8(),
+		FElementTools::TypeName(GET_HEADER_TYPEID(InElement.header)), APIGuidToString(InElement.header.guid).ToUtf8(),
 		APIGuidToString(MemoMD5).ToUtf8(), GetLayerName(InElement.header.layer).ToUtf8(), InElement.header.floorInd);
 	utf8_string HotLinkInfo = GetHotLinkInfo(InElement);
 	if (HotLinkInfo.size())
@@ -199,7 +199,7 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 	const API_ObjectType*	   ObjectType = nullptr;
 	const API_OpeningBaseType* OpeningBase = nullptr;
 	utf8_string				   ObjectData;
-	switch (InElement.header.typeID)
+	switch (GET_HEADER_TYPEID(InElement.header))
 	{
 		case API_WallID:
 			{
@@ -286,11 +286,19 @@ utf8_string FElement2String::GetElementAsString(const API_Element& InElement)
 		{
 			ObjectData += Utf8StringFormat(", pos={%lf, %lf}", ObjectType->pos.x, ObjectType->pos.y);
 		}
+#if AC_VERSION < 26
 		if (ObjectType->ownerID || ObjectType->owner != APINULLGuid)
 		{
 			ObjectData += Utf8StringFormat(", ownerID=%d, owner={%s}", ObjectType->ownerID,
-										   APIGuidToString(ObjectType->owner).ToUtf8());
+				APIGuidToString(ObjectType->owner).ToUtf8());
+	}
+#else
+		if (ObjectType->ownerType.typeID || ObjectType->owner != APINULLGuid)
+		{
+			ObjectData += Utf8StringFormat(", ownerID=%d, owner={%s}", ObjectType->ownerType.typeID,
+				APIGuidToString(ObjectType->owner).ToUtf8());
 		}
+#endif
 	}
 	if (OpeningBase != nullptr)
 	{

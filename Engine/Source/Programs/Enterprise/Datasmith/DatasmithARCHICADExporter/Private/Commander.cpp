@@ -27,7 +27,11 @@ DISABLE_SDK_WARNINGS_START
 #include "Sight.hpp"
 DISABLE_SDK_WARNINGS_END
 
+#if AC_VERSION < 26
 #include "AttributeReader.hpp"
+#else
+#include "IAttributeReader.hpp"
+#endif
 #include "Model.hpp"
 
 BEGIN_NAMESPACE_UE_AC
@@ -203,8 +207,13 @@ void FCommander::DoSnapshotOrExport(const IO::Location* InExportedFile)
 		Modeler::ConstModel3DPtr Model3D(SightPtr->GetMainModelPtr());
 
 		ModelerAPI::Model Model;
+#if AC_VERSION < 26
 		AttributeReader	  Reader; // deprecated constructor, temporary!
 		UE_AC_TestGSError(EXPGetModel(Model3D, &Model, &Reader));
+#else
+		GS::Owner<Modeler::IAttributeReader> Reader(ACAPI_Attribute_GetCurrentAttributeSetReader());
+		UE_AC_TestGSError(EXPGetModel(Model3D, &Model, Reader.Get()));
+#endif
 		if (InExportedFile)
 		{
 			FExporter().DoExport(Model, *InExportedFile);

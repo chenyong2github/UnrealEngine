@@ -16,7 +16,9 @@ DISABLE_SDK_WARNINGS_START
 #undef PI
 
 #include "Sight.hpp"
+#if AC_VERSION < 26
 #include "AttributeReader.hpp"
+#endif
 #include "Model.hpp"
 
 DISABLE_SDK_WARNINGS_END

@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Visualizers", "Visualizers"
 		..\..\..\..\..\..\Extras\VisualStudioDebugging\Unreal.natvis = ..\..\..\..\..\..\Extras\VisualStudioDebugging\Unreal.natvis
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DatasmithARCHICAD26Exporter", "VSProj26\DatasmithARCHICAD26Exporter.vcxproj", "{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -46,6 +48,14 @@ Global
 		{F0AD06C2-7FEB-4968-AD94-7650969CFDDF}.ReleaseUE|x64.Build.0 = ReleaseUE|x64
 		{F0AD06C2-7FEB-4968-AD94-7650969CFDDF}.ReleaseUEWDbg|x64.ActiveCfg = ReleaseUEWDbg|x64
 		{F0AD06C2-7FEB-4968-AD94-7650969CFDDF}.ReleaseUEWDbg|x64.Build.0 = ReleaseUEWDbg|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.Debug|x64.ActiveCfg = Debug|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.Debug|x64.Build.0 = Debug|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.Release|x64.ActiveCfg = Release|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.Release|x64.Build.0 = Release|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.ReleaseUE|x64.ActiveCfg = ReleaseUE|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.ReleaseUE|x64.Build.0 = ReleaseUE|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.ReleaseUEWDbg|x64.ActiveCfg = ReleaseUEWDbg|x64
+		{B3EBED6E-E2DD-4F24-8AFC-2EEAF6635883}.ReleaseUEWDbg|x64.Build.0 = ReleaseUEWDbg|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

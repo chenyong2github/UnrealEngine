@@ -253,17 +253,17 @@ void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const
 // Connect to parent or childs
 void FElementID::HandleDepedencies() const
 {
-	if (APIElementHeader.typeID == API_WallID)
+	if (GET_HEADER_TYPEID(APIElementHeader) == API_WallID)
 	{
 		CollectDependantElementsType(API_WindowID);
 		CollectDependantElementsType(API_DoorID);
 	}
-	else if (APIElementHeader.typeID == API_RoofID || APIElementHeader.typeID == API_ShellID)
+	else if (GET_HEADER_TYPEID(APIElementHeader) == API_RoofID || GET_HEADER_TYPEID(APIElementHeader) == API_ShellID)
 	{
 		CollectDependantElementsType(API_SkylightID);
 	}
-	else if (APIElementHeader.typeID == API_WindowID || APIElementHeader.typeID == API_DoorID ||
-			 APIElementHeader.typeID == API_SkylightID)
+	else if (GET_HEADER_TYPEID(APIElementHeader) == API_WindowID || GET_HEADER_TYPEID(APIElementHeader) == API_DoorID ||
+		GET_HEADER_TYPEID(APIElementHeader) == API_SkylightID)
 	{
 		// Do nothing
 	}

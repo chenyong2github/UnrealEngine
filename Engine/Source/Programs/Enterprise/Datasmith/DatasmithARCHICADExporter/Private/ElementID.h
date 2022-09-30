@@ -71,6 +71,16 @@ class FElementID
 	// Return the element's header
 	const API_Elem_Head& GetHeader() const { return APIElementHeader; }
 
+	// Return the element's typeID
+	const API_ElemTypeID& GetTypeID() const
+	{
+#if AC_VERSION < 26
+		return APIElementHeader.typeID;
+#else
+		return APIElementHeader.type.typeID;
+#endif
+	}
+
 	// Return the mesh class based on hash of 3D ModelerAPI::BaseElemId
 	FMeshClass* GetMeshClass();
 

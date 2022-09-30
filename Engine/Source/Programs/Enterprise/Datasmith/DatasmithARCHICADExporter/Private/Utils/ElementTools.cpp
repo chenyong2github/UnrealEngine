@@ -89,13 +89,15 @@ FAssValueName::SAssValueName TAssEnumName< API_ElemTypeID >::AssEnumName[] = {
 	{ API_RailingRailConnectionID, 		"RailingRailConnection" },
 	{ API_RailingEndFinishID, 			"RailingEndFinish" },
 
+#if AC_VERSION < 26
 	{ API_AnalyticalSupportID, 			"AnalyticalSupport" },
 	{ API_AnalyticalLinkID, 			"AnalyticalLink" },
+#endif
 
 	{ API_BeamSegmentID, 				"BeamSegment" },
 	{ API_ColumnSegmentID, 				"ColumnSegment" },
 	{ API_OpeningID, 					"Opening" },
-#if AC_VERSION > 24
+#if AC_VERSION > 24 && AC_VERSION < 26
 	{ API_AnalyticalPointLoadID, 		"AnalyticalPointLoad" },
 	{ API_AnalyticalEdgeLoadID, 		"AnalyticalEdgeLoad" },
 	{ API_AnalyticalSurfaceLoadID, 		"AnalyticalSurfaceLoad" },
@@ -183,9 +185,9 @@ const utf8_t* FElementTools::TypeName(const API_Guid& InElementGuid)
 	{
 		UE_AC_DebugF("FElementTools::TypeName - Can't get element header {%s} Error=%d\n",
 					 APIGuidToString(InElementGuid).ToUtf8(), GSErr);
-		ElementHead.typeID = API_ZombieElemID;
+		GET_HEADER_TYPEID(ElementHead) = API_ZombieElemID;
 	}
-	return TypeName(ElementHead.typeID);
+	return TypeName(GET_HEADER_TYPEID(ElementHead));
 }
 
 // Tool: Return the variation as string
@@ -224,7 +226,7 @@ utf8_string FElementTools::GetVariationAsString(API_ElemVariationID InVariation)
 // Tool: return libpart index (or 0 if no libpart)
 GS::Int32 FElementTools::GetLibPartIndex(const API_Element& InElement)
 {
-	switch (InElement.header.typeID)
+	switch (GET_HEADER_TYPEID(InElement.header))
 	{
 		case API_WindowID:
 		case API_DoorID:
@@ -336,7 +338,7 @@ GS::Guid FElementTools::GetLibPartId(const API_Elem_Head& InElement)
 // Tool: return element's owner guid
 API_Guid FElementTools::GetOwner(const API_Element& InElement)
 {
-	size_t Offset = GetOwnerOffset(InElement.header.typeID);
+	size_t Offset = GetOwnerOffset(GET_HEADER_TYPEID(InElement.header));
 	if (Offset)
 	{
 		return *reinterpret_cast< const API_Guid* >(reinterpret_cast< const char* >(&InElement) + Offset);
@@ -450,8 +452,10 @@ size_t FElementTools::GetOwnerOffset(API_ElemTypeID InTypeID)
 		TableString[API_RailingRailConnectionID] = offsetof(API_Element, railingRailConnection.owner);
 		TableString[API_RailingEndFinishID] = offsetof(API_Element, railingEndFinish.owner);
 
+#if AC_VERSION < 26
 		TableString[API_AnalyticalSupportID] = offsetof(API_Element, analyticalSupport.head);
 		TableString[API_AnalyticalLinkID] = offsetof(API_Element, analyticalLink.head);
+#endif
 		TableString[API_ColumnSegmentID] = offsetof(API_Element, columnSegment.owner);
 		TableString[API_BeamSegmentID] = offsetof(API_Element, beamSegment.owner);
 		TableString[API_OpeningID] = offsetof(API_Element, opening.owner);

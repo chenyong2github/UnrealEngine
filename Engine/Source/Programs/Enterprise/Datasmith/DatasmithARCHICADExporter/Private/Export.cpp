@@ -9,7 +9,11 @@
 #include "exp.h"
 #include "Sight.hpp"
 DISABLE_SDK_WARNINGS_START
+#if AC_VERSION < 26
 #include "AttributeReader.hpp"
+#else
+#include "IAttributeReader.hpp"
+#endif
 DISABLE_SDK_WARNINGS_END
 #include "FileSystem.hpp"
 
@@ -57,8 +61,13 @@ GSErrCode FExport::SaveDatasmithFile(const API_IOParams& IOParams, const Modeler
 
 		ModelerAPI::Model		 model;
 		Modeler::ConstModel3DPtr model3D(InSight.GetMainModelPtr());
+#if AC_VERSION < 26
 		AttributeReader			 AttrReader; // deprecated constructor, temporary!
 		UE_AC_TestGSError(EXPGetModel(model3D, &model, &AttrReader));
+#else
+		GS::Owner<Modeler::IAttributeReader> AttrReader(ACAPI_Attribute_GetCurrentAttributeSetReader());
+		UE_AC_TestGSError(EXPGetModel(model3D, &model, AttrReader.Get()));
+#endif
 
 		FExporter exporter;
 		exporter.DoExport(model, IOParams);

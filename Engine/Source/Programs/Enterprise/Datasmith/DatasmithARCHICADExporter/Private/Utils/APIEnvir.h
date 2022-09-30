@@ -14,7 +14,9 @@ DISABLE_SDK_WARNINGS_START
 #undef PI
 
 #include "Sight.hpp"
+#if AC_VERSION < 26
 #include "AttributeReader.hpp"
+#endif
 #include "Model.hpp"
 
 DISABLE_SDK_WARNINGS_END
@@ -61,3 +63,10 @@ END_NAMESPACE_UE_AC
 /* 0 - Right value UVEdit function
  * 1 - Make texture rotation and sizing compatible with Twinmotion */
 #define PIVOT_0_5_0_5 0
+
+#if AC_VERSION < 26
+#define GET_HEADER_TYPEID(_header_) _header_.typeID
+#else
+#define GET_HEADER_TYPEID(_header_) _header_.type.typeID
+#endif
+
