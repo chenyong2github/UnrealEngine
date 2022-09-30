@@ -341,6 +341,19 @@ const TArray<TObjectPtr<URetargetChainSettings>>& UIKRetargeterController::GetCh
 	return Asset->ChainSettings;
 }
 
+const URetargetChainSettings* UIKRetargeterController::GetChainMappingByTargetChainName(const FName& TargetChainName) const
+{
+	for (TObjectPtr<URetargetChainSettings> ChainMap : Asset->ChainSettings)
+	{
+		if (ChainMap->TargetChain == TargetChainName)
+		{
+			return ChainMap;
+		}
+	}
+
+	return nullptr;
+}
+
 FName UIKRetargeterController::GetChainGoal(const TObjectPtr<URetargetChainSettings> ChainSettings) const
 {
 	if (ChainSettings.IsNull())

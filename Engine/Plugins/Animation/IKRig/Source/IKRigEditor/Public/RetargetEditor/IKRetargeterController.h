@@ -65,6 +65,8 @@ public:
 	void SetSourceChainForTargetChain(URetargetChainSettings* ChainMap, FName SourceChainToMapTo) const;
 	/** Get read-only access to the list of chain mappings */
 	const TArray<TObjectPtr<URetargetChainSettings>>& GetChainMappings() const;
+	/** Get read-only acces to the chain settings associated with a given target chain */
+	const URetargetChainSettings* GetChainMappingByTargetChainName(const FName& TargetChainName) const;
 	/** Get the name of the goal assigned to a chain */
 	FName GetChainGoal(const TObjectPtr<URetargetChainSettings> ChainSettings) const;
 	/** Get whether the given chain's IK goal is connected to a solver */

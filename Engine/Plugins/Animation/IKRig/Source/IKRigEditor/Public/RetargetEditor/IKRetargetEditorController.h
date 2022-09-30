@@ -210,6 +210,7 @@ public:
 	bool GetRootSelected() const { return bIsRootSelected; };
 	
 	void ClearSelection(const bool bKeepBoneSelection=false);
+	ERetargetSelectionType GetLastSelectedItemType() const { return LastSelectedItem; };
 
 	/** ------------------------- END SELECTION -----------------------------*/
 
