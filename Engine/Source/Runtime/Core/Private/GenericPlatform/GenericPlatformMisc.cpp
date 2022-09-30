@@ -1514,9 +1514,59 @@ bool FGenericPlatformMisc::AllowThreadHeartBeat()
 	return bHeartbeat;
 }
 
+int32 FGenericPlatformMisc::NumberOfCores()
+{
+	return 1;
+}
+
 int32 FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
 	return FPlatformMisc::NumberOfCores();
+}
+
+void FGenericPlatformMisc::GetConfiguredCoreLimits(int32 PlatformNumPhysicalCores, int32 PlatformNumLogicalCores,
+	bool& bOutFullyInitialized, int32& OutPhysicalCoreLimit, int32& OutLogicalCoreLimit,
+	bool& bOutSetPhysicalCountToLogicalCount)
+{
+	// If CommandLine is not yet initialized, silently return default values. Callers will need to handle calling again.
+	if (!FCommandLine::IsInitialized())
+	{
+		bOutFullyInitialized = false;
+		OutPhysicalCoreLimit = 0;
+		OutLogicalCoreLimit = 0;
+		bOutSetPhysicalCountToLogicalCount = false;
+		return;
+	}
+
+	int32 PhysicalCoreLimit = 0;
+	int32 LogicalCoreLimit = 0;
+	int32 LegacyCoreLimit = 0;
+	bool bSetPhysicalCountToLogicalCount = false;
+
+	const TCHAR* CommandLine = FCommandLine::Get();
+	FParse::Value(CommandLine, TEXT("-physicalcorelimit="), PhysicalCoreLimit); // DEPRECATION_WARNING: physicalcorelimit is experimental and may be changed in a future release without deprecation
+	FParse::Value(CommandLine, TEXT("-corelimit="), LegacyCoreLimit);
+	bSetPhysicalCountToLogicalCount = FParse::Param(CommandLine, TEXT("usehyperthreading"));
+	if (bSetPhysicalCountToLogicalCount)
+	{
+		LogicalCoreLimit = PhysicalCoreLimit;
+	}
+	else
+	{
+		LogicalCoreLimit = PlatformNumPhysicalCores > 0 ?
+			(PhysicalCoreLimit * PlatformNumLogicalCores) / PlatformNumPhysicalCores :
+			PhysicalCoreLimit;
+	}
+	if (LegacyCoreLimit > 0)
+	{
+		PhysicalCoreLimit = FMath::Min(PhysicalCoreLimit, LegacyCoreLimit);
+		LogicalCoreLimit = FMath::Min(LogicalCoreLimit, LegacyCoreLimit);
+	}
+
+	bOutFullyInitialized = true;
+	OutPhysicalCoreLimit = PhysicalCoreLimit;
+	OutLogicalCoreLimit = LogicalCoreLimit;
+	bOutSetPhysicalCountToLogicalCount = bSetPhysicalCountToLogicalCount;
 }
 
 FProcessorGroupDesc InternalGetProcessorGroupDesc()

@@ -935,7 +935,7 @@ private:
 	FAsyncCompilationNotification Notification;
 
 	/** Calculate NumShaderCompilingThreads, during construction or OnMachineResourcesChanged */
-	void CalculateNumberOfCompilingThreads();
+	void CalculateNumberOfCompilingThreads(int32 NumberOfCores, int32 NumberOfCoresIncludingHyperthreads);
 
 	/** Launches the worker, returns the launched process handle. */
 	FProcHandle LaunchWorker(const FString& WorkingDirectory, uint32 ProcessId, uint32 ThreadId, const FString& WorkerInputFile, const FString& WorkerOutputFile);
@@ -976,7 +976,7 @@ public:
 	ENGINE_API ~FShaderCompilingManager();
 
 	/** Called by external systems that have updated the number of worker threads available. */
-	ENGINE_API void OnMachineResourcesChanged();
+	ENGINE_API void OnMachineResourcesChanged(int32 NumberOfCores, int32 NumberOfCoresIncludingHyperthreads);
 
 	ENGINE_API int32 GetNumPendingJobs() const;
 	ENGINE_API int32 GetNumOutstandingJobs() const;

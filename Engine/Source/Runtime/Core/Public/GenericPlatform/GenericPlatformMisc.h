@@ -1095,10 +1095,7 @@ public:
 	/**
 	 * return the number of hardware CPU cores
 	 */
-	static int32 NumberOfCores()
-	{
-		return 1;
-	}
+	static int32 NumberOfCores();
 
 	/**
 	* @return a description of all the groups in the current system and their affinities
@@ -1832,6 +1829,23 @@ protected:
 #endif	//#if !UE_BUILD_SHIPPING
 
 	static EDeviceScreenOrientation AllowedDeviceOrientation;
+
+protected:
+	/**
+	 * Parse CoreLimit from CommandLine or from the SetCoreLimit value. The real number of physical cores and logical
+	 * cores must be provided so that CommandLine arguments can be translated.
+	 * 
+	 * @param bOutFullyInitialized True if commandline was available. If false, values are set to defaults.
+	 * @param OutPhysicalCoreLimit The maximum number of physical cores to report in NumberOfCores.
+	 *        Non-negative. 0 indicates unlimited.
+	 * @param OutLogicalCoreLimit The maximum number of logical cores to report in NumberOfCoresIncludingHyperthreads.
+	 *        Non-negative. 0 indicates unlimited.
+	 * @param bOutSetPhysicalCountToLogicalCount Whether NumberOfCores should be overridden to return
+	 *        NumberOfCoresIncludingHyperthreads.
+	 */
+	static void GetConfiguredCoreLimits(int32 PlatformNumPhysicalCores, int32 PlatformNumLogicalCores,
+		bool& bOutFullyInitialized, int32& OutPhysicalCoreLimit, int32& OutLogicalCoreLimit,
+		bool& bOutSetPhysicalCountToLogicalCount);
 
 private:
 	struct FStaticData;

@@ -483,25 +483,22 @@ void FCookDirector::ActivateMachineResourceReduction()
 		COTFS.MemoryMinFreeVirtual / 1024 / 1024, COTFS.MemoryMinFreePhysical / 1024 / 1024);
 
 	// Set CoreLimit for updating workerthreads in this process and passing to the commandline for workers
-	// CoreLimit changes both NumberOfCoresIncludingHyperthreads() and NumberOfCores to return the max 
 	int32 NumProcesses = RequestedCookWorkerCount + 1;
 	int32 NumberOfCores = FPlatformMisc::NumberOfCores();
 	int32 HyperThreadCount = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
 	int32 NumberOfHyperThreadsPerCore = HyperThreadCount / NumberOfCores;
 	CoreLimit = FMath::Max(NumberOfCores / NumProcesses, 1);
+	int32 CoreIncludingHyperthreadsLimit = CoreLimit * NumberOfHyperThreadsPerCore;
 	int32 NumberOfWorkers = FMath::Max(CoreLimit - 1, 1) * NumberOfHyperThreadsPerCore;
 
 	// Update the number of Cores and WorkerThreads for this process
 	check(IsInGameThread());
-	// MPCOOKTODO: UnComment when SetCoreLimit is implemented
-	//FPlatformMisc::SetCoreLimit(CoreLimit);
 	int32 NumBackgroundWorkers = FMath::Max(1, NumberOfWorkers - FMath::Min<int32>(GNumForegroundWorkers, NumberOfWorkers));
 	int32 NumForegroundWorkers = FMath::Max(1, NumberOfWorkers - NumBackgroundWorkers);
 	LowLevelTasks::FScheduler::Get().RestartWorkers(NumForegroundWorkers, NumBackgroundWorkers);
 
 	// Update the number of ShaderCompilerWorkers that can be launched
-	// MPCOOKTODO: UnComment once OnMachineResourcesChanges is implemented
-	// GShaderCompilingManager->OnMachineResourcesChanged();
+	GShaderCompilingManager->OnMachineResourcesChanged(CoreLimit, CoreIncludingHyperthreadsLimit);
 
 	UE_LOG(LogCook, Display, TEXT("CookMultiprocess changed number of cores from %d to %d."),
 		NumberOfCores, FPlatformMisc::NumberOfCores());
@@ -646,7 +643,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 				Token.StartsWith(TEXT("-CookWorkerId=")) ||
 				Token.StartsWith(TEXT("-ShowCookWorker")) ||
 				Token.StartsWith(TEXT("-CoreLimit")) ||
-				Token.StartsWith(TEXT("-CoreLimitCores")) ||
+				Token.StartsWith(TEXT("-PhysicalCoreLimit")) ||
 				Token.StartsWith(TEXT("-CoreLimitHyperThreads"))
 				)
 			{
@@ -665,8 +662,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 	Tokens.Add(FString::Printf(TEXT("-CookWorkerId=%d"), WorkerId.GetRemoteIndex()));
 	if (CoreLimit > 0)
 	{
-		// MPCOOKTODO: Replace CoreLimit with CoreLimitCores once it is implemented
-		Tokens.Add(FString::Printf(TEXT("-CoreLimit=%d"), CoreLimit));
+		Tokens.Add(FString::Printf(TEXT("-PhysicalCoreLimit=%d"), CoreLimit));
 	}
 
 	return FString::Join(Tokens, TEXT(" "));

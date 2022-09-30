@@ -1766,30 +1766,30 @@ static void QueryCpuInformation(FProcessorGroupDesc& OutGroupDesc, uint32& OutNu
 int32 FWindowsPlatformMisc::NumberOfCores()
 {
 	static int32 CoreCount = 0;
-	if (CoreCount == 0)
+	if (CoreCount > 0)
 	{
-		FProcessorGroupDesc GroupDesc;
-		uint32 NumaNodeCount = 0;
-		uint32 NumCores = 0;
-		uint32 LogicalProcessorCount = 0;
-		QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
+		return CoreCount;
+	}
 
-		if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
-		{
-			CoreCount = LogicalProcessorCount;
-		}
-		else
-		{
-			CoreCount = NumCores;
-		}
+	FProcessorGroupDesc GroupDesc;
+	uint32 NumaNodeCount = 0;
+	uint32 NumCores = 0;
+	uint32 LogicalProcessorCount = 0;
+	QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
 
-		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
+	bool bLimitsInitialized;
+	int32 CoreLimitCores;
+	int32 CoreLimitHyperThreads;
+	bool bSetCoreCountToHyperThreadCount;
+	GetConfiguredCoreLimits(NumCores, LogicalProcessorCount, bLimitsInitialized, CoreLimitCores,
+		CoreLimitHyperThreads, bSetCoreCountToHyperThreadCount);
 
-		int32 LimitCount = 32768;
-		if (FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
-		{
-			CoreCount = FMath::Min(CoreCount, LimitCount);
-		}
+	CoreCount = bSetCoreCountToHyperThreadCount ? LogicalProcessorCount : NumCores;
+
+	// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
+	if (CoreLimitCores > 0)
+	{
+		CoreCount = FMath::Min(CoreCount, CoreLimitCores);
 	}
 
 	return CoreCount;
@@ -1814,23 +1814,30 @@ const FProcessorGroupDesc& FWindowsPlatformMisc::GetProcessorGroupDesc()
 int32 FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
 	static int32 CoreCount = 0;
-	if (CoreCount == 0)
+	if (CoreCount > 0)
 	{
-		FProcessorGroupDesc GroupDesc;
-		uint32 NumaNodeCount = 0;
-		uint32 NumCores = 0;
-		uint32 LogicalProcessorCount = 0;
-		QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
+		return CoreCount;
+	}
 
-		CoreCount = LogicalProcessorCount;
+	FProcessorGroupDesc GroupDesc;
+	uint32 NumaNodeCount = 0;
+	uint32 NumCores = 0;
+	uint32 LogicalProcessorCount = 0;
+	QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
 
-		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
+	bool bLimitsInitialized;
+	int32 CoreLimitCores;
+	int32 CoreLimitHyperThreads;
+	bool bSetCoreCountToHyperThreadCount;
+	GetConfiguredCoreLimits(NumCores, LogicalProcessorCount, bLimitsInitialized, CoreLimitCores,
+		CoreLimitHyperThreads, bSetCoreCountToHyperThreadCount);
 
-		int32 LimitCount = 32768;
-		if (FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
-		{
-			CoreCount = FMath::Min(CoreCount, LimitCount);
-		}
+	CoreCount = LogicalProcessorCount;
+
+	// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
+	if (CoreLimitHyperThreads > 0)
+	{
+		CoreCount = FMath::Min(CoreCount, CoreLimitHyperThreads);
 	}
 
 	return CoreCount;

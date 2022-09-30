@@ -3703,7 +3703,7 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	FPaths::NormalizeDirectoryName(AbsoluteDebugInfoDirectory);
 	AbsoluteShaderDebugInfoDirectory = AbsoluteDebugInfoDirectory;
 
-	CalculateNumberOfCompilingThreads();
+	CalculateNumberOfCompilingThreads(FPlatformMisc::NumberOfCores(), FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 
 	TUniquePtr<FShaderCompileThreadRunnableBase> RemoteCompileThread;
 	const bool bCanUseRemoteCompiling = bAllowCompilingThroughWorkers && ShaderCompiler::IsRemoteCompilingAllowed() && AllTargetPlatformSupportsRemoteShaderCompiling();
@@ -3771,9 +3771,9 @@ FShaderCompilingManager::~FShaderCompilingManager()
 	FAssetCompilingManager::Get().UnregisterManager(this);
 }
 
-void FShaderCompilingManager::CalculateNumberOfCompilingThreads()
+void FShaderCompilingManager::CalculateNumberOfCompilingThreads(int32 NumberOfCores, int32 NumberOfCoresIncludingHyperthreads)
 {
-	const int32 NumVirtualCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+	const int32 NumVirtualCores = NumberOfCoresIncludingHyperthreads;
 
 	int32 NumUnusedShaderCompilingThreads;
 	verify(GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("NumUnusedShaderCompilingThreads"), NumUnusedShaderCompilingThreads, GEngineIni));
@@ -3856,7 +3856,7 @@ void FShaderCompilingManager::CalculateNumberOfCompilingThreads()
 
 				bool bUseVirtualCores = true;
 				GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bUseVirtualCores"), bUseVirtualCores, GEngineIni);
-				uint32 MaxNumCoresToUse = bUseVirtualCores ? NumVirtualCores : FPlatformMisc::NumberOfCores();
+				uint32 MaxNumCoresToUse = bUseVirtualCores ? NumVirtualCores : NumberOfCores;
 				NumShaderCompilingThreads = FMath::Clamp<uint32>(NumShaderCompilingThreads, 1, MaxNumCoresToUse - 1);
 				NumShaderCompilingThreadsDuringGame = FMath::Min<int32>(NumShaderCompilingThreads, NumShaderCompilingThreadsDuringGame);
 			}
@@ -3880,9 +3880,9 @@ void FShaderCompilingManager::CalculateNumberOfCompilingThreads()
 	NumShaderCompilingThreadsDuringGame = FMath::Min<int32>(NumShaderCompilingThreadsDuringGame, NumShaderCompilingThreads);
 }
 
-void FShaderCompilingManager::OnMachineResourcesChanged()
+void FShaderCompilingManager::OnMachineResourcesChanged(int32 NumberOfCores, int32 NumberOfCoresIncludingHyperthreads)
 {
-	CalculateNumberOfCompilingThreads();
+	CalculateNumberOfCompilingThreads(NumberOfCores, NumberOfCoresIncludingHyperthreads);
 	for (const auto& Thread : Threads)
 	{
 		Thread->OnMachineResourcesChanged();
