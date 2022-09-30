@@ -22,21 +22,24 @@ static bool GNaniteRayTracingUpdate = true;
 static FAutoConsoleVariableRef CVarNaniteRayTracingUpdate(
 	TEXT("r.RayTracing.Nanite.Update"),
 	GNaniteRayTracingUpdate,
-	TEXT("")
+	TEXT("Whether to process Nanite RayTracing update requests."),
+	ECVF_RenderThreadSafe
 );
 
 static bool GNaniteRayTracingForceUpdateVisible = false;
 static FAutoConsoleVariableRef CVarNaniteRayTracingForceUpdateVisible(
 	TEXT("r.RayTracing.Nanite.ForceUpdateVisible"),
 	GNaniteRayTracingForceUpdateVisible,
-	TEXT("")
+	TEXT("Force BLAS of visible primitives to be updated next frame."),
+	ECVF_RenderThreadSafe
 );
 
 static float GNaniteRayTracingCutError = 0.0f;
 static FAutoConsoleVariableRef CVarNaniteRayTracingCutError(
 	TEXT("r.RayTracing.Nanite.CutError"),
 	GNaniteRayTracingCutError,
-	TEXT("Global target cut error to control quality when using procedural raytracing geometry for Nanite meshes.")
+	TEXT("Global target cut error to control quality when using procedural raytracing geometry for Nanite meshes."),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GNaniteRayTracingMaxNumVertices = 16 * 1024 * 1024;
