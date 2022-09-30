@@ -59,10 +59,10 @@ TSharedRef<SWidget> FRCRangeMapBehaviourModel::GetPropertyWidget() const
 
 	TSharedPtr<IDetailTreeNode> DetailTreeMinValue = DetailTreeItr->Pin();
 	TSharedPtr<IDetailTreeNode> DetailTreeMaxValue = (++DetailTreeItr)->Pin();
-	FNodeWidgets MinValueWidget = DetailTreeMinValue->CreateNodeWidgets();
-	FNodeWidgets MaxValueWidget = DetailTreeMaxValue->CreateNodeWidgets();
+	FNodeWidgets MinInputWidget = DetailTreeMinValue->CreateNodeWidgets();
+	FNodeWidgets MaxInputWidget = DetailTreeMaxValue->CreateNodeWidgets();
 
-	if (MinValueWidget.ValueWidget && MaxValueWidget.ValueWidget)
+	if (MinInputWidget.ValueWidget && MaxInputWidget.ValueWidget)
 	{
 		FieldWidget->AddSlot()
 			.Padding(FMargin(3.0f, 2.0f))
@@ -73,30 +73,6 @@ TSharedRef<SWidget> FRCRangeMapBehaviourModel::GetPropertyWidget() const
 			];
 	}
 	
-	TSharedPtr<IDetailTreeNode> DetailTreeNodeThreshold = (++DetailTreeItr)->Pin();
-	const FNodeWidgets ThresholdWidget = DetailTreeNodeThreshold->CreateNodeWidgets();
-	
-	FieldWidget->AddSlot()
-		.Padding(FMargin(3.0f, 2.0f))
-		.HAlign(HAlign_Center)
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			[
-				ThresholdWidget.NameWidget.ToSharedRef()
-			]
-			+SHorizontalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			[
-				ThresholdWidget.ValueWidget.ToSharedRef()
-			]
-		];
 
 	return 	SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand)
@@ -131,10 +107,13 @@ URCAction* FRCRangeMapBehaviourModel::AddAction(const TSharedRef<const FRemoteCo
 
 	if (URCRangeMapBehaviour* RangeMapBehaviour = Cast<URCRangeMapBehaviour>(GetBehaviour()))
 	{
+		double StepValue;
+		RangeMapBehaviour->PropertyContainer->GetVirtualProperty(FName("Input"))->GetValueDouble(StepValue);
+
 		const FGuid FieldId = InRemoteControlField->GetId();
-		if (TSharedPtr<FRemoteControlProperty> RemoteProperty = RangeMapBehaviour->ControllerWeakPtr.Get()->PresetWeakPtr.Get()->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
+		if (const TSharedPtr<FRemoteControlProperty> RemoteProperty = RangeMapBehaviour->ControllerWeakPtr.Get()->PresetWeakPtr.Get()->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
 		{
-			TObjectPtr<URCVirtualPropertySelfContainer> VirtualPropertySelfContainer = NewObject<URCVirtualPropertySelfContainer>();
+			const TObjectPtr<URCVirtualPropertySelfContainer> VirtualPropertySelfContainer = NewObject<URCVirtualPropertySelfContainer>();
 			VirtualPropertySelfContainer->DuplicateProperty(RemoteProperty->GetProperty()->GetFName(), RemoteProperty->GetProperty());
 			
 			NewAction = RangeMapBehaviour->AddAction(InRemoteControlField);
@@ -146,52 +125,52 @@ URCAction* FRCRangeMapBehaviourModel::AddAction(const TSharedRef<const FRemoteCo
 	return NewAction;
 }
 
-TSharedRef<SWidget> FRCRangeMapBehaviourModel::CreateMinMaxWidget(TSharedPtr<IDetailTreeNode> MinRangeDetailTree, TSharedPtr<IDetailTreeNode> MaxRangeDetailTree) const
+TSharedRef<SWidget> FRCRangeMapBehaviourModel::CreateMinMaxWidget(TSharedPtr<IDetailTreeNode> MinInputDetailTree, TSharedPtr<IDetailTreeNode> MaxInputDetailTree) const
 {
-	const FNodeWidgets MinValueWidget = MinRangeDetailTree->CreateNodeWidgets();
-	const FNodeWidgets MaxValueWidget = MaxRangeDetailTree->CreateNodeWidgets();
+	const FNodeWidgets MinInputWidget = MinInputDetailTree->CreateNodeWidgets();
+	const FNodeWidgets MaxInputWidget = MaxInputDetailTree->CreateNodeWidgets();
 	
 	return SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
 		.Padding(FMargin(3.0f, 2.0f))
-		.HAlign(HAlign_Right)
+		.HAlign(HAlign_Left)
 		.AutoWidth()
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.HAlign(HAlign_Right)
+			.Padding(FMargin(0.0f, 2.0f))
+			.HAlign(HAlign_Left)
 			.AutoHeight()
 			[
-				MinValueWidget.NameWidget.ToSharedRef()
+				MinInputWidget.NameWidget.ToSharedRef()
 			]
 			+SVerticalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f))
+			.Padding(FMargin(0.0f, 2.0f))
 			.HAlign(HAlign_Right)
 			.AutoHeight()
 			[
-				MinValueWidget.ValueWidget.ToSharedRef()
+				MinInputWidget.ValueWidget.ToSharedRef()
 			]
 		]
 		+SHorizontalBox::Slot()
 		.Padding(FMargin(3.0f, 2.0f))
-		.HAlign(HAlign_Right)
+		.HAlign(HAlign_Left)
 		.AutoWidth()
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f))
-			.HAlign(HAlign_Right)
+			.Padding(FMargin(0.0f, 2.0f))
+			.HAlign(HAlign_Left)
 			.AutoHeight()
 			[
-				MaxValueWidget.NameWidget.ToSharedRef()
+				MaxInputWidget.NameWidget.ToSharedRef()
 			]
 			+SVerticalBox::Slot()
-			.Padding(FMargin(3.0f, 2.0f))
+			.Padding(FMargin(0.0f, 2.0f))
 			.HAlign(HAlign_Right)
 			.AutoHeight()
 			[
-				MaxValueWidget.ValueWidget.ToSharedRef()
+				MaxInputWidget.ValueWidget.ToSharedRef()
 			]
 		];
 }

@@ -10,26 +10,26 @@ class URCAction;
 class URCVirtualPropertyContainerBase;
 
 USTRUCT()
-struct REMOTECONTROLLOGIC_API FRCRangeMapStep
+struct REMOTECONTROLLOGIC_API FRCRangeMapInput
 {
 	GENERATED_BODY()
 
-	FRCRangeMapStep() {}
-	FRCRangeMapStep(URCVirtualPropertySelfContainer* InStepValueProperty, URCVirtualPropertySelfContainer* InPropertyValue)
-		: StepValueProperty(InStepValueProperty), PropertyValue(InPropertyValue)
+	FRCRangeMapInput() {}
+	FRCRangeMapInput(URCVirtualPropertySelfContainer* InSelfContainer, URCVirtualPropertySelfContainer* InPropertyValue)
+		: InputProperty(InSelfContainer), PropertyValue(InPropertyValue)
 	{
 	}
 
 	/** The Value which we use represent the action based on a normalized step. */
 	UPROPERTY()
-	TObjectPtr<URCVirtualPropertySelfContainer> StepValueProperty;
+	TObjectPtr<URCVirtualPropertySelfContainer> InputProperty;
 
 	/** The Property this Action holds and will be used for calculations for the lerp. */
 	UPROPERTY()
 	TObjectPtr<URCVirtualPropertySelfContainer> PropertyValue;
 
 	/** Returns the Step value from the virtual property, safely*/
-	bool GetStepValue(double& OutValue) const;
+	bool GetInputValue(double& OutValue) const;
 };
 
 /**
@@ -45,9 +45,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<URCVirtualPropertyContainerBase> PropertyContainer;
 
-	/** Container holding all FRCRangeMapSteps correlating to each Action in the ActionContainer. */
+	/** Container holding all FRCRangeMapInputs correlating to each Action in the ActionContainer. */
 	UPROPERTY()
-	TMap<TObjectPtr<URCAction>, FRCRangeMapStep> RangeMapActionContainer;
+	TMap<TObjectPtr<URCAction>, FRCRangeMapInput> RangeMapActionContainer;
 
 public:
 	URCRangeMapBehaviour();
@@ -65,33 +65,29 @@ public:
 	/** Refresh function being called whenever either the Controller or the Properties of the Behaviour Details Panel change */
 	void Refresh();
 	
-	/** Called whenever a new action is added into the ActionContainer. Will add a FRCRangeMapStep into RangeMapActionContainer corresponding to the Action. */
+	/** Called whenever a new action is added into the ActionContainer. Will add a FRCRangeMapInput into RangeMapActionContainer corresponding to the Action. */
 	void OnActionAdded(URCAction* Action, URCVirtualPropertySelfContainer* InPropertyValue);
 
 	/** Adds an Action to the ActionContainer, whilst making sure that it is unique. */
-	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField) override;
+	virtual URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField) override;
 
 	/** Checks whether or not one of the following fields can be added to the AddAction Menu. Makes sure they're unique. */
-	bool CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const override;
+	virtual bool CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const override;
 
 	/** Returns the Step value associated with a given Action*/
-	bool GetStepValueForAction(const URCAction* InAction, double& OutValue);
+	bool GetValueForAction(const URCAction* InAction, double& OutValue);
 
 private:
 	/** Minimum Value which the Range has */
-	double MinValue;
+	double InputMin;
 
 	/** Maximum Value which the Range has */
-	double MaxValue;
-
-	/** Threshold the Behaviour should adhere to for rounding up and down. */
-	double Threshold;
+	double InputMax;
 
 	/** Controller Value of Type Float, which is used for the purpose of readability. */
 	float ControllerFloatValue;
 	
 private:
-
 	/** Boolean Function to help differentiate Custom Actions */
 	bool IsSupportedActionLerpType(TObjectPtr<URCAction> InAction) const;
 
@@ -108,8 +104,8 @@ private:
 	TMap<double, URCAction*> GetNonLerpActions();
 
 	/** Auxiliary Function used to calculate and apply the Lerp on Structs, like FVectors or FRotators. */
-	void ApplyLerpOnStruct(const FRCRangeMapStep* MinRangeStep, const FRCRangeMapStep* MaxRangeStep, const double& StepAlpha, const FGuid& FieldId);
+	void ApplyLerpOnStruct(const FRCRangeMapInput* MinRangeInput, const FRCRangeMapInput* MaxRangeInput, const double& InputAlpha, const FGuid& FieldId);
 
 	/** Returns whether or not an Action created with a given RemoteControlField can be considered unique. */
-	bool IsActionUnique(const TSharedRef<const FRemoteControlField> InRemoteControlField, const double& InStepValue, const TSet<TObjectPtr<URCAction>>& InActions);
+	bool IsActionUnique(const TSharedRef<const FRemoteControlField> InRemoteControlField, const double& InValue, const TSet<TObjectPtr<URCAction>>& InActions);
 };

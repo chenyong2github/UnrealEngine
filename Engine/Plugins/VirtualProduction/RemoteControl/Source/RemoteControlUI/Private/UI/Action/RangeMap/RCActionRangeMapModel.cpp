@@ -30,7 +30,7 @@ namespace UE::RCActionPanelRangeMapList
 	{
 		const FName TypeColorTag = TEXT("TypeColorTag");
 		const FName DragDropHandle = TEXT("DragDropHandle");
-		const FName Step = TEXT("Step");
+		const FName Input = TEXT("Input");
 		const FName Name = TEXT("Name");
 		const FName Value = TEXT("Value");
 	}
@@ -53,9 +53,9 @@ namespace UE::RCActionPanelRangeMapList
 			{
 				return ActionItem->GetTypeColorTagWidget();
 			}
-			else if (ColumnName == UE::RCActionPanelRangeMapList::Columns::Step)
+			else if (ColumnName == UE::RCActionPanelRangeMapList::Columns::Input)
 			{
-				return ActionItem->GetStepWidget();
+				return ActionItem->GetInputWidget();
 			}
 			else if (ColumnName == UE::RCActionPanelRangeMapList::Columns::Name)
 			{
@@ -93,8 +93,8 @@ TSharedPtr<SHeaderRow> FRCActionRangeMapModel::GetHeaderRow()
 		.FixedWidth(25.f)
 		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-		+ SHeaderRow::Column(UE::RCActionPanelRangeMapList::Columns::Step)
-		.DefaultLabel(LOCTEXT("RCActionStepColumnHeader", "Step"))
+		+ SHeaderRow::Column(UE::RCActionPanelRangeMapList::Columns::Input)
+		.DefaultLabel(LOCTEXT("RCActionInputColumnHeader", "Input"))
 		.FillWidth(0.2f)
 		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
@@ -128,18 +128,18 @@ TSharedPtr<FRCActionRangeMapModel> FRCActionRangeMapModel::GetModelByActionType(
 	return nullptr;
 }
 
-TSharedRef<SWidget> FRCActionRangeMapModel::GetStepWidget()
+TSharedRef<SWidget> FRCActionRangeMapModel::GetInputWidget()
 {
-	if (TSharedPtr<FRCRangeMapBehaviourModel> BehaviourItem = StaticCastSharedPtr<FRCRangeMapBehaviourModel>(BehaviourItemWeakPtr.Pin()))
+	if (const TSharedPtr<FRCRangeMapBehaviourModel> BehaviourItem = StaticCastSharedPtr<FRCRangeMapBehaviourModel>(BehaviourItemWeakPtr.Pin()))
 	{
 		if (URCRangeMapBehaviour* Behaviour = Cast<URCRangeMapBehaviour>(BehaviourItem->GetBehaviour()))
 		{
-			if (FRCRangeMapStep* RangeStep = Behaviour->RangeMapActionContainer.Find(GetAction()))
+			if (const FRCRangeMapInput* RangeMapInput = Behaviour->RangeMapActionContainer.Find(GetAction()))
 			{
-				if (ensure(RangeStep->StepValueProperty))
+				if (ensure(RangeMapInput->InputProperty))
 				{
-					return SAssignNew(EditableVirtualPropertyWidget, SRCVirtualPropertyWidget, RangeStep->StepValueProperty)
-						.OnGenerateWidget(this, &FRCActionRangeMapModel::OnGenerateStepWidget);
+					return SAssignNew(EditableVirtualPropertyWidget, SRCVirtualPropertyWidget, RangeMapInput->InputProperty)
+						.OnGenerateWidget(this, &FRCActionRangeMapModel::OnGenerateInputWidget);
 				}
 			}
 		}
@@ -148,7 +148,7 @@ TSharedRef<SWidget> FRCActionRangeMapModel::GetStepWidget()
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> FRCActionRangeMapModel::OnGenerateStepWidget(class URCVirtualPropertySelfContainer* StepValueProperty) const
+TSharedRef<SWidget> FRCActionRangeMapModel::OnGenerateInputWidget(class URCVirtualPropertySelfContainer* StepValueProperty) const
 {
 	if (!ensure(StepValueProperty))
 	{
@@ -159,12 +159,12 @@ TSharedRef<SWidget> FRCActionRangeMapModel::OnGenerateStepWidget(class URCVirtua
 	{
 		if (URCRangeMapBehaviour* Behaviour = Cast<URCRangeMapBehaviour>(BehaviourItem->GetBehaviour()))
 		{
-			if (const FRCRangeMapStep* RangeStep = Behaviour->RangeMapActionContainer.Find(GetAction()))
+			if (const FRCRangeMapInput* RangeInput = Behaviour->RangeMapActionContainer.Find(GetAction()))
 			{
-				double StepValue;
-				if(RangeStep->GetStepValue(StepValue))
+				double Value;
+				if(RangeInput->GetInputValue(Value))
 				{
-					const FText StepAsText = FText::FromString(FString::SanitizeFloat(StepValue));
+					const FText StepAsText = FText::FromString(FString::SanitizeFloat(Value));
 
 					return SNew(SBox)
 						[

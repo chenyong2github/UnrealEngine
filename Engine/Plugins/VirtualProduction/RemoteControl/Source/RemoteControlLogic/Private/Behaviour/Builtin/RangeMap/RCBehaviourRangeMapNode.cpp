@@ -9,7 +9,7 @@
 URCBehaviourRangeMapNode::URCBehaviourRangeMapNode()
 {
 	DisplayName = NSLOCTEXT("Remote Control Behaviour", "Behavior Name - Range Mapping", "Range");
-	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behavior Desc - Range Mapping", "Behaviour lerps property values between a normalized 0-1 step. Users define min/max values and tolerance threshold.");
+	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behavior Desc - Range Mapping", "This Behaviours can take a list of Actions, sort them using normalized values between 0..1, and interpolates numerical values whilst executing non-numerical whose distance are less than 0.05 from a given action.");
 }
 
 bool URCBehaviourRangeMapNode::Execute_Implementation(URCBehaviour* InBehaviour) const

@@ -50,5 +50,5 @@ private:
 
 private:
 	/** Creates the horizontal box containing box the Minimum and Maximum Range Widgets */
-	TSharedRef<SWidget> CreateMinMaxWidget(TSharedPtr<IDetailTreeNode> MinRangeDetailTree, TSharedPtr<IDetailTreeNode> MaxRangeDetailTree) const;
+	TSharedRef<SWidget> CreateMinMaxWidget(TSharedPtr<IDetailTreeNode> MinInputDetailTree, TSharedPtr<IDetailTreeNode> MaxInputDetailTree) const;
 };

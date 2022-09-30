@@ -9,10 +9,10 @@
 /*
  * ~ FRCActionRangeMapModel ~
  *
- * UI Model for representing Actions as Steps for the RangeMap Behaviour.
+ * UI Model for representing Actions as Input for the RangeMap Behaviour.
  * Contains and represents, other than name and value, a step value being a value between 0 to 1.
  *
- * <Step Value> <Name> <Value>
+ * <Input Value> <Name> <Value>
  */
 class FRCActionRangeMapModel : public FRCActionModel
 {
@@ -20,9 +20,9 @@ public:
 	FRCActionRangeMapModel(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
 
 	/**
-	 * Simple Widget representing the Normalized Value or Step Value for the Range and this particular Value.
+	 * Simple Widget representing the Normalized Value or Input Value for the Range and this particular Value.
 	 */
-	virtual TSharedRef<SWidget> GetStepWidget();
+	virtual TSharedRef<SWidget> GetInputWidget();
 
 	/** OnGenerateRow delegate for the Actions List View*/
 	TSharedRef<ITableRow> OnGenerateWidgetForList(TSharedPtr<FRCActionRangeMapModel> InItem, const TSharedRef<STableViewBase>& OwnerTable);
@@ -34,7 +34,7 @@ public:
 	static TSharedPtr<FRCActionRangeMapModel> GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
 
 private:
-	TSharedRef<SWidget> OnGenerateStepWidget(class URCVirtualPropertySelfContainer* InComparand) const;
+	TSharedRef<SWidget> OnGenerateInputWidget(class URCVirtualPropertySelfContainer* InComparand) const;
 };
 
 /*
