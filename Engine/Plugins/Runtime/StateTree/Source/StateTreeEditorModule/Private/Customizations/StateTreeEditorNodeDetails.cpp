@@ -37,8 +37,28 @@
 #include "Styling/StyleColors.h"
 #include "ObjectEditorUtils.h"
 #include "StateTreeCompiler.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
+
+/** Helper class to detect if there were issues when calling ImportText() */
+class FStateTreeDefaultValueImportErrorContext : public FOutputDevice
+{
+public:
+
+	int32 NumErrors;
+
+	FStateTreeDefaultValueImportErrorContext()
+		: FOutputDevice()
+		, NumErrors(0)
+	{
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+		NumErrors++;
+	}
+};
 
 namespace UE::StateTreeEditor::Internal
 {
@@ -451,7 +471,72 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 				StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
 			]
 		]
-		.OverrideResetToDefault(ResetOverride);
+		.OverrideResetToDefault(ResetOverride)
+		.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FStateTreeEditorNodeDetails::OnCopyNode)))
+		.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FStateTreeEditorNodeDetails::OnPasteNode)));
+
+}
+
+void FStateTreeEditorNodeDetails::OnCopyNode()
+{
+	FString Value;
+	if (StructProperty->GetValueAsFormattedString(Value) == FPropertyAccess::Success)
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Value);
+	}
+}
+
+void FStateTreeEditorNodeDetails::OnPasteNode()
+{
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	if (!PastedText.IsEmpty())
+	{
+		// create node from the 
+		FStateTreeEditorNode TempNode;
+		UScriptStruct* NodeScriptStruct = TBaseStructure<FStateTreeEditorNode>::Get();
+
+		FStateTreeDefaultValueImportErrorContext ErrorPipe;
+		NodeScriptStruct->ImportText(*PastedText, &TempNode, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, NodeScriptStruct->GetName());
+
+		if (ErrorPipe.NumErrors == 0)
+		{
+			// Do not allow to mix and match types.
+			// @todo: Check Schema too and warn user about mismatching schema.
+			if (TempNode.Node.GetScriptStruct() && TempNode.Node.GetScriptStruct()->IsChildOf(BaseScriptStruct))
+			{
+				FScopedTransaction Transaction(LOCTEXT("PasteNode", "Paste Node"));
+
+				StructProperty->NotifyPreChange();
+
+				StructProperty->SetValueFromFormattedString(PastedText);
+
+				// Reset GUIDs on paste
+				TArray<void*> RawNodeData;
+				StructProperty->AccessRawData(RawNodeData);
+				for (void* Data : RawNodeData)
+				{
+					if (FStateTreeEditorNode* EditorNode = static_cast<FStateTreeEditorNode*>(Data))
+					{
+						if (FStateTreeNodeBase* Node = EditorNode->Node.GetMutablePtr<FStateTreeNodeBase>())
+						{
+							Node->Name = FName(Node->Name.ToString() + TEXT(" Copy"));
+						}
+						EditorNode->ID = FGuid::NewGuid();
+					}
+				}
+
+				StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+				StructProperty->NotifyFinishedChangingProperties();
+
+				if (PropUtils)
+				{
+					PropUtils->ForceRefresh();
+				}
+			}
+		}
+	}
 }
 
 bool FStateTreeEditorNodeDetails::ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const

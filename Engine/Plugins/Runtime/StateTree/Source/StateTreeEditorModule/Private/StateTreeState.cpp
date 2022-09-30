@@ -66,6 +66,18 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 		MemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
 	}
 
+	auto TryGetConditionIndex = [&PropertyChangedEvent]() -> int32
+	{
+		check (PropertyChangedEvent.PropertyChain.GetActiveMemberNode());
+		FEditPropertyChain::TDoubleLinkedListNode* ConditionPropertyNode = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetNextNode();
+		FProperty* ConditionsProperty = ConditionPropertyNode ? ConditionPropertyNode->GetValue() : nullptr;
+		if (ConditionsProperty && ConditionsProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FStateTreeTransition, Conditions))
+		{
+			return PropertyChangedEvent.GetArrayIndex(ConditionsProperty->GetFName().ToString());
+		}
+		return INDEX_NONE;
+	};
+	
 	if (Property)
 	{
 		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
@@ -156,11 +168,31 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (EnterConditions.IsValidIndex(ArrayIndex))
 					{
+						if (FStateTreeConditionBase* Condition = EnterConditions[ArrayIndex].Node.GetMutablePtr<FStateTreeConditionBase>())
+						{
+							Condition->Name = FName(Condition->Name.ToString() + TEXT(" Duplicate"));
+						}
 						EnterConditions[ArrayIndex].ID = FGuid::NewGuid();
 					}
 				}
-				// TODO: Transition conditions.
-				
+				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Transitions))
+				{
+					const int32 TransitionsIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
+					const int32 ConditionsIndex = TryGetConditionIndex();
+
+					if (Transitions.IsValidIndex(TransitionsIndex))
+					{
+						FStateTreeTransition& Transition = Transitions[TransitionsIndex];
+						if (Transition.Conditions.IsValidIndex(ConditionsIndex))
+						{
+							if (FStateTreeConditionBase* Condition = Transition.Conditions[ConditionsIndex].Node.GetMutablePtr<FStateTreeConditionBase>())
+							{
+								Condition->Name = FName(Condition->Name.ToString() + TEXT(" Duplicate"));
+							}
+							Transition.Conditions[ConditionsIndex].ID = FGuid::NewGuid();
+						}
+					}
+				}
 			}
 		}
 	}

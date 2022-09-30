@@ -44,6 +44,7 @@ namespace UnrealBuildTool.Rules
 				"PropertyEditor",
 				"ToolMenus",
 				"ToolWidgets",
+				"ApplicationCore",
 			}
 			);
 		}
