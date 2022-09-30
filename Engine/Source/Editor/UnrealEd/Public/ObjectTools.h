@@ -515,6 +515,16 @@ namespace ObjectTools
 	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions);
 
 	/**
+	 * Populates two strings with all of the file types and extensions the format list provides.
+	 *
+	 * @param	InFormats		Array of supported file types. Each entry needs to be of the form "ext;Description" where ext is the file extension.
+	 * @param	out_FileTypes	File types supported by the provided array of formats, concatenated into a string
+	 * @param	out_Extensions	Extensions supported by the provided array of formats, concatenated into a string
+	 * @param	out_FilterIndexToFactory	Add INDEX_NONE entry for all provided Formats
+	 */
+	UNREALED_API void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory);
+
+	/**
 	 * Iterates over all classes and assembles a list of non-abstract UExport-derived type instances.
 	 */
 	UNREALED_API void AssembleListOfExporters(TArray<UExporter*>& OutExporters);

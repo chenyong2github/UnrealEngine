@@ -221,6 +221,11 @@ public:
 	 * @return true if this factory is being used for automated import.  Dialogs and user input should be disabled if this method returns true
 	 */
 	virtual bool IsAutomatedImport() const;
+
+	/**
+	 * @return the supported factory formats list.
+	 */
+	virtual TArray<FString> GetFormats() const { return Formats; }
 public:
 
 	/**

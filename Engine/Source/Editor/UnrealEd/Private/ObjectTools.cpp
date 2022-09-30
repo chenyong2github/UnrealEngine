@@ -4329,7 +4329,7 @@ namespace ObjectTools
 
 			TArray<FString> Descriptions;
 			TArray<FString> Extensions;
-			InternalGetFormatInfo( CurFactory->Formats, Descriptions, Extensions );
+			InternalGetFormatInfo( CurFactory->GetFormats(), Descriptions, Extensions);
 			check( Descriptions.Num() == Extensions.Num() );
 
 			// Make sure to only store each key, value pair once
@@ -4449,6 +4449,29 @@ namespace ObjectTools
 		InternalAppendFileExtensions(Descriptions, Extensions, out_FileTypes, out_Extensions);
 	}
 
+	void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions, TMultiMap<uint32, UFactory*>& out_FilterIndexToFactory)
+	{
+		TArray<FString> Descriptions;
+		TArray<FString> Extensions;
+		InternalGetFormatInfo(InFormats, Descriptions, Extensions);
+		InternalAppendFileExtensions(Descriptions, Extensions, out_FileTypes, out_Extensions);
+		uint32 MaxKeyNumber = 0;
+		TSet<uint32> Keys;
+		out_FilterIndexToFactory.GetKeys(Keys);
+		for (uint32 Key : Keys)
+		{
+			MaxKeyNumber = FMath::Max(MaxKeyNumber, Key);
+		}
+		if (Keys.Num() > 0)
+		{
+			MaxKeyNumber++;
+		}
+		for (const FString& Extension : Extensions)
+		{
+			out_FilterIndexToFactory.Add(MaxKeyNumber++, nullptr);
+		}
+	}
+
 	/**
 	 * Generates a list of file types for a given class.
 	 */
@@ -4457,7 +4480,7 @@ namespace ObjectTools
 		check(InFactory);
 		TArray<FString> Descriptions;
 		TArray<FString> Extensions;
-		InternalGetFormatInfo( InFactory->Formats, Descriptions, Extensions );
+		InternalGetFormatInfo( InFactory->GetFormats(), Descriptions, Extensions);
 		InternalAppendFileExtensions( Descriptions, Extensions, out_Filetypes, out_Extensions);
 	}
 

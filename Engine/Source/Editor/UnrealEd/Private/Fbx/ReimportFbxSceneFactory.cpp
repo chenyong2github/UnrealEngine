@@ -116,7 +116,6 @@ UReimportFbxSceneFactory::UReimportFbxSceneFactory(const FObjectInitializer& Obj
 {
 
 	SupportedClass = UFbxSceneImportData::StaticClass();
-	Formats.Add(TEXT("fbx;FBX scene"));
 
 	bCreateNew = false;
 	bText = false;

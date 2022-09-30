@@ -42,9 +42,11 @@ class UNREALED_API UFbxFactory : public UFactory
 	virtual bool FactoryCanImport(const FString& Filename) override;
 	virtual bool CanImportBeCanceled() const override;
 	virtual IImportSettingsParser* GetImportSettingsParser() override;
-
+	virtual TArray<FString> GetFormats() const override;
 	//~ End UFactory Interface
 	
+	static TArray<FString> GetFbxFormats(const UFactory* Factory);
+
 	/**
 	 * Detect mesh type to import: Static Mesh or Skeletal Mesh.
 	 * Only the first mesh will be detected.

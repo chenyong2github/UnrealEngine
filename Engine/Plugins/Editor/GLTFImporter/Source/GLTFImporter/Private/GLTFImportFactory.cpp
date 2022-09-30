@@ -179,6 +179,18 @@ bool UGLTFImportFactory::FactoryCanImport(const FString& Filename)
 	return false;
 }
 
+TArray<FString> UGLTFImportFactory::GetFormats() const
+{
+	static TArray<FString> EmptyArray;
+	static const auto CVarGltf = IConsoleManager::Get().FindConsoleVariable(TEXT("Interchange.FeatureFlags.Import.GLTF"));
+	const bool bUseLegacyGltf = (!CVarGltf || !CVarGltf->GetBool());
+	if (bUseLegacyGltf)
+	{
+		return Formats;
+	}
+	return EmptyArray;
+}
+
 void UGLTFImportFactory::CleanUp()
 {
 	// cleanup any resources/buffers

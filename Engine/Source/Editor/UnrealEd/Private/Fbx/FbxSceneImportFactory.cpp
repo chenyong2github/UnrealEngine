@@ -20,6 +20,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/Material.h"
 #include "Engine/Texture.h"
+#include "Factories/FbxFactory.h"
 #include "Factories/FbxAnimSequenceImportData.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Factories/FbxStaticMeshImportData.h"
@@ -916,6 +917,10 @@ bool UFbxSceneImportFactory::FactoryCanImport(const FString& Filename)
 	return false;
 }
 
+TArray<FString> UFbxSceneImportFactory::GetFormats() const
+{
+	return UFbxFactory::GetFbxFormats(this);
+}
 
 TSharedPtr<FFbxNodeInfo> GetNodeInfoPtrById(TArray<TSharedPtr<FFbxNodeInfo>> &HierarchyInfo, uint64 SearchId)
 {

@@ -1149,6 +1149,45 @@ IImportSettingsParser* UFbxFactory::GetImportSettingsParser()
 	return ImportUI;
 }
 
+TArray<FString> UFbxFactory::GetFormats() const
+{
+	return GetFbxFormats(this);
+}
+
+TArray<FString> UFbxFactory::GetFbxFormats(const UFactory* Factory)
+{
+	TArray<FString> FormatArray;
+	const IConsoleVariable* CVarFbx = IConsoleManager::Get().FindConsoleVariable(TEXT("Interchange.FeatureFlags.Import.FBX"));
+	const bool bUseLegacyFbx = (!CVarFbx || !CVarFbx->GetBool());
+	const IConsoleVariable* CVarObj = IConsoleManager::Get().FindConsoleVariable(TEXT("Interchange.FeatureFlags.Import.OBJ"));
+	const bool bUseLegacyObj = (!CVarObj || !CVarObj->GetBool());
+
+	for (const FString& Format : Factory->Formats)
+	{
+		if (Format.StartsWith(TEXT("fbx")))
+		{
+			//Skip if interchange fbx is enabled
+			if (bUseLegacyFbx)
+			{
+				FormatArray.Add(Format);
+			}
+		}
+		else if (Format.StartsWith(TEXT("obj")))
+		{
+			//Skip if interchange obj is enabled
+			if (bUseLegacyObj)
+			{
+				FormatArray.Add(Format);
+			}
+		}
+		else
+		{
+			FormatArray.Add(Format);
+		}
+	}
+	return FormatArray;
+}
+
 UFbxImportUI::UFbxImportUI(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
