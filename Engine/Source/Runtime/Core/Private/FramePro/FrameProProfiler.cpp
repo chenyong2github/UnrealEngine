@@ -283,6 +283,7 @@ void FFrameProProfiler::Initialize()
 
 void FFrameProProfiler::TearDown()
 {
+	GFrameProEnabled = false;
 	FRAMEPRO_SHUTDOWN();
 }
 
@@ -401,10 +402,17 @@ void FFrameProProfiler::StartFrameProRecordingFromCommand(const TArray< FString 
 		FilenameRoot = Args[0];
 	}
 
-	StartFrameProRecording(FilenameRoot, ScopeMinTimeMicroseconds);
+	bool bAppendDateTime = true;
+	if (Args.Num() > 1)
+	{
+		// If someone wants to use the full filename they provided, they need to set the 2nd arg to false.
+		LexTryParseString(bAppendDateTime, *Args[1]);
+	}
+
+	StartFrameProRecording(FilenameRoot, ScopeMinTimeMicroseconds, bAppendDateTime);
 }
 
-FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, int32 MinScopeTime)
+FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, int32 MinScopeTime, bool bAppendDateTime)
 {
 	if (GFrameProIsRecording)
 	{
@@ -414,7 +422,15 @@ FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, i
 	FString RelPathName = FPaths::ProfilingDir() + TEXT("FramePro/");
 	bool bSuccess = IFileManager::Get().MakeDirectory(*RelPathName, true); // ensure folder exists
 
-	FString Filename = FString::Printf(TEXT("%s(%s).framepro_recording"), *FilenameRoot, *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
+	FString Filename;
+	if (bAppendDateTime)
+	{
+		Filename = FString::Printf(TEXT("%s(%s).framepro_recording"), *FilenameRoot, *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
+	}
+	else
+	{
+		Filename = FilenameRoot;
+	}
 	FString OutputFilename = RelPathName + Filename;
 
 	UE_LOG(LogFramePro, Log, TEXT("--- Start Recording To File: %s"), *OutputFilename);

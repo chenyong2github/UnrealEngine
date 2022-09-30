@@ -712,7 +712,18 @@ void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const F
 
 			static int32 Salt = 0;
 			Salt++;		// Use a salt to solve the issue where this function is called so fast it produces the same time (seems to happen during seamless travel)
-			const FString FinalFileName = FPaths::ProfilingDir() + FApp::GetProjectName() + FString::Printf(TEXT("-Pid%i"), FPlatformProcess::GetCurrentProcessId()) + TEXT( "-" ) + FDateTime::Now().ToString() + FString::Printf( TEXT( "[%i]" ), Salt ) + TEXT( ".nprof" );
+
+			FString FileName;
+
+			if (NextFileName.IsEmpty())
+			{
+				FileName = FApp::GetProjectName() + FString::Printf(TEXT("-Pid%i"), FPlatformProcess::GetCurrentProcessId()) + TEXT("-") + FDateTime::Now().ToString() + FString::Printf(TEXT("[%i]"), Salt) + TEXT(".nprof");
+			}
+			else
+			{
+				FileName = MoveTemp(NextFileName);
+			}
+			const FString FinalFileName = FPaths::ProfilingDir() + FileName;
 
 			IFileManager::Get().MakeDirectory( *FPaths::GetPath( FinalFileName ) );
 			FileWriter = IFileManager::Get().CreateFileWriter( *FinalFileName, FILEWRITE_EvenIfReadOnly );
@@ -833,6 +844,11 @@ void FNetworkProfiler::TrackWritePropertyHandle( uint16 NumBits, UNetConnection*
 	}
 }
 
+void FNetworkProfiler::SetNextFileName(const FString& FileName)
+{
+	NextFileName = FileName;
+}
+
 /**
  * Processes any network profiler specific exec commands
  *
@@ -846,11 +862,11 @@ bool FNetworkProfiler::Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice &
 {
 	if (FParse::Command(&Cmd, TEXT("ENABLE")))
 	{
-		EnableTracking( true );
+		EnableTracking(true);
 	}
 	else if (FParse::Command(&Cmd, TEXT("DISABLE")))
 	{
-		EnableTracking( false );
+		EnableTracking(false);
 	} 
 	else if (FParse::Command(&Cmd, TEXT("AUTOSTOP")))
 	{
