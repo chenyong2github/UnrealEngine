@@ -181,6 +181,9 @@ struct SEQUENCER_API FSequencerUtilities
 	static void ReplaceBindingWithActors(TSharedRef<ISequencer> Sequencer, const TArray<AActor*>& Actors, const FMovieSceneBindingProxy& ObjectBinding);
 	static void RemoveActorsFromBinding(TSharedRef<ISequencer> Sequencer, const TArray<AActor*>& Actors, const FMovieSceneBindingProxy& ObjectBinding);
 
-	/** Show a read only error of the movie scene is locked */
+	/** Show a read only error if the movie scene is locked */
 	static void ShowReadOnlyError();
+	
+	/** Show an error if spawnable is not allowed in a movie scene*/
+	static void ShowSpawnableNotAllowedError();
 };

@@ -639,9 +639,15 @@ FGuid FSequencerUtilities::MakeNewSpawnable(TSharedRef<ISequencer> Sequencer, UO
 		return FGuid();
 	}
 
-	if (MovieScene->IsReadOnly() || !Sequence->AllowsSpawnableObjects())
+	if (MovieScene->IsReadOnly())
 	{
 		ShowReadOnlyError();
+		return FGuid();
+	}
+	
+	if (!Sequence->AllowsSpawnableObjects())
+	{
+		ShowSpawnableNotAllowedError();
 		return FGuid();
 	}
 
@@ -2846,6 +2852,13 @@ void FSequencerUtilities::ShowReadOnlyError()
 	FNotificationInfo Info(LOCTEXT("SequenceReadOnly", "Sequence is read only."));
 	Info.ExpireDuration = 5.0f;
 	FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+}
+
+void FSequencerUtilities::ShowSpawnableNotAllowedError()
+{
+	FNotificationInfo Info(LOCTEXT("SequenceSpawnableNotAllowed", "Spawnable object is not allowed for Sequence."));
+	Info.ExpireDuration = 5.0f;
+	FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);	
 }
 
 #undef LOCTEXT_NAMESPACE
