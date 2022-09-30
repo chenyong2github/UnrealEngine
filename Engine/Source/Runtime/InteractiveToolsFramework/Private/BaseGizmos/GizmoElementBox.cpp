@@ -48,7 +48,7 @@ FInputRayHit UGizmoElementBox::LineTrace(const UGizmoViewContext* ViewContext, c
 		UE::Geometry::TOrientedBox3<double> Box(Frame, WorldExtent);
 		if (UE::Geometry::TIntrRay3OrientedBox3<double>::FindIntersection(Ray, Box, HitDepth))
 		{
-			FInputRayHit RayHit(HitDepth);
+			FInputRayHit RayHit(static_cast<float>(HitDepth));
 			RayHit.SetHitObject(this);
 			RayHit.HitIdentifier = PartIdentifier;
 			return RayHit;

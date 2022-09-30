@@ -20,8 +20,8 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 		const FVector WorldUpAxis = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(UpDirection);
 		const FVector WorldSideAxis = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(SideDirection);
 		const FVector WorldCenter = CurrentRenderState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
-		const float WorldWidth = Width * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
-		const float WorldHeight = Height * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
+		const float WorldWidth = static_cast<float>(Width * CurrentRenderState.LocalToWorldTransform.GetScale3D().X);
+		const float WorldHeight = static_cast<float>(Height * CurrentRenderState.LocalToWorldTransform.GetScale3D().X);
 
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
@@ -87,7 +87,7 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const UGizmoViewContext* ViewCont
 			// clip to rectangle dimensions
 			if (HdU >= 0.0 && HdU <= WorldHeight && HdS >= 0.0 && HdS <= WorldWidth)
 			{
-				FInputRayHit RayHit(HitDepth);
+				FInputRayHit RayHit(static_cast<float>(HitDepth));
 				RayHit.SetHitObject(this);
 				RayHit.HitIdentifier = PartIdentifier;
 				return RayHit;
@@ -114,7 +114,7 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const UGizmoViewContext* ViewCont
 				(HdS <= HitBuffer || HdS >= WorldWidth - HitBuffer ||
 				 HdU <= HitBuffer || HdU >= WorldHeight - HitBuffer))
 			{
-				FInputRayHit RayHit(HitDepth);
+				FInputRayHit RayHit(static_cast<float>(HitDepth));
 				RayHit.SetHitObject(this);
 				RayHit.HitIdentifier = PartIdentifier;
 				return RayHit;

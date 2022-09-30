@@ -13,7 +13,7 @@ int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const 
 
 	if (InputState.SelectedComponents.Num() > 0)
 	{
-		nTypedComponents = Algo::CountIf(InputState.SelectedComponents, Predicate);
+		nTypedComponents = static_cast<int>( Algo::CountIf(InputState.SelectedComponents, Predicate) );
 	}
 	else
 	{
@@ -21,7 +21,7 @@ int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const 
 			Algo::TransformAccumulate(InputState.SelectedActors,
 									  [&Predicate](AActor* Actor)
 									  {
-										  return Algo::CountIf(Actor->GetComponents(), Predicate);
+										  return static_cast<int>( Algo::CountIf(Actor->GetComponents(), Predicate));
 									  },
 									  0);
 	}
@@ -109,7 +109,7 @@ void ToolBuilderUtil::EnumerateComponents(const FToolBuilderState& InputState, T
 
 int32 ToolBuilderUtil::CountActors(const FToolBuilderState& InputState, const TFunction<bool(AActor*)>& Predicate)
 {
-	return Algo::CountIf(InputState.SelectedActors, Predicate);
+	return static_cast<int32>( Algo::CountIf(InputState.SelectedActors, Predicate) );
 }
 
 

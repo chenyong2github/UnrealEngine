@@ -17,7 +17,7 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 
 	if (bVisibleViewDependent)
 	{
-		const float WorldRadius = Radius * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
+		const double WorldRadius = Radius * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
 		const FVector WorldCenter = CurrentRenderState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
 		const FVector WorldAxis0 = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Axis0);
 		const FVector WorldAxis1 = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Axis1);
@@ -74,7 +74,7 @@ FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext
 
 			if (Result.intersects)
 			{
-				FInputRayHit RayHit(Result.parameter.Min);
+				FInputRayHit RayHit(static_cast<float>(Result.parameter.Min));
 				RayHit.SetHitObject(this);
 				RayHit.HitIdentifier = PartIdentifier;
 				return RayHit;
@@ -92,7 +92,7 @@ FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext
 			FVector HitPoint = RayOrigin + RayDirection * HitDepth;
 
 			FVector NearestCirclePos;
-			GizmoMath::ClosetPointOnCircle(HitPoint, WorldCenter, WorldNormal, WorldRadius, NearestCirclePos);
+			GizmoMath::ClosetPointOnCircle(HitPoint, WorldCenter, WorldNormal, static_cast<float>(WorldRadius), NearestCirclePos);
 
 			FRay Ray(RayOrigin, RayDirection, true);
 			FVector NearestRayPos = Ray.ClosestPoint(NearestCirclePos);
@@ -102,7 +102,7 @@ FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext
 			
 			if (Distance <= HitBuffer)
 			{
-				FInputRayHit RayHit(HitDepth);
+				FInputRayHit RayHit(static_cast<float>(HitDepth));
 				RayHit.SetHitObject(this);
 				RayHit.HitIdentifier = PartIdentifier;
 				return RayHit;

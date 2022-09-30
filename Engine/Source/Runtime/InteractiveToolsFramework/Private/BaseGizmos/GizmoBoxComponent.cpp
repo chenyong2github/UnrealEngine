@@ -130,7 +130,7 @@ public:
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
 				if (!bIsOrtho)
 				{
-					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+					UseThickness *= (View->FOV / 90.0f);		// compensate for FOV scaling in Gizmos...
 				}
 
 				double DimensionX = LengthScale * Dimensions.X * 0.5f;
@@ -153,11 +153,11 @@ public:
 						View->IsPerspectiveProjection() ? WorldOrigin - View->ViewLocation : View->GetViewDirection();
 
 					// find box corner direction that is most aligned with view direction. That's the corner we will hide.
-					float MaxDot = -999999;
+					double MaxDot = -999999.;
 					int MaxDotIndex = -1;
 					for (int j = 0; j < 8; ++j)
 					{
-						float Dot = FVector::DotProduct(Points[j], ViewDirection);
+						double Dot = FVector::DotProduct(Points[j], ViewDirection);
 						if (Dot > MaxDot)
 						{
 							MaxDot = Dot;
@@ -205,8 +205,8 @@ public:
 		return false;
 	}
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+	virtual uint32 GetMemoryFootprint(void) const override { return IntCastChecked<uint32>(sizeof *this + GetAllocatedSize()); }
+	SIZE_T GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 	void SetExternalHoverState(bool* HoverState)
 	{
@@ -330,7 +330,7 @@ bool UGizmoBoxComponent::LineTraceComponent(FHitResult& OutHit, const FVector St
 
 	OutHit.Component = this;
 	OutHit.ImpactPoint = HitWorld;
-	OutHit.Distance = FVector::Distance(Start, HitWorld);
+	OutHit.Distance = static_cast<float>(FVector::Distance(Start, HitWorld));
 	//OutHit.ImpactNormal = ;
 	
 	return true;

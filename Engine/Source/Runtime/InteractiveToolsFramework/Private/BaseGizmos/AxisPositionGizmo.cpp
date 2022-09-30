@@ -69,7 +69,7 @@ void UAxisPositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 
 	FVector AxisOrigin = AxisSource->GetOrigin();
 
-	float DirectionSign = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxis);
+	double DirectionSign = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxis);
 	ParameterSign = (bEnableSignedAxis && DirectionSign < 0) ? -1.0f : 1.0f;
 
 	// Figure out how the parameter would need to be adjusted to bring the axis origin to the

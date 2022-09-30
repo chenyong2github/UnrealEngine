@@ -32,7 +32,7 @@ float UGizmoElementLineBase::GetCurrentLineThickness(bool bPerspectiveView, floa
 
 	if (bPerspectiveView)
 	{
-		CurrentLineThickness *= (InViewFOV / 90.0);		// compensate for FOV scaling in Gizmos...
+		CurrentLineThickness *= (InViewFOV / 90.0f);		// compensate for FOV scaling in Gizmos...
 	}
 
 	return CurrentLineThickness;
@@ -40,10 +40,10 @@ float UGizmoElementLineBase::GetCurrentLineThickness(bool bPerspectiveView, floa
 
 void UGizmoElementLineBase::SetLineThickness(float InLineThickness)
 {
-	if (InLineThickness < 0.0)
+	if (InLineThickness < 0.0f)
 	{
 		UE_LOG(LogGizmoElementLineBase, Warning, TEXT("Invalid gizmo element line thickness %f, will be set to 0.0."), InLineThickness);
-		LineThickness = 0.0;
+		LineThickness = 0.0f;
 	}
 	else
 	{

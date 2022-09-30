@@ -57,7 +57,7 @@ FInputRayHit UGizmoElementCylinder::LineTrace(const UGizmoViewContext* ViewConte
 
 		if (bIntersects)
 		{
-			FInputRayHit RayHit(RayParam);
+			FInputRayHit RayHit(static_cast<float>(RayParam));
 			RayHit.SetHitObject(this);
 			RayHit.HitIdentifier = PartIdentifier;
 			return RayHit;

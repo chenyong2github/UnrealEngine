@@ -73,13 +73,13 @@ public:
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
 				if (!bIsOrtho)
 				{
-					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+					UseThickness *= (View->FOV / 90.0f);		// compensate for FOV scaling in Gizmos...
 				}
 
 				// From base origin to disk origin
 				PDI->DrawLine(WorldBaseOrigin, ScaledDiskOrigin, Color, SDPG_Foreground, UseThickness, 0.0f, true);
 				// Draw the interval marker
-				PDI->DrawLine(ScaledIntevalStart, ScaledIntevalEnd, Color, SDPG_Foreground, 2. * UseThickness, 0.0f, true);
+				PDI->DrawLine(ScaledIntevalStart, ScaledIntevalEnd, Color, SDPG_Foreground, 2 * UseThickness, 0.0f, true);
 			}
 		}
 	}
@@ -100,8 +100,8 @@ public:
 		return false;
 	}
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+	virtual uint32 GetMemoryFootprint(void) const override { return IntCastChecked<uint32>( sizeof *this + GetAllocatedSize() ); }
+	SIZE_T GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 
 	void SetExternalHoverState(bool* HoverState)
@@ -197,7 +197,7 @@ bool UGizmoLineHandleComponent::LineTraceComponent(FHitResult& OutHit, const FVe
 	}
 
 	OutHit.Component = this;
-	OutHit.Distance = FVector::Distance(Start, NearestOnLine);
+	OutHit.Distance = static_cast<float>(FVector::Distance(Start, NearestOnLine));
 	OutHit.ImpactPoint = NearestOnLine;
 	return true;
 

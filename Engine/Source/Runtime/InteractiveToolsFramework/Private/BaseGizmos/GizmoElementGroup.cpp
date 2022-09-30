@@ -5,9 +5,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementGroup)
 
-void UGizmoElementGroup::ApplyUniformConstantScaleToTransform(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const
+void UGizmoElementGroup::ApplyUniformConstantScaleToTransform(double PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const
 {
-	float Scale = InOutLocalToWorldTransform.GetScale3D().X;
+	double Scale = InOutLocalToWorldTransform.GetScale3D().X;
 	if (bConstantScale)
 	{
 		Scale *= PixelToWorldScale;

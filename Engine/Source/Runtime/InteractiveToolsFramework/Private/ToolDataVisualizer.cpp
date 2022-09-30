@@ -86,7 +86,7 @@ void FToolDataVisualizer::PopAllTransforms()
 void FToolDataVisualizer::InternalDrawTransformedLine(const FVector& A, const FVector& B, const FLinearColor& ColorIn, float LineThicknessIn, bool bDepthTestedIn)
 {
 	CurrentPDI->DrawLine(A, B, ColorIn,
-		(bDepthTestedIn) ? SDPG_World : SDPG_Foreground,
+		uint8( (bDepthTestedIn) ? SDPG_World : SDPG_Foreground),
 		LineThicknessIn * PDISizeScale, DepthBias, true);
 }
 
@@ -94,7 +94,7 @@ void FToolDataVisualizer::InternalDrawTransformedLine(const FVector& A, const FV
 void FToolDataVisualizer::InternalDrawTransformedPoint(const FVector& Position, const FLinearColor& ColorIn, float PointSizeIn, bool bDepthTestedIn)
 {
 	CurrentPDI->DrawPoint(Position, ColorIn, PointSizeIn * PDISizeScale,
-		(bDepthTestedIn) ? SDPG_World : SDPG_Foreground);
+		uint8( (bDepthTestedIn) ? SDPG_World : SDPG_Foreground) );
 }
 
 
@@ -107,7 +107,7 @@ void FToolDataVisualizer::InternalDrawCircle(const FVector& Position, const FVec
 	// this function is from SceneManagement.h
 	::DrawCircle(CurrentPDI, TransformP(Position), (FVector)Tan1, (FVector)Tan2, 
 		Color, Radius, Steps,
-		(bDepthTestedIn) ? SDPG_World : SDPG_Foreground,
+		uint8( (bDepthTestedIn) ? SDPG_World : SDPG_Foreground),
 		LineThicknessIn * PDISizeScale, DepthBias, true);
 }
 
@@ -191,7 +191,7 @@ void FToolDataVisualizer::InternalDrawViewFacingCircle(const FVector& Position, 
 	// this function is from SceneManagement.h
 	::DrawCircle(CurrentPDI, WorldPosition, (FVector)Tan1, (FVector)Tan2,
 		Color, Radius, Steps,
-		(bDepthTestedIn) ? SDPG_World : SDPG_Foreground,
+		uint8( (bDepthTestedIn) ? SDPG_World : SDPG_Foreground),
 		LineThicknessIn * PDISizeScale, DepthBias, true);
 }
 

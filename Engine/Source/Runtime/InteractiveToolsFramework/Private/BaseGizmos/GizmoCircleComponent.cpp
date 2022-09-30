@@ -82,8 +82,8 @@ public:
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
 				if (!bIsOrtho)
 				{
-					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
-					BackThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+					UseThickness *= (View->FOV / 90.0f);		// compensate for FOV scaling in Gizmos...
+					BackThickness *= (View->FOV / 90.0f);		// compensate for FOV scaling in Gizmos...
 				}
 
 				if (bDrawFullCircle)
@@ -193,8 +193,8 @@ public:
 		return false;
 	}
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+	virtual uint32 GetMemoryFootprint(void) const override { return IntCastChecked<uint32>(sizeof *this + GetAllocatedSize()); }
+	SIZE_T GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 	void SetExternalHoverState(bool* HoverState)
 	{
@@ -272,7 +272,7 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 	}
 
 	float LengthScale = PixelToWorldScale;
-	double UseRadius = LengthScale * Radius;
+	float UseRadius = LengthScale * Radius;
 
 
 	FRay Ray(Start, End - Start, false);
@@ -317,7 +317,7 @@ bool UGizmoCircleComponent::LineTraceComponent(FHitResult& OutHit, const FVector
 	}
 
 	OutHit.Component = this;
-	OutHit.Distance = FVector::Distance(Start, NearestRay);
+	OutHit.Distance = static_cast<float>(FVector::Distance(Start, NearestRay));
 	OutHit.ImpactPoint = NearestRay;
 	return true;
 }

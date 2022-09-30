@@ -112,7 +112,7 @@ public:
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
 				if (View->IsPerspectiveProjection())
 				{
-					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+					UseThickness *= (View->FOV / 90.0f);		// compensate for FOV scaling in Gizmos...
 				}
 
 				PDI->DrawLine(StartPoint, EndPoint, Color, SDPG_Foreground, UseThickness, 0.0f, true);
@@ -136,8 +136,8 @@ public:
 		return false;
 	}
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+	virtual uint32 GetMemoryFootprint(void) const override { return IntCastChecked<uint32>(sizeof *this + GetAllocatedSize()); }
+	SIZE_T GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 	void SetExternalHoverState(bool* HoverState)
 	{
@@ -211,7 +211,7 @@ bool UGizmoArrowComponent::LineTraceComponent(FHitResult& OutHit, const FVector 
 	}
 
 	OutHit.Component = this;
-	OutHit.Distance = FVector::Distance(Start, NearestLine);
+	OutHit.Distance = static_cast<float>(FVector::Distance(Start, NearestLine));
 	OutHit.ImpactPoint = NearestLine;
 	return true;
 }

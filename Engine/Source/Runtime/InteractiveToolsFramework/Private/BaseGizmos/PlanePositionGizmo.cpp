@@ -84,12 +84,12 @@ void UPlanePositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 
 	FVector AxisOrigin = AxisSource->GetOrigin();
 
-	float DirectionSignX = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxisX);
-	ParameterSigns.X = (bEnableSignedAxis && DirectionSignX < 0) ? -1.0f : 1.0f;
-	ParameterSigns.X *= (bFlipX) ? -1.0f : 1.0f;
-	float DirectionSignY = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxisY);
-	ParameterSigns.Y = (bEnableSignedAxis && DirectionSignY < 0) ? -1.0f : 1.0f;
-	ParameterSigns.Y *= (bFlipY) ? -1.0f : 1.0f;
+	double DirectionSignX = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxisX);
+	ParameterSigns.X = (bEnableSignedAxis && DirectionSignX < 0) ? -1.0 : 1.0;
+	ParameterSigns.X *= (bFlipX) ? -1.0 : 1.0;
+	double DirectionSignY = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxisY);
+	ParameterSigns.Y = (bEnableSignedAxis && DirectionSignY < 0) ? -1.0 : 1.0;
+	ParameterSigns.Y *= (bFlipY) ? -1.0 : 1.0;
 
 	InteractionStartParameter = GizmoMath::ComputeCoordinatesInPlane(IntersectionPoint,
 			InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);

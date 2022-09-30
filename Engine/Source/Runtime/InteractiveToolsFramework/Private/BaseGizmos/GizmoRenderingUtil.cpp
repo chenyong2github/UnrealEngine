@@ -69,7 +69,7 @@ namespace GizmoRenderingUtilLocals
 		// below gives us a sense of this distance, so we make the offset relative to that
 		// (this does do one redundant WorldToScreen)
 		FVector4 LocationScreenPoint = View->WorldToScreen(Location);
-		float OffsetDelta = LocationScreenPoint.W * 0.01f;
+		double OffsetDelta = LocationScreenPoint.W * 0.01;
 
 		FVector2D PixelA = WorldToPixelDouble(View, Location);
 		FVector OffsetPointWorld = Location + OffsetDelta * View->GetViewRight() + OffsetDelta * View->GetViewUp();
@@ -106,7 +106,7 @@ float GizmoRenderingUtil::CalculateViewDependentScaleAndFlatten(
 	bool bIsOrthoXY = !bIsPerspective && FMath::Abs(ViewMatrix.M[2][2]) > 0.0f;
 	bool bIsOrthoXZ = !bIsPerspective && FMath::Abs(ViewMatrix.M[1][2]) > 0.0f;
 	bool bIsOrthoYZ = !bIsPerspective && FMath::Abs(ViewMatrix.M[0][2]) > 0.0f;
-	float UniformScale = InScale * View->WorldToScreen(Location).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
+	float UniformScale = static_cast<float> (InScale * View->WorldToScreen(Location).W * (4.0 / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]));
 
 	// Clamp to tolerance to prevent division by zero.
 	// @todo change to use MathUtil<RealType>::ZeroTolerance and TMathUtil<RealType>::SignNonZero(Value)

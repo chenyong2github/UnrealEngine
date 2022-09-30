@@ -162,7 +162,7 @@ void GizmoMath::RayCylinderIntersection(
 	Basis[1] = GetOrthogonalVector(Basis[0]).GetSafeNormal();
 	Basis[2] = (Basis[0] ^ Basis[1]).GetSafeNormal();
 
-	RealType HalfHeight = 0.5 * CylinderHeight;
+	RealType HalfHeight = RealType(0.5) * CylinderHeight;
 	RealType RadiusSquared = CylinderRadius * CylinderRadius;
 
 	// Convert incoming line origin to capsule coordinates.
@@ -171,25 +171,25 @@ void GizmoMath::RayCylinderIntersection(
 
 	// Get the z-value, in cylinder coordinates, of the incoming line's
 	// unit-length direction.
-	RealType Dz = Basis[0] | RayDirection;
+	RealType Dz = static_cast<RealType>( Basis[0] | RayDirection );
 	if (FMath::IsNearlyEqual(Dz, 1.0, SMALL_NUMBER)) 
 	{
 		// The line is parallel to the cylinder axis.  Determine whether the
 		// line intersects the cylinder end disks.
-		RealType RadialSquaredDist = RadiusSquared - P[0] * P[0] - P[1] * P[1];
+		RealType RadialSquaredDist = static_cast<RealType>( RadiusSquared - P[0] * P[0] - P[1] * P[1]);
 		if (RadialSquaredDist >= 0.0)
 		{
 			// The line intersects the cylinder end disks.
 			NumIntersections = 2;
 			if (Dz > 0.0)
 			{
-				RayParam[0] = -P[2] - HalfHeight;
-				RayParam[1] = -P[2] + HalfHeight;
+				RayParam[0] = static_cast<RealType>( -P[2] - HalfHeight );
+				RayParam[1] = static_cast<RealType>( -P[2] + HalfHeight );
 			}
 			else
 			{
-				RayParam[0] = P[2] - HalfHeight;
-				RayParam[1] = P[2] + HalfHeight;
+				RayParam[0] = static_cast<RealType>( P[2] - HalfHeight );
+				RayParam[1] = static_cast<RealType>( P[2] + HalfHeight );
 			}
 		}
 		// else:  The line is outside the cylinder, no intersection.
@@ -212,9 +212,9 @@ void GizmoMath::RayCylinderIntersection(
 				// quadratic equation.  If P = (px,py,pz) and D = (dx,dy,dz),
 				// then the quadratic equation is
 				//   (dx^2+dy^2)*t^2 + 2*(px*dx+py*dy)*t + (px^2+py^2-r^2) = 0
-				A0 = P[0] * P[0] + P[1] * P[1] - RadiusSquared;
-				A1 = P[0] * D[0] + P[1] * D[1];
-				A2 = D[0] * D[0] + D[1] * D[1];
+				A0 = static_cast<RealType>( P[0] * P[0] + P[1] * P[1] - RadiusSquared );
+				A1 = static_cast<RealType>( P[0] * D[0] + P[1] * D[1] );
+				A2 = static_cast<RealType>( D[0] * D[0] + D[1] * D[1] );
 				Discr = A1 * A1 - A0 * A2;
 				if (FMath::IsNearlyZero(Discr)) 
 				{
@@ -239,20 +239,20 @@ void GizmoMath::RayCylinderIntersection(
 		else
 		{
 			// Test for intersections with the planes of the end disks.
-			Inv = 1.0f / D[2];
+			Inv = static_cast<RealType>( 1.0 / D[2] );
 
-			RealType T0 = (-HalfHeight - P[2]) * Inv;
-			RealType TmpX = P[0] + T0 * D[0];
-			RealType TmpY = P[1] + T0 * D[1];
+			RealType T0 = static_cast<RealType>( (-HalfHeight - P[2]) * Inv );
+			RealType TmpX = static_cast<RealType>( P[0] + T0 * D[0] );
+			RealType TmpY = static_cast<RealType>( P[1] + T0 * D[1] );
 			if (TmpX * TmpX + TmpY * TmpY <= RadiusSquared)
 			{
 				// Plane intersection inside the top cylinder end disk.
 				RayParam[NumIntersections++] = T0;
 			}
 
-			RealType T1 = (+HalfHeight - P[2]) * Inv;
-			TmpX = P[0] + T1 * D[0];
-			TmpY = P[1] + T1 * D[1];
+			RealType T1 = static_cast<RealType>( (+HalfHeight - P[2]) * Inv );
+			TmpX = static_cast<RealType>( P[0] + T1 * D[0] );
+			TmpY = static_cast<RealType>( P[1] + T1 * D[1] );
 			if (TmpX * TmpX + TmpY * TmpY <= RadiusSquared)
 			{
 				// Plane intersection inside the bottom cylinder end disk.
@@ -262,9 +262,9 @@ void GizmoMath::RayCylinderIntersection(
 			if (NumIntersections < 2)
 			{
 				// Test for intersection with the cylinder wall.
-				A0 = P[0] * P[0] + P[1] * P[1] - RadiusSquared;
-				A1 = P[0] * D[0] + P[1] * D[1];
-				A2 = D[0] * D[0] + D[1] * D[1];
+				A0 = static_cast<RealType>( P[0] * P[0] + P[1] * P[1] - RadiusSquared );
+				A1 = static_cast<RealType>( P[0] * D[0] + P[1] * D[1] );
+				A2 = static_cast<RealType>( D[0] * D[0] + D[1] * D[1] );
 				Discr = A1 * A1 - A0 * A2;
 				if (FMath::IsNearlyZero(Discr))
 				{
@@ -395,10 +395,10 @@ void GizmoMath::RayConeIntersection(
 	// equation subject to the linear inequality constraints.
 
 	FVector PmV = RayOrigin - ConeCenter;
-	RealType DdU = FVector::DotProduct(ConeDirection, RayDirection);
-	RealType DdPmV = FVector::DotProduct(ConeDirection, PmV);
-	RealType UdPmV = FVector::DotProduct(RayDirection, PmV);
-	RealType PmVdPmV = FVector::DotProduct(PmV, PmV);
+	RealType DdU = static_cast<RealType>( FVector::DotProduct(ConeDirection, RayDirection) );
+	RealType DdPmV = static_cast<RealType>( FVector::DotProduct(ConeDirection, PmV) );
+	RealType UdPmV = static_cast<RealType>( FVector::DotProduct(RayDirection, PmV) );
+	RealType PmVdPmV = static_cast<RealType>( FVector::DotProduct(PmV, PmV) );
 	RealType CosAngleSqr = ConeCosAngle * ConeCosAngle;
 	RealType C2 = DdU * DdU - CosAngleSqr;
 	RealType C1 = DdU * DdPmV - CosAngleSqr * UdPmV;
@@ -439,7 +439,7 @@ void GizmoMath::RayConeIntersection(
 			// or both of them might intersect the negative cone.  We are
 			// interested only in those intersections with the positive cone.
 			RealType Root = FMath::Sqrt(Discr);
-			RealType InvC2 = 1.0 / C2;
+			RealType InvC2 = RealType(1) / C2;
 			int NumIntersections = 0;
 
 			T = (-C1 - Root) * InvC2;

@@ -72,5 +72,5 @@ protected:
 	TArray<TObjectPtr<UGizmoElementBase>> Elements;
 
 	// Updates input transform's scale component to have uniform scale and applies constant scale if bConstantScale is true
-	virtual void ApplyUniformConstantScaleToTransform(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const;
+	virtual void ApplyUniformConstantScaleToTransform(double PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const;
 };

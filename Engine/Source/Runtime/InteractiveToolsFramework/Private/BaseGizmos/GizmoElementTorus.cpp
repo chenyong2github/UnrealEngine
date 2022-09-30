@@ -27,8 +27,8 @@ void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 			bool bPartial = IsPartial(RenderAPI->GetSceneView(), WorldCenter, WorldNormal);
 			FVector BeginAxis = bPartial ? Axis0.RotateAngleAxis(PartialStartAngle, Normal).GetSafeNormal() : Axis0;
 
-			const double PartialAngle = PartialEndAngle - PartialStartAngle;			
-			if (PartialAngle <= 0.0)
+			const float PartialAngle = static_cast<float>(PartialEndAngle - PartialStartAngle);			
+			if (PartialAngle <= 0.0f)
 			{
 				return;
 			}
@@ -91,9 +91,9 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 		{
 			// If the torus lies at a glancing angle, the ray-torus intersection is performed against cylinders approximating
 			// the shape of the torus.
-			static constexpr int NumFullTorusCylinders = 16;
+			static constexpr int32 NumFullTorusCylinders = 16;
 			static constexpr double AngleDelta = UE_DOUBLE_TWO_PI / static_cast<double>(NumFullTorusCylinders);
-			const int NumCylinders = bPartial ? FMath::CeilToInt(NumFullTorusCylinders * PartialAngle / UE_DOUBLE_TWO_PI) : NumFullTorusCylinders;
+			const int32 NumCylinders = bPartial ? FMath::CeilToInt32(NumFullTorusCylinders * PartialAngle / UE_DOUBLE_TWO_PI) : NumFullTorusCylinders;
 
 			const FVector ViewDirection = ViewContext->GetViewDirection();
 			FVector VectorA = WorldBeginAxis; 
@@ -108,7 +108,7 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 			}
 
 			// Line trace against a set of cylinders approximating the shape of the torus
-			for (int i = 0; i < NumCylinders; i++)
+			for (int32 i = 0; i < NumCylinders; i++)
 			{
 				if (i > 0)
 				{
@@ -155,7 +155,7 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 
 			// Find the closest point on the circle to the intersection point
 			FVector NearestCirclePos;
-			GizmoMath::ClosetPointOnCircle(HitPoint, WorldCenter, WorldNormal, WorldOuterRadius, NearestCirclePos);
+			GizmoMath::ClosetPointOnCircle(HitPoint, WorldCenter, WorldNormal, static_cast<float>(WorldOuterRadius), NearestCirclePos);
 
 			// Find the closest point on the ray to the circle and determine if it is within the torus
 			FRay Ray(RayOrigin, RayDirection, true);
@@ -193,7 +193,7 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 
 		if (HitDepth >= 0.0)
 		{
-			FInputRayHit RayHit(HitDepth);
+			FInputRayHit RayHit(static_cast<float>(HitDepth));
 			RayHit.SetHitObject(this);
 			RayHit.HitIdentifier = PartIdentifier;
 			return RayHit;

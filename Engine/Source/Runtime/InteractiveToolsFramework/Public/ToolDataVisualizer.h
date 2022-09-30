@@ -82,7 +82,7 @@ public:
 	{
 		// transform normal by a safe inverse scale + normalize, and a standard rotation (TODO: move implementation into FTransform)
 		const FVector& S = TotalTransform.GetScale3D();
-		float DetSign = FMath::Sign(S.X*S.Y*S.Z); // we only need to multiply by the sign of the determinant, rather than divide by it, since we normalize later anyway
+		double DetSign = FMath::Sign(S.X*S.Y*S.Z); // we only need to multiply by the sign of the determinant, rather than divide by it, since we normalize later anyway
 		FVector SafeInvS(S.Y*S.Z*DetSign, S.X*S.Z*DetSign, S.X*S.Y*DetSign);
 		return TotalTransform.TransformVectorNoScale((SafeInvS*Normal).GetSafeNormal());
 	}

@@ -21,7 +21,7 @@ static void DrawThickArc(FPrimitiveDrawInterface* PDI, const FVector& InCenter, 
 		return;
 	}
 
-	const int32 NumPoints = FMath::TruncToInt(InNumSegments * (InEndAngle - InStartAngle) / (UE_DOUBLE_PI / 2.0)) + 1;
+	const int32 NumPoints = FMath::TruncToInt32(InNumSegments * (InEndAngle - InStartAngle) / (UE_DOUBLE_PI / 2.0)) + 1;
 
 	FColor TriangleColor = InColor;
 	FColor RingColor = InColor;
@@ -47,7 +47,7 @@ static void DrawThickArc(FPrimitiveDrawInterface* PDI, const FVector& InCenter, 
 			VertexDir.Normalize();
 
 			double TCAngle = Percent * (PI / 2);
-			FVector2f TC(TCRadius * FMath::Cos(Angle), TCRadius * FMath::Sin(Angle));
+			FVector2f TC(static_cast<float>(TCRadius * FMath::Cos(Angle)), static_cast<float>(TCRadius * FMath::Sin(Angle)));
 
 			// Keep the vertices in local space so that we don't lose precision when dealing with LWC
 			// The local-to-world transform is handled in the MeshBuilder.Draw() call at the end of this function
@@ -207,7 +207,7 @@ FInputRayHit UGizmoElementArc::LineTrace(const UGizmoViewContext* ViewContext, c
 
 		if (HitDepth >= 0.0)
 		{
-			FInputRayHit RayHit(HitDepth);
+			FInputRayHit RayHit(static_cast<float>(HitDepth));
 			RayHit.SetHitObject(this);
 			RayHit.HitIdentifier = PartIdentifier;
 			return RayHit;

@@ -33,8 +33,8 @@ void UBaseBrushTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 	BrushProperties = NewObject<UBrushBaseProperties>(this, PropertyClass.Get(), TEXT("Brush"));
-	double MaxDimension = EstimateMaximumTargetDimension();
-	BrushRelativeSizeRange = TInterval<float>(MaxDimension*0.01, MaxDimension);
+	float MaxDimension = static_cast<float>( EstimateMaximumTargetDimension());
+	BrushRelativeSizeRange = TInterval<float>(MaxDimension*0.01f, MaxDimension);
 
 	RecalculateBrushRadius();
 
@@ -66,7 +66,7 @@ void UBaseBrushTool::IncreaseBrushSizeAction()
 	if (BrushProperties->bSpecifyRadius)
 	{
 		// Hardcoded max of 1000 chosen to match the BrushRadius "UIMax" specified in UBrushBaseProperties
-		BrushProperties->BrushRadius = FMath::Min(BrushProperties->BrushRadius * 1.1, 1000);
+		BrushProperties->BrushRadius = FMath::Min(BrushProperties->BrushRadius * 1.1f, 1000.f);
 	}
 	else
 	{
@@ -80,7 +80,7 @@ void UBaseBrushTool::DecreaseBrushSizeAction()
 {
 	if (BrushProperties->bSpecifyRadius)
 	{
-		BrushProperties->BrushRadius = FMath::Max(BrushProperties->BrushRadius / 1.1, 1);
+		BrushProperties->BrushRadius = FMath::Max(BrushProperties->BrushRadius / 1.1f, 1.f);
 	}
 	else
 	{
@@ -187,12 +187,12 @@ void UBaseBrushTool::RecalculateBrushRadius()
 	if (BrushProperties->bSpecifyRadius)
 	{
 		CurrentBrushRadius = BrushProperties->BrushRadius;
-		BrushProperties->BrushSize = (2 * CurrentBrushRadius - ScaledBrushSizeRange.Min) / ScaledBrushSizeRange.Size();
+		BrushProperties->BrushSize = static_cast<float>( (2 * CurrentBrushRadius - ScaledBrushSizeRange.Min) / ScaledBrushSizeRange.Size() );
 	}
 	else
 	{
 		CurrentBrushRadius = 0.5 * ScaledBrushSizeRange.Interpolate(BrushProperties->BrushSize);
-		BrushProperties->BrushRadius = CurrentBrushRadius;
+		BrushProperties->BrushRadius = static_cast<float>( CurrentBrushRadius );
 	}
 }
 

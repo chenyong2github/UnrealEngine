@@ -133,7 +133,7 @@ public:
 					(HoverThicknessMultiplier * Thickness) : (Thickness);
 				if (View->IsPerspectiveProjection())
 				{
-					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+					UseThickness *= (View->FOV / 90.0f);		// compensate for FOV scaling in Gizmos...
 				}
 
 				if (SegmentFlags & 0x1)
@@ -192,8 +192,8 @@ public:
 		return false;
 	}
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+	virtual uint32 GetMemoryFootprint(void) const override { return IntCastChecked<uint32>( sizeof *this + GetAllocatedSize() ); }
+	SIZE_T GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 
 	void SetExternalHoverState(bool* HoverState)
 	{
@@ -274,7 +274,7 @@ bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVec
 			HitPoint, HitNormal) )
 		{
 			OutHit.Component = this;
-			OutHit.Distance = FVector::Distance(Start, HitPoint);
+			OutHit.Distance = static_cast<float>( FVector::Distance(Start, HitPoint) );
 			OutHit.ImpactPoint = HitPoint;
 			OutHit.ImpactNormal = HitNormal;
 			return true;
