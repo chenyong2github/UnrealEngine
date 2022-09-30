@@ -481,5 +481,10 @@ namespace UnrealBuildTool
 		/// Maximum number of processes that should be used for execution
 		/// </summary>
 		public static int GetMaxParallelProcesses(ILogger Logger) => ParallelExecutor.GetDefaultNumParallelProcesses(0, false, Logger);
+
+		/// <summary>
+		/// Maximum number of processes that should be used for execution
+		/// </summary>
+		public static int GetMaxParallelProcesses(int MaxLocalActions, bool bAllCores, ILogger Logger) => ParallelExecutor.GetDefaultNumParallelProcesses(MaxLocalActions, bAllCores, Logger);
 	}
 }

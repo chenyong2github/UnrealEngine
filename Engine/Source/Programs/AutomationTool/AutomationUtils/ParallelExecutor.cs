@@ -76,9 +76,9 @@ namespace AutomationTool
 			}
 		}
 
-		public static int Execute(string ActionsFileName, bool bStopOnErrors)
+		public static int Execute(string ActionsFileName, bool bStopOnErrors, bool bAllCores)
 		{
-			return Execute(ActionsFileName, UnrealBuildTool.ParallelExecutorConfiguration.GetMaxParallelProcesses(Log.Logger), bStopOnErrors);
+			return Execute(ActionsFileName, UnrealBuildTool.ParallelExecutorConfiguration.GetMaxParallelProcesses(0, bAllCores, Log.Logger), bStopOnErrors);
 		}
 
 		public static int Execute(string ActionsFileName, int MaxProcesses, bool bStopOnErrors)

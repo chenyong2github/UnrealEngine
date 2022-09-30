@@ -583,7 +583,7 @@ namespace AutomationTool
 					CommandUtils.PushDir(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"\Engine\Source"));
 					try
 					{
-						int ExitCode = ParallelExecutor.Execute(TaskFilePath, OwnerCommand.ParseParam("StopOnErrors"));
+						int ExitCode = ParallelExecutor.Execute(TaskFilePath, OwnerCommand.ParseParam("StopOnErrors"), OwnerCommand.ParseParam("AllCores"));
 						if(ExitCode != 0)
 						{
 							return false;
