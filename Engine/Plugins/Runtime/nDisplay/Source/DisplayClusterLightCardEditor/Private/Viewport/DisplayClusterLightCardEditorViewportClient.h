@@ -232,11 +232,8 @@ private:
 	/** Restores the saved camera transform for the current projection mode */
 	void RestoreProjectionCameraTransform();
 
-	/** Resets the stored camera transforms to default values for each projection mode */
-	void ResetCameraProjectionTransforms();
-
-	/** Resets the camera FOVs */
-	void ResetFOVs();
+	/** Resets the stored view configurations to default values for each projection mode */
+	void ResetProjectionViewConfigurations();
 
 	/** Creates a new light card using a polygon alpha mask as defined by the given mouse positions on the viewport */
 	void CreateDrawnLightCard(const TArray<FIntPoint>& MousePositions);
@@ -292,6 +289,16 @@ private:
 		static FSpriteProxy FromBillboard(const UBillboardComponent* InBillboardComponent);
 	};
 
+	/** Stores view configuration values (view transform and field of view) for the supported projection modes */
+	struct FProjectionViewConfiguration
+	{
+	public:
+		FViewportCameraTransform PerspectiveTransform = FViewportCameraTransform();
+		FViewportCameraTransform OrthographicTransform = FViewportCameraTransform();
+		float PerspectiveFOV = 0.0f;
+		float OrthographicFOV = 0.0f;
+	};
+
 	TArray<FActorProxy> ActorProxies;
 	TArray<TWeakObjectPtr<UBillboardComponent>> BillboardComponentProxies;
 	TArray<FDisplayClusterWeakStageActorPtr> SelectedActors;
@@ -344,11 +351,8 @@ private:
 	/** The component of the root actor that is acting as the projection origin. Can be either the root component (stage origin) or a view origin component */
 	TWeakObjectPtr<USceneComponent> ProjectionOriginComponent;
 
-	/** Stores each projection mode's field of view separately */
-	TArray<float> ProjectionFOVs;
-
-	/** Stores each projecion mode's camera transforms separately so they can be restored when the projection mode is selected  */
-	TArray<FViewportCameraTransform> ProjectionCameraTransforms;
+	/** Stores each projecion mode's view configuration separately so they can be restored when the projection mode is selected  */
+	TArray<FProjectionViewConfiguration> ProjectionViewConfigurations;
 
 	/** The increment to change the FOV by when using the scroll wheel */
 	float FOVScrollIncrement = 5.0f;
