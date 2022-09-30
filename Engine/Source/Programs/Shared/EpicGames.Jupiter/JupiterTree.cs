@@ -117,7 +117,7 @@ namespace EpicGames.Jupiter
 						Metadata = Metadata,
 					};
 					string PutTreeRootString = JsonSerializer.Serialize(TreeRoot);
-					StringContent PutTreeRootContent = new StringContent(PutTreeRootString, Encoding.UTF8, "application/json");
+					using StringContent PutTreeRootContent = new StringContent(PutTreeRootString, Encoding.UTF8, "application/json");
 					// upload tree information
 					HttpResponseMessage PutTreeResult = await JupiterClient.PutAsync(string.Format("api/v1/c/tree-root/{0}", JupiterNamespace), PutTreeRootContent);
 					if (!PutTreeResult.IsSuccessStatusCode)
@@ -140,7 +140,7 @@ namespace EpicGames.Jupiter
 							Blobs = Tree.ContentHashes,
 						};
 					string PutTreeString = JsonSerializer.Serialize(PutTreesRequest);
-					StringContent PutTreeContent = new StringContent(PutTreeString, Encoding.UTF8, "application/json");
+					using StringContent PutTreeContent = new StringContent(PutTreeString, Encoding.UTF8, "application/json");
 					HttpResponseMessage PutTreeContentResult = await JupiterClient.PutAsync(string.Format("api/v1/c/tree/{0}", JupiterNamespace), PutTreeContent);
 					if (!PutTreeContentResult.IsSuccessStatusCode)
 					{
@@ -166,7 +166,7 @@ namespace EpicGames.Jupiter
 					};
 
 					string FilterBlobString = JsonSerializer.Serialize(FilterBlobRequest);
-					StringContent FilterBlobContent = new StringContent(FilterBlobString, Encoding.UTF8, "application/json");
+					using StringContent FilterBlobContent = new StringContent(FilterBlobString, Encoding.UTF8, "application/json");
 					HttpResponseMessage FilterBlobResponse = await JupiterClient.PostAsync("api/v1/s", FilterBlobContent);
 					if (!FilterBlobResponse.IsSuccessStatusCode)
 					{
