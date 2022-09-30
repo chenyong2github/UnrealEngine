@@ -469,7 +469,7 @@ namespace Chaos
 				// NOTE: This searches the array of existing midphases on the particle specified in the last parameter. The assumption
 				// here is that Particle1 is more likely to have less collision on it because it is dynamic. Kinematics can often be
 				// large and may collide with many objects. Maybe we should consider using size instead.
-				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(ParticleA, ParticleB, Particle1);
+				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(ParticleA, ParticleB, Particle1, Context);
 				if (MidPhase != nullptr)
 				{
 					MidPhases.Add(MidPhase);

@@ -252,11 +252,12 @@ namespace Chaos
 	}
 
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionCCD(
+		const bool bEnableCCDSweep,
 		const FReal CullDistance,
 		const FReal Dt,
 		const FCollisionContext& Context)
 	{
-		return GenerateCollisionCCDImpl(CullDistance, Dt, Context);
+		return GenerateCollisionCCDImpl(bEnableCCDSweep, CullDistance, Dt, Context);
 	}
 
 	void FSingleShapePairCollisionDetector::CreateConstraint(const FReal CullDistance, const FCollisionContext& Context)
@@ -359,6 +360,7 @@ namespace Chaos
 	}
 
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionCCDImpl(
+		const bool bEnableCCDSweep,
 		const FReal CullDistance, 
 		const FReal Dt,
 		const FCollisionContext& Context)
@@ -372,8 +374,19 @@ namespace Chaos
 		{
 			// Lazy creation of the constraint. 
 			CreateConstraint(CullDistance, Context);
+
+			// Flag this contact as requiring CCD
+			Constraint->SetCCDEnabled(true);
 		}
 
+		// Do we want to enable the CCD sweep? If not, we fall back to the standard collision detection for this tick
+		Constraint->SetCCDSweepEnabled(bEnableCCDSweep);
+		if (!bEnableCCDSweep)
+		{
+			return GenerateCollision(CullDistance, Dt, Context);
+		}
+
+		// Swept collision detection
 		if (Constraint.IsValid())
 		{
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraintCCD);
@@ -389,7 +402,6 @@ namespace Chaos
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
 			Constraint->ResetModifications();
-			Constraint->SetCCDEnabled(true);
 			Constraint->SetCullDistance(CullDistance);
 			Constraint->ResetManifold();
 			Constraint->ResetActiveManifoldContacts();
@@ -408,11 +420,11 @@ namespace Chaos
 			const FRigidTransform3 CCDShapeWorldTransform1 = Constraint->ImplicitTransform[1] * CCDParticleWorldTransform1;
 			Collisions::UpdateConstraintSwept(*Constraint.Get(), CCDShapeWorldTransform0, CCDShapeWorldTransform1, Dt);
 
-			// If we did get a hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint.
+			// If we did get a hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint (skip the rewind)
 			if (Constraint->GetCCDTimeOfImpact() == FReal(1))
 			{
+				Constraint->SetCCDSweepEnabled(false);
 				Collisions::UpdateConstraint(*Constraint.Get(), Constraint->GetShapeWorldTransform0(), Constraint->GetShapeWorldTransform1(), Dt);
-				Constraint->SetCCDEnabled(false);
 			}
 
 			Context.GetAllocator()->ActivateConstraint(Constraint.Get());
@@ -805,7 +817,8 @@ namespace Chaos
 	void FParticlePairMidPhase::Init(
 		FGeometryParticleHandle* InParticle0,
 		FGeometryParticleHandle* InParticle1,
-		const FCollisionParticlePairKey& InKey)
+		const FCollisionParticlePairKey& InKey,
+		const FCollisionContext& Context)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_Filter);
 
@@ -813,7 +826,7 @@ namespace Chaos
 		Particle1 = InParticle1;
 		Key = InKey;
 
-		Flags.bIsCCD = FConstGenericParticleHandle(Particle0)->CCDEnabled() || FConstGenericParticleHandle(Particle1)->CCDEnabled();
+		Flags.bIsCCD = Context.GetSettings().bAllowCCD && (FConstGenericParticleHandle(Particle0)->CCDEnabled() || FConstGenericParticleHandle(Particle1)->CCDEnabled());
 
 		BuildDetectors();
 
@@ -933,21 +946,21 @@ namespace Chaos
 		// CullDistance is scaled by the size of the dynamic objects.
 		FReal CullDistance = InCullDistance * CullDistanceScale;
 
-		// Enable CCD?
-		const bool bUseCCD = Context.GetSettings().bAllowCCD && Flags.bIsCCD && ShouldEnableCCD(Dt);
-		if (bUseCCD)
+		// Extend cull distance for sweep-enabled CCD collision
+		const bool bUseSweep = Flags.bIsCCD && ShouldEnableCCD(Dt);
+		if (bUseSweep)
 		{
 			const FReal VMax = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax();
 			CullDistance += VMax * Dt;
 		}
-		
+
 		// Run collision detection on all potentially colliding shape pairs
 		NumActiveConstraints = 0;
-		if (bUseCCD)
+		if (Flags.bIsCCD)
 		{
 			for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 			{
-				NumActiveConstraints += ShapePair.GenerateCollisionCCD(CullDistance, Dt, Context);
+				NumActiveConstraints += ShapePair.GenerateCollisionCCD(bUseSweep, CullDistance, Dt, Context);
 			}
 		}
 		else

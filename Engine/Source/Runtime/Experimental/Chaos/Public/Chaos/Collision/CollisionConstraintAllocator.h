@@ -108,12 +108,12 @@ namespace Chaos
 		 * @note Nothing outside of thie allocator should hold a pointer to the midphase, or any constraints
 		 * it creates for more than the duration of the tick. Except the IslandManager :|
 		*/
-		FParticlePairMidPhase* GetMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticlePerformanceHint)
+		FParticlePairMidPhase* GetMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticlePerformanceHint, const FCollisionContext& Context)
 		{
 			FParticlePairMidPhase* MidPhase = FindMidPhaseImpl(Particle0, Particle1, SearchParticlePerformanceHint);
 			if (MidPhase == nullptr)
 			{
-				MidPhase = CreateMidPhase(Particle0, Particle1);
+				MidPhase = CreateMidPhase(Particle0, Particle1, Context);
 			}
 
 			return MidPhase;
@@ -163,7 +163,7 @@ namespace Chaos
 		}
 
 		// Create and initialize a midphase for the particle pair. Adds it to the particles' lists of midphases.
-		FParticlePairMidPhase* CreateMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1)
+		FParticlePairMidPhase* CreateMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const FCollisionContext& Context)
 		{
 			const FCollisionParticlePairKey Key = FCollisionParticlePairKey(Particle0, Particle1);
 
@@ -176,7 +176,7 @@ namespace Chaos
 
 			NewMidPhases.Add(MidPhase);
 
-			MidPhase->Init(Particle0, Particle1, Key);
+			MidPhase->Init(Particle0, Particle1, Key, Context);
 			return MidPhase;
 		}
 
@@ -233,7 +233,7 @@ namespace Chaos
 			, NumCollisionsPerBlock(InNumCollisionsPerBlock)
 			, ParticlePairMidPhases()
 			, ActiveConstraints()
-			, ActiveSweptConstraints()
+			, ActiveCCDConstraints()
 			, CurrentEpoch(0)
 			, bInCollisionDetectionPhase(false)
 		{
@@ -281,9 +281,9 @@ namespace Chaos
 		 * @note Some elements may be null (constraints that have been explicitly deleted)
 		 * @note This is not thread-safe and should not be used during the collision detection phase (i.e., when the list is being built)
 		*/
-		TArrayView<FPBDCollisionConstraint* const> GetSweptConstraints() const
+		TArrayView<FPBDCollisionConstraint* const> GetCCDConstraints() const
 		{ 
-			return MakeArrayView(ActiveSweptConstraints);
+			return MakeArrayView(ActiveCCDConstraints);
 		}
 
 		/**
@@ -321,7 +321,7 @@ namespace Chaos
 		void Reset()
 		{
 			ActiveConstraints.Reset();
-			ActiveSweptConstraints.Reset();
+			ActiveCCDConstraints.Reset();
 			ParticlePairMidPhases.Reset();
 
 			// NOTE: this deletes all the storage for constraints and midphases - must be last
@@ -335,7 +335,7 @@ namespace Chaos
 		void BeginFrame()
 		{
 			ActiveConstraints.Reset();
-			ActiveSweptConstraints.Reset();
+			ActiveCCDConstraints.Reset();
 		}
 
 		/**
@@ -362,7 +362,7 @@ namespace Chaos
 
 			// Clear the collision list for this tick - we are about to rebuild them
 			ActiveConstraints.Reset();
-			ActiveSweptConstraints.Reset();
+			ActiveCCDConstraints.Reset();
 		}
 
 		/**
@@ -411,7 +411,7 @@ namespace Chaos
 					Swap(Particle0, Particle1);
 				}
 
-				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(Particle0, Particle1, SourceConstraint.Particle[0]);
+				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(Particle0, Particle1, SourceConstraint.Particle[0], Context);
 
 				// We may be adding multiple constraints for the same particle pair, so we need
 				// to make sure the map is up to date in the case where we just created a new MidPhase
@@ -540,10 +540,11 @@ namespace Chaos
 			checkSlow(ActiveConstraints.Find(CollisionConstraint) == INDEX_NONE);
 			Cookie.ConstraintIndex = ActiveConstraints.Add(CollisionConstraint);
 
+			// If the constraint uses CCD, keep it in another list so we don't have to search the full list for CCD contacts
 			if (CollisionConstraint->GetCCDEnabled())
 			{
-				checkSlow(ActiveSweptConstraints.Find(CollisionConstraint) == INDEX_NONE);
-				Cookie.SweptConstraintIndex = ActiveSweptConstraints.Add(CollisionConstraint);
+				checkSlow(ActiveCCDConstraints.Find(CollisionConstraint) == INDEX_NONE);
+				Cookie.CCDConstraintIndex = ActiveCCDConstraints.Add(CollisionConstraint);
 			}
 
 			Cookie.LastUsedEpoch = CurrentEpoch;
@@ -560,7 +561,7 @@ namespace Chaos
 		TArray<FPBDCollisionConstraint*> ActiveConstraints;
 
 		// The active sweep constraints (added or recovered this tick)
-		TArray<FPBDCollisionConstraint*> ActiveSweptConstraints;
+		TArray<FPBDCollisionConstraint*> ActiveCCDConstraints;
 
 		// The current epoch used to track out-of-date contacts. A constraint whose Epoch is
 		// older than the current Epoch at the end of the tick was not refreshed this tick.

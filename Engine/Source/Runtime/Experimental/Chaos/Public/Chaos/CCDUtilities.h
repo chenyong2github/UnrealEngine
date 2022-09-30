@@ -86,6 +86,9 @@ namespace Chaos
 		FCCDManager(){}
 		void ApplyConstraintsPhaseCCD(const FReal Dt, FCollisionConstraintAllocator *CollisionAllocator, const int32 NumDynamicParticles = TNumericLimits<int32>::Max());
 
+		// A post process on CCD contacts to ensure that CCD objects never pass through non-dynamic objects
+		void ApplyCorrections(const FReal Dt);
+
 	private:
 		void ApplySweptConstraints(const FReal Dt, TArrayView<FPBDCollisionConstraint* const> InSweptConstraints, const int32 NumDynamicParticles = TNumericLimits<int32>::Max());
 		bool UpdateParticleSweptConstraints(FCCDParticle* CCDParticle, const FReal IslandTOI, const FReal Dt);

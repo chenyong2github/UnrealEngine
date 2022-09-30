@@ -166,7 +166,7 @@ namespace Chaos
 			, CreationEpoch(INDEX_NONE)
 			, LastUsedEpoch(INDEX_NONE)
 			, ConstraintIndex(INDEX_NONE)
-			, SweptConstraintIndex(INDEX_NONE)
+			, CCDConstraintIndex(INDEX_NONE)
 		{
 		}
 
@@ -179,7 +179,7 @@ namespace Chaos
 		{
 			MidPhase = nullptr;
 			ConstraintIndex = INDEX_NONE;
-			SweptConstraintIndex = INDEX_NONE;
+			CCDConstraintIndex = INDEX_NONE;
 		}
 
 		// The constraint owner - set when the constraint is created
@@ -196,11 +196,11 @@ namespace Chaos
 		// The Epoch when the constraint was last used
 		int32 LastUsedEpoch;
 
-		// The index in the container - this changes every tick
+		// The index in the container - this changes every tick (is valid for all constraints, including CCD)
 		int32 ConstraintIndex;
 
-		// The index in swept constraints - this changes every tick
-		int32 SweptConstraintIndex;
+		// The CCD index in the container - this changes every tick (is INDEX_NONE for non-CCD constraints)
+		int32 CCDConstraintIndex;
 	};
 
 
@@ -280,23 +280,39 @@ namespace Chaos
 		virtual ~FPBDCollisionConstraint();
 
 		/**
-		 * Whetehr CCD is enabled for this collision.
-		 * This may change from tick to tick as an object's velocity changes.
-		*/
+		 * Whether CCD is enabled for this collision.
+		 * This value depends only on the CCD requirements of the two particles. It does not change from tick to tick.
+		 */
 		bool GetCCDEnabled() const { return Flags.bCCDEnabled; }
 
 		/**
-		 * @brief Enable or disable CCD for this constraint
-		*/
+		 * Enable or disable CCD for this constraint. Called once right after the constraint is created.
+		 */
 		void SetCCDEnabled(const bool bCCDEnabled)
 		{ 
 			Flags.bCCDEnabled = bCCDEnabled;
+			Flags.bCCDSweepEnabled = bCCDEnabled;
 
 			// Initialize the CCD thresholds (one time only)
 			if (bCCDEnabled && (CCDEnablePenetration == FReal(0)))
 			{
 				InitCCDThreshold();
 			}
+		}
+
+		/**
+		 * For CCD constraints, do we need to run the initial sweep/rewind step.
+		 * This may change from tick to tick as an object's velocity changes.
+		 */
+		bool GetCCDSweepEnabled() const { return Flags.bCCDSweepEnabled; }
+
+		/**
+		 * For CCD constraints, enable or disable the pre-solve sweep/rewind for this tick. Called
+		 * every tick for CCD constraints based on current velocity versus size etc.
+		 */
+		void SetCCDSweepEnabled(const bool bCCDSweepEnabled)
+		{
+			Flags.bCCDSweepEnabled = bCCDSweepEnabled;
 		}
 
 		/**
@@ -594,8 +610,6 @@ namespace Chaos
 		 */
 		void EndTick()
 		{
-			// CCD state gets set each tick based on speed, size, etc
-			SetCCDEnabled(false);
 		}
 
 		/**
@@ -792,6 +806,7 @@ namespace Chaos
 				uint32 bIsProbeUnmodified : 1;  // Is this constraint a probe pre-contact-modification
 				uint32 bIsProbe : 1;            // Is this constraint currently a probe
 				uint32 bCCDEnabled : 1;			// Is CCD enabled for the current tick
+				uint32 bCCDSweepEnabled: 1;		// If this is a CCD constraint, do we want to enable the sweep/rewind phase?
 				uint32 bModifierApplied : 1;	// Was a constraint modifier applied this tick
 			};
 			uint32 Bits;

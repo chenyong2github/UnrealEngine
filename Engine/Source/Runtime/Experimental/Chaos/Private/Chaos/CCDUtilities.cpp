@@ -52,6 +52,14 @@ namespace Chaos
 		bool bCCDSweepsUseProbeShapes = false;
 		FAutoConsoleVariableRef  CVarCCDSweepsUseProbeShapes(TEXT("p.Chaos.CCD.CCDSweepsUseProbeShapes"), bCCDSweepsUseProbeShapes , TEXT("When true, probe shapes can be swept for more accurate collision detection."));
 
+		// How many post-solve CCD correction iterations to run
+		int32 ChaosCollisionCCDCorrectionIterations = 4;
+		FAutoConsoleVariableRef CVarChaosCollisionCCDCorrectionIterations(TEXT("p.Chaos.Collision.CCD.CorrectionIterations"), ChaosCollisionCCDCorrectionIterations, TEXT("The number of post-solve CCD correction ietaryions to run."));
+
+		// A multiplier on the constraint CCD threshold that determines how much penetration we allow in the correction phase
+		FRealSingle ChaosCollisionCCDCorrectionPhiToleranceScale = 0.02f;
+		FAutoConsoleVariableRef CVarChaosCollisionCCDCorrectionPhiToleranceScale(TEXT("p.Chaos.Collision.CCD.CorrectionPhiToleranceScale"), ChaosCollisionCCDCorrectionPhiToleranceScale, TEXT("How much penetration we allow during the correction phase (multiplier on shape size)"));
+
 		extern int32 ChaosSolverDrawCCDInteractions;
 
 #if CHAOS_DEBUG_DRAW
@@ -87,7 +95,7 @@ namespace Chaos
 
 	void FCCDManager::ApplyConstraintsPhaseCCD(const FReal Dt, FCollisionConstraintAllocator *CollisionAllocator, const int32 NumDynamicParticles)
 	{
-		SweptConstraints = CollisionAllocator->GetSweptConstraints();
+		SweptConstraints = CollisionAllocator->GetCCDConstraints();
 		if (SweptConstraints.Num() > 0)
 		{
 			ApplySweptConstraints(Dt, SweptConstraints, NumDynamicParticles);
@@ -139,6 +147,12 @@ namespace Chaos
 			// NOTE: It important that we explicitly check for disabled here, rather than for 0 manifold points since we
 			// may want to use the contact later if resweeping is enabled. 
 			if (!Constraint->IsEnabled())
+			{
+				continue;
+			}
+
+			// If we don't need to sweep for this constraint, skip it
+			if (!Constraint->GetCCDSweepEnabled())
 			{
 				continue;
 			}
@@ -871,6 +885,11 @@ namespace Chaos
 				continue;
 			}
 
+			if (!SweptConstraint->GetCCDSweepEnabled())
+			{
+				continue;
+			}
+
 			const FConstGenericParticleHandle P0 = FConstGenericParticleHandle(SweptConstraint->GetParticle0());
 			const FConstGenericParticleHandle P1 = FConstGenericParticleHandle(SweptConstraint->GetParticle1());
 			SweptConstraint->ResetManifold();
@@ -883,6 +902,146 @@ namespace Chaos
 			// }
 		}
 	}
+
+	void FCCDManager::ApplyCorrections(const FReal Dt)
+	{
+		// Build a list of CCD constraints sorted so that the most important ones are last.
+		// The primary goal is to prevent CCD objects from leaving the world, so we process collisions
+		// with statics/kinematics last. The secondary goal is to prevent CCD objects passing through each 
+		// other. And finally we try to prevent CCD object passing through non-CCD dynamics but aren't
+		// too worried if that happens.
+		// Sort order: 
+		//		CCD - Dynamic
+		//		CCD - CCD
+		//		CCD - Kinematic
+		TArray<FPBDCollisionConstraint*> Constraints;
+		Constraints.Append(SweptConstraints);
+		Constraints.Sort([](const FPBDCollisionConstraint& L, const FPBDCollisionConstraint& R)
+			{
+				const FGenericParticleHandle LP0 = L.GetParticle0();
+				const FGenericParticleHandle LP1 = L.GetParticle1();
+				const FGenericParticleHandle RP0 = R.GetParticle0();
+				const FGenericParticleHandle RP1 = R.GetParticle1();
+
+				const bool bLCCD0 = LP0->CCDEnabled();
+				const bool bLCCD1 = LP1->CCDEnabled();
+				const bool bRCCD0 = RP0->CCDEnabled();
+				const bool bRCCD1 = RP1->CCDEnabled();
+				const bool bLDynamic0 = LP0->IsDynamic();
+				const bool bLDynamic1 = LP1->IsDynamic();
+				const bool bRDynamic0 = RP0->IsDynamic();
+				const bool bRDynamic1 = RP1->IsDynamic();
+
+				// If only one constraint has a non-ccd-dynamic it goes before the other
+				const bool bLHasNonCCDDynamic = (!bLCCD0 && bLDynamic0) || (!bLCCD1 && bLDynamic1);
+				const bool bRHasNonCCDDynamic = (!bRCCD0 && bRDynamic0) || (!bRCCD1 && bRDynamic1);
+				if (bLHasNonCCDDynamic != bRHasNonCCDDynamic)
+				{
+					return bLHasNonCCDDynamic;
+				}
+
+				// If only one constraint has a non-ccd-kinematic it goes after the other
+				const bool bLHasNonCCDKinematic = (!bLCCD0 && !bLDynamic0) || (!bLCCD1 && !bLDynamic1);
+				const bool bRHasNonCCDKinematic = (!bRCCD0 && !bRDynamic0) || (!bRCCD1 && !bRDynamic1);
+				if (bLHasNonCCDKinematic != bRHasNonCCDKinematic)
+				{
+					return bRHasNonCCDKinematic;
+				}
+
+				// Otherwise we don't care about the order
+				return false;
+			});
+
+
+		// Loop over all the CCD constraints and if the penetration depth is greater than some threshold,
+		// move the two bodies so that they are no longer penetrating.
+		// We iterate to handle stacks of CCD objects and extracting a CCD objects from a wedge.
+		const FReal PhiToleranceScale = CVars::ChaosCollisionCCDCorrectionPhiToleranceScale;
+		const int32 MaxIterations = CVars::ChaosCollisionCCDCorrectionIterations;
+		int32 NumIterations = 0;
+		bool bSolved = false;
+		while (!bSolved && (NumIterations < MaxIterations))
+		{
+			bSolved = true;
+			++NumIterations;
+
+			for (FPBDCollisionConstraint* Constraint : Constraints)
+			{
+				if (!Constraint->IsEnabled())
+				{
+					continue;
+				}
+
+				const FGenericParticleHandle P0 = Constraint->GetParticle0();
+				const FGenericParticleHandle P1 = Constraint->GetParticle1();
+				const bool bDynamic0 = P0->IsDynamic();
+				const bool bDynamic1 = P1->IsDynamic();
+				const bool bCCD0 = P0->CCDEnabled();
+				const bool bCCD1 = P1->CCDEnabled();
+
+				// Skip no CCD (should not happen)
+				if (!bCCD0 && !bCCD1)
+				{
+					continue;
+				}
+
+				// Skip two non-dynamics (should not happen)
+				if (!bDynamic0 && !bDynamic1)
+				{
+					continue;
+				}
+
+				// For two dynamics we move each body 50% (we know we have at least one dynamic here)
+				FReal Bias0 = FReal(0.5);
+				if (!bDynamic0)
+				{
+					// Only body1 moves
+					Bias0 = FReal(0);
+				}
+				else if (!bDynamic1)
+				{
+					// Only body0 moves
+					Bias0 = FReal(1);
+				}
+				const FReal Bias1 = FReal(1) - Bias0;
+
+				// This function is called after the solver phase - the shape transform and Phi are out of date
+				const FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * FRigidTransform3(P0->P(), P0->Q());
+				const FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * FRigidTransform3(P1->P(), P1->Q());
+				Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+				Constraint->UpdateManifoldContacts();
+
+				const FReal Phi = Constraint->GetPhi();
+				const FReal PhiTolerance = PhiToleranceScale * Constraint->GetCCDTargetPenetration();
+
+				if (Phi < -PhiTolerance)
+				{
+					bSolved = false;
+
+					// Extract the two bodies along the normal and set the contact velocity to zero, 
+					// as if we have two point particles and zero restitution.
+					// NOTE: this is ignoring their relative masses and so does not conserve momentum
+					const FVec3 WorldNormal = Constraint->CalculateWorldContactNormal();
+					const FReal VelNormal = FMath::Min(FVec3::DotProduct(P0->V() - P1->V(), WorldNormal), FReal(0));
+
+					if (Bias0 > UE_SMALL_NUMBER)
+					{
+						const FVec3 Correction0 = -Bias0 * Phi * WorldNormal;
+						P0->P() = P0->P() + Correction0;
+						P0->SetV(P0->V() - Bias0 * VelNormal * WorldNormal);
+					}
+
+					if (Bias1 > UE_SMALL_NUMBER)
+					{
+						const FVec3 Correction1 = Bias1 * Phi * WorldNormal;
+						P1->P() = P1->P() + Correction1;
+						P1->SetV(P1->V() + Bias1 * VelNormal * WorldNormal);
+					}
+				}
+			}
+		}
+	}
+
 
 	void FCCDManager::OverwriteXUsingV(const FReal Dt)
 	{

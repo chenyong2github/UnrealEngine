@@ -91,6 +91,7 @@ namespace Chaos
 		 * @return The number of collisions constraints that were activated
 		*/
 		int32 GenerateCollisionCCD(
+			const bool bEnableCCDSweep,
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
@@ -115,7 +116,8 @@ namespace Chaos
 			const FCollisionContext& Context);
 			
 		int32 GenerateCollisionCCDImpl(
-			const FReal CullDistance, 
+			const bool bEnableCCDSweep,
+			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
 
@@ -314,7 +316,8 @@ namespace Chaos
 		void Init(
 			FGeometryParticleHandle* InParticle0,
 			FGeometryParticleHandle* InParticle1,
-			const FCollisionParticlePairKey& InKey);
+			const FCollisionParticlePairKey& InKey,
+			const FCollisionContext& Context);
 
 		inline FGeometryParticleHandle* GetParticle0() { return Particle0; }
 

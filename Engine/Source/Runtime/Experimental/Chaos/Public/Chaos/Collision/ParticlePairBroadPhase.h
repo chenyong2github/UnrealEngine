@@ -90,7 +90,7 @@ namespace Chaos
 			const FAABB3& Box1 = ParticleB->WorldSpaceInflatedBounds();
 			if (Box0.Intersects(Box1))
 			{
-				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(ParticleA, ParticleB, SearchParticle);
+				FParticlePairMidPhase* MidPhase = Context.GetAllocator()->GetMidPhase(ParticleA, ParticleB, SearchParticle, Context);
 				if (MidPhase != nullptr)
 				{
 					MidPhase->GenerateCollisions(Context.GetSettings().BoundsExpansion, Dt, Context);
