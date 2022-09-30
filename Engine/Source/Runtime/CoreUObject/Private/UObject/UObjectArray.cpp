@@ -186,15 +186,19 @@ void FUObjectArray::DisableDisregardForGC()
 	}
 }
 
-void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, bool bMergingThreads /*= false*/)
+void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, bool bMergingThreads /*= false*/, int32 AlreadyAllocatedIndex /*= -1*/)
 {
 	int32 Index = INDEX_NONE;
 	check(Object->InternalIndex == INDEX_NONE || bMergingThreads);
 
 	LockInternalArray();
 
+	if (AlreadyAllocatedIndex >= 0)
+	{
+		Index = AlreadyAllocatedIndex;
+	}
 	// Special non- garbage collectable range.
-	if (OpenForDisregardForGC && DisregardForGCEnabled())
+	else if (OpenForDisregardForGC && DisregardForGCEnabled())
 	{
 		Index = ++ObjLastNonGCIndex;
 		// Check if we're not out of bounds, unless there hasn't been any gc objects yet
@@ -296,7 +300,7 @@ void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 
 	// You cannot safely recycle indicies in the non-GC range
 	// No point in filling this list when doing exit purge. Nothing should be allocated afterwards anyway.
-	if (Index > ObjLastNonGCIndex && !GExitPurge)  
+	if (Index > ObjLastNonGCIndex && !GExitPurge && bShouldRecycleObjectIndices)
 	{
 		ObjAvailableList.Add(Index);
 #if UE_GC_TRACK_OBJ_AVAILABLE

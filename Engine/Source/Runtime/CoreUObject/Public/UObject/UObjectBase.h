@@ -66,8 +66,9 @@ public:
 	 * @param	InInternalFlags EInternalObjectFlags to assign
 	 * @param	InOuter				outer for this object
 	 * @param	InName				name of the new object
+	 * @param	InInternalIndex		internal index to use (if already allocated), negative value means allocate a new index
 	 */
-	UObjectBase( UClass* InClass, EObjectFlags InFlags, EInternalObjectFlags InInternalFlags, UObject *InOuter, FName InName );
+	UObjectBase( UClass* InClass, EObjectFlags InFlags, EInternalObjectFlags InInternalFlags, UObject *InOuter, FName InName, int32 InInternalIndex = -1 );
 
 	/**
 	 * Final destructor, removes the object from the object array, and indirectly, from any annotations
@@ -107,8 +108,9 @@ private:
 	 *
 	 * @param Name name to assign to this uobject
 	 * @param InSetInternalFlags Internal object flags to be set on the object once it's been added to the array
+	 * @param InInternalIndex already allocated internal index to use, negative value means allocate a new index
 	 */
-	void AddObject(FName Name, EInternalObjectFlags InSetInternalFlags);
+	void AddObject(FName Name, EInternalObjectFlags InSetInternalFlags, int32 InInternalIndex = -1);
 
 public:
 	/**

@@ -579,6 +579,8 @@ public:
 class COREUOBJECT_API FUObjectArray
 {
 	friend class UObject;
+	friend COREUOBJECT_API UObject* StaticAllocateObject(const UClass*, UObject*, FName, EObjectFlags, EInternalObjectFlags, bool, bool*, UPackage*);
+
 private:
 	/**
 	 * Reset the serial number from the game thread to invalidate all weak object pointers to it
@@ -687,7 +689,7 @@ public:
 	 *
 	 * @param	Object Object to allocate an index for
 	 */
-	void AllocateUObjectIndex(class UObjectBase* Object, bool bMergingThreads = false);
+	void AllocateUObjectIndex(class UObjectBase* Object, bool bMergingThreads = false, int32 AlreadyAllocatedIndex = -1);
 
 	/**
 	 * Returns a UObject index top to the global uobject array
@@ -1105,6 +1107,9 @@ private:
 
 	/** Current primary serial number **/
 	FThreadSafeCounter	PrimarySerialNumber;
+
+	/** If set to false object indices won't be recycled to the global pool and can be explicitly reused when creating new objects */
+	bool bShouldRecycleObjectIndices = true;
 
 public:
 

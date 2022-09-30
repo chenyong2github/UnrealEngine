@@ -3193,6 +3193,8 @@ UObject* StaticAllocateObject
 	int32 TotalSize = InClass->GetPropertiesSize();
 	checkSlow(TotalSize);
 
+	int32 OldIndex = -1;
+
 	if( Obj == nullptr )
 	{	
 		int32 Alignment	= FMath::Max( 4, InClass->GetMinAlignment() );
@@ -3248,6 +3250,8 @@ UObject* StaticAllocateObject
 		// Subobjects are always created in the constructor, no need to re-create them here unless their archetype != CDO or they're blueprint generated.	
 		if (!bCreatingCDO && (!bCanRecycleSubobjects || !Obj->IsDefaultSubobject()))
 		{
+			OldIndex = GUObjectArray.ObjectToIndex(Obj);
+
 			// Destroy the object.
 			SCOPE_CYCLE_COUNTER(STAT_DestroyObject);
 			// Check that the object hasn't been destroyed yet.
@@ -3291,6 +3295,7 @@ UObject* StaticAllocateObject
 				Obj->ConditionalFinishDestroy();
 			}
 			GUObjectArray.LockInternalArray();
+			TGuardValue<bool> _(GUObjectArray.bShouldRecycleObjectIndices, false);
 			Obj->~UObject();
 			GUObjectArray.UnlockInternalArray();
 			bWasConstructedOnOldObject	= true;
@@ -3310,7 +3315,7 @@ UObject* StaticAllocateObject
 	if (!bSubObject)
 	{
 		FMemory::Memzero((void *)Obj, TotalSize);
-		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName);
+		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName, OldIndex);
 	}
 	else
 	{
