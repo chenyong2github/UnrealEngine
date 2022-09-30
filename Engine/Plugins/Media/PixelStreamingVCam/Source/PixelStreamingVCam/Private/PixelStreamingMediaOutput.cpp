@@ -56,6 +56,7 @@ void UPixelStreamingMediaOutput::OnCaptureViewportInitialized()
 	if(Streamer)
 	{
 		Streamer->SetTargetViewport(Capture->GetViewport()->GetViewportWidget());
+		Streamer->SetTargetWindow(Capture->GetViewport()->FindWindow());
 	}
 }
 

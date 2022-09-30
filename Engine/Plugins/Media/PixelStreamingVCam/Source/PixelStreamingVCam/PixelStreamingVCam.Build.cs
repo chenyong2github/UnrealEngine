@@ -32,11 +32,7 @@ namespace UnrealBuildTool.Rules
 				"CinematicCamera",
 				"LiveLinkInterface",
 				"PixelCapture",
-				"PixelStreamingEditor",
-				"SlateCore",
-				"Slate",
-				"VPUtilities",
-				"InputCore"
+				"PixelStreamingEditor"
 			});
 
 			// Can't package non-editor targets (e.g. games) with UnrealEd, so this dependency should only be added in editor.
