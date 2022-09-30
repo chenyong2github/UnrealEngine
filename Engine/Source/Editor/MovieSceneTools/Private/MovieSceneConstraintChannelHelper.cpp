@@ -187,6 +187,18 @@ void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, co
 
 	const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
 
+	auto GetLastActiveConstraint = [this, Constraints]()
+	{
+		// find last active constraint in the list that is different than the on we want to compensate for
+		const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
+		{
+			return InConstraint->Active && InConstraint->NeedsCompensation() && InConstraint->bDynamicOffset && InConstraint != Constraint;
+		});
+
+		// if found, return its parent global transform
+		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
+	};
+
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
@@ -251,6 +263,14 @@ void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, co
 		// store child transforms        	
 		ChildLocal = Handle->GetLocalTransform();
 		ChildGlobal = Handle->GetGlobalTransform();
+
+		// store constraint/parent space global transform
+		if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
+		{
+			SpaceGlobal = LastConstraint->GetParentGlobalTransform();
+			ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
+				ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
+		}
 	}
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 	{
@@ -598,11 +618,11 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintKeyDeleted(
 		TArray<FFrameNumber> FramesToCompensate;
 		if (FloatTransformChannels.Num() > 0)
 		{
-			FMovieSceneConstraintChannelHelper::GetFramesWithinActiveState(*InConstraintChannel, FloatTransformChannels, FramesToCompensate);
+			GetFramesAfter(*InConstraintChannel, InTime, FloatTransformChannels, FramesToCompensate);
 		}
 		else
 		{
-			FMovieSceneConstraintChannelHelper::GetFramesWithinActiveState(*InConstraintChannel, DoubleTransformChannels, FramesToCompensate);
+			GetFramesAfter(*InConstraintChannel,  InTime, DoubleTransformChannels, FramesToCompensate);
 		}
 		// do the compensation
 		FCompensationEvaluator Evaluator(InConstraint);

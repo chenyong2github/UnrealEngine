@@ -970,19 +970,9 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 						{
 							return;
 						}
-
-						// compute frames
-						const FFrameNumber StartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
-						const FFrameNumber EndFrame = MovieScene->GetPlaybackRange().GetUpperBoundValue();
-						TArray<FFrameNumber> Frames;
-						MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
-
-						if (Frames.IsEmpty())
-						{
-							return;
-						}
+						
 						FScopedTransaction Transaction(LOCTEXT("BakeConstraint", "Bake Constraint"));
-						FConstraintBaker::Bake(World, TransformConstraint, WeakSequencer.Pin(), Frames);
+						FConstraintBaker::Bake(World, TransformConstraint, WeakSequencer.Pin(), TOptional<TArray<FFrameNumber>>());
 
 					}
 				})),
