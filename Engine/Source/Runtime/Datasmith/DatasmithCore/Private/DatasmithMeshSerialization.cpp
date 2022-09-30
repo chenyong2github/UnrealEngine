@@ -173,8 +173,7 @@ FMD5Hash FDatasmithPackedMeshes::Serialize(FArchive& Ar, bool bCompressed)
 		return {};
 	}
 
-	// Setting SerialVersion to 0 for forward compatibility between 5.1 and 5.0.
-	uint32 SerialVersion = 0;
+	uint32 SerialVersion = 1;
 	Ar << SerialVersion;
 
 	enum EBufferType{ RawMeshDescription, CompressedMeshDescription };
