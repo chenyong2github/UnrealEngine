@@ -38,7 +38,7 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 /// @param ObjectPath object path of to resolve
 /// @param OutObjectPtr out parameter
 /// @return true if was lazy loaded otherwise false
-bool TryLazyLoad(const UClass& Class, FName ObjectPath, TObjectPtr<UObject>& OutObjectPtr);
+bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObjectPtr<UObject>& OutObjectPtr);
 
 }
 

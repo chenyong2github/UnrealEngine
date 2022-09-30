@@ -120,7 +120,7 @@ public:
 		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, Category, Flags);
 	}
 
-	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const override
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FSoftObjectPath& ObjectPath, FAssetData& OutAssetData) const override
 	{
 		auto AssetRegistry = IAssetRegistry::Get();
 		if (!AssetRegistry)
@@ -2081,14 +2081,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
-UE::AssetRegistry::EExists UAssetRegistryImpl::TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const
+UE::AssetRegistry::EExists UAssetRegistryImpl::TryGetAssetByObjectPath(const FSoftObjectPath& ObjectPath, FAssetData& OutAssetData) const
 {
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
 	bool bAssetRegistryReady = GuardedData.IsInitialSearchStarted() && GuardedData.IsInitialSearchCompleted();
 	const FAssetRegistryState& State = GuardedData.GetState();
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	const FAssetData* FoundData = State.GetAssetByObjectPath(FSoftObjectPath(ObjectPath.ToString()));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	const FAssetData* FoundData = State.GetAssetByObjectPath(ObjectPath);
 	if (!FoundData)
 	{
 		if (!bAssetRegistryReady)

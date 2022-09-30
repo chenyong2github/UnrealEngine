@@ -249,7 +249,7 @@ public:
 	 * @param OutAssetData out FAssetData 
 	 * @return Enum return code
 	 */
-	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const = 0;
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FSoftObjectPath& ObjectPath, FAssetData& OutAssetData) const = 0;
 
 	/**
 	 * Tries to get the pacakge data for a specified path

@@ -77,7 +77,7 @@ EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const
 }
 
 // recursively handles FAssetData redirectors
-static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const FAssetData& InAssetData, TSet<FName>& SeenPaths, FObjectPtr& OutObjectPtr)
+static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const FAssetData& InAssetData, TSet<FSoftObjectPath>& SeenPaths, FObjectPtr& OutObjectPtr)
 {
 	FString RedirectedPath;
 	if (!InAssetData.GetTagValue("DestinationObject", RedirectedPath))
@@ -86,10 +86,10 @@ static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const
 	}
 
 	ConstructorHelpers::StripObjectClass(RedirectedPath);
-	FName RedirectedPathFName(RedirectedPath);
+	FSoftObjectPath RedirectedPathName(RedirectedPath);
 
 	bool bIsAlreadyInSet;
-	SeenPaths.FindOrAdd(RedirectedPathFName, &bIsAlreadyInSet);
+	SeenPaths.FindOrAdd(RedirectedPathName, &bIsAlreadyInSet);
 	if(bIsAlreadyInSet)
 	{
 		//Recursive redirectors
@@ -97,7 +97,7 @@ static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const
 	}
 
 	FAssetData AssetData;
-	UE::AssetRegistry::EExists Exists = AssetRegistry.TryGetAssetByObjectPath(FName(RedirectedPath), AssetData);
+	UE::AssetRegistry::EExists Exists = AssetRegistry.TryGetAssetByObjectPath(RedirectedPathName, AssetData);
 	if (Exists == UE::AssetRegistry::EExists::Unknown)
 	{
 		return false;
@@ -121,7 +121,7 @@ static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const
 	return true;
 }
 
-static bool TryLazyLoad(const IAssetRegistryInterface& AssetRegistry, FName ObjectPath, FObjectPtr& OutObjectPtr)
+static bool TryLazyLoad(const IAssetRegistryInterface& AssetRegistry, const FSoftObjectPath& ObjectPath, FObjectPtr& OutObjectPtr)
 {
 	OutObjectPtr = nullptr;
 	
@@ -138,7 +138,7 @@ static bool TryLazyLoad(const IAssetRegistryInterface& AssetRegistry, FName Obje
 	}
 	if (AssetData.IsRedirector())
 	{
-		TSet<FName> SeenPaths;
+		TSet<FSoftObjectPath> SeenPaths;
 		return HandleRedirector(AssetRegistry, AssetData, SeenPaths, OutObjectPtr);
 	}
 	FNameBuilder NameBuilder;
@@ -188,11 +188,11 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 	TStringBuilder<FName::StringBufferSize> PathName;
 	ImportRef.AppendPathName(PathName);
 
-	return TryLazyLoad(AssetRegistry, FName(PathName), ObjectPtr);
+	return TryLazyLoad(AssetRegistry, FSoftObjectPath(PathName), ObjectPtr);
 }
 
 
-bool TryLazyLoad(const UClass& Class, FName ObjectPath, TObjectPtr<UObject>& OutObjectPtr)
+bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObjectPtr<UObject>& OutObjectPtr)
 {
 	if (!FLinkerLoad::IsImportLazyLoadEnabled())
 	{

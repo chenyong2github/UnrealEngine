@@ -96,7 +96,7 @@ public:
 		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, Category, Flags);
 	}
 
-	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const override
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FSoftObjectPath& ObjectPath, FAssetData& OutAssetData) const override
 	{
 		IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 		if (!AssetRegistry)
