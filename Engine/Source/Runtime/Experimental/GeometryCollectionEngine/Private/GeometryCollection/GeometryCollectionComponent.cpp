@@ -2838,7 +2838,7 @@ void FScopedColorEdit::Sanitize()
 			const int32 NumHighlightRemoved = Component->HighlightedBones.RemoveAll([this, NumTransforms](int32 Index) {
 				return Index < 0 || Index >= NumTransforms;
 				});
-			bUpdated = NumSelectionRemoved || NumHighlightRemoved;
+			bUpdated = bUpdated || NumSelectionRemoved || NumHighlightRemoved;
 		}
 	}
 }
