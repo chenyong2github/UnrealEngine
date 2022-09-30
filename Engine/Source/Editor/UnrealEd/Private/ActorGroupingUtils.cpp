@@ -114,6 +114,7 @@ AGroupActor* UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGro
 
 					SpawnedGroupActor->SetFolderPath(FolderPath);
 					SpawnedGroupActor->CenterGroupLocation();
+					SpawnedGroupActor->SetActorRotation(FinalActorList.Last()->GetActorRotation());
 					SpawnedGroupActor->Lock();
 
 					return SpawnedGroupActor;

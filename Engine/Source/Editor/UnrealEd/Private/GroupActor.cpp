@@ -589,6 +589,7 @@ void AGroupActor::AddSelectedActorsToSelectedGroup()
 					}
 
 					SelectedGroup->CenterGroupLocation();
+					SelectedGroup->SetActorRotation(ActorsToAdd.Last()->GetActorRotation());
 				}
 			}
 			else
