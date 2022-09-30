@@ -397,7 +397,7 @@ bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 		? bThisViewHasRaytracingReflections 
 		: GRayTracingReflections != 0;
 
-	const bool bReflectionPassEnabled = bReflectionsCvarEnabled && (GetRayTracingReflectionsSamplesPerPixel(View) > 0) && !View.bIsReflectionCapture;
+	const bool bReflectionPassEnabled = bReflectionsCvarEnabled && (GetRayTracingReflectionsSamplesPerPixel(View) > 0) && !View.bIsReflectionCapture && !Strata::IsStrataEnabled();
 		
 	return ShouldRenderRayTracingEffect(bReflectionPassEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline, &View);
 }
