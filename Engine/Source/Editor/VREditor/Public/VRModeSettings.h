@@ -92,8 +92,7 @@ public:
 	UPROPERTY(EditAnywhere, config, NoClear, Category = "General")
 	TSoftClassPtr<UVREditorMode> ModeClass;
 
-private:
 #if WITH_EDITOR
-	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

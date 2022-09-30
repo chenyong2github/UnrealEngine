@@ -15,6 +15,8 @@ UVRModeSettings::UVRModeSettings()
 #if WITH_EDITOR
 void UVRModeSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	if (PropertyChangedEvent.Property
 		&& PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UVRModeSettings, bEnableAutoVREditMode)
 		&& bEnableAutoVREditMode == true)
