@@ -908,6 +908,12 @@ TSharedPtr<FEdGraphSchemaAction> UMaterialGraphSchema::GetCreateCommentAction() 
 	return TSharedPtr<FEdGraphSchemaAction>(static_cast<FEdGraphSchemaAction*>(new FMaterialGraphSchemaAction_NewComment));
 }
 
+bool UnrealEd_IsStrataEnabled()
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	return CVar && CVar->GetValueOnAnyThread() > 0;
+}
+
 void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
 {
 	// Get type of dragged pin
@@ -982,6 +988,22 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 					if ( LibraryCategoriesText.Num() == 0 )
 					{
 						LibraryCategoriesText.Add( LOCTEXT("UncategorizedMaterialFunction", "Uncategorized") );
+					}
+
+					// When Strata is disabled, skip all material function related to Strata
+					// STRATA_TODO: remove this when Strata becomes the only shading path
+					bool bSkipMaterialFunction = false;
+					for (const FText& Category : LibraryCategoriesText)
+					{
+						if (Category.ToString().Contains("Strata"))
+						{
+							bSkipMaterialFunction = !UnrealEd_IsStrataEnabled();
+							break;
+						}
+					}
+					if (bSkipMaterialFunction)
+					{
+						continue;
 					}
 				}
 

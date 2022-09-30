@@ -24322,7 +24322,10 @@ FStrataOperator* UMaterialExpressionStrataThinFilm::StrataGenerateMaterialTopolo
 }
 #endif // WITH_EDITOR
 
-
+UMaterialExpressionStrataUtilityBase::UMaterialExpressionStrataUtilityBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
 
 UMaterialExpressionStrataTransmittanceToMFP::UMaterialExpressionStrataTransmittanceToMFP(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -974,8 +974,14 @@ class UMaterialExpressionStrataThinFilm : public UMaterialExpressionStrataBSDF
 ///////////////////////////////////////////////////////////////////////////////
 // Utilities
 
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, Abstract, DisplayName = "Strata Utility Base Class")
+class UMaterialExpressionStrataUtilityBase : public UMaterialExpression
+{
+	GENERATED_UCLASS_BODY()
+};
+
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Transmittance-To-MeanFreePath")
-class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpression
+class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpressionStrataUtilityBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1005,7 +1011,7 @@ class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Metalness-To-DiffuseColorF0")
-class UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0 : public UMaterialExpression
+class UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0 : public UMaterialExpressionStrataUtilityBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1040,7 +1046,7 @@ class UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0 : public UMaterialExpr
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Haziness-To-Secondary-Roughness")
-class UMaterialExpressionStrataHazinessToSecondaryRoughness : public UMaterialExpression
+class UMaterialExpressionStrataHazinessToSecondaryRoughness : public UMaterialExpressionStrataUtilityBase
 {
 	GENERATED_UCLASS_BODY()
 
