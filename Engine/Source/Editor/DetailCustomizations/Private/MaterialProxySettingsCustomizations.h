@@ -27,12 +27,16 @@ protected:
 	EVisibility IsTextureSizeEnabled() const;
 
 	EVisibility IsSimplygonMaterialMergingVisible() const;
+
+	EVisibility IsMeshMinDrawDistanceVisible() const;
 	
-	TSharedPtr< IPropertyHandle > EnumHandle;
+	TSharedPtr< IPropertyHandle > TextureSizingTypeHandle;
 
 	TSharedPtr< IPropertyHandle > TextureSizeHandle;
 	TArray<TSharedPtr<IPropertyHandle>> PropertyTextureSizeHandles;
 
 	TSharedPtr< IPropertyHandle > MergeTypeHandle;
 	TSharedPtr< IPropertyHandle > GutterSpaceHandle;
+
+	TSharedPtr< IPropertyHandle > MeshMinDrawDistanceHandle;
 };

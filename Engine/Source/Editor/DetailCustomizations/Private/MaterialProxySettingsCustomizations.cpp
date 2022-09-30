@@ -2,6 +2,7 @@
 
 #include "MaterialProxySettingsCustomizations.h"
 
+#include "Algo/AnyOf.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
@@ -27,6 +28,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/ReflectedTypeAccessors.h"
 #include "UObject/UnrealType.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 
 #define LOCTEXT_NAMESPACE "MaterialProxySettingsCustomizations"
 
@@ -75,8 +77,9 @@ void FMaterialProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropert
 	
 
 	// Retrieve special case properties
-	EnumHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, TextureSizingType));
+	TextureSizingTypeHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, TextureSizingType));
 	TextureSizeHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, TextureSize));
+	MeshMinDrawDistanceHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, MeshMinDrawDistance));
 	PropertyTextureSizeHandles.Add(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, DiffuseTextureSize)));
 	PropertyTextureSizeHandles.Add(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, NormalTextureSize)));
 	PropertyTextureSizeHandles.Add(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, MetallicTextureSize)));
@@ -118,7 +121,7 @@ void FMaterialProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropert
 			IDetailPropertyRow& SettingsRow = ChildBuilder.AddProperty(Iter.Value().ToSharedRef());
 			SettingsRow.Visibility(TAttribute<EVisibility>(this, &FMaterialProxySettingsCustomizations::IsSimplygonMaterialMergingVisible));
 		}
-		else if (Iter.Value() == EnumHandle)
+		else if (Iter.Value() == TextureSizingTypeHandle)
 		{
 			// Remove the simplygon specific option.
 			if (bUseNativeTool)
@@ -126,18 +129,25 @@ void FMaterialProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropert
 				TSharedPtr<FPropertyRestriction> EnumRestriction = MakeShareable(new FPropertyRestriction(LOCTEXT("NoSupport", "Unable to support this option in Merge Actor")));
 				const UEnum* const TextureSizingTypeEnum = StaticEnum<ETextureSizingType>();
 				EnumRestriction->AddHiddenValue(TextureSizingTypeEnum->GetNameStringByValue((uint8)ETextureSizingType::TextureSizingType_UseSimplygonAutomaticSizing));
-				EnumHandle->AddRestriction(EnumRestriction.ToSharedRef());
+				TextureSizingTypeHandle->AddRestriction(EnumRestriction.ToSharedRef());
 			}
 
-			IDetailPropertyRow& SettingsRow = ChildBuilder.AddProperty(Iter.Value().ToSharedRef());
+			ChildBuilder.AddProperty(Iter.Value().ToSharedRef());
 		}
-		// Do not show the merge type property
-		else if (Iter.Value() != MergeTypeHandle)
+		else if (Iter.Value() == MeshMinDrawDistanceHandle)
 		{
 			IDetailPropertyRow& SettingsRow = ChildBuilder.AddProperty(Iter.Value().ToSharedRef());
+			SettingsRow.Visibility(TAttribute<EVisibility>(this, &FMaterialProxySettingsCustomizations::IsMeshMinDrawDistanceVisible));
 		}
-	}	
-
+		else if (Iter.Value() == MergeTypeHandle)
+		{
+			// Do not show the merge type property
+		}
+		else
+		{
+			ChildBuilder.AddProperty(Iter.Value().ToSharedRef());
+		}		
+	}
 }
 
 void FMaterialProxySettingsCustomizations::AddTextureSizeClamping(TSharedPtr<IPropertyHandle> TextureSizeProperty)
@@ -169,7 +179,7 @@ void FMaterialProxySettingsCustomizations::AddTextureSizeClamping(TSharedPtr<IPr
 EVisibility FMaterialProxySettingsCustomizations::AreManualOverrideTextureSizesEnabled() const
 {
 	uint8 TypeValue;
-	EnumHandle->GetValue(TypeValue);
+	TextureSizingTypeHandle->GetValue(TypeValue);
 
 	if (TypeValue == TextureSizingType_UseManualOverrideTextureSize)
 	{
@@ -182,7 +192,7 @@ EVisibility FMaterialProxySettingsCustomizations::AreManualOverrideTextureSizesE
 EVisibility FMaterialProxySettingsCustomizations::IsTextureSizeEnabled() const
 {
 	uint8 TypeValue;
-	EnumHandle->GetValue(TypeValue);
+	TextureSizingTypeHandle->GetValue(TypeValue);
 
 	if (TypeValue == TextureSizingType_UseSingleTextureSize || TypeValue == TextureSizingType_UseAutomaticBiasedSizes)
 	{		
@@ -203,5 +213,20 @@ EVisibility FMaterialProxySettingsCustomizations::IsSimplygonMaterialMergingVisi
 	return ( MergeType == EMaterialMergeType::MaterialMergeType_Simplygon ) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
+EVisibility FMaterialProxySettingsCustomizations::IsMeshMinDrawDistanceVisible() const
+{
+	uint8 TypeValue;
+	TextureSizingTypeHandle->GetValue(TypeValue);
+	if (TypeValue != TextureSizingType_AutomaticFromMeshDrawDistance)
+	{
+		return EVisibility::Hidden;
+	}
+
+	TArray<UObject*> OutersList;
+	MeshMinDrawDistanceHandle->GetOuterObjects(OutersList);
+	const bool bEditingHLODLayer = Algo::AnyOf(OutersList, [](UObject* Outer) { return Outer->IsInA(UHLODLayer::StaticClass()); });
+
+	return bEditingHLODLayer ? EVisibility::Hidden : EVisibility::Visible;
+}
 
 #undef LOCTEXT_NAMESPACE
