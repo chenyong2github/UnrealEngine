@@ -108,7 +108,7 @@ bool FTableImportTask::CreateLayout(const FString& Line)
 
 	if (Values.Num() != ColumnNames.Num())
 	{
-		AddError(LOCTEXT("ValuesMismatchMsg", "Import failed because the number of values on line 1 does not match the number of columns in the header line."));
+		AddError(LOCTEXT("ValuesMismatchMsg1", "Import failed because the number of values on line 1 does not match the number of columns in the header line."));
 		return false;
 	}
 
@@ -152,7 +152,7 @@ bool FTableImportTask::ParseData(TArray<FString>& Lines)
 
 		if (Values.Num() != ColumnNames.Num())
 		{
-			AddError(FText::Format(LOCTEXT("ValuesMismatchMsg", "Import failed because the number of values on line {0} does not match the number of columns in the header line."), LineIndex + 1));
+			AddError(FText::Format(LOCTEXT("ValuesMismatchMsg2", "Import failed because the number of values on line {0} does not match the number of columns in the header line."), LineIndex + 1));
 			return false;
 		}
 
@@ -175,7 +175,7 @@ bool FTableImportTask::ParseData(TArray<FString>& Lines)
 					Restart = true;
 					break;
 				}
-				
+
 				NewRow.SetValue(ValueIndex, FCString::Atod(Value));
 			}
 			else if (ColumnType == ETableColumnType::TableColumnType_Int)
