@@ -940,8 +940,7 @@ bool FSwitchboardListener::Task_ReceiveFileFromClient(const FSwitchboardReceiveF
 
 	if (Destination.Contains(TEXT("%TEMP%")))
 	{
-		const FString TempDir = FPlatformMisc::GetEnvironmentVariable(TEXT("TEMP"));
-		Destination.ReplaceInline(TEXT("%TEMP%"), *TempDir);
+		Destination.ReplaceInline(TEXT("%TEMP%"), FPlatformProcess::UserTempDir());
 	}
 	if (Destination.Contains(TEXT("%RANDOM%")))
 	{
