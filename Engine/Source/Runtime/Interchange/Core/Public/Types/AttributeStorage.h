@@ -176,15 +176,17 @@ namespace UE
 			friend FArchive& operator<<(FArchive& Ar, FAttributeKey& AttributeKey)
 			{
 				FString SerializeString;
-				if(Ar.IsSaving())
-				{
-					SerializeString = AttributeKey.Key.ToString();
-					Ar << SerializeString;
-				}
-				else
+				//When serializing FName with FString we always must do if(IsLoading()) else to avoid changing the data
+				//When a reference serialization is execute (reference do not have IsLoading or IsSaving set)
+				if (Ar.IsLoading())
 				{
 					Ar << SerializeString;
 					AttributeKey.Key = FName(*SerializeString);
+				}
+				else
+				{
+					SerializeString = AttributeKey.Key.ToString();
+					Ar << SerializeString;
 				}
 				return Ar;
 			}
