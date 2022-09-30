@@ -59,12 +59,44 @@ public:
 #endif
 };
 
+USTRUCT()
+struct FPoseSearchDatabaseMemoryStats
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	FText EstimatedDatabaseSize;
+
+	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	FText ValuesSize;
+
+	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	FText PCAValuesSize;
+
+	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	FText KDTreeSize;
+
+	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	FText PoseMetadataSize;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	FText AssetsSize;
+	
+	void Initialize(const UPoseSearchDatabase* PoseSearchDatabase);
+	static FText ToMemoryBudgetText(int32 Size);
+};
+
 UCLASS()
 class UPoseSearchDatabaseReflection : public UPoseSearchDatabaseReflectionBase
 {
 	GENERATED_BODY()
 
 public:
+	void Initialize(const UPoseSearchDatabase* PoseSearchDatabase);
+
+	UPROPERTY(VisibleAnywhere, Category = "Selected Database Search Index")
+	FPoseSearchDatabaseMemoryStats MemoryStats;
+
 	UPROPERTY(VisibleAnywhere, Category = "Selected Database Search Index")
 	FPoseSearchIndex SearchIndex;
 };

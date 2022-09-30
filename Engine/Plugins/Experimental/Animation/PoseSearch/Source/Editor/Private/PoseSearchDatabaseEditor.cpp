@@ -496,40 +496,25 @@ namespace UE::PoseSearch
 			{
 				if (SelectedItem->SourceAssetType == ESearchIndexAssetType::Sequence)
 				{
-					UPoseSearchDatabaseSequenceReflection* NewSelectionReflection =
-						NewObject<UPoseSearchDatabaseSequenceReflection>();
+					UPoseSearchDatabaseSequenceReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseSequenceReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->Sequence =
-						GetPoseSearchDatabase()->Sequences[SelectedItem->SourceAssetIdx];
+					NewSelectionReflection->Sequence = GetPoseSearchDatabase()->Sequences[SelectedItem->SourceAssetIdx];
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					SelectionReflections[SequenceSelectionIndex].Add(NewSelectionReflection);
 				}
 				else if (SelectedItem->SourceAssetType == ESearchIndexAssetType::BlendSpace)
 				{
-					UPoseSearchDatabaseBlendSpaceReflection* NewSelectionReflection =
-						NewObject<UPoseSearchDatabaseBlendSpaceReflection>();
+					UPoseSearchDatabaseBlendSpaceReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseBlendSpaceReflection>();
 					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->BlendSpace =
-						GetPoseSearchDatabase()->BlendSpaces[SelectedItem->SourceAssetIdx];
+					NewSelectionReflection->BlendSpace = GetPoseSearchDatabase()->BlendSpaces[SelectedItem->SourceAssetIdx];
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					SelectionReflections[BlendSpaceSelectionIndex].Add(NewSelectionReflection);
 				}
 				else
 				{
-					UPoseSearchDatabaseReflection* NewSelectionReflection =
-						NewObject<UPoseSearchDatabaseReflection>();
+					UPoseSearchDatabaseReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseReflection>();
 					NewSelectionReflection->AddToRoot();
-
-					const FPoseSearchIndex* SearchIndex = GetPoseSearchDatabase()->GetSearchIndex();
-					if (SearchIndex)
-					{
-						NewSelectionReflection->SearchIndex = *SearchIndex;
-					}
-					else
-					{
-						NewSelectionReflection->SearchIndex = FPoseSearchIndex();
-					}
-
+					NewSelectionReflection->Initialize(GetPoseSearchDatabase());
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					SelectionReflections[GroupSelectionIndex].Add(NewSelectionReflection);
 				}

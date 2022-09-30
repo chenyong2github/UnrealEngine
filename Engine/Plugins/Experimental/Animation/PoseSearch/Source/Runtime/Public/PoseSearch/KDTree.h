@@ -121,6 +121,7 @@ struct POSESEARCH_API FKDTree
 
 	bool FindNeighbors(KNNResultSet& Result, const float* Query) const;
 	void Construct(int32 Count, int32 Dim, const float* Data, int32 MaxLeafSize);
+	SIZE_T GetAllocatedSize() const;
 
 	DataSource DataSrc;
 	FKDTreeImplementation* Impl = nullptr;

@@ -85,6 +85,22 @@ bool FKDTree::FindNeighbors(KNNResultSet& Result, const float* Query) const
 #endif
 }
 
+SIZE_T FKDTree::GetAllocatedSize() const
+{
+	SIZE_T AllocatedSize = sizeof(DataSrc) + sizeof(Impl);
+
+#if UE_POSE_SEARCH_USE_NANOFLANN
+	if (Impl)
+	{
+		AllocatedSize += sizeof(FKDTreeImplementation);
+		AllocatedSize += Impl->usedMemory(*Impl);
+	}
+#endif
+
+	return AllocatedSize;
+}
+
+
 #if UE_POSE_SEARCH_USE_NANOFLANN
 FArchive& SerializeSubTree(FArchive& Ar, FKDTree& KDTree, FKDTreeImplementation::NodePtr KDTreeNode)
 {
