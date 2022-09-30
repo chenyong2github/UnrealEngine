@@ -73,6 +73,7 @@ bool InitTask_RenderThread(FLandscapeEditReadbackTaskImpl& Task)
 	{
 		Task.ReadbackFence = RHICreateGPUFence(TEXT("LandscapeEditReadbackTask"));
 	}
+	Task.ReadbackFence->Clear();
 
 	return true;
 }
