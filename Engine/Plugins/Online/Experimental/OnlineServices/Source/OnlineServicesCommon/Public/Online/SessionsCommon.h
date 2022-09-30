@@ -139,7 +139,7 @@ public:
 	virtual const FOnlineSessionId GetSessionId() const override			{ return GetSessionInfo().SessionId; }
 	virtual const uint32 GetNumOpenConnections() const override				{ return SessionSettings.NumMaxConnections - SessionMembers.Num(); }
 	virtual const FSessionInfo& GetSessionInfo() const override				{ return SessionInfo; }
-	virtual const FSessionSettings GetSessionSettings() const override		{ return SessionSettings; }
+	virtual const FSessionSettings& GetSessionSettings() const override		{ return SessionSettings; }
 	virtual const FSessionMemberIdsSet& GetSessionMembers() const override	{ return SessionMembers; }
 
 	virtual bool IsJoinable() const override								{ return GetNumOpenConnections() > 0 && SessionSettings.bAllowNewMembers; }

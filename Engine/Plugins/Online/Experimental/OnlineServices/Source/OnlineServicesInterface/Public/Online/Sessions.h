@@ -171,7 +171,7 @@ public:
 	virtual const FSessionInfo& GetSessionInfo() const = 0;
 
 	/** Retrieves the set of variable information about the session */
-	virtual const FSessionSettings GetSessionSettings() const = 0;
+	virtual const FSessionSettings& GetSessionSettings() const = 0;
 
 	/** Retrieves the list of users currently in the session */
 	virtual const FSessionMemberIdsSet& GetSessionMembers() const = 0;
