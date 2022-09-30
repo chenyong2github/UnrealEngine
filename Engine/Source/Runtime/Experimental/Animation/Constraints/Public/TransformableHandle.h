@@ -64,7 +64,11 @@ public:
 	virtual bool HasBoundObjects() const;
 
 	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) PURE_VIRTUAL(ResolveBoundObjects);
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject = nullptr) PURE_VIRTUAL(ResolveBoundObjects);
+
+	/** Make a duplicate of myself with this outer*/
+	virtual UTransformableHandle* Duplicate(UObject* NewOuter) const PURE_VIRTUAL(Duplicate, return nullptr;);
+
 
 	/** Fix up Binding in case it has changed*/
 	void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player);
@@ -178,7 +182,10 @@ public:
 		const bool bLocal = true) const override;
 
 	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) override;
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject = nullptr) override;
+
+	/** Make a duplicate of myself with this outer*/
+	virtual UTransformableHandle* Duplicate(UObject* NewOuter) const override;
 
 #if WITH_EDITOR
 	/** Returns labels used for UI. */

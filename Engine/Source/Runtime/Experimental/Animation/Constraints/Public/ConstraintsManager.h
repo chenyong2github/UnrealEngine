@@ -93,12 +93,14 @@ public:
 	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
 	virtual bool HasBoundObjects() const PURE_VIRTUAL(HasBoundObjects, return false;);
 	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)  PURE_VIRTUAL(ResolveBoundObjects);
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject = nullptr)  PURE_VIRTUAL(ResolveBoundObjects);
 
 	/** @todo document */
 	virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
 	/** Whether or not this object references this object. If it HasBoundObjects you should ResolveBoundObjects if you expect this to be up to date */
 	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const PURE_VIRTUAL(ReferencesObject, return false;);
+	/** Create duplicate with new Outer*/
+	virtual UTickableConstraint* Duplicate(UObject* NewOuter) const;
 
 #if WITH_EDITOR
 	/** Returns the constraint's label used for UI. */
@@ -134,7 +136,7 @@ public:
 
 	/** Dynamic blueprintable delegates for knowing when a constraints are added or deleted*/
 	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FOnConstraintAdded, UConstraintsManager, OnConstraintAdded_BP, UConstraintsManager*, Mananger, UTickableConstraint*, Constraint);
-	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FOnConstraintRemoved, UConstraintsManager, OnConstraintRemoved_BP, UConstraintsManager*, Mananger, UTickableConstraint*, Constraint);
+	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FOnConstraintRemoved, UConstraintsManager, OnConstraintRemoved_BP, UConstraintsManager*, Mananger, UTickableConstraint*, Constraint, bool, bDoNotCompensate);
 
 	
 	UConstraintsManager();
@@ -166,7 +168,7 @@ public:
 	
 	/** BP Delegate fired when constraints are removed*/
 	UPROPERTY(BlueprintAssignable, Category = Constraints, meta = (DisplayName = "OnConstraintRemoved"))
-	FOnConstraintAdded OnConstraintRemoved_BP;
+	FOnConstraintRemoved OnConstraintRemoved_BP;
 
 private:
 
@@ -181,10 +183,11 @@ private:
 	/** @todo document */
 	void Dump() const;
 
-	/** @todo document */
+	/** All of the constraints*/
 	UPROPERTY()
 	TArray< TObjectPtr<UTickableConstraint> > Constraints;
 	
+
 	friend class FConstraintsManagerController;
 	friend class AConstraintsActor;
 };
@@ -217,17 +220,20 @@ public:
 		return NewConstraint;
 	}
 
-	/** @todo document */
+	/** Add this constraint to the manager */
 	bool AddConstraint(UTickableConstraint* InConstraint) const;
 	
+	/** Make a copy of this constraint and add it to the manager, returns the copy mode if it was added*/
+	UTickableConstraint* AddConstraintFromCopy(UTickableConstraint* CopyOfConstraint) const;
+
 	/** Get the index of the given constraint's name. */
 	int32 GetConstraintIndex(const FName& InConstraintName) const;
 	
 	/** Remove the constraint by name. */
-	bool RemoveConstraint(const FName& InConstraintName) const;
+	bool RemoveConstraint(const FName& InConstraintName, bool bDoNotCompensate = false) const;
 
 	/** Remove the constraint at the given index. */
-	bool RemoveConstraint(const int32 InConstraintIndex) const;
+	bool RemoveConstraint(const int32 InConstraintIndex, bool bDoNotCompensate = false) const;
 
 	/** @todo document */
 	UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
@@ -253,6 +259,7 @@ public:
 
 	/** Go through each constraint in order and evaluate and tick them*/
 	void EvaluateAllConstraints() const;
+
 	
 private:
 	/** Delegeate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/
@@ -260,7 +267,7 @@ private:
 	FOnSceneComponentConstrained SceneComponentConstrained;
 
 	/** @todo document */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConstraintRemoved, FName /*InConstraintName*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConstraintRemoved, FName /*InConstraintName*/, bool /*bDoNotCompensate*/);
 	FOnConstraintRemoved ConstraintRemoved;
 	
 	/** Find the existing Constraints Manager in World or create a new one. */

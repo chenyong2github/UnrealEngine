@@ -21,6 +21,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
+#include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigParameterSection)
 
@@ -739,6 +740,17 @@ void UMovieSceneControlRigParameterSection::OnBindingIDsUpdated(const TMap<UE::M
 				TransformConstraint->ParentTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
 			}
 		}
+		if (UTickableTransformConstraint* SpawnCopy = Cast< UTickableTransformConstraint>(ConstraintChannel.ConstraintCopyToSpawn))
+		{
+			if (SpawnCopy->ChildTRSHandle)
+			{
+				SpawnCopy->ChildTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+			}
+			if (SpawnCopy->ParentTRSHandle)
+			{
+				SpawnCopy->ParentTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+			}
+		}
 	}
 }
 
@@ -759,6 +771,20 @@ void UMovieSceneControlRigParameterSection::GetReferencedBindings(TArray<FGuid>&
 		}
 	}
 }
+
+void UMovieSceneControlRigParameterSection::PreSave(FObjectPreSaveContext SaveContext)
+{
+	Super::PreSave(SaveContext);
+	
+	for (FConstraintAndActiveChannel& ActiveChannel : ConstraintsChannels)
+	{
+		if (ActiveChannel.Constraint.IsValid())
+		{
+			ActiveChannel.ConstraintCopyToSpawn = ActiveChannel.Constraint->Duplicate(this);
+		}
+	}
+}
+
 
 bool UMovieSceneControlRigParameterSection::RenameParameterName(const FName& OldParameterName, const FName& NewParameterName)
 {
@@ -936,6 +962,29 @@ void UMovieSceneControlRigParameterSection::PostEditImport()
 void UMovieSceneControlRigParameterSection::PostLoad()
 {
 	Super::PostLoad();
+	//for spawnables the control rig saved in our channels may have changed so we need to update thaem
+	if (ControlRig)
+	{
+		for (FConstraintAndActiveChannel& ConstraintChannel : ConstraintsChannels)
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(ConstraintChannel.ConstraintCopyToSpawn))
+			{
+				if (UTransformableControlHandle* Handle = Cast<UTransformableControlHandle>(TransformConstraint->ChildTRSHandle))
+				{
+					Handle->ControlRig = ControlRig;
+				}
+			}
+			/*
+			if (ConstraintChannel.Constraint.IsValid() == false && ConstraintChannel.ConstraintCopyToSpawn)
+			{
+				const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
+				UTickableConstraint* NewOne = Controller.AddConstraintFromCopy(ConstraintChannel.ConstraintCopyToSpawn);
+				ConstraintChannel.Constraint = NewOne;
+				ReconstructChannelProxy();
+			}
+			*/
+		}
+	}
 }
 
 bool UMovieSceneControlRigParameterSection::HasScalarParameter(FName InParameterName) const
@@ -1345,9 +1394,24 @@ FConstraintAndActiveChannel* UMovieSceneControlRigParameterSection::GetConstrain
 	return (Index != INDEX_NONE) ? &ConstraintsChannels[Index] : nullptr;	
 }
 
+void UMovieSceneControlRigParameterSection::ReplaceConstraint(const FName InConstraintName, UTickableConstraint* InConstraint) 
+{
+	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+	{
+		return InChannel.ConstraintCopyToSpawn ? InChannel.ConstraintCopyToSpawn->GetFName() == InConstraintName : false;
+	});
+	if (Index != INDEX_NONE)
+	{
+		Modify();
+		ConstraintsChannels[Index].Constraint = InConstraint;
+		ReconstructChannelProxy();
+	}
+}
+
 void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstraint* InConstraint)
 {
-	if (!HasConstraintChannel(InConstraint->GetFName()))
+	
+	if (InConstraint && !HasConstraintChannel(InConstraint->GetFName()))
 	{
 		Modify();
 		
@@ -1355,6 +1419,9 @@ void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstr
 
 		FMovieSceneConstraintChannel* ExistingChannel = &ConstraintsChannels[NewIndex].ActiveChannel;
 		ExistingChannel->SetDefault(false);
+		
+		//make copy that we can spawn if it doesn't exist
+		ConstraintsChannels[NewIndex].ConstraintCopyToSpawn = InConstraint->Duplicate(this);
 
 		if (OnConstraintChannelAdded.IsBound())
 		{

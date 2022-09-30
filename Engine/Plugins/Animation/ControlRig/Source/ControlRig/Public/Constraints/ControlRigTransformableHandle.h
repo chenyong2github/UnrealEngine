@@ -66,7 +66,10 @@ public:
 		const bool bLocal = true) const override;
 
 	/** Resolve the bound objects so that any object it references are resolved and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) override;
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject = nullptr) override;
+
+	/** Make a duplicate of myself with this outer*/
+	virtual UTransformableHandle* Duplicate(UObject* NewOuter) const override;
 
 	/** tick things when baking*/ 
 	virtual void TickForBaking() override;

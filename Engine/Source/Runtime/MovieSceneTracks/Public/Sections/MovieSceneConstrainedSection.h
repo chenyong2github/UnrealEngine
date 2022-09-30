@@ -63,6 +63,11 @@ public:
 	virtual TArray<FConstraintAndActiveChannel>& GetConstraintsChannels() = 0;
 
 	/*
+	*  Replace the constraint with the specified name with the new one
+	*/
+	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint) = 0;
+
+	/*
 	* Added Delegate
 	*/
 	 FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }

@@ -492,7 +492,7 @@ bool UTransformableComponentHandle::AddTransformKeys(const TArray<FFrameNumber>&
 	return true;
 }
 
-void UTransformableComponentHandle::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)
+void UTransformableComponentHandle::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject)
 {
 	for (TWeakObjectPtr<> ParentObject : ConstraintBindingID.ResolveBoundObjects(LocalSequenceID, Player))
 	{
@@ -506,6 +506,14 @@ void UTransformableComponentHandle::ResolveBoundObjects(FMovieSceneSequenceID Lo
 		}
 		break; //just do one
 	}
+}
+
+UTransformableHandle* UTransformableComponentHandle::Duplicate(UObject* NewOuter) const
+{
+	UTransformableComponentHandle* HandleCopy = DuplicateObject<UTransformableComponentHandle>(this, NewOuter, GetFName());
+	HandleCopy->Component = Component;
+	HandleCopy->SocketName = SocketName;
+	return HandleCopy;
 }
 
 #if WITH_EDITOR

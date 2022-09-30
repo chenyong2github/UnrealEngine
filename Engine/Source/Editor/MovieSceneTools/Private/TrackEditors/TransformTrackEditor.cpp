@@ -1587,7 +1587,7 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 	if (!InSection->OnConstraintRemovedHandle.IsValid())
 	{
 		InSection->OnConstraintRemovedHandle =
-			Controller.OnConstraintRemoved().AddLambda([InSection,Section, this](FName InConstraintName)
+			Controller.OnConstraintRemoved().AddLambda([InSection,Section, this](FName InConstraintName, bool bDoNotCompensate)
 				{
 					const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(InConstraintName);
 					if (!ConstraintChannel)
@@ -1595,7 +1595,7 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 						return;
 					}
 
-					if (ConstraintChannel->Constraint.IsValid())
+					if (bDoNotCompensate == false && ConstraintChannel->Constraint.IsValid())
 					{
 						FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
 							ConstraintChannel->Constraint.Get(),

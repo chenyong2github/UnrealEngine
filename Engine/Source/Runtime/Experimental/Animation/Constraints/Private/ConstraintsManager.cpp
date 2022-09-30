@@ -82,6 +82,11 @@ void UTickableConstraint::Evaluate(bool bTickHandlesAlso) const
 	ConstraintTick.EvaluateFunctions();
 }
 
+UTickableConstraint* UTickableConstraint::Duplicate(UObject* NewOuter) const
+{
+	return DuplicateObject<UTickableConstraint>(this, NewOuter, GetFName());
+}
+
 #if WITH_EDITOR
 
 FString UTickableConstraint::GetLabel() const
@@ -154,11 +159,13 @@ void UConstraintsManager::OnActorDestroyed(AActor* InActor)
 {
 	if (USceneComponent* SceneComponent = InActor->GetRootComponent())
 	{
+
 		TArray< int32 > IndicesToRemove;
 		for (int32 Index = 0; Index < Constraints.Num(); ++Index)
 		{
 			//if the constraint has a bound object(in sequencer) we don't remove the constraint, it could be a spawnable
-			if (IsValid(Constraints[Index]) &&  Constraints[Index]->HasBoundObjects() == false && Constraints[Index]->ReferencesObject(SceneComponent))
+			if (IsValid(Constraints[Index]) && Constraints[Index]->HasBoundObjects() == false && Constraints[Index]->ReferencesObject(SceneComponent))
+
 			{
 				IndicesToRemove.Add(Index);
 			}
@@ -169,7 +176,7 @@ void UConstraintsManager::OnActorDestroyed(AActor* InActor)
 			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InActor->GetWorld());
 			for (int32 Index = IndicesToRemove.Num()-1; Index >= 0; --Index)
 			{
-				Controller.RemoveConstraint(Index);
+				Controller.RemoveConstraint(Index,/*do not compensate*/ true);
 			}
 		}
 	}
@@ -282,7 +289,7 @@ void UConstraintsManager::Clear(UWorld* World)
 	UnregisterDelegates(World);
 	for (UTickableConstraint* Constraint : Constraints)
 	{
-		OnConstraintRemoved_BP.Broadcast(this, Constraint);
+		OnConstraintRemoved_BP.Broadcast(this, Constraint, true);
 	}
 	Constraints.Empty();
 }
@@ -405,6 +412,27 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 	return true;
 }
 
+UTickableConstraint* FConstraintsManagerController::AddConstraintFromCopy(UTickableConstraint* CopyOfConstraint) const
+{
+	if (!CopyOfConstraint)
+	{
+		return nullptr;
+	}
+	UConstraintsManager* Manager = GetManager(); //this will allocate if doesn't exist
+	if (!Manager)
+	{
+		return nullptr;
+	}
+
+	UTickableConstraint* OurCopy = CopyOfConstraint->Duplicate(Manager);
+	if (AddConstraint(OurCopy))
+	{
+		return OurCopy;
+	}
+	return nullptr;
+}
+
+
 int32 FConstraintsManagerController::GetConstraintIndex(const FName& InConstraintName) const
 {
 	const UConstraintsManager* Manager = FindManager();
@@ -419,7 +447,7 @@ int32 FConstraintsManagerController::GetConstraintIndex(const FName& InConstrain
 	} );
 }
 	
-bool  FConstraintsManagerController::RemoveConstraint(const FName& InConstraintName) const
+bool  FConstraintsManagerController::RemoveConstraint(const FName& InConstraintName, bool bDoNotCompensate) const
 {
 	const int32 Index = GetConstraintIndex(InConstraintName);
 	if (Index == INDEX_NONE)
@@ -427,10 +455,10 @@ bool  FConstraintsManagerController::RemoveConstraint(const FName& InConstraintN
 		return false;
 	}
 	
-	return RemoveConstraint(Index);
+	return RemoveConstraint(Index, bDoNotCompensate);
 }
 
-bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintIndex) const
+bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintIndex,bool bDoNotCompensate) const
 {
 	UConstraintsManager* Manager = FindManager();
 	if (!Manager)
@@ -448,8 +476,8 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	
 	// notify deletion
 
-	ConstraintRemoved.Broadcast(ConstraintName);
-	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint);
+	ConstraintRemoved.Broadcast(ConstraintName, bDoNotCompensate);
+	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint, bDoNotCompensate);
 	Manager->Constraints[InConstraintIndex]->Modify();
 	Manager->Modify();
 

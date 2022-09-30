@@ -44,13 +44,16 @@ public:
 	virtual bool HasBoundObjects() const override;
 	
 	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) override;
+	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player,UObject* SubObject) override;
 
 	/** If Active and the handles and targets are valid*/
 	virtual bool IsFullyActive() const override;
 
 	/** If that constraint needs to be handled by the compensation system. */
 	virtual bool NeedsCompensation() const;
+
+	/** Create duplicate with new Outer*/
+	virtual UTickableConstraint* Duplicate(UObject* NewOuter) const override;
 
 	/** Override the evaluate so we can tick our handles*/
 	virtual void Evaluate(bool bTickHandlesAlso = false) const override;

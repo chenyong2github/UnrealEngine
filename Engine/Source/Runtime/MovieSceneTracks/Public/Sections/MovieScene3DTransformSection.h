@@ -221,6 +221,7 @@ public:
 #if WITH_EDITOR
 	/* From UObject*/
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+
 #endif
 	/* From UMovieSection*/
 	
@@ -228,6 +229,7 @@ public:
 	MOVIESCENETRACKS_API virtual void SetBlendType(EMovieSceneBlendType InBlendType) override;
 	MOVIESCENETRACKS_API virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) override;
 	MOVIESCENETRACKS_API virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
+	MOVIESCENETRACKS_API virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 
 public:
 
@@ -341,7 +343,10 @@ public:
 	*/
 	virtual TArray<FConstraintAndActiveChannel>& GetConstraintsChannels()  override;
 
-
+	/*
+	*  Replace the constraint with the specified name with the new one
+	*/
+	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint)  override;
 private:
 
 #if WITH_EDITORONLY_DATA

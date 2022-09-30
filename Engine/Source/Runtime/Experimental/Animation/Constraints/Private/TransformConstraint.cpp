@@ -36,6 +36,24 @@ EMovieSceneTransformChannel UTickableTransformConstraint::GetChannelsToKey() con
 	return EMovieSceneTransformChannel::AllTransform;
 }
 
+UTickableConstraint* UTickableTransformConstraint::Duplicate(UObject* NewOuter) const
+{
+	UTickableTransformConstraint* Dup = DuplicateObject<UTickableTransformConstraint>(this, NewOuter);
+	if (ChildTRSHandle)
+	{
+		UTransformableHandle* HandleCopy = ChildTRSHandle->Duplicate(NewOuter);
+		Dup->ChildTRSHandle = HandleCopy;
+	}
+	if (ParentTRSHandle)
+	{
+		UTransformableHandle* HandleCopy = ParentTRSHandle->Duplicate(NewOuter);
+		Dup->ParentTRSHandle = HandleCopy;
+	}
+	Dup->SetupDependencies();
+	Dup->RegisterDelegates();
+	return Dup;
+}
+
 #if WITH_EDITOR
 
 FString UTickableTransformConstraint::GetLabel() const
@@ -241,15 +259,15 @@ bool UTickableTransformConstraint::HasBoundObjects() const
 	return false;
 }
 
-void UTickableTransformConstraint::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)
+void UTickableTransformConstraint::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject)
 {
 	if (ChildTRSHandle && ChildTRSHandle->HasBoundObjects())
 	{
-		ChildTRSHandle->ResolveBoundObjects(LocalSequenceID, Player);
+		ChildTRSHandle->ResolveBoundObjects(LocalSequenceID, Player, SubObject);
 	}
 	if (ParentTRSHandle && ParentTRSHandle->HasBoundObjects())
 	{
-		ParentTRSHandle->ResolveBoundObjects(LocalSequenceID, Player);
+		ParentTRSHandle->ResolveBoundObjects(LocalSequenceID, Player, SubObject);
 	}
 }
 

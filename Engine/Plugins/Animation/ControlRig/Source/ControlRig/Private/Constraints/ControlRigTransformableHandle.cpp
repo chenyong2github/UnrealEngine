@@ -543,11 +543,42 @@ bool UTransformableControlHandle::AddTransformKeys(const TArray<FFrameNumber>& I
 	return true;
 }
 
-void UTransformableControlHandle::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player)
+//for control rig need to check to see if the control rig is different then we may need to update it based upon what we are now bound to
+void UTransformableControlHandle::ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject)
 {
-	//don't do anything for ControlRigs since they don't get removed when it's actor is destroyed or respawned since the track owns it. In the template
+	if (UControlRig* InControlRig = Cast<UControlRig>(SubObject))
+	{
+		if (ControlRig != InControlRig)
+		{
+			for (TWeakObjectPtr<> ParentObject : ConstraintBindingID.ResolveBoundObjects(LocalSequenceID, Player))
+			{
+				USceneComponent* Component = nullptr;
+				if (AActor* Actor = Cast<AActor>(ParentObject.Get()))
+				{
+					Component = Actor->GetRootComponent();
+				}
+				else if (USceneComponent* Comp = Cast<USceneComponent>(ParentObject.Get()))
+				{
+					Component = Comp;
+				}
+
+				if (InControlRig->GetObjectBinding() && InControlRig->GetObjectBinding()->GetBoundObject() == Component)
+				{
+					ControlRig = InControlRig;
+				}
+				break; //just do one
+			}
+		}
+	}
 }
 
+UTransformableHandle* UTransformableControlHandle::Duplicate(UObject* NewOuter) const
+{
+	UTransformableControlHandle* HandleCopy = DuplicateObject<UTransformableControlHandle>(this, NewOuter, GetFName());
+	HandleCopy->ControlRig = ControlRig;
+	HandleCopy->ControlName = ControlName;
+	return HandleCopy;
+}
 #if WITH_EDITOR
 
 FString UTransformableControlHandle::GetLabel() const

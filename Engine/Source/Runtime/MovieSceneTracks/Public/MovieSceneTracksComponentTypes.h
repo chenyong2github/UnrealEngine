@@ -13,11 +13,13 @@
 #include "TransformData.h"
 #include "MovieSceneTracksPropertyTypes.h"
 #include "Styling/SlateColor.h"
+#include "ConstraintChannel.h"
 #include "MovieSceneTracksComponentTypes.generated.h"
 
 class UMaterialParameterCollection;
 class UMovieSceneDataLayerSection;
 class UMovieSceneLevelVisibilitySection;
+class UMovieScene3DTransformSection;
 struct FMovieSceneObjectBindingID;
 
 
@@ -74,8 +76,8 @@ struct FConstraintComponentData
 
 	UPROPERTY()
 	FName ConstraintName;
-
-	FMovieSceneBoolChannel* Channel;
+	FConstraintAndActiveChannel* ConstraintAndActiveChannel;
+	UMovieScene3DTransformSection* Section;
 };
 
 namespace UE

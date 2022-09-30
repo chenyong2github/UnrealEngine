@@ -18,6 +18,8 @@
 #include "Algo/AnyOf.h"
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
+#include "UObject/ObjectSaveContext.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScene3DTransformSection)
 
@@ -367,6 +369,17 @@ void UMovieScene3DTransformSection::OnBindingIDsUpdated(const TMap<UE::MovieScen
 					TransformConstraint->ParentTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
 				}
 			}
+			if (UTickableTransformConstraint* SpawnCopy = Cast< UTickableTransformConstraint>(ConstraintChannel.ConstraintCopyToSpawn))
+			{
+				if (SpawnCopy->ChildTRSHandle)
+				{
+					SpawnCopy->ChildTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+				}
+				if (SpawnCopy->ParentTRSHandle)
+				{
+					SpawnCopy->ParentTRSHandle->OnBindingIDsUpdated(OldFixedToNewFixedMap, LocalSequenceID, Hierarchy, Player);
+				}
+			}
 		}
 	}
 }
@@ -387,6 +400,21 @@ void UMovieScene3DTransformSection::GetReferencedBindings(TArray<FGuid>& OutBind
 				{
 					OutBindings.Add(TransformConstraint->ParentTRSHandle->ConstraintBindingID.GetGuid());
 				}
+			}
+		}
+	}
+}
+
+void UMovieScene3DTransformSection::PreSave(FObjectPreSaveContext SaveContext)
+{
+	Super::PreSave(SaveContext);
+	if (Constraints)
+	{
+		for (FConstraintAndActiveChannel& ActiveChannel : Constraints->ConstraintsChannels)
+		{
+			if (ActiveChannel.Constraint.IsValid())
+			{
+				ActiveChannel.ConstraintCopyToSpawn = ActiveChannel.Constraint->Duplicate(this);
 			}
 		}
 	}
@@ -557,19 +585,21 @@ void UMovieScene3DTransformSection::ImportConstraintEntity(UMovieSceneEntitySyst
 		const int32 ConstraintIndex = static_cast<int32>(Params.EntityID & ~ConstraintTypeMask);
 
 		checkf(Constraints->ConstraintsChannels.IsValidIndex(ConstraintIndex), TEXT("Encoded constraint (%d) index is not valid within array size %d. Data must have been manipulated without re-compilaition."), ConstraintIndex, Constraints->ConstraintsChannels.Num());
-
-		if (Constraints->ConstraintsChannels[ConstraintIndex].Constraint.IsValid())
+		//add if constraint or spawn copy is valid
+		if (Constraints->ConstraintsChannels[ConstraintIndex].Constraint.IsValid() ||
+			Constraints->ConstraintsChannels[ConstraintIndex].ConstraintCopyToSpawn)
 		{
-			FName ConstraintName = Constraints->ConstraintsChannels[ConstraintIndex].Constraint->GetFName();
+			FName ConstraintName = Constraints->ConstraintsChannels[ConstraintIndex].Constraint.IsValid() ? Constraints->ConstraintsChannels[ConstraintIndex].Constraint->GetFName()
+				: Constraints->ConstraintsChannels[ConstraintIndex].ConstraintCopyToSpawn->GetFName();
 
 			FConstraintComponentData ComponentData;
 			ComponentData.ConstraintName = ConstraintName;
-			ComponentData.Channel = &(Constraints->ConstraintsChannels[ConstraintIndex].ActiveChannel);
+			ComponentData.ConstraintAndActiveChannel = &(Constraints->ConstraintsChannels[ConstraintIndex]);
+			ComponentData.Section = this;
 			OutImportedEntity->AddBuilder(
 				FEntityBuilder()
 				.Add(BuiltInComponentTypes->SceneComponentBinding, ObjectBindingID)
-				//.Add(TrackComponents->ConstraintName, ConstraintName)
-				.Add(TrackComponents->ConstraintChannel,ComponentData)
+				.Add(TrackComponents->ConstraintChannel, ComponentData)
 			);
 		}
 	}
@@ -952,7 +982,7 @@ void UMovieScene3DTransformSection::AddConstraintChannel(UTickableConstraint* In
 	{
 		Constraints = NewObject<UMovieScene3dTransformSectionConstraints>(this, NAME_None, RF_Public| RF_Transactional);
 	}
-	if (!HasConstraintChannel(InConstraint->GetFName()))
+	if (InConstraint && !HasConstraintChannel(InConstraint->GetFName()))
 	{
 		Constraints->SetFlags(RF_Transactional);
 		Constraints->Modify();
@@ -961,11 +991,31 @@ void UMovieScene3DTransformSection::AddConstraintChannel(UTickableConstraint* In
 		FMovieSceneConstraintChannel* ExistingChannel = &Constraints->ConstraintsChannels[NewIndex].ActiveChannel;
 		ExistingChannel->SetDefault(false);
 
+		//make copy that we can spawn if it doesn't exist
+		Constraints->ConstraintsChannels[NewIndex].ConstraintCopyToSpawn = InConstraint->Duplicate(this);
+
 		CacheChannelProxy();
 
 		if (OnConstraintChannelAdded.IsBound())
 		{
 			OnConstraintChannelAdded.Broadcast(this, ExistingChannel);
+		}
+	}
+}
+
+void UMovieScene3DTransformSection::ReplaceConstraint(const FName InConstraintName, UTickableConstraint* InConstraint) 
+{
+	if (Constraints)
+	{
+		const int32 Index = Constraints->ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+			{
+				return InChannel.ConstraintCopyToSpawn ? InChannel.ConstraintCopyToSpawn->GetFName() == InConstraintName : false;
+			});
+		if (Index != INDEX_NONE)
+		{
+			Modify();
+			Constraints->ConstraintsChannels[Index].Constraint = InConstraint;
+			CacheChannelProxy();
 		}
 	}
 }

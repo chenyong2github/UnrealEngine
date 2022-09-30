@@ -107,4 +107,7 @@ struct CONSTRAINTS_API FConstraintAndActiveChannel
 
 	UPROPERTY()
 	FMovieSceneConstraintChannel ActiveChannel;
+
+	UPROPERTY()
+	TObjectPtr<UTickableConstraint> ConstraintCopyToSpawn;
 };

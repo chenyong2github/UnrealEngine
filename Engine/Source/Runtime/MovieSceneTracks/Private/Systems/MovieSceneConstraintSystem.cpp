@@ -94,7 +94,6 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	FMovieSceneEntitySystemRunner* ActiveRunner = Linker->GetActiveRunner();
 	ESystemPhase CurrentPhase = ActiveRunner->GetCurrentPhase();
 
-
 	if (CurrentPhase == ESystemPhase::Instantiation)
 	{
 		// Save pre-animated state
@@ -117,11 +116,17 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 			{
 				const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
 
-				UTickableConstraint* Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
+				UTickableConstraint* Constraint = ConstraintChannel.ConstraintAndActiveChannel->Constraint.Get();
+				if (!Constraint)
+				{
+					UTickableConstraint* NewOne = Controller->AddConstraintFromCopy(ConstraintChannel.ConstraintAndActiveChannel->ConstraintCopyToSpawn);
+					Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
+					ConstraintChannel.Section->ReplaceConstraint(ConstraintChannel.ConstraintName, Constraint);
+				}
 				if (Constraint)
 				{
 					bool Result = false;
-					ConstraintChannel.Channel->Evaluate(FrameTime, Result);
+					ConstraintChannel.ConstraintAndActiveChannel->ActiveChannel.Evaluate(FrameTime, Result);
 					Constraint->SetActive(Result);
 					Constraint->ResolveBoundObjects(TargetInstance.GetSequenceID(), *TargetInstance.GetPlayer());
 					if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
