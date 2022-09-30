@@ -140,7 +140,6 @@ enum class EPoseSearchMirrorOption : int32
 };
 
 
-
 //////////////////////////////////////////////////////////////////////////
 // Common structs
 
@@ -163,7 +162,7 @@ struct POSESEARCH_API FPoseSearchExtrapolationParameters
 };
 
 USTRUCT()
-struct FPoseSearchBlockTransitionParameters
+struct FPoseSearchExcludeFromDatabaseParameters
 {
 	GENERATED_BODY()
 
@@ -174,7 +173,7 @@ struct FPoseSearchBlockTransitionParameters
 	// Excluding the end of sequences help ensure an exact future trajectory, and also prevents the selection of
 	// a sequence which will end too soon to be worth selecting.
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float SequenceEndInterval = 0.0f;
+	float SequenceEndInterval = 0.3f;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -254,8 +253,7 @@ struct FAssetIndexingContext
 	const IAssetSampler* FollowUpSampler = nullptr;
 	bool bMirrored = false;
 	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
-	FPoseSearchBlockTransitionParameters BlockTransitionParameters;
-
+	
 	// Index this asset's data from BeginPoseIdx up to but not including EndPoseIdx
 	int32 BeginSampleIdx = 0;
 	int32 EndSampleIdx = 0;
@@ -327,7 +325,6 @@ public:
 
 } // namespace UE::PoseSearch
 
-
 //////////////////////////////////////////////////////////////////////////
 // Feature channels interface
 
@@ -387,8 +384,6 @@ protected:
 	int32 ChannelCardinality = -1;
 };
 
-
-
 //////////////////////////////////////////////////////////////////////////
 // Schema
 
@@ -414,8 +409,6 @@ private:
 	TArray<FBoneReference> BoneReferences;
 };
 
-
-
 } // namespace UE::PoseSearch
 
 USTRUCT()
@@ -439,17 +432,11 @@ class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenc
 	GENERATED_BODY()
 
 public:
-
-	static constexpr int32 DefaultSampleRate = 10;
-	static constexpr int32 MaxBoneReferences = MAX_int8;
-	static constexpr int32 MaxChannels = MAX_int8;
-	static constexpr int32 MaxFeatures = MAX_int8;
-
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TObjectPtr<USkeleton> Skeleton = nullptr;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "60"), Category = "Schema")
-	int32 SampleRate = DefaultSampleRate;
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Schema")
+	int32 SampleRate = 10;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> Channels;
@@ -460,9 +447,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
-
-	UPROPERTY()
-	float SamplingInterval = 1.0f / DefaultSampleRate;
 
 	UPROPERTY()
 	int32 SchemaCardinality = 0;
@@ -496,6 +480,8 @@ public:
 
 	int32 GetNumBones () const { return BoneIndices.Num(); }
 
+	float GetSamplingInterval() const { return 1.0f / SampleRate; }
+
 	// UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
@@ -516,8 +502,6 @@ private:
 public:
 	bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
 };
-
-
 
 //////////////////////////////////////////////////////////////////////////
 // Search index
@@ -541,7 +525,6 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 	UPROPERTY()
 	float ContinuingPoseCostAddend = 0.0f;
 };
-
 
 /**
 * Information about a source animation asset used by a search index.
@@ -715,10 +698,8 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> FollowUpSequence = nullptr;
 
-	FFloatInterval GetEffectiveSamplingRange() const;
-
-	virtual UAnimationAsset* GetAnimationAsset() const override;
-	virtual bool IsLooping() const override;
+	virtual UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
+	virtual bool IsLooping() const override { return Sequence->bLoop; }
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
@@ -809,7 +790,6 @@ public:
 #endif // WITH_EDITORONLY_DATA
 };
 
-
 /**
 * Helper object for writing features into a float buffer according to a feature vector layout.
 * Keeps track of which features are present, allowing the feature vector to be built up piecemeal.
@@ -842,7 +822,6 @@ private:
 
 	TArray<float> Values;
 };
-
 
 namespace UE::PoseSearch
 {
@@ -947,7 +926,6 @@ struct FSearchResult
 
 } // namespace UE::PoseSearch
 
-
 /** A data asset for indexing a collection of animation sequences. */
 UCLASS(Abstract, BlueprintType, Experimental)
 class POSESEARCH_API UPoseSearchSearchableAsset : public UDataAsset
@@ -957,7 +935,6 @@ public:
 
 	virtual UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const PURE_VIRTUAL(UPoseSearchSearchableAsset::Search, return UE::PoseSearch::FSearchResult(););
 };
-
 
 /** A data asset for indexing a collection of animation sequences. */
 UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Motion Database"))
@@ -973,7 +950,7 @@ public:
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
-	FPoseSearchBlockTransitionParameters BlockTransitionParameters = { 0.0f, 0.2f };
+	FPoseSearchExcludeFromDatabaseParameters ExcludeFromDatabaseParameters;
 
 	// Drag and drop animations here to add them in bulk to Sequences
 	UPROPERTY(EditAnywhere, Category = "Database", DisplayName="Drag And Drop Anims Here")
@@ -1050,6 +1027,7 @@ public: // UObject
 private:
 	void CollectSimpleSequences();
 	void CollectSimpleBlendSpaces();
+	void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, TArray<FFloatRange>& ValidRanges) const;
 
 public:
 	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
@@ -1108,7 +1086,6 @@ protected:
 	UE::PoseSearch::FSearchResult SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const;
 };
 
-
 //////////////////////////////////////////////////////////////////////////
 // Sequence metadata
 
@@ -1143,7 +1120,6 @@ public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 };
-
 
 //////////////////////////////////////////////////////////////////////////
 // Feature vector reader and builder
@@ -1392,7 +1368,6 @@ POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayV
 */
 POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* SequenceMetaData);
 
-
 /**
 * Creates a pose search index for a collection of animations
 * 
@@ -1403,7 +1378,6 @@ POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenc
 POSESEARCH_API bool BuildIndex(const UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex);
 
 } // namespace UE::PoseSearch
-
 
 UENUM()
 enum class EPoseSearchPostSearchStatus : uint8

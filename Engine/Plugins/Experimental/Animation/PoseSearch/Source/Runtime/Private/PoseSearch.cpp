@@ -192,13 +192,13 @@ static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelecta
 	if (SearchContext.IsCurrentResultFromDatabase(Database) && SearchContext.CurrentResult.IsValid() && SearchContext.PoseJumpThresholdTime > 0.f)
 	{
 		const FPoseSearchIndexAsset* CurrentIndexAsset = SearchContext.CurrentResult.SearchIndexAsset;
-		const int32 PoseJumpIndexThreshold = FMath::FloorToInt(SearchContext.PoseJumpThresholdTime / Database->Schema->SamplingInterval);
+		const int32 PoseJumpIndexThreshold = FMath::FloorToInt(SearchContext.PoseJumpThresholdTime / Database->Schema->GetSamplingInterval());
 		const bool IsLooping = Database->IsSourceAssetLooping(CurrentIndexAsset);
 
 		for (int32 i = -PoseJumpIndexThreshold; i <= -1; ++i)
 		{
 			const int32 PoseIdx = SearchContext.CurrentResult.PoseIdx + i;
-			const float DeltaTime = i * Database->Schema->SamplingInterval;
+			const float DeltaTime = i * Database->Schema->GetSamplingInterval();
 
 			// @todo: should we use the quantized time associated to InOutMotionMatchingState.DbPoseIdx instead of InOutMotionMatchingState.AssetPlayerTime?
 			float PoseAssetPlayerTime = SearchContext.CurrentResult.AssetTime + DeltaTime;
@@ -238,7 +238,7 @@ static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelecta
 		for (int32 i = 0; i <= PoseJumpIndexThreshold; ++i)
 		{
 			const int32 PoseIdx = SearchContext.CurrentResult.PoseIdx + i;
-			const float DeltaTime = i * Database->Schema->SamplingInterval;
+			const float DeltaTime = i * Database->Schema->GetSamplingInterval();
 
 			// @todo: should we use the quantized time associated to InOutMotionMatchingState.DbPoseIdx instead of InOutMotionMatchingState.AssetPlayerTime?
 			float PoseAssetPlayerTime = SearchContext.CurrentResult.AssetTime + DeltaTime;
@@ -354,7 +354,6 @@ namespace UE::PoseSearch
 
 int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 {
-	check(BoneReferences.Num() + 1 <= UPoseSearchSchema::MaxBoneReferences);
 	return BoneReferences.AddUnique(BoneReference);
 }
 
@@ -363,9 +362,6 @@ int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 void UPoseSearchSchema::Finalize()
 {
 	using namespace UE::PoseSearch;
-
-	SampleRate = FMath::Clamp(SampleRate, 1, 60);
-	SamplingInterval = 1.0f / SampleRate;
 
 	// Discard null channels
 	Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return Channel.IsNull(); });
@@ -523,9 +519,7 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset*
 	{
 		const FFloatInterval SamplingRange = Asset->SamplingInterval;
 
-		float AssetTime = FMath::Min(
-			SamplingRange.Min + Schema->SamplingInterval * (PoseIdx - Asset->FirstPoseIdx),
-			SamplingRange.Max);
+		float AssetTime = FMath::Min(SamplingRange.Min + Schema->GetSamplingInterval() * (PoseIdx - Asset->FirstPoseIdx), SamplingRange.Max);
 		return AssetTime;
 	}
 	
@@ -535,9 +529,7 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset*
 
 		// For BlendSpaces the AssetTime is in the range [0, 1] while the Sampling Range
 		// is in real time (seconds)
-		float AssetTime = FMath::Min(
-			SamplingRange.Min + Schema->SamplingInterval * (PoseIdx - Asset->FirstPoseIdx),
-			SamplingRange.Max) / (Asset->NumPoses * Schema->SamplingInterval);
+		float AssetTime = FMath::Min(SamplingRange.Min + Schema->GetSamplingInterval() * (PoseIdx - Asset->FirstPoseIdx), SamplingRange.Max) / (Asset->NumPoses * Schema->GetSamplingInterval());
 		return AssetTime;
 	}
 	
@@ -714,24 +706,6 @@ FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
 	const float ContinuingPoseCostAddend = SearchIndex.ComputeContinuingPoseCostAddend(PoseIdx, PoseComparisonFlags);
 
 	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostAddend);
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-// FPoseSearchDatabaseSequence
-FFloatInterval FPoseSearchDatabaseSequence::GetEffectiveSamplingRange() const
-{
-	return UE::PoseSearch::GetEffectiveSamplingRange(Sequence, SamplingRange);
-}
-
-UAnimationAsset* FPoseSearchDatabaseSequence::GetAnimationAsset() const
-{
-	return Sequence;
-}
-
-bool FPoseSearchDatabaseSequence::IsLooping() const
-{
-	return Sequence->bLoop;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1139,45 +1113,46 @@ void UPoseSearchDatabase::CollectSimpleBlendSpaces()
 	SimpleBlendSpaces.Reset();
 }
 
-static void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, TArray<FFloatRange>& ValidRanges)
+void UPoseSearchDatabase::FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, TArray<FFloatRange>& ValidRanges) const
 {
 	const UAnimSequence* Sequence = DbSequence.Sequence;
 	check(DbSequence.Sequence);
 
 	const float SequenceLength = DbSequence.Sequence->GetPlayLength();
-	const FFloatInterval EffectiveSamplingInterval = DbSequence.GetEffectiveSamplingRange();
+
+	const FFloatInterval EffectiveSamplingInterval = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
+	FFloatRange EffectiveSamplingRange = FFloatRange::Inclusive(EffectiveSamplingInterval.Min, EffectiveSamplingInterval.Max);
+	if (!DbSequence.IsLooping())
+	{
+		const FFloatRange ExcludeFromDatabaseRange(ExcludeFromDatabaseParameters.SequenceStartInterval, SequenceLength - ExcludeFromDatabaseParameters.SequenceEndInterval);
+		EffectiveSamplingRange = FFloatRange::Intersection(EffectiveSamplingRange, ExcludeFromDatabaseRange);
+	}
 
 	// start from a single interval defined by the database sequence sampling range
 	ValidRanges.Empty();
-	ValidRanges.Add(FFloatRange::Inclusive(EffectiveSamplingInterval.Min, EffectiveSamplingInterval.Max));
+	ValidRanges.Add(EffectiveSamplingRange);
 
 	FAnimNotifyContext NotifyContext;
 	Sequence->GetAnimNotifies(0.0f, SequenceLength, NotifyContext);
 
 	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
 	{
-		const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify();
-		if (!NotifyEvent)
+		if (const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify())
 		{
-			continue;
-		}
-
-		const UAnimNotifyState_PoseSearchExcludeFromDatabase* ExclusionNotifyState =
-			Cast<const UAnimNotifyState_PoseSearchExcludeFromDatabase>(NotifyEvent->NotifyStateClass);
-		if (ExclusionNotifyState)
-		{
-			FFloatRange ExclusionRange = 
-				FFloatRange::Inclusive(NotifyEvent->GetTriggerTime(), NotifyEvent->GetEndTriggerTime());
-
-			// Split every valid range based on the exclusion range just found. Because this might increase the 
-			// number of ranges in ValidRanges, the algorithm iterates from end to start.
-			for (int RangeIdx = ValidRanges.Num() - 1; RangeIdx >= 0; --RangeIdx)
+			if (const UAnimNotifyState_PoseSearchExcludeFromDatabase* ExclusionNotifyState = Cast<const UAnimNotifyState_PoseSearchExcludeFromDatabase>(NotifyEvent->NotifyStateClass))
 			{
-				FFloatRange EvaluatedRange = ValidRanges[RangeIdx];
-				ValidRanges.RemoveAt(RangeIdx);
+				FFloatRange ExclusionRange = FFloatRange::Inclusive(NotifyEvent->GetTriggerTime(), NotifyEvent->GetEndTriggerTime());
 
-				TArray<FFloatRange> Diff = FFloatRange::Difference(EvaluatedRange, ExclusionRange);
-				ValidRanges.Append(Diff);
+				// Split every valid range based on the exclusion range just found. Because this might increase the 
+				// number of ranges in ValidRanges, the algorithm iterates from end to start.
+				for (int RangeIdx = ValidRanges.Num() - 1; RangeIdx >= 0; --RangeIdx)
+				{
+					FFloatRange EvaluatedRange = ValidRanges[RangeIdx];
+					ValidRanges.RemoveAt(RangeIdx);
+
+					TArray<FFloatRange> Diff = FFloatRange::Difference(EvaluatedRange, ExclusionRange);
+					ValidRanges.Append(Diff);
+				}
 			}
 		}
 	}
@@ -4054,20 +4029,9 @@ FTransform FAssetIndexer::MirrorTransform(const FTransform& Transform) const
 void FAssetIndexer::AddMetadata(int32 SampleIdx)
 {
 	const float SequenceLength = IndexingContext.MainSampler->GetPlayLength();
-	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, SequenceLength);
+	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
 
 	Metadata = FPoseSearchPoseMetadata();
-
-	const bool bBlockTransition =
-		!IndexingContext.MainSampler->IsLoopable() &&
-		(SampleTime < IndexingContext.RequestedSamplingRange.Min + IndexingContext.BlockTransitionParameters.SequenceStartInterval ||
-		 SampleTime > IndexingContext.RequestedSamplingRange.Max - IndexingContext.BlockTransitionParameters.SequenceEndInterval);
-
-	if (bBlockTransition)
-	{
-		EnumAddFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition);
-	}
-
 	Metadata.CostAddend = IndexingContext.Schema->BaseCostBias;
 	Metadata.ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
 	
@@ -4685,6 +4649,7 @@ void FDatabaseIndexingContext::PrepareIndexers()
 	{
 		return BlendSpace ? &BlendSpaceSamplers[BlendSpaceSamplerMap[{BlendSpace, BlendParameters}]] : nullptr;
 	};
+
 	Indexers.Reserve(Database->GetSearchIndex()->Assets.Num());
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndex->Assets.Num(); ++AssetIdx)
 	{
@@ -4693,7 +4658,6 @@ void FDatabaseIndexingContext::PrepareIndexers()
 		FAssetIndexingContext IndexerContext;
 		IndexerContext.SamplingContext = &SamplingContext;
 		IndexerContext.Schema = Database->Schema;
-		IndexerContext.BlockTransitionParameters = Database->BlockTransitionParameters;
 		IndexerContext.RequestedSamplingRange = SearchIndexAsset.SamplingInterval;
 		IndexerContext.bMirrored = SearchIndexAsset.bMirrored;
 
@@ -4702,10 +4666,8 @@ void FDatabaseIndexingContext::PrepareIndexers()
 			const FPoseSearchDatabaseSequence& DbSequence = Database->GetSequenceSourceAsset(&SearchIndexAsset);
 			const float SequenceLength = DbSequence.Sequence->GetPlayLength();
 			IndexerContext.MainSampler = GetSequenceSampler(DbSequence.Sequence);
-			IndexerContext.LeadInSampler =
-				SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSequenceSampler(DbSequence.LeadInSequence) : nullptr;
-			IndexerContext.FollowUpSampler =
-				SearchIndexAsset.SamplingInterval.Max == SequenceLength ? GetSequenceSampler(DbSequence.FollowUpSequence) : nullptr;
+			IndexerContext.LeadInSampler = SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSequenceSampler(DbSequence.LeadInSequence) : nullptr;
+			IndexerContext.FollowUpSampler = SearchIndexAsset.SamplingInterval.Max == SequenceLength ? GetSequenceSampler(DbSequence.FollowUpSequence) : nullptr;
 		}
 		else if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
 		{
