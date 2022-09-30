@@ -51,6 +51,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
 	virtual void PostLoad() override;
+	virtual void PostRegisterAllComponents() override;
 
 	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }
 	float GetGroundZMin() const { return GroundZMin; }
@@ -68,16 +69,21 @@ public:
 
 	bool IsNonTessellatedLODMeshEnabled() const { return bEnableNonTessellatedLODMesh; }
 
-#if WITH_EDITOR
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-#endif
-
 private:
 
+	/**
+	 * Enqueue's a command on the Water Scene View Extension to re-render the water info on the next frame.
+	 * Returns false if the water info cannot be rendered this frame due to one of the dependencies not being ready yet (ie. a material under On-Demand-Shader-Compilation)
+	 */
 	bool UpdateWaterInfoTexture();
 
+	/**
+	 * Updates the list of owned water bodies causing any overlapping water bodies which do no have an owning water zone to register themselves to this water zone.
+	 * Returns true if any any change to the list of owned water bodies occurred
+	 */
+	bool UpdateOverlappingWaterBodies();
+
 	void OnExtentChanged();
-	void UpdateOverlappingWaterBodies();
 
 #if WITH_EDITOR
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
@@ -134,6 +140,8 @@ private:
 	bool bEnableNonTessellatedLODMesh = false;
 
 	bool bNeedsWaterInfoRebuild = true;
+
+	bool bNeedsNonTessellatedMeshRebuild = true;
 
 	FVector2f WaterHeightExtents;
 	float GroundZMin;

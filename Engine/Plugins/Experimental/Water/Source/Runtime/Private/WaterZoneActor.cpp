@@ -107,6 +107,17 @@ void AWaterZone::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 }
 
+void AWaterZone::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	if (UpdateOverlappingWaterBodies())
+	{
+		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterBodyLODSections);
+	}
+
+}
+
 void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 {
 	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterMesh))
@@ -119,14 +130,10 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::MarkForRebuild (UpdateWaterInfoTexture)"));
 		bNeedsWaterInfoRebuild = true;
 	}
-	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterBodyLODSections))
+	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterBodyLODSections) && bEnableNonTessellatedLODMesh)
 	{
 		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::MarkForRebuild (UpdateWaterBodyLODSections)"));
-		ForEachWaterBodyComponent([](UWaterBodyComponent* WaterBodyComponent)
-		{
-			WaterBodyComponent->UpdateNonTessellatedMeshSections();
-			return true;
-		});
+		bNeedsNonTessellatedMeshRebuild = true;
 	}
 }
 
@@ -143,14 +150,21 @@ void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent
 
 void AWaterZone::AddWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent)
 {
-	OwnedWaterBodies.AddUnique(WaterBodyComponent);
-	MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture | EWaterZoneRebuildFlags::UpdateWaterMesh);
+	if (OwnedWaterBodies.Find(WaterBodyComponent) == INDEX_NONE)
+	{
+		OwnedWaterBodies.Add(WaterBodyComponent);
+		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture | EWaterZoneRebuildFlags::UpdateWaterMesh);
+	}
 }
 
 void AWaterZone::RemoveWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent)
 {
-	OwnedWaterBodies.RemoveSwap(WaterBodyComponent);
-	MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture | EWaterZoneRebuildFlags::UpdateWaterMesh);
+	int32 Index;
+	if (OwnedWaterBodies.Find(WaterBodyComponent, Index))
+	{
+		OwnedWaterBodies.RemoveAtSwap(Index);
+		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture | EWaterZoneRebuildFlags::UpdateWaterMesh);
+	}
 }
 
 void AWaterZone::Update()
@@ -162,6 +176,16 @@ void AWaterZone::Update()
 		{
 			bNeedsWaterInfoRebuild = false;
 		}
+	}
+	if (bNeedsNonTessellatedMeshRebuild)
+	{
+		ForEachWaterBodyComponent([](UWaterBodyComponent* WaterBodyComponent)
+		{
+			WaterBodyComponent->UpdateNonTessellatedMeshSections();
+			return true;
+		});
+
+		bNeedsNonTessellatedMeshRebuild = false;
 	}
 	
 	if (WaterMesh)
@@ -289,14 +313,15 @@ void AWaterZone::OnExtentChanged()
 	MarkForRebuild(EWaterZoneRebuildFlags::All);
 }
 
-void AWaterZone::UpdateOverlappingWaterBodies()
+bool AWaterZone::UpdateOverlappingWaterBodies()
 {
+	TArray<TWeakObjectPtr<UWaterBodyComponent>> OldOwnedWaterBodies = OwnedWaterBodies;
 	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [](UWaterBodyComponent* WaterBodyComponent)
 		{
 			WaterBodyComponent->UpdateWaterZones();
 			return true;
 		});
-
+	return (OwnedWaterBodies != OldOwnedWaterBodies);
 }
 
 

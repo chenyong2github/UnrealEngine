@@ -133,11 +133,9 @@ void UWaterBodyComponent::OnHiddenInGameChanged()
 
 FPrimitiveSceneProxy* UWaterBodyComponent::CreateSceneProxy()
 {
-	if (AffectsWaterMesh() && GetWaterZone())
+	if (AffectsWaterMesh())
 	{
-		const FVector TessellatedMeshCenter = GetWaterZone()->GetTessellatedWaterMeshCenter();
-		const FVector TessellatedMeshExtent =  GetWaterZone()->GetTessellatedWaterMeshExtent();
-		return new FWaterBodySceneProxy(this, FBox2D(FVector2D(TessellatedMeshCenter - TessellatedMeshExtent/ 2), FVector2D(TessellatedMeshCenter + TessellatedMeshExtent/ 2)));
+		return new FWaterBodySceneProxy(this);
 	}
 	return nullptr;
 }
@@ -382,21 +380,30 @@ void UWaterBodyComponent::UpdateWaterZones()
 {
 	if (UWorld* World = GetWorld())
 	{
+		AWaterZone* OldWaterZone = GetWaterZone();
 		AWaterZone* FoundZone = FindWaterZone();
 
-		if (OwningWaterZone != nullptr)
+		if (OldWaterZone != FoundZone)
 		{
-			OwningWaterZone->RemoveWaterBodyComponent(this);
-			OwningWaterZone = nullptr;
-		}
+			if (OldWaterZone)
+			{
+				OldWaterZone->RemoveWaterBodyComponent(this);
+				OldWaterZone = nullptr;
+			}
 
-		if (FoundZone != nullptr)
-		{
-			FoundZone->AddWaterBodyComponent(this);
-		}
+			if (FoundZone)
+			{
+				FoundZone->AddWaterBodyComponent(this);
+			}
 
-		OwningWaterZone = FoundZone;
+			OwningWaterZone = FoundZone;
+		}
 	}
+}
+
+AWaterZone* UWaterBodyComponent::GetWaterZone() const
+{
+	return OwningWaterZone.Get();
 }
 
 FPostProcessVolumeProperties UWaterBodyComponent::GetPostProcessProperties() const
@@ -751,6 +758,11 @@ void UWaterBodyComponent::OnRegister()
 
 	CreateWaterSpriteComponent();
 #endif // WITH_EDITOR
+
+	if (AWaterZone* WaterZone = GetWaterZone())
+	{
+		WaterZone->AddWaterBodyComponent(this);
+	}
 }
 
 void UWaterBodyComponent::OnUnregister()
@@ -759,7 +771,7 @@ void UWaterBodyComponent::OnUnregister()
 	RegisterOnChangeWaterSplineData(/*bRegister = */false);
 #endif // WITH_EDITOR
 
-	if (AWaterZone* WaterZone = GetWaterZone(); IsValid(WaterZone))
+	if (AWaterZone* WaterZone = GetWaterZone())
 	{
 		WaterZone->RemoveWaterBodyComponent(this);
 	}
@@ -1421,9 +1433,6 @@ void UWaterBodyComponent::PostLoad()
 #if WITH_EDITOR
 	RegisterOnUpdateWavesData(GetWaterWaves(), /* bRegister = */true);
 #endif // WITH_EDITOR
-
-	// Register the component with the water zone since the component is the authority
-	UpdateWaterZones();
 }
 
 void UWaterBodyComponent::DeprecateData()
@@ -1532,7 +1541,6 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 
 	InMID->SetVectorParameterValue(FixedVelocityName, GetConstantVelocity());
 
-	// Use WaterZone actor of the same level
 	if (const AWaterZone* WaterZone = GetWaterZone())
 	{
 		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterZone->WaterInfoTexture);

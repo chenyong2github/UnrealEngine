@@ -10,8 +10,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "Algo/Transform.h"
 
-
-FWaterBodySceneProxy::FWaterBodySceneProxy(UWaterBodyComponent* Component, const FBox2D& TessellatedMeshBounds)
+FWaterBodySceneProxy::FWaterBodySceneProxy(UWaterBodyComponent* Component)
 	: FPrimitiveSceneProxy(Component)
 	, WaterBodySectionedLODMesh(GetScene().GetFeatureLevel())
 	, WaterBodyInfoMesh(GetScene().GetFeatureLevel())
@@ -21,7 +20,6 @@ FWaterBodySceneProxy::FWaterBodySceneProxy(UWaterBodyComponent* Component, const
 	WaterBodySectionedLODMesh.InitFromSections(Component->WaterBodyMeshSections);
 	WaterBodyInfoMesh.Init(Component->WaterBodyMeshVertices, Component->WaterBodyMeshIndices);
 	WaterBodyInfoDilatedMesh.Init(Component->DilatedWaterBodyMeshVertices, Component->DilatedWaterBodyMeshIndices);
-	WaterBodySectionedLODMesh.RebuildIndexBuffer(TessellatedMeshBounds);
 
 	if (UMaterialInstance* WaterInfoMaterialInstance = Component->GetWaterInfoMaterialInstance())
 	{

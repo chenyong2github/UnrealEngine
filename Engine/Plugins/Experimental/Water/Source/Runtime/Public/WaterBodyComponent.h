@@ -384,7 +384,7 @@ public:
 	virtual void Reset() {}
 
 	/** Gets the water zone to which this component belongs */
-	AWaterZone* GetWaterZone() const { return OwningWaterZone; }
+	AWaterZone* GetWaterZone() const;
 
 	/** Registers or this water body with corresponding overlapping water zones and unregisters it from any old zones if they are no longer overlapping. */
 	void UpdateWaterZones();
@@ -640,7 +640,7 @@ protected:
 	mutable TWeakObjectPtr<ALandscapeProxy> Landscape;
 
 	UPROPERTY()
-	TObjectPtr<AWaterZone> OwningWaterZone;
+	TSoftObjectPtr<AWaterZone> OwningWaterZone;
 
 	UPROPERTY(Transient)
 	FPostProcessSettings CurrentPostProcessSettings;
