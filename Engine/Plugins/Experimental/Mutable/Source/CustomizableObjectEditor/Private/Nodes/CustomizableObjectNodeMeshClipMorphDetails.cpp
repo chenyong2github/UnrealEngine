@@ -106,7 +106,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 			// Add them to the parent combo box
 			TSharedRef<IPropertyHandle> BoneProperty = DetailBuilder.GetProperty("BoneName");
 
-			BlocksCategory.AddCustomRow(LOCTEXT("FCustomizableObjectNodeMeshClipMorphDetails", "Bone Name"))
+			BlocksCategory.AddCustomRow(LOCTEXT("ClipMorphDetails_BoneName", "Bone Name"))
 			[
 				SNew(SProperty, BoneProperty)
 				.ShouldDisplayName(false)
@@ -121,7 +121,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 						+SHorizontalBox::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text( LOCTEXT("FCustomizableObjectNodeRemoveMeshDetails", "Bone Name"))
+							.Text( LOCTEXT("ClipMorphDetails_BoneName", "Bone Name"))
 							.Font(IDetailLayoutBuilder::GetDetailFont())
 						]
 						+SHorizontalBox::Slot().HAlign(HAlign_Fill)
@@ -136,7 +136,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 				]
 			];
 
-			MeshClipParametersCategory.AddCustomRow(LOCTEXT("FCustomizableObjectNodeMeshClipMorphDetails", "Invert plane normal"))
+			MeshClipParametersCategory.AddCustomRow(LOCTEXT("ClipMorphDetails_PlaneNormal", "Invert plane normal"))
 			[
 				SNew(SProperty, BoneProperty)
 				.ShouldDisplayName(false)
@@ -151,14 +151,14 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 						+SHorizontalBox::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text( LOCTEXT("FCustomizableObjectNodeMeshClipMorphDetails", "Invert plane normal"))
+							.Text( LOCTEXT("ClipMorphDetails_PlaneNormal", "Invert plane normal"))
 						]
 						+SHorizontalBox::Slot().HAlign(HAlign_Left)
 						[
 							SNew(SCheckBox)
 							.OnCheckStateChanged(this, &FCustomizableObjectNodeMeshClipMorphDetails::OnInvertNormalCheckboxChanged)
 							.IsChecked(this, &FCustomizableObjectNodeMeshClipMorphDetails::GetInvertNormalCheckBoxState)
-							.ToolTipText(LOCTEXT("InvertNormal", "Invert normal direction of the clip plane"))
+							.ToolTipText(LOCTEXT("ClipMorphDetails_InvertNormal_Tooltip", "Invert normal direction of the clip plane"))
 						]
 					]
 				]
@@ -170,7 +170,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 		BlocksCategory.AddCustomRow(LOCTEXT("Node", "Node"))
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("Node not found", "Node not found"))
+			.Text(LOCTEXT("ClipMorphDetails_InvertNormal_NodeNotFound", "Node not found"))
 		];
 	}
 }

@@ -86,7 +86,7 @@ void FCustomizableObjectNodeMeshMorphDetails::CustomizeDetails( IDetailLayoutBui
 
 			TSharedRef<IPropertyHandle> MorphTargetNameProperty = DetailBuilder.GetProperty("MorphTargetName");
 
-			BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeMeshMorphDetails", "Target") )
+			BlocksCategory.AddCustomRow( LOCTEXT("MeshMorphDetails_Target", "Target") )
 			[
 				SNew(SProperty, MorphTargetNameProperty)
 				.ShouldDisplayName( false)
@@ -108,10 +108,10 @@ void FCustomizableObjectNodeMeshMorphDetails::CustomizeDetails( IDetailLayoutBui
 	
 	if (!SourceMeshFound)
 	{
-		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeMeshMorphDetails", "Node") )
+		BlocksCategory.AddCustomRow( LOCTEXT("MeshMorphDetails_Node", "Node") )
 		[
 			SNew( STextBlock )
-			.Text( LOCTEXT( "No source mesh found.", "No source mesh found." ) )			
+			.Text( LOCTEXT( "MeshMorphDetails_NoSource", "No source mesh found." ) )			
 		];
 	}
 

@@ -80,7 +80,7 @@ void FCustomizableObjectNodeMorphMaterialDetails::CustomizeDetails( IDetailLayou
         MorphTargetComboOptions.Sort(CompareNames);
 
 		TSharedRef<IPropertyHandle> MorphTargetNameProperty = DetailBuilder.GetProperty("MorphTargetName");
-		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeMorphMaterialDetails", "Target") )
+		BlocksCategory.AddCustomRow( LOCTEXT("MorphMaterialDetails_Target", "Target") )
 		[
 			SNew(SProperty, MorphTargetNameProperty)
 			.ShouldDisplayName( false)
@@ -97,7 +97,7 @@ void FCustomizableObjectNodeMorphMaterialDetails::CustomizeDetails( IDetailLayou
 						.VAlign(VAlign_Center)
 					[
 						SNew( STextBlock )
-							.Text( LOCTEXT("Morph Target","Morph Target") )
+							.Text( LOCTEXT("MorphMaterialDetails_MorphTarget","Morph Target") )
 					]
 
 					+ SHorizontalBox::Slot()
@@ -116,10 +116,10 @@ void FCustomizableObjectNodeMorphMaterialDetails::CustomizeDetails( IDetailLayou
 	}
 	else
 	{
-		BlocksCategory.AddCustomRow( LOCTEXT("FCustomizableObjectNodeMorphMaterialDetails", "Node") )
+		BlocksCategory.AddCustomRow( LOCTEXT("MorphMaterialDetails_Node", "Node") )
 		[
 			SNew( STextBlock )
-			.Text( LOCTEXT( "Node not found", "Node not found" ) )
+			.Text( LOCTEXT( "MorphMaterialDetails_NodeNotFound", "Node not found" ) )
 		];
 	}
 

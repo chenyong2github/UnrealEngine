@@ -56,37 +56,37 @@ void SCustomizableObjectHighresScreenshot::Construct( const FArguments& InArgs )
 							.VAlign(VAlign_Center)
 							[
 								SNew( STextBlock )
-								.Text( NSLOCTEXT("HighResScreenshot", "ScreenshotSizeMultiplier", "Screenshot Size Multiplier") )
+								.Text( NSLOCTEXT("CustomizableObjectEditor", "ScreenshotSizeMultiplier", "Screenshot Size Multiplier") )
 							]
 							+SVerticalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SNew( STextBlock )
-								.Text( NSLOCTEXT("HighResScreenshot", "IncludeBufferVisTargets", "Include Buffer Visualization Targets") )
+								.Text( NSLOCTEXT("CustomizableObjectEditor", "IncludeBufferVisTargets", "Include Buffer Visualization Targets") )
 							]
 							+ SVerticalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SAssignNew(HDRLabel, STextBlock)
-								.Text(NSLOCTEXT("HighResScreenshot", "CaptureHDR", "Write HDR format visualization targets"))
+								.Text(NSLOCTEXT("CustomizableObjectEditor", "CaptureHDR", "Write HDR format visualization targets"))
 							]
 							+SVerticalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SAssignNew(Force128BitRenderingLabel, STextBlock)
-								.Text(NSLOCTEXT("HighResScreenshot", "Force128BitPipeline", "Force 128-bit buffers for rendering pipeline"))
+								.Text(NSLOCTEXT("CustomizableObjectEditor", "Force128BitPipeline", "Force 128-bit buffers for rendering pipeline"))
 							]
 							+SVerticalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SNew( STextBlock )
-								.Text( NSLOCTEXT("HighResScreenshot", "UseCustomDepth", "Use custom depth as mask") )
+								.Text( NSLOCTEXT("CustomizableObjectEditor", "UseCustomDepth", "Use custom depth as mask") )
 							]
 							+SVerticalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SNew( STextBlock )
-								.Text( NSLOCTEXT("HighResScreenshot", "ShowHideBackground", "Show / hide background") )
+								.Text( NSLOCTEXT("CustomizableObjectEditor", "ShowHideBackground", "Show / hide background") )
 							]
 						]
 						+SSplitter::Slot()
