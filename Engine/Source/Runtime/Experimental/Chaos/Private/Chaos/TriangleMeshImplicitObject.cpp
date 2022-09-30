@@ -1171,6 +1171,10 @@ void ComputeScaledSweepInputs(FVec3 TriMeshScale, const FRigidTransform3& StartT
 		const FReal LengthScaleInv = 1.f / LengthScale;
 		OutScaledDirNormalized = UnscaledDirDenorm * LengthScaleInv;
 	}
+	else
+	{
+		OutScaledDirNormalized = FVec3(1.0, 0.0, 0.0);
+	}
 
 
 	OutLengthScale = LengthScale;
