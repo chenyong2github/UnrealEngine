@@ -160,7 +160,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 
 		if (SourceTexture)
 		{
-			RHICmdList.RunOnContext([SourceTexture, TextureIndex](auto& Context)
+			RHICmdList.RunOnContext([SourceTexture, TextureIndex](FD3D11DynamicRHI& Context)
 			{
 				Context.SetShaderResourceView<SF_Pixel>(SourceTexture, SourceTexture->GetShaderResourceView(), TextureIndex);
 			});
