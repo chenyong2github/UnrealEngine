@@ -335,6 +335,12 @@ bool UTickableTransformConstraint::IsFullyActive() const
 		&& IsValid(ParentTRSHandle) && ParentTRSHandle->IsValid());
 }
 
+bool UTickableTransformConstraint::NeedsCompensation() const
+{
+	// NOTE: this can be extended to something more complex if needed  
+	return true;
+}
+
 /** 
  * UTickableTranslationConstraint
  **/
@@ -913,11 +919,19 @@ void UTickableLookAtConstraint::ComputeOffset()
 {
 	bMaintainOffset = false;
 	bDynamicOffset = false;
+
+	const FVector InitParentLocation = GetParentGlobalTransform().GetLocation();
+	const FTransform InitChildTransform = GetChildGlobalTransform();
+	const FVector InitLookAtDir = (InitParentLocation - InitChildTransform.GetLocation()).GetSafeNormal();
+
+	if (!InitLookAtDir.IsNearlyZero())
+	{
+		Axis = InitChildTransform.InverseTransformVectorNoScale(InitLookAtDir).GetSafeNormal();
+	}
 }
 
 FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFunction() const
 {
-	// @todo handle weight here
 	return [this]()
 	{
 		if (!IsFullyActive())
@@ -935,13 +949,22 @@ FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFuncti
 			const FVector AxisToOrient = ChildTransform.TransformVectorNoScale(Axis).GetSafeNormal();
 		
 			FQuat Rotation = FindQuatBetweenNormals(AxisToOrient, LookAtDir);
-			Rotation = Rotation * ChildTransform.GetRotation();
+			const bool bNeedsToBeRotated = !Rotation.IsIdentity();
+			if (bNeedsToBeRotated)
+			{
+				Rotation = Rotation * ChildTransform.GetRotation();
 
-			FTransform Transform = ChildTransform;
-			Transform.SetRotation(Rotation.GetNormalized());
-			SetChildGlobalTransform(Transform);
+				FTransform Transform = ChildTransform;
+				Transform.SetRotation(Rotation.GetNormalized());
+				SetChildGlobalTransform(Transform);
+			}
 		}
 	};
+}
+
+bool UTickableLookAtConstraint::NeedsCompensation() const
+{
+	return false;
 }
 
 FQuat UTickableLookAtConstraint::FindQuatBetweenNormals(const FVector& A, const FVector& B)
@@ -969,7 +992,23 @@ FQuat UTickableLookAtConstraint::FindQuatBetweenNormals(const FVector& A, const 
 
 	Result.Normalize();
 	return Result;
-};
+}
+
+#if WITH_EDITOR
+
+void UTickableLookAtConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetMemberPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableLookAtConstraint, Axis))
+	{
+		Evaluate();
+		return;
+	}
+}
+
+#endif
 
 /** 
  * FTransformConstraintUtils

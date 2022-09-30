@@ -49,6 +49,8 @@ public:
 	/** If Active and the handles and targets are valid*/
 	virtual bool IsFullyActive() const override;
 
+	/** If that constraint needs to be handled by the compensation system. */
+	virtual bool NeedsCompensation() const;
 
 	/** Override the evaluate so we can tick our handles*/
 	virtual void Evaluate(bool bTickHandlesAlso = false) const override;
@@ -338,8 +340,13 @@ public:
 	/** Returns the look at constraint function that the tick function will evaluate. */
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
+	/** If that constraint needs to be handled by the compensation system. */
+	virtual bool NeedsCompensation() const override;
+
 protected:
-	/** @todo document */
+	/**
+     * Computes the initial axis that is needed to keep the child's orientation unchanged when creating the constraint.
+    */
 	virtual void ComputeOffset() override;
 
 	/** Defines the aiming axis. */
@@ -350,6 +357,13 @@ private:
 
 	/** Computes the shortest quaternion between A and B. */
 	static FQuat FindQuatBetweenNormals(const FVector& A, const FVector& B);
+
+#if WITH_EDITOR
+public:
+	// UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
+#endif
 };
 
 /** 

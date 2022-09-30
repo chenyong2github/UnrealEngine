@@ -515,10 +515,11 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
 	UMovieSceneSection* InSection)
 {
 	UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint);
-	if (!Constraint || !InConstraintChannel || !InSection)
+	if (!Constraint || !Constraint->NeedsCompensation() || !InConstraintChannel || !InSection)
 	{
 		return;
 	}
+	
 	InSection->Modify();
 	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
 	if (const UTransformableHandle* ControlHandle =Constraint->ChildTRSHandle)
@@ -565,6 +566,11 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintKeyDeleted(
 	UMovieSceneSection* InSection,
 	const FFrameNumber& InTime)
 {
+	if (!InConstraint || !InConstraint->NeedsCompensation())
+	{
+		return;
+	}
+	
 	const FFrameNumber TimeMinusOne(InTime - 1);
 
 	bool CurrentValue = false, PreviousValue = false;

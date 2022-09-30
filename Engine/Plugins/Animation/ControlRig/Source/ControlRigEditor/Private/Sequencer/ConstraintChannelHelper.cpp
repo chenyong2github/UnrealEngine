@@ -198,7 +198,8 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 			bool ActiveValueToBeSet = false;
 			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
 			{
-
+				const bool bNeedsCompensation = InConstraint->NeedsCompensation();
+				
 				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
 				
 				// set constraint as dynamic
@@ -210,7 +211,14 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				// store the frames to compensate
 				const TArrayView<FMovieSceneFloatChannel*> Channels = ControlHandle->GetFloatChannels(Section);
 				TArray<FFrameNumber> FramesToCompensate;
-				FMovieSceneConstraintChannelHelper::GetFramesToCompensate<FMovieSceneFloatChannel>(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
+				if (bNeedsCompensation)
+				{
+					FMovieSceneConstraintChannelHelper::GetFramesToCompensate<FMovieSceneFloatChannel>(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
+				}
+				else
+				{
+					FramesToCompensate.Add(Time);
+				}
 
 				// store child and space transforms for these frames
 				FCompensationEvaluator Evaluator(InConstraint);
@@ -229,7 +237,7 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				{
 					// get the number of float channels to treat
 					NumChannels = FControlRigSpaceChannelHelpers::GetNumFloatChannels(ControlElement->Settings.ControlType);
-					if (NumChannels > 0)
+					if (bNeedsCompensation && NumChannels > 0)
 					{
 						ChannelIndex = pChannelIndex->ChannelIndex;
 						EvaluateTangentAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Time, Tangents);
@@ -239,6 +247,7 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				const EMovieSceneTransformChannel ChannelsToKey =InConstraint->GetChannelsToKey();
 				
 				// add child's transform key at Time-1 to keep animation
+				if (bNeedsCompensation)
 				{
 					const FFrameNumber TimeMinusOne(Time - 1);
 
@@ -268,7 +277,7 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 						ChildLocals, ChannelsToKey, TickResolution, nullptr,true);
 
 					// set tangents at Time
-					if (NumChannels > 0 )
+					if (bNeedsCompensation && NumChannels > 0)
 					{
 						SetTangentsAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Time, Tangents);
 					}
@@ -317,7 +326,8 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 			bool ActiveValueToBeSet = false;
 			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
 			{
-	
+				const bool bNeedsCompensation = InConstraint->NeedsCompensation();
+				
 				Section->Modify();
 
 				//new for compensation
@@ -330,7 +340,14 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 				// store the frames to compensate
 				const TArrayView<FMovieSceneDoubleChannel*> Channels = ComponentHandle->GetDoubleChannels(Section);
 				TArray<FFrameNumber> FramesToCompensate;
-				FMovieSceneConstraintChannelHelper::GetFramesToCompensate<FMovieSceneDoubleChannel>(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
+				if (bNeedsCompensation)
+				{
+					FMovieSceneConstraintChannelHelper::GetFramesToCompensate<FMovieSceneDoubleChannel>(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
+				}
+				else
+				{
+					FramesToCompensate.Add(Time);
+				}
 
 				// store child and space transforms for these frames
 				FCompensationEvaluator Evaluator(InConstraint);
@@ -341,11 +358,16 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 				TArray<FMovieSceneTangentData> Tangents;
 				const int32 ChannelIndex = 0;
 				const int32 NumChannels = 9;
-				EvaluateTangentAtThisTime<FMovieSceneDoubleChannel>(ChannelIndex, NumChannels, Section, Time, Tangents);
+
+				if (bNeedsCompensation)
+				{
+					EvaluateTangentAtThisTime<FMovieSceneDoubleChannel>(ChannelIndex, NumChannels, Section, Time, Tangents);
+				}
 
 				const EMovieSceneTransformChannel ChannelsToKey = InConstraint->GetChannelsToKey();
 
 				// add child's transform key at Time-1 to keep animation
+				if (bNeedsCompensation)
 				{
 					const FFrameNumber TimeMinusOne(Time - 1);
 
@@ -369,7 +391,10 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 					MovieSceneToolHelpers::AddTransformKeys(Section, FramesToCompensate, ChildLocals, ChannelsToKey);
 
 					// set tangents at Time
-					SetTangentsAtThisTime<FMovieSceneDoubleChannel>(ChannelIndex,NumChannels, Section, Time, Tangents);
+					if (bNeedsCompensation)
+					{
+						SetTangentsAtThisTime<FMovieSceneDoubleChannel>(ChannelIndex,NumChannels, Section, Time, Tangents);
+					}
 				}
 				// evaluate the constraint, this is needed so the global transform will be set up on the component 
 				//Todo do we need to evaluate all constraints?
@@ -491,7 +516,13 @@ void FConstraintChannelHelper::CompensateIfNeeded(
 	Algo::CopyIf(ConstraintChannels, TransformConstraintsChannels,
 		[](const FConstraintAndActiveChannel& InChannel)
 		{
-			return InChannel.Constraint.IsValid() && InChannel.Constraint->IsA<UTickableTransformConstraint>();
+			if (!InChannel.Constraint.IsValid())
+			{
+				return false;
+			}
+
+			const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InChannel.Constraint.Get());
+			return Constraint && Constraint->NeedsCompensation();
 		}
 	);
 
