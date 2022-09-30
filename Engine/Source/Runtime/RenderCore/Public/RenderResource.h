@@ -655,8 +655,8 @@ FORCEINLINE bool IsRayTracingEnabledForProject(EShaderPlatform ShaderPlatform)
 {
 	if (RHISupportsRayTracing(ShaderPlatform))
 	{
-		extern RENDERCORE_API TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>> GRayTracingPlaformMask;
-		return (GRayTracingPlaformMask[(int)ShaderPlatform]);
+		extern RENDERCORE_API TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>> GRayTracingPlatformMask;
+		return (GRayTracingPlatformMask[(int)ShaderPlatform]);
 	}
 	else
 	{

@@ -85,13 +85,13 @@ ERayTracingDisabledReason GetRayTracingDisabledReason()
 		return ERayTracingDisabledReason::DISABLED_BY_PROJECT_SETTINGS;
 	}
 
-	extern RENDERCORE_API ShaderPlatformMaskType GRayTracingPlaformMask;
+	extern RENDERCORE_API ShaderPlatformMaskType GRayTracingPlatformMask;
 	if (!RHISupportsRayTracing(GMaxRHIShaderPlatform))
 	{
 		return ERayTracingDisabledReason::INCOMPATIBLE_SHADER_PLATFORM;
 	}
 	// Shader platform statically supports ray tracing, but disabled by target platform at runtime
-	else if (RHISupportsRayTracing(GMaxRHIShaderPlatform) && (GRayTracingPlaformMask[(int)GMaxRHIShaderPlatform]) == 0)
+	else if (RHISupportsRayTracing(GMaxRHIShaderPlatform) && (GRayTracingPlatformMask[(int)GMaxRHIShaderPlatform]) == 0)
 	{
 		return ERayTracingDisabledReason::DISABLED_BY_TARGET_PLATFORM;
 	}
