@@ -11,6 +11,13 @@ class FNiagaraSystemInstance;
 
 namespace FNiagaraDataInterfaceUtilities
 {
+	struct FDataInterfaceUsageContext
+	{
+		UObject*				OwnerObject = nullptr;
+		FNiagaraVariableBase	Variable;
+		UNiagaraDataInterface*	DataInterface = nullptr;
+	};
+
 	// Finds all VM function calls made using the data interface that equals this one (i.e. A->Equals(B))
 	// The same function call made be made multiple times across different scripts so you may see the same function multiple times
 	// The action should return True to continue iteration or False to stop
@@ -37,4 +44,7 @@ namespace FNiagaraDataInterfaceUtilities
 	// Loops over all data interfaces inside the SystemInstance
 	// The action should return True to continue iteration or False to stop
 	void ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FNiagaraVariableBase Variable, UNiagaraDataInterface* DataInterface)> Action);
+	// Loops over all data interfaces inside the SystemInstance
+	// The action should return True to continue iteration or False to stop
+	void ForEachDataInterface(FNiagaraSystemInstance* SystemInstance, TFunction<bool(const FDataInterfaceUsageContext&)> Action);
 }

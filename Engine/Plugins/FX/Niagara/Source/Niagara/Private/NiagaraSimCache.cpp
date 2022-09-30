@@ -93,7 +93,7 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 						NameBuilder.AppendChar(TEXT('.'));
 						BoundAttribute.GetName().AppendString(NameBuilder);
 
-						CreateParameters.ExplicitCaptureAttributes.Emplace(NameBuilder.ToString());
+						CreateParameters.ExplicitCaptureAttributes.AddUnique(NameBuilder.ToString());
 					}
 				}
 			);
@@ -104,9 +104,21 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			const FNiagaraParameterStore& RendererBindings = EmitterInstance->GetRendererBoundVariables();
 			for ( const FNiagaraVariableWithOffset& Variable : RendererBindings.ReadParameterVariables() )
 			{
-				CreateParameters.ExplicitCaptureAttributes.Add(Variable.GetName());
+				CreateParameters.ExplicitCaptureAttributes.AddUnique(Variable.GetName());
 			}
 		}
+
+		FNiagaraDataInterfaceUtilities::ForEachDataInterface(
+			Helper.SystemInstance,
+			[&](const FNiagaraDataInterfaceUtilities::FDataInterfaceUsageContext& UsageContext)
+			{
+				for ( const FNiagaraVariableBase& PreserveAttribute : UsageContext.DataInterface->GetSimCacheRendererAttributes(UsageContext.OwnerObject) )
+				{
+					CreateParameters.ExplicitCaptureAttributes.AddUnique(PreserveAttribute.GetName());
+				}
+				return true;
+			}
+		);
 	}
 
 	// Build new layout for system / emitters
