@@ -2,6 +2,7 @@
 
 #include "ConcertClientsTabController.h"
 
+#include "ConcertServerStyle.h"
 #include "IConcertSyncServer.h"
 #include "SConcertClientsTabView.h"
 #include "Logging/Source/GlobalLogSource.h"
@@ -26,7 +27,8 @@ namespace UE::MultiUserServer
 					FOnSpawnTab::CreateRaw(this, &FConcertClientsTabController::SpawnClientsTab, Params.WindowController->GetRootWindow(), Params.Server)
 				)
 				.SetDisplayName(LOCTEXT("ClientsTabTitle", "Clients"))
-				.SetTooltipText(LOCTEXT("ClientsTooltipText", "View network statistics for connected clients.")
+				.SetTooltipText(LOCTEXT("ClientsTooltipText", "View network statistics for connected clients."))
+				.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.Client"))
 			);
 		Params.MainStack->AddTab(ConcertServerTabs::GetClientsTabID(), ETabState::OpenedTab);
 	}

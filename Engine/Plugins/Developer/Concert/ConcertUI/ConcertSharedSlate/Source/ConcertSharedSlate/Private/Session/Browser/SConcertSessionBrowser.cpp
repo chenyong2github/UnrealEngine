@@ -471,8 +471,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar(const FArguments& InAr
 			FConcertFrontendStyle::Get()->GetBrush("Concert.RestoreSession"),
 			LOCTEXT("RestoreButtonTooltip", "Restore the selected session"),
 			TAttribute<bool>(this, &SConcertSessionBrowser::IsRestoreButtonEnabledInternal),
-			FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnRestoreButtonClicked),
-			TAttribute<EVisibility>::Create([this]() { return IsRestoreButtonEnabledInternal() ? EVisibility::Visible : EVisibility::Collapsed; })
+			FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnRestoreButtonClicked)
 			)
 	);
 	// Archive.

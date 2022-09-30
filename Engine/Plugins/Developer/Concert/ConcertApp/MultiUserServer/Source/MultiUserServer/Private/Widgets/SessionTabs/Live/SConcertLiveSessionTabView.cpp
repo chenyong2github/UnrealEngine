@@ -2,6 +2,7 @@
 
 #include "SConcertLiveSessionTabView.h"
 
+#include "ConcertServerStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Session/History/SSessionHistory.h"
@@ -55,7 +56,8 @@ TSharedRef<SWidget> SConcertLiveSessionTabView::CreateTabs(const TSharedRef<FTab
 	
 	InTabManager->RegisterTabSpawner(SessionContentTabId, FOnSpawnTab::CreateSP(this, &SConcertLiveSessionTabView::SpawnSessionContent, InRequiredArgs.PackageViewer))
 		.SetDisplayName(LOCTEXT("SessionContentLabel", "Session Content"))
-		.SetGroup(WorkspaceItem);
+		.SetGroup(WorkspaceItem)
+		.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.Package")));
 
 	InLayout->AddArea
 	(
@@ -124,7 +126,7 @@ TSharedRef<SWidget> SConcertLiveSessionTabView::CreateToolbar(const FArguments& 
 				[
 					SNew(SImage)
 					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
+					.Image(FConcertServerStyle::Get().GetBrush("Concert.Icon.Client"))
 				]
 				+SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)

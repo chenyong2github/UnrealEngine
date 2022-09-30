@@ -2,6 +2,7 @@
 
 #include "SConcertClientsTabView.h"
 
+#include "ConcertServerStyle.h"
 #include "IConcertSyncServer.h"
 #include "Logging/Filter/ConcertLogFilter_FrontendRoot.h"
 #include "Logging/Source/GlobalLogSource.h"
@@ -77,7 +78,9 @@ namespace UE::MultiUserServer
 				[
 					SNew(SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
 					.Filter(UE::MultiUserServer::MakeClientLogFilter(LogTokenizer.ToSharedRef(), ClientMessageNodeId, ClientInfoCache.ToSharedRef()))
-				]; 
+				];
+
+			NewTab->SetTabIcon(FConcertServerStyle::Get().GetBrush(TEXT("Concert.Icon.LogSession")));
 
 			// We need a tab to place the client tab next to
 			if (IsGlobalLogOpen())
@@ -153,10 +156,12 @@ namespace UE::MultiUserServer
 			);
 		InTabManager->RegisterTabSpawner(ClientBrowserTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnClientBrowserTab))
 			.SetDisplayName(LOCTEXT("ClientBrowserTabLabel", "Clients"))
-			.SetGroup(WorkspaceItem);
+			.SetGroup(WorkspaceItem)
+			.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.Client")));
 		InTabManager->RegisterTabSpawner(GlobalLogTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnGlobalLogTab))
 			.SetDisplayName(LOCTEXT("ServerLogTabLabel", "Server Log"))
-			.SetGroup(WorkspaceItem);
+			.SetGroup(WorkspaceItem)
+			.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.LogServer")));
 		
 		InLayout->AddArea
 			(
@@ -247,7 +252,7 @@ namespace UE::MultiUserServer
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
+						.Image(FConcertServerStyle::Get().GetBrush(TEXT("Concert.Icon.LogServer")))
 					]
 					+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)

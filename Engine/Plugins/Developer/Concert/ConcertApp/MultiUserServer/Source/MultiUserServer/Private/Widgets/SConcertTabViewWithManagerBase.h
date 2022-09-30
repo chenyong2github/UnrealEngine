@@ -51,4 +51,7 @@ private:
 	TSharedRef<SWidget> CreateTabs(const FArguments& InArgs);
 	void FillInDefaultMenuItems(FMenuBarBuilder MenuBarBuilder);
 	void FillWindowMenu(FMenuBuilder& MenuBuilder);
+	void FillDebugMenu(FMenuBuilder& MenuBuilder);
+
+	void AddIconWindow();
 };

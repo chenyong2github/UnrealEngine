@@ -2,6 +2,7 @@
 
 #include "PackageTransmissionTabController.h"
 
+#include "ConcertServerStyle.h"
 #include "Model/PackageTransmissionModel.h"
 #include "SPackageTransmissionView.h"
 #include "Util/PackageTransmissionEntryTokenizer.h"
@@ -33,7 +34,8 @@ namespace UE::MultiUserServer
 		OwningTabManager->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &FPackageTransmissionTabController::SpawnTab))
 			// In the future we may create multiple FPackageTransmissionTabController and may want to change this name to depend on some parameter
 			.SetDisplayName(LOCTEXT("PackageTabLabel", "Packages"))
-			.SetGroup(WorkspaceItem);
+			.SetGroup(WorkspaceItem)
+			.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.Package")));
 	}
 
 	FPackageTransmissionTabController::~FPackageTransmissionTabController()

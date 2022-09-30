@@ -2,9 +2,12 @@
 
 #include "SConcertTabViewWithManagerBase.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Util/SMultiUserIcons.h"
+
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTabViewWithManagerBase"
 
@@ -61,11 +64,45 @@ void SConcertTabViewWithManagerBase::FillInDefaultMenuItems(FMenuBarBuilder Menu
 			FNewMenuDelegate::CreateSP(this, &SConcertTabViewWithManagerBase::FillWindowMenu),
 			"Window"
 		);
+	MenuBarBuilder.AddPullDownMenu(
+			LOCTEXT("DebugMenuLabel", "Debug"),
+			FText::GetEmpty(),
+			FNewMenuDelegate::CreateSP(this, &SConcertTabViewWithManagerBase::FillDebugMenu),
+			"Debug"
+		);
 }
 
 void SConcertTabViewWithManagerBase::FillWindowMenu(FMenuBuilder& MenuBuilder)
 {
 	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
+}
+
+void SConcertTabViewWithManagerBase::FillDebugMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("Icons", "View App Icons"),
+		FText::GetEmpty(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &SConcertTabViewWithManagerBase::AddIconWindow)
+			)
+		);
+}
+
+void SConcertTabViewWithManagerBase::AddIconWindow()
+{
+	const FText AboutWindowTitle = LOCTEXT("UnrealMultiUserIcons", "Unreal Multi-User Server Icons");
+	TSharedPtr<SWindow> AboutWindow = 
+		SNew(SWindow)
+		.Title( AboutWindowTitle )
+		.ClientSize(FVector2D(720.f, 538.f))
+		.SupportsMaximize(false) .SupportsMinimize(false)
+		.SizingRule( ESizingRule::FixedSize )
+		[
+			SNew(SMultiUserIcons)
+		];
+
+	FSlateApplication::Get().AddWindow(AboutWindow.ToSharedRef());
 }
 
 #undef LOCTEXT_NAMESPACE

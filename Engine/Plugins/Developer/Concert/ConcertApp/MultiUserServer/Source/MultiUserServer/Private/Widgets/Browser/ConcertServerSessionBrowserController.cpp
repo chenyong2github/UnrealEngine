@@ -46,7 +46,7 @@ namespace UE::MultiUserServer
 			)
 			.SetDisplayName(LOCTEXT("SessionBrowserTabTitleLong", "Session Browser"))
 			.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "A section to browse, start, archive, and restore server sessions."))
-			.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.MultiUser"))
+			.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.MultiUser"))
 		);
 		Params.MainStack->AddTab(ConcertServerTabs::GetSessionBrowserTabId(), ETabState::OpenedTab)
 			->SetForegroundTab(ConcertServerTabs::GetSessionBrowserTabId());

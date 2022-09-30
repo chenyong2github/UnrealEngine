@@ -53,12 +53,22 @@ FString FConcertServerStyle::InContent(const FString& RelativePath, const ANSICH
 TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 {
 	TSharedRef<FSlateStyleSet> StyleSet = MakeShared<FSlateStyleSet>(GetStyleSetName());
+	StyleSet->SetParentStyleName("CoreStyle");
+	FAppStyle::SetAppStyleSet(*StyleSet); // Makes the app icons appear
 	
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Slate/Starship/Insights"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 	
 	const FVector2D Icon16x16(16.0f, 16.0f); 
+	const FVector2D Icon24x24(24.0f, 24.0f); 
 	const FVector2D Icon32x32(32.0f, 32.0f); 
+	const FVector2D Icon48x48(48.0f, 48.0f); 
+	
+	// Application icons
+	StyleSet->Set("AppIcon", new IMAGE_PLUGIN_BRUSH("Icons/App/MultiUserApp_48", Icon48x48));
+	StyleSet->Set("AppIconPadding", FMargin(5.0f, 5.0f, 5.0f, 5.0f));
+	StyleSet->Set("AppIcon.Small", new IMAGE_PLUGIN_BRUSH("Icons/App/MultiUserApp_24", Icon24x24));
+	StyleSet->Set("AppIconPadding.Small", FMargin(4.0f, 4.0f, 0.0f, 0.0f));
 	
 	// Icons
 	StyleSet->Set("Concert.MultiUser", new IMAGE_PLUGIN_BRUSH("Icons/icon_MultiUser_32x", Icon32x32));
@@ -80,7 +90,18 @@ TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 	StyleSet->Set("Concert.Unmuted",     new IMAGE_PLUGIN_BRUSH("Icons/Unmuted_16x", Icon16x16));
 	// Icons: DependencyView
 	StyleSet->Set("Concert.HighlightHardDependencies",     new IMAGE_PLUGIN_BRUSH("Icons/Ack_Ack_16x", Icon16x16));
-	
+
+	// New icons
+	StyleSet->Set("Concert.Icon.Archive", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Archive_16", Icon16x16));
+	StyleSet->Set("Concert.Icon.Client", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Client_16", Icon16x16));
+	StyleSet->Set("Concert.Icon.CreateMultiUser", new IMAGE_PLUGIN_BRUSH_SVG("Icons/CreateMultiUser_16", Icon16x16));
+	StyleSet->Set("Concert.Icon.Export", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Export_16", Icon16x16));
+	StyleSet->Set("Concert.Icon.Import", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Import_16", Icon16x16));
+	StyleSet->Set("Concert.Icon.LogServer", new IMAGE_PLUGIN_BRUSH_SVG("Icons/LogServer", Icon16x16));
+	StyleSet->Set("Concert.Icon.LogSession", new IMAGE_PLUGIN_BRUSH_SVG("Icons/LogSession", Icon16x16));
+	StyleSet->Set("Concert.Icon.MultiUser", new IMAGE_PLUGIN_BRUSH_SVG("Icons/MultiUser_16", Icon16x16));
+	StyleSet->Set("Concert.Icon.Package", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Package", Icon16x16));
+	StyleSet->Set("Concert.Icon.Server", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Server_16", Icon16x16));
 
 	// Clients tab
 	StyleSet->Set("Concert.Clients.DropShadow", new IMAGE_PLUGIN_BOX_BRUSH("ClientThumbnailDropShadow", FMargin(4.0f / 64.0f)));
@@ -90,18 +111,18 @@ TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 	StyleSet->Set("Concert.Clients.ThumbnailCurveBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 0.0f));
 	StyleSet->Set("Concert.Clients.ThumbnailFooter", new FSlateRoundedBoxBrush(FStyleColors::Panel, 0.0f));
 	StyleSet->Set("Concert.Clients.TileTableRow", FTableRowStyle()
-			.SetEvenRowBackgroundBrush(FSlateNoResource() )
-			.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
-			.SetOddRowBackgroundBrush(FSlateNoResource())
-			.SetOddRowBackgroundHoveredBrush(FSlateNoResource())
-			.SetSelectorFocusedBrush(FSlateNoResource())
-			.SetActiveBrush(FSlateNoResource())
-			.SetActiveHoveredBrush(FSlateNoResource())
-			.SetInactiveBrush(FSlateNoResource())
-			.SetInactiveHoveredBrush(FSlateNoResource())
-			.SetTextColor(FSlateColor())
-			.SetSelectedTextColor(FSlateColor())
-			);
+		.SetEvenRowBackgroundBrush(FSlateNoResource() )
+		.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
+		.SetOddRowBackgroundBrush(FSlateNoResource())
+		.SetOddRowBackgroundHoveredBrush(FSlateNoResource())
+		.SetSelectorFocusedBrush(FSlateNoResource())
+		.SetActiveBrush(FSlateNoResource())
+		.SetActiveHoveredBrush(FSlateNoResource())
+		.SetInactiveBrush(FSlateNoResource())
+		.SetInactiveHoveredBrush(FSlateNoResource())
+		.SetTextColor(FSlateColor())
+		.SetSelectedTextColor(FSlateColor())
+		);
 	StyleSet->Set("Concert.Clients.ClientNameTileFont", DEFAULT_FONT("Regular", 16));
 	
 	// Graph colours

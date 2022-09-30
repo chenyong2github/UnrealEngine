@@ -2,6 +2,7 @@
 
 #include "SConcertServerSessionBrowser.h"
 
+#include "ConcertServerStyle.h"
 #include "MultiUserServerModule.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/Items/ConcertSessionTreeItem.h"
@@ -42,7 +43,8 @@ namespace UE::MultiUserServer
 		
 		InTabManager->RegisterTabSpawner(SessionBrowserTabId, FOnSpawnTab::CreateSP(this, &SConcertServerSessionBrowser::SpawnSessionBrowserTab, InArgs._DoubleClickLiveSession, InArgs._DoubleClickArchivedSession))
 			.SetDisplayName(LOCTEXT("SessionBrowserTabLabel", "Sessions"))
-			.SetGroup(WorkspaceItem);
+			.SetGroup(WorkspaceItem)
+			.SetIcon(FSlateIcon(FConcertServerStyle::GetStyleSetName(), TEXT("Concert.Icon.MultiUser")));
 
 		InLayout->AddArea
 		(
