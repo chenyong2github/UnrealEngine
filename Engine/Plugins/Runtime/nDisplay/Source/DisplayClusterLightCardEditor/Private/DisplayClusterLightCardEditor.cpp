@@ -1088,9 +1088,9 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
 				continue;
 			}
 			
-			FString Label = FString::Printf(TEXT("Add %s"), *Class->GetDisplayNameText().ToString());
+			FText Label = Class->GetDisplayNameText();
 			FSlateIcon StageActorIcon = FSlateIconFinder::FindIconForClass(Class);
-			MenuBuilder.AddMenuEntry(FText::FromString(Label), LOCTEXT("AddStageActorHeader", "Add a stage actor to the scene"), StageActorIcon,
+			MenuBuilder.AddMenuEntry(Label, LOCTEXT("AddStageActorHeader", "Add a stage actor to the scene"), StageActorIcon,
 				FUIAction(FExecuteAction::CreateRaw(this, &FDisplayClusterLightCardEditor::AddNewDynamic, Class)));
 		}
 		
@@ -1442,7 +1442,7 @@ void FDisplayClusterLightCardEditor::ExtendToolbar(FToolBarBuilder& ToolbarBuild
 			FOnGetContent::CreateSP(this, &FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu),
 			TAttribute<FText>(),
 			LOCTEXT("PlaceActors_ToolTip", "Place actors in the scene"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.PlaceActors"));
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenAddContent.Background", NAME_None, "LevelEditor.OpenAddContent.Overlay"));
 	}
 	
 	ToolbarBuilder.AddSeparator();

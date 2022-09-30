@@ -4,6 +4,7 @@
 
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardEditorStyle.h"
+#include "DisplayClusterLightCardEditorUtils.h"
 #include "DisplayClusterLightCardEditorViewportClient.h"
 #include "DisplayClusterLightCardEditor.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
@@ -18,6 +19,7 @@
 #include "Kismet2/DebuggerCommands.h"
 #include "Slate/SceneViewport.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterLightcardEditorViewport"
 
@@ -675,8 +677,17 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditorViewport::MakeContextMenu()
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 
-	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
-	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
+	MenuBuilder.BeginSection("Actors", LOCTEXT("ActorsSection", "Actors"));
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("PlaceActorsSubMenuLabel", "Place Actor"),
+			LOCTEXT("PlaceActorsSubMenuToolTip", "Add new actors to the stage"),
+			FNewMenuDelegate::CreateSP(this, &SDisplayClusterLightCardEditorViewport::MakePlaceActorsSubMenu));
+
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
+	}
+	MenuBuilder.EndSection();
 	
 	MenuBuilder.BeginSection("View", LOCTEXT("ViewSection", "View"));
 	{
@@ -696,6 +707,43 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditorViewport::MakeContextMenu()
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SDisplayClusterLightCardEditorViewport::MakePlaceActorsSubMenu(FMenuBuilder& MenuBuilder)
+{
+	FSlateIcon LightCardIcon = FSlateIconFinder::FindIconForClass(ADisplayClusterLightCardActor::StaticClass());
+
+	// Add custom UI actions here for the AddNew commands so that the newly added actors can be moved to the user's mouse position after the
+	// add operation is performed
+	MenuBuilder.AddMenuEntry(
+		FDisplayClusterLightCardEditorCommands::Get().AddNewFlag->GetLabel(),
+		FDisplayClusterLightCardEditorCommands::Get().AddNewFlag->GetDescription(),
+		LightCardIcon,
+		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddFlagHere)));
+
+	MenuBuilder.AddMenuEntry(
+		FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard->GetLabel(),
+		FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard->GetDescription(),
+		LightCardIcon,
+		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddLightCardHere)));
+
+	TSet<UClass*> StageActorClasses = UE::DisplayClusterLightCardEditorUtils::GetAllStageActorClasses();
+	for (UClass* Class : StageActorClasses)
+	{
+		if (Class == ADisplayClusterLightCardActor::StaticClass())
+		{
+			// Added manually already
+			continue;
+		}
+
+		FText Label = Class->GetDisplayNameText();
+		FSlateIcon StageActorIcon = FSlateIconFinder::FindIconForClass(Class);
+		MenuBuilder.AddMenuEntry(
+			Label,
+			LOCTEXT("AddStageActorHeader", "Add a stage actor to the scene"), 
+			StageActorIcon,
+			FUIAction(FExecuteAction::CreateRaw(this, &SDisplayClusterLightCardEditorViewport::AddStageActorHere, Class)));
+	}
 }
 
 void SDisplayClusterLightCardEditorViewport::SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode)
@@ -805,6 +853,60 @@ bool SDisplayClusterLightCardEditorViewport::CanPasteLightCardsHere() const
 	}
 
 	return false;
+}
+
+void SDisplayClusterLightCardEditorViewport::AddLightCardHere()
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->AddNewLightCard();
+
+		if (ViewportClient.IsValid())
+		{
+			// Perform the positioning of the pasted light cards on the next scene refresh, since the light card proxies will have not been 
+			// regenerated until then
+			ViewportClient->GetOnNextSceneRefresh().AddLambda([this]()
+			{
+				ViewportClient->MoveSelectedActorsToPixel(FIntPoint(PasteHerePos.X, PasteHerePos.Y));
+			});
+		}
+	}
+}
+
+void SDisplayClusterLightCardEditorViewport::AddFlagHere()
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->AddNewFlag();
+
+		if (ViewportClient.IsValid())
+		{
+			// Perform the positioning of the pasted light cards on the next scene refresh, since the light card proxies will have not been 
+			// regenerated until then
+			ViewportClient->GetOnNextSceneRefresh().AddLambda([this]()
+			{
+				ViewportClient->MoveSelectedActorsToPixel(FIntPoint(PasteHerePos.X, PasteHerePos.Y));
+			});
+		}
+	}
+}
+
+void SDisplayClusterLightCardEditorViewport::AddStageActorHere(UClass* InClass)
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->AddNewDynamic(InClass);
+
+		if (ViewportClient.IsValid())
+		{
+			// Perform the positioning of the pasted light cards on the next scene refresh, since the light card proxies will have not been 
+			// regenerated until then
+			ViewportClient->GetOnNextSceneRefresh().AddLambda([this]()
+			{
+				ViewportClient->MoveSelectedActorsToPixel(FIntPoint(PasteHerePos.X, PasteHerePos.Y));
+			});
+		}
+	}
 }
 
 void SDisplayClusterLightCardEditorViewport::ToggleLabels()

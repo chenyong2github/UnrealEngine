@@ -23,6 +23,9 @@ UDisplayClusterLabelComponent::UDisplayClusterLabelComponent()
 	WidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);
 	WidgetComponent->SetTranslucentSortPriority(1.f);
 	WidgetComponent->SetUsingAbsoluteScale(true);
+	WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WidgetComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	WidgetComponent->SetCollisionObjectType(ECollisionChannel::ECC_Visibility);
 
 	WidgetClass = TSoftClassPtr<UDisplayClusterLabelWidget>(FSoftClassPath(TEXT("/nDisplay/Widgets/BP_DisplayClusterLabelWidget.BP_DisplayClusterLabelWidget_C")));
 

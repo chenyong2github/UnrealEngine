@@ -60,8 +60,9 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 		];
 
 	const TSharedPtr<FExtender> ToolBarExtender = IDisplayClusterOperator::Get().GetOperatorToolBarExtensibilityManager()->GetAllExtenders();
-	FToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None, ToolBarExtender, true);
-	
+	FSlimHorizontalToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None, ToolBarExtender);
+	ToolBarBuilder.SetStyle(&FAppStyle::Get(), "AssetEditorToolbar");
+
 	const TSharedPtr<SHorizontalBox> RootActorSelectionBox = SNew(SHorizontalBox)
 	+SHorizontalBox::Slot()
 	.AutoWidth()

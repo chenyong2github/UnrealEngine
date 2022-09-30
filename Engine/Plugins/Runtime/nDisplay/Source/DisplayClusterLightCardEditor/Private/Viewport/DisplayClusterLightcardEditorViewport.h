@@ -68,6 +68,9 @@ private:
 	/** Create the popup context menu */
 	TSharedRef<SWidget> MakeContextMenu();
 
+	/** Create the submenu for placing actors */
+	void MakePlaceActorsSubMenu(FMenuBuilder& MenuBuilder);
+
 	/** Sets the widget mode for the editor viewport to the specified mode */
 	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode);
 
@@ -97,6 +100,15 @@ private:
 
 	/** Determines if there are any light cards in the clipboard that can be pasted */
 	bool CanPasteLightCardsHere() const;
+
+	/** Adds a new light card and moves it to the cached mouse position */
+	void AddLightCardHere();
+
+	/** Adds a new flag and moves it to the cached mouse position */
+	void AddFlagHere();
+
+	/** Adds a new stage actor of the specified class and moves it to the cached mouse position */
+	void AddStageActorHere(UClass* InClass);
 
 	/** Toggles light card labels on or off */
 	void ToggleLabels();
