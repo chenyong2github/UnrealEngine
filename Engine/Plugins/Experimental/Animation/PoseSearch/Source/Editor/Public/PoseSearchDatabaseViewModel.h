@@ -135,7 +135,7 @@ namespace UE::PoseSearch
 		EFeaturesDrawMode PoseFeaturesDrawMode = EFeaturesDrawMode::All;
 
 		/** What animations to show in the viewport */
-		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalOnly;
+		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalAndMirrored;
 
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes;
 
