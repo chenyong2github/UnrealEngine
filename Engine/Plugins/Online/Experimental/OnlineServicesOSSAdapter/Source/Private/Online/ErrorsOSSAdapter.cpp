@@ -74,6 +74,84 @@ inline FOnlineError FromOssError(const FOnlineErrorOss& Result)
 	return Internal_OssWrapInner(FOnlineError(ErrorCode::Create(ErrorCode::Category::Oss_System, ErrorCode::Category::Oss, (uint32)Result.GetErrorResult()), MakeShared<FOnlineErrorDetails, ESPMode::ThreadSafe>(MoveTemp(ErrorCode), MoveTemp(ErrorMessage)), nullptr), Result);
 }
 
+FOnlineError FromOssErrorCode(const FString& ErrorCode)
+{
+	EOnlineErrorResult ErrorResult = EOnlineErrorResult::FailExtended;
+	if (ErrorCode.EndsWith(TEXT("no_connection")))
+	{
+		ErrorResult = EOnlineErrorResult::NoConnection;
+	}
+	else if (ErrorCode.EndsWith(TEXT("request_failure")))
+	{
+		ErrorResult = EOnlineErrorResult::RequestFailure;
+	}
+	else if (ErrorCode.EndsWith(TEXT("invalid_creds")))
+	{
+		ErrorResult = EOnlineErrorResult::InvalidCreds;
+	}
+	else if (ErrorCode.EndsWith(TEXT("invalid_user")))
+	{
+		ErrorResult = EOnlineErrorResult::InvalidUser;
+	}
+	else if (ErrorCode.EndsWith(TEXT("invalid_auth")))
+	{
+		ErrorResult = EOnlineErrorResult::InvalidAuth;
+	}
+	else if (ErrorCode.EndsWith(TEXT("access_denied")))
+	{
+		ErrorResult = EOnlineErrorResult::AccessDenied;
+	}
+	else if (ErrorCode.EndsWith(TEXT("too_many_requests")))
+	{
+		ErrorResult = EOnlineErrorResult::TooManyRequests;
+	}
+	else if (ErrorCode.EndsWith(TEXT("already_pending")))
+	{
+		ErrorResult = EOnlineErrorResult::AlreadyPending;
+	}
+	else if (ErrorCode.EndsWith(TEXT("invalid_params")))
+	{
+		ErrorResult = EOnlineErrorResult::InvalidParams;
+	}
+	else if (ErrorCode.EndsWith(TEXT("cant_parse")))
+	{
+		ErrorResult = EOnlineErrorResult::CantParse;
+	}
+	else if (ErrorCode.EndsWith(TEXT("invalid_results")))
+	{
+		ErrorResult = EOnlineErrorResult::InvalidResults;
+	}
+	else if (ErrorCode.EndsWith(TEXT("incompatible_version")))
+	{
+		ErrorResult = EOnlineErrorResult::IncompatibleVersion;
+	}
+	else if (ErrorCode.EndsWith(TEXT("not_configured")))
+	{
+		ErrorResult = EOnlineErrorResult::NotConfigured;
+	}
+	else if (ErrorCode.EndsWith(TEXT("not_implemented")))
+	{
+		ErrorResult = EOnlineErrorResult::NotImplemented;
+	}
+	else if (ErrorCode.EndsWith(TEXT("missing_interface")))
+	{
+		ErrorResult = EOnlineErrorResult::MissingInterface;
+	}
+	else if (ErrorCode.EndsWith(TEXT("canceled")))
+	{
+		ErrorResult = EOnlineErrorResult::Canceled;
+	}
+	else if (ErrorCode.EndsWith(TEXT("fail_extended")))
+	{
+		ErrorResult = EOnlineErrorResult::FailExtended;
+	}
+
+	// construct an OSS FOnlineError from the result
+	::FOnlineError Result = ::FOnlineError::CreateError(FString(), ErrorResult, ErrorCode);
+
+	return Internal_OssWrapInner(FOnlineError(ErrorCode::Create(ErrorCode::Category::Oss_System, ErrorCode::Category::Oss, (uint32)Result.GetErrorResult()), MakeShared<FOnlineErrorDetails, ESPMode::ThreadSafe>(CopyTemp(ErrorCode), CopyTemp(Result.GetErrorMessage())), nullptr), Result);
+}
+
 } //namespace UE::Online::Errors
 
 ONLINESERVICESOSSADAPTER_API bool operator==(const UE::Online::FOnlineError& Left, const FOnlineErrorOss& Right)

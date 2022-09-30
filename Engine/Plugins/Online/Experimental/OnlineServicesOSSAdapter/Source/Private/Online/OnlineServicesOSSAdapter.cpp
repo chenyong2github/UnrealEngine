@@ -11,6 +11,7 @@
 #include "Online/PresenceOSSAdapter.h"
 #include "Online/PrivilegesOSSAdapter.h"
 #include "Online/SessionsOSSAdapter.h"
+#include "Online/SocialOSSAdapter.h"
 #include "Online/StatsOSSAdapter.h"
 #include "Online/TitleFileOSSAdapter.h"
 #include "Online/UserFileOSSAdapter.h"
@@ -41,6 +42,11 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 	Components.Register<FPresenceOSSAdapter>(*this);
 	Components.Register<FPrivilegesOSSAdapter>(*this);
 	Components.Register<FStatsOSSAdapter>(*this);
+
+	if (Subsystem->GetFriendsInterface().IsValid())
+	{
+		Components.Register<FSocialOSSAdapter>(*this);
+	}
 
 	if (Subsystem->GetSessionInterface().IsValid())
 	{

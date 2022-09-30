@@ -9,6 +9,7 @@ namespace UE::Online::Errors {
 
 	UE_ONLINE_ERROR_CATEGORY(Oss, Engine, 0x7, "Oss")
 	FOnlineError FromOssError(const FOnlineErrorOss& Result);
+	FOnlineError FromOssErrorCode(const FString& ErrorCode);
 	
 	// if you would like to add a parser that transforms custom platform errors into readable online service types, you can call this in your platform's error handler
 	using TOssPlatformErrorHandler = TUniqueFunction<TOptional<FOnlineError>(const FOnlineError&, const FOnlineErrorOss&)>;
