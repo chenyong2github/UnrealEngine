@@ -162,14 +162,8 @@ void UChaosVehicleWheel::PostEditChangeProperty( FPropertyChangedEvent& Property
 
 UPhysicalMaterial* UChaosVehicleWheel::GetContactSurfaceMaterial()
 {
-	UPhysicalMaterial* PhysMaterial = NULL;
-
-	if (HitResult.bBlockingHit && HitResult.PhysMaterial.IsValid())
-	{
-		PhysMaterial = HitResult.PhysMaterial.Get();
-	}
-
-	return PhysMaterial;
+	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
+	return VehicleComponent->GetPhysMaterial(WheelIndex);
 }
 
 

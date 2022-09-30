@@ -164,12 +164,19 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 
 };
 
+struct CHAOSVEHICLES_API FWheelTraceParams
+{
+	ESweepType SweepType;
+	ESweepShape SweepShape;
+};
+
 struct CHAOSVEHICLES_API FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
 {
 	float GravityZ;
 	FControlInputs ControlInputs;
 	mutable FCollisionQueryParams TraceParams;
 	mutable FCollisionResponseContainer TraceCollisionResponse;
+	mutable TArray<FWheelTraceParams> WheelTraceParams;
 
 	FChaosVehicleDefaultAsyncInput();
 

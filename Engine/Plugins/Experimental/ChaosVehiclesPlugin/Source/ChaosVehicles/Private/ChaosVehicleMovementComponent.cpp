@@ -1812,6 +1812,10 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].SuspensionOffset = FMath::Lerp(Current.SuspensionOffset, Next.SuspensionOffset, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].SpringForce = FMath::Lerp(Current.SpringForce, Next.SpringForce, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].NormalizedSuspensionLength = FMath::Lerp(Current.NormalizedSuspensionLength, Next.NormalizedSuspensionLength, OutputInterpAlpha);
+
+					PVehicleOutput->Wheels[WheelIdx].bBlockingHit = Current.bBlockingHit;
+					PVehicleOutput->Wheels[WheelIdx].ImpactPoint = FMath::Lerp(Current.ImpactPoint, Next.ImpactPoint, OutputInterpAlpha);
+					PVehicleOutput->Wheels[WheelIdx].PhysMaterial = Current.PhysMaterial;
 				}
 			}
 			else // WHEN ASYNC IS OFF IT STILL GENERATES THE ASYNC CALLBACK BUT THERE IS ONLY EVER THE CURRENT AND NO NEXT OUTPUT TO INTERPOLATE BETWEEN
@@ -1843,6 +1847,10 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].SuspensionOffset = Current.SuspensionOffset;
 					PVehicleOutput->Wheels[WheelIdx].SpringForce = Current.SpringForce;
 					PVehicleOutput->Wheels[WheelIdx].NormalizedSuspensionLength = Current.NormalizedSuspensionLength;
+
+					PVehicleOutput->Wheels[WheelIdx].bBlockingHit = Current.bBlockingHit;
+					PVehicleOutput->Wheels[WheelIdx].ImpactPoint = Current.ImpactPoint;
+					PVehicleOutput->Wheels[WheelIdx].PhysMaterial = Current.PhysMaterial;
 				}
 
 			}

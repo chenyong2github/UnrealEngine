@@ -413,8 +413,5 @@ class UChaosWheeledVehicleMovementComponent;
 		/** Get contact surface material */
 		UPhysicalMaterial* GetContactSurfaceMaterial();
 
-		/** suspension raycast results */
-		FHitResult HitResult;
-
 	};
 

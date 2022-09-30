@@ -523,6 +523,7 @@ struct CHAOSVEHICLES_API FWheelState
 		WorldWheelVelocity.Init(FVector::ZeroVector, NumWheels);
 		LocalWheelVelocity.Init(FVector::ZeroVector, NumWheels);
 		Trace.SetNum(NumWheels);
+		TraceResult.SetNum(NumWheels);
 	}
 
 	/** Commonly used Wheel state - evaluated once used wherever required for that frame */
@@ -536,6 +537,7 @@ struct CHAOSVEHICLES_API FWheelState
 	TArray<FVector> WorldWheelVelocity; /** Current velocity at wheel location In World Coordinates - combined linear and angular */
 	TArray<FVector> LocalWheelVelocity; /** Local velocity of Wheel */
 	TArray<Chaos::FSuspensionTrace> Trace;
+	TArray<FHitResult> TraceResult;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -544,8 +546,8 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleSimulation : public UChaosVehicleSim
 {
 public:
 
-	UChaosWheeledVehicleSimulation(TArray<class UChaosVehicleWheel*>& WheelsIn)
-		: Wheels(WheelsIn), bOverlapHit(false)
+	UChaosWheeledVehicleSimulation()
+		: bOverlapHit(false)
 	{
 		QueryBox.Init();
 	}
@@ -577,7 +579,7 @@ public:
 	virtual void ApplyInput(const FControlInputs& ControlInputs, float DeltaTime) override;
 
 	/** Perform suspension ray/shape traces */
-	virtual void PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse);
+	virtual void PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse, TArray<FWheelTraceParams>& WheelTraceParams);
 
 
 	/** Update the engine/transmission simulation */
@@ -598,9 +600,6 @@ public:
 
 	/** Draw 3D debug lines and things along side the 3D model */
 	virtual void DrawDebug3D() override;
-
-	// #TODO - should not exist here, now duplicated, best not to access at all from Physics 
-	TArray<class UChaosVehicleWheel*>& Wheels;
 
 	FWheelState WheelState;	/** Cached state that holds wheel data for this frame */
 
@@ -704,6 +703,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	}
 
 	virtual float GetSuspensionOffset(int WheelIndex) override;
+	UPhysicalMaterial* GetPhysMaterial(int WheelIndex);
 
 	/** Set all channels to the specified response - for wheel raycasts */
 	void SetWheelTraceAllChannels(ECollisionResponse NewResponse)
@@ -843,7 +843,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	virtual TUniquePtr<Chaos::FSimpleWheeledVehicle> CreatePhysicsVehicle() override
 	{
 		// Make the Vehicle Simulation class that will be updated from the physics thread async callback
-		VehicleSimulationPT = MakeUnique<UChaosWheeledVehicleSimulation>(Wheels);
+		VehicleSimulationPT = MakeUnique<UChaosWheeledVehicleSimulation>();
 
 		return UChaosVehicleMovementComponent::CreatePhysicsVehicle();
 	}
