@@ -737,16 +737,16 @@ namespace UnrealBuildTool
 								return false;
 							}
 						}
+					}
 
-						// Make sure the inlined gen.cpp files didn't change
-						foreach (TargetMakefileSourceFileInfo SourceFileInfo in SourceFileInfos)
+					// Make sure the inlined gen.cpp files didn't change
+					foreach (TargetMakefileSourceFileInfo SourceFileInfo in SourceFileInfos)
+					{
+						int InlineHash = TargetMakefileSourceFileInfo.CalculateInlineGenCppHash(MetadataCache.GetListOfInlinedGeneratedCppFiles(SourceFileInfo.SourceFileItem!));
+						if (SourceFileInfo.InlineGenCppHash != InlineHash)
 						{
-							int InlineHash = TargetMakefileSourceFileInfo.CalculateInlineGenCppHash(MetadataCache.GetListOfInlinedGeneratedCppFiles(SourceFileInfo.SourceFileItem!));
-							if (SourceFileInfo.InlineGenCppHash != InlineHash)
-							{
-								ReasonNotLoaded = "inlined gen.cpp files changed";
-								return false;
-							}
+							ReasonNotLoaded = "inlined gen.cpp files changed";
+							return false;
 						}
 					}
 				}
