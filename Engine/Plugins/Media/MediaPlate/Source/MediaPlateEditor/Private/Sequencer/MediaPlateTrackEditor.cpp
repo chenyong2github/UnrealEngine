@@ -194,11 +194,11 @@ void FMediaPlateTrackEditor::AddTrackForComponent(UMediaPlateComponent* Componen
 						// Start process to get the duration.
 						StartGetDuration(MediaSource, Section);
 
-						// Copy cache settings from media plate.
+						// Tell the section it has a player proxy.
 						UMovieSceneMediaSection* MediaSection = Cast<UMovieSceneMediaSection>(Section);
 						if (MediaSection != nullptr)
 						{
-							MediaSection->CacheSettings = Component->CacheSettings;
+							MediaSection->bHasMediaPlayerProxy = true;
 						}
 					}
 				}

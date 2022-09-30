@@ -7,6 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
+#include "IMediaAssetsModule.h"
 #include "ISequencer.h"
 #include "ISequencerObjectChangeListener.h"
 #include "MediaSource.h"
@@ -45,6 +46,7 @@ FMediaTrackEditor::FMediaTrackEditor(TSharedRef<ISequencer> InSequencer)
 	: FMovieSceneTrackEditor(InSequencer)
 {
 	ThumbnailPool = MakeShared<FTrackEditorThumbnailPool>(InSequencer);
+	InSequencer->OnMovieSceneDataChanged().AddRaw(this, &FMediaTrackEditor::OnSequencerDataChanged);
 }
 
 
@@ -203,6 +205,14 @@ const FSlateBrush* FMediaTrackEditor::GetIconBrush() const
 	return FAppStyle::GetBrush("Sequencer.Tracks.Media");
 }
 
+void FMediaTrackEditor::OnRelease()
+{
+	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	if (SequencerPtr.IsValid())
+	{
+		SequencerPtr->OnMovieSceneDataChanged().RemoveAll(this);
+	}
+}
 
 /* FMediaTrackEditor implementation
  *****************************************************************************/
@@ -332,6 +342,62 @@ void FMediaTrackEditor::HandleAddMediaTrackMenuEntryExecute()
 	}
 }
 
+void FMediaTrackEditor::OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType)
+{
+	// Get the scene.
+	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	
+	if (SequencerPtr.IsValid())
+	{
+		UMovieSceneSequence* MovieSequence = SequencerPtr->GetFocusedMovieSceneSequence();
+		if (MovieSequence != nullptr)
+		{
+			UMovieScene* MovieScene = MovieSequence->GetMovieScene();
 
+			// Loop through all bindings.
+			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+			for (const FMovieSceneBinding& Binding : Bindings)
+			{
+				UMovieSceneMediaTrack* Track = Cast<UMovieSceneMediaTrack>(MovieScene->FindTrack(UMovieSceneMediaTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
+				if (Track != nullptr)
+				{
+					UpdateMediaTrackBinding(Track, Binding);
+				}
+			}
+		}
+	}
+}
+
+void FMediaTrackEditor::UpdateMediaTrackBinding(UMovieSceneMediaTrack* MediaTrack, const FMovieSceneBinding& Binding)
+{
+	// Get object from the binding.
+	FGuid ObjectHandle = Binding.GetObjectGuid();
+	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	UObject* BoundObject = SequencerPtr.IsValid() ?
+		SequencerPtr->FindSpawnedObjectOrTemplate(ObjectHandle) : nullptr;
+
+	// Get the player proxy if available.
+	UObject* PlayerProxy = nullptr;
+	if (BoundObject != nullptr)
+	{
+		IMediaAssetsModule* MediaAssetsModule = FModuleManager::LoadModulePtr<IMediaAssetsModule>("MediaAssets");
+		if (MediaAssetsModule != nullptr)
+		{
+			MediaAssetsModule->GetPlayerFromObject(BoundObject, PlayerProxy);
+		}
+	}
+	bool bHasPlayerProxy = PlayerProxy != nullptr;
+
+	// Update all sections.
+	const TArray<UMovieSceneSection*> Sections = MediaTrack->GetAllSections();
+	for (UMovieSceneSection* Section : Sections)
+	{
+		UMovieSceneMediaSection* MediaSection = Cast<UMovieSceneMediaSection>(Section);
+		if (MediaSection != nullptr)
+		{
+			MediaSection->bHasMediaPlayerProxy = bHasPlayerProxy;
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

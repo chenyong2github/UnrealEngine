@@ -71,6 +71,7 @@ public:
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const override;
 	virtual void Tick(float DeltaTime) override;
 	virtual const FSlateBrush* GetIconBrush() const override;
+	virtual void OnRelease() override;
 
 protected:
 
@@ -89,6 +90,16 @@ private:
 
 	/** Callback for executing the "Add Media Track" menu entry. */
 	void HandleAddMediaTrackMenuEntryExecute();
+	/** Callback for when some sequencer data like bindings change. */
+	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
+
+	/**
+	 * Updates a media track with the current binding information.
+	 * 
+	 * @param MediaTrack			Track to update.
+	 * @param Binding				Binding to get object from.
+	 */
+	void UpdateMediaTrackBinding(UMovieSceneMediaTrack* MediaTrack, const FMovieSceneBinding& Binding);
 
 private:
 
