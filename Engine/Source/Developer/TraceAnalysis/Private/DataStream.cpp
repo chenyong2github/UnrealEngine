@@ -40,15 +40,19 @@ int32 FFileDataStream::Read(void* Data, uint32 Size)
 		return 0;
 	}
 
-	Size = (Size < Remaining) ? Size : Remaining;
+	if (Size > Remaining)
+	{
+		Size = static_cast<uint32>(Remaining);
+	}
 	Remaining -= Size;
-	int32 Result = Handle->Read((uint8*)Data, Size) ? Size : -1;
-	if (Result < 0)
+
+	if (!Handle->Read((uint8*)Data, Size))
 	{
 		Close();
+		return -1;
 	}
 
-	return Result;
+	return Size;
 }
 
 void FFileDataStream::Close()

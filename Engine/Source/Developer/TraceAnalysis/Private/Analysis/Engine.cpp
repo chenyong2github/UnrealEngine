@@ -448,14 +448,14 @@ FDispatch* FDispatchBuilder::Finalize()
 	for (int i = 0, n = Dispatch->FieldCount; i < n; ++i)
 	{
 		auto* Field = Dispatch->Fields + i;
-		Field->NameOffset += Buffer.Num() - uint32(UPTRINT(Field) - UPTRINT(Dispatch));
+		Field->NameOffset += (uint16)(Buffer.Num() - uint32(UPTRINT(Field) - UPTRINT(Dispatch)));
 	}
 
 	// Calculate this dispatch's hash.
 	if (Dispatch->LoggerNameOffset || Dispatch->EventNameOffset)
 	{
-		Dispatch->LoggerNameOffset += Buffer.Num();
-		Dispatch->EventNameOffset += Buffer.Num();
+		Dispatch->LoggerNameOffset += (uint16)Buffer.Num();
+		Dispatch->EventNameOffset += (uint16)Buffer.Num();
 
 		FFnv1aHash Hash;
 		Hash.Add((const ANSICHAR*)Dispatch + Dispatch->LoggerNameOffset);
@@ -477,14 +477,14 @@ void FDispatchBuilder::SetUid(uint16 Uid)
 void FDispatchBuilder::SetLoggerName(const ANSICHAR* Name, int32 NameSize)
 {
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
-	Dispatch->LoggerNameOffset += AppendName(Name, NameSize);
+	Dispatch->LoggerNameOffset += (uint16)AppendName(Name, NameSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FDispatchBuilder::SetEventName(const ANSICHAR* Name, int32 NameSize)
 {
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
-	Dispatch->EventNameOffset = AppendName(Name, NameSize);
+	Dispatch->EventNameOffset = (uint16)AppendName(Name, NameSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -520,7 +520,7 @@ FDispatch::FField& FDispatchBuilder::AddField(const ANSICHAR* Name, int32 NameSi
 {
 	int32 Bufoff = Buffer.AddUninitialized(sizeof(FDispatch::FField));
 	auto* Field = (FDispatch::FField*)(Buffer.GetData() + Bufoff);
-	Field->NameOffset = AppendName(Name, NameSize);
+	Field->NameOffset = (uint16)AppendName(Name, NameSize);
 	Field->Size = Size;
 	Field->RefUid = 0;
 
@@ -693,7 +693,7 @@ bool IAnalyzer::FEventFieldInfo::IsSigned() const
 uint8 IAnalyzer::FEventFieldInfo::GetSize() const
 {
 	const auto* Inner = (const FDispatch::FField*)this;
-	return Inner->Size;
+	return uint8(Inner->Size);
 }
 
 // {{{1 array-reader -----------------------------------------------------------
@@ -1076,7 +1076,7 @@ const FTypeRegistry::FTypeInfo* FTypeRegistry::AddVersion4(const void* TraceData
 	{
 		const auto& Field = NewEvent.Fields[i];
 
-		uint16 TypeSize = 1 << (Field.TypeInfo & Protocol0::Field_Pow2SizeMask);
+		int8 TypeSize = 1 << (Field.TypeInfo & Protocol0::Field_Pow2SizeMask);
 		if (Field.TypeInfo & Protocol0::Field_Float)
 		{
 			TypeSize = -TypeSize;
@@ -1136,7 +1136,7 @@ const FTypeRegistry::FTypeInfo* FTypeRegistry::AddVersion6(const void* TraceData
 		const auto& Field = NewEvent.Fields[i];
 		if (Field.FieldType == EFieldFamily::Regular)
 		{
-			uint16 TypeSize = 1 << (Field.Regular.TypeInfo & Protocol0::Field_Pow2SizeMask);
+			int8 TypeSize = 1 << (Field.Regular.TypeInfo & Protocol0::Field_Pow2SizeMask);
 			if (Field.Regular.TypeInfo & Protocol0::Field_Float)
 			{
 				TypeSize = -TypeSize;
@@ -1154,7 +1154,7 @@ const FTypeRegistry::FTypeInfo* FTypeRegistry::AddVersion6(const void* TraceData
 		else if (Field.FieldType == EFieldFamily::Reference)
 		{
 			check((Field.Reference.TypeInfo & Protocol0::Field_CategoryMask) == Protocol0::Field_Integer);
-			const uint16 TypeSize = 1 << (Field.Reference.TypeInfo & Protocol0::Field_Pow2SizeMask);
+			const int8 TypeSize = 1 << (Field.Reference.TypeInfo & Protocol0::Field_Pow2SizeMask);
 
 			auto& OutField = Builder.AddField(NameCursor, Field.Reference.NameSize, TypeSize);
 			OutField.Offset = Field.Reference.Offset;
@@ -1168,7 +1168,7 @@ const FTypeRegistry::FTypeInfo* FTypeRegistry::AddVersion6(const void* TraceData
 		else if (Field.FieldType == EFieldFamily::DefinitionId)
 		{
 			check((Field.DefinitionId.TypeInfo & Protocol0::Field_CategoryMask) == Protocol0::Field_Integer);
-			const uint16 TypeSize = 1 << (Field.DefinitionId.TypeInfo & Protocol0::Field_Pow2SizeMask);
+			const int8 TypeSize = 1 << (Field.DefinitionId.TypeInfo & Protocol0::Field_Pow2SizeMask);
 			
 			auto DefinitionIdFieldName = ANSITEXTVIEW("DefinitionId");
 			auto& OutField = Builder.AddField(DefinitionIdFieldName.GetData(), DefinitionIdFieldName.Len(), TypeSize);
@@ -1460,7 +1460,7 @@ void FAnalyzerHub::BuildRoutes()
 	Builder.Self = this;
 
 	IAnalyzer::FOnAnalysisContext OnAnalysisContext = { Builder };
-	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+	for (uint16 i = 0, n = uint16(Analyzers.Num()); i < n; ++i)
 	{
 		uint32 RouteCount = Routes.Num();
 
@@ -1502,7 +1502,7 @@ void FAnalyzerHub::BuildRoutes()
 	};
 
 	FRoute* Cursor = FixupRoute(Routes.GetData());
-	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
+	for (uint16 i = 1, n = uint16(Routes.Num()); i < n; ++i)
 	{
 		FRoute* Route = Routes.GetData() + i;
 		if (Route->Hash == Cursor->Hash)

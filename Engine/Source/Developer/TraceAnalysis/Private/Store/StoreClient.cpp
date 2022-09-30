@@ -67,7 +67,7 @@ int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 	while (true)
 	{
 		fd_set ReadFds = Fds;
-		int Ret = select(Handle + 1, &ReadFds, 0, 0, &Timeout);
+		int Ret = select((int)Handle + 1, &ReadFds, 0, 0, &Timeout);
 
 		if (Ret < 0)
 		{
@@ -308,7 +308,7 @@ FTraceDataStream* FStoreCborClient::ReadTrace(uint32 Id)
 		return nullptr;
 	}
 
-	uint32 SenderPort = Response.GetInteger("port", 0);
+	uint32 SenderPort = Response.GetUint32Checked("port", 0);
 	if (!SenderPort)
 	{
 		return nullptr;
@@ -389,14 +389,14 @@ FUtf8StringView FStoreClient::FStatus::GetStoreDir() const
 uint32 FStoreClient::FStatus::GetRecorderPort() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("recorder_port", 0);
+	return Response->GetUint32Checked("recorder_port", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::FStatus::GetChangeSerial() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("change_serial", 0);
+	return Response->GetUint32Checked("change_serial", 0);
 }
 
 
@@ -407,21 +407,21 @@ uint32 FStoreClient::FStatus::GetChangeSerial() const
 uint32 FStoreClient::FTraceInfo::GetId() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("id", 0);
+	return Response->GetUint32Checked("id", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint64 FStoreClient::FTraceInfo::GetSize() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("size", 0);
+	return Response->GetUint64Checked("size", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint64 FStoreClient::FTraceInfo::GetTimestamp() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("timestamp", 0);
+	return Response->GetUint64Checked("timestamp", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -437,28 +437,28 @@ FUtf8StringView FStoreClient::FTraceInfo::GetName() const
 uint32 FStoreClient::FSessionInfo::GetId() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("id", 0);
+	return Response->GetUint32Checked("id", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::FSessionInfo::GetTraceId() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("trace_id", 0);
+	return Response->GetUint32Checked("trace_id", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::FSessionInfo::GetIpAddress() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("ip_address", 0);
+	return Response->GetUint32Checked("ip_address", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStoreClient::FSessionInfo::GetControlPort() const
 {
 	const auto* Response = (const FResponse*)this;
-	return Response->GetInteger("control_port", 0);
+	return Response->GetUint32Checked("control_port", 0);
 }
 
 
@@ -469,7 +469,7 @@ FStoreClient* FStoreClient::Connect(const TCHAR* Host, uint32 Port)
 	static asio::io_context IoContext;
 
 	FStoreCborClient* Impl = new FStoreCborClient(IoContext);
-	if (!Impl->Connect(Host, Port))
+	if (!Impl->Connect(Host, static_cast<uint16>(Port)))
 	{
 		delete Impl;
 		return nullptr;
@@ -528,7 +528,7 @@ uint32 FStoreClient::GetTraceCount()
 		return 0;
 	}
 
-	return Self->GetResponse().GetInteger("count", 0);
+	return Self->GetResponse().GetUint32Checked("count", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -573,7 +573,7 @@ uint32 FStoreClient::GetSessionCount() const
 		return 0;
 	}
 
-	return Self->GetResponse().GetInteger("count", 0);
+	return Self->GetResponse().GetUint32Checked("count", 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
