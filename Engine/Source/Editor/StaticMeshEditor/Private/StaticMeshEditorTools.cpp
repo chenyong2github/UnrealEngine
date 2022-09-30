@@ -5146,6 +5146,23 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
+		TSharedPtr<SCheckBox> NanitePreserveAreaCheck;
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("PreserveArea", "Preserve Area") )
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("PreserveArea", "Preserve Area"))
+		]
+		.ValueContent()
+		[
+			SAssignNew(NanitePreserveAreaCheck, SCheckBox)
+			.IsChecked(this, &FNaniteSettingsLayout::IsPreserveAreaChecked)
+			.OnCheckStateChanged(this, &FNaniteSettingsLayout::OnPreserveAreaChanged)
+		];
+	}
+
+	{
 		TSharedPtr<STextComboBox> TerminationCriterionCombo;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("PositionPrecision", "Position Precision"))
 		.NameContent()
@@ -5515,6 +5532,16 @@ ECheckBoxState FNaniteSettingsLayout::IsEnabledChecked() const
 void FNaniteSettingsLayout::OnEnabledChanged(ECheckBoxState NewState)
 {
 	NaniteSettings.bEnabled = NewState == ECheckBoxState::Checked ? true : false;
+}
+
+ECheckBoxState FNaniteSettingsLayout::IsPreserveAreaChecked() const
+{
+	return NaniteSettings.bPreserveArea ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FNaniteSettingsLayout::OnPreserveAreaChanged(ECheckBoxState NewState)
+{
+	NaniteSettings.bPreserveArea = NewState == ECheckBoxState::Checked ? true : false;
 }
 
 void FNaniteSettingsLayout::OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)

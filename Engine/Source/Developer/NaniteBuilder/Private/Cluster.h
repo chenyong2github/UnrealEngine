@@ -50,7 +50,7 @@ public:
 		const TArray< FStaticMeshBuildVertex >& InVerts,
 		const TArrayView< const uint32 >& InIndexes,
 		const TArrayView< const int32 >& InMaterialIndexes,
-		uint32 InNumTexCoords, bool bInHasColors,
+		uint32 InNumTexCoords, bool bInHasColors, bool bInPreserveArea,
 		uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency );
 
 	FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency );
@@ -87,6 +87,7 @@ public:
 	uint32		NumTris = 0;
 	uint32		NumTexCoords = 0;
 	bool		bHasColors = false;
+	bool		bPreserveArea = false;
 
 	TArray< float >		Verts;
 	TArray< uint32 >	Indexes;

@@ -3,9 +3,6 @@
 #include "Cluster.h"
 #include "GraphPartitioner.h"
 
-template< typename T > FORCEINLINE uint32 Min3Index( const T A, const T B, const T C ) { return ( A < B ) ? ( ( A < C ) ? 0 : 2 ) : ( ( B < C ) ? 1 : 2 ); }
-template< typename T > FORCEINLINE uint32 Max3Index( const T A, const T B, const T C ) { return ( A > B ) ? ( ( A > C ) ? 0 : 2 ) : ( ( B > C ) ? 1 : 2 ); }
-
 namespace Nanite
 {
 
@@ -28,7 +25,7 @@ FCluster::FCluster(
 	const TArray< FStaticMeshBuildVertex >& InVerts,
 	const TArrayView< const uint32 >& InIndexes,
 	const TArrayView< const int32 >& InMaterialIndexes,
-	uint32 InNumTexCoords, bool bInHasColors,
+	uint32 InNumTexCoords, bool bInHasColors, bool bInPreserveArea,
 	uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 {
 	GUID = (uint64(TriBegin) << 32) | TriEnd;
@@ -37,6 +34,7 @@ FCluster::FCluster(
 	//ensure(NumTriangles <= FCluster::ClusterSize);
 	
 	bHasColors = bInHasColors;
+	bPreserveArea = bInPreserveArea;
 	NumTexCoords = InNumTexCoords;
 
 	Verts.Reserve( NumTris * GetVertSize() );
@@ -125,8 +123,9 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 {
 	GUID = MurmurFinalize64(SrcCluster.GUID) ^ ((uint64(TriBegin) << 32) | TriEnd);
 
-	NumTexCoords = SrcCluster.NumTexCoords;
-	bHasColors   = SrcCluster.bHasColors;
+	NumTexCoords	= SrcCluster.NumTexCoords;
+	bHasColors		= SrcCluster.bHasColors;
+	bPreserveArea	= SrcCluster.bPreserveArea;
 	
 	NumTris = TriEnd - TriBegin;
 
@@ -175,8 +174,7 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 			NumExternalEdges += AdjCount != 0 ? 1 : 0;
 		}
 
-		const int32 MaterialIndex = SrcCluster.MaterialIndexes[ TriIndex ];
-		MaterialIndexes.Add( MaterialIndex );
+		MaterialIndexes.Add( SrcCluster.MaterialIndexes[ TriIndex ] );
 	}
 
 	Bound();
@@ -185,8 +183,9 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 // Merge
 FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& MergeList )
 {
-	NumTexCoords = MergeList[0]->NumTexCoords;
-	bHasColors = MergeList[0]->bHasColors;
+	NumTexCoords	= MergeList[0]->NumTexCoords;
+	bHasColors		= MergeList[0]->bHasColors;
+	bPreserveArea	= MergeList[0]->bPreserveArea;
 
 	const uint32 NumTrisGuess = ClusterSize * MergeList.Num();
 
@@ -200,25 +199,24 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& Merge
 
 	for( const FCluster* Child : MergeList )
 	{
-		Bounds += Child->Bounds;
-		SurfaceArea += Child->SurfaceArea;
+		NumTris			+= Child->NumTris;
+		Bounds			+= Child->Bounds;
+		SurfaceArea		+= Child->SurfaceArea;
 
 		// Can jump multiple levels but guarantee it steps at least 1.
-		MipLevel = FMath::Max( MipLevel, Child->MipLevel + 1 );
+		MipLevel	= FMath::Max( MipLevel,		Child->MipLevel + 1 );
+		LODError	= FMath::Max( LODError,		Child->LODError );
+		EdgeLength	= FMath::Max( EdgeLength,	Child->EdgeLength );
 
 		for( int32 i = 0; i < Child->Indexes.Num(); i++ )
 		{
 			uint32 NewIndex = AddVert( &Child->Verts[ Child->Indexes[i] * GetVertSize() ], VertHashTable );
 
 			Indexes.Add( NewIndex );
-			ExternalEdges.Add( Child->ExternalEdges[i] );
 		}
 
-		for( int32 i = 0; i < Child->MaterialIndexes.Num(); i++ )
-		{
-			const int32 MaterialIndex = Child->MaterialIndexes[i];
-			MaterialIndexes.Add( MaterialIndex );
-		}
+		ExternalEdges.Append( Child->ExternalEdges );
+		MaterialIndexes.Append( Child->MaterialIndexes );
 
 		GUID = MurmurFinalize64(GUID) ^ Child->GUID;
 	}
@@ -256,7 +254,7 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& Merge
 		NumExternalEdges += AdjCount != 0 ? 1 : 0;
 	}
 
-	NumTris = Indexes.Num() / 3;
+	ensure( NumTris == Indexes.Num() / 3 );
 }
 
 float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitNumTris )
@@ -370,6 +368,9 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 
 	check( Simplifier.GetRemainingNumVerts() > 0 );
 	check( Simplifier.GetRemainingNumTris() > 0 );
+
+	if( bPreserveArea )
+		Simplifier.PreserveSurfaceArea();
 
 	Simplifier.Compact();
 	
@@ -486,20 +487,25 @@ FAdjacency FCluster::BuildAdjacency() const
 
 uint32 FCluster::AddVert( const float* Vert, FHashTable& HashTable )
 {
+	const uint32 VertSize = GetVertSize();
 	const FVector3f& Position = *reinterpret_cast< const FVector3f* >( Vert );
 
 	uint32 Hash = HashPosition( Position );
 	uint32 NewIndex;
 	for( NewIndex = HashTable.First( Hash ); HashTable.IsValid( NewIndex ); NewIndex = HashTable.Next( NewIndex ) )
 	{
-		if( 0 == FMemory::Memcmp( &GetPosition( NewIndex ), Vert, GetVertSize() * sizeof( float ) ) )
+		uint32 i;
+		for( i = 0; i < VertSize; i++ )
 		{
-			break;
+			if( Vert[i] != Verts[ NewIndex * VertSize + i ] )
+				break;
 		}
+		if( i == VertSize )
+			break;
 	}
 	if( !HashTable.IsValid( NewIndex ) )
 	{
-		Verts.AddUninitialized( GetVertSize() );
+		Verts.AddUninitialized( VertSize );
 		NewIndex = NumVerts++;
 		HashTable.Add( Hash, NewIndex );
 
@@ -507,115 +513,6 @@ uint32 FCluster::AddVert( const float* Vert, FHashTable& HashTable )
 	}
 
 	return NewIndex;
-}
-
-
-
-struct FNormalCone
-{
-	FVector3f	Axis;
-	float	CosAngle;
-
-	FNormalCone() {}
-	FNormalCone( const FVector3f& InAxis )
-		: Axis( InAxis )
-		, CosAngle( 1.0f )
-	{
-		if( !Axis.Normalize() )
-		{
-			Axis = FVector3f( 0.0f, 0.0f, 1.0f );
-		}
-	}
-};
-
-FORCEINLINE FMatrix44f OrthonormalBasis( const FVector3f& Vec )
-{
-	float Sign = Vec.Z >= 0.0f ? 1.0f : -1.0f;
-	float a = -1.0f / ( Sign + Vec.Z );
-	float b = Vec.X * Vec.Y * a;
-	
-	return FMatrix44f(
-		{ 1.0f + Sign * a * FMath::Square( Vec.X ), Sign * b, -Vec.X * Sign },
-		{ b,     Sign + a * FMath::Square( Vec.Y ),           -Vec.Y },
-		Vec,
-		FVector3f::ZeroVector );
-}
-
-FMatrix44f CovarianceToBasis( const FMatrix44f& Covariance )
-{
-#if 0
-	FMatrix44f Eigenvectors;
-	FVector3f Eigenvalues;
-	diagonalizeSymmetricMatrix( Covariance, Eigenvectors, Eigenvalues );
-
-	//Eigenvectors = Eigenvectors.GetTransposed();
-
-	uint32 i0 = Max3Index( Eigenvalues[0], Eigenvalues[1], Eigenvalues[2] );
-	uint32 i1 = (1 << i0) & 3;
-	uint32 i2 = (1 << i1) & 3;
-	i1 = Eigenvalues[ i1 ] > Eigenvalues[ i2 ] ? i1 : i2;
-
-	FVector3f Eigenvector0 = Eigenvectors.GetColumn( i0 );
-	FVector3f Eigenvector1 = Eigenvectors.GetColumn( i1 );
-
-	Eigenvector0.Normalize();
-	Eigenvector1 -= ( Eigenvector0 | Eigenvector1 ) * Eigenvector1;
-	Eigenvector1.Normalize();
-
-	return FMatrix44f( Eigenvector0, Eigenvector1, Eigenvector0 ^ Eigenvector1, FVector3f::ZeroVector );
-#else
-	// Start with highest variance cardinal direction
-	uint32 HighestVarianceDim = Max3Index( Covariance.M[0][0], Covariance.M[1][1], Covariance.M[2][2] );
-	FVector3f Eigenvector0 = FMatrix44f::Identity.GetColumn( HighestVarianceDim );
-	
-	// Compute dominant eigenvector using power method
-	for( int i = 0; i < 32; i++ )
-	{
-		Eigenvector0 = Covariance.TransformVector( Eigenvector0 );
-		Eigenvector0.Normalize();
-	}
-	if( !Eigenvector0.IsNormalized() )
-	{
-		Eigenvector0 = FVector3f( 0.0f, 0.0f, 1.0f );
-	}
-
-	// Rotate matrix so that Z is Eigenvector0. This allows us to ignore Z dimension and turn this into a 2D problem.
-	FMatrix44f ZSpace = OrthonormalBasis( Eigenvector0 );
-	FMatrix44f ZLocalCovariance = Covariance * ZSpace;
-
-	// Compute eigenvalues in XY plane. Solve for 2x2.
-	float Det = ZLocalCovariance.M[0][0] * ZLocalCovariance.M[1][1] - ZLocalCovariance.M[0][1] * ZLocalCovariance.M[1][0];
-	float Trace = ZLocalCovariance.M[0][0] + ZLocalCovariance.M[1][1];
-	float Sqr = Trace * Trace - 4.0f * Det;
-	if( Sqr < 0.0f )
-	{
-		return ZSpace;
-	}
-	float Sqrt = FMath::Sqrt( Sqr );
-	
-	float Eigenvalue1 = 0.5f * ( Trace + Sqrt );
-	float Eigenvalue2 = 0.5f * ( Trace - Sqrt );
-
-	float MinEigenvalue = FMath::Min( Eigenvalue1, Eigenvalue2 );
-	float MaxEigenvalue = FMath::Max( Eigenvalue1, Eigenvalue2 );
-
-	// Solve ( Eigenvalue * I - M ) * Eigenvector = 0
-	FVector3f Eigenvector1;
-	if( FMath::Abs( ZLocalCovariance.M[0][1] ) > FMath::Abs( ZLocalCovariance.M[1][0] ) )
-	{
-		Eigenvector1 = FVector3f( ZLocalCovariance.M[0][1], MaxEigenvalue - ZLocalCovariance.M[0][0], 0.0f );
-	}
-	else
-	{
-		Eigenvector1 = FVector3f( MaxEigenvalue - ZLocalCovariance.M[1][1], ZLocalCovariance.M[1][0], 0.0f );
-	}
-
-	Eigenvector1 = ZSpace.TransformVector( Eigenvector1 );
-	//Eigenvector1 -= ( Eigenvector0 | Eigenvector1 ) * Eigenvector1;
-	Eigenvector1.Normalize();
-
-	return FMatrix44f( Eigenvector0, Eigenvector1, Eigenvector0 ^ Eigenvector1, FVector3f::ZeroVector );
-#endif
 }
 
 void FCluster::Bound()

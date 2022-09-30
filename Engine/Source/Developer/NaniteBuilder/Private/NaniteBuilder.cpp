@@ -303,7 +303,8 @@ static void ClusterTriangles(
 	TArray< FCluster >& Clusters,	// Append
 	const FBounds3f& MeshBounds,
 	uint32 NumTexCoords,
-	bool bHasColors )
+	bool bHasColors,
+	bool bPreserveArea )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::ClusterTriangles);
 
@@ -326,7 +327,7 @@ static void ClusterTriangles(
 		[&]( int32 EdgeIndex )
 		{
 			EdgeHash.Add_Concurrent( EdgeIndex, GetPosition );
-		});
+		} );
 
 	ParallelFor( TEXT("Nanite.ClusterTriangles.PF"), Indexes.Num(), 1024,
 		[&]( int32 EdgeIndex )
@@ -344,7 +345,7 @@ static void ClusterTriangles(
 				AdjIndex = -2;
 
 			Adjacency.Direct[ EdgeIndex ] = AdjIndex;
-		});
+		} );
 
 	FDisjointSet DisjointSet( NumTriangles );
 
@@ -443,7 +444,7 @@ static void ClusterTriangles(
 					Verts,
 					Indexes,
 					MaterialIndexes,
-					NumTexCoords, bHasColors,
+					NumTexCoords, bHasColors, bPreserveArea,
 					Range.Begin, Range.End, Partitioner, Adjacency );
 
 				// Negative notes it's a leaf
@@ -532,7 +533,7 @@ static bool BuildNaniteData(
 					InputMeshData.Vertices,
 					TArrayView< const uint32 >( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
 					TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
-					Clusters, VertexBounds, NumTexCoords, bHasVertexColor);
+					Clusters, VertexBounds, NumTexCoords, bHasVertexColor, Settings.bPreserveArea );
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;
@@ -684,21 +685,18 @@ static bool BuildNaniteData(
 	
 		FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
 
-		ParallelFor(
-			TEXT("Nanite.BuildData.PF"),
-			FMath::Square(FImposterAtlas::AtlasSize),
-			1,
-			[&](int32 TileIndex)
-		{
-			FIntPoint TilePos(
-				TileIndex % FImposterAtlas::AtlasSize,
-				TileIndex / FImposterAtlas::AtlasSize);
-
-			for (int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++)
+		ParallelFor( TEXT("Nanite.BuildData.PF"), FMath::Square(FImposterAtlas::AtlasSize), 1,
+			[&]( int32 TileIndex )
 			{
-				ImposterAtlas.Rasterize(TilePos, Clusters[RootChildren[ClusterIndex]], ClusterIndex);
-			}
-		});
+				FIntPoint TilePos(
+					TileIndex % FImposterAtlas::AtlasSize,
+					TileIndex / FImposterAtlas::AtlasSize);
+
+				for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
+				{
+					ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex) ;
+				}
+			} );
 
 		UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - ImposterStartTime ) / 1000.0f);
 	}

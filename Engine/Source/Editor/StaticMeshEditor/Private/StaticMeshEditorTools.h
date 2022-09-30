@@ -715,6 +715,9 @@ private:
 	ECheckBoxState IsEnabledChecked() const;
 	void OnEnabledChanged(ECheckBoxState NewState);
 
+	ECheckBoxState IsPreserveAreaChecked() const;
+	void OnPreserveAreaChanged(ECheckBoxState NewState);
+
 	void OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 	void OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 

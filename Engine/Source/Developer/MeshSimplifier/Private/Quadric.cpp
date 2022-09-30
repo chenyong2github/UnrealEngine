@@ -462,6 +462,33 @@ bool PseudoSolveIterate( const T* RESTRICT A, const T* RESTRICT V, const T* REST
 	return bCloseEnough;
 }
 
+FEdgeQuadric::FEdgeQuadric( const QVec3 p0, const QVec3 p1, const float Weight )
+{
+	n = p1 - p0;
+
+	const QScalar Length = sqrt( n | n );
+	if( Length < (QScalar)SMALL_NUMBER )
+	{
+		Zero();
+		return;
+	}
+	else
+	{
+		n.x /= Length;
+		n.y /= Length;
+		n.z /= Length;
+	}
+
+	a = Weight * Length;
+	
+	nxx = a - a * n.x * n.x;
+	nyy = a - a * n.y * n.y;
+	nzz = a - a * n.z * n.z;
+
+	nxy = -a * n.x * n.y;
+	nxz = -a * n.x * n.z;
+	nyz = -a * n.y * n.z;
+}
 
 FQuadric::FQuadric( const QVec3 p0, const QVec3 p1, const QVec3 p2 )
 {

@@ -2427,6 +2427,7 @@ static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& Nan
 {
 	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
+	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bPreserveArea);
 	Ar << NaniteSettings.PositionPrecision;
 	Ar << NaniteSettings.TargetMinimumResidencyInKB;
 	Ar << NaniteSettings.KeepPercentTriangles;
