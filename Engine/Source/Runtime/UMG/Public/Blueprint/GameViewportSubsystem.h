@@ -99,12 +99,6 @@ public:
 	static FGameViewportWidgetSlot SetWidgetSlotDesiredSize(FGameViewportWidgetSlot Slot, FVector2D Size);
 
 private:
-	void AddToScreen(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot& Slot);
-	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
-	FMargin GetFullScreenOffsetForWidget(UWidget* Widget) const;
-	TPair<FMargin, bool> GetOffsetAttribute(UWidget* Widget, const FGameViewportWidgetSlot& Slot) const;
-
-private:
 	struct FSlotInfo
 	{
 		FGameViewportWidgetSlot Slot;
@@ -112,6 +106,15 @@ private:
 		TWeakPtr<SConstraintCanvas> FullScreenWidget;
 		SConstraintCanvas::FSlot* FullScreenWidgetSlot = nullptr;
 	};
-	using FViewportWidget = TMap<TWeakObjectPtr<UWidget>, FSlotInfo>;
-	FViewportWidget ViewportWidgets;
+
+private:
+	void AddToScreen(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot& Slot);
+	void RemoveWidgetInternal(UWidget* Widget, FSlotInfo& SlotInfo);
+	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
+	FMargin GetFullScreenOffsetForWidget(UWidget* Widget) const;
+	TPair<FMargin, bool> GetOffsetAttribute(UWidget* Widget, const FGameViewportWidgetSlot& Slot) const;
+
+private:
+	using FViewportWidgetList = TMap<TWeakObjectPtr<UWidget>, FSlotInfo>;
+	FViewportWidgetList ViewportWidgets;
 };

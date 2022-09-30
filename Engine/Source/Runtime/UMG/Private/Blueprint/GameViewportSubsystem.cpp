@@ -44,6 +44,16 @@ void UGameViewportSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UGameViewportSubsystem::Deinitialize()
 {
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+
+	for (auto& Itt : ViewportWidgets)
+	{
+		if (UWidget* Widget = Itt.Key.Get())
+		{
+			RemoveWidgetInternal(Widget, Itt.Value);
+		}
+	}
+	ViewportWidgets.Empty();
+
 	Super::Deinitialize();
 }
 
@@ -168,22 +178,27 @@ void UGameViewportSubsystem::RemoveWidget(UWidget* Widget)
 	{
 		FSlotInfo SlotInfo;
 		ViewportWidgets.RemoveAndCopyValue(Widget, SlotInfo);
-		Widget->bIsManagedByGameViewportSubsystem = false;
-		if (TSharedPtr<SWidget> WidgetHost = SlotInfo.FullScreenWidget.Pin())
-		{
-			// If this is a game world remove the widget from the current world's viewport.
-			UWorld* World = GetGameInstance()->GetWorld();
-			if (World && World->IsGameWorld())
-			{
-				if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-				{
-					TSharedRef<SWidget> WidgetHostRef = WidgetHost.ToSharedRef();
-					ViewportClient->RemoveViewportWidgetContent(WidgetHostRef);
+		RemoveWidgetInternal(Widget, SlotInfo);
+	}
+}
 
-					// We may no longer have access to our owning player if the player controller was destroyed
-					// Passing nullptr to RemoveViewportWidgetForPlayer will search all player layers for this widget
-					ViewportClient->RemoveViewportWidgetForPlayer(SlotInfo.LocalPlayer.Get(), WidgetHostRef);
-				}
+void UGameViewportSubsystem::RemoveWidgetInternal(UWidget* Widget, FSlotInfo& SlotInfo)
+{
+	Widget->bIsManagedByGameViewportSubsystem = false;
+	if (TSharedPtr<SWidget> WidgetHost = SlotInfo.FullScreenWidget.Pin())
+	{
+		// If this is a game world remove the widget from the current world's viewport.
+		UWorld* World = GetGameInstance()->GetWorld();
+		if (World && World->IsGameWorld())
+		{
+			if (UGameViewportClient* ViewportClient = World->GetGameViewport())
+			{
+				TSharedRef<SWidget> WidgetHostRef = WidgetHost.ToSharedRef();
+				ViewportClient->RemoveViewportWidgetContent(WidgetHostRef);
+
+				// We may no longer have access to our owning player if the player controller was destroyed
+				// Passing nullptr to RemoveViewportWidgetForPlayer will search all player layers for this widget
+				ViewportClient->RemoveViewportWidgetForPlayer(SlotInfo.LocalPlayer.Get(), WidgetHostRef);
 			}
 		}
 	}
@@ -257,7 +272,7 @@ void UGameViewportSubsystem::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* In
 	// dangerous actor references that won't carry over into the next world.
 	if (InLevel == nullptr)
 	{
-		for (FViewportWidget::TIterator Itt = ViewportWidgets.CreateIterator(); Itt; ++Itt)
+		for (FViewportWidgetList::TIterator Itt = ViewportWidgets.CreateIterator(); Itt; ++Itt)
 		{
 			if (UWidget* Widget = Itt.Key().Get())
 			{
