@@ -391,7 +391,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		{
 			if (!InvalidChunks[ChunkIndex])
 			{
-				UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *BulkData.GetPackagePath().GetDebugName());
+				UE_LOG(LogConsoleResponse, Display, TEXT("BulkData for chunk %d in file '%s' is empty."), ChunkIndex, *BulkData.GetDebugName());
 				InvalidChunks[ChunkIndex] = true;
 			}
 			return EVTRequestPageStatus::Invalid;
@@ -461,7 +461,7 @@ void FUploadingVirtualTexture::DumpToConsole(bool verbose)
 		}
 		else
 #endif
-			BulkDataFiles.Add(Chunk.BulkData.GetPackagePath().GetLocalFullPath());
+			BulkDataFiles.Add(Chunk.BulkData.GetDebugName());
 	}
 
 	for (const auto& FileName : BulkDataFiles)

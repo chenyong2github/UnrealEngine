@@ -819,12 +819,19 @@ public:
 	void ClearBulkDataFlags( uint32 BulkDataFlagsToClear );
 
 	UE_DEPRECATED(5.0, "Use GetPackagePath instead")
-	FString GetFilename() const { return GetPackagePath().GetLocalFullPath(GetPackageSegment()); }
+	FString GetFilename() const
+	{ 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GetPackagePath().GetLocalFullPath(GetPackageSegment());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Returns the PackagePath this bulkdata resides in */
+	UE_DEPRECATED(5.1, "Deprecated")
 	const FPackagePath& GetPackagePath() const { return BulkChunkId.GetPackagePath(); }
 
 	/** Returns which segment of its PackagePath this bulkdata resides in */
+	UE_DEPRECATED(5.1, "Deprecated")
 	EPackageSegment GetPackageSegment() const { return UE::BulkData::Private::GetPackageSegmentFromFlags(BulkMeta); }
 
 	/** 
@@ -836,6 +843,9 @@ public:
 	
 	/** Returns a FIoChunkId for the bulkdata payload, this will be invalid if the bulkdata is not stored in the IoStore */
 	FIoChunkId CreateChunkId() const;
+
+	/** Returns a string representing the bulk data for debugging purposes. */
+	FString GetDebugName() const;
 
 	/*-----------------------------------------------------------------------------
 		Data retrieval and manipulation.

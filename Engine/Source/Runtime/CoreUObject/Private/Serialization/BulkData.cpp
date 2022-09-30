@@ -1222,6 +1222,11 @@ FIoChunkId FBulkData::CreateChunkId() const
 	return UE::BulkData::Private::CreateBulkDataIoChunkId(BulkMeta, BulkChunkId.GetPackageId());
 }
 
+FString FBulkData::GetDebugName() const
+{
+	return BulkChunkId.ToDebugString();
+}
+
 /*-----------------------------------------------------------------------------
 	Serialization.
 -----------------------------------------------------------------------------*/
@@ -1717,7 +1722,7 @@ FCustomVersionContainer FBulkData::GetCustomVersions(FArchive& InlineArchive)
 	else
 	{
 		// Read the CustomVersions out of the separate package file
-		const FPackagePath& PackagePath = GetPackagePath();
+		const FPackagePath& PackagePath = BulkChunkId.GetPackagePath();
 		TUniquePtr<FArchive> ExternalArchive = IPackageResourceManager::Get().OpenReadExternalResource(
 			EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
 		if (ExternalArchive.IsValid())

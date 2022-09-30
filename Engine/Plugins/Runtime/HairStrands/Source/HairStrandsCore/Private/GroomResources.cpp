@@ -1002,7 +1002,7 @@ void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
 	}
 	if (!bIsValid)
 	{
-		FString Name = ClusterLODInfos.GetPackagePath().GetPackageName();
+		FString Name = ClusterLODInfos.GetDebugName();
 		UE_LOG(LogHairStrands, Error, TEXT("[Groom/DDC] Strands - Invalid ClusterCullingBulkData when %s bulk data - %s"), bIsSaving ? TEXT("Saving") : TEXT("Loading"), *Name);
 	}
 

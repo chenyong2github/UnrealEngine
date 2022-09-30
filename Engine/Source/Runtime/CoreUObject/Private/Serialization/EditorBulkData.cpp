@@ -713,14 +713,14 @@ void FEditorBulkData::CreateFromBulkData(FBulkData& InBulkData, const FGuid& InG
 	bool bWasKeyGuidDerived = false;
 	if (InBulkData.GetBulkDataSize() > 0)
 	{
-		BulkDataId = CreateUniqueGuid(InGuid, Owner, *InBulkData.GetPackagePath().GetDebugName());
+		BulkDataId = CreateUniqueGuid(InGuid, Owner, *InBulkData.GetDebugName());
 		PayloadContentId = GuidToIoHash(BulkDataId);
 		bWasKeyGuidDerived = true;
 	}
 	
 	PayloadSize = InBulkData.GetBulkDataSize();
 	
-	PackagePath = InBulkData.GetPackagePath();
+	PackagePath = GetPackagePathFromOwner(Owner); 
 	
 	OffsetInFile = InBulkData.GetBulkDataOffsetInFile();
 
