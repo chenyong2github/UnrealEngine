@@ -960,16 +960,16 @@ void UAnimSequence::PostLoad()
 		if(Notify.DisplayTime_DEPRECATED != 0.0f)
 		{
 			Notify.Clear();
-			Notify.LinkSequence(this, Notify.DisplayTime_DEPRECATED);
+			Notify.Link(this, Notify.DisplayTime_DEPRECATED);
 		}
 		else
 		{
-			Notify.LinkSequence(this, Notify.GetTime());
+			Notify.Link(this, Notify.GetTime());
 		}
 	
 		if(Notify.Duration != 0.0f)
 		{
-			Notify.EndLink.LinkSequence(this, Notify.GetTime() + Notify.Duration);
+			Notify.EndLink.Link(this, Notify.GetTime() + Notify.Duration);
 		}
 	}
 

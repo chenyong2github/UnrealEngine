@@ -135,7 +135,7 @@ void FAnimModel_AnimMontage::OnSetEditableTime(int32 TimeIndex, double Time, boo
 	
 			FCompositeSection& Section = AnimMontage->CompositeSections[TimeIndex];
 			Section.SetTime(Time);
-			Section.LinkMontage(AnimMontage, Time);
+			Section.Link(AnimMontage, Time);
 
 			SortSections();
 			RefreshNotifyTriggerOffsets();

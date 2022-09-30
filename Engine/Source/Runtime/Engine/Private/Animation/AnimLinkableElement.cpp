@@ -7,51 +7,12 @@
 
 void FAnimLinkableElement::LinkMontage(UAnimMontage* Montage, float AbsMontageTime, int32 InSlotIndex)
 {
-	if(Montage && Montage->SlotAnimTracks.Num() > 0)
-	{
-		LinkedMontage = Montage;
-
-		SlotIndex = InSlotIndex;
-		FSlotAnimationTrack& Slot = Montage->SlotAnimTracks[SlotIndex];
-
-		SegmentIndex = Slot.AnimTrack.GetSegmentIndexAtTime(AbsMontageTime);
-		if(SegmentIndex != INDEX_NONE)
-		{
-			FAnimSegment& Segment = Slot.AnimTrack.AnimSegments[SegmentIndex];
-			LinkedSequence = Segment.GetAnimReference();
-			SegmentBeginTime = Segment.StartPos;
-			SegmentLength = Segment.GetLength();
-
-			SetTime_Internal(AbsMontageTime);
-		}
-		else
-		{
-			// Nothing to link to
-			// We have no segment to link to, we need to clear our the segment data
-			// and give ourselves an absolute time
-			LinkValue = AbsMontageTime;
-			LinkedSequence = nullptr;
-			SegmentBeginTime = -1.0f;
-			SegmentLength = -1.0f;
-			LinkMethod = EAnimLinkMethod::Absolute;
-			CachedLinkMethod = LinkMethod;
-		}
-	}
+	Link(Montage, AbsMontageTime, InSlotIndex);
 }
 
 void FAnimLinkableElement::LinkSequence(UAnimSequenceBase* Sequence, float AbsSequenceTime)
 {
-	if(Sequence && Sequence->GetPlayLength() > 0)
-	{
-		LinkedMontage = nullptr;
-		LinkedSequence = Sequence;
-		SegmentIndex = 0;
-
-		SegmentBeginTime = 0.0f;
-		SegmentLength = Sequence->GetPlayLength();
-
-		SetTime(AbsSequenceTime);
-	}
+	Link(Sequence, AbsSequenceTime);
 }
 
 void FAnimLinkableElement::Clear()
@@ -332,7 +293,7 @@ void FAnimLinkableElement::ChangeSlotIndex(int32 NewSlotIndex)
 {
 	if(LinkedMontage)
 	{
-		LinkMontage(LinkedMontage, GetTime(), NewSlotIndex);
+		Link(LinkedMontage, GetTime(), NewSlotIndex);
 	}
 }
 
@@ -390,26 +351,62 @@ bool FAnimLinkableElement::ConditionalRelink()
 	{
 		if(LinkedMontage)
 		{
-			LinkMontage(LinkedMontage, CurrentAbsTime, SlotIndex);
+			Link(LinkedMontage, CurrentAbsTime, SlotIndex);
 		}
 		else if(LinkedSequence)
 		{
-			LinkSequence(LinkedSequence, CurrentAbsTime);
+			Link(LinkedSequence, CurrentAbsTime);
 		}
 	}
 
 	return bRequiresRelink;
 }
 
-void FAnimLinkableElement::Link(UAnimSequenceBase* AnimObject, float AbsTime, int32 InSlotIndex /*= 0*/)
+void FAnimLinkableElement::Link(UAnimSequenceBase* AnimSequenceBase, float AbsTime, int32 InSlotIndex /*= 0*/)
 {
-	if(UAnimMontage* Montage = Cast<UAnimMontage>(AnimObject))
+	if(UAnimMontage* Montage = Cast<UAnimMontage>(AnimSequenceBase))
 	{
-		LinkMontage(Montage, AbsTime, InSlotIndex);
+		if(Montage->SlotAnimTracks.Num() > 0)
+		{
+			LinkedMontage = Montage;
+
+			SlotIndex = InSlotIndex;
+			FSlotAnimationTrack& Slot = Montage->SlotAnimTracks[SlotIndex];
+
+			SegmentIndex = Slot.AnimTrack.GetSegmentIndexAtTime(AbsTime);
+			if(SegmentIndex != INDEX_NONE)
+			{
+				const FAnimSegment& Segment = Slot.AnimTrack.AnimSegments[SegmentIndex];
+				LinkedSequence = Segment.GetAnimReference();
+				SegmentBeginTime = Segment.StartPos;
+				SegmentLength = Segment.GetLength();
+
+				SetTime_Internal(AbsTime);
+			}
+			else
+			{
+				// Nothing to link to
+				// We have no segment to link to, we need to clear our the segment data
+				// and give ourselves an absolute time
+				LinkValue = AbsTime;
+				LinkedSequence = nullptr;
+				SegmentBeginTime = -1.0f;
+				SegmentLength = -1.0f;
+				LinkMethod = EAnimLinkMethod::Absolute;
+				CachedLinkMethod = LinkMethod;
+			}
+		}
 	}
-	else
-	{
-		LinkSequence(AnimObject, AbsTime);
+	else if (AnimSequenceBase && AnimSequenceBase->GetPlayLength() > 0)
+	{		
+		LinkedMontage = nullptr;
+		LinkedSequence = AnimSequenceBase;
+		SegmentIndex = 0;
+
+		SegmentBeginTime = 0.0f;
+		SegmentLength = AnimSequenceBase->GetPlayLength();
+
+		SetTime(AbsTime);
 	}
 }
 

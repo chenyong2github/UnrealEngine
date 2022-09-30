@@ -61,23 +61,25 @@ struct FAnimLinkableElement
 	ENGINE_API void Update();
 
 	/** Link this element to an animation object (Sequence or Montage)
-	 *	@param AnimObject The object to link to
+	 *	@param AnimSequenceBase The object to link to
 	 *	@param AbsTime The absolute time to place this element
 	 *	@param InSlotIndex Slot index for montages (ignored otherwise)
 	 */
-	ENGINE_API void Link(UAnimSequenceBase* AnimObject, float AbsTime, int32 InSlotIndex = 0);
+	ENGINE_API void Link(UAnimSequenceBase* AnimSequenceBase, float AbsTime, int32 InSlotIndex = 0);
 
 	/** Link this element to a montage 
 	 * @param Montage The montage to link to
 	 * @param AbsMontageTime The time in the montage that this element should be placed at
 	 * @param InSlotIndex The slot in the montage to detect segments in
 	 */
+	UE_DEPRECATED(5.1, "LinkMontage has been deprecated, use Link instead")
 	ENGINE_API void LinkMontage(UAnimMontage* Montage, float AbsMontageTime, int32 InSlotIndex = 0);
 
 	/** Link this element to a Sequence, Just setting basic data as sequences don't need full linking 
 	 * @param Sequence The sequence to link to
 	 * @param AbsSequenceTime The time in the sequence that this element should be placed at
 	 */
+	UE_DEPRECATED(5.1, "LinkSequence has been deprecated, use Link instead")
 	ENGINE_API void LinkSequence(UAnimSequenceBase* Sequence, float AbsSequenceTime);
 
 	/** Clear the linking information from this element, leaves montage link intact */

@@ -1124,8 +1124,7 @@ void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyTy
 				// Clamps against the sequence length, ensuring that the notify does not end up outside of the playback bounds
 				const float ClampedCurrentTime = FMath::Clamp(CurrentTime, 0.f, NewLength);
 
-				Notify.LinkSequence(this, ClampedCurrentTime);
-
+				Notify.Link(this, ClampedCurrentTime);
 				Notify.SetDuration(NewDuration);
 
 				if (ClampedCurrentTime == 0.f)
@@ -1185,7 +1184,7 @@ void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyTy
 
 				const float ClampedCurrentTime = FMath::Clamp(CurrentTime, 0.f, NewLength);
 
-				Notify.LinkSequence(this, ClampedCurrentTime);
+				Notify.Link(this, ClampedCurrentTime);
 				Notify.SetDuration(NewDuration);
 
 				if (ClampedCurrentTime == 0.f)

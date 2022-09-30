@@ -304,7 +304,7 @@ int32 UAnimMontage::AddAnimCompositeSection(FName InSectionName, float StartTime
 		return INDEX_NONE;
 	}
 
-	NewSection.LinkMontage(this, StartTime);
+	NewSection.Link(this, StartTime);
 
 	// we'd like to sort them in the order of time
 	int32 NewSectionIndex = CompositeSections.Add(NewSection);
@@ -405,12 +405,12 @@ void UAnimMontage::PostLoad()
 		if(Composite.StartTime_DEPRECATED != 0.0f)
 		{
 			Composite.Clear();
-			Composite.LinkMontage(this, Composite.StartTime_DEPRECATED);
+			Composite.Link(this, Composite.StartTime_DEPRECATED);
 		}
 		else
 		{
 			Composite.RefreshSegmentOnLoad();
-			Composite.LinkMontage(this, Composite.GetTime());
+			Composite.Link(this, Composite.GetTime());
 		}
 	}
 
@@ -487,16 +487,16 @@ void UAnimMontage::PostLoad()
 		if(Notify.DisplayTime_DEPRECATED != 0.0f)
 		{
 			Notify.Clear();
-			Notify.LinkMontage(this, Notify.DisplayTime_DEPRECATED);
+			Notify.Link(this, Notify.DisplayTime_DEPRECATED);
 		}
 		else
 		{
-			Notify.LinkMontage(this, Notify.GetTime());
+			Notify.Link(this, Notify.GetTime());
 		}
 
 		if(Notify.Duration != 0.0f)
 		{
-			Notify.EndLink.LinkMontage(this, Notify.GetTime() + Notify.Duration);
+			Notify.EndLink.Link(this, Notify.GetTime() + Notify.Duration);
 		}
 	}
 
@@ -533,11 +533,11 @@ void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 			if (BranchingPoint.DisplayTime_DEPRECATED != 0.0f)
 			{
 				BranchingPoint.Clear();
-				BranchingPoint.LinkMontage(this, BranchingPoint.DisplayTime_DEPRECATED);
+				BranchingPoint.Link(this, BranchingPoint.DisplayTime_DEPRECATED);
 			}
 			else
 			{
-				BranchingPoint.LinkMontage(this, BranchingPoint.GetTime());
+				BranchingPoint.Link(this, BranchingPoint.GetTime());
 			}
 		}
 
@@ -561,7 +561,7 @@ void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 			NewEvent.NotifyName = BranchingPoint.EventName;
 
 			float TriggerTime = BranchingPoint.GetTriggerTime();
-			NewEvent.LinkMontage(this, TriggerTime);
+			NewEvent.Link(this, TriggerTime);
 #if WITH_EDITOR
 			NewEvent.TriggerTimeOffset = GetTriggerTimeOffsetForType(CalculateOffsetForNotify(TriggerTime));
 #endif
@@ -2889,7 +2889,7 @@ UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage_WithBlendSetting
 
 	FCompositeSection NewSection;
 	NewSection.SectionName = TEXT("Default");
-	NewSection.LinkSequence(Asset, Asset->GetPlayLength());
+	NewSection.Link(Asset, Asset->GetPlayLength());
 	NewSection.SetTime(0.0f);
 
 	// add new section

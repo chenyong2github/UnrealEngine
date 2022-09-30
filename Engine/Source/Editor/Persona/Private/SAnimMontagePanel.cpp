@@ -1219,7 +1219,7 @@ void SAnimMontagePanel::SetSectionTime(int32 SectionIndex, float NewTime)
 	
 		FCompositeSection& Section = Montage->CompositeSections[SectionIndex];
 		Section.SetTime(NewTime);
-		Section.LinkMontage(Montage, NewTime);
+		Section.Link(Montage, NewTime);
 
 		SortAndUpdateMontage();
 	}
