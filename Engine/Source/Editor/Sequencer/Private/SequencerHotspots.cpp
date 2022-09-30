@@ -439,7 +439,10 @@ void FSectionHotspotBase::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer->GetSelection().IsSelected(WeakSectionModel))
 	{
-		InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
+		if (ThisSection && ThisSection->GetRange() != TRange<FFrameNumber>::All())
+		{
+			InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
+		}
 	}
 	else if (ThisSection)
 	{
