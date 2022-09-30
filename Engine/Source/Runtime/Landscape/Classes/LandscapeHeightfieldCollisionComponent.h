@@ -109,6 +109,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 #if WITH_EDITORONLY_DATA
 	friend struct FEnableCollisionHashOptimScope;
 	
+	UPROPERTY()
 	uint32										CollisionHash = 0;
 
 	/** The collision height values. Stripped from cooked content */
