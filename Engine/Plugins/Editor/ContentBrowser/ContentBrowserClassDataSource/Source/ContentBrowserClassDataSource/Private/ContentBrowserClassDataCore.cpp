@@ -469,7 +469,16 @@ bool GetClassFileItemAttribute(IAssetTypeActions* InClassTypeActions, const FCon
 
 		if (InAttributeKey == ContentBrowserItemAttributes::ItemTypeDisplayName)
 		{
-			OutAttributeValue.SetValue(InClassTypeActions->GetName());
+			const FText AssetDisplayName = InClassTypeActions->GetDisplayNameFromAssetData(InClassPayload.GetAssetData());
+			if (!AssetDisplayName.IsEmpty())
+			{
+				OutAttributeValue.SetValue(AssetDisplayName);
+			}
+			else
+			{
+				OutAttributeValue.SetValue(InClassTypeActions->GetName());
+			}
+
 			return true;
 		}
 

@@ -358,4 +358,20 @@ TSharedPtr<SWidget> FAssetTypeActions_AnimBlueprint::GetThumbnailOverlay(const F
 		];
 }
 
+FText FAssetTypeActions_AnimBlueprint::GetDisplayNameFromAssetData(const FAssetData& AssetData) const
+{
+	FString BlueprintTypeValue;
+	AssetData.GetTagValue("BlueprintType", BlueprintTypeValue);
+	if(BlueprintTypeValue.Equals(TEXT("BPTYPE_Normal")))
+	{
+		return LOCTEXT("AssetTypeActions_AnimBlueprint", "Animation Blueprint");
+	}
+	else if(BlueprintTypeValue.Equals(TEXT("BPTYPE_Interface")))
+	{
+		return LOCTEXT("AssetTypeActions_AnimLayerInterface", "Animation Layer Interface");
+	}
+
+	return GetName();
+}
+
 #undef LOCTEXT_NAMESPACE

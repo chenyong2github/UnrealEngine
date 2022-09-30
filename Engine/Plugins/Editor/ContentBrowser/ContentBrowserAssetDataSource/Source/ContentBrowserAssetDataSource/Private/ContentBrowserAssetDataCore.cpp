@@ -1352,7 +1352,15 @@ bool GetAssetFileItemAttribute(const FContentBrowserAssetFileItemDataPayload& In
 		{
 			if (TSharedPtr<IAssetTypeActions> AssetTypeActions = InAssetPayload.GetAssetTypeActions())
 			{
-				OutAttributeValue.SetValue(AssetTypeActions->GetName());
+				const FText AssetDisplayName = AssetTypeActions->GetDisplayNameFromAssetData(InAssetPayload.GetAssetData());
+				if (!AssetDisplayName.IsEmpty())
+				{
+					OutAttributeValue.SetValue(AssetDisplayName);
+				}
+				else
+				{
+					OutAttributeValue.SetValue(AssetTypeActions->GetName());
+				}
 				return true;
 			}
 			return false;
