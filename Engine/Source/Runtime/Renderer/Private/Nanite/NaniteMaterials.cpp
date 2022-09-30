@@ -387,6 +387,9 @@ TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FR
 #if RHI_RAYTRACING
 	UniformParameters->RayTracingCutError		= Nanite::GRayTracingManager.GetCutError();
 	UniformParameters->RayTracingDataBuffer		= Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+#else
+	UniformParameters->RayTracingCutError		= 0.0f;
+	UniformParameters->RayTracingDataBuffer		= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
 #endif
 
 	const FRDGSystemTextures& SystemTextures     = FRDGSystemTextures::Get(GraphBuilder);
@@ -571,6 +574,9 @@ void DrawBasePass(
 #if RHI_RAYTRACING
 			UniformParameters->RayTracingCutError		= Nanite::GRayTracingManager.GetCutError();
 			UniformParameters->RayTracingDataBuffer		= Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+#else
+			UniformParameters->RayTracingCutError		= 0.0f;
+			UniformParameters->RayTracingDataBuffer		= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
 #endif
 
 			UniformParameters->VisBuffer64              = VisBuffer64;
@@ -1207,6 +1213,9 @@ void DrawLumenMeshCapturePass(
 #if RHI_RAYTRACING
 			UniformParameters->RayTracingCutError		= Nanite::GRayTracingManager.GetCutError();
 			UniformParameters->RayTracingDataBuffer		= Nanite::GRayTracingManager.GetAuxiliaryDataSRV(GraphBuilder);
+#else
+			UniformParameters->RayTracingCutError		= 0.0f;
+			UniformParameters->RayTracingDataBuffer		= GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
 #endif
 
 			UniformParameters->VisBuffer64              = RasterContext.VisBuffer64;
