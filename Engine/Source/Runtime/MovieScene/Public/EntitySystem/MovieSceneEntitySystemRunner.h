@@ -208,6 +208,12 @@ private:
 	 */
 	void EndEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
+	/** Called to set/unset the necessary flags to enter a new flush state and progress to the next */
+	void EnterFlushState(UE::MovieScene::ERunnerFlushState EnteredFlushState);
+
+	/** Skip the specified flush states if they are currently pending */
+	void SkipFlushState(UE::MovieScene::ERunnerFlushState FlushStateToSkip);
+
 private:
 
 	friend struct FMovieSceneEntitySystemEvaluationReentrancyWindow;
@@ -261,6 +267,9 @@ private:
 	 * A state of ERunnerFlushState::None means an evaluation has just finished.
 	 */
 	UE::MovieScene::ERunnerFlushState FlushState;
+
+	/** The current FlushState that we are running in the current callstack. Used to detect re-entrancy */
+	UE::MovieScene::ERunnerFlushState CurrentFlushState;
 
 	bool bCanQueueEventTriggers;
 
