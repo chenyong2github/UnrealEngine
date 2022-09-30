@@ -884,6 +884,8 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
 	PlayPosition.Reset(StartTimeWithOffset);
 	TimeController->Reset(GetCurrentTime());
+
+	UpdateNetworkSyncProperties();
 }
 
 void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
