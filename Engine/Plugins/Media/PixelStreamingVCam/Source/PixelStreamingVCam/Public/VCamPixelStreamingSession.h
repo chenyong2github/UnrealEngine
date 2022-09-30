@@ -56,9 +56,14 @@ protected:
 private:
 	void StopSignallingServer();
 	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
+	FWidgetPath FindRoutingMessageWidget(const FVector2D& Location) const;
+	FIntPoint ConvertFromNormalizedScreenLocation(const FVector2D& ScreenLocation);
+	TWeakPtr<SWindow> GetTargetInputWindow() const;
 
 private:
-	FHitResult LastViewportTouchResult;
-	bool bUsingDummyUMG = false;
-	bool bOldThrottleCPUWhenNotForeground;
+	FHitResult 	LastViewportTouchResult;
+	bool 		bUsingDummyUMG = false;
+	bool 		bOldThrottleCPUWhenNotForeground;
+	bool		bRouteTouchMessageToWidget = false;
+	FVector2D	LastTouchLocation = FVector2D(EForceInit::ForceInitToZero);
 };
