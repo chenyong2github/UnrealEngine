@@ -42,12 +42,3 @@ THIRD_PARTY_INCLUDES_START
 using namespace vc_attributes;
 #endif
 THIRD_PARTY_INCLUDES_END
-
-#ifndef OUT
-#define OUT
-#endif
-
-#ifndef IN
-#define IN
-#endif
-

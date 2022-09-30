@@ -802,6 +802,12 @@
 #ifndef CONSTEXPR
 	#define CONSTEXPR constexpr
 #endif
+#ifndef IN
+	#define IN
+#endif
+#ifndef OUT
+	#define OUT
+#endif
 
 // String constants
 #ifndef LINE_TERMINATOR

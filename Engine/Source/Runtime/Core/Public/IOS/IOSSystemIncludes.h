@@ -69,9 +69,6 @@ struct tagRECT
 };
 typedef struct tagRECT RECT;
 
-#define OUT
-#define IN
-
 /*----------------------------------------------------------------------------
  Memory. On Mac OS X malloc allocates memory aligned to 16 bytes.
  ----------------------------------------------------------------------------*/

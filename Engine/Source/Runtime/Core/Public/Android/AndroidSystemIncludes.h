@@ -39,6 +39,3 @@ struct tagRECT
 	int32 bottom;
 };
 typedef struct tagRECT RECT;
-
-#define OUT
-#define IN
