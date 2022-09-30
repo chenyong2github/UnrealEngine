@@ -341,7 +341,7 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 			RotationPivot = GetPivotFromMode(Vid, PivotMode);
 		}				
 		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
-		UV = (UV + FVector2f(Translation) + RotationPivot);
+		UV = (UV + FVector2f(Translation) - RotationPivot);
 		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
