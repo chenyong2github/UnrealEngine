@@ -171,9 +171,9 @@ private:
 				const FText IssueText = LOCTEXT("NoModesIssue", "Fixture Type has no Modes defined.");
 				ItemToIssueMap.Add(Item, IssueText);
 			}
-			else if (Item->GetFixtureType() && Item->GetModeIndex() == INDEX_NONE)
+			else if (Item->GetFixturePatch()->GetActiveMode() && Item->GetFixturePatch()->GetActiveMode()->Functions.IsEmpty())
 			{
-				const FText IssueText = FText::Format(LOCTEXT("FixtureTypeWithoutModeIssue", "Fixture Type '{0}' does not specify any Modes."), FText::FromString(Item->GetFixtureType()->GetName()));
+				const FText IssueText = LOCTEXT("ActiveModeHasNoFunctionsIssue", "Mode does not define any Functions.");
 				ItemToIssueMap.Add(Item, IssueText);
 			}
 		}

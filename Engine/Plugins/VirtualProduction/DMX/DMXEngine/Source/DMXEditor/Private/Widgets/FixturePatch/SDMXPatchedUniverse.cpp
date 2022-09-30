@@ -215,9 +215,9 @@ bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixture
 	}
 
 	int32 ChannelSpan = FixturePatch->GetChannelSpan();
-	if (ChannelSpan == 0)
+	if (ChannelSpan == 0 || ChannelSpan > DMX_MAX_ADDRESS)
 	{
-		// Cannot patch a patch with 0 channel span
+		// Cannot patch a patch with 0 channel span or exceeding DMX_MAX_ADDRESS
 		return false;
 	}
 
@@ -321,18 +321,24 @@ void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* Fi
 		{
 			return Node->GetFixturePatch() == FixturePatch;
 		});
+	if (!NodePtr)
+	{
+		return;
+	}
 
-	if (NodePtr && FixturePatch && UniverseID != FixturePatch->GetUniverseID())
+	const bool bMovedToOtherUniverse = FixturePatch->GetUniverseID() != UniverseID;
+	const bool bExceedsUniverse = FixturePatch->GetChannelSpan() > DMX_MAX_ADDRESS;
+	if (bMovedToOtherUniverse || bExceedsUniverse)
 	{
 		// Patch was moved out of this universe
 		Unpatch(*NodePtr);
 	}
-	else if (!NodePtr && UniverseID == FixturePatch->GetUniverseID())
+	else if (UniverseID == FixturePatch->GetUniverseID())
 	{
 		// Patch was moved to this universe
 		SharedData->SelectUniverse(UniverseID);
 	}
-	else if (NodePtr && (*NodePtr)->NeedsUpdateGrid())
+	else if ((*NodePtr)->NeedsUpdateGrid())
 	{
 		RequestRefresh();
 	}
@@ -362,11 +368,14 @@ void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
 		TArray<UDMXEntityFixturePatch*> PatchesInUniverse;
 		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
 			{
-				if (Patch->GetUniverseID() == UniverseID)
+				const bool bResidesInThisUniverse = Patch->GetUniverseID() == UniverseID;
+				const bool bHasValidChannelSpan = Patch->GetChannelSpan() > 0 && Patch->GetChannelSpan() < DMX_MAX_ADDRESS;
+				if (bResidesInThisUniverse && bHasValidChannelSpan)
 				{
 					PatchesInUniverse.Add(Patch);
 				}
 			});
+
 		PatchesInUniverse.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
 			{
 				return FixturePatchA.GetEndingChannel() <= FixturePatchB.GetEndingChannel();

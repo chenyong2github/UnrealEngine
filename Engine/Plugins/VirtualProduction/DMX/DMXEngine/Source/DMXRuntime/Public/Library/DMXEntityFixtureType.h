@@ -59,7 +59,7 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	FORCEINLINE uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1; }
 
 	/** Returns the last channel of the Function */
-	uint8 GetLastChannel() const;
+	int32 GetLastChannel() const;
 
 	/**
 	 * The Attribute name to map this Function to.
@@ -190,10 +190,10 @@ struct DMXRUNTIME_API FDMXFixtureMatrix
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "Mode Settings")
 	int32 FirstCellChannel = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "1"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "1", ClampMax = "512", UIMin = "1", UIMax = "512"), Category = "Mode Settings")
 	int32 XCells = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "1"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "1", ClampMax = "512", UIMin = "1", UIMax = "512"), Category = "Mode Settings")
 	int32 YCells = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "50", DisplayName = "PixelMapping Distribution"), Category = "Mode Settings")
@@ -550,13 +550,13 @@ public:
 	UE_DEPRECATED(4.27, "Use MakeValid instead.")
 	void UpdateModeChannelProperties(FDMXFixtureMode& Mode);
 
-	UE_DEPRECATED(5.0, "Deprecated in favor of UDMXEntityFixtureType::UpdateChannelSpan.")
+	UE_DEPRECATED(5.0, "Deprecated in favor of UDMXEntityFixtureType::UpdateChannelSpan(int32 ModeIndex).")
 	void UpdateChannelSpan(FDMXFixtureMode& Mode);
 
-	UE_DEPRECATED(5.0, "Deprecated  in favor of UDMXEntityFixtureType::UpdateYCellsFromXCells.")
+	UE_DEPRECATED(5.0, "Deprecated  in favor of UDMXEntityFixtureType::UpdateYCellsFromXCells(int32 ModeIndex).")
 	void UpdateYCellsFromXCells(FDMXFixtureMode& Mode);
 
-	UE_DEPRECATED(5.0, "Deprecated to in favor of UDMXEntityFixtureType::UpdateXCellsFromYCells.")
+	UE_DEPRECATED(5.0, "Deprecated to in favor of UDMXEntityFixtureType::UpdateXCellsFromYCells(int32 ModeIndex).")
 	void UpdateXCellsFromYCells(FDMXFixtureMode& Mode);
 #endif // WITH_EDITOR
 

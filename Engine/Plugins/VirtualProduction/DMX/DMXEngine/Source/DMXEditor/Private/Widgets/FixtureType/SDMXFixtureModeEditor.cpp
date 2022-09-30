@@ -96,15 +96,11 @@ void SDMXFixtureModeEditor::NotifyPostChange(const FPropertyChangedEvent& Proper
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells))
 		{
-			FixtureType->UpdateYCellsFromXCells(ModeIndex);
-
 			constexpr bool bSelectMatrix = true;
 			FixtureTypeSharedData->SetFunctionAndMatrixSelection(TArray<int32>(), bSelectMatrix);
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells))
 		{
-			FixtureType->UpdateXCellsFromYCells(ModeIndex);
-
 			constexpr bool bSelectMatrix = true;
 			FixtureTypeSharedData->SetFunctionAndMatrixSelection(TArray<int32>(), bSelectMatrix);
 		}
