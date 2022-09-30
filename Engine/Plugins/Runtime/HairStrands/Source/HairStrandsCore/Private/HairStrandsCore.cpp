@@ -7,7 +7,6 @@
 #include "GroomManager.h"
 #include "Engine/StaticMesh.h"
 #include "GroomAsset.h"
-#include "GroomCacheStreamingManager.h"
 #include "GroomCreateBindingOptions.h"
 
 IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);
@@ -26,14 +25,10 @@ void FHairStrandsCore::StartupModule()
 	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("HairStrands"))->GetBaseDir(), TEXT("Shaders"));
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/Runtime/HairStrands"), PluginShaderDir);
 	SetHairStrandsEnabled(true);
-
-	IGroomCacheStreamingManager::Register();
 }
 
 void FHairStrandsCore::ShutdownModule()
 {
-	IGroomCacheStreamingManager::Unregister();
-
 	SetHairStrandsEnabled(false);
 }
 
