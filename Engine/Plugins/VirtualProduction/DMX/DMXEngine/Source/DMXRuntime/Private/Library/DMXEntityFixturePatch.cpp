@@ -1183,6 +1183,8 @@ void UDMXEntityFixturePatch::OnFixtureTypeChanged(const UDMXEntityFixtureType* F
 	{
 		ValidateActiveMode();
 		RebuildCache();
+
+		OnFixturePatchChangedDelegate.Broadcast(this);
 	}
 }
 

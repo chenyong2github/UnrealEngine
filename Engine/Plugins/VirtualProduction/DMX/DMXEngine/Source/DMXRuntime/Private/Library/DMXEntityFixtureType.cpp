@@ -245,6 +245,12 @@ void UDMXEntityFixtureType::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
+		// Update the Channel Span for all Modes
+		for (int32 ModeIndex = 0; ModeIndex < Modes.Num(); ModeIndex++)
+		{
+			UpdateChannelSpan(ModeIndex);
+		}
+
 		OnFixtureTypeChangedDelegate.Broadcast(this);
 	}
 }
@@ -271,6 +277,12 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
+		// Update the Channel Span for all Modes
+		for (int32 ModeIndex = 0; ModeIndex < Modes.Num(); ModeIndex++)
+		{
+			UpdateChannelSpan(ModeIndex);
+		}
+
 		OnFixtureTypeChangedDelegate.Broadcast(this);
 	}
 }
