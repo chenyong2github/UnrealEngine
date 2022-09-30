@@ -21,6 +21,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/ScopeExit.h"
+#include "Compression/CompressionUtil.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogArchiveDiff, Log, All);
 
@@ -501,30 +502,6 @@ namespace
 	}
 }
 
-namespace ArchiveStackTraceUtils
-{
-	void LogHexDump(const uint8* Bytes, int64 BytesNum, int64 OffsetStart, int64 OffsetEnd)
-	{
-		OffsetStart = FMath::Max(0ll, OffsetStart);
-		OffsetEnd = FMath::Min(BytesNum, OffsetEnd);
-
-		for (int64 Idx = OffsetStart; Idx < OffsetEnd;)
-		{
-			int64 LineOffset = OffsetStart;
-			FString HexString;
-			for (int64 Idx2 = 0; Idx2 < 32 && Idx < OffsetEnd; ++Idx, ++Idx2, ++OffsetStart)
-			{
-				HexString += FString::Printf(TEXT("%02X "), Bytes[Idx]);
-				if ((Idx2 & 7) == 7)
-				{
-					HexString += TEXT(" ");
-				}
-			}
-			UE_LOG(LogArchiveDiff, Display, TEXT("%016X: %s"), LineOffset, *HexString);
-		}
-	}
-}
-
 void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, const FPackageData& DestPackage, const TCHAR* AssetFilename, const TCHAR* CallstackCutoffText, const int64 MaxDiffsToLog, int32& InOutDiffsLogged, TMap<FName, FArchiveDiffStats>& OutStats)
 {
 #if !NO_LOGGING
@@ -689,7 +666,7 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 					DestAbsoluteOffset,
 					DestAbsoluteOffset
 				);
-				ArchiveStackTraceUtils::LogHexDump(SourcePackage.Data, SourcePackage.Size, SourceAbsoluteOffset - BytesToLog / 2, SourceAbsoluteOffset + BytesToLog / 2);
+				FCompressionUtil::LogHexDump(SourcePackage.Data, SourcePackage.Size, SourceAbsoluteOffset - BytesToLog / 2, SourceAbsoluteOffset + BytesToLog / 2);
 
 				UE_LOG(
 					LogArchiveDiff,
@@ -700,7 +677,7 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 					DestAbsoluteOffset,
 					DestAbsoluteOffset
 				);
-				ArchiveStackTraceUtils::LogHexDump(DestPackage.Data, DestPackage.Size, DestAbsoluteOffset - BytesToLog / 2, DestAbsoluteOffset + BytesToLog / 2);
+				FCompressionUtil::LogHexDump(DestPackage.Data, DestPackage.Size, DestAbsoluteOffset - BytesToLog / 2, DestAbsoluteOffset + BytesToLog / 2);
 
 				bDifferenceLogged = true;
 			}

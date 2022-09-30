@@ -15,6 +15,7 @@
 #include "Misc/MemoryReadStream.h"
 
 #include "Compression/OodleDataCompression.h"
+#include "Compression/CompressionUtil.h" // for extra logging only
 
 // #include "TargetPlatformBase.h"
 THIRD_PARTY_INCLUDES_START
@@ -760,6 +761,13 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 		}
 		// Always log an error
 		UE_LOG(LogCompression, Error, TEXT("FCompression::UncompressMemory - Failed to uncompress memory (%d/%d) from address %p using format %s, this may indicate the asset is corrupt!"), CompressedSize, UncompressedSize, CompressedBuffer, *FormatName.ToString());
+		// this extra logging is added to understand shader decompression errors, see UE-159777
+		const int32 MaxSizeToLogOut = 16384;
+		if (FormatName == NAME_Oodle && CompressedSize <= MaxSizeToLogOut)
+		{
+			UE_LOG(LogCompression, Error, TEXT("FCompression::UncompressMemory - Logging compressed data (%d bytes) as a hex dump for investigation"), CompressedSize);
+			FCompressionUtil::LogHexDump(reinterpret_cast<const uint8*>(CompressedBuffer), CompressedSize, 0, CompressedSize);
+		}
 	}
 
 #if	STATS
