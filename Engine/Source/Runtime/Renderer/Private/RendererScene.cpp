@@ -355,6 +355,7 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneView
 	
 	// Sets the mipbias to invalid large number.
 	MaterialTextureCachedMipBias = BIG_NUMBER;
+	LandscapeCachedMipBias = BIG_NUMBER;
 
 	SequencerState = ESS_None;
 

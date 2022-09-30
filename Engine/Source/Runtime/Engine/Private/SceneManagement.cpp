@@ -829,6 +829,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	WaterIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 	WaterData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
+	// Landscape
+	LandscapeWeightmapSampler = TStaticSamplerState<SF_AnisotropicPoint, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	LandscapeIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 	LandscapePerComponentData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 

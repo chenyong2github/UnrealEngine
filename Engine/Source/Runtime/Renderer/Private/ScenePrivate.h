@@ -963,8 +963,10 @@ public:
 
 	// Cached material texture samplers
 	float MaterialTextureCachedMipBias;
+	float LandscapeCachedMipBias;
 	FSamplerStateRHIRef MaterialTextureBilinearWrapedSamplerCache;
 	FSamplerStateRHIRef MaterialTextureBilinearClampedSamplerCache;
+	FSamplerStateRHIRef LandscapeWeightmapSamplerCache;
 
 #if RHI_RAYTRACING
 	// Invalidates cached results related to the path tracer so accumulated rendering can start over

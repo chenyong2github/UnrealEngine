@@ -882,6 +882,7 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 			StaticAddressZ = TA_Wrap;
 			break;
 		case SSM_Clamp_WorldGroupSettings:
+		case SSM_TerrainWeightmapGroupSettings:
 			StaticAddressX = TA_Clamp;
 			StaticAddressY = TA_Clamp;
 			StaticAddressZ = TA_Clamp;
@@ -1024,6 +1025,11 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 			FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
 				FormattedTexture.ToString(),
 				AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
+			break;
+		case SSM_TerrainWeightmapGroupSettings:
+			FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
+				FormattedTexture.ToString(),
+				TEXT("View.LandscapeWeightmapSampler"));
 			break;
 		default:
 			checkNoEntry();

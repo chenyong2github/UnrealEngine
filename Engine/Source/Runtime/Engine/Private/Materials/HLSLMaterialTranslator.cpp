@@ -6012,6 +6012,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			StaticAddressZ = TA_Wrap;
 			break;
 		case SSM_Clamp_WorldGroupSettings:
+		case SSM_TerrainWeightmapGroupSettings:
 			StaticAddressX = TA_Clamp;
 			StaticAddressY = TA_Clamp;
 			StaticAddressZ = TA_Clamp;
@@ -6127,6 +6128,12 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			// Use the shared sampler to save sampler slots
 			SamplerStateCode = FString::Printf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
 				*TextureName, AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
+			RequiresManualViewMipBias = false;
+		}
+		else if (SamplerSource == SSM_TerrainWeightmapGroupSettings)
+		{
+			SamplerStateCode = FString::Printf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
+				*TextureName, TEXT("View.LandscapeWeightmapSampler"));
 			RequiresManualViewMipBias = false;
 		}
 	}
@@ -7092,11 +7099,11 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 De
 	}
 	else
 	{			
-		const EMaterialSamplerType SamplerType = SAMPLERTYPE_Masks;
+		constexpr EMaterialSamplerType SamplerType = SAMPLERTYPE_Masks;
 		FString WeightmapName = FString::Printf(TEXT("Weightmap%d"),WeightmapIndex);
 		int32 TextureReferenceIndex = INDEX_NONE;
 		int32 TextureCodeIndex = TextureParameter(FName(*WeightmapName), GEngine->WeightMapPlaceholderTexture, TextureReferenceIndex, SamplerType);
-		int32 WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SamplerType);
+		int32 WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SamplerType, /*MipValue0Index = */INDEX_NONE, /*MipValue1Index = */INDEX_NONE, /*MipValueMode = */TMVM_None, /*SamplerSource = */SSM_TerrainWeightmapGroupSettings);
 
 		FString LayerMaskName = FString::Printf(TEXT("LayerMask_%s"),*LayerName.ToString());
 		return Dot(WeightmapCode,VectorParameter(FName(*LayerMaskName), FLinearColor(1.f,0.f,0.f,0.f)));

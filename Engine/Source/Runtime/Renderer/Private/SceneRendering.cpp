@@ -907,15 +907,16 @@ void FViewInfo::Init()
 
 	PreExposure = 1.0f;
 
-	// Cache TEXTUREGROUP_World's for the render thread to create the material textures' shared sampler.
+	// Cache TEXTUREGROUP filter settings for the render thread to create shared samplers.
 	if (IsInGameThread())
 	{
 		WorldTextureGroupSamplerFilter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(TEXTUREGROUP_World);
-		bIsValidWorldTextureGroupSamplerFilter = true;
+		TerrainWeightmapTextureGroupSamplerFilter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(TEXTUREGROUP_Terrain_Weightmap);
+		bIsValidTextureGroupSamplerFilters = true;
 	}
 	else
 	{
-		bIsValidWorldTextureGroupSamplerFilter = false;
+		bIsValidTextureGroupSamplerFilters = false;
 	}
 
 	PrimitiveSceneDataOverrideSRV = nullptr;
@@ -1431,12 +1432,13 @@ void FViewInfo::SetupUniformBufferParameters(
 	SetupPhysicsFieldUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
 
 	// Setup view's shared sampler for material texture sampling.
+	float FinalMaterialTextureMipBias;
 	{
 		const float GlobalMipBias = UTexture2D::GetGlobalMipMapLODBias();
 
-		float FinalMaterialTextureMipBias = GlobalMipBias;
+		FinalMaterialTextureMipBias = GlobalMipBias;
 
-		if (bIsValidWorldTextureGroupSamplerFilter && !FMath::IsNearlyZero(MaterialTextureMipBias))
+		if (bIsValidTextureGroupSamplerFilters && !FMath::IsNearlyZero(MaterialTextureMipBias))
 		{
 			ViewUniformShaderParameters.MaterialTextureMipBias = MaterialTextureMipBias;
 			ViewUniformShaderParameters.MaterialTextureDerivativeMultiply = FMath::Pow(2.0f, MaterialTextureMipBias);
@@ -1459,7 +1461,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 		else
 		{
-			check(bIsValidWorldTextureGroupSamplerFilter);
+			check(bIsValidTextureGroupSamplerFilters);
 
 			WrappedSampler = RHICreateSamplerState(FSamplerStateInitializerRHI(WorldTextureGroupSamplerFilter, AM_Wrap,  AM_Wrap,  AM_Wrap,  FinalMaterialTextureMipBias));
 			ClampedSampler = RHICreateSamplerState(FSamplerStateInitializerRHI(WorldTextureGroupSamplerFilter, AM_Clamp, AM_Clamp, AM_Clamp, FinalMaterialTextureMipBias));
@@ -1879,6 +1881,29 @@ void FViewInfo::SetupUniformBufferParameters(
 	}
 
 	// Landscape global resources
+	{
+		FSamplerStateRHIRef WeightmapSampler = nullptr;
+		if (ViewState && FMath::Abs(ViewState->LandscapeCachedMipBias - FinalMaterialTextureMipBias) < KINDA_SMALL_NUMBER)
+		{
+			// use cached sampler
+			WeightmapSampler = ViewState->LandscapeWeightmapSamplerCache;
+		}
+		else
+		{
+			// create a new one
+			ESamplerFilter Filter = bIsValidTextureGroupSamplerFilters ? TerrainWeightmapTextureGroupSamplerFilter : SF_AnisotropicPoint;
+			WeightmapSampler = RHICreateSamplerState(FSamplerStateInitializerRHI(Filter, AM_Clamp, AM_Clamp, AM_Clamp, FinalMaterialTextureMipBias));
+		}
+		check(WeightmapSampler.IsValid());
+		ViewUniformShaderParameters.LandscapeWeightmapSampler = WeightmapSampler;
+
+		if (ViewState)
+		{
+			ViewState->LandscapeCachedMipBias = FinalMaterialTextureMipBias;
+			ViewState->LandscapeWeightmapSamplerCache = WeightmapSampler;
+		}
+	}
+
 	if (LandscapePerComponentDataBuffer.IsValid() && LandscapeIndirectionBuffer.IsValid())
 	{
 		ViewUniformShaderParameters.LandscapeIndirection = LandscapeIndirectionBuffer.GetReference();

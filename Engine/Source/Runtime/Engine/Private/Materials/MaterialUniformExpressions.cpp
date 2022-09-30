@@ -973,6 +973,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
 				}
+				// NOTE: for SSM_TerrainWeightmapGroupSettings, the generated code always tries to use the per-view sampler, but we can fallback to the texture-associated sampler if necessary
 
 				if (*SamplerSource)
 				{
@@ -1026,6 +1027,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
 				}
+				check(SourceMode != SSM_TerrainWeightmapGroupSettings); // not allowed for cubemaps
 
 				check(*SamplerSource);
 				*ResourceTableSamplerPtr = *SamplerSource;
@@ -1064,6 +1066,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
 				}
+				check(SourceMode != SSM_TerrainWeightmapGroupSettings); // not allowed for texture arrays
 
 				check(*SamplerSource);
 				*ResourceTableSamplerPtr = *SamplerSource;
@@ -1102,6 +1105,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
 				}
+				check(SourceMode != SSM_TerrainWeightmapGroupSettings); // not allowed for texture cube arrays
 
 				check(*SamplerSource);
 				*ResourceTableSamplerPtr = *SamplerSource;
@@ -1142,6 +1146,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
 				}
+				check(SourceMode != SSM_TerrainWeightmapGroupSettings); // not allowed for texture volumes
 
 				check(*SamplerSource);
 				*ResourceTableSamplerPtr = *SamplerSource;

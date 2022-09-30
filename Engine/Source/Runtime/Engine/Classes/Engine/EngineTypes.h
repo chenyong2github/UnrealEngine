@@ -296,7 +296,9 @@ enum ESamplerSourceMode
 	/** Shared sampler source that does not consume a sampler slot.  Uses wrap addressing and gets filter mode from the world texture group. */
 	SSM_Wrap_WorldGroupSettings UMETA(DisplayName="Shared: Wrap"),
 	/** Shared sampler source that does not consume a sampler slot.  Uses clamp addressing and gets filter mode from the world texture group. */
-	SSM_Clamp_WorldGroupSettings UMETA(DisplayName="Shared: Clamp")
+	SSM_Clamp_WorldGroupSettings UMETA(DisplayName="Shared: Clamp"),
+	/** Shared sampler source that does not consume a sampler slot, used to sample the terrain weightmap.  Gets filter mode from the terrain weightmap texture group. */
+	SSM_TerrainWeightmapGroupSettings UMETA(Hidden)
 };
 
 /** defines how MipValue is used */

@@ -1736,7 +1736,8 @@ private:
 	// Cache of TEXTUREGROUP_World to create view's samplers on render thread.
 	// may not have a valid value if FViewInfo is created on the render thread.
 	ESamplerFilter WorldTextureGroupSamplerFilter;
-	bool bIsValidWorldTextureGroupSamplerFilter;
+	ESamplerFilter TerrainWeightmapTextureGroupSamplerFilter;
+	bool bIsValidTextureGroupSamplerFilters;
 
 	FSceneViewState* GetEyeAdaptationViewState() const;
 

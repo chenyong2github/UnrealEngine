@@ -909,7 +909,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER(float, RectLightAtlasMaxMipLevel)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, RectLightAtlasTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, RectLightAtlasSampler)
-
+	// Landscape
+	SHADER_PARAMETER_SAMPLER(SamplerState, LandscapeWeightmapSampler)
 	SHADER_PARAMETER_SRV(Buffer<uint>, LandscapeIndirection)
 	SHADER_PARAMETER_SRV(Buffer<float>, LandscapePerComponentData)
 
