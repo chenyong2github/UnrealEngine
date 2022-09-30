@@ -2124,7 +2124,21 @@ bool UIKRetargetProcessor::IsBoneRetargeted(
 	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
 	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
 	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
-	return (Skeleton.ChainThatContainsBone[BoneIndex] != NAME_None) || BoneIndex==RootBoneIndex;
+	if (BoneIndex==RootBoneIndex)
+	{
+		// retarget root is always retargeted
+		return true;
+	}
+	const FName ChainThatContainsBone = Skeleton.ChainThatContainsBone[BoneIndex];
+	if (ChainThatContainsBone == NAME_None)
+	{
+		// bones not in a chain, therefore cannot be retargeted
+		return false;
+	}
+
+	// bone must be in a chain that is actually mapped to something
+	const TObjectPtr<URetargetChainSettings> ChainMap = RetargeterAsset->GetChainMapByName(ChainThatContainsBone);
+	return !ChainMap->SourceChain.IsNone();
 }
 
 FName UIKRetargetProcessor::GetChainNameForBone(const int32& BoneIndex, const int8& SkeletonToCheck) const

@@ -265,16 +265,23 @@ void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
 	});
 }
 
-const FTargetChainSettings* UIKRetargeter::GetChainSettingsByName(const FName& TargetChainName) const
+const TObjectPtr<URetargetChainSettings> UIKRetargeter::GetChainMapByName(const FName& TargetChainName) const
 {
 	const TObjectPtr<URetargetChainSettings>* ChainMap = ChainSettings.FindByPredicate(
 		[TargetChainName](const TObjectPtr<URetargetChainSettings> ChainMap)
 		{
 			return ChainMap->TargetChain == TargetChainName;
 		});
+	
+	return ChainMap->IsNull() ? nullptr : ChainMap->Get();
+}
+
+const FTargetChainSettings* UIKRetargeter::GetChainSettingsByName(const FName& TargetChainName) const
+{
+	const TObjectPtr<URetargetChainSettings> ChainMap = GetChainMapByName(TargetChainName);
 	if (ChainMap)
 	{
-		return &ChainMap->Get()->Settings;
+		return &ChainMap->Settings;
 	}
 
 	return nullptr;

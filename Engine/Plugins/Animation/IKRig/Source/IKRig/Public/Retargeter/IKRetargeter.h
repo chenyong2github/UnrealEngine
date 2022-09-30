@@ -217,6 +217,8 @@ public:
 
 	/** Get read-only access to the chain mapping */
 	const TArray<TObjectPtr<URetargetChainSettings>>& GetAllChainSettings() const { return ChainSettings; };
+	/** Get read-only access to the chain map for a given chain (null if chain not in retargeter) */
+	const TObjectPtr<URetargetChainSettings> GetChainMapByName(const FName& TargetChainName) const;
 	/** Get read-only access to the chain settings for a given chain (null if chain not in retargeter) */
 	const FTargetChainSettings* GetChainSettingsByName(const FName& TargetChainName) const;
 	/** Get access to the root settings */
