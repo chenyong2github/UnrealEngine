@@ -1496,7 +1496,7 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 				}
 				else
 				{
-					ENiagaraScriptCompileStatus LastScriptCompileStatus = ScriptToCheck->GetLastCompileStatus();						
+					ENiagaraScriptCompileStatus LastScriptCompileStatus = ScriptToCheck->GetLastCompileStatus();
 					if (LastScriptCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown ||
 						LastScriptCompileStatus == ENiagaraScriptCompileStatus::NCS_Dirty ||
 						LastScriptCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated)
@@ -1508,7 +1508,6 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 						ScriptsToCheckForStatus.Empty();
 						ScriptCompileStatuses.Empty();
 					}
-					
 					else
 					{
 						// Otherwise save it for processing once all scripts are done.

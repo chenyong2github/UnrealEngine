@@ -826,8 +826,14 @@ public:
 	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnEmitterCompiled& OnEmitterVMCompiled();
 
-	/** Callback issued whenever a GPU compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnEmitterCompiled& OnEmitterGPUCompiled();
+
+	/** Callback issued whenever a GPU compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	NIAGARA_API FOnEmitterCompiled& OnGPUCompilationComplete()
+	{
+		return OnGPUScriptCompiledDelegate;
+	}
 	
 	NIAGARA_API static bool GetForceCompileOnLoad();
 

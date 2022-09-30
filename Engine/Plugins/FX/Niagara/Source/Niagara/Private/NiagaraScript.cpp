@@ -2666,7 +2666,6 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	CachedScriptVM.OptimizationTask.State = nullptr;
 	CachedParameterCollectionReferences.Empty();
 	// Proactively clear out the script resource, because it might be stale now.
-	LastGPUCompileStatus.Reset();
 	ScriptResource->Invalidate();
 
 	if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Error)
@@ -2873,33 +2872,6 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 void UNiagaraScript::RaiseOnGPUCompilationComplete()
 {
 #if WITH_EDITORONLY_DATA
-	uint32 ErrorCount = 0;
-	uint32 WarningsCount = 0;
-	for(const FString& String : ScriptResource->GetCompileErrors())
-	{
-		if(String.Contains("err0r"))
-		{
-			ErrorCount++;
-		}
-		else
-		{
-			WarningsCount++;
-		}
-	}
-
-	if(ErrorCount > 0)
-	{
-		LastGPUCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
-	}
-	else if(WarningsCount > 0)
-	{
-		LastGPUCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings;
-	}
-	else
-	{
-		LastGPUCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDate;
-	}
-	
 	OnGPUScriptCompiled().Broadcast(this, FGuid());
 	FNiagaraSystemUpdateContext(this, true);
 
@@ -3509,7 +3481,6 @@ void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 {
 	UE_LOG(LogNiagara, Verbose, TEXT("InvalidateCompileResults Script:%s Reason:%s"), *GetPathName(), *Reason);
 	CachedScriptVM.Reset();
-	LastGPUCompileStatus.Reset();
 	ScriptResource->Invalidate();
 	CachedScriptVMId.Invalidate();
 	if (VersionData.Num() > 0)
@@ -3881,18 +3852,10 @@ FGuid UNiagaraScript::GetBaseChangeID(const FGuid& VersionGuid) const
 
 ENiagaraScriptCompileStatus UNiagaraScript::GetLastCompileStatus() const
 {
-	if(!IsGPUScript(Usage))
+	if (CachedScriptVM.IsValid())
 	{
-		if (CachedScriptVM.IsValid())
-		{
-			return CachedScriptVM.LastCompileStatus;
-		}
+		return CachedScriptVM.LastCompileStatus;
 	}
-	else if(LastGPUCompileStatus.IsSet())
-	{
-		return LastGPUCompileStatus.GetValue(); 
-	}
-	
 	return ENiagaraScriptCompileStatus::NCS_Unknown;
 }
 #endif
