@@ -174,6 +174,8 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	OnEntityListUpdatedDelegate = InArgs._OnEntityListUpdated;
 	WidgetRegistry = MoveTemp(InWidgetRegistry);
 
+	WidgetRegistry.Pin()->OnObjectRefreshed().AddSP(this, &SRCPanelExposedEntitiesList::OnWidgetRegistryRefreshed);
+
 	ColumnSizeData.LeftColumnWidth = TAttribute<float>(this, &SRCPanelExposedEntitiesList::OnGetLeftColumnWidth);
 	ColumnSizeData.RightColumnWidth = TAttribute<float>(this, &SRCPanelExposedEntitiesList::OnGetRightColumnWidth);
 	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SRCPanelExposedEntitiesList::OnSetColumnWidth);
@@ -426,6 +428,11 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 
 SRCPanelExposedEntitiesList::~SRCPanelExposedEntitiesList()
 {
+	if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
+	{
+		Registry->OnObjectRefreshed().RemoveAll(this);
+	}
+
 	UnregisterPresetDelegates();
 	UnregisterEvents();
 }
@@ -1573,9 +1580,15 @@ void SRCPanelExposedEntitiesList::OnProtocolBindingAddedOrRemoved(ERCProtocolBin
 	}
 }
 
+void SRCPanelExposedEntitiesList::OnWidgetRegistryRefreshed(const TArray<UObject*>& Objects)
+{
+	Refresh();
+}
+
 bool FGroupDragEvent::IsDraggedFromSameGroup() const
 {
 	return DragOriginGroup->GetId() == DragTargetGroup->GetId();
 }
+
 
 #undef LOCTEXT_NAMESPACE /* RemoteControlPanelFieldList */

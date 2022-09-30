@@ -1864,9 +1864,38 @@ FReply SRemoteControlPanel::OnClickSettingsButton()
 
 void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterface)
 {
+	bool bTriggerRefresh = true;
+
 	// Clear the widget cache on material compiled to make sure we have valid property nodes for IPropertyRowGenerator
-	WidgetRegistry->Clear();
-	Refresh();
+	if (TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(SharedThis(this)))
+	{
+		const TArray<TSharedRef<SWindow>>& ChildWindows = Window->GetChildWindows();
+		// Selecting a material from the RC window can trigger material recompiles, 
+		// If we refresh the widgets right away we might end up closing the material selection window while the user is 
+		// still selecting a material. Therefore we must wait until that window is closed before refreshing the panel.
+		if (ChildWindows.Num())
+		{
+			bTriggerRefresh = false;
+
+			if (!ChildWindows[0]->GetOnWindowClosedEvent().IsBound())
+			{
+				ChildWindows[0]->GetOnWindowClosedEvent().AddLambda([WeakThis = TWeakPtr<SRemoteControlPanel>(SharedThis(this))](const TSharedRef<SWindow>&)
+				{
+					if (TSharedPtr<SRemoteControlPanel> Panel = WeakThis.Pin())
+					{
+						Panel->WidgetRegistry->Clear();
+						Panel->Refresh();
+					}
+				});
+			}
+		}
+	}
+
+	if (bTriggerRefresh)
+	{
+		WidgetRegistry->Clear();
+		Refresh();
+	}
 }
 
 void SRemoteControlPanel::RegisterDefaultToolBar()

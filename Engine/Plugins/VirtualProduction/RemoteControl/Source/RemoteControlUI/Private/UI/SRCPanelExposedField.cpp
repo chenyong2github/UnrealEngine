@@ -98,14 +98,6 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 	}
 }
 
-SRCPanelExposedField::~SRCPanelExposedField()
-{
-	if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
-	{
-		Registry->OnObjectRefreshed().RemoveAll(this);
-	}
-}
-
 void SRCPanelExposedField::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const
 {
 	OutChildren.Append(ChildWidgets);
@@ -335,9 +327,6 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 		{
 			if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 			{
-				Registry->OnObjectRefreshed().RemoveAll(this);
-				Registry->OnObjectRefreshed().AddSP(this, &SRCPanelExposedField::OnObjectsRefreshed);
-
 				if (TSharedPtr<IDetailTreeNode> Node = Registry->GetObjectTreeNode(Objects[0], Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
 				{
 					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
@@ -356,15 +345,17 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 					];
 
 					TSharedPtr<IPropertyHandle> PropertyHandle = Node->CreatePropertyHandle();
-					if (PropertyHandle && (PropertyHandle->GetParentHandle()->GetPropertyDisplayName().ToString() == FString("Transform")
+					if (PropertyHandle && PropertyHandle->IsValidHandle() && (PropertyHandle->GetParentHandle()->GetPropertyDisplayName().ToString() == FString("Transform")
 						|| PropertyHandle->GetOuterBaseClass() == UMaterialInstanceDynamic::StaticClass()))
 					{
 						// Set up a Zeroed DefaultValue, in case an ExposedEntity doesn't have a native Default. Needed for certain ResetToDefault cases.
 						void* ValuePtr;
-						Node->CreatePropertyHandle()->GetValueData(ValuePtr);
-						DefaultValue.Reset(new uint8[PropertyHandle->GetProperty()->GetSize()]);
-						Node->CreatePropertyHandle()->GetProperty()->CopyCompleteValue(DefaultValue.Get(), ValuePtr);
-						Node->CreatePropertyHandle()->GetProperty()->ClearValue(DefaultValue.Get());
+						if (PropertyHandle->GetValueData(ValuePtr) == FPropertyAccess::Result::Success)
+						{
+							DefaultValue.Reset(new uint8[PropertyHandle->GetProperty()->GetSize()]);
+							PropertyHandle->GetProperty()->CopyCompleteValue(DefaultValue.Get(), ValuePtr);
+							PropertyHandle->GetProperty()->ClearValue(DefaultValue.Get());
+						}
 
 						TWeakPtr<SRCPanelExposedField> WeakFieldPtr = SharedThis(this);
 						auto IsVisible = [WeakFieldPtr, Node]()
@@ -374,11 +365,12 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 							if (FieldPtr && PropertyHandle && PropertyHandle->IsValidHandle())
 							{
 								void* DataPtr;
-								PropertyHandle->GetValueData(DataPtr);
-								FProperty* NodeProperty = PropertyHandle->GetProperty();
-								
-								bool bVisible = !NodeProperty->Identical(FieldPtr->DefaultValue.Get(), DataPtr);
-								return bVisible ? EVisibility::Visible : EVisibility::Hidden;
+								if (PropertyHandle->GetValueData(DataPtr) == FPropertyAccess::Result::Success)
+								{
+									FProperty* NodeProperty = PropertyHandle->GetProperty();
+									bool bVisible = !NodeProperty->Identical(FieldPtr->DefaultValue.Get(), DataPtr);
+									return bVisible ? EVisibility::Visible : EVisibility::Hidden;
+								}
 							}
 							return EVisibility::Hidden;
 						};
@@ -419,7 +411,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 
 					return MakeFieldWidget(FieldWidget.ToSharedRef());
 				}
-			}
+			} 
 		}
 
 		return MakeFieldWidget(CreateInvalidWidget());
@@ -570,24 +562,6 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 	}
 
 	return FReply::Handled();
-}
-
-void SRCPanelExposedField::OnObjectsRefreshed(const TArray<UObject*>& RefreshedObjects)
-{
-	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
-	{
-		TSet<UObject*> BoundObjectsSet;
-		BoundObjectsSet.Append(Field->GetBoundObjects());
-
-		TSet<UObject*> RefreshedObjectsSet;
-		RefreshedObjectsSet.Append(RefreshedObjects);
-
-		const TSet<UObject*> CommonObjects = BoundObjectsSet.Intersect(RefreshedObjectsSet);
-		if (CommonObjects.Num())
-		{
-			Refresh();
-		}
-	}
 }
 
 void SRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode, FRCColumnSizeData InColumnSizeData)

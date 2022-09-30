@@ -32,6 +32,7 @@ class FRCPanelWidgetRegistry
 public:
 	
 	FRCPanelWidgetRegistry();
+	~FRCPanelWidgetRegistry();
 
 	/**
 	 * Get a detail tree node for a given object and property.

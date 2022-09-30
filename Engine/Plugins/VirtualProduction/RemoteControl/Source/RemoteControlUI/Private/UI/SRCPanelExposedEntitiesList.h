@@ -182,6 +182,9 @@ private:
 
 	void OnProtocolBindingAddedOrRemoved(ERCProtocolBinding::Op BindingOperation);
 
+	/** Called when the widget registry is refreshed by an underlying property generator. */
+	void OnWidgetRegistryRefreshed(const TArray<UObject*>& Objects);
+
 private:
 	/** Holds the Groups list view. */
 	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> GroupsListView;

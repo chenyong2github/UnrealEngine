@@ -92,12 +92,25 @@ FRCPanelWidgetRegistry::FRCPanelWidgetRegistry()
 	SpecialTreeNodeHandlers.Add(MoveTemp(NewHandler));
 }
 
+FRCPanelWidgetRegistry::~FRCPanelWidgetRegistry()
+{
+	for (const TPair <TWeakObjectPtr<UObject>, TSharedPtr<IPropertyRowGenerator>>& Pair : ObjectToRowGenerator)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->OnRowsRefreshed().RemoveAll(this);
+		}
+	}
+
+	ObjectToRowGenerator.Reset();
+}
+
 TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetObjectTreeNode(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod)
 {
 	const TPair<TWeakObjectPtr<UObject>, FString> CacheKey{InObject, InField};
 	if (TWeakPtr<IDetailTreeNode>* Node = TreeNodeCache.Find(CacheKey))
 	{
-		if (Node->IsValid())
+		if (Node->IsValid() && Node->Pin()->CreatePropertyHandle() && Node->Pin()->CreatePropertyHandle()->GetNumOuterObjects() != 0)
 		{
 			return Node->Pin();
 		}
@@ -243,9 +256,9 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::FindNDisplayTreeNode(UObject
 		FPropertyRowGeneratorArgs Args;
 		Args.bShouldShowHiddenProperties = false;
 		Generator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
-		Generator->SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes::CreateLambda(MoveTemp(ValidationLambda)));
-
 		Generator->SetObjects({ InObject });
+		Generator->SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes::CreateLambda(MoveTemp(ValidationLambda)));
+		Generator->OnRowsRefreshed().AddRaw(this, &FRCPanelWidgetRegistry::OnRowsRefreshed, Generator);
 		ObjectToRowGenerator.Add(WeakObject, Generator);
 	}
 

@@ -41,7 +41,6 @@ struct SRCPanelExposedField : public SRCPanelExposedEntity
 	static TSharedPtr<SRCPanelTreeNode> MakeInstance(const FGenerateWidgetArgs& Args);
 
 	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field, FRCColumnSizeData ColumnSizeData, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry);
-	virtual ~SRCPanelExposedField();
 
 	//~ SRCPanelTreeNode Interface 
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
@@ -91,8 +90,6 @@ private:
 	TSharedRef<SWidget> ConstructCallFunctionButton(bool bIsEnabled = true);
 	/** Handles calling an exposed function.*/
 	FReply OnClickFunctionButton();
-	/** Called when the underlying generator gets refreshed. In that case we must re-fetch the widget. */
-	void OnObjectsRefreshed(const TArray<UObject*>& RefreshedObjects);
 
 private:
 	/** Weak pointer to the underlying RC Field. */
