@@ -74,6 +74,7 @@ private:
 	bool IsDisplayPercentageChecked() const;
 	void ToggleDisplaySecondary();
 	bool IsDisplaySecondaryChecked() const;
+	bool AreAnyCurvesSelected() const;
 	
 	/** Copy selected curves to clipboard */
 	void CopyToClipboard() const;

@@ -156,7 +156,8 @@ void FAnimModel_AnimSequenceBase::Initialize()
 
 	CommandList->MapAction(
 		FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::RemoveSelectedCurves));
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::RemoveSelectedCurves),
+		FCanExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::AreAnyCurvesSelected));
 }
 
 
@@ -535,9 +536,25 @@ bool FAnimModel_AnimSequenceBase::IsDisplaySecondaryChecked() const
 	return GetDefault<UPersonaOptions>()->bTimelineDisplayFormatSecondary;
 }
 
+bool FAnimModel_AnimSequenceBase::AreAnyCurvesSelected() const
+{
+	if (!SelectedTracks.IsEmpty())
+	{
+		for (const TSharedRef<FAnimTimelineTrack>& SelectedTrack : SelectedTracks)
+		{
+			if (SelectedTrack->IsA<FAnimTimelineTrack_Curve>())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FAnimModel_AnimSequenceBase::CopyToClipboard() const
 {
-	if (SelectedTracks.Num() > 0)
+	if (!SelectedTracks.IsEmpty())
 	{
 		if (UAnimTimelineClipboardContent * ClipboardContent = UAnimTimelineClipboardContent::Create())
 		{
@@ -555,13 +572,17 @@ bool FAnimModel_AnimSequenceBase::CanCopyToClipboard()
 {
 	if (!SelectedTracks.IsEmpty())
 	{
-		for (const auto & Track : SelectedTracks)
+		for (const TSharedRef<FAnimTimelineTrack> & Track : SelectedTracks)
 		{
 			if (!Track->SupportsCopy())
 			{
 				return false;
 			}
 		}
+	}
+	else
+	{
+		return false;
 	}
 	
 	return true;

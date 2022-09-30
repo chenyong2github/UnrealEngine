@@ -140,7 +140,7 @@ bool FAnimTimelineClipboardUtilities::CanOverwriteSelectedCurveDataFromClipboard
 	// Validate clipboard
 	if (ClipboardContent && !ClipboardContent->IsEmpty())
 	{
-		// Exit on multiple curves selected
+		// Exit on multiple curves selected or no curves selected
 		if (SelectedTracks.Num() != 1)
 		{
 			return false;

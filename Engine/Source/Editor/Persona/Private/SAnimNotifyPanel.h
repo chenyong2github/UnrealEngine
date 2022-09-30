@@ -258,7 +258,7 @@ public:
 
 	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
 
-	TSharedRef<FUICommandList> GetCommandList() const { return WeakCommandList.Pin().ToSharedRef(); }
+	TSharedRef<FUICommandList> GetCommandList() const { return CommandList.ToSharedRef(); }
 
 private:
 	friend struct FScopedSavedNotifySelection;
@@ -345,8 +345,8 @@ private:
 	FOnSnapPosition OnSnapPosition;
 
 	/** UI commands for this widget */
-	TWeakPtr<FUICommandList> WeakCommandList;
-
+	TSharedPtr<FUICommandList> CommandList;
+	
 	/** Classes that are known to be derived from blueprint notifies */
 	TArray<FString> NotifyClassNames;
 

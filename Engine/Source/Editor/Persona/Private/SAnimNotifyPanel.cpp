@@ -3846,7 +3846,6 @@ void SAnimNotifyPanel::Construct(const FArguments& InArgs, const TSharedRef<FAni
 		.OnSetInputViewRange(InArgs._OnSetInputViewRange));
 
 	WeakModel = InModel;
-	WeakCommandList = InModel->GetCommandList();
 	Sequence = InArgs._Sequence;
 	OnInvokeTab = InArgs._OnInvokeTab;
 	OnNotifiesChanged = InArgs._OnNotifiesChanged;
@@ -4643,9 +4642,12 @@ void SAnimNotifyPanel::OnPropertyChanged(UObject* ChangedObject, FPropertyChange
 
 void SAnimNotifyPanel::BindCommands()
 {
-	TSharedRef<FUICommandList> CommandList = GetCommandList();
-	const FAnimNotifyPanelCommands& Commands = FAnimNotifyPanelCommands::Get();
+	// This should not be called twice on the same instance
+	check(!CommandList.IsValid());
+	CommandList = MakeShareable(new FUICommandList);
 
+	const FAnimNotifyPanelCommands& Commands = FAnimNotifyPanelCommands::Get();
+	
 	CommandList->MapAction(
 		Commands.DeleteNotify,
 		FExecuteAction::CreateSP(this, &SAnimNotifyPanel::OnDeletePressed));
@@ -4661,7 +4663,7 @@ void SAnimNotifyPanel::BindCommands()
 
 FReply SAnimNotifyPanel::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if(GetCommandList()->ProcessCommandBindings(InKeyEvent))
+	if(CommandList.IsValid() && CommandList->ProcessCommandBindings(InKeyEvent))
 	{
 		return FReply::Handled();
 	}
