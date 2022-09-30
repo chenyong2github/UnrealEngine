@@ -124,6 +124,13 @@ FORCEINLINE XrExtent2Df ToXrExtent2D(FVector2D Vector, float Scale = 1.0f)
 	return XrExtent2Df{ (float)Vector.X / Scale, (float)Vector.Y / Scale };
 }
 
+FORCEINLINE uint32 ToXrPriority(int32 Priority)
+{
+	// Ensure negative priority numbers map to the lower half of the 32-bit range.
+	// We do this by casting to an unsigned int and then flipping the signed bit.
+	return (uint32)Priority ^ (1 << 31);
+}
+
 /** List all OpenXR global entry points used by Unreal. */
 #define ENUM_XR_ENTRYPOINTS_GLOBAL(EnumMacro) \
 	EnumMacro(PFN_xrEnumerateApiLayerProperties,xrEnumerateApiLayerProperties) \

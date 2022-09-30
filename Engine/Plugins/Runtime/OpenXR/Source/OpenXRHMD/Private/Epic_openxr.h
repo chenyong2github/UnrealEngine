@@ -12,7 +12,9 @@
 #define XR_TYPE_EPIC 1000059050
 
 typedef enum XrStructureTypeEPIC {
-	XR_TYPE_SPACE_ACCELERATION_EPIC = XR_TYPE_EPIC + 0,
+	XR_TYPE_SPACE_ACCELERATION_EPIC = XR_TYPE_EPIC,
+	XR_TYPE_ACTIVE_ACTION_SET_PRIORITY_EXT = 1000373000,
+	XR_STRUCTURE_TYPE_EPIC_MAX_ENUM = 0x7FFFFFFF
 } XrStructureTypeEPIC;
 
 
@@ -35,3 +37,19 @@ typedef struct XrSpaceAccelerationEPIC {
 	XrVector3f								linearAcceleration;  // m/s^2
 	XrVector3f							angularAcceleration; // rad/s^2
 } XrSpaceAccelerationEPIC;
+
+#define XR_EXT_active_action_set_priority 1
+#define XR_EXT_active_action_set_priority_SPEC_VERSION 1
+#define XR_EXT_ACTIVE_ACTION_SET_PRIORITY_EXTENSION_NAME "XR_EXT_active_action_set_priority"
+typedef struct XrActiveActionSetPriorityEXT {
+	XrActionSet    actionSet;
+	uint32_t       priority;
+} XrActiveActionSetPriorityEXT;
+
+// XrActiveActionSetPrioritiesEXT extends XrActionsSyncInfo
+typedef struct XrActiveActionSetPrioritiesEXT {
+	XrStructureTypeEPIC              type;
+	void* XR_MAY_ALIAS               next;
+	uint32_t                         countActionSetPriorities;
+	XrActiveActionSetPriorityEXT*    actionSetPriorities;
+} XrActiveActionSetPrioritiesEXT;

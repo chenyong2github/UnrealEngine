@@ -8,6 +8,7 @@
 #include "GameFramework/InputSettings.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
+#include "Epic_openxr.h"
 
 #include "EnhancedInputModule.h"
 #include "InputAction.h"
@@ -535,7 +536,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildEnhancedActions(TMap<FString, FInter
 
 	for (const TPair<TObjectPtr<UInputMappingContext>, int32> MappingContext : MappableInputConfig->GetMappingContexts())
 	{
-		FOpenXRActionSet ActionSet(Instance, MappingContext.Key->GetFName(), MappingContext.Key->ContextDescription.ToString(), MappingContext.Value, MappingContext.Key);
+		FOpenXRActionSet ActionSet(Instance, MappingContext.Key->GetFName(), MappingContext.Key->ContextDescription.ToString(), ToXrPriority(MappingContext.Value), MappingContext.Key);
 		TMap<FName, int32> ActionMap;
 
 		for (const FEnhancedActionKeyMapping& Mapping : MappingContext.Key->GetMappings())
@@ -740,45 +741,56 @@ void FOpenXRInputPlugin::FOpenXRInput::SyncActions(XrSession Session)
 {
 	if (OpenXRHMD->IsFocused() && bActionsAttached)
 	{
-		TSet<XrActionSet> ActiveSet;
+		TMap<XrActionSet, int32> ActiveSet;
 		IEnhancedInputModule::Get().GetLibrary()->ForEachSubsystem([this, &ActiveSet](IEnhancedInputSubsystemInterface* Subsystem)
 			{
 				if (Subsystem)
 				{
 					for (const FOpenXRActionSet& ActionSet : ActionSets)
 					{
-						if (ActionSet.Object && Subsystem->HasMappingContext(ActionSet.Object))
+						int32 Priority = 0;
+						if (ActionSet.Object && Subsystem->HasMappingContext(ActionSet.Object, Priority))
 						{
-							ActiveSet.Add(ActionSet.Handle);
+							int32* PriorityPtr = ActiveSet.Find(ActionSet.Handle);
+							if (PriorityPtr)
+							{
+								*PriorityPtr = FMath::Max(*PriorityPtr, Priority);
+							}
+							else
+							{
+								ActiveSet.Add(ActionSet.Handle, Priority);
+							}
 						}
 					}
 				}
 			});
+
+		TArray<XrActiveActionSet> ActiveActionSets;
+		TArray<XrActiveActionSetPriorityEXT> ActivePriorities;
+		for (const auto& ActionSet : ActiveSet)
+		{
+			ActiveActionSets.Add(XrActiveActionSet{ ActionSet.Key, XR_NULL_PATH });
+			ActivePriorities.Add(XrActiveActionSetPriorityEXT{ ActionSet.Key, ToXrPriority(ActionSet.Value) });
+		}
 
 		// If legacy actions are enabled, all action sets are always active
 		if (!LegacyActions.IsEmpty())
 		{
 			for (const FOpenXRActionSet& ActionSet : ActionSets)
 			{
-				ActiveSet.Add(ActionSet.Handle);
+				ActiveActionSets.Add(XrActiveActionSet{ ActionSet.Handle, XR_NULL_PATH });
 			}
 		}
 
 		// The controller is always active
 		if (ControllerActionSet)
 		{
-			ActiveSet.Add(ControllerActionSet->Handle);
+			ActiveActionSets.Add(XrActiveActionSet{ ControllerActionSet->Handle, XR_NULL_PATH });
 		}
 
-		XrActionsSyncInfo SyncInfo;
-		SyncInfo.type = XR_TYPE_ACTIONS_SYNC_INFO;
-		SyncInfo.next = nullptr;
-
-		TArray<XrActiveActionSet> ActiveActionSets;
-		for (XrActionSet ActionSet : ActiveSet)
-		{
-			ActiveActionSets.Add(XrActiveActionSet{ ActionSet, XR_NULL_PATH });
-		}
+		XrActionsSyncInfo SyncInfo = { XR_TYPE_ACTIONS_SYNC_INFO };
+		XrActiveActionSetPrioritiesEXT PrioritiesInfo = { XR_TYPE_ACTIVE_ACTION_SET_PRIORITY_EXT };
+		SyncInfo.next = &PrioritiesInfo;
 
 		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
 		{
@@ -787,6 +799,8 @@ void FOpenXRInputPlugin::FOpenXRInput::SyncActions(XrSession Session)
 			SyncInfo.next = Plugin->OnSyncActions(Session, SyncInfo.next);
 		}
 
+		PrioritiesInfo.countActionSetPriorities = ActivePriorities.Num();
+		PrioritiesInfo.actionSetPriorities = ActivePriorities.GetData();
 		SyncInfo.countActiveActionSets = ActiveActionSets.Num();
 		SyncInfo.activeActionSets = ActiveActionSets.GetData();
 

@@ -8,6 +8,7 @@
 #include "IOpenXRARModule.h"
 #include "BuildSettings.h"
 #include "GeneralProjectSettings.h"
+#include "Epic_openxr.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
@@ -462,12 +463,11 @@ bool FOpenXRHMDModule::GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensi
 	OutExtensions.Add(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME);
 	OutExtensions.Add(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
 	OutExtensions.Add(XR_KHR_BINDING_MODIFICATION_EXTENSION_NAME);
+	OutExtensions.Add(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
 
 	// Draft extension not yet provided in headers
 	OutExtensions.Add("XR_EXT_dpad_binding");
-
-	// A pre-draft extension.
-	OutExtensions.Add(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
+	OutExtensions.Add("XR_EXT_active_action_set_priority");
 
 	return true;
 }
