@@ -16,9 +16,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealGameSyncAutomation", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{86C488DC-E003-4A1E-919E-A04960D03479}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "..\Shared\EpicGames.Core\EpicGames.Core.csproj", "{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "Shared\EpicGames.Core\EpicGames.Core.csproj", "{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Jupiter", "..\Shared\EpicGames.Jupiter\EpicGames.Jupiter.csproj", "{A826A3C5-A02E-45DA-B418-A5C3EDDC1654}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Jupiter", "Shared\EpicGames.Jupiter\EpicGames.Jupiter.csproj", "{A826A3C5-A02E-45DA-B418-A5C3EDDC1654}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetadataServer", "MetadataServer\MetadataServer.csproj", "{C8D13E98-C8CD-42FB-9C79-F3EB11B0F3E8}"
 EndProject
@@ -26,13 +26,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostBadgeStatus", "PostBadg
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Installer", "Installer\Installer.vcxproj", "{4452DA05-A606-4865-BC9D-D46816851B7D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Perforce", "..\Shared\EpicGames.Perforce\EpicGames.Perforce.csproj", "{A8DEB56D-FCC9-42E9-AFA0-D0DF78883AEC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Perforce", "Shared\EpicGames.Perforce\EpicGames.Perforce.csproj", "{A8DEB56D-FCC9-42E9-AFA0-D0DF78883AEC}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealGameSyncShared", "UnrealGameSyncShared\UnrealGameSyncShared.csproj", "{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealGameSyncCmd", "UnrealGameSyncCmd\UnrealGameSyncCmd.csproj", "{4B2892B3-DF25-49BD-9EC5-81FF50BB6D00}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.OIDC", "..\Shared\EpicGames.OIDC\EpicGames.OIDC.csproj", "{B73A4058-E679-470D-AEE2-767DCB2040D4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.OIDC", "Shared\EpicGames.OIDC\EpicGames.OIDC.csproj", "{B73A4058-E679-470D-AEE2-767DCB2040D4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
