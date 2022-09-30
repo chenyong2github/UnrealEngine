@@ -177,6 +177,7 @@ namespace Metasound
 		bool bIsFinishTriggered;
 		bool bIsFinished;
 
+		int32 FinishSample = INDEX_NONE;
 		int32 NumChannels;
 		int32 NumFramesPerExecute;
 		int32 NumSamplesPerExecute;

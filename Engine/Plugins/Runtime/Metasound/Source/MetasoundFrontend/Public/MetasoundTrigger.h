@@ -82,6 +82,9 @@ namespace Metasound
 			/** Removes all triggered frames. */
 			void Reset();
 
+			/** Removes all triggers which occur after the frame index. */
+			void RemoveAfter(int32 InFrameIndex);
+
 			/** Executes one block of frames and calls underlying InPreTrigger and InOnTrigger
 			 * functions with frame indices.
 			 *

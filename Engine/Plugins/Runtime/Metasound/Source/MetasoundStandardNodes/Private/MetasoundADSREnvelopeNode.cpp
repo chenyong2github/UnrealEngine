@@ -55,10 +55,10 @@ namespace Metasound
 			// Number of samples for Decay
 			int32 DecaySampleCount = 0;
 
-			// Number of samples for Decay
+			// Number of samples for Release 
 			int32 ReleaseSampleCount = 0;
 			
-			// Sustain leve
+			// Sustain level
 			float SustainLevel = 0.0f;
 
 			// Curve factors for attack/decay/release
@@ -108,10 +108,10 @@ namespace Metasound
 				// We are in attack
 				if (InState.CurrentSampleIndex < InState.AttackSampleCount)
 				{
-					float AttackFraction = (float)InState.CurrentSampleIndex++ / InState.AttackSampleCount;
+					float AttackFraction = (float)++(InState.CurrentSampleIndex) / InState.AttackSampleCount;
 					float EnvValue = FMath::Pow(AttackFraction, InState.AttackCurveFactor);
 					float TargeEnvelopeValue = InState.StartingEnvelopeValue + (1.0f - InState.StartingEnvelopeValue) * EnvValue;
-					InState.EnvEase.SetValue(TargeEnvelopeValue);
+					InState.EnvEase.SetValue(TargeEnvelopeValue, true /* bInit */);
 					InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
 					OutEnvelopeValue = InState.CurrentEnvelopeValue;
 
@@ -215,13 +215,13 @@ namespace Metasound
 					EndAttackFrame = FMath::Min(StartFrame + AttackSamplesLeft, EndFrame);
 					for (int32 i = StartFrame; i < EndAttackFrame; ++i)
 					{
-						float AttackFraction = (float)InState.CurrentSampleIndex++ / InState.AttackSampleCount;
+						float AttackFraction = (float)++(InState.CurrentSampleIndex) / InState.AttackSampleCount;
 						float EnvValue = FMath::Pow(AttackFraction, InState.AttackCurveFactor);
-						float TargeEnvelopeValue = InState.StartingEnvelopeValue + (1.0f - InState.StartingEnvelopeValue) * EnvValue;
-						InState.EnvEase.SetValue(TargeEnvelopeValue);
-						InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
-						OutEnvPtr[i] = InState.CurrentEnvelopeValue;
+						OutEnvPtr[i] = InState.StartingEnvelopeValue + (1.0f - InState.StartingEnvelopeValue) * EnvValue;
 					}
+
+					InState.CurrentEnvelopeValue = OutEnvPtr[EndAttackFrame - 1];
+					InState.EnvEase.SetValue(InState.CurrentEnvelopeValue, true /* bInit */);
 
 					// We have finished our attack phase in this block
 					if (InState.CurrentSampleIndex == InState.AttackSampleCount)
@@ -292,6 +292,7 @@ namespace Metasound
 							// We're now done, lets taper it off and finish things
 							if (EndReleaseFrame < EndFrame)
 							{
+								InState.EnvEase.SetValue(0.f);
 								for (int32 i = EndReleaseFrame; i < EndFrame; ++i)
 								{
 									InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
@@ -323,6 +324,102 @@ namespace Metasound
 	template<typename EnvelopeClass, typename ValueType>
 	class TADSREnvelopeNodeOperator : public TExecutableOperator<TADSREnvelopeNodeOperator<EnvelopeClass, ValueType>>
 	{
+		enum class ETriggerType : uint8
+		{
+			Attack,
+			Release,
+			None
+		};
+
+		struct FTriggerInfo
+		{
+			ETriggerType Type;
+			int32 FrameIndex;
+		};
+
+		struct FTriggerIterator
+		{
+			FTriggerIterator(const FTrigger& InAttackTrigger, const FTrigger& InReleaseTrigger, int32 InNumFramesPerBlock)
+			: AttackTrigger(InAttackTrigger)
+			, ReleaseTrigger(InReleaseTrigger)
+			, NumFramesPerBlock(InNumFramesPerBlock)
+			{
+				if (AttackTrigger.NumTriggeredInBlock() > 0)
+				{
+					NextAttackFrame = AttackTrigger[0];
+					AttackTriggerIndex++;
+				}
+				else
+				{
+					NextAttackFrame = NumFramesPerBlock;
+				}
+
+				if (ReleaseTrigger.NumTriggeredInBlock() > 0)
+				{
+					NextReleaseFrame = ReleaseTrigger[0];
+					ReleaseTriggerIndex++;
+				}
+				else
+				{
+					NextReleaseFrame = NumFramesPerBlock;
+				}
+			}
+
+			FTriggerInfo NextTrigger()
+			{
+				FTriggerInfo Info;
+
+				if ((NextAttackFrame <= NextReleaseFrame) && (NextAttackFrame < NumFramesPerBlock))
+				{
+					Info.Type = ETriggerType::Attack;
+					Info.FrameIndex = NextAttackFrame;
+
+					if (AttackTriggerIndex < AttackTrigger.NumTriggeredInBlock())
+					{
+						NextAttackFrame = AttackTrigger[AttackTriggerIndex];
+						AttackTriggerIndex++;
+					}
+					else
+					{
+						NextAttackFrame = NumFramesPerBlock;
+					}
+				}
+				else if (NextReleaseFrame < NumFramesPerBlock)
+				{
+					Info.Type = ETriggerType::Release;
+					Info.FrameIndex = NextReleaseFrame;
+
+					if (ReleaseTriggerIndex < ReleaseTrigger.NumTriggeredInBlock())
+					{
+						NextReleaseFrame = ReleaseTrigger[ReleaseTriggerIndex];
+						ReleaseTriggerIndex++;
+					}
+					else
+					{
+						NextReleaseFrame = NumFramesPerBlock;
+					}
+				}
+				else
+				{
+					Info.Type = ETriggerType::None;
+					Info.FrameIndex = NumFramesPerBlock;
+				}
+
+				return Info;
+			}
+
+		private:
+			const FTrigger& AttackTrigger;
+			const FTrigger& ReleaseTrigger;
+
+			int32 NumFramesPerBlock = 0;
+			int32 AttackTriggerIndex = 0;
+			int32 NextAttackFrame = 0;
+
+			int32 ReleaseTriggerIndex = 0;
+			int32 NextReleaseFrame = 0;
+		};
+
 	public:
 		static const FVertexInterface& GetDefaultInterface()
 		{
@@ -432,10 +529,8 @@ namespace Metasound
 			, AttackCurveFactor(InArgs.AttackCurveFactor)
 			, DecayCurveFactor(InArgs.DecayCurveFactor)
 			, ReleaseCurveFactor(InArgs.ReleaseCurveFactor)
-			, OnAttackTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
 			, OnDecayTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
 			, OnSustainTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
-			, OnReleaseTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
 			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateAny(InArgs.OperatorSettings))
 			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateAny(InArgs.OperatorSettings))
 		{
@@ -470,10 +565,10 @@ namespace Metasound
 			using namespace ADSREnvelopeVertexNames;
 
 			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnAttackTrigger), OnAttackTrigger);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnAttackTrigger), TriggerAttackIn);
 			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnDecayTrigger), OnDecayTrigger);
 			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnSustainTrigger), OnSustainTrigger);
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnReleaseTrigger), OnReleaseTrigger);
+			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnReleaseTrigger), TriggerReleaseIn);
 			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnDone), OnDone);
 			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputEnvelopeValue), OutputEnvelope);
 
@@ -485,7 +580,7 @@ namespace Metasound
 			float AttackTimeSeconds = AttackTime->GetSeconds();
 			float DecayTimeSeconds = DecayTime->GetSeconds();
 			float ReleaseTimeSeconds = ReleaseTime->GetSeconds();
-			EnvState.AttackSampleCount = SampleRate * FMath::Max(0.0f, AttackTimeSeconds);
+			EnvState.AttackSampleCount = FMath::Max(1, SampleRate * FMath::Max(0.0f, AttackTimeSeconds));
 			EnvState.DecaySampleCount = SampleRate * FMath::Max(0.0f, DecayTimeSeconds);
 			EnvState.SustainLevel = FMath::Max(0.0f, *SustainLevel);
 			EnvState.ReleaseSampleCount = SampleRate * FMath::Max(0.0f, ReleaseTimeSeconds);
@@ -521,51 +616,52 @@ namespace Metasound
 		{
 			using namespace ADSREnvelopeNodePrivate;
 
-			OnAttackTrigger->AdvanceBlock();
 			OnDecayTrigger->AdvanceBlock();
 			OnSustainTrigger->AdvanceBlock();
-			OnReleaseTrigger->AdvanceBlock();
 			OnDone->AdvanceBlock();
  
-			// check for any updates to input params
-			UpdateParams();
- 		
-			TriggerReleaseIn->ExecuteBlock(
-				[&](int32 StartFrame, int32 EndFrame)
-				{
-				},
-				// OnTrigger
-				[&](int32 StartFrame, int32 EndFrame)
-				{
-					// This schedules a release sample count
-					EnvState.bIsInRelease = true;
-					OnReleaseTrigger->TriggerFrame(StartFrame);
-				}
-			);
+			
 
-			TriggerAttackIn->ExecuteBlock(
-				// OnPreTrigger
-				[&](int32 StartFrame, int32 EndFrame)
+			FTriggerIterator TriggerIter(*TriggerAttackIn, *TriggerReleaseIn, NumFramesPerBlock);
+
+			FTriggerInfo NextTrigger = TriggerIter.NextTrigger();
+			if (NextTrigger.FrameIndex > 0)
+			{
+				// Process envelope before receiving any triggers on this block
+				ProcessEnvelopeOutput(0, NextTrigger.FrameIndex);
+			}
+
+			while (NextTrigger.Type != ETriggerType::None)
+			{
+				FTriggerInfo CurrentTrigger = NextTrigger;
+				NextTrigger = TriggerIter.NextTrigger();
+
+				switch (CurrentTrigger.Type)
 				{
-					ProcessEnvelopeOutput(StartFrame, EndFrame);
-				},
-				// OnTrigger
-				[&](int32 StartFrame, int32 EndFrame)
-				{
-					// Get latest params
+					case ETriggerType::Attack:
+					// check for any updates to input params
 					UpdateParams();
-
 					// Set the sample index to the top of the envelope
 					EnvState.CurrentSampleIndex = 0;
 					EnvState.StartingEnvelopeValue = EnvState.CurrentEnvelopeValue;
 					EnvState.bIsInRelease = false;
 
-					ProcessEnvelopeOutput(StartFrame, EndFrame);
+						break;
 
-					// Forward the trigger
-					OnAttackTrigger->TriggerFrame(StartFrame);
+					case ETriggerType::Release:
+
+						EnvState.bIsInRelease = true;
+
+						break;
+
+					default:
+						{
+							checkNoEntry();
+						}
 				}
-			);
+
+				ProcessEnvelopeOutput(CurrentTrigger.FrameIndex, NextTrigger.FrameIndex);
+			}
 		}
 
 	private:
@@ -579,10 +675,8 @@ namespace Metasound
 		FFloatReadRef DecayCurveFactor;
 		FFloatReadRef ReleaseCurveFactor;
 
-		FTriggerWriteRef OnAttackTrigger;
 		FTriggerWriteRef OnDecayTrigger;
 		FTriggerWriteRef OnSustainTrigger;
-		FTriggerWriteRef OnReleaseTrigger;
 		FTriggerWriteRef OnDone;
 		TDataWriteReference<ValueType> OutputEnvelope;
 

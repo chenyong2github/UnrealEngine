@@ -10,7 +10,6 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundParamHelper.h"
@@ -42,26 +41,20 @@ namespace Metasound
 			void Execute();
 
 		private:
-			FSampleCounter NextTriggerCounter;
-			FSampleCount LastFrameReset;
-
+			float SampleRate;
 			FTriggerReadRef TriggerIn;
 			FTriggerReadRef TriggerReset;
 			FTriggerWriteRef TriggerOut;
 
 			FTimeReadRef DelayTime;
-
-			FSampleCount FramesPerBlock;
 	};
 
 	FTriggerDelayOperator::FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FTimeReadRef& InTimeDelay)
-	: NextTriggerCounter(-1, InSettings.GetSampleRate())
-	, LastFrameReset(-1)
+	: SampleRate(InSettings.GetSampleRate())
 	, TriggerIn(InTriggerIn)
 	, TriggerReset(InTriggerReset)
 	, TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
 	, DelayTime(InTimeDelay)
-	, FramesPerBlock(InSettings.GetNumFramesPerBlock())
 	{
 	}
 
@@ -91,7 +84,16 @@ namespace Metasound
 		// Advance internal counter to get rid of old triggers.
 		TriggerOut->AdvanceBlock();
 
-		LastFrameReset = -1;
+		TriggerIn->ExecuteBlock(
+			[&](int32 StartFrame, int32 EndFrame)
+			{
+			},
+			[this](int32 StartFrame, int32 EndFrame)
+			{
+				const int32 FrameToTrigger = FMath::Max(0, FMath::RoundToInt(DelayTime->GetSeconds() * SampleRate)) + StartFrame;
+				TriggerOut->TriggerFrame(FrameToTrigger);
+			}
+		);
 
 		TriggerReset->ExecuteBlock(
 			[&](int32 StartFrame, int32 EndFrame)
@@ -99,41 +101,9 @@ namespace Metasound
 			},
 			[this](int32 StartFrame, int32 EndFrame)
 			{
-				LastFrameReset = StartFrame;
+				TriggerOut->RemoveAfter(StartFrame);
 			}
 		);
-
-		TriggerIn->ExecuteBlock(
-			[&](int32 StartFrame, int32 EndFrame)
-			{
-			},
-			[this](int32 StartFrame, int32 EndFrame)
-			{
-				if (StartFrame > LastFrameReset)
-				{
-					NextTriggerCounter.SetNumSamples(*DelayTime);
-					LastFrameReset = -1;
-				}
-				else
-				{
-					NextTriggerCounter.SetNumSamples(-1);
-				}
-			}
-		);
-
-		if (NextTriggerCounter.GetNumSamples() >= 0)
-		{
-			FSampleCount SamplesRemaining = NextTriggerCounter.GetNumSamples() - FramesPerBlock;
-			if (SamplesRemaining > 0.0f)
-			{
-				NextTriggerCounter -= FramesPerBlock;
-			}
-			else
-			{
-				TriggerOut->TriggerFrame(SamplesRemaining + (int32)FramesPerBlock);
-				NextTriggerCounter.SetNumSamples(-1);
-			}
-		}
 	}
 
 	TUniquePtr<IOperator> FTriggerDelayOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
@@ -141,6 +111,7 @@ namespace Metasound
 		using namespace TriggerDelayVertexNames;
 
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
+
 		FTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputDelayTime), InParams.OperatorSettings);
 
 		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputInTriggerDelay), InParams.OperatorSettings);

@@ -392,8 +392,15 @@ namespace Metasound
 				GraphAnalyzer->Execute();
 			}
 
+			// Check if generated finished during this execute call
+			if (*OnFinishedTriggerRef)
+			{
+				FinishSample = ((*OnFinishedTriggerRef)[0] * NumChannels);
+			}
+
 			// Interleave audio because ISoundGenerator interface expects interleaved audio.
 			InterleaveGeneratedAudio();
+
 
 			// Add audio generated during graph execution to the output buffer.
 			int32 ThisLoopNumSamplesWritten = FillWithBuffer(InterleavedAudioBuffer, &OutAudio[NumSamplesWritten], NumSamplesRemaining);
@@ -411,11 +418,6 @@ namespace Metasound
 				OverflowBuffer.AddUninitialized(OverflowCount);
 
 				FMemory::Memcpy(OverflowBuffer.GetData(), &InterleavedAudioBuffer.GetData()[ThisLoopNumSamplesWritten], OverflowCount * sizeof(float));
-			}
-
-			if (*OnFinishedTriggerRef)
-			{
-				bIsFinishTriggered = true;
 			}
 		}
 
@@ -438,16 +440,20 @@ namespace Metasound
 
 		if (InNum > 0)
 		{
-			if (InNum < MaxNumOutputSamples)
+			int32 NumSamplesToCopy = FMath::Min(InNum, MaxNumOutputSamples);
+			FMemory::Memcpy(OutAudio, InBuffer.GetData(), NumSamplesToCopy * sizeof(float));
+
+			if (FinishSample != INDEX_NONE)
 			{
-				FMemory::Memcpy(OutAudio, InBuffer.GetData(), InNum * sizeof(float));
-				return InNum;
+				FinishSample -= NumSamplesToCopy;
+				if (FinishSample <= 0)
+				{
+					bIsFinishTriggered = true;
+					FinishSample = INDEX_NONE;
+				}
 			}
-			else
-			{
-				FMemory::Memcpy(OutAudio, InBuffer.GetData(), MaxNumOutputSamples * sizeof(float));
-				return MaxNumOutputSamples;
-			}
+
+			return NumSamplesToCopy;
 		}
 
 		return 0;
