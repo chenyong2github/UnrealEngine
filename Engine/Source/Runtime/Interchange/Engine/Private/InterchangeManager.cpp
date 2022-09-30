@@ -1463,6 +1463,11 @@ UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorForSourceData(cons
 	return nullptr;
 }
 
+bool UInterchangeManager::IsInterchangeActive()
+{
+	return bIsActive;
+}
+
 bool UInterchangeManager::WarnIfInterchangeIsActive()
 {
 	if (!bIsActive)

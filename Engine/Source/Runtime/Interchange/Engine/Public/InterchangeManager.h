@@ -474,6 +474,11 @@ public:
 	UInterchangeTranslatorBase* GetTranslatorForSourceData(const UInterchangeSourceData* SourceData) const;
 
 	/**
+	 * Return true if the Interchange is active (importing or exporting), return false otherwise.
+	 */
+	bool IsInterchangeActive();
+
+	/**
 	 * Return false if the Interchange is not active (importing or exporting).
 	 * If the interchange is active, it will display a notification to let the user know they can cancel the asynchronous import/export
 	 * to be able to complete the operation they want to do. (The exit editor operation is calling this)
