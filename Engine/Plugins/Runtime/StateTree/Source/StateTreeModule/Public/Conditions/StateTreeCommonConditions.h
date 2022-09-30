@@ -29,7 +29,7 @@ struct STATETREEMODULE_API FStateTreeCompareIntCondition : public FStateTreeCond
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeCompareIntConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeCompareIntConditionInstanceData;
 
 	FStateTreeCompareIntCondition() = default;
 	explicit FStateTreeCompareIntCondition(const EGenericAICheck InOperator, const EStateTreeCompare InInverts = EStateTreeCompare::Default)
@@ -37,7 +37,7 @@ struct STATETREEMODULE_API FStateTreeCompareIntCondition : public FStateTreeCond
 		, Operator(InOperator)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCompareIntConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
@@ -68,7 +68,7 @@ struct STATETREEMODULE_API FStateTreeCompareFloatCondition : public FStateTreeCo
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeCompareFloatConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeCompareFloatConditionInstanceData;
 
 	FStateTreeCompareFloatCondition() = default;
 	explicit FStateTreeCompareFloatCondition(const EGenericAICheck InOperator, const EStateTreeCompare InInverts = EStateTreeCompare::Default)
@@ -76,7 +76,7 @@ struct STATETREEMODULE_API FStateTreeCompareFloatCondition : public FStateTreeCo
 		, Operator(InOperator)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCompareFloatConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
@@ -107,7 +107,7 @@ struct STATETREEMODULE_API FStateTreeCompareBoolCondition : public FStateTreeCon
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeCompareBoolConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeCompareBoolConditionInstanceData;
 
 	FStateTreeCompareBoolCondition() = default;
 	explicit FStateTreeCompareBoolCondition(const EStateTreeCompare InInverts)
@@ -118,7 +118,7 @@ struct STATETREEMODULE_API FStateTreeCompareBoolCondition : public FStateTreeCon
 		: bInvert(bInInverts)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCompareBoolConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
@@ -146,7 +146,7 @@ struct STATETREEMODULE_API FStateTreeCompareEnumCondition : public FStateTreeCon
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeCompareEnumConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeCompareEnumConditionInstanceData;
 
 	FStateTreeCompareEnumCondition() = default;
 	explicit FStateTreeCompareEnumCondition(const EStateTreeCompare InInverts)
@@ -157,7 +157,7 @@ struct STATETREEMODULE_API FStateTreeCompareEnumCondition : public FStateTreeCon
 		: bInvert(bInInverts)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCompareEnumConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 #if WITH_EDITOR
@@ -192,7 +192,7 @@ struct STATETREEMODULE_API FStateTreeCompareDistanceCondition : public FStateTre
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeCompareDistanceConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeCompareDistanceConditionInstanceData;
 
 	FStateTreeCompareDistanceCondition() = default;
 	explicit FStateTreeCompareDistanceCondition(const EGenericAICheck InOperator, const EStateTreeCompare InInverts = EStateTreeCompare::Default)
@@ -200,7 +200,7 @@ struct STATETREEMODULE_API FStateTreeCompareDistanceCondition : public FStateTre
 		, Operator(InOperator)
 	{}
 	
-	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeCompareDistanceConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
@@ -228,10 +228,10 @@ struct STATETREEMODULE_API FStateTreeRandomCondition : public FStateTreeConditio
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeRandomConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeRandomConditionInstanceData;
 
 	FStateTreeRandomCondition() = default;
 	
-	virtual const UStruct* GetInstanceDataType() const override { return FStateTreeRandomConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 };

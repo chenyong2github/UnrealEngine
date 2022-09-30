@@ -84,7 +84,7 @@ bool CompareNumbers(const T Left, const T Right, const EGenericAICheck Operator)
 
 bool FStateTreeCompareIntCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	const bool bResult = UE::StateTree::Conditions::CompareNumbers<int32>(InstanceData.Left, InstanceData.Right, Operator);
 	return bResult ^ bInvert;
@@ -97,7 +97,7 @@ bool FStateTreeCompareIntCondition::TestCondition(FStateTreeExecutionContext& Co
 
 bool FStateTreeCompareFloatCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	const bool bResult = UE::StateTree::Conditions::CompareNumbers<double>(InstanceData.Left, InstanceData.Right, Operator);
 	return bResult ^ bInvert;
@@ -110,7 +110,7 @@ bool FStateTreeCompareFloatCondition::TestCondition(FStateTreeExecutionContext& 
 
 bool FStateTreeCompareBoolCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	return (InstanceData.bLeft == InstanceData.bRight) ^ bInvert;
 }
@@ -122,7 +122,7 @@ bool FStateTreeCompareBoolCondition::TestCondition(FStateTreeExecutionContext& C
 
 bool FStateTreeCompareEnumCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	return (InstanceData.Left == InstanceData.Right) ^ bInvert;
 }
@@ -135,10 +135,10 @@ void FStateTreeCompareEnumCondition::OnBindingChanged(const FGuid& ID, FStateTre
 		return;
 	}
 
-	FStateTreeCompareEnumConditionInstanceData& Instance = InstanceData.GetMutable<FStateTreeCompareEnumConditionInstanceData>();
+	FInstanceDataType& Instance = InstanceData.GetMutable<FInstanceDataType>();
 
 	// Left has changed, update enums from the leaf property.
-	if (TargetPath.Path.Last() == GET_MEMBER_NAME_STRING_CHECKED(FStateTreeCompareEnumConditionInstanceData, Left))
+	if (TargetPath.Path.Last() == GET_MEMBER_NAME_STRING_CHECKED(FInstanceDataType, Left))
 	{
 		if (const FProperty* LeafProperty = BindingLookup.GetPropertyPathLeafProperty(SourcePath))
 		{
@@ -179,7 +179,7 @@ void FStateTreeCompareEnumCondition::OnBindingChanged(const FGuid& ID, FStateTre
 
 bool FStateTreeCompareDistanceCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	const FVector::FReal Left = FVector::DistSquared(InstanceData.Source, InstanceData.Target);
 	const FVector::FReal Right = FMath::Square(InstanceData.Distance);
@@ -194,7 +194,7 @@ bool FStateTreeCompareDistanceCondition::TestCondition(FStateTreeExecutionContex
 
 bool FStateTreeRandomCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	return FMath::FRandRange(0.0f, 1.0f) < InstanceData.Threshold;
 }

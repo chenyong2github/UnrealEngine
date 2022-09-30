@@ -37,7 +37,7 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 	FMassZoneGraphPathRequestFragment& RequestFragment = Context.GetExternalData(PathRequestHandle);
 	const FMassMovementParameters& MovementParams = Context.GetExternalData(MovementParamsHandle);
 
-	const FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
@@ -86,7 +86,7 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	const FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
@@ -123,7 +123,7 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	const FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG

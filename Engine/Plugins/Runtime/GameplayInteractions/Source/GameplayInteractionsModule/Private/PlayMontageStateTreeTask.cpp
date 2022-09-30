@@ -19,7 +19,7 @@ EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionCon
 		return EStateTreeRunStatus::Failed;
 	}
 
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	ACharacter* Character = Cast<ACharacter>(InstanceData.Actor);
 	if (Character == nullptr)
@@ -41,7 +41,7 @@ EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionCon
 
 EStateTreeRunStatus FPlayMontageStateTreeTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	InstanceData.Time += DeltaTime;
 	return InstanceData.ComputedDuration <= 0.0f ? EStateTreeRunStatus::Running : (InstanceData.Time < InstanceData.ComputedDuration ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Succeeded);

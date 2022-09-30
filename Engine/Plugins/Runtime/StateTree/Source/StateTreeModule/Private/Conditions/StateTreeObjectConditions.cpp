@@ -14,7 +14,7 @@
 
 bool FStateTreeObjectIsValidCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	const bool bResult = IsValid(InstanceData.Object);
 	return bResult ^ bInvert;
 }
@@ -25,7 +25,7 @@ bool FStateTreeObjectIsValidCondition::TestCondition(FStateTreeExecutionContext&
 
 bool FStateTreeObjectEqualsCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	const bool bResult = InstanceData.Left == InstanceData.Right;
 	return bResult ^ bInvert;
 }
@@ -36,7 +36,7 @@ bool FStateTreeObjectEqualsCondition::TestCondition(FStateTreeExecutionContext& 
 
 bool FStateTreeObjectIsChildOfClassCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	const bool bResult = InstanceData.Object && InstanceData.Class
 						&& InstanceData.Object->GetClass()->IsChildOf(InstanceData.Class);
 	return bResult ^ bInvert;

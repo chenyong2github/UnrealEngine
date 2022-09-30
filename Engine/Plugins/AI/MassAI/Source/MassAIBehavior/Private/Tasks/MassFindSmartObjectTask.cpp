@@ -26,22 +26,16 @@ bool FMassFindSmartObjectTask::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(EntityTransformHandle);
 	Linker.LinkExternalData(SmartObjectUserHandle);
 	Linker.LinkExternalData(LocationHandle);
-	
-	Linker.LinkInstanceDataProperty(FoundCandidateSlotsHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, FoundCandidateSlots));
-	Linker.LinkInstanceDataProperty(HasCandidateSlotsHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, bHasCandidateSlots));
-	Linker.LinkInstanceDataProperty(SearchRequestIDHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, SearchRequestID));
-	Linker.LinkInstanceDataProperty(NextUpdateHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, NextUpdate));
-	Linker.LinkInstanceDataProperty(LastLaneHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, LastLane));
 
 	return true;
 }
 
 void FMassFindSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
 	// Stop any request that are still in flight.
-	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
-	
-	if (SearchRequestID.IsSet())
+	if (InstanceData.SearchRequestID.IsSet())
 	{
 		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
@@ -51,8 +45,8 @@ void FMassFindSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, co
 			MassContext.GetEntitySubsystemExecutionContext(),
 			SmartObjectSubsystem,
 			SignalSubsystem);
-		MassSmartObjectHandler.RemoveRequest(SearchRequestID);
-		SearchRequestID.Reset();
+		MassSmartObjectHandler.RemoveRequest(InstanceData.SearchRequestID);
+		InstanceData.SearchRequestID.Reset();
 
 		MASSBEHAVIOR_LOG(Verbose, TEXT("Cancelling pending SmartObject search on ExitState."));
 	}
@@ -61,6 +55,7 @@ void FMassFindSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, co
 void FMassFindSmartObjectTask::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
 	const UWorld* World = Context.GetWorld();
+	
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 
 	// This is done here because of the limited ways we can communicate between FindSmartObject() and ClaimSmartObject().
@@ -73,11 +68,10 @@ void FMassFindSmartObjectTask::StateCompleted(FStateTreeExecutionContext& Contex
 	{
 		MASSBEHAVIOR_LOG(Verbose, TEXT("StateCompleted: Reset candidates because of interaction cooldown."));
 
-		FMassSmartObjectCandidateSlots& FoundSlots = Context.GetInstanceData(FoundCandidateSlotsHandle);
-		bool& bHasCandidateSlots = Context.GetInstanceData(HasCandidateSlotsHandle);
+		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
-		FoundSlots.Reset();
-		bHasCandidateSlots = false;
+		InstanceData.FoundCandidateSlots.Reset();
+		InstanceData.bHasCandidateSlots = false;
 	}
 }
 
@@ -92,12 +86,13 @@ EStateTreeRunStatus FMassFindSmartObjectTask::Tick(FStateTreeExecutionContext& C
 		MassContext.GetEntitySubsystemExecutionContext(),
 		SmartObjectSubsystem,
 		SignalSubsystem);
-	
+
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
-	FMassSmartObjectRequestID& SearchRequestID = Context.GetInstanceData(SearchRequestIDHandle);
+
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	// Try to search for new slots if not already in progress.
-	if (!SearchRequestID.IsSet())
+	if (!InstanceData.SearchRequestID.IsSet())
 	{
 		// If the user is already using a SmartObject, or has used interaction recently, skip search and empty results. 
 		if (SOUser.InteractionHandle.IsValid() || SOUser.InteractionCooldownEndTime > World->GetTimeSeconds())
@@ -105,21 +100,16 @@ EStateTreeRunStatus FMassFindSmartObjectTask::Tick(FStateTreeExecutionContext& C
 			MASSBEHAVIOR_LOG(Verbose, TEXT("Skipped: Recently interacted (%s %.1f)"), SOUser.InteractionHandle.IsValid() ? TEXT("Interacting") : TEXT("Cooldown"), FMath::Max(0.0f, SOUser.InteractionCooldownEndTime - World->GetTimeSeconds()));
 
 			// Do not offer any new candidates during cool down.
-			FMassSmartObjectCandidateSlots& FoundSlots = Context.GetInstanceData(FoundCandidateSlotsHandle);
-			bool& bHasCandidateSlots = Context.GetInstanceData(HasCandidateSlotsHandle);
-
-			FoundSlots.Reset();
-			bHasCandidateSlots = false;
+			InstanceData.FoundCandidateSlots.Reset();
+			InstanceData.bHasCandidateSlots = false;
 
 			return EStateTreeRunStatus::Running;
 		}
 
 		// Check to see if we should request. 
 		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalDataPtr(LocationHandle);
-		const FZoneGraphLaneHandle LastLane = Context.GetInstanceData(LastLaneHandle);
-		const bool bLaneHasChanged = (LaneLocation && LastLane != LaneLocation->LaneHandle);
-		const float NextUpdateTime = Context.GetInstanceData(NextUpdateHandle);
-		const bool bTimeForNextUpdate = World->GetTimeSeconds() > NextUpdateTime;
+		const bool bLaneHasChanged = (LaneLocation && InstanceData.LastLane != LaneLocation->LaneHandle);
+		const bool bTimeForNextUpdate = World->GetTimeSeconds() > InstanceData.NextUpdate;
 
 		if (bTimeForNextUpdate || bLaneHasChanged)
 		{
@@ -135,13 +125,13 @@ EStateTreeRunStatus FMassFindSmartObjectTask::Tick(FStateTreeExecutionContext& C
 						*LexToString(LaneLocation->DistanceAlongLane),
 						*LexToString(LaneLocation->LaneLength));
 
-					SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, SOUser.UserTags, ActivityRequirements, { LaneLocation->LaneHandle, LaneLocation->DistanceAlongLane });
+					InstanceData.SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, SOUser.UserTags, ActivityRequirements, { LaneLocation->LaneHandle, LaneLocation->DistanceAlongLane });
 				}
 			}
 			else
 			{
 				const FTransformFragment& TransformFragment = Context.GetExternalData(EntityTransformHandle);
-				SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, SOUser.UserTags, ActivityRequirements, TransformFragment.GetTransform().GetLocation());
+				InstanceData.SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, SOUser.UserTags, ActivityRequirements, TransformFragment.GetTransform().GetLocation());
 			}
 		}
 	}
@@ -149,20 +139,16 @@ EStateTreeRunStatus FMassFindSmartObjectTask::Tick(FStateTreeExecutionContext& C
 	{
 		// Poll to see if the candidates are ready.
 		// A "candidates ready" signal will trigger the state tree evaluation when candidates are ready.
-		if (const FMassSmartObjectCandidateSlots* NewCandidates = MassSmartObjectHandler.GetRequestCandidates(SearchRequestID))
+		if (const FMassSmartObjectCandidateSlots* NewCandidates = MassSmartObjectHandler.GetRequestCandidates(InstanceData.SearchRequestID))
 		{
-			FMassSmartObjectCandidateSlots& FoundSlots = Context.GetInstanceData(FoundCandidateSlotsHandle);
-			bool& bHasCandidateSlots = Context.GetInstanceData(HasCandidateSlotsHandle);
-			float& NextUpdate = Context.GetInstanceData(NextUpdateHandle);
-
 			MASSBEHAVIOR_LOG(Log, TEXT("Found %d smart object candidates"), NewCandidates->NumSlots);
 
-			FoundSlots = *NewCandidates;
-			bHasCandidateSlots = FoundSlots.NumSlots > 0;
+			InstanceData.FoundCandidateSlots = *NewCandidates;
+			InstanceData.bHasCandidateSlots = InstanceData.FoundCandidateSlots.NumSlots > 0;
 			
 			// Remove requests
-			MassSmartObjectHandler.RemoveRequest(SearchRequestID);
-			SearchRequestID.Reset();
+			MassSmartObjectHandler.RemoveRequest(InstanceData.SearchRequestID);
+			InstanceData.SearchRequestID.Reset();
 
 			// Schedule next update.
 			const FMassEntityHandle Entity = MassContext.GetEntity(); 
@@ -170,7 +156,7 @@ EStateTreeRunStatus FMassFindSmartObjectTask::Tick(FStateTreeExecutionContext& C
 			constexpr float SearchIntervalDeviation = 0.1f;
 			const float DelayInSeconds = SearchInterval * FMath::FRandRange(1.0f - SearchIntervalDeviation, 1.0f + SearchIntervalDeviation);
 				
-			NextUpdate = World->GetTimeSeconds() + DelayInSeconds;
+			InstanceData.NextUpdate = World->GetTimeSeconds() + DelayInSeconds;
 			UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 			MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::SmartObjectRequestCandidates, Entity, DelayInSeconds);
 		}

@@ -31,8 +31,6 @@ bool FMassUseSmartObjectTask::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(SmartObjectUserHandle);
 	Linker.LinkExternalData(MoveTargetHandle);
 
-	Linker.LinkInstanceDataProperty(ClaimedSlotHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, ClaimedSlot));
-
 	return true;
 }
 
@@ -50,13 +48,13 @@ EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionConte
 	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 	FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
 
-	const FSmartObjectClaimHandle& ClaimedSlot = Context.GetInstanceData(ClaimedSlotHandle);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	// Setup MassSmartObject handler and start interaction
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntityManager(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem, SignalSubsystem);
 
-	if (!MassSmartObjectHandler.StartUsingSmartObject(MassContext.GetEntity(), SOUser, ClaimedSlot))
+	if (!MassSmartObjectHandler.StartUsingSmartObject(MassContext.GetEntity(), SOUser, InstanceData.ClaimedSlot))
 	{
 		return EStateTreeRunStatus::Failed;
 	}

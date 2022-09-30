@@ -24,8 +24,6 @@ bool FMassZoneGraphFindWanderTarget::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(ZoneGraphAnnotationSubsystemHandle);
 	Linker.LinkExternalData(MassCrowdSubsystemHandle);
 
-	Linker.LinkInstanceDataProperty(WanderTargetLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphFindWanderTargetInstanceData, WanderTargetLocation));
-
 	return true;
 }
 
@@ -37,6 +35,8 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
 	UZoneGraphAnnotationSubsystem& ZoneGraphAnnotationSubsystem = Context.GetExternalData(ZoneGraphAnnotationSubsystemHandle);
 	const UMassCrowdSubsystem& MassCrowdSubsystem = Context.GetExternalData(MassCrowdSubsystemHandle);
+
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	bool bDisplayDebug = false;
 #if WITH_MASSGAMEPLAY_DEBUG
@@ -58,14 +58,12 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 
 	const float MoveDistance = GetDefault<UMassCrowdSettings>()->GetMoveDistance();
 
-	FMassZoneGraphTargetLocation& WanderTargetLocation = Context.GetInstanceData(WanderTargetLocationHandle);
-
-	WanderTargetLocation.LaneHandle = LaneLocation.LaneHandle;
-	WanderTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane + MoveDistance;
-	WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
-	WanderTargetLocation.NextLaneHandle.Reset();
-	WanderTargetLocation.bMoveReverse = false;
-	WanderTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
+	InstanceData.WanderTargetLocation.LaneHandle = LaneLocation.LaneHandle;
+	InstanceData.WanderTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane + MoveDistance;
+	InstanceData.WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
+	InstanceData.WanderTargetLocation.NextLaneHandle.Reset();
+	InstanceData.WanderTargetLocation.bMoveReverse = false;
+	InstanceData.WanderTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
 
 	if (bDisplayDebug)
 	{
@@ -75,9 +73,9 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 	EStateTreeRunStatus Status = EStateTreeRunStatus::Running;
 	
 	// When close to end of a lane, choose next lane.
-	if (WanderTargetLocation.TargetDistance > LaneLocation.LaneLength)
+	if (InstanceData.WanderTargetLocation.TargetDistance > LaneLocation.LaneLength)
 	{
-		WanderTargetLocation.TargetDistance = FMath::Min(WanderTargetLocation.TargetDistance, LaneLocation.LaneLength);
+		InstanceData.WanderTargetLocation.TargetDistance = FMath::Min(InstanceData.WanderTargetLocation.TargetDistance, LaneLocation.LaneLength);
 
 		typedef TTuple<const FZoneGraphLinkedLane, const float> FBranchingCandidate;
 		TArray<FBranchingCandidate, TInlineAllocator<8>> Candidates;
@@ -109,28 +107,28 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 
 		if (FindCandidates(EZoneLaneLinkType::Outgoing))
 		{
-			WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::Outgoing;
+			InstanceData.WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::Outgoing;
 		}
 		else
 		{
 			// Could not continue, try to switch to an adjacent lane.
 			// @todo: we could try to do something smarter here so that agents do not clump up. May need to have some heuristic,
 			//		  i.e. at intersections it looks better to switch lane immediately, with flee, it looks better to vary the location randomly.
-			WanderTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane;
+			InstanceData.WanderTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane;
 
 			// Try adjacent lanes
 			if (FindCandidates(EZoneLaneLinkType::Adjacent))
 			{
 				// Found adjacent lane, choose it once followed the short path. Keeping the random offset from above,
 				// so that all agents dont follow until the end of the path to turn.
-				WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::Adjacent;
+				InstanceData.WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::Adjacent;
 			}
 		}
 
 		if (Candidates.IsEmpty())
 		{
 			// Could not find next lane, fail.
-			WanderTargetLocation.Reset();
+			InstanceData.WanderTargetLocation.Reset();
 			Status = EStateTreeRunStatus::Failed;
 		}
 		else
@@ -143,7 +141,7 @@ EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecuti
 				if (Rand < CandidateCombinedWeight)
 				{
 					const FZoneGraphLinkedLane& LinkedLane = Candidate.Get<0>();
-					WanderTargetLocation.NextLaneHandle = LinkedLane.DestLane;
+					InstanceData.WanderTargetLocation.NextLaneHandle = LinkedLane.DestLane;
 					break;
 				}
 			}

@@ -28,18 +28,18 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTarget : public FMassStateTree
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassZoneGraphFindEscapeTargetInstanceData;
+	
 	FMassZoneGraphFindEscapeTarget();
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindEscapeTargetInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> EscapeTargetLocationHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FZoneGraphTag DisturbanceAnnotationTag = FZoneGraphTag::None;

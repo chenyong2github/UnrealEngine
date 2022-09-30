@@ -39,7 +39,7 @@ EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionCon
 	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	const FMassSmartObjectCandidateSlots* CandidateSlots = InstanceData.CandidateSlots.GetPtr<FMassSmartObjectCandidateSlots>();
 	if (CandidateSlots == nullptr)
@@ -73,7 +73,7 @@ EStateTreeRunStatus FMassClaimSmartObjectTask::EnterState(FStateTreeExecutionCon
 void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
-	const FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	// Succeeded or not, prevent interactions for a specified duration.
 	SOUser.InteractionCooldownEndTime = Context.GetWorld()->GetTimeSeconds() + InteractionCooldown;
@@ -96,7 +96,7 @@ void FMassClaimSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, c
 EStateTreeRunStatus FMassClaimSmartObjectTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	// Prevent FindSmartObject() to query new objects while claimed.
 	// This is done here because of the limited ways we can communicate between FindSmartObject() and ClaimSmartObject().

@@ -41,7 +41,4 @@ protected:
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> AnnotationSubsystemHandle;
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FSmartObjectClaimHandle> ClaimedSlotHandle;
-	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> SmartObjectLocationHandle;
 };

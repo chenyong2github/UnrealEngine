@@ -225,30 +225,6 @@ public:
 		return FStateTreeDataView();
 	}
 
-	/**
-	 * Returns reference to instance data property based on provided handle. The return type is deduced from the handle's template type.
-	 * @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
-	 * @return reference to instance data property based on handle.
-	 */ 
-	template <typename T>
-	typename T::DataType& GetInstanceData(const T Handle) const
-	{
-		check(Handle.IsValid());
-		return *(typename T::DataType*)(DataViews[Handle.DataViewIndex.Get()].GetMemory() + Handle.PropertyOffset);
-	}
-
-	/**
-	 * Returns pointer to instance data property based on provided handle. The return type is deduced from the handle's template type.
-	 * @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
-	 * @return pointer to instance data property based on handle or null if item is not set or handle is invalid.
-	 */ 
-	template <typename T>
-	typename T::DataType* GetInstanceDataPtr(const T Handle) const
-	{
-		return Handle.IsValid() ? (typename T::DataType*)(DataViews[Handle.DataViewIndex.Get()].GetMemory() + Handle.PropertyOffset) : nullptr;
-	}
-
-	
 	/** @returns pointer to the instance data of specified node. */
 	template <typename T>
 	T* GetInstanceDataPtr(const FStateTreeNodeBase& Node) const
@@ -261,6 +237,14 @@ public:
 	T& GetInstanceData(const FStateTreeNodeBase& Node) const
 	{
 		return DataViews[Node.DataViewIndex.Get()].template GetMutable<T>();
+	}
+
+	/** @returns reference to the instance data of specified node. Infers the instance data type from the node's FInstanceDataType. */
+	template <typename T>
+	typename T::FInstanceDataType& GetInstanceData(const T& Node) const
+	{
+		static_assert(TIsDerivedFrom<T, FStateTreeNodeBase>::IsDerived, "Expecting Node to derive from FStateTreeNodeBase.");
+		return DataViews[Node.DataViewIndex.Get()].template GetMutable<typename T::FInstanceDataType>();
 	}
 
 protected:

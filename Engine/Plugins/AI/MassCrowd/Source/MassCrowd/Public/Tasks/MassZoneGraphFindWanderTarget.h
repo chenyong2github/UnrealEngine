@@ -29,19 +29,19 @@ struct MASSCROWD_API FMassZoneGraphFindWanderTarget : public FMassStateTreeTaskB
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassZoneGraphFindWanderTargetInstanceData;
+	
 	FMassZoneGraphFindWanderTarget();
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindWanderTargetInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
 	TStateTreeExternalDataHandle<UMassCrowdSubsystem> MassCrowdSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> WanderTargetLocationHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FZoneGraphTagFilter AllowedAnnotationTags;

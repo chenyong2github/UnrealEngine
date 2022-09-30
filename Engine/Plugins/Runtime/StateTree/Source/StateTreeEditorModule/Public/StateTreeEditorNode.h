@@ -67,5 +67,5 @@ struct TStateTreeEditorNode : public FStateTreeEditorNode
 {
 	using NodeType = T;
 	FORCEINLINE T& GetNode() { return Node.template GetMutable<T>(); }
-	FORCEINLINE typename T::InstanceDataType& GetInstanceData() { return Instance.template GetMutable<typename T::InstanceDataType>(); }
+	FORCEINLINE typename T::FInstanceDataType& GetInstanceData() { return Instance.template GetMutable<typename T::FInstanceDataType>(); }
 };

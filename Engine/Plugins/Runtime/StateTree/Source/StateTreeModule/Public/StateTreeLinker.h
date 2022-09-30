@@ -84,48 +84,11 @@ struct FStateTreeLinker
 		}
 		Handle.DataViewIndex = FStateTreeIndex8(Index + ExternalDataBaseIndex);
 	}
-	/**
-	 * Links reference to a property in instance data.
-	 * Usage:
-	 * 	  Linker.LinkRuntimeDataProperty(HitPointsHandle, STATETREE_INSTANCEDATA_PROPERTY(FHitPointLayout, HitPoints));
-	 *
-	 * @param Handle Reference to TStateTreeExternalDataHandle<> with USTRUCT type to link to.
-	 * @param DummyProperty Do not use directly.
-	 * @param ScriptStruct Do not use directly.
-	 * @param PropertyName Do not use directly.
-	 */
-	template <typename T, typename S>
-	void LinkInstanceDataProperty(T& Handle, const S& DummyProperty, const UScriptStruct* ScriptStruct, const TCHAR* PropertyName)
-	{
-		static_assert(TIsSame<typename T::DataType, S>::Value, "Expecting linked handle to have same type as the instance data struct member.");
-		LinkInstanceDataPropertyInternal(Handle, ScriptStruct, PropertyName);
-	}
 
 	/** @return linked external data descriptors. */
 	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
 
 protected:
-
-	void LinkInstanceDataPropertyInternal(FStateTreeInstanceDataPropertyHandle& Handle, const UScriptStruct* ScriptStruct, const TCHAR* PropertyName)
-	{
-		check(CurrentInstanceStruct != nullptr);
-		check(CurrentInstanceIndex != INDEX_NONE);
-
-		const FProperty* Property = ScriptStruct->FindPropertyByName(FName(PropertyName));
-		if (Property == nullptr)
-		{
-			Handle = FStateTreeInstanceDataPropertyHandle();
-			Status = EStateTreeLinkerStatus::Failed;
-			return;
-		}
-
-		check(FStateTreeIndex8::IsValidIndex(CurrentInstanceIndex));
-		check(Property->GetOffset_ForInternal() < MAX_uint16);
-		
-		Handle.DataViewIndex = FStateTreeIndex8(CurrentInstanceIndex);
-		Handle.Type = EStateTreePropertyIndirection::Offset;
-		Handle.PropertyOffset = (uint16)Property->GetOffset_ForInternal();
-	}
 
 	const UStateTreeSchema* Schema = nullptr;
 	EStateTreeLinkerStatus Status = EStateTreeLinkerStatus::Succeeded;

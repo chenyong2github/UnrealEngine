@@ -84,17 +84,10 @@ namespace UE::MassBehavior::ZoneGraph
 //  FZoneGraphTagFilterCondition
 //----------------------------------------------------------------------//
 
-bool FZoneGraphTagFilterCondition::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(TagsHandle, STATETREE_INSTANCEDATA_PROPERTY(FZoneGraphTagFilterConditionInstanceData, Tags));
-
-	return true;
-}
-
 bool FZoneGraphTagFilterCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const FZoneGraphTagMask Tags = Context.GetInstanceData(TagsHandle);
-	return Filter.Pass(Tags) ^ bInvert;
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	return Filter.Pass(InstanceData.Tags) ^ bInvert;
 }
 
 
@@ -102,19 +95,10 @@ bool FZoneGraphTagFilterCondition::TestCondition(FStateTreeExecutionContext& Con
 //  FZoneGraphTagMaskCondition
 //----------------------------------------------------------------------//
 
-bool FZoneGraphTagMaskCondition::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(LeftHandle, STATETREE_INSTANCEDATA_PROPERTY(FZoneGraphTagMaskConditionInstanceData, Left));
-	Linker.LinkInstanceDataProperty(RightHandle, STATETREE_INSTANCEDATA_PROPERTY(FZoneGraphTagMaskConditionInstanceData, Right));
-
-	return true;
-}
-
 bool FZoneGraphTagMaskCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const FZoneGraphTagMask Left = Context.GetInstanceData(LeftHandle);
-	const FZoneGraphTagMask Right = Context.GetInstanceData(RightHandle);
-	return Left.CompareMasks(Right, Operator) ^ bInvert;
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	return InstanceData.Left.CompareMasks(InstanceData.Right, Operator) ^ bInvert;
 }
 
 
@@ -122,19 +106,10 @@ bool FZoneGraphTagMaskCondition::TestCondition(FStateTreeExecutionContext& Conte
 //  FZoneGraphTagCondition
 //----------------------------------------------------------------------//
 
-bool FZoneGraphTagCondition::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(LeftHandle, STATETREE_INSTANCEDATA_PROPERTY(FZoneGraphTagConditionInstanceData, Left));
-	Linker.LinkInstanceDataProperty(RightHandle, STATETREE_INSTANCEDATA_PROPERTY(FZoneGraphTagConditionInstanceData, Right));
-
-	return true;
-}
-
 bool FZoneGraphTagCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const FZoneGraphTag Left = Context.GetInstanceData(LeftHandle);
-	const FZoneGraphTag Right = Context.GetInstanceData(RightHandle);
-	return (Left == Right) ^ bInvert;
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	return (InstanceData.Left == InstanceData.Right) ^ bInvert;
 }
 
 

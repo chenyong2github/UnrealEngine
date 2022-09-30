@@ -35,19 +35,17 @@ struct MASSAIBEHAVIOR_API FMassLookAtTask : public FMassStateTreeTaskBase
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassLookAtTaskInstanceData;
+	
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassLookAtTaskInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
 	TStateTreeExternalDataHandle<FMassLookAtFragment> LookAtHandle;
-
-	TStateTreeInstanceDataPropertyHandle<float> DurationHandle;
-	TStateTreeInstanceDataPropertyHandle<FMassEntityHandle> TargetEntityHandle;
-	TStateTreeInstanceDataPropertyHandle<float> TimeHandle;
 
 	/** Look At Mode */
 	UPROPERTY(EditAnywhere, Category = Parameter)

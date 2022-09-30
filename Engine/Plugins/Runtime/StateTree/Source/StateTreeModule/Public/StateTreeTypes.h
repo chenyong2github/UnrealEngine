@@ -606,13 +606,6 @@ struct TStateTreeExternalDataHandle : FStateTreeExternalDataHandle
 };
 
 UENUM()
-enum class EStateTreePropertyIndirection : uint8
-{
-	Offset,
-	Indirect,
-};
-
-UENUM()
 enum class EStateTreePropertyUsage : uint8
 {
 	Invalid,
@@ -620,25 +613,6 @@ enum class EStateTreePropertyUsage : uint8
 	Input,
 	Parameter,
 	Output,
-};
-
-
-USTRUCT()
-struct STATETREEMODULE_API FStateTreeInstanceDataPropertyHandle
-{
-	GENERATED_BODY()
-
-	bool IsValid() const { return DataViewIndex.IsValid(); }
-
-	uint16 PropertyOffset = 0;
-	FStateTreeIndex8 DataViewIndex = FStateTreeIndex8::Invalid;
-	EStateTreePropertyIndirection Type = EStateTreePropertyIndirection::Offset;
-};
-
-template<typename T>
-struct TStateTreeInstanceDataPropertyHandle : FStateTreeInstanceDataPropertyHandle
-{
-	typedef T DataType;
 };
 
 
@@ -694,9 +668,6 @@ struct STATETREEMODULE_API FStateTreeExternalDataDesc
 #endif
 };
 
-
-#define STATETREE_INSTANCEDATA_PROPERTY(Struct, Member) \
-		decltype(Struct::Member){}, Struct::StaticStruct(), TEXT(#Member)
 
 /**
  * StateTree struct ref allows to get a reference/pointer to a specified type via property binding.

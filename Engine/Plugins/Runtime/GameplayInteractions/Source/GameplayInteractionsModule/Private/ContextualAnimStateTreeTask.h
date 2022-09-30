@@ -55,8 +55,9 @@ struct FContextualAnimStateTreeTask : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FContextualAnimStateTreeTaskInstanceData;
+
 protected:
-	typedef FContextualAnimStateTreeTaskInstanceData FInstanceDataType;
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 

@@ -29,13 +29,12 @@ struct MASSAIBEHAVIOR_API FMassComponentHitEvaluator : public FMassStateTreeEval
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassComponentHitEvaluatorInstanceData;
+	
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassComponentHitEvaluatorInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 	TStateTreeExternalDataHandle<UMassComponentHitSubsystem> ComponentHitSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<bool> GotHitHandle;
-	TStateTreeInstanceDataPropertyHandle<FMassEntityHandle> LastHitEntityHandle;
 };

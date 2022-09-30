@@ -22,8 +22,6 @@ bool FMassZoneGraphFindEscapeTarget::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
 	Linker.LinkExternalData(ZoneGraphAnnotationSubsystemHandle);
 
-	Linker.LinkInstanceDataProperty(EscapeTargetLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphFindEscapeTargetInstanceData, EscapeTargetLocation));
-
 	return true;
 }
 
@@ -40,8 +38,8 @@ EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecuti
 	UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
 	UZoneGraphAnnotationSubsystem& ZoneGraphAnnotationSubsystem = Context.GetExternalData(ZoneGraphAnnotationSubsystemHandle);
 
-	FMassZoneGraphTargetLocation& EscapeTargetLocation = Context.GetInstanceData(EscapeTargetLocationHandle);
-	
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
 	if (!LaneLocation.LaneHandle.IsValid())
 	{
 		MASSBEHAVIOR_LOG(Error, TEXT("Invalid lane handle."));
@@ -93,46 +91,46 @@ EStateTreeRunStatus FMassZoneGraphFindEscapeTarget::EnterState(FStateTreeExecuti
 		// Could also try to sample few locations along the lane to see which is closest.
 		
 		// Small move, and goto adjacent lane
-		EscapeTargetLocation.LaneHandle = LaneLocation.LaneHandle;
-		EscapeTargetLocation.TargetDistance = FMath::Clamp(LaneLocation.DistanceAlongLane + AdjacentMoveDistance * MoveDir, 0.f, LaneLocation.LaneLength);
-		EscapeTargetLocation.NextExitLinkType = EZoneLaneLinkType::Adjacent;
-		EscapeTargetLocation.NextLaneHandle = FZoneGraphLaneHandle(EscapeSpan.ExitLaneIndex, ZoneGraphStorage->DataHandle);
-		EscapeTargetLocation.bMoveReverse = EscapeSpan.bReverseLaneDirection;
-		EscapeTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
+		InstanceData.EscapeTargetLocation.LaneHandle = LaneLocation.LaneHandle;
+		InstanceData.EscapeTargetLocation.TargetDistance = FMath::Clamp(LaneLocation.DistanceAlongLane + AdjacentMoveDistance * MoveDir, 0.f, LaneLocation.LaneLength);
+		InstanceData.EscapeTargetLocation.NextExitLinkType = EZoneLaneLinkType::Adjacent;
+		InstanceData.EscapeTargetLocation.NextLaneHandle = FZoneGraphLaneHandle(EscapeSpan.ExitLaneIndex, ZoneGraphStorage->DataHandle);
+		InstanceData.EscapeTargetLocation.bMoveReverse = EscapeSpan.bReverseLaneDirection;
+		InstanceData.EscapeTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
 
 		MASSBEHAVIOR_CLOG(bDisplayDebug, Log, TEXT("Switching from lane %s to adjacent lane %s."),
-			*LaneLocation.LaneHandle.ToString(), *EscapeTargetLocation.NextLaneHandle.ToString());
+			*LaneLocation.LaneHandle.ToString(), *InstanceData.EscapeTargetLocation.NextLaneHandle.ToString());
 	}
 	else
 	{
 		// Forward or backwards on current lane.
-		EscapeTargetLocation.LaneHandle = LaneLocation.LaneHandle;
-		EscapeTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane + MoveDistance * MoveDir;
-		EscapeTargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
-		EscapeTargetLocation.NextLaneHandle.Reset();
-		EscapeTargetLocation.bMoveReverse = EscapeSpan.bReverseLaneDirection;
-		EscapeTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
+		InstanceData.EscapeTargetLocation.LaneHandle = LaneLocation.LaneHandle;
+		InstanceData.EscapeTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane + MoveDistance * MoveDir;
+		InstanceData.EscapeTargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
+		InstanceData.EscapeTargetLocation.NextLaneHandle.Reset();
+		InstanceData.EscapeTargetLocation.bMoveReverse = EscapeSpan.bReverseLaneDirection;
+		InstanceData.EscapeTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
 
 		// When close to end of a lane, choose next lane.
-		const bool bPastStart = EscapeTargetLocation.TargetDistance < 0.0f;
-		const bool bPastEnd = EscapeTargetLocation.TargetDistance > LaneLocation.LaneLength;
+		const bool bPastStart = InstanceData.EscapeTargetLocation.TargetDistance < 0.0f;
+		const bool bPastEnd = InstanceData.EscapeTargetLocation.TargetDistance > LaneLocation.LaneLength;
 		if (bPastStart || bPastEnd)
 		{
-			EscapeTargetLocation.TargetDistance = FMath::Clamp(EscapeTargetLocation.TargetDistance, 0.0f, LaneLocation.LaneLength);
+			InstanceData.EscapeTargetLocation.TargetDistance = FMath::Clamp(InstanceData.EscapeTargetLocation.TargetDistance, 0.0f, LaneLocation.LaneLength);
 
-			EscapeTargetLocation.NextExitLinkType = EscapeSpan.ExitLinkType;
-			EscapeTargetLocation.NextLaneHandle = FZoneGraphLaneHandle(EscapeSpan.ExitLaneIndex, ZoneGraphStorage->DataHandle);
+			InstanceData.EscapeTargetLocation.NextExitLinkType = EscapeSpan.ExitLinkType;
+			InstanceData.EscapeTargetLocation.NextLaneHandle = FZoneGraphLaneHandle(EscapeSpan.ExitLaneIndex, ZoneGraphStorage->DataHandle);
 
 			MASSBEHAVIOR_CLOG(bDisplayDebug, Log, TEXT("Advancing %s along flee lane %s to next lane %s at distance %.1f."),
-				EscapeTargetLocation.bMoveReverse ? TEXT("forward") : TEXT("reverse"),
-				*EscapeTargetLocation.LaneHandle.ToString(), *EscapeTargetLocation.NextLaneHandle.ToString(),
-				EscapeTargetLocation.TargetDistance);
+				InstanceData.EscapeTargetLocation.bMoveReverse ? TEXT("forward") : TEXT("reverse"),
+				*InstanceData.EscapeTargetLocation.LaneHandle.ToString(), *InstanceData.EscapeTargetLocation.NextLaneHandle.ToString(),
+				InstanceData.EscapeTargetLocation.TargetDistance);
 		}
 		else
 		{
 			MASSBEHAVIOR_CLOG(bDisplayDebug, Log, TEXT("Advancing %s along flee lane %s to distance %.1f."),
-				EscapeTargetLocation.bMoveReverse ? TEXT("forward") : TEXT("reverse"),
-				*EscapeTargetLocation.LaneHandle.ToString(), EscapeTargetLocation.TargetDistance);
+				InstanceData.EscapeTargetLocation.bMoveReverse ? TEXT("forward") : TEXT("reverse"),
+				*InstanceData.EscapeTargetLocation.LaneHandle.ToString(), InstanceData.EscapeTargetLocation.TargetDistance);
 		}
 	}
 

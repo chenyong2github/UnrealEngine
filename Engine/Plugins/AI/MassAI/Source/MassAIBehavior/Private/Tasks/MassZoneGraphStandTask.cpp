@@ -23,9 +23,6 @@ bool FMassZoneGraphStandTask::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
 	Linker.LinkExternalData(MassSignalSubsystemHandle);
 
-	Linker.LinkInstanceDataProperty(DurationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphStandTaskInstanceData, Duration));
-	Linker.LinkInstanceDataProperty(TimeHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphStandTaskInstanceData, Time));
-
 	return true;
 }
 
@@ -36,6 +33,8 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
 	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
 	const FMassMovementParameters& MovementParams = Context.GetExternalData(MovementParamsHandle);
+
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	if (!LaneLocation.LaneHandle.IsValid())
 	{
@@ -59,16 +58,14 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 		return EStateTreeRunStatus::Failed;
 	}
 
-	const float Duration = Context.GetInstanceData(DurationHandle);
-	float& Time = Context.GetInstanceData(TimeHandle);
-	Time = 0.0f;
+	InstanceData.Time = 0.0f;
 
 	// A Duration <= 0 indicates that the task runs until a transition in the state tree stops it.
 	// Otherwise we schedule a signal to end the task.
-	if (Duration > 0.0f)
+	if (InstanceData.Duration > 0.0f)
 	{
 		UMassSignalSubsystem& MassSignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
-		MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::StandTaskFinished, MassContext.GetEntity(), Duration);
+		MassSignalSubsystem.DelaySignalEntity(UE::Mass::Signals::StandTaskFinished, MassContext.GetEntity(), InstanceData.Duration);
 	}
 
 	return EStateTreeRunStatus::Running;
@@ -76,9 +73,8 @@ EStateTreeRunStatus FMassZoneGraphStandTask::EnterState(FStateTreeExecutionConte
 
 EStateTreeRunStatus FMassZoneGraphStandTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	const float Duration = Context.GetInstanceData(DurationHandle);
-	float& Time = Context.GetInstanceData(TimeHandle);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
-	Time += DeltaTime;
-	return Duration <= 0.0f ? EStateTreeRunStatus::Running : (Time < Duration ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Succeeded);
+	InstanceData.Time += DeltaTime;
+	return InstanceData.Duration <= 0.0f ? EStateTreeRunStatus::Running : (InstanceData.Time < InstanceData.Duration ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Succeeded);
 }

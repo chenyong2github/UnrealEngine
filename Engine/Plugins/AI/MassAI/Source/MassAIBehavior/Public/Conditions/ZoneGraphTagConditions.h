@@ -25,13 +25,12 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagFilterCondition : public FStateTreeCondit
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FZoneGraphTagFilterConditionInstanceData;
+
 	FZoneGraphTagFilterCondition() = default;
 	
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagFilterConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> TagsHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	FZoneGraphTagFilter Filter;
@@ -61,14 +60,12 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagMaskCondition : public FStateTreeConditio
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FZoneGraphTagMaskConditionInstanceData;
+
 	FZoneGraphTagMaskCondition() = default;
 
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagMaskConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> LeftHandle;
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> RightHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	EZoneLaneTagMaskComparison Operator = EZoneLaneTagMaskComparison::Any;
@@ -98,14 +95,12 @@ struct MASSAIBEHAVIOR_API FZoneGraphTagCondition : public FStateTreeConditionBas
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FZoneGraphTagConditionInstanceData;
+
 	FZoneGraphTagCondition() = default;
 
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FZoneGraphTagConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphTag> LeftHandle;
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphTag> RightHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	bool bInvert = false;

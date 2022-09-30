@@ -58,12 +58,6 @@ protected:
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment, EStateTreeExternalDataRequirement::Optional> LocationHandle;
 
-	TStateTreeInstanceDataPropertyHandle<FMassSmartObjectCandidateSlots> FoundCandidateSlotsHandle;
-	TStateTreeInstanceDataPropertyHandle<bool> HasCandidateSlotsHandle;
-	TStateTreeInstanceDataPropertyHandle<FMassSmartObjectRequestID> SearchRequestIDHandle;
-	TStateTreeInstanceDataPropertyHandle<float> NextUpdateHandle;
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphLaneHandle> LastLaneHandle;
-
 	/** Gameplay tag query for finding matching smart objects. */
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FGameplayTagQuery ActivityRequirements;

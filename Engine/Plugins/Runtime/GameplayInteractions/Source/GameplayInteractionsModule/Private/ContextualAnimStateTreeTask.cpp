@@ -24,7 +24,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 		return EStateTreeRunStatus::Succeeded;
 	}
 
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	const UContextualAnimSceneAsset* SceneAsset = InstanceData.ContextualAnimAsset;
 	if (SceneAsset == nullptr)
@@ -68,7 +68,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::Tick(FStateTreeExecutionContex
 {
 	EStateTreeRunStatus Status = EStateTreeRunStatus::Running;
 
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	const float Duration = InstanceData.Duration;
 	if (Duration > 0.f)
 	{
@@ -105,7 +105,7 @@ void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context
 		return;
 	}
 
-	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	TObjectPtr<UGameplayTask_PlayContextualAnim>& Task = InstanceData.Task;
 	if (Task == nullptr)
 	{

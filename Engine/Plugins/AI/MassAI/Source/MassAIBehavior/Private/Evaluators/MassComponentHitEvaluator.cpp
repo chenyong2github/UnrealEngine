@@ -12,9 +12,6 @@ bool FMassComponentHitEvaluator::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(ComponentHitSubsystemHandle);
 
-	Linker.LinkInstanceDataProperty(GotHitHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassComponentHitEvaluatorInstanceData, bGotHit));
-	Linker.LinkInstanceDataProperty(LastHitEntityHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassComponentHitEvaluatorInstanceData, LastHitEntity));
-
 	return true;
 }
 
@@ -24,11 +21,10 @@ void FMassComponentHitEvaluator::Tick(FStateTreeExecutionContext &Context, const
 	UMassComponentHitSubsystem& HitSubsystem = Context.GetExternalData(ComponentHitSubsystemHandle);
 	const FMassHitResult* HitResult = HitSubsystem.GetLastHit(static_cast<FMassStateTreeExecutionContext&>(Context).GetEntity());
 
-	bool& bGotHit = Context.GetInstanceData(GotHitHandle);
-	FMassEntityHandle& LastHitEntity = Context.GetInstanceData(LastHitEntityHandle);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	// LastHitEntity is not reset intentionally, so that it's available the duration of the behavior reacting to it.
-	bGotHit = false;
+	InstanceData.bGotHit = false;
 
 	// If the hit is very recent, set the got hit, and update last hit entity.
 	if (HitResult != nullptr)
@@ -42,8 +38,8 @@ void FMassComponentHitEvaluator::Tick(FStateTreeExecutionContext &Context, const
 		if (TimeSinceHit < HitEventDuration)
 		{
 			MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Got hit"));
-			bGotHit = true;
-			LastHitEntity = HitResult->OtherEntity;
+			InstanceData.bGotHit = true;
+			InstanceData.LastHitEntity = HitResult->OtherEntity;
 		}
 	}
 }

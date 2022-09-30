@@ -51,7 +51,7 @@ namespace UE::StateTree::Conditions
 
 bool FGameplayTagMatchCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	
 	return (bExactMatch ? InstanceData.TagContainer.HasTagExact(InstanceData.Tag) : InstanceData.TagContainer.HasTag(InstanceData.Tag)) ^ bInvert;
 }
@@ -62,7 +62,7 @@ bool FGameplayTagMatchCondition::TestCondition(FStateTreeExecutionContext& Conte
 
 bool FGameplayTagContainerMatchCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	bool bResult = false;
 	switch (MatchType)
@@ -87,7 +87,7 @@ bool FGameplayTagContainerMatchCondition::TestCondition(FStateTreeExecutionConte
 
 bool FGameplayTagQueryCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	return TagQuery.Matches(InstanceData.TagContainer) ^ bInvert;
 }

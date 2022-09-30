@@ -33,19 +33,17 @@ struct MASSCROWD_API FMassCrowdClaimWaitSlotTask : public FMassStateTreeTaskBase
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassCrowdClaimWaitSlotTaskInstanceData;
+	
 	FMassCrowdClaimWaitSlotTask();
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassCrowdClaimWaitSlotTaskInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
 	TStateTreeExternalDataHandle<UMassCrowdSubsystem> CrowdSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> WaitSlotLocationHandle;
-	TStateTreeInstanceDataPropertyHandle<int32> WaitingSlotIndexHandle;
-	TStateTreeInstanceDataPropertyHandle<FZoneGraphLaneHandle> AcquiredLaneHandle;
 };

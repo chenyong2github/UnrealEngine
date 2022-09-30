@@ -16,9 +16,6 @@ bool FMassZoneGraphFindSmartObjectTarget::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(LocationHandle);
 	Linker.LinkExternalData(AnnotationSubsystemHandle);
 	Linker.LinkExternalData(SmartObjectSubsystemHandle);
-
-	Linker.LinkInstanceDataProperty(ClaimedSlotHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, ClaimedSlot));
-	Linker.LinkInstanceDataProperty(SmartObjectLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FInstanceDataType, SmartObjectLocation));
 	
 	return true;
 }
@@ -30,11 +27,11 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
 	const FZoneGraphLaneHandle LaneHandle(LaneLocation.LaneHandle);
 
-	const FSmartObjectClaimHandle& ClaimedSlot = Context.GetInstanceData(ClaimedSlotHandle);
-	FMassZoneGraphTargetLocation& SmartObjectLocation = Context.GetInstanceData(SmartObjectLocationHandle);
-	SmartObjectLocation.Reset();
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
-	if (!ClaimedSlot.SmartObjectHandle.IsValid())
+	InstanceData.SmartObjectLocation.Reset();
+
+	if (!InstanceData.ClaimedSlot.SmartObjectHandle.IsValid())
 	{
 		MASSBEHAVIOR_LOG(Error, TEXT("Invalid claimed smart object ID."));
 		return EStateTreeRunStatus::Failed;
@@ -48,38 +45,38 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 
 	const FZoneGraphTag SmartObjectTag = GetDefault<UMassSmartObjectSettings>()->SmartObjectTag;
 	const USmartObjectZoneAnnotations* SOAnnotations = Cast<USmartObjectZoneAnnotations>(AnnotationSubsystem.GetFirstAnnotationForTag(SmartObjectTag));
-	const FTransform Transform = SmartObjectSubsystem.GetSlotTransform(ClaimedSlot).Get(FTransform::Identity);
+	const FTransform Transform = SmartObjectSubsystem.GetSlotTransform(InstanceData.ClaimedSlot).Get(FTransform::Identity);
 
-	SmartObjectLocation.LaneHandle = LaneHandle;
-	SmartObjectLocation.NextExitLinkType = EZoneLaneLinkType::None;
-	SmartObjectLocation.NextLaneHandle.Reset();
-	SmartObjectLocation.bMoveReverse = false;
-	SmartObjectLocation.EndOfPathIntent = EMassMovementAction::Stand;
-	SmartObjectLocation.EndOfPathPosition = Transform.GetLocation();
+	InstanceData.SmartObjectLocation.LaneHandle = LaneHandle;
+	InstanceData.SmartObjectLocation.NextExitLinkType = EZoneLaneLinkType::None;
+	InstanceData.SmartObjectLocation.NextLaneHandle.Reset();
+	InstanceData.SmartObjectLocation.bMoveReverse = false;
+	InstanceData.SmartObjectLocation.EndOfPathIntent = EMassMovementAction::Stand;
+	InstanceData.SmartObjectLocation.EndOfPathPosition = Transform.GetLocation();
 	// Can't set direction at the moment since it seems problematic if it's opposite to the steering direction
 	//SmartObjectLocation.EndOfPathDirection = SOUser.TargetDirection;
 
 	// Let's start moving toward the interaction a bit before the entry point.
-	SmartObjectLocation.AnticipationDistance.Set(100.f);
+	InstanceData.SmartObjectLocation.AnticipationDistance.Set(100.f);
 
 	// Find entry point on lane for the claimed object
 	TOptional<FSmartObjectLaneLocation> SmartObjectLaneLocation;
 	if (SOAnnotations != nullptr)
 	{
-		SmartObjectLaneLocation = SOAnnotations->GetSmartObjectLaneLocation(LaneHandle.DataHandle, ClaimedSlot.SmartObjectHandle);
+		SmartObjectLaneLocation = SOAnnotations->GetSmartObjectLaneLocation(LaneHandle.DataHandle, InstanceData.ClaimedSlot.SmartObjectHandle);
 	}
 
 	if (SmartObjectLaneLocation.IsSet())
 	{
 		// Request path along current lane to reach entry point on lane
 		MASSBEHAVIOR_LOG(Log, TEXT("Claim successful: create path along lane to reach interaction location."));
-		SmartObjectLocation.TargetDistance = SmartObjectLaneLocation.GetValue().DistanceAlongLane;
+		InstanceData.SmartObjectLocation.TargetDistance = SmartObjectLaneLocation.GetValue().DistanceAlongLane;
 	}
 	else
 	{
 		// Request path from current lane location directly to interaction location
 		MASSBEHAVIOR_LOG(Warning, TEXT("Claim successful: create path from current lane location directly to interaction location since SmartObject zone annotations weren't found."));
-		SmartObjectLocation.TargetDistance = LaneLocation.DistanceAlongLane;
+		InstanceData.SmartObjectLocation.TargetDistance = LaneLocation.DistanceAlongLane;
 	}
 	
 	return EStateTreeRunStatus::Running;

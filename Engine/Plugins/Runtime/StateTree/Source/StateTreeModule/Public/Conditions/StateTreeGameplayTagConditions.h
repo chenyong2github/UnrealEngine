@@ -26,11 +26,11 @@ struct STATETREEMODULE_API FGameplayTagMatchCondition : public FStateTreeConditi
 {
 	GENERATED_BODY()
 
-	typedef FGameplayTagMatchConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FGameplayTagMatchConditionInstanceData;
 
 	FGameplayTagMatchCondition() = default;
 	
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
@@ -60,11 +60,11 @@ struct STATETREEMODULE_API FGameplayTagContainerMatchCondition : public FStateTr
 {
 	GENERATED_BODY()
 
-	typedef FGameplayTagContainerMatchConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FGameplayTagContainerMatchConditionInstanceData ;
 
 	FGameplayTagContainerMatchCondition() = default;
 	
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
@@ -94,11 +94,11 @@ struct STATETREEMODULE_API FGameplayTagQueryCondition : public FStateTreeConditi
 {
 	GENERATED_BODY()
 
-	typedef FGameplayTagQueryConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FGameplayTagQueryConditionInstanceData;
 
 	FGameplayTagQueryCondition() = default;
 	
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Condition)

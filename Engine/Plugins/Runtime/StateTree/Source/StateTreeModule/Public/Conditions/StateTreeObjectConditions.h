@@ -23,14 +23,14 @@ struct STATETREEMODULE_API FStateTreeObjectIsValidCondition : public FStateTreeC
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeObjectIsValidConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeObjectIsValidConditionInstanceData;
 
 	FStateTreeObjectIsValidCondition() = default;
 	explicit FStateTreeObjectIsValidCondition(const EStateTreeCompare InInverts)
 		: bInvert(InInverts == EStateTreeCompare::Invert)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
@@ -57,14 +57,14 @@ struct STATETREEMODULE_API FStateTreeObjectEqualsCondition : public FStateTreeCo
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeObjectEqualsConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeObjectEqualsConditionInstanceData;
 
 	FStateTreeObjectEqualsCondition() = default;
 	explicit FStateTreeObjectEqualsCondition(const EStateTreeCompare InInverts)
 		: bInvert(InInverts == EStateTreeCompare::Invert)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
@@ -91,14 +91,14 @@ struct STATETREEMODULE_API FStateTreeObjectIsChildOfClassCondition : public FSta
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeObjectIsChildOfClassConditionInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeObjectIsChildOfClassConditionInstanceData;
 
 	FStateTreeObjectIsChildOfClassCondition() = default;
 	explicit FStateTreeObjectIsChildOfClassCondition(const EStateTreeCompare InInverts)
 		: bInvert(InInverts == EStateTreeCompare::Invert)
 	{}
 
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
