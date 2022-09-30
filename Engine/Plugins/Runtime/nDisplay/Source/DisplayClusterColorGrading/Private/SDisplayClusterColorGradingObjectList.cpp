@@ -75,7 +75,7 @@ public:
 
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(FMargin(0, 1, 6, 1))
+				.Padding(FMargin(6, 1))
 				.VAlign(VAlign_Center)
 				[
 					SNew(SBox)
@@ -199,6 +199,9 @@ void SDisplayClusterColorGradingObjectList::Construct(const FArguments& InArgs)
 				+ SHeaderRow::Column(DisplayClusterColorGradingObjectListColumnNames::ItemEnabled)
 				.DefaultLabel(FText::GetEmpty())
 				.FixedWidth(24.0f)
+				.HAlignCell(HAlign_Center)
+				.VAlignCell(VAlign_Center)
+				.DefaultTooltip(LOCTEXT("ItemEnabledColumnTooltip", "Color Grading Enabled"))
 
 				+ SHeaderRow::Column(DisplayClusterColorGradingObjectListColumnNames::ItemLabel)
 				.DefaultLabel(LOCTEXT("ColorGradingDrawerList_ItemLabelHeader", "Item Label"))

@@ -92,6 +92,9 @@ private:
 	/** Creates the button used to dock the drawer in the operator panel */
 	TSharedRef<SWidget> CreateDockInLayoutButton();
 
+	/** Gets the display name of the color grading list at the specified index */
+	FText GetColorGradingListName(int32 ListIndex) const;
+
 	/** Gets the name of the current level the active root actor is in */
 	FText GetCurrentLevelName() const;
 
@@ -104,11 +107,20 @@ private:
 	/** Unbinds a callback to the BlueprintCompiled delegate of the specified class */
 	void UnbindBlueprintCompiledDelegate(const UClass* Class);
 
-	/** Fills the level color grading list with any color gradable items found in the currently loaded level */
-	void FillLevelColorGradingList();
+	/** Refreshes all of the lists in the drawer, filling them with the current color gradable objects from the root actor and world  */
+	void RefreshColorGradingLists();
 
-	/** Fills the root actor color grading list with any color gradable components of the active root actor */
-	void FillRootActorColorGradingList();
+	/** Refreshes the specified list, filling it with the current color gradable objects from the relevant source */
+	void RefreshColorGradingList(int32 Index);
+
+	/** Fills the specified list with any color gradable items found in the currently loaded level */
+	void FillLevelColorGradingList(TArray<FDisplayClusterColorGradingListItemRef>& InOutList);
+
+	/** Fills the specified list with any color gradable components of the active root actor */
+	void FillRootActorColorGradingList(TArray<FDisplayClusterColorGradingListItemRef>& InOutList);
+
+	/** Fills the specified list with any color gradable color correction regions in the currently loaded level */
+	void FillColorCorrectionRegionColorGradingList(TArray<FDisplayClusterColorGradingListItemRef>& InOutList);
 
 	/** Fills the color grading group toolbar using the color grading data model */
 	void FillColorGradingGroupToolBar();
@@ -162,17 +174,15 @@ private:
 	/** The operator panel's view model */
 	TSharedPtr<IDisplayClusterOperatorViewModel> OperatorViewModel;
 
-	TSharedPtr<SDisplayClusterColorGradingObjectList> LevelActorsList;
-	TSharedPtr<SDisplayClusterColorGradingObjectList> RootActorList;
+	/** A list of all color grading object list widgets being displayed in the drawer's list panel */
+	TArray<TSharedPtr<SDisplayClusterColorGradingObjectList>> ColorGradingObjectListViews;
+
+	/** A list of source lists for the color grading object list widgets */
+	TArray<TArray<FDisplayClusterColorGradingListItemRef>> ColorGradingItemLists;
+
 	TSharedPtr<SHorizontalBox> ColorGradingGroupToolBarBox;
 	TSharedPtr<SDisplayClusterColorGradingColorWheelPanel> ColorWheelPanel;
 	TSharedPtr<SDisplayClusterColorGradingDetailsPanel> DetailsPanel;
-
-	/** List of color gradable items found in the current level */
-	TArray<FDisplayClusterColorGradingListItemRef> LevelColorGradingItems;
-
-	/** List of color gradable actors and components attached to the root actor */
-	TArray<FDisplayClusterColorGradingListItemRef> RootActorColorGradingItems;
 
 	/** The color grading data model for the currently selected objects */
 	TSharedPtr<FDisplayClusterColorGradingDataModel> ColorGradingDataModel;
