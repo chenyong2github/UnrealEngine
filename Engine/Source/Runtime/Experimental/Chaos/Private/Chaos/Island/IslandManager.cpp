@@ -50,13 +50,22 @@ FORCEINLINE bool IsDynamicParticle(const FGeometryParticleHandle* ParticleHandle
 }
 
 /** Check if a particle is not moving */
-FORCEINLINE bool IsStationaryParticle(const FGeometryParticleHandle* ParticleHandle)
+bool IsStationaryParticle(const FGeometryParticleHandle* ParticleHandle)
 {
 	if (ParticleHandle->ObjectState() == EObjectStateType::Kinematic)
 	{
+		// For kinematic particles check whether their current mode and target will cause the particle to move
 		const FKinematicGeometryParticleHandle* KinematicParticle = ParticleHandle->CastToKinematicParticle();
-		// @todo(chaos): should this also be checking Kinematic W()?
-		return KinematicParticle->V().IsZero() && KinematicParticle->KinematicTarget().GetMode() == EKinematicTargetMode::None;
+		if (KinematicParticle->KinematicTarget().GetMode() == EKinematicTargetMode::Position)
+		{
+			return (KinematicParticle->X() - KinematicParticle->KinematicTarget().GetTargetPosition()).IsZero()
+					&& (KinematicParticle->R() * KinematicParticle->KinematicTarget().GetTargetRotation().Inverse()).IsIdentity();
+		}
+		// For all other modes (Velocity, None and Reset) check that the velocity is non-zero
+		else
+		{
+			return KinematicParticle->V().IsZero() && KinematicParticle->W().IsZero();
+		}
 	}
 	else
 	{
