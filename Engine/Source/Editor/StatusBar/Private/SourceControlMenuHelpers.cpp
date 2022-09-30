@@ -66,7 +66,9 @@ void FSourceControlCommands::RegisterCommands()
 	ActionList->MapAction(
 		SubmitContent,
 		FExecuteAction::CreateLambda([]() { FSourceControlWindows::ChoosePackagesToCheckIn(); }),
-		FCanExecuteAction::CreateStatic(&FSourceControlWindows::CanChoosePackagesToCheckIn)
+		FCanExecuteAction::CreateStatic(&FSourceControlWindows::CanChoosePackagesToCheckIn),
+		FIsActionChecked::CreateLambda([]() { return false; }),
+		FIsActionButtonVisible::CreateStatic(&FSourceControlCommands::SubmitContent_IsVisible)
 	);
 
 	ActionList->MapAction(
@@ -91,6 +93,15 @@ bool FSourceControlCommands::ViewChangelists_CanExecute()
 bool FSourceControlCommands::ViewChangelists_IsVisible()
 {
 	return ISourceControlModule::Get().GetProvider().UsesChangelists();
+}
+
+bool FSourceControlCommands::SubmitContent_IsVisible()
+{
+	if (FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility() == EVisibility::Visible)
+	{
+		return false;
+	}
+	return true;
 }
 
 void FSourceControlCommands::ViewChangelists_Clicked()

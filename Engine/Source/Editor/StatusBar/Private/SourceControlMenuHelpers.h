@@ -24,6 +24,7 @@ private:
 	static void ConnectToSourceControl_Clicked();
 	static bool ViewChangelists_CanExecute();
 	static bool ViewChangelists_IsVisible();
+	static bool SubmitContent_IsVisible();
 	static void ViewChangelists_Clicked();
 	static bool CheckOutModifiedFiles_CanExecute();
 	static void CheckOutModifiedFiles_Clicked();
@@ -43,6 +44,7 @@ public:
 
 class FSourceControlMenuHelpers
 {
+	friend class FSourceControlCommands;
 public:
 	/**
 	 * Static: Access singleton instance
