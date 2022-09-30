@@ -554,7 +554,7 @@ void UProceduralMeshComponent::PostLoad()
 	}
 }
 
-void UProceduralMeshComponent::CreateMeshSection_LinearColor(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FVector2D>& UV2, const TArray<FVector2D>& UV3, const TArray<FLinearColor>& VertexColors, const TArray<FProcMeshTangent>& Tangents, bool bCreateCollision)
+void UProceduralMeshComponent::CreateMeshSection_LinearColor(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FVector2D>& UV2, const TArray<FVector2D>& UV3, const TArray<FLinearColor>& VertexColors, const TArray<FProcMeshTangent>& Tangents, bool bCreateCollision, bool bSRGBConversion)
 {
 	// Convert FLinearColors to FColors
 	TArray<FColor> Colors;
@@ -564,7 +564,7 @@ void UProceduralMeshComponent::CreateMeshSection_LinearColor(int32 SectionIndex,
 
 		for (int32 ColorIdx = 0; ColorIdx < VertexColors.Num(); ColorIdx++)
 		{
-			Colors[ColorIdx] = VertexColors[ColorIdx].ToFColor(false);
+			Colors[ColorIdx] = VertexColors[ColorIdx].ToFColor(bSRGBConversion);
 		}
 	}
 
@@ -661,7 +661,7 @@ void UProceduralMeshComponent::CreateMeshSection(int32 SectionIndex, const TArra
 	MarkRenderStateDirty(); // New section requires recreating scene proxy
 }
 
-void UProceduralMeshComponent::UpdateMeshSection_LinearColor(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<FVector>& Normals, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FVector2D>& UV2, const TArray<FVector2D>& UV3, const TArray<FLinearColor>& VertexColors, const TArray<FProcMeshTangent>& Tangents)
+void UProceduralMeshComponent::UpdateMeshSection_LinearColor(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<FVector>& Normals, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FVector2D>& UV2, const TArray<FVector2D>& UV3, const TArray<FLinearColor>& VertexColors, const TArray<FProcMeshTangent>& Tangents, bool bSRGBConversion)
 {
 	// Convert FLinearColors to FColors
 	TArray<FColor> Colors;
@@ -671,7 +671,7 @@ void UProceduralMeshComponent::UpdateMeshSection_LinearColor(int32 SectionIndex,
 
 		for (int32 ColorIdx = 0; ColorIdx < VertexColors.Num(); ColorIdx++)
 		{
-			Colors[ColorIdx] = VertexColors[ColorIdx].ToFColor(true);
+			Colors[ColorIdx] = VertexColors[ColorIdx].ToFColor(bSRGBConversion);
 		}
 	}
 
