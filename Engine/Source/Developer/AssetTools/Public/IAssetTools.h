@@ -177,6 +177,41 @@ private:
 	FString DropLocationForAdvancedCopy;
 };
 
+
+UENUM()
+enum class EAssetMigrationConflict : uint8
+{
+	// Skip Assets
+	Skip,
+	// Overwrite Assets
+	Overwrite,
+	// Cancel the whole Migration
+	Cancel
+};
+
+USTRUCT(BlueprintType)
+struct FMigrationOptions
+{
+	GENERATED_BODY()
+
+	/** Prompt user for confirmation (always false through scripting) */
+	bool bPrompt;
+
+	/** What to do when Assets are conflicting on the destination */
+	UPROPERTY(BlueprintReadWrite, Category = MigrationOptions)
+	EAssetMigrationConflict AssetConflict;
+
+	/** Destination for assets that don't have a corresponding content folder. If left empty those assets are not migrated. */
+	UPROPERTY(BlueprintReadWrite, Category = MigrationOptions)
+	FString OrphanFolder;
+
+	FMigrationOptions()
+		: bPrompt(false)
+		, AssetConflict(EAssetMigrationConflict::Skip)
+	{}
+
+};
+
 // An array of maps each storing pairs of original object -> duplicated object
 using FDuplicatedObjects = TArray<TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>>;
 
@@ -417,6 +452,10 @@ public:
 
 	/* Migrate packages to another game content folder */
 	virtual void MigratePackages(const TArray<FName>& PackageNamesToMigrate) const = 0;
+
+	/* Migrate packages and dependencies to another folder */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
+	virtual void MigratePackages(const TArray<FName>& PackageNamesToMigrate, const FString& DestinationPath, const struct FMigrationOptions& Options = FMigrationOptions()) const = 0;
 
 	/* Copy packages and dependencies to another folder */
 	virtual void BeginAdvancedCopyPackages(const TArray<FName>& InputNamesToCopy, const FString& TargetPath) const = 0;
