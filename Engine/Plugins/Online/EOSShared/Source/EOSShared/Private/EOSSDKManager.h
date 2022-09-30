@@ -66,6 +66,12 @@ public:
 protected:
 	virtual EOS_EResult EOSInitialize(EOS_InitializeOptions& Options);
 	virtual IEOSPlatformHandlePtr CreatePlatform(const FEOSSDKPlatformConfig& PlatformConfig, EOS_Platform_Options& PlatformOptions);
+	virtual bool Tick(float);
+
+	void OnApplicationStatusChanged(EOS_EApplicationStatus ApplicationStatus);
+	void OnNetworkStatusChanged(EOS_ENetworkStatus NetworkStatus);
+	EOS_EApplicationStatus CachedApplicationStatus = EOS_EApplicationStatus::EOS_AS_Foreground;
+	EOS_ENetworkStatus CachedNetworkStatus = EOS_ENetworkStatus::EOS_NS_Online;
 
 	friend struct FEOSPlatformHandle;
 
@@ -74,7 +80,6 @@ protected:
 	void ReleasePlatform(EOS_HPlatform PlatformHandle);
 	void ReleaseReleasedPlatforms();
 	void SetupTicker();
-	bool Tick(float);
 	void OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity);
 
 #if EOSSDK_RUNTIME_LOAD_REQUIRED

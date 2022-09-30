@@ -443,9 +443,8 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& Platf
 			SharedPlatform = MakeShared<FEOSPlatformHandle, ESPMode::ThreadSafe>(*this, PlatformHandle);
 			SetupTicker();
 
-			// TODO Hardcode the application and network state for now
-			EOS_Platform_SetApplicationStatus(PlatformHandle, EOS_EApplicationStatus::EOS_AS_Foreground);
-			EOS_Platform_SetNetworkStatus(PlatformHandle, EOS_ENetworkStatus::EOS_NS_Online);
+			EOS_Platform_SetApplicationStatus(PlatformHandle, CachedApplicationStatus);
+			EOS_Platform_SetNetworkStatus(PlatformHandle, CachedNetworkStatus);
 
 			// Tick the platform once to work around EOSSDK error logging that occurs if you create then immediately destroy a platform.
 			SharedPlatform->Tick();
@@ -521,6 +520,26 @@ bool FEOSSDKManager::Tick(float)
 	}
 
 	return true;
+}
+
+void FEOSSDKManager::OnApplicationStatusChanged(EOS_EApplicationStatus ApplicationStatus)
+{
+	UE_LOG(LogEOSSDK, Log, TEXT("OnApplicationStatusChanged [%s] -> [%s]"), *LexToString(CachedApplicationStatus), *LexToString(ApplicationStatus));
+	CachedApplicationStatus = ApplicationStatus;
+	for (EOS_HPlatform PlatformHandle : ActivePlatforms)
+	{
+		EOS_Platform_SetApplicationStatus(PlatformHandle, ApplicationStatus);
+	}
+}
+
+void FEOSSDKManager::OnNetworkStatusChanged(EOS_ENetworkStatus NetworkStatus)
+{
+	UE_LOG(LogEOSSDK, Log, TEXT("OnNetworkStatusChanged [%s] -> [%s]"), *LexToString(CachedNetworkStatus), *LexToString(NetworkStatus));
+	CachedNetworkStatus = NetworkStatus;
+	for (EOS_HPlatform PlatformHandle : ActivePlatforms)
+	{
+		EOS_Platform_SetNetworkStatus(PlatformHandle, NetworkStatus);
+	}
 }
 
 void FEOSSDKManager::OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity)
