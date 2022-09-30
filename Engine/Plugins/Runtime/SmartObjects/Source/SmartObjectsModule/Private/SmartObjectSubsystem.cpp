@@ -1257,9 +1257,16 @@ void USmartObjectSubsystem::CleanupRuntime()
 	}
 
 	// Cleanup all remaining entries (e.g. associated to unloaded entries)
-	for (auto It(RuntimeSmartObjects.CreateIterator()); It; ++It)
+	TArray<FSmartObjectHandle> RemainingHandles;
+	if (RuntimeSmartObjects.GetKeys(RemainingHandles))
 	{
-		RemoveRuntimeInstanceFromSimulation(It.Key());
+		for (const FSmartObjectHandle& SOHandle : RemainingHandles)
+		{
+			if (SOHandle.IsValid())
+			{
+				RemoveRuntimeInstanceFromSimulation(SOHandle);
+			}
+		}
 	}
 
 	RuntimeCreatedEntries.Reset();
