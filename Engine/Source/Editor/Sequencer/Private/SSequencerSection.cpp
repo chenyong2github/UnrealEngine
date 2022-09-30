@@ -892,10 +892,11 @@ EVisibility SSequencerSection::GetTopLevelChannelGroupVisibility() const
 	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
 	TViewModelPtr<IOutlinerExtension> Outliner = SectionModel ? SectionModel->FindAncestorOfType<IOutlinerExtension>() : nullptr;
 
-	if (!Outliner || Outliner->IsExpanded())
+	if (!SectionModel || !Outliner || Outliner->IsExpanded() || !SectionModel->GetDescendantsOfType<FChannelModel>())
 	{
 		return EVisibility::Collapsed;
 	}
+
 	return EVisibility::Visible;
 }
 
