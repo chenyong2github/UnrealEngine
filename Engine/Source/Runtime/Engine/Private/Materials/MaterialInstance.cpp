@@ -1745,22 +1745,16 @@ UPhysicalMaterial* UMaterialInstance::GetPhysicalMaterialFromMap(int32 Index) co
 	return PhysicalMaterialMap[Index];
 }
 
-UMaterialInterface* UMaterialInstance::GetNaniteOverride()
+UMaterialInterface* UMaterialInstance::GetNaniteOverride(TMicRecursionGuard RecursionGuard)
 {
-	if (GetReentrantFlag())
-	{
-		return nullptr;
-	}
-
-	FMICReentranceGuard	Guard(const_cast<UMaterialInstance*>(this));
-	
 	if (NaniteOverrideMaterial.bEnableOverride)
 	{
 		return NaniteOverrideMaterial.GetOverrideMaterial();
 	}
-	else if (Parent)
+	else if (Parent && !RecursionGuard.Contains(this))
 	{
-		return Parent->GetNaniteOverride();
+		RecursionGuard.Set(this);
+		return Parent->GetNaniteOverride(RecursionGuard);
 	}
 	else
 	{

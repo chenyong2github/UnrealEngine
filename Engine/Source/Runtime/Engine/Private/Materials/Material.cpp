@@ -2084,7 +2084,7 @@ void UMaterial::SetRenderTracePhysicalMaterialOutputs(TArrayView<TObjectPtr<clas
 	RenderTracePhysicalMaterialOutputs = PhysicalMaterials;
 }
 
-UMaterialInterface* UMaterial::GetNaniteOverride()
+UMaterialInterface* UMaterial::GetNaniteOverride(TMicRecursionGuard RecursionGuard)
 {
 	return NaniteOverrideMaterial.GetOverrideMaterial();
 }

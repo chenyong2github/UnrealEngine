@@ -503,7 +503,7 @@ public:
 	 * Get the associated nanite override material
 	 * @return - nanite override, will be this material if none was set
 	 */
-	virtual UMaterialInterface* GetNaniteOverride() PURE_VIRTUAL(UMaterialInterface::GetNaniteOverride, return nullptr;);
+	virtual UMaterialInterface* GetNaniteOverride(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) PURE_VIRTUAL(UMaterialInterface::GetNaniteOverride, return nullptr;);
 
 	/**
 	 * Precache PSOs which can be used for this material for the given vertex factory type and material paramaters
