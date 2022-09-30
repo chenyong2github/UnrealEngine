@@ -48,6 +48,12 @@
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread FrameCapture"), STAT_MediaCapture_RenderThread_FrameCapture, STATGROUP_Media);
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread LockResource"), STAT_MediaCapture_RenderThread_LockResource, STATGROUP_Media);
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread RHI Capture Callback"), STAT_MediaCapture_RenderThread_CaptureCallback, STATGROUP_Media);
+DECLARE_GPU_STAT(MediaCapture_CaptureFrame);
+DECLARE_GPU_STAT(MediaCapture_CustomCapture);
+DECLARE_GPU_STAT(MediaCapture_Conversion);
+DECLARE_GPU_STAT(MediaCapture_Readback);
+DECLARE_GPU_STAT(MediaCapture_ProcessCapture);
+
 
 /** These pixel formats do not require additional conversion except for swizzling and normalized sampling. */
 static TSet<EPixelFormat> SupportedRgbaSwizzleFormats =
@@ -306,7 +312,7 @@ namespace UE::MediaCaptureData
 		/** Registers an external texture to be tracked by the graph and returns a pointer to the tracked resource */
 		FRDGBufferRef RegisterResource(FRDGBuilder& RDGBuilder)
 		{
-			return RDGBuilder.RegisterExternalBuffer(Buffer);
+			return RDGBuilder.RegisterExternalBuffer(Buffer, TEXT("OutputBuffer"));
 		}
 
 		/** Adds a readback pass to the graph */
@@ -631,6 +637,8 @@ namespace UE::MediaCaptureData
 		template<typename TFrameType>
 		static bool CaptureFrame(const FCaptureFrameArgs& Args, TFrameType* CapturingFrame)
 		{
+			RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_CaptureFrame)
+
 			// Validate if we have a resources used to capture source texture
 			if (!CapturingFrame->HasValidResource())
 			{
@@ -683,6 +691,7 @@ namespace UE::MediaCaptureData
 					// If custom conversion was requested from implementation, give it useful information to apply 
 					if (Args.MediaCapture->ConversionOperation == EMediaCaptureConversionOperation::CUSTOM)
 					{
+						RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_CustomCapture)
 						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::CustomCapture);
 
 						Args.MediaCapture->OnCustomCapture_RenderingThread(Args.GraphBuilder, CapturingFrame->CaptureBaseData, CapturingFrame->UserData
@@ -690,6 +699,7 @@ namespace UE::MediaCaptureData
 					}
 					else
 					{
+						RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_Conversion)
 						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FormatConversion);
 						AddConversionPass(Args, { SourceRGBTexture, bRequiresFormatConversion,  CopyInfo, SizeU, SizeV }, OutputResource);
 					}
@@ -698,6 +708,7 @@ namespace UE::MediaCaptureData
 				// If Capture implementation is not grabbing GPU resource directly, push a readback pass to access it from CPU
 				if (Args.MediaCapture->bShouldCaptureRHIResource == false)
 				{
+					RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_Readback)
 					TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::EnqueueReadback);
 
 					CapturingFrame->EnqueueCopy(Args.GraphBuilder, OutputResource);
@@ -1721,6 +1732,7 @@ bool UMediaCapture::ProcessCapture_RenderThread(FRDGBuilder& GraphBuilder, UMedi
 {
 	using namespace UE::MediaCaptureData;
 	
+	RDG_GPU_STAT_SCOPE(GraphBuilder, MediaCapture_ProcessCapture)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::ProcessCapture_RenderThread);
 
 	if (CapturingFrame)

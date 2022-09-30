@@ -822,7 +822,7 @@ namespace UE::RivermaxCore::Private
 			else
 			{
 				// No frame to send, keep last one and restarts its internal counters
-				UE_LOG(LogRivermax, Warning, TEXT("No frame to send. Reusing last frame '%d'"), CurrentFrame->FrameIndex);
+				UE_LOG(LogRivermax, Verbose, TEXT("No frame to send. Reusing last frame '%d'"), CurrentFrame->FrameIndex);
 				InitializeNextFrame(CurrentFrame);		
 				
 				// Since we want to resend last frame, we need to fast forward chunk pointer to re-point to the one we just sent
