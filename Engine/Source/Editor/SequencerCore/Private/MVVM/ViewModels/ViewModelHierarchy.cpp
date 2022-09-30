@@ -225,6 +225,10 @@ FViewModelSubListIterator FViewModelChildren::IterateSubList() const
 
 void FViewModelChildren::AddChild(const TSharedPtr<FViewModel>& Child)
 {
+	if (!ensureMsgf(Child != Owner, TEXT("Cannot attach a model to itself")))
+	{
+		return;
+	}
 	if (!ensureMsgf(Child, TEXT("Unable to add a null child")))
 	{
 		return;
