@@ -9,6 +9,8 @@
 #include "UObject/PropertyPortFlags.h"
 
 struct FAssetData;
+class FPropertyRestriction;
+class FResetToDefaultOverride;
 class IPropertyHandleArray;
 class IPropertyHandleMap;
 class IPropertyHandleSet;
@@ -482,17 +484,17 @@ public:
 	 *
 	 * @return the handle as an array if it is an array (static or dynamic)
 	 */
-	virtual TSharedPtr<class IPropertyHandleArray> AsArray() = 0;
+	virtual TSharedPtr<IPropertyHandleArray> AsArray() = 0;
 
 	/**
 	 * @return This handle as a set if possible
 	 */
-	virtual TSharedPtr<class IPropertyHandleSet> AsSet() = 0;
+	virtual TSharedPtr<IPropertyHandleSet> AsSet() = 0;
 
 	/**
 	 * @return This handle as a map if possible
 	 */
-	virtual TSharedPtr<class IPropertyHandleMap> AsMap() = 0;
+	virtual TSharedPtr<IPropertyHandleMap> AsMap() = 0;
 
 	/**
 	 * @return The display name of the property
@@ -598,7 +600,7 @@ public:
 	 * Adds a restriction to the possible values for this property.
 	 * @param Restriction	The restriction being added to this property.
 	 */
-	virtual void AddRestriction( TSharedRef<const class FPropertyRestriction> Restriction ) = 0;
+	virtual void AddRestriction( TSharedRef<const FPropertyRestriction> Restriction ) = 0;
 
 	/**
 	* Tests if a value is restricted for this property
@@ -677,7 +679,7 @@ public:
 	/**
 	 * Sets an override for this property's reset to default behavior
 	 */
-	virtual void ExecuteCustomResetToDefault(const class FResetToDefaultOverride& OnCustomResetToDefault) = 0;
+	virtual void ExecuteCustomResetToDefault(const FResetToDefaultOverride& OnCustomResetToDefault) = 0;
 
 	/**
 	 * Gets the category FName that a property is in at the default location defined by the class the property is in
