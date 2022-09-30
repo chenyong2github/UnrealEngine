@@ -139,9 +139,9 @@ void FSourceControlAssetDataCache::GetFileHistory()
 	SourceControlProvider.Execute(UpdateStatusOperation,
 								  FileHistoryToUpdate,
 								  EConcurrency::Asynchronous,
-								  FSourceControlOperationComplete::CreateLambda([FileHistoryToUpdate = MoveTemp(FileHistoryToUpdate)](const FSourceControlOperationRef& Operation, ECommandResult::Type InResult)
+								  FSourceControlOperationComplete::CreateLambda([FileHistoryToUpdateCopy = FileHistoryToUpdate](const FSourceControlOperationRef& Operation, ECommandResult::Type InResult)
 	{
-		ISourceControlModule::Get().GetAssetDataCache().OnUpdateHistoryComplete(FileHistoryToUpdate, Operation, InResult);
+		ISourceControlModule::Get().GetAssetDataCache().OnUpdateHistoryComplete(FileHistoryToUpdateCopy, Operation, InResult);
 	}));
 
 	FileHistoryToUpdate.Reset();
