@@ -1661,7 +1661,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 	else if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
 	{
 		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>();
-		Data->Initialize(Landscape, GetGridBounds(Actor), /*bHeightOnly=*/false, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
+		Data->Initialize({ Landscape }, GetGridBounds(Actor), /*bHeightOnly=*/false, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
 
 		return Data;
 	}
@@ -1819,31 +1819,42 @@ UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
 	}
 
 	const UPCGSpatialData* ActorSpatialData = Cast<const UPCGSpatialData>(ActorData);
-	ALandscapeProxy* Landscape = nullptr;
+
+	FBox ActorBounds;
 
 	if (ActorSpatialData)
 	{
-		const FBox ActorDataBounds = ActorSpatialData->GetBounds();
-		Landscape = PCGHelpers::GetLandscape(Actor->GetWorld(), ActorDataBounds);
+		ActorBounds = ActorSpatialData->GetBounds();
 	}
 	else
 	{
 		FVector Origin;
 		FVector Extent;
 		Actor->GetActorBounds(/*bOnlyCollidingComponents=*/false, Origin, Extent);
-
-		Landscape = PCGHelpers::GetLandscape(Actor->GetWorld(), FBox::BuildAABB(Origin, Extent));
+		ActorBounds = FBox::BuildAABB(Origin, Extent);
 	}
 
-	if (!Landscape)
+	TArray<TWeakObjectPtr<ALandscapeProxy>> Landscapes = PCGHelpers::GetLandscapeProxies(Actor->GetWorld(), ActorBounds);
+
+	if (Landscapes.IsEmpty())
 	{
 		// No landscape found
 		return nullptr;
 	}
 
+	FBox LandscapeBounds(EForceInit::ForceInit);
+
+	for (TWeakObjectPtr<ALandscapeProxy> Landscape : Landscapes)
+	{
+		if (Landscape.IsValid())
+		{
+			LandscapeBounds += GetGridBounds(Landscape.Get());
+		}
+	}
+
 	// TODO: we're creating separate landscape data instances here so we can do some tweaks on it (such as storing the right target actor) but this probably should change
 	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>();
-	LandscapeData->Initialize(Landscape, GetGridBounds(Landscape), bHeightOnly, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
+	LandscapeData->Initialize(Landscapes, LandscapeBounds, bHeightOnly, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
 	// Need to override target actor for this one, not the landscape
 	LandscapeData->TargetActor = Actor;
 

@@ -11,13 +11,20 @@ class ALandscapeProxy;
 class ULandscapeInfo;
 class UPCGLandscapeCache;
 
+/**
+* Landscape data access abstraction for PCG. Supports multi-landscape access, but it assumes that they are not overlapping.
+*/
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGLandscapeData : public UPCGSurfaceData
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly, bool bInUseMetadata);
+	void Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>& InLandscapes, const FBox& InBounds, bool bInHeightOnly, bool bInUseMetadata);
+
+	// ~Begin UObject interface
+	virtual void PostLoad();
+	// ~End UObject interface
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Landscape | Super::GetDataType(); }
@@ -36,13 +43,18 @@ public:
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context, const FBox& InBounds) const override;
 	// ~End UPCGConcreteDataWithPointCache interface
 
-	// TODO: add on property changed to clear cached data
+	// TODO: add on property changed to clear cached data. This is used to populate the LandscapeInfos array.
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
-	TSoftObjectPtr<ALandscapeProxy> Landscape;
+	TArray<TSoftObjectPtr<ALandscapeProxy>> Landscapes;
 
 	bool IsUsingMetadata() const { return bUseMetadata; }
 
 protected:
+	/** Returns the landscape info associated to the first landscape that contains the given position
+	* Note that this implicitly removes support for overlapping landscapes, which might be a future TODO
+	*/
+	const ULandscapeInfo* GetLandscapeInfo(const FVector& InPosition) const;
+
 	UPROPERTY()
 	FBox Bounds = FBox(EForceInit::ForceInit);
 
@@ -54,6 +66,6 @@ protected:
 
 private:
 	// Transient data
-	ULandscapeInfo* LandscapeInfo = nullptr;
+	TArray<TPair<FBox, ULandscapeInfo*>> LandscapeInfos;
 	UPCGLandscapeCache* LandscapeCache = nullptr;
 };
