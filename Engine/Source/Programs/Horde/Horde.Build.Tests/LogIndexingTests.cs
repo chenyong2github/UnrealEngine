@@ -48,7 +48,8 @@ namespace Horde.Build.Tests
 			ILogBuilder logBuilder = new LocalLogBuilder();
 			_nullLogStorage = new NullLogStorage();
 			_logStorage = new LocalLogStorage(20, _nullLogStorage);
-			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, new FakeClock(), logger);
+			TestOptionsMonitor<ServerSettings> settingsOpts = new (new ServerSettings());
+			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, new FakeClock(), settingsOpts, logger);
 		}
 
 		protected override void Dispose(bool disposing)
