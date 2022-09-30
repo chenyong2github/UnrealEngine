@@ -51,7 +51,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** The text style */
 	UE_DEPRECATED(5.2, "TextStyle has been deprecated as it was mainly duplicated information already available inside WidgetStyle. Please use the WidgetStyle.TextStyle instead.")
-	UPROPERTY(Category="Style", meta=(DisplayName="Text Style"))
+	UPROPERTY(meta=(DisplayName="Text Style"))
 	FTextBlockStyle TextStyle_DEPRECATED;
 #endif
 

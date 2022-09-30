@@ -974,7 +974,7 @@ struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
 #if WITH_EDITORONLY_DATA
 	/** Font family and size to be used when displaying this text. */
 	UE_DEPRECATED(5.2, "Font has been deprecated as it was duplicated information already available elsewhere. Please use TextStyle.Font instead.")
-	UPROPERTY(Category = Appearance)
+	UPROPERTY()
 	FSlateFontInfo Font_DEPRECATED;
 #endif
 	FEditableTextBoxStyle& SetFont(const FSlateFontInfo& InFont) { TextStyle.Font = InFont; return *this; }
