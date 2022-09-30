@@ -140,6 +140,16 @@ namespace UE::AssetRegistry
 	};
 
 	/**
+	 * Return values for AssetRegistry functions
+	 */
+	enum class EExists
+	{
+		DoesNotExist,	// Does not exist on disk
+		Exists,			// Exists on disk
+		Unknown,		// Not known. AssetRegistry might still be indexing
+	};
+
+	/**
 	 * A struct that is equivalent to EDependencyQuery, but is more useful for performance in filtering operations.
 	 * This is used by the filter implementations inside of GetDependency/GetReferencer calls; callers of those functions can instead use the more convenient values in EDependencyQuery.
 	 */
@@ -279,6 +289,24 @@ public:
 	 * Lookup dependencies for the given package name and fill OutDependencies with direct dependencies
 	 */
 	virtual void GetDependencies(FName InPackageName, TArray<FName>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::Package, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) = 0;
+
+	/**
+	 * Tries to get the asset data for the specified object path
+	 *
+	 * @param ObjectPath the path of the object to be looked up
+	 * @param OutAssetData out FAssetData
+	 * @return Return code enum
+	 */
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, struct FAssetData& OutAssetData) const = 0;
+
+	/**
+	 * Tries to get the pacakge data for a specified path
+	 *
+	 * @param PackageName name of the package
+	 * @param OutAssetPackageData out FAssetPackageData
+	 * @return Return code enum
+	 */
+	virtual UE::AssetRegistry::EExists TryGetAssetPackageData(FName PackageName, class FAssetPackageData& OutPackageData) const = 0;
 
 protected:
 	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/

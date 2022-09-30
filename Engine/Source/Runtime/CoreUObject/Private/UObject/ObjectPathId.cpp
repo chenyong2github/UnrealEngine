@@ -194,8 +194,7 @@ FObjectPathId::FObjectPathId(const FObjectImport& Import, const FLinkerTables& L
 FName FObjectPathId::MakeImportPathIdAndPackageName(const FObjectImport& Import, const FLinkerTables& LinkerTables, FObjectPathId& OutPathId)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FObjectPathId::MakeImportPathIdAndPackageName);
-	// @TODO: OBJPTR: Need to handle redirects.  FCoreRedirectObjectName could be used, but it doesn't fit
-	//		conveniently with the FName walk approach that is currently here. 
+	
 	struct FImportObjectNamePathProducer
 	{
 		FImportObjectNamePathProducer(const FObjectImport& InImport, const FLinkerTables& InLinkerTables)
@@ -231,7 +230,7 @@ FName FObjectPathId::MakeImportPathIdAndPackageName(const FObjectImport& Import,
 	return NamePathProducer.GetPackageName();
 }
 
-#if WITH_LOW_LEVEL_TESTS
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 template <typename CharType>
 struct TStringViewNamePathProducer
 {
@@ -277,22 +276,15 @@ private:
 
 FObjectPathId::FObjectPathId(FWideStringView StringPath)
 {
-	// @TODO: OBJPTR: Need to handle redirects.  FCoreRedirectObjectName could be used, but it doesn't fit
-	//		conveniently with the FName walk approach that is currently here.
 	TStringViewNamePathProducer<WIDECHAR> NamePathProducer(StringPath);
-
 	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
 }
 
 FObjectPathId::FObjectPathId(FAnsiStringView StringPath)
 {
-	// @TODO: OBJPTR: Need to handle redirects.  FCoreRedirectObjectName could be used, but it doesn't fit
-	//		conveniently with the FName walk approach that is currently here.
 	TStringViewNamePathProducer<ANSICHAR> NamePathProducer(StringPath);
-
 	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
 }
-#endif
 
 void FObjectPathId::Resolve(ResolvedNameContainerType& OutContainer) const
 {

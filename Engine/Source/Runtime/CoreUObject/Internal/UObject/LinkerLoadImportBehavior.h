@@ -8,6 +8,7 @@
 
 class FLinkerLoad;
 struct FObjectImport;
+class IAssetRegistryInterface;
 
 namespace UE::LinkerLoad
 {
@@ -21,6 +22,24 @@ enum class EImportBehavior : uint8
 
 
 EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const FLinkerLoad& LinkerLoad);
+
+/// @brief tries to lazy load an imported FObjectPtr
+/// 
+/// @param AssetRegistry to see if import exists
+/// @param Import to try to lazy load
+/// @param LinkerLoad for the Import
+/// @param ObjectPtr out parameter
+/// @return true if import was lazy loaded otherwise false
+bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectImport& Import, const FLinkerLoad& LinkerLoad, FObjectPtr& ObjectPtr);
+
+/// @brief tries to resovle an object path to a lazy loaded TObjectPtr
+///
+/// @param Class type of the object that will be resolved
+/// @param ObjectPath object path of to resolve
+/// @param OutObjectPtr out parameter
+/// @return true if was lazy loaded otherwise false
+bool TryLazyLoad(const UClass& Class, FName ObjectPath, TObjectPtr<UObject>& OutObjectPtr);
+
 }
 
 #undef UE_API

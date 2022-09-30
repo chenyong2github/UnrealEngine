@@ -120,6 +120,26 @@ public:
 		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, Category, Flags);
 	}
 
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const override
+	{
+		auto AssetRegistry = IAssetRegistry::Get();
+		if (!AssetRegistry)
+		{
+			return UE::AssetRegistry::EExists::Unknown;
+		}
+		return AssetRegistry->TryGetAssetByObjectPath(ObjectPath, OutAssetData);
+	}
+
+	virtual UE::AssetRegistry::EExists TryGetAssetPackageData(FName PackageName, class FAssetPackageData& OutPackageData) const override
+	{
+		auto AssetRegistry = IAssetRegistry::Get();
+		if (!AssetRegistry)
+		{
+			return UE::AssetRegistry::EExists::Unknown;
+		}
+		return AssetRegistry->TryGetAssetPackageData(PackageName, OutPackageData);
+	}
+
 protected:
 	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/
 	virtual void GetDependenciesDeprecated(FName InPackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) override
@@ -2059,6 +2079,42 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	return GetAssetByObjectPath(FSoftObjectPath(ObjectPath.ToString()));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
+UE::AssetRegistry::EExists UAssetRegistryImpl::TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+	bool bAssetRegistryReady = GuardedData.IsInitialSearchStarted() && GuardedData.IsInitialSearchCompleted();
+	const FAssetRegistryState& State = GuardedData.GetState();
+	const FAssetData* FoundData = State.GetAssetByObjectPath(ObjectPath);
+	if (!FoundData)
+	{
+		if (!bAssetRegistryReady)
+		{
+			return UE::AssetRegistry::EExists::Unknown;
+		}
+		return UE::AssetRegistry::EExists::DoesNotExist;
+	}
+	OutAssetData = *FoundData;
+	return UE::AssetRegistry::EExists::Exists;
+}
+
+UE::AssetRegistry::EExists UAssetRegistryImpl::TryGetAssetPackageData(const FName PackageName, FAssetPackageData& OutAssetPackageData) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+	bool bAssetRegistryReady = GuardedData.IsInitialSearchStarted() && GuardedData.IsInitialSearchCompleted();
+	const FAssetRegistryState& State = GuardedData.GetState();
+	const FAssetPackageData* FoundData = State.GetAssetPackageData(PackageName);
+	if (!FoundData)
+	{
+		if (!bAssetRegistryReady)
+		{
+			return UE::AssetRegistry::EExists::Unknown;
+		}
+		return UE::AssetRegistry::EExists::DoesNotExist;
+	}
+	OutAssetPackageData = *FoundData;
+	return UE::AssetRegistry::EExists::Exists;
 }
 
 bool UAssetRegistryImpl::GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets) const

@@ -96,6 +96,25 @@ public:
 		IAssetRegistry::GetChecked().GetDependencies(InPackageName, OutDependencies, Category, Flags);
 	}
 
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const override
+	{
+		IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+		if (!AssetRegistry)
+		{
+			return UE::AssetRegistry::EExists::Unknown;
+		}
+		return AssetRegistry->TryGetAssetByObjectPath(ObjectPath, OutAssetData);
+	}
+
+	virtual UE::AssetRegistry::EExists TryGetAssetPackageData(FName PackageName, FAssetPackageData& OutAssetPackageData) const override
+	{
+		IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+		if (!AssetRegistry)
+		{
+			return UE::AssetRegistry::EExists::Unknown;
+		}
+		return AssetRegistry->TryGetAssetPackageData(PackageName, OutAssetPackageData);
+	}
 
 protected:
 	/* This function is a workaround for platforms that don't support disable of deprecation warnings on override functions*/

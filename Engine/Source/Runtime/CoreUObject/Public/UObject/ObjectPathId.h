@@ -70,11 +70,8 @@ public:
 
 	COREUOBJECT_API static FName MakeImportPathIdAndPackageName(const FObjectImport& Import, const FLinkerTables& LinkerTables, FObjectPathId& OutPathId);
 
-#if WITH_LOW_LEVEL_TESTS
-	// Should only be used by unit tests
 	explicit FObjectPathId(FWideStringView StringPath);
 	explicit FObjectPathId(FAnsiStringView StringPath);
-#endif
 
 	FObjectPathId& operator=(const FObjectPathId& Other) = default;
 	inline bool operator==(const FObjectPathId& Other) const { return PathId == Other.PathId; }

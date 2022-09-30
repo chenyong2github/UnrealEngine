@@ -243,6 +243,24 @@ public:
 	virtual FAssetData GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets = false) const = 0;
 
 	/**
+	 * Tries to get the asset data for the specified object path
+	 * 
+	 * @param ObjectPath the path of the object to be looked up
+	 * @param OutAssetData out FAssetData 
+	 * @return Enum return code
+	 */
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FName ObjectPath, FAssetData& OutAssetData) const = 0;
+
+	/**
+	 * Tries to get the pacakge data for a specified path
+	 *
+	 * @param PackageName name of the package
+	 * @param OutAssetPackageData out FAssetPackageData
+	 * @return Enum return code
+	 */
+	virtual UE::AssetRegistry::EExists TryGetAssetPackageData(FName PackageName, FAssetPackageData& OutAssetPackageData) const = 0;
+
+	/**
 	 * Gets asset data for all assets in the registry.
 	 * This method may be slow, use a filter if possible to avoid iterating over the entire registry.
 	 *

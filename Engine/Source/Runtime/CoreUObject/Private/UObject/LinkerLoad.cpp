@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/LinkerLoad.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Stats/StatsMisc.h"
@@ -50,6 +51,7 @@
 #include "Serialization/EditorBulkData.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Internationalization/GatherableTextData.h"
@@ -5766,32 +5768,34 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 	return *this;
 }
 
-FArchive& FLinkerLoad::operator<<( FObjectPtr& ObjectPtr )
+FArchive& FLinkerLoad::operator<<(FObjectPtr& ObjectPtr)
 {
 	FPackageIndex Index;
 	FArchive& Ar = *this;
 	Ar << Index;
 
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	if (Index.IsImport())
-	{
-		using namespace UE::LinkerLoad;
-		if (GetPropertyImportLoadBehavior(Imp(Index), *this) == EImportBehavior::LazyOnDemand)
-		{
-			const FObjectImport& Import = Imp(Index);
-			FObjectPathId ObjectPath;
-			FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
-			FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
-			ObjectPtr = FObjectPtr(ImportRef);
-
-			return *this;
-		}
-	}
-#endif
-
+#if !UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	ObjectPtr = FObjectPtr(ResolveResource(Index));
-	
 	return *this;
+
+#else
+	auto AssetRegistry = IAssetRegistryInterface::GetPtr();
+
+	if (!Index.IsImport() || !AssetRegistry)
+	{
+		ObjectPtr = FObjectPtr(ResolveResource(Index));
+		return *this;
+	}
+
+	using namespace UE::LinkerLoad;
+	FObjectImport& Import = Imp(Index);
+	if (!TryLazyImport(*AssetRegistry, Import, *this, ObjectPtr))
+	{
+		ObjectPtr = FObjectPtr(ResolveResource(Index));
+	}
+	return *this;
+	
+#endif
 }
 
 FArchive& FLinkerLoad::operator<<(FSoftObjectPath& Value)
