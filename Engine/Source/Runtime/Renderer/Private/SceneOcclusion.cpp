@@ -1456,11 +1456,6 @@ void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList,
 			BeginOcclusionTests(RHICmdList, Views, FeatureLevel, QueriesPerView, 1.0f);
 		}
 	}
-
-	if (IsRunningRHIInSeparateThread())
-	{
-		FenceOcclusionTestsInternal(RHICmdList);
-	}
 }
 
 DECLARE_CYCLE_STAT(TEXT("OcclusionSubmittedFence Dispatch"), STAT_OcclusionSubmittedFence_Dispatch, STATGROUP_SceneRendering);
@@ -1509,7 +1504,7 @@ void FSceneRenderer::FenceOcclusionTestsInternal(FRHICommandListImmediate& RHICm
 
 void FSceneRenderer::FenceOcclusionTests(FRDGBuilder& GraphBuilder)
 {
-	if (IsRunningRHIInSeparateThread())
+	if (DoOcclusionQueries() && IsRunningRHIInSeparateThread())
 	{
 		AddPass(GraphBuilder, RDG_EVENT_NAME("FenceOcclusionTests"), [this](FRHICommandListImmediate& RHICmdList)
 		{

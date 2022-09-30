@@ -744,6 +744,8 @@ void FMobileSceneRenderer::RenderFullDepthPrepass(FRDGBuilder& GraphBuilder, FSc
 				RenderOcclusion(RHICmdList, View);
 			});
 	}
+
+	FenceOcclusionTests(GraphBuilder);
 }
 
 void FMobileSceneRenderer::RenderMaskedPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
@@ -944,6 +946,11 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	else
 	{
 		RenderForward(GraphBuilder, ViewFamilyTexture, SceneTextures);
+	}
+
+	if (!bIsFullDepthPrepassEnabled)
+	{
+		FenceOcclusionTests(GraphBuilder);
 	}
 
 	SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::All;
