@@ -822,8 +822,7 @@ namespace Gauntlet
 
 				if (InstallSuccess == false)
 				{
-					// release all devices
-					UnrealDeviceReservation.ReleaseDevices();
+					ReleaseSessionDevices();
 
 					if (SessionRetries == 0)
 					{
@@ -883,8 +882,7 @@ namespace Gauntlet
 							// mark that device as a problem
 							UnrealDeviceReservation.MarkProblemDevice(CurrentInstall.Device);
 
-							// release all devices
-							UnrealDeviceReservation.ReleaseDevices();
+							ReleaseSessionDevices();
 
 							if (SessionRetries == 0)
 							{
@@ -942,8 +940,14 @@ namespace Gauntlet
 
 			if (!ShouldRetainDevices)
 			{
-				UnrealDeviceReservation.ReleaseDevices();
+				ReleaseSessionDevices();
 			}
+		}
+
+		public void ReleaseSessionDevices()
+		{
+			UnrealDeviceReservation.ReleaseDevices();
+			RolesToInstalls.Clear();
 		}
 
 		/// <summary>

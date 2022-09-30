@@ -1053,7 +1053,7 @@ namespace Gauntlet
 				try
 				{
 					// Artifacts have been saved, release devices back to pool for other tests to use
-					UnrealApp.UnrealDeviceReservation.ReleaseDevices();
+					UnrealApp.ReleaseSessionDevices();
 				}
 				catch (Exception Ex)
 				{
