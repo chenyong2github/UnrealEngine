@@ -707,6 +707,18 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
+	void FSimulation::EnableDisableJoints()
+	{
+		for (FJointHandle* Joint : Implementation->JointHandles)
+		{
+			const bool bActorEnabled0 = Joint->GetActorHandles()[0]->GetEnabled();
+			const bool bActorEnabled1 = Joint->GetActorHandles()[1]->GetEnabled();
+			const bool bJointEnabled = bActorEnabled0 && bActorEnabled1;
+			Joint->GetConstraint()->SetConstraintEnabled(bJointEnabled);
+		}
+	}
+
+
 	void FSimulation::InitSimulationSpace(
 		const FTransform& Transform)
 	{
@@ -908,6 +920,7 @@ namespace ImmediatePhysics_Chaos
 		{
 			PackCollidingPairs();
 			UpdateActivePotentiallyCollidingPairs();
+			EnableDisableJoints();
 			Implementation->bActorsDirty = false;
 		}
 

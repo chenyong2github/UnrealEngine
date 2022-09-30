@@ -94,6 +94,7 @@ namespace ImmediatePhysics_Chaos
 		void UpdateInertiaConditioning(const FVector& Gravity);
 		void PackCollidingPairs();
 		void UpdateActivePotentiallyCollidingPairs();
+		void EnableDisableJoints();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
 		void UpdateStatCounters();

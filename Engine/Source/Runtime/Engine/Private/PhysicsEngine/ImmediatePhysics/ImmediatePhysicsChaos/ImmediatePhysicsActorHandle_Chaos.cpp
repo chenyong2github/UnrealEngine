@@ -319,10 +319,16 @@ namespace ImmediatePhysics_Chaos
 		return ParticleHandle;
 	}
 
+	bool FActorHandle::GetEnabled() const
+	{
+		const Chaos::FConstGenericParticleHandle Particle = ParticleHandle;
+		return !Particle->Disabled();
+	}
+
 	void FActorHandle::SetEnabled(bool bEnabled)
 	{
-		auto* Dynamic = ParticleHandle->CastToRigidParticle();
-		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
+		Chaos::FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
+		if (Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
 			Dynamic->Disabled() = !bEnabled;
 		}

@@ -18,6 +18,8 @@ namespace ImmediatePhysics_Chaos
 		void SetName(const FName& InName) { Name = InName; }
 		const FName& GetName() const { return Name; }
 
+		bool GetEnabled() const;
+
 		void SetEnabled(bool bEnabled);
 
 		/** Sets the world transform, zeroes velocity, etc.*/
