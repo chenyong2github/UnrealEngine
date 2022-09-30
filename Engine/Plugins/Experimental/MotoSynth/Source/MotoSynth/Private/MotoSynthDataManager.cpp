@@ -3,6 +3,8 @@
 #include "MotoSynthDataManager.h"
 #include "MotoSynthModule.h"
 
+#include "HAL/IConsoleManager.h"
+
 
 // Log all loaded data in moto synth data manager
 static FAutoConsoleCommand LogMotoSynthMemoryUsageCommand(
