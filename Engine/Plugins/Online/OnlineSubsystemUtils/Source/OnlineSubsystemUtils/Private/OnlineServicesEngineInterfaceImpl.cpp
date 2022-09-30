@@ -65,7 +65,7 @@ void UOnlineServicesEngineInterfaceImpl::ShutdownOnlineSubsystem(FName OnlineIde
 void UOnlineServicesEngineInterfaceImpl::DestroyOnlineSubsystem(FName OnlineIdentifier)
 {
 	// TODO:  Does this need to support multiple online service types?  Other accessors seem to not differentiate and just use the default
-	UE::Online::DestroyServices(UE::Online::EOnlineServices::Default, OnlineIdentifier);
+	UE::Online::DestroyService(UE::Online::EOnlineServices::Default, OnlineIdentifier);
 }
 
 FName UOnlineServicesEngineInterfaceImpl::GetDefaultOnlineSubsystemName() const

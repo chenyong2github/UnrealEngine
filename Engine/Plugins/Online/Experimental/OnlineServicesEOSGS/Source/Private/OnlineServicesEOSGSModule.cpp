@@ -45,6 +45,11 @@ void FOnlineServicesEOSGSModule::StartupModule()
 
 void FOnlineServicesEOSGSModule::ShutdownModule()
 {
+	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Epic);
+	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Epic);
+	FOnlineIdRegistryRegistry::Get().UnregisterSessionIdRegistry(EOnlineServices::Epic);
+	FOnlineIdRegistryRegistry::Get().UnregisterSessionInviteIdRegistry(EOnlineServices::Epic);
+
 	UE::Online::FOnlineServicesEOSGSPlatformFactory::TearDown();
 }
 

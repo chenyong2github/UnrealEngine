@@ -91,6 +91,13 @@ public:
 	ONLINESERVICESINTERFACE_API void DestroyNamedServicesInstance(EOnlineServices OnlineServices, FName InstanceName);
 
 	/**
+	 * Destroy all instances of a specific OnlineServices
+	 *
+	 * @param OnlineServices  Type of online services for the IOnlineServices instance
+	 */
+	ONLINESERVICESINTERFACE_API void DestroyAllNamedServicesInstances(EOnlineServices OnlineServices);
+
+	/**
 	 * Create and initialize a new IOnlineServices instance
 	 *
 	 * @param OnlineServices Type of online services for the IOnlineServices instance

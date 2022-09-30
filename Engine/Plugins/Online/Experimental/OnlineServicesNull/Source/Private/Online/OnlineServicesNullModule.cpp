@@ -16,6 +16,7 @@ class FOnlineServicesNullModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
 protected:
 };
 
@@ -35,6 +36,13 @@ void FOnlineServicesNullModule::StartupModule()
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Null, MakeUnique<FOnlineServicesFactoryNull>());
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Null, &FOnlineAccountIdRegistryNull::Get());
 	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Null, &FOnlineSessionIdRegistryNull::Get());
+}
+
+void FOnlineServicesNullModule::ShutdownModule()
+{
+	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Null);
+	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Null);
+	FOnlineIdRegistryRegistry::Get().UnregisterSessionIdRegistry(EOnlineServices::Null);
 }
 
 /* UE::Online */ }

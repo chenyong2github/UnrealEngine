@@ -67,9 +67,14 @@ TSharedPtr<IOnlineServices> GetServices(EOnlineServices OnlineServices, FName In
 	return FOnlineServicesRegistry::Get().GetNamedServicesInstance(OnlineServices, InstanceName);
 }
 
-void DestroyServices(EOnlineServices OnlineServices, FName InstanceName)
+void DestroyService(EOnlineServices OnlineServices, FName InstanceName)
 {
 	FOnlineServicesRegistry::Get().DestroyNamedServicesInstance(OnlineServices, InstanceName);
+}
+
+void DestroyAllNamedServices(EOnlineServices OnlineServices)
+{
+	FOnlineServicesRegistry::Get().DestroyAllNamedServicesInstances(OnlineServices);
 }
 
 /* UE::Online */ }

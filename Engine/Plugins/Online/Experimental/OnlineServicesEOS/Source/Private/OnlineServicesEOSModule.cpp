@@ -15,6 +15,7 @@ class FOnlineServicesEOSModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
 protected:
 };
 
@@ -41,6 +42,14 @@ void FOnlineServicesEOSModule::StartupModule()
 	const int Priority = 1;
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOS>(), Priority);
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOS::Get(), Priority);
+}
+
+void FOnlineServicesEOSModule::ShutdownModule()
+{
+	// Make this higher priority that EOSGS
+	const int Priority = 1;
+	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Epic, Priority);
+	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Epic, Priority);
 }
 
 /* UE::Online */ }

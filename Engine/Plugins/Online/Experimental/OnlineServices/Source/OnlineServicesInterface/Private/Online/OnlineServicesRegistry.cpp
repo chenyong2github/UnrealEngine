@@ -34,6 +34,8 @@ void FOnlineServicesRegistry::UnregisterServicesFactory(EOnlineServices OnlineSe
 	{
 		ServicesFactories.Remove(OnlineServices);
 	}
+
+	DestroyAllNamedServicesInstances(OnlineServices);
 }
 
 bool FOnlineServicesRegistry::IsLoaded(EOnlineServices OnlineServices, FName InstanceName) const
@@ -110,6 +112,19 @@ void FOnlineServicesRegistry::DestroyNamedServicesInstance(EOnlineServices Onlin
 		(*ServicesPtr)->Destroy();
 
 		NamedServiceInstances.FindOrAdd(OnlineServices).Remove(InstanceName);
+	}
+}
+
+void FOnlineServicesRegistry::DestroyAllNamedServicesInstances(EOnlineServices OnlineServices)
+{
+	if (TMap<FName, TSharedRef<IOnlineServices>>* ServicesMapPtr = NamedServiceInstances.Find(OnlineServices))
+	{
+		for (const TPair<FName, TSharedRef<IOnlineServices>>& ServicesEntryRef : *ServicesMapPtr)
+		{
+			ServicesEntryRef.Value->Destroy();
+		}
+
+		NamedServiceInstances.Remove(OnlineServices);
 	}
 }
 
