@@ -31,9 +31,30 @@ void FDisplayClusterOperatorViewModel::ShowDetailsForObject(UObject* Object)
 
 void FDisplayClusterOperatorViewModel::ShowDetailsForObjects(const TArray<UObject*>& Objects)
 {
-	DetailObjects.Empty();
-	DetailObjects.Append(Objects);
-	DetailObjectsChanged.Broadcast(Objects);
+	bool bDetailObjectsChanged = false;
+
+	if (DetailObjects.Num() == Objects.Num())
+	{
+		for (UObject* NewObject : Objects)
+		{
+			if (NewObject && !DetailObjects.Contains(NewObject))
+			{
+				bDetailObjectsChanged = true;
+				break;
+			}
+		}
+	}
+	else
+	{
+		bDetailObjectsChanged = true;
+	}
+
+	if (bDetailObjectsChanged)
+	{
+		DetailObjects.Empty();
+		DetailObjects.Append(Objects);
+		DetailObjectsChanged.Broadcast(Objects);
+	}
 }
 
 TSharedRef<FTabManager> FDisplayClusterOperatorViewModel::CreateTabManager(const TSharedRef<SDockTab>& MajorTabOwner)

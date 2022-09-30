@@ -1032,9 +1032,19 @@ void SDisplayClusterColorGradingDrawer::OnDetailObjectsChanged(const TArray<UObj
 {
 	if (RootActorList.IsValid())
 	{
-		FillRootActorColorGradingList();
+		const bool bIsCCWBeingSelected = Objects.ContainsByPredicate([](UObject* Object) { return Object && Object->IsA<AColorCorrectionWindow>(); });
+		const bool bAreCCWsInList = RootActorColorGradingItems.ContainsByPredicate([](const FDisplayClusterColorGradingListItemRef& ListItem)
+		{
+			return ListItem.IsValid() && ListItem->Actor.IsValid() && ListItem->Actor->IsA<AColorCorrectionWindow>();
+		});
 
-		SetDrawerStateToDefault();
+		// Only need to refresh when CCWs are being selected or unselected
+		if (bIsCCWBeingSelected || bAreCCWsInList)
+		{
+			FillRootActorColorGradingList();
+
+			SetDrawerStateToDefault();
+		}
 	}
 }
 
