@@ -101,22 +101,6 @@ public:
 	}
 
 	/**
-	 * The backend will attempt to store the given payload by what ever method the backend uses.
-	 * NOTE: It is assumed that the virtualization manager will run all appropriate validation
-	 * on the payload and it's id and that the inputs to PushData can be trusted.
-	 * 
-	 * @param Id		The Id of the payload
-	 * @param Payload	A potentially compressed buffer representing the payload
-	 * @return			The result of the push operation
-	 */
-	bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
-	{
-		FPushRequest Request(Id, Payload, PackageContext);
-
-		return PushData(MakeArrayView(&Request, 1));
-	}
-
-	/**
 	 * @return True if all of the requests succeeded, false if one of more failed
 	 */
 	virtual bool PushData(TArrayView<FPushRequest> Requests) = 0;

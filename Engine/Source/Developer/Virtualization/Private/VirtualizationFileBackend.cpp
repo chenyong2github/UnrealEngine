@@ -71,7 +71,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 		if (DoesPayloadExist(PayloadId))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(PayloadId));
-			Request.SetStatus(FPushRequest::EStatus::Success);
+			Request.SetResult(FPushResult::GetAsAlreadyExists());
 
 			continue;
 		}
@@ -97,7 +97,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 				SystemErrorMsg.ToString());
 
 			ErrorCount++;
-			Request.SetStatus(FPushRequest::EStatus::Failed);
+			Request.SetResult(FPushResult::GetAsError());
 
 			continue;
 		}
@@ -122,7 +122,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 			IFileManager::Get().Delete(*TempFilePath, true, false, true);  // Clean up the temp file if it is still around but do not failure cases to the user
 
 			ErrorCount++;
-			Request.SetStatus(FPushRequest::EStatus::Failed);
+			Request.SetResult(FPushResult::GetAsError());
 
 			continue;
 		}
@@ -131,7 +131,11 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 		CreateFilePath(PayloadId, FilePath);
 
 		// If the file already exists we don't need to replace it, we will also do our own error logging.
-		if (!IFileManager::Get().Move(FilePath.ToString(), *TempFilePath, /*Replace*/ false, /*EvenIfReadOnly*/ false, /*Attributes*/ false, /*bDoNotRetryOrError*/ true))
+		if (IFileManager::Get().Move(FilePath.ToString(), *TempFilePath, /*Replace*/ false, /*EvenIfReadOnly*/ false, /*Attributes*/ false, /*bDoNotRetryOrError*/ true))
+		{
+			Request.SetResult(FPushResult::GetAsPushed());
+		}
+		else
 		{
 			// Store the error message in case we need to display it
 			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
@@ -144,6 +148,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 			if (DoesPayloadExist(PayloadId))
 			{
 				UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(PayloadId));
+				Request.SetResult(FPushResult::GetAsAlreadyExists());
 				continue;
 			}
 			else
@@ -155,7 +160,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 					SystemErrorMsg.ToString());
 
 				ErrorCount++;
-				Request.SetStatus(FPushRequest::EStatus::Failed);
+				Request.SetResult(FPushResult::GetAsError());
 			}
 		}
 	}

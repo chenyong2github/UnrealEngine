@@ -278,11 +278,11 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		int64 TotalPayloadsCached = 0;
 		for (Virtualization::FPushRequest& Request : PayloadsToSubmit)
 		{
-			TotalPayloadsCached += Request.GetStatus() == FPushRequest::EStatus::Success ? 1 : 0;
+			TotalPayloadsCached += Request.GetResult().WasPushed() ? 1 : 0;
 
 			// TODO: This really shouldn't be required, fix when we allow both pushes to be done in the same call
 			// Reset the status for the persistent storage push
-			Request.SetStatus(Virtualization::FPushRequest::EStatus::Failed);
+			Request.ResetResult();
 		}
 		UE_LOG(LogVirtualization, Display, TEXT("Pushed %" INT64_FMT " payload(s) to cached storage"), TotalPayloadsCached);
 	}
@@ -301,7 +301,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		int64 TotalPayloadsVirtualized = 0;
 		for (const Virtualization::FPushRequest& Request : PayloadsToSubmit)
 		{
-			TotalPayloadsVirtualized += Request.GetStatus() == FPushRequest::EStatus::Success ? 1 : 0;
+			TotalPayloadsVirtualized += Request.GetResult().WasPushed() ? 1 : 0;
 		}
 		UE_LOG(LogVirtualization, Display, TEXT("Pushed %" INT64_FMT " payload(s) to EStorageType::Persistent storage"), TotalPayloadsVirtualized);
 	}
@@ -314,7 +314,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 			const Virtualization::FPushRequest& Request = PayloadsToSubmit[PackageInfo.PayloadIndex + Index];
 			check(Request.GetIdentifier() == PackageInfo.LocalPayloads[Index]);
 
-			if (Request.GetStatus() == Virtualization::FPushRequest::EStatus::Success)
+			if (Request.GetResult().IsVirtualized())
 			{
 				if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(Request.GetIdentifier()))
 				{

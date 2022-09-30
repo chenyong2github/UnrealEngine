@@ -91,7 +91,7 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
 	{
 		if (DoesPayloadExist(Request.GetIdentifier()))
 		{
-			Request.SetStatus(FPushRequest::EStatus::Success);
+			Request.SetResult(FPushResult::GetAsAlreadyExists());
 		}
 		else
 		{
@@ -112,11 +112,11 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
 			{
 				if (Response.Status == UE::DerivedData::EStatus::Ok)
 				{
-					Request.SetStatus(FPushRequest::EStatus::Success);
+					Request.SetResult(FPushResult::GetAsPushed());
 				}
 				else
 				{
-					Request.SetStatus(FPushRequest::EStatus::Failed);
+					Request.SetResult(FPushResult::GetAsError());
 					bWasSuccess = false;
 				}
 			};

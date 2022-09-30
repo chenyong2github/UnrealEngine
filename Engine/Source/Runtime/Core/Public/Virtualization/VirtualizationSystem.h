@@ -131,6 +131,111 @@ public:
 	virtual uint64 GetPayloadSize(const FIoHash& Identifier) = 0;
 };
 
+/** The result opf a push operation on a single payload */
+struct FPushResult
+{
+	/** 
+	 * Records the status of the push, negative values indicate an error, positive values indicate 
+	 * that the payload is stored in the target backend(s) and a zero value means that the operation 
+	 * has not yet run 
+	 */
+	enum class EStatus : int8
+	{
+		/** The push operation caused an error */
+		Error			= -3,
+		/** The push operation was run on an invalid payload id */
+		Invalid			= -2,
+		/** The payload was rejected by the filtering system */
+		Filtered		= -1,
+		/** The push operation has not yet been run */
+		Pending			= 0,
+		/** The payload was already present in the target backend(s) */
+		AlreadyExisted	= 1,
+		/** The payload was pushed to the backend(s) */
+		Pushed			= 2
+	};
+
+	FPushResult() = default;
+	~FPushResult() = default;
+
+	static FPushResult GetAsError()
+	{
+		return FPushResult(EStatus::Error);
+	}
+
+	static FPushResult GetAsInvalid()
+	{
+		return FPushResult(EStatus::Invalid);
+	}
+
+	static FPushResult GetAsFiltered(EPayloadFilterReason Reason)
+	{
+		return FPushResult(EStatus::Filtered, Reason);
+	}
+
+	static FPushResult GetAsAlreadyExists()
+	{
+		return FPushResult(EStatus::AlreadyExisted);
+	}
+
+	static FPushResult GetAsPushed()
+	{
+		return FPushResult(EStatus::Pushed);
+	}
+
+	/** Returns true if the payload was actually uploaded to the target backend(s) */
+	bool WasPushed() const
+	{
+		return Status == EStatus::Pushed;
+	}
+
+	/** Returns true if the payload is stored in the target backend(s) after the operation completed */
+	bool IsVirtualized() const
+	{
+		return Status > EStatus::Pending;
+	}
+
+	/** Returns true if the payload was rejected by the filtering system */
+	bool IsFiltered() const
+	{
+		if (Status == EStatus::Filtered)
+		{
+			// Quick sanity check, if the payload was filtered there must be a reason
+			check(FilterReason != EPayloadFilterReason::None);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	/** Returns why the payload was rejected by the filtering system (if there was one) */
+	EPayloadFilterReason GetFilterReason() const
+	{
+		return FilterReason;
+	}
+
+private:
+
+	FPushResult(EStatus InStatus)
+		: Status(InStatus)
+	{
+		check(Status != EStatus::Pending);
+	}
+
+	FPushResult(EStatus InStatus, EPayloadFilterReason InReason)
+		: Status(InStatus)
+		, FilterReason(InReason)
+	{
+		check(Status != EStatus::Pending);
+		check(FilterReason != EPayloadFilterReason::None);
+	}
+
+	EStatus Status = EStatus::Pending;
+	EPayloadFilterReason FilterReason = EPayloadFilterReason::None;
+};
+
 /** 
  * Data structure representing a request to push a payload to a backend storage system. 
  * Note that a request can either before for payload already in memory (in which case the
@@ -139,20 +244,6 @@ public:
 */
 struct FPushRequest
 {
-	enum class EStatus
-	{
-		/** The request failed, or was not reached because of the failure of an earlier request */
-		Failed,
-		/** The payload does not have a valid identifier or is empty */
-		Invalid,
-		/** The payload is below the minimum length required for virtualization */
-		BelowMinSize,
-		/** The payload is owned by a package that is excluded from virtualization by path filtering */
-		ExcludedByPackagPath,
-		/** The payload in the request is now present in all backends */
-		Success
-	};
-
 	FPushRequest() = delete;
 	~FPushRequest() = default;
 
@@ -207,12 +298,6 @@ struct FPushRequest
 		return Identifier;
 	}
 
-	/** Returns the current status of the request */
-	EStatus GetStatus() const
-	{
-		return Status;
-	}
-
 	/** Returns the size of the payload when it was on disk */
 	uint64 GetPayloadSize() const
 	{
@@ -245,10 +330,19 @@ struct FPushRequest
 		return Context;
 	}
 
-	/** Allows the status of the request to be set, this should only be done by the virtualization backends */
-	void SetStatus(EStatus InStatus)
+	void ResetResult()
 	{
-		Status = InStatus;
+		Result = FPushResult();
+	}
+
+	void SetResult(FPushResult InResult)
+	{
+		Result = InResult;
+	}
+
+	const FPushResult& GetResult() const
+	{
+		return Result;
 	}
 
 private:
@@ -264,8 +358,7 @@ private:
 	/** A string containing context for the payload, typically a package name */
 	FString Context;
 
-	/** Once the request has been processed this value will contains the results */
-	EStatus Status = EStatus::Failed;
+	FPushResult Result;
 };
 
 /** 

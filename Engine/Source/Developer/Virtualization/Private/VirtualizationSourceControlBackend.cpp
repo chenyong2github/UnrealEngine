@@ -433,7 +433,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 	// We create a new array of requests that we know are unique along with a map of the request 
 	// results that we can use to set the original requests statuses at the end.
 
-	TMap<FIoHash, FPushRequest::EStatus> PayloadStatusMap;
+	TMap<FIoHash, FPushResult> PayloadStatusMap;
 	PayloadStatusMap.Reserve(Requests.Num());
 
 	TArray<const FPushRequest*> UniqueRequests;
@@ -446,7 +446,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		{
 			if (!PayloadStatusMap.Contains(Request.GetIdentifier()))
 			{
-				PayloadStatusMap.Add(Request.GetIdentifier(), FPushRequest::EStatus::Failed);
+				PayloadStatusMap.Add(Request.GetIdentifier(), FPushResult::GetAsError());
 				UniqueRequests.Add(&Request);
 			}
 		}
@@ -495,7 +495,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 				if (PayloadResults[Index])
 				{
-					PayloadStatusMap[Request->GetIdentifier()] = FPushRequest::EStatus::Success;
+					PayloadStatusMap[Request->GetIdentifier()] = FPushResult::GetAsAlreadyExists();
 				}
 				else
 				{
@@ -511,7 +511,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 	{
 		for (FPushRequest& Request : Requests)
 		{
-			Request.SetStatus(PayloadStatusMap[Request.GetIdentifier()]);
+			Request.SetResult(PayloadStatusMap[Request.GetIdentifier()]);
 		}
 
 		return true;
@@ -731,10 +731,9 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 			}
 		}
 
-		// TODO: We really should be setting a more fine grain status for each request, or not bother with the status at all
 		for (const FPushRequest* Request : RequestBatch)
 		{
-			PayloadStatusMap[Request->GetIdentifier()] = FPushRequest::EStatus::Success;
+			PayloadStatusMap[Request->GetIdentifier()] = FPushResult::GetAsPushed();
 		}
 
 		// Try to clean up the files from this batch
@@ -751,7 +750,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 	// Finally set all of the request statuses
 	for (FPushRequest& Request : Requests)
 	{
-		Request.SetStatus(PayloadStatusMap[Request.GetIdentifier()]);
+		Request.SetResult(PayloadStatusMap[Request.GetIdentifier()]);
 	}
 
 	return true;

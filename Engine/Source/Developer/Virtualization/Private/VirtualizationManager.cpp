@@ -439,7 +439,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		FPushRequest& Request = Requests[Index];
 		if (Request.GetIdentifier().IsZero() || Request.GetPayloadSize() == 0)
 		{
-			Request.SetStatus(FPushRequest::EStatus::Invalid);
+			Request.SetResult(FPushResult::GetAsInvalid());
 			continue;
 		}
 
@@ -451,7 +451,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 					Request.GetPayloadSize(),
 					MinPayloadLength);
 
-			Request.SetStatus(FPushRequest::EStatus::BelowMinSize);
+			Request.SetResult(FPushResult::GetAsFiltered(EPayloadFilterReason::MinSize));
 			continue;
 		}
 
@@ -461,7 +461,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 					*LexToString(Request.GetIdentifier()), 
 					*Request.GetContext());
 			
-			Request.SetStatus(FPushRequest::EStatus::ExcludedByPackagPath);
+			Request.SetResult(FPushResult::GetAsFiltered(EPayloadFilterReason::Path));
 			continue;
 		}
 
@@ -533,7 +533,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		const int32 MappingIndex = OriginalToValidatedRequest[Index];
 		if (MappingIndex != INDEX_NONE)
 		{
-			Requests[Index].SetStatus(ValidatedRequests[MappingIndex].GetStatus());
+			Requests[Index].SetResult(ValidatedRequests[MappingIndex].GetResult());
 		}
 	}
 
@@ -1524,9 +1524,15 @@ bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backe
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
 	
-	if (Backend.PushData(Id, Payload, FString()))
+	FPushRequest Request(Id, Payload, FString());
+
+	if (Backend.PushData(MakeArrayView(&Request, 1)))
 	{
-		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+		if (Request.GetResult().WasPushed())
+		{
+			COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+		}
+
 		return true;
 	}
 	else
@@ -1552,8 +1558,7 @@ bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backen
 
 		for (const FPushRequest& Request : Requests)
 		{
-			// TODO: Don't add a hit if the payload was already uploaded
-			if (Request.GetStatus() == FPushRequest::EStatus::Success)
+			if (Request.GetResult().WasPushed())
 			{
 				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread);	
 				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, Request.GetPayloadSize(), bIsInGameThread);
