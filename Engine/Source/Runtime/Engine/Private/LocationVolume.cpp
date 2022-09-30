@@ -53,6 +53,18 @@ void ALocationVolume::PostRegisterAllComponents()
 	}
 }
 
+void ALocationVolume::UnregisterAllComponents(bool bForReregister)
+{
+	Super::UnregisterAllComponents(bForReregister);
+
+	if (!bForReregister && WorldPartitionActorLoader)
+	{
+		WorldPartitionActorLoader->Unload();
+		delete WorldPartitionActorLoader;
+		WorldPartitionActorLoader = nullptr;
+	}
+}
+
 void ALocationVolume::BeginDestroy()
 {
 	if (WorldPartitionActorLoader)

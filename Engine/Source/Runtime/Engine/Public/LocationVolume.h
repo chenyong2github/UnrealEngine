@@ -29,6 +29,7 @@ public:
 	virtual bool IsEditorOnly() const override { return !bIsRuntime; }
 #if WITH_EDITOR
 	virtual void PostRegisterAllComponents();
+	virtual void UnregisterAllComponents(bool bForReregister) override;
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	//~ End AActor Interface
 
