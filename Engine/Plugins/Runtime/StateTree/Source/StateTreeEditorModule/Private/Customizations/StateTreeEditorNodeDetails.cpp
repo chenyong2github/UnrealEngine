@@ -38,6 +38,7 @@
 #include "ObjectEditorUtils.h"
 #include "StateTreeCompiler.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
