@@ -614,13 +614,23 @@ void UNetDriver::LoadChannelDefinitions()
 
 void UNetDriver::NotifyGameInstanceUpdated()
 {
-#if UE_NET_TRACE_ENABLED
 	const UWorld* LocalWorld = GetWorld();
+
+#if UE_NET_TRACE_ENABLED
 	if (GetNetTraceId() != NetTraceInvalidGameInstanceId && LocalWorld && LocalWorld->WorldType)
 	{
 		FString InstanceName = FString::Printf(TEXT("%s (%s)"), *GetNameSafe(LocalWorld->GetGameInstance()), LexToString(LocalWorld->WorldType.GetValue()));
 		UE_NET_TRACE_UPDATE_INSTANCE(GetNetTraceId(), IsServer(), *InstanceName);
 	}
+#endif
+
+#if WITH_EDITOR
+#if UE_WITH_IRIS
+	if (ReplicationSystem && LocalWorld)
+	{
+		ReplicationSystem->SetPIEInstanceID(World->GetPackage()->GetPIEInstanceID());
+	}
+#endif
 #endif
 }
 
@@ -5772,7 +5782,6 @@ void UNetDriver::SetWorld(class UWorld* InWorld)
 		WorldPackage = InWorld->GetOutermost();
 		Notify = InWorld;
 		RegisterTickEvents(InWorld);
-
 
 #if UE_WITH_IRIS
 		if (IsUsingIrisReplication())
