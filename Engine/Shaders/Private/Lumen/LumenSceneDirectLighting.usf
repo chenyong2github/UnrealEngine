@@ -48,11 +48,16 @@ float3 GetIrradianceForLight(
 	float3 ToLight = L;
 	float3 AreaLightFalloffColor = 1;
 	float CombinedAttenuation = 1;
+	float NoL = saturate(dot(WorldNormal, L));
 
 	if (LightData.bRadialLight)
 	{
+		FAreaLightIntegrateContext Context = (FAreaLightIntegrateContext) 0;
 		float LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
-		float Attenuation;
+
+		float Attenuation = 0.0f;
+		float Roughness = 1;
+		float3 V = float3(1, 0, 0);
 
 		if (LightData.bRectLight)
 		{
@@ -61,24 +66,23 @@ float3 GetIrradianceForLight(
 
 			if (IsRectVisible(Rect))
 			{
-				float Roughness = 1;
-				float3 V = float3(1, 0, 0);
 				const FRectTexture SourceTexture = InitRectTexture(LightData);
-				FAreaLightIntegrateContext Context = CreateRectIntegrateContext(Roughness, WorldNormal, V, Rect, SourceTexture);
-				AreaLightFalloffColor = Context.AreaLight.FalloffColor;
+				Context = CreateRectIntegrateContext(Roughness, WorldNormal, V, Rect, SourceTexture);
 			}
 		}
 		else
 		{
 			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
 			Capsule.DistBiasSqr = 0;
+			Context = CreateCapsuleIntegrateContext(Roughness, WorldNormal, V, Capsule, LightData.bInverseSquared);
 			Attenuation = IntegrateLight(Capsule, LightData.bInverseSquared);
 		}
 
 		CombinedAttenuation = Attenuation * LightMask;
+		AreaLightFalloffColor = Context.AreaLight.FalloffColor;
+		NoL = Context.NoL;
 	}
 
-	float NoL = saturate(dot(WorldNormal, L));
 	float3 Irradiance = LightColor * AreaLightFalloffColor * (CombinedAttenuation * NoL * ShadowFactor);
 
 	return Irradiance;
