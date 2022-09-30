@@ -83,17 +83,16 @@ public class ORTDefault : ModuleRules
 				} 
 				else if(Target.Platform == UnrealTargetPlatform.Linux)
 				{
-
 					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, "lib" + LibFileName + ".so");			
 					PublicAdditionalLibraries.Add(CurrentLibPath);
+					RuntimeDependencies.Add(CurrentLibPath);
 
 				}
 				else if(Target.Platform == UnrealTargetPlatform.Mac)
 				{
-					// PublicDelayLoadDLLs
 					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, "lib" + LibFileName + ".dylib");
 					PublicAdditionalLibraries.Add(CurrentLibPath);
-
+					RuntimeDependencies.Add(CurrentLibPath);
 				}
 				else
 				{
