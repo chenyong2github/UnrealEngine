@@ -819,6 +819,7 @@ bool FNiagaraMaterialAttributeBindingCustomization::IsCompatibleNiagaraVariable(
 			InVar.GetType() == FNiagaraTypeDefinition::GetColorDef() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetVec2Def() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetVec3Def() ||
+			InVar.GetType() == FNiagaraTypeDefinition::GetPositionDef() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetUObjectDef() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureDef() ||
 			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureRenderTargetDef() )
