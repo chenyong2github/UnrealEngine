@@ -94,6 +94,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> SelectForward;
 	TSharedPtr<FUICommandInfo> SelectBackward;
+	TSharedPtr<FUICommandInfo> SelectNone;
 
 	TSharedPtr<FUICommandInfo> BufferVisibleCurves;
 	TSharedPtr<FUICommandInfo> SwapBufferedCurves;

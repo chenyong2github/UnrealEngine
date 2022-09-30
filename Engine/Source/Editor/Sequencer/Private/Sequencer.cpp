@@ -11247,6 +11247,10 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP(this, &FSequencer::SelectBackward));
 
 	SequencerCommandBindings->MapAction(
+		Commands.SelectNone,
+		FExecuteAction::CreateSP(this, &FSequencer::EmptySelection));
+
+	SequencerCommandBindings->MapAction(
 		Commands.StepToNextShot,
 		FExecuteAction::CreateSP( this, &FSequencer::StepToNextShot ) );
 

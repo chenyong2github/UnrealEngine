@@ -193,6 +193,9 @@ public:
 	/** Select all keys and sections backward from the current time */
 	TSharedPtr< FUICommandInfo > SelectBackward;
 
+	/** Select none */
+	TSharedPtr< FUICommandInfo > SelectNone;
+
 	/** Add selected actors to sequencer */
 	TSharedPtr< FUICommandInfo > AddActorsToSequencer;
 

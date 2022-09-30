@@ -226,6 +226,7 @@ public:
 	void SelectAllKeys();
 	void SelectForward();
 	void SelectBackward();
+	void SelectNone();
 
 	/** Toggle the expansion state of the selected nodes or all nodes if none selected */
 	void ToggleExpandCollapseNodes(bool bRecursive);
