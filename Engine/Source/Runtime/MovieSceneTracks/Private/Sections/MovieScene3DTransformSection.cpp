@@ -458,14 +458,19 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 	// Then call into the override repository so it can add a second builder with the override stuff.
 	if (ChannelOverrideName != NAME_None)
 	{
-		check(OverrideRegistry && OverrideRegistry->ContainsChannel(ChannelOverrideName));
-		OutImportedEntity->AddBuilder(InBaseBuilder.AddTag(PropertyTag));
+		if (!ensureMsgf(OverrideRegistry && OverrideRegistry->ContainsChannel(ChannelOverrideName),
+				TEXT("We received an entity ID that corresponds to an override channel, but no such override channel exists in the registry.")))
+		{
+			return;
+		}
 
 		const int32 ChannelOverrideIndex = (Params.EntityID - ChannelOverrideNames.IndexOffset);
 		if (ChannelOverrideIndex == 9)
 		{
 			if (EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight))
 			{
+				OutImportedEntity->AddBuilder(InBaseBuilder.AddTag(PropertyTag));
+
 				FChannelOverrideEntityImportParams OverrideParams{ ChannelOverrideName, BuiltInComponentTypes->WeightResult };
 				OverrideRegistry->ImportEntityImpl(OverrideParams, Params, OutImportedEntity);
 			}
@@ -474,6 +479,8 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 		{
 			if (ActiveChannelsMask[ChannelOverrideIndex])
 			{
+				OutImportedEntity->AddBuilder(InBaseBuilder.AddTag(PropertyTag));
+
 				FChannelOverrideEntityImportParams OverrideParams{ ChannelOverrideName, BuiltInComponentTypes->DoubleResult[ChannelOverrideIndex] };
 				OverrideRegistry->ImportEntityImpl(OverrideParams, Params, OutImportedEntity);
 			}
