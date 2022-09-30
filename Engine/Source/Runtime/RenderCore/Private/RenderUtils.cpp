@@ -1287,15 +1287,14 @@ RENDERCORE_API ShaderPlatformMaskType GRayTracingPlatformMask;
 // Value may be queried using IsRayTracingEnabled().
 RENDERCORE_API bool GUseRayTracing = false;
 
-void GetAllPossiblePreviewPlatformsForMainShaderPlatform(TArray<EShaderPlatform>& OutPreviewPlatforms, FName ShaderPlatformName)
+void GetAllPossiblePreviewPlatformsForMainShaderPlatform(TArray<EShaderPlatform>& OutPreviewPlatforms, EShaderPlatform ParentShaderPlatform)
 {
-	FName PreviewPlatformName = FName(ShaderPlatformName.ToString() + TEXT("_PREVIEW"));
 	for (int i = 0; i < EShaderPlatform::SP_NumPlatforms; ++i)
 	{
 		EShaderPlatform ShaderPlatform = EShaderPlatform(i);
 		if (FDataDrivenShaderPlatformInfo::IsValid(ShaderPlatform))
 		{
-			bool bIsPreviewPlatform = FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ShaderPlatform) && (FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform) == PreviewPlatformName);
+			bool bIsPreviewPlatform = FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ShaderPlatform) && (FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ShaderPlatform) == ParentShaderPlatform);
 			if (bIsPreviewPlatform)
 			{
 				OutPreviewPlatforms.Add(ShaderPlatform);
@@ -1341,7 +1340,7 @@ RENDERCORE_API void RenderUtilsInit()
 			{
 				EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Format);
 				TArray<EShaderPlatform> PossiblePreviewPlatformsAndMainPlatform;
-				GetAllPossiblePreviewPlatformsForMainShaderPlatform(PossiblePreviewPlatformsAndMainPlatform, FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform));
+				GetAllPossiblePreviewPlatformsForMainShaderPlatform(PossiblePreviewPlatformsAndMainPlatform, ShaderPlatform);
 				PossiblePreviewPlatformsAndMainPlatform.Add(ShaderPlatform);
 
 				for (EShaderPlatform ShaderPlatformToEdit : PossiblePreviewPlatformsAndMainPlatform)
@@ -1379,10 +1378,10 @@ RENDERCORE_API void RenderUtilsInit()
 
 				for (FName FormatName : PlatformRayTracingShaderFormats)
 				{
-					TArray<EShaderPlatform> PossiblePreviewPlatformsAndMainPlatform;
-					GetAllPossiblePreviewPlatformsForMainShaderPlatform(PossiblePreviewPlatformsAndMainPlatform, FormatName);
-
 					EShaderPlatform MainShaderPlatform = ShaderFormatNameToShaderPlatform(FormatName);
+					TArray<EShaderPlatform> PossiblePreviewPlatformsAndMainPlatform;
+					GetAllPossiblePreviewPlatformsForMainShaderPlatform(PossiblePreviewPlatformsAndMainPlatform, MainShaderPlatform);
+
 					PossiblePreviewPlatformsAndMainPlatform.Add(MainShaderPlatform);
 
 					for (EShaderPlatform ShaderPlatform : PossiblePreviewPlatformsAndMainPlatform)

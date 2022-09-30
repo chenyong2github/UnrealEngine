@@ -252,7 +252,7 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile)
 		if (Section.Key.StartsWith(TEXT("PreviewPlatform ")))
 		{
 			const FString& SectionName = Section.Key;
-			FName PreviewPlatformName = *SectionName.Mid(16);
+			FName PreviewPlatformName = *(SectionName.Mid(16) + TEXT("_Preview"));
 
 			// Early-out if enabled cvar is specified and not set
 			TArray<FString> Tokens;
@@ -277,6 +277,7 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile)
 
 			FPreviewPlatformMenuItem Item;
 			Item.PlatformName = PlatformName;
+			Item.PreviewShaderPlatformName = PreviewPlatformName;
 			Item.ShaderFormat = *GetSectionString(Section.Value, FName("ShaderFormat"));
 			checkf(Item.ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), *SectionName);
 			Item.ActiveIconPath = GetSectionString(Section.Value, FName("ActiveIconPath"));
@@ -284,7 +285,9 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile)
 			Item.InactiveIconPath = GetSectionString(Section.Value, FName("InactiveIconPath"));
 			Item.InactiveIconName = *GetSectionString(Section.Value, FName("InactiveIconName"));
 			Item.DeviceProfileName = *GetSectionString(Section.Value, FName("DeviceProfileName"));
-			Item.ShaderPlatformPreview = *(GetSectionString(Section.Value, FName("ShaderPlatform")) + TEXT("_PREVIEW"));
+			Item.ShaderPlatformToPreview = *GetSectionString(Section.Value, FName("ShaderPlatform"));
+			checkf(Item.ShaderPlatformToPreview != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderPlatform"), *SectionName);
+			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("FriendlyName")), Item.OptionalFriendlyNameOverride);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);
 			PreviewPlatformMenuItems.Add(Item);

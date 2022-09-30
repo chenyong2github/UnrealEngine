@@ -3718,7 +3718,7 @@ void FLevelEditorCommands::RegisterCommands()
 		FText FriendlyName;
 		if (!IsRunningCommandlet() && !GUsingNullRHI)
 		{
-			EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Item.ShaderPlatformPreview);
+			EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Item.PreviewShaderPlatformName);
 			FriendlyName = FDataDrivenShaderPlatformInfo::GetFriendlyName(ShaderPlatform);
 		}
 

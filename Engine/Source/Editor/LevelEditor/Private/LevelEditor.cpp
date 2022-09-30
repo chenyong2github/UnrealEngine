@@ -1793,32 +1793,17 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	for (int32 Index=0; Index < MenuItems.Num(); Index++)
 	{
 		const FPreviewPlatformMenuItem& Item = MenuItems[Index];
-		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(Item.ShaderFormat);
+		EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Item.PreviewShaderPlatformName);
 		
 		if (ShaderPlatform < SP_NumPlatforms)
 		{
 			ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
-			const bool IsDefaultActive = ShaderPlatform == GMaxRHIShaderPlatform;
+			const bool IsDefaultActive = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ShaderPlatform) == GMaxRHIShaderPlatform;
 			const bool AllowPreview = !IsDefaultActive;
 
-			EShaderPlatform InShaderPlatform = EShaderPlatform::SP_NumPlatforms;
-			for (uint32 j = 0; j < SP_NumPlatforms; ++j)
-			{
-				InShaderPlatform = (EShaderPlatform)j;
-				if (!FDataDrivenShaderPlatformInfo::IsValid(InShaderPlatform))
-				{
-					continue;
-				}
 
-				FName ShaderPlatformTest = FDataDrivenShaderPlatformInfo::GetName(InShaderPlatform);
-				if (Item.ShaderPlatformPreview == ShaderPlatformTest)
-				{
-					break;
-				}
-			}
-
-			FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, (EShaderPlatform)InShaderPlatform, IsDefaultActive ? NAME_None : Item.PlatformName, IsDefaultActive ? NAME_None : Item.ShaderFormat, IsDefaultActive ? NAME_None : Item.DeviceProfileName, AllowPreview, Item.ShaderPlatformPreview);
+			FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, (EShaderPlatform)ShaderPlatform, IsDefaultActive ? NAME_None : Item.PlatformName, IsDefaultActive ? NAME_None : Item.ShaderFormat, IsDefaultActive ? NAME_None : Item.DeviceProfileName, AllowPreview, Item.PreviewShaderPlatformName);
 
 			ActionList.MapAction(
 				Commands.PreviewPlatformOverrides[Index],

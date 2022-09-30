@@ -2609,12 +2609,16 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 #if WITH_EDITOR
 				for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
 				{
-					FName PreviewPlatformName = *((Infos[ShaderPlatform].Name).ToString() + TEXT("_PREVIEW"));
-					if (Item.ShaderPlatformPreview == PreviewPlatformName)
+					FName PreviewPlatformName = *(Infos[ShaderPlatform].Name).ToString();
+					if (Item.ShaderPlatformToPreview == PreviewPlatformName)
 					{
 						EShaderPlatform PreviewShaderPlatform = EShaderPlatform(CustomShaderPlatform++);
 						ParseDataDrivenShaderInfo(Section.Value, Infos[PreviewShaderPlatform]);
-						Infos[PreviewShaderPlatform].Name = PreviewPlatformName;
+						if (!Item.OptionalFriendlyNameOverride.IsEmpty())
+						{
+							Infos[PreviewShaderPlatform].FriendlyName = Item.OptionalFriendlyNameOverride;
+						}
+						Infos[PreviewShaderPlatform].Name = Item.PreviewShaderPlatformName;
 						Infos[PreviewShaderPlatform].PreviewShaderPlatformParent = ShaderPlatform;
 						Infos[PreviewShaderPlatform].bIsPreviewPlatform = true;
 						Infos[PreviewShaderPlatform].bContainsValidPlatformInfo = true;
@@ -2642,15 +2646,15 @@ void FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms()
 				Infos[ShaderPlatform].Language = Infos[EditorSPForPreviewMaxFeatureLevel].Language;
 				Infos[ShaderPlatform].bIsHlslcc = Infos[EditorSPForPreviewMaxFeatureLevel].bIsHlslcc;
 				Infos[ShaderPlatform].bSupportsDxc = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsDxc;
-				Infos[ShaderPlatform].bSupportsGPUScene = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsGPUScene;
+				Infos[ShaderPlatform].bSupportsGPUScene &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsGPUScene;
 				Infos[ShaderPlatform].bIsPC = true;
 				Infos[ShaderPlatform].bIsConsole = false;
-				Infos[ShaderPlatform].bSupportsSceneDataCompressedTransforms = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsSceneDataCompressedTransforms;
-				Infos[ShaderPlatform].bSupportsNanite = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsNanite;
-				Infos[ShaderPlatform].bSupportsUInt64ImageAtomics = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsUInt64ImageAtomics;
-				Infos[ShaderPlatform].bSupportsGen5TemporalAA = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsGen5TemporalAA;
-				Infos[ShaderPlatform].bSupportsMobileMultiView = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsMobileMultiView;
-				Infos[ShaderPlatform].bSupportsInstancedStereo = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsInstancedStereo;
+				Infos[ShaderPlatform].bSupportsSceneDataCompressedTransforms &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsSceneDataCompressedTransforms;
+				Infos[ShaderPlatform].bSupportsNanite &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsNanite;
+				Infos[ShaderPlatform].bSupportsUInt64ImageAtomics &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsUInt64ImageAtomics;
+				Infos[ShaderPlatform].bSupportsGen5TemporalAA &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsGen5TemporalAA;
+				Infos[ShaderPlatform].bSupportsMobileMultiView &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsMobileMultiView;
+				Infos[ShaderPlatform].bSupportsInstancedStereo &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsInstancedStereo;
 				Infos[ShaderPlatform].bSupportsRenderTargetWriteMask = false;
 				Infos[ShaderPlatform].bSupportsIntrinsicWaveOnce = false;
 				Infos[ShaderPlatform].bSupportsDOFHybridScattering = false;
@@ -2664,11 +2668,11 @@ void FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms()
 #if WITH_EDITOR
 FText FGenericDataDrivenShaderPlatformInfo::GetFriendlyName(const FStaticShaderPlatform Platform)
 {
-	if (IsRunningCommandlet() || GUsingNullRHI || !IsValid(Platform))
+	if (IsRunningCommandlet() || GUsingNullRHI)
 	{
 		return FText();
 	}
-	//check(IsValid(Platform));
+	check(IsValid(Platform));
 	return Infos[Platform].FriendlyName;
 }
 #endif

@@ -99,11 +99,13 @@ struct FPreviewPlatformMenuItem
 {
 	FName PlatformName;
 	FName ShaderFormat;
-	FName ShaderPlatformPreview;
+	FName ShaderPlatformToPreview;
+	FName PreviewShaderPlatformName;
 	FString ActiveIconPath;
 	FName ActiveIconName;
 	FString InactiveIconPath;
 	FName InactiveIconName;
+	FText OptionalFriendlyNameOverride;
 	FText MenuTooltip;
 	FText IconText;
 	FName DeviceProfileName;

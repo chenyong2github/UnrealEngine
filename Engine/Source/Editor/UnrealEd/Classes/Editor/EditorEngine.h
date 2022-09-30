@@ -213,7 +213,7 @@ struct FPreviewPlatformInfo
 	,	PreviewPlatformName(NAME_None)
 	,	PreviewShaderFormatName(NAME_None)
 	,	bPreviewFeatureLevelActive(false)
-	,	ShaderPlatformPreview(NAME_None)
+	,	PreviewShaderPlatformName(NAME_None)
 	{}
 
 	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform = EShaderPlatform::SP_NumPlatforms, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, FName InDeviceProfileName = NAME_None, bool InbPreviewFeatureLevelActive = false, FName InShaderPlatformName = NAME_None)
@@ -223,7 +223,7 @@ struct FPreviewPlatformInfo
 	,	PreviewShaderFormatName(InPreviewShaderFormatName)
 	,	DeviceProfileName(InDeviceProfileName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
-	,	ShaderPlatformPreview(InShaderPlatformName)
+	,	PreviewShaderPlatformName(InShaderPlatformName)
 	{}
 
 	/** The feature level we should use when loading or creating a new world */
@@ -244,13 +244,13 @@ struct FPreviewPlatformInfo
 	/** Is feature level preview currently active */
 	bool bPreviewFeatureLevelActive;
 	
-	/** The shader platform to preview*/
-	FName ShaderPlatformPreview;
+	/** Preview Shader Platform Name */
+	FName PreviewShaderPlatformName;
 
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && ShaderPlatform == Other.ShaderPlatform && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName && DeviceProfileName == Other.DeviceProfileName && ShaderPlatformPreview == Other.ShaderPlatformPreview;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && ShaderPlatform == Other.ShaderPlatform && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName && DeviceProfileName == Other.DeviceProfileName && PreviewShaderPlatformName == Other.PreviewShaderPlatformName;
 	}
 
 	/** Return platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
