@@ -27,10 +27,11 @@ export class Perforce {
 		return this.exec(process.platform === 'darwin' ? ['-plocalhost:1666', 'login', '-s'] : ['login', '-s'])
 	}
 
-	depot(depotType: string, spec: string)	{ return this.exec(['depot', '-t', depotType],	{stdin:spec}) }
-	user(spec: string)						{ return this.exec(['user', '-fi'],				{stdin:spec}) }
-	stream(spec: string)					{ return this.exec(['stream'],					{stdin:spec}) }
-	client(user: string, spec: string)		{ return this.exec(['-u', user, 'client'],		{stdin:spec}) }
+	depot(depotType: string, spec: string)  { return this.exec(['depot', '-t', depotType],  {stdin:spec}) }
+	user(spec: string)                      { return this.exec(['user', '-fi'],             {stdin:spec}) }
+	stream(spec: string)                    { return this.exec(['stream'],                  {stdin:spec}) }
+	client(user: string, spec: string)      { return this.exec(['-u', user, 'client'],      {stdin:spec}) }
+	branch(spec: string)                    { return this.exec(['branch', '-i'],            {stdin:spec}) }
 
 	add(user: string, workspace: string, path: string, binary?: boolean)
 	{

@@ -306,6 +306,16 @@ export abstract class FunctionalTest {
 		)
 	}
 
+	branchSpec(name: string, view:string) {
+		return P4Util.specFormat(
+			["Branch", name],
+			["Owner", "root"],
+			["Description", "\n\tCreated by root."],
+			["Options", "unlocked"],
+			["View", view]
+		)
+	}
+
 	protected makeBranchDef(stream: string, to: string[], forceAll?: boolean): RobomergeBranchSpec {
 		const name = this.fullBranchName(stream)
 		return {

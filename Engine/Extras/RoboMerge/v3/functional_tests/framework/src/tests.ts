@@ -6,6 +6,7 @@ import { Perforce } from './test-perforce'
 import { GenericTargetTest } from './GenericTargetTest'
 import { BlockAssets } from './tests/block-assets'
 import { BlockIgnore } from './tests/block-ignore'
+import { BranchspecTest } from './tests/branchspec'
 import { ConfirmBinaryStomp } from './tests/confirm-binary-stomp'
 import { ConfirmTextResolve } from './tests/confirm-text-resolve'
 import { ConfirmTextResolveBinaryStomp } from './tests/confirm-text-resolve-binary-stomp'
@@ -216,6 +217,7 @@ async function go() {
 		new UnreachableSkip(p4), // 45
 
 		new PostToAdditionalChannel(p4),
+		new BranchspecTest(p4)
 	]
 
 	const TARGET_TEST_DEFS: [string[], string | null][] = [
