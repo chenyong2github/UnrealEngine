@@ -123,7 +123,7 @@ const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& FSequencerSelection::GetNodesWi
 	for (TWeakPtr<FViewModel> WeakTrackAreaModel : SelectedTrackAreaItems)
 	{
 		TSharedPtr<FViewModel> TrackAreaModel = WeakTrackAreaModel.Pin();
-		if (TrackAreaModel)
+		if (TrackAreaModel && TrackAreaModel->IsA<FSectionModel>())
 		{
 			TViewModelPtr<IOutlinerExtension> OutlinerItem = TrackAreaModel->FindAncestorOfType<IOutlinerExtension>();
 			if (OutlinerItem)
