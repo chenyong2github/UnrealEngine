@@ -190,6 +190,7 @@ public:
 	void OnMeshPostBuild(UStaticMesh*);
 	void OnAssetReimported(UObject*);
 	void CheckMaterialUsage();
+	virtual TArray<FNiagaraVariable> GetBoundAttributes() const override;
 #endif // WITH_EDITORONLY_DATA
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 
