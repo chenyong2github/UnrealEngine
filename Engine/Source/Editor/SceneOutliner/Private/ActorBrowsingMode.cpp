@@ -1086,7 +1086,7 @@ bool FActorBrowsingMode::CanPaste() const
 
 bool FActorBrowsingMode::HasErrors() const
 {
-	if (!bRepresentingWorldGameWorld && bRepresentingWorldPartitionedWorld)
+	if (RepresentingWorld && !bRepresentingWorldGameWorld && bRepresentingWorldPartitionedWorld)
 	{
 		if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
 		{
