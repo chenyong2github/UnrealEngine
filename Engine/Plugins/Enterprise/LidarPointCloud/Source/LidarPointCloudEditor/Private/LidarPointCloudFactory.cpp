@@ -59,7 +59,7 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("LidarPointCloud_Merge", "Merge Selected"),
 			LOCTEXT("LidarPointCloud_MergeTooltip", "Merges selected point cloud assets."),
-			FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.Merge"),
+			FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitMerge"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteMerge, PointClouds),
 				FCanExecuteAction()
@@ -69,7 +69,7 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("LidarPointCloud_Align", "Align Selected"),
 			LOCTEXT("LidarPointCloud_AlignTooltip", "Aligns selected point cloud assets."),
-			FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.Align"),
+			FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitAlign"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteAlign, PointClouds),
 				FCanExecuteAction()
@@ -80,7 +80,7 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("LidarPointCloud_BuildCollision", "Build Collision"),
 		LOCTEXT("LidarPointCloud_BuildCollisionTooltip", "Builds collision for all selected point cloud assets."),
-		FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.BuildCollision"),
+		FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitCollision"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteCollision, PointClouds),
 			FCanExecuteAction()
@@ -90,7 +90,7 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("LidarPointCloud_CalculateNormals", "Calculate Normals"),
 		LOCTEXT("LidarPointCloud_CalculateNormalsTooltip", "Calculates normals for all selected point cloud assets."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.SetShowNormals"),
+		FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitNormals"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteNormals, PointClouds),
 			FCanExecuteAction()
