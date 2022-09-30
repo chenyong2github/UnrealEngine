@@ -1392,13 +1392,13 @@ bool UStaticMeshEditorSubsystem::BulkSetConvexDecompositionCollisionsWithNotific
 
 	uint32 LastProcessed = 0;
 	const FText ProgressText = LOCTEXT("ComputingConvexCollision", "Computing convex collision for static mesh {0}/{1} ...");
-	FScopedSlowTask Progress(StaticMeshes.Num(), FText::Format(ProgressText, LastProcessed, StaticMeshes.Num()));
+	FScopedSlowTask Progress(static_cast<float>(StaticMeshes.Num()), FText::Format(ProgressText, LastProcessed, StaticMeshes.Num()));
 	Progress.MakeDialog();
 
 	while (!Result.WaitFor(FTimespan::FromMilliseconds(33.0)))
 	{
 		uint32 LocalProcessed = Processed.Load(EMemoryOrder::Relaxed);
-		Progress.EnterProgressFrame(LocalProcessed - LastProcessed, FText::Format(ProgressText, LocalProcessed, StaticMeshes.Num()));
+		Progress.EnterProgressFrame(static_cast<float>(LocalProcessed - LastProcessed), FText::Format(ProgressText, LocalProcessed, StaticMeshes.Num()));
 		LastProcessed = LocalProcessed;
 	}
 

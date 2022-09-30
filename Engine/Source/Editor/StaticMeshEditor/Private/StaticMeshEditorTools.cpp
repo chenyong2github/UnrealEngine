@@ -922,17 +922,17 @@ int32 FMeshBuildSettingsLayout::GetDstLightmapIndex() const
 
 TOptional<float> FMeshBuildSettingsLayout::GetBuildScaleX() const
 {
-	return BuildSettings.BuildScale3D.X;
+	return static_cast<float>(BuildSettings.BuildScale3D.X);
 }
 
 TOptional<float> FMeshBuildSettingsLayout::GetBuildScaleY() const
 {
-	return BuildSettings.BuildScale3D.Y;
+	return static_cast<float>(BuildSettings.BuildScale3D.Y);
 }
 
 TOptional<float> FMeshBuildSettingsLayout::GetBuildScaleZ() const
 {
-	return BuildSettings.BuildScale3D.Z;
+	return static_cast<float>(BuildSettings.BuildScale3D.Z);
 }
 
 float FMeshBuildSettingsLayout::GetDistanceFieldResolutionScale() const
@@ -1386,7 +1386,7 @@ void FMeshReductionSettingsLayout::GenerateChildContent( IDetailChildrenBuilder&
 				[
 					SAssignNew(SilhouetteCombo, STextComboBox)
 					//.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.ContentPadding(0)
+				.ContentPadding(0.f)
 				.OptionsSource(&ImportanceOptions)
 				.InitiallySelectedItem(ImportanceOptions[ReductionSettings.SilhouetteImportance])
 				.OnSelectionChanged(this, &FMeshReductionSettingsLayout::OnSilhouetteImportanceChanged)
@@ -1406,7 +1406,7 @@ void FMeshReductionSettingsLayout::GenerateChildContent( IDetailChildrenBuilder&
 				[
 					SAssignNew(TextureCombo, STextComboBox)
 					//.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.ContentPadding(0)
+				.ContentPadding(0.f)
 				.OptionsSource(&ImportanceOptions)
 				.InitiallySelectedItem(ImportanceOptions[ReductionSettings.TextureImportance])
 				.OnSelectionChanged(this, &FMeshReductionSettingsLayout::OnTextureImportanceChanged)
@@ -1426,7 +1426,7 @@ void FMeshReductionSettingsLayout::GenerateChildContent( IDetailChildrenBuilder&
 				[
 					SAssignNew(ShadingCombo, STextComboBox)
 					//.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.ContentPadding(0)
+				.ContentPadding(0.f)
 				.OptionsSource(&ImportanceOptions)
 				.InitiallySelectedItem(ImportanceOptions[ReductionSettings.ShadingImportance])
 				.OnSelectionChanged(this, &FMeshReductionSettingsLayout::OnShadingImportanceChanged)
@@ -3963,7 +3963,7 @@ TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetLODScreenSizeWidget(FName P
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.MinDesiredWidth(60.0f)
 		.MinValue(0.0f)
-		.MaxValue(WORLD_MAX)
+		.MaxValue(static_cast<float>(WORLD_MAX))
 		.SliderExponent(2.0f)
 		.Value(this, &FLevelOfDetailSettingsLayout::GetLODScreenSize, PlatformGroupName, LODIndex)
 		.OnValueChanged(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnLODScreenSizeChanged, PlatformGroupName, LODIndex)
@@ -4432,7 +4432,7 @@ bool FLevelOfDetailSettingsLayout::AddMinLODPlatformOverride(FName PlatformGroup
 	if (StaticMesh->GetMinLOD().PerPlatform.Find(PlatformGroupName) == nullptr)
 	{
 		FPerPlatformInt MinLOD = StaticMesh->GetMinLOD();
-		float Value = MinLOD.Default;
+		int32 Value = MinLOD.Default;
 		MinLOD.PerPlatform.Add(PlatformGroupName, Value);
 		StaticMesh->SetMinLOD(MoveTemp(MinLOD));
 		OnMinLODChanged(Value, PlatformGroupName);
@@ -4450,7 +4450,7 @@ bool FLevelOfDetailSettingsLayout::RemoveMinLODPlatformOverride(FName PlatformGr
 	FPerPlatformInt MinLOD = StaticMesh->GetMinLOD();
 	if (MinLOD.PerPlatform.Remove(PlatformGroupName) != 0)
 	{
-		float Value = MinLOD.Default;
+		int32 Value = MinLOD.Default;
 		StaticMesh->SetMinLOD(MoveTemp(MinLOD));
 		OnMinLODChanged(Value, PlatformGroupName);
 		return true;
@@ -4535,7 +4535,7 @@ bool FLevelOfDetailSettingsLayout::AddMinLODQualityLevelOverride(FName QualityLe
 	if (StaticMesh->GetQualityLevelMinLOD().PerQuality.Find(QLKey) == nullptr)
 	{
 		FPerQualityLevelInt MinLOD = StaticMesh->GetQualityLevelMinLOD();
-		float Value = MinLOD.Default;
+		int32 Value = MinLOD.Default;
 		MinLOD.PerQuality.Add(QLKey, Value);
 		StaticMesh->SetQualityLevelMinLOD(MoveTemp(MinLOD));
 		OnMinQualityLevelLODChanged(Value, QualityLevelName);
@@ -4555,7 +4555,7 @@ bool FLevelOfDetailSettingsLayout::RemoveMinLODQualityLevelOverride(FName Qualit
 	int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
 	if (QL != INDEX_NONE && MinLOD.PerQuality.Remove(QL) != 0)
 	{
-		float Value = MinLOD.Default;
+		int32 Value = MinLOD.Default;
 		StaticMesh->SetQualityLevelMinLOD(MoveTemp(MinLOD));
 		OnMinQualityLevelLODChanged(Value, QualityLevelName);
 		return true;
@@ -4787,7 +4787,7 @@ bool FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride(FName Plat
 	StaticMesh->Modify();
 	if (StaticMesh->NumStreamedLODs.PerPlatform.Find(PlatformGroupName) == nullptr)
 	{
-		float Value = StaticMesh->NumStreamedLODs.Default;
+		int32 Value = StaticMesh->NumStreamedLODs.Default;
 		StaticMesh->NumStreamedLODs.PerPlatform.Add(PlatformGroupName, Value);
 		OnNumStreamedLODsChanged(Value, PlatformGroupName);
 		return true;
@@ -5474,7 +5474,7 @@ FString FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(int32 Value
 	}
 	else
 	{
-		const float fValue = FMath::Exp2((double)-Value);
+		const float fValue = static_cast<float>(FMath::Exp2((double)-Value));
 		return FString::Printf(TEXT("1/%dcm (%.3gcm)"), 1 << Value, fValue);
 	}
 }

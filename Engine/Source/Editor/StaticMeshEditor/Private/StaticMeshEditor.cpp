@@ -1297,7 +1297,7 @@ void FStaticMeshEditor::ScaleSelectedPrims(const FVector& InScale)
 	}
 
 	//Multiply in estimated size of the mesh so scaling of sphere, box and sphyl is similar speed to other scaling
-	float SimplePrimitiveScaleSpeedFactor = StaticMesh->GetBounds().SphereRadius;
+	float SimplePrimitiveScaleSpeedFactor = static_cast<float>( StaticMesh->GetBounds().SphereRadius );
 
 	for (int32 PrimIdx = 0; PrimIdx < SelectedPrims.Num(); PrimIdx++)
 	{
