@@ -264,8 +264,10 @@ namespace Horde.Build.Tests.Fleet
 		[TestMethod]
 		public async Task CreateAwsReuse()
 		{
-			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsReuse, null, "{}"));
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsReuse, null, "{\"InstanceTypes\": [\"foo\", \"bar\"]}"));
 			Assert.AreEqual(typeof(AwsReuseFleetManager), fm.GetType());
+			Assert.AreEqual("foo", ((AwsReuseFleetManager)fm).Settings.InstanceTypes![0]);
+			Assert.AreEqual("bar", ((AwsReuseFleetManager)fm).Settings.InstanceTypes![1]);
 		}
 		
 		[TestMethod]

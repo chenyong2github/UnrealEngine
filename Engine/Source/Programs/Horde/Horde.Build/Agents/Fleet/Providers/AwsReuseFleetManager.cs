@@ -42,9 +42,13 @@ namespace Horde.Build.Agents.Fleet.Providers
 	/// </summary>
 	public sealed class AwsReuseFleetManager : IFleetManager
 	{
+		/// <summary>
+		/// Settings for fleet manager
+		/// </summary>
+		public AwsReuseFleetManagerSettings Settings { get; }
+		
 		private readonly IAmazonEC2 _ec2;
 		private readonly IAgentCollection _agentCollection;
-		private readonly AwsReuseFleetManagerSettings _settings;
 		private readonly ILogger _logger;
 
 		/// <summary>
@@ -54,8 +58,8 @@ namespace Horde.Build.Agents.Fleet.Providers
 		{
 			_ec2 = ec2;
 			_agentCollection = agentCollection;
-			_settings = settings;
 			_logger = logger;
+			Settings = settings;
 		}
 
 		/// <inheritdoc/>
@@ -81,9 +85,9 @@ namespace Horde.Build.Agents.Fleet.Providers
 
 			IEnumerable<Instance> stoppedInstances = describeResponse.Reservations.SelectMany(x => x.Instances);
 
-			if (_settings.InstanceTypes is { Count: >= 1 })
+			if (Settings.InstanceTypes is { Count: >= 1 })
 			{
-				InstanceType newInstanceType = InstanceType.FindValue(_settings.InstanceTypes[0]);
+				InstanceType newInstanceType = InstanceType.FindValue(Settings.InstanceTypes[0]);
 				foreach (Instance stoppedInstance in stoppedInstances)
 				{
 					if (stoppedInstance.InstanceType == newInstanceType) { continue; }
