@@ -24,7 +24,7 @@ struct FChannelSlotBoundaries
 {
 	explicit FChannelSlotBoundaries(const uint16 ChannelToDraw, const uint16 TotalNumChannels, const FGeometry& InAllottedGeometry)
 	{
-		Height = InAllottedGeometry.GetAbsoluteSize().Y / TotalNumChannels;
+		Height = InAllottedGeometry.GetLocalSize().Y / TotalNumChannels;
 		float ChannelSlotMidPoint = Height / 2.f;
 
 		Top = Height * ChannelToDraw;

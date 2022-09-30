@@ -128,7 +128,7 @@ void SWaveformPanel::UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDispla
 
 void SWaveformPanel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	const float PaintedWidth = AllottedGeometry.GetAbsoluteSize().X;
+	const float PaintedWidth = AllottedGeometry.GetLocalSize().X;
 
 	if (PaintedWidth != CachedPixelWidth)
 	{
