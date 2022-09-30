@@ -226,6 +226,10 @@ namespace Horde.Storage.Implementation
 
             foreach (V1Pod pod in podList.Items)
             {
+                if (pod.Status.Phase != "Running")
+                {
+                    continue;
+                }
                 string ip = pod.Status.PodIP;
                 if (string.IsNullOrEmpty(ip))
                 {
