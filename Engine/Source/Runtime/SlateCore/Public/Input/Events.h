@@ -443,13 +443,19 @@ public:
 			const FInputDeviceId InDeviceId,
 			const bool bInIsRepeat,
 			const uint32 InCharacterCode,
-			const uint32 InKeyCode
+			const uint32 InKeyCode,
+			const TOptional<int32> InOptionalSlateUserIndex = TOptional<int32>()
 	)
 		: FInputEvent(InModifierKeys, InDeviceId, bInIsRepeat)
 		, Key(InKey)
 		, CharacterCode(InCharacterCode)
 		, KeyCode(InKeyCode)
-	{ }
+	{
+		if (InOptionalSlateUserIndex.IsSet())
+		{
+			UserIndex = InOptionalSlateUserIndex.GetValue();
+		}
+	}
 
 	/**
 	 * Returns the name of the key for this event
@@ -551,9 +557,10 @@ public:
 		const bool bInIsRepeat,
 		const uint32 InCharacterCode,
 		const uint32 InKeyCode,
-		const float InAnalogValue
+		const float InAnalogValue,
+		const TOptional<int32> InOptionalSlateUserIndex = TOptional<int32>()
 	)
-		: FKeyEvent(InKey, InModifierKeys, InDeviceId, bInIsRepeat, InCharacterCode, InKeyCode)
+		: FKeyEvent(InKey, InModifierKeys, InDeviceId, bInIsRepeat, InCharacterCode, InKeyCode, InOptionalSlateUserIndex)
 		, AnalogValue(InAnalogValue)
 	{ }
 

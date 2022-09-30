@@ -6019,7 +6019,8 @@ bool FSlateApplication::OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlat
 	TOptional<int32> UserIndex = GetUserIndexForInputDevice(InputDeviceId);
 	if (UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerAnalog(KeyName=%s,InputDeviceId=%d,AnalogValue=%f) key is invalid"), *KeyName.ToString(), InputDeviceId.GetId(), AnalogValue))
 	{
-		FAnalogInputEvent AnalogInputEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, false, 0, 0, AnalogValue);
+		FAnalogInputEvent AnalogInputEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, false, 0, 0, AnalogValue, UserIndex);
+		
 		return ProcessAnalogInputEvent(AnalogInputEvent);
 	}
 	return false;
@@ -6031,7 +6032,8 @@ bool FSlateApplication::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName
 	TOptional<int32> UserIndex = GetUserIndexForInputDevice(InputDeviceId);
 	if (UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerButtonPressed(KeyName=%s,InputDeviceId=%d,IsRepeat=%b) key is invalid"), *KeyName.ToString(), InputDeviceId.GetId(), IsRepeat))
 	{
-		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, IsRepeat, 0, 0);
+		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, IsRepeat, 0, 0, UserIndex);
+		
 		return ProcessKeyDownEvent(KeyEvent);
 	}
 	return false;
@@ -6043,7 +6045,8 @@ bool FSlateApplication::OnControllerButtonReleased(FGamepadKeyNames::Type KeyNam
 	TOptional<int32> UserIndex = GetUserIndexForInputDevice(InputDeviceId);
 	if (UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerButtonReleased(KeyName=%s,InputDeviceId=%d,IsRepeat=%b) key is invalid"), *KeyName.ToString(), InputDeviceId.GetId(), IsRepeat))
 	{
-		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, IsRepeat, 0, 0);
+		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, IsRepeat, 0, 0, UserIndex);
+		
 		return ProcessKeyUpEvent(KeyEvent);
 	}
 	return false;
