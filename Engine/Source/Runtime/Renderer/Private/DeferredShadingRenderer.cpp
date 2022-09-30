@@ -2994,6 +2994,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		bRayTracingSceneReady = true;
 	}
+
+	/** Should be called somewhere before "WaitForRayTracingScene" */
+	SetupRayTracingLightDataForViews(GraphBuilder);
 #endif
 
 	if (!bHasRayTracedOverlay && !LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags))
@@ -3145,11 +3148,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, DBufferTextures, Views);
 		Strata::AddStrataDBufferPass(GraphBuilder, SceneTextures, DBufferTextures, Views);
 	}
-
-#if RHI_RAYTRACING
-	/** Should be called somewhere before "WaitForRayTracingScene" */
-	SetupRayTracingLightDataForViews(GraphBuilder);
-#endif // RHI_RAYTRACING
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
 	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
