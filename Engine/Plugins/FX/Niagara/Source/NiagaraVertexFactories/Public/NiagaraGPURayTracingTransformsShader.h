@@ -52,11 +52,15 @@ class NIAGARAVERTEXFACTORIES_API FNiagaraGPURayTracingTransformsCS : public FGlo
 		SHADER_PARAMETER(FVector4f, MeshRotation)
 
 		SHADER_PARAMETER(FMatrix44f,	LocalTransform)
+		SHADER_PARAMETER(FVector3f,		LocalTransformTile)
 
 		SHADER_PARAMETER_SRV(Buffer<float>,	ParticleDataFloatBuffer)
 		//SHADER_PARAMETER_SRV(Buffer<half>,	ParticleDataHalfBuffer)
 		SHADER_PARAMETER_SRV(Buffer<int>,	ParticleDataIntBuffer)
 		SHADER_PARAMETER_SRV(Buffer<uint>, GPUInstanceCountBuffer)
+
+		SHADER_PARAMETER(FVector3f,	ViewTilePosition)
+		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
 
 		SHADER_PARAMETER_UAV(RWStructuredBuffer<float3x4>, TLASTransforms)
 	END_SHADER_PARAMETER_STRUCT()

@@ -35,11 +35,15 @@ float3	MeshScale;
 float4	MeshRotation;
 
 float4x4	LocalTransform;
+float3		LocalTransformTile;
 
 Buffer<float>	ParticleDataFloatBuffer;
 //Buffer<half>	ParticleDataHalfBuffer;
 Buffer<int>		ParticleDataIntBuffer;
 Buffer<uint>	GPUInstanceCountBuffer;
+
+float3 ViewTilePosition;
+float3 RelativePreViewTranslation;
 
 // Transforms are float3x4 row-major matrices stored as 3 float4
 // because of FXC matrix packing issues when using StructuredBuffer<float3x4>
@@ -93,18 +97,22 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 	float4x4 InstanceTransformTransposed = 0;
 	if (InstanceIndex < GPUNumInstances)
 	{
-		float3 InstanceSimPosition = SafeGetVec3(PositionDataOffset, InstanceIndex, DefaultPosition);
-		// LWC_TODO: Precision loss
-		float3 InstancePosition = bLocalSpace ? InstanceSimPosition : LWCHackToFloat(MakeLWCVector3(SystemLWCTile, InstanceSimPosition));
-		float4 InstanceRotation = NiagaraQuatMul(SafeGetVec4(RotationDataOffset, InstanceIndex, DefaultRotation), MeshRotation);
-		float3 InstanceScale    = SafeGetVec3(ScaleDataOffset, InstanceIndex, DefaultScale) * MeshScale;
+		float3 InstancePosition	= SafeGetVec3(PositionDataOffset, InstanceIndex, DefaultPosition);
+		float4 InstanceRotation	= NiagaraQuatMul(SafeGetVec4(RotationDataOffset, InstanceIndex, DefaultRotation), MeshRotation);
+		float3 InstanceScale	= SafeGetVec3(ScaleDataOffset, InstanceIndex, DefaultScale) * MeshScale;
 
-		float4x4 InstanceTransform = NiagaraComposeTransformMatrix(InstanceScale, NiagaraQuatTo3x3(InstanceRotation), InstancePosition);
-
-		if (bLocalSpace == 1)
+		FLWCMatrix InstanceTransform;
+		if (bLocalSpace)
 		{
-			InstanceTransform = mul(InstanceTransform, LocalTransform);
+			float4x4 TempTrans = NiagaraComposeTransformMatrix(InstanceScale, NiagaraQuatTo3x3(InstanceRotation), InstancePosition);
+			TempTrans = mul(TempTrans, LocalTransform);
+			InstanceTransform = MakeLWCMatrix(LocalTransformTile, TempTrans);
 		}
+		else
+		{
+			InstanceTransform = NiagaraComposeTransformMatrix(InstanceScale, NiagaraQuatTo3x3(InstanceRotation), MakeLWCVector3(SystemLWCTile, InstancePosition));
+		}
+
 
 		uint bInstanceValid = 1;
 		if ( RenderVisibilityOffset != -1 )
@@ -123,7 +131,16 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 
 		if ( bInstanceValid )
 		{
-			InstanceTransformTransposed = transpose(InstanceTransform);
+			FLWCVector3 PreViewTranslation = MakeLWCVector3(ViewTilePosition, RelativePreViewTranslation);
+			float3 MatrixTrans = LWCToFloat(LWCAdd(LWCGetOrigin(InstanceTransform), PreViewTranslation));
+			float3x3 MatrixRot = transpose(LWCToFloat3x3(InstanceTransform));
+
+			InstanceTransformTransposed[0].xyz = MatrixRot[0];
+			InstanceTransformTransposed[1].xyz = MatrixRot[1];
+			InstanceTransformTransposed[2].xyz = MatrixRot[2];
+			InstanceTransformTransposed[0].w = MatrixTrans.x;
+			InstanceTransformTransposed[1].w = MatrixTrans.y;
+			InstanceTransformTransposed[2].w = MatrixTrans.z;
 		}
 	}
 	TLASTransforms[InstanceIndex * 3 + 0] = InstanceTransformTransposed[0];
