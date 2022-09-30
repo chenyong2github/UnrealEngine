@@ -425,7 +425,7 @@ private:
 
 	/** only ask to fix the root height once, then warn thereafter (don't nag) */
 	UPROPERTY()
-	TSet<USkeletalMesh*> MeshesAskedToFixRootHeightFor;
+	TSet<TObjectPtr<USkeletalMesh>> MeshesAskedToFixRootHeightFor;
 #endif
 	
 private:
