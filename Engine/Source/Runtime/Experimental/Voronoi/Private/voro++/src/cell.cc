@@ -16,6 +16,10 @@
 #include "config.hh"
 #include "common.hh"
 #include "cell.hh"
+#include "HAL/PlatformMisc.h"
+
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 namespace voro {
 
@@ -2222,3 +2226,4 @@ template void voronoicell_base::check_memory_for_copy(voronoicell&,voronoicell_b
 template void voronoicell_base::check_memory_for_copy(voronoicell_neighbor&,voronoicell_base*);
 
 }
+PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
