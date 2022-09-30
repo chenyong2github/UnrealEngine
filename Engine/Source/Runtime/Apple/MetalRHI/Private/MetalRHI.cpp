@@ -22,6 +22,7 @@
 #include "MetalLLM.h"
 #include "Engine/RendererSettings.h"
 #include "MetalTransitionData.h"
+#include "EngineGlobals.h"
 
 DEFINE_LOG_CATEGORY(LogMetal)
 
