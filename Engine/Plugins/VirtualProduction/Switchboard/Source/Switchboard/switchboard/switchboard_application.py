@@ -87,7 +87,7 @@ class OscServer:
 class MultiUserApplication:
     def __init__(self):
         self.lock = threading.Lock()
-        self.process: Optional[subprocess.Popen] = None
+        self._process: Optional[subprocess.Popen] = None
 
         # Application Options
         self.concert_ignore_cl = False
@@ -111,6 +111,13 @@ class MultiUserApplication:
             return f'-UDPMESSAGING_TRANSPORT_UNICAST="{endpoint}"'
         return ''
 
+    @property
+    def process(self):
+        if self._process and (self._process.poll() is None):
+            return self._process
+        else:
+            return self.poll_process()
+
     def poll_process(self):
         # Aside from this task_name, PollProcess is stateless,
         # and we'd like to pick up on name changes.
@@ -132,7 +139,7 @@ class MultiUserApplication:
             cmdline = ''
             if sys.platform.startswith('win'):
                 if CONFIG.MUSERVER_SLATE_MODE.get_value():
-                    cmdline = f'start /b "Multi User Server" "{self.exe_path()}"'
+                    cmdline = f'{self.exe_path()}'
                 else:
                     cmdline = f'start "Multi User Server" "{self.exe_path()}"'
             else:
@@ -159,39 +166,42 @@ class MultiUserApplication:
                 cmdline += f' {" ".join(args)}'
 
             LOGGER.debug(cmdline)
-            self.process = subprocess.Popen(
+            self._process = subprocess.Popen(
                 cmdline, shell=True,
                 startupinfo=sb_utils.get_hidden_sp_startupinfo())
 
             return True
 
     def terminate(self, bypolling=False):
-        if not bypolling and self.process:
-            self.process.terminate()
+        if not bypolling and self._process:
+            self._process.terminate()
         else:
             self.poll_process().kill()
 
+    FIND_IP_RE = re.compile(
+        r'-UDPMESSAGING_TRANSPORT_UNICAST="(\d+.\d+.\d+.\d+:\d+)"',
+        re.IGNORECASE)
+    FIND_NAME_RE = re.compile(
+        r'-CONCERTSERVER="([A-Za-z0-9_]+)"', re.IGNORECASE)
+
     def extract_process_info(self):
-        pid = self.poll_process().get_pid()
-        command_line = self.poll_process().get_command_line()
+        pid = self.process.pid
+        command_line = str(self.process.args)
+
         if command_line == '' or pid == self._running_pid:
             return
-
-        find_ip_re =  re.compile( r'-UDPMESSAGING_TRANSPORT_UNICAST="(\d+.\d+.\d+.\d+:\d+)"')
-        find_name_re = re.compile(r'-CONCERTSERVER="([A-Za-z0-9_]+)"')
 
         self.clear_process_info()
         self._running_pid = pid
         try:
-            ip_match = find_ip_re.search(command_line)
-            name_match = find_name_re.search(command_line)
+            ip_match = self.FIND_IP_RE.search(command_line)
+            name_match = self.FIND_NAME_RE.search(command_line)
             if ip_match:
                 self._running_endpoint = ip_match.group(1)
             if name_match:
                 self._running_name = name_match.group(1)
         except:
             pass
-
 
     def validate_process(self):
         if self._running_pid is None:
@@ -227,7 +237,7 @@ class MultiUserApplication:
         self._running_pid = None
 
     def is_running(self):
-        if self.poll_process().poll() is None:
+        if self.process.poll() is None:
             self.extract_process_info()
             return True
 

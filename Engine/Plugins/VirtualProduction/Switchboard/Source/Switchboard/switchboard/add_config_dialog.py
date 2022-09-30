@@ -75,7 +75,7 @@ class AddConfigDialog(QtWidgets.QDialog):
 
         self.setWindowTitle("Add new Switchboard Configuration")
 
-        self.form_layout =  QtWidgets.QFormLayout()
+        self.form_layout = QtWidgets.QFormLayout()
 
         # Path to this configuration file
 
@@ -455,7 +455,16 @@ class AddConfigDialog(QtWidgets.QDialog):
                 # Relying on wmic for this. Another option is to use psutil which is cross-platform, and slower.
                 cmd = f'wmic process where caption="{UEname}" get commandline'
 
-                for line in subprocess.check_output(cmd, startupinfo=sb_utils.get_hidden_sp_startupinfo()).decode().splitlines():
+                try:
+                    commandlines = subprocess.check_output(
+                        cmd, startupinfo=sb_utils.get_hidden_sp_startupinfo()
+                        ).decode().splitlines()
+                except Exception as exc:
+                    LOGGER.error('Exception polling Unreal processes',
+                                 exc_info=exc)
+                    continue
+
+                for line in commandlines:
                     if UEname.lower() not in line.lower():
                         continue
 
