@@ -733,6 +733,7 @@ const TArray<FNiagaraParameterPanelItem>& INiagaraParameterPanelViewModel::GetCa
 	return CachedViewedItems;
 }
 
+
 void INiagaraParameterPanelViewModel::SelectParameterItemByName(const FName ParameterName, const bool bRequestRename)
 {
 	if (bRequestRename)
@@ -755,11 +756,28 @@ void INiagaraParameterPanelViewModel::SelectParameterItemByName(const FName Para
 		}
 	}
 
+	if (IncludeViewItemsInSelectParameterItem() && !FoundScriptVariable)
+	{
+		const TArray < FNiagaraParameterPanelItem>& CachedItems = GetCachedViewedParameterItems();
+		for (const FNiagaraParameterPanelItem& Item : CachedItems)
+		{
+			if (Item.GetVariable().GetName() == ParameterName)
+			{
+				FoundScriptVariable = (UNiagaraScriptVariable*)Item.ScriptVariable;
+				break;
+			}
+		}
+	}
+
+
 	const TSharedPtr<FNiagaraObjectSelection>& Selection = GetVariableObjectSelection();
 	if (Selection.IsValid() && FoundScriptVariable)
 	{
 		Selection->SetSelectedObject(FoundScriptVariable);
 	}
+
+
+	OnINiagaraParameterPanelViewModelSelectionChanged(FoundScriptVariable);
 
 	TSharedPtr<INiagaraParameterPanelViewModel> MasterVM = MasterParameterPanelViewModel.Pin();
 	if (MasterVM.IsValid())
@@ -1015,8 +1033,25 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 }
 
 
+void FNiagaraSystemToolkitParameterPanelViewModel::OnINiagaraParameterPanelViewModelSelectionChanged(UNiagaraScriptVariable* InVar)
+{
+
+	if (InVar)
+	{
+		SelectedVariable = InVar->Variable;
+	}
+	else
+	{
+		VariableObjectSelection->ClearSelectedObjects();
+		SelectedVariable = FNiagaraVariable();
+	}
+	
+	InvalidateCachedDependencies();
+}
+
 void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const
 {
+	SelectedVariable = SelectedItem.GetVariable();
 	bool bFound = false;
 	for (const UNiagaraGraph* Graph : GetEditableGraphsConst())
 	{
@@ -1029,20 +1064,13 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterItemSelected(const
 		}
 	}
 
-	if (bFound && SystemViewModel.IsValid())
+	if (!bFound)
 	{
-		if (SystemViewModel->GetSystemStackViewModel())
-			SystemViewModel->GetSystemStackViewModel()->InvalidateCachedParameterUsage();
-
-		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleVM : SystemViewModel->GetEmitterHandleViewModels())
-		{
-			UNiagaraStackViewModel* EmitterStackViewModel = EmitterHandleVM->GetEmitterStackViewModel();
-			if (EmitterStackViewModel)
-			{
-				EmitterStackViewModel->InvalidateCachedParameterUsage();
-			}
-		}
+		VariableObjectSelection->ClearSelectedObjects();
 	}
+
+	InvalidateCachedDependencies();
+
 }
 
 bool FNiagaraSystemToolkitParameterPanelViewModel::IsVariableSelected(FNiagaraVariableBase& InVar) const
@@ -1059,6 +1087,10 @@ bool FNiagaraSystemToolkitParameterPanelViewModel::IsVariableSelected(FNiagaraVa
 			}
 		}
 
+	}
+	if (IncludeViewItemsInSelectParameterItem() && InVar == SelectedVariable)
+	{
+		return true;
 	}
 
 	return false;
@@ -2176,11 +2208,16 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 				FVersionedNiagaraEmitterData* ED = EmitterVMS.Get().GetEmitterHandle()->GetEmitterData();
 				if (ED)
 				{
+					FNiagaraAliasContext ResolveAliasesContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript);
+					ResolveAliasesContext.ChangeEmitterNameToEmitter(EmitterVMS.Get().GetEmitterHandle()->GetUniqueInstanceName());
+					
 					ED->ForEachEnabledRenderer(
 						[&](UNiagaraRendererProperties* RenderProperties)
 						{
 							for (FNiagaraVariableBase BoundAttribute : RenderProperties->GetBoundAttributes())
 							{
+								BoundAttribute = FNiagaraUtilities::ResolveAliases(BoundAttribute, ResolveAliasesContext);
+
 								if (FNiagaraParameterPanelItem* ItemPtr = VisitedParameterToItemMap.Find(BoundAttribute))
 								{
 									// This variable has already been registered, increment the reference count. Otherwise, it is 

@@ -70,6 +70,7 @@ public:
 	bool IsExcludedFromScalability() const;
 	bool IsOwningEmitterExcludedFromScalability() const;
 
+	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 protected:
 	virtual void FinalizeInternal() override;
 

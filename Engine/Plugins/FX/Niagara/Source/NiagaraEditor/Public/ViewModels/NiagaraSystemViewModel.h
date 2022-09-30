@@ -431,7 +431,7 @@ public:
 	INiagaraParameterPanelViewModel* GetParameterPanelViewModel() const {
 		return ParameterPanelViewModel.Pin().Get();
 	}
-	void SetParameterPanelViewModel(TSharedPtr<INiagaraParameterPanelViewModel> InVM) { ParameterPanelViewModel = InVM; }
+	void SetParameterPanelViewModel(TSharedPtr<INiagaraParameterPanelViewModel> InVM);
 
 	UNiagaraSystemEditorDocumentsViewModel* GetDocumentViewModel() { return EditorDocumentsViewModel;};
 
@@ -492,6 +492,9 @@ private:
 
 	/** Called whenever a property on the emitter changes. */
 	void EmitterPropertyChanged();
+
+	/** Called whenever we need to invalidate the parameter cache from the parameter panel updates*/
+	void InvalidateCachedParams();
 
 	/** 
 	 * Called whenever a parameter store owned by the system changes.

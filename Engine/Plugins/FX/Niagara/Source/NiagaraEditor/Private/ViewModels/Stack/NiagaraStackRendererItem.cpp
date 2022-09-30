@@ -55,6 +55,51 @@ void UNiagaraStackRendererItem::FinalizeInternal()
 	Super::FinalizeInternal();
 }
 
+const UNiagaraStackRendererItem::FCollectedUsageData& UNiagaraStackRendererItem::GetCollectedUsageData() const
+{
+
+	if (CachedCollectedUsageData.IsSet() == false)
+	{
+		CachedCollectedUsageData = FCollectedUsageData();
+
+		if (RendererProperties.IsValid())
+		{
+			TArray<FNiagaraVariable> BoundAttribs = RendererProperties->GetBoundAttributes();
+			TSharedRef<FNiagaraSystemViewModel> SystemVM = GetSystemViewModel();
+			INiagaraParameterPanelViewModel* ParamVM = SystemVM->GetParameterPanelViewModel();
+
+			FNiagaraAliasContext ResolveAliasesContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript);
+			
+			if (GetEmitterViewModel().IsValid())
+			{
+				TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleVM = SystemVM->GetEmitterHandleViewModelForEmitter(GetEmitterViewModel().Get()->GetEmitter());
+				if (EmitterHandleVM.IsValid() && EmitterHandleVM->GetEmitterHandle())
+				{
+					ResolveAliasesContext.ChangeEmitterNameToEmitter(EmitterHandleVM->GetEmitterHandle()->GetUniqueInstanceName());
+				}
+			}
+
+			if (ParamVM)
+			{
+				bool bFoundMatch = false;
+				for (FNiagaraVariable Var : BoundAttribs)
+				{			
+					Var = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
+					bFoundMatch = ParamVM->IsVariableSelected(Var);
+					if (bFoundMatch)
+					{
+						break;
+					}
+				}
+
+				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = bFoundMatch;
+			}
+		}
+	}
+
+	return CachedCollectedUsageData.GetValue();
+}
+
 TArray<FNiagaraVariable> UNiagaraStackRendererItem::GetMissingVariables(UNiagaraRendererProperties* RendererProperties, const FVersionedNiagaraEmitterData* EmitterData)
 {
 	TArray<FNiagaraVariable> MissingAttributes;

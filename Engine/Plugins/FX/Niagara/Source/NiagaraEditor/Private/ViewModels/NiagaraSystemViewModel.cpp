@@ -62,6 +62,7 @@
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
@@ -176,6 +177,34 @@ void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
 	FEdGraphUtilities::ExportNodesToText(ExportObjs, ExportText);
 }
 
+void FNiagaraSystemViewModel::SetParameterPanelViewModel(TSharedPtr<INiagaraParameterPanelViewModel> InVM) 
+{
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel.Pin()->GetOnInvalidateCachedDependencies().RemoveAll(this);
+	}
+
+	ParameterPanelViewModel = InVM;
+
+	if (InVM.IsValid())
+	{
+		InVM->GetOnInvalidateCachedDependencies().AddRaw(this, &FNiagaraSystemViewModel::InvalidateCachedParams);
+	}
+}
+
+void FNiagaraSystemViewModel::InvalidateCachedParams()
+{
+	GetSystemStackViewModel()->InvalidateCachedParameterUsage();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleVM : GetEmitterHandleViewModels())
+	{
+		UNiagaraStackViewModel* EmitterStackViewModel = EmitterHandleVM->GetEmitterStackViewModel();
+		if (EmitterStackViewModel)
+		{
+			EmitterStackViewModel->InvalidateCachedParameterUsage();
+		}
+	}
+}
+
 void FNiagaraSystemViewModel::Cleanup()
 {
 	if (SystemInstance)
@@ -284,6 +313,11 @@ void FNiagaraSystemViewModel::Cleanup()
 	if (SystemGraphSelectionViewModel != nullptr)
 	{
 		SystemGraphSelectionViewModel = nullptr;
+	}
+
+	if (ParameterPanelViewModel.IsValid())
+	{
+		ParameterPanelViewModel.Pin()->GetOnInvalidateCachedDependencies().RemoveAll(this);
 	}
 
 	System = nullptr;
