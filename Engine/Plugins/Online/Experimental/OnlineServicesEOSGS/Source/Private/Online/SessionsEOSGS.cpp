@@ -309,6 +309,16 @@ void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcc
 	}
 }
 
+TOnlineResult<FSetPresenceSession> FSessionsEOSGS::SetPresenceSession(FSetPresenceSession::Params&& Params)
+{
+	return TOnlineResult<FSetPresenceSession>(Errors::NotImplemented());
+}
+
+TOnlineResult<FClearPresenceSession> FSessionsEOSGS::ClearPresenceSession(FClearPresenceSession::Params&& Params)
+{
+	return TOnlineResult<FClearPresenceSession>(Errors::NotImplemented());
+}
+
 TFuture<TOnlineResult<FCreateSession>> FSessionsEOSGS::CreateSessionImpl(const FCreateSession::Params& Params)
 {
 	// LAN Sessions
