@@ -946,7 +946,7 @@ void FCustomizableObjectPopulationClassEditor::GeneratePopulationClassInstances(
 
 	TSharedRef<SSelectPopulationClassFolderDlg> FolderDlg =
 		SNew(SSelectPopulationClassFolderDlg)
-		.DefaultAssetPath(LOCTEXT("", ""))
+		.DefaultAssetPath(FText())
 		.DefaultFileName(DefaultFileName);
 
 	// Popup window management

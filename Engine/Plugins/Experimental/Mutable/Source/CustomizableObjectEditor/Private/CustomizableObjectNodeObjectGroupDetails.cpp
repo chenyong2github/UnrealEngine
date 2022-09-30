@@ -5,27 +5,8 @@
 #include "CustomizableObjectEditor.h"
 #include "CustomizableObjectEditorModule.h"
 #include "PropertyCustomizationHelpers.h"
-//#include "SPropertyEditorAsset.h"
-//#include "CustomizableObjectEditorUtilities.h"
-//
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-//#include "LevelEditor.h"
-//#include "LevelEditorActions.h"
-//
-//#include "Widgets/Input/SButton.h"
-//#include "Widgets/Text/STextBlock.h"
-//
-//#include "Runtime/Launch/Resources/Version.h"
-//#include "Engine/SkeletalMesh.h"
-//#include "Widgets/Input/STextComboBox.h"
-//#include "Math/Vector4.h"
-//#include "Math/Vector.h"
-//
-//#include "Runtime/Launch/Resources/Version.h"
-//#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION > 22) || ENGINE_MAJOR_VERSION >= 5
-//#include "HAL/PlatformApplicationMisc.h"
-//#endif
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectGroupDetails"

@@ -41,7 +41,7 @@ public:
 	FLayoutEditorCommands() : TCommands<FLayoutEditorCommands>
 	(
 		"LayoutEditorCommands", // Context name for fast lookup
-		NSLOCTEXT( "Contexts", "LayoutEditorCommands", "Layout Editor" ), // Localized context name for displaying
+		NSLOCTEXT( "CustomizableObjectEditor", "LayoutEditorCommands", "Layout Editor" ), // Localized context name for displaying
 		NAME_None, // Parent
 		FCustomizableObjectEditorStyle::GetStyleSetName()
 	)

@@ -1453,8 +1453,8 @@ TSharedPtr<SWidget> SMutableCodeViewer::OnTreeContextMenuOpening()
 		if (TreeView->GetSelectedItems().Num() == 1)
 		{
 			MenuBuilder.AddMenuEntry(
-		LOCTEXT("Set_as_search_operation_type","Set as search Operation"),
-		LOCTEXT("Set_as_search_operation_type_tip", "Sets the type of this operation as the type to be looking for when searching for operations on the tree view"),
+				LOCTEXT("Set_as_search_operation_type","Set as search Operation"),
+				LOCTEXT("Set_as_search_operation_type_Tooltip", "Sets the type of this operation as the type to be looking for when searching for operations on the tree view"),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SMutableCodeViewer::OnSelectedOperationTypeFromTree)
 				)	
@@ -1464,8 +1464,8 @@ TSharedPtr<SWidget> SMutableCodeViewer::OnTreeContextMenuOpening()
 		MenuBuilder.AddMenuSeparator();
 		
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Expand_Selected", "Expand Selected Operation"),
-			LOCTEXT("Expand_Selected", "Expands only the selected Operation and leaves the other as they are."),
+			LOCTEXT("Code_Expand_Selected", "Expand Selected Operation"),
+			LOCTEXT("Code_Expand_Selected_Tooltip", "Expands only the selected Operation and leaves the other as they are."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SMutableCodeViewer::TreeExpandSelected)
 			)
@@ -1474,8 +1474,8 @@ TSharedPtr<SWidget> SMutableCodeViewer::OnTreeContextMenuOpening()
 
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Expand_Instance", "Expand Instance-Level Operations"),
-		LOCTEXT("Expand_Instance", "Expands all the operations in the tree that are instance operations (not images, meshes, booleans, etc.)."),
+		LOCTEXT("Code_Expand_Instance", "Expand Instance-Level Operations"),
+		LOCTEXT("Code_Expand_Instance_Tooltip", "Expands all the operations in the tree that are instance operations (not images, meshes, booleans, etc.)."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(this, &SMutableCodeViewer::TreeExpandInstance)
 			//, FCanExecuteAction::CreateSP(this, &SMutableCodeViewer::HasAnyItemInPalette)
@@ -1483,8 +1483,8 @@ TSharedPtr<SWidget> SMutableCodeViewer::OnTreeContextMenuOpening()
 	);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Expand_Unique", "Expand All Unique Operations"),
-		LOCTEXT("Expand_Unique", "Expands all the operations in the tree that have not been expanded yet."),
+		LOCTEXT("Code_Expand_Unique", "Expand All Unique Operations"),
+		LOCTEXT("Code_Expand_Unique_Tooltip", "Expands all the operations in the tree that have not been expanded yet."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(this, &SMutableCodeViewer::TreeExpandUnique)
 		)

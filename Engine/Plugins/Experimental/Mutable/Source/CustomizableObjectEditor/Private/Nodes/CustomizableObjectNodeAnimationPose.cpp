@@ -118,7 +118,6 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 	ExtractionContext.bExtractRootMotion = false;
 	ExtractionContext.CurrentTime = 0.0f;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 24) || ENGINE_MAJOR_VERSION >= 5
 	OutCurve.UIDToArrayIndexLUT = AnimCurves.UIDToArrayIndexLUT;
 
 	const TArray<FSmartName>& PoseNames = PoseAsset->GetPoseNames();
@@ -127,12 +126,6 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 	PoseAsset->GetAnimationPose(SecondOutAnimData, ExtractionContext);
 	OutPose = OutAnimData.GetPose();
 	OutCurve = OutAnimData.GetCurve();
-#else
-	OutCurve.UIDList = AnimCurves.UIDList;
-
-	ExtractionContext.PoseCurves.Add(1.0f);
-	PoseAsset->GetAnimationPose(OutPose, OutCurve, ExtractionContext);
-#endif
 
 	const TArray<FTransform, FAnimStackAllocator>& ArrayPoseBoneTransform = OutPose.GetBones();
 	const TArray<FBoneIndexType>& ArrayPoseBoneIndices = OutPose.GetBoneContainer().GetBoneIndicesArray();

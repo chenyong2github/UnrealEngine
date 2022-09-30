@@ -80,9 +80,7 @@
 #include "Widgets/Layout/SScrollBar.h"
 
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 #include "HAL/PlatformApplicationMisc.h"
-#endif
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
@@ -2007,11 +2005,7 @@ void FCustomizableObjectEditor::CopySelectedNodes()
 
 	FEdGraphUtilities::ExportNodesToText(SelectedNodes, /*out*/ ExportedText);
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
-#else
-	FPlatformMisc::ClipboardCopy(*ExportedText);
-#endif
 
 	// Make sure Material remains the owner of the copied nodes
 	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
@@ -2062,11 +2056,7 @@ void FCustomizableObjectEditor::PasteNodesHere(const FVector2D& Location)
 
 	// Grab the text to paste from the clipboard.
 	FString TextToImport;
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
-#else
-	FPlatformMisc::ClipboardPaste(TextToImport);
-#endif
 
 	// Import the nodes
 	TSet<UEdGraphNode*> PastedNodes;
@@ -2167,11 +2157,7 @@ bool FCustomizableObjectEditor::CanPasteNodes() const
 {
 	FString ClipboardContent;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
-#else
-	FPlatformMisc::ClipboardPaste(ClipboardContent);
-#endif
 
 	return FEdGraphUtilities::CanImportNodesFromText(CustomizableObject->Source, ClipboardContent);
 }
@@ -2873,9 +2859,7 @@ void FCustomizableObjectEditor::UpdateObjectProperties()
 {
 	if (CustomizableObjectDetailsView.IsValid())
 	{
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 		CustomizableObjectDetailsView->ForceRefresh();
-#endif
 	}
 }
 

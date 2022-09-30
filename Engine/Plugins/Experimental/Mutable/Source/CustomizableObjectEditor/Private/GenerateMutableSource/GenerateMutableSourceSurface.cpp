@@ -946,7 +946,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				CopyMaterialParentMaterialNode = ParentMaterialCopyNodeCast->GetMaterialNode();
 				if (!CopyMaterialParentMaterialNode)
 				{
-					GenerationContext.Compiler->CompilerLog(LOCTEXT("ParentMissing", "Base Material not set (or not found)."), ParentMaterialCopyNodeCast);
+					GenerationContext.Compiler->CompilerLog(LOCTEXT("BaseMissing", "Base Material not set (or not found)."), ParentMaterialCopyNodeCast);
 					return;
 				}
 			}
@@ -1157,7 +1157,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 				if (!Layouts.IsValidIndex(TypedNodeRemBlocks->ParentLayoutIndex))
 				{
-					GenerationContext.Compiler->CompilerLog(LOCTEXT("Invalid layout", "Node refers to an invalid texture layout. Add a layout to the selected parent material, then select some block(s)."), Node);
+					GenerationContext.Compiler->CompilerLog(LOCTEXT("RemoveMeshNode Invalid layout", "Node refers to an invalid texture layout. Add a layout to the selected parent material, then select some block(s)."), Node);
 					UE_LOG(LogMutable, Warning, TEXT("In object [%s] UCustomizableObjectNodeRemoveMeshBlocks refers to an invalid texture layout index %d. Parent node has %d layouts."),
 						*GenerationContext.Object->GetName(), TypedNodeRemBlocks->ParentLayoutIndex, Layouts.Num());
 				}
@@ -1176,7 +1176,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 							}
 							else
 							{
-								GenerationContext.Compiler->CompilerLog(LOCTEXT("InvalidLayoutBlock", "Node refers to an invalid layout block."), Node);
+								GenerationContext.Compiler->CompilerLog(LOCTEXT("RemoveMeshNode InvalidLayoutBlock", "Node refers to an invalid layout block."), Node);
 								UE_LOG(LogMutable, Warning, TEXT("In object [%s] UCustomizableObjectNodeRemoveMeshBlocks refers to an invalid layout block id %s. Parent node has %d blocks."),
 									*GenerationContext.Object->GetName(), *Id.ToString(), Layout->Blocks.Num());
 							}
@@ -1258,7 +1258,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 					if (!Layouts.IsValidIndex(TypedNodeEdit->ParentLayoutIndex))
 					{
-						GenerationContext.Compiler->CompilerLog(LOCTEXT("Invalid layout", "Node refers to an invalid texture layout."), Node);
+						GenerationContext.Compiler->CompilerLog(LOCTEXT("EditNode Invalid layout", "Node refers to an invalid texture layout."), Node);
 						UE_LOG(LogMutable, Warning, TEXT("In object [%s] UCustomizableObjectNodeEditMaterial refers to an invalid texture layout index %d. Parent node has %d layouts."),
 							*GenerationContext.Object->GetName(), TypedNodeEdit->ParentLayoutIndex, Layouts.Num());
 					}
@@ -1279,7 +1279,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 									}
 									else
 									{
-										GenerationContext.Compiler->CompilerLog(LOCTEXT("InvalidLayoutBlock", "Node refers to an invalid layout block."), Node);
+										GenerationContext.Compiler->CompilerLog(LOCTEXT("EditNode InvalidLayoutBlock", "Node refers to an invalid layout block."), Node);
 										UE_LOG(LogMutable, Warning, TEXT("In object [%s] UCustomizableObjectNodeEditMaterial refers to an invalid layout block id %s. Parent node has %d blocks."),
 											*GenerationContext.Object->GetName(), *Id.ToString(), Layout->Blocks.Num());
 									}

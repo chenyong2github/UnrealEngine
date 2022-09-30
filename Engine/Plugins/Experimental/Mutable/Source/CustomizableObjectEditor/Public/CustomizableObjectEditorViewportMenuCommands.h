@@ -16,7 +16,7 @@ public:
 		: TCommands<FCustomizableObjectEditorViewportMenuCommands>
 		(
 			TEXT("CustomizableObjectEditorViewportMenu"), // Context name for fast lookup
-			NSLOCTEXT("Contexts", "CustomizableObjectEditorViewportMenu", "CustomizableObject Viewport Menu"), // Localized context name for displaying
+			NSLOCTEXT("CustomizableObjectEditor", "CustomizableObjectEditorViewportMenu", "CustomizableObject Viewport Menu"), // Localized context name for displaying
 			NAME_None, // Parent context name.  
 			FCustomizableObjectEditorStyle::GetStyleSetName() // Icon Style Set
 			)

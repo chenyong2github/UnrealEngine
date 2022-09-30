@@ -38,19 +38,11 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 	Node = nullptr;
 	DetailBuilderPtr = &DetailBuilder;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
 	if (DetailsView->GetSelectedObjects().Num())
 	{
 		Node = Cast<UCustomizableObjectNodeMeshClipMorph>(DetailsView->GetSelectedObjects()[0].Get());
 	}
-#else
-	const IDetailsView& DetailsView = DetailBuilder.GetDetailsView();
-	if (DetailsView.GetSelectedObjects().Num())
-	{
-		Node = Cast<UCustomizableObjectNodeMeshClipMorph>(DetailsView.GetSelectedObjects()[0].Get());
-	}
-#endif
 
 	IDetailCategoryBuilder& BlocksCategory = DetailBuilder.EditCategory("MeshToClipAndMorph");
 	DetailBuilder.HideProperty("BoneName");

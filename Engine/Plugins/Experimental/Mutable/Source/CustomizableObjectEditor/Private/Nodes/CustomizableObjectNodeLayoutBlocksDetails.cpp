@@ -26,19 +26,11 @@ TSharedRef<IDetailCustomization> FCustomizableObjectNodeLayoutBlocksDetails::Mak
 void FCustomizableObjectNodeLayoutBlocksDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 {
 	Node = 0;
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
 	if (DetailsView->GetSelectedObjects().Num())
 	{
 		Node = Cast<UCustomizableObjectNodeLayoutBlocks>(DetailsView->GetSelectedObjects()[0].Get());
 	}
-#else
-	const IDetailsView& DetailsView = DetailBuilder.GetDetailsView();
-	if ( DetailsView.GetSelectedObjects().Num() )
-	{
-		Node = Cast<UCustomizableObjectNodeLayoutBlocks>( DetailsView.GetSelectedObjects()[0].Get() );
-	}
-#endif
 
 	IDetailCategoryBuilder& BlocksCategory = DetailBuilder.EditCategory( "Blocks" );
 

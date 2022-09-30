@@ -187,11 +187,7 @@ namespace UnrealConversionUtils
 		InMutableMesh->GetSurface(Surface, &FirstVertex, &VertexCount, &FirstIndex, &IndexCount);
 		FSkelMeshRenderSection& Section = Helper_GetLODRenderSections(OutSkeletalMesh, MeshLODIndex)[Surface];
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 19) || ENGINE_MAJOR_VERSION >= 5
-		// \todo: investigate. Without this 4.19 rendering crashes. 
-		// It must be initialized even in disabled sections or else they will crash
 		Section.DuplicatedVerticesBuffer.Init(1, TMap<int, TArray<int32>>());
-#endif
 			
 		if (VertexCount == 0 || IndexCount == 0)
 		{

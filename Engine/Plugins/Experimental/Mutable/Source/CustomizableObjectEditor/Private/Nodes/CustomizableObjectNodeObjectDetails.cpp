@@ -38,19 +38,11 @@ void FCustomizableObjectNodeObjectDetails::CustomizeDetails( IDetailLayoutBuilde
 	Node = nullptr;
 	DetailBuilderPtr = &DetailBuilder;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
 	if ( DetailsView->GetSelectedObjects().Num() )
 	{
 		Node = Cast<UCustomizableObjectNodeObject>( DetailsView->GetSelectedObjects()[0].Get() );
 	}
-#else
-	const IDetailsView& DetailsView = DetailBuilder.GetDetailsView();
-	if (DetailsView.GetSelectedObjects().Num())
-	{
-		Node = Cast<UCustomizableObjectNodeObject>(DetailsView.GetSelectedObjects()[0].Get());
-	}
-#endif
 
 	IDetailCategoryBuilder& StatesCategory = DetailBuilder.EditCategory("States");
 	IDetailCategoryBuilder& RuntimeParameters = DetailBuilder.EditCategory("States Runtime Parameters");

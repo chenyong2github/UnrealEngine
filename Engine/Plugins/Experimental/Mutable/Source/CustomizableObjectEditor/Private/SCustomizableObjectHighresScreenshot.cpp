@@ -195,7 +195,7 @@ void SCustomizableObjectHighresScreenshot::Construct( const FArguments& InArgs )
 					.AutoWidth()
 					[
 						SNew( SButton )
-						.ToolTipText( NSLOCTEXT("HighResScreenshot", "ScreenshotCaptureTooltop", "Take a screenshot") )
+						.ToolTipText( NSLOCTEXT("CustomizableObjectEditor", "ScreenshotCaptureTooltop", "Take a screenshot") )
 						.OnClicked( this, &SCustomizableObjectHighresScreenshot::OnCaptureClicked )
 						[
 							SNew(SImage)
@@ -261,13 +261,8 @@ void SCustomizableObjectHighresScreenshot::OnShowFloorChanged(ECheckBoxState New
 	{
 		if (NewValue == ECheckBoxState::Unchecked)
 		{
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 			ExposureLogOffsetCached = LevelViewportClient.Pin()->ExposureSettings.FixedEV100;
 			LevelViewportClient.Pin()->ExposureSettings.FixedEV100 = 0;
-#else
-			ExposureLogOffsetCached = LevelViewportClient.Pin()->ExposureSettings.LogOffset;
-			LevelViewportClient.Pin()->ExposureSettings.LogOffset = 0;
-#endif
 
 			ExposureLogFixedCached = LevelViewportClient.Pin()->ExposureSettings.bFixed;
 			LevelViewportClient.Pin()->ExposureSettings.bFixed = true;
@@ -281,21 +276,12 @@ void SCustomizableObjectHighresScreenshot::OnShowFloorChanged(ECheckBoxState New
 		}
 		else
 		{
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 			if ((LevelViewportClient.Pin()->ExposureSettings.FixedEV100 == 0) &&
 				(LevelViewportClient.Pin()->ExposureSettings.bFixed == true))
 			{
 				LevelViewportClient.Pin()->ExposureSettings.FixedEV100 = ExposureLogOffsetCached;
 				LevelViewportClient.Pin()->ExposureSettings.bFixed = ExposureLogFixedCached;
 			}
-#else
-			if ((LevelViewportClient.Pin()->ExposureSettings.LogOffset == 0) &&
-				(LevelViewportClient.Pin()->ExposureSettings.bFixed == true))
-			{
-				LevelViewportClient.Pin()->ExposureSettings.LogOffset = ExposureLogOffsetCached;
-				LevelViewportClient.Pin()->ExposureSettings.bFixed = ExposureLogFixedCached;
-			}
-#endif
 
 			LevelViewportClient.Pin()->SetFloorVisibility(FloorVisibilityCached);
 			LevelViewportClient.Pin()->SetShowGrid();
@@ -311,7 +297,6 @@ void SCustomizableObjectHighresScreenshot::RestoreViewportValues()
 	if (LevelViewportClient.IsValid())
 	{
 		// Restore exposure values if modified with the "Show / hide background" option
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 		if ((LevelViewportClient.Pin()->ExposureSettings.FixedEV100 == 0) &&
 			(LevelViewportClient.Pin()->ExposureSettings.bFixed == true) &&
 			(ExposureLogOffsetCached != -1))
@@ -319,17 +304,6 @@ void SCustomizableObjectHighresScreenshot::RestoreViewportValues()
 			LevelViewportClient.Pin()->ExposureSettings.FixedEV100 = ExposureLogOffsetCached;
 			LevelViewportClient.Pin()->ExposureSettings.bFixed = ExposureLogFixedCached;
 		}
-
-#else
-		if ((LevelViewportClient.Pin()->ExposureSettings.LogOffset == 0) &&
-			(LevelViewportClient.Pin()->ExposureSettings.bFixed == true) &&
-			(ExposureLogOffsetCached != -1))
-		{
-			LevelViewportClient.Pin()->ExposureSettings.LogOffset = ExposureLogOffsetCached;
-			LevelViewportClient.Pin()->ExposureSettings.bFixed = ExposureLogFixedCached;
-		}
-
-#endif
 
 		// Restore floor and environment mesh visibility
 		if (!LevelViewportClient.Pin()->GetEnvironmentMeshVisibility())
@@ -393,7 +367,7 @@ TWeakPtr<class SWindow> SCustomizableObjectHighresScreenshot::OpenDialog(
 		// No dialog window currently open - need to create one
 		TSharedRef<SCustomizableObjectHighresScreenshot> Dialog = SNew(SCustomizableObjectHighresScreenshot);
 		TSharedRef<SWindow> Window = SNew(SWindow)
-			.Title( NSLOCTEXT("HighResScreenshot", "HighResolutionScreenshot", "High Resolution Screenshot") )
+			.Title( NSLOCTEXT("CustomizableObjectEditor", "HighResolutionScreenshot", "High Resolution Screenshot") )
 			.ClientSize(FVector2D(484,231))
 			.SupportsMinimize(false)
 			.SupportsMaximize(false)

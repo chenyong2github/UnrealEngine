@@ -18,7 +18,7 @@
 
 FText FAssetTypeActions_CustomizableObjectPopulation::GetName() const
 {
-	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_CustomizableObjectPopulation", "Customizable Population");
+	return LOCTEXT("AssetTypeActions_CustomizableObjectPopulation", "Customizable Population");
 }
 
 

@@ -314,8 +314,8 @@ TSharedRef<SWidget> SMutableObjectViewer::GenerateCompileOptionsMenuContent()
 
 		// Texture compresssion
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("MutableEnableTextureCompression", "Enable texture compression."),
-			LOCTEXT("MutableEnableTextureCompressionTooltip", "Enable or disable the compression of textures in the mutable code compilation."),
+			LOCTEXT("Generate_MutableEnableTextureCompression", "Enable texture compression."),
+			LOCTEXT("Generate_MutableEnableTextureCompressionTooltip", "Enable or disable the compression of textures in the mutable code compilation."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]() { CompileOptions.bTextureCompression = !CompileOptions.bTextureCompression; }),
@@ -330,10 +330,10 @@ TSharedRef<SWidget> SMutableObjectViewer::GenerateCompileOptionsMenuContent()
 
 		// Optimisation level
 		CompileOptimizationStrings.Empty();
-		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationNone", "None").ToString())));
-		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationMin", "Minimal").ToString())));
-		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationMed", "Medium").ToString())));
-		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationMax", "Maximum").ToString())));
+		CompileOptimizationStrings.Add(MakeShareable(new FString(LOCTEXT("OptimizationNone", "None").ToString())));
+		CompileOptimizationStrings.Add(MakeShareable(new FString(LOCTEXT("OptimizationMin", "Minimal").ToString())));
+		CompileOptimizationStrings.Add(MakeShareable(new FString(LOCTEXT("OptimizationMed", "Medium").ToString())));
+		CompileOptimizationStrings.Add(MakeShareable(new FString(LOCTEXT("OptimizationMax", "Maximum").ToString())));
 
 		CompileOptions.OptimizationLevel = FMath::Min(CompileOptions.OptimizationLevel, CompileOptimizationStrings.Num() - 1);
 
@@ -347,8 +347,8 @@ TSharedRef<SWidget> SMutableObjectViewer::GenerateCompileOptionsMenuContent()
 
 		// Parallel compilation
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("MutableEnableParallelCompilation", "Enable compiling in multiple threads."),
-			LOCTEXT("MutableEnableParallelCompilationTooltip", "This is faster but use more memory."),
+			LOCTEXT("Generate_MutableEnableParallelCompilation", "Enable compiling in multiple threads."),
+			LOCTEXT("Generate_MutableEnableParallelCompilationTooltip", "This is faster but use more memory."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]() { CompileOptions.bUseParallelCompilation = !CompileOptions.bUseParallelCompilation; }),
@@ -360,8 +360,8 @@ TSharedRef<SWidget> SMutableObjectViewer::GenerateCompileOptionsMenuContent()
 
 		// Disk as cache
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("MutableEnableTextureCompression", "Enable compiling using the disk as memory."),
-			LOCTEXT("MutableEnableTextureCompressionTooltip", "This is very slow but supports compiling huge objects. It requires a lot of free space in the OS disk."),
+			LOCTEXT("Generate_MutableUseDisk", "Enable compiling using the disk as memory."),
+			LOCTEXT("Generate_MutableUseDiskTooltip", "This is very slow but supports compiling huge objects. It requires a lot of free space in the OS disk."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]() { CompileOptions.bUseDiskCompilation = !CompileOptions.bUseDiskCompilation; }),

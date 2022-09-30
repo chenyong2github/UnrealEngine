@@ -2836,7 +2836,7 @@ void FCustomizableObjectEditorViewportClient::ShowInstanceGeometryInformation(FC
 				InCanvas->DrawShadowedString(
 					6.0f,
 					YOffset,
-					*FText::Format(NSLOCTEXT("CustomizableObjectEditor", "UVOverlay_F", "Component {3} LOD {0} has {1} vertices and {2} triangles"),
+					*FText::Format(NSLOCTEXT("CustomizableObjectEditor", "ComponentGeometryReport", "Component {3} LOD {0} has {1} vertices and {2} triangles"),
 						FText::AsNumber(i), FText::AsNumber(NumVertices), FText::AsNumber(NumTriangles), FText::AsNumber(ComponentIndex)).ToString(),
 					GEngine->GetSmallFont(),
 					FLinearColor::White

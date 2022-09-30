@@ -582,7 +582,7 @@ void FCustomizableObjectPopulationEditor::GeneratePopulationInstances()
 
 	TSharedRef<SSelectPopulationFolderDlg> FolderDlg =
 		SNew(SSelectPopulationFolderDlg)
-		.DefaultAssetPath(LOCTEXT("", ""))
+		.DefaultAssetPath(FText())
 		.DefaultFileName(DefaultFileName);
 
 	if (FolderDlg->ShowModal() != EAppReturnType::Cancel)

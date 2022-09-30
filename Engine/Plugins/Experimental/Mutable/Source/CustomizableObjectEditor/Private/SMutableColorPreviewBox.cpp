@@ -35,4 +35,5 @@ FSlateColor SMutableColorPreviewBox::GetColor() const
 {
 	return this->Color;
 }
-#undef LOCTEXT_NAMESPACES
+
+#undef LOCTEXT_NAMESPACE

@@ -5,45 +5,6 @@ using System.IO;
 
 public class CustomizableObjectPopulationEditor : ModuleRules
 {
-	private int ReadEngineMajorVersion()
-	{
-		string line;
-
-		System.IO.StreamReader file =
-		   new System.IO.StreamReader("Runtime/Launch/Resources/Version.h");
-
-		while ((line = file.ReadLine()) != null)
-		{
-			if (line.StartsWith("#define ENGINE_MAJOR_VERSION"))
-			{
-				file.Close();
-				return int.Parse(line.Split()[2]);
-			}
-		}
-
-		file.Close();
-		return 0;
-	}
-
-	private int ReadEngineMinorVersion()
-	{
-		string line;
-
-		System.IO.StreamReader file =
-		   new System.IO.StreamReader("Runtime/Launch/Resources/Version.h");
-
-		while ((line = file.ReadLine()) != null)
-		{
-			if (line.StartsWith("#define ENGINE_MINOR_VERSION"))
-			{
-				file.Close();
-				return int.Parse(line.Split()[2]);
-			}
-		}
-
-		file.Close();
-		return 0;
-	}
 
 	public CustomizableObjectPopulationEditor(ReadOnlyTargetRules TargetRules) : base(TargetRules)
 	{
@@ -97,14 +58,6 @@ public class CustomizableObjectPopulationEditor : ModuleRules
 			}
 		);
 
-		if (ReadEngineMajorVersion() >= 4 && ReadEngineMinorVersion() >= 18)
-		{
-			PrivateDependencyModuleNames.AddRange(new string[]
-			{
-				"ApplicationCore",
-				"ToolMenus",
-			});
-		}
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {

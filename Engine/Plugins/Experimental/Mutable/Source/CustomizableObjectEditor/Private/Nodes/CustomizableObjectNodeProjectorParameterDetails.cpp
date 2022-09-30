@@ -20,9 +20,7 @@
 #include "Math/Vector.h"
 
 #include "Runtime/Launch/Resources/Version.h"
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION > 22) || ENGINE_MAJOR_VERSION >= 5
 #include "HAL/PlatformApplicationMisc.h"
-#endif
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDetails"
@@ -40,7 +38,6 @@ void FCustomizableObjectNodeProjectorParameterDetails::CustomizeDetails( IDetail
 	NodeParameter = nullptr;
 	DetailBuilderPtr = &DetailBuilder;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
 	if ( DetailsView->GetSelectedObjects().Num() )
 	{
@@ -53,20 +50,6 @@ void FCustomizableObjectNodeProjectorParameterDetails::CustomizeDetails( IDetail
 			NodeParameter = Cast<UCustomizableObjectNodeProjectorParameter>(DetailsView->GetSelectedObjects()[0].Get());
 		}
 	}
-#else
-	const IDetailsView& DetailsView = DetailBuilder.GetDetailsView();
-	if (DetailsView.GetSelectedObjects().Num())
-	{
-		if (DetailsView.GetSelectedObjects()[0].Get()->IsA(UCustomizableObjectNodeProjectorConstant::StaticClass()))
-		{
-			NodeConstant = Cast<UCustomizableObjectNodeProjectorConstant>(DetailsView.GetSelectedObjects()[0].Get());
-		}
-		else if (DetailsView.GetSelectedObjects()[0].Get()->IsA(UCustomizableObjectNodeProjectorParameter::StaticClass()))
-		{
-			NodeParameter = Cast<UCustomizableObjectNodeProjectorParameter>(DetailsView.GetSelectedObjects()[0].Get());
-		}
-	}
-#endif
 
 	IDetailCategoryBuilder& BlocksCategory = DetailBuilder.EditCategory( "Clipboard" );
 	//BlocksCategory.CategoryIcon( "ActorClassIcon.CustomizableObject" );
@@ -210,11 +193,7 @@ FReply FCustomizableObjectNodeProjectorParameterDetails::OnProjectorCopyPressed(
         Struct->ExportText(ExportedText, &NodeConstant->Value, nullptr, nullptr, (PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited | PPF_IncludeTransient), nullptr);
 	}
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION > 22) || ENGINE_MAJOR_VERSION >= 5
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
-#else
-	FPlatformMisc::ClipboardCopy(*ExportedText);
-#endif
 
 	return FReply::Handled();
 }
@@ -224,11 +203,7 @@ FReply FCustomizableObjectNodeProjectorParameterDetails::OnProjectorPastePressed
 {
 	FString ClipText;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION > 22) || ENGINE_MAJOR_VERSION >= 5
 	FPlatformApplicationMisc::ClipboardPaste(ClipText);
-#else
-	FPlatformMisc::ClipboardPaste(ClipText);
-#endif
 
 	TSharedPtr<ICustomizableObjectEditor> Editor = nullptr;
 

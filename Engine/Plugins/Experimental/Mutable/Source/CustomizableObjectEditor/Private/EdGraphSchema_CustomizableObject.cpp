@@ -519,11 +519,7 @@ const FPinConnectionResponse UEdGraphSchema_CustomizableObject::CanCreateConnect
 	}
 
 	// See if we want to break existing connections (if its an input with an existing connection)
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 17) || ENGINE_MAJOR_VERSION >= 5
 	const bool bBreakExistingDueToDataInput = (InputPin->LinkedTo.Num() > 0) && !InputPin->PinType.IsArray();
-#else
-	const bool bBreakExistingDueToDataInput = (InputPin->LinkedTo.Num() > 0) && !InputPin->PinType.bIsArray;
-#endif
 
 	if (bBreakExistingDueToDataOutput&&bBreakExistingDueToDataInput)
 	{
@@ -607,12 +603,7 @@ FLinearColor UEdGraphSchema_CustomizableObject::GetPinTypeColor(const FName& Typ
 
 FLinearColor UEdGraphSchema_CustomizableObject::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 18)
-	const FString& TypeString = PinType.PinCategory;
-	const FName& TypeName = FName(*TypeString);
-#else
 	const FName TypeName = PinType.PinCategory;
-#endif
 
 	return GetPinTypeColor(TypeName);
 }
@@ -631,78 +622,6 @@ bool UEdGraphSchema_CustomizableObject::ShouldHidePinDefaultValue(UEdGraphPin* P
 }
 
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION < 18)
-void UEdGraphSchema_CustomizableObject::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging) const
-{
-	check(CurrentGraph);	
-	//FKismetNodeContextMenuBuilder Context(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
-
-	if (InGraphPin != NULL)
-	{
-		MenuBuilder->BeginSection("PinActionsMenuHeader");
-		if (!bIsDebugging)
-		{
-			// Break pin links
-			if (InGraphPin->LinkedTo.Num() > 1)
-			{
-				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakPinLinks );
-			}
-
-			// add sub menu for break link to
-			if (InGraphPin->LinkedTo.Num() > 0)
-			{
-				MenuBuilder->AddSubMenu(
-					LOCTEXT( "BreakLinkTo", "Break Link To..." ),
-					LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-					FNewMenuDelegate::CreateUObject( (UEdGraphSchema_CustomizableObject*const)this, &UEdGraphSchema_CustomizableObject::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
-			}
-
-		}
-		MenuBuilder->EndSection();
-
-	}
-	else if (InGraphNode != NULL)
-	{
-		if (!bIsDebugging)
-		{
-			// Node contextual actions
-			MenuBuilder->BeginSection("NodeActionsMenuHeader");
-			MenuBuilder->AddMenuEntry( FGenericCommands::Get().Delete );
-			MenuBuilder->AddMenuEntry( FGenericCommands::Get().Cut );
-			MenuBuilder->AddMenuEntry( FGenericCommands::Get().Copy );
-			MenuBuilder->AddMenuEntry( FGenericCommands::Get().Duplicate );
-			MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ReconstructNodes );
-			MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakNodeLinks );
-			// In the case of a UCustomizableObjectNodeObjectGroup, add the option to refresh all Customizable Object Material Node nodes of all the children of this node
-			const UCustomizableObjectNodeObjectGroup* TypedNode = Cast<UCustomizableObjectNodeObjectGroup>(InGraphNode);
-			if (TypedNode != nullptr)
-			{
-				MenuBuilder->AddMenuEntry(FCustomizableObjectEditorNodeContextCommands::Get().RefreshMaterialNodesInAllChildren);
-			}
-			MenuBuilder->EndSection();
-		}
-
-		struct SCommentUtility
-		{
-			static void CreateComment(const UEdGraphSchema_CustomizableObject* Schema, UEdGraph* Graph)
-			{
-				if (Schema && Graph)
-				{
-					Schema->AddComment(Graph, NULL, FVector2D::ZeroVector, true);
-				}
-			}
-		};
-		
-		MenuBuilder->BeginSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
-		MenuBuilder->AddMenuEntry(LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
-			LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(CurrentGraph))));
-		MenuBuilder->EndSection();
-	}
-}
-
-#else
 void UEdGraphSchema_CustomizableObject::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
 	if (Context && !Context->Pin && Context->Node)
@@ -741,14 +660,10 @@ void UEdGraphSchema_CustomizableObject::GetContextMenuActions(class UToolMenu* M
 		section.AddMenuEntry("MultiCommentDesc", LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
 			LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
 			FSlateIcon(),
-#if ENGINE_MAJOR_VERSION >= 5
 			FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(ToRawPtr(Context->Graph)))));
-#else
-			FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(Context->Graph))));
-#endif
 	}
 }
-#endif
+
 
 
 void UEdGraphSchema_CustomizableObject::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const

@@ -107,11 +107,7 @@ public:
 
 	FLinearColor GetPinTypeColor(const FName& PinType) const;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION>=18) || ENGINE_MAJOR_VERSION >= 5
 	void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
-#else
-	void GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const override;
-#endif
 
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;

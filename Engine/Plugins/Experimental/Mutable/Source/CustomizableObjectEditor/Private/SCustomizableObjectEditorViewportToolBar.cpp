@@ -423,10 +423,6 @@ void SCustomizableObjectEditorViewportToolBar::Construct(const FArguments& InArg
 			[
 				SNew(SBorder)
 				.BorderImage(FAppStyle::GetBrush("NoBorder"))
-#if ENGINE_MAJOR_VERSION < 5
-				// Color and opacity is changed based on whether or not the mouse cursor is hovering over the toolbar area
-				.ColorAndOpacity(this, &SViewportToolBar::OnGetColorAndOpacity)
-#endif
 				.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
 				[
 					SNew(SVerticalBox)
@@ -1259,16 +1255,11 @@ void SCustomizableObjectEditorViewportToolBar::OnFOVValueChanged(float NewValue)
 {
 	TSharedPtr<FCustomizableObjectEditorViewportClient> ViewportClient = Viewport.Pin()->GetViewportClient();
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	ViewportClient->FOVAngle = NewValue;
 	// \todo: this editor name should be somewhere else.
 	FString EditorName("CustomizableObjectEditor");
 	int ViewportIndex=0;
 	ViewportClient->ConfigOption->SetViewFOV(FName(*EditorName),NewValue,ViewportIndex);
-#else
-	ViewportClient->FOVAngle = NewValue;
-	ViewportClient->ConfigOption->SetViewFOV(NewValue);
-#endif
 
 	ViewportClient->ViewFOV = NewValue;
 	ViewportClient->Invalidate();

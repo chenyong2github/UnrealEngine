@@ -4739,15 +4739,8 @@ void UpdateTextureRegionsMutable(UTexture2D* Texture, int32 MipIndex, const FUpd
 		RegionData->SrcPitch = SrcPitch;
 
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION > 22) || ENGINE_MAJOR_VERSION >= 5
 		ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsMutable)(
 			[RegionData, BulkData](FRHICommandList& CmdList)
-#else
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			UpdateTextureRegionsMutable,
-			FUpdateTextureRegionsData*, RegionData, RegionData,
-			FByteBulkData*, BulkData, BulkData,
-#endif
 			{
 				int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
 				uint8* SrcData = (uint8*)BulkData->LockReadOnly();

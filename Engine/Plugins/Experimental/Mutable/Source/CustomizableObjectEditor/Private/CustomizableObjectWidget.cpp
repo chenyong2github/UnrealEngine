@@ -371,11 +371,7 @@ void FCustomizableObjectWidget::Render_Translate( const FSceneView* View, FPrimi
 		const FVector CameraYAxis = View->ViewMatrices.GetViewMatrix().GetColumn(1);
 		const FVector CameraZAxis = View->ViewMatrices.GetViewMatrix().GetColumn(2);
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 17) || ENGINE_MAJOR_VERSION >= 5
 		DrawSphere( PDI, InLocation, FRotator::ZeroRotator, FVector( 4.0f * Scale ), 10, 5, Helper_GetMaterialProxy(XYZMaterial), SDPG_Foreground );
-#else
-		DrawSphere(PDI, InLocation, FVector(4.0f * Scale), 10, 5, Helper_GetMaterialProxy(XYZMaterial), SDPG_Foreground);
-#endif
 
 		PDI->SetHitProxy( NULL );
 	}

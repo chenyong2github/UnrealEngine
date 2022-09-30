@@ -30,7 +30,7 @@ public:
 	TSharedPtr< FUICommandInfo > SetShowBinormals;
 	TSharedPtr< FUICommandInfo > SetShowPivot;
 
-	TSharedPtr< FUICommandInfo > BakeInstance;
+	TSharedPtr< FUICommandInfo > BakeInstanceFromInstance;
 	TSharedPtr< FUICommandInfo > StateChangeTest;
 
 	//Toolbar Commands

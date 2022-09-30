@@ -85,19 +85,11 @@ void FCustomizableObjectDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 {
 	const UCustomizableObject* CustomObject = 0;
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
 	if (DetailsView->GetSelectedObjects().Num())
 	{
 		CustomObject = Cast<const UCustomizableObject>(DetailsView->GetSelectedObjects()[0].Get());
 	}
-#else
-	const IDetailsView& DetailsView = DetailBuilder.GetDetailsView();
-	if (DetailsView.GetSelectedObjects().Num())
-	{
-		CustomObject = Cast<const UCustomizableObject>(DetailsView.GetSelectedObjects()[0].Get());
-	}
-#endif
 
 	IDetailCategoryBuilder& StatesCategory = DetailBuilder.EditCategory( "States" );
 	//StatesCategory.CategoryIcon( "ActorClassIcon.CustomizableObject" );
@@ -176,7 +168,6 @@ void FCustomizableObjectDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 
 	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty("ReferenceSkeletalMeshes");
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 18) || ENGINE_MAJOR_VERSION >= 5
 	if (Property->IsValidHandle() && CustomObject)
 	{
 		if (CustomObject->bIsChildObject)
@@ -188,7 +179,6 @@ void FCustomizableObjectDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 			Property->MarkResetToDefaultCustomized();
 		}
 	}
-#endif
 
 	StatesTree->RequestTreeRefresh();
 }

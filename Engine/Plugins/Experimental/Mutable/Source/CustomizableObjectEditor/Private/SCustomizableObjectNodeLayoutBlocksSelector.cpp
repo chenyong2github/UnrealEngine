@@ -33,7 +33,7 @@ public:
 	FLayoutBlockSelectorCommands() : TCommands<FLayoutBlockSelectorCommands>
 	(
 		"LayoutBlockSelector", // Context name for fast lookup
-		NSLOCTEXT( "Contexts", "LayoutBlockSelector", "Layout Block Selector" ), // Localized context name for displaying
+		NSLOCTEXT( "CustomizableObjectEditor", "LayoutBlockSelector", "Layout Block Selector" ), // Localized context name for displaying
 		NAME_None, // Parent
 		FCustomizableObjectEditorStyle::GetStyleSetName()
 	)

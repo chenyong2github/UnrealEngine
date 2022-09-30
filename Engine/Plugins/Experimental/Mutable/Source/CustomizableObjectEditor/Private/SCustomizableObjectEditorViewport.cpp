@@ -1139,11 +1139,7 @@ void SCustomizableObjectEditorViewportTabBody::OnSetLODModel(int32 LODSelectionT
 	{
 		if (PreviewComponent)
 		{
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 24) || ENGINE_MAJOR_VERSION >= 5
 			PreviewComponent->SetForcedLOD(LODSelection);
-#else
-			PreviewComponent->ForcedLodModel = LODSelection;
-#endif
 			//PopulateUVChoices();
 		}
 	}
