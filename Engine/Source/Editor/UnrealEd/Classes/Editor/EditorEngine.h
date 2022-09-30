@@ -76,6 +76,7 @@ class UEditorWorldExtensionManager;
 class ITargetDevice;
 class ULevelEditorDragDropHandler;
 class UTypedElementSelectionSet;
+class IProjectExternalContentInterface;
 
 //
 // Things to set in mapSetBrush.
@@ -2474,6 +2475,16 @@ public:
 	DECLARE_DELEGATE_RetVal(ULevelEditorDragDropHandler*, FOnCreateLevelEditorDragDropHandler);
 	FOnCreateLevelEditorDragDropHandler& OnCreateLevelEditorDragDropHandler() { return OnCreateLevelEditorDragDropHandlerDelegate; }
 	ULevelEditorDragDropHandler* GetLevelEditorDragDropHandler() const;
+
+	/** 
+	 * Gets the interface to manage project references to external content
+	 * @note the returned pointer cannot be null
+	 */
+	IProjectExternalContentInterface* GetProjectExternalContentInterface();
+
+	/** Delegate to override the IProjectExternalContentInterface */
+	DECLARE_DELEGATE_RetVal(IProjectExternalContentInterface*, FProjectExternalContentInterfaceGetter);
+	FProjectExternalContentInterfaceGetter ProjectExternalContentInterfaceGetter;
 
 private:
 	UPROPERTY()

@@ -253,7 +253,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "LevelEditorDragDropHandler.h"
-
+#include "IProjectExternalContentInterface.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -7863,4 +7863,27 @@ ULevelEditorDragDropHandler* UEditorEngine::GetLevelEditorDragDropHandler() cons
 	return DragDropHandler;
 }
 
-#undef LOCTEXT_NAMESPACE 
+namespace
+{
+	class FProjectExternalContentDefault : public IProjectExternalContentInterface
+	{
+	private:
+		virtual bool IsEnabled() const override { return false; }
+		virtual bool HasExternalContent(const FString& ExternalContentId) const override { return false; }
+		virtual bool IsExternalContentLoaded(const FString& ExternalContentId) const override { return false; }
+		virtual TArray<FString> GetExternalContentIds() const override { return {}; }
+		virtual void AddExternalContent(const FString& ExternalContentId, FAddExternalContentComplete CompleteCallback) override { CompleteCallback.ExecuteIfBound(false, /*Plugins=*/{}); }
+		virtual void RemoveExternalContent(const FString& ExternalContentId, FRemoveExternalContentComplete CompleteCallback) override { CompleteCallback.ExecuteIfBound(false); }
+	};
+
+	FProjectExternalContentDefault ProjectExternalContentDefault;
+}
+
+IProjectExternalContentInterface* UEditorEngine::GetProjectExternalContentInterface()
+{
+	IProjectExternalContentInterface* ProjectExternalContentInterface = ProjectExternalContentInterfaceGetter.IsBound() ? ProjectExternalContentInterfaceGetter.Execute() : &ProjectExternalContentDefault;
+	check(ProjectExternalContentInterface);
+	return ProjectExternalContentInterface;
+}
+
+#undef LOCTEXT_NAMESPACE
