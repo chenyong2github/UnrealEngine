@@ -14,7 +14,7 @@ namespace Horde.Storage.Implementation
     public class MemoryReferencesStore : IReferencesStore
     {
         private readonly ConcurrentDictionary<string, MemoryStoreObject> _objects = new ConcurrentDictionary<string, MemoryStoreObject>();
-        private readonly List<NamespaceId> _namespaces = new List<NamespaceId>();
+        private readonly HashSet<NamespaceId> _namespaces = new HashSet<NamespaceId>();
 
         public MemoryReferencesStore()
         {
