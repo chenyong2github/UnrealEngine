@@ -47,81 +47,114 @@ namespace Horde.Storage.Implementation
             return request;
         }
 
+        private async Task<BlobContents?> DoGetObject(string instance, NamespaceId ns, BlobIdentifier blob)
+        {
+            try
+            {
+                string filesystemLayerName = nameof(FileSystemStore);
+                using HttpRequestMessage getObjectRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
+                getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Octet);
+                HttpResponseMessage response = await GetHttpClient(instance).SendAsync(getObjectRequest);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                long? contentLength = response.Content.Headers.ContentLength;
+                if (contentLength == null)
+                {
+                    _logger.Warning("Content length missing in response from horde storage blob store. This is not supported, ignoring response");
+                    return null;
+                }
+                    
+                return new BlobContents(await response.Content.ReadAsStreamAsync(), contentLength.Value);
+            }
+            catch (Exception e)
+            {
+                _logger.Warning(e,
+                    "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
+                    blob, ns, instance);
+            }
+
+            return null;
+        }
+
         public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
         {
-            BlobContents? contents = null;
-            Parallel.ForEach(await _serviceDiscovery.FindOtherHordeStorageInstances().ToListAsync(), async (string instance, ParallelLoopState state) =>
+            List<Task<BlobContents?>> tasks = new();
+
+            await foreach (string instance in _serviceDiscovery.FindOtherHordeStorageInstances())
             {
-                try
-                {
-                    string filesystemLayerName = nameof(FileSystemStore);
-                    using HttpRequestMessage getObjectRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
-                    getObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Octet);
-                    HttpResponseMessage response = await GetHttpClient(instance).SendAsync(getObjectRequest);
-                    if (response.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        return;
-                    }
-
-                    response.EnsureSuccessStatusCode();
-
-                    long? contentLength = response.Content.Headers.ContentLength;
-                    if (contentLength == null)
-                    {
-                        _logger.Warning("Content length missing in response from horde storage blob store. This is not supported, ignoring response");
-                        return;
-                    }
-                    
-                    contents = new BlobContents(await response.Content.ReadAsStreamAsync(), contentLength.Value);
-                    state.Break();
-                }
-                catch (Exception e)
-                {
-                    _logger.Warning(e,
-                        "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
-                        blob, ns, instance);
-                }
-            });
-
-            // contents is incorrectly detected as never modified - its set in the foreach lambda
-#pragma warning disable CA1508 // Avoid dead conditional code
-            if (contents != null)
-            {
-                return contents;
+                Task<BlobContents?> task = DoGetObject(instance, ns, blob);
+                tasks.Add(task);
             }
-#pragma warning restore CA1508 // Avoid dead conditional code
+
+            while (tasks.Count != 0)
+            {
+                Task<BlobContents?> finishedTask = await Task.WhenAny(tasks);
+                BlobContents? result = await finishedTask;
+                if (result != null)
+                {
+                    return result;
+                }
+
+                tasks.Remove(finishedTask);
+            }
+
             throw new BlobNotFoundException(ns, blob);
+        }
+
+        private async Task<bool?> DoExists(string instance, NamespaceId ns, BlobIdentifier blob)
+        {
+            try
+            {
+                string filesystemLayerName = nameof(FileSystemStore);
+                using HttpRequestMessage headObjectRequest = await BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
+                HttpResponseMessage response = await GetHttpClient(instance).SendAsync(headObjectRequest, CancellationToken.None);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return false;
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                _logger.Warning(e,
+                    "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
+                    blob, ns, instance);
+            }
+
+            return null;
         }
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck = false)
         {
-            bool found = false;
-            
-            Parallel.ForEach(await _serviceDiscovery.FindOtherHordeStorageInstances().ToListAsync(), async (string instance, ParallelLoopState state) =>
+            List<Task<bool?>> tasks = new();
+
+            await foreach (string instance in _serviceDiscovery.FindOtherHordeStorageInstances())
             {
-                try
-                {
-                    string filesystemLayerName = nameof(FileSystemStore);
-                    using HttpRequestMessage headObjectRequest = await BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
-                    HttpResponseMessage response = await GetHttpClient(instance).SendAsync(headObjectRequest, CancellationToken.None);
-                    if (response.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        return;
-                    }
+                Task<bool?> task = DoExists(instance, ns, blob);
+                tasks.Add(task);
+            }
 
-                    response.EnsureSuccessStatusCode();
-
-                    found = true;
-                    state.Break();
-                }
-                catch (Exception e)
+            while (tasks.Count != 0)
+            {
+                Task<bool?> finishedTask = await Task.WhenAny(tasks);
+                bool? result = await finishedTask;
+                if (result != null)
                 {
-                    _logger.Warning(e,
-                        "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
-                        blob, ns, instance);
+                    return result.Value;
                 }
-            });
-            return found;
+
+                tasks.Remove(finishedTask);
+            }
+
+            return false;
         }
 
         private HttpClient GetHttpClient(string instance)
