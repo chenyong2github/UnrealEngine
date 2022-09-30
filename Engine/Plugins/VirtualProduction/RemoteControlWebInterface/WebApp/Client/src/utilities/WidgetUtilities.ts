@@ -153,6 +153,9 @@ export class WidgetUtilities {
 
       case PropertyType.Rotator:
         return [WidgetTypes.Vector, WidgetTypes.Sliders, WidgetTypes.Dials];
+
+      case PropertyType.String:
+        return [WidgetTypes.Text];
     }
 
     if (propertyType && (propertyType.startsWith('TEnum') || propertyType.startsWith('E')))

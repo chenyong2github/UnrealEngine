@@ -102,6 +102,21 @@ export interface IExposedProperty {
   Type: PropertyType;
 }
 
+export interface IController {
+  ID: string;
+  Name: string;
+  Type: PropertyType;
+  Path: string;
+
+  DisplayName: string;
+  Metadata: Record<string, string>;
+  Widget: WidgetType;
+
+
+  UnderlyingProperty: IProperty;
+  OwnerObjects: IObject[];
+}
+
 export interface IActor {
   Name: string;
   Path: string;
@@ -127,7 +142,8 @@ export interface IPreset {
   
   ExposedProperties?: IExposedProperty[];
   ExposedFunctions?: IExposedFunction[];
-  Exposed?: Record<string, IExposedProperty | IExposedFunction>;
+  Controllers?: IController[];
+  Exposed?: Record<string, IExposedProperty | IExposedFunction | IController>;
   IsFavorite?: boolean;
 }
 
