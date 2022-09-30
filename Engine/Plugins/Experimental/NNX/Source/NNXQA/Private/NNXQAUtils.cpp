@@ -374,10 +374,10 @@ namespace Test
 		UE_LOG(LogNNX, Display, TEXT("Starting tests of '%s'"), *TestSetup.TargetName);
 
 		// Reference runtime
-		NNX::IRuntime* RefRuntime = NNX::GetRuntime(TEXT("NNXRuntimeORTCpu"));
+		NNX::IRuntime* RefRuntime = NNX::GetRuntime(TEXT("NNXRuntimeCPU"));
 		if (!RefRuntime)
 		{
-			UE_LOG(LogNNX, Error, TEXT("Can't load NNXRuntimeORTCpu runtime. Tests ABORTED!"));
+			UE_LOG(LogNNX, Error, TEXT("Can't load NNXRuntimeCPU runtime. Tests ABORTED!"));
 			return false;
 		}
 		const FString& RefName = RefRuntime->GetRuntimeName();

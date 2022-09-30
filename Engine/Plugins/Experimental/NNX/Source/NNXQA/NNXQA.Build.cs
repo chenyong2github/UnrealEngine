@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class NNXQA : ModuleRules
@@ -25,5 +26,11 @@ public class NNXQA : ModuleRules
 				"NNXUtils"
 			}
 		);
+
+		// RuntimeDependencies
+		foreach (string JsonFilePath in Directory.EnumerateFiles(Path.Combine(ModuleDirectory, "resources"), "*.json"))
+		{
+			RuntimeDependencies.Add(JsonFilePath);
+		}
 	}
 }
