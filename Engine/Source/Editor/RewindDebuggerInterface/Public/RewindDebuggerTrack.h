@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "IRewindDebuggerViewCreator.h"
+#include "IRewindDebugger.h"
 
 namespace TraceServices
 {
@@ -107,7 +108,12 @@ private:
 	virtual uint64 GetObjectIdInternal() const { return 0; }
 	virtual bool HasDebugDataInternal() const { return true; }
 	virtual void IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction) { }
-	virtual bool HandleDoubleClickInternal() { return false; }
+
+	virtual bool HandleDoubleClickInternal()
+	{
+		IRewindDebugger::Instance()->OpenDetailsPanel();
+		return true;
+	};
 
 	bool bExpanded;
 	bool bVisible;

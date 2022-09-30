@@ -10,6 +10,7 @@
 #include "SSegmentedTimelineView.h"
 #include "Styling/SlateIconFinder.h"
 #include "ObjectTrace.h"
+#include "IRewindDebuggerDoubleClickHandler.h"
 
 namespace RewindDebugger
 {
@@ -23,6 +24,48 @@ TSharedPtr<SWidget> FRewindDebuggerObjectTrack::GetTimelineViewInternal()
 
 }
 
+bool FRewindDebuggerObjectTrack::HandleDoubleClickInternal()
+{
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	static const FName HandlerFeatureName = IRewindDebuggerDoubleClickHandler::ModularFeatureName;
+
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+		
+	if (const TraceServices::IAnalysisSession* Session = RewindDebugger->GetAnalysisSession())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+	
+		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
+		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ObjectId);
+		uint64 ClassId = ObjectInfo.ClassId;
+		bool bHandled = false;
+		
+		const int32 NumExtensions = ModularFeatures.GetModularFeatureImplementationCount(HandlerFeatureName);
+
+		// iterate up the class hierarchy, looking for a registered double click handler, until we find the one that succeeeds that is most specific to the type of this object
+		while (ClassId != 0 && !bHandled)
+		{
+			const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(ClassId);
+		
+			for (int32 ExtensionIndex = 0; ExtensionIndex < NumExtensions; ++ExtensionIndex)
+			{
+				IRewindDebuggerDoubleClickHandler* Handler = static_cast<IRewindDebuggerDoubleClickHandler*>(ModularFeatures.GetModularFeatureImplementation(HandlerFeatureName, ExtensionIndex));
+				if (Handler->GetTargetTypeName() == ClassInfo.Name)
+				{
+					if (Handler->HandleDoubleClick(RewindDebugger))
+					{
+						bHandled = true;
+						break;
+					}
+				}
+			}
+		
+			ClassId = ClassInfo.SuperId;
+		}
+	}
+	
+	return true;
+}
 
 // check if an object is or is a subclass of a type by name, based on Insights traced type info
 static bool IsTargetType(uint64 ObjectId, FName TargetTypeName, const TraceServices::IAnalysisSession& Session)

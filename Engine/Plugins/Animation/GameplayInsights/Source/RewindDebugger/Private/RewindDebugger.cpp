@@ -984,6 +984,12 @@ void FRewindDebugger::Tick(float DeltaTime)
 	}
 }
 
+void FRewindDebugger::OpenDetailsPanel()
+{
+	bIsDetailsPanelOpen = true;
+	ComponentSelectionChanged(SelectedTrack);
+}
+
 void FRewindDebugger::ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject)
 {
 	SelectedTrack = SelectedObject;
@@ -1036,47 +1042,7 @@ void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<RewindDebugger::FRewindD
 	}
 	
 	SelectedTrack = SelectedObject;
-
-	if (SelectedTrack->HandleDoubleClick())
-	{
-		return;
-	}
-	
-	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	static const FName HandlerFeatureName = IRewindDebuggerDoubleClickHandler::ModularFeatureName;
-		
-	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
-	{
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
-	
-		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
-		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedObject->GetObjectId());
-		uint64 ClassId = ObjectInfo.ClassId;
-		bool bHandled = false;
-		
-		const int32 NumExtensions = ModularFeatures.GetModularFeatureImplementationCount(HandlerFeatureName);
-
-		// iterate up the class hierarchy, looking for a registered double click handler, until we find the one that succeeeds that is most specific to the type of this object
-		while (ClassId != 0 && !bHandled)
-		{
-			const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(ClassId);
-		
-			for (int32 ExtensionIndex = 0; ExtensionIndex < NumExtensions; ++ExtensionIndex)
-			{
-				IRewindDebuggerDoubleClickHandler* Handler = static_cast<IRewindDebuggerDoubleClickHandler*>(ModularFeatures.GetModularFeatureImplementation(HandlerFeatureName, ExtensionIndex));
-				if (Handler->GetTargetTypeName() == ClassInfo.Name)
-				{
-					if (Handler->HandleDoubleClick(this))
-					{
-						bHandled = true;
-						break;
-					}
-				}
-			}
-		
-			ClassId = ClassInfo.SuperId;
-		}
-	}
+	SelectedTrack->HandleDoubleClick();
 }
 
 TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu()

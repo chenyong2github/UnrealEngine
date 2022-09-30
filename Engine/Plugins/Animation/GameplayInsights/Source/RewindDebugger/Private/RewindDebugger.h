@@ -114,6 +114,7 @@ public:
 	TBindableProperty<float>* GetRecordingDurationProperty() { return &RecordingDuration; }
 	TBindableProperty<FString, BindingType_Out>* GetDebugTargetActorProperty() { return &DebugTargetActor; }
 
+	virtual void OpenDetailsPanel() override;
 	void SetIsDetailsPanelOpen(bool bIsOpen) { bIsDetailsPanelOpen = bIsOpen; }
 	bool IsDetailsPanelOpen(bool bIsOpen) { return bIsDetailsPanelOpen; }
 

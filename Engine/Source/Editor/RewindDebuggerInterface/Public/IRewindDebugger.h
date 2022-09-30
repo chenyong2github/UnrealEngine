@@ -78,6 +78,9 @@ public:
 	// returns the length of the current recording
 	virtual double GetRecordingDuration() const = 0;
 
+	// opens the Rewind Debugger details panel tab
+	virtual void OpenDetailsPanel() = 0;
+
 	// get the current IRewindDebugger instance
 	static IRewindDebugger* Instance();
 	

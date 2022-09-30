@@ -33,6 +33,7 @@ private:
 	virtual FText GetDisplayNameInternal() const override;
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
 	virtual bool HasDebugDataInternal() const override { return false; }
+	virtual bool HandleDoubleClickInternal() override;
 	
 	mutable FText DisplayName;
 	FString ObjectName;
