@@ -109,6 +109,7 @@ public:
 	void UpdateDrawIndirectBuffers(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FRHICommandList& RHICmdList, ENiagaraGPUCountUpdatePhase::Type CountPhase);
 
 	static const ERHIAccess kCountBufferDefaultState;
+	static const ERHIAccess kIndirectArgsDefaultState;
 
 	bool HasEntriesPendingFree() const { return InstanceCountClearTasks.Num() > 0; }
 
