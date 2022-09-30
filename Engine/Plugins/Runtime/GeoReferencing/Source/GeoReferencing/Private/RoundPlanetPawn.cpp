@@ -176,10 +176,6 @@ void ARoundPlanetPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Round planet is huge, if we enable world bounds check, the pawn behavior might be unpredictable when flying...
-	// LWC_TODO - should not be needed after WORLD_MAX updates. 
-	GetWorldSettings()->bEnableLargeWorlds = true;
-
 	if (!GeoReferencingSystem)
 	{
 		GeoReferencingSystem = AGeoReferencingSystem::GetGeoReferencingSystem(GetWorld());
