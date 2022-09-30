@@ -30,55 +30,57 @@ class RIGLOGICMODULE_API USkelMeshDNAUtils: public UObject
 public:
 
 	/** Prepare context object that will allow mapping of DNA structures to SkelMesh ones for updating **/
-	static FDNAToSkelMeshMap* CreateMapForUpdatingNeutralMesh(IDNAReader* DNAReader, USkeletalMesh* SkelMesh);
+	static FDNAToSkelMeshMap* CreateMapForUpdatingNeutralMesh(IDNAReader* InDNAReader, USkeletalMesh* InSkelMesh);
+	/** Prepare context object that will allow mapping of DNA structures extracted from DNAAsset to SkelMesh ones for updating **/
+	static FDNAToSkelMeshMap* CreateMapForUpdatingNeutralMesh(USkeletalMesh* InSkelMesh);
 
 #if WITH_EDITORONLY_DATA
 	/** Updates the positions, orientation and scale in the joint hierarchy using the data from DNA file **/
-	static void UpdateJoints(USkeletalMesh* SkelMesh, IDNAReader* DNAReader, FDNAToSkelMeshMap* DNAToSkelMeshMap);
-	/** Updates the base mesh vertex positions for all mesh sections of all LODs, using the data from DNA file 
+	static void UpdateJoints(USkeletalMesh* InSkelMesh, IDNAReader* InDNAReader, FDNAToSkelMeshMap* InDNAToSkelMeshMap);
+	/** Updates the base mesh vertex positions for all mesh sections of all LODs, using the data from DNA file
 	  * NOTE: Not calling RebuildRenderData automatically, it needs to be called explicitly after the first update
 	  *       As the topology doesn't change, for subsequent updates it can be ommited to gain performance **/
-	static void UpdateBaseMesh(USkeletalMesh* SkelMesh, IDNAReader* DNAReader, FDNAToSkelMeshMap* DNAToSkelMeshMap, ELodUpdateOption UpdateOption = ELodUpdateOption::LOD0Only);
+	static void UpdateBaseMesh(USkeletalMesh* InSkelMesh, IDNAReader* InDNAReader, FDNAToSkelMeshMap* InDNAToSkelMeshMap, ELodUpdateOption InUpdateOption = ELodUpdateOption::LOD0Only);
 	/** Updates the morph targets for all mesh sections of LODs, using the data from DNA file **/
-	static void UpdateMorphTargets(USkeletalMesh* SkelMesh, IDNAReader* DNAReader, FDNAToSkelMeshMap* DNAToSkelMeshMap, ELodUpdateOption UpdateOption = ELodUpdateOption::LOD0Only);
+	static void UpdateMorphTargets(USkeletalMesh* InSkelMesh, IDNAReader* InDNAReader, FDNAToSkelMeshMap* InDNAToSkelMeshMap, ELodUpdateOption InUpdateOption = ELodUpdateOption::LOD0Only);
 	/** Updates the skin weights for all LODs using the data from DNA file **/
-	static void UpdateSkinWeights(USkeletalMesh* SkelMesh, IDNAReader* DNAReader, FDNAToSkelMeshMap* DNAToSkelMeshMap, ELodUpdateOption UpdateOption = ELodUpdateOption::LOD0Only);
+	static void UpdateSkinWeights(USkeletalMesh* InSkelMesh, IDNAReader* InDNAReader, FDNAToSkelMeshMap* InDNAToSkelMeshMap, ELodUpdateOption InUpdateOption = ELodUpdateOption::LOD0Only);
 	/** Rechunks the mesh after the update **/
-	static void RebuildRenderData(USkeletalMesh* SkelMesh);
+	static void RebuildRenderData(USkeletalMesh* InSkelMesh);
 	/** Re-initialize vertex positions for rendering after the update **/
-	static void RebuildRenderData_VertexPosition(USkeletalMesh* SkelMesh);
+	static void RebuildRenderData_VertexPosition(USkeletalMesh* InSkelMesh);
 	/** Update joint behavior **/
-	static void UpdateJointBehavior(USkeletalMeshComponent* SkelMeshComponent);
+	/*  NOTE: DNAAsset->SetBehaviorReader needs to be called before this */
+	static void UpdateJointBehavior(USkeletalMeshComponent* InSkelMeshComponent);
 #endif // WITH_EDITORONLY_DATA
 	/** Converts DNA vertex coordinates to UE4 coordinate system **/
-	inline static FVector ConvertDNAVertexToUE4CoordSystem(FVector VertexPositionInDNA)
+	inline static FVector ConvertDNAVertexToUE4CoordSystem(FVector InVertexPositionInDNA)
 	{
-		return FVector{-VertexPositionInDNA.X, VertexPositionInDNA.Y, -VertexPositionInDNA.Z};
+		return FVector{ -InVertexPositionInDNA.X, InVertexPositionInDNA.Y, -InVertexPositionInDNA.Z };
 	}
 
 	/** Converts UE4 coordinate system to DNA vertex coordinates **/
-	inline static FVector ConvertUE4CoordSystemToDNAVertex(FVector VertexPositionInUE4)
+	inline static FVector ConvertUE4CoordSystemToDNAVertex(FVector InVertexPositionInUE4)
 	{
-		return FVector{-VertexPositionInUE4.X, VertexPositionInUE4.Y, -VertexPositionInUE4.Z};
+		return FVector{ -InVertexPositionInUE4.X, InVertexPositionInUE4.Y, -InVertexPositionInUE4.Z };
 	}
 
 	/** Updates source skeleton data for the purpose of character cooking and export.  */
-	static void UpdateSourceData(USkeletalMesh* SkelMesh);
-	static void UpdateSourceData(USkeletalMesh* SkelMesh, IDNAReader* DNAReader, FDNAToSkelMeshMap* DNAToSkelMeshMap);
+	static void UpdateSourceData(USkeletalMesh* InSkelMesh);
 	
 private:
 
-	inline static void GetLODRange(ELodUpdateOption UpdateOption, const int32& LODNum, int32& LODStart, int32& LODRangeSize)
+	inline static void GetLODRange(ELodUpdateOption InUpdateOption, const int32& InLODNum, int32& OutLODStart, int32& OutLODRangeSize)
 	{
-		LODStart = 0;
-		LODRangeSize = LODNum;
-		if (UpdateOption == ELodUpdateOption::LOD1AndHigher)
+		OutLODStart = 0;
+		OutLODRangeSize = InLODNum;
+		if (InUpdateOption == ELodUpdateOption::LOD1AndHigher)
 		{
-			LODStart = 1;
+			OutLODStart = 1;
 		}
-		else if (UpdateOption == ELodUpdateOption::LOD0Only && LODRangeSize > 0)
+		else if (InUpdateOption == ELodUpdateOption::LOD0Only && OutLODRangeSize > 0)
 		{
-			LODRangeSize = 1;
+			OutLODRangeSize = 1;
 		}
 	}
 };

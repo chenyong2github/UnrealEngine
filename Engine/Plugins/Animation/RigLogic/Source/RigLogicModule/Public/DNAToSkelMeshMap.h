@@ -43,7 +43,7 @@ public:
 	/** Creates vertex map between source DNA and target SkelMesh, and stores DNAReader
 	  * Enough for updating neutral meshes, but not for updating joints and morphtargets; call the next method for that
 	  * TODO: When ImportedModel is added to runtime, WITH_EDITORONLY_DATA should be removed**/
-	void InitBaseMesh(IDNAReader* InDNAReader, USkeletalMesh* SkelMesh);
+	void InitBaseMesh(IDNAReader* InSourceDNAReader, USkeletalMesh* InTargetSkeletalMesh);
 	/** Creates map for updating joints; needs to be called before playing animation on the rig **/
 	void MapJoints(IDNAReader* InDNAReader);
 	/** Creates map for updating morph targets; needs to be called before playing animation on the rig **/
@@ -51,13 +51,13 @@ public:
 #endif //WITH_EDITORONLY_DATA
 	/** Creates mappings between source DNA stored in DNAAsset AssetUserData attached to SkeletalMesh;
 		Uses FSkeletalMeshDNAReader to be able to read geometry which, in this case, is NOT present in the DNAAsset **/
-	bool InitFromDNAAsset(USkeletalMesh* SkelMesh);
+	bool InitFromDNAAsset(USkeletalMesh* InSkelMesh);
 	void InitVertexMap(IDNAReader* InDNAReader);
 
 
-	int32 GetUEBoneIndex(int32 RLJointIndex)
+	int32 GetUEBoneIndex(int32 InRLJointIndex)
 	{
-		return RLJointToUEBoneIndices[RLJointIndex];
+		return RLJointToUEBoneIndices[InRLJointIndex];
 	}
 
 	TArray<FDNABlendShapeTarget>& GetMeshBlendShapeTargets()
