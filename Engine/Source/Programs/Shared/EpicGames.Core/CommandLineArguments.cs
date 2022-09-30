@@ -1295,7 +1295,7 @@ namespace EpicGames.Core
 				TypeConverter typeConverter = TypeDescriptor.GetConverter(fieldType);
 				if (typeConverter.CanConvertFrom(typeof(string)))
 				{
-					value = typeConverter.ConvertFrom(text);
+					value = typeConverter.ConvertFrom(text)!;
 					return true;
 				}
 

@@ -8,7 +8,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Utility functions for manipulating directories
 	/// </summary>
-	public class DirectoryUtils
+	public static class DirectoryUtils
 	{
 		/// <summary>
 		/// Finds the on-disk case of a a directory
@@ -17,7 +17,7 @@ namespace EpicGames.Core
 		/// <returns>New DirectoryInfo instance that represents the directory with the correct case</returns>
 		public static DirectoryInfo FindCorrectCase(DirectoryInfo info)
 		{
-			DirectoryInfo parentInfo = info.Parent;
+			DirectoryInfo? parentInfo = info.Parent;
 			if (parentInfo == null)
 			{
 				string fullName = info.FullName;

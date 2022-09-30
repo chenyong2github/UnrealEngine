@@ -288,7 +288,7 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override ContentHash Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			return ContentHash.Parse(reader.GetString());
+			return ContentHash.Parse(reader.GetString()!);
 		}
 
 		/// <inheritdoc/>

@@ -404,11 +404,11 @@ namespace EpicGames.Core
 			{
 				// Try to match an event
 				List<LogEvent>? events = null;
-				if (Regex.IsMatch(_buffer[0], "<-- Suspend Log Parsing -->", RegexOptions.IgnoreCase))
+				if (Regex.IsMatch(_buffer[0]!, "<-- Suspend Log Parsing -->", RegexOptions.IgnoreCase))
 				{
 					_matchingEnabled--;
 				}
-				else if (Regex.IsMatch(_buffer[0], "<-- Resume Log Parsing -->", RegexOptions.IgnoreCase))
+				else if (Regex.IsMatch(_buffer[0]!, "<-- Resume Log Parsing -->", RegexOptions.IgnoreCase))
 				{
 					_matchingEnabled++;
 				}
@@ -429,7 +429,7 @@ namespace EpicGames.Core
 				{
 					foreach (Regex ignorePattern in IgnorePatterns)
 					{
-						if (ignorePattern.IsMatch(_buffer[0]))
+						if (ignorePattern.IsMatch(_buffer[0]!))
 						{
 							events = null;
 							break;

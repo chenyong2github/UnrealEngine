@@ -330,7 +330,7 @@ namespace EpicGames.Core
 			FileFilterNode lastNode = _rootNode;
 			foreach (string branchPattern in branchPatterns)
 			{
-				FileFilterNode nextNode = lastNode.Branches.FirstOrDefault(x => x.Pattern == branchPattern);
+				FileFilterNode? nextNode = lastNode.Branches.FirstOrDefault(x => x.Pattern == branchPattern);
 				if (nextNode == null)
 				{
 					nextNode = new FileFilterNode(lastNode, branchPattern);

@@ -224,7 +224,7 @@ namespace EpicGames.Core
 				}
 				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Level.Span))
 				{
-					level = Enum.Parse<LogLevel>(reader.GetString());
+					level = Enum.Parse<LogLevel>(reader.GetString()!);
 				}
 				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Id.Span))
 				{
@@ -240,11 +240,11 @@ namespace EpicGames.Core
 				}
 				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Message.Span))
 				{
-					message = reader.GetString();
+					message = reader.GetString()!;
 				}
 				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Format.Span))
 				{
-					format = reader.GetString();
+					format = reader.GetString()!;
 				}
 				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Properties.Span))
 				{
@@ -281,7 +281,7 @@ namespace EpicGames.Core
 				case JsonTokenType.StartObject:
 					return ReadStructuredPropertyValue(ref reader);
 				case JsonTokenType.String:
-					return reader.GetString();
+					return reader.GetString()!;
 				case JsonTokenType.Number:
 					if (reader.TryGetInt32(out int intValue))
 					{
@@ -311,11 +311,11 @@ namespace EpicGames.Core
 			{
 				if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Type.Span))
 				{
-					type = reader.GetString();
+					type = reader.GetString() ?? String.Empty;
 				}
 				else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(propertyName, LogEventPropertyName.Text.Span))
 				{
-					text = reader.GetString();
+					text = reader.GetString() ?? String.Empty;
 				}
 				else
 				{

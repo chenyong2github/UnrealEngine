@@ -82,7 +82,7 @@ namespace EpicGames.Core
 		/// <returns>New FileInfo instance that represents the file with the correct case</returns>
 		public static FileInfo FindCorrectCase(FileInfo info)
 		{
-			DirectoryInfo parentInfo = DirectoryUtils.FindCorrectCase(info.Directory);
+			DirectoryInfo parentInfo = DirectoryUtils.FindCorrectCase(info.Directory!);
 			if (info.Exists)
 			{
 				foreach (FileInfo childInfo in parentInfo.EnumerateFiles())

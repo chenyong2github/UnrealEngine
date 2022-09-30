@@ -201,7 +201,7 @@ namespace EpicGames.Core
 				}
 				else 
 				{
-					command = (ICommand)serviceProvider.GetService(defaultCommandType);
+					command = (ICommand)serviceProvider.GetService(defaultCommandType)!;
 				}
 			}
 			else

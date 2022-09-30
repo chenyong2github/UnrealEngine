@@ -116,7 +116,7 @@ namespace EpicGames.Core
 		private static async Task<T> ParseJsonContent<T>(HttpResponseMessage message)
 		{
 			byte[] bytes = await message.Content.ReadAsByteArrayAsync();
-			return JsonSerializer.Deserialize<T>(bytes, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+			return JsonSerializer.Deserialize<T>(bytes, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 		}
 	}
 }

@@ -171,7 +171,7 @@ namespace EpicGames.Core
 					FileReference? imageFile;
 					try
 					{
-						imageFile = new FileReference(process.MainModule.FileName);
+						imageFile = new FileReference(process.MainModule!.FileName!);
 					}
 					catch
 					{

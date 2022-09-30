@@ -120,13 +120,13 @@ namespace EpicGames.Core
 				}
 
 				Type? targetType;
-				if (!_discriminatorToType.TryGetValue(element.GetString(), out targetType))
+				if (!_discriminatorToType.TryGetValue(element.GetString()!, out targetType))
 				{
 					throw new JsonException($"Invalid '{TypePropertyName}' field ('{element.GetString()}') for serializing {typeToConvert.Name}");
 				}
 
 				string text = document.RootElement.GetRawText();
-				T result = (T)JsonSerializer.Deserialize(text, targetType, options);
+				T result = (T)JsonSerializer.Deserialize(text, targetType, options)!;
 				return result;
 			}
 		}

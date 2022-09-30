@@ -28,7 +28,7 @@ namespace EpicGames.Core
 		/// Write a message to the buffer
 		/// </summary>
 		/// <param name="message">The message to write</param>
-		public override void Write(string message)
+		public override void Write(string? message)
 		{
 			if(NeedIndent)
 			{
@@ -41,10 +41,10 @@ namespace EpicGames.Core
 		/// Write a message to the buffer, followed by a newline
 		/// </summary>
 		/// <param name="message">The message to write</param>
-		public override void WriteLine(string message)
+		public override void WriteLine(string? message)
 		{
 			Write(message);
-			_buffer.Append("\n");
+			_buffer.Append('\n');
 		}
 	}
 }

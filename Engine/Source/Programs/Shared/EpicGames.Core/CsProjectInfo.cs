@@ -372,7 +372,7 @@ namespace EpicGames.Core
 
 			// Check the root element is the right type
 			//			HashSet<FileReference> ProjectBuildProducts = new HashSet<FileReference>();
-			if (document.DocumentElement.Name != "Project")
+			if (document.DocumentElement!.Name != "Project")
 			{
 				outProjectInfo = null;
 				return false;
@@ -643,7 +643,7 @@ namespace EpicGames.Core
 		/// <returns>The contents of the child element, or default value if it's not present</returns>
 		static string? GetChildElementString(XmlElement parentElement, string name, string? defaultValue)
 		{
-			XmlElement childElement = parentElement.ChildNodes.OfType<XmlElement>().FirstOrDefault(x => x.Name == name);
+			XmlElement? childElement = parentElement.ChildNodes.OfType<XmlElement>().FirstOrDefault(x => x.Name == name);
 			if (childElement == null)
 			{
 				return defaultValue;

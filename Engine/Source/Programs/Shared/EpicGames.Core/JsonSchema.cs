@@ -303,7 +303,7 @@ namespace EpicGames.Core
 
 			string selector = $"//member[@name='P:{type.FullName}.{name}']/summary";
 
-			XmlNode node = xmlDoc.SelectSingleNode(selector);
+			XmlNode? node = xmlDoc.SelectSingleNode(selector);
 			if (node == null)
 			{
 				return null;

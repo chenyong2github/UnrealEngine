@@ -3,6 +3,8 @@
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
+#pragma warning disable SYSLIB0011
+
 namespace EpicGames.Core
 {
 	/// <summary>
