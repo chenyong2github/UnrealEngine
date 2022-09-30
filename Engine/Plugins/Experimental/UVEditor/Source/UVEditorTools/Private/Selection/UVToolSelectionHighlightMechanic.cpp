@@ -202,7 +202,7 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 
 	for (const FUVToolSelection& Selection : Selections)
 	{
-		if (!ensure(Selection.Target.IsValid() && Selection.Target->IsValid()))
+		if (!ensure(Selection.Target.IsValid() && Selection.Target->AreMeshesValid()))
 		{
 			return;
 		}
@@ -415,7 +415,7 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 
 	for (const FUVToolSelection& Selection : UnwrapSelections)
 	{
-		if (!ensure(Selection.Target.IsValid() && Selection.Target->IsValid()))
+		if (!ensure(Selection.Target.IsValid() && Selection.Target->AreMeshesValid()))
 		{
 			return;
 		}

@@ -170,7 +170,7 @@ void UUVToolSelectionAPI::SetSelections(const TArray<FUVToolSelection>& Selectio
 	TArray<FUVToolSelection> NewSelections;
 	for (const FUVToolSelection& NewSelection : SelectionsIn)
 	{
-		if (ensure(NewSelection.Target.IsValid() && NewSelection.Target->IsValid())
+		if (ensure(NewSelection.Target.IsValid() && NewSelection.Target->AreMeshesValid())
 			// All of the selections should match type
 			&& ensure(NewSelections.Num() == 0 || NewSelection.Type == NewSelections[0].Type)
 			// Selection must not be empty, unless it's an edge selection stored as stable identifiers
@@ -315,7 +315,7 @@ void UUVToolSelectionAPI::SetUnsetElementAppliedMeshSelections(const TArray<FUVT
 	TArray<FUVToolSelection> NewUnsetSelections;
 	for (const FUVToolSelection& NewUnsetSelection : UnsetSelectionsIn)
 	{
-		if (ensure(NewUnsetSelection.Target.IsValid() && NewUnsetSelection.Target->IsValid())
+		if (ensure(NewUnsetSelection.Target.IsValid() && NewUnsetSelection.Target->AreMeshesValid())
 			// All of the unset selections should match type
 			&& ensure(NewUnsetSelections.Num() == 0 || NewUnsetSelection.Type == NewUnsetSelections[0].Type)
 			// Unset selection must not be empty

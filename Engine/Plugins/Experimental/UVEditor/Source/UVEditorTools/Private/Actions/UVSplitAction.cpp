@@ -24,7 +24,7 @@ namespace UVSplitActionLocals
 	{
 		UUVEditorToolMeshInput* Target = Selection.Target.Get();
 		
-		if (!ensure(Target && Target->IsValid()))
+		if (!ensure(Target && Target->AreMeshesValid()))
 		{
 			return false;
 		}
@@ -107,7 +107,7 @@ namespace UVSplitActionLocals
 	{
 		UUVEditorToolMeshInput* Target = Selection.Target.Get();
 
-		if (!ensure(Target && Target->IsValid()))
+		if (!ensure(Target && Target->AreMeshesValid()))
 		{
 			return false;
 		}
@@ -161,7 +161,7 @@ namespace UVSplitActionLocals
 	{
 		UUVEditorToolMeshInput* Target = Selection.Target.Get();
 
-		if (!ensure(Target && Target->IsValid()))
+		if (!ensure(Target && Target->AreMeshesValid()))
 		{
 			return false;
 		}

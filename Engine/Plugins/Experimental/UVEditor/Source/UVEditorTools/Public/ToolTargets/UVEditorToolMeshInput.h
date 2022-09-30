@@ -245,6 +245,20 @@ public:
 	 */
 	void AppliedVidToUnwrapVids(int32 AppliedVid, TArray<int32>& UnwrapVidsOut);
 
+	/**
+	 * Returns whether or not the underlying source ToolTarget is still valid.
+	 * This is separated from IsValid, which also checks the ToolTarget, in case
+	 * we are interested in the status of just the ToolTarget.
+	*/
+	virtual bool IsToolTargetValid() const;
+
+	/**
+	 * Returns whether or not the canonical and preview meshes are still valid.
+	 * This is separated from IsValid, in case we are interested in the status
+	 * of just the canonical and preview meshes.
+	 */
+	virtual bool AreMeshesValid() const;
+
 	// UToolTarget
 	virtual bool IsValid() const override;
 };

@@ -68,7 +68,7 @@ bool UUVSeamSewAction::ExecuteAction()
 	TArray<FUVToolSelection> StartSelections = SelectionAPI->GetSelections();
 	for (const FUVToolSelection& Selection : StartSelections)
 	{
-		if (!ensure(Selection.Target.IsValid() && Selection.Target->IsValid()))
+		if (!ensure(Selection.Target.IsValid() && Selection.Target->AreMeshesValid()))
 		{
 			continue;
 		}

@@ -180,14 +180,21 @@ FText FUVEditorToolkit::GetToolkitToolTipText() const
 	ToolTipString += TEXT(": ");
 
 	const TArray<UObject*>* Objects = GetObjectsCurrentlyBeingEdited();
-	check(Objects && Objects->Num() > 0);
-	ToolTipString += GetLabelForObject((*Objects)[0]).ToString();
-	for (int32 i = 1; i < Objects->Num(); ++i)
+	if (Objects && Objects->Num() > 0)
 	{
-		ToolTipString += TEXT(", ");
-		ToolTipString += GetLabelForObject((*Objects)[i]).ToString();
+		ToolTipString += GetLabelForObject((*Objects)[0]).ToString();
+		for (int32 i = 1; i < Objects->Num(); ++i)
+		{
+			ToolTipString += TEXT(", ");
+			ToolTipString += GetLabelForObject((*Objects)[i]).ToString();
+		}
 	}
-
+	else
+	{
+		// This can occur if our targets have been deleted externally to the UV Editor.
+		// It's a bad state, but one we can avoid crashing in by doing this.
+		ToolTipString += TEXT("<NO OBJECT>");
+	}
 	return FText::FromString(ToolTipString);
 }
 
