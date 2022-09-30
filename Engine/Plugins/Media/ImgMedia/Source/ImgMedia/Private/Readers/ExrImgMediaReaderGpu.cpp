@@ -85,6 +85,20 @@ namespace {
 /* FExrImgMediaReaderGpu structors
  *****************************************************************************/
 
+FExrImgMediaReaderGpu::FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader)
+	: FExrImgMediaReader(InLoader)
+	, LastTickedFrameCounter((uint64)-1)
+	, bIsShuttingDown(false)
+	, bFallBackToCPU(false)
+{
+	const int32 NumMipLevels = InLoader->GetNumMipLevels();
+
+	if (NumMipLevels <= 1 && CVarUpscaleLowQualityMip.GetValueOnAnyThread() >= 0)
+	{
+		UE_LOG(LogImgMedia, Display, TEXT("No upscaling for sequence without mips: %s"), *InLoader->GetImagePath(0,0));
+	}
+}
+
 FExrImgMediaReaderGpu::~FExrImgMediaReaderGpu()
 {
 	// A signal that tells all buffers that are stored in shared references not to return to the pool
@@ -307,10 +321,12 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 		// Force mip level to be upscaled to all higher quality mips.
 		FIntPoint CurrentMipDim = ConverterParams->FullResolution;
 		TMap<int32, FImgMediaTileSelection> InMipTilesCopy = InMipTiles;
-		int32 MipToUpscale = FMath::Clamp(CVarUpscaleLowQualityMip.GetValueOnAnyThread(), -1, ConverterParams->NumMipLevels - 1);
-		ConverterParams->UpscaleMip = MipToUpscale;
-		if (MipToUpscale >= 0)
+		const int32 MipToUpscale = FMath::Clamp(CVarUpscaleLowQualityMip.GetValueOnAnyThread(), -1, ConverterParams->NumMipLevels - 1);
+
+		if (ConverterParams->NumMipLevels > 1 && MipToUpscale >= 0)
 		{
+			ConverterParams->UpscaleMip = MipToUpscale;
+
 			FImgMediaTileSelection FullSelection = FImgMediaTileSelection::CreateForTargetMipLevel(ConverterParams->FullResolution, TileDim, MipToUpscale, true);
 			if (InMipTilesCopy.Contains(MipToUpscale))
 			{

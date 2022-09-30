@@ -832,7 +832,7 @@ TMap<int32, FImgMediaTileSelection> FImgMediaMipMapInfo::GetVisibleTiles()
 	int32 MipToUpscale = -1;
 	static const auto CVarUpscaleMip = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ExrReaderGPU.UpscaleHigherLevelMip"));
 
-	if (CVarUpscaleMip)
+	if (SequenceInfo.NumMipLevels > 1 && CVarUpscaleMip)
 	{
 		MipToUpscale = FMath::Min(CVarUpscaleMip->GetValueOnAnyThread(), SequenceInfo.NumMipLevels - 1);
 	}

@@ -67,8 +67,7 @@ class FExrImgMediaReaderGpu
 public:
 
 	/** Default constructor. */
-	FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader):FExrImgMediaReader(InLoader),
-		LastTickedFrameCounter((uint64)-1), bIsShuttingDown(false), bFallBackToCPU(false) {};
+	FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader);
 	virtual ~FExrImgMediaReaderGpu();
 
 public:
