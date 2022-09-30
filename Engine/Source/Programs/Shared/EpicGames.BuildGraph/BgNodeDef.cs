@@ -181,7 +181,7 @@ namespace EpicGames.BuildGraph
 
 			List<BgNodeOutput> allOutputs = new List<BgNodeOutput>();
 			allOutputs.Add(new BgNodeOutput(this, "#" + Name));
-			allOutputs.AddRange(outputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
+			allOutputs.AddRange(outputNames.Where(x => !String.Equals(x, Name, StringComparison.OrdinalIgnoreCase)).Select(x => new BgNodeOutput(this, x)));
 			Outputs = allOutputs.ToArray();
 		}
 

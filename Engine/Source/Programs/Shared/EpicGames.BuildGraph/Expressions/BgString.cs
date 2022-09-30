@@ -2,8 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -22,7 +20,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// Constructor
 		/// </summary>
 		/// <param name="flags">Flags for this expression</param>
-		public BgString(BgExprFlags flags)
+		protected BgString(BgExprFlags flags)
 			: base(flags)
 		{
 		}

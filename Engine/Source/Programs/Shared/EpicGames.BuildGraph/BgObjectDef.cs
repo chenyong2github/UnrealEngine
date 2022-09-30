@@ -295,8 +295,9 @@ namespace EpicGames.BuildGraph
 	}
 
 	/// <summary>
-	/// Attribute marking that a property should be serialized to BuildGraph
+	/// Attribute marking the type of serializer for an object
 	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
 	public sealed class BgObjectAttribute : Attribute
 	{
 		/// <summary>

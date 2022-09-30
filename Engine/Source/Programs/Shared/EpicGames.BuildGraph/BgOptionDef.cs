@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.BuildGraph
 {
@@ -30,7 +29,7 @@ namespace EpicGames.BuildGraph
 		/// Constructor
 		/// </summary>
 		/// <param name="name">The name of this option</param>
-		public BgOptionDef(string name)
+		protected BgOptionDef(string name)
 		{
 			Name = name;
 		}

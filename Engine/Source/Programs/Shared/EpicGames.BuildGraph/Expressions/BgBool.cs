@@ -26,7 +26,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// Constructor
 		/// </summary>
 		/// <param name="flags">Flags for this expression</param>
-		public BgBool(BgExprFlags flags)
+		protected BgBool(BgExprFlags flags)
 			: base(flags)
 		{
 		}

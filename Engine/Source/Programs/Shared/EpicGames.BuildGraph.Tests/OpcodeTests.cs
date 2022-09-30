@@ -5,11 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
-using OpenTracing;
 using EpicGames.BuildGraph.Expressions;
-using System.Collections.Immutable;
 using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph.Tests
@@ -17,14 +13,14 @@ namespace EpicGames.BuildGraph.Tests
 	[TestClass]
 	public class OpcodeTests
 	{
-		object Evaluate(BgExpr expr)
+		static object Evaluate(BgExpr expr)
 		{
 			(byte[] data, BgThunkDef[] methods) = BgCompiler.Compile(expr);
 			BgInterpreter interpreter = new BgInterpreter(data, methods, new Dictionary<string, string>());
 			return interpreter.Evaluate();
 		}
 
-		BgOptionDef EvaluateOption(BgExpr expr)
+		static BgOptionDef EvaluateOption(BgExpr expr)
 		{
 			(byte[] data, BgThunkDef[] methods) = BgCompiler.Compile(expr);
 			BgInterpreter interpreter = new BgInterpreter(data, methods, new Dictionary<string, string>());
@@ -353,8 +349,8 @@ namespace EpicGames.BuildGraph.Tests
 			Assert.AreEqual("value", result.DefaultValue);
 			Assert.AreEqual("abc", result.Pattern);
 			Assert.AreEqual("def", result.PatternFailed);
-			Assert.IsTrue(result.Values.SequenceEqual(new[] { "value1", "value2" }));
-			Assert.IsTrue(result.ValueDescriptions.SequenceEqual(new[] { "desc1", "desc2" }));
+			Assert.IsTrue(result.Values!.SequenceEqual(new[] { "value1", "value2" }));
+			Assert.IsTrue(result.ValueDescriptions!.SequenceEqual(new[] { "desc1", "desc2" }));
 		}
 
 		#endregion
@@ -489,8 +485,8 @@ namespace EpicGames.BuildGraph.Tests
 			Assert.AreEqual("stringOption", result.Name);
 			Assert.AreEqual("description", result.Description);
 			Assert.AreEqual("value", result.DefaultValue);
-			Assert.IsTrue(result.Values.SequenceEqual(new[] { "value1", "value2" }));
-			Assert.IsTrue(result.ValueDescriptions.SequenceEqual(new[] { "desc1", "desc2" }));
+			Assert.IsTrue(result.Values!.SequenceEqual(new[] { "value1", "value2" }));
+			Assert.IsTrue(result.ValueDescriptions!.SequenceEqual(new[] { "desc1", "desc2" }));
 		}
 
 		#endregion

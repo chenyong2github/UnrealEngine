@@ -83,7 +83,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// Constructor
 		/// </summary>
 		/// <param name="flags">Flags for this expression</param>
-		public BgList(BgExprFlags flags)
+		protected BgList(BgExprFlags flags)
 			: base(flags)
 		{
 		}

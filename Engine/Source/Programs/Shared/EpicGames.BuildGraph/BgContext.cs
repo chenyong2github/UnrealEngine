@@ -42,12 +42,12 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		public HashSet<FileReference> BuildProducts { get; } = new HashSet<FileReference>();
 
-		Dictionary<string, FileSet> _tagNameToFileSet;
+		readonly Dictionary<string, FileSet> _tagNameToFileSet;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgContext(Dictionary<string, FileSet> tagNameToFileSet)
+		protected BgContext(Dictionary<string, FileSet> tagNameToFileSet)
 		{
 			_tagNameToFileSet = tagNameToFileSet;
 		}

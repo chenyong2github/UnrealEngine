@@ -29,7 +29,7 @@ namespace EpicGames.BuildGraph.Expressions
 	/// Speecifies the node name for a method. Parameters from the method may be embedded in the name using the {ParamName} syntax.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method)]
-	public class BgNodeNameAttribute : Attribute
+	public sealed class BgNodeNameAttribute : Attribute
 	{
 		/// <summary>
 		/// The format string

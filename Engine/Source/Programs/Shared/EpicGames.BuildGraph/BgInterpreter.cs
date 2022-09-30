@@ -637,7 +637,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		string ReadString(Frame frame)
 		{
-			ReadOnlySpan<byte> buffer = _data[frame.Offset..];
+			ReadOnlySpan<byte> buffer = _data.AsSpan(frame.Offset);
 
 			int length = (int)VarInt.ReadUnsigned(buffer, out int bytesRead);
 			frame.Offset += bytesRead;
@@ -664,7 +664,7 @@ namespace EpicGames.BuildGraph
 		/// <returns>The value that was read</returns>
 		ulong ReadUnsignedInteger(Frame frame)
 		{
-			ulong value = VarInt.ReadUnsigned(_data[frame.Offset..], out int bytesRead);
+			ulong value = VarInt.ReadUnsigned(_data.AsSpan(frame.Offset), out int bytesRead);
 			frame.Offset += bytesRead;
 			return value;
 		}

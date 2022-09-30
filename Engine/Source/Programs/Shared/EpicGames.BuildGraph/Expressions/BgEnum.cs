@@ -27,7 +27,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgEnum(BgExprFlags flags)
+		protected BgEnum(BgExprFlags flags)
 			: base(flags)
 		{
 		}

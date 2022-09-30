@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
-using OpenTracing;
 using EpicGames.BuildGraph.Expressions;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace EpicGames.BuildGraph.Tests
@@ -21,7 +15,7 @@ namespace EpicGames.BuildGraph.Tests
 		static Task CompileShooterGameWin64() => Task.CompletedTask;
 		static Task CookShooterGameWin64() => Task.CompletedTask;
 
-		object Evaluate(BgExpr expr)
+		static object Evaluate(BgExpr expr)
 		{
 			(byte[] data, BgThunkDef[] methods) = BgCompiler.Compile(expr);
 			BgInterpreter interpreter = new BgInterpreter(data, methods, new Dictionary<string, string>());

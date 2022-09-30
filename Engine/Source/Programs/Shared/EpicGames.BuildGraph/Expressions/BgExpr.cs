@@ -56,7 +56,7 @@ namespace EpicGames.BuildGraph
 		/// Constructor
 		/// </summary>
 		/// <param name="flags"></param>
-		public BgExpr(BgExprFlags flags)
+		protected BgExpr(BgExprFlags flags)
 		{
 			Flags = flags;
 		}

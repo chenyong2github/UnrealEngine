@@ -22,7 +22,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// Constructor
 		/// </summary>
 		/// <param name="flags"></param>
-		public BgFileSet(BgExprFlags flags)
+		protected BgFileSet(BgExprFlags flags)
 			: base(flags)
 		{
 		}

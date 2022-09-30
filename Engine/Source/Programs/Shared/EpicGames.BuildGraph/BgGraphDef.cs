@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Xml;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
@@ -17,8 +16,14 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Options for how the graph should be printed
 	/// </summary>
+	[Flags]
 	public enum GraphPrintOptions
 	{
+		/// <summary>
+		/// No options specified
+		/// </summary>
+		None = 0,
+
 		/// <summary>
 		/// Includes a list of the graph options
 		/// </summary>
@@ -134,7 +139,7 @@ namespace EpicGames.BuildGraph
 		public bool TryResolveReference(string name, [NotNullWhen(true)] out BgNodeDef[]? outNodes)
 		{
 			// Check if it's a tag reference or node reference
-			if (name.StartsWith("#"))
+			if (name.StartsWith("#", StringComparison.Ordinal))
 			{
 				// Check if it's a regular node or output name
 				BgNodeOutput? output;
@@ -185,7 +190,7 @@ namespace EpicGames.BuildGraph
 		public bool TryResolveInputReference(string name, [NotNullWhen(true)] out BgNodeOutput[]? outOutputs)
 		{
 			// Check if it's a tag reference or node reference
-			if (name.StartsWith("#"))
+			if (name.StartsWith("#", StringComparison.Ordinal))
 			{
 				// Check if it's a regular node or output name
 				BgNodeOutput? output;
@@ -605,7 +610,7 @@ namespace EpicGames.BuildGraph
 
 					foreach (string line in lines)
 					{
-						logger.Log(LogLevel.Information, line);
+						logger.Log(LogLevel.Information, "{Line}", line);
 					}
 				}
 			}
@@ -615,21 +620,21 @@ namespace EpicGames.BuildGraph
 			logger.LogInformation("Graph:");
 			foreach (BgAgentDef agent in Agents)
 			{
-				logger.LogInformation("        Agent: {0} ({1})", agent.Name, String.Join(";", agent.PossibleTypes));
+				logger.LogInformation("        Agent: {Name} ({Types})", agent.Name, String.Join(";", agent.PossibleTypes));
 				foreach (BgNodeDef node in agent.Nodes)
 				{
-					logger.LogInformation("            Node: {0}{1}", node.Name, completedNodes.Contains(node) ? " (completed)" : node.RunEarly ? " (early)" : "");
+					logger.LogInformation("            Node: {Name}{Type}", node.Name, completedNodes.Contains(node) ? " (completed)" : node.RunEarly ? " (early)" : "");
 					if (printOptions.HasFlag(GraphPrintOptions.ShowDependencies))
 					{
 						HashSet<BgNodeDef> inputDependencies = new HashSet<BgNodeDef>(node.GetDirectInputDependencies());
 						foreach (BgNodeDef inputDependency in inputDependencies)
 						{
-							logger.LogInformation("                input> {0}", inputDependency.Name);
+							logger.LogInformation("                input> {Name}", inputDependency.Name);
 						}
 						HashSet<BgNodeDef> orderDependencies = new HashSet<BgNodeDef>(node.GetDirectOrderDependencies());
 						foreach (BgNodeDef orderDependency in orderDependencies.Except(inputDependencies))
 						{
-							logger.LogInformation("                after> {0}", orderDependency.Name);
+							logger.LogInformation("                after> {Name}", orderDependency.Name);
 						}
 					}
 					if (printOptions.HasFlag(GraphPrintOptions.ShowNotifications))
@@ -637,11 +642,11 @@ namespace EpicGames.BuildGraph
 						string label = node.NotifyOnWarnings ? "warnings" : "errors";
 						foreach (string user in node.NotifyUsers)
 						{
-							logger.LogInformation("                {0}> {1}", label, user);
+							logger.LogInformation("                {Name}> {User}", label, user);
 						}
 						foreach (string submitter in node.NotifySubmitters)
 						{
-							logger.LogInformation("                {0}> submitters to {1}", label, submitter);
+							logger.LogInformation("                {Name}> submitters to {Submitter}", label, submitter);
 						}
 					}
 				}
@@ -655,7 +660,7 @@ namespace EpicGames.BuildGraph
 				logger.LogInformation("Aggregates:");
 				foreach (string aggregateName in aggregates.Select(x => x.Name))
 				{
-					logger.LogInformation("    {0}", aggregateName);
+					logger.LogInformation("    {Aggregate}", aggregateName);
 				}
 				logger.LogInformation("");
 			}

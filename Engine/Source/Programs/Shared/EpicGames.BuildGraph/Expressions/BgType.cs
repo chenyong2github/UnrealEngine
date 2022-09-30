@@ -41,7 +41,8 @@ namespace EpicGames.BuildGraph.Expressions
 	/// <summary>
 	/// Attribute used to specify the converter class to use for a type
 	/// </summary>
-	class BgTypeAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Class)]
+	sealed class BgTypeAttribute : Attribute
 	{
 		/// <summary>
 		/// The converter type
