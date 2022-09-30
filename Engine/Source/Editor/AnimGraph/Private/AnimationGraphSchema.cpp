@@ -1104,9 +1104,9 @@ void UAnimationGraphSchema::ConformAnimLayersByGuid(const UAnimBlueprint* InAnim
 				for (UEdGraph* InterfaceGraph : InterfaceGraphs)
 				{
 					// Check to see if GUID matches but name does not and update if so
-					if (InterfaceGraph->GraphGuid == LayerNode->InterfaceGuid && InterfaceGraph->GetFName() != LayerNode->Node.Layer)
+					if (InterfaceGraph->GraphGuid == LayerNode->InterfaceGuid && InterfaceGraph->GetFName() != LayerNode->GetLayerName())
 					{
-						LayerNode->Node.Layer = InterfaceGraph->GetFName();
+						LayerNode->SetLayerName(InterfaceGraph->GetFName());
 					}
 				}
 			}

@@ -24,6 +24,9 @@ class UAnimGraphNode_LinkedAnimGraphBase : public UAnimGraphNode_CustomProperty,
 	GENERATED_BODY()
 
 public:
+	// UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	
 	//~ Begin UEdGraphNode Interface.
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -84,6 +87,16 @@ protected:
 
 	virtual FLinearColor GetDefaultNodeTitleColor() const;
 
+	// Handler for when the function reference gets re-resolved on node reconstruction
+	virtual void HandleFunctionReferenceChanged(FName InNewName) {}
+	
+	// Helper func for generating pins
+	void IterateFunctionParameters(UFunction* InFunction, TFunctionRef<void(const FName&, const FEdGraphPinType&)> InFunc) const;
+	
+	// Reference to the stub function that this node uses
+	UPROPERTY()
+	FMemberReference FunctionReference;
+	
 	// Skeleton name used for filtering unloaded classes 
 	FString SkeletonName;
 

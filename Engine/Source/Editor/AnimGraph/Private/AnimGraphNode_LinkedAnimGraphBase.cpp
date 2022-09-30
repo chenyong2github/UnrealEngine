@@ -30,6 +30,35 @@ namespace LinkedAnimGraphGraphNodeConstants
 	FLinearColor TitleColor(0.2f, 0.2f, 0.8f);
 }
 
+
+void UAnimGraphNode_LinkedAnimGraphBase::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	if(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LinkedAnimGraphMemberReference)
+	{
+		// Upgrade name to member reference. 
+		// Note that if the name has changed underneath us, we still cant recover the GUID
+		// until this asset has its node refreshed & the node is resaved
+		const FAnimNode_LinkedAnimGraph& RuntimeNode = *GetLinkedAnimGraphNode();
+		const FName FunctionName = RuntimeNode.GetDynamicLinkFunctionName();
+		UClass* TargetClass = GetTargetSkeletonClass();
+		if(FunctionName != NAME_None)
+		{
+			if(TargetClass != nullptr)
+			{
+				FunctionReference.SetExternalMember(FunctionName, TargetClass);
+			}
+			else
+			{
+				FunctionReference.SetSelfMember(FunctionName);
+			}
+		}
+	}
+}
+
 void UAnimGraphNode_LinkedAnimGraphBase::AllocatePoseLinks()
 {
 	FAnimNode_LinkedAnimGraph& RuntimeNode = *GetLinkedAnimGraphNode();
@@ -213,28 +242,28 @@ void UAnimGraphNode_LinkedAnimGraphBase::CreateOutputPins()
 	
 	// Grab the SKELETON class here as when we are reconstructed during during BP compilation
 	// the full generated class is not yet present built.
-	UClass* TargetClass = GetTargetSkeletonClass();
-
-	if(TargetClass)
+	if(UClass* TargetClass = GetTargetSkeletonClass())
 	{
-		IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
-
-		const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
-
-		// Add any pose pins
-		for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
+		if(UFunction* Function = FunctionReference.ResolveMember<UFunction>(TargetClass))
 		{
-			if(AnimBlueprintFunction.Name == Node.GetDynamicLinkFunctionName())
+			// Could have re-resolved to a new member name via GUID 
+			const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
+			if(Node.GetDynamicLinkFunctionName() != FunctionReference.GetMemberName())
 			{
-				for(const FName& PoseName : AnimBlueprintFunction.InputPoseNames)
-				{
-					UEdGraphPin* NewPin = CreatePin(EEdGraphPinDirection::EGPD_Input, UAnimationGraphSchema::MakeLocalSpacePosePin(), PoseName);
-					NewPin->PinFriendlyName = FText::FromName(PoseName);
-					CustomizePinData(NewPin, PoseName, INDEX_NONE);
-				}
-
-				break;
+				HandleFunctionReferenceChanged(FunctionReference.GetMemberName());
 			}
+			
+			Function = FBlueprintEditorUtils::GetMostUpToDateFunction(Function);
+			
+			IterateFunctionParameters(Function, [this](FName InName, FEdGraphPinType InPinType)
+			{
+				if(UAnimationGraphSchema::IsPosePin(InPinType))
+				{
+					UEdGraphPin* NewPin = CreatePin(EEdGraphPinDirection::EGPD_Input, UAnimationGraphSchema::MakeLocalSpacePosePin(), InName);
+					NewPin->PinFriendlyName = FText::FromName(InName);
+					CustomizePinData(NewPin, InName, INDEX_NONE);
+				}
+			});
 		}
 	}
 }
@@ -250,6 +279,26 @@ void UAnimGraphNode_LinkedAnimGraphBase::PostEditChangeProperty(FPropertyChanged
 	{
 		if (IsStructuralProperty(ChangedProperty))
 		{
+			// Set function reference if node structure changes
+			const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
+			UClass* TargetClass = GetTargetSkeletonClass();
+			FName FunctionName = Node.GetDynamicLinkFunctionName();
+			if(FunctionName != NAME_None)
+			{
+				if(TargetClass != nullptr)
+				{
+					FunctionReference.SetExternalMember(FunctionName, TargetClass);
+				}
+				else
+				{
+					FunctionReference.SetSelfMember(FunctionName);
+				}
+			}
+			else
+			{
+				FunctionReference = FMemberReference();
+			}
+
 			bRequiresNodeReconstruct = true;
 		}
 	}
@@ -527,6 +576,39 @@ TSharedPtr<FEdGraphSchemaAction> UAnimGraphNode_LinkedAnimGraphBase::GetEventNod
 	TSharedPtr<FEdGraphSchemaAction_K2Event> NodeAction = MakeShareable(new FEdGraphSchemaAction_K2Event(ActionCategory, GetNodeTitle(ENodeTitleType::ListView), GetTooltipText(), 0));
 	NodeAction->NodeTemplate = this;
 	return NodeAction;
+}
+
+
+void UAnimGraphNode_LinkedAnimGraphBase::IterateFunctionParameters(UFunction* InFunction, TFunctionRef<void(const FName&, const FEdGraphPinType&)> InFunc) const
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+	auto IterateParam = [K2Schema, &InFunc](FProperty* InParam, bool bInPoses)
+	{
+		const bool bIsFunctionInput = !InParam->HasAnyPropertyFlags(CPF_OutParm) || InParam->HasAnyPropertyFlags(CPF_ReferenceParm);
+		if (bIsFunctionInput)
+		{
+			FEdGraphPinType PinType;
+			if(K2Schema->ConvertPropertyToPinType(InParam, PinType))
+			{
+				if(UAnimationGraphSchema::IsPosePin(PinType) == bInPoses)
+				{
+					InFunc(InParam->GetFName(), PinType);
+				}
+			}
+		}
+	};
+
+	// Iterate poses first, then params
+	for (TFieldIterator<FProperty> PropIt(InFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	{
+		IterateParam(*PropIt, true);
+	}
+
+	for (TFieldIterator<FProperty> PropIt(InFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	{
+		IterateParam(*PropIt, false);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

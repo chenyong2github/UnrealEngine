@@ -74,8 +74,11 @@ void UAnimGraphNode_LinkedAnimGraph::SetupFromAsset(const FAssetData& InAssetDat
 		{
 			UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(InAssetData.GetAsset());
 			Node.InstanceClass = AnimBlueprint->GeneratedClass.Get();
-		}	
+		}
 	}
+
+	// Set up function reference
+	FunctionReference.SetExternalMember(UEdGraphSchema_K2::GN_AnimGraph, GetTargetClass());
 }
 
 void UAnimGraphNode_LinkedAnimGraph::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const

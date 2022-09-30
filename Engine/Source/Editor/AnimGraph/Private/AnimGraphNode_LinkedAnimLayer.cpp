@@ -114,7 +114,7 @@ FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleTyp
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("NodeType"), bIsSelf ? LOCTEXT("SelfLayerNodeTitle", "Anim Layer (self)") : DefaultNodeTitle);
 		Args.Add(TEXT("TargetClass"), bIsSelf ? LOCTEXT("ClassSelf", "Self") : FText::FromString(TargetAnimBlueprintInterface->GetName()));
-		Args.Add(TEXT("Layer"), (Node.Layer == NAME_None) ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
+		Args.Add(TEXT("Layer"), (GetLayerName() == NAME_None) ? LOCTEXT("LayerNone", "None") : FText::FromName(GetLayerName()));
 
 		if (TitleType == ENodeTitleType::ListView)
 		{
@@ -157,7 +157,7 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateAnimNodeDuringCompilation(USkeleton
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	if(Node.Layer == NAME_None)
+	if(GetLayerName() == NAME_None)
 	{
 		MessageLog.Error(*LOCTEXT("NoLayerError", "Linked anim layer node @@ does not specify a layer.").ToString(), this);
 	}
@@ -218,7 +218,7 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateAnimNodeDuringCompilation(USkeleton
 			IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
 			for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
 			{
-				if(AnimBlueprintFunction.Name == Node.Layer)
+				if(AnimBlueprintFunction.Name == GetLayerName())
 				{
 					bFoundFunction = true;
 				}
@@ -226,7 +226,7 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateAnimNodeDuringCompilation(USkeleton
 
 			if(!bFoundFunction)
 			{
-				MessageLog.Error(*FText::Format(LOCTEXT("MissingLayerError", "Linked anim layer node @@ uses invalid layer '{0}'."), FText::FromName(Node.Layer)).ToString(), this);
+				MessageLog.Error(*FText::Format(LOCTEXT("MissingLayerError", "Linked anim layer node @@ uses invalid layer '{0}'."), FText::FromName(GetLayerName())).ToString(), this);
 			}
 		}
 
@@ -258,7 +258,7 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateAnimNodeDuringCompilation(USkeleton
 			{
 				if (LayerNode != OriginalThis)
 				{
-					if (LayerNode->Node.Layer == Node.Layer)
+					if (LayerNode->GetLayerName() == GetLayerName())
 					{
 						MessageLog.Error(*FText::Format(LOCTEXT("DuplicateLayerError", "Linked anim layer node @@ is also used by graph '{0}', layers can be used only once in an animation blueprint."), FText::FromName(LayerNode->GetGraph()->GetFName())).ToString(), this);
 					}
@@ -382,7 +382,7 @@ void UAnimGraphNode_LinkedAnimLayer::GetLinkTarget(UObject*& OutTargetGraph, UBl
 			TArray<UEdGraph*> Graphs;
 			TargetAnimBlueprint->GetAllGraphs(Graphs);
 
-			UEdGraph** FoundGraph = Graphs.FindByPredicate([this](UEdGraph* InGraph) { return InGraph->GetFName() == Node.Layer; });
+			UEdGraph** FoundGraph = Graphs.FindByPredicate([this](UEdGraph* InGraph) { return InGraph->GetFName() == GetLayerName(); });
 			if (FoundGraph)
 			{
 				OutTargetBlueprint = TargetAnimBlueprint;
@@ -399,7 +399,7 @@ void UAnimGraphNode_LinkedAnimLayer::GetLinkTarget(UObject*& OutTargetGraph, UBl
 		TArray<UEdGraph*> Graphs;
 		GetBlueprint()->GetAllGraphs(Graphs);
 
-		UEdGraph** FoundGraph = Graphs.FindByPredicate([this](UEdGraph* InGraph) { return InGraph->GetFName() == Node.Layer; });
+		UEdGraph** FoundGraph = Graphs.FindByPredicate([this](UEdGraph* InGraph) { return InGraph->GetFName() == GetLayerName(); });
 		if (FoundGraph)
 		{
 			OutTargetBlueprint = nullptr;
@@ -524,7 +524,7 @@ void UAnimGraphNode_LinkedAnimLayer::CustomizeDetails(IDetailLayoutBuilder& Deta
 					PropertyCustomizationHelpers::MakePropertyComboBox(
 						LayerHandle, 
 						FOnGetPropertyComboBoxStrings::CreateUObject(this,  &UAnimGraphNode_LinkedAnimLayer::GetLayerNames),
-						FOnGetPropertyComboBoxValue::CreateUObject(this,  &UAnimGraphNode_LinkedAnimLayer::GetLayerName)
+						FOnGetPropertyComboBoxValue::CreateUObject(this,  &UAnimGraphNode_LinkedAnimLayer::GetLayerNameString)
 					)
 				]
 			]
@@ -595,7 +595,7 @@ bool UAnimGraphNode_LinkedAnimLayer::OnShouldFilterInstanceBlueprint(const FAsse
 		{
 			if(InterfaceDesc.Interface && InterfaceDesc.Interface->IsChildOf<UAnimLayerInterface>())
 			{
-				if(Node.Layer == NAME_None || InterfaceDesc.Interface->FindFunctionByName(Node.Layer))
+				if(GetLayerName() == NAME_None || InterfaceDesc.Interface->FindFunctionByName(GetLayerName()))
 				{
 					AnimInterfaces.Add(InterfaceDesc.Interface);
 				}
@@ -785,9 +785,9 @@ void UAnimGraphNode_LinkedAnimLayer::GetLayerNames(TArray<TSharedPtr<FString>>& 
 	}
 }
 
-FString UAnimGraphNode_LinkedAnimLayer::GetLayerName() const
+FString UAnimGraphNode_LinkedAnimLayer::GetLayerNameString() const
 {
-	return Node.Layer.ToString();
+	return FunctionReference.GetMemberName().ToString();
 }
 
 bool UAnimGraphNode_LinkedAnimLayer::IsStructuralProperty(FProperty* InProperty) const
@@ -831,7 +831,7 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 		{
 			for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 			{
-				if(InterfaceGraph->GetFName() == Node.Layer)
+				if(InterfaceGraph->GetFName() == GetLayerName())
 				{
 					return InterfaceDesc.Interface;
 				}
@@ -850,6 +850,26 @@ void UAnimGraphNode_LinkedAnimLayer::UpdateGuidForLayer()
 	}
 }
 
+void UAnimGraphNode_LinkedAnimLayer::SetLayerName(FName InName)
+{
+	Node.Layer = InName;
+
+	if(UClass* TargetClass = GetTargetClass())
+	{
+		FunctionReference.SetExternalMember(InName, TargetClass);
+	}
+	else
+	{
+		FunctionReference.SetSelfMember(InName);
+	}
+}
+
+FName UAnimGraphNode_LinkedAnimLayer::GetLayerName() const
+{
+	ensure(FunctionReference.GetMemberName() == Node.Layer);
+	return FunctionReference.GetMemberName();
+}
+
 FGuid UAnimGraphNode_LinkedAnimLayer::GetGuidForLayer() const
 {
 	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
@@ -859,7 +879,7 @@ FGuid UAnimGraphNode_LinkedAnimLayer::GetGuidForLayer() const
 		{
 			for (UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 			{
-				if (InterfaceGraph->GetFName() == Node.Layer)
+				if (InterfaceGraph->GetFName() == GetLayerName())
 				{
 					return InterfaceGraph->InterfaceGuid;
 				}
@@ -918,7 +938,7 @@ bool UAnimGraphNode_LinkedAnimLayer::HasValidNonSelfLayer() const
 			{
 				if(InterfaceDesc.Interface && InterfaceDesc.Interface->IsChildOf<UAnimLayerInterface>())
 				{
-					if(InterfaceDesc.Interface->FindFunctionByName(Node.Layer))
+					if(InterfaceDesc.Interface->FindFunctionByName(GetLayerName()))
 					{
 						return true;
 					}
@@ -963,6 +983,17 @@ void UAnimGraphNode_LinkedAnimLayer::SetupFromLayerId(FName InLayer)
 	{
 		// Self layers cannot have override implementations
 		Node.InstanceClass = nullptr;
+	}
+
+	// Set up function reference
+	UClass* TargetClass = GetTargetClass();
+	if(TargetClass)
+	{
+		FunctionReference.SetExternalMember(InLayer, TargetClass);
+	}
+	else
+	{
+		FunctionReference.SetSelfMember(InLayer);
 	}
 }
 
@@ -1071,7 +1102,7 @@ bool UAnimGraphNode_LinkedAnimLayer::IsActionFilteredOut(class FBlueprintActionF
 				IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(TargetClass);
 				for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimClassInterface->GetAnimBlueprintFunctions())
 				{
-					if(Node.Layer == AnimBlueprintFunction.Name)
+					if(GetLayerName() == AnimBlueprintFunction.Name)
 					{
 						bImplemented = true;
 						break;
@@ -1101,5 +1132,10 @@ const FAnimNode_LinkedAnimGraph* UAnimGraphNode_LinkedAnimLayer::GetLinkedAnimGr
 	return RuntimeLinkedAnimGraphNode ? RuntimeLinkedAnimGraphNode : &Node;
 }
 
+void UAnimGraphNode_LinkedAnimLayer::HandleFunctionReferenceChanged(FName InNewName)
+{
+	Node.Layer = InNewName;
+	ensure(FunctionReference.GetMemberName() == Node.Layer);
+}
 
 #undef LOCTEXT_NAMESPACE

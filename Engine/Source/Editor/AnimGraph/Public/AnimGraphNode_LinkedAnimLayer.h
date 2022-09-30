@@ -53,6 +53,11 @@ public:
 	// Optionally updates layer GUID if it is invalid
 	void UpdateGuidForLayer();
 
+	// Sets the name of the layer we refer to
+	void SetLayerName(FName InName);
+
+	// Gets the name of the layer we refer to
+	FName GetLayerName() const;
 protected:
 
 	void GetLinkTarget(UObject* &OutTargetGraph, UBlueprint* &OutTargetBlueprint) const;
@@ -60,7 +65,7 @@ protected:
 	// ----- UI CALLBACKS ----- //
 	// Handlers for layer combo
 	void GetLayerNames(TArray<TSharedPtr<FString>>& OutStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems);
-	FString GetLayerName() const;
+	FString GetLayerNameString() const;
 	void OnLayerChanged(IDetailLayoutBuilder* DetailBuilder);
 	bool HasAvailableLayers() const;
 	bool HasValidNonSelfLayer() const;
@@ -84,7 +89,8 @@ protected:
 	virtual FString GetCurrentInstanceBlueprintPath() const override;
 	virtual bool IsStructuralProperty(FProperty* InProperty) const override;
 	virtual FLinearColor GetDefaultNodeTitleColor() const override;
-
+	virtual void HandleFunctionReferenceChanged(FName InNewName) override;
+	
 	friend class FAnimationLayerDragDropAction;
 	
 	// Helper function to get the interface currently in use by the selected layer
