@@ -358,6 +358,11 @@ bool FResources::RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFail
 
 	if (DDCRebuildState.State.load() == EDDCRebuildState::Initial)
 	{
+		if (StreamablePages.IsBulkDataLoaded())
+		{
+			return true;
+		}
+
 		// Handle Initial state first so we can transition directly to Succeeded/Failed if the data was immediately available from the cache.
 		check(!(*DDCRequestOwner).IsValid());
 		BeginRebuildBulkDataFromCache(Owner);
