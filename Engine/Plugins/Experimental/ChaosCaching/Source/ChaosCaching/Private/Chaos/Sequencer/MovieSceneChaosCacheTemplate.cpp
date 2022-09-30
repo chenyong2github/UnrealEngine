@@ -71,7 +71,7 @@ struct FChaosCacheExecutionToken : IMovieSceneExecutionToken
 				if (UObject* Obj = WeakObj.Get())
 				{
 					AChaosCacheManager*  ChaosCache = ChaosCacheFromObject(Obj);
-					if (ChaosCache)
+					if (ChaosCache && ChaosCache->CacheCollection)
 					{ 
 						// Set the ChaosCache on the component only if it's set and valid in the Params
 						if (Params.ChaosCacheParams.CacheCollection && Params.ChaosCacheParams.CacheCollection != ChaosCache->CacheCollection)
