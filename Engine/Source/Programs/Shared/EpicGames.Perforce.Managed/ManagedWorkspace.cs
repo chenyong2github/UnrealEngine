@@ -39,17 +39,17 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The Perforce connection
 		/// </summary>
-		public IPerforceConnection _perforceClient;
+		public IPerforceConnection PerforceClient { get; }
 
 		/// <summary>
 		/// Stream to sync it to
 		/// </summary>
-		public string _streamName;
+		public string StreamName { get; }
 
 		/// <summary>
 		/// View for this client
 		/// </summary>
-		public IReadOnlyList<string> _view;
+		public IReadOnlyList<string> View { get; }
 
 		/// <summary>
 		/// Constructor
@@ -59,9 +59,9 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="view">List of filters for the stream</param>
 		public PopulateRequest(IPerforceConnection perforceClient, string streamName, IReadOnlyList<string> view)
 		{
-			_perforceClient = perforceClient;
-			_streamName = streamName;
-			_view = view;
+			PerforceClient = perforceClient;
+			StreamName = streamName;
+			View = view;
 		}
 	}
 
@@ -450,7 +450,7 @@ namespace EpicGames.Perforce.Managed
 				const int MaxDisplay = 1000;
 				foreach (string path in paths.OrderBy(x => x).Take(MaxDisplay))
 				{
-					_logger.LogInformation($"  {path}");
+					_logger.LogInformation("  {Path}", path);
 				}
 				if (paths.Count > MaxDisplay)
 				{
@@ -675,12 +675,16 @@ namespace EpicGames.Perforce.Managed
 					}
 
 					// Build a table showing amount of unique content in each stream
-					string[,] cells = new string[streamNames.Count + 1, streamNames.Count + 1];
-					cells[0, 0] = "";
+					string[][] cells = new string[streamNames.Count + 1][];
+					for (int idx = 0; idx < cells.Length; idx++)
+					{
+						cells[idx] = new string[streamNames.Count + 1];
+					}
+					cells[0][0] = "";
 					for (int idx = 0; idx < streamNames.Count; idx++)
 					{
-						cells[idx + 1, 0] = streamNames[idx];
-						cells[0, idx + 1] = streamNames[idx];
+						cells[idx + 1][0] = streamNames[idx];
+						cells[0][idx + 1] = streamNames[idx];
 					}
 
 					// Populate the table
@@ -690,7 +694,7 @@ namespace EpicGames.Perforce.Managed
 						for (int colIdx = 0; colIdx < streamNames.Count; colIdx++)
 						{
 							long diffSize = files.Where(x => !filesInStream[colIdx].Contains(x.ContentId)).Sum(x => x.Length);
-							cells[rowIdx + 1, colIdx + 1] = String.Format("{0:0.0}mb", diffSize / (1024.0 * 1024.0));
+							cells[rowIdx + 1][colIdx + 1] = String.Format("{0:0.0}mb", diffSize / (1024.0 * 1024.0));
 						}
 					}
 
@@ -700,7 +704,7 @@ namespace EpicGames.Perforce.Managed
 					{
 						for (int rowIdx = 0; rowIdx < streamNames.Count + 1; rowIdx++)
 						{
-							colWidths[colIdx] = Math.Max(colWidths[colIdx], cells[rowIdx, colIdx].Length);
+							colWidths[colIdx] = Math.Max(colWidths[colIdx], cells[rowIdx][colIdx].Length);
 						}
 					}
 
@@ -713,12 +717,12 @@ namespace EpicGames.Perforce.Managed
 						StringBuilder row = new StringBuilder();
 						for (int colIdx = 0; colIdx < streamNames.Count + 1; colIdx++)
 						{
-							string cell = cells[rowIdx, colIdx];
+							string cell = cells[rowIdx][colIdx];
 							row.Append(' ', colWidths[colIdx] - cell.Length);
 							row.Append(cell);
 							row.Append(" | ");
 						}
-						_logger.LogInformation(row.ToString());
+						_logger.LogInformation("{Row}", row.ToString());
 					}
 					_logger.LogInformation("");
 
@@ -743,15 +747,15 @@ namespace EpicGames.Perforce.Managed
 				_logger.LogInformation("Local changes:");
 				foreach (string difference in differences)
 				{
-					if (difference.StartsWith("+"))
+					if (difference.StartsWith("+", StringComparison.Ordinal))
 					{
 						Console.ForegroundColor = ConsoleColor.Green;
 					}
-					else if (difference.StartsWith("-"))
+					else if (difference.StartsWith("-", StringComparison.Ordinal))
 					{
 						Console.ForegroundColor = ConsoleColor.Red;
 					}
-					else if (difference.StartsWith("!"))
+					else if (difference.StartsWith("!", StringComparison.Ordinal))
 					{
 						Console.ForegroundColor = ConsoleColor.Yellow;
 					}
@@ -759,7 +763,7 @@ namespace EpicGames.Perforce.Managed
 					{
 						Console.ResetColor();
 					}
-					_logger.LogInformation("  {0}", difference);
+					_logger.LogInformation("  {Line}", difference);
 				}
 				Console.ResetColor();
 			}
@@ -952,12 +956,12 @@ namespace EpicGames.Perforce.Managed
 			// Revert all changes in each of the unique clients
 			foreach (PopulateRequest request in requests)
 			{
-				using IPerforceConnection perforce = await request._perforceClient.WithoutClientAsync();
+				using IPerforceConnection perforce = await request.PerforceClient.WithoutClientAsync();
 
-				PerforceResponse<ClientRecord> response = await perforce.TryGetClientAsync(request._perforceClient.Settings.ClientName!, cancellationToken);
+				PerforceResponse<ClientRecord> response = await perforce.TryGetClientAsync(request.PerforceClient.Settings.ClientName!, cancellationToken);
 				if (response.Succeeded)
 				{
-					await RevertInternalAsync(request._perforceClient, cancellationToken);
+					await RevertInternalAsync(request.PerforceClient, cancellationToken);
 				}
 			}
 
@@ -969,20 +973,20 @@ namespace EpicGames.Perforce.Managed
 			for (int idx = 0; idx < requests.Count; idx++)
 			{
 				PopulateRequest request = requests[idx];
-				string streamName = request._streamName;
+				string streamName = request.StreamName;
 				_logger.LogInformation("Finding contents of {StreamName}:", streamName);
 
 				using (_logger.BeginIndentScope("  "))
 				{
-					await DeleteClientAsync(request._perforceClient, cancellationToken);
-					await UpdateClientAsync(request._perforceClient, streamName, cancellationToken);
+					await DeleteClientAsync(request.PerforceClient, cancellationToken);
+					await UpdateClientAsync(request.PerforceClient, streamName, cancellationToken);
 
-					int changeNumber = await GetLatestClientChangeAsync(request._perforceClient, cancellationToken);
+					int changeNumber = await GetLatestClientChangeAsync(request.PerforceClient, cancellationToken);
 					_logger.LogInformation("Latest change is CL {CL}", changeNumber);
 
-					await UpdateClientHaveTableAsync(request._perforceClient, changeNumber, request._view, cancellationToken);
+					await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, request.View, cancellationToken);
 
-					StreamSnapshot contents = await FindClientContentsAsync(request._perforceClient, changeNumber, cancellationToken);
+					StreamSnapshot contents = await FindClientContentsAsync(request.PerforceClient, changeNumber, cancellationToken);
 					streamState[idx] = Tuple.Create(changeNumber, contents);
 
 					GC.Collect();
@@ -1048,20 +1052,20 @@ namespace EpicGames.Perforce.Managed
 			for (int idx = 0; idx < requests.Count; idx++)
 			{
 				PopulateRequest request = requests[idx];
-				string streamName = request._streamName;
+				string streamName = request.StreamName;
 				_logger.LogInformation("Syncing files for {StreamName}:", streamName);
 
 				using (_logger.BeginIndentScope("  "))
 				{
-					await DeleteClientAsync(request._perforceClient, cancellationToken);
-					await UpdateClientAsync(request._perforceClient, streamName, cancellationToken);
+					await DeleteClientAsync(request.PerforceClient, cancellationToken);
+					await UpdateClientAsync(request.PerforceClient, streamName, cancellationToken);
 
 					int changeNumber = streamState[idx].Item1;
-					await UpdateClientHaveTableAsync(request._perforceClient, changeNumber, requests[idx]._view, cancellationToken);
+					await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, requests[idx].View, cancellationToken);
 
 					StreamSnapshot contents = streamState[idx].Item2;
 					await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-					await AddFilesToWorkspaceAsync(request._perforceClient, contents, bFakeSync, cancellationToken);
+					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, bFakeSync, cancellationToken);
 				}
 			}
 
@@ -1134,8 +1138,8 @@ namespace EpicGames.Perforce.Managed
 			FileReference configFile = FileReference.Combine(_baseDir, "p4.ini");
 			using (StreamWriter writer = new StreamWriter(configFile.FullName))
 			{
-				writer.WriteLine("P4PORT={0}", perforceClient.Settings.ServerAndPort);
-				writer.WriteLine("P4CLIENT={0}", perforceClient.Settings.ClientName);
+				await writer.WriteLineAsync($"P4PORT={perforceClient.Settings.ServerAndPort}");
+				await writer.WriteLineAsync($"P4CLIENT={perforceClient.Settings.ClientName}");
 			}
 		}
 
@@ -1199,7 +1203,7 @@ namespace EpicGames.Perforce.Managed
 				}
 
 				// Find all the open changes
-				List<ChangesRecord> changes = await perforceClient.GetChangesAsync(ChangesOptions.None, perforceClient.Settings.ClientName!, -1, ChangeStatus.Pending, null, new string[0], cancellationToken);
+				List<ChangesRecord> changes = await perforceClient.GetChangesAsync(ChangesOptions.None, perforceClient.Settings.ClientName!, -1, ChangeStatus.Pending, null, Array.Empty<string>(), cancellationToken);
 
 				// Delete the changelist
 				foreach (ChangesRecord change in changes)
@@ -1210,7 +1214,7 @@ namespace EpicGames.Perforce.Managed
 					{
 						if (record.Files.Count > 0)
 						{
-							await perforceClient.DeleteShelvedFilesAsync(record.Number, new string[0], cancellationToken);
+							await perforceClient.DeleteShelvedFilesAsync(record.Number, Array.Empty<string>(), cancellationToken);
 						}
 					}
 
@@ -1253,7 +1257,7 @@ namespace EpicGames.Perforce.Managed
 				Stopwatch timer = Stopwatch.StartNew();
 
 				// Sync an initial set of files. Either start with a full workspace and remove files, or start with nothing and add files.
-				if (view.Count == 0 || view[0].StartsWith("-"))
+				if (view.Count == 0 || view[0].StartsWith("-", StringComparison.Ordinal))
 				{
 					await UpdateHaveTablePathAsync(perforceClient, $"//{perforceClient.Settings.ClientName}/...@{changeNumber}", cancellationToken);
 				}
@@ -1266,7 +1270,7 @@ namespace EpicGames.Perforce.Managed
 				foreach (string filter in view)
 				{
 					string syncPath;
-					if (filter.StartsWith("-"))
+					if (filter.StartsWith("-", StringComparison.Ordinal))
 					{
 						syncPath = String.Format("//{0}/{1}#0", perforceClient.Settings.ClientName, RemoveLeadingSlash(filter.Substring(1)));
 					}
@@ -1288,7 +1292,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="syncPath">Path to sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
-		private async Task UpdateHaveTablePathAsync(IPerforceConnection perforceClient, string syncPath, CancellationToken cancellationToken)
+		private static async Task UpdateHaveTablePathAsync(IPerforceConnection perforceClient, string syncPath, CancellationToken cancellationToken)
 		{
 			PerforceResponseList<SyncSummaryRecord> responseList = await perforceClient.TrySyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { syncPath }, cancellationToken);
 			foreach (PerforceResponse<SyncSummaryRecord> response in responseList)
@@ -1652,7 +1656,7 @@ namespace EpicGames.Perforce.Managed
 			}
 			catch (Exception ex)
 			{
-				_logger.LogWarning(ex, "warning: Unable to delete directory {0}", directoryToDelete);
+				_logger.LogWarning(ex, "warning: Unable to delete directory {Directory}", directoryToDelete);
 				_bRequiresRepair = true;
 			}
 		}
@@ -1719,7 +1723,7 @@ namespace EpicGames.Perforce.Managed
 				// Make sure there's enough space on this drive
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					long freeSpace = new DriveInfo(Path.GetPathRoot(_baseDir.FullName)).AvailableFreeSpace;
+					long freeSpace = new DriveInfo(Path.GetPathRoot(_baseDir.FullName)!).AvailableFreeSpace;
 					if (freeSpace - syncSize < MinScratchSpace)
 					{
 						throw new InsufficientSpaceException($"Not enough space to sync new files (free space: {freeSpace / (1024.0 * 1024.0):n1}mb, sync size: {syncSize / (1024.0 * 1024.0):n1}mb, min scratch space: {MinScratchSpace / (1024.0 * 1024.0):n1}mb)");
@@ -1772,7 +1776,7 @@ namespace EpicGames.Perforce.Managed
 							{
 								(int batchBeginIdx, int batchEndIdx) = batches[nextBatchIdx];
 
-								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, bFakeSync, cancellationToken));
+								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, bFakeSync, cancellationToken), cancellationToken);
 								tasks[task] = nextBatchIdx++;
 							}
 
@@ -1834,7 +1838,7 @@ namespace EpicGames.Perforce.Managed
 				{
 					FileReference localFile = filesToSync[idx]._workspaceFile.GetLocation();
 					DirectoryReference.CreateDirectory(localFile.Directory);
-					FileReference.WriteAllBytes(localFile, new byte[0]);
+					FileReference.WriteAllBytes(localFile, Array.Empty<byte>());
 				}
 			}
 			else
@@ -1844,14 +1848,14 @@ namespace EpicGames.Perforce.Managed
 				{
 					for (int idx = beginIdx; idx < endIdx; idx++)
 					{
-						writer.WriteLine("{0}#{1}", filesToSync[idx]._streamFile.Path, filesToSync[idx]._streamFile.Revision);
+						await writer.WriteLineAsync($"{filesToSync[idx]._streamFile.Path}#{filesToSync[idx]._streamFile.Revision}");
 					}
 				}
 
 				using PerforceConnection clientWithFileList = new PerforceConnection(client.Settings, client.Logger);
 				clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
 
-				await clientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], cancellationToken).ToListAsync(cancellationToken);
+				await clientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, Array.Empty<string>(), cancellationToken).ToListAsync(cancellationToken);
 			}
 		}
 
@@ -2012,7 +2016,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="operation">Name of the operation</param>
 		/// <returns>Disposable object for the trace</returns>
-		private IDisposable Trace(string operation)
+		private static IDisposable Trace(string operation)
 		{
 			return TraceSpan.Create(operation, service: "hordeagent_repository");
 		}

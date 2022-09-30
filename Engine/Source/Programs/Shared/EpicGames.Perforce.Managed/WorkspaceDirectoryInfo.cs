@@ -54,12 +54,12 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="parentDirectory">The parent directory</param>
 		/// <param name="name">Name of this directory</param>
-		/// <param name="ref">The corresponding stream digest</param>
-		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? parentDirectory, Utf8String name, StreamTreeRef? @ref)
+		/// <param name="treeRef">The corresponding stream digest</param>
+		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? parentDirectory, Utf8String name, StreamTreeRef? treeRef)
 		{
 			ParentDirectory = parentDirectory;
 			Name = name;
-			StreamDirectoryDigest = (@ref == null) ? IoHash.Zero : @ref.GetHash();
+			StreamDirectoryDigest = (treeRef == null) ? IoHash.Zero : treeRef.ComputeHash();
 			NameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(Utf8StringComparer.Ordinal);
 			NameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(FileUtils.PlatformPathComparerUtf8);
 		}

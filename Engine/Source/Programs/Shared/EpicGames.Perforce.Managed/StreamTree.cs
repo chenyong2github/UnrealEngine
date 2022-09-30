@@ -129,7 +129,7 @@ namespace EpicGames.Perforce.Managed
 		/// Gets the hash of this reference
 		/// </summary>
 		/// <returns></returns>
-		public IoHash GetHash()
+		public IoHash ComputeHash()
 		{
 			CbWriter writer = new CbWriter();
 			writer.BeginObject();

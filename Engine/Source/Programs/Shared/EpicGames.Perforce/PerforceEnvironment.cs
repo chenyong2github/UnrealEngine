@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using EpicGames.Core;
 using Microsoft.Win32;
 
@@ -68,16 +69,19 @@ namespace EpicGames.Perforce
 	{
 		public WindowsGlobalPerforceEnvironment()
 		{
-			using (RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\perforce\\environment", false))
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				if (key != null)
+				using (RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\perforce\\environment", false))
 				{
-					foreach (string valueName in key.GetValueNames())
+					if (key != null)
 					{
-						string? value = key.GetValue(valueName) as string;
-						if (!String.IsNullOrEmpty(value) && !Variables.ContainsKey(valueName))
+						foreach (string valueName in key.GetValueNames())
 						{
-							Variables[valueName] = value;
+							string? value = key.GetValue(valueName) as string;
+							if (!String.IsNullOrEmpty(value) && !Variables.ContainsKey(valueName))
+							{
+								Variables[valueName] = value;
+							}
 						}
 					}
 				}

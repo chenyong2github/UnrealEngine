@@ -68,9 +68,9 @@ namespace EpicGames.Perforce.Managed
 		}
 
 		/// <inheritdoc/>
-		public override StreamTree Lookup(StreamTreeRef @ref)
+		public override StreamTree Lookup(StreamTreeRef treeRef)
 		{
-			return new StreamTree(@ref.Path, HashToTree[@ref.Hash]);
+			return new StreamTree(treeRef.Path, HashToTree[treeRef.Hash]);
 		}
 
 		/// <summary>
