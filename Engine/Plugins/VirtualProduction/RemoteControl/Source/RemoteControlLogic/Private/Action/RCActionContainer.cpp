@@ -69,6 +69,17 @@ URCBehaviour* URCActionContainer::GetParentBehaviour()
 	return Cast<URCBehaviour>(GetOuter());
 }
 
+TArray<const URCPropertyAction*> URCActionContainer::GetPropertyActions() const
+{
+	TArray<const URCPropertyAction*> PropertyActions;
+
+	Algo::TransformIf(Actions, PropertyActions,
+		[](const URCAction* Action) { return Action->IsA(URCPropertyAction::StaticClass()); },
+		[](const URCAction* Action) { return Cast<URCPropertyAction>(Action); });
+
+	return PropertyActions;
+}
+
 URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const FRemoteControlProperty> InRemoteControlProperty)
 {
 	// Create new Property
@@ -88,26 +99,25 @@ URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const 
 
 	if (FProperty* Property = InRemoteControlProperty->GetProperty())
 	{
-		for (URCAction* Action : Actions)
+		// Reusing input property is only applicable for Array properties
+		// Eg: "Override Materials" will be represented by a single virtual property Array with each Action occupying a different index slot.
+		if(Property->IsA(FArrayProperty::StaticClass()))
 		{
-			if (URCPropertyAction* PropertyAction = Cast<URCPropertyAction>(Action))
+			for (const URCPropertyAction* PropertyAction : GetPropertyActions())
 			{
-				if (PropertyAction->PropertySelfContainer)
+				if (FProperty* InputFieldProperty = PropertyAction->GetProperty())
 				{
-					if(FProperty* InputFieldProperty = PropertyAction->PropertySelfContainer->GetProperty())
+					if (InputFieldProperty->GetFName() == Property->GetFName())
 					{
-						if(InputFieldProperty->GetFName() == Property->GetFName())
+						if (const TSharedPtr<const FRemoteControlProperty> RemoteControlPropertyForAction = PropertyAction->GetRemoteControlProperty())
 						{
-							if (const TSharedPtr<const FRemoteControlProperty> RemoteControlPropertyForAction = PropertyAction->GetRemoteControlProperty())
+							if (InRemoteControlProperty->GetBoundObject() == RemoteControlPropertyForAction->GetBoundObject())
 							{
-								if (InRemoteControlProperty->GetBoundObject() == RemoteControlPropertyForAction->GetBoundObject())
-								{
-									// We already have an Action associated with this property, so this must be a container type like Array.
-									// Both the UI widget and Execute will operate on a unique index associated with this Action for this container property
-									NewPropertyAction->PropertySelfContainer = PropertyAction->PropertySelfContainer;
+								// We already have an Action associated with this Array container property.
+								// The array container will be reused, both the UI widget and Execute will operate on a unique index associated with the respective Action
+								NewPropertyAction->PropertySelfContainer = PropertyAction->PropertySelfContainer;
 
-									bFoundMatchingContainer = true;
-								}
+								bFoundMatchingContainer = true;
 							}
 						}
 					}

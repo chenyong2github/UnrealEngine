@@ -72,6 +72,16 @@ void URCPropertyAction::Execute() const
 	Super::Execute();
 }
 
+FProperty* URCPropertyAction::GetProperty() const
+{
+	if (ensure(PropertySelfContainer))
+	{
+		return PropertySelfContainer->GetProperty();
+	}
+
+	return nullptr;
+}
+
 FName URCAction::GetExposedFieldLabel() const
 {
 	if (const URemoteControlPreset* Preset = PresetWeakPtr.Get())

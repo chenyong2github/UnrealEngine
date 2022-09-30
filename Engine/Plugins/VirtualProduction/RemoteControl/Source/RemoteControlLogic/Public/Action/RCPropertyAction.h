@@ -24,6 +24,9 @@ public:
 	virtual void Execute() const override;
 	//~ End URCAction interface
 
+	/* Returns the FProperty underlying this Action */
+	FProperty* GetProperty() const;
+
 public:
 	/** Virtual Property Container */
 	UPROPERTY()

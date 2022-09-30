@@ -64,6 +64,9 @@ public:
 	/** Retrieves the actions present in this container */
 	const TSet<TObjectPtr<URCAction>>& GetActions() const { return Actions; }
 
+	/** Retrieves all the Property Actions present in this container */
+	TArray<const URCPropertyAction*> GetPropertyActions() const;
+
 #if WITH_EDITOR
 	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI */
 	virtual void PostEditUndo();
