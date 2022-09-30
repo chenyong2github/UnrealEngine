@@ -244,6 +244,7 @@ struct FRWIndexBuffer final : FIndexBuffer
 		CreateInfo.ResourceArray = InResourceArray;
 		IndexBufferRHI = RHICreateIndexBuffer(BytesPerElement, NumBytes, BUF_UnorderedAccess | AdditionalUsage, InResourceState, CreateInfo);
 		UAV = RHICreateUnorderedAccessView(IndexBufferRHI, UE_PIXELFORMAT_TO_UINT8(Format));
+		UE_LOG(LogTemp, Warning, TEXT("Allocated UAV(%p)"), UAV.GetReference());
 	}
 
 	virtual void ReleaseRHI() override
@@ -2027,10 +2028,7 @@ void FNiagaraRendererRibbons::InitializeViewIndexBuffersGPU(FRHICommandListImmed
 		Params.GNiagaraRibbonTessellationMinDisplacementError = GNiagaraRibbonTessellationMinDisplacementError;
 
 		RHICmdList.Transition(FRHITransitionInfo(RenderingViewResources->IndirectDrawBuffer.UAV, ERHIAccess::SRVMask | ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute));
-		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
-		SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), Params);
-		DispatchComputeShader(RHICmdList, ComputeShader, 1, 1, 1);
-		UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
+		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Params, FIntVector(1, 1, 1));
 		RHICmdList.Transition(FRHITransitionInfo(RenderingViewResources->IndirectDrawBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask | ERHIAccess::IndirectArgs));
 	}
 	
@@ -2088,10 +2086,7 @@ void FNiagaraRendererRibbons::InitializeViewIndexBuffersGPU(FRHICommandListImmed
 		Params.SubSegmentBitMask = RenderingViewResources->IndexGenerationSettings.SubSegmentBitMask;
 		
 		RHICmdList.Transition(FRHITransitionInfo(RenderingViewResources->IndexBuffer.UAV, ERHIAccess::VertexOrIndexBuffer, ERHIAccess::UAVCompute));
-		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
-		SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), Params);
-		DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), RenderingViewResources->IndirectDrawBuffer.Buffer, IndirectDispatchArgsOffset);
-		UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
+		FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, Params, RenderingViewResources->IndirectDrawBuffer.Buffer, IndirectDispatchArgsOffset);
 		RHICmdList.Transition(FRHITransitionInfo(RenderingViewResources->IndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::VertexOrIndexBuffer));
 	}
 }

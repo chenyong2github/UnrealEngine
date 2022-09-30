@@ -11,17 +11,11 @@ uint CountOffset;
 int MergeSortSourceBlockSize;
 int MergeSortDestinationBlockSize;
 
-struct FBubbleShortEntry
-{
-	uint ParticleID;
-	float LinkID;
-	
+groupshared uint		SortParticleIDs[THREADGROUP_SIZE + 1];
+groupshared float		SortLinkIDs[THREADGROUP_SIZE + 1];
 #if HAS_RIBBON_ID
-	FRibbonID RibbonID;
+groupshared FRibbonID	SortRibbonIDs[THREADGROUP_SIZE + 1];
 #endif
-};
-
-groupshared FBubbleShortEntry BubbleSortTemp[THREADGROUP_SIZE];
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void InitialSortList(uint3 DispatchThreadId : SV_DispatchThreadID, uint InGroupIndex : SV_GroupIndex, uint3 InGroupID : SV_GroupID)
@@ -35,48 +29,53 @@ void InitialSortList(uint3 DispatchThreadId : SV_DispatchThreadID, uint InGroupI
 	const int GlobalIndexOffset = DispatchThreadId.x;
 	const int LocalIndexOffset = InGroupIndex;
 
-	FBubbleShortEntry NewEntry;
-	NewEntry.ParticleID = min(GlobalIndexOffset, int(TotalNumParticles - 1));
-	NewEntry.LinkID = GetRibbonLinkID(NewEntry.ParticleID);	
-#if HAS_RIBBON_ID
-	NewEntry.RibbonID = GetRibbonID(NewEntry.ParticleID);
-#endif
-	
-	BubbleSortTemp[LocalIndexOffset] = NewEntry;	
-	
-	int SortGroup = 1;
-	
-	for (int Index = 0; Index < THREADGROUP_SIZE; Index++)
+	// Make local sort information
 	{
-		// Switch the offset and sync all threads
-		SortGroup ^= 0x1;		
-		GroupMemoryBarrierWithGroupSync();
-
-		if (LocalIndexOffset % 2 == SortGroup && LocalIndexOffset + 1 < TotalNumParticlesInSet)
-		{
-			const FBubbleShortEntry ThisEntry = BubbleSortTemp[LocalIndexOffset + 0];
-			const FBubbleShortEntry NextEntry = BubbleSortTemp[LocalIndexOffset + 1];		
-
-#if HAS_RIBBON_ID			
-			const int RibbonIDComparisonResult = CompareRibbonIDs(ThisEntry.RibbonID, NextEntry.RibbonID);
-			const bool bShouldSwap = RibbonIDComparisonResult > 0 || (RibbonIDComparisonResult == 0 && ThisEntry.LinkID > NextEntry.LinkID);
-#else
-			const bool bShouldSwap = ThisEntry.LinkID > NextEntry.LinkID;
-#endif
-			
-			if (bShouldSwap)
-			{
-				BubbleSortTemp[LocalIndexOffset + 0] = NextEntry;
-				BubbleSortTemp[LocalIndexOffset + 1] = ThisEntry;
-			}
-		}
+		const uint LocalParticleID			= min(GlobalIndexOffset, int(TotalNumParticles - 1));
+		SortParticleIDs[LocalIndexOffset]	= LocalParticleID;
+		SortLinkIDs[LocalIndexOffset]		= GetRibbonLinkID(LocalParticleID);
+	#if HAS_RIBBON_ID
+		SortRibbonIDs[LocalIndexOffset]		= GetRibbonID(LocalParticleID);
+	#endif
 	}
-
 	GroupMemoryBarrierWithGroupSync();
+	
+	for (int SortGroup=0; SortGroup < THREADGROUP_SIZE; SortGroup++)
+	{
+		bool bShouldSwap = false;
+		if ( ((LocalIndexOffset & 1) == (SortGroup & 1)) && (LocalIndexOffset + 1 < TotalNumParticlesInSet) )
+		{
+#if HAS_RIBBON_ID			
+			const int RibbonIDComparisonResult = CompareRibbonIDs(SortRibbonIDs[LocalIndexOffset + 0], SortRibbonIDs[LocalIndexOffset + 1]);
+			bShouldSwap = RibbonIDComparisonResult > 0 || (RibbonIDComparisonResult == 0 && SortLinkIDs[LocalIndexOffset + 0] > SortLinkIDs[LocalIndexOffset + 1]);
+#else
+			bShouldSwap = SortLinkIDs[LocalIndexOffset + 0] > SortLinkIDs[LocalIndexOffset + 1];
+#endif
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+		if (bShouldSwap)
+		{
+			uint TempParticleID = SortParticleIDs[LocalIndexOffset + 0];
+			SortParticleIDs[LocalIndexOffset + 0] = SortParticleIDs[LocalIndexOffset + 1];
+			SortParticleIDs[LocalIndexOffset + 1] = TempParticleID;
+
+			float TempLinkID = SortLinkIDs[LocalIndexOffset + 0];
+			SortLinkIDs[LocalIndexOffset + 0] = SortLinkIDs[LocalIndexOffset + 1];
+			SortLinkIDs[LocalIndexOffset + 1] = TempLinkID;
+
+		#if HAS_RIBBON_ID
+			FRibbonID TempRibbonID = SortRibbonIDs[LocalIndexOffset + 0];
+			SortRibbonIDs[LocalIndexOffset + 0] = SortRibbonIDs[LocalIndexOffset + 1];
+			SortRibbonIDs[LocalIndexOffset + 1] = TempRibbonID;
+		#endif
+		}
+		GroupMemoryBarrierWithGroupSync();
+	}
 
 	if (LocalIndexOffset < TotalNumParticlesInSet)
 	{
-		DestinationSortedIndices[GlobalIndexOffset] = BubbleSortTemp[LocalIndexOffset].ParticleID;
+		DestinationSortedIndices[GlobalIndexOffset] = SortParticleIDs[LocalIndexOffset];
 	}
 }
 
