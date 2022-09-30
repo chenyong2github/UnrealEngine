@@ -280,7 +280,7 @@ namespace WorldPartitionTests
 				FWorldPartitionActorDescInitData ActorDescInitData;
 				ActorDescInitData.NativeClass = ActorNativeClass;
 				ActorDescInitData.PackageName = ActorDescIterator->GetActorPackage();
-				ActorDescInitData.ActorPath = ActorDescIterator->GetActorPath();
+				ActorDescInitData.ActorPath = ActorDescIterator->GetActorSoftPath();
 			
 				ActorDescIterator->SerializeTo(ActorDescInitData.SerializedData);
 				NewActorDesc->Init(ActorDescInitData);
