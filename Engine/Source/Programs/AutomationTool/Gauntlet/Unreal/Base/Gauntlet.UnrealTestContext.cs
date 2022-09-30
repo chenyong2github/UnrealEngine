@@ -190,6 +190,13 @@ namespace Gauntlet
 		public string ArtifactPostfix;
 
 		/// <summary>
+		/// Add custom module name/role pair to identify custom project target executable
+		/// Format is <name>:<role>+<name>:<role>
+		/// </summary>
+		[AutoParam("")]
+		public string CustomModuleRoles { get; set; }
+
+		/// <summary>
 		/// Less logging
 		/// </summary>
 		[AutoParamWithNames(false, "Verbose", "Gauntlet.Verbose")]
@@ -343,6 +350,32 @@ namespace Gauntlet
 					&& !Arg.StartsWith("device=", StringComparison.OrdinalIgnoreCase))
 				.ToArray();
 			Params = new Params(CleanArgs);
+
+			// Custom Module name/role
+			if (!string.IsNullOrEmpty(CustomModuleRoles))
+			{
+				foreach (var Pair in CustomModuleRoles.Split("+"))
+				{
+					var SplittedPair = Pair.Split(":");
+					if (SplittedPair.Length > 1)
+					{
+						string Name = SplittedPair[0];
+						UnrealTargetRole Role = UnrealTargetRole.Unknown;
+						if (Enum.TryParse(SplittedPair[1], out Role))
+						{
+							UnrealHelpers.AddCustomModuleName(Name, Role);
+						}
+						else
+						{
+							throw new AutomationException(string.Format("Target Role '{0}' for Custom Module '{1}' is unknown.", SplittedPair[1], Name));
+						}
+					}
+					else
+					{
+						Gauntlet.Log.Warning("CustomModuleRoles is poorly formatted. Expected <name>:<role> pair. Got '{0}'", Pair);
+					}
+				}
+			}
 		}
 	}
 	
