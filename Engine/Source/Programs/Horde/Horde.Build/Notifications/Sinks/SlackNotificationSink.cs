@@ -1814,7 +1814,7 @@ namespace Horde.Build.Notifications.Sinks
 		/// <inheritdoc/>
 		public async Task NotifyDeviceServiceAsync(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null)
 		{
-			string recipient = $"#{_settings.DeviceServiceNotificationChannel}";
+			string? recipient = null;
 
 			if (user != null)
 			{
@@ -1828,11 +1828,10 @@ namespace Horde.Build.Notifications.Sinks
 
 				recipient = slackRecipient;
 			}
-
-			_logger.LogDebug("Sending device service notification to {Recipient}", recipient);
-
-			if (_settings.DeviceServiceNotificationChannel != null)
+			
+			if (recipient != null)
 			{
+				_logger.LogDebug("Sending device service notification to {Recipient}", recipient);
 				await SendDeviceServiceMessage(recipient, message, device, pool, stream, job, step, node, user);
 			}
 		}

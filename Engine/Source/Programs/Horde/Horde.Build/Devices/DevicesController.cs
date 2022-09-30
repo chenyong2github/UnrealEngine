@@ -833,8 +833,7 @@ namespace Horde.Build.Devices
 
 			if (String.IsNullOrEmpty(poolId))
 			{
-				string message = $"No pool specified, defaulting to UE4" + details;
-				await _deviceService.NotifyDeviceServiceAsync(message, null, request.JobId, request.StepId);
+				// @todo: We default to ue4, though this should be an error, or a configuration setting
 				poolId = "ue4";
 				//return BadRequest(Message);
 			}
@@ -845,7 +844,6 @@ namespace Horde.Build.Devices
 			{
 				_logger.LogError("Unknown pool {PoolId} {Details}", poolId, details);
 				string message = $"Unknown pool {poolId} " + details;
-				await _deviceService.NotifyDeviceServiceAsync(message, null, request.JobId, request.StepId);
 				return BadRequest(message);
 			}
 
@@ -884,9 +882,7 @@ namespace Horde.Build.Devices
 
 				if (platform == null)
 				{
-					string message = $"Unknown platform {platformId}" + details;					
-					await _deviceService.NotifyDeviceServiceAsync(message, null, request.JobId, request.StepId);
-					return BadRequest(message);
+					return BadRequest($"Unknown platform {platformId}" + details);
 				}
 
 				List<string> includeModels = new List<string>();
@@ -1137,8 +1133,6 @@ namespace Horde.Build.Devices
 					}
 				}
 			}			
-
-			await _deviceService.NotifyDeviceServiceAsync(message, device.Id, jobId, stepId);
 
 			return Ok();
 
