@@ -125,6 +125,7 @@ namespace UE::PixelStreaming
 	void FPixelStreamingInputHandler::SetTargetWindow(TWeakPtr<SWindow> InWindow)
 	{
 		TargetWindow = InWindow;
+		PixelStreamerApplicationWrapper->SetTargetWindow(InWindow);
 	}
 
 	TWeakPtr<SWindow> FPixelStreamingInputHandler::GetTargetWindow()
