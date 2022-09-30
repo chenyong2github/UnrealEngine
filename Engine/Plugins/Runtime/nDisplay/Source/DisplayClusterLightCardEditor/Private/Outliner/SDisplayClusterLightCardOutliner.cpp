@@ -5,6 +5,7 @@
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardOutlinerMode.h"
 #include "DisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardOutlinerColumns.h"
 
 #include "IDisplayClusterOperator.h"
 
@@ -237,6 +238,11 @@ void SDisplayClusterLightCardOutliner::CreateWorldOutliner()
 	SceneOutlinerOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Gutter(),
 		FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0, FCreateSceneOutlinerColumn(), false, TOptional<float>(),
 				FSceneOutlinerBuiltInColumnTypes::Gutter_Localized()));
+
+	SceneOutlinerOptions.ColumnMap.Add(FDisplayClusterLightCardOutlinerHiddenInGameColumn::GetID(),
+		FSceneOutlinerColumnInfo(FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible,
+			1, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner)
+			{ return MakeShareable(new FDisplayClusterLightCardOutlinerHiddenInGameColumn(InSceneOutliner)); }))));
 	
 	SceneOutlinerOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(),
 		FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10, FCreateSceneOutlinerColumn(), false, TOptional<float>(),
@@ -252,6 +258,14 @@ void SDisplayClusterLightCardOutliner::CreateWorldOutliner()
 			{
 				if (const AActor* Actor = ActorItem->Actor.Get())
 				{
+					if (const ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(Actor))
+					{
+						if (LightCardActor->bIsUVLightCard)
+						{
+							return TEXT("UV Light Card");
+						}
+					}
+					
 					return Actor->GetClass()->GetDisplayNameText().ToString();
 				}
 			
