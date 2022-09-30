@@ -2426,7 +2426,7 @@ public:
 	{
 		const FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
 
-		if (VelocityData)
+		if (VelocityData && VelocityData->PrimitiveSceneInfo)
 		{
 			check(VelocityData->bPreviousLocalToWorldValid);
 			VelocityData->LastFrameUsed = InternalFrameIndex;
