@@ -197,6 +197,12 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 		FName PropertyIdentifier = PropertyChain[I].PropertyName;
 		FProperty* ResolvedProperty = UEDiffUtils_Private::Resolve(ContainerStruct, PropertyIdentifier);
 
+		// If the property didn't exist inside the container, return an invalid property
+		if (!ResolvedProperty)
+		{
+			return FPropertyPath();
+		}
+		
 		FPropertyInfo Info(ResolvedProperty, INDEX_NONE);
 		Ret.AddProperty(Info);
 

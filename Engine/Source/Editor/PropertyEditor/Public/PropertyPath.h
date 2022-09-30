@@ -56,6 +56,11 @@ public:
 		return NewPath;
 	}
 
+	bool IsValid() const 
+	{ 
+		return !Properties.IsEmpty(); 
+	}
+
 	int32 GetNumProperties() const 
 	{ 
 		return Properties.Num(); 
