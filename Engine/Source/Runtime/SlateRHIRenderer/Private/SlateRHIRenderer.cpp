@@ -694,6 +694,10 @@ public:
 		UILevel.Bind(Initializer.ParameterMap, TEXT("UILevel"));
 		UILuminance.Bind(Initializer.ParameterMap, TEXT("UILuminance"));
 		OutputDevice.Bind(Initializer.ParameterMap, TEXT("OutputDevice"));
+		ColorVisionDeficiencyType.Bind(Initializer.ParameterMap, TEXT("ColorVisionDeficiencyType"));
+		ColorVisionDeficiencySeverity.Bind(Initializer.ParameterMap, TEXT("ColorVisionDeficiencySeverity"));
+		bCorrectDeficiency.Bind(Initializer.ParameterMap, TEXT("bCorrectDeficiency"));
+		bSimulateCorrectionWithDeficiency.Bind(Initializer.ParameterMap, TEXT("bSimulateCorrectionWithDeficiency"));
 	}
 	FCompositeShaderBase() = default;
 
@@ -714,6 +718,15 @@ public:
 		}
 	}
 
+	template<class TRHIShader>
+	void SetColorDeficiencyParamsBase(FRHICommandList& RHICmdList, TRHIShader* BoundShader, bool bCorrect, EColorVisionDeficiency DeficiencyType, int32 Severity, bool bShowCorrectionWithDeficiency)
+	{
+		SetShaderValue(RHICmdList, BoundShader, ColorVisionDeficiencyType, (float)DeficiencyType);
+		SetShaderValue(RHICmdList, BoundShader, ColorVisionDeficiencySeverity, (float)Severity);
+		SetShaderValue(RHICmdList, BoundShader, bCorrectDeficiency, bCorrect ? 1.0f : 0.0f);
+		SetShaderValue(RHICmdList, BoundShader, bSimulateCorrectionWithDeficiency, bShowCorrectionWithDeficiency ? 1.0f : 0.0f);
+	}
+
 	static const TCHAR* GetSourceFilename()
 	{
 		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
@@ -728,6 +741,10 @@ private:
 	LAYOUT_FIELD(FShaderParameter, UILevel);
 	LAYOUT_FIELD(FShaderParameter, UILuminance);
 	LAYOUT_FIELD(FShaderParameter, OutputDevice);
+	LAYOUT_FIELD(FShaderParameter, ColorVisionDeficiencyType);
+	LAYOUT_FIELD(FShaderParameter, ColorVisionDeficiencySeverity);
+	LAYOUT_FIELD(FShaderParameter, bCorrectDeficiency);
+	LAYOUT_FIELD(FShaderParameter, bSimulateCorrectionWithDeficiency);
 };
 IMPLEMENT_TYPE_LAYOUT(FCompositeShaderBase);
 
@@ -753,13 +770,19 @@ public:
 		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
 	}
 
+	void SetColorDeficiencyParams(FRHICommandList& RHICmdList, bool bCorrect, EColorVisionDeficiency DeficiencyType, int32 Severity, bool bShowCorrectionWithDeficiency)
+	{
+		SetColorDeficiencyParamsBase(RHICmdList, RHICmdList.GetBoundPixelShader(), bCorrect, DeficiencyType, Severity, bShowCorrectionWithDeficiency);
+	}
+
+
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, SceneTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, SceneSampler);
 };
 IMPLEMENT_TYPE_LAYOUT(FCompositePSBase);
 
-template<uint32 EncodingType>
+template<uint32 EncodingType, bool bApplyColorDeficiency>
 class FCompositePS : public FCompositePSBase
 {
 	DECLARE_SHADER_TYPE(FCompositePS, Global);
@@ -771,10 +794,19 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SCRGB_ENCODING"), EncodingType);
+		OutEnvironment.SetDefine(TEXT("APPLY_COLOR_DEFICIENCY"), uint32(bApplyColorDeficiency ? 1 : 0));
 	}
 };
-IMPLEMENT_SHADER_TYPE(template<>, FCompositePS<0>, FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>, FCompositePS<1>, FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
+
+typedef FCompositePS<0, false> FCompositePS_PQ;
+typedef FCompositePS<0, true> FCompositePS_PQ_CDV;
+typedef FCompositePS<1, false> FCompositePS_SCRGB;
+typedef FCompositePS<1, true> FCompositePS_SCRGB_CDV;
+
+IMPLEMENT_SHADER_TYPE(template<>, FCompositePS_PQ, FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositePS_PQ_CDV,  FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositePS_SCRGB, FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositePS_SCRGB_CDV,  FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
 
 class FCompositeCSBase : public FCompositeShaderBase
 {
@@ -807,13 +839,18 @@ public:
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundComputeShader(), SceneTextureDimensions, InSceneTextureDimensions);
 	}
 
+	void SetColorDeficiencyParams(FRHICommandList& RHICmdList, bool bCorrect, EColorVisionDeficiency DeficiencyType, int32 Severity, bool bShowCorrectionWithDeficiency)
+	{
+		SetColorDeficiencyParamsBase(RHICmdList, RHICmdList.GetBoundComputeShader(), bCorrect, DeficiencyType, Severity, bShowCorrectionWithDeficiency);
+	}
+
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, RWSceneTexture);
 	LAYOUT_FIELD(FShaderParameter, SceneTextureDimensions);
 };
 IMPLEMENT_TYPE_LAYOUT(FCompositeCSBase);
 
-template<uint32 EncodingType>
+template<uint32 EncodingType, bool bApplyColorDeficiency>
 class FCompositeCS : public FCompositeCSBase
 {
 	DECLARE_SHADER_TYPE(FCompositeCS, Global);
@@ -838,11 +875,19 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_COMPUTE_FOR_COMPOSITION"), 1);
 		OutEnvironment.SetDefine(TEXT("SCRGB_ENCODING"), EncodingType);
 		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NUM_THREADS_PER_GROUP);
+		OutEnvironment.SetDefine(TEXT("APPLY_COLOR_DEFICIENCY"), uint32(bApplyColorDeficiency ? 1 : 0));
 	}
 };
 
-IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS<0>, FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS<1>, FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
+typedef FCompositeCS<0, false> FCompositeCS_PQ;
+typedef FCompositeCS<0, true>  FCompositeCS_PQ_CDV;
+typedef FCompositeCS<1, false> FCompositeCS_SCRGB;
+typedef FCompositeCS<1, true>  FCompositeCS_SCRGB_CDV;
+
+IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS_PQ,        FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS_PQ_CDV,    FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS_SCRGB,     FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS_SCRGB_CDV, FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
 
 
 int32 SlateWireFrame = 0;
@@ -1097,8 +1142,11 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			RHICmdList.BeginDrawingViewport(ViewportInfo.ViewportRHI, FTextureRHIRef());
 			RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)ViewportWidth, (float)ViewportHeight, 0.0f);
 
+			bool bApplyColorDeficiencyCorrectionToRestore = RenderingPolicy->GetApplyColorDeficiencyCorrection();
+
 			if (bCompositeUI)
 			{
+				RenderingPolicy->SetApplyColorDeficiencyCorrection(false);
 				FSlateBatchData& BatchDataHDR = WindowElementList.GetBatchDataHDR();
 				bool bHasBatches = BatchDataHDR.GetRenderBatches().Num() > 0;
 				if (bHasBatches)
@@ -1124,6 +1172,8 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 			if (bCompositeUI)
 			{
+				RenderingPolicy->SetApplyColorDeficiencyCorrection(bApplyColorDeficiencyCorrectionToRestore);
+
 				SCOPED_DRAW_EVENT(RHICmdList, SlateUI_Composition);
 
 				static const FName RendererModuleName("Renderer");
@@ -1185,6 +1235,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				FRHITexture* UITargetRTMaskTexture = ViewportInfo.UITargetRTMask.IsValid() ? ViewportInfo.UITargetRTMask->GetRHI() : nullptr;
 
 				bool bUseScRGB = (HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB || HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB);
+				bool bApplyColorDeficiencyFilter = GSlateColorDeficiencyType != EColorVisionDeficiency::NormalVision && GSlateColorDeficiencySeverity > 0;
 
 				FRHIUnorderedAccessView* BackBufferUAV = (FCompositeCSBase::IsShaderSupported(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)) && ViewportRT == nullptr) ? RHIGetViewportBackBufferUAV(ViewportInfo.ViewportRHI) : nullptr;
 				if (BackBufferUAV == nullptr)
@@ -1221,11 +1272,25 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						TShaderRef<FCompositePSBase> PixelShader;
 						if (bUseScRGB)
 						{
-							PixelShader = TShaderMapRef<FCompositePS<1> >(ShaderMap);
+							if (bApplyColorDeficiencyFilter)
+							{
+								PixelShader = TShaderMapRef<FCompositePS_SCRGB_CDV>(ShaderMap);
+							}
+							else
+							{
+								PixelShader = TShaderMapRef<FCompositePS_SCRGB>(ShaderMap);
+							}
 						}
 						else
 						{
-							PixelShader = TShaderMapRef<FCompositePS<0> >(ShaderMap);
+							if (bApplyColorDeficiencyFilter)
+							{
+								PixelShader = TShaderMapRef<FCompositePS_PQ_CDV>(ShaderMap);
+							}
+							else
+							{
+								PixelShader = TShaderMapRef<FCompositePS_PQ>(ShaderMap);
+							}
 						}
 
 						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -1236,6 +1301,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 						PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, FinalBufferCopy->GetRHI(), ViewportInfo.ColorSpaceLUT);
+						PixelShader->SetColorDeficiencyParams(RHICmdList, GSlateColorDeficiencyCorrection, GSlateColorDeficiencyType, GSlateColorDeficiencySeverity, GSlateShowColorDeficiencyCorrectionWithDeficiency);
 
 						RendererModule.DrawRectangle(
 							RHICmdList,
@@ -1255,11 +1321,25 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 					TShaderRef<FCompositeCSBase> ComputeShader;
 					if (bUseScRGB)
 					{
-						ComputeShader = TShaderMapRef<FCompositeCS<1> >(ShaderMap);
+						if (bApplyColorDeficiencyFilter)
+						{
+							ComputeShader = TShaderMapRef<FCompositeCS_SCRGB_CDV>(ShaderMap);
+						}
+						else
+						{
+							ComputeShader = TShaderMapRef<FCompositeCS_SCRGB>(ShaderMap);
+						}
 					}
 					else
 					{
-						ComputeShader = TShaderMapRef<FCompositeCS<0> >(ShaderMap);
+						if (bApplyColorDeficiencyFilter)
+						{
+							ComputeShader = TShaderMapRef<FCompositeCS_PQ_CDV>(ShaderMap);
+						}
+						else
+						{
+							ComputeShader = TShaderMapRef<FCompositeCS_PQ>(ShaderMap);
+						}
 					}
 
 					RHICmdList.Transition({
@@ -1269,6 +1349,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 					FVector4f SceneTextureDimensions((float)ViewportWidth, (float)ViewportHeight, 1.0f/(float)ViewportWidth, 1.0f/(float)ViewportHeight);
 					SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 					ComputeShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, BackBufferUAV, ViewportInfo.ColorSpaceLUT, SceneTextureDimensions);
+					ComputeShader->SetColorDeficiencyParams(RHICmdList, GSlateColorDeficiencyCorrection, GSlateColorDeficiencyType, GSlateColorDeficiencySeverity, GSlateShowColorDeficiencyCorrectionWithDeficiency);
 
 					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp(ViewportWidth, FCompositeCSBase::NUM_THREADS_PER_GROUP), FMath::DivideAndRoundUp(ViewportHeight, FCompositeCSBase::NUM_THREADS_PER_GROUP), 1);
 

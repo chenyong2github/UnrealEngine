@@ -5,6 +5,7 @@ CompositeUIPixelShader.usf: Filter pixel shader source.
 
 #include "Common.ush"
 #include "TonemapCommon.ush"
+#include "ColorDeficiency.ush"
 
 #define LUT_SCALING	1.05f
 #define LUT_SIZE	32.f
@@ -23,6 +24,13 @@ float4 ACESCoefsLow_0;
 float4 ACESCoefsHigh_0;
 float ACESCoefsLow_4;
 float ACESCoefsHigh_4;
+
+#if APPLY_COLOR_DEFICIENCY
+float ColorVisionDeficiencyType;
+float ColorVisionDeficiencySeverity;
+float bCorrectDeficiency;
+float bSimulateCorrectionWithDeficiency;
+#endif
 
 void GenerateLUTPS(
 	FWriteToSliceGeometryOutput Input,
@@ -169,6 +177,19 @@ float3 ComposeUIAndScene(float3 SceneColor, float4 InUIColor, float InUILevel)
 	return SceneColor * (1.f - InUIColor.w) + InUIColor.xyz * InUILevel;
 }
 
+float3 ApplyColorDeficiency(float3 Rec2020Color)
+{
+#if APPLY_COLOR_DEFICIENCY
+	const float3x3 Rec2020_2_sRGB = mul(XYZ_2_sRGB_MAT, Rec2020_2_XYZ_MAT);
+	const float3x3 sRGB_2_Rec2020 = mul(XYZ_2_Rec2020_MAT, sRGB_2_XYZ_MAT);
+	float3 SRGBColor = mul(Rec2020_2_sRGB, Rec2020Color.xyz);
+	SRGBColor = ColorDeficiency(SRGBColor, ColorVisionDeficiencyType, ColorVisionDeficiencySeverity, bCorrectDeficiency, bSimulateCorrectionWithDeficiency);
+	Rec2020Color = mul(sRGB_2_Rec2020, SRGBColor);
+#endif
+
+	return Rec2020Color;
+}
+
 // About sRGB_2_Rec2020 in ComputeHDRUIColor/ComputeHDRSceneColor: to get consistent blending between UI and scene color, regardless of the swapchain format choice, we perform blending in the rec2020 color space, and
 // move back to the output device space. Rec2020 is chosen over ScRGB because this is the way blending is currently being done in engine mode, and contains only positive values
 
@@ -205,7 +226,6 @@ float3 ComputeHDRSceneColor(float3 SceneColor)
 	return SceneColor;
 }
 
-
 void Main(
 	FScreenVertexOutput Input,
 	out float4 OutColor : SV_Target0
@@ -213,18 +233,30 @@ void Main(
 {
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
 	uint CompositeUIMask = DecodeRTWriteMask(uint2(Input.Position.xy), UIWriteMaskTexture, 1);
+	// in case of color deficiency, we will need to update the whole texture, not just the regions that were touched by the UI
+#if (APPLY_COLOR_DEFICIENCY == 0)
 	BRANCH
 	if (CompositeUIMask == 0)
 	{
 		discard;
 	}
 #endif
+#endif
 
 	float4 UIColor = ComputeHDRUIColor(Input.UV);
+#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+	// If the UI texture has a mask of 0, this means the UI color needs to be forced to 0 as it may contain uninitialized data
+	if (CompositeUIMask == 0)
+	{
+		UIColor = 0;
+	}
+#endif
 
 	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
 	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel);
+
+	OutColor.rgb = ApplyColorDeficiency(OutColor.rgb);
 
 	OutColor.w = 1.f;
 
@@ -252,22 +284,35 @@ void CompositeUICS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float2 InputPosition = DispatchThreadId.xy + float2(0.5, 0.5);
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
 	uint CompositeUIMask = DecodeRTWriteMask(DispatchThreadId.xy, UIWriteMaskTexture, 1);
+	// in case of color deficiency, we will need to update the whole texture, not just the regions that were touched by the UI
+#if (APPLY_COLOR_DEFICIENCY == 0)
 	BRANCH
 	if (CompositeUIMask == 0)
 	{
 		return;
 	}
 #endif
+#endif
 
 	float2 InputUV = InputPosition * SceneTextureDimensions.zw;
 
 	float4 UIColor = ComputeHDRUIColor(InputUV);
+#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+	// If the UI texture has a mask of 0, this means the UI color needs to be forced to 0 as it may contain uninitialized data
+	if (CompositeUIMask == 0)
+	{
+		UIColor = 0;
+	}
+#endif
+
 
 	float3 SceneColor = RWSceneTexture[DispatchThreadId.xy].rgb;
 	SceneColor = ComputeHDRSceneColor(SceneColor);
 	float4 OutColor = 0;
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel);
 	OutColor.w = 1.f;
+
+	OutColor.rgb = ApplyColorDeficiency(OutColor.rgb);
 
 #if !SCRGB_ENCODING
 	// Linear -> PQ
