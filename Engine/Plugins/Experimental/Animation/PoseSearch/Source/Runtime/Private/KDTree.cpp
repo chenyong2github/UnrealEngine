@@ -87,7 +87,7 @@ bool FKDTree::FindNeighbors(KNNResultSet& Result, const float* Query) const
 
 SIZE_T FKDTree::GetAllocatedSize() const
 {
-	SIZE_T AllocatedSize = sizeof(DataSrc) + sizeof(Impl);
+	SIZE_T AllocatedSize = sizeof(FKDTree);
 
 #if UE_POSE_SEARCH_USE_NANOFLANN
 	if (Impl)
