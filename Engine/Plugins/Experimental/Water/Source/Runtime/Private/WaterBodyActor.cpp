@@ -475,8 +475,8 @@ void AWaterBody::DeprecateData()
 		WaterBodyComponent->CollisionProfileName_DEPRECATED = CollisionProfileName_DEPRECATED;
 		WaterBodyComponent->WaterMID = WaterMID_DEPRECATED;
 		WaterBodyComponent->UnderwaterPostProcessMID = UnderwaterPostProcessMID_DEPRECATED;
-		WaterBodyComponent->Islands = Islands_DEPRECATED;
-		WaterBodyComponent->ExclusionVolumes = ExclusionVolumes_DEPRECATED;
+		WaterBodyComponent->Islands_DEPRECATED = Islands_DEPRECATED;
+		WaterBodyComponent->ExclusionVolumes_DEPRECATED = ExclusionVolumes_DEPRECATED;
 		WaterBodyComponent->bCanAffectNavigation_DEPRECATED = bCanAffectNavigation_DEPRECATED;
 		WaterBodyComponent->WaterNavAreaClass = WaterNavAreaClass_DEPRECATED;
 		WaterBodyComponent->ShapeDilation = ShapeDilation_DEPRECATED;

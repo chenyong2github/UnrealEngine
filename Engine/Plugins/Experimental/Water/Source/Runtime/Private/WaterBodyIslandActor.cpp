@@ -193,12 +193,12 @@ void AWaterBodyIsland::UpdateOverlappingWaterBodyComponents()
 	TSet<UWaterBodyComponent*> ExistingOverlappingBodies;
 	TSet<TWeakObjectPtr<UWaterBodyComponent>> NewOverlappingBodies;
 
-	TLazyObjectPtr<AWaterBodyIsland> LazyThis(this);
+	TSoftObjectPtr<AWaterBodyIsland> SoftThis(this);
 
 	// Fixup overlapping bodies
-	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [LazyThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
+	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [SoftThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
 	{
-		if (WaterBodyComponent->ContainsIsland(LazyThis))
+		if (WaterBodyComponent->ContainsIsland(SoftThis))
 		{
 			ExistingOverlappingBodies.Add(WaterBodyComponent);
 		}

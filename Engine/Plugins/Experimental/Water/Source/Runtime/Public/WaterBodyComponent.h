@@ -311,7 +311,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Water)
 	TArray<AWaterBodyIsland*> GetIslands() const;
 
-	bool ContainsIsland(TLazyObjectPtr<AWaterBodyIsland> Island) const { return Islands.Contains(Island); }
+	bool ContainsIsland(TSoftObjectPtr<AWaterBodyIsland> Island) const { return WaterBodyIslands.Contains(Island); }
 
 	/**
 	 * Gets the exclusion volume that influence this water body
@@ -319,7 +319,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Water)
 	TArray<AWaterBodyExclusionVolume*> GetExclusionVolumes() const;
 
-	bool ContainsExclusionVolume(TLazyObjectPtr<AWaterBodyExclusionVolume> InExclusionVolume) const { return ExclusionVolumes.Contains(InExclusionVolume); }
+	bool ContainsExclusionVolume(TSoftObjectPtr<AWaterBodyExclusionVolume> InExclusionVolume) const { return WaterBodyExclusionVolumes.Contains(InExclusionVolume); }
 
 	/** Component interface */
 	virtual void OnRegister() override;
@@ -631,10 +631,10 @@ protected:
 
 	/** Islands in this water body*/
 	UPROPERTY(Category = Water, VisibleAnywhere, AdvancedDisplay)
-	TArray<TLazyObjectPtr<AWaterBodyIsland>> Islands;
+	TArray<TSoftObjectPtr<AWaterBodyIsland>> WaterBodyIslands;
 
 	UPROPERTY(Category = Water, VisibleAnywhere, AdvancedDisplay)
-	TArray<TLazyObjectPtr<AWaterBodyExclusionVolume>> ExclusionVolumes;
+	TArray<TSoftObjectPtr<AWaterBodyExclusionVolume>> WaterBodyExclusionVolumes;
 
 	UPROPERTY(Transient)
 	mutable TWeakObjectPtr<ALandscapeProxy> Landscape;
@@ -659,6 +659,11 @@ protected:
 	TArray<uint32> DilatedWaterBodyMeshIndices;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<TLazyObjectPtr<AWaterBodyIsland>> Islands_DEPRECATED;
+	UPROPERTY()
+	TArray<TLazyObjectPtr<AWaterBodyExclusionVolume>> ExclusionVolumes_DEPRECATED;
+
 	UPROPERTY()
 	bool bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED;
 

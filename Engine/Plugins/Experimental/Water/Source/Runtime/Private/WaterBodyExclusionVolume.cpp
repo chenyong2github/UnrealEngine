@@ -37,12 +37,12 @@ void AWaterBodyExclusionVolume::UpdateOverlappingWaterBodies()
 	TSet<UWaterBodyComponent*> ExistingOverlappingBodies;
 	TSet<TWeakObjectPtr<UWaterBodyComponent>> NewOverlappingBodies;
 
-	TLazyObjectPtr<AWaterBodyExclusionVolume> LazyThis(this);
+	TSoftObjectPtr<AWaterBodyExclusionVolume> SoftThis(this);
 
 	// Fixup overlapping bodies (iterating on actors on post-load will fail, but this is fine as this exclusion volume should not yet be referenced by an existing water body upon loading) : 
-	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [LazyThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
+	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [SoftThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
 	{
-		if (WaterBodyComponent->ContainsExclusionVolume(LazyThis))
+		if (WaterBodyComponent->ContainsExclusionVolume(SoftThis))
 		{
 			ExistingOverlappingBodies.Add(WaterBodyComponent);
 		}

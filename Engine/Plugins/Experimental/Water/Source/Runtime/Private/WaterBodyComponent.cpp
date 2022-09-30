@@ -330,12 +330,12 @@ bool UWaterBodyComponent::ShouldGenerateWaterMeshTile() const
 
 void UWaterBodyComponent::AddIsland(AWaterBodyIsland* Island)
 {
-	Islands.AddUnique(Island);
+	WaterBodyIslands.AddUnique(Island);
 }
 
 void UWaterBodyComponent::RemoveIsland(AWaterBodyIsland* Island)
 {
-	Islands.RemoveSwap(Island);
+	WaterBodyIslands.RemoveSwap(Island);
 }
 
 void UWaterBodyComponent::UpdateIslands()
@@ -356,12 +356,12 @@ void UWaterBodyComponent::UpdateIslands()
 
 void UWaterBodyComponent::AddExclusionVolume(AWaterBodyExclusionVolume* InExclusionVolume)
 {
-	ExclusionVolumes.AddUnique(InExclusionVolume);
+	WaterBodyExclusionVolumes.AddUnique(InExclusionVolume);
 }
 
 void UWaterBodyComponent::RemoveExclusionVolume(AWaterBodyExclusionVolume* InExclusionVolume)
 {
-	ExclusionVolumes.RemoveSwap(InExclusionVolume);
+	WaterBodyExclusionVolumes.RemoveSwap(InExclusionVolume);
 }
 
 void UWaterBodyComponent::UpdateExclusionVolumes()
@@ -509,7 +509,7 @@ EWaterBodyQueryFlags UWaterBodyComponent::CheckAndAjustQueryFlags(EWaterBodyQuer
 
 bool UWaterBodyComponent::IsWorldLocationInExclusionVolume(const FVector& InWorldLocation) const
 {
-	for (const TLazyObjectPtr<AWaterBodyExclusionVolume>& ExclusionVolume : ExclusionVolumes)
+	for (const TSoftObjectPtr<AWaterBodyExclusionVolume>& ExclusionVolume : WaterBodyExclusionVolumes)
 	{
 		if (ExclusionVolume.IsValid() && ExclusionVolume->EncompassesPoint(InWorldLocation))
 		{
@@ -782,12 +782,11 @@ void UWaterBodyComponent::OnUnregister()
 TArray<AWaterBodyIsland*> UWaterBodyComponent::GetIslands() const
 {
 	TArray<AWaterBodyIsland*> IslandActors;
-	IslandActors.Reserve(Islands.Num());
+	IslandActors.Reserve(WaterBodyIslands.Num());
 
-	for (const TLazyObjectPtr<AWaterBodyIsland>& IslandPtr : Islands)
+	for (const TSoftObjectPtr<AWaterBodyIsland>& IslandPtr : WaterBodyIslands)
 	{
-		AWaterBodyIsland* Island = IslandPtr.Get();
-		if (Island)
+		if (AWaterBodyIsland* Island = IslandPtr.Get())
 		{
 			IslandActors.Add(Island);
 		}
@@ -799,9 +798,9 @@ TArray<AWaterBodyIsland*> UWaterBodyComponent::GetIslands() const
 TArray<AWaterBodyExclusionVolume*> UWaterBodyComponent::GetExclusionVolumes() const
 {
 	TArray<AWaterBodyExclusionVolume*> Result;
-	Result.Reserve(ExclusionVolumes.Num());
+	Result.Reserve(WaterBodyExclusionVolumes.Num());
 
-	for (const TLazyObjectPtr<AWaterBodyExclusionVolume>& VolumePtr : ExclusionVolumes)
+	for (const TSoftObjectPtr<AWaterBodyExclusionVolume>& VolumePtr : WaterBodyExclusionVolumes)
 	{
 		if (AWaterBodyExclusionVolume* Volume = VolumePtr.Get())
 		{
