@@ -279,7 +279,7 @@ private:
 
 	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 
-	UWorld* World;
+	UWorld* World = nullptr;
 
 	int ActiveNiagaraTickGroup;
 
@@ -292,8 +292,6 @@ private:
 	TArray<FNiagaraSystemSimulationRef> SimulationsWithPostActorWork;
 
 	TArray<FNiagaraSystemSimulationRef> SimulationsWithEndOfFrameWait;
-
-	int32 CachedEffectsQuality;
 
 	TArray<FNiagaraCachedViewInfo, TInlineAllocator<8> > CachedViewInfo;
 
