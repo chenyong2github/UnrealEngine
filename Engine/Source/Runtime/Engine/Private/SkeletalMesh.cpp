@@ -1599,23 +1599,23 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			{
 
 				FSkeletalMeshRenderData* LocalSkeletalMeshRenderData = GetSkeletalMeshRenderData();
-#if WITH_EDITORONLY_DATA
-				ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-				const ITargetPlatform* ArchiveCookingTarget = Ar.CookingTarget();
-				constexpr bool bIsSerializeSaving = true;
-				if (ArchiveCookingTarget)
-				{
-					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, ArchiveCookingTarget, bIsSerializeSaving);
-				}
-				else
-				{
-					//Fall back in case we use an archive that the cooking target has not been set (i.e. Duplicate archive)
-					check(RunningPlatform != NULL);
-					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform, bIsSerializeSaving);
-				}
-#endif
 				if (bCooked)
 				{
+#if WITH_EDITORONLY_DATA
+					ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+					const ITargetPlatform* ArchiveCookingTarget = Ar.CookingTarget();
+					constexpr bool bIsSerializeSaving = true;
+					if (ArchiveCookingTarget)
+					{
+						LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, ArchiveCookingTarget, bIsSerializeSaving);
+					}
+					else
+					{
+						//Fall back in case we use an archive that the cooking target has not been set (i.e. Duplicate archive)
+						check(RunningPlatform != NULL);
+						LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform, bIsSerializeSaving);
+					}
+#endif
 					int32 MaxBonesPerChunk = LocalSkeletalMeshRenderData->GetMaxBonesPerSection();
 
 					TArray<FName> DesiredShaderFormats;
