@@ -234,6 +234,10 @@ bool FSequencerPlaylistItemPlayer_Sequence::AddHold(USequencerPlaylistItem* Item
 
 	HoldSection->Parameters.TimeScale = 0.f;
 
+	// TODO: Some sequences do not evaluate correctly with zero timescale if this flag
+	// is unset, but it's not clear why or which ones. Workaround for UE-146012.
+	HoldSection->Parameters.bCanLoop = true;
+
 	ItemState.WeakHoldSection = HoldSection;
 
 	return true;

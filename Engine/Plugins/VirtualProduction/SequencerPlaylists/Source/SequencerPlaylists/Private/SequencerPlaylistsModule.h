@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/StrongObjectPtr.h"
 #include "ISequencerPlaylistsModule.h"
 #include "SequencerPlaylistItem.h"
 
@@ -46,8 +45,6 @@ private:
 
 private:
 	TMap<TSubclassOf<USequencerPlaylistItem>, FSequencerPlaylistItemPlayerFactory> ItemPlayerFactories;
-
-	TStrongObjectPtr<USequencerPlaylistPlayer> DefaultPlayer;
 
 	TSharedPtr<FUICommandList> PluginCommands;
 
