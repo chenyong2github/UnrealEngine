@@ -112,7 +112,16 @@ void UPolygonOnMeshTool::Setup()
 		{
 			GetToolManager()->PostInvalidation();
 			UpdateVisualization();
-			UpdateAcceptWarnings(UpdatedPreview->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
+			if (!bOperationSucceeded)
+			{
+				GetToolManager()->DisplayMessage(LOCTEXT("FailNotification", "Unable to complete cut."),
+					EToolMessageLevel::UserWarning);
+			}
+			else
+			{
+				// This clears the warning if needed
+				UpdateAcceptWarnings(UpdatedPreview->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
+			}
 		}
 	);
 
@@ -169,6 +178,13 @@ void UPolygonOnMeshTool::UpdateVisualization()
 		{
 			TargetMesh->GetEdgeV(EID, A, B);
 			DrawnLineSet->AddLine((FVector)A, (FVector)B, PartialPathEdgeColor, PartialPathEdgeThickness, PartialPathEdgeDepthBias);
+		}
+		// In the case where we don't allow failed results, it can be disorienting to show the broken mesh (especially since sometimes
+		// most of it may be cut away). But user can change this behavior.
+		if (!BasicProperties->bCanAcceptFailedResult && !BasicProperties->bShowIntermediateResultOnFailure)
+		{
+			// Reset the preview.
+			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 		}
 	}
 }
@@ -405,7 +421,8 @@ void UPolygonOnMeshTool::CompleteDrawPolygon()
 
 bool UPolygonOnMeshTool::CanAccept() const
 {
-	return Super::CanAccept() && Preview != nullptr && Preview->HaveValidNonEmptyResult();
+	return Super::CanAccept() && Preview != nullptr && Preview->HaveValidNonEmptyResult() 
+		&& (bOperationSucceeded || BasicProperties->bCanAcceptFailedResult);
 }
 
 

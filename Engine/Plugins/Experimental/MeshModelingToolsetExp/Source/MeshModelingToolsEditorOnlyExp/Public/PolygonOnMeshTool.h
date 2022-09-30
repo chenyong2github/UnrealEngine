@@ -103,6 +103,20 @@ public:
 	/** Number of sides in Circle or RoundRect Corner */
 	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "3", UIMax = "20", ClampMin = "3", ClampMax = "10000", EditCondition = "Shape == EPolygonType::Circle || Shape == EPolygonType::RoundRect"))
 	int32 Subdivisions = 12;
+
+	/**
+	 * Whether the tool will allow accepting a result if the operation fails, for instance due to inability to insert the
+	 * polygon when not cutting with boolean, or due to unrepaired cracks in the result.
+	 */
+	UPROPERTY(EditAnywhere, Category = Operation, AdvancedDisplay)
+	bool bCanAcceptFailedResult = false;
+
+	/** 
+	 * If an operation fails and we do not allow accepting the result, whether to show the intermediate failed result, or to
+	 * show the original mesh.
+	 */
+	UPROPERTY(EditAnywhere, Category = Operation, AdvancedDisplay, meta = (EditCondition = "!bCanAcceptFailedResult"))
+	bool bShowIntermediateResultOnFailure = false;
 };
 
 

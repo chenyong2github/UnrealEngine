@@ -120,7 +120,6 @@ void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 	}
 
 	FAxisAlignedBox3d Bounds = OriginalMesh->GetBounds();
-	Bounds.Expand(.01); // expand a little beyond bounds to avoid creating coplanar cases
 	double MeshDiameter = Bounds.MaxDim();
 
 	FFrame3d Frame = PolygonFrame;
@@ -132,7 +131,8 @@ void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 		FVector3d Corner = Bounds.GetCorner(CornerIdx);
 		Range.Contain(Dir.Dot(Corner - Frame.Origin));
 	}
-
+	// expand a little beyond bounds to avoid creating coplanar cases
+	Range.Expand(1.0);
 
 	Frame.Origin = Frame.Origin + Range.Min * Dir;
 	FGeneralizedCylinderGenerator ExtrudePolyGen;
@@ -465,7 +465,12 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		FDynamicMeshEditor MeshEditor(ResultMesh.Get());
 		FDynamicMeshEditResult ResultOut;
 		bool bStitched = MeshEditor.StitchSparselyCorrespondedVertexLoops(AllPathVertIDs[0], AllPathVertCorrespond[0], AllPathVertIDs[1], AllPathVertCorrespond[1], ResultOut);
-		if (bStitched && ResultMesh->HasAttributes())
+		if (!bStitched)
+		{
+			// Don't set bOperationSucceeded to true
+			return;
+		}
+		if (ResultMesh->HasAttributes())
 		{
 			MeshEditor.SetTubeNormals(ResultOut.NewTriangles, AllPathVertIDs[0], AllPathVertCorrespond[0], AllPathVertIDs[1], AllPathVertCorrespond[1]);
 			TArray<float> UValues; UValues.SetNumUninitialized(AllPathVertCorrespond[1].Num() + 1);
