@@ -72,8 +72,8 @@ struct FIntegerAnimationAttribute
 
 	void Interpolate(const FIntegerAnimationAttribute& Attribute, float Alpha)
 	{
-		Value *= (1.f - Alpha);
-		Value += (Attribute.Value * Alpha);
+		Value = FMath::TruncToInt32(Value * (1.f - Alpha));
+		Value += FMath::TruncToInt32(Attribute.Value * Alpha);
 	}
 };
 

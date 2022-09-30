@@ -57,7 +57,7 @@ private:
 
 	FVector MakeLocation(FKey CellKey) const
 	{
-		return FVector(CellKey.X << HashCellBits, CellKey.Y << HashCellBits, CellKey.Z << HashCellBits);
+		return FVector(FVector::FReal(CellKey.X << HashCellBits), FVector::FReal(CellKey.Y << HashCellBits), FVector::FReal(CellKey.Z << HashCellBits));
 	}
 
 public:
@@ -100,11 +100,11 @@ public:
 		FKey MinKey = MakeKey(InBox.Min);
 		FKey MaxKey = MakeKey(InBox.Max);
 
-		for (int32 z = MinKey.Z; z <= MaxKey.Z; ++z)
+		for (int64 z = MinKey.Z; z <= MaxKey.Z; ++z)
 		{
-			for (int32 y = MinKey.Y; y <= MaxKey.Y; y++)
+			for (int64 y = MinKey.Y; y <= MaxKey.Y; y++)
 			{
-				for (int32 x = MinKey.X; x <= MaxKey.X; x++)
+				for (int64 x = MinKey.X; x <= MaxKey.X; x++)
 				{
 					auto* SetPtr = CellMap.Find(FKey(x, y, z));
 					if (SetPtr)

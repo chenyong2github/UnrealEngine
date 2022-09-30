@@ -140,14 +140,14 @@ public:
 		{
 			return FBox(
 				FVector(
-					InCellCoord.X * InGridSize,
-					InCellCoord.Y * InGridSize,
-					InCellCoord.Z * InGridSize
+					static_cast<FVector::FReal>(InCellCoord.X * InGridSize),
+					static_cast<FVector::FReal>(InCellCoord.Y * InGridSize),
+					static_cast<FVector::FReal>(InCellCoord.Z * InGridSize)
 				),
 				FVector(
-					InCellCoord.X * InGridSize + InGridSize,
-					InCellCoord.Y * InGridSize + InGridSize,
-					InCellCoord.Z * InGridSize + InGridSize
+					static_cast<FVector::FReal>(InCellCoord.X * InGridSize + InGridSize),
+					static_cast<FVector::FReal>(InCellCoord.Y * InGridSize + InGridSize),
+					static_cast<FVector::FReal>(InCellCoord.Z * InGridSize + InGridSize)
 				)
 			);
 		}

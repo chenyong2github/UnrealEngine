@@ -294,7 +294,7 @@ bool WriteFixedCompressedFloat(const T Value, FArchive& Ar)
 	using Details = TFixedCompressedFloatDetails<MaxValue, NumBits>;
 
 	bool clamp = false;
-	int32 ScaledValue;
+	int64 ScaledValue;
 	if ( MaxValue > Details::MaxBitValue )
 	{
 		// We have to scale this down

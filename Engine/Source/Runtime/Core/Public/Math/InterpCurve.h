@@ -482,14 +482,14 @@ T FInterpCurve<T>::EvalSecondDerivative(const float InVal, const T& Default) con
 
 
 template< class T >
-float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDistanceSq) const
+float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDistanceSq) const							// LWC_TODO: Precision loss
 {
 	float OutSegment;
 	return InaccurateFindNearest(PointInSpace, OutDistanceSq, OutSegment);
 }
 
 template< class T >
-float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDistanceSq, float& OutSegment) const
+float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDistanceSq, float& OutSegment) const		// LWC_TODO: Precision loss
 {
 	const int32 NumPoints = Points.Num();
 	const int32 NumSegments = bIsLooped ? NumPoints : NumPoints - 1;
@@ -517,7 +517,7 @@ float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDi
 
 	if (NumPoints == 1)
 	{
-		OutDistanceSq = (PointInSpace - Points[0].OutVal).SizeSquared();
+		OutDistanceSq = static_cast<float>((PointInSpace - Points[0].OutVal).SizeSquared());
 		OutSegment = 0;
 		return Points[0].InVal;
 	}
@@ -527,7 +527,7 @@ float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDi
 
 
 template< class T >
-float FInterpCurve<T>::InaccurateFindNearestOnSegment(const T& PointInSpace, int32 PtIdx, float& OutSquaredDistance) const
+float FInterpCurve<T>::InaccurateFindNearestOnSegment(const T& PointInSpace, int32 PtIdx, float& OutSquaredDistance) const		// LWC_TODO: Precision loss
 {
 	const int32 NumPoints = Points.Num();
 	const int32 LastPoint = NumPoints - 1;
@@ -538,8 +538,8 @@ float FInterpCurve<T>::InaccurateFindNearestOnSegment(const T& PointInSpace, int
 
 	if (CIM_Constant == Points[PtIdx].InterpMode)
 	{
-		const float Distance1 = (Points[PtIdx].OutVal - PointInSpace).SizeSquared();
-		const float Distance2 = (Points[NextPtIdx].OutVal - PointInSpace).SizeSquared();
+		const float Distance1 = static_cast<float>((Points[PtIdx].OutVal - PointInSpace).SizeSquared());
+		const float Distance2 = static_cast<float>((Points[NextPtIdx].OutVal - PointInSpace).SizeSquared());
 		if (Distance1 < Distance2)
 		{
 			OutSquaredDistance = Distance1;
@@ -553,10 +553,10 @@ float FInterpCurve<T>::InaccurateFindNearestOnSegment(const T& PointInSpace, int
 	if (CIM_Linear == Points[PtIdx].InterpMode)
 	{
 		// like in function: FMath::ClosestPointOnLine
-		const float A = (Points[PtIdx].OutVal - PointInSpace) | (Points[NextPtIdx].OutVal - Points[PtIdx].OutVal);
-		const float B = (Points[NextPtIdx].OutVal - Points[PtIdx].OutVal).SizeSquared();
+		const float A = static_cast<float>((Points[PtIdx].OutVal - PointInSpace) | (Points[NextPtIdx].OutVal - Points[PtIdx].OutVal));
+		const float B = static_cast<float>((Points[NextPtIdx].OutVal - Points[PtIdx].OutVal).SizeSquared());
 		const float V = FMath::Clamp(-A / B, 0.f, 1.f);
-		OutSquaredDistance = (FMath::Lerp(Points[PtIdx].OutVal, Points[NextPtIdx].OutVal, V) - PointInSpace).SizeSquared();
+		OutSquaredDistance = static_cast<float>((FMath::Lerp(Points[PtIdx].OutVal, Points[NextPtIdx].OutVal, V) - PointInSpace).SizeSquared());
 		return V * Diff + Points[PtIdx].InVal;
 	}
 
@@ -587,14 +587,14 @@ float FInterpCurve<T>::InaccurateFindNearestOnSegment(const T& PointInSpace, int
 			{
 				const T LastBestTangent = FMath::CubicInterpDerivative(Points[PtIdx].OutVal, Points[PtIdx].LeaveTangent * Diff, Points[NextPtIdx].OutVal, Points[NextPtIdx].ArriveTangent * Diff, ValuesT[point]);
 				const T Delta = (PointInSpace - FoundPoint);
-				float Move = (LastBestTangent | Delta) / LastBestTangent.SizeSquared();
+				float Move = static_cast<float>((LastBestTangent | Delta) / LastBestTangent.SizeSquared());
 				Move = FMath::Clamp(Move, -LastMove*Scale, LastMove*Scale);
 				ValuesT[point] += Move;
 				ValuesT[point] = FMath::Clamp(ValuesT[point], 0.0f, 1.0f);
 				LastMove = FMath::Abs(Move);
 				FoundPoint = FMath::CubicInterp(Points[PtIdx].OutVal, Points[PtIdx].LeaveTangent * Diff, Points[NextPtIdx].OutVal, Points[NextPtIdx].ArriveTangent * Diff, ValuesT[point]);
 			}
-			DistancesSq[point] = (FoundPoint - PointInSpace).SizeSquared();
+			DistancesSq[point] = static_cast<float>((FoundPoint - PointInSpace).SizeSquared());
 			ValuesT[point] = ValuesT[point] * Diff + Points[PtIdx].InVal;
 		}
 

@@ -290,28 +290,28 @@ namespace Audio
 		// Setters
 		void SetFramesPerTick(int32 InNewFramesPerTick);
 
-		void SetMillisecondsPerTick(float InNewMillisecondsPerTick);
+		void SetMillisecondsPerTick(double InNewMillisecondsPerTick);
 
-		void SetSecondsPerTick(float InNewSecondsPerTick);
+		void SetSecondsPerTick(double InNewSecondsPerTick);
 
-		void SetThirtySecondNotesPerMinute(float InNewThirtySecondNotesPerMinute);
+		void SetThirtySecondNotesPerMinute(double InNewThirtySecondNotesPerMinute);
 
-		void SetBeatsPerMinute(float InNewBeatsPerMinute);
+		void SetBeatsPerMinute(double InNewBeatsPerMinute);
 
-		void SetSampleRate(float InNewSampleRate);
+		void SetSampleRate(double InNewSampleRate);
 
 		// Getters
 		double GetFramesPerTick() const { return FramesPerTick; }
 
-		float GetMillisecondsPerTick() const { return MillisecondsPerTick; }
+		double GetMillisecondsPerTick() const { return MillisecondsPerTick; }
 
-		float GetSecondsPerTick() const { return SecondsPerTick; }
+		double GetSecondsPerTick() const { return SecondsPerTick; }
 
-		float GetThirtySecondNotesPerMinute() const { return ThirtySecondNotesPerMinute; }
+		double GetThirtySecondNotesPerMinute() const { return ThirtySecondNotesPerMinute; }
 
-		float GetBeatsPerMinute() const { return BeatsPerMinute; }
+		double GetBeatsPerMinute() const { return BeatsPerMinute; }
 
-		float GetSampleRate() const { return SampleRate; }
+		double GetSampleRate() const { return SampleRate; }
 
 		double GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
 

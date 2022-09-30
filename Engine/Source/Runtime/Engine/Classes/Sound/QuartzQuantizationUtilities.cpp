@@ -133,11 +133,11 @@ void FQuartLatencyTracker::PushSingleResult(const double& InResult)
 {
 	if (++NumEntries == 0)
 	{
-		LifetimeAverage = InResult;
+		LifetimeAverage = (float)InResult;
 	}
 	else
 	{
-		LifetimeAverage = (LifetimeAverage * (NumEntries - 1) + InResult) / NumEntries;
+		LifetimeAverage = (LifetimeAverage * (NumEntries - 1) + (float)InResult) / NumEntries;
 	}
 
 	Min = FMath::Min(Min, (float)InResult);
@@ -166,31 +166,31 @@ namespace Audio
 
 	void FQuartzClockTickRate::SetFramesPerTick(int32 InNewFramesPerTick)
 	{
-		if (InNewFramesPerTick < 1.0)
+		if (InNewFramesPerTick < 1)
 		{
 			UE_LOG(LogAudioQuartz, Warning, TEXT("Quartz Metronme requires at least 1 frame per tick, clamping request"));
-			InNewFramesPerTick = 1.0;
+			InNewFramesPerTick = 1;
 		}
 
 		FramesPerTick = (double)InNewFramesPerTick;
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
-	void FQuartzClockTickRate::SetMillisecondsPerTick(float InNewMillisecondsPerTick)
+	void FQuartzClockTickRate::SetMillisecondsPerTick(double InNewMillisecondsPerTick)
 	{
-		FramesPerTick = FMath::Max(1.0, ((double)InNewMillisecondsPerTick * SampleRate) / 1000.0);
+		FramesPerTick = FMath::Max(1.0, (InNewMillisecondsPerTick * SampleRate) / 1000.0);
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
-	void FQuartzClockTickRate::SetThirtySecondNotesPerMinute(float InNewThirtySecondNotesPerMinute)
+	void FQuartzClockTickRate::SetThirtySecondNotesPerMinute(double InNewThirtySecondNotesPerMinute)
 	{
 		check(InNewThirtySecondNotesPerMinute > 0);
 
-		FramesPerTick = FMath::Max(1.0, (60. * SampleRate ) / (double)InNewThirtySecondNotesPerMinute);
+		FramesPerTick = FMath::Max(1.0, (60. * SampleRate ) / InNewThirtySecondNotesPerMinute);
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
-	void FQuartzClockTickRate::SetBeatsPerMinute(float InNewBeatsPerMinute)
+	void FQuartzClockTickRate::SetBeatsPerMinute(double InNewBeatsPerMinute)
 	{
 		// same as 1/32nd notes,
 		// except there are 1/8th the number of quarter notes than thirty-second notes in a minute
@@ -199,15 +199,15 @@ namespace Audio
 		// FramesPerTick = 1/8 * (60.f / (InNewBeatsPerMinute)) * SampleRate;
 		// (60.0 / 8.0) = 7.5f
 
-		FramesPerTick = FMath::Max(1.0, (7.5 * SampleRate) / (double)InNewBeatsPerMinute);
+		FramesPerTick = FMath::Max(1.0, (7.5 * SampleRate) / InNewBeatsPerMinute);
 		RecalculateDurationsBasedOnFramesPerTick();
 	}
 
-	void FQuartzClockTickRate::SetSampleRate(float InNewSampleRate)
+	void FQuartzClockTickRate::SetSampleRate(double InNewSampleRate)
 	{
 		check(InNewSampleRate >= 0);
 
-		FramesPerTick = FMath::Max(1.0, ((double)InNewSampleRate / SampleRate) * FramesPerTick);
+		FramesPerTick = FMath::Max(1.0, (InNewSampleRate / SampleRate) * FramesPerTick);
 		SampleRate = InNewSampleRate;
 
 		RecalculateDurationsBasedOnFramesPerTick();
@@ -371,7 +371,7 @@ namespace Audio
 	}
 
 
-	void FQuartzClockTickRate::SetSecondsPerTick(float InNewSecondsPerTick)
+	void FQuartzClockTickRate::SetSecondsPerTick(double InNewSecondsPerTick)
 	{
 		SetMillisecondsPerTick(InNewSecondsPerTick * 1000.0);
 	}

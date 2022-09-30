@@ -23,7 +23,7 @@ public:
 
 	void AppendRaw(const void* Data, int64 Num)
 	{
-		Hash = FCrc::MemCrc32(Data, Num, Hash);
+		Hash = FCrc::MemCrc32(Data, static_cast<int32>(Num), Hash);		// TODO: Update MemCrc32 to take an int64 Length?
 	}
 
 	template <typename T>

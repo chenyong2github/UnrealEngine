@@ -327,7 +327,7 @@ public:
 
 		inline uint32 GetNumBytes() const
 		{
-			return Allocation->GetNumBytes();
+			return IntCastChecked<uint32>(Allocation->GetNumBytes());
 		}
 
 		FSkinCacheRWBuffer* Find(const FVertexBufferAndSRV& BoneBuffer, uint32 Revision)

@@ -188,7 +188,7 @@ public:
 		return bAddedToScene;
 	}
 
-	float GetNodeLevelExtent(int32 Level) const
+	double GetNodeLevelExtent(int32 Level) const
 	{
 		return OctreeForRendering->GetNodeLevelExtent(Level);
 	}

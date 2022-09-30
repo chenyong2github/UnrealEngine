@@ -87,8 +87,8 @@ public:
 	uint32 GetSizeY() const { return SizeY; }
 
 	// USurface interface
-	virtual float GetSurfaceWidth() const { return SizeX; }
-	virtual float GetSurfaceHeight() const { return SizeY; }
+	virtual float GetSurfaceWidth() const { return (float)SizeX; }
+	virtual float GetSurfaceHeight() const { return (float)SizeY; }
 
 	enum ShadowMapDataType {
 		UNKNOWN,

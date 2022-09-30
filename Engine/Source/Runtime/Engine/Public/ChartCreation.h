@@ -282,7 +282,7 @@ public:
 
 	double GetPercentMissedVSync(int32 TargetFPS) const
 	{
-		const int64 TotalTargetFrames = TargetFPS * GetTotalTime();
+		const int64 TotalTargetFrames = static_cast<int64>(TargetFPS * GetTotalTime());
 		const int64 MissedFrames = FMath::Max<int64>(TotalTargetFrames - GetNumFrames(), 0);
 		return ((MissedFrames * 100.0) / (double)TotalTargetFrames);
 	}

@@ -43,7 +43,7 @@ public:
 		bPowerOfTwoSize(bInPowerOfTwoSize),
 		bAlignByFour(bInAlignByFour)
 	{
-		new(Nodes) FTextureLayoutNode(0, 0, MaxSizeX, MaxSizeY);
+		new(Nodes) FTextureLayoutNode(0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY));
 	}
 
 	/**
@@ -327,16 +327,16 @@ private:
 				new(Nodes) FTextureLayoutNode(
 					CurrentNode.MinX,
 					CurrentNode.MinY,
-					ElementSizeX,
+					IntCastChecked<uint16>(ElementSizeX),
 					CurrentNode.SizeY
 					);
 
 				// Create a second child to contain the leftover area in the X direction
 				Nodes[NodeIndex].ChildB = Nodes.Num();
 				new(Nodes) FTextureLayoutNode(
-					CurrentNode.MinX + ElementSizeX,
+					IntCastChecked<uint16>(CurrentNode.MinX + ElementSizeX),
 					CurrentNode.MinY,
-					CurrentNode.SizeX - ElementSizeX,
+					IntCastChecked<uint16>(CurrentNode.SizeX - ElementSizeX),
 					CurrentNode.SizeY
 					);
 			}
@@ -347,15 +347,15 @@ private:
 					CurrentNode.MinX,
 					CurrentNode.MinY,
 					CurrentNode.SizeX,
-					ElementSizeY
+					IntCastChecked<uint16>(ElementSizeY)
 					);
 
 				Nodes[NodeIndex].ChildB = Nodes.Num();
 				new(Nodes) FTextureLayoutNode(
 					CurrentNode.MinX,
-					CurrentNode.MinY + ElementSizeY,
+					IntCastChecked<uint16>(CurrentNode.MinY + ElementSizeY),
 					CurrentNode.SizeX,
-					CurrentNode.SizeY - ElementSizeY
+					IntCastChecked<uint16>(CurrentNode.SizeY - ElementSizeY)
 					);
 			}
 

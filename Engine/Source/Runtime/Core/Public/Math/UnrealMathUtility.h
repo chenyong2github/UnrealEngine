@@ -822,7 +822,10 @@ public:
 	 * @param MaxAngleDegrees	"to" angle that defines the end of the range of valid angles
 	 * @return Returns clamped angle in the range -180..180.
 	 */
-	UE_NODISCARD static CORE_API float ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
+	template<typename T>
+	UE_NODISCARD static T ClampAngle(T AngleDegrees, T MinAngleDegrees, T MaxAngleDegrees);
+
+	RESOLVE_FLOAT_AMBIGUITY_3_ARGS(ClampAngle);
 
 	/** Find the smallest angle between two headings (in degrees) */
 	template<typename T, typename T2, TEMPLATE_REQUIRES(TOr<TIsFloatingPoint<T>, TIsFloatingPoint<T2>>::Value)>

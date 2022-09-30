@@ -88,7 +88,7 @@ public:
 
 	FORCEINLINE double GetAverageTimeSeconds() const
 	{
-		return FPlatformTime::ToSeconds(History.GetAverageCycles());
+		return FPlatformTime::ToSeconds64(History.GetAverageCycles());
 	}
 	
 	/** Enters a timed section of code. Can be re-entrant and will take the first entry point time. Only callable from game thread. */

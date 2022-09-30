@@ -629,7 +629,7 @@ namespace FWedgePositionHelper
 		FIndexAndZ() {}
 
 		/** Initialization constructor. */
-		FIndexAndZ(int32 InIndex, FVector V)
+		FIndexAndZ(int32 InIndex, FVector3f V)
 		{
 			Z = 0.30f * V.X + 0.33f * V.Y + 0.37f * V.Z;
 			Index = InIndex;

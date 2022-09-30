@@ -3234,26 +3234,6 @@ float FMath::FixedTurn(float InCurrent, float InDesired, float InDeltaRate)
 	return FRotator3f::ClampAxis(result);
 }
 
-float FMath::ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees)
-{
-	float const MaxDelta = FRotator3f::ClampAxis(MaxAngleDegrees - MinAngleDegrees) * 0.5f;			// 0..180
-	float const RangeCenter = FRotator3f::ClampAxis(MinAngleDegrees + MaxDelta);						// 0..360
-	float const DeltaFromCenter = FRotator3f::NormalizeAxis(AngleDegrees - RangeCenter);				// -180..180
-
-	// maybe clamp to nearest edge
-	if (DeltaFromCenter > MaxDelta)
-	{
-		return FRotator3f::NormalizeAxis(RangeCenter + MaxDelta);
-	}
-	else if (DeltaFromCenter < -MaxDelta)
-	{
-		return FRotator3f::NormalizeAxis(RangeCenter - MaxDelta);
-	}
-
-	// already in range, just return it
-	return FRotator3f::NormalizeAxis(AngleDegrees);
-}
-
 void FMath::ApplyScaleToFloat(float& Dst, const FVector& DeltaScale, float Magnitude)
 {
 	const float Multiplier = ( DeltaScale.X > 0.0f || DeltaScale.Y > 0.0f || DeltaScale.Z > 0.0f ) ? Magnitude : -Magnitude;

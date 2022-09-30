@@ -213,10 +213,10 @@ public:
 	inline FPrimitiveUniformShaderParametersBuilder& WorldBounds(const FBoxSphereBounds& InWorldBounds)
 	{
 		AbsoluteObjectWorldPosition = InWorldBounds.Origin;
-		ObjectRadius = InWorldBounds.SphereRadius;
-		Parameters.ObjectBoundsX = InWorldBounds.BoxExtent.X;
-		Parameters.ObjectBoundsY = InWorldBounds.BoxExtent.Y;
-		Parameters.ObjectBoundsZ = InWorldBounds.BoxExtent.Z;
+		ObjectRadius = static_cast<float>(InWorldBounds.SphereRadius);											//LWC_TODO: Precision loss
+		Parameters.ObjectBoundsX = static_cast<float>(InWorldBounds.BoxExtent.X);
+		Parameters.ObjectBoundsY = static_cast<float>(InWorldBounds.BoxExtent.Y);
+		Parameters.ObjectBoundsZ = static_cast<float>(InWorldBounds.BoxExtent.Z);
 		return *this;
 	}
 

@@ -43,7 +43,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		uint32 Stride = sizeof(FScreenVertex);
+		uint16 Stride = sizeof(FScreenVertex);
 		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FScreenVertex,Position),VET_Float2,0,Stride));
 		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FScreenVertex,UV),VET_Float2,1,Stride));
 		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);

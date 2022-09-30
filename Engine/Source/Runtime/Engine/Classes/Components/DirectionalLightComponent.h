@@ -329,7 +329,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	}
 	virtual uint8 GetAtmosphereSunLightIndex() const override
 	{
-		return AtmosphereSunLightIndex;
+		return static_cast<uint8>(AtmosphereSunLightIndex);
 	}
 	virtual FLinearColor GetAtmosphereSunDiskColorScale() const override
 	{

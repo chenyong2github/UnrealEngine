@@ -16,11 +16,11 @@ public:
 		GraphBuilder.AddPass(Forward<FRDGEventName>(PassName), PassParameters, ERDGPassFlags::Raster,
 			[LocalScissorRect = ScissorRect, LocalViewportRect = ViewportRect, LocalExecuteLambda = Forward<ExecuteLambdaType&&>(ExecuteLambda)](FRHICommandListImmediate& RHICmdList)
 		{
-			RHICmdList.SetViewport(LocalViewportRect.Min.X, LocalViewportRect.Min.Y, 0.0f, LocalViewportRect.Max.X, LocalViewportRect.Max.Y, 1.0f);
+			RHICmdList.SetViewport(static_cast<float>(LocalViewportRect.Min.X), static_cast<float>(LocalViewportRect.Min.Y), 0.0f, static_cast<float>(LocalViewportRect.Max.X), static_cast<float>(LocalViewportRect.Max.Y), 1.0f);
 
 			if (LocalScissorRect.Area() > 0)
 			{
-				RHICmdList.SetScissorRect(true, LocalScissorRect.Min.X, LocalScissorRect.Min.Y, LocalScissorRect.Max.X, LocalScissorRect.Max.Y);
+				RHICmdList.SetScissorRect(true, static_cast<uint32>(LocalScissorRect.Min.X), static_cast<uint32>(LocalScissorRect.Min.Y), static_cast<uint32>(LocalScissorRect.Max.X), static_cast<uint32>(LocalScissorRect.Max.Y));
 			}
 		
 			LocalExecuteLambda(RHICmdList);

@@ -915,3 +915,24 @@ FORCEINLINE_DEBUGGABLE UE::Math::TRotator<T> FMath::LerpRange(const UE::Math::TR
 	// Similar to Lerp, but does not take the shortest path. Allows interpolation over more than 180 degrees.
 	return (A * ((T)1.0 - (T)Alpha) + B * Alpha).GetNormalized();
 }
+
+template<typename T>
+FORCEINLINE_DEBUGGABLE T FMath::ClampAngle(T AngleDegrees, T MinAngleDegrees, T MaxAngleDegrees)
+{
+	const T MaxDelta = UE::Math::TRotator<T>::ClampAxis(MaxAngleDegrees - MinAngleDegrees) * 0.5f;			// 0..180
+	const T RangeCenter = UE::Math::TRotator<T>::ClampAxis(MinAngleDegrees + MaxDelta);						// 0..360
+	const T DeltaFromCenter = UE::Math::TRotator<T>::NormalizeAxis(AngleDegrees - RangeCenter);				// -180..180
+
+	// maybe clamp to nearest edge
+	if (DeltaFromCenter > MaxDelta)
+	{
+		return UE::Math::TRotator<T>::NormalizeAxis(RangeCenter + MaxDelta);
+	}
+	else if (DeltaFromCenter < -MaxDelta)
+	{
+		return UE::Math::TRotator<T>::NormalizeAxis(RangeCenter - MaxDelta);
+	}
+
+	// already in range, just return it
+	return UE::Math::TRotator<T>::NormalizeAxis(AngleDegrees);
+}

@@ -36,8 +36,8 @@ public:
 		bAllowShrink(bInAllowShrink)
 	{
 		check(MaxSizeX < USHRT_MAX && MaxSizeY < USHRT_MAX && MaxSizeZ < USHRT_MAX);
-		new(Nodes) FTextureLayoutNode3d(0, 0, 0, MaxSizeX, MaxSizeY, MaxSizeZ, INDEX_NONE);
-		new (UnusedLeaves) FUnusedLeaf(0, 0, 0, MaxSizeX, MaxSizeY, MaxSizeZ, 0);
+		new(Nodes) FTextureLayoutNode3d(0, 0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY), IntCastChecked<uint16>(MaxSizeZ), INDEX_NONE);
+		new (UnusedLeaves) FUnusedLeaf(0, 0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY), IntCastChecked<uint16>(MaxSizeZ), 0);
 	}
 
 	/**
@@ -376,17 +376,17 @@ private:
 						CurrentNode.MinX,
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
-						ElementSizeX,
+						IntCastChecked<uint16>(ElementSizeX),
 						CurrentNode.SizeY,
 						CurrentNode.SizeZ,
 						NodeIndex);
 
 					// Create a second child to contain the leftover area in the X direction
 					new(&Nodes[ChildBNodeIndex]) FTextureLayoutNode3d(
-						CurrentNode.MinX + ElementSizeX,
+						IntCastChecked<uint16>(CurrentNode.MinX + ElementSizeX),
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
-						CurrentNode.SizeX - ElementSizeX,
+						IntCastChecked<uint16>(CurrentNode.SizeX - ElementSizeX),
 						CurrentNode.SizeY,
 						CurrentNode.SizeZ,
 						NodeIndex);
@@ -399,16 +399,16 @@ private:
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						ElementSizeZ,
+						IntCastChecked<uint16>(ElementSizeZ),
 						NodeIndex);
 
 					new(&Nodes[ChildBNodeIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
-						CurrentNode.MinZ + ElementSizeZ,
+						IntCastChecked<uint16>(CurrentNode.MinZ + ElementSizeZ),
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						CurrentNode.SizeZ - ElementSizeZ,
+						IntCastChecked<uint16>(CurrentNode.SizeZ - ElementSizeZ),
 						NodeIndex);
 				}
 			}
@@ -421,16 +421,16 @@ private:
 						CurrentNode.MinY,
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
-						ElementSizeY,
+						IntCastChecked<uint16>(ElementSizeY),
 						CurrentNode.SizeZ,
 						NodeIndex);
 
 					new(&Nodes[ChildBNodeIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
-						CurrentNode.MinY + ElementSizeY,
+						IntCastChecked<uint16>(CurrentNode.MinY + ElementSizeY),
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
-						CurrentNode.SizeY - ElementSizeY,
+						IntCastChecked<uint16>(CurrentNode.SizeY - ElementSizeY),
 						CurrentNode.SizeZ,
 						NodeIndex);
 				}
@@ -442,16 +442,16 @@ private:
 						CurrentNode.MinZ,
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						ElementSizeZ,
+						IntCastChecked<uint16>(ElementSizeZ),
 						NodeIndex);
 
 					new(&Nodes[ChildBNodeIndex]) FTextureLayoutNode3d(
 						CurrentNode.MinX,
 						CurrentNode.MinY,
-						CurrentNode.MinZ + ElementSizeZ,
+						IntCastChecked<uint16>(CurrentNode.MinZ + ElementSizeZ),
 						CurrentNode.SizeX,
 						CurrentNode.SizeY,
-						CurrentNode.SizeZ - ElementSizeZ,
+						IntCastChecked<uint16>(CurrentNode.SizeZ - ElementSizeZ),
 						NodeIndex);
 				}
 			}

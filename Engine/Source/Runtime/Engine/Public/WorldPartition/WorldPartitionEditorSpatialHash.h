@@ -95,19 +95,19 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 		check(InCellCoord.Level >= 0);
 		const int64 CellSizeForLevel = (int64)CellSize * (1LL << InCellCoord.Level);
 		const FVector Min = FVector(
-			InCellCoord.X * CellSizeForLevel, 
-			InCellCoord.Y * CellSizeForLevel, 
-			InCellCoord.Z * CellSizeForLevel
+			static_cast<FVector::FReal>(InCellCoord.X * CellSizeForLevel), 
+			static_cast<FVector::FReal>(InCellCoord.Y * CellSizeForLevel), 
+			static_cast<FVector::FReal>(InCellCoord.Z * CellSizeForLevel)
 		);
-		const FVector Max = Min + FVector(CellSizeForLevel);
+		const FVector Max = Min + FVector(static_cast<double>(CellSizeForLevel));
 		return FBox(Min, Max);
 	}
 
 	inline int32 GetLevelForBox(const FBox& Box) const
 	{
 		const FVector Extent = Box.GetExtent();
-		const float MaxLength = Extent.GetMax() * 2.0;
-		return FMath::CeilToInt(FMath::Max<float>(FMath::Log2(MaxLength / CellSize), 0));
+		const FVector::FReal MaxLength = Extent.GetMax() * 2.0;
+		return FMath::CeilToInt32(FMath::Max<FVector::FReal>(FMath::Log2(MaxLength / CellSize), 0));
 	}
 
 	inline int32 ForEachIntersectingCells(const FBox& InBounds, int32 Level, TFunctionRef<void(const FCellCoord&)> InOperation) const
@@ -117,11 +117,11 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 		FCellCoord MinCellCoords(GetCellCoords(InBounds.Min, Level));
 		FCellCoord MaxCellCoords(GetCellCoords(InBounds.Max, Level));
 
-		for (int32 z=MinCellCoords.Z; z<=MaxCellCoords.Z; z++)
+		for (int64 z=MinCellCoords.Z; z<=MaxCellCoords.Z; z++)
 		{
-			for (int32 y=MinCellCoords.Y; y<=MaxCellCoords.Y; y++)
+			for (int64 y=MinCellCoords.Y; y<=MaxCellCoords.Y; y++)
 			{
-				for (int32 x=MinCellCoords.X; x<=MaxCellCoords.X; x++)
+				for (int64 x=MinCellCoords.X; x<=MaxCellCoords.X; x++)
 				{
 					InOperation(FCellCoord(x, y, z, Level));
 					NumCells++;

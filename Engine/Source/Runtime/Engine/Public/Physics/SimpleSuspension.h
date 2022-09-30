@@ -67,11 +67,11 @@ const FSimpleSuspensionRaycast SimpleSuspensionRaycastGroundPlane = [](const FVe
 	// Do an intersection with the z-plane at 0,0,0.
 	const FVector Norm = FVector::UpVector;
 	const FVector Diff = RayEnd - RayBegin;
-	const float ProjA = FVector::DotProduct(RayBegin, Norm);
-	const float ProjDiff = FVector::DotProduct(Diff, Norm);
+	const FVector::FReal ProjA = FVector::DotProduct(RayBegin, Norm);
+	const FVector::FReal ProjDiff = FVector::DotProduct(Diff, Norm);
 	if (FMath::Abs(ProjDiff) > UE_SMALL_NUMBER)
 	{
-		const float Lambda = -ProjA / ProjDiff;
+		const FVector::FReal Lambda = -ProjA / ProjDiff;
 		if (Lambda > 0.f && Lambda <= 1.f)
 		{
 			OutRayHitLocation = RayBegin + (Lambda * Diff);

@@ -176,7 +176,7 @@ FORCEINLINE bool LineCheckWithTriangle(FHitResult& Result,const FVector& V1,cons
 	FVector	Edge1 = V3 - V1,
 		Edge2 = V2 - V1,
 		P = Direction ^ Edge2;
-	float	Determinant = Edge1 | P;
+	FVector::FReal	Determinant = Edge1 | P;
 
 	if(Determinant < UE_DELTA)
 	{
@@ -184,7 +184,7 @@ FORCEINLINE bool LineCheckWithTriangle(FHitResult& Result,const FVector& V1,cons
 	}
 
 	FVector	T = Start - V1;
-	float	U = T | P;
+	FVector::FReal	U = T | P;
 
 	if(U < 0.0f || U > Determinant)
 	{
@@ -192,14 +192,14 @@ FORCEINLINE bool LineCheckWithTriangle(FHitResult& Result,const FVector& V1,cons
 	}
 
 	FVector	Q = T ^ Edge1;
-	float	V = Direction | Q;
+	FVector::FReal	V = Direction | Q;
 
 	if(V < 0.0f || U + V > Determinant)
 	{
 		return false;
 	}
 
-	float	Time = (Edge2 | Q) / Determinant;
+	FVector::FReal	Time = (Edge2 | Q) / Determinant;
 
 	if(Time < 0.0f || Time > Result.Time)
 	{
@@ -207,7 +207,7 @@ FORCEINLINE bool LineCheckWithTriangle(FHitResult& Result,const FVector& V1,cons
 	}
 
 	Result.Normal = ((V3-V2)^(V2-V1)).GetSafeNormal();
-	Result.Time = ((V1 - Start)|Result.Normal) / (Result.Normal|Direction);
+	Result.Time = static_cast<float>(((V1 - Start)|Result.Normal) / (Result.Normal|Direction));							// LWC_TODO: precision loss. Make FHitResult::Time/Distance doubles?
 
 	return true;
 }

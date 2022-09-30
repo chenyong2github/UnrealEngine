@@ -112,9 +112,9 @@
 																				TNot<TIsFloatingPoint<Arg3>> \
 																				>::Value \
 																			)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity, expected a floating point type.") \
-	static FORCEINLINE float Func(Arg1 X, Arg2 Y) \
+	static FORCEINLINE float Func(Arg1 X, Arg2 Y, Arg3 Z) \
 	{ \
-		return Func((float)X, (float)Y); \
+		return Func((float)X, (float)Y, (float)Z); \
 	}
 
 // Mixing float and double types with any other type results in same type as "X * Y", which is promoted to the floating point type with the highest precision of the argument types.

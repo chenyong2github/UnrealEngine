@@ -29,7 +29,7 @@ public:
 		return CompressedBuffer || RawCurve;
 	}
 
-	float GetNumSamples() const { return NumSamples; }
+	int32 GetNumSamples() const { return NumSamples; }
 
 	float GetValue(int32 SampleIndex) const;
 

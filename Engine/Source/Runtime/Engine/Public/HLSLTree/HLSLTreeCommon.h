@@ -219,7 +219,7 @@ class FExpressionSwitchBase : public FExpression
 public:
 	static constexpr int8 MaxInputs = 8;
 
-	FExpressionSwitchBase(TConstArrayView<const FExpression*> InInputs) : NumInputs(InInputs.Num())
+	FExpressionSwitchBase(TConstArrayView<const FExpression*> InInputs) : NumInputs(static_cast<int8>(InInputs.Num()))
 	{
 		check(InInputs.Num() <= MaxInputs);
 		for (int32 i = 0; i < InInputs.Num(); ++i)

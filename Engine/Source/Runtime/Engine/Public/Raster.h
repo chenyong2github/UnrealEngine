@@ -21,7 +21,7 @@ public:
 	void DrawTriangle(const InterpolantType& I0, const InterpolantType& I1, const InterpolantType& I2, const FVector2D& P0, const FVector2D& P1, const FVector2D& P2, bool BackFacing)
 	{
 		InterpolantType	Interpolants[3] = { I0, I1, I2 };
-		FVector2D		Points[3] = { P0, P1, P2 };
+		FVector2f		Points[3] = { FVector2f(P0), FVector2f(P1), FVector2f(P2) };
 
 		// Find the top point.
 

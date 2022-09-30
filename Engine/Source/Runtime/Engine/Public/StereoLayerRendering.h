@@ -44,10 +44,10 @@ public:
 		if (InUVAdjust.IsBound())
 		{
 			FVector4f UVAdjust;
-			UVAdjust.X = UVRect.Min.X;
-			UVAdjust.Y = UVRect.Min.Y;
-			UVAdjust.Z = UVRect.Max.X - UVRect.Min.X;
-			UVAdjust.W = UVRect.Max.Y - UVRect.Min.Y;
+			UVAdjust.X = static_cast<float>(UVRect.Min.X);
+			UVAdjust.Y = static_cast<float>(UVRect.Min.Y);
+			UVAdjust.Z = static_cast<float>(UVRect.Max.X - UVRect.Min.X);
+			UVAdjust.W = static_cast<float>(UVRect.Max.Y - UVRect.Min.Y);
 			SetShaderValue(RHICmdList, VS, InUVAdjust, UVAdjust);
 		}
 

@@ -1037,7 +1037,7 @@ void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector3f &Position,
 		//No possible match
 		return;
 	}
-	FWedgePositionHelper::FIndexAndZ PositionIndexAndZ(INDEX_NONE, (FVector)Position);
+	FWedgePositionHelper::FIndexAndZ PositionIndexAndZ(INDEX_NONE, Position);
 	int32 SortedIndex = SortedPositions.Num()/2;
 	int32 StartIndex = 0;
 	int32 LastTopIndex = SortedPositions.Num();
@@ -1155,7 +1155,7 @@ void FWedgePosition::FillWedgePosition(
 	OutOverlappingPosition.SortedPositions.Reserve(NumWedges);
 	for (int32 WedgeIndex = 0; WedgeIndex < NumWedges; WedgeIndex++)
 	{
-		new(OutOverlappingPosition.SortedPositions)FWedgePositionHelper::FIndexAndZ(WedgeIndex, (FVector)OutOverlappingPosition.Points[OutOverlappingPosition.Wedges[WedgeIndex].VertexIndex]);
+		new(OutOverlappingPosition.SortedPositions)FWedgePositionHelper::FIndexAndZ(WedgeIndex, OutOverlappingPosition.Points[OutOverlappingPosition.Wedges[WedgeIndex].VertexIndex]);
 	}
 
 	// Sort the vertices by z value

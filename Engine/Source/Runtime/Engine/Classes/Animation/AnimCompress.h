@@ -201,9 +201,9 @@ private:
 	bool bEnabled;
 	bool bUsed;
 	bool bPerformedCompression;
-	int32 TotalRaw;
-	int32 TotalBeforeCompressed;
-	int32 TotalAfterCompressed;
+	int64 TotalRaw;
+	int64 TotalBeforeCompressed;
+	int64 TotalAfterCompressed;
 	int32 NumberOfAnimations;
 
 	// Total time spent compressing animations
