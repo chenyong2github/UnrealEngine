@@ -596,7 +596,8 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(TArray<TSharedPtr<Chaos::FCon
 			if(CHAOS_ENSURE((ElementIndex < ConvexImplicits.Num())
 			   && ConvexImplicits[ElementIndex]->IsValidGeometry()))
 			{
-				ConvexElem.SetChaosConvexMesh(MoveTemp(ConvexImplicits[ElementIndex]));
+				// Optimization: Only update internal convex data because we just deserialized the convex and the FKConvexElem convex information matches the chaos implicit one
+				ConvexElem.SetChaosConvexMesh(MoveTemp(ConvexImplicits[ElementIndex]), FKConvexElem::EConvexDataUpdateMethod::UpdateConvexDataOnlyIfMissing);
 
 #if TRACK_CHAOS_GEOMETRY
 				ConvexElem.GetChaosConvexMesh()->Track(Chaos::MakeSerializable(ConvexElem.GetChaosConvexMesh()), FullName);
@@ -1744,11 +1745,11 @@ FVector::FReal FKConvexElem::GetScaledVolume(const FVector& Scale) const
 	return Volume;
 }
 
-void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex)
+void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex, EConvexDataUpdateMethod ConvexDataUpdateMethod /* = EConvexDataUpdateMethod::AlwaysUpdateConvexData */)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
 	
-	const bool bForceCompute = true;
+	const bool bForceCompute = (ConvexDataUpdateMethod == EConvexDataUpdateMethod::AlwaysUpdateConvexData);
 	ComputeChaosConvexIndices(bForceCompute);
 }
 

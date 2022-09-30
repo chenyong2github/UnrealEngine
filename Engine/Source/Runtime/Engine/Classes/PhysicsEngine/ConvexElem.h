@@ -52,6 +52,15 @@ private:
 
 public:
 
+	enum class EConvexDataUpdateMethod
+	{
+		/** Update convex index and vertex data from the chaos convex object only if they are missing */
+		UpdateConvexDataOnlyIfMissing = 0,
+
+		/** Always convex recompute index and vertex data from the set chaos convex object */
+		AlwaysUpdateConvexData
+	};
+
 	ENGINE_API FKConvexElem();
 	ENGINE_API FKConvexElem(const FKConvexElem& Other);
 	ENGINE_API ~FKConvexElem();
@@ -96,7 +105,14 @@ public:
 		return ChaosConvex;
 	}
 
-	ENGINE_API void SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex);
+	/** 
+	* Set the chaos convex mesh 
+	* Note : This will by default invalidate the convex data and recompute them by calling ComputeChaosConvexIndices
+	* Only set ConvexDataUpdateMethod to UpdateConvexDataOnlyIfMissing if you know the data is up to date with the chaos convex object or if you plan to call ComputeChaosConvexIndices later
+	* @param InChaosConvex	Chaos convex mesh to set 
+	* @param ConvexDataUpdateMethod	method to use to update internal convex data
+	*/
+	ENGINE_API void SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex, EConvexDataUpdateMethod ConvexDataUpdateMethod = EConvexDataUpdateMethod::AlwaysUpdateConvexData);
 
 	ENGINE_API void ResetChaosConvexMesh();
 
