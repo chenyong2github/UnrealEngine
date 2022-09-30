@@ -16,7 +16,7 @@ namespace EpicGames.Horde.Storage.Backends
 	/// <summary>
 	/// Implementation of <see cref="IStorageClient"/> which stores data in memory. Not intended for production use.
 	/// </summary>
-	public class MemoryBlobStore : StorageClientBase
+	public class MemoryStorageClient : StorageClientBase
 	{
 		/// <summary>
 		/// Map of blob id to blob data
@@ -37,7 +37,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public MemoryBlobStore(IMemoryCache cache, ILogger logger) 
+		public MemoryStorageClient(IMemoryCache cache, ILogger logger) 
 			: base(cache, logger)
 		{
 		}

@@ -20,12 +20,12 @@ namespace EpicGames.Horde.Tests
 	public sealed class BundleTests : IDisposable
 	{
 		readonly IMemoryCache _cache;
-		readonly MemoryBlobStore _storage;
+		readonly MemoryStorageClient _storage;
 
 		public BundleTests()
 		{
 			_cache = new MemoryCache(new MemoryCacheOptions());
-			_storage = new MemoryBlobStore(_cache, NullLogger.Instance);
+			_storage = new MemoryStorageClient(_cache, NullLogger.Instance);
 		}
 
 		public void Dispose()
@@ -166,7 +166,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task BasicTestDirectory()
 		{
-			MemoryBlobStore store = _storage;
+			MemoryStorageClient store = _storage;
 
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 			DirectoryNode node = root.AddDirectory("hello");
