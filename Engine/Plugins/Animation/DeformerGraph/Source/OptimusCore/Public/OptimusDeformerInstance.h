@@ -4,6 +4,7 @@
 
 #include "Animation/MeshDeformerInstance.h"
 #include "ComputeFramework/ComputeGraphInstance.h"
+#include "Engine/EngineTypes.h"
 
 #include "OptimusDeformerInstance.generated.h"
 
@@ -78,12 +79,23 @@ USTRUCT(BlueprintType)
 struct FOptimusDeformerInstanceComponentBinding
 {
 	GENERATED_BODY()
-	
-	UPROPERTY(VisibleAnywhere, Category="Binding")
+
+	/** Binding name on deformer graph. */
+	UPROPERTY(VisibleAnywhere, Category="Binding", meta = (DisplayName = "Binding"))
 	FName ProviderName;
-	
-	UPROPERTY(EditAnywhere, Category="Binding")
-	TSoftObjectPtr<UActorComponent> ActorComponent;
+
+	/** Component name to bind. This should be sanitized before storage. */
+	UPROPERTY(EditAnywhere, Category = "Binding", meta = (DisplayName = "Component"))
+ 	FName ComponentName;
+
+	/** Get the component on an actor that matches the stored component name. */
+	TSoftObjectPtr<UActorComponent> GetActorComponent(AActor const* InActor) const;
+
+	/** Helpers to create ComponentName. */
+	OPTIMUSCORE_API static bool GetSanitizedComponentName(FString& InOutName);
+	OPTIMUSCORE_API static FName GetSanitizedComponentName(FName InName);
+	OPTIMUSCORE_API static FName GetSanitizedComponentName(UActorComponent const* InComponent);
+	OPTIMUSCORE_API static TSoftObjectPtr<UActorComponent> GetActorComponent(AActor const* InActor, FString const& InName);
 };
 
 
@@ -93,35 +105,29 @@ class OPTIMUSCORE_API UOptimusDeformerInstanceSettings :
 {
 	GENERATED_BODY()
 
-public:
-	/** */
-	UPROPERTY(EditAnywhere, Category="Deformer|Settings", EditFixedSize, meta=(NoResetToDefault, EditFixedOrder))
+	/** Stored weak pointer to a deformer. This is only required by the details customization for resolving binding class types. */
+	UPROPERTY()
+	TWeakObjectPtr<UOptimusDeformer> Deformer;
+
+	/** Array of binding descriptions. This is fixed and used by GetComponentBindings() to resolve final bindings for a given context. */
+	UPROPERTY(EditAnywhere, Category = "Deformer|Settings", EditFixedSize, meta = (EditFixedOrder))
 	TArray<FOptimusDeformerInstanceComponentBinding> Bindings;
 
-	void RefreshComponentBindings(
-		UOptimusDeformer* InDeformer,
-		UMeshComponent* InMeshComponent
-		);
+public:
+	/** Setup the object. This initializes the binding names and the primary binding component. */
+	void InitializeSettings(UOptimusDeformer* InDeformer, UMeshComponent* InPrimaryComponent);
 
-	TArray<UActorComponent*> GetBoundComponents() const;
-	AActor* GetActor() const;
-	UOptimusComponentSourceBinding* GetComponentBindingByName(FName InBindingName) const;
+	/** Get an array of recommended component bindings, based on the stored settings. */
+	void GetComponentBindings(UOptimusDeformer* InDeformer, UMeshComponent* InPrimaryComponent, TArray<UActorComponent*>& OutComponentBindings) const;
 
-#if WITH_EDITOR
-	// -- UObject
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-	
 protected:
-	friend class UOptimusDeformer;
+	friend class FOptimusDeformerInstanceComponentBindingCustomization;
 
-	void InitializeSettings(
-		UOptimusDeformer* InDeformer,
-		UMeshComponent* InMeshComponent);
+	/** Get the actor associated with this object. Used only by details customization. */
+	AActor* GetActor() const;
 
-private:
-	UPROPERTY()
-	TWeakObjectPtr<UOptimusDeformer> Deformer; 
+	/** Get a full component source binding object by binding name. Used only by details customization. */
+	UOptimusComponentSourceBinding const* GetComponentBindingByName(FName InBindingName) const;
 };
 
 
@@ -205,7 +211,7 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<UMeshComponent> MeshComponent;
 
-	/** The Mesh Component that owns this Mesh Deformer Instance. */
+	/** The settings for this Mesh Deformer Instance. */
 	UPROPERTY()
 	TWeakObjectPtr<UOptimusDeformerInstanceSettings> InstanceSettings;
 	

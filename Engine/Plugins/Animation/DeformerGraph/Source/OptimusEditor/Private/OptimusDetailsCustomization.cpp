@@ -5,6 +5,7 @@
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Engine/SCS_Node.h"
 #include "IDetailChildrenBuilder.h"
 #include "IOptimusExecutionDomainProvider.h"
 #include "IOptimusParameterBindingProvider.h"
@@ -46,7 +47,6 @@
 
 
 #define LOCTEXT_NAMESPACE "OptimusDetailCustomization"
-
 
 TSharedRef<IPropertyTypeCustomization> FOptimusDataTypeRefCustomization::MakeInstance()
 {
@@ -1557,43 +1557,67 @@ TSharedRef<IPropertyTypeCustomization> FOptimusDeformerInstanceComponentBindingC
 }
 
 
-
 void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
 	FDetailWidgetRow& InHeaderRow,
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	const TSharedPtr<IPropertyHandle> NameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ProviderName));
-	const TSharedPtr<IPropertyHandle> ComponentProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ActorComponent));
+	const TSharedPtr<IPropertyHandle> BindingPropertyHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ProviderName));
+	const TSharedPtr<IPropertyHandle> ComponentPropertyHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ComponentName));
 	
 	FName BindingName;
-	NameProperty->GetValue(BindingName);
+	BindingPropertyHandle->GetValue(BindingName);
 
-	UObject* SelectedComponent;
-	ComponentProperty->GetValue(SelectedComponent);
+	FName ComponentName;
+	ComponentPropertyHandle->GetValue(ComponentName);
 	
 	TArray<UObject*> OuterObjects;
 	InPropertyHandle->GetOuterObjects(OuterObjects);
 
-	const UOptimusDeformerInstanceSettings* BindingProvider = Cast<UOptimusDeformerInstanceSettings>(OuterObjects[0]);
-	const UOptimusComponentSourceBinding* Binding = nullptr;
+	UOptimusDeformerInstanceSettings const* BindingProvider = Cast<UOptimusDeformerInstanceSettings>(OuterObjects[0]);
+	AActor const* OwningActor = BindingProvider ? BindingProvider->GetActor() : nullptr;
 
+	const UOptimusComponentSourceBinding* Binding = nullptr;
 	FComponentHandle SelectedComponentHandle;
 
 	if (BindingProvider)
 	{
-		const AActor* OwningActor = BindingProvider->GetActor();
 		Binding = BindingProvider->GetComponentBindingByName(BindingName);
 		
 		if (OwningActor && Binding)
 		{
 			TArray<UActorComponent*> FilteredComponents;
+
+			// Add actor components
 			OwningActor->GetComponents(Binding->GetComponentSource()->GetComponentClass(), FilteredComponents);
-			for (const UActorComponent* Component: FilteredComponents)
+			// Add unset "auto" setting.
+			FilteredComponents.Add(nullptr);
+
+			// Add blueprint components
+			if (OwningActor->HasAnyFlags(RF_ArchetypeObject))
 			{
-				ComponentHandles.Add(MakeShared<FSoftObjectPath>(FSoftObjectPath::GetOrCreateIDForObject(Component)));
-				if (Component == SelectedComponent)
+				if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(OwningActor->GetClass()))
+				{
+					const TArray<USCS_Node*>& ActorBlueprintNodes = BlueprintGeneratedClass->SimpleConstructionScript->GetAllNodes();
+					for (USCS_Node* Node : ActorBlueprintNodes)
+					{
+						if (Node->ComponentTemplate->IsA(Binding->GetComponentSource()->GetComponentClass()))
+						{
+							FilteredComponents.Add(Node->ComponentTemplate);
+						}
+					}
+				}
+			}
+
+			// Add filtered components to drop down
+			for (const UActorComponent* Component : FilteredComponents)
+			{
+				FSoftObjectPath Path = Component ? FSoftObjectPath::GetOrCreateIDForObject(Component) : FSoftObjectPath();
+				ComponentHandles.Add(MakeShared<FSoftObjectPath>(Path));
+				
+				FName Name = Component ? FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(Component) : FName();
+				if (Name.ToString() == ComponentName.ToString())
 				{
 					SelectedComponentHandle = ComponentHandles.Last();
 				}
@@ -1604,7 +1628,7 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	InHeaderRow
 	.NameContent()
 	[
-		NameProperty->CreatePropertyNameWidget(FText::FromName(BindingName))
+		ComponentPropertyHandle->CreatePropertyNameWidget(FText::FromName(BindingName))
 	]
 	.ValueContent()
 	[
@@ -1615,14 +1639,14 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 		.OnGenerateWidget_Lambda([](const FComponentHandle InComponentHandle)
 		{
 			const UActorComponent* Component = Cast<UActorComponent>(InComponentHandle->ResolveObject());
-			
+
 			return SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FSlateIconFinder::FindIconBrushForClass(Component ? Component->GetClass() : nullptr, TEXT("SCS.Component")))
+					.Image(Component ? FSlateIconFinder::FindIconBrushForClass(Component->GetClass(), TEXT("SCS.Component")) : nullptr)
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 				+SHorizontalBox::Slot()
@@ -1631,15 +1655,15 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 				.Padding(2.0f, 0, 0, 0)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromName(Component ? Component->GetFName() : FName("<Invalid>")))
+					.Text(Component ? FText::FromName(FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(Component)) : LOCTEXT("AutoName", "Auto"))
 				];
 		})
-		.OnSelectionChanged_Lambda([ComponentProperty](const FComponentHandle InComponentHandle, ESelectInfo::Type InInfo)
+		.OnSelectionChanged_Lambda([ComponentPropertyHandle](const FComponentHandle InComponentHandle, ESelectInfo::Type InInfo)
 		{
 			if (InInfo != ESelectInfo::Direct)
 			{
 				const UActorComponent* Component = Cast<UActorComponent>(InComponentHandle->ResolveObject());
-				ComponentProperty->SetValue(Component);
+				ComponentPropertyHandle->SetValue(FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(Component));
 			}
 		})
 		[
@@ -1649,13 +1673,12 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 			.AutoWidth()
 			[
 				SNew(SImage)
-				.Image_Lambda([ComponentProperty]()-> const FSlateBrush*
+				.Image_Lambda([ComponentPropertyHandle, OwningActor]()-> const FSlateBrush*
 				{
-					if (UObject* ComponentObject = nullptr; ComponentProperty->GetValue(ComponentObject) == FPropertyAccess::Success && ComponentObject)
-					{
-						return FSlateIconFinder::FindIconBrushForClass(ComponentObject->GetClass(), TEXT("SCS.Component"));
-					}
-					return nullptr;
+					FName Name;
+					ComponentPropertyHandle->GetValue(Name);
+					UActorComponent* ComponentObject = (OwningActor == nullptr || Name.IsNone()) ? nullptr : FOptimusDeformerInstanceComponentBinding::GetActorComponent(OwningActor, Name.ToString()).Get();
+					return ComponentObject ? FSlateIconFinder::FindIconBrushForClass(ComponentObject->GetClass(), TEXT("SCS.Component")) : nullptr;
 				})
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
@@ -1666,17 +1689,27 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 			[
 				SNew(STextBlock)
 				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
-				.Text_Lambda([ComponentProperty]()
+				.Text_Lambda([ComponentPropertyHandle]()
 				{
-					if (UObject* ComponentObject = nullptr; ComponentProperty->GetValue(ComponentObject) == FPropertyAccess::Success && ComponentObject)
-					{
-						return FText::FromName(ComponentObject->GetFName());
-					}
-					return FText::GetEmpty();
+					FName Name;
+					ComponentPropertyHandle->GetValue(Name);
+					return Name.IsNone() ? LOCTEXT("AutoName", "Auto") : FText::FromName(Name);
 				})
 			]
 		]
-	];
+	]
+ 	.OverrideResetToDefault(FResetToDefaultOverride::Create(
+ 		FIsResetToDefaultVisible::CreateLambda([](TSharedPtr<IPropertyHandle> PropertyHandle) 
+		{
+			const TSharedPtr<IPropertyHandle> ComponentPropertyHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ComponentName));
+			return PropertyHandle->GetIndexInArray() != 0 && ComponentPropertyHandle->CanResetToDefault();
+		}),
+ 		FResetToDefaultHandler::CreateLambda([](TSharedPtr<IPropertyHandle> PropertyHandle) 
+		{
+			TSharedPtr<IPropertyHandle> ComponentPropertyHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ComponentName));
+			ComponentPropertyHandle->ResetToDefault();
+		})
+	));
 }
 
 #undef LOCTEXT_NAMESPACE

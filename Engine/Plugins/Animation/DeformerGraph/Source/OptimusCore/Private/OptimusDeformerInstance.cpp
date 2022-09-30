@@ -100,29 +100,81 @@ FOptimusDeformerInstanceExecInfo::FOptimusDeformerInstanceExecInfo()
 }
 
 
-void UOptimusDeformerInstanceSettings::RefreshComponentBindings(
-	UOptimusDeformer* InDeformer,
-	UMeshComponent* InMeshComponent
-	)
+bool FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(FString& InOutName)
 {
-	
-	// Try to retain existing component binding as much as possible if called after a compilation or component rebuild
+	// Remove suffix for blueprint spawned components.
+	return InOutName.RemoveFromEnd(TEXT("_GEN_VARIABLE"));
+}
+
+FName FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(FName InName)
+{
+	FString Name = InName.ToString();
+	if (GetSanitizedComponentName(Name))
+	{
+		return FName(Name);
+	}
+	// No change.
+	return InName;
+}
+
+FName FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(UActorComponent const* InComponent)
+{
+	return InComponent ? GetSanitizedComponentName(InComponent->GetFName()) : FName();
+}
+
+TSoftObjectPtr<UActorComponent> FOptimusDeformerInstanceComponentBinding::GetActorComponent(AActor const* InActor, FString const& InName)
+{
+	if (InActor != nullptr && !InName.IsEmpty())
+	{
+		FString Path = InActor->GetPathName() + TEXT(".") + InName;
+		return TSoftObjectPtr<UActorComponent>(FSoftObjectPath(Path));
+	}
+	return {};
+}
+
+TSoftObjectPtr<UActorComponent> FOptimusDeformerInstanceComponentBinding::GetActorComponent(AActor const* InActor) const
+{
+	return GetActorComponent(InActor, ComponentName.ToString());
+}
+
+
+void UOptimusDeformerInstanceSettings::InitializeSettings(UOptimusDeformer* InDeformer, UMeshComponent* InPrimaryComponent)
+{
+	Deformer = InDeformer;
+
+	Bindings.SetNum(InDeformer->GetComponentBindings().Num());
+	for (int32 BindingIndex = 0; BindingIndex < Bindings.Num(); ++BindingIndex)
+	{
+		Bindings[BindingIndex].ProviderName = InDeformer->GetComponentBindings()[BindingIndex]->BindingName;
+		if (BindingIndex == 0)
+		{
+			Bindings[BindingIndex].ComponentName = FOptimusDeformerInstanceComponentBinding::GetSanitizedComponentName(InPrimaryComponent);
+		}
+	}
+}
+
+void UOptimusDeformerInstanceSettings::GetComponentBindings(
+	UOptimusDeformer* InDeformer, 
+	UMeshComponent* InPrimaryComponent, 
+	TArray<UActorComponent*>& OutComponents) const
+{
+	AActor const* Actor = InPrimaryComponent != nullptr ? InPrimaryComponent->GetOwner() : nullptr;
+
+	// Try to map onto the configured component bindings as much as possible.
 	TMap<FName, UActorComponent*> ExistingBindings;
 
-	for (FOptimusDeformerInstanceComponentBinding& Binding: Bindings)
+	for (FOptimusDeformerInstanceComponentBinding const& Binding : Bindings)
 	{
-		// It's likely that a component we referred to has been nixed, via AActor::RerunConstructionScripts, so
-		// we need to re-fetch the object from memory.
-		Binding.ActorComponent.ResetWeakPtr();
-		ExistingBindings.Add(Binding.ProviderName, Binding.ActorComponent.Get());
+		TSoftObjectPtr<UActorComponent> ActorComponent = Binding.GetActorComponent(Actor);
+		UActorComponent* Component = ActorComponent.Get();
+		ExistingBindings.Add(Binding.ProviderName, Component);
 	}
 	
-	AActor* Actor = InMeshComponent != nullptr ? InMeshComponent->GetOwner() : nullptr;
+	// Iterate component bindings and try to find a match.
 	TSet<UActorComponent*> ComponentsUsed;
-
 	const TArray<UOptimusComponentSourceBinding*>& ComponentBindings = InDeformer->GetComponentBindings();
-	Bindings.Reset(ComponentBindings.Num());
-	for (const UOptimusComponentSourceBinding* Binding: ComponentBindings)
+	OutComponents.Reset(ComponentBindings.Num());
+	for (const UOptimusComponentSourceBinding* Binding : ComponentBindings)
 	{
 		FName BindingName = Binding->BindingName;
 		UActorComponent* BoundComponent = nullptr;
@@ -130,7 +182,7 @@ void UOptimusDeformerInstanceSettings::RefreshComponentBindings(
 		// Primary binding always binds to the mesh component we're applied to.
 		if (Binding->IsPrimaryBinding())
 		{
-			BoundComponent = InMeshComponent;
+			BoundComponent = InPrimaryComponent;
 		}
 		else
 		{
@@ -197,25 +249,10 @@ void UOptimusDeformerInstanceSettings::RefreshComponentBindings(
 			}
 		}
 
-		Bindings.Add({BindingName, BoundComponent});
+		OutComponents.Add(BoundComponent);
 		ComponentsUsed.Add(BoundComponent);
 	}
 }
-
-TArray<UActorComponent*> UOptimusDeformerInstanceSettings::GetBoundComponents() const
-{
-	TArray<UActorComponent*> Result;
-	for (const FOptimusDeformerInstanceComponentBinding& Binding: Bindings)
-	{
-		UActorComponent* ActorComponent = Binding.ActorComponent.Get();
-		if (ActorComponent)
-		{
-			Result.Add(ActorComponent);
-		}
-	}
-	return Result;
-}
-
 
 AActor* UOptimusDeformerInstanceSettings::GetActor() const
 {
@@ -223,7 +260,7 @@ AActor* UOptimusDeformerInstanceSettings::GetActor() const
 	return GetTypedOuter<AActor>();
 }
 
-UOptimusComponentSourceBinding* UOptimusDeformerInstanceSettings::GetComponentBindingByName(FName InBindingName) const
+UOptimusComponentSourceBinding const* UOptimusDeformerInstanceSettings::GetComponentBindingByName(FName InBindingName) const
 {
 	if (const UOptimusDeformer* DeformerResolved = Deformer.Get())
 	{
@@ -236,25 +273,6 @@ UOptimusComponentSourceBinding* UOptimusDeformerInstanceSettings::GetComponentBi
 		}
 	}
 	return nullptr;
-}
-
-#if WITH_EDITOR
-void UOptimusDeformerInstanceSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ActorComponent))
-	{
-		// TODO: Update dependencies.
-	}
-}
-#endif
-
-void UOptimusDeformerInstanceSettings::InitializeSettings(
-	UOptimusDeformer* InDeformer,
-	UMeshComponent* InMeshComponent
-	)
-{
-	Deformer = InDeformer;
-	RefreshComponentBindings(InDeformer, InMeshComponent);
 }
 
 
@@ -276,10 +294,11 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 
 	// Update the component bindings before creating data providers. 
 	// The bindings are in the same order as the component bindings in the deformer.
+	TArray<UActorComponent*> BoundComponents;
 	UOptimusDeformerInstanceSettings* InstanceSettingsPtr = InstanceSettings.Get(); 
 	if (InstanceSettingsPtr)
 	{
-		InstanceSettingsPtr->RefreshComponentBindings(InDeformer, MeshComponent.Get());
+		InstanceSettingsPtr->GetComponentBindings(InDeformer, MeshComponent.Get(), BoundComponents);
 	}
 
 	// Create the persistent buffer pool
@@ -296,12 +315,13 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 		Info.GraphType = ComputeGraphInfo.GraphType;
 		Info.ComputeGraph = ComputeGraphInfo.ComputeGraph;
 
-		if (InstanceSettingsPtr)
+		if (BoundComponents.Num())
 		{
-			// Fall back on everything being the given component.
-			for (int32 Index = 0; Index < InstanceSettingsPtr->Bindings.Num(); Index++)
+			UMeshComponent* ActorComponent = MeshComponent.Get();
+			AActor const* Actor = ActorComponent ? ActorComponent->GetOwner() : nullptr;
+			for (int32 Index = 0; Index < BoundComponents.Num(); Index++)
 			{
-				Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, Index, InstanceSettingsPtr->Bindings[Index].ActorComponent.Get());
+				Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, Index, BoundComponents[Index]);
 			}
 		}
 		else
