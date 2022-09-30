@@ -27,8 +27,8 @@ public class CEF3 : ModuleRules
 		}
 		else if(Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			CEFVersion = "93.1.7+g9117d6a+chromium-93.0.4577.42";
-			CEFPlatform = "linux64";
+			CEFVersion = "93.0.0+gf38ce34+chromium-93.0.4577.82";
+			CEFPlatform = "linux64_ozone";
 		}
 
 		if (CEFPlatform.Length > 0 && CEFVersion.Length > 0 && Target.bCompileCEF3)
@@ -141,15 +141,21 @@ public class CEF3 : ModuleRules
 				PrivateRuntimeLibraryPaths.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString());
 
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/libcef.so");
+				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/libEGL.so");
+				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/libGLESv2.so");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/icudtl.dat");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/v8_context_snapshot.bin");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/snapshot_blob.bin");
 
-				// And the entire Resources folder. Enunerate the entire directory instead of mentioning each file manually here.
-				foreach (string FileName in Directory.EnumerateFiles(Path.Combine(RuntimePath, "Resources"), "*", SearchOption.AllDirectories))
+				// Add the Resources and Swiftshader folders, enumerating the directory contents programmatically rather than listing each file manually here
+				string[] AdditionalDirs = new string[]{"Resources", "swiftshader"};
+				foreach (string DirName in AdditionalDirs)
 				{
-					string DependencyName = FileName.Substring(Target.UEThirdPartyBinariesDirectory.Length).Replace('\\', '/');
-					RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/" + DependencyName);
+					foreach (string FileName in Directory.EnumerateFiles(Path.Combine(RuntimePath, DirName), "*", SearchOption.AllDirectories))
+					{
+						string DependencyName = FileName.Substring(Target.UEThirdPartyBinariesDirectory.Length).Replace('\\', '/');
+						RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/" + DependencyName);
+					}
 				}
 			}
 		}

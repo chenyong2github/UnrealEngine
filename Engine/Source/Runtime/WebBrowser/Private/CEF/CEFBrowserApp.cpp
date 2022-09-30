@@ -40,6 +40,14 @@ void FCEFBrowserApp::OnBeforeCommandLineProcessing(const CefString& ProcessType,
 		CommandLine->AppendSwitch("disable-gpu");
 		CommandLine->AppendSwitch("disable-gpu-compositing");
 	}
+
+#if PLATFORM_LINUX
+	CommandLine->AppendSwitchWithValue("ozone-platform", "headless");
+	CommandLine->AppendSwitchWithValue("use-gl", "angle");
+	CommandLine->AppendSwitchWithValue("use-angle", "vulkan");
+	CommandLine->AppendSwitch("use-vulkan");
+#endif
+
 	CommandLine->AppendSwitch("enable-begin-frame-scheduling");
 	CommandLine->AppendSwitch("disable-pinch"); // the web pages we have don't expect zoom to work right now so disable touchpad pinch zoom
 	CommandLine->AppendSwitch("disable-gpu-shader-disk-cache"); // Don't create a "GPUCache" directory when cache-path is unspecified.

@@ -228,7 +228,6 @@ private:
 #endif // PLATFORM_MAC || PLATFORM_LINUX
 #endif // WITH_CEF3
 
-
 FWebBrowserSingleton::FWebBrowserSingleton(const FWebBrowserInitSettings& WebBrowserInitSettings)
 #if WITH_CEF3
 	: WebBrowserWindowFactory(MakeShareable(new FWebBrowserWindowFactory()))
@@ -247,10 +246,9 @@ FWebBrowserSingleton::FWebBrowserSingleton(const FWebBrowserInitSettings& WebBro
 #if WITH_CEF3
 	
 	// Only enable CEF if we have CEF3, we are not running a commandlet without rendering (e.g. cooking assets) and it has not been explicitly disabled
-	// Disallow CEF if we are running with -RenderOffscreen, many times this includes running with out access to X11 for example on Linux which is required by CEF
 	// Disallow CEF if we never plan on rendering, ie, with CanEverRender. This includes servers
 	bAllowCEF = (!IsRunningCommandlet() || (IsAllowCommandletRendering() && FParse::Param(FCommandLine::Get(), TEXT("AllowCommandletCEF")))) &&
-				!FParse::Param(FCommandLine::Get(), TEXT("RenderOffscreen")) && FApp::CanEverRender() && !FParse::Param(FCommandLine::Get(), TEXT("nocef"));
+				FApp::CanEverRender() && !FParse::Param(FCommandLine::Get(), TEXT("nocef"));
 	if (bAllowCEF)
 	{
 		// The FWebBrowserSingleton must be initialized on the game thread
@@ -281,7 +279,10 @@ FWebBrowserSingleton::FWebBrowserSingleton(const FWebBrowserInitSettings& WebBro
 		//Set the default background for browsers to be opaque black, this is used for windowed (not OSR) browsers
 		//  setting it black here prevents the white flash on load
 		Settings.background_color = CefColorSetARGB(255, 0, 0, 0);
-	
+
+#if PLATFORM_LINUX
+		Settings.windowless_rendering_enabled = true;
+#endif
 
 		FString CefLogFile(FPaths::Combine(*FPaths::ProjectLogDir(), TEXT("cef3.log")));
 		CefLogFile = FPaths::ConvertRelativePathToFull(CefLogFile);
