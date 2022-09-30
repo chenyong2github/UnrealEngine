@@ -111,6 +111,11 @@ namespace UE::PixelStreaming::Settings
 		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
 	}
 
+	inline bool ShouldNegotiateCodecs()
+	{
+		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingNegotiateCodecs"));
+	}
+
 	inline bool IsUsingSafeTextureCopy()
 	{
 		return FParse::Param(FCommandLine::Get(), TEXT("PixelCaptureUseFence"));
