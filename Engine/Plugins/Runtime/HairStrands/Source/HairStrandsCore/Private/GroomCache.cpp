@@ -95,7 +95,7 @@ void UGroomCache::GetFrameIndicesAtTime(float Time, bool bLooping, bool bIsPlayi
 	}
 
 	OutFrameIndex = GetFrameIndexAtTime(Time, bLooping);
-	OutNextFrameIndex = FMath::Min(OutFrameIndex + 1, NumFrames);
+	OutNextFrameIndex = FMath::Min(OutFrameIndex + 1, NumFrames - 1); // -1 since index is 0-based
 
 	const float FrameDuration = GroomCacheInfo.AnimationInfo.SecondsPerFrame;
 	if (FMath::IsNearlyZero(FrameDuration))
