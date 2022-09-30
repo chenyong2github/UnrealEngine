@@ -20,11 +20,12 @@ public:
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
+	virtual bool IsImportedAsset() const override { return true; }
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
+	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
 	// End IAssetTypeActions Interface
 
 private:
-	void ExecuteReimport(TArray<ULidarPointCloud*> PointClouds);
 	void ExecuteMerge(TArray<ULidarPointCloud*> PointClouds);
 	void ExecuteAlign(TArray<ULidarPointCloud*> PointClouds);
 	void ExecuteCollision(TArray<ULidarPointCloud*> PointClouds);

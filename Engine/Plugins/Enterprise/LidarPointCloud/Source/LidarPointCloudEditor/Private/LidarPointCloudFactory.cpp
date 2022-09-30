@@ -30,30 +30,6 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 		PointClouds.Add(CastChecked<ULidarPointCloud>(Object));
 	}
 
-	// Make sure at least one asset has source assigned
-	bool bSourceExists = false;
-	for (ULidarPointCloud* PointCloud : PointClouds)
-	{
-		if (!PointCloud->GetSourcePath().IsEmpty())
-		{
-			bSourceExists = true;
-			break;
-		}
-	}
-
-	if (bSourceExists)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("LidarPointCloud_Reimport", "Reimport Selected"),
-			LOCTEXT("LidarPointCloud_ReimportTooltip", "Reimports this point cloud asset."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "TextureEditor.Reimport"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteReimport, PointClouds),
-				FCanExecuteAction()
-			)
-		);
-	}
-
 	if (PointClouds.Num() > 1)
 	{
 		MenuBuilder.AddMenuEntry(
@@ -112,11 +88,14 @@ void FAssetTypeActions_LidarPointCloud::OpenAssetEditor(const TArray<UObject*>& 
 	}
 }
 
-void FAssetTypeActions_LidarPointCloud::ExecuteReimport(TArray<ULidarPointCloud*> PointClouds)
+void FAssetTypeActions_LidarPointCloud::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
 {
-	for (ULidarPointCloud* PC : PointClouds)
+	for (auto& Asset : TypeAssets)
 	{
-		PC->Reimport(GetDefault<ULidarPointCloudSettings>()->bUseAsyncImport);
+		if (const ULidarPointCloud* PointCloud = CastChecked<ULidarPointCloud>(Asset))
+		{
+			OutSourceFilePaths.Add(PointCloud->GetSourcePath());
+		}
 	}
 }
 
