@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NNXRuntimeCPU.h"
-#include "NNXRuntimeORTUtils.h"
+#include "NNXRuntimeCPUUtils.h"
 #include "NeuralTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 

@@ -13,12 +13,6 @@ public class NNXRuntimeCPU : ModuleRules
 		ShortName = "NNXRtCpu"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicIncludePaths.AddRange(
-			new string[] {
-				System.IO.Path.Combine(ModuleDirectory, "../NNXRuntimeORT/Public/")
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange
 			(
 			new string[] {
