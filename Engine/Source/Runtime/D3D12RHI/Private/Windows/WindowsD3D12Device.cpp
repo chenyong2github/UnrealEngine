@@ -30,7 +30,7 @@
 	#define INTC_IGDEXT_D3D12 1
 
 	THIRD_PARTY_INCLUDES_START
-		#include "igdext.h"
+	#include "igdext.h"
 	THIRD_PARTY_INCLUDES_END
 #endif
 
@@ -62,18 +62,18 @@ FD3D12DynamicRHI* GD3D12RHI = nullptr;
 	// Disabled by default since introduces stalls between render and driver threads
 	int32 GDX12NVAfterMathEnabled = 0;
 	static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
-		TEXT("r.DX12NVAfterMathEnabled"),
-		GDX12NVAfterMathEnabled,
-		TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
-		ECVF_ReadOnly
+	TEXT("r.DX12NVAfterMathEnabled"),
+	GDX12NVAfterMathEnabled,
+	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
+	ECVF_ReadOnly
 	);
 
 	int32 GDX12NVAfterMathTrackResources = 0;
 	static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
-		TEXT("r.DX12NVAfterMathTrackResources"),
-		GDX12NVAfterMathTrackResources,
-		TEXT("Enable NV Aftermath resource tracing in D3D12"),
-		ECVF_ReadOnly
+	TEXT("r.DX12NVAfterMathTrackResources"),
+	GDX12NVAfterMathTrackResources,
+	TEXT("Enable NV Aftermath resource tracing in D3D12"),
+	ECVF_ReadOnly
 	);
 
 	int32 GDX12NVAfterMathMarkers = 0;
@@ -449,10 +449,10 @@ inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(IDXGIAdapter* Adapter, ID3D
 		if (D3D12Caps1.WaveOps && bHighEnoughBindingTier)
 		{
 			if (D3D12Caps9.AtomicInt64OnTypedResourceSupported || CheckDeviceForEmulatedAtomic64Support(Adapter, Device))
-			{
-				MaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
-			}
+		{
+			MaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
 		}
+	}
 	}
 
 	if (MaxRHIFeatureLevel == ERHIFeatureLevel::Num && InMaxFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
@@ -1315,8 +1315,8 @@ void FD3D12DynamicRHI::Init()
 
 			GRHISupportsAtomicUInt64 = EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
 			GRHISupportsDX12AtomicUInt64 = GRHISupportsAtomicUInt64;
-		}
-	}
+				}
+			}
 #endif // INTEL_EXTENSIONS
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
