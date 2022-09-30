@@ -562,6 +562,18 @@ uint32 FD3D12DynamicRHI::RHIGetResourceDeviceIndex(FRHIBuffer* InBuffer) const
 	return D3D12Buffer->GetParentDevice()->GetGPUIndex();
 }
 
+int64 FD3D12DynamicRHI::RHIGetResourceMemorySize(FRHIBuffer* InBuffer) const
+{
+	FD3D12Buffer* D3D12Buffer = ResourceCast(InBuffer);
+	return D3D12Buffer->ResourceLocation.GetSize();
+}
+
+bool FD3D12DynamicRHI::RHIIsResourcePlaced(FRHIBuffer* InBuffer) const
+{
+	FD3D12Buffer* D3D12Buffer = ResourceCast(InBuffer);
+	return D3D12Buffer->GetResource()->IsPlacedResource();
+}
+
 ID3D12Resource* FD3D12DynamicRHI::RHIGetResource(FRHITexture* InTexture) const
 {
 	return (ID3D12Resource*)InTexture->GetNativeResource();

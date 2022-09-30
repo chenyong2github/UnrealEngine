@@ -551,6 +551,8 @@ public:
 	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource) final override;
 	virtual ID3D12Resource* RHIGetResource(FRHIBuffer* InBuffer) const final override;
 	virtual uint32 RHIGetResourceDeviceIndex(FRHIBuffer* InBuffer) const final override;
+	virtual int64 RHIGetResourceMemorySize(FRHIBuffer* InBuffer) const final override;
+	virtual bool RHIIsResourcePlaced(FRHIBuffer* InBuffer) const final override;
 	virtual ID3D12Resource* RHIGetResource(FRHITexture* InTexture) const final override;
 	virtual uint32 RHIGetResourceDeviceIndex(FRHITexture* InTexture) const final override;
 	virtual int64 RHIGetResourceMemorySize(FRHITexture* InTexture) const final override;

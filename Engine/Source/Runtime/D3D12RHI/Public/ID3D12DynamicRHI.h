@@ -36,6 +36,8 @@ struct ID3D12DynamicRHI : public FDynamicRHI
 
 	virtual ID3D12Resource*       RHIGetResource(FRHIBuffer* InBuffer) const = 0;
 	virtual uint32                RHIGetResourceDeviceIndex(FRHIBuffer* InBuffer) const = 0;
+	virtual int64                 RHIGetResourceMemorySize(FRHIBuffer* InBuffer) const = 0;
+	virtual bool                  RHIIsResourcePlaced(FRHIBuffer* InBuffer) const = 0;
 	virtual ID3D12Resource*       RHIGetResource(FRHITexture* InTexture) const = 0;
 	virtual uint32                RHIGetResourceDeviceIndex(FRHITexture* InTexture) const = 0;
 	virtual int64                 RHIGetResourceMemorySize(FRHITexture* InTexture) const = 0;
