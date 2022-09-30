@@ -10,6 +10,8 @@
 
 class SInlineEditableTextBlock;
 class SMenuAnchor;
+class SObjectMixerEditorMainPanel;
+class FObjectMixerEditorListFilter_Collection;
 
 class SCollectionSelectionButton final : public SCompoundWidget
 {
@@ -20,7 +22,10 @@ public:
 
 	SLATE_END_ARGS()
 	
-	void Construct(const FArguments& InArgs, const TSharedRef<class SObjectMixerEditorMainPanel> MainPanelWidget, const FName& InCollectionName);
+	void Construct(
+		const FArguments& InArgs,
+		const TSharedRef<SObjectMixerEditorMainPanel> MainPanelWidget,
+		const TSharedRef<FObjectMixerEditorListFilter_Collection> InCollectionListFilter);
 
 	TSharedRef<SWidget> GetContextMenu() const;
 
@@ -41,8 +46,16 @@ public:
 	const FSlateBrush* GetBorderBrush() const;
 	FSlateColor GetBorderForeground() const;
 
+	TWeakPtr<FObjectMixerEditorListFilter_Collection> GetCollectionListFilter()
+	{
+		return  CollectionListFilter;
+	}
+
+	/** Whether the associated list filter is active */
+	bool GetIsChecked() const;
+
 	TWeakPtr<SObjectMixerEditorMainPanel> MainPanelPtr;
-	FName CollectionName = NAME_None;
+	TWeakPtr<FObjectMixerEditorListFilter_Collection> CollectionListFilter;
 
 private:
 

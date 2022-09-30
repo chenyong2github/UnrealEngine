@@ -3,6 +3,7 @@
 #include "Views/Widgets/SCollectionSelectionButton.h"
 
 #include "ObjectMixerEditorSerializedData.h"
+#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
@@ -45,10 +46,13 @@ public:
 	}
 };
 
-void SCollectionSelectionButton::Construct(const FArguments& InArgs, const TSharedRef<SObjectMixerEditorMainPanel> MainPanelWidget, const FName& InCollectionName)
+void SCollectionSelectionButton::Construct(
+	const FArguments& InArgs,
+	const TSharedRef<SObjectMixerEditorMainPanel> MainPanelWidget,
+	const TSharedRef<FObjectMixerEditorListFilter_Collection> InCollectionListFilter)
 {
 	MainPanelPtr = MainPanelWidget;
-	CollectionName = InCollectionName;
+	CollectionListFilter = InCollectionListFilter;
 	
 	ChildSlot
 	[
@@ -62,7 +66,7 @@ void SCollectionSelectionButton::Construct(const FArguments& InArgs, const TShar
 			[
 				SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
 				.Style(&FAppStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockSmallStyle"))
-				.Text(FText::FromName(CollectionName))
+				.Text_Lambda([this, PinnedFilter = CollectionListFilter.Pin()]() { return FText::FromName(PinnedFilter->CollectionName);})
 				.Visibility(EVisibility::HitTestInvisible)
 				.ColorAndOpacity(FSlateColor::UseForeground())
 				.OnTextCommitted(this, &SCollectionSelectionButton::OnEditableTextCommitted)
@@ -75,13 +79,15 @@ TSharedRef<SWidget> SCollectionSelectionButton::GetContextMenu() const
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	const FName CollectionName = CollectionListFilter.Pin()->CollectionName;
+
 	MenuBuilder.AddMenuEntry(
 		FText::Format(LOCTEXT("DeleteCollectionButtonMenuEntry", "Delete '{0}'"), FText::FromName(CollectionName)),
 		LOCTEXT("DeleteCollectionButtonMenuEntryTooltip", "Remove this collection. This operation can be undone."),
 		FGenericCommands::Get().Delete->GetIcon(),
 		FUIAction(FExecuteAction::CreateLambda([this]()
 		{
-			MainPanelPtr.Pin()->RequestRemoveCollection(CollectionName);
+			MainPanelPtr.Pin()->RequestRemoveCollection(CollectionListFilter.Pin()->CollectionName);
 		}))
 	);
 
@@ -91,8 +97,9 @@ TSharedRef<SWidget> SCollectionSelectionButton::GetContextMenu() const
 		FGenericCommands::Get().Duplicate->GetIcon(),
 		FUIAction(FExecuteAction::CreateLambda([this]()
 		{
-			FName DuplicateName = CollectionName;
-			MainPanelPtr.Pin()->RequestDuplicateCollection(CollectionName, DuplicateName);
+			const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionList = CollectionListFilter.Pin();
+			FName DuplicateName = CollectionList->CollectionName;
+			MainPanelPtr.Pin()->RequestDuplicateCollection(CollectionList->CollectionName, DuplicateName);
 		}))
 	);
 
@@ -114,10 +121,8 @@ void SCollectionSelectionButton::OnEditableTextCommitted(const FText& Text, ETex
 	if (Type == ETextCommit::OnEnter)
 	{
 		const FName NewCollectionName = *Text.ToString();
-		if (MainPanelPtr.Pin()->RequestRenameCollection(CollectionName, NewCollectionName))
-		{
-			CollectionName = NewCollectionName;
-		}
+		const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter = CollectionListFilter.Pin();
+		MainPanelPtr.Pin()->RequestRenameCollection(CollectionFilter->CollectionName, NewCollectionName);
 	}
 }
 
@@ -134,23 +139,10 @@ FReply SCollectionSelectionButton::OnMouseButtonDown(const FGeometry& MyGeometry
 FReply SCollectionSelectionButton::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) 
 {
 	bIsPressed = false;
+	const FName CollectionName = CollectionListFilter.Pin()->CollectionName;
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
 	{
-		ECheckBoxState CurrentState = MainPanelPtr.Pin()->IsCollectionChecked(CollectionName);
-
-		ECheckBoxState NewState = ECheckBoxState::Checked;
-
-		switch (CurrentState)
-		{
-		case ECheckBoxState::Checked:
-			NewState = ECheckBoxState::Unchecked;
-			break;
-
-		default:
-			break;
-		}
-		
-		MainPanelPtr.Pin()->OnCollectionCheckedStateChanged(NewState, CollectionName);
+		MainPanelPtr.Pin()->OnCollectionCheckedStateChanged(!GetIsChecked(), CollectionName);
 	}
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
@@ -164,6 +156,7 @@ FReply SCollectionSelectionButton::OnMouseButtonUp(const FGeometry& MyGeometry, 
 
 FReply SCollectionSelectionButton::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	const FName CollectionName = CollectionListFilter.Pin()->CollectionName;
 	if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None)
 	{
 		TSharedRef<FCollectionSelectionButtonDragDropOp> OperationFromCollection =
@@ -181,6 +174,8 @@ FReply SCollectionSelectionButton::OnDragDetected(const FGeometry& MyGeometry, c
 
 void SCollectionSelectionButton::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	const FName CollectionName = CollectionListFilter.Pin()->CollectionName;
+	
 	if (TSharedPtr<FObjectMixerListRowDragDropOp> OperationFromRow =
 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>())
 	{
@@ -197,7 +192,8 @@ void SCollectionSelectionButton::OnDragEnter(const FGeometry& MyGeometry, const 
 	if (TSharedPtr<FCollectionSelectionButtonDragDropOp> OperationFromCollection =
 		DragDropEvent.GetOperationAs<FCollectionSelectionButtonDragDropOp>())
 	{
-		if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
+		if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName &&
+			CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
 		{
 			OperationFromCollection->SetToolTip(
 			   FText::Format(
@@ -233,6 +229,8 @@ FReply SCollectionSelectionButton::OnDrop(const FGeometry& MyGeometry, const FDr
 	bIsPressed = false;
 	bDropIsValid = false;
 	
+	const FName CollectionName = CollectionListFilter.Pin()->CollectionName;
+	
 	if (TSharedPtr<FObjectMixerListRowDragDropOp> OperationFromRow =
 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>())
 	{
@@ -258,11 +256,13 @@ FReply SCollectionSelectionButton::OnDrop(const FGeometry& MyGeometry, const FDr
 	if (TSharedPtr<FCollectionSelectionButtonDragDropOp> OperationFromCollection =
 		DragDropEvent.GetOperationAs<FCollectionSelectionButtonDragDropOp>())
 	{
-		if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
+		if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName &&
+			CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
 		{
 			if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanelModel = MainPanelPtr.Pin()->GetMainPanelModel().Pin())
 			{
-				MainPanelModel->RequestReorderCollection(OperationFromCollection->DraggedItem, CollectionName);
+				MainPanelModel->RequestReorderCollection(
+					OperationFromCollection->DraggedItem, CollectionName);
 			}
 		}
 	}
@@ -272,7 +272,7 @@ FReply SCollectionSelectionButton::OnDrop(const FGeometry& MyGeometry, const FDr
 
 const FSlateBrush* SCollectionSelectionButton::GetBorderBrush() const
 {
-	if (MainPanelPtr.Pin()->IsCollectionChecked(CollectionName) == ECheckBoxState::Checked)
+	if (GetIsChecked())
 	{
 		if (bIsPressed)
 		{
@@ -301,13 +301,17 @@ const FSlateBrush* SCollectionSelectionButton::GetBorderBrush() const
 
 FSlateColor SCollectionSelectionButton::GetBorderForeground() const
 {
-	if (MainPanelPtr.Pin()->IsCollectionChecked(CollectionName) == ECheckBoxState::Checked ||
-		bIsPressed || IsHovered())
+	if (GetIsChecked() || bIsPressed || IsHovered())
 	{
 		return FStyleColors::White;
 	}
 
 	return FStyleColors::Foreground;
+}
+
+bool SCollectionSelectionButton::GetIsChecked() const
+{
+	return CollectionListFilter.Pin()->GetIsFilterActive();
 }
 
 #undef LOCTEXT_NAMESPACE

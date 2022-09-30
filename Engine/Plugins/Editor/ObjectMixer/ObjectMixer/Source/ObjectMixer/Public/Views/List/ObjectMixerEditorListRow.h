@@ -98,7 +98,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	UObjectMixerObjectFilter* GetObjectFilter() const;
 
-	bool IsObjectRefInSelectedCollections() const;
+	bool IsObjectRefInCollection(const FName& CollectionName) const;
 
 	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
 	void SetRowType(EObjectMixerEditorListRowType InNewRowType);

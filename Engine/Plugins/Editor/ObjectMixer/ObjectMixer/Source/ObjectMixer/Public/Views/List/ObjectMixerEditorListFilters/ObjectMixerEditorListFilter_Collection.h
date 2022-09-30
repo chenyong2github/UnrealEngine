@@ -10,17 +10,18 @@ class OBJECTMIXEREDITOR_API FObjectMixerEditorListFilter_Collection : public IOb
 {
 public:
 
-	FObjectMixerEditorListFilter_Collection()
+	FObjectMixerEditorListFilter_Collection(const FName InCollectionName)
 	{
+		CollectionName = InCollectionName;
 		SetFilterMatchType(EObjectMixerEditorListFilterMatchType::MatchAll);
 	}
 
 	virtual FString GetFilterName() const override
 	{
-		return "ObjectMixerCollectionListFilter";
+		return "ObjectMixerCollectionListFilter_" + CollectionName.ToString();
 	}
 
-	virtual bool IsToggleable() const override
+	virtual bool IsUserToggleable() const override
 	{
 		return false;
 	}
@@ -39,15 +40,13 @@ public:
 	{
 		if (InItem.IsValid())
 		{
-			if (InItem->GetRowType() == FObjectMixerEditorListRow::ContainerObject ||
-				InItem->GetRowType() == FObjectMixerEditorListRow::MatchingObject)
-			{
-				return InItem->IsObjectRefInSelectedCollections();
-			}
+			return InItem->IsObjectRefInCollection(CollectionName);
 		}
 
 		return false;
 	}
+
+	FName CollectionName;
 
 };
 

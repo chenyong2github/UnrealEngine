@@ -13,15 +13,16 @@ class OBJECTMIXEREDITOR_API FObjectMixerEditorList : public TSharedFromThis<FObj
 {
 public:
 
-	FObjectMixerEditorList(TSharedRef<FObjectMixerEditorMainPanel, ESPMode::ThreadSafe> InMainPanel)
-	: MainPanelModelPtr(InMainPanel)
-	{}
+	FObjectMixerEditorList(TSharedRef<FObjectMixerEditorMainPanel, ESPMode::ThreadSafe> InMainPanel);
 
 	virtual ~FObjectMixerEditorList();
 
 	void FlushWidget();
 	
 	TSharedRef<SWidget> GetOrCreateWidget();
+
+	void OnPreFilterChange();
+	void OnPostFilterChange();
 
 	void ClearList() const;
 

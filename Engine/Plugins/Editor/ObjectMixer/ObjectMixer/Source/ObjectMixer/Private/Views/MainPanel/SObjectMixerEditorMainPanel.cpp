@@ -4,7 +4,6 @@
 
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
-#include "ObjectMixerEditorSerializedData.h"
 #include "ObjectMixerEditorSettings.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
@@ -18,6 +17,7 @@
 #include "Kismet2/SClassPickerDialog.h"
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "SPositiveActionButton.h"
+#include "Algo/RemoveIf.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
@@ -69,7 +69,15 @@ void SObjectMixerEditorMainPanel::Construct(
 		SerializedData->OnObjectMixerCollectionMapChanged.AddRaw(this, &SObjectMixerEditorMainPanel::RebuildCollectionSelector);
 	}
 
-	ShowFilters.Add(MakeShared<FObjectMixerEditorListFilter_Collection>());
+	// Make "All" filter which must always be present
+	const TSharedRef<FObjectMixerEditorListFilter_Collection> NewCollectionFilter =
+		MakeShared<FObjectMixerEditorListFilter_Collection>(UObjectMixerEditorSerializedData::AllCollectionName);
+		
+	ListFilters.Add(NewCollectionFilter);
+	
+	RebuildCollectionSelector();
+
+	SetSingleCollectionSelection();
 }
 
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
@@ -406,7 +414,7 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::BuildShowOptionsMenu()
 	}
 	ShowOptionsMenuBuilder.EndSection();
 
-	if (ShowFilters.Num())
+	if (ListFilters.Num())
 	{
 		ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_ShowSectionHeading", "Show"));
 		{
@@ -434,10 +442,10 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::BuildShowOptionsMenu()
 			   );
 			};
 
-			for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : ShowFilters)
+			for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : ListFilters)
 			{
 				// Don't add non-toggle filters to Show Options, they're always on
-				if (Filter->IsToggleable())
+				if (Filter->IsUserToggleable())
 				{
 					AddFiltersLambda(Filter);
 				}
@@ -452,6 +460,34 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::BuildShowOptionsMenu()
 void SObjectMixerEditorMainPanel::OnSearchTextChanged(const FText& Text)
 {
 	ExecuteListViewSearchOnAllRows(Text.ToString(), true);
+}
+
+void SObjectMixerEditorMainPanel::ResetCollectionFilters()
+{
+	// Clean up all collection filters
+	for (int32 FiltersItr = ListFilters.Num() - 1; FiltersItr >= 0; FiltersItr--)
+	{
+		if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilters[FiltersItr]))
+		{
+			ListFilters.RemoveAt(FiltersItr);
+		}
+	}
+}
+
+void SObjectMixerEditorMainPanel::SetSingleCollectionSelection(const FName& CollectionToEnableName)
+{
+	// Disable all collection filters except CollectionToEnableName
+	for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : GetListFilters())
+	{
+		if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(Filter))
+		{
+			const bool bIsAllCollectionFilter =
+				CollectionFilter->CollectionName.IsEqual(CollectionToEnableName);
+			CollectionFilter->SetFilterActive(bIsAllCollectionFilter);
+		}
+	}
 }
 
 FText SObjectMixerEditorMainPanel::GetSearchTextFromSearchInputField() const
@@ -502,7 +538,7 @@ void SObjectMixerEditorMainPanel::SetTreeViewMode(EObjectMixerTreeViewMode InVie
 void SObjectMixerEditorMainPanel::ToggleFilterActive(const FString& FilterName)
 {
 	if (const TSharedRef<IObjectMixerEditorListFilter>* Match =
-		Algo::FindByPredicate(GetShowFilters(),
+		Algo::FindByPredicate(GetListFilters(),
 		[&FilterName](TSharedRef<IObjectMixerEditorListFilter> Comparator)
 		{
 			return Comparator->GetFilterName().Equals(FilterName);
@@ -515,43 +551,144 @@ void SObjectMixerEditorMainPanel::ToggleFilterActive(const FString& FilterName)
 	}
 }
 
-const TSet<FName>& SObjectMixerEditorMainPanel::GetCurrentCollectionSelection()
+TArray<TWeakPtr<IObjectMixerEditorListFilter>> SObjectMixerEditorMainPanel::GetWeakActiveListFiltersSortedByName()
 {
-	return CurrentCollectionSelection;
+	TArray<TWeakPtr<IObjectMixerEditorListFilter>> ActiveFilters = {};
+	
+	for (const TSharedRef<IObjectMixerEditorListFilter>& ListFilter : GetListFilters())
+	{
+		if (ListFilter->GetIsFilterActive())
+		{
+			ActiveFilters.Add(ListFilter);
+		}
+	}
+
+	ActiveFilters.StableSort(
+		[](const TWeakPtr<IObjectMixerEditorListFilter>& A, const TWeakPtr<IObjectMixerEditorListFilter>& B)
+		{
+			FString NameA = A.IsValid() ? A.Pin()->GetFilterName() : "";
+			FString NameB = A.IsValid() ? A.Pin()->GetFilterName() : "";
+			return NameA < NameB;
+		});
+
+	return ActiveFilters;
+}
+
+TSet<TSharedRef<FObjectMixerEditorListFilter_Collection>> SObjectMixerEditorMainPanel::GetCurrentCollectionSelection()
+{
+	TSet<TSharedRef<FObjectMixerEditorListFilter_Collection>> CollectionFilters;
+	for (const TSharedRef<IObjectMixerEditorListFilter>& ListFilter : GetListFilters())
+	{
+		if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+		{
+			CollectionFilters.Add(CollectionFilter.ToSharedRef());
+		}
+	}
+	
+	return CollectionFilters;
 }
 
 void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 {
 	check(MainPanelModel.IsValid());
-	
+
+	// Make user collections
+
 	CollectionSelectorBox->ClearChildren();
 	CollectionSelectorBox->SetVisibility(EVisibility::Collapsed);
 
-	TArray<FName> AllCollections = MainPanelModel.Pin()->GetAllCollectionNames();
-	
-	if (AllCollections.IsEmpty())
-	{
-		// no collections - rather than show just "All", hide the box
-		ResetCurrentCollectionSelection();
-		return;
-	}
-
-	auto CreateSection = [this](FName CollectionName) 
-	{
-		return SNew(SCollectionSelectionButton, SharedThis(this), CollectionName);
-	};
-
-	CollectionSelectorBox->AddSlot()
-	[
-		CreateSection(UObjectMixerEditorSerializedData::AllCollectionName)
-	];
-
-	for (const FName& Key : AllCollections)
+	auto CreateCollectionFilterAndAddToCollectionSelector =
+		[this](const TSharedRef<FObjectMixerEditorListFilter_Collection> NewCollectionFilter) 
 	{
 		CollectionSelectorBox->AddSlot()
 		[
-			CreateSection(Key)
+			SNew(SCollectionSelectionButton, SharedThis(this), NewCollectionFilter)
 		];
+	};
+
+	TArray<FName> AllCollectionNames = MainPanelModel.Pin()->GetAllCollectionNames();
+	
+	// Remove any collection filters that no longer match (except "All")
+	ListFilters.SetNum(Algo::StableRemoveIf(ListFilters,
+		[&AllCollectionNames](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
+		{
+			if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+				StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+			{
+				const bool bIsAllCollection = CollectionFilter->CollectionName.IsEqual(UObjectMixerEditorSerializedData::AllCollectionName);
+				const bool bIsFilterNameFoundInAllCollectionNames = AllCollectionNames.Contains(CollectionFilter->CollectionName);
+				
+				return !bIsAllCollection && !bIsFilterNameFoundInAllCollectionNames;
+			}
+			return false;
+		})
+	);
+
+	const TSharedRef<IObjectMixerEditorListFilter>* AllCollection =
+		Algo::FindByPredicate(
+			ListFilters,
+			[&AllCollectionNames](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
+			{
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+				{
+					return CollectionFilter->CollectionName.IsEqual(UObjectMixerEditorSerializedData::AllCollectionName);
+				}
+				return false;
+			});
+	
+	// No collections - rather than show "All", just keep the box hidden
+	if (AllCollectionNames.IsEmpty())
+	{
+		// Set "All" filter to active
+		if (AllCollection)
+		{
+			(*AllCollection)->SetFilterActive(true);
+		}
+		
+		return;
+	}
+
+	// Make "All" collection widget
+	if (AllCollection)
+	{
+		CreateCollectionFilterAndAddToCollectionSelector(
+			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(*AllCollection));
+	}
+	
+	TMap<FName, TSharedRef<FObjectMixerEditorListFilter_Collection>> CollectionNamesToFilters; 
+	for (const FName& Key : AllCollectionNames)
+	{
+		// Try to find a matching filter
+		if (const TSharedRef<IObjectMixerEditorListFilter>* Match = Algo::FindByPredicate(
+			ListFilters,
+			[&Key](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
+			{
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+				{
+					return CollectionFilter->CollectionName.IsEqual(Key);
+				}
+				return false;
+			}))
+		{
+			CollectionNamesToFilters.Add(Key, StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(*Match));
+		}
+		else
+		{
+			// Otherwise create new filter for unmatched collection name
+			TSharedRef<FObjectMixerEditorListFilter_Collection> NewCollectionFilter =
+				MakeShared<FObjectMixerEditorListFilter_Collection>(Key);
+			ListFilters.Add(NewCollectionFilter);
+			CollectionNamesToFilters.Add(Key, NewCollectionFilter);
+		}
+
+		// Then create widgets for each key
+		if (const TSharedRef<FObjectMixerEditorListFilter_Collection>* FoundCollectionFilter = CollectionNamesToFilters.Find(Key))
+		{
+			CreateCollectionFilterAndAddToCollectionSelector(*FoundCollectionFilter);
+		}
 	}
 
 	CollectionSelectorBox->SetVisibility(EVisibility::Visible);
@@ -561,7 +698,18 @@ bool SObjectMixerEditorMainPanel::RequestRemoveCollection(const FName& Collectio
 {
 	if (MainPanelModel.Pin()->RequestRemoveCollection(CollectionName))
 	{
-		CurrentCollectionSelection.Remove(CollectionName);
+		const int32 NewListFilterCount = Algo::StableRemoveIf(ListFilters,
+			[CollectionName](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
+			{
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+				{
+					return CollectionFilter->CollectionName.IsEqual(CollectionName);
+				}
+				return false;
+			});
+		
+		ListFilters.SetNum(NewListFilterCount);
 
 		return true;
 	}
@@ -580,10 +728,30 @@ bool SObjectMixerEditorMainPanel::RequestRenameCollection(
 {
 	if (MainPanelModel.Pin()->RequestRenameCollection(CollectionNameToRename, NewCollectionName))
 	{
-		if (CurrentCollectionSelection.Contains(CollectionNameToRename))
+		if (TSharedRef<IObjectMixerEditorListFilter>* Match = Algo::FindByPredicate(ListFilters,
+			[CollectionNameToRename](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
+			{
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+				{
+					return CollectionFilter->CollectionName.IsEqual(CollectionNameToRename);
+				}
+				return false;
+			}))
 		{
-			CurrentCollectionSelection.Remove(CollectionNameToRename);
-			CurrentCollectionSelection.Add(NewCollectionName);
+			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(*Match)->CollectionName = NewCollectionName;
+		}
+		else
+		{
+			TSharedRef<FObjectMixerEditorListFilter_Collection> NewCollectionFilter =
+				MakeShared<FObjectMixerEditorListFilter_Collection>(NewCollectionName);
+		
+			ListFilters.Add(NewCollectionFilter);
+		
+			CollectionSelectorBox->AddSlot()
+			[
+				SNew(SCollectionSelectionButton, SharedThis(this), NewCollectionFilter)
+			];
 		}
 
 		return true;
@@ -597,60 +765,115 @@ bool SObjectMixerEditorMainPanel::DoesCollectionExist(const FName& CollectionNam
 	return MainPanelModel.Pin()->DoesCollectionExist(CollectionName);
 }
 
-void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(ECheckBoxState State, FName CollectionName)
+void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(bool bShouldBeChecked, FName CollectionName)
 {
 	check(MainPanelModel.IsValid());
 
-	// Remove Collection
-	if (FSlateApplication::Get().GetModifierKeys().IsAltDown())
-	{
-		RequestRemoveCollection(CollectionName);
-	}
-	else
-	{
-		const bool bIsControlDown = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+	GetMainPanelModel().Pin()->OnPreFilterChange.Broadcast();
 
-		if (State == ECheckBoxState::Unchecked)
+	const bool bIsAllCollection = CollectionName.IsEqual(UObjectMixerEditorSerializedData::AllCollectionName);
+
+	const bool bIsControlDown = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+
+	if (bShouldBeChecked)
+	{
+		if (bIsControlDown)
 		{
-			if (bIsControlDown)
+			if (bIsAllCollection)
 			{
-				CurrentCollectionSelection.Remove(CollectionName);
+				// Can't multi-select All
+				return;
 			}
-			else
+			
+			// Enable this collection and disable "All"
+			for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : GetListFilters())
 			{
-				CurrentCollectionSelection.Reset();
-
-				if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None)
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(Filter))
 				{
-					CurrentCollectionSelection.Add(CollectionName);
+					if (CollectionFilter->CollectionName.IsEqual(CollectionName))
+					{
+						CollectionFilter->SetFilterActive(true);
+					}
+					else if (CollectionFilter->CollectionName.IsEqual(UObjectMixerEditorSerializedData::AllCollectionName))
+					{
+						CollectionFilter->SetFilterActive(false);
+					}
 				}
 			}
 		}
-		else if (State == ECheckBoxState::Checked)
+		else
 		{
-			if (!bIsControlDown)
+			SetSingleCollectionSelection(CollectionName);
+		}
+	}
+	else
+	{		
+		if (bIsControlDown)
+		{
+			if (bIsAllCollection)
 			{
-				CurrentCollectionSelection.Reset();
+				// Can't disable All
+				return;
+			}
+			
+			// Disable just this collection
+			int32 ActiveFilterCount = 0;
+			for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : GetListFilters())
+			{
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(Filter))
+				{
+					if (CollectionFilter->CollectionName.IsEqual(CollectionName))
+					{
+						CollectionFilter->SetFilterActive(false);
+					}
+					else if (CollectionFilter->GetIsFilterActive())
+					{
+						ActiveFilterCount++;
+					}
+				}
 			}
 
-			if (CollectionName != UObjectMixerEditorSerializedData::AllCollectionName && CollectionName != NAME_None)
+			if (ActiveFilterCount == 0)
 			{
-				CurrentCollectionSelection.Add(CollectionName);
+				// Reset to all
+				SetSingleCollectionSelection();
 			}
+		}
+		else
+		{
+			if (bIsAllCollection)
+			{
+				// Reset to all
+				SetSingleCollectionSelection();
+			}
+			
+			// Set just this filter active
+			SetSingleCollectionSelection(CollectionName);
 		}
 	}
 
-	MainPanelModel.Pin()->GetEditorListModel().Pin()->EvaluateIfRowsPassFilters();
+	GetMainPanelModel().Pin()->OnPostFilterChange.Broadcast();
 }
 
-ECheckBoxState SObjectMixerEditorMainPanel::IsCollectionChecked(FName Section) const
+ECheckBoxState SObjectMixerEditorMainPanel::IsCollectionChecked(FName CollectionName) const
 {
-	if (CurrentCollectionSelection.IsEmpty() && Section == UObjectMixerEditorSerializedData::AllCollectionName)
-	{
-		return ECheckBoxState::Checked;
-	}
+	const TSharedRef<IObjectMixerEditorListFilter>* Match = Algo::FindByPredicate(ListFilters,
+		[CollectionName](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
+		{
+			if (ListFilter->GetIsFilterActive())
+			{
+				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
+				   StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
+				{
+					return CollectionFilter->CollectionName.IsEqual(CollectionName);
+				}
+			}
+			return false;
+		});
 
-	return CurrentCollectionSelection.Contains(Section) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return Match ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 SObjectMixerEditorMainPanel::~SObjectMixerEditorMainPanel()

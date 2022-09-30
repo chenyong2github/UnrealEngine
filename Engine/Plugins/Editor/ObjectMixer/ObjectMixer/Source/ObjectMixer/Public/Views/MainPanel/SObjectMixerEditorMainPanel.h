@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "ObjectMixerEditorSerializedData.h"
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FObjectMixerEditorListFilter_Collection;
 class FObjectMixerEditorMainPanel;
 
 class OBJECTMIXEREDITOR_API SObjectMixerEditorMainPanel final : public SCompoundWidget
@@ -41,12 +43,15 @@ public:
 
 	void ToggleFilterActive(const FString& FilterName);
 
-	const TArray<TSharedRef<class IObjectMixerEditorListFilter>>& GetShowFilters()
+	/** Get the filters that affect list item visibility. Distinct from Object Filters. */
+	const TArray<TSharedRef<class IObjectMixerEditorListFilter>>& GetListFilters()
 	{
-		return ShowFilters;	
+		return ListFilters;	
 	}
 
-	const TSet<FName>& GetCurrentCollectionSelection();
+	TArray<TWeakPtr<IObjectMixerEditorListFilter>> GetWeakActiveListFiltersSortedByName();
+
+	TSet<TSharedRef<FObjectMixerEditorListFilter_Collection>> GetCurrentCollectionSelection();
 	
 	void RebuildCollectionSelector();
 
@@ -55,8 +60,8 @@ public:
 	bool RequestRenameCollection(const FName& CollectionNameToRename, const FName& NewCollectionName);
 	bool DoesCollectionExist(const FName& CollectionName) const;
 	
-	void OnCollectionCheckedStateChanged(ECheckBoxState State, FName CollectionName);
-	ECheckBoxState IsCollectionChecked(FName Section) const;
+	void OnCollectionCheckedStateChanged(bool bShouldBeChecked, FName CollectionName);
+	ECheckBoxState IsCollectionChecked(FName CollectionName) const;
 
 	virtual ~SObjectMixerEditorMainPanel() override;
 
@@ -65,7 +70,8 @@ private:
 	/** A reference to the struct that controls this widget */
 	TWeakPtr<FObjectMixerEditorMainPanel> MainPanelModel;
 
-	TArray<TSharedRef<IObjectMixerEditorListFilter>> ShowFilters;
+	/** Filters that affect list item visibility. Distinct from Object Filters. */
+	TArray<TSharedRef<IObjectMixerEditorListFilter>> ListFilters;
 
 	TSharedPtr<class SSearchBox> SearchBoxPtr;
 	TSharedPtr<class SComboButton> ViewOptionsComboButton;
@@ -81,10 +87,10 @@ private:
 	// User Collections
 	
 	TSharedPtr<class SWrapBox> CollectionSelectorBox;
-	TSet<FName> CurrentCollectionSelection;
 
-	void ResetCurrentCollectionSelection()
-	{
-		CurrentCollectionSelection.Reset();
-	}
+	/** Remove all collection filters */
+	void ResetCollectionFilters();
+
+	/** Disable all collection filters except CollectionToEnableName */
+	void SetSingleCollectionSelection(const FName& CollectionToEnableName = UObjectMixerEditorSerializedData::AllCollectionName);
 };

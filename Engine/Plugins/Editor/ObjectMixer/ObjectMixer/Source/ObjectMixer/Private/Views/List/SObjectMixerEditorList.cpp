@@ -25,6 +25,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "ScopedTransaction.h"
+#include "Algo/IndexOf.h"
 #include "Styling/StyleColors.h"
 #include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -381,7 +382,7 @@ EObjectMixerTreeViewMode SObjectMixerEditorList::GetTreeViewMode()
 	return PinnedMainPanel->GetTreeViewMode();
 }
 
-const TArray<TSharedRef<IObjectMixerEditorListFilter>>& SObjectMixerEditorList::GetShowFilters()
+const TArray<TSharedRef<IObjectMixerEditorListFilter>>& SObjectMixerEditorList::GetListFilters()
 {
 	const TSharedPtr<FObjectMixerEditorList> PinnedListModel = GetListModelPtr().Pin();
 	check(PinnedListModel);
@@ -389,7 +390,7 @@ const TArray<TSharedRef<IObjectMixerEditorListFilter>>& SObjectMixerEditorList::
 	const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = PinnedListModel->GetMainPanelModel().Pin();
 	check(PinnedMainPanel);
 	
-	return PinnedMainPanel->GetShowFilters();
+	return PinnedMainPanel->GetListFilters();
 }
 
 void SObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward)
@@ -399,7 +400,7 @@ void SObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefresh
 	TSet<TSharedRef<IObjectMixerEditorListFilter>> MatchAnyOfFilters;
 	TSet<TSharedRef<IObjectMixerEditorListFilter>> MatchAllOfFilters;
 
-	for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : GetShowFilters())
+	for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : GetListFilters())
 	{
 		if (Filter->GetFilterMatchType() ==
 			IObjectMixerEditorListFilter::EObjectMixerEditorListFilterMatchType::MatchAll)
@@ -877,13 +878,13 @@ void SObjectMixerEditorList::SetAllGroupsCollapsed()
 	}
 }
 
-void SObjectMixerEditorList::CacheTreeState()
+void SObjectMixerEditorList::CacheTreeState(const TArray<TWeakPtr<IObjectMixerEditorListFilter>>& InFilterCombo)
 {
 	struct Local
 	{
 		static void RecursivelyCacheTreeState(
 			const TArray<FObjectMixerEditorListRowPtr>& InObjects,
-			TArray<FTreeItemStateCache>& TreeItemStateCache,
+			TArray<FTreeItemStateCache>* TreeItemStateCache,
 			TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr)
 		{
 			for (const TSharedPtr<FObjectMixerEditorListRow>& TreeViewItem : InObjects)
@@ -895,7 +896,7 @@ void SObjectMixerEditorList::CacheTreeState()
 
 				if (!RowName.IsEmpty())
 				{
-					TreeItemStateCache.Add(
+					TreeItemStateCache->Add(
 						{
 							RowObject ? RowObject->GetUniqueID() : -1,
 							RowName,
@@ -910,23 +911,40 @@ void SObjectMixerEditorList::CacheTreeState()
 		}
 	};
 
-	Local::RecursivelyCacheTreeState(TreeViewRootObjects, TreeItemStateCache, TreeViewPtr);
+	FFilterComboToStateCaches* Match = Algo::FindByPredicate(
+		FilterComboToStateCaches,
+		[&InFilterCombo](
+		const FFilterComboToStateCaches& Cache)
+		{
+			return Cache.FilterCombo == InFilterCombo;
+		});
+
+	if (Match)
+	{
+		Local::RecursivelyCacheTreeState(TreeViewRootObjects, &Match->Caches, TreeViewPtr);
+	}
+	else
+	{
+		TArray<FTreeItemStateCache> NewCache;
+		Local::RecursivelyCacheTreeState(TreeViewRootObjects, &NewCache, TreeViewPtr);
+		FilterComboToStateCaches.Add({InFilterCombo, MoveTemp(NewCache)});
+	}
 }
 
-void SObjectMixerEditorList::RestoreTreeState(const bool bFlushCache)
+void SObjectMixerEditorList::RestoreTreeState(const TArray<TWeakPtr<IObjectMixerEditorListFilter>>& InFilterCombo, const bool bFlushCache)
 {
 	struct Local
 	{
 		static void RecursivelyRestoreTreeState(
 			const TArray<FObjectMixerEditorListRowPtr>& InObjects,
-			TArray<FTreeItemStateCache>& TreeItemStateCache,
+			TArray<FTreeItemStateCache>* TreeItemStateCache,
 			TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr,
 			const bool bExpandByDefault)
 		{
 			for (const TSharedPtr<FObjectMixerEditorListRow>& TreeViewItem : InObjects)
 			{
 				if (const FTreeItemStateCache* StateCachePtr = Algo::FindByPredicate(
-					TreeItemStateCache,
+					*TreeItemStateCache,
 					[TreeViewItem](const FTreeItemStateCache& Other)
 					{
 						if (Other.UniqueId != -1)
@@ -964,13 +982,21 @@ void SObjectMixerEditorList::RestoreTreeState(const bool bFlushCache)
 	{
 		bExpandByDefault = Settings->bExpandTreeViewItemsByDefault;
 	}
-	
-	Local::RecursivelyRestoreTreeState(
-		TreeViewRootObjects, TreeItemStateCache, TreeViewPtr, bExpandByDefault);
 
-	if (bFlushCache)
+	for (int32 CachesItr = FilterComboToStateCaches.Num() - 1; CachesItr >= 0; CachesItr--)
 	{
-		TreeItemStateCache.Empty();
+		if (FilterComboToStateCaches[CachesItr].FilterCombo == InFilterCombo)
+		{
+			Local::RecursivelyRestoreTreeState(
+			  TreeViewRootObjects, &FilterComboToStateCaches[CachesItr].Caches, TreeViewPtr, bExpandByDefault);
+
+			if (bFlushCache)
+			{
+				FilterComboToStateCaches.RemoveAt(CachesItr);
+			}
+
+			break;
+		}
 	}
 }
 
@@ -1183,7 +1209,7 @@ void CreateFolderRowsForTopLevelRow(
 
 void SObjectMixerEditorList::GenerateTreeView()
 {
-	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
+	const TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
 	check(PinnedListModel);
 	
 	if (!ensure(TreeViewPtr.IsValid()))
@@ -1191,7 +1217,14 @@ void SObjectMixerEditorList::GenerateTreeView()
 		return;
 	}
 
-	CacheTreeState();
+	TArray<TWeakPtr<IObjectMixerEditorListFilter>> FilterCombo = {};
+
+	if (const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = PinnedListModel->GetMainPanelModel().Pin())
+	{
+		FilterCombo = PinnedMainPanel->GetWeakActiveListFiltersSortedByName();
+	}
+
+	CacheTreeState(FilterCombo);
 	
 	FlushMemory(true);
 
@@ -1199,7 +1232,6 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	check(GEditor);
 	const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	
 	
 	TSet<UObject*> AllMatchingObjects;
 
@@ -1248,7 +1280,7 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	RefreshList();
 
-	RestoreTreeState();
+	RestoreTreeState(FilterCombo);
 }
 
 void SObjectMixerEditorList::FindVisibleTreeViewObjects()
@@ -1332,7 +1364,11 @@ void SObjectMixerEditorList::OnGetRowChildren(FObjectMixerEditorListRowPtr Row, 
 
 		if (Row->GetShouldExpandAllChildren())
 		{
+			Row->SetShouldExpandAllChildren(false);
 			SetChildExpansionRecursively(Row, true);
+		}
+		else
+		{
 			Row->SetShouldExpandAllChildren(false);
 		}
 	}
@@ -1357,7 +1393,6 @@ void SObjectMixerEditorList::OnRowChildExpansionChange(FObjectMixerEditorListRow
 			}
 		}
 		
-		TreeViewPtr->SetItemExpansion(Row, bIsExpanded);
 		Row->SetIsTreeViewItemExpanded(bIsExpanded);
 	}
 }

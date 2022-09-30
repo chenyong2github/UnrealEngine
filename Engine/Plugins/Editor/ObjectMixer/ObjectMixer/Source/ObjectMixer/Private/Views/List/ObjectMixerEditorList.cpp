@@ -4,6 +4,14 @@
 
 #include "Views/List/SObjectMixerEditorList.h"
 
+FObjectMixerEditorList::FObjectMixerEditorList(TSharedRef<FObjectMixerEditorMainPanel, ESPMode::ThreadSafe> InMainPanel)
+{
+	MainPanelModelPtr = InMainPanel;
+
+	InMainPanel->OnPreFilterChange.AddRaw(this, &FObjectMixerEditorList::OnPreFilterChange);
+	InMainPanel->OnPostFilterChange.AddRaw(this, &FObjectMixerEditorList::OnPostFilterChange);
+}
+
 FObjectMixerEditorList::~FObjectMixerEditorList()
 {
 	FlushWidget();
@@ -11,6 +19,12 @@ FObjectMixerEditorList::~FObjectMixerEditorList()
 
 void FObjectMixerEditorList::FlushWidget()
 {
+	if (TSharedPtr<FObjectMixerEditorMainPanel> MainPanelPinned = MainPanelModelPtr.Pin())
+	{
+		MainPanelPinned->OnPreFilterChange.RemoveAll(this);
+		MainPanelPinned->OnPostFilterChange.RemoveAll(this);
+	}
+	
 	ListWidget.Reset();
 }
 
@@ -24,6 +38,29 @@ TSharedRef<SWidget> FObjectMixerEditorList::GetOrCreateWidget()
 	RequestRebuildList();
 
 	return ListWidget.ToSharedRef();
+}
+
+void FObjectMixerEditorList::OnPreFilterChange()
+{
+	if (ListWidget.IsValid())
+	{
+		if (const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = GetMainPanelModel().Pin())
+		{		
+			ListWidget->CacheTreeState(PinnedMainPanel->GetWeakActiveListFiltersSortedByName());
+		}
+	}
+}
+
+void FObjectMixerEditorList::OnPostFilterChange()
+{
+	if (ListWidget.IsValid())
+	{
+		if (const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = GetMainPanelModel().Pin())
+		{		
+			ListWidget->EvaluateIfRowsPassFilters();
+			ListWidget->RestoreTreeState(PinnedMainPanel->GetWeakActiveListFiltersSortedByName());
+		}
+	}
 }
 
 void FObjectMixerEditorList::ClearList() const

@@ -105,9 +105,14 @@ void FObjectMixerEditorMainPanel::CacheObjectFilterObject()
 	}
 }
 
-const TArray<TSharedRef<IObjectMixerEditorListFilter>>& FObjectMixerEditorMainPanel::GetShowFilters() const
+const TArray<TSharedRef<IObjectMixerEditorListFilter>>& FObjectMixerEditorMainPanel::GetListFilters() const
 {
-	return MainPanelWidget->GetShowFilters();	
+	return MainPanelWidget->GetListFilters();	
+}
+
+TArray<TWeakPtr<IObjectMixerEditorListFilter>> FObjectMixerEditorMainPanel::GetWeakActiveListFiltersSortedByName() const
+{
+	return MainPanelWidget->GetWeakActiveListFiltersSortedByName();
 }
 
 UObjectMixerEditorSerializedData* FObjectMixerEditorMainPanel::GetSerializedDataOutputtingFilterName(FName& OutFilterName) const
@@ -232,7 +237,7 @@ TArray<FName> FObjectMixerEditorMainPanel::GetAllCollectionNames() const
 	return {};
 }
 
-const TSet<FName>& FObjectMixerEditorMainPanel::GetCurrentCollectionSelection() const
+TSet<TSharedRef<FObjectMixerEditorListFilter_Collection>> FObjectMixerEditorMainPanel::GetCurrentCollectionSelection() const
 {
 	return MainPanelWidget->GetCurrentCollectionSelection();
 }

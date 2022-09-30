@@ -2,8 +2,12 @@
 
 #include "Views/List/ObjectMixerEditorListRow.h"
 
+#include "ObjectMixerEditorSettings.h"
+#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
+
 #include "Algo/AllOf.h"
 #include "ClassIconFinder.h"
+#include "ObjectMixerEditorSerializedData.h"
 #include "GameFramework/Actor.h"
 #include "Styling/SlateIconFinder.h"
 #include "Views/List/ObjectMixerEditorList.h"
@@ -59,31 +63,25 @@ UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetObjectFilter() const
 	return nullptr;
 }
 
-bool FObjectMixerEditorListRow::IsObjectRefInSelectedCollections() const
-{
-	check (ListViewPtr.IsValid());
-	
+bool FObjectMixerEditorListRow::IsObjectRefInCollection(const FName& CollectionName) const
+{	
 	if (RowType != EObjectMixerEditorListRowType::None && RowType != EObjectMixerEditorListRowType::Folder)
 	{
-		if (const TSharedPtr<FObjectMixerEditorList> ListModel = ListViewPtr.Pin()->GetListModelPtr().Pin())
+		if (CollectionName == UObjectMixerEditorSerializedData::AllCollectionName)
 		{
-			if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ListModel->GetMainPanelModel().Pin())
-			{
-				const TSet<FName>& CollectionSelection = MainPanel->GetCurrentCollectionSelection();
-
-				if (CollectionSelection.Num() == 0)
-				{
-					return true;
-				}
-
-				const TSet<FName>& ObjectAssignedCollections = MainPanel->GetCollectionsForObject(GetObject());
-
-				const TSet<FName> Intersection = CollectionSelection.Intersect(ObjectAssignedCollections);
-
-				return Intersection.Num() > 0;
-			}
+			return true;
+		}
+		
+		UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>();
+		check(SerializedData);
+		
+		if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+		{
+			return SerializedData->IsObjectInCollection(
+				Filter->GetClass()->GetFName(), CollectionName, GetObject());
 		}
 	}
+	
 	return false;
 }
 

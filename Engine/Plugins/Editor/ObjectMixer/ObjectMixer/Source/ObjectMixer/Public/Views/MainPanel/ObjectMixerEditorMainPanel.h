@@ -7,12 +7,16 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SWidget.h"
 
+class FObjectMixerEditorListFilter_Collection;
 class UObjectMixerEditorSerializedData;
 struct FObjectMixerEditorListRow;
 class IObjectMixerEditorListFilter;
 class UObjectMixerObjectFilter;
 class FObjectMixerEditorList;
 class SObjectMixerEditorMainPanel;
+
+DECLARE_MULTICAST_DELEGATE(FOnPreFilterChange)
+DECLARE_MULTICAST_DELEGATE(FOnPostFilterChange)
 
 class OBJECTMIXEREDITOR_API FObjectMixerEditorMainPanel : public TSharedFromThis<FObjectMixerEditorMainPanel>
 {
@@ -104,7 +108,8 @@ public:
 		return ReturnValue;
 	}
 
-	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetShowFilters() const;
+	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetListFilters() const;
+	TArray<TWeakPtr<IObjectMixerEditorListFilter>> GetWeakActiveListFiltersSortedByName() const;
 
 	/**
 	 * Get the rows that have solo visibility. All other rows should be set to temporarily invisible in editor.
@@ -178,7 +183,10 @@ public:
 	/**
 	 * Returns the collections selected by the user. If the set is empty, consider "All" collections to be selected.
 	 */
-	const TSet<FName>& GetCurrentCollectionSelection() const;
+	TSet<TSharedRef<FObjectMixerEditorListFilter_Collection>> GetCurrentCollectionSelection() const;
+
+	FOnPreFilterChange OnPreFilterChange;
+	FOnPostFilterChange OnPostFilterChange;
 
 private:
 

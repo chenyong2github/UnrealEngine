@@ -140,8 +140,12 @@ public:
 	 */
 	EObjectMixerTreeViewMode GetTreeViewMode();
 	
-	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetShowFilters();
+	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetListFilters();
 	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true);
+
+	/** Saves tree item expanded states to be recalled after the tree view is regenerated. */
+	void CacheTreeState(const TArray<TWeakPtr<IObjectMixerEditorListFilter>>& InFilterCombo);
+	void RestoreTreeState(const TArray<TWeakPtr<IObjectMixerEditorListFilter>>& InFilterCombo, const bool bFlushCache = true);
 
 	// Sorting
 
@@ -216,10 +220,7 @@ protected:
 	void SetAllGroupsCollapsed();
 
 	//  Tree View Implementation
-
-	/** Saves tree item expanded states to be recalled after the tree view is regenerated. */
-	void CacheTreeState();
-	void RestoreTreeState(const bool bFlushCache = true);
+	
 	void BuildPerformanceCacheAndGenerateHeaderIfNeeded();
 	void GenerateTreeView();
 	void FindVisibleTreeViewObjects();
@@ -246,7 +247,13 @@ protected:
 		bool bIsSelected = false;
 	};
 
-	TArray<FTreeItemStateCache> TreeItemStateCache;
+	struct FFilterComboToStateCaches
+	{
+		TArray<TWeakPtr<IObjectMixerEditorListFilter>> FilterCombo = {};
+		TArray<FTreeItemStateCache> Caches = {};
+	};
+
+	TArray<FFilterComboToStateCaches> FilterComboToStateCaches;
 	
 	TMap<UObject*, FObjectMixerEditorListRowPtr> ObjectsToRowsCreated;
 
