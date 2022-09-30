@@ -1969,6 +1969,8 @@ export type DefaultPreflightConfig = {
 
 	/** The template id to query */
 	templateId?: string;
+
+	change?: ChangeQueryConfig;
 }
 
 
