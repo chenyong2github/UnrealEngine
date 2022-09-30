@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.S3.Model;
 using EpicGames.Horde.Storage;
-using Horde.Storage.FunctionalTests.Storage;
 using Horde.Storage.Implementation;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Hosting;
@@ -122,6 +121,9 @@ namespace Horde.Storage.FunctionalTests.Storage
 
         protected async Task Teardown(IServiceProvider provider)
         {
+            _s3 = provider.GetService<IAmazonS3>();
+            Assert.IsNotNull(_s3);
+
             string S3BucketName = $"tests-{TestNamespaceName}";
             ListObjectsResponse response = await _s3!.ListObjectsAsync(S3BucketName);
             List<KeyVersion> objectKeys = response.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList();

@@ -7,6 +7,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
+using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using EpicGames.Horde.Storage;
@@ -48,8 +49,8 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking)
         {
-            // TODO: This could be done in parallel
-            await foreach (string instance in _serviceDiscovery.FindOtherHordeStorageInstances())
+            BlobContents? contents = null;
+            Parallel.ForEach(await _serviceDiscovery.FindOtherHordeStorageInstances().ToListAsync(), async (string instance, ParallelLoopState state) =>
             {
                 try
                 {
@@ -59,7 +60,7 @@ namespace Horde.Storage.Implementation
                     HttpResponseMessage response = await GetHttpClient(instance).SendAsync(getObjectRequest);
                     if (response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        continue;
+                        return;
                     }
 
                     response.EnsureSuccessStatusCode();
@@ -68,45 +69,59 @@ namespace Horde.Storage.Implementation
                     if (contentLength == null)
                     {
                         _logger.Warning("Content length missing in response from horde storage blob store. This is not supported, ignoring response");
-                        continue;
+                        return;
                     }
-                    return new BlobContents(await response.Content.ReadAsStreamAsync(), contentLength.Value);
+                    
+                    contents = new BlobContents(await response.Content.ReadAsStreamAsync(), contentLength.Value);
+                    state.Break();
                 }
                 catch (Exception e)
                 {
-                    _logger.Warning(e, "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}", blob, ns, instance);
+                    _logger.Warning(e,
+                        "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
+                        blob, ns, instance);
                 }
+            });
+
+            // contents is incorrectly detected as never modified - its set in the foreach lambda
+#pragma warning disable CA1508 // Avoid dead conditional code
+            if (contents != null)
+            {
+                return contents;
             }
-            
+#pragma warning restore CA1508 // Avoid dead conditional code
             throw new BlobNotFoundException(ns, blob);
         }
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck = false)
         {
-            // TODO: This could be done in parallel
-            await foreach (string instance in _serviceDiscovery.FindOtherHordeStorageInstances())
+            bool found = false;
+            
+            Parallel.ForEach(await _serviceDiscovery.FindOtherHordeStorageInstances().ToListAsync(), async (string instance, ParallelLoopState state) =>
             {
                 try
                 {
                     string filesystemLayerName = nameof(FileSystemStore);
                     using HttpRequestMessage headObjectRequest = await BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}?storageLayers={filesystemLayerName}", UriKind.Relative));
-                    HttpResponseMessage response = await GetHttpClient(instance).SendAsync(headObjectRequest);
+                    HttpResponseMessage response = await GetHttpClient(instance).SendAsync(headObjectRequest, CancellationToken.None);
                     if (response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        continue;
+                        return;
                     }
 
                     response.EnsureSuccessStatusCode();
 
-                    return true;
+                    found = true;
+                    state.Break();
                 }
                 catch (Exception e)
                 {
-                    _logger.Warning(e, "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}", blob, ns, instance);
+                    _logger.Warning(e,
+                        "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
+                        blob, ns, instance);
                 }
-            }
-
-            return false;
+            });
+            return found;
         }
 
         private HttpClient GetHttpClient(string instance)
@@ -115,6 +130,9 @@ namespace Horde.Storage.Implementation
             {
                 HttpClient httpClient = _httpClientFactory.CreateClient(instance);
                 httpClient.BaseAddress = new Uri($"http://{instance}");
+
+                // for these connections to be useful they need to be fast - so timeout quickly if we can not establish the connection
+                httpClient.Timeout = TimeSpan.FromSeconds(1.0);
                 return httpClient;
             });
         }
@@ -235,6 +253,7 @@ namespace Horde.Storage.Implementation
                 {
                     continue;
                 }
+
                 // we typically expose the container on port 80
                 yield return $"{ip}:80";
             }
