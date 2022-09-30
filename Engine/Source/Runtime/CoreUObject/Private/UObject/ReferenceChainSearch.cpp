@@ -40,6 +40,19 @@ FReferenceChainSearch::FGraphNode* FReferenceChainSearch::FindOrAddNode(UObject*
 	return FindOrAddNode(FGCObjectInfo::FindOrAddInfoHelper(InObjectToFindNodeFor, ObjectToInfoMap));
 }
 
+void FReferenceChainSearch::LinkNodes(FGCObjectInfo* From, FGCObjectInfo* To, EReferenceType ReferenceType, FName PropertyName, TConstArrayView<uint64> StackFrames)
+{
+	FGraphNode* ToNode = FindOrAddNode(To);
+	FGraphNode* FromNode = FindOrAddNode(From);
+	FromNode->ReferencedObjects.Emplace(FNodeReferenceInfo(ToNode, ReferenceType, PropertyName, StackFrames));
+	ToNode->ReferencedByObjects.Add(FromNode);
+}
+
+void FReferenceChainSearch::LinkNodes(UObject* From, UObject* To, EReferenceType ReferenceType, FName PropertyName, TConstArrayView<uint64> StackFrames)
+{
+	LinkNodes(FGCObjectInfo::FindOrAddInfoHelper(From, ObjectToInfoMap), FGCObjectInfo::FindOrAddInfoHelper(To, ObjectToInfoMap), ReferenceType, PropertyName, StackFrames);
+}
+
 int32 FReferenceChainSearch::BuildReferenceChainsRecursive(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode)
 {
 	int32 ProducedChainsCount = 0;
@@ -285,6 +298,7 @@ void FReferenceChainSearch::BuildReferenceChainsForDirectReferences(TConstArrayV
 			if (!(SearchMode & EReferenceChainSearchMode::ExternalOnly) || !ReferencedByNode->ObjectInfo->IsIn(TargetNode->ObjectInfo))
 			{
 				FReferenceChain* Chain = new FReferenceChain();
+				Chain->TargetNode = TargetNode;
 				Chain->AddNode(TargetNode);
 				Chain->AddNode(ReferencedByNode);
 				Chain->FillReferenceInfo();
@@ -351,7 +365,7 @@ FString FReferenceChainSearch::GetObjectFlags(FGCObjectInfo* InObject)
 	return Flags;
 }
 
-static void ConvertStackFramesToCallstack(uint64* StackFrames, int32 NumStackFrames, int32 Indent, FOutputDevice& Out)
+static void ConvertStackFramesToCallstack(const uint64* StackFrames, int32 NumStackFrames, int32 Indent, FOutputDevice& Out)
 {
 	// Convert the stack trace to text
 	for (int32 Idx = 0; Idx < NumStackFrames; Idx++)
@@ -389,7 +403,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 	{
 		bool bPostCallbackContinue = true;
 		const int32 RootIndex = Chain->Num() - 1;
-		FNodeReferenceInfo ReferenceInfo = Chain->GetReferenceInfo(RootIndex);
+		const FNodeReferenceInfo* ReferenceInfo = Chain->GetReferenceInfo(RootIndex);
 		FGCObjectInfo* ReferencerObject = Chain->GetNode(RootIndex)->ObjectInfo;
 		{
 			FCallbackParams Params;
@@ -415,17 +429,17 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 			FCallbackParams Params;
 			Params.Referencer = ReferencerObject;
 			Params.Object = Object;
-			Params.ReferenceInfo = &ReferenceInfo;
+			Params.ReferenceInfo = ReferenceInfo;
 			Params.Indent = FMath::Min<int32>(TCStringSpcHelper<TCHAR>::MAX_SPACES, Chain->Num() - NodeIndex - 1);
 			Params.Out = &Out;
 
-			if (ReferenceInfo.Type == EReferenceType::Property)
+			if (ReferenceInfo->Type == EReferenceType::Property)
 			{
 				FString ReferencingPropertyName;
 				UClass* ReferencerClass = Cast<UClass>(ReferencerObject->GetClass()->TryResolveObject());
 				TArray<FProperty*> ReferencingProperties;
 
-				if (ReferencerClass && FGCStackSizeHelper::ConvertPathToProperties(ReferencerClass, ReferenceInfo.ReferencerName, ReferencingProperties))
+				if (ReferencerClass && FGCStackSizeHelper::ConvertPathToProperties(ReferencerClass, ReferenceInfo->ReferencerName, ReferencingProperties))
 				{
 					FProperty* InnermostProperty = ReferencingProperties.Last();
 					FProperty* OutermostProperty = ReferencingProperties[0];
@@ -434,7 +448,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 						*InnermostProperty->GetCPPType(),
 						OutermostProperty->GetOwnerClass()->GetPrefixCPP(),
 						*OutermostProperty->GetOwnerClass()->GetName(),
-						*ReferenceInfo.ReferencerName.ToString());
+						*ReferenceInfo->ReferencerName.ToString());
 				}
 				else
 				{
@@ -443,7 +457,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 					static const FName OuterPropertyName(TEXT("Outer"));
 					
 					FString ClassName;
-					if (ReferenceInfo.ReferencerName == ClassPropertyName || ReferenceInfo.ReferencerName == OuterPropertyName)
+					if (ReferenceInfo->ReferencerName == ClassPropertyName || ReferenceInfo->ReferencerName == OuterPropertyName)
 					{
 						ClassName = TEXT("UObject");
 					}
@@ -458,7 +472,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 						// Revert to the internal class name if not
 						ClassName = ReferencerObject->GetClassName();
 					}
-					ReferencingPropertyName = FString::Printf(TEXT("UObject* %s::%s"), *ClassName, *ReferenceInfo.ReferencerName.ToString());
+					ReferencingPropertyName = FString::Printf(TEXT("UObject* %s::%s"), *ClassName, *ReferenceInfo->ReferencerName.ToString());
 				}
 
 				Out.Logf(ELogVerbosity::Log, TEXT("%s-> %s = %s %s"),
@@ -467,10 +481,10 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 					*GetObjectFlags(Object),
 					*Object->GetFullName());
 			}
-			else if (ReferenceInfo.Type == EReferenceType::AddReferencedObjects)
+			else if (ReferenceInfo->Type == EReferenceType::AddReferencedObjects)
 			{
 				FString UObjectOrGCObjectName;
-				if (ReferenceInfo.ReferencerName.IsNone())
+				if (ReferenceInfo->ReferencerName.IsNone())
 				{
 					UClass* ReferencerClass = Cast<UClass>(ReferencerObject->GetClass()->TryResolveObject());
 					if (ReferencerClass)
@@ -485,7 +499,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 				}
 				else
 				{
-					UObjectOrGCObjectName = ReferenceInfo.ReferencerName.ToString();
+					UObjectOrGCObjectName = ReferenceInfo->ReferencerName.ToString();
 				}
 
 				Out.Logf(ELogVerbosity::Log, TEXT("%s-> %s::AddReferencedObjects(%s %s)"),
@@ -494,10 +508,26 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 					*GetObjectFlags(Object),
 					*Object->GetFullName());
 
-				if (ReferenceInfo.NumStackFrames)
+				if (ReferenceInfo->StackFrames.Num())
 				{
-					ConvertStackFramesToCallstack(ReferenceInfo.StackFrames, ReferenceInfo.NumStackFrames, Params.Indent, Out);
+					ConvertStackFramesToCallstack(ReferenceInfo->StackFrames.GetData(), ReferenceInfo->StackFrames.Num(), Params.Indent, Out);
 				}
+			}
+			else if (ReferenceInfo->Type == EReferenceType::OuterChain)
+			{
+				Out.Logf(ELogVerbosity::Log, TEXT("%s-> %s = %s %s"),
+					FCString::Spc(Params.Indent),
+					TEXT("Outer Chain"),
+					*GetObjectFlags(Object),
+					*Object->GetFullName());
+			}
+			else
+			{
+				Out.Logf(ELogVerbosity::Log, TEXT("%s-> %s = %s %s"),
+					FCString::Spc(Params.Indent),
+					TEXT("UNKNOWN"),
+					*GetObjectFlags(Object),
+					*Object->GetFullName());
 			}
 
 			bPostCallbackContinue = ReferenceCallback(Params);
@@ -512,7 +542,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 void FReferenceChainSearch::FReferenceChain::FillReferenceInfo()
 {
 	// The first entry is the object we were looking for references to so add an empty entry for it
-	ReferenceInfos.Add(FNodeReferenceInfo());
+	ReferenceInfos.Emplace(nullptr);
 
 	// Iterate over all nodes and add reference info based on the next node (which is the object that referenced the current node)
 	for (int32 NodeIndex = 1; NodeIndex < Nodes.Num(); ++NodeIndex)
@@ -521,8 +551,8 @@ void FReferenceChainSearch::FReferenceChain::FillReferenceInfo()
 		FGraphNode* CurrentNode = Nodes[NodeIndex];
 
 		// Found the PreviousNode in the list of objects referenced by the CurrentNode
-		FNodeReferenceInfo* FoundInfo = nullptr;
-		for (FNodeReferenceInfo& Info : CurrentNode->ReferencedObjects)
+		const FNodeReferenceInfo* FoundInfo = nullptr;
+		for (const FNodeReferenceInfo& Info : CurrentNode->ReferencedObjects)
 		{
 			if (Info.Object == PreviousNode)
 			{
@@ -532,7 +562,7 @@ void FReferenceChainSearch::FReferenceChain::FillReferenceInfo()
 		}
 		check(FoundInfo); // because there must have been a reference since we created this chain using it
 		check(FoundInfo->Object == PreviousNode);
-		ReferenceInfos.Add(*FoundInfo);
+		ReferenceInfos.Add(FoundInfo);
 	}
 	check(ReferenceInfos.Num() == Nodes.Num());
 }
@@ -555,20 +585,30 @@ bool FReferenceChainSearch::FReferenceChain::IsExternal() const
 */
 class FDirectReferenceProcessor : public FSimpleReferenceProcessorBase
 {	
-	TSet<FReferenceChainSearch::FObjectReferenceInfo>& ReferencedObjects;
+protected:
+	TSet<FReferenceChainSearch::FObjectReferenceInfo> ReferencedObjects;
 	TMap<UObject*, FGCObjectInfo*>& ObjectToInfoMap;
 
 public:
 
-	FDirectReferenceProcessor(TSet<FReferenceChainSearch::FObjectReferenceInfo>& InReferencedObjects, TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap)
-		: ReferencedObjects(InReferencedObjects)
-		, ObjectToInfoMap(InObjectToInfoMap)
+	FDirectReferenceProcessor(TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap)
+	: ObjectToInfoMap(InObjectToInfoMap)
 	{
 	}
 
-	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	void Reset()
+	{
+		ReferencedObjects.Reset();
+	}
+
+	const TSet<FReferenceChainSearch::FObjectReferenceInfo>& GetReferencedObjects() const
+	{
+		return ReferencedObjects;
+	}
+
+	void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{		
-		if (Object)
+		if (Object && Object != ReferencingObject) // Skip self-references just in case 
 		{
 			FGCObjectInfo* ObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(Object, ObjectToInfoMap);
 
@@ -584,7 +624,10 @@ public:
 				else
 				{
 					RefInfo.Type = FReferenceChainSearch::EReferenceType::AddReferencedObjects;
-					RefInfo.NumStackFrames = FPlatformStackWalk::CaptureStackBackTrace(RefInfo.StackFrames, FReferenceChainSearch::FObjectReferenceInfo::MaxStackFrames);
+
+					RefInfo.StackFrames.AddUninitialized(FReferenceChainSearch::FObjectReferenceInfo::MaxStackFrames);
+					int32 NumStackFrames = FPlatformStackWalk::CaptureStackBackTrace(RefInfo.StackFrames.GetData(), RefInfo.StackFrames.Num());
+					RefInfo.StackFrames.SetNum(NumStackFrames);
 
 					if (FGCObject::GGCObjectReferencer && (!ReferencingObject || ReferencingObject == FGCObject::GGCObjectReferencer))
 					{
@@ -610,17 +653,79 @@ public:
 					}
 				}
 
-				ReferencedObjects.Add(RefInfo);
+				ReferencedObjects.Emplace(MoveTemp(RefInfo));
 			}
 		}
 	}
 };
 
-class FDirectReferenceCollector : public TDefaultReferenceCollector<FDirectReferenceProcessor>
+class FMinimalReferenceProcessor : public FDirectReferenceProcessor
+{	
+	TSet<UObject*>& TargetObjects;
+	bool bSearchInners = false;
+
+public:
+	FMinimalReferenceProcessor(
+		TSet<UObject*>& InTargetObjects,
+		TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap
+	)
+	: FDirectReferenceProcessor(InObjectToInfoMap)
+	, TargetObjects(InTargetObjects)
+	{
+	}
+
+	void SetSearchInners(bool InValue)
+	{
+		bSearchInners = InValue;
+	}
+
+	void HandleTokenStreamObjectReference(
+		FGCArrayStruct& ObjectsToSerializeStruct,
+		UObject* ReferencingObject,
+		UObject*& Object,
+		const int32 TokenIndex,
+		const EGCTokenType TokenType,
+		bool bAllowReferenceElimination
+	)
+	{		
+		if (Object && Object != ReferencingObject) // Skip self-references just in case 
+		{
+			FGCObjectInfo* ObjectInfo = nullptr;
+			if (bSearchInners)
+			{
+				// Walk the outer chain to see if this is the inner of an object we're looking for which would be referenced via this outer chain
+				for (UObject* OuterObject = Object->GetOuter(); OuterObject; OuterObject = OuterObject->GetOuter())
+				{
+					if (TargetObjects.Contains(OuterObject))
+					{
+						// Create a node to reference this inner object, which we will later connect to the target object
+						ObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(Object, ObjectToInfoMap);
+						break;
+					}
+				}
+			}
+			else if (TargetObjects.Contains(Object))
+			{
+				ObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(Object, ObjectToInfoMap);
+			}
+
+			// We don't care about this reference
+			if (!ObjectInfo) 
+			{
+				return;
+			}
+
+			FDirectReferenceProcessor::HandleTokenStreamObjectReference(ObjectsToSerializeStruct, ReferencingObject, Object, TokenIndex, TokenType, bAllowReferenceElimination);
+		}
+	}
+};
+
+template<typename ProcessorType>
+class TReferenceSearchReferenceCollector : public TDefaultReferenceCollector<ProcessorType>
 {
 public:
-	FDirectReferenceCollector(FDirectReferenceProcessor& InProcessor, FGCArrayStruct& InObjectArrayStruct)
-		: TDefaultReferenceCollector<FDirectReferenceProcessor>(InProcessor, InObjectArrayStruct)
+	TReferenceSearchReferenceCollector (ProcessorType& InProcessor, FGCArrayStruct& InObjectArrayStruct)
+		: TDefaultReferenceCollector<ProcessorType>(InProcessor, InObjectArrayStruct)
 	{
 	}
 
@@ -650,7 +755,14 @@ FReferenceChainSearch::FReferenceChainSearch(TConstArrayView<UObject*> InObjects
 	}
 
 	// First pass is to find all direct references for each object
-	FindDirectReferencesForObjects();
+	if (!!(SearchMode & EReferenceChainSearchMode::Minimal))
+	{
+		FindMinimalDirectReferencesForObjects();
+	}
+	else
+	{
+		FindDirectReferencesForObjects();
+	}
 
 	// Second pass creates all reference chains
 	PerformSearch();
@@ -669,6 +781,27 @@ FReferenceChainSearch::FReferenceChainSearch(EReferenceChainSearchMode Mode)
 FReferenceChainSearch::~FReferenceChainSearch()
 {
 	Cleanup();
+}
+
+int64 FReferenceChainSearch::GetAllocatedSize() const
+{
+	int64 Size = 0;
+	Size += ObjectsToFindReferencesTo.GetAllocatedSize();
+	Size += ObjectInfosToFindReferencesTo.GetAllocatedSize();
+	Size += ReferenceChains.GetAllocatedSize();
+	for (const FReferenceChain* Chain : ReferenceChains)
+	{
+		Size += Chain->GetAllocatedSize();
+	}
+	Size += AllNodes.GetAllocatedSize();
+	Size += AllNodes.Num() * sizeof(FGCObjectInfo); // GC object infos are heap allocated and owned by this structure 
+	for (const TPair<FGCObjectInfo*, FGraphNode*> Pair : AllNodes)
+	{
+		// FGCObjectInfo makes no allocations
+		Size += Pair.Value->GetAllocatedSize();
+	}
+	Size += ObjectToInfoMap.GetAllocatedSize();
+	return Size;
 }
 
 void FReferenceChainSearch::PerformSearch()
@@ -739,7 +872,7 @@ void FReferenceChainSearch::PerformSearchFromGCSnapshot(TConstArrayView<UObject*
 			{
 				ReferenceType = EReferenceType::Property;
 			}
-			ObjectNode->ReferencedObjects.Add(FNodeReferenceInfo(ReferencedObjectNode, ReferenceType, ReferenceInfo.ReferencerName, nullptr, 0));
+			ObjectNode->ReferencedObjects.Emplace(FNodeReferenceInfo(ReferencedObjectNode, ReferenceType, ReferenceInfo.ReferencerName));
 			ReferencedObjectNode->ReferencedByObjects.Add(ObjectNode);
 		}
 	}
@@ -757,41 +890,183 @@ void FReferenceChainSearch::PerformSearchFromGCSnapshot(TConstArrayView<UObject*
 }
 #endif // ENABLE_GC_HISTORY
 
-void FReferenceChainSearch::FindDirectReferencesForObjects()
+template<typename ProcessorType>
+struct TReferenceSearchHelper
 {
-	TSet<FObjectReferenceInfo> ReferencedObjects;
-	FDirectReferenceProcessor Processor(ReferencedObjects, ObjectToInfoMap);
+	ProcessorType Processor;
 	TFastReferenceCollector<
-		FDirectReferenceProcessor, 
-		FDirectReferenceCollector, 
+		ProcessorType, 
+		TReferenceSearchReferenceCollector<ProcessorType>, 
 		FGCArrayPool, 
 		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-	> ReferenceCollector(Processor, FGCArrayPool::Get());
+	> ReferenceCollector;
 	FGCArrayStruct ArrayStruct;
-	TArray<UObject*>& ObjectsToProcess = ArrayStruct.ObjectsToSerialize;
 
-	for (FRawObjectIterator It; It; ++It)
+	TReferenceSearchHelper(ProcessorType&& InProcessor)
+	: Processor(MoveTemp(InProcessor))
+	, ReferenceCollector(Processor, FGCArrayPool::Get())
 	{
-		FUObjectItem* ObjItem = *It;
-		UObject* Object = static_cast<UObject*>(ObjItem->Object);
-		FGraphNode* ObjectNode = FindOrAddNode(Object);
+	}
 
-		// Find direct references
-		ReferencedObjects.Reset();
-		ObjectsToProcess.Reset();
-		ObjectsToProcess.Add(Object);
-		ReferenceCollector.CollectReferences(ArrayStruct);
+	static bool DoNotFilterObjects(UObject* Object) { return true; }
 
-		// Build direct reference tree
-		for (FObjectReferenceInfo& ReferenceInfo : ReferencedObjects)
+	// HANDLE_REFERENCES is a function bool(const TSet<FReferenceChainSearch>&) function returning true to continue the search
+	// FILTER_OBJECTS is a function bool(UObject*) that returns true if the object's outgoing references should be collected
+	template<typename HANDLE_REFERENCES, typename FILTER_OBJECTS = decltype(DoNotFilterObjects)>
+	void CollectAllReferences(bool bGCOnly, HANDLE_REFERENCES HandleReferences, FILTER_OBJECTS FilterObjects = &DoNotFilterObjects)
+	{
+		TArray<UObject*>& ObjectsToProcess = ArrayStruct.ObjectsToSerialize;
+		for (FRawObjectIterator It; It; ++It)
 		{
-			FGraphNode* ReferencedObjectNode = FindOrAddNode(ReferenceInfo.Object);
-			ObjectNode->ReferencedObjects.Add(FNodeReferenceInfo(ReferencedObjectNode, ReferenceInfo.Type, ReferenceInfo.ReferencerName, ReferenceInfo.StackFrames, ReferenceInfo.NumStackFrames));
-			ReferencedObjectNode->ReferencedByObjects.Add(ObjectNode);
+			FUObjectItem* ObjItem = *It;
+			UObject* Object = static_cast<UObject*>(ObjItem->Object);
+
+			// We can't ask the iterator for only GC objects because that would skip the GC Object referencer 
+			if (bGCOnly && GUObjectArray.IsDisregardForGC(Object) && (Object != FGCObject::GGCObjectReferencer))
+			{
+				continue;
+			}
+
+			if (!FilterObjects(Object))
+			{
+				continue;
+			}
+
+			// Find direct references
+			Processor.Reset();
+			ObjectsToProcess.Reset();
+			ObjectsToProcess.Add(Object);
+			ReferenceCollector.CollectReferences(ArrayStruct);
+
+			if (!HandleReferences(Object, Processor.GetReferencedObjects()))
+			{
+				break;
+			}
 		}
 	}
+};
+
+void FReferenceChainSearch::FindDirectReferencesForObjects()
+{
+	TReferenceSearchHelper<FDirectReferenceProcessor> Search{FDirectReferenceProcessor(ObjectToInfoMap)};
+	const bool bGCOnly = !!(SearchMode & EReferenceChainSearchMode::GCOnly);
+
+	// First pass, create nodes for any objects which have outgoing references 
+	Search.CollectAllReferences(bGCOnly, [&](UObject* SourceObject, const TSet<FObjectReferenceInfo>& References)
+	{
+		// Skip node creation if there are no outgoing references that we care about 
+		if (References.Num() > 0)
+		{
+			FindOrAddNode(FGCObjectInfo::FindOrAddInfoHelper(SourceObject, ObjectToInfoMap));
+		}
+		return true;
+	});
+
+	Search.CollectAllReferences(bGCOnly, [&](UObject* SourceObject, const TSet<FObjectReferenceInfo>& References)
+	{
+		if (References.Num() > 0)
+		{
+			FGCObjectInfo* SourceObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(SourceObject, ObjectToInfoMap);
+
+			// Build direct reference tree filtering out leaf notes
+			for (const FObjectReferenceInfo& ReferenceInfo : References)
+			{
+				FGCObjectInfo* ReferencedObject = ReferenceInfo.Object;
+				if (AllNodes.Contains(ReferencedObject))
+				{
+					LinkNodes(SourceObjectInfo, ReferencedObject, ReferenceInfo.Type, ReferenceInfo.ReferencerName, ReferenceInfo.StackFrames);
+				}
+			}
+		}
+		return true;
+	});
 }
 
+void FReferenceChainSearch::FindMinimalDirectReferencesForObjects()
+{
+	TSet<UObject*> TargetObjects;
+	TReferenceSearchHelper<FMinimalReferenceProcessor> Search{FMinimalReferenceProcessor(TargetObjects, ObjectToInfoMap)};
+	const bool bGCOnly = !!(SearchMode & EReferenceChainSearchMode::GCOnly);
+
+	auto FilterObjects = [&TargetObjects](UObject* Object)
+	{
+		// Skip objects which are in any of what we're looking for so we only report reference external to that entire group
+		for( UObject* OuterObject = Object; OuterObject; OuterObject = OuterObject->GetOuter())
+		{
+			if (TargetObjects.Contains(OuterObject))
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+
+	for (UObject* Object: ObjectsToFindReferencesTo)
+	{
+		TargetObjects.Add(Object);
+	}
+	
+	// First pass, create nodes anything that directly references any of the target objects 
+	Search.CollectAllReferences(bGCOnly, [&](UObject* SourceObject, const TSet<FObjectReferenceInfo>& References)
+	{
+		if (References.Num() > 0)
+		{
+			FGCObjectInfo* SourceObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(SourceObject, ObjectToInfoMap);
+
+			// Build direct reference tree filtering out leaf notes
+			for (const FObjectReferenceInfo& ReferenceInfo : References)
+			{
+				FGCObjectInfo* ReferencedObject = ReferenceInfo.Object;
+				LinkNodes(SourceObjectInfo, ReferencedObject, ReferenceInfo.Type, ReferenceInfo.ReferencerName, ReferenceInfo.StackFrames);
+			}
+		}
+		return true;
+	}, FilterObjects);
+
+	// If we didn't find a reference to any of the target objects in our first pass, loosen requirements slightly
+	TargetObjects.Reset();
+	for (FGCObjectInfo* Info : ObjectInfosToFindReferencesTo)
+	{
+		if (FGraphNode* Node = AllNodes.FindRef(Info); !Node || Node->ReferencedByObjects.Num() == 0)
+		{
+			TargetObjects.Add(Info->TryResolveObject());
+		}
+	}
+
+	// We failed to find direct references to some objects, try searching for direct references to one of their inners 
+	if (TargetObjects.Num())
+	{
+		Search.Processor.SetSearchInners(true);
+		Search.CollectAllReferences(bGCOnly, [&](UObject* SourceObject, const TSet<FObjectReferenceInfo>& References)
+		{
+			if (References.Num() > 0)
+			{
+				FGCObjectInfo* SourceObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(SourceObject, ObjectToInfoMap);
+
+				// Build direct reference tree
+				for (const FObjectReferenceInfo& ReferenceInfo : References)
+				{
+					LinkNodes(SourceObjectInfo, ReferenceInfo.Object, ReferenceInfo.Type, ReferenceInfo.ReferencerName, ReferenceInfo.StackFrames);
+					UObject* ReferencedObject = ReferenceInfo.Object->TryResolveObject();
+					for (UObject* OuterObject = ReferencedObject; OuterObject; OuterObject = OuterObject->GetOuter())
+					{
+						if (TargetObjects.Contains(OuterObject))
+						{
+							LinkNodes(ReferencedObject, OuterObject, EReferenceType::OuterChain, NAME_None);
+							TargetObjects.Remove(OuterObject);
+						}
+					}
+				}
+
+				if (TargetObjects.Num() == 0)
+				{
+					return false;
+				}
+			}
+			return true;
+		}, FilterObjects);
+	}
+}
 int32 FReferenceChainSearch::PrintResults(bool bDumpAllChains /*= false*/, UObject* TargetObject /*= nullptr*/) const
 {
 	return PrintResults([](FCallbackParams& Params) { return true; }, bDumpAllChains, TargetObject);

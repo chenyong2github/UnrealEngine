@@ -44,6 +44,12 @@ enum class EReferenceChainSearchMode
 	FullChain = 1 << 4,
 	// Returns the shortest path to a garbage object from which the target object is reachable
 	ShortestToGarbage = 1 << 5,
+	// Attempts to find a plausible path to the target object with minimal memory usage
+	// E.g. returns a direct external reference to the target object if one is found 
+	//	otherwise returns an external reference to an inner of the target object
+	Minimal = 1 << 6,
+	// Skips the disregard-for-GC set that will never be GCd and whose outgoing references are not checked during GC
+	GCOnly = 1 << 7,
 
 	// Print results
 	PrintResults = 1 << 16,
@@ -68,51 +74,56 @@ public:
 	{
 		Unknown = 0,
 		Property = 1,
-		AddReferencedObjects
+		AddReferencedObjects = 2,
+		OuterChain = 3,
 	};
 
 	/** Extended information about a reference */
-	template <typename T>
+	template<typename T> 
 	struct TReferenceInfo
 	{
 		// Maximum number of stack frames to keep for AddReferencedObjects function calls
 		static constexpr uint32 MaxStackFrames = 30;
 
 		/** Object that is being referenced */
-		T* Object;
+		T* Object = nullptr;
+		TArray<uint64> StackFrames;
 		/** Type of reference to the object being referenced */
 		EReferenceType Type;
 		/** Name of the object or property that is referencing this object */
 		FName ReferencerName;
-		uint64 StackFrames[MaxStackFrames];
-		int32 NumStackFrames;
 
 		/** Default ctor */
 		TReferenceInfo()
-			: Object(nullptr)
-			, Type(EReferenceType::Unknown)
+			: Type(EReferenceType::Unknown)
 		{
-			InitStackFrames(nullptr, 0);
 		}
 
-		/** Simple refernce constructor. Probably will be filled with more info later */
+		/** Simple reference constructor. Probably will be filled with more info later */
 		TReferenceInfo(T* InObject)
 			: Object(InObject)
 			, Type(EReferenceType::Unknown)
 		{
-			InitStackFrames(nullptr, 0);
 		}
 
-		/** Full reference infor constructor */
-		TReferenceInfo(T* InObject, EReferenceType InType, const FName& InReferencerName, uint64* InStackFrames, int32 InNumStackFrames)
+		/** Full reference info constructor */
+		TReferenceInfo(
+			T* InObject, 
+			EReferenceType InType, 
+			FName InReferencerName,
+			TConstArrayView<uint64> InStackFrames = {}
+		)
 			: Object(InObject)
+			, StackFrames(InStackFrames)
 			, Type(InType)
 			, ReferencerName(InReferencerName)
 		{
-			InitStackFrames(InStackFrames, InNumStackFrames);
 		}
 
-		bool operator == (const TReferenceInfo& Other) const
+		TReferenceInfo(TReferenceInfo&&) = default;
+		TReferenceInfo& operator=(TReferenceInfo&&) = default;
+
+		bool operator ==(const TReferenceInfo& Other) const
 		{
 			return Object == Other.Object;
 		}
@@ -142,19 +153,13 @@ public:
 			}
 			return FString();
 		}
-	private:
-
-		void InitStackFrames(uint64* InStackFrames,int32 InNumStackFrames)
-		{
-			check(InNumStackFrames <= MaxStackFrames);
-			NumStackFrames = InNumStackFrames;
-			FMemory::Memset(StackFrames, 0, sizeof(StackFrames));
-			if (InStackFrames && InNumStackFrames)
-			{
-				FMemory::Memcpy(StackFrames, InStackFrames, InNumStackFrames * sizeof(uint64));
-			}
-		}
 	};
+	
+	struct FGraphNode;
+
+	/** Convenience type definitions to avoid template hell */
+	typedef TReferenceInfo<FGCObjectInfo> FObjectReferenceInfo;
+	typedef TReferenceInfo<FGraphNode> FNodeReferenceInfo;
 
 	/** Single node in the reference graph */
 	struct FGraphNode
@@ -165,16 +170,18 @@ public:
 		/** Object pointer */
 		FGCObjectInfo* ObjectInfo = nullptr;
 		/** Objects referenced by this object with reference info */
-		TSet< TReferenceInfo<FGraphNode> > ReferencedObjects;
+		TSet<FNodeReferenceInfo> ReferencedObjects;
 		/** Objects that have references to this object */
 		TSet<FGraphNode*> ReferencedByObjects;
 		/** Non-zero if this node has been already visited during reference search */
 		int32 Visited = 0;
+
+		int64 GetAllocatedSize() const
+		{
+			return ReferencedObjects.GetAllocatedSize() + ReferencedByObjects.GetAllocatedSize();
+		}
 	};
 
-	/** Convenience type definitions to avoid template hell */
-	typedef TReferenceInfo<FGCObjectInfo> FObjectReferenceInfo;
-	typedef TReferenceInfo<FGraphNode> FNodeReferenceInfo;
 
 	/** Reference chain. The first object in the list is the target object and the last object is a root object */
 	class FReferenceChain
@@ -182,12 +189,12 @@ public:
 		friend class FReferenceChainSearch;
 
 		/** The target nodes that caused this chain to be created. Usually this will be Nodes[0] unless the chain was truncated by request. */
-		FGraphNode* TargetNode;
+		FGraphNode* TargetNode = nullptr;
 
 		/** Nodes in this reference chain. The first node is the target object and the last one is a root object */
 		TArray<FGraphNode*> Nodes;
 		/** Reference information for Nodes */
-		TArray<FNodeReferenceInfo> ReferenceInfos;
+		TArray<const FNodeReferenceInfo*> ReferenceInfos;
 
 		/** Fills this chain with extended reference info for each node */
 		void FillReferenceInfo();
@@ -197,6 +204,11 @@ public:
 		FReferenceChain(int32 ReserveDepth)
 		{
 			Nodes.Reserve(ReserveDepth);
+		}
+
+		int64 GetAllocatedSize() const
+		{
+			return Nodes.GetAllocatedSize() + ReferenceInfos.GetAllocatedSize();
 		}
 
 		/** Adds a new node to the chain */
@@ -243,7 +255,7 @@ public:
 			return Nodes.Contains(InNode);
 		}
 		/** Gets extended reference info for the specified node index */
-		const FNodeReferenceInfo& GetReferenceInfo(int32 NodeIndex) const
+		const FNodeReferenceInfo* GetReferenceInfo(int32 NodeIndex) const
 		{
 			return ReferenceInfos[NodeIndex];
 		}
@@ -312,6 +324,8 @@ public:
 		return ReferenceChains;
 	}
 
+	int64 GetAllocatedSize() const;
+
 private:
 
 	/** The objects we're going to look for references to */
@@ -332,8 +346,11 @@ private:
 	/** Performs the search */
 	void PerformSearch();
 
-	/** Performs the search */
+	/** Constructs a complete graph of all references between objects */
 	void FindDirectReferencesForObjects();
+
+	/** Constructs a subset of the graph of references between objects to try and find the targets using minimal memory */
+	void FindMinimalDirectReferencesForObjects();
 
 	/** Frees memory */
 	void Cleanup();
@@ -341,6 +358,20 @@ private:
 	/** Tries to find a node for an object and if it doesn't exists creates a new one and returns it */
 	FGraphNode* FindOrAddNode(UObject* InObjectToFindNodeFor);
 	FGraphNode* FindOrAddNode(FGCObjectInfo* InObjectInfo);
+
+	/** Link two nodes together with the given reference info */
+	void LinkNodes(
+		UObject* From,
+		UObject* To,
+		EReferenceType ReferenceType,
+		FName PropertyName,
+		TConstArrayView<uint64> StackFrames = {});
+	void LinkNodes(
+		FGCObjectInfo* From,
+		FGCObjectInfo* To,
+		EReferenceType ReferenceType,
+		FName PropertyName,
+		TConstArrayView<uint64> StackFrames = {});
 
 	/** Builds reference chains */
 	static int32 BuildReferenceChainsRecursive(FGraphNode* TargetNodes, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);

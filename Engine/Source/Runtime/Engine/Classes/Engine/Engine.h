@@ -673,6 +673,9 @@ enum class EPrintStaleReferencesOptions
 	Fatal = 5,
 	Ensure = 0x00000100,
 
+	// Only search for direct references to the object or one of its inners, not a full reference chain 
+	Minimal = 0x00000200, 
+
 	VerbosityMask = 0x000000ff
 };
 ENUM_CLASS_FLAGS(EPrintStaleReferencesOptions);
@@ -3275,7 +3278,7 @@ public:
 	static void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity);
 
 	/**
-	 * Attempts to find what is referencing a world that should have been garbage collected
+	 * Attempts to find a reference chain leading to a world that should have been garbage collected
 	 * @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
 	 * @param Options Determines how the stale references messages should be logged
 	 */

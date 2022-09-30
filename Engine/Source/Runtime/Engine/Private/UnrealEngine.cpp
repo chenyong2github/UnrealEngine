@@ -444,6 +444,36 @@ static FAutoConsoleVariableRef GShouldLogReferencesToLeakedWorldObjectsCVar(
 	ECVF_Default
 );
 
+static int32 GVerifyLoadMapWorldCleanup_Severity = 2;
+static FAutoConsoleVariableRef CVarVerifyLoadMapWorldCleanup_Severity(
+#if UE_BUILD_SHIPPING
+	TEXT("Engine.VerifyLoadMapWorldCleanup.Severity.Shipping"),
+#else
+	TEXT("Engine.VerifyLoadMapWorldCleanup.Severity"),
+#endif
+	GVerifyLoadMapWorldCleanup_Severity,
+	TEXT("Controls severity of logging when the engine detects that a UWorld was leaked during LoadMap.\n")
+	TEXT("0 - all reference tracing and logging is disabled\n")
+	TEXT("1 - logs an error\n")
+	TEXT("2 - ensure\n")
+	TEXT("3 - fatal error\n"),
+	ECVF_Default
+);
+
+static int32 GVerifyLoadMapWorldCleanup_TraceMode = (UE_BUILD_SHIPPING ? 0 : 1);
+static FAutoConsoleVariableRef CVarVerifyLoadMapWorldCleanup_TraceMode(
+#if UE_BUILD_SHIPPING
+	TEXT("Engine.VerifyLoadMapWorldCleanup.TraceMode.Shipping"),
+#else
+	TEXT("Engine.VerifyLoadMapWorldCleanup.TraceMode"),
+#endif
+	GVerifyLoadMapWorldCleanup_TraceMode,
+	TEXT("Controls detail level of reference tracing when the engine detects that a world was leaked during LoadMap.\n")
+	TEXT("0 - direct references only\n")
+	TEXT("1 - full reference trace"),
+	ECVF_Default
+);
+
 #if !UE_BUILD_SHIPPING
 TAutoConsoleVariable<bool> CVarCsvAlwaysShowFrameCount(
 	TEXT("csv.AlwaysShowFrameCount"),
@@ -15598,10 +15628,57 @@ void UEngine::CheckAndHandleStaleWorldObjectReferences(FWorldContext* WorldConte
 		UE_LOG(LogLoad, Error, TEXT("Some previously active worlds or related objects were not cleaned up by garbage collection!"));
 		UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded."));
 
-		if (GShouldLogReferencesToLeakedWorldObjects)
+		if (GVerifyLoadMapWorldCleanup_Severity != 0)
 		{
+			EPrintStaleReferencesOptions Options = EPrintStaleReferencesOptions::None;
+			switch (GVerifyLoadMapWorldCleanup_Severity)
+			{
+			case 3:
+				Options = EPrintStaleReferencesOptions::Fatal;
+				break;
+			case 2: 
+				Options = EPrintStaleReferencesOptions::Ensure | EPrintStaleReferencesOptions::Error;
+				break;
+			case 1:
+			default:
+				Options = EPrintStaleReferencesOptions::Error;
+				break;
+			}	
+			// Force fatal error if reference elimination is enabled as legacy behavior
+			if (UObjectBaseUtility::IsPendingKillEnabled())
+			{
+				Options = EPrintStaleReferencesOptions::Fatal;
+			}
+			
+			if (GVerifyLoadMapWorldCleanup_TraceMode == 0)
+			{
+				Options |= EPrintStaleReferencesOptions::Minimal;
+			}
+
+			// Remove sublevels from the list if their owning world also leaked
+			// Unless tracing is in minimal mode; in that case we may miss useful info
+			if (!(Options & EPrintStaleReferencesOptions::Minimal))
+			{
+				for (int32 i = LeakedObjects.Num() - 1; i >= 0; --i)
+				{
+					UObject* LeakedObject = LeakedObjects[i];
+					if (UWorld* World = Cast<UWorld>(LeakedObject))
+					{
+						if (!World->PersistentLevel || World->PersistentLevel->OwningWorld == World)
+						{
+							continue;
+						}
+
+						if (LeakedObjects.Contains(World->PersistentLevel->OwningWorld))
+						{
+							LeakedObjects.RemoveAt(i, 1, false);
+						}
+					}
+				}
+			}
+
 			UE_LOG(LogLoad, Error, TEXT("Dumping reference chains:"));
-			FindAndPrintStaleReferencesToObjects(LeakedObjects, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+			FindAndPrintStaleReferencesToObjects(LeakedObjects, Options);
 		}
 
 		if (!UObjectBaseUtility::IsPendingKillEnabled())
@@ -15723,10 +15800,27 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 		checkf(Obj, TEXT("Object to find references to cannot be null"));
 	}
 
-	const ELogVerbosity::Type OptionsToVerbosityMapping[] = { ELogVerbosity::NoLogging, ELogVerbosity::Log, ELogVerbosity::Display, ELogVerbosity::Warning, ELogVerbosity::Error, ELogVerbosity::Fatal };
-	const int32 VerbosityIndex = int32(Options & EPrintStaleReferencesOptions::VerbosityMask);
-	checkf(VerbosityIndex < UE_ARRAY_COUNT(OptionsToVerbosityMapping), TEXT("Unsupported verbosity option provided: %d"), VerbosityIndex);
-	ELogVerbosity::Type Verbosity = OptionsToVerbosityMapping[VerbosityIndex];
+	ELogVerbosity::Type Verbosity = ELogVerbosity::NoLogging;
+	switch (Options & EPrintStaleReferencesOptions::VerbosityMask)
+	{
+	case EPrintStaleReferencesOptions::None:
+		Verbosity = ELogVerbosity::NoLogging; 
+		break;
+	case EPrintStaleReferencesOptions::Log:
+		Verbosity = ELogVerbosity::Log; 
+		break;
+	case EPrintStaleReferencesOptions::Display:
+		Verbosity = ELogVerbosity::Display; 
+		break;
+	case EPrintStaleReferencesOptions::Warning:
+		Verbosity = ELogVerbosity::Warning; 
+		break;
+	case EPrintStaleReferencesOptions::Error:
+	case EPrintStaleReferencesOptions::Fatal: // Use verbosity error for reference chains so we can log all errors before crashing 
+	default:
+		Verbosity = ELogVerbosity::Error; 
+		break;
+	}
 
 	UE_LOG(LogLoad, Log, TEXT("Beginning reference chain search..."));
 	for (UObject* Obj : ObjectsToFindReferencesTo)
@@ -15734,11 +15828,22 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 		UE_LOG(LogLoad, Log, TEXT(" - %s"), *Obj->GetFullName());
 	}
 
-	FReferenceChainSearch RefChainSearch(ObjectsToFindReferencesTo, EReferenceChainSearchMode::ShortestToGarbage);
+	EReferenceChainSearchMode SearchMode = EReferenceChainSearchMode::GCOnly;
+	if(!!(Options & EPrintStaleReferencesOptions::Minimal))
+	{
+		SearchMode |= EReferenceChainSearchMode::Minimal;
+	}
+	else
+	{
+		SearchMode |= EReferenceChainSearchMode::ShortestToGarbage;
+	}
+
+	FReferenceChainSearch RefChainSearch(ObjectsToFindReferencesTo, SearchMode);
 #if ENABLE_GC_HISTORY
+	// If we have the full history already, don't only search for direct referencers 
 	FReferenceChainSearch HistorySearch(EReferenceChainSearchMode::ShortestToGarbage); // we may not need it but it has to live in this scope so that FGCObjectInfos are being kept alive
 #endif
-	
+
 	for (UObject* ObjectToFindReferencesTo : ObjectsToFindReferencesTo)
 	{
 		FGCObjectInfo* OutGarbageObject = nullptr;
@@ -15821,6 +15926,13 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 				*PathToCulprit);
 		}
 	}
+
+	if (!!(Options & EPrintStaleReferencesOptions::Fatal))
+	{
+		UE_LOG(LogLoad, Fatal, TEXT("Fatal world leaks detected. Logging first error, check logs for additional information") LINE_TERMINATOR TEXT("%s"), 
+			Paths.Num() ? *Paths[0] : TEXT("No paths to leaked objects found!"));
+	}
+
 	return Paths;
 }
 
