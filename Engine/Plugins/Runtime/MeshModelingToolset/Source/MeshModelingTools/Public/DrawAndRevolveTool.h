@@ -147,4 +147,8 @@ protected:
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
 
 	friend class URevolveOperatorFactory;
+
+private:
+	constexpr static double FarDrawPlaneThreshold = 100 * 100;
+	bool bHasFarPlaneWarning = false;
 };

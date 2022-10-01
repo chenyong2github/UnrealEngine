@@ -168,6 +168,16 @@ void UDrawAndRevolveTool::Setup()
 
 	UpdateRevolutionAxis();
 
+	FViewCameraState InitialCameraState;
+	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(InitialCameraState);
+	if (FVector::DistSquared(InitialCameraState.Position, Settings->DrawPlaneOrigin) > FarDrawPlaneThreshold * FarDrawPlaneThreshold)
+	{
+		bHasFarPlaneWarning = true;
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("FarDrawPlane", "The axis of revolution is far from the camera. Note that you can ctrl-click to place the axis on a visible surface."),
+			EToolMessageLevel::UserWarning);
+	}
+
 	// The plane mechanic lets us update the plane in which we draw the profile curve, as long as we haven't
 	// started adding points to it already.
 	FFrame3d ProfileDrawPlane(Settings->DrawPlaneOrigin, Settings->DrawPlaneOrientation.Quaternion());
@@ -188,6 +198,11 @@ void UDrawAndRevolveTool::Setup()
 			ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
 		}
 		UpdateRevolutionAxis();
+		if (bHasFarPlaneWarning) // if the user has changed the plane, no longer need a warning
+		{
+			bHasFarPlaneWarning = false;
+			GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+		}
 		});
 
 	ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
@@ -329,6 +344,13 @@ void UDrawAndRevolveTool::OnTick(float DeltaTime)
 void UDrawAndRevolveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+
+	if (bHasFarPlaneWarning && FVector::DistSquared(CameraState.Position, Settings->DrawPlaneOrigin) < FarDrawPlaneThreshold * FarDrawPlaneThreshold)
+	{
+		// if camera is now closer to the axis, no longer need a warning
+		bHasFarPlaneWarning = false;
+		GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+	}
 
 	if (PlaneMechanic != nullptr)
 	{
