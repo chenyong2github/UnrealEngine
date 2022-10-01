@@ -45,6 +45,33 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 #endif
 }
 
+/**
+ * Initializes a UWorldPartitionLevelStreamingDynamic.
+ */
+void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell)
+{
+	StreamingCell = &InCell;
+	UWorld* World = GetWorld();
+	check(!ShouldBeLoaded());
+	check((World->IsGameWorld() && !ShouldBeVisible()) || (!World->IsGameWorld() && !GetShouldBeVisibleFlag()));
+	check(!WorldAsset.IsNull());
+
+	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
+	StreamingPriority = 0;
+
+#if WITH_EDITOR
+	check(ChildPackages.Num() == 0);
+
+	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
+
+	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
+	Initialize(CellOwner->GetOuterWorld(), InCell.GetPackages());
+#else
+	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
+	OuterWorldPartition = CellOwner->GetOuterWorld()->GetWorldPartition();
+#endif
+}
+
 #if WITH_EDITOR
 
 UWorldPartitionLevelStreamingDynamic* UWorldPartitionLevelStreamingDynamic::LoadInEditor(UWorld* World, FName LevelStreamingName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages)
@@ -92,26 +119,6 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(UWorld* OuterWorld, const 
 	OriginalLevelPackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
 	PackageNameToLoad = GetWorldAssetPackageFName();
 	OuterWorldPartition = OuterWorld->GetWorldPartition();
-}
-
-/**
- * Initializes a UWorldPartitionLevelStreamingDynamic.
- */
-void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell)
-{
-	StreamingCell = &InCell;
-	UWorld* World = GetWorld();
-	check(!ShouldBeLoaded());
-	check((World->IsGameWorld() && !ShouldBeVisible()) || (!World->IsGameWorld() && !GetShouldBeVisibleFlag()));
-	check(ChildPackages.Num() == 0);
-	check(!WorldAsset.IsNull());
-
-	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
-	StreamingPriority = 0;
-	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
-
-	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
-	Initialize(CellOwner->GetOuterWorld(), InCell.GetPackages());
 }
 
 /**

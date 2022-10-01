@@ -31,6 +31,11 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 
 	virtual void SetStreamingPriority(int32 InStreamingPriority) const override;
 	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
+
+	bool HasActors() const;
+
+	void CreateAndSetLevelStreaming(const FString& InPackageName);
+	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 	
 
 #if WITH_EDITOR
@@ -56,10 +61,6 @@ private:
 	void OnLevelHidden();
 
 	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
-
-#if WITH_EDITOR
-	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
-#endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

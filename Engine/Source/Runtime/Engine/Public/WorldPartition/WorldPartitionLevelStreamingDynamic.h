@@ -36,11 +36,11 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	virtual bool ShouldBeAlwaysLoaded() const override { return bShouldBeAlwaysLoaded; }
 	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
 
+	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
+
 #if WITH_EDITOR
 	static UWorldPartitionLevelStreamingDynamic* LoadInEditor(UWorld* World, FName LevelStreamingName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages);
 	static void UnloadFromEditor(UWorldPartitionLevelStreamingDynamic* InLevelStreaming);
-
-	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
 
 	// Override ULevelStreaming
 	virtual bool RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoadRequests, EReqLevelBlock BlockPolicy) override;

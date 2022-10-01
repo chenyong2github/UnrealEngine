@@ -7,6 +7,7 @@
 
 #include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
+#include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
@@ -754,6 +755,55 @@ ASpatialHashRuntimeGridInfo::ASpatialHashRuntimeGridInfo(const FObjectInitialize
 #endif
 }
 
+void URuntimeSpatialHashExternalStreamingObject::OnStreamingObjectLoaded()
+{
+	// Cooked streaming object's Cells do not have LevelStreaming and are outered to the streaming object.
+	// Create their level streaming now and re-outered to the runtime hash.
+	bool bIsACookedObject = !CellToLevelStreamingPackage.IsEmpty();
+	if (bIsACookedObject)
+	{
+		for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		{
+			for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+			{
+				for (FSpatialHashStreamingGridLayerCell& GridLayerCell : GridLevel.LayerCells)
+				{
+					for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
+					{
+						UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(Cell);
+
+						FName LevelStreamingPackage = CellToLevelStreamingPackage.FindChecked(RuntimeCell->GetFName());
+						RuntimeCell->Rename(nullptr, GetOuterWorld()->GetWorldPartition()->RuntimeHash);
+						RuntimeCell->CreateAndSetLevelStreaming(*LevelStreamingPackage.ToString());
+					}
+				}
+			}
+		}
+
+	}
+	
+}
+
+#if WITH_EDITOR
+void URuntimeSpatialHashExternalStreamingObject::PopulateGeneratorPackageForCook()
+{
+	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	{
+		for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+		{
+			for (FSpatialHashStreamingGridLayerCell& GridLayerCell : GridLevel.LayerCells)
+			{
+				for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
+				{
+					UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(Cell)->GetLevelStreaming();
+					CellToLevelStreamingPackage.Add(Cell->GetFName(), LevelStreamingDynamic->PackageNameToLoad);
+				}
+			}
+		}
+	}
+}
+#endif
+
 UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -812,6 +862,7 @@ URuntimeHashExternalStreamingObjectBase* UWorldPartitionRuntimeSpatialHash::Stor
 				for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
 				{
 					Cell->SetGridName(StreamingGrid.GridName);
+					Cell->Rename(nullptr, StreamingObject);
 				}
 			}
 		}
