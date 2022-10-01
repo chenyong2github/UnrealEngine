@@ -19,7 +19,7 @@ public:
 		: Super()
 	{
 		bCloseEditor = false;
-		AdditionalCommandLineArguments = TEXT("-NoLoadingScreen -FixedSeed -log -Unattended -MRQInstance");
+		AdditionalCommandLineArguments = TEXT("-NoLoadingScreen -FixedSeed -log -Unattended -MRQInstance -deterministicaudio -audiomixer");
 		InitialDelayFrameCount = 0;
 
 		// Find all arguments from the command line and set them as the InheritedCommandLineArguments.
