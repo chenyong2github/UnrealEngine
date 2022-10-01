@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeProjectorParameterDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameterDetails.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"

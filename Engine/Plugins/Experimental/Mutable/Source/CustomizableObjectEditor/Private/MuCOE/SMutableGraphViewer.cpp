@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableGraphViewer.h"
+#include "MuCOE/SMutableGraphViewer.h"
 
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
-#include "SMutableCodeViewer.h"
+#include "MuCOE/SMutableCodeViewer.h"
 #include "MuT/Streams.h"
 
 #include "Misc/App.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeExternalPinDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeExternalPinDetails.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"

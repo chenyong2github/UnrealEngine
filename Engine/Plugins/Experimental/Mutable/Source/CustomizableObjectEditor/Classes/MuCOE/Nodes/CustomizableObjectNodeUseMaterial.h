@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CustomizableObjectNodeParentedMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 
 

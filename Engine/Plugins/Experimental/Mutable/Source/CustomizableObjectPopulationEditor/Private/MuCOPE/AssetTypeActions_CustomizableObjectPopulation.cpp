@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_CustomizableObjectPopulation.h"
+#include "MuCOPE/AssetTypeActions_CustomizableObjectPopulation.h"
 
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"

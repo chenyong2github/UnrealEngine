@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SPinViewerDetailRowIndent.h"
+#include "MuCOE/PinViewer/SPinViewerDetailRowIndent.h"
 
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
 #include "Widgets/Layout/SBox.h"

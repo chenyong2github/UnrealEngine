@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NodeStringPrivate.h"
+#include "MuT/NodeStringPrivate.h"
 
 #include "MuT/NodeStringConstant.h"
 #include "MuT/NodeImage.h"

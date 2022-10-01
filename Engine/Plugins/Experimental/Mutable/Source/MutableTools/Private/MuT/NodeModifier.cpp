@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeModifier.h"
-#include "NodeModifierPrivate.h"
+#include "MuT/NodeModifierPrivate.h"
 
 #include "MuT/NodeModifierMeshClipMorphPlane.h"
 #include "MuT/NodeModifierMeshClipWithMesh.h"

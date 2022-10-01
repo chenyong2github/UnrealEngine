@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "CustomizableObjectPopulationEditorStyle.h"
+#include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"

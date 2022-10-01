@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeMeshClipMorphDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshClipMorphDetails.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"

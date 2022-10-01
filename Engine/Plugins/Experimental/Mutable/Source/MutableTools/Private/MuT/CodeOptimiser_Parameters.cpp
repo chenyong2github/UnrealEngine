@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/CodeOptimiser.h"
-#include "CodeOptimiser_GPU.h"
+#include "MuT/CodeOptimiser_GPU.h"
 #include "MuT/NodeObjectNewPrivate.h"
-#include "CodeGenerator.h"
-#include "DataPacker.h"
+#include "MuT/CodeGenerator.h"
+#include "MuT/DataPacker.h"
 #include "MuT/ModelReportPrivate.h"
 #include "MuT/CompilerPrivate.h"
 

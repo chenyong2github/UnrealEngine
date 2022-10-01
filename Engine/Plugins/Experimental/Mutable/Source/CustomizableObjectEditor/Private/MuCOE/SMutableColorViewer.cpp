@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableColorViewer.h"
-#include "SMutableColorPreviewBox.h"
+#include "MuCOE/SMutableColorViewer.h"
+#include "MuCOE/SMutableColorPreviewBox.h"
 
 #include "GenericPlatform/GenericPlatform.h"
 #include "Widgets/SBoxPanel.h"

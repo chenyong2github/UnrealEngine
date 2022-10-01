@@ -1,10 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOPE/CustomizableObjectPopulationEditorActions.h"
+#include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
 #include "MuCOP/CustomizableObjectPopulation.h"
 #include "Framework/Commands/InputChord.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectPopulationEditor"
+
+FCustomizableObjectPopulationEditorCommands::FCustomizableObjectPopulationEditorCommands() : TCommands<FCustomizableObjectPopulationEditorCommands>
+(
+	"CustomizableObjectPopulationEditor", // Context name for fast lookup
+	NSLOCTEXT("Contexts", "CustomizableObjectPopulationEditor", "CustomizableObject Population Editor"), // Localized context name for displaying
+	NAME_None, // Parent
+	FCustomizableObjectPopulationEditorStyle::GetStyleSetName()
+	)
+{
+
+}
 
 void FCustomizableObjectPopulationEditorCommands::RegisterCommands()
 {

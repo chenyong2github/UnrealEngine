@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_CustomizableObject.h"
+#include "MuCOE/AssetTypeActions_CustomizableObject.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "ContentBrowserModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"

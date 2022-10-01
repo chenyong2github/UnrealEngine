@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeModifierMeshClipWithMesh.h"
-#include "NodeModifierMeshClipWithMeshPrivate.h"
+#include "MuT/NodeModifierMeshClipWithMeshPrivate.h"
 #include "MuR/MeshPrivate.h"
 
 

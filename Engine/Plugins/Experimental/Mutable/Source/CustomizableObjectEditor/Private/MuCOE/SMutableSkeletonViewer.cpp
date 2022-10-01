@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableSkeletonViewer.h"
+#include "MuCOE/SMutableSkeletonViewer.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "MuT/TypeInfo.h"
 #include "MuR/Skeleton.h"

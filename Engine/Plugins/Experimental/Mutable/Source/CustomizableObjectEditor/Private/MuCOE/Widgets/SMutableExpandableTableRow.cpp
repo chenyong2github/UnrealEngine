@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableExpandableTableRow.h"
+#include "MuCOE/Widgets/SMutableExpandableTableRow.h"
 
 
 FSlateColor GetRowBackgroundColor(const int32 IndentLevel, const bool IsHovered)

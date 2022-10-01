@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ImageRLE.h"
+#include "MuR/ImageRLE.h"
 #include "MuR/Platform.h"
 
 namespace mu

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_CustomizableObjectInstance.h"
+#include "MuCOE/AssetTypeActions_CustomizableObjectInstance.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"

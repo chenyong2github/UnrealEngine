@@ -4,8 +4,8 @@
 
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeLOD.h"
-#include "NodeComponentPrivate.h"
-#include "NodeModifierPrivate.h"
+#include "MuT/NodeComponentPrivate.h"
+#include "MuT/NodeModifierPrivate.h"
 #include "MuT/AST.h"
 
 #include "MuR/MemoryPrivate.h"

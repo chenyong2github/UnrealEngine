@@ -7,7 +7,7 @@
 #include "Widgets/Views/SListView.h"
 #include "AssetRegistry/AssetData.h"
 //#include "Engine/DataTable.h"
-#include "CustomizableObjectEditorViewportLights.h"
+#include "MuCOE/CustomizableObjectEditorViewportLights.h"
 #include "CustomizableObjectCustomSettings.generated.h"
 
 UCLASS()

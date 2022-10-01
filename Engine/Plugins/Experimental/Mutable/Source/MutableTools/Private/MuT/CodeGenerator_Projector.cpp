@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator.h"
 
 #include "MuR/Platform.h"
 #include "MuT/CompilerPrivate.h"
 
-#include "NodeProjectorPrivate.h"
+#include "MuT/NodeProjectorPrivate.h"
 #include "MuT/ASTOpConstantProjector.h"
 
 #include "MuR/ModelPrivate.h"

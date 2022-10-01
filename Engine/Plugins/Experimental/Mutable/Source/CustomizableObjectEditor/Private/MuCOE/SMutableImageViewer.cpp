@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableImageViewer.h"
+#include "MuCOE/SMutableImageViewer.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "Styling/AppStyle.h"
 #include "Async/TaskGraphInterfaces.h"

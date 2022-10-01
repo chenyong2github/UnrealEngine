@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectCustomSettings.h"
+#include "MuCOE/CustomizableObjectCustomSettings.h"
 #include "MuCOE/SCustomizableObjectEditorViewport.h"
 #include "MuCOE/CustomizableObjectEditorViewportClient.h"
 #include "Widgets/Input/SEditableTextBox.h"

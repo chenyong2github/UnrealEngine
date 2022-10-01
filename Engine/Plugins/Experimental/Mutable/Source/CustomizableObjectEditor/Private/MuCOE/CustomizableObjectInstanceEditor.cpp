@@ -39,7 +39,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AdvancedPreviewSceneModule.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "CustomizableObjectBakeHelpers.h"
+#include "MuCOE/CustomizableObjectBakeHelpers.h"
 #include "Animation/AnimSingleNodeInstance.h"
 
 #include "MuCOE/SCustomizableObjectEditorTextureAnalyzer.h"

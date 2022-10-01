@@ -1,34 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeGenerator_FirstPass.h"
+#include "MuT/CodeGenerator_FirstPass.h"
 
 #include "MuR/Platform.h"
 #include "MuT/CompilerPrivate.h"
 
-#include "NodeSurfaceNewPrivate.h"
-#include "NodeSurfaceEditPrivate.h"
-#include "NodeSurfaceVariationPrivate.h"
+#include "MuT/NodeSurfaceNewPrivate.h"
+#include "MuT/NodeSurfaceEditPrivate.h"
+#include "MuT/NodeSurfaceVariationPrivate.h"
 
-#include "NodeComponentPrivate.h"
+#include "MuT/NodeComponentPrivate.h"
 #include "MuT/NodeComponentNewPrivate.h"
-#include "NodeComponentEditPrivate.h"
+#include "MuT/NodeComponentEditPrivate.h"
 
-#include "NodeLODPrivate.h"
+#include "MuT/NodeLODPrivate.h"
 #include "MuT/NodeObjectNewPrivate.h"
 #include "MuT/NodeObjectStatePrivate.h"
-#include "NodeObjectGroupPrivate.h"
+#include "MuT/NodeObjectGroupPrivate.h"
 
 #include "MuT/NodeMeshClipMorphPlane.h"
 #include "MuT/NodeMeshClipWithMesh.h"
 
-#include "NodeModifierPrivate.h"
-#include "NodeModifierMeshClipMorphPlanePrivate.h"
-#include "NodeModifierMeshClipWithMeshPrivate.h"
-#include "NodeModifierMeshClipDeformPrivate.h"
+#include "MuT/NodeModifierPrivate.h"
+#include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
+#include "MuT/NodeModifierMeshClipWithMeshPrivate.h"
+#include "MuT/NodeModifierMeshClipDeformPrivate.h"
 
 #include "MuT/AST.h"
-#include "ASTOpConstantBool.h"
-#include "ASTOpParameter.h"
+#include "MuT/ASTOpConstantBool.h"
+#include "MuT/ASTOpParameter.h"
 
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableTrace.h"

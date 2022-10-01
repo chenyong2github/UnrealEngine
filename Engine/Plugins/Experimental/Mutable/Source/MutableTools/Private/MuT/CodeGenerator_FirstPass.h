@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Visitor.h"
+#include "MuT/Visitor.h"
 
 #include "MuT/AST.h"
 #include "MuT/CompilerPrivate.h"

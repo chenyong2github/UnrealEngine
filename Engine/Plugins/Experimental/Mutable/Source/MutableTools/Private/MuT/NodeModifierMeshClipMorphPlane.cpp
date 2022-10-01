@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeModifierMeshClipMorphPlane.h"
-#include "NodeModifierMeshClipMorphPlanePrivate.h"
+#include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
 #include "MuR/MeshPrivate.h"
 
 

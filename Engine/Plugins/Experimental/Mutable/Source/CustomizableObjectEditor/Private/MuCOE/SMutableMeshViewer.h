@@ -14,12 +14,12 @@
 
 #include "Templates/SharedPointer.h"
 
-#include "SMutableMeshViewport.h"
+#include "MuCOE/SMutableMeshViewport.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #include "PropertyCustomizationHelpers.h"
-#include "SMutableSkeletonViewer.h"
+#include "MuCOE/SMutableSkeletonViewer.h"
 
 
 /** Container designed to hold the buffer channel data of a mutable mesh buffer to be later used by the UI */

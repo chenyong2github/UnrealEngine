@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectCustomSettingsDetails.h"
+#include "MuCOE/CustomizableObjectCustomSettingsDetails.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "CustomizableObjectCustomSettings.h"
+#include "MuCOE/CustomizableObjectCustomSettings.h"
 
 TSharedRef<IDetailCustomization> FCustomizableObjectCustomSettingsDetails::MakeInstance()
 {

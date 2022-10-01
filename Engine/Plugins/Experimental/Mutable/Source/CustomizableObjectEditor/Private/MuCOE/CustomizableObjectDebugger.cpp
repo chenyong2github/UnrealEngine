@@ -7,9 +7,9 @@
 #include "MuCOE/CustomizableObjectEditor.h"
 
 #include "MuCOE/SCustomizableObjectProperties.h"
-#include "SMutableGraphViewer.h"
-#include "SMutableCodeViewer.h"
-#include "SMutableObjectViewer.h"
+#include "MuCOE/SMutableGraphViewer.h"
+#include "MuCOE/SMutableCodeViewer.h"
+#include "MuCOE/SMutableObjectViewer.h"
 
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"

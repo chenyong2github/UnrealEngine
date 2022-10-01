@@ -16,7 +16,7 @@
 #include "MuR/Operations.h"
 #include "MuR/CodeVisitor.h"
 
-#include "Config.h"
+#include "MuR/Config.h"
 #include "MuR/MutableTrace.h"
 
 namespace mu

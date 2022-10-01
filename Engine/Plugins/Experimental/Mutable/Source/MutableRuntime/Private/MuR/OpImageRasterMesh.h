@@ -5,8 +5,8 @@
 #include "MuR/ImagePrivate.h"
 #include "MuR/Platform.h"
 #include "MuR/MeshPrivate.h"
-#include "Raster.h"
-#include "ConvertData.h"
+#include "MuR/Raster.h"
+#include "MuR/ConvertData.h"
 
 
 namespace mu

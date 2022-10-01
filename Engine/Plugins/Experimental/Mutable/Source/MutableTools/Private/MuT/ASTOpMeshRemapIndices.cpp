@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ASTOpMeshRemapIndices.h"
+#include "MuT/ASTOpMeshRemapIndices.h"
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/StreamsPrivate.h"

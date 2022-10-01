@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodePatchMesh.h"
-#include "NodePatchMeshPrivate.h"
+#include "MuT/NodePatchMeshPrivate.h"
 #include "MuR/MeshPrivate.h"
 
 

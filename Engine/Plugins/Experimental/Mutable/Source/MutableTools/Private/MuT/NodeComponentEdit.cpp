@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeComponentEdit.h"
-#include "NodeComponentEditPrivate.h"
+#include "MuT/NodeComponentEditPrivate.h"
 
 #include "MuT/NodeSurface.h"
 

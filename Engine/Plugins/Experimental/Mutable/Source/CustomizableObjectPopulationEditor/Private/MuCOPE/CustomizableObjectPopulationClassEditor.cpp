@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectPopulationClassEditor.h"
+#include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationClassEditorActions.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
@@ -15,7 +15,7 @@
 
 #include "MuCOP/CustomizableObjectPopulationClass.h"
 #include "MuCOPE/SCustomizableObjectPopulationClassTagsTool.h"
-#include "CustomizableObjectPopulationClassDetails.h"
+#include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 
 #include "MuCOP/CustomizableObjectPopulation.h"
 #include "MuCOP/CustomizableObjectPopulationGenerator.h"

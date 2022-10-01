@@ -2,7 +2,7 @@
 
 
 #include "MuT/Table.h"
-#include "TablePrivate.h"
+#include "MuT/TablePrivate.h"
 
 #include "MuR/Platform.h"
 #include "MuT/ErrorLogPrivate.h"

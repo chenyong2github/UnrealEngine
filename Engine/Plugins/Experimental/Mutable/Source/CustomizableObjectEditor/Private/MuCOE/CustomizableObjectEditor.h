@@ -11,7 +11,7 @@
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "StatePerformanceTesting.h"
+#include "MuCOE/StatePerformanceTesting.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCOE/SCustomizableObjectEditorViewport.h"
 #include "MuCOE/CustomizableObjectEditorViewportClient.h"

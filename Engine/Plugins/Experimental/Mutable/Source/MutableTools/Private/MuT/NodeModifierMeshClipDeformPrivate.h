@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NodeModifierPrivate.h"
+#include "MuT/NodeModifierPrivate.h"
 #include "MuT/NodeModifierMeshClipDeform.h"
 #include "MuT/NodeMesh.h"
 #include "MuT/AST.h"

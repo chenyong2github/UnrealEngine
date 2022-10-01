@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodePinViewerDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodePinViewerDetails.h"
 
 #include "DetailLayoutBuilder.h"
 

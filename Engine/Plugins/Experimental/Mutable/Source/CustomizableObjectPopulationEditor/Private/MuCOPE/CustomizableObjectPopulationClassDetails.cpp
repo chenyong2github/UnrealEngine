@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectPopulationClassDetails.h"
+#include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 #include "MuCOP/CustomizableObjectPopulationClass.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"

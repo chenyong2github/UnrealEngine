@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LogInformationUtil.h"
+#include "MuCO/LogInformationUtil.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
 #include "MuCO/CustomizableObject.h"

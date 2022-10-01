@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableProjectorViewer.h"
+#include "MuCOE/SMutableProjectorViewer.h"
 
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Internationalization/Text.h"

@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeScalarArithmeticOperation.h"
-#include "NodeScalarArithmeticOperationPrivate.h"
+#include "MuT/NodeScalarArithmeticOperationPrivate.h"
 
 #include "MuT/NodeScalar.h"
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ASTOpMeshBindShape.h"
-#include "ASTOpSwitch.h"
+#include "MuT/ASTOpMeshBindShape.h"
+#include "MuT/ASTOpSwitch.h"
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/StreamsPrivate.h"

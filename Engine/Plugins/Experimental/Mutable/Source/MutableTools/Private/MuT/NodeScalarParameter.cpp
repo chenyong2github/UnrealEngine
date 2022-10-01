@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeScalarParameter.h"
-#include "NodeScalarParameterPrivate.h"
+#include "MuT/NodeScalarParameterPrivate.h"
 
 #include "MuR/MutableMath.h"
 #include "MuR/MemoryPrivate.h"

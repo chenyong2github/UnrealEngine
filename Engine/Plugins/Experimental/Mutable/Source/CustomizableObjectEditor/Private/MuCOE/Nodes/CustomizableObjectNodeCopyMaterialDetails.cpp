@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeCopyMaterialDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterialDetails.h"
 
 #include "DetailLayoutBuilder.h"
 

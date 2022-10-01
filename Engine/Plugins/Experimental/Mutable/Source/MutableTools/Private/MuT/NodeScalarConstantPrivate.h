@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NodeScalarPrivate.h"
+#include "MuT/NodeScalarPrivate.h"
 
 #include "MuT/NodeScalarConstant.h"
 #include "MuT/NodeImage.h"

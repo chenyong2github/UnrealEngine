@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableStringViewer.h"
+#include "MuCOE/SMutableStringViewer.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Internationalization/Text.h"

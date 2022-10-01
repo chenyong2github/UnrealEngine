@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CustomizableObjectNodeParentedMaterialDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterialDetails.h"
 
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"

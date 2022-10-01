@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeOptimiser_GPU.h"
+#include "MuT/CodeOptimiser_GPU.h"
 #include "MuT/CodeOptimiser.h"
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator.h"
 #include "MuT/ModelReportPrivate.h"
 
 #include "MuR/CodeVisitor.h"

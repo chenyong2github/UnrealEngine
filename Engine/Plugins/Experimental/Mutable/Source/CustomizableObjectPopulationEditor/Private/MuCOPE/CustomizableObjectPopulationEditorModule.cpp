@@ -20,13 +20,13 @@
 #include "CoreGlobals.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
-#include "AssetTypeActions_CustomizableObjectPopulation.h"
-#include "AssetTypeActions_CustomizableObjectPopulationClass.h"
-#include "CustomizableObjectPopulationClassEditor.h"
+#include "MuCOPE/AssetTypeActions_CustomizableObjectPopulation.h"
+#include "MuCOPE/AssetTypeActions_CustomizableObjectPopulationClass.h"
+#include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditor.h"
-#include "CustomizableObjectPopulationEditorStyle.h"
+#include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
 
-#include "CustomizableObjectPopulationClassDetails.h"
+#include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 
 // This is necessary to register the cook delegate.
 #include "CookOnTheSide/CookOnTheFlyServer.h"

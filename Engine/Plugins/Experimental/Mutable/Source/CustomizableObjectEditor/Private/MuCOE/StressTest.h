@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Delegates/IDelegateInstance.h"
-#include "StatePerformanceTesting.h"
+#include "MuCOE/StatePerformanceTesting.h"
 #include "MuCO/CustomizableObject.h"
 #include "Containers/Ticker.h"
 #include "StressTest.generated.h"

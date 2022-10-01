@@ -4,7 +4,7 @@
 #include "MuR/Platform.h"
 
 #include "MuR/SettingsPrivate.h"
-#include "Config.h"
+#include "MuR/Config.h"
 
 namespace mu
 {

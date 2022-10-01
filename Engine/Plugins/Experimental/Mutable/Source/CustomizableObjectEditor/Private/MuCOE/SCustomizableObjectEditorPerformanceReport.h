@@ -6,7 +6,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Misc/NotifyHook.h"
 #include "MuCO/CustomizableObject.h"
-#include "StressTest.h"
+#include "MuCOE/StressTest.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
 #include "MuCOE/SCustomizableObjectEditorTextureAnalyzer.h"
 #include "SCustomizableObjectEditorPerformanceReport.generated.h"

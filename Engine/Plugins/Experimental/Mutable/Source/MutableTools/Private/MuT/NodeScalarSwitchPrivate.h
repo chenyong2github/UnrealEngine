@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuT/NodeScalarSwitch.h"
-#include "NodeScalarPrivate.h"
+#include "MuT/NodeScalarPrivate.h"
 #include "MuT/NodeScalar.h"
 #include "MuT/AST.h"
 

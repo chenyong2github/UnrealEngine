@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeRangeFromScalar.h"
-#include "NodeRangeFromScalarPrivate.h"
+#include "MuT/NodeRangeFromScalarPrivate.h"
 
 #include "MuT/NodeScalar.h"
 

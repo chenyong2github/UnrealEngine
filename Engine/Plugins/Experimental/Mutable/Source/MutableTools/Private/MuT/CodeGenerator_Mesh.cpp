@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator.h"
 
 #include "MuR/Platform.h"
 #include "MuT/CompilerPrivate.h"
-#include "TablePrivate.h"
+#include "MuT/TablePrivate.h"
 #include "MuT/NodeLayoutPrivate.h"
 
 #include "MuT/NodeMeshPrivate.h"
@@ -14,7 +14,7 @@
 #include "MuT/NodeMeshInterpolatePrivate.h"
 #include "MuT/NodeMeshMorphPrivate.h"
 #include "MuT/NodeMeshMakeMorphPrivate.h"
-#include "NodePatchMeshPrivate.h"
+#include "MuT/NodePatchMeshPrivate.h"
 #include "MuT/NodeMeshSubtractPrivate.h"
 #include "MuT/NodeMeshFormatPrivate.h"
 #include "MuT/NodeMeshFragmentPrivate.h"

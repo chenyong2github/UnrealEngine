@@ -4,7 +4,7 @@
 #pragma once
 
 #include "MuT/Node.h"
-#include "Visitor.h"
+#include "MuT/Visitor.h"
 #include "MuT/AST.h"
 #include "MuR/Operations.h"
 #include "MuR/MemoryPrivate.h"

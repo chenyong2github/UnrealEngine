@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableTextSearchBox.h"
+#include "MuCOE/SMutableTextSearchBox.h"
 
 #include "MuCO/CustomizableObject.h" // Required for LogMutable
 

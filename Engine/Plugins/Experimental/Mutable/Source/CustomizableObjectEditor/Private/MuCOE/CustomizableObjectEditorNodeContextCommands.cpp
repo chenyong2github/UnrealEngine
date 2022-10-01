@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectEditorNodeContextCommands.h"
+#include "MuCOE/CustomizableObjectEditorNodeContextCommands.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditorNodeContextCommands"
 

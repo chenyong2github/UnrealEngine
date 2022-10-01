@@ -4,7 +4,7 @@
 
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeSurfaceVariation.h"
-#include "NodeSurfaceNewPrivate.h"
+#include "MuT/NodeSurfaceNewPrivate.h"
 #include "MuT/NodeModifier.h"
 
 #include "MuR/MemoryPrivate.h"

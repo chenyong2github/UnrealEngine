@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableMeshViewport.h"
+#include "MuCOE/SMutableMeshViewport.h"
 
-#include "FMutableViewportClient.h"
+#include "MuCOE/FMutableViewportClient.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "SEditorViewport.h"
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
 #include "Engine/SkeletalMesh.h"
-#include "FMutableViewportClient.h"
+#include "MuCOE/FMutableViewportClient.h"
 #include "MuR/Mesh.h"
 #include "MuR/MeshPrivate.h"
 #include "MuR/Parameters.h"

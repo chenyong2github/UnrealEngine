@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeParentedMaterialDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterialDetails.h"
 
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "PropertyCustomizationHelpers.h"

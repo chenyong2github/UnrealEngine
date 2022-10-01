@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuR/Mesh.h"
-#include "FMutableViewportClient.h"
+#include "MuCOE/FMutableViewportClient.h"
 #include "Widgets/SCompoundWidget.h"
 #include "AdvancedPreviewScene.h"
 #include "Components/SkeletalMeshComponent.h"

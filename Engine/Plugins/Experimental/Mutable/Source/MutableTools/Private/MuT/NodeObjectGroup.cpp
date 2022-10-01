@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeObjectGroup.h"
-#include "NodeObjectGroupPrivate.h"
+#include "MuT/NodeObjectGroupPrivate.h"
 
 #include "MuT/NodeLayout.h"
 

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "AssetTypeActions_CustomizableObjectPopulationClass.h"
+#include "MuCOPE/AssetTypeActions_CustomizableObjectPopulationClass.h"
 
 #include "MuCOE/CustomizableObjectEditorModule.h"
-#include "CustomizableObjectPopulationClassEditor.h"
+#include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_CustomizableObjectPopulationClass"

@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeScalarSwitch.h"
-#include "NodeScalarSwitchPrivate.h"
+#include "MuT/NodeScalarSwitchPrivate.h"
 
 #include "MuT/NodeScalar.h"
 

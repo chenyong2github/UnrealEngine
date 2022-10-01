@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SMutableTextSearchBox.h"
+#include "MuCOE/SMutableTextSearchBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"

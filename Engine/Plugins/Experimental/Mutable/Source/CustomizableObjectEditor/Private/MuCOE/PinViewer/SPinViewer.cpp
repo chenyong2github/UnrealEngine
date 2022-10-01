@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "ScopedTransaction.h"
-#include "SPinViewerListRow.h"
+#include "MuCOE/PinViewer/SPinViewerListRow.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator.h"
 
 #include "MuR/Platform.h"
 #include "MuT/CompilerPrivate.h"
 
-#include "NodeScalarPrivate.h"
-#include "NodeScalarConstantPrivate.h"
-#include "NodeScalarParameterPrivate.h"
-#include "NodeScalarSwitchPrivate.h"
-#include "NodeScalarEnumParameterPrivate.h"
-#include "NodeScalarCurvePrivate.h"
-#include "NodeScalarArithmeticOperationPrivate.h"
+#include "MuT/NodeScalarPrivate.h"
+#include "MuT/NodeScalarConstantPrivate.h"
+#include "MuT/NodeScalarParameterPrivate.h"
+#include "MuT/NodeScalarSwitchPrivate.h"
+#include "MuT/NodeScalarEnumParameterPrivate.h"
+#include "MuT/NodeScalarCurvePrivate.h"
+#include "MuT/NodeScalarArithmeticOperationPrivate.h"
 #include "MuT/NodeScalarVariationPrivate.h"
 #include "MuT/NodeScalarTablePrivate.h"
 

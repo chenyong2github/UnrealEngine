@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeComponent.h"
-#include "NodeComponentPrivate.h"
+#include "MuT/NodeComponentPrivate.h"
 
 #include "MuT/NodeMesh.h"
 #include "MuT/NodeImage.h"

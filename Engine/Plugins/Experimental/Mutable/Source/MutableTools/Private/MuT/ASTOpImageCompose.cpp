@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ASTOpImageCompose.h"
+#include "MuT/ASTOpImageCompose.h"
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/StreamsPrivate.h"

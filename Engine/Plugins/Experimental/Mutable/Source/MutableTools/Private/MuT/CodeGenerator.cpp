@@ -1,36 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator.h"
 
-#include "CodeGenerator_SecondPass.h"
+#include "MuT/CodeGenerator_SecondPass.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuR/Platform.h"
 #include "MuT/CompilerPrivate.h"
-#include "ImageDescGenerator.h"
-#include "TablePrivate.h"
+#include "MuT/ImageDescGenerator.h"
+#include "MuT/TablePrivate.h"
 #include "MuT/NodeLayoutPrivate.h"
 
 #include "MuT/NodeBoolPrivate.h"
 
-#include "NodeRangeFromScalarPrivate.h"
+#include "MuT/NodeRangeFromScalarPrivate.h"
 
-#include "NodeProjectorPrivate.h"
+#include "MuT/NodeProjectorPrivate.h"
 
 #include "MuT/NodeMeshTablePrivate.h"
 #include "MuT/NodeImageTablePrivate.h"
 
-#include "NodeSurfaceNewPrivate.h"
-#include "NodeSurfaceEditPrivate.h"
-#include "NodeSurfaceVariationPrivate.h"
+#include "MuT/NodeSurfaceNewPrivate.h"
+#include "MuT/NodeSurfaceEditPrivate.h"
+#include "MuT/NodeSurfaceVariationPrivate.h"
 
-#include "NodeComponentPrivate.h"
+#include "MuT/NodeComponentPrivate.h"
 #include "MuT/NodeComponentNewPrivate.h"
-#include "NodeComponentEditPrivate.h"
+#include "MuT/NodeComponentEditPrivate.h"
 
-#include "NodeLODPrivate.h"
+#include "MuT/NodeLODPrivate.h"
 #include "MuT/NodeObjectNewPrivate.h"
 #include "MuT/NodeObjectStatePrivate.h"
-#include "NodeObjectGroupPrivate.h"
+#include "MuT/NodeObjectGroupPrivate.h"
 
 #include "MuT/NodeImageFormatPrivate.h"
 #include "MuT/NodeImageMipmapPrivate.h"

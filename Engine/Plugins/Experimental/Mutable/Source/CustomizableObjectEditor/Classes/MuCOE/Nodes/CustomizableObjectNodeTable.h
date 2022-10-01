@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CustomizableObjectNodeMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
 #include "Engine/DataTable.h"
 
 #include "MuCOE/Nodes/CustomizableObjectNode.h"

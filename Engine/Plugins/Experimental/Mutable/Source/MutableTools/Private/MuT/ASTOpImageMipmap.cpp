@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ASTOpImageMipmap.h"
+#include "MuT/ASTOpImageMipmap.h"
 
-#include "ASTOpImagePixelFormat.h"
-#include "ASTOpImageCompose.h"
-#include "ASTOpImagePatch.h"
-#include "ASTOpSwitch.h"
-#include "ASTOpConditional.h"
+#include "MuT/ASTOpImagePixelFormat.h"
+#include "MuT/ASTOpImageCompose.h"
+#include "MuT/ASTOpImagePatch.h"
+#include "MuT/ASTOpSwitch.h"
+#include "MuT/ASTOpConditional.h"
 
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/CodeOptimiser.h"

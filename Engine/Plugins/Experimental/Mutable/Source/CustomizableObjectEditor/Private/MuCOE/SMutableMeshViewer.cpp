@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableMeshViewer.h"
+#include "MuCOE/SMutableMeshViewer.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Views/SListView.h"
@@ -15,7 +15,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "Templates/SharedPointer.h"
 #include "PropertyCustomizationHelpers.h"
-#include "SMutableSkeletonViewer.h"
+#include "MuCOE/SMutableSkeletonViewer.h"
 #include "MuT/TypeInfo.h"
 #include "MuR/Skeleton.h"
 

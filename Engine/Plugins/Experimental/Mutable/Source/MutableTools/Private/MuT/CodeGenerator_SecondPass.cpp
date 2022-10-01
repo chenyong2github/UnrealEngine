@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CodeGenerator_SecondPass.h"
-#include "CodeGenerator_FirstPass.h"
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator_SecondPass.h"
+#include "MuT/CodeGenerator_FirstPass.h"
+#include "MuT/CodeGenerator.h"
 
 #include "MuR/Platform.h"
 #include "MuT/CompilerPrivate.h"
 
-#include "NodeSurfaceNewPrivate.h"
-#include "NodeSurfaceEditPrivate.h"
+#include "MuT/NodeSurfaceNewPrivate.h"
+#include "MuT/NodeSurfaceEditPrivate.h"
 
-#include "NodeComponentPrivate.h"
+#include "MuT/NodeComponentPrivate.h"
 #include "MuT/NodeComponentNewPrivate.h"
-#include "NodeComponentEditPrivate.h"
+#include "MuT/NodeComponentEditPrivate.h"
 
-#include "NodeLODPrivate.h"
+#include "MuT/NodeLODPrivate.h"
 #include "MuT/NodeObjectNewPrivate.h"
 #include "MuT/NodeObjectStatePrivate.h"
-#include "NodeObjectGroupPrivate.h"
+#include "MuT/NodeObjectGroupPrivate.h"
 
 #include "MuT/NodeMeshClipMorphPlane.h"
 #include "MuT/NodeMeshClipWithMesh.h"
 
-#include "NodeModifierPrivate.h"
-#include "NodeModifierMeshClipMorphPlanePrivate.h"
-#include "NodeModifierMeshClipWithMeshPrivate.h"
+#include "MuT/NodeModifierPrivate.h"
+#include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
+#include "MuT/NodeModifierMeshClipWithMeshPrivate.h"
 #include "MuT/NodeComponentNewPrivate.h"
 
 #include "MuT/ASTOpConstantBool.h"

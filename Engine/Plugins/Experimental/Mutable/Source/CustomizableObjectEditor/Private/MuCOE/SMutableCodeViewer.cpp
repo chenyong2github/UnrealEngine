@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableCodeViewer.h"
+#include "MuCOE/SMutableCodeViewer.h"
 
-#include "SMutableImageViewer.h"
-#include "SMutableMeshViewer.h"
+#include "MuCOE/SMutableImageViewer.h"
+#include "MuCOE/SMutableMeshViewer.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/Streams.h"
@@ -29,11 +29,11 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Internationalization/Text.h"
 
-#include "SMutableColorPreviewBox.h"
-#include "SMutableConstantsWidget.h"
+#include "MuCOE/SMutableColorPreviewBox.h"
+#include "MuCOE/SMutableConstantsWidget.h"
 
 #include "Widgets/Views/SHeaderRow.h"
-#include "SMutableColorPreviewBox.h"
+#include "MuCOE/SMutableColorPreviewBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SMutableDebugger"

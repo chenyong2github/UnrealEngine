@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableBoolViewer.h"
+#include "MuCOE/SMutableBoolViewer.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Internationalization/Text.h"

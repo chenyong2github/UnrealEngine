@@ -5,7 +5,7 @@
 #include "MuR/Platform.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MeshPrivate.h"
-#include "ConvertData.h"
+#include "MuR/ConvertData.h"
 #include "MuR/MutableTrace.h"
 
 

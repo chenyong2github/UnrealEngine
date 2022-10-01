@@ -8,7 +8,7 @@
 #include "MuR/CodeVisitor.h"
 #include "MuT/CompilerPrivate.h"
 #include "MuT/AST.h"
-#include "TaskManager.h"
+#include "MuT/TaskManager.h"
 
 #include <memory>
 

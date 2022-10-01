@@ -7,7 +7,7 @@
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "ObjectEditorUtils.h"
-#include "SPinViewerNodeMaterialPinImageDetails.h"
+#include "MuCOE/Nodes/SPinViewerNodeMaterialPinImageDetails.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"

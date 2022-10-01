@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "ImageDescGenerator.h"
+#include "MuT/ImageDescGenerator.h"
 
 #include "MuT/NodeImagePrivate.h"
 #include "MuT/NodeImageConstantPrivate.h"
@@ -32,7 +32,7 @@
 #include "MuT/NodeImageNormalCompositePrivate.h"
 #include "MuT/NodeImageTransformPrivate.h"
 
-#include "TablePrivate.h"
+#include "MuT/TablePrivate.h"
 
 #include "MuR/MeshPrivate.h"
 #include "MuR/ImagePrivate.h"

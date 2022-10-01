@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeScalarConstant.h"
-#include "NodeScalarConstantPrivate.h"
+#include "MuT/NodeScalarConstantPrivate.h"
 
 #include "MuR/MutableMath.h"
 

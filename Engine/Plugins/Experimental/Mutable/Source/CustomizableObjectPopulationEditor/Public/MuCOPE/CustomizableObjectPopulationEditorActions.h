@@ -5,21 +5,12 @@
 #include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/Commands.h"
-#include "CustomizableObjectPopulationEditorStyle.h"
 
 class FCustomizableObjectPopulationEditorCommands : public TCommands<FCustomizableObjectPopulationEditorCommands>
 {
 
 public:
-	FCustomizableObjectPopulationEditorCommands() : TCommands<FCustomizableObjectPopulationEditorCommands>
-		(
-			"CustomizableObjectPopulationEditor", // Context name for fast lookup
-			NSLOCTEXT("Contexts", "CustomizableObjectPopulationEditor", "CustomizableObject Population Editor"), // Localized context name for displaying
-			NAME_None, // Parent
-			FCustomizableObjectPopulationEditorStyle::GetStyleSetName()
-			)
-	{
-	}
+	FCustomizableObjectPopulationEditorCommands();
 
 	TSharedPtr< FUICommandInfo > Save;
 	TSharedPtr< FUICommandInfo > TestPopulation;

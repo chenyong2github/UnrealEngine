@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Visitor.h"
-#include "CodeGenerator_FirstPass.h"
+#include "MuT/Visitor.h"
+#include "MuT/CodeGenerator_FirstPass.h"
 
 #include "MuT/AST.h"
 #include "MuT/CompilerPrivate.h"

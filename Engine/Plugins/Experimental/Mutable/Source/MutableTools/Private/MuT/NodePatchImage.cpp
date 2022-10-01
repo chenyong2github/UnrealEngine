@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodePatchImage.h"
-#include "NodePatchImagePrivate.h"
+#include "MuT/NodePatchImagePrivate.h"
 
 #include "MuT/NodeImage.h"
 

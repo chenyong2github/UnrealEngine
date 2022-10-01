@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuR/MeshPrivate.h"
-#include "ConvertData.h"
+#include "MuR/ConvertData.h"
 #include "MuR/Platform.h"
 #include "MuR/OpMeshChartDifference.h"
 #include "MuR/MutableTrace.h"

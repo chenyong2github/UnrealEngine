@@ -4,7 +4,7 @@
 
 #include "MuR/ImagePrivate.h"
 #include "MuR/Platform.h"
-#include "ConvertData.h"
+#include "MuR/ConvertData.h"
 #include "Async/ParallelFor.h"
 
 

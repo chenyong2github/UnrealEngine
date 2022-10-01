@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CustomizableObjectNodeModifierBase.h"
-#include "CustomizableObjectNodeMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeModifierBase.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
 
 #include "CustomizableObjectNodeMeshClipWithMesh.generated.h"
 

@@ -8,10 +8,10 @@
 #include "MuR/Platform.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MeshPrivate.h"
-#include "Raster.h"
-#include "ConvertData.h"
+#include "MuR/Raster.h"
+#include "MuR/ConvertData.h"
 #include "MuR/MutableMath.h"
-#include "Octree.h"
+#include "MuR/Octree.h"
 
 #include <queue>
 #include <unordered_set>

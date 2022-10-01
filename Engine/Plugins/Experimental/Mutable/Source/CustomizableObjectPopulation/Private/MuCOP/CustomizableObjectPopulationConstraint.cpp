@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectPopulationConstraint.h"
+#include "MuCOP/CustomizableObjectPopulationConstraint.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectPopulationConstraint"
 

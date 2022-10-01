@@ -3,7 +3,7 @@
 
 #include "MuCOE/SCustomizableObjectEditorPerformanceReport.h"
 #include "MuCO/CustomizableObjectInstance.h"
-#include "StatePerformanceTesting.h"
+#include "MuCOE/StatePerformanceTesting.h"
 #include "PropertyCustomizationHelpers.h"
 #include "IDetailsView.h"
 #include "Widgets/Layout/SScrollBox.h"

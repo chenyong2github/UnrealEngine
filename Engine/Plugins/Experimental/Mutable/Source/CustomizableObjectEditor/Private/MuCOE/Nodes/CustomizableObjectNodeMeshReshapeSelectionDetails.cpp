@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeMeshReshapeSelectionDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeSelectionDetails.h"
 
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOE/CustomizableObjectCompiler.h"

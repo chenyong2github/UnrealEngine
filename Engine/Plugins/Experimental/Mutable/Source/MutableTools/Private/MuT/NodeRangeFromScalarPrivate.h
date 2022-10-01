@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NodeRangePrivate.h"
+#include "MuT/NodeRangePrivate.h"
 #include "MuT/NodeRangeFromScalar.h"
 #include "MuT/NodeRange.h"
 #include "MuT/NodeScalar.h"

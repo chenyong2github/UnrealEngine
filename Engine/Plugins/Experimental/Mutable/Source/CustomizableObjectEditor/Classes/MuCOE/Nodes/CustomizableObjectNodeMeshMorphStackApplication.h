@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CustomizableObjectNode.h"
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "CustomizableObjectNodeMeshMorphStackApplication.generated.h"
 
 

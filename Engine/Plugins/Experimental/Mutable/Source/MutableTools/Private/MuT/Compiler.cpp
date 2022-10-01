@@ -4,9 +4,9 @@
 #include "MuT/Compiler.h"
 
 #include "MuT/CompilerPrivate.h"
-#include "CodeGenerator.h"
+#include "MuT/CodeGenerator.h"
 #include "MuT/CodeOptimiser.h"
-#include "DataPacker.h"
+#include "MuT/DataPacker.h"
 #include "MuT/ErrorLogPrivate.h"
 #include "Hash/CityHash.h"
 

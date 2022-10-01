@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectBakeHelpers.h"
+#include "MuCOE/CustomizableObjectBakeHelpers.h"
 
 #include "MuCOE/CustomizableObjectEditor.h"
 #include "MuCO/CustomizableObjectMipDataProvider.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CustomizableObjectNodeRemapPinsByName.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
 
 #include "CustomizableObjectNodeRemapPinsByNameDefaultPin.generated.h"
 

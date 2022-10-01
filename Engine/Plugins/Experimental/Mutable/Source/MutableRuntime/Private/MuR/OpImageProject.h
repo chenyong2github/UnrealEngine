@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuR/Platform.h"
-#include "Raster.h"
+#include "MuR/Raster.h"
 #include "MuR/ParametersPrivate.h"
 #include "MuR/Image.h"
 #include "MuR/Mesh.h"

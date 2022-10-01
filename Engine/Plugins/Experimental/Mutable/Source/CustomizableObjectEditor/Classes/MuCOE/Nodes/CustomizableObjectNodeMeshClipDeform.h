@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CustomizableObjectNodeModifierBase.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeModifierBase.h"
 
 #include "CustomizableObjectNodeMeshClipDeform.generated.h"
 

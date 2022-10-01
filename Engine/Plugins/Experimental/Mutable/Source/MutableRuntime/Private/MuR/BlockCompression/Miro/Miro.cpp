@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Miro.h"
+#include "MuR/BlockCompression/Miro/Miro.h"
 
 #include "MuR/Platform.h"
 #include "Misc/AssertionMacros.h"

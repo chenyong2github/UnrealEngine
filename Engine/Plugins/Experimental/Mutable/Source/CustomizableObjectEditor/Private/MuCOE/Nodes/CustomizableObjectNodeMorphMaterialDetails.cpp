@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CustomizableObjectNodeMorphMaterialDetails.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMorphMaterialDetails.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "PropertyCustomizationHelpers.h"

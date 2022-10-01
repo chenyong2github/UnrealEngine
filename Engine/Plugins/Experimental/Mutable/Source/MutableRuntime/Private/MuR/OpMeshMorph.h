@@ -3,10 +3,10 @@
 #pragma once
 
 #include "MuR/MeshPrivate.h"
-#include "ConvertData.h"
+#include "MuR/ConvertData.h"
 #include "MuR/Platform.h"
 
-#include "SparseIndexMap.h"
+#include "MuR/SparseIndexMap.h"
 
 namespace mu
 {

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "CustomizableObjectNodeParentedMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterial.h"
 
 #include "CustomizableObjectNodeEditMaterialBase.generated.h"
 

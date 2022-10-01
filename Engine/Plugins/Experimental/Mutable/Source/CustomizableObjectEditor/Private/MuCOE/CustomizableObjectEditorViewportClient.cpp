@@ -2,7 +2,7 @@
 
 #include "MuCOE/CustomizableObjectEditorViewportClient.h"
 #include "MuCOE/CustomizableObjectEditorActions.h"
-#include "CustomizableObjectBakeHelpers.h"
+#include "MuCOE/CustomizableObjectBakeHelpers.h"
 
 #include "MouseDeltaTracker.h"
 #include "PreviewScene.h"

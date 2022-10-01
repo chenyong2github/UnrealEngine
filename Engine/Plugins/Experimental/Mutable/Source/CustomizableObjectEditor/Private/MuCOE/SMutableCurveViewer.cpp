@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableCurveViewer.h"
+#include "MuCOE/SMutableCurveViewer.h"
 
 #include "Math/Color.h"
 #include "MuR/ParametersPrivate.h"

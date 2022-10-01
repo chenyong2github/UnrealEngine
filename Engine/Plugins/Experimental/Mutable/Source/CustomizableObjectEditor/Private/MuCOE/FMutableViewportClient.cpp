@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FMutableViewportClient.h"
+#include "MuCOE/FMutableViewportClient.h"
 
 #include "AdvancedPreviewScene.h"
 

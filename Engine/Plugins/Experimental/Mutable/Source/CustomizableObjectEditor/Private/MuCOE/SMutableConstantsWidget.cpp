@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableConstantsWidget.h"
+#include "MuCOE/SMutableConstantsWidget.h"
 
 #include "MuR/MutableString.h"
 #include "MuR/ModelPrivate.h"
@@ -9,11 +9,11 @@
 #include "MuR/Layout.h"
 #include "MuR/Mesh.h"
 
-#include "SMutableImageViewer.h"
-#include "SMutableMeshViewer.h"
-#include "SMutableStringViewer.h"
+#include "MuCOE/SMutableImageViewer.h"
+#include "MuCOE/SMutableMeshViewer.h"
+#include "MuCOE/SMutableStringViewer.h"
 
-#include "SMutableCodeViewer.h"
+#include "MuCOE/SMutableCodeViewer.h"
 #include "Algo/StableSort.h"
 #include "Components/TextBlock.h"			
 #include "Internationalization/Text.h"		

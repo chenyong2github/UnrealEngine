@@ -4,7 +4,7 @@
 
 #include "MuT/Table.h"
 
-#include "Visitor.h"
+#include "MuT/Visitor.h"
 #include "MuT/ErrorLogPrivate.h"
 
 #include "MuR/MutableMath.h"

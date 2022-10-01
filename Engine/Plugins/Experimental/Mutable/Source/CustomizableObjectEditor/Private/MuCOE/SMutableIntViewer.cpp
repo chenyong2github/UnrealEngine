@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMutableIntViewer.h"
+#include "MuCOE/SMutableIntViewer.h"
 
 #include "GenericPlatform/GenericPlatform.h"
 #include "Widgets/SBoxPanel.h"

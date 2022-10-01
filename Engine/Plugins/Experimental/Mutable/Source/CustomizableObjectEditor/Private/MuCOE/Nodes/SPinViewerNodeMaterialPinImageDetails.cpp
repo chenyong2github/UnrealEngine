@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SPinViewerNodeMaterialPinImageDetails.h"
+#include "MuCOE/Nodes/SPinViewerNodeMaterialPinImageDetails.h"
 
 #include "ISinglePropertyView.h"
 #include "PerPlatformPropertyCustomization.h"

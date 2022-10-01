@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeScalarEnumParameter.h"
-#include "NodeScalarEnumParameterPrivate.h"
+#include "MuT/NodeScalarEnumParameterPrivate.h"
 
 #include "MuR/MutableMath.h"
 #include "MuR/MemoryPrivate.h"

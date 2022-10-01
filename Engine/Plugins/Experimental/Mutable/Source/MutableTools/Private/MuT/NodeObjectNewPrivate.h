@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MuT/NodeObjectPrivate.h"
-#include "NodeLODPrivate.h"
+#include "MuT/NodeLODPrivate.h"
 #include "MuT/CompilerPrivate.h"
 
 #include "MuT/NodeObjectNew.h"

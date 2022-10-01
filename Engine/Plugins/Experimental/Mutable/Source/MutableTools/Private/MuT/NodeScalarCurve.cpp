@@ -2,7 +2,7 @@
 
 
 #include "MuT/NodeScalarCurve.h"
-#include "NodeScalarCurvePrivate.h"
+#include "MuT/NodeScalarCurvePrivate.h"
 
 #include "MuT/NodeScalar.h"
 

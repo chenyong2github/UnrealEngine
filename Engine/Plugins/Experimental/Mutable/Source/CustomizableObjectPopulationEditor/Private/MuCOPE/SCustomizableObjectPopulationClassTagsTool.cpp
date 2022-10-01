@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOPE/SCustomizableObjectPopulationClassTagsTool.h"
-#include "CustomizableObjectPopulationClassDetails.h"
+#include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 #include "MuCOP/CustomizableObjectPopulationClass.h"
 #include "MuCO/CustomizableObject.h"
 

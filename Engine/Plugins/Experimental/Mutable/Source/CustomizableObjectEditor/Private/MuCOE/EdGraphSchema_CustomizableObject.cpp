@@ -24,7 +24,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 
-#include "CustomizableObjectEditorNodeContextCommands.h"
+#include "MuCOE/CustomizableObjectEditorNodeContextCommands.h"
 #include "Settings/EditorStyleSettings.h"
 
 
