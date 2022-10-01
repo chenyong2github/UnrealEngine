@@ -6,6 +6,7 @@
 
 #include "DisplayClusterLightCardEditorSettings.generated.h"
 
+class UDisplayClusterLightCardTemplate;
 struct FSlateBrush;
 
 /**
@@ -20,15 +21,23 @@ public:
 	UDisplayClusterLightCardEditorProjectSettings();
 
 	/** The default path to save new light card templates */
-	UPROPERTY(config, EditAnywhere, Category = LightCardTemplates)
+	UPROPERTY(config, EditAnywhere, Category = Templates)
 	FDirectoryPath LightCardTemplateDefaultPath;
 
+	/** The default template to use when creating a new light card */
+	UPROPERTY(config, EditAnywhere, Category = Templates)
+	TSoftObjectPtr<UDisplayClusterLightCardTemplate> DefaultLightCardTemplate;
+
+	/** The default template to use when creating a new flag */
+	UPROPERTY(config, EditAnywhere, Category = Templates)
+	TSoftObjectPtr<UDisplayClusterLightCardTemplate> DefaultFlagTemplate;
+	
 	/** Whether light card labels should be displayed. Handled through the light card editor */
 	UPROPERTY()
 	bool bDisplayLightCardLabels;
 	
 	/** The scale to use for light card labels */
-	UPROPERTY(config, EditAnywhere, Category = LightCardLabels)
+	UPROPERTY(config, EditAnywhere, Category = Labels)
 	float LightCardLabelScale;
 };
 

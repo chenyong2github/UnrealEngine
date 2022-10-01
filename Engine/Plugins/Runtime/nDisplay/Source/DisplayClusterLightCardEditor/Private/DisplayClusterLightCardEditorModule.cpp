@@ -77,9 +77,9 @@ void FDisplayClusterLightCardEditorModule::RegisterSettings()
 		UDisplayClusterLightCardEditorProjectSettings* Settings = GetMutableDefault<UDisplayClusterLightCardEditorProjectSettings>();
 		// Needs transactional for undo/redo support in the light card editor
 		Settings->SetFlags(RF_Transactional);
-		SettingsModule->RegisterSettings("Project", "Plugins", "nDisplayLightCardEditor",
-			LOCTEXT("nDisplayLightCardEditorName", "nDisplay Light Card Editor"),
-			LOCTEXT("nDisplayLightCardEditorDescription", "Configure settings for the nDisplay Light Card Editor."),
+		SettingsModule->RegisterSettings("Project", "Plugins", "nDisplayICVFXEditor",
+			LOCTEXT("nDisplayICVFXEditorName", "nDisplay - ICVFX Editor"),
+			LOCTEXT("nDisplayICVFXEditorDescription", "Configure settings for the nDisplay ICVFX Editor."),
 			Settings);
 	}
 }

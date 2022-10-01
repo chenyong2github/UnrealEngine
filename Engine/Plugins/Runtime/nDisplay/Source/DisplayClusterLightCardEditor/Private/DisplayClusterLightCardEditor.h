@@ -88,12 +88,12 @@ public:
 	void CenterActorInView(AActor* Actor);
 
 	/** Spawns a new actor and adds it to the root actor if it is a light card */
-	AActor* SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName = NAME_None);
+	AActor* SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName = NAME_None, const UDisplayClusterLightCardTemplate* InTemplate = nullptr);
 
 	template<typename T>
-	T* SpawnActorAs(const FName& InActorName = NAME_None)
+	T* SpawnActorAs(const FName& InActorName = NAME_None, const UDisplayClusterLightCardTemplate* InTemplate = nullptr)
 	{
-		return Cast<T>(SpawnActor(T::StaticClass(), InActorName));
+		return Cast<T>(SpawnActor(T::StaticClass(), InActorName, InTemplate));
 	}
 	
 	/** Spawns a new light card from a light card template */
@@ -270,6 +270,9 @@ private:
 	 * @return True if our object, false if not
 	 */
 	bool IsOurObject(UObject* InObject, EDisplayClusterLightCardEditorProxyType& OutProxyType) const;
+
+	/** Configure a light card actor for UV if possible */
+	void TryConfigureLightCardForUV(ADisplayClusterLightCardActor* InLightCard);
 	
 	/** Bind delegates to when a BP compiles */
 	void BindCompileDelegates();

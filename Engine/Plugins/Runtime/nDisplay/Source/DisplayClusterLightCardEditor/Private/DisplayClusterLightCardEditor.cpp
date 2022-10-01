@@ -189,8 +189,15 @@ void FDisplayClusterLightCardEditor::CenterActorInView(AActor* Actor)
 	}
 }
 
-AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName)
+AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName, const UDisplayClusterLightCardTemplate* InTemplate)
 {
+	if (InTemplate)
+	{
+		// For now only light card templates are supported
+		check(InActorClass && InActorClass->IsChildOf(ADisplayClusterLightCardActor::StaticClass()));
+		return SpawnLightCardFromTemplate(InTemplate);
+	}
+	
 	if (!ActiveRootActor.IsValid())
 	{
 		return nullptr;
@@ -219,16 +226,7 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 
 	if (ADisplayClusterLightCardActor* NewLightCard = Cast<ADisplayClusterLightCardActor>(NewActor))
 	{
-		if (ViewportView.IsValid())
-		{
-			const EDisplayClusterMeshProjectionType ProjectionMode = ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode();
-			if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
-			{
-				NewLightCard->bIsUVLightCard = true;
-				NewLightCard->Scale /= 4;
-				NewLightCard->Feathering = 0.05; // Just enough to avoid jagged look on UV lightcards.
-			}
-		}
+		TryConfigureLightCardForUV(NewLightCard);
 		const TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
 		AddLightCardsToActor(LightCards);
 	}
@@ -267,6 +265,8 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditor::SpawnLightCardFro
 	// and prevent the map from saving.
 	ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(InTemplate->LightCardActor.Get(), Level, UniqueName));
 	Level->AddLoadedActor(NewLightCard);
+
+	TryConfigureLightCardForUV(NewLightCard);
 	
 	if (!bIsPreview)
 	{
@@ -292,11 +292,17 @@ void FDisplayClusterLightCardEditor::AddNewLightCard()
 
 	FScopedTransaction Transaction(LOCTEXT("AddNewLightCardTransactionMessage", "Add New Light Card"));
 
-	// When adding a new lightcard, usually the desired location is in the middle of the viewport
-	if (ADisplayClusterLightCardActor* NewLightCard = SpawnActorAs<ADisplayClusterLightCardActor>(TEXT("LightCard")))
+	const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
+	const UDisplayClusterLightCardTemplate* Template = Settings->DefaultLightCardTemplate.LoadSynchronous();
+	
+	if (ADisplayClusterLightCardActor* NewLightCard = SpawnActorAs<ADisplayClusterLightCardActor>(TEXT("LightCard"), Template))
 	{
-		CenterActorInView(NewLightCard);
-
+		if (!Template)
+		{
+			// When adding a new lightcard, usually the desired location is in the middle of the viewport
+			CenterActorInView(NewLightCard);
+		}
+		
 		FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
 		RecentlyPlacedItem.ObjectPath = NewLightCard->GetClass();
 		RecentlyPlacedItem.ItemType = FDisplayClusterLightCardEditorRecentItem::Type_LightCard;
@@ -420,13 +426,19 @@ void FDisplayClusterLightCardEditor::AddNewFlag()
 
 	FScopedTransaction Transaction(LOCTEXT("AddNewFlagTransactionMessage", "Add New Flag"));
 
-	// When adding a new lightcard, usually the desired location is in the middle of the viewport
-	if (ADisplayClusterLightCardActor* NewLightCard = SpawnActorAs<ADisplayClusterLightCardActor>(TEXT("Flag")))
+	const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
+	const UDisplayClusterLightCardTemplate* Template = Settings->DefaultFlagTemplate.LoadSynchronous();
+	
+	if (ADisplayClusterLightCardActor* NewLightCard = SpawnActorAs<ADisplayClusterLightCardActor>(TEXT("Flag"), Template))
 	{
-		NewLightCard->Color = FLinearColor(0.f, 0.f, 0.f);
-		
-		CenterActorInView(NewLightCard);
+		if (!Template)
+		{
+			NewLightCard->Color = FLinearColor(0.f, 0.f, 0.f);
 
+			// When adding a new lightcard, usually the desired location is in the middle of the viewport
+			CenterActorInView(NewLightCard);
+		}
+		
 		FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
 		RecentlyPlacedItem.ObjectPath = NewLightCard->GetClass();
 		RecentlyPlacedItem.ItemType = FDisplayClusterLightCardEditorRecentItem::Type_Flag;
@@ -1542,6 +1554,21 @@ bool FDisplayClusterLightCardEditor::IsOurObject(UObject* InObject,
 
 	OutProxyType = ProxyType;
 	return bIsOurActor;
+}
+
+void FDisplayClusterLightCardEditor::TryConfigureLightCardForUV(ADisplayClusterLightCardActor* InLightCard)
+{
+	check(InLightCard);
+	if (ViewportView.IsValid())
+	{
+		const EDisplayClusterMeshProjectionType ProjectionMode = ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode();
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			InLightCard->bIsUVLightCard = true;
+			InLightCard->Scale /= 4;
+			InLightCard->Feathering = 0.05; // Just enough to avoid jagged look on UV lightcards.
+		}
+	}
 }
 
 void FDisplayClusterLightCardEditor::BindCompileDelegates()
