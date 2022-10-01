@@ -712,19 +712,27 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditorViewport::MakeContextMenu()
 void SDisplayClusterLightCardEditorViewport::MakePlaceActorsSubMenu(FMenuBuilder& MenuBuilder)
 {
 	FSlateIcon LightCardIcon = FSlateIconFinder::FindIconForClass(ADisplayClusterLightCardActor::StaticClass());
+	FSlateIcon FlagIcon = FSlateIconFinder::FindIcon(TEXT("ClassIcon.DisplayClusterLightCardActor.Flag"));
+	FSlateIcon UVLightCardIcon = FSlateIconFinder::FindIcon(TEXT("ClassIcon.DisplayClusterLightCardActor.UVLightCard"));
+
+	bool bIsUVMode = false;
+	if (ViewportClient.IsValid())
+	{
+		bIsUVMode = ViewportClient->GetProjectionMode() == EDisplayClusterMeshProjectionType::UV;
+	}
 
 	// Add custom UI actions here for the AddNew commands so that the newly added actors can be moved to the user's mouse position after the
 	// add operation is performed
 	MenuBuilder.AddMenuEntry(
 		FDisplayClusterLightCardEditorCommands::Get().AddNewFlag->GetLabel(),
 		FDisplayClusterLightCardEditorCommands::Get().AddNewFlag->GetDescription(),
-		LightCardIcon,
+		FlagIcon,
 		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddFlagHere)));
 
 	MenuBuilder.AddMenuEntry(
 		FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard->GetLabel(),
 		FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard->GetDescription(),
-		LightCardIcon,
+		bIsUVMode ? UVLightCardIcon : LightCardIcon,
 		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddLightCardHere)));
 
 	TSet<UClass*> StageActorClasses = UE::DisplayClusterLightCardEditorUtils::GetAllStageActorClasses();

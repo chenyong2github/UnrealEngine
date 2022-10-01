@@ -184,7 +184,7 @@ void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool
 								[
 									SNew(SImage)
 									.ColorAndOpacity(FSlateColor::UseForeground())
-									.Image(FAppStyle::Get().GetBrush("EditorPreferences.TabIcon"))
+									.Image(FDisplayClusterColorGradingStyle::Get().GetBrush("ColorGradingDrawer.DetailViewMode"))
 								]
 							]
 						]

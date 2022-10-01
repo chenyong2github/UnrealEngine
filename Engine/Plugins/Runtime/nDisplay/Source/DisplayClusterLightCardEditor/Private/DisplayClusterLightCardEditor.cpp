@@ -1085,11 +1085,19 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
 	MenuBuilder.BeginSection("PlaceActors", LOCTEXT("PlaceActorsMenuHeader", "Place Actors"));
 	{
 		FSlateIcon LightCardIcon = FSlateIconFinder::FindIconForClass(ADisplayClusterLightCardActor::StaticClass());
+		FSlateIcon FlagIcon = FSlateIconFinder::FindIcon(TEXT("ClassIcon.DisplayClusterLightCardActor.Flag"));
+		FSlateIcon UVLightCardIcon = FSlateIconFinder::FindIcon(TEXT("ClassIcon.DisplayClusterLightCardActor.UVLightCard"));
+
+		bool bIsUVMode = false;
+		if (ViewportView.IsValid())
+		{
+			bIsUVMode = ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode() == EDisplayClusterMeshProjectionType::UV;
+		}
 
 		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AddNewFlag,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), LightCardIcon);
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FlagIcon);
 		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), LightCardIcon);
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), bIsUVMode ? UVLightCardIcon : LightCardIcon);
 		
 		TSet<UClass*> StageActorClasses = UE::DisplayClusterLightCardEditorUtils::GetAllStageActorClasses();
 		for (UClass* Class : StageActorClasses)
@@ -1110,7 +1118,7 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
 		LOCTEXT("AllTemplatesTooltip", "Select a template"),
 		FNewMenuDelegate::CreateSP(this, &FDisplayClusterLightCardEditor::GenerateTemplateSubMenu),
 		false,
-		FSlateIcon(),
+		FSlateIcon(FDisplayClusterLightCardEditorStyle::Get().GetStyleSetName(), TEXT("DisplayClusterLightCardEditor.Template")),
 		true);
 	}
 	MenuBuilder.EndSection();

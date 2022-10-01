@@ -70,6 +70,15 @@ void FDisplayClusterConfiguratorStyle::Initialize()
 
 		Set("ClassIcon.DisplayClusterOriginComponent", new IMAGE_BRUSH_SVG("Icons/Components/nDisplayRootComponent", Icon16x16));
 		Set("ClassThumbnail.DisplayClusterOriginComponent", new IMAGE_BRUSH_SVG("Icons/Components/nDisplayRootComponent", Icon64x64));
+
+		Set("ClassIcon.DisplayClusterLightCardActor", new IMAGE_BRUSH_SVG("Icons/LightCard/LightCard", Icon16x16));
+		Set("ClassThumbnail.DisplayClusterLightCardActor", new IMAGE_BRUSH_SVG("Icons/LightCard/LightCard", Icon64x64));
+
+		Set("ClassIcon.DisplayClusterLightCardActor.UVLightCard", new IMAGE_BRUSH_SVG("Icons/LightCard/LightCardUV", Icon16x16));
+		Set("ClassThumbnail.DisplayClusterLightCardActor.UVLightCard", new IMAGE_BRUSH_SVG("Icons/UVLightCard/LightCardUV", Icon64x64));
+
+		Set("ClassIcon.DisplayClusterLightCardActor.Flag", new IMAGE_BRUSH_SVG("Icons/LightCard/LightCardFlag", Icon16x16));
+		Set("ClassThumbnail.DisplayClusterLightCardActor.Flag", new IMAGE_BRUSH_SVG("Icons/UVLightCard/LightCardFlag", Icon64x64));
 	}
 
 	// Config Editor Tabs

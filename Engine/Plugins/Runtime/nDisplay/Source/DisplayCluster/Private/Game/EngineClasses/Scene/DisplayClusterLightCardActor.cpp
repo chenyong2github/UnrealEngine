@@ -186,7 +186,7 @@ FName ADisplayClusterLightCardActor::GetCustomIconName() const
 {
 	if (bIsUVLightCard)
 	{
-		return TEXT("UVLightCard");
+		return TEXT("ClassIcon.DisplayClusterLightCardActor.UVLightCard");
 	}
 
 	return Super::GetCustomIconName();
