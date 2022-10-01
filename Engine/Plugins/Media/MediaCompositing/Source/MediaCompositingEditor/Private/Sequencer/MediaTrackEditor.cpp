@@ -52,6 +52,11 @@ FMediaTrackEditor::FMediaTrackEditor(TSharedRef<ISequencer> InSequencer)
 
 FMediaTrackEditor::~FMediaTrackEditor()
 {
+	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	if (SequencerPtr.IsValid())
+	{
+		SequencerPtr->OnMovieSceneDataChanged().RemoveAll(this);
+	}
 }
 
 
