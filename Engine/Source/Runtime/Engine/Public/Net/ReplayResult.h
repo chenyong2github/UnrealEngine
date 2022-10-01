@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "Net/Core/Connection/NetResult.h"
 #include "ReplayResult.generated.h"
-
-#pragma once
 
 UENUM()
 enum class EReplayResult : uint32
