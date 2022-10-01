@@ -2,7 +2,7 @@
 
 #include "CustomizableObjectNodeMorphMaterialDetails.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
-#include "../CustomizableObjectCompiler.h"
+#include "MuCOE/CustomizableObjectCompiler.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"
 

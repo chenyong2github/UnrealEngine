@@ -2,7 +2,7 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
-#include "../CustomizableObjectCompiler.h"
+#include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "Logging/MessageLog.h"

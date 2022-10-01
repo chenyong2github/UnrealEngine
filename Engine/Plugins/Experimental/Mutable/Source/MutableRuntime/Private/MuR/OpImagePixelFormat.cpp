@@ -4,7 +4,7 @@
 #include "MuR/OpImagePixelFormat.h"
 
 #include "ImageRLE.h"
-#include "BlockCompression/BlockCompression.h"
+#include "MuR/BlockCompression/BlockCompression.h"
 
 #include "MuR/MutableTrace.h"
 

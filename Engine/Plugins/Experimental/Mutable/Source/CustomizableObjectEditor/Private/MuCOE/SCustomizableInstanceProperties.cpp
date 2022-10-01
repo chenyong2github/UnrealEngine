@@ -2,7 +2,7 @@
 
 #include "MuCOE/SCustomizableInstanceProperties.h"
 
-#include "Runtime/Core/Public/UObject/PropertyPortFlags.h"
+#include "UObject/PropertyPortFlags.h"
 
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/MultilayerProjector.h"

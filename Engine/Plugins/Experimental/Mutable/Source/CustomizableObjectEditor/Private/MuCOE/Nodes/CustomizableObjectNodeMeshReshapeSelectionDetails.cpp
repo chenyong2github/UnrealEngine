@@ -3,7 +3,7 @@
 #include "CustomizableObjectNodeMeshReshapeSelectionDetails.h"
 
 #include "MuCOE/CustomizableObjectEditorModule.h"
-#include "../CustomizableObjectCompiler.h"
+#include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"
 
 #include "PropertyCustomizationHelpers.h"

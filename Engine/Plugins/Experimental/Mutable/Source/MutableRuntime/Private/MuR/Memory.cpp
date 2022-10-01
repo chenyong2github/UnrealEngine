@@ -6,7 +6,7 @@
 
 #include "MuR/MemoryPrivate.h"
 
-#include "BlockCompression/BlockCompression.h"
+#include "MuR/BlockCompression/BlockCompression.h"
 
 #include <atomic>
 #include <cstdlib>
