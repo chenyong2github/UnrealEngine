@@ -242,6 +242,19 @@ public:
 	void SetupAfterDeviceCreation();
 };
 
+struct FD3D12DefaultViews
+{
+	FD3D12ViewDescriptorHandle* NullSRV = nullptr;
+	FD3D12ViewDescriptorHandle* NullRTV = nullptr;
+	FD3D12ViewDescriptorHandle* NullUAV = nullptr;
+
+#if USE_STATIC_ROOT_SIGNATURE
+	FD3D12ConstantBufferView* NullCBV = nullptr;
+#endif
+
+	TRefCountPtr<FD3D12SamplerState> DefaultSampler;
+};
+
 class FD3D12Device final : public FD3D12SingleNodeGPUObject, public FNoncopyable, public FD3D12AdapterChild
 {
 public:
@@ -299,6 +312,8 @@ public:
 		return OfflineDescriptorManagers[static_cast<int>(InType)];
 	}
 
+	const FD3D12DefaultViews& GetDefaultViews() const { return DefaultViews; }
+
 	// Memory Allocators
 	inline FD3D12DefaultBufferAllocator& GetDefaultBufferAllocator() { return DefaultBufferAllocator; }
 	inline FD3D12FastAllocator&          GetDefaultFastAllocator  () { return DefaultFastAllocator;   }
@@ -341,6 +356,7 @@ public:
 
 private:
 	// called by SetupAfterDeviceCreation() when the device gets initialized
+	void CreateDefaultViews();
 	void UpdateMSAASettings();
 	void UpdateConstantBufferPageProperties();
 
@@ -359,17 +375,9 @@ private:
 	FD3D12GlobalOnlineSamplerHeap GlobalSamplerHeap;
 	FD3D12OnlineDescriptorManager OnlineDescriptorManager;
 
+	FD3D12DefaultViews DefaultViews;
+
 	TD3D12ObjectPool<FD3D12QueryHeap> QueryHeapPool[3];
-	static uint32 GetQueryHeapPoolIndex(D3D12_QUERY_HEAP_TYPE HeapType)
-	{
-		switch (HeapType)
-		{
-		default: checkNoEntry(); [[fallthrough]];
-		case D3D12_QUERY_HEAP_TYPE_OCCLUSION:            return 0;
-		case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:            return 1;
-		case D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP: return 2;
-		}
-	}
 	
 	FD3D12CommandContext* ImmediateCommandContext = nullptr;
 

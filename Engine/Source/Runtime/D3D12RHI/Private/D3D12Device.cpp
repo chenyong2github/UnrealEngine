@@ -11,6 +11,17 @@ static TAutoConsoleVariable<int32> CVarD3D12GPUTimeout(
 	ECVF_ReadOnly
 );
 
+static uint32 GetQueryHeapPoolIndex(D3D12_QUERY_HEAP_TYPE HeapType)
+{
+	switch (HeapType)
+	{
+	default: checkNoEntry(); [[fallthrough]];
+	case D3D12_QUERY_HEAP_TYPE_OCCLUSION:            return 0;
+	case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:            return 1;
+	case D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP: return 2;
+	}
+}
+
 FD3D12Queue::FD3D12Queue(FD3D12Device* Device, ED3D12QueueType QueueType)
 	: Device(Device)
 	, QueueType(QueueType)
@@ -362,6 +373,9 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
 
+	// Make sure we create the default views before the first command context
+	CreateDefaultViews();
+
 	// Needs to be called before creating command contexts
 	UpdateConstantBufferPageProperties();
 
@@ -381,6 +395,55 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	check(!ImmediateCommandContext);
 	ImmediateCommandContext = FD3D12DynamicRHI::GetD3DRHI()->CreateCommandContext(this, ED3D12QueueType::Direct, true);
+}
+
+void FD3D12Device::CreateDefaultViews()
+{
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
+		SRVDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		SRVDesc.Texture2D.MipLevels = 1;
+		SRVDesc.Texture2D.MostDetailedMip = 0;
+		SRVDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+		DefaultViews.NullSRV = new FD3D12ViewDescriptorHandle(this, ERHIDescriptorHeapType::Standard);
+		DefaultViews.NullSRV->CreateView(SRVDesc, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
+	}
+
+	{
+		D3D12_RENDER_TARGET_VIEW_DESC RTVDesc{};
+		RTVDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		RTVDesc.Texture2D.MipSlice = 0;
+
+		DefaultViews.NullRTV = new FD3D12ViewDescriptorHandle(this, ERHIDescriptorHeapType::RenderTarget);
+		DefaultViews.NullRTV->CreateView(RTVDesc, nullptr);
+	}
+
+	{
+		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
+		UAVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		UAVDesc.Texture2D.MipSlice = 0;
+
+		DefaultViews.NullUAV = new FD3D12ViewDescriptorHandle(this, ERHIDescriptorHeapType::Standard);
+		DefaultViews.NullUAV->CreateView(UAVDesc, nullptr, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
+	}
+
+#if USE_STATIC_ROOT_SIGNATURE
+	DefaultViews.NullCBV = new FD3D12ConstantBufferView(this);
+#endif
+
+	{
+		const FSamplerStateInitializerRHI SamplerDesc(SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp);
+		DefaultViews.DefaultSampler = CreateSampler(SamplerDesc);
+
+		// The default sampler must have ID=0
+		// FD3D12DescriptorCache::SetSamplers relies on this
+		check(DefaultViews.DefaultSampler->ID == 0);
+	}
 }
 
 void FD3D12Device::UpdateConstantBufferPageProperties()

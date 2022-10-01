@@ -57,6 +57,7 @@ FD3D12DescriptorCache::FD3D12DescriptorCache(FD3D12CommandContext& Context, FRHI
 	: FD3D12DeviceChild(Context.Device)
 	, FD3D12SingleNodeGPUObject(Node)
 	, Context(Context)
+	, DefaultViews(Context.Device->GetDefaultViews())
 	, LocalSamplerHeap(*this, Context)
 	, SubAllocatedViewHeap(*this, Context)
 	, SamplerMap(271) // Prime numbers for better hashing
@@ -85,64 +86,6 @@ void FD3D12DescriptorCache::Init(uint32 InNumLocalViewDescriptors, uint32 InNumS
 
 	OverrideViewHeap = nullptr;
 	OverrideSamplerHeap = nullptr;
-
-	// Create default views
-	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	SRVDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	SRVDesc.Texture2D.MipLevels = 1;
-	SRVDesc.Texture2D.MostDetailedMip = 0;
-	SRVDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	NullSRV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::Standard);
-	NullSRV->CreateView(SRVDesc, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
-
-	D3D12_RENDER_TARGET_VIEW_DESC RTVDesc = {};
-	RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	RTVDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	RTVDesc.Texture2D.MipSlice = 0;
-	NullRTV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::RenderTarget);
-	NullRTV->CreateView(RTVDesc, nullptr);
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
-	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	UAVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	UAVDesc.Texture2D.MipSlice = 0;
-	NullUAV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::Standard);
-	NullUAV->CreateView(UAVDesc, nullptr, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
-
-#if USE_STATIC_ROOT_SIGNATURE
-	NullCBV = new FD3D12ConstantBufferView(GetParentDevice());
-#endif
-
-	const FSamplerStateInitializerRHI SamplerDesc(
-		SF_Trilinear,
-		AM_Clamp,
-		AM_Clamp,
-		AM_Clamp,
-		0,
-		0,
-		0,
-		FLT_MAX
-		);
-
-	FSamplerStateRHIRef Sampler = Parent->CreateSampler(SamplerDesc);
-
-	DefaultSampler = static_cast<FD3D12SamplerState*>(Sampler.GetReference());
-
-	// The default sampler must have ID=0
-	// DescriptorCache::SetSamplers relies on this
-	check(DefaultSampler->ID == 0);
-}
-
-void FD3D12DescriptorCache::Clear()
-{
-	delete NullSRV; NullSRV = nullptr;
-	delete NullUAV; NullUAV = nullptr;
-	delete NullRTV; NullRTV = nullptr;
-#if USE_STATIC_ROOT_SIGNATURE
-	delete NullCBV; NullCBV = nullptr;
-#endif
 }
 
 bool FD3D12DescriptorCache::SetDescriptorHeaps()
@@ -279,7 +222,7 @@ void FD3D12DescriptorCache::SetUAVs(const FD3D12RootSignature* RootSignature, FD
 	{
 		if ((SlotIndex < UAVStartSlot) || (UAVs[SlotIndex] == nullptr))
 		{
-			SrcDescriptors[SlotIndex] = NullUAV->GetOfflineCpuHandle();
+			SrcDescriptors[SlotIndex] = DefaultViews.NullUAV->GetOfflineCpuHandle();
 		}
 		else
 		{
@@ -360,7 +303,7 @@ void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTarg
 		}
 		else
 		{
-			RTVDescriptors[i] = NullRTV->GetOfflineCpuHandle();
+			RTVDescriptors[i] = DefaultViews.NullRTV->GetOfflineCpuHandle();
 		}
 	}
 
@@ -449,7 +392,7 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 			}
 			else
 			{
-				SrcDescriptors[SlotIndex] = DefaultSampler->OfflineHandle;
+				SrcDescriptors[SlotIndex] = DefaultViews.DefaultSampler->OfflineHandle;
 			}
 		}
 		FD3D12SamplerStateCache::CleanSlots(CurrentDirtySlotMask, SlotsNeeded);
@@ -535,7 +478,7 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 		}
 		else
 		{
-			SrcDescriptors[SlotIndex] = NullSRV->GetOfflineCpuHandle();
+			SrcDescriptors[SlotIndex] = DefaultViews.NullSRV->GetOfflineCpuHandle();
 		}
 		check(SrcDescriptors[SlotIndex].ptr != 0);
 	}
@@ -614,7 +557,7 @@ void FD3D12DescriptorCache::SetConstantBuffers(const FD3D12RootSignature* RootSi
 		}
 		else
 		{
-			Device->CopyDescriptorsSimple(1, DestDescriptor, NullCBV->GetOfflineCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			Device->CopyDescriptorsSimple(1, DestDescriptor, DefaultViews.NullCBV->GetOfflineCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
 		DestDescriptorSlot++;

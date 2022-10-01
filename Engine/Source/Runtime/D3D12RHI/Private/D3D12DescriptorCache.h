@@ -3,6 +3,7 @@
 #pragma once
 
 class FD3D12DynamicRHI;
+struct FD3D12DefaultViews;
 class FD3D12DescriptorCache;
 struct FD3D12VertexBufferCache;
 struct FD3D12IndexBufferCache;
@@ -359,7 +360,6 @@ public:
 	bool HeapRolledOver(ERHIDescriptorHeapType InHeapType);
 	void HeapLoopedAround(ERHIDescriptorHeapType InHeapType);
 	void Init(uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors);
-	void Clear();
 
 	bool SwitchToContextLocalViewHeap();
 	bool SwitchToContextLocalSamplerHeap();
@@ -377,18 +377,9 @@ public:
 	// Returns true if one of the heaps actually changed, false otherwise.
 	bool SetDescriptorHeaps();
 
-	// null views
-	FD3D12ViewDescriptorHandle* NullSRV = nullptr;
-	FD3D12ViewDescriptorHandle* NullRTV = nullptr;
-	FD3D12ViewDescriptorHandle* NullUAV = nullptr;
-
-#if USE_STATIC_ROOT_SIGNATURE
-	FD3D12ConstantBufferView* NullCBV = nullptr;
-#endif
-	TRefCountPtr<FD3D12SamplerState> DefaultSampler;
-
 protected:
 	FD3D12CommandContext& Context;
+	const FD3D12DefaultViews& DefaultViews;
 
 private:
 	// The previous view and sampler heaps set on the current command list.
