@@ -24,4 +24,4 @@
 #endif
 #endif
 
-#include "BlockCompression/Miro/Miro.h"
+#include "MuR/BlockCompression/Miro/Miro.h"
