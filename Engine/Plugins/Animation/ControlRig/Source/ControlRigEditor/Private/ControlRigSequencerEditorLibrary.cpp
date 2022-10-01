@@ -37,6 +37,8 @@
 #include "Sequencer/ControlRigParameterTrackEditor.h"
 #include "ControlRigSpaceChannelEditors.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
+#include "Tools/ConstraintBaker.h"
+#include "TransformConstraint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequencerEditorLibrary)
 
@@ -398,6 +400,55 @@ bool UControlRigSequencerEditorLibrary::TweenControlRig(ULevelSequence* LevelSeq
 		return true;
 	}
 	return false;
+}
+
+bool UControlRigSequencerEditorLibrary::BakeConstraint(UWorld* World, UTickableConstraint* Constraint, const TArray<FFrameNumber>& Frames, ESequenceTimeUnit TimeUnit)
+{
+	if (!World)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("BakeConstraint: Need Valid World"));
+		return false;
+	}
+	if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+	{
+		TSharedPtr<ISequencer> Sequencer = GetSequencerFromAsset();
+		if (!Sequencer || !Sequencer->GetFocusedMovieSceneSequence())
+		{
+			UE_LOG(LogControlRig, Error, TEXT("BakeConstraint: Need loaded level Sequence"));
+			return false;
+		}
+		const UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+		if (!MovieScene)
+		{
+			UE_LOG(LogControlRig, Error, TEXT("BakeConstraint: Need valid Movie Scene"));
+			return false;
+		}
+		
+		TOptional<TArray<FFrameNumber>> FramesToBake;
+		TArray<FFrameNumber> RealFramesToBake;
+		RealFramesToBake.SetNum(Frames.Num());
+
+		int32 Index = 0;
+		for (FFrameNumber Frame : Frames) 
+		{
+			if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+			{
+				Frame = FFrameRate::TransformTime(FFrameTime(Frame, 0), MovieScene->GetDisplayRate(), MovieScene->GetTickResolution()).RoundToFrame();
+			}
+			RealFramesToBake[Index++] = Frame;
+		} 
+		if (RealFramesToBake.Num() > 0)
+		{
+			FramesToBake = RealFramesToBake;
+		}
+		FConstraintBaker::Bake(World, TransformConstraint, Sequencer, FramesToBake);
+	}
+	else
+	{
+		UE_LOG(LogControlRig, Error, TEXT("BakeConstraint: Need Valid Constraint"));
+		return false;
+	}
+	return true;
 }
 
 

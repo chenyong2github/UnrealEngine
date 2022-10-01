@@ -20,6 +20,7 @@
 #include "ControlRigSequencerEditorLibrary.generated.h"
 
 class ULevelSequence;
+class UTickableConstraint;
 
 USTRUCT(BlueprintType)
 struct FControlRigSequencerBindingProxy
@@ -126,6 +127,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool BakeToControlRig(UWorld* World, ULevelSequence* LevelSequence, UClass* ControlRigClass, UAnimSeqExportOption* ExportOptions, bool bReduceKeys, float Tolerance,
 			const FMovieSceneBindingProxy& Binding);
+
+	/**
+	* Bake the constraint to keys based on the passed in frames. This will use the open sequencer to bake. See ConstraintsScriptingLibrary to get the list of available constraints
+	* @param World The active world
+	* @param Constraint The Constraint to bake. After baking it will be keyed to be inactive of the range of frames that are baked
+	* @param Frames The frames to bake, if the array is empty it will use the active time ranges of the constraint to deteremine where it should bake
+	* @param TimeUnit Unit for all frame and time values, either in display rate or tick resolution
+	* @return returns True if successful, False otherwise
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool BakeConstraint(UWorld* World, UTickableConstraint* Constraint, const TArray<FFrameNumber>& Frames, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
 
 	/**
 	* Peform a Tween operation on the current active sequencer time(must be visible).
