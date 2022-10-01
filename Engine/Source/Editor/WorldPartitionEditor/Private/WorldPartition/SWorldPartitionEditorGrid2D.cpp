@@ -360,6 +360,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						SNew(SCheckBox)
 						.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 						.IsEnabled(true)
+						.Visibility_Lambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; })
 						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetShowCellCoords(State == ECheckBoxState::Checked); }))
 					]
 					+SHorizontalBox::Slot()
@@ -369,6 +370,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.AutoWrapText(true)
 						.IsEnabled(true)
+						.Visibility_Lambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; })
 						.Text(LOCTEXT("ShowCellCoords", "Show Cell Coords"))
 					]
 					+ SHorizontalBox::Slot()
@@ -1000,7 +1002,7 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 	{
 		if (bShowActors)
 		{
-			if (ActorDesc->GetIsSpatiallyLoaded())
+			if (!WorldPartition->IsStreamingEnabled() || ActorDesc->GetIsSpatiallyLoaded())
 			{
 				ShownActorGuids.Add(ActorDesc->GetGuid());
 			}
@@ -1705,55 +1707,58 @@ int32 SWorldPartitionEditorGrid2D::PaintMinimap(const FGeometry& AllottedGeometr
 			FLinearColor::White
 		);
 
-		F2DRectBooleanSubtract ShadowAreas(MinimapBounds);
-		for (const FLoaderInterface& LoaderInterface : ShownLoaderInterfaces)
+		if (WorldPartition->IsStreamingEnabled())
 		{
-			if (LoaderInterface.IsValid())
+			F2DRectBooleanSubtract ShadowAreas(MinimapBounds);
+			for (const FLoaderInterface& LoaderInterface : ShownLoaderInterfaces)
 			{
-				const IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = LoaderInterface->GetLoaderAdapter();
-
-				if (LoaderAdapter->GetBoundingBox().IsSet())
+				if (LoaderInterface.IsValid())
 				{
-					const FBox AdapterBounds = *LoaderAdapter->GetBoundingBox();
+					const IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = LoaderInterface->GetLoaderAdapter();
 
-					FVector Origin, Extent;
-					AdapterBounds.GetCenterAndExtents(Origin, Extent);
+					if (LoaderAdapter->GetBoundingBox().IsSet())
+					{
+						const FBox AdapterBounds = *LoaderAdapter->GetBoundingBox();
 
-					const FVector2D TopLeftW = FVector2D(Origin - Extent);
-					const FVector2D BottomRightW = FVector2D(Origin + Extent);
-					const FVector2D TopRightW = FVector2D(BottomRightW.X, TopLeftW.Y);
-					const FVector2D BottomLeftW = FVector2D(TopLeftW.X, BottomRightW.Y);
+						FVector Origin, Extent;
+						AdapterBounds.GetCenterAndExtents(Origin, Extent);
 
-					const FVector2D TopLeft = WorldToScreen.TransformPoint(TopLeftW);
-					const FVector2D BottomRight = WorldToScreen.TransformPoint(BottomRightW);
-					const FVector2D TopRight = WorldToScreen.TransformPoint(TopRightW);
-					const FVector2D BottomLeft = WorldToScreen.TransformPoint(BottomLeftW);
+						const FVector2D TopLeftW = FVector2D(Origin - Extent);
+						const FVector2D BottomRightW = FVector2D(Origin + Extent);
+						const FVector2D TopRightW = FVector2D(BottomRightW.X, TopLeftW.Y);
+						const FVector2D BottomLeftW = FVector2D(TopLeftW.X, BottomRightW.Y);
 
-					const FBox2D ActorViewBox(TopLeft, BottomRight);
+						const FVector2D TopLeft = WorldToScreen.TransformPoint(TopLeftW);
+						const FVector2D BottomRight = WorldToScreen.TransformPoint(BottomRightW);
+						const FVector2D TopRight = WorldToScreen.TransformPoint(TopRightW);
+						const FVector2D BottomLeft = WorldToScreen.TransformPoint(BottomLeftW);
 
-					ShadowAreas.SubRect(ActorViewBox);
+						const FBox2D ActorViewBox(TopLeft, BottomRight);
+
+						ShadowAreas.SubRect(ActorViewBox);
+					}
 				}
 			}
-		}
 
-		for (const FBox2D& ShadowArea : ShadowAreas.GetRects())
-		{
-			const FPaintGeometry ShadowAreaGeometry = AllottedGeometry.ToPaintGeometry(
-				ShadowArea.Min,
-				ShadowArea.Max - ShadowArea.Min
-			);
+			for (const FBox2D& ShadowArea : ShadowAreas.GetRects())
+			{
+				const FPaintGeometry ShadowAreaGeometry = AllottedGeometry.ToPaintGeometry(
+					ShadowArea.Min,
+					ShadowArea.Max - ShadowArea.Min
+				);
 
-			const FSlateColorBrush ShadowdBrush(FLinearColor::Gray);
-			const FLinearColor ShadowColor(0, 0, 0, 0.75f);
+				const FSlateColorBrush ShadowdBrush(FLinearColor::Gray);
+				const FLinearColor ShadowColor(0, 0, 0, 0.75f);
 
-			FSlateDrawElement::MakeBox(
-				OutDrawElements,
-				++LayerId,
-				ShadowAreaGeometry,
-				&ShadowdBrush,
-				ESlateDrawEffect::None,
-				ShadowColor
-			);
+				FSlateDrawElement::MakeBox(
+					OutDrawElements,
+					++LayerId,
+					ShadowAreaGeometry,
+					&ShadowdBrush,
+					ESlateDrawEffect::None,
+					ShadowColor
+				);
+			}
 		}
 
 		// Minimap outline
@@ -1909,7 +1914,7 @@ FReply SWorldPartitionEditorGrid2D::FocusSelection()
 
 		if (!SelectionBox.IsValid)
 		{
-			SelectionBox = WorldPartition->GetEditorWorldBounds();
+			SelectionBox = WorldPartition->GetRuntimeWorldBounds();
 		}
 	}
 
@@ -2000,22 +2005,25 @@ void SWorldPartitionEditorGrid2D::UpdateTransform() const
 
 void SWorldPartitionEditorGrid2D::UpdateSelectionBox(bool bSnap)
 {
-	const FBox2D SelectBox2D(FVector2D::Min(SelectionStart, SelectionEnd), FVector2D::Max(SelectionStart, SelectionEnd));
-
-	if (SelectBox2D.GetArea() > 0.0f)
+	if (WorldPartition->IsStreamingEnabled())
 	{
-		const float MinX = SelectBox2D.Min.X;
-		const float MinY = SelectBox2D.Min.Y;
-		const float MaxX = SelectBox2D.Max.X;
-		const float MaxY = SelectBox2D.Max.Y;
-		SelectBox = FBox(FVector(MinX, MinY, -HALF_WORLD_MAX), FVector(MaxX, MaxY, HALF_WORLD_MAX));
+		const FBox2D SelectBox2D(FVector2D::Min(SelectionStart, SelectionEnd), FVector2D::Max(SelectionStart, SelectionEnd));
 
-		const int32 SelectionSnap = bSnap ? GetSelectionSnap() : 1;
-		const float SnapMinX = FMath::GridSnap(MinX - SelectionSnap / 2, SelectionSnap);
-		const float SnapMinY = FMath::GridSnap(MinY - SelectionSnap / 2, SelectionSnap);
-		const float SnapMaxX = FMath::GridSnap(MaxX + SelectionSnap / 2, SelectionSnap);
-		const float SnapMaxY = FMath::GridSnap(MaxY + SelectionSnap / 2, SelectionSnap);
-		SelectBoxGridSnapped = FBox(FVector(SnapMinX, SnapMinY, -HALF_WORLD_MAX), FVector(SnapMaxX, SnapMaxY, HALF_WORLD_MAX));
+		if (SelectBox2D.GetArea() > 0.0f)
+		{
+			const float MinX = SelectBox2D.Min.X;
+			const float MinY = SelectBox2D.Min.Y;
+			const float MaxX = SelectBox2D.Max.X;
+			const float MaxY = SelectBox2D.Max.Y;
+			SelectBox = FBox(FVector(MinX, MinY, -HALF_WORLD_MAX), FVector(MaxX, MaxY, HALF_WORLD_MAX));
+
+			const int32 SelectionSnap = bSnap ? GetSelectionSnap() : 1;
+			const float SnapMinX = FMath::GridSnap(MinX - SelectionSnap / 2, SelectionSnap);
+			const float SnapMinY = FMath::GridSnap(MinY - SelectionSnap / 2, SelectionSnap);
+			const float SnapMaxX = FMath::GridSnap(MaxX + SelectionSnap / 2, SelectionSnap);
+			const float SnapMaxY = FMath::GridSnap(MaxY + SelectionSnap / 2, SelectionSnap);
+			SelectBoxGridSnapped = FBox(FVector(SnapMinX, SnapMinY, -HALF_WORLD_MAX), FVector(SnapMaxX, SnapMaxY, HALF_WORLD_MAX));
+		}
 	}
 }
 

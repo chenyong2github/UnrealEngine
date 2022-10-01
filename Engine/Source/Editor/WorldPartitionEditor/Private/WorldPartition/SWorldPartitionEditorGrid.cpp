@@ -20,10 +20,7 @@ void SWorldPartitionEditorGrid::Construct(const FArguments& InArgs)
 
 	if (IsDisabled())
 	{
-		const FText Message = !World ? LOCTEXT("WorldPartitionNoWorldForEditorGrid", "No World") :
-									  World->GetWorldPartition() ? 
-									 	LOCTEXT("WorldPartitionHasStreamingDisabled", "World Partition streaming is not enabled for this map") : 
-										LOCTEXT("WorldPartitionMustBeEnabled", "World Partition is not enabled for this map");
+		const FText Message = LOCTEXT("WorldPartitionIsDisabled", "World Partition is disabled for this map");
 
 		ChildSlot
 		.VAlign(VAlign_Center)
@@ -111,7 +108,7 @@ void SWorldPartitionEditorGrid::Refresh()
 
 bool SWorldPartitionEditorGrid::IsDisabled() const
 {
-	return !WorldPartition || !WorldPartition->IsStreamingEnabled();
+	return !WorldPartition;
 }
 
 #undef LOCTEXT_NAMESPACE

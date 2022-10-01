@@ -1626,13 +1626,13 @@ void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 FBox UWorldPartition::GetEditorWorldBounds() const
 {
 	check(EditorHash);
-	return EditorHash->GetEditorWorldBounds();
+	return IsStreamingEnabled() ? EditorHash->GetEditorWorldBounds() : EditorHash->GetNonSpatialBounds();
 }
 
 FBox UWorldPartition::GetRuntimeWorldBounds() const
 {
 	check(EditorHash);
-	return EditorHash->GetRuntimeWorldBounds();
+	return IsStreamingEnabled() ? EditorHash->GetRuntimeWorldBounds() : EditorHash->GetNonSpatialBounds();
 }
 #endif
 

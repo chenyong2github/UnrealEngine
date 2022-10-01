@@ -192,6 +192,7 @@ public:
 	virtual FName GetWorldPartitionEditorName() const override;
 	virtual FBox GetEditorWorldBounds() const override;
 	virtual FBox GetRuntimeWorldBounds() const override;
+	virtual FBox GetNonSpatialBounds() const override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;
@@ -219,6 +220,7 @@ private:
 	
 	FBox EditorBounds;
 	FBox RuntimeBounds;
+	FBox NonSpatialBounds;
 	bool bBoundsDirty;
 
 #if DO_CHECK

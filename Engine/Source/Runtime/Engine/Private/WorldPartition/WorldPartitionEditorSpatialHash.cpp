@@ -17,8 +17,11 @@ TAutoConsoleVariable<bool> CVarEnableSpatialHashValidation(TEXT("wp.Editor.Enabl
 
 UWorldPartitionEditorSpatialHash::UWorldPartitionEditorSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	, CellSize(12800)
+	, EditorBounds(ForceInit)
+	, RuntimeBounds(ForceInit)
+	, NonSpatialBounds(ForceInit)
 	, bBoundsDirty(false)
 #endif
 {}
@@ -50,25 +53,36 @@ FBox UWorldPartitionEditorSpatialHash::GetRuntimeWorldBounds() const
 	return RuntimeBounds;
 }
 
+FBox UWorldPartitionEditorSpatialHash::GetNonSpatialBounds() const
+{
+	return NonSpatialBounds;
+}
+
 void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 {
 	if (bBoundsDirty)
 	{
 		FBox NewEditorBounds(ForceInit);
-		FBox NewRuntimeBounds(ForceInit);
 
+		RuntimeBounds.Init();
 		for (FCell* Cell: Cells)
 		{
 			NewEditorBounds += Cell->Bounds;
 
 			for (const FWorldPartitionHandle& Actor : Cell->Actors)
 			{
-				NewRuntimeBounds += Actor->GetBounds();
+				RuntimeBounds += Actor->GetBounds();
 			}
 		}
 
+		NonSpatialBounds.Init();
+		for (const FWorldPartitionHandle& Actor : AlwaysLoadedCell->Actors)
+		{
+			NonSpatialBounds += Actor->GetBounds();
+		}
+
 		const int32 OldLevel = GetLevelForBox(EditorBounds);
-		check(OldLevel == HashLevels.Num() - 1);
+		check(!EditorBounds.IsValid || OldLevel == HashLevels.Num() - 1);
 
 		const int32 NewLevel = GetLevelForBox(NewEditorBounds);
 		check(NewLevel <= OldLevel);		
@@ -79,8 +93,7 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 		}
 
 		EditorBounds = NewEditorBounds;
-		RuntimeBounds = NewRuntimeBounds;
-
+		
 		bBoundsDirty = false;
 	}
 
@@ -126,6 +139,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 	if (!bConsiderActorSpatiallyLoaded)
 	{
 		AlwaysLoadedCell->Actors.Add(InActorHandle);
+		NonSpatialBounds += InActorHandle->GetBounds();
 	}
 	else
 	{
@@ -278,11 +292,11 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 						CurrentCellCoord = ParentCellCoord;
 					}
 				}
-
-				bBoundsDirty = true;
 			}
 		});
 	}
+
+	bBoundsDirty = true;
 }
 
 int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, const FForEachIntersectingActorParams& Params)
