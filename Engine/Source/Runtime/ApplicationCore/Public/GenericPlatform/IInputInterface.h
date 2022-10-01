@@ -46,6 +46,8 @@ struct FHapticFeedbackBuffer
 	bool bFinishedPlaying;
 	int SamplingRate;
 	float ScaleFactor;
+	bool bUseStereo;
+	uint32 CurrentSampleIndex[2];
 
 	FHapticFeedbackBuffer()
 		: CurrentPtr(0)
@@ -53,6 +55,8 @@ struct FHapticFeedbackBuffer
 		, SamplesSent(0)
 		, bFinishedPlaying(false)
 		, SamplingRate(0)
+		, bUseStereo(false)
+		, CurrentSampleIndex{}
 	{
 	}
 
