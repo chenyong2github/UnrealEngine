@@ -84,6 +84,7 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::SceneBuffer"));
 		RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), EBufferUsageFlags::AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
+		State = ERayTracingSceneState::Writable;
 	}
 
 	LayerSRVs.SetNum(NumLayers);
@@ -340,6 +341,30 @@ void FRayTracingScene::ResetAndReleaseResources()
 	UsedCoarseMeshStreamingHandles.Empty();
 	RayTracingSceneBuffer = nullptr;
 	RayTracingSceneRHI = nullptr;
+	State = ERayTracingSceneState::Writable;
+}
+
+void FRayTracingScene::Transition(FRDGBuilder& GraphBuilder, ERayTracingSceneState InState)
+{
+	if (State == InState)
+	{
+		return;
+	}
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingTransition"), ERDGPassFlags::None, 
+		[this, InState](FRHIComputeCommandList& RHICmdList)
+	{
+		if (InState == ERayTracingSceneState::Writable)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(RayTracingSceneBuffer, ERHIAccess::BVHRead | ERHIAccess::SRVMask, ERHIAccess::BVHWrite));
+		}
+		else
+		{
+			RHICmdList.Transition(FRHITransitionInfo(RayTracingSceneBuffer, ERHIAccess::BVHWrite, ERHIAccess::BVHRead | ERHIAccess::SRVMask));
+		}
+	});
+
+	State = InState;
 }
 
 #endif // RHI_RAYTRACING

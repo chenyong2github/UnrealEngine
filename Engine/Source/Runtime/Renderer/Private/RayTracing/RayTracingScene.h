@@ -30,6 +30,12 @@ enum class ERayTracingSceneLayer : uint8
 	NUM
 };
 
+enum class ERayTracingSceneState
+{
+	Writable, // Scene is being built and can't be bound as SRV
+	Readable, // Scene can be used in ray tracing commands (can be bound as SRV)
+};
+
 /**
 * Persistent representation of the scene for ray tracing.
 * Manages top level acceleration structure instances, memory and build process.
@@ -57,6 +63,8 @@ public:
 
 	// Similar to Reset(), but also releases any persistent CPU and GPU memory allocations.
 	void ResetAndReleaseResources();
+
+	void Transition(FRDGBuilder& GraphBuilder, ERayTracingSceneState InState);
 
 	// Allocates temporary memory that will be valid until the next Reset().
 	// Can be used to store temporary instance transforms, user data, etc.
@@ -143,6 +151,7 @@ private:
 
 	mutable FGraphEventRef FillInstanceUploadBufferTask;
 
+	ERayTracingSceneState State = ERayTracingSceneState::Writable;
 };
 
 #endif // RHI_RAYTRACING

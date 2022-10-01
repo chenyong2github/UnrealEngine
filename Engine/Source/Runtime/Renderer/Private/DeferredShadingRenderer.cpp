@@ -1772,6 +1772,9 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RayTracingScene.CreateWithInitializationData(GraphBuilder, &Scene->GPUScene, ReferenceView.ViewMatrices, MoveTemp(ReferenceView.RayTracingSceneInitData));
 
+	// Transition internal resources before building
+	RayTracingScene.Transition(GraphBuilder, ERayTracingSceneState::Writable);
+
 	const uint32 BLASScratchSize = Scene->GetRayTracingDynamicGeometryCollection()->ComputeScratchBufferSize();
 	if (BLASScratchSize > 0)
 	{
@@ -2014,14 +2017,14 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 			RayTracingDynamicGeometryUpdateEndTransition = nullptr;
 		}
 
-		FRHIRayTracingScene* RayTracingScene = ReferenceView.GetRayTracingSceneChecked();
-		RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
-
 		if (ReferenceView.LumenHardwareRayTracingHitDataBuffer)
 		{
 			RHICmdList.Transition(FRHITransitionInfo(ReferenceView.LumenHardwareRayTracingHitDataBuffer, ERHIAccess::None, ERHIAccess::SRVMask));
-		}			
+		}
 	});
+
+    // Transition to readable state, synchronizing with previous build operation
+	Scene->RayTracingScene.Transition(GraphBuilder, ERayTracingSceneState::Readable);
 }
 
 #endif // RHI_RAYTRACING

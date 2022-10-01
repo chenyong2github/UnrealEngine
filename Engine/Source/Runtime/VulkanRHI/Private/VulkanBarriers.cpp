@@ -169,6 +169,14 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 		RHIAccess = ERHIAccess::RTV;
 	}
 
+#if VULKAN_RHI_RAYTRACING
+	// BVHRead state may be combined with SRV, but we always treat this as just BVHRead by clearing the SRV mask
+	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::BVHRead))
+	{
+		RHIAccess &= ~ERHIAccess::SRVMask;
+	}
+#endif
+
 	Layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 	// The layout to use if SRV access is requested. In case of depth/stencil buffers, we don't need to worry about different states for the separate aspects, since that's handled explicitly elsewhere,
