@@ -15,7 +15,7 @@ namespace Chaos
 	{
 		None,			/** Particle does not move and no data is changed */
 		Reset,			/** Particle does not move, velocity and angular velocity are zeroed, then mode is set to "None". */
-		Position,		/** Particle is moved to Kinematic Target transform, velocity and angular velocity updated to reflect the change, then mode is set to "Zero". */
+		Position,		/** Particle is moved to Kinematic Target transform, velocity and angular velocity updated to reflect the change, then mode is set to "Reset". */
 		Velocity,		/** Particle is moved based on velocity and angular velocity, mode remains as "Velocity" until changed. */
 	};
 
@@ -26,6 +26,12 @@ namespace Chaos
 	class TKinematicTarget
 	{
 	public:
+
+		static TKinematicTarget<T, d> MakePositionTarget(const TRigidTransform<T, d>& InTransform)
+		{
+			return TKinematicTarget<T, d>(InTransform);
+		}
+
 		TKinematicTarget()
 			: Position(0)
 			, Rotation(TRotation<T, d>::FromIdentity())
@@ -131,6 +137,13 @@ namespace Chaos
 		}
 
 	private:
+		explicit TKinematicTarget(const TRigidTransform<T, d>& InTransform)
+			: Position(InTransform.GetTranslation())
+			, Rotation(InTransform.GetRotation())
+			, Mode(EKinematicTargetMode::Position)
+		{
+		}
+
 		TVector<T, d> Position;
 		TRotation<T, d> Rotation;
 		EKinematicTargetMode Mode;

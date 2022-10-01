@@ -322,7 +322,12 @@ protected:
 	}
 public:
 
-	void SetKinematicTarget(const TKinematicTarget<FReal, 3>& InKinematicTarget, bool bInvalidate = true)
+	void SetKinematicTarget(const FRigidTransform3& InTargetTransform, bool bInvalidate = true)
+	{
+		SetKinematicTarget(FKinematicTarget::MakePositionTarget(InTargetTransform), bInvalidate);
+	}
+
+	void SetKinematicTarget(const FKinematicTarget& InKinematicTarget, bool bInvalidate = true)
 	{
 		Write([&InKinematicTarget, bInvalidate](auto* Ptr)
 		{

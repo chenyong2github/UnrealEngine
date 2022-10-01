@@ -139,8 +139,7 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 	// set target and current, so we don't need another "Tick" call to have it right
 	TargetTransform = CurrentTransform = KinematicTransform;
 
-	KinematicHandle->GetGameThreadAPI().SetX(KinematicTransform.GetLocation());
-	KinematicHandle->GetGameThreadAPI().SetR(KinematicTransform.GetRotation());	
+	KinematicHandle->GetGameThreadAPI().SetKinematicTarget(KinematicTransform);
 	
 	FTransform GrabbedTransform(InHandle->GetGameThreadAPI().R(), InHandle->GetGameThreadAPI().X());
 	ConstraintLocalPosition = GrabbedTransform.InverseTransformPosition(Location);
@@ -244,8 +243,7 @@ void UPhysicsHandleComponent::UpdateHandleTransform(const FTransform& NewTransfo
 	{
 		FPhysicsCommand::ExecuteWrite(KinematicHandle, [&](const FPhysicsActorHandle& InKinematicHandle)
 			{
-				KinematicHandle->GetGameThreadAPI().SetX(CurrentTransform.GetTranslation());
-				KinematicHandle->GetGameThreadAPI().SetR(CurrentTransform.GetRotation());
+				KinematicHandle->GetGameThreadAPI().SetKinematicTarget(FTransform(CurrentTransform.GetRotation(), CurrentTransform.GetTranslation()));
 			});
 
 		PreviousTransform = CurrentTransform;
