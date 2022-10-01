@@ -232,10 +232,7 @@ void SMaterialPalette::RenameAssetFromRegistry(const FAssetData& InAddedAssetDat
 
 void SMaterialPalette::RefreshAssetInRegistry(const FAssetData& InAddedAssetData)
 {
-	// Grab the asset class, it will be checked for being a material function.
-	UClass* Asset = FindObject<UClass>(InAddedAssetData.AssetClassPath);
-
-	if (Asset->IsChildOf(UMaterialFunction::StaticClass()))
+	if (InAddedAssetData.IsInstanceOf(UMaterialFunction::StaticClass()))
 	{
 		RefreshActionsList(true);
 	}
