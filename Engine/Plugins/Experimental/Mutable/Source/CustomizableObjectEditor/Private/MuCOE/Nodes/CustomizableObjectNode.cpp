@@ -15,7 +15,6 @@
 
 #include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/CustomizableObjectPin.h"
-#include "MuT/NodeScalarTablePrivate.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "Runtime/Launch/Resources/Version.h" // Include engine version macros

@@ -2,7 +2,6 @@
 
 #include "MuCOE/GraphTraversal.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuT/NodeScalarTablePrivate.h"
 #include "MuCOE/CustomizableObjectPin.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEnumParameter.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeExtendMaterial.h"

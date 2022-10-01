@@ -4,7 +4,6 @@
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOE/CustomizableObjectPin.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuT/NodeScalarTablePrivate.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

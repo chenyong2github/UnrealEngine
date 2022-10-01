@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectPin.h"
-#include "MuT/NodeScalarTablePrivate.h"
 
 bool IsPinOrphan(const UEdGraphPin &Pin)
 {
