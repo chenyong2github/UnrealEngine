@@ -1119,7 +1119,7 @@ int32 FSoundTouchFilter::DequeueSamples(FTimespan& OutTimestamp, int64& OutSeque
 	for(int32 i=0, iMax=numGot*NumChannels; i<iMax; ++i)
 	{
 		int32 S = *Flt++ * 32768.0f;
-		check(S > -33000 && S < 33000);
+//TEMP removal		check(S > -33000 && S < 33000);
 		*OutSamples++ = (int16) Min(Max(-32768, S), 32767);
 	}
 	return (int32) numGot;
