@@ -137,14 +137,6 @@ FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorVie
 	{
 		RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
 	}
-
-	if (RefreshTimerHandle.IsValid())
-	{
-		if (const UWorld* PreviewWorld = PreviewScene->GetWorld())
-		{
-			PreviewWorld->GetTimerManager().ClearTimer(RefreshTimerHandle);
-		}
-	}
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -1370,11 +1362,17 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		check(PreviewWorld);
 
 		const TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr (RootActor);
+		const TWeakPtr<FDisplayClusterLightCardEditorViewportClient> WeakPtrThis = SharedThis(this);
 		
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
-		RefreshTimerHandle = PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
-		{			
+		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
+		{
+			if (!WeakPtrThis.IsValid())
+			{
+				return;
+			}
+			
 			DestroyProxies(ProxyType);
 
 			if (!RootActorPtr.IsValid())
