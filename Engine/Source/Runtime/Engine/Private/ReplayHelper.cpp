@@ -348,6 +348,7 @@ APlayerController* FReplayHelper::CreateSpectatorController(UNetConnection* Conn
 
 	// Streaming volumes logic must not be affected by replay spectator camera
 	NewDemoController->bIsUsingStreamingVolumes = false;
+	NewDemoController->bEnableStreamingSource = false;
 
 	if (Connection->GetDriver())
 	{
