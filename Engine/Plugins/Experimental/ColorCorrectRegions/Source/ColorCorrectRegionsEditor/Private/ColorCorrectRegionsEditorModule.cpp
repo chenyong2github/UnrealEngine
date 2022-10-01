@@ -32,18 +32,17 @@ void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName
 			*AColorCorrectionRegion::StaticClass(),
 			FAssetData(AColorCorrectionRegion::StaticClass(), true),
 			FName("CCR.PlaceActorThumbnail"),
-			FName("CCR.PlaceActorIcon"),
+			FName("CCR.OutlinerThumbnail"),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(),
 			NSLOCTEXT("PlacementMode", "Color Correction Region", "Color Correction Region")
 		);
 
-
 		FPlaceableItem* CCWPlaceableItem = new FPlaceableItem(
 			*AColorCorrectionWindow::StaticClass(),
 			FAssetData(AColorCorrectionWindow::StaticClass()),
 			FName("CCW.PlaceActorThumbnail"),
-			FName("CCR.PlaceActorIcon"),
+			FName("CCW.OutlinerThumbnail"),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(), 
 			NSLOCTEXT("PlacementMode", "Color Correction Window", "Color Correction Window"));

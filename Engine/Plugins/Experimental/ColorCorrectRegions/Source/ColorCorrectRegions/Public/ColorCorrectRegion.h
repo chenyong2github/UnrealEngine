@@ -236,7 +236,7 @@ private:
  * A placeable Color Correction Regions actor that replaces previous implementation (blueprint). 
  * Color Correction Regions allow users to adjust color of anything that is within it (or outside, if Invert option is selected). 
  */
-UCLASS(Blueprintable, NotPlaceable, meta = (DisplayName = "ColorCorrectionRegion"))
+UCLASS(Blueprintable, NotPlaceable)
 class COLORCORRECTREGIONS_API AColorCorrectionRegion : public AColorCorrectRegion
 {
 	GENERATED_UCLASS_BODY()
@@ -251,6 +251,6 @@ public:
 #if WITH_EDITOR
 	/** Called when any of the properties are changed. */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
+	virtual FName GetCustomIconName() const override;
 #endif
 };

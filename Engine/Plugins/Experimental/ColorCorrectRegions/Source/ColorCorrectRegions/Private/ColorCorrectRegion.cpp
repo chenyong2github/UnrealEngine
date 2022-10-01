@@ -359,4 +359,8 @@ void AColorCorrectionRegion::PostEditChangeProperty(struct FPropertyChangedEvent
 		SetMeshVisibilityForRegionType();
 	}
 }
+FName AColorCorrectionRegion::GetCustomIconName() const
+{
+	return TEXT("CCR.OutlinerThumbnail");
+}
 #endif

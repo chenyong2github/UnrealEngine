@@ -17,11 +17,14 @@ void FColorCorrectRegionsStyle::Initialize()
 
 	CCRStyle = MakeShared<FSlateStyleSet>(FName("ColorCorrectRegionsStyle"));
 
-	FString CCR_IconPath = IPluginManager::Get().FindPlugin(TEXT("ColorCorrectRegions"))->GetBaseDir() + TEXT("/Resources/PlaceActorPreview.png");
-	FString CCW_IconPath = IPluginManager::Get().FindPlugin(TEXT("ColorCorrectRegions"))->GetBaseDir() + TEXT("/Resources/Icon40_CCW.png");
-	CCRStyle->Set("CCR.PlaceActorThumbnail", new FSlateImageBrush(CCR_IconPath, FVector2D(40.0f, 40.0f)));
-	CCRStyle->Set("CCW.PlaceActorThumbnail", new FSlateImageBrush(CCW_IconPath, FVector2D(40.0f, 40.0f)));
-	CCRStyle->Set("CCR.PlaceActorIcon", new FSlateImageBrush(CCR_IconPath, FVector2D(16.0f, 16.0f)));
+	FString CCR_IconPath = IPluginManager::Get().FindPlugin(TEXT("ColorCorrectRegions"))->GetBaseDir() + TEXT("/Resources/Template_CCR_64.svg");
+	FString CCW_IconPath = IPluginManager::Get().FindPlugin(TEXT("ColorCorrectRegions"))->GetBaseDir() + TEXT("/Resources/Template_CCW_64.svg");
+
+	CCRStyle->Set("CCR.PlaceActorThumbnail", new FSlateVectorImageBrush(CCR_IconPath, FVector2D(40.0f, 40.0f)));
+	CCRStyle->Set("CCW.PlaceActorThumbnail", new FSlateVectorImageBrush(CCW_IconPath, FVector2D(40.0f, 40.0f)));
+
+	CCRStyle->Set("CCR.OutlinerThumbnail", new FSlateVectorImageBrush(CCR_IconPath, FVector2D(20.0f, 20.0f)));
+	CCRStyle->Set("CCW.OutlinerThumbnail", new FSlateVectorImageBrush(CCW_IconPath, FVector2D(20.0f, 20.0f)));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*CCRStyle.Get());
 }

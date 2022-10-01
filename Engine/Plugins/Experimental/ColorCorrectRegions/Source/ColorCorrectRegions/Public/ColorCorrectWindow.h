@@ -29,7 +29,7 @@ enum class EColorCorrectWindowType : uint8
  * A Color Correction Window that functions the same way as Color Correction Regions except it modifies anything that is behind it.
  * Color Correction Windows do not have Priority property and instead are sorted based on the distance from the camera.
  */
-UCLASS(Blueprintable, notplaceable, meta = (DisplayName = "ColorCorrectionWindow"))
+UCLASS(Blueprintable, notplaceable)
 class COLORCORRECTREGIONS_API AColorCorrectionWindow : public AColorCorrectRegion, public IDisplayClusterStageActor
 {
 	GENERATED_UCLASS_BODY()
@@ -46,6 +46,7 @@ public:
 	/** Called when any of the properties are changed. */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
+	virtual FName GetCustomIconName() const override;
 #endif
 
 private:

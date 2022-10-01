@@ -90,6 +90,12 @@ void AColorCorrectionWindow::PostEditMove(bool bFinished)
 	UpdatePositionalParamsFromTransform();
 	bNotifyOnParamSetter = true;
 }
+
+FName AColorCorrectionWindow::GetCustomIconName() const
+{
+	return TEXT("CCW.OutlinerThumbnail");
+}
+
 #endif //WITH_EDITOR
 
 
