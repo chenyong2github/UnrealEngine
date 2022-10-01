@@ -95,5 +95,11 @@ public class CustomizableObjectEditor : ModuleRules
 				"CustomizableObject",
 				}
 			);
+
+		PrivateIncludePaths.AddRange(new string[] {
+				"CustomizableObject/Private",
+				"MutableRuntime/Private",
+				"MutableTools/Private",
+			});
 	}
 }

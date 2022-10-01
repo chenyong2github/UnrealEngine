@@ -35,8 +35,9 @@ public class CustomizableObjectPopulation : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
         new string[] {
-                "TargetPlatform"
-        });
+				"CustomizableObjectEditor",
+				"TargetPlatform"
+		});
 
         if (TargetRules.bBuildEditor == true)
         {
