@@ -116,7 +116,7 @@ public:
 	void ModifyShaderCompilerInput(FShaderCompilerInput& Input) const final
 	{
 		CheckFormat(Input.ShaderFormat);
-		if (Input.ShaderFormat == NAME_PCD3D_SM6)
+		if (Input.ShaderFormat == NAME_PCD3D_SM6 || Input.IsRayTracingShader())
 		{
 			Input.Environment.SetDefine(TEXT("SM6_PROFILE"), 1);
 			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 1);
@@ -135,14 +135,13 @@ public:
 		{
 			Input.Environment.SetDefine(TEXT("SM5_PROFILE"), 1);
 			const bool bUseDXC =
-				Input.IsRayTracingShader()
-				|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
+				Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
 				|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), bUseDXC);
 
 			if (bUseDXC)
 			{
-				AddShaderTargetDefines(Input, 6, Input.IsRayTracingShader() ? 5 : 0);
+				AddShaderTargetDefines(Input, 6, 0);
 			}
 			else
 			{

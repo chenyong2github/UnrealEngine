@@ -85,7 +85,7 @@ static void D3D11FilterShaderCompileWarnings(const FString& CompileWarnings, TAr
 static const TCHAR* GetShaderProfileName(ELanguage Language, uint32 Frequency, bool bForceSM6)
 {
 
-	if (Language == ELanguage::SM6)
+	if (Language == ELanguage::SM6 || IsRayTracingShaderFrequency(EShaderFrequency(Frequency)))
 	{
 		switch (Frequency)
 		{
@@ -131,6 +131,7 @@ static const TCHAR* GetShaderProfileName(ELanguage Language, uint32 Frequency, b
 		case SF_RayMiss:
 		case SF_RayHitGroup:
 		case SF_RayCallable:
+			checkNoEntry();
 			return TEXT("lib_6_5");
 		}
 	}

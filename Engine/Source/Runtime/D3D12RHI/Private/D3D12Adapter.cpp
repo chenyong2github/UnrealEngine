@@ -969,11 +969,12 @@ void FD3D12Adapter::InitializeDevices()
 					&& !FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
 				{
 					if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1
+						&& GRHISupportsBindless
 						&& RootDevice7)
 					{
 						if (bRayTracingAllowedOnCurrentShaderPlatform)
 						{
-							UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing tier 1.1 is supported."));
+							UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing tier 1.1 and bindless resources are supported."));
 
 							GRHISupportsRayTracing = RHISupportsRayTracing(GMaxRHIShaderPlatform);
 							GRHISupportsRayTracingShaders = GRHISupportsRayTracing && RHISupportsRayTracingShaders(GMaxRHIShaderPlatform);
@@ -985,6 +986,10 @@ void FD3D12Adapter::InitializeDevices()
 						{
  							UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because SM6 shader platform is required (r.RayTracing.RequireSM6=1)."));
 						}
+					}
+					else if (!GRHISupportsBindless)
+					{
+						UE_LOG(LogD3D12RHI, Log, TEXT("Ray tracing is disabled because bindless resources are not supported (Shader Model 6.6 and Resource Binding Tier 3 are required)."));
 					}
 					else
 					{
