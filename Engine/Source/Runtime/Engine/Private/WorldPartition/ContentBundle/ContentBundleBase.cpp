@@ -78,7 +78,7 @@ const UContentBundleDescriptor* FContentBundleBase::GetDescriptor() const
 
 FString FContentBundleBase::GetExternalStreamingObjectPackageName() const
 {
-	return SlugStringForValidName(ContentBundlePaths::GetCookedContentBundleLevelFolder(*this) + ContentBundlePaths::GetGeneratedFolder() + TEXT("StreamingObject"));
+	return ContentBundlePaths::GetCookedContentBundleLevelFolder(*this) + ContentBundlePaths::GetGeneratedFolderName() + TEXT("/StreamingObject");
 }
 
 FString FContentBundleBase::GetExternalStreamingObjectName() const
