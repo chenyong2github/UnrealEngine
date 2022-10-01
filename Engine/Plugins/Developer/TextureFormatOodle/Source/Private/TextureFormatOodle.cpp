@@ -824,8 +824,7 @@ public:
 		{
 			TEXT("2.9.5"),
 			TEXT("2.9.6"),
-			TEXT("2.9.7"),
-			TEXT("2.9.8")
+			TEXT("2.9.7")
 		};
 		const int32 OodleTextureVersionsCount = (int32)( sizeof(OodleTextureVersions)/sizeof(OodleTextureVersions[0]) );
 
@@ -869,7 +868,7 @@ public:
 	}
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
-	#define DDC_OODLE_TEXTURE_VERSION 15
+	#define DDC_OODLE_TEXTURE_VERSION 14
 
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* InBuildSettings) const override
 	{

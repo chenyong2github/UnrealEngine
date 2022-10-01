@@ -9,7 +9,7 @@ using UnrealBuildTool;
 //{
 	public class OodleDataCompression : ModuleRules
 	{
-		protected virtual string OodleVersion { get { return "2.9.8"; } }
+		protected virtual string OodleVersion { get { return "2.9.7"; } }
 
 		// Platform Extensions need to override these
 		protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
@@ -74,7 +74,6 @@ using UnrealBuildTool;
 			}
 			else if (Target.Platform == UnrealTargetPlatform.IOS)
 			{
-				// NOTE: Simulator builds should use .sim.a files but we're not building sim as of this writing
 				ReleaseLib = "liboo2coreios.a";
 				DebugLib = "liboo2coreios_dbg.a";
 			}
