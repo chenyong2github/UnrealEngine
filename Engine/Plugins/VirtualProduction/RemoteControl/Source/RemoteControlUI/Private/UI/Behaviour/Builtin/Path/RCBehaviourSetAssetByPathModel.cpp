@@ -16,6 +16,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FRCSetAssetByPathBehaviourModel"
@@ -140,7 +141,15 @@ TSharedRef<SWidget> FRCSetAssetByPathBehaviourModel::GetPropertyWidget()
 		.Padding(FMargin(3.f, 3.f))
 		.AutoHeight()
 		[
-			PathArrayWidget->AsShared()
+			SNew(SBox)
+			.MaxDesiredHeight(150.f)
+			[
+				SNew(SScrollBox)
+				+ SScrollBox::Slot()
+				[
+					PathArrayWidget->AsShared()
+				]
+			]
 		];
 
 	FieldWidget->AddSlot()

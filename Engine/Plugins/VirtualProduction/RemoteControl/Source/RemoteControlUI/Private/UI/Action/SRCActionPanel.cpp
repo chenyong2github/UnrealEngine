@@ -183,7 +183,9 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 			.EnableHeader(false)
 			.ChildOrientation(Orient_Vertical);
 
-		ActionsPanel->AddPanel(BehaviourDetailsPanel.ToSharedRef(), 0.5f);
+		// Panel size of zero forces use of "SizeToContent" ensuring that each Behaviour only takes up as much space as necessary
+		ActionsPanel->AddPanel(BehaviourDetailsPanel.ToSharedRef(), 0.f);
+
 		ActionsPanel->AddPanel(ActionDockPanel.ToSharedRef(), 0.5f);
 
 		WrappedBoxWidget->SetContent(ActionsPanel);
