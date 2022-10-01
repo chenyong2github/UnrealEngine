@@ -456,6 +456,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Append the object path to the given string builder. */
 	void AppendObjectPath(FStringBuilderBase& Builder) const
 	{
+		if (!IsValid())
+		{
+			return;
+		}
+
 #if WITH_EDITORONLY_DATA
 		if (!OptionalOuterPath.IsNone())
 		{

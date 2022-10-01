@@ -972,3 +972,19 @@ FArchive& operator<<(FArchive& Ar, UE::AssetRegistry::FPackageCustomVersionsHand
 
 }
 }
+
+#if WITH_DEV_AUTOMATION_TESTS 
+
+#include "Misc/AutomationTest.h"
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetDataTests, "System.CoreUObject.AssetData", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAssetDataTests::RunTest(const FString& Parameters)
+{
+	FAssetData EmptyAssetData;
+
+	TestEqual(TEXT("Empty Asset Data: Object path string is empty"), EmptyAssetData.GetObjectPathString(), FString());
+
+	return true;
+}
+
+
+#endif // WITH_DEV_AUTOMATION_TESTS
