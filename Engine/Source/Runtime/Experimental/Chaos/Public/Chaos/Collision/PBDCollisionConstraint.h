@@ -367,6 +367,9 @@ namespace Chaos
 			SetDisabled(false);
 		}
 
+		// When a particle is moved under user control, we need to update some cached state to prevent friction from undoing the move
+		void UpdateParticleTransform(FGeometryParticleHandle* InParticle);
+
 		// @todo(chaos): half of this API is wrong for the new multi-point manifold constraints. Remove it
 
 		void ResetPhi(FReal InPhi) { ClosestManifoldPointIndex = INDEX_NONE; }

@@ -410,6 +410,13 @@ namespace Chaos
 		ContainerCookie.MidPhase->SetIsSleeping(bInIsSleeping, ConcreteContainer()->GetConstraintAllocator().GetCurrentEpoch());
 	}
 
+	void FPBDCollisionConstraint::UpdateParticleTransform(FGeometryParticleHandle* InParticle)
+	{
+		// We need to update the friction anchors based on how much the user moved the particle, but
+		// it's easier to just reset the friction state altogether, and possibly the expected behaviour anyway
+		ResetManifold();
+	}
+
 	FVec3 FPBDCollisionConstraint::CalculateWorldContactLocation() const
 	{
 		if (ClosestManifoldPointIndex != INDEX_NONE)

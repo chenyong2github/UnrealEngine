@@ -1392,6 +1392,17 @@ public:
 	FGeometryParticleHandle* Handle() { return MHandle; }
 	int32 GetHandleIdx() const { return MHandle->GetHandleIdx(); }
 
+	void SetTransform(const FVec3& Pos, const FRotation3& Rot)
+	{
+		MHandle->X() = Pos;
+		MHandle->R() = Rot;
+		if (FPBDRigidParticleHandle* Dynamic = CastToRigidParticle())
+		{
+			Dynamic->P() = Pos;
+			Dynamic->Q() = Rot;
+		}
+	}
+
 	// Static Particles
 	FVec3& X() { return MHandle->X(); }
 	const FVec3& X() const { return MHandle->X(); }

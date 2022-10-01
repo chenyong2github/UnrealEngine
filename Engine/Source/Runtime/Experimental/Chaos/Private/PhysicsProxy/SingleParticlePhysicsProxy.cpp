@@ -61,7 +61,8 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 		if(NewXR)
 		{
-			Handle->SetXR(*NewXR);
+			// @todo(chaos): we need to know if this is a teleport or not and pass that on
+			Evolution.SetParticleTransform(Handle, NewXR->X(), NewXR->R());
 		}
 
 		if(NewNonFrequentData)
