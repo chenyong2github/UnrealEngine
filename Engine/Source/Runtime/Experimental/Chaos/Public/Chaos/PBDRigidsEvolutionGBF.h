@@ -128,17 +128,17 @@ namespace Chaos
 		/**
 		 * User has moved a particle
 		 */
-		CHAOS_API void SetParticleTransform(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot)
+		CHAOS_API void SetParticleTransform(FGeometryParticleHandle* InParticle, const FVec3& InPos, const FRotation3& InRot, const bool bIsTeleport)
 		{
 			const FVec3 PrevX = InParticle->X();
 			const FRotation3 PrevR = InParticle->R();
 
 			FGenericParticleHandle(InParticle)->SetTransform(InPos, InRot);
 
-			OnParticleMoved(InParticle, PrevX, PrevR);
+			OnParticleMoved(InParticle, PrevX, PrevR, bIsTeleport);
 		}
 
-		CHAOS_API void OnParticleMoved(FGeometryParticleHandle* InParticle, const FVec3& PrevX, const FRotation3& PrevR);
+		CHAOS_API void OnParticleMoved(FGeometryParticleHandle* InParticle, const FVec3& PrevX, const FRotation3& PrevR, const bool bIsTeleport);
 
 
 		/**

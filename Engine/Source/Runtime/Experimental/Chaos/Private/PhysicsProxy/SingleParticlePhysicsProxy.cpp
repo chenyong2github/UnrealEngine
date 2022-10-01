@@ -61,8 +61,11 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 		if(NewXR)
 		{
-			// @todo(chaos): we need to know if this is a teleport or not and pass that on
-			Evolution.SetParticleTransform(Handle, NewXR->X(), NewXR->R());
+			// @todo(chaos): we need to know if this is a teleport or not and pass that on. See UE-165746
+			// For now we just set bIsTeleport to true since that's the no-impact option for SetParticleTransform
+			// (there would be issues if we report a non-teleport move for an initial-position a long way from the origin)
+			const bool bIsTeleport = true;
+			Evolution.SetParticleTransform(Handle, NewXR->X(), NewXR->R(), bIsTeleport);
 		}
 
 		if(NewNonFrequentData)
