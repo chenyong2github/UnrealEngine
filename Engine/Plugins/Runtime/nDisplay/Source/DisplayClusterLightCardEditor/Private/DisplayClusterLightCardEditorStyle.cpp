@@ -30,6 +30,9 @@ FDisplayClusterLightCardEditorStyle::FDisplayClusterLightCardEditorStyle(): FSla
 	Set("DisplayClusterLightCardEditor.ActorNotHidden", new IMAGE_BRUSH_SVG("ActorNotHidden", Icon16x16));
 
 	Set("DisplayClusterLightCardEditor.Template", new IMAGE_BRUSH_SVG("Template", Icon16x16));
+
+	Set("DisplayClusterLightCardEditor.FrustumOnTop", new IMAGE_BRUSH_SVG("FrustumOnTop", Icon16x16));
+	Set("DisplayClusterLightCardEditor.FrustumUnderneath", new IMAGE_BRUSH_SVG("FrustumUnderneath", Icon16x16));
 		
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }

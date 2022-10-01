@@ -239,6 +239,9 @@ private:
 	/** Generate the labels dropdown menu */
 	TSharedRef<SWidget> GenerateLabelsMenu();
 
+	/** Creates the frustum combo box */
+	TSharedRef<SWidget> CreateFrustumWidget();
+
 	/** Creates the editor's command list and binds commands to it */
 	void BindCommands();
 
@@ -330,6 +333,9 @@ private:
 
 	/** Selected actors */
 	TArray<TWeakObjectPtr<AActor>> SelectedActors;
+
+	/** Available frustums to choose */
+	TArray<TSharedPtr<FString>> FrustumSelections;
 
 	/** Delegate handle for the OnActiveRootActorChanged delegate */
 	FDelegateHandle ActiveRootActorChangedHandle;
