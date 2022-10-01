@@ -124,6 +124,11 @@ void UVCamPixelStreamingSession::Activate()
 		TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
 		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
 		{
+			// Apply the override resolution if applicable
+			if (bUseOverrideResolution)
+			{
+				PinnedSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
+			}
 			MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
 			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set with viewport"));
 		}
@@ -220,6 +225,16 @@ void UVCamPixelStreamingSession::Deactivate()
 	{
 		// There is not media capture we defensively clean up the signalling server if it exists.
 		StopSignallingServer();
+	}
+
+	// Remove the override resolution
+	if (bUseOverrideResolution)
+	{
+		TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
+		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
+		{
+			PinnedSceneViewport->SetFixedViewportSize(0, 0);
+		}
 	}
 
 	Super::Deactivate();
