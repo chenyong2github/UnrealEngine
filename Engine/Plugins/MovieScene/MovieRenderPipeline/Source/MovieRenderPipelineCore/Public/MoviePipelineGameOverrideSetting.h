@@ -145,4 +145,5 @@ private:
 	int32 PreviousGeoCacheStreamerBlockTillFinish;
 #endif
 	float PreviousChaosImmPhysicsMinStepTime;
+	int32 PreviousSkipRedundantTransformUpdate;
 };
