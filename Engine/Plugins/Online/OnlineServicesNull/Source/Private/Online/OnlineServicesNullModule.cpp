@@ -33,6 +33,13 @@ protected:
 
 void FOnlineServicesNullModule::StartupModule()
 {
+	// Making sure we load the module at this point will avoid errors while cooking
+	const FName OnlineServicesInterfaceModuleName = TEXT("OnlineServicesInterface");
+	if (!FModuleManager::Get().IsModuleLoaded(OnlineServicesInterfaceModuleName))
+	{
+		FModuleManager::Get().LoadModuleChecked(OnlineServicesInterfaceModuleName);
+	}
+
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Null, MakeUnique<FOnlineServicesFactoryNull>());
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Null, &FOnlineAccountIdRegistryNull::Get());
 	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Null, &FOnlineSessionIdRegistryNull::Get());

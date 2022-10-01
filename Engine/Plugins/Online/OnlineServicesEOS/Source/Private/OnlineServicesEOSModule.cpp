@@ -38,6 +38,7 @@ void FOnlineServicesEOSModule::StartupModule()
 		FModuleManager::Get().LoadModuleChecked(EOSSharedModuleName);
 	}
 
+	// Making sure we load the module at this point will avoid errors while cooking
 	const FName OnlineServicesInterfaceModuleName = TEXT("OnlineServicesInterface");
 	if (!FModuleManager::Get().IsModuleLoaded(OnlineServicesInterfaceModuleName))
 	{

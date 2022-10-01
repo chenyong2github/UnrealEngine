@@ -34,6 +34,13 @@ protected:
 
 void FOnlineServicesEOSGSModule::StartupModule()
 {
+	// Making sure we load the module at this point will avoid errors while cooking
+	const FName OnlineServicesInterfaceModuleName = TEXT("OnlineServicesInterface");
+	if (!FModuleManager::Get().IsModuleLoaded(OnlineServicesInterfaceModuleName))
+	{
+		FModuleManager::Get().LoadModuleChecked(OnlineServicesInterfaceModuleName);
+	}
+
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOSGS>());
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOSGS::Get());
 	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Epic, &FOnlineSessionIdRegistryEOSGS::Get());
