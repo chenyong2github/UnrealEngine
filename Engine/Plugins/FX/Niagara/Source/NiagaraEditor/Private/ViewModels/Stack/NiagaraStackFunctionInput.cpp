@@ -638,6 +638,16 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
         ));
 	}
 
+	if (InputValues.Mode == EValueMode::Expression && SupportsCustomExpressions() == false)
+	{
+		NewIssues.Add(FStackIssue(
+			EStackIssueSeverity::Error,
+			LOCTEXT("UnsupportedExpressionShort", "Expression Input Unsupported"),
+			LOCTEXT("UnsupportedExpressionLong", "Use of expressions for function inputs is not currently supported in the current editor context."),
+			GetStackEditorDataKey(),
+			false));
+	}
+
 	if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.IsValid())
 	{
 		FVersionedNiagaraScriptData* ScriptData = InputValues.DynamicNode->GetScriptData();
@@ -3151,6 +3161,12 @@ bool UNiagaraStackFunctionInput::OpenSourceAsset() const
 	}
 
 	return false;
+}
+
+bool UNiagaraStackFunctionInput::SupportsCustomExpressions() const
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	return NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeCustomHlsl::StaticClass());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -214,19 +214,24 @@ UEdGraphSchema_Niagara::UEdGraphSchema_Niagara(const FObjectInitializer& ObjectI
 {
 }
 
-TSharedPtr<FNiagaraSchemaAction_NewNode> AddNewNodeAction(TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> >& NewActions, const FText& Category, const FText& DisplayName, const FName& InternalName, const FText& Tooltip, FText Keywords = FText(), int32 SectionID = 0)
+TSharedPtr<FNiagaraAction_NewNode> AddNewNodeMenuAction(
+	TArray<TSharedPtr<FNiagaraAction_NewNode>>& NewActions,
+	UEdGraphNode* InNodeTemplate,
+	const FText& DisplayName,
+	ENiagaraMenuSections Section,
+	TArray<FString> NestedCategories,
+	const FText& Tooltip,
+	FText Keywords = FText(),
+	FNiagaraActionSourceData SourceData = FNiagaraActionSourceData(
+		EScriptSource::Niagara, FText::FromString(TEXT("Niagara")), true))
 {
-	TSharedPtr<FNiagaraSchemaAction_NewNode> NewAction = MakeShared<FNiagaraSchemaAction_NewNode>(Category, DisplayName, InternalName, Tooltip, 0, Keywords, SectionID);
-	NewActions.Add(NewAction);
-
-	return NewAction;
-}
-
-TSharedPtr<FNiagaraAction_NewNode> AddNewNodeMenuAction(TArray<TSharedPtr<FNiagaraAction_NewNode>>& NewActions, UEdGraphNode* InNodeTemplate, const FText& DisplayName, ENiagaraMenuSections Section, TArray<FString> NestedCategories, const FText& Tooltip, FText Keywords = FText(), FNiagaraActionSourceData
-                                            SourceData = FNiagaraActionSourceData(EScriptSource::Niagara, FText::FromString(TEXT("Niagara")), true))
-{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
 	TSharedPtr<FNiagaraAction_NewNode> NewAction = MakeShared<FNiagaraAction_NewNode>(DisplayName, Section, NestedCategories, Tooltip, Keywords);
-	NewAction->NodeTemplate = InNodeTemplate;
+	if (ensureMsgf(InNodeTemplate == nullptr || NiagaraEditorSettings->IsAllowedClass(InNodeTemplate->GetClass()),
+		TEXT("Can not create a menu action for a node of class %s."), *InNodeTemplate->GetClass()->GetName()))
+	{
+		NewAction->NodeTemplate = InNodeTemplate;
+	}
 	NewAction->SourceData = SourceData;
 	NewActions.Add(NewAction);
 
@@ -398,6 +403,8 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 	bool bAllowSelectNodes = true;
 	bool bAllowStaticSwitchNodes = true;
 
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+
 	TOptional<FNiagaraTypeDefinition> FromType;
 	TOptional<EEdGraphPinDirection> FromDirection;
 
@@ -427,7 +434,9 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 	}
 	
 	// Add operations (add / mul / etc)
-	if (bAllowOpNodes && (GbAllowAllNiagaraNodesInEmitterGraphs || bModuleGraph || bFunctionGraph || bSystemGraph))
+	if (bAllowOpNodes &&
+		(GbAllowAllNiagaraNodesInEmitterGraphs || bModuleGraph || bFunctionGraph || bSystemGraph) &&
+		NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeOp::StaticClass()))
 	{
 		const TArray<FNiagaraOpInfo>& OpInfos = FNiagaraOpInfo::GetOpInfoArray();
 
@@ -478,7 +487,7 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 	}
 
 	// Add custom code
-	if (bAllowCustomNode)
+	if (bAllowCustomNode && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeCustomHlsl::StaticClass()))
 	{
 		const FText DisplayName = LOCTEXT("CustomHLSLNode","Custom Hlsl");
 		const FText TooltipDesc = LOCTEXT("CustomHlslPopupTooltip", "Add a node with custom hlsl content");
@@ -518,7 +527,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	};
 
 	//Add functions
-	if (bAllowFunctionNodes && (GbAllowAllNiagaraNodesInEmitterGraphs || bModuleGraph || bFunctionGraph || bDynamicInputGraph))
+	if (bAllowFunctionNodes &&
+		(GbAllowAllNiagaraNodesInEmitterGraphs || bModuleGraph || bFunctionGraph || bDynamicInputGraph) &&
+		NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeFunctionCall::StaticClass()))
 	{
 		TArray<FAssetData> FunctionScriptAssets;
 		FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions FunctionScriptFilterOptions;
@@ -533,7 +544,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	//Add modules
-	if (bAllowModuleNodes && !bFunctionGraph && !bModuleGraph && !bDynamicInputGraph)
+	if (bAllowModuleNodes && !bFunctionGraph && !bModuleGraph && !bDynamicInputGraph &&
+		NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeFunctionCall::StaticClass()))
 	{
 		TArray<FAssetData> ModuleScriptAssets;
 		FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ModuleScriptFilterOptions;
@@ -549,13 +561,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	//Add event read and writes nodes
-	if (bAllowEventNodes && bModuleGraph)
+	if (bAllowEventNodes && bModuleGraph &&
+		NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeReadDataSet::StaticClass()) &&
+		NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeWriteDataSet::StaticClass()))
 	{
 		const FText MenuCat = LOCTEXT("NiagaraEventMenuCat", "Events");
 		TArray<FString> ReadCategories = {MenuCat.ToString(), LOCTEXT("NiagaraEventCategory_Read", "Read").ToString()};
 		TArray<FString> WriteCategories = {MenuCat.ToString(), LOCTEXT("NiagaraEventCategory_Write", "Write").ToString()};
 
-		const TArray<FNiagaraTypeDefinition>& PayloadTypes = FNiagaraTypeRegistry::GetRegisteredPayloadTypes();
+		TArray<FNiagaraTypeDefinition> PayloadTypes;
+		FNiagaraEditorUtilities::GetAllowedPayloadTypes(PayloadTypes);
 		for (const FNiagaraTypeDefinition& PayloadType : PayloadTypes)
 		{
 			if (PayloadType.IsInternalType())
@@ -605,7 +620,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		UsageTypesToAdd.Add(ENiagaraScriptUsage::SystemUpdateScript);
 	}
 
-	if (UsageTypesToAdd.Num() != 0)
+	if (UsageTypesToAdd.Num() != 0 && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeOutput::StaticClass()))
 	{
 		for (ENiagaraScriptUsage Usage : UsageTypesToAdd)
 		{
@@ -632,6 +647,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 	// Add Convert Nodes
+	if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeConvert::StaticClass()))
 	{
 		FNiagaraTypeDefinition PinType = FNiagaraTypeDefinition::GetGenericNumericDef();
 
@@ -671,6 +687,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			NoMakeAllowed.Add(FNiagaraTypeDefinition::GetParameterMapDef());
 			
 			// Dynamic Makes from type registry. Should include the pin type as well.
+			TArray<FNiagaraTypeDefinition> CandidateTypes;
+			FNiagaraEditorUtilities::GetAllowedTypes(CandidateTypes);
 			for (const FNiagaraTypeDefinition& CandidateType : FNiagaraTypeRegistry::GetRegisteredTypes())
 			{
 				bool bAddMake = false;
@@ -818,26 +836,31 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (bAllowParameterMapGetSetNodes)
 	{
 		FText MenuCat = FText::FromString("Parameter Map");
+		if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeParameterMapGet::StaticClass()))
 		{
 			FString Name = TEXT("Parameter Map Get");
 			UNiagaraNodeParameterMapGet* BaseNode = NewObject<UNiagaraNodeParameterMapGet>(OwnerOfTemporaries);
 			AddNewNodeMenuAction(NewActions, BaseNode, FText::FromString(Name), ENiagaraMenuSections::Suggested, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
 		}
+		if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeParameterMapSet::StaticClass()))
 		{
 			FString Name = TEXT("Parameter Map Set");
 			UNiagaraNodeParameterMapSet* BaseNode = NewObject<UNiagaraNodeParameterMapSet>(OwnerOfTemporaries);
 			AddNewNodeMenuAction(NewActions, BaseNode, FText::FromString(Name), ENiagaraMenuSections::Suggested, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
 		}
+		if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeParameterMapFor::StaticClass()))
 		{
 			FString Name = TEXT("Parameter Map For");
 			UNiagaraNodeParameterMapFor* BaseNode = NewObject<UNiagaraNodeParameterMapFor>(OwnerOfTemporaries);
 			AddNewNodeMenuAction(NewActions, BaseNode, FText::FromString(Name), ENiagaraMenuSections::General, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
 		}
+		if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeParameterMapForWithContinue::StaticClass()))
 		{
 			FString Name = TEXT("Parameter Map For With Continue");
 			UNiagaraNodeParameterMapForWithContinue* BaseNode = NewObject<UNiagaraNodeParameterMapForWithContinue>(OwnerOfTemporaries);
 			AddNewNodeMenuAction(NewActions, BaseNode, FText::FromString(Name), ENiagaraMenuSections::General, { MenuCat.ToString() }, FText::GetEmpty(), FText::GetEmpty());
 		}
+		if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeParameterMapForIndex::StaticClass()))
 		{
 			FString Name = TEXT("Parameter Map For Current Index");
 			UNiagaraNodeParameterMapForIndex* BaseNode = NewObject<UNiagaraNodeParameterMapForIndex>(OwnerOfTemporaries);
@@ -846,6 +869,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// Handle comment nodes
+	if (NiagaraEditorSettings->IsAllowedClass(UEdGraphNode_Comment::StaticClass()))
 	{
 		FText MenuCat = FText::FromString("Comments");
 
@@ -857,7 +881,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// Handle output tag nodes
-	if ( bAllowOutputTagNodes )
+	if (bAllowOutputTagNodes && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeOutputTag::StaticClass()))
 	{
 		FText MenuCat = FText::FromString("Compiler Tagging");
 
@@ -869,7 +893,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	
 	//Add all input node options for input pins or no pin.
-	if (FromPin == nullptr || FromPin->Direction == EGPD_Input)
+	if ((FromPin == nullptr || FromPin->Direction == EGPD_Input) && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeInput::StaticClass()))
 	{
 		TArray<UNiagaraNodeInput*> InputNodes;
 		NiagaraGraph->GetNodesOfClass(InputNodes);
@@ -926,8 +950,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				const FText MenuDescFmt = LOCTEXT("Add ParameterFmt", "Add {0} Parameter");
 				const FText AddParameterCategory = LOCTEXT("AddParameterCat", "Add Parameter");
-				const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredParameterTypes();
-				for (FNiagaraTypeDefinition Type : RegisteredTypes)
+				TArray<FNiagaraTypeDefinition> RegisteredTypes;
+				FNiagaraEditorUtilities::GetAllowedParameterTypes(RegisteredTypes);
+				for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
 				{
 					if (Type.IsUObject() && Type.IsDataInterface() == false)
 					{
@@ -978,6 +1003,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const FText UtilMenuCat = LOCTEXT("NiagaraUsageSelectorMenuCat", "Utility");
 
 	// Add reroute node
+	if (NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeReroute::StaticClass()))
 	{
 		const FText RerouteMenuDesc = LOCTEXT("NiagaraRerouteMenuDesc", "Reroute");
 		
@@ -987,7 +1013,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	// Add select node
 	// Note: Data Interfaces are not supported for this type
-	if ( bAllowSelectNodes )
+	if (bAllowSelectNodes && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeSelect::StaticClass()))
 	{
 		const FText SelectMenuDesc = LOCTEXT("NiagaraSelectMenuDesc", "Select / If");
 		
@@ -997,7 +1023,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Add static switch node
 	// Note: Data Interfaces are not supported for this type
-	if ( bAllowStaticSwitchNodes )
+	if (bAllowStaticSwitchNodes && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeStaticSwitch::StaticClass()))
 	{
 		const FText UsageSelectorMenuDesc = LOCTEXT("NiagaraStaticSwitchMenuDesc", "Static Switch");
 		

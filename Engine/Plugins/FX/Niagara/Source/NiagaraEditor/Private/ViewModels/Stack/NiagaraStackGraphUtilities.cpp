@@ -2195,26 +2195,26 @@ void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(FVersione
 
 void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes, FName Namespace)
 {
-	TConstArrayView<FNiagaraTypeDefinition> ParamTypes;
+	TArray<FNiagaraTypeDefinition> ParamTypes;
 	if (Namespace == FNiagaraConstants::UserNamespace)
 	{
-		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredUserVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedUserVariableTypes(ParamTypes);
 	}
 	else if (Namespace == FNiagaraConstants::SystemNamespace)
 	{
-		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedSystemVariableTypes(ParamTypes);
 	}
 	else if (Namespace == FNiagaraConstants::EmitterNamespace)
 	{
-		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedEmitterVariableTypes(ParamTypes);
 	}
 	else if (Namespace == FNiagaraConstants::ParticleAttributeNamespace)
 	{
-		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedParticleVariableTypes(ParamTypes);
 	}
 	else
 	{
-		ParamTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParameterTypes());
+		FNiagaraEditorUtilities::GetAllowedParameterTypes(ParamTypes);
 	}
 
 	for (const FNiagaraTypeDefinition& RegisteredParameterType : ParamTypes)

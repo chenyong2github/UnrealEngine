@@ -360,6 +360,17 @@ public:
 
 	FNiagaraParameterPanelSectionStorage& FindOrAddParameterPanelSectionStorage(FGuid PanelSectionId, bool& bOutAdded);
 
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassAllowed, const UClass* /*InClass*/);
+	
+	/** Sets a delegate that allows external code to restrict which features can be used within the niagara editor by filtering which classes are allowed. */
+	void SetOnIsClassAllowed(const FOnIsClassAllowed& InOnIsClassAllowed);
+
+	/** Returns whether or not the supplied class can be used in the current editor context. */
+	bool IsAllowedClass(const UClass* InClass) const;
+
+	/** Returns whether or not the supplied niagara type definition can be used in the current editor context. */
+	bool IsAllowedTypeDefinition(const FNiagaraTypeDefinition& InTypeDefinition) const;
+
 private:
 	void SetupNamespaceMetadata();
 	void BuildCachedPlaybackSpeeds() const;
@@ -447,6 +458,8 @@ private:
 
 	UPROPERTY(config)
 	TArray<FNiagaraParameterPanelSectionStorage> SystemParameterPanelSectionData;
+
+	FOnIsClassAllowed OnIsClassAllowedDelegate;
 
 public:
 	bool IsShowInstructionsCount() const;

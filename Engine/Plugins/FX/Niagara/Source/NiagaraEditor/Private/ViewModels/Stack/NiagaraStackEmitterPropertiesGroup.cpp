@@ -92,17 +92,21 @@ public:
 			LOCTEXT("AddEventActionDescription", "Add an event handler to this emitter."),
 			LOCTEXT("AddEventActionKeywords", "Event")));
 
+		const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
 		TArray<UClass*> SimulationStageClasses;
 		GetDerivedClasses(UNiagaraSimulationStageBase::StaticClass(), SimulationStageClasses);
 		for (UClass* SimulationStageClass : SimulationStageClasses)
 		{
-			OutAddActions.Add(MakeShared<FAddEmitterStageAction>(
-				EEmitterAddMode::SimulationStage,
-				SimulationStageClass,
-				SimulationStageCategories,
-				SimulationStageClass->GetDisplayNameText(),
-				FText::FromString(SimulationStageClass->GetDescription()),
-				FText::FromString(SimulationStageClass->GetName())));
+			if (NiagaraEditorSettings->IsAllowedClass(SimulationStageClass))
+			{
+				OutAddActions.Add(MakeShared<FAddEmitterStageAction>(
+					EEmitterAddMode::SimulationStage,
+					SimulationStageClass,
+					SimulationStageCategories,
+					SimulationStageClass->GetDisplayNameText(),
+					FText::FromString(SimulationStageClass->GetDescription()),
+					FText::FromString(SimulationStageClass->GetName())));
+			}
 		}
 	}
 

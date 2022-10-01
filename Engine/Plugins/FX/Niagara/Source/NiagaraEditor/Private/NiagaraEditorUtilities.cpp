@@ -3924,6 +3924,90 @@ int FNiagaraEditorUtilities::GetReferencedAssetCount(const FAssetData& SourceAss
 	return FMath::Max(Count, 0);
 }
 
+void FNiagaraEditorUtilities::GetAllowedTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredType))
+		{
+			OutAllowedTypes.Add(RegisteredType);
+		}
+	}
+}
+
+void FNiagaraEditorUtilities::GetAllowedUserVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredUserVariableType : FNiagaraTypeRegistry::GetRegisteredUserVariableTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredUserVariableType))
+		{
+			OutAllowedTypes.Add(RegisteredUserVariableType);
+		}
+	}
+}
+
+void FNiagaraEditorUtilities::GetAllowedSystemVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredSystemVariableType : FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredSystemVariableType))
+		{
+			OutAllowedTypes.Add(RegisteredSystemVariableType);
+		}
+	}
+}
+
+void FNiagaraEditorUtilities::GetAllowedEmitterVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredEmitterVariableType : FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredEmitterVariableType))
+		{
+			OutAllowedTypes.Add(RegisteredEmitterVariableType);
+		}
+	}
+}
+
+void FNiagaraEditorUtilities::GetAllowedParticleVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredParticleVariableType : FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredParticleVariableType))
+		{
+			OutAllowedTypes.Add(RegisteredParticleVariableType);
+		}
+	}
+}
+
+void FNiagaraEditorUtilities::GetAllowedParameterTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredParameterType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredParameterType))
+		{
+			OutAllowedTypes.Add(RegisteredParameterType);
+		}
+	}
+}
+
+void FNiagaraEditorUtilities::GetAllowedPayloadTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes)
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	for (const FNiagaraTypeDefinition& RegisteredPayloadType : FNiagaraTypeRegistry::GetRegisteredPayloadTypes())
+	{
+		if (NiagaraEditorSettings->IsAllowedTypeDefinition(RegisteredPayloadType))
+		{
+			OutAllowedTypes.Add(RegisteredPayloadType);
+		}
+	}
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);

@@ -576,7 +576,9 @@ bool INiagaraParameterPanelViewModel::GetCanChangeParameterType(const TArray<FNi
 void INiagaraParameterPanelViewModel::GetChangeTypeSubMenu(FMenuBuilder& MenuBuilder, TArray<FNiagaraParameterPanelItem> Items) 
 {
 	TArray<FNiagaraTypeDefinition> FilteredTypes;
-	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredTypes())
+	TArray<FNiagaraTypeDefinition> AllowedTypes;
+	FNiagaraEditorUtilities::GetAllowedTypes(AllowedTypes);
+	for (const FNiagaraTypeDefinition& RegisteredType : AllowedTypes)
 	{
 		// only allow basic types for now
 		if (RegisteredType.IsDataInterface() || RegisteredType.IsEnum() || RegisteredType.IsUObject() || FNiagaraTypeRegistry::GetRegisteredPayloadTypes().Contains(RegisteredType) || RegisteredType.IsInternalType())

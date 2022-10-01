@@ -155,26 +155,26 @@ void SNiagaraAddParameterFromPanelMenu::CollectMakeNew(FNiagaraMenuActionCollect
 		return;
 	}
 	
-	TConstArrayView<FNiagaraTypeDefinition> SectionTypes;
+	TArray<FNiagaraTypeDefinition> SectionTypes;
 	if(InNamespaceId == FNiagaraEditorGuids::UserNamespaceMetaDataGuid) 
 	{
-		SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredUserVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedUserVariableTypes(SectionTypes);
 	}
 	else if(InNamespaceId == FNiagaraEditorGuids::SystemNamespaceMetaDataGuid)
 	{
-		SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredSystemVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedSystemVariableTypes(SectionTypes);
 	}
 	else if (InNamespaceId == FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid)
 	{
-		SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredEmitterVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedEmitterVariableTypes(SectionTypes);
 	}
 	else if (InNamespaceId == FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid)
 	{
-		SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredParticleVariableTypes());
+		FNiagaraEditorUtilities::GetAllowedParticleVariableTypes(SectionTypes);
 	}
 	else
 	{
-		SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredTypes());
+		FNiagaraEditorUtilities::GetAllowedTypes(SectionTypes);
 	}
 
 	TArray<FNiagaraTypeDefinition> TypeDefinitions;
@@ -827,7 +827,8 @@ void SNiagaraAddParameterFromPinMenu::Construct(const FArguments& InArgs)
 void SNiagaraAddParameterFromPinMenu::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
 	FNiagaraMenuActionCollector Collector;
-	TArray<FNiagaraTypeDefinition> Types(FNiagaraTypeRegistry::GetRegisteredTypes());
+	TArray<FNiagaraTypeDefinition> Types;
+	FNiagaraEditorUtilities::GetAllowedTypes(Types);
 	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
 
 	for (const FNiagaraTypeDefinition& RegisteredType : Types)
@@ -875,7 +876,8 @@ void SNiagaraChangePinTypeMenu::CollectAllActions(FGraphActionListBuilderBase& O
 	UNiagaraNode* Node = Cast<UNiagaraNode>(PinToModify->GetOwningNode());
 	checkf(Node, TEXT("Niagara node pin did not have a valid outer node!"));
 
-	TArray<FNiagaraTypeDefinition> Types(FNiagaraTypeRegistry::GetRegisteredTypes());
+	TArray<FNiagaraTypeDefinition> Types;
+	FNiagaraEditorUtilities::GetAllowedTypes(Types);
 	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
 
 	for (const FNiagaraTypeDefinition& RegisteredType : Types)

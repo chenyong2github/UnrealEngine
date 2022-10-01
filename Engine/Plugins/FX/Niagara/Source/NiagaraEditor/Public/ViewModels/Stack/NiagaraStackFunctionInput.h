@@ -284,6 +284,9 @@ public:
 	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 
 	bool OpenSourceAsset() const;
+
+	bool SupportsCustomExpressions() const;
+
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void FinalizeInternal() override;

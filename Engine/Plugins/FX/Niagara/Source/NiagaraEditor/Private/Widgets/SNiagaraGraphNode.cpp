@@ -4,6 +4,7 @@
 #include "GraphEditorSettings.h"
 #include "Rendering/DrawElements.h"
 #include "SGraphPin.h"
+#include "NiagaraEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphNode"
 
@@ -25,6 +26,7 @@ void SNiagaraGraphNode::Construct(const FArguments& InArgs, UEdGraphNode* InGrap
 	GraphNode = InGraphNode;
 	RegisterNiagaraGraphNode(InGraphNode);
 	UpdateGraphNode();
+	
 }
 
 
@@ -55,6 +57,20 @@ void SNiagaraGraphNode::CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputB
 void SNiagaraGraphNode::CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox)
 {
 	NiagaraNode->AddWidgetsToOutputBox(OutputBox);
+}
+
+void SNiagaraGraphNode::UpdateErrorInfo()
+{
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+	if (GraphNode != nullptr && GraphNode->IsA<UNiagaraNode>() && NiagaraEditorSettings->IsAllowedClass(GraphNode->GetClass()) == false)
+	{
+		ErrorMsg = FString(TEXT("UNSUPPORTED!"));
+		ErrorColor = FAppStyle::GetColor("ErrorReporting.BackgroundColor");
+	}
+	else
+	{
+		SGraphNode::UpdateErrorInfo();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -1217,7 +1217,7 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 		}
 	}
 
-	if (bIsDataInterfaceOrObject == false)
+	if (bIsDataInterfaceOrObject == false && FunctionInput->SupportsCustomExpressions())
 	{
 		// Leaving the internal usage of bIsDataInterfaceObject that the tooltip and disabling will work properly when they're moved out of a graph action menu.
 		const FText DisplayName = LOCTEXT("ExpressionLabel", "New Expression");

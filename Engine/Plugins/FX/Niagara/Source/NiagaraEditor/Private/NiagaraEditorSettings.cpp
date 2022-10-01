@@ -646,5 +646,20 @@ UNiagaraEditorSettings::FOnNiagaraEditorSettingsChanged& UNiagaraEditorSettings:
 	return GetMutableDefault<UNiagaraEditorSettings>()->SettingsChangedDelegate;
 }
 
+void UNiagaraEditorSettings::SetOnIsClassAllowed(const FOnIsClassAllowed& InOnIsClassAllowed)
+{
+	OnIsClassAllowedDelegate = InOnIsClassAllowed;
+}
+
+bool UNiagaraEditorSettings::IsAllowedClass(const UClass* InClass) const
+{
+	return OnIsClassAllowedDelegate.IsBound() == false || OnIsClassAllowedDelegate.Execute(InClass);
+}
+
+bool UNiagaraEditorSettings::IsAllowedTypeDefinition(const FNiagaraTypeDefinition& InTypeDefinition) const
+{
+	return InTypeDefinition.GetClass() == nullptr || IsAllowedClass(InTypeDefinition.GetClass());
+}
+
 #undef LOCTEXT_NAMESPACE
 

@@ -9,6 +9,7 @@
 #include "NiagaraRendererProperties.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraEditorSettings.h"
 
 #include "ScopedTransaction.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -72,7 +73,11 @@ public:
 
 		for (const FNiagaraRendererCreationInfo& RendererCreationInfo : RendererCreationInfos)
 		{
-			OutAddActions.Add(MakeShared<FRenderItemGroupAddAction>(RendererCreationInfo));
+			// TODO: UE-165740
+			//if (NiagaraEditorSettings->IsAllowedClass(RendererClass))
+			{
+				OutAddActions.Add(MakeShared<FRenderItemGroupAddAction>(RendererCreationInfo));
+			}
 		}
 	}
 

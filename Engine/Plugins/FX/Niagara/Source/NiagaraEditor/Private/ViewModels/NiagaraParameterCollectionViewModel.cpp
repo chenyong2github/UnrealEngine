@@ -124,7 +124,9 @@ void FNiagaraParameterCollectionViewModel::RefreshAvailableTypes()
 	}
 
 	AvailableTypes->Empty();
-	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
+	TArray<FNiagaraTypeDefinition> AllowedParameterTypes;
+	FNiagaraEditorUtilities::GetAllowedParameterTypes(AllowedParameterTypes);
+	for (const FNiagaraTypeDefinition& RegisteredType : AllowedParameterTypes)
 	{
 		if (SupportsType(RegisteredType))
 		{

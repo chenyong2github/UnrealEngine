@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "NiagaraConstants.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStaticSwitchNodeDetails"
 
@@ -32,7 +33,9 @@ FNiagaraStaticSwitchNodeDetails::FNiagaraStaticSwitchNodeDetails()
 	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Integer Constant")));
 	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Enum Constant")));
 
-	for (FNiagaraTypeDefinition Type : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
+	TArray<FNiagaraTypeDefinition> ParameterTypes;
+	FNiagaraEditorUtilities::GetAllowedParameterTypes(ParameterTypes);
+	for (FNiagaraTypeDefinition Type : ParameterTypes)
 	{
 		if (Type.IsEnum())
 		{

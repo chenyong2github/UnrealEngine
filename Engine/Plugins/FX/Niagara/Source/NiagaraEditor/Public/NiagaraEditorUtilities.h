@@ -367,6 +367,33 @@ namespace FNiagaraEditorUtilities
 
 	NIAGARAEDITOR_API int GetReferencedAssetCount(const FAssetData& SourceAsset, TFunction<ETrackAssetResult(const FAssetData&)> Predicate);
 	
+	/** Gets a list of the registered types which are allowed in the current editor context.  This API should be 
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	/** Gets a list of the registered user variable types which are allowed in the current editor context.  This API should be
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedUserVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	/** Gets a list of the registered system variable types which are allowed in the current editor context.  This API should be
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedSystemVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	/** Gets a list of the registered emitter variable types which are allowed in the current editor context.  This API should be
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedEmitterVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	/** Gets a list of the registered particle variable types which are allowed in the current editor context.  This API should be
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedParticleVariableTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	/** Gets a list of the registered parameter types which are allowed in the current editor context.  This API should be
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedParameterTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	/** Gets a list of the registered payload types which are allowed in the current editor context.  This API should be
+		called when providing a list types to the user instead of getting the type list directly from the type registry. */
+	void GetAllowedPayloadTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
 };
 
 namespace FNiagaraParameterUtilities
