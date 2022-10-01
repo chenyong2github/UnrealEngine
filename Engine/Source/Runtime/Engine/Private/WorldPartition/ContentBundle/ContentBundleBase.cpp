@@ -5,6 +5,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/ContentBundle/ContentBundleClient.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
+#include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 #include "Engine/World.h"
 
 FContentBundleBase::FContentBundleBase(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
@@ -73,6 +74,16 @@ const TWeakPtr<FContentBundleClient>& FContentBundleBase::GetClient() const
 const UContentBundleDescriptor* FContentBundleBase::GetDescriptor() const
 {
 	return Descriptor;
+}
+
+FString FContentBundleBase::GetExternalStreamingObjectPackageName() const
+{
+	return SlugStringForValidName(ContentBundlePaths::GetCookedContentBundleLevelFolder(*this) + ContentBundlePaths::GetGeneratedFolder() + TEXT("StreamingObject"));
+}
+
+FString FContentBundleBase::GetExternalStreamingObjectName() const
+{
+	return SlugStringForValidName(GetDisplayName() + TEXT("_") + GetDescriptor()->GetGuid().ToString() + TEXT("_ExternalStreamingObject"));
 }
 
 UWorld* FContentBundleBase::GetInjectedWorld() const

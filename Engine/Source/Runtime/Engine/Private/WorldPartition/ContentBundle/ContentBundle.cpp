@@ -2,6 +2,7 @@
 #include "WorldPartition/ContentBundle/ContentBundle.h"
 
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
@@ -27,11 +28,10 @@ void FContentBundle::DoInitialize()
 #if WITH_EDITOR
 	InitializeForPIE();
 #else
-	FString StreamingObjectPathName = FPaths::RemoveDuplicateSlashes(GetDescriptor()->GetPackageRoot() + TEXT("/_GENERATED_/") + TEXT("StreamingObject"));
-	ExternalStreamingObjectPackage = LoadPackage(nullptr, *StreamingObjectPathName, LOAD_None);
+	ExternalStreamingObjectPackage = LoadPackage(nullptr, *GetExternalStreamingObjectPackageName(), LOAD_None);
 	if (ExternalStreamingObjectPackage != nullptr)
 	{
-		if (UObject* Object = StaticFindObjectFast(URuntimeHashExternalStreamingObjectBase::StaticClass(), ExternalStreamingObjectPackage, TEXT("StreamingObject")))
+		if (UObject* Object = StaticFindObjectFast(URuntimeHashExternalStreamingObjectBase::StaticClass(), ExternalStreamingObjectPackage, *GetExternalStreamingObjectName()))
 		{
 			ExternalStreamingObject = CastChecked<URuntimeHashExternalStreamingObjectBase>(Object);
 		}

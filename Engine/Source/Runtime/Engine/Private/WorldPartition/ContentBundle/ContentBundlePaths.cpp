@@ -1,10 +1,58 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 
+#include "Engine/Level.h"
+#include "Engine/World.h"
+#include "WorldPartition/ContentBundle/ContentBundleBase.h"
+#include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
+
 #if WITH_EDITOR
 #include "String/Find.h"
-#include "Engine/Level.h"
 #endif
+
+namespace ContentBundlePaths
+{
+	// ContentBundleCookedFolder is reduce to avoid reaching MAX_PATH
+	constexpr FStringView ContentBundleCookedFolder = TEXTVIEW("/CB/");
+}
+
+FString ContentBundlePaths::GetCookedContentBundleLevelFolder(const FContentBundleBase& ContentBundle)
+{
+	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> GeneratedContentBundleLevelFolder;
+	GeneratedContentBundleLevelFolder += TEXT("/");
+	GeneratedContentBundleLevelFolder += ContentBundle.GetDescriptor()->GetPackageRoot();
+	GeneratedContentBundleLevelFolder += TEXT("/");
+	GeneratedContentBundleLevelFolder += ContentBundlePaths::ContentBundleCookedFolder;
+	GeneratedContentBundleLevelFolder += TEXT("/");
+	
+	// ContentBundleGuid is reduced to avoid reaching MAX_PATH
+	ContentBundle.GetDescriptor()->GetGuid().AppendString(GeneratedContentBundleLevelFolder, EGuidFormats::Short); 
+
+	GeneratedContentBundleLevelFolder += TEXT("/");
+	GeneratedContentBundleLevelFolder += GetRelativeLevelFolder(ContentBundle);
+	GeneratedContentBundleLevelFolder += TEXT("/");
+
+	FString Result = *GeneratedContentBundleLevelFolder;
+	FPaths::RemoveDuplicateSlashes(Result);
+	return Result;
+}
+
+
+FString ContentBundlePaths::GetRelativeLevelFolder(const FContentBundleBase& ContentBundle)
+{
+	const UWorld* InjectedWorld = ContentBundle.GetInjectedWorld();
+	FString WorldPackageName = InjectedWorld->GetPackage()->GetName();
+
+	FString PackageRoot, PackagePath, PackageName;
+	ensure(FPackageName::SplitLongPackageName(WorldPackageName, PackageRoot, PackagePath, PackageName));
+
+	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> RelativeLevelFolder;
+	RelativeLevelFolder += PackagePath;
+	RelativeLevelFolder += PackageName;
+	RelativeLevelFolder += TEXT("/");
+
+	return *RelativeLevelFolder;
+}
 
 #if WITH_EDITOR
 

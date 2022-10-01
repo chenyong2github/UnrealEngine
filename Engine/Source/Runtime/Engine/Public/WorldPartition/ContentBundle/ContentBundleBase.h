@@ -29,6 +29,8 @@ public:
 	const TWeakPtr<FContentBundleClient>& GetClient() const;
 	const UContentBundleDescriptor* GetDescriptor() const;
 	EContentBundleStatus GetStatus() const { return Status; }
+	FString GetExternalStreamingObjectPackageName() const;
+	FString GetExternalStreamingObjectName() const;
 
 protected:
 	void SetStatus(EContentBundleStatus NewStatus);
