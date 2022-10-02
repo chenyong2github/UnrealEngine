@@ -203,6 +203,8 @@ void UPhysicsHandleComponent::ReleaseComponent()
 
 	if (GrabbedComponent)
 	{
+		GrabbedComponent->WakeRigidBody();
+
 		GrabbedComponent = NULL;
 		GrabbedBoneName = NAME_None;
 		GrabbedHandle = nullptr;
