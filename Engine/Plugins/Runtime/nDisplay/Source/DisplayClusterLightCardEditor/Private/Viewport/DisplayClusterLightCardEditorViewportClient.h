@@ -300,6 +300,9 @@ private:
 	TArray<TWeakObjectPtr<UBillboardComponent>> BillboardComponentProxies;
 	TArray<FDisplayClusterWeakStageActorPtr> SelectedActors;
 
+	/** View matrices set per tick if there are any billboard components */
+	FViewMatrices BillboardViewMatrices;
+
 	/** The actor in the selected actor list that was selected last */
 	FDisplayClusterWeakStageActorPtr LastSelectedActor;
 

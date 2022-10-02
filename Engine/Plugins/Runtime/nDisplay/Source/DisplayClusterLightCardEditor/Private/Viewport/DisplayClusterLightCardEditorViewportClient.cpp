@@ -221,6 +221,13 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 			DesiredLookAtLocation.Reset();
 		}
 	}
+
+	if (BillboardComponentProxies.Num() > 0)
+	{
+		FSceneViewInitOptions SceneViewInitOptions;
+		GetSceneViewInitOptions(SceneViewInitOptions);
+		BillboardViewMatrices = FViewMatrices(SceneViewInitOptions);
+	}
 }
 
 void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
@@ -457,11 +464,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 		}
 		FSpriteProxy SpriteProxy = FSpriteProxy::FromBillboard(BillboardComponent.Get());
 		
-		FSceneViewInitOptions SceneViewInitOptions;
-		GetSceneViewInitOptions(SceneViewInitOptions);
-		FViewMatrices ViewMatrices(SceneViewInitOptions);
-		
-		FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, ViewMatrices);
+		FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, BillboardViewMatrices);
 		
 		if (const FTexture* TextureResource = SpriteProxy.Sprite ? SpriteProxy.Sprite->GetResource() : nullptr)
 		{
