@@ -14,6 +14,7 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/ActorDescContainerCollection.h"
+#include "WorldPartition/Cook/WorldPartitionCookPackageGenerator.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
@@ -75,7 +76,7 @@ public:
 #endif
 
 UCLASS(AutoExpandCategories=(WorldPartition))
-class ENGINE_API UWorldPartition final : public UObject, public FActorDescContainerCollection
+class ENGINE_API UWorldPartition final : public UObject, public FActorDescContainerCollection, public IWorldPartitionCookPackageGenerator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -153,15 +154,24 @@ public:
 	bool GenerateContainerStreaming(const UActorDescContainer* ActorDescContainer, TArray<FString>* OutPackagesToGenerate = nullptr);
 	void FlushStreaming();
 
-	DECLARE_MULTICAST_DELEGATE(FWorldPartitionGenerateStreamingDelegate);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionGenerateStreamingDelegate, TArray<FString>*);
 	FWorldPartitionGenerateStreamingDelegate OnPreGenerateStreaming;
 
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 	bool IsValidPackageName(const FString& InPackageName);
 
-	// Cooking
-	bool PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages);
-	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UPackage*>& OutModifiedPackages);
+	// Begin Cooking
+	void BeginCook(IWorldPartitionCookPackageContext& CookContext);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionBeginCookDelegate, IWorldPartitionCookPackageContext&);
+	FWorldPartitionBeginCookDelegate OnBeginCook;
+
+	//~ Begin IWorldPartitionCookPackageGenerator Interface 
+	virtual bool GatherPackagesToCook(IWorldPartitionCookPackageContext& CookContext) override;
+	virtual bool PopulateGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages) override;
+	virtual bool PopulateGeneratedPackageForCook(IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& InPackagesToCool, TArray<UPackage*>& OutModifiedPackages) override;
+	//~ End IWorldPartitionCookPackageGenerator Interface 
+
+	// End Cooking
 
 	UE_DEPRECATED(5.1, "GetWorldBounds is deprecated, use GetEditorWorldBounds or GetRuntimeWorldBounds instead.")
 	FBox GetWorldBounds() const { return GetRuntimeWorldBounds(); }

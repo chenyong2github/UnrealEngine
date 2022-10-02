@@ -57,6 +57,7 @@ void FContentBundleContainer::Initialize()
 #if WITH_EDITOR
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
 	WorldPartition->OnPreGenerateStreaming.AddRaw(this, &FContentBundleContainer::OnPreGenerateStreaming);
+	WorldPartition->OnBeginCook.AddRaw(this, &FContentBundleContainer::OnBeginCook);
 #endif
 }
 
@@ -67,6 +68,7 @@ void FContentBundleContainer::Deinitialize()
 #if WITH_EDITOR
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
 	WorldPartition->OnPreGenerateStreaming.RemoveAll(this);
+	WorldPartition->OnBeginCook.RemoveAll(this);
 #endif
 
 	UnregisterContentBundleClientEvents();
@@ -351,7 +353,7 @@ void FContentBundleContainer::DeinitializeContentBundles()
 
 #if WITH_EDITOR
 
-void FContentBundleContainer::OnPreGenerateStreaming()
+void FContentBundleContainer::OnPreGenerateStreaming(TArray<FString>* OutPackageToGenerate)
 {
 	UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Generating Streaming for %u Content Bundles."), *GetInjectedWorld()->GetName(), GetEditorContentBundles().Num());
 
@@ -367,7 +369,15 @@ void FContentBundleContainer::OnPreGenerateStreaming()
 
 	for (TSharedPtr<FContentBundleEditor>& ContentBundle : GetEditorContentBundles())
 	{
-		ContentBundle->GenerateStreaming();
+		ContentBundle->GenerateStreaming(OutPackageToGenerate);
+	}
+}
+
+void FContentBundleContainer::OnBeginCook(IWorldPartitionCookPackageContext& CookContext)
+{
+	for (TSharedPtr<FContentBundleEditor>& ContentBundle : GetEditorContentBundles())
+	{
+		ContentBundle->OnBeginCook(CookContext);
 	}
 }
 

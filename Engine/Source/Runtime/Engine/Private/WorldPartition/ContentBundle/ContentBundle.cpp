@@ -34,6 +34,7 @@ void FContentBundle::DoInitialize()
 		if (UObject* Object = StaticFindObjectFast(URuntimeHashExternalStreamingObjectBase::StaticClass(), ExternalStreamingObjectPackage, *GetExternalStreamingObjectName()))
 		{
 			ExternalStreamingObject = CastChecked<URuntimeHashExternalStreamingObjectBase>(Object);
+			ExternalStreamingObject->OnStreamingObjectLoaded();
 		}
 		else
 		{

@@ -83,7 +83,8 @@ private:
 	void RemoveContentBundle(FContentBundleBase& ContentBundle);
 
 #if WITH_EDITOR
-	void OnPreGenerateStreaming();
+	void OnPreGenerateStreaming(TArray<FString>* OutPackageToGenerate);
+	void OnBeginCook(IWorldPartitionCookPackageContext& CookContext);
 #endif
 
 	using ContentBundleGameArray = TArray<TUniquePtr<FContentBundle>>;

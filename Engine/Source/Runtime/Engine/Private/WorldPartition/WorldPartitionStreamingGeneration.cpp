@@ -878,7 +878,7 @@ private:
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 {
-	OnPreGenerateStreaming.Broadcast();
+	OnPreGenerateStreaming.Broadcast(OutPackagesToGenerate);
 
 	return GenerateContainerStreaming(ActorDescContainer, OutPackagesToGenerate);
 }

@@ -9,6 +9,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/ContentBundle/WorldDataLayerReference.h"
 #include "WorldPartition/ContentBundle/ContentBundleBase.h"
+#include "WorldPartition/Cook/WorldPartitionCookPackageGenerator.h"
 #endif
 
 #include "ContentBundleEditor.generated.h"
@@ -20,7 +21,7 @@ class AActor;
 class URuntimeHashExternalStreamingObjectBase;
 class UWorldPartitionRuntimeCell;
 
-class ENGINE_API FContentBundleEditor : public FContentBundleBase
+class ENGINE_API FContentBundleEditor : public FContentBundleBase, IWorldPartitionCookPackageGenerator
 {
 	friend class UContentBundleUnsavedActorMonitor;
 
@@ -51,9 +52,16 @@ public:
 	void ReferenceAllActors();
 	void UnreferenceAllActors();
 
-	void GenerateStreaming();
+	void GenerateStreaming(TArray<FString>* OutPackageToGenerate);
 
 	URuntimeHashExternalStreamingObjectBase* GetStreamingObject() const { return ExternalStreamingObject; }
+
+	void OnBeginCook(IWorldPartitionCookPackageContext& CookContext);
+
+	bool GatherPackagesToCook(class IWorldPartitionCookPackageContext& CookContext);
+	bool PopulateGeneratorPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages);
+	bool PopulateGeneratedPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& PackagesToCook, TArray<UPackage*>& OutModifiedPackages);
+	bool HasCookedContent() const { return ExternalStreamingObject != nullptr; }
 
 protected:
 	//~ Begin IContentBundle Interface
