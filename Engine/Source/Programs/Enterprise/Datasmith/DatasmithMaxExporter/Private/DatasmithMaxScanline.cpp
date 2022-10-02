@@ -162,7 +162,9 @@ FString GetActualBitmapNameImpl(T* InBitmap)
 	}
 
 	float Gamma = FDatasmithMaxMatHelper::GetBitmapGamma(InBitmap);
-	FString ActualBitmapName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(ActualBitmapPath)) + TEXT("_") + FString::SanitizeFloat(Gamma).Replace(TEXT("."), TEXT("_")) + FDatasmithMaxMatWriter::TextureSuffix;
+
+	// note: call SanitizeObjectName for stringified float - converted floating point can contain invalid character too(e.g. when decimal symbol is invalid in the locale)
+	FString ActualBitmapName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(ActualBitmapPath) + TEXT("_") + FDatasmithUtils::SanitizeObjectName(FString::SanitizeFloat(Gamma)) + FDatasmithMaxMatWriter::TextureSuffix);
 
 	return ActualBitmapName;
 }

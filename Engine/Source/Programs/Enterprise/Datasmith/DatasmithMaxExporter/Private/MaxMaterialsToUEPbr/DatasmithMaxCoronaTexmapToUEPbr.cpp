@@ -274,8 +274,8 @@ IDatasmithMaterialExpression* FDatasmithMaxCoronalBitmapToUEPbr::Convert( FDatas
 {
 	DatasmithMaxTexmapParser::FCoronaBitmapParameters CoronaBitmapParameters = DatasmithMaxTexmapParser::ParseCoronaBitmap( InTexmap );
 
-	FString ActualBitmapName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(CoronaBitmapParameters.Path)) + TEXT("_") +
-		FString::SanitizeFloat(CoronaBitmapParameters.Gamma).Replace(TEXT("."), TEXT("_")) + FDatasmithMaxMatWriter::TextureSuffix;
+	FString ActualBitmapName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(CoronaBitmapParameters.Path) + TEXT("_") +
+		FString::SanitizeFloat(CoronaBitmapParameters.Gamma) + FDatasmithMaxMatWriter::TextureSuffix);
 
 	const bool bIsSRGB = false;
 	const bool bUseAlphaAsMono = false;
