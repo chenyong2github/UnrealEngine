@@ -18,6 +18,7 @@ namespace DatasmithSolidworks
 		public EType LightType { get; private set; }
 
 		public string LightName { get; private set; }
+		public string LightLabel { get; private set; }
 
 		public bool bIsEnabled { get; private set; }
 
@@ -62,10 +63,11 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		private FLight(EType InType, string InName, bool bInIsEnabled, double InIntensisty, int InColorref)
+		private FLight(EType InType, string InName, string InLabel, bool bInIsEnabled, double InIntensisty, int InColorref)
 		{
 			LightType = InType;
 			LightName = InName;
+			LightLabel = InLabel;
 			bIsEnabled = bInIsEnabled;
 			Intensity = (float)InIntensisty;
 
@@ -80,9 +82,9 @@ namespace DatasmithSolidworks
 		// Specific properties
 		private float[] Properties = new float[7];
 	
-		static public FLight MakeSpotLight(string InName, bool bInIsEnabled, FVec3 InPosition, FVec3 InTarget, double InConeAngle, double InIntensity, int InColor)
+		static public FLight MakeSpotLight(string InName, string InLabel, bool bInIsEnabled, FVec3 InPosition, FVec3 InTarget, double InConeAngle, double InIntensity, int InColor)
 		{
-			FLight SpotLight = new FLight(EType.Spot, InName, bInIsEnabled, InIntensity, InColor);
+			FLight SpotLight = new FLight(EType.Spot, InName, InLabel, bInIsEnabled, InIntensity, InColor);
 
 			// Position
 			SpotLight.Properties[0] = InPosition.X;
@@ -98,9 +100,9 @@ namespace DatasmithSolidworks
 			return SpotLight;
 		}
 
-		static public FLight MakePointLight(string InName, bool bInIsEnabled, FVec3 InPosition, double InIntensity, int InColor)
+		static public FLight MakePointLight(string InName, string InLabel, bool bInIsEnabled, FVec3 InPosition, double InIntensity, int InColor)
 		{
-			FLight PointLight = new FLight(EType.Point, InName, bInIsEnabled, InIntensity, InColor);
+			FLight PointLight = new FLight(EType.Point, InName, InLabel, bInIsEnabled, InIntensity, InColor);
 
 			// Position
 			PointLight.Properties[0] = InPosition.X;
@@ -110,9 +112,9 @@ namespace DatasmithSolidworks
 			return PointLight;
 		}
 
-		static public FLight MakeDirLight(string InName, bool bInIsEnabled, FVec3 InDirection, double InIntensity, int InColor)
+		static public FLight MakeDirLight(string InName, string InLabel, bool bInIsEnabled, FVec3 InDirection, double InIntensity, int InColor)
 		{
-			FLight DirLight = new FLight(EType.Directional, InName, bInIsEnabled, InIntensity, InColor);
+			FLight DirLight = new FLight(EType.Directional, InName, InLabel, bInIsEnabled, InIntensity, InColor);
 
 			// Position
 			DirLight.Properties[0] = InDirection.X;
@@ -153,6 +155,7 @@ namespace DatasmithSolidworks
 			for (int LightIndex = 0; LightIndex < InDoc.GetLightSourceCount(); ++LightIndex)
 			{
 				string LightName = InDoc.GetLightSourceName(LightIndex);
+				string LightLabel = InDoc.LightSourceUserName[LightIndex];
 				double[] Props = InDoc.LightSourcePropertyValues[LightIndex] as double[];
 
 				int LightType;
@@ -177,7 +180,8 @@ namespace DatasmithSolidworks
 
 						if (InDoc.GetSpotlightProperties(LightName, ref AmbientIntensity, ref DiffuseIntensity, ref SpecularIntensity, ref Color, ref bIsEnabled, ref bIsFixed, ref PosX, ref PosY, ref PosZ, ref DirX, ref DirY, ref DirZ, ref ConeAngle))
 						{
-							Light = FLight.MakeSpotLight(LightName, bIsEnabled, new FVec3(PosX, PosY, PosZ), new FVec3(DirX, DirY, DirZ), ConeAngle, DiffuseIntensity, Color);
+							Light = FLight.MakeSpotLight(LightName, LightLabel, bIsEnabled, new FVec3(PosX, PosY, PosZ), new FVec3(DirX, DirY, DirZ), ConeAngle, DiffuseIntensity, Color);
+							double[] Props2 = InDoc.LightSourcePropertyValues[LightIndex] as double[];
 						}
 					}
 					break;
@@ -187,7 +191,7 @@ namespace DatasmithSolidworks
 
 						if (InDoc.GetPointLightProperties(LightName, ref AmbientIntensity, ref DiffuseIntensity, ref SpecularIntensity, ref Color, ref bIsEnabled, ref bIsFixed, ref PosX, ref PosY, ref PosZ))
 						{
-							Light = FLight.MakePointLight(LightName, bIsEnabled, new FVec3(PosX, PosY, PosZ), DiffuseIntensity, Color);
+							Light = FLight.MakePointLight(LightName, LightLabel, bIsEnabled, new FVec3(PosX, PosY, PosZ), DiffuseIntensity, Color);
 						}
 					}
 					break;
@@ -196,7 +200,7 @@ namespace DatasmithSolidworks
 						double TargetX = 0.0, TargetY = 0.0, TargetZ = 0.0;
 						if (InDoc.GetDirectionLightProperties(LightName, ref AmbientIntensity, ref DiffuseIntensity, ref SpecularIntensity, ref Color, ref bIsEnabled, ref bIsFixed, ref TargetX, ref TargetY, ref TargetZ))
 						{
-							Light = FLight.MakeDirLight(LightName, bIsEnabled, new FVec3(TargetX, TargetY, TargetZ), DiffuseIntensity, Color);
+							Light = FLight.MakeDirLight(LightName, LightLabel, bIsEnabled, new FVec3(TargetX, TargetY, TargetZ), DiffuseIntensity, Color);
 						}
 					}
 					break;

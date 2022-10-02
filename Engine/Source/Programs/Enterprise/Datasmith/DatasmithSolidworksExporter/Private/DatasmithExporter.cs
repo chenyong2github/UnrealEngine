@@ -151,7 +151,7 @@ namespace DatasmithSolidworks
 		public void ExportLight(FLight InLight)
 		{
 			FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
-			ExportInfo.Label = InLight.LightName;
+			ExportInfo.Label = InLight.LightLabel;
 			ExportInfo.Name = InLight.LightName;
 			ExportInfo.bVisible = true;
 
@@ -175,7 +175,7 @@ namespace DatasmithSolidworks
 				case FLight.EType.Spot:
 				{
 					LightPosition = InLight.SpotLightPosition;
-					LightDirection = (InLight.SpotLightTarget - InLight.SpotLightPosition).Normalized();
+					LightDirection = (InLight.SpotLightPosition - InLight.SpotLightTarget ).Normalized();  // Inverted direction
 					ExportInfo.Type = EActorType.SpotLightActor;
 				}
 				break;
@@ -338,10 +338,12 @@ namespace DatasmithSolidworks
 
 		FDatasmithFacadeActorBinding GetActorBinding(string InActorName, FDatasmithFacadeVariant InVariant)
 		{
+			string ActorNameSanitized = FDatasmithExporter.SanitizeName(InActorName);
+
 			for (int BindingIndex = 0; BindingIndex < InVariant.GetActorBindingsCount(); ++BindingIndex)
 			{
 				FDatasmithFacadeActorBinding Binding = InVariant.GetActorBinding(BindingIndex);
-				if (Binding.GetName() == InActorName)
+				if (Binding.GetName() == ActorNameSanitized)
 				{
 					return Binding;
 				}
@@ -351,9 +353,8 @@ namespace DatasmithSolidworks
 
 			FDatasmithFacadeActor Actor = null;
 
-			if (ExportedActorsMap.ContainsKey(InActorName))
+			if (ExportedActorsMap.TryGetValue(ActorNameSanitized, out Tuple<EActorType, FDatasmithFacadeActor> ActorInfo))
 			{
-				Tuple<EActorType, FDatasmithFacadeActor> ActorInfo = ExportedActorsMap[InActorName];
 				Actor = ActorInfo.Item2;
 			}
 			else

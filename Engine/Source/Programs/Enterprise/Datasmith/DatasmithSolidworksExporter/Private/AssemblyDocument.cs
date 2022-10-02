@@ -85,7 +85,10 @@ namespace DatasmithSolidworks
 			// actor hierarchy has been exported
 			Dictionary<Component2, string> MeshesToExportMap = new Dictionary<Component2, string>();
 		
-			ExportComponentRecursive(Root, null, ref MeshesToExportMap);
+			// Store original component suppression state to revert it after export
+			// Component needs to be fully resolved to have its data loaded and even suppressed components are needed for configurations export(in case they are visible in other configs)
+			List<Tuple<Component2, int>> ComponentsSuppression = new List<Tuple<Component2, int>>();
+			ExportComponentRecursive(Root, null, MeshesToExportMap, ComponentsSuppression);
 
 			// Export materials
 			SetExportStatus($"Component Materials");
@@ -159,6 +162,11 @@ namespace DatasmithSolidworks
 						Exporter.ExportAnimation(Anim);
 					}
 				}
+			}
+
+			foreach(var ComponentSuppression in ComponentsSuppression)
+			{
+				ComponentSuppression.Item1.SetSuppression2(ComponentSuppression.Item2);
 			}
 		}
 
@@ -275,7 +283,7 @@ namespace DatasmithSolidworks
 			return DatasmithTransform;
 		}
 
-		private void ExportComponentRecursive(Component2 InComponent, Component2 InParent, ref Dictionary<Component2, string> OutMeshesToExportMap)
+		private void ExportComponentRecursive(Component2 InComponent, Component2 InParent, Dictionary<Component2, string> OutMeshesToExportMap, List<Tuple<Component2, int>> OutComponentSuppression)
 		{
 			bool bHasDirtyTransform = false;
 
@@ -308,6 +316,15 @@ namespace DatasmithSolidworks
 
 				SyncState.ComponentsTransformsMap[InComponent.Name2] = ActorExportInfo.Transform;
 
+				// When exporting configurations we need to load all components to make their data available for export
+				// Suppressed or lightweight components don't have this
+				int Suppression = InComponent.GetSuppression();
+				if (bHasConfigurations && (Suppression !=  (int)swComponentSuppressionState_e.swComponentFullyResolved))
+				{
+					InComponent.SetSuppression2((int)swComponentSuppressionState_e.swComponentFullyResolved);
+					OutComponentSuppression.Add(new Tuple<Component2, int>(InComponent, Suppression));
+				}
+
 				if (!InComponent.IsSuppressed())
 				{
 					dynamic ComponentVisibility = InComponent.GetVisibilityInAsmDisplayStates((int)swDisplayStateOpts_e.swThisDisplayState, null);
@@ -327,7 +344,9 @@ namespace DatasmithSolidworks
 
 				bool bNeedsGeometryExport = false;
 
-				if (InComponent.GetModelDoc2() is PartDoc) 
+				// ComponentDoc is null if component is suppressed or lightweight
+				ModelDoc2 ComponentDoc = InComponent.GetModelDoc2();
+				if (ComponentDoc is PartDoc) 
 				{
 					bool bFirstExport = !SyncState.ExportedComponentsMap.ContainsKey(InComponent.Name2);
 					bNeedsGeometryExport = bFirstExport;
@@ -344,10 +363,8 @@ namespace DatasmithSolidworks
 
 				if (bNeedsGeometryExport)
 				{
-					object ComponentDoc = (object)InComponent.GetModelDoc2();
-
 					//TODO this will be null for new part, think of more solid solution
-					string PartPath = (ComponentDoc as ModelDoc2).GetPathName();
+					string PartPath = ComponentDoc.GetPathName();
 					if (!SyncState.PartsMap.ContainsKey(InComponent.Name2))
 					{
 						// New part
@@ -379,7 +396,7 @@ namespace DatasmithSolidworks
 				foreach (object Obj in Children)
 				{
 					Component2 Child = (Component2)Obj;
-					ExportComponentRecursive(Child, InComponent, ref OutMeshesToExportMap);
+					ExportComponentRecursive(Child, InComponent, OutMeshesToExportMap, OutComponentSuppression);
 				}
 			}
 		}

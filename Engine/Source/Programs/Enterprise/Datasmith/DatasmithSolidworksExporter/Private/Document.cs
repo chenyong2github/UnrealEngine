@@ -19,6 +19,7 @@ namespace DatasmithSolidworks
 		public bool bDirectLinkAutoSync { get; set; } = false;
 		public int DirectLinkSyncCount { get; private set; } = 0;
 		public ConcurrentDictionary<int, FMaterial> ExportedMaterialsMap = new ConcurrentDictionary<int, FMaterial>();
+		public bool bHasConfigurations = false;
 		
 		protected FDatasmithFacadeScene DatasmithScene = null;
 		protected FDatasmithExporter Exporter = null;
@@ -34,6 +35,7 @@ namespace DatasmithSolidworks
 		private ManualResetEvent MaterialCheckerEvent = null;
 		private bool bExitMaterialUpdateThread = false;
 		private uint FaceCounter = 1; // Face Id generator
+
 
 		public FDocument(int InDocId, ModelDoc2 InSwDoc, FDatasmithExporter InExporter)
 		{
@@ -99,7 +101,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		private void ExportConfigurations()
+		private void ExportConfigurations(List<FConfigurationData> Configs)
 		{
 			// Remove any existing Datasmith LevelVariantSets as we'll re-add data
 			while (DatasmithScene.GetLevelVariantSetsCount() > 0)
@@ -109,8 +111,6 @@ namespace DatasmithSolidworks
 					DatasmithScene.RemoveLevelVariantSets(DatasmithScene.GetLevelVariantSets(Index));
 				}
 			}
-
-			List<FConfigurationData> Configs = FConfigurationExporter.ExportConfigurations(this);
 
 			Exporter.ExportMaterials(ExportedMaterialsMap);
 
@@ -169,7 +169,6 @@ namespace DatasmithSolidworks
 #if DEBUG
 				Stopwatch Watch = Stopwatch.StartNew();
 #endif
-
 				ExportToDatasmithScene();
 
 				ExportLights();
@@ -201,11 +200,13 @@ namespace DatasmithSolidworks
 
 				Exporter = new FDatasmithExporter(DatasmithScene);
 
-				ExportToDatasmithScene();
+				List<FConfigurationData> Configs = FConfigurationExporter.ExportConfigurations(this);
+				bHasConfigurations = (Configs != null) && (Configs.Count != 0);
 
+				ExportToDatasmithScene();
 			
 				ExportLights();
-				ExportConfigurations();
+				ExportConfigurations(Configs);
 
 				DatasmithScene.PreExport();
 				DatasmithScene.ExportScene(DatasmithFileExportPath);
