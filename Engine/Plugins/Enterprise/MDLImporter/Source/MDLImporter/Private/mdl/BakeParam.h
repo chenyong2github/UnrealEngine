@@ -9,7 +9,7 @@
 #include "Math/Color.h"
 #include "Templates/Function.h"
 
-struct FTextureSource;
+struct FImage;
 namespace mi
 {
 	class IData;
@@ -37,7 +37,7 @@ namespace Mdl
 	class FBakeTextureData
 	{
 	public:
-		typedef FTextureSource* FTextureSourcePtr;
+		typedef FImage* FTextureSourcePtr;
 
 		FBakeTextureData(FString& Name, FTextureSourcePtr& Source);
 

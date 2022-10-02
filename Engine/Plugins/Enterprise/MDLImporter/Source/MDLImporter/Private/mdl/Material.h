@@ -11,7 +11,7 @@
 #include "Templates/Function.h"
 
 class UMaterialExpression;
-struct FTextureSource;
+struct FImage;
 namespace mi
 {
 	namespace neuraylib

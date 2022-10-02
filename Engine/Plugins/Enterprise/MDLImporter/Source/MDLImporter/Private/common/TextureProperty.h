@@ -23,7 +23,7 @@ namespace Common
 		//@note Can be a texture name or file path(i.e. also contains extension and it's disk path),
 		// if it's a file path then texture will imported from a file otherwise from texture source/data.
 		FString         Path;
-		FTextureSource* Source;
+		FImage* Source;
 
 		ETextureMode               Mode;
 		TextureMipGenSettings      MipGenSettings;

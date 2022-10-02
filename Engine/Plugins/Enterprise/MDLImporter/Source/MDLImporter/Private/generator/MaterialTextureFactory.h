@@ -10,14 +10,14 @@
 class UTextureFactory;
 class UObject;
 class UTexture2D;
-struct FTextureSource;
+struct FImage;
 
 namespace Generator
 {
 	class FMaterialTextureFactory
 	{
 	public:
-		typedef FTextureSource* FTextureSourcePtr;
+		typedef FImage* FTextureSourcePtr;
 
 		FMaterialTextureFactory();
 

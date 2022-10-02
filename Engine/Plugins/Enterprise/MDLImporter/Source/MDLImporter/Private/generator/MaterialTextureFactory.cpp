@@ -52,9 +52,9 @@ namespace Generator
 		{
 			if (Source != nullptr)
 			{
-				check(Source->GetSizeX() > 4 && Source->GetSizeY() > 4);
+				check(Source->GetWidth() > 4 && Source->GetHeight() > 4);
 				Texture = Factory->CreateTexture2D(ParentPackage, *TextureName, Flags);
-				Swap(Texture->Source, *Source);  // release ownership of the texture source
+				Texture->Source.Init(*Source);
 				Texture->Source.Compress();
 
 				delete Source;

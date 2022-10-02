@@ -19,7 +19,7 @@ namespace Common
 	}
 
 	// Converts a float texture to a corresponding texture source.
-	inline FTextureSource* CreateTextureSource(const float* InData, int InWidth, int InHeight, int InChannels, bool bFlipY)
+	inline FImage* CreateTextureSource(const float* InData, int InWidth, int InHeight, int InChannels, bool bFlipY)
 	{
 		// @todo Oodle : use FImageView / CopyImage
 		//  just make an FImageView on the float * and use TextureSource->Init() from ImageView
@@ -29,13 +29,14 @@ namespace Common
 		// just use F32 ETextureSourceFormat ?
 
 		// use 16 bpp for linear textures support(i.e. if more than 1 channel)
-		const ETextureSourceFormat Format = InChannels == 1 ? TSF_G8 : TSF_RGBA16;
+		const ERawImageFormat::Type Format = InChannels == 1 ? ERawImageFormat::G8 : ERawImageFormat::RGBA16;
 		const int                  Size   = InWidth * InHeight * InChannels;
 
-		FTextureSource* Source = new FTextureSource();
-		Source->Init(InWidth, InHeight, 1, 1, Format);
+		FImage* Source = new FImage();
+		Source->Init(InWidth, InHeight, 1, Format);
 
-		uint8*      DstBuf = Source->LockMip(0);
+		FImageView SourceView = *Source;
+		uint8*      DstBuf = static_cast<uint8*>(SourceView.RawData);
 		const float Max8   = TNumericLimits<uint8>::Max();
 		const float Max16  = TNumericLimits<uint16>::Max();
 		switch (InChannels)
@@ -106,7 +107,7 @@ namespace Common
 				check(false);
 				break;
 		}
-		Source->UnlockMip(0);
+		
 		return Source;
 	}
 }

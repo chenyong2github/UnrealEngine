@@ -331,7 +331,7 @@ Mat::FParameterMap FMDLMaterialPropertyFactory::CreateProperties(EObjectFlags Fl
 			}
 			case FMDLMaterialProperty::EPropertyType::Texture:
 			{
-				Generator::FMaterialTextureFactory::FTextureSourcePtr ptr = const_cast<FTextureSource*>(Property.Texture.Source);
+				Generator::FMaterialTextureFactory::FTextureSourcePtr ptr = const_cast<FImage*>(Property.Texture.Source);
 				if (UTexture2D* Texture = TextureFactory->CreateTexture(ParentPackage, Property.Texture, ptr, Flags))
 				{
 					const bool bIsVirtualTexture = Texture->VirtualTextureStreaming;
