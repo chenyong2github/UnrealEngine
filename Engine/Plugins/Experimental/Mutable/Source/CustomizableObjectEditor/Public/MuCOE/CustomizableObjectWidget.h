@@ -2,13 +2,25 @@
 
 #pragma once
 
-#include "UObject/GCObject.h"
-#include "SceneManagement.h"
+#include "Containers/UnrealString.h"
 #include "Editor/UnrealEdTypes.h"
-
+#include "GenericPlatform/ICursor.h"
+#include "HitProxies.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
 #include "SceneView.h"
-#include "SceneManagement.h"
-#include "Editor/UnrealEdTypes.h"
+#include "UObject/GCObject.h"
+
+class FPrimitiveDrawInterface;
+class FReferenceCollector;
+class UCustomizableObjectInstance;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
 
 
 class FCustomizableObjectWidget : public FGCObject

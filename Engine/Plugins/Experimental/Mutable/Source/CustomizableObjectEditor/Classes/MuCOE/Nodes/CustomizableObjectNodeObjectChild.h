@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeObjectChild.generated.h"
+
+class UObject;
 
 
 UCLASS()

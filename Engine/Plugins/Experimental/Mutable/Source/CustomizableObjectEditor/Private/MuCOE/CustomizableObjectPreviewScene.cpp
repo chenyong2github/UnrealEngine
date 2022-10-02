@@ -2,6 +2,10 @@
 
 #include "MuCOE/CustomizableObjectPreviewScene.h"
 
+#include "PreviewScene.h"
+
+class UStaticMeshComponent;
+
 FCustomizableObjectPreviewScene::FCustomizableObjectPreviewScene(ConstructionValues CVS, float InFloorOffset)
 	: FAdvancedPreviewScene(CVS, InFloorOffset)
 {

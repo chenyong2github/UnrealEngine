@@ -2,12 +2,13 @@
 
 #include "MuR/BlockCompression/Miro/Miro.h"
 
-#include "MuR/Platform.h"
-#include "Misc/AssertionMacros.h"
 #include "Async/ParallelFor.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 
-#include <cstdlib>
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 
 // debug

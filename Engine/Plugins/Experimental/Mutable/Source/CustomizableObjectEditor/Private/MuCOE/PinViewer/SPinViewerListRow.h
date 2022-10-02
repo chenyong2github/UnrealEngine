@@ -2,10 +2,21 @@
 
 #pragma once
 
-#include "MuCOE/Widgets/SMutableExpandableTableRow.h"
+#include "Containers/BitArray.h"
+#include "Delegates/IDelegateInstance.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Layout/Visibility.h"
+#include "Misc/Guid.h"
+#include "MuCOE/Widgets/SMutableExpandableTableRow.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SPinViewer;
+class STableViewBase;
+class SWidget;
 
 /** Custom row for a SListView that allows to add custom widgets as a row element. */
 class SPinViewerListRow : public SMutableExpandableTableRow<TSharedPtr<FEdGraphPinReference>>

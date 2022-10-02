@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "MuCO/CustomizableObjectUIData.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeColorParameter.generated.h"
+
+class UCustomizableObjectNodeRemapPins;
+class UObject;
 
 
 UCLASS()

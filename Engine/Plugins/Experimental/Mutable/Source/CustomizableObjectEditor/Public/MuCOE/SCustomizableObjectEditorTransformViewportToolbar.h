@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "UnrealWidget.h"
 #include "SViewportToolBar.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SCustomizableObjectEditorTransformViewportToolbar : public SViewportToolBar
 {

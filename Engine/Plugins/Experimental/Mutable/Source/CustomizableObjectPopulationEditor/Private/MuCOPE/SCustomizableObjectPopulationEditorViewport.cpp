@@ -1,10 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOPE/SCustomizableObjectPopulationEditorViewport.h"
-#include "MuCOPE/SCustomizableObjectPopulationEditorViewportToolBar.h"
-#include "MuCOPE/CustomizableObjectPopulationEditorViewportClient.h"
-#include "Components/BoxComponent.h"
+
+#include "AdvancedPreviewScene.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Editor/UnrealEdTypes.h"
+#include "GenericPlatform/ICursor.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "MuCOPE/CustomizableObjectPopulationEditorViewportClient.h"
+#include "MuCOPE/SCustomizableObjectPopulationEditorViewportToolBar.h"
+#include "PreviewScene.h"
+#include "UObject/UObjectGlobals.h"
+#include "Viewports.h"
+
+class FEditorViewportClient;
+class SWidget;
+struct FGeometry;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectPopulationEditorViewport"

@@ -3,9 +3,12 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "Engine/Texture.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
 
+class FString;
 class UCustomizableObjectInstance;
+struct FTexturePlatformData;
 
 #define STRINGIZE(A) STRINGIZE_NX(A)
 #define STRINGIZE_NX(A) #A

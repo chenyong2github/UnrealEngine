@@ -2,9 +2,9 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodePinViewerDetails.h"
 
-#include "DetailLayoutBuilder.h"
-
 #include "MuCOE/PinViewer/SPinViewer.h"
+
+class IDetailLayoutBuilder;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

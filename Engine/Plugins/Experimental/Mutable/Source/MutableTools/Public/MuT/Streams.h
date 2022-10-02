@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
-#include "MuR/Serialisation.h"
-#include "MuR/System.h"
-#include "MuR/Model.h"
-
 #include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "MuR/Ptr.h"
+#include "MuR/Serialisation.h"
+
+namespace mu { class Image; }
+namespace mu { class Model; }
 
 
 //! This tag is used to identify files containing serialised Model objects. The tag is not added

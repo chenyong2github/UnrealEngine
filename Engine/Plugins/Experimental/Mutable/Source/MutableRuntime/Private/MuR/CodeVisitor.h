@@ -2,14 +2,22 @@
 
 #pragma once
 
-#include "MuR/Operations.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Model.h"
 #include "MuR/ModelPrivate.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Operations.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Ptr.h"
+#include "MuR/System.h"
 #include "MuR/SystemPrivate.h"
-
-#include <algorithm>
 
 namespace mu
 {
+class Parameters;
 
     //---------------------------------------------------------------------------------------------
     //! Decide what operations are an "add resource" since they are handled differently sometimes.

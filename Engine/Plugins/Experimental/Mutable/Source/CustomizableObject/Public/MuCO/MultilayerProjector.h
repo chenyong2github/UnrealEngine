@@ -2,6 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+
 #include "MultilayerProjector.generated.h"
 
 class UCustomizableObjectInstance;

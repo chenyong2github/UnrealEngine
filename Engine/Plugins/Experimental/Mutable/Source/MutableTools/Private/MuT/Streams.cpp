@@ -2,11 +2,18 @@
 
 
 #include "MuT/Streams.h"
-#include "MuT/StreamsPrivate.h"
-#include "MuT/Platform.h"
-#include "MuT/NodeImageConstant.h"
+
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
-#include "MuR/MutableTrace.h"
+#include "MuR/Model.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Platform.h"
+#include "MuT/StreamsPrivate.h"
 
 #define MUTABLE_STREAM_BUFFER_SIZE 0x10000
 

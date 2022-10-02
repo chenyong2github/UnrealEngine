@@ -2,9 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "MuCOE/ICustomizableObjectInstanceEditor.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
+
+class FReferenceCollector;
+class ICustomizableObjectInstanceEditor;
+class SWidget;
+struct FCustomizableObjectLayoutBlock;
+struct FGuid;
 
 
 /**

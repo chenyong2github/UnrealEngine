@@ -2,13 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-
-#include "Types/SlateEnums.h"
+#include "Math/MathFwd.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-#include "PropertyHandle.h"
-#include "AssetRegistry/AssetData.h"
+#include "Types/SlateEnums.h"
+
+class FString;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
+struct FAssetData;
 
 
 class FCustomizableObjectNodeObjectDetails : public IDetailCustomization

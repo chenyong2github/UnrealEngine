@@ -2,7 +2,22 @@
 
 #include "MuCOE/MutableUtils.h"
 
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "GenericPlatform/GenericPlatformMath.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "RawIndexBuffer.h"
+#include "Rendering/MultiSizeIndexContainer.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/StaticMeshVertexBuffer.h"
+#include "StaticMeshResources.h"
 
 
 TArray<FVector2f> GetUV(const USkeletalMesh& SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, const int32 UVIndex)

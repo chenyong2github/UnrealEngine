@@ -2,18 +2,41 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "CustomizableObjectPopulation/Private/MuCOP/CustomizableObjectPopulationConstraint.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateBrush.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Engine/Texture.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Components/VerticalBox.h"
-#include "MuCOP/CustomizableObjectPopulationClass.h"
+#include "Widgets/SCompoundWidget.h"
 
-class FStateDetailsNode;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+class IDetailLayoutBuilder;
+class STextComboBox;
+class SVerticalBox;
+class SWidget;
+class UCustomizableObjectPopulationClass;
+class UTexture;
+struct FAssetData;
+struct FGeometry;
+struct FPointerEvent;
 
 // Widgt that draws a Square to represent a range
 class SRangeSquare : public SCompoundWidget

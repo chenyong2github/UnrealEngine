@@ -2,15 +2,17 @@
 
 #pragma once
 
-#include "MuR/Platform.h"
-#include "MuR/Raster.h"
-#include "MuR/ParametersPrivate.h"
-#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
+
+#include <stdint.h>
 
 
 namespace mu
 {
+class Image;
+struct PROJECTOR;
+template <int NUM_INTERPOLATORS> class RasterVertex;
 
     struct SCRATCH_IMAGE_PROJECT
     {

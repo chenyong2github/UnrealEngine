@@ -1,13 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SCustomizableObjectSystemVersion.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCO/ICustomizableObjectModule.h"
 
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "MuCO/ICustomizableObjectModule.h"
+#include "SlotBase.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
-#include "Interfaces/IPluginManager.h"
+struct FGeometry;
 
 
 void SCustomizableObjectSystemVersion::Construct( const FArguments& InArgs )

@@ -2,10 +2,24 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
-#include "Templates/SharedPointer.h"
-#include "Widgets/Views/STreeView.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
 #include "MuR/Mesh.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateConstants.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
+
+class ITableRow;
 
 /** Container with the information required to generate the tree of bones */
 struct FBoneDefinition

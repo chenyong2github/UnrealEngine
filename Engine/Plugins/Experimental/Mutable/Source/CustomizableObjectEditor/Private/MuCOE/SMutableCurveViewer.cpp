@@ -2,18 +2,44 @@
 
 #include "MuCOE/SMutableCurveViewer.h"
 
-#include "Math/Color.h"
-#include "MuR/ParametersPrivate.h"
-#include "MuT/TypeInfo.h"
-#include "Math/NumericLimits.h"
-
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Views/SListView.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CurveDataAbstraction.h"
 #include "CurveEditor.h"
+#include "CurveEditorScreenSpace.h"
 #include "CurveEditorTypes.h"
 #include "CurveModel.h"
-#include "RichCurveEditorModel.h"
+#include "Curves/RealCurve.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/PlatformCrt.h"
+#include "ICurveEditorModule.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Math/Color.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuT/TypeInfo.h"
 #include "SCurveEditorPanel.h"
+#include "SlotBase.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SMutableCurveViewer"
 

@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/TaskManager.h"
-#include "MuR/SystemPrivate.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/CoreStats.h"
+#include "Misc/QueuedThreadPool.h"
+#include "Stats/Stats2.h"
+#include "Templates/RefCounting.h"
 
 
 namespace mu

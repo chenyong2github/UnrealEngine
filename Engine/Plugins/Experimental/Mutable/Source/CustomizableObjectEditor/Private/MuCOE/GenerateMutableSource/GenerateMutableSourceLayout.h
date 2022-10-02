@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
 #include "MuT/NodeLayout.h"
+
+class UEdGraphPin;
+struct FMutableGraphGenerationContext;
 
 
 mu::NodeLayoutPtr GenerateMutableSourceLayout(const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext);

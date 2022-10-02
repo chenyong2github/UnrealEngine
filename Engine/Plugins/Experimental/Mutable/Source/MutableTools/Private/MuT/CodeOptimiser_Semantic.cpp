@@ -1,24 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuR/MutableTrace.h"
-#include "MuT/CodeOptimiser.h"
-#include "MuT/CodeGenerator.h"
-#include "MuT/AST.h"
-#include "MuT/ASTOpMeshFormat.h"
-#include "MuT/ASTOpImagePixelFormat.h"
-#include "MuT/ASTOpImageMipmap.h"
-#include "MuT/ASTOpImagePatch.h"
-#include "MuT/ASTOpImageCompose.h"
-#include "MuT/ASTOpImageMultiLayer.h"
-#include "MuT/ASTOpConditional.h"
-#include "MuT/ASTOpConstantBool.h"
-
-#include "MuR/ModelPrivate.h"
-#include "MuR/SystemPrivate.h"
-#include "MuR/Operations.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/ImageRLE.h"
-#include "MuR/OpMeshRemoveChart.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/Operations.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/AST.h"
+#include "MuT/ASTOpConditional.h"
+#include "MuT/ASTOpConstantBool.h"
+#include "MuT/ASTOpImageCompose.h"
+#include "MuT/ASTOpImageMipmap.h"
+#include "MuT/ASTOpImageMultiLayer.h"
+#include "MuT/ASTOpImagePatch.h"
+#include "MuT/ASTOpImagePixelFormat.h"
+#include "MuT/ASTOpSwitch.h"
+#include "MuT/CodeOptimiser.h"
+#include "MuT/Table.h"
+
+#include <functional>
+#include <memory>
+#include <utility>
 
 namespace mu
 {

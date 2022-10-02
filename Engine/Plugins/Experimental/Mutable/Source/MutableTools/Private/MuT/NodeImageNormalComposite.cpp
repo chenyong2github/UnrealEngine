@@ -2,9 +2,10 @@
 
 
 #include "MuT/NodeImageNormalComposite.h"
-#include "MuT/NodeImageNormalCompositePrivate.h"
 
-#include "MuR/ImagePrivate.h"
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeImageNormalCompositePrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

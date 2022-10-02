@@ -2,11 +2,20 @@
 
 #pragma once
 
-#include "MuR/Types.h"
+#include "../Private/MuR/SerialisationPrivate.h"
+#include "Containers/Array.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/VectorRegister.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "../Private/MuR/SerialisationPrivate.h"
+
+#include <memory>
 
 namespace mu
 {

@@ -3,9 +3,19 @@
 
 #include "MuCOPE/AssetTypeActions_CustomizableObjectPopulationClass.h"
 
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Modules/ModuleManager.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
+#include "MuCOP/CustomizableObjectPopulationCharacteristic.h"
+#include "MuCOP/CustomizableObjectPopulationClass.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
+#include "Templates/Casts.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
+
+class IToolkitHost;
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_CustomizableObjectPopulationClass"
 

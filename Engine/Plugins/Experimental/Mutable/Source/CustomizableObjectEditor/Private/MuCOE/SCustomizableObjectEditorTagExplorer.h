@@ -2,10 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/SCompoundWidget.h"
-#include "MuCOE/CustomizableObjectEditor.h"
+#include "Widgets/Views/SListView.h"
 
-class UCustomizableObjectNode;
+class FCustomizableObjectEditor;
+class ITableRow;
+class STableViewBase;
+class SWidget;
+class UCustomizableObject;
 
 class SCustomizableObjectEditorTagExplorer : public SCompoundWidget
 {

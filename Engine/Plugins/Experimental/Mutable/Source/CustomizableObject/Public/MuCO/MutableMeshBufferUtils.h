@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "MuR/Mesh.h"
+#include "HAL/Platform.h"
+
+namespace mu { class FMeshBufferSet; }
 
 /** Publicly accessible methods designed to prepare the Mutable Mesh buffers with the internal structure  required by Unreal and
  * our systems to be able to work with the mesh owning those buffers.

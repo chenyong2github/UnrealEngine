@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
+#include "Math/Quat.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectInstanceFactory.generated.h"
 
 class AActor;
-struct FAssetData;
+class FText;
+class UObject;
 class USkeletalMesh;
+struct FAssetData;
 
 UCLASS(MinimalAPI, config=Editor)
 class UCustomizableObjectInstanceFactory : public UActorFactory

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "UObject/NameTypes.h"
+
 #include "CustomizableObjectNodeMeshReshapeCommon.generated.h"
 
 USTRUCT()

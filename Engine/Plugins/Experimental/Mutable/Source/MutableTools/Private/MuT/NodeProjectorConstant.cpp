@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "MuT/NodeProjectorPrivate.h"
-
+#include "Misc/AssertionMacros.h"
 #include "MuR/MutableMath.h"
+#include "MuR/Parameters.h"
+#include "MuT/Node.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeProjector.h"
+#include "MuT/NodeProjectorPrivate.h"
 
 
 namespace mu

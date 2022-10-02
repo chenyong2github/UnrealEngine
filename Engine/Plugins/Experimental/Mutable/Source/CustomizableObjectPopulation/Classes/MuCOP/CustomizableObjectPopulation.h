@@ -2,9 +2,21 @@
 
 #pragma once
 
-#include "MuCOP/CustomizableObjectPopulationClass.h"
-#include "MuCOP/CustomizableObjectPopulationGenerator.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectPopulation.generated.h"
+
+class ITargetPlatform;
+class UCustomizableObjectInstance;
+class UCustomizableObjectPopulationClass;
+class UCustomizableObjectPopulationGenerator;
+struct FFrame;
 
 
 USTRUCT()

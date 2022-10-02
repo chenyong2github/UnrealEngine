@@ -3,8 +3,20 @@
 #pragma once
 
 #include "AssetTypeActions_Base.h"
-#include "Runtime/Launch/Resources/Version.h"
-#include "CustomizableObjectClasses.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "IAssetTypeActions.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "MuCO/CustomizableObjectInstance.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FMenuBuilder;
+class IToolkitHost;
+class UClass;
+class UObject;
 
 
 class FAssetTypeActions_CustomizableObjectInstance : public FAssetTypeActions_Base

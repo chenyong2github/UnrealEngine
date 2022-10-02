@@ -2,6 +2,8 @@
 
 #include "MuR/PhysicsBody.h"
 
+#include "MuR/SerialisationPrivate.h"
+
 namespace mu
 {
 

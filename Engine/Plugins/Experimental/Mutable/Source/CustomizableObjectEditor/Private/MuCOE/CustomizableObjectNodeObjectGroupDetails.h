@@ -3,10 +3,9 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-//#include "Templates/SharedPointer.h"
-//#include "UObject/WeakObjectPtr.h"
-//#include "Input/Reply.h"
-//#include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
+
+class IDetailLayoutBuilder;
 
 
 class FCustomizableObjectNodeObjectGroupDetails : public IDetailCustomization

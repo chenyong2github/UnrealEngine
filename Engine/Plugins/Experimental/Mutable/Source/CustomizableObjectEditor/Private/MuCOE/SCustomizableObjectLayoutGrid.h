@@ -2,9 +2,30 @@
 
 #pragma once
 
-#include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Input/CursorReply.h"
+#include "Input/Reply.h"
+#include "Math/Color.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "MuCOE/CustomizableObjectLayout.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+struct FGeometry;
+struct FGuid;
+struct FKeyEvent;
+struct FPointerEvent;
 //#include "PreviewScene.h"
 
 

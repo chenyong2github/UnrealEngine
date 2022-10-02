@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "MuT/NodeImage.h"
-
 #include "MuR/Image.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
+#include "MuT/NodeImage.h"
 
 
 namespace mu
@@ -14,6 +16,9 @@ namespace mu
     class NodeImageConstant;
     typedef Ptr<NodeImageConstant> NodeImageConstantPtr;
     typedef Ptr<const NodeImageConstant> NodeImageConstantPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Node that outputs a constant image.

@@ -2,16 +2,34 @@
 
 #pragma once
 
-#include "SCurveEditor.h"
-#include "MuR/ParametersPrivate.h"
-
-#include "Widgets/Views/SListView.h"
-
-#include "CurveEditor.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CurveEditorTypes.h"
 #include "CurveModel.h"
-#include "RichCurveEditorModel.h"
-#include "SCurveEditorPanel.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RichCurve.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Misc/Optional.h"
+#include "MuR/ParametersPrivate.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
+
+class FCurveEditor;
+class ITableRow;
+class SCurveEditorPanel;
+class STableViewBase;
+struct FCurveEditorScreenSpace;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyPosition;
 
 /** Custom curve model designed to be able to work with our mutable curve. The overriding of the FCurveModel
  * methods is mandatory.

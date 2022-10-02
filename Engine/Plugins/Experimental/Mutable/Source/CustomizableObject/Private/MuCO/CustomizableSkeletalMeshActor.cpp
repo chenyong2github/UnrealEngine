@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCO/CustomizableSkeletalMeshActor.h"
+
 #include "Components/SkeletalMeshComponent.h"
+#include "Containers/UnrealString.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObject"
 

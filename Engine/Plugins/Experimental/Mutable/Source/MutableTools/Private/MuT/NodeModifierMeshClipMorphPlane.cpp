@@ -2,8 +2,12 @@
 
 
 #include "MuT/NodeModifierMeshClipMorphPlane.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableMath.h"
 #include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	0

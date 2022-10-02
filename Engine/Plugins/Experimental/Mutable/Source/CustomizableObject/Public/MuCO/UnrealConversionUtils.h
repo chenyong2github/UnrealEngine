@@ -3,7 +3,15 @@
 #pragma once
 
 #include "../Private/MuCO/CustomizableObjectSystemPrivate.h"
-#include "MuR/Mesh.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/System.h"
+#include "ReferenceSkeleton.h"
+
+class FSkeletalMeshLODRenderData;
+class USkeletalMesh;
+class USkeleton;
 
 
 namespace UnrealConversionUtils

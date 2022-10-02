@@ -2,10 +2,16 @@
 
 
 #include "MuT/NodeSurfaceVariation.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeModifier.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeSurfaceVariationPrivate.h"
 
-#include "MuT/NodeMesh.h"
-#include "MuT/NodeImage.h"
+#include <memory>
+#include <utility>
 
 
 namespace mu

@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "EditorViewportClient.h"
-#include "AdvancedPreviewScene.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Engine/EngineBaseTypes.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "Templates/SharedPointer.h"
+
+class FAdvancedPreviewScene;
+class FReferenceCollector;
+class FSceneView;
+class HHitProxy;
+class USkeletalMeshComponent;
 
 
 class FCustomizableObjectPopulationEditorViewportClient : public FEditorViewportClient

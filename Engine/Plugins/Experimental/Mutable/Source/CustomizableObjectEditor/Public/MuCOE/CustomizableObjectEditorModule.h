@@ -3,15 +3,19 @@
 #pragma once
 
 #include "AssetTypeCategories.h"
-#include "CustomizableObjectEditorClasses.h"
-
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Templates/SharedPointer.h"
 #include "Toolkits/IToolkit.h"
-#include "MuCOE/ICustomizableObjectEditor.h"
-#include "MuCOE/ICustomizableObjectDebugger.h"
-#include "MuCOE/CustomizableObjectEditorLogger.h"
+#include "UObject/NameTypes.h"
+
+class FCustomizableObjectEditorLogger;
+class ICustomizableObjectDebugger;
+class ICustomizableObjectEditor;
+class ICustomizableObjectInstanceEditor;
+class IToolkitHost;
+class UCustomizableObject;
+class UCustomizableObjectInstance;
 
 extern const FName CustomizableObjectEditorAppIdentifier;
 extern const FName CustomizableObjectInstanceEditorAppIdentifier;

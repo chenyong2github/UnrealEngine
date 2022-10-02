@@ -2,8 +2,12 @@
 
 
 #include "MuT/NodeMeshSubtract.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeLayout.h"
+#include "MuT/NodeMeshPrivate.h"
 #include "MuT/NodeMeshSubtractPrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	2

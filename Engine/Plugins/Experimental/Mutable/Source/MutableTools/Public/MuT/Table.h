@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
 #include "MuR/Ptr.h"
-#include "MuR/Types.h"
-#include "MuR/Serialisation.h"
+#include "MuR/RefCounted.h"
+
+#include <stdint.h>
 
 
 
@@ -24,6 +24,8 @@ namespace mu
 	typedef Ptr<Image> ImagePtr;
 	typedef Ptr<const Image> ImagePtrConst;
 
+	class InputArchive;
+	class OutputArchive;
 
 	//! Types of the values for the table cells.
 	//! \ingroup runtime

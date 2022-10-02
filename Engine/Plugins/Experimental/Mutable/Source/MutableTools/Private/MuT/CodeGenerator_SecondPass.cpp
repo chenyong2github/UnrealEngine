@@ -1,39 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/CodeGenerator_SecondPass.h"
-#include "MuT/CodeGenerator_FirstPass.h"
-#include "MuT/CodeGenerator.h"
 
-#include "MuR/Platform.h"
-#include "MuT/CompilerPrivate.h"
-
-#include "MuT/NodeSurfaceNewPrivate.h"
-#include "MuT/NodeSurfaceEditPrivate.h"
-
-#include "MuT/NodeComponentPrivate.h"
-#include "MuT/NodeComponentNewPrivate.h"
-#include "MuT/NodeComponentEditPrivate.h"
-
-#include "MuT/NodeLODPrivate.h"
-#include "MuT/NodeObjectNewPrivate.h"
-#include "MuT/NodeObjectStatePrivate.h"
-#include "MuT/NodeObjectGroupPrivate.h"
-
-#include "MuT/NodeMeshClipMorphPlane.h"
-#include "MuT/NodeMeshClipWithMesh.h"
-
-#include "MuT/NodeModifierPrivate.h"
-#include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
-#include "MuT/NodeModifierMeshClipWithMeshPrivate.h"
-#include "MuT/NodeComponentNewPrivate.h"
-
-#include "MuT/ASTOpConstantBool.h"
-
-#include "MuR/ModelPrivate.h"
-#include "MuR/Operations.h"
-#include "MuR/SystemPrivate.h"
-
+#include "Misc/AssertionMacros.h"
 #include "MuR/MutableTrace.h"
+#include "MuR/Operations.h"
+#include "MuR/Types.h"
+#include "MuT/ASTOpConstantBool.h"
+#include "MuT/ErrorLog.h"
+#include "MuT/CodeGenerator_FirstPass.h"
 
 using namespace mu;
 

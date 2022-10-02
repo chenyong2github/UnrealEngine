@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeRemapPinsByPosition.generated.h"
+
+class UEdGraphPin;
+class UObject;
 
 
 /**

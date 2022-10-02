@@ -4,9 +4,9 @@
 
 #include "Containers/Array.h"
 
-#include "EdGraph/EdGraphPin.h"
-
-#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
+class UCustomizableObject;
+class UCustomizableObjectNodeObject;
+class UEdGraphPin;
 
 /** Follow the given input pin returning the output connected pin.
  *

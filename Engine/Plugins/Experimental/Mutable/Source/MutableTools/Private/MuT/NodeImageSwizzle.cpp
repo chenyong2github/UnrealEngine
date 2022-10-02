@@ -2,7 +2,15 @@
 
 
 #include "MuT/NodeImageSwizzle.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/ImagePrivate.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeImageSwizzlePrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 #define NODE_INPUT_COUNT 	4

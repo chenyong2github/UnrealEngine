@@ -2,15 +2,41 @@
  
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "Engine/Texture.h"
-#include "EdGraph/EdGraphPin.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
+#include "Engine/TextureDefines.h"
+#include "Input/Reply.h"
+#include "Logging/LogMacros.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "MuCO/CustomizableObjectClothingTypes.h"
 #include "MuCO/CustomizableObjectIdentifier.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "MuCO/CustomizableObjectClothingTypes.h"
 #include "MuCO/CustomizableObjectUIData.h"
-#include "Animation/AnimInstance.h"
+#include "RHIDefinitions.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "SkeletalMeshTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITORONLY_DATA
 #include "PerPlatformProperties.h"
@@ -20,7 +46,22 @@
 
 #include "CustomizableObject.generated.h"
 
+class FMemoryReaderView;
+class FMemoryWriter64;
+class FObjectPreSaveContext;
+class FObjectPreSaveRootContext;
+class FText;
+class IAsyncReadFileHandle;
+class ITargetPlatform;
+class UAnimInstance;
 class UCustomizableObject;
+class UEdGraph;
+class UMaterialInterface;
+class UPhysicsAsset;
+class USkeletalMesh;
+class USkeleton;
+struct FFrame;
+template <typename FuncType> class TFunctionRef;
 
 DECLARE_MULTICAST_DELEGATE(FPostCompileDelegate)
  

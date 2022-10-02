@@ -1,23 +1,55 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SCustomizableObjectLayoutGrid.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/CustomizableObjectLayout.h"
-#include "Styling/AppStyle.h"
-#include "Async/TaskGraphInterfaces.h"
 
-#include "CanvasItem.h"
+#include "BatchedElements.h"
 #include "CanvasTypes.h"
-
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Engine/World.h"
+#include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
-
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "HitProxies.h"
 #include "Input/CursorReply.h"
-
-#include "Widgets/Input/SNumericEntryBox.h"
-
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Layout/WidgetPath.h"
+#include "Math/Box2D.h"
+#include "Math/IntRect.h"
+#include "Math/Vector.h"
+#include "Misc/Guid.h"
 // Required for engine branch preprocessor defines.
 #include "MuCO/UnrealPortabilityHelpers.h"
+#include "MuCOE/CustomizableObjectLayout.h"
+#include "RHI.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateLayoutTransform.h"
+#include "Rendering/SlateRenderTransform.h"
+#include "Rendering/SlateRenderer.h"
+#include "RenderingThread.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateStructs.h"
+#include "UnrealClient.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SBox.h"
+
+class FExtender;
+class FPaintArgs;
+class FRHICommandListImmediate;
+class FSlateRect;
+class FWidgetStyle;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

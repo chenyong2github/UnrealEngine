@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include "Math/UnrealMathSSE.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
-#include "MuR/Image.h"
-#include "Math/IntVector.h"
 
 namespace mu
 {
@@ -30,6 +32,9 @@ namespace mu
 	class NodeImageProject;
 	typedef Ptr<NodeImageProject> NodeImageProjectPtr;
 	typedef Ptr<const NodeImageProject> NodeImageProjectPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//!
@@ -103,6 +108,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
         Node::Private* GetBasePrivate() const override;
 

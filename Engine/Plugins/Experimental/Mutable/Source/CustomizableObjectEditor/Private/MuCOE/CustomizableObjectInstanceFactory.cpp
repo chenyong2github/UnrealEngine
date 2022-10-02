@@ -1,11 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectInstanceFactory.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCO/CustomizableSkeletalMeshActor.h"
+
+#include "Animation/SkeletalMeshActor.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Containers/Array.h"
+#include "EdGraph/EdGraph.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector.h"
+#include "Modules/ModuleManager.h"
+#include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
+#include "MuCO/CustomizableSkeletalMeshActor.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectInstanceFactory"

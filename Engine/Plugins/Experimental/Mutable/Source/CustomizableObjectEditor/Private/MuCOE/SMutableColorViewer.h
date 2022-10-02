@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "MuCOE/SMutableColorPreviewBox.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Internationalization/Text.h"
-#include "Templates/SharedPointer.h"
 #include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class SMutableColorPreviewBox;
 
 
 class SMutableColorViewer : public SCompoundWidget

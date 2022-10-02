@@ -2,12 +2,23 @@
 
 #include "MuCOE/Nodes/SCustomizableObjectNodeMaterialPinImage.h"
 
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/NumericLimits.h"
+#include "Misc/Attribute.h"
 #include "MuCOE/GraphTraversal.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Casts.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SToolTip.h"
+
+class IToolTip;
+class SWidget;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

@@ -1,22 +1,48 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "MaterialCachedData.h"
+#include "MaterialExpressionIO.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialFunctionInterface.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialLayersFunctions.h"
+#include "Misc/AssertionMacros.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
-#include "ObjectEditorUtils.h"
-#include "MuCOE/Nodes/SPinViewerNodeMaterialPinImageDetails.h"
-#include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
-#include "MuCOE/Nodes/SCustomizableObjectNodeMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterial.h"
-#include "Slate/Private/Widgets/Views/SListPanel.h"
-#include "Materials/MaterialInstance.h"
-#include "MaterialCachedData.h"
+#include "MuCOE/Nodes/SCustomizableObjectNodeMaterial.h"
+#include "MuCOE/Nodes/SPinViewerNodeMaterialPinImageDetails.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
+#include "ObjectEditorUtils.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SGraphNode;
+class SWidget;
+class UCustomizableObjectLayout;
+class UObject;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"

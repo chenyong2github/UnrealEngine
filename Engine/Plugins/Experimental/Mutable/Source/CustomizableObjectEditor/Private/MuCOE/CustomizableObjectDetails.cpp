@@ -1,17 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectDetails.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
 
-#include "DetailLayoutBuilder.h"
+#include "Containers/UnrealString.h"
 #include "DetailCategoryBuilder.h"
-#include "PropertyCustomizationHelpers.h"
-#include "LevelEditor.h"
-#include "LevelEditorActions.h"
-
-#include "Runtime/Launch/Resources/Version.h"
-
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "MuCO/CustomizableObject.h"
 #include "MuR/Model.h"
+#include "MuR/Parameters.h"
+#include "MuR/Ptr.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDetails"

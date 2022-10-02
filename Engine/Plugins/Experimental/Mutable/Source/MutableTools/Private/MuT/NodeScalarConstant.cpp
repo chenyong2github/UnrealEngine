@@ -2,9 +2,10 @@
 
 
 #include "MuT/NodeScalarConstant.h"
-#include "MuT/NodeScalarConstantPrivate.h"
 
-#include "MuR/MutableMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeScalarConstantPrivate.h"
 
 
 #define NODE_INPUT_COUNT 	0

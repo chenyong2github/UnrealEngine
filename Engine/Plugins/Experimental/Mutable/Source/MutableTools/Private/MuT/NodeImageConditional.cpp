@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeImageConditional.h"
-#include "MuT/NodeImageConditionalPrivate.h"
 
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeBool.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodeImageConditionalPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

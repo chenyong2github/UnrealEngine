@@ -2,28 +2,30 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeSelectionDetails.h"
 
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
-#include "MuCOE/CustomizableObjectEditorUtilities.h"
-
-#include "PropertyCustomizationHelpers.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
-#include "MuCOE/GraphTraversal.h"
-#include "LevelEditor.h"
-#include "LevelEditorActions.h"
-
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/STextComboBox.h"
-
-#include "Engine/SkeletalMesh.h"
-#include "Engine/StaticMesh.h"
-#include "Animation/MorphTarget.h"
-
 #include "BoneSelectionWidget.h"
-
-#include "Runtime/Launch/Resources/Version.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "DetailWidgetRow.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/SkeletalMesh.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "MuCOE/GraphTraversal.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshMorph.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshReshape.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeCommon.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "ReferenceSkeleton.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDetails"

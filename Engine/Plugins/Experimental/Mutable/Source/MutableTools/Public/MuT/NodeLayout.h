@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "MuT/Node.h"
-#include "MuR/Mesh.h"
+#include "HAL/Platform.h"
 #include "MuR/Layout.h"
+#include "MuR/Mesh.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 
 
 namespace mu
@@ -20,6 +23,8 @@ namespace mu
 	typedef Ptr<NodeLayoutBlocks> NodeLayoutBlocksPtr;
 	typedef Ptr<const NodeLayoutBlocks> NodeLayoutBlocksPtrConst;
 
+	class InputArchive;
+	class OutputArchive;
 
 	//! This node is used to define the texture layout for a texture coordinates channel of a
 	//! constant mesh.

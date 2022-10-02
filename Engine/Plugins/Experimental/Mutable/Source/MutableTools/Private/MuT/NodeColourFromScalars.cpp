@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeColourFromScalars.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeColourFromScalarsPrivate.h"
-
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	4

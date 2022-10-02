@@ -2,14 +2,21 @@
 
 #pragma once
 
-#include "Serialization/Archive.h"
-#include "Containers/UnrealString.h"
-#include "Async/AsyncFileHandle.h"
-
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "MuCO/CustomizableObject.h"
-
-#include "MuR/Model.h"
+#include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
+
+class FArchive;
+class IAsyncReadFileHandle;
+class IAsyncReadRequest;
+class UCustomizableObject;
+namespace mu { class Model; }
+struct FMutableStreamableBlock;
 
 
 // Implementation fo the basic mutable streams.

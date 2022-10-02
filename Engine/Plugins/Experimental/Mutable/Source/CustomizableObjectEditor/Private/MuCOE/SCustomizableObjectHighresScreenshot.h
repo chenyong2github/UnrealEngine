@@ -2,20 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
+#include "HAL/PlatformCrt.h"
+#include "HighResScreenshot.h"
 #include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "ShowFlags.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Layout/Visibility.h"
+#include "Math/IntRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Optional.h"
+#include "Slate/SceneViewport.h"
 #include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Slate/SceneViewport.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "HighResScreenshot.h"
 
 class SButton;
+class SHorizontalBox;
 class USkeletalMeshComponent;
 
 class SCustomizableObjectHighresScreenshot : public SCompoundWidget

@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "MuR/MutableMath.h"
-#include "MuR/SerialisationPrivate.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
-#include "MuR/Types.h"
+#include "MuR/Platform.h"
+#include "MuR/SerialisationPrivate.h"
 
 #include <functional>
 

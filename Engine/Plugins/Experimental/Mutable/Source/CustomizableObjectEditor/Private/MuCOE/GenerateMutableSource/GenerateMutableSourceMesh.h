@@ -2,8 +2,18 @@
 
 #pragma once
 
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "MuT/NodeModifierMeshClipWithMesh.h"
+#include "MuT/Table.h"
 
+class UCustomizableObjectNode;
+class UEdGraphPin;
+class UObject;
+class USkeletalMesh;
+class UStaticMesh;
+struct FMutableGraphGenerationContext;
+struct FMutableGraphMeshGenerationData;
 
 mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD, int MaterialIndex, FMutableGraphGenerationContext& GenerationContext, const UCustomizableObjectNode* CurrentNode);
 

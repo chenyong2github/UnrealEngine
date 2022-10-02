@@ -2,14 +2,25 @@
 
 #pragma once
 
-#include "Delegates/IDelegateInstance.h"
-#include "MuCOE/StatePerformanceTesting.h"
-#include "MuCO/CustomizableObject.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
 #include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "MuCOE/StatePerformanceTesting.h"
+#include "PixelFormat.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "StressTest.generated.h"
 
-
+class UCustomizableObject;
 class UCustomizableObjectInstance;
+struct FFrame;
 
 
 struct MaterialBriefInfo

@@ -4,6 +4,8 @@
 
 #include "Trace/Trace.h"
 
+namespace UE::Trace { class FChannel; }
+
 UE_TRACE_CHANNEL_EXTERN(MutableChannel, MUTABLERUNTIME_API)
 
 /** Custom Mutable profiler scope. */

@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "EdGraph/EdGraphPin.h"
 
+class UEdGraphPin;
 
 /** Returns true if the pin is orphan. */
 bool IsPinOrphan(const UEdGraphPin &Pin);

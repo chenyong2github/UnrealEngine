@@ -2,18 +2,38 @@
 
 #pragma once
 
-#include "MuCO/CustomizableSkeletalComponent.h"
-#include "MuCO/CustomizableObject.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
-#include "MuCO/MultilayerProjector.h"
-#include "Engine/Texture2D.h"
-
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
-#include "GameplayTagContainer.h"
+#include "MuCO/MultilayerProjector.h"
+#include "Serialization/Archive.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableObjectInstance.generated.h"
 
+class AActor;
+class FProperty;
+class UAnimInstance;
 class UCustomizableInstancePrivateData; // This is used to hide Mutable SDK members in the public headers.
+class UCustomizableObject;
+class UCustomizableSkeletalComponent;
+class UTexture2D;
+struct FFrame;
+struct FGameplayTagContainer;
+struct FPropertyChangedEvent;
 
 //! Order of the unreal vertex buffers when in mutable data
 #define MUTABLE_VERTEXBUFFER_POSITION	0
@@ -59,12 +79,6 @@ namespace EProjectorState
 	const Type Scale = 3;	
 	const Type Selected = 4;
 	const Type TypeChanged = 5;
-};
-
-
-namespace mu
-{
-	class Instance;
 };
 
 

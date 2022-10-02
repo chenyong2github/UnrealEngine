@@ -2,12 +2,28 @@
 
 #pragma once
 
-#include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2_Actions.h"
-#include "Runtime/Launch/Resources/Version.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
 #include "MaterialTypes.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EdGraphSchema_CustomizableObject.generated.h"
+
+class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+class UObject;
+struct FAssetData;
+struct FEdGraphPinType;
 
 /** Action to add a node to the graph */
 USTRUCT()

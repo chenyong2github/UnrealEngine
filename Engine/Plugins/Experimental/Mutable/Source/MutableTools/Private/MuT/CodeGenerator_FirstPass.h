@@ -2,47 +2,37 @@
 
 #pragma once
 
-#include "MuT/Visitor.h"
-
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
 #include "MuT/AST.h"
-#include "MuT/CompilerPrivate.h"
-#include "MuT/NodeLayoutPrivate.h"
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/NodeObjectNewPrivate.h"
-
-#include "MuT/Table.h"
-
-#include "MuT/NodeBool.h"
-
-#include "MuT/NodeComponent.h"
-#include "MuT/NodeComponentNew.h"
+#include "MuT/Compiler.h"
+#include "MuT/Node.h"
 #include "MuT/NodeComponentEdit.h"
-
+#include "MuT/NodeComponentNew.h"
+#include "MuT/NodeLOD.h"
 #include "MuT/NodeModifier.h"
+#include "MuT/NodeModifierMeshClipDeform.h"
 #include "MuT/NodeModifierMeshClipMorphPlane.h"
 #include "MuT/NodeModifierMeshClipWithMesh.h"
-#include "MuT/NodeModifierMeshClipDeform.h"
-
-#include "MuT/NodeSurface.h"
-#include "MuT/NodeSurfaceNew.h"
-#include "MuT/NodeSurfaceEdit.h"
-#include "MuT/NodeSurfaceVariation.h"
-
-#include "MuT/NodePatchImage.h"
-#include "MuT/NodeLOD.h"
+#include "MuT/NodeObjectGroup.h"
 #include "MuT/NodeObjectNew.h"
 #include "MuT/NodeObjectState.h"
-#include "MuT/NodeObjectGroup.h"
 #include "MuT/NodePatchMesh.h"
+#include "MuT/NodeSurfaceEdit.h"
+#include "MuT/NodeSurfaceNew.h"
+#include "MuT/NodeSurfaceVariation.h"
+#include "MuT/Visitor.h"
 
-#include "MuR/Operations.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/ImagePrivate.h"
-
+#include <stdint.h>
 #include <memory>
+#include <utility>
 
 namespace mu
 {
+class Layout;
+struct OBJECT_STATE;
 
 
     //! Store the results of the code generation of a mesh.

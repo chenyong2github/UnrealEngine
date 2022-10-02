@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeExposePin.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCO/CustomizableObject.h"
 
-#include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Internationalization/Internationalization.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeExternalPin.h"
+#include "Templates/Casts.h"
+#include "UObject/UnrealType.h"
+
+class UCustomizableObjectNodeRemapPins;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-//#include "Classes/Engine/DataTable.h"
-#include "AssetViewerSettings.h"
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+
+struct FPreviewSceneProfile;
 
 class LevelProfileManage
 {

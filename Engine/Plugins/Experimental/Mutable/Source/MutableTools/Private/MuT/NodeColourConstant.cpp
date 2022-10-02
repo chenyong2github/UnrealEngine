@@ -2,9 +2,11 @@
 
 
 #include "MuT/NodeColourConstant.h"
-#include "MuT/NodeColourConstantPrivate.h"
 
+#include "Misc/AssertionMacros.h"
 #include "MuR/MutableMath.h"
+#include "MuT/NodeColourConstantPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	0

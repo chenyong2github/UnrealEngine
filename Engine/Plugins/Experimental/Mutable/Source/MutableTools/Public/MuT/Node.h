@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
+#include "HAL/Platform.h"
 #include "MuR/Ptr.h"
-#include "MuR/Types.h"
-#include "MuR/Serialisation.h"
+#include "MuR/RefCounted.h"
+
+namespace mu { class InputArchive; }
+namespace mu { class OutputArchive; }
 
 
 //! This tag is used to identify files containing serialised Node hierarchies. The tag is not added

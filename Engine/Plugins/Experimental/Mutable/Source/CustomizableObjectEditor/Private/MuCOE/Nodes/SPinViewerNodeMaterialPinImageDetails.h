@@ -2,9 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
 #include "MuCOE/PinViewer/SPinViewerPinDetails.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSpinBox.h"
+
+class FString;
+class SWidget;
 
 /** UV Layout Mode UI Enum. */
 UENUM()

@@ -3,14 +3,14 @@
 
 #include "MuT/NodeSurface.h"
 
-#include "MuT/NodeMesh.h"
-#include "MuT/NodeImage.h"
-
-#include "MuT/NodeSurfaceNew.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeSurfaceEdit.h"
+#include "MuT/NodeSurfaceNew.h"
 #include "MuT/NodeSurfaceVariation.h"
 
-#include "MuR/SerialisationPrivate.h"
+#include <stdint.h>
 
 
 namespace mu

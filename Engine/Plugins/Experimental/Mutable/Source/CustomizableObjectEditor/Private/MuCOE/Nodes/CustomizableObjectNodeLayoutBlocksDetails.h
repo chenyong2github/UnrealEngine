@@ -3,10 +3,14 @@
 #pragma once
 
 
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
+#include "Math/MathFwd.h"
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
-#include "UObject/WeakObjectPtr.h"
+
+class FString;
+class IDetailLayoutBuilder;
 
 
 class FCustomizableObjectNodeLayoutBlocksDetails : public IDetailCustomization

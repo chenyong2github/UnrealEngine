@@ -1,9 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SMutableSkeletonViewer.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "MuT/TypeInfo.h"
+
+#include "Containers/UnrealString.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/BasicLayoutWidgetSlot.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "MuR/Ptr.h"
 #include "MuR/Skeleton.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
 
 #define LOCTEXT_NAMESPACE "MutableSkeletonViewer"
 

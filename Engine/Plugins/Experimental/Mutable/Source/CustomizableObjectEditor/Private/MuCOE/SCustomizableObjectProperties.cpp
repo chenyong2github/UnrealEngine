@@ -1,13 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SCustomizableObjectProperties.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
 
+#include "Containers/UnrealString.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/STableRow.h"
 
-#include "PackageTools.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetSelection.h"
+class ITableRow;
+class SWidget;
+class UCustomizableObject;
 
 #define LOCTEXT_NAMESPACE "SCustomizableObjectProperties"
 

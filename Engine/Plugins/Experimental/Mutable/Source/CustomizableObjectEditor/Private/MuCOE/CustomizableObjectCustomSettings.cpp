@@ -1,25 +1,53 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectCustomSettings.h"
-#include "MuCOE/SCustomizableObjectEditorViewport.h"
-#include "MuCOE/CustomizableObjectEditorViewportClient.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Colors/SColorPicker.h"
-#include "Widgets/Colors/SColorBlock.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "MuCOE/CustomizableObjectEditorSettings.h"
-#include "MuCOE/CustomizableObjectPreviewScene.h"
-#include "Styling/AppStyle.h"
-#include "PropertyCustomizationHelpers.h"
+#include "Components/LightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/SlateDelegates.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Transform.h"
+#include "Misc/Attribute.h"
+#include "Misc/Paths.h"
+#include "MuCOE/CustomizableObjectEditorViewportClient.h"
+#include "MuCOE/CustomizableObjectEditorViewportLights.h"
+#include "MuCOE/SCustomizableObjectEditorViewport.h"
+#include "PropertyCustomizationHelpers.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Package.h"
+#include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Colors/SColorPicker.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
+class UClass;
+class UFactory;
+struct FGeometry;
 
 const FString SCustomizableObjectCustomSettings::LightPackagePath = "/Game/EditorAssets/Mutable/";
 

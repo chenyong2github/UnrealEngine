@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "IDetailCustomization.h"
-#include "Types/SlateEnums.h"
+#include "IPropertyTypeCustomization.h"
+#include "Math/Color.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-#include "PropertyHandle.h"
-#include "BoneSelectionWidget.h"
+#include "UObject/NameTypes.h"
+
+class IPropertyHandle;
+class IPropertyHandleArray;
+class SBoneSelectionWidget;
 
 class FMeshReshapeBonesReferenceCustomization : public IPropertyTypeCustomization
 {

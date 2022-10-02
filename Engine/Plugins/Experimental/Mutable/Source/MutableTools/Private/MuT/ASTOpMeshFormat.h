@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "HAL/PlatformMath.h"
+#include "MuR/Operations.h"
+#include "MuR/Ptr.h"
 #include "MuT/AST.h"
+
+#include <functional>
 
 
 namespace mu
 {
+struct PROGRAM;
 	
 	class ASTOpMeshFormat : public ASTOp
 	{

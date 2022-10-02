@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/Commands.h"
+#include "Templates/SharedPointer.h"
+
+class FUICommandInfo;
 
 /**
  * 

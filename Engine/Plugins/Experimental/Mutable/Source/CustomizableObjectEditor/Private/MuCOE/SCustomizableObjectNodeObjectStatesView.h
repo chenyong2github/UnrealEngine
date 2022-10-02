@@ -2,12 +2,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SListViewSelectorDropdownMenu.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Images/SImage.h"
+#include "Widgets/Views/SListView.h"
+
+class ITableRow;
+class SComboButton;
+class SImage;
+class SSearchBox;
+class STableViewBase;
+class SVerticalBox;
+class SWidget;
+class UCustomizableObjectNodeObject;
+struct FSlateBrush;
+template <typename OptionType> class SComboBox;
 
 class SCustomizableObjectRuntimeParameter : public SCompoundWidget
 {

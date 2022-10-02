@@ -2,12 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
-
 #include "Types/SlateEnums.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/STextComboBox.h"
+
+class FString;
+class IDetailLayoutBuilder;
+class STextComboBox;
 
 /** Copy Material node details panel. Hides all properties from the inheret Material node. */
 class FCustomizableObjectNodeTableDetails : public IDetailCustomization

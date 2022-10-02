@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObjectInstance.h"
-#include "MuCO/CustomizableSkeletalComponent.h"
 #include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-
+class IDetailLayoutBuilder;
 class SCustomizableInstanceProperties;
+class UCustomizableObjectInstance;
+class UCustomizableSkeletalComponent;
 
 
 class FCustomizableInstanceDetails : public IDetailCustomization

@@ -2,11 +2,12 @@
 
 
 #include "MuT/NodeColourSampleImage.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeColourSampleImagePrivate.h"
-
+#include "MuT/NodeImage.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	3

@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
-
-#include "MuR/Image.h"
 
 
 namespace mu
@@ -18,6 +19,9 @@ namespace mu
 	class NodeImageSaturate;
 	typedef Ptr<NodeImageSaturate> NodeImageSaturatePtr;
 	typedef Ptr<const NodeImageSaturate> NodeImageSaturatePtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Change the saturation of an image. This node can be used to increase the saturation with a
@@ -70,6 +74,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
         Node::Private* GetBasePrivate() const override;
 

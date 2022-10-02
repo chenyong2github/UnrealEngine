@@ -1,15 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/ASTOpConstantResource.h"
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/CodeOptimiser.h"
+
+#include "Containers/Array.h"
+#include "HAL/PlatformMath.h"
+#include "Hash/CityHash.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Layout.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/PhysicsBody.h"
+#include "MuR/Serialisation.h"
+#include "MuR/Skeleton.h"
+#include "MuR/Types.h"
 #include "MuT/StreamsPrivate.h"
 
-#include "Hash/CityHash.h"
-
-#include "MuR/OpMeshMerge.h"
-
-#include <queue>
+#include <memory>
+#include <utility>
 
 
 using namespace mu;

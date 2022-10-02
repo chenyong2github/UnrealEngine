@@ -2,18 +2,26 @@
 
 #include "MuCOE/SMutableMeshViewport.h"
 
-#include "MuCOE/FMutableViewportClient.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "SEditorViewport.h"
-#include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
+#include "AdvancedPreviewScene.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Editor/UnrealEdTypes.h"
 #include "Engine/SkeletalMesh.h"
+#include "Math/MathFwd.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
 #include "MuCOE/FMutableViewportClient.h"
-#include "MuR/Mesh.h"
-#include "MuR/MeshPrivate.h"
-#include "MuR/Parameters.h"
-
 #include "MuCOE/MutableMeshPreviewUtils.h"
+#include "MuR/Mesh.h"
+#include "MuR/Ptr.h"
+#include "PreviewScene.h"
+#include "SEditorViewport.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
+class FEditorViewportClient;
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "SMutableMeshViewerViewport"
 

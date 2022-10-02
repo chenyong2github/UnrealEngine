@@ -2,8 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectNodeMaterialBase.generated.h"
+
+class UEdGraphPin;
+class UObject;
 
 
 

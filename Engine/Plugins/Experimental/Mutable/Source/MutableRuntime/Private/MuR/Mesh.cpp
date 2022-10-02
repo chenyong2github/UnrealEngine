@@ -3,9 +3,14 @@
 
 #include "MuR/Mesh.h"
 
+#include "Containers/UnrealString.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/UnrealMemory.h"
 #include "MuR/MeshPrivate.h"
-#include "MuR/Platform.h"
 #include "MuR/MutableTrace.h"
+
+#include <utility>
 
 namespace mu
 {

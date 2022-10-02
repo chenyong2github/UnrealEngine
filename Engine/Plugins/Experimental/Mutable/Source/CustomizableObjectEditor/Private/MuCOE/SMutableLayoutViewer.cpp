@@ -1,16 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SMutableLayoutViewer.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "Styling/AppStyle.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Brushes/SlateImageBrush.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Input/SSegmentedControl.h"
-#include "MuCO/CustomizableInstancePrivateData.h"
-#include "CanvasItem.h"
-#include "CanvasTypes.h"
-#include "MuT/TypeInfo.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Guid.h"
+#include "MuCOE/CustomizableObjectLayout.h"
+#include "MuCOE/SCustomizableObjectLayoutGrid.h"
+#include "MuR/Mesh.h"
+#include "MuR/Ptr.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+struct FGeometry;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"

@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
 
@@ -12,6 +15,9 @@ namespace mu
 	class NodeImageColourMap;
 	typedef Ptr<NodeImageColourMap> NodeImageColourMapPtr;
 	typedef Ptr<const NodeImageColourMap> NodeImageColourMapPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! This node changes the colours of a selectd part of the image, applying a colour map from
@@ -66,6 +72,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
         Node::Private* GetBasePrivate() const override;
 

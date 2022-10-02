@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "MuR/BlockCompression/Miro/Miro.h"
 #include "MuR/MutableMemory.h"
 
-#include "MuR/Platform.h"
-
-#include "MuR/MemoryPrivate.h"
-
-#include "MuR/BlockCompression/BlockCompression.h"
-
-#include <atomic>
+#include <stdint.h>
 #include <cstdlib>
-#include <cassert>
 
 namespace mu
 {

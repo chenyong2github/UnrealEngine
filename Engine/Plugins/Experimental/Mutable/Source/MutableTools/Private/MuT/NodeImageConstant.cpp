@@ -2,8 +2,12 @@
 
 
 #include "MuT/NodeImageConstant.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/Serialisation.h"
 #include "MuT/NodeImageConstantPrivate.h"
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

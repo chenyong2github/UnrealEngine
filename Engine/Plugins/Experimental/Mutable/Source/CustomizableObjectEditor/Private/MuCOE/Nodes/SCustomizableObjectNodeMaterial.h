@@ -3,6 +3,12 @@
 #pragma once
 
 #include "SGraphNode.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SGraphPin;
+class UEdGraphNode;
+class UEdGraphPin;
 
 
 /** Custom widget for the Material node. */

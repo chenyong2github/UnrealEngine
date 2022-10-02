@@ -2,9 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "Animation/PoseAsset.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectNodeAnimationPose.generated.h"
+
+class FString;
+class UCustomizableObjectNodeRemapPins;
+class UEdGraphPin;
+class UObject;
+class UPoseAsset;
+struct FPropertyChangedEvent;
 
 
 UCLASS()

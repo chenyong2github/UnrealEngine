@@ -2,15 +2,48 @@
 
 #pragma once
 
-#include "MuCOE/CustomizableObjectWidget.h"
-#include "EditorViewportClient.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimationAsset.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeProjectorConstant.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameter.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMeshClipMorph.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMeshClipWithMesh.h"
-#include "MuCOE/ICustomizableObjectInstanceEditor.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Editor/UnrealEdTypes.h"
+#include "EditorViewportClient.h"
+#include "Math/Axis.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/Sphere.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UnrealWidgetFwd.h"
+
+class FCanvas;
+class FCustomizableObjectWidget;
+class FMaterialRenderProxy;
+class FPreviewScene;
+class FPrimitiveDrawInterface;
+class FReferenceCollector;
+class FSceneView;
+class FViewport;
+class ICustomizableObjectInstanceEditor;
+class UAnimationAsset;
+class UCustomizableObject;
+class UCustomizableObjectNodeMeshClipMorph;
+class UCustomizableObjectNodeMeshClipWithMesh;
+class UCustomizableObjectNodeProjectorConstant;
+class UCustomizableObjectNodeProjectorParameter;
+class UDebugSkelMeshComponent;
+class UMaterial;
+class UMaterialInterface;
+class UObject;
+class UStaticMesh;
+class UStaticMeshComponent;
+struct FInputKeyEventArgs;
 
 
 extern void RemoveRestrictedChars(FString& String);

@@ -2,14 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
 #include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "AssetRegistry/AssetData.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMeshClipWithMesh.h"
+
+class FText;
+class IDetailLayoutBuilder;
+class SHorizontalBox;
+class SVerticalBox;
+class UCustomizableObjectNodeMeshClipWithMesh;
+struct FAssetData;
 
 // Widget that represents the array of tags of the clip with mesh node
 class STagView : public SCompoundWidget

@@ -3,23 +3,37 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
 #include "MuR/Mesh.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Layout/SBorder.h"
-#include "AssetThumbnail.h"
-#include "UObject/GCObject.h"
 
-#include "Templates/SharedPointer.h"
-
-#include "MuCOE/SMutableMeshViewport.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Layout/SScrollBox.h"
-
-#include "PropertyCustomizationHelpers.h"
-#include "MuCOE/SMutableSkeletonViewer.h"
+class FAssetThumbnail;
+class FAssetThumbnailPool;
+class FReferenceCollector;
+class ITableRow;
+class SBorder;
+class SMutableMeshViewport;
+class SMutableSkeletonViewer;
+class SScrollBox;
+class SSplitter;
+class STableViewBase;
+class SWidget;
+class USkeletalMesh;
+namespace mu { class FMeshBufferSet; }
+struct FAssetData;
 
 
 /** Container designed to hold the buffer channel data of a mutable mesh buffer to be later used by the UI */

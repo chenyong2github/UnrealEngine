@@ -1,27 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/NodeMesh.h"
-#include "MuT/NodeMeshPrivate.h"
 
-#include "MuT/NodeMesh.h"
-#include "MuT/NodeMeshConstant.h"
-#include "MuT/NodeMeshFormat.h"
-#include "MuT/NodeMeshInterpolate.h"
-#include "MuT/NodeMeshTable.h"
-#include "MuT/NodeMeshSubtract.h"
-#include "MuT/NodeMeshTangents.h"
-#include "MuT/NodeMeshMorph.h"
-#include "MuT/NodeMeshMakeMorph.h"
-#include "MuT/NodeMeshSwitch.h"
-#include "MuT/NodeMeshFragment.h"
-#include "MuT/NodeMeshTransform.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuT/NodeMeshApplyPose.h"
+#include "MuT/NodeMeshClipDeform.h"
 #include "MuT/NodeMeshClipMorphPlane.h"
 #include "MuT/NodeMeshClipWithMesh.h"
-#include "MuT/NodeMeshApplyPose.h"
-#include "MuT/NodeMeshVariation.h"
+#include "MuT/NodeMeshConstant.h"
+#include "MuT/NodeMeshFormat.h"
+#include "MuT/NodeMeshFragment.h"
 #include "MuT/NodeMeshGeometryOperation.h"
+#include "MuT/NodeMeshInterpolate.h"
+#include "MuT/NodeMeshMakeMorph.h"
+#include "MuT/NodeMeshMorph.h"
 #include "MuT/NodeMeshReshape.h"
-#include "MuT/NodeMeshClipDeform.h"
+#include "MuT/NodeMeshSubtract.h"
+#include "MuT/NodeMeshSwitch.h"
+#include "MuT/NodeMeshTable.h"
+#include "MuT/NodeMeshTangents.h"
+#include "MuT/NodeMeshTransform.h"
+#include "MuT/NodeMeshVariation.h"
+
+#include <stdint.h>
 
 namespace mu
 {

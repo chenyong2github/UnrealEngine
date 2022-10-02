@@ -2,8 +2,17 @@
 
 #include "MuCO/UnrealMutableImageProvider.h"
 
-#include "MuCO/CustomizableObject.h"
+#include "CoreGlobals.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
+#include "Engine/TextureDefines.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObjectSystem.h"
+#include "MuR/Ptr.h"
+#include "UObject/WeakObjectPtr.h"
 
 
 //-------------------------------------------------------------------------------------------------

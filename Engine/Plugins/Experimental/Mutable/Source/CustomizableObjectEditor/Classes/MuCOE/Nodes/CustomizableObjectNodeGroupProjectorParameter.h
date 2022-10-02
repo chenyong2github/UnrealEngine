@@ -2,12 +2,25 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObjectInstance.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameter.h"
-#include "Engine/DataTable.h"
-#include "Animation/PoseAsset.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeGroupProjectorParameter.generated.h"
+
+class FArchive;
+class UCustomizableObjectNodeRemapPins;
+class UDataTable;
+class UObject;
+class UPoseAsset;
+class UTexture2D;
 
 USTRUCT()
 struct FGroupProjectorParameterImage

@@ -2,11 +2,17 @@
 
 
 #include "MuT/NodeMeshInterpolate.h"
-#include "MuT/NodeMeshInterpolatePrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeLayout.h"
+#include "MuT/NodeMeshInterpolatePrivate.h"
+#include "MuT/NodeMeshPrivate.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
 
-#include "MuR/MeshPrivate.h"
+#include <memory>
+#include <utility>
 
 
 #define NODE_INPUT_COUNT 	4

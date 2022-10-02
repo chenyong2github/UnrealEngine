@@ -2,7 +2,6 @@
 
 
 #include "MuR/MutableString.h"
-#include "MuR/Platform.h"
 
 
 namespace mu {

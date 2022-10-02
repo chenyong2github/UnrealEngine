@@ -2,9 +2,22 @@
 
 
 #include "MuT/NodeLayout.h"
-#include "MuT/NodeLayoutPrivate.h"
 
-#include "MuT/NodeImage.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/ConvertData.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/MeshPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuT/NodeLayoutPrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

@@ -1,9 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/AssetTypeActions_CustomizableObjectInstance.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "Delegates/Delegate.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "HAL/PlatformCrt.h"
+#include "Modules/ModuleManager.h"
+#include "MuCOE/CustomizableObjectEditorModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
+
+class IToolkitHost;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

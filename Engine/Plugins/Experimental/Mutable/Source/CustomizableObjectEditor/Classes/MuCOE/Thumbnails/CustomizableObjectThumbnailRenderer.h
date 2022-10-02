@@ -6,10 +6,16 @@
  */
 
 #pragma once
-#include "ThumbnailHelpers.h"
+#include "HAL/Platform.h"
 #include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectThumbnailRenderer.generated.h"
+
+class FCanvas;
+class FRenderTarget;
+class UObject;
 
 
 UCLASS(config=Editor)

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectEditorActions.h"
-#include "MuCOE/CustomizableObjectEditor.h"
-#include "MuCOE/SCustomizableObjectEditorViewport.h"
-#include "Styling/AppStyle.h"
-#include "MuCOE/CustomizableObjectEditorStyle.h"
+
 #include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Internationalization/Internationalization.h"
+#include "MuCOE/CustomizableObjectEditorStyle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

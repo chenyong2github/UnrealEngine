@@ -2,16 +2,30 @@
 
 #include "MuCOE/SCustomizableObjectNodeObjectRTMorphTargetOverride.h"
 
-
-#include "EdGraph/EdGraphPin.h"
-
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Layout/SExpandableArea.h"
+#include "CoreTypes.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
 #include "SEnumCombo.h"
 #include "ScopedTransaction.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-
+#include "SlotBase.h"
 #include "Templates/Decay.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SHeaderRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

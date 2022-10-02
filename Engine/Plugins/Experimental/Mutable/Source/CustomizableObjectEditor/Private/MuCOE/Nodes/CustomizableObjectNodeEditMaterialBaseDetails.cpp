@@ -1,24 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBaseDetails.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "PropertyCustomizationHelpers.h"
-#include "MuCOE/CustomizableObjectEditorUtilities.h"
 
-#include "DetailLayoutBuilder.h"
+#include "Containers/UnrealString.h"
 #include "DetailCategoryBuilder.h"
-#include "LevelEditor.h"
-#include "LevelEditorActions.h"
-
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/STextComboBox.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
-#include "Engine/SkeletalMesh.h"
-#include "Engine/StaticMesh.h"
-
-#include "Runtime/Launch/Resources/Version.h"
+class IDetailCustomization;
+class UObject;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDetails"

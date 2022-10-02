@@ -2,25 +2,37 @@
 
 #pragma once
 
-#include "MuR/MutableString.h"
-#include "MuT/Table.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/MutableMath.h"
-#include "MuR/ParametersPrivate.h"
-#include "MuR/SystemPrivate.h"
-
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
 #include "MuR/Image.h"
-#include "MuR/Layout.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
-
+#include "MuR/MutableMath.h"
 #include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
 
-
+class ITableRow;
+class SExpandableArea;
 // Forward declarations
 class SMutableCodeViewer;
+class STableViewBase;
+class SWidget;
+namespace mu { struct Curve; }
+namespace mu { struct PROGRAM; }
+namespace mu { struct PROJECTOR; }
+namespace mu { struct SHAPE; }
 
 /**
  * Base Structure to define the different elements used by the lists on this object

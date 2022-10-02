@@ -2,15 +2,25 @@
 
 #include "MuT/ASTOpImageMipmap.h"
 
-#include "MuT/ASTOpImagePixelFormat.h"
+#include "Containers/Map.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/ImagePrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
+#include "MuT/ASTOpConditional.h"
 #include "MuT/ASTOpImageCompose.h"
 #include "MuT/ASTOpImagePatch.h"
+#include "MuT/ASTOpImagePixelFormat.h"
 #include "MuT/ASTOpSwitch.h"
-#include "MuT/ASTOpConditional.h"
-
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/CodeOptimiser.h"
 #include "MuT/StreamsPrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 using namespace mu;

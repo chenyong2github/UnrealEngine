@@ -1,15 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Thumbnails/CustomizableObjectThumbnailRenderer.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
-#include "UObject/ConstructorHelpers.h"
-#include "CanvasTypes.h"
-#include "EngineModule.h"
 
+#include "CanvasTypes.h"
+#include "Containers/Array.h"
+#include "Engine/Texture2D.h"
+#include "Math/Color.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
+#include "MuCOE/CustomizableObjectCompiler.h"
+#include "SceneView.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
+#include "TextureResource.h"
+#include "ThumbnailHelpers.h"
+#include "ThumbnailRendering/ThumbnailRenderer.h"
+#include "UObject/Class.h"
+#include "UObject/ConstructorHelpers.h"
+#include "UObject/Object.h"
+
+class FRenderTarget;
+class USkeletalMesh;
 
 
 

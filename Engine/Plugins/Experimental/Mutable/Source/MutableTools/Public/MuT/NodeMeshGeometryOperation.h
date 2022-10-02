@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeMesh.h"
-#include "MuR/Mesh.h"
 
 
 namespace mu

@@ -1,6 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformCrt.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
 
 

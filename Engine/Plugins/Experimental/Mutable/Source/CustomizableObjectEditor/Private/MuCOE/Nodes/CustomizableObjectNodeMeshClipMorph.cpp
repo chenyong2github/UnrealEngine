@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshClipMorph.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "Toolkits/ToolkitManager.h"
+
+#include "Internationalization/Internationalization.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/ICustomizableObjectEditor.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "Serialization/Archive.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/UnrealType.h"
+
+class UCustomizableObjectNodeRemapPins;
+class UEdGraphPin;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

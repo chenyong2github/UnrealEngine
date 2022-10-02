@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuR/ImagePrivate.h"
+#include "MuR/OpImageLayer.h"
 
 namespace mu
 {

@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Types/SlateEnums.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-#include "PropertyHandle.h"
+#include "Types/SlateEnums.h"
+
+class FString;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
 
 class FCustomizableObjectNodeMeshMorphDetails : public IDetailCustomization
 {

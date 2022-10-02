@@ -2,6 +2,8 @@
 
 #include "MuCOE/CustomizableObjectPin.h"
 
+#include "EdGraph/EdGraphPin.h"
+
 bool IsPinOrphan(const UEdGraphPin &Pin)
 {
 	return Pin.bOrphanedPin;

@@ -2,9 +2,11 @@
 
 
 #include "MuT/NodeStringConstant.h"
-#include "MuT/NodeStringConstantPrivate.h"
 
-#include "MuR/MutableMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeStringConstantPrivate.h"
 
 
 #define NODE_INPUT_COUNT 	0

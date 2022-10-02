@@ -2,17 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-
-#include "Templates/Tuple.h"
-#include "Misc/Variant.h"
-
-#include "Math/RandomStream.h"
+#include "CoreTypes.h"
 #include "Curves/RichCurve.h"
-#include "Curves/CurveLinearColor.h"
+#include "Math/Color.h"
+#include "Templates/Tuple.h"
+
+class FArchive;
+class UCurveLinearColor;
+struct FRandomStream;
 
 namespace CustomizableObjectPopulation
 {

@@ -4,6 +4,8 @@
 
 #include "AdvancedPreviewScene.h"
 
+class UStaticMeshComponent;
+
 class FCustomizableObjectPreviewScene : public FAdvancedPreviewScene
 {
 public:

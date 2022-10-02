@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
-#include "GenericPlatform/GenericPlatform.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 /*
 * Mutable viewer to show a representation of an int variable held by mutable.

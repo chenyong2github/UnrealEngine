@@ -2,9 +2,10 @@
 
 
 #include "MuT/NodeImageInvert.h"
-#include "MuT/NodeImageInvertPrivate.h"
 
-#include "MuR/ImagePrivate.h"
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeImageInvertPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 1

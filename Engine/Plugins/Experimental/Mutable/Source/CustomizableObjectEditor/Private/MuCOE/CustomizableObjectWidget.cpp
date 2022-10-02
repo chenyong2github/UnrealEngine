@@ -1,11 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectWidget.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
 #include "DynamicMeshBuilder.h"
+#include "Engine/EngineTypes.h"
+#include "EngineDefines.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "UnrealWidget.h"
+#include "Math/IntRect.h"
+#include "Math/NumericLimits.h"
+#include "Math/Plane.h"
+#include "Math/RotationMatrix.h"
+#include "Math/Rotator.h"
+#include "Math/ScaleMatrix.h"
+#include "Math/TranslationMatrix.h"
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "SceneManagement.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/UObjectGlobals.h"
+#include "UnrealWidget.h"
+
+class FMaterialRenderProxy;
+class UMaterialInterface;
 
 
 IMPLEMENT_HIT_PROXY(HCustomizableObjectWidgetAxis,HHitProxy);

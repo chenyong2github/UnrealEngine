@@ -1,23 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SCustomizableObjectNodeObjectStatesView.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "PropertyCustomizationHelpers.h"
-#include "MuCOE/CustomizableObjectEditorUtilities.h"
-#include "MuCO/CustomizableObject.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeObjectGroup.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeObjectDetails.h"
 
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
-
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Input/SCheckBox.h"
-
+#include "Framework/Views/ITypedTableView.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "Misc/CString.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCOE/CustomizableObjectGraph.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/ITableRow.h"
+#include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+struct FSlateBrush;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectNodeObjectStatesView"

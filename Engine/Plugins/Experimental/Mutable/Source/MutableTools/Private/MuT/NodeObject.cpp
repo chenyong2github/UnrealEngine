@@ -2,11 +2,15 @@
 
 
 #include "MuT/NodeObject.h"
-#include "MuT/NodeObjectPrivate.h"
 
-#include "MuT/NodeObjectNew.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeObjectGroup.h"
+#include "MuT/NodeObjectNew.h"
 #include "MuT/NodeObjectState.h"
+
+#include <stdint.h>
 
 
 namespace mu

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MuCO/ICustomizableObjectModule.h"
+#include "HAL/Platform.h"
 
 //-------------------------------------------------------------------------------------------------
 

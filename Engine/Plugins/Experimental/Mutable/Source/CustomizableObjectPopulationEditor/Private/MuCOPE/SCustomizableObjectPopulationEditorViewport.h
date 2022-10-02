@@ -2,9 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "SEditorViewport.h"
-#include "AdvancedPreviewScene.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FAdvancedPreviewScene;
+class FEditorViewportClient;
+class FReferenceCollector;
+class SWidget;
+class UCapsuleComponent;
+class USkeletalMeshComponent;
+struct FGeometry;
 
 
 class SCustomizableObjectPopulationEditorViewport : public SEditorViewport, public FGCObject

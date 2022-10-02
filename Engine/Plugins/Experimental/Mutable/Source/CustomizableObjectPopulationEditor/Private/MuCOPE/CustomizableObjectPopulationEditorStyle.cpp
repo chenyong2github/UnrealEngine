@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
 
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
-#include "Slate/SlateGameResources.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
+#include "Brushes/SlateImageBrush.h"
+#include "HAL/PlatformMath.h"
 #include "Interfaces/IPluginManager.h"
-#include "Settings/EditorStyleSettings.h"
-#include "Styling/StarshipCoreStyle.h"
-#include "Styling/StyleColors.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
+
+class ISlateStyle;
 
 TSharedPtr<FSlateStyleSet> FCustomizableObjectPopulationEditorStyle::CustomizableObjectPopulationEditorStyleInstance = NULL;
 

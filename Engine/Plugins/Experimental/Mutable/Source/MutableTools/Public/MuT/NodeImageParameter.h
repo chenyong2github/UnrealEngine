@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
-#include "MuR/Image.h"
 
 
 namespace mu
@@ -12,6 +14,9 @@ namespace mu
     class NodeImageParameter;
     typedef Ptr<NodeImageParameter> NodeImageParameterPtr;
     typedef Ptr<const NodeImageParameter> NodeImageParameterPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
     //! Node that defines a Image model parameter.

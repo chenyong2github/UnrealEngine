@@ -2,13 +2,26 @@
 
 #pragma once
 
-#include "MuCOE/SMutableTextSearchBox.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "MuR/Parameters.h"
+#include "Delegates/Delegate.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/Optional.h"
+#include "MuR/Parameters.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FString;
+class SMutableTextSearchBox;
+class SVerticalBox;
+struct FGeometry;
+struct FPointerEvent;
 
 
 /** Delegate that is executed when a parameter value changes */

@@ -2,17 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "IDetailCustomization.h"
-
-#include "MuCO/CustomizableObject.h"	
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
 #include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
-#include "PropertyHandle.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterial.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FCustomizableObjectNodeParentedMaterial;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
+class UCustomizableObject;
+class UCustomizableObjectNode;
+class UCustomizableObjectNodeMaterial;
 
 class FCustomizableObjectNodeParentedMaterialDetails : public IDetailCustomization
 {

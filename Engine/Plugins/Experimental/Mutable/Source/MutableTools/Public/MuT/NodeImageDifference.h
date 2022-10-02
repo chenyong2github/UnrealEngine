@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
 
@@ -12,6 +15,9 @@ namespace mu
 	class NodeImageDifference;
 	typedef Ptr<NodeImageDifference> NodeImageDifferencePtr;
 	typedef Ptr<const NodeImageDifference> NodeImageDifferencePtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Node that compares two images and returns a black-and-white image with pixels that are

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
+#include "HAL/PlatformMath.h"
 #include "MuR/Ptr.h"
-#include "MuR/Types.h"
+#include "MuR/RefCounted.h"
 
 
 namespace mu

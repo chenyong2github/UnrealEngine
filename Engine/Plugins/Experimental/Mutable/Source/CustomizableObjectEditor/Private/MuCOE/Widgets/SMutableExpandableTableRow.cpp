@@ -2,6 +2,8 @@
 
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
 
+#include "Math/Color.h"
+
 
 FSlateColor GetRowBackgroundColor(const int32 IndentLevel, const bool IsHovered)
 {

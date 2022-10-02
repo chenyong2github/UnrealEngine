@@ -2,17 +2,32 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
-#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
-#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByPosition.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNode.generated.h"
 
-// Cyclical references
+class FArchive;
+class SWidget;
 class UCustomizableObjectNodeObject;
-
+class UCustomizableObjectNodeRemapPins;
+class UCustomizableObjectNodeRemapPinsByName;
+class UCustomizableObjectNodeRemapPinsByPosition;
+struct FPropertyChangedEvent;
 
 /** Abstract base class for all pin data. */
 UCLASS(Abstract)

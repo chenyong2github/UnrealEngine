@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeScalarArithmeticOperation.h"
-#include "MuT/NodeScalarArithmeticOperationPrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodeScalarArithmeticOperationPrivate.h"
 
 
 #define NODE_INPUT_COUNT 	2

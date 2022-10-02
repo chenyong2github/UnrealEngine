@@ -3,11 +3,14 @@
 
 #include "MuR/Instance.h"
 
-#include "MuR/Platform.h"
-
+#include "HAL/LowLevelMemTracker.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/InstancePrivate.h"
-#include "MuR/ImagePrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableMath.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

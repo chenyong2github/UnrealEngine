@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "HAL/PlatformMath.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Operations.h"
+#include "MuR/Ptr.h"
 #include "MuT/AST.h"
+
+#include <functional>
 
 
 namespace mu
 {
+struct PROGRAM;
+template <class SCALAR> class vec4;
 
 
 	//---------------------------------------------------------------------------------------------

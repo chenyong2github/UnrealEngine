@@ -2,10 +2,19 @@
 
 #include "MuCOE/SMutableProjectorViewer.h"
 
-#include "Widgets/Input/SVectorInputBox.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
 #include "MuR/ParametersPrivate.h"
 #include "MuT/TypeInfo.h"
+#include "SlotBase.h"
+#include "Widgets/Input/SVectorInputBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MutableProjectorViewer"
 

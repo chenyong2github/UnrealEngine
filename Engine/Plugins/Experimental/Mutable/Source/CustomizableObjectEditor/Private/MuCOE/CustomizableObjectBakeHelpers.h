@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "Engine/Texture2D.h"
-#include "Engine/SkeletalMesh.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+
+class UObject;
+class UTexture2D;
+class UTexture;
 
 extern UObject* BakeHelper_DuplicateAsset(UObject* Object, const FString& ObjName, const FString& PkgName, bool ResetDuplicatedFlags, TMap<UObject*, UObject*>& ReplacementMap, bool OverwritePackage);
 

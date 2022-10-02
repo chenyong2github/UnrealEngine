@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "MuR/Types.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
-#include "MuR/Platform.h"
-#include "MuR/MemoryPrivate.h"
+
+#include <stdint.h>
+#include <memory>
 
 namespace mu
 {

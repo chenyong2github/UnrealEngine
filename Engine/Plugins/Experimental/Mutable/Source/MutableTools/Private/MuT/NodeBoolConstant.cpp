@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
+#include "Misc/AssertionMacros.h"
+#include "MuT/Node.h"
+#include "MuT/NodeBool.h"
 #include "MuT/NodeBoolPrivate.h"
-
-#include "MuR/MutableMath.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	0

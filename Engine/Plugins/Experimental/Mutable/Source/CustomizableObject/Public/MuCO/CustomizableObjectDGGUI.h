@@ -3,8 +3,16 @@
 #pragma once
 
 #include "Blueprint/UserWidget.h"
-#include "Animation/AnimClassInterface.h"
+#include "HAL/Platform.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectDGGUI.generated.h"
+
+class UAnimInstance;
+class UCustomizableSkeletalComponent;
+class UObject;
+class UWorld;
 
 
 UCLASS(Abstract, BlueprintType, Blueprintable)

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeObjectChild.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

@@ -2,13 +2,28 @@
 
 #pragma once
 
-// include "SComboBox.h"
-//#include "SBoxPanel.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Input/Reply.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/SListView.h"
-#include "AssetRegistry/AssetData.h"
-//#include "Engine/DataTable.h"
-#include "MuCOE/CustomizableObjectEditorViewportLights.h"
+
 #include "CustomizableObjectCustomSettings.generated.h"
+
+class SWidget;
+struct FAssetData;
+struct FGeometry;
+struct FPointerEvent;
 
 UCLASS()
 class UCustomizableObjectEmptyClassForSettings : public UObject

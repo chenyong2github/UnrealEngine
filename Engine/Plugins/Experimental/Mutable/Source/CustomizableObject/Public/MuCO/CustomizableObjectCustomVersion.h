@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "HAL/Platform.h"
+
+struct FGuid;
 
 // Custom serialization version for assets/classes in the CustomizableObject and CustomizableObjectEditor modules
 struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion

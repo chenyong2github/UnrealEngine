@@ -3,14 +3,21 @@
 #pragma once
 
 #include "Components/SceneComponent.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableSkeletalComponent.generated.h"
 
-namespace mu
-{
-	class Instance;
-};
-
+class AActor;
+class FObjectPreSaveContext;
+class UCustomizableSkeletalComponent;
+class UObject;
 class USkeletalMesh;
+struct FFrame;
 
 
 DECLARE_DELEGATE_TwoParams(FCustomizableSkeletalComponentPreUpdateDelegate, UCustomizableSkeletalComponent* Component, USkeletalMesh* NextMesh);

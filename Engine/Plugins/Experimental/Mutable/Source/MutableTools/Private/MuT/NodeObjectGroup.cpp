@@ -2,9 +2,17 @@
 
 
 #include "MuT/NodeObjectGroup.h"
-#include "MuT/NodeObjectGroupPrivate.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeLayout.h"
+#include "MuT/NodeObjectGroupPrivate.h"
+#include "MuT/NodeObjectPrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

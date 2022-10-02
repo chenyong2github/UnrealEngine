@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "MuT/Compiler.h"
-#include "MuT/AST.h"
 #include "MuR/MemoryPrivate.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/CodeVisitor.h"
-#include "MuR/RefCounted.h"
+#include "MuR/Operations.h"
+#include "MuT/AST.h"
+
+#include <stdint.h>
+
+namespace mu { struct PROGRAM; }
 
 
 #define MUTABLE_HASH_SEED					((uint32_t)0xcadababa)

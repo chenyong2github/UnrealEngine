@@ -2,13 +2,14 @@
 
 
 #include "MuT/NodeComponent.h"
-#include "MuT/NodeComponentPrivate.h"
 
-#include "MuT/NodeMesh.h"
-#include "MuT/NodeImage.h"
-
-#include "MuT/NodeComponentNew.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeComponentEdit.h"
+#include "MuT/NodeComponentNew.h"
+
+#include <stdint.h>
 
 
 namespace mu

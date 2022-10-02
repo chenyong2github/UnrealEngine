@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSwitchBase.h"
-
-#include "EdGraph/EdGraphPin.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeTextureSwitch.generated.h"
+
+class FArchive;
+class UObject;
 
 
 UCLASS()

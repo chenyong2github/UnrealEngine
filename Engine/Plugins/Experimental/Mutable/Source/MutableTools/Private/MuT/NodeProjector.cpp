@@ -3,8 +3,12 @@
 
 #include "MuT/NodeProjector.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/Node.h"
-#include "MuT/NodePrivate.h"
+
+#include <stdint.h>
 
 
 namespace mu

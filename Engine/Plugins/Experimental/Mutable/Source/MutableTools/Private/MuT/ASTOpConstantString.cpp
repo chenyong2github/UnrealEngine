@@ -1,9 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/ASTOpConstantString.h"
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/CodeOptimiser.h"
-#include "MuT/StreamsPrivate.h"
+
+#include "HAL/PlatformMath.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
+
+#include <memory>
+#include <string>
+#include <utility>
 
 
 using namespace mu;

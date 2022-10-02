@@ -1,28 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshMorphDetails.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
-#include "MuCOE/CustomizableObjectEditorUtilities.h"
 
-#include "PropertyCustomizationHelpers.h"
-#include "DetailLayoutBuilder.h"
+#include "Animation/MorphTarget.h"
+#include "Containers/UnrealString.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/SkeletalMesh.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "MuCOE/CustomizableObjectEditorUtilities.h"
 #include "MuCOE/GraphTraversal.h"
-#include "LevelEditor.h"
-#include "LevelEditorActions.h"
-
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshMorph.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/STextComboBox.h"
-
-#include "Engine/SkeletalMesh.h"
-#include "Engine/StaticMesh.h"
-#include "Animation/MorphTarget.h"
-
-#include "BoneSelectionWidget.h"
-
-#include "Runtime/Launch/Resources/Version.h"
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDetails"

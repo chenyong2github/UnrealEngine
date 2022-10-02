@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-
-#include "MuR/System.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
 #include "MuR/Image.h"
+#include "MuR/System.h"
+#include "MuR/Types.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 
 /** Implementation of a mutable core provider for image parameters that are application-specific. */

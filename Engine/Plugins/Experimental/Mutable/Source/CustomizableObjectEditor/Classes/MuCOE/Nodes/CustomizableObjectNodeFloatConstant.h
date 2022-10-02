@@ -2,10 +2,26 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "SGraphNode.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "CustomizableObjectNodeFloatConstant.generated.h"
+
+class SOverlay;
+class SVerticalBox;
+class UCustomizableObjectNodeFloatConstant;
+class UCustomizableObjectNodeRemapPins;
+class UObject;
+struct FPropertyChangedEvent;
+struct FSlateBrush;
 
 // Class create an input float in the NodeFloatConstant
 class SGraphNodeFloatConstant : public SGraphNode

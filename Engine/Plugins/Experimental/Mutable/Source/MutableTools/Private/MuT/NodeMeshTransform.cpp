@@ -2,8 +2,14 @@
 
 
 #include "MuT/NodeMeshTransform.h"
+
+#include "HAL/PlatformString.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MutableMath.h"
+#include "MuT/NodeLayout.h"
+#include "MuT/NodeMeshPrivate.h"
 #include "MuT/NodeMeshTransformPrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	1

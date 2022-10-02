@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "MuR/Types.h"
-#include "MuR/Ptr.h"
-#include "MuR/RefCounted.h"
 #include "../Private/MuR/SerialisationPrivate.h"
-#include "Math/Transform.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformMath.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Serialisation.h"
 
 
 namespace mu

@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuR/MutableRuntimeModule.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
 #include "Logging/LogMacros.h"
-#include "MuR/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
 #include "MuR/MutableMemory.h"
-#include "MuR/System.h"
+#include "MuR/Platform.h"
 
 IMPLEMENT_MODULE(FMutableRuntimeModule, MutableRuntime);
 

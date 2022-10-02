@@ -2,7 +2,18 @@
 
 
 #include "MuT/NodeObjectState.h"
+
+#include "HAL/PlatformString.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/CompilerPrivate.h"
+#include "MuT/NodeLayout.h"
+#include "MuT/NodeObjectPrivate.h"
 #include "MuT/NodeObjectStatePrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

@@ -2,12 +2,24 @@
 
 
 #include "MuCOE/StatePerformanceTesting.h"
-#include "MuCOE/CustomizableObjectEditor.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "CustomizableObjectClasses.h"
-#include "MuCO/CustomizableObjectInstance.h"
+
 #include "Components/SkeletalMeshComponent.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformTime.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealNames.h"
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"

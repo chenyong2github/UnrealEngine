@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/ASTOpInstanceAdd.h"
-#include "MuT/ErrorLogPrivate.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <queue>
+#include <algorithm>
+#include <memory>
+#include <utility>
 
 
 using namespace mu;

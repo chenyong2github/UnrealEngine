@@ -1,17 +1,57 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 
+#include "AssetThumbnail.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraph.h"
 #include "Engine/StaticMesh.h"
-#include "Materials/Material.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
 #include "ISinglePropertyView.h"
-#include "MuCOE/CustomizableObjectEditorStyle.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "MaterialTypes.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
+#include "Modules/ModuleManager.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/CustomizableObjectEditor.h"
+#include "MuCOE/CustomizableObjectEditorStyle.h"
+#include "MuCOE/CustomizableObjectLayout.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/MutableUtils.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByNameDefaultPin.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "PropertyEditorModule.h"
+#include "Serialization/Archive.h"
+#include "SlotBase.h"
+#include "StaticMeshResources.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+
+#include <functional>
+
+class UCustomizableObjectNodeRemapPinsByName;
+class UObject;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

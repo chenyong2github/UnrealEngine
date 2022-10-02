@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CustomizableObjectPopulationConstraint.h"
+
 #include "CustomizableObjectPopulationCharacteristic.generated.h"
 
 USTRUCT()

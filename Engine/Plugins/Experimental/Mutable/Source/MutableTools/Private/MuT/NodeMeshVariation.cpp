@@ -2,7 +2,14 @@
 
 
 #include "MuT/NodeMeshVariation.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeMeshVariationPrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

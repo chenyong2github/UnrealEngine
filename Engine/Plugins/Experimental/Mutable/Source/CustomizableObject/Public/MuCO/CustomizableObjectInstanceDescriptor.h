@@ -2,12 +2,20 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObject.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "UObject/ObjectPtr.h"
 
 #include "CustomizableObjectInstanceDescriptor.generated.h"
 
-class UCustomizableObjectInstance;
+class FArchive;
 class UCustomizableInstancePrivateData;
+class UCustomizableObject;
+class UCustomizableObjectInstance;
 
 
 /** Set of parameters + state that defines a CustomizableObjectInstance.

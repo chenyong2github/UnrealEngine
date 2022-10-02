@@ -2,10 +2,21 @@
 
 #pragma once
 
-#include "MuCOE/ICustomizableObjectDebugger.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "Misc/NotifyHook.h"
-#include "EditorUndoClient.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "MuCOE/ICustomizableObjectDebugger.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+
+class FReferenceCollector;
+class UCustomizableObject;
+struct FSlateBrush;
 
 
 DECLARE_DELEGATE(FCreatePreviewInstanceFlagDelegate);

@@ -2,26 +2,38 @@
 
 #pragma once
 
-#include "MuR/System.h"
-
-#include "MuR/Operations.h"
-#include "MuR/ImagePrivate.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "MuR/Image.h"
 #include "MuR/Layout.h"
-#include "MuR/InstancePrivate.h"
-#include "MuR/ParametersPrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Operations.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Serialisation.h"
+#include "MuR/Settings.h"
+#include "MuR/System.h"
 #include "MuR/SystemPrivate.h"
-#include "MuR/ModelPrivate.h"
+#include "MuR/Types.h"
+#include "Templates/RefCounting.h"
+#include "Templates/SharedPointer.h"
 
 // This define could come from MuR/System.h
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
 	#include "Tasks/Task.h"
 #else
-	#include "Async/Async.h"
 #endif
 
 
 namespace  mu
 {
+class Model;
+class Parameters;
+class RangeIndex;
 
 
     //---------------------------------------------------------------------------------------------

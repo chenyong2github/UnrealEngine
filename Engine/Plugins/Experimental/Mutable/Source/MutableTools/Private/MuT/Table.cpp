@@ -2,13 +2,20 @@
 
 
 #include "MuT/Table.h"
+
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
+#include "MuR/MutableMath.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/TablePrivate.h"
 
-#include "MuR/Platform.h"
-#include "MuT/ErrorLogPrivate.h"
-
-#include "MuR/Image.h"
-#include "MuR/Mesh.h"
+#include <memory>
+#include <string>
+#include <utility>
 
 
 namespace mu

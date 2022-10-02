@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/NodeMeshClipDeform.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/RefCounted.h"
+#include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshClipDeformPrivate.h"
-
-#include "MuT/NodeScalar.h"
-
-#include "MuR/MeshPrivate.h"
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodeMeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

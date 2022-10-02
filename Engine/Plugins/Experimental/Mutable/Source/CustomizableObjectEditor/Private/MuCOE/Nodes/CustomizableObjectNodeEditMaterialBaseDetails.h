@@ -2,15 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterialDetails.h"
-
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Misc/Guid.h"
 #include "Types/SlateEnums.h"
-#include "PropertyHandle.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
+
+class FString;
+class IDetailCustomization;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
+class STextComboBox;
+class UCustomizableObjectNodeEditMaterialBase;
 
 class FCustomizableObjectNodeEditMaterialBaseDetails : public FCustomizableObjectNodeParentedMaterialDetails
 {

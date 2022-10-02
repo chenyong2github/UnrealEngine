@@ -2,18 +2,21 @@
 
 #pragma once
 
-#include "MuR/Types.h"
+#include "../Private/MuR/MutableMath.h"
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "../Private/MuR/MutableMath.h"
-#include "Math/IntPoint.h"
+#include "MuR/SerialisationPrivate.h"
 
 namespace mu
 {
 
 	// Forward references
 	class Layout;
+
 	typedef Ptr<Layout> LayoutPtr;
 	typedef Ptr<const Layout> LayoutPtrConst;
 

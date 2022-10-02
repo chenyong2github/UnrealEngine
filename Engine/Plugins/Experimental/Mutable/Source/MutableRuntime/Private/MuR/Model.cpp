@@ -3,15 +3,26 @@
 
 #include "MuR/Model.h"
 
-#include "MuR/Platform.h"
-
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/Operations.h"
-#include "MuR/CodeVisitor.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuR/System.h"
+#include "MuR/Types.h"
+#include "Templates/Tuple.h"
 
-#include "Hash/CityHash.h"
-
-#include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
 
 namespace mu
 {

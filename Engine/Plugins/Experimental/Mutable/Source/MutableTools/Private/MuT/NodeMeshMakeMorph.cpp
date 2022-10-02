@@ -2,8 +2,12 @@
 
 
 #include "MuT/NodeMeshMakeMorph.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshMakeMorphPrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodeMeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	2

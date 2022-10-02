@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "MuR/ImagePrivate.h"
-
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
+#include "MuR/Image.h"
 /** This define enabled additional checks when using RLE compression. These checks have a lot of
 * of verhead so it should usually be disabled.
 */

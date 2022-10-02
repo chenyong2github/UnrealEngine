@@ -2,8 +2,16 @@
 
 #pragma once
 
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
 
+#include "MuT/NodeImageConstant.h"
+#include "MuT/NodeSurfaceNew.h"
+#include "MuT/Table.h"
+
+class FCustomizableObjectCompiler;
+class UCustomizableObjectNode;
+class UEdGraphPin;
+class UTexture2D;
+struct FMutableGraphGenerationContext;
 
 mu::ImagePtr ConvertTextureUnrealToMutable(UTexture2D* Texture, const UCustomizableObjectNode* Node, FCustomizableObjectCompiler* Compiler, bool bIsNormalComposite);
 

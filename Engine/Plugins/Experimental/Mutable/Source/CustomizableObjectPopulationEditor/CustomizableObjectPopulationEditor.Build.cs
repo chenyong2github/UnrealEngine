@@ -77,5 +77,9 @@ public class CustomizableObjectPopulationEditor : ModuleRules
 				"CustomizableObjectPopulation",
 			}
 		);
+
+		PrivateIncludePaths.AddRange(new string[] {
+				"CustomizableObjectPopulation/Private",
+			});
 	}
 }

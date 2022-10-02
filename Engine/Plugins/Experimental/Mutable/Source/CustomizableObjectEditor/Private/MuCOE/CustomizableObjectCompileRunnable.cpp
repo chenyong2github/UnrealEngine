@@ -1,40 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectCompileRunnable.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCO/CustomizableObjectSystem.h"
+
+#include "Engine/Texture.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformTime.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/Guid.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
-
-#include "StaticMeshResources.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "MessageLogModule.h"
-#include "Logging/MessageLog.h"
-#include "Application/ThrottleManager.h"
-#include "HAL/Runnable.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "HAL/RunnableThread.h"
-#include "MeshUtilities.h"
-#include "Misc/ConfigCacheIni.h"
-
-#include "Misc/Paths.h"
-#include "HAL/FileManager.h"
-#include "HAL/PlatformFileManager.h"
-
-#include "MuCOE/UnrealEditorPortabilityHelpers.h"
-#include "MuCO/UnrealPortabilityHelpers.h"
-#include "PlatformInfo.h"
-#include "Engine/AssetManager.h"
-#include "AssetRegistry/ARFilter.h"
-
+#include "MuR/Ptr.h"
 #include "MuT/Compiler.h"
 #include "MuT/ErrorLog.h"
-#include "MuR/System.h"
-#include "MuR/Ptr.h"
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryWriter.h"
+#include "Trace/Detail/Channel.h"
+
+class ITargetPlatform;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"

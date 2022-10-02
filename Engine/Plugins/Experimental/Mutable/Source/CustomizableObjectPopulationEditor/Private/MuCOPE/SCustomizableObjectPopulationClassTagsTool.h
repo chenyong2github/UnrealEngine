@@ -2,20 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Components/HorizontalBox.h"
-#include "Components/VerticalBox.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Views/SListView.h"
-#include "MuCOP/CustomizableObjectPopulationClass.h"
-#include "MuCO/CustomizableObject.h"
 
+class FText;
+class SExpandableArea;
+class SHorizontalBox;
+class SSearchBox;
+class STextComboBox;
+class SVerticalBox;
+class UCustomizableObject;
 class UCustomizableObjectPopulationClass;
+struct FGeometry;
+struct FSlateBrush;
 
 // Widget to manage a single tag 
 class SSingleTagWidget : public SCompoundWidget

@@ -3,11 +3,10 @@
 
 #pragma once
 
-#include "MuR/System.h"
-#include "MuR/MemoryPrivate.h"
-
-#include "Async/Async.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "MuR/MutableMemory.h"
 
 
 namespace mu

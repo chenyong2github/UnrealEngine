@@ -2,12 +2,17 @@
 
 
 #include "MuT/NodeMeshFormat.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshFormatPrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodeMeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu
 {
+class FMeshBufferSet;
 
 	//---------------------------------------------------------------------------------------------
 	// Static initialisation

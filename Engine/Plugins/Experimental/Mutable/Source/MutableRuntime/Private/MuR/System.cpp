@@ -1,23 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuR/System.h"
-#include "MuR/Platform.h"
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/CodeRunner.h"
-#include "MuR/SystemPrivate.h"
-
-#include "MuR/ModelPrivate.h"
-#include "MuR/InstancePrivate.h"
-#include "MuR/ImagePrivate.h"
-#include "MuR/MeshPrivate.h"
-#include "MuR/MemoryPrivate.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/SettingsPrivate.h"
-#include "MuR/Operations.h"
 #include "MuR/CodeVisitor.h"
-
-#include "MuR/Config.h"
+#include "MuR/InstancePrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
+#include "MuR/Model.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/MutableString.h"
 #include "MuR/MutableTrace.h"
+#include "MuR/Operations.h"
+#include "MuR/Parameters.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Platform.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SettingsPrivate.h"
+#include "MuR/SystemPrivate.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "Trace/Detail/Channel.h"
+
+#include <functional>
+#include <memory>
+#include <utility>
 
 namespace mu
 {

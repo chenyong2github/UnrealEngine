@@ -3,7 +3,15 @@
 #pragma once
 
 #include "AssetTypeActions_Base.h"
-#include "MuCOP/CustomizableObjectPopulationClass.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+
+class IToolkitHost;
+class UClass;
+class UObject;
 
 
 class FAssetTypeActions_CustomizableObjectPopulationClass : public FAssetTypeActions_Base

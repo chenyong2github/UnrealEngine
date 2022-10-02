@@ -2,24 +2,67 @@
 
 #pragma once
 
-#include "MuCOE/ICustomizableObjectEditor.h"
-#include "Misc/NotifyHook.h"
-#include "TickableEditorObject.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EditorUndoClient.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Engine/TextureDefines.h"
 #include "GraphEditor.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Misc/NotifyHook.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "MuCOE/StatePerformanceTesting.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "MuCOE/SCustomizableObjectEditorViewport.h"
-#include "MuCOE/CustomizableObjectEditorViewportClient.h"
-#include "Animation/DebugSkelMeshComponent.h"
+#include "MuCOE/ICustomizableObjectEditor.h"
+#include "PixelFormat.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "TickableEditorObject.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Templates/Function.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectEditor.generated.h"
+
+class FCustomizableObjectEditorViewportClient;
+class FProperty;
+class FSpawnTabArgs;
+class FUICommandList;
+class IToolkitHost;
+class SCustomizableObjectEditorViewportTabBody;
+class SDockTab;
+class STextComboBox;
+class SWidget;
+class UCustomizableObject;
+class UCustomizableObjectInstance;
+class UCustomizableObjectNode;
+class UCustomizableObjectNodeMeshClipMorph;
+class UCustomizableObjectNodeMeshClipWithMesh;
+class UCustomizableObjectNodeObject;
+class UCustomizableObjectNodeProjectorConstant;
+class UCustomizableObjectNodeProjectorParameter;
+class UCustomizableSkeletalComponent;
+class UDebugSkelMeshComponent;
+class UEdGraph;
+class UMaterialInterface;
+class UPoseAsset;
+class UStaticMeshComponent;
+class UTexture;
+struct FAssetData;
+struct FFrame;
+struct FPropertyChangedEvent;
+template <typename FuncType> class TFunction;
 
 DECLARE_DELEGATE(FCreatePreviewInstanceFlagDelegate);
 

@@ -2,7 +2,12 @@
 
 
 #include "MuT/NodeImageTable.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeImageTablePrivate.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/Table.h"
 
 
 namespace mu

@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
-
-#include "MuR/Image.h"
 
 
 namespace mu
@@ -14,6 +15,9 @@ namespace mu
 	class NodeImageLuminance;
 	typedef Ptr<NodeImageLuminance> NodeImageLuminancePtr;
 	typedef Ptr<const NodeImageLuminance> NodeImageLuminancePtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Calculate the luminance of an image into a new single-channel image..

@@ -2,9 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "MuCOE/CustomizableObjectEditor.h"
-#include "MuCOE/CustomizableObjectInstanceEditor.h"
+
+class FCustomizableObjectEditor;
+class FCustomizableObjectInstanceEditor;
+class FReferenceCollector;
+class IPropertyTable;
+class STextBlock;
+class SWidget;
+class UCustomizableObjectInstance;
+class UObject;
+struct FGeometry;
 
 
 class SCustomizableObjecEditorTextureAnalyzer : public SCompoundWidget, public FGCObject

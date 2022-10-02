@@ -2,18 +2,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
-#include "MuR/Operations.h"
-#include "MuR/MutableMath.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/ParametersPrivate.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Operations.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "Templates/TypeHash.h"
 
-#include <unordered_set>
-#include <unordered_map>
-#include <memory>
 #include <array>
 #include <atomic>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+
+namespace mu { class ASTOp; }
+namespace mu { class ASTOpFixed; }
 
 namespace std
 {
@@ -156,7 +171,6 @@ namespace mu
     };
 
 
-    class ASTOp;
     typedef vector<Ptr<ASTOp>> ASTOpList;
     typedef std::unordered_set<Ptr<ASTOp>> ASTOpSet;
 

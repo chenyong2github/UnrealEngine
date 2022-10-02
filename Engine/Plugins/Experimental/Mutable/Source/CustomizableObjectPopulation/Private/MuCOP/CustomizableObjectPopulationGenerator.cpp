@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOP/CustomizableObjectPopulationGenerator.h"
-#include "MuCOP/CustomizableObjectPopulationCustomVersion.h"
-#include "MuCOP/CustomizableObjectPopulationGeneratorPrivate.h"
+
+#include "HAL/PlatformTime.h"
+#include "Math/Color.h"
+#include "Math/RandomStream.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
-#include "Algo/Transform.h"
-#include "Logging/MessageLog.h"
-#include "MuCOP/CustomizableObjectPopulationGenerator.h"
+#include "MuCOP/CustomizableObjectPopulationCustomVersion.h"
+#include "MuCOP/CustomizableObjectPopulationGeneratorPrivate.h"
+#include "MuCOP/CustomizableObjectPopulationSamplers.h"
+#include "Serialization/Archive.h"
+
+class FString;
 
 void FCustomizableObjectPopulationClassGenerator::GenerateParameters(
 	FRandomStream& Rand,

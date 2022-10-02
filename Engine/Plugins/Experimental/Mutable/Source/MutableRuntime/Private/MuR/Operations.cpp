@@ -2,7 +2,7 @@
 
 
 #include "MuR/Operations.h"
-#include "MuR/Platform.h"
+
 #include "MuR/ModelPrivate.h"
 
 

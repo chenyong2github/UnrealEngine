@@ -2,23 +2,27 @@
 
 #pragma once
 
-#include "MuCOE/CustomizableObjectCompileRunnable.h"
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
-
+#include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
-#include "MuCOE/CompilationMessageCache.h"
 #include "MuCO/CustomizableObject.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Engine/StreamableManager.h"
-
+#include "MuCOE/CompilationMessageCache.h"
+#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
+#include "MuT/Node.h"
 #include "MuT/NodeObject.h"
-#include "MuT/NodeImageConstant.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
 
-
-
-class UCustomizableObject;
-class UCustomizableObjectNodeObject;
-class CustomizableObjectCompileAsyncTask;
+class FCustomizableObjectCompileRunnable;
+class FCustomizableObjectSaveDDRunnable;
+class FReferenceCollector;
+class FRunnableThread;
+class FText;
+class UCustomizableObjectNode;
 
 
 class FCustomizableObjectCompiler : public FCustomizableObjectCompilerBase, public FGCObject

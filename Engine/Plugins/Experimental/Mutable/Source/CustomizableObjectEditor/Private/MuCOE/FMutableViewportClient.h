@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "AdvancedPreviewScene.h"
-#include "SEditorViewport.h"
-#include "UnrealWidget.h"
+#include "EditorViewportClient.h"
+#include "Templates/SharedPointer.h"
+
+class FAdvancedPreviewScene;
 
 /**
  * Super simple viewport client designed to work SMutableMeshViewport

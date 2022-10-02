@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
+#include "HAL/Platform.h"
 #include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
 #include "MuR/Types.h"
-#include "MuR/Serialisation.h"
+
+namespace mu { class InputArchive; }
+namespace mu { class OutputArchive; }
 
 #define MUTABLE_MAX_STRING_PARAM_LENGTH     40
 
@@ -14,14 +17,15 @@ namespace mu
 
 	//!
 	class Parameters;
+
     using ParametersPtr = Ptr<Parameters>;
     using ParametersPtrConst = Ptr<const Parameters>;
 
     class RangeIndex;
+
 	using RangeIndexPtr = Ptr<RangeIndex>;
 	using RangeIndexPtrConst = Ptr<const RangeIndex>;
 
-    class Image;
 	class Model;
 
 
@@ -138,6 +142,7 @@ namespace mu
         // Interface pattern
         //-----------------------------------------------------------------------------------------
         class Private;
+
         Private* GetPrivate() const;
 
     protected:
@@ -389,6 +394,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
 
 	protected:

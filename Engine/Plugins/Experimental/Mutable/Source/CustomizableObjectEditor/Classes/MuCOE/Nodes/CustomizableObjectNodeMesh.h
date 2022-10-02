@@ -2,10 +2,19 @@
 
 #pragma once
 
-#include "MuCOE/CustomizableObjectLayout.h"
+#include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeMesh.generated.h"
+
+class UCustomizableObjectLayout;
+class UEdGraphPin;
+class UObject;
+class UTexture2D;
 
 
 UCLASS(abstract)

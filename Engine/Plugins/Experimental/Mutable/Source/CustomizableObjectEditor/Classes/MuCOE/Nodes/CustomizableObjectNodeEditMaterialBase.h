@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterial.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeEditMaterialBase.generated.h"
+
+class UCustomizableObject;
+class UEdGraphPin;
+class UObject;
 
 
 UCLASS(Abstract)

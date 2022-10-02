@@ -2,18 +2,16 @@
 
 #pragma once
 
-#include "MuR/Types.h"
-#include "MuR/RefCounted.h"
+#include "HAL/PlatformMath.h"
 #include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
 
 
 namespace mu
 {
-	// Forward references
-	class Image;
-	class Mesh;
-
 	class Instance;
+
 	typedef Ptr<Instance> InstancePtr;
 	typedef Ptr<const Instance> InstancePtrConst;
 
@@ -209,6 +207,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
 
 	protected:

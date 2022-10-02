@@ -2,9 +2,16 @@
 
 #pragma once
 
-#include "MuCOE/Nodes/CustomizableObjectNodeParentedMaterial.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 
+#include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
+
+class FCustomizableObjectNodeParentedMaterial;
+class UCustomizableObject;
+class UCustomizableObjectNode;
+class UEdGraphPin;
+struct FEdGraphPinReference;
+struct FGuid;
 
 /** Common functionalities from EditMaterial and ExtendMaterial.
  *

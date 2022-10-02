@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
 #include "Input/Reply.h"
-#include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+
+class FString;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
 
 
 class FCustomizableObjectNodeProjectorParameterDetails : public IDetailCustomization

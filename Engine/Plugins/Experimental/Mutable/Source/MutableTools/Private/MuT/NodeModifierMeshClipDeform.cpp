@@ -2,8 +2,12 @@
 
 
 #include "MuT/NodeModifierMeshClipDeform.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/Mesh.h"
+#include "MuT/NodeMesh.h"
 #include "MuT/NodeModifierMeshClipDeformPrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

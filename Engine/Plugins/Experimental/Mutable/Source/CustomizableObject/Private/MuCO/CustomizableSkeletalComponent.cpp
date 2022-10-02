@@ -2,20 +2,35 @@
 
 #include "MuCO/CustomizableSkeletalComponent.h"
 
+#include "AnimationRuntime.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "Math/Vector.h"
+#include "MuCO/CustomizableInstancePrivateData.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
-#include "MuCO/CustomizableInstancePrivateData.h"
-#include "MuCO/CustomizableObjectSystem.h"
-
-#include "Engine/Texture.h"
-#include "Engine/SkeletalMesh.h"
-#include "Engine/StaticMesh.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Materials/MaterialInstanceDynamic.h"
-
-#include "AnimationRuntime.h"
-
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Templates/Casts.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 
 UCustomizableSkeletalComponent::UCustomizableSkeletalComponent()

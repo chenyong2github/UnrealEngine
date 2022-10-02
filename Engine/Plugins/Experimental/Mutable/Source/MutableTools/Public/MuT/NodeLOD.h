@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
 #include "MuT/Node.h"
 
 

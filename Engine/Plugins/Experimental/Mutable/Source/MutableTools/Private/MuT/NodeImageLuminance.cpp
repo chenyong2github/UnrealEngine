@@ -2,11 +2,10 @@
 
 
 #include "MuT/NodeImageLuminance.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeImageLuminancePrivate.h"
-
-#include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	1

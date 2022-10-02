@@ -2,10 +2,28 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "SGraphNode.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "CustomizableObjectNodeTexture.generated.h"
+
+class SOverlay;
+class SVerticalBox;
+class UCustomizableObjectNodeRemapPins;
+class UCustomizableObjectNodeTexture;
+class UObject;
+class UTexture2D;
+struct FGeometry;
 
 // Class to render the Texture thumbnail of a CustomizableObjectNodeTexture
 class SGraphNodeTexture : public SGraphNode

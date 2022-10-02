@@ -2,7 +2,11 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNodeColorSwitch.h"
 
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "Serialization/Archive.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

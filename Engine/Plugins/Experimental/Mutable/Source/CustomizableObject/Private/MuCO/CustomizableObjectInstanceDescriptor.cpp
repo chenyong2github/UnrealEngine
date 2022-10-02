@@ -2,9 +2,21 @@
 
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectPrivate.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuR/Model.h"
+#include "MuR/Parameters.h"
+#include "MuR/RefCounted.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/TypeHash.h"
+#include "Trace/Detail/Channel.h"
 
 
 const FString EmptyString;

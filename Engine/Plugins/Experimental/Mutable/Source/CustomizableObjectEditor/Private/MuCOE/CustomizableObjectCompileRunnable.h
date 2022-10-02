@@ -2,19 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "HAL/Runnable.h"
-#include "HAL/RunnableThread.h"
-#include "Logging/TokenizedMessage.h"
+#include "Internationalization/Text.h"
 #include "MuCO/CustomizableObject.h"
-#include "Widgets/Notifications/SNotificationList.h"
-
-#include "MuT/Node.h"
 #include "MuR/Model.h"
+#include "MuT/Node.h"
+#include "Templates/SharedPointer.h"
 
-
-class UCustomizableObject;
-class UCustomizableObjectNodeObject;
-class CustomizableObjectCompileAsyncTask;
+class ITargetPlatform;
 
 
 class FCustomizableObjectCompileRunnable : public FRunnable

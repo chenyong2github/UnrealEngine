@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MuR/Types.h"
+#include "HAL/Platform.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
@@ -179,6 +179,7 @@ namespace mu
 
         // Interface pattern
         class Private;
+
         Private* GetPrivate() const;
 
     private:
@@ -203,6 +204,7 @@ namespace mu
 
         // Interface pattern
         class Private;
+
         Private* GetPrivate() const;
 
     private:
@@ -238,6 +240,7 @@ namespace mu
     private:
 
         class Private;
+
         Private* m_pD;
     };
 
@@ -278,6 +281,7 @@ namespace mu
     private:
 
         class Private;
+
         Private* m_pD;
 
     };

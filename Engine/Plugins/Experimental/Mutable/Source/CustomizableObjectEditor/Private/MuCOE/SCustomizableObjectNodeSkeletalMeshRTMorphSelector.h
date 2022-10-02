@@ -2,20 +2,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Templates/SharedPointer.h"
+#include "Widgets/Views/STableRow.h"
 
-
-// Forward declarations
-class UCustomizableObjectNodeSkeletalMesh;
+class FReferenceCollector;
+class FText;
+class ITableRow;
 class SCustomizableObjectNodeSkeletalMeshRTMorphSelector;
+class SSearchBox;
+class STableViewBase;
+class SWidget;
+class UCustomizableObjectNodeSkeletalMesh;
 
 namespace CustomizableObjectNodeSkeletalMeshRTMorphSelector_Internal
 {
-    class SRowWidget;
     
     class FRowItemInfo
     {

@@ -2,9 +2,16 @@
 
 
 #include "MuT/NodeScalarCurve.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeScalar.h"
 #include "MuT/NodeScalarCurvePrivate.h"
 
-#include "MuT/NodeScalar.h"
+#include <memory>
+#include <utility>
 
 
 #define NODE_INPUT_COUNT 	1

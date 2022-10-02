@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
 
@@ -16,6 +19,9 @@ namespace mu
 	class NodeImageTransform;
 	typedef Ptr<NodeImageTransform> NodeImageTransformPtr;
 	typedef Ptr<const NodeImageTransform> NodeImageTransformPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Node that multiplies the colors of an image, channel by channel.
@@ -70,6 +76,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
         Node::Private* GetBasePrivate() const override;
 

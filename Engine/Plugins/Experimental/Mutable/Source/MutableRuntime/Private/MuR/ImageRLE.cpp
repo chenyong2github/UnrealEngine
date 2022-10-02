@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuR/ImageRLE.h"
-#include "MuR/Platform.h"
+
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+
+#include <memory>
+#include <utility>
 
 namespace mu
 {

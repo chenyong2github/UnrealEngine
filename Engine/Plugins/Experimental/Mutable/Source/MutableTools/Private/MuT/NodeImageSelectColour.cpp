@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeImageSelectColour.h"
-#include "MuT/NodeImageSelectColourPrivate.h"
 
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeColour.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodeImageSelectColourPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	2

@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
 #include "MuR/Ptr.h"
-#include "MuR/Types.h"
-#include "MuR/Serialisation.h"
-#include "MuR/Instance.h"
+#include "MuR/RefCounted.h"
+
+#include <stdint.h>
 
 
 namespace mu
 {
 	// Forward references
     class Settings;
+
     using SettingsPtr=Ptr<Settings>;
     using SettingsPtrConst=Ptr<const Settings>;
 
@@ -56,6 +56,7 @@ namespace mu
         // Interface pattern
         //-----------------------------------------------------------------------------------------
         class Private;
+
         Private* GetPrivate() const;
 
         Settings( const Settings& ) = delete;

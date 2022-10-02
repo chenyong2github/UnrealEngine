@@ -2,14 +2,40 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "Misc/NotifyHook.h"
-#include "MuCO/CustomizableObject.h"
+#include "Misc/Optional.h"
+#include "MuCOE/StatePerformanceTesting.h"
 #include "MuCOE/StressTest.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
-#include "MuCOE/SCustomizableObjectEditorTextureAnalyzer.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SCompoundWidget.h"
+
 #include "SCustomizableObjectEditorPerformanceReport.generated.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
+class UCustomizableObject;
+class UCustomizableObjectInstance;
+struct FFrame;
+struct FGeometry;
+struct FSlateBrush;
+struct FTableRowStyle;
 
 
 // Instances performing worst in some aspect

@@ -2,15 +2,37 @@
 
 #include "MuCO/UnrealConversionUtils.h"
 
-#include "Animation/Skeleton.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "CoreTypes.h"
+#include "Engine/SkeletalMesh.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/Transform.h"
+#include "Misc/AssertionMacros.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectSystemPrivate.h"
-#include "Materials/Material.h"
-#include "MuR/MeshPrivate.h"
-#include "MuR/OpMeshFormat.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/Mesh.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Parameters.h"
 #include "MuR/Ptr.h"
+#include "RawIndexBuffer.h"
+#include "Rendering/ColorVertexBuffer.h"
+#include "Rendering/MultiSizeIndexContainer.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "Rendering/SkeletalMeshDuplicatedVerticesBuffer.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
+#include "Rendering/StaticMeshVertexBuffer.h"
+#include "SkeletalMeshTypes.h"
+#include "StaticMeshResources.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+
+class USkeleton;
 
 namespace UnrealConversionUtils
 {

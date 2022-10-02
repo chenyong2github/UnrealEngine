@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
+#include "MuT/NodeModifier.h"
 
+class UEdGraphPin;
+struct FMutableGraphGenerationContext;
 
 mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext);

@@ -1,15 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectEditorLevelProfile.h"
-#include "MuCOE/CustomizableObjectEditorSettings.h"
-#include "Engine/SkyLight.h"
+
+#include "AssetViewerSettings.h"
+#include "Components/LightComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/PostProcessVolume.h"
+#include "Engine/Scene.h"
+#include "Engine/SkyLight.h"
+#include "Engine/TextureCube.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Misc/MessageDialog.h"
 #include "GameFramework/Actor.h"
-#include "Components/SkyLightComponent.h"
-#include "Components/LightComponent.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Color.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/MessageDialog.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
+class UClass;
 
 
 #define LOCTEXT_NAMESPACE "LevelSettingsPreview"

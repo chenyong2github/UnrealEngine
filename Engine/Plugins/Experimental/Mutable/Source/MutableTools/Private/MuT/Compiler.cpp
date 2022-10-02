@@ -3,27 +3,41 @@
 
 #include "MuT/Compiler.h"
 
-#include "MuT/CompilerPrivate.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformCrt.h"
+#include "Hash/CityHash.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
+#include "MuR/Model.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/Operations.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Platform.h"
+#include "MuR/Serialisation.h"
+#include "MuR/System.h"
+#include "MuT/AST.h"
+#include "MuT/ASTOpParameter.h"
 #include "MuT/CodeGenerator.h"
 #include "MuT/CodeOptimiser.h"
-#include "MuT/DataPacker.h"
+#include "MuT/CompilerPrivate.h"
+#include "MuT/ErrorLog.h"
 #include "MuT/ErrorLogPrivate.h"
-#include "Hash/CityHash.h"
-
 #include "MuT/Node.h"
-#include "MuT/NodeImage.h"
-#include "MuT/NodeMesh.h"
-#include "MuT/NodeObject.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/Table.h"
+#include "MuT/TaskManager.h"
+#include "Trace/Detail/Channel.h"
 
-#include "MuR/Operations.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/SystemPrivate.h"
-
-#include "MuR/Model.h"
-#include "MuR/Instance.h"
-
-#include "MuR/Config.h"
-#include "MuR/MutableTrace.h"
+#include <algorithm>
+#include <memory>
+#include <utility>
 
 
 namespace mu

@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "IPropertyTypeCustomization.h"
-#include "AssetRegistry/AssetData.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
+struct FAssetData;
 
 class FCustomizableObjectIdentifierCustomization : public IPropertyTypeCustomization
 {

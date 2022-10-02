@@ -1,25 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuT/CodeGenerator.h"
-
-#include "MuR/Platform.h"
-#include "MuT/CompilerPrivate.h"
-
-#include "MuT/NodeScalarPrivate.h"
-#include "MuT/NodeScalarConstantPrivate.h"
-#include "MuT/NodeScalarParameterPrivate.h"
-#include "MuT/NodeScalarSwitchPrivate.h"
-#include "MuT/NodeScalarEnumParameterPrivate.h"
-#include "MuT/NodeScalarCurvePrivate.h"
-#include "MuT/NodeScalarArithmeticOperationPrivate.h"
-#include "MuT/NodeScalarVariationPrivate.h"
-#include "MuT/NodeScalarTablePrivate.h"
-
-#include "MuT/ASTOpScalarCurve.h"
-#include "MuT/ASTOpConditional.h"
-
-#include "MuR/ModelPrivate.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableMath.h"
 #include "MuR/Operations.h"
+#include "MuR/Parameters.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Platform.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
+#include "MuT/AST.h"
+#include "MuT/ASTOpConditional.h"
+#include "MuT/ASTOpParameter.h"
+#include "MuT/ASTOpScalarCurve.h"
+#include "MuT/ASTOpSwitch.h"
+#include "MuT/CodeGenerator.h"
+#include "MuT/CodeGenerator_FirstPass.h"
+#include "MuT/ErrorLog.h"
+#include "MuT/ErrorLogPrivate.h"
+#include "MuT/NodeImage.h"
+#include "MuT/NodeMeshGeometryOperation.h"
+#include "MuT/NodeMeshTable.h"
+#include "MuT/NodeRange.h"
+#include "MuT/NodeScalar.h"
+#include "MuT/NodeScalarArithmeticOperation.h"
+#include "MuT/NodeScalarArithmeticOperationPrivate.h"
+#include "MuT/NodeScalarConstant.h"
+#include "MuT/NodeScalarConstantPrivate.h"
+#include "MuT/NodeScalarCurve.h"
+#include "MuT/NodeScalarCurvePrivate.h"
+#include "MuT/NodeScalarEnumParameter.h"
+#include "MuT/NodeScalarEnumParameterPrivate.h"
+#include "MuT/NodeScalarParameter.h"
+#include "MuT/NodeScalarParameterPrivate.h"
+#include "MuT/NodeScalarSwitch.h"
+#include "MuT/NodeScalarSwitchPrivate.h"
+#include "MuT/NodeScalarTable.h"
+#include "MuT/NodeScalarTablePrivate.h"
+#include "MuT/NodeScalarVariation.h"
+#include "MuT/NodeScalarVariationPrivate.h"
+#include "MuT/Table.h"
+#include "MuT/TablePrivate.h"
+
+#include <memory>
+#include <utility>
+
+namespace mu { class Node; }
 
 
 using namespace mu;

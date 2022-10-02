@@ -3,8 +3,15 @@
 #pragma once
 
 
-#include "Curves/CurveBase.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Math/Color.h"
+#include "UObject/ObjectPtr.h"
+
 #include "CustomizableObjectPopulationConstraint.generated.h"
+
+class UCurveBase;
 
 UENUM()
 enum class EPopulationConstraintType : uint8

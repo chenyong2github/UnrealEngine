@@ -2,24 +2,32 @@
 
 
 #include "MuT/Node.h"
-#include "MuT/NodePrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuT/NodeBool.h"
 #include "MuT/NodeColour.h"
 #include "MuT/NodeComponent.h"
 #include "MuT/NodeImage.h"
-#include "MuT/NodeLayout.h"
 #include "MuT/NodeLOD.h"
+#include "MuT/NodeLayout.h"
 #include "MuT/NodeMesh.h"
+#include "MuT/NodeModifier.h"
 #include "MuT/NodeObject.h"
 #include "MuT/NodePatchImage.h"
 #include "MuT/NodePatchMesh.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeProjector.h"
+#include "MuT/NodeRange.h"
 #include "MuT/NodeScalar.h"
 #include "MuT/NodeString.h"
-#include "MuT/NodeProjector.h"
 #include "MuT/NodeSurface.h"
-#include "MuT/NodeModifier.h"
-#include "MuT/NodeRange.h"
-#include "MuT/NodeBool.h"
+#include "map"
+
+#include <stdint.h>
+#include <utility>
 
 
 namespace mu

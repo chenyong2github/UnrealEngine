@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObjectSystem.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+struct FGeometry;
 
 
 class CUSTOMIZABLEOBJECTEDITOR_API SCustomizableObjectSystemVersion : public SCompoundWidget

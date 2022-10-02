@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "MuT/NodeImage.h"
-
 #include "MuR/Image.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
+#include "MuT/NodeImage.h"
 
 
 namespace mu
@@ -14,6 +16,9 @@ namespace mu
 	class NodeImageSwizzle;
 	typedef Ptr<NodeImageSwizzle> NodeImageSwizzlePtr;
 	typedef Ptr<const NodeImageSwizzle> NodeImageSwizzlePtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Node that composes a new image by gathering pixel data from channels in other images.
@@ -66,6 +71,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
         Node::Private* GetBasePrivate() const override;
 

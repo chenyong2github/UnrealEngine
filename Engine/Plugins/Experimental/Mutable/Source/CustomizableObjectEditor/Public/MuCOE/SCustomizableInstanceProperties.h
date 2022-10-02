@@ -2,23 +2,31 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "Styling/SlateTypes.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "MuCOE/CustomizableInstanceDetails.h"
+#include "Widgets/SCompoundWidget.h"
 
-class UCustomizableObjectInstance;
-class SSlider;
+class FCustomizableInstanceDetails;
+class SButton;
+class SExpandableArea;
+class SSearchBox;
+class STextBlock;
 class SVerticalBox;
-class UUpdateClassHelper;
-class UInstanceUpdatedHelper;
+class UCustomizableObjectInstance;
+struct FGeometry;
+struct FPointerEvent;
 
 struct FMutableParamExpandableArea
 {

@@ -4,11 +4,15 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Templates/SharedPointer.h"
 #include "Toolkits/IToolkit.h"
-#include "Logging/TokenizedMessage.h"
-#include "MuCOPE/ICustomizableObjectPopulationEditor.h"
-#include "MuCOPE/ICustomizableObjectPopulationClassEditor.h"
+#include "UObject/NameTypes.h"
+
+class ICustomizableObjectPopulationClassEditor;
+class ICustomizableObjectPopulationEditor;
+class IToolkitHost;
+class UCustomizableObjectPopulation;
+class UCustomizableObjectPopulationClass;
 
 extern const FName CustomizableObjectEditorAppIdentifier;
 extern const FName CustomizableObjectInstanceEditorAppIdentifier;

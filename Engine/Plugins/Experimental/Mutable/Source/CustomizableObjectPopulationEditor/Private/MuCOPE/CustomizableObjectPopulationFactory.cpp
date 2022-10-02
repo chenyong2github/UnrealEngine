@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOPE/CustomizableObjectPopulationFactory.h"
+
 #include "MuCOP/CustomizableObjectPopulation.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectPopulationFactory"

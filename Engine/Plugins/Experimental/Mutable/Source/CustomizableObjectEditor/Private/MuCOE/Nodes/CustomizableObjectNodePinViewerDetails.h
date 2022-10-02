@@ -5,6 +5,8 @@
 #include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
 
+class IDetailLayoutBuilder;
+
 
 /** Simple Detail Customization which includes the PinViewer. */
 class FCustomizableObjectNodePinViewerDetails : public IDetailCustomization

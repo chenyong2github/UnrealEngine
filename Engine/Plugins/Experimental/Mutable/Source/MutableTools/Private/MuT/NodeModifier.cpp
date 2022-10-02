@@ -2,11 +2,20 @@
 
 
 #include "MuT/NodeModifier.h"
-#include "MuT/NodeModifierPrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuT/NodeModifierMeshClipDeform.h"
 #include "MuT/NodeModifierMeshClipMorphPlane.h"
 #include "MuT/NodeModifierMeshClipWithMesh.h"
-#include "MuT/NodeModifierMeshClipDeform.h"
+#include "MuT/NodeModifierPrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <stdint.h>
+#include <memory>
+#include <utility>
 
 
 namespace mu

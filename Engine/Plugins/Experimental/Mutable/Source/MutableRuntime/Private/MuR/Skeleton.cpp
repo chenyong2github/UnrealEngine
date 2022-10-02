@@ -3,8 +3,8 @@
 
 #include "MuR/Skeleton.h"
 
-#include "MuR/Platform.h"
-#include "MuR/MutableTrace.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/SerialisationPrivate.h"
 
 
 namespace mu

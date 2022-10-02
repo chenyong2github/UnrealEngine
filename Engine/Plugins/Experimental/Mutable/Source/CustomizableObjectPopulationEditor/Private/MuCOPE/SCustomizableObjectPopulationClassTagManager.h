@@ -2,13 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Components/VerticalBox.h"
-#include "Widgets/Layout/SScrollBox.h"
 
-
+class FString;
+class FText;
+class SVerticalBox;
 class UCustomizableObject;
 
 //Tool to manage the population class tags of a customizable object

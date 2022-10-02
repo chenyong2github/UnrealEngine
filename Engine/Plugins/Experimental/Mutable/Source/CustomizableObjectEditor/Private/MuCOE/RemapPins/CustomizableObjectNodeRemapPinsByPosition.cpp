@@ -2,6 +2,12 @@
 
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByPosition.h"
 
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+
 
 /** Remap pins of a given direction by position. */
 void RemapPinsInternal(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan, EEdGraphPinDirection Direction)

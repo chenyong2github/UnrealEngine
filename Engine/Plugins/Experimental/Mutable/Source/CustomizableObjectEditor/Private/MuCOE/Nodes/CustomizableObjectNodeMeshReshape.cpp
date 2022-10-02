@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshReshape.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "DetailLayoutBuilder.h"
-#include "MuCOE/GraphTraversal.h"
+
+#include "EdGraph/EdGraphPin.h"
+#include "Internationalization/Internationalization.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeCommon.h"
+#include "UObject/NameTypes.h"
+
+class UCustomizableObjectNodeRemapPins;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

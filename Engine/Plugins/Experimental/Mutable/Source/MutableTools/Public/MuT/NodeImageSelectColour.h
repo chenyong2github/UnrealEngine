@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
-
-#include "MuR/Image.h"
 
 
 namespace mu
@@ -18,6 +19,9 @@ namespace mu
 	class NodeImageSelectColour;
 	typedef Ptr<NodeImageSelectColour> NodeImageSelectColourPtr;
 	typedef Ptr<const NodeImageSelectColour> NodeImageSelectColourPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Create a black and white mask image by selecting the pixels from a source image that match

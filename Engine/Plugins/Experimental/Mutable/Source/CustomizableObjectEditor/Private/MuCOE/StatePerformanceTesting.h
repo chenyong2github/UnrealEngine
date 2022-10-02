@@ -2,18 +2,27 @@
 
 #pragma once
 
-#include "MuCOE/ICustomizableObjectEditor.h"
-#include "Misc/NotifyHook.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
-#include "MuCO/CustomizableObjectInstance.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "UObject/GCObject.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "StatePerformanceTesting.generated.h"
 
-
-class UInstance;
+class UCustomizableObject;
+class UCustomizableObjectInstance;
 class UCustomizableSkeletalComponent;
-class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class UUpdateClassHelper;
+struct FFrame;
 
 
 enum class TestType

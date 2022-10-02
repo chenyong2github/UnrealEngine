@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
 
@@ -12,6 +15,9 @@ namespace mu
     class NodeImageVariation;
     typedef Ptr<NodeImageVariation> NodeImageVariationPtr;
     typedef Ptr<const NodeImageVariation> NodeImageVariationPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
     //!

@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "MuR/Types.h"
+//#include "MuR/MutableMath.h"
+#include "../Private/MuR/MemoryPrivate.h"
+#include "../Private/MuR/SerialisationPrivate.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformMath.h"
+#include "Math/Transform.h"
+#include "Math/VectorRegister.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "../Private/MuR/SerialisationPrivate.h"
-//#include "MuR/MutableMath.h"
-#include "../Private/MuR/MemoryPrivate.h"
-#include "Math/Transform.h"
+
+#include <memory>
 
 
 namespace mu
@@ -17,6 +22,7 @@ namespace mu
 
 	// Forward references
     class Skeleton;
+
     typedef Ptr<Skeleton> SkeletonPtr;
     typedef Ptr<const Skeleton> SkeletonPtrConst;
 

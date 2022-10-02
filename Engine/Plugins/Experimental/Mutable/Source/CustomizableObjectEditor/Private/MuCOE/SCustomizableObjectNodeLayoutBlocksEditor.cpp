@@ -1,32 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/CustomizableObjectEditorActions.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocksDetails.h"
-#include "MuCOE/CustomizableObjectCompiler.h"
+
+#include "Delegates/Delegate.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/CustomizableObjectLayout.h"
-
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
-
-#include "MuCOE/CustomizableObjectCompiler.h"
-
-#include "MouseDeltaTracker.h"
+#include "MuCOE/ICustomizableObjectInstanceEditor.h"
 #include "MuCOE/SCustomizableObjectLayoutGrid.h"
-
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateColor.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 #include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "FbxMeshUtils.h"
-#include "BusyCursor.h"
-#include "MeshBuild.h"
-#include "ObjectTools.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
-#include "MuT/NodeLayout.h"
-
-#include "../Private/GeomFitUtils.h"
+class ISlateStyle;
+class SWidget;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"

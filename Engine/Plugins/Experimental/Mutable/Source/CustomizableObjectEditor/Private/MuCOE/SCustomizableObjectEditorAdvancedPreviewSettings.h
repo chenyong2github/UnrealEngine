@@ -2,15 +2,24 @@
 
 #pragma once
 
-#include "AdvancedPreviewSceneModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMisc.h"
+#include "Input/Reply.h"
+#include "Misc/Attribute.h"
 #include "SAdvancedPreviewDetailsTab.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
-//#include "Classes/Engine/Level.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "MuCOE/CustomizableObjectEditorLevelProfile.h"
-#include "MuCOE/CustomizableObjectEditor.h"
+
+class FAdvancedPreviewScene;
+class FCustomizableObjectEditor;
+class SEditableTextBox;
+class STextComboBox;
+class UAssetViewerSettings;
+class UObject;
+struct FPreviewSceneProfile;
 
 
 /** Simple window with a content browser filtered for ULevel assets to select a ULevel with a

@@ -2,16 +2,28 @@
 
 #pragma once
 
-#include "Streaming/TextureMipDataProvider.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
 #include "Engine/TextureMipDataProviderFactory.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObjectSystem.h"
-#include "MuR/System.h"
-#include "MuR/Model.h"
+#include "MuR/Image.h"
 #include "MuR/Parameters.h"
+#include "MuR/RefCounted.h"
+#include "MuR/System.h"
+#include "Streaming/TextureMipDataProvider.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectMipDataProvider.generated.h"
 
+class FThreadSafeCounter;
 class UCustomizableObjectInstance;
+class UObject;
+class UTexture;
 
 /** This struct stores the data relevant for the construction of a specific texture. 
 * This includes all the data required to rebuild the image (or any of its mips).

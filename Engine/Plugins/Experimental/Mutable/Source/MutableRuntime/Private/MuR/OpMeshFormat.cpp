@@ -2,11 +2,25 @@
 
 
 #include "MuR/OpMeshFormat.h"
-#include "MuR/Platform.h"
-#include "MuR/MutableMath.h"
-#include "MuR/MeshPrivate.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/ConvertData.h"
+#include "MuR/Layout.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/MeshPrivate.h"
+#include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

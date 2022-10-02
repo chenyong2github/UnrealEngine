@@ -2,11 +2,14 @@
 
 
 #include "MuT/NodeImageProject.h"
+
+#include "Math/IntVector.h"
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeImageProjectPrivate.h"
-
+#include "MuT/NodeMesh.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeProjector.h"
 #include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
 
 
 

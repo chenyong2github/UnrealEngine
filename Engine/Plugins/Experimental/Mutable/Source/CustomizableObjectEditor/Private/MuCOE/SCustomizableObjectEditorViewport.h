@@ -2,12 +2,38 @@
 
 #pragma once
 
-#include "PreviewScene.h"
-#include "SEditorViewport.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Input/Reply.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "SEditorViewport.h"
 #include "Settings/LevelEditorViewportSettings.h"
-#include "MuCOE/ICustomizableObjectInstanceEditor.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeProjectorConstant.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "UnrealWidgetFwd.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FDragDropEvent;
+class FEditorViewportClient;
+class FReferenceCollector;
+class FSceneViewport;
+class FUICommandList;
+class STextComboBox;
+class SWidget;
+class UCustomizableObject;
+class UCustomizableObjectNodeProjectorConstant;
+class UCustomizableObjectNodeProjectorParameter;
+class UDebugSkelMeshComponent;
+class UStaticMesh;
+struct FCustomizableObjectProjector;
+struct FGeometry;
 
 
 struct FCustomizableObjectEditorViewportRequiredArgs

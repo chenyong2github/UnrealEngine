@@ -2,10 +2,16 @@
 
 
 #include "MuT/NodeScalarParameter.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeImage.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeRange.h"
 #include "MuT/NodeScalarParameterPrivate.h"
 
-#include "MuR/MutableMath.h"
-#include "MuR/MemoryPrivate.h"
+#include <memory>
+#include <utility>
 
 
 namespace mu

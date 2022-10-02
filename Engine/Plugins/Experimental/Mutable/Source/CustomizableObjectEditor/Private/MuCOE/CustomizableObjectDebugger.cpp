@@ -1,47 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectDebugger.h"
-#include "MuCOE/CustomizableObjectDebuggerActions.h"
+
+#include "Framework/Docking/TabManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Logging/LogMacros.h"
+#include "Misc/Attribute.h"
+#include "MuCO/CustomizableObject.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
-#include "MuCOE/CustomizableObjectEditor.h"
-
-#include "MuCOE/SCustomizableObjectProperties.h"
-#include "MuCOE/SMutableGraphViewer.h"
-#include "MuCOE/SMutableCodeViewer.h"
 #include "MuCOE/SMutableObjectViewer.h"
-
-#include "Editor.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "DesktopPlatformModule.h"
-#include "ContentBrowserModule.h"
-#include "PropertyEditorModule.h"
-
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Layout/SSplitter.h"
+#include "Styling/ISlateStyle.h"
+#include "Toolkits/AssetEditorToolkit.h"
 #include "Types/SlateEnums.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 
-#include "PreviewScene.h"
-#include "ScopedTransaction.h"
-#include "FileHelpers.h"
-#include "BusyCursor.h"
-#include "EditorDirectories.h"
-
-#include "WorkspaceMenuStructureModule.h"
-#include "WorkspaceMenuStructure.h"
-#include "Engine/Selection.h"
-#include "Components/SkeletalMeshComponent.h"
-
-#include "IDetailsView.h"
-#include "WorkspaceMenuStructure.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/Notifications/NotificationManager.h"
-
-#include "GenericPlatform/GenericPlatformApplicationMisc.h"
-
-#include "HAL/PlatformApplicationMisc.h"
+struct FSlateBrush;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDebugger"

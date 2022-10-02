@@ -1,17 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocksDetails.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "PropertyCustomizationHelpers.h"
 
-#include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-#include "LevelEditor.h"
-#include "LevelEditorActions.h"
-
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "MuCOE/CustomizableObjectLayout.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
 
-#include "Runtime/Launch/Resources/Version.h"
+class FString;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectDetails"

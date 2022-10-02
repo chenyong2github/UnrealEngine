@@ -2,13 +2,15 @@
 
 
 #include "MuT/NodeMeshConstant.h"
-#include "MuT/NodeMeshConstantPrivate.h"
 
-#include "MuT/NodeLayout.h"
-#include "MuT/NodeLayoutPrivate.h"
-
-#include "MuR/MeshPrivate.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/MemoryPrivate.h"
+#include "MuT/NodeLayout.h"
+#include "MuT/NodeMeshConstantPrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

@@ -2,11 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Operations.h"
+#include "MuR/Ptr.h"
 #include "MuT/AST.h"
+
+#include <functional>
 
 
 namespace mu
 {
+struct PROGRAM;
 
 
 	//---------------------------------------------------------------------------------------------

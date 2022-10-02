@@ -2,10 +2,29 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphNode.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "SGraphNode.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "CustomizableObjectNodeColorConstant.generated.h"
+
+class SOverlay;
+class SVerticalBox;
+class UCustomizableObjectNodeColorConstant;
+class UCustomizableObjectNodeRemapPins;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
+struct FPropertyChangedEvent;
+struct FSlateBrush;
 
 
 enum class ColorChannel

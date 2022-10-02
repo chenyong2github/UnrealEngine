@@ -2,9 +2,15 @@
 
 
 #include "MuT/NodePatchImage.h"
-#include "MuT/NodePatchImagePrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeImage.h"
+#include "MuT/NodePatchImagePrivate.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

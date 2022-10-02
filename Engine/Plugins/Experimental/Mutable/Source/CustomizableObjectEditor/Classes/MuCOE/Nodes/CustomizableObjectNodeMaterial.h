@@ -2,12 +2,43 @@
 
 #pragma once
 
-#include "Engine/Texture2D.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
-#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "MaterialTypes.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
 #include "MuCOE/CustomizableObjectEditor_Deprecated.h"
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CustomizableObjectNodeMaterial.generated.h"
+
+class FArchive;
+class SGraphNode;
+class SWidget;
+class UCustomizableObjectNodeRemapPins;
+class UEdGraphPin;
+class UMaterial;
+class UMaterialInterface;
+class UObject;
+class UTexture2D;
+struct FCustomizableObjectNodeMaterialImage;
+struct FCustomizableObjectNodeMaterialScalar;
+struct FCustomizableObjectNodeMaterialVector;
+struct FEdGraphPinReference;
+struct FFrame;
+struct FPropertyChangedEvent;
 
 
 DECLARE_MULTICAST_DELEGATE(FPostImagePinModeChangedDelegate)

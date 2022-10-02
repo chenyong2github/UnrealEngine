@@ -1,16 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMeshDetails.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "PropertyCustomizationHelpers.h"
 
-#include "DetailLayoutBuilder.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
-#include "LevelEditor.h"
-#include "LevelEditorActions.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/PinViewer/SPinViewer.h"
-
 #include "MuCOE/SCustomizableObjectNodeSkeletalMeshRTMorphSelector.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectNodeMaterialDetails"
 

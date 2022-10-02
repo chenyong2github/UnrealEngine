@@ -3,7 +3,9 @@
 
 #include "MuR/Layout.h"
 
-#include "MuR/Platform.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Math/IntPoint.h"
+#include "MuR/MutableMath.h"
 
 
 namespace mu {

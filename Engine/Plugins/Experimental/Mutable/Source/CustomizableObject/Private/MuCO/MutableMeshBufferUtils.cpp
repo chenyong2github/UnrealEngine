@@ -2,8 +2,13 @@
 
 #include "MuCO/MutableMeshBufferUtils.h"
 
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/Types.h"
 #include "Rendering/PositionVertexBuffer.h"
 #include "Rendering/StaticMeshVertexBuffer.h"
+#include "Templates/UnrealTemplate.h"
 
 
 void MutableMeshBufferUtils::SetupVertexPositionsBuffer(const int32& InCurrentVertexBuffer, mu::FMeshBufferSet& OutTargetVertexBuffers)

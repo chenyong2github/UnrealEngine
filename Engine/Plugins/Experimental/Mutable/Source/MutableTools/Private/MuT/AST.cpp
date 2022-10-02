@@ -1,13 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/AST.h"
+
+#include "Containers/Set.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "MuR/Mesh.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/Platform.h"
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
-
 #include "MuT/ErrorLogPrivate.h"
-#include "MuT/CodeOptimiser.h"
 #include "MuT/StreamsPrivate.h"
-#include "MuR/MutableTrace.h"
+#include "Trace/Detail/Channel.h"
+#include "array"
+#include "atomic"
+#include "cstdint"
+#include "iosfwd"
+#include "unordered_map"
+#include "unordered_set"
 
 #include <queue>
 

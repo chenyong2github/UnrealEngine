@@ -1,7 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeRemoveMeshBlocks.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "EdGraph/EdGraph.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/Guid.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/CustomizableObjectLayout.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/ICustomizableObjectEditor.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealType.h"
+
+class UCustomizableObjectNodeRemapPins;
+class UEdGraphPin;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

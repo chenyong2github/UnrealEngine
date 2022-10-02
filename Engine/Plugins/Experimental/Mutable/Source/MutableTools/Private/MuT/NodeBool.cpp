@@ -2,7 +2,12 @@
 
 
 #include "MuT/NodeBool.h"
-#include "MuT/NodePrivate.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+
+#include <stdint.h>
 
 
 namespace mu

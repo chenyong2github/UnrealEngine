@@ -2,28 +2,60 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObject.h"
-#include "MuT/NodeMeshApplyPose.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMesh.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMeshMorph.h"
-
 #include "Animation/Skeleton.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
 #include "Engine/SkeletalMesh.h"
-
-#include "MuT/NodeObject.h"
-#include "MuT/NodeImageConstant.h"
-#include "MuT/NodeSurfaceNew.h"
-#include "MuT/NodeComponentNew.h"
-#include "MuT/NodeModifierMeshClipWithMesh.h"
-#include "MuT/NodeProjector.h"
-#include "MuT/NodeScalarParameter.h"
-#include "MuT/NodeScalarEnumParameter.h"
+#include "Engine/Texture.h"
+#include "Engine/TextureDefines.h"
+#include "Math/NumericLimits.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Guid.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectClothingTypes.h"
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
 #include "MuR/Mesh.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
+#include "MuT/NodeComponentNew.h"
+#include "MuT/NodeImageConstant.h"
+#include "MuT/NodeMeshApplyPose.h"
+#include "MuT/NodeModifierMeshClipWithMesh.h"
+#include "MuT/NodeObject.h"
+#include "MuT/NodeProjector.h"
+#include "MuT/NodeScalarEnumParameter.h"
+#include "MuT/NodeScalarParameter.h"
+#include "MuT/NodeSurfaceNew.h"
 #include "MuT/Table.h"
+#include "RHIDefinitions.h"
+#include "ReferenceSkeleton.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Package.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UnrealNames.h"
 
+class FCustomizableObjectCompiler;
+class UAnimInstance;
+class UCustomizableObjectNodeMaterial;
+class UCustomizableObjectNodeMeshMorph;
+class UCustomizableObjectNodeObjectGroup;
+class UEdGraphNode;
+class UMaterialInterface;
+class UObject;
+class UPhysicsAsset;
+class UTexture2D;
+struct FCustomizableObjectIdPair;
 struct FMutableGraphGenerationContext;
+struct FParameterUIData;
 
 
 struct FGeneratedImageProperties

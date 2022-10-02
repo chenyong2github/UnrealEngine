@@ -1,11 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCO/LogInformationUtil.h"
+
+#include "Containers/IndirectArray.h"
+#include "Containers/UnrealString.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
-#include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableInstancePrivateData.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "MuCO/CustomizableInstancePrivateData.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "TextureResource.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
 
 int LogInformationUtil::CountLOD0 = 0;
 int LogInformationUtil::CountLOD1 = 0;

@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "MuCO/CustomizableObject.h"
+#include "MuCOE/CustomizableObjectGraph.h"
+#include "MuCOE/ICustomizableObjectEditor.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
 
 
 void UCustomizableObjectNodeEditMaterialBase::BeginPostDuplicate(bool bDuplicateForPIE)

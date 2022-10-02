@@ -2,8 +2,17 @@
 
 #pragma once
 
-#include "../Private/MuCOP/CustomizableObjectPopulationCharacteristic.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectPopulationClass.generated.h"
+
+class FArchive;
+struct FCustomizableObjectPopulationCharacteristic;
 
 
 USTRUCT()

@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "GenericPlatform/GenericPlatformMath.h"
+#include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
 
 class LogBenchmarkUtil

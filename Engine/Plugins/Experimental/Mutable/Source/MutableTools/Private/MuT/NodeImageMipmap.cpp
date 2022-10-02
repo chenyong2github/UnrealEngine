@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeImageMipmap.h"
-#include "MuT/NodeImageMipmapPrivate.h"
 
-#include "MuT/NodeScalar.h"
-
+#include "Misc/AssertionMacros.h"
 #include "MuR/ImagePrivate.h"
+#include "MuT/NodeImageMipmapPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	1

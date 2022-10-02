@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "MuT/NodeScalar.h"
-#include "MuR/Parameters.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeRange.h"
+#include "MuT/NodeScalar.h"
 
 
 namespace mu

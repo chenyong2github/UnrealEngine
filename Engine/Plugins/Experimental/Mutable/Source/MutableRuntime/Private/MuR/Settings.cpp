@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuR/Settings.h"
-#include "MuR/Platform.h"
 
+#include "Misc/AssertionMacros.h"
 #include "MuR/SettingsPrivate.h"
-#include "MuR/Config.h"
 
 namespace mu
 {

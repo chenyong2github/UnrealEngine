@@ -2,16 +2,21 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "MuR/Mesh.h"
-#include "MuCOE/FMutableViewportClient.h"
-#include "Widgets/SCompoundWidget.h"
-#include "AdvancedPreviewScene.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "SEditorViewport.h"
-#include "UnrealWidget.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-#include "Engine/SkeletalMesh.h"
+class FAdvancedPreviewScene;
+class FEditorViewportClient;
+class FMutableMeshViewportClient;
+class FReferenceCollector;
+class USkeletalMesh;
+class USkeletalMeshComponent;
+struct FGeometry;
 
 
 /**

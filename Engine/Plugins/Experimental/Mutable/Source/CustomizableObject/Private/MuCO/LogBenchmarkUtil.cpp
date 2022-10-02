@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCO/LogBenchmarkUtil.h"
-#include "Misc/FileHelper.h"
+
 #include "Containers/UnrealString.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/DateTime.h"
+#include "Misc/FileHelper.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 
 bool LogBenchmarkUtil::bLoggingActive = false;

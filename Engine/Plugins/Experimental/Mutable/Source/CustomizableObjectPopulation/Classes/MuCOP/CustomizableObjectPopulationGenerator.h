@@ -2,18 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-
-#include "Templates/PimplPtr.h"
-#include "Templates/Tuple.h"
-#include "Math/RandomStream.h"
+#include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 //#include "MuCOP/CustomizableObjectPopulationSamplers.h"
 
 
 #include "CustomizableObjectPopulationGenerator.generated.h"
+
+class FArchive;
 /*
 struct FCustomizableObjectPopulationCharacteristic;
 class UCustomizableObjectPopulation;
@@ -59,10 +60,10 @@ public:
 };
 */
 
+class UCustomizableObject;
+class UCustomizableObjectInstance;
 // Forward declarations
 struct FCustomizableObjectPopulationGeneratorPrivate;
-class UCustomizableObjectInstance;
-class UCustomizableObject;
 
 UCLASS()
 class CUSTOMIZABLEOBJECTPOPULATION_API UCustomizableObjectPopulationGenerator : public UObject

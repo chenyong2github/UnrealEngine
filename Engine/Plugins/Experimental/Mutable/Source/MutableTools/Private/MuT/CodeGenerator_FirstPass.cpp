@@ -2,39 +2,35 @@
 
 #include "MuT/CodeGenerator_FirstPass.h"
 
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/Operations.h"
+#include "MuR/Parameters.h"
+#include "MuR/ParametersPrivate.h"
 #include "MuR/Platform.h"
-#include "MuT/CompilerPrivate.h"
-
-#include "MuT/NodeSurfaceNewPrivate.h"
-#include "MuT/NodeSurfaceEditPrivate.h"
-#include "MuT/NodeSurfaceVariationPrivate.h"
-
-#include "MuT/NodeComponentPrivate.h"
-#include "MuT/NodeComponentNewPrivate.h"
-#include "MuT/NodeComponentEditPrivate.h"
-
-#include "MuT/NodeLODPrivate.h"
-#include "MuT/NodeObjectNewPrivate.h"
-#include "MuT/NodeObjectStatePrivate.h"
-#include "MuT/NodeObjectGroupPrivate.h"
-
-#include "MuT/NodeMeshClipMorphPlane.h"
-#include "MuT/NodeMeshClipWithMesh.h"
-
-#include "MuT/NodeModifierPrivate.h"
-#include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
-#include "MuT/NodeModifierMeshClipWithMeshPrivate.h"
-#include "MuT/NodeModifierMeshClipDeformPrivate.h"
-
 #include "MuT/AST.h"
 #include "MuT/ASTOpConstantBool.h"
 #include "MuT/ASTOpParameter.h"
-
-#include "MuR/ModelPrivate.h"
-#include "MuR/MutableTrace.h"
-#include "MuR/Operations.h"
-#include "MuR/SystemPrivate.h"
-
+#include "MuT/CompilerPrivate.h"
+#include "MuT/ErrorLog.h"
+#include "MuT/ErrorLogPrivate.h"
+#include "MuT/NodeComponent.h"
+#include "MuT/NodeComponentEditPrivate.h"
+#include "MuT/NodeComponentNewPrivate.h"
+#include "MuT/NodeLODPrivate.h"
+#include "MuT/NodeModifierMeshClipDeformPrivate.h"
+#include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
+#include "MuT/NodeModifierMeshClipWithMeshPrivate.h"
+#include "MuT/NodeObject.h"
+#include "MuT/NodeObjectGroupPrivate.h"
+#include "MuT/NodeObjectNewPrivate.h"
+#include "MuT/NodeObjectStatePrivate.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/NodeSurface.h"
+#include "MuT/NodeSurfaceEditPrivate.h"
+#include "MuT/NodeSurfaceNewPrivate.h"
+#include "MuT/NodeSurfaceVariationPrivate.h"
 
 namespace mu
 {

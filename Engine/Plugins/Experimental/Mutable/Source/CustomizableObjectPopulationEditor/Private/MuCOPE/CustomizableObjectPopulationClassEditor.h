@@ -2,15 +2,33 @@
 
 #pragma once 
 
-#include "MuCOPE/ICustomizableObjectPopulationClassEditor.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "Misc/NotifyHook.h"
-#include "TickableEditorObject.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "EditorUndoClient.h"
-#include "Toolkits/AssetEditorToolkit.h"
-#include "Curves/CurveBase.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/NotifyHook.h"
+#include "Misc/Optional.h"
+#include "MuCOPE/ICustomizableObjectPopulationClassEditor.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "TickableEditorObject.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
 
+class FReferenceCollector;
+class FSpawnTabArgs;
+class FUICommandList;
+class IToolkitHost;
+class SDockTab;
+class SWidget;
+class UCurveBase;
+class UCustomizableObjectInstance;
 class UCustomizableObjectPopulationClass;
+template <typename NumericType> class SNumericEntryBox;
 
 class FCustomizableObjectPopulationClassEditor : 
 	public ICustomizableObjectPopulationClassEditor,

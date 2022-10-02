@@ -1,33 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuT/CodeOptimiser.h"
-#include "MuT/CodeOptimiser_GPU.h"
-#include "MuT/NodeObjectNewPrivate.h"
-#include "MuT/CodeGenerator.h"
-#include "MuT/DataPacker.h"
-#include "MuT/ModelReportPrivate.h"
-#include "MuT/CompilerPrivate.h"
-
-#include "MuR/CodeVisitor.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/SystemPrivate.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/ImagePrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/MutableTrace.h"
 #include "MuR/Operations.h"
-
-#include "MuT/ASTOpImagePixelFormat.h"
-#include "MuT/ASTOpImageMipmap.h"
-#include "MuT/ASTOpImageCompose.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Platform.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/AST.h"
 #include "MuT/ASTOpAddLOD.h"
-#include "MuT/ASTOpSwitch.h"
 #include "MuT/ASTOpConditional.h"
+#include "MuT/ASTOpImageCompose.h"
+#include "MuT/ASTOpImageMipmap.h"
+#include "MuT/ASTOpImagePixelFormat.h"
 #include "MuT/ASTOpInstanceAdd.h"
+#include "MuT/ASTOpParameter.h"
+#include "MuT/CodeOptimiser.h"
+#include "MuT/Compiler.h"
+#include "MuT/CompilerPrivate.h"
+#include "MuT/DataPacker.h"
+#include "Trace/Detail/Channel.h"
 
 #include <array>
-
-#include "MuR/MutableTrace.h"
+#include <functional>
+#include <memory>
+#include <utility>
 
 
 namespace mu
 {
+class TaskManager;
 
 
     //---------------------------------------------------------------------------------------------

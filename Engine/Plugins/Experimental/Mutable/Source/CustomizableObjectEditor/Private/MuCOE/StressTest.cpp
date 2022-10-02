@@ -1,15 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/StressTest.h"
-#include "UObject/Package.h"
+
+#include "Containers/IndirectArray.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInterface.h"
+#include "Math/Color.h"
+#include "Math/NumericLimits.h"
+#include "Math/Vector.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Engine/SkeletalMesh.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialInstance.h"
-#include "EditorFramework/AssetImportData.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
+#include "Templates/Casts.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealNames.h"
+
+class FSkeletalMeshLODRenderData;
+class FSkeletalMeshRenderData;
 
 
 void ULiveInstance::DelegatedCallback(UCustomizableObjectInstance* UpdatedInstance)

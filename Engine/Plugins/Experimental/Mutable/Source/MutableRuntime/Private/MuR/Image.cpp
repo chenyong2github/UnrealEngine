@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuR/Image.h"
-#include "MuR/ImagePrivate.h"
-#include "MuR/MutableTrace.h"
-#include "MuR/OpImageResize.h"
 
-#include "MuR/Platform.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
+#include "MuR/ImagePrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/OpImagePixelFormat.h"
+#include "MuR/OpImageResize.h"
 
 namespace mu
 {

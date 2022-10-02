@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
+#include "MuT/NodeComponentNew.h"
 
+class UEdGraphPin;
+struct FMutableGraphGenerationContext;
+struct FMutableGraphSurfaceGenerationData;
 
 mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutableGraphGenerationContext & GenerationContext, FMutableGraphSurfaceGenerationData& SurfaceData);

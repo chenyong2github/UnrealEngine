@@ -2,18 +2,23 @@
 
 #pragma once
 
-#include "MuR/Types.h"
+#include "../Private/MuR/MutableMath.h"
+#include "Containers/Array.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MutableTrace.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "MuR/MutableTrace.h"
-#include "../Private/MuR/MutableMath.h"
+#include "MuR/SerialisationPrivate.h"
 
 namespace mu
 {
 
 	// Forward declarations
 	class Image;
+
 	typedef Ptr<Image> ImagePtr;
 	typedef Ptr<const Image> ImagePtrConst;
 

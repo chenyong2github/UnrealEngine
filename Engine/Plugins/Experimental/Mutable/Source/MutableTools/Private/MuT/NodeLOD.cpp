@@ -2,7 +2,17 @@
 
 
 #include "MuT/NodeLOD.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeComponent.h"
+#include "MuT/NodeComponentNew.h"
 #include "MuT/NodeLODPrivate.h"
+#include "MuT/NodeModifier.h"
+#include "MuT/NodePrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

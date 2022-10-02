@@ -2,9 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
 #include "SViewportToolBar.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Settings/LevelEditorViewportSettings.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FMenuBuilder;
+class SMenuAnchor;
+class SWidget;
+struct FSlateBrush;
 
 
 /**

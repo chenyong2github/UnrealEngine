@@ -1,9 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeExternalPin.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "MuCOE/CustomizableObjectPin.h"
+
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/CustomizableObjectGraph.h"
+#include "MuCOE/CustomizableObjectPin.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeExposePin.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

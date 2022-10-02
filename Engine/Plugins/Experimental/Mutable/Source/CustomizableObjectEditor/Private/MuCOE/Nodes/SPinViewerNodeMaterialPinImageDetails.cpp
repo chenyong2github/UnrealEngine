@@ -2,12 +2,25 @@
 
 #include "MuCOE/Nodes/SPinViewerNodeMaterialPinImageDetails.h"
 
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "HAL/PlatformCrt.h"
 #include "ISinglePropertyView.h"
-#include "PerPlatformPropertyCustomization.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "MuCOE/SMutableTextComboBox.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "Modules/ModuleManager.h"
+#include "MuCOE/SMutableTextComboBox.h"
+#include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTemplate.h"
+#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

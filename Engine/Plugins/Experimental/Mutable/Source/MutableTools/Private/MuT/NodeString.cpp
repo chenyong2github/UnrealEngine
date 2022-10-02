@@ -3,11 +3,14 @@
 
 #include "MuT/NodeString.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/Node.h"
-#include "MuT/NodePrivate.h"
-
 #include "MuT/NodeStringConstant.h"
 #include "MuT/NodeStringParameter.h"
+
+#include <stdint.h>
 
 
 namespace mu

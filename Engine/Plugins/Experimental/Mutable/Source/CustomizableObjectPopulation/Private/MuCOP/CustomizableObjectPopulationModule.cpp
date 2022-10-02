@@ -1,16 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
-#include "Interfaces/IPluginManager.h"
-#include "Misc/ConfigCacheIni.h"
-#include "MuCO/CustomizableObject.h"
-
-#include "Runtime/Launch/Resources/Version.h"
-#include "MuCOE/ICustomizableObjectPopulationModule.h"
-
-#include "MuCOP/CustomizableObjectPopulation.h"
-
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Interfaces/IPluginManager.h"
+#include "Modules/ModuleManager.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCOE/ICustomizableObjectPopulationModule.h"
+#include "MuCOP/CustomizableObjectPopulation.h"
+#include "MuCOP/CustomizableObjectPopulationGenerator.h"
+#include "PluginDescriptor.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectGlobals.h"
 
 
 /**

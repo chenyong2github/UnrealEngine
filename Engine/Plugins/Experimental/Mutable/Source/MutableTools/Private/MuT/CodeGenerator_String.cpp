@@ -1,18 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuT/CodeGenerator.h"
-
-#include "MuR/Platform.h"
-#include "MuT/CompilerPrivate.h"
-
-#include "MuT/NodeStringPrivate.h"
-#include "MuT/NodeStringConstantPrivate.h"
-#include "MuT/NodeStringParameterPrivate.h"
-
-#include "MuT/ASTOpConstantString.h"
-
-#include "MuR/ModelPrivate.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/Operations.h"
+#include "MuR/Parameters.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
+#include "MuT/AST.h"
+#include "MuT/ASTOpConstantString.h"
+#include "MuT/ASTOpParameter.h"
+#include "MuT/CodeGenerator.h"
+#include "MuT/NodeRange.h"
+#include "MuT/NodeString.h"
+#include "MuT/NodeStringConstant.h"
+#include "MuT/NodeStringConstantPrivate.h"
+#include "MuT/NodeStringParameter.h"
+#include "MuT/NodeStringParameterPrivate.h"
+#include "map"
+
+#include <memory>
+#include <utility>
 
 
 using namespace mu;

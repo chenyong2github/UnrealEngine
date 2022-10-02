@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuT/CodeOptimiser.h"
-
-#include "MuR/ModelPrivate.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/SystemPrivate.h"
 #include "MuR/Operations.h"
-
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/AST.h"
 #include "MuT/ASTOpConditional.h"
 #include "MuT/ASTOpInstanceAdd.h"
 #include "MuT/ASTOpSwitch.h"
+#include "MuT/CodeOptimiser.h"
+
+#include <functional>
+#include <memory>
+#include <utility>
 
 
 

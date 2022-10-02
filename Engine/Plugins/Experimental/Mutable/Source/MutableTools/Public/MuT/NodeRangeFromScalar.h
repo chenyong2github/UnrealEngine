@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuT/Node.h"
 #include "MuT/NodeRange.h"
 
 namespace mu

@@ -2,10 +2,26 @@
 
 #include "MuCOE/PinViewer/SPinViewerListRow.h"
 
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/PinViewer/SPinViewer.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+
+class STableViewBase;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "MuT/NodeImageLayer.h"
 #include "MuR/Image.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
+#include "MuT/NodeImage.h"
 
 namespace mu
 {
@@ -16,6 +19,9 @@ namespace mu
 	class NodeImageLayerColour;
 	typedef Ptr<NodeImageLayerColour> NodeImageLayerColourPtr;
 	typedef Ptr<const NodeImageLayerColour> NodeImageLayerColourPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! This node applies a layer blending effect on a base image using a mask and a colour.

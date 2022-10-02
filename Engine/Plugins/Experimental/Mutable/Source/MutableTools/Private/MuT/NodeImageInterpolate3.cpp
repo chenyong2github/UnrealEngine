@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeImageInterpolate3.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeImageInterpolate3Private.h"
-
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
 
 
 namespace mu

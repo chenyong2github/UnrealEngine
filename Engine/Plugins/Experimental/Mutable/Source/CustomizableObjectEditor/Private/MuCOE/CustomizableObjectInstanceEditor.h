@@ -2,12 +2,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "MuCOE/ICustomizableObjectInstanceEditor.h"
-#include "Toolkits/AssetEditorToolkit.h"
-#include "GraphEditor.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
-#include "Animation/DebugSkelMeshComponent.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CustomizableObjectInstanceEditor.generated.h"
+
+class FProperty;
+class FSpawnTabArgs;
+class SDockTab;
+class SWidget;
+class UCustomizableObject;
+class UCustomizableObjectInstance;
+class UPoseAsset;
+struct FFrame;
 
 DECLARE_DELEGATE(FCreatePreviewInstanceFlagDelegate);
 

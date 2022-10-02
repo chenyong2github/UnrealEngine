@@ -2,11 +2,13 @@
 
 
 #include "MuT/NodeRangeFromScalar.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/RefCounted.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeRangeFromScalarPrivate.h"
-
 #include "MuT/NodeScalar.h"
-
-#include "MuR/ImagePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	1

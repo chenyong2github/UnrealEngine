@@ -2,7 +2,10 @@
 
 
 #include "MuT/NodeImageFormat.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeImageFormatPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	4

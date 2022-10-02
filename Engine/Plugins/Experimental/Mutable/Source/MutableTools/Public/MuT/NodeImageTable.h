@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
 
@@ -16,6 +19,9 @@ namespace mu
 	class Table;
 	typedef Ptr<Table> TablePtr;
 	typedef Ptr<const Table> TablePtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! This node provides the meshes stored in the column of a table.

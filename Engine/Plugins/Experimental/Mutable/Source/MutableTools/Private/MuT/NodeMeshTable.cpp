@@ -2,7 +2,16 @@
 
 
 #include "MuT/NodeMeshTable.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshTablePrivate.h"
+#include "MuT/NodePrivate.h"
+#include "MuT/Table.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

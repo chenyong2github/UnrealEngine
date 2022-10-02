@@ -2,8 +2,11 @@
 
 
 #include "MuT/NodePatchMesh.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeMesh.h"
 #include "MuT/NodePatchMeshPrivate.h"
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

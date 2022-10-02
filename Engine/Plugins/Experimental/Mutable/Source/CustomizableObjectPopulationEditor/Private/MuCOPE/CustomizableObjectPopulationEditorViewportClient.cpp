@@ -1,9 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOPE/CustomizableObjectPopulationEditorViewportClient.h"
-#include "Components/BoxComponent.h"
+
+#include "AdvancedPreviewScene.h"
+#include "CollisionQueryParams.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "CoreGlobals.h"
+#include "Editor.h"
+#include "Engine/HitResult.h"
+#include "Engine/NetSerialization.h"
+#include "Engine/World.h"
+#include "EngineDefines.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "PreviewScene.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "UnrealWidget.h"
+
+class FSceneView;
+class HHitProxy;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectPopulationEditorViewportClient"
 

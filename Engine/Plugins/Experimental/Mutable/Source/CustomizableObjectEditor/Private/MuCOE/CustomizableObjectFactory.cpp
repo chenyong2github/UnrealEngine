@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/CustomizableObjectFactory.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
 
-#include "MuR/Serialisation.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCOE/CustomizableObjectGraph.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectFactory"
 

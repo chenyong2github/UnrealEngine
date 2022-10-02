@@ -2,11 +2,10 @@
 
 
 #include "MuT/NodeImageDifference.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeImageDifferencePrivate.h"
-
-#include "MuT/NodeColour.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	2

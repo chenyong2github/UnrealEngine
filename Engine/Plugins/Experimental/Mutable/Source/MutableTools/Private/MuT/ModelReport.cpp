@@ -2,9 +2,10 @@
 
 
 #include "MuT/ModelReport.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuT/ModelReportPrivate.h"
-
-
 
 namespace mu
 {

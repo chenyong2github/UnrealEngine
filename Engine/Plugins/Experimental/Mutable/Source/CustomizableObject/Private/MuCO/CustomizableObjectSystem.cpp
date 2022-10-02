@@ -2,39 +2,112 @@
 
 #include "MuCO/CustomizableObjectSystem.h"
 
-#include "MuCO/CustomizableObjectSystemPrivate.h"
-#include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectPrivate.h"
+#include "Animation/Skeleton.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Async/Fundamental/Task.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Queue.h"
+#include "Containers/SparseArray.h"
+#include "Containers/Ticker.h"
+#include "CoreGlobals.h"
+#include "Engine/Engine.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
+#include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformProperties.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/UnrealMemory.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Internationalization/Text.h"
+#include "Kismet/GameplayStatics.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/Transform.h"
+#include "Math/TransformVectorized.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/CommandLine.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/Guid.h"
+#include "Misc/Parse.h"
+#include "Modules/ModuleManager.h"
+#include "MuCO/CustomizableInstanceLODManagement.h"
 #include "MuCO/CustomizableInstancePrivateData.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableObjectInstanceDescriptor.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "MuCO/CustomizableObjectPrivate.h"
+#include "MuCO/CustomizableObjectSystemPrivate.h"
+#include "MuCO/CustomizableObjectUIData.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
+#include "MuCO/ICustomizableObjectModule.h"
+#include "MuCO/LogBenchmarkUtil.h"
+#include "MuCO/LogInformationUtil.h"
+#include "MuCO/UnrealBakeHelpers.h"
 #include "MuCO/UnrealMutableImageProvider.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
-#include "MuCO/LogBenchmarkUtil.h"
-#include "MuCO/ICustomizableObjectModule.h"
-#include "MuCO/CustomizableInstanceLODManagement.h"
-#include "MuCO/UnrealBakeHelpers.h"
-
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/SkeletalMesh.h"
-#include "Animation/Skeleton.h"
-#include "MuCO/LogInformationUtil.h"
-#include "TimerManager.h"
-#include "SceneManagement.h"
-#include "GameFramework/PlayerController.h"
-#include "HAL/IConsoleManager.h"
-#include "Kismet/GameplayStatics.h"
+#include "MuR/Image.h"
+#include "MuR/Instance.h"
+#include "MuR/Mesh.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/MutableMath.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Settings.h"
+#include "MuR/Skeleton.h"
+#include "MuR/Types.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "RHI.h"
+#include "ReferenceSkeleton.h"
+#include "RenderCommandFence.h"
+#include "Templates/Casts.h"
+#include "Templates/RefCounting.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "TextureResource.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/NameTypes.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectArray.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Logging/MessageLog.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
-#include "Logging/MessageLog.h"
-#include "Framework/Notifications/NotificationManager.h"
 #endif
 
 #include "MuR/MutableTrace.h"
-#include "MuR/System.h"
-#include "MuR/SystemPrivate.h"
 #include "MuR/Parameters.h"
+#include "MuR/System.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectSystem)
+
+class AActor;
+class UAnimInstance;
+class UMaterialInterface;
 
 
 DEFINE_STAT(STAT_MutableNumSkeletalMeshes);
@@ -928,13 +1001,6 @@ namespace impl
 
 		// This runs in the mutable thread.
 		check(MutableParameters);
-
-#ifdef WITH_EDITOR
-		// \TODO: Review this to make sure it is really needed.
-		// NOTE: this delegate can be called outside the main thread, make sure operations done in the
-		//       callbacks are safe, avoid using it outside editor functionality
-		//Public->UpdateBeginDelegate.ExecuteIfBound();
-#endif
 
 		OperationData->InstanceUpdateData.Clear();
 

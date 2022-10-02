@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
-#include "MuR/Ptr.h"
-#include "MuR/Types.h"
-#include "MuR/Serialisation.h"
-#include "MuR/Instance.h"
+#include "HAL/Platform.h"
 #include "MuR/Image.h"
+#include "MuR/Instance.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
 #include "MuR/Settings.h"
+#include "MuR/Types.h"
 
 // This define will use the newer task graph interface to manage mutable concurrency. 
 // This is currently broken in Switch and maybe other consoles, for some unknown reason.
@@ -19,18 +20,23 @@ namespace mu
 {
 	// Forward references
 	class Model;
+class ModelStreamer;
+
     using ModelPtr=Ptr<Model>;
     using ModelPtrConst=Ptr<const Model>;
 
 	class Parameters;
+
     using ParametersPtr=Ptr<Parameters>;
     using ParametersPtrConst=Ptr<const Parameters>;
 
     class Mesh;
+
     using MeshPtr=Ptr<Mesh>;
     using MeshPtrConst=Ptr<const Mesh>;
 
     class System;
+
     using SystemPtr=Ptr<System>;
     using SystemPtrConst=Ptr<const System>;
 
@@ -219,6 +225,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
 
     public:

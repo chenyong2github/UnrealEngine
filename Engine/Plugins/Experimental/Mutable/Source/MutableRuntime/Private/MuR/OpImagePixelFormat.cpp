@@ -3,10 +3,15 @@
 
 #include "MuR/OpImagePixelFormat.h"
 
+#include "Containers/Array.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/BlockCompression/Miro/Miro.h"
 #include "MuR/ImageRLE.h"
-#include "MuR/BlockCompression/BlockCompression.h"
-
+#include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
+#include "MuR/Ptr.h"
 
 
 namespace mu

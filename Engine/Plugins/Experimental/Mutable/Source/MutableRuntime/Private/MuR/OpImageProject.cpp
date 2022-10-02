@@ -2,19 +2,32 @@
 
 
 #include "MuR/OpImageProject.h"
-#include "MuR/OpMeshClipWithMesh.h"
 
 #include "Async/ParallelFor.h"
-#include "MuR/Platform.h"
-#include "MuR/ImagePrivate.h"
-#include "MuR/MeshPrivate.h"
-#include "MuR/Raster.h"
+#include "Containers/Array.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "MuR/ConvertData.h"
+#include "MuR/Image.h"
+#include "MuR/ImagePrivate.h"
+#include "MuR/Layout.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/MeshPrivate.h"
 #include "MuR/MutableMath.h"
+#include "MuR/MutableTrace.h"
 #include "MuR/Octree.h"
+#include "MuR/OpMeshClipWithMesh.h"
+#include "MuR/Parameters.h"
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Ptr.h"
+#include "MuR/Raster.h"
 
+#include <functional>
+#include <memory>
 #include <queue>
 #include <unordered_set>
+#include <utility>
 
 
 namespace mu

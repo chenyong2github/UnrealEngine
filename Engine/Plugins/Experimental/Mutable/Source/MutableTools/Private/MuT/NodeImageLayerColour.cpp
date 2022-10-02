@@ -2,11 +2,11 @@
 
 
 #include "MuT/NodeImageLayerColour.h"
-#include "MuT/NodeImageLayerColourPrivate.h"
 
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeColour.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodeImageLayerColourPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	3

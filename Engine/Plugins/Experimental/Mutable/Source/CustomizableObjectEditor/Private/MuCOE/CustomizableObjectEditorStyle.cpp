@@ -2,16 +2,16 @@
 
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 
-#include "Framework/Application/SlateApplication.h"
+#include "Brushes/SlateImageBrush.h"
+#include "Interfaces/IPluginManager.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
 #include "Styling/AppStyle.h"
-#include "Slate/SlateGameResources.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
-#include "Interfaces/IPluginManager.h"
-#include "Settings/EditorStyleSettings.h"
-#include "Styling/StarshipCoreStyle.h"
-#include "Styling/StyleColors.h"
 
 
 TSharedPtr<FSlateStyleSet> FCustomizableObjectEditorStyle::CustomizableObjectEditorStyleInstance;

@@ -3,7 +3,9 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
+
+class IDetailLayoutBuilder;
 
 
 // TODO: This is no longer used, remove.

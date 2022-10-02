@@ -2,128 +2,118 @@
 
 #pragma once
 
-#include "MuT/Visitor.h"
-
+#include "Containers/Map.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
+#include "MuR/MutableMath.h"
+#include "MuR/MutableMemory.h"
+#include "MuR/Operations.h"
+#include "MuR/Parameters.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuR/System.h"
+#include "MuT/AST.h"
+#include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeGenerator_FirstPass.h"
-#include "MuT/CompilerPrivate.h"
-#include "MuT/NodeLayoutPrivate.h"
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/NodeObjectNewPrivate.h"
-#include "MuT/TaskManager.h"
-
-#include "MuT/TablePrivate.h"
-
+#include "MuT/Compiler.h"
+#include "MuT/ErrorLog.h"
+#include "MuT/Node.h"
 #include "MuT/NodeBool.h"
-
-#include "MuT/NodeScalar.h"
-#include "MuT/NodeScalarConstant.h"
-#include "MuT/NodeScalarParameter.h"
-#include "MuT/NodeScalarSwitch.h"
-#include "MuT/NodeScalarEnumParameter.h"
-#include "MuT/NodeScalarCurve.h"
-#include "MuT/NodeScalarArithmeticOperation.h"
-#include "MuT/NodeScalarVariation.h"
-#include "MuT/NodeRangeFromScalar.h"
-#include "MuT/NodeScalarTable.h"
-
-#include "MuT/NodeString.h"
-#include "MuT/NodeStringConstant.h"
-#include "MuT/NodeStringParameter.h"
-
-#include "MuT/NodeColour.h"
-#include "MuT/NodeColourConstant.h"
-#include "MuT/NodeColourParameter.h"
-#include "MuT/NodeColourSwitch.h"
 #include "MuT/NodeColourSampleImage.h"
-#include "MuT/NodeColourFromScalars.h"
-#include "MuT/NodeColourTable.h"
-#include "MuT/NodeColourArithmeticOperation.h"
-#include "MuT/NodeColourVariation.h"
-
-#include "MuT/NodeProjector.h"
-
-#include "MuT/NodeImage.h"
-#include "MuT/NodeImageConstant.h"
-#include "MuT/NodeImageParameter.h"
-#include "MuT/NodeImageDifference.h"
-#include "MuT/NodeImageInterpolate.h"
-#include "MuT/NodeImageInterpolate3.h"
-#include "MuT/NodeImageSaturate.h"
-#include "MuT/NodeImageLuminance.h"
-#include "MuT/NodeImageLayer.h"
-#include "MuT/NodeImageLayerColour.h"
-#include "MuT/NodeImageMultiLayer.h"
-#include "MuT/NodeImageTable.h"
-#include "MuT/NodeImageSwizzle.h"
-#include "MuT/NodeImageFormat.h"
-#include "MuT/NodeImageSelectColour.h"
-#include "MuT/NodeImageColourMap.h"
-#include "MuT/NodeImageGradient.h"
-#include "MuT/NodeImageBinarise.h"
-#include "MuT/NodeImageResize.h"
-#include "MuT/NodeImagePlainColour.h"
-#include "MuT/NodeImageSwitch.h"
-#include "MuT/NodeImageProject.h"
-#include "MuT/NodeImageMipmap.h"
-#include "MuT/NodeImageConditional.h"
-#include "MuT/NodeImageInvert.h"
-#include "MuT/NodeImageVariation.h"
-#include "MuT/NodeImageNormalComposite.h"
-#include "MuT/NodeImageTransform.h"
-
-#include "MuT/NodeMesh.h"
-#include "MuT/NodeMeshConstant.h"
-#include "MuT/NodeMeshSwitch.h"
-#include "MuT/NodeMeshTable.h"
-#include "MuT/NodeMeshInterpolate.h"
-#include "MuT/NodeMeshMorph.h"
-#include "MuT/NodeMeshMakeMorph.h"
-#include "MuT/NodePatchMesh.h"
-#include "MuT/NodeMeshSubtract.h"
-#include "MuT/NodeMeshFormat.h"
-#include "MuT/NodeMeshFragment.h"
-#include "MuT/NodeMeshTransform.h"
-#include "MuT/NodeMeshClipMorphPlane.h"
-#include "MuT/NodeMeshClipWithMesh.h"
-#include "MuT/NodeMeshApplyPose.h"
-#include "MuT/NodeMeshVariation.h"
-#include "MuT/NodeMeshGeometryOperation.h"
-#include "MuT/NodeMeshReshape.h"
-#include "MuT/NodeMeshClipDeform.h"
-
-#include "MuT/NodeComponent.h"
-#include "MuT/NodeComponentNew.h"
 #include "MuT/NodeComponentEdit.h"
-
-#include "MuT/NodeModifier.h"
-#include "MuT/NodeModifierMeshClipMorphPlane.h"
-#include "MuT/NodeModifierMeshClipWithMesh.h"
-
-#include "MuT/NodeSurface.h"
-#include "MuT/NodeSurfaceNew.h"
-#include "MuT/NodeSurfaceEdit.h"
-
-#include "MuT/NodePatchImage.h"
+#include "MuT/NodeComponentNew.h"
+#include "MuT/NodeImageProject.h"
 #include "MuT/NodeLOD.h"
+#include "MuT/NodeLayout.h"
+#include "MuT/NodeMeshGeometryOperation.h"
+#include "MuT/NodeMeshTable.h"
+#include "MuT/NodeObjectGroup.h"
 #include "MuT/NodeObjectNew.h"
 #include "MuT/NodeObjectState.h"
-#include "MuT/NodeObjectGroup.h"
+#include "MuT/NodePatchImage.h"
+#include "MuT/NodeProjector.h"
+#include "MuT/NodeString.h"
+#include "MuT/NodeSurfaceNew.h"
+#include "MuT/Table.h"
+#include "MuT/TablePrivate.h"
+#include "MuT/Visitor.h"
+#include "Templates/TypeHash.h"
 
-#include "MuT/AST.h"
-#include "MuT/ASTOpParameter.h"
-#include "MuT/ASTOpSwitch.h"
-
-#include "MuR/Operations.h"
-#include "MuR/ModelPrivate.h"
-#include "MuR/ImagePrivate.h"
-
-#include "Containers/Map.h"
-
+#include <functional>
+#include <memory>
 #include <shared_mutex>
+#include <utility>
 
 
 namespace mu
 {
+class ASTOpParameter;
+class Layout;
+class NodeColourArithmeticOperation;
+class NodeColourConstant;
+class NodeColourFromScalars;
+class NodeColourParameter;
+class NodeColourSwitch;
+class NodeColourTable;
+class NodeColourVariation;
+class NodeImageBinarise;
+class NodeImageColourMap;
+class NodeImageConditional;
+class NodeImageConstant;
+class NodeImageDifference;
+class NodeImageFormat;
+class NodeImageGradient;
+class NodeImageInterpolate3;
+class NodeImageInterpolate;
+class NodeImageInvert;
+class NodeImageLayer;
+class NodeImageLayerColour;
+class NodeImageLuminance;
+class NodeImageMipmap;
+class NodeImageMultiLayer;
+class NodeImageNormalComposite;
+class NodeImageParameter;
+class NodeImagePlainColour;
+class NodeImageResize;
+class NodeImageSaturate;
+class NodeImageSelectColour;
+class NodeImageSwitch;
+class NodeImageSwizzle;
+class NodeImageTable;
+class NodeImageTransform;
+class NodeImageVariation;
+class NodeMeshApplyPose;
+class NodeMeshClipDeform;
+class NodeMeshClipMorphPlane;
+class NodeMeshClipWithMesh;
+class NodeMeshConstant;
+class NodeMeshFormat;
+class NodeMeshFragment;
+class NodeMeshInterpolate;
+class NodeMeshMakeMorph;
+class NodeMeshMorph;
+class NodeMeshReshape;
+class NodeMeshSubtract;
+class NodeMeshSwitch;
+class NodeMeshTransform;
+class NodeMeshVariation;
+class NodeRange;
+class NodeScalarArithmeticOperation;
+class NodeScalarConstant;
+class NodeScalarCurve;
+class NodeScalarEnumParameter;
+class NodeScalarParameter;
+class NodeScalarSwitch;
+class NodeScalarTable;
+class NodeScalarVariation;
+class NodeStringConstant;
+class NodeStringParameter;
+class TaskManager;
+struct OBJECT_STATE;
+struct PROGRAM;
 
     //---------------------------------------------------------------------------------------------
     //! Code generator

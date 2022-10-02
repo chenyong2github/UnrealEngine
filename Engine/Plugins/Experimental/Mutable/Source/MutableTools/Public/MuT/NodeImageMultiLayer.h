@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "MuT/NodeImage.h"
-#include "MuT/NodeImageLayer.h"
-#include "MuT/NodeRange.h"
 #include "MuR/Image.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
+#include "MuT/NodeImage.h"
+#include "MuT/NodeRange.h"
 
 
 namespace mu
@@ -15,6 +17,9 @@ namespace mu
     class NodeImageMultiLayer;
     typedef Ptr<NodeImageMultiLayer> NodeImageMultiLayerPtr;
     typedef Ptr<const NodeImageMultiLayer> NodeImageMultiLayerPtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
     //! This node applies any numbre of layer blending effect on a base image using a mask and a

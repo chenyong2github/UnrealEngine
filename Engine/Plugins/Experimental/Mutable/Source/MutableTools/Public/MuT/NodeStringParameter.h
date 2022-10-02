@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "MuT/NodeString.h"
 #include "MuR/Parameters.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
+#include "MuT/NodeString.h"
 
 
 namespace mu

@@ -7,6 +7,7 @@
 
 namespace mu
 {
+class FMeshBufferSet;
 
 	//---------------------------------------------------------------------------------------------
 	//! Convert a mesh format into another one.

@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Logging/TokenizedMessage.h"
+#include "Misc/Attribute.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
-
+#include "Templates/SharedPointer.h"
 
 class FCustomizableObjectEditorLogger;
+class FName;
+class SNotificationItem;
 
 /** Notification categories. */
 enum class ELoggerCategory

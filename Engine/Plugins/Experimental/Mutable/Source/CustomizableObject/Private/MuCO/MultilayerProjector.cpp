@@ -2,7 +2,12 @@
 
 #include "MuCO/MultilayerProjector.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "Templates/Tuple.h"
 
 
 void FMultilayerProjectorLayer::Read(const FMultilayerProjector& MultilayerProjector, const int32 Index)

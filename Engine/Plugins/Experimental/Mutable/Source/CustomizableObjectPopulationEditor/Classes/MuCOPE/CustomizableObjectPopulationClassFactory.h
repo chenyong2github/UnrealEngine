@@ -3,8 +3,14 @@
 #pragma once
 
 #include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectPopulationClassFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 
 UCLASS(MinimalAPI)

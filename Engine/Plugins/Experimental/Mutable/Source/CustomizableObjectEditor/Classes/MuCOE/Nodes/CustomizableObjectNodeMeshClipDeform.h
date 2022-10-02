@@ -2,9 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeModifierBase.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeMeshClipDeform.generated.h"
+
+class UCustomizableObjectNodeRemapPins;
+class UEdGraphPin;
+class UObject;
 
 UENUM()
 enum class EShapeBindingMethod : uint32

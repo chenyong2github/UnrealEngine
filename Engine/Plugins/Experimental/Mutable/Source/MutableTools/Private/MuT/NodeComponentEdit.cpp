@@ -2,9 +2,16 @@
 
 
 #include "MuT/NodeComponentEdit.h"
-#include "MuT/NodeComponentEditPrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeComponentEditPrivate.h"
+#include "MuT/NodeComponentNew.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeSurface.h"
+
+#include <memory>
+#include <utility>
 
 
 namespace mu

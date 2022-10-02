@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
+
+class FText;
+class SVerticalBox;
+class SWidget;
 
 
 /** Pin Viewer custom details multiple row style.

@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "MuCO/CustomizableObject.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
 
+#include "Misc/Guid.h"
+
+class UCustomizableObject;
+class UCustomizableObjectNode;
 
 /** Interface for a node that saves a parent node. */
 class ICustomizableObjectNodeParentedNode

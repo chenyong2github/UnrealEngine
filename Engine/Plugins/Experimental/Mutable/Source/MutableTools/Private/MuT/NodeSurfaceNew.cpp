@@ -2,13 +2,21 @@
 
 
 #include "MuT/NodeSurfaceNew.h"
-#include "MuT/NodeSurfaceNewPrivate.h"
 
-#include "MuT/NodeMesh.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuT/NodeColour.h"
 #include "MuT/NodeImage.h"
+#include "MuT/NodeMesh.h"
+#include "MuT/NodePatchImage.h"
+#include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
 #include "MuT/NodeString.h"
-#include "MuT/NodeColour.h"
+#include "MuT/NodeSurfaceNewPrivate.h"
+
+#include <memory>
+#include <utility>
 
 namespace mu
 {

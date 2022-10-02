@@ -2,8 +2,24 @@
 
 #include "MuCOE/PinViewer/SPinViewerDetailRowIndent.h"
 
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateStructs.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SWidget.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FWidgetStyle;
+struct FSlateBrush;
 
 
 void SPinViewerDetailRowIndent::Construct(const FArguments& InArgs, TSharedRef<SWidget> DetailsRow)

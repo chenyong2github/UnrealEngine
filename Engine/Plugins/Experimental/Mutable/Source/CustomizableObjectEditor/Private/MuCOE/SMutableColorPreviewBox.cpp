@@ -2,10 +2,12 @@
 
 #include "MuCOE/SMutableColorPreviewBox.h"
 
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Styling/SlateColor.h"
+#include "Layout/Children.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

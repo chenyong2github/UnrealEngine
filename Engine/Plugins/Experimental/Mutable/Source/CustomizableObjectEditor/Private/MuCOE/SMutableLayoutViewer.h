@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "MuCOE/SCustomizableObjectLayoutGrid.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Internationalization/Text.h"
+#include "Math/MathFwd.h"
+#include "Misc/Attribute.h"
 #include "MuR/Layout.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class SCustomizableObjectLayoutGrid;
+struct FGeometry;
 
 
 /** Widget showing a Mutable layout, with its properties. */

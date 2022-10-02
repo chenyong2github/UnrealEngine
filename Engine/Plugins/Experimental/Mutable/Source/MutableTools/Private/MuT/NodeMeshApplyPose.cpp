@@ -2,11 +2,12 @@
 
 
 #include "MuT/NodeMeshApplyPose.h"
+
+#include "Misc/AssertionMacros.h"
+#include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshApplyPosePrivate.h"
-
-#include "MuT/NodeScalar.h"
-
-#include "MuR/MeshPrivate.h"
+#include "MuT/NodeMeshPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 

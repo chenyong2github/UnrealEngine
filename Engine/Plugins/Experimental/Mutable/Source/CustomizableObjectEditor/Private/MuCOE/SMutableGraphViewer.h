@@ -2,17 +2,38 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Misc/Optional.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuT/Node.h"
-#include "Widgets/Views/STreeView.h"
-#include "Widgets/Input/STextComboBox.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
-#include "Framework/Docking/TabManager.h"
+#include "MuT/Node.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
 
-
-// Forward declarations
+class FDragDropEvent;
+class FReferenceCollector;
 class FMutableGraphTreeElement;
+class FTabManager;
+class ITableRow;
+class STextComboBox;
+class SWidget;
+struct FGeometry;
 
 
 /** This widget shows the internal Mutable Graph for debugging purposes. 

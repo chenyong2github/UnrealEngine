@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.	
 
 #include "MuCOE/SCustomizableObjectEditorTransformViewportToolbar.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
+
+#include "Framework/Commands/UICommandList.h"
 #include "MuCOE/CustomizableObjectEditorViewportLODCommands.h"
-#include "MuCOE/SCustomizableObjectEditorViewport.h"
-#include "MuCOE/CustomizableObjectEditorViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "SCustomizableObjectEditorTransformViewportToolbar"
 

@@ -2,11 +2,17 @@
 
 
 #include "MuR/Serialisation.h"
-#include "MuR/Platform.h"
 
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/Image.h"
+#include "MuR/MemoryPrivate.h"
 #include "MuR/SerialisationPrivate.h"
 
-#include "MuR/Image.h"
+#include <memory>
+#include <utility>
 
 
 namespace mu

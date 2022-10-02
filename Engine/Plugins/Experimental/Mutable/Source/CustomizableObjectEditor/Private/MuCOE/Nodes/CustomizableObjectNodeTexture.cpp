@@ -1,11 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeTexture.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/Texture2D.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/Platform.h"
 #include "ISinglePropertyView.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Images/SImage.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Modules/ModuleManager.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "PropertyEditorModule.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+
+class UCustomizableObjectNodeRemapPins;
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

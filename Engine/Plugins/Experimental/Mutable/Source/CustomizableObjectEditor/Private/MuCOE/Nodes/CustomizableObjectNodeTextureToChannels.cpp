@@ -1,7 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureToChannels.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "Containers/UnrealString.h"
+#include "Internationalization/Internationalization.h"
+#include "MuCO/CustomizableObjectCustomVersion.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "Serialization/Archive.h"
+#include "UObject/NameTypes.h"
+
+class UCustomizableObjectNodeRemapPins;
+struct FPropertyChangedEvent;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

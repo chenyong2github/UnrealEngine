@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeModifier.h"
 
 namespace mu

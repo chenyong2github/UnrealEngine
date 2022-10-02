@@ -2,10 +2,17 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CustomizableObjectNodeCopyMaterial.generated.h"
+
+class UCustomizableObjectNodeRemapPins;
+class UCustomizableObjectNodeSkeletalMesh;
+class UEdGraphPin;
+class UObject;
 
 /**
  * Copy Material node. Duplicates a Material Node. Duplicates all Material node input pins and properties except for the Mesh input pin.

@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterial.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/GraphTraversal.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeExposePin.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeExternalPin.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-#include "MuCOE/EdGraphSchema_CustomizableObject.h"
-#include "MuCOE/GenerateMutableSource/GenerateMutableSource.h"
-#include "MuCOE/GraphTraversal.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

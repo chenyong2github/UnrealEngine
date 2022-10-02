@@ -2,11 +2,12 @@
 
 
 #include "MuT/NodeImageGradient.h"
-#include "MuT/NodeImageGradientPrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/MutableMath.h"
 #include "MuT/NodeColour.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodeImageGradientPrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 #define NODE_INPUT_COUNT 	2

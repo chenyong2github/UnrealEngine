@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "../Private/MuCO/CustomizableObjectSystemPrivate.h"
-#include "MuR/Mesh.h"
+#include "MuR/System.h"
+
+class USkeletalMesh;
 
 /**
  * Namespace designed to contain a series of methods used for the generation of unreal meshes for previewing purposes.

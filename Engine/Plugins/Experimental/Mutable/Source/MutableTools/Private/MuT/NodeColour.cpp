@@ -2,16 +2,20 @@
 
 
 #include "MuT/NodeColour.h"
-#include "MuT/NodePrivate.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuT/NodeColourArithmeticOperation.h"
 #include "MuT/NodeColourConstant.h"
+#include "MuT/NodeColourFromScalars.h"
 #include "MuT/NodeColourParameter.h"
 #include "MuT/NodeColourSampleImage.h"
-#include "MuT/NodeColourTable.h"
-#include "MuT/NodeColourFromScalars.h"
-#include "MuT/NodeColourArithmeticOperation.h"
 #include "MuT/NodeColourSwitch.h"
+#include "MuT/NodeColourTable.h"
 #include "MuT/NodeColourVariation.h"
+
+#include <stdint.h>
 
 
 namespace mu

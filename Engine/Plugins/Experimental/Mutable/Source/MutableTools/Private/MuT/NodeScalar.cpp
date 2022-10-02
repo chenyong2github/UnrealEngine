@@ -3,17 +3,20 @@
 
 #include "MuT/NodeScalar.h"
 
+#include "Misc/AssertionMacros.h"
+#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuT/Node.h"
-#include "MuT/NodePrivate.h"
-
-#include "MuT/NodeScalarConstant.h"
-#include "MuT/NodeScalarParameter.h"
-#include "MuT/NodeScalarEnumParameter.h"
-#include "MuT/NodeScalarCurve.h"
-#include "MuT/NodeScalarSwitch.h"
 #include "MuT/NodeScalarArithmeticOperation.h"
-#include "MuT/NodeScalarVariation.h"
+#include "MuT/NodeScalarConstant.h"
+#include "MuT/NodeScalarCurve.h"
+#include "MuT/NodeScalarEnumParameter.h"
+#include "MuT/NodeScalarParameter.h"
+#include "MuT/NodeScalarSwitch.h"
 #include "MuT/NodeScalarTable.h"
+#include "MuT/NodeScalarVariation.h"
+
+#include <stdint.h>
 
 
 namespace mu

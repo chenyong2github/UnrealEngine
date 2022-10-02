@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
 
@@ -16,6 +19,9 @@ namespace mu
 	class NodeImageResize;
 	typedef Ptr<NodeImageResize> NodeImageResizePtr;
 	typedef Ptr<const NodeImageResize> NodeImageResizePtrConst;
+
+	class InputArchive;
+	class OutputArchive;
 
 
 	//! Node that multiplies the colors of an image, channel by channel.

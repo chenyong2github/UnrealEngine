@@ -2,6 +2,9 @@
 
 #include "MuT/TypeInfo.h"
 
+#include "MuR/ParametersPrivate.h"
+#include "MuR/Types.h"
+
 using namespace mu;
 
 

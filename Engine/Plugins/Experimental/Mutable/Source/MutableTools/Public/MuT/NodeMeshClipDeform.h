@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "MuT/NodeMesh.h"
+#include "MuR/Ptr.h"
+#include "MuT/Node.h"
 #include "MuT/NodeImage.h"
-
-#include "MuR/Mesh.h"
-#include "MuR/Image.h"
+#include "MuT/NodeMesh.h"
 
 
 namespace mu

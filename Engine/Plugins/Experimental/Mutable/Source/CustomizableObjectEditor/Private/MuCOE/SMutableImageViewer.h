@@ -2,10 +2,29 @@
 
 #pragma once
 
-#include "MuCOE/SCustomizableObjectLayoutGrid.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "MuR/Image.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FPaintArgs;
+class FReferenceCollector;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+class UTexture;
+struct FGeometry;
+struct FSlateBrush;
 
 
 /** Describes different modes to show an image. */

@@ -1,35 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
-#include "MuCOPE/CustomizableObjectPopulationEditor.h"
-#include "MuCO/CustomizableObject.h"	// For the LogMutable log category
-#include "MuCO/CustomizableObjectSystem.h"		// For defines related to memory function replacements.
-#include "MuCOE/CustomizableObjectIdentifierCustomization.h"
-#include "Modules/ModuleManager.h"
-#include "Interfaces/IPluginManager.h"
+
 #include "AssetToolsModule.h"
-#include "Styling/SlateStyle.h"
-#include "Brushes/SlateImageBrush.h"
-#include "MessageLogModule.h"
-#include "Logging/MessageLog.h"
-#include "MuCOE/CustomizableObjectEditorSettings.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "HAL/FileManager.h"
-#include "CoreGlobals.h"
-#include "Settings/ProjectPackagingSettings.h"
-#include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "Containers/StringConv.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "IAssetTools.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Modules/ModuleManager.h"
+#include "MuCO/CustomizableObject.h"	// For the LogMutable log category
 #include "MuCOPE/AssetTypeActions_CustomizableObjectPopulation.h"
 #include "MuCOPE/AssetTypeActions_CustomizableObjectPopulationClass.h"
+#include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 #include "MuCOPE/CustomizableObjectPopulationClassEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditor.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorStyle.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Trace/Detail/Channel.h"
 
-#include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
-
-// This is necessary to register the cook delegate.
-#include "CookOnTheSide/CookOnTheFlyServer.h"
+class ICustomizableObjectPopulationClassEditor;
+class ICustomizableObjectPopulationEditor;
+class IToolkitHost;
+class UCustomizableObjectPopulation;
+class UCustomizableObjectPopulationClass;
 
 
 const FName CustomizableObjectPopulationEditorAppIdentifier = FName(TEXT("CustomizableObjectPopulationEditorApp"));

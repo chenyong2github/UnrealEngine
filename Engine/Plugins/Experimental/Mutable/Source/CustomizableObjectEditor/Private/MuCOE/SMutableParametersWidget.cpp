@@ -1,17 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOE/SMutableParametersWidget.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
+
+#include "Containers/Array.h"
+#include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/SlateDelegates.h"
+#include "Framework/Text/TextLayout.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "MuCOE/SMutableTextSearchBox.h"
+#include "MuR/Ptr.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Brushes/SlateImageBrush.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/Input/SVectorInputBox.h"
+#include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "MuT/TypeInfo.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+struct FGeometry;
 
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"

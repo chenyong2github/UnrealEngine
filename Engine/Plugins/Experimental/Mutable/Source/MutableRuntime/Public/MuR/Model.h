@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "MuR/RefCounted.h"
-#include "MuR/Ptr.h"
-#include "MuR/Types.h"
-#include "MuR/Serialisation.h"
 #include "MuR/Parameters.h"
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
 
+#include <stdint.h>
 #include <functional>
+
+namespace mu { class InputArchive; }
+namespace mu { class ModelStreamer; }
+namespace mu { class OutputArchive; }
 
 
 //! This version number changes whenever there is a compatibility-breaking change in the Model
@@ -22,20 +25,21 @@
 namespace mu
 {
 
-	//!
-	class Parameters;
 	typedef Ptr<Parameters> ParametersPtr;
 	typedef Ptr<const Parameters> ParametersPtrConst;
 
     class Model;
+
     typedef Ptr<Model> ModelPtr;
     typedef Ptr<const Model> ModelPtrConst;
 
     class ModelParametersGenerator;
+
     typedef Ptr<ModelParametersGenerator> ModelParametersGeneratorPtr;
     typedef Ptr<const ModelParametersGenerator> ModelParametersGeneratorPtrConst;
 
     class System;
+
     typedef Ptr<System> SystemPtr;
     typedef Ptr<const System> SystemPtrConst;
 
@@ -109,6 +113,7 @@ namespace mu
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
 		class Private;
+
 		Private* GetPrivate() const;
 
 	protected:
@@ -161,6 +166,7 @@ namespace mu
         // Interface pattern
         //-----------------------------------------------------------------------------------------
         class Private;
+
         Private* GetPrivate() const;
 
     protected:

@@ -2,20 +2,36 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/StreamableManager.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "PixelFormat.h"
+#include "Stats/Stats2.h"
 #include "Templates/SharedPointer.h"
-
-#include "Containers/Ticker.h"
-#include "MuCO/CustomizableObjectInstance.h"
-
-#include "Runtime/Launch/Resources/Version.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #endif
 
 #include "CustomizableObjectSystem.generated.h"
+
+class FCustomizableObjectCompilerBase;
+class ITargetPlatform;
+class SNotificationItem;
+class UCustomizableObject;
+class USkeletalMesh;
+class UTexture2D;
+struct FAssetData;
+struct FFrame;
+struct FGuid;
 
 // This sets the amount of memory in bytes used to keep streaming data after using it, to reduce the streaming load.
 // High values use more memory, but save object construction time.

@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "MuR/Parameters.h"
 #include "MuR/ParametersPrivate.h"
-#include "MuR/SystemPrivate.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 

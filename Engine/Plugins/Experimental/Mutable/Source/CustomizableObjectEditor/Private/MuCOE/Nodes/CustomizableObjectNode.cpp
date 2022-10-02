@@ -2,22 +2,35 @@
 
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 
-#include "MuCOE/Nodes/CustomizableObjectNodeExposePin.h"
-#include "MuCOE/CustomizableObjectEditorModule.h"
-#include "Toolkits/ToolkitManager.h"
-
-#include "MuCOE/UnrealEditorPortabilityHelpers.h"
-
-#include "MuCOE/CustomizableObjectEditor.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Queue.h"
+#include "EdGraph/EdGraph.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Logging/TokenizedMessage.h"
+#include "Misc/AssertionMacros.h"
 #include "MuCO/CustomizableObjectCustomVersion.h"
-#include "MuCOE/CustomizableObjectGraph.h"
-#include "MuCOE/EdGraphSchema_CustomizableObject.h"
-
+#include "MuCOE/CustomizableObjectEditor.h"
+#include "MuCOE/CustomizableObjectEditorLogger.h"
 #include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/CustomizableObjectPin.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
-#include "Runtime/Launch/Resources/Version.h" // Include engine version macros
+#include "MuCOE/ICustomizableObjectEditor.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObjectGroup.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPins.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByPosition.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Templates/Tuple.h"
+#include "Toolkits/ToolkitManager.h"
+
+class IToolkit;
+class SWidget;
+struct FPropertyChangedEvent;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 

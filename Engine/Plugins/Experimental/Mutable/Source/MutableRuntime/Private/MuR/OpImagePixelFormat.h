@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "MuR/ImagePrivate.h"
 
+#include "MuR/Image.h"
 
 namespace mu
 {

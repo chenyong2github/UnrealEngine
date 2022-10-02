@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "MuT/NodeMesh.h"
 
+#include "MuR/Ptr.h"
+#include "MuR/RefCounted.h"
+#include "MuT/Node.h"
 
 namespace mu
 {
@@ -13,6 +15,7 @@ namespace mu
 	typedef Ptr<NodePatchMesh> NodePatchMeshPtr;
 	typedef Ptr<const NodePatchMesh> NodePatchMeshPtrConst;
 
+	class NodeMesh;
 
 	//!
 	//! \ingroup model

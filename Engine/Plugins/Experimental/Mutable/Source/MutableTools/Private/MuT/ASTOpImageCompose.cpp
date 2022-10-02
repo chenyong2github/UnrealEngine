@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/ASTOpImageCompose.h"
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/CodeOptimiser.h"
-#include "MuT/StreamsPrivate.h"
-#include "MuT/ASTOpImagePixelFormat.h"
-#include "MuT/ASTOpConstantResource.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformMath.h"
 #include "MuR/Layout.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableMath.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/RefCounted.h"
+#include "MuR/Types.h"
+#include "MuT/ASTOpConstantResource.h"
+#include "MuT/ASTOpImagePixelFormat.h"
+#include "MuT/StreamsPrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 using namespace mu;

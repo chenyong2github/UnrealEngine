@@ -1,14 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuT/ASTOpMeshFormat.h"
-#include "MuT/ASTOpConstantResource.h"
-#include "MuT/ASTOpSwitch.h"
+
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Mesh.h"
+#include "MuR/MeshBufferSet.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/RefCounted.h"
+#include "MuR/System.h"
+#include "MuR/Types.h"
 #include "MuT/ASTOpConditional.h"
-#include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpMeshClipMorphPlane.h"
-#include "MuT/ErrorLogPrivate.h"
-#include "MuT/CodeOptimiser.h"
+#include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpSwitch.h"
 #include "MuT/StreamsPrivate.h"
+
+#include <memory>
+#include <utility>
 
 
 using namespace mu;

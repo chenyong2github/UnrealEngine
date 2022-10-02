@@ -2,11 +2,10 @@
 
 
 #include "MuT/NodeImageColourMap.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MuT/NodeImageColourMapPrivate.h"
-
-#include "MuT/NodeColour.h"
-
-#include "MuR/ImagePrivate.h"
+#include "MuT/NodePrivate.h"
 
 
 namespace mu

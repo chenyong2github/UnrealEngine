@@ -2,13 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
 #include "IDetailCustomization.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateConstants.h"
+#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
 
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
-
 class FStateDetailsNode;
+class IDetailLayoutBuilder;
+class ITableRow;
 
 
 class FCustomizableObjectDetails : public IDetailCustomization

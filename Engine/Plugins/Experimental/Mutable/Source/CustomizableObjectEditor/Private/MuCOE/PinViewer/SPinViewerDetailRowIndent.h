@@ -2,9 +2,17 @@
 
 #pragma once
 
-#include "Styling/SlateColor.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+class SWidget;
+struct FGeometry;
 
 
 /** Pin Viewer custom details row left indent.

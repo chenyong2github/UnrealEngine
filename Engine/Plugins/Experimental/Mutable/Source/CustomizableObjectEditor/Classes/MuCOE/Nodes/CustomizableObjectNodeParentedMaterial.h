@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeParentedNode.h"
-#include "MuCOE/Nodes/CustomizableObjectNode.h"
-#include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
+
+class UCustomizableObjectNode;
+class UCustomizableObjectNodeMaterial;
 
 
 /** Node Material specialization of ICustomizableObjectNodeParentedNode. */

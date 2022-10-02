@@ -1,6 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuCOP/CustomizableObjectPopulationSamplers.h"
+
+#include "Curves/CurveLinearColor.h"
+#include "Math/RandomStream.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
 //#include "MuCOP/CustomizableObjectPopulation.h"
 //#include "MuCOP/CustomizableObjectPopulationClass.h"
 
