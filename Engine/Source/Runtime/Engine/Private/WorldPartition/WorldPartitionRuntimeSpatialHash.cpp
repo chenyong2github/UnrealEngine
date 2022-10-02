@@ -796,8 +796,15 @@ void URuntimeSpatialHashExternalStreamingObject::PopulateGeneratorPackageForCook
 			{
 				for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
 				{
-					UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(Cell)->GetLevelStreaming();
-					CellToLevelStreamingPackage.Add(Cell->GetFName(), LevelStreamingDynamic->PackageNameToLoad);
+					UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(Cell);
+					RuntimeCell->Rename(nullptr, this);
+					
+					UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = RuntimeCell->GetLevelStreaming();
+					CellToLevelStreamingPackage.Add(RuntimeCell->GetFName(), LevelStreamingDynamic->PackageNameToLoad);
+
+					// Level streaming are outered to the world and would not be saved within the ExternalStreamingObject.
+					// Do not save them, instead they will be created once the external streaming object is loaded at runtime. 
+					LevelStreamingDynamic->SetFlags(RF_Transient);
 				}
 			}
 		}

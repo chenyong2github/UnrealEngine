@@ -45,11 +45,6 @@ public:
 	//~ Begin IWorldPartitionRuntimeCellOwner Interface
 	virtual UWorld* GetOwningWorld() const override { return OwningWorld.Get(); }
 	virtual UWorld* GetOuterWorld() const override { return OuterWorld.Get(); }
-
-	// If the cell is saved within an external streaming object avoid do not serialize its level streaming. 
-	// Level streaming are outered to the world and would not be saved within the ExternalStreamingObject.
-	// Instead they will be created once the external streaming object is loaded. 
-	virtual bool ShouldSerializeCellLevelStreaming() const { return false; }
 	//~ End IWorldPartitionRuntimeCellOwner Interface
 	
 	virtual void OnStreamingObjectLoaded() {};

@@ -247,12 +247,6 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 
 		// Remap Level's SoftObjectPaths
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(NewLevel, WorldPartition);
-
-		if (!GetCellOwner()->ShouldSerializeCellLevelStreaming())
-		{
-			LevelStreaming = nullptr;
-			OutModifiedPackage.Add(GetOuter()->GetPackage());
-		}
 	}
 	return true;
 }

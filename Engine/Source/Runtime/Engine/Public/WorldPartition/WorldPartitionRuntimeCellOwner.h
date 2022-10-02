@@ -26,7 +26,5 @@ public:
 	virtual UWorld* GetOwningWorld() const = 0;
 	virtual UWorld* GetOuterWorld() const = 0;
 
-	virtual bool ShouldSerializeCellLevelStreaming() const { return true; }
-
 	UWorldPartition* GetWorldPartition() const { return GetOuterWorld()->GetWorldPartition(); }
 };
