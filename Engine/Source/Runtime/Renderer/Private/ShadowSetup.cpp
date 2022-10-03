@@ -2948,8 +2948,8 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 				}
 			}
 
-			if (bTranslucentRelevance
-				&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
+			if (AllowTranslucencyPerObjectShadows(Scene->GetShaderPlatform())
+				&& bTranslucentRelevance
 				&& bCreateTranslucentObjectShadow 
 				&& (bTranslucentShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
 			{

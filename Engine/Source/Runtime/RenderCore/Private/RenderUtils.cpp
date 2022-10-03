@@ -27,6 +27,14 @@ FAutoConsoleVariableRef CVarAllowNanite(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+int32 GAllowTranslucencyShadowsInProject = 0;
+FAutoConsoleVariableRef CVarAllowTranslucencyShadowsInProject(
+	TEXT("r.Shadow.TranslucentPerObject.ProjectEnabled"),
+	GAllowTranslucencyShadowsInProject,
+	TEXT("Enable/Disable translucency shadows on a per-project basis. Turning off can significantly reduce the number of permutations if your project has many translucent materials.\n"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 int32 GRayTracingEnableInGame = 1;
 FAutoConsoleVariableRef CVarRayTracingEnableInGame(
 	TEXT("r.RayTracing.EnableInGame"),
@@ -1774,4 +1782,9 @@ bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
 	{
 		return (PerPlatformCVar.Get(Platform) == 1);
 	}
+}
+
+RENDERCORE_API bool AllowTranslucencyPerObjectShadows(const FStaticShaderPlatform& Platform)
+{
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && GAllowTranslucencyShadowsInProject != 0;
 }

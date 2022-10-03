@@ -819,3 +819,7 @@ RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform);
  */
 RENDERCORE_API bool DoesRuntimeSupportOnePassPointLightShadows(EShaderPlatform Platform);
 
+/**
+ * Read-only switch to check if translucency per object shadows are enabled.
+ */
+RENDERCORE_API bool AllowTranslucencyPerObjectShadows(const FStaticShaderPlatform &Platform);

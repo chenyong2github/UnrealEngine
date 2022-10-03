@@ -143,6 +143,9 @@ struct CORE_API FMapErrors
    
 	/** Component is a static type but has invalid lightmap settings!  Indirect lighting will be black.  Common causes are lightmap resolution of 0, LightmapCoordinateIndex out of bounds. */
 	static FLazyName StaticComponentHasInvalidLightmapSettings;
+   
+	/** Component is a using CastVolumetricTranslucentShadow but this feature is disabled for the project! Turn on r.Shadow.TranslucentPerObject.ProjectEnabled in a project ini if required. */
+	static FLazyName PrimitiveComponentHasInvalidTranslucentShadowSetting;
 
 	/** Navigation */
 

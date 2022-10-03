@@ -893,6 +893,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bSupportCloudShadowOnForwardLitTranslucent : 1;
 
 	/**
+	""Enable translucent volumetric self-shadow, requires vertex and pixel shader permutations for all tranlucent materials even if not used by any light."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (
+		ConsoleVariable = "r.Shadow.TranslucentPerObject.ProjectEnabled", DisplayName = "Support Volumetric Translucent Self Shadowing",
+		ToolTip = "Enable translucent volumetric self-shadow, requires vertex and pixel shader permutations for all tranlucent materials even if not used by any light.",
+		ConfigRestartRequired = true))
+		uint32 bSupportTranslucentPerObjectShadow : 1;
+
+	/**
 	"Enable cloud shadow on SingleLayerWater surface. This is evaluated per vertex to reduce GPU cost. The cloud system requires extra samplers/textures to be bound to vertex shaders."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (

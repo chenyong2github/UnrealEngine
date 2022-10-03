@@ -66,6 +66,7 @@ FLazyName FMapErrors::LODActorMissingStaticMesh(TEXT("LODActorMissingStaticMesh"
 FLazyName FMapErrors::LODActorMissingActor(TEXT("LODActorMissingActor"));
 FLazyName FMapErrors::LODActorNoActorFound(TEXT("LODActorNoActor"));
 FLazyName FMapErrors::InvalidVirtualTextureUsage(TEXT("InvalidVirtualTextureUsage"));
+FLazyName FMapErrors::PrimitiveComponentHasInvalidTranslucentShadowSetting(TEXT("PrimitiveComponentHasInvalidTranslucentShadowSetting"));
 
 namespace
 {
