@@ -1087,6 +1087,10 @@ void FD3D11DynamicRHIModule::FindAdapter()
 		UE_LOG(LogD3D11RHI, Error, TEXT("Failed to choose a D3D11 Adapter."));
 	}
 
+	GRHIAdapterName = ChosenAdapter.DXGIAdapterDesc.Description;
+	GRHIVendorId = ChosenAdapter.DXGIAdapterDesc.VendorId;
+	GRHIDeviceId = ChosenAdapter.DXGIAdapterDesc.DeviceId;
+	GRHIDeviceRevision = ChosenAdapter.DXGIAdapterDesc.Revision;
 	GRHIDeviceIsIntegrated = ChosenAdapter.bIsIntegrated;
 }
 
@@ -1727,28 +1731,10 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		GTexturePoolSize = 0;
 
-		GRHIAdapterName = Adapter.DXGIAdapterDesc.Description;
-		GRHIVendorId = Adapter.DXGIAdapterDesc.VendorId;
-		GRHIDeviceId = Adapter.DXGIAdapterDesc.DeviceId;
-		GRHIDeviceRevision = Adapter.DXGIAdapterDesc.Revision;
 		// turn off creation on other threads for NVidia since a driver heuristic will notice that and make the creation synchronous, and that is not desirable given that large number of shaders will still be created on a single thread
 		GRHISupportsMultithreadedShaderCreation = !IsRHIDeviceNVIDIA(); 
 
-		UE_LOG(LogD3D11RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), 
-			Adapter.DXGIAdapterDesc.DeviceId);
-
-		// get driver version (todo: share with other RHIs)
-		{
-			FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-
-			GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
-			GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
-			GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
-
-			UE_LOG(LogD3D11RHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
-			UE_LOG(LogD3D11RHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
-			UE_LOG(LogD3D11RHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
-		}
+		UE_LOG(LogD3D11RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), Adapter.DXGIAdapterDesc.DeviceId);
 
 		// Issue: 32bit windows doesn't report 64bit value, we take what we get.
 		FD3D11GlobalStats::GDedicatedVideoMemory = int64(Adapter.DXGIAdapterDesc.DedicatedVideoMemory);

@@ -82,9 +82,9 @@ void InitNullRHI()
 #if PLATFORM_WINDOWS || PLATFORM_UNIX
 static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 {
-	if (!GIsRHIInitialized || (GRHIVendorId == 0))
+	if (GRHIVendorId == 0)
 	{
-		UE_LOG(LogRHI, Log, TEXT("Skipping Driver Check: RHI%s initialized, VendorId=0x%x"), GIsRHIInitialized ? TEXT("") : TEXT(" NOT"), GRHIVendorId);
+		UE_LOG(LogRHI, Log, TEXT("Skipping Driver Check, no vendor ID set."));
 		return;
 	}
 
@@ -268,7 +268,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 {
 	int32 CVarValue = CVarWarnOfBadDrivers.GetValueOnGameThread();
 
-	if (!GIsRHIInitialized || !CVarValue || GRHIVendorId == 0 || bHasEditorToken || FApp::IsUnattended())
+	if (!CVarValue || GRHIVendorId == 0 || bHasEditorToken || FApp::IsUnattended())
 	{
 		return;
 	}
@@ -316,6 +316,27 @@ void RHIInit(bool bHasEditorToken)
 			GDynamicRHI = PlatformCreateDynamicRHI();
 			if (GDynamicRHI)
 			{
+#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
+
+				// Get driver version. Creating GDynamicRHI is expected to set GRHIAdapterName.
+				FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+				if (GPUDriverInfo.IsValid())
+				{
+					// GetGPUDriverInfo is not implemented on Linux, so it returns an invalid driver info object. However, the FVulkanDynamicRHI constructor
+					// sets these values on that platform, so we'll still have data we can log.
+					GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
+					GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
+					GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
+				}
+
+				UE_LOG(LogRHI, Log, TEXT("RHI Adapter Info:"));
+				UE_LOG(LogRHI, Log, TEXT("            Name: %s"), *GRHIAdapterName);
+				UE_LOG(LogRHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
+				UE_LOG(LogRHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
+
+				RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
+#endif
+
 				GDynamicRHI->Init();
 
 #if WITH_MGPU
@@ -367,10 +388,6 @@ void RHIInit(bool bHasEditorToken)
 
 		check(GDynamicRHI);
 	}
-
-#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
-	RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
-#endif
 }
 
 void RHIPostInit(const TArray<uint32>& InPixelFormatByteWidth)

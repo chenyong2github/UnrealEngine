@@ -304,7 +304,7 @@ TArray<const ANSICHAR*> FVulkanDynamicRHI::SetupInstanceLayers(FVulkanInstanceEx
 {
 	FVulkanIntanceSetupHelper InstanceHelper;
 	TArray<const ANSICHAR*> OutInstanceLayers = SetupLayers(InstanceHelper, UEExtensions);
-	GVulkanRHI->ActiveDebugLayerExtension = InstanceHelper.ActiveDebugLayerExtension;
+	ActiveDebugLayerExtension = InstanceHelper.ActiveDebugLayerExtension;
 	return OutInstanceLayers;
 }
 

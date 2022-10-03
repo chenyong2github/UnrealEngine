@@ -950,7 +950,7 @@ void FVulkanDevice::MapFormatSupport(EPixelFormat UEFormat, std::initializer_lis
 	MapFormatSupport(UEFormat, PrioritizedFormats, ComponentMapping, RequiredCapabilities, kDefaultBlockBytes);
 }
 
-void FVulkanDevice::InitGPU(int32 DeviceIndex)
+void FVulkanDevice::InitGPU()
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanMisc);
 
@@ -1021,7 +1021,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		}
 	}
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Device properties: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 
 	CreateDevice(DeviceLayers, UEExtensions);
 

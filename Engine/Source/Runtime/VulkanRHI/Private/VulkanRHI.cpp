@@ -224,10 +224,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 
 	// Copy source requires its own image layout.
 	EnumRemoveFlags(GRHIMergeableAccessMask, ERHIAccess::CopySrc);
-}
 
-void FVulkanDynamicRHI::Init()
-{
 	// Setup the validation requests ready before we load dlls
 	SetupValidationRequests();
 
@@ -238,7 +235,7 @@ void FVulkanDynamicRHI::Init()
 #if PLATFORM_LINUX
 		// be more verbose on Linux
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("UnableToInitializeVulkanLinux", "Unable to load Vulkan library and/or acquire the necessary function pointers. Make sure an up-to-date libvulkan.so.1 is installed.").ToString(),
-									 *LOCTEXT("UnableToInitializeVulkanLinuxTitle", "Unable to initialize Vulkan.").ToString());
+			*LOCTEXT("UnableToInitializeVulkanLinuxTitle", "Unable to initialize Vulkan.").ToString());
 #endif // PLATFORM_LINUX
 		UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed to find all required Vulkan entry points; make sure your driver supports Vulkan!"));
 	}
@@ -252,6 +249,12 @@ void FVulkanDynamicRHI::Init()
 	LLM(VulkanLLM::Initialize());
 #endif
 
+	CreateInstance();
+	SelectDevice();
+}
+
+void FVulkanDynamicRHI::Init()
+{
 	InitInstance();
 
 	bIsStandaloneStereoDevice = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice();
@@ -523,7 +526,7 @@ static inline int32 PreferAdapterVendor()
 	return -1;
 }
 
-void FVulkanDynamicRHI::SelectAndInitDevice()
+void FVulkanDynamicRHI::SelectDevice()
 {
 	uint32 GpuCount = 0;
 	VkResult Result = VulkanRHI::vkEnumeratePhysicalDevices(Instance, &GpuCount, nullptr);
@@ -685,15 +688,13 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 		}
 	}
 
+	UE_LOG(LogVulkanRHI, Log, TEXT("Chosen device index: %d"), DeviceIndex);
+
 	if (bUseVendorIdAsIs)
 	{
 		GRHIVendorId = Props.vendorID;
 	}
 	GRHIAdapterName = ANSI_TO_TCHAR(Props.deviceName);
-
-	FVulkanPlatform::CheckDeviceDriver(DeviceIndex, Device->GetVendorId(), Props);
-
-	Device->InitGPU(DeviceIndex);
 
 	auto ReadVulkanDriverVersionFromProps = [](FVulkanDevice* CurrentDevice) {
 
@@ -714,10 +715,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 		GRHIDeviceId = Props.deviceID;
 		GRHIAdapterInternalDriverVersion = GRHIAdapterUserDriverVersion;
 		GRHIAdapterDriverDate = TEXT("01-01-01");  // Unused on unix systems, pick a date that will fail test if compared but passes IsValid() check
-
-		UE_LOG(LogVulkanRHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
 		UE_LOG(LogVulkanRHI, Log, TEXT("     API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
-		UE_LOG(LogVulkanRHI, Log, TEXT("  Driver Version: %s"), *GRHIAdapterUserDriverVersion);
 	};
 
 	if (PLATFORM_ANDROID)
@@ -728,25 +726,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	else if (PLATFORM_WINDOWS)
 	{
 		GRHIDeviceId = Props.deviceID;
-		FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-
-		if (GPUDriverInfo.InternalDriverVersion != TEXT("Unknown"))
-		{
-			GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
-			GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
-			GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
-
-			UE_LOG(LogVulkanRHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
-			UE_LOG(LogVulkanRHI, Log, TEXT("     API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
-			UE_LOG(LogVulkanRHI, Log, TEXT("  Driver Version: %s (0x%X)"), *GRHIAdapterUserDriverVersion, Props.driverVersion);
-			UE_LOG(LogVulkanRHI, Log, TEXT("Internal Version: %s"), *GRHIAdapterInternalDriverVersion);
-			UE_LOG(LogVulkanRHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
-		}
-		else
-		{
-			// If we failed to read from the registry, then use the values provided by Vulkan props
-			ReadVulkanDriverVersionFromProps(Device);
-		}
+		UE_LOG(LogVulkanRHI, Log, TEXT("API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
 	}
 	else if(PLATFORM_UNIX)
 	{
@@ -760,20 +740,17 @@ void FVulkanDynamicRHI::InitInstance()
 {
 	check(IsInGameThread());
 
-	if (!Device)
+	if (!GIsRHIInitialized)
 	{
 		// Wait for the rendering thread to go idle.
 		FlushRenderingCommands();
-
-		check(!GIsRHIInitialized);
 
 		FVulkanPlatform::OverridePlatformHandlers(true);
 
 		GRHISupportsAsyncTextureCreation = false;
 		GEnableAsyncCompute = false;
 
-		CreateInstance();
-		SelectAndInitDevice();
+		Device->InitGPU();
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
 		if (GRenderDocFound)

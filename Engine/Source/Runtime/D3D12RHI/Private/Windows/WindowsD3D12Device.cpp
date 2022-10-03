@@ -855,6 +855,12 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	if (ChosenAdapters.Num() > 0 && ChosenAdapters[0]->GetDesc().IsValid())
 	{
 		UE_LOG(LogD3D12RHI, Log, TEXT("Chosen D3D12 Adapter Id = %u"), ChosenAdapters[0]->GetAdapterIndex());
+
+		const DXGI_ADAPTER_DESC& AdapterDesc = ChosenAdapters[0]->GetD3DAdapterDesc();
+		GRHIVendorId = AdapterDesc.VendorId;
+		GRHIAdapterName = AdapterDesc.Description;
+		GRHIDeviceId = AdapterDesc.DeviceId;
+		GRHIDeviceRevision = AdapterDesc.Revision;
 	}
 	else
 	{
@@ -1144,8 +1150,7 @@ void FD3D12DynamicRHI::Init()
 
 	const DXGI_ADAPTER_DESC& AdapterDesc = GetAdapter().GetD3DAdapterDesc();
 
-	// Need to set GRHIVendorId before calling IsRHIDevice* functions
-	GRHIVendorId = AdapterDesc.VendorId;
+	UE_LOG(LogD3D12RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), AdapterDesc.DeviceId);
 
 #if AMD_API_ENABLE
 	// Initialize the AMD AGS utility library, when running on an AMD device
@@ -1322,26 +1327,6 @@ void FD3D12DynamicRHI::Init()
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
 
 	GTexturePoolSize = 0;
-
-	GRHIAdapterName = AdapterDesc.Description;
-	GRHIDeviceId = AdapterDesc.DeviceId;
-	GRHIDeviceRevision = AdapterDesc.Revision;
-
-	UE_LOG(LogD3D12RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"),
-		AdapterDesc.DeviceId);
-
-	// get driver version (todo: share with other RHIs)
-	{
-		FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-
-		GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
-		GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
-		GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
-
-		UE_LOG(LogD3D12RHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
-		UE_LOG(LogD3D12RHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
-		UE_LOG(LogD3D12RHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
-	}
 
 	// Issue: 32bit windows doesn't report 64bit value, we take what we get.
 	FD3D12GlobalStats::GDedicatedVideoMemory = int64(AdapterDesc.DedicatedVideoMemory);

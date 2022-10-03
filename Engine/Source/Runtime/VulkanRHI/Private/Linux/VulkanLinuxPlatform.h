@@ -46,7 +46,6 @@ class FVulkanLinuxPlatform : public FVulkanGenericPlatform
 public:
 	static bool IsSupported();
 
-	static void CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId VendorId, const VkPhysicalDeviceProperties& Props);
 	static bool LoadVulkanLibrary();
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 	static void FreeVulkanLibrary();

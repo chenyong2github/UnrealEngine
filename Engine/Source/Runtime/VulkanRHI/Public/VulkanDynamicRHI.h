@@ -379,7 +379,7 @@ protected:
 	TRefCountPtr<FVulkanViewport> DrawingViewport;
 
 	void CreateInstance();
-	void SelectAndInitDevice();
+	void SelectDevice();
 	void InitGPU(FVulkanDevice* Device);
 	void InitDevice(FVulkanDevice* Device);
 
@@ -391,7 +391,7 @@ protected:
 	static void WriteEndFrameTimestamp(void*);
 	*/
 
-	static TArray<const ANSICHAR*> SetupInstanceLayers(FVulkanInstanceExtensionArray& UEExtensions);
+	TArray<const ANSICHAR*> SetupInstanceLayers(FVulkanInstanceExtensionArray& UEExtensions);
 
 	IConsoleObject* SavePipelineCacheCmd = nullptr;
 	IConsoleObject* RebuildPipelineCacheCmd = nullptr;

@@ -197,7 +197,7 @@ public:
 
 	~FVulkanDevice();
 
-	void InitGPU(int32 DeviceIndex);
+	void InitGPU();
 
 	void CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanDeviceExtensionArray& UEExtensions);
 
