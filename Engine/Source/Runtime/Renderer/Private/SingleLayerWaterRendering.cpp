@@ -1011,6 +1011,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 		if (SingleLayerWaterDepthPrepassTexture.Target != nullptr)
 		{
 			SceneTexturesInternal.Depth = SingleLayerWaterDepthPrepassTexture;
+			// Rebuild scene textures uniform buffer to include new depth buffer.
+			SceneTexturesInternal.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTexturesInternal, FeatureLevel, SceneTexturesInternal.SetupMode);
 		}
 
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
